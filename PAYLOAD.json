@@ -1,0 +1,818 @@
+{
+  "agent_requests": [],
+  "applied_set": {
+    "excluded": [
+      {
+        "file": ".gitkeep",
+        "phase": "post",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      },
+      {
+        "file": ".gitkeep",
+        "phase": "pre",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      }
+    ],
+    "patches": [
+      {
+        "file": "strip-hoist",
+        "ledger_result_source": "status-file",
+        "phase": "inline",
+        "reason": "register_opaque_type accepts hoist / opaque_object 부재",
+        "result": "skipped",
+        "result_source": "build-ledger"
+      }
+    ],
+    "probes": [
+      {
+        "ref": "output/single/benchlog/attestation_minicpm5-2b-v031.json(부재)",
+        "result": "absent",
+        "tier": "attestation"
+      },
+      {
+        "image": "sha256:339737df6571ce00993e731ef064a8db66085beaa650e4aa63bdb24f414b2034",
+        "image_source": "measured image_digest(evidence.build_identity · 내용 권위)",
+        "method": "docker create+cp(시작 ✗)",
+        "result": "observed",
+        "tier": "local-image"
+      }
+    ],
+    "source": "docker-image(main-local):sha256:339737df6571ce00993e731ef064a8db66085beaa650e4aa63bdb24f414b2034:/opt/easy-vllm/build_ledger.json",
+    "status": "observed"
+  },
+  "approval": {
+    "approved_by": "사용자(캠페인 개설 팝업 발화 전사) — \"열기 · 5셀 발행 승인 (Recommended)\"",
+    "approved_utc": "2026-10-16T11:48:00Z",
+    "source": "campaign:hint_targets"
+  },
+  "attestation_scope": null,
+  "bench_definition": {
+    "bench_tool": "guidellm",
+    "bench_tool_source": "bench_report(bench_report_26101616_54_23_minicpm5-2b_GB10_0.31.0.md)",
+    "current_full_definition": "full 계측(lite 게이트 → `GuideLLM × 반복 ≥3` · lite ⊂ full)",
+    "meets_current_full": true,
+    "reasons": [
+      "판정점 반복 3 ≥ 3 · 도구 guidellm"
+    ],
+    "repeats_requested": 3,
+    "repeats_source": "측정 구성 표 repeats_completed(완주 · bench_report(bench_report_26101616_54_23_minicpm5-2b_GB10_0.31.0.md))",
+    "required_legs": [
+      "lite",
+      "GuideLLM"
+    ],
+    "required_repeats": 3,
+    "source": ".claude/rules/docs.md",
+    "source_line": 42,
+    "this_repeats": 3,
+    "verdict_level": 1
+  },
+  "build": {
+    "cpu_arch": "arm64",
+    "cuda": "13.3.1.008",
+    "dockerfile": "Dockerfile.source-build",
+    "driver": "580.173.02",
+    "driver_by_node": null,
+    "driver_conflict": null,
+    "image_digest": "sha256:339737df6571ce00993e731ef064a8db66085beaa650e4aa63bdb24f414b2034",
+    "image_tag": "easy-vllm:0.31.0-cu133-aarch64-source",
+    "ngc": "nvcr.io/nvidia/pytorch:26.07-py3",
+    "os": null,
+    "source": {
+      "cpu_arch": "docker image inspect Architecture",
+      "cuda": "docker image inspect Config.Env CUDA_VERSION",
+      "dockerfile": "build-ledger.dockerfile",
+      "driver": "sweep_index.meta.driver_version(output/single/benchlog/sweep_minicpm5-2b-v031 · 측정 시 조립 — sweep_bench.sh 가 manifest 에서 읽는다) (manifest 선언 옮김)",
+      "image_digest": "sweep_index.meta.image_digest(measured(docker inspect .Image))",
+      "image_tag": "셀 env(output/single/envs/.env.minicpm5-2b-v031) IMAGE_TAG",
+      "ngc": "docker image inspect Config.Env NVIDIA_PYTORCH_VERSION = resolved.json ngc_base.image 접두 일치",
+      "os": "미관측(attestation·인증서·스윕 meta·manifest 에 ['os', 'os_release', 'os_name', 'os_version', 'kernel', 'kernel_release'] 키 없음 — 지어내지 않는다)",
+      "torch": "docker image inspect Config.Env PYTORCH_VERSION",
+      "track": "artifacts 선택자(build-ledger.dockerfile)",
+      "vllm_ref": "docker history build-arg VLLM_REF",
+      "vllm_repo": "docker history build-arg VLLM_REPO",
+      "vllm_sha": "output/single/resolved.json upstream_delta.to_sha"
+    },
+    "torch": "2.13.0a0+9186a08",
+    "track": "source-build",
+    "vllm_ref": "v0.31.0",
+    "vllm_repo": "https://github.com/vllm-project/vllm.git",
+    "vllm_sha": "db9527a46873454610df6dbedf79a36d6bf1a7f6"
+  },
+  "build_context_map": [
+    {
+      "basis": "compose env_file envs/.env.${CONFIG_FILE}(셀 env)",
+      "context_path": "envs/.env.minicpm5-2b-v031",
+      "slot_path": "artifacts/triplet/.env.minicpm5-2b-v031"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/minicpm5-2b-v031.sh",
+      "slot_path": "artifacts/triplet/minicpm5-2b-v031.sh"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/minicpm5-2b-v031.yaml",
+      "slot_path": "artifacts/triplet/minicpm5-2b-v031.yaml"
+    },
+    {
+      "basis": "compose build.dockerfile Dockerfile.source-build(리터럴) · build.context .",
+      "context_path": "Dockerfile.source-build",
+      "slot_path": "artifacts/build_recipe/Dockerfile.source-build"
+    },
+    {
+      "basis": "Dockerfile.source-build COPY requirements.txt",
+      "context_path": "requirements.txt",
+      "slot_path": "artifacts/build_recipe/requirements.txt"
+    },
+    {
+      "basis": "compose 변수치환 프로젝트 .env(${…} 참조)",
+      "context_path": ".env",
+      "slot_path": "artifacts/compose/.env.template"
+    },
+    {
+      "basis": "compose 파일(빌드 컨텍스트 루트)",
+      "context_path": "docker-compose.yaml",
+      "slot_path": "artifacts/compose/docker-compose.yaml"
+    }
+  ],
+  "campaign": {
+    "cell": "minicpm5-2b-v031",
+    "id": "camp-26101616-cnn-hint",
+    "mode": "campaign",
+    "node": "main"
+  },
+  "cell_grade": "full",
+  "dataset_provenance": {
+    "dataset_column_map": "{\"text_column\": \"article\"}",
+    "dataset_duplicate_sampling": "False",
+    "dataset_id": "abisee/cnn_dailymail 3.0.0 test",
+    "dataset_kind": "parquet_file",
+    "dataset_preprocess_strategy": "concatenate",
+    "dataset_provenance": null,
+    "dataset_revision": "96df5e686bee6baa90b8bee7c28b81fa3fa6223d",
+    "dataset_seed": "42",
+    "dataset_source": "managed",
+    "dataset_source_sha256": "04e322d2634a96dba76bf9a6294fbbe48e0b36abeae43f13d86ba2c3bebffe4e",
+    "dataset_tokenizer": "/app/models/Openbmb/MiniCPM5/MiniCPM5-2B",
+    "source": "bench_report(bench_report_26101616_54_23_minicpm5-2b_GB10_0.31.0.md) 측정 구성 표",
+    "status": "recorded"
+  },
+  "evidence_pointers": [
+    {
+      "cell_id": "minicpm5-2b-v031",
+      "kind": "bench_report",
+      "node_id": "main",
+      "path": "docs/benchmark/bench_report_26101616_54_23_minicpm5-2b_GB10_0.31.0.md"
+    },
+    {
+      "cell_id": "minicpm5-2b-v031",
+      "kind": "devlog",
+      "node_id": "main",
+      "path": "docs/devlog/devlog_26101620_CNN_fullbench_셀_minicpm5_2b_v031.md"
+    },
+    {
+      "cell_id": "minicpm5-2b-v031",
+      "kind": "testlog",
+      "node_id": "main",
+      "path": "docs/testlog/testlog_26101619_54_16_CNN_fullbench_셀_minicpm5_2b_v031_판정.md"
+    }
+  ],
+  "factcheck": {
+    "author": "메인 저작 Agent(minicpm 저작 세션)",
+    "checked_utc": "2026-10-16T12:11:49Z",
+    "checker": "메인 검증 Agent(minicpm 사실 검증 세션)",
+    "claims_checked": 132,
+    "fixed": 8,
+    "items": 8,
+    "open": [],
+    "reason_code": null,
+    "source": "inputs/factcheck.json",
+    "status": "passed"
+  },
+  "format": "hint-payload/v7",
+  "generated_utc": "2026-10-16T11:45:28Z",
+  "identity": {
+    "base_model": null,
+    "base_slug": "minicpm5-2b",
+    "gpu": "NVIDIA GB10",
+    "hf_repo": "openbmb/MiniCPM5-2B",
+    "hf_revision": "f97400052a43d642bbc6e9975e2397e3ae6a6b52",
+    "model": "minicpm5-2b",
+    "quant": "bf16",
+    "quant_composition": [
+      {
+        "dtype": "bfloat16",
+        "scope": "기본 dtype(비양자화 가중치·계산)",
+        "source": "/app/models/Openbmb/MiniCPM5/MiniCPM5-2B → <manifest.nas_model_path>/Openbmb/MiniCPM5/MiniCPM5-2B/config.json torch_dtype"
+      }
+    ],
+    "source": {
+      "base_model": "README 머리 YAML 에 base_model 없음(/app/models/Openbmb/MiniCPM5/MiniCPM5-2B → <manifest.nas_model_path>/Openbmb/MiniCPM5/MiniCPM5-2B)",
+      "base_slug": "model(minicpm5-2b) − vocab quant_suffixes(naming.base_slug)",
+      "gpu": "sweep_index.meta(output/single/benchlog/sweep_minicpm5-2b-v031)",
+      "hf_repo": "체크포인트 .git/config remote url(huggingface.co · /app/models/Openbmb/MiniCPM5/MiniCPM5-2B → <manifest.nas_model_path>/Openbmb/MiniCPM5/MiniCPM5-2B)",
+      "hf_revision": "체크포인트 .git HEAD → refs/heads/main → loose ref(/app/models/Openbmb/MiniCPM5/MiniCPM5-2B → <manifest.nas_model_path>/Openbmb/MiniCPM5/MiniCPM5-2B) · refs/remotes/origin/main 와 일치(받아 온 원격 커밋) — checkout 커밋(작업트리 일치는 미검증) · reflog: 측정 시점 checkout = 지금 HEAD(measured_utc 2026-10-16T07:54:23Z 이전 마지막 이동 2026-10-07T05:21:19Z)",
+      "model": "sweep_index.meta(output/single/benchlog/sweep_minicpm5-2b-v031)",
+      "quant": "naming-axis(q) — 측정 identity quantization 미관측(sweep_index.meta(output/single/benchlog/sweep_minicpm5-2b-v031)) · q 축 = /app/models/Openbmb/MiniCPM5/MiniCPM5-2B → <manifest.nas_model_path>/Openbmb/MiniCPM5/MiniCPM5-2B/config.json quantization_config·hf_quant_config.json 부재 관측 → 비양자화 · vocab quant[bf16]←'none'",
+      "quant_composition": "/app/models/Openbmb/MiniCPM5/MiniCPM5-2B → <manifest.nas_model_path>/Openbmb/MiniCPM5/MiniCPM5-2B/config.json(+hf_quant_config.json) 관측 칸(evidence._quant_composition 닫힌 목록)",
+      "topology": "sweep_index.meta(output/single/benchlog/sweep_minicpm5-2b-v031)",
+      "tp": "sweep_index.meta(output/single/benchlog/sweep_minicpm5-2b-v031)",
+      "vllm": "sweep_index.meta(output/single/benchlog/sweep_minicpm5-2b-v031)"
+    },
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "measurement": {
+    "accept_len": null,
+    "benchmark_mode": "full",
+    "decode_tps_conc1": "38.13",
+    "floor_tps": "16.13",
+    "generated_utc": "2026-10-16T07:54:23Z",
+    "levels": [
+      {
+        "accept_len": null,
+        "completed": 16,
+        "decode_tps": 38.13,
+        "decode_tps_mean": 38.14,
+        "failed": 0,
+        "itl_ms_median": 25.913021611232384,
+        "level": 1,
+        "max_concurrency": 1,
+        "measurement_ok": true,
+        "output_throughput": 38.17672057184363,
+        "status": "ok",
+        "tpot_ms_median": 26.228186674416065,
+        "ttft_ms_median": 106.70328140258789
+      },
+      {
+        "accept_len": null,
+        "completed": 16,
+        "decode_tps": 45.19,
+        "decode_tps_mean": 45.19,
+        "failed": 0,
+        "itl_ms_median": 21.57618859234978,
+        "level": 2,
+        "max_concurrency": 2,
+        "measurement_ok": true,
+        "output_throughput": 90.64553718231204,
+        "status": "ok",
+        "tpot_ms_median": 22.12646696716547,
+        "ttft_ms_median": 162.8739833831787
+      },
+      {
+        "accept_len": null,
+        "completed": 16,
+        "decode_tps": 43.61,
+        "decode_tps_mean": 43.72,
+        "failed": 0,
+        "itl_ms_median": 21.98041747598087,
+        "level": 4,
+        "max_concurrency": 4,
+        "measurement_ok": true,
+        "output_throughput": 141.8987013799454,
+        "status": "ok",
+        "tpot_ms_median": 22.932428866624832,
+        "ttft_ms_median": 226.4101505279541
+      },
+      {
+        "accept_len": null,
+        "completed": 16,
+        "decode_tps": 40.41,
+        "decode_tps_mean": 40.81,
+        "failed": 0,
+        "itl_ms_median": 22.967735926310223,
+        "level": 8,
+        "max_concurrency": 8,
+        "measurement_ok": true,
+        "output_throughput": 228.19757996350432,
+        "status": "ok",
+        "tpot_ms_median": 24.746978655457497,
+        "ttft_ms_median": 471.29130363464355
+      }
+    ],
+    "lite": {
+      "cold_ttft_ms": 33.8,
+      "engine_kv_gib": 35.0,
+      "engine_kv_tokens": 873808,
+      "engine_reserved_total_gib": 39.75,
+      "engine_weights_gib": 4.75,
+      "gen_src": "median_tpot",
+      "gen_tps": 38.97,
+      "kv_gib": 35.0
+    },
+    "measured_utc": "2026-10-16T07:54:23Z",
+    "primary_source": "expected_achievable(roofline×MBU)",
+    "primary_tps": "18.98",
+    "ratio_M_over_primary": "2.009",
+    "rubric_authority": "weak",
+    "source": "판정 원천(verdict.json) + sweep_index(output/single/benchlog/sweep_minicpm5-2b-v031 · output)",
+    "sources": {
+      "accept_len": "output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json measured_accept_len = null(측정값 없음) · rubric.spec_axis: declared=off · accept_len=1.0 · accept_len_source=declared-absent · missing=false — spec 미선언이라 루브릭이 1.0 을 쓴다(선언값 · 측정 아님 · 결손 아님)",
+      "benchmark_mode": "measurement_config.bench_mode(bench_report(bench_report_26101616_54_23_minicpm5-2b_GB10_0.31.0.md))",
+      "decode_tps_conc1": "output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) measured_decode_tps",
+      "floor_tps": "output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) rubric.floor",
+      "levels": "sweep_index(output/single/benchlog/sweep_minicpm5-2b-v031 · output)",
+      "lite": "sweep_index.lite(output/single/benchlog/sweep_minicpm5-2b-v031)",
+      "measured_utc": "sweep_index.generated_utc(output/single/benchlog/sweep_minicpm5-2b-v031)",
+      "primary_source": "output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) rubric.source",
+      "primary_tps": "output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) rubric.primary",
+      "ratio_M_over_primary": "output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) rubric.ratio_M_over_primary",
+      "rubric_authority": "output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) rubric.authority",
+      "spec_on": "output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) measured_spec_on",
+      "tolerance": "output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) rubric.tolerance",
+      "verdict": "output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) verdict",
+      "verdict_point_level": "sweep_index(output/single/benchlog/sweep_minicpm5-2b-v031 · output)"
+    },
+    "spec_on": "false",
+    "tolerance": "0.15",
+    "verdict": "PASS",
+    "verdict_point_level": 1
+  },
+  "measurement_config": {
+    "bench_mode": "full",
+    "bench_mode_kind": "full",
+    "bench_tool": "guidellm",
+    "bench_tool_version": "0.7.3",
+    "downgrade_reason": null,
+    "repeats": 3,
+    "repeats_completed": 3,
+    "source": "bench_report(bench_report_26101616_54_23_minicpm5-2b_GB10_0.31.0.md)"
+  },
+  "measurement_env_observed": [],
+  "missing": [],
+  "missing_reasons": {},
+  "naming": {
+    "axes": {
+      "gpus_per_node": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(캠페인 assignments(배정 SSOT)) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "1"
+      },
+      "hw": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(캠페인 assignments(배정 SSOT)) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언) · vocab hw[gb10]←'NVIDIA GB10'",
+        "value": "gb10"
+      },
+      "kv": {
+        "source": "서빙 yaml kv-cache-dtype 부재 관측(output/single/configs/minicpm5-2b-v031.yaml) → 엔진 기본값 auto · vocab kv[auto]←'auto'",
+        "value": "auto"
+      },
+      "len": {
+        "source": "서빙 yaml max-model-len(output/single/configs/minicpm5-2b-v031.yaml)",
+        "value": "32768"
+      },
+      "nodes": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(캠페인 assignments(배정 SSOT)) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "1"
+      },
+      "plane": {
+        "source": "artifacts.plane_of → cell-env(IMAGE_TAG|BUILD_DOCKERFILE) · vocab plane[docker]→''",
+        "token": "",
+        "value": "docker"
+      },
+      "q": {
+        "source": "/app/models/Openbmb/MiniCPM5/MiniCPM5-2B → <manifest.nas_model_path>/Openbmb/MiniCPM5/MiniCPM5-2B/config.json quantization_config·hf_quant_config.json 부재 관측 → 비양자화 · vocab quant[bf16]←'none'",
+        "value": "bf16"
+      },
+      "role": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(캠페인 assignments(배정 SSOT)) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "main"
+      },
+      "target": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(캠페인 assignments(배정 SSOT)) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언) · target_gpu 'GB10' = 호스트 hw → native",
+        "value": "native"
+      }
+    },
+    "grammar": "v7",
+    "segments": {
+      "arch": {
+        "source": "derived(hw·gpus_per_node·nodes·role·target·plane)",
+        "value": "gb10-1g1n-main-native"
+      },
+      "model": {
+        "source": "서빙 yaml model(output/single/configs/minicpm5-2b-v031.yaml) · hf_repo=체크포인트 .git/config remote url(huggingface.co · /app/models/Openbmb/MiniCPM5/MiniCPM5-2B → <manifest.nas_model_path>/Openbmb/MiniCPM5/MiniCPM5-2B) · hf_repo(openbmb/MiniCPM5-2B) 마지막 성분 소문자",
+        "value": "minicpm5-2b"
+      },
+      "recipe": {
+        "source": "derived(q·len·kv)",
+        "value": "qbf16-len32768-kvauto"
+      },
+      "vllm": {
+        "source": "track=선택자 Dockerfile.source-build(docker history build-arg 관측) · ref=docker history build-arg VLLM_REF · version=VLLM_VERSION 미관측 · repo=docker history build-arg VLLM_REPO · sha=output/single/resolved.json upstream_delta.to_sha · VLLM_REF=v0.31.0(업스트림 릴리스 태그 · v 제거)",
+        "value": "0.31.0"
+      }
+    },
+    "tail": [],
+    "timestamp": null,
+    "vllm_build_input": {
+      "kind": "release",
+      "prev_release": null,
+      "ref": "v0.31.0",
+      "sha": "db9527a46873454610df6dbedf79a36d6bf1a7f6"
+    },
+    "vllm_observed": {
+      "certificate_vllm_version": null,
+      "certificate_vllm_version_producer": "absent",
+      "certificate_vllm_version_source": "인증서 vllm_version 없음",
+      "engine_self_report": "0.31.1.dev0+gdb9527a46.d20261014",
+      "engine_self_report_basis": "this-measurement",
+      "engine_self_report_source": "output/single/benchlog/sweep_minicpm5-2b-v031/lite_engine_head_minicpm5-2b-v031.log:38(이 측정의 엔진 로그 기동 배너)",
+      "source": "칸별 출처는 *_source — engine_self_report=this-measurement · certificate_vllm_version=absent · wheel_meta=미관측",
+      "wheel_meta": null,
+      "wheel_meta_source": "미관측 — attestation vllm_dist_version · native pip freeze 모두 없다(sweep_index.meta.vllm_build='NA' 는 sweep_bench 가 엔진 로그에서 `v<x.y.z…>` 정규식으로 잡는 값이다 → engine_self_report 의 원천)"
+    }
+  },
+  "native_source": null,
+  "plane": "docker",
+  "prior_approval": null,
+  "publication": {
+    "manifest_ref": "docs/_evidence/camp_26101616_cnn_hint__main__minicpm5_2b_v031.work-manifest.json",
+    "task_class": "full_benchmark",
+    "topic": "camp_26101616_cnn_hint__main__minicpm5_2b_v031"
+  },
+  "qualification": {
+    "health_200": true,
+    "inference_observed": true,
+    "method": "post_health+guidellm(parse_guidellm completed = request_totals.successful)",
+    "sources": [
+      "output/single/benchlog/sweep_minicpm5-2b-v031/level_01/post_health_minicpm5-2b-v031.json",
+      "output/single/benchlog/sweep_minicpm5-2b-v031/level_01/guidellm_minicpm5-2b-v031.json"
+    ]
+  },
+  "schema_version": 3,
+  "slots": {
+    "build_patch_post": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": "원장 관측",
+        "ref": "docker-image(main-local):sha256:339737df6571ce00993e731ef064a8db66085beaa650e4aa63bdb24f414b2034:/opt/easy-vllm/build_ledger.json"
+      },
+      "excluded": [
+        {
+          "file": ".gitkeep",
+          "phase": "post",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        }
+      ],
+      "file_records": [],
+      "files": [],
+      "machine_reason": "적용 판정 없음 — 원장 관측",
+      "rationale": null
+    },
+    "build_patch_pre": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": "원장 관측",
+        "ref": "docker-image(main-local):sha256:339737df6571ce00993e731ef064a8db66085beaa650e4aa63bdb24f414b2034:/opt/easy-vllm/build_ledger.json"
+      },
+      "excluded": [
+        {
+          "file": ".gitkeep",
+          "phase": "pre",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        }
+      ],
+      "file_records": [],
+      "files": [],
+      "machine_reason": "적용 판정 없음 — 원장 관측",
+      "rationale": null
+    },
+    "build_recipe": {
+      "applicable": true,
+      "confidence": "3-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": "requirements.txt: Dockerfile.source-build 이 COPY → /etc/pip/constraint.txt(제약 천장 · wheel 설치 입력 아님)",
+        "recipe_vs_image": [
+          {
+            "history_match": {
+              "matched": 16,
+              "total": 17
+            },
+            "image_created_utc": "2026-10-14T01:45:19Z",
+            "last_commit_utc": "2026-10-14T03:07:26Z",
+            "path": "output/single/Dockerfile.source-build",
+            "selection_method": "worktree(어느 개정도 이미지 history 와 더 맞지 않는다 · 작업트리 16/17 — recipe_vs_image 경고 유지)",
+            "shipped": "worktree",
+            "tracked": true,
+            "warning": "실린 바이트(worktree)가 측정 이미지 docker history 의 RUN·COPY 와 전수 일치하지 않는다(16/17) · 이미지 빌드 뒤 바뀐 레시피일 수 있다 — 마지막 커밋이 이미지 Created 뒤",
+            "worktree_equals_head": true
+          },
+          {
+            "image_created_utc": "2026-10-14T01:45:19Z",
+            "last_commit_utc": "2026-10-14T03:07:26Z",
+            "note": "작업트리 경고(이미지 빌드 뒤 바뀐 레시피일 수 있다 — 마지막 커밋이 이미지 Created 뒤)는 실린 파일에 해당하지 않는다 — 실린 바이트 = worktree · worktree(빌드 원장 sha256 일치 — 쓰인 바이트 관측 확인 = 예)",
+            "path": "output/single/requirements.txt",
+            "selection_method": "worktree(빌드 원장 sha256 일치 — 쓰인 바이트 관측 확인 = 예)",
+            "shipped": "worktree",
+            "tracked": true,
+            "worktree_equals_head": true
+          }
+        ],
+        "ref": "build-ledger.dockerfile",
+        "selected_revision": {
+          "candidates": [
+            {
+              "matched": 16,
+              "revision": "worktree",
+              "total": 17
+            },
+            {
+              "matched": 15,
+              "revision": "1575bf4f8d05587d186bbc5932b4f870d01157f5",
+              "total": 18
+            }
+          ],
+          "commit": null,
+          "history_match": {
+            "matched": 16,
+            "total": 17
+          },
+          "method": "worktree(어느 개정도 이미지 history 와 더 맞지 않는다 · 작업트리 16/17 — recipe_vs_image 경고 유지)",
+          "path": "output/single/Dockerfile.source-build"
+        },
+        "selected_revisions": [
+          {
+            "commit": null,
+            "history_match": {
+              "matched": 16,
+              "total": 17
+            },
+            "method": "worktree(어느 개정도 이미지 history 와 더 맞지 않는다 · 작업트리 16/17 — recipe_vs_image 경고 유지)",
+            "path": "output/single/Dockerfile.source-build",
+            "shipped": "worktree",
+            "verified": false
+          },
+          {
+            "commit": null,
+            "history_match": null,
+            "method": "worktree(빌드 원장 sha256 일치 — 쓰인 바이트 관측 확인 = 예)",
+            "path": "output/single/requirements.txt",
+            "shipped": "worktree",
+            "verified": true
+          }
+        ]
+      },
+      "file_records": [
+        {
+          "bytes_observed": false,
+          "generated_by": "renderer",
+          "header": {
+            "line": 2,
+            "style": "comment",
+            "text": "# ⚠ generated-unverified — 실린 Dockerfile.source-build(worktree)이 측정 이미지 docker history RUN·COPY 와 16/17 만 일치 — 이 이미지를 지은 바이트임을 관측으로 확인하지 못했다 · 생성: renderer",
+            "why_line_2": "Dockerfile 파서 지시자 보존"
+          },
+          "path": "artifacts/build_recipe/Dockerfile.source-build",
+          "relevance": "unknown",
+          "relevance_basis": "이 셀은 이 경로로 실행되지 않았다(generated-unverified · 생성 renderer) — 실행 기록이 없어 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "fc0e8c8f9f6a0015c9dbda1dd37a22fa20d394a13f47562cdbfa1d5ea09d8564",
+          "verification": "generated-unverified",
+          "verification_basis": "실린 Dockerfile.source-build(worktree)이 측정 이미지 docker history RUN·COPY 와 16/17 만 일치 — 이 이미지를 지은 바이트임을 관측으로 확인하지 못했다(_select_dockerfile · worktree(어느 개정도 이미지 history 와 더 맞지 않는다 · 작업트리 16/17 — recipe_vs_image 경고 유지))"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_recipe/requirements.txt",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "849a0502862dba466b2c349a211694370f01c1eb614ddfc73397c2cd93d1bfc4",
+          "verification": "verified",
+          "verification_basis": "쓰인 레시피(build-ledger.dockerfile) — 개정 선택 slots.build_recipe.evidence.selected_revisions"
+        }
+      ],
+      "files": [
+        "artifacts/build_recipe/Dockerfile.source-build",
+        "artifacts/build_recipe/requirements.txt"
+      ],
+      "machine_reason": "쓰인 Dockerfile 선택자 Dockerfile.source-build(build-ledger.dockerfile) + 그것이 COPY 하는 파일",
+      "rationale": "(a) NGC `pytorch:26.07-py3` 위에 vLLM `v0.31.0` 을 소스로 짓는 **stock** 스켈레톤이다 — 빌드 패치 슬롯은 비어 있고(plan_26101410_vllm031_bump_14B이하_4종_양노드_서빙_lite §3 \"싱글 빌드 슬롯 … 비어 있음\"), NGC 의 torch 를 그대로 쓰도록 use_existing_torch 단계를 돌리며(0.31.0 부터 `tools/` 로 옮겨진 경로를 자기적응 — 파일 주석), 인라인 `strip-hoist` 단계를 품는다. (b) 이 셀의 벽(W1 · W2)은 측정 하네스 쪽이라 이 레시피와 무관하다 — 필요 근거는 빌드 트랙 판정(같은 plan §3 · torch ≥2.11 ABI 벽)이다. (c) 1.1 표가 `generate…"
+    },
+    "compose": {
+      "applicable": true,
+      "confidence": "2-signal",
+      "evidence": {
+        "kind": "file",
+        "measured_utc": "2026-10-16T07:54:23Z",
+        "note": "서빙 러너 [] · env 형상 실림 1/1",
+        "post_measurement_regenerated": [],
+        "ref": "output/single/docker-compose.yaml",
+        "selected_revision": {
+          "basis": "mtime≤measured",
+          "commit": "12ef50a89b86cb30d4c5b87c32506c5563ff4655",
+          "commits_after_measurement": [],
+          "cross_check": [
+            "측정 뒤 커밋 0",
+            "작업트리 = HEAD"
+          ],
+          "history_match": null,
+          "measured_utc": "2026-10-16T07:54:23Z",
+          "method": "worktree(mtime 2026-10-14T01:06:26Z ≤ 측정 2026-10-16T07:54:23Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 12ef50a89b86)",
+          "mtime_utc": "2026-10-14T01:06:26Z",
+          "path": "output/single/docker-compose.yaml",
+          "shipped": "worktree",
+          "verified": true
+        },
+        "selected_revisions": [
+          {
+            "basis": "mtime≤measured",
+            "commit": "12ef50a89b86cb30d4c5b87c32506c5563ff4655",
+            "commits_after_measurement": [],
+            "cross_check": [
+              "측정 뒤 커밋 0",
+              "작업트리 = HEAD"
+            ],
+            "history_match": null,
+            "measured_utc": "2026-10-16T07:54:23Z",
+            "method": "worktree(mtime 2026-10-14T01:06:26Z ≤ 측정 2026-10-16T07:54:23Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 12ef50a89b86)",
+            "mtime_utc": "2026-10-14T01:06:26Z",
+            "path": "output/single/docker-compose.yaml",
+            "shipped": "worktree",
+            "verified": true
+          }
+        ]
+      },
+      "excluded": [
+        {
+          "file": "arm_patch.sh",
+          "why": "not-armed(output/single/configs/minicpm5-2b-v031_patch.py 없음 — arm_patch.sh 는 no-op)"
+        }
+      ],
+      "file_records": [
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/.env.template",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "ed8929bfd0bfa66de466ac3fe67edccf966faacfad2ad750ea1f85ee3b9e207c",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/docker-compose.yaml",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "bcbb8a4dadc6acda3861f6d4087677bcb1d846acba6cb63d20f38554d744d27f",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        }
+      ],
+      "files": [
+        "artifacts/compose/.env.template",
+        "artifacts/compose/docker-compose.yaml"
+      ],
+      "machine_reason": "single 서빙 경로(compose · 러너 · env 형상) — 측정 당시 개정(selected_revisions)",
+      "rationale": "single 서빙 경로다 — 이미지(`${IMAGE_TAG}`) · 관리 NAS 를 `/app/models` 로 읽기 전용 마운트(`${NAS_MODEL_PATH}`) · configs 마운트 · 포트 매핑. 측정 당시 개정은 커밋 12ef50a 바이트다(1.1 실린 리비전). 패치가 아니다. 같은 노드 두 모델의 분리는 이 파일이 아니라 셀 env 의 `COMPOSE_PROJECT_NAME` · `CONTAINER_NAME` · `SERVING_PORT` 가 맡는다(plan_26101410 §4 D6). 러너가 source 하는 `arm_patch.sh` 는 런타임 패치 파일이 없어 no-op(not-armed)이라 싣지 않았다."
+    },
+    "fork_pin": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "VARIANT 줄 부재 = stock",
+        "ref": ".claude/policies/arch_variant_ledger.json"
+      },
+      "file_records": [],
+      "files": [],
+      "machine_reason": "셀 env 에 VARIANT 줄 없음 = stock(workflow.md §변종 좌표의 거처)",
+      "rationale": null
+    },
+    "runtime_patch": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "arming 실증 로그 미배선(plan Q1)",
+        "ref": "output/single/configs/minicpm5-2b-v031_patch.py"
+      },
+      "file_records": [],
+      "files": [],
+      "machine_reason": "output/single/configs/minicpm5-2b-v031_patch.py 없음 — arm_patch.sh 는 no-op(런타임 패치 불해당)",
+      "rationale": null
+    },
+    "triplet": {
+      "applicable": true,
+      "confidence": "3-signal",
+      "evidence": {
+        "kind": "file",
+        "measured_utc": "2026-10-16T07:54:23Z",
+        "note": "측정이 이 셀 config 로 돌았다(스윕 색인)",
+        "observed": "output/single/benchlog/sweep_minicpm5-2b-v031/sweep_index.json#config",
+        "post_measurement_regenerated": [],
+        "ref": "output/single/configs/minicpm5-2b-v031.yaml"
+      },
+      "file_records": [
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/.env.minicpm5-2b-v031",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "8545b73789f6b6d4f0e06dd47baf9da379692537eab710ba3c4464de9cca1ea7",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/minicpm5-2b-v031.sh",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "6e01a6e0dbe1852fd189e008796e29ae6598c5b119b92a54d1d851e3e809ae48",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/minicpm5-2b-v031.yaml",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "207f067ab0b072d4a1a68ddbd41926e01eab1e52c069e43cbc7f10a4925bb8d9",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        }
+      ],
+      "files": [
+        "artifacts/triplet/.env.minicpm5-2b-v031",
+        "artifacts/triplet/minicpm5-2b-v031.sh",
+        "artifacts/triplet/minicpm5-2b-v031.yaml"
+      ],
+      "machine_reason": "셀 id minicpm5-2b-v031 = 트리플렛 이름(configs/minicpm5-2b-v031.yaml · .sh · envs/.env.minicpm5-2b-v031)",
+      "rationale": "서빙 노브 4개(§1.3)와 러너 플래그 `--enable-auto-tool-choice --tool-call-parser minicpm5 --reasoning-parser qwen3`, 셀 env(호스트 포트 8002 · 이미지 태그 · compose 프로젝트명)다. yaml 의 `port: 8000` 은 컨테이너 내부 포트이고 compose 가 `${SERVING_PORT}` 로 매핑한다(yaml 주석). 측정이 이 config 로 돌았다(1.1 `verified · cell-run`)."
+    }
+  },
+  "tag": "hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto",
+  "tool_snapshots": [
+    {
+      "driver_note": "그 판본의 .claude/skills/adversarial-benchmark/scripts/ 안에서 sweep_bench.sh 를 부르는 드라이버: broad_search.sh 후보(미검증)",
+      "git_rev": "2661d614cf52ca976fd3b41e2ba6a85ccf8a6d30",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-10T04:53:51Z",
+      "head_at_measurement": "12ef50a89b86cb30d4c5b87c32506c5563ff4655",
+      "name": "sweep_bench.sh",
+      "next_rev": "7db9d67706dfcf575b2c908f994e6476c96bf391",
+      "next_rev_basis": "12ef50a89b86..HEAD 경로 이력의 첫 변경",
+      "next_rev_utc": "2026-10-16T07:56:04Z",
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
+      "rev_method": "reflog HEAD@{1791947246}(2026-10-14T03:07:26Z) = 측정 시각 2026-10-16T07:54:23Z 직전 체크아웃",
+      "role": "sweep",
+      "snapshot_rel": "inputs/sources/sweep_bench.sh@2661d614cf52",
+      "why": "스윕 색인 조립자(output/single/benchlog/sweep_minicpm5-2b-v031/sweep_index.json · generated_utc = measured_utc 조인)",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "2661d614cf52ca976fd3b41e2ba6a85ccf8a6d30",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-10T04:53:51Z",
+      "head_at_measurement": "12ef50a89b86cb30d4c5b87c32506c5563ff4655",
+      "name": "run_bench.sh",
+      "next_rev": "7db9d67706dfcf575b2c908f994e6476c96bf391",
+      "next_rev_basis": "12ef50a89b86..HEAD 경로 이력의 첫 변경",
+      "next_rev_utc": "2026-10-16T07:56:04Z",
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+      "rev_method": "reflog HEAD@{1791947246}(2026-10-14T03:07:26Z) = 측정 시각 2026-10-16T07:54:23Z 직전 체크아웃",
+      "role": "bench",
+      "snapshot_rel": "inputs/sources/run_bench.sh@2661d614cf52",
+      "why": "그 판본 sweep_bench.sh 가 레벨마다 부른다(`\"$SDIR/run_bench.sh\"`) · 색인에 레벨 기록",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "803064d23d516fc72600077cf65e9f6c2a8775d5",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-06T06:17:10Z",
+      "head_at_measurement": "12ef50a89b86cb30d4c5b87c32506c5563ff4655",
+      "name": "lite_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "12ef50a89b86..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/lite_bench.sh",
+      "rev_method": "reflog HEAD@{1791947246}(2026-10-14T03:07:26Z) = 측정 시각 2026-10-16T07:54:23Z 직전 체크아웃",
+      "role": "lite",
+      "snapshot_rel": "inputs/sources/lite_bench.sh@803064d23d51",
+      "why": "그 판본 sweep_bench.sh 가 lite 레그로 부른다(`\"$SDIR/lite_bench.sh\"`) · 색인에 lite 기록",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "2661d614cf52ca976fd3b41e2ba6a85ccf8a6d30",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-10T04:53:51Z",
+      "head_at_measurement": "12ef50a89b86cb30d4c5b87c32506c5563ff4655",
+      "name": "broad_search.sh",
+      "next_rev": null,
+      "next_rev_basis": "12ef50a89b86..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
+      "rev_method": "reflog HEAD@{1791947246}(2026-10-14T03:07:26Z) = 측정 시각 2026-10-16T07:54:23Z 직전 체크아웃",
+      "role": "driver-candidate",
+      "snapshot_rel": "inputs/sources/broad_search.sh@2661d614cf52",
+      "why": "그 판본에서 sweep_bench.sh 를 부르는 스크립트 · 넘기는 --tool 상수 ['guidellm'] 가 이 측정과 어긋나지 않는다 — 호출 기록은 없다(드라이버였는지 미검증)",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    }
+  ]
+}
