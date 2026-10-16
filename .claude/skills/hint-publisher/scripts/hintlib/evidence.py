@@ -1793,8 +1793,44 @@ def measurement(ev: CellEvidence) -> dict:
             per["measured_utc"] = (f"sweep_index.generated_utc({sw.get('dir')})" if sw.get("generated_utc")
                                    else f"bench_report({Path(ev.bench_report_path or '').name}) 머리 `생성일`")
     out["source"] = " + ".join(srcs) if srcs else "absent(인증서·스윕 모두 없다)"
+    _label_kv_declared(repo, ev, out, per)
     out["sources"] = per
     return out
+
+
+KV_CLAMP_KEY = "kv-cache-memory-bytes"
+
+
+def _kv_declared_note(v, clamp, rel: str) -> "str | None":
+    """순수 판정: 보고 KV(GiB 문자열/수) 가 선언 클램프(bytes)와 같으면 '되읽기', 다르면 '다름' 문구 · 파싱 불가 = None."""
+    try:
+        got = float(str(v).split()[0])
+    except (TypeError, ValueError, IndexError):
+        return None
+    decl_gib = clamp / (1024 ** 3)
+    if abs(got - decl_gib) < 0.05 + 1e-9:
+        return (f" — 서빙 yaml `{KV_CLAMP_KEY}: {int(clamp)}`({decl_gib:.1f} GiB)의 **선언 클램프를 엔진이 되읽은 값**"
+                f"(측정 아님 · {rel})")
+    return f" — 서빙 yaml 선언 {decl_gib:.1f} GiB 와 다르다(엔진 보고값 · {rel})"
+
+
+def _label_kv_declared(repo: Path, ev: "CellEvidence", out: dict, per: dict) -> None:
+    """lite KV(GiB)는 엔진 로그에서 읽지만 서빙 yaml 이 `kv-cache-memory-bytes` 로 KV 를 **선언**하면 엔진은 그 선언을 되읽어 보고한다 —
+    측정이 아니다(2026-10-16 · plan_26101622 Q7 사실 검증 FC4: 서브 lfm 37.9 GiB · 메인 minicpm 35.0 GiB 가 둘 다 클램프 되읽기였다).
+    값은 바꾸지 않고(원문 그대로) 출처 칸에 선언 대조를 붙인다 — 같으면 '선언값 되읽기', 다르면 '선언과 다름(엔진 보고)'."""
+    rel = (ev.triplet or {}).get("yaml")
+    if not rel or not (repo / rel).is_file():
+        return
+    y = _owner_yaml(repo, repo / rel, "서빙 yaml")
+    clamp = y.get(KV_CLAMP_KEY) if isinstance(y, dict) else None
+    if not isinstance(clamp, (int, float)) or isinstance(clamp, bool) or clamp <= 0:
+        return
+    note = lambda v: _kv_declared_note(v, clamp, rel)   # noqa: E731
+    if "lite_kv_gib" in out and (n := note(out["lite_kv_gib"])):
+        per["lite_kv_gib"] = (per.get("lite_kv_gib") or "출처 미기재") + n
+    lt = out.get("lite")
+    if isinstance(lt, dict) and "kv_gib" in lt and (n := note(lt["kv_gib"])):
+        per["lite"] = (per.get("lite") or "출처 미기재") + f" · kv_gib{n}"
 
 
 # ── 원장 타임라인 · 기동 표지 · full 정의 · 벤치 명령 재구성 ─────────────────────────────────────────────────────────
@@ -8020,6 +8056,10 @@ def selftest() -> list[str]:
     _w = _event_windows(_wd, _opens)[0]
     ck("★다른 스트림의 다른 라벨 선언 뒤 라벨 없는 행은 앞 창 밖", _w["rows"] == [0] and _w["end_ts"] is None)
     ck("교차 상한 없으면 종전 그대로(hold 가 열린 창 안)", _event_windows(_wd)[0]["rows"] == [0, 1])
+    # ★ lite KV 선언 대조(2026-10-16 · plan_26101622 Q7 FC4): minicpm 클램프 37580963840 B = 35.0 GiB
+    ck("★선언 클램프와 같은 KV 는 '되읽은 값(측정 아님)'", "측정 아님" in (_kv_declared_note("35.0", 37580963840, "y") or ""))
+    ck("선언과 다른 KV 는 '다르다(엔진 보고)'", "다르다" in (_kv_declared_note("30.2", 37580963840, "y") or ""))
+    ck("파싱 불가 = None(지어내지 않는다)", _kv_declared_note(None, 37580963840, "y") is None)
     ck("같은 라벨 재선언은 창을 자르지 않는다",
        _event_windows(_wd, [("2026-01-01T00:00:00Z", "A"), ("2026-01-01T00:04:00Z", "A")])[0]["rows"] == [0, 1])
 
