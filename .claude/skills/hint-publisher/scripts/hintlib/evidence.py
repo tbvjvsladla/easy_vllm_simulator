@@ -2050,7 +2050,9 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
             for idx, (ts, _ln, d) in enumerate(rows):
                 if d.get("label") or d.get("kind") not in _EVENT_WINDOWED_KINDS:
                     continue
-                w = next((w for _, w in declare_wins + foreign_wins
+                # ★ 2026-10-16(plan_26101614 P12 라이브): declare_wins 는 (rel, w) 쌍 · foreign_wins 는 w 목록이다 — 둘을 같은
+                #   모양으로 풀면 다른 라벨 창이 하나라도 있는 노드(같은 노드 2모델 상주)에서 ValueError 로 죽었다(18e1966 이후).
+                w = next((w for w in [dw for _, dw in declare_wins] + foreign_wins
                           if w["start_ts"] <= ts and (w["end_ts"] is None or ts <= w["end_ts"])), None)
                 if w is not None:
                     taken[(rel, idx)] = w
