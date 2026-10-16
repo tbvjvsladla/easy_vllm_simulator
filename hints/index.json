@@ -1,6 +1,6 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 65,
+  "count": 66,
   "generated_kst": "2026-10-16T20:45:28",
   "hints": [
     {
@@ -1311,6 +1311,26 @@
       "tagged_utc": null,
       "verdict": "미수령",
       "verdict_source": "absent-local(로컬 태그 오브젝트 부재 · 합성 ✗)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "c9c4a87dda9d00a2b5ae4f68a9f675d3d5b998b0",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26101616_54_23_minicpm5-2b_GB10_0.31.0.md))",
+      "brief": "minicpm5-2b(openbmb/MiniCPM5-2B · bf16)를 NVIDIA GB10 ×1 GPU ×1 노드에서 vLLM v0.31.0 소스빌드(stock · 빌드 패치 0)로 max-model-len 32768 · KV dtype auto · PLE 없음 · spec off · cudagraph 형상으로 상주 서빙했고, CNN/DailyMail 입력 full-bench 판정점(동시성 1)은 decode 38.13 t/s 다(PASS · 루브릭 권한 weak · floor 16.13). 가장 비싼 벽은 서빙이 아니라 측정 하네스였다 — lite 게이트가 오래 상주한 서빙의 엔진 로그 꼬리만 읽어 measurement_path_failed 로 막았고(W1 · 머리 우선 파싱으로 해소), 목표 길이 정확일치 비교가 BOS 를 세는 토크나이저에서 행을 거의 다 버려 같은 프롬프트를 반복시켰다(W2 · 분포 최빈값 기준 · 재측정). 가장 오해하기 쉬운 값은 KV 절대클램프(V4 — 앞선 캠페인 승계 · 이 계보에서 조정 없음 · 필요량보다 크다)와 교정 전 측정의 TTFT(SUPERSEDED 리포트 · prefix cache 효과로 보이나 원인 미조사 추론 — M2 · Q1)다.",
+      "grammar": "v7",
+      "missing": [],
+      "model": "minicpm5-2b",
+      "object": "265bbe05484e688bc1b5844f3d052aafb1e74ab2",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto",
+      "tagged_utc": "2026-10-16T11:45:28Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
     },
     {
