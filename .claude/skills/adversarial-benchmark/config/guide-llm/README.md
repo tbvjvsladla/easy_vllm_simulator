@@ -100,6 +100,14 @@ cd .claude/skills/adversarial-benchmark/config/guide-llm
 cp default_preset.yaml cnn_preset.yaml      # 비추적 파일 — git 에 올라가지 않는다
 ```
 
+**이 폴더에 쓸 수 없는 노드**(예: single 서브 — 쓰기 평면이 `configs/`·`envs/`·`output/` 뿐이다)는 쓰기 허용 자리에 만든다.
+`--preset` 은 이름 대신 **파일 경로**도 받는다('/' 를 포함하거나 `.yaml` 로 끝나면 경로로 읽는다). 검증 규칙은 같다.
+
+```bash
+cp .claude/skills/adversarial-benchmark/config/guide-llm/default_preset.yaml output/<topology>/configs/cnn_preset.yaml
+# 이후 명령의 --preset cnn_preset 을 --preset output/<topology>/configs/cnn_preset.yaml 로 바꾼다
+```
+
 `cnn_preset.yaml` 에서 데이터셋 knob 9개의 `default` 와 `options` 를 바꾼다. 자유값 knob 은 `options` 에 **그 값 하나만** 둔다
 (`grade: auto`). 다른 knob 은 그대로 둔다.
 
@@ -185,10 +193,18 @@ cp default_preset.yaml cnn_preset.yaml      # 비추적 파일 — git 에 올�
 ```bash
 S=.claude/skills/adversarial-benchmark/scripts
 python3 $S/bench_preset.py validate --preset cnn_preset          # 모양 검사 → OK 여야 한다
-bash $S/sweep_bench.sh <config> --tool guidellm --preset cnn_preset --dry-run   # 명령만 확인
-bash $S/sweep_bench.sh <config> --tool guidellm --preset cnn_preset \
+bash $S/sweep_bench.sh <config> --topology <single|multi> --tool guidellm --preset cnn_preset --dry-run   # 명령만 확인
+bash $S/sweep_bench.sh <config> --topology <single|multi> --tool guidellm --preset cnn_preset \
      --backend <openai|openai-chat> --knob-reason backend=<근거> \
      --bench-budget-mib <N> --knob-reason bench_budget_mib=host_budget
+D=output/<topology>/benchlog/sweep_<config>
+bash $S/judge_bench.sh <config> --authority weak                 # 판정(권한은 사용자 HITL — 목표를 명시받았으면 explicit)
+python3 $S/render_report.py --sweep-index $D/sweep_index.json --verdict-json $D/verdict.json --roofline-json $D/roofline.json
 ```
 
-`validate` 가 거부하면 메시지가 어느 knob 의 어느 규칙인지 말한다. 실측에서 원본 sha256 이 다르면 측정을 시작하지 않는다.
+- `validate` 가 거부하면 메시지가 어느 knob 의 어느 규칙인지 말한다. 실측에서 원본 sha256 이 다르면 측정을 시작하지 않는다.
+- `--topology` 는 명시한다. 생략하면 해소기가 메인의 4자일치 술어로 정하는데, 그 술어가 없는 노드(single 서브)에서는 멈춘다.
+- `--bench-budget-mib <N>` 은 프리셋 `bench_budget_mib` 선택지 중 **벤치 예산 게이트가 말하는 상한 이하**를 고른다. 상한은
+  `--dry-run` 이 아니라 실측 진입 때 `run_bench` 게이트가 계산한다(노드 서빙 예산 선언의 바닥 − 절대밴드). 막히면
+  `[run_bench] STOP(벤치 예산 게이트)` 와 상한이 출력되고 측정은 시작되지 않는다 — 그 상한 이하 선택지로 다시 돌린다.
+- 리포트는 `render_report.py` 가 낸다(`judge_bench` 는 인증서만 다룬다 · 인증서는 explicit ∧ PASS 때만).
