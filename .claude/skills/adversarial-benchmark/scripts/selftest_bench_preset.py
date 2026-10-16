@@ -33,7 +33,10 @@ import repeat_axis as ra  # noqa: E402
 # 스키마 스냅샷(tripwire). 바뀌면 이 줄과 프리셋·문서가 함께 리뷰돼야 한다.
 SNAP_TOP = ("schema_version", "bench", "tool", "reason_codes", "knobs")
 SNAP_KNOB = ("owner", "kind", "default", "serving_cap", "options", "reasons")
-SNAP_KNOBS = ("levels", "input_len", "output_len", "num_prompts", "warmups", "repeats", "backend", "bench_budget_mib")
+SNAP_KNOBS = ("levels", "input_len", "output_len", "num_prompts", "warmups", "repeats", "backend", "bench_budget_mib",
+              # 데이터셋 축(2026-10-16 · plan_26101614)
+              "dataset_kind", "dataset_source", "dataset_id", "dataset_path", "dataset_revision", "source_sha256",
+              "column_map", "preprocess_strategy", "seed")
 
 
 def run() -> int:
@@ -226,10 +229,62 @@ def run() -> int:
         ck("R18 levels 32(confirm)를 승인 없이 → 거부",
            rejects(res, {"levels": "1,32"}, {"levels": "serving_concurrency"}, serving=nolim))
 
+        # D — 데이터셋 축(2026-10-16 · plan_26101614): 기본은 synthetic · 실제 데이터셋은 사용자 프리셋 · 판정 불변
+        v, rec = res(serving=nolim)
+        ck("D1 기본 프리셋 = synthetic · 나머지 null · 기록 블록에 dataset 이 실린다",
+           v["dataset_kind"] == "synthetic" and all(v[n] is None for n in bp.DATASET_KNOBS if n != "dataset_kind")
+           and rec["dataset"]["dataset_kind"] == "synthetic")
+        raw = td / "raw.parquet"
+        raw.write_bytes(b"cnn-fixture")
+        import hashlib as _h
+        good_sha = _h.sha256(b"cnn-fixture").hexdigest()
+
+        def dset_preset(**over):
+            d = copy.deepcopy(base)
+            vals = {"dataset_kind": "parquet_file", "dataset_source": "managed", "dataset_id": "abisee/cnn_dailymail 3.0.0 test",
+                    "dataset_path": str(raw), "dataset_revision": "a" * 40, "source_sha256": good_sha,
+                    "column_map": {"text_column": "article"}, "preprocess_strategy": "concatenate", "seed": 42}
+            vals.update(over)
+            for n, val in vals.items():
+                d["knobs"][n]["default"] = val
+                d["knobs"][n]["options"] = [{"value": val, "grade": "auto"}]
+            return d
+
+        cnn = dset_preset()
+        ck("D2 사용자 프리셋(CNN 모양)이 같은 검증을 통과한다", not bp.validate_preset(cnn, bindings),
+           bp.validate_preset(cnn, bindings))
+        ck("D3 상대경로 dataset_path 거부", bp.validate_preset(dset_preset(dataset_path="data/x.parquet"), bindings))
+        ck("D4 40자 hex 가 아닌 revision 거부", bp.validate_preset(dset_preset(dataset_revision="main"), bindings))
+        ck("D5 닫힌 목록 밖 dataset_kind 거부", bp.validate_preset(dset_preset(dataset_kind="huggingface"), bindings))
+        ck("D6 교차 규칙: 실제 데이터셋인데 sha256 이 null → 거부", bp.validate_preset(dset_preset(source_sha256=None), bindings))
+        ck("D6b 교차 규칙: synthetic 인데 경로가 있다 → 거부",
+           bp.validate_preset(dset_preset(dataset_kind="synthetic", dataset_source=None, dataset_id=None, dataset_revision=None,
+                                          source_sha256=None, column_map=None, preprocess_strategy=None, seed=None), bindings))
+        ck("D6c column_map 은 text_column 하나만", bp.validate_preset(dset_preset(column_map={"text_column": "a", "x": "b"}), bindings))
+
+        def res_d(doc, tool="guidellm", dry_run=False):
+            c = dict(NEED, bench_budget_mib="4096")
+            return bp.resolve(doc, "cnn_preset", tool=tool, cli=c, knob_reasons=dict(RS, bench_budget_mib="host_budget"),
+                              serving=nolim, repo_root=root, dry_run=dry_run)
+
+        v, rec = res_d(cnn)
+        ck("D7 측정 시점: 원본 실재 · sha256 일치 → 통과하고 관측을 기록",
+           v["dataset_kind"] == "parquet_file" and rec["dataset"]["runtime_check"]["checked"].startswith("measured("))
+        ck("D8 --tool vllm + 실제 데이터셋 → 거부(조용히 synthetic 으로 재지 않는다)", rejects(res_d, cnn, tool="vllm"))
+        ck("D9 sha256 불일치 → 거부", rejects(res_d, dset_preset(source_sha256="b" * 64)))
+        ck("D9b 원본 부재 → 거부", rejects(res_d, dset_preset(dataset_path=str(td / "missing.parquet"))))
+        v, rec = res_d(dset_preset(dataset_path=str(td / "missing.parquet")), dry_run=True)
+        ck("D9c dry-run 은 원본 검사를 건너뛰고 그 사실을 기록", rec["dataset"]["runtime_check"]["checked"].startswith("skipped("))
+        ck("D10 ephemeral 은 이번 개정에서 경로가 없다 → 거부", rejects(res_d, dset_preset(dataset_source="ephemeral")))
+        ck("D11 기본 프리셋의 비기본 데이터셋 값은 escalate(Agent 가 못 연다) · 데이터셋 knob 은 스윕 플래그가 없다",
+           all(o["grade"] == "escalate" for n in ("dataset_kind", "dataset_source", "preprocess_strategy")
+               for o in base["knobs"][n]["options"] if o["value"] != base["knobs"][n]["default"])
+           and all(bp.FLAG_OF[n].startswith("--pin ") for n in bp.DATASET_KNOBS))
+
     if fails:
         sys.stderr.write("[selftest_bench_preset] FAIL %d건: %s\n" % (len(fails), fails))
         return 1
-    print("[selftest_bench_preset] OK — K1~K4 · V1~V15 · R1~R18(+R5b·R5c·R11e) 전부 통과")
+    print("[selftest_bench_preset] OK — K1~K4 · V1~V15 · R1~R18(+R5b·R5c·R11e) · D1~D11 전부 통과")
     return 0
 
 

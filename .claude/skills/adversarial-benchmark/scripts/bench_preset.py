@@ -33,7 +33,9 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -73,13 +75,38 @@ KNOB_SPECS = {
     "repeats":          ("scalar", int, (CAP_NONE,), False),
     "backend":          ("scalar", str, (CAP_NONE,), True),
     "bench_budget_mib": ("scalar", int, (CAP_NONE,), True),
+    # 데이터셋 축(2026-10-16 · plan_26101614 · interview_20261016_045736) — 전부 owner: user.
+    #   입력 텍스트의 출처만 바꾼다(길이는 input_len/output_len 이 그대로 정한다 · 판정 불변).
+    #   자유값 knob(path·hex·map·text)은 options 가 **그 프리셋이 선언한 값**만 든다(닫힌 목록 계약 유지)
+    #   — 값을 바꾸는 손은 프리셋 작성자(사람)이고, 모양 검사(DATASET_SHAPE)가 한 번 더 닫는다.
+    "dataset_kind":        ("scalar", str, (CAP_NONE,), False),
+    "dataset_source":      ("scalar", str, (CAP_NONE,), False),
+    "dataset_id":          ("text",   str, (CAP_NONE,), False),
+    "dataset_path":        ("path",   str, (CAP_NONE,), False),
+    "dataset_revision":    ("hex40",  str, (CAP_NONE,), False),
+    "source_sha256":       ("hex64",  str, (CAP_NONE,), False),
+    "column_map":          ("map",    dict, (CAP_NONE,), False),
+    "preprocess_strategy": ("scalar", str, (CAP_NONE,), False),
+    "seed":                ("scalar", int, (CAP_NONE,), False),
 }
+# 데이터셋 knob — synthetic 이면 나머지는 전부 null, 아니면 전부 값이 있어야 한다(교차 규칙 · validate/resolve 공용).
+DATASET_KNOBS = ("dataset_kind", "dataset_source", "dataset_id", "dataset_path", "dataset_revision",
+                 "source_sha256", "column_map", "preprocess_strategy", "seed")
+DATASET_SYNTHETIC = "synthetic"
+# 값 어휘(닫힌 목록 — GuideLLM v0.7.3 `--data kind=` · `preprocess --strategy kind=` 의 부분집합).
+DATASET_KINDS = (DATASET_SYNTHETIC, "parquet_file", "json_file", "csv_file")
+DATASET_SOURCES = ("managed", "ephemeral", "custom")
+PREPROCESS_STRATEGIES = ("concatenate", "ignore", "pad", "error")
+# column_map 키 = GuideLLM generative_column_mapper 의 열 역할(이번 개정은 입력 텍스트 열 하나만 쓴다).
+COLUMN_MAP_KEYS = ("text_column",)
 # 도구가 실제로 받는 --tool 값(run_bench.sh · sweep_bench.sh 의 case 와 같은 닫힌 목록).
 KNOWN_TOOLS = ("vllm", "guidellm")
 # 스윕 CLI 플래그 ↔ knob
 FLAG_OF = {"levels": "--levels", "input_len": "--input-len", "output_len": "--output-len",
            "num_prompts": "--num-prompts", "warmups": "--warmups", "repeats": "--repeats",
            "backend": "--backend", "bench_budget_mib": "--bench-budget-mib"}
+# 데이터셋 knob 은 스윕 플래그가 없다(owner: user — 프리셋 작성 또는 사람 핀 --pin 으로만 바뀐다).
+FLAG_OF.update({k: "--pin %s" % k for k in DATASET_KNOBS})
 # stdout 키 ↔ knob (sweep_bench 의 셸 변수 이름)
 SHELL_KEY_OF = {"levels": "LEVELS", "input_len": "ILEN", "output_len": "OLEN", "num_prompts": "NPROMPTS",
                 "warmups": "WARMUPS", "repeats": "REPEATS", "backend": "BACKEND",
@@ -140,6 +167,69 @@ def _typed(value, typ) -> bool:
     if typ is int:
         return isinstance(value, int) and not isinstance(value, bool)
     return isinstance(value, typ)
+
+
+def _dataset_shape_problem(name: str, value) -> "str | None":
+    """데이터셋 knob 값 하나의 모양 검사(형식만 · 실재 검사는 측정 시점 `check_dataset_runtime`). None = 통과."""
+    if value is None:
+        return None
+    kind = KNOB_SPECS[name][0]
+    if name == "dataset_kind" and value not in DATASET_KINDS:
+        return "%r 는 %s 밖이다" % (value, list(DATASET_KINDS))
+    if name == "dataset_source" and value not in DATASET_SOURCES:
+        return "%r 는 %s 밖이다" % (value, list(DATASET_SOURCES))
+    if name == "preprocess_strategy" and value not in PREPROCESS_STRATEGIES:
+        return "%r 는 %s 밖이다" % (value, list(PREPROCESS_STRATEGIES))
+    if kind == "path" and not (isinstance(value, str) and value.startswith("/") and ".." not in value.split("/")):
+        return "%r 는 '..' 없는 절대경로여야 한다" % (value,)
+    if kind == "hex40" and not (isinstance(value, str) and re.fullmatch(r"[0-9a-f]{40}", value)):
+        return "%r 는 40자 소문자 hex(HF 커밋 SHA)여야 한다" % (value,)
+    if kind == "hex64" and not (isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value)):
+        return "%r 는 64자 소문자 hex(sha256)여야 한다" % (value,)
+    if kind == "text" and not (isinstance(value, str) and value.strip() and "\n" not in value):
+        return "%r 는 비어 있지 않은 한 줄 문자열이어야 한다" % (value,)
+    if kind == "map":
+        if not isinstance(value, dict) or set(value) != set(COLUMN_MAP_KEYS):
+            return "%r 는 정확히 키 %s 를 가진 객체여야 한다" % (value, list(COLUMN_MAP_KEYS))
+        if not all(isinstance(v, str) and re.fullmatch(r"[A-Za-z0-9_.-]+", v) for v in value.values()):
+            return "%r 의 열 이름은 [A-Za-z0-9_.-] 문자열이다" % (value,)
+    return None
+
+
+def dataset_cross_problems(values: dict) -> list:
+    """데이터셋 knob 교차 규칙(synthetic ↔ 나머지 null) — 프리셋 기본값과 해소값에 같은 규칙을 건다."""
+    kind = values.get("dataset_kind")
+    rest = [k for k in DATASET_KNOBS if k != "dataset_kind"]
+    if kind == DATASET_SYNTHETIC:
+        bad = [k for k in rest if values.get(k) is not None]
+        return (["dataset_kind=synthetic 인데 %s 가 null 이 아니다 — 합성 입력에는 출처 값이 없다" % bad] if bad else [])
+    missing = [k for k in rest if values.get(k) is None]
+    return (["dataset_kind=%r 인데 %s 가 비었다 — 실제 데이터셋은 출처 전부를 선언한다" % (kind, missing)]
+            if missing else [])
+
+
+def check_dataset_runtime(values: dict) -> dict:
+    """측정 시점 검사(dry-run 은 건너뛴다) — 원본 실재·읽기·sha256 일치. 위반은 PresetError(기동 거부).
+    → 관측 기록(출처 필드에 붙인다). git 이 바이트를 들지 않는 입력이라 digest 대조가 정당한 자리다(맹점층)."""
+    if values.get("dataset_kind") == DATASET_SYNTHETIC:
+        return {"checked": "not_applicable(synthetic)"}
+    if values.get("dataset_source") == "ephemeral":
+        raise PresetError("dataset_source=ephemeral 은 이번 개정에서 경로가 없다 — 벤치 컨테이너는 HF_HUB_OFFLINE=1 이고 "
+                          "임시 다운로드 경로를 아직 만들지 않았다(managed|custom 으로 원본을 두고 다시)")
+    p = Path(values["dataset_path"])
+    if not p.is_file():
+        raise PresetError("dataset_path 가 없다(또는 파일이 아니다): %s" % p)
+    if not os.access(p, os.R_OK):
+        raise PresetError("dataset_path 를 읽을 수 없다: %s" % p)
+    h = hashlib.sha256()
+    with p.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    got = h.hexdigest()
+    if got != values["source_sha256"]:
+        raise PresetError("dataset_path 의 sha256 이 프리셋 선언과 다르다(선언 %s · 실측 %s) — 다른 바이트로 재지 않는다"
+                          % (values["source_sha256"], got))
+    return {"checked": "measured(sha256 일치 · %d bytes)" % p.stat().st_size}
 
 
 def validate_preset(doc, bindings: dict) -> list:
@@ -204,9 +294,17 @@ def validate_preset(doc, bindings: dict) -> list:
             if not isinstance(o, dict) or set(o) != set(OPTION_KEYS):
                 probs.append("%s.options[%d] 는 정확히 {value, grade} 여야 한다" % (where, i))
                 continue
-            if not _typed(o["value"], typ):
+            nullable = name in DATASET_KNOBS and o["value"] is None   # synthetic 짝의 '값 없음'
+            if not nullable and not _typed(o["value"], typ):
                 probs.append("%s.options[%d].value=%r 의 타입이 %s 가 아니다" % (where, i, o["value"], typ.__name__))
                 continue
+            if name in DATASET_KNOBS:
+                bad = _dataset_shape_problem(name, o["value"])
+                if bad:
+                    probs.append("%s.options[%d].value %s" % (where, i, bad))
+                    continue
+            if isinstance(o["value"], dict):   # map 값은 해시 불가 — 비교 키는 정규화한 JSON 문자열
+                o = dict(o, value=json.dumps(o["value"], sort_keys=True))
             if o["value"] in grade_of:
                 probs.append("%s.options 에 값 %r 가 중복된다" % (where, o["value"]))
             if o["grade"] not in GRADES:
@@ -232,6 +330,7 @@ def validate_preset(doc, bindings: dict) -> list:
                 dvals = []
             if DEFAULT_REASON not in reasons:
                 probs.append("%s.reasons 에 %r 가 없다(기본값이 있는 knob)" % (where, DEFAULT_REASON))
+            dvals = [json.dumps(v, sort_keys=True) if isinstance(v, dict) else v for v in dvals]
             for v in dvals:
                 if v not in grade_of:
                     probs.append("%s.default 의 %r 가 options 밖이다" % (where, v))
@@ -253,6 +352,10 @@ def validate_preset(doc, bindings: dict) -> list:
                                  % (where, v, _ra.FULL_REPEATS_MIN))
         if name == "backend" and k["owner"] != "agent":
             probs.append("%s.owner 는 agent 다(모델 계열에서 파생)" % where)
+        if name in DATASET_KNOBS and k["owner"] != "user":
+            probs.append("%s.owner 는 user 다(데이터셋은 측정 축 — 프리셋 작성자가 정한다)" % where)
+    if isinstance(knobs, dict) and all(isinstance(knobs.get(n), dict) for n in DATASET_KNOBS):
+        probs.extend("knobs 기본값 " + p for p in dataset_cross_problems({n: knobs[n].get("default") for n in DATASET_KNOBS}))
     return probs
 
 
@@ -316,7 +419,20 @@ def _parse_cli_value(name: str, raw):
         if not re.fullmatch(r"[0-9]+", str(raw).strip()):
             raise PresetError("%s 는 정수다: %r" % (FLAG_OF[name], raw))
         return int(str(raw).strip())
+    if typ is dict:
+        try:
+            v = json.loads(str(raw))
+        except ValueError:
+            raise PresetError("%s 는 JSON 객체다: %r" % (FLAG_OF[name], raw))
+        if not isinstance(v, dict):
+            raise PresetError("%s 는 JSON 객체다: %r" % (FLAG_OF[name], raw))
+        return v
     return str(raw).strip()
+
+
+def _norm(v):
+    """선택지 비교 키 — map 값은 해시 불가라 정규화한 JSON 문자열로 비교한다(validate 와 같은 규칙)."""
+    return json.dumps(v, sort_keys=True) if isinstance(v, dict) else v
 
 
 def _parse_knob_reasons(items) -> dict:
@@ -368,7 +484,7 @@ def _parse_pins(items) -> dict:
 
 def resolve(preset_doc: dict, preset_name: str, *, tool: str, cli: dict, cli_pins=None, pinned_by=None,
             knob_reasons=None, approved_by=None, campaign_id=None, serving: dict,
-            repo_root: Path = _ra.REPO_ROOT, repeats_source=None) -> "tuple[dict, dict]":
+            repo_root: Path = _ra.REPO_ROOT, repeats_source=None, dry_run: bool = False) -> "tuple[dict, dict]":
     """→ (해소값, 기록 블록). 위반은 PresetError(기동 거부).
 
     cli      스윕 플래그 값(--levels 등) = **Agent 선택**(근거 코드 --knob-reason)
@@ -388,7 +504,7 @@ def resolve(preset_doc: dict, preset_name: str, *, tool: str, cli: dict, cli_pin
     values, record = {}, {}
     for name, spec in knobs.items():
         kind = spec["kind"]
-        grade_of = {o["value"]: o["grade"] for o in spec["options"]}
+        grade_of = {_norm(o["value"]): o["grade"] for o in spec["options"]}
         cli_v = _parse_cli_value(name, cli.get(name))
         cpin_v = _parse_cli_value(name, cli_pins.get(name)) if name in cli_pins else None
         if cpin_v is not None and cli_v is not None and cli_v != cpin_v:
@@ -433,8 +549,8 @@ def resolve(preset_doc: dict, preset_name: str, *, tool: str, cli: dict, cli_pin
                 source, val = "campaign", pin_v
             elif cli_v is not None:
                 source, val = "agent", cli_v
-            elif spec["default"] is not None:
-                source, val = "preset", spec["default"]
+            elif spec["default"] is not None or name in DATASET_KNOBS:
+                source, val = "preset", spec["default"]   # 데이터셋 knob 의 null = synthetic 짝(값 없음이 정상값)
             else:
                 raise PresetError("%s 는 필수다 — 프리셋 %s 에 기본값이 없다(기본값 없음 결정). 선택지: %s"
                                   % (FLAG_OF[name], preset_name, [o["value"] for o in spec["options"]]))
@@ -444,11 +560,11 @@ def resolve(preset_doc: dict, preset_name: str, *, tool: str, cli: dict, cli_pin
             rec["verdict_point_added"] = True
         if kind == "list":
             vals = sorted(dict.fromkeys(vals))
-        outside = [v for v in vals if v not in grade_of]
+        outside = [v for v in vals if _norm(v) not in grade_of]
         if outside:
             raise PresetError("%s=%s 가 프리셋 %s 의 선택지 밖이다(선택지 %s) — 선택지를 늘리려면 프리셋을 고친다(리뷰 대상)"
                               % (FLAG_OF[name], outside, preset_name, [o["value"] for o in spec["options"]]))
-        grades = {v: grade_of[v] for v in vals}
+        grades = {_norm(v): grade_of[_norm(v)] for v in vals}
         # 근거 코드
         if source in ("cli_pin", "campaign"):
             reason = HUMAN_PIN_REASON
@@ -458,7 +574,7 @@ def resolve(preset_doc: dict, preset_name: str, *, tool: str, cli: dict, cli_pin
             given = knob_reasons.get(name)
             is_default = (spec["default"] is not None and
                           (vals == sorted(dict.fromkeys([VERDICT_LEVEL] + list(spec["default"])))
-                           if kind == "list" else vals[0] == spec["default"]))
+                           if kind == "list" else _norm(vals[0]) == _norm(spec["default"])))
             if given is None:
                 if not is_default:
                     raise PresetError("%s=%s 는 Agent 선택인데 근거 코드가 없다 — --knob-reason %s=<%s>"
@@ -497,7 +613,7 @@ def resolve(preset_doc: dict, preset_name: str, *, tool: str, cli: dict, cli_pin
                 if not vals:
                     raise PresetError("%s: 상한 필터 뒤 남은 레벨이 없다" % FLAG_OF[name])
         rec.update({"value": vals if kind == "list" else vals[0], "source": source,
-                    "grade": ({str(v): grades[v] for v in vals} if kind == "list" else grades[vals[0]]),
+                    "grade": ({str(v): grades[v] for v in vals} if kind == "list" else grades[_norm(vals[0])]),
                     "reason": reason})
         if filtered:
             rec["filtered_out"] = filtered
@@ -517,6 +633,16 @@ def resolve(preset_doc: dict, preset_name: str, *, tool: str, cli: dict, cli_pin
                                   "밖은 측정하지 않는다" % (values["input_len"], values["output_len"], need, mml,
                                                     serving.get("source")))
             record["input_len"]["serving_cap_applied"] = "input_plus_output_le_max_model_len(%d)" % mml
+    # 데이터셋 축(plan_26101614) — 교차 규칙 · 도구 정합 · 측정 시점 원본 검사
+    dset = {k: values[k] for k in DATASET_KNOBS}
+    cross = dataset_cross_problems(dset)
+    if cross:
+        raise PresetError("데이터셋 knob 해소값 " + "; ".join(cross))
+    if tool != "guidellm" and dset["dataset_kind"] != DATASET_SYNTHETIC:
+        raise PresetError("--tool %s 는 데이터셋 knob 을 받지 않는다(dataset_kind=%r) — 실제 데이터셋 입력은 full-bench "
+                          "(--tool guidellm) 전용이다. 조용히 synthetic 으로 재지 않는다" % (tool, dset["dataset_kind"]))
+    dset_check = ({"checked": "skipped(dry-run · 측정 시점에 원본 실재·sha256 을 본다)"} if dry_run
+                  else check_dataset_runtime(dset))
     stray = sorted(set(knob_reasons) - {k for k, r in record.items() if r.get("source") == "agent"})
     if stray:
         raise PresetError("--knob-reason %s 의 knob 은 Agent 선택이 아니다(사람 핀·기본값 · 근거 코드가 붙지 않는다)" % stray)
@@ -525,6 +651,7 @@ def resolve(preset_doc: dict, preset_name: str, *, tool: str, cli: dict, cli_pin
         "preset": preset_name, "campaign": camp, "campaign_pins_note": camp_why or None,
         "pinned_by": pinned_by, "approved_by": approved_by,
         "serving_cap": serving, "knobs": record,
+        "dataset": dict(dset, runtime_check=dset_check),
         "resolution_order": "cli_pin > campaign > agent > preset",
     }
     return values, block
@@ -535,11 +662,12 @@ def resolve(preset_doc: dict, preset_name: str, *, tool: str, cli: dict, cli_pin
 def _cmd_resolve(a) -> int:
     path, doc, bindings = load_preset(a.preset)
     name = a.preset or DEFAULT_PRESET
-    cli = {k: getattr(a, k) for k in KNOB_SPECS}
+    cli = {k: getattr(a, k, None) for k in KNOB_SPECS}
     serving = serving_caps(a.serving_yaml, a.dry_run)
     values, block = resolve(doc, name, tool=a.tool, cli=cli, cli_pins=_parse_pins(a.pin), pinned_by=a.pinned_by,
                             knob_reasons=_parse_knob_reasons(a.knob_reason), approved_by=a.approved_by,
-                            campaign_id=a.campaign_id, serving=serving, repeats_source=a.repeats_source)
+                            campaign_id=a.campaign_id, serving=serving, repeats_source=a.repeats_source,
+                            dry_run=a.dry_run)
     try:
         rel = str(path.relative_to(_ra.REPO_ROOT))
     except ValueError:
@@ -555,6 +683,7 @@ def _cmd_resolve(a) -> int:
     print("REPEATS_SOURCE\x1f%s" % block["knobs"]["repeats"]["repeats_source"].replace("\x1f", " "))
     print("REPEAT_KIND\x1f%s" % _ra.REPEAT_KIND_WARM)
     print("PRESET_PATH\x1f%s" % rel)
+    print("DATASET_KIND\x1f%s" % values["dataset_kind"])
     return 0
 
 

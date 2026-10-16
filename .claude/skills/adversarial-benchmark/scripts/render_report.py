@@ -142,7 +142,11 @@ def _repetition_section(index, bench_mode_record, bench_mode_status):
 MEASUREMENT_CONFIG_TITLE = "## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)"
 MEASUREMENT_CONFIG_KEYS = ("bench_mode", "bench_mode_kind", "bench_mode_source", "downgrade_reason",
                            "downgrade_reason_source", "bench_tool", "bench_tool_version", "bench_tool_version_source",
-                           "repeats", "repeats_source", "repeats_completed")
+                           "repeats", "repeats_source", "repeats_completed",
+                           # 데이터셋 축(2026-10-16 · plan_26101614) — 부재 = synthetic(과거 리포트 · 소급 ✗)
+                           "dataset_kind", "dataset_source", "dataset_id", "dataset_revision", "dataset_source_sha256",
+                           "dataset_column_map", "dataset_preprocess_strategy", "dataset_seed", "dataset_duplicate_sampling",
+                           "dataset_tokenizer")
 # lite 레그의 도구는 언제나 `vllm bench serve` 다(SKILL.md 도구 구성 `full = lite ∪ GuideLLM`). 토큰은 sweep_bench 조립부가
 # meta.bench_tool 에 쓰는 것과 같은 철자다(`vllm-bench-serve`) — 두 자리의 일치는 selftest_lite_report.py 가 대조한다.
 LITE_BENCH_TOOL = "vllm-bench-serve"
@@ -192,6 +196,11 @@ def full_measurement_config(index, bench_mode_record, bench_mode_status):
         "repeats_source": (rep.get("requested_source") if rep else "absent(반복 축 기록 없음 — 신설 전 산출물)"),
         # 판정점(인증서·판정이 묶이는 레벨)의 완주 run 수 — 강등 판정의 범위와 같은 자리다(repeat_axis 헤더 ★).
         "repeats_completed": completed,
+        # 데이터셋 출처 — sweep_bench 조립부가 런별 사이드카에서 승계한 meta(값 그대로 · 재산정 ✗). 키가 없으면
+        #   구세대 스윕이라 N/A 로 남는다(부재 = synthetic 으로 읽는다 · 여기서 synthetic 이라고 지어 쓰지 않는다).
+        **{k: meta.get(k) for k in ("dataset_kind", "dataset_source", "dataset_id", "dataset_revision",
+                                    "dataset_source_sha256", "dataset_column_map", "dataset_preprocess_strategy",
+                                    "dataset_seed", "dataset_duplicate_sampling", "dataset_tokenizer")},
     }
 
 
@@ -501,7 +510,9 @@ def lite_measurement_config():
             "downgrade_reason": rec["downgrade_reason"], "downgrade_reason_source": rec["downgrade_reason_source"],
             "bench_tool": LITE_BENCH_TOOL, "bench_tool_version": None,
             "bench_tool_version_source": LITE_BENCH_TOOL_VERSION_SOURCE,
-            "repeats": 1, "repeats_source": LITE_REPEATS_SOURCE, "repeats_completed": 1}
+            "repeats": 1, "repeats_source": LITE_REPEATS_SOURCE, "repeats_completed": 1,
+            # lite 는 데이터셋 knob 이 없다(vllm bench random · 사용자 결정 U14) — 그 사실을 기재한다.
+            "dataset_kind": "synthetic"}
 
 
 def build_lite_md(raw, lite, identity):

@@ -36,6 +36,9 @@ TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; CONC=1; OUTDIR=
 # 측정 형상은 빈 값으로 출발한다(2026-10-10 · plan_26101011). full-bench(--tool guidellm)의 형상은 프리셋이 정하고
 #   sweep_bench 가 해소값을 넘긴다 — 여기서 기본값으로 떨어지면 프리셋을 우회한 측정이 된다(아래 guidellm 가지가 거부).
 ILEN=""; OLEN=""; NPROMPTS=""; WARMUPS=""
+# 데이터셋 축(2026-10-16 · plan_26101614): bench_preset resolve 가 낸 해소값(JSON)을 그대로 받는다 — 플래그를
+#   knob 마다 늘리면 누락 자리가 knob 수만큼 생긴다. 캐시 폴더 = 스윕 단위(전처리 1회) · 런 번호 = 겹치지 않는 행 선택.
+DATASET_SPEC=""; DATASET_CACHE=""; DATASET_RUN_INDEX=""
 while [ $# -gt 0 ]; do case "$1" in
   --tool) TOOL="$2"; shift 2;;
   --tool-version) TOOL_VERSION="$2"; shift 2;;
@@ -51,6 +54,9 @@ while [ $# -gt 0 ]; do case "$1" in
   --warmups) WARMUPS="$2"; shift 2;;
   --out-dir) OUTDIR="$2"; shift 2;;
   --backend) BACKEND="$2"; shift 2;;
+  --dataset-spec) DATASET_SPEC="$2"; shift 2;;
+  --dataset-cache) DATASET_CACHE="$2"; shift 2;;
+  --dataset-run-index) DATASET_RUN_INDEX="$2"; shift 2;;
   *) echo "[run_bench] 알 수 없는 인자: $1" >&2; exit 2;;
 esac; done
 
@@ -81,6 +87,15 @@ case "$TOOL" in
   vllm)
     # 단발 `vllm bench serve` 경로의 형상 기본값 — full-bench 프리셋 범위 밖(plan_26101011 §2 · lite/단발 후방호환).
     : "${ILEN:=1024}" "${OLEN:=256}" "${NPROMPTS:=16}" "${WARMUPS:=2}"
+    # 실제 데이터셋 입력은 full-bench(guidellm) 전용이다 — 조용히 random 으로 재지 않는다(plan_26101614 D4).
+    if [ -n "$DATASET_SPEC" ]; then
+      _DK="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['dataset_kind'])" "$DATASET_SPEC" 2>/dev/null)" \
+        || { echo "[run_bench] ERROR --dataset-spec 을 읽지 못했다: $DATASET_SPEC" >&2; exit 2; }
+      if [ "$_DK" != "synthetic" ]; then
+        echo "[run_bench] ERROR --tool vllm 은 데이터셋 knob 을 받지 않는다(dataset_kind=$_DK) — full-bench(--tool guidellm) 전용" >&2
+        exit 2
+      fi
+    fi
     ;;
   guidellm)
     # 예산은 **선언에서만** 온다(§3.4·§4.8). 기본값을 두면 부하 생성기가 무제한으로 자라 serve 와
@@ -102,6 +117,7 @@ case "$TOOL" in
     [ -n "$OLEN" ] || _MISSING="$_MISSING --output-len"
     [ -n "$NPROMPTS" ] || _MISSING="$_MISSING --num-prompts"
     [ -n "$WARMUPS" ] || _MISSING="$_MISSING --warmups"
+    [ -n "$DATASET_SPEC" ] || _MISSING="$_MISSING --dataset-spec"
     if [ -n "$_MISSING" ]; then
       echo "[run_bench] ERROR --tool guidellm 은 측정 형상을 명시로만 받는다(누락:$_MISSING)." >&2
       echo "  full-bench 형상의 기본값 자리는 프리셋 하나다(config/<바인딩 폴더>/<preset>.yaml) — sweep_bench.sh 로 돌려라." >&2
@@ -378,6 +394,36 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
   fi
   fi  # docker serve-budget inspection
 
+  # ── 데이터셋 입력(2026-10-16 · plan_26101614) — 벤치 예산 게이트 **뒤**(전처리 컨테이너도 같은 상한 아래에서 돈다) ──
+  #   synthetic = 개정 전과 바이트 동일한 --data 인자(회귀 없음 · 합격 A1). 실제 데이터셋은 스윕당 1회 오프라인 전처리
+  #   (그 모델 토크나이저 = 위 TOKSTAGE) → 이 런 번호의 겹치지 않는 행을 /out 에 두고 json_file 로 읽는다.
+  #   출처 사이드카 dataset_<config>.json 은 synthetic 도 쓴다(신규 발행분 출처 항상 기록 · U10).
+  local DKIND DATA_ARG
+  local DATA_EXTRA=()
+  DKIND="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['dataset_kind'])" "$DATASET_SPEC")" \
+    || { echo "[run_bench] ERROR --dataset-spec 을 읽지 못했다: $DATASET_SPEC" >&2; return 2; }
+  if [ "$DKIND" = "synthetic" ]; then
+    DATA_ARG="kind=synthetic_text,prompt_tokens=$ILEN,output_tokens=$OLEN"
+    python3 "$SDIR/dataset_prep.py" synthetic-sidecar --input-len "$ILEN" --output-len "$OLEN" \
+      --sidecar "$OUTDIR/dataset_${CONFIG}.json" || return 2
+  else
+    [ -n "$DATASET_CACHE" ] && [ -n "$DATASET_RUN_INDEX" ] || {
+      echo "[run_bench] ERROR 실제 데이터셋(dataset_kind=$DKIND)에는 --dataset-cache 와 --dataset-run-index 가 필수다(sweep_bench 가 넘긴다)" >&2
+      return 2; }
+    python3 "$SDIR/dataset_prep.py" prepare --spec "$DATASET_SPEC" --tokstage "$TOKSTAGE" --cache "$DATASET_CACHE" \
+      --image "$IMAGE" --budget-mib "$BENCH_BUDGET_MIB" --input-len "$ILEN" --output-len "$OLEN" \
+      || { echo "[run_bench] 데이터셋 전처리 실패 — 측정하지 않는다(합성으로 대체 ✗)" >&2; return 4; }
+    python3 "$SDIR/dataset_prep.py" slice --spec "$DATASET_SPEC" --cache "$DATASET_CACHE" \
+      --run-index "$DATASET_RUN_INDEX" --count "$TOTAL_REQ" --input-len "$ILEN" --output-len "$OLEN" \
+      --out "$ABS_OUTDIR/dataset_rows.jsonl" --sidecar "$OUTDIR/dataset_${CONFIG}.json" \
+      --tokenizer-label "$MODEL_PATH" || return 4   # 컨테이너 경로(/app/models/…) — 호스트 운영자 경로는 배포물 PII 다
+    DATA_ARG="$(python3 -c "import sys; sys.path.insert(0,sys.argv[1]); import dataset_prep as d
+print(d.data_arg('json_file', '/out/dataset_rows.jsonl'))" "$SDIR")"
+    DATA_EXTRA=(--data-column-mapper "$(python3 -c "
+import json,sys; sys.path.insert(0,sys.argv[2]); import dataset_prep as d
+print(d.column_mapper_arg(json.load(open(sys.argv[1])), with_counts=True))" "$DATASET_SPEC" "$SDIR")")
+  fi
+
   local GLNAME="guidellm-bench-${CONFIG}-c${CONC}"
   # teardown 계약: 정상·비정상·시그널 어느 경로로 나가도 컨테이너를 남기지 않는다.
   trap 'docker rm -f "$GLNAME" >/dev/null 2>&1 || true' RETURN
@@ -398,7 +444,7 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
     --entrypoint guidellm "$IMAGE" run \
     --backend "kind=openai_http,target=$BASE_URL,model=$MODEL_NAME,request_format=$ENDPOINT,extras={\"ignore_eos\":true}" \
     --profile "kind=concurrent,streams=$CONC,warmup=$WARM_FRAC" \
-    --data "kind=synthetic_text,prompt_tokens=$ILEN,output_tokens=$OLEN" \
+    --data "$DATA_ARG" "${DATA_EXTRA[@]}" \
     --tokenizer "kind=huggingface_auto,model=/tok" \
     --constraint "kind=max_requests,count=$TOTAL_REQ" \
     --output "kind=json,path=/out/$(basename "$BJSON")" \
