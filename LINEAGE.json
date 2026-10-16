@@ -1,0 +1,115 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26101616",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/plan/plan_26101616_데이터셋knob_서브배달_서브E2E_hint발행.md",
+      "role": "plan",
+      "stem": "plan_26101616_데이터셋knob_서브배달_서브E2E_hint발행"
+    },
+    {
+      "date": "26101620",
+      "depth": 1,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26101620_p10_cnn_fullbench.md",
+      "role": "testlog",
+      "stem": "testlog_26101620_p10_cnn_fullbench"
+    },
+    {
+      "date": "26101620",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101620_lfm2.5-2.6b_GB10_0.31.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101620_lfm2.5-2.6b_GB10_0.31.0"
+    },
+    {
+      "date": "26101620",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101620_49_30_lfm25_26b_v031_CNN_hint셀.md",
+      "role": "testlog",
+      "stem": "testlog_26101620_49_30_lfm25_26b_v031_CNN_hint셀"
+    },
+    {
+      "date": "26101620",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101620_49_30_lfm25_26b_v031_CNN_hint셀.md",
+      "role": "devlog",
+      "stem": "devlog_26101620_49_30_lfm25_26b_v031_CNN_hint셀"
+    },
+    {
+      "date": "26101622",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101622_후속4건_안정화_데이터셋knob_lite_hint_기준선.md",
+      "role": "plan",
+      "stem": "plan_26101622_후속4건_안정화_데이터셋knob_lite_hint_기준선"
+    },
+    {
+      "date": "26101622",
+      "depth": 1,
+      "excerpts": 2,
+      "path": "docs/testlog/testlog_26101622_Q2_서브_hint_결손5건_정체.md",
+      "role": "testlog",
+      "stem": "testlog_26101622_Q2_서브_hint_결손5건_정체"
+    },
+    {
+      "date": "26101623",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/testlog/testlog_26101623_q6_서브_lite셀_materialize_resolve_렌더점검.md",
+      "role": "testlog",
+      "stem": "testlog_26101623_q6_서브_lite셀_materialize_resolve_렌더점검"
+    },
+    {
+      "date": "26101623",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101623_q6_서브_lite셀_저작.md",
+      "role": "devlog",
+      "stem": "devlog_26101623_q6_서브_lite셀_저작"
+    },
+    {
+      "date": "26101623",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/benchmark/bench_report_26101623_lfm2.5-2.6b_GB10_0.31.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101623_lfm2.5-2.6b_GB10_0.31.0"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [],
+    "count": 11
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 stem · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26101623",
+  "schema_version": 2,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26101623_lfm2.5-2.6b_GB10_0.31.0.md",
+      "sha256": "d7f7369c5994fa6bfff7876a14f66ad8888529a8547f355c235a0f2f0c6494be"
+    },
+    {
+      "path": "docs/plan/plan_26101616_데이터셋knob_서브배달_서브E2E_hint발행.md",
+      "sha256": "6da153afa3f76a56a33a566328227ca4b8cfd29a8b7a482220945ba42d4d02a4"
+    },
+    {
+      "path": "docs/testlog/testlog_26101620_p10_cnn_fullbench.md",
+      "sha256": "eca044082f5a24480e84b629792a692f317a8bdf5ed2b6312bf4eddd439e9d24"
+    },
+    {
+      "path": "docs/testlog/testlog_26101622_Q2_서브_hint_결손5건_정체.md",
+      "sha256": "c4524aa237b642ebe2729758a365074dbb77a228e3c74251b45c9cde984c90ff"
+    },
+    {
+      "path": "docs/testlog/testlog_26101623_q6_서브_lite셀_materialize_resolve_렌더점검.md",
+      "sha256": "7cbf346e5a49759818dcbccb7e32e0022096559b55695086149629f57619248c"
+    }
+  ]
+}
