@@ -1879,7 +1879,7 @@ def _ledger_span_lines(f: dict) -> list[str]:
     spans = [x for x in (f.get("event_ledger_spans") or []) if isinstance(x, dict)]
     if not spans:
         return []
-    parts, outs = [], []
+    parts, outs, locs = [], [], []
     for x in spans:
         files = " · ".join(f"`{_cell(p)}`" for p in (x.get("files") or []))
         if not x.get("last_utc"):
@@ -1888,13 +1888,19 @@ def _ledger_span_lines(f: dict) -> list[str]:
             continue
         parts.append(f"{_cell(x.get('node'))} = {_cell(x.get('first_utc'))} → {_cell(x.get('last_utc'))}({files})")
         if x.get("covers_measurement") is False:
-            outs.append(f"{x.get('node')}(마지막 행 {x.get('last_utc')} < 측정 끝 {x.get('measurement_end_utc')})")
+            # 2026-10-16(plan_26101614 P12 lite 사실 검증 F9): 이 체크아웃 노드의 로컬 원장(live_local)은 미회수가 아니다 — 블랙박스가
+            #   계속 쓰는 파일이라 마지막 행 뒤 행 없음은 조회 시각까지 관측된 것이다. 측정 끝 > 마지막 행이라는 사실은 그대로 적는다.
+            (locs if x.get("live_local") is True else outs).append(
+                f"{x.get('node')}(마지막 행 {x.get('last_utc')} < 측정 끝 {x.get('measurement_end_utc')})")
     line = "> **원장 관측 범위**(노드별 첫 행 → 마지막 행 · evidence.event_ledger_spans): " + " · ".join(parts)
     echoed = [x for x in spans if x.get("covers_measurement") is not True and isinstance(x.get("smoke_echo"), dict)
               and (x["smoke_echo"].get("rows") or [])]
     if outs:
         line += (f" — ⚠ {' · '.join(_cell(o) for o in outs)}: 그 뒤 그 노드의 선언 · 사건은 **관측 범위 밖**이다(없음이 아니다 · "
                  "원장 미회수)" + ("" if not echoed else " — 단 아래 보조 관측의 행은 예외"))
+    if locs:
+        line += (f" — {' · '.join(_cell(o) for o in locs)}: 마지막 행 뒤 행 없음(이 노드의 로컬 원장 · 조회 시각까지 관측 · 미회수 아님 — "
+                 "행은 사건 · 6시간 갱신 때만 쓰인다)")
     out = ["", line]
     for x in echoed:   # F10(2026-09-29): 같은 기동 스모크 로그에 echo 된 원장 JSON 줄 — evidence 가 준 행 그대로(판정 ✗)
         e = x["smoke_echo"]
@@ -4615,6 +4621,15 @@ def selftest() -> list[str]:
         ck("G8 이벤트 표에 원장 관측 범위 · 범위 끝 < 측정 끝인 노드 = '관측 범위 밖'(없음 ✗) · 기동 시도 요약에도",
            "원장 관측 범위" in et8 and "sub = 2026-09-03T00:00:00Z → 2026-09-11T11:10:38Z" in et8 and "관측 범위 밖" in et8
            and "관측 범위 밖" in _f_event_attempts(_Ctx(repo, dict(facts_json, event_ledger_spans=spans_), tpls)))
+        # F9(2026-10-16 · plan_26101614 P12 lite 사실 검증): 이 체크아웃 노드의 로컬 원장(live_local)은 '미회수' 가 아니다.
+        spans_l = [dict(spans_[0], live_local=False), dict(spans_[1], live_local=True)]
+        et8l = _f_event_timeline(_Ctx(repo, dict(facts_json, event_ledger_spans=spans_l), tpls))
+        ck("F9 live_local 노드 = '마지막 행 뒤 행 없음(이 노드의 로컬 원장 · 조회 시각까지 관측 · 미회수 아님)' · 측정 끝 사실은 그대로",
+           "마지막 행 뒤 행 없음(이 노드의 로컬 원장 · 조회 시각까지 관측 · 미회수 아님" in et8l and "원장 미회수" not in et8l
+           and "sub(마지막 행 2026-09-11T11:10:38Z < 측정 끝 2026-09-23T01:57:09Z)" in et8l)
+        ck("★F9 live_local False(회수본) 노드 문구는 그대로 '관측 범위 밖 · 원장 미회수'",
+           "원장 미회수" in et8 and "미회수 아님" not in et8
+           and "원장 미회수" in _f_event_timeline(_Ctx(repo, dict(facts_json, event_ledger_spans=[spans_l[0], dict(spans_[1], live_local=False)]), tpls)))
         echo_ = {"log": "docs/simlog/r/serve.log", "basis": "같은 기동 판별", "rows": [
             {"ts": "2026-09-23T00:10:03Z", "kind": "budget_honored", "label": "smoke-x", "source": "docs/simlog/r/serve.log:26"}]}
         spans_e = [spans_[0], dict(spans_[1], smoke_echo=echo_)]
