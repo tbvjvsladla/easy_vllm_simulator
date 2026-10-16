@@ -162,6 +162,16 @@ MISSING_CODES: dict[str, str] = {
 # `source`(`bench_report(<파일명>)`)로 출처를 표시한다(출처 표시 ≠ 서술 복제).
 DISTRIBUTED_MEASUREMENT_KEYS = ("bench_mode", "bench_mode_kind", "downgrade_reason", "bench_tool", "bench_tool_version",
                                 "repeats", "repeats_completed")
+# 데이터셋 출처 키(2026-10-16 · plan_26101614 U9·U10). writer = adversarial-benchmark render_report(측정 구성 표) ·
+#   publish_benchmark_record(인증서 소프트 지문). DISTRIBUTED_MEASUREMENT_KEYS 에 **섞지 않는다** — 그 목록은 카탈로그 bench_mode
+#   칸과 기존 단언(set(measurement_config) == DISTRIBUTED + source)의 계약이다. 별도 사실 키 `dataset_provenance` 로 싣고
+#   03 §3.3 `FACT:dataset_provenance` 가 그것을 렌더한다. 부재 = synthetic(과거 리포트 · 소급 ✗ · `benchmark_mode` 선례).
+DATASET_KEYS = ("dataset_kind", "dataset_source", "dataset_id", "dataset_revision", "dataset_source_sha256",
+                "dataset_column_map", "dataset_preprocess_strategy", "dataset_seed", "dataset_duplicate_sampling",
+                "dataset_tokenizer")
+# 출처 판정 어휘(닫힌 목록 · FACT 렌더와 자체검사가 같은 값을 본다).
+DATASET_STATUS_RECORDED = "recorded"
+DATASET_STATUS_INFERRED = "inferred-synthetic"
 
 # 인증서에서 PAYLOAD.measurement 로 옮기는 측정 수치(옛 hint_collect.CERT_PERF — 선택이지 값의 복제가 아니다).
 _CERT_MEASUREMENT_KEYS = ("benchmark_mode", "verdict", "decode_tps_conc1", "rubric_authority", "primary_source",
@@ -1402,6 +1412,69 @@ def measurement_config(repo, ev: CellEvidence) -> dict:
         sources.append("publication record(benchmark.mode=lite)")
     out["source"] = " + ".join(sources) if sources else "absent(측정 구성 표·인증서 모두 없다 — 미기재)"
     return out
+
+
+# 배포 평면에 싣는 데이터셋 값의 경로 정화(2026-10-16 · plan_26101614): `/app/` 밖 절대경로(호스트 `/mnt` · `/home` 등)는 운영자
+#   환경 지문이라 deploy 프로필 PII(abs-op-path)에 걸린다 — 이름(basename)만 남기고 `<abs-path>/` 표지를 붙인다(출처 표시 ≠ 경로
+#   복제). 컨테이너 경로(`/app/…`)는 이미지 안 자리라 그대로 둔다. `abisee/cnn_dailymail` 같은 상대 id 는 앞이 `/` 가 아니라 건드리지 않는다.
+_DATASET_HOST_PATH_RE = re.compile(r"(?:^|(?<=[\s=:'\"(\[{,]))/(?!app/)[^\s'\"|,;)\]}]+")
+
+
+def _sanitize_dataset_value(v):
+    if not isinstance(v, str):
+        return v
+
+    def repl(m: re.Match) -> str:
+        base = m.group(0).rstrip("/").rsplit("/", 1)[-1]
+        return f"<abs-path>/{base}" if base else "<abs-path>"
+    return _DATASET_HOST_PATH_RE.sub(repl, v)
+
+
+def dataset_provenance(repo, ev: CellEvidence) -> dict:
+    """데이터셋 출처(2026-10-16 · plan_26101614 U9·U10·U13) → facts/PAYLOAD `dataset_provenance` · 03 §3.3 `FACT:dataset_provenance`.
+
+    **파싱만**(합성 ✗): 바인딩된 리포트 측정 구성 표의 `dataset_*` 행 > 인증서 소프트 지문(`dataset_*`)을 키별로 채운다. 둘 다 없으면
+    `status = inferred-synthetic` — **부재에서 추론한** synthetic 이다(데이터셋 축 도입 전 리포트 · 소급 ✗). 그 사실을 `source` 가 말한다
+    (기재된 synthetic 과 부재 추론 synthetic 을 한 칸으로 접지 않는다). 값의 `/app/` 밖 절대경로는 이름만 남긴다(_sanitize_dataset_value).
+    반환 = DATASET_KEYS + `dataset_provenance`(인증서가 적은 writer 출처 문구) + `status` + `source`."""
+    repo = _repo(repo)
+    rbs = _rbs(repo)
+    out: dict = {k: None for k in DATASET_KEYS}
+    sources: list[str] = []
+    rep = ev.bench_report_path
+    name = Path(rep).name if rep else None
+    text = (repo / rep).read_text(encoding="utf-8", errors="replace") if rep and (repo / rep).is_file() else None
+    if text is not None:
+        try:
+            mc = rbs.parse_measurement_config(text)
+        except rbs.BenchSectionFailure:
+            mc = None
+            sources.append(f"unparseable(bench_report({name}) 측정 구성 표 — 파싱 실패)")
+        if isinstance(mc, dict) and any(mc.get(k) is not None for k in DATASET_KEYS):
+            for k in DATASET_KEYS:
+                if mc.get(k) is not None:
+                    out[k] = mc[k]
+            sources.append(f"bench_report({name}) 측정 구성 표")
+    cert = ev.certificate or {}
+    filled = False
+    for k in DATASET_KEYS:
+        v = cert.get(k)
+        if out[k] is None and not _unobserved(v):
+            out[k] = v
+            filled = True
+    if filled:
+        sources.append(f"certificate({Path(ev.certificate_path or '').name}) 소프트 지문")
+    prov = cert.get("dataset_provenance")
+    out["dataset_provenance"] = None if _unobserved(prov) else prov
+    if any(out[k] is not None for k in DATASET_KEYS):
+        out["status"] = DATASET_STATUS_RECORDED
+        out["source"] = " + ".join(sources)
+    else:
+        out["dataset_kind"] = "synthetic"
+        out["status"] = DATASET_STATUS_INFERRED
+        out["source"] = ("inferred(부재 = synthetic — 리포트 측정 구성 표 · 인증서 어디에도 dataset_* 기재가 없다 · 데이터셋 축 도입"
+                         "(2026-10-16) 전 측정으로 읽는다 · 소급 ✗)" + (f" · 판독: {' + '.join(sources)}" if sources else ""))
+    return {k: _sanitize_dataset_value(v) for k, v in out.items()}
 
 
 # 판정의 기계 표면(2026-09-29 · plan_26092908 §4.4 · V1). 판정 값의 어휘 — verdict_rule 의 둘 + lite-only 셀의 표지.
@@ -8495,6 +8568,43 @@ def selftest() -> list[str]:
             ck("★PII 회귀 — 자유 서술 *_source 의 운영자 절대경로가 배포 평면(measurement_config·measurement)에 0건",
                "op-fixture" not in json.dumps([mcd, measurement(evd)], ensure_ascii=False)
                and not any(k.endswith("_source") for k in mcd))
+            # 데이터셋 출처(2026-10-16 · plan_26101614 U10): 리포트 표 · 인증서 어디에도 dataset_* 가 없으면 부재 추론 synthetic(소급 ✗)
+            dp0 = dataset_provenance(repo, evd)
+            ck("데이터셋 출처 — dataset_* 부재 = synthetic **부재 추론**(status inferred-synthetic · source 가 추론이라 말한다)",
+               dp0.get("dataset_kind") == "synthetic" and dp0.get("status") == DATASET_STATUS_INFERRED
+               and dp0.get("source", "").startswith("inferred(") and set(DATASET_KEYS) <= set(dp0))
+            # ★ PII 음성대조: 호스트 데이터셋 경로(/mnt…)가 표에 실려도 배포 평면에는 이름만 간다(실행 시 조립 — 추적 파일에 리터럴 ✗)
+            ds_host = "/" + "mnt" + "/llm/dataset/abisee__cnn_dailymail/" + "a" * 40 + "/test-00000-of-00001.parquet"
+            tok_host = "/" + "home" + "/op-fixture/tok/granite"
+            rep_ds = "docs/benchmark/bench_report_26010311_fixture-model-nvfp4_GB10_0.9.0.md"
+            (repo / rep_ds).write_text("\n".join([
+                "# 성능 보고서", "", f"> 생성일 {d_utc}.", "", rbs.MEASUREMENT_CONFIG_TITLE, "", "| 키 | 값 |", "|---|---|",
+                "| bench_mode | full |", "| dataset_kind | parquet_file |", "| dataset_source | managed |",
+                "| dataset_id | abisee/cnn_dailymail |", f"| dataset_revision | {'a' * 40} |",
+                f"| dataset_source_sha256 | {'b' * 64} |", f"| dataset_tokenizer | {tok_host} |",
+                f"| dataset_column_map | {ds_host} |", "| dataset_seed | 42 |", ""]), encoding="utf-8")
+            dp1 = dataset_provenance(repo, dataclasses.replace(evd, bench_report_path=rep_ds))
+            ck("데이터셋 출처 — 리포트 표 우선 · status recorded · source = bench_report 측정 구성 표 · id · revision 원문",
+               dp1.get("status") == DATASET_STATUS_RECORDED and "bench_report(" in dp1.get("source", "")
+               and dp1.get("dataset_id") == "abisee/cnn_dailymail" and dp1.get("dataset_revision") == "a" * 40
+               and dp1.get("dataset_kind") == "parquet_file")
+            dp1_txt = json.dumps(dp1, ensure_ascii=False)
+            from . import pii as _pii_ds
+            ck("★PII 음성대조 — 호스트 절대경로(/mnt · /home)는 이름만(`<abs-path>/<이름>`) · deploy 스캔 0건",
+               "op-fixture" not in dp1_txt and "/" + "mnt/" not in dp1_txt
+               and dp1.get("dataset_tokenizer") == "<abs-path>/granite"
+               and dp1.get("dataset_column_map") == "<abs-path>/test-00000-of-00001.parquet"
+               and not _pii_ds.scan_text(dp1_txt, [], profile="deploy"))
+            ck("★음성대조 — 정화 전 원문은 deploy 스캔에 걸린다(위 0건이 공허하지 않다)",
+               bool(_pii_ds.scan_text(json.dumps({"t": tok_host, "c": ds_host}), [], profile="deploy")))
+            dp2 = dataset_provenance(repo, dataclasses.replace(
+                evd, bench_report_path=None, certificate={**(evd.certificate or {}), "dataset_kind": "parquet_file",
+                                                          "dataset_tokenizer": "/app/models/IBM/granite", "dataset_seed": "N/A",
+                                                          "dataset_provenance": "measured(런별 사이드카 · 3 런)"}))
+            ck("데이터셋 출처 — 표 없으면 인증서 소프트 지문(N/A = 미기재) · /app 경로는 그대로 · writer 출처 문구 승계",
+               dp2.get("status") == DATASET_STATUS_RECORDED and "certificate(" in dp2.get("source", "")
+               and dp2.get("dataset_tokenizer") == "/app/models/IBM/granite" and dp2.get("dataset_seed") is None
+               and dp2.get("dataset_provenance") == "measured(런별 사이드카 · 3 런)")
             mand = drive_publisher(repo, evd, topic=topic_for(evd), generated_utc="2026-01-03T02:00:00Z",
                                    draft_dir=repo / "hints/.drafts/d4")
             mdd = json.loads(mand.read_text(encoding="utf-8"))

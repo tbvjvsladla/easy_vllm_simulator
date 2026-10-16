@@ -178,6 +178,11 @@ README.md · 00-hint.md(지도 — 먼저 읽는다) · 01-artifacts.md · 02-na
 PAYLOAD.json · LINEAGE.json(수신자 요약 ≤ 20KB + 봉인 출처 스냅샷) · PROVENANCE.json · artifacts/<slot>/… · (multi) artifacts/compose/sub_recipe.json
 ```
 
+- **lite 셀은 `03-benchmark.md` 를 싣지 않는다**(2026-10-16 · plan_26101614 U14): 선언된 lite-only 셀(`PAYLOAD.cell_grade: lite` · 단일 술어
+  `template.is_lite_cell`)은 판정 표기가 **`lite(기동 가능)`**(성능 판정 아님 · 기계 판정 칸은 OBSERVATION-ONLY 그대로)이고 lite 수치 · 측정
+  구성 · 도구 원문은 00 머리 `FACT:lite_summary` 에 둔다. full 셀의 03 §3.3 에는 데이터셋 출처 절(`FACT:dataset_provenance` · 부재 = synthetic
+  부재 추론 · 소급 ✗)이 실린다.
+
 - annotated 태그 본문은 brief 한 문단 + "zip 의 `00-hint.md` 부터" 포인터 + 증거 주소 footer **v2**(`bench_ref` + `bench_kind:
   certificate|bench_report` — 발행 저장소 로컬 경로 · 수신자 해소 대상 아님)뿐이다 — 지도는 zip 안에 있다(계약 §7.3).
 - 페이로드 `README.md` 는 `PAYLOAD.naming` 에서 **"이 태그 이름 읽는 법"**(세그먼트별 값 · 뜻 · 출처 · 꼬리 토큰 뜻 · timestamp · `native`

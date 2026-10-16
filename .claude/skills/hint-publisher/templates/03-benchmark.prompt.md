@@ -28,6 +28,9 @@
 <!-- FACT:measurement_config -->
 <!-- /FACT:measurement_config -->
 
+<!-- FACT:dataset_provenance -->
+<!-- /FACT:dataset_provenance -->
+
 <!-- FACT:bench_missing -->
 <!-- /FACT:bench_missing -->
 
