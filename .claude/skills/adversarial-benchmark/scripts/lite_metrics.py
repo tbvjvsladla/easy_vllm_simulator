@@ -217,7 +217,13 @@ def build(raw):
                          "호출부가 manifest/인터뷰에서 읽어 넘겨라." % (topo,))
     warm = _load_json(raw.get("bench_warm_json"))
     cold = _load_json(raw.get("bench_cold_json"))
-    engine = parse_engine_log(raw.get("engine_log"))
+    # ★ 2026-10-16(plan_26101614 P7 라이브 발견): KV·가중치 라인은 **기동 때 한 번만** 찍힌다. 꼬리(tail -800)만 파싱하면
+    #   오래 상주한 서빙(2일 · 요청 로그가 꼬리를 채움)에서 늘 N/A 가 되고 lite 가 measurement_path_failed 로 끝난다
+    #   — 머리 캡처(engine_log_head · 10-06 신설)는 있었는데 KV 파싱에 배선되지 않은 침묵 누락이었다.
+    #   머리를 먼저(기동 사실의 자리), 비면 꼬리로 메운다. 값은 그대로 파싱한 것이다(추정 ✗).
+    engine = parse_engine_log(raw.get("engine_log_head"))
+    _tail = parse_engine_log(raw.get("engine_log"))
+    engine = {k: (engine.get(k) if engine.get(k) is not None else _tail.get(k)) for k in set(engine) | set(_tail)}
     gen, gen_src = gen_tps_from_bench(warm)
     ttft = cold_ttft_ms(cold)
     nodes = raw.get("nodes", [])
