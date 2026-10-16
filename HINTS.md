@@ -112,7 +112,19 @@ arch·recipe 의 모양이 다릅니다.
 에 있습니다.
 
 <!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->
-> 원격 `origin` 의 발행 태그 **66건** · 모델 16종에서 파생 · 생성 `2026-10-16T20:45:28` KST · 로컬 오브젝트 부재(미수령) 5건.
+> 원격 `origin` 의 발행 태그 **66건** · 모델 16종에서 파생 · 생성 `2026-10-16T21:26:59` KST · 로컬 오브젝트 부재(미수령) 3건.
+
+### `lfm2.5-2.6b` (1)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto` | gb10-1g1n-sub-native | 0.31.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_CELL_CONFIG · HINT_MISSING_CELL_STATUS · HINT_MISSING_LOCKSET · HINT_MISSING_RESOLVE |
+
+### `ornith-1.5-9b` (1)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.31.0/ornith-1.5-9b/gb10-1g1n-sub-native/qbf16-len32768-kvauto` | gb10-1g1n-sub-native | 0.31.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_CELL_CONFIG · HINT_MISSING_CELL_STATUS · HINT_MISSING_LOCKSET · HINT_MISSING_RESOLVE |
 
 ### `granite-4.2-8b` (1)
 
@@ -236,23 +248,11 @@ arch·recipe 의 모양이 다릅니다.
 | `hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8` | gb10-main-native | 0.18.0 | 미기재(구판) | 미기재 | — |
 | `hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8` | gb10-sim-h100 | 0.18.0 | 미기재(구판) | 미기재 | 미선언 |
 
-### `lfm2.5-2.6b` (1)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto` | gb10-1g1n-sub-native | 0.31.0 | 미수령 | 미수령 | 미수령 |
-
 ### `muse-glimmer-30b` (1)
 
 | 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
 |---|---|---|---|---|---|
 | `hint/0.31.0/muse-glimmer-30b/rtxpro6000ws-1g1n-main-native/qbf16-len131072-kvauto` | rtxpro6000ws-1g1n-main-native | 0.31.0 | 미수령 | 미수령 | 미수령 |
-
-### `ornith-1.5-9b` (1)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.31.0/ornith-1.5-9b/gb10-1g1n-sub-native/qbf16-len32768-kvauto` | gb10-1g1n-sub-native | 0.31.0 | 미수령 | 미수령 | 미수령 |
 
 ### `qwen3-32b` (1)
 
