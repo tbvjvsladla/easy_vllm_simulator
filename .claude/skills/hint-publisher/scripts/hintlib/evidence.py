@@ -1963,9 +1963,20 @@ def _node_streams(repo: Path, node: str) -> list[tuple[str, list[tuple[str, int,
     return out
 
 
-def _event_windows(rows: list[tuple[str, int, dict]]) -> list[dict]:
+def _node_opens(streams) -> list[tuple[str, str | None]]:
+    """노드의 모든 스트림에서 선언 슬롯을 여는 행(시각, 라벨) — 시각순. `_event_windows` 의 스트림 교차 상한 입력."""
+    return sorted((ts, d.get("label")) for _k, rows, _s, _b in streams for ts, _ln, d in rows
+                  if d.get("kind") in _EVENT_OPEN_KINDS)
+
+
+def _event_windows(rows: list[tuple[str, int, dict]], node_opens: "list | None" = None) -> list[dict]:
     """스트림 하나의 선언 창 — 여는 행(선언·arm) ~ 닫는 행(clear·none·expired · 포함) 또는 다음 여는 행(교체 · 미포함).
-    창 안의 행 = 같은 라벨 행 + 라벨 없는 _EVENT_WINDOWED_KINDS 행."""
+    창 안의 행 = 같은 라벨 행 + 라벨 없는 _EVENT_WINDOWED_KINDS 행.
+
+    ★ 2026-10-16(plan_26101614 P12 독립 사실 검증 F3/F4): 선언 슬롯은 **노드당 하나**인데 창은 스트림마다 따로 계산된다 — 워치독
+      스트림에는 granite 창을 여는 행(budget_honored)만 있고 합산 선언으로의 교체(월 원장 budget_declare)는 없어서, 교체 뒤의 라벨 없는
+      hold 행이 닫힌 granite 창에 귀속됐다. `node_opens`(같은 노드 전 스트림의 여는 행)를 주면 창의 끝을 **다른 라벨 선언이 처음 열린
+      시각**으로 자른다(그 시각 이후 행은 이 창 밖)."""
     wins: list[dict] = []
     cur = None
     for idx, (ts, _ln, d) in enumerate(rows):
@@ -1990,6 +2001,16 @@ def _event_windows(rows: list[tuple[str, int, dict]]) -> list[dict]:
             cur["rows"].append(idx)
     if cur is not None:
         wins.append(cur)
+    if node_opens:
+        for w in wins:
+            nxt = next((ts for ts, lab in node_opens if ts > w["start_ts"] and lab != w["label"]), None)
+            if nxt is None:
+                continue
+            # 행은 다른 라벨 선언 시각부터 이 창 밖이다(둘 다 관측된 사실). 끝 시각은 **닫힌 창만** 당긴다 — 열린 채 끝난 창(end_ts None)에
+            #   관측되지 않은 끝을 지어 넣으면 '스트림 끝 뒤 = 닫힘 미관측' 규칙(stream_last)이 깨진다(자체검사가 잡았다).
+            w["rows"] = [i for i in w["rows"] if i == w["rows"][0] or rows[i][0] < nxt]
+            if w["end_ts"] is not None and nxt < w["end_ts"]:
+                w.update(end_ts=nxt, end_kind="replaced(다른 스트림의 다른 라벨 선언 · 노드당 슬롯 1)")
     return wins
 
 
@@ -2004,6 +2025,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
     measured_win = None
     for node in _event_node_dirs(repo, ev):
         streams = _node_streams(repo, node)
+        opens = _node_opens(streams)
         if ctx is not None:
             ctx.setdefault("nodes", []).append(node)
             for _key, rows, srcs, _bad in streams:
@@ -2012,7 +2034,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                     #   "선언 없음" 이 아니라 **미관측** 이다(실측: sub 2026-09.jsonl 은 09-11T11:10:38Z 에서 끝난다).
                     sp = ctx.setdefault("spans", {}).setdefault(node, [rows[0][0], rows[-1][0]])
                     sp[0], sp[1] = min(sp[0], rows[0][0]), max(sp[1], rows[-1][0])
-                for w in _event_windows(rows):
+                for w in _event_windows(rows, opens):
                     # stream_last: 열린 창(end_ts None)은 그 스트림의 마지막 행까지만 열려 있음이 관측된다 — 그 뒤는 닫힘 미관측이다
                     #   (실측: sub 스트림이 `smoke-nv4-f8-1m-res` 창을 연 채 끝난다 — 옛 판본은 그 뒤 모든 시각을 이 창이 덮는다고 읽었다).
                     ctx.setdefault("windows", []).append({"node": node, "rel": srcs[w["rows"][0]], "label": w["label"],
@@ -2027,7 +2049,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
         declare_wins: list[tuple[str, dict]] = []
         for rel, rows, srcs, _bad in streams:
             in_win: set[int] = set()
-            for w in _event_windows(rows):
+            for w in _event_windows(rows, opens):
                 if not _label_is_cell(w["label"], cell):
                     continue
                 for idx in w["rows"]:
@@ -2168,8 +2190,9 @@ def _foreign_label_windows(streams: list, taken: dict, cell: str) -> list[dict]:
     if not ivs:
         return []
     out: list[dict] = []
+    opens = _node_opens(streams)
     for skey, rows, _srcs, _bad in streams:
-        for w in _event_windows(rows):
+        for w in _event_windows(rows, opens):
             if not w.get("label") or _label_is_cell(w["label"], cell):
                 continue
             w["stream_last"] = rows[-1][0]
@@ -7858,6 +7881,17 @@ def selftest() -> list[str]:
     def ck(name: str, cond) -> None:
         if not cond:
             bad.append(f"evidence: {name}")
+
+    # ★ 스트림 교차 창 상한(2026-10-16 · plan_26101614 P12 사실 검증 F3/F4): 워치독 스트림은 A 창을 연 채이고 월 원장이 B 로 교체했다 —
+    #   교체 뒤의 라벨 없는 hold 는 A 창이 아니다 · 열린 창의 끝은 지어 넣지 않는다 · 같은 라벨 재선언은 자르지 않는다.
+    _wd = [("2026-01-01T00:00:00Z", 1, {"kind": "budget_honored", "label": "A"}),
+           ("2026-01-01T00:05:00Z", 2, {"kind": "watchdog_highrate_hold"})]
+    _opens = [("2026-01-01T00:00:00Z", "A"), ("2026-01-01T00:04:00Z", "B")]
+    _w = _event_windows(_wd, _opens)[0]
+    ck("★다른 스트림의 다른 라벨 선언 뒤 라벨 없는 행은 앞 창 밖", _w["rows"] == [0] and _w["end_ts"] is None)
+    ck("교차 상한 없으면 종전 그대로(hold 가 열린 창 안)", _event_windows(_wd)[0]["rows"] == [0, 1])
+    ck("같은 라벨 재선언은 창을 자르지 않는다",
+       _event_windows(_wd, [("2026-01-01T00:00:00Z", "A"), ("2026-01-01T00:04:00Z", "A")])[0]["rows"] == [0, 1])
 
     from . import lineage
     prev = os.environ.pop("QUANT_MODEL_PATH", None)     # check_smoke_model 은 env 를 먼저 본다 — 픽스처 격리
