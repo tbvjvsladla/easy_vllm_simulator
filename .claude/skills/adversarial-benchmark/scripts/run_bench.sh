@@ -452,6 +452,28 @@ print(d.column_mapper_arg(json.load(open(sys.argv[1])), with_counts=True))" "$DA
     || { echo "[run_bench] guidellm run 실패" >&2; return 4; }
 }
 
+# ── 실행 범위 관측 (2026-10-16 · plan_26101622 F2) ────────────────────────────────────
+#   ① 엔진 로그는 이 실행이 시작한 시각부터만 담는다(`docker logs --since`). 종전 `tail -800` 은 상주
+#      서버에서 **전날·다른 클라이언트 트래픽**까지 덮어(실측: granite level 01 POST 61건 중 이 실행분 18),
+#      엔진 로그 파서(engine_gen_throughput_max)와 hint 발췌가 다른 실행의 줄을 이 실행에 귀속했다.
+#   ② prefix cache 적중은 엔진 로그의 "Prefix cache hit rate"(최근 요청 창 통계 · 이전 트래픽 포함)가 아니라
+#      `/metrics` 카운터의 **실행 전후 차분**으로 잰다 — 같은 프롬프트 반복(중복 샘플링 결함 E2) 같은 측정
+#      오염을 기계가 볼 수 있게 한다. 서버 전체 카운터이므로 이 창의 다른 요청도 섞인다 → requests_delta 를
+#      함께 적어 섞였는지 읽게 한다. 판정 규칙은 이 값을 쓰지 않는다(기록 전용).
+BENCH_SINCE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+PCJSON="$OUTDIR/prefix_cache_${CONFIG}.json"
+_pc_snapshot() {   # stdout: "<queries> <hits> <requests>" · 수집 실패 = 빈 출력(호출부가 unobserved 로 기재)
+  curl -s -m 5 "$BASE_URL/metrics" 2>/dev/null | python3 -c '
+import re,sys
+t=sys.stdin.read()
+def g(k):
+    v=re.findall(r"^vllm:%s\{[^}]*\} ([0-9.eE+-]+)$" % k, t, re.M)
+    return sum(float(x) for x in v) if v else None
+q,h,r=g("prefix_cache_queries_total"),g("prefix_cache_hits_total"),g("request_success_total")
+print("" if None in (q,h,r) else "%d %d %d" % (q,h,r))' 2>/dev/null
+}
+PC_BEFORE="$(_pc_snapshot)"
+
 BENCH_TOOL_RC=0
 case "$TOOL" in
   vllm)     BJSON="$OUTDIR/bench_${CONFIG}.json";    bench_with_vllm     || BENCH_TOOL_RC=$? ;;
@@ -460,8 +482,25 @@ case "$TOOL" in
 esac
 [ "$BENCH_TOOL_RC" = "0" ] || exit "$BENCH_TOOL_RC"
 
+PC_AFTER="$(_pc_snapshot)"
+python3 - "$PCJSON" "$CONFIG" "$PC_BEFORE" "$PC_AFTER" "$BENCH_SINCE" <<'PCPY'
+import json,sys
+out,cfg,b,a,since=sys.argv[1:]
+d={"schema_version":1,"config":cfg,"window_start_utc":since,
+   "source":"vllm /metrics prefix_cache_queries_total·prefix_cache_hits_total·request_success_total 실행 전후 차분(서버 전체 카운터)"}
+if b and a:
+    qb,hb,rb=map(int,b.split()); qa,ha,ra=map(int,a.split())
+    dq,dh,dr=qa-qb,ha-hb,ra-rb
+    d.update(provenance="measured",queries_delta=dq,hits_delta=dh,requests_delta=dr,
+             hit_rate_run=(round(dh/dq,4) if dq>0 else None))
+else:
+    d.update(provenance="unobserved",reason="/metrics 수집 실패(전 또는 후) — 값을 추정하지 않는다")
+json.dump(d,open(out,"w"),ensure_ascii=False,indent=2)
+print("[run_bench] prefix cache(실행 차분): %s" % ({k:d.get(k) for k in ("provenance","hit_rate_run","requests_delta")}))
+PCPY
+
 if [ "$SERVE_PLANE" = "docker" ]; then
-  docker logs "$CTR" 2>&1 | tail -800 > "$ELOG" || true
+  docker logs --since "$BENCH_SINCE" "$CTR" > "$ELOG" 2>&1 || true
 else
   : > "$ELOG"  # native server logs are producer evidence; benchmark does not read host process logs.
 fi
@@ -510,5 +549,6 @@ echo "BENCH_HOST_ENDPOINT=$BASE_URL"
 echo "BENCH_ENDPOINT=$ENDPOINT"
 echo "BENCH_BACKEND_SOURCE=$BACKEND_SOURCE"
 echo "BENCH_JSON=$BJSON"
+echo "BENCH_PREFIX_CACHE_JSON=$PCJSON"
 echo "ENGINE_LOG=$ELOG"
 echo "POST_HEALTH=$POST_HEALTH"

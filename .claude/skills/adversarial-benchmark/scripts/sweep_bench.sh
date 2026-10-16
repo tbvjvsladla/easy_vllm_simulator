@@ -475,6 +475,8 @@ for L in "${SORTED[@]}"; do
         # 전에만 남길 수 있는 사실이며, 이것이 없으면 엔진 사망 중 잘린 SSE 가 도구 경계로 면제된다.
         _PH="$RDIR/post_health_${CONFIG}.json"
         [ -s "$_PH" ] && PARSE_CMD+=(--post-health-json "$_PH")
+        _PC="$RDIR/prefix_cache_${CONFIG}.json"
+        [ -s "$_PC" ] && PARSE_CMD+=(--prefix-cache-json "$_PC")
       else
         BJSON="$RDIR/bench_${CONFIG}.json"
         PARSE_CMD=(python3 "$SDIR/parse_bench.py" --bench-json "$BJSON" --engine-log "$ELOG")

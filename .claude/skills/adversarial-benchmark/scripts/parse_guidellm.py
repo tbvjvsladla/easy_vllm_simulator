@@ -479,11 +479,28 @@ def _self_test():
               "bench_warm_json" in str(exc) and "vllm bench serve" in str(exc), "(실제 %r)" % str(exc))
     else:
         check("G25 ★음성대조 lite raw 포인터 문서는 거부한다(조용한 None 승계 ✗)", False, "(예외가 나지 않았다)")
+    # ── G26~G28 prefix cache 실행 차분 운반(2026-10-16 · plan_26101622 F2) ─────────────────────
+    import tempfile, io, contextlib
+    check("G26 관측 파일 없음 = None(0 으로 접지 않는다)", prefix_cache_run(None) is None)
+    with tempfile.TemporaryDirectory() as td:
+        pth = os.path.join(td, "pc.json")
+        with open(pth, "w") as h:
+            json.dump({"provenance": "measured", "queries_delta": 100, "hits_delta": 90, "requests_delta": 18,
+                       "hit_rate_run": 0.9, "junk": 1}, h)
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            rec = prefix_cache_run(pth)
+        check("G27 measured 운반 · 키 닫힌 목록 · 높은 적중률 경고",
+              rec.get("hit_rate_run") == 0.9 and "junk" not in rec and "WARN" in err.getvalue(), "(%r)" % rec)
+        with open(pth, "w") as h:
+            json.dump({"provenance": "unobserved", "reason": "x"}, h)
+        rec = prefix_cache_run(pth)
+        check("G28 unobserved 는 값 없이 사유째 운반", rec == {"provenance": "unobserved", "reason": "x"}, "(%r)" % rec)
     if failures:
         sys.stderr.write("[parse_guidellm --self-test] FAIL %d 건: %s\n" % (len(failures), failures))
         return 1
 
-    print("[parse_guidellm --self-test] OK — G1~G25 전부 통과")
+    print("[parse_guidellm --self-test] OK — G1~G28 전부 통과")
     return 0
 
 
@@ -499,6 +516,9 @@ def main(argv=None):
     ap.add_argument("--post-health-json",
                     help="run_bench 가 벤치 직후 남긴 post_health_<cfg>.json. "
                          "server_alive_at_bench_end=false 면 도구경계 면제가 무효화된다(유예 결함 ②).")
+    ap.add_argument("--prefix-cache-json",
+                    help="run_bench 가 남긴 prefix_cache_<cfg>.json(실행 전후 /metrics 차분). 출력 prefix_cache_run 에 "
+                         "그대로 싣는다 — 기록 전용 · 판정 규칙은 읽지 않는다(2026-10-16 plan_26101622 F2).")
     ap.add_argument("--max-error-rate", type=float, default=0.0,
                     help="허용 오류율(기본 0.0 = 엄격). 0 이 아닌 값을 쓰려면 호출자가 근거를 갖고 "
                          "넘겨야 한다 — 실제 오류율은 산출물이 항상 error_rate 로 싣는다(삼키지 않는다).")
@@ -548,8 +568,30 @@ def main(argv=None):
     except ValueError as exc:
         sys.stderr.write("[parse_guidellm] ERROR %s\n" % exc)
         return 2
+    out["prefix_cache_run"] = prefix_cache_run(args.prefix_cache_json)
     print(json.dumps(out, ensure_ascii=False, indent=2))
     return 0
+
+
+PREFIX_CACHE_KEYS = ("provenance", "window_start_utc", "queries_delta", "hits_delta", "requests_delta",
+                     "hit_rate_run", "reason", "source")
+PREFIX_CACHE_WARN = 0.5   # 이 파일에서만 쓰는 국소 상수 — 실제 텍스트 입력은 처음 보낼 때 적중 ≈0(Q1 실측 0.0%)
+
+
+def prefix_cache_run(path):
+    """실행 차분 관측을 출력에 옮긴다. 파일이 없으면 None(관측 안 함) — 부재를 0 으로 접지 않는다.
+    적중률이 높으면 같은 프롬프트가 반복됐을 수 있으므로(중복 샘플링 E2 계열) 경고만 낸다(차단 ✗)."""
+    if not path:
+        return None
+    d = _load(path, "--prefix-cache-json")
+    if not isinstance(d, dict):
+        return None
+    rec = {k: d.get(k) for k in PREFIX_CACHE_KEYS if k in d}
+    r = rec.get("hit_rate_run")
+    if isinstance(r, (int, float)) and r >= PREFIX_CACHE_WARN:
+        sys.stderr.write("[parse_guidellm] WARN prefix cache 실행 적중률 %.2f — 같은 프롬프트 반복 또는 다른 트래픽 혼입 "
+                         "의심(requests_delta=%r). TTFT 가 cache 도움을 받았을 수 있다.\n" % (r, rec.get("requests_delta")))
+    return rec
 
 
 if __name__ == "__main__":
