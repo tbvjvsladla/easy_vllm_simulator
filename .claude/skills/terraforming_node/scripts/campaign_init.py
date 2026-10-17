@@ -2312,6 +2312,10 @@ def _sub_nodes(base: Path) -> list:
     """A2A 로 보류·재개를 전해야 하는 서브(D9). multi 의 ray-worker 는 독립 캠페인을 갖지 않으므로 대상이 아니다."""
     if _declared_topology(base) != "single":
         return []
+    # 서브 자기 인스턴스(메인 파생 선언 · self_role=sub)에는 자기 자신만 있다 — 자기에게 echo 를 기다리면 영원히
+    # '서브 미수렴' 이다(2026-10-17 라이브 E2 · 서브 첫 줄이 자기 자신을 미수렴으로 보였다).
+    if read_declaration(base).get("self_role") == "sub":
+        return []
     return [n.get("node_id") for n in (read_declaration(base).get("nodes") or [])
             if isinstance(n, dict) and n.get("role") == "sub" and isinstance(n.get("node_id"), str)
             and FILL not in n.get("node_id")]
@@ -2460,11 +2464,44 @@ _IMAGE_DIGEST_FN = None
 _RELEASE_RUNNER = None
 
 
+def _manifest_topology(root: Path) -> "str | None":
+    """manifest 가 토폴로지 사실의 권위다(헌법 불변식). `output/<t>/manifest.yaml` 중 자기 통로와 같은 `topology:` 를
+    선언한 것이 정확히 하나일 때만 그 값을 낸다 — 둘이거나 없으면 모른다(추측 ✗)."""
+    found = []
+    for t in ("single", "multi"):
+        mpath = root / "output" / t / "manifest.yaml"
+        try:
+            text = mpath.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        m = re.search(r"^topology:\s*['\"]?(single|multi)['\"]?\s*(?:#.*)?$", text, re.M)
+        if m and m.group(1) == t:
+            found.append(t)
+    return found[0] if len(found) == 1 else None
+
+
 def checkout_topology() -> "str | None":
     if _CHECKOUT_TOPOLOGY_FN is not None:
         return _CHECKOUT_TOPOLOGY_FN()
-    tp = _topology_parity_module()
-    root = Path(__file__).resolve().parents[4]
+    root = REPO_ROOT
+    try:
+        tp = _topology_parity_module()
+    except TransitionRefusal:
+        # ★ 2026-10-17 라이브(plan_26101719 S9 · 서브 첫 위임): 서브 렌더 트리에는 기초층(`.claude/policies/`)이
+        #   배달되지 않는다 — 그래서 4자일치 술어가 없고, 픽스처는 이 차이를 보지 못했다. 술어가 없는 노드에서는
+        #   토폴로지 사실의 권위인 manifest 를 읽는다(브랜치 이름표를 다시 적지 않는다 — 서브 브랜치는 이름도 다르다).
+        found = _manifest_topology(root)
+        if found:
+            return found
+        # manifest 가 두 통로에 다 있으면(서브는 과거 multi 워커로도 프로비저닝됐다) 서브 로컬 git 의 브랜치를 본다.
+        # 그 브랜치 이름은 sync_to_sub 가 만든 `single`/`multi` — **토폴로지 토큰 자체**라 이름표 사상이 아니다.
+        import subprocess
+        try:
+            br = subprocess.run(["git", "-C", str(root), "symbolic-ref", "--quiet", "--short", "HEAD"],
+                                capture_output=True, text=True, timeout=10).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            br = ""
+        return br if br in ("single", "multi") else None
     branch = tp._git(root, "symbolic-ref", "--quiet", "--short", "HEAD") \
         or tp._git(root, "rev-parse", "--abbrev-ref", "HEAD")
     return tp.BRANCH_TO_TOPOLOGY.get(branch or "")

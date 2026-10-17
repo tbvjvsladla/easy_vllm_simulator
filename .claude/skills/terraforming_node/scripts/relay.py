@@ -50,9 +50,14 @@ PENDING_HITL = "pending_hitl.json"
 import campaign_init as _campaign  # noqa: E402
 
 
+# 수명 제어(--campaign-control)의 원장 캠페인. 그 지시는 **보류된** 캠페인을 겨냥하므로 ACTIVE(=_bootstrap)에서 파생하면
+# 원장이 대기실로 가고, 대기실은 다음 init 이 비운다 — 2026-10-17 라이브(plan_26101719 E2)에서 그렇게 갈 뻔했다.
+_RELAY_CAMPAIGN = None
+
+
 def relay_root(repo_root: str) -> str:
     """이 저장소의 릴레이 원장 루트. 활성 캠페인 선언에서 파생한다(루트 기본값 없음)."""
-    return str(_campaign.derive_path("relay-root", repo_root=repo_root))
+    return str(_campaign.derive_path("relay-root", repo_root=repo_root, camp_id=_RELAY_CAMPAIGN))
 
 
 def ledger_path(repo_root: str, context_id: str) -> str:
@@ -1335,14 +1340,16 @@ def supervise_step(a) -> int:
         decision = supervise_decide(doc, brief=brief, cost_cap_attempts=a.cost_cap_attempts,
                                     ladder=getattr(a, "ladder", None),
                                     doc_progress=doc_plane_progress(a.repo_root, doc))
-        # 수명 가드(2026-10-17 · plan_26101719 D13): 감독은 id 를 직접 받으므로 ACTIVE 를 거치지 않는다. 보류·미결·잔재
-        # 캠페인에서 전진 판정(next_cell·resume·rotate_runner)을 내면 보류한 캠페인이 감독 손에 다시 굴러간다.
-        if decision["action"] in ("next_cell", "resume", "rotate_runner"):
-            _life = _lifecycle_state(a.repo_root, camp)
-            if _life != "active":
-                decision = {"action": "hold",
-                            "reason": f"캠페인 {camp} 은 {_life} 다 — 전진 판정({decision['action']})을 보류한다. "
-                                      f"먼저 재개하라(`campaign_init.py --resume-campaign {camp}`) · 정상 차단"}
+        # 수명 가드(2026-10-17 · plan_26101719 D4·D13): 감독은 id 를 직접 받으므로 ACTIVE 를 거치지 않는다. 보류·미결·잔재
+        # 캠페인에서 전진 판정을 내면 보류한 캠페인이 감독 손에 다시 굴러가고, **popup 을 내면 리볼빙마다 같은 것을 묻는다**
+        # (라이브 E4: 대체된 첫 위임의 sub_failed 원장이 감독 스텝마다 popup 을 띄웠다). 보류 캠페인은 계기(a)(d) 전까지
+        # 묻지 않는다 — 판정 전부를 hold 로 바꾸고, 원래 판정은 사유에 남긴다(다시 활성이 되면 그때 본다).
+        _life = _lifecycle_state(a.repo_root, camp)
+        if _life != "active":
+            decision = {"action": "hold",
+                        "reason": f"캠페인 {camp} 은 {_life} 다 — 감독 판정({decision['action']}: "
+                                  f"{decision['reason'][:80]})을 보류한다. 묻지도 잇지도 않는다(계기 a·d 전까지 · D4). "
+                                  f"재개는 사람 결정(`campaign_init.py --resume-campaign {camp}`) · 정상 차단"}
         record_supervisor_step(doc, decision, utc=utc, brief=brief)
         save_ledger(path, doc)
         head = (f"[relay] 감독 · {doc.get('context_id')} (node={node} "
@@ -2504,6 +2511,7 @@ def main() -> int:
         raise SystemExit("[relay] --topology 필수")
     task = a.task
     if a.campaign_control:
+        global _RELAY_CAMPAIGN
         if not (a.campaign_id and a.node):
             raise SystemExit("[relay] STOP: --campaign-control 은 --campaign-id 와 --node 가 필요하다(이름 추론 ✗)")
         if task or a.task_file:
@@ -2520,6 +2528,15 @@ def main() -> int:
                              f"서브에 전할 상태가 아니다(메인 전이가 먼저)")
         task = campaign_control_task(a.campaign_id, a.campaign_control,
                                      preempt=bool(_life.get("interrupted_cells")))
+        _RELAY_CAMPAIGN = a.campaign_id
+        lp = ledger_path(a.repo_root, a.context_id)      # 원장을 대상 캠페인 아래로 다시 잡는다
+        doc = load_ledger(lp)
+        bind_campaign_context(doc, node=a.node, kind=a.context_kind, cell=a.cell)
+        doc["campaign_id"] = a.campaign_id
+        if a.control_variables:
+            doc["control_variables"] = a.control_variables
+        if a.runners:
+            doc["runner_ladder"] = ",".join(r["name"] for r in a.ladder)
     if a.task_file:
         with open(a.task_file, encoding="utf-8") as f:
             task = f.read()

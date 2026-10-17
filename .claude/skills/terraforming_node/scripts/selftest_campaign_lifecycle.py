@@ -124,6 +124,20 @@ def g_state(fx: Fixture):
     rc, msg = run("--campaign-id", "U1", "--evidence-add", "--kind", "testlog", "--path", fx.testlog())
     ck("unknown 캠페인은 정리성 쓰기까지 전부 거부(rc≠0 · 동기화 안내)", rc != 0 and "동기화" in msg)
     ck("첫 줄이 unknown 을 정리 대상으로 보인다", "U1=unknown" in ci.lifecycle_line())
+    # 서브 렌더 트리 폴백(2026-10-17 라이브): 4자일치 술어가 없는 노드는 manifest 로 토폴로지를 읽는다.
+    saved_fn, saved_mod = ci._CHECKOUT_TOPOLOGY_FN, ci._topology_parity_module
+    try:
+        ci._CHECKOUT_TOPOLOGY_FN = None
+        ci._topology_parity_module = lambda: (_ for _ in ()).throw(ci.TransitionRefusal("술어 부재(서브 렌더 트리)"))
+        ck("술어 없음 + manifest 없음 → 모른다(None · 추측 ✗)", ci.checkout_topology() is None)
+        (fx.tmp / "output" / "single").mkdir(parents=True)
+        (fx.tmp / "output" / "single" / "manifest.yaml").write_text("topology: single  # 실측\n", encoding="utf-8")
+        ck("술어 없음 → manifest(output/single) 의 topology 를 읽는다", ci.checkout_topology() == "single")
+        (fx.tmp / "output" / "multi").mkdir(parents=True)
+        (fx.tmp / "output" / "multi" / "manifest.yaml").write_text("topology: multi\n", encoding="utf-8")
+        ck("manifest 가 둘이면 모른다(None)", ci.checkout_topology() is None)
+    finally:
+        ci._CHECKOUT_TOPOLOGY_FN, ci._topology_parity_module = saved_fn, saved_mod
 
 
 def g_transition(fx: Fixture):
@@ -296,6 +310,15 @@ def g_guard(fx: Fixture):
     ck("활성 캠페인 재개 재시도는 거부(이미 active)", rc != 0)
     rc, msg = run("--resume-campaign", "GA", "--utc", UTC, "--apply")
     ck("--approved-by 없는 전이는 거부(승인 없는 전이 ✗)", rc != 0 and "--approved-by" in msg)
+    # 2026-10-17 라이브 E2: 서브 자기 인스턴스(self_role=sub)는 자기 자신을 echo 대상으로 세지 않는다.
+    sb = fx.camp("GS", active=True, sub=True)
+    d = ci.read_declaration(sb)
+    d["self_role"] = "sub"
+    d["nodes"] = [n for n in d["nodes"] if n["role"] == "sub"]
+    (sb / "campaign.yaml").write_text(json.dumps(d), encoding="utf-8")
+    run("--suspend", "GS", "--release", "none", "--approved-by", "main-a2a", "--utc", UTC, "--apply")
+    ck("서브 자기 인스턴스 보류는 '서브 미수렴' 을 만들지 않는다",
+       ci.fold_lifecycle(sb)["sub_convergence"] is None and "서브 미수렴" not in ci.lifecycle_line())
 
 
 def g_relay(fx: Fixture):
@@ -315,6 +338,10 @@ def g_relay(fx: Fixture):
                                                                           "state": "active"}}, "SA", "suspend")
     none, _ = relay.campaign_control_echo_ok({}, "SA", "suspend")
     ck("echo 판정: 일치=수렴 · 상태 불일치·부재=미수렴", ok and not bad and "active" in why and not none)
+    relay._RELAY_CAMPAIGN = "SA"
+    ck("수명 제어 원장은 대상 캠페인 relay 아래(ACTIVE=_bootstrap 이어도 대기실 ✗)",
+       relay.relay_root(str(fx.tmp)).endswith("campaigns/SA/relay"))
+    relay._RELAY_CAMPAIGN = None
     base = fx.camp("SA", active=True)
     led = base / "relay" / "ctx-sa.json"
     led.write_text(json.dumps({"context_id": "ctx-sa", "campaign_node": "main", "attempts": [{"x": 1}]}),
@@ -333,6 +360,12 @@ def g_relay(fx: Fixture):
     steps = json.loads(led.read_text(encoding="utf-8")).get("supervisor_steps") or []
     ck("보류 캠페인: 감독이 전진 판정을 hold 로 바꾸고 원장에 적는다",
        "hold" in out.getvalue() and steps and steps[-1]["action"] == "hold")
+    relay.supervise_decide = lambda doc, **kw: {"action": "popup", "reason": "처음 보는 종료(fixture)"}
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        rc3 = relay.supervise_step(args)
+    ck("보류 캠페인: popup 도 hold 로 — 리볼빙마다 같은 것을 묻지 않는다(라이브 E4)",
+       "→ popup" not in out.getvalue() and "→ hold" in out.getvalue() and rc3 == 0)
 
 
 GROUPS = {"state": g_state, "transition": g_transition, "requery": g_requery, "guard": g_guard,
