@@ -1829,10 +1829,12 @@ def _label_kv_declared(repo: Path, ev: "CellEvidence", out: dict, per: dict) -> 
     if "lite_kv_gib" in out and (n := note(out["lite_kv_gib"])):
         per["lite_kv_gib"] = (per.get("lite_kv_gib") or "출처 미기재") + n
     lt = out.get("lite")
-    if isinstance(lt, dict) and "kv_gib" in lt and (n := note(lt["kv_gib"])):
-        # 행 단위 출처(`<키>.<하위키>`) — 묶음 출처(per["lite"])에 붙이면 lite 의 실측 행 전부가 '측정 아님' 으로 읽힌다
-        #   (2026-10-17 · plan_26101622 Q7 granite 사실 검증 F4 · 렌더러 `_measurement_table` 이 하위키 출처를 먼저 본다).
-        per["lite.kv_gib"] = (per.get("lite") or "출처 미기재") + n
+    # 행 단위 출처(`<키>.<하위키>`) — 묶음 출처(per["lite"])에 붙이면 lite 의 실측 행 전부가 '측정 아님' 으로 읽힌다
+    #   (2026-10-17 · plan_26101622 Q7 granite 사실 검증 F4 · 렌더러 `_measurement_table` 이 하위키 출처를 먼저 본다).
+    #   `engine_kv_gib` 는 같은 엔진 로그 줄(KV cache memory)을 엔진 파서가 따로 옮긴 칸이다 — 같은 대조를 받는다.
+    for sk in ("kv_gib", "engine_kv_gib"):
+        if isinstance(lt, dict) and sk in lt and (n := note(lt[sk])):
+            per[f"lite.{sk}"] = (per.get("lite") or "출처 미기재") + n
 
 
 # ── 원장 타임라인 · 기동 표지 · full 정의 · 벤치 명령 재구성 ─────────────────────────────────────────────────────────
