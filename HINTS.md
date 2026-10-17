@@ -112,7 +112,21 @@ arch·recipe 의 모양이 다릅니다.
 에 있습니다.
 
 <!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->
-> 원격 `origin` 의 발행 태그 **67건** · 모델 16종에서 파생 · 생성 `2026-10-16T21:39:26` KST · 로컬 오브젝트 부재(미수령) 3건.
+> 원격 `origin` 의 발행 태그 **69건** · 모델 16종에서 파생 · 생성 `2026-10-17T09:51:01` KST · 로컬 오브젝트 부재(미수령) 3건.
+
+### `granite-4.2-8b` (2)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610170951` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
+| `hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
+
+### `lfm2.5-2.6b` (2)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto-t2610162309` | gb10-1g1n-sub-native | 0.31.0 | lite(기동 가능) | lite(선언) | BENCH_MODE_LITE · HINT_MISSING_BUILD_LEDGER · HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto` | gb10-1g1n-sub-native | 0.31.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_CELL_CONFIG · HINT_MISSING_CELL_STATUS · HINT_MISSING_LOCKSET · HINT_MISSING_RESOLVE |
 
 ### `minicpm5-2b` (2)
 
@@ -121,23 +135,11 @@ arch·recipe 의 모양이 다릅니다.
 | `hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610162139` | gb10-1g1n-main-native | 0.31.0 | lite(기동 가능) | lite(선언) | BENCH_MODE_LITE · HINT_MISSING_SWEEP_LEVELS |
 | `hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
 
-### `lfm2.5-2.6b` (1)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto` | gb10-1g1n-sub-native | 0.31.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_CELL_CONFIG · HINT_MISSING_CELL_STATUS · HINT_MISSING_LOCKSET · HINT_MISSING_RESOLVE |
-
 ### `ornith-1.5-9b` (1)
 
 | 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
 |---|---|---|---|---|---|
 | `hint/0.31.0/ornith-1.5-9b/gb10-1g1n-sub-native/qbf16-len32768-kvauto` | gb10-1g1n-sub-native | 0.31.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_CELL_CONFIG · HINT_MISSING_CELL_STATUS · HINT_MISSING_LOCKSET · HINT_MISSING_RESOLVE |
-
-### `granite-4.2-8b` (1)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
 
 ### `qwen3-4b` (7)
 

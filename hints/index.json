@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 67,
-  "generated_kst": "2026-10-16T21:39:26",
+  "count": 69,
+  "generated_kst": "2026-10-17T09:51:01",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1294,6 +1294,26 @@
       "vllm": "0.31.0"
     },
     {
+      "anchor": "4548f70876ee092cf0ed432d064031ab73cb510a",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": "ibm-granite/granite-4.1-8b-base",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26101707_granite-4.2-8b_GB10_0.31.0.md))",
+      "brief": "IBM granite-4.2-8b(bf16 · 컨텍스트 32768 · KV auto · spec off · cudagraph)를 GB10 ×1 · 노드 1대에서 vLLM v0.31.0 stock 소스빌드(빌드 패치 0)로 서빙하고, 같은 상주 서빙에 CNN/DailyMail 실텍스트 GuideLLM full 스윕을 다시 걸어 판정점 동시성 1 decode 12.36 t/s(루브릭 권한 weak PASS · 인증서 없음)를 쟀다. 이번 재측정에서 넘은 벽은 서빙이 아니라 측정 하네스였다 — 상주 서버의 엔진 로그가 전날 · 다른 실행의 트래픽까지 덮던 결함을 실행 범위 캡처와 `/metrics` 실행 차분으로 고쳤고(W5), 그 새 가드가 1차 재측정 레벨 1 첫 런의 prefix cache 재적중을 잡아 스윕별 결정론 행 오프셋으로 다시 쟀다(W6 · R4). 가장 오해하기 쉬운 값은 레벨 1 TTFT 다 — 이 측정의 263.31 ms 는 실행 차분 적중 0 의 값이고 앞선(10-16) 측정의 레벨 1 대표 런 TTFT 는 그 판정 testlog 가 나중에 prefix cache 도움을 받은 값으로 정정한(TTFT 모양 근거 · 카운터 없음) 값이라 나란히 두면 안 되며(M3 · Q1), KV 절대 클램프 25232932864(V4)는 이 셀에서 조정된 적 없는 승계값이다.",
+      "grammar": "v7",
+      "missing": [],
+      "model": "granite-4.2-8b",
+      "object": "38e9e911b13b0d808975cc7a17d4b91a5fd0d2df",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610170951",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610170951",
+      "tagged_utc": "2026-10-17T00:51:01Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_granite42-8b-v031/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
       "anchor": "de232dcd80fe4374edd4c35f998ceb52ea7e2aea",
       "arch": "gb10-1g1n-sub-native",
       "base_model": "LiquidAI/LFM2.5-2.6B-Base",
@@ -1317,6 +1337,30 @@
       "tagged_utc": "2026-10-16T11:52:00Z",
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_lfm25-26b-v031/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "386b6f9bf770710de54e6ebd482b3abd61532cfe",
+      "arch": "gb10-1g1n-sub-native",
+      "base_model": "LiquidAI/LFM2.5-2.6B-Base",
+      "bench_mode": "lite(선언)",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26101623_lfm2.5-2.6b_GB10_0.31.0.md))",
+      "brief": "이 셀은 LFM2.5-2.6B(bf16, max-model-len 32768)를 NVIDIA GB10 1장 단일노드(TP=1)에서 vLLM v0.31.0 소스빌드 이미지로 서빙하고 lite 벤치 1회만 통과한 기록이며, warm 생성 36.25 t/s · cold TTFT 38.9 ms 는 성능 판정이 아닌 관측값이다. 이 태그의 계보에서 확인된 벽은 측정·발행 도구 쪽 다섯이다 — CNN 프리셋 쓰기 거부(W1)·sweep 인자 누락(W2)·이미지에 빌드 원장 스탠자가 없음(W3)·정본 렌더 호출이 서브에서 성립하지 않음(W4)·arch 값이 null 인데 렌더가 None 을 씀(W5)이고 서빙 단계의 벽은 계보 밖이다. 서빙 노브는 전부 승계값(V1~V4)이며 빌드 원장이 이미지에 없어 패치 적용 판정은 재구성(unobservable)이다.",
+      "grammar": "v7",
+      "missing": [
+        "BENCH_MODE_LITE",
+        "HINT_MISSING_BUILD_LEDGER",
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "lfm2.5-2.6b",
+      "object": "9714d16b5020ed43cab6313764b217387f46b03b",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610162309",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto-t2610162309",
+      "tagged_utc": "2026-10-16T14:09:45Z",
+      "verdict": "lite(기동 가능)",
+      "verdict_source": "payload(PAYLOAD.cell_grade = lite · 기계 판정 measurement.verdict = OBSERVATION-ONLY)",
       "vllm": "0.31.0"
     },
     {
