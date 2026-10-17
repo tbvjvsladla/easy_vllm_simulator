@@ -200,6 +200,7 @@ arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 
 - phase 의 `proof.ok` 는 그 판정을 낸 `source` 와 함께만 적고, phase 가 실패해도 status 파일은 쓴다(부재 ≠ 실패).
 - 캠페인 산출물의 경로는 `campaigns/ACTIVE` 선언에서 파생한다 — 루트 기본값 ✗(부재 = `_bootstrap`).
 - 캠페인 상태의 바이트를 쓰는 문은 `campaign_init.py` 하나다(포맷 owner 1 · 호출부 N) — `ACTIVE=_bootstrap` 이면 writer 는 no-op.
+- 캠페인 수명(active·suspended·resume_pending·closed{사유}·orphan·unknown)은 journey 이벤트가 단일 권위이고 상태는 fold 로 파생한다. 다른 캠페인으로의 전환은 단일 정문(`--init --suspend-current`) 하나이며 처분 없는 덮어쓰기는 거부한다. 재질의 계기는 파생 자식 종결과 무관 개설 둘뿐이다(정본 `terraforming_node` `references/campaign/purge.md` §수명 전이).
 - 재개의 읽는 눈은 `--resume-brief` 이고, 합격 기준은 그 출력만으로 다음 셀에 착수하며 반증된 축을 재시도하지 않는 것이다.
 - 배정의 단일 권위는 `assignments` 이며(노드별 리스트는 동시에 돈다) 무인 자동 태깅은 없다 — 발행은 선언 확인 때 받은 셀별 사전 승인으로만 연다.
 - 착수 순서와 셀의 단위는 특화층 `terraforming_node` `references/orchestration.topology.md` 가 정한다.

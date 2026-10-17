@@ -1294,6 +1294,12 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/selftest_campaign_lifecycle.py",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 캠페인 수명 상태 자체검사 실행(plan_26101719)"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
       "callee": "terraforming_node/scripts/campaign_template_validator.py",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"

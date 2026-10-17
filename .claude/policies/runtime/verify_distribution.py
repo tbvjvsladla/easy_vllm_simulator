@@ -859,6 +859,10 @@ def verify() -> dict:
         #   각자가 실제로 받는 철자를 쓴다 — 틀린 철자는 usage 로 죽어 위양성이 된다.
         _run("campaign_init_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/campaign_init.py", "--selftest"], {0}),
+        # 캠페인 수명 상태(2026-10-17 · plan_26101719) — 보류·재개·포기·선점의 단일 정문 · 재질의 계기 (a)(d) ·
+        #   진행성 쓰기 가드 · 감독 hold. 이것이 깨지면 처분 없는 덮어쓰기 허점이 조용히 다시 열린다.
+        _run("campaign_lifecycle_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/selftest_campaign_lifecycle.py"], {0}),
         _run("campaign_template_validator_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
              "--selftest"], {0}),

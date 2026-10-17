@@ -154,6 +154,22 @@ def purge_gate_reasons(previous_id: str) -> list[str]:
     if not prev.is_dir():
         return reasons  # 지울 것이 없으면 게이트는 자명하게 열려 있다
 
+    # 수명 상태(2026-10-17 · plan_26101719 D10·D14·D15). 보류는 "재개할 수 있다" 는 약속이므로 지우면 약속 위반이다 —
+    # 종결 사유를 먼저 받는다. abandoned 는 축소 게이트로 이미 닫혔으니 그 게이트를 다시 묻는다(P1~P3 면제).
+    life = fold_lifecycle(prev)
+    if life["state"] in ("suspended", "resume_pending"):
+        return [f"{previous_id}: 보류 상태({life['state']})는 purge 할 수 없다 — 사람이 포기를 고르면 "
+                f"`--abandon {previous_id}` 로 종결 사유를 받은 뒤 지운다"]
+    if life["state"] == "orphan":
+        return [f"{previous_id}: 이름 없는 잔재(orphan · 수명 이벤트 없음 · ACTIVE 미지목)다 — 재개할 수 없고 "
+                f"`--abandon {previous_id}`(축소 게이트)로만 정리한다"]
+    if life["state"] == "unknown":
+        return [f"{previous_id}: journey 에 이 버전이 모르는 수명 이벤트가 있다 — 브랜치 공통층 동기화 후 다시"]
+    if life["state"] == "closed" and life["close_reason"] == "abandoned":
+        closed = next((e for e in reversed(read_journey(prev))
+                       if isinstance(e, dict) and e.get("kind") == "campaign_closed"), {})
+        return [f"{previous_id}: {r}" for r in abandoned_gate_reasons(previous_id, closed.get("summary_testlog"))]
+
     pointers_path = prev / "evidence_pointers.json"
     doc = _read_json(pointers_path)
     if doc is None:
@@ -301,9 +317,15 @@ def close_campaign(camp_id: str, *, utc: str | None, apply: bool) -> str:
         raise PurgeGateRefusal("종결 선행조건(= purge 게이트)이 닫혀 있다:\n  - " + "\n  - ".join(reasons))
     if apply:
         writer_append_journey(CAMPAIGNS / camp_id, {
-            "utc": utc, "kind": "campaign_closed",
+            "utc": utc, "kind": "campaign_closed", "reason": "completed",
+            "lifecycle_v": LIFECYCLE_V, "source": "campaign_init --close",
             "note": "ACTIVE → _bootstrap (인스턴스 보존 · 다음 --init --purge-previous 가 지운다)"})
         ACTIVE_POINTER.write_text(BOOTSTRAP + "\n", encoding="utf-8")
+        # 계기 (a) — 파생 자식의 완주는 보류 중인 부모의 재개 질의를 정확히 한 번 단다.
+        parent = _parent_on_close(CAMPAIGNS / camp_id, reason="completed", utc=utc)
+        if parent:
+            return (f"closed {camp_id} → ACTIVE=_bootstrap (인스턴스 보존: campaigns/{camp_id}) · "
+                    f"부모 {parent} 에 재개 미결(계기 a)")
     return f"closed {camp_id} → ACTIVE=_bootstrap (인스턴스 보존: campaigns/{camp_id})"
 
 
@@ -333,13 +355,20 @@ def sweep_bootstrap_relay(*, apply: bool) -> list[str]:
     return removed
 
 
+_STDIN_SLICE = None
+
+
 def _load_slice(source: str) -> dict:
     """Read one main-derived declaration from a file or the A2A task body stdin."""
+    global _STDIN_SLICE
     if source == "-":
-        try:
-            doc = json.loads(sys.stdin.read())
-        except ValueError as exc:
-            raise PurgeGateRefusal(f"stdin 파생 선언 JSON을 읽지 못했다: {exc}") from exc
+        # stdin 은 한 번만 읽힌다 — 개설 정문(계보 확인)과 scaffold 가 같은 선언을 보게 붙잡아 둔다.
+        if _STDIN_SLICE is None:
+            try:
+                _STDIN_SLICE = json.loads(sys.stdin.read())
+            except ValueError as exc:
+                raise PurgeGateRefusal(f"stdin 파생 선언 JSON을 읽지 못했다: {exc}") from exc
+        doc = _STDIN_SLICE
     else:
         doc = _read_json(Path(source))
     if not isinstance(doc, dict):
@@ -1575,7 +1604,29 @@ def resume_brief(camp_id: str | None = None) -> str:
     base = campaigns_dir() / camp
     L: list[str] = []
     A = L.append
+    # 첫 줄 = 수명 상태 한 줄(2026-10-17 · plan_26101719 D5). 위치를 고정하는 이유: 재개 에이전트가 이 줄 하나로
+    # "물을 것이 있는가" 를 판정하고, 없으면 묻지 않는다 — 세션마다 같은 보류를 다시 묻는 결함을 여기서 끊는다.
+    table = lifecycle_table()
+    A(lifecycle_line(table))
     A(f"# resume-brief · campaigns/{camp}")
+    _life = [(c, f) for c, f in table.items() if f["state"] != "closed"]
+    if _life:
+        A("")
+        A("## 0. 캠페인 수명 (journey fold · 질의 규칙: 계기 a=파생 자식 종결 · d=무관 개설뿐)")
+        for c, f in _life:
+            bits = [f["state"]]
+            if f.get("parent"):
+                bits.append(f"parent={f['parent']}")
+            if f.get("interrupted_cells"):
+                bits.append(f"interrupted={','.join(f['interrupted_cells'])}")
+            if f.get("sub_convergence"):
+                bits.append(f"서브 {f['sub_convergence']}")
+            if f["state"] in ("suspended", "resume_pending"):
+                bits.append("답함" if f["answered"] else "미답")
+            A(f"- `{c}` — " + " · ".join(bits))
+        if any(f["state"] == "resume_pending" and not f["answered"] for _, f in _life):
+            A("- 미결 질의는 **사람이 있는 세션에서 한 번** 묻는다(무인 리볼빙은 이 줄만 보이고 묻지 않는다 · D6). "
+              "답: `--resume-campaign` · `--answer-query <id> --decision keep` · `--abandon`")
     if camp == BOOTSTRAP:
         A("")
         A("활성 캠페인이 **없다**(ACTIVE=_bootstrap). 여기는 캠페인 밖 릴레이 대기실이며 진행 상태를")
@@ -1787,6 +1838,9 @@ def emit_slice(base: Path, node: str, *, utc: str) -> dict:
         "authored_by": SLICE_AUTHOR,
         "derived_from": mains[0] if mains else None,
         "derived_utc": utc,
+        # 파생 계보(2026-10-17 · plan_26101719 D2) — 서브가 같은 id 의 인스턴스를 열 때 부모를 잇는다. `_` 접두라
+        # scaffold 가 선언에는 싣지 않는다(선언의 시민이 아니라 개설 인자다).
+        "_lifecycle_parent": fold_lifecycle(base).get("parent"),
     }
     return out
 
@@ -1860,6 +1914,10 @@ def campaign_brief(base: Path, *, node: str, utc: str) -> dict:
                           or c["cell_outcome"] in CELL_OUTCOMES_PENDING],
         "phases": phases,
         "journey_tail": jour[-3:],
+        # 서브 자기 인스턴스의 수명 상태(2026-10-17 · plan_26101719 D9) — 메인 감독이 "서브가 실제로 보류했는가" 를
+        # 이 관측면 하나로 읽는다(ssh 직접 관측 ✗). 판정은 같은 fold 다.
+        "lifecycle": {k: v for k, v in fold_lifecycle(base).items()
+                      if k in ("state", "close_reason", "parent", "last_transition_event", "interrupted_cells")},
         "evidence_pointer_count": len(ptrs or []),
         # 이 brief가 주장하는 node-scoped evidence membership. 원천은 campaign instance의
         # evidence_pointers.json이고, importer는 filename/시각 추측 대신 이 선언만 소비한다.
@@ -1934,6 +1992,11 @@ def import_sub_mirror(base: Path, mirror: Path, *, utc: str,
                               ensure_ascii=False, sort_keys=True)
         have = {_jkey(entry) for entry in read_journey(base) if isinstance(entry, dict)}
         for entry in (doc.get("journey_tail") or []):
+            # 수명 이벤트는 **편입하지 않는다**(2026-10-17 · plan_26101719 D1). 메인 인스턴스의 수명은 메인
+            # journey 가 단일 권위이고, 서브의 보류·재개는 echo(sub_control_echo)로만 들어온다 — 서브 줄을 그대로
+            # 섞으면 메인의 fold 가 서브의 전이를 자기 것으로 접는다.
+            if _is_lifecycle(entry):
+                continue
             if isinstance(entry, dict) and _jkey(entry) not in have:
                 have.add(_jkey(entry))
                 wrote.append(_rel(writer_append_journey(
@@ -2193,6 +2256,735 @@ def write_campaign_brief(base: Path, *, node: str, utc: str,
     return path
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 캠페인 수명 상태 — 보류·재개·포기·선점 (2026-10-17 · plan_26101719 · interview_20261017_093905)
+#
+# 왜: 수명이 ACTIVE 포인터·디렉터리 존재·`campaign_closed` 줄 셋으로만 표현돼 있었다. 그래서 진행 중인
+#   A 를 두고 성격이 다른 B 로 넘어갈 정식 경로가 없었고(close/purge 는 "다 끝났다" 를 요구한다),
+#   `--purge-previous` 없이 `--init B` 를 치면 ACTIVE 만 덮이고 A 가 이름 없는 잔재가 되는 허점이 열려 있었다.
+#
+# 단일 권위 = journey 이벤트(D1). 상태는 여기서 **fold** 로 파생하고 별도 상태 필드를 손으로 적지 않는다 —
+#   두 자리에 적으면 갈라지고, 갈라진 쪽이 조용히 늦는다. 상태와 종결 사유는 분리한다(GitHub state/state_reason ·
+#   Jira status/resolution 선례). 쓰는 문은 이 파일 하나다.
+#
+# 재질의 계기는 둘뿐이다(D4): (a) 파생 자식의 종결 → 부모에 `campaign_resume_pending` · (d) 무관한 캠페인 개설
+#   → 답 없는 보류분의 처분. "이미 답함" 의 단위는 (캠페인, 마지막 상태 전이)다(D5). 리볼빙·새 세션·시간 경과는
+#   계기가 아니다 — 같은 질문을 세션마다 다시 묻는 것이 이 절이 막는 결함이다.
+
+LIFECYCLE_V = 1
+LIFECYCLE_KINDS = ("campaign_opened", "campaign_suspended", "campaign_resume_pending",
+                   "campaign_query_answered", "campaign_resumed", "campaign_closed",
+                   "cell_interrupted", "sub_control_echo")
+TRANSITION_KINDS = ("campaign_opened", "campaign_suspended", "campaign_resume_pending",
+                    "campaign_resumed", "campaign_closed")
+CLOSE_REASONS = ("completed", "abandoned")
+LIFECYCLE_STATES = ("active", "suspended", "resume_pending", "closed", "orphan", "unknown")
+# 진행성 쓰기(D13) — 보류·미결·잔재 캠페인에서는 거부한다. 증거 정리와 읽기는 허용한다(abandoned 축소 게이트가
+# 증거 정리를 요구하므로 그것까지 막으면 교착이다).
+PROGRESS_OPS = ("phase_set", "cell_set", "cell_materialize", "reentry_decide")
+# 정식 teardown 진입점(D8 · compose down 직접 ✗). 토폴로지가 진입점을 가른다 — 한 스크립트로 두 존재를 덮지 않는다.
+SERVE_DOWN = {"single": (".claude/skills/upstream-version-watch/scripts/single_serve_down.sh", ()),
+              "multi": (".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh", ("--down",))}
+RELEASE_NONE = "none"
+
+
+class TransitionRefusal(WriterRefusal):
+    """수명 전이를 거부했다. 안내문이 막힘 분류(정상 차단 · 침묵 누락 · 오배달)를 말한다."""
+
+
+def _is_lifecycle(entry) -> bool:
+    if not isinstance(entry, dict):
+        return False
+    kind = str(entry.get("kind") or "")
+    return kind in LIFECYCLE_KINDS or kind.startswith("campaign_") or "lifecycle_v" in entry
+
+
+def _declared_topology(base: Path) -> "str | None":
+    doc = read_declaration(base)
+    revs = doc.get("revisions") if isinstance(doc.get("revisions"), list) else []
+    cur = (revs[-1].get("values") if revs and isinstance(revs[-1], dict) else None) \
+        or doc.get("control_variables") or {}
+    topo = cur.get("topology") if isinstance(cur, dict) else None
+    return topo if topo in ("single", "multi") else None
+
+
+def _sub_nodes(base: Path) -> list:
+    """A2A 로 보류·재개를 전해야 하는 서브(D9). multi 의 ray-worker 는 독립 캠페인을 갖지 않으므로 대상이 아니다."""
+    if _declared_topology(base) != "single":
+        return []
+    return [n.get("node_id") for n in (read_declaration(base).get("nodes") or [])
+            if isinstance(n, dict) and n.get("role") == "sub" and isinstance(n.get("node_id"), str)
+            and FILL not in n.get("node_id")]
+
+
+def fold_lifecycle(base: Path, *, active: "str | None" = None) -> dict:
+    """journey 를 접어 수명 상태를 낸다. 부작용 없음 — 읽기만 한다.
+
+    이벤트가 하나도 없는 옛 인스턴스(D14)는 이주 없이 해석한다: `campaign_closed` 줄이 있으면 closed(completed),
+    ACTIVE 가 가리키면 active, 둘 다 아니면 orphan(재개 ✗ · abandoned 로만 정리). 모르는 이벤트(D15 — 브랜치 간
+    이 파일의 버전 차)를 만나면 unknown 이며, 그 캠페인에 대한 쓰기는 전부 거부된다.
+    """
+    camp = base.name
+    active = active_campaign_id() if active is None else active
+    out = {"campaign_id": camp, "state": None, "close_reason": None, "parent": None,
+           "topology": _declared_topology(base), "suspended_pins": None, "released_resources": [],
+           "interrupted_cells": [], "last_transition_event": None, "answered": False,
+           "pending_query": None, "sub_convergence": None, "sub_nodes": [], "sub_echoed": [],
+           "handoff_pointers": [], "parked_devlog": None, "open_pending": None,
+           "unknown_events": [], "source": f"{_rel(base / JOURNEY_NAME)} fold"}
+    control = None
+    echoed: set = set()
+    for i, e in enumerate(read_journey(base)):
+        if not _is_lifecycle(e):
+            continue
+        kind = e.get("kind")
+        try:
+            ver = int(e.get("lifecycle_v") or 1)
+        except (TypeError, ValueError):
+            ver = LIFECYCLE_V + 1
+        if kind not in LIFECYCLE_KINDS or ver > LIFECYCLE_V:
+            out["unknown_events"].append({"index": i, "kind": kind, "lifecycle_v": e.get("lifecycle_v")})
+            continue
+        if kind == "cell_interrupted":
+            if e.get("cell_id") and e["cell_id"] not in out["interrupted_cells"]:
+                out["interrupted_cells"].append(e["cell_id"])
+            continue
+        if kind == "sub_control_echo":
+            if e.get("control") == control and e.get("node"):
+                echoed.add(e["node"])
+            continue
+        if kind == "campaign_query_answered":
+            last = out["last_transition_event"] or {}
+            if e.get("answers") == last.get("ref"):
+                out["answered"] = True
+                if out["state"] == "resume_pending" and e.get("decision") == "keep":
+                    out["state"] = "suspended"
+                    out["pending_query"] = None
+            continue
+        if kind == "campaign_opened":
+            out["state"] = "active"
+            out["parent"] = e.get("parent")
+        elif kind == "campaign_suspended":
+            out["state"] = "suspended"
+            out["suspended_pins"] = e.get("pins")
+            out["released_resources"] = list(e.get("released") or [])
+            out["parked_devlog"] = e.get("parked_devlog")
+            out["open_pending"] = e.get("next")
+            out["sub_nodes"] = list(e.get("sub_nodes") or [])
+            control, echoed = "suspend", set()
+        elif kind == "campaign_resume_pending":
+            out["state"] = "resume_pending"
+            out["pending_query"] = {"trigger": e.get("trigger"), "child": e.get("child"),
+                                    "child_reason": e.get("child_reason"),
+                                    "pointers": list(e.get("pointers") or []), "utc": e.get("utc")}
+        elif kind == "campaign_resumed":
+            out["state"] = "active"
+            out["interrupted_cells"] = []
+            out["handoff_pointers"] = list(e.get("handoff_pointers") or [])
+            out["open_pending"] = None
+            out["pending_query"] = None
+            out["sub_nodes"] = list(e.get("sub_nodes") or [])
+            control, echoed = "resume", set()
+        elif kind == "campaign_closed":
+            out["state"] = "closed"
+            out["close_reason"] = e.get("reason") or "completed"
+            out["open_pending"] = None
+            out["pending_query"] = None
+        out["last_transition_event"] = {"ref": f"{i}:{kind}", "index": i, "kind": kind,
+                                        "utc": e.get("utc")}
+        out["answered"] = False
+    if out["state"] is None:
+        out["state"] = "active" if active == camp else "orphan"
+    elif out["state"] == "active" and active != camp:
+        # 활성으로 접혔는데 포인터가 다른 곳을 가리킨다 = 옛 허점(처분 없는 덮어쓰기)이 남긴 잔재다.
+        out["state"] = "orphan"
+    if out["unknown_events"]:
+        out["state"] = "unknown"
+    if out["sub_nodes"] and out["state"] in ("active", "suspended", "resume_pending"):
+        out["sub_echoed"] = sorted(echoed)
+        out["sub_convergence"] = ("converged" if set(out["sub_nodes"]) <= echoed else "unconverged")
+    return out
+
+
+def list_instances() -> list:
+    root = campaigns_dir()
+    if not root.is_dir():
+        return []
+    return sorted(p for p in root.iterdir() if p.is_dir() and p.name not in RESERVED_IDS)
+
+
+def lifecycle_table() -> dict:
+    active = active_campaign_id()
+    return {p.name: fold_lifecycle(p, active=active) for p in list_instances()}
+
+
+def lifecycle_line(table: "dict | None" = None) -> str:
+    """`--resume-brief` **첫 줄**(D5). 평시에는 묻지 않고 이 한 줄만 보인다."""
+    table = lifecycle_table() if table is None else table
+    active = active_campaign_id()
+    susp = [f"{c}" + (f"⊂{f['parent']}" if f.get("parent") else "")
+            for c, f in table.items() if f["state"] in ("suspended", "resume_pending")]
+    pend = [f"{c}←{(f['pending_query'] or {}).get('child')} 종결({(f['pending_query'] or {}).get('child_reason')}): 재개?"
+            for c, f in table.items() if f["state"] == "resume_pending" and not f["answered"]]
+    opening = [f"{(f['open_pending'] or {}).get('id')}@{(f['open_pending'] or {}).get('topology')}"
+               for f in table.values() if f["state"] == "suspended" and f.get("open_pending")
+               and (f["open_pending"] or {}).get("id") not in table]
+    unconv = [f"{c}@{','.join(sorted(set(f['sub_nodes']) - set(f['sub_echoed'])))}"
+              for c, f in table.items() if f.get("sub_convergence") == "unconverged"]
+    odd = [f"{c}={f['state']}" for c, f in table.items() if f["state"] in ("orphan", "unknown")]
+    parts = [f"ACTIVE={active}", f"보류 {len(susp)}" + (f"({', '.join(susp)})" if susp else ""),
+             f"미결 질의 {len(pend)}" + (f"({'; '.join(pend)})" if pend else "")]
+    if opening:
+        parts.append(f"개설 대기 {', '.join(opening)}")
+    if unconv:
+        parts.append(f"서브 미수렴 {', '.join(unconv)}")
+    if odd:
+        parts.append(f"정리 대상 {', '.join(odd)}")
+    return "상태: " + " · ".join(parts)
+
+
+def _topology_parity_module():
+    """브랜치→토폴로지 사상의 **단일 소유자**는 4자일치 술어다(`BRANCH_TO_TOPOLOGY`). 여기서 표를 다시 적지 않는다."""
+    import importlib.util
+    mod_path = Path(__file__).resolve().parents[3] / "policies" / "runtime" / "topology_parity.py"
+    spec = importlib.util.spec_from_file_location("_topology_parity_for_campaign", mod_path)
+    if spec is None or spec.loader is None or not mod_path.is_file():
+        raise TransitionRefusal(f"4자일치 술어를 적재하지 못했다: {_rel(mod_path)} — 체크아웃 토폴로지를 물을 수단이 없다")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+_CHECKOUT_TOPOLOGY_FN = None      # 자체검사 주입점(픽스처 저장소에는 브랜치가 없다)
+_IMAGE_DIGEST_FN = None
+_RELEASE_RUNNER = None
+
+
+def checkout_topology() -> "str | None":
+    if _CHECKOUT_TOPOLOGY_FN is not None:
+        return _CHECKOUT_TOPOLOGY_FN()
+    tp = _topology_parity_module()
+    root = Path(__file__).resolve().parents[4]
+    branch = tp._git(root, "symbolic-ref", "--quiet", "--short", "HEAD") \
+        or tp._git(root, "rev-parse", "--abbrev-ref", "HEAD")
+    return tp.BRANCH_TO_TOPOLOGY.get(branch or "")
+
+
+def _image_digest(tag: str) -> "str | None":
+    if _IMAGE_DIGEST_FN is not None:
+        return _IMAGE_DIGEST_FN(tag)
+    import subprocess
+    try:
+        out = subprocess.run(["docker", "image", "inspect", "--format", "{{.Id}}", tag],
+                             capture_output=True, text=True, timeout=30)
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    return (out.stdout.strip() or None) if out.returncode == 0 else None
+
+
+def capture_pins(base: Path) -> dict:
+    """보류 당시의 핀(D11). 이미지 digest 는 git 이 바이트를 들지 않는 입력이라 여기 적는 것이 유일한 증거다
+    (policy:GIT_SINGLE_AUTHORITY Q1·Q2 — 맹점층)."""
+    decl = read_declaration(base)
+    revs = decl.get("revisions") if isinstance(decl.get("revisions"), list) else []
+    cur = (revs[-1].get("values") if revs and isinstance(revs[-1], dict) else None) \
+        or decl.get("control_variables") or {}
+    images = []
+    cells = base / "cells"
+    for cdir in sorted(cells.iterdir()) if cells.is_dir() else []:
+        st = _read_json(cdir / "cell.status.json")
+        img = (st or {}).get("image") if isinstance(st, dict) else None
+        if isinstance(img, dict) and img.get("tag") and img.get("digest"):
+            entry = {"tag": img["tag"], "digest": img["digest"]}
+            if entry not in images:
+                images.append(entry)
+    return {"topology": _declared_topology(base), "vllm_version": cur.get("vllm_version"),
+            "images": images, "source": "campaign.yaml(현행 개정) · cells/*/cell.status.json#image"}
+
+
+def pin_drift(pins: "dict | None") -> list:
+    """재개 시 핀 대조. 토폴로지는 여기서 보지 않는다 — 그것은 drift 가 아니라 불변식 위반이다(D11·Q13-b)."""
+    drift = []
+    for img in (pins or {}).get("images") or []:
+        now = _image_digest(img["tag"])
+        if now is None:
+            drift.append(f"이미지 {img['tag']}: 현재 digest 를 확인할 수 없다(로컬 부재 또는 docker 불가) — 보류 당시 {img['digest']}")
+        elif now != img["digest"]:
+            drift.append(f"이미지 {img['tag']}: 보류 당시 {img['digest']} → 현재 {now}")
+    return drift
+
+
+def running_cells(base: Path) -> list:
+    """phase 가 running 인 셀 = 진행 중 셀(D7). 협조 전환은 이것이 비어 있을 때만 열린다."""
+    out = []
+    phases = base / "phases"
+    for ndir in sorted(phases.iterdir()) if phases.is_dir() else []:
+        if not ndir.is_dir() or ndir.name == "_node":
+            continue
+        for ph in PHASE_NAMES:
+            st = _read_json(ndir / f"{ph}.status.json")
+            if isinstance(st, dict) and st.get("state") == "running":
+                out.append({"node": ndir.name, "phase": ph, "cell_id": st.get("cell_id")})
+    return out
+
+
+def release_resources(topology: "str | None", releases: list, *, apply: bool) -> list:
+    """보류 시 자원 반납(D8). 정식 teardown 스크립트만 부른다. 하나라도 실패하면 거부 — 호출부는 아무것도 쓰지 않는다."""
+    if not releases:
+        raise TransitionRefusal(
+            "보류는 자원을 반납한다 — `--release <config>`(반복) 로 이 캠페인이 띄운 서빙을 지목하거나, "
+            f"띄운 것이 없으면 `--release {RELEASE_NONE}` 으로 그 사실을 선언하라(정상 차단: 침묵 skip 은 "
+            "고아 서빙을 남긴다)")
+    if releases == [RELEASE_NONE]:
+        return [{"config": None, "status": "none-declared"}]
+    if RELEASE_NONE in releases:
+        raise TransitionRefusal(f"`--release {RELEASE_NONE}` 은 다른 --release 와 함께 올 수 없다(의도 모순)")
+    if topology not in SERVE_DOWN:
+        raise TransitionRefusal(f"캠페인 토폴로지가 선언되지 않았다({topology!r}) — 어느 teardown 진입점을 쓸지 고를 수 없다")
+    script, extra = SERVE_DOWN[topology]
+    out = []
+    for cfg in releases:
+        cmd = ["bash", str(Path(__file__).resolve().parents[4] / script), cfg, *extra]
+        if not apply:
+            out.append({"config": cfg, "status": "dry-run", "command": " ".join(cmd[1:])})
+            continue
+        if _RELEASE_RUNNER is not None:
+            rc, tail = _RELEASE_RUNNER(cmd)
+        else:
+            import subprocess
+            proc = subprocess.run(cmd, capture_output=True, text=True)
+            rc, tail = proc.returncode, (proc.stdout + proc.stderr)[-600:]
+        if rc != 0:
+            raise TransitionRefusal(
+                f"teardown 실패(rc={rc}) — {cfg}. 전환은 fail-closed 다: ACTIVE 와 journey 는 바뀌지 않았다. "
+                f"자원을 정리한 뒤 다시 전환하라(정상 차단 · 우회 ✗).\n  {tail.strip()[-400:]}")
+        out.append({"config": cfg, "status": "released", "script": script, "rc": rc})
+    return out
+
+
+def _lifecycle_event(kind: str, utc: str, **kv) -> dict:
+    return {"utc": utc, "kind": kind, "lifecycle_v": LIFECYCLE_V, "source": "campaign_init", **kv}
+
+
+def _devlog_name(utc: str, topic: str) -> "tuple[Path, str]":
+    import importlib.util
+    mod_path = Path(__file__).resolve().parents[2] / "wiki-desk" / "scripts" / "doc_naming.py"
+    spec = importlib.util.spec_from_file_location("_doc_naming_for_campaign", mod_path)
+    if spec is None or spec.loader is None or not mod_path.is_file():
+        raise TransitionRefusal(f"문서 명명 SSOT 를 적재하지 못했다: {_rel(mod_path)}")
+    dn = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(dn)
+    ddir = REPO_ROOT / "docs" / "devlog"
+    existing = [p.name for p in ddir.iterdir()] if ddir.is_dir() else []
+    name = dn.dated_doc_basename("devlog", utc, topic, existing)
+    return ddir / name, name
+
+
+def write_parked_devlog(camp: str, event: dict, *, apply: bool) -> "str | None":
+    """보류 시 docs 평면에 PARKED devlog 1건(D18). 인스턴스는 휘발이라 소실되면 재개 약속도 함께 사라진다 —
+    사람이 다시 세울 수 있게 서사의 최소분을 문서 평면에 남긴다."""
+    slug = re.sub(r"[^A-Za-z0-9_.]", "_", camp)
+    path, name = _devlog_name(event["utc"], f"PARKED_캠페인보류_{slug}")
+    if not apply:
+        return _rel(path)
+    released = ", ".join(str(r.get("config")) for r in event.get("released") or []) or "없음"
+    nxt = event.get("next") or {}
+    body = [
+        f"# {name[:-3]}",
+        "",
+        f"PARKED: 캠페인 `{camp}` 보류 — {event.get('reason') or '(사유 미기재)'}",
+        "",
+        f"- 시각(UTC): {event['utc']} · 승인: {event.get('approved_by')}",
+        f"- 선점한 캠페인: {event.get('preempted_by') or '(없음 — 단독 보류)'}"
+        + (f" · 개설 대기 {nxt.get('id')}@{nxt.get('topology')}" if nxt else ""),
+        f"- 내린 자원: {released}",
+        f"- 중단된 셀(재개 시 pending 으로 복귀): {', '.join(event.get('interrupted_cells') or []) or '없음'}",
+        f"- 보류 당시 핀: `{json.dumps(event.get('pins'), ensure_ascii=False)}`",
+        f"- 서브(A2A 보류 대상): {', '.join(event.get('sub_nodes') or []) or '없음'}",
+        "",
+        "## 재개",
+        "",
+        f"- 재개는 `campaign_init.py --resume-campaign {camp} --approved-by <발화 전사> --utc <UTC> --apply`.",
+        "- 재개 게이트: 보류 당시 핀·이미지 digest 대조(어긋나면 `--accept-drift` 또는 abandoned) · 토폴로지는 체크아웃과 같아야 한다(drift ✗).",
+        f"- 권위는 `campaigns/{camp}/journey.jsonl` 이다 — 이 문서는 인스턴스가 사라졌을 때 사람이 재구성하기 위한 서사다.",
+        "",
+    ]
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(body), encoding="utf-8")
+    return _rel(path)
+
+
+def _require(utc, approved_by, what: str) -> None:
+    if not utc:
+        raise TransitionRefusal(f"{what} 는 --utc 가 필요하다(시각은 주입만 받는다 — 벽시계 금지)")
+    if not approved_by:
+        raise TransitionRefusal(f"{what} 는 --approved-by 가 필요하다(선언 확인 팝업의 사람 발화 전사 — 승인 없는 전이 ✗)")
+
+
+def _pending_dispositions(table: dict, *, exclude: tuple = ()) -> list:
+    """계기 (d) — 무관한 캠페인 개설 때 처분을 물어야 하는 보류분: 마지막 전이 뒤에 답이 없는 것만(D5)."""
+    return [c for c, f in table.items()
+            if c not in exclude and f["state"] in ("suspended", "resume_pending") and not f["answered"]]
+
+
+def _apply_dispositions(dispositions: dict, need: list, *, utc: str, approved_by: str,
+                        table: dict, apply: bool) -> list:
+    missing = [c for c in need if c not in dispositions]
+    if missing:
+        raise TransitionRefusal(
+            "무관한 캠페인 개설(계기 d) — 답이 없는 보류 캠페인의 처분이 필요하다: "
+            + ", ".join(missing)
+            + ". 선언 확인 팝업에서 묻고 `--dispose <id>=keep` 로 전사하라. 포기는 먼저 `--abandon <id>` 로 "
+              "종결 사유를 받는다(정상 차단 — 묻지 않고 넘어가면 보류가 잊힌다)")
+    wrote = []
+    for camp, decision in dispositions.items():
+        if decision != "keep":
+            raise TransitionRefusal(f"--dispose 는 keep 만 받는다({camp}={decision!r}) — 포기는 `--abandon {camp}` 로 종결한다")
+        f = table.get(camp)
+        if f is None or f["state"] not in ("suspended", "resume_pending"):
+            raise TransitionRefusal(f"--dispose 대상 {camp} 은 보류 상태가 아니다({(f or {}).get('state')})")
+        if apply:
+            wrote.append(_rel(writer_append_journey(campaigns_dir() / camp, _lifecycle_event(
+                "campaign_query_answered", utc, decision="keep", trigger="unrelated_open",
+                answers=(f["last_transition_event"] or {}).get("ref"), approved_by=approved_by))))
+    return wrote
+
+
+def suspend_campaign(camp: str, *, utc, approved_by, reason, releases: list, preempt: bool,
+                     preempted_by: "str | None" = None, nxt: "dict | None" = None,
+                     apply: bool) -> "tuple[dict, list]":
+    """보류 한 건. 검사를 전부 끝낸 뒤 teardown → 쓰기 순서다(teardown 실패 = 무쓰기)."""
+    base = campaigns_dir() / camp
+    if not base.is_dir():
+        raise TransitionRefusal(f"인스턴스가 없다: campaigns/{camp}")
+    f = fold_lifecycle(base)
+    if f["state"] != "active":
+        raise TransitionRefusal(f"{camp} 은 {f['state']} 다 — 보류는 active 캠페인에만 한다")
+    run = running_cells(base)
+    if run and not preempt:
+        raise TransitionRefusal(
+            "진행 중인 셀이 있다 — " + ", ".join(f"{r['cell_id']}({r['node']}:{r['phase']})" for r in run)
+            + ". 협조 전환이 기본이다: 셀을 끝낸 뒤 전환하거나, 사람이 강제를 고르면 `--preempt` 로 다시 부른다"
+              "(측정 중단 · 서빙 내림 · 그 셀은 interrupted — 부분 측정값은 증거로 쓰지 않는다). 정상 차단이다")
+    released = release_resources(f["topology"], releases, apply=apply)
+    event = _lifecycle_event("campaign_suspended", utc, approved_by=approved_by, reason=reason,
+                             preempted_by=preempted_by, preempt=bool(run and preempt),
+                             released=released, pins=capture_pins(base),
+                             interrupted_cells=sorted({r["cell_id"] for r in run if r.get("cell_id")}),
+                             sub_nodes=_sub_nodes(base), next=nxt)
+    event["parked_devlog"] = write_parked_devlog(camp, event, apply=apply)
+    wrote = []
+    if apply:
+        for r in run:
+            writer_set_phase(base, node=r["node"], phase=r["phase"], state="failed",
+                             predicate=f"preempted — {preempted_by or '단독 보류'} 로 강제 전환",
+                             ok=False, source="campaign_init --preempt", cell_id=r.get("cell_id"),
+                             started_utc=None, ended_utc=utc)
+            if r.get("cell_id"):
+                writer_append_journey(base, _lifecycle_event("cell_interrupted", utc, cell_id=r["cell_id"],
+                                                             node=r["node"], phase=r["phase"],
+                                                             preempted_by=preempted_by))
+        wrote.append(_rel(writer_append_journey(base, event)))
+        if active_campaign_id() == camp:
+            ACTIVE_POINTER.write_text(BOOTSTRAP + "\n", encoding="utf-8")
+        if event["parked_devlog"]:
+            wrote.append(event["parked_devlog"])
+    return event, wrote
+
+
+def _parent_on_close(base: Path, *, reason: str, utc: str) -> "str | None":
+    """계기 (a) — 파생 자식이 닫히면 보류 중인 부모에 재개 미결을 단다(completed·abandoned 모두 · Q9-b)."""
+    f = fold_lifecycle(base, active=BOOTSTRAP)
+    parent = f.get("parent")
+    if not parent:
+        return None
+    pbase = campaigns_dir() / parent
+    if not pbase.is_dir():
+        return None
+    pf = fold_lifecycle(pbase, active=BOOTSTRAP)
+    if pf["state"] != "suspended":
+        return None
+    ep = _read_json(base / "evidence_pointers.json")
+    ptrs = [p.get("path") for p in ((ep or {}).get("pointers") or []) if isinstance(p, dict)
+            and p.get("kind") in ("testlog", "bench_report", "sweep_map", "relay_summary") and p.get("path")]
+    writer_append_journey(pbase, _lifecycle_event(
+        "campaign_resume_pending", utc, trigger="child_closed", child=base.name,
+        child_reason=reason, pointers=ptrs))
+    return parent
+
+
+def abandoned_gate_reasons(camp: str, summary_testlog: "str | None") -> list:
+    """abandoned 축소 게이트(D10): 측정된 셀의 증거가 docs 평면에 도착했는가 + 포기 요약 testlog 1건. P1~P3 미완분은 면제."""
+    base = campaigns_dir() / camp
+    reasons = []
+    if not summary_testlog:
+        reasons.append("포기 요약 testlog 가 없다 — `--summary-testlog <docs/testlog/...md>`(포기 사유·미완 셀 목록)")
+    elif not (REPO_ROOT / summary_testlog).is_file():
+        reasons.append(f"포기 요약 testlog 가 실재하지 않는다: {summary_testlog}")
+    ep = _read_json(base / "evidence_pointers.json")
+    ptrs = [p for p in ((ep or {}).get("pointers") or []) if isinstance(p, dict)]
+    cells = base / "cells"
+    for cdir in sorted(cells.iterdir()) if cells.is_dir() else []:
+        st = _read_json(cdir / "cell.status.json")
+        if not (isinstance(st, dict) and st.get("cell_outcome") == "measured"):
+            continue
+        mine = [p for p in ptrs if p.get("cell_id") == cdir.name and p.get("path")
+                and FILL not in str(p.get("path"))]
+        if not mine:
+            reasons.append(f"측정된 셀 {cdir.name} 의 증거 포인터가 없다 — 측정은 docs 평면에 도착해야 지울 수 있다")
+        for p in mine:
+            if not (REPO_ROOT / p["path"]).exists():
+                reasons.append(f"측정된 셀 {cdir.name} 의 증거가 실재하지 않는다: {p['path']}")
+    return reasons
+
+
+def abandon_campaign(camp: str, *, utc, approved_by, reason, summary_testlog,
+                     releases: list, apply: bool) -> list:
+    _require(utc, approved_by, "--abandon")
+    if not reason:
+        raise TransitionRefusal("--abandon 은 --reason 이 필요하다(사유 없는 포기는 종결이 아니라 증발이다)")
+    base = campaigns_dir() / camp
+    if not base.is_dir():
+        raise TransitionRefusal(f"인스턴스가 없다: campaigns/{camp}")
+    f = fold_lifecycle(base)
+    if f["state"] in ("closed", "unknown"):
+        raise TransitionRefusal(f"{camp} 은 {f['state']} 다 — 포기할 수 없다"
+                                + (" (모르는 이벤트: 브랜치 공통층 동기화 필요)" if f["state"] == "unknown" else ""))
+    released = []
+    if f["state"] == "active":
+        if running_cells(base):
+            raise TransitionRefusal("진행 중인 셀이 있다 — 셀을 끝내거나 먼저 `--suspend --preempt` 로 내린 뒤 포기하라")
+        released = release_resources(f["topology"], releases, apply=apply)
+    reasons = abandoned_gate_reasons(camp, summary_testlog)
+    if reasons:
+        raise TransitionRefusal("abandoned 축소 게이트가 닫혀 있다:\n  - " + "\n  - ".join(reasons))
+    if not apply:
+        return [f"dry-run abandon {camp}"]
+    writer_add_evidence(base, kind="testlog", path_rel=summary_testlog, cell_id=None, node=None, unfreeze=True)
+    writer_append_journey(base, _lifecycle_event("campaign_closed", utc, reason="abandoned",
+                                                 note=reason, approved_by=approved_by,
+                                                 summary_testlog=summary_testlog, released=released,
+                                                 answers=(f["last_transition_event"] or {}).get("ref")))
+    if active_campaign_id() == camp:
+        ACTIVE_POINTER.write_text(BOOTSTRAP + "\n", encoding="utf-8")
+    out = [f"closed(abandoned) {camp}"]
+    parent = _parent_on_close(base, reason="abandoned", utc=utc)
+    if parent:
+        out.append(f"부모 {parent} 에 재개 미결(계기 a)")
+    return out
+
+
+def answer_query(camp: str, *, decision: str, utc, approved_by, apply: bool) -> list:
+    """계기 질의에 대한 '보류 유지' 답(keep). 재개·포기는 각자의 전이 명령이 곧 답이다."""
+    _require(utc, approved_by, "--answer-query")
+    if decision != "keep":
+        raise TransitionRefusal("--answer-query 는 keep 만 받는다 — 재개는 --resume-campaign, 포기는 --abandon")
+    base = campaigns_dir() / camp
+    f = fold_lifecycle(base)
+    if f["state"] not in ("suspended", "resume_pending"):
+        raise TransitionRefusal(f"{camp} 은 {f['state']} 다 — 답할 보류 질의가 없다")
+    if f["answered"]:
+        return [f"no-op — {camp} 의 마지막 전이({(f['last_transition_event'] or {}).get('ref')})는 이미 답했다(멱등)"]
+    if apply:
+        writer_append_journey(base, _lifecycle_event(
+            "campaign_query_answered", utc, decision="keep", approved_by=approved_by,
+            trigger=(f["pending_query"] or {}).get("trigger") or "explicit",
+            answers=(f["last_transition_event"] or {}).get("ref")))
+    return [f"answered keep {camp}"]
+
+
+def resume_campaign(camp: str, *, utc, approved_by, accept_drift: bool, apply: bool) -> list:
+    _require(utc, approved_by, "--resume-campaign")
+    base = campaigns_dir() / camp
+    if not base.is_dir():
+        raise TransitionRefusal(f"인스턴스가 없다: campaigns/{camp}")
+    f = fold_lifecycle(base)
+    if f["state"] not in ("suspended", "resume_pending"):
+        raise TransitionRefusal(f"{camp} 은 {f['state']} 다 — 재개는 보류 캠페인에만 한다"
+                                + (" (orphan 은 재개할 수 없다 — `--abandon` 으로만 정리)" if f["state"] == "orphan" else ""))
+    # 토폴로지를 슬롯보다 먼저 묻는다 — 반대 브랜치에서는 슬롯을 비워도 재개할 수 없으므로, 슬롯 안내를 먼저 내면
+    # 사람이 쓸모없는 보류부터 하게 된다(안내문이 분류를 잘못 말하는 형태).
+    here = checkout_topology()
+    want = (f["suspended_pins"] or {}).get("topology") or f["topology"]
+    if want != here:
+        raise TransitionRefusal(
+            f"토폴로지 불일치 — {camp} 은 topology={want!r} 인데 체크아웃은 {here!r} 다. 이것은 drift 가 아니라 "
+            f"4자일치 불변식 위반이다(--accept-drift 로 넘길 수 없다). 미커밋 0 을 확인하고 해당 브랜치로 전환한 뒤 "
+            f"재개하라(오배달 방지)")
+    cur = active_campaign_id()
+    if cur != BOOTSTRAP:
+        raise TransitionRefusal(f"활성 캠페인 {cur} 이 있다 — 먼저 그것을 보류하거나 종결하라(ACTIVE 슬롯은 하나다)")
+    drift = pin_drift(f["suspended_pins"])
+    if drift and not accept_drift:
+        raise TransitionRefusal("보류 동안 환경이 바뀌었다:\n  - " + "\n  - ".join(drift)
+                                + "\n  → 사람이 수용하면 `--accept-drift`, 아니면 `--abandon`(정상 차단)")
+    if not apply:
+        return [f"dry-run resume {camp}" + (f" (drift 수용 {len(drift)}건)" if drift else "")]
+    pq = f["pending_query"] or {}
+    for cell in f["interrupted_cells"]:
+        writer_set_cell(base, cell=cell, outcome="pending", node=None, version=None, model=None,
+                        decode_tps=None, measurement_source=None, void_reason=None,
+                        void_reason_source=None, axis_citation=None,
+                        next_intent=f"preempt 로 중단된 셀 — 재개({utc})에 처음부터 재실행", utc=utc)
+    writer_append_journey(base, _lifecycle_event(
+        "campaign_resumed", utc, approved_by=approved_by, accepted_drift=drift if drift else [],
+        handoff_pointers=([{"child": pq.get("child"), "child_reason": pq.get("child_reason"),
+                            "pointers": pq.get("pointers")}] if pq.get("child") else []),
+        requeued_cells=list(f["interrupted_cells"]), sub_nodes=_sub_nodes(base),
+        answers=(f["last_transition_event"] or {}).get("ref")))
+    ACTIVE_POINTER.write_text(camp + "\n", encoding="utf-8")
+    out = [f"resumed {camp} → ACTIVE={camp}"]
+    if _sub_nodes(base):
+        out.append("서브 재개는 A2A 제어명령으로 전한다: relay.py --campaign-control resume --campaign-id "
+                   f"{camp} --node <sub> … (echo 가 오기 전까지 '서브 미수렴')")
+    return out
+
+
+def record_sub_echo(camp: str, *, node: str, control: str, utc, apply: bool) -> list:
+    """서브가 자기 인스턴스에서 보류/재개했다는 echo(D9). 실행자는 relay(리포트 회수 직후)다."""
+    if control not in ("suspend", "resume"):
+        raise TransitionRefusal(f"--sub-echo 의 control 은 suspend|resume 이다: {control!r}")
+    if not utc:
+        raise TransitionRefusal("--sub-echo 는 --utc 가 필요하다")
+    base = campaigns_dir() / camp
+    f = fold_lifecycle(base)
+    if node not in f["sub_nodes"]:
+        raise TransitionRefusal(f"{node} 는 {camp} 의 마지막 전이가 지목한 서브가 아니다({f['sub_nodes']})")
+    if apply:
+        writer_append_journey(base, _lifecycle_event("sub_control_echo", utc, node=node, control=control))
+    return [f"sub echo {camp}@{node}:{control}"]
+
+
+def guard_writer_ops(base: Path, ops: dict) -> None:
+    """보류·미결·unknown 캠페인에 대한 쓰기 가드(D13·D15). 서브도 같은 판정을 따른다(같은 코드다).
+
+    ★ ACTIVE 를 읽지 않는다 — 판정하는 세 상태는 journey 만으로 정해지고, `--campaign-id` 를 명시한 호출부(hint 발행기)는
+      ACTIVE 를 **의도적으로** 읽지 않는 계약이다(runtime_selftest 가 ACTIVE 를 읽기 불가로 만들어 그것을 시험한다)."""
+    f = fold_lifecycle(base, active=base.name)
+    if f["state"] == "unknown":
+        raise TransitionRefusal(
+            f"{base.name} 의 journey 에 이 버전이 모르는 수명 이벤트가 있다 {f['unknown_events']} — 상태를 unknown 으로 "
+            "두고 쓰기를 전부 거부한다. 브랜치 공통층을 동기화한 뒤 다시 하라(오배달 방지)")
+    hit = [k for k in PROGRESS_OPS if ops.get(k)]
+    # 범위는 D13 그대로다(보류·미결). closed·orphan 은 이 가드의 대상이 아니다 — 종결 뒤 hint 발행이 publish phase 를
+    # 적는 기존 경로가 있고, 그것을 막으면 정당한 사후 기록이 사라진다(가드가 처방을 금지하는 이음매).
+    if hit and f["state"] in ("suspended", "resume_pending"):
+        raise TransitionRefusal(
+            f"{base.name} 은 {f['state']} 다 — 진행성 쓰기({', '.join('--' + h.replace('_', '-') for h in hit)})를 거부한다. "
+            "먼저 재개하라(`--resume-campaign`). 증거 정리(--evidence-*·--backfill-from-docs)와 읽기는 허용된다(정상 차단)")
+
+
+def open_campaign(new_id: str, plan_ref: str, *, utc, approved_by, suspend_current: bool,
+                  derived_from: "str | None", preempt: bool, releases: list, dispositions: dict,
+                  target_topology: "str | None", reason: "str | None", purge_previous: list,
+                  from_slice: "str | None", apply: bool) -> list:
+    """단일 정문(D2·D16). 처분 없이 활성 캠페인을 덮는 개설은 거부하고, 보류+개설은 사람 확인 1회의 원자 전이로 묶는다.
+
+    실행 순서 = 검사 전부 → teardown → 쓰기. 토폴로지가 체크아웃과 다르면 1단(보류 + 개설 대기)까지만 하고
+    대상 브랜치로 넘어가 2단(같은 명령에서 `--suspend-current` 없이 `--init`)을 하게 한다.
+    """
+    cur = active_campaign_id()
+    table = lifecycle_table()
+    here = checkout_topology()
+    msgs: list = []
+    # 서브가 메인 파생 선언으로 여는 경우: 계보는 선언이 싣고 오며, 처분 질의(계기 d)는 사람이 있는 메인이 이미 했다.
+    # 서브는 질의 주체가 아니므로 묻지 않는다 — 대신 활성 캠페인을 덮는 개설은 메인과 똑같이 거부된다(먼저 A2A 보류).
+    sub_slice = None
+    if from_slice:
+        _sd = _load_slice(from_slice)
+        if _sd.get("self_role") == "sub":
+            sub_slice = _sd
+            derived_from = derived_from or _sd.get("_lifecycle_parent")
+    # ── 2단: 개설 대기를 이어받는다 ───────────────────────────────────────────────
+    waiting = next((c for c, f in table.items() if f["state"] == "suspended"
+                    and (f.get("open_pending") or {}).get("id") == new_id), None)
+    if waiting and not suspend_current:
+        want = table[waiting]["open_pending"].get("topology")
+        if cur != BOOTSTRAP:
+            raise TransitionRefusal(f"개설 대기 {new_id} 를 이어받으려면 ACTIVE 가 비어 있어야 한다(현재 {cur})")
+        if want != here:
+            raise TransitionRefusal(
+                f"{new_id} 는 topology={want!r} 로 개설 대기 중인데 체크아웃은 {here!r} 다 — 대상 브랜치로 전환한 뒤 "
+                "같은 명령을 다시 쳐라(4자일치 · 오배달 방지)")
+        derived_from = derived_from or table[waiting]["open_pending"].get("parent")
+        target_topology = want
+        approved_by = approved_by or table[waiting]["open_pending"].get("approved_by")
+        _require(utc, approved_by, "개설 대기 이어받기(2단)")
+        need: list = []
+    else:
+        if cur != BOOTSTRAP and not suspend_current and cur not in purge_previous:
+            raise TransitionRefusal(
+                f"활성 캠페인 {cur} 이 있다 — 처분 없이 덮어쓰는 --init 은 거부한다(옛 허점: ACTIVE 만 바뀌고 {cur} 이 "
+                f"이름 없는 잔재가 된다). 셋 중 하나를 고른다: ① `--suspend-current [--derived-from {cur}]` 로 보류+개설 "
+                f"② `--close {cur}`(완주) ③ `--abandon {cur}`(포기) — 정상 차단")
+        if suspend_current and cur == BOOTSTRAP:
+            raise TransitionRefusal("--suspend-current 를 줬지만 활성 캠페인이 없다(ACTIVE=_bootstrap) — 플래그를 빼라(의도 모순)")
+        if derived_from and sub_slice is None:
+            pf = table.get(derived_from)
+            ok_state = ("active",) if (suspend_current and derived_from == cur) else ("suspended", "resume_pending")
+            if pf is None or pf["state"] not in ok_state:
+                raise TransitionRefusal(f"--derived-from {derived_from} 은 {(pf or {}).get('state')} 다 — 파생 부모는 "
+                                        f"지금 보류되는 활성 캠페인이거나 보류 중인 캠페인이어야 한다")
+        # 계기 (d): 파생이 아니면 무관한 개설이다. 지금 보류되는 cur 는 이 전이 자체가 처분이므로 묻지 않는다.
+        need = [] if (derived_from or sub_slice is not None) else _pending_dispositions(table, exclude=(cur,))
+        if suspend_current or utc or approved_by or need or dispositions:
+            _require(utc, approved_by, "수명 전이(--init)")
+    target_topology = target_topology or here
+    if target_topology not in ("single", "multi"):
+        raise TransitionRefusal(f"대상 토폴로지를 정할 수 없다({target_topology!r}) — `--target-topology single|multi`")
+    if new_id in table or (campaigns_dir() / new_id).exists():
+        raise TransitionRefusal(f"이미 있는 인스턴스다: campaigns/{new_id}")
+    if new_id in RESERVED_IDS:
+        raise TransitionRefusal(f"예약 id 로는 캠페인을 열 수 없다: {new_id!r}")
+    # 처분 답 누락은 teardown 전에 막는다(검사 전부 → teardown → 쓰기).
+    if need:
+        _apply_dispositions(dispositions, need, utc=utc, approved_by=approved_by, table=table, apply=False)
+    stage1_only = target_topology != here
+    if suspend_current:
+        nxt = ({"id": new_id, "topology": target_topology, "plan_ref": plan_ref, "parent": derived_from,
+                "approved_by": approved_by} if stage1_only else None)
+        event, wrote = suspend_campaign(cur, utc=utc, approved_by=approved_by,
+                                        reason=reason or f"{new_id} 개설로 전환", releases=releases,
+                                        preempt=preempt, preempted_by=new_id, nxt=nxt, apply=apply)
+        msgs.append(f"suspended {cur} (내린 자원 {len(event['released'])} · 중단 셀 {len(event['interrupted_cells'])})")
+        msgs += wrote
+    elif stage1_only:
+        raise TransitionRefusal(
+            f"대상 토폴로지 {target_topology!r} 가 체크아웃({here!r})과 다르다 — 반대 토폴로지 캠페인을 이 브랜치에서 "
+            "열 수 없다(4자일치). 보류할 활성 캠페인이 있으면 `--suspend-current` 로 1단을 남기고, 없으면 대상 브랜치에서 연다")
+    if need:
+        msgs += _apply_dispositions(dispositions, need, utc=utc, approved_by=approved_by, table=table, apply=apply)
+    if stage1_only:
+        msgs.append(f"1단 완료 — {new_id} 개설 대기(topology={target_topology}). 미커밋 0 확인 → "
+                    f"{target_topology}-node 체크아웃 → 같은 `--init {new_id} --plan-ref {plan_ref} --apply` 로 2단")
+        return msgs
+    removed = []
+    for prev in purge_previous:
+        removed += do_purge(prev, apply=apply)
+    swept = sweep_bootstrap_relay(apply=apply)
+    made = scaffold(new_id, plan_ref, apply=apply, from_slice=from_slice)
+    if apply:
+        nbase = campaigns_dir() / new_id
+        doc = read_declaration(nbase)
+        cv = doc.get("control_variables") if isinstance(doc.get("control_variables"), dict) else {}
+        if cv.get("topology") in (None, FILL):
+            cv["topology"] = target_topology
+            doc["control_variables"] = cv
+            (nbase / "campaign.yaml").write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n",
+                                                 encoding="utf-8")
+        if utc:
+            writer_append_journey(nbase, _lifecycle_event("campaign_opened", utc, parent=derived_from,
+                                                          topology=target_topology, approved_by=approved_by,
+                                                          plan_ref=plan_ref))
+    msgs.append(f"purge={removed} init={made}" + (f" parent={derived_from}" if derived_from else ""))
+    if swept:
+        msgs.append(f"_bootstrap/relay 정리 {len(swept)}건")
+    if suspend_current and cur != BOOTSTRAP and _sub_nodes(campaigns_dir() / cur):
+        msgs.append(f"서브 보류는 A2A 제어명령으로 전한다: relay.py --campaign-control suspend --campaign-id {cur} "
+                    "--node <sub> … (echo 가 오기 전까지 '서브 미수렴' · 메인은 진행)")
+    return msgs
+
+
 def _selftest() -> int:
     import tempfile
     global CAMPAIGNS, ACTIVE_POINTER, REPO_ROOT
@@ -2224,6 +3016,12 @@ def _selftest() -> int:
         ACTIVE_POINTER = CAMPAIGNS / "ACTIVE"
         prev = CAMPAIGNS / "old"
         prev.mkdir(parents=True)
+        # 2026-10-17(plan_26101719 D14): 수명 이벤트 없고 ACTIVE 도 아닌 인스턴스는 orphan 이라 P-게이트 앞에서 막힌다.
+        # 이 절은 P-게이트 자체를 시험하므로 픽스처를 **옛 종결(campaign_closed 줄)** 로 둔다 — orphan 판정은
+        # selftest_campaign_lifecycle.py 가 따로 시험한다.
+        _legacy_closed = lambda d: (d / JOURNEY_NAME).write_text(
+            json.dumps({"utc": "2026-01-01T00:00:00Z", "kind": "campaign_closed"}) + "\n", encoding="utf-8")
+        _legacy_closed(prev)
         ck("포인터 파일 부재 → 게이트 닫힘", bool(purge_gate_reasons("old")))
         (prev / "evidence_pointers.json").write_text(json.dumps({"pointers": []}), encoding="utf-8")
         ck("포인터 0건 → 게이트 닫힘", any("0건" in r for r in purge_gate_reasons("old")))
@@ -2252,6 +3050,7 @@ def _selftest() -> int:
         for _n in ("relicA", "relicB"):
             _d = CAMPAIGNS / _n
             _d.mkdir(parents=True)
+            _legacy_closed(_d)
             (_d / "evidence_pointers.json").write_text(json.dumps(good), encoding="utf-8")
         ck("게이트는 인스턴스마다 따로 묻는다",
            not purge_gate_reasons("relicA") and not purge_gate_reasons("relicB"))
@@ -2263,6 +3062,7 @@ def _selftest() -> int:
            and not (CAMPAIGNS / "relicB").exists())
         # 음성대조: 한쪽 게이트가 닫혀 있으면 그 하나만 거부되고 다른 하나는 영향받지 않는다.
         (CAMPAIGNS / "relicC").mkdir(parents=True)
+        _legacy_closed(CAMPAIGNS / "relicC")
         _refused = False
         try:
             do_purge("relicC", apply=True)
@@ -3400,6 +4200,38 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--apply", action="store_true", help="실제로 쓰고 지운다(기본은 dry-run)")
     ap.add_argument("--selftest", action="store_true")
 
+    # ── 수명 전이 (2026-10-17 · plan_26101719). 단일 정문 = `--init <B> --suspend-current [--derived-from <A>]`.
+    lc = ap.add_argument_group("수명 전이 (보류·재개·포기·선점 — journey 단일 권위 · 사람 확인 = --approved-by)")
+    lc.add_argument("--suspend-current", action="store_true",
+                    help="--init 과 함께: 활성 캠페인을 보류하고 새 캠페인을 연다(원자 전이 · 처분 없는 덮어쓰기는 거부)")
+    lc.add_argument("--derived-from", metavar="CAMP_ID",
+                    help="--init 의 파생 부모(기록되면 자식 종결 시 부모 재개 질의가 1회 걸린다 · 계기 a)")
+    lc.add_argument("--preempt", action="store_true",
+                    help="진행 중 셀이 있어도 강제 전환(측정 중단 · 서빙 내림 · 그 셀 interrupted · 부분값 증거 ✗)")
+    lc.add_argument("--release", action="append", default=[], metavar="CONFIG|none",
+                    help="보류 시 정식 teardown 으로 내릴 서빙 config(반복) · 띄운 것이 없으면 `none`")
+    lc.add_argument("--dispose", action="append", default=[], metavar="CAMP=keep",
+                    help="무관 개설(계기 d) 때 답 없는 보류 캠페인의 처분 전사(반복 · keep 만 — 포기는 --abandon)")
+    lc.add_argument("--target-topology", choices=("single", "multi"),
+                    help="새 캠페인의 토폴로지(생략 = 체크아웃). 체크아웃과 다르면 1단(보류+개설 대기)까지만 한다")
+    lc.add_argument("--reason", help="보류·포기 사유")
+    lc.add_argument("--suspend", metavar="CAMP_ID",
+                    help="단독 보류(서브 A2A 보류 지시의 실행부 · 개설 없음) · --release --approved-by --utc")
+    lc.add_argument("--resume-campaign", metavar="CAMP_ID",
+                    help="보류 캠페인 재개(핀·digest 대조 · 토폴로지는 체크아웃과 같아야 한다) · --approved-by --utc")
+    lc.add_argument("--accept-drift", action="store_true", help="--resume-campaign: 보류 동안 바뀐 핀을 사람이 수용")
+    lc.add_argument("--abandon", metavar="CAMP_ID",
+                    help="포기 종결(축소 게이트: 측정 증거 도착 + --summary-testlog) · --reason --approved-by --utc")
+    lc.add_argument("--summary-testlog", metavar="PATH", help="--abandon 의 포기 요약 testlog(저장소 상대경로)")
+    lc.add_argument("--answer-query", metavar="CAMP_ID",
+                    help="계기 질의에 '보류 유지' 로 답한다(--query-decision keep) · --approved-by --utc")
+    lc.add_argument("--query-decision", choices=("keep",), default=None)
+    lc.add_argument("--sub-echo", metavar="CAMP_ID",
+                    help="서브가 자기 인스턴스에서 보류/재개했다는 echo 기록 · --node --control --utc")
+    lc.add_argument("--control", choices=("suspend", "resume"))
+    lc.add_argument("--lifecycle", nargs="?", const="*", metavar="CAMP_ID",
+                    help="수명 fold 를 JSON 으로 낸다(생략 = 전 인스턴스 · 읽기 전용)")
+
     # ── 단일 writer (2026-09-07 · plan_26090715 §4.1). ACTIVE=_bootstrap 이면 전부 no-op.
     w = ap.add_argument_group("writer (campaigns/<id>/ 에 바이트를 쓰는 유일한 자리)")
     w.add_argument("--phase-set", metavar="PHASE",
@@ -3567,6 +4399,43 @@ def main(argv: list[str] | None = None) -> int:
             print(f"[campaign_init] brief → "
                   f"{_rel(write_campaign_brief(tgt[0], node=a.node, utc=a.utc))}")
             return 0
+        if a.lifecycle:
+            if a.lifecycle == "*":
+                print(json.dumps({"line": lifecycle_line(), "campaigns": lifecycle_table()},
+                                 ensure_ascii=False, indent=2))
+            else:
+                print(json.dumps(fold_lifecycle(campaigns_dir() / a.lifecycle), ensure_ascii=False, indent=2))
+            return 0
+        mode = "APPLIED" if a.apply else "DRY-RUN"
+        if a.suspend:
+            _require(a.utc, a.approved_by, "--suspend")
+            event, wrote = suspend_campaign(a.suspend, utc=a.utc, approved_by=a.approved_by,
+                                            reason=a.reason or "단독 보류", releases=a.release,
+                                            preempt=a.preempt, apply=a.apply)
+            print(f"[campaign_init] {mode} suspended {a.suspend} · 내린 자원 {event['released']} · "
+                  f"중단 셀 {event['interrupted_cells']} · {' '.join(wrote)}")
+            return 0
+        if a.resume_campaign:
+            for m in resume_campaign(a.resume_campaign, utc=a.utc, approved_by=a.approved_by,
+                                     accept_drift=a.accept_drift, apply=a.apply):
+                print(f"[campaign_init] {mode} {m}")
+            return 0
+        if a.abandon:
+            for m in abandon_campaign(a.abandon, utc=a.utc, approved_by=a.approved_by, reason=a.reason,
+                                      summary_testlog=a.summary_testlog, releases=a.release, apply=a.apply):
+                print(f"[campaign_init] {mode} {m}")
+            return 0
+        if a.answer_query:
+            for m in answer_query(a.answer_query, decision=a.query_decision or "", utc=a.utc,
+                                  approved_by=a.approved_by, apply=a.apply):
+                print(f"[campaign_init] {mode} {m}")
+            return 0
+        if a.sub_echo:
+            if not a.node or not a.control:
+                raise TransitionRefusal("--sub-echo 는 --node 와 --control 이 필요하다")
+            for m in record_sub_echo(a.sub_echo, node=a.node, control=a.control, utc=a.utc, apply=a.apply):
+                print(f"[campaign_init] {mode} {m}")
+            return 0
         writer_ops = (a.phase_set, a.cell_set, a.evidence_add, a.freeze_evidence, a.revise,
                       a.evidence_prune_stubs, a.import_sub, a.backfill_from_docs, a.ground,
                       a.escalation_add, a.hint_approve, a.evidence_untag, a.evidence_relocate,
@@ -3578,6 +4447,10 @@ def main(argv: list[str] | None = None) -> int:
                       file=sys.stderr)
                 return 0
             base, camp = tgt
+            # 수명 가드(D13·D15) — 보류·미결·잔재에는 진행성 쓰기를, unknown 에는 모든 쓰기를 거부한다.
+            guard_writer_ops(base, {"phase_set": a.phase_set, "cell_set": a.cell_set,
+                                    "cell_materialize": a.cell_materialize,
+                                    "reentry_decide": a.reentry_decide})
             wrote: list[str] = []
             if a.phase_set:
                 if not a.node or not a.state:
@@ -3760,20 +4633,21 @@ def main(argv: list[str] | None = None) -> int:
             if not a.plan_ref:
                 print("[campaign_init] FAIL --init 은 --plan-ref 가 필요하다(승인 없는 개설 ✗)", file=sys.stderr)
                 return 2
-            removed = []
-            # 게이트는 **인스턴스마다** 따로 묻는다 — 하나가 열렸다고 다른 하나가 열리지 않는다.
-            for _prev in a.purge_previous:
-                removed.extend(do_purge(_prev, apply=a.apply))
-            # `_bootstrap` 대기실도 함께 비운다(사용자 결정 2026-09-07). 게이트 대상이 아니므로
-            # 여기서 정리하지 않으면 영원히 남는다.
-            swept = sweep_bootstrap_relay(apply=a.apply)
-            made = scaffold(a.init, a.plan_ref, apply=a.apply, from_slice=a.from_slice)
-            mode = "APPLIED" if a.apply else "DRY-RUN"
-            print(f"[campaign_init] {mode} purge={removed} init={made}")
-            if swept:
-                print(f"[campaign_init] {mode} _bootstrap/relay 정리 {len(swept)}건:")
-                for _s in swept:
-                    print(f"  - {_s}")
+            # 단일 정문(2026-10-17 · plan_26101719 D2). purge(인스턴스마다 따로 묻는다)·_bootstrap 대기실 정리·scaffold 는
+            # 정문 안에서 같은 순서로 돈다 — 검사 전부가 끝난 뒤에만 쓴다.
+            _disp = {}
+            for kv in a.dispose:
+                k, _, v = kv.partition("=")
+                if not k or not _:
+                    raise TransitionRefusal(f"--dispose 는 CAMP=keep 형식이다: {kv!r}")
+                _disp[k.strip()] = v.strip()
+            for m in open_campaign(a.init, a.plan_ref, utc=a.utc, approved_by=a.approved_by,
+                                   suspend_current=a.suspend_current, derived_from=a.derived_from,
+                                   preempt=a.preempt, releases=a.release, dispositions=_disp,
+                                   target_topology=a.target_topology, reason=a.reason,
+                                   purge_previous=a.purge_previous, from_slice=a.from_slice,
+                                   apply=a.apply):
+                print(f"[campaign_init] {mode} {m}")
             return 0
         ap.print_help(); return 2
     except (PurgeGateRefusal, WriterRefusal) as exc:
