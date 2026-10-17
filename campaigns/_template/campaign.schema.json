@@ -197,7 +197,7 @@
         },
         "bench_pins": {
           "type": "object",
-          "description": "full-bench 측정 형상 knob 의 사람 핀(2026-10-10 · plan_26101011). 캠페인 선언은 선언 확인 팝업을 거친 사람 승인 문서이므로 여기 적힌 값은 사람 핀이다 — 프리셋(config/guide-llm/<preset>.yaml)의 선택지 안에서 escalate 등급까지 연다. 해소 순서: CLI 사람 핀(--pin --pinned-by) > 이 필드 > Agent 선택 > 프리셋 기본값. 생략 가능. 키는 knob 이름(levels·input_len·output_len·num_prompts·warmups·backend·bench_budget_mib)이며 반복 수 핀은 두 번째 자리를 두지 않고 budgets.repeats 하나다. 소비자: sweep_bench.sh → bench_preset.py resolve(모양·선택지 검증 · 위반 = 측정 전 거부).",
+          "description": "full-bench 측정 형상 knob 의 사람 핀(2026-10-10 · plan_26101011). 캠페인 선언은 선언 확인 팝업을 거친 사람 승인 문서이므로 여기 적힌 값은 사람 핀이다 — 프리셋(config/guide-llm/<preset>.yaml)의 선택지 안에서 escalate 등급까지 연다. 해소 순서: CLI 사람 핀(--pin --pinned-by) > 이 필드 > Agent 선택 > 프리셋 기본값. 생략 가능. 키는 knob 이름(levels·input_len·output_len·num_prompts·warmups·backend·bench_budget_mib · 데이터셋 축 dataset_kind·dataset_source·dataset_id·dataset_path·dataset_revision·source_sha256·column_map·preprocess_strategy·seed — 2026-10-16 plan_26101614)이며 반복 수 핀은 두 번째 자리를 두지 않고 budgets.repeats 하나다. 소비자: sweep_bench.sh → bench_preset.py resolve(모양·선택지 검증 · 위반 = 측정 전 거부).",
           "propertyNames": {
             "enum": [
               "levels",
@@ -206,7 +206,16 @@
               "num_prompts",
               "warmups",
               "backend",
-              "bench_budget_mib"
+              "bench_budget_mib",
+              "dataset_kind",
+              "dataset_source",
+              "dataset_id",
+              "dataset_path",
+              "dataset_revision",
+              "source_sha256",
+              "column_map",
+              "preprocess_strategy",
+              "seed"
             ]
           },
           "additionalProperties": true

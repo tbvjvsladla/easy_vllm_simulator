@@ -1342,6 +1342,11 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C1():
     _require(tuple(branch.PAYLOAD_ALLOWLIST_TOP) == ("README.md", "00-hint.md", "01-artifacts.md", "02-narrative.md",
                                                      "03-benchmark.md", "PAYLOAD.json", "LINEAGE.json", "PROVENANCE.json"),
              f'payload top-level allowlist drifted: {branch.PAYLOAD_ALLOWLIST_TOP}')
+    # 2026-10-16 plan_26101614 U14: required = allowlist, except a lite-only cell (PAYLOAD.json cell_grade lite) omits 03-benchmark.md;
+    #   an unreadable / undeclared grade still requires all 8 (fail-closed).
+    _require(branch.required_top(None) == tuple(branch.PAYLOAD_ALLOWLIST_TOP)
+             and branch.required_top({"cell_grade": "lite"}) == tuple(t for t in branch.PAYLOAD_ALLOWLIST_TOP if t != "03-benchmark.md"),
+             'payload required set must equal the allowlist except 03-benchmark.md for a lite-only cell')
     for rel in ("notes.txt", ".claude/skills/x.py", "artifacts/triplet/.git/config", "artifacts/unknown/x",
                 "artifacts/compose/.gitattributes"):
         _require(branch.allowlist_violation(rel) is not None, f'{rel!r} must be outside the payload allowlist')

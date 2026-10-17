@@ -76,7 +76,11 @@ RUN git clone --filter=blob:none ${VLLM_REPO} /workspace/vllm-src \
  && git -C /workspace/vllm-src checkout --detach ${VLLM_REF} \
  && echo "[clone] HEAD=$(git -C /workspace/vllm-src rev-parse HEAD) (${VLLM_REPO} @ ${VLLM_REF})"
 WORKDIR /workspace/vllm-src
-RUN python3 use_existing_torch.py
+# use_existing_torch.py 위치는 ref 마다 다르다 — 0.31.0(#58572)부터 tools/ 로 이동(루트 → tools/use_existing_torch.py ·
+# 인자 없이 부르면 종전과 같이 torch 계열 핀을 전부 걷어낸다). 있는 쪽을 실행하고 둘 다 없으면 fail-loud(침묵 skip ✗).
+RUN if [ -f tools/use_existing_torch.py ]; then python3 tools/use_existing_torch.py; \
+    elif [ -f use_existing_torch.py ]; then python3 use_existing_torch.py; \
+    else echo "FAIL: use_existing_torch.py 를 찾지 못했다(루트·tools/ 모두 부재) — 상류 이동을 확인하라" >&2; exit 1; fi
 
 # build-system.requires 수동 설치(--no-build-isolation 전제: pip 가 자동설치 안 함).
 # 0.22.1 검증 레시피대로 as-is 설치(setuptools-rust/cmake/ninja/scm/wheel/jinja2 등 포함).

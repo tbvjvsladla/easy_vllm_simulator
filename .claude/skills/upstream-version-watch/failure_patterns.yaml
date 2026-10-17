@@ -27,6 +27,10 @@ patterns:
     class: requirements-fixable
     note: "fastapi>=0.137.0 의 include_router 리팩터(_IncludedRouter, .path 부재)가 prometheus-fastapi-instrumentator 와 충돌 → 모든 요청(/health 포함) 500 Internal Server Error (vLLM #45596). regen 이 최신 fastapi 를 흡수하는 시간드리프트로 발현(빌드는 통과·서빙 HTTP에서 발현) → requirements.txt 에 fastapi[standard]<0.137.0 핀. testlog 2026062220(gpt-oss-20b/0.18.0 wheel)."
 
+  - signature: "can't open file '[^']*use_existing_torch\\.py'"
+    class: requirements-fixable
+    note: "상류가 빌드 보조 스크립트를 옮김(0.31.0 #58572: 루트 use_existing_torch.py → tools/). 템플릿이 두 경로를 자기적응으로 고른다 — 이 시그니처가 다시 나오면 템플릿이 옛 판본이거나 상류가 또 옮긴 것. testlog_26101410(plan_26101410)."
+
   - signature: "No module named 'torch\\._opaque_base'"
     class: source-build-class
     note: "NGC torch 가 vLLM wheel 기대보다 이른/다른 빌드(torch 2.11 alpha). 소스빌드 필요."

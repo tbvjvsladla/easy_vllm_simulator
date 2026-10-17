@@ -106,8 +106,12 @@ render_scaffold 가 소비하는 facts 키 (evidence·artifacts·lineage 가 조
                                       checker · author · open[] · waiver) → 00 메타(publish 직후 = None = "미실시")
     sub_recipe                  dict|None  artifacts.sub_recipe(멀티) — role_diff · launch_order · env_forward · image_identity_args ·
                                       per_node_values · preconditions · parity_attestation
-    bench_section_md            str|None  render_bench_section 이 렌더한 절(바인딩된 리포트 또는 스윕 색인에서)
-    task_class                  str   full_benchmark|hint_map_only (없으면 publication.task_class)
+    bench_section_md            str|None  render_bench_section 이 렌더한 절(바인딩된 리포트 또는 스윕 색인에서 · lite 셀 = None)
+    cell_grade                  str   full|lite(2026-10-16 · plan_26101614 U14) — 단일 술어 is_lite_cell 의 영속값. lite = 03 미발행 ·
+                                      표시 라벨 `lite(기동 가능)` · 00 머리 FACT:lite_summary
+    dataset_provenance          dict  evidence.dataset_provenance — DATASET_KEYS 10종 + dataset_provenance · status(recorded|
+                                      inferred-synthetic) · source → 03 §3.3 FACT:dataset_provenance(U9·U10 · 부재 = synthetic 부재 추론)
+    task_class                str   full_benchmark|hint_map_only (없으면 publication.task_class)
     campaign                    dict  id · cell · node · mode · (id_source — 재생 전용 대체의 출처 · 2026-09-29 F4)
     approval                    dict  approved_by · approved_utc · source
     prior_approval              dict  재생 전용: 원 발행의 승인(봉인 페이로드 기록) + replay_source — approval 이 없을 때만 메타에 표지와 함께
@@ -313,7 +317,17 @@ BENCH_MISSING_CODES = ("HINT_MISSING_CERTIFICATE", "HINT_MISSING_BENCH_REPORT", 
 # 트리플렛 부재가 **기재돼** 있으면 value-status 커버리지 대상 노브 0개가 정당하다(강행 발행 · 부재는 기재).
 # 기재되지 않은 0개는 공허 통과다(옛 hint_tag B-layer "적히지 않은 부재는 여전히 차단" 규칙).
 _TRIPLET_ABSENT_CODES = ("HINT_MISSING_TRIPLET",)
-_CONDITION_KEYS = ("topology", "task_class", "plane")
+# 2026-10-16(plan_26101614 U14): `cell_grade` — lite 셀(선언된 lite-only)은 03 을 싣지 않는다. 판정 술어 = is_lite_cell(facts).
+_CONDITION_KEYS = ("topology", "task_class", "plane", "cell_grade")
+# 셀 등급(2026-10-16 · plan_26101614 U14 · A8): lite = 선언된 lite-only 셀(full 없이 hint 발행할 최소 기준점 · 이 HW 에서 기동 가능 증명).
+#   기계 판정 칸(measurement.verdict)은 OBSERVATION-ONLY 그대로다(MEASUREMENT_VERDICTS 어휘를 늘리지 않는다 · completion_gate 어휘 불변) —
+#   `lite(기동 가능)` 은 **표시 라벨**이다(full 판정 PASS·REFUTE 와 한 칸에 섞이지 않게). facts/PAYLOAD `cell_grade` 로 영속한다.
+CELL_GRADES = ("full", "lite")
+LITE_LABEL = "lite(기동 가능)"
+BENCH_DOC = "03-benchmark.md"
+# PROMPT · SELFCHECK 주석 안의 셀 등급 조건 조각 `[[cell_grade=<full|lite>: 문구]]`(2026-10-16 · plan_26101614): 조건이 맞으면 문구만 남기고
+#   아니면 조각째 걷는다. 주석 안에서만 쓴다(봉인이 질문 줄만 남기므로 배포되지 않는다) — 린터는 같은 함수로 렌더한 템플릿 PROMPT 와 대조한다.
+_COND_SEG = re.compile(r"\[\[cell_grade=(full|lite):\s?(.*?)\]\]")
 _MISSING_TEXT = "미관측"
 _UNRECORDED = "미기재"
 
@@ -337,6 +351,7 @@ _SELFCHECK_RESIDUE = re.compile(r"<!--\s*SELFCHECK\b")
 _PROMPT_FIELD = re.compile(r"^([^\s:][^:]*?):\s*(.*)$")
 _EVENT_KEY = re.compile(r"^([^\s:#][^\s:]*)\s*:\s*(.*)$")
 _README_TOKEN = re.compile(r"\{\{([A-Z_]+)\}\}")
+_README_DROP = "\x00readme-drop-line\x00"     # 자리표시가 이 값이면 그 줄을 통째로 걷는다(lite 셀의 03 행 · 2026-10-16)
 _WS = re.compile(r"\s+")
 _ELLIPSIS = re.compile(r"…|\.\.\.")
 
@@ -420,6 +435,45 @@ def _task_class(facts: dict) -> str | None:
     return facts.get("task_class") or _dict(facts, "publication").get("task_class")
 
 
+def is_lite_cell(facts) -> bool:
+    """선언된 lite-only 셀인가(2026-10-16 · plan_26101614 U14 · **단일 술어** — render · lint · seal · branch · catalog 가 이 판정만 본다).
+
+    영속값 우선: facts/PAYLOAD `cell_grade ∈ {full, lite}` 이면 그것(hint.py _assemble 이 이 술어로 한 번 적는다). 없으면(옛 페이로드 ·
+    조립 전 facts) 측정 사실에서 판정한다 — 인증서 `benchmark_mode: lite`(→ measurement.benchmark_mode) 또는 측정 구성 `bench_mode: lite`
+    ∧ (`bench_mode_kind: declared-lite` ∨ task_class hint_map_only). **강등 셀(downgraded-lite · 강등 사유 기재)은 제외**한다 — 그 셀은
+    full 로 쟀고 부하 곡선이 있다(03 을 싣는다). 모름은 full 쪽이다(03 을 요구하는 쪽이 fail-closed)."""
+    if not isinstance(facts, dict):
+        return False
+    g = facts.get("cell_grade")
+    if g in CELL_GRADES:
+        return g == "lite"
+    m, mc = _dict(facts, "measurement"), _dict(facts, "measurement_config")
+    if mc.get("bench_mode_kind") == "downgraded-lite" or mc.get("downgrade_reason"):
+        return False
+    if m.get("benchmark_mode") == "lite":
+        return True
+    return mc.get("bench_mode") == "lite" and (mc.get("bench_mode_kind") == "declared-lite"
+                                               or _task_class(facts) == "hint_map_only")
+
+
+def cell_grade(facts) -> str:
+    return "lite" if is_lite_cell(facts) else "full"
+
+
+def payload_docs(facts) -> tuple[str, ...]:
+    """이 셀이 싣는 서사 문서(2026-10-16 · plan_26101614 U14) — lite 셀 = PAYLOAD_DOCS − `03-benchmark.md`."""
+    lite = is_lite_cell(facts)
+    return tuple(n for n in PAYLOAD_DOCS if not (lite and n == BENCH_DOC))
+
+
+def _cond_text(line: str, facts) -> str:
+    """주석 안 셀 등급 조건 조각을 이 셀 기준으로 푼다(`[[cell_grade=lite: …]]` · 렌더와 린트가 같은 함수)."""
+    if "[[cell_grade=" not in line:
+        return line
+    g = cell_grade(facts)
+    return _COND_SEG.sub(lambda m: m.group(2) if m.group(1) == g else "", line)
+
+
 def _value_text(v) -> str:
     """value-status 대조용 값 문자열 — 표와 블록이 같은 함수를 쓴다(두 판정기가 갈리지 않게)."""
     if v is None or v == "":
@@ -466,6 +520,10 @@ def _f_grade(c: _Ctx) -> str:
         ("자격 근거", _cell([f"`{s}`" for s in sources]) + _qual_scope_text(q)),
         ("증거 등급(task_class)", _cell(tc)),
         ("측정 등급(bench_mode)", _cell(mc.get("bench_mode"), _UNRECORDED)),
+        # 2026-10-16 plan_26101614 U14·A8: 셀 등급 — lite 셀의 표시 라벨은 full 판정과 다른 행 · 다른 어휘(성능 판정 아님)
+        ("셀 등급(cell_grade)", (f"`{LITE_LABEL}` — lite 벤치만 통과한 셀(이 HW 에서 기동 · 추론 최소조건 증명 · **성능 판정 아님**) · "
+                                f"`{BENCH_DOC}` 미발행" if is_lite_cell(f) else
+                                f"`full` — 성능 판정 · 부하 곡선 · 데이터셋 출처는 `{BENCH_DOC}`")),
         # 2026-09-29 plan_26092908 §4.4(V2): 판정 행은 필수다 — 인증서 유무와 무관하게 판정 원천(evidence.measurement)이 채운다
         ("성능 판정(measurement.verdict)", _verdict_text(f)),
     ]
@@ -478,6 +536,10 @@ def _verdict_text(f: dict) -> str:
     """판정 한 칸 — `PASS|REFUTE|OBSERVATION-ONLY` + 출처(evidence `measurement.sources.verdict` 그대로 · 여기서 재판정 ✗)."""
     m = _dict(f, "measurement")
     v, src = m.get("verdict"), _dict(m, "sources").get("verdict")
+    if is_lite_cell(f):
+        # 2026-10-16 plan_26101614 U14·A8: lite 셀은 표시 라벨 `lite(기동 가능)` — 기계 판정 칸 값(OBSERVATION-ONLY)은 괄호로만 보인다
+        return (f"`{LITE_LABEL}` — **성능 판정 아님**(full 판정 PASS · REFUTE 와 분리 · 기계 판정 칸 `{_cell(v, _MISSING_TEXT)}`) · "
+                f"출처 {_cell(src, '출처 미기재')}")
     if v in (None, ""):
         return f"{_MISSING_TEXT} — {_cell(src, '판정 원천 없음')}"
     return f"`{_cell(v)}` — 출처 {_cell(src, '출처 미기재')}"
@@ -493,7 +555,12 @@ def _marker_lines(f: dict) -> list[str]:
                     f"아니다 — 판정 출처 {_cell(_dict(m, 'sources').get('verdict'), '출처 미기재')}."]
         if reasons:
             out += [f"> 기각 사유: {_cell(reasons)}"]
-    if _task_class(f) == "hint_map_only":
+    if is_lite_cell(f):
+        # 2026-10-16 plan_26101614 U14·A8: lite 셀 배너 — OBSERVATION-ONLY 표지(린트 ⑬)를 함께 싣되 라벨은 lite(기동 가능)
+        out += ["", f"> **{LITE_LABEL}** · **{MAP_ONLY_MARKER}** — 이 셀은 lite 벤치(서빙 직후 1회 스냅샷)만 통과했다: 이 HW 에서 기동 · 추론이 "
+                    "된다는 **최소조건 증명이지 성능 판정이 아니다**(full 판정 PASS · REFUTE 와 분리). 수치는 관측 게재이며 baseline · 권고가 "
+                    f"아니다 — `{BENCH_DOC}`(부하 곡선 · like-with-like)는 싣지 않는다. baseline 을 주장하려면 full 측정이 필요하다."]
+    elif _task_class(f) == "hint_map_only":
         out += ["", f"> **{MAP_ONLY_MARKER}** — 이 태그의 성능 수치는 **관측 게재**다(인증서 없음). baseline·권고로 읽지 마라 — "
                     "baseline 을 주장하려면 full_benchmark 인증서가 필요하다."]
     elif m.get("verdict") == MAP_ONLY_MARKER:
@@ -1812,7 +1879,7 @@ def _ledger_span_lines(f: dict) -> list[str]:
     spans = [x for x in (f.get("event_ledger_spans") or []) if isinstance(x, dict)]
     if not spans:
         return []
-    parts, outs = [], []
+    parts, outs, locs = [], [], []
     for x in spans:
         files = " · ".join(f"`{_cell(p)}`" for p in (x.get("files") or []))
         if not x.get("last_utc"):
@@ -1821,13 +1888,19 @@ def _ledger_span_lines(f: dict) -> list[str]:
             continue
         parts.append(f"{_cell(x.get('node'))} = {_cell(x.get('first_utc'))} → {_cell(x.get('last_utc'))}({files})")
         if x.get("covers_measurement") is False:
-            outs.append(f"{x.get('node')}(마지막 행 {x.get('last_utc')} < 측정 끝 {x.get('measurement_end_utc')})")
+            # 2026-10-16(plan_26101614 P12 lite 사실 검증 F9): 이 체크아웃 노드의 로컬 원장(live_local)은 미회수가 아니다 — 블랙박스가
+            #   계속 쓰는 파일이라 마지막 행 뒤 행 없음은 조회 시각까지 관측된 것이다. 측정 끝 > 마지막 행이라는 사실은 그대로 적는다.
+            (locs if x.get("live_local") is True else outs).append(
+                f"{x.get('node')}(마지막 행 {x.get('last_utc')} < 측정 끝 {x.get('measurement_end_utc')})")
     line = "> **원장 관측 범위**(노드별 첫 행 → 마지막 행 · evidence.event_ledger_spans): " + " · ".join(parts)
     echoed = [x for x in spans if x.get("covers_measurement") is not True and isinstance(x.get("smoke_echo"), dict)
               and (x["smoke_echo"].get("rows") or [])]
     if outs:
         line += (f" — ⚠ {' · '.join(_cell(o) for o in outs)}: 그 뒤 그 노드의 선언 · 사건은 **관측 범위 밖**이다(없음이 아니다 · "
                  "원장 미회수)" + ("" if not echoed else " — 단 아래 보조 관측의 행은 예외"))
+    if locs:
+        line += (f" — {' · '.join(_cell(o) for o in locs)}: 마지막 행 뒤 행 없음(이 노드의 로컬 원장 · 조회 시각까지 관측 · 미회수 아님 — "
+                 "행은 사건 · 6시간 갱신 때만 쓰인다)")
     out = ["", line]
     for x in echoed:   # F10(2026-09-29): 같은 기동 스모크 로그에 echo 된 원장 JSON 줄 — evidence 가 준 행 그대로(판정 ✗)
         e = x["smoke_echo"]
@@ -1928,6 +2001,13 @@ _LEVEL_KEY_ORDER = ("level", "status")
 def _f_measurement(c: _Ctx) -> str:
     """측정 수치(파싱만 · 재계산 ✗). 스칼라는 키-값 표 · 한 단계 dict(예: `lite`)는 `키.하위키` 행 · dict 목록(예: 레벨별
     `levels`)은 별도 표 — JSON 덩어리를 표 칸 하나에 밀어 넣으면 사람도 Agent 도 수치를 못 읽는다(2026-09-22 리뷰)."""
+    out = _measurement_table(c)
+    out += _marker_lines(c.facts)
+    return "\n".join(out)
+
+
+def _measurement_table(c: _Ctx) -> list[str]:
+    """_f_measurement 의 표 부분(배너 제외) — 03 §3.1 과 lite 셀 00 `FACT:lite_summary` 가 같은 함수를 쓴다(2026-10-16 · plan_26101614)."""
     m = _dict(c.facts, "measurement")
     if not m:
         out = ["_측정값 없음(미기재 — 0 이 아니다)._"]
@@ -1942,7 +2022,8 @@ def _f_measurement(c: _Ctx) -> str:
         for k in keys:
             v = m[k]
             if isinstance(v, dict) and v and all(not isinstance(x, (dict, list)) for x in v.values()):
-                rows += [(f"`{k}.{sk}`", _cell(v[sk], _UNRECORDED), _cell(per.get(k), "—")) for sk in sorted(v)]
+                rows += [(f"`{k}.{sk}`", _cell(v[sk], _UNRECORDED), _cell(per.get(f"{k}.{sk}") or per.get(k), "—"))
+                         for sk in sorted(v)]   # 하위키 출처(`<키>.<하위키>`)가 있으면 그것이 이긴다(2026-10-17 F4)
             elif isinstance(v, list) and v and all(isinstance(x, dict) for x in v):
                 cols = [x for x in _LEVEL_KEY_ORDER if any(x in r for r in v)]
                 cols += sorted({x for r in v for x in r} - set(cols))
@@ -1951,8 +2032,7 @@ def _f_measurement(c: _Ctx) -> str:
             else:
                 rows.append((f"`{k}`", _cell(v, _UNRECORDED), _cell(per.get(k), "—")))
         out = _table(("키", "값", "출처"), rows) + subtables
-    out += _marker_lines(c.facts)
-    return "\n".join(out)
+    return out
 
 
 def _bench_module(repo: Path):
@@ -1966,6 +2046,41 @@ def _f_measurement_config(c: _Ctx) -> str:
     order = tuple(getattr(_bench_module(c.repo), "MEASUREMENT_CONFIG_KEYS", ()))
     keys = [k for k in order if k in mc] + sorted(k for k in mc if k not in order)
     return "\n".join(_table(("키", "값"), [(f"`{k}`", _cell(mc[k], _UNRECORDED)) for k in keys]))
+
+
+def _f_dataset_provenance(c: _Ctx) -> str:
+    """03 §3.3 데이터셋 출처(2026-10-16 · plan_26101614 U9·U10 · 생산자 = evidence.dataset_provenance). `###` 소제목 + 키-값 표.
+    부재 추론(`inferred-synthetic`)과 기재된 출처를 첫 줄에서 가른다 — 과거 측정의 synthetic 은 **추론**이지 기재가 아니다(소급 ✗)."""
+    from . import evidence as _ev        # 키 순서의 단일 소유 = evidence.DATASET_KEYS(지연 적재 · import 부수효과 0)
+    dp = _dict(c.facts, "dataset_provenance")
+    out = ["### 데이터셋 출처", ""]
+    if not dp:
+        out.append("_데이터셋 출처 미관측 — facts 에 dataset_provenance 가 없다(생산자 evidence.dataset_provenance · 이 판 이전 draft 면 "
+                   "`hint.py refacts` 로 재파생)._")
+        return "\n".join(out)
+    if dp.get("status") == _ev.DATASET_STATUS_INFERRED:
+        out += ["> 아래 `synthetic` 은 **부재에서 추론한** 값이다 — 리포트 측정 구성 표 · 인증서 어디에도 데이터셋 기재가 없는 측정(데이터셋 "
+                "축 도입 전)이며, 소급 기재하지 않았다.", ""]
+    else:
+        out += ["> 리포트 측정 구성 표 · 인증서 소프트 지문이 **기재한** 데이터셋 출처다(파싱만 · 합성 ✗ · `/app/` 밖 호스트 경로는 이름만).", ""]
+    keys = [*_ev.DATASET_KEYS, "dataset_provenance"]
+    rows = [(f"`{k}`", _cell(dp.get(k), _UNRECORDED)) for k in keys]
+    rows += [("`status`", _cell(dp.get("status"))), ("`source`", _cell(dp.get("source")))]
+    out += _table(("키", "값"), rows)
+    return "\n".join(out)
+
+
+def _f_lite_summary(c: _Ctx) -> str:
+    """00 머리 lite 측정 요약(2026-10-16 · plan_26101614 U14) — lite 셀은 03 을 싣지 않으므로 brief 수치의 근거(lite 수치 · 측정 구성 ·
+    측정 도구 원문)를 여기로 옮긴다(린트 HINT_BRIEF_NUMBER_UNGROUNDED 의 허용 집합 = 기계 사실 블록). full 셀은 빈 블록(측정은 03)."""
+    if not is_lite_cell(c.facts):
+        return ""
+    out = [f"### lite 측정 — `{LITE_LABEL}` · 성능 판정 아님", "",
+           f"> lite 셀은 `{BENCH_DOC}` 를 싣지 않는다 — lite 벤치 1회의 수치 · 측정 구성 · 측정 도구 원문을 여기 둔다(파싱만 · 재계산 ✗). "
+           "이 HW 에서 기동 · 추론이 된다는 최소 증명이며 baseline · 권고가 아니다.", ""]
+    out += _measurement_table(c)
+    out += ["", "**측정 구성**", "", _f_measurement_config(c), "", "**측정 도구 원문**", "", _f_tool_snapshots(c)]
+    return "\n".join(out)
 
 
 def _f_bench_section(c: _Ctx) -> str:
@@ -1987,6 +2102,8 @@ FACT_RENDERERS: dict[str, Callable[[_Ctx], str]] = {
     "measurement_env": _f_measurement_env, "measurement_env_nodes": _f_measurement_env_nodes, "tool_snapshots": _f_tool_snapshots,
     # 2026-09-29 · plan_26092908 §4.1: 0.9 이름 꼬리(publish = 후보 · continue 확정 뒤 = 확정 꼬리)
     "name_tail": _f_name_tail,
+    # 2026-10-16 · plan_26101614: 03 §3.3 데이터셋 출처(full 셀) · 00 머리 lite 측정 요약(lite 셀 — 03 미발행)
+    "dataset_provenance": _f_dataset_provenance, "lite_summary": _f_lite_summary,
 }
 
 
@@ -2178,7 +2295,8 @@ def _condition_holds(cond, facts: dict) -> tuple[bool, str]:
     if cond is None:
         return True, ""
     key, want = cond
-    actual = {"topology": _topology(facts), "task_class": _task_class(facts), "plane": facts.get("plane")}[key]
+    actual = {"topology": _topology(facts), "task_class": _task_class(facts), "plane": facts.get("plane"),
+              "cell_grade": cell_grade(facts)}[key]
     if actual in (None, ""):
         core.fail("HINT_TEMPLATE_CONDITION_UNDECIDABLE", f"조건 `{key}={want}` 를 판정할 사실이 없다(facts 의 {key} 부재).",
                   "evidence/artifacts 가 그 사실을 관측해 facts 에 넣어야 한다 — 추측으로 채우지 않는다.")
@@ -2562,7 +2680,8 @@ def _normalize_facts(facts: dict) -> dict:
 
 def _render_doc(ctx: _Ctx, name: str) -> str:
     doc = ctx.templates[name]
-    lines = list(doc.lines)
+    # 주석(PROMPT · SELFCHECK) 안의 셀 등급 조건 조각을 먼저 푼다 — 줄 수는 그대로라 아래 줄 번호 편집이 어긋나지 않는다(2026-10-16)
+    lines = [_cond_text(ln, ctx.facts) if doc.comment[i] else ln for i, ln in enumerate(doc.lines)]
     edits: list[tuple[int, int, list[str]]] = []
     for f in doc.facts:
         body = FACT_RENDERERS[f.fid](ctx) if f.fid in FACT_RENDERERS else ""
@@ -2593,6 +2712,7 @@ def _render_readme(ctx: _Ctx) -> str:
     if not p.is_file():
         core.fail("HINT_TEMPLATE_ABSENT", f"README 템플릿 부재: {core.REL_SKILL}/templates/{README_TEMPLATE}")
     f = ctx.facts
+    lite = is_lite_cell(f)
     tokens = {
         "TAG": str(f.get("tag")),
         "FORMAT": FORMAT,
@@ -2604,9 +2724,22 @@ def _render_readme(ctx: _Ctx) -> str:
         "LEGEND": _legend_md(),
         # 2026-09-29 plan_26092908 §4.4·§4.6: 판정 한 줄 · 이 태그 이름 읽는 법(PAYLOAD.naming 에서 생성) · 슬롯 → 빌드 컨텍스트 요약
         "VERDICT": f"> **판정** {_verdict_text(f)}" + (f" · **{REFUTE_MARKER}** = 기각된 성능 판정(수치는 관측)"
-                                                       if _dict(f, "measurement").get("verdict") == REFUTE_MARKER else ""),
+                                                       if _dict(f, "measurement").get("verdict") == REFUTE_MARKER and not lite else ""),
         "NAME_GUIDE": name_guide_md(f),
         "CONTEXT_MAP": _context_map_summary(f),
+        # 2026-10-16 plan_26101614 U14·A8: lite 셀은 03 을 싣지 않는다 — 읽는 순서 표의 03 행 · 03 을 가리키는 두 줄을 걷고(행째 · 표가 끊기지
+        #   않게) 비교 안내 자리에 lite 안내를 둔다.
+        "BENCH_ROW": (_README_DROP if lite else
+                      f"| 4 | `{BENCH_DOC}` | 측정 — 결정론 표 · 부하 곡선 · 측정 구성 · 데이터셋 출처 · 측정 명령 원문 · like-with-like |"),
+        "BENCH_LAYER_LINE": (_README_DROP if lite else
+                             f"  `{BENCH_DOC}` §3.2 의 부하 곡선은 `<!-- BENCH_SECTION -->` 다음 줄부터 다음 챕터 헤딩 직전까지가 기계 렌더다 — "
+                             f"원천 리포트를 가진 쪽은 `render_bench_section.py --verify --section {BENCH_DOC} --report <리포트>` 로 diff 0 을 "
+                             "다시 확인할 수 있다."),
+        "BENCH_COMPARE_LINE": (f"- 이 셀은 **`{LITE_LABEL}`** 셀이다 — `{BENCH_DOC}` 가 없다(성능 판정 · 부하 곡선 없음). lite 수치는 `00-hint.md` "
+                               "머리의 lite 측정 블록이며 이 HW 에서 기동 · 추론이 된다는 최소 증명일 뿐이다 — full 셀의 수치와 나란히 순위 매기지 않는다."
+                               if lite else
+                               f"- 성능 수치를 비교할 때는 `{BENCH_DOC}` 의 측정 구성 · 데이터셋 출처 · like-with-like 부터 본다 — 조건(입력 데이터셋 "
+                               "포함)이 다르면 같은 모델 · 같은 HW 라도 수치가 몇 배씩 갈린다."),
     }
 
     def repl(m):
@@ -2614,7 +2747,8 @@ def _render_readme(ctx: _Ctx) -> str:
             core.fail("HINT_TEMPLATE_SHAPE", f"README 템플릿의 모르는 자리표시: {m.group(0)}")
         return tokens[m.group(1)]
 
-    return _README_TOKEN.sub(repl, p.read_text(encoding="utf-8"))
+    text = _README_TOKEN.sub(repl, p.read_text(encoding="utf-8"))
+    return "\n".join(ln for ln in text.split("\n") if ln != _README_DROP)
 
 
 # 이름 세대 표(수신자 안내 · 2026-09-29 plan_26092908 §4.6 U3 · V9). 안내 README(templates/hint-branch-README.md)의 세대 표와 같은 뜻 —
@@ -2724,12 +2858,14 @@ def render_scaffold(repo: Path, facts: dict, payload_dir: Path, *, snapshot_path
         core.fail("HINT_FACTS_SHAPE", "facts.identity.topology 가 single|multi 가 아니다 — 토폴로지는 manifest 에서 관측한다.")
     templates = _load_templates(repo)
     ctx = _Ctx(repo, facts, templates)
+    # 2026-10-16 plan_26101614 U14: lite 셀은 03 을 렌더하지 않는다(payload_docs — 단일 술어 is_lite_cell)
+    docs = payload_docs(facts)
     targets = [payload_dir / n for n in PAYLOAD_DOCS] + [payload_dir / README_NAME]
     exist = [t.name for t in targets if t.is_file() and t.stat().st_size]
     if exist:
         core.fail("HINT_SCAFFOLD_EXISTS", f"기존 저작물을 덮지 않는다: {payload_dir} ({', '.join(exist)})",
                   "이어서 저작하려면 `hint.py continue` · 새로 시작하려면 드래프트를 지우고 publish 를 다시 한다.")
-    rendered = {name: _render_doc(ctx, name) for name in TEMPLATE_FILES}
+    rendered = {name: _render_doc(ctx, name) for name in TEMPLATE_FILES if f"{name}.md" in docs}
     readme = _render_readme(ctx)
     payload_dir.mkdir(parents=True, exist_ok=True)
     for name, text in rendered.items():
@@ -2762,13 +2898,15 @@ def prompts(payload_dir: Path) -> list[dict]:
     return out
 
 
-def seal_prompts(payload_dir: Path) -> None:
+def seal_prompts(payload_dir: Path, *, docs: Iterable[str] = PAYLOAD_DOCS) -> None:
     """`<!-- PROMPT … -->` → `> 이 절이 답하는 질문: <질문>` (지시문은 배포되지 않되 의도는 남는다). 멱등.
     `<<AGENT:` 가 남아 있으면 봉인하지 않는다(미저작 절을 봉인하면 빈 절이 배포된다).
     **전부 검사한 뒤 전부 쓴다** — 문서 하나씩 검사·쓰기를 번갈아 하면 셋째 문서의 잔존에서 멈출 때 앞 둘만 봉인된 반쪽
-    상태가 남는다(거부 = 부수효과 0 규율)."""
+    상태가 남는다(거부 = 부수효과 0 규율).
+    docs = 이 셀이 싣는 문서(`payload_docs(facts)` · 2026-10-16 plan_26101614 — lite 셀은 03 이 없다). 기본은 4종 전부(부재 = 거부 ·
+    lite 페이로드를 기본값으로 봉인하면 03 부재로 막힌다 — 조용히 건너뛰지 않는다)."""
     sealed: dict[Path, str] = {}
-    for name in PAYLOAD_DOCS:
+    for name in docs:
         p = Path(payload_dir) / name
         if not p.is_file():
             core.fail("HINT_DOCUMENT_ABSENT", f"봉인할 문서 부재: {name}")
@@ -3132,8 +3270,16 @@ def lint(repo: Path, payload_dir: Path, *, lineage: dict, subst_table=None, mani
                        draft_dir=draft_dir, snapshot_origin=snapshot_origin)
 
     docs: dict[str, _Doc] = {}
+    # 2026-10-16 plan_26101614 U14·A8: lite 셀은 03 을 싣지 않는다 — 있으면 그것도 결함이다(lite 판정을 full 측정 문서처럼 배포 ✗).
+    #   facts 가 없으면 4종 전부를 요구한다(모름 = full 쪽 · fail-closed).
+    want_docs = payload_docs(facts) if facts is not None else PAYLOAD_DOCS
     for name in TEMPLATE_FILES:
         p = payload_dir / f"{name}.md"
+        if f"{name}.md" not in want_docs:
+            if p.is_file():
+                add("HINT_DOCUMENT_UNEXPECTED", f"{name}.md", 1,
+                    f"lite 셀(cell_grade=lite)은 `{name}.md` 를 싣지 않는다 — lite 판정은 `{LITE_LABEL}` 이며 부하 곡선 · like-with-like 가 없다")
+            continue
         if not p.is_file():
             add("HINT_DOCUMENT_ABSENT", f"{name}.md", 1, "필수 문서 부재")
             continue
@@ -3225,7 +3371,9 @@ def lint(repo: Path, payload_dir: Path, *, lineage: dict, subst_table=None, mani
             sealed_line = SEALED_PREFIX + _question(tp.fields)
             has_sealed = any(doc.lines[i] == sealed_line for i in lines_in)
             mine = pprompts.get(chapter, [])
-            same = [pr for pr in mine if [x.rstrip() for x in pr.raw] == [x.rstrip() for x in tp.raw]]
+            # 템플릿 PROMPT 는 렌더와 같은 함수(_cond_text)로 이 셀 등급의 조건 조각을 푼 뒤 대조한다(2026-10-16 · plan_26101614)
+            want_raw = [_cond_text(x, ctx.facts if ctx is not None else None).rstrip() for x in tp.raw]
+            same = [pr for pr in mine if [x.rstrip() for x in pr.raw] == want_raw]
             for pr in mine:
                 if pr not in same:
                     add("HINT_PROMPT_TAMPERED", fname, pr.start + 1, f"§{chapter}: PROMPT 가 템플릿과 다르다(지시를 고치지 않는다)")
@@ -3759,6 +3907,8 @@ def update_facts(repo: Path, payload_dir: Path, changes: dict, *, snapshot_path:
     changed: list[str] = []
     for name in TEMPLATE_FILES:
         p = payload_dir / f"{name}.md"
+        if f"{name}.md" not in payload_docs(new):      # lite 셀 = 03 없음(2026-10-16 · plan_26101614)
+            continue
         if not p.is_file():
             core.fail("HINT_DOCUMENT_ABSENT", f"사실 블록을 다시 쓸 문서 부재: {name}.md")
         doc = _Doc.parse(name, p.read_text(encoding="utf-8"))
@@ -3818,6 +3968,15 @@ def selftest() -> list[str]:
 
     def codes(issues) -> set[str]:
         return {i["code"] for i in issues}
+
+    # ★ 하위키 출처(2026-10-17 · plan_26101622 granite 사실 검증 F4): KV 선언 표지는 그 행에만 — lite 의 실측 행은 묶음 출처 그대로
+    _mt = "\n".join(_measurement_table(_Ctx(repo=Path("."), templates={}, facts={"measurement": {
+        "lite": {"kv_gib": "35.0", "gen_tps": "38.1"},
+        "sources": {"lite": "sweep_index.lite(x)", "lite.kv_gib": "sweep_index.lite(x) — 선언 클램프 되읽기(측정 아님)"}}})))
+    _kv = next((ln for ln in _mt.splitlines() if "`lite.kv_gib`" in ln), "")
+    _gt = next((ln for ln in _mt.splitlines() if "`lite.gen_tps`" in ln), "")
+    ck("★하위키 출처는 그 행에만(kv_gib = 측정 아님 · gen_tps = 묶음 출처)", "측정 아님" in _kv and "측정 아님" not in _gt
+       and "sweep_index.lite(x)" in _gt)
 
     def raises(fn, code: str) -> bool:
         try:
@@ -4056,6 +4215,8 @@ def selftest() -> list[str]:
         def fill(payload: Path, fx: dict) -> None:
             ans = answers(fx)
             for name in TEMPLATE_FILES:
+                if f"{name}.md" not in payload_docs(fx):      # lite 셀 = 03 없음(2026-10-16 · plan_26101614)
+                    continue
                 p = payload / f"{name}.md"
                 doc = _Doc.parse(name, p.read_text(encoding="utf-8"))
                 lines = list(doc.lines)
@@ -4124,6 +4285,77 @@ def selftest() -> list[str]:
                 return bench.main(["--verify", "--section", str(p / "03-benchmark.md"), "--report", str(report)])
 
         ck("CLI render_bench_section --verify --section 03-benchmark.md = PASS", cli_verify(payload, repo / rep_p) == 0)
+
+        # ── 2026-10-16 plan_26101614: 셀 등급(lite 03 미발행 · 표시 라벨) · 데이터셋 출처 절 ──
+        t03d = fact_blocks((payload / "03-benchmark.md").read_text(encoding="utf-8"))
+        ck("full 셀: 03 §3.3 FACT:dataset_provenance = `###` 소제목(`## ` ✗) · facts 부재면 미관측 문구",
+           t03d["dataset_provenance"].startswith("### 데이터셋 출처") and "\n## " not in t03d["dataset_provenance"]
+           and "미관측" in t03d["dataset_provenance"]
+           and [f.chapter for f in tpls["03-benchmark"].facts if f.fid == "dataset_provenance"] == ["3.3"])
+        ck("full 셀: 00 FACT:lite_summary 는 빈 블록 · 셀 등급 행 = full · README 에 03 행",
+           fact_blocks((payload / "00-hint.md").read_text(encoding="utf-8"))["lite_summary"] == ""
+           and "셀 등급(cell_grade)" in fact_blocks((payload / "00-hint.md").read_text(encoding="utf-8"))["grade"]
+           and f"| 4 | `{BENCH_DOC}` |" in (payload / README_NAME).read_text(encoding="utf-8"))
+        ds_c = _Ctx(repo, dict(facts_json, dataset_provenance={
+            "dataset_kind": "parquet_file", "dataset_id": "abisee/cnn_dailymail", "dataset_revision": "a" * 40,
+            "dataset_provenance": "measured(사이드카)", "status": "recorded", "source": "bench_report(x.md) 측정 구성 표"}), tpls)
+        ds_i = _Ctx(repo, dict(facts_json, dataset_provenance={"dataset_kind": "synthetic", "status": "inferred-synthetic",
+                                                               "source": "inferred(부재 = synthetic)"}), tpls)
+        ck("데이터셋 출처 렌더: 기재 = 표(키 10 + provenance · status · source) · 부재 추론 = '부재에서 추론' 머리줄(소급 ✗)",
+           "| `dataset_id` | abisee/cnn_dailymail |" in _f_dataset_provenance(ds_c) and "**기재한**" in _f_dataset_provenance(ds_c)
+           and "**부재에서 추론한**" in _f_dataset_provenance(ds_i) and "| `dataset_seed` | 미기재 |" in _f_dataset_provenance(ds_i))
+        # 단일 술어 is_lite_cell — 영속값 우선 · 인증서 lite · 선언 lite · ★강등 제외 · 모름 = full
+        ck("is_lite_cell: 영속 cell_grade 우선 · 인증서 benchmark_mode lite · 측정 구성 declared-lite · ★강등(downgraded-lite) 제외 · 모름 = full",
+           is_lite_cell({"cell_grade": "lite"}) and not is_lite_cell({"cell_grade": "full", "measurement": {"benchmark_mode": "lite"}})
+           and is_lite_cell({"measurement": {"benchmark_mode": "lite"}})
+           and is_lite_cell({"measurement_config": {"bench_mode": "lite", "bench_mode_kind": "declared-lite"}})
+           and is_lite_cell({"measurement_config": {"bench_mode": "lite"}, "publication": {"task_class": "hint_map_only"}})
+           and not is_lite_cell({"measurement": {"benchmark_mode": "lite"},
+                                 "measurement_config": {"bench_mode": "lite", "bench_mode_kind": "downgraded-lite"}})
+           and not is_lite_cell({"measurement_config": {"bench_mode": "lite"}}) and not is_lite_cell({}) and not is_lite_cell(None))
+        ck("payload_docs: lite = 03 제외 · full = 4종", payload_docs({"cell_grade": "lite"}) == PAYLOAD_DOCS[:3]
+           and payload_docs({}) == PAYLOAD_DOCS)
+        ck("조건 조각: 이 셀 등급만 남는다 · 다른 등급 조각은 걷힌다",
+           _cond_text("a [[cell_grade=full: F]][[cell_grade=lite: L]] b", {"cell_grade": "lite"}) == "a L b"
+           and _cond_text("a [[cell_grade=full: F]][[cell_grade=lite: L]] b", None) == "a F b")
+        lite_facts = json.loads(core.dumps(dict(
+            base_facts, task_class="hint_map_only", cell_grade="lite", bench_section_md=None,
+            publication=dict(base_facts["publication"], task_class="hint_map_only"),
+            measurement={"measured_utc": "2026-09-12T19:32:52Z", "decode_tps_conc1": 38.81, "benchmark_mode": "lite",
+                         "verdict": MAP_ONLY_MARKER, "sources": {"verdict": "lite-only(인증서 비발행)"},
+                         "lite": {"gen_tps": 33.03, "cold_ttft_ms": 2156.6}},
+            measurement_config={"bench_mode": "lite", "bench_mode_kind": "declared-lite", "repeats": 1,
+                                "source": "bench_report(fixture)"})))
+        lpay = scaffold("lite", lite_facts)
+        ck("★lite 셀 스캐폴드: 03-benchmark.md 를 쓰지 않는다 · 00 FACT:lite_summary = lite 수치 + 측정 구성 + 도구 원문",
+           not (lpay / BENCH_DOC).exists() and "38.81" in fact_blocks((lpay / "00-hint.md").read_text(encoding="utf-8"))["lite_summary"]
+           and "**측정 구성**" in fact_blocks((lpay / "00-hint.md").read_text(encoding="utf-8"))["lite_summary"])
+        g00 = fact_blocks((lpay / "00-hint.md").read_text(encoding="utf-8"))["grade"]
+        lreadme = (lpay / README_NAME).read_text(encoding="utf-8")
+        ck("lite 표시 라벨: 00 등급 · 판정 행 · 배너 = `lite(기동 가능)` + 성능 판정 아님(OBSERVATION-ONLY 표지 유지) · README 판정 줄 · 03 행 없음",
+           f"`{LITE_LABEL}`" in g00 and "성능 판정 아님" in _verdict_text(lite_facts) and f"**{LITE_LABEL}** · **{MAP_ONLY_MARKER}**" in g00
+           and f"> **판정** `{LITE_LABEL}`" in lreadme and f"| 4 | `{BENCH_DOC}` |" not in lreadme and "| — | `PAYLOAD.json`" in lreadme
+           and "\x00" not in lreadme)
+        l00 = (lpay / "00-hint.md").read_text(encoding="utf-8")
+        ck("lite 셀 PROMPT: full 조건 조각(03 결정론 표 · 03 §3.4)은 걷히고 lite 조각이 남는다",
+           "이 파일 머리의 lite 측정 블록(lite 셀 — 03 없음)" in l00 and "03-benchmark.md 의 결정론 표" not in l00
+           and "03 §3.4" not in (lpay / "01-artifacts.md").read_text(encoding="utf-8"))
+        fill(lpay, lite_facts)
+        refresh(lpay)
+        lkw = dict(kw, manifest={"task_class": "hint_map_only"}, bench_report=None)
+        lclean = lint(repo, lpay, **lkw)
+        ck(f"lite 셀 저작 뒤 lint 통과(03 부재 = 정상 · brief 수치는 00 lite 블록이 근거): {lclean[:3]}", lclean == [])
+        stray = root / "lite-stray" / "payload"
+        shutil.copytree(lpay, stray)
+        (stray / BENCH_DOC).write_text("# 03\n", encoding="utf-8")
+        ck("★lite 셀에 03 이 있으면 HINT_DOCUMENT_UNEXPECTED", "HINT_DOCUMENT_UNEXPECTED" in codes(lint(repo, stray, facts=lite_facts, **lkw)))
+        ck("★lite 페이로드를 기본 문서 목록으로 봉인 = 03 부재로 거부(조용히 건너뛰지 않는다)",
+           raises(lambda: seal_prompts(lpay), "HINT_DOCUMENT_ABSENT"))
+        seal_prompts(lpay, docs=payload_docs(lite_facts))
+        lsealed = lint(repo, lpay, sealed=True, **lkw)
+        ck(f"lite 셀 봉인 뒤 lint 통과: {lsealed[:3]}", lsealed == [])
+        ck("★full facts 로 lite 페이로드를 린트하면 03 부재 = HINT_DOCUMENT_ABSENT(모름 = full 쪽)",
+           "HINT_DOCUMENT_ABSENT" in codes(lint(repo, lpay, **dict(lkw, facts=dict(lite_facts, cell_grade="full")))))
 
         def variant(tag: str, mutate) -> Path:
             dst = root / "v" / tag / "payload"
@@ -4399,6 +4631,15 @@ def selftest() -> list[str]:
         ck("G8 이벤트 표에 원장 관측 범위 · 범위 끝 < 측정 끝인 노드 = '관측 범위 밖'(없음 ✗) · 기동 시도 요약에도",
            "원장 관측 범위" in et8 and "sub = 2026-09-03T00:00:00Z → 2026-09-11T11:10:38Z" in et8 and "관측 범위 밖" in et8
            and "관측 범위 밖" in _f_event_attempts(_Ctx(repo, dict(facts_json, event_ledger_spans=spans_), tpls)))
+        # F9(2026-10-16 · plan_26101614 P12 lite 사실 검증): 이 체크아웃 노드의 로컬 원장(live_local)은 '미회수' 가 아니다.
+        spans_l = [dict(spans_[0], live_local=False), dict(spans_[1], live_local=True)]
+        et8l = _f_event_timeline(_Ctx(repo, dict(facts_json, event_ledger_spans=spans_l), tpls))
+        ck("F9 live_local 노드 = '마지막 행 뒤 행 없음(이 노드의 로컬 원장 · 조회 시각까지 관측 · 미회수 아님)' · 측정 끝 사실은 그대로",
+           "마지막 행 뒤 행 없음(이 노드의 로컬 원장 · 조회 시각까지 관측 · 미회수 아님" in et8l and "원장 미회수" not in et8l
+           and "sub(마지막 행 2026-09-11T11:10:38Z < 측정 끝 2026-09-23T01:57:09Z)" in et8l)
+        ck("★F9 live_local False(회수본) 노드 문구는 그대로 '관측 범위 밖 · 원장 미회수'",
+           "원장 미회수" in et8 and "미회수 아님" not in et8
+           and "원장 미회수" in _f_event_timeline(_Ctx(repo, dict(facts_json, event_ledger_spans=[spans_l[0], dict(spans_[1], live_local=False)]), tpls)))
         echo_ = {"log": "docs/simlog/r/serve.log", "basis": "같은 기동 판별", "rows": [
             {"ts": "2026-09-23T00:10:03Z", "kind": "budget_honored", "label": "smoke-x", "source": "docs/simlog/r/serve.log:26"}]}
         spans_e = [spans_[0], dict(spans_[1], smoke_echo=echo_)]
@@ -5185,5 +5426,6 @@ def selftest() -> list[str]:
     # 2026-09-22 S2 round 3: 공유 사실 계약 렌더 · 스냅샷 해소 · 수신자 zip 술어 묶음을 더해 197 실측 → 하한 190.
     # 2026-09-22 S2 round 3 적대 리뷰: 스냅샷 origin 대조 · Ray 접힘 · 값 집합 · 0.2 생산자 · 다음 변경 관측 없음 묶음(213 실측) → 하한 206.
     # 2026-09-29 plan_26092908(v7): 판정 표면 · 이름 꼬리 · 검증 표시 · Agent 요청 · 매핑 · 결손 파생 묶음 → 하한 225.
-    ck(f"검사 전수 실행({ran[0]}) — 중도 반환으로 시험이 조용히 줄지 않게", ran[0] >= 225)
+    # 2026-10-16 plan_26101614: 셀 등급(lite 03 미발행 · 표시 라벨 · 단일 술어) · 데이터셋 출처 절 묶음(290 실측) → 하한 285.
+    ck(f"검사 전수 실행({ran[0]}) — 중도 반환으로 시험이 조용히 줄지 않게", ran[0] >= 285)
     return bad

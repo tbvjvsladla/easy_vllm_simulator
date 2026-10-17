@@ -28,7 +28,7 @@ hint 페이로드**입니다. 그래서 태그의 zip(`Source code (zip)` 또는
 | `00-hint.md` | **지도 — 가장 먼저 읽습니다.** 요약 · 유효맥락 · 벽 지도 요약 · 결정론 해소값(vLLM 빌드 입력 · torch · CUDA · 베이스) · 서빙 노브와 값의 지위 · 재검증 · 이름 꼬리 |
 | `01-artifacts.md` | 실린 산출물의 적용 판정 · **파일별 검증 표시와 관련성** · 슬롯별 적용 사유 · 값의 지위표 · 재현 절차(슬롯 → 빌드 컨텍스트 매핑 포함) · (다노드) 서브 레시피 해설 |
 | `02-narrative.md` | 계보 서사 — 출발점 · 벽과 해소 · 기각된 시도 · 오진과 정정 · 값의 이력 · 되풀이하지 말 것 · 열린 물음 |
-| `03-benchmark.md` | 측정 — 판정(PASS · REFUTE · OBSERVATION-ONLY) · 결정론 표 · 부하 곡선 · 측정 구성 · 측정 명령 원문 · like-with-like |
+| `03-benchmark.md` | 측정 — 판정(PASS · REFUTE · OBSERVATION-ONLY) · 결정론 표 · 부하 곡선 · 측정 구성 · 데이터셋 출처 · 측정 명령 원문 · like-with-like. **lite 셀(`lite(기동 가능)`)에는 없습니다** — lite 수치는 `00-hint.md` 머리에 있고 성능 판정이 아닙니다 |
 | `PAYLOAD.json` · `LINEAGE.json` · `PROVENANCE.json` | 기계 사실(이름의 축별 출처 · 판정 포함) · 서사가 읽은 계보 문서 요약(stem · 역할 · 날짜 · 발췌 수) · 앵커 |
 | `artifacts/<슬롯>/` | 재현 실물 — 설정·러너·환경 형상 · 빌드 레시피 · 적용된 패치(파일마다 `verification` · `relevance` 표시) |
 

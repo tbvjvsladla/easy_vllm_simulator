@@ -75,6 +75,8 @@
         서브 serve_proof 를 받는 설계가 필요하다). E2E 는 cluster 셀을 쓴다.
     D-f `PAYLOAD.measurement` = 측정 수치(인증서 성능 칸 + 스윕 레벨) · `PAYLOAD.measurement_config` = DISTRIBUTED_MEASUREMENT_KEYS +
         source(evidence 의 분리 그대로 · SPEC §2.1 이 measurement 에 두었던 DISTRIBUTED 키는 measurement_config 로만 간다).
+        2026-10-16(plan_26101614): `PAYLOAD.dataset_provenance`(데이터셋 출처 · 별도 키) · `PAYLOAD.cell_grade`(full|lite — lite 셀은
+        03-benchmark.md 미발행 · 표시 라벨 `lite(기동 가능)` · 단일 술어 template.is_lite_cell).
     D-g X18 릴리스 문법에 4마디(`vM.m.p.q`)·`.postN` 포함(naming).
     D-h 비-업스트림 VLLM_REPO(포크)의 릴리스 모양 VLLM_REF 는 SHA 경로(`<직전 릴리스>-g<sha12>`)만 · 없으면 `HINT_AXIS_UNDERIVABLE` ·
         naming facts 가 vllm_repo 를 싣는다.
@@ -819,7 +821,12 @@ def _assemble(repo: Path, ev, dn, col: dict, *, utc: str, topic: str, manifest_r
     # 2026-09-29 FACT 교정: 같은 셀 이름의 앞선 캠페인 행을 이 셀의 기동 시도로 세지 않는다(경계 · 재생은 경계 미관측 표지)
     event_campaign_boundary = evidence.event_campaign_boundary(repo, ev)
     bench_definition = evidence.bench_definition(repo, ev)
-    bench_md = template.render_bench_source(repo, col["bench_src"]) if col["bench_src"] else None
+    # 2026-10-16 plan_26101614 U14·A8: 셀 등급 — 단일 술어(template.is_lite_cell)로 한 번 판정해 facts · PAYLOAD `cell_grade` 로 영속한다.
+    #   lite 셀은 03 을 싣지 않으므로 부하 곡선 절(bench_section_md)도 만들지 않는다(린트 ⑫ 는 03 이 없으면 돌지 않는다).
+    grade = template.cell_grade({"measurement": measurement, "measurement_config": measurement_config, "task_class": task_class})
+    # 데이터셋 출처(U9·U10 · 03 §3.3 FACT:dataset_provenance) — DISTRIBUTED_MEASUREMENT_KEYS 와 다른 사실 키(카탈로그 계약 불변)
+    dataset_prov = evidence.dataset_provenance(repo, ev)
+    bench_md = (template.render_bench_source(repo, col["bench_src"]) if col["bench_src"] and grade != "lite" else None)
     camp = {"id": ev.campaign_id, "cell": ev.cell, "node": ev.node, "mode": ev.mode}
     # 2026-09-29 plan_26092908 §4.5 F4: 재생(캠페인 purge)은 캠페인 id · 승인을 관측하지 못한다 — 발행 기록이 봉인한 페이로드
     #   (promotion_target.anchor)의 기록을 **출처를 붙여** 옮긴다(재생 전용 대체). 이 판의 승인(approval)은 여전히 continue 가 적는다 —
@@ -841,7 +848,7 @@ def _assemble(repo: Path, ev, dn, col: dict, *, utc: str, topic: str, manifest_r
         "tag": dn.tag, "base_tag": dn.tag, "generated_utc": utc, "naming": col["naming_base"], "identity": ident, "build": build,
         "plane": art.get("plane"), "applied_set": art.get("applied_set"), "slots": art.get("slots"),
         "qualification": qual, "measurement": measurement, "measurement_config": measurement_config, "missing": col["missing"],
-        "missing_reasons": col["missing_reasons"],
+        "missing_reasons": col["missing_reasons"], "cell_grade": grade, "dataset_provenance": dataset_prov,
         "lineage_reading_list": lineage.reading_list(lin), "value_status_candidates": art.get("value_status_candidates"),
         "reproduce_steps": _with_bench_command(art.get("reproduce_steps"), evidence.bench_command(repo, ev)),
         "sub_recipe": art.get("sub_recipe"), "bench_section_md": bench_md,
@@ -857,6 +864,7 @@ def _assemble(repo: Path, ev, dn, col: dict, *, utc: str, topic: str, manifest_r
         "applied_set": art.get("applied_set"), "slots": art.get("slots"),
         "qualification": {k: qual.get(k) for k in ("health_200", "inference_observed", "sources", "method")},
         "measurement": measurement, "measurement_config": measurement_config, "missing": col["missing"],
+        "cell_grade": grade, "dataset_provenance": dataset_prov,
         "missing_reasons": col["missing_reasons"], "approval": None, "prior_approval": prior_approval,
         "evidence_pointers": [{k: p.get(k) for k in ("kind", "path", "cell_id", "node_id")} for p in ev.pointers],
         "publication": pub, "bench_definition": bench_definition, "factcheck": None,
@@ -1302,7 +1310,7 @@ def _continue(repo: Path, *, draft: Path, generated_utc, approved_by, approved_u
         _confirm_name(repo, draft, st, payload, remote=remote, tolerate_remote=bool(no_push), git_repo=g)
         # 안내 커밋(부모) — 커밋 전에 state 에 적는다(재개 = 같은 부모)
         _resolve_guide(g, st, draft, remote=remote, pinned=guide_commit, no_push=bool(no_push))
-        template.seal_prompts(payload)
+        template.seal_prompts(payload, docs=template.payload_docs(facts))     # lite 셀 = 03 없음(2026-10-16 · plan_26101614)
         issues = _lint(repo, payload, draft, st, sealed=True)
         if issues:
             _mark(draft, st, "lint", ok=False, sealed=True, codes=sorted({i["code"] for i in issues}))
@@ -1475,7 +1483,9 @@ def refacts(repo: Path, *, draft: Path, rt: Runtime | None = None) -> dict:
     dn = naming.derive_name(evidence.naming_facts(repo, ev), naming.load_vocab(repo))
     tag.check_ref_format(repo, dn.tag)
     _require_name_pii_clean(repo, dn.tag)
-    before = {n: template.fact_blocks((payload / n).read_text(encoding="utf-8")) for n in template.PAYLOAD_DOCS
+    # 셀 등급별 문서(2026-10-16 · plan_26101614 — lite 셀 = 03 없음) · 실물 부재는 건너뛴다(비교 = 있는 블록끼리)
+    before = {n: template.fact_blocks((payload / n).read_text(encoding="utf-8"))
+              for n in template.payload_docs(template.load_snapshot(draft / "inputs" / template.FACTS_SNAPSHOT))
               if (payload / n).is_file()}
     rebind = None
     if st.get("mode") == "campaign":
@@ -1509,7 +1519,7 @@ def refacts(repo: Path, *, draft: Path, rt: Runtime | None = None) -> dict:
     template.write_agent_requests(payload, facts.get("agent_requests"))
     template.update_facts(repo, payload, facts)
     _write_payload_meta(repo, draft, payload, tag_name=dn.tag, utc=utc, doc=doc, col=col)
-    after = {n: template.fact_blocks((payload / n).read_text(encoding="utf-8")) for n in template.PAYLOAD_DOCS
+    after = {n: template.fact_blocks((payload / n).read_text(encoding="utf-8")) for n in template.payload_docs(facts)
              if (payload / n).is_file()}
     changed, diff = [], []
     for n in sorted(after):
@@ -2305,7 +2315,7 @@ def _fx_author(repo: Path, draft: Path, st: dict, *, factcheck: bool = True) -> 
         la = log_rows.index("Loading 100%") + 1
         log_excerpt = f"> [원문] {Path(_FX_LOG_REL).name} §L{la}-{la + 1}\n> {log_rows[la - 1]}\n> {log_rows[la]}"
     todo = {(p["file"], p["section"]): p for p in template.prompts(payload)}
-    for name in template.PAYLOAD_DOCS:
+    for name in template.payload_docs(facts):        # lite 셀 = 03 없음(2026-10-16 · plan_26101614)
         path = payload / name
         lines = path.read_text(encoding="utf-8").split("\n")
         chapter = None
@@ -2486,6 +2496,15 @@ def _selftest_e2e(ck) -> None:
                and all(f"<!-- FACT:{fid} -->" in (payload / doc).read_text(encoding="utf-8") for fid, doc in (
                    ("measurement_env", "01-artifacts.md"), ("measurement_env_nodes", "01-artifacts.md"),
                    ("tool_snapshots", "03-benchmark.md"))))
+            # 2026-10-16 plan_26101614 U9·U10·A7: full 셀 = 03 에 데이터셋 출처 절(부재 = synthetic 부재 추론 · 소급 ✗) · cell_grade full
+            t03_pub = (payload / "03-benchmark.md").read_text(encoding="utf-8")
+            ck("full 셀: PAYLOAD/facts cell_grade = full · dataset_provenance(부재 추론 synthetic) · 03 §3.3 FACT:dataset_provenance(`###`)",
+               pdoc.get("cell_grade") == snap.get("cell_grade") == "full"
+               and (pdoc.get("dataset_provenance") or {}).get("status") == evidence.DATASET_STATUS_INFERRED
+               and pdoc["dataset_provenance"] == snap.get("dataset_provenance")
+               and "<!-- FACT:dataset_provenance -->" in t03_pub
+               and template.fact_blocks(t03_pub)["dataset_provenance"].startswith("### 데이터셋 출처")
+               and set(pdoc["measurement_config"]) == set(evidence.DISTRIBUTED_MEASUREMENT_KEYS) | {"source"})
             vobs = pdoc["naming"].get("vllm_observed") or {}
             ck("R3 vllm_observed = 키별 생산자(엔진 자기보고 · 인증서 · wheel 각각 출처 칸)", all(
                 f"{k}_source" in vobs for k in ("engine_self_report", "certificate_vllm_version", "wheel_meta")))
@@ -2952,6 +2971,9 @@ def _selftest_e2e(ck) -> None:
                and "README.fixture" in dres.get("others", []) and _fx_git(repo, "rev-parse", "HEAD").stdout.strip() == head_c)
             ck("카탈로그 변경 없음 = 커밋 없음(unchanged)", quiet(_commit_catalog, repo, tagname) == {"status": "unchanged"})
             ck("로컬 봉인 검증 PASS(verify · 서사 린트 포함)", quiet(verify_tag, repo, tagname) == [])
+            ck("A7 모양: 봉인된 full 페이로드의 03 에 데이터셋 출처 절이 있다(태그 zip = 이 트리)",
+               "### 데이터셋 출처" in (branch.read_blob(repo, anchor, "03-benchmark.md") or b"").decode("utf-8")
+               and json.loads(branch.read_blob(repo, anchor, "PAYLOAD.json")).get("cell_grade") == "full")
             # 2026-09-29 plan_26092908 §4.9(V5): 봉인 뒤 출처 문서를 고쳐도 verify 는 PASS(출처 의존 린트 = INFO) — 봉인 출처 스냅샷 대조
             ptree_l = json.loads(branch.read_blob(repo, anchor, "LINEAGE.json"))
             tl_now = tl_p.read_text(encoding="utf-8")
@@ -3195,6 +3217,89 @@ def _selftest_replay_continue(ck) -> None:
                 os.environ[k] = v
 
 
+def _selftest_lite_e2e(ck) -> None:
+    """2026-10-16 plan_26101614 U14 · A8: 선언된 lite-only 셀(lite 등급 인증서 + 경량 리포트)의 격리 E2E — publish → 저작 → continue(--no-push)
+    → verify. 같은 픽스처 셀(c1-a)의 인증서 · 리포트를 lite 판으로 바꾼다(같은 이름 · 같은 측정 시각 — 포인터 불변). 페이로드에 03 이 없고
+    cell_grade lite · 표시 라벨 `lite(기동 가능)` · 기계 판정 OBSERVATION-ONLY 그대로 · 린트 · 봉인 검증 PASS 를 단언한다."""
+    saved = {k: os.environ.pop(k, None) for k in ("GITHUB_TOKEN", "QUANT_MODEL_PATH", "GIT_DIR", "GIT_WORK_TREE",
+                                                  "GIT_INDEX_FILE")}
+
+    def quiet(fn, *a, **kw):
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            return fn(*a, **kw)
+    try:
+        with tempfile.TemporaryDirectory(prefix="hint-lite-e2e-") as tds:
+            td = Path(tds)
+            repo, fx = _fx_repo(td)
+            rt = Runtime(docker=_fx_docker(fx["docker"]))
+            rbs = core.load_owner_module(repo, core.REL_RENDER_BENCH_SECTION, "_hint_rbs_lite_e2e")
+            m_utc = evidence._M_UTC
+            (repo / fx["cert"]).write_text(
+                "schema_version: 1\nrecord_type: benchmark_certificate\nverdict: not_applicable\nmodel: fixture-model-nvfp4\n"
+                'gpu_model: "NVIDIA GB10"\nvllm_version: 0.9.0\nquantization: N/A\ntopology: multi\ntensor_parallel_size: 2\n'
+                "benchmark_mode: lite\nlite_verdict: pass\nentry_path: beta_lite_only_cell\nlite_included: true\nlite_gen_tps_warm: 9.0\n"
+                f'measured_utc: "{m_utc}"\nmeasured_node: cluster\n', encoding="utf-8")
+            (repo / fx["report"]).write_text("\n".join([
+                "# 경량", "", rbs.REPORT_LITE_MODE_LINE, "", f"> 생성일 {m_utc}.", "", rbs.MEASUREMENT_CONFIG_TITLE, "",
+                "| 키 | 값 |", "|---|---|", "| bench_mode | lite |", "| bench_mode_kind | declared-lite |", "| repeats | 1 |",
+                "| dataset_kind | synthetic |", "", "## lite 지표 (서빙 성공 직후)", "", "| 메트릭 | Main | Sub |", "|---|---|---|",
+                "| gen tokens/sec (warm) [master] | 9.00 t/s | — |", "", "## 측정 환경 스냅샷", "", "| 키 | 값 |", "|---|---|",
+                "| model | fixture-model-nvfp4 |", "| gpu_model | NVIDIA GB10 |", "| vllm_version | 0.9.0 |", "| topology | multi |", ""]),
+                encoding="utf-8")
+            # lite 셀은 스윕(측정 이미지 digest → docker history build-arg)을 묶지 않는다 — 업스트림 여부(D-h)는 셀 env 의 VLLM_REPO 로 준다
+            #   (값 = naming.UPSTREAM_VLLM_REPOS 단일 소유 — 이 파일에 원격 URL 리터럴을 두지 않는다 · LAST_GOOD_ROLLBACK_ANCHOR.C3 tripwire)
+            env_c = repo / "output/multi/envs/.env.c1-a"
+            env_c.write_text(env_c.read_text(encoding="utf-8") + f"VLLM_REPO=https://{naming.UPSTREAM_VLLM_REPOS[0]}.git\n",
+                             encoding="utf-8")
+            os.utime(env_c, (_FX_ENV_MTIME_EPOCH, _FX_ENV_MTIME_EPOCH))
+            bl = repo / "output/multi/benchlog"
+            warm = bl / "lite_warm_c1-a.json"
+            core.write_json(warm, {"completed": 3, "failed": 0})
+            core.write_json(bl / "lite_raw_c1-a.json", {"config_name": "c1-a", "measured_utc": m_utc, "bench_warm_json": str(warm)})
+            try:
+                res = quiet(publish, repo, campaign="c1", cell="c1-a", generated_utc=_FX_PUBLISH_UTC, rt=rt)
+            except core.HintError as e:
+                ck(f"lite E2E publish 성공 — {e.code}: {e.message[:600]} → {e.remedy}", False)
+                return
+            draft, tagname = res["draft"], res["tag"]
+            payload = draft / "payload"
+            snap = template.load_snapshot(draft / "inputs" / template.FACTS_SNAPSHOT)
+            pdoc = json.loads((payload / "PAYLOAD.json").read_text(encoding="utf-8"))
+            ck("lite E2E publish: 03-benchmark.md 미스캐폴드 · payload_files 에도 없다 · PAYLOAD/facts cell_grade = lite",
+               not (payload / template.BENCH_DOC).exists() and template.BENCH_DOC not in res["files"]
+               and pdoc.get("cell_grade") == snap.get("cell_grade") == "lite" and snap.get("bench_section_md") is None)
+            ck("lite E2E: 기계 판정 칸 = OBSERVATION-ONLY 그대로(어휘 불변) · 표시 라벨은 00 등급 · README 판정 줄 · 03 행 없음",
+               pdoc["measurement"].get("verdict") == evidence.OBSERVATION_ONLY_VERDICT
+               and f"`{template.LITE_LABEL}`" in template.fact_blocks((payload / "00-hint.md").read_text(encoding="utf-8"))["grade"]
+               and f"> **판정** `{template.LITE_LABEL}`" in (payload / "README.md").read_text(encoding="utf-8")
+               and f"| 4 | `{template.BENCH_DOC}` |" not in (payload / "README.md").read_text(encoding="utf-8"))
+            _fx_author(repo, draft, _load_state(draft))
+            l00 = template.fact_blocks((payload / "00-hint.md").read_text(encoding="utf-8"))["lite_summary"]
+            issues = quiet(lint_draft, repo, draft)
+            ck(f"lite E2E 저작 뒤 lint 0(brief 수치 = 00 lite 블록 근거 · 03 부재 정상): {[(i['code'], i['file']) for i in issues[:4]]}",
+               issues == [] and "9.0" in l00)
+            try:
+                cres = quiet(continue_, repo, draft=draft, generated_utc=_FX_CONTINUE_UTC, no_push=True, rt=rt)
+            except core.HintError as e:
+                ck(f"lite E2E continue(--no-push) 성공 — {e.code}: {e.message[:600]}", False)
+                return
+            anchor = cres["anchor"]
+            final = _load_state(draft)["tag"]
+            tree = branch.tree_paths(repo, anchor)
+            ck("A8 모양: 봉인된 lite 페이로드 트리에 03-benchmark.md 없음 · 필수 위반 0 · PAYLOAD.cell_grade = lite",
+               template.BENCH_DOC not in tree and "00-hint.md" in tree and branch.tree_violations(repo, anchor) == []
+               and json.loads(branch.read_blob(repo, anchor, "PAYLOAD.json")).get("cell_grade") == "lite")
+            ck("A8 모양: 봉인된 00 · README 에 판정 표기 `lite(기동 가능)`(성능 판정 아님)",
+               template.LITE_LABEL in (branch.read_blob(repo, anchor, "00-hint.md") or b"").decode("utf-8")
+               and "성능 판정 아님" in (branch.read_blob(repo, anchor, "README.md") or b"").decode("utf-8"))
+            vp = quiet(verify_tag, repo, final)
+            ck(f"lite E2E 로컬 봉인 검증 PASS(verify · 서사 린트 · 트리 allowlist)({vp[:2]})", vp == [] and cres["pushed"] is False)
+    finally:
+        for k, v in saved.items():
+            if v is not None:
+                os.environ[k] = v
+
+
 def _branch_readme_drift(text: str) -> list[str]:
     """정적 hint 브랜치 README(`templates/hint-branch-README.md` · 형식 전환 안내 커밋의 원천)가 배너 상수·형식 문자열과 갈라졌는가.
     정적 파일 둘은 한쪽이 다른 쪽을 생성할 수 없다 — 단일 소유가 불가능하면 교차검증이 차선이다(workflow.md §결정론 규율 ·
@@ -3280,6 +3385,7 @@ def _self_test_body(ck, bad: list[str], ran: list[int]) -> None:
     try:
         _selftest_e2e(ck)
         _selftest_replay_continue(ck)
+        _selftest_lite_e2e(ck)           # 2026-10-16 plan_26101614 U14 · A8
     except Exception as e:  # noqa: BLE001 — 픽스처 사고도 실패로 센다
         import traceback
         traceback.print_exc()
@@ -3290,7 +3396,8 @@ def _self_test_body(ck, bad: list[str], ran: list[int]) -> None:
     # 2026-09-29 plan_26092908(v7): 이름 꼬리 · timestamp · 안내 커밋 · footer v2 · LINEAGE 분리 · refacts · 카탈로그 커밋 · 시각 채택 묶음
     #   (175 실측) → 하한 170.
     # 2026-09-29 plan_26092908 §4.5(FACT 생산자 교정 F1~F15): build_doc 로컬 digest 묶음(177 실측) → 하한 174.
-    ck(f"검사 전수 실행({ran[0]}) — 중도 반환으로 시험이 조용히 줄지 않게", ran[0] >= 174)
+    # 2026-10-16 plan_26101614 U14·A7·A8: lite-only 셀 E2E(03 미발행 · 표시 라벨 · verify) + full 셀 데이터셋 출처 절 묶음(191 실측) → 하한 188.
+    ck(f"검사 전수 실행({ran[0]}) — 중도 반환으로 시험이 조용히 줄지 않게", ran[0] >= 188)
 
 
 if __name__ == "__main__":

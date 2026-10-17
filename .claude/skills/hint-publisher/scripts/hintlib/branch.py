@@ -76,7 +76,17 @@ PAYLOAD_ALLOWLIST_TOP = ("README.md", "00-hint.md", "01-artifacts.md", "02-narra
                          PAYLOAD_JSON, "LINEAGE.json", PROVENANCE_JSON)
 # v6 형식에서 최상위 8종은 전부 필수다(README 부재 = 경고문 없는 배포 · PAYLOAD/PROVENANCE 부재 = 앵커 게이트가
 # 뒤늦게 죽는다). 필수 목록을 allowlist 와 따로 적지 않는다 — 같은 개념을 두 자리에 쓰면 갈라진다.
+# 2026-10-16(plan_26101614 U14 · A8): 예외 하나 — lite 셀(PAYLOAD.json `cell_grade: lite`)은 `03-benchmark.md` 를 싣지 않는다.
+#   allowlist(허용)는 그대로 두고 필수만 셀 등급으로 파생한다(required_top) — 허용과 필수가 갈리는 자리는 이 한 파일뿐이다.
 PAYLOAD_REQUIRED_TOP = PAYLOAD_ALLOWLIST_TOP
+LITE_OMITTED_TOP = ("03-benchmark.md",)
+
+
+def required_top(payload_doc) -> tuple[str, ...]:
+    """이 페이로드의 필수 최상위 파일(2026-10-16 · plan_26101614). PAYLOAD.json `cell_grade == "lite"` 일 때만 03 을 뺀다 —
+    읽지 못한 PAYLOAD · 등급 미기재 · 다른 값은 전부 full 필수(모름 = 03 을 요구하는 쪽 · fail-closed)."""
+    lite = isinstance(payload_doc, dict) and payload_doc.get("cell_grade") == "lite"
+    return tuple(t for t in PAYLOAD_REQUIRED_TOP if not (lite and t in LITE_OMITTED_TOP))
 # artifacts/<slot>/** 의 slot 어휘. ★ `artifacts.SLOTS` 와 같은 개념이다 — 정적 목록끼리는 한쪽이 다른 쪽을
 #   생성할 수 없으므로 자체검사가 교차검증한다(workflow.md "단일 소유 불가 → 교차검증이 차선").
 PAYLOAD_SLOT_DIRS = ("triplet", "runtime_patch", "build_patch_pre", "build_patch_post", "build_recipe",
@@ -258,7 +268,13 @@ def payload_files(payload_dir) -> list[str]:
         core.fail("HINT_PAYLOAD_TREE_OUTSIDE_ALLOWLIST", f"allowlist 밖 파일 {len(outside)}건: {outside[:20]}",
                   f"페이로드에는 최상위 {list(PAYLOAD_ALLOWLIST_TOP)} 와 "
                   f"{ARTIFACTS_DIR}/<slot>/** 만 둔다(hintlib.branch.PAYLOAD_*).")
-    missing = [t for t in PAYLOAD_REQUIRED_TOP if t not in rels]
+    pdoc = None
+    if PAYLOAD_JSON in rels:
+        try:
+            pdoc = json.loads((root / PAYLOAD_JSON).read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, ValueError):
+            pdoc = None          # 읽지 못하면 full 필수(fail-closed) — 판독 결함은 payload_doc_problems 가 UNREADABLE 로 판정한다
+    missing = [t for t in required_top(pdoc) if t not in rels]
     if missing:
         core.fail("HINT_PAYLOAD_REQUIRED_ABSENT", f"필수 최상위 파일 부재: {missing}",
                   "hint.py publish 가 스캐폴드를 만든다 — 지우지 않았는지 확인한다.")
@@ -366,7 +382,14 @@ def tree_violations(repo: Path, rev: str) -> list[str]:
         why = allowlist_violation(e["path"])
         if why:
             probs.append(f"HINT_PAYLOAD_TREE_OUTSIDE_ALLOWLIST: {e['path']} ({why})")
-    missing = [t for t in PAYLOAD_REQUIRED_TOP if t not in paths]
+    pdoc = None
+    if PAYLOAD_JSON in paths:
+        raw = read_blob(repo, rev, PAYLOAD_JSON)
+        try:
+            pdoc = json.loads(raw.decode("utf-8")) if raw is not None else None
+        except (UnicodeDecodeError, ValueError):
+            pdoc = None          # 읽지 못하면 full 필수(fail-closed · 2026-10-16 plan_26101614)
+    missing = [t for t in required_top(pdoc) if t not in paths]
     if missing:
         probs.append(f"HINT_PAYLOAD_REQUIRED_ABSENT: 필수 최상위 파일 부재 {missing}")
     return probs
@@ -1313,6 +1336,19 @@ def _selftest_git(tmp: Path, ck, operator_env: dict) -> None:
     ck("★필수 부재 = HINT_PAYLOAD_REQUIRED_ABSENT",
        expect_code(lambda: payload_files(pay), "HINT_PAYLOAD_REQUIRED_ABSENT"))
     (pay / "LINEAGE.json").write_bytes(lin)
+    # 2026-10-16 plan_26101614 U14: lite 셀(PAYLOAD.cell_grade=lite)만 03 부재가 정상 · full · 미기재는 03 필수(fail-closed)
+    b03 = (pay / "03-benchmark.md").read_bytes()
+    pj = (pay / PAYLOAD_JSON).read_bytes()
+    (pay / "03-benchmark.md").unlink()
+    ck("★등급 미기재 페이로드의 03 부재 = HINT_PAYLOAD_REQUIRED_ABSENT(모름 = full 필수)",
+       expect_code(lambda: payload_files(pay), "HINT_PAYLOAD_REQUIRED_ABSENT"))
+    core.write_json(pay / PAYLOAD_JSON, {**json.loads(pj.decode("utf-8")), "cell_grade": "lite"})
+    ck("lite 셀(cell_grade=lite)은 03 없이 통과 · allowlist 는 03 을 계속 허용",
+       "03-benchmark.md" not in payload_files(pay) and "03-benchmark.md" in PAYLOAD_ALLOWLIST_TOP
+       and required_top({"cell_grade": "lite"}) == tuple(t for t in PAYLOAD_REQUIRED_TOP if t != "03-benchmark.md")
+       and required_top(None) == PAYLOAD_REQUIRED_TOP and required_top({"cell_grade": "full"}) == PAYLOAD_REQUIRED_TOP)
+    (pay / PAYLOAD_JSON).write_bytes(pj)
+    (pay / "03-benchmark.md").write_bytes(b03)
 
     msg = commit_message(pay, generated_utc=_FX_UTC)
     ck("파생 커밋 메시지에 태그·소스 앵커", _FX_TAG in msg and source in msg)

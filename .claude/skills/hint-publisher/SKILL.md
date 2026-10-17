@@ -178,6 +178,11 @@ README.md · 00-hint.md(지도 — 먼저 읽는다) · 01-artifacts.md · 02-na
 PAYLOAD.json · LINEAGE.json(수신자 요약 ≤ 20KB + 봉인 출처 스냅샷) · PROVENANCE.json · artifacts/<slot>/… · (multi) artifacts/compose/sub_recipe.json
 ```
 
+- **lite 셀은 `03-benchmark.md` 를 싣지 않는다**(2026-10-16 · plan_26101614 U14): 선언된 lite-only 셀(`PAYLOAD.cell_grade: lite` · 단일 술어
+  `template.is_lite_cell`)은 판정 표기가 **`lite(기동 가능)`**(성능 판정 아님 · 기계 판정 칸은 OBSERVATION-ONLY 그대로)이고 lite 수치 · 측정
+  구성 · 도구 원문은 00 머리 `FACT:lite_summary` 에 둔다. full 셀의 03 §3.3 에는 데이터셋 출처 절(`FACT:dataset_provenance` · 부재 = synthetic
+  부재 추론 · 소급 ✗)이 실린다.
+
 - annotated 태그 본문은 brief 한 문단 + "zip 의 `00-hint.md` 부터" 포인터 + 증거 주소 footer **v2**(`bench_ref` + `bench_kind:
   certificate|bench_report` — 발행 저장소 로컬 경로 · 수신자 해소 대상 아님)뿐이다 — 지도는 zip 안에 있다(계약 §7.3).
 - 페이로드 `README.md` 는 `PAYLOAD.naming` 에서 **"이 태그 이름 읽는 법"**(세그먼트별 값 · 뜻 · 출처 · 꼬리 토큰 뜻 · timestamp · `native`
@@ -240,7 +245,8 @@ footer 도 페이로드 형식도 없고, 카탈로그는 원격 태그에서 �
 - **무인 자동 태깅 ✗** — 승인 기록 없이는 어느 ref 도 움직이지 않는다(§1).
 - **발행 주체 = 메인 + single 서브**(2026-10-11 · 계약 §6.6) — single 서브(a2a-agent)는 메인 선언이 승인해 파생 선언으로 운반된
   **자기 셀만** 워크스페이스 git 밖 **별도 hint 클론**에서 태그 1개로 push 하고(장착 = terraforming_node §2.5.1), 카탈로그 단계는
-  건너뛰고 testlog(승인 출처·태그·원격 SHA·엔진 리비전)로 보고한다. 멀티 서브(Ray 워커)는 발행하지 않는다. **카탈로그 파생은
+  건너뛰고 testlog(승인 출처·태그·원격 SHA·엔진 리비전)로 보고한다. 발행 전에 자기 캠페인 인스턴스에 셀 입력을 만든다 —
+  `campaign_init.py --cell-materialize <셀>`(+ 측정 뒤 `--cell-set`) · 없으면 셀 config · lockset · 셀 상태가 결손으로 실린다(2026-10-16 plan_26101622 F1). 멀티 서브(Ray 워커)는 발행하지 않는다. **카탈로그 파생은
   메인 단독**(`hints/.central_authority`)이다 — 서브의 testlog 를 회수해 승인 출처를 대조한 뒤 메인이 `catalog derive` 한다.
 - **태그는 불변 · 리콜 금지** — 발행 후 이름 · 본문을 고치지 않고, 원격의 과거 태그는 판정 · 교정 · 삭제하지 않는다. 개정은 새 태그로만.
 - **게이트 = 이번 발행분만** — verify · push 는 이 태그 1개만 본다. 과거 · 타 PC 태그의 결함은 신규 발행을 막지 않는다(계약 §6.3).

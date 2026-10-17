@@ -248,7 +248,17 @@ if [ "$REASSEMBLE" != "1" ]; then
     [ "$BENCH_BUDGET_MIB" -gt 0 ] || { echo "[sweep_bench] ERROR --bench-budget-mib 는 양수여야 한다" >&2; exit 2; }
   fi
   echo "[sweep_bench] 측정 형상 = 프리셋 ${PRESET:-default_preset} ($PRESET_PATH) · 기록 → sweep_index.bench_knobs"
+  # 데이터셋 해소값(2026-10-16 · plan_26101614) — 기록 블록의 `dataset` 을 run_bench 에 그대로 넘긴다(두 번째 해소 ✗).
+  #   전처리 캐시는 스윕 폴더 단위(모델 토크나이저가 같으면 재사용) · 런 번호는 레벨·반복을 가로질러 늘어난다.
+  if [ "$DRYRUN" = "1" ]; then DATASET_SPEC="$(mktemp)"; else DATASET_SPEC="$SWEEPDIR/.dataset_spec.json"; fi
+  DATASET_CACHE="$SWEEPDIR/.dataset_cache"
+  python3 -c "import json,sys;json.dump(json.load(open(sys.argv[1]))['dataset'],open(sys.argv[2],'w'),ensure_ascii=False)" \
+    "$KNOB_RECORD" "$DATASET_SPEC" || { echo "[sweep_bench] ERROR 데이터셋 해소값을 꺼내지 못했다" >&2; exit 2; }
+  DATASET_KIND="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['dataset_kind'])" "$DATASET_SPEC")"
+  echo "[sweep_bench] 데이터셋 = $DATASET_KIND (프리셋 해소값 · 판정 불변 · 출처는 런별 사이드카 → meta)"
 fi
+DATASET_RUN_INDEX=0
+DATASET_SWEEP_SALT="$(date -u +%FT%TZ)"   # 스윕마다 다른 행 시작점(prefix cache 재적중 회피 · sidecar 에 기록 · plan_26101622 F2 후속)
 
 # 레벨 파싱: 정렬·중복제거 + 판정점(1) 강제 포함(verdict 재사용 보장).
 IFS=',' read -r -a _lv <<< "$LEVELS"
@@ -275,8 +285,9 @@ d=json.load(open(sys.argv[1]))
 print("[sweep_bench] DRY-RUN knob 해소(프리셋 %s · 상한 %s):" % (d.get("preset"), (d.get("serving_cap") or {}).get("source")))
 for k,v in d["knobs"].items():
     print("  %-16s = %-18s source=%-8s grade=%s reason=%s%s" % (k, v.get("value"), v.get("source"), v.get("grade"), v.get("reason"),
-          (" · 제외 %s" % [f["value"] for f in v["filtered_out"]]) if v.get("filtered_out") else ""))' "$KNOB_RECORD" || true
-  rm -f "$KNOB_RECORD"
+          (" · 제외 %s" % [f["value"] for f in v["filtered_out"]]) if v.get("filtered_out") else ""))
+print("  dataset          = %s" % json.dumps(d.get("dataset"), ensure_ascii=False))' "$KNOB_RECORD" || true
+  rm -f "$KNOB_RECORD" "${DATASET_SPEC:-}"
   echo "[sweep_bench] DRY-RUN 종료(실제 벤치·assemble 생략)"
   exit 0
 fi
@@ -446,6 +457,8 @@ for L in "${SORTED[@]}"; do
     [ -n "$HOST_ENDPOINT" ] && RB_ARGS+=(--host-endpoint "$HOST_ENDPOINT")
     [ -n "$CLIENT_VLLM" ] && RB_ARGS+=(--client-vllm "$CLIENT_VLLM")
     [ -n "$BENCH_BUDGET_MIB" ] && RB_ARGS+=(--bench-budget-mib "$BENCH_BUDGET_MIB")
+    RB_ARGS+=(--dataset-spec "$DATASET_SPEC" --dataset-cache "$DATASET_CACHE" --dataset-run-index "$DATASET_RUN_INDEX" --dataset-sweep-salt "$DATASET_SWEEP_SALT")
+    DATASET_RUN_INDEX=$((DATASET_RUN_INDEX + 1))
     RB_RC=0; PARSE_RC=0; RUN_OK=0; _PERR=""
     bash "$SDIR/run_bench.sh" "${RB_ARGS[@]}" || RB_RC=$?
     if [ "$RB_RC" = "0" ]; then
@@ -463,6 +476,8 @@ for L in "${SORTED[@]}"; do
         # 전에만 남길 수 있는 사실이며, 이것이 없으면 엔진 사망 중 잘린 SSE 가 도구 경계로 면제된다.
         _PH="$RDIR/post_health_${CONFIG}.json"
         [ -s "$_PH" ] && PARSE_CMD+=(--post-health-json "$_PH")
+        _PC="$RDIR/prefix_cache_${CONFIG}.json"
+        [ -s "$_PC" ] && PARSE_CMD+=(--prefix-cache-json "$_PC")
       else
         BJSON="$RDIR/bench_${CONFIG}.json"
         PARSE_CMD=(python3 "$SDIR/parse_bench.py" --bench-json "$BJSON" --engine-log "$ELOG")
@@ -1052,6 +1067,35 @@ meta["bench_tool_image_digest_source"] = ("measured(docker image inspect .RepoDi
                                           if _bt_dig != "NA" else "unavailable")
 meta["bench_endpoint"] = _bt_ep
 
+# ── 데이터셋 출처(2026-10-16 · plan_26101614) — 런별 사이드카 dataset_<config>.json 에서 **승계**한다 ─────────
+#   무엇을 시켰나(프리셋 해소값)가 아니라 그 런이 실제로 쓴 행의 출처다. 신규 발행분은 synthetic 도 적는다(U10).
+#   duplicate_sampling 은 한 런이라도 중복 샘플링했으면 참이다. 사이드카가 없으면(구세대 런) 키를 비워 두고
+#   소비자는 부재 = synthetic 으로 읽는다(소급 ✗ · benchmark_mode 선례).
+_ds_first, _ds_dup, _ds_runs = None, False, 0
+for _lvl in sorted(completed):
+    _ld = os.path.join(sweepdir, "level_%02d" % _lvl)
+    _cands = [os.path.join(_ld, "dataset_%s.json" % cfg)] + sorted(
+        os.path.join(_ld, _d, "dataset_%s.json" % cfg) for _d in (os.listdir(_ld) if os.path.isdir(_ld) else [])
+        if _d.startswith("run_"))
+    for _dp in _cands:
+        try:
+            with open(_dp, encoding="utf-8") as _f:
+                _dd = json.load(_f)
+        except (OSError, ValueError):
+            continue
+        _ds_runs += 1
+        _ds_first = _ds_first or _dd
+        _ds_dup = _ds_dup or bool(_dd.get("duplicate_sampling"))
+if _ds_first is not None:
+    for _k in ("dataset_kind", "dataset_source", "dataset_id", "dataset_revision", "source_sha256",
+               "preprocess_strategy", "seed"):
+        meta["dataset_%s" % _k.replace("dataset_", "")] = _ds_first.get(_k)
+    meta["dataset_column_map"] = (json.dumps(_ds_first["column_map"], ensure_ascii=False, sort_keys=True)
+                                  if _ds_first.get("column_map") else None)
+    meta["dataset_duplicate_sampling"] = (_ds_dup if _ds_first.get("dataset_kind") != "synthetic" else None)
+    meta["dataset_tokenizer"] = _ds_first.get("tokenizer")
+    meta["dataset_provenance"] = "measured(런별 사이드카 dataset_%s.json · %d 런)" % (cfg, _ds_runs)
+
 levels = []
 for L in sorted(completed):
     mp = os.path.join(sweepdir, "level_%02d" % L, "measured.json")
@@ -1167,6 +1211,7 @@ print("[sweep_bench] sweep_index.json → %s (완료 레벨 %s · 절삭 %d건)"
 PY
 
 [ -n "$KNOB_RECORD" ] && rm -f "$KNOB_RECORD"   # 기록은 sweep_index.bench_knobs 로 옮겨졌다(두 번째 자리를 남기지 않는다)
+[ -n "${DATASET_SPEC:-}" ] && rm -f "$DATASET_SPEC"   # 해소값은 bench_knobs.dataset 에 이미 있다(같은 이유)
 
 # ── bench_mode 판정 기록(2026-09-14 · plan_26091407 §4.4 · 리뷰 정정) ─────────────────────────────────
 #   판정 소유자는 classify_cell.py 다 — 여기서는 **부르기만** 한다(규칙 복제 ✗). 정규 경로(sweep_bench →

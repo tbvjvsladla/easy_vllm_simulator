@@ -12,6 +12,7 @@ producer 는 0 이었다. 이제 바이트를 쓰는 문은 하나이고, 그 �
 | 슬롯 | 성립 시점 | 포맷 owner(단일) | 호출부(실행자) |
 |---|---|---|---|
 | `phases/<node>/<phase>.status.json` | 각 phase 종료 | `terraforming_node` `campaign_init.py --phase-set` | serve: `single_serve_up.sh` health 200 지점 · bench/build/publish: 각 owner 스크립트 종료부 |
+| `cells/<cell>/{config.yaml,lockset.json,cell.status.json}` 생성 | 셀 착수 전(서빙된 셀이면 발행 전) | 동 `--cell-materialize <cell> [--set K=V…] --utc` | 셀을 맡은 노드(메인 · single 서브 모두) — 파생값은 서빙 yaml·env·manifest·`/proc/meminfo`, 선언 축은 `--set`(닫힌 목록 · 요구 없음 = `K=null`) · 빈칸이 남거나 이미 있으면 거부(2026-10-16 · plan_26101622 F1: 서브 hint 2건이 이 단계 없이 셀 입력 결손 3건을 안고 발행됐다) |
 | `cells/<cell>/cell.status.json` + `journey.jsonl` | 셀 트랜잭션 종료 | 동 `--cell-set` | `adversarial-benchmark` `broad_search.sh cell`(sweep 레코드를 쓴 **같은 트랜잭션** · 이번 셀 lite raw 를 `--lite-raw` 로) |
 | `cells/<cell>/cell.status.json#reentry.decision` + 여정 | lite ② 재발동 제안에 사람이 답한 직후 | 동 `--reentry-decide` | 사람 승인 인자 필수(`--approved-by` 발화 전사) · 제안 없는 셀은 거부 |
 | `evidence_pointers.json` | 증거 발행 직후 | 동 `--evidence-add` | `publish_benchmark_record.py`(인증서 발행 지점) · 리포트·testlog·devlog 발행자 |

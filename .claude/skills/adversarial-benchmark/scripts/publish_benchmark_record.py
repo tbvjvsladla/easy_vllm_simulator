@@ -101,7 +101,12 @@ def build_yaml(index, verdict):
               #   hint 태그 이름이 충돌해 타임스탬프 접미사로 회피했다. 47.7GiB 가 상주하느냐
               #   NVMe 에서 오느냐는 예산·지연을 동시에 바꾸는 축이며, 축이 없으면 그 셀은
               #   carry-forward 대조에서 다른 셀과 구분되지 않는다.
-              "ple_mode", "ple_mode_source"):
+              "ple_mode", "ple_mode_source",
+              # 데이터셋 축(2026-10-16 · plan_26101614) — 소프트 지문. 강한키로 올리지 않는다(과거 인증서 무효화 ✗).
+              #   부재 = synthetic(과거 인증서 · 소급 ✗). 값은 런별 사이드카에서 승계한 meta 그대로다.
+              "dataset_kind", "dataset_source", "dataset_id", "dataset_revision", "dataset_source_sha256",
+              "dataset_column_map", "dataset_preprocess_strategy", "dataset_seed", "dataset_duplicate_sampling",
+              "dataset_tokenizer", "dataset_provenance"):
         A("%s: %s" % (k, scalar(meta.get(k))))
     A("ngc_base_tag: %s" % scalar(meta.get("ngc_base_tag")))  # 현재 resolved.json 부재 시 N/A(fail-soft)
     A("")

@@ -367,3 +367,8 @@ hints/.central_authority
 # hint 태그 push 역할 선언(2026-10-11 · plan_26101104 Step 3) — 카탈로그 권위와 분리된 두 번째 역할 마커. 같은 근거로 비추적이며
 #   배달되지 않는다(render_sub_env HINT_NEVER_DELIVER). single 서브는 자기 워크스페이스에 스스로 선언한다(check_sub_hint_equip.py).
 hints/.push_authority
+
+# full-bench 사용자 프리셋은 비추적(2026-10-16 · plan_26101614) — 배포 대상은 default_preset.yaml 하나다.
+#   만드는 법은 같은 폴더 README.md. 운영자 경로(custom dataset_path)가 배포 평면으로 새지 않게 한다.
+.claude/skills/adversarial-benchmark/config/guide-llm/*.yaml
+!.claude/skills/adversarial-benchmark/config/guide-llm/default_preset.yaml

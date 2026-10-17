@@ -162,6 +162,16 @@ MISSING_CODES: dict[str, str] = {
 # `source`(`bench_report(<파일명>)`)로 출처를 표시한다(출처 표시 ≠ 서술 복제).
 DISTRIBUTED_MEASUREMENT_KEYS = ("bench_mode", "bench_mode_kind", "downgrade_reason", "bench_tool", "bench_tool_version",
                                 "repeats", "repeats_completed")
+# 데이터셋 출처 키(2026-10-16 · plan_26101614 U9·U10). writer = adversarial-benchmark render_report(측정 구성 표) ·
+#   publish_benchmark_record(인증서 소프트 지문). DISTRIBUTED_MEASUREMENT_KEYS 에 **섞지 않는다** — 그 목록은 카탈로그 bench_mode
+#   칸과 기존 단언(set(measurement_config) == DISTRIBUTED + source)의 계약이다. 별도 사실 키 `dataset_provenance` 로 싣고
+#   03 §3.3 `FACT:dataset_provenance` 가 그것을 렌더한다. 부재 = synthetic(과거 리포트 · 소급 ✗ · `benchmark_mode` 선례).
+DATASET_KEYS = ("dataset_kind", "dataset_source", "dataset_id", "dataset_revision", "dataset_source_sha256",
+                "dataset_column_map", "dataset_preprocess_strategy", "dataset_seed", "dataset_duplicate_sampling",
+                "dataset_tokenizer")
+# 출처 판정 어휘(닫힌 목록 · FACT 렌더와 자체검사가 같은 값을 본다).
+DATASET_STATUS_RECORDED = "recorded"
+DATASET_STATUS_INFERRED = "inferred-synthetic"
 
 # 인증서에서 PAYLOAD.measurement 로 옮기는 측정 수치(옛 hint_collect.CERT_PERF — 선택이지 값의 복제가 아니다).
 _CERT_MEASUREMENT_KEYS = ("benchmark_mode", "verdict", "decode_tps_conc1", "rubric_authority", "primary_source",
@@ -1404,6 +1414,69 @@ def measurement_config(repo, ev: CellEvidence) -> dict:
     return out
 
 
+# 배포 평면에 싣는 데이터셋 값의 경로 정화(2026-10-16 · plan_26101614): `/app/` 밖 절대경로(호스트 `/mnt` · `/home` 등)는 운영자
+#   환경 지문이라 deploy 프로필 PII(abs-op-path)에 걸린다 — 이름(basename)만 남기고 `<abs-path>/` 표지를 붙인다(출처 표시 ≠ 경로
+#   복제). 컨테이너 경로(`/app/…`)는 이미지 안 자리라 그대로 둔다. `abisee/cnn_dailymail` 같은 상대 id 는 앞이 `/` 가 아니라 건드리지 않는다.
+_DATASET_HOST_PATH_RE = re.compile(r"(?:^|(?<=[\s=:'\"(\[{,]))/(?!app/)[^\s'\"|,;)\]}]+")
+
+
+def _sanitize_dataset_value(v):
+    if not isinstance(v, str):
+        return v
+
+    def repl(m: re.Match) -> str:
+        base = m.group(0).rstrip("/").rsplit("/", 1)[-1]
+        return f"<abs-path>/{base}" if base else "<abs-path>"
+    return _DATASET_HOST_PATH_RE.sub(repl, v)
+
+
+def dataset_provenance(repo, ev: CellEvidence) -> dict:
+    """데이터셋 출처(2026-10-16 · plan_26101614 U9·U10·U13) → facts/PAYLOAD `dataset_provenance` · 03 §3.3 `FACT:dataset_provenance`.
+
+    **파싱만**(합성 ✗): 바인딩된 리포트 측정 구성 표의 `dataset_*` 행 > 인증서 소프트 지문(`dataset_*`)을 키별로 채운다. 둘 다 없으면
+    `status = inferred-synthetic` — **부재에서 추론한** synthetic 이다(데이터셋 축 도입 전 리포트 · 소급 ✗). 그 사실을 `source` 가 말한다
+    (기재된 synthetic 과 부재 추론 synthetic 을 한 칸으로 접지 않는다). 값의 `/app/` 밖 절대경로는 이름만 남긴다(_sanitize_dataset_value).
+    반환 = DATASET_KEYS + `dataset_provenance`(인증서가 적은 writer 출처 문구) + `status` + `source`."""
+    repo = _repo(repo)
+    rbs = _rbs(repo)
+    out: dict = {k: None for k in DATASET_KEYS}
+    sources: list[str] = []
+    rep = ev.bench_report_path
+    name = Path(rep).name if rep else None
+    text = (repo / rep).read_text(encoding="utf-8", errors="replace") if rep and (repo / rep).is_file() else None
+    if text is not None:
+        try:
+            mc = rbs.parse_measurement_config(text)
+        except rbs.BenchSectionFailure:
+            mc = None
+            sources.append(f"unparseable(bench_report({name}) 측정 구성 표 — 파싱 실패)")
+        if isinstance(mc, dict) and any(mc.get(k) is not None for k in DATASET_KEYS):
+            for k in DATASET_KEYS:
+                if mc.get(k) is not None:
+                    out[k] = mc[k]
+            sources.append(f"bench_report({name}) 측정 구성 표")
+    cert = ev.certificate or {}
+    filled = False
+    for k in DATASET_KEYS:
+        v = cert.get(k)
+        if out[k] is None and not _unobserved(v):
+            out[k] = v
+            filled = True
+    if filled:
+        sources.append(f"certificate({Path(ev.certificate_path or '').name}) 소프트 지문")
+    prov = cert.get("dataset_provenance")
+    out["dataset_provenance"] = None if _unobserved(prov) else prov
+    if any(out[k] is not None for k in DATASET_KEYS):
+        out["status"] = DATASET_STATUS_RECORDED
+        out["source"] = " + ".join(sources)
+    else:
+        out["dataset_kind"] = "synthetic"
+        out["status"] = DATASET_STATUS_INFERRED
+        out["source"] = ("inferred(부재 = synthetic — 리포트 측정 구성 표 · 인증서 어디에도 dataset_* 기재가 없다 · 데이터셋 축 도입"
+                         "(2026-10-16) 전 측정으로 읽는다 · 소급 ✗)" + (f" · 판독: {' + '.join(sources)}" if sources else ""))
+    return {k: _sanitize_dataset_value(v) for k, v in out.items()}
+
+
 # 판정의 기계 표면(2026-09-29 · plan_26092908 §4.4 · V1). 판정 값의 어휘 — verdict_rule 의 둘 + lite-only 셀의 표지.
 MEASUREMENT_VERDICTS = ("PASS", "REFUTE", "OBSERVATION-ONLY")
 # 판정기 NEEDS_RUBRIC ↔ 측정 표면 OBSERVATION-ONLY(2026-10-11 · plan_26101104 Step 1 · 정본 대응은 completion_gate
@@ -1720,8 +1793,48 @@ def measurement(ev: CellEvidence) -> dict:
             per["measured_utc"] = (f"sweep_index.generated_utc({sw.get('dir')})" if sw.get("generated_utc")
                                    else f"bench_report({Path(ev.bench_report_path or '').name}) 머리 `생성일`")
     out["source"] = " + ".join(srcs) if srcs else "absent(인증서·스윕 모두 없다)"
+    _label_kv_declared(repo, ev, out, per)
     out["sources"] = per
     return out
+
+
+KV_CLAMP_KEY = "kv-cache-memory-bytes"
+
+
+def _kv_declared_note(v, clamp, rel: str) -> "str | None":
+    """순수 판정: 보고 KV(GiB 문자열/수) 가 선언 클램프(bytes)와 같으면 '되읽기', 다르면 '다름' 문구 · 파싱 불가 = None."""
+    try:
+        got = float(str(v).split()[0])
+    except (TypeError, ValueError, IndexError):
+        return None
+    decl_gib = clamp / (1024 ** 3)
+    if abs(got - decl_gib) < 0.05 + 1e-9:
+        return (f" — 서빙 yaml `{KV_CLAMP_KEY}: {int(clamp)}`({decl_gib:.1f} GiB)의 **선언 클램프를 엔진이 되읽은 값**"
+                f"(측정 아님 · {rel})")
+    return f" — 서빙 yaml 선언 {decl_gib:.1f} GiB 와 다르다(엔진 보고값 · {rel})"
+
+
+def _label_kv_declared(repo: Path, ev: "CellEvidence", out: dict, per: dict) -> None:
+    """lite KV(GiB)는 엔진 로그에서 읽지만 서빙 yaml 이 `kv-cache-memory-bytes` 로 KV 를 **선언**하면 엔진은 그 선언을 되읽어 보고한다 —
+    측정이 아니다(2026-10-16 · plan_26101622 Q7 사실 검증 FC4: 서브 lfm 37.9 GiB · 메인 minicpm 35.0 GiB 가 둘 다 클램프 되읽기였다).
+    값은 바꾸지 않고(원문 그대로) 출처 칸에 선언 대조를 붙인다 — 같으면 '선언값 되읽기', 다르면 '선언과 다름(엔진 보고)'."""
+    rel = (ev.triplet or {}).get("yaml")
+    if not rel or not (repo / rel).is_file():
+        return
+    y = _owner_yaml(repo, repo / rel, "서빙 yaml")
+    clamp = y.get(KV_CLAMP_KEY) if isinstance(y, dict) else None
+    if not isinstance(clamp, (int, float)) or isinstance(clamp, bool) or clamp <= 0:
+        return
+    note = lambda v: _kv_declared_note(v, clamp, rel)   # noqa: E731
+    if "lite_kv_gib" in out and (n := note(out["lite_kv_gib"])):
+        per["lite_kv_gib"] = (per.get("lite_kv_gib") or "출처 미기재") + n
+    lt = out.get("lite")
+    # 행 단위 출처(`<키>.<하위키>`) — 묶음 출처(per["lite"])에 붙이면 lite 의 실측 행 전부가 '측정 아님' 으로 읽힌다
+    #   (2026-10-17 · plan_26101622 Q7 granite 사실 검증 F4 · 렌더러 `_measurement_table` 이 하위키 출처를 먼저 본다).
+    #   `engine_kv_gib` 는 같은 엔진 로그 줄(KV cache memory)을 엔진 파서가 따로 옮긴 칸이다 — 같은 대조를 받는다.
+    for sk in ("kv_gib", "engine_kv_gib"):
+        if isinstance(lt, dict) and sk in lt and (n := note(lt[sk])):
+            per[f"lite.{sk}"] = (per.get("lite") or "출처 미기재") + n
 
 
 # ── 원장 타임라인 · 기동 표지 · full 정의 · 벤치 명령 재구성 ─────────────────────────────────────────────────────────
@@ -1890,9 +2003,20 @@ def _node_streams(repo: Path, node: str) -> list[tuple[str, list[tuple[str, int,
     return out
 
 
-def _event_windows(rows: list[tuple[str, int, dict]]) -> list[dict]:
+def _node_opens(streams) -> list[tuple[str, str | None]]:
+    """노드의 모든 스트림에서 선언 슬롯을 여는 행(시각, 라벨) — 시각순. `_event_windows` 의 스트림 교차 상한 입력."""
+    return sorted((ts, d.get("label")) for _k, rows, _s, _b in streams for ts, _ln, d in rows
+                  if d.get("kind") in _EVENT_OPEN_KINDS)
+
+
+def _event_windows(rows: list[tuple[str, int, dict]], node_opens: "list | None" = None) -> list[dict]:
     """스트림 하나의 선언 창 — 여는 행(선언·arm) ~ 닫는 행(clear·none·expired · 포함) 또는 다음 여는 행(교체 · 미포함).
-    창 안의 행 = 같은 라벨 행 + 라벨 없는 _EVENT_WINDOWED_KINDS 행."""
+    창 안의 행 = 같은 라벨 행 + 라벨 없는 _EVENT_WINDOWED_KINDS 행.
+
+    ★ 2026-10-16(plan_26101614 P12 독립 사실 검증 F3/F4): 선언 슬롯은 **노드당 하나**인데 창은 스트림마다 따로 계산된다 — 워치독
+      스트림에는 granite 창을 여는 행(budget_honored)만 있고 합산 선언으로의 교체(월 원장 budget_declare)는 없어서, 교체 뒤의 라벨 없는
+      hold 행이 닫힌 granite 창에 귀속됐다. `node_opens`(같은 노드 전 스트림의 여는 행)를 주면 창의 끝을 **다른 라벨 선언이 처음 열린
+      시각**으로 자른다(그 시각 이후 행은 이 창 밖)."""
     wins: list[dict] = []
     cur = None
     for idx, (ts, _ln, d) in enumerate(rows):
@@ -1917,6 +2041,16 @@ def _event_windows(rows: list[tuple[str, int, dict]]) -> list[dict]:
             cur["rows"].append(idx)
     if cur is not None:
         wins.append(cur)
+    if node_opens:
+        for w in wins:
+            nxt = next((ts for ts, lab in node_opens if ts > w["start_ts"] and lab != w["label"]), None)
+            if nxt is None:
+                continue
+            # 행은 다른 라벨 선언 시각부터 이 창 밖이다(둘 다 관측된 사실). 끝 시각은 **닫힌 창만** 당긴다 — 열린 채 끝난 창(end_ts None)에
+            #   관측되지 않은 끝을 지어 넣으면 '스트림 끝 뒤 = 닫힘 미관측' 규칙(stream_last)이 깨진다(자체검사가 잡았다).
+            w["rows"] = [i for i in w["rows"] if i == w["rows"][0] or rows[i][0] < nxt]
+            if w["end_ts"] is not None and nxt < w["end_ts"]:
+                w.update(end_ts=nxt, end_kind="replaced(다른 스트림의 다른 라벨 선언 · 노드당 슬롯 1)")
     return wins
 
 
@@ -1931,6 +2065,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
     measured_win = None
     for node in _event_node_dirs(repo, ev):
         streams = _node_streams(repo, node)
+        opens = _node_opens(streams)
         if ctx is not None:
             ctx.setdefault("nodes", []).append(node)
             for _key, rows, srcs, _bad in streams:
@@ -1939,7 +2074,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                     #   "선언 없음" 이 아니라 **미관측** 이다(실측: sub 2026-09.jsonl 은 09-11T11:10:38Z 에서 끝난다).
                     sp = ctx.setdefault("spans", {}).setdefault(node, [rows[0][0], rows[-1][0]])
                     sp[0], sp[1] = min(sp[0], rows[0][0]), max(sp[1], rows[-1][0])
-                for w in _event_windows(rows):
+                for w in _event_windows(rows, opens):
                     # stream_last: 열린 창(end_ts None)은 그 스트림의 마지막 행까지만 열려 있음이 관측된다 — 그 뒤는 닫힘 미관측이다
                     #   (실측: sub 스트림이 `smoke-nv4-f8-1m-res` 창을 연 채 끝난다 — 옛 판본은 그 뒤 모든 시각을 이 창이 덮는다고 읽었다).
                     ctx.setdefault("windows", []).append({"node": node, "rel": srcs[w["rows"][0]], "label": w["label"],
@@ -1954,7 +2089,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
         declare_wins: list[tuple[str, dict]] = []
         for rel, rows, srcs, _bad in streams:
             in_win: set[int] = set()
-            for w in _event_windows(rows):
+            for w in _event_windows(rows, opens):
                 if not _label_is_cell(w["label"], cell):
                     continue
                 for idx in w["rows"]:
@@ -1977,7 +2112,9 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
             for idx, (ts, _ln, d) in enumerate(rows):
                 if d.get("label") or d.get("kind") not in _EVENT_WINDOWED_KINDS:
                     continue
-                w = next((w for _, w in declare_wins + foreign_wins
+                # ★ 2026-10-16(plan_26101614 P12 라이브): declare_wins 는 (rel, w) 쌍 · foreign_wins 는 w 목록이다 — 둘을 같은
+                #   모양으로 풀면 다른 라벨 창이 하나라도 있는 노드(같은 노드 2모델 상주)에서 ValueError 로 죽었다(18e1966 이후).
+                w = next((w for w in [dw for _, dw in declare_wins] + foreign_wins
                           if w["start_ts"] <= ts and (w["end_ts"] is None or ts <= w["end_ts"])), None)
                 if w is not None:
                     taken[(rel, idx)] = w
@@ -2093,8 +2230,9 @@ def _foreign_label_windows(streams: list, taken: dict, cell: str) -> list[dict]:
     if not ivs:
         return []
     out: list[dict] = []
+    opens = _node_opens(streams)
     for skey, rows, _srcs, _bad in streams:
-        for w in _event_windows(rows):
+        for w in _event_windows(rows, opens):
             if not w.get("label") or _label_is_cell(w["label"], cell):
                 continue
             w["stream_last"] = rows[-1][0]
@@ -2245,14 +2383,52 @@ def event_timeline(repo, ev: CellEvidence) -> list[dict]:
     return rows
 
 
+# 이 체크아웃 노드의 node_id 해소(2026-10-16 · plan_26101614 P12 lite 사실 검증 F9) — **각자 파싱하지 않는다**(terraforming_node SKILL.md
+#   §2.7.6): 블랙박스가 `docs/logs/<node_id>` 에 쓰는 바로 그 단일 해소기 CLI(`node_identity.sh --resolve --repo`)를 부른다. 자리는 소유자
+#   정본 → 서브 런타임 배달분 순(classify_cell `_node_identity_resolver` 와 같은 두 후보 · 코드 옆 경로).
+_NODE_IDENTITY_CANDIDATES = (
+    Path(__file__).resolve().parents[3] / "terraforming_node" / "scripts" / "node_blackbox" / "node_identity.sh",
+    Path(__file__).resolve().parents[4] / "runtime" / "node_blackbox" / "node_identity.sh",
+)
+_SELF_NODE_CACHE: dict[str, tuple[str | None, str]] = {}
+
+
+def _self_node(repo: Path) -> tuple[str | None, str]:
+    """이 저장소가 놓인 노드의 node_id → (node | None, 출처 또는 사유). 해소 실패는 None + 해소기의 사유(침묵 폴백 ✗ · hostname 대체 ✗)."""
+    key = str(Path(repo).resolve())
+    if key in _SELF_NODE_CACHE:
+        return _SELF_NODE_CACHE[key]
+    resolver = next((c for c in _NODE_IDENTITY_CANDIDATES if c.is_file()), None)
+    if resolver is None:
+        res: tuple[str | None, str] = (None, "node_identity.sh 부재(terraforming_node/scripts/node_blackbox · .claude/runtime/node_blackbox)")
+    else:
+        try:
+            proc = subprocess.run(["bash", str(resolver), "--resolve", "--repo", key], capture_output=True, text=True,
+                                  timeout=60, check=False)
+            node = (proc.stdout or "").strip()
+            if proc.returncode == 0 and node and "/" not in node and not node.startswith("."):
+                res = (node, "node_identity.sh --resolve(self_role → 유일한 role: main)")
+            else:
+                why = " / ".join(ln.strip() for ln in (proc.stderr or "").splitlines()[:2] if ln.strip())
+                res = (None, f"node_identity.sh --resolve rc={proc.returncode}" + (f" — {why}" if why else ""))
+        except (OSError, subprocess.SubprocessError) as e:
+            res = (None, f"node_identity.sh 실행 실패: {e}")
+    _SELF_NODE_CACHE[key] = res
+    return res
+
+
 def event_ledger_spans(repo, ev: CellEvidence) -> list[dict]:
     """이 셀 노드 축 원장의 **관측 범위**(2026-09-29 · FACT_FIX2 G8) — [{node, first_utc, last_utc, files[], covers_measurement}].
     D2: 메인의 서브 원장 미러(`docs/logs/sub/events/2026-09.jsonl`)가 09-11 에서 끝나 09-23 기동의 서브 선언이 표에 없었는데, FACT 가 범위를
     밝히지 않아 "서브는 선언하지 않았다" 로 읽혔다. 범위 끝 뒤의 시각은 "없음" 이 아니라 **관측 범위 밖**이다. covers_measurement =
     마지막 행 ≥ 측정 끝(측정 끝 미관측이면 None). 선언 노드인데 원장 디렉터리가 없으면 files [] · first/last None.
     2026-09-29(F10): 측정 끝을 덮지 못한 노드는 같은 기동의 스모크 로그에 echo 된 그 노드 원장 JSON 줄(선언 · honored)을 `smoke_echo`
-    {log, rows[{ts, kind, label, source}], basis} 로 싣는다(보조 관측 · 그 밖의 사건은 여전히 관측 범위 밖 · 규칙 = _smoke_ledger_echo)."""
+    {log, rows[{ts, kind, label, source}], basis} 로 싣는다(보조 관측 · 그 밖의 사건은 여전히 관측 범위 밖 · 규칙 = _smoke_ledger_echo).
+    2026-10-16(plan_26101614 P12 lite 사실 검증 F9): `live_local` · `live_local_source` — 이 노드 = 이 체크아웃의 노드(_self_node)면 그 원장은
+    블랙박스가 로컬에서 계속 쓰는 파일이라 **미회수가 아니다**(행은 사건 · 6시간 갱신 때만 쓰인다 — 마지막 행 뒤 행 없음은 조회 시각까지
+    관측된 것). 다른 노드(fetch_sub_docs 회수본 · 손으로 둔 사고 회수본)만 미회수다. covers_measurement 판정은 바꾸지 않는다."""
     repo = _repo(repo)
+    self_node, self_src = _self_node(repo)
     try:
         end = _measure_window(repo, ev)[1]
     except core.HintError:
@@ -2272,7 +2448,9 @@ def event_ledger_spans(repo, ev: CellEvidence) -> list[dict]:
             first = rows[0][0] if first is None else min(first, rows[0][0])
             last = rows[-1][0] if last is None else max(last, rows[-1][0])
         span = {"node": node, "first_utc": first, "last_utc": last, "files": files,
-                "covers_measurement": (last >= end) if (last and end) else None, "measurement_end_utc": end}
+                "covers_measurement": (last >= end) if (last and end) else None, "measurement_end_utc": end,
+                "live_local": self_node is not None and node == self_node,
+                "live_local_source": (f"이 체크아웃 노드 = {self_node}({self_src})" if self_node else f"이 체크아웃 노드 미해소 — {self_src}")}
         if span["covers_measurement"] is not True:
             echo = _smoke_ledger_echo(repo, ev, node)
             if echo is not None:
@@ -3608,6 +3786,40 @@ def _pick_banner(cands: list[tuple], measured: str | None, basis: str, what: str
             "source": f"{best[2]} — {what}" + (f" · 같은 값의 다른 로그 {more}건" if more else "")}
 
 
+# lite 등급 인증서 vllm_version 의 출처 서술(2026-10-16 · plan_26101614 P12 lite 사실 검증 F8) — 경량 리포트 측정 환경 표의
+#   `vllm_version_source` 값(render_report.lite_identity 의 어휘)별로 "그 출처가 무엇인가" 를 옮긴다. 닫힌 목록(tripwire): 목록 밖 출처는
+#   서술을 지어내지 않고 리포트 값만 그대로 싣는다.
+_LITE_VLLM_SOURCE_NOTES = {
+    "derived(envfile IMAGE_TAG)": ("render_report.lite_identity 가 envfile IMAGE_TAG(`easy-vllm:X.Y.Z`)에서 파생 — **엔진 자기보고가 "
+                                   "아니다**(빌드 입력 이미지 태그를 x.y.z 로 자른 값 · rc/dev 접미가 사라진다) · env 덮어쓰기"
+                                   "(EASY_VLLM_VERSION)였다면 declared(env EASY_VLLM_VERSION) 로 남았을 것이다"),
+    "declared(env EASY_VLLM_VERSION)": "render_report.lite_identity 가 env EASY_VLLM_VERSION 선언을 옮김 — **엔진 자기보고가 아니다**(선언값)",
+    "measured(engine log 자기보고)": "render_report.lite_identity 가 엔진 로그 배너의 x.y.z 접두를 씀(envfile IMAGE_TAG 규칙이 값을 내지 못했다)",
+    "declared(config yaml comment)": "render_report.lite_identity 가 config yaml 주석을 옮김 — **엔진 자기보고가 아니다**(선언값)",
+}
+
+
+def _lite_cert_vllm_producer(repo: Path, ev: CellEvidence, cert_v: str) -> tuple[str, str] | None:
+    """lite 등급 인증서의 vllm_version producer(2026-10-16 · plan_26101614 P12 lite 사실 검증 F8). lite-only 셀에는 스윕이 없어
+    sweep_bench.sh 판본 규칙으로는 늘 '미검증' 이었다 — 그 인증서의 실제 생산자는 publish_benchmark_record.py lite 분기 →
+    render_report.lite_identity 이고, 같은 측정의 경량 리포트 측정 환경 표가 그 값과 출처(`vllm_version_source`)를 기재한다.
+    인증서가 lite 등급 ∧ 바인딩된 리포트가 경량(report_kind lite) ∧ 리포트가 두 칸을 기재할 때만 판정한다:
+      리포트 값 == 인증서 값 → `lite-report-identity` · 다르면 '미검증'(고르지 않는다) · 그 밖(기재 없음 · full 경로) → None(기존 규칙)."""
+    if not (cert_is_lite(ev.certificate) and ev.report_kind == "lite" and ev.bench_report_path):
+        return None
+    snap = _lite_snapshot(repo, ev.bench_report_path)
+    rep_v, rep_src = _norm_value(snap.get("vllm_version")), _norm_value(snap.get("vllm_version_source"))
+    if not rep_v or not rep_src:
+        return None
+    name = Path(ev.bench_report_path).name
+    if rep_v != cert_v:
+        return "unverified", (f"미검증 — 경량 리포트 {name} 측정 환경 표 vllm_version={rep_v!r}({rep_src}) ≠ 인증서 {cert_v!r} "
+                              "(두 기록이 다른 값을 말한다 — 고르지 않는다)")
+    note = _LITE_VLLM_SOURCE_NOTES.get(rep_src, "출처 어휘가 알려진 목록 밖이다 — 서술을 지어내지 않고 리포트 값만 옮긴다")
+    return "lite-report-identity", (f"경량 리포트 {name} 측정 환경 표 vllm_version={rep_v} · vllm_version_source={rep_src} "
+                                    f"(= 인증서 값 · 같은 측정) — {note}")
+
+
 def _cert_vllm_producer(repo: Path, ev: CellEvidence, sel: dict | None = None) -> tuple[str, str]:
     """인증서 vllm_version 의 producer → (라벨, 출처 서술). 측정 시점 sweep_bench.sh 판본의 파생 규칙(_CERT_VLLM_MARKS 표지)을 찾아 그
     판본의 정규식 리터럴을 스윕 meta.image_tag_declared(= 그 규칙의 입력 `grep_env(envtext, "IMAGE_TAG")`)에 **그대로** 적용해 인증서
@@ -3617,6 +3829,9 @@ def _cert_vllm_producer(repo: Path, ev: CellEvidence, sel: dict | None = None) -
     meta_v = _norm_value(meta.get("vllm_version"))
     if not cert_v:
         return "absent", "인증서 vllm_version 없음"
+    lite = _lite_cert_vllm_producer(repo, ev, cert_v)
+    if lite is not None:
+        return lite
     sel = sel or _tool_selection(repo, ev)
     rel = f"{REL_BENCH_TOOLS_DIR}/sweep_bench.sh"
     raw = _git_text(repo, sel["at"], rel) if sel.get("at") else None
@@ -3684,7 +3899,9 @@ def vllm_observed(ev: CellEvidence, repo=None) -> dict:
             "wheel_meta": wheel, "wheel_meta_source": wheel_src,
             # 옛 소비자(칸 하나의 source)용 요약 — 칸별 서술을 다시 적지 않는다(같은 바이트 두 벌 ✗ · 정본은 `*_source`).
             "source": (f"칸별 출처는 *_source — engine_self_report={banner['basis']} · certificate_vllm_version={label}"
-                       + ("(빌드 입력 태그 파생 · 엔진 자기보고 아님)" if label == "image-tag-line" else "")
+                       + ("(빌드 입력 태그 파생 · 엔진 자기보고 아님)" if label == "image-tag-line"
+                          # lite 등급(F8): 리포트 출처가 envfile IMAGE_TAG 파생일 때만 같은 꼬리 — 다른 출처는 그 서술이 *_source 에 있다.
+                          or (label == "lite-report-identity" and "derived(envfile IMAGE_TAG)" in psrc) else "")
                        + f" · wheel_meta={'관측' if wheel else '미관측'}")}
 
 
@@ -7240,6 +7457,30 @@ def _selftest_round3(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict) -> No
     ev_new = dataclasses.replace(evg, certificate={"measured_utc": "2026-01-05T00:00:00Z", "vllm_version": "0.9.0"})
     ck("★판본에 규칙 표지가 없으면 미검증(tripwire)", _cert_vllm_producer(g, ev_new)[0] == "unverified"
        and "표지" in _cert_vllm_producer(g, ev_new)[1])
+    # F8(2026-10-16 · plan_26101614 P12 lite 사실 검증): lite 등급 인증서 + 바인딩된 경량 리포트 측정 환경 표 → lite-report-identity.
+    lrep = "docs/benchmark/bench_report_26010205_fx-lite_GB10_0.9.0.md"
+    (g / lrep).parent.mkdir(parents=True, exist_ok=True)
+    def lite_rep(v: str | None, src: str | None) -> CellEvidence:
+        rows = "".join(f"| {k} | {x} |\n" for k, x in (("vllm_version", v), ("vllm_version_source", src)) if x is not None)
+        (g / lrep).write_text("# fx\n\nmode: lite\n\n## 측정 환경 스냅샷\n\n| 키 | 값 |\n|---|---|\n| model | fx-lite |\n" + rows
+                              + "\n## 다른 절\n\n| vllm_version | 9.9.9 |\n", encoding="utf-8")
+        return dataclasses.replace(evg, sweep=None, report_kind="lite", bench_report_path=lrep,
+                                   certificate={**evg.certificate, "benchmark_mode": "lite", "vllm_version": "0.9.0"})
+    lab8, src8 = _cert_vllm_producer(g, lite_rep("0.9.0", "derived(envfile IMAGE_TAG)"))
+    ck("F8 lite 인증서 + 경량 리포트 기재 일치 = lite-report-identity(리포트 출처 그대로 · 엔진 자기보고 아님)",
+       lab8 == "lite-report-identity" and "derived(envfile IMAGE_TAG)" in src8 and "엔진 자기보고가 아니다" in src8
+       and Path(lrep).name in src8 and "render_report.lite_identity" in src8)
+    lab8d, src8d = _cert_vllm_producer(g, lite_rep("0.9.0", "declared(env EASY_VLLM_VERSION)"))
+    ck("F8 리포트 출처가 env 선언이면 그 출처를 옮긴다(IMAGE_TAG 파생이라 적지 않는다)",
+       lab8d == "lite-report-identity" and "declared(env EASY_VLLM_VERSION)" in src8d and "envfile IMAGE_TAG(" not in src8d)
+    ck("★F8 리포트 값 ≠ 인증서 값 = 미검증(고르지 않는다 · 다른 절의 같은 키는 읽지 않는다)",
+       _cert_vllm_producer(g, lite_rep("0.9.1", "derived(envfile IMAGE_TAG)"))[0] == "unverified")
+    ck("★F8 리포트에 기재 없음 = 기존 규칙(스윕 없음 → 미검증 · 지어내지 않음)",
+       _cert_vllm_producer(g, lite_rep(None, None))[0] == "unverified")
+    ck("★F8 full 인증서면 경량 리포트가 있어도 lite 분기를 타지 않는다",
+       _cert_vllm_producer(g, dataclasses.replace(lite_rep("0.9.0", "derived(envfile IMAGE_TAG)"), certificate=evg.certificate))[0]
+       != "lite-report-identity")
+    (g / lrep).unlink()
 
 
 def _selftest_v7(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict, dk) -> None:
@@ -7656,6 +7897,33 @@ def _selftest_fix2(ck, td: Path, ev: CellEvidence) -> None:
     ck("G8 원장 관측 범위: 노드별 첫·마지막 행 · 측정 끝보다 앞에서 끝난 노드 = covers_measurement False",
        sp8["main"]["last_utc"] == "2026-01-02T03:30:00Z" and sp8["main"]["covers_measurement"] is True
        and sp8["sub"]["last_utc"] == "2025-12-01T00:00:00Z" and sp8["sub"]["covers_measurement"] is False)
+    # F9(2026-10-16 · plan_26101614 P12 lite 사실 검증): live_local = 이 체크아웃 노드(단일 해소기)의 로컬 원장 — 해소기 실물 1회 + 주입 대조.
+    sn_fx = td / "self_node_fx"
+    (sn_fx / "output/single").mkdir(parents=True, exist_ok=True)
+    (sn_fx / "output/single/manifest.yaml").write_text("nodes:\n  - role: main\n", encoding="utf-8")
+    (sn_fx / "output/multi").mkdir(parents=True, exist_ok=True)
+    ck("F9 이 체크아웃 노드 = node_identity.sh --resolve 실물(유일한 role: main)", _self_node(sn_fx)[0] == "main")
+    (sn_fx / "output/single/manifest.yaml").write_text("self_role: main\nnodes:\n  - role: main\n", encoding="utf-8")
+    (sn_fx / "output/multi/manifest.yaml").write_text("self_role: sub\nnodes:\n  - role: main\n", encoding="utf-8")
+    _SELF_NODE_CACHE.pop(str(sn_fx.resolve()), None)
+    ck("★F9 해소기 fail-loud(manifest 간 self_role 불일치)면 None + 사유(hostname 대체 ✗)",
+       _self_node(sn_fx)[0] is None and "rc=1" in _self_node(sn_fx)[1])
+    rkey = str(Path(r).resolve())
+    saved = _SELF_NODE_CACHE.get(rkey)
+    try:
+        _SELF_NODE_CACHE[rkey] = ("sub", "fixture 주입")
+        sp9 = {x["node"]: x for x in event_ledger_spans(r, ev8)}
+        ck("F9 이 체크아웃 노드의 원장 = live_local True · 다른 노드 = False · covers_measurement 는 그대로",
+           sp9["sub"]["live_local"] is True and sp9["main"]["live_local"] is False and sp9["sub"]["covers_measurement"] is False
+           and "sub" in sp9["sub"]["live_local_source"])
+        _SELF_NODE_CACHE[rkey] = (None, "fixture 미해소")
+        ck("★F9 노드 미해소면 어느 노드도 live_local 이 아니다(미해소 사유는 출처에)",
+           all(x["live_local"] is False and "미해소" in x["live_local_source"] for x in event_ledger_spans(r, ev8)))
+    finally:
+        if saved is None:
+            _SELF_NODE_CACHE.pop(rkey, None)
+        else:
+            _SELF_NODE_CACHE[rkey] = saved
     ev8b = dataclasses.replace(ev8, declaration={"nodes": [{"node_id": "main"}, {"node_id": "ghost"}]})
     ck("★G8 음성대조: 선언 노드인데 원장 없음 = 범위 None(없음으로 단언 ✗)",
        {x["node"]: x for x in event_ledger_spans(r, ev8b)}["ghost"]["last_utc"] is None)
@@ -7783,6 +8051,21 @@ def selftest() -> list[str]:
     def ck(name: str, cond) -> None:
         if not cond:
             bad.append(f"evidence: {name}")
+
+    # ★ 스트림 교차 창 상한(2026-10-16 · plan_26101614 P12 사실 검증 F3/F4): 워치독 스트림은 A 창을 연 채이고 월 원장이 B 로 교체했다 —
+    #   교체 뒤의 라벨 없는 hold 는 A 창이 아니다 · 열린 창의 끝은 지어 넣지 않는다 · 같은 라벨 재선언은 자르지 않는다.
+    _wd = [("2026-01-01T00:00:00Z", 1, {"kind": "budget_honored", "label": "A"}),
+           ("2026-01-01T00:05:00Z", 2, {"kind": "watchdog_highrate_hold"})]
+    _opens = [("2026-01-01T00:00:00Z", "A"), ("2026-01-01T00:04:00Z", "B")]
+    _w = _event_windows(_wd, _opens)[0]
+    ck("★다른 스트림의 다른 라벨 선언 뒤 라벨 없는 행은 앞 창 밖", _w["rows"] == [0] and _w["end_ts"] is None)
+    ck("교차 상한 없으면 종전 그대로(hold 가 열린 창 안)", _event_windows(_wd)[0]["rows"] == [0, 1])
+    # ★ lite KV 선언 대조(2026-10-16 · plan_26101622 Q7 FC4): minicpm 클램프 37580963840 B = 35.0 GiB
+    ck("★선언 클램프와 같은 KV 는 '되읽은 값(측정 아님)'", "측정 아님" in (_kv_declared_note("35.0", 37580963840, "y") or ""))
+    ck("선언과 다른 KV 는 '다르다(엔진 보고)'", "다르다" in (_kv_declared_note("30.2", 37580963840, "y") or ""))
+    ck("파싱 불가 = None(지어내지 않는다)", _kv_declared_note(None, 37580963840, "y") is None)
+    ck("같은 라벨 재선언은 창을 자르지 않는다",
+       _event_windows(_wd, [("2026-01-01T00:00:00Z", "A"), ("2026-01-01T00:04:00Z", "A")])[0]["rows"] == [0, 1])
 
     from . import lineage
     prev = os.environ.pop("QUANT_MODEL_PATH", None)     # check_smoke_model 은 env 를 먼저 본다 — 픽스처 격리
@@ -8495,6 +8778,43 @@ def selftest() -> list[str]:
             ck("★PII 회귀 — 자유 서술 *_source 의 운영자 절대경로가 배포 평면(measurement_config·measurement)에 0건",
                "op-fixture" not in json.dumps([mcd, measurement(evd)], ensure_ascii=False)
                and not any(k.endswith("_source") for k in mcd))
+            # 데이터셋 출처(2026-10-16 · plan_26101614 U10): 리포트 표 · 인증서 어디에도 dataset_* 가 없으면 부재 추론 synthetic(소급 ✗)
+            dp0 = dataset_provenance(repo, evd)
+            ck("데이터셋 출처 — dataset_* 부재 = synthetic **부재 추론**(status inferred-synthetic · source 가 추론이라 말한다)",
+               dp0.get("dataset_kind") == "synthetic" and dp0.get("status") == DATASET_STATUS_INFERRED
+               and dp0.get("source", "").startswith("inferred(") and set(DATASET_KEYS) <= set(dp0))
+            # ★ PII 음성대조: 호스트 데이터셋 경로(/mnt…)가 표에 실려도 배포 평면에는 이름만 간다(실행 시 조립 — 추적 파일에 리터럴 ✗)
+            ds_host = "/" + "mnt" + "/llm/dataset/abisee__cnn_dailymail/" + "a" * 40 + "/test-00000-of-00001.parquet"
+            tok_host = "/" + "home" + "/op-fixture/tok/granite"
+            rep_ds = "docs/benchmark/bench_report_26010311_fixture-model-nvfp4_GB10_0.9.0.md"
+            (repo / rep_ds).write_text("\n".join([
+                "# 성능 보고서", "", f"> 생성일 {d_utc}.", "", rbs.MEASUREMENT_CONFIG_TITLE, "", "| 키 | 값 |", "|---|---|",
+                "| bench_mode | full |", "| dataset_kind | parquet_file |", "| dataset_source | managed |",
+                "| dataset_id | abisee/cnn_dailymail |", f"| dataset_revision | {'a' * 40} |",
+                f"| dataset_source_sha256 | {'b' * 64} |", f"| dataset_tokenizer | {tok_host} |",
+                f"| dataset_column_map | {ds_host} |", "| dataset_seed | 42 |", ""]), encoding="utf-8")
+            dp1 = dataset_provenance(repo, dataclasses.replace(evd, bench_report_path=rep_ds))
+            ck("데이터셋 출처 — 리포트 표 우선 · status recorded · source = bench_report 측정 구성 표 · id · revision 원문",
+               dp1.get("status") == DATASET_STATUS_RECORDED and "bench_report(" in dp1.get("source", "")
+               and dp1.get("dataset_id") == "abisee/cnn_dailymail" and dp1.get("dataset_revision") == "a" * 40
+               and dp1.get("dataset_kind") == "parquet_file")
+            dp1_txt = json.dumps(dp1, ensure_ascii=False)
+            from . import pii as _pii_ds
+            ck("★PII 음성대조 — 호스트 절대경로(/mnt · /home)는 이름만(`<abs-path>/<이름>`) · deploy 스캔 0건",
+               "op-fixture" not in dp1_txt and "/" + "mnt/" not in dp1_txt
+               and dp1.get("dataset_tokenizer") == "<abs-path>/granite"
+               and dp1.get("dataset_column_map") == "<abs-path>/test-00000-of-00001.parquet"
+               and not _pii_ds.scan_text(dp1_txt, [], profile="deploy"))
+            ck("★음성대조 — 정화 전 원문은 deploy 스캔에 걸린다(위 0건이 공허하지 않다)",
+               bool(_pii_ds.scan_text(json.dumps({"t": tok_host, "c": ds_host}), [], profile="deploy")))
+            dp2 = dataset_provenance(repo, dataclasses.replace(
+                evd, bench_report_path=None, certificate={**(evd.certificate or {}), "dataset_kind": "parquet_file",
+                                                          "dataset_tokenizer": "/app/models/IBM/granite", "dataset_seed": "N/A",
+                                                          "dataset_provenance": "measured(런별 사이드카 · 3 런)"}))
+            ck("데이터셋 출처 — 표 없으면 인증서 소프트 지문(N/A = 미기재) · /app 경로는 그대로 · writer 출처 문구 승계",
+               dp2.get("status") == DATASET_STATUS_RECORDED and "certificate(" in dp2.get("source", "")
+               and dp2.get("dataset_tokenizer") == "/app/models/IBM/granite" and dp2.get("dataset_seed") is None
+               and dp2.get("dataset_provenance") == "measured(런별 사이드카 · 3 런)")
             mand = drive_publisher(repo, evd, topic=topic_for(evd), generated_utc="2026-01-03T02:00:00Z",
                                    draft_dir=repo / "hints/.drafts/d4")
             mdd = json.loads(mand.read_text(encoding="utf-8"))

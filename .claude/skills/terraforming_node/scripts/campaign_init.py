@@ -792,6 +792,124 @@ def _cell_provenance(base: Path, cell: str, node: str | None, sweep_state: str |
     return prov, kept + fresh
 
 
+# ── 셀 입력 materialize (2026-10-16 · plan_26101622 F1) ─────────────────────────────────────
+#   셀 디렉터리(config.yaml · lockset.json · cell.status.json)를 뼈대에서 만드는 쓰기 문이 없었다 — 메인은 사람(에이전트)이
+#   손으로 채웠고 서브는 그 단계를 몰라 hint 2건이 셀 입력 결손 3건을 안고 발행됐다(plan_26101622 Q2). 값은 두 종류다:
+#   **파생**(서빙 yaml · env · manifest · /proc/meminfo 에서 읽힌다 — 손으로 적으면 두 자리가 갈라진다)과 **선언**
+#   (사람이 정하는 축 — `--set 키=값` 으로만 받는다 · 요구가 없으면 `키=null` 을 명시). 빈칸이 하나라도 남으면 쓰지 않는다.
+MATERIALIZE_SET_KEYS = ("vram_budget_gb", "per_card_vram_gib", "ple_mode", "control_variable",
+                        "concurrency_requirement", "typical_request_tokens", "tiktoken_host_path",
+                        "nas_host_root", "target_gmu", "variant")   # 닫힌 목록 — 파생 키도 명시 --set 이 이긴다(출처 주석에 남는다)
+
+
+def _yaml_scalar(v) -> str:
+    if v is None:
+        return "null"
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, (int, float)):
+        return repr(v)
+    t = str(v)
+    return t if re.fullmatch(r"[A-Za-z0-9_./+-]+", t) and t.lower() not in ("null", "true", "false", "yes", "no") \
+        else json.dumps(t, ensure_ascii=False)
+
+
+def _env_value(path: Path, key: str) -> "str | None":
+    if not path.is_file():
+        return None
+    for ln in path.read_text(encoding="utf-8").splitlines():
+        m = re.match(rf"^\s*{re.escape(key)}=(.*)$", ln)
+        if m:
+            return m.group(1).strip().strip('"').strip("'")
+    return None
+
+
+def _meminfo_gib(path: Path = Path("/proc/meminfo")) -> "float | None":
+    try:
+        m = re.search(r"^MemTotal:\s+(\d+)\s+kB", path.read_text(encoding="utf-8"), re.M)
+    except OSError:
+        return None
+    return round(int(m.group(1)) / (1024 * 1024), 1) if m else None
+
+
+def writer_materialize_cell(base: Path, *, cell: str, repo: Path, sets: "dict[str, str]", utc: str,
+                            meminfo: Path = Path("/proc/meminfo")) -> "list[Path]":
+    """배정된 셀의 셀 입력 3파일을 뼈대에서 만든다. 덮어쓰지 않는다(있으면 거부 — 재작성은 사람이 지우고 다시)."""
+    import yaml
+    if not utc:
+        raise WriterRefusal("--cell-materialize 는 --utc 가 필요하다(시각은 주입만)")
+    node = node_of_cell(base, cell)
+    if node is None:
+        raise WriterRefusal(f"셀 {cell!r} 이 assignments 에 없다 — 배정되지 않은 셀은 만들지 않는다(이름이 곧 증거 연결)")
+    bad = sorted(set(sets) - set(MATERIALIZE_SET_KEYS))
+    if bad:
+        raise WriterRefusal(f"--set 닫힌 목록 밖 키 {bad} — 허용 {list(MATERIALIZE_SET_KEYS)}")
+    cdir = base / "cells" / cell
+    names = ("config.yaml", "lockset.json", "cell.status.json")
+    have = [n for n in names if (cdir / n).exists()]
+    if have:
+        raise WriterRefusal(f"cells/{cell}/ 에 이미 {have} 가 있다 — 덮어쓰지 않는다")
+    decl = read_declaration(base) or {}
+    nd = next((n for n in decl.get("nodes") or [] if isinstance(n, dict) and n.get("node_id") == node), {})
+    topo = nd.get("topology") or (decl.get("control_variables") or {}).get("topology")
+    if topo not in ("single", "multi"):
+        raise WriterRefusal(f"노드 {node!r} 의 topology 를 선언에서 해소하지 못했다: {topo!r}(추측 ✗)")
+    syaml = repo / "output" / topo / "configs" / f"{cell}.yaml"
+    if not syaml.is_file():
+        raise WriterRefusal(f"서빙 yaml {syaml.relative_to(repo)} 부재 — 셀 id = config 이름이어야 한다")
+    sv = yaml.safe_load(syaml.read_text(encoding="utf-8")) or {}
+    env = repo / "output" / topo / "envs" / f".env.{cell}"
+    mf_path = repo / "output" / topo / "manifest.yaml"
+    mf = yaml.safe_load(mf_path.read_text(encoding="utf-8")) if mf_path.is_file() else {}
+    mf = mf if isinstance(mf, dict) else {}
+    derived = {
+        "path": (sv.get("model"), f"output/{topo}/configs/{cell}.yaml#model"),
+        "context_len": (sv.get("max-model-len"), f"서빙 yaml#max-model-len"),
+        "kv_cache_dtype": (sv.get("kv-cache-dtype", "auto"), "서빙 yaml#kv-cache-dtype(부재 = vLLM 기본 auto)"),
+        "tp": (sv.get("tensor-parallel-size", 1), "서빙 yaml#tensor-parallel-size(부재 = 1)"),
+        "target_gmu": (sv.get("gpu-memory-utilization"), "서빙 yaml#gpu-memory-utilization(서빙된 값)"),
+        "variant": (_env_value(env, "VARIANT") or "stock", f".env.{cell}#VARIANT(부재 = stock)"),
+        "served_model_name": (_env_value(env, "SERVING_MODEL_NAME") or sv.get("served-model-name"),
+                              f".env.{cell}#SERVING_MODEL_NAME"),
+        "config_name": (cell, "셀 id"),
+        "gpu_model": (mf.get("gpu_model"), f"output/{topo}/manifest.yaml#gpu_model"),
+        "nas_host_root": (mf.get("nas_model_path") if mf.get("model_source") == "managed" else None,
+                          f"output/{topo}/manifest.yaml#nas_model_path(model_source=managed)"),
+        "test_device_total_gib": (_meminfo_gib(meminfo), "measured /proc/meminfo MemTotal"),
+    }
+    vals: dict = {}
+    src: dict = {}
+    for k, (v, why) in derived.items():
+        if v is not None:
+            vals[k], src[k] = v, why
+    for k, raw in sets.items():
+        vals[k], src[k] = yaml.safe_load(raw) if raw.strip() else None, "--set(사람 선언)"
+    text = (TEMPLATE / "cells" / "_cell" / "config.yaml").read_text(encoding="utf-8")
+    left: list[str] = []
+
+    def _sub(m):
+        k = m.group(2)
+        if k in vals:
+            return f"{m.group(1)}{_yaml_scalar(vals[k])}"
+        left.append(k)
+        return m.group(0)
+    text = re.sub(r"^(\s*([a-z_]+):\s*)<<FILL>>", _sub, text, flags=re.M)
+    if left:
+        raise WriterRefusal(f"채우지 못한 빈칸 {left} — 파생할 수 없는 선언 축이다. `--set 키=값`(요구 없음 = `키=null`)으로 적는다")
+    head = (f"# materialized: campaign_init --cell-materialize {cell} · {utc} · node {node}\n"
+            + "".join(f"#   {k}: {src[k]}\n" for k in sorted(src)))
+    lock = _read_json(TEMPLATE / "cells" / "_cell" / "lockset.json")
+    lock.update({"id": cell, "provenance": "hand-authored", "max_model_len": vals.get("context_len"),
+                 "quantization": sv.get("quantization")})
+    st = _read_json(TEMPLATE / "cells" / "_cell" / "cell.status.json")
+    st.update({"cell_id": cell, "node_id": node})
+    cdir.mkdir(parents=True, exist_ok=True)
+    (cdir / "config.yaml").write_text(head + text, encoding="utf-8")
+    _write_json(cdir / "lockset.json", lock)
+    _write_json(cdir / "cell.status.json", st)
+    return [cdir / n for n in names]
+
+
 def writer_set_cell(base: Path, *, cell: str, outcome: str, node: str | None,
                     version: str | None, model: str | None,
                     decode_tps: str | None, measurement_source: str | None,
@@ -2542,6 +2660,52 @@ def _selftest() -> int:
            _boom(lambda: emit_slice(camp, "sub", utc="t")))
         _write_json(camp / "campaign.yaml", _y2)
 
+        # ── 셀 입력 materialize (2026-10-16 · plan_26101622 F1) ─────────────────────────────────
+        _mr = Path(tmp) / "mrepo"
+        (_mr / "output" / "single" / "configs").mkdir(parents=True)
+        (_mr / "output" / "single" / "envs").mkdir(parents=True)
+        (_mr / "output" / "single" / "configs" / "c9.yaml").write_text(
+            "model: /app/models/X/Y\nmax-model-len: 32768\ngpu-memory-utilization: 0.39\n", encoding="utf-8")
+        (_mr / "output" / "single" / "envs" / ".env.c9").write_text("SERVING_MODEL_NAME=y-2b\n", encoding="utf-8")
+        (_mr / "output" / "single" / "manifest.yaml").write_text(
+            'gpu_model: "NVIDIA GB10"\nmodel_source: managed\nnas_model_path: "/nas/root"\n', encoding="utf-8")
+        _mi = Path(tmp) / "meminfo"
+        _mi.write_text("MemTotal:       127604828 kB\n", encoding="utf-8")
+        _ym = dict(_y2, nodes=[{"node_id": "main", "role": "main", "topology": "single"},
+                               {"node_id": "sub", "role": "sub", "topology": "single"}])
+        _write_json(camp / "campaign.yaml", _ym)
+        _full = {"vram_budget_gb": "47.7", "per_card_vram_gib": "null", "ple_mode": "none", "control_variable": "null",
+                 "concurrency_requirement": "null", "typical_request_tokens": "null", "tiktoken_host_path": "null"}
+        ck("★음성대조 선언 축이 비면 쓰지 않는다(빈칸 목록을 말한다)",
+           _boom(lambda: writer_materialize_cell(camp, cell="c9", repo=_mr, sets={}, utc="2026-10-16T00:00:00Z",
+                                                 meminfo=_mi)) and not (camp / "cells" / "c9").exists())
+        ck("★음성대조 배정 밖 셀은 만들지 않는다",
+           _boom(lambda: writer_materialize_cell(camp, cell="ghost", repo=_mr, sets=_full, utc="t", meminfo=_mi)))
+        ck("★음성대조 닫힌 목록 밖 --set 키 거부",
+           _boom(lambda: writer_materialize_cell(camp, cell="c9", repo=_mr, sets=dict(_full, max_num_seqs="8"),
+                                                 utc="t", meminfo=_mi)))
+        _mp = writer_materialize_cell(camp, cell="c9", repo=_mr, sets=_full, utc="2026-10-16T00:00:00Z", meminfo=_mi)
+        import yaml as _yaml
+        _mc = _yaml.safe_load((camp / "cells" / "c9" / "config.yaml").read_text(encoding="utf-8"))
+        ck("파생값은 서빙 yaml·env·manifest·meminfo 에서 온다(손값 ✗)",
+           _mc["target_model"]["path"] == "/app/models/X/Y" and _mc["declared_axes"]["context_len"] == 32768
+           and _mc["declared_axes"]["tp"] == 1 and _mc["declared_axes"]["kv_cache_dtype"] == "auto"
+           and _mc["declared_axes"]["variant"] == "stock" and _mc["target_gpu"]["target_gmu"] == 0.39
+           and _mc["target_gpu"]["gpu_model"] == "NVIDIA GB10" and _mc["nas_host_root"] == "/nas/root"
+           and _mc["serving"]["served_model_name"] == "y-2b" and _mc["serving"]["config_name"] == "c9"
+           and _mc["test_device_total_gib"] == 121.7)
+        ck("선언 축은 --set 값 그대로 · 빈칸 0", _mc["vram_budget_gb"] == 47.7 and _mc["declared_axes"]["ple_mode"] == "none"
+           and "<<FILL>>" not in (camp / "cells" / "c9" / "config.yaml").read_text(encoding="utf-8"))
+        _ml = _read_json(camp / "cells" / "c9" / "lockset.json")
+        _ms = _read_json(camp / "cells" / "c9" / "cell.status.json")
+        ck("lockset = id·hand-authored 표시 · cell.status = 셀·노드", _ml["id"] == "c9"
+           and _ml["provenance"] == "hand-authored" and _ml["max_model_len"] == 32768
+           and _ms["cell_id"] == "c9" and _ms["node_id"] == "sub" and len(_mp) == 3)
+        ck("★음성대조 덮어쓰기 거부(재작성은 사람이 지우고 다시)",
+           _boom(lambda: writer_materialize_cell(camp, cell="c9", repo=_mr, sets=_full, utc="t", meminfo=_mi)))
+        shutil.rmtree(camp / "cells" / "c9")
+        _write_json(camp / "campaign.yaml", _y2)
+
         _slp = Path(tmp) / "slice.json"
         _slp.write_text(json.dumps(_sl, ensure_ascii=False), encoding="utf-8")
         _slp2 = Path(tmp) / "slice2.json"
@@ -3247,6 +3411,11 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--proof-source", help="그 판정을 낸 명령·파일 (proof-ok 에는 필수)")
     w.add_argument("--started-utc"); w.add_argument("--ended-utc")
     w.add_argument("--cell-set", metavar="CELL", help="셀 상태 기록 · --outcome 필수")
+    w.add_argument("--cell-materialize", metavar="CELL",
+                   help="배정 셀의 셀 입력(config.yaml·lockset.json·cell.status.json)을 뼈대에서 만든다 · 파생값은 서빙 yaml·"
+                        "env·manifest·/proc/meminfo · 선언 축은 --set · --utc 필수 · 덮어쓰기 ✗(plan_26101622 F1)")
+    w.add_argument("--set", dest="mat_set", action="append", default=[], metavar="K=V",
+                   help="--cell-materialize 의 선언 축(반복 · 닫힌 목록 MATERIALIZE_SET_KEYS · 요구 없음 = K=null)")
     w.add_argument("--outcome", help="pending|measured|serve_failed|build_failed|void")
     w.add_argument("--version"); w.add_argument("--model")
     w.add_argument("--measurement-decode-tps"); w.add_argument("--measurement-source")
@@ -3401,7 +3570,7 @@ def main(argv: list[str] | None = None) -> int:
         writer_ops = (a.phase_set, a.cell_set, a.evidence_add, a.freeze_evidence, a.revise,
                       a.evidence_prune_stubs, a.import_sub, a.backfill_from_docs, a.ground,
                       a.escalation_add, a.hint_approve, a.evidence_untag, a.evidence_relocate,
-                      a.reentry_decide)
+                      a.reentry_decide, a.cell_materialize)
         if any(writer_ops):
             tgt = _writer_target(a.campaign_id)
             if tgt is None:
@@ -3422,6 +3591,15 @@ def main(argv: list[str] | None = None) -> int:
                     predicate=a.proof_predicate, ok=a.proof_ok, source=a.proof_source,
                     cell_id=a.cell, started_utc=a.started_utc, ended_utc=a.ended_utc,
                     authored_by=a.authored_by)))
+            if a.cell_materialize:
+                _sets = {}
+                for kv in a.mat_set:
+                    if "=" not in kv:
+                        raise WriterRefusal(f"--set 은 K=V 다: {kv!r}")
+                    k, v = kv.split("=", 1)
+                    _sets[k.strip()] = v
+                wrote += [_rel(p) for p in writer_materialize_cell(
+                    base, cell=a.cell_materialize, repo=REPO_ROOT, sets=_sets, utc=a.utc)]
             if a.cell_set:
                 if not a.outcome:
                     raise WriterRefusal("--cell-set 은 --outcome 이 필요하다")

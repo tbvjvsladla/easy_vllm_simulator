@@ -102,6 +102,7 @@ BENCH_MODE_UNRECEIVED = "미수령"
 VERDICTS = ("PASS", "REFUTE", "OBSERVATION-ONLY")
 VERDICT_ABSENT = "—"
 VERDICT_LEGACY_CELL = "미기재(구판)"
+VERDICT_LITE = "lite(기동 가능)"        # 2026-10-16 plan_26101614 — template.LITE_LABEL 과 같은 값(자체검사가 교차검증)
 MODEL_UNKNOWN_GROUP = "(모델 미상)"      # 이름에서 모델 세그먼트를 읽지 못한 행(unknown 문법)의 묶음 제목(추측 채움 ✗)
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent.parent   # __file__ 기반 계산 = import 부수효과 아님
@@ -213,6 +214,15 @@ def verdict_cell(doc: dict | None) -> tuple[str, str]:
         return VERDICT_ABSENT, "absent(PAYLOAD.json 을 읽지 못함)"
     m = doc.get("measurement")
     v = m.get("verdict") if isinstance(m, dict) else None
+    from . import template as _tpl     # 셀 등급 단일 술어(is_lite_cell · import 부수효과 0 · 지연 적재)
+    # 2026-10-16 plan_26101614 U14·A8: lite 셀은 표시 라벨 `lite(기동 가능)` — full 판정(PASS·REFUTE)과 같은 칸 어휘로 섞지 않는다.
+    #   기계 판정 값(OBSERVATION-ONLY)은 출처 칸이 말한다(재판정 ✗). 영속 `cell_grade` 가 없는 옛 페이로드는 **판정 표면이 있는**
+    #   (measurement.benchmark_mode = lite) 것만 같은 술어를 탄다 — 판정 칸 없는 v6 페이로드는 `—` 그대로(P1 · 소급 ✗).
+    lite = (doc.get("cell_grade") == "lite" if doc.get("cell_grade") in _tpl.CELL_GRADES else
+            isinstance(m, dict) and m.get("benchmark_mode") == "lite" and _tpl.is_lite_cell(doc))
+    if lite:
+        grade_src = "PAYLOAD.cell_grade" if doc.get("cell_grade") else "measurement.benchmark_mode/measurement_config(옛 페이로드 · 술어 파생)"
+        return VERDICT_LITE, f"payload({grade_src} = lite · 기계 판정 measurement.verdict = {v if isinstance(v, str) and v else '—'})"
     if not isinstance(v, str) or not v.strip():
         return VERDICT_ABSENT, "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)"
     v = v.strip()
@@ -944,6 +954,16 @@ def selftest() -> list[str]:
     ck("판정 출처: 키별 출처(sources.verdict)가 있으면 그것", "sweep verdict.json" in
        verdict_cell({"measurement": {"verdict": "REFUTE", "sources": {"verdict": "sweep verdict.json"}}})[1])
     ck("★판정 어휘 밖 값은 접지 않고 표시한다", verdict_cell({"measurement": {"verdict": "MAYBE"}})[0] == "MAYBE(어휘 밖)")
+    # 2026-10-16 plan_26101614 U14·A8: lite 셀 표시 라벨 — 영속 cell_grade · 옛 페이로드(benchmark_mode lite) · ★강등 셀은 판정 그대로
+    from . import template as _tpl
+    lv, lsrc = verdict_cell({"cell_grade": "lite", "measurement": {"verdict": "OBSERVATION-ONLY"}})
+    ck("lite 셀 판정 칸 = lite(기동 가능)(= template.LITE_LABEL) · 출처에 기계 판정 OBSERVATION-ONLY",
+       lv == VERDICT_LITE == _tpl.LITE_LABEL and "OBSERVATION-ONLY" in lsrc and _verdict_display({"verdict": lv}) == VERDICT_LITE)
+    ck("옛 lite 페이로드(cell_grade 없음 · benchmark_mode lite) = lite(기동 가능)",
+       verdict_cell({"measurement": {"verdict": "OBSERVATION-ONLY", "benchmark_mode": "lite"}})[0] == VERDICT_LITE)
+    ck("★강등 셀(downgraded-lite)은 lite 라벨로 접지 않는다(판정 그대로)", verdict_cell(
+        {"measurement": {"verdict": "PASS", "benchmark_mode": "lite"},
+         "measurement_config": {"bench_mode": "lite", "bench_mode_kind": "downgraded-lite"}})[0] == "PASS")
     ck("사람 목록 6열(plan_26101104 Step 2 — 태그·arch·vLLM·판정·bench_mode·결손)",
        CATALOG_COLUMNS == ("태그", "arch", "vLLM", "판정", "bench_mode", "결손"))
     ck("중앙 권위 경로 교차검증(core.REL_CENTRAL_FLAG)", CENTRAL_FLAG == core.REL_CENTRAL_FLAG)
