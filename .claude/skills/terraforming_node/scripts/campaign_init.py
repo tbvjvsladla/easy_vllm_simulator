@@ -2797,7 +2797,11 @@ def abandon_campaign(camp: str, *, utc, approved_by, reason, summary_testlog,
         raise TransitionRefusal("abandoned 축소 게이트가 닫혀 있다:\n  - " + "\n  - ".join(reasons))
     if not apply:
         return [f"dry-run abandon {camp}"]
-    writer_add_evidence(base, kind="testlog", path_rel=summary_testlog, cell_id=None, node=None, unfreeze=True)
+    # 포기 요약은 메인이 쓰는 서사다 — 노드가 둘 이상이면 증거는 귀속 노드를 요구하므로(P2 공허 통과 방지) main 노드로
+    # 귀속한다(2026-10-17 라이브 E7: 2노드 A 의 포기가 --node 부재로 거부됐다).
+    _main = next((n.get("node_id") for n in (read_declaration(base).get("nodes") or [])
+                  if isinstance(n, dict) and n.get("role") == "main" and FILL not in str(n.get("node_id"))), None)
+    writer_add_evidence(base, kind="testlog", path_rel=summary_testlog, cell_id=None, node=_main, unfreeze=True)
     writer_append_journey(base, _lifecycle_event("campaign_closed", utc, reason="abandoned",
                                                  note=reason, approved_by=approved_by,
                                                  summary_testlog=summary_testlog, released=released,
