@@ -1,0 +1,200 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26101410",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/plan/plan_26101410_vllm031_bump_14B이하_4종_양노드_서빙_lite.md",
+      "role": "plan",
+      "stem": "plan_26101410_vllm031_bump_14B이하_4종_양노드_서빙_lite"
+    },
+    {
+      "date": "26101614",
+      "depth": 1,
+      "excerpts": 1,
+      "path": "docs/plan/plan_26101614_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "role": "plan",
+      "stem": "plan_26101614_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리"
+    },
+    {
+      "date": "26101616",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101616_데이터셋knob_서브배달_서브E2E_hint발행.md",
+      "role": "plan",
+      "stem": "plan_26101616_데이터셋knob_서브배달_서브E2E_hint발행"
+    },
+    {
+      "date": "26101616",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101616_granite-4.2-8b_GB10_0.31.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101616_granite-4.2-8b_GB10_0.31.0"
+    },
+    {
+      "date": "26101619",
+      "depth": 0,
+      "excerpts": 3,
+      "path": "docs/testlog/testlog_26101619_CNN_fullbench_셀_granite42_8b_v031_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26101619_CNN_fullbench_셀_granite42_8b_v031_판정"
+    },
+    {
+      "date": "26101619",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101619_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "role": "devlog",
+      "stem": "devlog_26101619_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리"
+    },
+    {
+      "date": "26101619",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101619_54_16_CNN_fullbench_셀_minicpm5_2b_v031_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26101619_54_16_CNN_fullbench_셀_minicpm5_2b_v031_판정"
+    },
+    {
+      "date": "26101622",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101622_후속4건_안정화_데이터셋knob_lite_hint_기준선.md",
+      "role": "plan",
+      "stem": "plan_26101622_후속4건_안정화_데이터셋knob_lite_hint_기준선"
+    },
+    {
+      "date": "26101622",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101622_plan_26101614_종결판정_데이터셋knob_CNN_lite분리.md",
+      "role": "testlog",
+      "stem": "testlog_26101622_plan_26101614_종결판정_데이터셋knob_CNN_lite분리"
+    },
+    {
+      "date": "26101622",
+      "depth": 1,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26101622_47_43_Q1_prefix_cache_hit_rate_귀속_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26101622_47_43_Q1_prefix_cache_hit_rate_귀속_판정"
+    },
+    {
+      "date": "26101707",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/testlog/testlog_26101707_Q6_granite42_8b_v031_CNN_재측정_판정.md",
+      "role": "testlog",
+      "stem": "testlog_26101707_Q6_granite42_8b_v031_CNN_재측정_판정"
+    },
+    {
+      "date": "26101707",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101707_Q6_granite42_8b_v031_CNN_재측정.md",
+      "role": "devlog",
+      "stem": "devlog_26101707_Q6_granite42_8b_v031_CNN_재측정"
+    },
+    {
+      "date": "26101707",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101707_granite-4.2-8b_GB10_0.31.0.md",
+      "role": "bench_report",
+      "stem": "bench_report_26101707_granite-4.2-8b_GB10_0.31.0"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [
+      {
+        "excerpts": 1,
+        "path": "output/single/benchlog/sweep_granite42-8b-v031/level_01/dataset_granite42-8b-v031.json"
+      },
+      {
+        "excerpts": 4,
+        "path": "output/single/benchlog/sweep_granite42-8b-v031/level_01/guidellm_granite42-8b-v031.json"
+      },
+      {
+        "excerpts": 1,
+        "path": "output/single/benchlog/sweep_granite42-8b-v031/level_01/prefix_cache_granite42-8b-v031.json"
+      },
+      {
+        "excerpts": 1,
+        "path": "output/single/benchlog/sweep_granite42-8b-v031/lite_engine_head_granite42-8b-v031.log"
+      }
+    ],
+    "count": 135
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 stem · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26101709",
+  "schema_version": 2,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26101616_granite-4.2-8b_GB10_0.31.0.md",
+      "sha256": "3d64aa69f8725eda2bcd588ebede5154270f2e50d71d03884d9b10ab0b3360b8"
+    },
+    {
+      "path": "docs/benchmark/bench_report_26101707_granite-4.2-8b_GB10_0.31.0.md",
+      "sha256": "e262ac621e64293a7c575d8870c45270640e77669af0ec0a36b17470be9f665c"
+    },
+    {
+      "path": "docs/devlog/devlog_26101619_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "sha256": "cb7cbec188a260dff249a7bd05ae5570ee01e1137dd78bad04b3b76f475aaba1"
+    },
+    {
+      "path": "docs/plan/plan_26101410_vllm031_bump_14B이하_4종_양노드_서빙_lite.md",
+      "sha256": "9641c12818b9524dcc12fc78f6faa7a7c94599e4ed9f16bb5a52cae7173a88ee"
+    },
+    {
+      "path": "docs/plan/plan_26101614_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "sha256": "95a5bb81b2168a0686a2fba23d9f67cfd51c1b9c9b1cb0ad97c48ce19f13cb79"
+    },
+    {
+      "path": "docs/simlog/26101620_camp_26101616_cnn_hint__main__granite42_8b_v031/level_01_measured.json",
+      "sha256": "e9e3889a4cb9cd092af70420ec7f208560e7eab44f48ed8a0e5dbff571e4d187"
+    },
+    {
+      "path": "docs/testlog/testlog_26101619_CNN_fullbench_셀_granite42_8b_v031_판정.md",
+      "sha256": "390c00987a94bd60b555e3b6e384a3dd562144f248d3cba42a067cd60a68d642"
+    },
+    {
+      "path": "docs/testlog/testlog_26101622_47_43_Q1_prefix_cache_hit_rate_귀속_판정.md",
+      "sha256": "afc6d729312902c88364cdeacfbbf58f8f28a9dfdfab6ce12c35164dbbb4743c"
+    },
+    {
+      "path": "docs/testlog/testlog_26101622_plan_26101614_종결판정_데이터셋knob_CNN_lite분리.md",
+      "sha256": "b3c3aa2aa059402e1b0bfd5fa8476c235529a332845c2b1532d1faa5f76a552a"
+    },
+    {
+      "path": "docs/testlog/testlog_26101707_Q6_granite42_8b_v031_CNN_재측정_판정.md",
+      "sha256": "c7d4b302f8454a051200dc4bdf49d4f7ab8bb9e73f5fb89a4d588fb98449eb3c"
+    },
+    {
+      "path": "output/single/benchlog/sweep_granite42-8b-v031/level_01/dataset_granite42-8b-v031.json",
+      "sha256": "7221811f5d027f3f7b7b8dee4534159529106111cad0bf4341985918c2f0fe71"
+    },
+    {
+      "path": "output/single/benchlog/sweep_granite42-8b-v031/level_01/engine_granite42-8b-v031.log",
+      "sha256": "0b681618491703a5f58f51ef20925f0f750acb2952f8adf3e530090550378110"
+    },
+    {
+      "path": "output/single/benchlog/sweep_granite42-8b-v031/level_01/guidellm_granite42-8b-v031.json",
+      "sha256": "f2d051f780810ddb9e10f3b21800f2a55c13c223c7beb71b14ec332432dfbf4a"
+    },
+    {
+      "path": "output/single/benchlog/sweep_granite42-8b-v031/level_01/prefix_cache_granite42-8b-v031.json",
+      "sha256": "8a7a8d235cdf56eebb48019d321fa0cab2a22f87fedef381d43535fc9b78b732"
+    },
+    {
+      "path": "output/single/benchlog/sweep_granite42-8b-v031/lite_engine_head_granite42-8b-v031.log",
+      "sha256": "532e143e4b5b03cb2a4bd457fc070fa3ac4b2ad5cb3200142c5edb865fcada49"
+    },
+    {
+      "path": "output/single/benchlog/sweep_granite42-8b-v031/sweep_index.json",
+      "sha256": "0b88aca6a7a4ee3af1d30fff10df3c25ebbd426b14af3350c05e1c98fd96dfbe"
+    }
+  ]
+}
