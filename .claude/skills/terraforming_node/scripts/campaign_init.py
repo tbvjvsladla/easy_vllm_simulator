@@ -2460,11 +2460,44 @@ _IMAGE_DIGEST_FN = None
 _RELEASE_RUNNER = None
 
 
+def _manifest_topology(root: Path) -> "str | None":
+    """manifest 가 토폴로지 사실의 권위다(헌법 불변식). `output/<t>/manifest.yaml` 중 자기 통로와 같은 `topology:` 를
+    선언한 것이 정확히 하나일 때만 그 값을 낸다 — 둘이거나 없으면 모른다(추측 ✗)."""
+    found = []
+    for t in ("single", "multi"):
+        mpath = root / "output" / t / "manifest.yaml"
+        try:
+            text = mpath.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        m = re.search(r"^topology:\s*['\"]?(single|multi)['\"]?\s*(?:#.*)?$", text, re.M)
+        if m and m.group(1) == t:
+            found.append(t)
+    return found[0] if len(found) == 1 else None
+
+
 def checkout_topology() -> "str | None":
     if _CHECKOUT_TOPOLOGY_FN is not None:
         return _CHECKOUT_TOPOLOGY_FN()
-    tp = _topology_parity_module()
-    root = Path(__file__).resolve().parents[4]
+    root = REPO_ROOT
+    try:
+        tp = _topology_parity_module()
+    except TransitionRefusal:
+        # ★ 2026-10-17 라이브(plan_26101719 S9 · 서브 첫 위임): 서브 렌더 트리에는 기초층(`.claude/policies/`)이
+        #   배달되지 않는다 — 그래서 4자일치 술어가 없고, 픽스처는 이 차이를 보지 못했다. 술어가 없는 노드에서는
+        #   토폴로지 사실의 권위인 manifest 를 읽는다(브랜치 이름표를 다시 적지 않는다 — 서브 브랜치는 이름도 다르다).
+        found = _manifest_topology(root)
+        if found:
+            return found
+        # manifest 가 두 통로에 다 있으면(서브는 과거 multi 워커로도 프로비저닝됐다) 서브 로컬 git 의 브랜치를 본다.
+        # 그 브랜치 이름은 sync_to_sub 가 만든 `single`/`multi` — **토폴로지 토큰 자체**라 이름표 사상이 아니다.
+        import subprocess
+        try:
+            br = subprocess.run(["git", "-C", str(root), "symbolic-ref", "--quiet", "--short", "HEAD"],
+                                capture_output=True, text=True, timeout=10).stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            br = ""
+        return br if br in ("single", "multi") else None
     branch = tp._git(root, "symbolic-ref", "--quiet", "--short", "HEAD") \
         or tp._git(root, "rev-parse", "--abbrev-ref", "HEAD")
     return tp.BRANCH_TO_TOPOLOGY.get(branch or "")

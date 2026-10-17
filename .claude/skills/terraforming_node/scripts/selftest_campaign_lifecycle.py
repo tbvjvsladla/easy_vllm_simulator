@@ -124,6 +124,20 @@ def g_state(fx: Fixture):
     rc, msg = run("--campaign-id", "U1", "--evidence-add", "--kind", "testlog", "--path", fx.testlog())
     ck("unknown 캠페인은 정리성 쓰기까지 전부 거부(rc≠0 · 동기화 안내)", rc != 0 and "동기화" in msg)
     ck("첫 줄이 unknown 을 정리 대상으로 보인다", "U1=unknown" in ci.lifecycle_line())
+    # 서브 렌더 트리 폴백(2026-10-17 라이브): 4자일치 술어가 없는 노드는 manifest 로 토폴로지를 읽는다.
+    saved_fn, saved_mod = ci._CHECKOUT_TOPOLOGY_FN, ci._topology_parity_module
+    try:
+        ci._CHECKOUT_TOPOLOGY_FN = None
+        ci._topology_parity_module = lambda: (_ for _ in ()).throw(ci.TransitionRefusal("술어 부재(서브 렌더 트리)"))
+        ck("술어 없음 + manifest 없음 → 모른다(None · 추측 ✗)", ci.checkout_topology() is None)
+        (fx.tmp / "output" / "single").mkdir(parents=True)
+        (fx.tmp / "output" / "single" / "manifest.yaml").write_text("topology: single  # 실측\n", encoding="utf-8")
+        ck("술어 없음 → manifest(output/single) 의 topology 를 읽는다", ci.checkout_topology() == "single")
+        (fx.tmp / "output" / "multi").mkdir(parents=True)
+        (fx.tmp / "output" / "multi" / "manifest.yaml").write_text("topology: multi\n", encoding="utf-8")
+        ck("manifest 가 둘이면 모른다(None)", ci.checkout_topology() is None)
+    finally:
+        ci._CHECKOUT_TOPOLOGY_FN, ci._topology_parity_module = saved_fn, saved_mod
 
 
 def g_transition(fx: Fixture):
