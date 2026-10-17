@@ -2022,7 +2022,8 @@ def _measurement_table(c: _Ctx) -> list[str]:
         for k in keys:
             v = m[k]
             if isinstance(v, dict) and v and all(not isinstance(x, (dict, list)) for x in v.values()):
-                rows += [(f"`{k}.{sk}`", _cell(v[sk], _UNRECORDED), _cell(per.get(k), "—")) for sk in sorted(v)]
+                rows += [(f"`{k}.{sk}`", _cell(v[sk], _UNRECORDED), _cell(per.get(f"{k}.{sk}") or per.get(k), "—"))
+                         for sk in sorted(v)]   # 하위키 출처(`<키>.<하위키>`)가 있으면 그것이 이긴다(2026-10-17 F4)
             elif isinstance(v, list) and v and all(isinstance(x, dict) for x in v):
                 cols = [x for x in _LEVEL_KEY_ORDER if any(x in r for r in v)]
                 cols += sorted({x for r in v for x in r} - set(cols))
@@ -3967,6 +3968,15 @@ def selftest() -> list[str]:
 
     def codes(issues) -> set[str]:
         return {i["code"] for i in issues}
+
+    # ★ 하위키 출처(2026-10-17 · plan_26101622 granite 사실 검증 F4): KV 선언 표지는 그 행에만 — lite 의 실측 행은 묶음 출처 그대로
+    _mt = "\n".join(_measurement_table(_Ctx(repo=Path("."), templates={}, facts={"measurement": {
+        "lite": {"kv_gib": "35.0", "gen_tps": "38.1"},
+        "sources": {"lite": "sweep_index.lite(x)", "lite.kv_gib": "sweep_index.lite(x) — 선언 클램프 되읽기(측정 아님)"}}})))
+    _kv = next((ln for ln in _mt.splitlines() if "`lite.kv_gib`" in ln), "")
+    _gt = next((ln for ln in _mt.splitlines() if "`lite.gen_tps`" in ln), "")
+    ck("★하위키 출처는 그 행에만(kv_gib = 측정 아님 · gen_tps = 묶음 출처)", "측정 아님" in _kv and "측정 아님" not in _gt
+       and "sweep_index.lite(x)" in _gt)
 
     def raises(fn, code: str) -> bool:
         try:
