@@ -370,6 +370,51 @@ def campaign_slice_block(topology: str, campaign_id: str | None, delegated_node:
             "```json\n" + blob + "\n```\n\n")
 
 
+CAMPAIGN_CONTROLS = {"suspend": "suspended", "resume": "active"}
+
+
+def campaign_control_task(campaign_id: str, control: str, *, preempt: bool = False) -> str:
+    """수명 전이의 서브 전달(2026-10-17 · plan_26101719 D9). 메인이 캠페인을 보류·재개하면 같은 전환 안에서 이 지시가
+    나간다. 서브는 **같은 campaign_init.py** 로 자기 인스턴스를 전이하고 echo 를 돌려준다 — 메인은 서브 인스턴스를
+    직접 읽지 않는다(불변식 1). echo 가 오지 않으면 메인은 '서브 미수렴' 으로 두고 진행한다(차단 ✗)."""
+    if control not in CAMPAIGN_CONTROLS:
+        raise SystemExit(f"[relay] STOP: --campaign-control 은 {tuple(CAMPAIGN_CONTROLS)} 중 하나다: {control!r}")
+    ci = "python3 .claude/skills/terraforming_node/scripts/campaign_init.py"
+    if control == "suspend":
+        cmd = (f"{ci} --suspend {campaign_id} --release <이 캠페인을 위해 네가 띄운 서빙 config | none>"
+               + (" --preempt" if preempt else "")
+               + " --approved-by \"main-a2a: 메인 전환 승인 전사\" --utc <지금 UTC> --apply")
+        what = ("보류(suspend)했다. 네가 이 캠페인을 위해 띄운 서빙은 위 명령이 정식 teardown 으로 내린다"
+                "(compose down 직접 ✗ · 띄운 것이 없으면 `--release none`)."
+                + (" 메인이 강제 전환(--preempt)을 승인했다 — 진행 중 셀은 interrupted 로 남는다." if preempt else
+                   " 진행 중 셀이 있으면 강제하지 말고 failed 로 보고하라(협조 전환이 기본)."))
+    else:
+        cmd = f"{ci} --resume-campaign {campaign_id} --approved-by \"main-a2a: 메인 재개 승인 전사\" --utc <지금 UTC> --apply"
+        what = ("재개(resume)했다. 재개 게이트(핀·digest·토폴로지 대조)가 거부하면 우회하지 말고 그 안내문 원문을 "
+                "보고하라 — drift 수용은 사람 결정이다.")
+    return (f"## [relay] 캠페인 수명 제어 — {control}\n"
+            f"메인이 캠페인 `{campaign_id}` 를 {what}\n\n"
+            f"1. 실행: `{cmd}`\n"
+            f"2. `{ci} --resume-brief` 의 **첫 줄**을 읽는다.\n"
+            f"3. 리포트 JSON 에 `campaign_control_echo` 를 적는다: "
+            f"{{\"campaign_id\": \"{campaign_id}\", \"control\": \"{control}\", "
+            f"\"state\": \"<campaign_init.py --lifecycle {campaign_id} 의 state>\", \"first_line\": \"<첫 줄>\"}}. "
+            f"실패하면 state 에 실패 사유를 적고 status 를 failed 로 둔다(성공인 척 ✗).\n"
+            f"4. 셀 진행·빌드·서빙 기동은 **하지 않는다** — 이 지시는 수명 전이 하나다.\n\n")
+
+
+def campaign_control_echo_ok(report, campaign_id: str, control: str) -> "tuple[bool, str]":
+    echo = (report or {}).get("campaign_control_echo") if isinstance(report, dict) else None
+    if not isinstance(echo, dict):
+        return False, "리포트에 campaign_control_echo 가 없다"
+    want = CAMPAIGN_CONTROLS[control]
+    if echo.get("campaign_id") != campaign_id or echo.get("control") != control:
+        return False, f"echo 정체성 불일치: {echo.get('campaign_id')!r}/{echo.get('control')!r}"
+    if echo.get("state") != want:
+        return False, f"서브 상태가 {echo.get('state')!r} 다(기대 {want!r})"
+    return True, f"서브 {control} echo 수렴 · 첫 줄: {echo.get('first_line')}"
+
+
 def build_request(topology: str, manifest: str, task: str, bud: dict,
                   resume_session_id=None, capabilities=None,
                   context_id: str = None, attempt: int = 0, model: str = None,
@@ -1261,6 +1306,16 @@ def campaign_ledgers(repo_root: str, camp: str) -> list:
     return out
 
 
+def _lifecycle_state(repo_root: str, camp: str) -> str:
+    """수명 fold 의 단일 소유는 campaign_init 이다 — 여기서 이벤트를 다시 해석하지 않는다."""
+    try:
+        ci = _campaign_init()
+        return ci.fold_lifecycle(ci.Path(repo_root) / "campaigns" / camp,
+                                 active=ci.active_campaign_id(repo_root))["state"]
+    except Exception as exc:                                            # noqa: BLE001
+        return f"unknown(fold 실패: {exc})"
+
+
 def supervise_step(a) -> int:
     """감독 한 걸음. 상주하지 않고, 판정하고, 적고, 끝난다."""
     camp = a.supervise_step
@@ -1280,6 +1335,14 @@ def supervise_step(a) -> int:
         decision = supervise_decide(doc, brief=brief, cost_cap_attempts=a.cost_cap_attempts,
                                     ladder=getattr(a, "ladder", None),
                                     doc_progress=doc_plane_progress(a.repo_root, doc))
+        # 수명 가드(2026-10-17 · plan_26101719 D13): 감독은 id 를 직접 받으므로 ACTIVE 를 거치지 않는다. 보류·미결·잔재
+        # 캠페인에서 전진 판정(next_cell·resume·rotate_runner)을 내면 보류한 캠페인이 감독 손에 다시 굴러간다.
+        if decision["action"] in ("next_cell", "resume", "rotate_runner"):
+            _life = _lifecycle_state(a.repo_root, camp)
+            if _life != "active":
+                decision = {"action": "hold",
+                            "reason": f"캠페인 {camp} 은 {_life} 다 — 전진 판정({decision['action']})을 보류한다. "
+                                      f"먼저 재개하라(`campaign_init.py --resume-campaign {camp}`) · 정상 차단"}
         record_supervisor_step(doc, decision, utc=utc, brief=brief)
         save_ledger(path, doc)
         head = (f"[relay] 감독 · {doc.get('context_id')} (node={node} "
@@ -2038,7 +2101,8 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
                         model=runner["model"], backend=runner["backend"],
                         campaign_id=getattr(a, "campaign_id", None),
                         control_variables=getattr(a, "control_variables", None),
-                        delegated_node=getattr(a, "node", None))
+                        # 수명 제어 지시에는 개설 선언(slice)을 싣지 않는다 — 서브가 그것을 보고 --init 을 치면 전이가 아니라 개설이 된다.
+                        delegated_node=(None if getattr(a, "campaign_control", None) else getattr(a, "node", None)))
 
     if a.emit_only:
         json.dump(req, sys.stdout, ensure_ascii=False, indent=2)
@@ -2145,6 +2209,19 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
                                        control_variables=doc.get("control_variables"))
         for _r in _echo_stop:
             print(f"[relay] ⚠ 정체성 echo: {_r} — `--continue` 는 이 상태에서 진행하지 않는다.")
+    if getattr(a, "campaign_control", None) and _reached_sub(att):
+        _camp = a.campaign_id or doc.get("campaign_id")
+        _ok, _why = campaign_control_echo_ok(report, _camp, a.campaign_control)
+        if _ok:
+            try:
+                for _m in _campaign_init().record_sub_echo(_camp, node=a.node, control=a.campaign_control,
+                                                           utc=ended, apply=True):
+                    print(f"[relay] 수명 제어 · {_m} · {_why}")
+            except Exception as exc:                                    # noqa: BLE001 — 사유를 삼키지 않는다
+                print(f"[relay] ⚠ 수명 제어 echo 기록 실패 — {exc} (서브 미수렴으로 남는다)")
+        else:
+            print(f"[relay] ⚠ 수명 제어 · 서브 미수렴 — {_why}. 메인은 진행한다(차단 ✗ · D9) — "
+                  f"`--resume-brief` 첫 줄에 '서브 미수렴' 으로 남는다")
     if att["external_search"]:
         print(f"[relay] 서브가 외부검색 {len(att['external_search'])}건을 기록했다 — 자산화 후보. "
               f"근거는 원장 attempt {att['attempt']}.external_search 에 있다.")
@@ -2304,6 +2381,9 @@ def main() -> int:
     ap.add_argument("--cost-cap-attempts", type=int, default=None,
                     help="감독 스텝의 비용 상한(선언) — 이 수에 닿으면 자동 재개 대신 팝업(D9)")
     ap.add_argument("--utc", default=None, help="감독 스텝 기록 시각(주입 · 생략 시 메인 벽시계)")
+    ap.add_argument("--campaign-control", choices=tuple(CAMPAIGN_CONTROLS), default=None,
+                    help="수명 전이(보류·재개)를 서브에 A2A 로 전한다 · --campaign-id --node 필수 · 지시 본문은 기계가 "
+                         "조립한다(--task 생략) · echo 가 수렴하면 메인 journey 에 sub_control_echo 를 적는다")
     ap.add_argument("--self-test", action="store_true")
     a = ap.parse_args()
     if a.self_test:
@@ -2423,6 +2503,23 @@ def main() -> int:
     if not a.topology:
         raise SystemExit("[relay] --topology 필수")
     task = a.task
+    if a.campaign_control:
+        if not (a.campaign_id and a.node):
+            raise SystemExit("[relay] STOP: --campaign-control 은 --campaign-id 와 --node 가 필요하다(이름 추론 ✗)")
+        if task or a.task_file:
+            raise SystemExit("[relay] STOP: --campaign-control 의 본문은 기계가 조립한다 — --task 와 함께 쓰지 않는다")
+        _ci = _campaign_init()
+        _life = _ci.fold_lifecycle(_ci.Path(a.repo_root) / "campaigns" / a.campaign_id,
+                                   active=_ci.active_campaign_id(a.repo_root))
+        if a.node not in _life["sub_nodes"]:
+            raise SystemExit(f"[relay] STOP: {a.node} 는 {a.campaign_id} 의 마지막 전이가 지목한 서브가 아니다"
+                             f"({_life['sub_nodes']}) — 메인 전이를 먼저 하라")
+        _want = "suspended" if a.campaign_control == "suspend" else "active"
+        if _life["state"] not in (_want, "resume_pending"):
+            raise SystemExit(f"[relay] STOP: 메인 {a.campaign_id} 은 {_life['state']} 다 — {a.campaign_control} 를 "
+                             f"서브에 전할 상태가 아니다(메인 전이가 먼저)")
+        task = campaign_control_task(a.campaign_id, a.campaign_control,
+                                     preempt=bool(_life.get("interrupted_cells")))
     if a.task_file:
         with open(a.task_file, encoding="utf-8") as f:
             task = f.read()

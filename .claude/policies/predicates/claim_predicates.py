@@ -4020,6 +4020,12 @@ def predicate_ROOT_SURFACE_REGISTRY_C2():
             prev = ci.CAMPAIGNS / "old"
             prev.mkdir(parents=True)
             ptr = prev / "evidence_pointers.json"
+            # ★ 2026-10-17(plan_26101719 D14): 수명 이벤트가 없고 ACTIVE 도 아닌 인스턴스는 orphan 이다 — P-게이트 앞에서
+            #   막히고 `--abandon` 으로만 정리된다. 이 술어는 증거 게이트를 시험하므로 픽스처를 옛 종결로 둔다.
+            _require(any("--abandon" in r for r in ci.purge_gate_reasons("old")),
+                     "이름 없는 잔재(orphan)는 abandoned 축소 게이트로만 정리돼야 한다")
+            (prev / ci.JOURNEY_NAME).write_text(
+                json.dumps({"utc": "2026-01-01T00:00:00Z", "kind": "campaign_closed"}) + "\n", encoding="utf-8")
 
             _require(ci.purge_gate_reasons("old"), "포인터 파일이 없으면 게이트는 닫혀 있어야 한다")
             ptr.write_text(json.dumps({"pointers": []}), encoding="utf-8")

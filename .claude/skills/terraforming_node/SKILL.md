@@ -68,7 +68,7 @@ when_to_use: >-
 | 서브 결정의 근거가 불명 · 인용 없는 빌드/서빙 결정 | §2.7.8 → `references/orchestration/grounding_exchange.md` + `scripts/library_exchange.py` |
 | 위임이 소진·중단됨 · 재개 여부 · 러너(백엔드×모델) 실패 | §2.7.7a · §2.7.11 → `references/orchestration/a2a_relay.md` |
 | 워치독 트립·사살 · 블랙박스 미설치/검증 실패 | §2.6 → `references/blackbox/host_safety.md` · `docs/logs` 평면은 `references/blackbox/logs_plane.md` |
-| 캠페인 상태가 비었거나 어긋남 · purge 가 안 열림 | `references/campaign/` (layout · phases · writers · assignment_supervision · purge) |
+| 캠페인 상태가 비었거나 어긋남 · purge 가 안 열림 · 다른 캠페인으로 넘어가야 함(보류·재개) | `references/campaign/` (layout · phases · writers · assignment_supervision · purge) |
 
 ## § 라우팅 — 번호는 안정 식별자다
 
@@ -139,7 +139,7 @@ when_to_use: >-
 ### 캠페인 체인 — `references/campaign/`
 
 캠페인 단계 간 정보는 아티팩트가 나른다. 배치·수명 `layout.md` · phase 전이 `phases.md` · 상태를 쓰는 손 `writers.md` ·
-배정·전이 모드·감독 `assignment_supervision.md` · purge·종결 `purge.md`. 불변식은 `.claude/rules/workflow.md` §캠페인 아티팩트 체인.
+배정·전이 모드·감독 `assignment_supervision.md` · purge·종결·수명 전이(보류·재개·포기·선점) `purge.md`. 불변식은 `.claude/rules/workflow.md` §캠페인 아티팩트 체인.
 
 ## 3. 결정론 vs 판단 분리
 
@@ -156,7 +156,8 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 
 | 진입점 | 소유 § | 배달 | 비고 |
 |---|---|---|---|
-| `scripts/campaign_init.py` | 캠페인 체인 | ✓ | 캠페인 상태의 **유일한 writer**. 사람 승인 인자 필수 동사만 적는다: `--revise` · `--reentry-decide` · `--hint-approve`. 나머지는 `--help` |
+| `scripts/campaign_init.py` | 캠페인 체인 | ✓ | 캠페인 상태의 **유일한 writer**. 사람 승인 인자 필수 동사만 적는다: `--revise` · `--reentry-decide` · `--hint-approve` · 수명 전이(`--init --suspend-current` · `--suspend` · `--resume-campaign` · `--abandon` · `--answer-query` · `--dispose`). 나머지는 `--help` |
+| `scripts/selftest_campaign_lifecycle.py` | 캠페인 체인 | — | 수명 상태(보류·재개·포기·선점) 자체검사 · 회귀 실행자 `verify_distribution.py` |
 | `scripts/campaign_template_validator.py` | 캠페인 체인 | ✓ | 선언·인스턴스 술어(P1~P3) |
 | `scripts/manifest_contract.py` | §0.5 · §1S · §2.7.10 | ✓ | Flag·`issued_by: main` readiness 리더 |
 | `scripts/node_role_contract.py` | §2.7.0 · §2.7.6 | — | 토폴로지 축 계약(sub_mode·rank·배달 평면·tool_plane·서브 자체 발행)의 단일 소유자 |

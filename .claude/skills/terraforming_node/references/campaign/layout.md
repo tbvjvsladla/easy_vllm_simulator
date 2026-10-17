@@ -36,7 +36,7 @@
 | `campaigns/<camp-id>/sweeps/` | 스윕 상태·정지판정 | 비추적 | 동상 |
 | `campaigns/<camp-id>/evidence_pointers.json` | docs 평면 증거 포인터(purge 선행조건 · publish 위상에서 `frozen_utc` 로 동결) | 비추적 | 동상 |
 | `campaigns/<camp-id>/journey.jsonl` | **여정** — 이탈·반증·축 이동 사유와 다음 의도(append-only) | 비추적 | 동상 |
-| `campaigns/ACTIVE` | 살아 있는 인스턴스 **하나**의 이름(한 줄). 부재·무효 = `_bootstrap`(루트 ✗) | 비추적 | 캠페인 1회 |
+| `campaigns/ACTIVE` | 살아 있는 인스턴스 **하나**의 이름(한 줄). 부재·무효 = `_bootstrap`(루트 ✗). 보류 캠페인은 여러 개일 수 있으나 슬롯은 하나다 — 수명은 각 인스턴스 `journey.jsonl` 의 fold(`purge.md` §수명 전이) | 비추적 | 캠페인 1회 |
 | `campaigns/_bootstrap/` | 캠페인 밖 릴레이 **대기실**(온보딩·카나리). purge 게이트 대상 ✗ · 새 init 때 함께 비운다 | 비추적 | 상시(내용은 휘발) |
 
 ### 파생 선언 (docs.md §보관·전파 matrix 에서 이관)
