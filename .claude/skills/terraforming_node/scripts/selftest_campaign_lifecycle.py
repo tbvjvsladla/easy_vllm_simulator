@@ -360,6 +360,12 @@ def g_relay(fx: Fixture):
     steps = json.loads(led.read_text(encoding="utf-8")).get("supervisor_steps") or []
     ck("보류 캠페인: 감독이 전진 판정을 hold 로 바꾸고 원장에 적는다",
        "hold" in out.getvalue() and steps and steps[-1]["action"] == "hold")
+    relay.supervise_decide = lambda doc, **kw: {"action": "popup", "reason": "처음 보는 종료(fixture)"}
+    out = io.StringIO()
+    with contextlib.redirect_stdout(out):
+        rc3 = relay.supervise_step(args)
+    ck("보류 캠페인: popup 도 hold 로 — 리볼빙마다 같은 것을 묻지 않는다(라이브 E4)",
+       "→ popup" not in out.getvalue() and "→ hold" in out.getvalue() and rc3 == 0)
 
 
 GROUPS = {"state": g_state, "transition": g_transition, "requery": g_requery, "guard": g_guard,

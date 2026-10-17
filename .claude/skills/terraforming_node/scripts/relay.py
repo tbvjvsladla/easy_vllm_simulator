@@ -1340,14 +1340,16 @@ def supervise_step(a) -> int:
         decision = supervise_decide(doc, brief=brief, cost_cap_attempts=a.cost_cap_attempts,
                                     ladder=getattr(a, "ladder", None),
                                     doc_progress=doc_plane_progress(a.repo_root, doc))
-        # 수명 가드(2026-10-17 · plan_26101719 D13): 감독은 id 를 직접 받으므로 ACTIVE 를 거치지 않는다. 보류·미결·잔재
-        # 캠페인에서 전진 판정(next_cell·resume·rotate_runner)을 내면 보류한 캠페인이 감독 손에 다시 굴러간다.
-        if decision["action"] in ("next_cell", "resume", "rotate_runner"):
-            _life = _lifecycle_state(a.repo_root, camp)
-            if _life != "active":
-                decision = {"action": "hold",
-                            "reason": f"캠페인 {camp} 은 {_life} 다 — 전진 판정({decision['action']})을 보류한다. "
-                                      f"먼저 재개하라(`campaign_init.py --resume-campaign {camp}`) · 정상 차단"}
+        # 수명 가드(2026-10-17 · plan_26101719 D4·D13): 감독은 id 를 직접 받으므로 ACTIVE 를 거치지 않는다. 보류·미결·잔재
+        # 캠페인에서 전진 판정을 내면 보류한 캠페인이 감독 손에 다시 굴러가고, **popup 을 내면 리볼빙마다 같은 것을 묻는다**
+        # (라이브 E4: 대체된 첫 위임의 sub_failed 원장이 감독 스텝마다 popup 을 띄웠다). 보류 캠페인은 계기(a)(d) 전까지
+        # 묻지 않는다 — 판정 전부를 hold 로 바꾸고, 원래 판정은 사유에 남긴다(다시 활성이 되면 그때 본다).
+        _life = _lifecycle_state(a.repo_root, camp)
+        if _life != "active":
+            decision = {"action": "hold",
+                        "reason": f"캠페인 {camp} 은 {_life} 다 — 감독 판정({decision['action']}: "
+                                  f"{decision['reason'][:80]})을 보류한다. 묻지도 잇지도 않는다(계기 a·d 전까지 · D4). "
+                                  f"재개는 사람 결정(`campaign_init.py --resume-campaign {camp}`) · 정상 차단"}
         record_supervisor_step(doc, decision, utc=utc, brief=brief)
         save_ledger(path, doc)
         head = (f"[relay] 감독 · {doc.get('context_id')} (node={node} "
