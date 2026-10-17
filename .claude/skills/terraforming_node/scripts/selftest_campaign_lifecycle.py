@@ -433,6 +433,19 @@ def g_propagate(fx: Fixture):
                                                                           "state": "closed",
                                                                           "close_reason": "completed"}}, "PA", "abandon")
     ck("relay echo 판정: 같은 closed 라도 사유가 다르면 미수렴", ok and not bad and "사유" in why)
+    ts = relay.orphan_sweep_task(["o1", "o2"], "옛 허점 잔재")
+    ck("orphan sweep 지시: 대상 전수 --abandon · 요약 testlog 1건 · 목록 밖 금지",
+       "--abandon o1" in ts and "--abandon o2" in ts and "목록 밖" in ts and "--init" not in ts)
+    _r = lambda res: {"campaign_control_echo": {"control": "orphan_sweep", "summary_testlog": "t.md", "results": res}}
+    ok, _ = relay.orphan_sweep_echo_ok(_r([{"campaign_id": c, "state": "closed", "close_reason": "abandoned"}
+                                           for c in ("o1", "o2")]), ["o1", "o2"])
+    part, why = relay.orphan_sweep_echo_ok(_r([{"campaign_id": "o1", "state": "closed", "close_reason": "abandoned"},
+                                               {"campaign_id": "o2", "state": "orphan", "refusal": "게이트"}]),
+                                           ["o1", "o2"])
+    extra, why2 = relay.orphan_sweep_echo_ok(_r([{"campaign_id": c, "state": "closed", "close_reason": "abandoned"}
+                                                 for c in ("o1", "o2", "o3")]), ["o1", "o2"])
+    ck("★orphan sweep echo: 전수 abandoned=수렴 · 일부 거부=미정리(사유) · 목록 밖 접촉=거부",
+       ok and not part and "o2" in why and "게이트" in why and not extra and "o3" in why2)
 
 
 def g_assign(fx: Fixture):
