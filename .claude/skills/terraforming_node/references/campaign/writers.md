@@ -11,12 +11,13 @@ producer 는 0 이었다. 이제 바이트를 쓰는 문은 하나이고, 그 �
 
 | 슬롯 | 성립 시점 | 포맷 owner(단일) | 호출부(실행자) |
 |---|---|---|---|
-| `phases/<node>/<phase>.status.json` | 각 phase 종료 | `terraforming_node` `campaign_init.py --phase-set` | serve: `single_serve_up.sh` health 200 지점 · bench/build/publish: 각 owner 스크립트 종료부 |
+| `phases/<node>/<phase>.status.json` | 각 phase 종료 | `terraforming_node` `campaign_init.py --phase-set` | serve: `single_serve_up.sh` health 200 지점 · bench/build/publish: 각 owner 스크립트 종료부 · 단독 lite·sweep 은 `lite_bench.sh`·`sweep_bench.sh --campaign-cell <cell>`(측정 진입 running · 종료 done/failed · EXIT trap · 노드는 배정 파생 · 명시로만 — broad_search 는 자기 트랜잭션이 적으므로 넘기지 않는다 · 2026-10-17 plan_26101722 K5) |
 | `cells/<cell>/{config.yaml,lockset.json,cell.status.json}` 생성 | 셀 착수 전(서빙된 셀이면 발행 전) | 동 `--cell-materialize <cell> [--set K=V…] --utc` | 셀을 맡은 노드(메인 · single 서브 모두) — 파생값은 서빙 yaml·env·manifest·`/proc/meminfo`, 선언 축은 `--set`(닫힌 목록 · 요구 없음 = `K=null`) · 빈칸이 남거나 이미 있으면 거부(2026-10-16 · plan_26101622 F1: 서브 hint 2건이 이 단계 없이 셀 입력 결손 3건을 안고 발행됐다) |
 | `cells/<cell>/cell.status.json` + `journey.jsonl` | 셀 트랜잭션 종료 | 동 `--cell-set` | `adversarial-benchmark` `broad_search.sh cell`(sweep 레코드를 쓴 **같은 트랜잭션** · 이번 셀 lite raw 를 `--lite-raw` 로) |
 | `cells/<cell>/cell.status.json#reentry.decision` + 여정 | lite ② 재발동 제안에 사람이 답한 직후 | 동 `--reentry-decide` | 사람 승인 인자 필수(`--approved-by` 발화 전사) · 제안 없는 셀은 거부 |
 | `evidence_pointers.json` | 증거 발행 직후 | 동 `--evidence-add` | `publish_benchmark_record.py`(인증서 발행 지점) · 리포트·testlog·devlog 발행자 |
 | `campaign.yaml.revisions[]` | layer-1 개정 | 동 `--revise` | 사람 승인 인자 필수 · **메인 단일 창구**(서브는 릴레이로 요청만) |
+| `campaign.yaml.assignments` + `assignment_revisions[]` | 배정 변경(셀 추가·은퇴·순서·mode) | 동 `--assign-set <node>` · 서브 `--slice-update -` | 사람 승인 4필드(`--assign-reason`·`--assign-evidence`·`--assign-approved-by`·`--utc`) · **pending 셀만**(돌았거나 도는 셀 · hint 승인 셀은 거부) · 다른 노드 셀 = 이중 배정 거부(이동 = 제거+추가) · 서브 몫은 `relay.py --campaign-control reslice`(2026-10-17 · plan_26101722 K8) |
 | `grounding/<utc>.json` | 캠페인 착수·셀 축 변경 | 동 `--ground` | 서빙·트라이얼 진입 백스톱이 이 파일을 요구한다(`policy:LIBRARY_GROUNDING_FAIL_CLOSED`) |
 | `docs/logs/<node>/campaign_brief.json` | phase 전이·publish 마다 | 동 `--write-brief` | 서브 실행 스크립트 종료부 · **메인이 서브 진행을 읽는 유일한 자리** |
 | 회수 편입(서브 phase·셀·증거) | 문서 회수 직후 | 동 `--import-sub` | `fetch_sub_docs.sh` 종료부(사후 손저작 대체) |

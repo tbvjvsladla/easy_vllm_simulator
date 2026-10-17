@@ -29,13 +29,17 @@
 #
 # 사용: lite_bench.sh <config_name> [--topology single|multi] [--serve-plane docker|native] [--host-endpoint URL]
 #        [--engine-log PATH(native 필수 · 서버 로그)] [--burst-n N] [--out-dir DIR] [--no-sub-probe] [--publish-report]
+#        [--campaign-cell CELL]
+#   --campaign-cell: 캠페인 셀의 bench phase 를 이 실행이 직접 적는다(측정 진입 = running · 종료 = done/failed · EXIT trap).
+#     명시로만 켠다 — broad_search 는 자기 트랜잭션에서 적고 sweep_bench 의 lite 레그는 넘기지 않는다(이중 기록 ✗).
+#     2026-10-17(plan_26101722 K5): 끝난 lite 를 phase=running 으로 보고 강제 전환이 버렸다(plan_26101719 E1 관측).
 #   --out-dir 미지정 시 raw 자리: α·sweep 레그 = output/<t>/benchlog · β(--publish-report) = output/<t>/benchlog/lite_publish/<config>_<UTC>/
 # 종료: 0=lite 통과(요청 시 리포트·lite 인증서 발행 포함) · 2=인자/파일 부재(native --engine-log 부재 포함) · 3=serve 미가동 · 4=정체성/Flag 게이트
 #       5=리포트·인증서 발행 실패(측정·판정은 남음) · 6=lite 불통과 ① 측정 경로 불성립(하네스) · 7=lite 불통과 ② 서버 응답 실패
 set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
-TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; NATIVE_ELOG=""; BURST_N=3; OUTDIR=""; SUB_PROBE=1; BACKEND="openai-chat"; PUBLISH_REPORT=0
+TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; NATIVE_ELOG=""; BURST_N=3; OUTDIR=""; SUB_PROBE=1; BACKEND="openai-chat"; PUBLISH_REPORT=0; CAMPAIGN_CELL=""
 # ★ 2026-09-01 신설 — run_bench.sh·sweep_bench.sh 와 같은 backend 노브(기본값 동일, 후방호환).
 #   왜: harmony 계열(gpt-oss)은 chat 엔드포인트에서 `--ignore-eos` 가 무력해 생성이 조기 종료되고
 #   median_tpot 이 크게 부풀려진다. 실측: 같은 서빙에서 lite(chat) 16.43 t/s vs full(completions)
@@ -52,6 +56,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --out-dir) OUTDIR="$2"; shift 2;;
   --no-sub-probe) SUB_PROBE=0; shift;;
   --publish-report) PUBLISH_REPORT=1; shift;;
+  --campaign-cell) CAMPAIGN_CELL="$2"; shift 2;;
   *) echo "[lite_bench] 알 수 없는 인자: $1" >&2; exit 2;;
 esac; done
 case "$SERVE_PLANE" in
@@ -184,6 +189,38 @@ _bench() {  # $1=out.json $2=num-prompts $3=warmups
       --save-result --result-dir "$(dirname "$1")" --result-filename "$(basename "$1")"
   fi
 }
+
+# 캠페인 셀 bench phase(K5). 포맷 소유는 campaign_init 하나이고 노드는 배정에서 파생된다 — 여기는 호출부다.
+#   ACTIVE=_bootstrap 이면 writer 가 no-op 이고, writer 실패는 측정을 죽이지 않되 침묵하지 않는다.
+_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+_CAMPAIGN_STARTED=""
+_campaign_phase() {  # $1=state(running|done|failed) $2=rc
+  local _now; _now="$(date -u +%FT%TZ)"
+  local _a=(--phase-set bench --cell "$CAMPAIGN_CELL" --state "$1")
+  if [ "$1" = running ]; then _CAMPAIGN_STARTED="$_now"; _a+=(--started-utc "$_now"); else
+    _a+=(--started-utc "$_CAMPAIGN_STARTED" --ended-utc "$_now" --proof-predicate "lite_bench exit=$2 (0=lite pass)")
+    if [ "$1" = done ]; then _a+=(--proof-ok --proof-source "lite_bench: $RAW#lite_verdict"); fi
+  fi
+  python3 "$_CI" "${_a[@]}" >&2 \
+    || echo "[lite_bench] ⚠ 캠페인 셀 '$CAMPAIGN_CELL' bench phase=$1 기록 실패(위 사유) — 진행표가 낡는다" >&2
+}
+_campaign_exit() {
+  local rc=$?
+  if [ "$rc" = 0 ]; then _campaign_phase done 0; else
+    _campaign_phase failed "$rc"
+    # ② 서버 응답 실패는 셀 상태 writer 가 raw 를 읽어 cap 차감·재발동 제안을 적는다(멱등 · 키 = raw measured_utc).
+    if [ "$rc" = 7 ] && [ -s "$RAW" ]; then
+      python3 "$_CI" --cell-set "$CAMPAIGN_CELL" --outcome measurement_void --lite-raw "$RAW" \
+        --utc "$(date -u +%FT%TZ)" >&2 \
+        || echo "[lite_bench] ⚠ 셀 상태(lite ② 차감) 기록 실패 — 수동: campaign_init.py --cell-set $CAMPAIGN_CELL --outcome measurement_void --lite-raw $RAW" >&2
+    fi
+  fi
+  return "$rc"
+}
+if [ -n "$CAMPAIGN_CELL" ]; then
+  _campaign_phase running 0
+  trap _campaign_exit EXIT
+fi
 
 # 측정시각 — 리포트 이름의 시간 토큰이자 "같은 측정인가" 판정 근거다(doc_naming). 부하를 걸기 직전의 호스트 UTC 를
 #   **측정 사실**로 raw 에 남긴다(sweep_bench 의 run 경계 시각과 같은 자격 · 리포트 렌더러는 이 값을 날조하지 않고 요구한다).

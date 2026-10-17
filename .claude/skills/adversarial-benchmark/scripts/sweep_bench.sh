@@ -10,6 +10,7 @@
 # 비용 규율(편지 B.5): 이 스윕은 재탐색 루프 내부가 아니라 **full 런 종결 시 1회**만 호출한다.
 #
 # 사용: sweep_bench.sh <config_name> [--topology single|multi] [--serve-plane docker|native] [--host-endpoint URL] [--engine-log PATH(native 필수)]
+#        [--campaign-cell CELL(캠페인 셀 bench phase 를 직접 적는다 · 명시로만 · plan_26101722 K5)]
 #        [--levels CSV] [--backend openai-chat|openai] [--bench-budget-mib N]
 #        [--input-len N] [--output-len N] [--num-prompts N] [--warmups N] [--vllm-version X] [--dry-run]
 #        [--preset NAME|PATH] [--knob-reason KNOB=CODE]... [--approved-by TEXT] [--pin KNOB=VALUE... --pinned-by TEXT]
@@ -85,6 +86,9 @@ BENCH_BUDGET_MIB=""
 MAX_ERROR_RATE=""
 # 반복 축(위 헤더 ★). 빈 값 = repeat_axis 가 캠페인 선언·full 정의에서 해소한다(여기에 기본 숫자를 적지 않는다).
 REPEATS_ARG=""; REPEATS_SOURCE_ARG=""; CAMPAIGN_ID=""
+# 캠페인 셀 bench phase 를 이 실행이 직접 적는다(2026-10-17 · plan_26101722 K5 — lite_bench 의 같은 인자와 같은 규율).
+#   명시로만 켠다: broad_search 는 자기 트랜잭션에서 적으므로 넘기지 않고, 여기서 부르는 lite 레그에도 넘기지 않는다(이중 기록 ✗).
+CAMPAIGN_CELL=""
 # 노드 간 사살 대조 허용오차(2026-09-14 · ⑧ 분석 발견 T1). **선언으로만** 온다 — 값과 출처를 함께 받아 판정 소유자
 #   (classify_cell)에 넘긴다. 미선언이면 원격 노드 창을 넓히지 않고 미스를 결론내지 않는다(unavailable · 강등 트리거 ✗).
 XNODE_TOL=""; XNODE_TOL_SRC=""
@@ -99,6 +103,7 @@ while [ $# -gt 0 ]; do case "$1" in
   --approved-by) APPROVED_BY="$2"; shift 2;;
   --repeats-source) REPEATS_SOURCE_ARG="$2"; shift 2;;
   --campaign-id) CAMPAIGN_ID="$2"; shift 2;;
+  --campaign-cell) CAMPAIGN_CELL="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
   --serve-plane) SERVE_PLANE="$2"; shift 2;;
   --host-endpoint) HOST_ENDPOINT="$2"; shift 2;;
@@ -345,6 +350,28 @@ else
 #
 # 순서: lite 를 **먼저**. lite 의 cold TTFT 는 warmup 0 측정이라 스윕이 엔진을 데운 뒤에 재면
 # 더 이상 cold 가 아니다.
+# 캠페인 셀 bench phase(K5) — 측정 진입 = running · 종료 = done(rc 0)/failed(그 밖 · EXIT trap). 노드는 배정에서 파생된다.
+_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+_CAMPAIGN_STARTED=""
+_campaign_phase() {  # $1=state(running|done|failed) $2=rc
+  local _now; _now="$(date -u +%FT%TZ)"
+  local _a=(--phase-set bench --cell "$CAMPAIGN_CELL" --state "$1")
+  if [ "$1" = running ]; then _CAMPAIGN_STARTED="$_now"; _a+=(--started-utc "$_now"); else
+    _a+=(--started-utc "$_CAMPAIGN_STARTED" --ended-utc "$_now" --proof-predicate "sweep_bench exit=$2 (0=스윕 완주)")
+    if [ "$1" = done ]; then _a+=(--proof-ok --proof-source "sweep_bench: $SWEEPDIR/sweep_index.json"); fi
+  fi
+  python3 "$_CI" "${_a[@]}" >&2 \
+    || echo "[sweep_bench] ⚠ 캠페인 셀 '$CAMPAIGN_CELL' bench phase=$1 기록 실패(위 사유) — 진행표가 낡는다" >&2
+}
+_campaign_exit() {
+  local rc=$?
+  if [ "$rc" = 0 ]; then _campaign_phase done 0; else _campaign_phase failed "$rc"; fi
+  return "$rc"
+}
+if [ -n "$CAMPAIGN_CELL" ]; then
+  _campaign_phase running 0
+  trap _campaign_exit EXIT
+fi
 echo "[sweep_bench] ── lite 포함 실행(full ⊇ lite 불변식) ──"
 LITE_RAW="$SWEEPDIR/lite_raw_${CONFIG}.json"
 # ★ 2026-09-03: `--backend "$BACKEND"` 가 **이 호출에만 빠져 있었다**(레벨 호출에는 있다).

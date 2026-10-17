@@ -158,6 +158,46 @@ def main() -> int:
         ck("K7★ sweep_bench native · --engine-log 부재 → exit 2(lite 레그 판정 입력 선언)",
            cp.returncode == 2 and "--engine-log" in cp.stderr, (cp.returncode, cp.stderr[-300:]))
 
+        # ── K9 캠페인 셀 bench phase(2026-10-17 · plan_26101722 K5) ─────────────────────────────────────
+        #   끝난 lite 를 phase=running 으로 보고 강제 전환이 버렸다(plan_26101719 E1). `--campaign-cell` 을 주면 이 실행이
+        #   직접 적는다 — writer 는 배포 바이트 사본, 노드는 배정에서 파생.
+        _TN = sb.root / ".claude/skills/terraforming_node/scripts"
+        for _n in ("campaign_init.py", "campaign_template_validator.py"):
+            shutil.copy2(REPO / ".claude/skills/terraforming_node/scripts" / _n, _TN / _n)
+        _cb = sb.root / "campaigns" / "camp-k9"
+        (_cb / "cells").mkdir(parents=True)
+        (_cb / "campaign.yaml").write_text(json.dumps({
+            "schema_version": 1, "id": "camp-k9", "plan_ref": "docs/plan/p.md",
+            "nodes": [{"node_id": "main", "role": "main", "topology": "single"}],
+            "assignments": {"main": [{"cell": "k9"}]},
+            "control_variables": {"model": "m", "vllm_version": "9.8.7", "topology": "single"}}), encoding="utf-8")
+        (_cb / "evidence_pointers.json").write_text(json.dumps({"pointers": []}), encoding="utf-8")
+        (sb.root / "campaigns" / "ACTIVE").write_text("camp-k9\n", encoding="utf-8")
+        _ph = _cb / "phases" / "main" / "bench.status.json"
+        sb.env.update(SHIM_BENCH_MODE="ok", SHIM_CLIENT_HEALTH="200")
+        cp = sb.lite("--campaign-cell", "k9")
+        _st = json.loads(_ph.read_text(encoding="utf-8")) if _ph.is_file() else {}
+        ck("K9★ --campaign-cell + 통과 → bench phase done · proof ok · 출처 = raw · 노드 = 배정 파생 · exit 0",
+           cp.returncode == 0 and _st.get("state") == "done" and (_st.get("proof") or {}).get("ok") is True
+           and "lite_raw_" in str((_st.get("proof") or {}).get("source")) and _st.get("cell_id") == "k9",
+           (cp.returncode, _st, cp.stderr[-500:]))
+        sb.env.update(SHIM_BENCH_MODE="http500", SHIM_CLIENT_HEALTH="200")
+        cp = sb.lite("--campaign-cell", "k9")
+        _st = json.loads(_ph.read_text(encoding="utf-8")) if _ph.is_file() else {}
+        _cs = _cb / "cells" / "k9" / "cell.status.json"
+        _cst = json.loads(_cs.read_text(encoding="utf-8")) if _cs.is_file() else {}
+        ck("K9★ --campaign-cell + ② → exit 7 그대로 · bench phase failed · 셀 상태 writer 가 cap 차감 1",
+           cp.returncode == 7 and _st.get("state") == "failed"
+           and len(((_cst.get("reconciliation") or {}).get("charges")) or []) == 1,
+           (cp.returncode, _st.get("state"), _cst.get("reconciliation"), cp.stderr[-500:]))
+        (sb.root / "campaigns" / "ACTIVE").write_text("_bootstrap\n", encoding="utf-8")
+        sb.env.update(SHIM_BENCH_MODE="ok", SHIM_CLIENT_HEALTH="200")
+        cp = sb.lite("--campaign-cell", "k9")
+        ck("K9 ACTIVE=_bootstrap → writer no-op · 측정 종료코드 불변(0)", cp.returncode == 0, cp.stderr[-300:])
+        cp = sb.lite()
+        ck("K9 플래그 없음 → phase 기록 시도 0(명시로만 켠다)",
+           cp.returncode == 0 and "bench phase" not in cp.stderr, cp.stderr[-300:])
+
         # ── K5 발행기 음성대조 ────────────────────────────────────────────────────────────
         pbr = str(sb.root / slr.AB / "publish_benchmark_record.py")
         good = raw() or {}
@@ -178,7 +218,7 @@ def main() -> int:
     if failures:
         print("[selftest_lite_gate] FAIL %d 건: %s" % (len(failures), failures), file=sys.stderr)
         return 1
-    print("[selftest_lite_gate] PASS — K1~K8(D1 연결거부 · ② · α 관측 · β lite 인증서 · 발행기 음성대조 · 종료코드 파생 · native 엔진 로그 · β/α raw 분리)")
+    print("[selftest_lite_gate] PASS — K1~K9(D1 연결거부 · ② · α 관측 · β lite 인증서 · 발행기 음성대조 · 종료코드 파생 · native 엔진 로그 · β/α raw 분리 · 캠페인 셀 phase)")
     return 0
 
 

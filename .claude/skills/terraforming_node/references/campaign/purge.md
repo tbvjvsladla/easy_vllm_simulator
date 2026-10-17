@@ -68,11 +68,26 @@ ACTIVE 만 덮이고 A 가 이름 없는 잔재가 됐다. 이제 수명은 **jo
 - **토폴로지 교차는 2단**이다: ① 현 브랜치에서 보류 + 개설 대기(`--target-topology`) → ② 미커밋 0 확인 후
   대상 브랜치 checkout → 같은 `--init <B> --plan-ref <P> --utc <T> --apply`. 비추적 `campaigns/` 는 워킹트리에
   남으므로 양 브랜치가 같은 journey 를 접는다.
-- **보류 중 쓰기**: 진행성(`--cell-materialize`·`--cell-set`·`--phase-set`·`--reentry-decide`)은 거부, 증거 정리와
+- **보류 중 쓰기**: 진행성(`--cell-materialize`·`--cell-set`·`--phase-set`·`--reentry-decide`·`--assign-set`)은 거부, 증거 정리와
   읽기는 허용. 감독 `relay.py --supervise-step` 도 보류 캠페인의 전진 판정을 `hold` 로 바꾼다.
 - **서브(single · A2A)**: 메인 전이 뒤 `relay.py --campaign-control suspend|resume --campaign-id <id> --node <sub>`
   가 서브에 같은 전이를 지시하고, echo 가 수렴하면 메인 journey 에 `sub_control_echo` 가 적힌다. 미도달이면
   "서브 미수렴" 으로 남고 메인은 진행한다(차단 ✗). 서브 회수(`--import-sub`)는 서브의 수명 이벤트를 메인 journey 로
   편입하지 않는다.
-- 사람 확인 자리(전환 · 재개 · 처분 · drift 수용 · 포기)는 **선언 확인 팝업의 종류**다 — 진행을 막는 자리는 여전히 셋이다.
-- 범위 밖(후속): assignments writer(셀 추가·은퇴) · 이미 보낸 서브 slice 갱신 · 보류 기한(사람이 계기가 아니라고 결정).
+- **종결도 서브로 전한다**(2026-10-17 · plan_26101722 K1~K4): 서브 노드가 있는 캠페인의 `--close`·`--abandon` 은 종결 줄에
+  서브를 싣고, `relay.py --campaign-control close|abandon` 이 서브에 같은 종결을 지시한다(abandon 은 서브가 자기 포기 요약
+  testlog 를 발행해 인용한다). echo 는 상태(closed)와 **사유**를 함께 대조한다 — 사유가 다르면 수렴이 아니다. 종전에는 메인이
+  닫아도 서브 ACTIVE 가 남아 orphan 이 쌓였다(E2E 착수 시 서브 orphan 10 실측).
+- **purge 게이트는 서브 종결 수렴을 묻는다**(새 차단점이 아니라 기존 게이트의 조건): 미수렴이면 purge 가 닫힌다 — 지우면 미수렴
+  기록이 사라져 누락이 다시 침묵이 된다. 서브 미도달의 탈출구는 사람 수용 `--sub-unconverged-accept <id> --node <sub>
+  --approved-by <전사> --utc <T>` 하나다. 종결 줄이 서브를 싣지 않은 옛 종결은 면제다(소급 차단 ✗).
+- **메인에 인스턴스가 없는 서브 orphan** 은 `relay.py --campaign-control abandon --orphan-sweep --reason <사람이 고른 사유>`
+  로만 겨냥한다(부재 선언 · 메인 인스턴스가 있으면 거부하고 정식 경로로 보낸다). 원장은 대기실로 가므로 echo 원문은 호출자가
+  docs 평면(simlog)으로 옮긴다.
+- **재배정**: `--assign-set <node> --assign-cells c1[:MODE],… --assign-reason --assign-evidence --assign-approved-by --utc`
+  (pending 셀만 · `writers.md`). 서브 몫이면 첫 줄에 `재배정 미수렴` 이 남고 `relay.py --campaign-control reslice` 가 새 파생
+  선언을 싣고 가 서브 `--slice-update -` 로 바꾼다. echo 는 rev 와 셀 목록까지 대조한다.
+- 사람 확인 자리(전환 · 재개 · 처분 · drift 수용 · 포기 · 서브 미수렴 수용 · 재배정)는 **선언 확인 팝업의 종류**다 — 진행을
+  막는 자리는 여전히 셋이다.
+- 범위 밖(후속): standalone purge 동사(사람 결정 2026-10-17 — 지우는 문은 다음 init 의 `--purge-previous` 하나) · 보류 기한
+  (사람이 계기가 아니라고 결정).
