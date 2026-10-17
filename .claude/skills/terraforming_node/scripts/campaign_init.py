@@ -1622,7 +1622,9 @@ def _cell_lock_reason(base: Path, cell: str) -> "str | None":
     st = _read_json(base / "cells" / cell / "cell.status.json")
     if isinstance(st, dict):
         oc = st.get("cell_outcome")
-        if oc and oc not in CELL_OUTCOMES_PENDING:
+        # materialize 직후의 틀 값(<<FILL>>)은 '아직 아무도 적지 않았다' 이지 판정이 아니다(2026-10-17 라이브 L5 — 돌지 않은
+        # 셀이 잠겼다).
+        if oc and FILL not in str(oc) and oc not in CELL_OUTCOMES_PENDING:
             return f"cell_outcome={oc}"
         meas = st.get("measurement") if isinstance(st.get("measurement"), dict) else {}
         if meas.get("decode_tps_conc1") is not None:

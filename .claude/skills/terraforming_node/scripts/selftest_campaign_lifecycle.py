@@ -481,6 +481,9 @@ def g_assign(fx: Fixture):
        and d2["assignment_revisions"][0]["approved_by"] == "t0" and d2["assignment_revisions"][1]["added"] == ["c3"]
        and any(e.get("kind") == "campaign_assignments_revised" for e in ci.read_journey(base))
        and ci.fold_lifecycle(base)["state"] == "active")
+    (base / "cells" / "c2").mkdir(parents=True, exist_ok=True)
+    (base / "cells" / "c2" / "cell.status.json").write_text(json.dumps({"cell_outcome": ci.FILL}), encoding="utf-8")
+    ck("materialize 직후 틀 값(<<FILL>>) 셀은 잠기지 않는다(라이브 L5)", ci._cell_lock_reason(base, "c2") is None)
     ci.writer_set_phase(base, node="main", phase="bench", state="done", predicate="x", ok=True, source="fixture",
                         cell_id="c3", started_utc=UTC, ended_utc=UTC)
     rc, msg = run("--assign-set", "main", "--assign-cells", "c2,c1:HITL", *four)
