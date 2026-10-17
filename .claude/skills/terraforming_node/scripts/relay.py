@@ -437,6 +437,42 @@ def campaign_control_task(campaign_id: str, control: str, *, preempt: bool = Fal
             f"4. 셀 진행·빌드·서빙 기동은 **하지 않는다** — 이 지시는 수명 전이 하나다.\n\n")
 
 
+def orphan_sweep_task(campaign_ids: list, reason: str) -> str:
+    """메인 인스턴스가 없는 서브 orphan 들의 묶음 포기(K4). 대상 목록은 사람이 팝업에서 고른 것이다 — 서브가 늘리거나 줄이지
+    않는다. 요약 testlog 는 1건을 묶어 쓰고 각 `--abandon` 이 그것을 인용한다."""
+    ci = "python3 .claude/skills/terraforming_node/scripts/campaign_init.py"
+    lines = "\n".join(f"   - `{ci} --abandon {c} --reason \"{reason}\" --summary-testlog <위 요약> --release none "
+                      f"--approved-by \"main-a2a: 사람이 고른 orphan 정리 전사\" --utc <지금 UTC> --apply`"
+                      for c in campaign_ids)
+    return ("## [relay] 캠페인 수명 제어 — orphan sweep(abandon)\n"
+            f"메인에는 인스턴스가 없고 네 쪽에만 남은 캠페인 {len(campaign_ids)}건을 사람이 포기로 정리하기로 했다(사유: {reason}).\n\n"
+            "1. 포기 요약 testlog 1건을 규약 이름(`docs/testlog/testlog_<KST YYMMDDHH>_<주제>.md`)으로 발행한다 — 대상 id 전수 · "
+            "각자의 fold state · 미완 셀 · 사유.\n"
+            f"2. 아래를 차례로 실행한다(목록 밖 캠페인은 건드리지 않는다):\n{lines}\n"
+            "   축소 게이트가 거부한 것은 우회하지 말고 그 사유 원문을 결과에 적고 다음으로 넘어간다.\n"
+            f"3. `{ci} --resume-brief` 의 **첫 줄**을 읽는다.\n"
+            "4. 리포트 JSON 에 `campaign_control_echo` 를 적는다: {\"control\": \"orphan_sweep\", \"summary_testlog\": \"<경로>\", "
+            "\"results\": [{\"campaign_id\": \"<id>\", \"state\": \"<--lifecycle 의 state>\", \"close_reason\": \"<같은 출력>\", "
+            "\"refusal\": \"<거부 원문 | null>\"}, …], \"first_line\": \"<첫 줄>\"}.\n"
+            "5. 셀 진행·빌드·서빙 기동은 **하지 않는다**.\n\n")
+
+
+def orphan_sweep_echo_ok(report, campaign_ids: list) -> "tuple[bool, str]":
+    echo = (report or {}).get("campaign_control_echo") if isinstance(report, dict) else None
+    if not isinstance(echo, dict) or echo.get("control") != "orphan_sweep":
+        return False, "리포트에 orphan_sweep echo 가 없다"
+    got = {r.get("campaign_id"): r for r in (echo.get("results") or []) if isinstance(r, dict)}
+    left = [c for c in campaign_ids if (got.get(c) or {}).get("state") != "closed"
+            or (got.get(c) or {}).get("close_reason") != "abandoned"]
+    extra = sorted(set(got) - set(campaign_ids))
+    if extra:
+        return False, f"목록 밖 캠페인을 건드렸다: {extra}"
+    if left:
+        return False, f"미정리 {len(left)}건: " + "; ".join(f"{c}={(got.get(c) or {}).get('state')}"
+                                                        f"({(got.get(c) or {}).get('refusal')})" for c in left)
+    return True, f"orphan {len(campaign_ids)}건 closed(abandoned) · 요약 {echo.get('summary_testlog')} · 첫 줄: {echo.get('first_line')}"
+
+
 def campaign_control_echo_ok(report, campaign_id: str, control: str,
                              slice_doc: "dict | None" = None) -> "tuple[bool, str]":
     echo = (report or {}).get("campaign_control_echo") if isinstance(report, dict) else None
@@ -2258,8 +2294,9 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
             print(f"[relay] ⚠ 정체성 echo: {_r} — `--continue` 는 이 상태에서 진행하지 않는다.")
     if getattr(a, "campaign_control", None) and _reached_sub(att):
         _camp = a.campaign_id or doc.get("campaign_id")
-        _ok, _why = campaign_control_echo_ok(report, _camp, a.campaign_control,
-                                             slice_doc=getattr(a, "_control_slice", None))
+        _ok, _why = (orphan_sweep_echo_ok(report, a._sweep_ids) if getattr(a, "orphan_sweep", False) else
+                     campaign_control_echo_ok(report, _camp, a.campaign_control,
+                                              slice_doc=getattr(a, "_control_slice", None)))
         if _ok and getattr(a, "orphan_sweep", False):
             print(f"[relay] 수명 제어 · orphan sweep {_camp}@{a.node} · {_why} — 메인 인스턴스가 없어 journey 기록 ✗ "
                   f"(echo 원문은 원장 {lp} · docs 평면으로 옮겨라)")
@@ -2439,7 +2476,8 @@ def main() -> int:
                     help="수명 전이(보류·재개·종결·포기)를 서브에 A2A 로 전한다 · --campaign-id --node 필수 · 지시 본문은 "
                          "기계가 조립한다(--task 생략) · echo 가 수렴하면 메인 journey 에 sub_control_echo 를 적는다")
     ap.add_argument("--orphan-sweep", action="store_true",
-                    help="--campaign-control abandon 과 함께: 메인 인스턴스가 없는 서브 orphan 정리(부재 선언 · --reason 필수)")
+                    help="--campaign-control abandon 과 함께: 메인 인스턴스가 없는 서브 orphan 묶음 정리(--campaign-id a,b,… · "
+                         "부재 선언 · --reason 필수)")
     ap.add_argument("--reason", default=None, help="--campaign-control abandon 의 포기 사유(생략 = 메인 종결 줄의 note)")
     ap.add_argument("--self-test", action="store_true")
     a = ap.parse_args()
@@ -2574,8 +2612,10 @@ def main() -> int:
             # 선언**으로 받는다 — 메인 인스턴스가 있으면 정식 경로(메인 --abandon 뒤 전파)를 타야 한다(이름 추론 ✗).
             if a.campaign_control != "abandon":
                 raise SystemExit("[relay] STOP: --orphan-sweep 은 --campaign-control abandon 하고만 쓴다")
-            if _mbase.exists():
-                raise SystemExit(f"[relay] STOP: 메인에 campaigns/{a.campaign_id} 이 있다 — orphan sweep 이 아니라 메인 "
+            a._sweep_ids = [c.strip() for c in a.campaign_id.split(",") if c.strip()]
+            _present = [c for c in a._sweep_ids if (_ci.Path(a.repo_root) / "campaigns" / c).exists()]
+            if _present:
+                raise SystemExit(f"[relay] STOP: 메인에 campaigns/{_present} 이 있다 — orphan sweep 이 아니라 메인 "
                                  "`--abandon` 뒤 전파로 간다(정식 경로)")
             if not a.reason:
                 raise SystemExit("[relay] STOP: --orphan-sweep 은 --reason 이 필요하다(사람이 고른 포기 사유 전사)")
@@ -2609,8 +2649,9 @@ def main() -> int:
         _slice = (_ci.emit_slice(_mbase, a.node, utc="delegated-task-body")
                   if a.campaign_control == "reslice" else None)
         a._control_slice = _slice
-        task = campaign_control_task(a.campaign_id, a.campaign_control,
-                                     preempt=bool(_life.get("interrupted_cells")), reason=_reason, slice_doc=_slice)
+        task = (orphan_sweep_task(a._sweep_ids, _reason) if a.orphan_sweep else
+                campaign_control_task(a.campaign_id, a.campaign_control,
+                                      preempt=bool(_life.get("interrupted_cells")), reason=_reason, slice_doc=_slice))
         # orphan sweep 은 메인 인스턴스가 없다 — 원장은 대기실(_bootstrap)로 가고 휘발이므로, 호출자가 echo 원문을
         # docs 평면(simlog)에 옮긴다(K4 · D2 휘발 대비).
         _RELAY_CAMPAIGN = None if a.orphan_sweep else a.campaign_id

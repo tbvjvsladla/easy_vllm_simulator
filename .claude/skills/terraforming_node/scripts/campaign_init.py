@@ -1622,7 +1622,9 @@ def _cell_lock_reason(base: Path, cell: str) -> "str | None":
     st = _read_json(base / "cells" / cell / "cell.status.json")
     if isinstance(st, dict):
         oc = st.get("cell_outcome")
-        if oc and oc not in CELL_OUTCOMES_PENDING:
+        # materialize 직후의 틀 값(<<FILL>>)은 '아직 아무도 적지 않았다' 이지 판정이 아니다(2026-10-17 라이브 L5 — 돌지 않은
+        # 셀이 잠겼다).
+        if oc and FILL not in str(oc) and oc not in CELL_OUTCOMES_PENDING:
             return f"cell_outcome={oc}"
         meas = st.get("measurement") if isinstance(st.get("measurement"), dict) else {}
         if meas.get("decode_tps_conc1") is not None:
@@ -2490,7 +2492,7 @@ def _sub_nodes(base: Path) -> list:
         return []
     # 서브 자기 인스턴스(메인 파생 선언 · self_role=sub)에는 자기 자신만 있다 — 자기에게 echo 를 기다리면 영원히
     # '서브 미수렴' 이다(2026-10-17 라이브 E2 · 서브 첫 줄이 자기 자신을 미수렴으로 보였다).
-    if read_declaration(base).get("self_role") == "sub":
+    if read_declaration(base).get("self_role") == "sub" or checkout_is_sub():
         return []
     return [n.get("node_id") for n in (read_declaration(base).get("nodes") or [])
             if isinstance(n, dict) and n.get("role") == "sub" and isinstance(n.get("node_id"), str)
@@ -2596,6 +2598,9 @@ def fold_lifecycle(base: Path, *, active: "str | None" = None) -> dict:
         out["state"] = "orphan"
     if out["unknown_events"]:
         out["state"] = "unknown"
+    if checkout_is_sub():
+        # 이미 적힌 종결 줄이 서브를 지목하고 있어도(옛 인스턴스) 서브 체크아웃에서는 기다릴 대상이 없다 — 위 판정과 같은 이유.
+        out["sub_nodes"], out["reslice_pending"] = [], {}
     if out["sub_nodes"] and out["state"] in ("active", "suspended", "resume_pending", "closed"):
         out["sub_echoed"] = sorted(echoed)
         out["sub_convergence"] = ("converged" if set(out["sub_nodes"]) <= echoed else "unconverged")
@@ -2674,6 +2679,27 @@ def _manifest_topology(root: Path) -> "str | None":
         if m and m.group(1) == t:
             found.append(t)
     return found[0] if len(found) == 1 else None
+
+
+_SELF_ROLE_FN = None              # 자체검사 주입점(픽스처 저장소에는 manifest 가 없다)
+
+
+def checkout_is_sub() -> bool:
+    """이 체크아웃이 서브 노드인가 — manifest 의 `self_role: sub`(메인 terraforming 이 발급 · 노드 정체의 권위)로 판정한다.
+
+    ★ 2026-10-17 라이브(plan_26101722 S9 orphan sweep): 선언의 `self_role` 만 보면 그 키가 생기기 전에 열린 서브 인스턴스
+      (camp7-sub-native)가 자기 자신을 종결 echo 대상으로 세어 영구 '서브 미수렴' 이 됐다. 서브는 누구에게도 수명 제어를
+      보내지 않으므로 서브 체크아웃에서는 선언과 무관하게 전파 대상이 없다."""
+    if _SELF_ROLE_FN is not None:
+        return _SELF_ROLE_FN() == "sub"
+    for t in ("single", "multi"):
+        try:
+            text = (REPO_ROOT / "output" / t / "manifest.yaml").read_text(encoding="utf-8")
+        except OSError:
+            continue
+        if re.search(r"^self_role:\s*['\"]?sub['\"]?\s*(?:#.*)?$", text, re.M):
+            return True
+    return False
 
 
 def checkout_topology() -> "str | None":

@@ -62,6 +62,7 @@ class Fixture:
         ci._CHECKOUT_TOPOLOGY_FN = lambda: self.topology
         ci._IMAGE_DIGEST_FN = lambda tag: self.images.get(tag)
         ci._RELEASE_RUNNER = self._runner
+        ci._SELF_ROLE_FN = lambda: "main"
 
     def _runner(self, cmd):
         self.calls.append(cmd)
@@ -326,6 +327,20 @@ def g_guard(fx: Fixture):
     ck("2노드 캠페인 포기: 요약 증거가 main 노드로 귀속되고 종결된다",
        rc == 0 and fx.state("G2") == "closed"
        and any(p.get("node_id") == "main" for p in ci._read_json(two / "evidence_pointers.json")["pointers"]))
+    # 2026-10-17 라이브(plan_26101722 orphan sweep): self_role 키가 없는 옛 서브 인스턴스 — manifest 의 정체가 판정한다.
+    old_sub = fx.camp("GO", sub=True)
+    # 교정 전 코드가 남긴 모양 그대로 — 종결 줄이 서브(자기 자신)를 지목한다.
+    ci.writer_append_journey(old_sub, ci._lifecycle_event("campaign_closed", UTC, reason="abandoned",
+                                                          sub_nodes=["sub1"], summary_testlog=fx.testlog("t_GO.md")))
+    ci._SELF_ROLE_FN = lambda: "sub"
+    try:
+        ck("서브 체크아웃(manifest self_role=sub)은 이미 적힌 옛 종결 줄도 자기 echo 를 기다리지 않는다",
+           fx.state("GO") == "closed" and ci.fold_lifecycle(old_sub)["sub_convergence"] is None
+           and "GO@" not in ci.lifecycle_line() and ci._sub_nodes(fx.camp("GO2", sub=True)) == [])
+    finally:
+        ci._SELF_ROLE_FN = lambda: "main"
+    ck("★음성대조 메인 체크아웃에서는 같은 줄이 서브를 기다린다",
+       ci.fold_lifecycle(old_sub)["sub_convergence"] == "unconverged")
     ck("서브 자기 인스턴스 보류는 '서브 미수렴' 을 만들지 않는다",
        ci.fold_lifecycle(sb)["sub_convergence"] is None and "GS@" not in ci.lifecycle_line())
 
@@ -433,6 +448,19 @@ def g_propagate(fx: Fixture):
                                                                           "state": "closed",
                                                                           "close_reason": "completed"}}, "PA", "abandon")
     ck("relay echo 판정: 같은 closed 라도 사유가 다르면 미수렴", ok and not bad and "사유" in why)
+    ts = relay.orphan_sweep_task(["o1", "o2"], "옛 허점 잔재")
+    ck("orphan sweep 지시: 대상 전수 --abandon · 요약 testlog 1건 · 목록 밖 금지",
+       "--abandon o1" in ts and "--abandon o2" in ts and "목록 밖" in ts and "--init" not in ts)
+    _r = lambda res: {"campaign_control_echo": {"control": "orphan_sweep", "summary_testlog": "t.md", "results": res}}
+    ok, _ = relay.orphan_sweep_echo_ok(_r([{"campaign_id": c, "state": "closed", "close_reason": "abandoned"}
+                                           for c in ("o1", "o2")]), ["o1", "o2"])
+    part, why = relay.orphan_sweep_echo_ok(_r([{"campaign_id": "o1", "state": "closed", "close_reason": "abandoned"},
+                                               {"campaign_id": "o2", "state": "orphan", "refusal": "게이트"}]),
+                                           ["o1", "o2"])
+    extra, why2 = relay.orphan_sweep_echo_ok(_r([{"campaign_id": c, "state": "closed", "close_reason": "abandoned"}
+                                                 for c in ("o1", "o2", "o3")]), ["o1", "o2"])
+    ck("★orphan sweep echo: 전수 abandoned=수렴 · 일부 거부=미정리(사유) · 목록 밖 접촉=거부",
+       ok and not part and "o2" in why and "게이트" in why and not extra and "o3" in why2)
 
 
 def g_assign(fx: Fixture):
@@ -453,6 +481,9 @@ def g_assign(fx: Fixture):
        and d2["assignment_revisions"][0]["approved_by"] == "t0" and d2["assignment_revisions"][1]["added"] == ["c3"]
        and any(e.get("kind") == "campaign_assignments_revised" for e in ci.read_journey(base))
        and ci.fold_lifecycle(base)["state"] == "active")
+    (base / "cells" / "c2").mkdir(parents=True, exist_ok=True)
+    (base / "cells" / "c2" / "cell.status.json").write_text(json.dumps({"cell_outcome": ci.FILL}), encoding="utf-8")
+    ck("materialize 직후 틀 값(<<FILL>>) 셀은 잠기지 않는다(라이브 L5)", ci._cell_lock_reason(base, "c2") is None)
     ci.writer_set_phase(base, node="main", phase="bench", state="done", predicate="x", ok=True, source="fixture",
                         cell_id="c3", started_utc=UTC, ended_utc=UTC)
     rc, msg = run("--assign-set", "main", "--assign-cells", "c2,c1:HITL", *four)
@@ -542,7 +573,7 @@ def main(argv=None) -> int:
                 fn(Fixture(Path(tmp)))
     finally:
         ci.REPO_ROOT, ci.CAMPAIGNS, ci.ACTIVE_POINTER = saved
-        ci._CHECKOUT_TOPOLOGY_FN = ci._IMAGE_DIGEST_FN = ci._RELEASE_RUNNER = None
+        ci._CHECKOUT_TOPOLOGY_FN = ci._IMAGE_DIGEST_FN = ci._RELEASE_RUNNER = ci._SELF_ROLE_FN = None
     print("[selftest_campaign_lifecycle] " + ("PASS" if OK else "FAIL"))
     return 0 if OK else 1
 
