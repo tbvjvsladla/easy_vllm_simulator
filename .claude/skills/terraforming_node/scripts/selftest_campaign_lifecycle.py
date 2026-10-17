@@ -6,6 +6,8 @@ plan_26101719 의 합격 묶음 네 개를 픽스처 저장소에서 결정론�
   transition — 단일 정문(허점 봉쇄 · 협조 거부 · --preempt · teardown 실패 fail-closed · 토폴로지 2단)
   requery    — 재질의 계기 (a)(d)만 · 답한 전이는 다시 묻지 않음 · 리볼빙 N회 무질의 · 첫 줄 상태
   guard      — 진행성 쓰기 거부 · 정리성 허용 · 보류 purge 불가 · abandoned 축소 게이트 · 재개 게이트
+  propagate  — 메인 종결의 서브 전파(plan_26101722 K1~K3): 종결 줄의 sub_nodes · 미수렴 첫 줄 · purge 조건 · 사람 수용
+  assign     — 배정 writer(K8): pending 셀만 · 4필드 · 이중 배정·hint 승인 셀 거부 · reslice 미수렴·echo · 서브 slice-update
 
 라이브(실제 서브 A2A · 실제 teardown · 실제 브랜치 전환)는 이 파일의 범위가 아니다 — E2E testlog 가 맡는다.
 픽스처가 실물보다 좁을 수 있다는 것을 알고 쓴다(teardown·docker·git 은 주입점으로 대체한다).
@@ -325,7 +327,7 @@ def g_guard(fx: Fixture):
        rc == 0 and fx.state("G2") == "closed"
        and any(p.get("node_id") == "main" for p in ci._read_json(two / "evidence_pointers.json")["pointers"]))
     ck("서브 자기 인스턴스 보류는 '서브 미수렴' 을 만들지 않는다",
-       ci.fold_lifecycle(sb)["sub_convergence"] is None and "서브 미수렴" not in ci.lifecycle_line())
+       ci.fold_lifecycle(sb)["sub_convergence"] is None and "GS@" not in ci.lifecycle_line())
 
 
 def g_relay(fx: Fixture):
@@ -375,8 +377,157 @@ def g_relay(fx: Fixture):
        "→ popup" not in out.getvalue() and "→ hold" in out.getvalue() and rc3 == 0)
 
 
+def g_propagate(fx: Fixture):
+    print("## propagate — 메인 종결의 서브 전파(K1~K3)")
+    a = fx.camp("PA", active=True, sub=True)
+    rc, msg = run("--abandon", "PA", "--reason", "x", "--summary-testlog", fx.testlog("testlog_PA.md"),
+                  "--release", "none", "--approved-by", "fixture", "--utc", UTC, "--apply")
+    f = ci.fold_lifecycle(a)
+    ck("2노드 포기: 종결 줄이 서브를 지목하고 미수렴으로 접힌다 · relay abandon 안내",
+       rc == 0 and f["sub_nodes"] == ["sub1"] and f["sub_convergence"] == "unconverged"
+       and "--campaign-control abandon" in msg)
+    ck("첫 줄에 '서브 미수렴 PA@sub1'", "서브 미수렴 PA@sub1" in ci.lifecycle_line())
+    ck("purge 게이트: 서브 종결 미수렴이면 닫히고 relay·수용 두 경로를 말한다",
+       any("서브 종결이 수렴하지 않았다" in r and "--sub-unconverged-accept" in r for r in ci.purge_gate_reasons("PA")))
+    run("--sub-echo", "PA", "--node", "sub1", "--control", "close", "--utc", UTC, "--apply")
+    ck("★음성대조 사유가 다른 echo(close)는 포기 종결을 수렴시키지 않는다",
+       ci.fold_lifecycle(a)["sub_convergence"] == "unconverged")
+    rc, _ = run("--sub-echo", "PA", "--node", "sub1", "--control", "abandon", "--utc", UTC, "--apply")
+    ck("abandon echo → 수렴 · purge 게이트의 서브 사유 소거",
+       rc == 0 and ci.fold_lifecycle(a)["sub_convergence"] == "converged"
+       and not any("서브 종결" in r for r in ci.purge_gate_reasons("PA")) and "PA@" not in ci.lifecycle_line())
+    b = fx.camp("PB", active=True, sub=True)
+    run("--abandon", "PB", "--reason", "x", "--summary-testlog", fx.testlog("testlog_PB.md"),
+        "--release", "none", "--approved-by", "fixture", "--utc", UTC, "--apply")
+    rc, msg = run("--sub-unconverged-accept", "PB", "--node", "sub1", "--utc", UTC, "--apply")
+    ck("★음성대조 수용은 사람 발화 전사 없이는 거부", rc != 0 and "--approved-by" in msg)
+    rc, _ = run("--sub-unconverged-accept", "PB", "--node", "sub1", "--approved-by", "사람: 서브 미도달 수용",
+                "--utc", UTC, "--apply")
+    fb = ci.fold_lifecycle(b)
+    ck("사람 수용 → 수렴 · 수용 기록이 따로 남는다 · purge 서브 사유 소거",
+       rc == 0 and fb["sub_convergence"] == "converged" and fb["sub_accepted"] == ["sub1"]
+       and not any("서브 종결" in r for r in ci.purge_gate_reasons("PB")))
+    fx.camp("PC", active=True, sub=True)
+    rc, msg = run("--sub-unconverged-accept", "PC", "--node", "sub1", "--approved-by", "x", "--utc", UTC, "--apply")
+    ck("★음성대조 active 캠페인에는 수용할 것이 없다(보류·재개 미수렴은 차단이 아니다)", rc != 0)
+    ci.ACTIVE_POINTER.write_text("_bootstrap\n", encoding="utf-8")
+    old = fx.camp("PD", opened=False, sub=True)
+    (old / ci.JOURNEY_NAME).write_text(json.dumps({"utc": UTC, "kind": "campaign_closed", "reason": "abandoned",
+                                                    "lifecycle_v": 1, "summary_testlog": fx.testlog("t_PD.md")})
+                                       + "\n", encoding="utf-8")
+    ck("옛 종결(sub_nodes 없음)은 전파 조건 면제 — 소급 차단 ✗",
+       ci.fold_lifecycle(old)["sub_convergence"] is None
+       and not any("서브 종결" in r for r in ci.purge_gate_reasons("PD")))
+    _rs = importlib.util.spec_from_file_location("_relay_prop_test", HERE / "relay.py")
+    relay = importlib.util.module_from_spec(_rs)
+    _rs.loader.exec_module(relay)
+    tc = relay.campaign_control_task("PA", "close")
+    ta = relay.campaign_control_task("PA", "abandon", reason="모드3 탐색으로 전환")
+    ck("relay 지시: close=--close · abandon=--abandon+사유+요약 testlog · echo 에 close_reason",
+       "--close PA" in tc and "--abandon PA" in ta and "모드3 탐색으로 전환" in ta and "--summary-testlog" in ta
+       and "close_reason" in ta and "--init" not in ta)
+    ok, _ = relay.campaign_control_echo_ok({"campaign_control_echo": {"campaign_id": "PA", "control": "abandon",
+                                                                       "state": "closed", "close_reason": "abandoned"}},
+                                           "PA", "abandon")
+    bad, why = relay.campaign_control_echo_ok({"campaign_control_echo": {"campaign_id": "PA", "control": "abandon",
+                                                                          "state": "closed",
+                                                                          "close_reason": "completed"}}, "PA", "abandon")
+    ck("relay echo 판정: 같은 closed 라도 사유가 다르면 미수렴", ok and not bad and "사유" in why)
+
+
+def g_assign(fx: Fixture):
+    print("## assign — 배정 writer · reslice(K8)")
+    base = fx.camp("AS", active=True, sub=True)
+    d = ci.read_declaration(base)
+    d["assignments"] = {"main": [{"cell": "c1"}, {"cell": "c2"}], "sub1": [{"cell": "s1"}]}
+    d["hint_targets"] = [{"node_id": "main", "cells": ["c2"], "approval": {"approved_by": "사람", "utc": UTC}}]
+    (base / "campaign.yaml").write_text(json.dumps(d), encoding="utf-8")
+    four = ("--assign-reason", "모드3 조건 추가", "--assign-evidence", "docs/plan/p.md",
+            "--assign-approved-by", "사람: 승인", "--utc", UTC)
+    rc, msg = run("--assign-set", "main", "--assign-cells", "c2,c1:HITL,c3", "--assign-reason", "x", "--utc", UTC)
+    ck("★음성대조 4필드 누락 거부", rc != 0 and "필수" in msg)
+    rc, msg = run("--assign-set", "main", "--assign-cells", "c2,c1:HITL,c3", *four)
+    d2 = ci.read_declaration(base)
+    ck("pending 셀 추가·순서·mode 변경 → assignments 갱신 · revisions[0]=t0 · journey 1줄",
+       rc == 0 and [i["cell"] for i in d2["assignments"]["main"]] == ["c2", "c1", "c3"]
+       and d2["assignment_revisions"][0]["approved_by"] == "t0" and d2["assignment_revisions"][1]["added"] == ["c3"]
+       and any(e.get("kind") == "campaign_assignments_revised" for e in ci.read_journey(base))
+       and ci.fold_lifecycle(base)["state"] == "active")
+    ci.writer_set_phase(base, node="main", phase="bench", state="done", predicate="x", ok=True, source="fixture",
+                        cell_id="c3", started_utc=UTC, ended_utc=UTC)
+    rc, msg = run("--assign-set", "main", "--assign-cells", "c2,c1:HITL", *four)
+    ck("★음성대조 done 셀 제거 거부(사유에 phase 지목)", rc != 0 and "c3" in msg and "pending" in msg)
+    rc, msg = run("--assign-set", "main", "--assign-cells", "c1:HITL,c3", *four)
+    ck("★음성대조 hint 승인 셀 제거 거부", rc != 0 and "hint" in msg)
+    rc, msg = run("--assign-set", "main", "--assign-cells", "c2,c1:HITL,c3,s1", *four)
+    ck("★음성대조 다른 노드 셀을 넣으면 거부(이동 = 제거+추가)", rc != 0 and "sub1" in msg)
+    rc, msg = run("--assign-set", "sub1", "--assign-cells", "s1,s2", *four)
+    f = ci.fold_lifecycle(base)
+    ck("서브 몫 재배정 → 재배정 미수렴 · 첫 줄 · relay reslice 안내",
+       rc == 0 and "sub1" in f["reslice_pending"] and "재배정 미수렴 AS@sub1" in ci.lifecycle_line()
+       and "--campaign-control reslice" in msg)
+    sl = ci.emit_slice(base, "sub1", utc=UTC)
+    ck("파생 선언이 재배정 메타를 싣는다", (sl.get("_assignment_revision") or {}).get("rev") == f["reslice_pending"]["sub1"])
+    rc, _ = run("--sub-echo", "AS", "--node", "sub1", "--control", "reslice", "--utc", UTC, "--apply")
+    ck("★음성대조 rev 없는 reslice echo 거부", rc != 0)
+    ci.record_sub_echo("AS", node="sub1", control="reslice", utc=UTC, apply=True, rev=f["reslice_pending"]["sub1"])
+    ck("reslice echo(rev 일치) → 재배정 미수렴 소거", not ci.fold_lifecycle(base)["reslice_pending"]
+       and "AS@" not in ci.lifecycle_line())
+    _rs = importlib.util.spec_from_file_location("_relay_assign_test", HERE / "relay.py")
+    relay = importlib.util.module_from_spec(_rs)
+    _rs.loader.exec_module(relay)
+    t = relay.campaign_control_task("AS", "reslice", slice_doc=sl)
+    ok, _ = relay.campaign_control_echo_ok({"campaign_control_echo": {
+        "campaign_id": "AS", "control": "reslice", "state": "active", "rev": sl["_assignment_revision"]["rev"],
+        "assigned_cells": ["s1", "s2"]}}, "AS", "reslice", slice_doc=sl)
+    bad, _ = relay.campaign_control_echo_ok({"campaign_control_echo": {
+        "campaign_id": "AS", "control": "reslice", "state": "active", "rev": sl["_assignment_revision"]["rev"],
+        "assigned_cells": ["s1"]}}, "AS", "reslice", slice_doc=sl)
+    ck("relay reslice: 지시가 선언을 싣고 --slice-update - · echo 는 셀 목록·rev 까지 대조",
+       "--slice-update -" in t and '"s2"' in t and ok and not bad)
+    # 서브 쪽 — 다른 저장소의 자기 인스턴스(같은 id)를 흉내 낸다.
+    sub_root = fx.tmp / "subrepo" / "campaigns"
+    saved = (ci.CAMPAIGNS, ci.ACTIVE_POINTER)
+    try:
+        ci.CAMPAIGNS = sub_root
+        ci.ACTIVE_POINTER = sub_root / "ACTIVE"
+        sbase = sub_root / "AS"
+        (sbase / "cells").mkdir(parents=True)
+        own = {k: v for k, v in sl.items() if not k.startswith("_")}
+        own["assignments"] = {"sub1": [{"cell": "s1"}]}
+        (sbase / "campaign.yaml").write_text(json.dumps(own), encoding="utf-8")
+        (sbase / "evidence_pointers.json").write_text(json.dumps({"pointers": []}), encoding="utf-8")
+        ci.writer_append_journey(sbase, ci._lifecycle_event("campaign_opened", UTC, topology="single",
+                                                            approved_by="main-a2a"))
+        ci.ACTIVE_POINTER.write_text("AS\n", encoding="utf-8")
+        sp = fx.tmp / "slice.json"
+        sp.write_text(json.dumps(sl), encoding="utf-8")
+        rc, msg = run("--slice-update", str(sp), "--utc", UTC, "--apply")
+        ck("서브 --slice-update → 자기 배정이 메인 선언과 같아진다 · 승인 전사는 main-a2a",
+           rc == 0 and [i["cell"] for i in ci.read_declaration(sbase)["assignments"]["sub1"]] == ["s1", "s2"]
+           and ci.read_declaration(sbase)["assignment_revisions"][-1]["approved_by"].startswith("main-a2a"))
+        ci.writer_append_journey(sbase, ci._lifecycle_event("campaign_suspended", UTC, approved_by="x"))
+        rc, msg = run("--slice-update", str(sp), "--utc", UTC, "--apply")
+        ck("★음성대조 보류 중 서브 재배정 거부(진행성 쓰기)", rc != 0 and "suspended" in msg)
+    finally:
+        ci.CAMPAIGNS, ci.ACTIVE_POINTER = saved
+    rc, msg = run("--slice-update", str(fx.tmp / "slice.json"), "--utc", UTC, "--apply")
+    ck("★음성대조 메인 인스턴스에 slice-update 거부(메인은 --assign-set)", rc != 0 and "서브 자기 인스턴스가 아니다" in msg)
+    run("--suspend", "AS", "--release", "none", "--approved-by", "fixture", "--utc", UTC, "--apply")
+    rc, msg = run("--assign-set", "main", "--assign-cells", "c2,c1:HITL,c3", "--campaign-id", "AS", *four)
+    ck("★음성대조 보류 캠페인 재배정 거부", rc != 0)
+    # K5: phase-set 이 --cell 만 받아도 배정에서 노드를 파생한다(lite·sweep 실행기 종료부).
+    pb = fx.camp("PH", active=True)
+    rc, _ = run("--phase-set", "bench", "--cell", "c1", "--state", "running", "--started-utc", UTC)
+    st = ci._read_json(pb / "phases" / "main" / "bench.status.json") or {}
+    ck("phase-set --cell(노드 생략) → 배정 노드로 기록", rc == 0 and st.get("state") == "running"
+       and st.get("cell_id") == "c1")
+    rc, msg = run("--phase-set", "bench", "--cell", "zz", "--state", "running")
+    ck("★음성대조 배정 밖 셀은 노드를 파생하지 못해 거부", rc != 0 and "assignments" in msg)
+
+
 GROUPS = {"state": g_state, "transition": g_transition, "requery": g_requery, "guard": g_guard,
-          "guard_relay": g_relay}
+          "guard_relay": g_relay, "propagate": g_propagate, "assign": g_assign}
 
 
 def main(argv=None) -> int:

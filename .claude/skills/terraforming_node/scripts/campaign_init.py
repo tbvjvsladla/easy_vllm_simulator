@@ -165,6 +165,14 @@ def purge_gate_reasons(previous_id: str) -> list[str]:
                 f"`--abandon {previous_id}`(축소 게이트)로만 정리한다"]
     if life["state"] == "unknown":
         return [f"{previous_id}: journey 에 이 버전이 모르는 수명 이벤트가 있다 — 브랜치 공통층 동기화 후 다시"]
+    if life["state"] == "closed" and life.get("sub_convergence") == "unconverged":
+        # K3(plan_26101722): purge 가 미수렴 기록을 지우면 서브 종결 누락이 다시 침묵 누락이 된다. 새 차단점이 아니라 기존
+        # purge 게이트의 조건이다. 서브 미도달의 탈출구는 사람 수용 하나뿐이다.
+        _miss = sorted(set(life["sub_nodes"]) - set(life["sub_echoed"]))
+        _ctl = CLOSE_CONTROL.get(life["close_reason"], "close")
+        return [f"{previous_id}: 서브 종결이 수렴하지 않았다({', '.join(_miss)}) — `relay.py --campaign-control {_ctl} "
+                f"--campaign-id {previous_id} --node <sub>` 로 전하고 echo 를 받거나, 서브 미도달이면 사람이 "
+                f"`--sub-unconverged-accept {previous_id} --node <sub> --approved-by <전사> --utc <T>` 로 수용한다"]
     if life["state"] == "closed" and life["close_reason"] == "abandoned":
         closed = next((e for e in reversed(read_journey(prev))
                        if isinstance(e, dict) and e.get("kind") == "campaign_closed"), {})
@@ -288,6 +296,14 @@ def do_purge(previous_id: str, *, apply: bool) -> list[str]:
     return [_rel(prev)]
 
 
+def _sub_close_hint(camp_id: str, subs: list, control: str) -> str:
+    """메인 종결의 서브 전파 안내(K2). 실행자는 relay 다 — 여기서는 명령만 말한다(메인은 서브를 직접 고치지 않는다)."""
+    if not subs:
+        return ""
+    return (f" · 서브 종결은 A2A 제어명령으로 전한다: relay.py --campaign-control {control} --campaign-id {camp_id} "
+            f"--node {'|'.join(subs)} … (echo 가 오기 전까지 '서브 미수렴' · purge 게이트가 이것을 묻는다)")
+
+
 def close_campaign(camp_id: str, *, utc: str | None, apply: bool) -> str:
     """활성 캠페인을 **종결**한다 — ACTIVE 만 `_bootstrap` 으로 되돌리고 인스턴스는 지우지 않는다.
 
@@ -316,16 +332,19 @@ def close_campaign(camp_id: str, *, utc: str | None, apply: bool) -> str:
     if reasons:
         raise PurgeGateRefusal("종결 선행조건(= purge 게이트)이 닫혀 있다:\n  - " + "\n  - ".join(reasons))
     if apply:
+        subs = _sub_nodes(CAMPAIGNS / camp_id)
         writer_append_journey(CAMPAIGNS / camp_id, {
             "utc": utc, "kind": "campaign_closed", "reason": "completed",
-            "lifecycle_v": LIFECYCLE_V, "source": "campaign_init --close",
+            "lifecycle_v": LIFECYCLE_V, "source": "campaign_init --close", "sub_nodes": subs,
             "note": "ACTIVE → _bootstrap (인스턴스 보존 · 다음 --init --purge-previous 가 지운다)"})
         ACTIVE_POINTER.write_text(BOOTSTRAP + "\n", encoding="utf-8")
+        tail = _sub_close_hint(camp_id, subs, "close")
         # 계기 (a) — 파생 자식의 완주는 보류 중인 부모의 재개 질의를 정확히 한 번 단다.
         parent = _parent_on_close(CAMPAIGNS / camp_id, reason="completed", utc=utc)
         if parent:
             return (f"closed {camp_id} → ACTIVE=_bootstrap (인스턴스 보존: campaigns/{camp_id}) · "
-                    f"부모 {parent} 에 재개 미결(계기 a)")
+                    f"부모 {parent} 에 재개 미결(계기 a)" + tail)
+        return f"closed {camp_id} → ACTIVE=_bootstrap (인스턴스 보존: campaigns/{camp_id})" + tail
     return f"closed {camp_id} → ACTIVE=_bootstrap (인스턴스 보존: campaigns/{camp_id})"
 
 
@@ -1584,6 +1603,153 @@ def _short(text, limit: int = 160) -> str:
     return t if len(t) <= limit else t[:limit - 1] + "…"
 
 
+def _parse_assign_cells(spec: str) -> list:
+    """`c1,c2:HITL,c3:STAY` → assignments 항목. 생략된 mode 는 적지 않는다(생략 = AUTO 는 검증기 소유)."""
+    out = []
+    for tok in [t.strip() for t in (spec or "").split(",") if t.strip()]:
+        cell, _, mode = tok.partition(":")
+        item = {"cell": cell.strip()}
+        if mode:
+            if mode not in validator().ASSIGNMENT_MODES:
+                raise WriterRefusal(f"--assign-cells 의 mode 는 {validator().ASSIGNMENT_MODES} 중 하나다: {tok!r}")
+            item["mode"] = mode
+        out.append(item)
+    return out
+
+
+def _cell_lock_reason(base: Path, cell: str) -> "str | None":
+    """배정을 바꿀 수 없는 셀인가(K8 — pending 셀만 바꾼다). 돌았거나 도는 셀을 빼면 증거가 배정을 잃는다."""
+    st = _read_json(base / "cells" / cell / "cell.status.json")
+    if isinstance(st, dict):
+        oc = st.get("cell_outcome")
+        if oc and oc not in CELL_OUTCOMES_PENDING:
+            return f"cell_outcome={oc}"
+        meas = st.get("measurement") if isinstance(st.get("measurement"), dict) else {}
+        if meas.get("decode_tps_conc1") is not None:
+            return "측정값이 기록됐다"
+        if st.get("void_reason"):
+            return "사유가 기록됐다"
+    phases = base / "phases"
+    for ndir in sorted(phases.iterdir()) if phases.is_dir() else []:
+        if not ndir.is_dir() or ndir.name.startswith("_"):
+            continue
+        for ph in PHASE_NAMES:
+            doc = _read_json(ndir / f"{ph}.status.json")
+            if isinstance(doc, dict) and doc.get("cell_id") == cell and doc.get("state") in ("running", "done"):
+                return f"phase {ndir.name}:{ph}={doc.get('state')}"
+    return None
+
+
+def writer_assign_set(base: Path, *, node: str, items: list, reason: str, evidence: str,
+                      approved_by: str, utc: str, source: str = "campaign_init --assign-set") -> "tuple[Path, dict]":
+    """`assignments[node]` 개정(2026-10-17 · plan_26101722 K8 · `--revise` 와 같은 4필드 규율).
+
+    왜: 배정을 개설 뒤에 바꾸는 writer 가 없어서 변경은 campaign.yaml 손편집이라는 우회로 갔다(D3). 바꿀 수 있는 것은
+    **pending 셀뿐**이다 — 돌았거나 도는 셀을 빼거나 mode 를 바꾸면 증거·진행표가 배정을 잃는다. 노드 간 이동은 제거+추가이고,
+    다른 노드에 이미 있는 셀을 넣으면 거부한다(이중 배정). hint 승인을 든 셀은 뺄 수 없다(승인 재수령이 먼저 · 무인 재태깅 ✗).
+    `assignment_revisions[0]` 은 t0 원본이며 불변이다."""
+    for need, val in (("--assign-reason", reason), ("--assign-evidence", evidence),
+                      ("--assign-approved-by", approved_by), ("--utc", utc)):
+        if not val:
+            raise WriterRefusal(f"{need} 는 필수다 — 사유·근거·승인자·시각 없는 배정 변경은 드리프트다")
+    path = base / "campaign.yaml"
+    doc = read_declaration(base)
+    if not doc:
+        raise WriterRefusal("campaign.yaml 이 없거나 파손")
+    v = validator()
+    if node not in {n.get("node_id") for n in (doc.get("nodes") or []) if isinstance(n, dict)}:
+        raise WriterRefusal(f"nodes[] 에 {node!r} 가 없다")
+    old = v.assignment_items(doc, node)
+    old_mode = {i.get("cell"): i.get("mode", v.DEFAULT_MODE) for i in old}
+    new_cells = [i["cell"] for i in items]
+    if len(set(new_cells)) != len(new_cells):
+        raise WriterRefusal(f"--assign-cells 에 같은 셀이 두 번 있다: {new_cells}")
+    for cell in new_cells:
+        if cell in v.RESERVED_CELL_NAMES or not cell or FILL in cell:
+            raise WriterRefusal(f"셀 이름으로 쓸 수 없다: {cell!r}")
+        other = next((n for n in v.assignments_of(doc) if n != node and cell in v.assigned_cells(doc, n)), None)
+        if other:
+            raise WriterRefusal(f"셀 {cell!r} 은 노드 {other!r} 에 배정돼 있다 — 이동은 그 노드에서 먼저 빼고 넣는다"
+                                "(제거+추가 · pending 일 때만)")
+    removed = [c for c in old_mode if c not in new_cells]
+    changed = [i["cell"] for i in items if i["cell"] in old_mode
+               and i.get("mode", v.DEFAULT_MODE) != old_mode[i["cell"]]]
+    locked = [(c, _cell_lock_reason(base, c)) for c in removed + changed]
+    locked = [(c, r) for c, r in locked if r]
+    if locked:
+        raise WriterRefusal("pending 이 아닌 셀은 빼거나 mode 를 바꿀 수 없다(증거 연결 보존): "
+                            + "; ".join(f"{c}({r})" for c, r in locked))
+    approved = [c for c in removed for t in (doc.get("hint_targets") or [])
+                if isinstance(t, dict) and c in (t.get("cells") or []) and t.get("approval")]
+    if approved:
+        raise WriterRefusal(f"hint 사전승인을 든 셀은 뺄 수 없다: {sorted(set(approved))} — 승인을 먼저 다시 받는다"
+                            "(무인 재태깅 ✗)")
+    revs = doc.get("assignment_revisions") if isinstance(doc.get("assignment_revisions"), list) else []
+    if not revs:
+        revs.append({"rev": 0, "declared_utc": doc.get("declared_utc"), "assignments": v.assignments_of(doc),
+                     "reason": "t0 선언", "evidence": doc.get("plan_ref"), "approved_by": "t0"})
+    assigns = json.loads(json.dumps(v.assignments_of(doc), ensure_ascii=False))
+    assigns[node] = items
+    trial = dict(doc, assignments=assigns)
+    tmp = path.with_name(".assign_trial.campaign.yaml")
+    tmp.write_text(json.dumps(trial, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    try:
+        # 셀 입력은 아직 없을 수 있다(배정이 먼저고 materialize 가 뒤다 — 배정 밖 셀은 만들지 않으므로). 이 변경이 **새로**
+        # 만든 결함만 막는다 — 이미 있던 선언 결함을 배정 변경의 거부 사유로 삼으면 배정 writer 가 엉뚱한 자리에서 선다.
+        before = set(v.validate_campaign(path, strict_paths=False))
+        why = [w for w in (x.replace(tmp.name, path.name) for x in v.validate_campaign(tmp, strict_paths=False))
+               if w not in before]
+    finally:
+        tmp.unlink(missing_ok=True)
+    if why:
+        raise WriterRefusal("배정 변경 뒤 선언이 계약을 깬다:\n" + "\n".join(f"  - {w}" for w in why))
+    rev = {"rev": len(revs), "declared_utc": utc, "node": node, "assignments": assigns, "removed": removed,
+           "added": [c for c in new_cells if c not in old_mode], "reason": reason, "evidence": evidence,
+           "approved_by": approved_by, "source": source}
+    revs.append(rev)
+    doc["assignments"] = assigns
+    doc["assignment_revisions"] = revs
+    path.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    writer_append_journey(base, _lifecycle_event(
+        "campaign_assignments_revised", utc, node=node, rev=rev["rev"], cells=new_cells,
+        removed=removed, added=rev["added"], approved_by=approved_by, source=source,
+        sub_target=node in _sub_nodes(base)))
+    return path, rev
+
+
+def slice_update(source: str, *, utc, apply: bool) -> list:
+    """서브 자기 인스턴스의 배정을 메인 파생 선언으로 바꾼다(K8 · relay `reslice` 의 실행부). pending 규칙은 같은 writer 가
+    서브 자기 상태로 다시 검사한다 — 메인이 본 상태와 서브 실물이 갈라졌으면 여기서 거부된다(우회 ✗ · 보고)."""
+    if not utc:
+        raise WriterRefusal("--slice-update 는 --utc 가 필요하다")
+    sd = _load_slice(source)
+    if sd.get("self_role") != "sub" or sd.get("authored_by") != SLICE_AUTHOR:
+        raise WriterRefusal("--slice-update 는 메인 파생 선언(self_role=sub · authored_by=main-derived)만 받는다")
+    camp = sd.get("id")
+    base = campaigns_dir() / str(camp)
+    decl = read_declaration(base)
+    if not decl:
+        raise WriterRefusal(f"인스턴스가 없다: campaigns/{camp} — 먼저 메인 파생 선언으로 개설(--init --from-slice)")
+    if decl.get("self_role") != "sub":
+        raise WriterRefusal(f"campaigns/{camp} 은 서브 자기 인스턴스가 아니다 — 메인 배정은 --assign-set 으로 바꾼다")
+    nodes = list((sd.get("assignments") or {}).keys())
+    own = [n.get("node_id") for n in (decl.get("nodes") or []) if isinstance(n, dict)]
+    if len(nodes) != 1 or nodes[0] not in own:
+        raise WriterRefusal(f"선언의 배정 노드 {nodes} 가 이 인스턴스의 노드 {own} 가 아니다(오배달 방지)")
+    meta = sd.get("_assignment_revision") or {}
+    guard_writer_ops(base, {"assign_set": True})
+    items = [i for i in (sd["assignments"][nodes[0]] or []) if isinstance(i, dict)]
+    if not apply:
+        return [f"dry-run slice-update {camp}@{nodes[0]} → {[i.get('cell') for i in items]}"]
+    _p, rev = writer_assign_set(base, node=nodes[0], items=items,
+                                reason=meta.get("reason") or "메인 재배정",
+                                evidence=meta.get("evidence") or str(sd.get("plan_ref")),
+                                approved_by=f"main-a2a: {meta.get('approved_by') or '메인 재배정 승인'}", utc=utc,
+                                source=f"campaign_init --slice-update (main rev {meta.get('rev')})")
+    return [f"slice-update {camp}@{nodes[0]} rev {rev['rev']} (main rev {meta.get('rev')}) → "
+            f"{[i.get('cell') for i in items]}"]
+
+
 def _assignment_plan(doc: dict) -> list:
     """[(node, cell, mode)] — 노드별 배정을 표시 순서로 편다. 옛 평면 `order` 의 후속이며,
     다른 노드의 리스트는 **동시에** 돈다는 사실이 이 자료구조의 요점이다."""
@@ -1841,6 +2007,11 @@ def emit_slice(base: Path, node: str, *, utc: str) -> dict:
         # 파생 계보(2026-10-17 · plan_26101719 D2) — 서브가 같은 id 의 인스턴스를 열 때 부모를 잇는다. `_` 접두라
         # scaffold 가 선언에는 싣지 않는다(선언의 시민이 아니라 개설 인자다).
         "_lifecycle_parent": fold_lifecycle(base).get("parent"),
+        # 재배정 메타(K8) — 서브 `--slice-update` 가 사유·승인을 그대로 전사한다. 개설 전이면 None.
+        "_assignment_revision": next((({k: r.get(k) for k in ("rev", "reason", "evidence", "approved_by",
+                                                               "declared_utc")})
+                                      for r in reversed(decl.get("assignment_revisions") or [])
+                                      if isinstance(r, dict) and r.get("node") == node), None),
     }
     return out
 
@@ -2274,14 +2445,19 @@ def write_campaign_brief(base: Path, *, node: str, utc: str,
 LIFECYCLE_V = 1
 LIFECYCLE_KINDS = ("campaign_opened", "campaign_suspended", "campaign_resume_pending",
                    "campaign_query_answered", "campaign_resumed", "campaign_closed",
-                   "cell_interrupted", "sub_control_echo")
+                   "cell_interrupted", "sub_control_echo", "sub_control_accepted",
+                   "campaign_assignments_revised")
 TRANSITION_KINDS = ("campaign_opened", "campaign_suspended", "campaign_resume_pending",
                     "campaign_resumed", "campaign_closed")
 CLOSE_REASONS = ("completed", "abandoned")
+# 서브에 A2A 로 전하는 수명 제어(2026-10-17 · plan_26101722 K1). 종결 둘은 사유로 갈린다 — 메인이 닫았는데 서브 ACTIVE 가
+# 남으면 다음 서브 개설이 옛 인스턴스에 막히고 orphan 이 쌓인다(E2E 착수 시 서브 orphan 10 실측).
+SUB_CONTROLS = ("suspend", "resume", "close", "abandon", "reslice")
+CLOSE_CONTROL = {"completed": "close", "abandoned": "abandon"}
 LIFECYCLE_STATES = ("active", "suspended", "resume_pending", "closed", "orphan", "unknown")
 # 진행성 쓰기(D13) — 보류·미결·잔재 캠페인에서는 거부한다. 증거 정리와 읽기는 허용한다(abandoned 축소 게이트가
 # 증거 정리를 요구하므로 그것까지 막으면 교착이다).
-PROGRESS_OPS = ("phase_set", "cell_set", "cell_materialize", "reentry_decide")
+PROGRESS_OPS = ("phase_set", "cell_set", "cell_materialize", "reentry_decide", "assign_set")
 # 정식 teardown 진입점(D8 · compose down 직접 ✗). 토폴로지가 진입점을 가른다 — 한 스크립트로 두 존재를 덮지 않는다.
 SERVE_DOWN = {"single": (".claude/skills/upstream-version-watch/scripts/single_serve_down.sh", ()),
               "multi": (".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh", ("--down",))}
@@ -2335,7 +2511,7 @@ def fold_lifecycle(base: Path, *, active: "str | None" = None) -> dict:
            "interrupted_cells": [], "last_transition_event": None, "answered": False,
            "pending_query": None, "sub_convergence": None, "sub_nodes": [], "sub_echoed": [],
            "handoff_pointers": [], "parked_devlog": None, "open_pending": None,
-           "unknown_events": [], "source": f"{_rel(base / JOURNEY_NAME)} fold"}
+           "sub_accepted": [], "reslice_pending": {}, "unknown_events": [], "source": f"{_rel(base / JOURNEY_NAME)} fold"}
     control = None
     echoed: set = set()
     for i, e in enumerate(read_journey(base)):
@@ -2353,9 +2529,21 @@ def fold_lifecycle(base: Path, *, active: "str | None" = None) -> dict:
             if e.get("cell_id") and e["cell_id"] not in out["interrupted_cells"]:
                 out["interrupted_cells"].append(e["cell_id"])
             continue
-        if kind == "sub_control_echo":
+        if kind == "campaign_assignments_revised":
+            # 재배정은 상태 전이가 아니다 — 서브 몫이면 그 rev 의 echo 가 올 때까지 미수렴으로 둔다(K8).
+            if e.get("sub_target") and e.get("node"):
+                out["reslice_pending"][e["node"]] = e.get("rev")
+            continue
+        if kind == "sub_control_echo" and e.get("control") == "reslice":
+            if e.get("node") in out["reslice_pending"] and (e.get("rev") or -1) >= (out["reslice_pending"][e["node"]] or 0):
+                out["reslice_pending"].pop(e["node"])
+            continue
+        if kind in ("sub_control_echo", "sub_control_accepted"):
+            # 수용(accepted)은 서브 미도달을 사람이 받아들인 기록이다 — echo 와 같은 자리를 채우되 따로 남긴다(K3).
             if e.get("control") == control and e.get("node"):
                 echoed.add(e["node"])
+                if kind == "sub_control_accepted":
+                    out["sub_accepted"].append(e["node"])
             continue
         if kind == "campaign_query_answered":
             last = out["last_transition_event"] or {}
@@ -2394,6 +2582,10 @@ def fold_lifecycle(base: Path, *, active: "str | None" = None) -> dict:
             out["close_reason"] = e.get("reason") or "completed"
             out["open_pending"] = None
             out["pending_query"] = None
+            # 종결 줄이 sub_nodes 를 싣지 않으면(lifecycle 이전 종결 · plan_26101719 시절) 전파 대상이 없다 — 소급 차단 ✗.
+            out["sub_nodes"] = list(e.get("sub_nodes") or [])
+            out["sub_accepted"] = []
+            control, echoed = CLOSE_CONTROL.get(out["close_reason"], "close"), set()
         out["last_transition_event"] = {"ref": f"{i}:{kind}", "index": i, "kind": kind,
                                         "utc": e.get("utc")}
         out["answered"] = False
@@ -2404,7 +2596,7 @@ def fold_lifecycle(base: Path, *, active: "str | None" = None) -> dict:
         out["state"] = "orphan"
     if out["unknown_events"]:
         out["state"] = "unknown"
-    if out["sub_nodes"] and out["state"] in ("active", "suspended", "resume_pending"):
+    if out["sub_nodes"] and out["state"] in ("active", "suspended", "resume_pending", "closed"):
         out["sub_echoed"] = sorted(echoed)
         out["sub_convergence"] = ("converged" if set(out["sub_nodes"]) <= echoed else "unconverged")
     return out
@@ -2435,6 +2627,8 @@ def lifecycle_line(table: "dict | None" = None) -> str:
                and (f["open_pending"] or {}).get("id") not in table]
     unconv = [f"{c}@{','.join(sorted(set(f['sub_nodes']) - set(f['sub_echoed'])))}"
               for c, f in table.items() if f.get("sub_convergence") == "unconverged"]
+    reslice = [f"{c}@{','.join(sorted(f['reslice_pending']))}" for c, f in table.items()
+               if f.get("reslice_pending") and f["state"] not in ("closed",)]
     odd = [f"{c}={f['state']}" for c, f in table.items() if f["state"] in ("orphan", "unknown")]
     parts = [f"ACTIVE={active}", f"보류 {len(susp)}" + (f"({', '.join(susp)})" if susp else ""),
              f"미결 질의 {len(pend)}" + (f"({'; '.join(pend)})" if pend else "")]
@@ -2442,6 +2636,8 @@ def lifecycle_line(table: "dict | None" = None) -> str:
         parts.append(f"개설 대기 {', '.join(opening)}")
     if unconv:
         parts.append(f"서브 미수렴 {', '.join(unconv)}")
+    if reslice:
+        parts.append(f"재배정 미수렴 {', '.join(reslice)}")
     if odd:
         parts.append(f"정리 대상 {', '.join(odd)}")
     return "상태: " + " · ".join(parts)
@@ -2802,13 +2998,15 @@ def abandon_campaign(camp: str, *, utc, approved_by, reason, summary_testlog,
     _main = next((n.get("node_id") for n in (read_declaration(base).get("nodes") or [])
                   if isinstance(n, dict) and n.get("role") == "main" and FILL not in str(n.get("node_id"))), None)
     writer_add_evidence(base, kind="testlog", path_rel=summary_testlog, cell_id=None, node=_main, unfreeze=True)
+    subs = _sub_nodes(base)
     writer_append_journey(base, _lifecycle_event("campaign_closed", utc, reason="abandoned",
                                                  note=reason, approved_by=approved_by,
                                                  summary_testlog=summary_testlog, released=released,
+                                                 sub_nodes=subs,
                                                  answers=(f["last_transition_event"] or {}).get("ref")))
     if active_campaign_id() == camp:
         ACTIVE_POINTER.write_text(BOOTSTRAP + "\n", encoding="utf-8")
-    out = [f"closed(abandoned) {camp}"]
+    out = [f"closed(abandoned) {camp}" + _sub_close_hint(camp, subs, "abandon")]
     parent = _parent_on_close(base, reason="abandoned", utc=utc)
     if parent:
         out.append(f"부모 {parent} 에 재개 미결(계기 a)")
@@ -2881,19 +3079,46 @@ def resume_campaign(camp: str, *, utc, approved_by, accept_drift: bool, apply: b
     return out
 
 
-def record_sub_echo(camp: str, *, node: str, control: str, utc, apply: bool) -> list:
-    """서브가 자기 인스턴스에서 보류/재개했다는 echo(D9). 실행자는 relay(리포트 회수 직후)다."""
-    if control not in ("suspend", "resume"):
-        raise TransitionRefusal(f"--sub-echo 의 control 은 suspend|resume 이다: {control!r}")
+def record_sub_echo(camp: str, *, node: str, control: str, utc, apply: bool, rev: "int | None" = None) -> list:
+    """서브가 자기 인스턴스에서 보류/재개/종결했다는 echo(D9 · K1). 실행자는 relay(리포트 회수 직후)다."""
+    if control not in SUB_CONTROLS:
+        raise TransitionRefusal(f"--sub-echo 의 control 은 {'|'.join(SUB_CONTROLS)} 다: {control!r}")
     if not utc:
         raise TransitionRefusal("--sub-echo 는 --utc 가 필요하다")
     base = campaigns_dir() / camp
     f = fold_lifecycle(base)
-    if node not in f["sub_nodes"]:
+    if control == "reslice":
+        if node not in f["reslice_pending"]:
+            raise TransitionRefusal(f"{node} 에 미수렴 재배정이 없다({f['reslice_pending']})")
+        if rev is None or rev < (f["reslice_pending"][node] or 0):
+            raise TransitionRefusal(f"reslice echo 의 rev {rev!r} 가 최신 재배정 rev {f['reslice_pending'][node]} 보다 낡았다")
+    elif node not in f["sub_nodes"]:
         raise TransitionRefusal(f"{node} 는 {camp} 의 마지막 전이가 지목한 서브가 아니다({f['sub_nodes']})")
     if apply:
-        writer_append_journey(base, _lifecycle_event("sub_control_echo", utc, node=node, control=control))
-    return [f"sub echo {camp}@{node}:{control}"]
+        writer_append_journey(base, _lifecycle_event("sub_control_echo", utc, node=node, control=control,
+                                                     **({"rev": rev} if control == "reslice" else {})))
+    return [f"sub echo {camp}@{node}:{control}" + (f" rev {rev}" if control == "reslice" else "")]
+
+
+def accept_sub_unconverged(camp: str, *, node: str, utc, approved_by, apply: bool) -> list:
+    """서브 종결 미도달을 사람이 수용한다(K3 탈출구). 종결된 캠페인에만 — 보류·재개의 미수렴은 차단이 아니므로 수용할 것이 없다."""
+    _require(utc, approved_by, "--sub-unconverged-accept")
+    base = campaigns_dir() / camp
+    if not base.is_dir():
+        raise TransitionRefusal(f"인스턴스가 없다: campaigns/{camp}")
+    f = fold_lifecycle(base)
+    if f["state"] != "closed":
+        raise TransitionRefusal(f"{camp} 은 {f['state']} 다 — 수용은 종결된 캠페인의 서브 미수렴에만 한다"
+                                "(보류·재개 미수렴은 차단이 아니다)")
+    if node not in f["sub_nodes"]:
+        raise TransitionRefusal(f"{node} 는 {camp} 의 종결이 지목한 서브가 아니다({f['sub_nodes']})")
+    if node in f["sub_echoed"]:
+        return [f"no-op — {camp}@{node} 는 이미 수렴했다(멱등)"]
+    if apply:
+        writer_append_journey(base, _lifecycle_event(
+            "sub_control_accepted", utc, node=node, approved_by=approved_by,
+            control=CLOSE_CONTROL.get(f["close_reason"], "close")))
+    return [f"accepted sub-unconverged {camp}@{node}"]
 
 
 def guard_writer_ops(base: Path, ops: dict) -> None:
@@ -4269,7 +4494,9 @@ def main(argv: list[str] | None = None) -> int:
     lc.add_argument("--query-decision", choices=("keep",), default=None)
     lc.add_argument("--sub-echo", metavar="CAMP_ID",
                     help="서브가 자기 인스턴스에서 보류/재개했다는 echo 기록 · --node --control --utc")
-    lc.add_argument("--control", choices=("suspend", "resume"))
+    lc.add_argument("--control", choices=SUB_CONTROLS)
+    lc.add_argument("--sub-unconverged-accept", metavar="CAMP_ID",
+                    help="종결된 캠페인의 서브 미도달을 사람이 수용(purge 게이트 탈출구) · --node --approved-by --utc")
     lc.add_argument("--lifecycle", nargs="?", const="*", metavar="CAMP_ID",
                     help="수명 fold 를 JSON 으로 낸다(생략 = 전 인스턴스 · 읽기 전용)")
 
@@ -4338,6 +4565,13 @@ def main(argv: list[str] | None = None) -> int:
     w.add_argument("--freeze-evidence", action="store_true",
                    help="캠페인 전체 증거 스냅샷을 동결한다(사람 명시 연산 · hint 발행기는 부르지 않는다 — "
                         "셀 단위 발행 2026-09-21 D9) · --utc 필수")
+    w.add_argument("--assign-set", metavar="NODE",
+                   help="assignments[NODE] 개정(pending 셀만 · 4필드 필수) · --assign-cells c1[:MODE],c2,… "
+                        "--assign-reason --assign-evidence --assign-approved-by --utc")
+    w.add_argument("--assign-cells", default=None)
+    w.add_argument("--assign-reason"); w.add_argument("--assign-evidence"); w.add_argument("--assign-approved-by")
+    w.add_argument("--slice-update", metavar="PATH|-",
+                   help="서브: 메인 파생 선언으로 자기 인스턴스 배정을 바꾼다(relay reslice 의 실행부) · --utc --apply")
     w.add_argument("--revise", action="store_true",
                    help="layer-1 control_variables append-only 개정(메인 단일 창구)")
     w.add_argument("--revise-set", action="append", default=[], metavar="K=V",
@@ -4477,7 +4711,18 @@ def main(argv: list[str] | None = None) -> int:
             for m in record_sub_echo(a.sub_echo, node=a.node, control=a.control, utc=a.utc, apply=a.apply):
                 print(f"[campaign_init] {mode} {m}")
             return 0
-        writer_ops = (a.phase_set, a.cell_set, a.evidence_add, a.freeze_evidence, a.revise,
+        if a.sub_unconverged_accept:
+            if not a.node:
+                raise TransitionRefusal("--sub-unconverged-accept 는 --node 가 필요하다")
+            for m in accept_sub_unconverged(a.sub_unconverged_accept, node=a.node, utc=a.utc,
+                                            approved_by=a.approved_by, apply=a.apply):
+                print(f"[campaign_init] {mode} {m}")
+            return 0
+        if a.slice_update:
+            for m in slice_update(a.slice_update, utc=a.utc, apply=a.apply):
+                print(f"[campaign_init] {mode} {m}")
+            return 0
+        writer_ops = (a.phase_set, a.cell_set, a.evidence_add, a.freeze_evidence, a.revise, a.assign_set,
                       a.evidence_prune_stubs, a.import_sub, a.backfill_from_docs, a.ground,
                       a.escalation_add, a.hint_approve, a.evidence_untag, a.evidence_relocate,
                       a.reentry_decide, a.cell_materialize)
@@ -4491,11 +4736,17 @@ def main(argv: list[str] | None = None) -> int:
             # 수명 가드(D13·D15) — 보류·미결·잔재에는 진행성 쓰기를, unknown 에는 모든 쓰기를 거부한다.
             guard_writer_ops(base, {"phase_set": a.phase_set, "cell_set": a.cell_set,
                                     "cell_materialize": a.cell_materialize,
-                                    "reentry_decide": a.reentry_decide})
+                                    "reentry_decide": a.reentry_decide, "assign_set": a.assign_set})
             wrote: list[str] = []
             if a.phase_set:
+                if not a.node and a.cell:
+                    # 실행기 종료부(lite_bench·sweep_bench `--campaign-cell`)는 노드를 나르지 않는다 — 배정에서 파생한다
+                    # (plan_26101722 K5 · 두 번째 파생을 호출부에 만들지 않는다). 배정 밖 셀은 아래에서 거부된다.
+                    a.node = node_of_cell(base, a.cell)
+                    if not a.node:
+                        raise WriterRefusal(f"셀 {a.cell!r} 이 assignments 에 없다 — 노드를 파생하지 못했다(이름이 곧 증거 연결)")
                 if not a.node or not a.state:
-                    raise WriterRefusal("--phase-set 은 --node 와 --state 가 필요하다")
+                    raise WriterRefusal("--phase-set 은 --node(또는 배정된 --cell)와 --state 가 필요하다")
                 if a.phase_set == "publish" and a.state == "done":
                     # C4 — 발행이 끝난 그 자리에서 서가에 넣는다. 발행과 입고가 갈라지면 서가는
                     # 늘 한 캠페인만큼 늦고, 그 늦은 서가의 "없음" 은 거짓이다.
@@ -4618,6 +4869,17 @@ def main(argv: list[str] | None = None) -> int:
                 if not a.utc:
                     raise WriterRefusal("--freeze-evidence 는 --utc 가 필요하다(벽시계 금지)")
                 wrote.append(_rel(writer_freeze_evidence(base, a.utc)))
+            if a.assign_set:
+                if a.assign_cells is None:
+                    raise WriterRefusal("--assign-set 은 --assign-cells 가 필요하다(빈 목록은 \"\" 로 명시)")
+                _ap, _rev = writer_assign_set(base, node=a.assign_set, items=_parse_assign_cells(a.assign_cells),
+                                              reason=a.assign_reason, evidence=a.assign_evidence,
+                                              approved_by=a.assign_approved_by, utc=a.utc)
+                wrote.append(_rel(_ap))
+                if _rev["node"] in _sub_nodes(base):
+                    print(f"[campaign_init] 서브 재배정은 A2A 제어명령으로 전한다: relay.py --campaign-control reslice "
+                          f"--campaign-id {camp} --node {_rev['node']} … (echo 가 오기 전까지 '재배정 미수렴')",
+                          file=sys.stderr)
             if a.revise:
                 vals = {}
                 for kv in a.revise_set:

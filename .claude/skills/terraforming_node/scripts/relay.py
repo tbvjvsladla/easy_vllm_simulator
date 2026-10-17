@@ -375,10 +375,14 @@ def campaign_slice_block(topology: str, campaign_id: str | None, delegated_node:
             "```json\n" + blob + "\n```\n\n")
 
 
-CAMPAIGN_CONTROLS = {"suspend": "suspended", "resume": "active"}
+CAMPAIGN_CONTROLS = {"suspend": "suspended", "resume": "active", "close": "closed", "abandon": "closed",
+                     "reslice": "active"}
+# 종결 제어의 echo 는 상태만으로 갈리지 않는다(둘 다 closed) — 사유까지 대조한다(plan_26101722 K1).
+CONTROL_CLOSE_REASON = {"close": "completed", "abandon": "abandoned"}
 
 
-def campaign_control_task(campaign_id: str, control: str, *, preempt: bool = False) -> str:
+def campaign_control_task(campaign_id: str, control: str, *, preempt: bool = False,
+                          reason: "str | None" = None, slice_doc: "dict | None" = None) -> str:
     """수명 전이의 서브 전달(2026-10-17 · plan_26101719 D9). 메인이 캠페인을 보류·재개하면 같은 전환 안에서 이 지시가
     나간다. 서브는 **같은 campaign_init.py** 로 자기 인스턴스를 전이하고 echo 를 돌려준다 — 메인은 서브 인스턴스를
     직접 읽지 않는다(불변식 1). echo 가 오지 않으면 메인은 '서브 미수렴' 으로 두고 진행한다(차단 ✗)."""
@@ -393,22 +397,48 @@ def campaign_control_task(campaign_id: str, control: str, *, preempt: bool = Fal
                 "(compose down 직접 ✗ · 띄운 것이 없으면 `--release none`)."
                 + (" 메인이 강제 전환(--preempt)을 승인했다 — 진행 중 셀은 interrupted 로 남는다." if preempt else
                    " 진행 중 셀이 있으면 강제하지 말고 failed 로 보고하라(협조 전환이 기본)."))
-    else:
+    elif control == "resume":
         cmd = f"{ci} --resume-campaign {campaign_id} --approved-by \"main-a2a: 메인 재개 승인 전사\" --utc <지금 UTC> --apply"
         what = ("재개(resume)했다. 재개 게이트(핀·digest·토폴로지 대조)가 거부하면 우회하지 말고 그 안내문 원문을 "
                 "보고하라 — drift 수용은 사람 결정이다.")
+    elif control == "reslice":
+        # 재배정(K8). 선언은 stdin 으로만 소비한다(중간 파일 ✗ — 개설 지시서와 같은 규율).
+        if not isinstance(slice_doc, dict):
+            raise SystemExit("[relay] STOP: reslice 는 메인 파생 선언(slice)이 필요하다")
+        rev = (slice_doc.get("_assignment_revision") or {}).get("rev")
+        cmd = f"{ci} --slice-update - --utc <지금 UTC> --apply   # stdin = 아래 JSON 그대로"
+        what = (f"재배정(reslice · 메인 rev {rev})했다. 네 인스턴스의 배정을 아래 선언으로 바꾼다 — pending 이 아닌 셀을 "
+                "빼거나 바꾸려 해서 writer 가 거부하면 우회하지 말고 그 사유 원문을 보고하라(메인이 본 상태와 네 실물이 "
+                "갈라졌다는 뜻이다).\n```json\n" + json.dumps(slice_doc, ensure_ascii=False, indent=2) + "\n```")
+    elif control == "close":
+        cmd = f"{ci} --close {campaign_id} --utc <지금 UTC> --apply"
+        what = ("완주 종결(close)했다. 네 인스턴스도 닫는다 — 종결 선행조건(증거 포인터 실재·릴레이 요약)이 거부하면 "
+                "우회하지 말고 그 사유 원문을 보고하라(사람이 포기로 바꿀지 정한다).")
+    else:
+        cmd = (f"{ci} --abandon {campaign_id} --reason \"{reason or '메인 포기 종결'}\" "
+               "--summary-testlog <네가 발행한 포기 요약 testlog — doc_naming 규약 이름 · 포기 사유·미완 셀 목록> "
+               "--release <이 캠페인을 위해 네가 띄운 서빙 config | none> "
+               "--approved-by \"main-a2a: 메인 포기 승인 전사\" --utc <지금 UTC> --apply")
+        what = ("포기 종결(abandon)했다. 네 인스턴스도 같은 사유로 닫는다 — 먼저 포기 요약 testlog 1건을 규약 이름"
+                "(`docs/testlog/testlog_<KST YYMMDDHH>_<주제>.md`)으로 발행하고 그것을 인용한다. 축소 게이트가 거부하면 "
+                "우회하지 말고 사유 원문을 보고하라.")
     return (f"## [relay] 캠페인 수명 제어 — {control}\n"
             f"메인이 캠페인 `{campaign_id}` 를 {what}\n\n"
             f"1. 실행: `{cmd}`\n"
             f"2. `{ci} --resume-brief` 의 **첫 줄**을 읽는다.\n"
             f"3. 리포트 JSON 에 `campaign_control_echo` 를 적는다: "
             f"{{\"campaign_id\": \"{campaign_id}\", \"control\": \"{control}\", "
-            f"\"state\": \"<campaign_init.py --lifecycle {campaign_id} 의 state>\", \"first_line\": \"<첫 줄>\"}}. "
+            f"\"state\": \"<campaign_init.py --lifecycle {campaign_id} 의 state>\", "
+            + ("\"close_reason\": \"<같은 출력의 close_reason>\", " if control in CONTROL_CLOSE_REASON else "")
+            + ("\"rev\": <위 선언의 _assignment_revision.rev>, \"assigned_cells\": [<campaign.yaml 의 네 배정 셀 순서대로>], "
+               if control == "reslice" else "")
+            + f"\"first_line\": \"<첫 줄>\"}}. "
             f"실패하면 state 에 실패 사유를 적고 status 를 failed 로 둔다(성공인 척 ✗).\n"
             f"4. 셀 진행·빌드·서빙 기동은 **하지 않는다** — 이 지시는 수명 전이 하나다.\n\n")
 
 
-def campaign_control_echo_ok(report, campaign_id: str, control: str) -> "tuple[bool, str]":
+def campaign_control_echo_ok(report, campaign_id: str, control: str,
+                             slice_doc: "dict | None" = None) -> "tuple[bool, str]":
     echo = (report or {}).get("campaign_control_echo") if isinstance(report, dict) else None
     if not isinstance(echo, dict):
         return False, "리포트에 campaign_control_echo 가 없다"
@@ -417,6 +447,16 @@ def campaign_control_echo_ok(report, campaign_id: str, control: str) -> "tuple[b
         return False, f"echo 정체성 불일치: {echo.get('campaign_id')!r}/{echo.get('control')!r}"
     if echo.get("state") != want:
         return False, f"서브 상태가 {echo.get('state')!r} 다(기대 {want!r})"
+    if control == "reslice":
+        want_cells = [i.get("cell") for items in ((slice_doc or {}).get("assignments") or {}).values()
+                      for i in (items or []) if isinstance(i, dict)]
+        want_rev = ((slice_doc or {}).get("_assignment_revision") or {}).get("rev")
+        if echo.get("rev") != want_rev or list(echo.get("assigned_cells") or []) != want_cells:
+            return False, (f"서브 배정이 메인 선언과 다르다: rev {echo.get('rev')!r}/{want_rev!r} · "
+                           f"셀 {echo.get('assigned_cells')!r}/{want_cells!r}")
+    if control in CONTROL_CLOSE_REASON and echo.get("close_reason") != CONTROL_CLOSE_REASON[control]:
+        return False, (f"서브 종결 사유가 {echo.get('close_reason')!r} 다(기대 {CONTROL_CLOSE_REASON[control]!r}) — "
+                       "같은 closed 라도 사유가 다르면 수렴이 아니다")
     return True, f"서브 {control} echo 수렴 · 첫 줄: {echo.get('first_line')}"
 
 
@@ -2218,11 +2258,18 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
             print(f"[relay] ⚠ 정체성 echo: {_r} — `--continue` 는 이 상태에서 진행하지 않는다.")
     if getattr(a, "campaign_control", None) and _reached_sub(att):
         _camp = a.campaign_id or doc.get("campaign_id")
-        _ok, _why = campaign_control_echo_ok(report, _camp, a.campaign_control)
-        if _ok:
+        _ok, _why = campaign_control_echo_ok(report, _camp, a.campaign_control,
+                                             slice_doc=getattr(a, "_control_slice", None))
+        if _ok and getattr(a, "orphan_sweep", False):
+            print(f"[relay] 수명 제어 · orphan sweep {_camp}@{a.node} · {_why} — 메인 인스턴스가 없어 journey 기록 ✗ "
+                  f"(echo 원문은 원장 {lp} · docs 평면으로 옮겨라)")
+        elif _ok:
             try:
+                _echo = (report or {}).get("campaign_control_echo") or {}
                 for _m in _campaign_init().record_sub_echo(_camp, node=a.node, control=a.campaign_control,
-                                                           utc=ended, apply=True):
+                                                           utc=ended, apply=True,
+                                                           rev=(_echo.get("rev") if a.campaign_control == "reslice"
+                                                                else None)):
                     print(f"[relay] 수명 제어 · {_m} · {_why}")
             except Exception as exc:                                    # noqa: BLE001 — 사유를 삼키지 않는다
                 print(f"[relay] ⚠ 수명 제어 echo 기록 실패 — {exc} (서브 미수렴으로 남는다)")
@@ -2389,8 +2436,11 @@ def main() -> int:
                     help="감독 스텝의 비용 상한(선언) — 이 수에 닿으면 자동 재개 대신 팝업(D9)")
     ap.add_argument("--utc", default=None, help="감독 스텝 기록 시각(주입 · 생략 시 메인 벽시계)")
     ap.add_argument("--campaign-control", choices=tuple(CAMPAIGN_CONTROLS), default=None,
-                    help="수명 전이(보류·재개)를 서브에 A2A 로 전한다 · --campaign-id --node 필수 · 지시 본문은 기계가 "
-                         "조립한다(--task 생략) · echo 가 수렴하면 메인 journey 에 sub_control_echo 를 적는다")
+                    help="수명 전이(보류·재개·종결·포기)를 서브에 A2A 로 전한다 · --campaign-id --node 필수 · 지시 본문은 "
+                         "기계가 조립한다(--task 생략) · echo 가 수렴하면 메인 journey 에 sub_control_echo 를 적는다")
+    ap.add_argument("--orphan-sweep", action="store_true",
+                    help="--campaign-control abandon 과 함께: 메인 인스턴스가 없는 서브 orphan 정리(부재 선언 · --reason 필수)")
+    ap.add_argument("--reason", default=None, help="--campaign-control abandon 의 포기 사유(생략 = 메인 종결 줄의 note)")
     ap.add_argument("--self-test", action="store_true")
     a = ap.parse_args()
     if a.self_test:
@@ -2517,18 +2567,53 @@ def main() -> int:
         if task or a.task_file:
             raise SystemExit("[relay] STOP: --campaign-control 의 본문은 기계가 조립한다 — --task 와 함께 쓰지 않는다")
         _ci = _campaign_init()
-        _life = _ci.fold_lifecycle(_ci.Path(a.repo_root) / "campaigns" / a.campaign_id,
-                                   active=_ci.active_campaign_id(a.repo_root))
-        if a.node not in _life["sub_nodes"]:
-            raise SystemExit(f"[relay] STOP: {a.node} 는 {a.campaign_id} 의 마지막 전이가 지목한 서브가 아니다"
-                             f"({_life['sub_nodes']}) — 메인 전이를 먼저 하라")
-        _want = "suspended" if a.campaign_control == "suspend" else "active"
-        if _life["state"] not in (_want, "resume_pending"):
-            raise SystemExit(f"[relay] STOP: 메인 {a.campaign_id} 은 {_life['state']} 다 — {a.campaign_control} 를 "
-                             f"서브에 전할 상태가 아니다(메인 전이가 먼저)")
+        _mbase = _ci.Path(a.repo_root) / "campaigns" / a.campaign_id
+        _reason = None
+        if a.orphan_sweep:
+            # 메인에 인스턴스가 없는 서브 orphan 정리(K4). 메인 전이가 없으므로 메인 상태 대조를 건너뛰는 대신 **부재를
+            # 선언**으로 받는다 — 메인 인스턴스가 있으면 정식 경로(메인 --abandon 뒤 전파)를 타야 한다(이름 추론 ✗).
+            if a.campaign_control != "abandon":
+                raise SystemExit("[relay] STOP: --orphan-sweep 은 --campaign-control abandon 하고만 쓴다")
+            if _mbase.exists():
+                raise SystemExit(f"[relay] STOP: 메인에 campaigns/{a.campaign_id} 이 있다 — orphan sweep 이 아니라 메인 "
+                                 "`--abandon` 뒤 전파로 간다(정식 경로)")
+            if not a.reason:
+                raise SystemExit("[relay] STOP: --orphan-sweep 은 --reason 이 필요하다(사람이 고른 포기 사유 전사)")
+            _reason = a.reason
+            _life = {"interrupted_cells": []}
+        else:
+            _life = _ci.fold_lifecycle(_mbase, active=_ci.active_campaign_id(a.repo_root))
+            if a.campaign_control == "reslice" and a.node not in _life["reslice_pending"]:
+                raise SystemExit(f"[relay] STOP: {a.node} 에 미수렴 재배정이 없다({_life['reslice_pending']}) — 메인 "
+                                 "`campaign_init --assign-set` 이 먼저다")
+            if a.campaign_control != "reslice" and a.node not in _life["sub_nodes"]:
+                raise SystemExit(f"[relay] STOP: {a.node} 는 {a.campaign_id} 의 마지막 전이가 지목한 서브가 아니다"
+                                 f"({_life['sub_nodes']}) — 메인 전이를 먼저 하라")
+            if a.campaign_control == "reslice":
+                if _life["state"] != "active":
+                    raise SystemExit(f"[relay] STOP: 메인 {a.campaign_id} 은 {_life['state']} 다 — 재배정은 active 캠페인에만 "
+                                     "전한다(보류 중이면 서브 writer 도 거부한다)")
+            elif a.campaign_control in CONTROL_CLOSE_REASON:
+                if _life["state"] != "closed" or _life["close_reason"] != CONTROL_CLOSE_REASON[a.campaign_control]:
+                    raise SystemExit(f"[relay] STOP: 메인 {a.campaign_id} 은 {_life['state']}"
+                                     f"({_life.get('close_reason')}) 다 — {a.campaign_control} 를 서브에 전하려면 메인이 "
+                                     f"먼저 closed({CONTROL_CLOSE_REASON[a.campaign_control]}) 여야 한다")
+                _closed = next((e for e in reversed(_ci.read_journey(_mbase))
+                                if isinstance(e, dict) and e.get("kind") == "campaign_closed"), {})
+                _reason = a.reason or _closed.get("note")
+            else:
+                _want = "suspended" if a.campaign_control == "suspend" else "active"
+                if _life["state"] not in (_want, "resume_pending"):
+                    raise SystemExit(f"[relay] STOP: 메인 {a.campaign_id} 은 {_life['state']} 다 — {a.campaign_control} 를 "
+                                     f"서브에 전할 상태가 아니다(메인 전이가 먼저)")
+        _slice = (_ci.emit_slice(_mbase, a.node, utc="delegated-task-body")
+                  if a.campaign_control == "reslice" else None)
+        a._control_slice = _slice
         task = campaign_control_task(a.campaign_id, a.campaign_control,
-                                     preempt=bool(_life.get("interrupted_cells")))
-        _RELAY_CAMPAIGN = a.campaign_id
+                                     preempt=bool(_life.get("interrupted_cells")), reason=_reason, slice_doc=_slice)
+        # orphan sweep 은 메인 인스턴스가 없다 — 원장은 대기실(_bootstrap)로 가고 휘발이므로, 호출자가 echo 원문을
+        # docs 평면(simlog)에 옮긴다(K4 · D2 휘발 대비).
+        _RELAY_CAMPAIGN = None if a.orphan_sweep else a.campaign_id
         lp = ledger_path(a.repo_root, a.context_id)      # 원장을 대상 캠페인 아래로 다시 잡는다
         doc = load_ledger(lp)
         bind_campaign_context(doc, node=a.node, kind=a.context_kind, cell=a.cell)

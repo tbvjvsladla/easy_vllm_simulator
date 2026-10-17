@@ -20,6 +20,7 @@ import argparse
 import importlib.util
 import json
 import re
+import shutil
 import sys
 from pathlib import Path
 
@@ -423,6 +424,10 @@ def validate_campaign(campaign_path: Path, *, strict_paths: bool = True) -> list
                 continue
             owner[cell] = node
             cfg = cells_dir / cell / "config.yaml"
+            # 메인 인스턴스의 서브 배정 셀은 서브가 자기 인스턴스에서 저작한다(2026-10-17 · plan_26101722 K6). 메인 평면에
+            # 그 입력을 요구하면 서브 자율 저작 셀이 메인 결손으로 센다 — P6 와 같은 처분(이름만 남긴다 · instance_notes).
+            if not lockset_observable(doc, node):
+                continue
             if strict_paths and not cfg.is_file():
                 problems.append(f"배정된 셀 {cell!r} 입력이 없다: {_rel(cfg)}")
                 continue
@@ -1010,6 +1015,17 @@ def acceptance_predicates(camp_dir: Path) -> list[str]:
             + predicate_p6(camp_dir))
 
 
+def instance_notes(camp_dir: Path) -> list[str]:
+    """`--instance`·`--campaign` 의 비차단 관측 줄 — 입력 요구를 면제한 서브 배정 셀을 이름으로 남긴다(공허 통과 ✗ · K6)."""
+    decl = read_declaration(camp_dir)
+    out = []
+    for node in assignments_of(decl) if decl else []:
+        cells = [c for c in assigned_cells(decl, node) if c not in RESERVED_CELL_NAMES]
+        if cells and not lockset_observable(decl, node):
+            out.append(f"ⓘ 서브 자율 저작 · 관측 대상 밖(셀 입력은 서브 인스턴스 소관) node={node}: {', '.join(cells)}")
+    return out
+
+
 def acceptance_notes(camp_dir: Path) -> list[str]:
     """합격 술어의 비차단 관측 줄(현재 P6 만). `--acceptance` 가 판정과 함께 출력한다."""
     return p6_observations(camp_dir)[1]
@@ -1547,6 +1563,27 @@ def _selftest() -> int:
                                    "subx": [{"cell": "p6-s"}]})
         (c6 / "campaign.yaml").write_text(json.dumps(_decl6, ensure_ascii=False), encoding="utf-8")
 
+        # K6(2026-10-17 · plan_26101722): 메인 인스턴스의 서브 배정 셀은 입력 요구 면제 + 이름으로 남김. 음성대조: 메인
+        #   셀 입력 부재는 그대로 잡고, 서브 자기 인스턴스(self_role=sub)에서는 자기 셀 입력을 여전히 요구한다.
+        shutil.rmtree(c6 / "cells" / "p6-s")
+        _k6 = validate_campaign(c6 / "campaign.yaml")
+        ck("K6 메인 인스턴스: 서브 배정 셀 입력 부재는 결손이 아니다 · ⓘ 줄로 이름이 남는다",
+           not any("p6-s" in x for x in _k6) and any("p6-s" in x and "subx" in x for x in instance_notes(c6)))
+        shutil.rmtree(c6 / "cells" / "p6-b")
+        ck("★K6 음성대조 메인 셀 입력 부재는 여전히 잡는다",
+           any("p6-b" in x and "입력이 없다" in x for x in validate_campaign(c6 / "campaign.yaml")))
+        (c6 / "cells" / "p6-b").mkdir(parents=True)
+        (c6 / "cells" / "p6-b" / "config.yaml").write_text("cell_id: p6-b\n", encoding="utf-8")
+        _sub6 = c6.parent / "camp-6s" / "camp-6"
+        (_sub6 / "cells").mkdir(parents=True)
+        (_sub6 / "campaign.yaml").write_text(json.dumps(dict(_decl6, self_role="sub", nodes=_decl6["nodes"][1:],
+                                                             assignments={"subx": [{"cell": "p6-s"}]}),
+                                                        ensure_ascii=False), encoding="utf-8")
+        ck("★K6 음성대조 서브 자기 인스턴스는 자기 셀 입력을 요구한다",
+           any("p6-s" in x and "입력이 없다" in x for x in validate_campaign(_sub6 / "campaign.yaml")))
+        (c6 / "cells" / "p6-s").mkdir(parents=True)
+        (c6 / "cells" / "p6-s" / "config.yaml").write_text("cell_id: p6-s\n", encoding="utf-8")
+
         def _lock(cell: str, doc: dict | None) -> None:
             path = c6 / "cells" / cell / "lockset.json"
             if doc is None:
@@ -1680,8 +1717,10 @@ def main(argv: list[str] | None = None) -> int:
             problems += validate_template()
         if a.campaign:
             problems += validate_campaign(Path(a.campaign))
+            notes += instance_notes(Path(a.campaign).parent)
         if a.instance:
             problems += validate_instance(Path(a.instance))
+            notes += instance_notes(Path(a.instance))
         if a.acceptance:
             problems += acceptance_predicates(Path(a.acceptance))
             notes += acceptance_notes(Path(a.acceptance))

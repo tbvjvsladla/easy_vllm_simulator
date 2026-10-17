@@ -156,8 +156,8 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 
 | 진입점 | 소유 § | 배달 | 비고 |
 |---|---|---|---|
-| `scripts/campaign_init.py` | 캠페인 체인 | ✓ | 캠페인 상태의 **유일한 writer**. 사람 승인 인자 필수 동사만 적는다: `--revise` · `--reentry-decide` · `--hint-approve` · 수명 전이(`--init --suspend-current` · `--suspend` · `--resume-campaign` · `--abandon` · `--answer-query` · `--dispose`). 나머지는 `--help` |
-| `scripts/selftest_campaign_lifecycle.py` | 캠페인 체인 | — | 수명 상태(보류·재개·포기·선점) 자체검사 · 회귀 실행자 `verify_distribution.py` |
+| `scripts/campaign_init.py` | 캠페인 체인 | ✓ | 캠페인 상태의 **유일한 writer**. 사람 승인 인자 필수 동사만 적는다: `--revise` · `--reentry-decide` · `--hint-approve` · 수명 전이(`--init --suspend-current` · `--suspend` · `--resume-campaign` · `--abandon` · `--answer-query` · `--dispose` · `--sub-unconverged-accept`) · 배정 변경(`--assign-set`). 나머지는 `--help` |
+| `scripts/selftest_campaign_lifecycle.py` | 캠페인 체인 | — | 수명 상태(보류·재개·포기·선점 · 서브 종결 전파 · 재배정) 자체검사 · 회귀 실행자 `verify_distribution.py` |
 | `scripts/campaign_template_validator.py` | 캠페인 체인 | ✓ | 선언·인스턴스 술어(P1~P3) |
 | `scripts/manifest_contract.py` | §0.5 · §1S · §2.7.10 | ✓ | Flag·`issued_by: main` readiness 리더 |
 | `scripts/node_role_contract.py` | §2.7.0 · §2.7.6 | — | 토폴로지 축 계약(sub_mode·rank·배달 평면·tool_plane·서브 자체 발행)의 단일 소유자 |
