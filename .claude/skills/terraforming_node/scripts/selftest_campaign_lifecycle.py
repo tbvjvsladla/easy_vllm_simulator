@@ -62,6 +62,7 @@ class Fixture:
         ci._CHECKOUT_TOPOLOGY_FN = lambda: self.topology
         ci._IMAGE_DIGEST_FN = lambda tag: self.images.get(tag)
         ci._RELEASE_RUNNER = self._runner
+        ci._SELF_ROLE_FN = lambda: "main"
 
     def _runner(self, cmd):
         self.calls.append(cmd)
@@ -326,6 +327,20 @@ def g_guard(fx: Fixture):
     ck("2노드 캠페인 포기: 요약 증거가 main 노드로 귀속되고 종결된다",
        rc == 0 and fx.state("G2") == "closed"
        and any(p.get("node_id") == "main" for p in ci._read_json(two / "evidence_pointers.json")["pointers"]))
+    # 2026-10-17 라이브(plan_26101722 orphan sweep): self_role 키가 없는 옛 서브 인스턴스 — manifest 의 정체가 판정한다.
+    old_sub = fx.camp("GO", sub=True)
+    # 교정 전 코드가 남긴 모양 그대로 — 종결 줄이 서브(자기 자신)를 지목한다.
+    ci.writer_append_journey(old_sub, ci._lifecycle_event("campaign_closed", UTC, reason="abandoned",
+                                                          sub_nodes=["sub1"], summary_testlog=fx.testlog("t_GO.md")))
+    ci._SELF_ROLE_FN = lambda: "sub"
+    try:
+        ck("서브 체크아웃(manifest self_role=sub)은 이미 적힌 옛 종결 줄도 자기 echo 를 기다리지 않는다",
+           fx.state("GO") == "closed" and ci.fold_lifecycle(old_sub)["sub_convergence"] is None
+           and "GO@" not in ci.lifecycle_line() and ci._sub_nodes(fx.camp("GO2", sub=True)) == [])
+    finally:
+        ci._SELF_ROLE_FN = lambda: "main"
+    ck("★음성대조 메인 체크아웃에서는 같은 줄이 서브를 기다린다",
+       ci.fold_lifecycle(old_sub)["sub_convergence"] == "unconverged")
     ck("서브 자기 인스턴스 보류는 '서브 미수렴' 을 만들지 않는다",
        ci.fold_lifecycle(sb)["sub_convergence"] is None and "GS@" not in ci.lifecycle_line())
 
@@ -555,7 +570,7 @@ def main(argv=None) -> int:
                 fn(Fixture(Path(tmp)))
     finally:
         ci.REPO_ROOT, ci.CAMPAIGNS, ci.ACTIVE_POINTER = saved
-        ci._CHECKOUT_TOPOLOGY_FN = ci._IMAGE_DIGEST_FN = ci._RELEASE_RUNNER = None
+        ci._CHECKOUT_TOPOLOGY_FN = ci._IMAGE_DIGEST_FN = ci._RELEASE_RUNNER = ci._SELF_ROLE_FN = None
     print("[selftest_campaign_lifecycle] " + ("PASS" if OK else "FAIL"))
     return 0 if OK else 1
 
