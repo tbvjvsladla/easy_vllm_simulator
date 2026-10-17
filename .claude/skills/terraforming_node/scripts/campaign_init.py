@@ -2312,6 +2312,10 @@ def _sub_nodes(base: Path) -> list:
     """A2A 로 보류·재개를 전해야 하는 서브(D9). multi 의 ray-worker 는 독립 캠페인을 갖지 않으므로 대상이 아니다."""
     if _declared_topology(base) != "single":
         return []
+    # 서브 자기 인스턴스(메인 파생 선언 · self_role=sub)에는 자기 자신만 있다 — 자기에게 echo 를 기다리면 영원히
+    # '서브 미수렴' 이다(2026-10-17 라이브 E2 · 서브 첫 줄이 자기 자신을 미수렴으로 보였다).
+    if read_declaration(base).get("self_role") == "sub":
+        return []
     return [n.get("node_id") for n in (read_declaration(base).get("nodes") or [])
             if isinstance(n, dict) and n.get("role") == "sub" and isinstance(n.get("node_id"), str)
             and FILL not in n.get("node_id")]

@@ -50,9 +50,14 @@ PENDING_HITL = "pending_hitl.json"
 import campaign_init as _campaign  # noqa: E402
 
 
+# 수명 제어(--campaign-control)의 원장 캠페인. 그 지시는 **보류된** 캠페인을 겨냥하므로 ACTIVE(=_bootstrap)에서 파생하면
+# 원장이 대기실로 가고, 대기실은 다음 init 이 비운다 — 2026-10-17 라이브(plan_26101719 E2)에서 그렇게 갈 뻔했다.
+_RELAY_CAMPAIGN = None
+
+
 def relay_root(repo_root: str) -> str:
     """이 저장소의 릴레이 원장 루트. 활성 캠페인 선언에서 파생한다(루트 기본값 없음)."""
-    return str(_campaign.derive_path("relay-root", repo_root=repo_root))
+    return str(_campaign.derive_path("relay-root", repo_root=repo_root, camp_id=_RELAY_CAMPAIGN))
 
 
 def ledger_path(repo_root: str, context_id: str) -> str:
@@ -2504,6 +2509,7 @@ def main() -> int:
         raise SystemExit("[relay] --topology 필수")
     task = a.task
     if a.campaign_control:
+        global _RELAY_CAMPAIGN
         if not (a.campaign_id and a.node):
             raise SystemExit("[relay] STOP: --campaign-control 은 --campaign-id 와 --node 가 필요하다(이름 추론 ✗)")
         if task or a.task_file:
@@ -2520,6 +2526,15 @@ def main() -> int:
                              f"서브에 전할 상태가 아니다(메인 전이가 먼저)")
         task = campaign_control_task(a.campaign_id, a.campaign_control,
                                      preempt=bool(_life.get("interrupted_cells")))
+        _RELAY_CAMPAIGN = a.campaign_id
+        lp = ledger_path(a.repo_root, a.context_id)      # 원장을 대상 캠페인 아래로 다시 잡는다
+        doc = load_ledger(lp)
+        bind_campaign_context(doc, node=a.node, kind=a.context_kind, cell=a.cell)
+        doc["campaign_id"] = a.campaign_id
+        if a.control_variables:
+            doc["control_variables"] = a.control_variables
+        if a.runners:
+            doc["runner_ladder"] = ",".join(r["name"] for r in a.ladder)
     if a.task_file:
         with open(a.task_file, encoding="utf-8") as f:
             task = f.read()

@@ -310,6 +310,15 @@ def g_guard(fx: Fixture):
     ck("활성 캠페인 재개 재시도는 거부(이미 active)", rc != 0)
     rc, msg = run("--resume-campaign", "GA", "--utc", UTC, "--apply")
     ck("--approved-by 없는 전이는 거부(승인 없는 전이 ✗)", rc != 0 and "--approved-by" in msg)
+    # 2026-10-17 라이브 E2: 서브 자기 인스턴스(self_role=sub)는 자기 자신을 echo 대상으로 세지 않는다.
+    sb = fx.camp("GS", active=True, sub=True)
+    d = ci.read_declaration(sb)
+    d["self_role"] = "sub"
+    d["nodes"] = [n for n in d["nodes"] if n["role"] == "sub"]
+    (sb / "campaign.yaml").write_text(json.dumps(d), encoding="utf-8")
+    run("--suspend", "GS", "--release", "none", "--approved-by", "main-a2a", "--utc", UTC, "--apply")
+    ck("서브 자기 인스턴스 보류는 '서브 미수렴' 을 만들지 않는다",
+       ci.fold_lifecycle(sb)["sub_convergence"] is None and "서브 미수렴" not in ci.lifecycle_line())
 
 
 def g_relay(fx: Fixture):
@@ -329,6 +338,10 @@ def g_relay(fx: Fixture):
                                                                           "state": "active"}}, "SA", "suspend")
     none, _ = relay.campaign_control_echo_ok({}, "SA", "suspend")
     ck("echo 판정: 일치=수렴 · 상태 불일치·부재=미수렴", ok and not bad and "active" in why and not none)
+    relay._RELAY_CAMPAIGN = "SA"
+    ck("수명 제어 원장은 대상 캠페인 relay 아래(ACTIVE=_bootstrap 이어도 대기실 ✗)",
+       relay.relay_root(str(fx.tmp)).endswith("campaigns/SA/relay"))
+    relay._RELAY_CAMPAIGN = None
     base = fx.camp("SA", active=True)
     led = base / "relay" / "ctx-sa.json"
     led.write_text(json.dumps({"context_id": "ctx-sa", "campaign_node": "main", "attempts": [{"x": 1}]}),
