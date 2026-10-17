@@ -317,6 +317,13 @@ def g_guard(fx: Fixture):
     d["nodes"] = [n for n in d["nodes"] if n["role"] == "sub"]
     (sb / "campaign.yaml").write_text(json.dumps(d), encoding="utf-8")
     run("--suspend", "GS", "--release", "none", "--approved-by", "main-a2a", "--utc", UTC, "--apply")
+    # 2026-10-17 라이브 E7: 2노드 캠페인의 포기는 요약 증거를 main 노드로 귀속한다.
+    two = fx.camp("G2", active=True, sub=True)
+    rc, msg = run("--abandon", "G2", "--reason", "x", "--summary-testlog", fx.testlog("testlog_G2.md"),
+                  "--release", "none", "--approved-by", "fixture", "--utc", UTC, "--apply")
+    ck("2노드 캠페인 포기: 요약 증거가 main 노드로 귀속되고 종결된다",
+       rc == 0 and fx.state("G2") == "closed"
+       and any(p.get("node_id") == "main" for p in ci._read_json(two / "evidence_pointers.json")["pointers"]))
     ck("서브 자기 인스턴스 보류는 '서브 미수렴' 을 만들지 않는다",
        ci.fold_lifecycle(sb)["sub_convergence"] is None and "서브 미수렴" not in ci.lifecycle_line())
 
