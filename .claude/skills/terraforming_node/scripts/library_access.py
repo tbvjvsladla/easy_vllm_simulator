@@ -223,7 +223,10 @@ def run(args) -> int:
         raise Blocked(f"메인 호스트 키가 없다: {HOST_KEY}")
     hk = HOST_KEY.read_text(encoding="utf-8").split()
     kh = f"{home}/.ssh/{KNOWN_HOSTS_NAME}"
-    r = _ssh(sub, f"umask 077; cat > {shlex.quote(kh)}", stdin=f"{main['host']} {hk[0]} {hk[1]}\n")
+    # 같은 파일을 두 토폴로지(서로 다른 메인 주소)가 함께 쓴다 — 그 host 줄만 바꾸고 나머지는 보존한다
+    q = shlex.quote(kh)
+    r = _ssh(sub, f"umask 077; touch {q}; grep -v -F {shlex.quote(main['host'] + ' ')} {q} > {q}.tmp || true; "
+                  f"cat >> {q}.tmp; mv {q}.tmp {q}", stdin=f"{main['host']} {hk[0]} {hk[1]}\n")
     if r.returncode != 0:
         raise Blocked(f"서브 known_hosts 기록 실패: {r.stderr.strip()[-200:]}")
     line = gateway_line(facts["main_node"], args.node, pub)
