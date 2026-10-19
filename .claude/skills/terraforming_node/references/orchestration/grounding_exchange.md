@@ -10,6 +10,7 @@
 - 접근자 — manifest `library` 블록(메인·서브 동일 스키마)
 - 게이트웨이 — 서브가 얻는 것은 셸이 아니라 사서 명령 하나
 - 발급·회수 — `scripts/library_access.py` (HITL)
+- 재발급 — 메인·서브 manifest 를 처음부터 다시 낼 때(순서)
 - 그라운딩 게이트 — 메인·서브 대칭
 - 동시성 — 정본은 `.claude/skills/wiki-desk/references/concurrency.md`
 
@@ -86,6 +87,20 @@ python3 .claude/skills/terraforming_node/scripts/library_access.py --topology <t
 
 - 회수(`--revoke`)는 노드를 해제하거나 재설치할 때만 한다. 주기적인 키 회전은 없다(D11).
 - 이것은 노드 제어 불변식 1(무단 스캔 금지)과 충돌하지 않는다. 서브가 메인에 *쓰는* 것은 자기 문서(반입)와 자기 카드뿐이고, 상향 회수는 여전히 문서 기반이다. 메인이 서브를 읽는 통로는 이 절과 무관하다.
+- **가상 접근점**(`--node <id> --host-of <실노드>`): 실노드 호스트에 node_id가 다른 별도 키를 발급한다(한 호스트의 사서 여럿 · N-writer 실측용). 메인 `access_points.<id>.host_of`로 출처가 남고, 서브 발급본은 건드리지 않는다. 가상 사서가 쓸 library 블록은 출력 `virtual_library_block`이다. `--revoke`는 그 호스트의 가상 키 파일도 지운다.
+
+#### 재발급 — 메인·서브 manifest 를 처음부터 다시 낼 때 (2026-10-19 · `plan_26101913` 실측)
+
+HW 재스캔·서브 재설치·주소 변경 뒤에는 접근자도 다시 선다. 순서가 판정을 바꾸므로 아래 순서를 지킨다.
+
+1. **메인 스캔**: `scan_node.py --topology <t> --peer-ssh <user>@<sub> --sub-work-dir <dir> --model-source <m> --emit-manifest --emit-sub-manifest output/<t>/sub_manifest.yaml`. multi 는 `--peer-ip <sub IP>` 도 **필수**다(§1.3 — 없으면 거부된다).
+2. **메인 manifest 병합(HITL)**: emit 블록이 **가진 최상위 키만** 바꾸고 나머지(`library`·`host_safety`·`propagation_authorization`·`network`·모델 경로 등)는 보존한다. emit 블록에는 `library` 가 없다 — 통째로 덮으면 접근자가 사라진다.
+   - ⚠ emit 블록의 `nodes[].host` 는 스캔 값(`platform.node()` = hostname)이다. 손으로 IP 를 적어 두었다면 여기서 바뀐다.
+3. **접근점 재발급**: `library_access.py --topology <t> --node sub --apply --approved-by "<전사>"`. **반드시 2 뒤에** 돌린다 — 1 의 서브 발급본은 병합 *전* nodes 로 library 블록을 파생했으므로(옛 host), 이 단계가 병합된 nodes 에서 서브 블록·known_hosts host 줄을 다시 쓴다. 실노드 키는 재사용한다(D11 — 회전 없음 · 두 토폴로지가 같은 키를 쓴다).
+4. **배달**: `render_sub_env.py --topology <t> --sub-manifest output/<t>/sub_manifest.yaml` → `sync_to_sub.sh --branch <t> --apply`(인가 work-manifest).
+5. **확인(서브 A2A)**: `cli.ts status` · 원격 `read` 결과 = 메인 로컬 `read`(sha256) · `sync --apply` → 질의 적중.
+
+회수 창(1~3 사이 접근점이 없는 동안)에 서브의 `status`·`query` 는 `{"error":"library-unreachable"}` + exit 4, `sync` 는 `not-yet-ingested` + exit 4 로 표시된다 — 발행은 막히지 않고, 재발급 뒤 다음 입고가 따라잡는다.
 
 #### 그라운딩 게이트 — 메인·서브 대칭
 

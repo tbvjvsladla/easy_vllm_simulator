@@ -33,15 +33,27 @@ export const encodeArgv = (argv: readonly string[]): string => Buffer.from(JSON.
 
 export type Remote = { status: number; stdout: string; stderr: string };
 
+/** 원격 실패 사유 한 줄 — 서버 쪽 미처리 예외는 stderr 가 스택트레이스(파일:줄 · 소스 줄)로 시작하므로 `Error:` 줄을 앞세운다 */
+export function remoteReason(stderr: string): string {
+  const lines = stderr.trim().split("\n");
+  return lines.find((l) => /^\w*Error: /.test(l.trim()))?.trim() ?? lines.at(-1)?.trim() ?? "";
+}
+
 export function remoteCall(a: Ssh, argv: readonly string[]): Remote {
   const r = spawnSync("ssh", [...sshArgs(a), `${PROTOCOL_TOKEN} ${encodeArgv(argv)}`], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
   if (r.error !== undefined) throw new Error(`ssh 실행 실패: ${r.error.message}`);
   return { status: r.status ?? SSH_TRANSPORT_FAILURE, stdout: r.stdout, stderr: r.stderr };
 }
 
-/** 반출 명령: 원격 결과를 그대로 흘려보내고 같은 종료코드로 끝난다 */
+/** 반출 명령: 원격 결과를 그대로 흘려보내고 같은 종료코드로 끝난다.
+ *  ssh 자체가 실패하면(서고 미도달) 원문 오류 대신 구조화된 JSON 과 EXIT_NOT_INGESTED 로 끝난다 — 입고의 not-yet-ingested 와 같은 축 */
 export function forward(a: Ssh, argv: readonly string[]): never {
   const r = remoteCall(a, argv);
+  if (r.status === SSH_TRANSPORT_FAILURE) {
+    process.stdout.write(JSON.stringify({ ok: false, error: "library-unreachable", command: argv[0], stage: "ssh", status: r.status,
+      stderr: r.stderr.trim().slice(-2000) }) + "\n");
+    process.exit(EXIT_NOT_INGESTED);
+  }
   process.stdout.write(r.stdout);
   process.stderr.write(r.stderr);
   process.exit(r.status);
@@ -66,12 +78,15 @@ export function intake(a: Ssh, localRoot: string, extra: readonly string[] = [],
     ({ ingest_status: "not-yet-ingested", stage, status: r.status, stderr: r.stderr.trim().slice(-2000) });
   const c = remoteCall(a, ["contract"]);
   if (c.status === SSH_TRANSPORT_FAILURE) return notIngested("contract", c);
-  if (c.status !== 0) throw new Error(`원격 계약 조회 실패(exit ${c.status}): ${c.stderr.trim()}`);
-  const contract = JSON.parse(c.stdout) as { node_intake_roots?: string[]; source_suffixes: string[] };
+  if (c.status !== 0) throw new Error(`원격 계약 조회 실패(exit ${c.status}): ${remoteReason(c.stderr)}`);
+  const contract = JSON.parse(c.stdout) as { node_intake_roots?: string[]; node_intake_excluded?: string[]; source_suffixes: string[] };
   const roots = (contract.node_intake_roots ?? DEFAULT_INTAKE_ROOTS).filter((r) => fs.existsSync(path.join(localRoot, r)));
   const suffixes = contract.source_suffixes.map((s) => s.toLowerCase());
+  // 반입 제외(문서 스켈레톤 등) — 서버도 같은 키로 미러 사본을 색인에서 뺀다(contract.ts nodeExcluded)
+  const skip = contract.node_intake_excluded ?? [];
   const files: string[] = [];
   for (const r of roots) walkMd(localRoot, r, suffixes, files);
+  files.splice(0, files.length, ...files.filter((f) => !skip.some((e) => f === e || f.startsWith(`${e}/`))));
   const entries = files.map((f) => [f, sha256(fs.readFileSync(path.join(localRoot, f)))] as [string, string]);
   const sha = payloadSha(entries);
   // 입고는 **더하기만** 한다(--delete ✗ · 2026-10-19 multi 라이브): 서브의 문서 집합은 체크아웃 브랜치마다 달라질 수 있고,
@@ -87,7 +102,7 @@ export function intake(a: Ssh, localRoot: string, extra: readonly string[] = [],
   };
   if (roots.length > 0) {
     // 접미 필터는 클라이언트가 건다(프로토콜로 전달) — 서버 쪽 rrsync 는 자기 미러 밖 경로를 거부한다
-    const filters = ["--include=*/", ...suffixes.flatMap((s) => [`--include=*${s}`, `--include=*${s.toUpperCase()}`]), "--exclude=*"];
+    const filters = [...skip.map((e) => `--exclude=/${e}`), "--include=*/", ...suffixes.flatMap((s) => [`--include=*${s}`, `--include=*${s.toUpperCase()}`]), "--exclude=*"];
     const bad = rsyncTo(["--relative", "--prune-empty-dirs", ...filters, ...roots, `${a.user}@${a.host}:.`], localRoot);
     if (bad !== null) return notIngested("rsync", bad);
   }
@@ -107,6 +122,6 @@ export function intake(a: Ssh, localRoot: string, extra: readonly string[] = [],
     if (last.status !== SSH_TRANSPORT_FAILURE) break;
   }
   if (last!.status === SSH_TRANSPORT_FAILURE) return notIngested("sync", last!);
-  if (last!.status !== 0) throw new Error(`원격 sync 실패(exit ${last!.status}): ${last!.stderr.trim()}`);
+  if (last!.status !== 0) throw new Error(`원격 sync 실패(exit ${last!.status}): ${remoteReason(last!.stderr)}`);
   return { ...(JSON.parse(last!.stdout) as Record<string, unknown>), ingest_status: "ingested", request_id: requestId, payload_sha256: sha, files: files.length };
 }

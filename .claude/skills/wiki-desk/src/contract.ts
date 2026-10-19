@@ -5,6 +5,7 @@ import path from "node:path";
 import { isSafeRelative, isBelow, canonicalRoot, resolveInside, readRegular } from "./fs-safety.ts";
 import { buildAliasMap, FILENAME_GROUPS } from "./mapping.ts";
 import type { AuthorityClass, Contract } from "./types.ts";
+import { DEFAULT_NODE_MIRROR_ROOT } from "./concurrency.ts";
 
 /** types.ts `Contract.wiki_dir` 리터럴과 동일. 서로 교정하지 않는다. */
 export const WIKI_DIRS = ["__llm-wiki", "__llm_wiki"] as const;
@@ -204,9 +205,25 @@ export function authorityFor(contract: Contract, rel: string): AuthorityClass {
   return { document_type: rule.document_type, authority_rank: rule.authority_rank, role: rule.role };
 }
 
+/** 계약 확장 키 node_mirror_root(서브 원문 미러 루트) — 없으면 기본값 */
+export const mirrorRootOf = (contract: Contract): string =>
+  typeof contract["node_mirror_root"] === "string" ? contract["node_mirror_root"] as string : DEFAULT_NODE_MIRROR_ROOT;
+
+/** 계약 확장 키 node_intake_excluded — 노드 체크아웃 기준 상대경로(문서 스켈레톤 등). 반입도 색인도 하지 않는다 */
+export const nodeIntakeExcluded = (contract: Contract): string[] =>
+  Array.isArray(contract["node_intake_excluded"]) ? (contract["node_intake_excluded"] as unknown[]).filter((x): x is string => typeof x === "string") : [];
+
+/** 미러 경로 `<mirror>/<node_id>/<rel>` 의 노드 상대부가 node_intake_excluded 아래인가(이미 반입된 사본도 색인에서 뺀다) */
+function nodeExcluded(rel: string, contract: Contract): boolean {
+  const mirror = mirrorRootOf(contract);
+  if (!isBelow(rel, mirror) || rel === mirror) return false;
+  const nodeRel = rel.slice(mirror.length + 1).split("/").slice(1).join("/");
+  return nodeRel !== "" && nodeIntakeExcluded(contract).some((e) => isBelow(nodeRel, e));
+}
+
 function excluded(rel: string, contract: Contract): boolean {
   const name = path.posix.basename(rel).toLowerCase();
-  return isBelow(rel, contract.wiki_dir) || contract.excluded_roots.some((e) => isBelow(rel, e)) ||
+  return isBelow(rel, contract.wiki_dir) || contract.excluded_roots.some((e) => isBelow(rel, e)) || nodeExcluded(rel, contract) ||
     hasBlockedPart(rel) || name === ENV_FILE || name.startsWith(ENV_FILE + ".") ||
     SECRET_NAMES.has(name) || SECRET_SUFFIXES.has(path.posix.extname(name));
 }
