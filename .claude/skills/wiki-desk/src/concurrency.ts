@@ -26,6 +26,8 @@ export const LEDGER_RETENTION_DAYS = 30;
 const DAY_MS = 86_400_000;
 /** 미러 루트 기본값(계약 확장 키 node_mirror_root 가 없을 때) */
 export const DEFAULT_NODE_MIRROR_ROOT = "sync_staging/library_mirror";
+/** 서브 반입 목록(미러 루트의 파일 · 경로→sha256) — 이번 입고가 보낸 집합. `.md` 가 아니라 원문으로 색인되지 않는다 */
+export const INTAKE_MANIFEST = ".wiki-desk-intake.json";
 /** 메인 원문의 소유자 이름 */
 export const MAIN_OWNER = "main";
 /** node_id 문법 — 경로 성분으로 쓰이므로 닫힌 문자 집합 */
