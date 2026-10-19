@@ -44,7 +44,7 @@
 | `Agent_Card.json` | A2A 능력카드(skills[]·노드정체성) | 렌더(gitignored) |
 | `.claude/settings.local.json` | **스코프드** 권한(블랭킷 ✗) | 렌더(gitignored) |
 | `.claude/skills/vllm-recipe-explorer/` | 런타임블럭(git-tracked만) | 복제 |
-| `.claude/skills/hint-publisher/` · `hints/{HINT_ISSUANCE_CONTRACT.md,vocab.json}` · 엔진 의존(`completion_gate.py`·`evidence_publisher.py`·스키마 3·`wiki-desk/scripts/doc_naming.py`) · `check_sub_hint_equip.py` | single 서브 hint 엔진(정본 `render_sub_env.HINT_ENGINE_DEPENDENCIES` · 색인·카탈로그·역할 마커는 `HINT_NEVER_DELIVER` 로 영구 미배달) | 복제(a2a-agent 만) |
+| `.claude/skills/hint-publisher/` · `hints/{HINT_ISSUANCE_CONTRACT.md,vocab.json}` · 엔진 의존(`completion_gate.py`·`evidence_publisher.py`·스키마 3·명명 shim `policies/runtime/doc_naming.py` → 정본 `wiki-desk/src/doc_naming.ts`) · `check_sub_hint_equip.py` | single 서브 hint 엔진(정본 `render_sub_env.HINT_ENGINE_DEPENDENCIES` · 색인·카탈로그·역할 마커는 `HINT_NEVER_DELIVER` 로 영구 미배달) | 복제(a2a-agent 만) |
 | `.claude/rules/comms.md` | 통신 정적계약 | 복제 |
 | `.claude/rules/docs.md` | 문서발행 규약(D12 — 서브 동일 규약 발행 → 상향 문서기반 회수) | 복제(메인 `.claude/rules/docs.md`) |
 | `.claude/schemas/task-report.schema.json` | 자기검증 스키마 | 복제 |
@@ -130,7 +130,7 @@ single 서브(sub_mode `a2a-agent`)는 **자기가 잰 셀을 스스로 hint 태
    않으면 쓰지 않는다(추적되면 `[sync]` 커밋으로 남고 복사된다).
 3. **토큰·PII 리터럴 = 사람** — 판정에 `token: absent` 또는 `pii_terms: absent` 가 나오면 서브는 **보고만** 하고 그 단계를 멈춘다.
    메인은 회수한 testlog 를 읽고 템플릿 `templates/requests/sub_hint_push_equip.md` 를 복제해
-   `docs/request/request_<YYMMDDHH>[_MM_SS]_서브_hint_push_자격_배치.md` 로 발행한다(이름 = `wiki-desk/scripts/doc_naming.py` ·
+   `docs/request/request_<YYMMDDHH>[_MM_SS]_서브_hint_push_자격_배치.md` 로 발행한다(이름 = `wiki-desk/src/doc_naming.ts` ·
    전제·명령·성공판정·실패분기·회수물·소요를 갖춘 수행지시서 · 서브에는 `docs/request/` 가 없다 — 메인 몫). 사람이 둔 뒤 에이전트는
    **존재만** 다시 확인한다 — 값을 읽어 비교하거나 출력하지 않는다.
 4. **판정·보고** — `check_sub_hint_equip.py`(인자 없음)의 JSON(`checks.{hint_clone,push_authority,central_authority,token,pii_terms,
@@ -170,4 +170,4 @@ single 서브(sub_mode `a2a-agent`)는 **자기가 잰 셀을 스스로 hint 태
 
 ## 서브 템플릿 (옛 §4 에서 이관)
 
-- `sub_node/` — 추적 PII-free 템플릿·정적계약: `CLAUDE.template.md`·`Agent_Card.template.json`·`settings.local.template.json`·`comms.md`·`task-report.schema.json`·**`library-exchange.schema.json`**(§2.7.8 그라운딩 교환)·`gitignore.template`.
+- `sub_node/` — 추적 PII-free 템플릿·정적계약: `CLAUDE.template.md`·`Agent_Card.template.json`·`settings.local.template.json`·`comms.md`·`task-report.schema.json`·`gitignore.template`. (옛 `library-exchange.schema.json` 은 2026-10-19 은퇴 — 서브는 서고 접근자로 직접 조회한다 · §2.7.8)

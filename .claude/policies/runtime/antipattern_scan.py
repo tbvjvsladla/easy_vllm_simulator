@@ -74,7 +74,7 @@ REMOVED_SHAPES = (
      "why": "READY_MAX 기본값 — 로드 시간은 모델·HW 의 함수라 선언한다(G-B6)"},
     {"id": "G-B8-topology-default",
      "path_re": r"^\.claude/skills/(adversarial-benchmark/scripts/lite_metrics\.py"
-                r"|terraforming_node/scripts/library_relay\.py)$",
+                r"|terraforming_node/scripts/library_access\.py)$",
      "pattern": r'get\(\s*["\']topology["\']\s*,\s*["\']single["\']|get\(\s*["\']role["\']\s*,\s*["\']main["\']',
      "why": "토폴로지·역할 기본값 — 인터뷰/manifest 만이 정한다(G-B8 · 헌법)"},
     {"id": "G-C1-worktree-drift-gate",
@@ -305,7 +305,7 @@ def _surface_covered(ref, entries):
         if e.endswith("/"):
             if ref == e.rstrip("/") or ref.startswith(e):
                 return True
-        elif ref == e or e.startswith(ref):  # 정규식 리터럴(`library_relay\.py`)은 확장자 앞에서 끊긴다
+        elif ref == e or e.startswith(ref):  # 정규식 리터럴(`library_access\.py`)은 확장자 앞에서 끊긴다
             return True
     return False
 
@@ -374,7 +374,7 @@ def _self_test():
               [x["shape"] for x in tripwire(d, [rel3])] == ["G-B6-ready-max-default"])
 
         # 경로 좁힘: 같은 문자열이 무관한 파일에 있으면 잡지 않는다(오탐 억제).
-        rel4 = ".claude/skills/wiki-desk/scripts/doc_naming.py"
+        rel4 = ".claude/policies/runtime/doc_naming.py"
         os.makedirs(os.path.join(d, os.path.dirname(rel4)))
         open(os.path.join(d, rel4), "w").write('GRADES = {"a": 1}\n')
         check("T5 무관 경로의 같은 문자열은 잡지 않는다", tripwire(d, [rel4]) == [])

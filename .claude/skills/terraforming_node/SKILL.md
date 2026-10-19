@@ -12,7 +12,7 @@ description: >-
 when_to_use: >-
   온보딩·테라포밍 외에도 이 스킬이 절차 정본인 세 영역에서 부른다 — (1) 노드 블랙박스: 호스트 안전체계 Y/N,
   ETA·열·전력 워치독, docs/logs 데이터 평면, L3 수행지시서. (2) 노드 오케스트레이터: 메인↔서브 제어 평면,
-  A2A 위임·턴제 릴레이·세션 재개·감독 스텝(--supervise-step), 러너 사다리 회전, 그라운딩 교환(library_request).
+  A2A 위임·턴제 릴레이·세션 재개·감독 스텝(--supervise-step), 러너 사다리 회전, 서고 접근자(서브 wiki-desk → 메인 __llm-wiki ssh 게이트웨이 발급·회수).
   (3) 캠페인 체인: campaigns/ 배치·phase 전이·campaign_init writer·배정(assignments)·purge 게이트.
 ---
 
@@ -65,7 +65,7 @@ when_to_use: >-
 | "고쳤는데 안 갔다" / "안 고쳤는데 갔다"(커밋 vs 인덱스 vs 파일시스템) | §2.7.4 → `references/orchestration/control_planes.md` |
 | `docs/logs/<node_id>` 경로가 노드마다 갈림 · hostname 이 경로에 샘 | §2.7.6 → `references/orchestration/topology_identity.md` |
 | 싱글인데 멀티의 배달·버전동기 개념이 끼어듦 · `role: sub` 의 의미가 모호 | §2.7.0 → `references/orchestration/topology_identity.md` + `scripts/node_role_contract.py` |
-| 서브 결정의 근거가 불명 · 인용 없는 빌드/서빙 결정 | §2.7.8 → `references/orchestration/grounding_exchange.md` + `scripts/library_exchange.py` |
+| 서브 결정의 근거가 불명 · 인용 없는 빌드/서빙 결정 · 서브가 서고에 닿지 못함 | §2.7.8 → `references/orchestration/grounding_exchange.md` + `scripts/library_access.py` |
 | 위임이 소진·중단됨 · 재개 여부 · 러너(백엔드×모델) 실패 | §2.7.7a · §2.7.11 → `references/orchestration/a2a_relay.md` |
 | 워치독 트립·사살 · 블랙박스 미설치/검증 실패 | §2.6 → `references/blackbox/host_safety.md` · `docs/logs` 평면은 `references/blackbox/logs_plane.md` |
 | 캠페인 상태가 비었거나 어긋남 · purge 가 안 열림 · 다른 캠페인으로 넘어가야 함(보류·재개) | `references/campaign/` (layout · phases · writers · assignment_supervision · purge) |
@@ -124,8 +124,8 @@ when_to_use: >-
 ### 2.7.7 A2A 제어명령 프로토콜
 → `references/orchestration/a2a_relay.md` — 2.7.7a 턴제 릴레이와 자율 재개. **재개의 기본은 `relay.py --supervise-step <camp> --apply` 자동 재발급**이고, 비용 상한·통신/모델 붕괴·전진 없음만 사람에게 팝업한다(그때의 수동 경로 = `--continue --apply`).
 
-### 2.7.8 그라운딩 교환 포맷 — 서브 요청 → 메인 색인 → 반출
-→ `references/orchestration/grounding_exchange.md` — 세 메시지 · 증거그래프 어휘 대응 · 하드게이트(세 질문 + Freshness) · 배선. **누락은 기계가 fail-closed 로 잡고 거짓은 사람이 리뷰한다.**
+### 2.7.8 서고 접근자 — 서브 wiki-desk ↔ 메인 서고(같은 CLI · 경로만 다름)
+→ `references/orchestration/grounding_exchange.md` — manifest `library` 접근자 · ssh 강제명령 게이트웨이 · 발급·회수(`library_access.py` · HITL) · 그라운딩 게이트 대칭. **누락은 기계가 fail-closed 로 잡고 거짓은 사람이 리뷰한다.** (2026-10-19 · A2A 3메시지 교환 은퇴)
 
 ### 2.7.9 노드 오케스트레이터 — Phase 감독
 → `references/campaign/phases.md` · 특화층 오케스트레이션 전략은 `references/orchestration.topology.md`(브랜치별 내용 · 싱크 비전파).
@@ -169,7 +169,7 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/relay.py` | §2.7.7a · §2.7.11 | — | 턴제 릴레이·감독 스텝·러너 사다리 |
 | `scripts/turn_budget.py` | §2.7.7a | — | 턴 예산 선언 검증기 |
 | `scripts/agent_control.py` · `scripts/providers/` | §2.7.7 | — | provider-neutral 전송 orchestrator · Claude CLI 구문의 유일 발행처는 `providers/claude_code.py` |
-| `scripts/library_exchange.py` · `scripts/library_relay.py` | §2.7.8 | — | 그라운딩 교환 판정 · 사서 통로 |
+| `scripts/library_access.py` | §2.7.8 | — | 서브 서고 접근점 발급·회수(키·강제명령·manifest library 블록 · HITL) |
 | `scripts/node_blackbox/node_identity.sh` | §2.7.6 | ✓ | node_id 해소(실패하면 죽는다) |
 | `scripts/node_blackbox/`(런타임: `blackbox_session.py` · `budget_renew_loop.sh` · `blackbox_eta.py` · `regen_envelope.py` · `blackbox_thermal.py` · `mem_watchdog_eta.sh` · `thermal_watchdog.sh` · `agent_guard.py`) | §2.6 | ✓ | `references/blackbox/host_safety.md` |
 | `scripts/node_blackbox/`(설치: `install_node_blackbox.sh` · `verify_node_blackbox.sh` · `purge_host_safety.sh` · `publish_install_request.py`) | §2.6 · §2.6.1 | ✓ | HITL sudo |

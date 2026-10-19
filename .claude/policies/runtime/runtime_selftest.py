@@ -1935,6 +1935,9 @@ _BACKUP_PATH_TOKENS = ("backup", "백업")
 # `.native-e2e` (2026-09-23 · plan_26092311): native 서빙의 마커 소유 휘발 run root — 이미지에서 재포장한 **서드파티
 #   설치본**(venv 의 jupyter `package.json.orig` 등)이 들어 있고 down 이 통째로 지운다. 백업 관행의 흔적이 아니다.
 _BACKUP_SCAN_PRUNE_TOP = frozenset({".git", "seed", "output", ".native-e2e"})
+# 사서 서고와 그 카드 디렉터리(wiki-desk 계약 layout 기본값) — 카드 경로는 원문 경로를 그대로 비춘다.
+_WIKI_DIR_REL = "__llm-wiki"
+_WIKI_CARD_DIRS = frozenset({"cards", "archive"})
 # `.claude/worktrees/` is the harness isolation container, not a governed subtree.
 _WORKTREE_ISOLATION_REL = Path(".claude/worktrees")
 
@@ -1953,7 +1956,7 @@ _PROSE_SCAN_EXTRA = ("CLAUDE.md", "README.md")
 # 카탈로그). 비배포 산문(`docs/{plan,devlog,testlog,...}`)은 그 표가 다른 강도를 규정하므로
 # 범위 밖이고, **추적물만** 본다 — 배포되는 것은 추적물이고, 워킹트리의 비추적 로컬 설정
 # (예: 스킬 `config.yaml` 의 운영자 경로)까지 잡으면 가드가 정상 상태를 상시 RED 로 만든다.
-_FORBIDDEN_SCANNER_REL = ".claude/skills/wiki-desk/scripts/scan_forbidden_strings.py"
+_FORBIDDEN_SCANNER_REL = ".claude/skills/wiki-desk/scripts/scan-forbidden-strings.ts"
 # ★ 2026-09-06 사정거리 정정(plan_26090616): 이 자리에는 세 접두어 + 세 파일의 **목록**이 있었다.
 #   목록이라 새 배포면이 생기면 조용히 늦었고, 실제로 늦었다 — 루트에 쌓인 캠페인 셀 입력 21개가
 #   운영자 NAS 절대경로를 담은 채 공개 원격까지 갔는데 이 가드의 사정거리 밖이었다. 배포되는 것은
@@ -2121,6 +2124,12 @@ def _test_no_backup_artifacts(root: Path | None = None) -> None:
             rel = name if rel_dir == "." else os.path.join(rel_dir, name)
             low = rel.lower()
             if rel.endswith(_BACKUP_SUFFIXES) or any(tok in low for tok in _BACKUP_PATH_TOKENS):
+                # 사서 카드(`__llm-wiki/{cards,archive}/<원문 경로>.card.md`)는 이름이 원문 경로의 거울이다 — 원문이 이 스캔의
+                #   범위 밖(seed/ 사용자 보관소 등)이면 카드도 범위 밖이다(2026-10-19 · plan_26101912: TS 사서가 원문 1건당 카드 1장).
+                parts = Path(rel).parts
+                if (len(parts) > 2 and parts[0] == _WIKI_DIR_REL and parts[1] in _WIKI_CARD_DIRS
+                        and parts[2] in _BACKUP_SCAN_PRUNE_TOP):
+                    continue
                 offenders.append(rel)
     _require(not offenders, f"backup artifact in working tree (백업 금지 · 숨김 금지): {offenders[:20]}")
     _require(not scan_errors,
@@ -2346,17 +2355,34 @@ def _test_no_retired_hash_mechanism_prose(root: Path | None = None) -> None:
     _require(not offenders, f"retired hash mechanism named in governing prose: {offenders[:20]}")
 
 
-def _import_forbidden_scanner():
-    """`scan_forbidden_strings.py` 를 in-process 로 적재한다(`_import_hint_cli` 와 같은 관용구).
+class _TsForbiddenScanner:
+    """`scan-forbidden-strings.ts`(wiki-desk · TS)의 얇은 어댑터. 패턴·면제 규칙을 **복제하지 않는다** — 복제하면 두
+    자리가 갈라져 한쪽만 조용히 늦는다(`workflow.md` §결정론 규율 — 개념 중복). 커널은 그 파일의 `scanLines` 하나다.
+    2026-10-19(plan_26101912 D6): 스캐너가 Python 에서 TS 로 옮겨 in-process 적재가 subprocess 호출이 됐다."""
 
-    패턴·면제 규칙을 **복제하지 않는다** — 복제하면 두 자리가 갈라져 한쪽만 조용히 늦는다
-    (`workflow.md` §결정론 규율 — 개념 중복). 커널은 그 파일의 `scan_lines` 하나다.
-    """
-    path = CLAUDE_DIR.parent / _FORBIDDEN_SCANNER_REL
-    spec = importlib.util.spec_from_file_location("_runtime_selftest_pii_scan", path)
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    def __init__(self, path: Path):
+        self.path = path
+        meta = json.loads(self._node("--meta").stdout)
+        self.EXEMPT_MARK = meta["exempt_mark"]
+        self.MAX_BYTES = meta["max_bytes"]
+
+    def _node(self, *args: str, stdin: str | None = None):
+        cp = subprocess.run(["node", str(self.path), *args], input=stdin, capture_output=True, text=True, check=False)
+        if cp.returncode not in (0, 1):
+            raise RuntimeSelftestFailure(f"forbidden-string scanner failed (exit {cp.returncode}): {cp.stderr.strip()[-300:]}")
+        return cp
+
+    def scan_lines(self, text: str, terms: list[str]):
+        args = ["--stdin-text"] + [x for t in terms for x in ("--term", t)]
+        return [(h["line"], h["what"], h["exempt"]) for h in json.loads(self._node(*args, stdin=text).stdout)]
+
+    def scan_files(self, root: Path, rels: list[str]) -> dict:
+        """추적물 전부를 한 번에 — 기본 용어 파일(비추적 `.claude/pii_terms.txt`)을 스캐너가 스스로 읽는다."""
+        return json.loads(self._node("--files-from", "-", "--json", stdin="\n".join(str(root / r) for r in rels)).stdout)
+
+
+def _import_forbidden_scanner() -> _TsForbiddenScanner:
+    return _TsForbiddenScanner(CLAUDE_DIR.parent / _FORBIDDEN_SCANNER_REL)
 
 
 def _deployed_pii_targets(root: Path) -> list[str]:
@@ -2392,26 +2418,15 @@ def _test_no_pii_in_deployed_artifacts(root: Path | None = None) -> None:
         return
 
     scanner = _import_forbidden_scanner()
-    terms = scanner.load_terms(scanner._default_terms_file())
     targets = _deployed_pii_targets(root)
     # 사정거리 0 방어 — 목록이 비면 이 가드는 "통과" 가 아니라 **무력**이다(선례: envelope 수확기).
     _require(targets, f"tripwire5 scanned nothing under {root} -- deployed surface enumeration is empty")
-
-    offenders: list[str] = []
-    for rel in targets:
-        path = root / rel
-        try:
-            if path.stat().st_size > scanner.MAX_BYTES:
-                print(f"[tripwire] WARN 5 skipped (too large) {rel}", file=sys.stderr)
-                continue
-            text = path.read_text(encoding="utf-8")
-        except UnicodeDecodeError:
-            continue  # 바이너리 — 확장자가 아니라 내용으로 판정(스캐너와 같은 규율)
-        except OSError as exc:
-            print(f"[tripwire] WARN 5 unreadable {rel}: {exc}", file=sys.stderr)
-            continue
-        offenders += [f"{rel}:{lineno}:{what}"
-                      for lineno, what, exempt in scanner.scan_lines(text, terms) if not exempt]
+    report = scanner.scan_files(root, targets)
+    for p in report["skippedLarge"]:
+        print(f"[tripwire] WARN 5 skipped (too large) {p}", file=sys.stderr)
+    for p in report["unreadable"]:
+        print(f"[tripwire] WARN 5 unreadable {p}", file=sys.stderr)
+    offenders = [f"{Path(h['path']).relative_to(root)}:{h['line']}:{h['what']}" for h in report["hits"]]
     _require(not offenders,
              f"operator PII in tracked deployed artifacts ({len(offenders)}): {offenders[:20]}")
 
@@ -2927,7 +2942,7 @@ def _test_base_skill_edges_predicate() -> None:
 
     픽스처 문자열은 조립해서 만든다 — 리터럴로 적으면 이 검사 자신이 기초층→스킬 간선이 된다."""
     sk = "skill" + "s"
-    _require(_skill_edge_targets(f'x = ".claude/{sk}/wiki-desk/scripts/doc_naming.py"') == {"wiki-desk/scripts/doc_naming.py"},
+    _require(_skill_edge_targets(f'x = ".claude/{sk}/wiki-desk/src/cli.ts"') == {"wiki-desk/src/cli.ts"},
              "slash literal target")
     _require(_skill_edge_targets(f'os.path.join(REPO, ".claude", "{sk}", "tn", "scripts", "a.py")') == {"tn/scripts/a.py"},
              "join-style target")

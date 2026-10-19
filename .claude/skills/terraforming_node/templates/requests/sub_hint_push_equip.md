@@ -3,7 +3,7 @@
 > **수행지시서 템플릿**(추적 · PII-free) — terraforming_node `references/install/sub_agent_env.md` §2.5.1 hint 발행 장착이 쓴다.
 > 메인 Agent 는 서브 testlog 의 `check_sub_hint_equip.py` 보고에서 `next_actions[].actor = "human"` 을 읽었을 때만
 > 이 파일을 복제해 `docs/request/request_<YYMMDDHH>[_MM_SS]_서브_hint_push_자격_배치.md` 로 발행한다(이름은
-> `wiki-desk/scripts/doc_naming.py` 로 실제 KST 시각에서 파생 · `<…>` 자리는 발행 시 채운다 · 이 인용 블록은 지운다).
+> `wiki-desk/src/doc_naming.ts` 로 실제 KST 시각에서 파생 · `<…>` 자리는 발행 시 채운다 · 이 인용 블록은 지운다).
 > 왜 사람인가: push 토큰과 그 노드의 PII 리터럴은 **비밀**이라 배달 평면(render_sub_env · sync_to_sub)으로 보내지 않는다.
 > 에이전트는 값을 만들지도 옮기지도 않고, 둔 뒤에 **존재만** 확인한다.
 

@@ -616,6 +616,19 @@ def build_sub_manifest(result: dict, peer_hw: dict, main_manifest: dict, scanned
     if main_manifest.get("interconnect"):
         man["interconnect"] = dict(main_manifest["interconnect"])   # single 에서는 정보성(집단 연산 없음)
     man["nodes"] = [dict(n) for n in (result.get("nodes") or [])]
+    # 서고 접근자(2026-10-19 · plan_26101912): 메인이 발급한 접근점이 있으면 서브 manifest 에 ssh 접근자를 싣는다 —
+    #   메인 library.access_points 가 권위다(library_access.py 가 키 발급·authorized_keys 등록과 함께 쓴다). 없으면 싣지 않는다
+    #   (서브 wiki-desk 는 블록 부재를 local 로 읽고, 그 출처를 숨기지 않는다).
+    lib = main_manifest.get("library") or {}
+    main_node = next((n for n in (main_manifest.get("nodes") or []) if n.get("role") == "main"), {})
+    sub_node = next((n for n in man["nodes"] if n.get("role") == "sub"), {})
+    nid = sub_node.get("node_id") or "sub"
+    ap = (lib.get("access_points") or {}).get(nid)
+    if ap and main_node.get("host"):
+        man["library"] = {"transport": "ssh", "host": main_node["host"], "user": main_node.get("ssh_user"),
+                          "repo_root": lib.get("repo_root") or main_node.get("work_dir"),
+                          "wiki_dir": lib.get("wiki_dir") or "__llm-wiki",
+                          "identity_file": ap.get("identity_file"), "known_hosts": ap.get("known_hosts"), "node_id": nid}
     return man
 
 

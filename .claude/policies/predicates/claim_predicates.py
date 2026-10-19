@@ -1646,8 +1646,8 @@ def predicate_HINT_TAG_ACTIVATION_GATE_C4():
     remote_exec = {"ssh", "scp", "sftp", "rsync", "sshpass"}
     process_spawners = {"run", "Popen", "call", "check_call", "check_output", "system", "popen",
                         "execv", "execvp", "execvpe", "spawnlp", "getoutput", "getstatusoutput"}
-    banned_modules = {"paramiko", "fabric", "asyncssh", "relay", "render_sub_env", "node_role_contract", "library_relay"}
-    sub_tooling = ("sync_to_sub.sh", "relay.py", "render_sub_env", "fetch_sub_docs.sh", "library_relay",
+    banned_modules = {"paramiko", "fabric", "asyncssh", "relay", "render_sub_env", "node_role_contract", "library_access"}
+    sub_tooling = ("sync_to_sub.sh", "relay.py", "render_sub_env", "fetch_sub_docs.sh", "library_access",
                    "node_role_contract", "a2a_delegation")
     for path in engine:
         src = path.read_text(encoding="utf-8")
@@ -3327,45 +3327,38 @@ def predicate_TERRAFORM_FLAG_GATE_C3():
 def predicate_TERRAFORM_FLAG_GATE_C4():
     """C4: wiki-desk stays ACTUALLY callable end-to-end, identically, whether the completion Flag is
     absent or present -- not merely "no gate token appears in its source" (a differently-named or
-    indirect check could dodge that). Proven by executing wiki-desk's real query entrypoint
-    (`smoke_query.main()`, the tool an agent actually runs) against a hermetic registry, twice: once
+    indirect check could dodge that). Proven by executing wiki-desk's real CLI (`src/cli.ts` -- the tool an
+    agent actually runs · TS since plan_26101912) init → sync → query against a hermetic project, twice: once
     with a genuinely Flag-absent repo (independently confirmed via manifest_contract) and once with a
     genuinely Flag-valid one sitting right next to it (also independently confirmed) -- both runs
-    must reach the identical PASS verdict and exit 0, proving wiki-desk never even reads that state.
+    must find the same probe document and exit 0, proving wiki-desk never even reads that state.
     Source-level absence of the gate machinery is kept as a secondary corroborating signal only."""
     import json
 
-    wiki_dir = REPO_ROOT / ".claude" / "skills" / "wiki-desk" / "scripts"
-    py_files = sorted(wiki_dir.glob("*.py"))
-    _require(py_files, 'predicate requirement failed at original line 2266')
+    wiki_dir = REPO_ROOT / ".claude" / "skills" / "wiki-desk"
+    ts_files = sorted([*(wiki_dir / "src").glob("*.ts"), *(wiki_dir / "scripts").glob("*.ts")])
+    _require(ts_files, 'wiki-desk TS sources must exist to be scanned')
     banned = ("manifest_contract", "_require_terraform_flag", "terraforming.complete", "a2a_delegation")
-    for f in py_files:
+    for f in ts_files:
         text = f.read_text(encoding="utf-8")
         for token in banned:
             _require(token not in text, f'{f.name} must never reference {token!r}')
+    cli = wiki_dir / "src" / "cli.ts"
+    contract = json.loads((wiki_dir / "assets" / "project-contract.example.json").read_text(encoding="utf-8"))
+    contract.update({"source_roots": ["docs"], "excluded_roots": []})
 
-    smoke_query = _import(".claude/skills/wiki-desk/scripts", "smoke_query")
-
-    def _run_query(wiki_root):
-        registry = {
-            "entries": [{
-                "source_id": "s1", "stem": "devlog_26072508",
-                "source_path": "docs/devlog/devlog_26072508_x.md", "document_type": "devlog",
-                "authority_rank": 3, "confidence": "high", "topical_summary": "flag gate probe",
-                "title_hint": "flag gate probe", "lifecycle_state": "active", "topic_slug": "flag-gate",
-            }],
-            "edges": [], "retrieval": {"min_authority": 0, "min_score": 1},
-        }
-        (wiki_root / "sources").mkdir(parents=True)
-        (wiki_root / "sources" / "registry.json").write_text(json.dumps(registry), encoding="utf-8")
-        orig_argv, orig_stdout = sys.argv, sys.stdout
-        sys.argv = ["smoke_query.py", "--wiki-root", str(wiki_root), "--query", "devlog_26072508"]
-        sys.stdout = captured = io.StringIO()
-        try:
-            rc = smoke_query.main()
-        finally:
-            sys.argv, sys.stdout = orig_argv, orig_stdout
-        return rc, captured.getvalue()
+    def _run_query(repo):
+        (repo / "docs" / "devlog").mkdir(parents=True, exist_ok=True)
+        (repo / "docs" / "devlog" / "devlog_26072508_x.md").write_text("# flag gate probe\n\nflag gate probe body\n", encoding="utf-8")
+        (repo / "contract.json").write_text(json.dumps(contract), encoding="utf-8")
+        steps = (["init", "--contract", str(repo / "contract.json"), "--apply"], ["sync", "--apply", "--as", "all"],
+                 ["query", "--terms", "flag gate probe"])
+        out = None
+        for argv in steps:
+            out = subprocess.run(["node", str(cli), *argv, "--root", str(repo), "--local"], capture_output=True, text=True)
+            if out.returncode != 0:
+                return out.returncode, out.stderr
+        return 0, out.stdout
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
@@ -3375,7 +3368,7 @@ def predicate_TERRAFORM_FLAG_GATE_C4():
         absent_repo.mkdir()
         mc_absent = manifest_contract.main(["--topology", "single", "--repo", str(absent_repo), "--json"])
         _require(mc_absent == manifest_contract.EXIT_NO_MANIFEST, 'control: this repo state must genuinely be Flag-absent')
-        rc_absent, out_absent = _run_query(absent_repo / "__llm-wiki")
+        rc_absent, out_absent = _run_query(absent_repo)
 
         # Flag-PRESENT control: a real, passing manifest sits right next to the wiki root.
         present_repo = tmp_path / "present"
@@ -3386,10 +3379,11 @@ def predicate_TERRAFORM_FLAG_GATE_C4():
         mc_present = manifest_contract.main(
             ["--topology", "single", "--repo", str(present_repo), "--require-flag"])
         _require(mc_present == manifest_contract.EXIT_OK, 'control: this repo state must genuinely be Flag-valid')
-        rc_present, out_present = _run_query(present_repo / "__llm-wiki")
+        rc_present, out_present = _run_query(present_repo)
 
-    _require(rc_absent == 0 and rc_present == 0, f"wiki-desk's real query entrypoint must succeed identically regardless of Flag state, got exit {rc_absent} (Flag-absent) vs {rc_present} (Flag-present)")
-    _require('PASS' in out_absent and 'PASS' in out_present, 'both runs must reach the same genuine PASS verdict, not merely a non-crashing exit code')
+    _require(rc_absent == 0 and rc_present == 0, f"wiki-desk's real CLI must succeed identically regardless of Flag state, got exit {rc_absent} (Flag-absent) vs {rc_present} (Flag-present): {out_absent if rc_absent else out_present}")
+    hits = [[r["path"] for r in json.loads(o)["results"]] for o in (out_absent, out_present)]
+    _require(hits[0] == hits[1] == ["docs/devlog/devlog_26072508_x.md"], f'both runs must find the same probe document, not merely exit 0: {hits}')
 
 
 # =============================================================================
@@ -4213,44 +4207,69 @@ def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C3():
 
 def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C4():
     """C4: 발행이 서가에 되먹인다 — 정지한 서가의 '없음' 은 거짓이다."""
+    import json as _j
     ci = _campaign_script("campaign_init")
     _require(callable(getattr(ci, "warm_start_library", None)), "입고 실행자가 없다")
     pub = (REPO_ROOT / ".claude/policies/runtime/evidence_publisher.py").read_text(encoding="utf-8")
     fin = _extract_python_function(pub, "cmd_finalize")
-    # plan_26093022: 발행기는 사서를 **직접** 부른다(중계자 campaign_init 제거 · 닫힌 목록 등재 간선).
-    _require("init_wiki_desk.py" in fin and "--warm-start" in fin,
+    # plan_26093022: 발행기는 사서를 **직접** 부른다 · plan_26101912: 사서 = TS CLI `sync --apply`(local/ssh 공통 한 줄)
+    _require(".claude/skills/wiki-desk/src/cli.ts" in fin and '"sync", "--apply"' in fin,
              "발행기 종료부가 입고를 부르지 않는다 — 발행과 입고가 갈라지면 서가는 늘 한 캠페인 늦다")
     src = (REPO_ROOT / ".claude/skills/terraforming_node/scripts/campaign_init.py").read_text(
         encoding="utf-8")
     _require("서가 입고(C4)" in src, "publish 위상 종료부의 입고 호출이 사라졌다")
     body = _extract_python_function(src, "warm_start_library")
-    _require("--warm-start" in body, "publish 위상의 입고가 사서의 warm-start 계약을 부르지 않는다")
-    wd = (REPO_ROOT / ".claude/skills/wiki-desk/scripts/init_wiki_desk.py").read_text(encoding="utf-8")
-    wd_main = _extract_python_function(wd, "main")
-    _require("args.warm_start" in wd_main and "args.incremental = True" in wd_main,
-             "입고가 전체 재색인으로 바뀌었다(warm-start 는 증분이어야 한다)")
+    _require('"sync", "--apply"' in body, "publish 위상의 입고가 사서의 입고(sync --apply) 계약을 부르지 않는다")
+    # 입고는 증분이어야 한다 — 같은 원문으로 두 번째 입고는 아무것도 쓰지 않는다(실행으로 증명)
+    cli = REPO_ROOT / ".claude/skills/wiki-desk/src/cli.ts"
+    contract = _j.loads((REPO_ROOT / ".claude/skills/wiki-desk/assets/project-contract.example.json").read_text(encoding="utf-8"))
+    contract.update({"source_roots": ["docs"], "excluded_roots": []})
+    with tempfile.TemporaryDirectory() as tmp:
+        repo = Path(tmp)
+        (repo / "docs").mkdir()
+        (repo / "docs" / "plan_26100101_a.md").write_text("# a\n", encoding="utf-8")
+        (repo / "contract.json").write_text(_j.dumps(contract), encoding="utf-8")
+        run = lambda *a: subprocess.run(["node", str(cli), *a, "--root", str(repo), "--local"], capture_output=True, text=True)
+        _require(run("init", "--contract", str(repo / "contract.json"), "--apply").returncode == 0, "init 실패")
+        first, second = run("sync", "--apply"), run("sync", "--apply")
+        _require(first.returncode == 0 and second.returncode == 0, f"입고 실패: {first.stderr}{second.stderr}")
+        _require(_j.loads(first.stdout)["created"] and not _j.loads(second.stdout)["writes"],
+                 "입고가 증분이 아니다(같은 원문 재입고가 다시 쓴다)")
 
 
 def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C5():
-    """C5: 서브의 질문은 릴레이가 사서에게 나른다(부품은 있고 루프가 없던 자리)."""
-    relay = _campaign_script("relay")
-    _require(callable(getattr(relay, "serve_library_requests", None)),
-             "릴레이에 사서 응대 실행자가 없다")
-    rendered = relay.render_library_export(
-        {"library_export": {"resolution": {"status": "unresolved", "librarian": "wiki-desk",
-                                           "reason": "정직한 공백"}, "references": []}})
-    _require(any("unresolved" in x for x in rendered), "사서 판정이 다음 턴 본문에 실리지 않는다")
-    _require(any("grounding_gap" in x for x in rendered),
-             "공백일 때의 처방(기재 후 진행)이 본문에 실리지 않는다 — 서브는 무엇을 할지 모른다")
-    resolved = relay.render_library_export(
-        {"library_export": {"resolution": {"status": "resolved", "librarian": "wiki-desk"},
-                            "references": [{"ref_id": "R1", "path": "CLAUDE.md",
-                                            "digest": "d" * 16, "excerpt": "발췌"}]}})
-    _require(any("CLAUDE.md" in x for x in resolved), "참조가 본문에 실리지 않는다")
-    _require(not relay.render_library_export({}), "회신이 없는데 뭔가를 실었다(합성 금지)")
-    src = (REPO_ROOT / ".claude/skills/terraforming_node/scripts/relay.py").read_text(encoding="utf-8")
-    _require("serve_library_requests(" in src.split("def serve_library_requests", 1)[1],
-             "사서 응대 함수를 부르는 자리가 없다 — 부품만 있고 루프가 없던 형태의 재발")
+    """C5: 서브는 메인과 **같은 CLI** 로 같은 서고에 닿는다 — 경로(manifest `library` 접근자)만 다르다(plan_26101912 D1·D3).
+
+    A2A 서고 교환(library_request → relay → export → attestation)은 은퇴했다 — 그 부품이 남아 있으면 두 경로가 갈라진다."""
+    tn = REPO_ROOT / ".claude/skills/terraforming_node"
+    for gone in ("scripts/library_exchange.py", "scripts/library_relay.py", "sub_node/library-exchange.schema.json"):
+        _require(not (tn / gone).exists(), f"은퇴한 A2A 서고 교환 부품이 남았다: {gone}")
+    relay = (tn / "scripts/relay.py").read_text(encoding="utf-8")
+    _require("serve_library_requests" not in relay and "library_request" not in relay,
+             "릴레이가 아직 서고 질의를 나른다 — 서브는 접근자로 직접 묻는다(병존 폴백 ✗ · D2)")
+    wd = REPO_ROOT / ".claude/skills/wiki-desk/src"
+    cli = (wd / "cli.ts").read_text(encoding="utf-8")
+    _require("resolveAccessor" in cli and "forward(" in cli and "intake(" in cli,
+             "CLI 가 접근자를 읽어 원격(ssh)으로 넘기지 않는다 — 서브와 메인이 같은 명령이 아니다")
+    acc = (wd / "accessor.ts").read_text(encoding="utf-8")
+    _require('"local"' in acc and '"ssh"' in acc and "manifest.yaml" in acc, "접근자 권위가 manifest library 블록이 아니다")
+    tmpl = (REPO_ROOT / "manifest.template.yaml").read_text(encoding="utf-8")
+    _require(re.search(r"^library:", tmpl, re.M), "manifest 템플릿에 library 접근자 블록이 없다(메인·서브 동일 스키마)")
+    gw = subprocess.run(["node", "--test", "--test-name-pattern", "게이트웨이", str(REPO_ROOT / ".claude/skills/wiki-desk/tests/concurrency.test.ts")],
+                        capture_output=True, text=True)
+    _require(gw.returncode == 0, f"게이트웨이 허용 목록 시험 실패(셸·목록 밖 명령·남의 미러를 거부해야 한다): {gw.stdout[-600:]}")
+
+
+def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C6():
+    """C6: N개 접근점의 동시 쓰기 규정(h_report 기법) — 실제 CLI 프로세스로 실패 순서를 친다.
+
+    동시 입고 유실·중복 0 · 재전송 no-op(receipt 바이트 동일) · 같은 키 다른 payload 거부 · 쓰기 중 kill 은 복구 후에만 읽힌다."""
+    r = subprocess.run(["node", "--test", str(REPO_ROOT / ".claude/skills/wiki-desk/tests/concurrency.test.ts")],
+                       capture_output=True, text=True)
+    _require(r.returncode == 0, f"동시성 규정 시험 실패: {r.stdout[-1200:]}")
+    ref = (REPO_ROOT / ".claude/skills/wiki-desk/references/concurrency.md").read_text(encoding="utf-8")
+    for tech in ("C06", "C12", "C15", "C16"):
+        _require(tech in ref, f"동시성 규정 문서가 h_report 기법 {tech} 의 채택·기각 근거를 적지 않았다")
 
 
 def _topology_parity():
@@ -4454,6 +4473,7 @@ PREDICATES = {
     "LIBRARY_GROUNDING_FAIL_CLOSED.C3": predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C3,
     "LIBRARY_GROUNDING_FAIL_CLOSED.C4": predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C4,
     "LIBRARY_GROUNDING_FAIL_CLOSED.C5": predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C5,
+    "LIBRARY_GROUNDING_FAIL_CLOSED.C6": predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C6,
     "ROOT_SURFACE_REGISTRY.C1": predicate_ROOT_SURFACE_REGISTRY_C1,
     "ROOT_SURFACE_REGISTRY.C2": predicate_ROOT_SURFACE_REGISTRY_C2,
     "ROOT_SURFACE_REGISTRY.C3": predicate_ROOT_SURFACE_REGISTRY_C3,
@@ -4599,7 +4619,8 @@ def run_all_predicates() -> int:
     # 집합 동치가 이미 보장하는 것을 한 번 더 적는 **tripwire 하드코딩**이다 — 절이 늘거나 줄면
     # 여기서 사람 리뷰를 강제한다(workflow.md §4종 안티패턴 판정표 "정당" 칸).
     # 73 -> 74 (2026-10-03 · plan_26100320 SUB_GIT_LOCAL_ONLY.C4 신설 — 외부 저장소 clone 허용 · HF/lfs 제외).
-    if len(PREDICATES) != 74 or set(PREDICATES) != registry_ids:
+    # 74 -> 75 (2026-10-19 · plan_26101912 LIBRARY_GROUNDING_FAIL_CLOSED.C6 신설 — 서고 하나·접근점 N개의 동시성 규정).
+    if len(PREDICATES) != 75 or set(PREDICATES) != registry_ids:
         failures.append({"clause_id": "__mapping__", "error":
                          f"predicate/registry mismatch predicates={len(PREDICATES)} registry={len(registry_ids)}"})
     funcs = list(PREDICATES.values())

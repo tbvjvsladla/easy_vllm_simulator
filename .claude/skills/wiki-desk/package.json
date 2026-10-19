@@ -1,0 +1,15 @@
+{
+  "name": "wiki-desk",
+  "version": "3.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Project knowledge desk (OKF 0.2 pointer library) - TypeScript, Node 24, zero runtime dependencies",
+  "scripts": {
+    "test": "node --test",
+    "sanitize": "node scripts/sanitize-check.ts",
+    "manifest": "node scripts/package-manifest.ts --check"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

@@ -968,7 +968,7 @@ class NativeServe:
 
     def make_roots(self, generated_utc: str) -> None:
         c = self.c
-        naming = _load_module("_nm_doc_naming", REPO_DEFAULT / ".claude/skills/wiki-desk/scripts/doc_naming.py")
+        naming = _load_module("_nm_doc_naming", REPO_DEFAULT / ".claude/policies/runtime/doc_naming.py")
         simlog = c.repo / "docs" / "simlog"
         existing = [p.name for p in simlog.iterdir()] if simlog.is_dir() else []
         preserve_rel = f"docs/simlog/{naming.simlog_dirname(generated_utc, c.simlog_topic, existing)}"

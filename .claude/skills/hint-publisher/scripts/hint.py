@@ -2137,7 +2137,7 @@ def _fx_repo(td: Path) -> tuple[Path, dict]:
     git 저장소 · 템플릿 · 명명 SSOT · 산출물(compose · 러너 · env 형상 · Dockerfile · 패치) · 계보 문서 · bare 원격 · 중앙 권위."""
     repo, fx = evidence._fixture(td)
     code_root = core.HINTLIB_DIR.parents[4]
-    for rel in (core.REL_DOC_NAMING_WIKI, core.REL_DOC_NAMING_BENCH):
+    for rel in (core.REL_DOC_NAMING_WIKI, core.REL_DOC_NAMING_TS, core.REL_DOC_NAMING_BENCH):
         dst = repo / rel
         dst.parent.mkdir(parents=True, exist_ok=True)
         os.symlink(code_root / rel, dst)

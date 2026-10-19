@@ -1,0 +1,7 @@
+# 위키 파생 색인 캐시(질의 시 재구축)와 로컬 환경
+.cache/
+node_modules/
+.env
+.env.*
+*.pem
+*.key

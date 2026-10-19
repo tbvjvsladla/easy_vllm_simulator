@@ -1137,8 +1137,26 @@ def _json_assertion_ids(path: Path) -> set | None:
     return set(obj)
 
 
+# TypeScript(wiki-desk · plan_26101912): 최상위 선언(function·class·const·let·type·interface · export 여부 무관)만 —
+# 주석·문자열 안의 이름은 근거가 아니다. 줄 시작 고정(들여쓴 지역 선언은 근거로 세지 않는다).
+_TS_DECL_RE = re.compile(
+    r"^(?:export[ \t]+)?(?:default[ \t]+)?(?:async[ \t]+)?(?:function\*?|class|const|let|type|interface)[ \t]+([A-Za-z_$][A-Za-z0-9_$]*)",
+    re.MULTILINE)
+
+
+def _typescript_assertion_ids(path: Path) -> set | None:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+    # 블록 주석을 먼저 벗긴다(선언처럼 보이는 문서 예시가 근거가 되지 않게)
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    return set(_TS_DECL_RE.findall(text))
+
+
 _ASSERTION_EXTRACTORS = {
     ".py": _python_assertion_ids,
+    ".ts": _typescript_assertion_ids,
     ".sh": _shell_assertion_ids,
     ".yaml": _yaml_assertion_ids,
     ".yml": _yaml_assertion_ids,

@@ -12,11 +12,10 @@ gitignored 스테이징 트리 `output/<topology>/sub_provision/` 로 렌더한�
   .claude/rules/comms.md                 ← comms.md                   (복제·정적계약)
   (.claude/rules/docs.md 는 2026-09-29 부터 서브에 가지 않는다 — 명명 규약은 CLAUDE.md §자기개선 회수가 든다)
   .claude/schemas/task-report.schema.json← task-report.schema.json    (복제·정적계약)
-  .claude/schemas/library-exchange.schema.json ← library-exchange.schema.json (복제·정적계약, §2.7.8 그라운딩 교환)
   .claude/skills/{vllm-recipe-explorer,adversarial-benchmark}/ ← 런타임블럭(git-tracked만 복제 — config.yaml/feedback/lockset 제외)
   .claude/skills/hint-publisher/ + hints/{HINT_ISSUANCE_CONTRACT.md,vocab.json} + 엔진 의존 ← single 서브 hint 자체발행
       (tool_plane 이 hint-publisher 를 지목할 때만 · 색인·카탈로그·역할 마커는 **절대** 안 간다 — HINT_NEVER_DELIVER)
-  .claude/skills/wiki-desk/reference/references.md ← recipe의 on-demand 정적 reference dependency
+  .claude/skills/wiki-desk/                 ← 사서(TS 패키지 · 두 토폴로지 · 서고 접근자는 서브 manifest `library` · §2.7.8)
   .gitignore                             ← gitignore.template         (복제·서브 로컬git 추적규칙, D12)
   docs/{plan,devlog,testlog,simlog,benchmark}/example.md ← terraforming owner templates (복제·발행 스켈레톤, D12)
   campaigns/_bootstrap/relay/            ← 런타임 디렉터리(마커도 비추적 · 옛 tasks/ 이관)
@@ -67,13 +66,16 @@ RUNTIME_BLOCK_PATHS = {
     "upstream-version-watch": os.path.join(REPO, ".claude", "skills", "upstream-version-watch"),
     # 2026-10-11(plan_26101104 Step 3): single 서브 hint 자체 발행. 지목 여부는 tool_plane 이 정한다.
     "hint-publisher": os.path.join(REPO, ".claude", "skills", "hint-publisher"),
+    # 2026-10-19(plan_26101912 D12): 사서는 두 토폴로지 모두에 간다 — 메인과 **바이트 동일한** 패키지(추적물만 복제 · 무결성 권위 = git)이며
+    #   서고는 복제하지 않는다(서브 manifest `library` 접근자로 메인 서고에 닿는다). references.md 도 이 블록에 실린다.
+    "wiki-desk": os.path.join(REPO, ".claude", "skills", "wiki-desk"),
 }
 
 # hint 엔진(`hint.py`·`hintlib`)이 **런타임에 읽거나 적재하는** 파일 중 런타임블럭 밖에 있는 것(닫힌 목록 · tripwire).
 #
 # 왜 필요한가: 스킬을 주고 그 스킬의 의존을 안 주면 그 스킬은 없는 것이다 — 2026-09-07 캠페인 도구 ·
 #   2026-09-29 계약 리더와 같은 결함 모양이다. 엔진은 `core.REL_*` 로 저장소 상대 경로를 들고 있고,
-#   completion_gate·evidence_publisher 는 자기 스키마와 이름 SSOT(`wiki-desk/scripts/doc_naming.py`)를 적재한다.
+#   completion_gate·evidence_publisher 는 자기 스키마와 이름 SSOT(shim `policies/runtime/doc_naming.py` → 정본 `wiki-desk/src/doc_naming.ts`)를 적재한다.
 #   판정은 손으로만 하지 않는다 — 자체검사 (4d) 가 `hintlib/core.py`·`evidence.py` 의 `REL_*` 상수와 두 정책 런타임의
 #   `_load_schema(...)` 리터럴을 **파생**해 이 목록 ∪ 배달되는 런타임블럭이 그것을 덮는지 대조한다(미분류 = fail-loud).
 #   `.claude/pii_terms.txt` 는 여기 없다 — 그 노드의 PII 리터럴은 **사람이 그 노드에 둔다**(비밀·PII 는 배달 평면 ✗ ·
@@ -86,7 +88,7 @@ HINT_ENGINE_DEPENDENCIES = (
     ".claude/schemas/work-manifest.schema.json",        # completion_gate._load_schema
     ".claude/schemas/completion-manifest.schema.json",  # 동상
     ".claude/schemas/side-effect-authorization.schema.json",  # 동상
-    ".claude/skills/wiki-desk/scripts/doc_naming.py",   # REL_DOC_NAMING_WIKI(명명 SSOT · evidence_publisher 도 적재)
+    ".claude/policies/runtime/doc_naming.py",   # REL_DOC_NAMING_WIKI(명명 SSOT · evidence_publisher 도 적재)
 )
 # 서브로 **절대** 가지 않는 hint 평면 경로(닫힌 목록). 색인·카탈로그는 메인 단독 파생물이고(정책 C4 의 남은 몫),
 #   역할 마커는 각 체크아웃이 스스로 하는 선언이라 배달되면 선언이 아니라 복사가 된다(`.gitignore` 와 같은 근거).
@@ -148,7 +150,7 @@ RUNTIME_BLOCK_EXCLUDES = {
     "upstream-version-watch": (
         # ★ 2026-09-08(plan_26090813 §4.2): 메인의 **해소 결과**는 서브에 가지 않는다. 싱글의 sub 는
         #   A2A 원격 에이전트라 자기 HW 에서 스스로 해소해야 하는데, 이 자산이 딸려가면 서브가
-        #   물을 이유 자체가 사라진다(2026-09-07 실측: 서브 library_request 5회 전부 null).
+        #   물을 이유 자체가 사라진다(2026-09-07 실측: 서브의 도서관 질의 5회 전부 공백).
         #   render_dockerfile 은 `--resolved` 를 받는 정규 경로가 있고, 이 자산은 그 인자가 없을 때의
         #   **공유 폴백**이다 — 폴백이 없으면 fail-loud 하므로 침묵 누락이 되지 않는다.
         "assets/current-production-resolution.json",
@@ -398,8 +400,7 @@ def support_delivery(tool_plane) -> list:
     """런타임블럭 밖에 싣는 **지원 배달분**(스킬로 실행하지 않되 잔재도 아니다) — render_tree 와 같은 규칙:
     캠페인 도구 + 계약 리더는 모든 서브에, 사서 참조 발췌는 recipe 스킬이 가는 서브에만."""
     out = [f".claude/skills/terraforming_node/scripts/{t}" for t in CAMPAIGN_TOOLS + SUB_CONTRACT_READERS]
-    if "vllm-recipe-explorer" in tool_plane:
-        out.append(RECIPE_REFERENCE_REL)
+    # 사서 참조 발췌(references.md)는 2026-10-19 부터 wiki-desk 런타임블럭이 통째로 싣는다 — 지원 배달분이 아니다.
     if "hint-publisher" in tool_plane:
         # 엔진 의존 + 장착 판정 도구(2026-10-11 · plan_26101104 Step 3). render_tree 의 (3.5) 와 같은 규칙.
         out.extend(f".claude/skills/terraforming_node/scripts/{t}" for t in SUB_HINT_EQUIP_TOOLS)
@@ -573,10 +574,8 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     with open(os.path.join(claude, "rules", "comms.md"), "w", encoding="utf-8") as f:
         f.write(_comms)
     produced.append(".claude/rules/comms.md")
-    # 서브로 복제되는 정적 스키마 계약. `library-exchange` 가 빠져 있던 동안 서브는 교환 메시지의
-    # 계약 없이 형태를 추측해야 했다(testlog_26082215 S-9) — SKILL.md §4 목록이 정본으로 적었는데
-    # 렌더러 배선만 없던 **침묵 누락**이다(만든 것 ≠ 도는 것).
-    SUB_SCHEMAS = ("task-report.schema.json", "library-exchange.schema.json")
+    # 서브로 복제되는 정적 스키마 계약. (`library-exchange` 는 2026-10-19 은퇴 — 서브는 서고 접근자로 직접 조회한다 · §2.7.8)
+    SUB_SCHEMAS = ("task-report.schema.json",)
     for schema_name in SUB_SCHEMAS:
         schema_dst = os.path.join(claude, "schemas", schema_name)
         shutil.copyfile(os.path.join(SUBNODE_DIR, schema_name), schema_dst)
@@ -595,19 +594,8 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
         shutil.copyfile(TOPOLOGY_RULES, os.path.join(claude, "rules", "strategy.topology.md"))
         produced.append(".claude/rules/strategy.topology.md")
 
-    # recipe.py resolves GPU/source-verification facts from this on-demand dependency.  Copy only
-    # the dependency, not the main-only wiki-desk capability, so sub runtime closure stays minimal.
-    # 2026-09-03(P2): 이 사본은 `vllm-recipe-explorer` 의 의존이다 — 그 스킬이 가지 않는 모드
-    #   (ray-worker)에 도서관 발췌만 보내는 것은 근거 없는 배달이다. tool_plane 을 따른다.
-    #   (사본 자체를 걷어내는 것 = wiki-desk 사영은 이번 plan 범위 밖 — §8 후속.)
-    if "vllm-recipe-explorer" in (ph.get("TOOL_PLANE") or ""):
-        if not os.path.isfile(RECIPE_REFERENCE):
-            raise SystemExit(f"[render] FAIL: recipe reference dependency missing: {RECIPE_REFERENCE}")
-        recipe_ref_rel = RECIPE_REFERENCE_REL
-        recipe_ref_dst = os.path.join(out_dir, recipe_ref_rel)
-        os.makedirs(os.path.dirname(recipe_ref_dst), exist_ok=True)
-        shutil.copyfile(RECIPE_REFERENCE, recipe_ref_dst)
-        produced.append(recipe_ref_rel)
+    # recipe.py 가 읽는 references.md 는 wiki-desk 런타임블럭(아래 3)이 싣는다(2026-10-19 · 사서가 두 토폴로지에 간다).
+    #   런타임블럭 복제를 끈 렌더(self-test 등)에는 오지 않는다 — 그 경로는 배달이 아니라 렌더 검사다.
 
     # 3) 런타임블럭 복제(git-tracked 만) — **무엇을 줄지는 계약이 정한다**(P2 토폴로지 게이팅).
     if copy_runtime_block:
@@ -960,7 +948,6 @@ def _self_test() -> int:
         res = render_tree(ph, out, copy_runtime_block=False)  # 런타임블럭 복제는 git 의존 → self-test 제외
         base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
                        ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json",
-                       ".claude/schemas/library-exchange.schema.json",
                        "campaigns/README.md",
                        ".gitignore",   # ← references.md 는 tool_plane 종속(아래 c4b) · docs.md 는 2026-09-29 제외
                        # 특화헌법: 서브가 자기 토폴로지의 헌법을 받는지 fail-loud 로 확인한다
@@ -1005,8 +992,7 @@ def _self_test() -> int:
                 leftover += _unrendered(f.read())
         # JSON 유효
         for p in ("Agent_Card.json", ".claude/settings.local.json",
-                  ".claude/schemas/task-report.schema.json",
-                  ".claude/schemas/library-exchange.schema.json"):
+                  ".claude/schemas/task-report.schema.json"):
             with open(os.path.join(out, p), encoding="utf-8") as f:
                 json.load(f)
         # settings: 로컬 git allow + 작업공간 원격 deny 정합(D12-02) + 외부 clone 허용·가중치 저장소/lfs deny
@@ -1110,9 +1096,9 @@ def _self_test() -> int:
     #   (Ray 워커)에게도 서빙전략·벤치 스킬이 갔다. 판정을 계약(node_role_contract.tool_plane)으로
     #   옮겼으므로, 여기서는 **양방향**을 본다 — 한쪽만 보면 "전부 안 주기"가 통과한다.
     for _topo, _want, _label in (("single", {"vllm-recipe-explorer", "adversarial-benchmark",
-                                             "upstream-version-watch", "hint-publisher"},
-                                  "a2a-agent=3종+hint-publisher"),
-                                 ("multi", set(), "ray-worker=0종")):
+                                             "upstream-version-watch", "hint-publisher", "wiki-desk"},
+                                  "a2a-agent=3종+hint-publisher+wiki-desk"),
+                                 ("multi", {"wiki-desk"}, "ray-worker=wiki-desk")):
         _d = parse_manifest(mpath); _d["topology"] = _topo
         _ph, _ = build_placeholders(_d)
         _out = os.path.join(tmp, f"tp_{_topo}")
@@ -1120,8 +1106,8 @@ def _self_test() -> int:
         _got = {os.path.basename(x) for x in glob.glob(os.path.join(_out, ".claude", "skills", "*"))
                 if os.path.isdir(x)}
         _ref = os.path.exists(os.path.join(_out, ".claude/skills/wiki-desk/reference/references.md"))
-        # references.md 는 recipe 스킬의 의존이므로 recipe 가 갈 때만 간다.
-        _ref_ok = _ref == ("vllm-recipe-explorer" in _want)
+        # references.md 는 wiki-desk 런타임블럭에 실린다(2026-10-19) — 사서가 가는 서브에는 늘 있다.
+        _ref_ok = _ref == ("wiki-desk" in _want)
         # ★ 2026-09-08: `terraforming_node` 는 **스킬 전체가 아니라 캠페인 도구 2개**만 간다
         #   (2026-09-29: + 계약 리더 1 — SUB_CONTRACT_READERS).
         #   싱글(A2A) 서브만 받으며(불변식 A — 멀티의 sub 는 Ray 워커라 캠페인 저작 주체가 아니다),
@@ -1140,13 +1126,12 @@ def _self_test() -> int:
         _sup = set(support_delivery(sorted(_want)))
         _real = {os.path.relpath(os.path.join(dp, f), _out) for dp, _, fs in os.walk(_out) for f in fs
                  if os.path.relpath(os.path.join(dp, f), _out).startswith((".claude/skills/terraforming_node/",
-                                                                          ".claude/skills/wiki-desk/",
                                                                           ".claude/policies/", "hints/"))
                  or os.path.relpath(os.path.join(dp, f), _out) in HINT_ENGINE_DEPENDENCIES}
         _sup_ok = _sup == _real
         # 색인·카탈로그·역할 마커는 어느 토폴로지에도 가지 않는다(엔진이 가는 single 에서도).
         _never = [r for r in HINT_NEVER_DELIVER if os.path.exists(os.path.join(_out, r))]
-        _c = ((_got - {"wiki-desk", "terraforming_node"}) == _want and _ref_ok and _tn_ok
+        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok
               and not _res and _sup_ok and not _never)
         print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} "
               f"refs={_ref} 캠페인도구={_tn_files} 해소자산누수={_res} 지원배달목록일치={_sup_ok} "

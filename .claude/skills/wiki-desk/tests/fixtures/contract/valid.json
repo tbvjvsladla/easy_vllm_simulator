@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "project_name": "t",
+  "wiki_dir": "__llm-wiki",
+  "source_roots": ["docs"],
+  "excluded_roots": [],
+  "source_suffixes": [".md"],
+  "authority_rules": [
+    {"pattern": "docs/devlog/**", "document_type": "devlog", "authority_rank": 60, "role": "result-evidence"}
+  ],
+  "fallback": {"document_type": "reference", "authority_rank": 0, "role": "reference"},
+  "copy_policy": "path_reference",
+  "frontmatter_aliases": {"related_plan": ["plan"]},
+  "filename_pattern": "^(?<prefix>[a-z_]+)_(?<yymmddhh>\\d{8})_(?<title>.+)\\.md$",
+  "layout": {"cards_dir": "cards", "cache_dir": ".cache", "archive_dir": "archive"},
+  "search": {
+    "bm25_k1": 1.2,
+    "bm25_b": 0.75,
+    "field_boost": {"title": 3, "heading": 2, "meta": 1.5, "body": 1},
+    "authority_weight": 0.01,
+    "span_max_lines": 40,
+    "result_limit": 10,
+    "spans_per_result": 2
+  }
+}

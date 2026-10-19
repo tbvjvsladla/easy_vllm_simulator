@@ -16,7 +16,7 @@
     머신 무관하게 같은 LINEAGE. 시뮬레이션 기준 X 그래프 · 시드 S2 · hybrid 순회 · 깊이 4 · 슬러그 필터 = **12/12**.
 
 승계한 불변식 (원 주석·날짜를 새 자리에 옮긴다)
-    - **원문 복제 금지는 서가 쪽 원칙**(`init_wiki_desk.py:4-7` "NEVER copies a source body") — LINEAGE 는 포인터·토큰·
+    - **원문 복제 금지는 서가 쪽 원칙**(wiki-desk 1.x 사서 `copy_policy` · 3.x TS 판 `copy_policy: path_reference` 로 승계 — "NEVER copies a source body") — LINEAGE 는 포인터·토큰·
       메타만 싣는다. 원문은 템플릿 발췌 규칙(치환 후 부분문자열 검사 · plan §4.4)으로만 zip 에 들어간다.
     - **mention 의미론**: registry 의 cites/realizes/superseded-by 는 A→B = "A 가 B 를 언급", evidences 는 저장 방향이
       역(testlog→devlog = devlog 가 testlog 를 언급)이었다. 여기서는 처음부터 **언급 방향 하나**로 계산하고, 조상(출처)
@@ -27,7 +27,7 @@
     - **필터는 채택을 가르고 통행은 한 홉 허용한다**(2026-09-22 라이브 대조 · 태그2 발행 기록 11/12 → 12/12): 모델을
       캠페인 약어로만 적은 하네스 plan(`plan_26091407`)이 표적 `perf_26091314` 로 가는 유일한 길목이었다. 채택 문서에서
       한 홉인 필터 탈락 문서는 경유(`transit[]` · 읽기 목록 밖)로만 확장하고, 경유 → 경유 연쇄는 끊는다.
-    - **헤더 한정 supersede**("body text merely quoting the convention must not create edges" · init_wiki_desk) — 넓힌
+    - **헤더 한정 supersede**("body text merely quoting the convention must not create edges" · wiki-desk 1.x 사서에서 승계) — 넓힌
       배너 문법(`SUPERSEDED`·`SUPERSEDED-IN-PART` 어느 꼴이든)도 헤더 12줄 안에서만 읽는다.
     - **헌법 비색인**(anti-confirmation-bias · `write_wiki` `:429-432`) — `CLAUDE.md`·`.claude/**` 는 계보 입력이 아니다.
       `seed/`(사용자 보관소 · 백업 사본이 메인을 섀도잉 · D-W2)·`sync_staging/`(서브 회수 미러 · 메인 권위를 흉내 · D-W1)도
@@ -82,7 +82,7 @@ DEFAULT_DEPTH = 4
 DEFAULT_ROOTS = ("docs/plan", "docs/devlog", "docs/testlog", "docs/report", "docs/benchmark", "docs/simlog")
 # X17: 헌법 비색인 + 백업/미러 배제(모듈 docstring). 경로 접두(디렉터리는 `/` 로 끝남) 또는 정확한 파일 이름.
 EXCLUDED_ROOTS = ("seed/", "sync_staging/", ".claude/", "CLAUDE.md")
-HEADER_LINES = 12            # init_wiki_desk.SUPERSEDE_HEADER_LINES 와 같은 창(헤더 한정 의미론 승계)
+HEADER_LINES = 12            # wiki-desk 1.x 사서의 SUPERSEDE_HEADER_LINES 와 같은 창(헤더 한정 의미론 승계 · 3.x 는 엣지를 두지 않는다)
 SWEEP_MAP_PREFIX = "sweep_map"   # 코드 SSOT 부재 — docs.md §명명 SSOT 산문이 정본(모듈 docstring)
 EXCLUDED_BASENAMES = ("example.md",)   # 서가 config `exclude_basenames` 와 같은 뜻 — 스켈레톤은 계보가 아니다
 # 디렉터리 후보를 파일로 펼 때의 디렉터리당 상한(국소 상수 · 2026-09-22 S2 round 2 F7a). LINEAGE.json 은 배포 페이로드라 무한히 펴면
@@ -634,7 +634,7 @@ class _Corpus:
     def mentions(self, rel_path: str) -> list[dict]:
         """문서 하나가 언급하는 코퍼스 노드 — `[{to, edge, token, resolution}]`(중복 제거·정렬).
         edge ∈ mention | header | header:<라벨> | supersede. 데이터 노드(simlog·인증서…)는 인용 원천이 아니다
-        (init_wiki_desk "Do not interpret raw run logs")."""
+        (wiki-desk 1.x 사서 원칙 "Do not interpret raw run logs" 승계)."""
         if rel_path in self._mentions:
             return self._mentions[rel_path]
         node = self.nodes.get(rel_path)
@@ -1828,7 +1828,7 @@ def selftest() -> list[str]:
     own = _own_checkout()
     with tempfile.TemporaryDirectory(prefix="hint_lineage_selftest_") as td:
         repo = Path(td).resolve()
-        for rel_path in (core.REL_DOC_NAMING_WIKI, core.REL_DOC_NAMING_BENCH):
+        for rel_path in (core.REL_DOC_NAMING_WIKI, core.REL_DOC_NAMING_TS, core.REL_DOC_NAMING_BENCH):
             dst = repo / rel_path
             dst.parent.mkdir(parents=True, exist_ok=True)
             dst.write_bytes((own / rel_path).read_bytes())

@@ -42,7 +42,7 @@ docs/benchmark/max_envelope_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md  ← Max 
 - `<model>` = config_name(트리플렛 키, 예 `deepseek-v4-flash`) · `<gpu>` = manifest gpu_model 정규화(예 `GB10`) ·
   `<vllm>` = 대상 vLLM 버전(예 `0.24.0`, 미상 시 `NA`).
 - **파일 접두사 = 산출물 종류**(`bench_report_` / `benchmark_` / `max_envelope_`). 여러 모델·HW·버전 조합이 한 폴더에 공존.
-- 명명 SSOT(결정론 헬퍼): `.claude/skills/wiki-desk/scripts/doc_naming.py`(`bench_filename`). **주의**:
+- 명명 SSOT(결정론 헬퍼): `.claude/skills/wiki-desk/src/doc_naming.ts`(파이썬 shim `.claude/policies/runtime/doc_naming.py`)(`bench_filename`). **주의**:
   adversarial-benchmark 스킬의 `render_report.py`/`publish_benchmark_record.py`/`render_max_report.py`는
   **스킬-로컬 사본** `.claude/skills/adversarial-benchmark/scripts/doc_naming.py`(동일 로직의 벤치 전용
   부분집합)를 import 한다. 헌법 runtime의 `.claude/policies/runtime/evidence_publisher.py

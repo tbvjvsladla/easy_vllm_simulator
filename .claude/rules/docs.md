@@ -1,7 +1,7 @@
 # docs.md — 문서 발행 계약
 
 > 목표: 계획·작업·검증·계측·공지를 역할별로 분리하고 재현 가능한 이름과 evidence chain으로 남긴다.
-> 상세 생성/검증은 owner 스킬의 `.claude/skills/wiki-desk/scripts/doc_naming.py`와 헌법 runtime의 `.claude/policies/runtime/evidence_publisher.py`가 소유한다.
+> 상세 생성/검증은 owner 스킬의 `.claude/skills/wiki-desk/src/doc_naming.ts`(파이썬 shim `.claude/policies/runtime/doc_naming.py`)와 헌법 runtime의 `.claude/policies/runtime/evidence_publisher.py`가 소유한다.
 
 ## 명명 SSOT
 
@@ -9,7 +9,7 @@
 - **충돌 시에만 `_MM_SS`**를 붙인다. 같은 type/hour의 기본형과 해당 충돌형이 점유되면 새 형식/덮어쓰기 없이 `NamingCollisionExhausted`로 fail-closed한다.
 - 주제는 간결한 한국어 `_` slug. 평면 `docs/파일.md`, 상대날짜, `_seq_`는 금지한다.
 - simlog: `docs/simlog/<YYMMDDHH>[_<MM>_<SS>]_<주제>/` (run 디렉터리).
-- benchmark: `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`는 항상, `docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml`은 explicit PASS 때만 발행한다(루브릭 권한 `explicit` ∧ `PASS` · weak·explore 는 PASS 여도 report 만). 인증서는 **등급 키 `benchmark_mode`** 를 싣는다 — `full`(키 부재도 full · 소급 ✗)은 위 조건, **`lite` 등급 인증서**(`verdict: not_applicable` · `lite_verdict: pass`)는 lite 통과 셀에서만 나온다: lite-only 셀은 `lite_bench.sh --publish-report`, 강등(γ) 셀은 sweep 경로(`publish_benchmark_record.py`)가 발행한다. lite 등급 인증서는 hint 발행 자격의 근거이지 성능 완료의 근거가 아니다(2026-09-29 · `plan_26092923` · lite ⊂ full). report prefix 정본은 `bench_report_`; timestamp/collision은 `.claude/skills/wiki-desk/scripts/doc_naming.py`. lite 만 잰 셀의 **경량 리포트**(헤더 `mode: lite` · lite 판정 절 · 측정 구성 표 + lite 지표 · 성능 판정 없음)도 같은 접두사·같은 명명으로 발행하되 `lite_bench.sh --publish-report` 로 **명시할 때만**이다 — 서빙 직후 자동 lite 핸드오프와 full 스윕의 lite 레그는 발행하지 않는다(2026-09-14 · `plan_26091407` §4.5).
+- benchmark: `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`는 항상, `docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml`은 explicit PASS 때만 발행한다(루브릭 권한 `explicit` ∧ `PASS` · weak·explore 는 PASS 여도 report 만). 인증서는 **등급 키 `benchmark_mode`** 를 싣는다 — `full`(키 부재도 full · 소급 ✗)은 위 조건, **`lite` 등급 인증서**(`verdict: not_applicable` · `lite_verdict: pass`)는 lite 통과 셀에서만 나온다: lite-only 셀은 `lite_bench.sh --publish-report`, 강등(γ) 셀은 sweep 경로(`publish_benchmark_record.py`)가 발행한다. lite 등급 인증서는 hint 발행 자격의 근거이지 성능 완료의 근거가 아니다(2026-09-29 · `plan_26092923` · lite ⊂ full). report prefix 정본은 `bench_report_`; timestamp/collision은 `.claude/skills/wiki-desk/src/doc_naming.ts`(파이썬 shim `.claude/policies/runtime/doc_naming.py`). lite 만 잰 셀의 **경량 리포트**(헤더 `mode: lite` · lite 판정 절 · 측정 구성 표 + lite 지표 · 성능 판정 없음)도 같은 접두사·같은 명명으로 발행하되 `lite_bench.sh --publish-report` 로 **명시할 때만**이다 — 서빙 직후 자동 lite 핸드오프와 full 스윕의 lite 레그는 발행하지 않는다(2026-09-14 · `plan_26091407` §4.5).
 - **sweep map(광의의 탐색 지도)**: `docs/benchmark/sweep_map_<YYMMDDHH>[_MM_SS]_<주제>.md`(+ 동명 `.json`). 2026-09-04 신설(`plan_26090415` §4.5·M5). 인증서는 **셀 단위**로 나가고 이 문서는 그 셀들의 **지도**다 — 판정(testlog)도 단일 계측(certificate)도 아니므로 세 번째 이름을 쓴다. `docs/benchmark/` 에 두는 이유: 같은 evidence chain 안에 있고 **비추적·비배포**라 운영자 경로가 배포 평면으로 새지 않는다(`docs/report/` 로 올리면 4종 PII 강도가 걸린다). 미완이어도 발행하며 `sweep_status: incomplete` 로 표시한다 — 숨기면 "돌다 말았다"와 "돌지 않았다"가 구분되지 않는다. **순위 필드 금지**는 `render_sweep_map.py` 가 결정론으로 집행한다.
 - outbound report: `docs/report/<분류>_<YYMMDDHH>[_MM_SS]_<한글제목>.<html|md>`; 분류는 짧은 영문 키워드
   (`perf|harness|audit|example` 등), 한글제목은 간결한 한국어 `_` slug. 발행 시점이 고정된다(최신본 갱신이

@@ -72,7 +72,7 @@ class RuntimePatchProvenanceTest(unittest.TestCase):
     def test_canonical_claim_bindings_are_production_owned(self):
         bindings = json.loads(BINDINGS.read_text(encoding="utf-8"))["bindings"]
         paths = {entry["path"] for entry in bindings["TERRAFORM_FLAG_GATE.C4"]}
-        self.assertIn(".claude/skills/wiki-desk/scripts/smoke_query.py", paths)
+        self.assertIn(".claude/skills/wiki-desk/src/cli.ts", paths)
         self.assertTrue(paths)
         self.assertTrue(all(not p.startswith(("tests/", "scripts/")) for p in paths))
         c2 = {entry["path"] for entry in bindings["RUNTIME_PATCH_NO_CARRY_FORWARD.C2"]}

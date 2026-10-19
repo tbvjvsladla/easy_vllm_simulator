@@ -1,114 +1,100 @@
-# 오케스트레이션 — 그라운딩 교환 포맷
+# 오케스트레이션 — 서고 접근자 (그라운딩)
 
-> terraforming_node 스킬 reference — SKILL.md §2.7.8 의 본문이다. SKILL.md(라우터)는 § 번호·제목·포인터만 든다.
-> 이관 전 원문: `git show dcb713a:.claude/skills/terraforming_node/SKILL.md` (plan_26093022 Step 4 — 본문 바이트는 그대로 옮겼다).
+> terraforming_node 스킬 reference로, SKILL.md §2.7.8의 본문이다. SKILL.md(라우터)는 § 번호·제목·포인터만 둔다.
+> **2026-10-19 개정(plan_26101912)**: A2A 3메시지 서고 교환(`library_request` → relay → export → attestation ·
+> `library_exchange.py`·`library_relay.py`)은 **은퇴**했다. 병존 폴백도 두지 않는다. 옛 본문은 `git show 57723fc:<이 경로>`에서 볼 수 있다.
 
 ## 목차
 
-- 2.7.8 그라운딩 교환 포맷 — 서브 요청 → 메인 색인 → 반출 (신설 2026-08-22 · `plan_26082214` §4.2)
-- 세 메시지 (전송은 신설하지 않는다 — 기존 A2A 통로에 실어 보낸다)
-- 증거그래프 어휘 대응
-- 하드게이트 — 세 질문 + Freshness
-- 배선 — 어디서 도는가
+- 무엇이 바뀌었나 — 같은 CLI, 다른 경로
+- 접근자 — manifest `library` 블록(메인·서브 동일 스키마)
+- 게이트웨이 — 서브가 얻는 것은 셸이 아니라 사서 명령 하나
+- 발급·회수 — `scripts/library_access.py` (HITL)
+- 그라운딩 게이트 — 메인·서브 대칭
+- 동시성 — 정본은 `.claude/skills/wiki-desk/references/concurrency.md`
 
-### 2.7.8 그라운딩 교환 포맷 — 서브 요청 → 메인 색인 → 반출 (신설 2026-08-22 · `plan_26082214` §4.2)
+### 2.7.8 서고 접근자 — 서브 wiki-desk ↔ 메인 서고 (2026-10-19 · `plan_26101912`)
 
-> 헌법 **불변식 B** 의 "어떻게". 헌법은 *왜 인용 없는 결정이 성립하지 않는가*를 말하고, 이 절은
-> *그래서 무엇을 어떤 모양으로 주고받고 무엇이 기계 판정인가*를 정한다.
-> 계약 = `sub_node/library-exchange.schema.json`(추적 PII-free 정적계약, 서브로 복제) ·
-> 판정기 = `scripts/library_exchange.py`(**메인 전용** — 서브는 판정 주체가 아니다).
-> 원리 차용 = `docs/report/ttsc-evidence-graph-principles-implementation.md` §1·§5.
+> 헌법 **불변식 B**의 "어떻게"다. 헌법은 *인용 없는 결정은 성립하지 않으며, 서고는 하나이고 접근점은 N개*라고 말한다.
+> 이 절은 *그 접근점이 무엇이고 누가 발급하는가*를 정한다.
 
-**분업이 설계의 전부다 — *누락은 기계가, 거짓은 사람이.*** 서브가 "이 근거로 이렇게 빌드했다"고 말할
-때, *그 근거가 실제로 반출된 항목인지·빠진 인용은 없는지*는 결정론으로 답할 수 있다. 반면 *그 근거가
-이 결정을 정말 뒷받침하는가*는 사람이 읽어야 한다. 판정기는 앞엣것만 한다 — 뒤엣것을 흉내 내면 판정이
-확률론이 되고 게이트가 무의미해진다.
+#### 무엇이 바뀌었나 — 같은 CLI, 다른 경로
 
-**지식 비대칭은 유지한다.** 도서관(`__llm-wiki`)과 사서(`wiki-desk`)는 **메인 단독**이며 서브로
-복제되지 않는다("DB 한 곳, 차등 접근권한"). 그래서 메인이 내보내는 것은 도서관이 아니라
-**경로 + 앵커 + digest + 발췌**다 — 반출을 복제로 바꾸는 것이 비대칭을 깨는 실제 경로이므로,
-발췌 예산 초과는 `EXPORT_EXCEEDS_EXCERPT_BUDGET` 로 거부한다.
-
-#### 세 메시지 (전송은 신설하지 않는다 — 기존 A2A 통로에 실어 보낸다)
-
-| # | `kind` | 방향 | 필수 블록 | 뜻 |
-|---|---|---|---|---|
-| ① | `library.citation.request` | 서브 → 메인 | `claim` · `query` | "이 **결정**을 뒷받침할 근거를 달라". 서브는 도서관을 뒤지지 않는다 — 무엇을 찾는지만 말한다 |
-| ② | `library.resolution.export` | 메인 → 서브 | `resolution` · `references` | 사서가 색인한 결과 중 **반출 가능한 항목**. `status` ∈ resolved\|partial\|**unresolved**\|refused |
-| ③ | `library.citation.attestation` | 서브 → 메인 | `claim` · `citations` · `decision` | "이 결정은 이 ref 들을 인용해 내렸다"는 자기귀속 |
-
-- 셋은 `exchange_id` 로 묶인다. 갈리면 `EXCHANGE_ID_MISMATCH` — 어느 반출이 어느 결정을 뒷받침했는지
-  추적 불가가 되므로 의미 판정을 **아예 진행하지 않는다**.
-- **한 오브젝트는 한 종류만 담는다**(`KIND_BLOCK_FOREIGN`). 스키마의 `additionalProperties:false` 는
-  "계약에 없는 키"만 막고 "이 종류에 없어야 할 블록"은 못 막으므로, 그 경계는 판정기가 닫는다.
-
-#### 증거그래프 어휘 대응
-
-| 증거그래프 | 여기서 | 내용 |
+| | 옛(은퇴) | 지금 |
 |---|---|---|
-| **claim** (빚을 지는 쪽) | `claim` | 인용 의무를 지는 **결정**. `kind` ∈ build-decision · serve-decision · version-pin · patch-slot · *informational* |
-| **reference** (빚의 원천) | `references[]` | 도서관 항목. `ref_id` · `path` · `anchor` · **`digest`** · `excerpt` · `authority` |
-| **acknowledgement** | `citations[]` | claim → reference 의무 이행. `ref_id` · `digest` · `reason` |
-| **resolution** | `resolution.status` | 사서의 해소 상태. **`unresolved` 는 정직한 공백**이지 실패가 아니다 |
+| 서브가 근거를 얻는 법 | 리포트 `library_request[]` → 메인 relay가 사서에 질의 → 다음 턴 본문에 반출 | 서브 wiki-desk가 `query`/`read`/`tree`를 **직접** 실행한다(메인 게이트웨이로 전달) |
+| 서브 문서의 입고 | `fetch_sub_docs.sh` 미러를 메인이 warm-start | 서브 `sync --apply` = 반입(rsync) + 원격 입고. 발행 도구가 자동으로 부른다 |
+| 판정 | `library_exchange.py` 3질문 게이트(attestation) | **서빙 진입 전 그라운딩 기록 게이트**(`campaign_init --ground/--grounding-check`)를 메인·서브에 대칭으로 둔다 |
+| 병목 | 질의 1회 = relay 턴 1회 | 질의 1회 = ssh 1회 |
 
-- `authority` 는 wiki-desk 규약(**실행진실 > 계획의도**)을 그대로 쓴다 — 서브가 상충하는 참조를
-  받았을 때의 우선순위다.
-- `informational` 은 **인용 의무 모집단 밖**이다(질의만 하고 결정하지 않는 claim). 그것으로 결정을
-  채택하면 의무를 우회하는 셈이라 `HOST_INELIGIBLE` 로 막는다.
+메인 wiki-desk와 서고의 관계는 **경로만 다르고 같다**. 패키지 바이트도 같다(무결성 권위 = git · 렌더가 추적물만 복제한다).
 
-#### 하드게이트 — 세 질문 + Freshness
+#### 접근자 — manifest `library` 블록
 
-```bash
-python3 .claude/skills/terraforming_node/scripts/library_exchange.py \
-        gate --request <req.json> --export <exp.json> --attestation <att.json>
-# 0 = 통과 · 5 = 게이트 위반(fail-closed) · 2 = 사용오류
+```yaml
+# 메인 output/<t>/manifest.yaml
+library:
+  transport: local
+  wiki_dir: __llm-wiki
+  repo_root: "<메인 work_dir>"
+  access_points:                 # library_access.py 가 쓴다(서브 접근점 N개)
+    sub:
+      identity_file: "<서브 HOME>/.ssh/wiki_desk_ed25519"
+      known_hosts: "<서브 HOME>/.ssh/wiki_desk_known_hosts"
+
+# 서브 발급본 output/<t>/sub_manifest.yaml → 서브 output/<t>/manifest.yaml
+library:
+  transport: ssh
+  host: "<메인 host>"
+  user: "<메인 ssh_user>"
+  repo_root: "<메인 work_dir>"
+  wiki_dir: __llm-wiki
+  identity_file: "<서브 HOME>/.ssh/wiki_desk_ed25519"
+  known_hosts: "<서브 HOME>/.ssh/wiki_desk_known_hosts"
+  node_id: sub
 ```
 
-| 질문 | 무엇을 묻나 | 위반 코드 |
-|---|---|---|
-| **Resolution** | 모든 인용이 반출 항목 **정확히 하나**로 해소되는가 | `CITATION_UNRESOLVED` · `EXPORT_DUPLICATE_REF_ID` |
-| **Host eligibility** | 인용을 단 결정이 **의무 모집단**인가 | `HOST_INELIGIBLE` |
-| **Coverage** | 채택된 모든 결정이 **최소 하나**의 인용을 갖는가 | **`GROUNDING_OMISSION`** |
-| *+ Freshness* | 인용 시점 digest 가 반출 시점 digest 와 같은가 | `CITATION_STALE` |
+- wiki-desk `src/accessor.ts`가 이 블록을 읽는다. 특화헌법 헤더 `**topology: X**` 로 `output/X/manifest.yaml`을 고르고, 브랜치에서 추론하지 않는다.
+- 블록이 없으면 local로 둔다(출처 `default:no-library-block`). 블록이 있는데 형식이 틀리면 거부한다(침묵 폴백 ✗).
 
-- **`GROUNDING_OMISSION` 이 불변식 B 의 집행점이다.** *"아무것도 인용하지 않는 산출물은 '필요했다'는
-  증거가 없고, 반출되지 않은 것을 인용하는 산출물은 '무엇'도 증명하지 못한다."*
-- **도서관에 근거가 없을 때의 올바른 행동은 강행이 아니다.** `resolution.status` 가
-  `unresolved`/`refused` 인데 서브가 `decision.accepted: true` 를 내면 omission 이며, 판정기가
-  그 경우 **`accepted:false` + HITL 에스컬레이션**이 정답임을 메시지에 함께 적는다.
-- **Freshness 는 `requireReview` 차용**이다 — 인용된 것이 바뀌면 인용은 만료된다. 조용히 유효한 척하면
-  낡은 근거 위에 선 결정이 초록불로 남는다.
-- 판정기는 **서브 디스크를 읽지 않는다**(메시지만 본다) — §2.7.2 스캔 금지와 push-attestation 보존.
+#### 게이트웨이 — 서브가 얻는 것은 셸이 아니라 사서 명령 하나
 
-#### 배선 — 어디서 도는가
+메인 `~/.ssh/authorized_keys`에 서브 전용 키 1줄이 들어간다.
 
-| 단계 | 주체 | 행위 |
-|---|---|---|
-| ① 요청 | 서브(A2A remote agent) | `library.citation.request` 를 task-report 통로로 반환 |
-| ② 색인·반출 | **메인 + `wiki-desk`** | 사서가 색인 → 반출 가능분만 `library.resolution.export` 로 회신 |
-| ③ 귀속 | 서브 | 결정과 함께 `library.citation.attestation` 반환 |
-| ④ **판정** | **메인** | `library_exchange.py receive` — 통과해야 결정이 성립. 실패는 서브로 feedback |
-
-- ✅ **자동 호출 배선 완료**(2026-08-22 · W-5). ④ 의 정문은 `gate` 가 아니라 **`receive`** 다 —
-  `gate` 는 "이 셋이 정합한가"만 알고 *"지금 물어야 하는가"* 를 모른다. 그래서 2026-08-22 E2E 에서
-  gate 를 돌린 주체는 파이프라인이 아니라 **사람**이었다(`testlog_26082215` §4.5).
-  `receive` 는 리포트 자신에서 **인용 의무를 판정**하고(`phase ∈ {config,build,serve}` ∧
-  `status=completed`), 의무가 있는데 교환 3메시지가 없으면 `GROUNDING_EXCHANGE_ABSENT` 로 거부한다.
-
-```bash
-# 위임과 수신을 한 명령으로 묶는다 — 두 단계로 두면 두 번째를 건너뛸 수 있다.
-python3 .claude/skills/terraforming_node/scripts/library_exchange.py receive \
-        --invoke-request <agent-control-request.json> --exchange-dir <교환 3메시지 디렉터리>
-# 이미 받아 둔 산출로 판정할 때:
-#   receive --agent-control-result <result.json> …   (result.output 에서 리포트를 꺼낸다)
-#   receive --report <task-report.json> …
+```
+command="<node> <repo>/.claude/skills/wiki-desk/src/gateway.ts --node <node_id>",restrict ssh-ed25519 <키> wiki-desk-gateway:<node_id>
 ```
 
-- **결속을 함께 본다**: `attestation.node_id` 가 리포트 `node_id` 와 다르면 `EXCHANGE_NODE_MISMATCH`
-  로 거부한다 — 다른 노드/다른 결정의 통과한 교환을 재사용해 게이트를 우회하는 경로를 닫는다
-  (M-2 가 노출한 `execution_approval` 재인가 결함과 **같은 형태**이며, 그쪽은 W-8 로 남아 있다).
-- **유보에는 의무가 없다**: `input-required`·`failed` 는 채택이 아니므로 인용을 요구하지 않는다.
-  요구하면 *"막혔다"고 정직하게 보고하는 경로가 오히려 벌을 받는다.*
-- 전송은 형제 `scripts/agent_control.py`(provider-neutral orchestrator)가 소유한다 — `receive` 는 `agent_control.py invoke` 를 부르고
-  **자기 전송을 만들지 않는다**. (07-25 "agent_control = 헌법 소유" 결정은 plan_26093022 에서 폐기 — 호출자가 이 스킬뿐이라 기초층 런타임이 아니다. Claude CLI 구문의 유일 발행처는 여전히 `providers/claude_code.py` 다.)
-- 양 토폴로지 공통이다(§2.7.0 분기표) — 도서관 비대칭은 sub 가 Ray 워커든 A2A 에이전트든 같다.
+- 허용은 두 모양뿐이다. ① `wiki-desk-v1 <base64url(JSON argv)>` — 닫힌 명령 목록(query·read·tree·check·status·contract·sync)과 플래그 목록만 받는다. ② `rsync --server` 수신 — `rrsync -wo <자기 미러>`가 받는다. 그 밖(셸·임의 명령·`--sender` 반출용 rsync)은 exit 126으로 거부한다.
+- **node_id는 이 줄이 정한다.** 게이트웨이는 쓰기(`sync`)에 `--as <node_id>`를 못박는다. 서브는 자기 미러 `sync_staging/library_mirror/<node_id>/**`의 카드만 쓸 수 있다(C12 키별 단일 소유).
+- argv는 셸을 거치지 않는다(JSON → base64url 토큰 하나). 그래서 인용·주입 문제가 생길 자리가 없다.
+- `restrict`는 pty·포트포워딩·에이전트포워딩·X11을 모두 끈다.
+
+#### 발급·회수 — `scripts/library_access.py`
+
+```bash
+python3 .claude/skills/terraforming_node/scripts/library_access.py --topology <t> --node <id> --plan
+python3 .claude/skills/terraforming_node/scripts/library_access.py --topology <t> --node <id> --apply --approved-by "<사람 발화 전사>"
+python3 .claude/skills/terraforming_node/scripts/library_access.py --topology <t> --node <id> --revoke --approved-by "<전사>"
+```
+
+1. **사전검사**를 한다. 메인에는 node≥24·flock·rsync·rrsync·서고 계약이 있어야 하고, 서브에는 node≥24·rsync가 있어야 한다. 하나라도 없으면 exit 3으로 **차단 사유를 보고**한다. 자동 설치는 하지 않는다.
+2. **서브 전용 키**는 서브에서 만든다. 개인키는 서브를 떠나지 않는다.
+3. **메인 호스트 키**를 서브 전용 known_hosts에 넣는다. TOFU(첫 접속 신뢰)를 쓰지 않는다.
+4. 메인 authorized_keys에 강제명령 줄을 넣는다. 마커로 멱등 교체한다. **메인 authorized_keys 변경은 매번 HITL이다**(`--approved-by` 없으면 차단).
+5. manifest `library` 블록을 메인과 `sub_manifest.yaml` 양쪽에 쓴다. 이후 `render_sub_env.py --sub-manifest` → `sync_to_sub.sh --provision`으로 배달한다(wiki-desk 패키지는 tool plane으로 함께 간다).
+
+- 회수(`--revoke`)는 노드를 해제하거나 재설치할 때만 한다. 주기적인 키 회전은 없다(D11).
+- 이것은 노드 제어 불변식 1(무단 스캔 금지)과 충돌하지 않는다. 서브가 메인에 *쓰는* 것은 자기 문서(반입)와 자기 카드뿐이고, 상향 회수는 여전히 문서 기반이다. 메인이 서브를 읽는 통로는 이 절과 무관하다.
+
+#### 그라운딩 게이트 — 메인·서브 대칭
+
+- `campaign_init.py --ground --utc <t>` 는 통제변인에서 파생한 질의로 사서를 부른다. 그리고 `campaigns/<id>/grounding/<utc>.json`에 request·export·attestation 모양으로 기록한다. 서브는 같은 함수가 접근자(ssh)로 메인 서고에 묻는다.
+- 판정은 `campaign_init.py --grounding-check`(exit 4)가 한다. 이 판정은 `single_serve_up.sh`·`run_trial.py` 진입 백스톱에서 돈다. **못 찾음(unresolved)은 통과**한다(정직한 공백은 기재 후 진행). **거절(refused = 게이트웨이 exit 126)만 차단**한다. 서고에 닿지 못한 경우는 사유를 단 unresolved로 기재한다.
+- 누락은 기계가 잡는다(기록 부재 = 서빙 진입 차단). 거짓은 사람이 리뷰한다. 결정이 인용한 `path:시작-끝`이 실제로 그 결정을 뒷받침하는지는 사람이 읽는다.
+
+#### 동시성
+
+N개 접근점이 함께 쓰는 규정의 정본은 `.claude/skills/wiki-desk/references/concurrency.md`다(policy C6). 핵심은 다음과 같다. flock 배타·공유 잠금, 쓰기 전 저널(kill 뒤 다음 보유자가 롤백), 멱등 원장(node_id + request_id + payload sha256), 키별 단일 소유. fencing token은 도입하지 않았고, 그 근거도 그 문서에 있다.
+
+- 두 토폴로지에 공통이다(§2.7.0 분기표). 서브가 Ray 워커든 A2A 에이전트든 서고 접근의 모양은 같다.

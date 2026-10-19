@@ -107,3 +107,15 @@ nodes:
                                    #   미기입 시 해소 출처는 `derived-from-topology`, 기입 시 `declared-and-agrees` 로 표기된다.
     # model_source: ephemeral      # (선택) 노드별 획득모드 분기: 메인 managed·서브 ephemeral 등.
     # host_safety: { installed: false }  # (선택·멀티) 서브 노드 안전체계 Y/N(서브에서 사용자 실행 — A2A 경계, 메인 sudo 대행 ✗).
+
+# === 서고 접근자(wiki-desk) — 메인·서브 동일 스키마 · 경로만 다르다 (plan_26101912 · terraforming_node SKILL.md §2.7.8) ===
+# 서고(__llm-wiki)는 메인에 하나이고 접근점은 N개다. 메인은 transport: local, 서브는 transport: ssh(메인 강제명령 게이트웨이).
+# **손으로 적지 않는다** — `library_access.py --apply --approved-by <전사>` 가 서브 키 발급·authorized_keys 등록(HITL)과 함께
+#   메인 이 블록(access_points)과 서브 발급본(`sub_manifest.yaml`)의 블록을 쓴다. 블록이 없으면 wiki-desk 는 local 로 둔다.
+# 서브 발급본의 모양: transport: ssh · host · user · repo_root(메인 work_dir) · wiki_dir · identity_file · known_hosts · node_id
+library:
+  transport: local
+  wiki_dir: __llm-wiki
+  repo_root: <abs_path>          # 메인 work_dir
+  # access_points:               # library_access.py 가 쓴다(서브 접근점 N개)
+  #   <node_id>: { identity_file: <서브 HOME>/.ssh/wiki_desk_ed25519, known_hosts: <서브 HOME>/.ssh/wiki_desk_known_hosts }

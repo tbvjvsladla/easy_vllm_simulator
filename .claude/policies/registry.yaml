@@ -1432,12 +1432,12 @@
           ]
         },
         {
-          "path": ".claude/skills/wiki-desk/scripts/smoke_query.py",
+          "path": ".claude/skills/wiki-desk/src/cli.ts",
           "supports": [
             "TERRAFORM_FLAG_GATE.C4"
           ],
           "assertion_ids": [
-            "main"
+            "runLocal"
           ]
         },
         {
@@ -1881,7 +1881,7 @@
     {
       "policy_id": "LIBRARY_GROUNDING_FAIL_CLOSED",
       "owner": "wiki-desk",
-      "statement": "Serving and benchmarking decisions must cite the main node's library before they are made: a campaign records a librarian query derived from its own control variables, the serve/trial entry points refuse to start without that record, every artifact declares its own grounding status and source, publication feeds the shelf back so the shelf can never answer 'nothing found' from a stale index, and a sub's question is carried to the librarian by the relay rather than left unanswered. An empty answer is an honest gap that is recorded and passed; only a refusal blocks.",
+      "statement": "Serving and benchmarking decisions must cite the project's library before they are made: a campaign records a librarian query derived from its own control variables, the serve/trial entry points refuse to start without that record, every artifact declares its own grounding status and source, publication feeds the shelf back so the shelf can never answer 'nothing found' from a stale index, and the library is ONE shelf on the main host reached by N wiki-desk access points (main local, each sub through its manifest `library` accessor -- an ssh forced-command gateway) whose concurrent writes follow a declared concurrency protocol. An empty answer is an honest gap that is recorded and passed; only a refusal blocks.",
       "scope": [
         "single-node",
         "multi-node"
@@ -1890,7 +1890,7 @@
       "clauses": [
         {
           "clause_id": "LIBRARY_GROUNDING_FAIL_CLOSED.C1",
-          "statement": "A campaign records a grounding exchange under campaigns/<id>/grounding/<utc>.json in the same three-message shape as the sub exchange (request/export/attestation), with the query terms DERIVED from the campaign's own control_variables rather than hand-written, so the query cannot drift from what the campaign actually runs."
+          "statement": "A campaign records a grounding record under campaigns/<id>/grounding/<utc>.json in a three-part shape (request/export/attestation), with the query terms DERIVED from the campaign's own control_variables rather than hand-written, so the query cannot drift from what the campaign actually runs. Main and sub write it with the same function; the sub's query reaches the main library through its accessor."
         },
         {
           "clause_id": "LIBRARY_GROUNDING_FAIL_CLOSED.C2",
@@ -1902,11 +1902,15 @@
         },
         {
           "clause_id": "LIBRARY_GROUNDING_FAIL_CLOSED.C4",
-          "statement": "Publication feeds the shelf: evidence_publisher finalize and the publish phase writer both trigger an incremental warm-start intake, and a grounding query warms the shelf before asking; a stale shelf's 'nothing found' is a false negative, not an absence."
+          "statement": "Publication feeds the shelf: evidence_publisher finalize and the publish phase writer both trigger an incremental intake (wiki-desk `sync --apply` -- on a sub this is mirror push + remote intake), and a grounding query ingests before asking; a stale shelf's 'nothing found' is a false negative, not an absence. An unreachable library is recorded as not-yet-ingested and never blocks the publication; the next intake catches up."
         },
         {
           "clause_id": "LIBRARY_GROUNDING_FAIL_CLOSED.C5",
-          "statement": "A sub's library_request is answered by the relay: pending requests reach the librarian through library_relay and the export (or, when nothing was found, the instruction to record a grounding_gap and proceed) is loaded into the next turn's task body; the librarian stays main-only and the sub never searches the library itself."
+          "statement": "A sub reaches the same library with the same CLI as main -- only the accessor path differs (2026-10-19 · plan_26101912): the manifest `library` block is the accessor (main transport local, sub transport ssh), the sub's key is bound by main to a forced-command gateway that accepts only a closed list of librarian commands plus a write-only rsync into that node's own mirror, the node identity is fixed by the key line (never claimed by the sub), and the retired A2A library exchange (library_request relay, export, attestation judge) leaves no surviving part -- coexistence with it was rejected."
+        },
+        {
+          "clause_id": "LIBRARY_GROUNDING_FAIL_CLOSED.C6",
+          "statement": "N access points writing one library follow the concurrency protocol in wiki-desk references/concurrency.md, chosen by the h_report decision order: single owner per card key (C12), kernel flock -- exclusive for writes, shared for reads -- whose release on process death leaves no stale lock (so no lease and no fencing token, C15 rejected with reason), a write-ahead journal that the next exclusive holder rolls back so no intermediate state is ever observable, and an idempotency ledger keyed by node_id + request_id + payload sha256 (C16) inside the same transaction as the effect. Proven by running real CLI processes through the h_report section 6.1 failure orders, with a lock-off negative control."
         }
       ],
       "evidence": [
@@ -2013,15 +2017,6 @@
           ]
         },
         {
-          "path": ".claude/skills/wiki-desk/scripts/init_wiki_desk.py",
-          "supports": [
-            "LIBRARY_GROUNDING_FAIL_CLOSED.C4"
-          ],
-          "assertion_ids": [
-            "main"
-          ]
-        },
-        {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C5"
@@ -2031,22 +2026,62 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/relay.py",
+          "path": ".claude/skills/wiki-desk/src/cli.ts",
           "supports": [
-            "LIBRARY_GROUNDING_FAIL_CLOSED.C5"
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C4"
           ],
           "assertion_ids": [
-            "serve_library_requests",
-            "render_library_export"
+            "runLocal"
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/library_relay.py",
+          "path": ".claude/skills/wiki-desk/src/accessor.ts",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C5"
           ],
           "assertion_ids": [
-            "resolve"
+            "resolveAccessor"
+          ]
+        },
+        {
+          "path": ".claude/skills/wiki-desk/src/gateway.ts",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C5"
+          ],
+          "assertion_ids": [
+            "vet",
+            "ALLOWED"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/library_access.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C5"
+          ],
+          "assertion_ids": [
+            "gateway_line",
+            "run"
+          ]
+        },
+        {
+          "path": ".claude/policies/predicates/claim_predicates.py",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C6"
+          ],
+          "assertion_ids": [
+            "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C6"
+          ]
+        },
+        {
+          "path": ".claude/skills/wiki-desk/src/concurrency.ts",
+          "supports": [
+            "LIBRARY_GROUNDING_FAIL_CLOSED.C6"
+          ],
+          "assertion_ids": [
+            "reexecUnderLock",
+            "recoverJournal",
+            "readLedger",
+            "ownerOf"
           ]
         }
       ],

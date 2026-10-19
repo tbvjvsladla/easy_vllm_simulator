@@ -2,7 +2,7 @@
 """terraforming_node-owned provider-neutral agent-control orchestrator (Phase 6, plan_26072506).
 
 Ownership (plan_26093022 Q3): moved from `.claude/policies/runtime/` -- the base layer never runs this in an
-operational path; its callers are this skill's relay/canary/library-exchange scripts.  The Claude-CLI
+operational path; its callers are this skill's relay/canary scripts.  The Claude-CLI
 syntax isolation boundary is unchanged: `providers/claude_code.py` stays the ONLY emitter of claude argv.
 
 Reads a request JSON conforming to `.claude/schemas/agent-control-request.schema.json`, dispatches
