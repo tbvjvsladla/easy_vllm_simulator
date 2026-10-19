@@ -93,9 +93,13 @@ python3 .claude/skills/terraforming_node/scripts/library_access.py --topology <t
 
 HW 재스캔·서브 재설치·주소 변경 뒤에는 접근자도 다시 선다. 순서가 판정을 바꾸므로 아래 순서를 지킨다.
 
-1. **메인 스캔**: `scan_node.py --topology <t> --peer-ssh <user>@<sub> --sub-work-dir <dir> --model-source <m> --emit-manifest --emit-sub-manifest output/<t>/sub_manifest.yaml`. multi 는 `--peer-ip <sub IP>` 도 **필수**다(§1.3 — 없으면 거부된다).
-2. **메인 manifest 병합(HITL)**: emit 블록이 **가진 최상위 키만** 바꾸고 나머지(`library`·`host_safety`·`propagation_authorization`·`network`·모델 경로 등)는 보존한다. emit 블록에는 `library` 가 없다 — 통째로 덮으면 접근자가 사라진다.
-   - ⚠ emit 블록의 `nodes[].host` 는 스캔 값(`platform.node()` = hostname)이다. 손으로 IP 를 적어 두었다면 여기서 바뀐다.
+1. **메인 스캔**: `scan_node.py --topology <t> --peer-ssh <user>@<sub 관리 hostname> --sub-work-dir <dir> --model-source <m> --emit-manifest --emit-sub-manifest output/<t>/sub_manifest.yaml`.
+   - multi 는 `--peer-ip <sub RoCE IP>` 와 **성능 실측**(`--bandwidth-gbps <합산> --per-port-gbps <포트당>` · onboarding §1.4 `ib_write_bw`)도 필수다 — 없으면 `pending-perf` 로 서브 manifest 발행이 거부된다(정상 차단 · 옛 실측값을 다시 넣지 않는다).
+   - `--peer-ssh` 의 host 부분이 서브 `nodes[].hostname`(서브 CLAUDE.md `SUB_HOSTNAME`)이 된다 — IP 를 넘기면 hostname 자리에 IP 가 들어간다.
+2. **메인 manifest 병합(HITL)**: emit 블록이 **가진 키만**(중첩 키 포함) 바꾸고 나머지는 보존한다.
+   - 최상위: `library`·`host_safety`·`propagation_authorization`·`network`·모델 경로 등은 emit 블록에 없다 — 통째로 덮으면 접근자가 사라진다.
+   - 중첩: 사람이 덧붙인 하위 키도 보존한다(실측: multi `interconnect.nccl_transport: rdma` 는 emit 에 없다 — 최상위 키째 바꾸면 NCCL 전송이 socket 으로 돌아간다).
+   - ⚠ single 의 메인 `nodes[].host` 는 스캔 값(`platform.node()` = hostname)이다 — 손으로 IP 를 적어 두었다면 여기서 바뀐다. multi 는 인터커넥트 iface IP 가 나온다.
 3. **접근점 재발급**: `library_access.py --topology <t> --node sub --apply --approved-by "<전사>"`. **반드시 2 뒤에** 돌린다 — 1 의 서브 발급본은 병합 *전* nodes 로 library 블록을 파생했으므로(옛 host), 이 단계가 병합된 nodes 에서 서브 블록·known_hosts host 줄을 다시 쓴다. 실노드 키는 재사용한다(D11 — 회전 없음 · 두 토폴로지가 같은 키를 쓴다).
 4. **배달**: `render_sub_env.py --topology <t> --sub-manifest output/<t>/sub_manifest.yaml` → `sync_to_sub.sh --branch <t> --apply`(인가 work-manifest).
 5. **확인(서브 A2A)**: `cli.ts status` · 원격 `read` 결과 = 메인 로컬 `read`(sha256) · `sync --apply` → 질의 적중.
