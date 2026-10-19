@@ -98,5 +98,11 @@
     "docs/devlog",
     "docs/testlog",
     "docs/simlog"
+  ],
+  "node_intake_excluded": [
+    "docs/plan/example.md",
+    "docs/devlog/example.md",
+    "docs/testlog/example.md",
+    "docs/simlog/example.md"
   ]
 }

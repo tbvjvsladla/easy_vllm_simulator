@@ -17,7 +17,13 @@ node_id 는 이 줄(메인이 키에 묶은 값)이 정한다 — 서브는 자�
   5. manifest `library` 블록 — 메인(transport: local + access_points) · 서브 발급본 `sub_manifest.yaml`(transport: ssh).
 `--revoke` 는 4 를 지우고 access_points 에서 뺀다(노드 해제·재설치 때만 · HITL). 주기 회전은 없다(D11).
 
+가상 접근점(`--host-of <실노드>` · 2026-10-19 plan_26101913 S1): 실노드의 호스트·사용자에 node_id 가 다른 **별도 키**를
+발급한다(한 호스트에 사서 여럿 — N-writer 실측용). manifest 에는 `access_points.<id>.host_of` 로 출처가 남고, 서브 발급본은
+건드리지 않는다(그 노드의 접근자는 그대로다). 가상 사서가 쓸 library 블록은 출력 `virtual_library_block` 으로 건넨다.
+`--revoke` 는 가상 키 파일도 그 호스트에서 지운다.
+
   사용:  library_access.py --topology single --node sub --plan
+         library_access.py --topology single --node sub2 --host-of sub --apply --approved-by "<전사>"
          library_access.py --topology single --node sub --apply --approved-by "<사람 발화 전사>"
          library_access.py --topology single --node sub --revoke --approved-by "<전사>"
          library_access.py --self-test
@@ -164,6 +170,11 @@ def replace_top_block(text: str, key: str, block: str | None) -> str:
     return body + ("\n" + block if block else "")
 
 
+def key_name(node_id: str, virtual: bool) -> str:
+    """실노드는 고정 이름(재발급 시 재사용) · 가상 접근점은 node_id 별 이름(같은 호스트의 키끼리 섞이지 않는다)."""
+    return f"wiki_desk_{node_id}_ed25519" if virtual else KEY_NAME
+
+
 def main_library_block(main: dict, access_points: dict) -> str:
     lines = ["library:   # 서고 접근자(wiki-desk) — 메인은 local · 서브 접근점은 library_access.py 가 발급한다(plan_26101912)",
              "  transport: local", "  wiki_dir: __llm-wiki", f"  repo_root: {json.dumps(main['work_dir'])}"]
@@ -173,6 +184,8 @@ def main_library_block(main: dict, access_points: dict) -> str:
             ap = access_points[nid]
             lines += [f"    {nid}:", f"      identity_file: {json.dumps(ap['identity_file'])}",
                       f"      known_hosts: {json.dumps(ap['known_hosts'])}"]
+            if ap.get("host_of"):
+                lines.append(f"      host_of: {ap['host_of']}")
     return "\n".join(lines) + "\n"
 
 
@@ -188,9 +201,14 @@ def sub_library_block(main: dict, node_id: str, ap: dict) -> str:
 def run(args) -> int:
     man_path = _manifest_path(args.topology)
     man = _load_yaml(man_path)
-    main, sub = _nodes(man, args.node)
-    sub_man_path = man_path.parent / "sub_manifest.yaml"
     aps = dict(((man.get("library") or {}).get("access_points") or {}))
+    # 회수는 --host-of 없이도 manifest 의 출처(host_of)로 가상 접근점을 알아본다
+    host_of = args.host_of or ((aps.get(args.node) or {}).get("host_of") if args.revoke else None)
+    virtual = bool(host_of)
+    if virtual and host_of == args.node:
+        raise Blocked("--host-of 는 다른 실노드여야 한다")
+    main, sub = _nodes(man, host_of or args.node)
+    sub_man_path = man_path.parent / "sub_manifest.yaml"
     if args.plan:
         facts = preflight(sub)
         print(json.dumps({"mode": "plan", "node_id": args.node, "preflight": facts,
@@ -205,7 +223,12 @@ def run(args) -> int:
     if args.revoke:
         if ak.is_file():
             ak.write_text(replace_marked(ak.read_text(encoding="utf-8"), args.node, None), encoding="utf-8")
-        aps.pop(args.node, None)
+        gone = aps.pop(args.node, None) or {}
+        if virtual:
+            kf = gone.get("identity_file") or f"~/.ssh/{key_name(args.node, True)}"
+            r = _ssh(sub, f"rm -f {shlex.quote(kf)} {shlex.quote(kf + '.pub')}")
+            if r.returncode != 0:
+                raise Blocked(f"가상 접근점 키 삭제 실패: {r.stderr.strip()[-200:]}")
         man_path.write_text(replace_top_block(man_path.read_text(encoding="utf-8"), "library", main_library_block(main, aps)), encoding="utf-8")
         print(json.dumps({"mode": "revoke", "node_id": args.node, "approved_by": args.approved_by}, ensure_ascii=False))
         return 0
@@ -213,7 +236,7 @@ def run(args) -> int:
     if facts["blocked"]:
         raise Blocked("; ".join(facts["blocked"]))
     home = facts["sub_home"]
-    key = f"{home}/.ssh/{KEY_NAME}"
+    key = f"{home}/.ssh/{key_name(args.node, virtual)}"
     r = _ssh(sub, f"umask 077; mkdir -p ~/.ssh; test -f {shlex.quote(key)} || ssh-keygen -q -t ed25519 -N '' "
                   f"-C {shlex.quote(MARKER + args.node)} -f {shlex.quote(key)}; cat {shlex.quote(key + '.pub')}")
     if r.returncode != 0:
@@ -234,8 +257,13 @@ def run(args) -> int:
     before = ak.read_text(encoding="utf-8") if ak.is_file() else ""
     ak.write_text(replace_marked(before, args.node, line), encoding="utf-8")
     os.chmod(ak, 0o600)
-    aps[args.node] = {"identity_file": key, "known_hosts": kh}
+    aps[args.node] = {"identity_file": key, "known_hosts": kh, **({"host_of": host_of} if virtual else {})}
     man_path.write_text(replace_top_block(man_path.read_text(encoding="utf-8"), "library", main_library_block(main, aps)), encoding="utf-8")
+    if virtual:
+        print(json.dumps({"mode": "apply", "node_id": args.node, "host_of": host_of, "approved_by": args.approved_by,
+                          "authorized_keys_marker": MARKER + args.node,
+                          "virtual_library_block": sub_library_block(main, args.node, aps[args.node])}, ensure_ascii=False, indent=2))
+        return 0
     if sub_man_path.is_file():
         sub_man_path.write_text(replace_top_block(sub_man_path.read_text(encoding="utf-8"), "library",
                                                   sub_library_block(main, args.node, aps[args.node])), encoding="utf-8")
@@ -301,6 +329,10 @@ def _self_test() -> int:
         chk(not [r for r in preflight({"ssh_user": "u", "host": "h"})["blocked"] if "서브" in r], "서브 조건 충족 → 서브 쪽 차단 사유 없음")
     finally:
         _ssh = real
+    chk(key_name("sub", False) == KEY_NAME and key_name("sub2", True) == "wiki_desk_sub2_ed25519", "가상 접근점 키 이름 = node_id 별")
+    mb = main_library_block({"work_dir": "/w/r"}, {"sub": {"identity_file": "/k", "known_hosts": "/kh"},
+                                                    "sub2": {"identity_file": "/k2", "known_hosts": "/kh", "host_of": "sub"}})
+    chk("    sub2:\n" in mb and "      host_of: sub\n" in mb and mb.count("host_of") == 1, "가상 접근점은 host_of 출처를 남긴다(실노드는 없음)")
     print("[library_access] self-test " + ("PASS" if ok else "FAIL"))
     return 0 if ok else 1
 
@@ -315,6 +347,7 @@ def main(argv=None) -> int:
     g.add_argument("--revoke", action="store_true")
     g.add_argument("--self-test", action="store_true")
     ap.add_argument("--approved-by")
+    ap.add_argument("--host-of", help="가상 접근점: 이 실노드의 호스트에 --node 로 별도 키를 발급한다")
     args = ap.parse_args(argv)
     if args.self_test:
         return _self_test()

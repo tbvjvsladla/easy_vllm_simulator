@@ -10,6 +10,7 @@ import { spawn, spawnSync } from "node:child_process";
 import { payloadSha, INTAKE_MANIFEST } from "../src/concurrency.ts";
 import { sha256 } from "../src/fs-safety.ts";
 import { vet } from "../src/gateway.ts";
+import { remoteReason } from "../src/remote.ts";
 
 const CLI = path.join(import.meta.dirname, "..", "src", "cli.ts");
 const BASE = JSON.parse(fs.readFileSync(path.join(import.meta.dirname, "fixtures", "contract", "valid.json"), "utf8"));
@@ -184,5 +185,51 @@ describe("게이트웨이 허용 목록", () => {
     assert.equal(exitOf(() => vet(["sync", "--apply", "--request-id", "x".repeat(10), "--accept-removed", "mirror/sub-b/docs/x.md"], "sub-a", "mirror")), 126);
     assert.equal(exitOf(() => vet(["sync", "--apply"], "sub-a", "mirror")), 126);
     assert.equal(exitOf(() => vet(["query", "--root", "/etc"], "sub-a", "mirror")), 126);
+  });
+});
+
+describe("반입 제외(node_intake_excluded) — 노드 문서 스켈레톤은 색인하지 않는다", () => {
+  test("미러 사본은 빠지고 메인의 같은 이름 문서는 excluded_roots 만 따른다", () => {
+    const contract = { ...BASE, source_roots: ["docs", "mirror"], node_mirror_root: "mirror", node_intake_excluded: ["docs/devlog/example.md"] };
+    fs.writeFileSync(path.join(root, "contract2.json"), JSON.stringify(contract));
+    put("mirror/sub-a/docs/devlog/example.md", doc("스켈레톤"));
+    put("docs/devlog/example.md", doc("메인 예시"));
+    fs.rmSync(path.join(root, "__llm-wiki"), { recursive: true, force: true });
+    assert.equal(cli("init", "--contract", path.join(root, "contract2.json"), "--apply").status, 0);
+    const r = cli("sync", "--apply", "--as", "all");
+    assert.equal(r.status, 0, r.stderr);
+    const cards = fs.readdirSync(path.join(root, "__llm-wiki", "cards"), { recursive: true }).map(String);
+    assert.ok(!cards.some((c) => c.includes(path.join("sub-a", "docs", "devlog", "example"))), "미러 스켈레톤 카드 없음");
+    assert.ok(cards.some((c) => c === path.join("docs", "devlog", "example.md.card.md")), "메인 문서는 그대로 색인");
+  });
+});
+
+describe("원격 반출 미도달 — 구조화된 표시", () => {
+  test("ssh 가 닿지 못하면 query 는 library-unreachable JSON 과 종료코드 4", () => {
+    const sub = fs.mkdtempSync(path.join(os.tmpdir(), "wd-unreach-"));
+    try {
+      fs.mkdirSync(path.join(sub, ".claude", "rules"), { recursive: true });
+      fs.writeFileSync(path.join(sub, ".claude", "rules", "strategy.topology.md"), "**topology: single**\n");
+      fs.mkdirSync(path.join(sub, "output", "single"), { recursive: true });
+      fs.writeFileSync(path.join(sub, "output", "single", "manifest.yaml"), ["library:", "  transport: ssh", "  host: wiki-desk-test.invalid",
+        "  user: nobody", "  repo_root: /nonexistent/repo", "  wiki_dir: __llm-wiki", `  identity_file: ${sub}/k`, `  known_hosts: ${sub}/kh`,
+        "  node_id: sub-a", ""].join("\n"));
+      const r = spawnSync(process.execPath, [CLI, "query", "--terms", "x", "--root", sub], { encoding: "utf8" });
+      assert.equal(r.status, 4, r.stderr);
+      const out = JSON.parse(r.stdout);
+      assert.equal(out.ok, false);
+      assert.equal(out.error, "library-unreachable");
+      assert.equal(out.command, "query");
+    } finally {
+      fs.rmSync(sub, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("원격 실패 사유 표시", () => {
+  test("서버 스택트레이스에서 Error: 줄을 사유로 뽑는다(없으면 마지막 줄)", () => {
+    const trace = "file:///r/src/commands.ts:324\n    throw new Error(`멱등 키 충돌`);\n    ^\n\nError: 멱등 키 충돌: req-1\n    at syncWiki (file:///r/src/commands.ts:324:11)\n\nNode.js v26.7.0";
+    assert.equal(remoteReason(trace), "Error: 멱등 키 충돌: req-1");
+    assert.equal(remoteReason("rrsync: 거부\n"), "rrsync: 거부");
   });
 });

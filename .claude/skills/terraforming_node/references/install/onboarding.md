@@ -87,6 +87,7 @@ provider 별 실행문법은 `references/orchestration/agent-control-adapter.md`
 
 ### 1.6 manifest 기입 (HITL)
 검증 통과 시 `scan_node.py --emit-manifest` 가 topology+interconnect 블록 산출 → **사람 확인 후** `output/multi/manifest.yaml` 반영. **무증거 기입 금지.**
+- **재발급(이미 운영 중인 노드)**: 반영은 emit 블록이 가진 최상위 키만 바꾼다 — `library` 등 스캔 밖 키는 보존하고, 병합 **뒤에** 서고 접근점을 다시 발급한다(순서·사유 정본 = `references/orchestration/grounding_exchange.md` §재발급). single 도 같다.
 
 ### 1.7 서브 work_dir 프로비저닝 게이트 (HITL — R2 불변식, plan_26062320)
 서브에 산출물을 복제하려면 서브 작업경로(`nodes[role=sub].work_dir`)가 있어야 한다. **기본값 = 메인 work_dir 와 동일**. 그러나:

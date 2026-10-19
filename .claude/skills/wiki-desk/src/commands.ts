@@ -7,7 +7,7 @@ import path from "node:path";
 import type { Contract, HeadingNode, IndexDoc, QueryResult, CheckIssue, Card } from "./types.ts";
 import { Transaction, replaceDerived, readRegular, sha256, safeRelative, isSafeRelative, canonicalRoot, isBelow, SHA256_HEX } from "./fs-safety.ts";
 import type { Write } from "./fs-safety.ts";
-import { findContract, validateContract, authorityFor, listSources, WIKI_DIRS, CONTRACT_FILE } from "./contract.ts";
+import { findContract, validateContract, authorityFor, listSources, WIKI_DIRS, CONTRACT_FILE, mirrorRootOf } from "./contract.ts";
 import { splitFrontmatter, emitYaml, locate, bodyText } from "./frontmatter.ts";
 import { buildCard, inferFromPath } from "./mapping.ts";
 import { renderCard, tryParseCard, checkConcept } from "./okf.ts";
@@ -16,7 +16,7 @@ import { queryTokens } from "./tokenize.ts";
 import { loadOrRebuild, scoreQuery, termWeights } from "./index.ts";
 import { findSpans } from "./query.ts";
 import { parseRef, readSpan } from "./read.ts";
-import { INTAKE_MANIFEST, ownerOf, DEFAULT_NODE_MIRROR_ROOT, MAIN_OWNER, readLedger, ledgerRel, expiredLedger, payloadSha, recoverJournal, journalPending, heldLock, EXIT_NEEDS_RECOVERY, LEDGER_DIR, JOURNAL_DIR } from "./concurrency.ts";
+import { INTAKE_MANIFEST, ownerOf, MAIN_OWNER, readLedger, ledgerRel, expiredLedger, payloadSha, recoverJournal, journalPending, heldLock, EXIT_NEEDS_RECOVERY, LEDGER_DIR, JOURNAL_DIR } from "./concurrency.ts";
 
 // 위키 bundle 안 고정 파일명. OKF §3.1 예약 파일과 운영 파일.
 const GITIGNORE_FILE = ".gitignore";
@@ -141,9 +141,7 @@ function killFault(): ((count: number) => void) | undefined {
   return (count: number) => { if (count >= at) process.kill(process.pid, "SIGKILL"); };
 }
 
-/** 계약 확장 키 node_mirror_root(서브 원문 미러 루트) — 없으면 기본값 */
-export const mirrorRootOf = (contract: Contract): string =>
-  typeof contract["node_mirror_root"] === "string" ? contract["node_mirror_root"] as string : DEFAULT_NODE_MIRROR_ROOT;
+export { mirrorRootOf } from "./contract.ts";
 
 /**
  * 모든 명령의 진입 전처리. 배타 잠금이면 남은 저널을 복구하고 무엇을 했는지 돌려준다.
