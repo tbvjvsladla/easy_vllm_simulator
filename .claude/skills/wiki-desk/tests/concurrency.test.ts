@@ -7,7 +7,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawn, spawnSync } from "node:child_process";
-import { payloadSha } from "../src/concurrency.ts";
+import { payloadSha, INTAKE_MANIFEST } from "../src/concurrency.ts";
 import { sha256 } from "../src/fs-safety.ts";
 import { vet } from "../src/gateway.ts";
 
@@ -30,8 +30,12 @@ const cliAsync = (...args: string[]): Promise<{ code: number | null; out: string
 });
 const doc = (title: string): string => `---\ntitle: ${title}\n---\n# ${title}\n\n본문 ${title} 동시성 시험\n`;
 const mirrorDocs = (node: string): string[] => fs.readdirSync(path.join(root, "mirror", node, "docs", "devlog")).map((f) => `docs/devlog/${f}`);
-const nodePayload = (node: string): string =>
-  payloadSha(mirrorDocs(node).map((f) => [f, sha256(fs.readFileSync(path.join(root, "mirror", node, f)))] as const));
+// 클라이언트가 하는 일을 재현한다: 이번에 보낸 집합을 반입 목록(INTAKE_MANIFEST)으로 미러에 두고 그 payload 해시를 낸다
+const nodePayload = (node: string): string => {
+  const entries = mirrorDocs(node).map((f) => [f, sha256(fs.readFileSync(path.join(root, "mirror", node, f)))] as [string, string]);
+  fs.writeFileSync(path.join(root, "mirror", node, INTAKE_MANIFEST), JSON.stringify({ entries }));
+  return payloadSha(entries);
+};
 const snapshot = (): Record<string, string> => {
   const out: Record<string, string> = {};
   const walk = (d: string): void => {
@@ -104,9 +108,34 @@ describe("재전송 — 멱등 키 (C16)", () => {
   });
 
   test("미러가 보낸 집합과 다르면(반입 미완) 쓰지 않는다", () => {
+    nodePayload("sub-c"); // 목록은 있으나 클라이언트가 보낸 해시가 다르다
     const r = cli("sync", "--apply", "--as", "sub-c", "--request-id", "req-mism-0001", "--payload-sha", "f".repeat(64));
     assert.notEqual(r.status, 0);
     assert.match(r.stderr, /미러 payload 불일치/);
+  });
+});
+
+describe("입고는 더하기만 한다 — 서브 문서 집합이 바뀌어도 기존 입고가 막히지 않는다", () => {
+  test("반입 목록 밖의 이전 입고분은 대조하지 않고 그대로 둔다(고아 카드로 입고를 막지 않는다)", () => {
+    assert.equal(cli("sync", "--apply", "--as", "sub-a", "--request-id", "req-app-00001", "--payload-sha", nodePayload("sub-a")).status, 0);
+    // 서브가 다른 체크아웃으로 바뀌어 보낸 집합이 줄었다 — 미러에는 이전 원문이 남고(반입은 지우지 않는다) 목록만 줄어든다
+    const all = mirrorDocs("sub-a");
+    const entries = all.slice(1).map((f) => [f, sha256(fs.readFileSync(path.join(root, "mirror", "sub-a", f)))] as [string, string]);
+    fs.writeFileSync(path.join(root, "mirror", "sub-a", INTAKE_MANIFEST), JSON.stringify({ entries }));
+    put(`mirror/sub-a/docs/devlog/devlog_26100301_새문서.md`, doc("새 문서"));
+    const withNew = [...entries, ["docs/devlog/devlog_26100301_새문서.md", sha256(fs.readFileSync(path.join(root, "mirror/sub-a/docs/devlog/devlog_26100301_새문서.md")))] as [string, string]];
+    fs.writeFileSync(path.join(root, "mirror", "sub-a", INTAKE_MANIFEST), JSON.stringify({ entries: withNew }));
+    const r = cli("sync", "--apply", "--as", "sub-a", "--request-id", "req-app-00002", "--payload-sha", payloadSha(withNew));
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(JSON.parse(r.stdout).created, ["mirror/sub-a/docs/devlog/devlog_26100301_새문서.md"]);
+  });
+  test("목록의 파일이 미러와 다르면(반입 미완) 거부한다", () => {
+    const entries = [["docs/devlog/없는.md", "0".repeat(64)]] as [string, string][];
+    fs.mkdirSync(path.join(root, "mirror", "sub-b"), { recursive: true });
+    fs.writeFileSync(path.join(root, "mirror", "sub-b", INTAKE_MANIFEST), JSON.stringify({ entries }));
+    const r = cli("sync", "--apply", "--as", "sub-b", "--request-id", "req-app-00003", "--payload-sha", payloadSha(entries));
+    assert.notEqual(r.status, 0);
+    assert.match(r.stderr, /반입 미완 또는 손상/);
   });
 });
 

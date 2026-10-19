@@ -16,7 +16,7 @@ import { queryTokens } from "./tokenize.ts";
 import { loadOrRebuild, scoreQuery, termWeights } from "./index.ts";
 import { findSpans } from "./query.ts";
 import { parseRef, readSpan } from "./read.ts";
-import { ownerOf, DEFAULT_NODE_MIRROR_ROOT, MAIN_OWNER, readLedger, ledgerRel, expiredLedger, payloadSha, recoverJournal, journalPending, heldLock, EXIT_NEEDS_RECOVERY, LEDGER_DIR, JOURNAL_DIR } from "./concurrency.ts";
+import { INTAKE_MANIFEST, ownerOf, DEFAULT_NODE_MIRROR_ROOT, MAIN_OWNER, readLedger, ledgerRel, expiredLedger, payloadSha, recoverJournal, journalPending, heldLock, EXIT_NEEDS_RECOVERY, LEDGER_DIR, JOURNAL_DIR } from "./concurrency.ts";
 
 // 위키 bundle 안 고정 파일명. OKF §3.1 예약 파일과 운영 파일.
 const GITIGNORE_FILE = ".gitignore";
@@ -293,12 +293,23 @@ export type SyncOptions = {
   owner?: string; requestId?: string; payloadSha?: string;
 };
 
-/** owner 가 소유한 미러 원문의 payload 해시(미러 루트 기준 경로 · 원문 sha) — 서브가 보낸 집합과 같은지 대조한다 */
+/**
+ * owner 의 이번 반입 목록(INTAKE_MANIFEST)을 미러와 대조해 payload 해시를 돌려준다. 목록의 모든 파일이 미러에 같은 sha 로
+ * 있어야 한다 — 하나라도 다르면 반입이 덜 끝났거나 손상된 것이다(거부). 목록에 없는 미러 파일(이전 입고분)은 대조하지 않는다.
+ */
 export function mirrorPayloadSha(root: string, owner: string): string {
   const w = open(root);
-  const prefix = `${mirrorRootOf(w.contract)}/${owner}/`;
-  const entries = listSources(w.root, w.contract).filter((s) => s.startsWith(prefix))
-    .map((s) => [s.slice(prefix.length), readSource(w.root, s).sha] as const);
+  const base = `${mirrorRootOf(w.contract)}/${owner}`;
+  const manRel = `${base}/${INTAKE_MANIFEST}`;
+  if (!exists(w.root, manRel)) throw new Error(`반입 목록 없음(${manRel}) — 반입이 끝나지 않았다`);
+  const doc = parseJsonAt(readText(w.root, manRel), manRel) as { entries?: unknown };
+  if (!Array.isArray(doc.entries)) throw new Error(`반입 목록 형식 오류: ${manRel}`);
+  const entries = doc.entries as [string, string][];
+  for (const [rel, want] of entries) {
+    if (!isSafeRelative(rel)) throw new Error(`반입 목록에 안전하지 않은 경로: ${rel}`);
+    const src = `${base}/${rel}`;
+    if (!exists(w.root, src) || readSource(w.root, src).sha !== want) throw new Error(`미러 payload 불일치(반입 미완 또는 손상): ${src}`);
+  }
   return payloadSha(entries);
 }
 

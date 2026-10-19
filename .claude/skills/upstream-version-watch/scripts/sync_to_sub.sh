@@ -1937,8 +1937,18 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
         if [ "${_tp_n:-0}" -eq 0 ]; then
             echo "  ⏭  런타임블럭 대표 검사 생략 — tool_plane 이 비었다(ray-worker: 스킬 0종이 계약)"
         else
-            printf '%s\n' "$rels" | grep -qxF '.claude/skills/vllm-recipe-explorer/recipe.py' \
-                || { echo "  ❌ 배달 표면에 런타임블럭 대표(.claude/skills/vllm-recipe-explorer/recipe.py)가 없다" >&2; fail=1; }
+            # 2026-10-19(plan_26101912 D12): 대표는 **tool_plane 이 지목한 스킬마다** 요구한다 — ray-worker 가 0종에서
+            #   wiki-desk 1종이 되자 "비어 있지 않으면 recipe.py" 라는 옛 가정이 멀티 배달을 죽였다(같은 결함 모양의 재발).
+            #   스킬마다 SKILL.md 를, recipe-explorer 가 있으면 그 엔진(recipe.py)을 본다.
+            local _sk
+            for _sk in $(printf '%s' "$_tp" | tr -c '[:alnum:]-' ' '); do
+                printf '%s\n' "$rels" | grep -qxF ".claude/skills/$_sk/SKILL.md" \
+                    || { echo "  ❌ 배달 표면에 tool_plane 스킬 대표(.claude/skills/$_sk/SKILL.md)가 없다" >&2; fail=1; }
+            done
+            case ",$(printf '%s' "$_tp" | tr -c '[:alnum:]-' ','),"  in *,vllm-recipe-explorer,*)
+                printf '%s\n' "$rels" | grep -qxF '.claude/skills/vllm-recipe-explorer/recipe.py' \
+                    || { echo "  ❌ 배달 표면에 런타임블럭 대표(.claude/skills/vllm-recipe-explorer/recipe.py)가 없다" >&2; fail=1; } ;;
+            esac
         fi
     fi
     # 2026-09-03(S4/㉕ · plan_26090317 P1): 여기서 하던 일은 **정보 한 줄**이었다 — 스테이징에 키가

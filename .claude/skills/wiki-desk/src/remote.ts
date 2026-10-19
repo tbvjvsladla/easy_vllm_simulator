@@ -7,7 +7,8 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 import type { Accessor } from "./accessor.ts";
-import { payloadSha } from "./concurrency.ts";
+import { payloadSha, INTAKE_MANIFEST } from "./concurrency.ts";
+import os from "node:os";
 import { sha256 } from "./fs-safety.ts";
 
 export const PROTOCOL_TOKEN = "wiki-desk-v1";
@@ -71,15 +72,32 @@ export function intake(a: Ssh, localRoot: string, extra: readonly string[] = [],
   const suffixes = contract.source_suffixes.map((s) => s.toLowerCase());
   const files: string[] = [];
   for (const r of roots) walkMd(localRoot, r, suffixes, files);
-  const sha = payloadSha(files.map((f) => [f, sha256(fs.readFileSync(path.join(localRoot, f)))] as const));
+  const entries = files.map((f) => [f, sha256(fs.readFileSync(path.join(localRoot, f)))] as [string, string]);
+  const sha = payloadSha(entries);
+  // 입고는 **더하기만** 한다(--delete ✗ · 2026-10-19 multi 라이브): 서브의 문서 집합은 체크아웃 브랜치마다 달라질 수 있고,
+  //   반입이 지우면 이미 입고된 기록의 원문이 사라져 고아 카드가 모든 입고를 막는다. 이번에 보낸 집합은 입고 목록
+  //   (INTAKE_MANIFEST · 경로→sha256)으로 함께 보내고, 서버는 그 목록만 미러와 대조한다(반입 미완·변조 검출은 그대로).
+  const rsyncTo = (args: string[], cwd: string): Remote | null => {
+    const r = spawnSync("rsync", ["-a", ...args.slice(0, -1), "-e", ["ssh", ...sshArgs(a).slice(0, -1)].join(" "), args.at(-1)!],
+      { cwd, encoding: "utf8" });
+    if (r.error !== undefined) throw new Error(`rsync 실행 실패: ${r.error.message}`);
+    if (r.status === SSH_TRANSPORT_FAILURE || r.status === 12 || r.status === 10) return { status: r.status ?? 1, stdout: r.stdout, stderr: r.stderr };
+    if (r.status !== 0) throw new Error(`rsync 반입 실패(exit ${r.status}): ${r.stderr.trim()}`);
+    return null;
+  };
   if (roots.length > 0) {
     // 접미 필터는 클라이언트가 건다(프로토콜로 전달) — 서버 쪽 rrsync 는 자기 미러 밖 경로를 거부한다
     const filters = ["--include=*/", ...suffixes.flatMap((s) => [`--include=*${s}`, `--include=*${s.toUpperCase()}`]), "--exclude=*"];
-    const r = spawnSync("rsync", ["-a", "--delete", "--relative", "--prune-empty-dirs", ...filters,
-      "-e", ["ssh", ...sshArgs(a).slice(0, -1)].join(" "), ...roots, `${a.user}@${a.host}:.`], { cwd: localRoot, encoding: "utf8" });
-    if (r.error !== undefined) throw new Error(`rsync 실행 실패: ${r.error.message}`);
-    if (r.status === SSH_TRANSPORT_FAILURE || r.status === 12 || r.status === 10) return notIngested("rsync", { status: r.status ?? 1, stdout: r.stdout, stderr: r.stderr });
-    if (r.status !== 0) throw new Error(`rsync 반입 실패(exit ${r.status}): ${r.stderr.trim()}`);
+    const bad = rsyncTo(["--relative", "--prune-empty-dirs", ...filters, ...roots, `${a.user}@${a.host}:.`], localRoot);
+    if (bad !== null) return notIngested("rsync", bad);
+  }
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "wiki-desk-intake-"));
+  try {
+    fs.writeFileSync(path.join(tmp, INTAKE_MANIFEST), JSON.stringify({ entries }) + "\n");
+    const bad = rsyncTo([INTAKE_MANIFEST, `${a.user}@${a.host}:${INTAKE_MANIFEST}`], tmp);
+    if (bad !== null) return notIngested("rsync-manifest", bad);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
   // 재전송: 호출자가 같은 request_id 를 주면 같은 논리적 요청으로 다시 보낸다(서버가 원장으로 no-op 처리 · C16)
   const requestId = fixedRequestId ?? crypto.randomUUID().replaceAll("-", "");
