@@ -831,7 +831,7 @@ OVERLAY_STALE_PATHS=(
     tasks/.gitkeep
     # 2026-09-08(plan_26090813 §4.2): 메인의 **해소 결과**는 싱글 서브에 가지 않는다. 오버레이는
     #   가산이라 이미 배달된 사본은 스스로 사라지지 않고, 남으면 서브가 자기 HW 로 해소할 이유가
-    #   없어진다(2026-09-07 실측: 서브 library_request 5회 전부 null — 물을 이유가 없었다).
+    #   없어진다(2026-09-07 실측: 서브의 도서관 질의 5회가 전부 공백 — 물을 이유가 없었다).
     .claude/skills/upstream-version-watch/assets/current-production-resolution.json
 )
 OVERLAY_RELOCATION_STALE_PATHS=(

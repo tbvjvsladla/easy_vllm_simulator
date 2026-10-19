@@ -136,7 +136,7 @@ def render_hits(hits: Iterable, limit: int = 20) -> str:
 def load_pii_terms(repo: Path) -> list[str] | None:
     """`.claude/pii_terms.txt` 의 리터럴 목록. **부재 = None**(호출부가 결손 기재/차단을 판단한다).
 
-    `wiki-desk/scripts/scan_forbidden_strings.py` 와 같은 원천(포인터 원칙) — 한 줄 하나 · `#` 주석 · 빈 줄 무시.
+    `wiki-desk/scripts/scan-forbidden-strings.ts` 와 같은 원천(포인터 원칙) — 한 줄 하나 · `#` 주석 · 빈 줄 무시.
     파일이 있는데 읽을 수 없으면 부재가 아니라 결함이다(HINT_PII_TERMS_UNREADABLE) — 깨진 파일을 "없음" 으로 읽으면
     리터럴 검사가 조용히 꺼진다.
     """

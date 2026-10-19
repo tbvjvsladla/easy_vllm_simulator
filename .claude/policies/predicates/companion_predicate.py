@@ -142,9 +142,11 @@ class TestTerraformFlagGateCompanion(unittest.TestCase):
     (no wiki-desk script references the gate machinery at all), not merely asserted in prose."""
 
     def test_wiki_desk_scripts_never_reference_the_flag_gate(self):
-        wiki_scripts_dir = REPO_ROOT / ".claude" / "skills" / "wiki-desk" / "scripts"
-        py_files = sorted(wiki_scripts_dir.glob("*.py"))
+        # 2026-10-19(plan_26101912): 사서는 TypeScript 다 — 결정론 코드는 src/·scripts/ 의 .ts 이고 Python 은 0이다.
+        wiki_dir = REPO_ROOT / ".claude" / "skills" / "wiki-desk"
+        py_files = sorted([*(wiki_dir / "src").glob("*.ts"), *(wiki_dir / "scripts").glob("*.ts")])
         self.assertTrue(py_files, "expected at least one wiki-desk script to scan")
+        self.assertEqual(sorted(wiki_dir.rglob("*.py")), [], "wiki-desk 안에 Python 이 남았다(D6 · TS 전환)")
         banned = ("manifest_contract", "_require_terraform_flag", "terraform.complete",
                   "a2a_delegation")
         offenders = []

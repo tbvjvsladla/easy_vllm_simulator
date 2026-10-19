@@ -4,7 +4,7 @@
 왜 이 파일이 여기(런타임블럭) 있는가 — 2026-09-04 plan_26090410 P0.5:
   이 모듈은 `adversarial-benchmark` 스킬에 속해 **서브 노드에도 배달**된다. wiki-desk 는 메인 전용
   사서라 서브에서 import 할 수 없다. 그래서 벤치 명명의 단일 소유는 여기고, 메인의
-  `.claude/skills/wiki-desk/scripts/doc_naming.py` 는 이 파일을 **재수출**한다(두 사본 ✗).
+  `.claude/policies/runtime/doc_naming.py` 는 이 파일을 **재수출**한다(두 사본 ✗).
   종전에는 두 사본이 서로 다른 충돌 규칙(여기: measured_utc 기반 / wiki-desk: 시간대 prefix 기반)을
   가져 같은 측정이 두 이름을 갖는 것이 구조적으로 보장됐다(감사 D-1).
 

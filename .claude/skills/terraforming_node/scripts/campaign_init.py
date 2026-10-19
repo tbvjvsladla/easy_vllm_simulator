@@ -2291,32 +2291,73 @@ def backfill_from_docs(base: Path, *, utc: str | None = None) -> "tuple[list[str
 GROUNDING_DIR = "grounding"
 
 
+# 사서 CLI(TS · plan_26101912). 같은 명령이 메인(접근자 local)에서는 자기 서고를, 서브(접근자 ssh)에서는 메인 서고를
+# 게이트웨이로 부른다 — 경로만 다르다. 반출 상한(질의 결과 수)은 이 그라운딩 기록의 소유자가 정한다.
+WIKI_CLI = ".claude/skills/wiki-desk/src/cli.ts"
+GROUNDING_TOP = 6
+_EXIT_NOT_INGESTED = 4       # wiki-desk remote.ts EXIT_NOT_INGESTED — 서고 미도달(발행·질의를 막지 않는다)
+_EXIT_GATEWAY_REFUSED = 126  # wiki-desk gateway.ts — 서고가 요청을 **거절**했다(공백과 다른 사실)
+
+
+def _wiki(root: Path, *args: str):
+    import subprocess
+    return subprocess.run(["node", str(root / WIKI_CLI), *args, "--root", str(root)],
+                          capture_output=True, text=True, cwd=str(root), check=False)
+
+
 def warm_start_library(repo_root: Path | None = None) -> str:
-    """질의 전에 서가를 증분 입고한다(C4). 정지한 서가에 물으면 **없다는 답이 거짓**이 된다.
+    """질의 전에 서가에 입고한다(C4). 정지한 서가에 물으면 **없다는 답이 거짓**이 된다.
 
     2026-09-08 실측: 서가가 09-03 에 멈춰 있어 캠페인 문서 147건이 미입고였고, 그 상태의 사서는
     "관련 자료 없음" 이라고 답했을 것이다 — 자료는 실재했다. 발행기·publish 위상·질의 진입이
     모두 이 함수를 부른다(호출부 N · 실행자를 두지 않으면 그 절차는 권고문이다).
+    서고 미도달(exit 4)은 not-yet-ingested 로 **기재**한다 — 다음 입고가 따라잡는다.
     """
     root = REPO_ROOT if repo_root is None else Path(repo_root)
-    script = root / ".claude/skills/wiki-desk/scripts/init_wiki_desk.py"
-    if not script.is_file():
-        return f"입고 건너뜀 — 사서 도구 부재({_rel(script)})"
-    import subprocess
-    # 서가 위치·답안·증분 여부는 사서(`--warm-start`)가 파생한다 — 여기서 다시 적지 않는다(plan_26093022 E3).
-    cp = subprocess.run([sys.executable, str(script), "--project-root", str(root), "--warm-start"],
-                        capture_output=True, text=True, cwd=str(root), check=False)
-    if cp.returncode != 0:
+    if not (root / WIKI_CLI).is_file():
+        return f"입고 건너뜀 — 사서 도구 부재({_rel(root / WIKI_CLI)})"
+    cp = _wiki(root, "sync", "--apply")
+    if cp.returncode not in (0, _EXIT_NOT_INGESTED):
         return f"입고 실패(rc={cp.returncode}): {(cp.stderr or '').strip()[-200:]}"
     try:
         out = json.loads(cp.stdout) or {}
     except ValueError:
         return "입고 완료(출력 판독 불가)"
-    if out.get("mode") == "skipped":
-        return f"입고 건너뜀 — {out.get('reason')}"
-    delta = out.get("delta") or {}
-    return (f"입고 완료 — added={delta.get('added')} changed={delta.get('changed')} "
-            f"archived={delta.get('archived')}")
+    if out.get("ingest_status") == "not-yet-ingested":
+        return f"not-yet-ingested — 서고 미도달(stage={out.get('stage')}) · 다음 입고가 따라잡는다"
+    return (f"입고 완료 — created={len(out.get('created') or [])} updated={len(out.get('updated') or [])} "
+            f"archived={len(out.get('archived') or [])}")
+
+
+def query_library(terms: list, repo_root: Path | None = None, top: int = GROUNDING_TOP) -> dict:
+    """사서 질의 → 반출(질의 결과 포인터). 해소 실패는 **정직한 공백**(`unresolved` + 사유)이고,
+    게이트웨이가 거절하면 `refused` 다. 없는 근거를 지어내지 않는다 — 결과 경로·근거 구간만 옮긴다."""
+    root = REPO_ROOT if repo_root is None else Path(repo_root)
+    if not (root / WIKI_CLI).is_file():
+        return {"resolution": {"status": "unresolved", "librarian": "wiki-desk",
+                               "reason": f"사서 도구 부재({_rel(root / WIKI_CLI)})"}, "references": []}
+    argv = ["query", "--limit", str(top)]
+    for t in terms:
+        argv += ["--terms", str(t)]
+    cp = _wiki(root, *argv)
+    if cp.returncode == _EXIT_GATEWAY_REFUSED:
+        return {"resolution": {"status": "refused", "librarian": "wiki-desk",
+                               "reason": (cp.stderr or "").strip()[-300:]}, "references": []}
+    try:
+        out = json.loads(cp.stdout) if cp.returncode == 0 else None
+    except ValueError:
+        out = None
+    if out is None:
+        return {"resolution": {"status": "unresolved", "librarian": "wiki-desk",
+                               "reason": f"사서 질의 실패(rc={cp.returncode}): {(cp.stderr or '').strip()[-200:]}"},
+                "references": []}
+    refs = [{"ref_id": f"R{i}", "path": r.get("path"), "score": r.get("score"),
+             "spans": [sp.get("ref") for sp in (r.get("spans") or [])]}
+            for i, r in enumerate(out.get("results") or [], start=1)]
+    return {"resolution": {"status": "resolved" if refs else "unresolved", "librarian": "wiki-desk",
+                           "reason": None if refs else "질의 결과 0건(정직한 공백)",
+                           "unmatched_tokens": out.get("unmatched_tokens"), "stale": out.get("stale")},
+            "references": refs}
 
 
 def grounding_terms(decl: dict) -> list[str]:
@@ -2371,9 +2412,10 @@ def ground_campaign(base: Path, *, utc: str, topology: str, terms: list | None =
                     warm_start: bool = True) -> "tuple[Path, dict]":
     """통제변인 파생 질의로 사서를 부르고 3메시지 모양으로 기록한다(C1).
 
-    모양은 §2.7.8 교환 스키마와 같다 — request(무엇을 찾는가) · export(사서 회신) ·
-    attestation(그 회신을 어떻게 썼는가). 서브의 교환과 같은 모양이라 판정기가 하나다.
+    request(무엇을 찾는가) · export(사서 회신) · attestation(그 회신을 어떻게 썼는가). 메인과 서브가
+    **같은 함수**로 기록한다 — 서브는 접근자(ssh)로 메인 서고에 묻고 경로만 다르다(plan_26101912 D2).
     """
+    node_id = _self_node_id()
     decl = read_declaration(base)
     terms = terms or grounding_terms(decl)
     if not terms:
@@ -2381,20 +2423,11 @@ def ground_campaign(base: Path, *, utc: str, topology: str, terms: list | None =
             "통제변인에서 질의어를 파생하지 못했다 — 선언이 아직 빈칸이면 그라운딩은 "
             "선언을 채운 뒤에 한다(진입 백스톱이 그때까지 서빙을 막는다).")
     note = warm_start_library() if warm_start else "입고 생략(호출부 지시)"
-    import importlib.util
-    lr_path = Path(__file__).resolve().parent / "library_relay.py"
     request = {"schema_version": 1, "kind": "library.resolution.request",
-               "exchange_id": f"{base.name}-{utc}", "node_id": "main", "topology": topology,
+               "exchange_id": f"{base.name}-{utc}", "node_id": node_id, "topology": topology,
                "query": {"terms": terms},
                "purpose": "캠페인 착수 그라운딩 — 이 통제변인으로 참고할 내부 자료가 있는가"}
-    if lr_path.is_file():
-        spec = importlib.util.spec_from_file_location("_ground_library_relay", lr_path)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        export = mod.resolve(request)
-    else:
-        export = {"resolution": {"status": "unresolved", "librarian": "wiki-desk",
-                                 "reason": f"채널 부재: {_rel(lr_path)}"}, "references": []}
+    export = query_library(terms)
     status = ((export.get("resolution") or {}).get("status"))
     doc = {
         "schema_version": 1, "campaign_id": base.name, "asked_utc": utc,
@@ -2402,7 +2435,7 @@ def ground_campaign(base: Path, *, utc: str, topology: str, terms: list | None =
         "request": request, "export": export,
         "attestation": {
             "kind": "library.resolution.attestation", "exchange_id": request["exchange_id"],
-            "node_id": "main", "status": status,
+            "node_id": node_id, "status": status,
             "cited_refs": [r.get("ref_id") for r in (export.get("references") or [])],
             # 해소 실패는 **정직한 공백**이다 — 기재하고 진행한다(차단 ✗ · D5·D17).
             "grounding_gap": (None if status == "resolved"
@@ -2702,6 +2735,22 @@ def checkout_is_sub() -> bool:
     return False
 
 
+def _self_node_id() -> str:
+    """그라운딩 기록에 적을 이 체크아웃의 노드 이름. 메인 = `main` · 서브 = manifest `library.node_id`(메인이 발급한
+    접근자 · 게이트웨이 키가 묶은 값과 같다). 서브인데 그 블록이 없으면 `sub` 로 적고 출처를 숨기지 않는다."""
+    if not checkout_is_sub():
+        return "main"
+    for t in ("single", "multi"):
+        try:
+            text = (REPO_ROOT / "output" / t / "manifest.yaml").read_text(encoding="utf-8")
+        except OSError:
+            continue
+        m = re.search(r"^library:\s*\n(?:[ \t]+.*\n)*?[ \t]+node_id:\s*['\"]?([a-z0-9][a-z0-9_-]*)", text, re.M)
+        if m:
+            return m.group(1)
+    return "sub"
+
+
 def checkout_topology() -> "str | None":
     if _CHECKOUT_TOPOLOGY_FN is not None:
         return _CHECKOUT_TOPOLOGY_FN()
@@ -2826,16 +2875,24 @@ def _lifecycle_event(kind: str, utc: str, **kv) -> dict:
 
 
 def _devlog_name(utc: str, topic: str) -> "tuple[Path, str]":
-    import importlib.util
-    mod_path = Path(__file__).resolve().parents[2] / "wiki-desk" / "scripts" / "doc_naming.py"
-    spec = importlib.util.spec_from_file_location("_doc_naming_for_campaign", mod_path)
-    if spec is None or spec.loader is None or not mod_path.is_file():
-        raise TransitionRefusal(f"문서 명명 SSOT 를 적재하지 못했다: {_rel(mod_path)}")
-    dn = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(dn)
+    """명명 SSOT(wiki-desk `src/doc_naming.ts`)를 부른다 — 사서는 두 토폴로지 모두에 가므로 서브에서도 같은 정본이다
+    (2026-10-19 · plan_26101912 D6). 실패는 사유째 거부한다(이름을 손으로 조립하지 않는다)."""
+    import subprocess
+    ts = Path(__file__).resolve().parents[2] / "wiki-desk" / "src" / "doc_naming.ts"
     ddir = REPO_ROOT / "docs" / "devlog"
-    existing = [p.name for p in ddir.iterdir()] if ddir.is_dir() else []
-    name = dn.dated_doc_basename("devlog", utc, topic, existing)
+    existing = sorted(p.name for p in ddir.iterdir()) if ddir.is_dir() else []
+    if not ts.is_file():
+        raise TransitionRefusal(f"문서 명명 SSOT 를 적재하지 못했다: {_rel(ts)}")
+    cp = subprocess.run(["node", str(ts), "dated_doc_basename",
+                         json.dumps(["devlog", utc, topic, existing], ensure_ascii=False)],
+                        capture_output=True, text=True, check=False)
+    try:
+        out = json.loads(cp.stdout)
+    except ValueError:
+        out = {}
+    if not out.get("ok"):
+        raise TransitionRefusal(f"문서 명명 SSOT 실패(rc={cp.returncode}): {out.get('message') or cp.stderr.strip()[-200:]}")
+    name = out["value"]
     return ddir / name, name
 
 

@@ -48,13 +48,11 @@ from pathlib import Path
 
 _SCRIPTS_DIR = Path(__file__).resolve().parent
 _REPO_ROOT = Path(__file__).resolve().parents[3]
-_DOC_NAMING_DIR = _REPO_ROOT / ".claude" / "skills" / "wiki-desk" / "scripts"
-for _module_dir in (_SCRIPTS_DIR, _DOC_NAMING_DIR):
-    if str(_module_dir) not in sys.path:
-        sys.path.insert(0, str(_module_dir))
+if str(_SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS_DIR))
 
 import completion_gate as gate  # noqa: E402 -- SSOT reuse, not a duplicated matrix
-import doc_naming  # noqa: E402
+import doc_naming  # noqa: E402 -- shim over wiki-desk src/doc_naming.ts (plan_26101912 D6)
 
 SCHEMA_VERSION = 1
 
@@ -1793,22 +1791,24 @@ def cmd_finalize(args: argparse.Namespace) -> None:
     # 실행자 = 사서(wiki-desk) 직접 호출(plan_26093022 · 닫힌 목록 등재 운영 경로 간선). 종전에는
     #   terraforming_node campaign_init 이 이 호출을 중계만 했다. 루트는 **인자 repo_root** 다 —
     #   `__file__` 기준으로 바꾸면 격리 저장소(hint 자체검사)의 발행이 실제 서가를 건드린다.
-    _wd = repo_root / ".claude/skills/wiki-desk/scripts/init_wiki_desk.py"
+    #   2026-10-19(plan_26101912): 사서가 TS 로 바뀌었다 — `cli.ts sync --apply` 한 번이 메인(접근자 local)에서는 자기 원문
+    #   입고, 서브(접근자 ssh)에서는 반입 + 원격 입고다(경로만 다름). 서고 미도달은 exit 4 = not-yet-ingested 로 기록하고
+    #   발행은 계속한다(다음 입고가 따라잡는다).
+    _wd = repo_root / ".claude/skills/wiki-desk/src/cli.ts"
     if _wd.is_file():
-        _wp = subprocess.run([sys.executable, str(_wd), "--project-root", str(repo_root), "--warm-start"],
+        _wp = subprocess.run(["node", str(_wd), "sync", "--apply", "--root", str(repo_root)],
                              capture_output=True, text=True, cwd=str(repo_root), check=False)
         try:
-            _out = json.loads(_wp.stdout) if _wp.returncode == 0 else None
+            _out = json.loads(_wp.stdout) if _wp.returncode in (0, 4) else None
         except ValueError:
             _out = None
         if _out is None:
             _msg = "입고 실패(rc=%s): %s" % (_wp.returncode, (_wp.stderr or _wp.stdout or "").strip()[-200:])
-        elif _out.get("mode") == "skipped":
-            _msg = "입고 건너뜀 — %s" % _out.get("reason")
+        elif _out.get("ingest_status") == "not-yet-ingested":
+            _msg = "not-yet-ingested — 서고 미도달(stage=%s) · 다음 입고가 따라잡는다" % _out.get("stage")
         else:
-            _d = _out.get("delta") or {}
-            _msg = "입고 완료 — added=%s changed=%s archived=%s" % (_d.get("added"), _d.get("changed"),
-                                                                 _d.get("archived"))
+            _msg = "입고 완료 — created=%s updated=%s archived=%s" % (
+                len(_out.get("created") or []), len(_out.get("updated") or []), len(_out.get("archived") or []))
         sys.stderr.write("[evidence_publisher] 서가 입고(C4): %s\n" % _msg)
     else:
         sys.stderr.write("[evidence_publisher] 서가 입고 건너뜀 — %s 부재(침묵 누락 ✗)\n" % _wd)

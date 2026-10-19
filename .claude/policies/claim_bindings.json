@@ -1011,9 +1011,9 @@
     ],
     "TERRAFORM_FLAG_GATE.C4": [
       {
-        "path": ".claude/skills/wiki-desk/scripts/smoke_query.py",
+        "path": ".claude/skills/wiki-desk/src/cli.ts",
         "assertion_ids": [
-          "main"
+          "runLocal"
         ]
       },
       {
@@ -1266,9 +1266,9 @@
         ]
       },
       {
-        "path": ".claude/skills/wiki-desk/scripts/init_wiki_desk.py",
+        "path": ".claude/skills/wiki-desk/src/cli.ts",
         "assertion_ids": [
-          "main"
+          "runLocal"
         ]
       }
     ],
@@ -1280,16 +1280,40 @@
         ]
       },
       {
-        "path": ".claude/skills/terraforming_node/scripts/relay.py",
+        "path": ".claude/skills/wiki-desk/src/accessor.ts",
         "assertion_ids": [
-          "serve_library_requests",
-          "render_library_export"
+          "resolveAccessor"
         ]
       },
       {
-        "path": ".claude/skills/terraforming_node/scripts/library_relay.py",
+        "path": ".claude/skills/wiki-desk/src/gateway.ts",
         "assertion_ids": [
-          "resolve"
+          "vet",
+          "ALLOWED"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/library_access.py",
+        "assertion_ids": [
+          "gateway_line",
+          "run"
+        ]
+      }
+    ],
+    "LIBRARY_GROUNDING_FAIL_CLOSED.C6": [
+      {
+        "path": ".claude/policies/predicates/claim_predicates.py",
+        "assertion_ids": [
+          "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C6"
+        ]
+      },
+      {
+        "path": ".claude/skills/wiki-desk/src/concurrency.ts",
+        "assertion_ids": [
+          "reexecUnderLock",
+          "recoverJournal",
+          "readLedger",
+          "ownerOf"
         ]
       }
     ],

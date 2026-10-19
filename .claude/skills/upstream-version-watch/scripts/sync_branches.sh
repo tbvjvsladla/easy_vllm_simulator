@@ -154,7 +154,7 @@ ROOT_RELOCATION_REPLACEMENTS=(
     .claude/skills/terraforming_node/scripts/agent_control.py
     .claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py
     .claude/policies/runtime/completion_gate.py
-    .claude/skills/wiki-desk/scripts/doc_naming.py
+    .claude/policies/runtime/doc_naming.py
     .claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh
     .claude/policies/runtime/evidence_publisher.py
     .claude/policies/runtime/harness_verify.py

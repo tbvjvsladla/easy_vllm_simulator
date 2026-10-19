@@ -15,4 +15,4 @@ docs/checklist/checklist_<YYMMDDHH>[_<MM>_<SS>]_<주제>.md
 - `YYMMDDHH`: 발행 일시 절대표기 · 2자리 연도 (예 `26060814` = 2026-06-08 14시). 상대날짜 금지.
 - `_MM_SS`: 같은 `YYMMDDHH`(같은 type)에 충돌 시에만 분·초 접미(구 `_seq_` 표기는 폐지됨).
 - `주제`: 한국어, 밑줄(`_`) 구분.
-- 명명 SSOT(결정론 헬퍼): `.claude/skills/wiki-desk/scripts/doc_naming.py`(`dated_doc_basename`, `type=checklist`).
+- 명명 SSOT(결정론 헬퍼): `.claude/skills/wiki-desk/src/doc_naming.ts`(파이썬 shim `.claude/policies/runtime/doc_naming.py`)(`dated_doc_basename`, `type=checklist`).

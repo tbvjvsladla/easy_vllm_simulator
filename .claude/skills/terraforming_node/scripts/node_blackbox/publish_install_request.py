@@ -64,17 +64,41 @@ def _find_repo(start):
 
 
 # doc_naming 은 명명 SSOT 다. 각자 파일명을 조립하지 않는다(.claude/rules/docs.md §명명 SSOT).
+# 정본 = wiki-desk `src/doc_naming.ts`(2026-10-19 · plan_26101912 D6 — 사서는 두 토폴로지 모두에 간다). 함수 한 벌만 쓴다.
+class _TsDocNaming:
+    class NamingCollisionExhausted(ValueError):
+        """두 형태(무접미·_MM_SS)가 모두 점유됐다 — 정본(doc_naming.ts)이 같은 이름으로 거부한 것을 그대로 옮긴다."""
+
+    def __init__(self, ts):
+        self.ts = ts
+
+    def _call(self, fn, *args):
+        import json
+        import subprocess
+        cp = subprocess.run(["node", self.ts, fn, json.dumps(list(args), ensure_ascii=False)],
+                            capture_output=True, text=True, check=False)
+        try:
+            out = json.loads(cp.stdout)
+        except ValueError:
+            raise SystemExit("[bb-request] FAIL: doc_naming.ts 실패(rc=%s): %s" % (cp.returncode, cp.stderr.strip()))
+        if out.get("ok"):
+            return out.get("value")
+        if out.get("error") == "NamingCollisionExhausted":
+            raise self.NamingCollisionExhausted(out.get("message"))
+        raise ValueError(out.get("message"))
+
+    def kst_tokens(self, generated_utc):
+        return tuple(self._call("kst_tokens", generated_utc))
+
+    def dated_doc_basename(self, doc_type, generated_utc, topic, existing_basenames=(), ext="md"):
+        return self._call("dated_doc_basename", doc_type, generated_utc, topic, sorted(existing_basenames), ext)
+
+
 def _load_doc_naming(repo):
-    path = os.path.join(repo, ".claude", "skills", "wiki-desk", "scripts")
-    if path not in sys.path:
-        sys.path.insert(0, path)
-    try:
-        import doc_naming  # noqa: E402
-    except ImportError as exc:  # 부재는 조용히 넘기지 않는다 — 배달 결손이다
-        raise SystemExit(
-            "[bb-request] FAIL: doc_naming 을 불러오지 못했다 (%s). 기대 경로: %s" % (exc, path)
-        )
-    return doc_naming
+    ts = os.path.join(repo, ".claude", "skills", "wiki-desk", "src", "doc_naming.ts")
+    if not os.path.isfile(ts):  # 부재는 조용히 넘기지 않는다 — 배달 결손이다
+        raise SystemExit("[bb-request] FAIL: doc_naming 을 불러오지 못했다. 기대 경로: %s" % ts)
+    return _TsDocNaming(ts)
 
 
 LEVELS = ("L1", "L2", "L3")

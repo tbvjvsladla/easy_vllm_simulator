@@ -800,8 +800,6 @@ def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, repor
         "artifact_paths": ([a.get("path") for a in report.get("artifacts") or []
                             if isinstance(a, dict) and a.get("path")] if report else None),
         "hitl_needed": bool((report.get("hitl") or {}).get("needed")) if report else None,
-        "library_blocking": (any(bool(r.get("blocking")) for r in report.get("library_request") or []
-                                 if isinstance(r, dict)) if report else None),
         # 2026-09-29(plan_26092919 P2): 서브의 예산 **제안**. 배정은 메인이 하지만(comms 계약), 제안을
         #   원장에 옮기지 않으면 감독 재발급이 그것을 볼 자리가 없다 — 라이브에서 서브가 "600s 이상
         #   필요" 를 남겼는데 감독은 서빙 phase 실측 228s 로 같은 벽을 다시 열었다.
@@ -820,12 +818,10 @@ def entry_blocking(entry: dict) -> bool:
 
     2026-09-04: 처음에는 표면화 시점에 `blocking` 을 계산해 항목에 적었다. 그런데 그러면 같은
     개념이 두 자리(요청 본문 · 항목 필드)에 앉고, 실제로 **옛 형식으로 쓰인 라이브 항목을 읽지
-    못했다**(`library_request[0].blocking=true` 인데 항목에는 필드가 없어 비차단으로 읽혔다).
+    못했다**(요청 본문에는 차단성이 있는데 항목에는 필드가 없어 비차단으로 읽혔다).
     `workflow.md` §4종 안티패턴의 "같은 개념이 두 곳 이상에 손으로 적힌 값" = 결함 칸이다.
-    파생으로 바꾸면 옛 항목도 그대로 읽히고 갈라질 자리가 사라진다.
+    2026-10-19 · plan_26101912: 서고 교환은 은퇴 — 서브는 접근자로 직접 묻는다. 옛 항목에 남은 서고 요청 본문은 읽어도 차단성을 만들지 않는다 — 답할 주체가 없다.
     """
-    if any(bool(r.get("blocking")) for r in entry.get("library_request") or []):
-        return True
     return bool(entry.get("blocking"))
 
 
@@ -848,21 +844,17 @@ def surface_requests(repo_root: str, context_id: str, report: dict, *, attempt: 
                     crash: dict = None) -> str | None:
     """서브가 스스로 표면화한 것을 릴레이한다(디스크 재스캔 ✗ — §2.4 push-attestation).
 
-    2026-09-04 교정 3건:
-      · **B2(침묵 누락)**: 종전에는 `hitl.needed` 가 거짓이면 즉시 return 했다. 그런데 서브 규약
-        (`comms.md` 도서관 절)은 *"리포트에 `library_request[]` 를 싣고 `input-required` 로 끝내라"*
-        만 지시하고 `hitl.needed` 를 요구하지 않는다 — **절차대로 한 요청이 사라졌다.** 이제
-        요청 배열 하나만으로도 표면화한다.
-      · **A4(해소 미반영)**: 같은 이유로 `needed=false` 인 턴은 `:126` 의 정리 필터에 **도달조차
-        못 해**, 이미 해소된 질문이 계속 남았다(라이브 잔존 실측). 이제 어떤 경우에도 이 context
-        의 낡은 항목을 먼저 걷어낸다.
+    2026-09-04 교정:
+      · **A4(해소 미반영)**: 종전에는 `needed=false` 인 턴이 정리 필터에 **도달조차 못 해**, 이미
+        해소된 질문이 계속 남았다(라이브 잔존 실측). 이제 어떤 경우에도 이 context 의 낡은 항목을
+        먼저 걷어낸다.
       · **B3(우선순위)**: `blocking` 을 읽어 정렬 키로 쓴다.
+    2026-10-19 · plan_26101912: 서고 교환은 은퇴 — 서브는 접근자로 직접 묻는다. 표면화 표지는 `hitl.needed` 하나다 — 리포트에 옛 서고 요청 배열이 실려 와도 읽지 않는다.
     사람이 적어 넣은 `answer` 는 같은 `request_id` 로 **이월**한다 — 재표면화가 답을 지우면
     사람이 두 번 답해야 하고, 그것은 릴레이가 사람의 일을 늘리는 것이다.
     """
     report = report or {}
     hitl = report.get("hitl") or {}
-    requests = report.get("library_request") or []
     path = os.path.join(relay_root(repo_root), PENDING_HITL)
     doc = {"schema_version": 1, "pending": []}
     if os.path.exists(path):
@@ -873,7 +865,7 @@ def surface_requests(repo_root: str, context_id: str, report: dict, *, attempt: 
     doc["pending"] = [e for e in doc.get("pending", []) if e.get("context_id") != context_id]
 
     entry = None
-    if crash and not (hitl.get("needed") or requests):
+    if crash and not hitl.get("needed"):
         # 2026-09-05(3-3): 리포트가 없거나 제어가 실패한 턴. 서브가 요청을 남기지 못한 상태이므로
         #   **메인이 사실만** 표면화한다 — 재개 여부는 사람·에이전트가 `--resume` 로 선언한다.
         entry = {
@@ -893,21 +885,18 @@ def surface_requests(repo_root: str, context_id: str, report: dict, *, attempt: 
                          crash.get("last_known_session") or "(없음)")),
             # 차단성은 **호출자가 선언**한다. 러너 소진은 답 없이 진행하면 같은 벽에 다시 닿는다.
             **({"blocking": True} if crash.get("blocking") else {}),
-            "library_request": [],
             "answer": prior.get("relay-crash-a%02d" % attempt),
         }
         doc["pending"].append(entry)
-    elif hitl.get("needed") or requests:
-        rid = hitl.get("request_id") or (requests[0].get("request_id") if requests else None)
+    elif hitl.get("needed"):
+        rid = hitl.get("request_id")
         entry = {
             "context_id": context_id,
             "attempt": attempt,
             "request_id": rid,
             "source": hitl.get("source") or "sub-relay",
             "prompt": hitl.get("prompt"),
-            "library_request": requests,
-            # 서브의 자기억제 선언은 요청 본문에 있다 — 여기에 **다시 적지 않는다**(entry_blocking).
-            #   hitl 절이 스스로 차단성을 말한 경우만 항목에 남긴다(요청 본문에 없는 정보라서).
+            # 차단성은 hitl 절이 스스로 말한 경우만 항목에 남긴다(entry_blocking 이 읽는 유일한 자리).
             **({"blocking": True} if hitl.get("blocking") else {}),
             "answer": prior.get(rid),
         }
@@ -918,102 +907,6 @@ def surface_requests(repo_root: str, context_id: str, report: dict, *, attempt: 
         json.dump(doc, f, ensure_ascii=False, indent=2, sort_keys=True)
         f.write("\n")
     return path if entry else None
-
-
-def _library_relay_module():
-    """도서관 채널의 **단일 소유자**는 `library_relay.py` 다 — 여기서 사서 질의를 다시 구현하지
-    않는다(발췌 예산·해소 규칙이 두 벌이 되면 한 벌이 조용히 늦는다)."""
-    import importlib.util
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "library_relay.py")
-    if not os.path.isfile(path):
-        return None
-    spec = importlib.util.spec_from_file_location("_relay_library_relay", path)
-    if spec is None or spec.loader is None:
-        return None
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-def _terms_of(req: dict) -> list:
-    """요청에서 질의어를 뽑는다. `terms` 가 있으면 그대로, 없으면 질문 문장을 쓴다 —
-    서브가 규약대로 terms 를 안 채웠다고 질의를 포기하면 그것이 침묵 누락이다."""
-    terms = (req.get("query") or {}).get("terms") if isinstance(req.get("query"), dict) else None
-    terms = terms or req.get("terms")
-    if isinstance(terms, list) and terms:
-        return [str(t) for t in terms if str(t).strip()]
-    q = str(req.get("question") or req.get("prompt") or "").strip()
-    return [q] if q else []
-
-
-def serve_library_requests(repo_root: str, context_id: str, pending: list, *,
-                           topology: str) -> list:
-    """대기 중인 `library_request[]` 를 **사서가 자동 응대**한다(2026-09-08 · D5·§4.3).
-
-    왜 자동인가: 서브가 절차대로 질문을 올려도 그 질문을 사서에게 나르는 코드가 없었다 —
-    `library_relay.py` 는 있었고 릴레이에서 그것을 부르는 자리가 0 이었다(사후감사 §E). 그래서
-    2026-09-07 캠페인의 서브 요청 5회가 전부 null 이었고, wiki-desk 는 한 번도 호출되지 않았다.
-
-    해소 실패는 **정직한 공백**이다 — `unresolved` 를 그대로 실어 보내고, 서브는 그 사실을
-    `grounding_gap` 으로 적고 진행한다(차단 ✗ · D5). 거절(refused)만 차단으로 남는다.
-    """
-    lr = _library_relay_module()
-    served = []
-    if lr is None:
-        return served
-    path = os.path.join(relay_root(repo_root), PENDING_HITL)
-    if not os.path.exists(path):
-        return served
-    with open(path, encoding="utf-8") as f:
-        doc = json.load(f)
-    changed = False
-    for entry in doc.get("pending", []):
-        if entry.get("context_id") != context_id or entry.get("library_export"):
-            continue
-        reqs = entry.get("library_request") or []
-        terms = [t for r in reqs if isinstance(r, dict) for t in _terms_of(r)]
-        if not terms:
-            continue
-        request = {"schema_version": 1, "kind": "library.resolution.request",
-                   "exchange_id": f"{context_id}-a{entry.get('attempt') or 0:02d}",
-                   "node_id": "sub", "topology": topology, "query": {"terms": terms}}
-        try:
-            export = lr.resolve(request)
-        except BaseException as exc:                      # noqa: BLE001 — 사유를 삼키지 않는다
-            entry["library_export"] = {
-                "resolution": {"status": "unresolved", "librarian": "wiki-desk",
-                               "reason": f"사서 질의 중 예외: {exc!r}"}, "references": []}
-        else:
-            entry["library_export"] = export
-        entry["answered_by"] = "wiki-desk (릴레이 자동 응대)"
-        served.append(entry.get("request_id") or request["exchange_id"])
-        changed = True
-    if changed:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(doc, f, ensure_ascii=False, indent=2, sort_keys=True)
-            f.write("\n")
-    return served
-
-
-def render_library_export(entry: dict) -> list:
-    """다음 턴 본문에 실을 사서 회신. 발췌 예산의 소유자는 `library_exchange` 이고 여기는
-    **표시**만 한다 — 반출은 참조·발췌이지 복제가 아니다(헌법 불변식 B)."""
-    exp = entry.get("library_export")
-    if not isinstance(exp, dict):
-        return []
-    res = exp.get("resolution") or {}
-    out = [f"- 사서 판정: **{res.get('status')}** (librarian={res.get('librarian')})"]
-    if res.get("reason"):
-        out.append(f"  - 사유: {res['reason']}")
-    for ref in exp.get("references") or []:
-        out.append(f"  - [{ref.get('ref_id')}] `{ref.get('path')}` (digest={str(ref.get('digest'))[:12]})")
-        if ref.get("excerpt"):
-            out.append(f"        발췌: {str(ref['excerpt'])[:400]}")
-    if res.get("status") != "resolved":
-        out.append("  - **회신 없음의 처방**: 독자 지시서로 착수하되, `grounding_gap` 에 "
-                   "`{status, asked_utc}` 를 적고 셀 상태·attestation 에 남겨라. "
-                   "누락은 기재하면 진행하고, 거절(refused)만 차단이다(D5).")
-    return out
 
 
 def pending_for(repo_root: str, context_id: str) -> list:
@@ -1099,20 +992,10 @@ def assemble_continuation(repo_root: str, doc: dict, pending: list) -> str:
     if (report or {}).get("notes"):
         out.append(f"  - 직전 턴 메모: {report['notes']}")
 
-    served = [e for e in pending if e.get("library_export")]
-    if served:
-        out += ["", "## 도서관 회신 — 메인 사서(wiki-desk)가 자동 응대했다",
-                "(반출은 참조·발췌다. 인용 없는 결정은 거짓이 아니라 **누락**이며 누락은 기재하고 간다.)"]
-        for e in served:
-            for req in e.get("library_request") or []:
-                out.append(f"- (질문) {req.get('question') or _terms_of(req)}")
-            out += render_library_export(e)
     answered = [e for e in pending if e.get("answer")]
     if answered:
         out += ["", "## 네 질문에 대한 메인의 답"]
         for e in answered:
-            for req in e.get("library_request") or []:
-                out.append(f"- (질문) {req.get('question')}")
             if e.get("prompt"):
                 out.append(f"- (질문) {e['prompt']}")
             out.append(f"- **(답)** {e['answer']}")
@@ -1120,7 +1003,7 @@ def assemble_continuation(repo_root: str, doc: dict, pending: list) -> str:
     if open_nonblocking:
         out += ["", "## 아직 답이 없는 비차단 질문(진행을 막지 않는다 — 없이 갈 수 있으면 가라)"]
         for e in open_nonblocking:
-            out.append(f"- {e.get('prompt') or (e.get('library_request') or [{}])[0].get('question')}")
+            out.append(f"- {e.get('prompt') or '(질문 문구 없음 · request_id=%s)' % e.get('request_id')}")
     out += ["", "- 이번 attempt 의 시간·턴이 남은 일에 모자라 보이면, 필요한 값을 산문이 아니라 리포트 "
             "`budget_recommendation{max_turns,timeout_seconds,why}` 에 **수치로** 적어라 — 감독 재발급은 그 필드만 읽는다."]
     out += ["", "## 원래 지시(변경 없음)", "", doc.get("task") or "(원장에 원 지시가 없다)"]
@@ -1151,11 +1034,12 @@ def budget_yield(att: dict) -> bool:
     서브 계약은 "예산이 모자라 보이면 소진하지 말고 input-required 로 끊고 남은 일을 next_steps 에
     적어라" 이다. 그런데 감독은 input-required 를 전부 '답이 필요하다' 팝업으로 읽어, 계약대로
     양보한 서브가 매번 사람을 불렀다(2026-09-29 발견 · 멀티 AC5 구조적 불가). 질문은 표지가 있다 —
-    `hitl.needed` 나 차단성 도서관 요청. 둘 다 없고 남은 일이 적혀 있으면 양보다.
+    `hitl.needed`. 그것이 없고 남은 일이 적혀 있으면 양보다.
     필드가 없는 옛 원장(None)은 양보로 읽지 않는다 — 모르면 묻는다.
+    2026-10-19 · plan_26101912: 서고 교환은 은퇴 — 서브는 접근자로 직접 묻는다. 서고 질문으로 끊는 턴은 더 이상 없다(서브가 자기 턴 안에서 답을 얻는다) — 옛 원장의
+    서고 차단 필드는 읽지 않는다.
     """
-    return (att.get("hitl_needed") is False and att.get("library_blocking") is False
-            and bool(att.get("next_steps")))
+    return att.get("hitl_needed") is False and bool(att.get("next_steps"))
 
 
 def ledger_progress(last: dict, prev: dict | None) -> str | None:
@@ -1179,16 +1063,6 @@ def ledger_progress(last: dict, prev: dict | None) -> str | None:
     if steps is not None and prev.get("next_steps") is not None and steps != prev.get("next_steps"):
         return "남은 일 변화"
     return None
-
-
-def library_question(att: dict) -> bool:
-    """`input-required` 가 **사서에게 묻는 질문**인가 — 사람이 아니라 메인 사서가 답한다.
-
-    2026-09-29(plan_26092919 P1 · R3-ⓐ): 차단성 도서관 요청을 감독이 사람 팝업으로 접었다. 답하는
-    주체는 사서(불변식 B)이고 `_supervise_resume` 가 이미 사서 자동 응대를 부른다 — 사람을 부를
-    이유가 없었다. `hitl.needed` 가 섞이면 사람 질문이 함께 있으므로 종전대로 묻는다.
-    """
-    return att.get("hitl_needed") is False and att.get("library_blocking") is True
 
 
 # 노드 간 시계 오차 여유(초) — 이 파일에서만 쓰는 국소 상수. 서브 mtime 은 서브 시계이고
@@ -1302,10 +1176,6 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
                   "invalid_request", "malformed_output"):
         return {"action": "popup",
                 "reason": f"모델·통신 평면이 깨졌다(end_reason={reason}) — 재개로 낫는 종류가 아니다"}
-    if reason == "sub_input_required" and library_question(last):
-        return {"action": "resume",
-                "reason": "서브가 차단성 도서관 요청으로 끊었다 — 답하는 주체는 메인 사서다"
-                          "(불변식 B). 사서 자동 응대 → 반출 동봉 → 같은 세션 재개. 거절이면 멈춘다"}
     if reason == "sub_input_required" and not budget_yield(last):
         return {"action": "popup",
                 "reason": "서브가 input-required 로 끊었다 — 답이 필요하다(차단성이면 답이 승인이다)"}
@@ -1478,23 +1348,15 @@ def recommended_timeout(doc: dict) -> int | None:
 
 
 def resume_blockers(pending: list) -> list:
-    """자동 재발급을 막는 대기 항목 — 답도 반출도 없는 차단성 요청, 그리고 사서가 **거절**한 것.
+    """자동 재발급을 막는 대기 항목 — 사람 답이 없는 차단성 요청.
 
-    못 찾음(unresolved)은 통과, 거절만 차단이다(D5 · policy:LIBRARY_GROUNDING_FAIL_CLOSED).
-    2026-09-29(P1): 종전에는 반출 필드가 있다는 것만으로 풀어 거절도 통과했다 — 도서관 재개가
-    자동이 되면서 그 구멍이 실제 경로가 됐다.
+    2026-10-19 · plan_26101912: 서고 교환은 은퇴 — 서브는 접근자로 직접 묻는다. 옛 항목에 남은 사서 반출 필드는 답이 아니다 — 차단을 풀지도 만들지도 않는다.
     """
-    def refused(e):
-        return ((e.get("library_export") or {}).get("resolution") or {}).get("status") == "refused"
-    return [e for e in pending if entry_blocking(e) and not e.get("answer")
-            and (not e.get("library_export") or refused(e))]
+    return [e for e in pending if entry_blocking(e) and not e.get("answer")]
 
 
 def _supervise_resume(a, lp: str, doc: dict, secs, why: str) -> int:
     """전진이 보이는 중단을 **같은 세션으로** 자동 재발급한다(D9). 감독자가 선언 주체다."""
-    pend = pending_for(a.repo_root, doc.get("context_id"))
-    serve_library_requests(a.repo_root, doc.get("context_id"), pend,
-                           topology=doc.get("topology") or "single")
     pend = pending_for(a.repo_root, doc.get("context_id"))
     blocked = resume_blockers(pend)
     if blocked:
@@ -1570,8 +1432,7 @@ def _self_test() -> int:
 
         # ⑤ HITL 표면화 — 서브가 스스로 needed 를 말한 것만
         p = surface_requests(d, "ctx-1", {"hitl": {"needed": True, "request_id": "h1",
-                                                   "prompt": "어느 핀?"},
-                                          "library_request": [{"question": "q", "kind": "version-pin"}]},
+                                                   "prompt": "어느 핀?"}},
                              attempt=1)
         chk(p and json.load(open(p))["pending"][0]["request_id"] == "h1", "HITL 표면화")
         p2 = surface_requests(d, "ctx-2", {"hitl": {"needed": False}}, attempt=1)
@@ -1647,14 +1508,17 @@ def _self_test() -> int:
         chk(stalled_attempts(d7) == 1, "phase 가 바뀌면 전진으로 센다(예산만 태운 것과 구분)")
 
         # ⑪ B2/B3/A4 — 표면화·우선순위·해소
-        rep_lib = {"library_request": [{"question": "q1", "kind": "serving-recipe",
-                                        "blocking": True, "request_id": "r1"}]}
+        rep_lib = {"hitl": {"needed": True, "prompt": "q1", "blocking": True, "request_id": "r1"}}
         pth = surface_requests(d, "ctx-lib", rep_lib, attempt=1)
-        chk(pth is not None, "★hitl.needed 없이 library_request 만으로도 표면화된다(침묵 누락 ✗)")
+        chk(pth is not None, "hitl.needed 는 표면화된다")
         chk(entry_blocking(pending_for(d, "ctx-lib")[0]) is True,
-            "blocking 을 메인이 **읽는다**(요청 본문에서 파생 — 옛 형식 항목도 읽힌다)")
-        surface_requests(d, "ctx-nb", {"library_request": [{"question": "q2", "blocking": False,
-                                                            "request_id": "r2"}]}, attempt=1)
+            "blocking 을 메인이 **읽는다**(hitl 절의 차단성 선언)")
+        chk(surface_requests(d, "ctx-old", {"library" + "_request": [
+                {"question": "q0", "blocking": True, "request_id": "r0"}]}, attempt=1) is None
+            and entry_blocking({"library" + "_request": [{"blocking": True}]}) is False,
+            "★서고 교환 은퇴: 옛 요청 배열은 읽혀도 표면화·차단성을 만들지 않는다(plan_26101912)")
+        surface_requests(d, "ctx-nb", {"hitl": {"needed": True, "prompt": "q2", "blocking": False,
+                                                "request_id": "r2"}}, attempt=1)
         order = [e["request_id"] for e in sort_pending(
             pending_for(d, "ctx-nb") + pending_for(d, "ctx-lib"))]
         chk(order[0] == "r1", f"★우선순위: blocking 이 먼저다(사전순이 아니다) → {order}")
@@ -1861,7 +1725,7 @@ def _self_test() -> int:
         chk(doc4["attempts"][-1]["running_services"] is None,
             "★말하지 않은 것은 None(모름)이지 빈 목록(없다는 선언)이 아니다")
 
-    # ── 단계 ③: 캠페인 축 · 예산 파생 · 감독 스텝 · 사서 자동 응대 (plan_26090813) ──────────
+    # ── 단계 ③: 캠페인 축 · 예산 파생 · 감독 스텝 (plan_26090813) ──────────
     import tempfile as _tf
 
     chk("timeout_seconds_allocated" in relay_header("c", 1, 40, "근거", 3600),
@@ -1942,21 +1806,16 @@ def _self_test() -> int:
     chk(supervise_decide({"attempts": [_mk(end_reason="sub_input_required")]}
                          )["action"] == "popup", "감독: input-required 는 답이 승인이다")
     # 2026-09-29: 예산 양보(질문 표지 없음 + 남은 일) 는 원장 전진으로 잇는다 · 질문은 여전히 묻는다
-    _y = dict(end_reason="sub_input_required", hitl_needed=False, library_blocking=False,
+    _y = dict(end_reason="sub_input_required", hitl_needed=False,
               max_turns_used=8, next_steps=["T1 나머지"], artifact_paths=["docs/testlog/a.md"])
     chk(supervise_decide({"attempts": [_mk(**_y)]})["action"] == "resume",
         "★감독: 예산 양보 input-required + 일한 흔적 → 자동 재발급(브리핑 없는 멀티 워커)")
     chk(supervise_decide({"attempts": [_mk(**dict(_y, hitl_needed=True))]})["action"] == "popup",
         "★감독 음성대조: hitl.needed 가 있으면 질문이다 → 팝업")
-    # 2026-09-29(P1 · R3-ⓐ): 차단성 도서관 요청은 **사서**가 답한다 — 사람 팝업 ✗
-    chk(supervise_decide({"attempts": [_mk(**dict(_y, library_blocking=True))]})["action"] == "resume",
-        "★감독: 차단성 도서관 요청 → 사서 응대 후 같은 세션 재개(사람 팝업 ✗)")
-    chk(supervise_decide({"attempts": [_mk(**dict(_y, library_blocking=True, hitl_needed=True))]}
-                         )["action"] == "popup",
-        "★감독 음성대조: 도서관 요청에 사람 질문(hitl.needed)이 섞이면 묻는다")
-    chk(supervise_decide({"attempts": [_mk(**dict(_y, library_blocking=True))]},
-                         cost_cap_attempts=1)["action"] == "popup",
-        "★감독 음성대조: 도서관 재개도 비용 상한을 넘지 않는다")
+    chk(supervise_decide({"attempts": [_mk(**dict(_y, hitl_needed=None))]})["action"] == "popup",
+        "★감독 음성대조: hitl 표지를 모르는 옛 원장(None)은 양보로 읽지 않는다 — 모르면 묻는다")
+    chk(supervise_decide({"attempts": [_mk(**_y)]}, cost_cap_attempts=1)["action"] == "popup",
+        "★감독 음성대조: 예산 양보 재개도 비용 상한을 넘지 않는다")
     chk(ledger_runner_spec({"runner_ladder": "kimi-claude,sonnet-5.5",
                             "attempts": [{"runner": {"name": "sonnet"}}]}) == "kimi-claude,sonnet-5.5"
         and ledger_runner_spec({"attempts": [{"runner": {"name": "sonnet-5.5"}},
@@ -1967,11 +1826,10 @@ def _self_test() -> int:
         and recommended_timeout({"attempts": [_mk(budget_recommendation={"timeout_seconds": "많이"})]}) is None
         and recommended_timeout({"attempts": [_mk()]}) is None,
         "★재발급 timeout: 서브 제안 수치만 읽는다(산문·비수치는 None — 값을 만들지 않는다)")
-    _lq = {"library_request": [{"question": "q", "blocking": True}]}
-    chk(resume_blockers([dict(_lq, library_export={"resolution": {"status": "unresolved"}})]) == []
-        and len(resume_blockers([dict(_lq, library_export={"resolution": {"status": "refused"}})])) == 1
-        and len(resume_blockers([_lq])) == 1,
-        "★재발급 차단: 사서 못 찾음은 통과 · 거절과 무응답은 멈춘다(D5)")
+    chk(len(resume_blockers([{"blocking": True}])) == 1
+        and resume_blockers([{"blocking": True, "answer": "a"}]) == []
+        and resume_blockers([{"prompt": "비차단"}]) == [],
+        "★재발급 차단: 답 없는 차단성 요청만 멈춘다 · 답했거나 비차단이면 통과")
     # 2026-09-29(P1 · R3-ⓑ): 리포트 없이 잘린 attempt — 문서 평면 전진
     _cut = {"context_id": "c-t1", "attempts": [_mk(end_reason="budget_exhausted", sub_reported=False,
                                                   started_utc="2026-09-29T10:06:05Z",
@@ -2019,21 +1877,6 @@ def _self_test() -> int:
                            brief={"last_utc": "u1"})
     chk(len(_led["supervisor_steps"]) == 1 and _led["supervisor_last_seen_utc"] == "u1",
         "★감독 판정이 원장에 남는다(다음 스텝이 같은 것을 다시 판정하지 않는다)")
-
-    # 사서 자동 응대 — 회신을 다음 턴 본문에 싣는다
-    _entry = {"library_request": [{"question": "Qwen3-4B fp8 kv 사례?"}],
-              "library_export": {"resolution": {"status": "unresolved", "librarian": "wiki-desk",
-                                                "reason": "정직한 공백"}, "references": []}}
-    _rend = render_library_export(_entry)
-    chk(any("unresolved" in x for x in _rend) and any("grounding_gap" in x for x in _rend),
-        "★사서가 못 찾으면 **회신 없음의 처방**까지 실어 보낸다(기재 후 진행 · D5)")
-    _entry2 = {"library_export": {"resolution": {"status": "resolved", "librarian": "wiki-desk"},
-                                  "references": [{"ref_id": "R1", "path": "CLAUDE.md",
-                                                  "digest": "abc123def456", "excerpt": "발췌"}]}}
-    chk(any("CLAUDE.md" in x for x in render_library_export(_entry2)),
-        "사서 회신은 참조·발췌로 실린다(복제 ✗ · 헌법 불변식 B)")
-    chk(_terms_of({"question": "x"}) == ["x"] and _terms_of({"query": {"terms": ["a", "b"]}}) == ["a", "b"],
-        "질의어는 terms 가 있으면 그대로, 없으면 질문 문장(포기 ✗)")
 
     # 시간 상한 리터럴이 **프로덕션 코드**에 다시 적히지 않았다(같은 상수가 두 자리에 있으면
     # 갈라지고, 갈라진 쪽이 조용히 늦는다 · workflow.md §매직넘버 결함 칸). 시험 픽스처는
@@ -2549,20 +2392,9 @@ def main() -> int:
                     "[relay] STOP: 서브 정체성 echo 가 성립하지 않는다 — 부재도 불일치도 STOP 이다.\n"
                     + "".join(f"  - {r}\n" for r in _stop)
                     + "  → 서브가 위임 헤더의 값을 그대로 회신하도록 한 뒤 재개하라(우회 ✗).")
-        # 사서 자동 응대 — 서브가 올린 질문을 wiki-desk 에 나른다(2026-09-08 · §4.3 · D5).
-        #   종전에는 `library_relay.py` 가 있고 그것을 부르는 자리가 0 이라, 절차대로 올라온
-        #   질문 5회가 전부 답 없이 남았다. 해소 실패는 정직한 공백으로 실려 간다(차단 ✗).
-        _served = serve_library_requests(a.repo_root, a.context_id,
-                                         pending_for(a.repo_root, a.context_id),
-                                         topology=a.topology or "single")
-        if _served:
-            print(f"[relay] 사서 자동 응대 {len(_served)}건 — 다음 턴 본문에 실린다: "
-                  f"{', '.join(str(x) for x in _served)}")
+        # 2026-10-19 · plan_26101912: 서고 교환은 은퇴 — 서브는 접근자로 직접 묻는다(릴레이가 사서를 나르지 않는다).
         pend = pending_for(a.repo_root, a.context_id)
-        # 사서가 답한 항목은 차단을 풀지 않는다 — 사람 답이 필요한 것과 자료가 필요한 것은
-        # 다른 종류다. 다만 `library_export` 가 실렸으면 그것 자체가 답이므로 차단에서 뺀다.
-        blocked = [e for e in pend if entry_blocking(e) and not e.get("answer")
-                   and not e.get("library_export")]
+        blocked = resume_blockers(pend)
         if blocked:
             ids = ", ".join(str(e.get("request_id")) for e in blocked)
             raise SystemExit(

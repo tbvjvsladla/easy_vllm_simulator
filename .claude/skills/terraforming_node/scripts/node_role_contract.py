@@ -233,12 +233,16 @@ def delivery_plane(topology, sub_mode):
 #   (`campaign_init --emit-slice`) ③ 카탈로그(`hints/index.json`·`HINTS.md`)는 메인 단독이다.
 #   멀티 Ray 워커는 바뀌지 않는다(0종) — 전략을 세우지 않는 노드는 발행할 셀도 소유하지 않는다.
 HINT_PUBLISHER_SKILL = "hint-publisher"
+# 2026-10-19(plan_26101912 D12 · 사용자 결정): 사서(`wiki-desk`)는 **두 토폴로지 모두**에 간다. 서고는 메인에 하나이고
+#   서브 wiki-desk 는 manifest `library` 접근자(ssh 강제명령 게이트웨이)로 같은 서고에 닿는다 — 경로만 다르다.
+#   멀티 Ray 워커도 자기 문서를 입고하고 근거를 조회한다(전략은 세우지 않아도 기록은 남긴다). 다른 스킬은 늘리지 않는다.
+WIKI_DESK_SKILL = "wiki-desk"
 TOOL_PLANE_BY_SUB_MODE = {
     # 싱글 A2A 에이전트: 빌드 트랙 해소 → 서빙전략 → 성능 검증 → 자기 셀의 hint 발행까지 자기 손으로 한다.
     "a2a-agent": ("vllm-recipe-explorer", "adversarial-benchmark", "upstream-version-watch",
-                  HINT_PUBLISHER_SKILL),
-    # 멀티 Ray 워커: 0종. 정본(Dockerfile·compose·serve_runner)을 재현하는 것이 전부다.
-    "ray-worker": (),
+                  HINT_PUBLISHER_SKILL, WIKI_DESK_SKILL),
+    # 멀티 Ray 워커: 사서 1종. 정본(Dockerfile·compose·serve_runner)을 재현하고 그 기록을 서고에 입고·조회한다.
+    "ray-worker": (WIKI_DESK_SKILL,),
 }
 
 
@@ -527,13 +531,13 @@ def _self_test():
     # 결함의 형태: 렌더러가 토폴로지 무관 닫힌 리스트로 스킬을 배달했다. 판정을 여기로 옮겼으니
     # **양방향**을 고정한다 — 한쪽만 보면 "전부 안 주기" 나 "전부 주기" 가 통과한다.
     r = tool_plane("single", "a2a-agent")
-    chk("single(a2a-agent) → 런타임 스킬 3종 + hint-publisher(2026-10-11 · plan_26101104)",
+    chk("single(a2a-agent) → 런타임 스킬 3종 + hint-publisher(2026-10-11 · plan_26101104) + wiki-desk(2026-10-19)",
         set(r["value"]) == {"vllm-recipe-explorer", "adversarial-benchmark", "upstream-version-watch",
-                            "hint-publisher"}
+                            "hint-publisher", "wiki-desk"}
         and r["source"] == "sub-mode:a2a-agent", r)
     r = tool_plane("multi", "ray-worker")
-    chk("multi(ray-worker) → 0종(정본 재현이 전부다 · hint-publisher 도 없다)",
-        r["value"] == [] and r["source"] == "sub-mode:ray-worker", r)
+    chk("multi(ray-worker) → 사서 1종(정본 재현 + 기록 입고 · hint-publisher 는 없다)",
+        r["value"] == ["wiki-desk"] and r["source"] == "sub-mode:ray-worker", r)
     # 자체 발행 판정은 tool_plane 의 파생이다 — 양방향을 고정한다(한쪽만 보면 "전부 발행"·"아무도 발행 안 함" 이 통과).
     r = sub_self_publishes("single")
     chk("single 서브 → 자체 발행(파생 출처 tool_plane)",
@@ -546,8 +550,8 @@ def _self_test():
     chk("어휘 밖 sub_mode → fail-closed",
         violation_code(tool_plane, "single", "worker") == "SUB_MODE_UNKNOWN")
     r = evaluate_manifest({"topology": "multi", "nodes": [{"role": "main"}, {"role": "sub"}]})
-    chk("evaluate_manifest 가 tool_plane 을 함께 낸다(멀티=0종)",
-        r["tool_plane"]["value"] == [] and r["violations"] == [], r.get("tool_plane"))
+    chk("evaluate_manifest 가 tool_plane 을 함께 낸다(멀티=사서 1종)",
+        r["tool_plane"]["value"] == ["wiki-desk"] and r["violations"] == [], r.get("tool_plane"))
     r = evaluate_manifest({"topology": "single", "nodes": [{"role": "main"}]})
     chk("서브 미등록 → tool_plane 0종 + 출처 no-sub-registered",
         r["tool_plane"] == {"value": [], "source": "no-sub-registered"}, r.get("tool_plane"))

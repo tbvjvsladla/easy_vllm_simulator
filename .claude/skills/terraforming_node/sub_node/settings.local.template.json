@@ -65,7 +65,8 @@
       "Bash(git switch:*)",
       "Bash(git branch:*)",
       "Bash(git stash:*)",
-      "Bash(git clone:*)"
+      "Bash(git clone:*)",
+      "Bash(node .claude/skills/wiki-desk/src/cli.ts:*)"
     ],
     "deny": [
       "MODE:ray-worker Edit({{ WORKSPACE_PATH }}/output/**/Dockerfile)",

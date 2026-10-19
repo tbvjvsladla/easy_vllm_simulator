@@ -42,4 +42,4 @@ docs/devlog/devlog_<YYMMDDHH>[_<MM>_<SS>]_<주제>.md
 - `_MM_SS`: 같은 `YYMMDDHH`(같은 type)에 충돌 시에만 분·초 접미(구 `_seq_` 표기는 폐지됨).
 - `주제`: 한국어, 밑줄(`_`) 구분, 버전·대상 포함 권장.
 - 예: `devlog_26060814_멀티노드_소스빌드_확장_검증.md`
-- 명명 SSOT(결정론 헬퍼): `.claude/skills/wiki-desk/scripts/doc_naming.py`(`dated_doc_basename` — evidence_publisher.py가 소비).
+- 명명 SSOT(결정론 헬퍼): `.claude/skills/wiki-desk/src/doc_naming.ts`(파이썬 shim `.claude/policies/runtime/doc_naming.py`)(`dated_doc_basename` — evidence_publisher.py가 소비).

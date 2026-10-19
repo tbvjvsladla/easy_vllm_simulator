@@ -44,7 +44,7 @@ docs/benchmark/max_envelope_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md  ← Max 
 - **파일 접두사 = 산출물 종류**(`bench_report_` / `benchmark_` / `max_envelope_`). 여러 모델·HW·버전 조합이 한 폴더에 공존.
 - 명명 SSOT(결정론 헬퍼): 벤치 산출물 이름(`bench_filename`·`gpu_key`·`kst_tokens`)의 **정본은**
   `.claude/skills/adversarial-benchmark/scripts/doc_naming.py` 다 — 런타임블럭이라 **서브 노드에도 배달**된다.
-  `.claude/skills/wiki-desk/scripts/doc_naming.py`(메인 전용 · 산문 문서 명명 소유)는 그 모듈을 **재수출**한다
+  `.claude/policies/runtime/doc_naming.py`(산문 문서 명명 shim · 정본 `.claude/skills/wiki-desk/src/doc_naming.ts`)는 그 모듈을 **재수출**한다
   (2026-09-04 plan_26090410 P0.5 — 종전 두 사본이 서로 다른 충돌 규칙을 가져 같은 측정이 두 이름을 가졌다).
   "같은 측정" 판정은 이름이 아니라 기존 파일 **본문의 `measured_utc`** 로 하며(같으면 덮어쓰기·다르면 `_MM_SS`),
   헌법 runtime 의 `evidence_publisher.py publish-benchmark` 는 이름을 **만들지 않고** 원본 경로에 바인딩한다.

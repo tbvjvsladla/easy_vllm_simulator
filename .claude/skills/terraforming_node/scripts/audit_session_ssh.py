@@ -17,7 +17,7 @@
     "명령 문자열이 허가 스크립트를 부르는가" 를 묻고, 그렇지 않은 채 서브를 향하면 위반이다.
 
     허가 스크립트: relay.py · agent_control.py · sync_to_sub.sh · fetch_sub_docs.sh ·
-                   library_relay.py · multinode_*_smoke.sh · scan_node.py(승인된 온보딩 스캔)
+                   library_access.py · multinode_*_smoke.sh · scan_node.py(승인된 온보딩 스캔)
 
   사용:  audit_session_ssh.py --transcript <session.jsonl> --sub-host spark-xxxx
   종료:  0 = 위반 0 · 1 = 위반 있음 · 2 = 입력 오류
@@ -37,7 +37,7 @@ SANCTIONED = (
     "agent_control.py",
     "sync_to_sub.sh",
     "fetch_sub_docs.sh",
-    "library_relay.py",
+    "library_access.py",
     "multinode_comms_smoke.sh",
     "multinode_serve_smoke.sh",
     "scan_node.py",

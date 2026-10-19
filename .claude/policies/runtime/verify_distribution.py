@@ -50,7 +50,7 @@ LOCAL_REPLACEMENTS = {
     ".claude/skills/terraforming_node/scripts/agent_control.py",
     ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py",
     ".claude/policies/runtime/completion_gate.py",
-    ".claude/skills/wiki-desk/scripts/doc_naming.py",
+    ".claude/policies/runtime/doc_naming.py",
     ".claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh",
     ".claude/policies/runtime/evidence_publisher.py",
     ".claude/policies/runtime/harness_verify.py",
@@ -710,7 +710,7 @@ def verify() -> dict:
                and "호스트 안전체계(레포 루트 `scripts/`)" not in terraforming_text},
         {"name": "owner_doc_naming_documentation",
          "ok": "`scripts/doc_naming.py`" not in skeleton_text
-               and ".claude/skills/wiki-desk/scripts/doc_naming.py" in skeleton_text},
+               and ".claude/policies/runtime/doc_naming.py" in skeleton_text},
     ]
 
     checks += [
@@ -734,13 +734,13 @@ def verify() -> dict:
         _run("terraform_render_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/render_sub_env.py", "--self-test"], {0}),
         # 2026-09-03(S3 · plan_26090317 P1): SKILL.md §3 이 "회귀 고정 6종" 을 선언하는데 실행자는 위 2종
-        #   뿐이었다. 특히 library_exchange 는 **헌법 불변식 B(그라운딩 누락 판정)의 유일한 기계 집행점**
-        #   이고, node_role_contract 는 불변식 A(토폴로지 축)의 판정기다 — 그 둘이 깨져도 아무도 몰랐다.
+        #   뿐이었다. node_role_contract 는 불변식 A(토폴로지 축)의 판정기다 — 깨져도 아무도 몰랐다.
+        #   (2026-10-19 · plan_26101912: 불변식 B 의 옛 집행점 library_exchange 는 은퇴 — 서고 접근점 발급기 library_access 로 대체)
         #   이 파일이 이미 recipe·benchmark 쪽에서 세 번 고친 결함(호출자 없는 자체검사 = L1 산문)과 동형.
         _run("terraform_node_role_contract_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/node_role_contract.py", "--self-test"], {0}),
-        _run("terraform_library_exchange_selftest", [sys.executable,
-             ".claude/skills/terraforming_node/scripts/library_exchange.py", "--self-test"], {0}),
+        _run("terraform_library_access_selftest", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/library_access.py", "--self-test"], {0}),
         _run("terraform_staleness_gate_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/staleness_gate.py", "--self-test"], {0}),
         _run("terraform_manifest_contract_selftest", [sys.executable,
@@ -754,8 +754,6 @@ def verify() -> dict:
              ".claude/skills/terraforming_node/scripts/agent_control.py", "--self-test"], {0}),
         _run("terraform_turn_budget_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/turn_budget.py", "--self-test"], {0}),
-        _run("terraform_library_relay_selftest", [sys.executable,
-             ".claude/skills/terraforming_node/scripts/library_relay.py", "--self-test"], {0}),
         _run("terraform_relay_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/relay.py", "--self-test"], {0}),
         _run("terraform_bootstrap_canary_selftest", [sys.executable,
@@ -1042,17 +1040,15 @@ def verify() -> dict:
              ".claude/skills/vllm-recipe-explorer/scripts/selftest_gmu_roles_batch.py"], {0}),
     ]
 
-    with tempfile.TemporaryDirectory(prefix="easy-vllm-wiki-distribution.") as wiki:
-        checks += [
-            _run("wiki_init", [sys.executable, ".claude/skills/wiki-desk/scripts/init_wiki_desk.py",
-                 "--project-root", str(REPO), "--wiki-root", wiki, "--answers",
-                 ".claude/skills/wiki-desk/fixtures/project_init_answers.yaml"], {0}),
-            _run("wiki_lint", [sys.executable, ".claude/skills/wiki-desk/scripts/lint_wiki.py",
-                 "--project-root", str(REPO), "--wiki-root", wiki], {0}),
-            _run("wiki_query_negative_honesty", [sys.executable,
-                 ".claude/skills/wiki-desk/scripts/smoke_query.py", "--wiki-root", wiki,
-                 "--query", "terraforming manifest"], {0, 2}),
-        ]
+    # 사서(wiki-desk · TS · plan_26101912): 패키지 자신의 배포 게이트 = 결정론 회귀(node:test ·
+    #   동시성 규정 포함) + 명명 SSOT 자체검사 + 파이썬 shim 의 교차검증. 위키 실물이 없는 배포 클론에서도 돈다.
+    #   파일 집합·바이트 무결성은 git 이 든다(PACKAGE_MANIFEST.json 은 두지 않는다 — policy:GIT_SINGLE_AUTHORITY 중복층).
+    _wd = ".claude/skills/wiki-desk"
+    checks += [
+        _run("wiki_node_test", ["node", "--test"], {0}, cwd=REPO / _wd),
+        _run("wiki_doc_naming_selftest", ["node", f"{_wd}/src/doc_naming.ts", "--self-test"], {0}),
+        _run("doc_naming_shim_selftest", [sys.executable, ".claude/policies/runtime/doc_naming.py", "--self-test"], {0}),
+    ]
 
     policy_runner = REPO / ".claude/policies/runtime/policy_registry.py"
     if policy_runner.is_file():
