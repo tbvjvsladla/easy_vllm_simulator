@@ -69,6 +69,25 @@ def read_config_declares_engram_file(config_yaml):
     return False
 
 
+def read_env_declares_ple_mmap(env_file):
+    """셀 env 가 PLE mmap 을 **선언**했는가 — `VLLM_PLE_MMAP=1`(주석 줄 제외).
+
+    ★ 모드의 권위는 serve 평면의 선언이다. 선언 없이 PLE 를 상주에서 빼면 게이트가 없는 여유를 있다고 말한다
+      (Engram 파일 기반 보정과 같은 규약 · 2026-10-24 plan_26102420: 예산 선판정은 `ple_mib` 를 이미 반영하는데
+      이 로드-전 게이트만 빠져 있어, TP=1 에서는 mmap 셀이 구조적으로 통과할 수 없었다)."""
+    try:
+        with open(env_file, encoding="utf-8") as f:
+            for line in f:
+                if line.lstrip().startswith("#"):
+                    continue
+                m = re.match(r"\s*VLLM_PLE_MMAP\s*=\s*(\S+)", line)
+                if m and m.group(1).strip("'\"").lower() in ("1", "true", "yes"):
+                    return True
+    except OSError:
+        return False
+    return False
+
+
 def read_env_declares_engram_disk(env_file):
     """셀 env 가 디스크 Engram 을 **선언**했는가 — `DSV41_ENGRAM_DISK=1`(V4.1 day-0 계열 패치 런타임 ·
     sfxnz 레시피의 Engram-on-disk 스위치 · 2026-10-03 plan_26100319 R-1).
@@ -348,6 +367,17 @@ def main():
                         ckpt_gate = max(0, ckpt - _eng)
                         print("[NAS-check] engram=file-backed 선언 → 게이트 ckpt 에서 −%dMiB(상주 ✗)"
                               % int(_eng / (1024 * 1024)), file=sys.stderr)
+                    # ★ PLE mmap 보정(2026-10-24 · plan_26102420): 셀 env 가 `VLLM_PLE_MMAP=1` 을 **선언**했을 때만
+                    #   mmap 으로 빠지는 PLE 테이블 바이트를 게이트 ckpt 에서 뺀다. 산출 실패(None)·선언 없음 = 보정 0.
+                    if ckpt_gate and read_env_declares_ple_mmap(_env_cell):
+                        _n2 = len(warns)
+                        _plem = preload_ram_gate.offloadable_bytes_for(host_path, warnings=warns)
+                        for w in warns[_n2:]:
+                            print(f"[NAS-check] ⚠ {w}", file=sys.stderr)
+                        if _plem and _plem > 0:
+                            ckpt_gate = max(0, ckpt_gate - _plem)
+                            print("[NAS-check] PLE=mmap 선언 → 게이트 ckpt 에서 −%dMiB(상주 ✗)"
+                                  % int(_plem / (1024 * 1024)), file=sys.stderr)
                     res = preload_ram_gate.gate(ckpt_gate, tp=tp)
                     # ★ 예산 선언(plan_26081415 C3-2)의 파생 입력. 게이트 통과 여부와 **독립**으로
                     #   emit 한다 — 게이트가 거부하면 스모크는 어차피 멈추지만, 여기서 조건을 겹치면

@@ -19,6 +19,9 @@ x-gpu-common: &gpu-common
     - ${QUANT_MODEL_PATH:-/mnt/models}:/app/quant_models:ro # NVFP4/quant 별도 NAS(manifest.quant_model_path → --materialize-env). multi 통로와 동형
     - ${TIKTOKEN_HOST_PATH:-./tiktoken_cache}:/encodings:ro # tiktoken 평탄폴더(gpt-oss용). 변수명·기본값 align (P3 카탈로그)
     - ./configs:/app/configs:ro
+    # PLE n-gram 테이블의 로컬 NVMe mmap 스테이징 — multi 템플릿과 동형(2026-10-24 · plan_26102420: single 에만 빠져 있던 침묵 누락 교정).
+    #   셀 env 의 VLLM_PLE_MMAP=1 일 때만 읽힌다(env_file 로 도달). 미선언이면 기본값 /mnt/models 로 무해.
+    - ${PLE_MMAP_HOST_PATH:-/mnt/models}:/app/ple_mmap:ro
     # JIT/컴파일 캐시 영속(통로 self-containment — ./cache = output/<topology>/cache, gitignored).
     #   컨테이너 재생성마다 torch.compile AOT · flashinfer autotune 캐시가 증발해 매 기동이 **cold JIT** 이 되던 문제 교정.
     #   cold JIT 은 시간(≈12분 warmup)뿐 아니라 **호스트 하드다운 리스크**를 매번 새로 진다(uncapped nvcc 팬아웃 —
