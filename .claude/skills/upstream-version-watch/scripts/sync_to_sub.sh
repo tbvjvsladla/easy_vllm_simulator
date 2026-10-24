@@ -527,7 +527,7 @@ BAND2_EXCLUDED_TOP=(manifest.yaml sub_provision .env benchlog cache tiktoken_cac
 #   abandoned key directory can never reach a sub; it is not a render input or runtime dependency.
 #   sub_manifest.yaml=서브 manifest 의 **발급 원본**(서브 사본은 오버레이가 output/<t>/manifest.yaml 로 나른다).
 #   여기 등재는 배달 제외 + 삭제 보호 + 밴드 분류를 동시에 준다.
-BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3 solar31-nv4-1m-tp2)          # owner-local provenance-bound runtime patches; wildcard authority 금지
+BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3 solar31-nv4-1m-tp2 q38fn31-nv4-mmap-1m-tp2 q38fn31-fp8-1m-tp2)          # owner-local provenance-bound runtime patches; wildcard authority 금지
 # ↑ Dockerfile.source-build-upstage = Solar-Open2 변종 트랙(UpstageAI 포크 @ v0.22.0-solar-open2).
 #   Band2 편입 근거 = **빌드-평면**: 멀티는 클러스터-와이드 이미지라 슬레이브도 동일 이미지를 빌드해야 한다
 #   (헌법 변종이미지 build-plane ≠ serve-plane 따름정리 · workflow.md S2.5). 모델-키잉 ✗ — track 은 포크
