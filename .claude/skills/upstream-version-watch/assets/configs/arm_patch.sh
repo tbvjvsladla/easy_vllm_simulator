@@ -12,7 +12,8 @@
 #   (어기면 그 이미지로 뜨는 모든 모델의 site-init 이 깨진다 — 헌법 패치 작성 규칙.)
 # 통로: serve_runner.sh(멀티 양노드)가 source · gen_recipe_set 생성 model.sh(단일/모드2)가 source.
 
-_cfg="${CONFIG_FILE:-default}"
+# 패치 키: RUNTIME_PATCH_STEM(셀 env 가 선언 · slave 로도 전달) > CONFIG_FILE — slave 는 CONFIG_FILE=default 라 model-keyed 패치를 못 찾던 침묵 누락 교정(2026-10-24 Solar-Open2)
+_cfg="${RUNTIME_PATCH_STEM:-${CONFIG_FILE:-default}}"
 _patch="/app/configs/${_cfg}_patch.py"
 if [ -f "$_patch" ]; then
     _sp="$(python3 -c 'import sysconfig;print(sysconfig.get_paths()["purelib"])' 2>/dev/null || true)"

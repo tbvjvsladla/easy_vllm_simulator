@@ -87,6 +87,7 @@ WHY: dict[str, str] = {
     "PLE_MMAP_HOST_PATH": "2026-09-09(camp-26090918): PLE mmap 로컬 NVMe 스테이징 마운트원 — slave 도 같은 경로에 실재해야 한다.",
     "VLLM_PLE_MMAP": "2026-09-09(62-qwen4exp-ple-mmap): Ray 워커도 가중치를 올린다 — 마스터만 켜면 slave 는 상주 "
                      "로드로 OOM/불일치.",
+    "RUNTIME_PATCH_STEM": "2026-10-24(Solar-Open2 자체 이식 플러그인): slave 는 CONFIG_FILE=default 라 model-keyed 런타임 패치를 arming 못 했다 — Ray 워커가 모델 클래스를 import 하는 모델은 slave 가 패치를 먹어야 뜬다. 패치 stem 만 별도 키로 전달(비면 생략 = 종전 동작).",
     "VLLM_PLE_MMAP_DIR": "2026-09-09: 워커 로컬 mmap 스테이징 경로 — 마스터와 같은 값이어야 한다.",
 }
 _WHY_DERIVED = "compose 참조에서 자동 파생(기록된 사고 이력 없음 — 새 변수)"
@@ -413,7 +414,7 @@ _TRIPWIRE_GROUPS = {
     "build_tuning": ["BUILD_JOBS"],
     "cluster": ["SLAVE_CONTAINER_NAME", "SLAVE_HOST_IP", "MASTER_HOST_IP", "RAY_PORT"],
     "mount": ["NAS_MODEL_PATH", "QUANT_MODEL_PATH", "TIKTOKEN_HOST_PATH", "PLE_MMAP_HOST_PATH"],
-    "serve_env": ["VLLM_PLE_MMAP", "VLLM_PLE_MMAP_DIR"],
+    "serve_env": ["RUNTIME_PATCH_STEM", "VLLM_PLE_MMAP", "VLLM_PLE_MMAP_DIR"],
 }
 # 태그2 셀(nv4-bf-262k-mmp · camp-26091216)의 셀 env 형상(운영자 값 없음 — 이름·태그·ref 뿐).
 _TAG2_CELL_ENV = """# fixture
@@ -459,6 +460,7 @@ services:
     container_name: ${MASTER_CONTAINER_NAME:-m}
     environment:
       CONFIG_FILE: ${CONFIG_FILE:-default}
+      RUNTIME_PATCH_STEM: ${RUNTIME_PATCH_STEM:-}
       MASTER_ONLY: ${MASTER_ONLY:-x}
   vllm-slave-serve:
     <<: *gpu-common
@@ -470,6 +472,7 @@ services:
       HEAD_NODE_IP: ${MASTER_HOST_IP}
       RAY_PORT: ${RAY_PORT:-6379}
       CONFIG_FILE: ${CONFIG_FILE:-default}
+      RUNTIME_PATCH_STEM: ${RUNTIME_PATCH_STEM:-}
       ESCAPED: $${NOT_A_REF_EITHER}
       VLLM_PLE_MMAP: ${VLLM_PLE_MMAP:-0}
       VLLM_PLE_MMAP_DIR: ${VLLM_PLE_MMAP_DIR:-/app/ple_mmap/q38fn-nvfp4}

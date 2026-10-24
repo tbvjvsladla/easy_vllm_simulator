@@ -527,7 +527,7 @@ BAND2_EXCLUDED_TOP=(manifest.yaml sub_provision .env benchlog cache tiktoken_cac
 #   abandoned key directory can never reach a sub; it is not a render input or runtime dependency.
 #   sub_manifest.yaml=서브 manifest 의 **발급 원본**(서브 사본은 오버레이가 output/<t>/manifest.yaml 로 나른다).
 #   여기 등재는 배달 제외 + 삭제 보호 + 밴드 분류를 동시에 준다.
-BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)          # owner-local provenance-bound runtime patches; wildcard authority 금지
+BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3 solar31-nv4-1m-tp2)          # owner-local provenance-bound runtime patches; wildcard authority 금지
 # ↑ Dockerfile.source-build-upstage = Solar-Open2 변종 트랙(UpstageAI 포크 @ v0.22.0-solar-open2).
 #   Band2 편입 근거 = **빌드-평면**: 멀티는 클러스터-와이드 이미지라 슬레이브도 동일 이미지를 빌드해야 한다
 #   (헌법 변종이미지 build-plane ≠ serve-plane 따름정리 · workflow.md S2.5). 모델-키잉 ✗ — track 은 포크
@@ -1268,6 +1268,30 @@ prepare_transactional_source() {
         else
             echo "[sync] info: optional render input absent: output/$topology/$render_input" >&2
         fi
+    done
+    # ★ 런타임 패치(Band2 예외 · BAND2_RUNTIME_PATCH_STEMS) 는 **비추적**이 계약이다(휘발 · 해시 사이드카가 그 바이트를
+    #   묶는다 — 추적하면 사이드카의 digest 가 git 이 든 blob 과 겹쳐 단일 권위 tripwire 가 울린다 · 2026-10-24 실측).
+    #   인덱스 권위가 이 둘을 스냅샷에 못 싣는 침묵 누락을 막기 위해, 등재된 stem 의 패치 + 사이드카 **쌍**만 파일시스템에서
+    #   복사한다(manifest 와 같은 부류의 예외 · 쌍이 안 맞으면 복사 ✗ → 하류 validate_runtime_patches 가 fail-loud).
+    local _pstem _pdst _pin
+    for topology in "${TARGETS[@]}"; do
+        for _pstem in "${BAND2_RUNTIME_PATCH_STEMS[@]}"; do
+            if [ -f "${CANONICAL_SRC}output/$topology/configs/${_pstem}_patch.py" ] && [ -f "${CANONICAL_SRC}output/$topology/configs/${_pstem}_patch.provenance.json" ]; then
+                _pdst="$TRANSACTIONAL_SRC/output/$topology/configs"
+                mkdir -p "$_pdst" || return 9
+                install -m 0644 "${CANONICAL_SRC}output/$topology/configs/${_pstem}_patch.py" "$_pdst/" || return 9
+                install -m 0644 "${CANONICAL_SRC}output/$topology/configs/${_pstem}_patch.provenance.json" "$_pdst/" || return 9
+                # 사이드카 검증(validate_runtime_patches)이 같은 stem 의 모델 입력(.sh/.yaml/.env)을 읽는다 — 스냅샷에만 싣고
+                #   Band3 필터(_band2_filters)가 서브 배달에서 제외한다(triplet 서브 미전파 불변).
+                for _pin in "configs/${_pstem}.sh" "configs/${_pstem}.yaml" "envs/.env.${_pstem}"; do
+                    if [ -f "${CANONICAL_SRC}output/$topology/$_pin" ]; then
+                        mkdir -p "$TRANSACTIONAL_SRC/output/$topology/$(dirname "$_pin")" || return 9
+                        install -m 0644 "${CANONICAL_SRC}output/$topology/$_pin" "$TRANSACTIONAL_SRC/output/$topology/$_pin" || return 9
+                    fi
+                done
+                echo "[sync] info: 런타임 패치 쌍 스냅샷 편입(비추적 · 파일시스템): output/$topology/configs/${_pstem}_patch.{py,provenance.json}" >&2
+            fi
+        done
     done
     SRC="$TRANSACTIONAL_SRC/"
     RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
