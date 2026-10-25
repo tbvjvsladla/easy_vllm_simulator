@@ -1886,7 +1886,9 @@ def _ledger_span_lines(f: dict) -> list[str]:
             parts.append(f"{_cell(x.get('node'))} = 원장 없음(이 노드의 사건은 관측 대상 밖)")
             outs.append(str(x.get("node")))
             continue
-        parts.append(f"{_cell(x.get('node'))} = {_cell(x.get('first_utc'))} → {_cell(x.get('last_utc'))}({files})")
+        sh = [p for p in (x.get("shadowed_local_copies") or []) if p]
+        parts.append(f"{_cell(x.get('node'))} = {_cell(x.get('first_utc'))} → {_cell(x.get('last_utc'))}({files}"
+                     + (f" · 회수 미러가 가린 옛 로컬 사본 {' · '.join(f'`{_cell(p)}`' for p in sh)}" if sh else "") + ")")
         if x.get("covers_measurement") is False:
             # 2026-10-16(plan_26101614 P12 lite 사실 검증 F9): 이 체크아웃 노드의 로컬 원장(live_local)은 미회수가 아니다 — 블랙박스가
             #   계속 쓰는 파일이라 마지막 행 뒤 행 없음은 조회 시각까지 관측된 것이다. 측정 끝 > 마지막 행이라는 사실은 그대로 적는다.
@@ -4640,6 +4642,10 @@ def selftest() -> list[str]:
         ck("★F9 live_local False(회수본) 노드 문구는 그대로 '관측 범위 밖 · 원장 미회수'",
            "원장 미회수" in et8 and "미회수 아님" not in et8
            and "원장 미회수" in _f_event_timeline(_Ctx(repo, dict(facts_json, event_ledger_spans=[spans_l[0], dict(spans_[1], live_local=False)]), tpls)))
+        sh_ = _ledger_span_lines({"event_ledger_spans": [dict(spans_[1], live_local=False, shadowed_local_copies=[
+            "docs/logs/sub/events/2026-09.jsonl"])]})
+        ck("F8 회수 미러가 가린 옛 로컬 사본은 범위 줄에 기재(조용히 버리지 않는다)",
+           "회수 미러가 가린 옛 로컬 사본 `docs/logs/sub/events/2026-09.jsonl`" in "\n".join(sh_))
         echo_ = {"log": "docs/simlog/r/serve.log", "basis": "같은 기동 판별", "rows": [
             {"ts": "2026-09-23T00:10:03Z", "kind": "budget_honored", "label": "smoke-x", "source": "docs/simlog/r/serve.log:26"}]}
         spans_e = [spans_[0], dict(spans_[1], smoke_echo=echo_)]
