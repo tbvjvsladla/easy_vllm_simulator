@@ -1853,8 +1853,10 @@ _EVENT_CLOSE_KINDS = ("budget_clear", "budget_none", "budget_expired")
 # 라벨 없는 행 중 열린 선언 창에 귀속하는 종류(닫힌 목록 · tripwire). 선언 슬롯은 노드당 하나다(blackbox_session `serve_budget.env`
 #   단일 파일 · cmd_clear_budget 가 그 파일을 지운다) — 라벨 없는 clear·사살은 그때 열린 창의 것이다. `*_nomatch`(대상 없음 · 행동 0)는
 #   싣지 않는다.
+#   `budget_rejected`(2026-10-25 · Solar 재생 사실검증 F4): 워치독(mem_watchdog_eta)이 선언 파일을 거부한 행은 라벨이 없다 — 이 목록에
+#   없어서 창에서 빠졌고, 시도 표는 원장에 있는 거부를 "거부 없음" 이라 적었다(template `_ATTEMPT_ALERT` 는 이미 이 kind 를 센다).
 _EVENT_WINDOWED_KINDS = ("budget_clear", "budget_none", "budget_expired", "watchdog_trip", "watchdog_kill_ack",
-                         "watchdog_highrate_hold", "thermal_trip", "thermal_kill_ack", "earlyoom_kill")
+                         "watchdog_highrate_hold", "thermal_trip", "thermal_kill_ack", "earlyoom_kill", "budget_rejected")
 # detail 에 옮기는 필드(닫힌 목록 · 양성 목록). 원장 행에는 운영자 절대경로(`decl_path`)·boot_id 가 섞인다 — 배포 평면(PAYLOAD·00~03)에
 #   가는 것은 이 목록뿐이다(부정 목록이면 producer 가 새 경로 칸을 더하는 순간 새어 나간다).
 _EVENT_DETAIL_FIELDS = ("floor_mib", "weights_mib", "kv_mib", "overhead_mib", "mem_total_mib", "ttl_s", "remaining_before_s",
@@ -4355,6 +4357,22 @@ def _assemble(repo: Path, ev: CellEvidence, *, measured_key: str | None, simlog_
         ev.build_identity["source"]["vllm_sha"] = (
             f"빌드 원장 vllm.git_sha({(ev.attestation or {}).get('_path')} · 포크 VLLM_REPO — resolved.json 은 업스트림 해소라 쓰지 않는다)"
             if ev.build_identity["vllm_sha"] else "미관측(포크 VLLM_REPO · 빌드 원장 vllm.git_sha 없음 — D-h: 이름은 차단된다)")
+    elif not ev.build_identity.get("vllm_sha"):
+        # 업스트림 저장소의 릴리스·브랜치 ref 인데 resolved.json 이 묶이지 않으면(재생 · 캠페인 purge) 위 두 원천이 비어
+        #   40자 SHA 가 "미관측" 으로 떨어졌다 — 그런데 빌드 원장은 이미지 안에서 `vllm.git_sha` 를 **측정**해 들고 있다
+        #   (2026-10-25 Solar 재생 사실 검증 F1). 원장 SHA 는 실제로 빌드된 커밋이므로 비어 있을 때만 채우고(해소값·커밋 핀을
+        #   덮어쓰지 않는다) 출처를 밝힌다. 노드 정합(parity.vllm_sha)이 있으면 그 판정도 함께 적는다.
+        led_sha = str(_ledger_vllm(ev.attestation).get("git_sha") or "").strip().lower()
+        if _SHA40.match(led_sha):
+            pv = (((ev.attestation or {}).get("parity") or {}).get("vllm_sha") or {}) \
+                if isinstance((ev.attestation or {}).get("parity"), dict) else {}
+            desc = _ledger_vllm(ev.attestation).get("describe")
+            ev.build_identity["vllm_sha"] = led_sha
+            ev.build_identity["source"]["vllm_sha"] = (
+                f"빌드 원장 vllm.git_sha({(ev.attestation or {}).get('_path')} · measured build-time in-image"
+                + (f" · describe={desc}" if desc else "")
+                + (f" · parity.vllm_sha={pv.get('verdict')}" if isinstance(pv, dict) and pv.get("verdict") else "")
+                + " — resolved.json 미바인딩)")
     if not (Path(repo) / core.REL_PII_TERMS).exists():
         missing.append("HINT_MISSING_PII_TERMS")
     ev.missing = sorted(set(missing))
@@ -6442,7 +6460,10 @@ def _fixture(td: Path) -> tuple[Path, dict]:
         {"kind": "watchdog_highrate_hold", "mem_avail_mib": 60000, "rate_mib_s": 25000, "ts": "2026-01-02T02:31:00Z"},
         {"kind": "budget_none", "arm_ceiling_mib": 999999999, "ts": "2026-01-02T03:10:01Z"},
         # ★같은 파일 · 같은 초 · 같은 kind 의 두 번째 행(사본이 아니다 — 합치면 안 된다 · 2026-09-22 round 2 리뷰)
-        {"kind": "watchdog_highrate_hold", "mem_avail_mib": 59000, "rate_mib_s": 26000, "ts": "2026-01-02T02:31:00Z"})),
+        {"kind": "watchdog_highrate_hold", "mem_avail_mib": 59000, "rate_mib_s": 26000, "ts": "2026-01-02T02:31:00Z"},
+        # ★2026-10-25 Solar 재생 F4 실물 모양(watchdog.jsonl:759): 창이 닫히기 직전 라벨 없는 워치독 거부 행 — 창에 귀속돼야 한다
+        {"kind": "budget_rejected", "source": "mem_watchdog_eta", "mode": "armed", "arm_ceiling_mib": 999999999,
+         "reason": "floor_mib/expires_epoch 파싱 실패", "ts": "2026-01-02T03:10:00Z"})),
         encoding="utf-8")
     (ev_dir / "thermal.jsonl").write_text("".join(json.dumps(x) + "\n" for x in (
         {"kind": "thermal_trip", "soc_temp_c": 99, "ts": "2026-01-02T01:45:00Z"},
@@ -6680,6 +6701,9 @@ def _selftest_round2(ck, repo: Path, td: Path, ev: CellEvidence, ident: dict) ->
        ("budget_clear", "2026-01-02T03:10:00Z"), ("budget_none", "2026-01-02T03:10:01Z"),
        ("watchdog_highrate_hold", "2026-01-02T02:31:00Z"), ("thermal_trip", "2026-01-02T02:45:00Z")}
        <= {(r["kind"], r["utc"]) for r in tl})
+    ck("★F4 라벨 없는 워치독 budget_rejected(창 닫힘 직전) = 열린 창에 귀속 · 행 라벨 None · 출처 watchdog.jsonl",
+       any(r["kind"] == "budget_rejected" and r["utc"] == "2026-01-02T03:10:00Z" and r["label"] is None
+           and "라벨 없음 → smoke-c1-a 선언 창 귀속" in r["detail"] and "watchdog.jsonl" in r["source"] for r in tl))
     ck("★접두만 같은 다른 셀 라벨(smoke-c1-a-kv8g)의 창과 그 창의 사살·clear·thermal 은 싣지 않는다",
        "kv8g" not in dump and not any(r["utc"] in ("2026-01-02T01:45:00Z", "2026-01-02T01:50:00Z") for r in tl))
     ck("★nomatch 판정·다른 셀 세션·창 밖 pre-clear 는 싣지 않는다", "nomatch" not in dump and "c1-ab" not in dump
@@ -8230,6 +8254,33 @@ def selftest() -> list[str]:
                ev_v2.attestation is not None and "HINT_MISSING_ATTESTATION_PARITY_ROWS" not in ev_v2.missing)
             ck("artifacts 이음매 — 묶인 attestation 경로 = lineage_seeds.attestation",
                ev_v2.lineage_seeds.get("attestation") == "output/multi/benchlog/attestation_c1-a.json")
+            # ★2026-10-25 Solar 재생 F1(실물 모양: 업스트림 릴리스 ref · resolved.json 미바인딩(캠페인 purge) · v2 attestation 의
+            #   nodes.main.build_ledger.vllm.git_sha + parity.vllm_sha equal): 원장 SHA 를 출처와 함께 싣는다(옛 판본 = 미관측).
+            sha_l = "d" * 40
+            v2l = json.loads(json.dumps(v2))
+            v2l["nodes"]["main"]["build_ledger"]["vllm"]["git_sha"] = sha_l
+            v2l["parity"]["vllm_sha"] = {"verdict": "equal", "main": sha_l, "sub": sha_l}
+            core.write_json(attp, v2l)
+            rsv_p = repo / "output/multi/resolved.json"
+            rsv_b = rsv_p.read_bytes()
+            ev_bound = from_campaign(repo, "c1", "c1-a", docker=dk)
+            rsv_p.unlink()
+            try:
+                ev_led = from_campaign(repo, "c1", "c1-a", docker=dk)
+                v2n = json.loads(json.dumps(v2l))
+                v2n["nodes"]["main"]["build_ledger"]["vllm"].pop("git_sha")
+                core.write_json(attp, v2n)
+                ev_none = from_campaign(repo, "c1", "c1-a", docker=dk)
+            finally:
+                rsv_p.write_bytes(rsv_b)
+            ck("★F1 resolved.json 미바인딩 + 원장 vllm.git_sha = vllm_sha(출처 = 빌드 원장 · describe · parity 판정)",
+               ev_led.build_identity.get("vllm_sha") == sha_l and "HINT_MISSING_RESOLVE" in ev_led.missing
+               and "빌드 원장 vllm.git_sha" in ev_led.build_identity["source"]["vllm_sha"]
+               and "describe=v0.9.0" in ev_led.build_identity["source"]["vllm_sha"]
+               and "parity.vllm_sha=equal" in ev_led.build_identity["source"]["vllm_sha"])
+            ck("★F1 음성대조: resolved.json 이 묶이면 해소값 유지(원장이 덮지 않는다) · 원장 SHA 도 없으면 미관측(지어내지 않는다)",
+               ev_bound.build_identity.get("vllm_sha") == _SHA_A and ev_none.build_identity.get("vllm_sha") is None)
+            core.write_json(attp, v2)
             v2["parity"] = {"vllm_sha": {"verdict": "unobservable"}, "torch": {"verdict": "unobservable"}}
             core.write_json(attp, v2)
             ck("★v2 의 모든 축 unobservable = 대조 행 결손", "HINT_MISSING_ATTESTATION_PARITY_ROWS"

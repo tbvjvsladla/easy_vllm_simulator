@@ -1704,7 +1704,9 @@ def require_documents(lineage: dict) -> None:
 #   봉인 시점 sha256. 비추적 docs 는 git 이 바이트를 들지 않으므로 GIT_SINGLE_AUTHORITY 2문항상 **맹점층**(기록 정당) — verify 는
 #   이 스냅샷과 현재 출처가 다르면 출처 의존 린트 코드를 FAIL 대신 INFO 로 강등한다(V5 · DS4F 봉인 13초 뒤 devlog 정정).
 LINEAGE_FULL_NAME = "LINEAGE.full.json"      # draft `inputs/` 안(발행자 평면)
-SUMMARY_SCHEMA_VERSION = 2
+# v3(2026-10-25): documents[] 의 `stem` 칸을 뺐다 — `path` 의 파일명(확장자 제외)에서 그대로 파생되는 중복이었다(79문서 계보에서
+#   요약의 ~40% · Qwen 재생 발행이 상한에 막힌 원인). 발췌 머리 `[원문] <stem>` 은 path 의 파일명으로 대조한다(린트는 전체 계보를 읽는다).
+SUMMARY_SCHEMA_VERSION = 3
 SUMMARY_KIND = "receiver-summary"
 # 수신자 요약 상한(국소 상수 · plan §7 AC9 "zip 안 LINEAGE 요약 ≤ 20KB"). 넘으면 요약이 아니라 전사다 — 발행을 막는다.
 SUMMARY_MAX_BYTES = 20 * 1024
@@ -1714,7 +1716,8 @@ SEALED_SOURCES_KEY = "sealed_sources"
 def receiver_summary(full: dict, *, excerpt_counts: dict | None = None, sealed_sources: list | None = None) -> dict:
     """전체 LINEAGE(derive 산출) → 페이로드용 수신자 요약(순수 · 부작용 0).
 
-    documents[] = {stem, path, role(= kind), date(= date_key · KST YYMMDDHH), depth, excerpts(이 페이로드가 그 문서에서 인용한 발췌 수)}
+    documents[] = {path, role(= kind), date(= date_key · KST YYMMDDHH), depth, excerpts(이 페이로드가 그 문서에서 인용한 발췌 수)} —
+    stem 은 싣지 않는다(path 파일명에서 파생 · v3).
     evidence_candidates = {count, cited[{path, excerpts}]} — 후보 원문 경로 전체는 싣지 않는다(인용된 것만).
     sealed_sources 가 주어지면(봉인 시점 · continue) 그대로 싣는다 — 없으면 키 자체가 없다(publish 스캐폴드 · 스냅샷 전).
     결과가 SUMMARY_MAX_BYTES 를 넘으면 HINT_LINEAGE_SUMMARY_TOO_LARGE(요약이 전사로 자라지 않게 · fail-closed)."""
@@ -1726,14 +1729,14 @@ def receiver_summary(full: dict, *, excerpt_counts: dict | None = None, sealed_s
         if not isinstance(d, dict) or not d.get("path"):
             continue
         p = str(d["path"])
-        docs.append({"stem": PurePosixPath(p).stem, "path": p, "role": d.get("kind"), "date": d.get("date_key"),
+        docs.append({"path": p, "role": d.get("kind"), "date": d.get("date_key"),
                      "depth": d.get("depth"), "excerpts": counts.get(p, 0)})
     doc_paths = {x["path"] for x in docs}
     cands = [c for c in (full.get("evidence_candidates") or ()) if isinstance(c, dict) and c.get("path")]
     cited = sorted((p, n) for p, n in counts.items() if p not in doc_paths)
     method = full.get("method") if isinstance(full.get("method"), dict) else {}
     out = {"schema_version": SUMMARY_SCHEMA_VERSION, "kind": SUMMARY_KIND,
-           "note": ("수신자 요약 — 서사가 읽은 계보 문서의 stem · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 "
+           "note": ("수신자 요약 — 서사가 읽은 계보 문서의 경로(발췌 머리 stem = 파일명) · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 "
                     "기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6)."),
            "publish_kst": method.get("publish_kst"), "depth": method.get("depth"),
            "documents": docs,
@@ -2275,9 +2278,10 @@ def selftest() -> list[str]:
         # ── 수신자 요약 · 봉인 출처 스냅샷(2026-09-29 · plan_26092908 §4.6·§4.9) ──
         d0 = lin["documents"][0]["path"]
         summ = receiver_summary(lin, excerpt_counts={d0: 2, "docs/simlog/26010600_run/sweep_index.json": 1})
-        ck("요약: 문서 수 = 전체 · stem · 역할 · 날짜 · 발췌 수만(해시 · via ✗)", len(summ["documents"]) == len(lin["documents"])
-           and summ["documents"][0]["excerpts"] == 2 and summ["documents"][0]["stem"] == PurePosixPath(d0).stem
-           and not any(k in summ["documents"][0] for k in ("sha256", "via", "commit"))
+        ck("요약: 문서 수 = 전체 · 경로 · 역할 · 날짜 · 발췌 수만(해시 · via ✗ · path 파생 stem 중복 ✗ v3)",
+           len(summ["documents"]) == len(lin["documents"])
+           and summ["documents"][0]["excerpts"] == 2 and summ["documents"][0]["path"] == d0
+           and not any(k in summ["documents"][0] for k in ("sha256", "via", "commit", "stem"))
            and SEALED_SOURCES_KEY not in summ and summ["kind"] == SUMMARY_KIND)
         ck("요약: 후보는 수 + 인용된 것만", summ["evidence_candidates"]["count"] == len(lin["evidence_candidates"])
            and summ["evidence_candidates"]["cited"] == [{"path": "docs/simlog/26010600_run/sweep_index.json", "excerpts": 1}])
@@ -2290,6 +2294,16 @@ def selftest() -> list[str]:
             ck("★요약 상한 초과 = HINT_LINEAGE_SUMMARY_TOO_LARGE", False)
         except core.HintError as e:
             ck("★요약 상한 초과 = HINT_LINEAGE_SUMMARY_TOO_LARGE(code)", e.code == "HINT_LINEAGE_SUMMARY_TOO_LARGE")
+        # ★실물 모양(2026-10-25 Qwen 재생 · 79문서 · 경로 평균 ~73 B · 한글 slug): v2(stem 중복)는 21,607 B 로 상한에 막혔다 — v3 는 통과해야 하고,
+        #   같은 문서에 stem 을 되살리면 상한을 넘어야 한다(픽스처가 실물보다 좁지 않다는 대조).
+        q79 = {**lin, "documents": [{**lin["documents"][0], "kind": ("plan", "testlog", "devlog", "bench_report")[i % 4],
+                                     "path": f"docs/testlog/testlog_2610{i:04d}_q38fn_nv4_멀티_캠페인_판정_{i:02d}.md"}
+                                    for i in range(79)], "evidence_candidates": [{"path": f"x{i}"} for i in range(276)]}
+        s79 = receiver_summary(q79)
+        v2_like = {**s79, "documents": [{**x, "stem": PurePosixPath(x["path"]).stem} for x in s79["documents"]]}
+        ck("★실물 모양 79문서 요약 = 상한 안(v3 · stem 칸 없음) · 같은 문서에 stem 을 되살리면 상한 초과(픽스처 폭 대조)",
+           len(core.dumps(s79).encode()) <= SUMMARY_MAX_BYTES and all("stem" not in x for x in s79["documents"])
+           and len(core.dumps(v2_like).encode()) > SUMMARY_MAX_BYTES and s79["schema_version"] == SUMMARY_SCHEMA_VERSION == 3)
         ss = sealed_sources(repo, [d0, d0])
         ck("봉인 스냅샷: 중복 제거 · sha256 = 현재 바이트", ss == [{"path": d0, "sha256": hashlib.sha256(
             (repo / d0).read_bytes()).hexdigest()}])
