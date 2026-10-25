@@ -1,0 +1,24 @@
+# 셀 solar-open2-nv4-1m-tp2 — camp-26102412-multi-sol-q38 (plan_26102412)
+# 선언 축: vLLM 0.31.0 stock + 런타임 패치(자체 이식 플러그인 · provenance hand-ported) · NVFP4 · kv=fp8_e4m3 · ctx=1048576(native · rope_scaling 없음 → YaRN 없음)
+# 서빙 인자 근거: HF upstage/Solar-Open2-250B 카드(parsers · logits-processor · enable-expert-parallel) · --moe-backend triton 은 0.31 NVFP4 오라클에 없음 → marlin 먼저
+model: /app/quant_models/Upstage/Solar-Open2-250B-Nota-NVFP4
+host: 0.0.0.0
+port: 8080
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+enable-expert-parallel: true
+moe-backend: marlin
+gpu-memory-utilization: 0.80
+max-model-len: 1048576
+kv-cache-dtype: fp8_e4m3
+kv-cache-memory-bytes: 15032385536
+enforce-eager: true
+# async-scheduling: false  ← 무효(설정 파서가 false 를 버림) · .sh 의 --no-async-scheduling 이 실효
+max-num-seqs: 1
+max-num-batched-tokens: 2048
+reasoning-parser: solar_open2
+tool-call-parser: solar_open2
+enable-auto-tool-choice: true
+# 모델 카드 권장 인자(plan_26102420 S4 완결 이식): V2 인터페이스로 재저작한 템플릿 강제 logits processor + think_render_option=preserved
+logits-processors: solar_open2_plugin.logits_processor:SolarOpen2TemplateLogitsProcessor
+default-chat-template-kwargs: '{"think_render_option":"preserved"}'

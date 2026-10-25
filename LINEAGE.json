@@ -1,0 +1,182 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26102401",
+      "depth": 1,
+      "excerpts": 1,
+      "path": "docs/plan/plan_26102401_4모델_싱글멀티_최대context_양자화_기동검증.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102412",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/plan/plan_26102412_4모델_멀티캠페인_Solar_Qwen_TP2_최대context.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102412",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102412_4model_싱글캠페인_릴레이요약_종결.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102413",
+      "depth": 3,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26102413_solar_open2_stock_0.31.0_아키텍처_미지원_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102418",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102418_4모델_싱글멀티_연속캠페인_결과요약_종결.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102418",
+      "depth": 2,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26102418_solar_open2_nvfp4_멀티_TP2_1M_자체이식_기동_needle_lite_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102420",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102420_PLE_mmap_재이식_full벤치_hint_Solar_슬롯화.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102504",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26102504_S5_full벤치_5셀_GuideLLM_판정_및_하네스_결함.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102504",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26102504_PLE_mmap_재이식_full벤치_hint발행_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102512",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102512_solar-open2-250b-nota-nvfp4_GB10_0.31.0.md",
+      "role": "bench_report"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [
+      {
+        "excerpts": 1,
+        "path": "docs/logs/main/events/2026-10.jsonl"
+      },
+      {
+        "excerpts": 1,
+        "path": "output/multi/benchlog/serve_fail_solar31-nv4-1m-tp2/master_exited.log"
+      },
+      {
+        "excerpts": 1,
+        "path": "output/multi/benchlog/serve_fail_solar31-nv4-1m-tp2/master_failure.log"
+      },
+      {
+        "excerpts": 1,
+        "path": "output/multi/benchlog/sweep_solar31-nv4-1m-tp2/level_01/dataset_solar31-nv4-1m-tp2.json"
+      },
+      {
+        "excerpts": 2,
+        "path": "output/multi/benchlog/sweep_solar31-nv4-1m-tp2/lite_engine_solar31-nv4-1m-tp2.log"
+      }
+    ],
+    "count": 56
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 경로(발췌 머리 stem = 파일명) · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26102513",
+  "schema_version": 3,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26102512_solar-open2-250b-nota-nvfp4_GB10_0.31.0.md",
+      "sha256": "1222e33f593a7b55cff089f8304d40de1cf92a76bc46a4bddbba7d34bb7bc60e"
+    },
+    {
+      "path": "docs/devlog/devlog_26102504_PLE_mmap_재이식_full벤치_hint발행_서사.md",
+      "sha256": "70a4364dd3524e870a2981d0d0e88018c384c3dbeccf51ec63e3254767466161"
+    },
+    {
+      "path": "docs/logs/main/events/2026-10.jsonl",
+      "sha256": "98ecaf8e197b8a7d43b8051b4f906d8208a2e7bedc28ebba4d394ca261d4d609"
+    },
+    {
+      "path": "docs/logs/main/events/watchdog.jsonl",
+      "sha256": "9a26db455e61c932793461fa681003b3c92b64b5022faf4a36f5becadbb98e5b"
+    },
+    {
+      "path": "docs/plan/plan_26102401_4모델_싱글멀티_최대context_양자화_기동검증.md",
+      "sha256": "c1708fe0f296f68f7b98822c500dfebe41cb6176f4d51c10197c8f686c3431b6"
+    },
+    {
+      "path": "docs/plan/plan_26102412_4모델_멀티캠페인_Solar_Qwen_TP2_최대context.md",
+      "sha256": "7d3459e75ff75b39da8e4e46aa745ae88421e7c192c9137dbb109ed9f6782535"
+    },
+    {
+      "path": "docs/plan/plan_26102420_PLE_mmap_재이식_full벤치_hint_Solar_슬롯화.md",
+      "sha256": "b1458c88e21b53654b711c3335b45a65dc00e13f373ac249bcf9647c15744491"
+    },
+    {
+      "path": "docs/testlog/testlog_26102412_4model_싱글캠페인_릴레이요약_종결.md",
+      "sha256": "a02cd7ee5770ebd8952baeaac8ff52e093970cedab9c949569b3819a8a623456"
+    },
+    {
+      "path": "docs/testlog/testlog_26102413_solar_open2_stock_0.31.0_아키텍처_미지원_판정.md",
+      "sha256": "491c9ba1c475656f1f41f15ca04896298b3469027eecee9755b8f50aec6259b9"
+    },
+    {
+      "path": "docs/testlog/testlog_26102418_4모델_싱글멀티_연속캠페인_결과요약_종결.md",
+      "sha256": "7a85f9795f5f76507d7f48eda0f1926f040a26263ead3914d214fe0cae8fba02"
+    },
+    {
+      "path": "docs/testlog/testlog_26102418_solar_open2_nvfp4_멀티_TP2_1M_자체이식_기동_needle_lite_판정.md",
+      "sha256": "ee939d5b18150038370362db190e9ac4a6bf148c72ac843b93740fc270daf9d0"
+    },
+    {
+      "path": "docs/testlog/testlog_26102504_S5_full벤치_5셀_GuideLLM_판정_및_하네스_결함.md",
+      "sha256": "623891c180a261ed5b790c53cdad4cb6f77eeaf9ed3ce2b905a25bea55ce8316"
+    },
+    {
+      "path": "output/multi/benchlog/attestation_solar31-nv4-1m-tp2.json",
+      "sha256": "3970b830fc67d3a3b9d0847297575df1560b04edc27ecee1aba281c94374c298"
+    },
+    {
+      "path": "output/multi/benchlog/serve_fail_solar31-nv4-1m-tp2/master_exited.log",
+      "sha256": "4d201fbbd9253ec0d1ab95f09f5a03d12d63fd43540449e97f2dc9ecd85fa68d"
+    },
+    {
+      "path": "output/multi/benchlog/serve_fail_solar31-nv4-1m-tp2/master_failure.log",
+      "sha256": "357f891f0b0662567713c545005216c2df578757136d13ec31a4ce88a1ba0c7b"
+    },
+    {
+      "path": "output/multi/benchlog/serve_fail_solar31-nv4-1m-tp2/slave_failure.log",
+      "sha256": "3f54f6ed67180a39e97024fa5d947a5a73b88147ae5593ebada6076c702e8cd7"
+    },
+    {
+      "path": "output/multi/benchlog/sweep_solar31-nv4-1m-tp2/level_01/dataset_solar31-nv4-1m-tp2.json",
+      "sha256": "bfbff5e37a94b4d54d4385c7da95590f7c4916cc62c04322ebc7d547a7be5194"
+    },
+    {
+      "path": "output/multi/benchlog/sweep_solar31-nv4-1m-tp2/lite_engine_head_solar31-nv4-1m-tp2.log",
+      "sha256": "d466e3e2ea1f2430bd1702a29dccbdc53d80f4a8b2ee37e7264fb8528730a896"
+    },
+    {
+      "path": "output/multi/benchlog/sweep_solar31-nv4-1m-tp2/lite_engine_solar31-nv4-1m-tp2.log",
+      "sha256": "8c3aa96e2aeae8ea9ea934aeebadb376350e0293f398c746ed6936cb12781cac"
+    }
+  ]
+}

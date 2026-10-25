@@ -1,0 +1,31 @@
+{
+  "assembly_branch": "multi-node",
+  "generated_utc": "2026-10-25T04:10:00Z",
+  "payload_files": [
+    "00-hint.md",
+    "01-artifacts.md",
+    "02-narrative.md",
+    "03-benchmark.md",
+    "LINEAGE.json",
+    "PAYLOAD.json",
+    "PROVENANCE.json",
+    "README.md",
+    "artifacts/build_recipe/Dockerfile.source-build",
+    "artifacts/build_recipe/requirements.txt",
+    "artifacts/compose/.env.cluster.template",
+    "artifacts/compose/.env.interconnect.template",
+    "artifacts/compose/.env.template",
+    "artifacts/compose/arm_patch.sh",
+    "artifacts/compose/docker-compose.yaml",
+    "artifacts/compose/serve_runner.sh",
+    "artifacts/compose/sub_recipe.json",
+    "artifacts/runtime_patch/solar31-nv4-1m-tp2_patch.py",
+    "artifacts/triplet/.env.solar31-nv4-1m-tp2",
+    "artifacts/triplet/solar31-nv4-1m-tp2.sh",
+    "artifacts/triplet/solar31-nv4-1m-tp2.yaml"
+  ],
+  "schema_version": 2,
+  "source_anchor": "7f2cf71bfe0ecd9ab63d48d69d37dd133cc22f06",
+  "source_anchor_is_head": false,
+  "tag": "hint/0.31.0/solar-open2-250b-nota-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8"
+}
