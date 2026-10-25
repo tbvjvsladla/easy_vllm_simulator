@@ -1844,6 +1844,11 @@ def _label_kv_declared(repo: Path, ev: "CellEvidence", out: dict, per: dict) -> 
 #   으로 적혔다(#29). **사실은 기계가 싣고 해석은 저작자가 한다** — 이 절은 원장·엔진 로그의 행을 출처(파일:줄)와 함께 옮길 뿐
 #   판정하지 않는다(예: renew 0회를 "벤치 미진입" 이라 단정하지 않는다 — renew 는 run_bench 진입과 budget_renew_loop 둘 다 쓴다).
 REL_EVENTS_ROOT = "docs/logs"
+# 다른 노드의 원장 = fetch_sub_docs.sh 회수 미러(DEST 기본값 `sync_staging/sub_docs` = 서브 docs/ 사본) 아래 같은 모양(2026-10-25 · Qwen FP8
+#   재생 사실검증 F8). 옛 판본은 `docs/logs/<node>` 만 읽어, 손으로 둔 옛 사본(sub 2026-09.jsonl · 09-11 끝)이 관측 범위가 되고 미러(10-24 까지)는
+#   보이지 않았다. 발견 규칙의 정본은 adversarial-benchmark classify_cell.EVENTS_RECOVERED_PARTS(벤치 판정이 같은 미러를 스캔한다) —
+#   소유 모듈을 런타임에 적재하면 격리 픽스처가 깨지므로 값을 두고 자체검사가 실물과 교차대조한다(단일 소유 불가 → 교차검증).
+REL_EVENTS_RECOVERED_ROOT = "sync_staging/sub_docs/logs"
 REL_DOCS_RULES = ".claude/rules/docs.md"
 # 원장 라벨 = 러너가 붙인 `<접두>-<셀>`(multinode_serve_smoke `smoke-${CONFIG}` · single_serve_up `serve-$CONFIG`). 닫힌 목록 · 정확 일치 —
 #   접두 일치로 넓히면 `smoke-nv4-bf-262k-res-kv8g` 가 셀 `nv4-bf-262k-res` 의 기동으로 섞인다(2026-09-12 원장 실측).
@@ -1940,16 +1945,37 @@ def _measured_key(repo: Path, ev: CellEvidence) -> str | None:
 def _event_node_dirs(repo: Path, ev: CellEvidence) -> list[str]:
     """이 셀 노드 축의 블랙박스 노드 디렉터리(`docs/logs/<node_id>/events`). cluster = 선언 노드 전부(선언 없으면 있는 것 전부) ·
     main/sub = 그 역할의 선언 노드(선언 없으면 축 이름 = node_id — 이 저장소의 node_identity 관행)."""
-    base = repo / REL_EVENTS_ROOT
-    if not base.is_dir():
+    have = sorted({d.name for root in (REL_EVENTS_ROOT, REL_EVENTS_RECOVERED_ROOT) if (repo / root).is_dir()
+                   for d in (repo / root).iterdir() if d.is_dir() and (d / "events").is_dir()})
+    if not have:
         return []
-    have = sorted(d.name for d in base.iterdir() if d.is_dir() and (d / "events").is_dir())
     nodes = [n for n in ((ev.declaration or {}).get("nodes") or []) if isinstance(n, dict) and n.get("node_id")]
     if ev.node == "cluster":
         want = [str(n["node_id"]) for n in nodes] or have
     else:
         want = [str(n["node_id"]) for n in nodes if n.get("role") == ev.node] or [ev.node]
     return [w for w in dict.fromkeys(want) if w in have]
+
+
+def _node_event_files(repo: Path, node: str) -> tuple[list[Path], dict]:
+    """노드 원장 파일 목록(이름순) + 출처 {location, shadowed[]}. 이 체크아웃의 노드(_self_node) = `docs/logs/<node>/events` 만(블랙박스가
+    로컬에서 계속 쓰는 파일 · 미러가 덮지 않는다). 다른 노드(또는 이 노드 미해소) = 파일 이름마다 **회수 미러가 이긴다**(fetch_sub_docs 가
+    서브 원본을 rsync 한 최신 사본) · 미러에 없는 이름만 `docs/logs/<node>` 사본을 쓴다 — 두 자리를 다 읽으면 같은 사건이 두 번 실린다.
+    가려진 로컬 사본은 shadowed 로 적는다(조용히 버리지 않는다)."""
+    repo = Path(repo)
+    self_node, _src = _self_node(repo)
+    local = {f.name: f for f in sorted((repo / REL_EVENTS_ROOT / node / "events").glob("*.jsonl"))}
+    if self_node is not None and node == self_node:
+        return [local[k] for k in sorted(local)], {"location": f"{REL_EVENTS_ROOT}/{node}/events(이 체크아웃 노드 · 로컬)",
+                                                   "shadowed": []}
+    mirror = {f.name: f for f in sorted((repo / REL_EVENTS_RECOVERED_ROOT / node / "events").glob("*.jsonl"))}
+    chosen = {**local, **mirror}
+    shadowed = sorted(_rel(repo, local[k]) for k in local if k in mirror)
+    loc = (f"{REL_EVENTS_RECOVERED_ROOT}/{node}/events(fetch_sub_docs 회수 미러)" if mirror else
+           f"{REL_EVENTS_ROOT}/{node}/events(회수 미러 없음 — 로컬 사본)")
+    if mirror and any(k not in mirror for k in local):
+        loc += f" + {REL_EVENTS_ROOT}/{node}/events(미러에 없는 이름만)"
+    return [chosen[k] for k in sorted(chosen)], {"location": loc, "shadowed": shadowed}
 
 
 def _event_rows(path: Path) -> tuple[list[tuple[str, int, dict]], int]:
@@ -1989,7 +2015,7 @@ def _node_streams(repo: Path, node: str) -> list[tuple[str, list[tuple[str, int,
     month: list[tuple[str, int, tuple[str, int, dict]]] = []
     month_bad: dict[str, int] = {}
     out = []
-    files = sorted((repo / REL_EVENTS_ROOT / node / "events").glob("*.jsonl"))
+    files = _node_event_files(repo, node)[0]
     for fi, f in enumerate(files):
         rel = _rel(repo, f)
         rows, bad = _event_rows(f)
@@ -2441,8 +2467,8 @@ def event_ledger_spans(repo, ev: CellEvidence) -> list[dict]:
     out = []
     for node in want:
         files, first, last = [], None, None
-        d = repo / REL_EVENTS_ROOT / node / "events"
-        for f in sorted(d.glob("*.jsonl")) if d.is_dir() else []:
+        node_files, node_src = _node_event_files(repo, node)
+        for f in node_files:
             rows, _bad = _event_rows(f)
             if not rows:
                 continue
@@ -2451,6 +2477,7 @@ def event_ledger_spans(repo, ev: CellEvidence) -> list[dict]:
             last = rows[-1][0] if last is None else max(last, rows[-1][0])
         span = {"node": node, "first_utc": first, "last_utc": last, "files": files,
                 "covers_measurement": (last >= end) if (last and end) else None, "measurement_end_utc": end,
+                "location": node_src["location"], "shadowed_local_copies": node_src["shadowed"],
                 "live_local": self_node is not None and node == self_node,
                 "live_local_source": (f"이 체크아웃 노드 = {self_node}({self_src})" if self_node else f"이 체크아웃 노드 미해소 — {self_src}")}
         if span["covers_measurement"] is not True:
@@ -2606,7 +2633,7 @@ def _same_cell_pre_sessions(repo: Path, ev: CellEvidence, b: str | None) -> list
     starts: list[tuple[str, str]] = []
     declares: list[str] = []
     for node in _event_node_dirs(repo, ev):
-        for f in sorted((repo / REL_EVENTS_ROOT / node / "events").glob("*.jsonl")):
+        for f in _node_event_files(repo, node)[0]:
             for ts, _ln, d in _event_rows(f)[0]:
                 if ts >= b:
                     continue
@@ -4069,7 +4096,7 @@ def attestation_same_boot(repo, ev: CellEvidence, written: str | None, win: dict
     decl = None
     for node in _event_node_dirs(repo, ev):
         rows = []
-        for f in sorted((repo / REL_EVENTS_ROOT / node / "events").glob("*.jsonl")):
+        for f in _node_event_files(repo, node)[0]:
             rows += [(ts, ln, d, _rel(repo, f)) for ts, ln, d in _event_rows(f)[0]]
         rows.sort(key=lambda r: (r[0], r[1]))
         if not rows or rows[-1][0] < end:
@@ -7953,6 +7980,43 @@ def _selftest_fix2(ck, td: Path, ev: CellEvidence) -> None:
             _SELF_NODE_CACHE.pop(rkey, None)
         else:
             _SELF_NODE_CACHE[rkey] = saved
+    # ★F8(2026-10-25 · Qwen FP8 재생 사실검증 실물 모양): docs/logs/sub 에 손으로 둔 옛 사본(같은 이름 2026-01.jsonl · 앞에서 끝남) +
+    #   fetch_sub_docs 회수 미러 sync_staging/sub_docs/logs/sub/events(같은 이름 + watchdog.jsonl · 더 늦게 끝남). 다른 노드는 미러가 이기고
+    #   (가린 사본은 기재) · 이 체크아웃 노드(main)는 로컬만 · 미러가 여전히 측정 끝 전에 끝나면 covers_measurement False 유지.
+    mir = r / REL_EVENTS_RECOVERED_ROOT / "sub" / "events"
+    mir.mkdir(parents=True, exist_ok=True)
+    (mir / "2026-01.jsonl").write_text("".join(json.dumps({"ts": ts, "kind": "budget_declare", "label": lb}) + "\n" for ts, lb in (
+        ("2025-12-01T00:00:00Z", "smoke-old"), ("2026-01-01T12:00:00Z", "smoke-later"))), encoding="utf-8")
+    (mir / "watchdog.jsonl").write_text(json.dumps({"ts": "2026-01-02T00:02:35Z", "kind": "budget_none"}) + "\n", encoding="utf-8")
+    (r / REL_EVENTS_RECOVERED_ROOT / "main" / "events").mkdir(parents=True, exist_ok=True)
+    (r / REL_EVENTS_RECOVERED_ROOT / "main" / "events" / "2026-01.jsonl").write_text(
+        json.dumps({"ts": "2027-01-01T00:00:00Z", "kind": "budget_declare", "label": "x"}) + "\n", encoding="utf-8")
+    saved = _SELF_NODE_CACHE.get(rkey)
+    try:
+        _SELF_NODE_CACHE[rkey] = ("main", "fixture 주입")
+        spm = {x["node"]: x for x in event_ledger_spans(r, ev8)}
+        tl_m = event_timeline(r, ev8)
+    finally:
+        if saved is None:
+            _SELF_NODE_CACHE.pop(rkey, None)
+        else:
+            _SELF_NODE_CACHE[rkey] = saved
+        import shutil as _shm
+        _shm.rmtree(r / "sync_staging", ignore_errors=True)
+    ck("★F8 다른 노드 원장 = 회수 미러(이름마다 미러 우선 · 가린 로컬 사본 기재) · 관측 범위 끝 = 미러 마지막 행 · 측정 끝 전이면 covers False 유지",
+       spm["sub"]["last_utc"] == "2026-01-02T00:02:35Z" and spm["sub"]["covers_measurement"] is False
+       and spm["sub"]["files"] == [f"{REL_EVENTS_RECOVERED_ROOT}/sub/events/2026-01.jsonl",
+                                   f"{REL_EVENTS_RECOVERED_ROOT}/sub/events/watchdog.jsonl"]
+       and spm["sub"]["shadowed_local_copies"] == [f"{REL_EVENTS_ROOT}/sub/events/2026-01.jsonl"]
+       and "회수 미러" in spm["sub"]["location"])
+    ck("★F8 이 체크아웃 노드(main) = 로컬 원장만(미러의 main 사본은 읽지 않는다) · 같은 사건 이중 적재 ✗",
+       spm["main"]["last_utc"] == "2026-01-02T03:30:00Z" and spm["main"]["shadowed_local_copies"] == []
+       and not any("2027-01-01" in str(x.get("utc")) for x in tl_m)
+       and sum(1 for x in tl_m if x.get("utc") == "2025-12-01T00:00:00Z") <= 1)
+    ck("F8 미러 자리 = classify_cell.EVENTS_RECOVERED_PARTS(벤치 판정이 스캔하는 자리 · 교차검증)",
+       "EVENTS_RECOVERED_PARTS = (\"sync_staging\", \"sub_docs\", \"logs\")" in (
+           core.SKILL_DIR.parent / "adversarial-benchmark/scripts/classify_cell.py").read_text(encoding="utf-8")
+       and REL_EVENTS_RECOVERED_ROOT == "sync_staging/sub_docs/logs")
     ev8b = dataclasses.replace(ev8, declaration={"nodes": [{"node_id": "main"}, {"node_id": "ghost"}]})
     ck("★G8 음성대조: 선언 노드인데 원장 없음 = 범위 None(없음으로 단언 ✗)",
        {x["node"]: x for x in event_ledger_spans(r, ev8b)}["ghost"]["last_utc"] is None)
