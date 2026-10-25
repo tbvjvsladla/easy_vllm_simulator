@@ -210,6 +210,7 @@ class CellEvidence:
     report_kind: str | None = None
     pointers: list = dataclasses.field(default_factory=list)
     attestation: dict | None = None
+    image_ledger: dict | None = None        # artifacts 가 읽은 이미지 안 대표 빌드 원장의 vllm 블록(bind_image_ledger · F7)
     build_identity: dict = dataclasses.field(default_factory=dict)
     resolve: dict | None = None
     manifest: dict | None = None
@@ -1126,6 +1127,7 @@ def _bind_resolve(repo: Path, topology: str, build: dict) -> tuple[dict | None, 
              "ngc_image": ngc.get("image"), "ngc_cuda": ngc.get("cuda_version"), "ngc_torch_build": ngc.get("build_version"),
              "build_track": bt.get("decision"), "torch_cuda_arch": sb.get("torch_cuda_arch"),
              "to_ref": delta.get("to_ref"), "to_sha": to_sha if _SHA40.match(to_sha) else None,
+             "from_ref": delta.get("from_ref"),          # 이 빌드가 올라온 이전 릴리스(해소 기록 · F9)
              "generated_kst": delta.get("generated_kst"),
              "source": (f"output/{topology}/resolved.json(upstream_delta.to_sha = 빌드 입력 커밋 핀)" if by_sha
                         else f"output/{topology}/resolved.json(vllm_version={got} = 빌드 입력)")},
@@ -4056,6 +4058,31 @@ def vllm_observed(ev: CellEvidence, repo=None) -> dict:
                        + f" · wheel_meta={'관측' if wheel else '미관측'}")}
 
 
+def bind_image_ledger(ev: CellEvidence, view: dict | None) -> None:
+    """artifacts 가 읽은 대표 빌드 원장의 vllm 블록(`artifacts.collect()['build_ledger_vllm']`)을 증거에 묶는다(2026-10-25 · Gemma 싱글
+    재생 사실검증 F7·F9). 싱글 셀은 노드 정합 attestation 이 없어 `_ledger_vllm(attestation)` 이 비고, wheel 메타 · git_sha · describe 가
+    "미관측" 이었다 — 같은 페이로드의 적용 집합은 이미지 안 원장(local-image observed)을 읽었는데도. attestation 원장이 있으면 그것이
+    먼저다(바꾸지 않는다). 채우는 칸: ev.image_ledger(원천 보존) · build_identity.vllm_sha(비어 있을 때만) · vllm_describe ·
+    vllm_prev_pin(resolved.json upstream_delta.from_ref — 이 빌드가 올라온 이전 릴리스 · 해소 기록)."""
+    b = ev.build_identity if isinstance(ev.build_identity, dict) else None
+    if b is None:
+        return
+    src = b.setdefault("source", {})
+    led, lsrc = _ledger_vllm(ev.attestation), f"빌드 원장({(ev.attestation or {}).get('_path')} · attestation)"
+    if not led and isinstance(view, dict) and isinstance(view.get("vllm"), dict) and view["vllm"]:
+        led, lsrc = view["vllm"], f"빌드 원장({view.get('source')} · {view.get('provenance') or 'provenance 미기재'})"
+        ev.image_ledger = {"vllm": dict(led), "source": lsrc}
+    if led:
+        sha = str(led.get("git_sha") or "").strip().lower()
+        if not b.get("vllm_sha") and _SHA40.match(sha):
+            b["vllm_sha"], src["vllm_sha"] = sha, f"{lsrc} vllm.git_sha(resolved.json 미바인딩 또는 to_sha 없음)"
+        if led.get("describe"):
+            b["vllm_describe"], src["vllm_describe"] = str(led["describe"]), f"{lsrc} vllm.describe(git describe --tags · 빌드 시점)"
+    rs = ev.resolve if isinstance(ev.resolve, dict) else None
+    if rs and rs.get("from_ref"):
+        b["vllm_prev_pin"], src["vllm_prev_pin"] = str(rs["from_ref"]), f"{ev.sources.get('resolve')} upstream_delta.from_ref(해소 기록)"
+
+
 def _wheel_meta(repo: Path, ev: CellEvidence) -> tuple[str | None, str]:
     """설치된 vLLM 배포 메타 버전(`importlib.metadata.version('vllm')` = wheel METADATA) — 관측 원천 둘(2026-09-29 · plan_26092908 §4.5
     "미관측 오판"): ① 노드 정합 attestation `nodes.<n>.vllm_dist_version`(multinode_serve_smoke 가 실행 중 컨테이너에서 캡처)
@@ -4085,7 +4112,14 @@ def _wheel_meta(repo: Path, ev: CellEvidence) -> tuple[str | None, str]:
         return next(iter(got.values())), f"native pip freeze `vllm==` 줄({where} · 노드별 관측 · 일치)"
     if v is not None and len(set(by_node.values())) == 1:
         return v, where + " · ⚠ native 셀인데 pip freeze 에 vllm 줄이 없어 원천 이미지 실행의 관측을 쓴다"
-    return None, "미관측 — attestation vllm_dist_version · native pip freeze 모두 없다"
+    # ③ 빌드 원장 vllm.dist_version(이미지 안 · 빌드 시점 importlib.metadata — attestation 원장 또는 artifacts 가 읽은 이미지 원장 · F7)
+    led = _ledger_vllm(ev.attestation)
+    lsrc = f"빌드 원장({(ev.attestation or {}).get('_path')} · attestation) vllm.dist_version"
+    if not led and isinstance(getattr(ev, "image_ledger", None), dict):
+        led, lsrc = ev.image_ledger.get("vllm") or {}, f"{ev.image_ledger.get('source')} vllm.dist_version"
+    if led.get("dist_version") and ev.plane != "native":
+        return str(led["dist_version"]), f"{lsrc}(빌드 시점 measured · 이미지 안 배포 메타)"
+    return None, "미관측 — attestation vllm_dist_version · native pip freeze · 빌드 원장 vllm.dist_version 모두 없다"
 
 
 _ATTEST_TIME_KEYS = ("written_utc", "captured_utc", "generated_utc", "utc")
@@ -8530,6 +8564,29 @@ def selftest() -> list[str]:
                and "parity.vllm_sha=equal" in ev_led.build_identity["source"]["vllm_sha"])
             ck("★F1 음성대조: resolved.json 이 묶이면 해소값 유지(원장이 덮지 않는다) · 원장 SHA 도 없으면 미관측(지어내지 않는다)",
                ev_bound.build_identity.get("vllm_sha") == _SHA_A and ev_none.build_identity.get("vllm_sha") is None)
+            # ★2026-10-25 Gemma 싱글 재생 F7·F9 실물 모양: attestation 원장 없음 + artifacts 가 읽은 이미지 원장(local-image) +
+            #   resolved.json upstream_delta.from_ref — wheel 메타 · describe · 이전 핀을 출처와 함께(옛 판 = 미관측)
+            ev_img = dataclasses.replace(ev_none, attestation=None, image_ledger=None,
+                                         build_identity={**ev_none.build_identity, "source": dict(ev_none.build_identity["source"])},
+                                         resolve={**(ev_bound.resolve or {}), "from_ref": "v0.8.0"})
+            view = {"vllm": {"dist_version": "0.9.1.dev0+gdddd.cu133", "git_sha": "d" * 40, "describe": "v0.9.0"},
+                    "source": "docker-image(main-local):fixture:0.9.0-source:/opt/easy-vllm/build_ledger.json",
+                    "provenance": "measured(build-time, in-image)"}
+            wm0 = _wheel_meta(repo, ev_img)
+            bind_image_ledger(ev_img, view)
+            wm1 = _wheel_meta(repo, ev_img)
+            bi = ev_img.build_identity
+            ck("★F7 이미지 원장 vllm.dist_version = wheel 메타(출처 = 이미지 원장 · 빌드 시점) · 바인딩 전엔 미관측",
+               wm0[0] is None and wm1[0] == "0.9.1.dev0+gdddd.cu133" and "docker-image(main-local)" in wm1[1])
+            ck("★F7·F9 이미지 원장 git_sha(빈 칸만) · describe · resolved from_ref(이전 핀) = 출처와 함께 · 음성대조: attestation 원장이 있으면 그것",
+               bi["vllm_sha"] == "d" * 40 and bi["vllm_describe"] == "v0.9.0" and bi["vllm_prev_pin"] == "v0.8.0"
+               and "from_ref" in bi["source"]["vllm_prev_pin"] and "docker-image" in bi["source"]["vllm_describe"]
+               and ev_img.image_ledger is not None)
+            ev_att = dataclasses.replace(ev_led, image_ledger=None,
+                                         build_identity={**ev_led.build_identity, "source": dict(ev_led.build_identity["source"])})
+            bind_image_ledger(ev_att, view)
+            ck("F7 음성대조: attestation 원장이 있으면 이미지 원장 뷰로 바꾸지 않는다", ev_att.image_ledger is None
+               and ev_att.build_identity.get("vllm_describe") == "v0.9.0" and "attestation" in ev_att.build_identity["source"]["vllm_describe"])
             core.write_json(attp, v2)
             v2["parity"] = {"vllm_sha": {"verdict": "unobservable"}, "torch": {"verdict": "unobservable"}}
             core.write_json(attp, v2)

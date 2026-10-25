@@ -138,7 +138,8 @@ APPROVAL_KEYS = ("approved_by", "approved_utc", "source")
 # 2026-09-29 plan_26092908 §4.5(V3): `driver_by_node`(attestation 노드별 관측) · `driver_conflict`(관측 ≠ 선언이면 둘 다) · `os` 를 옮긴다 —
 #   옛 목록은 evidence 가 낸 이 칸들을 버렸다(관측 가능한데 FACT 에 없으면 저작자가 "미관측" 으로 적는다 · 부류 7).
 _BUILD_KEYS = ("track", "dockerfile", "image_tag", "image_digest", "vllm_repo", "vllm_ref", "vllm_sha", "torch", "cuda",
-               "ngc", "cpu_arch", "driver", "driver_by_node", "driver_conflict", "driver_check", "os")
+               "ngc", "cpu_arch", "driver", "driver_by_node", "driver_conflict", "driver_check", "os", "vllm_describe",
+               "vllm_prev_pin")
 _RATIONALE_MAX = 400
 # ── 발행 전 독립 사실 검증 보고(`<draft>/inputs/factcheck.json` · 2026-09-22 S2 round 2 F11) ──
 #   형식 = {schema_version: 1, tag, author, checker, checked_utc, claims_checked, classes_checked: [1..7],
@@ -786,6 +787,7 @@ def _collect(repo: Path, ev, dn, *, utc: str, topic: str, draft: Path, payload: 
     lin = lineage.derive(repo, ev, base_slug=ident["base_slug"], publish_kst=core.kst_token(utc),
                          declared=list(lineage_add or ()), records=evidence.publication_records(repo), this_topic=topic)
     art = artifacts.collect(repo, ev, payload, runner=rt.docker)
+    evidence.bind_image_ledger(ev, art.get("build_ledger_vllm"))    # F7·F9: 적용 집합이 읽은 원장 → wheel 메타 · SHA · describe
     bench_src = _bench_source(repo, ev)
     missing = sorted(set(ev.missing) | set(art.get("missing") or ()))
     # 결손의 **이 셀 사유**(2026-09-29 plan_26092908 §4.2 · D 통합): native producer 가 기동 기록을 쓰지 못했으면 그 사유를 결손 표에 옮긴다

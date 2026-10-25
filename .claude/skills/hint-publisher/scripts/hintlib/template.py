@@ -719,6 +719,27 @@ def _build_row(key: str, v, bsrc: dict, src, build: dict | None = None) -> tuple
     return _BUILD_LABELS[key], _cell(v), src(v, bsrc.get(key))
 
 
+def _prev_release_row(nbi: dict, build: dict, bsrc: dict, src) -> tuple[str, str, str]:
+    """'직전 릴리스' 행(2026-10-25 · Gemma 싱글 재생 F9). 이름 문법의 prev_release 는 **커밋 핀**에만 있다(`<직전 릴리스>-g<sha12>` ·
+    원장 describe). 릴리스 태그 빌드는 이름이 릴리스 자체라 그 칸이 비는데 옛 판은 "미관측" 이라 적었다 — '해당 없음' 과 '모름' 을 가르고,
+    관측된 두 값(원장 describe · resolved.json upstream_delta.from_ref)을 뜻과 함께 싣는다(값을 하나로 접지 않는다 — 뜻이 다르다)."""
+    pr = nbi.get("prev_release")
+    desc, prev_pin = build.get("vllm_describe"), build.get("vllm_prev_pin")
+    obs = []
+    if desc:
+        obs.append(f"빌드 원장 describe `{_cell(desc)}`")
+    if prev_pin:
+        obs.append(f"업스트림 델타 from_ref `{_cell(prev_pin)}`(이 빌드가 올라온 이전 릴리스)")
+    where = " · ".join(_cell(x) for x in (bsrc.get("vllm_describe"), bsrc.get("vllm_prev_pin")) if x)
+    if pr:
+        return ("직전 릴리스(prev_release)", _cell(pr), src(pr, "naming.vllm_build_input"))
+    if nbi.get("kind") in ("release", "wheel"):
+        val = "해당 없음 — 릴리스 태그 빌드(이름 = 릴리스 자체 · `<직전 릴리스>-g<sha>` 는 커밋 핀에만)" + (f" · 관측: {' · '.join(obs)}" if obs else "")
+        return ("직전 릴리스(prev_release)", val, where or "naming.vllm_build_input(kind=release)")
+    return ("직전 릴리스(prev_release)", _MISSING_TEXT if not obs else f"{_MISSING_TEXT}(이름 입력) · 관측: {' · '.join(obs)}",
+            where or _MISSING_TEXT)
+
+
 def _f_resolved(c: _Ctx) -> str:
     f = c.facts
     build, naming = _dict(f, "build"), _dict(f, "naming")
@@ -739,14 +760,14 @@ def _f_resolved(c: _Ctx) -> str:
         ("vLLM 빌드 입력(종류)", _cell(nbi.get("kind")), src(nbi.get("kind"), "naming.vllm_build_input")),
         ("vLLM 빌드 입력(ref)", _cell(ref), src(ref, bsrc.get("vllm_ref"), "naming.vllm_build_input")),
         ("vLLM 소스 SHA(40자)", _cell(sha), src(sha, bsrc.get("vllm_sha"), "naming.vllm_build_input")),
-        ("직전 릴리스(prev_release)", _cell(nbi.get("prev_release")), src(nbi.get("prev_release"), "naming.vllm_build_input")),
+        _prev_release_row(nbi, build, bsrc, src),
         *_vllm_observed_rows(nobs),
         ("체크포인트 revision(HF · git HEAD)", _cell(ident.get("hf_revision")),
          src(ident.get("hf_revision"), _dict(ident, "source").get("hf_revision"))),
     ]
     for key in _BUILD_KNOWN:
         rows.append(_build_row(key, build.get(key), bsrc, src, build))
-    skip = set(_BUILD_KNOWN) | {"source", "vllm_ref", "vllm_sha", "driver_check"}
+    skip = set(_BUILD_KNOWN) | {"source", "vllm_ref", "vllm_sha", "driver_check", "vllm_describe", "vllm_prev_pin"}
     for key in sorted(k for k in build if k not in skip):
         rows.append((f"`{key}`", _cell(build.get(key)), src(build.get(key), bsrc.get(key))))
     out = _table(("항목", "값", "출처"), rows)
@@ -5399,6 +5420,20 @@ def selftest() -> list[str]:
         qf4["build"]["driver_check"] = {"verdict": "agree", "observed": "580.178.04", "declared": "580.178.04",
                                         "sources": {"observed": "attestation parity.driver(fx)", "declared": "manifest(fx)"}}
         rs4 = _f_resolved(_Ctx(repo, qf4, tpls))
+        qf9 = json.loads(core.dumps(qf4))
+        qf9.setdefault("naming", {})["vllm_build_input"] = {"kind": "release", "ref": "v0.31.0", "sha": None, "prev_release": None}
+        qf9["build"]["vllm_describe"], qf9["build"]["vllm_prev_pin"] = "v0.31.0", "v0.30.0"
+        qf9["build"]["source"].update({"vllm_describe": "빌드 원장(docker-image) vllm.describe",
+                                       "vllm_prev_pin": "output/single/resolved.json upstream_delta.from_ref"})
+        rs9 = _f_resolved(_Ctx(repo, qf9, tpls))
+        qf9c = json.loads(core.dumps(qf9))
+        qf9c["naming"]["vllm_build_input"].update({"kind": "commit", "prev_release": None})
+        rs9c = _f_resolved(_Ctx(repo, qf9c, tpls))
+        ck("★F9 릴리스 태그 빌드의 직전 릴리스 = '해당 없음'(미관측 ✗) + 관측 둘(원장 describe · from_ref)을 뜻과 함께 · 별도 행 누출 ✗ · "
+           "커밋 핀인데 이름 입력 없음 = 미관측(관측 병기)",
+           "| 직전 릴리스(prev_release) | 해당 없음 — 릴리스 태그 빌드" in rs9 and "빌드 원장 describe `v0.31.0`" in rs9
+           and "업스트림 델타 from_ref `v0.30.0`" in rs9 and "`vllm_describe`" not in rs9 and "`vllm_prev_pin`" not in rs9
+           and f"| 직전 릴리스(prev_release) | {_MISSING_TEXT}(이름 입력) · 관측:" in rs9c)
         ck("★F12 관측 = 선언 = '충돌 없음'(두 출처) · 미관측 ✗ · driver_check 는 별도 행으로 새지 않는다",
            "| ⚠ 드라이버 관측 ≠ 선언 | 충돌 없음 — 관측 580.178.04 = 선언 580.178.04 | 관측: attestation parity.driver(fx) · 선언: manifest(fx) |"
            in rs4 and "`driver_check`" not in rs4)
