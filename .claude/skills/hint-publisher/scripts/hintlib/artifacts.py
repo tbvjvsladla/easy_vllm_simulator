@@ -519,6 +519,27 @@ def _recipe_vs_image(c: _Ctx, rels: list[str], created: str | None, selected: di
         return out
     selected = selected or {}
     for rel in rels:
+        s0 = selected.get(rel)
+        if isinstance(s0, dict) and s0.get("origin_path"):
+            # 2026-10-25(Qwen FP8 재생 F15): 실린 바이트가 다른 통로·커밋의 이력 blob 이면 경고 줄은 **그 파일**의 경로 · 커밋을 쓴다 —
+            #   옛 판본은 실리지 않은 이 체크아웃 통로 경로(작업트리)의 마지막 커밋을 적었다. 작업트리 대조는 실린 파일과 무관하다.
+            row = {"path": s0["origin_path"], "checkout_path": rel, "tracked": True, "worktree_equals_head": None,
+                   "last_commit_utc": s0.get("origin_commit_utc"), "last_commit_kind": "실린 개정 커밋"}
+            if created:
+                row["image_created_utc"] = created
+            row["shipped"] = s0.get("shipped")
+            row["selection_method"] = s0.get("method")
+            hm = s0.get("history_match")
+            if hm is not None:
+                row["history_match"] = hm
+            if not s0.get("verified"):
+                if isinstance(hm, dict) and hm.get("matched", 0) < hm.get("total", 0):
+                    row["warning"] = (f"실린 바이트({s0.get('shipped')})가 측정 이미지 docker history 의 RUN·COPY 와 전수 일치하지 "
+                                      f"않는다({hm['matched']}/{hm['total']})")
+                elif s0.get("image_bytes_differ"):
+                    row["warning"] = "이미지 안 COPY 대상 바이트가 실린 바이트와 다르다(일치하는 개정 없음)"
+            out.append(row)
+            continue
         data = (c.repo / rel).read_bytes()
         blob = hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
         ls = core.git(c.repo, "-c", "core.quotePath=false", "ls-tree", "HEAD", "--", rel, check=False)
@@ -1479,6 +1500,79 @@ def _observe_ledger(c: _Ctx) -> tuple[dict | None, str | None, dict[str, dict], 
 
 
 # ── 패치 목록 · 자기게이트 재구성 ──────────────────────────────────────────────────────────────
+class _GitPath:
+    """git 커밋 트리 안 경로의 읽기 전용 Path 흉내(2026-10-25 · Solar 재생 사실검증 F24). 이미지를 지은 레시피 통로가 이 체크아웃 밖
+    (다른 브랜치의 output/<다른 토폴로지>/)이면 패치 디렉터리 열거 · 바이트도 **그 커밋 트리**에서 읽어야 한다 — 작업트리의 output/<topo>/
+    build_patches* 는 이 이미지의 빌드 컨텍스트가 아니다. mtime 은 없다(stat = OSError → 호출부는 mtime 미관측으로 처리)."""
+
+    def __init__(self, repo: Path, commit: str, rel: str):
+        self.repo, self.commit, self.rel = Path(repo), commit, rel.strip("/")
+        self._ent: tuple | None | bool = False
+
+    @property
+    def name(self) -> str:
+        return PurePath(self.rel).name
+
+    def __truediv__(self, part: str) -> "_GitPath":
+        return _GitPath(self.repo, self.commit, f"{self.rel}/{str(part).strip('/')}")
+
+    def __str__(self) -> str:
+        return f"{self.commit[:12]}:{self.rel}"
+
+    def _entry(self):
+        if self._ent is False:
+            r = core.git(self.repo, "-c", "core.quotePath=false", "ls-tree", self.commit, "--", self.rel, check=False)
+            parts = r.stdout.split(None, 3) if r.returncode == 0 and r.stdout.strip() else []
+            self._ent = (parts[0], parts[1], parts[2]) if len(parts) >= 3 else None
+        return self._ent
+
+    def is_dir(self) -> bool:
+        e = self._entry()
+        return bool(e) and e[1] == "tree"
+
+    def is_file(self) -> bool:
+        e = self._entry()
+        return bool(e) and e[1] == "blob"
+
+    def exists(self) -> bool:
+        return bool(self._entry())
+
+    def iterdir(self):
+        r = core.git(self.repo, "-c", "core.quotePath=false", "ls-tree", f"{self.commit}:{self.rel}", check=False)
+        for line in (r.stdout.splitlines() if r.returncode == 0 else []):
+            meta, _, nm = line.partition("\t")
+            if nm:
+                yield self / nm
+
+    def read_bytes(self) -> bytes:
+        e = self._entry()
+        b = core.git_bytes(self.repo, "cat-file", "blob", e[2], check=False) if e and e[1] == "blob" else None
+        if b is None:
+            raise OSError(f"git blob 읽기 실패: {self}")
+        return b
+
+    def read_text(self, encoding: str = "utf-8", errors: str = "strict") -> str:
+        return self.read_bytes().decode(encoding, errors)
+
+    def stat(self):
+        raise OSError(f"git 트리 항목에는 mtime 이 없다: {self}")
+
+    @property
+    def mode(self) -> int:
+        e = self._entry()
+        return 0o755 if e and e[0] == "100755" else 0o644
+
+
+def _patch_base(c: _Ctx):
+    """빌드 패치 디렉터리들의 뿌리 = 이미지를 지은 레시피 통로(F24). 선택된 Dockerfile 이 이 체크아웃 통로 밖 이력 blob(origin_path)이면
+    그 커밋 트리의 그 통로(_GitPath) · 아니면 종전대로 작업트리 output/<topo>/. _applied 가 Dockerfile 선택 뒤 정한다(그 전 = 작업트리)."""
+    return (getattr(c, "memo", None) or {}).get("patch_base") or c.out
+
+
+def _sha256_of(p) -> str:
+    return core.sha256_bytes(p.read_bytes()) if isinstance(p, _GitPath) else core.sha256_file(p)
+
+
 def _list_patch_dir(d: Path) -> tuple[list[Path], list[str], list[str]]:
     """(패치 `<NN>-*.sh`, 알려진 비-패치, 규약 밖 이름). 디렉터리 부재·비어 있음은 정상 no-op(source-build.md §4)."""
     patches, known, odd = [], [], []
@@ -1849,10 +1943,11 @@ def _image_probe(c: _Ctx, df_text: str) -> dict:
         modules: set[str] = set()
         for ph, d in PATCH_DIRS.items():
             baked = res["scripts"].get(ph) or {}
-            names = set(baked) | {p.name for p in _list_patch_dir(c.out / d)[0]}
+            pb = _patch_base(c)
+            names = set(baked) | {p.name for p in _list_patch_dir(pb / d)[0]}
             for name in sorted(n for n in names if _PATCH_NAME.fullmatch(n)):
                 text = (baked[name][0].decode("utf-8", "replace") if name in baked
-                        else _read(c.out / d / name) if (c.out / d / name).is_file() else "")
+                        else _read(pb / d / name) if (pb / d / name).is_file() else "")
                 sh = _script_shape(text)
                 targets += [m["path"] for m in sh["markers"]]
                 modules |= set(sh["modules"])
@@ -2024,10 +2119,10 @@ def _ledger_script_identity(c: "_Ctx", row: dict) -> dict:
     ph = row.get("phase")
     if not isinstance(want, str) or not want or ph not in PATCH_DIRS:
         return row
-    p = c.out / PATCH_DIRS[ph] / str(row.get("file"))
+    p = _patch_base(c) / PATCH_DIRS[ph] / str(row.get("file"))
     if not p.is_file():
         ident = "build-ledger(원장 script_sha256 기록 · 작업트리에 파일 없음 — 실린 바이트 대조 불가)"
-    elif core.sha256_file(p) == want:
+    elif _sha256_of(p) == want:
         ident = "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)"
     else:
         ident = "build-ledger(원장 script_sha256 ≠ 작업트리 바이트 — 빌드 뒤 바뀐 파일)"
@@ -2088,13 +2183,18 @@ def _applied(c: _Ctx, *, probe: bool = True) -> tuple[dict, dict, dict | None, d
                   f"`render_dockerfile.py` 로 output/{c.topo}/ 를 다시 렌더하거나 셀 env BUILD_DOCKERFILE 을 확인한다.")
     # F1(2026-09-22 S2 round 2): COPY·ARG 판독은 **이미지를 지은 개정**의 텍스트로 한다 — 작업트리가 빌드 뒤 바뀌었으면
     #   (원장 스탠자 추가 등) 그 텍스트는 이 이미지의 빌드 입력이 아니다(history 미관측이면 선택이 작업트리를 돌려준다).
-    df_text = _select_dockerfile(c, sel["dockerfile"])["text"]
+    dsel_ = _select_dockerfile(c, sel["dockerfile"])
+    df_text = dsel_["text"]
+    origin = dsel_.get("origin_path")
+    if origin and dsel_.get("commit") and str(PurePath(origin).parent) != core.rel(c.repo, c.out):
+        # F24(2026-10-25): 이미지를 지은 레시피 통로가 이 체크아웃 통로 밖이다 — 패치 디렉터리도 그 커밋 트리의 그 통로에서 읽는다
+        c.memo["patch_base"] = _GitPath(c.repo, dsel_["commit"], str(PurePath(origin).parent))
     copies = _dockerfile_copies(df_text)
     in_recipe = {ph for ph, d in PATCH_DIRS.items() if d in copies}
     excluded: list[dict] = []
     listing: dict[str, list[Path]] = {}
     for ph, d in PATCH_DIRS.items():
-        patches, known, odd = _list_patch_dir(c.out / d)
+        patches, known, odd = _list_patch_dir(_patch_base(c) / d)
         listing[ph] = patches
         for name in known:
             excluded.append({"phase": ph, "file": name, "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"})
@@ -3064,6 +3164,11 @@ def _build_command(c: _Ctx, sel: dict) -> tuple[str, str]:
                f"실린 개정: {shipped} — 이미지를 지은 바이트임을 관측으로 확인 못함(docker history RUN·COPY {hm_['matched']}/{hm_['total']})"
                if hm_ else f"실린 개정: {shipped} — 이미지를 지은 바이트임은 미검증(history 대조 없음)")
     head = [f"# 실린 artifacts/build_recipe/{sel['dockerfile']}({rev_txt})를 {df} 자리에 두고 컨텍스트에서 짓는다."]
+    empties = _empty_copy_dirs(c, dmem.get("text") or "")
+    if empties:
+        # F13(2026-10-25): 실린 Dockerfile 이 COPY 하는 패치 디렉터리에 실린 파일이 없으면 빈 디렉터리를 만들어야 COPY 가 성립한다
+        head.append(f"mkdir -p " + " ".join(shlex.quote(f"{context}/{e['dir']}") for e in empties)
+                    + "   # " + " · ".join(e["source"] for e in empties))
     if c.topo == "multi":
         head.append("# 양 노드에서 각각 짓는다(이미지 save/load 전송 ✗ — 노드마다 자기 이미지 · 요건은 동일 digest 가 아니라 동일 ABI).")
     # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 B F2: compose build.dockerfile 이 리터럴이고 이 이미지의 Dockerfile 과
@@ -3991,6 +4096,32 @@ def _compose_volumes(text: str) -> dict[str, str]:
     return out
 
 
+def _empty_copy_dirs(c: _Ctx, df_text: str, slots: dict | None = None) -> list[dict]:
+    """실린 Dockerfile 이 COPY 하는 패치 디렉터리 중 **실린 패치 파일이 없는** 것 → [{dir, slot, inventory, source}] (2026-10-25 · Qwen FP8
+    재생 사실검증 F13). COPY 원천 디렉터리가 컨텍스트에 없으면 빌드가 그 단계에서 멈춘다 — 수신자는 빈 디렉터리를 만들어야 한다. 근거 =
+    빌드 원장 context_inventory(빌드 때 그 디렉터리에 무엇이 있었나 · 측정) · 원장이 없으면 inventory None(미관측이라 적는다)."""
+    if not df_text:
+        return []
+    copies = _dockerfile_copies(df_text)
+    app = c.memo.get(("applied", True)) or c.memo.get(("applied", False))
+    ledger = app[2] if app else None
+    inv_all = ledger.get("context_inventory") if isinstance(ledger, dict) and isinstance(ledger.get("context_inventory"), dict) else None
+    out = []
+    for ph, d in PATCH_DIRS.items():
+        slot = f"build_patch_{ph}"
+        if d not in copies:
+            continue
+        shipped = ([1 for r in ((app[0] or {}).get("patches") or []) if isinstance(r, dict) and r.get("phase") == ph
+                    and r.get("result") != "skipped"] if app else [])
+        if (slots is not None and ((slots.get(slot) or {}).get("files") or [])) or (slots is None and shipped):
+            continue
+        inv = inv_all.get(slot) if inv_all is not None and isinstance(inv_all.get(slot), list) else None
+        out.append({"dir": d, "slot": slot, "inventory": inv,
+                    "source": (f"빌드 원장 context_inventory.{slot} = {inv}" if inv is not None else
+                               "빌드 원장 context_inventory 미관측 — 빌드 때 내용 모름(실린 패치 없음)")})
+    return out
+
+
 def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: dict | None = None) -> list[dict]:
     """zip 슬롯 경로 → Dockerfile·compose 가 기대하는 빌드 컨텍스트(`output/<t>/`) 상대 경로(plan §4.6 V14 · 수신자가
     `build_patch_pre/` 를 어디에 두어야 하는지 묻지 않게). 파생 원천은 **실린 Dockerfile 의 COPY** · compose 의 env_file·volumes·
@@ -4051,6 +4182,10 @@ def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: d
                                    or slot == "compose")):
                     ctx_path, basis = f"{cfg_dir}/{name}", f"compose volumes ./{cfg_dir}:/app/configs"
             rows.append({"slot_path": rel_f, "context_path": ctx_path, "basis": basis})
+    for e in _empty_copy_dirs(c, df_text, slots):
+        rows.append({"slot_path": None, "context_path": f"{e['dir']}/", "create": "empty-dir", "inventory": e["inventory"],
+                     "basis": f"{df_name} COPY {e['dir']}/ · 실린 패치 없음 — 빈 디렉터리를 만든다(없으면 COPY 단계에서 빌드가 멈춘다) · "
+                              f"{e['source']}"})
     return rows
 
 
@@ -4070,7 +4205,7 @@ def _docker_slots(c: _Ctx, payload: Path, measured: str | None, missing: list[st
         for row in applied["patches"]:
             if row["phase"] != ph or row["result"] == "skipped":
                 continue
-            src = c.out / PATCH_DIRS[ph] / row["file"]
+            src = _patch_base(c) / PATCH_DIRS[ph] / row["file"]
             baked = ship.get((ph, row["file"]))
             if baked is not None:
                 # 이미지에 구워진 바이트가 작업트리와 다르거나(또는 작업트리에 없다) — 이 빌드가 실행한 것은 이미지 바이트다(F12).
@@ -4081,11 +4216,12 @@ def _docker_slots(c: _Ctx, payload: Path, measured: str | None, missing: list[st
                 row["file_absent"] = True
                 continue
             want = row.get("script_sha256")
-            if want and core.sha256_file(src) != want:
+            if want and _sha256_of(src) != want:
                 # 원장이 적용했다고 말한 바이트와 실을 바이트가 다르다 = 3신호 모순(양성 검출 → 차단)
                 core.fail("HINT_APPLIED_PATCH_DRIFT", f"{PATCH_DIRS[ph]}/{row['file']} 가 원장 script_sha256 과 다르다.",
                           "이미지를 지은 그 스크립트로 되돌리거나 이미지를 다시 짓는다(다른 스크립트를 재현지침으로 배포 ✗).")
-            pf.append(_copy(payload, src, slot))
+            pf.append(_write_bytes(payload, slot, row["file"], src.read_bytes(), src.mode) if isinstance(src, _GitPath)
+                      else _copy(payload, src, slot))
         files += pf
         obs = applied["status"] == "observed"
         shipped_rows = [r for r in applied["patches"] if r["phase"] == ph and r["result"] != "skipped"]
@@ -4155,7 +4291,7 @@ def _docker_slots(c: _Ctx, payload: Path, measured: str | None, missing: list[st
              "selected_revision": {"path": dsel["path"], "commit": dsel["commit"], "method": dsel["method"],
                                    "history_match": dsel["history_match"], "candidates": dsel["candidates"]},
              "selected_revisions": [{k: v for k, v in s.items() if k in ("path", "commit", "method", "history_match",
-                                                                          "shipped", "verified")}
+                                                                          "shipped", "verified", "origin_path", "origin_commit_utc")}
                                     for _, s in sorted(chosen.items())]}
     if not_shipped:
         br_ev["context_not_shipped"] = not_shipped      # 수신자 빌드가 이 COPY 에서 멈출 수 있다 — 01 표가 말해야 한다
@@ -5416,8 +5552,9 @@ def selftest() -> list[str]:
                 body = "".join(f"{m} {t} {h}\t{n}\n" for m, t, h, n in entries)
                 return subprocess.run(["git", "mktree"], input=body.encode(), capture_output=True, cwd=str(repo), check=True,
                                       env={**os.environ, **genv}).stdout.decode().strip()
+            t_bps = _tree([("100644", "blob", _blob(b""), ".gitkeep")])
             t_single = _tree([("100644", "blob", _blob(df_x.encode()), "Dockerfile.rev"),
-                              ("100644", "blob", _blob(req_x), "requirements.txt")])
+                              ("100644", "blob", _blob(req_x), "requirements.txt"), ("040000", "tree", t_bps, "build_patches_src")])
             t_root = _tree([("040000", "tree", _tree([("040000", "tree", t_single, "single")]), "output")])
             genv_late = dict(genv, GIT_AUTHOR_DATE=core.git_date("2026-01-05T00:00:00Z"),
                              GIT_COMMITTER_DATE=core.git_date("2026-01-05T00:00:00Z"))
@@ -5443,6 +5580,20 @@ def selftest() -> list[str]:
             ck("★F4 빌드 명령 = 그 통로를 컨텍스트로(-f output/single/… · output/single) · 스모크·compose 동등 경로 없음 명시",
                "-f output/single/Dockerfile.rev" in bx and bx.rstrip().splitlines()[-2].strip() == "output/single"
                and "동등 경로 없음" in bx and "--build-only" not in bx)
+            rvx = {r["path"]: r for r in rx["slots"]["build_recipe"]["evidence"]["recipe_vs_image"]}
+            ck("★F15 레시피 대조 행 = 실린 파일의 경로·커밋(이 체크아웃 통로 작업트리 경로 · 그 마지막 커밋 ✗)",
+               "output/single/Dockerfile.rev" in rvx and "output/multi/Dockerfile.rev" not in rvx
+               and rvx["output/single/Dockerfile.rev"]["last_commit_utc"] == "2026-01-05T00:00:00Z"
+               and rvx["output/single/Dockerfile.rev"]["checkout_path"] == "output/multi/Dockerfile.rev"
+               and "warning" not in rvx["output/single/Dockerfile.rev"])
+            exx = [x for x in rx["applied_set"]["excluded"] if x["phase"] == "pre"]
+            ck("★F24 패치 디렉터리 = 이미지를 지은 레시피 통로의 커밋 트리(.gitkeep 만) — 작업트리 output/multi/build_patches_src 의 "
+               "50·55·60 은 열거되지 않는다 · 실린 pre 패치 0",
+               [x["file"] for x in exx] == [".gitkeep"] and not rx["slots"]["build_patch_pre"]["files"])
+            mkx = [r for r in rx["build_context_map"] if r.get("create") == "empty-dir"]
+            ck("★F13 실린 Dockerfile 이 COPY 하는 패치 디렉터리에 실린 파일이 없으면 빈 디렉터리 생성 행 · 빌드 명령에 mkdir -p(컨텍스트 통로)",
+               [r["context_path"] for r in mkx] == ["build_patches_src/"] and "미관측" in mkx[0]["basis"]
+               and "mkdir -p output/single/build_patches_src" in bx)
             ck("★F4 requirements = 원장 sha256 과 바이트가 같은 이력 blob(다른 ref · 다른 통로) · verified · 출처 경로 · 음성대조: 없으면 종전(쓰인 바이트 아님)",
                qx["verified"] is True and qx["commit"] == c_single and qx["origin_path"] == "output/single/requirements.txt"
                and qx["bytes"] == req_x and qn["verified"] is False and "전 이력" in qn["method"])
