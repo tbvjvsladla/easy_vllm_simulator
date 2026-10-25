@@ -1,6 +1,6 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 71,
+  "count": 72,
   "generated_kst": "2026-10-25T13:10:00",
   "hints": [
     {
@@ -1490,6 +1490,30 @@
       "tagged_utc": null,
       "verdict": "미수령",
       "verdict_source": "absent-local(로컬 태그 오브젝트 부재 · 합성 ✗)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "85f3757c2a7d4f02f2edb120f582ee516fd7be72",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "Qwen/Qwen3.8-Flash-Next",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102510_qwen3.8-flash-next-fp8_GB10_0.31.0.md))",
+      "brief": "Qwen3.8-Flash-Next-FP8(unsloth)을 GB10 2노드(노드당 GPU 1 · Ray TP=2) · vLLM `v0.31.0` 소스빌드 공유 이미지에서 max-model-len 1048576(YaRN factor 4) · KV fp8_e4m3 · eager · spec decode 없음 · **PLE 테이블을 디스크 mmap 으로 읽는 런타임 플러그인**으로 서빙했고, GuideLLM 동시성 1 decode 22.78 t/s 는 외부 기준 32.5 대비 ratio 0.701 의 weak REFUTE(표시만 · 서빙 실패 아님)다. 가장 비싼 벽은 PLE 상주 TP=2 의 예산 선판정 차단(W5)과 이전 vLLM 빌드 패치 62 의 앵커 전멸(W6)이며, stock 임베딩 클래스를 바꾸는 플러그인 `q38fn31-fp8-1m-tp2_patch.py`(`VLLM_PLE_MMAP=1` · FP8 스테이징 `VLLM_PLE_MMAP_DIR` · 이미지 재빌드 없음)로 넘었다. 가장 오해하기 쉬운 값: yaml 의 `async-scheduling: false` 는 설정에 도달하지 않고(M3) `enforce-eager` 는 플러그인 제약이며(V7) — yaml 노브 중 필요조건은 `hf-overrides`(V12) 하나이고 나머지는 바꿔 잰 적 없는 승계값이다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE",
+        "HINT_MISSING_RESOLVE",
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "qwen3.8-flash-next-fp8",
+      "object": "59fbc9104afb16ba15eeb06bc1509932882aa766",
+      "published": true,
+      "recipe": "qfp8-len1048576-kvfp8-plemmap",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/qwen3.8-flash-next-fp8/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-plemmap",
+      "tagged_utc": "2026-10-25T04:10:00Z",
+      "verdict": "REFUTE",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_q38fn31-fp8-1m-tp2/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
     },
     {
