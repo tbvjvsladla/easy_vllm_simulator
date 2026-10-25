@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 69,
-  "generated_kst": "2026-10-17T09:51:01",
+  "count": 73,
+  "generated_kst": "2026-10-25T13:10:00",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1274,6 +1274,28 @@
       "vllm": "0.30.0"
     },
     {
+      "anchor": "6d60065db9741a37b738cd3bfb8552d010b6f0b0",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": "google/gemma-4-26B-A4B",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102509_gemma-4-26b-a4b-it_GB10_0.31.0.md))",
+      "brief": "Gemma-4-26B-A4B-it(BF16)을 GB10 1대(TP=1 · 싱글)에서 vLLM v0.31.0 stock 소스빌드로 max-model-len 262144 · KV fp8 · PLE 없음 · spec off · cudagraph 로 서빙했고, 판정점 동시성 1 decode 23.29 t/s(GuideLLM × 반복 3 · synthetic)는 roofline 하한 13.69 대비 PASS(권한 weak · 인증서 없음)다. 가장 비싼 벽은 KV 절대 클램프 없이 뜬 첫 트라이얼이 통합메모리에서 KV 를 과다하게 잡아 호스트 memwatch 에 사살된 것이고 kv-cache-memory-bytes 절대 클램프로 넘었다(W1 · M1) — 그다음은 생성기가 yaml port 에 호스트 포트를 적어 health 가 닿지 않은 것이다(W2). 가장 오해하기 쉬운 값은 KV 클램프 3368402176(V3)이다 — 필요조건은 클램프의 존재이고 값은 262144 토큰 한 요청분이라 동시 장문 요청을 받지 못하며, gmu 0.85(V1)는 손레버 승계값이다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE"
+      ],
+      "model": "gemma-4-26b-a4b-it",
+      "object": "12d999ebf785afe0f44e2a92031711ab4d5f31d8",
+      "published": true,
+      "recipe": "qbf16-len262144-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/gemma-4-26b-a4b-it/gb10-1g1n-main-native/qbf16-len262144-kvfp8",
+      "tagged_utc": "2026-10-25T04:10:00Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gemma26b-ctx-single/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
       "anchor": "bc0270f73c8871ccc214ac8d8533cd19806afb75",
       "arch": "gb10-1g1n-main-native",
       "base_model": "ibm-granite/granite-4.1-8b-base",
@@ -1490,6 +1512,78 @@
       "tagged_utc": null,
       "verdict": "미수령",
       "verdict_source": "absent-local(로컬 태그 오브젝트 부재 · 합성 ✗)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "85f3757c2a7d4f02f2edb120f582ee516fd7be72",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "Qwen/Qwen3.8-Flash-Next",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102510_qwen3.8-flash-next-fp8_GB10_0.31.0.md))",
+      "brief": "Qwen3.8-Flash-Next-FP8(unsloth)을 GB10 2노드(노드당 GPU 1 · Ray TP=2) · vLLM `v0.31.0` 소스빌드 공유 이미지에서 max-model-len 1048576(YaRN factor 4) · KV fp8_e4m3 · eager · spec decode 없음 · **PLE 테이블을 디스크 mmap 으로 읽는 런타임 플러그인**으로 서빙했고, GuideLLM 동시성 1 decode 22.78 t/s 는 외부 기준 32.5 대비 ratio 0.701 의 weak REFUTE(표시만 · 서빙 실패 아님)다. 가장 비싼 벽은 PLE 상주 TP=2 의 예산 선판정 차단(W5)과 이전 vLLM 빌드 패치 62 의 앵커 전멸(W6)이며, stock 임베딩 클래스를 바꾸는 플러그인 `q38fn31-fp8-1m-tp2_patch.py`(`VLLM_PLE_MMAP=1` · FP8 스테이징 `VLLM_PLE_MMAP_DIR` · 이미지 재빌드 없음)로 넘었다. 가장 오해하기 쉬운 값: yaml 의 `async-scheduling: false` 는 설정에 도달하지 않고(M3) `enforce-eager` 는 플러그인 제약이며(V7) — yaml 노브 중 필요조건은 `hf-overrides`(V12) 하나이고 나머지는 바꿔 잰 적 없는 승계값이다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE",
+        "HINT_MISSING_RESOLVE",
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "qwen3.8-flash-next-fp8",
+      "object": "59fbc9104afb16ba15eeb06bc1509932882aa766",
+      "published": true,
+      "recipe": "qfp8-len1048576-kvfp8-plemmap",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/qwen3.8-flash-next-fp8/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-plemmap",
+      "tagged_utc": "2026-10-25T04:10:00Z",
+      "verdict": "REFUTE",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_q38fn31-fp8-1m-tp2/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "dce3d9d31318ae536972c0a77eac32b008f77970",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "Qwen/Qwen3.8-Flash-Next",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102511_qwen3.8-flash-next-nvfp4_GB10_0.31.0.md))",
+      "brief": "Qwen3.8-Flash-Next-NVFP4 를 GB10 2노드(노드당 GPU 1 · Ray TP=2)에서 vLLM v0.31.0 stock 소스빌드로 max-model-len 1048576(YaRN f4) · KV fp8_e4m3 · PLE resident · spec off · eager 로 서빙했고, 판정점 동시성 1 decode 26.01 t/s(GuideLLM × 반복 3)는 E 32.5 대비 REFUTE(floor 27.62 · 표시만)다. 가장 비싼 벽은 0.31.0 이 YaRN 최대 길이를 factor 로 다시 늘리지 않아 1M 요청이 ValidationError 로 거부된 것이고 hf-overrides 에 max_position_embeddings 를 함께 실어 넘었다(W8 · V12) — 이전 vLLM 계보의 resident 1M 로드 사살(W6)은 KV · gmu · 배치를 다시 잡은 이 형상에서 TRIP 0 이었다. 가장 오해하기 쉬운 값은 KV 클램프와 max-num-seqs 1(V6 · V9 — 스윕 없이 손으로 고른 승계값)이고, E 32.5 는 출처 · 조건이 기록되지 않은 값이고 같은 값의 1노드 PLE mmap 수치로 보여(추론) like-with-like 로 볼 근거가 없다(03 §3.5 · 02 Q1).",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE",
+        "HINT_MISSING_RESOLVE",
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "f8cd2b58a2a1bb69d9f3faee42a5e37ee7a42960",
+      "published": true,
+      "recipe": "qnvfp4-len1048576-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8",
+      "tagged_utc": "2026-10-25T04:10:00Z",
+      "verdict": "REFUTE",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_q38fn31-nv4-1m-tp2/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "06e31f76739fa34eb835eedcce17375d26610f5f",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "upstage/Solar-Open2-250B",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102512_solar-open2-250b-nota-nvfp4_GB10_0.31.0.md))",
+      "brief": "Solar-Open2-250B-Nota-NVFP4 를 GB10 2노드(노드당 GPU 1 · Ray TP=2 · expert-parallel) · vLLM `v0.31.0` 공유 이미지에 **자체 이식 런타임 플러그인**을 얹어 max-model-len 1048576(native · YaRN 없음) · KV fp8_e4m3 · eager · spec decode 없음으로 서빙했고, GuideLLM 동시성 1 decode 16.67 t/s(weak PASS · 인증서 없음)다. 가장 비싼 벽은 stock 0.31.0 의 Solar-Open2 미지원(W1 — Upstage 포크 델타를 `v0.31.0` API 로 다시 쓴 플러그인 `solar31-nv4-1m-tp2_patch.py`)과 서브 Ray 워커의 플러그인 부재(W3 — `RUNTIME_PATCH_STEM` 전달 · 양 노드 무장)다. 가장 오해하기 쉬운 값: yaml 의 `async-scheduling: false` 는 무효이고(M1) 러너 `--no-async-scheduling` 이 V2 프로세서의 필요조건이다(W7) — yaml 서빙 노브 16개는 전부 조정 · 단독 제거 대조가 없는 승계값이다(V1~V16).",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE",
+        "HINT_MISSING_RESOLVE",
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "solar-open2-250b-nota-nvfp4",
+      "object": "9cca6d34a95c580282da723875aaf1234f2d59c6",
+      "published": true,
+      "recipe": "qnvfp4-len1048576-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/solar-open2-250b-nota-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8",
+      "tagged_utc": "2026-10-25T04:10:00Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_solar31-nv4-1m-tp2/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
     }
   ],
