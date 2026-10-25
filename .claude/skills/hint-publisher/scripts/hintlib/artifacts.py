@@ -6167,18 +6167,10 @@ def selftest() -> list[str]:
             shutil.rmtree(fail_d, ignore_errors=True)
         sr_s = json.loads((repo / "p_arm_log/artifacts/compose/sub_recipe.json").read_text(encoding="utf-8"))
         rd_s = sr_s["role_diff"]
-        # armer(arm_patch.sh)와 slave 전달 표(slave_forward)는 브랜치별 공통층이다 — single-node 체크아웃은 RUNTIME_PATCH_STEM 키 체인도
-        #   slave 전달도 갖지 않는다(multi 만 d781f26). 둘 다 있는 체크아웃에서만 '실물 바이트' 단언을 하고, 아니면 도구가 실물 armer 의
-        #   체인을 그대로 따랐는지만 단언한다(조건부 단언 · 2026-10-25).
-        _fwd_stem = "RUNTIME_PATCH_STEM" in {r["key"] for r in sr_s["env_forward"]}
-        _armer_stem = "RUNTIME_PATCH_STEM" in arm0.decode("utf-8", "replace")
-        if _fwd_stem and _armer_stem:
-            _ok = (rd_s["slave_runtime_patch"].startswith("armed") and "RUNTIME_PATCH_STEM" in rd_s["slave_runtime_patch"]
-                   and "K11" not in rd_s["slave_runtime_patch"] and rd_s["runtime_patch_key_chain"][:2] == ["RUNTIME_PATCH_STEM", "CONFIG_FILE"])
-        else:
-            _ok = "RUNTIME_PATCH_STEM" not in rd_s["runtime_patch_key_chain"] and not rd_s["slave_runtime_patch"].startswith("armed — RUNTIME")
-        ck("★F3 실물 armer 키 체인(RUNTIME_PATCH_STEM > CONFIG_FILE > 'default') × slave 전달 RUNTIME_PATCH_STEM = slave armed"
-           + ("" if (_fwd_stem and _armer_stem) else " (이 체크아웃은 armer·slave 전달에 RUNTIME_PATCH_STEM 없음 → 체인 미포함 단언)"), _ok)
+        ck("★F3 실물 armer 키 체인(RUNTIME_PATCH_STEM > CONFIG_FILE > 'default') × slave 전달 RUNTIME_PATCH_STEM = slave armed",
+           rd_s["slave_runtime_patch"].startswith("armed") and "RUNTIME_PATCH_STEM" in rd_s["slave_runtime_patch"]
+           and "K11" not in rd_s["slave_runtime_patch"] and rd_s["runtime_patch_key_chain"][:2] == ["RUNTIME_PATCH_STEM", "CONFIG_FILE"]
+           and "RUNTIME_PATCH_STEM" in {r["key"] for r in sr_s["env_forward"]})
         rec_nolog = next(r for r in r_nolog["slots"]["runtime_patch"]["file_records"])
         rec_log = next(r for r in r_log["slots"]["runtime_patch"]["file_records"])
         ck("F2 음성대조: 실물 armer · 로그에 무장 줄 없음 = 서명 미관측(적용 관측 ✗) · 1-signal",
