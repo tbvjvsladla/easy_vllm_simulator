@@ -1098,7 +1098,10 @@ def _f_slots(c: _Ctx) -> str:
         for r in ev.get("recipe_vs_image") or []:
             if isinstance(r, dict) and r.get("warning"):
                 notes.append(f"- ⚠ `{name}` `{_cell(r.get('path'))}` — {_cell(r.get('warning'))}"
-                             f"(이미지 Created {_cell(r.get('image_created_utc'))} · 마지막 커밋 {_cell(r.get('last_commit_utc'))})")
+                             f"(이미지 Created {_cell(r.get('image_created_utc'))} · {_cell(r.get('last_commit_kind') or '마지막 커밋')} "
+                             f"{_cell(r.get('last_commit_utc'))}"
+                             + (f" · 이 체크아웃 통로 `{_cell(r.get('checkout_path'))}` 의 파일이 아니다" if r.get("checkout_path") else "")
+                             + ")")
         for r in ev.get("context_not_shipped") or []:
             if isinstance(r, dict):
                 notes.append(f"- ⚠ `{name}` COPY 원천 `{_cell(r.get('source'))}` 미실림 — {_cell(r.get('why'))}")
@@ -1184,7 +1187,9 @@ def _revision_line(slot: str, r: dict) -> str:
     hm = r.get("history_match") if isinstance(r.get("history_match"), dict) else None
     commit = r.get("commit")
     head = f"커밋 `{str(commit)[:12]}`" if commit else "리비전 미특정"
-    path = f" `{_cell(r.get('path'))}`" if r.get("path") else ""
+    # F15(2026-10-25): 실린 바이트가 다른 통로의 이력 blob 이면 그 경로(origin_path)를 쓴다 — 선택 키(path)는 이 체크아웃 통로다
+    path = (f" `{_cell(r.get('origin_path'))}`(이 체크아웃 통로 `{_cell(r.get('path'))}` 대신)" if r.get("origin_path")
+            else f" `{_cell(r.get('path'))}`" if r.get("path") else "")
     match = (f"docker history 대조 {_cell(hm.get('matched'))}/{_cell(hm.get('total'))}" if hm else "docker history 대조 없음")
     extra = ""
     if r.get("shipped") not in (None, ""):
@@ -1460,13 +1465,16 @@ def _context_map_lines(f: dict) -> list[str]:
     (`build_patch_pre/`·`triplet/`)과 Dockerfile · compose 가 기대하는 자리(`build_patches_src/`·`envs/`·`configs/`)가 달라 수신자가
     어디에 둘지 추측했다(블라인드 X1)."""
     rows = [r for r in (f.get("build_context_map") or []) if isinstance(r, dict) and r.get("slot_path")]
-    if not rows:
+    # F13(2026-10-25): 실린 파일 없이 컨텍스트에 만들어야 하는 자리(실린 Dockerfile 이 COPY 하는 빈 패치 디렉터리 · 원장 context_inventory)
+    mk = [r for r in (f.get("build_context_map") or []) if isinstance(r, dict) and r.get("create") == "empty-dir"]
+    if not rows and not mk:
         return []
     out = ["", "**슬롯 → 빌드 컨텍스트 매핑**(빌드 컨텍스트 = `output/<토폴로지>/` · 원천 = 실린 Dockerfile 의 COPY · compose 의 env_file · "
                "volumes · command — `—` 는 빌드 컨텍스트 입력이 아니다)", ""]
     out += _table(("zip 경로", "빌드 컨텍스트 자리", "근거"),
                   [(f"`{_cell(r.get('slot_path'))}`", f"`{_cell(r.get('context_path'))}`" if r.get("context_path") else "—",
-                    _cell(r.get("basis"))) for r in rows])
+                    _cell(r.get("basis"))) for r in rows]
+                  + [("(실린 파일 없음 — 빈 디렉터리 생성)", f"`{_cell(r.get('context_path'))}`", _cell(r.get("basis"))) for r in mk])
     return out
 
 
@@ -2846,6 +2854,10 @@ def _context_map_summary(f: dict) -> str:
         key = (Path(str(r["slot_path"])).parent.as_posix() + "/", "(컨텍스트 루트)" if cdir == "." else cdir + "/")
         groups[key] = groups.get(key, 0) + 1
     out = _table(("zip 폴더", "빌드 컨텍스트 자리", "파일 수"), [(f"`{a}`", f"`{b}`", str(n)) for (a, b), n in sorted(groups.items())])
+    mk = [r for r in (f.get("build_context_map") or []) if isinstance(r, dict) and r.get("create") == "empty-dir"]
+    if mk:
+        out += ["", "_빈 디렉터리로 만들 컨텍스트 자리(실린 Dockerfile 이 COPY · 실린 파일 없음): "
+                + " · ".join(f"`{_cell(r.get('context_path'))}`" for r in mk) + " — 01 §1.4._"]
     if outside:
         out += ["", f"_빌드 컨텍스트 입력이 아닌 파일 {outside}개(기록 · pip freeze 등) — 01 §1.4 표의 `—` 행._"]
     return "\n".join(out)
@@ -5315,6 +5327,20 @@ def selftest() -> list[str]:
            "| `artifacts/build_patch_pre/60-fixture-patch.sh` | `build_patches_src/60-fixture-patch.sh` |" in rp_
            and "| `artifacts/build_recipe/pip-freeze-main.txt` | — |" in rp_ and "<derived:interconnect.nccl_transport→NCCL_NET>" in rp_
            and "rdma → NCCL_IB_DISABLE=0" in rp_)
+        xf13 = json.loads(core.dumps(xf))
+        xf13["build_context_map"].append({"slot_path": None, "context_path": "build_patches/", "create": "empty-dir",
+                                          "inventory": [".gitkeep"], "basis": "Dockerfile COPY build_patches/ · 실린 패치 없음 — 빈 디렉터리"})
+        ck("F13 빈 디렉터리 생성 행 = 01 매핑 표 · README 요약 둘 다",
+           "| (실린 파일 없음 — 빈 디렉터리 생성) | `build_patches/` |" in _f_reproduce(_Ctx(repo, xf13, tpls))
+           and "빈 디렉터리로 만들 컨텍스트 자리" in _context_map_summary(xf13) and "`build_patches/`" in _context_map_summary(xf13))
+        sl15 = {"build_recipe": {"files": ["artifacts/build_recipe/Dockerfile.source-build"], "evidence": {"recipe_vs_image": [
+            {"path": "output/single/Dockerfile.source-build", "checkout_path": "output/multi/Dockerfile.source-build",
+             "last_commit_utc": "2026-10-14T03:07:26Z", "last_commit_kind": "실린 개정 커밋", "image_created_utc": "2026-10-14T01:45:19Z",
+             "warning": "실린 바이트(git:x)가 … 전수 일치하지 않는다(16/17)"}]}}}
+        n15 = _f_slots(_Ctx(repo, dict(xf, slots=sl15), tpls))
+        ck("F15 레시피 경고 줄 = 실린 파일 경로 · 실린 개정 커밋 시각 · 이 체크아웃 통로가 아님 명시",
+           "`output/single/Dockerfile.source-build` — 실린 바이트" in n15 and "실린 개정 커밋 2026-10-14T03:07:26Z" in n15
+           and "이 체크아웃 통로 `output/multi/Dockerfile.source-build` 의 파일이 아니다" in n15)
         # ── F3 · F6 · F5 · F2 · F1(2026-09-29 · plan_26092908 §4.5 FACT 생산자 교정) ──
         xf6 = json.loads(core.dumps(xf))
         d6 = xf6["env_shapes"][0]["derived"][0]
