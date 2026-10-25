@@ -4127,8 +4127,14 @@ def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: d
     `build_patch_pre/` 를 어디에 두어야 하는지 묻지 않게). 파생 원천은 **실린 Dockerfile 의 COPY** · compose 의 env_file·volumes·
     command 뿐 — 거기서 가리키지 않는 파일은 context_path None(빌드 컨텍스트 입력 아님)으로 적는다(지어내지 않는다)."""
     df_name = (sel or {}).get("dockerfile")
-    df_text = _select_dockerfile(c, df_name)["text"] if df_name and (c.out / df_name).is_file() else ""
+    dsel = _select_dockerfile(c, df_name) if df_name and (c.out / df_name).is_file() else {}
+    df_text = dsel.get("text") or ""
     copies = _dockerfile_copies(df_text) if df_text else []
+    # NVFP4 F15(2026-10-25): 실린 Dockerfile 이 다른 통로(origin_path)의 이력 blob 이면 그 빌드의 컨텍스트는 그 통로다(01 §1.4 2단계
+    #   `docker build -f <origin> … <통로>` 와 같은 자리) — 빌드 레시피 · 빌드 패치 행은 그 컨텍스트 뿌리(context_root)를 달고, compose 를
+    #   근거로 들지 않는다(그 통로에서는 compose build 가 동등 경로가 아니다). 트리플렛 · compose 슬롯 행은 종전(이 체크아웃 통로).
+    origin = dsel.get("origin_path")
+    rroot = (str(PurePath(origin).parent) if origin and str(PurePath(origin).parent) != core.rel(c.repo, c.out) else None)
     ctext = _compose_text(c)
     vols = _compose_volumes(ctext)
     env_refs = set(_ENV_FILE_REF.findall(ctext))
@@ -4154,7 +4160,10 @@ def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: d
                 if d in copies:
                     ctx_path, basis = f"{d}/{name}", f"{df_name} COPY {d}/"
             elif slot == "build_recipe" and df_text:
-                if name == df_name:
+                if name == df_name and rroot:
+                    ctx_path, basis = name, (f"docker build -f {origin} · 컨텍스트 {rroot}(01 §1.4 2단계 — 이 이미지의 레시피 통로 · "
+                                             f"compose build 는 {core.rel(c.repo, c.out)}/ 의 Dockerfile 을 지어 동등 경로가 아니다)")
+                elif name == df_name:
                     # 셀 B F2(2026-10-10 · plan_26101017): compose 의 실제 dockerfile 키를 읽는다 — 리터럴이 이 파일과 다르면 compose 가
                     #   이 파일을 가리키지 않는다(docker build -f 의 입력일 뿐)
                     from . import evidence as _evidence
@@ -4181,11 +4190,17 @@ def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: d
                                   (f"/app/configs/{name}" in ctext or name in trip_names or name.endswith("_patch.py")
                                    or slot == "compose")):
                     ctx_path, basis = f"{cfg_dir}/{name}", f"compose volumes ./{cfg_dir}:/app/configs"
-            rows.append({"slot_path": rel_f, "context_path": ctx_path, "basis": basis})
+            row = {"slot_path": rel_f, "context_path": ctx_path, "basis": basis}
+            if rroot and ctx_path and slot in ("build_recipe", "build_patch_pre", "build_patch_post"):
+                row["context_root"] = rroot
+            rows.append(row)
     for e in _empty_copy_dirs(c, df_text, slots):
-        rows.append({"slot_path": None, "context_path": f"{e['dir']}/", "create": "empty-dir", "inventory": e["inventory"],
-                     "basis": f"{df_name} COPY {e['dir']}/ · 실린 패치 없음 — 빈 디렉터리를 만든다(없으면 COPY 단계에서 빌드가 멈춘다) · "
-                              f"{e['source']}"})
+        row = {"slot_path": None, "context_path": f"{e['dir']}/", "create": "empty-dir", "inventory": e["inventory"],
+               "basis": f"{df_name} COPY {e['dir']}/ · 실린 패치 없음 — 빈 디렉터리를 만든다(없으면 COPY 단계에서 빌드가 멈춘다) · "
+                        f"{e['source']}"}
+        if rroot:
+            row["context_root"] = rroot
+        rows.append(row)
     return rows
 
 
@@ -5590,6 +5605,12 @@ def selftest() -> list[str]:
             ck("★F24 패치 디렉터리 = 이미지를 지은 레시피 통로의 커밋 트리(.gitkeep 만) — 작업트리 output/multi/build_patches_src 의 "
                "50·55·60 은 열거되지 않는다 · 실린 pre 패치 0",
                [x["file"] for x in exx] == [".gitkeep"] and not rx["slots"]["build_patch_pre"]["files"])
+            bmx = {r["slot_path"]: r for r in rx["build_context_map"] if r.get("slot_path")}
+            ck("★NVFP4 F15 레시피 통로가 다르면 build_recipe 행 = 그 컨텍스트 뿌리 · docker build 근거(compose ✗) · 트리플렛 행은 종전",
+               bmx["artifacts/build_recipe/Dockerfile.rev"].get("context_root") == "output/single"
+               and "docker build -f output/single/Dockerfile.rev" in bmx["artifacts/build_recipe/Dockerfile.rev"]["basis"]
+               and "compose build.dockerfile" not in bmx["artifacts/build_recipe/Dockerfile.rev"]["basis"]
+               and not any(r.get("context_root") for k, r in bmx.items() if "/triplet/" in k or "/compose/" in k))
             mkx = [r for r in rx["build_context_map"] if r.get("create") == "empty-dir"]
             ck("★F13 실린 Dockerfile 이 COPY 하는 패치 디렉터리에 실린 파일이 없으면 빈 디렉터리 생성 행 · 빌드 명령에 mkdir -p(컨텍스트 통로)",
                [r["context_path"] for r in mkx] == ["build_patches_src/"] and "미관측" in mkx[0]["basis"]

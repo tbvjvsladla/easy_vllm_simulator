@@ -1469,12 +1469,20 @@ def _context_map_lines(f: dict) -> list[str]:
     mk = [r for r in (f.get("build_context_map") or []) if isinstance(r, dict) and r.get("create") == "empty-dir"]
     if not rows and not mk:
         return []
+    roots = sorted({str(r["context_root"]) for r in rows + mk if r.get("context_root")})
     out = ["", "**슬롯 → 빌드 컨텍스트 매핑**(빌드 컨텍스트 = `output/<토폴로지>/` · 원천 = 실린 Dockerfile 의 COPY · compose 의 env_file · "
-               "volumes · command — `—` 는 빌드 컨텍스트 입력이 아니다)", ""]
+               "volumes · command — `—` 는 빌드 컨텍스트 입력이 아니다)"
+           + ("" if not roots else
+              " — ⚠ 빌드 레시피 · 빌드 패치 행은 다른 컨텍스트 " + " · ".join(f"`{_cell(x)}/`" for x in roots)
+              + "(이 이미지의 레시피 통로 · 2단계 docker build 와 같은 자리 · 자리 칸에 그 뿌리를 붙였다)"), ""]
+
+    def place(r):
+        cp = f"{r['context_root']}/{r.get('context_path')}" if r.get("context_root") else r.get("context_path")
+        return f"`{_cell(cp)}`"
     out += _table(("zip 경로", "빌드 컨텍스트 자리", "근거"),
-                  [(f"`{_cell(r.get('slot_path'))}`", f"`{_cell(r.get('context_path'))}`" if r.get("context_path") else "—",
+                  [(f"`{_cell(r.get('slot_path'))}`", place(r) if r.get("context_path") else "—",
                     _cell(r.get("basis"))) for r in rows]
-                  + [("(실린 파일 없음 — 빈 디렉터리 생성)", f"`{_cell(r.get('context_path'))}`", _cell(r.get("basis"))) for r in mk])
+                  + [("(실린 파일 없음 — 빈 디렉터리 생성)", place(r), _cell(r.get("basis"))) for r in mk])
     return out
 
 
@@ -2851,13 +2859,21 @@ def _context_map_summary(f: dict) -> str:
             outside += 1
             continue
         cdir = Path(str(r["context_path"])).parent.as_posix()
-        key = (Path(str(r["slot_path"])).parent.as_posix() + "/", "(컨텍스트 루트)" if cdir == "." else cdir + "/")
+        root = r.get("context_root")
+        cname = ("(컨텍스트 루트)" if cdir == "." else cdir + "/") if not root else \
+            (f"{root}/" if cdir == "." else f"{root}/{cdir}/")
+        key = (Path(str(r["slot_path"])).parent.as_posix() + "/", cname)
         groups[key] = groups.get(key, 0) + 1
     out = _table(("zip 폴더", "빌드 컨텍스트 자리", "파일 수"), [(f"`{a}`", f"`{b}`", str(n)) for (a, b), n in sorted(groups.items())])
     mk = [r for r in (f.get("build_context_map") or []) if isinstance(r, dict) and r.get("create") == "empty-dir"]
+    roots = sorted({str(r["context_root"]) for r in rows + mk if r.get("context_root")})
+    if roots:
+        out += ["", "_⚠ 빌드 레시피 · 빌드 패치는 다른 컨텍스트 " + " · ".join(f"`{_cell(x)}/`" for x in roots)
+                + "(이 이미지의 레시피 통로 · 01 §1.4 2단계 docker build 와 같은 자리 — compose build 는 동등 경로가 아니다)._"]
     if mk:
         out += ["", "_빈 디렉터리로 만들 컨텍스트 자리(실린 Dockerfile 이 COPY · 실린 파일 없음): "
-                + " · ".join(f"`{_cell(r.get('context_path'))}`" for r in mk) + " — 01 §1.4._"]
+                + " · ".join(f"`{_cell(str(r['context_root']) + '/') if r.get('context_root') else ''}{_cell(r.get('context_path'))}`"
+                             for r in mk) + " — 01 §1.4._"]
     if outside:
         out += ["", f"_빌드 컨텍스트 입력이 아닌 파일 {outside}개(기록 · pip freeze 등) — 01 §1.4 표의 `—` 행._"]
     return "\n".join(out)
@@ -5330,6 +5346,19 @@ def selftest() -> list[str]:
         xf13 = json.loads(core.dumps(xf))
         xf13["build_context_map"].append({"slot_path": None, "context_path": "build_patches/", "create": "empty-dir",
                                           "inventory": [".gitkeep"], "basis": "Dockerfile COPY build_patches/ · 실린 패치 없음 — 빈 디렉터리"})
+        xf15 = json.loads(core.dumps(xf13))
+        xf15["build_context_map"] = [
+            {"slot_path": "artifacts/build_recipe/Dockerfile.source-build", "context_path": "Dockerfile.source-build",
+             "context_root": "output/single", "basis": "docker build -f output/single/Dockerfile.source-build · 컨텍스트 output/single"},
+            {"slot_path": "artifacts/triplet/c.yaml", "context_path": "configs/c.yaml", "basis": "compose volumes ./configs:/app/configs"},
+            {"slot_path": None, "context_path": "build_patches/", "create": "empty-dir", "context_root": "output/single",
+             "basis": "빈 디렉터리"}]
+        rp15, sm15 = _f_reproduce(_Ctx(repo, xf15, tpls)), _context_map_summary(xf15)
+        ck("★NVFP4 F15 레시피 통로가 다르면 매핑 표 · README 가 빌드 레시피 · 빌드 패치 행에 그 컨텍스트 뿌리(2단계와 같은 자리) · 트리플렛은 종전",
+           "| `artifacts/build_recipe/Dockerfile.source-build` | `output/single/Dockerfile.source-build` |" in rp15
+           and "| `artifacts/triplet/c.yaml` | `configs/c.yaml` |" in rp15 and "다른 컨텍스트 `output/single/`" in rp15
+           and "`output/single/build_patches/`" in rp15 and "`output/single/`" in sm15 and "다른 컨텍스트 `output/single/`" in sm15
+           and "`configs/`" in sm15)
         ck("F13 빈 디렉터리 생성 행 = 01 매핑 표 · README 요약 둘 다",
            "| (실린 파일 없음 — 빈 디렉터리 생성) | `build_patches/` |" in _f_reproduce(_Ctx(repo, xf13, tpls))
            and "빈 디렉터리로 만들 컨텍스트 자리" in _context_map_summary(xf13) and "`build_patches/`" in _context_map_summary(xf13))
