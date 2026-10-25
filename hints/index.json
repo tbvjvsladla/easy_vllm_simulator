@@ -1,6 +1,6 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 73,
+  "count": 74,
   "generated_kst": "2026-10-25T13:10:00",
   "hints": [
     {
@@ -1536,6 +1536,29 @@
       "tagged_utc": "2026-10-25T04:10:00Z",
       "verdict": "REFUTE",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_q38fn31-fp8-1m-tp2/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "c799320f538e07504f8b4a3ac12b59c38434f3a4",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": "Qwen/Qwen3.8-Flash-Next",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102510_qwen3.8-flash-next-nvfp4_GB10_0.31.0.md))",
+      "brief": "Qwen3.8-Flash-Next-NVFP4(nvidia)를 GB10 1대(싱글 TP=1) · vLLM `v0.31.0` 소스빌드 공유 이미지에서 max-model-len 1048576(YaRN factor 4) · KV fp8_e4m3 · eager · spec decode 없음 · **PLE 테이블을 디스크 mmap 으로 읽는 런타임 플러그인**으로 서빙했고, GuideLLM 동시성 1 decode 16.72 t/s 는 roofline 하한 6.7 대비 weak PASS 다(외부 기준 E 는 이 형상의 물리상한을 넘어 무효 · M2). 가장 비싼 벽은 PLE 상주 싱글의 산술 사전판정 불가(W3)와 빌드 패치 62 의 앵커 전멸(W5)이며, stock 임베딩 클래스를 바꾸는 플러그인 `q38fn31-nv4-mmap-1m-tp1_patch.py`(`VLLM_PLE_MMAP=1` · 노드 로컬 스테이징 · 이미지 재빌드 없음)와 single 하네스 교정(W6 · 로드-전 RAM 게이트)으로 넘었다. 가장 오해하기 쉬운 값: `max-num-seqs: 1`(V7)이 부하 곡선을 한 점으로 만들었고 KV 클램프(V4)는 다른 셀 실측에서 옮긴 손계산이며, yaml 노브 중 필요조건은 `hf-overrides`(V10) 하나다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE",
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "bf76daf21c3ac6549f7ebfca9463c4fc0b916494",
+      "published": true,
+      "recipe": "qnvfp4-len1048576-kvfp8-plemmap",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/qwen3.8-flash-next-nvfp4/gb10-1g1n-main-native/qnvfp4-len1048576-kvfp8-plemmap",
+      "tagged_utc": "2026-10-25T04:10:00Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_q38fn31-nv4-mmap-1m-tp1/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
     },
     {
