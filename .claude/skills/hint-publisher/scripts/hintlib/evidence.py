@@ -1941,11 +1941,23 @@ def _session_is_cell(sid, cell: str) -> bool:
     return isinstance(sid, str) and re.fullmatch(pat, sid) is not None
 
 
+# 2026-10-25(Qwen 싱글 재생 FC-15): budget_declare 계열 행의 `mem_total_mib` 는 선언이 아니라 **러너가 기동 때 그 노드에서 잰 값**이다 —
+#   쓰는 문은 blackbox_session `declare-budget --mem-total-mib`(인자 계약 help "/proc/meminfo MemTotal") 하나이고, 호출부 러너
+#   (single_serve_up.sh · multinode_serve_smoke.sh · native_multinode_serve.py)가 모두 /proc/meminfo MemTotal 을 넘긴다. 이 문이 쓰는 kind 만
+#   측정 표지를 단다 — budget_blocked 의 mem_total_mib 는 자유 detail(`--detail k=v`)이라 계약이 없다(종전 표기 · 자체검사가 help 원문 대조).
+_MEASURED_MEM_TOTAL_KINDS = ("budget_declare", "budget_declare_rejected")
+_DECL_MEM_TAIL = " · 단 mem_total_mib 는 러너 측정"
+_MEM_TOTAL_NOTE = "러너가 기동 시 잰 노드 MemTotal — 선언값 아님(blackbox_session declare-budget --mem-total-mib = /proc/meminfo MemTotal)"
+
+
 def _event_fields(d: dict) -> str:
     out = []
+    measured_mem = d.get("kind") in _MEASURED_MEM_TOTAL_KINDS and d.get("source") in (None, "blackbox_session")
     for k in _EVENT_DETAIL_FIELDS:
         v = d.get(k)
-        if isinstance(v, bool) or isinstance(v, (int, float)):
+        if k == "mem_total_mib" and measured_mem and isinstance(v, (int, float)) and not isinstance(v, bool):
+            out.append(f"{k}={v}({_MEM_TOTAL_NOTE})")
+        elif isinstance(v, bool) or isinstance(v, (int, float)):
             out.append(f"{k}={str(v).lower() if isinstance(v, bool) else v}")
         elif isinstance(v, str) and _SAFE_DETAIL_VALUE.fullmatch(v) and not _IPV4_LIKE.search(v):
             out.append(f"{k}={v}")
@@ -2195,7 +2207,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                             rel_m = f"measured_utc {measured} 가 이 창 시간 안 — 라벨이 달라 이 측정의 기동으로 귀속하지 않는다"
                         else:
                             rel_m = f"measured_utc {measured} 는 이 창 밖(" + ("측정 뒤)" if w["start_ts"] > measured else "측정 전)")
-                        detail = (f"예산 선언(선언값 — 측정 아님) · {fields} · {note} · budget_renew {renews}회 · {closed} · {rel_m}")
+                        detail = (f"예산 선언(선언값 — 측정 아님{_DECL_MEM_TAIL if _MEM_TOTAL_NOTE in fields else ''}) · {fields} · {note} · budget_renew {renews}회 · {closed} · {rel_m}")
                     elif d.get("label") in (None, ""):
                         detail = (f"{k} · {fields} · 라벨 없음 → {w['label']} 선언 창 귀속(노드당 선언 슬롯 1개 · "
                                   f"창 시작 {w['start_ts']} 후 {_dur(w['start_ts'], ts)}) · {note}")
@@ -2220,7 +2232,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                                  + ("측정 뒤 — 이 측정과 무관할 수 있다)" if w["start_ts"] > measured else "측정 전)"))
                     closed = (f"닫힘 {w['end_kind']} {w['end_ts']}(선언 후 {_dur(w['start_ts'], w['end_ts'])})" if w["end_ts"]
                               else "닫힘 미관측(창이 열린 채 원장이 끝난다)")
-                    detail = (f"예산 선언(선언값 — 측정 아님) · {fields} · 기동 창 {order[id(w)]}/{len(declare_wins)}: "
+                    detail = (f"예산 선언(선언값 — 측정 아님{_DECL_MEM_TAIL if _MEM_TOTAL_NOTE in fields else ''}) · {fields} · 기동 창 {order[id(w)]}/{len(declare_wins)}: "
                               f"budget_renew {renews}회 · {closed} · {rel_m}")
                 elif d.get("label") in (None, "") and w is not None:
                     detail = (f"{k} · {fields} · 라벨 없음 → {w['label']} 선언 창 귀속(노드당 선언 슬롯 1개 · "
@@ -6652,7 +6664,7 @@ def _fixture(td: Path) -> tuple[Path, dict]:
               {"kind": "budget_clear", "existed": True, "ts": "2026-01-02T01:50:00Z"},
               {"kind": "serve_start", "session_id": "serve-c1-a-20260102T020000Z", "model": "fixture", "ts": "2026-01-02T02:00:00Z"},
               {"kind": "serve_start", "session_id": "serve-c1-ab-20260102T020000Z", "model": "other", "ts": "2026-01-02T02:00:00Z"},
-              {"kind": "budget_declare", "label": "smoke-c1-a", "floor_mib": 100, "ts": "2026-01-02T02:30:00Z"},
+              {"kind": "budget_declare", "label": "smoke-c1-a", "floor_mib": 100, "mem_total_mib": 124608, "ts": "2026-01-02T02:30:00Z"},
               {"kind": "budget_renew", "label": "smoke-c1-a", "ttl_s": 900, "ts": "2026-01-02T02:59:00Z"},
               {"kind": "watchdog_trip_nomatch", "ts": "2026-01-02T03:00:00Z"},
               "{not json",
@@ -6902,6 +6914,9 @@ def _selftest_round2(ck, repo: Path, td: Path, ev: CellEvidence, ident: dict) ->
     ck("타임라인 — 이 셀 라벨의 선언 창 2개(1차 renew 0 · 2차 renew 1 · 측정 포함)", len(decl) == 2
        and "기동 창 1/2" in decl[0]["detail"] and "budget_renew 0회" in decl[0]["detail"] and "이 창 밖" in decl[0]["detail"]
        and "기동 창 2/2" in decl[1]["detail"] and "budget_renew 1회" in decl[1]["detail"] and "이 창 안" in decl[1]["detail"])
+    ck("★FC-15 선언 행 머리 = '단 mem_total_mib 는 러너 측정'(그 칸이 있을 때만) · 칸이 없는 선언 행은 종전 머리",
+       "선언값 — 측정 아님 · 단 mem_total_mib 는 러너 측정" in decl[1]["detail"] and _MEM_TOTAL_NOTE in decl[1]["detail"]
+       and "선언값 — 측정 아님)" in decl[0]["detail"])
     ck("타임라인 — 출처 = 파일:줄(`\\n` 기준)", decl[0]["source"] == "docs/logs/main/events/2026-01.jsonl:2"
        and decl[1]["source"] == "docs/logs/main/events/2026-01.jsonl:9")
     tl_early = event_timeline(repo, dataclasses.replace(ev, certificate={**(ev.certificate or {}), "measured_utc": "2026-01-02T00:30:00Z"}))
@@ -6912,6 +6927,15 @@ def _selftest_round2(ck, repo: Path, td: Path, ev: CellEvidence, ident: dict) ->
        ("budget_clear", "2026-01-02T03:10:00Z"), ("budget_none", "2026-01-02T03:10:01Z"),
        ("watchdog_highrate_hold", "2026-01-02T02:31:00Z"), ("thermal_trip", "2026-01-02T02:45:00Z")}
        <= {(r["kind"], r["utc"]) for r in tl})
+    fd = _event_fields({"kind": "budget_declare", "source": "blackbox_session", "floor_mib": 12368, "weights_mib": 73104,
+                        "mem_total_mib": 124608})
+    fb = _event_fields({"kind": "budget_blocked", "source": "blackbox_session", "mem_total_mib": 124608})
+    bs_src = (core.SKILL_DIR.parent / "terraforming_node/scripts/node_blackbox/blackbox_session.py").read_text(encoding="utf-8")
+    ck("★FC-15 budget_declare 의 mem_total_mib = 러너 측정 표지(선언값 아님) · floor·weights 는 그대로 · budget_blocked(자유 detail)는 종전 · "
+       "계약 원문(declare-budget --mem-total-mib help = /proc/meminfo MemTotal) 교차대조",
+       f"mem_total_mib=124608({_MEM_TOTAL_NOTE})" in fd and "floor_mib=12368 ·" in fd and "weights_mib=73104" in fd
+       and fb == "mem_total_mib=124608"
+       and 'b.add_argument("--mem-total-mib", type=int, required=True, help="/proc/meminfo MemTotal")' in bs_src)
     ck("★F4 라벨 없는 워치독 budget_rejected(창 닫힘 직전) = 열린 창에 귀속 · 행 라벨 None · 출처 watchdog.jsonl",
        any(r["kind"] == "budget_rejected" and r["utc"] == "2026-01-02T03:10:00Z" and r["label"] is None
            and "라벨 없음 → smoke-c1-a 선언 창 귀속" in r["detail"] and "watchdog.jsonl" in r["source"] for r in tl))
