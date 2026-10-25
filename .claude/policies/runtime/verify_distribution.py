@@ -473,7 +473,10 @@ def verify() -> dict:
                     and 'install -m 0600 "$src_input" "$dst_input"' in sub_text
                     and '"${CANONICAL_SRC}output/$topology/"' not in sub_text)},
             {"name": "sub_runtime_patch_transfer_is_owner_allowlisted",
-             "ok": ("BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3)" in sub_text
+             # 2026-10-26(plan_26102607): 모델 이름 리터럴 대조 ✗ — claim_predicates._stem_allowlist(F4)와 같은 성질 단언
+             #   (명시 괄호 목록 · 비지 않음 · 각 stem 이 평범한 식별자). 새 패치 등재마다 이 검사를 고치던 결합 제거.
+             "ok": (bool(re.search(r"^BAND2_RUNTIME_PATCH_STEMS=\(\s*[a-z0-9][a-z0-9.-]*(?:\s+[a-z0-9][a-z0-9.-]*)*\s*\)",
+                                   sub_text, re.M))
                     and "--include='/configs/*_patch.py'" not in sub_text
                     and '"$build_assets"/runtime_patches/*' in sub_text)},
             {"name": "sub_retirement_consumer_audit_before_tombstone",
