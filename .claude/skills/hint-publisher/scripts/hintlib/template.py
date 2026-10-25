@@ -1623,8 +1623,10 @@ def _f_measurement_env(c: _Ctx) -> str:
     if not rows:
         return ("_측정 실행의 env 관측 없음 — 측정 엔진 로그에서 env echo 줄(`<KEY> set by environment to <VALUE>` 등)을 찾지 못했다"
                 "(evidence.measurement_env_observed · 부재 ≠ 미설정)._")
+    n_kp = sum(1 for r in rows if r.get("kind") == "key-present")
     out = [f"**측정 실행의 env 관측 {len(rows)}행**(측정한 실행의 엔진 로그가 echo 한 값 · 기계 발췌 — 측정 당시 값의 정본이다. 표에 없는 "
-           "키는 로그가 echo 하지 않은 것이지 설정되지 않았다는 뜻이 아니다 · 측정 뒤 재생성된 env 형상은 01 §1.1 을 본다)", ""]
+           "키는 로그가 echo 하지 않은 것이지 설정되지 않았다는 뜻이 아니다 · 측정 뒤 재생성된 env 형상은 01 §1.1 을 본다)"
+           + (f" — 그중 {n_kp}행은 종류 `key-present`: 키가 프로세스 env 에 **있었다**는 관측뿐이고 값은 로그에 없다(값 미관측)" if n_kp else ""), ""]
     def seen(r: dict) -> str:
         parts = ([f"{r['occurrences']}줄"] if r.get("occurrences") else []) + \
                 ([f"로그 {r['seen_in_logs']}개"] if r.get("seen_in_logs") else [])
@@ -1634,7 +1636,8 @@ def _f_measurement_env(c: _Ctx) -> str:
         return " · ".join(parts) or "—"
 
     out += _table(("#", "키", "값", "노드", "종류", "출처(첫 줄)", "관측"),
-                  [(str(i), f"`{_cell(r.get('key'))}`", _env_value(r.get("value")),
+                  [(str(i), f"`{_cell(r.get('key'))}`",
+                    "(키 존재 · 값 미관측)" if r.get("kind") == "key-present" else _env_value(r.get("value")),
                     _cell(r.get("node") or (f"미특정({r.get('node_label')})" if r.get("node_label") else None), "미특정"),
                     _cell(r.get("kind"), "—"), _cell(r.get("source")), seen(r))
                    for i, r in enumerate(rows, 1)])
@@ -1719,7 +1722,7 @@ def _f_measurement_env_nodes(c: _Ctx) -> str:
         if _log_windows([r], "log_head_window"):
             windowed.setdefault(key, set()).add("머리")
         vals = by.setdefault(key, {}).setdefault(str(r.get("node") or "미특정"), [])
-        v = _env_value(r.get("value"))
+        v = "(키 존재 · 값 미관측)" if r.get("kind") == "key-present" else _env_value(r.get("value"))
         if v not in vals:
             vals.append(v)
         folded[key] = max(folded.get(key, 0), _ray_folded(r))
@@ -5081,6 +5084,11 @@ def selftest() -> list[str]:
            and "머리·꼬리 캡처 로그(01 §1.4 로그 창)" in mn_h)
         ck("★R3 측정 env · 도구 스냅샷 없음 = 미관측을 말한다(침묵 ✗)",
            "env 관측 없음" in _f_measurement_env(_Ctx(repo, facts_json, tpls))
+           and "(키 존재 · 값 미관측)" in _f_measurement_env(_Ctx(repo, dict(facts_json, measurement_env_observed=[
+               {"key": "VLLM_PLE_MMAP", "value": None, "kind": "key-present", "node": None, "source": "x.log:L44",
+                "value_note": "키 존재만 관측 · 값 미관측"}]), tpls))
+           and "env 관측 없음" not in _f_measurement_env(_Ctx(repo, dict(facts_json, measurement_env_observed=[
+               {"key": "VLLM_PLE_MMAP", "value": None, "kind": "key-present", "node": None, "source": "x.log:L44"}]), tpls))
            and "스냅샷 없음" in _f_tool_snapshots(_Ctx(repo, facts_json, tpls)))
         ck("R3 도구 스냅샷: 이름 · 역할 · 경로 · rev12(커밋 UTC) · 다음 변경 · 발췌 토큰 · git show 명령(전체 rev) · 이유 · 주",
            "`run_bench.sh@0123456789ab`" in ts3 and "`0123456789ab` 2026-09-05T01:00:00Z" in ts3 and "| bench |" in ts3

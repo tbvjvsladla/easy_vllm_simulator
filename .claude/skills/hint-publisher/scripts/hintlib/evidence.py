@@ -3694,6 +3694,10 @@ def _head_windows(repo: Path, ev: CellEvidence, logs: list[Path]) -> dict[str, s
     return out
 
 
+# vLLM 이 모르는 VLLM_* env 키를 프로세스 env 에서 보았을 때의 경고(vllm envs 검사 · 문구 tripwire — 바뀌면 관측이 사라질 뿐 지어내지 않는다).
+_ENV_KEY_PRESENT_RE = re.compile(r"Unknown vLLM environment variable detected:\s*([A-Z][A-Z0-9_]*)\b")
+
+
 def measurement_env_observed(repo, ev: CellEvidence) -> list[dict]:
     """이 측정의 엔진 로그가 되읊은 env · NCCL 런타임 관측(공유 계약 `facts['measurement_env_observed']`).
     반환 [{key, value, node(main|sub|None), source('<로그>:L<줄>' — 공유 계약 표기), kind(env-echo|param-echo|runtime), seen_in_logs(그 값이 나온 캡처
@@ -3720,6 +3724,29 @@ def measurement_env_observed(repo, ev: CellEvidence) -> list[dict]:
     for lp in logs:
         rel = _rel(repo, lp)
         for i, line in enumerate(_log_lines(lp), 1):
+            km = _ENV_KEY_PRESENT_RE.search(_ANSI.sub("", line)) if "NCCL INFO" not in line else None
+            if km:
+                # 2026-10-25(Qwen 싱글 재생 FC-14): vLLM 은 모르는 `VLLM_*` env 키를 보면 경고만 남긴다 — 값은 없지만 **그 키가 프로세스 env 에
+                #   있었다**는 관측이다. 옛 판본은 NCCL echo 줄만 읽어 이것을 "env 관측 없음" 으로 접었다(키 존재 ≠ 관측 없음).
+                key = km.group(1)
+                node, label = _node_of_line(_ANSI.sub("", line), table)
+                k = ("key-present", key, None, node)
+                if k in rows:
+                    seen[k].add(rel)
+                    rows[k]["seen_in_logs"] = len(seen[k])
+                    continue
+                seen[k] = {rel}
+                row = {"key": key, "value": None, "node": node, "source": f"{rel}:L{i}", "kind": "key-present", "seen_in_logs": 1,
+                       "value_note": "키 존재만 관측 · 값 미관측(vLLM 'Unknown vLLM environment variable detected' 경고 — 값은 로그에 없다)"}
+                if rel in windows:
+                    row["log_window"] = windows[rel]
+                if rel in heads:
+                    row["log_head_window"] = heads[rel]
+                if node is None and label:
+                    row["node_label"] = label
+                rows[k] = row
+                order.append(k)
+                continue
             if "NCCL INFO" not in line:
                 continue
             # 줄 번호는 `\n` 기준(_log_lines) — `\r` 진행줄이 섞여도 정규식은 줄 어디서든 찾으므로 쪼개지 않는다.
@@ -7241,7 +7268,12 @@ def _selftest_round3(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict) -> No
         "(EngineCore pid=1) otherhost-9:1:1 [0] NCCL INFO NCCL_NET_PLUGIN set by environment to spcx",
         main_p + "P2P Chunksize set to 262144",
         main_p + "NCCL_CROSS_NIC set by environment to 1.\x1b[0m",
-        main_p + "NCCL_DEBUG_SUBSYS set by environment to fixturesecretterm", "")).encode("utf-8"))
+        main_p + "NCCL_DEBUG_SUBSYS set by environment to fixturesecretterm",
+        # ★FC-14 실물 모양(2026-10-25 · Qwen 싱글 lite 엔진 로그 L44-47): 값 없는 키 존재 경고(ANSI · 같은 키 두 번)
+        "(APIServer pid=186) \x1b[33mWARNING\x1b[0m 10-25 00:56:53 [interface.py:1355] Unknown vLLM environment variable detected: VLLM_PLE_MMAP",
+        "(APIServer pid=186) WARNING 10-25 00:56:53 [interface.py:1355] Unknown vLLM environment variable detected: VLLM_REF",
+        "(APIServer pid=186) WARNING 10-25 00:56:54 [interface.py:1355] Unknown vLLM environment variable detected: VLLM_PLE_MMAP",
+        "")).encode("utf-8"))
     lv1 = sweep / "level_01/engine_c1-a.log"
     lv1.write_bytes((sub_p + "NCCL_IB_GID_INDEX set by environment to 3.\n").encode("utf-8"))
     (sweep / "level_02").mkdir()
@@ -7277,6 +7309,10 @@ def _selftest_round3(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict) -> No
     g2 = next((r for r in env2 if r["key"] == "NCCL_IB_GID_INDEX" and r.get("node_label") == "sub2"), {})
     ck("★계약 밖 노드 라벨(sub2 — 같은 role 둘)은 node None + node_label 로(main|sub 로 접지 않는다)",
        bool(g2) and g2.get("node") is None and not any(r["node"] not in ("main", "sub", None) for r in env2))
+    kp = [r for r in env if r["kind"] == "key-present"]
+    ck("★FC-14 값 없는 키 존재 경고 = kind key-present · value None · 값 미관측 주 · 키당 한 행(첫 줄) — '관측 없음' 으로 접지 않는다",
+       [r["key"] for r in kp] == ["VLLM_PLE_MMAP", "VLLM_REF"] and all(r["value"] is None and "값 미관측" in r["value_note"] for r in kp)
+       and kp[0]["source"] == f"{_rel(repo, lite)}:L{base_ln + 11}")
     ck("★스윕이 출력 평면에 묶이지 않으면 [] (그 로그는 이 측정의 것이 아니다)",
        measurement_env_observed(repo, dataclasses.replace(evm, sweep={**evm.sweep, "binding": "simlog-copy"})) == [])
     # ── 계보 후보: 이 측정의 엔진 로그 · resolved.json(묶였을 때만) ──
