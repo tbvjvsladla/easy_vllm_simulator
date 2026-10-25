@@ -132,8 +132,11 @@ MISSING_CODES: dict[str, str] = {
     "HINT_MISSING_ATTESTATION_PARITY_ROWS": ("노드 정합 attestation 파일은 있으나 대조 행이 없다 — v1 은 `checks` 가 비었고(소스빌드 "
                                              "트랙의 옛 스모크 판본은 대조 행을 쓰지 않았다), v2 는 `parity` 의 "
                                              "모든 축이 `unobservable` 이다. 두 노드의 vLLM SHA·torch·driver 일치는 관측되지 않았다."),
-    "HINT_MISSING_CAMPAIGN_INSTANCE": ("캠페인 인스턴스가 purge 됐다(발행 기록 재생) — 셀 lockset·config·cell.status·journey·"
-                                       "grounding 이 없다. 값의 지위와 여정 한 줄은 문서(testlog·devlog) 서사에서만 복원된다."),
+    # 2026-10-25(Qwen FP8 재생 F14): 옛 뜻은 "purge 됐다" 로 단정했다 — 캠페인 밖 측정(ACTIVE=_bootstrap)은 purge 된 인스턴스가 아니라
+    #   애초에 인스턴스가 없다. 뜻은 중립으로 두고 어느 쪽인지는 셀 사유(missing_reasons · campaign_absence)가 말한다.
+    "HINT_MISSING_CAMPAIGN_INSTANCE": ("캠페인 인스턴스를 읽지 않았다(발행 기록 재생 — purge · 캠페인 밖 측정 · 보존됐으나 재생 모드라 읽지 "
+                                       "않음 중 어느 쪽인지는 이 셀의 사유) — 셀 lockset·config·cell.status·journey·grounding 이 이 "
+                                       "페이로드에 없다. 값의 지위와 여정 한 줄은 문서(testlog·devlog) 서사에서만 복원된다."),
     "HINT_MISSING_CELL_STATUS": "캠페인 셀 상태(`cell.status.json`) 부재 — 선언↔서빙 불일치 기록을 읽지 못한다.",
     "HINT_MISSING_LOCKSET": "셀 lockset 부재 — 서빙 노브의 출처(explorer 파생 vs 손작성)를 읽지 못한다.",
     "HINT_MISSING_CELL_CONFIG": "셀 config 부재 — 선언 축(declared_axes·target_gpu)을 읽지 못한다.",
@@ -2464,7 +2467,8 @@ _CAMPAIGN_NONE_NOTE = re.compile(r"^활성 캠페인 없음\((?P<id>_bootstrap)\
 
 def measurement_campaign(ev: CellEvidence) -> dict:
     """{status: in-campaign|outside|unobserved, id, source} — 이 측정 스윕 색인의 bench_knobs(측정 시점 해소 기록)만 읽는다(판정 ✗)."""
-    sw = ev.sweep if isinstance(ev.sweep, dict) else {}
+    sweep = getattr(ev, "sweep", None)        # 자체검사의 좁은 대역(SimpleNamespace)도 받는다 — 없는 칸 = 기록 없음
+    sw = sweep if isinstance(sweep, dict) else {}
     idx = sw.get("index") if isinstance(sw.get("index"), dict) else {}
     bk = idx.get("bench_knobs") if isinstance(idx.get("bench_knobs"), dict) else None
     where = f"{sw.get('dir')}/sweep_index.json bench_knobs"
@@ -2480,6 +2484,87 @@ def measurement_campaign(ev: CellEvidence) -> dict:
                 "source": f"{where}.campaign = null · campaign_pins_note '{m.group(0)}'(측정 시점 ACTIVE 해소 · repeat_axis)"}
     return {"status": "unobserved", "id": None,
             "source": f"미관측({where}.campaign={camp!r} · campaign_pins_note={bk.get('campaign_pins_note')!r} — 알려진 모양 밖)"}
+
+
+def campaign_instances_of(repo, cell: str) -> list[dict]:
+    """이 셀의 캠페인 인스턴스 실재 관측(2026-10-25 · Solar 재생 사실검증 F25) — [{campaign, cell_dir, match, last_journey}].
+    `campaigns/<id>/cells/<d>/` 중 d == 셀 이름이거나 그 config.yaml `serving.config_name` == 셀 이름인 것(예약 id · `_cell` 뼈대 제외).
+    config 를 읽지 못하면 match = 'unreadable' 로 싣는다(조용히 버리지 않는다). 읽기 전용."""
+    if repo is None:
+        return []
+    root = Path(repo) / "campaigns"
+    out: list[dict] = []
+    if not root.is_dir():
+        return out
+    for cdir in sorted(d for d in root.iterdir() if d.is_dir() and d.name not in RESERVED_CAMPAIGN_IDS):
+        cells = cdir / "cells"
+        if not cells.is_dir():
+            continue
+        for d in sorted(x for x in cells.iterdir() if x.is_dir() and not x.name.startswith("_")):
+            match = None
+            if d.name == cell:
+                match = "cell_dir"
+            elif (d / "config.yaml").is_file():
+                try:
+                    doc = _owner_yaml(Path(repo), d / "config.yaml", "캠페인 셀 config")
+                    if isinstance(doc, dict) and ((doc.get("serving") or {}).get("config_name") == cell):
+                        match = "serving.config_name"
+                except core.HintError:
+                    match = None
+            if match is None:
+                continue
+            last = None
+            jp = cdir / "journey.jsonl"
+            if jp.is_file():
+                rows = [ln for ln in jp.read_bytes().decode("utf-8", "replace").splitlines() if ln.strip()]
+                try:
+                    last = json.loads(rows[-1]).get("kind") if rows else None
+                except ValueError:
+                    last = "unparsable"
+            out.append({"campaign": cdir.name, "cell_dir": _rel(Path(repo), d), "match": match, "last_journey": last})
+    return out
+
+
+def campaign_absence(ev: CellEvidence, repo=None) -> dict:
+    """재생에서 캠페인 인스턴스가 **왜** 읽히지 않는가의 단일 판정 — {kind, phrase, reason, source, instances}.
+    두 관측을 합친다: ① measurement_campaign(F13 · 측정 시점 캠페인 소속) ② campaign_instances_of(F25 · 같은 셀의 인스턴스 실재).
+      · 측정 캠페인 id 기록 + 그 인스턴스 실재 = preserved(보존 · 재생 모드는 읽지 않았다) · 부재 = purged
+      · 캠페인 밖 측정 = outside(이 측정의 인스턴스는 애초에 없다 · 같은 셀의 앞선 캠페인 인스턴스가 보존돼 있으면 함께 적는다)
+      · 측정 소속 미관측 + 인스턴스 실재 = preserved(소속 미관측) · 둘 다 없음 = absent(purge 인지 캠페인 밖인지 가르지 못함)
+    옛 판본(F14 이전)은 모든 재생 자리에 "캠페인 purge" 를 단정했다 — 캠페인 밖 측정(Qwen) · 인스턴스 보존(Solar)에서 거짓이었다.
+    캠페인 모드 = kind none(인스턴스를 읽는다). repo None = 인스턴스 관측 생략(자체검사의 좁은 대역)."""
+    if getattr(ev, "mode", None) == "campaign":
+        return {"kind": "none", "phrase": "캠페인 모드", "reason": None, "source": "캠페인 인스턴스 실재", "instances": []}
+    mc = measurement_campaign(ev)
+    inst = campaign_instances_of(repo, getattr(ev, "cell", "")) if repo is not None else []
+    inst_txt = " · ".join(f"{x['cell_dir']}(journey 마지막 {x['last_journey']})" for x in inst)
+    if mc["status"] == "in-campaign":
+        mine = [x for x in inst if x["campaign"] == mc["id"]]
+        if mine:
+            return {"kind": "preserved", "phrase": f"캠페인 {mc['id']} 인스턴스 보존 · 재생 모드는 읽지 않았다", "instances": inst,
+                    "reason": (f"측정 캠페인 {mc['id']} 의 인스턴스가 보존돼 있다({' · '.join(x['cell_dir'] for x in mine)}) — 재생 모드는 "
+                               f"인스턴스를 읽지 않는다(캠페인 모드 발행이면 읽힌다 · {mc['source']})"), "source": mc["source"]}
+        if repo is not None:
+            return {"kind": "purged", "phrase": f"캠페인 purge({mc['id']} 인스턴스 부재 관측)", "instances": inst,
+                    "reason": f"측정 캠페인 {mc['id']} 의 인스턴스가 campaigns/ 에 없다 — purge 됐다({mc['source']})",
+                    "source": mc["source"]}
+        return {"kind": "purged", "phrase": "캠페인 purge", "instances": inst,
+                "reason": f"측정 캠페인 {mc['id']} 의 인스턴스를 읽지 않았다({mc['source']})", "source": mc["source"]}
+    if mc["status"] == "outside":
+        extra = (f" · 같은 셀의 앞선 캠페인 인스턴스 {inst_txt} 는 보존돼 있으나 이 측정의 것이 아니라 읽지 않았다" if inst else "")
+        return {"kind": "outside", "phrase": f"캠페인 밖 측정(측정 시점 ACTIVE={mc['id']} · 이 측정의 캠페인 인스턴스 없음)",
+                "instances": inst,
+                "reason": f"캠페인 밖 측정 — purge 된 인스턴스가 아니라 이 측정의 인스턴스는 애초에 없다({mc['source']}){extra}",
+                "source": mc["source"]}
+    if inst:
+        return {"kind": "preserved", "phrase": "캠페인 인스턴스 보존 · 재생 모드는 읽지 않았다(측정 캠페인 소속 미관측)",
+                "instances": inst,
+                "reason": (f"같은 셀의 캠페인 인스턴스 {inst_txt} 가 보존돼 있다 — 재생 모드는 읽지 않는다 · 측정이 그 캠페인의 것인지는 "
+                           f"미관측({mc['source']})"), "source": mc["source"]}
+    if repo is not None:
+        return {"kind": "absent", "phrase": "캠페인 인스턴스 부재(purge 인지 캠페인 밖인지 측정 기록으로 가르지 못함)", "instances": [],
+                "reason": f"campaigns/ 에 이 셀의 인스턴스가 없다 · 측정 캠페인 소속 미관측({mc['source']})", "source": mc["source"]}
+    return {"kind": "purged", "phrase": "캠페인 purge", "reason": None, "source": mc["source"], "instances": []}
 
 
 def event_ledger_spans(repo, ev: CellEvidence) -> list[dict]:
@@ -2594,13 +2679,13 @@ CAMPAIGN_SCOPE_PRIOR = "prior-campaign"
 PRIOR_CAMPAIGN_NOTE = "같은 셀 이름 · 앞선 캠페인"
 
 
-def _campaign_boundary(ev: CellEvidence, win: dict | None) -> dict:
+def _campaign_boundary(ev: CellEvidence, win: dict | None, repo=None) -> dict:
     """{utc | None, source, observed} — 위 주석의 규칙(판정은 여기 한 벌 · template 은 옮기기만)."""
     decl = (ev.declaration or {}).get("declared_utc") if ev.mode == "campaign" else None
     decl = decl if isinstance(decl, str) and _UTC.fullmatch(decl) else None
     ws = (win or {}).get("start_ts") if ev.mode == "campaign" else None
     if decl is None and ws is None:
-        why = ("재생 모드(캠페인 purge) — 캠페인 선언을 관측하지 못한다" if ev.mode != "campaign"
+        why = (f"재생 모드({campaign_absence(ev, repo)['phrase']}) — 캠페인 선언을 관측하지 못한다" if ev.mode != "campaign"
                else "캠페인 선언 declared_utc · 측정을 서빙한 선언 창 모두 미관측")
         return {"utc": None, "observed": False, "campaign_id": ev.campaign_id,
                 "source": f"{why} · 경계 미관측 — 라벨(셀 이름)로 묶은 행 전부를 이 셀의 행으로 센다(같은 셀 이름의 앞선 캠페인 행이 섞였을 수 있다)"}
@@ -2617,7 +2702,7 @@ def _campaign_boundary(ev: CellEvidence, win: dict | None) -> dict:
 def event_campaign_boundary(repo, ev: CellEvidence) -> dict:
     """이 셀 타임라인의 캠페인 경계(공유 계약 `facts['event_campaign_boundary']`) — {utc, observed, campaign_id, source}."""
     repo = _repo(repo)
-    bnd = _campaign_boundary(ev, _ledger_timeline(repo, ev)[2])
+    bnd = _campaign_boundary(ev, _ledger_timeline(repo, ev)[2], repo)
     return _note_same_cell(bnd, _same_cell_pre_sessions(repo, ev, bnd.get("utc")))
 
 
@@ -2722,7 +2807,7 @@ def _timeline_parts(repo: Path, ev: CellEvidence) -> tuple[list[dict], list[tupl
     ctx: dict = {}
     rows, files, win = _ledger_timeline(repo, ev, ctx)
     mrows, mfiles = _measurement_rows(repo, ev, ctx)
-    bnd = _campaign_boundary(ev, win)
+    bnd = _campaign_boundary(ev, win, repo)
     out = _scope_rows(sorted(rows + mrows + _startup_markers(repo, ev, win), key=_timeline_key), bnd,
                       _same_cell_pre_sessions(repo, ev, bnd.get("utc")))
     cited = {f: "events_ledger" for f in files}
@@ -4494,7 +4579,8 @@ def _assemble(repo: Path, ev: CellEvidence, *, measured_key: str | None, simlog_
     seeds["evidence_candidates"] = [c for c in cands if not (c["path"] in seen or seen.add(c["path"]))]
     ev.lineage_seeds = seeds
     ev.sources["lineage_seeds"] = ("캠페인 journey·escalation·grounding(셀 필터) + 측정 identity + 증거 후보"
-                                   if ev.mode == "campaign" else "발행 기록 토픽 + 측정 identity + 증거 후보(캠페인 purge)")
+                                   if ev.mode == "campaign" else
+                                   f"발행 기록 토픽 + 측정 identity + 증거 후보({campaign_absence(ev, repo)['phrase']})")
     return ev
 
 
@@ -5816,7 +5902,7 @@ def _target_gpu(ev: CellEvidence, repo=None) -> tuple[str | None, str | None]:
     roof = (ev.sweep or {}).get("roofline") or {}
     if isinstance(roof, dict) and isinstance(roof.get("gpu_model"), str) and roof["gpu_model"].strip():
         return roof["gpu_model"].strip(), (f"{(ev.sweep or {}).get('dir')}/roofline.json gpu_model — 루브릭 계산 HW(측정 호스트 "
-                                           "manifest) · 캠페인 purge 로 타겟 선언 미관측(재생 전용 대체 · 선언 아님)")
+                                           f"manifest) · {campaign_absence(ev, repo)['phrase']} 로 타겟 선언 미관측(재생 전용 대체 · 선언 아님)")
     # 재생 전용 2순위(2026-09-29 · plan_26092908 S6): lite-only 셀은 스윕 roofline 이 없다(D2 재생이 arch 파생 불가로 막혔다).
     #   발행 기록이 이미 봉인한 페이로드 커밋(promotion_target.anchor)의 PAYLOAD.naming 은 **발행 당시 셀 config 선언을 관측한 값**이다
     #   — 그 target 이 native 면 "타겟 선언 없음(호스트 HW)" 으로 읽는다. sim-<x> 는 원문 hw 를 되살릴 수 없어 대체하지 않는다.
@@ -5832,7 +5918,7 @@ def _target_gpu(ev: CellEvidence, repo=None) -> tuple[str | None, str | None]:
             ax = None
         if isinstance(ax, dict) and ax.get("value") == "native":
             return None, (f"봉인된 발행 페이로드 {anchor[:12]}:PAYLOAD.json naming.axes.target=native(발행 당시 셀 config 선언 관측) · "
-                          "캠페인 purge 로 선언 원본 미관측(재생 전용 대체)")
+                          f"{campaign_absence(ev, repo)['phrase']} 로 선언 원본 미관측(재생 전용 대체)")
     return None, None
 
 
@@ -5868,7 +5954,7 @@ def sealed_publication(repo, ev: CellEvidence) -> dict | None:
     if camp.get("cell") not in (None, ev.cell) or camp.get("node") not in (None, ev.node):
         return None
     src = (f"봉인된 발행 페이로드 {anchor[:12]}:PAYLOAD.json(발행 기록 promotion_target.anchor · 원 발행 당시 기록) · "
-           "캠페인 purge 로 원본 미관측(재생 전용 대체)")
+           f"{campaign_absence(ev, repo)['phrase']} 로 원본 미관측(재생 전용 대체)")
     ap = doc.get("approval") if isinstance(doc.get("approval"), dict) and doc.get("approval") else None
     cid = camp.get("id") if isinstance(camp.get("id"), str) and camp.get("id") else None
     return {"campaign": {"id": cid, "cell": camp.get("cell"), "node": camp.get("node")} if cid else None,
@@ -7688,6 +7774,49 @@ def _selftest_v7(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict, dk) -> No
        and mc_in["status"] == "in-campaign" and mc_in["id"] == "camp-fx"
        and mc_un["status"] == "unobserved" and mc_odd["status"] == "unobserved"
        and '"활성 캠페인 없음(%s)" % mod.BOOTSTRAP' in ra_src)
+    def ab_of(bk, mode="publication-replay"):
+        return campaign_absence(dataclasses.replace(ev, mode=mode, sweep={**sw, "index": {
+            **(sw.get("index") or {}), **({"bench_knobs": bk} if bk is not None else {})}}))
+    ab_out = ab_of({"campaign": None, "campaign_pins_note": "활성 캠페인 없음(_bootstrap)"})
+    ab_in = ab_of({"campaign": "camp-fx", "campaign_pins_note": None})
+    ab_un = ab_of(None)
+    ck("★F14 캠페인 인스턴스 부재 사유 단일 판정: 캠페인 밖 측정 = 'purge' ✗(인스턴스 없음) · 측정 캠페인 id 기록 = purge(사유에 id) · "
+       "기록 없음 = 종전 purge 문구(사유 없음) · 캠페인 모드 = none",
+       ab_out["kind"] == "outside" and "purge" not in ab_out["phrase"] and "애초에 없다" in ab_out["reason"]
+       and ab_in["kind"] == "purged" and "camp-fx" in ab_in["reason"] and ab_un["phrase"] == "캠페인 purge"
+       and ab_un["reason"] is None and ab_of(None, mode="campaign")["kind"] == "none")
+    # ★F25(2026-10-25 Solar 실물 모양): 측정 소속 미관측/캠페인 밖이어도 같은 셀의 인스턴스가 보존돼 있으면 'purge' 가 아니다 —
+    #   campaigns/<id>/cells/<다른 이름>/config.yaml serving.config_name = 셀(+ journey 마지막 campaign_closed) · 디렉터리 이름 일치도.
+    import shutil as _shc
+    with tempfile.TemporaryDirectory(prefix="hint-f25-") as t25:
+        r25 = Path(t25)
+        (r25 / REL_MANIFEST_CONTRACT).parent.mkdir(parents=True)
+        _shc.copyfile(core.SKILL_DIR.parents[2] / REL_MANIFEST_CONTRACT, r25 / REL_MANIFEST_CONTRACT)
+        cd25 = r25 / "campaigns/camp-fx/cells/other-name"
+        cd25.mkdir(parents=True)
+        (cd25 / "config.yaml").write_text(f"serving:\n  config_name: {ev.cell}\n", encoding="utf-8")
+        (r25 / "campaigns/camp-fx/journey.jsonl").write_text(json.dumps({"kind": "campaign_closed"}) + "\n", encoding="utf-8")
+        (r25 / "campaigns/_template/cells" / ev.cell).mkdir(parents=True)          # 예약 id 는 인스턴스가 아니다
+        evr = dataclasses.replace(ev, mode="publication-replay")
+        def ab25(bk):
+            return campaign_absence(dataclasses.replace(evr, sweep={**sw, "index": {
+                **(sw.get("index") or {}), **({"bench_knobs": bk} if bk is not None else {})}}), r25)
+        p_un, p_out, p_in = ab25(None), ab25({"campaign": None, "campaign_pins_note": "활성 캠페인 없음(_bootstrap)"}), \
+            ab25({"campaign": "camp-fx", "campaign_pins_note": None})
+        p_gone = ab25({"campaign": "camp-gone", "campaign_pins_note": None})
+        _shc.rmtree(r25 / "campaigns/camp-fx")
+        p_abs = ab25(None)
+    ck("★F25 인스턴스 실재 관측: 보존(config_name 일치 · journey 마지막) = preserved('purge' ✗ · 재생 모드는 읽지 않았다) · 캠페인 밖이면 "
+       "앞선 인스턴스 보존을 함께 · 측정 캠페인 id 인스턴스 부재 = purged · 둘 다 없음 = absent(가르지 못함) · 예약 id 무시",
+       p_un["kind"] == "preserved" and "purge" not in p_un["phrase"] and "campaigns/camp-fx/cells/other-name" in p_un["reason"]
+       and "campaign_closed" in p_un["reason"] and p_out["kind"] == "outside" and "보존돼 있으나" in p_out["reason"]
+       and p_in["kind"] == "preserved" and "camp-fx" in p_in["phrase"]
+       and p_gone["kind"] == "purged" and "camp-gone" in p_gone["phrase"]
+       and p_abs["kind"] == "absent" and "가르지 못함" in p_abs["phrase"])
+    evo = dataclasses.replace(ev, mode="publication-replay", declaration=None, sweep={**sw, "index": {
+        **(sw.get("index") or {}), "bench_knobs": {"campaign": None, "campaign_pins_note": "활성 캠페인 없음(_bootstrap)"}}})
+    ck("★F14 재생 경계 사유 = 같은 판정(캠페인 밖이면 'purge' 문구가 나오지 않는다)",
+       "캠페인 밖 측정" in _campaign_boundary(evo, None)["source"] and "purge" not in _campaign_boundary(evo, None)["source"])
     h_eq = host(att, {"driver_version": "580.178.04"})
     ck("음성대조: 관측 = 선언이면 conflict 없음", "driver_conflict" not in h_eq)
     ck("★F12(2026-10-25 실물 모양: attestation 양 노드 580.178.04 = manifest 옮김 580.178.04) 대조 사실 = driver_check agree(두 출처)",

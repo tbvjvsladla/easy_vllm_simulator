@@ -795,6 +795,10 @@ def _collect(repo: Path, ev, dn, *, utc: str, topic: str, draft: Path, payload: 
     if err and "HINT_MISSING_NATIVE_LAUNCH" in missing:
         reasons["HINT_MISSING_NATIVE_LAUNCH"] = "producer native_launch_error: " + pii.substitute(
             str(err), pii.substitution_table(repo, evidence.output_manifest(repo, ev.topology)))
+    # 2026-10-25(F14): 캠페인 인스턴스 결손의 이 셀 사유 = 단일 판정(evidence.campaign_absence · purge vs 캠페인 밖)
+    absence = evidence.campaign_absence(ev, repo)
+    if "HINT_MISSING_CAMPAIGN_INSTANCE" in missing and absence.get("reason"):
+        reasons["HINT_MISSING_CAMPAIGN_INSTANCE"] = absence["reason"]
     naming_base = {**dn.to_payload(), "vllm_observed": evidence.vllm_observed(ev, repo)}
     vocab = naming.load_vocab(repo)
     return {
