@@ -1,6 +1,6 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 70,
+  "count": 71,
   "generated_kst": "2026-10-25T13:10:00",
   "hints": [
     {
@@ -1490,6 +1490,30 @@
       "tagged_utc": null,
       "verdict": "미수령",
       "verdict_source": "absent-local(로컬 태그 오브젝트 부재 · 합성 ✗)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "dce3d9d31318ae536972c0a77eac32b008f77970",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "Qwen/Qwen3.8-Flash-Next",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102511_qwen3.8-flash-next-nvfp4_GB10_0.31.0.md))",
+      "brief": "Qwen3.8-Flash-Next-NVFP4 를 GB10 2노드(노드당 GPU 1 · Ray TP=2)에서 vLLM v0.31.0 stock 소스빌드로 max-model-len 1048576(YaRN f4) · KV fp8_e4m3 · PLE resident · spec off · eager 로 서빙했고, 판정점 동시성 1 decode 26.01 t/s(GuideLLM × 반복 3)는 E 32.5 대비 REFUTE(floor 27.62 · 표시만)다. 가장 비싼 벽은 0.31.0 이 YaRN 최대 길이를 factor 로 다시 늘리지 않아 1M 요청이 ValidationError 로 거부된 것이고 hf-overrides 에 max_position_embeddings 를 함께 실어 넘었다(W8 · V12) — 이전 vLLM 계보의 resident 1M 로드 사살(W6)은 KV · gmu · 배치를 다시 잡은 이 형상에서 TRIP 0 이었다. 가장 오해하기 쉬운 값은 KV 클램프와 max-num-seqs 1(V6 · V9 — 스윕 없이 손으로 고른 승계값)이고, E 32.5 는 출처 · 조건이 기록되지 않은 값이고 같은 값의 1노드 PLE mmap 수치로 보여(추론) like-with-like 로 볼 근거가 없다(03 §3.5 · 02 Q1).",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE",
+        "HINT_MISSING_RESOLVE",
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "f8cd2b58a2a1bb69d9f3faee42a5e37ee7a42960",
+      "published": true,
+      "recipe": "qnvfp4-len1048576-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8",
+      "tagged_utc": "2026-10-25T04:10:00Z",
+      "verdict": "REFUTE",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_q38fn31-nv4-1m-tp2/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
     },
     {
