@@ -284,6 +284,16 @@ def main() -> int:
               and STUB_SENTINEL in (sb.sdir / PUBLISHER).read_text(encoding="utf-8"),
               (cp.returncode, called[:200]))
 
+        # ── J12★ 마지막 스윕 미완 표식 → 낡은 짝으로 판정 ✗(2026-10-26 plan_26102607 · Solar 실측) ──────────
+        d = sb.make_sweep("j12", spec_declared="on", k=3, accept_len=2.0)
+        _write(d / "sweep_incomplete.json", json.dumps({"started_utc": "2026-01-02T00:00:00Z", "pid": 1, "config": "j12"}))
+        cp = sb.judge("j12", *explicit_pass)
+        check("J12★ sweep_incomplete.json 이 있으면 exit 3 · roofline/verdict 미산출 · 발행기 미호출",
+              cp.returncode == 3 and "정상 종료하지 않았다" in cp.stderr
+              and not (d / "roofline.json").exists() and not (d / "verdict.json").exists()
+              and str(d / "verdict.json") not in (sb.marker.read_text(encoding="utf-8") if sb.marker.exists() else ""),
+              (cp.returncode, cp.stderr[-300:]))
+
         # ── J8 --dry-run ────────────────────────────────────────────────────────────────────
         d = sb.make_sweep("j8", spec_declared="on", k=3, accept_len=2.0)
         out8 = sb.root / "rejudge/j8"
@@ -345,7 +355,7 @@ def main() -> int:
     if failures:
         sys.stderr.write("[judge_bench --self-test] FAIL %d 건: %s\n" % (len(failures), failures))
         return 1
-    print("[judge_bench --self-test] OK — J1~J11 전부 통과(승계·명시·spec off·결손·원자적 교체·조합 계약·"
+    print("[judge_bench --self-test] OK — J1~J12 전부 통과(승계·명시·spec off·결손·원자적 교체·조합 계약·"
           "발행 억제 음성대조 포함)")
     return 0
 

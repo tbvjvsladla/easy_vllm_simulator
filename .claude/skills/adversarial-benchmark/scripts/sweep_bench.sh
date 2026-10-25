@@ -297,6 +297,17 @@ print("  dataset          = %s" % json.dumps(d.get("dataset"), ensure_ascii=Fals
   exit 0
 fi
 
+# ── 미완 표식(2026-10-26 · plan_26102607 · testlog_26102504 §2 #4) ─────────────────────────────────────
+#   측정 진입부터 정상 종료(DONE)까지 SWEEPDIR 에 `sweep_incomplete.json` 을 둔다. 레벨 1 실패(exit 3)는 index 조립 전에
+#   죽어서 **옛 sweep_index.json + 옛 level_01/measured.json 짝**이 그대로 남는다 — 짝이 서로 맞으니 파일만 봐서는
+#   낡았는지 알 수 없고, judge_bench 가 그것으로 PASS 를 냈다(Solar 실측). 표식이 남아 있으면 judge 가 거부한다.
+#   재조립(--reassemble-only)은 측정하지 않으므로 표식을 만들지도 지우지도 않는다(옛 실패를 재조립이 덮지 않는다).
+SWEEP_INCOMPLETE="$SWEEPDIR/sweep_incomplete.json"
+if [ "$REASSEMBLE" != "1" ]; then
+  mkdir -p "$SWEEPDIR"
+  printf '{"started_utc": "%s", "pid": %s, "config": "%s"}\n' "$(date -u +%FT%TZ)" "$$" "$CONFIG" > "$SWEEP_INCOMPLETE"
+fi
+
 if [ "$REASSEMBLE" = "1" ]; then
   [ -d "$SWEEPDIR" ] || { echo "[sweep_bench] --reassemble-only: SWEEPDIR 부재 — $SWEEPDIR" >&2; exit 2; }
   [ -s "$SWEEPDIR/sweep_index.json" ] || {
@@ -1263,4 +1274,5 @@ else
   echo "[sweep_bench] ⚠ bench_mode 판정 기록 실패(위 사유) — 리포트는 '미확정', full 인증서는 발행되지 않는다" >&2
 fi
 
+[ "$REASSEMBLE" = "1" ] || rm -f "$SWEEP_INCOMPLETE"   # 정상 종료만 표식을 지운다(위 ★ 미완 표식)
 echo "[sweep_bench] DONE — SWEEP_INDEX=$SWEEPDIR/sweep_index.json"
