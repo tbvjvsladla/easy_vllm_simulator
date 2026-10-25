@@ -758,6 +758,21 @@ def classify_bench_mode(index, event_lines, events_scanned, tolerance_s=0, node_
                     % (window, scope_tail))
         else:
             note = "correlation-unavailable(%s)" % window
+    # ★ full 의 도구 조건(2026-10-26 · plan_26102607 · testlog_26102504 §2 #1): full = lite ∪ **GuideLLM** × 반복 ≥3 이다.
+    #   종전에는 반복만 봐서 `--tool vllm` 스윕 3회가 bench_mode=full 로 기록됐다(bench_report_26102505_* 실측 — 표에
+    #   bench_tool=vllm-bench-serve 와 full 이 나란히). 도구가 **명시돼 있고** 바인딩 도구가 아니면 full 로 확정하지 않는다 —
+    #   lite 로 접으면 강등 어휘(run_failed·blackbox_kill)가 아니고 선언된 lite-only 도 아니므로 판정하지 않는다(null).
+    #   도구 미기재(NA·부재 = 옛 index · 픽스처)는 종전 규율 그대로다(표시만 남긴다).
+    _tool = ((index.get("meta") or {}).get("bench_tool") if isinstance(index.get("meta"), dict) else None)
+    if established and _tool not in (None, "", "NA"):
+        try:
+            from parse_guidellm import BENCH_TOOL as _full_tool
+        except ImportError as exc:   # 배선 결함 — 부재를 full 로 접지 않는다
+            return _bench_mode_record(None, "undeterminable(parse_guidellm 적재 실패: %s)" % exc, repetition=summ)
+        if _tool != _full_tool:
+            return _bench_mode_record(
+                None, "undeterminable(측정 도구 %s ≠ full-bench 바인딩 도구 %s — 반복은 성립했으나 full 정의 불충족 · %s)"
+                % (_tool, _full_tool, why), repetition=summ, kill_hits=hits, correlation=correlation, events_scan=scan_doc)
     if established:
         return _bench_mode_record(BENCH_MODE_FULL, "%s%s" % (why, (" · " + note) if note else ""),
                                   repetition=summ, kill_hits=hits, correlation=correlation, events_scan=scan_doc)
@@ -894,6 +909,15 @@ def _self_test():
           and out["downgrade_correlation"] == CORRELATION_NOT_APPLICABLE and bench_mode_kind(out) == "full", out)
 
     kill_in = [ev("watchdog_kill_ack", "2026-09-04T10:02:10Z")]
+    # ★D-T(2026-10-26 plan_26102607): 반복 성립이어도 측정 도구가 바인딩 도구가 아니면 full 확정 ✗ · 바인딩 도구면 full
+    _ix = index(level(1, ok3)); _ix["meta"] = {"bench_tool": "vllm-bench-serve"}
+    out = classify_bench_mode(_ix, [], "none")
+    check("★D-T1 bench_tool=vllm-bench-serve × 반복 3 → bench_mode null(full ✗) · 사유에 도구 명시",
+          out["bench_mode"] is None and "vllm-bench-serve" in out["bench_mode_source"]
+          and bench_mode_kind(out) == "undetermined", out["bench_mode_source"])
+    _ix["meta"] = {"bench_tool": "guidellm"}
+    out = classify_bench_mode(_ix, [], "none")
+    check("D-T2 bench_tool=guidellm × 반복 3 → full", out["bench_mode"] == BENCH_MODE_FULL, out["bench_mode_source"])
     out = classify_bench_mode(index(level(1, broken)), kill_in, evf)
     check("★D2 실패주입: 판정점 run 2 무너짐 ∧ 끊긴 창 안 집행 사살 → lite · blackbox_kill · matched",
           out["bench_mode"] == BENCH_MODE_LITE and out["downgrade_reason"] == DOWNGRADE_BLACKBOX_KILL
