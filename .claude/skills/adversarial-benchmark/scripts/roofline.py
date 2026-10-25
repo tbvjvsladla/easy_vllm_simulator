@@ -186,7 +186,9 @@ def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok):
         _die("MoE 인데 num_experts 불명 — config 확인")
     k = int(num_experts_per_tok or 0)
     n = int(num_experts)
-    active_routed = int(routed * (k / n)) if k > 0 else 0
+    if k <= 0:   # k 불명을 0 으로 접으면 routed active 가 사라져 기대치가 낮아진다 — 결정 경로의 침묵 폴백 ✗
+        _die("MoE 인데 top-k(num_experts_per_tok 류) 불명 — config 키를 확인하고 roofline.py 의 pick 목록에 등재하라")
+    active_routed = int(routed * (k / n))
     return dense + active_routed, dense, routed, k, n, ple
 
 
@@ -311,7 +313,9 @@ def main():
     hidden = pick("hidden_size")
     n_layers = pick("num_hidden_layers")
     num_experts = pick("num_experts", "n_routed_experts", "num_local_experts")
-    n_per_tok = pick("num_experts_per_tok", "num_experts_per_token", "moe_topk")
+    # ★ 2026-10-26(plan_26102607 · testlog_26102504 §3): top-k 키는 계열마다 이름이 다르다 — Gemma-4 `top_k_experts` ·
+    #   Motif-3 `experts_top_k` 를 못 읽어 k=0 → routed active 0 으로 floor 가 낮게 나왔다(Gemma 0/128 · 느린 서빙이 PASS 쪽으로 기운다).
+    n_per_tok = pick("num_experts_per_tok", "num_experts_per_token", "moe_topk", "top_k_experts", "experts_top_k")
     is_moe = bool(num_experts)
     notes = []
 
