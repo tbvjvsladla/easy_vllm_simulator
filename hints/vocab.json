@@ -16,7 +16,7 @@
     "NVIDIA RTX PRO 6000": "에디션 미표기 — Max-Q Workstation·Workstation·Server 판이 같은 이름을 공유한다. 호스트면 nvidia-smi 전체 이름(에디션 포함)을 증거로 넘기고, 시뮬레이션 타겟이면 target_gpu.gpu_model 에 에디션을 적는다(references.md §4 역룩업 표에 에디션 이름이 없으면 per_card_vram_gib 를 함께 명시)."
   },
   "quant": {
-    "nvfp4": ["nvfp4", "NVFP4", "modelopt:NVFP4", "modelopt-dominant:NVFP4", "modelopt_fp4"],
+    "nvfp4": ["nvfp4", "NVFP4", "modelopt:NVFP4", "modelopt-dominant:NVFP4", "modelopt_fp4", "compressed-tensors:nvfp4-pack-quantized"],
     "fp8": ["fp8", "FP8", "modelopt:FP8", "modelopt-dominant:FP8"],
     "mxfp4": ["mxfp4", "MXFP4"],
     "bf16": ["bf16", "bfloat16", "none"],

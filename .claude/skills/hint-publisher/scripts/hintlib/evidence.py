@@ -5301,6 +5301,11 @@ def _quant_raw(ck: dict) -> dict:
         if algo:
             return {"raw": f"modelopt:{algo}", "source": f"{label}/{where} quant_method=modelopt quant_algo={algo}"}
         return {"source": f"{label}/{where} modelopt 인데 quant_algo 가 없다"}
+    if method == "compressed-tensors" and isinstance(qc, dict) and qc.get("format"):
+        # compressed-tensors 는 컨테이너 이름일 뿐 방식이 아니다(nvfp4-pack-quantized · int-quantized …) — 선언된 format 까지 raw 에 싣는다
+        #   (2026-10-25 Solar-Open2 NVFP4: 방식 없이 'compressed-tensors' 만 어휘에 넣으면 다른 format 도 nvfp4 로 읽힌다)
+        return {"raw": f"compressed-tensors:{qc['format']}",
+                "source": f"{label}/{where} quant_method=compressed-tensors format={qc['format']}"}
     if method:
         return {"raw": method, "source": f"{label}/{where} quant_method={method}"}
     return {"source": f"{label}/{where} 에 quant_method 가 없다"}
