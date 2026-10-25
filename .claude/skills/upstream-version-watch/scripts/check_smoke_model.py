@@ -364,7 +364,8 @@ def main():
                             print(f"[NAS-check] ⚠ {w}", file=sys.stderr)
                     ckpt_gate = ckpt
                     if ckpt and _eng and _eng > 0:
-                        ckpt_gate = max(0, ckpt - _eng)
+                        # 하한 1(0 ✗): gate() 는 0 을 '크기 미상'으로 읽어 게이트를 생략한다 — 보정이 전량을 빼도 floor 는 남아야 한다(2026-10-26 plan_26102607)
+                        ckpt_gate = max(1, ckpt - _eng)
                         print("[NAS-check] engram=file-backed 선언 → 게이트 ckpt 에서 −%dMiB(상주 ✗)"
                               % int(_eng / (1024 * 1024)), file=sys.stderr)
                     # ★ PLE mmap 보정(2026-10-24 · plan_26102420): 셀 env 가 `VLLM_PLE_MMAP=1` 을 **선언**했을 때만
@@ -375,7 +376,7 @@ def main():
                         for w in warns[_n2:]:
                             print(f"[NAS-check] ⚠ {w}", file=sys.stderr)
                         if _plem and _plem > 0:
-                            ckpt_gate = max(0, ckpt_gate - _plem)
+                            ckpt_gate = max(1, ckpt_gate - _plem)
                             print("[NAS-check] PLE=mmap 선언 → 게이트 ckpt 에서 −%dMiB(상주 ✗)"
                                   % int(_plem / (1024 * 1024)), file=sys.stderr)
                     res = preload_ram_gate.gate(ckpt_gate, tp=tp)
