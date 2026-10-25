@@ -30,6 +30,9 @@ import sys
 # 세 파서가 같은 엔진 로그 줄을 읽는다 — 갈라지면 교차검증이 조용히 무력해진다).
 _GEN_TPS_RE = re.compile(r"generation throughput:\s*([\d,]+(?:\.\d+)?)\s*tokens/s", re.IGNORECASE)
 
+# 이 파서가 산출물에 싣는 측정 도구 토큰 — full-bench 바인딩(config/bench_bindings.yaml · guide-llm)의 실측 표기.
+#   classify_cell.py 가 full 판정의 도구 조건으로 import 한다(같은 토큰을 두 곳에 손으로 적지 않는다).
+BENCH_TOOL = "guidellm"
 STAT_SET = "successful"   # errored/incomplete 는 지표에서 제외한다(집계 오염 방지). 개수는 따로 싣는다.
 
 
@@ -243,7 +246,7 @@ def build(doc, benchmark_index=0, engine_max=None, spec=None, max_error_rate=0.0
         "measurement_ok": bool(successful and decode_tps is not None
                                and server_error_rate <= max_error_rate),
         # ── 출처 표시(헌법 §결정론 규율). 값 옆에 어디서 왔는지를 둔다. ──
-        "bench_tool": "guidellm",
+        "bench_tool": BENCH_TOOL,
         "bench_tool_version": tool_version,
         "bench_tool_version_source": ("measured(benchmarks.json metadata.guidellm_version)"
                                       if tool_version else "unavailable"),
