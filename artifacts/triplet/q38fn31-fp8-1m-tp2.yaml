@@ -1,0 +1,19 @@
+# 셀 q38fn-fp8-1m-tp2 — camp-26102412-multi-sol-q38 (plan_26102412)
+# 선언 축: vLLM 0.31.0 stock · FP8 · kv=fp8_e4m3 · ctx=1048576(YaRN f4 · rope_scaling_translate 병합 산출) · PLE=mmap(런타임 플러그인 qwen_ple_mmap · 디스크 스테이징 · plan_26102420 S2)
+# ⚠ 0.31.0 의미 변경: YaRN 은 max_position_embeddings 가 이미 확장값이라고 가정(factor 재적용 ✗, config/model.py _get_and_verify_max_len) → 오버라이드에 max_position_embeddings=1048576 을 함께 싣는다(0.29 번역기 산출은 이 키가 없다)
+# 참조(승계 아님): camp-26090918 nv4-bf-1m-res 는 0.29.0rc6 에서 memwatch TRIP(MemAvailable<10GiB · KV 20GiB) — 이 셀은 KV 를 줄여 재확정한다
+model: /app/quant_models/Qwen/Qwen3.8-Flash-Next-FP8
+host: 0.0.0.0
+port: 8080
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+gpu-memory-utilization: 0.80
+max-model-len: 1048576
+kv-cache-dtype: fp8_e4m3
+kv-cache-memory-bytes: 15032385536
+enforce-eager: true
+async-scheduling: false
+max-num-seqs: 1
+max-num-batched-tokens: 2048
+engram-config: '{"cpu_offload": false}'
+hf-overrides: '{"text_config":{"max_position_embeddings":1048576,"rope_parameters":{"mrope_interleaved":true,"mrope_section":[11,11,10],"partial_rotary_factor":0.25,"rope_theta":10000000,"rope_type":"yarn","factor":4,"original_max_position_embeddings":262144}}}'
