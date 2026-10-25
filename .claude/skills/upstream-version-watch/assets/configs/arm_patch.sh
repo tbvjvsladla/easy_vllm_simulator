@@ -14,6 +14,10 @@
 
 # 패치 키: RUNTIME_PATCH_STEM(셀 env 가 선언 · slave 로도 전달) > CONFIG_FILE — slave 는 CONFIG_FILE=default 라 model-keyed 패치를 못 찾던 침묵 누락 교정(2026-10-24 Solar-Open2)
 _cfg="${RUNTIME_PATCH_STEM:-${CONFIG_FILE:-default}}"
+# 둘 다 모델 값인데 갈리면 다른 셀의 패치를 무장하는 것일 수 있다(policy:RUNTIME_PATCH_NO_CARRY_FORWARD) — 막지 않고 크게 알린다(2026-10-26)
+if [ -n "${RUNTIME_PATCH_STEM:-}" ] && [ -n "${CONFIG_FILE:-}" ] && [ "${CONFIG_FILE}" != "default" ] && [ "${RUNTIME_PATCH_STEM}" != "${CONFIG_FILE}" ]; then
+    echo "[arm_patch] WARN: RUNTIME_PATCH_STEM=${RUNTIME_PATCH_STEM} ≠ CONFIG_FILE=${CONFIG_FILE} — 다른 셀의 패치를 무장하는지 확인하라(carry-forward 금지)" >&2
+fi
 _patch="/app/configs/${_cfg}_patch.py"
 if [ -f "$_patch" ]; then
     _sp="$(python3 -c 'import sysconfig;print(sysconfig.get_paths()["purelib"])' 2>/dev/null || true)"
