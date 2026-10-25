@@ -46,7 +46,7 @@
 #                   원 판정 산출물 불변). 자리를 옮긴 판정은 그 스윕의 정본 verdict 가 아니므로
 #                   **인증서 자동 발행을 억제한다**(--no-publish 를 함의).
 #   --no-publish  : 제자리 판정이어도 인증서 자동 발행을 건너뛴다(기재 로그는 남긴다).
-# 종료: 0=판정 산출 · 2=인자/전제 오류 · 3=판정점 측정치 부재 · 그 외=하위 스크립트 rc 전달
+# 종료: 0=판정 산출 · 2=인자/전제 오류 · 3=판정점 측정치 부재(마지막 스윕 미완 표식 포함) · 그 외=하위 스크립트 rc 전달
 set -euo pipefail
 
 if [ "${1:-}" = "--self-test" ]; then
@@ -129,6 +129,12 @@ if [ ! -f "$INDEX" ]; then
 fi
 if [ ! -f "$MEASURED" ]; then
   echo "[judge_bench] ERROR 판정점(level $LEVEL) 측정치 부재: $MEASURED" >&2; exit 3
+fi
+# 마지막 스윕이 정상 종료하지 않았으면 남은 index·measured 는 **이전 스윕**의 것이다(sweep_bench 미완 표식 ·
+#   2026-10-26 plan_26102607). 낡은 짝으로 판정하지 않는다 — 다시 재거나, 옛 측정을 쓰려면 표식을 사람이 지운다.
+if [ -f "$SWEEPDIR/sweep_incomplete.json" ]; then
+  echo "[judge_bench] ERROR 마지막 스윕이 정상 종료하지 않았다($SWEEPDIR/sweep_incomplete.json: $(tr -d '\n' < "$SWEEPDIR/sweep_incomplete.json")) — 남은 산출물은 이전 스윕의 것이라 판정하지 않는다" >&2
+  exit 3
 fi
 
 # meta 에서 루프라인 입력을 읽는다(파생 ✗ · 승계 ○).
