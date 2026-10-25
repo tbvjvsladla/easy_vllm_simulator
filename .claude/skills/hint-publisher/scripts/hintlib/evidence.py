@@ -1001,10 +1001,20 @@ def _host_facts(ev: CellEvidence, repo=None) -> None:
     observed = next((l for l in layers if l[2]), None)
     declared = next((l for l in layers if not l[2]), None)
     b.pop("driver_conflict", None)
+    b.pop("driver_check", None)
     if observed and declared and observed[0] != declared[0]:
         b["driver_conflict"] = {"observed": observed[0], "declared": declared[0],
                                 "sources": {"observed": observed[1], "declared": declared[1]}}
         src["driver"] += f" · ⚠ 선언 {declared[0]} 과 다르다(driver_conflict)"
+    # 2026-10-25(Qwen NVFP4 재생 사실검증 F12): 관측 = 선언이면 driver_conflict 가 없어 00 의 '관측 ≠ 선언' 행이 "미관측" 으로 찍혔다 —
+    #   대조를 했다는 사실(일치 · 한쪽 부재)을 `driver_check` 로 싣는다(driver_conflict 의 뜻은 그대로 = 충돌일 때만).
+    if observed or declared:
+        verdict = ("conflict" if observed and declared and observed[0] != declared[0] else
+                   "agree" if observed and declared else "unpaired")
+        b["driver_check"] = {"verdict": verdict, "observed": observed[0] if observed else None,
+                             "declared": declared[0] if declared else None,
+                             "sources": {"observed": observed[1] if observed else None,
+                                         "declared": declared[1] if declared else None}}
     b["os"], src["os"] = None, f"미관측(attestation·인증서·스윕 meta·manifest 에 {list(_OS_KEYS)} 키 없음 — 지어내지 않는다)"
     for k in _OS_KEYS:
         v, where, _bn = _attested_host(ev.attestation, k)
@@ -2443,6 +2453,33 @@ def _self_node(repo: Path) -> tuple[str | None, str]:
             res = (None, f"node_identity.sh 실행 실패: {e}")
     _SELF_NODE_CACHE[key] = res
     return res
+
+
+# 측정 실행의 캠페인 소속(2026-10-25 · Qwen NVFP4 재생 사실검증 F13). 재생(캠페인 purge)은 캠페인 선언을 못 보지만, 측정 도구가 측정 시점에
+#   해소한 캠페인을 스윕 색인에 적는다: bench_preset `bench_knobs.campaign`(활성 캠페인 id) · 없으면 `campaign_pins_note` = repeat_axis
+#   load_campaign_budgets 의 사유 "활성 캠페인 없음(_bootstrap)". 옛 FACT 는 이 기록을 읽지 않아 '캠페인 밖'(관측)과 '모름'을 같은
+#   "미관측" 으로 적었다. 사유 문구는 소유자(repeat_axis)의 출력 모양이다 — 자체검사가 그 원문과 교차대조한다(tripwire).
+_CAMPAIGN_NONE_NOTE = re.compile(r"^활성 캠페인 없음\((?P<id>_bootstrap)\)$")
+
+
+def measurement_campaign(ev: CellEvidence) -> dict:
+    """{status: in-campaign|outside|unobserved, id, source} — 이 측정 스윕 색인의 bench_knobs(측정 시점 해소 기록)만 읽는다(판정 ✗)."""
+    sw = ev.sweep if isinstance(ev.sweep, dict) else {}
+    idx = sw.get("index") if isinstance(sw.get("index"), dict) else {}
+    bk = idx.get("bench_knobs") if isinstance(idx.get("bench_knobs"), dict) else None
+    where = f"{sw.get('dir')}/sweep_index.json bench_knobs"
+    if bk is None:
+        return {"status": "unobserved", "id": None,
+                "source": "미관측(스윕 색인에 bench_knobs 없음 — 측정 시점 캠페인 해소 기록 부재)" if sw else "미관측(스윕 색인 없음)"}
+    camp = bk.get("campaign")
+    if isinstance(camp, str) and camp.strip() and camp not in RESERVED_CAMPAIGN_IDS:
+        return {"status": "in-campaign", "id": camp.strip(), "source": f"{where}.campaign(측정 시점 활성 캠페인 · bench_preset)"}
+    m = _CAMPAIGN_NONE_NOTE.match(str(bk.get("campaign_pins_note") or "").strip())
+    if camp is None and m:
+        return {"status": "outside", "id": m.group("id"),
+                "source": f"{where}.campaign = null · campaign_pins_note '{m.group(0)}'(측정 시점 ACTIVE 해소 · repeat_axis)"}
+    return {"status": "unobserved", "id": None,
+            "source": f"미관측({where}.campaign={camp!r} · campaign_pins_note={bk.get('campaign_pins_note')!r} — 알려진 모양 밖)"}
 
 
 def event_ledger_spans(repo, ev: CellEvidence) -> list[dict]:
@@ -7637,7 +7674,27 @@ def _selftest_v7(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict, dk) -> No
        hb["driver"] == "580.178.04" and hb["source"]["driver"].startswith("attestation parity.driver")
        and cf.get("observed") == "580.178.04" and cf.get("declared") == "580.173.02"
        and _DECLARED_COPY in cf["sources"]["declared"] and hb.get("driver_by_node") == {"main": "580.178.04", "sub": "580.178.04"})
-    ck("음성대조: 관측 = 선언이면 conflict 없음", "driver_conflict" not in host(att, {"driver_version": "580.178.04"}))
+    # ★F13(2026-10-25 실물 모양: bench_knobs.campaign = null · campaign_pins_note '활성 캠페인 없음(_bootstrap)')
+    def mc_of(bk):
+        return measurement_campaign(dataclasses.replace(ev, sweep={**sw, "index": {**(sw.get("index") or {}),
+                                                                                    **({"bench_knobs": bk} if bk is not None else {})}}))
+    mc_out = mc_of({"campaign": None, "campaign_pins_note": "활성 캠페인 없음(_bootstrap)"})
+    mc_in = mc_of({"campaign": "camp-fx", "campaign_pins_note": None})
+    mc_un = mc_of(None)
+    mc_odd = mc_of({"campaign": None, "campaign_pins_note": "캠페인 해소자 부재: x — 선언을 읽지 못했다"})
+    ra_src = (core.SKILL_DIR.parent / "adversarial-benchmark/scripts/repeat_axis.py").read_text(encoding="utf-8")
+    ck("★F13 측정 시점 캠페인 소속: 캠페인 밖(관측) · 캠페인 id · 기록 없음/해소 실패 = 미관측(구분) · 사유 문구 = repeat_axis 원문(교차검증)",
+       mc_out["status"] == "outside" and mc_out["id"] == "_bootstrap" and "campaign_pins_note" in mc_out["source"]
+       and mc_in["status"] == "in-campaign" and mc_in["id"] == "camp-fx"
+       and mc_un["status"] == "unobserved" and mc_odd["status"] == "unobserved"
+       and '"활성 캠페인 없음(%s)" % mod.BOOTSTRAP' in ra_src)
+    h_eq = host(att, {"driver_version": "580.178.04"})
+    ck("음성대조: 관측 = 선언이면 conflict 없음", "driver_conflict" not in h_eq)
+    ck("★F12(2026-10-25 실물 모양: attestation 양 노드 580.178.04 = manifest 옮김 580.178.04) 대조 사실 = driver_check agree(두 출처)",
+       (h_eq.get("driver_check") or {}).get("verdict") == "agree" and h_eq["driver_check"]["declared"] == "580.178.04"
+       and h_eq["driver_check"]["sources"]["observed"].startswith("attestation parity.driver")
+       and (hb.get("driver_check") or {}).get("verdict") == "conflict"
+       and (host(att, {}).get("driver_check") or {}).get("verdict") in ("unpaired", "agree"))
     hm = host(None, {"driver_version": "580.2", "driver_version_source": "measured(nvidia-smi)"}, {"driver_version": "580.1"})
     ck("스윕 meta 가 스스로 measured 를 말하면 관측 — 옮김 표지 없음 · manifest 선언과 다르면 conflict",
        hm["driver"] == "580.2" and _DECLARED_COPY not in hm["source"]["driver"]
