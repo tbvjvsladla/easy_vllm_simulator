@@ -697,6 +697,50 @@ def _git_rev_before(c: _Ctx, rel: str, created: str | None) -> str | None:
     return sha if re.fullmatch(r"[0-9a-f]{40}", sha) else None
 
 
+# 레시피 출처 탐색(2026-10-25 · Qwen NVFP4 재생 사실검증 F4): 측정 이미지는 single-node 브랜치의 `output/single/Dockerfile.source-build` 로
+#   지어졌는데(원장 requirements_sha256 = `git show 12ef50a:output/single/requirements.txt`) 선택자는 이 체크아웃 토폴로지 통로(output/multi)의
+#   작업트리 · 이미지 Created 이전 커밋만 대조해 "15/18 · 일치 개정 없음" 을 냈다. 바이트가 증거다 — 같은 파일 이름의 **모든 토폴로지 통로 ·
+#   모든 ref** 의 git 이력 blob 을 후보로 대조한다(requirements = 원장 sha256 · Dockerfile = docker history RUN·COPY 전수 일치 — 없으면
+#   종전 규칙대로 엄격히 더 잘 맞는 개정을 verified ✗ 로 싣고 불일치 단계를 적는다). 커밋 시각으로
+#   거르지 않는다 — 빌드 뒤에 커밋된 바이트도 같은 바이트다(12ef50a 는 Created 1시간 뒤 커밋). 못 찾으면 종전 표기 그대로.
+_RECIPE_DIR_GLOB = "output/*"
+
+
+def _history_blobs(c: _Ctx, name: str) -> list[dict]:
+    """[{commit, path, blob, bytes, utc}] — `git log --all -- :(glob)output/*/<name>` 의 서로 다른 blob(최신 커밋 먼저 · 읽기 전용)."""
+    key = ("history_blobs", name)
+    if key in c.memo:
+        return c.memo[key]
+    out: list[dict] = []
+    if (c.repo / ".git").exists():
+        lg = core.git(c.repo, "-c", "log.showSignature=false", "-c", "core.quotePath=false", "log", "--all",
+                      "--format=@%H %cI", "--name-only", "--", f":(glob){_RECIPE_DIR_GLOB}/{name}", check=False)
+        seen: set[str] = set()
+        commit = utc = None
+        for line in (lg.stdout.splitlines() if lg.returncode == 0 else []):
+            if line.startswith("@"):
+                commit, _, utc = line[1:].partition(" ")
+                continue
+            path = line.strip()
+            if not path or commit is None or not re.fullmatch(r"output/[^/]+/" + re.escape(name), path):
+                continue
+            rp = core.git(c.repo, "rev-parse", f"{commit}:{path}", check=False)
+            blob = rp.stdout.strip() if rp.returncode == 0 else ""
+            if not re.fullmatch(r"[0-9a-f]{40}", blob) or blob in seen:
+                continue
+            seen.add(blob)
+            b = core.git_bytes(c.repo, "cat-file", "blob", blob, check=False)
+            if b is not None:
+                out.append({"commit": commit, "path": path, "blob": blob, "bytes": b, "utc": _utc_z(utc) or utc})
+    c.memo[key] = out
+    return out
+
+
+def _prefer_same_path(cands: list[dict], rel: str) -> list[dict]:
+    """같은 바이트 후보가 여럿이면 이 체크아웃 통로(rel)의 것을 먼저, 그다음 최신 커밋(입력 순서) — 결정론."""
+    return sorted(cands, key=lambda x: x["path"] != rel)
+
+
 def _better(a: dict, b: dict) -> bool:
     """a 의 일치율이 b 보다 엄격히 높은가(matched/total · 분모 0 = 0)."""
     return a["total"] > 0 and (b["total"] == 0 or a["matched"] * b["total"] > b["matched"] * a["total"])
@@ -739,24 +783,76 @@ def _select_dockerfile(c: _Ctx, dockerfile: str) -> dict:
         out["candidates"] = [{"revision": name, **scores[name]} for name, _ in cands]
         w = scores["worktree"]
         best = cands[1][0] if len(cands) > 1 and _better(scores[cands[1][0]], w) else None
-        if w["total"] and w["matched"] == w["total"]:
+        w_full = bool(w["total"] and w["matched"] == w["total"])
+        b_full = bool(best and scores[best]["total"] and scores[best]["matched"] == scores[best]["total"])
+        floor = scores[best] if best else w
+        hit = None if (w_full or b_full) else _dockerfile_from_history(c, dockerfile, rel, hist, union, floor)
+        if w_full:
             out.update(method="worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치)", history_match=w, verified=True)
-        elif best:
+        elif best and (b_full or hit is None):
             b = dict(cands)[best]
             sb = scores[best]
             out.update(bytes=b, shipped=f"git:{best}", commit=best, history_match=sb,
                        verified=sb["matched"] == sb["total"],
                        method=(f"git log -1 --before={created} -- {rel} · docker history 대조(개정 {sb['matched']}/{sb['total']} "
                                f"> 작업트리 {w['matched']}/{w['total']}) — 이 개정의 바이트를 싣는다(git show)"))
+        elif hit is not None:
+            out.update(bytes=hit["bytes"], shipped=f"git:{hit['commit']}", commit=hit["commit"], history_match=hit["score"],
+                       verified=hit["full"], origin_path=hit["path"], origin_commit_utc=hit["utc"],
+                       method=(f"git log --all -- {_RECIPE_DIR_GLOB}/{dockerfile} · {hit['commit'][:12]}:{hit['path']} 가 docker history "
+                               + (f"RUN·COPY 와 전수 일치({hit['score']['matched']}/{hit['score']['total']}"
+                                  if hit["full"] else
+                                  f"RUN·COPY 와 가장 잘 맞는 이력 개정({hit['score']['matched']}/{hit['score']['total']} · 전수 일치 개정 없음 · "
+                                  f"불일치 {' | '.join(hit['unmatched'])}")
+                               + f" · 작업트리 {w['matched']}/{w['total']})"
+                               + (f" — 이 체크아웃 통로({rel}) 밖" if hit["path"] != rel else "")
+                               + (f" · 커밋 {hit['utc']} > 이미지 Created {created}"
+                                  + ("(빌드 뒤 커밋된 같은 단계)" if hit["full"] else "(빌드 뒤 커밋 · 위 불일치 단계만큼 다르다)")
+                                  if created and hit.get("utc") and hit["utc"] > created else "")
+                               + " — 이 개정의 바이트를 싣는다(git cat-file)"))
         else:
             out.update(history_match=w,
                        method=(f"worktree(어느 개정도 이미지 history 와 더 맞지 않는다 · 작업트리 {w['matched']}/{w['total']}"
                                + ("" if rev else (" · 대조할 개정 없음(" + ("이미지 Created 미관측" if not created else
                                                                     "이미지 Created 이전 커밋 부재 · 비추적") + ")"))
+                               + f" · 전 이력({_RECIPE_DIR_GLOB}/{dockerfile} · 모든 ref)에도 전수 일치 개정 없음"
                                + " — recipe_vs_image 경고 유지)"))
     out["text"] = out["bytes"].decode("utf-8", "replace")
     c.memo[key] = out
     return out
+
+
+def _dockerfile_from_history(c: _Ctx, dockerfile: str, rel: str, hist: list, union: set, floor: dict) -> dict | None:
+    """전 이력 blob 중 docker history RUN·COPY 와 가장 잘 맞는 후보 → {commit, path, utc, bytes, score, full, unmatched[]} | None.
+    전수 일치가 있으면 그것(같은 통로 우선 · 최신 커밋). 없으면 `floor`(작업트리 · Created 이전 개정 중 나은 점수)보다 **엄격히** 나은
+    후보만 — 종전 규칙("더 잘 맞을 때만 그 개정의 바이트를 싣는다")의 확장이며 검증 표시는 올리지 않는다(verified ✗ · 불일치 단계 기재).
+    더 나은 후보가 없으면 None(종전 표기)."""
+    scored = []
+    for h in _history_blobs(c, dockerfile):
+        st = _dockerfile_steps(h["bytes"].decode("utf-8", "replace"))
+        u = union | set(st)
+        deepest = max((i for i, x in enumerate(hist) if x and x in u), default=-1)
+        window = [x for x in hist[:deepest + 1] if x]
+        sc = _history_match(st, window)
+        if not sc["total"]:
+            continue
+        pool = list(window)
+        unmatched = []
+        for x in st:
+            if x in pool:
+                pool.remove(x)
+            else:
+                unmatched.append(f"레시피에만: {x[:120]}")
+        unmatched += [f"이미지에만: {x[:120]}" for x in pool]
+        scored.append({**h, "score": sc, "full": sc["matched"] == sc["total"], "unmatched": unmatched})
+    full = [x for x in scored if x["full"]]
+    if full:
+        return _prefer_same_path(full, rel)[0]
+    better = [x for x in scored if _better(x["score"], floor)]
+    if not better:
+        return None
+    top = max(x["score"]["matched"] / x["score"]["total"] for x in better)
+    return _prefer_same_path([x for x in better if x["score"]["matched"] / x["score"]["total"] == top], rel)[0]
 
 
 def _copy_dests(text: str) -> dict[str, str]:
@@ -810,9 +906,20 @@ def _select_copied(c: _Ctx, src_rel: str, path: Path, baked: bytes | None, probe
             out.update(bytes=rev_bytes, shipped=f"git:{rev}", commit=rev, verified=True, ledger_sha256_match=True,
                        method=f"git log -1 --before={created} -- {rel} · 빌드 원장 sha256 일치(작업트리는 다르다)")
             return out
+        hits = [h for h in _history_blobs(c, path.name) if core.sha256_bytes(h["bytes"]) == ledger_sha256]
+        if hits:
+            h = _prefer_same_path(hits, rel)[0]
+            out.update(bytes=h["bytes"], shipped=f"git:{h['commit']}", commit=h["commit"], verified=True, ledger_sha256_match=True,
+                       origin_path=h["path"], origin_commit_utc=h["utc"],
+                       method=(f"git log --all -- {_RECIPE_DIR_GLOB}/{path.name} · {h['commit'][:12]}:{h['path']} · 빌드 원장 sha256 "
+                               f"일치(작업트리·이미지 Created 이전 개정은 다르다)"
+                               + (f" — 이 체크아웃 통로({rel}) 밖" if h["path"] != rel else "")
+                               + (f" · 커밋 {h['utc']} > 이미지 Created {created}(빌드 뒤 커밋된 같은 바이트)"
+                                  if created and h.get("utc") and h["utc"] > created else "")))
+            return out
         out.update(ledger_sha256_match=False,
-                   method=(f"worktree(빌드 원장 sha256 {ledger_sha256[:16]} 과 작업트리·이미지 Created 이전 개정이 모두 다르다 — "
-                           "쓰인 바이트가 아니다 · recipe_vs_image 경고)"))
+                   method=(f"worktree(빌드 원장 sha256 {ledger_sha256[:16]} 과 작업트리·이미지 Created 이전 개정 · 전 이력"
+                           f"({_RECIPE_DIR_GLOB}/{path.name} · 모든 ref)이 모두 다르다 — 쓰인 바이트가 아니다 · recipe_vs_image 경고)"))
         out["image_bytes_differ"] = True
         return out
     if baked is None:
@@ -2936,6 +3043,11 @@ def _build_command(c: _Ctx, sel: dict) -> tuple[str, str]:
             asrc = "docker-history build-args"
     ctx, _csrc = _compose_build_context(c)
     context = ctx or core.rel(c.repo, c.out)
+    dmem0 = c.memo.get(("dockerfile", sel["dockerfile"])) or {}
+    origin = dmem0.get("origin_path")       # 실린 바이트의 이력 통로(전수 일치든 가장 가까운 개정이든 — 실린 파일이 놓일 자리)
+    if origin and str(PurePath(origin).parent) != context and context != ".":
+        # F4(2026-10-25): 이미지를 지은 Dockerfile 이 다른 토폴로지 통로(예 output/single)에 있었다 — 그 통로가 빌드 컨텍스트다
+        context = str(PurePath(origin).parent)
     df = sel["dockerfile"] if context == "." else f"{context}/{sel['dockerfile']}"
     parts = [f"docker build -f {shlex.quote(df)}"] + [f"  --build-arg {shlex.quote(f'{k}={v}')}" for k, v in sorted(args.items())]
     if sel.get("image_tag"):
@@ -2945,7 +3057,10 @@ def _build_command(c: _Ctx, sel: dict) -> tuple[str, str]:
     shipped = dmem.get("shipped") or "worktree"
     # 셀 B F3(2026-10-10 · plan_26101017): '이미지를 지은 개정' 은 history 대조로 확인됐을 때만 — 아니면 '실린 개정' 과 대조 결과를 적는다
     hm_ = dmem.get("history_match") if isinstance(dmem.get("history_match"), dict) else None
-    rev_txt = (f"이미지를 지은 개정: {shipped}" if dmem.get("verified") else
+    otxt = f"({dmem['origin_path']})" if dmem.get("origin_path") else ""
+    shipped = f"{shipped}{otxt}"
+    rev_txt = (f"이미지를 지은 개정: {shipped}"
+               if dmem.get("verified") else
                f"실린 개정: {shipped} — 이미지를 지은 바이트임을 관측으로 확인 못함(docker history RUN·COPY {hm_['matched']}/{hm_['total']})"
                if hm_ else f"실린 개정: {shipped} — 이미지를 지은 바이트임은 미검증(history 대조 없음)")
     head = [f"# 실린 artifacts/build_recipe/{sel['dockerfile']}({rev_txt})를 {df} 자리에 두고 컨텍스트에서 짓는다."]
@@ -2955,7 +3070,11 @@ def _build_command(c: _Ctx, sel: dict) -> tuple[str, str]:
     #   다르면 compose build 는 동등 경로가 아니다(늘 그 리터럴을 짓는다) — 동등이라 적지 않고 그 사실을 적는다.
     from . import evidence as _evidence
     lit_kind, lit = _evidence.compose_build_dockerfile(c.compose_path) if c.compose_path is not None else (None, None)
-    if c.topo == "multi":
+    if origin and str(PurePath(origin).parent) != core.rel(c.repo, c.out):
+        # F4(2026-10-25): 스모크 · compose 는 이 체크아웃 통로(output/<topo>/)의 Dockerfile 을 짓는다 — 이 이미지의 레시피 통로가 아니다
+        tail = [f"# 동등 경로 없음 — 스모크 · compose build 는 {core.rel(c.repo, c.out)}/ 의 Dockerfile 을 짓는다(이 이미지의 레시피 통로 "
+                f"{PurePath(origin).parent} 아님) · 위 docker build 명령만 쓴다."]
+    elif c.topo == "multi":
         tail = [f"# 동등 경로(스모크 사용법): bash {REL_SMOKE_MULTI} {c.cell} --build-only"]
     elif lit_kind == "literal" and lit != sel["dockerfile"]:
         tail = [f"# compose build 는 동등 경로가 아니다 — output/{c.topo}/docker-compose.yaml build.dockerfile 리터럴이 {lit} 를 짓는다"
@@ -5282,6 +5401,51 @@ def selftest() -> list[str]:
             ck("★캠페인 phase 기록(exact)이 층 창보다 먼저 · 층 범위는 부가 사실로 남는다",
                rph["build"]["observed"]["bound"] == "exact" and rph["build"]["observed"]["seconds"] == 5400
                and rph["build"]["observed"].get("layer_span", {}).get("layers") == 5)
+            # ★2026-10-25 Qwen NVFP4 재생 F4 실물 모양: 측정 이미지는 **다른 브랜치**의 **다른 토폴로지 통로**(output/single/)에서
+            #   지어졌고 그 커밋은 이미지 Created **뒤**다. 이 체크아웃 통로(output/multi)의 작업트리 · Created 이전 개정은 부분 일치뿐.
+            #   작업트리를 건드리지 않는 plumbing(hash-object · mktree · commit-tree · update-ref)으로 다른 ref 를 만든다.
+            df_x = df_rev.replace("fx-pkg", "fx-single-pkg")
+            req_x = b"transformers<5.14.1\n# single\n"
+            layers_x = [(b_.replace("fx-pkg", "fx-single-pkg"), at_) for b_, at_ in layers_rev]
+
+            def _blob(data: bytes) -> str:
+                return subprocess.run(["git", "hash-object", "-w", "--stdin"], input=data, capture_output=True, cwd=str(repo),
+                                      check=True, env={**os.environ, **genv}).stdout.decode().strip()
+
+            def _tree(entries: list[tuple[str, str, str]]) -> str:
+                body = "".join(f"{m} {t} {h}\t{n}\n" for m, t, h, n in entries)
+                return subprocess.run(["git", "mktree"], input=body.encode(), capture_output=True, cwd=str(repo), check=True,
+                                      env={**os.environ, **genv}).stdout.decode().strip()
+            t_single = _tree([("100644", "blob", _blob(df_x.encode()), "Dockerfile.rev"),
+                              ("100644", "blob", _blob(req_x), "requirements.txt")])
+            t_root = _tree([("040000", "tree", _tree([("040000", "tree", t_single, "single")]), "output")])
+            genv_late = dict(genv, GIT_AUTHOR_DATE=core.git_date("2026-01-05T00:00:00Z"),
+                             GIT_COMMITTER_DATE=core.git_date("2026-01-05T00:00:00Z"))
+            c_single = subprocess.run(["git", "commit-tree", t_root, "-m", "single-fx"], capture_output=True, cwd=str(repo),
+                                      check=True, env={**os.environ, **genv_late}).stdout.decode().strip()
+            core.git(repo, "update-ref", "refs/heads/single-fx", c_single, env_extra=genv)
+            try:
+                dk_x = _fake_image_docker(layers=layers_x, created="2026-01-02T03:04:05+09:00", probe=False)
+                rx = collect(repo, ev_rev, repo / "p_rev_x", render_module=fake_rd, runner=dk_x)
+                sx = rx["slots"]["build_recipe"]["evidence"]["selected_revision"]
+                bx = {s["step"]: s for s in rx["reproduce_steps"]}["build"]["command"]
+                cx = _ctx(repo, ev_rev, runner=dk_x)
+                qx = _select_copied(cx, "requirements.txt", out / "requirements.txt", None, "탐침 안 함",
+                                    ledger_sha256=core.sha256_bytes(req_x))
+                qn = _select_copied(_ctx(repo, ev_rev, runner=dk_x), "requirements.txt", out / "requirements.txt", None,
+                                    "탐침 안 함", ledger_sha256="0" * 64)
+            finally:
+                core.git(repo, "update-ref", "-d", "refs/heads/single-fx", env_extra=genv)
+            ck("★F4 다른 ref · 다른 통로(output/single)의 전수 일치 Dockerfile = 그 커밋·경로로 싣는다(Created 뒤 커밋이어도 · 바이트가 증거)",
+               sx["commit"] == c_single and sx["history_match"]["matched"] == sx["history_match"]["total"]
+               and (repo / "p_rev_x/artifacts/build_recipe/Dockerfile.rev").read_text(encoding="utf-8") == df_x
+               and "output/single/Dockerfile.rev" in sx["method"] and "통로(output/multi/Dockerfile.rev) 밖" in sx["method"])
+            ck("★F4 빌드 명령 = 그 통로를 컨텍스트로(-f output/single/… · output/single) · 스모크·compose 동등 경로 없음 명시",
+               "-f output/single/Dockerfile.rev" in bx and bx.rstrip().splitlines()[-2].strip() == "output/single"
+               and "동등 경로 없음" in bx and "--build-only" not in bx)
+            ck("★F4 requirements = 원장 sha256 과 바이트가 같은 이력 blob(다른 ref · 다른 통로) · verified · 출처 경로 · 음성대조: 없으면 종전(쓰인 바이트 아님)",
+               qx["verified"] is True and qx["commit"] == c_single and qx["origin_path"] == "output/single/requirements.txt"
+               and qx["bytes"] == req_x and qn["verified"] is False and "전 이력" in qn["method"])
             rbad = collect(repo, ev_rev, repo / "p_rev_bad", render_module=fake_rd, runner=_fake_image_docker(
                 layers=[("RUN |1 SM12X_PORT=0 /bin/sh -c something-else # buildkit", "2026-01-02T03:00:00+09:00")],
                 created="2026-01-02T03:04:05+09:00", probe=False))
@@ -5311,8 +5475,11 @@ def selftest() -> list[str]:
             rnc = collect(repo, ev_rev, repo / "p_rev_nocreated", render_module=fake_rd, runner=_fake_image_docker(
                 layers=layers_rev, created="not-a-time", probe=False))
             snc = rnc["slots"]["build_recipe"]["evidence"]["selected_revision"]
-            ck("★F1 이미지 Created 미관측 = 개정 후보 없음(작업트리 · 사유 기재 · 개정을 추측하지 않는다)",
-               snc["commit"] is None and "Created 미관측" in snc["method"] and len(snc["candidates"]) == 1)
+            # 2026-10-25(F4): Created 미관측이면 '이전 개정' 후보는 만들지 않는다(시각으로 추측 ✗) — 그러나 전 이력 blob 의 **내용** 대조
+            #   (docker history 전수 일치)는 시각과 무관한 바이트 증거라 그 개정을 싣는다(종전: 작업트리 + 사유).
+            ck("★F1 이미지 Created 미관측 = 시각 기반 개정 후보 없음 · F4 내용 대조(전 이력 전수 일치)만 개정을 고른다",
+               len(snc["candidates"]) == 1 and snc["commit"] == rev1 and "전수 일치" in snc["method"]
+               and snc["history_match"]["matched"] == snc["history_match"]["total"])
             rplain = collect(repo, ev_rev, repo / "p_rev_plain", render_module=fake_rd, runner=_fake_docker(
                 {("image", "inspect", "--format", "{{.Created}}"): (0, "2026-01-02T03:04:05+09:00\n"),
                  ("image", "inspect"): (0, "sha256:fx\n"), ("history",): (0, layers_rev[0][0] + "\n")}))
