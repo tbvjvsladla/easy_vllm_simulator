@@ -81,7 +81,7 @@ RUNNER_ALIASES = {
     "openai-claude":  ("openai", BACKEND_DEFAULT_MODEL["openai"]),
     # 2026-10-24 (plan_26102401 · 사용자 지시): `claude-sub` = claude-router 로컬 라우터 런처. 한 바이너리가
     #   `--model <id>` 로 provider 를 고른다(config/providers/*.yaml 의 id) — 그래서 kimi 류와 달리 백엔드는
-    #   하나이고 모델 토큰이 provider 를 가른다. 사다리: sonnet → deepseek-flash → minimax-m3.1-flash.
+    #   하나이고 모델 토큰이 provider 를 가른다. 선택 등재일 뿐 기본 사다리가 아니다 — `--runners` 로 고를 때만 쓰인다(2026-10-26).
     "claude-sub-sonnet":   ("claude-sub", "sonnet"),
     "claude-sub-deepseek": ("claude-sub", "deepseek-flash"),
     "claude-sub-minimax":  ("claude-sub", "minimax-m3.1-flash"),

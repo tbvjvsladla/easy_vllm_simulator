@@ -287,9 +287,10 @@ def relay_header(context_id: str, attempt: int, allocated: int, budget_source: s
 #   발급하는 것(재시도도 예산 사건도 아니다 — 바뀌는 것은 *누가 실행하는가* 하나다).
 # 소진 = 서브에 닿은 마지막 attempt 이후 사다리를 **한 바퀴** 다 돌았는데 전부 러너 평면에서 실패.
 #   여기서만 HITL 이며, 사다리가 1칸이면 첫 실패가 곧 소진이다(사용자 규격).
-# 2026-10-25 (사용자 지시): sonnet 계열 사용 불가 → 기본 사다리를 deepseek-flash → minimax-m3.1-flash
-#   순으로 앞세우고 sonnet 계열은 후순위로 미룬다(`claude-sub-sonnet` → 직결 `sonnet`).
-DEFAULT_LADDER = ("claude-sub-deepseek", "claude-sub-minimax", "claude-sub-sonnet", "sonnet")
+# 2026-10-26 (사용자 정의 · plan_26102607 후속): 기본값은 `claude -p` · 모델 sonnet **하나뿐**이다. 그 뒤 슬롯의 개수·순서와
+#   서드파티 LLM 호출 방식(claude-sub 같은 런처)은 provider 정책·크레딧에 따라 세션마다 바뀌는 **가변 요소**라 기본값에 굽지
+#   않는다 — 그때그때 `--runners a,b,c` 로 선언한다(10-25 의 claude-sub 우선 기본값은 그 가변값이 공통층에 굳은 것이었다).
+DEFAULT_LADDER = ("sonnet",)
 
 
 def runner_table(repo_root: str) -> dict:
@@ -1898,10 +1899,10 @@ def _self_test() -> int:
     chk([r["name"] for r in _lad] == ["kimi-claude", "minimax-claude", "sonnet", "haiku"]
         and _lad[0]["backend"] == "kimi" and _lad[2]["model"] == "sonnet",
         "사다리는 **선언 순서 그대로**이고 각 칸이 (backend, model) 쌍으로 펴진다")
-    chk([r["name"] for r in resolve_ladder(REPO, None)] == list(DEFAULT_LADDER)
-        and resolve_ladder(REPO, None)[0]["model"] == "deepseek-flash"
-        and resolve_ladder(REPO, None)[-1]["name"] == "sonnet",
-        "기본 사다리 = deepseek-flash → minimax-m3.1-flash → sonnet 계열 후순위(2026-10-25 사용자 지시)")
+    chk(len(resolve_ladder(REPO, None)) == 1
+        and resolve_ladder(REPO, None)[0]["name"] == "sonnet"
+        and resolve_ladder(REPO, None)[0]["backend"] == "anthropic",
+        "기본 사다리는 1칸(claude -p · sonnet) — 그 밖의 슬롯·호출 방식은 가변(--runners · 2026-10-26 사용자 정의)")
     try:
         resolve_ladder(REPO, "sonnet,gpt-5")
         chk(False, "미등재 별칭은 STOP")
