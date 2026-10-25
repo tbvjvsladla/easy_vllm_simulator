@@ -2477,7 +2477,7 @@ def _selftest_e2e(ck) -> None:
             # 2026-09-29 plan_26092908 §4.6: LINEAGE 분리 — 전체 = draft inputs(발행자 평면) · 페이로드 = 수신자 요약(≤ 20KB · 해시 ✗)
             lsum = json.loads((payload / "LINEAGE.json").read_text(encoding="utf-8"))
             lfull = json.loads((draft / "inputs" / lineage.LINEAGE_FULL_NAME).read_text(encoding="utf-8"))
-            ck("LINEAGE: 페이로드 = 수신자 요약(stem · 역할 · 날짜 · 발췌 수) · 전체 = draft inputs · 요약 ≤ 20KB",
+            ck("LINEAGE: 페이로드 = 수신자 요약(경로 · 역할 · 날짜 · 발췌 수) · 전체 = draft inputs · 요약 ≤ 20KB",
                lsum.get("kind") == lineage.SUMMARY_KIND and len(lsum["documents"]) == len(lfull["documents"]) >= 1
                and "via" not in json.dumps(lsum) and len((payload / "LINEAGE.json").read_bytes()) <= lineage.SUMMARY_MAX_BYTES
                and "evidence_candidates" in lfull and (draft / "inputs" / NAMING_BASE_NAME).is_file()

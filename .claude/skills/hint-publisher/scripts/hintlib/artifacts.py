@@ -1937,6 +1937,33 @@ def _post_label(row: dict) -> dict:
     return {**row, "shared_image_input": True, "label": label}
 
 
+def _mtime_vs_created(c: _Ctx, p: Path | None) -> str:
+    """` · 작업트리 mtime … ≤/> 이미지 Created …` 꼬리(둘 다 관측일 때만 · 아니면 빈 문자열 — 비교하지 못한 것을 말하지 않는다)."""
+    mt, created = (_mtime_utc(p) if p is not None else None), _image_created(c)
+    if not (mt and created):
+        return ""
+    return (f" · 작업트리 mtime {mt} > 이미지 Created {created} — 빌드 뒤 추가·수정" if mt > created
+            else f" · 작업트리 mtime {mt} ≤ 이미지 Created {created} — 빌드 뒤 추가 아님")
+
+
+def _not_in_ledger_reason(c: _Ctx, ledger: dict, ph: str, p: Path) -> str:
+    """원장 패치 행에 없는 작업트리 패치의 **관측된** 사유(2026-10-25 · Solar 재생 사실검증 F5). 옛 판본은 "빌드 뒤 추가된 파일로 본다"
+    로 단정했는데, 실물은 파일 mtime 이 이미지 Created 보다 앞서고 원장 `context_inventory` 에는 `.gitkeep` 만 있었다 — 빌드 때 빌드
+    컨텍스트에 들지 않은(렌더러가 비운) 것이지 빌드 뒤 추가가 아니다. 근거 순서: ① 원장 context_inventory(빌드 시점 컨텍스트 목록 ·
+    측정) ② 작업트리 mtime × 이미지 Created(관측) — 둘 다 없으면 미관측이라 적는다(추측 ✗)."""
+    slot = f"build_patch_{ph}"
+    inv = (ledger or {}).get("context_inventory") if isinstance(ledger, dict) else None
+    when = _mtime_vs_created(c, p)
+    if isinstance(inv, dict) and isinstance(inv.get(slot), list):
+        listed = [str(x) for x in inv[slot]]
+        if p.name not in listed:
+            return (f"원장 context_inventory.{slot} = {listed or '[]'} — 빌드 때 빌드 컨텍스트에 들지 않았다{when}")
+        return f"원장 context_inventory.{slot} 에는 있으나 패치 행이 없다(실행 기록 없음){when}"
+    if when:
+        return f"원장 context_inventory 없음(옛 원장){when}"
+    return "원장 context_inventory 없음(옛 원장) · 이미지 Created 또는 mtime 미관측 — 빌드 뒤 추가 여부 미관측"
+
+
 def _applied(c: _Ctx, *, probe: bool = True) -> tuple[dict, dict, dict | None, dict[str, dict]]:
     """(applied_set, build selection, 메인 원장, 노드별 원장). applied_set 은 SPEC §2.1 모양 + probes/excluded.
     `probe=False` = 패치 이미지 탐침(`_image_probe`)을 부르지 않는다(재현 절차만 필요한 호출). 원장 관측 ②는 여전히 돈다 —
@@ -1987,7 +2014,7 @@ def _applied(c: _Ctx, *, probe: bool = True) -> tuple[dict, dict, dict | None, d
                     seen = others.get((ph, p.name))
                     why = (f"not-in-ledger(대표 {asym['representative']} 원장에 없음 · {' · '.join(seen)} — 노드 비대칭 · "
                            "대표 원장 밖이라 싣지 않음)" if seen
-                           else "not-in-ledger(원장에 없음 — 빌드 뒤 추가된 파일로 본다 · 싣지 않음)")
+                           else f"not-in-ledger(원장에 없음 — {_not_in_ledger_reason(c, ledger, ph, p)} · 싣지 않음)")
                     excluded.append({"phase": ph, "file": p.name, "why": why})
         applied = {"status": "observed", "source": ledger_source, "patches": rows, "probes": probes}
         if len(per_node) > 1:
@@ -2015,7 +2042,8 @@ def _applied(c: _Ctx, *, probe: bool = True) -> tuple[dict, dict, dict | None, d
                 if baked is not None and bb is None:
                     # 이미지의 COPY 대상 디렉터리에 없다 = 이 빌드의 컨텍스트에 없었다(원장 경로의 not-in-ledger 와 같은 결).
                     excluded.append({"phase": ph, "file": name,
-                                     "why": "not-in-image(측정 이미지의 패치 디렉터리에 없다 — 빌드 뒤 추가된 파일로 본다 · 싣지 않음)"})
+                                     "why": "not-in-image(측정 이미지의 패치 디렉터리에 없다 — 빌드 때 빌드 컨텍스트에 들지 "
+                                            f"않았다{_mtime_vs_created(c, wp)} · 싣지 않음)"})
                     continue
                 if bb is not None:
                     text = bb[0].decode("utf-8", "replace")
@@ -2372,21 +2400,174 @@ def _runner_names(c: _Ctx) -> tuple[list[str], list[str]]:
     return names, sorted(set(model_refs))
 
 
+# 런타임 패치 키 체인(2026-10-25 · Solar 재생 사실검증 F3): arm_patch.sh 의 패치 키는 개정마다 다르다 — K11 시절
+#   `_cfg="${CONFIG_FILE:-default}"`, d781f26 부터 `_cfg="${RUNTIME_PATCH_STEM:-${CONFIG_FILE:-default}}"`. 판정 규칙을 코드에
+#   다시 적으면(하드코딩) 러너가 바뀔 때 조용히 옛 규칙에 머문다 — **측정 당시 개정의 armer 바이트**에서 키 체인을 파생한다.
+_ARM_KEY_LINE = re.compile(r'(?m)^\s*_cfg="([^"\n]+)"\s*$')
+_ARM_KEY_EXPR = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*):-(.*)\}")
+
+
+def _arm_key_chain(c: _Ctx) -> dict:
+    """{chain[변수 이름 · 우선순위 순], default(리터럴), source} — 측정 당시 개정 armer 의 `_cfg="${A:-${B:-lit}}"` 줄.
+    줄이 없거나 모양이 다르면 K11 규칙(CONFIG_FILE)으로 판정하되 그 사실을 source 에 적는다(fail-loud 폴백)."""
+    key = ("arm_key_chain",)
+    if key in c.memo:
+        return c.memo[key]
+    out = {"chain": ["CONFIG_FILE"], "default": "default",
+           "source": f"{RUNTIME_PATCH_ARMER} 부재 — K11 규칙(CONFIG_FILE)으로 판정"}
+    asset = Path(c.render().SHARED_ASSET_DIR) / RUNTIME_PATCH_ARMER
+    if asset.is_file():
+        sel = _select_tracked(c, asset)
+        rev = sel.get("commit") or sel.get("shipped")
+        m = _ARM_KEY_LINE.search(sel["bytes"].decode("utf-8", "replace"))
+        expr, chain = (m.group(1) if m else None), []
+        while expr is not None and (em := _ARM_KEY_EXPR.fullmatch(expr)):
+            chain.append(em.group(1))
+            expr = em.group(2)
+        if chain and expr is not None and "$" not in expr:
+            out = {"chain": chain, "default": expr,
+                   "source": f"{RUNTIME_PATCH_ARMER} 측정 당시 개정({str(rev)[:12]}) `_cfg=` 키 체인 {' > '.join(chain)} > '{expr}'"}
+        else:
+            out = {"chain": ["CONFIG_FILE"], "default": "default",
+                   "source": f"{RUNTIME_PATCH_ARMER} 측정 당시 개정({str(rev)[:12]})의 `_cfg=` 줄을 해석하지 못했다 — "
+                             "K11 규칙(CONFIG_FILE)으로 판정(⚠ 러너 모양 변경 확인)"}
+    c.memo[key] = out
+    return out
+
+
+def _arm_stem(chain: dict, values: dict[str, str]) -> tuple[str, str]:
+    """(stem, 어느 키에서 왔나) — bash `${A:-…}` 의미: 빈 값은 부재와 같다."""
+    for k in chain["chain"]:
+        v = str(values.get(k) or "").strip()
+        if v:
+            return v, k
+    return chain["default"], "default"
+
+
+def _slave_forward_rows(c: _Ctx) -> list:
+    """slave_forward.derive(측정 당시 compose 개정) — 스모크와 같은 함수(AC8). 거부는 원인을 번역해 차단한다."""
+    try:
+        return c.sf.derive(c.triplet["env"], c.out / ".env", _compose_file(c), c.out / "envs" / ".env.cluster")
+    except SystemExit as e:          # 옛 API 의 die() — 원인을 삼키지 않고 번역
+        core.fail("HINT_SUB_RECIPE_DERIVE_FAILED", f"slave_forward.derive 가 거부했다(SystemExit {e.code}).",
+                  "stderr 의 [slave-forward] FAIL 사유를 고친다(값에 공백·따옴표 등 — 원격 shell prefix 안전 문자 밖).")
+    except (OSError, ValueError) as e:   # ForwardError(ValueError · code) — 안전하지 않은 값·compose 모양·렌더러 부재
+        core.fail("HINT_SUB_RECIPE_DERIVE_FAILED",
+                  f"slave_forward.derive 거부: {getattr(e, 'code', type(e).__name__)}: {getattr(e, 'message', e)}",
+                  "사유 코드의 자리(셀 env 값 · compose 모양 · render_dockerfile.env_tier)를 고친다 — 전달 목록을 손으로 적지 않는다.")
+
+
+def _arm_roles(c: _Ctx, forwards: list | None = None) -> dict:
+    """역할별 런타임 패치 무장 판정 {chain, master:{stem,key,armed,patch}, slave:{…}|None}. master 값 = 셀 env(CONFIG_FILE 부재면
+    셀 이름 — 트리플렛 이름 규약), slave 값 = slave_forward 가 넘기는 키 + NEVER_FORWARD 키의 compose 기본값(K11)."""
+    chain = _arm_key_chain(c)
+    menv = dict(_read_env(c.sf, c.triplet.get("env")))
+    menv.setdefault("CONFIG_FILE", c.cell)
+
+    def judge(values: dict) -> dict:
+        stem, k = _arm_stem(chain, values)
+        patch = c.out / "configs" / f"{stem}_patch.py"
+        return {"stem": stem, "key": k, "armed": patch.is_file(), "patch": f"{stem}_patch.py"}
+
+    out = {"chain": chain, "master": judge(menv), "slave": None}
+    if c.topo == "multi" and c.compose_path is not None:
+        rows = forwards if forwards is not None else _slave_forward_rows(c)
+        senv = {str(getattr(f, "key", "")): str(getattr(f, "value", "") or "") for f in rows}
+        for k in getattr(c.sf, "NEVER_FORWARD", ()):
+            senv[k] = c.sf.compose_default(_compose_file(c), k) or ""
+        out["slave"] = judge(senv)
+    return out
+
+
+# 무장 서명(2026-10-25 · Solar 재생 사실검증 F2): armer 는 무장할 때 `echo "[arm_patch] runtime patch armed → ${_patch} …"` 를 남긴다 —
+#   이 줄이 컨테이너 로그에 있으면 그 기동에서 .pth 가 쓰였다(무장 관측). 옛 판본은 이 로그를 읽지 않아 "arming 실증 로그 미배선" 이라
+#   적었다. 서명 접두는 측정 당시 armer 바이트에서 파생한다(하드코딩 ✗ · 해석 실패 = 관측 안 함으로 표시).
+_ARM_ECHO = re.compile(r'echo\s+"(\[[A-Za-z_]+\][^"$]*?)\s*\$\{_patch\}')
+
+
+def _arm_log_observations(c: _Ctx) -> dict:
+    """{signature, measured[{path,lines,patch}], failed[{path,lines,patch,role}], source} — 측정 기동 로그(스윕 디렉터리의
+    lite 머리·꼬리 캡처)와 실패 기동 로그(`serve_fail_<셀>/` · 측정 기동 아님)에서 무장 서명 줄을 찾는다. 읽기 전용."""
+    key = ("arm_log_obs",)
+    if key in c.memo:
+        return c.memo[key]
+    out: dict = {"signature": None, "measured": [], "failed": [], "source": None}
+    asset = Path(c.render().SHARED_ASSET_DIR) / RUNTIME_PATCH_ARMER
+    sig = None
+    if asset.is_file():
+        m = _ARM_ECHO.search(_select_tracked(c, asset)["bytes"].decode("utf-8", "replace"))
+        sig = m.group(1).strip() if m else None
+    if not sig:
+        out["source"] = f"{RUNTIME_PATCH_ARMER} 의 무장 echo 서명을 해석하지 못했다 — 로그 관측 안 함"
+        c.memo[key] = out
+        return out
+    out["signature"] = sig
+    pat = re.compile(re.escape(sig) + r"\s*(/\S+?_patch\.py)")
+    from . import evidence as _evidence
+
+    def scan(f: Path) -> tuple[list[int], list[str]]:
+        lines, patches = [], []
+        for i, ln in enumerate(f.read_bytes().decode("utf-8", "replace").split("\n"), 1):
+            mm = pat.search(_evidence._ANSI.sub("", ln))
+            if mm:
+                lines.append(i)
+                if mm.group(1) not in patches:
+                    patches.append(mm.group(1))
+        return lines, patches
+
+    sweep = _get(c.ev, "sweep") or {}
+    sdir = sweep.get("dir") if isinstance(sweep, dict) else None
+    if isinstance(sdir, str) and (c.repo / sdir).is_dir():
+        for name in (f"lite_engine_head_{c.cell}.log", f"lite_engine_{c.cell}.log"):
+            f = c.repo / sdir / name
+            if f.is_file():
+                lines, patches = scan(f)
+                if lines:
+                    out["measured"].append({"path": core.rel(c.repo, f), "lines": lines, "patch": patches})
+    fdir = c.out / "benchlog" / f"serve_fail_{c.cell}"
+    if fdir.is_dir():
+        for f in sorted(fdir.glob("*.log")):
+            lines, patches = scan(f)
+            if lines:
+                role = f.name.split("_", 1)[0] if f.name.split("_", 1)[0] in ("master", "slave") else "<역할 미상>"
+                out["failed"].append({"path": core.rel(c.repo, f), "lines": lines, "patch": patches, "role": role})
+    out["source"] = f"{RUNTIME_PATCH_ARMER} 무장 echo 서명 `{sig}` × 측정 기동 로그(스윕 lite 캡처) · 실패 기동 로그(serve_fail_{c.cell}/)"
+    c.memo[key] = out
+    return out
+
+
+def arm_log_text(obs: dict) -> str:
+    """무장 관측 한 문장(01 파일별 검증 근거 · 슬롯 note 공용 — 같은 사실을 두 곳에서 다르게 말하지 않게)."""
+    if not obs.get("signature"):
+        return f"arming 관측 불가({obs.get('source')}) — 적용 관측 ✗"
+    meas = obs.get("measured") or []
+    fail_ = obs.get("failed") or []
+    if not meas and not fail_:
+        return "arming 서명 미관측(측정·실패 기동 로그에 무장 줄 없음) — 적용 관측 ✗"
+    parts = []
+    if meas:
+        parts.append("측정 기동 로그 " + " · ".join(f"{x['path']}:{','.join(map(str, x['lines']))}" for x in meas))
+    else:
+        parts.append("측정 기동 로그에는 무장 줄 없음")
+    if fail_:
+        parts.append("실패 기동 로그(측정 기동 아님) " + " · ".join(
+            f"{x['role']} {x['path']}:{','.join(map(str, x['lines']))}" for x in fail_))
+    pats = sorted({p_ for x in meas + fail_ for p_ in x["patch"]})
+    return (f"arming 관측 — {' · '.join(parts)} (`{obs['signature']} {' · '.join(pats)}` = .pth 무장 · 패치 효과 자체는 별도 관측)")
+
+
 def _runtime_patch_armed(c: _Ctx) -> tuple[bool, str]:
     """이 셀이 런타임 패치를 **실제로** 무장하는가(F3 · 2026-09-22 S2 round 2). arm_patch.sh 는
-    `/app/configs/${CONFIG_FILE}_patch.py` 가 있을 때만 무장한다 — master 는 셀 이름, multi slave 는 compose 기본 CONFIG_FILE
-    (slave_forward.NEVER_FORWARD · K11). 둘 다 없으면 arm_patch.sh 는 양 노드에서 no-op 이다."""
-    master = (c.out / "configs" / f"{c.cell}_patch.py").is_file()
-    slave_cfg = None
-    if c.topo == "multi" and c.compose_path is not None and "CONFIG_FILE" in getattr(c.sf, "NEVER_FORWARD", ()):
-        slave_cfg = c.sf.compose_default(_compose_file(c), "CONFIG_FILE")
-    slave = bool(slave_cfg) and (c.out / "configs" / f"{slave_cfg}_patch.py").is_file()
-    if master or slave:
-        return True, "armed(" + " · ".join(x for x, on in ((f"master {c.cell}_patch.py", master),
-                                                          (f"slave {slave_cfg}_patch.py", slave)) if on) + ")"
-    return False, (f"output/{c.topo}/configs/{c.cell}_patch.py 없음"
-                   + (f" · slave CONFIG_FILE={slave_cfg!r} 의 _patch.py 없음" if c.topo == "multi" else "")
-                   + " — arm_patch.sh 는 no-op")
+    `/app/configs/<키 체인의 첫 비지 않은 값>_patch.py` 가 있을 때만 무장한다(키 체인 = 측정 당시 armer 개정 · `_arm_key_chain`).
+    둘 다 없으면 arm_patch.sh 는 양 노드에서 no-op 이다."""
+    r = _arm_roles(c)
+    m, s = r["master"], r["slave"]
+    if m["armed"] or (s and s["armed"]):
+        return True, "armed(" + " · ".join(f"{role} {x['patch']}({x['key']})" for role, x in (("master", m), ("slave", s))
+                                          if x and x["armed"]) + ")"
+    return False, (f"output/{c.topo}/configs/{m['patch']} 없음({m['key']})"
+                   + (f" · slave {s['patch']}({s['key']}) 없음" if s else "")
+                   + f" — arm_patch.sh 는 no-op · {r['chain']['source']}")
 
 
 def _runner_gpu_literal(text: str) -> dict:
@@ -2410,16 +2591,8 @@ def _sub_recipe(c: _Ctx, shapes: dict[str, str], not_shipped: list[dict] | None 
         core.fail("HINT_SUB_RECIPE_COMPOSE_ABSENT", f"output/{c.topo}/docker-compose.yaml 부재 — 전달 목록을 파생할 수 없다.")
     sf = c.sf
     compose_file = _compose_file(c)
-    try:
-        forwards = sf.derive(c.triplet["env"], c.out / ".env", compose_file, c.out / "envs" / ".env.cluster")
-        rows = sf.as_sub_recipe(forwards)
-    except SystemExit as e:          # 옛 API 의 die() — 원인을 삼키지 않고 번역
-        core.fail("HINT_SUB_RECIPE_DERIVE_FAILED", f"slave_forward.derive 가 거부했다(SystemExit {e.code}).",
-                  "stderr 의 [slave-forward] FAIL 사유를 고친다(값에 공백·따옴표 등 — 원격 shell prefix 안전 문자 밖).")
-    except (OSError, ValueError) as e:   # ForwardError(ValueError · code) — 안전하지 않은 값·compose 모양·렌더러 부재
-        core.fail("HINT_SUB_RECIPE_DERIVE_FAILED",
-                  f"slave_forward.derive 거부: {getattr(e, 'code', type(e).__name__)}: {getattr(e, 'message', e)}",
-                  "사유 코드의 자리(셀 env 값 · compose 모양 · render_dockerfile.env_tier)를 고친다 — 전달 목록을 손으로 적지 않는다.")
+    forwards = _slave_forward_rows(c)
+    rows = sf.as_sub_recipe(forwards)
     from . import pii
     env_forward, image_keys, per_node = [], [], {}
     for r in rows:
@@ -2445,11 +2618,12 @@ def _sub_recipe(c: _Ctx, shapes: dict[str, str], not_shipped: list[dict] | None 
                 per_node[km.group(1)] = km.group(2)
     if ".env.interconnect" in shapes:
         per_node["interconnect"] = "artifacts/compose/.env.interconnect.template"
-    # K11: slave 는 모델 런타임 패치를 무장하지 않는다 — 코드에서 **관측**한다(단언 ✗).
+    # K11 → RUNTIME_PATCH_STEM(d781f26): slave 의 무장 여부는 **측정 당시 armer 의 키 체인** × slave 가 받는 env 로 관측한다(단언 ✗ ·
+    #   옛 판본은 CONFIG_FILE 규칙만 알아 RUNTIME_PATCH_STEM 으로 무장한 slave 를 not-armed 로 적었다 — 2026-10-25 Solar F3).
     slave_cfg = sf.compose_default(compose_file, "CONFIG_FILE") if "CONFIG_FILE" in getattr(sf, "NEVER_FORWARD", ()) \
         else None
-    master_patch = (c.out / "configs" / f"{c.cell}_patch.py").is_file()
-    slave_patch = bool(slave_cfg) and (c.out / "configs" / f"{slave_cfg}_patch.py").is_file()
+    arm = _arm_roles(c, forwards)
+    am, asl = arm["master"], arm["slave"] or {}
     rd = c.render()
     runner_asset = Path(rd.SHARED_ASSET_DIR) / "serve_runner.sh"
     # 2026-09-22 S2 round 3 적대 리뷰: 서빙 경로 파생은 측정 당시 개정으로(러너 이름 · env_file 과 같은 규칙) — 작업트리 러너가 측정 뒤
@@ -2488,13 +2662,19 @@ def _sub_recipe(c: _Ctx, shapes: dict[str, str], not_shipped: list[dict] | None 
             "master": "ray head + vllm serve(트리플렛 source · 모델 러너 실행)",
             "slave": "ray worker(트리플렛 미수령 — 같은 이미지·같은 compose·같은 serve_runner.sh 가 NODE_ROLE 로 분기)",
             "slave_config_file": slave_cfg,
-            "master_runtime_patch": "armed" if master_patch else "none(런타임 패치 파일 없음)",
-            "slave_runtime_patch": ("armed" if slave_patch else
-                                    f"not-armed — slave CONFIG_FILE={slave_cfg!r}(slave_forward.NEVER_FORWARD) → "
-                                    f"arm_patch.sh 가 /app/configs/{slave_cfg}_patch.py 를 찾고 없으면 no-op (K11)"),
+            "master_runtime_patch": (f"armed — {am['key']}={am['stem']!r} → /app/configs/{am['patch']}" if am["armed"] else
+                                     f"none(런타임 패치 파일 없음 — {am['key']}={am['stem']!r} → {am['patch']} 부재)"),
+            "slave_runtime_patch": (f"armed — slave {asl.get('key')}={asl.get('stem')!r}"
+                                    + ("(slave_forward 전달)" if asl.get("key") not in getattr(sf, "NEVER_FORWARD", ())
+                                       else "(compose 기본값 · slave_forward.NEVER_FORWARD)")
+                                    + f" → /app/configs/{asl.get('patch')}" if asl.get("armed") else
+                                    f"not-armed — slave {asl.get('key')}={asl.get('stem')!r} → arm_patch.sh 가 "
+                                    f"/app/configs/{asl.get('patch')} 를 찾고 없으면 no-op"
+                                    + (" (K11)" if asl.get("key") in ("CONFIG_FILE", "default") else "")),
+            "runtime_patch_key_chain": arm["chain"]["chain"] + [repr(arm["chain"]["default"])],
             "runner_gpu_join_literal": gpu,
             "source": {"slave_config_file": "compose-default:CONFIG_FILE × slave_forward.NEVER_FORWARD",
-                       "runtime_patch": f"output/{c.topo}/configs/<CONFIG_FILE>_patch.py 실재 여부",
+                       "runtime_patch": f"output/{c.topo}/configs/<stem>_patch.py 실재 여부 × {arm['chain']['source']}",
                        "runner_gpu_join_literal": "render_dockerfile.SHARED_ASSET_DIR/serve_runner.sh(측정 당시 개정 — "
                                                   "slots.compose.evidence.selected_revisions)"},
         },
@@ -3674,7 +3854,7 @@ def _default_basis(slot: str, row: dict, name: str) -> str:
     if slot == "triplet":
         return f"셀 트리플렛 — {ev.get('note') or '서빙 입력'}"
     if slot == "runtime_patch":
-        return "셀 configs 의 런타임 패치(arming 실증 로그 미배선 — 적용 관측 ✗)"
+        return f"셀 configs 의 런타임 패치({arm_log_text(ev['arming']) if isinstance(ev.get('arming'), dict) else '무장 관측 원천 없음 — 적용 관측 ✗'})"
     if slot in ("build_patch_pre", "build_patch_post"):
         return f"적용 판정 {ev.get('kind')}({ev.get('ref')}) · {ev.get('note') or ''}".rstrip(" ·")
     if slot == "build_recipe":
@@ -3840,6 +4020,7 @@ def _docker_slots(c: _Ctx, payload: Path, measured: str | None, missing: list[st
             fsel = _select_copied(c, src, p, baked, why, ledger_sha256=led_sha if isinstance(led_sha, str) else None)
             chosen[fsel["path"]] = fsel
             rf.append(_write_bytes(payload, "build_recipe", p.name, fsel["bytes"], fsel["mode"]))
+            c.memo.setdefault("copied_sel", {})[rf[-1]] = fsel     # 파일 표시(verified ✗ 강등)가 같은 선택 결과를 읽는다
             rf_src.append(core.rel(c.repo, p))
             notes.append(f"{src}: {sel['dockerfile']} 이 COPY" +
                          (" → /etc/pip/constraint.txt(제약 천장 · wheel 설치 입력 아님)"
@@ -4102,14 +4283,22 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
         trip_ev["substituted"] = "pii.substitution_table(manifest) — 운영자 경로 → 자리표시(싣는 사본만)"
     slots["triplet"] = _slot(trip_files, trip_ev)
 
-    # runtime patch — arming 로그 미배선(plan Q1) → 파일 신호만
+    # runtime patch — 파일 신호 + 무장 서명 로그 관측(2026-10-25 F2 · 옛 판본은 "arming 로그 미배선" 이라 파일 신호만 셌다)
     rp = c.out / "configs" / f"{c.cell}_patch.py"
     rp_files = [_copy(payload, rp, "runtime_patch")] if rp.is_file() else []
     files += rp_files
-    slots["runtime_patch"] = _slot(rp_files, {"kind": "none", "ref": core.rel(c.repo, rp),
-                                              "note": "arming 실증 로그 미배선(plan Q1)" +
-                                              (" · multi slave 는 무장하지 않는다(K11 · sub_recipe.role_diff)"
-                                               if c.topo == "multi" and rp_files else "")})
+    rp_ev: dict = {"kind": "none", "ref": core.rel(c.repo, rp)}
+    if rp_files:
+        arm_obs = _arm_log_observations(c)
+        rp_ev["arming"] = arm_obs
+        meas_obs = arm_obs.get("measured") or []
+        if meas_obs:
+            rp_ev["observed"] = " · ".join(f"{x['path']}:{','.join(map(str, x['lines']))}" for x in meas_obs)
+        rp_ev["note"] = arm_log_text(arm_obs) + (" · multi slave 무장 판정은 sub_recipe.role_diff(키 체인 × slave env)"
+                                                if c.topo == "multi" else "")
+    else:
+        rp_ev["note"] = "런타임 패치 파일 없음"
+    slots["runtime_patch"] = _slot(rp_files, rp_ev)
 
     applied = sel = ledger = None
     marks: dict[str, dict] = {}              # 페이로드 상대 경로 → 파일 단위 표시(기본 = verified · cell-run)
@@ -4133,6 +4322,19 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
                     marks[rel_f] = {"verification": "generated-unverified", "generated_by": "renderer",
                                     "header": _insert_header(payload, rel_f, why3, "renderer"),
                                     "verification_basis": f"{why3}(_select_dockerfile · {dsel_.get('method')})"}
+        # 2026-10-25 · Solar 재생 사실검증 F7: Dockerfile 이 COPY 하는 파일(requirements 등)도 같은 규칙이다 — 이미지 안 바이트(원장
+        #   sha256 · 이미지 탐침)와 **대조했고 다르면**(`image_bytes_differ`) 쓰인 바이트가 아니다. 옛 판본은 Dockerfile 만 강등해
+        #   같은 블록의 경고("쓰인 바이트가 아니다")와 검증 열("verified · cell-run · 쓰인 레시피")이 서로 모순됐다. 대조 불가(미관측)는 범위 밖.
+        for rel_f, fsel in sorted((c.memo.get("copied_sel") or {}).items()):
+            if rel_f in slots["build_recipe"]["files"] and rel_f not in marks and fsel.get("image_bytes_differ") \
+                    and not fsel.get("verified"):
+                led = fsel.get("ledger_sha256")
+                why7 = (f"실린 {PurePath(rel_f).name}({fsel.get('shipped')} · sha256 {core.sha256_bytes(fsel['bytes'])[:16]})이 "
+                        + (f"빌드 원장 sha256 {led[:16]} 과 다르다" if led else "측정 이미지 안 COPY 대상 바이트와 다르다")
+                        + " — 이 이미지를 지은 바이트임을 관측으로 확인하지 못했다(참고 형상)")
+                marks[rel_f] = {"verification": "generated-unverified", "generated_by": "renderer",
+                                "header": _insert_header(payload, rel_f, why7, "renderer"),
+                                "verification_basis": f"{why7}(_select_copied · {fsel.get('method')})"}
     else:
         # native 평면(2026-09-29 · plan_26092908 §4.2 U1 · V6): **Docker 셀과 같은 슬롯 집합**을 싣는다. 옛 판(2026-09-23)은
         #   "Dockerfile·compose·패치 0" 을 단언했다 — 그 결과 N1 태그는 zip 만으로 재현되지 않았다("이미지 레시피는 D1 페이로드를
@@ -4489,12 +4691,14 @@ def selftest() -> list[str]:
                    "services:\n  vllm-debug:\n    <<: *gpu-common\n    profiles: [debug]\n    env_file:\n"
                    "      - envs/.env.interconnect\n    command: [\"bash\", \"--rcfile\", \"/app/configs/debug-init.sh\"]\n"
                    "  vllm-master-serve:\n    <<: *gpu-common\n    profiles: [master]\n    environment:\n"
-                   "      NODE_ROLE: master\n      CONFIG_FILE: ${CONFIG_FILE:-default}\n    env_file:\n"
+                   "      NODE_ROLE: master\n      CONFIG_FILE: ${CONFIG_FILE:-default}\n"
+                   "      RUNTIME_PATCH_STEM: ${RUNTIME_PATCH_STEM:-}\n    env_file:\n"
                    "      - envs/.env.interconnect\n      - envs/.env.cluster\n      - path: envs/.env.${CONFIG_FILE:-default}\n"
                    "    command: [\"bash\", \"/app/configs/serve_runner.sh\"]\n"
                    "  vllm-slave-serve:\n    <<: *gpu-common\n    profiles: [slave]\n"
                    "    container_name: ${SLAVE_CONTAINER_NAME:-slave}\n    environment:\n      NODE_ROLE: slave\n"
-                   "      CONFIG_FILE: ${CONFIG_FILE:-default}\n      RAY_PORT: ${RAY_PORT:-6379}\n"
+                   "      CONFIG_FILE: ${CONFIG_FILE:-default}\n      RUNTIME_PATCH_STEM: ${RUNTIME_PATCH_STEM:-}\n"
+                   "      RAY_PORT: ${RAY_PORT:-6379}\n"
                    "      VLLM_PLE_MMAP: ${VLLM_PLE_MMAP:-0}\n      VLLM_PLE_MMAP_DIR: ${VLLM_PLE_MMAP_DIR:-/app/ple}\n"
                    "    env_file:\n      - envs/.env.interconnect\n      - envs/.env.cluster\n"
                    "    command: [\"bash\", \"/app/configs/serve_runner.sh\"]\n")
@@ -4667,6 +4871,28 @@ def selftest() -> list[str]:
         ck("inline 패치 행", byn.get(("inline", "strip-hoist"), {}).get("result") == "skipped")
         ck("★원장에 없는 파일(55) = not-in-ledger 로 싣지 않음", any(x["file"] == "55-deps.sh" and
                                                              x["why"].startswith("not-in-ledger") for x in apn["excluded"]))
+        # ★2026-10-25 Solar 재생 F5(실물 모양: 원장 context_inventory 두 슬롯 = ['.gitkeep'] · 작업트리 패치 mtime < 이미지 Created):
+        #   사유는 "빌드 뒤 추가" 단정이 아니라 관측(원장 컨텍스트 목록 · mtime × Created)이다.
+        led_ci = dict(ledger, context_inventory={"build_patch_pre": [".gitkeep"], "build_patch_post": [".gitkeep"]})
+        st55 = (out / "build_patches_src/55-deps.sh").stat()
+        _set_mtime(out / "build_patches_src/55-deps.sh", "2026-01-01T00:00:00Z")
+        try:
+            dk_ci = _fake_docker({("image", "inspect", "--format", "{{.Id}}"): (0, "sha256:fx\n"),
+                                  ("image", "inspect", "--format", "{{.Created}}"): (0, "2026-10-14T01:45:19Z\n"),
+                                  ("run", "--rm", "--network", "none", "--pull", "never"): (0, json.dumps(led_ci))})
+            w_ci = next(x["why"] for x in applied_set(repo, ev, runner=dk_ci)["excluded"] if x["file"] == "55-deps.sh")
+            dk_old = _fake_docker({("image", "inspect", "--format", "{{.Id}}"): (0, "sha256:fx\n"),
+                                   ("image", "inspect", "--format", "{{.Created}}"): (0, "2025-12-01T00:00:00Z\n"),
+                                   ("run", "--rm", "--network", "none", "--pull", "never"): (0, json.dumps(ledger))})
+            w_old = next(x["why"] for x in applied_set(repo, ev, runner=dk_old)["excluded"] if x["file"] == "55-deps.sh")
+        finally:
+            os.utime(out / "build_patches_src/55-deps.sh", (st55.st_atime, st55.st_mtime))
+        ck("★F5 원장 context_inventory 에 없음 = 빌드 컨텍스트에 들지 않았다 · mtime ≤ Created = 빌드 뒤 추가 아님(단정 ✗)",
+           w_ci.startswith("not-in-ledger(") and "context_inventory.build_patch_pre = ['.gitkeep']" in w_ci
+           and "빌드 컨텍스트에 들지 않았다" in w_ci and "빌드 뒤 추가 아님" in w_ci and "로 본다" not in w_ci)
+        ck("F5 옛 원장(context_inventory 없음) · mtime > Created = 관측대로 빌드 뒤 추가·수정 · Created 미관측이면 미관측이라 적는다",
+           "옛 원장" in w_old and "빌드 뒤 추가·수정" in w_old
+           and "빌드 뒤 추가 여부 미관측" in next(x["why"] for x in apn["excluded"] if x["file"] == "55-deps.sh"))
         ck("★서브 셀은 메인 로컬 이미지를 보지 않는다", applied_set(repo, dict(ev, node="sub"), runner=docker_new)
            ["probes"][1]["result"].startswith("skipped(node=sub"))
         # ★원장 ↔ 셀 env 선택자 모순 = 차단
@@ -4772,7 +4998,7 @@ def selftest() -> list[str]:
             "VLLM_PLE_MMAP", "VLLM_PLE_MMAP_DIR"})
         ck("K11 관측: slave CONFIG_FILE=default → 런타임 패치 미무장", sr["role_diff"]["slave_config_file"] == "default"
            and sr["role_diff"]["slave_runtime_patch"].startswith("not-armed")
-           and sr["role_diff"]["master_runtime_patch"] == "armed")
+           and sr["role_diff"]["master_runtime_patch"].startswith("armed"))
         ck("serve_runner GPU 리터럴 \"2\"", sr["role_diff"]["runner_gpu_join_literal"]["value"] == "2")
         ck("per_node_values: ①env 표지 · interconnect 템플릿", sr["per_node_values"].get("MASTER_HOST_IP", "").startswith("<")
            and sr["per_node_values"].get("interconnect") == "artifacts/compose/.env.interconnect.template")
@@ -5546,6 +5772,50 @@ def selftest() -> list[str]:
         (out / "configs" / f"{cell}_patch.py.off").rename(out / "configs" / f"{cell}_patch.py")
         ck("F3 무장 러너 이름 = 소유자 RUNNER_SCRIPTS 원소(tripwire 교차대조)",
            RUNTIME_PATCH_ARMER in tuple(getattr(_render_module(repo), "RUNNER_SCRIPTS", ())))
+        ck("F2 픽스처 armer(echo 없음) = arming 관측 불가로 표시(관측했다고 말하지 않는다)",
+           "arming 관측 불가" in next(r["verification_basis"] for r in res["slots"]["runtime_patch"]["file_records"]))
+
+        # ── 2026-10-25 Solar 재생 사실검증 F2·F3 — 실물 armer(d781f26 · RUNTIME_PATCH_STEM 키 체인 + 무장 echo) · 실물 로그 모양 ──
+        real_arm = own / ".claude/skills/upstream-version-watch/assets/configs" / RUNTIME_PATCH_ARMER
+        envc = out / "envs" / f".env.{cell}"
+        arm0, envc0 = (assets / RUNTIME_PATCH_ARMER).read_bytes(), envc.read_text(encoding="utf-8")
+        armed_line = (f"[arm_patch] runtime patch armed → /app/configs/{cell}_patch.py "
+                      "(purelib /usr/local/lib/python3.12/dist-packages)\n")
+        sweep_d = repo / "output/multi/benchlog/sweep_c1-mmp"
+        fail_d = repo / "output/multi/benchlog" / f"serve_fail_{cell}"
+        try:
+            for dst in (assets / RUNTIME_PATCH_ARMER, out / "configs" / RUNTIME_PATCH_ARMER):
+                dst.write_bytes(real_arm.read_bytes())
+            envc.write_text(envc0 + f"RUNTIME_PATCH_STEM={cell}\n", encoding="utf-8")
+            _set_mtime(envc, "2026-01-01T00:00:00Z")
+            r_nolog = collect(repo, ev, repo / "p_arm_nolog", render_module=fake_rd, runner=docker_old)
+            (sweep_d / f"lite_engine_head_{cell}.log").write_text(
+                "INFO 01-01 19:00:00 x\n" + "\x1b[0m" + armed_line + "y\n" + armed_line, encoding="utf-8")
+            fail_d.mkdir(parents=True)
+            (fail_d / "slave_failure.log").write_text("z\n" + armed_line, encoding="utf-8")
+            r_log = collect(repo, ev, repo / "p_arm_log", render_module=fake_rd, runner=docker_old)
+        finally:
+            for dst in (assets / RUNTIME_PATCH_ARMER, out / "configs" / RUNTIME_PATCH_ARMER):
+                dst.write_bytes(arm0)
+            envc.write_text(envc0, encoding="utf-8")
+            _set_mtime(envc, "2026-01-01T00:00:00Z")
+            (sweep_d / f"lite_engine_head_{cell}.log").unlink(missing_ok=True)
+            shutil.rmtree(fail_d, ignore_errors=True)
+        sr_s = json.loads((repo / "p_arm_log/artifacts/compose/sub_recipe.json").read_text(encoding="utf-8"))
+        rd_s = sr_s["role_diff"]
+        ck("★F3 실물 armer 키 체인(RUNTIME_PATCH_STEM > CONFIG_FILE > 'default') × slave 전달 RUNTIME_PATCH_STEM = slave armed",
+           rd_s["slave_runtime_patch"].startswith("armed") and "RUNTIME_PATCH_STEM" in rd_s["slave_runtime_patch"]
+           and "K11" not in rd_s["slave_runtime_patch"] and rd_s["runtime_patch_key_chain"][:2] == ["RUNTIME_PATCH_STEM", "CONFIG_FILE"]
+           and "RUNTIME_PATCH_STEM" in {r["key"] for r in sr_s["env_forward"]})
+        rec_nolog = next(r for r in r_nolog["slots"]["runtime_patch"]["file_records"])
+        rec_log = next(r for r in r_log["slots"]["runtime_patch"]["file_records"])
+        ck("F2 음성대조: 실물 armer · 로그에 무장 줄 없음 = 서명 미관측(적용 관측 ✗) · 1-signal",
+           "arming 서명 미관측" in rec_nolog["verification_basis"] and r_nolog["slots"]["runtime_patch"]["confidence"] == "1-signal")
+        ck("★F2 측정 머리 로그(ANSI 섞임)·실패 기동 slave 로그의 무장 줄 = 관측(파일:줄 · 측정/실패 기동 구분) · 2-signal",
+           f"sweep_c1-mmp/lite_engine_head_{cell}.log:2,4" in rec_log["verification_basis"]
+           and f"slave output/multi/benchlog/serve_fail_{cell}/slave_failure.log:2" in rec_log["verification_basis"]
+           and "실패 기동 로그(측정 기동 아님)" in rec_log["verification_basis"] and "미배선" not in rec_log["verification_basis"]
+           and r_log["slots"]["runtime_patch"]["confidence"] == "2-signal")
 
         # ── F5 벤치 명령 음성대조 ──
         (repo / "output/multi/benchlog/sweep_nonuni/level_01").mkdir(parents=True)
@@ -6191,6 +6461,16 @@ def selftest() -> list[str]:
                sq_bad["requirements.txt"]["verified"] is False and {r["path"]: r for r in rq_bad["slots"]["build_recipe"]
                                                                     ["file_records"]}["artifacts/build_recipe/requirements.txt"]
                ["bytes_observed"] is False)
+            # ★2026-10-25 Solar 재생 F7: 대조했고 다르면 검증 열도 verified · cell-run 이 아니다(같은 블록의 경고와 모순 ✗ · 표시 3자리 일치)
+            rq_rec = {r["path"]: r for r in rq_bad["slots"]["build_recipe"]["file_records"]}["artifacts/build_recipe/requirements.txt"]
+            rq_txt = (repo / "p_doc_rq/artifacts/build_recipe/requirements.txt").read_text(encoding="utf-8")
+            ck("★F7 원장 sha256 불일치 requirements = generated-unverified(renderer) · 파일 머리 경고 · 근거에 두 sha",
+               rq_rec["verification"] == "generated-unverified" and rq_rec["generated_by"] == "renderer"
+               and rq_rec.get("header") and rq_txt.startswith("# ") and "빌드 원장 sha256 0000000000000000 과 다르다"
+               in rq_rec["verification_basis"] and rq_rec["relevance"] == "unknown")
+            ck("F7 음성대조: 원장 sha256 일치 requirements 는 verified · cell-run 유지(머리 경고 없음)",
+               recs["artifacts/build_recipe/requirements.txt"]["verification"] == "verified"
+               and "header" not in recs["artifacts/build_recipe/requirements.txt"])
             # ★표시 어휘·3자리 tripwire: generated-unverified 인데 헤더가 없으면 차단
             slots_x = {"compose": {"files": ["artifacts/compose/docker-compose.yaml"], "evidence": {}}}
             raises("★generated-unverified 인데 헤더 없음 = 표시 불일치 차단", "HINT_ARTIFACT_MARK_INVALID",

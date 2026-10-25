@@ -638,7 +638,7 @@ README.md              수신자 안내 — templates/payload-README.md 를 형�
                        2.6 되풀이하지 말 것 · 2.7 열린 물음
 03-benchmark.md        3.1 측정 결과(판정 · §3.0.2) · 3.2 부하 곡선(기계 렌더) · 3.3 측정 구성 · 3.4 측정 명령 원문 · 3.5 like-with-like
 PAYLOAD.json           기계 사실(§7.2)
-LINEAGE.json           수신자 요약(문서 stem · 역할 · 날짜 · 발췌 수 · ≤ 20KB) + 봉인 출처 스냅샷 sealed_sources(§8.1 · §6.3)
+LINEAGE.json           수신자 요약(문서 경로 · 역할 · 날짜 · 발췌 수 · ≤ 20KB · stem = 경로 파일명) + 봉인 출처 스냅샷 sealed_sources(§8.1 · §6.3)
 PROVENANCE.json        {schema_version:2, tag, source_anchor, source_anchor_is_head, assembly_branch, payload_files[], generated_utc}
 artifacts/<slot>/…     triplet · runtime_patch · build_patch_pre · build_patch_post · build_recipe · compose · fork_pin — 적용된 것만(§3 A) ·
                        Docker · native 같은 슬롯 · 파일마다 검증 표시 · 관련성(§3.3)
@@ -731,7 +731,8 @@ bench_kind: certificate | bench_report
 ### 8.1 계보 — `LINEAGE.json` 요약 · `LINEAGE.full.json` 전체 (X1 · X17 · v7 V13)
 
 - **분리**(v7 · plan §4.6): v6 의 `LINEAGE.json` 은 zip 최대 파일(82~160KB)이었는데 블라인드 수신자 3/3 이 무용하다고 판정했다. 이제 zip 에는
-  **수신자 요약**(`kind: receiver-summary` · 문서 stem · 역할 · 날짜 · 발췌 수 · ≤ 20KB — 넘으면 `HINT_LINEAGE_SUMMARY_TOO_LARGE`)과 봉인 출처
+  **수신자 요약**(`kind: receiver-summary` · 문서 경로 · 역할 · 날짜 · 발췌 수 · ≤ 20KB — 넘으면 `HINT_LINEAGE_SUMMARY_TOO_LARGE` ·
+  발췌 머리의 stem 은 경로 파일명에서 파생하므로 따로 싣지 않는다 · schema v3)과 봉인 출처
   스냅샷(`sealed_sources` · §6.3)만 싣고, **전체**(해시 · 후보 로그 · 모호 해소 기록)는 발행자 평면인 draft `inputs/LINEAGE.full.json` 에 둔다.
   린트 · excerpt 는 전체를 읽는다. 아래 규칙은 전체 계보의 규칙이다.
 
