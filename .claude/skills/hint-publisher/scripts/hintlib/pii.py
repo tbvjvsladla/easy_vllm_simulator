@@ -206,6 +206,16 @@ def _is_shell_default(text: str, start: int) -> bool:
     return _SHELL_DEFAULT.search(_line_prefix(text, start)) is not None
 
 
+def _is_comment_echo_of_default(text: str, start: int, literal: str) -> bool:
+    """`start` 의 매치가 **주석 줄 안**에 있고, 같은 텍스트가 그 리터럴을 셸 기본값(`${VAR:-<리터럴>}`)으로 이미 싣고 있으면 참.
+
+    주석이 같은 파일의 기본값을 되풀이할 뿐이라 새 정보가 없다(2026-10-25 · Solar/Qwen single 셀: 렌더 compose 의 PLE mmap 주석
+    "기본값 <NAS 루트 경로>" 가 측정 당시 개정 바이트라 고칠 수 없었고, 같은 줄 아래 `${PLE_MMAP_HOST_PATH:-<같은 경로>}` 가 기본값이다).
+    기본값으로 실리지 않은 경로를 주석에만 적은 경우는 면제하지 않는다."""
+    line = text[text.rfind("\n", 0, start) + 1:start]
+    return line.lstrip().startswith("#") and re.search(r"\$\{[A-Za-z_][A-Za-z0-9_]*:-" + re.escape(literal) + r"[}]", text) is not None
+
+
 def _note_exempt(exempt_log: list | None, kind: str, record: str) -> None:
     """면제는 조용히 넘기지 않는다(2026-09-01 hint_branch `EXEMPT(shell-default)` stderr 출력 이관).
     exempt_log 가 주어지면 거기 적고(호출부가 보고서에 싣는다), 아니면 stderr 에 적는다."""
@@ -267,6 +277,9 @@ def scan_text(text: str, terms: Iterable[str] | None, *, profile: str = "deploy"
             line = text.count("\n", 0, start) + 1
             if shell_default_exempt and name in _SHELL_DEFAULT_PATTERNS and _is_shell_default(text, start):
                 _note_exempt(exempt_log, "shell-default", f"{line}: {name}:{m.group(0)[:_SHOW]}")
+                continue
+            if shell_default_exempt and name in _SHELL_DEFAULT_PATTERNS and _is_comment_echo_of_default(text, start, m.group(0)):
+                _note_exempt(exempt_log, "comment-echo-of-default", f"{line}: {name}:{m.group(0)[:_SHOW]}")
                 continue
             found.append((start, base + idx, Hit(name, m.group(0), line)))
     found.sort(key=lambda x: (x[0], x[1]))
@@ -744,6 +757,14 @@ def selftest() -> list[str]:
     email = "bob" + "@" + "example.com"
 
     # ── 정본 4종 · 프로필 구조
+    _op = "/" + "mnt" + "/" + "models"      # 자기스캔(리터럴 0) 때문에 조각으로 쓴다
+    _cmp = "x:\n  - ${PLE:-" + _op + "}:/app/p:ro\n  # 미선언이면 기본값 " + _op + " 로 무해\n"
+    ck("주석이 같은 파일의 셸 기본값을 되풀이하면 abs-op-path 면제(shell_default_exempt)",
+       [h.pattern for h in scan_text(_cmp, [], profile="deploy", shell_default_exempt=True)] == [])
+    ck("★음성대조 기본값으로 실리지 않은 경로를 주석에만 적으면 잡는다",
+       [h.pattern for h in scan_text("# 데이터는 " + "/" + "mnt" + "/" + "secret 에\n", [], profile="deploy", shell_default_exempt=True)] == ["abs-op-path"])
+    ck("★음성대조 shell_default_exempt 가 꺼지면 주석 되풀이도 잡는다",
+       [h.line for h in scan_text(_cmp, [], profile="deploy")] == [2, 3])
     ck("정본 패턴 4종(이름·순서)", list(GENERIC_PII) == ["private-ipv4", "email", "abs-op-path", "spark-host"])
     ck("deploy = 4종 전부", PROFILES["deploy"] == tuple(GENERIC_PII))
     ck("nondeploy_prose = deploy − abs-op-path",

@@ -719,6 +719,27 @@ def _build_row(key: str, v, bsrc: dict, src, build: dict | None = None) -> tuple
     return _BUILD_LABELS[key], _cell(v), src(v, bsrc.get(key))
 
 
+def _prev_release_row(nbi: dict, build: dict, bsrc: dict, src) -> tuple[str, str, str]:
+    """'직전 릴리스' 행(2026-10-25 · Gemma 싱글 재생 F9). 이름 문법의 prev_release 는 **커밋 핀**에만 있다(`<직전 릴리스>-g<sha12>` ·
+    원장 describe). 릴리스 태그 빌드는 이름이 릴리스 자체라 그 칸이 비는데 옛 판은 "미관측" 이라 적었다 — '해당 없음' 과 '모름' 을 가르고,
+    관측된 두 값(원장 describe · resolved.json upstream_delta.from_ref)을 뜻과 함께 싣는다(값을 하나로 접지 않는다 — 뜻이 다르다)."""
+    pr = nbi.get("prev_release")
+    desc, prev_pin = build.get("vllm_describe"), build.get("vllm_prev_pin")
+    obs = []
+    if desc:
+        obs.append(f"빌드 원장 describe `{_cell(desc)}`")
+    if prev_pin:
+        obs.append(f"업스트림 델타 from_ref `{_cell(prev_pin)}`(이 빌드가 올라온 이전 릴리스)")
+    where = " · ".join(_cell(x) for x in (bsrc.get("vllm_describe"), bsrc.get("vllm_prev_pin")) if x)
+    if pr:
+        return ("직전 릴리스(prev_release)", _cell(pr), src(pr, "naming.vllm_build_input"))
+    if nbi.get("kind") in ("release", "wheel"):
+        val = "해당 없음 — 릴리스 태그 빌드(이름 = 릴리스 자체 · `<직전 릴리스>-g<sha>` 는 커밋 핀에만)" + (f" · 관측: {' · '.join(obs)}" if obs else "")
+        return ("직전 릴리스(prev_release)", val, where or "naming.vllm_build_input(kind=release)")
+    return ("직전 릴리스(prev_release)", _MISSING_TEXT if not obs else f"{_MISSING_TEXT}(이름 입력) · 관측: {' · '.join(obs)}",
+            where or _MISSING_TEXT)
+
+
 def _f_resolved(c: _Ctx) -> str:
     f = c.facts
     build, naming = _dict(f, "build"), _dict(f, "naming")
@@ -739,14 +760,14 @@ def _f_resolved(c: _Ctx) -> str:
         ("vLLM 빌드 입력(종류)", _cell(nbi.get("kind")), src(nbi.get("kind"), "naming.vllm_build_input")),
         ("vLLM 빌드 입력(ref)", _cell(ref), src(ref, bsrc.get("vllm_ref"), "naming.vllm_build_input")),
         ("vLLM 소스 SHA(40자)", _cell(sha), src(sha, bsrc.get("vllm_sha"), "naming.vllm_build_input")),
-        ("직전 릴리스(prev_release)", _cell(nbi.get("prev_release")), src(nbi.get("prev_release"), "naming.vllm_build_input")),
+        _prev_release_row(nbi, build, bsrc, src),
         *_vllm_observed_rows(nobs),
         ("체크포인트 revision(HF · git HEAD)", _cell(ident.get("hf_revision")),
          src(ident.get("hf_revision"), _dict(ident, "source").get("hf_revision"))),
     ]
     for key in _BUILD_KNOWN:
         rows.append(_build_row(key, build.get(key), bsrc, src, build))
-    skip = set(_BUILD_KNOWN) | {"source", "vllm_ref", "vllm_sha", "driver_check"}
+    skip = set(_BUILD_KNOWN) | {"source", "vllm_ref", "vllm_sha", "driver_check", "vllm_describe", "vllm_prev_pin"}
     for key in sorted(k for k in build if k not in skip):
         rows.append((f"`{key}`", _cell(build.get(key)), src(build.get(key), bsrc.get(key))))
     out = _table(("항목", "값", "출처"), rows)
@@ -1602,8 +1623,10 @@ def _f_measurement_env(c: _Ctx) -> str:
     if not rows:
         return ("_측정 실행의 env 관측 없음 — 측정 엔진 로그에서 env echo 줄(`<KEY> set by environment to <VALUE>` 등)을 찾지 못했다"
                 "(evidence.measurement_env_observed · 부재 ≠ 미설정)._")
+    n_kp = sum(1 for r in rows if r.get("kind") == "key-present")
     out = [f"**측정 실행의 env 관측 {len(rows)}행**(측정한 실행의 엔진 로그가 echo 한 값 · 기계 발췌 — 측정 당시 값의 정본이다. 표에 없는 "
-           "키는 로그가 echo 하지 않은 것이지 설정되지 않았다는 뜻이 아니다 · 측정 뒤 재생성된 env 형상은 01 §1.1 을 본다)", ""]
+           "키는 로그가 echo 하지 않은 것이지 설정되지 않았다는 뜻이 아니다 · 측정 뒤 재생성된 env 형상은 01 §1.1 을 본다)"
+           + (f" — 그중 {n_kp}행은 종류 `key-present`: 키가 프로세스 env 에 **있었다**는 관측뿐이고 값은 로그에 없다(값 미관측)" if n_kp else ""), ""]
     def seen(r: dict) -> str:
         parts = ([f"{r['occurrences']}줄"] if r.get("occurrences") else []) + \
                 ([f"로그 {r['seen_in_logs']}개"] if r.get("seen_in_logs") else [])
@@ -1613,7 +1636,8 @@ def _f_measurement_env(c: _Ctx) -> str:
         return " · ".join(parts) or "—"
 
     out += _table(("#", "키", "값", "노드", "종류", "출처(첫 줄)", "관측"),
-                  [(str(i), f"`{_cell(r.get('key'))}`", _env_value(r.get("value")),
+                  [(str(i), f"`{_cell(r.get('key'))}`",
+                    "(키 존재 · 값 미관측)" if r.get("kind") == "key-present" else _env_value(r.get("value")),
                     _cell(r.get("node") or (f"미특정({r.get('node_label')})" if r.get("node_label") else None), "미특정"),
                     _cell(r.get("kind"), "—"), _cell(r.get("source")), seen(r))
                    for i, r in enumerate(rows, 1)])
@@ -1698,7 +1722,7 @@ def _f_measurement_env_nodes(c: _Ctx) -> str:
         if _log_windows([r], "log_head_window"):
             windowed.setdefault(key, set()).add("머리")
         vals = by.setdefault(key, {}).setdefault(str(r.get("node") or "미특정"), [])
-        v = _env_value(r.get("value"))
+        v = "(키 존재 · 값 미관측)" if r.get("kind") == "key-present" else _env_value(r.get("value"))
         if v not in vals:
             vals.append(v)
         folded[key] = max(folded.get(key, 0), _ray_folded(r))
@@ -5060,6 +5084,11 @@ def selftest() -> list[str]:
            and "머리·꼬리 캡처 로그(01 §1.4 로그 창)" in mn_h)
         ck("★R3 측정 env · 도구 스냅샷 없음 = 미관측을 말한다(침묵 ✗)",
            "env 관측 없음" in _f_measurement_env(_Ctx(repo, facts_json, tpls))
+           and "(키 존재 · 값 미관측)" in _f_measurement_env(_Ctx(repo, dict(facts_json, measurement_env_observed=[
+               {"key": "VLLM_PLE_MMAP", "value": None, "kind": "key-present", "node": None, "source": "x.log:L44",
+                "value_note": "키 존재만 관측 · 값 미관측"}]), tpls))
+           and "env 관측 없음" not in _f_measurement_env(_Ctx(repo, dict(facts_json, measurement_env_observed=[
+               {"key": "VLLM_PLE_MMAP", "value": None, "kind": "key-present", "node": None, "source": "x.log:L44"}]), tpls))
            and "스냅샷 없음" in _f_tool_snapshots(_Ctx(repo, facts_json, tpls)))
         ck("R3 도구 스냅샷: 이름 · 역할 · 경로 · rev12(커밋 UTC) · 다음 변경 · 발췌 토큰 · git show 명령(전체 rev) · 이유 · 주",
            "`run_bench.sh@0123456789ab`" in ts3 and "`0123456789ab` 2026-09-05T01:00:00Z" in ts3 and "| bench |" in ts3
@@ -5399,6 +5428,20 @@ def selftest() -> list[str]:
         qf4["build"]["driver_check"] = {"verdict": "agree", "observed": "580.178.04", "declared": "580.178.04",
                                         "sources": {"observed": "attestation parity.driver(fx)", "declared": "manifest(fx)"}}
         rs4 = _f_resolved(_Ctx(repo, qf4, tpls))
+        qf9 = json.loads(core.dumps(qf4))
+        qf9.setdefault("naming", {})["vllm_build_input"] = {"kind": "release", "ref": "v0.31.0", "sha": None, "prev_release": None}
+        qf9["build"]["vllm_describe"], qf9["build"]["vllm_prev_pin"] = "v0.31.0", "v0.30.0"
+        qf9["build"]["source"].update({"vllm_describe": "빌드 원장(docker-image) vllm.describe",
+                                       "vllm_prev_pin": "output/single/resolved.json upstream_delta.from_ref"})
+        rs9 = _f_resolved(_Ctx(repo, qf9, tpls))
+        qf9c = json.loads(core.dumps(qf9))
+        qf9c["naming"]["vllm_build_input"].update({"kind": "commit", "prev_release": None})
+        rs9c = _f_resolved(_Ctx(repo, qf9c, tpls))
+        ck("★F9 릴리스 태그 빌드의 직전 릴리스 = '해당 없음'(미관측 ✗) + 관측 둘(원장 describe · from_ref)을 뜻과 함께 · 별도 행 누출 ✗ · "
+           "커밋 핀인데 이름 입력 없음 = 미관측(관측 병기)",
+           "| 직전 릴리스(prev_release) | 해당 없음 — 릴리스 태그 빌드" in rs9 and "빌드 원장 describe `v0.31.0`" in rs9
+           and "업스트림 델타 from_ref `v0.30.0`" in rs9 and "`vllm_describe`" not in rs9 and "`vllm_prev_pin`" not in rs9
+           and f"| 직전 릴리스(prev_release) | {_MISSING_TEXT}(이름 입력) · 관측:" in rs9c)
         ck("★F12 관측 = 선언 = '충돌 없음'(두 출처) · 미관측 ✗ · driver_check 는 별도 행으로 새지 않는다",
            "| ⚠ 드라이버 관측 ≠ 선언 | 충돌 없음 — 관측 580.178.04 = 선언 580.178.04 | 관측: attestation parity.driver(fx) · 선언: manifest(fx) |"
            in rs4 and "`driver_check`" not in rs4)

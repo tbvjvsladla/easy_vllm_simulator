@@ -210,6 +210,7 @@ class CellEvidence:
     report_kind: str | None = None
     pointers: list = dataclasses.field(default_factory=list)
     attestation: dict | None = None
+    image_ledger: dict | None = None        # artifacts 가 읽은 이미지 안 대표 빌드 원장의 vllm 블록(bind_image_ledger · F7)
     build_identity: dict = dataclasses.field(default_factory=dict)
     resolve: dict | None = None
     manifest: dict | None = None
@@ -1126,6 +1127,7 @@ def _bind_resolve(repo: Path, topology: str, build: dict) -> tuple[dict | None, 
              "ngc_image": ngc.get("image"), "ngc_cuda": ngc.get("cuda_version"), "ngc_torch_build": ngc.get("build_version"),
              "build_track": bt.get("decision"), "torch_cuda_arch": sb.get("torch_cuda_arch"),
              "to_ref": delta.get("to_ref"), "to_sha": to_sha if _SHA40.match(to_sha) else None,
+             "from_ref": delta.get("from_ref"),          # 이 빌드가 올라온 이전 릴리스(해소 기록 · F9)
              "generated_kst": delta.get("generated_kst"),
              "source": (f"output/{topology}/resolved.json(upstream_delta.to_sha = 빌드 입력 커밋 핀)" if by_sha
                         else f"output/{topology}/resolved.json(vllm_version={got} = 빌드 입력)")},
@@ -1939,11 +1941,23 @@ def _session_is_cell(sid, cell: str) -> bool:
     return isinstance(sid, str) and re.fullmatch(pat, sid) is not None
 
 
+# 2026-10-25(Qwen 싱글 재생 FC-15): budget_declare 계열 행의 `mem_total_mib` 는 선언이 아니라 **러너가 기동 때 그 노드에서 잰 값**이다 —
+#   쓰는 문은 blackbox_session `declare-budget --mem-total-mib`(인자 계약 help "/proc/meminfo MemTotal") 하나이고, 호출부 러너
+#   (single_serve_up.sh · multinode_serve_smoke.sh · native_multinode_serve.py)가 모두 /proc/meminfo MemTotal 을 넘긴다. 이 문이 쓰는 kind 만
+#   측정 표지를 단다 — budget_blocked 의 mem_total_mib 는 자유 detail(`--detail k=v`)이라 계약이 없다(종전 표기 · 자체검사가 help 원문 대조).
+_MEASURED_MEM_TOTAL_KINDS = ("budget_declare", "budget_declare_rejected")
+_DECL_MEM_TAIL = " · 단 mem_total_mib 는 러너 측정"
+_MEM_TOTAL_NOTE = "러너가 기동 시 잰 노드 MemTotal — 선언값 아님(blackbox_session declare-budget --mem-total-mib = /proc/meminfo MemTotal)"
+
+
 def _event_fields(d: dict) -> str:
     out = []
+    measured_mem = d.get("kind") in _MEASURED_MEM_TOTAL_KINDS and d.get("source") in (None, "blackbox_session")
     for k in _EVENT_DETAIL_FIELDS:
         v = d.get(k)
-        if isinstance(v, bool) or isinstance(v, (int, float)):
+        if k == "mem_total_mib" and measured_mem and isinstance(v, (int, float)) and not isinstance(v, bool):
+            out.append(f"{k}={v}({_MEM_TOTAL_NOTE})")
+        elif isinstance(v, bool) or isinstance(v, (int, float)):
             out.append(f"{k}={str(v).lower() if isinstance(v, bool) else v}")
         elif isinstance(v, str) and _SAFE_DETAIL_VALUE.fullmatch(v) and not _IPV4_LIKE.search(v):
             out.append(f"{k}={v}")
@@ -2193,7 +2207,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                             rel_m = f"measured_utc {measured} 가 이 창 시간 안 — 라벨이 달라 이 측정의 기동으로 귀속하지 않는다"
                         else:
                             rel_m = f"measured_utc {measured} 는 이 창 밖(" + ("측정 뒤)" if w["start_ts"] > measured else "측정 전)")
-                        detail = (f"예산 선언(선언값 — 측정 아님) · {fields} · {note} · budget_renew {renews}회 · {closed} · {rel_m}")
+                        detail = (f"예산 선언(선언값 — 측정 아님{_DECL_MEM_TAIL if _MEM_TOTAL_NOTE in fields else ''}) · {fields} · {note} · budget_renew {renews}회 · {closed} · {rel_m}")
                     elif d.get("label") in (None, ""):
                         detail = (f"{k} · {fields} · 라벨 없음 → {w['label']} 선언 창 귀속(노드당 선언 슬롯 1개 · "
                                   f"창 시작 {w['start_ts']} 후 {_dur(w['start_ts'], ts)}) · {note}")
@@ -2218,7 +2232,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                                  + ("측정 뒤 — 이 측정과 무관할 수 있다)" if w["start_ts"] > measured else "측정 전)"))
                     closed = (f"닫힘 {w['end_kind']} {w['end_ts']}(선언 후 {_dur(w['start_ts'], w['end_ts'])})" if w["end_ts"]
                               else "닫힘 미관측(창이 열린 채 원장이 끝난다)")
-                    detail = (f"예산 선언(선언값 — 측정 아님) · {fields} · 기동 창 {order[id(w)]}/{len(declare_wins)}: "
+                    detail = (f"예산 선언(선언값 — 측정 아님{_DECL_MEM_TAIL if _MEM_TOTAL_NOTE in fields else ''}) · {fields} · 기동 창 {order[id(w)]}/{len(declare_wins)}: "
                               f"budget_renew {renews}회 · {closed} · {rel_m}")
                 elif d.get("label") in (None, "") and w is not None:
                     detail = (f"{k} · {fields} · 라벨 없음 → {w['label']} 선언 창 귀속(노드당 선언 슬롯 1개 · "
@@ -3692,6 +3706,10 @@ def _head_windows(repo: Path, ev: CellEvidence, logs: list[Path]) -> dict[str, s
     return out
 
 
+# vLLM 이 모르는 VLLM_* env 키를 프로세스 env 에서 보았을 때의 경고(vllm envs 검사 · 문구 tripwire — 바뀌면 관측이 사라질 뿐 지어내지 않는다).
+_ENV_KEY_PRESENT_RE = re.compile(r"Unknown vLLM environment variable detected:\s*([A-Z][A-Z0-9_]*)\b")
+
+
 def measurement_env_observed(repo, ev: CellEvidence) -> list[dict]:
     """이 측정의 엔진 로그가 되읊은 env · NCCL 런타임 관측(공유 계약 `facts['measurement_env_observed']`).
     반환 [{key, value, node(main|sub|None), source('<로그>:L<줄>' — 공유 계약 표기), kind(env-echo|param-echo|runtime), seen_in_logs(그 값이 나온 캡처
@@ -3718,6 +3736,29 @@ def measurement_env_observed(repo, ev: CellEvidence) -> list[dict]:
     for lp in logs:
         rel = _rel(repo, lp)
         for i, line in enumerate(_log_lines(lp), 1):
+            km = _ENV_KEY_PRESENT_RE.search(_ANSI.sub("", line)) if "NCCL INFO" not in line else None
+            if km:
+                # 2026-10-25(Qwen 싱글 재생 FC-14): vLLM 은 모르는 `VLLM_*` env 키를 보면 경고만 남긴다 — 값은 없지만 **그 키가 프로세스 env 에
+                #   있었다**는 관측이다. 옛 판본은 NCCL echo 줄만 읽어 이것을 "env 관측 없음" 으로 접었다(키 존재 ≠ 관측 없음).
+                key = km.group(1)
+                node, label = _node_of_line(_ANSI.sub("", line), table)
+                k = ("key-present", key, None, node)
+                if k in rows:
+                    seen[k].add(rel)
+                    rows[k]["seen_in_logs"] = len(seen[k])
+                    continue
+                seen[k] = {rel}
+                row = {"key": key, "value": None, "node": node, "source": f"{rel}:L{i}", "kind": "key-present", "seen_in_logs": 1,
+                       "value_note": "키 존재만 관측 · 값 미관측(vLLM 'Unknown vLLM environment variable detected' 경고 — 값은 로그에 없다)"}
+                if rel in windows:
+                    row["log_window"] = windows[rel]
+                if rel in heads:
+                    row["log_head_window"] = heads[rel]
+                if node is None and label:
+                    row["node_label"] = label
+                rows[k] = row
+                order.append(k)
+                continue
             if "NCCL INFO" not in line:
                 continue
             # 줄 번호는 `\n` 기준(_log_lines) — `\r` 진행줄이 섞여도 정규식은 줄 어디서든 찾으므로 쪼개지 않는다.
@@ -4056,6 +4097,31 @@ def vllm_observed(ev: CellEvidence, repo=None) -> dict:
                        + f" · wheel_meta={'관측' if wheel else '미관측'}")}
 
 
+def bind_image_ledger(ev: CellEvidence, view: dict | None) -> None:
+    """artifacts 가 읽은 대표 빌드 원장의 vllm 블록(`artifacts.collect()['build_ledger_vllm']`)을 증거에 묶는다(2026-10-25 · Gemma 싱글
+    재생 사실검증 F7·F9). 싱글 셀은 노드 정합 attestation 이 없어 `_ledger_vllm(attestation)` 이 비고, wheel 메타 · git_sha · describe 가
+    "미관측" 이었다 — 같은 페이로드의 적용 집합은 이미지 안 원장(local-image observed)을 읽었는데도. attestation 원장이 있으면 그것이
+    먼저다(바꾸지 않는다). 채우는 칸: ev.image_ledger(원천 보존) · build_identity.vllm_sha(비어 있을 때만) · vllm_describe ·
+    vllm_prev_pin(resolved.json upstream_delta.from_ref — 이 빌드가 올라온 이전 릴리스 · 해소 기록)."""
+    b = ev.build_identity if isinstance(ev.build_identity, dict) else None
+    if b is None:
+        return
+    src = b.setdefault("source", {})
+    led, lsrc = _ledger_vllm(ev.attestation), f"빌드 원장({(ev.attestation or {}).get('_path')} · attestation)"
+    if not led and isinstance(view, dict) and isinstance(view.get("vllm"), dict) and view["vllm"]:
+        led, lsrc = view["vllm"], f"빌드 원장({view.get('source')} · {view.get('provenance') or 'provenance 미기재'})"
+        ev.image_ledger = {"vllm": dict(led), "source": lsrc}
+    if led:
+        sha = str(led.get("git_sha") or "").strip().lower()
+        if not b.get("vllm_sha") and _SHA40.match(sha):
+            b["vllm_sha"], src["vllm_sha"] = sha, f"{lsrc} vllm.git_sha(resolved.json 미바인딩 또는 to_sha 없음)"
+        if led.get("describe"):
+            b["vllm_describe"], src["vllm_describe"] = str(led["describe"]), f"{lsrc} vllm.describe(git describe --tags · 빌드 시점)"
+    rs = ev.resolve if isinstance(ev.resolve, dict) else None
+    if rs and rs.get("from_ref"):
+        b["vllm_prev_pin"], src["vllm_prev_pin"] = str(rs["from_ref"]), f"{ev.sources.get('resolve')} upstream_delta.from_ref(해소 기록)"
+
+
 def _wheel_meta(repo: Path, ev: CellEvidence) -> tuple[str | None, str]:
     """설치된 vLLM 배포 메타 버전(`importlib.metadata.version('vllm')` = wheel METADATA) — 관측 원천 둘(2026-09-29 · plan_26092908 §4.5
     "미관측 오판"): ① 노드 정합 attestation `nodes.<n>.vllm_dist_version`(multinode_serve_smoke 가 실행 중 컨테이너에서 캡처)
@@ -4085,7 +4151,14 @@ def _wheel_meta(repo: Path, ev: CellEvidence) -> tuple[str | None, str]:
         return next(iter(got.values())), f"native pip freeze `vllm==` 줄({where} · 노드별 관측 · 일치)"
     if v is not None and len(set(by_node.values())) == 1:
         return v, where + " · ⚠ native 셀인데 pip freeze 에 vllm 줄이 없어 원천 이미지 실행의 관측을 쓴다"
-    return None, "미관측 — attestation vllm_dist_version · native pip freeze 모두 없다"
+    # ③ 빌드 원장 vllm.dist_version(이미지 안 · 빌드 시점 importlib.metadata — attestation 원장 또는 artifacts 가 읽은 이미지 원장 · F7)
+    led = _ledger_vllm(ev.attestation)
+    lsrc = f"빌드 원장({(ev.attestation or {}).get('_path')} · attestation) vllm.dist_version"
+    if not led and isinstance(getattr(ev, "image_ledger", None), dict):
+        led, lsrc = ev.image_ledger.get("vllm") or {}, f"{ev.image_ledger.get('source')} vllm.dist_version"
+    if led.get("dist_version") and ev.plane != "native":
+        return str(led["dist_version"]), f"{lsrc}(빌드 시점 measured · 이미지 안 배포 메타)"
+    return None, "미관측 — attestation vllm_dist_version · native pip freeze · 빌드 원장 vllm.dist_version 모두 없다"
 
 
 _ATTEST_TIME_KEYS = ("written_utc", "captured_utc", "generated_utc", "utc")
@@ -6591,7 +6664,7 @@ def _fixture(td: Path) -> tuple[Path, dict]:
               {"kind": "budget_clear", "existed": True, "ts": "2026-01-02T01:50:00Z"},
               {"kind": "serve_start", "session_id": "serve-c1-a-20260102T020000Z", "model": "fixture", "ts": "2026-01-02T02:00:00Z"},
               {"kind": "serve_start", "session_id": "serve-c1-ab-20260102T020000Z", "model": "other", "ts": "2026-01-02T02:00:00Z"},
-              {"kind": "budget_declare", "label": "smoke-c1-a", "floor_mib": 100, "ts": "2026-01-02T02:30:00Z"},
+              {"kind": "budget_declare", "label": "smoke-c1-a", "floor_mib": 100, "mem_total_mib": 124608, "ts": "2026-01-02T02:30:00Z"},
               {"kind": "budget_renew", "label": "smoke-c1-a", "ttl_s": 900, "ts": "2026-01-02T02:59:00Z"},
               {"kind": "watchdog_trip_nomatch", "ts": "2026-01-02T03:00:00Z"},
               "{not json",
@@ -6841,6 +6914,9 @@ def _selftest_round2(ck, repo: Path, td: Path, ev: CellEvidence, ident: dict) ->
     ck("타임라인 — 이 셀 라벨의 선언 창 2개(1차 renew 0 · 2차 renew 1 · 측정 포함)", len(decl) == 2
        and "기동 창 1/2" in decl[0]["detail"] and "budget_renew 0회" in decl[0]["detail"] and "이 창 밖" in decl[0]["detail"]
        and "기동 창 2/2" in decl[1]["detail"] and "budget_renew 1회" in decl[1]["detail"] and "이 창 안" in decl[1]["detail"])
+    ck("★FC-15 선언 행 머리 = '단 mem_total_mib 는 러너 측정'(그 칸이 있을 때만) · 칸이 없는 선언 행은 종전 머리",
+       "선언값 — 측정 아님 · 단 mem_total_mib 는 러너 측정" in decl[1]["detail"] and _MEM_TOTAL_NOTE in decl[1]["detail"]
+       and "선언값 — 측정 아님)" in decl[0]["detail"])
     ck("타임라인 — 출처 = 파일:줄(`\\n` 기준)", decl[0]["source"] == "docs/logs/main/events/2026-01.jsonl:2"
        and decl[1]["source"] == "docs/logs/main/events/2026-01.jsonl:9")
     tl_early = event_timeline(repo, dataclasses.replace(ev, certificate={**(ev.certificate or {}), "measured_utc": "2026-01-02T00:30:00Z"}))
@@ -6851,6 +6927,15 @@ def _selftest_round2(ck, repo: Path, td: Path, ev: CellEvidence, ident: dict) ->
        ("budget_clear", "2026-01-02T03:10:00Z"), ("budget_none", "2026-01-02T03:10:01Z"),
        ("watchdog_highrate_hold", "2026-01-02T02:31:00Z"), ("thermal_trip", "2026-01-02T02:45:00Z")}
        <= {(r["kind"], r["utc"]) for r in tl})
+    fd = _event_fields({"kind": "budget_declare", "source": "blackbox_session", "floor_mib": 12368, "weights_mib": 73104,
+                        "mem_total_mib": 124608})
+    fb = _event_fields({"kind": "budget_blocked", "source": "blackbox_session", "mem_total_mib": 124608})
+    bs_src = (core.SKILL_DIR.parent / "terraforming_node/scripts/node_blackbox/blackbox_session.py").read_text(encoding="utf-8")
+    ck("★FC-15 budget_declare 의 mem_total_mib = 러너 측정 표지(선언값 아님) · floor·weights 는 그대로 · budget_blocked(자유 detail)는 종전 · "
+       "계약 원문(declare-budget --mem-total-mib help = /proc/meminfo MemTotal) 교차대조",
+       f"mem_total_mib=124608({_MEM_TOTAL_NOTE})" in fd and "floor_mib=12368 ·" in fd and "weights_mib=73104" in fd
+       and fb == "mem_total_mib=124608"
+       and 'b.add_argument("--mem-total-mib", type=int, required=True, help="/proc/meminfo MemTotal")' in bs_src)
     ck("★F4 라벨 없는 워치독 budget_rejected(창 닫힘 직전) = 열린 창에 귀속 · 행 라벨 None · 출처 watchdog.jsonl",
        any(r["kind"] == "budget_rejected" and r["utc"] == "2026-01-02T03:10:00Z" and r["label"] is None
            and "라벨 없음 → smoke-c1-a 선언 창 귀속" in r["detail"] and "watchdog.jsonl" in r["source"] for r in tl))
@@ -7207,7 +7292,12 @@ def _selftest_round3(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict) -> No
         "(EngineCore pid=1) otherhost-9:1:1 [0] NCCL INFO NCCL_NET_PLUGIN set by environment to spcx",
         main_p + "P2P Chunksize set to 262144",
         main_p + "NCCL_CROSS_NIC set by environment to 1.\x1b[0m",
-        main_p + "NCCL_DEBUG_SUBSYS set by environment to fixturesecretterm", "")).encode("utf-8"))
+        main_p + "NCCL_DEBUG_SUBSYS set by environment to fixturesecretterm",
+        # ★FC-14 실물 모양(2026-10-25 · Qwen 싱글 lite 엔진 로그 L44-47): 값 없는 키 존재 경고(ANSI · 같은 키 두 번)
+        "(APIServer pid=186) \x1b[33mWARNING\x1b[0m 10-25 00:56:53 [interface.py:1355] Unknown vLLM environment variable detected: VLLM_PLE_MMAP",
+        "(APIServer pid=186) WARNING 10-25 00:56:53 [interface.py:1355] Unknown vLLM environment variable detected: VLLM_REF",
+        "(APIServer pid=186) WARNING 10-25 00:56:54 [interface.py:1355] Unknown vLLM environment variable detected: VLLM_PLE_MMAP",
+        "")).encode("utf-8"))
     lv1 = sweep / "level_01/engine_c1-a.log"
     lv1.write_bytes((sub_p + "NCCL_IB_GID_INDEX set by environment to 3.\n").encode("utf-8"))
     (sweep / "level_02").mkdir()
@@ -7243,6 +7333,10 @@ def _selftest_round3(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict) -> No
     g2 = next((r for r in env2 if r["key"] == "NCCL_IB_GID_INDEX" and r.get("node_label") == "sub2"), {})
     ck("★계약 밖 노드 라벨(sub2 — 같은 role 둘)은 node None + node_label 로(main|sub 로 접지 않는다)",
        bool(g2) and g2.get("node") is None and not any(r["node"] not in ("main", "sub", None) for r in env2))
+    kp = [r for r in env if r["kind"] == "key-present"]
+    ck("★FC-14 값 없는 키 존재 경고 = kind key-present · value None · 값 미관측 주 · 키당 한 행(첫 줄) — '관측 없음' 으로 접지 않는다",
+       [r["key"] for r in kp] == ["VLLM_PLE_MMAP", "VLLM_REF"] and all(r["value"] is None and "값 미관측" in r["value_note"] for r in kp)
+       and kp[0]["source"] == f"{_rel(repo, lite)}:L{base_ln + 11}")
     ck("★스윕이 출력 평면에 묶이지 않으면 [] (그 로그는 이 측정의 것이 아니다)",
        measurement_env_observed(repo, dataclasses.replace(evm, sweep={**evm.sweep, "binding": "simlog-copy"})) == [])
     # ── 계보 후보: 이 측정의 엔진 로그 · resolved.json(묶였을 때만) ──
@@ -8530,6 +8624,29 @@ def selftest() -> list[str]:
                and "parity.vllm_sha=equal" in ev_led.build_identity["source"]["vllm_sha"])
             ck("★F1 음성대조: resolved.json 이 묶이면 해소값 유지(원장이 덮지 않는다) · 원장 SHA 도 없으면 미관측(지어내지 않는다)",
                ev_bound.build_identity.get("vllm_sha") == _SHA_A and ev_none.build_identity.get("vllm_sha") is None)
+            # ★2026-10-25 Gemma 싱글 재생 F7·F9 실물 모양: attestation 원장 없음 + artifacts 가 읽은 이미지 원장(local-image) +
+            #   resolved.json upstream_delta.from_ref — wheel 메타 · describe · 이전 핀을 출처와 함께(옛 판 = 미관측)
+            ev_img = dataclasses.replace(ev_none, attestation=None, image_ledger=None,
+                                         build_identity={**ev_none.build_identity, "source": dict(ev_none.build_identity["source"])},
+                                         resolve={**(ev_bound.resolve or {}), "from_ref": "v0.8.0"})
+            view = {"vllm": {"dist_version": "0.9.1.dev0+gdddd.cu133", "git_sha": "d" * 40, "describe": "v0.9.0"},
+                    "source": "docker-image(main-local):fixture:0.9.0-source:/opt/easy-vllm/build_ledger.json",
+                    "provenance": "measured(build-time, in-image)"}
+            wm0 = _wheel_meta(repo, ev_img)
+            bind_image_ledger(ev_img, view)
+            wm1 = _wheel_meta(repo, ev_img)
+            bi = ev_img.build_identity
+            ck("★F7 이미지 원장 vllm.dist_version = wheel 메타(출처 = 이미지 원장 · 빌드 시점) · 바인딩 전엔 미관측",
+               wm0[0] is None and wm1[0] == "0.9.1.dev0+gdddd.cu133" and "docker-image(main-local)" in wm1[1])
+            ck("★F7·F9 이미지 원장 git_sha(빈 칸만) · describe · resolved from_ref(이전 핀) = 출처와 함께 · 음성대조: attestation 원장이 있으면 그것",
+               bi["vllm_sha"] == "d" * 40 and bi["vllm_describe"] == "v0.9.0" and bi["vllm_prev_pin"] == "v0.8.0"
+               and "from_ref" in bi["source"]["vllm_prev_pin"] and "docker-image" in bi["source"]["vllm_describe"]
+               and ev_img.image_ledger is not None)
+            ev_att = dataclasses.replace(ev_led, image_ledger=None,
+                                         build_identity={**ev_led.build_identity, "source": dict(ev_led.build_identity["source"])})
+            bind_image_ledger(ev_att, view)
+            ck("F7 음성대조: attestation 원장이 있으면 이미지 원장 뷰로 바꾸지 않는다", ev_att.image_ledger is None
+               and ev_att.build_identity.get("vllm_describe") == "v0.9.0" and "attestation" in ev_att.build_identity["source"]["vllm_describe"])
             core.write_json(attp, v2)
             v2["parity"] = {"vllm_sha": {"verdict": "unobservable"}, "torch": {"verdict": "unobservable"}}
             core.write_json(attp, v2)

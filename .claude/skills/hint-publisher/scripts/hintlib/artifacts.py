@@ -1419,6 +1419,19 @@ def _attestation_ref(c: _Ctx) -> str:
     return f"output/{c.topo}/benchlog/attestation_{c.cell}.json" + ("" if isinstance(att, dict) else "(부재)")
 
 
+def _ledger_vllm_view(c: _Ctx) -> dict | None:
+    """적용 집합이 읽은 **대표 빌드 원장**의 vllm 블록 + 출처(2026-10-25 · Gemma 싱글 재생 사실검증 F7·F9) — evidence 가 wheel 메타 ·
+    git_sha · describe 원천으로 다시 쓴다(같은 원장을 두 번 탐침하지 않는다 · 단일 관측). 원장 미관측 = None."""
+    app = c.memo.get(("applied", True)) or c.memo.get(("applied", False))
+    if not app:
+        return None
+    applied, _sel, ledger, _per = app
+    if not isinstance(ledger, dict) or not isinstance(ledger.get("vllm"), dict):
+        return None
+    return {"vllm": {k: v for k, v in ledger["vllm"].items() if k in ("dist_version", "git_sha", "describe")},
+            "source": (applied or {}).get("source"), "provenance": ledger.get("provenance")}
+
+
 def _observe_ledger(c: _Ctx) -> tuple[dict | None, str | None, dict[str, dict], list[dict]]:
     """(메인 원장, 출처, 노드별 원장, 탐침 기록)."""
     probes: list[dict] = []
@@ -4791,7 +4804,7 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
     _require_registered(c.repo, missing)
     return {
         "plane": plane, "plane_source": plane_source, "track": sel["track"] if sel and plane == "docker" else "native",
-        "build": sel, "slots": slots, "applied_set": applied,
+        "build": sel, "slots": slots, "applied_set": applied, "build_ledger_vllm": _ledger_vllm_view(c),
         "build_ledger": {"source": applied["source"], "doc": ledger} if isinstance(ledger, dict) and applied else None,
         "missing": sorted(set(missing)), "files": sorted(set(files)), "sub_recipe": recipe,
         "value_status_candidates": value_status_candidates(c.repo, c.ev, forward_module=c.sf),
@@ -5139,6 +5152,18 @@ def selftest() -> list[str]:
         byn = {(r["phase"], r["file"]): r for r in apn["patches"]}
         ck("원장 관측 = observed · 메인 로컬 출처", apn["status"] == "observed" and apn["source"].startswith("docker-image(main-local)"))
         ck("inline 패치 행", byn.get(("inline", "strip-hoist"), {}).get("result") == "skipped")
+        led_v = dict(ledger, provenance="measured(build-time, in-image)",
+                     vllm={"dist_version": "0.1.1.dev0+gfx", "git_sha": "e" * 40, "describe": "v0.1.0", "direct_url": {"x": 1}})
+        cv_ = _ctx(repo, ev, runner=_fake_docker({("image", "inspect", "--format", "{{.Id}}"): (0, "sha256:fx\n"),
+                                                  ("run", "--rm", "--network", "none", "--pull", "never"): (0, json.dumps(led_v))}))
+        _applied(cv_)
+        lv_ = _ledger_vllm_view(cv_)
+        cn_ = _ctx(repo, ev, runner=docker_new)
+        _applied(cn_)
+        ck("F7 대표 원장 vllm 블록 뷰 = 적용 집합과 같은 원장(dist_version · git_sha · describe 만) · 출처 로컬 이미지 · 원장에 vllm 없으면 None",
+           lv_ and lv_["vllm"] == {"dist_version": "0.1.1.dev0+gfx", "git_sha": "e" * 40, "describe": "v0.1.0"}
+           and lv_["source"].startswith("docker-image(main-local)") and lv_["provenance"].startswith("measured")
+           and _ledger_vllm_view(cn_) is None)
         ck("★원장에 없는 파일(55) = not-in-ledger 로 싣지 않음", any(x["file"] == "55-deps.sh" and
                                                              x["why"].startswith("not-in-ledger") for x in apn["excluded"]))
         # ★2026-10-25 Solar 재생 F5(실물 모양: 원장 context_inventory 두 슬롯 = ['.gitkeep'] · 작업트리 패치 mtime < 이미지 Created):

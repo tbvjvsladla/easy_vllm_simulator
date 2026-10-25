@@ -137,7 +137,8 @@
         "kimi",
         "minimax",
         "meta",
-        "openai"
+        "openai",
+        "claude-sub"
       ]
     }
   }

@@ -2496,7 +2496,9 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C1():
     # NEW atom -- the arming script itself resolves the patch's identity from a runtime env var
     # (CONFIG_FILE), never a name baked in at image-build time -- one stock script serves any model.
     arm_src = _shared_asset("arm_patch.sh")
-    _require('_cfg="${CONFIG_FILE:-default}"' in arm_src and '_patch="/app/configs/${_cfg}_patch.py"' in arm_src, 'the patch path must be resolved from a runtime env var, never a name baked in at build time')
+    # 2026-10-26(plan_26102607): 키 체인 RUNTIME_PATCH_STEM > CONFIG_FILE > default(d781f26 · slave 는 CONFIG_FILE=default 라
+    #   패치 stem 을 별도 키로 받는다). 판정할 성질은 그대로 — 런타임 env 해소이지 빌드 시점에 구운 이름이 아니다.
+    _require('_cfg="${RUNTIME_PATCH_STEM:-${CONFIG_FILE:-default}}"' in arm_src and '_patch="/app/configs/${_cfg}_patch.py"' in arm_src, 'the patch path must be resolved from a runtime env var, never a name baked in at build time')
 
     # NEW atom -- "volatile, untracked": the REAL git-level enforcement is the output/<topology>/*
     # blanket ignore, whose carve-out set is closed and never re-includes configs/ (where the

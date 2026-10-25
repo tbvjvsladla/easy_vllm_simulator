@@ -53,7 +53,8 @@ REASON_RUNNER_UNAVAILABLE = "RUNNER_UNAVAILABLE"
 #   자기 모델로 보낸다 — 그 엔드포인트가 판정에 응답하지 못하면 판정이 필요한 도구가 전부 선다
 #   (위임 `-p` 는 렌더된 `defaultMode: default` 를 타므로 판정 호출이 없다 · adapter.md §2.1).
 BACKEND_TO_BINARY = {"anthropic": "claude", "kimi": "kimi-claude", "minimax": "minimax-claude",
-                     "meta": "meta-claude", "openai": "openai-claude"}
+                     "meta": "meta-claude", "openai": "openai-claude",
+                     "claude-sub": "claude-sub"}
 
 # 백엔드별 **기본 모델 선언**. 2026-09-08 이관: 종전에는 `k3[1m]` 리터럴이 어댑터 밖
 #   (`bootstrap_canary.build_request`)에 손으로 적혀 있었다 — 백엔드가 셋이 되면 갈라지는 자리다
@@ -61,7 +62,8 @@ BACKEND_TO_BINARY = {"anthropic": "claude", "kimi": "kimi-claude", "minimax": "m
 #   모델 토큰의 의미는 **백엔드에 종속된다** — shim 이 ANTHROPIC_DEFAULT_*_MODEL 을 자기 슬롯으로
 #   덮으므로 kimi 아래의 `sonnet` 은 sonnet 이 아니다. 그래서 러너는 두 축이 아니라 한 쌍이다.
 BACKEND_DEFAULT_MODEL = {"anthropic": "sonnet", "kimi": "k3[1m]", "minimax": "MiniMax-M3",
-                         "meta": "muse-spark-1.3", "openai": "gpt-5.6-sol"}
+                         "meta": "muse-spark-1.3", "openai": "gpt-5.6-sol",
+                         "claude-sub": "sonnet"}
 
 # 러너 별칭 → (backend, model) 쌍. **닫힌 목록**이며 변경 시 리뷰를 강제하는 tripwire 다
 #   (안티패턴 판정표 하드코딩 **정당** 칸). 사용자가 부르는 짧은 이름(`sonnet`·`kimi-claude`)을
@@ -77,6 +79,12 @@ RUNNER_ALIASES = {
     "minimax-claude": ("minimax", BACKEND_DEFAULT_MODEL["minimax"]),
     "meta-claude":    ("meta", BACKEND_DEFAULT_MODEL["meta"]),
     "openai-claude":  ("openai", BACKEND_DEFAULT_MODEL["openai"]),
+    # 2026-10-24 (plan_26102401 · 사용자 지시): `claude-sub` = claude-router 로컬 라우터 런처. 한 바이너리가
+    #   `--model <id>` 로 provider 를 고른다(config/providers/*.yaml 의 id) — 그래서 kimi 류와 달리 백엔드는
+    #   하나이고 모델 토큰이 provider 를 가른다. 사다리: sonnet → deepseek-flash → minimax-m3.1-flash.
+    "claude-sub-sonnet":   ("claude-sub", "sonnet"),
+    "claude-sub-deepseek": ("claude-sub", "deepseek-flash"),
+    "claude-sub-minimax":  ("claude-sub", "minimax-m3.1-flash"),
 }
 
 # ── 러너 평면 실패 판정 (2026-09-08 · 실측 수확분 + 공식문서) ────────────────────────────────

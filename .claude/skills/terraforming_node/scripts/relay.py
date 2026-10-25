@@ -286,8 +286,10 @@ def relay_header(context_id: str, attempt: int, allocated: int, budget_source: s
 # 사다리 = 러너의 순서 있는 목록. 회전 = 다음 칸으로 **같은 과업·같은 예산·같은 세션 선언**을 다시
 #   발급하는 것(재시도도 예산 사건도 아니다 — 바뀌는 것은 *누가 실행하는가* 하나다).
 # 소진 = 서브에 닿은 마지막 attempt 이후 사다리를 **한 바퀴** 다 돌았는데 전부 러너 평면에서 실패.
-#   여기서만 HITL 이며, 사다리가 1칸(기본 `sonnet`)이면 첫 실패가 곧 소진이다(사용자 규격).
-DEFAULT_LADDER = ("sonnet",)
+#   여기서만 HITL 이며, 사다리가 1칸이면 첫 실패가 곧 소진이다(사용자 규격).
+# 2026-10-25 (사용자 지시): sonnet 계열 사용 불가 → 기본 사다리를 deepseek-flash → minimax-m3.1-flash
+#   순으로 앞세우고 sonnet 계열은 후순위로 미룬다(`claude-sub-sonnet` → 직결 `sonnet`).
+DEFAULT_LADDER = ("claude-sub-deepseek", "claude-sub-minimax", "claude-sub-sonnet", "sonnet")
 
 
 def runner_table(repo_root: str) -> dict:
@@ -1896,9 +1898,10 @@ def _self_test() -> int:
     chk([r["name"] for r in _lad] == ["kimi-claude", "minimax-claude", "sonnet", "haiku"]
         and _lad[0]["backend"] == "kimi" and _lad[2]["model"] == "sonnet",
         "사다리는 **선언 순서 그대로**이고 각 칸이 (backend, model) 쌍으로 펴진다")
-    chk(len(resolve_ladder(REPO, None)) == 1
-        and resolve_ladder(REPO, None)[0]["name"] == "sonnet",
-        "기본 사다리는 1칸(sonnet) — 이 기능 도입 **전과 동작이 같다**")
+    chk([r["name"] for r in resolve_ladder(REPO, None)] == list(DEFAULT_LADDER)
+        and resolve_ladder(REPO, None)[0]["model"] == "deepseek-flash"
+        and resolve_ladder(REPO, None)[-1]["name"] == "sonnet",
+        "기본 사다리 = deepseek-flash → minimax-m3.1-flash → sonnet 계열 후순위(2026-10-25 사용자 지시)")
     try:
         resolve_ladder(REPO, "sonnet,gpt-5")
         chk(False, "미등재 별칭은 STOP")
@@ -1944,7 +1947,7 @@ def _self_test() -> int:
     chk(_dec4["action"] == "popup" and "소진" in _dec4["reason"],
         "감독: 한 바퀴를 다 돌면 **팝업**(사용자 규격 — 다 안 되면 HITL)")
     _dec1 = supervise_decide({"attempts": [_ru_att(1, "sonnet")]},
-                             ladder=resolve_ladder(REPO, None))
+                             ladder=resolve_ladder(REPO, "sonnet"))
     chk(_dec1["action"] == "popup",
         "★사다리 1칸이면 첫 실패가 곧 소진 → 즉시 HITL(사용자 규격)")
     _capd = supervise_decide({"attempts": [_ru_att(i + 1, n) for i, n in enumerate(
