@@ -112,7 +112,13 @@ arch·recipe 의 모양이 다릅니다.
 에 있습니다.
 
 <!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->
-> 원격 `origin` 의 발행 태그 **69건** · 모델 16종에서 파생 · 생성 `2026-10-17T11:03:30` KST · 로컬 오브젝트 부재(미수령) 3건.
+> 원격 `origin` 의 발행 태그 **70건** · 모델 17종에서 파생 · 생성 `2026-10-25T13:10:00` KST · 로컬 오브젝트 부재(미수령) 3건.
+
+### `solar-open2-250b-nota-nvfp4` (1)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.31.0/solar-open2-250b-nota-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8` | gb10-1g2n-cluster-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE · HINT_MISSING_RESOLVE · HINT_MISSING_SWEEP_LEVELS |
 
 ### `granite-4.2-8b` (2)
 
