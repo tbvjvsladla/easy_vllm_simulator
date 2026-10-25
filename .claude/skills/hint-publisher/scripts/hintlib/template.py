@@ -112,7 +112,8 @@ render_scaffold 가 소비하는 facts 키 (evidence·artifacts·lineage 가 조
     dataset_provenance          dict  evidence.dataset_provenance — DATASET_KEYS 10종 + dataset_provenance · status(recorded|
                                       inferred-synthetic) · source → 03 §3.3 FACT:dataset_provenance(U9·U10 · 부재 = synthetic 부재 추론)
     task_class                str   full_benchmark|hint_map_only (없으면 publication.task_class)
-    campaign                    dict  id · cell · node · mode · (id_source — 재생 전용 대체의 출처 · 2026-09-29 F4)
+    campaign                    dict  id · cell · node · mode · (id_source — 재생 전용 대체의 출처 · 2026-09-29 F4) ·
+                                      (membership{status=outside, id, source} — id 없음 + 측정 시점 캠페인 밖 관측 · 2026-10-25 F13)
     approval                    dict  approved_by · approved_utc · source
     prior_approval              dict  재생 전용: 원 발행의 승인(봉인 페이로드 기록) + replay_source — approval 이 없을 때만 메타에 표지와 함께
     publication                 dict  topic · manifest_ref · task_class
@@ -507,6 +508,10 @@ def _f_header(c: _Ctx) -> str:
 def _camp_id(camp: dict) -> str:
     """캠페인 id 칸 — 재생 전용 대체면 출처를 괄호로 붙인다(2026-09-29 plan_26092908 §4.5 F4 · evidence.sealed_publication)."""
     v = _cell(camp.get("id"))
+    mem = camp.get("membership") if isinstance(camp.get("membership"), dict) else {}
+    if not camp.get("id") and mem.get("status") == "outside":
+        # 2026-10-25(F13): 캠페인 밖(측정 시점 ACTIVE = _bootstrap — 관측)은 '미관측'(모름)과 다르다
+        return f"캠페인 밖(`{_cell(mem.get('id'))}` · {_cell(mem.get('source'))})"
     return f"{v}({_cell(camp['id_source'])})" if camp.get("id") and camp.get("id_source") else v
 
 
@@ -686,7 +691,7 @@ _BUILD_LABELS = {"track": "빌드 트랙", "dockerfile": "Dockerfile(선택자)"
                  "driver_conflict": "⚠ 드라이버 관측 ≠ 선언", "os": "호스트 OS"}
 
 
-def _build_row(key: str, v, bsrc: dict, src) -> tuple[str, str, str]:
+def _build_row(key: str, v, bsrc: dict, src, build: dict | None = None) -> tuple[str, str, str]:
     """00 §0.4 빌드 행 하나. 2026-09-29 plan_26092908 §4.5 F3: `driver_by_node` · `driver_conflict` 는 dict 라 옛 판은 값 칸에 원시 JSON 을,
     출처 칸에 '출처 미기재' 를 실었다 — 값은 읽는 모양으로 · 출처는 생산자가 준 출처(evidence `source.<키>` · 충돌은 두 층의 출처)로 싣는다."""
     if key == "driver_by_node" and isinstance(v, dict) and v:
@@ -697,6 +702,17 @@ def _build_row(key: str, v, bsrc: dict, src) -> tuple[str, str, str]:
         val = f"관측 {_cell(v.get('observed'))} ≠ 선언 {_cell(v.get('declared'))}"
         where = " · ".join(f"{lab}: {_cell(ss.get(k))}" for k, lab in (("observed", "관측"), ("declared", "선언")) if ss.get(k))
         return _BUILD_LABELS[key], val, src(v, where or None, bsrc.get(key))
+    chk = (build or {}).get("driver_check")
+    if key == "driver_conflict" and v in (None, "", {}) and isinstance(chk, dict) and chk.get("verdict") in ("agree", "unpaired"):
+        # F12(2026-10-25): 충돌이 없다는 것과 대조하지 못했다는 것은 다르다 — 대조 결과를 그대로(관측 · 선언 각각의 출처)
+        ss = chk.get("sources") if isinstance(chk.get("sources"), dict) else {}
+        where = " · ".join(f"{lab}: {_cell(ss.get(k))}" for k, lab in (("observed", "관측"), ("declared", "선언")) if ss.get(k))
+        if chk["verdict"] == "agree":
+            val = f"충돌 없음 — 관측 {_cell(chk.get('observed'))} = 선언 {_cell(chk.get('declared'))}"
+        else:
+            val = ("대조 불가 — " + (f"관측 {_cell(chk.get('observed'))} · 선언 없음" if chk.get("observed")
+                                    else f"선언 {_cell(chk.get('declared'))} · 관측 없음"))
+        return _BUILD_LABELS[key], val, where or "출처 미기재"
     if key == "image_digest" and v in (None, "") and bsrc.get("image_digest_local_note"):
         # F2: 측정 digest 없음 + 현 로컬 이미지가 측정 뒤 빌드 — 값은 비우고 그 관측을 출처 칸이 말한다(부재 ≠ 미관측 · 부류 7)
         return _BUILD_LABELS[key], _MISSING_TEXT, _cell(bsrc["image_digest_local_note"])
@@ -729,8 +745,8 @@ def _f_resolved(c: _Ctx) -> str:
          src(ident.get("hf_revision"), _dict(ident, "source").get("hf_revision"))),
     ]
     for key in _BUILD_KNOWN:
-        rows.append(_build_row(key, build.get(key), bsrc, src))
-    skip = set(_BUILD_KNOWN) | {"source", "vllm_ref", "vllm_sha"}
+        rows.append(_build_row(key, build.get(key), bsrc, src, build))
+    skip = set(_BUILD_KNOWN) | {"source", "vllm_ref", "vllm_sha", "driver_check"}
     for key in sorted(k for k in build if k not in skip):
         rows.append((f"`{key}`", _cell(build.get(key)), src(build.get(key), bsrc.get(key))))
     out = _table(("항목", "값", "출처"), rows)
@@ -5323,6 +5339,14 @@ def selftest() -> list[str]:
            "| 드라이버(노드별 관측) | main=580.178.04 · sub=580.178.04 | attestation parity.driver(fx) |" in rs3
            and "| ⚠ 드라이버 관측 ≠ 선언 | 관측 580.178.04 ≠ 선언 580.173.02 | 관측: attestation parity.driver(fx) · 선언: manifest(fx) |"
            in rs3 and '{"' not in rs3.split("⚠ 드라이버")[1].split("\n")[0])
+        qf4 = json.loads(core.dumps(qf3))
+        qf4["build"].pop("driver_conflict")
+        qf4["build"]["driver_check"] = {"verdict": "agree", "observed": "580.178.04", "declared": "580.178.04",
+                                        "sources": {"observed": "attestation parity.driver(fx)", "declared": "manifest(fx)"}}
+        rs4 = _f_resolved(_Ctx(repo, qf4, tpls))
+        ck("★F12 관측 = 선언 = '충돌 없음'(두 출처) · 미관측 ✗ · driver_check 는 별도 행으로 새지 않는다",
+           "| ⚠ 드라이버 관측 ≠ 선언 | 충돌 없음 — 관측 580.178.04 = 선언 580.178.04 | 관측: attestation parity.driver(fx) · 선언: manifest(fx) |"
+           in rs4 and "`driver_check`" not in rs4)
         qf2 = json.loads(core.dumps(qf))
         qf2["build"]["image_digest"] = None
         qf2["build"].setdefault("source", {})["image_digest_local_note"] = "docker image inspect fx .Id · 측정 뒤 빌드 — 측정 이미지 아님"
@@ -5351,6 +5375,16 @@ def selftest() -> list[str]:
         mf4["approval"] = {"approved_by": "사람(이 판)", "approved_utc": "2026-02-02T00:00:00Z", "source": "cli:--approved-by"}
         ck("★F4 음성대조: 이 판의 승인이 있으면 그것만(원 발행 승인과 섞지 않는다)",
            "| 승인 출처 | cli:--approved-by |" in _f_meta(_Ctx(repo, mf4, tpls)) and "원 발행" not in _f_meta(_Ctx(repo, mf4, tpls)))
+        mf5 = json.loads(core.dumps(mf4))
+        mf5["campaign"] = {"id": None, "cell": "c", "node": "cluster", "mode": "publication-replay",
+                           "membership": {"status": "outside", "id": "_bootstrap",
+                                          "source": "sweep/sweep_index.json bench_knobs.campaign = null · campaign_pins_note"}}
+        h5, m5 = _f_header(_Ctx(repo, mf5, tpls)), _f_meta(_Ctx(repo, mf5, tpls))
+        mf5["campaign"].pop("membership")
+        h6 = _f_header(_Ctx(repo, mf5, tpls))
+        ck("★F13 재생 · 측정 시점 캠페인 밖(관측) = '캠페인 밖(`_bootstrap` · 출처)' — 헤더·메타 둘 다 · 음성대조: 기록 없으면 미관측",
+           "캠페인 밖(`_bootstrap` · sweep/sweep_index.json bench_knobs.campaign = null" in h5
+           and "캠페인 밖(`_bootstrap`" in m5 and "캠페인 밖" not in h6 and _MISSING_TEXT in h6)
         sr12 = json.loads(core.dumps(base_facts))
         if isinstance(sr12.get("sub_recipe"), dict) and sr12["sub_recipe"]:
             sr12["plane"] = "native"

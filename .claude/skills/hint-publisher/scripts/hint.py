@@ -138,7 +138,7 @@ APPROVAL_KEYS = ("approved_by", "approved_utc", "source")
 # 2026-09-29 plan_26092908 §4.5(V3): `driver_by_node`(attestation 노드별 관측) · `driver_conflict`(관측 ≠ 선언이면 둘 다) · `os` 를 옮긴다 —
 #   옛 목록은 evidence 가 낸 이 칸들을 버렸다(관측 가능한데 FACT 에 없으면 저작자가 "미관측" 으로 적는다 · 부류 7).
 _BUILD_KEYS = ("track", "dockerfile", "image_tag", "image_digest", "vllm_repo", "vllm_ref", "vllm_sha", "torch", "cuda",
-               "ngc", "cpu_arch", "driver", "driver_by_node", "driver_conflict", "os")
+               "ngc", "cpu_arch", "driver", "driver_by_node", "driver_conflict", "driver_check", "os")
 _RATIONALE_MAX = 400
 # ── 발행 전 독립 사실 검증 보고(`<draft>/inputs/factcheck.json` · 2026-09-22 S2 round 2 F11) ──
 #   형식 = {schema_version: 1, tag, author, checker, checked_utc, claims_checked, classes_checked: [1..7],
@@ -839,6 +839,13 @@ def _assemble(repo: Path, ev, dn, col: dict, *, utc: str, topic: str, manifest_r
             camp["id_source"] = f"봉인 페이로드 {str(sealed['anchor'])[:12]}:PAYLOAD.json campaign.id(재생 전용 대체)"
         if sealed.get("approval"):
             prior_approval = {**sealed["approval"], "replay_source": sealed["source"]}
+    if camp["id"] is None:
+        # 2026-10-25(F13): 측정 도구가 측정 시점에 해소한 캠페인 소속(스윕 색인 bench_knobs) — '캠페인 밖'(관측)과 '미관측'을 가른다.
+        mcamp = evidence.measurement_campaign(ev)
+        if mcamp["status"] == "in-campaign":
+            camp["id"], camp["id_source"] = mcamp["id"], f"{mcamp['source']}(재생 전용 대체)"
+        elif mcamp["status"] == "outside":
+            camp["membership"] = {"status": "outside", "id": mcamp["id"], "source": mcamp["source"]}
     pub = {"topic": topic, "manifest_ref": manifest_rel, "task_class": task_class}
     lin = col["lineage"]
     # plan_26092908 §4.2·§4.6 — artifacts 의 새 키(파일 단위 표시는 slots[*].file_records 에 이미 있다)
