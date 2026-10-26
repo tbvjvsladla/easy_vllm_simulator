@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 74,
-  "generated_kst": "2026-10-25T13:10:00",
+  "count": 75,
+  "generated_kst": "2026-10-27T07:54:15",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1426,6 +1426,26 @@
       "tagged_utc": "2026-10-16T12:39:26Z",
       "verdict": "lite(기동 가능)",
       "verdict_source": "payload(PAYLOAD.cell_grade = lite · 기계 판정 measurement.verdict = OBSERVATION-ONLY)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "b96e3e66206f34ff7afc570d4e16bbf338446af0",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102707_minicpm5-2b_GB10_0.31.0.md))",
+      "brief": "MiniCPM5-2B를 GB10 GPU1개·노드1대 TP1에서 v0.31.0 source-build·bf16·길이32768·KVauto·PLE없음·specoff·graph기본으로 서빙했고 신규 Full의 동시성1 decode37.34 t/s를 기록했다. 공유이미지의빌드입력경로(W0),장기로그KV파싱(W1),CNN행선택(W2)을교정한계보이며 이번은 synthetic 재측정이다. gmu0.39와KV클램프는승계값(V1·V4)이고최적화나필요조건검증이아니다.",
+      "grammar": "v7",
+      "missing": [],
+      "model": "minicpm5-2b",
+      "object": "6eea1d08e1dac8b36818c319f22ef54b9ccc1d42",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610270714",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610270714",
+      "tagged_utc": "2026-10-26T22:54:15Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
     },
     {
