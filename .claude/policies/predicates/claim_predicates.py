@@ -3162,7 +3162,11 @@ def predicate_TERRAFORM_FLAG_GATE_C2():
         capture = bench_root / "vllm-argv.json"
         route_capture = bench_root / "docker-route.json"
         fake_python = fake_bin / "python3"
-        fake_python.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        # Pipeline/heredoc consumers must drain stdin before succeeding. Exiting immediately
+        # races fake curl's metrics write and triggers SIGPIPE under run_bench's pipefail.
+        fake_python.write_text(
+            '#!/bin/sh\ncase "${1-}" in\n  -c|-) cat >/dev/null ;;\nesac\nexit 0\n',
+            encoding="utf-8")
         fake_curl = fake_bin / "curl"
         fake_curl.write_text("#!/bin/sh\nprintf 200\n", encoding="utf-8")
         fake_vllm = fake_bin / "vllm"
