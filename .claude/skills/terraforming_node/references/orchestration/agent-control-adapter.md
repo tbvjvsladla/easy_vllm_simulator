@@ -1,6 +1,6 @@
 # agent-control adapter — provider 전용 실행문법 경계 (조건부 reference)
 
-> **이 파일과 `scripts/providers/`만 provider-specific 평면이다.** 5개 public SKILL 본문과 다른 reference는
+> **이 파일과 `scripts/providers/`만 provider-specific 평면이다.** public SKILL 본문과 다른 reference는
 > 위임 의도만 선언한다. 실행은 provider-neutral `.claude/skills/terraforming_node/scripts/agent_control.py`가 request schema를 검증한 뒤
 > adapter로 라우팅한다. 정본 계약: `agent-control-request.schema.json`, `agent-control-result.schema.json`.
 > **소유 = terraforming_node**(plan_26093022 — 07-25 "agent_control = Constitution-owned" 결정은 폐기됐다: 호출자가 이 스킬의
@@ -160,4 +160,4 @@ stdout을 낸다. 기존 파일은 덮어쓰지 않는다. relay는 이 경로�
 ## 4. 다른 provider를 붙일 때
 
 동일 provider-neutral request/result를 구현하는 adapter만 추가한다. public skill 본문은 수정하지 않는다.
-placeholder adapter는 만들지 않는다(Phase 6 범위는 Claude Code adapter 하나뿐이다).
+placeholder adapter는 만들지 않는다. 현재 구현된 provider는 Claude Code와 native Codex CLI다.
