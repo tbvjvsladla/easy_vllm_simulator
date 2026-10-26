@@ -2,7 +2,7 @@
 name: wiki-desk
 description: "Use when querying or indexing this project's own documents. 위키 조회, 근거 문서 찾아줘, 이전에 뭐 했는지, 결정·승인·결과 원문 위치 확인, 관련 plan/devlog 찾아줘, 문서 입고(작업 기록 발행 시)에 사용한다. Searches the project's single OKF 0.2 pointer library (__llm-wiki on the main node) and returns evidence spans as path:start-end. On a sub node the same CLI reaches the main library through the manifest `library` accessor (ssh gateway) — only the path differs. Use when starting an Ouroboros interview, writing a plan, devising a serving strategy, bumping vLLM, or grounding a campaign."
 license: MIT
-compatibility: "Node.js 24+ (runs .ts directly, zero runtime dependencies) · util-linux flock(1) · rsync/rrsync on the main node. Tests: node --test."
+compatibility: "Node.js 24+ (runs .ts directly, zero runtime dependencies) · util-linux flock(1) · rsync/rrsync on the main node. Checks: node --test 'checks/*.check.ts'."
 metadata:
   version: "3.1.0"
   lineage: "TypeScript redesign of wiki-desk 1.1.0 (Python) · 3.0.0 seed + easy_vllm_simulator additions (accessor·gateway·concurrency·doc_naming·PII scanner · plan_26101912)"

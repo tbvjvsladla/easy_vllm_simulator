@@ -2,7 +2,7 @@
 """Fail-closed acceptance for the five-skill self-contained distribution.
 
 This is a production distribution contract, not a development test runner.  It proves that a
-fresh gitless checkout contains exactly the public skills, a tracked root tests contract, and no legacy scripts root
+fresh gitless checkout contains exactly the public skills, no scratch-plane directory (temp/tmp/test/tests), and no legacy scripts root
 control plane, no trust artifact pointing back to those removed roots, and that each public
 skill's deterministic entry path still starts or returns its documented pre-terraform gate.
 """
@@ -330,11 +330,25 @@ def _gitless_hint_match_checks() -> list[dict]:
         return [first, second]
 
 
+SCRATCH_DIR_NAMES = frozenset({"temp", "tmp", "test", "tests"})
+
+
+def _tracked_scratch_paths() -> list[str]:
+    """추적물(git 체크아웃은 index · gitless 배포본은 트리 전체) 중 scratch 디렉터리 아래 경로."""
+    proc = subprocess.run(["git", "-C", str(REPO), "ls-files", "-z"], capture_output=True)
+    if proc.returncode == 0 and (REPO / ".git").exists():
+        paths = [p for p in proc.stdout.decode("utf-8", "surrogateescape").split("\0") if p]
+    else:
+        paths = [p.relative_to(REPO).as_posix() for p in REPO.rglob("*") if p.is_file()]
+    return sorted(p for p in paths if any(part.lower() in SCRATCH_DIR_NAMES for part in p.split("/")[:-1]))
+
+
 def verify() -> dict:
     checks: list[dict] = []
-    tests_root = REPO / "tests"
-    checks.append({"name": "root_tests_contract",
-                   "ok": tests_root.is_dir() and (tests_root / "test_resolve_render_input.sh").is_file()})
+    # scratch 평면(temp·tmp·test·tests · 깊이 무관)은 배포물이 아니다 — 하네스가 기대는 것은 승격 심사를 거쳐
+    #   scratch 이름 밖으로 옮긴다(workflow.md §scratch 평면 승격 심사 · plan_26102609). 옛 root_tests_contract 는 퇴역.
+    scratch = _tracked_scratch_paths()
+    checks.append({"name": "scratch_dirs_untracked", "ok": not scratch, "found": scratch[:20]})
     checks.append({"name": "root_absent:scripts", "ok": not (REPO / "scripts").exists()})
 
     skills = {p.parent.name for p in (REPO / ".claude/skills").glob("*/SKILL.md")}

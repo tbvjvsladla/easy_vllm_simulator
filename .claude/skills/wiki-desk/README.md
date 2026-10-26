@@ -31,7 +31,7 @@ wiki-desk는 그 확인을 돕는 **사서**입니다. 원문을 복사하거나
 질문 → 에이전트 → wiki-desk query(후보 문서 + 근거 span) → read(원문 구간) → 근거 경로와 함께 답변
 ```
 
-- **스킬 폴더(`.claude/skills/wiki-desk/`)**: `SKILL.md`(사서 계약·질의 루프), `src/`(CLI와 모듈), `references/`(OKF·권위·설치·유지보수), `tests/`(node:test), `assets/`(계약 예제). 브랜치마다 같은 코드를 둡니다.
+- **스킬 폴더(`.claude/skills/wiki-desk/`)**: `SKILL.md`(사서 계약·질의 루프), `src/`(CLI와 모듈), `references/`(OKF·권위·설치·유지보수), `checks/`(승격 하네스 — claim 술어가 실행), `assets/`(계약 예제). `tests/`는 scratch 평면이라 배포되지 않습니다(로컬 개발 회귀 전용). 브랜치마다 같은 코드를 둡니다.
 - **위키(`__llm-wiki/`, 프로젝트 루트)**: 브랜치마다 따로 갖는 지식층입니다.
   - `contract.json` — 프로젝트와 합의한 계약(추적)
   - `receipt.json` — wiki-desk가 만든 파일과 그 hash(추적). 사람이 고친 카드를 덮어쓰지 않기 위한 소유권 기록입니다.
@@ -86,7 +86,7 @@ wiki-desk는 그 확인을 돕는 **사서**입니다. 원문을 복사하거나
   git -C "$SOURCE" archive "$VERSION" | tar -x -C "$DEST"
   cd "$DEST"
   node scripts/package-manifest.ts --check   # 파일 집합·sha256 대조
-  node --test
+  node --test 'checks/*.check.ts'
 )
 ```
 
@@ -167,7 +167,7 @@ receipt에 기록되고 **바뀌지 않은** 생성물과 색인 캐시만 지�
 
 - 색인과 질의는 결정론이며 LLM·임베딩 호출이 없습니다. 바뀐 원문만 재색인합니다.
 - 수백 건 규모의 문서 모음에서는 응답 시간이 색인보다 **에이전트의 대화 턴 수**에 좌우되기 쉽습니다. 이 도구의 주된 가치는 속도보다 **근거 위치를 남기고 다시 찾게 하는 것**과 입고 규율에 있습니다.
-- 자기 코퍼스로 재려면 `node tests/perf.probe.ts <git 저장소> <커밋> <원문 루트(쉼표 구분)> <질의>...`를 실행합니다(`node --test` 대상 아님).
+- 로컬 개발 체크아웃에 scratch `tests/`가 있으면, 자기 코퍼스로 재려면 `node tests/perf.probe.ts <git 저장소> <커밋> <원문 루트(쉼표 구분)> <질의>...`를 실행합니다(`node --test` 대상 아님).
 
 ## 안전 경계와 검증 방법
 
@@ -178,7 +178,7 @@ receipt에 기록되고 **바뀌지 않은** 생성물과 색인 캐시만 지�
 - 알려진 미수정 사항: sync가 소유를 판정한 뒤 쓰기까지 약 0.1초 사이에 사람이 같은 카드를 저장하면 덮어쓸 수 있음, 계약 JSON의 중복 키를 거부하지 않음, 상시 타입 검사 단계 없음(TypeScript strict 점검은 개발 중 1회 통과).
 
 ```bash
-cd .claude/skills/wiki-desk && node --test      # 결정론 회귀(LLM·네트워크 없음)
+cd .claude/skills/wiki-desk && node --test 'checks/*.check.ts'   # 승격 하네스(LLM·네트워크 없음)
 node scripts/sanitize-check.ts                  # 배포 위생 0건
 node scripts/package-manifest.ts --check        # manifest 대조
 ```

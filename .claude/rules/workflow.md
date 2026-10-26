@@ -187,6 +187,25 @@ arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 
 - **범위 밖**: 호스트 `/boot` 의 grub 백업(부팅 복구 수단이며 git 평면이 아니다) · `seed/`
   (사용자 보관소이자 비추적 평면 — 이 규약의 대상이 아니다).
 
+### scratch 평면 승격 심사 (2026-10-26 신설 · `plan_26102609`)
+
+`temp`·`tmp`·`test`·`tests`(깊이 무관)는 에이전트 임시 작업·유닛테스트 잔재의 자리다 — **추적 제외**
+(`.gitignore`) · **입고 제외**(wiki-desk `remote.ts` 반입 필터) · **사서 색인 제외**(wiki-desk `contract.ts`
+`SCRATCH_PARTS`)가 기본값이고, 배포 검사 `verify_distribution.py` `scratch_dirs_untracked` 가 추적물에서
+그 이름을 0건으로 집행한다. scratch 안의 무엇을 자산으로 올리려면 아래 3문항을 심사해 plan 으로 발행하고
+**사람 HITL** 뒤에만 편입한다(심사자 = 에이전트 · 승인자 = 사람 · 편입 실행자 = 에이전트).
+
+| # | 문항 | 판정 근거(결정론) | 처분 |
+|---|---|---|---|
+| Q1 필요성 | 하네스가 실행·참조하는가 · 정책 조항의 **유일한** 실행 증명인가 · 기존 하네스와 중복인가 | `git grep` 참조 · claim 술어 바인딩 · 같은 단언의 존재 | 불요·중복 → scratch 에 남긴다(퇴역) |
+| Q2 층위 | 두 토폴로지에서 같은 사실을 검증하는가 · 한 토폴로지에서만 참인가 | 브랜치 간 바이트 diff · 검증 대상 불변식의 층 | 공통층 → 브랜치 싱크 대상 · 특화층 → 그 브랜치에만 |
+| Q3 편입 형식 | scratch 이름 밖 자리로 옮기고(의존 픽스처 포함) 참조·`base_skill_edges.json` 원장을 갱신했는가 | 이동 후 술어·배포 검사 초록 | 옮긴 자리가 곧 자산의 거처다 |
+
+- 승격 없이 하네스가 scratch 를 참조하면 fresh clone 에서 그 검사가 깨진다 — 이것은 정상 차단이며 우회가
+  아니라 심사로 해소한다(§막힘 3분류).
+- 첫 사례: wiki-desk `concurrency.test.ts` → `checks/concurrency.check.ts`(C5·C6 유일 실행 증명 · 공통층) ·
+  `tests/test_resolve_render_input.sh` 퇴역(`verify_distribution` 와 중복층).
+
 ## 캠페인 아티팩트 체인 — `campaigns/` (`policy:ROOT_SURFACE_REGISTRY`)
 
 단계 간 정보는 대화 기억이 아니라 아티팩트가 나른다 — 절차 정본은 `terraforming_node` `references/campaign/`

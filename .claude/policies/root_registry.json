@@ -231,10 +231,30 @@
     {
       "name": "tests",
       "kind": "dir",
-      "git": "tracked",
-      "owner": "policy-runtime",
-      "role": "공통 런타임·정책의 요구 기반 회귀검증 자산. 테스트는 실제 호출 경계를 검증하며 production secret·상태·산출물을 만들지 않는다.",
-      "branch_note": "양 토폴로지 공통층으로 동기화한다. 토폴로지 특화 기대값은 특화 테스트 경로에서만 분리한다."
+      "git": "ignored",
+      "owner": "에이전트(scratch)",
+      "role": "scratch 평면 — 에이전트 임시 작업·유닛테스트 잔재. 추적·입고·사서 색인 제외(깊이 무관 · .gitignore). 자산 승격은 workflow.md §scratch 평면 승격 심사(HITL) 뒤 scratch 이름 밖으로 옮긴다(plan_26102609)."
+    },
+    {
+      "name": "temp",
+      "kind": "dir",
+      "git": "ignored",
+      "owner": "에이전트(scratch)",
+      "role": "scratch 평면 — 에이전트 임시 작업·유닛테스트 잔재. 추적·입고·사서 색인 제외(깊이 무관 · .gitignore). 자산 승격은 workflow.md §scratch 평면 승격 심사(HITL) 뒤 scratch 이름 밖으로 옮긴다(plan_26102609)."
+    },
+    {
+      "name": "tmp",
+      "kind": "dir",
+      "git": "ignored",
+      "owner": "에이전트(scratch)",
+      "role": "scratch 평면 — 에이전트 임시 작업·유닛테스트 잔재. 추적·입고·사서 색인 제외(깊이 무관 · .gitignore). 자산 승격은 workflow.md §scratch 평면 승격 심사(HITL) 뒤 scratch 이름 밖으로 옮긴다(plan_26102609)."
+    },
+    {
+      "name": "test",
+      "kind": "dir",
+      "git": "ignored",
+      "owner": "에이전트(scratch)",
+      "role": "scratch 평면 — 에이전트 임시 작업·유닛테스트 잔재. 추적·입고·사서 색인 제외(깊이 무관 · .gitignore). 자산 승격은 workflow.md §scratch 평면 승격 심사(HITL) 뒤 scratch 이름 밖으로 옮긴다(plan_26102609)."
     }
   ],
   "tombstones": [

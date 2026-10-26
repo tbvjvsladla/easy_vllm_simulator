@@ -6,6 +6,7 @@
   "description": "Project knowledge desk (OKF 0.2 pointer library) - TypeScript, Node 24, zero runtime dependencies",
   "scripts": {
     "test": "node --test",
+    "check": "node --test checks/*.check.ts",
     "sanitize": "node scripts/sanitize-check.ts",
     "manifest": "node scripts/package-manifest.ts --check"
   },

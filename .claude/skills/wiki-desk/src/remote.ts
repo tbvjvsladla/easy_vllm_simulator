@@ -10,6 +10,7 @@ import type { Accessor } from "./accessor.ts";
 import { payloadSha, INTAKE_MANIFEST } from "./concurrency.ts";
 import os from "node:os";
 import { sha256 } from "./fs-safety.ts";
+import { SCRATCH_PARTS } from "./contract.ts";
 
 export const PROTOCOL_TOKEN = "wiki-desk-v1";
 /** ssh 자체 실패(접속·인증·호스트키) 종료코드 — 원격 명령의 실패와 구분된다 */
@@ -86,7 +87,8 @@ export function intake(a: Ssh, localRoot: string, extra: readonly string[] = [],
   const skip = contract.node_intake_excluded ?? [];
   const files: string[] = [];
   for (const r of roots) walkMd(localRoot, r, suffixes, files);
-  files.splice(0, files.length, ...files.filter((f) => !skip.some((e) => f === e || f.startsWith(`${e}/`))));
+  files.splice(0, files.length, ...files.filter((f) => !skip.some((e) => f === e || f.startsWith(`${e}/`)) &&
+    !f.split("/").slice(0, -1).some((p) => SCRATCH_PARTS.has(p.toLowerCase()))));
   const entries = files.map((f) => [f, sha256(fs.readFileSync(path.join(localRoot, f)))] as [string, string]);
   const sha = payloadSha(entries);
   // 입고는 **더하기만** 한다(--delete ✗ · 2026-10-19 multi 라이브): 서브의 문서 집합은 체크아웃 브랜치마다 달라질 수 있고,
@@ -102,7 +104,7 @@ export function intake(a: Ssh, localRoot: string, extra: readonly string[] = [],
   };
   if (roots.length > 0) {
     // 접미 필터는 클라이언트가 건다(프로토콜로 전달) — 서버 쪽 rrsync 는 자기 미러 밖 경로를 거부한다
-    const filters = [...skip.map((e) => `--exclude=/${e}`), "--include=*/", ...suffixes.flatMap((s) => [`--include=*${s}`, `--include=*${s.toUpperCase()}`]), "--exclude=*"];
+    const filters = [...skip.map((e) => `--exclude=/${e}`), ...[...SCRATCH_PARTS].map((d) => `--exclude=${d}/`), "--include=*/", ...suffixes.flatMap((s) => [`--include=*${s}`, `--include=*${s.toUpperCase()}`]), "--exclude=*"];
     const bad = rsyncTo(["--relative", "--prune-empty-dirs", ...filters, ...roots, `${a.user}@${a.host}:.`], localRoot);
     if (bad !== null) return notIngested("rsync", bad);
   }

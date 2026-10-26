@@ -11,7 +11,8 @@ import { fileURLToPath } from "node:url";
 export const MANIFEST = "PACKAGE_MANIFEST.json";
 const MANIFEST_VERSION = "1.0.0";
 const PACKAGE_NAME = "wiki-desk";
-const INVENTORY_EXCLUDES = [MANIFEST, ".git", "node_modules", ".cache"];
+// scratch 평면(tests·tmp 등)은 배포 패키지가 아니다 — 작업 트리에 남아도 git archive 설치본과 같게 검증되도록 뺀다(plan_26102609)
+const INVENTORY_EXCLUDES = [MANIFEST, ".git", "node_modules", ".cache", "temp", "tmp", "test", "tests"];
 const EXEC_BITS = 0o111;
 const JSON_INDENT = 2;
 const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");

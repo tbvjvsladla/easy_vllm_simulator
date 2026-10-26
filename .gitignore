@@ -283,7 +283,12 @@ Thumbs.db
 *.tmp
 *.temp
 *.log
+# scratch 평면(에이전트 임시 작업·유닛테스트 잔재) — 깊이 무관 · 추적·입고·색인 제외. 자산 승격은
+#   workflow.md §scratch 평면 승격 심사(HITL)를 거쳐 scratch 이름 밖 자리로 옮긴다(plan_26102609).
 temp/
+tmp/
+test/
+tests/
 seed/
 # ⚠ `*.bak` · `*.orig` 는 2026-09-03 에 **의도적으로 삭제**했다(되돌리지 말 것). 숨김이 백업
 #   관행을 제도화했다 — 잔재가 `git status` 에 드러나는 것이 의도이며, 금지 집행은
@@ -352,14 +357,6 @@ hints/.drafts/
 #   (기존 earlyoom_*.deb 단일 패턴은 나머지 2종을 빌딩블럭에 흘리는 구멍이었음).
 earlyoom_*.deb
 .claude/skills/terraforming_node/scripts/node_blackbox/offline/
-
-# ===========================================
-# completion_gate 하네스 테스트 런타임 스크래치 (plan_26072506 Phase 1 리뷰 교정)
-#   test_completion_gate.py 의 심볼릭링크/FIFO 하네시티 테스트가 setUp/tearDown 에서 만들고
-#   지우는 임시 디렉토리 — 정상 종료 시 항상 비어있지만, 크래시로 잔존해도 커밋에 안 실리게 방어.
-# ===========================================
-tests/harness/fixtures/completion/_runtime_scratch/
-tests/harness/fixtures/policy_registry/removal_artifacts/_runtime_scratch/
 
 # hint 중앙권위 마커 — 배포본에 실리면 안 된다(plan_26082009 D8: 색인·배포는 중앙 전용).
 #   부재가 곧 fail-closed 이므로 Contributor 환경에서는 catalog derive/push 가 자동으로 막힌다(hint.py · 봉인은 --no-push 로 가능).

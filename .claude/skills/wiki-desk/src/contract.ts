@@ -23,6 +23,8 @@ const BM25_B_MAX = 1;
 const BLOCKED_PARTS = new Set([".git", ".wiki-desk", ".agents", ".claude", ".hermes", ".codex", ".ssh",
   ".aws", "__pycache__", ".pytest_cache", ".cache", ".venv", "venv", "node_modules", "secret", "secrets",
   "generated", "build", "dist"]);
+/** scratch 평면 디렉터리명(대소문자 무시·깊이 무관): 에이전트 임시 작업·유닛테스트 잔재. 색인·입고 제외(plan_26102609) */
+export const SCRATCH_PARTS: ReadonlySet<string> = new Set(["temp", "tmp", "test", "tests"]);
 /** 원 wiki_runtime 비밀 파일명·확장자 */
 const SECRET_NAMES = new Set(["credentials", "credentials.json", "secrets.json", "secrets.yaml", "secrets.yml"]);
 const SECRET_SUFFIXES = new Set([".pem", ".key", ".p12", ".pfx", ".keystore"]);
@@ -63,7 +65,7 @@ function uniqueList(v: unknown, label: string, minItems: number): unknown[] {
 }
 
 function hasBlockedPart(rel: string): boolean {
-  return rel.split("/").some((p) => BLOCKED_PARTS.has(p.toLowerCase()));
+  return rel.split("/").some((p) => BLOCKED_PARTS.has(p.toLowerCase()) || SCRATCH_PARTS.has(p.toLowerCase()));
 }
 
 function authorityClass(v: unknown, label: string, withPattern: boolean): void {
@@ -94,7 +96,7 @@ export function validateContract(raw: unknown): Contract {
     if (root !== ".") relativePath(root, "source_roots");
     const rel = root as string;
     if (rel !== "." && (isBelow(rel, wiki as string) || hasBlockedPart(rel))) {
-      fail("source_roots", `위키·제어·생성·비밀 경로는 원문 root가 될 수 없다: ${rel}`);
+      fail("source_roots", `위키·제어·생성·비밀·scratch 경로는 원문 root가 될 수 없다: ${rel}`);
     }
   }
   for (const root of uniqueList(raw["excluded_roots"], "excluded_roots", 0)) relativePath(root, "excluded_roots");
