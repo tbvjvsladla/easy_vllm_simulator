@@ -1,6 +1,6 @@
 # 서고 하나 · 접근점 N개 — 동시성 규정 (TS판 · 프로젝트 추가)
 
-> 정본 코드는 `src/concurrency.ts`(잠금·저널·원장·소유)와 `src/gateway.ts`(허용 목록)다. 시험은 `tests/concurrency.test.ts`다.
+> 정본 코드는 `src/concurrency.ts`(잠금·저널·원장·소유)와 `src/gateway.ts`(허용 목록)다. 시험은 `checks/concurrency.check.ts`다(claim 술어 C5·C6 이 실행하는 승격 하네스 · plan_26102609).
 > 정책은 `policy:LIBRARY_GROUNDING_FAIL_CLOSED` C5(접근 경로)와 C6(동시성)이다. 근거 자료는
 > `seed/h_report_26101910_동시성_문제와_16개_핵심_개념_및_제어_기법.md`(이하 h_report)다. 결정 기록은 `docs/plan/plan_26101912_*`다.
 

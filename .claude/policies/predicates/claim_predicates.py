@@ -4257,7 +4257,7 @@ def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C5():
     _require('"local"' in acc and '"ssh"' in acc and "manifest.yaml" in acc, "접근자 권위가 manifest library 블록이 아니다")
     tmpl = (REPO_ROOT / "manifest.template.yaml").read_text(encoding="utf-8")
     _require(re.search(r"^library:", tmpl, re.M), "manifest 템플릿에 library 접근자 블록이 없다(메인·서브 동일 스키마)")
-    gw = subprocess.run(["node", "--test", "--test-name-pattern", "게이트웨이", str(REPO_ROOT / ".claude/skills/wiki-desk/tests/concurrency.test.ts")],
+    gw = subprocess.run(["node", "--test", "--test-name-pattern", "게이트웨이", str(REPO_ROOT / ".claude/skills/wiki-desk/checks/concurrency.check.ts")],
                         capture_output=True, text=True)
     _require(gw.returncode == 0, f"게이트웨이 허용 목록 시험 실패(셸·목록 밖 명령·남의 미러를 거부해야 한다): {gw.stdout[-600:]}")
 
@@ -4266,7 +4266,7 @@ def predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C6():
     """C6: N개 접근점의 동시 쓰기 규정(h_report 기법) — 실제 CLI 프로세스로 실패 순서를 친다.
 
     동시 입고 유실·중복 0 · 재전송 no-op(receipt 바이트 동일) · 같은 키 다른 payload 거부 · 쓰기 중 kill 은 복구 후에만 읽힌다."""
-    r = subprocess.run(["node", "--test", str(REPO_ROOT / ".claude/skills/wiki-desk/tests/concurrency.test.ts")],
+    r = subprocess.run(["node", "--test", str(REPO_ROOT / ".claude/skills/wiki-desk/checks/concurrency.check.ts")],
                        capture_output=True, text=True)
     _require(r.returncode == 0, f"동시성 규정 시험 실패: {r.stdout[-1200:]}")
     ref = (REPO_ROOT / ".claude/skills/wiki-desk/references/concurrency.md").read_text(encoding="utf-8")

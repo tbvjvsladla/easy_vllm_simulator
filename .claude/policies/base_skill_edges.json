@@ -1546,7 +1546,7 @@
     },
     {
       "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "wiki-desk/tests/concurrency.test.ts",
+      "callee": "wiki-desk/checks/concurrency.check.ts",
       "phase": "verification_plane",
       "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
     },

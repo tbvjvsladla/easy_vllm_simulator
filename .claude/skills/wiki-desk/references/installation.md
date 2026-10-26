@@ -7,7 +7,7 @@
 
 ## 스킬 설치(코드)
 1. 배포 태그 커밋을 `git archive <태그> | tar -x -C .claude/skills/wiki-desk/`로 푼다. 기존 동명 스킬이 있으면 덮어쓰지 않고 차이를 먼저 검토한다.
-2. 설치본에서 `node scripts/package-manifest.ts --check`(파일 집합·sha256)와 `node --test`(결정론 회귀·위생·manifest 게이트 포함)를 확인한다.
+2. 설치본에서 `node scripts/package-manifest.ts --check`(파일 집합·sha256)와 `node --test 'checks/*.check.ts'`(승격 하네스 — 유닛 회귀 `tests/`는 scratch 평면이라 배포본에 없다)를 확인한다.
 3. 스킬은 Common 계층이다. 커밋·다른 sync 브랜치 동기화는 사용자 게이트를 따른다.
 
 ## 위키 초기화(브랜치별)
