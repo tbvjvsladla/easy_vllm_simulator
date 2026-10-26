@@ -4434,10 +4434,13 @@ def lite_tool_args(repo, ev: CellEvidence) -> dict | None:
     tag = f"{t['name']}@{str(rv.get('git_rev') or sel['at'])[:12]}"
     mline = next((f"L{i}" for i, ln in enumerate(lines, 1) if re.match(r"\s*MEASURED_UTC=", ln)), None)
     for i, ln in enumerate(lines):
-        if ln.lstrip().startswith("#") or "bench serve" not in ln:
+        # A log-path assignment can mention `vllm bench serve` (and even example flags)
+        # in its inline comment before the actual invocation. Comments are not calls.
+        code = ln.split("#", 1)[0]
+        if "bench serve" not in code:
             continue
         j = i
-        body = [ln[ln.index("bench serve") + len("bench serve"):]]
+        body = [code[code.index("bench serve") + len("bench serve"):]]
         while lines[j].rstrip().endswith("\\") and j + 1 < len(lines):
             j += 1
             body.append(lines[j])
@@ -8389,16 +8392,25 @@ def _selftest_fix2(ck, td: Path, ev: CellEvidence) -> None:
     with open(r / REL_EVENTS_ROOT / "main/events/2026-01.jsonl", "a", encoding="utf-8") as fh:
         fh.write(json.dumps({"ts": "2026-01-02T03:00:30Z", "kind": "budget_declare", "label": "smoke-other"}) + "\n")
     ck("★G10 음성대조: 측정 끝 전 재선언(다른 기동) = 판별 ✗", attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win) is None)
-    # ── G3: 측정 시점 lite_bench.sh 의 리터럴 인자 ──
-    g = td / "fix2g"
+    _selftest_lite_tool_args(ck, td)
+
+
+def _selftest_lite_tool_args(ck, td: Path) -> None:
+    """G3: pinned lite-only/full source → actual artifact command; no benchmark/GPU execution."""
+    from . import artifacts
+    g = td / "lite-tool-args"
     tdir = g / REL_BENCH_TOOLS_DIR
     tdir.mkdir(parents=True, exist_ok=True)
     (tdir / "lite_bench.sh").write_text("\n".join((
-        "#!/bin/bash", "_bench() {", '  docker exec "$CTR" bash -lc "cd /tmp && vllm bench serve \\',
+        "#!/bin/bash",
+        'BLOG="$OUTDIR/lite_client.log" # vllm bench serve --random-input-len 9999 --random-output-len 4096',
+        "_bench() {", '  docker exec "$CTR" bash -lc "cd /tmp && vllm bench serve \\',
         "      --backend $BACKEND --base-url $BASE_URL --model '$MODEL_NAME' --trust-remote-code \\",
         "      --dataset-name random --random-input-len 512 --random-output-len 128 --random-range-ratio 0 \\",
         "      --num-prompts $2 --max-concurrency 1 --request-rate inf --ignore-eos --num-warmups $3 \\",
         "      --save-result --result-dir /tmp\"", "}", 'MEASURED_UTC="$(date -u +%FT%TZ)"', "")), encoding="utf-8")
+    (tdir / "sweep_bench.sh").write_text('#!/bin/bash\nbash "$SDIR/lite_bench.sh" "$CONFIG"\n'
+                                        'bash "$SDIR/run_bench.sh" "$CONFIG"\n', encoding="utf-8")
     genv = {"GIT_AUTHOR_NAME": core.SYNTHETIC_NAME, "GIT_AUTHOR_EMAIL": core.SYNTHETIC_EMAIL,
             "GIT_COMMITTER_NAME": core.SYNTHETIC_NAME, "GIT_COMMITTER_EMAIL": core.SYNTHETIC_EMAIL,
             "GIT_AUTHOR_DATE": core.git_date("2026-01-01T00:00:00Z"), "GIT_COMMITTER_DATE": core.git_date("2026-01-01T00:00:00Z")}
@@ -8406,14 +8418,51 @@ def _selftest_fix2(ck, td: Path, ev: CellEvidence) -> None:
     core.git(g, "add", "-A", env_extra=genv)
     core.git(g, "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "c", env_extra=genv)
     (g / "docs/benchmark").mkdir(parents=True, exist_ok=True)
-    (g / "docs/benchmark/bench_report_fx.md").write_text(f"# lite\n생성일 {t0}\n", encoding="utf-8")
-    ta = lite_tool_args(g, dataclasses.replace(ev7, repo=str(g)))
+    measured = "2026-01-02T03:00:00Z"
+    (g / "docs/benchmark/bench_report_fx.md").write_text(f"# lite\n생성일 {measured}\n", encoding="utf-8")
+    lite_ev = CellEvidence(mode="campaign", campaign_id="fixture", cell="cl", node="main", topology="single",
+                           repo=str(g), report_kind="lite", bench_report_path="docs/benchmark/bench_report_fx.md")
+    ta = lite_tool_args(g, lite_ev)
     fl = dict((ta or {}).get("flags") or [])
     ck("G3 lite 도구 원문 인자(리터럴만): --random-input-len 512 · --random-range-ratio 0 · --ignore-eos · 출처 도구@rev 줄 · MEASURED_UTC 줄",
        ta and fl.get("--random-input-len") == "512" and fl.get("--random-range-ratio") == "0" and "--ignore-eos" in fl
-       and fl.get("--max-concurrency") == "1" and ta["source"].startswith("lite_bench.sh@") and ta["measured_line"] == "L9")
+       and fl.get("--max-concurrency") == "1" and ta["source"].startswith("lite_bench.sh@") and ta["measured_line"] == "L10"
+       and "L4-L8" in ta["source"] and "9999" not in fl.values() and "4096" not in fl.values())
     ck("★G3 음성대조: `$변수` · 따옴표 인자(--backend · --model · --num-prompts · --num-warmups)는 싣지 않는다 · git 아니면 None",
-       not ({"--backend", "--model", "--num-prompts", "--num-warmups"} & set(fl)) and lite_tool_args(r, ev7) is None)
+       not ({"--backend", "--model", "--num-prompts", "--num-warmups"} & set(fl)) and lite_tool_args(td, lite_ev) is None)
+    sweep_rel = "output/single/benchlog/sweep_cl"
+    sdir = g / sweep_rel
+    sdir.mkdir(parents=True)
+    for leg, n in (("cold", 1), ("warm", 3)):
+        core.write_json(sdir / f"lite_{leg}_cl.json",
+                        {"backend": "openai-chat", "model_id": "fixture", "num_prompts": n, "completed": n,
+                         "total_input_tokens": 520 * n, "total_output_tokens": 128 * n,
+                         "max_concurrency": 1, "request_rate": "inf", "date": "20260102-025900"})
+    full_ev = dataclasses.replace(lite_ev, report_kind="full", certificate={"measured_utc": measured},
+                                  sweep={"dir": sweep_rel, "binding": "output", "generated_utc": measured,
+                                         "index": {"lite": {}}, "levels": [{"concurrency": 1}]})
+    def commands(ev):
+        return artifacts._bench_commands(artifacts._Ctx(repo=g, ev=ev, runner=None, sf=None, rd=None,
+                                                        rd_loader=None, topo="single", cell="cl", node="main"))
+    full_args = lite_tool_args(g, full_ev)
+    command, source = commands(full_ev)
+    ck("G3 full 내 lite: 실제 source resolver를 거쳐 512/128 복원 · 520은 측정 평균 주석으로만 보존",
+       full_args == ta and "--random-input-len 512" in command and "--random-output-len 128" in command
+       and "--random-input-len 520" not in command and "입력 1560/3 = 520" in command
+       and "--random-range-ratio 0" in command and "--ignore-eos" in command
+       and source == "reconstructed(bench json + 측정 도구 원문 lite 인자)")
+    # The sweep still calls lite, but its selected revision has no lite source. A current
+    # worktree copy cannot replace missing measurement-time bytes.
+    core.git(g, "rm", "--", f"{REL_BENCH_TOOLS_DIR}/lite_bench.sh")
+    later = {**genv, "GIT_AUTHOR_DATE": core.git_date("2026-01-01T00:00:01Z"),
+             "GIT_COMMITTER_DATE": core.git_date("2026-01-01T00:00:01Z")}
+    core.git(g, "-c", "core.hooksPath=/dev/null", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "missing", env_extra=later)
+    (tdir / "lite_bench.sh").write_text("vllm bench serve --random-input-len 2048\n", encoding="utf-8")
+    command_missing, source_missing = commands(full_ev)
+    ck("★G3 full 원문 부재: 작업트리로 대체하지 않고 None · 평균 인자에는 원문 미관측 경고",
+       lite_tool_args(g, full_ev) is None and lite_tool_args(g, lite_ev) is None
+       and "--random-input-len 520" in command_missing and "원문 인자 미관측" in command_missing
+       and "--random-input-len 2048" not in command_missing and source_missing == "reconstructed(bench json)")
 
 
 def selftest() -> list[str]:
