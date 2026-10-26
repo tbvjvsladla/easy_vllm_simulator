@@ -1,0 +1,25 @@
+{
+  "assembly_branch": "single-node",
+  "generated_utc": "2026-10-26T23:24:10Z",
+  "payload_files": [
+    "00-hint.md",
+    "01-artifacts.md",
+    "02-narrative.md",
+    "03-benchmark.md",
+    "LINEAGE.json",
+    "PAYLOAD.json",
+    "PROVENANCE.json",
+    "README.md",
+    "artifacts/build_recipe/Dockerfile.source-build",
+    "artifacts/build_recipe/requirements.txt",
+    "artifacts/compose/.env.template",
+    "artifacts/compose/docker-compose.yaml",
+    "artifacts/triplet/.env.minicpm5-2b-v031",
+    "artifacts/triplet/minicpm5-2b-v031.sh",
+    "artifacts/triplet/minicpm5-2b-v031.yaml"
+  ],
+  "schema_version": 2,
+  "source_anchor": "54870e20fa38c7a31bde4020e2634177f577eb27",
+  "source_anchor_is_head": false,
+  "tag": "hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610270824"
+}
