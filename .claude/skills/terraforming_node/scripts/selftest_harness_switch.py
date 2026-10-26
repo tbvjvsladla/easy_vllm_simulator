@@ -13,6 +13,7 @@ import io
 import json
 import multiprocessing
 from pathlib import Path
+import signal
 import subprocess
 import sys
 import tempfile
@@ -209,7 +210,171 @@ class HarnessSwitchChecks(unittest.TestCase):
         return SimpleNamespace(repo_root=str(self.root), context_id="switch", topology="multi",
                                manifest_path=str(self.manifest), emit_only=False, campaign_id=None,
                                control_variables=None, campaign_control=None, node=None,
-                               permission_profile="vllm-sub", sandbox_mode=None)
+                               permission_profile="vllm-sub", sandbox_mode=None,
+                               continue_=False, apply=False, resume=None)
+
+    def test_codex_failure_recovery_is_durable_and_never_replays_on_progress(self):
+        provider = agent_control._load_provider("codex_cli")
+        started = [{"type": "thread.started", "thread_id": "interrupted-native"},
+                   {"type": "turn.started"}]
+        completed_report = started + [
+            {"type": "error", "code": "permission_denied"},
+            {"type": "item.completed", "item": {"type": "agent_message", "text": json.dumps({
+                "status": "completed", "context_id": "switch", "phase": "inspect",
+                "running_services": [], "artifacts": []})}},
+            {"type": "turn.completed", "usage": {}}]
+        cases = [
+            ("adapter_signal", started, -15, {"cancelled": True, "cancellation_signal": signal.SIGTERM}),
+            ("adapter_signal_with124", started, 124, {"cancelled": True, "cancellation_signal": signal.SIGINT}),
+            ("completed_report_then_signal", completed_report, 124,
+             {"cancelled": True, "cancellation_signal": signal.SIGINT}),
+            ("completed_report_then_child_signal", completed_report, -15, {}),
+            ("child_signal", started, -2, {}),
+            ("shell130", started, 130, {}),
+            ("native_failure", started + [{"type": "turn.failed", "error": {"message": "opaque"}}], 1, {}),
+            ("process_failure", started, 1, {}),
+            ("unknown_start", [], 1, {}),
+            ("approval_required", started + [{"type": "turn.failed", "error": {"code": "approval_required"}}], 1, {}),
+            ("permission_denied", started + [{"type": "turn.failed", "error": {"code": "permission_denied"}}], 1, {}),
+        ]
+        real_run = subprocess.run
+        for name, events, rc, options in cases:
+            with self.subTest(name=name):
+                root = self.root / name
+                root.mkdir()
+                args = self.dispatch_args()
+                args.repo_root = str(root)
+                args.ladder = [self.codex, self.claude]
+                path = relay.ledger_path(str(root), "switch")
+                state = relay.load_ledger(path)
+                calls = []
+
+                def invoke(command, **kwargs):
+                    if command[1:3] != [relay.AGENT_CONTROL, "invoke"]:
+                        return real_run(command, **kwargs)
+                    request = json.loads(Path(command[command.index("--request") + 1]).read_text())
+                    calls.append(request)
+                    if len(calls) == 1:
+                        raw = "".join(json.dumps(e) + "\n" for e in events)
+                        result = provider.parse_output(request, raw, "isolated failure diagnostic", rc, **options)
+                    else:
+                        report = {"status": "completed", "context_id": "switch", "phase": "inspect",
+                                  "running_services": [], "artifacts": []}
+                        raw = "".join(json.dumps(e) + "\n" for e in started + [
+                            {"type": "item.completed", "item": {"type": "agent_message", "text": json.dumps(report)}},
+                            {"type": "turn.completed", "usage": {}}])
+                        result = provider.parse_output(request, raw, "", 0)
+                    agent_control.persist_outcome(command[command.index("--result-file") + 1],
+                        dispatch_id=command[command.index("--dispatch-id") + 1], request=request, result=result)
+                    return SimpleNamespace(stdout=json.dumps(result), stderr="", returncode=result["exit_code"])
+
+                with mock.patch.object(relay, "assert_sub_branch", return_value="multi"), \
+                     mock.patch.object(relay.subprocess, "run", side_effect=invoke), \
+                     contextlib.redirect_stdout(io.StringIO()):
+                    relay.run_attempt_once(args, state, path, "preserved task", self.wall, "new", self.codex)
+                    saved = relay.load_ledger(path)
+                    attempt = saved["attempts"][0]
+                    self.assertIn("recovery_required", attempt)
+                    self.assertEqual(attempt["raw_exit_code"], rc)
+                    self.assertIs(attempt["failure_evidence"]["rotate"], False)
+                    self.assertEqual(relay.supervise_decide(saved, doc_progress="observed context document")["action"], "popup")
+                    pending = relay.pending_for(str(root), "switch")
+                    self.assertEqual(len(relay.resume_blockers(pending)), 1)
+                    self.assertEqual(pending[0]["recovery_required"]["dispatch_id"], attempt["dispatch_id"])
+                    outcome = json.loads((root / attempt["outcome_path"]).read_text())
+                    self.assertEqual(outcome["result"]["failure_evidence"]["raw_stderr"], "isolated failure diagnostic")
+                    for key, value in attempt["failure_evidence"].items():
+                        self.assertEqual(outcome["result"]["failure_evidence"][key], value)
+                    control = json.loads((root / attempt["report_path"]).read_text())["control"]
+                    self.assertEqual(control["failure_evidence"], outcome["result"]["failure_evidence"])
+                    if name == "adapter_signal":
+                        self.assertEqual(attempt["failure_evidence"]["termination"]["adapter_received_signal"], signal.SIGTERM)
+                        self.assertNotIn("user_cancelled", json.dumps(attempt))
+                    if name == "shell130":
+                        self.assertEqual(attempt["failure_evidence"]["termination"], {
+                            "adapter_received_signal": None, "child_signal": 2, "child_signal_source": "shell_exit_status"})
+                    if name in ("adapter_signal_with124", "completed_report_then_signal", "completed_report_then_child_signal"):
+                        self.assertEqual(attempt["end_reason"], "process_interrupted")
+                        self.assertEqual(attempt["failure_evidence"]["signal"], "process_signal")
+                    if name.startswith("completed_report_then_"):
+                        self.assertEqual(attempt["status"], "completed")
+                        self.assertIn("PERMISSION_DENIED", attempt["reason_codes"])
+                    # All dispatch entries stop before building a request or touching a runner.
+                    with mock.patch.object(relay, "build_request", side_effect=AssertionError("duplicate execution")):
+                        self.assertRejected(relay.run_attempt, args, saved, path, "task", self.wall, "new",
+                                            message="unanswered blocking")
+                        self.assertEqual(relay._supervise_resume(args, path, saved, 90, "progress"), 3)
+                    self.assertEqual(len(calls), 1)
+                    # The ledger repairs a missing pending file after a producer crash.
+                    pending_path = Path(relay.relay_root(str(root))) / relay.PENDING_HITL
+                    pending_path.unlink()
+                    relay.ensure_recovery_pending(str(root), relay.load_ledger(path))
+                    self.assertEqual(len(relay.resume_blockers(relay.pending_for(str(root), "switch"))), 1)
+                    document = json.loads(pending_path.read_text())
+                    entry = document["pending"][0]
+                    entry["answer"] = "Human reviewed observed effects; explicitly resume this task."
+                    # A stale dispatch answer cannot authorize the current dispatch.
+                    entry["recovery_required"]["dispatch_id"] = "older-dispatch"
+                    relay._atomic_json(str(pending_path), document)
+                    relay.ensure_recovery_pending(str(root), saved)
+                    self.assertIsNone(relay.pending_for(str(root), "switch")[0]["answer"])
+                    document = json.loads(pending_path.read_text())
+                    document["pending"][0]["answer"] = "Human reviewed effects; explicitly resume."
+                    relay._atomic_json(str(pending_path), document)
+                    with mock.patch.object(relay, "build_request", side_effect=AssertionError("automatic replay after answer")):
+                        self.assertRejected(relay.run_attempt_once, args, saved, path, "task", self.wall,
+                                            "new", self.codex, message="explicit --continue")
+                    self.assertEqual(relay.supervise_decide(saved, doc_progress="still progressing")["action"], "popup")
+                    # The official manual path consumes one new dispatch, with all normal guards.
+                    command = [str(HERE / "relay.py"), "--repo-root", str(root), "--context-id", "switch",
+                               "--continue", "--apply", "--resume", "new", "--no-campaign",
+                               "--timeout-seconds", "90", "--budget-source", "explicit human recovery fixture"]
+                    with mock.patch.object(sys, "argv", command):
+                        self.assertEqual(relay.main(), 0)
+                    final = relay.load_ledger(path)
+                    self.assertEqual(len(calls), 2)
+                    self.assertEqual(len(final["attempts"]), 2)
+                    self.assertEqual(final["attempts"][0], attempt)
+                    self.assertNotEqual(final["attempts"][0]["dispatch_id"], final["attempts"][1]["dispatch_id"])
+                    self.assertEqual(final["attempts"][1]["max_dispatches"], 3)
+                    self.assertEqual(relay.pending_for(str(root), "switch"), [])
+
+    def test_codex_wall_timeout_and_successful_cli_without_report_keep_d9(self):
+        provider = agent_control._load_provider("codex_cli")
+        request = self.request("codex_cli", sandbox_mode="read-only")
+        start = [{"type": "thread.started", "thread_id": "native"}, {"type": "turn.started"}]
+        good = start + [{"type": "item.completed", "item": {"type": "agent_message", "text": "plain final prose"}},
+                        {"type": "turn.completed", "usage": {}}]
+        for name, events, rc, opts in [("deadline", start, 124, {}),
+                                      ("adapter_deadline", start, -15, {"timed_out": True}),
+                                      ("completed_cli_without_report", good, 0, {})]:
+            with self.subTest(name=name):
+                result = provider.parse_output(request, "".join(json.dumps(e) + "\n" for e in events), "", rc, **opts)
+                doc = {"context_id": "switch", "attempts": []}
+                att = relay.record_attempt(doc, context_id="switch", bud=self.wall, result=result, runner=self.codex)
+                self.assertIsNone(relay.codex_recovery_requirement(att))
+                self.assertEqual(relay.continuation_stop_reasons(doc), [])
+                self.assertEqual(relay.supervise_decide(doc)["action"], "popup")
+                self.assertEqual(relay.supervise_decide(doc, doc_progress="observed context document")["action"], "resume")
+        # A typed denial is not erased by a simultaneous deadline.
+        denied = start + [{"type": "error", "code": "approval_required"}]
+        result = provider.parse_output(request, "".join(json.dumps(e) + "\n" for e in denied), "", 124)
+        doc = {"attempts": []}
+        att = relay.record_attempt(doc, context_id="switch", bud=self.wall, result=result, runner=self.codex)
+        self.assertEqual(att["end_reason"], "permission_denied")
+        self.assertEqual(relay.supervise_decide(doc, doc_progress="observed progress")["action"], "popup")
+        # An unsignalled completed task with incidental denial retains the old contract.
+        completed = start + [{"type": "error", "code": "permission_denied"},
+                             {"type": "item.completed", "item": {"type": "agent_message", "text":
+                              '{"status":"completed","context_id":"switch"}'}},
+                             {"type": "turn.completed", "usage": {}}]
+        result = provider.parse_output(request, "".join(json.dumps(e) + "\n" for e in completed), "", 0)
+        doc = {"attempts": []}
+        att = relay.record_attempt(doc, context_id="switch", bud=self.wall, result=result, runner=self.codex,
+                                   report=relay.parse_report(result["output"]))
+        self.assertEqual(att["end_reason"], "completed_with_denials")
+        self.assertIsNone(relay.codex_recovery_requirement(att))
+        self.assertEqual(relay.supervise_decide(doc)["action"], "next_cell")
 
     def test_codex_dispatch_reserves_durably_before_execution_and_commits_observations(self):
         args = self.dispatch_args()
@@ -373,7 +538,9 @@ class HarnessSwitchChecks(unittest.TestCase):
                  "control_variables": {"model": "fixed-target"}, "topology": "multi", "manifest": str(self.manifest),
                  "max_dispatches": 3, "permission_selection": {"permission_profile": "vllm-sub"},
                  "attempts": [{"attempt": 1, "status": "working", "execution_started": True,
-                               "session_id": "native", "runner": self.codex}]}
+                               "session_id": "native", "runner": self.codex,
+                               "control_status": "timeout", "reason_codes": ["TIMEOUT"],
+                               "failure_evidence": {"signal": "wall_timeout", "rotate": False}}]}
         observed = []
         def record(a, *_args):
             observed.append(a)

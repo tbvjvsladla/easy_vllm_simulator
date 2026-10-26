@@ -171,7 +171,45 @@ def last_known_session(doc: dict) -> dict:
 END_REASONS = ("completed", "completed_with_denials", "sub_input_required", "sub_failed",
                "budget_exhausted", "external_interruption", "permission_denied", "malformed_output",
                "invalid_request", "model_blocked", "transport_or_launch_failure",
-               "runner_unavailable", "unclassified")
+               "runner_unavailable", "process_interrupted", "control_failure", "unclassified")
+
+
+def codex_recovery_requirement(att: dict) -> dict | None:
+    """An unresolved native failure needs a human answer and an explicit manual resume.
+
+    Derive this from persisted control observations too, so old ledgers or a crash
+    before pending-HITL publication cannot silently reopen automatic execution.
+    A successful CLI turn with an unparsable task report retains the existing D9
+    progress-based resume policy; an observed wall deadline retains it as well.
+    """
+    provider = att.get("provider") or (att.get("runner") or {}).get("provider")
+    if provider != "codex_cli":
+        return None
+    codes = att.get("reason_codes") or []
+    evidence = att.get("failure_evidence") or {}
+    if (evidence.get("signal") in ("process_signal", "execution_interrupted")
+          or (att.get("control_status") != "timeout" and
+              isinstance(att.get("raw_exit_code"), int) and
+              (att["raw_exit_code"] < 0 or att["raw_exit_code"] in (130, 137, 143)))):
+        kind = "process_interrupted"
+    elif "PERMISSION_DENIED" in codes:
+        if att.get("status") == "completed":  # existing completed-with-denials contract
+            return None
+        kind = "permission_denied"
+    elif (att.get("control_status") == "timeout" and "TIMEOUT" in codes
+          and evidence.get("signal") in (None, "wall_timeout")):
+        return None
+    elif att.get("control_status") == "completed":
+        return None
+    elif (RUNNER_UNAVAILABLE in codes and evidence.get("rotate") is True
+          and att.get("execution_started") is not True):
+        return None  # positively observed pre-execution missing runner
+    else:
+        kind = "control_failure"
+    return {"kind": kind, "provider": "codex_cli", "attempt": att.get("attempt"),
+            "dispatch_id": att.get("dispatch_id"),
+            "signal": evidence.get("signal") or "unclassified_control_failure",
+            "explicit_resume_required": True}
 
 
 def end_reason(att: dict) -> str:
@@ -184,6 +222,9 @@ def end_reason(att: dict) -> str:
     """
     codes = att.get("reason_codes") or []
     control, sub = att.get("control_status"), att.get("status")
+    recovery = codex_recovery_requirement(att)
+    if recovery and recovery["kind"] == "process_interrupted":
+        return "process_interrupted"
     if "PERMISSION_DENIED" in codes:
         # ★ 2026-10-01(plan_26100113 D2 · F7): 거부는 **사건**이고 완수 여부는 **리포트**가 말한다. 종전에는 거부 1건이
         #   과업 전체를 실패로 접었다 — 라이브에서 서브가 `/tmp` 쓰기 1건을 거부당한 뒤 서빙·lite·testlog·teardown 을
@@ -194,6 +235,8 @@ def end_reason(att: dict) -> str:
     #   그래서 라벨을 따로 둔다(같은 이름이면 감독이 같은 처방을 낸다).
     if RUNNER_UNAVAILABLE in codes:
         return "runner_unavailable"
+    if recovery:
+        return recovery["kind"]
     if att.get("budget_outcome") == "exhausted":
         return "budget_exhausted"
     if att.get("budget_outcome") == "external_interruption" or "TIMEOUT" in codes:
@@ -804,6 +847,13 @@ def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, repor
     report = report or {}
     resume_requested = None if resume_declared in (None, "new") else resume_declared
     session = result.get("session_id")
+    evidence = result.get("failure_evidence")
+    # Keep decisions self-contained without copying an entire native transcript
+    # into the frequently rewritten ledger. Full raw evidence stays in the unique
+    # durable outcome and report control, referenced by their persisted paths.
+    compact_evidence = ({key: evidence[key] for key in
+                         ("signal", "rotate", "returncode", "termination", "lock_acquired", "malformed_jsonl")
+                         if key in evidence} if isinstance(evidence, dict) else None)
     att = {
         "attempt": len(doc.get("attempts") or []) + 1,
         # 2026-09-05(G-A2): `task_grade` 대신 **선언된 예산과 그 근거**를 적는다. 등급 라벨은
@@ -816,6 +866,8 @@ def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, repor
         "execution_started": result.get("execution_started"),
         "raw_exit_code": result.get("raw_exit_code"),
         "usage": result.get("usage"),
+        "provider": result.get("provider") or (runner or {}).get("provider"),
+        "failure_evidence": compact_evidence,
         "session_binding": session_binding,
         "dispatch_id": dispatch_id,
         "budget_recommended": report.get("budget_recommendation"),
@@ -884,6 +936,9 @@ def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, repor
                                   else None),
     }
     att["end_reason"] = end_reason(att)
+    recovery = codex_recovery_requirement(att)
+    if recovery:
+        att["recovery_required"] = recovery
     doc["context_id"] = context_id
     doc.setdefault("attempts", []).append(att)
     return att
@@ -943,12 +998,30 @@ def _surface_requests_unlocked(repo_root: str, context_id: str, report: dict, *,
     if os.path.exists(path):
         with open(path, encoding="utf-8") as f:
             doc = json.load(f)
-    prior = {e.get("request_id"): e.get("answer") for e in doc.get("pending", [])
-             if e.get("context_id") == context_id}
+    previous = {e.get("request_id"): e for e in doc.get("pending", [])
+                if e.get("context_id") == context_id}
+    prior = {rid: e.get("answer") for rid, e in previous.items()}
     doc["pending"] = [e for e in doc.get("pending", []) if e.get("context_id") != context_id]
 
     entry = None
-    if crash and not hitl.get("needed"):
+    recovery = (crash or {}).get("recovery_required")
+    if recovery:
+        rid = "relay-recovery-a%02d" % attempt
+        old = previous.get(rid) or {}
+        # Never transfer an answer to a different dispatch, even if a damaged
+        # ledger reuses its attempt number or the sub repeats a question ID.
+        answer = old.get("answer") if old.get("recovery_required") == recovery else None
+        entry = {"context_id": context_id, "attempt": attempt, "request_id": rid,
+                 "source": "relay-control-recovery", "blocking": True,
+                 "recovery_required": recovery, "answer": answer,
+                 "prompt": (f"Codex execution remains unresolved ({recovery['kind']}; "
+                            f"signal={recovery['signal']}). Inspect the preserved outcome and effects. "
+                            "Record the human recovery decision in answer, then explicitly use "
+                            "--continue --apply --resume <session_id|new>. A signal does not identify "
+                            "who stopped the process, and this answer grants no additional tool permissions."
+                            + ("\nSub request: " + str(hitl.get("prompt")) if hitl.get("needed") else ""))}
+        doc["pending"].append(entry)
+    elif crash and not hitl.get("needed"):
         # 2026-09-05(3-3): 리포트가 없거나 제어가 실패한 턴. 서브가 요청을 남기지 못한 상태이므로
         #   **메인이 사실만** 표면화한다 — 재개 여부는 사람·에이전트가 `--resume` 로 선언한다.
         entry = {
@@ -997,6 +1070,57 @@ def pending_for(repo_root: str, context_id: str) -> list:
     with open(path, encoding="utf-8") as f:
         doc = json.load(f)
     return sort_pending([e for e in doc.get("pending", []) if e.get("context_id") == context_id])
+
+
+def dispatch_crash(att: dict, report: dict | None) -> dict | None:
+    recovery = codex_recovery_requirement(att)
+    if not recovery and report and (att.get("control_status") == "completed"
+                                   or att.get("end_reason") == "completed_with_denials"):
+        return None
+    return {"attempt": att["attempt"], "end_reason": att["end_reason"],
+            "control_status": att.get("control_status"), "reason_codes": att.get("reason_codes"),
+            "last_known_session": att.get("session_id"),
+            **({"recovery_required": recovery, "blocking": True} if recovery else {})}
+
+
+def ensure_recovery_pending(repo_root: str, doc: dict) -> list:
+    """Repair the ledger->pending publication gap without launching any work.
+
+    The ledger remains authoritative if the producer died after committing the
+    outcome but before publishing its blocking question. Deleting pending cannot
+    turn a persisted unresolved failure into permission to retry.
+    """
+    pending = pending_for(repo_root, doc.get("context_id"))
+    last = (doc.get("attempts") or [None])[-1]
+    recovery = codex_recovery_requirement(last) if last else None
+    if recovery and not any(e.get("recovery_required") == recovery and entry_blocking(e)
+                            for e in pending):
+        report = load_report(repo_root, last)
+        surface_requests(repo_root, doc["context_id"], report or {}, attempt=last["attempt"],
+                         crash=dispatch_crash(last, report))
+        pending = pending_for(repo_root, doc["context_id"])
+    return pending
+
+
+def require_dispatch_recovery(a, doc: dict, resume_declared) -> None:
+    """Both direct and supervised dispatch pass the same persisted recovery latch."""
+    pending = ensure_recovery_pending(a.repo_root, doc)
+    if resume_blockers(pending):
+        raise SystemExit("[relay] STOP: unanswered blocking HITL request; record the human answer before dispatch")
+    last = (doc.get("attempts") or [None])[-1]
+    recovery = codex_recovery_requirement(last) if last else None
+    manual = bool(getattr(a, "continue_", False) and getattr(a, "apply", False)
+                  and isinstance(getattr(a, "resume", None), str) and a.resume.strip()
+                  and resume_declared == a.resume.strip())
+    if recovery:
+        answered = any(e.get("recovery_required") == recovery and entry_blocking(e)
+                       and isinstance(e.get("answer"), str) and e["answer"].strip() for e in pending)
+        if not answered or not manual:
+            raise SystemExit("[relay] STOP: unresolved Codex failure requires its human recovery answer "
+                             "and explicit --continue --apply --resume <session_id|new>; automatic replay is forbidden")
+    reasons = continuation_stop_reasons(doc, allow_control_recovery=bool(recovery and manual))
+    if reasons:
+        raise SystemExit("[relay] STOP: " + "; ".join(reasons))
 
 
 def parse_report(output: str):
@@ -1108,16 +1232,20 @@ def _last_reached(doc: dict) -> dict | None:
     return next((x for x in reversed(doc.get("attempts") or []) if _reached_sub(x)), None)
 
 
-def continuation_stop_reasons(doc: dict) -> list[str]:
+def continuation_stop_reasons(doc: dict, *, allow_control_recovery: bool = False) -> list[str]:
     """Manual and supervised resumes respect the same identity/resource boundaries."""
     if doc.get("inflight"):
         return ["unresolved in-flight dispatch; reconcile before replay"]
+    latest = (doc.get("attempts") or [None])[-1]
+    reasons = []
+    if latest and codex_recovery_requirement(latest) and not allow_control_recovery:
+        reasons.append("unresolved Codex control outcome requires a human answer and explicit manual resume")
     last = _last_reached(doc)
     if last is None:
-        return []
-    reasons = echo_stop_reasons(last, context_id=doc.get("context_id"),
-                               campaign_id=doc.get("campaign_id"),
-                               control_variables=doc.get("control_variables"))
+        return reasons
+    reasons += echo_stop_reasons(last, context_id=doc.get("context_id"),
+                                campaign_id=doc.get("campaign_id"),
+                                control_variables=doc.get("control_variables"))
     if isinstance(last.get("running_services"), list) and last["running_services"]:
         reasons.append("previous attempt left running services; use explicit A2A cleanup or a declared new context")
     return reasons
@@ -1239,6 +1367,11 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
                 "reason": f"선언된 비용 상한 도달 — attempt {_billed}/{cost_cap_attempts}"
                           f"(회전 제외 · 전체 {len(atts)}). "
                           f"자동 재개는 여기서 멈춘다(사용자 결정 D9: 비용 상한은 팝업)"}
+    recovery = codex_recovery_requirement(atts[-1])
+    if recovery:
+        return {"action": "popup",
+                "reason": f"unresolved Codex outcome ({recovery['kind']}; {recovery['signal']}); "
+                          "human answer and explicit manual resume required; progress does not authorize replay"}
     # ★ 러너 판정은 `_last_reached` **앞**에 온다. 러너 실패는 정의상 서브에 닿지 않았으므로
     #   (`_reached_sub` 가 false) 뒤에 두면 "닿은 것이 없다" 분기가 먼저 삼켜 **회전이 도달
     #   불가**가 된다 — 자체검사가 이 순서를 첫 실행에서 잡았다(도달 불가 분기를 가드처럼 두지 마라).
@@ -1389,6 +1522,7 @@ def supervise_step(a) -> int:
         if not explicit_runner and ledger_runner_spec(doc):
             a.ladder = resolve_ladder(a.repo_root, ledger_runner_spec(doc))
         node = doc.get("campaign_node")
+        ensure_recovery_pending(a.repo_root, doc)
         brief = read_brief(a.repo_root, node)
         decision = supervise_decide(doc, brief=brief, cost_cap_attempts=a.cost_cap_attempts,
                                     ladder=getattr(a, "ladder", None),
@@ -2304,10 +2438,7 @@ def reconcile_inflight(a, doc: dict, lp: str) -> int:
         print("[relay] dry-run: pass --apply to append this observed outcome and consume its dispatch")
         return 0
     att, report = commit_dispatch_outcome(a, doc, lp, request, result, ended=_utcnow(), reconciled=True)
-    crash = (None if report and att["end_reason"] in ("completed", "completed_with_denials") else
-             {"attempt": att["attempt"], "end_reason": att["end_reason"],
-              "control_status": att["control_status"], "reason_codes": att["reason_codes"],
-              "last_known_session": att.get("session_id")})
+    crash = dispatch_crash(att, report)
     surface_requests(a.repo_root, doc["context_id"], report or {}, attempt=att["attempt"], crash=crash)
     print(f"[relay] reconciled attempt {att['attempt']}: {att['end_reason']}; dispatch counted, native observations retained")
     return 0
@@ -2332,6 +2463,7 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
             bud["max_dispatches"] = dispatch_cap
     if dispatch_cap is not None and attempt_no > dispatch_cap:
         raise SystemExit(f"[relay] STOP: outer dispatch cap {dispatch_cap} reached")
+    require_dispatch_recovery(a, doc, resume_declared)
     profile = getattr(a, "permission_profile", None)
     sandbox = getattr(a, "sandbox_mode", None)
     if provider == "codex_cli" and not (profile or sandbox):
@@ -2412,15 +2544,7 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
         raise SystemExit("[relay] STOP: stdout result differs from durable dispatch evidence")
     att, report = commit_dispatch_outcome(a, doc, lp, req, result,
                                           ended=ended, control_stderr=control_stderr)
-    _crash = None
-    if report is None or (att["control_status"] != "completed"
-                          and att["end_reason"] != "completed_with_denials"):
-        # 3-3: 파싱 실패·프로세스 크래시는 **fail-loud + 마지막 알려진 세션 제시**다. 재개 여부는
-        #   사람·에이전트가 정하므로, 그 판단에 필요한 세션 id 를 대기 목록에 남긴다.
-        _crash = {"attempt": att["attempt"], "end_reason": att["end_reason"],
-                  "control_status": att["control_status"],
-                  "reason_codes": att["reason_codes"],
-                  "last_known_session": att.get("session_id") or last_known_session(doc)["session_id"]}
+    _crash = dispatch_crash(att, report)
     hp = surface_requests(a.repo_root, a.context_id, report or {}, attempt=att["attempt"],
                           crash=_crash)
 
@@ -2689,6 +2813,7 @@ def _main() -> int:
         # 이어가기에 필요한 것은 전부 **원장**에서 온다 — 사람이 다시 적지 않는다.
         if not (doc.get("attempts") or []):
             raise SystemExit(f"[relay] STOP: 이어갈 원장이 없다 — {lp}. 첫 위임은 `--task` 로 연다.")
+        ensure_recovery_pending(a.repo_root, doc)
         a.topology = a.topology or doc.get("topology")
         if not (a.runners or a.backend or a.model or a.provider) and ledger_runner_spec(doc):
             a.ladder = resolve_ladder(a.repo_root, ledger_runner_spec(doc))   # 러너를 조용히 바꾸지 않는다
@@ -2703,7 +2828,7 @@ def _main() -> int:
         # ── 정지 조건. 예산·전진 수는 **보여주고**, 멈출지는 --apply(승인 정문)가 정한다.
         stalled = stalled_attempts(doc)
         last = next((x for x in reversed(doc["attempts"]) if _reached_sub(x)), None)
-        if last and last.get("status") == "completed":
+        if last and last.get("status") == "completed" and not codex_recovery_requirement(last):
             raise SystemExit("[relay] STOP: 직전 attempt 가 completed 다 — 이을 중단점이 없다.\n"
                              "  → 새 과업이면 새 --context-id 로 `--task` 를 연다.")
         if last:

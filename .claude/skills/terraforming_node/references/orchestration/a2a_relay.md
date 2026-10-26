@@ -60,8 +60,8 @@
 - **재개의 기본은 감독 스텝 자동 재발급이다**(`--supervise-step <camp> --apply` · 사용자 결정 D9). 수동 경로 `--continue --apply` 는 **예외 팝업 뒤 사람이 고른 경우에만** 쓴다. 5시간 한도
   프로바이더만 쓰는 환경에서 매 재개마다 사람을 기다리면 그 대기가 캠페인의 벽시계를 지배한다
   (2026-09-07 실측: HITL 응답 대기 70분이 순차 실행의 직접 원인 중 하나였다). 자동의 **예외**는
-  둘뿐이다 — 선언된 비용 상한에 닿았거나, 모델·통신 평면이 깨졌을 때. 그 둘은 팝업으로 간다.
-  전진이 없는 중단도 팝업이다(예산을 키우기 전에 묻는다).
+  선언된 비용 상한·모델/통신 평면 실패·미해결 승인/권한 거부다. Codex의 관측된 신호 종료·중단·불명 native/control 실패도
+  전진만으로 재개하지 않는다(아래 복구 계약). 전진이 없는 중단도 팝업이다(예산을 키우기 전에 묻는다).
 - **전진 신호는 넷이다**(2026-09-29 · `plan_26092919` P1): phase 변화 · 회수 브리핑 `last_utc` · 원장
   (리포트의 산출물·`next_steps` 변화) · **문서 평면**(회수 미러 문서가 그 context_id 를 담고 mtime 이 attempt
   창 안). 브리핑이 없는 서브(멀티 Ray 워커)와 리포트 없이 잘린 attempt 를 위해 뒤의 둘을 더했다. 질문의
@@ -89,6 +89,38 @@
   거부 블록은 원장 `permission_denials` 에 그대로 남는다. 리포트 부재·다른 status 는 종전대로 `permission_denied`
   (팝업)다. `parse_report` 는 잘린 JSON(거부 상세는 도구 입력을 240자에서 자른다)이 뒤의 리포트를 가리지 않게
   `{` 마다 디코딩을 시도한다 — 라이브에서 completed 리포트가 "JSON 없음" 으로 집계된 원인이었다.
+
+#### Codex 중단·실패 복구 — 답과 명시적 수동 재개
+
+`approval_policy="never"`와 닫힌 stdin으로 실행하는 서브는 추가 권한을 대화형으로 승인받지 않는다.
+이 설정은 허용 권한을 넓히는 승인이 아니다. 미완수 `approval_required`/권한 거부, 관측된 신호 종료,
+native/process 실패와 불명 control 실패는 원장 `recovery_required`와 `pending_hitl.json`의
+`relay-recovery-aNN`(`blocking:true`)에 같은 attempt·dispatch ID로 결속한다. 전진 흔적이나
+provider 변경은 그 잠금을 풀지 않는다. 기존 `completed_with_denials`의 완수 판정과 거부 기록은 유지한다.
+
+- provider는 실제로 받은 signal 번호, 자식의 음수 rc, rc130/137/143의 shell signal 관례를
+  `failure_evidence.termination`에 출처별로 보존한다. SIGTERM이나 ESC 화면 닫힘만으로
+  **사용자가 취소했다**고 단정하지 않는다. 관측된 중단은 `process_interrupted`, 불명 control 실패는
+  `control_failure`로 남기며 자동 회전·재개하지 않는다.
+  adapter가 직접 받은 신호는 동시에 관측된 rc124보다 우선한다. 반면 정상 deadline 정리 과정의 자식
+  SIGTERM은 wall timeout으로 남는다. 완수 리포트·거부가 함께 있어도 후속 adapter 신호가 있으면
+  `completed_with_denials`로 넘어가지 않고 복구 질문으로 남긴다.
+- 사람이 원장·고유 outcome·raw events와 이미 발생한 효과를 확인한다. `inflight`가 남았으면 먼저
+  기존 `--reconcile-inflight` 계약으로 그 dispatch의 결과만 회수한다. 불명 결과를 버리거나
+  예산/attempt를 초기화해 새 작업으로 대신하지 않는다.
+- 현재 dispatch에 결속된 질문의 `answer`에 사람의 복구 결정을 **비어 있지 않은 문자열**로 기록한 뒤,
+  `--continue --apply --resume <session_id|new>`와 예산 근거를 명시한다. 답만 기록하고 감독을 다시 부르면
+  여전히 팝업이다. 답은 도구 권한 확대를 허용하지 않으며, 같은 provider/target/권한 resume 결속,
+  요청 digest, 잔존 서비스·정체성 가드, 외부 dispatch cap은 그대로 적용된다.
+  완수 리포트 뒤 제어 프로세스가 신호로 끊긴 경우에도 이 명시적 복구 경로를 사용한다. 리포트의
+  completed를 지우지 않으며, 그것만으로 미해결 제어 상태를 완료 처리하거나 복구를 영구 금지하지 않는다.
+- producer가 원장 기록 후 질문 기록 전에 종료됐거나 pending 파일이 사라져도, 다음 continue/감독/dispatch
+  진입은 원장 관측에서 같은 blocking 질문을 복원한다. 다른 dispatch의 답은 승계하지 않는다.
+  복구한 실행도 새 dispatch 1회로 계상하며, 이전 실패와 raw 증거는 유지한다.
+
+관측된 정상 wall timeout(`TIMEOUT`, `wall_timeout`)은 사용자 취소로 취급하지 않는다. timeout에
+전진이 있거나 **CLI는 completed이고 task report만 파싱되지 않은** 경우의 기존 D9 재개는 유지한다.
+다만 같은 timeout에 구조화된 승인/권한 거부가 관측되면 그 거부를 지우지 않고 복구 질문으로 차단한다.
 
 - **조립기는 합성하지 않는다** — 직전 attempt 의 제어 상태(원장) · 서브가 보낸 `artifacts[]`·
   `next_steps`·`notes` · 사람이 `campaigns/<camp-id>/relay/pending_hitl.json` 에 적은 `answer` · 원 지시. 그 넷뿐이다.
