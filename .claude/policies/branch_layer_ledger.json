@@ -1580,6 +1580,240 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261027-codex-harness-common",
+      "utc": "2026-10-26T21:40:05Z",
+      "departure": "multi-node",
+      "departure_commit": "dfac5ad3ea0f4cba4736ff67e90abafe7e516623",
+      "approved_by": "사용자: 공통층의 하네스 중립화 및 싱글·멀티 브랜치와 서브 전파 지시",
+      "approved_utc": "2026-10-26T21:40:05Z",
+      "_approval_source": "현재 대화의 명시적 전파 지시를 기록; 시각은 기록 시각",
+      "_execution_note": "기존 사용자 worktree 3개를 보존한다. 공식 sync_branches/sync_to_sub의 승인·갈라짐·특화층 가드를 각 단계에서 적용하며 전체 closing wrapper의 추가 branch push는 수행하지 않는다.",
+      "classification": [
+        {
+          "file": ".agents/skills/adversarial-benchmark/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "Claude Code와 Codex가 공유하는 진입·권한·정본 참조와 로컬 상태 격리 계약이다. 양 토폴로지에 적용된다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".agents/skills/hint-publisher/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "Claude Code와 Codex가 공유하는 진입·권한·정본 참조와 로컬 상태 격리 계약이다. 양 토폴로지에 적용된다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".agents/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "Claude Code와 Codex가 공유하는 진입·권한·정본 참조와 로컬 상태 격리 계약이다. 양 토폴로지에 적용된다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".agents/skills/upstream-version-watch/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "Claude Code와 Codex가 공유하는 진입·권한·정본 참조와 로컬 상태 격리 계약이다. 양 토폴로지에 적용된다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".agents/skills/vllm-recipe-explorer/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "Claude Code와 Codex가 공유하는 진입·권한·정본 참조와 로컬 상태 격리 계약이다. 양 토폴로지에 적용된다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".agents/skills/wiki-desk/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "Claude Code와 Codex가 공유하는 진입·권한·정본 참조와 로컬 상태 격리 계약이다. 양 토폴로지에 적용된다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/base_skill_edges.json",
+          "verdict": "common_promote",
+          "reason": "전송/배포 폐포와 회귀 검증의 공통 계약이다. 토폴로지 특화층을 바꾸지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/root_registry.json",
+          "verdict": "common_promote",
+          "reason": "전송/배포 폐포와 회귀 검증의 공통 계약이다. 토폴로지 특화층을 바꾸지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/verify_distribution.py",
+          "verdict": "common_promote",
+          "reason": "전송/배포 폐포와 회귀 검증의 공통 계약이다. 토폴로지 특화층을 바꾸지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/schemas/agent-control-request.schema.json",
+          "verdict": "common_promote",
+          "reason": "전송/배포 폐포와 회귀 검증의 공통 계약이다. 토폴로지 특화층을 바꾸지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/schemas/agent-control-result.schema.json",
+          "verdict": "common_promote",
+          "reason": "전송/배포 폐포와 회귀 검증의 공통 계약이다. 토폴로지 특화층을 바꾸지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "이너 하네스 교체 절차와 canonical owner 참조를 설명하는 공통 스킬 문서다. 양 토폴로지에서 읽을 가치가 있다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/sub_agent_env.md",
+          "verdict": "common_promote",
+          "reason": "이너 하네스 교체 절차와 canonical owner 참조를 설명하는 공통 스킬 문서다. 양 토폴로지에서 읽을 가치가 있다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/orchestration/a2a_relay.md",
+          "verdict": "common_promote",
+          "reason": "이너 하네스 교체 절차와 canonical owner 참조를 설명하는 공통 스킬 문서다. 양 토폴로지에서 읽을 가치가 있다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/orchestration/agent-control-adapter.md",
+          "verdict": "common_promote",
+          "reason": "이너 하네스 교체 절차와 canonical owner 참조를 설명하는 공통 스킬 문서다. 양 토폴로지에서 읽을 가치가 있다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/agent_control.py",
+          "verdict": "common_promote",
+          "reason": "실행자 provider·예산·세션·오류·원장 복구 계약이다. 토폴로지 사실은 manifest에서 받고 양 브랜치에서 같은 계약을 쓴다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/bootstrap_canary.py",
+          "verdict": "common_promote",
+          "reason": "실행자 provider·예산·세션·오류·원장 복구 계약이다. 토폴로지 사실은 manifest에서 받고 양 브랜치에서 같은 계약을 쓴다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/providers/claude_code.py",
+          "verdict": "common_promote",
+          "reason": "실행자 provider·예산·세션·오류·원장 복구 계약이다. 토폴로지 사실은 manifest에서 받고 양 브랜치에서 같은 계약을 쓴다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/providers/codex_cli.py",
+          "verdict": "common_promote",
+          "reason": "실행자 provider·예산·세션·오류·원장 복구 계약이다. 토폴로지 사실은 manifest에서 받고 양 브랜치에서 같은 계약을 쓴다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/relay.py",
+          "verdict": "common_promote",
+          "reason": "실행자 provider·예산·세션·오류·원장 복구 계약이다. 토폴로지 사실은 manifest에서 받고 양 브랜치에서 같은 계약을 쓴다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "공유 렌더러와 역할 조건부 템플릿이다. 단일 역할 값을 양쪽에 복사하지 않고 manifest에서 각각 파생한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/selftest_harness_switch.py",
+          "verdict": "common_promote",
+          "reason": "전송/배포 폐포와 회귀 검증의 공통 계약이다. 토폴로지 특화층을 바꾸지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/turn_budget.py",
+          "verdict": "common_promote",
+          "reason": "실행자 provider·예산·세션·오류·원장 복구 계약이다. 토폴로지 사실은 manifest에서 받고 양 브랜치에서 같은 계약을 쓴다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/AGENTS.template.md",
+          "verdict": "common_promote",
+          "reason": "공유 렌더러와 역할 조건부 템플릿이다. 단일 역할 값을 양쪽에 복사하지 않고 manifest에서 각각 파생한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/CLAUDE.template.md",
+          "verdict": "common_promote",
+          "reason": "공유 렌더러와 역할 조건부 템플릿이다. 단일 역할 값을 양쪽에 복사하지 않고 manifest에서 각각 파생한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/codex.config.template.toml",
+          "verdict": "common_promote",
+          "reason": "공유 렌더러와 역할 조건부 템플릿이다. 단일 역할 값을 양쪽에 복사하지 않고 manifest에서 각각 파생한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/codex.sub.rules",
+          "verdict": "common_promote",
+          "reason": "공유 렌더러와 역할 조건부 템플릿이다. 단일 역할 값을 양쪽에 복사하지 않고 manifest에서 각각 파생한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/gitignore.template",
+          "verdict": "common_promote",
+          "reason": "공유 렌더러와 역할 조건부 템플릿이다. 단일 역할 값을 양쪽에 복사하지 않고 manifest에서 각각 파생한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/managed-settings.template.json",
+          "verdict": "common_promote",
+          "reason": "공유 렌더러와 역할 조건부 템플릿이다. 단일 역할 값을 양쪽에 복사하지 않고 manifest에서 각각 파생한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/settings.local.template.json",
+          "verdict": "common_promote",
+          "reason": "공유 렌더러와 역할 조건부 템플릿이다. 단일 역할 값을 양쪽에 복사하지 않고 manifest에서 각각 파생한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/task-report.schema.json",
+          "verdict": "common_promote",
+          "reason": "공유 렌더러와 역할 조건부 템플릿이다. 단일 역할 값을 양쪽에 복사하지 않고 manifest에서 각각 파생한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+          "verdict": "common_promote",
+          "reason": "공통층과 역할별 오버레이의 공식 전달 경로다. 특화층 제외 및 기존 승인·rollback 경계를 보존한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "verdict": "common_promote",
+          "reason": "공통층과 역할별 오버레이의 공식 전달 경로다. 특화층 제외 및 기존 승인·rollback 경계를 보존한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".codex/config.toml",
+          "verdict": "common_promote",
+          "reason": "Claude Code와 Codex가 공유하는 진입·권한·정본 참조와 로컬 상태 격리 계약이다. 양 토폴로지에 적용된다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".gitignore",
+          "verdict": "common_promote",
+          "reason": "Claude Code와 Codex가 공유하는 진입·권한·정본 참조와 로컬 상태 격리 계약이다. 양 토폴로지에 적용된다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "AGENTS.md",
+          "verdict": "common_promote",
+          "reason": "Claude Code와 Codex가 공유하는 진입·권한·정본 참조와 로컬 상태 격리 계약이다. 양 토폴로지에 적용된다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "CLAUDE.md",
+          "verdict": "common_promote",
+          "reason": "Claude Code와 Codex가 공유하는 진입·권한·정본 참조와 로컬 상태 격리 계약이다. 양 토폴로지에 적용된다.",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
