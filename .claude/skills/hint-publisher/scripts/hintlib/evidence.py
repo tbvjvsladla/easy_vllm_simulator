@@ -3349,7 +3349,8 @@ def _tool_selection(repo: Path, ev: CellEvidence) -> dict:
             continue
         out["tools"].append({"name": nm, "repo_path": f"{REL_BENCH_TOOLS_DIR}/{nm}", "role": "driver-candidate",
                              "why": (f"그 판본에서 sweep_bench.sh 를 부르는 스크립트 · 넘기는 --tool 상수 {consts or '없음'} 가 이 측정과 "
-                                     "어긋나지 않는다 — 호출 기록은 없다(드라이버였는지 미검증)")})
+                                     "어긋나지 않는다 — 이 선택기는 호출 기록을 조회하지 않는다(정적 소스 기반 후보이며 "
+                                     "실제 드라이버 여부는 이 선택기에서 미검증). 별도 호출 관측과 이 판본의 실제 실행 바이트 결속은 구분한다")})
         notes.append(f"{nm} 후보(미검증)")
         n_cand += 1
     # 주장의 범위를 적는다(2026-09-22 · S2 round 3 적대 검토): 탐색은 **그 판본의 벤치 도구 디렉터리 하나**다. 옛 문구("직접 호출" ·
