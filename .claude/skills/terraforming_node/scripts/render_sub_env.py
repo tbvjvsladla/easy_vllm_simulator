@@ -1153,7 +1153,9 @@ def _self_test() -> int:
         with open(os.path.join(REPO, ".claude", "policies", "runtime", _fn), encoding="utf-8") as _fh:
             _derived |= {".claude/schemas/" + m for m in re.findall(r'_load_schema\("([^"]+)"\)', _fh.read())}
     # 노드-로컬(배달 ✗ · 그 노드가 스스로 갖는다): PII 리터럴(사람이 둔다) · 증거·draft 평면(그 노드의 산출물).
-    _node_local = {".claude/pii_terms.txt", "docs/_evidence", "docs/logs"}
+    #   `sync_staging/sub_docs/logs` = 메인 fetch_sub_docs 의 회수 미러(f7c2dbe · 다른 노드 블랙박스 원장) — 메인 전용 데이터
+    #   평면이라 배달 ✗ · 부재면 엔진이 범위 None(없음으로 단언 ✗)으로 견딘다(evidence.py ★G8).
+    _node_local = {".claude/pii_terms.txt", "docs/_evidence", "docs/logs", "sync_staging/sub_docs/logs"}
     _single_rb = {rel for name in _contract.tool_plane("single", "a2a-agent")["value"] for rel in
                   [os.path.relpath(RUNTIME_BLOCK_PATHS[name], REPO)]}
     _ex = {f"{os.path.relpath(RUNTIME_BLOCK_PATHS[n], REPO)}/{x}"
