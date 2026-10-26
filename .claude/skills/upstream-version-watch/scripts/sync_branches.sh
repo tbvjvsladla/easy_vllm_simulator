@@ -46,6 +46,9 @@ DST_BRANCH="${DST_BRANCH:-}"
 #   주의: 토폴로지 분기 구현체·사용자 실값은 여기 넣지 않는다(브랜치별 독립).
 ALLOWLIST=(
     CLAUDE.md
+    AGENTS.md
+    .agents/skills
+    .codex
     .claude/rules
     .claude/skills
     .claude/schemas
@@ -106,6 +109,8 @@ ALLOWLIST=(
 # deletion; `git checkout <source> -- <dir>` updates existing paths but does not remove such stale
 # destination-only files.
 MIRROR_DIRS=(
+    .agents/skills
+    .codex
     .claude/rules
     .claude/skills
     .claude/schemas

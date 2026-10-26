@@ -1,0 +1,15 @@
+# Defense in depth for direct argv. Prefixes do not validate cwd, option-reordered git,
+# interpreter contents, Docker daemon actions, or remote processes. Existing task and acquisition
+# gates remain authoritative. No broad interpreter allow or exact-to-prefix approval migration.
+prefix_rule(pattern = ["git", "push"], decision = "forbidden", justification = "Sub workspace git is local only")
+prefix_rule(pattern = ["git", "pull"], decision = "forbidden", justification = "Sub workspace git is local only")
+prefix_rule(pattern = ["git", "fetch"], decision = "forbidden", justification = "Sub workspace git is local only")
+prefix_rule(pattern = ["git", "remote"], decision = "forbidden", justification = "Sub workspace git has no remote")
+prefix_rule(pattern = ["git", "lfs"], decision = "forbidden", justification = "Model acquisition uses the existing approval gate")
+# Claude's URL wildcards cannot be expressed as argv prefixes. HF repository URLs and git option
+# reordering are governed by the acquisition/task gates; do not publish ineffective literal '*' rules.
+prefix_rule(pattern = ["curl"], decision = "forbidden", justification = "Sub shell downloads are not automatically authorized")
+prefix_rule(pattern = ["wget"], decision = "forbidden", justification = "Sub shell downloads are not automatically authorized")
+prefix_rule(pattern = ["huggingface-cli"], decision = "forbidden", justification = "Model acquisition uses the existing approval gate")
+prefix_rule(pattern = ["hf"], decision = "forbidden", justification = "Model acquisition uses the existing approval gate")
+prefix_rule(pattern = ["rm"], decision = "forbidden", justification = "Preserve existing sub direct deletion restriction")

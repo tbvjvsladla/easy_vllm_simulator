@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://easy-vllm/sub_node/task-report.schema.json",
   "title": "Sub-node Task Report (A2A-concept)",
-  "description": "메인↔서브 A2A-개념 통신의 회신 산출물. 서브 빌드워커가 ssh claude -p 한 턴마다 이 스키마에 맞는 JSON 1개를 반환한다. 메인은 이 리포트를 검증하며 서브 워크스페이스를 재스캔하지 않는다(push-attestation). 정적계약(양 노드 동일) — terraforming_node 가 서브 .claude/schemas/ 로 복제.",
+  "description": "메인↔서브 A2A-개념 통신의 하네스 중립 회신 산출물. 서브 코드에이전트는 선택한 provider의 SSH 비대화 실행에서 외부 A2A 회신마다 이 스키마에 맞는 JSON 1개를 반환한다. 메인은 이 리포트를 검증하며 서브 워크스페이스를 재스캔하지 않는다(push-attestation). 정적계약(양 노드 동일) — terraforming_node 가 서브 .claude/schemas/ 로 복제.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -25,12 +25,12 @@
     },
     "context_id": {
       "type": "string",
-      "description": "A2A contextId. 멀티턴 피드백 루프를 묶는 스레드 id. tasks/<context_id>.json 으로 영속(파일=세션)."
+      "description": "A2A contextId. 외부 피드백 루프를 묶는 작업 id. campaigns/<camp-id>/relay/<context_id>.json 으로 영속하며 provider의 네이티브 세션 id와 구분한다(파일=세션)."
     },
     "turn": {
       "type": "integer",
       "minimum": 1,
-      "description": "이 contextId 안에서 몇 번째 턴인지. **소진(max_turns_allocated 도달)은 terminal 이며 budget_outcome=exhausted 로 보고한다** — 메인은 자동 재시도 대신 **더 큰 예산의 새 attempt** 를 연다(예산을 줄이면 하강나선이다). scope ⊥ budget: hang 은 timeout+진행로그로 따로 다룬다. 2026-09-03 이전 기술은 '기본 3 초과 시 failed→Model-C' 였고, 그 값이 캠페인 규모 태스크에서 정상 진행을 실패로 만들었다(plan_26090317 §5 가 grade 표로 대체했고, 그 표도 2026-09-05 폐기 — 예산은 선언이다)."
+      "description": "이 contextId 안에서 외부 A2A 리포트가 몇 번째인지 나타내는 1부터 시작하는 회신 순번이다. provider 내부의 native turn 수·max_turns_allocated·wall-time 예산과 별개이며 이 순번으로 예산 소진을 판정하지 않는다. Claude Code의 native-turn 한도와 Codex의 wall-time·outer dispatch 한도는 각 선언 단위와 실제 관측으로 판정한다. 예산 소진은 별도 budget_outcome=exhausted로 보고하며 terminal이다 — 메인은 더 큰 예산의 새 attempt를 연다. 하네스를 바꿔도 외부 context와 회신 순번은 보존하고 네이티브 세션은 새로 시작한다."
     },
     "phase": {
       "type": "string",
@@ -99,7 +99,7 @@
     },
     "messages": {
       "type": "array",
-      "description": "A2A Message history(선택). role=user(메인 지시/피드백) | agent(서브). 보통 tasks/<context_id>.json 에 누적, 리포트엔 이번 턴 요약만.",
+      "description": "A2A Message history(선택). role=user(메인 지시/피드백) | agent(서브). 보통 campaigns/<camp-id>/relay/<context_id>.json 에 누적, 리포트엔 이번 회신 요약만.",
       "items": {
         "type": "object",
         "additionalProperties": false,

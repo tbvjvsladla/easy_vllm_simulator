@@ -5,6 +5,9 @@
     "disableBypassPermissionsMode": "disable",
     "deny": [
       "Edit(/{{ WORKSPACE_PATH }}/.claude/**)",
+      "Edit(/{{ WORKSPACE_PATH }}/.agents/**)",
+      "Edit(/{{ WORKSPACE_PATH }}/.codex/**)",
+      "Edit(/{{ WORKSPACE_PATH }}/AGENTS.md)",
       "Edit(/{{ WORKSPACE_PATH }}/CLAUDE.md)",
       "Edit(/{{ WORKSPACE_PATH }}/Agent_Card.json)",
       "Edit(/{{ WORKSPACE_PATH }}/output/**/serve_runner.sh)",

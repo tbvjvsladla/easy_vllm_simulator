@@ -50,7 +50,8 @@ def schema_max_turns(path: str = REQUEST_SCHEMA) -> int:
     return schema_cap("max_turns", path)
 
 
-def declare(max_turns, timeout_seconds, *, source: str, caps: dict = None) -> dict:
+def declare(max_turns, timeout_seconds, *, source: str, caps: dict = None,
+            unit: str = "native_turns", max_dispatches: int | None = None) -> dict:
     """**선언된** 예산을 검증해 그대로 돌려준다. 값을 만들지 않는다 — 없으면 fail-loud.
 
     `source` 는 선택이 아니다: 결정론 규율(§출처 표시)은 값 옆에 그 값이 어디서 왔는지를
@@ -59,7 +60,17 @@ def declare(max_turns, timeout_seconds, *, source: str, caps: dict = None) -> di
     """
     caps = caps or {"max_turns": schema_cap("max_turns"),
                     "timeout_seconds": schema_cap("timeout_seconds")}
-    vals = {"max_turns": max_turns, "timeout_seconds": timeout_seconds}
+    if unit not in ("native_turns", "wall_time"):
+        raise SystemExit(f"[turn-budget] FAIL: unsupported budget unit {unit!r}")
+    if unit == "wall_time":
+        if max_turns is not None:
+            raise SystemExit("[turn-budget] FAIL: wall_time provider cannot enforce native max_turns")
+        if (not isinstance(max_dispatches, int) or isinstance(max_dispatches, bool)
+                or max_dispatches < 1):
+            raise SystemExit("[turn-budget] FAIL: wall_time requires an explicit positive max_dispatches")
+    vals = {"timeout_seconds": timeout_seconds}
+    if unit == "native_turns":
+        vals["max_turns"] = max_turns
     for k, v in vals.items():
         if v is None:
             raise SystemExit(
@@ -75,7 +86,10 @@ def declare(max_turns, timeout_seconds, *, source: str, caps: dict = None) -> di
                 "(scope ⊥ budget).")
     if not (isinstance(source, str) and source.strip()):
         raise SystemExit("[turn-budget] FAIL: 예산 출처(source)가 비어 있다 — 값 옆에 출처를 적는다.")
-    return {"max_turns": max_turns, "timeout_seconds": timeout_seconds, "source": source.strip()}
+    result = {"max_turns": max_turns, "timeout_seconds": timeout_seconds, "source": source.strip()}
+    if unit == "wall_time":
+        result.update(budget_unit=unit, max_dispatches=max_dispatches)
+    return result
 
 
 def _self_test() -> int:

@@ -20,7 +20,8 @@
 # CLAUDE.md — 서브노드 자율 실행기 (싱글노드 A2A 원격 에이전트)
 <!-- /MODE:a2a-agent -->
 
-너는 **서브노드(`{{ SUB_HOSTNAME }}`, `{{ SUB_HOST }}`)** 의 Claude Code 다. 범용 어시스턴트가 아니라
+너는 **서브노드(`{{ SUB_HOSTNAME }}`, `{{ SUB_HOST }}`)** 의 코드 에이전트다(명시된 Claude Code·Codex 이너 하네스).
+범용 어시스턴트가 아니라
 **메인 오케스트레이터(A2A client)의 Task 를 자율 수행하고, 자기검증한 JSON 리포트 1개만 반환하는
 빌드워커 겸 런타임 자율 실행기**다. 통신 계약은 `.claude/rules/comms.md`(정독), 리포트 형식은
 `.claude/schemas/task-report.schema.json`, 능력 공시는 `Agent_Card.json`.
@@ -29,9 +30,9 @@
 - **네 sub_mode = `{{ SUB_MODE }}`**(출처 `{{ SUB_MODE_SOURCE }}`). 이 값이 아래 모든 것을 가른다 —
   네 정체성은 브랜치가 아니라 **토폴로지 계약**이 정한다(브랜치로 추론하지 마라).
 - 작업공간 `{{ WORKSPACE_PATH }}` (현 토폴로지 `{{ TOPOLOGY }}`) · **로컬 git 레포**(`single`·`multi` 브랜치 · **origin 영구 없음**) · NAS `{{ NAS_MOUNT }}`(read-only).
-- 메인 호출: `ssh {{ SSH_USER }}@{{ SUB_HOST }} claude -p '<Task>' --output-format json` (비대화).
+- 메인 호출: 프로비저닝된 SSH 대상에서 선택한 provider 어댑터로 비대화 실행한다. CLI·네이티브 세션·출력은 그 어댑터의 계약이다.
 - ⚠ **너는 headless 다 — 백그라운드 작업의 완료 알림이 너에게 오지 않는다.** 대화형 세션이라면
-  "백그라운드 태스크가 끝나면 알려줄 것이다" 가 참이지만, `claude -p` 세션에서 그것을 기다리며 턴을
+  "백그라운드 태스크가 끝나면 알려줄 것이다" 가 참이지만, 비대화 세션에서 그것을 기다리며 턴을
   끝내면 **아무 일도 일어나지 않은 채 세션이 종료**된다(2026-09-03 실측: 서브가 health 폴링을
   백그라운드로 띄우고 "알림을 기다리겠다" 며 39턴에서 종료 — 그 사이 컨테이너는 사살돼 있었다).
   긴 작업은 **네가 직접 폴링**하고(`sleep` 을 넉넉히 두고 상태를 다시 확인), 예산이 모자라면
@@ -72,13 +73,14 @@
 - 한 Task = 하나 `context_id`. 진행상태는 `campaigns/<camp-id>/relay/<context_id>.json` 에 산다(**파일=세션**).
   활성 캠페인을 모르면 예약 id `_bootstrap` 을 쓴다 — **루트에 쓰지 않는다**(옛 `tasks/` 는 2026-09-06 폐기).
   이전 턴·피드백을 읽고, 네 턴을 덧쓴다.
-- **턴 예산은 메인이 매 attempt 선언한다 — 등급표는 폐기됐다(2026-09-05).** 메인이 위임 헤더로 `context_id`·`attempt`·`max_turns_allocated`·**예산 근거**를 준다. 네 판단으로 더/덜 필요하면 리포트 `budget_recommendation` 에 수치로 제안하라. 예산이 모자라 보이면 **소진하지 말고** `input-required` 로 끊고 남은 일을 리포트에 적어라 — 메인이 더 큰 예산의 새 attempt 로 이어받는다(절차 정본 `.claude/rules/comms.md` §상태=파일).
+- **예산은 메인이 매 attempt 선언한다 — 등급표는 폐기됐다(2026-09-05).** 메인이 위임 헤더로 `context_id`·`attempt`·**예산 단위·값·근거**를 준다. Claude Code의 native-turn 한도와 Codex의 wall-time 한도를 혼동하지 마라. Codex에는 native `max-turns`가 없으며 `max_turns_allocated=null`은 0턴도 무제한 승인도 아니다. 네 판단으로 더/덜 필요하면 단위를 보존해 리포트 `budget_recommendation`으로 제안하라. 예산이 모자라 보이면 **소진하지 말고** `input-required`로 끊고 남은 일을 적어라 — 메인이 더 큰 예산의 새 attempt로 이어받는다(절차 정본 `.claude/rules/comms.md` §상태=파일).
 - **리포트의 `context_id` 에는 위임 헤더의 값을 그대로 적어라.** 네 편의대로 다른 이름을 쓰면 메인은 두 원장이 같은 작업인지 확인하지 못하고 재개를 거부한다.
 
 <!-- MODE:a2a-agent -->
 ## 외부지식 — 너도 직접 검색한다 (2026-09-04 개정)
 
-**너에게는 웹 검색 도구(`WebSearch`·`WebFetch`)가 열려 있다.** 근거가 부족하면 추측하지 말고 찾아라 —
+**너에게는 선택한 하네스의 웹 검색 도구가 열려 있다**(Claude Code의 `WebSearch`·`WebFetch`, Codex의 실제 제공 검색 도구).
+도구가 실제 노출됐는지는 카나리로 확인하며, 부재를 셸 다운로드로 우회하지 않는다. 근거가 부족하면 추측하지 말고 찾아라 —
 이것은 메인의 벤치·레시피 스킬이 쓰는 것과 같은 권한이며, 셸 네트워크(`curl`/`wget`)는 여전히 막혀 있다
 (다른 평면이다). 이 노드의 실측 egress 상태: **`{{ EGRESS_STATE }}`** — `online` 이 아니면 검색이
 실패할 수 있다. 그때는 **빈손을 빈손이라고 보고하라**(실패를 성공처럼 넘기지 마라). `unknown` 은
@@ -124,7 +126,7 @@
 
 ## 절대 규칙 (B3 Surgical — 건드릴 것만)
 - **컨테이너 정본 불가침**: `Dockerfile`·`requirements.txt`·`docker-compose.yaml`·`serve_runner.sh` 는 메인이 rsync 로 주는 정본. **수정 금지.** 너는 모델별 `configs/`·`envs/` 만 자작.
-- **빌딩블럭 비편집**: `.claude/`·`CLAUDE.md`·`Agent_Card.json` 은 메인 소유. 네 **런타임블럭**(실행 대상 · 편집 아님)은 `{{ TOOL_PLANE_JSON }}` 이며, 이 목록은 `tool_plane({{ TOPOLOGY }}, {{ SUB_MODE }})` 이 정한다(출처 `{{ TOOL_PLANE_SOURCE }}`). **빈 목록이면 이 노드에는 런타임블럭이 없다.** 런타임블럭 밖에 의도적으로 싣는 **지원 배달분** `{{ SUPPORT_DELIVERY_JSON }}` 도 온다 — 캠페인 phase·런타임 스크립트가 부르는 도구와 참조이며, 스킬로 실행할 대상도 잔재도 아니다. **이 두 목록 밖**에 `.claude/skills/` 아래 보이는 것만 옛 배달의 잔재이고 실행 대상이 아니다(메인 전용 오케스트레이션을 서브에서 돌리면 배달 방향이 뒤집힌다).
+- **빌딩블럭 비편집**: `.claude/`·`.agents/`·`.codex/`·`CLAUDE.md`·`AGENTS.md`·`Agent_Card.json`은 메인 소유다. single recipe의 `feedback/`은 엔진이 쓰는 비추적 런타임 상태이며 canonical 코드 편집 권한이 아니다. 네 **런타임블럭**(실행 대상 · 편집 아님)은 `{{ TOOL_PLANE_JSON }}` 이며, 이 목록은 `tool_plane({{ TOPOLOGY }}, {{ SUB_MODE }})` 이 정한다(출처 `{{ TOOL_PLANE_SOURCE }}`). **빈 목록이면 이 노드에는 런타임블럭이 없다.** 런타임블럭 밖에 의도적으로 싣는 **지원 배달분** `{{ SUPPORT_DELIVERY_JSON }}` 도 온다 — 캠페인 phase·런타임 스크립트가 부르는 도구와 참조이며, 스킬로 실행할 대상도 잔재도 아니다. **이 두 목록 밖**에 `.claude/skills/` 아래 보이는 것만 옛 배달의 잔재이고 실행 대상이 아니다(메인 전용 오케스트레이션을 서브에서 돌리면 배달 방향이 뒤집힌다).
 - **모델 다운로드 금지**: NAS(`{{ NAS_MOUNT }}`, read-only) 부재 → 중단·보고. 절대 받지 않는다.
 - **로컬 git 허용 · 원격 금지**: 작업공간은 로컬 레포 — `git add/commit/checkout/switch/branch/status/diff/log/stash` **허용**(브랜치전환·`[improve]` 자기개선 추적·clean-tree 핸드셰이크용). 단 **`git push`·`git pull`·`git fetch`·`git remote` 금지**(origin 영구 없음). **외부 저장소 `git clone` 허용**(코드·레시피·패치 참조 · 작업공간 git 에 원격을 붙이지 않는다 · 빌드·서빙 입력으로 쓰면 커밋 SHA 로 고정해 보고) — 단 **가중치 저장소 clone(`huggingface.co`·`hf.co`)·`git lfs` 금지**(모델 획득은 사람 게이트 · policy:SUB_GIT_LOCAL_ONLY C4). `[sync]` 커밋은 **메인 스크립트가 저작**(네가 아님) — 너는 `[improve]` 만 저작.
 - **백업 금지 · git 이 단일 권위**: 고치기 전에 `.bak`/`.orig` 사본을 두거나 `backup` 브랜치·폴더를 만들지 마라 — 되돌리기는 `git diff` · `git checkout -- <path>` 다. 추적물의 해시를 다른 파일에 다시 적지도 마라(같은 사실이 두 자리에 갈라진다). **너의 refs = `single`·`multi` 브랜치 + 메인이 배달한 것**뿐이며 그 밖의 브랜치·태그를 새로 만들지 않는다. **집행은 메인이다** — 배달 표면에 `.claude/policies/` 의 registry·술어가 없어(hint 발행 의존으로 오는 `completion_gate.py`·`evidence_publisher.py` 는 발행 게이트를 돌릴 뿐 이 규약을 검사하지 않는다) 이 규약을 기계로 검사하는 주체는 메인이고, 너는 지키고 리포트로 보고한다.

@@ -2,12 +2,11 @@
 """terraforming_node-owned provider-neutral agent-control orchestrator (Phase 6, plan_26072506).
 
 Ownership (plan_26093022 Q3): moved from `.claude/policies/runtime/` -- the base layer never runs this in an
-operational path; its callers are this skill's relay/canary scripts.  The Claude-CLI
-syntax isolation boundary is unchanged: `providers/claude_code.py` stays the ONLY emitter of claude argv.
+operational path; its callers are this skill's relay/canary scripts. Each provider owns its
+CLI syntax: the orchestrator validates and routes without emitting invocation grammar.
 
 Reads a request JSON conforming to `.claude/schemas/agent-control-request.schema.json`, dispatches
-it to the sibling `providers/` adapter namespace (Phase 6 scope: `claude_code` only
--- see the sibling `providers/claude_code.py`), and prints a stable
+it to the sibling `providers/` adapter namespace (v1 Claude Code; v2 Codex CLI), and prints a stable
 (`json.dumps(..., sort_keys=True, indent=2)`) result JSON conforming to
 `.claude/schemas/agent-control-result.schema.json` to stdout, exiting with `result["exit_code"]`.
 
@@ -32,8 +31,10 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import shlex
 import sys
+import tempfile
 from pathlib import Path
 
 SCHEMA_VERSION_DEFAULT = 1
@@ -44,7 +45,7 @@ RESULT_SCHEMA_PATH = REPO_ROOT / ".claude" / "schemas" / "agent-control-result.s
 PROVIDERS_DIR = RUNTIME_DIR / "providers"
 
 KNOWN_INTENTS = ("delegate", "probe", "bootstrap_canary")
-KNOWN_PROVIDERS = ("claude_code",)
+KNOWN_PROVIDERS = ("claude_code", "codex_cli")
 
 EXIT_INVALID_REQUEST = 2
 
@@ -152,13 +153,41 @@ def _request_contract_violations(request: dict) -> list[str]:
     #   위임이 나간다. 서브 위임은 계정이 곧 권한 평면이므로 여기서 fail-closed 한다.
     if transport == "ssh" and (not isinstance(target.get("ssh_user"), str) or not target["ssh_user"]):
         out.append("$.target.ssh_user: required for ssh (계정 미지정 위임은 권한 평면을 바꾼다)")
+    if request.get("schema_version") == 2:
+        if not isinstance(target.get("work_dir"), str) or not Path(target["work_dir"]).is_absolute():
+            out.append("$.target.work_dir: v2 requires an absolute workspace path")
+        resume = request.get("resume_session_id")
+        binding = request.get("resume_binding")
+        selection = {k: request[k] for k in ("sandbox_mode", "permission_profile") if k in request}
+        expected = {"provider": request["provider"], "target": target, **selection}
+        if resume is not None:
+            if not resume.strip() or binding != expected:
+                out.append("$.resume_binding: native resume requires the exact provider, target and permission selection")
+        elif binding is not None:
+            out.append("$.resume_binding: forbidden without resume_session_id")
+        profile = request.get("permission_profile")
+        if profile and profile != f"vllm-{role}":
+            out.append("$.permission_profile: must match the target role")
+        if role == "sub" and request.get("sandbox_mode") == "workspace-write":
+            out.append("$.sandbox_mode: sub writes require the named vllm-sub profile; a legacy override discards role protection")
     return out
 
 
 def request_schema_violations(request) -> list[str]:
-    """Public transport gate: structural violations of `request` against the request schema.
+    """Public transport gate: structural and cross-field request-contract violations.
     Callers (e.g. bootstrap_canary) use this instead of reaching into the private validator."""
-    return _schema_violations(request, _load_schema(REQUEST_SCHEMA_PATH))
+    violations = _schema_violations(request, _load_schema(REQUEST_SCHEMA_PATH))
+    if not violations:
+        violations.extend(_request_contract_violations(request))
+    return violations
+
+
+def _versioned_result(result: dict) -> dict:
+    """Keep v1 envelopes unchanged; v2 always carries explicit observation slots."""
+    if result["schema_version"] == 2:
+        result.update(raw_exit_code=None, execution_started=None, usage=None,
+                      failure_evidence=None, raw_events=[])
+    return result
 
 
 def _invalid_request_result(request) -> dict:
@@ -175,10 +204,8 @@ def _invalid_request_result(request) -> dict:
     model_requested = request.get("model") if isinstance(request, dict) else None
     if not isinstance(model_requested, str):
         model_requested = ""
-    schema_version = request.get("schema_version") if isinstance(request, dict) else None
-    if schema_version != SCHEMA_VERSION_DEFAULT or isinstance(schema_version, bool):
-        schema_version = SCHEMA_VERSION_DEFAULT
-    return {
+    schema_version = 2 if provider == "codex_cli" else SCHEMA_VERSION_DEFAULT
+    return _versioned_result({
         "schema_version": schema_version,
         "provider": provider,
         "intent": intent,
@@ -198,12 +225,12 @@ def _invalid_request_result(request) -> dict:
         # null 이 곧 사실이다(0 을 적으면 "0ms 만에 끝났다" 는 거짓이 된다).
         "duration_ms": None,
         "duration_api_ms": None,
-    }
+    })
 
 
 def _invalid_provider_result(request: dict) -> dict:
-    return {
-        "schema_version": SCHEMA_VERSION_DEFAULT,
+    return _versioned_result({
+        "schema_version": request["schema_version"],
         "provider": request["provider"],
         "intent": request["intent"],
         "status": "malformed_output",
@@ -219,7 +246,7 @@ def _invalid_provider_result(request: dict) -> dict:
         "budget_outcome": None,
         "duration_ms": None,
         "duration_api_ms": None,
-    }
+    })
 
 
 def _emit(result: dict) -> None:
@@ -227,7 +254,19 @@ def _emit(result: dict) -> None:
     sys.exit(result["exit_code"])
 
 
+def _result_contract_violations(result: dict, request: dict) -> list[str]:
+    """A valid envelope from another provider/invocation is still the wrong result."""
+    return [f"$.{key}: provider result does not match the dispatched request"
+            for key, expected in (("schema_version", request["schema_version"]),
+                                  ("provider", request["provider"]),
+                                  ("intent", request["intent"]),
+                                  ("model_requested", request["model"]))
+            if result.get(key) != expected]
+
+
 def cmd_invoke(args: argparse.Namespace) -> None:
+    if bool(getattr(args, "result_file", None)) != bool(getattr(args, "dispatch_id", None)):
+        raise SystemExit("--result-file and --dispatch-id must be supplied together")
     request_path = Path(args.request)
     try:
         request = json.loads(request_path.read_text(encoding="utf-8"))
@@ -235,10 +274,7 @@ def cmd_invoke(args: argparse.Namespace) -> None:
         _emit(_invalid_request_result(None))
         return
 
-    request_schema = _load_schema(REQUEST_SCHEMA_PATH)
-    violations = _schema_violations(request, request_schema)
-    if not violations:
-        violations.extend(_request_contract_violations(request))
+    violations = request_schema_violations(request)
     if violations:
         # 2026-09-03(F4): 위반 목록을 계산해 놓고 버렸다 — 사용자는 무엇이 틀렸는지 알 수 없었다.
         #   stdout 은 안정 JSON 계약이므로 stderr 로 낸다.
@@ -252,9 +288,38 @@ def cmd_invoke(args: argparse.Namespace) -> None:
 
     result_schema = _load_schema(RESULT_SCHEMA_PATH)
     result_violations = _schema_violations(result, result_schema)
+    if not result_violations:
+        result_violations.extend(_result_contract_violations(result, request))
     if result_violations:
         result = _invalid_provider_result(request)
+    if getattr(args, "result_file", None):
+        persist_outcome(args.result_file, dispatch_id=args.dispatch_id, request=request, result=result)
     _emit(result)
+
+
+def persist_outcome(path: str, *, dispatch_id: str, request: dict, result: dict) -> None:
+    """Publish a unique, fully flushed outcome before stdout for lost-pipe recovery."""
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile("w", dir=destination.parent, prefix=".agent-outcome-",
+                                         delete=False, encoding="utf-8") as stream:
+            temporary = stream.name
+            json.dump({"schema_version": 1, "dispatch_id": dispatch_id,
+                       "request": request, "result": result}, stream, ensure_ascii=False, sort_keys=True)
+            stream.write("\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.link(temporary, destination)  # never overwrite another generation's evidence
+        directory = os.open(destination.parent, os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        if temporary:
+            os.unlink(temporary)
 
 
 def cmd_runners(args: argparse.Namespace) -> None:
@@ -263,11 +328,20 @@ def cmd_runners(args: argparse.Namespace) -> None:
     이 파일은 provider 어휘를 알지 못한다 — 어댑터가 소유한 표를 그대로 옮길 뿐이다(라우팅).
     호출자(relay)가 별칭을 스스로 펴면 같은 표가 두 자리에 앉고, 갈라진 쪽이 조용히 늦는다.
     """
-    provider_module = _load_provider(args.provider)
-    aliases = getattr(provider_module, "RUNNER_ALIASES", {})
-    out = {"provider": args.provider,
-           "runners": [{"name": name, "backend": pair[0], "model": pair[1]}
-                       for name, pair in aliases.items()]}
+    names = KNOWN_PROVIDERS if args.provider == "all" else (args.provider,)
+    runners, supports = [], {}
+    seen = set()
+    for provider_name in names:
+        provider_module = _load_provider(provider_name)
+        supports[provider_name] = getattr(provider_module, "SUPPORTS", {})
+        for name, pair in getattr(provider_module, "RUNNER_ALIASES", {}).items():
+            if name in seen:
+                raise SystemExit(f"duplicate runner alias: {name}")
+            seen.add(name)
+            runners.append({"name": name, "provider": provider_name,
+                            "backend": pair[0], "model": pair[1]})
+    out = {"provider": args.provider, "supports": supports if args.provider == "all"
+           else supports[args.provider], "runners": runners}
     print(json.dumps(out, ensure_ascii=False, sort_keys=True, indent=2))
     sys.exit(0)
 
@@ -593,6 +667,195 @@ def _test_runner_ladder_classification() -> None:
              f"백엔드 어휘가 갈라졌다: schema={sorted(_enum)} "
              f"binary={sorted(provider.BACKEND_TO_BINARY)} model={sorted(provider.BACKEND_DEFAULT_MODEL)}")
 
+    for unknown in (418, 499, 999, "429", True, {}, []):
+        evidence = cls(dict(_401, api_error_status=unknown), 1, "ssh")
+        _require(evidence and evidence["rotate"] is False,
+                 f"unknown/wrong-typed HTTP status opened rotation: {unknown!r}")
+    absent = dict(_401)
+    absent.pop("api_error_status")
+    _require(cls(absent, 1, "ssh")["rotate"] is False,
+             "missing HTTP status was confused with an observed connection-failure null")
+    for filename, transport, rotates in (("/missing/workspace", "local", False),
+                                          ("claude", "local", True), ("ssh", "ssh", False)):
+        def missing(*args, **kwargs):
+            raise FileNotFoundError(2, "fixture missing path", filename)
+        provider.subprocess.run = missing
+        try:
+            value = provider.invoke(_request(transport))
+        finally:
+            provider.subprocess.run = _real_run
+        _require(("RUNNER_UNAVAILABLE" in value["reason_codes"]) == rotates,
+                 f"launch path {filename!r} was assigned to the wrong failure plane: {value}")
+
+
+def _test_codex_provider() -> None:
+    import copy
+    import tempfile
+    import time
+
+    provider = _load_provider("codex_cli")
+    request = _request()
+    request.update(schema_version=2, provider="codex_cli", model="gpt-6.1-sol",
+                   max_turns=None, budget_unit="wall_time", max_dispatches=2,
+                   sandbox_mode="read-only")
+    _require(not request_schema_violations(request), "valid v2 wall-time request rejected")
+    for key, value in (("max_turns", 1), ("max_dispatches", 0), ("budget_unit", "native_turns")):
+        bad = dict(request, **{key: value})
+        _require(request_schema_violations(bad), f"unsupported v2 budget accepted: {key}={value!r}")
+    for version, name in ((1, "codex_cli"), (2, "claude_code")):
+        bad = dict(request, schema_version=version, provider=name)
+        _require(request_schema_violations(bad), "provider/version mismatch accepted")
+    bad = dict(request, provider="unknown")
+    _require(not _schema_violations(_invalid_request_result(bad), _load_schema(RESULT_SCHEMA_PATH)),
+             "unknown-provider failure envelope invalid")
+    _require(not _schema_violations(_invalid_request_result(request), _load_schema(RESULT_SCHEMA_PATH)),
+             "v2 invalid-request failure envelope invalid")
+    _require(not _schema_violations(_invalid_provider_result(request), _load_schema(RESULT_SCHEMA_PATH)),
+             "v2 invalid-provider failure envelope invalid")
+
+    resume = dict(request, resume_session_id="thread-1")
+    _require(request_schema_violations(resume), "unbound native resume accepted")
+    binding = {"provider": "codex_cli", "target": dict(request["target"]), "sandbox_mode": "read-only"}
+    resume["resume_binding"] = binding
+    _require(not request_schema_violations(resume), "bound native resume rejected")
+    for change in ({"provider": "claude_code"}, {"sandbox_mode": "workspace-write"},
+                   {"target": dict(request["target"], work_dir="/other/workspace")}):
+        bad = copy.deepcopy(resume)
+        bad["resume_binding"].update(change)
+        _require(request_schema_violations(bad), f"mismatched native resume accepted: {change}")
+    named = dict(request)
+    named.pop("sandbox_mode")
+    named["permission_profile"] = "vllm-main"
+    _require(not request_schema_violations(named), "named-profile v2 request rejected")
+    _require(request_schema_violations(dict(named, sandbox_mode="workspace-write")),
+             "simultaneous named profile and legacy sandbox accepted")
+    _require(request_schema_violations(dict(named, permission_profile="vllm-sub")),
+             "named profile for wrong node role accepted")
+    sub = dict(request, target={"role": "sub", "transport": "ssh", "host": "192.0.2.10",
+                               "ssh_user": "probe", "work_dir": "/tmp/sub"})
+    _require(request_schema_violations(dict(sub, sandbox_mode="workspace-write")),
+             "legacy workspace-write override bypassed sub role protection")
+    _require(not request_schema_violations(sub), "read-only sub canary rejected")
+    _require(request_schema_violations(dict(request, target=dict(request["target"], work_dir="relative"))),
+             "relative workspace was accepted despite workspace lock identity ambiguity")
+    missing_workspace = copy.deepcopy(request)
+    missing_workspace["target"].pop("work_dir")
+    _require(request_schema_violations(missing_workspace), "missing v2 workspace crashed or passed the gate")
+    named_argv = provider.build_argv(named)
+    _require('--sandbox' not in named_argv and 'default_permissions="vllm-main"' in named_argv,
+             f"named profile was overridden by legacy sandbox: {named_argv}")
+    resume_argv = provider.build_argv(resume)
+    _require("resume" in resume_argv and '--last' not in resume_argv
+             and 'sandbox_mode="read-only"' in resume_argv,
+             "resume must retain explicit sandbox and native ID")
+    hostile = dict(request, task="--dangerously-bypass-approvals-and-sandbox; $(touch /tmp/must-not-exist)")
+    hostile["target"] = {"role": "sub", "transport": "ssh", "ssh_user": "probe",
+                         "host": "192.0.2.10", "work_dir": "/tmp/work space'$(false)"}
+    argv = provider.build_argv(hostile)
+    script = shlex.split(argv[-1])[2]
+    # Exact safe quoted prompt is an operand, not executable shell grammar.
+    _require(shlex.quote(hostile["task"]) in script and shlex.quote(hostile["target"]["work_dir"]) in script,
+             "SSH prompt/workspace shell quoting changed")
+    _require("BatchMode=yes" in argv and "--kill-after=3s" in script and "exec timeout" in script,
+             "SSH must have noninteractive identity and remote bounded termination")
+    _require(provider._inner_argv(hostile)[-2:] == ["--", hostile["task"]],
+             "hostile prompt was not terminated as a positional operand")
+
+    def stream(*events):
+        return "".join(json.dumps(e) + "\n" for e in events)
+    started = [{"type": "thread.started", "thread_id": "thread-1"}, {"type": "turn.started"}]
+    message = {"type": "item.completed", "item": {"type": "agent_message", "text": "final report"}}
+    done = {"type": "turn.completed", "usage": {"input_tokens": 12, "output_tokens": 4}}
+    good = stream(*started, message, done)
+    result_schema = _load_schema(RESULT_SCHEMA_PATH)
+    def parsed(raw, rc=0, **kwargs):
+        value = provider.parse_output(request, raw, "fixture diagnostic", rc, **kwargs)
+        _require(not _schema_violations(value, result_schema),
+                 f"Codex result schema violation: {_schema_violations(value, result_schema)}")
+        return value
+    success = parsed(good)
+    _require(_result_contract_violations(dict(success, provider="claude_code"), request),
+             "result from another provider was accepted as the dispatched provider")
+    _require(success["status"] == "completed" and success["session_id"] == "thread-1"
+             and success["usage"] == done["usage"] and success["num_turns"] is None
+             and success["model_used"] == [] and success["duration_ms"] is None,
+             f"successful native observations were synthesized or lost: {success}")
+    for raw in (good + '{"type":', stream(*started, message),
+                stream(*started, {"type": "item.completed", "item": {"type": "agent_message", "text": "  "}}, done),
+                stream(*started, {"type": "item.completed", "item": {"type": "command_execution", "aggregated_output": "not a final response"}}, done)):
+        result = parsed(raw)
+        _require(result["status"] == "malformed_output" and result["session_id"] == "thread-1",
+                 "truncated/malformed/empty/non-agent output was accepted or lost its session")
+    for rc in (0, 1):
+        failed = parsed(stream(*started, {"type": "turn.failed", "error": {"message": "quota"}}), rc)
+        _require(failed["status"] == "execution_failed" and failed["execution_started"] is True
+                 and failed["failure_evidence"]["rotate"] is False,
+                 "native failure or late effects permitted automatic replay")
+    denied = parsed(stream(*started, {"type": "turn.failed", "error": {"code": "permission_denied"}}))
+    _require(denied["reason_codes"] == ["PERMISSION_DENIED"] and not denied["failure_evidence"]["rotate"],
+             "permission denial was a rotation signal")
+    reported_denial = parsed(stream(*started, {"type": "error", "code": "permission_denied"}, message, done))
+    _require("final report" in reported_denial["output"],
+             "permission event discarded the final native task report needed by outer completion gates")
+    timed = parsed(stream(*started), -15, timed_out=True)
+    _require(timed["status"] == "timeout" and timed["session_id"] == "thread-1"
+             and timed["budget_outcome"] == "external_interruption", "timeout lost partial observations")
+    unknown = parsed("", 1)
+    _require(unknown["execution_started"] is None and not unknown["failure_evidence"]["rotate"],
+             "unobserved execution was treated as safely replayable")
+    # End-to-end process lifetime check, no Codex/model/network. The child ignores TERM;
+    # the adapter must kill the entire original process group after its grace period.
+    real_inner, real_grace = provider._inner_argv, provider.KILL_GRACE_SECONDS
+    try:
+        with tempfile.TemporaryDirectory(prefix="codex-provider-selftest-") as temp:
+            script_path = Path(temp) / "fixture.py"
+            pid_path = Path(temp) / "child.pid"
+            script_path.write_text(
+                "import subprocess,sys,time,json\n"
+                "child=subprocess.Popen([sys.executable,'-c','import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); time.sleep(60)'])\n"
+                "open(sys.argv[1],'w').write(str(child.pid))\n"
+                "print(json.dumps({'type':'thread.started','thread_id':'timeout-thread'}),flush=True)\n"
+                "print(json.dumps({'type':'turn.started'}),flush=True)\n"
+                "time.sleep(60)\n", encoding="utf-8")
+            provider._inner_argv = lambda _request: [sys.executable, str(script_path), str(pid_path)]
+            provider.KILL_GRACE_SECONDS = 0.15
+            limited = dict(request, timeout_seconds=1, target={"role": "main", "transport": "local", "work_dir": temp})
+            before = time.monotonic()
+            value = provider.invoke(limited)
+            _require(time.monotonic() - before < 5 and value["status"] == "timeout"
+                     and value["session_id"] == "timeout-thread", "deadline did not cleanly terminate fixture")
+            child_pid = int(pid_path.read_text())
+            stat = Path(f"/proc/{child_pid}/stat")
+            # A just-killed child can be a zombie until reaped by its adopted parent.
+            _require(not stat.exists() or stat.read_text().split(")", 1)[1].split()[0] == "Z",
+                     "timeout left a live TERM-ignoring descendant")
+            # A separate producer gets a busy result without entering the child.
+            entered = Path(temp) / "entered"
+            script_path.write_text(
+                "import sys,time\n"
+                "with open(sys.argv[1],'a') as f: f.write('entered\\n')\n"
+                "time.sleep(60)\n", encoding="utf-8")
+            provider._inner_argv = lambda _request: [sys.executable, str(script_path), str(entered)]
+            locking = dict(limited, timeout_seconds=5)
+            first = provider.subprocess.Popen(provider.build_argv(locking), cwd=temp,
+                        stdout=provider.subprocess.PIPE, stderr=provider.subprocess.PIPE,
+                        start_new_session=True)
+            try:
+                deadline = time.monotonic() + 2
+                while not entered.exists() and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                _require(entered.exists(), "first worker did not acquire the lock")
+                busy = provider.invoke(locking)
+                _require(busy["failure_evidence"]["signal"] == "worker_busy"
+                         and busy["execution_started"] is False
+                         and busy["failure_evidence"]["rotate"] is False
+                         and entered.read_text() == "entered\n",
+                         "workspace lock allowed a duplicate execution or rotated on contention")
+            finally:
+                provider._stop_process(first)
+    finally:
+        provider._inner_argv, provider.KILL_GRACE_SECONDS = real_inner, real_grace
+
 
 
 def _self_test() -> int:
@@ -602,9 +865,9 @@ def _self_test() -> int:
              "the public transport gate must accept a well-formed ssh request")
     _require(request_schema_violations({}), "the public transport gate must reject an empty request")
     for test in (_test_provider_turn_exhaustion_reachable, _test_agent_provider_boundary,
-                 _test_runner_ladder_classification):
+                 _test_runner_ladder_classification, _test_codex_provider):
         test()
-    print("[agent_control] self-test PASS (boundary · turn exhaustion · runner ladder · public gate)")
+    print("[agent_control] self-test PASS (boundary · turn exhaustion · runner ladder · public gate · Codex v2 · worker exclusion)")
     return 0
 
 
@@ -620,9 +883,11 @@ def main() -> None:
     sub = parser.add_subparsers(dest="cmd")
     invoke_parser = sub.add_parser("invoke", help="invoke a provider against a request JSON file")
     invoke_parser.add_argument("--request", required=True, help="path to an agent-control-request JSON file")
+    invoke_parser.add_argument("--result-file", help="optional unique durable dispatch-outcome file")
+    invoke_parser.add_argument("--dispatch-id", help="required with --result-file; binds recovery to one dispatch")
     invoke_parser.set_defaults(func=cmd_invoke)
     runners_parser = sub.add_parser("runners", help="provider 어댑터가 아는 러너 별칭 표를 출력한다")
-    runners_parser.add_argument("--provider", default=KNOWN_PROVIDERS[0], choices=list(KNOWN_PROVIDERS))
+    runners_parser.add_argument("--provider", default=KNOWN_PROVIDERS[0], choices=[*KNOWN_PROVIDERS, "all"])
     runners_parser.set_defaults(func=cmd_runners)
     args = parser.parse_args()
     if args.self_test:

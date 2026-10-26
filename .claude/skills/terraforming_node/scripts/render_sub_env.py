@@ -516,7 +516,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     def _render_file(tmpl_name: str, dest_rel: str, kind: str):
         with open(os.path.join(SUBNODE_DIR, tmpl_name), encoding="utf-8") as f:
             raw = f.read()
-        if kind == "md":
+        if kind in ("md", "toml"):
             raw = strip_template_header(raw)        # 템플릿 메타 머리말 제거(렌더 산출물 정결)
             raw = apply_mode_blocks(raw, ph.get("SUB_MODE", ""))   # S2: 정체성 분기(불변식 A)
         txt = render_text(raw, ph)
@@ -530,6 +530,9 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 for k in [k for k in obj if k.startswith("_")]:
                     obj.pop(k)
             txt = json.dumps(obj, ensure_ascii=False, indent=2) + "\n"
+        if kind == "toml":
+            import tomllib
+            tomllib.loads(txt)                     # fail before delivery on invalid profile syntax
         dest = os.path.join(out_dir, dest_rel)
         os.makedirs(os.path.dirname(dest), exist_ok=True)
         with open(dest, "w", encoding="utf-8") as f:
@@ -540,8 +543,14 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     # 1) Render capability metadata and local policy. Agent Card remains an unsigned
     # discovery document, not a runtime identity credential.
     _render_file("CLAUDE.template.md", "CLAUDE.md", "md")
+    _render_file("AGENTS.template.md", "AGENTS.md", "md")
     card_path = _render_file("Agent_Card.template.json", "Agent_Card.json", "json")
     _render_file("settings.local.template.json", ".claude/settings.local.json", "json")
+    _render_file("codex.config.template.toml", ".codex/config.toml", "toml")
+    codex_rules = os.path.join(out_dir, ".codex", "rules", "sub.rules")
+    os.makedirs(os.path.dirname(codex_rules), exist_ok=True)
+    shutil.copyfile(os.path.join(SUBNODE_DIR, "codex.sub.rules"), codex_rules)
+    produced.append(".codex/rules/sub.rules")
 
     # 1.5) Preserve structural validation without signing, trust stores, or runtime verifier.
     with open(card_path, encoding="utf-8") as f:
@@ -600,7 +609,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     # 3) 런타임블럭 복제(git-tracked 만) — **무엇을 줄지는 계약이 정한다**(P2 토폴로지 게이팅).
     if copy_runtime_block:
         wanted = ph.get("TOOL_PLANE") or ""
-        names = [x for x in wanted.split(",") if x.strip()]
+        names = [x.strip() for x in wanted.split(",") if x.strip()]
         for name in names:
             rb = RUNTIME_BLOCK_PATHS.get(name)
             if rb is None:
@@ -611,6 +620,30 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
             ex = RUNTIME_BLOCK_EXCLUDES.get(name)
             produced.append(f".claude/skills/{name}/ ({n} tracked files"
                             + (f" · 메인전용 {len(ex)}건 제외)" if ex else ")"))
+            # Discoverability follows the exact same tool_plane as canonical skill delivery.
+            # The main terraforming wrapper never accompanies campaign support scripts.
+            wrapper_src = os.path.join(REPO, ".agents", "skills", name)
+            wrapper_dst = os.path.join(out_dir, ".agents", "skills", name)
+            _copy_tracked(wrapper_src, wrapper_dst, tracked_list=tracked_list)
+            wrapper_path = os.path.join(wrapper_dst, "SKILL.md")
+            canonical_path = os.path.join(dst_skill, "SKILL.md")
+            if not os.path.isfile(wrapper_path) or not os.path.isfile(canonical_path):
+                raise SystemExit(f"[render] FAIL: skill discovery closure missing for {name}")
+            expected_link = f"../../../.claude/skills/{name}/SKILL.md"
+            with open(wrapper_path, encoding="utf-8") as f:
+                wrapper_text = f.read()
+            if expected_link not in wrapper_text:
+                raise SystemExit(f"[render] FAIL: wrapper does not link to canonical skill: {name}")
+            produced.append(f".agents/skills/{name}/SKILL.md")
+            if name == "vllm-recipe-explorer":
+                # The policy grants this generated subtree only. Materialize it before sandbox
+                # startup so fresh nodes need not create a mount below read-only canonical code.
+                feedback_rel = ".claude/skills/vllm-recipe-explorer/feedback/.gitkeep"
+                feedback_marker = os.path.join(out_dir, feedback_rel)
+                os.makedirs(os.path.dirname(feedback_marker), exist_ok=True)
+                with open(feedback_marker, "w", encoding="utf-8") as f:
+                    f.write("Node-local generated recipe feedback; ignored by git.\n")
+                produced.append(feedback_rel)
         # 3.5) hint 엔진 의존 + 장착 판정 도구 — 엔진이 가는 서브에만(2026-10-11 · plan_26101104 Step 3).
         #   색인·카탈로그·역할 마커(HINT_NEVER_DELIVER)는 여기서 만들지 않는다 — 아래 단언이 그것을 확인한다.
         if "hint-publisher" in names:
@@ -946,7 +979,8 @@ def _self_test() -> int:
     out = os.path.join(tmp, "sub_provision")
     try:
         res = render_tree(ph, out, copy_runtime_block=False)  # 런타임블럭 복제는 git 의존 → self-test 제외
-        base_expect = ["CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json",
+        base_expect = ["CLAUDE.md", "AGENTS.md", "Agent_Card.json", ".claude/settings.local.json",
+                       ".codex/config.toml", ".codex/rules/sub.rules",
                        ".claude/rules/comms.md", ".claude/schemas/task-report.schema.json",
                        "campaigns/README.md",
                        ".gitignore",   # ← references.md 는 tool_plane 종속(아래 c4b) · docs.md 는 2026-09-29 제외
@@ -987,7 +1021,7 @@ def _self_test() -> int:
             missing_art.append("docs/{%s}/example.md" % ",".join(sorted(set(DOC_TYPES) - rendered_doc_types)))
         # 렌더 산출물에 미치환 placeholder 0
         leftover = []
-        for p in ("CLAUDE.md", "Agent_Card.json", ".claude/settings.local.json"):
+        for p in ("CLAUDE.md", "AGENTS.md", "Agent_Card.json", ".claude/settings.local.json", ".codex/config.toml"):
             with open(os.path.join(out, p), encoding="utf-8") as f:
                 leftover += _unrendered(f.read())
         # JSON 유효
@@ -1078,11 +1112,25 @@ def _self_test() -> int:
         _no_marker = not any(x.startswith("MODE:") for x in _al + _dn)
         # 모드 무관 항목은 양쪽 모두에 그대로 남아야 한다(필터가 과잉 삭제하지 않았는가).
         _common = ("Bash(git push:*)" in _dn and f"Edit({_ph['WORKSPACE_PATH']}/.claude/**)" in _dn)
+        _common &= all(f"Edit({_ph['WORKSPACE_PATH']}/{p})" in _dn
+                       for p in ("AGENTS.md", ".agents/**", ".codex/**"))
+        import tomllib
+        with open(os.path.join(_out, ".codex/config.toml"), "rb") as f:
+            _codex = tomllib.load(f)
+        _cp = _codex["permissions"]["vllm-sub"]
+        _fs = _cp["filesystem"][":workspace_roots"]
+        _identity_ro = all(_fs.get(p) == "read" for p in
+                           ("AGENTS.md", "CLAUDE.md", "Agent_Card.json", ".claude", ".agents", ".codex"))
+        _kit_ro = _fs.get(f"output/{_topo}/Dockerfile") == "read"
+        _codex_ok = (_codex.get("default_permissions") == "vllm-sub"
+                     and "sandbox_mode" not in _codex and _cp.get("extends") == ":workspace"
+                     and _identity_ro and _fs.get(".git") == "write" and _kit_ro != _want_allow
+                     and (_fs.get(".claude/skills/vllm-recipe-explorer/feedback") == "write") == _want_allow)
         _c = ((_in_allow == _want_allow) and (_in_deny != _want_allow) and _no_marker and _common
-              and _no_write_rule)
+              and _no_write_rule and _codex_ok)
         print(f"  [{'PASS' if _c else 'FAIL'}] 권한 평면 {_topo}({_label}): "
               f"allow={_in_allow} deny={_in_deny} 마커제거={_no_marker} 공통보존={_common} "
-              f"Write(path)부재={_no_write_rule}")
+              f"Write(path)부재={_no_write_rule} Codex역할권한={_codex_ok}")
         ok &= _c
     # 음성대조: 미지 MODE 접두는 조용히 지우지 않고 fail-loud 한다.
     try:
@@ -1108,6 +1156,15 @@ def _self_test() -> int:
         _ref = os.path.exists(os.path.join(_out, ".claude/skills/wiki-desk/reference/references.md"))
         # references.md 는 wiki-desk 런타임블럭에 실린다(2026-10-19) — 사서가 가는 서브에는 늘 있다.
         _ref_ok = _ref == ("wiki-desk" in _want)
+        _wrappers = {os.path.basename(os.path.dirname(p)) for p in
+                     glob.glob(os.path.join(_out, ".agents", "skills", "*", "SKILL.md"))}
+        _wrapper_ok = _wrappers == _want
+        for _name in _wrappers:
+            _wp = os.path.join(_out, ".agents", "skills", _name, "SKILL.md")
+            with open(_wp, encoding="utf-8") as f:
+                _wt = f.read()
+            _link = f"../../../.claude/skills/{_name}/SKILL.md"
+            _wrapper_ok &= _link in _wt and os.path.isfile(os.path.join(os.path.dirname(_wp), _link))
         # ★ 2026-09-08: `terraforming_node` 는 **스킬 전체가 아니라 캠페인 도구 2개**만 간다
         #   (2026-09-29: + 계약 리더 1 — SUB_CONTRACT_READERS).
         #   싱글(A2A) 서브만 받으며(불변식 A — 멀티의 sub 는 Ray 워커라 캠페인 저작 주체가 아니다),
@@ -1131,11 +1188,11 @@ def _self_test() -> int:
         _sup_ok = _sup == _real
         # 색인·카탈로그·역할 마커는 어느 토폴로지에도 가지 않는다(엔진이 가는 single 에서도).
         _never = [r for r in HINT_NEVER_DELIVER if os.path.exists(os.path.join(_out, r))]
-        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok
+        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok and _wrapper_ok
               and not _res and _sup_ok and not _never)
         print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} "
               f"refs={_ref} 캠페인도구={_tn_files} 해소자산누수={_res} 지원배달목록일치={_sup_ok} "
-              f"금지경로누수={_never or '없음'}")
+              f"금지경로누수={_never or '없음'} Codex발견폐포={_wrapper_ok}")
         ok &= _c
 
     # (4d) hint 엔진 의존 폐포 tripwire (2026-10-11 · plan_26101104 Step 3).
@@ -1212,7 +1269,7 @@ def _self_test() -> int:
     _digest = {}
     for _tag, _root in (("a", _o1), ("b", _o2)):
         _h = hashlib.sha256()
-        for _f in sorted(glob.glob(os.path.join(_root, "**"), recursive=True)):
+        for _f in sorted(os.path.join(_dp, _name) for _dp, _, _files in os.walk(_root) for _name in _files):
             if os.path.isfile(_f):
                 _h.update(os.path.relpath(_f, _root).encode())
                 with open(_f, "rb") as _fh:

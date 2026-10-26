@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://easy-vllm-simulator.local/schemas/agent-control-request.schema.json",
   "title": "agent-control-request",
-  "description": "Phase 6 (plan_26072506) provider-neutral INPUT contract for .claude/skills/terraforming_node/scripts/agent_control.py. Vocabulary mirrors .claude/skills/terraforming_node/references/orchestration/agent-control-adapter.md section 1. provider is the ONLY place the literal token 'claude' may appear, as an enum VALUE (never as a field name). model is intentionally NOT constrained here: 2026-09-05 (G-A1) the adapter's Sonnet-only enforcement was deleted as model overfitting. model is the caller's DECLARATION and the model that actually ran is recorded in the result's model_used.",
+  "description": "Phase 6 (plan_26072506) provider-neutral INPUT contract for .claude/skills/terraforming_node/scripts/agent_control.py. Vocabulary mirrors .claude/skills/terraforming_node/references/orchestration/agent-control-adapter.md section 1. provider is the ONLY place the literal token 'claude' may appear, as an enum VALUE (never as a field name). model is intentionally NOT constrained here: 2026-09-05 (G-A1) the adapter's Sonnet-only enforcement was deleted as model overfitting. model is the caller's DECLARATION and the model that actually ran is recorded in the result's model_used. v2 codex_cli uses an explicit wall-time budget, outer dispatch ceiling, and exactly one permission selection.",
   "type": "object",
   "required": [
     "schema_version",
@@ -19,13 +19,17 @@
   "properties": {
     "schema_version": {
       "type": "integer",
-      "const": 1
+      "enum": [
+        1,
+        2
+      ]
     },
     "provider": {
-      "description": "Provider-neutral orchestrator identifier. Phase 6 scope is Claude Code only.",
+      "description": "Inner harness identity. v1 is Claude Code; v2 is Codex CLI.",
       "type": "string",
       "enum": [
-        "claude_code"
+        "claude_code",
+        "codex_cli"
       ]
     },
     "intent": {
@@ -87,12 +91,16 @@
       "maximum": 3600
     },
     "max_turns": {
-      "type": "integer",
+      "type": [
+        "integer",
+        "null"
+      ],
       "minimum": 1,
-      "maximum": 100
+      "maximum": 100,
+      "description": "Claude native turn ceiling in v1. Explicit null in v2: Codex has no equivalent native ceiling."
     },
     "capabilities": {
-      "description": "Provider-neutral least-privilege capabilities mapped only inside the selected provider adapter. `search` 는 하네스 웹 도구 평면(WebSearch/WebFetch)이며 셸 egress(curl/wget)와 다른 평면이다 — 서브 권한 템플릿의 셸 네트워크 deny 는 유지된다(2026-09-04 · plan_26090412 §6.1 B안).",
+      "description": "Provider-neutral least-privilege capabilities mapped only inside the selected provider adapter. `search` 는 하네스 웹 도구 평면(WebSearch/WebFetch)이며 셸 egress(curl/wget)와 다른 평면이다 — 서브 권한 템플릿의 셸 네트워크 deny 는 유지된다(2026-09-04 · plan_26090412 §6.1 B안). Codex v2 records operation intent; it does not claim a native per-tool allowlist. Sandbox/profile and policy remain the enforcement boundary.",
       "type": "array",
       "minItems": 1,
       "uniqueItems": true,
@@ -113,7 +121,7 @@
         "null"
       ],
       "minLength": 1,
-      "description": "이 값이 있으면 provider 는 새 세션을 열지 않고 `--resume <id>` 로 **같은 세션을 잇는다**. 턴제 릴레이(input-required → 답을 실어 재개)의 전송 계층 근거."
+      "description": "Explicit native ID only. v2 also requires an exact resume_binding; cross-provider native resume is rejected."
     },
     "campaign_id": {
       "type": [
@@ -140,6 +148,173 @@
         "openai",
         "claude-sub"
       ]
+    },
+    "budget_unit": {
+      "type": "string",
+      "const": "wall_time"
+    },
+    "max_dispatches": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Declared outer context dispatch ceiling; the relay consumes it, never the provider."
+    },
+    "sandbox_mode": {
+      "type": "string",
+      "enum": [
+        "read-only",
+        "workspace-write"
+      ]
+    },
+    "permission_profile": {
+      "type": "string",
+      "enum": [
+        "vllm-main",
+        "vllm-sub"
+      ],
+      "description": "Named configured permission profile. No legacy sandbox override or policy fallback."
+    },
+    "resume_binding": {
+      "type": "object",
+      "required": [
+        "provider",
+        "target"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "const": "codex_cli"
+        },
+        "target": {
+          "type": "object",
+          "required": [
+            "role",
+            "transport"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "role": {
+              "type": "string",
+              "enum": [
+                "main",
+                "sub"
+              ]
+            },
+            "transport": {
+              "type": "string",
+              "enum": [
+                "local",
+                "ssh"
+              ]
+            },
+            "host": {
+              "type": "string",
+              "minLength": 1
+            },
+            "ssh_user": {
+              "type": "string",
+              "minLength": 1
+            },
+            "work_dir": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        },
+        "sandbox_mode": {
+          "type": "string",
+          "enum": [
+            "read-only",
+            "workspace-write"
+          ]
+        },
+        "permission_profile": {
+          "type": "string",
+          "enum": [
+            "vllm-main",
+            "vllm-sub"
+          ],
+          "description": "Named configured permission profile. No legacy sandbox override or policy fallback."
+        }
+      },
+      "description": "Must equal the resumed provider, exact target and permission selection; checked by agent_control."
     }
-  }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "provider": {
+          "const": "claude_code"
+        },
+        "max_turns": {
+          "type": "integer"
+        },
+        "budget_unit": {
+          "enum": []
+        },
+        "max_dispatches": {
+          "enum": []
+        },
+        "sandbox_mode": {
+          "enum": []
+        },
+        "permission_profile": {
+          "enum": []
+        },
+        "resume_binding": {
+          "enum": []
+        }
+      }
+    },
+    {
+      "required": [
+        "budget_unit",
+        "max_dispatches",
+        "sandbox_mode"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "provider": {
+          "const": "codex_cli"
+        },
+        "max_turns": {
+          "const": null
+        },
+        "backend": {
+          "const": "openai"
+        },
+        "permission_profile": {
+          "enum": []
+        }
+      }
+    },
+    {
+      "required": [
+        "budget_unit",
+        "max_dispatches",
+        "permission_profile"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 2
+        },
+        "provider": {
+          "const": "codex_cli"
+        },
+        "max_turns": {
+          "const": null
+        },
+        "backend": {
+          "const": "openai"
+        },
+        "sandbox_mode": {
+          "enum": []
+        }
+      }
+    }
+  ]
 }

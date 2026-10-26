@@ -26,18 +26,25 @@ from __future__ import annotations
 
 import argparse
 import datetime
+import contextlib
+import fcntl
+import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
 import tempfile
+import uuid
+from pathlib import Path
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", "..", "..", ".."))
 AGENT_CONTROL = os.path.join(HERE, "agent_control.py")
 sys.path.insert(0, HERE)
 import turn_budget  # noqa: E402
+import agent_control as _agent_control  # noqa: E402
 import bootstrap_canary as _canary  # noqa: E402  (manifest → target 해소를 재사용)
 
 PENDING_HITL = "pending_hitl.json"
@@ -71,13 +78,51 @@ def load_ledger(path: str) -> dict:
         return json.load(f)
 
 
-def save_ledger(path: str, doc: dict) -> None:
+@contextlib.contextmanager
+def state_lock(path: str, *, blocking: bool = True):
+    """Serialize a complete state transaction; never use an atomic rename as a lock."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(doc, f, ensure_ascii=False, indent=2, sort_keys=True)
-        f.write("\n")
-    os.replace(tmp, path)
+    with open(path + ".lock", "a", encoding="utf-8") as stream:
+        try:
+            fcntl.flock(stream, fcntl.LOCK_EX | (0 if blocking else fcntl.LOCK_NB))
+        except BlockingIOError:
+            raise SystemExit("[relay] STOP: another writer owns this workspace; inspect its ledger")
+        try:
+            yield
+        finally:
+            fcntl.flock(stream, fcntl.LOCK_UN)
+
+
+def _atomic_json(path: str, doc: dict) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    tmp = None
+    try:
+        with tempfile.NamedTemporaryFile("w", dir=os.path.dirname(path), delete=False,
+                                         encoding="utf-8", prefix=".relay-") as f:
+            tmp = f.name
+            json.dump(doc, f, ensure_ascii=False, indent=2, sort_keys=True)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+        directory = os.open(os.path.dirname(path), os.O_RDONLY | os.O_DIRECTORY)
+        try:
+            os.fsync(directory)
+        finally:
+            os.close(directory)
+    finally:
+        if tmp and os.path.exists(tmp):
+            os.unlink(tmp)
+
+
+def save_ledger(path: str, doc: dict) -> None:
+    """Reject stale writers instead of losing an attempt during handoff."""
+    with state_lock(path):
+        current = load_ledger(path)
+        if current.get("revision", 0) != doc.get("revision", 0):
+            raise SystemExit("[relay] STOP: stale ledger revision; reload before changing state")
+        doc["revision"] = doc.get("revision", 0) + 1
+        _atomic_json(path, doc)
 
 
 RUNNER_UNAVAILABLE = "RUNNER_UNAVAILABLE"
@@ -92,6 +137,8 @@ def _reached_sub(att: dict) -> bool:
       ⓑ 정체 카운트가 러너 회전으로 부풀고 ⓒ `last_known_session` 이 그 껍데기를 마지막 세션으로
       돌려줘 다음 재개가 **빈 세션을 잇는다**. 한 술어를 고치면 네 소비자가 함께 옳아진다.
     """
+    if att.get("execution_started") is True:
+        return True
     if RUNNER_UNAVAILABLE in (att.get("reason_codes") or []):
         return False
     return bool(att.get("session_id") or att.get("status") or att.get("budget_outcome"))
@@ -114,7 +161,9 @@ def last_known_session(doc: dict) -> dict:
             continue
         return {"session_id": att.get("session_id"), "attempt": att.get("attempt"),
                 "status": att.get("status"), "control_status": att.get("control_status"),
-                "budget_outcome": att.get("budget_outcome")}
+                "budget_outcome": att.get("budget_outcome"),
+                "binding": att.get("session_binding"),
+                "provider": (att.get("runner") or {}).get("provider", "claude_code")}
     return {"session_id": None, "attempt": None, "status": None,
             "control_status": None, "budget_outcome": None}
 
@@ -264,7 +313,7 @@ def relay_header(context_id: str, attempt: int, allocated: int, budget_source: s
         "## [relay] 위임 헤더 — 메인이 결정론으로 붙였다. 서브는 이 값을 그대로 회신한다.\n"
         f"- context_id: {context_id}\n"
         f"- attempt: {attempt}\n"
-        f"- max_turns_allocated: {allocated}\n"
+        f"- max_turns_allocated: {json.dumps(allocated)}\n"
         # 2026-09-08(plan_26090813 §4.3): 시간 상한도 **서브가 알아야 한다**. 종전 헤더는 턴만
         # 말했고, 그래서 서브는 자기가 몇 초 뒤에 잘리는지 모른 채 장기 작업을 시작했다 —
         # 2026-09-07 서브 attempt 2회가 그렇게 캡에서 잘렸다(scope ⊥ budget 은 양쪽 다 알아야 성립).
@@ -295,7 +344,7 @@ DEFAULT_LADDER = ("sonnet",)
 
 def runner_table(repo_root: str) -> dict:
     """별칭 → {name, backend, model}. **어댑터가 단일 권위**이며 중립 통로로 읽는다."""
-    out = subprocess.run([sys.executable, AGENT_CONTROL, "runners"],
+    out = subprocess.run([sys.executable, AGENT_CONTROL, "runners", "--provider", "all"],
                          capture_output=True, text=True, cwd=repo_root)
     if out.returncode != 0:
         raise SystemExit(f"[relay] STOP: 러너 표를 읽지 못했다(rc={out.returncode}) — "
@@ -303,7 +352,7 @@ def runner_table(repo_root: str) -> dict:
     return {r["name"]: r for r in json.loads(out.stdout)["runners"]}
 
 
-def resolve_ladder(repo_root: str, spec, *, backend=None, model=None) -> list:
+def resolve_ladder(repo_root: str, spec, *, backend=None, model=None, provider=None) -> list:
     """선언을 사다리(러너 dict 목록)로 편다. 미등재 별칭은 **STOP**(닫힌 목록).
 
     `--runners` 가 없으면 `--backend`/`--model` 단수 선언을 1칸 사다리로 승격한다 — 옛 호출자가
@@ -320,14 +369,17 @@ def resolve_ladder(repo_root: str, spec, *, backend=None, model=None) -> list:
                              f"{sorted(table)} 다. 새 러너는 어댑터 RUNNER_ALIASES 에 등재한다"
                              f"(닫힌 목록이라 오타가 조용히 통과하지 않는다).")
         return [dict(table[n]) for n in names]
-    if backend or model:
+    if backend or model or provider:
         # 단수 선언. 별칭 표에 같은 쌍이 있으면 그 이름을 쓰고, 없으면 익명 러너로 둔다.
-        b = backend or "anthropic"
-        m = model or next((r["model"] for r in table.values() if r["backend"] == b), None)
+        p = provider or "claude_code"
+        eligible = [r for r in table.values() if r.get("provider", "claude_code") == p]
+        b = backend or (eligible[0]["backend"] if eligible else None)
+        m = model or next((r["model"] for r in eligible if r["backend"] == b), None)
         if not m:
             raise SystemExit(f"[relay] STOP: backend={b!r} 의 기본 모델을 알 수 없다 — --model 을 선언하라.")
-        named = next((r for r in table.values() if r["backend"] == b and r["model"] == m), None)
-        return [dict(named)] if named else [{"name": f"{b}:{m}", "backend": b, "model": m}]
+        named = next((r for r in eligible if r["backend"] == b and r["model"] == m), None)
+        return [dict(named)] if named else [{"name": f"{p}:{b}:{m}", "provider": p,
+                                             "backend": b, "model": m}]
     return [dict(table[n]) for n in DEFAULT_LADDER]
 
 
@@ -503,12 +555,17 @@ def build_request(topology: str, manifest: str, task: str, bud: dict,
                   resume_session_id=None, capabilities=None,
                   context_id: str = None, attempt: int = 0, model: str = None,
                   campaign_id: str = None, control_variables: dict = None,
-                  backend: str = None, delegated_node: str | None = None) -> dict:
+                  backend: str = None, delegated_node: str | None = None,
+                  provider: str = "claude_code", sandbox_mode: str | None = None,
+                  permission_profile: str | None = None, resume_binding: dict | None = None) -> dict:
     """위임 request 조립. `bud` 는 **선언된** 예산이다(`turn_budget.declare` 산출)."""
     base = _canary.build_request(topology, manifest, max_turns=bud["max_turns"],
                                  timeout_seconds=bud["timeout_seconds"],
                                  budget_source=bud["source"],
-                                 model=model, backend=backend)  # target 해소·센티넬 거부를 재사용
+                                 model=model, backend=backend, provider=provider,
+                                 max_dispatches=bud.get("max_dispatches"),
+                                 sandbox_mode=sandbox_mode,
+                                 permission_profile=permission_profile)
     allocated = bud["max_turns"]
     base["intent"] = "delegate"
     camp_block = campaign_control_block(campaign_id, control_variables)
@@ -521,8 +578,15 @@ def build_request(topology: str, manifest: str, task: str, bud: dict,
     if control_variables:
         base["control_variables"] = dict(control_variables)
     base["capabilities"] = list(capabilities or DEFAULT_CAPABILITIES)
+    if provider == "codex_cli":
+        base["task"] = (
+            f"예산 단위는 wall_time 이며 native turn 제한은 없다. 시간 상한 {bud['timeout_seconds']}초. "
+            "max_turns_allocated=null 을 0턴이나 무제한 실행 승인으로 해석하지 마라. "
+            "AGENTS.md와 그 문서가 지정한 정본을 읽고, 제공된 아티팩트에서 이어가라.\n" + base["task"])
     if resume_session_id:
         base["resume_session_id"] = resume_session_id
+        if provider == "codex_cli":
+            base["resume_binding"] = resume_binding
     if backend:
         base["backend"] = backend
     return base
@@ -703,6 +767,8 @@ def parse_runner_evidence(result: dict) -> dict | None:
     """
     if RUNNER_UNAVAILABLE not in (result.get("reason_codes") or []):
         return None
+    if isinstance(result.get("failure_evidence"), dict):
+        return dict(result["failure_evidence"])
     text = result.get("output") or ""
     i = text.find("{")
     if i < 0:
@@ -726,7 +792,7 @@ def _denial_block(result: dict):
 
 def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, report=None,
                    resume_declared=None, request_path=None, runner=None,
-                   started_utc=None, ended_utc=None) -> dict:
+                   started_utc=None, ended_utc=None, session_binding=None, dispatch_id=None) -> dict:
     """원장 한 줄을 **덧붙인다**(append-only — 앞선 attempt 는 건드리지 않는다).
 
     2026-09-05(축 F): 요청경로·응답경로·종료사유·시작/종료 UTC·소요 2필드를 남긴다. 종전 원장은
@@ -745,6 +811,13 @@ def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, repor
         "max_turns_allocated": bud["max_turns"],
         "timeout_seconds_allocated": bud["timeout_seconds"],
         "budget_source": bud["source"],
+        "budget_unit": bud.get("budget_unit", "native_turns"),
+        "max_dispatches": bud.get("max_dispatches"),
+        "execution_started": result.get("execution_started"),
+        "raw_exit_code": result.get("raw_exit_code"),
+        "usage": result.get("usage"),
+        "session_binding": session_binding,
+        "dispatch_id": dispatch_id,
         "budget_recommended": report.get("budget_recommendation"),
         # ── 축 F 원장(2026-09-05): 요청·응답 경로와 시간 서사
         "request_path": request_path,
@@ -845,6 +918,13 @@ def sort_pending(pending: list) -> list:
 
 def surface_requests(repo_root: str, context_id: str, report: dict, *, attempt: int = 0,
                     crash: dict = None) -> str | None:
+    path = os.path.join(relay_root(repo_root), PENDING_HITL)
+    with state_lock(path):
+        return _surface_requests_unlocked(repo_root, context_id, report, attempt=attempt, crash=crash)
+
+
+def _surface_requests_unlocked(repo_root: str, context_id: str, report: dict, *, attempt: int = 0,
+                    crash: dict = None) -> str | None:
     """서브가 스스로 표면화한 것을 릴레이한다(디스크 재스캔 ✗ — §2.4 push-attestation).
 
     2026-09-04 교정:
@@ -905,10 +985,7 @@ def surface_requests(repo_root: str, context_id: str, report: dict, *, attempt: 
         }
         doc["pending"].append(entry)
     doc["pending"] = sort_pending(doc["pending"])
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(doc, f, ensure_ascii=False, indent=2, sort_keys=True)
-        f.write("\n")
+    _atomic_json(path, doc)
     return path if entry else None
 
 
@@ -1031,6 +1108,21 @@ def _last_reached(doc: dict) -> dict | None:
     return next((x for x in reversed(doc.get("attempts") or []) if _reached_sub(x)), None)
 
 
+def continuation_stop_reasons(doc: dict) -> list[str]:
+    """Manual and supervised resumes respect the same identity/resource boundaries."""
+    if doc.get("inflight"):
+        return ["unresolved in-flight dispatch; reconcile before replay"]
+    last = _last_reached(doc)
+    if last is None:
+        return []
+    reasons = echo_stop_reasons(last, context_id=doc.get("context_id"),
+                               campaign_id=doc.get("campaign_id"),
+                               control_variables=doc.get("control_variables"))
+    if isinstance(last.get("running_services"), list) and last["running_services"]:
+        reasons.append("previous attempt left running services; use explicit A2A cleanup or a declared new context")
+    return reasons
+
+
 def budget_yield(att: dict) -> bool:
     """`input-required` 가 **질문**이 아니라 **예산 양보**인가 — 원장에 옮긴 리포트 사실에서 파생.
 
@@ -1129,10 +1221,16 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
     스텝이 본 값보다 앞섰거나. 후자를 넣는 이유는 R2 다: 전진 신호를 phase 로만 잡으면 긴 벤치
     한 판이 통째로 '정체' 로 보인다.
     """
+    if doc.get("inflight"):
+        return {"action": "popup", "reason": "unresolved in-flight dispatch; reconcile before replay"}
     atts = doc.get("attempts") or []
     if not atts:
         return {"action": "await_dispatch",
                 "reason": "이 context 에 아직 아무것도 나가지 않았다 — 지시서를 열어라"}
+    dispatch_cap = doc.get("max_dispatches")
+    if (dispatch_cap and len(atts) >= dispatch_cap
+            and atts[-1].get("end_reason") not in ("completed", "completed_with_denials")):
+        return {"action": "popup", "reason": f"declared outer dispatch cap reached: {len(atts)}/{dispatch_cap}"}
     # 2026-09-08: 비용 상한은 **닿은 attempt** 만 센다. 러너 회전은 서브에 닿지 않았으므로 비용이
     #   아니고, 세면 회전 몇 번에 상한이 소진돼 팝업이 **틀린 사유로** 뜬다.
     _billed = len([x for x in atts if _reached_sub(x)])
@@ -1145,6 +1243,10 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
     #   (`_reached_sub` 가 false) 뒤에 두면 "닿은 것이 없다" 분기가 먼저 삼켜 **회전이 도달
     #   불가**가 된다 — 자체검사가 이 순서를 첫 실행에서 잡았다(도달 불가 분기를 가드처럼 두지 마라).
     if (atts[-1] or {}).get("end_reason") == "runner_unavailable":
+        if (atts[-1].get("runner_evidence") or {}).get("rotate") is not True:
+            return {"action": "popup", "reason": "runner failure does not authorize rotation"}
+        if atts[-1].get("execution_started") is True:
+            return {"action": "popup", "reason": "runner failed after execution; reconcile effects first"}
         rungs = len(ladder or []) or 1
         burned = consecutive_runner_unavailable(doc)
         if burned < rungs:
@@ -1280,8 +1382,10 @@ def supervise_step(a) -> int:
         return 0
     utc = a.utc or _utcnow()
     rc = 0
-    explicit_runner = bool(a.runners or a.backend or a.model)
+    explicit_runner = bool(a.runners or a.backend or a.model or getattr(a, "provider", None))
+    base_args = argparse.Namespace(**vars(a))
     for path, doc in ledgers:
+        a = argparse.Namespace(**vars(base_args))
         if not explicit_runner and ledger_runner_spec(doc):
             a.ladder = resolve_ladder(a.repo_root, ledger_runner_spec(doc))
         node = doc.get("campaign_node")
@@ -1289,6 +1393,10 @@ def supervise_step(a) -> int:
         decision = supervise_decide(doc, brief=brief, cost_cap_attempts=a.cost_cap_attempts,
                                     ladder=getattr(a, "ladder", None),
                                     doc_progress=doc_plane_progress(a.repo_root, doc))
+        if decision["action"] in ("resume", "rotate_runner"):
+            reasons = continuation_stop_reasons(doc)
+            if reasons:
+                decision = {"action": "popup", "reason": "; ".join(reasons)}
         # 수명 가드(2026-10-17 · plan_26101719 D4·D13): 감독은 id 를 직접 받으므로 ACTIVE 를 거치지 않는다. 보류·미결·잔재
         # 캠페인에서 전진 판정을 내면 보류한 캠페인이 감독 손에 다시 굴러가고, **popup 을 내면 리볼빙마다 같은 것을 묻는다**
         # (라이브 E4: 대체된 첫 위임의 sub_failed 원장이 감독 스텝마다 popup 을 띄웠다). 보류 캠페인은 계기(a)(d) 전까지
@@ -1359,7 +1467,12 @@ def resume_blockers(pending: list) -> list:
 
 
 def _supervise_resume(a, lp: str, doc: dict, secs, why: str) -> int:
-    """전진이 보이는 중단을 **같은 세션으로** 자동 재발급한다(D9). 감독자가 선언 주체다."""
+    """Resume the ledger context; a provider change starts a fresh native session."""
+    a = argparse.Namespace(**vars(a))  # One context's permissions/budget must not leak to the next.
+    reasons = continuation_stop_reasons(doc)
+    if reasons:
+        print("[relay] STOP: " + "; ".join(reasons))
+        return 3
     pend = pending_for(a.repo_root, doc.get("context_id"))
     blocked = resume_blockers(pend)
     if blocked:
@@ -1369,15 +1482,25 @@ def _supervise_resume(a, lp: str, doc: dict, secs, why: str) -> int:
     a.manifest_path = a.manifest or doc.get("manifest") or os.path.join(
         REPO, "output", a.topology or "single", "manifest.yaml")
     a.context_id = doc.get("context_id")
+    a.campaign_id = doc.get("campaign_id")
+    a.control_variables = doc.get("control_variables")
+    a.node = doc.get("campaign_node")
+    a.context_kind = doc.get("campaign_context_kind")
+    a.cell = doc.get("campaign_cell")
+    if not (getattr(a, "permission_profile", None) or getattr(a, "sandbox_mode", None)):
+        for key, value in (doc.get("permission_selection") or {}).items():
+            setattr(a, key, value)
     lks = last_known_session(doc)
     rec = recommended_timeout(doc)
     if rec and (secs is None or rec > secs):
         secs = min(rec, turn_budget.schema_cap("timeout_seconds"))
         why = f"{why} · 서브 제안 budget_recommendation.timeout_seconds={rec} 반영(배정은 메인 · 상한 캡)"
-    cap = turn_budget.schema_cap("max_turns")
-    turns = a.max_turns or max(budget_floor(doc), 1) or cap
-    bud = turn_budget.declare(min(turns, cap), secs or turn_budget.schema_cap("timeout_seconds"),
-                              source=f"감독 스텝 자동 재발급 · {why}")
+    providers = {r.get("provider", "claude_code") for r in a.ladder}
+    if providers != {"codex_cli"}:
+        cap = turn_budget.schema_cap("max_turns")
+        a.max_turns = min(a.max_turns or max(budget_floor(doc), 1), cap)
+    bud = declared_budget(a, secs or turn_budget.schema_cap("timeout_seconds"),
+                           f"감독 스텝 자동 재발급 · {why}", doc)
     task = assemble_continuation(a.repo_root, doc, pend)
     return run_attempt(a, doc, lp, task, bud, lks.get("session_id") or "new")
 
@@ -1978,13 +2101,19 @@ def _self_test() -> int:
     return 0 if ok else 2
 
 
-SSH_PROBE = ("ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8",
+SSH_PROBE = ("ssh", "-F", "/dev/null", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8",
+             "-o", "StrictHostKeyChecking=yes", "-o", "IdentitiesOnly=yes",
+             "-o", "ForwardAgent=no", "-o", "ClearAllForwardings=yes", "-o", "RequestTTY=no",
              "-o", "ServerAliveInterval=5", "-o", "ServerAliveCountMax=2")
 
 
-def _ssh_run(target: dict, cmd: str):
-    argv = [*SSH_PROBE, f"{target['ssh_user']}@{target['host']}", cmd]
-    out = subprocess.run(argv, capture_output=True, text=True, stdin=subprocess.DEVNULL)
+def _ssh_run(target: dict, cmd: str, *, timeout_seconds: int):
+    argv = [*SSH_PROBE, "--", f"{target['ssh_user']}@{target['host']}", cmd]
+    try:
+        out = subprocess.run(argv, capture_output=True, text=True, stdin=subprocess.DEVNULL,
+                             timeout=timeout_seconds)
+    except subprocess.TimeoutExpired:
+        return 124, "", "branch preflight exceeded the declared wall deadline"
     return out.returncode, out.stdout.strip(), out.stderr.strip()
 
 
@@ -2000,7 +2129,14 @@ def assert_sub_branch(req: dict, topology: str, runner=None) -> str:
     서브 git 은 메인의 관측 장치다(헌법 노드 제어 불변식 2) — 이 읽기는 스캔이 아니다.
     """
     t = req["target"]
-    rc, out, err = (runner or _ssh_run)(t, f"git -C '{t['work_dir']}' rev-parse --abbrev-ref HEAD")
+    cmd = "git -C " + shlex.quote(t["work_dir"]) + " rev-parse --abbrev-ref HEAD"
+    if runner:
+        rc, out, err = runner(t, cmd)
+    else:
+        # Bound both sides: killing only ssh can leave a hung remote git process.
+        seconds = req["timeout_seconds"]
+        remote = "timeout --signal=TERM --kill-after=3s " + str(seconds) + "s " + cmd
+        rc, out, err = _ssh_run(t, remote, timeout_seconds=seconds + 3)
     if rc != 0:
         raise SystemExit(f"[relay] STOP: 서브 브랜치를 판독하지 못했다(rc={rc}) — {err or out or '(출력 없음)'}\n"
                          "  → 판독 불가는 일치가 아니다(fail-closed). 서브 도달성·work_dir 를 먼저 확인하라.")
@@ -2021,18 +2157,206 @@ def _utcnow() -> str:
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+def permission_binding(request: dict) -> dict:
+    return {"provider": request["provider"], "target": dict(request["target"]),
+            **{k: request[k] for k in ("sandbox_mode", "permission_profile") if k in request}}
+
+
+def bound_resume(doc: dict, declared, request: dict) -> tuple[str, dict | None]:
+    """A native session belongs to its provider, workspace and permission selection."""
+    if declared in (None, "new"):
+        return "new", None
+    prior = next((x for x in reversed(doc.get("attempts") or [])
+                  if x.get("session_id") == declared), None)
+    provider = request["provider"]
+    if prior is None:
+        if provider == "claude_code":
+            return declared, None  # v1 explicit external-session contract
+        raise SystemExit("[relay] STOP: Codex resume has no recorded session binding")
+    previous_provider = (prior.get("runner") or {}).get("provider", "claude_code")
+    if previous_provider != provider:
+        return "new", None
+    binding = prior.get("session_binding")
+    if binding is None and provider == "claude_code":
+        return declared, None  # pre-v2 ledger; preserve legacy explicit behavior
+    if binding != permission_binding(request):
+        raise SystemExit("[relay] STOP: resume target or permission binding changed")
+    return declared, binding
+
+
+def declared_budget(a, timeout_seconds, source: str, doc: dict | None = None) -> dict:
+    providers = {r.get("provider", "claude_code") for r in a.ladder}
+    cap = getattr(a, "max_dispatches", None)
+    if cap is None:
+        cap = (doc or {}).get("max_dispatches")
+    if providers == {"codex_cli"}:
+        return turn_budget.declare(a.max_turns, timeout_seconds, source=source,
+                                   unit="wall_time", max_dispatches=cap)
+    native = turn_budget.declare(a.max_turns, timeout_seconds, source=source)
+    if "codex_cli" in providers or cap is not None:
+        wall = turn_budget.declare(None, timeout_seconds, source=source,
+                                   unit="wall_time", max_dispatches=cap)
+        native["max_dispatches"] = wall["max_dispatches"]
+    return native
+
+
+def _owned_artifact(repo_root: str, relative: str):
+    root = Path(repo_root).resolve()
+    rel = Path(relative)
+    if rel.is_absolute() or ".." in rel.parts:
+        raise SystemExit("[relay] STOP: recovery artifact must be workspace-relative")
+    path = root
+    for part in rel.parts:
+        path = path / part
+        if path.is_symlink():
+            raise SystemExit("[relay] STOP: recovery artifact path cannot contain symlinks")
+    if not path.resolve().is_relative_to(root) or not path.is_file():
+        raise SystemExit("[relay] STOP: recovery artifact must be an existing regular file inside this workspace")
+    return path
+
+
+def load_dispatch_outcome(repo_root: str, doc: dict, selected_path: str | None = None) -> tuple[dict, dict]:
+    """Accept only the outcome reserved for this exact request and dispatch generation."""
+    reservation = doc.get("inflight") or {}
+    relative = reservation.get("outcome_path")
+    if not relative:
+        raise SystemExit("[relay] STOP: this reservation has no durable provider outcome; it cannot be discarded or replayed")
+    path = _owned_artifact(repo_root, relative)
+    if selected_path:
+        selected = Path(selected_path)
+        if not selected.is_absolute():
+            selected = Path(repo_root) / selected
+        if selected.resolve() != path.resolve():
+            raise SystemExit("[relay] STOP: selected outcome is not the reserved dispatch artifact")
+    request_path = _owned_artifact(repo_root, reservation["request_path"])
+    if hashlib.sha256(request_path.read_bytes()).hexdigest() != reservation.get("request_digest"):
+        raise SystemExit("[relay] STOP: reserved request bytes changed; model/permissions/budget/resume cannot be rewritten")
+    try:
+        wrapper = json.loads(path.read_text(encoding="utf-8"))
+        request = json.loads(request_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError, UnicodeDecodeError) as exc:
+        raise SystemExit(f"[relay] STOP: unreadable recovery evidence: {type(exc).__name__}")
+    if (not isinstance(wrapper, dict) or set(wrapper) != {"schema_version", "dispatch_id", "request", "result"}
+            or wrapper.get("schema_version") != 1
+            or wrapper.get("dispatch_id") != reservation.get("dispatch_id")
+            or wrapper.get("request") != request):
+        raise SystemExit("[relay] STOP: stale or mismatched dispatch outcome")
+    violations = _agent_control.request_schema_violations(request)
+    result = wrapper["result"]
+    violations += _agent_control._schema_violations(result, _agent_control._load_schema(_agent_control.RESULT_SCHEMA_PATH))
+    if not violations:
+        violations += _agent_control._result_contract_violations(result, request)
+    if (violations or request["target"] != reservation.get("target")
+            or request["provider"] != reservation.get("provider")):
+        raise SystemExit("[relay] STOP: recovered request/result violates the reserved execution contract")
+    return request, result
+
+
+def commit_dispatch_outcome(a, doc: dict, lp: str, request: dict, result: dict, *,
+                            ended: str, control_stderr: str = "", reconciled: bool = False):
+    """Commit an observed outcome once; recovery never launches a replacement worker."""
+    reservation = doc["inflight"]
+    dispatch_id = reservation["dispatch_id"]
+    latest = load_ledger(lp)
+    if (latest.get("inflight") or {}).get("dispatch_id") != dispatch_id:
+        raise SystemExit("[relay] STOP: stale dispatch result; owner generation changed")
+    if reservation["attempt"] != len(doc.get("attempts") or []) + 1:
+        raise SystemExit("[relay] STOP: recovery attempt sequence changed")
+    report = (None if RUNNER_UNAVAILABLE in (result.get("reason_codes") or [])
+              else parse_report(result.get("output") or ""))
+    if reconciled and report is not None:
+        schema = _agent_control._load_schema(_agent_control.RUNTIME_DIR.parent / "sub_node" / "task-report.schema.json")
+        if _agent_control._schema_violations(report, schema):
+            # Preserve the native output without upgrading an invalid self-report to success.
+            report = None
+    att = record_attempt(doc, context_id=doc["context_id"], bud=reservation["budget"], result=result,
+                         report=report, resume_declared=reservation["resume_declared"],
+                         runner=reservation["runner"], session_binding=permission_binding(request),
+                         dispatch_id=dispatch_id, request_path=reservation["request_path"],
+                         started_utc=reservation["started_utc"], ended_utc=ended)
+    directory = os.path.join(relay_root(a.repo_root), f"{doc['context_id']}.reports")
+    os.makedirs(directory, exist_ok=True)
+    path = os.path.join(directory, "attempt-%02d.json" % att["attempt"])
+    _atomic_json(path, {"attempt": att["attempt"], "report": report,
+                       "raw_output": None if report else (result.get("output") or ""),
+                       "control_stderr_tail": control_stderr[-4000:] or None,
+                       "control": {key: result.get(key) for key in
+                           ("status", "exit_code", "reason_codes", "session_id", "num_turns", "budget_outcome",
+                            "duration_ms", "duration_api_ms", "raw_exit_code", "execution_started", "usage",
+                            "failure_evidence", "raw_events")}})
+    att["report_path"] = os.path.relpath(path, a.repo_root)
+    att["outcome_path"] = reservation["outcome_path"]
+    if reconciled:
+        att["reconciliation"] = {"utc": ended, "source": reservation["outcome_path"],
+                                 "method": "dispatch-bound-provider-outcome", "replayed": False}
+    doc.pop("inflight")
+    save_ledger(lp, doc)
+    return att, report
+
+
+def reconcile_inflight(a, doc: dict, lp: str) -> int:
+    if not doc.get("inflight"):
+        raise SystemExit("[relay] STOP: no unresolved in-flight dispatch exists")
+    request, result = load_dispatch_outcome(a.repo_root, doc, getattr(a, "reconcile_result", None))
+    reservation = doc["inflight"]
+    print(f"[relay] reconciliation evidence: {reservation['dispatch_id']} -> {result['status']}; no replacement dispatch")
+    if not a.apply:
+        print("[relay] dry-run: pass --apply to append this observed outcome and consume its dispatch")
+        return 0
+    att, report = commit_dispatch_outcome(a, doc, lp, request, result, ended=_utcnow(), reconciled=True)
+    crash = (None if report and att["end_reason"] in ("completed", "completed_with_denials") else
+             {"attempt": att["attempt"], "end_reason": att["end_reason"],
+              "control_status": att["control_status"], "reason_codes": att["reason_codes"],
+              "last_known_session": att.get("session_id")})
+    surface_requests(a.repo_root, doc["context_id"], report or {}, attempt=att["attempt"], crash=crash)
+    print(f"[relay] reconciled attempt {att['attempt']}: {att['end_reason']}; dispatch counted, native observations retained")
+    return 0
+
+
 def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declared,
                      runner: dict) -> int:
     """한 번의 위임 왕복 — **사다리 한 칸**. `--task` 진입과 `--continue` 진입이 같은 몸통을 쓴다."""
     attempt_no = len(doc.get("attempts") or []) + 1
-    resume = None if resume_declared in (None, "new") else resume_declared
-    req = build_request(a.topology, a.manifest_path, task, bud, resume_session_id=resume,
+    if doc.get("inflight"):
+        raise SystemExit("[relay] STOP: unresolved dispatch remains; reconcile remote outcome before replay")
+    provider = runner.get("provider", "claude_code")
+    bud = dict(bud)
+    if provider == "codex_cli":
+        bud.update(max_turns=None, budget_unit="wall_time")
+    else:
+        bud.pop("budget_unit", None)
+    dispatch_cap = bud.get("max_dispatches")
+    if dispatch_cap is None:
+        dispatch_cap = doc.get("max_dispatches")
+        if dispatch_cap is not None:
+            bud["max_dispatches"] = dispatch_cap
+    if dispatch_cap is not None and attempt_no > dispatch_cap:
+        raise SystemExit(f"[relay] STOP: outer dispatch cap {dispatch_cap} reached")
+    profile = getattr(a, "permission_profile", None)
+    sandbox = getattr(a, "sandbox_mode", None)
+    if provider == "codex_cli" and not (profile or sandbox):
+        raise SystemExit("[relay] STOP: Codex permission profile or sandbox mode must be declared")
+    req = build_request(a.topology, a.manifest_path, task, bud,
                         context_id=a.context_id, attempt=attempt_no,
                         model=runner["model"], backend=runner["backend"],
+                        provider=provider, permission_profile=profile, sandbox_mode=sandbox,
                         campaign_id=getattr(a, "campaign_id", None),
                         control_variables=getattr(a, "control_variables", None),
                         # 수명 제어 지시에는 개설 선언(slice)을 싣지 않는다 — 서브가 그것을 보고 --init 을 치면 전이가 아니라 개설이 된다.
                         delegated_node=(None if getattr(a, "campaign_control", None) else getattr(a, "node", None)))
+    effective_resume, binding = bound_resume(doc, resume_declared, req)
+    resume = None if effective_resume == "new" else effective_resume
+    if effective_resume != resume_declared:
+        req["task"] = ("[하네스 인계] native session은 provider 경계에서 새로 시작한다. "
+                       "이전 실행의 증거·통제변인·원장에 따라 이어가라.\n" + req["task"])
+        print("[relay] provider changed: fresh native session with artifact handoff", file=sys.stderr)
+    if resume:
+        req["resume_session_id"] = resume
+        if provider == "codex_cli":
+            req["resume_binding"] = binding
+    violations = _agent_control.request_schema_violations(req)
+    if violations:
+        raise SystemExit("[relay] STOP: request rejected before remote preflight: " + "; ".join(violations))
 
     if a.emit_only:
         json.dump(req, sys.stdout, ensure_ascii=False, indent=2)
@@ -2053,7 +2377,27 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
         json.dump(req, f, ensure_ascii=False, indent=2, sort_keys=True)
         f.write("\n")
     started = _utcnow()
-    out = subprocess.run([sys.executable, AGENT_CONTROL, "invoke", "--request", _qp],
+    dispatch_id = uuid.uuid4().hex
+    outcome_dir = os.path.join(relay_root(a.repo_root), f"{a.context_id}.outcomes")
+    os.makedirs(outcome_dir, exist_ok=True)
+    outcome_path = os.path.join(outcome_dir, dispatch_id + ".json")
+    doc.update(context_id=a.context_id, topology=a.topology, manifest=a.manifest_path)
+    doc["task"] = doc.get("task") or task
+    doc["inflight"] = {"dispatch_id": dispatch_id, "attempt": attempt_no,
+                       "target": req["target"], "provider": provider,
+                       "request_path": os.path.relpath(_qp, a.repo_root),
+                       "request_digest": hashlib.sha256(Path(_qp).read_bytes()).hexdigest(),
+                       "outcome_path": os.path.relpath(outcome_path, a.repo_root),
+                       "budget": dict(bud), "runner": dict(runner),
+                       "resume_declared": effective_resume,
+                       "started_utc": started, "owner_pid": os.getpid()}
+    if dispatch_cap is not None:
+        doc["max_dispatches"] = dispatch_cap
+    if provider == "codex_cli":
+        doc["permission_selection"] = {k: req[k] for k in ("permission_profile", "sandbox_mode") if k in req}
+    save_ledger(lp, doc)  # reserve durably before the external process can produce side effects
+    out = subprocess.run([sys.executable, AGENT_CONTROL, "invoke", "--request", _qp,
+                          "--result-file", outcome_path, "--dispatch-id", dispatch_id],
                          capture_output=True, text=True)
     ended = _utcnow()
     sys.stderr.write(out.stderr)
@@ -2063,43 +2407,11 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
     except ValueError:
         raise SystemExit(f"[relay] FAIL: agent_control 출력을 읽지 못했다 — {out.stdout[:300]}")
 
-    # ★ 2026-09-08 라이브 교정(회전 1회가 알려줬다): 러너-불가 결과의 `output` 은 **어댑터가 실은
-    #   우리 진단 JSON** 이지 서브가 보낸 리포트가 아니다. 그런데 `parse_report` 는 "산문 속 JSON
-    #   객체" 를 집으므로 그것을 리포트로 집어 들었고, 그 결과 원장에 `sub_reported: true` 가
-    #   적혔다 — 서브는 한 글자도 받지 못했는데 **서브가 보고했다고 기록된 것**이다
-    #   (SILENT_FALLBACK 금지의 정확한 위반 형태: 메인이 만든 것이 서브 산출로 집계됐다).
-    #   증거는 `runner_evidence` 가 이미 제 자리에서 들고 있다.
-    report = (None if RUNNER_UNAVAILABLE in (result.get("reason_codes") or [])
-              else parse_report(result.get("output") or ""))
-    att = record_attempt(doc, context_id=a.context_id, bud=bud, result=result, report=report,
-                         resume_declared=resume_declared, runner=runner,
-                         request_path=os.path.relpath(_qp, a.repo_root),
-                         started_utc=started, ended_utc=ended)
-    # 2026-09-04(P4 라이브): 원장이 status 만 적고 **리포트 본문을 버렸다** — 나중에 "서브가 무엇을
-    #   근거로 completed 라 했는가" 를 메인이 감사할 수 없었다(내가 서브를 의심했다가 dotfile 을
-    #   놓친 내 실수임을 확인하는 데도 서브 워크스페이스를 다시 뒤져야 했다 — 재스캔은 계약 밖이다).
-    #   서브가 보낸 것은 서브가 보낸 그대로 남긴다. 없으면 산문 원문을 남긴다(추측 파싱 ✗).
-    _adir = os.path.join(relay_root(a.repo_root), f"{a.context_id}.reports")
-    os.makedirs(_adir, exist_ok=True)
-    _ap = os.path.join(_adir, "attempt-%02d.json" % att["attempt"])
-    with open(_ap, "w", encoding="utf-8") as f:
-        json.dump({"attempt": att["attempt"], "report": report,
-                   "raw_output": None if report else (result.get("output") or ""),
-                   # 2026-09-05(N6): provider 진단(`_diag` 의 stderr)을 **원장 옆에 보존**한다.
-                   #   라이브에서 malformed 로 끝났을 때 "무엇이 왔길래" 를 알 수 있는 유일한 통로가
-                   #   이 텍스트였는데, 화면을 스크롤해 지나가면 그대로 사라졌다.
-                   "control_stderr_tail": control_stderr[-4000:] or None,
-                   "control": {k: result.get(k) for k in
-                               ("status", "exit_code", "reason_codes", "session_id",
-                                "num_turns", "budget_outcome", "duration_ms",
-                                "duration_api_ms")}},
-                  f, ensure_ascii=False, indent=2, sort_keys=True)
-        f.write("\n")
-    att["report_path"] = os.path.relpath(_ap, a.repo_root)
-    doc["task"] = doc.get("task") or task
-    doc["topology"] = a.topology
-    doc["manifest"] = a.manifest_path
-    save_ledger(lp, doc)
+    _, durable_result = load_dispatch_outcome(a.repo_root, doc)
+    if result != durable_result:
+        raise SystemExit("[relay] STOP: stdout result differs from durable dispatch evidence")
+    att, report = commit_dispatch_outcome(a, doc, lp, req, result,
+                                          ended=ended, control_stderr=control_stderr)
     _crash = None
     if report is None or (att["control_status"] != "completed"
                           and att["end_reason"] != "completed_with_denials"):
@@ -2207,8 +2519,9 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     사다리 **선언** 시점에 이미 받았으므로, 회전은 무인 자동 착수가 아니라 *승인된 attempt 의
     실행자 교체*다 — 감독 스텝의 자동 재발급과 같은 논리다.
 
-    ★ 세션 선언은 **회전해도 바꾸지 않는다**. 러너 실패 봉투가 싣고 온 session_id 는 백엔드가 첫
-      요청 전에 연 빈 껍데기이고, 그것을 이으면 다음 칸이 빈 세션을 재개한다(`_reached_sub` 주석).
+    The original resume declaration is retained as evidence. bound_resume preserves it only
+    for a matching provider/target/permission binding; a provider change starts a fresh
+    native session using the artifact continuation, never a failed runner's empty session.
     """
     ladder = a.ladder
     start = next_runner_index(doc, ladder)
@@ -2226,7 +2539,7 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
             return rc
         ev = last.get("runner_evidence") or {}
         tried.append("%s(%s)" % (runner["name"], ev.get("detail") or ev.get("signal")))
-        if not ev.get("rotate"):
+        if ev.get("rotate") is not True or last.get("execution_started") is True:
             # 회전해도 낫지 않는 실패(요청 거절·판정 불가)는 사다리를 태우지 않는다.
             print(f"[relay] ⚠ 회전하지 않는다 — {runner['name']} 의 실패는 러너를 바꿔도 같다. "
                   f"사람이 봐야 한다.")
@@ -2263,13 +2576,20 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     return 3
 
 
-def main() -> int:
+def _main() -> int:
+    global _RELAY_CAMPAIGN
     ap = argparse.ArgumentParser(description="메인↔서브 턴제 릴레이")
     ap.add_argument("--topology", choices=["single", "multi"])
     ap.add_argument("--manifest", default=None)
     ap.add_argument("--context-id")
     ap.add_argument("--max-turns", type=int, default=None,
                     help="이 attempt 에 배정할 턴 예산(선언 필수 — 등급표 폐기 · 기본값 없음)")
+    ap.add_argument("--provider", choices=("claude_code", "codex_cli"), default=None)
+    ap.add_argument("--max-dispatches", type=int, default=None,
+                    help="Codex가 포함된 context의 외부 위임 횟수 상한(선언)")
+    permissions = ap.add_mutually_exclusive_group()
+    permissions.add_argument("--permission-profile")
+    permissions.add_argument("--sandbox-mode", choices=("read-only", "workspace-write"))
     ap.add_argument("--timeout-seconds", type=int, default=None,
                     help="매달림 상한(scope ⊥ budget — 예산과 별개 노브)")
     ap.add_argument("--budget-source", default=None,
@@ -2296,6 +2616,9 @@ def main() -> int:
                     help="원장의 중단점에서 이어간다 — 본문을 기계가 조립한다. 기본 dry-run.")
     ap.add_argument("--apply", action="store_true",
                     help="--continue 와 함께: 조립한 본문으로 실제 위임한다(사람 승인 정문).")
+    ap.add_argument("--reconcile-inflight", action="store_true",
+                    help="consume only the reserved durable provider outcome; never launch a replacement worker")
+    ap.add_argument("--reconcile-result", help="optional exact reserved outcome path; defaults to inflight.outcome_path")
     ap.add_argument("--emit-only", action="store_true", help="request 만 조립해 출력(실행 ✗)")
     ap.add_argument("--repo-root", default=REPO)
     # 2026-09-07(plan_26090715 §4.8): 캠페인 정체성은 **요청에 실려 간다**. 생략하면 활성
@@ -2330,18 +2653,28 @@ def main() -> int:
     a = ap.parse_args()
     if a.self_test:
         return _self_test()
+    if a.reconcile_result and not a.reconcile_inflight:
+        raise SystemExit("[relay] --reconcile-result requires --reconcile-inflight")
+    if a.reconcile_inflight and (a.continue_ or a.task or a.task_file or a.supervise_step or a.campaign_control):
+        raise SystemExit("[relay] reconciliation cannot be combined with a dispatch or supervision action")
     # ── 사다리 해소. 두 선언 창구가 동시에 열려 있으면 **어느 쪽이 이겼는지 조용해진다**.
-    if a.runners and (a.backend or a.model):
+    if a.runners and (a.backend or a.model or a.provider):
         raise SystemExit("[relay] STOP: --runners 와 --backend/--model 은 같은 것을 정하는 "
                          "두 창구다 — 하나만 선언하라(사다리를 쓸 거면 --runners).")
-    a.ladder = resolve_ladder(a.repo_root, a.runners, backend=a.backend, model=a.model)
+    a.ladder = resolve_ladder(a.repo_root, a.runners, backend=a.backend, model=a.model, provider=a.provider)
     if a.supervise_step:
         return supervise_step(a)
     if not a.context_id:
         raise SystemExit("[relay] --context-id 필수")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", a.context_id):
+        raise SystemExit("[relay] STOP: context-id must be a single safe filename component")
 
+    if a.reconcile_inflight and a.campaign_id:
+        _RELAY_CAMPAIGN = a.campaign_id
     lp = ledger_path(a.repo_root, a.context_id)
     doc = load_ledger(lp)
+    if a.reconcile_inflight:
+        return reconcile_inflight(a, doc, lp)
     bind_campaign_context(doc, node=a.node, kind=a.context_kind, cell=a.cell)
     if a.runners:
         # 선언된 사다리를 원장에 적는다 — 감독 재발급이 명시 없이도 같은 사다리를 잇는다(ledger_runner_spec).
@@ -2357,8 +2690,11 @@ def main() -> int:
         if not (doc.get("attempts") or []):
             raise SystemExit(f"[relay] STOP: 이어갈 원장이 없다 — {lp}. 첫 위임은 `--task` 로 연다.")
         a.topology = a.topology or doc.get("topology")
-        if not (a.runners or a.backend or a.model) and ledger_runner_spec(doc):
+        if not (a.runners or a.backend or a.model or a.provider) and ledger_runner_spec(doc):
             a.ladder = resolve_ladder(a.repo_root, ledger_runner_spec(doc))   # 러너를 조용히 바꾸지 않는다
+        if not (a.permission_profile or a.sandbox_mode):
+            for key, value in (doc.get("permission_selection") or {}).items():
+                setattr(a, key, value)
         if not a.topology:
             raise SystemExit("[relay] STOP: 원장에 topology 가 없다(구버전 원장) — 명시하라.")
         a.manifest_path = a.manifest or doc.get("manifest") or os.path.join(
@@ -2403,7 +2739,7 @@ def main() -> int:
             ids = ", ".join(str(e.get("request_id")) for e in blocked)
             raise SystemExit(
                 f"[relay] STOP: 답이 필요한 **차단성** 요청이 있다 — {ids}\n"
-                f"  → {relay_root(repo_root)}/{PENDING_HITL} 의 해당 항목 `answer` 에 답을 적고 다시 --continue 하라.\n"
+                f"  → {relay_root(a.repo_root)}/{PENDING_HITL} 의 해당 항목 `answer` 에 답을 적고 다시 --continue 하라.\n"
                 "  → 이것이 사람의 승인 정문이다(답 = 승인). 답 없이 진행하면 서브가 근거 없이 결정한다.")
 
         lks = last_known_session(doc)
@@ -2428,14 +2764,13 @@ def main() -> int:
             print("[relay] 위 본문으로 위임하려면 --max-turns/--timeout-seconds/--budget-source 와 "
                   "--resume 을 선언해 --apply 하라(사람 승인 정문).")
             return 0
-        bud = turn_budget.declare(a.max_turns, a.timeout_seconds, source=a.budget_source or "")
+        bud = declared_budget(a, a.timeout_seconds, a.budget_source or "", doc)
         return run_attempt(a, doc, lp, task, bud, require_resume(a.resume, lks))
 
     if not a.topology:
         raise SystemExit("[relay] --topology 필수")
     task = a.task
     if a.campaign_control:
-        global _RELAY_CAMPAIGN
         if not (a.campaign_id and a.node):
             raise SystemExit("[relay] STOP: --campaign-control 은 --campaign-id 와 --node 가 필요하다(이름 추론 ✗)")
         if task or a.task_file:
@@ -2510,8 +2845,22 @@ def main() -> int:
         _timeout, _why = derive_timeout(a.repo_root, a.campaign_id, a.node)
         _timeout = _timeout or turn_budget.schema_cap("timeout_seconds")
         _src = (f"{_src} · " if _src else "") + f"시간 예산 파생: {_why}"
-    bud = turn_budget.declare(a.max_turns, _timeout, source=_src)
+    bud = declared_budget(a, _timeout, _src, doc)
     return run_attempt(a, doc, lp, task, bud, require_resume(a.resume, last_known_session(doc)))
+
+
+def main() -> int:
+    if "--help" in sys.argv or "-h" in sys.argv or "--self-test" in sys.argv:
+        return _main()
+    # One local producer owns dispatch for this repository, including across campaigns/harnesses.
+    repo = REPO
+    for i, arg in enumerate(sys.argv[1:], 1):
+        if arg == "--repo-root" and i + 1 < len(sys.argv):
+            repo = sys.argv[i + 1]
+        elif arg.startswith("--repo-root="):
+            repo = arg.split("=", 1)[1]
+    with state_lock(os.path.join(os.path.abspath(repo), "output", ".relay-dispatch"), blocking=False):
+        return _main()
 
 
 if __name__ == "__main__":

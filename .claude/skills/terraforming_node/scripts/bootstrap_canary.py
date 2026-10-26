@@ -126,14 +126,21 @@ def resolve_sub_mode(topology: str, manifest: str) -> tuple[str, str]:
     return inner.get("value") or "", inner.get("source") or ""
 
 
-def _backend_default_model(backend: str | None) -> str:
+def _backend_default_model(backend: str | None, provider: str = "claude_code") -> str:
     """백엔드의 기본 모델 선언을 **어댑터에서 읽는다**(사본 ✗ · 단일 권위)."""
     import importlib.util, os as _os
-    _p = _os.path.join(HERE, "providers", "claude_code.py")
+    import agent_control
+    if provider not in agent_control.KNOWN_PROVIDERS:
+        raise SystemExit(f"[canary] FAIL: unknown provider {provider!r}")
+    _p = _os.path.join(HERE, "providers", provider + ".py")
     _spec = importlib.util.spec_from_file_location("_canary_provider", _p)
     _m = importlib.util.module_from_spec(_spec)
     _spec.loader.exec_module(_m)
-    return _m.BACKEND_DEFAULT_MODEL.get(backend or "anthropic", _m.BACKEND_DEFAULT_MODEL["anthropic"])
+    defaults = _m.BACKEND_DEFAULT_MODEL
+    key = backend or next(iter(defaults))
+    if key not in defaults:
+        raise SystemExit(f"[canary] FAIL: backend {key!r} unsupported by {provider}")
+    return defaults[key]
 
 
 def backend_choices() -> list:
@@ -153,7 +160,9 @@ DEFAULT_CANARY_MODEL = "sonnet"    # 카나리 1왕복의 **기본 선언값**�
 def build_request(topology: str, manifest_path: str, *,
                   max_turns: int = None, timeout_seconds: int = None,
                   budget_source: str = None, model: str = None,
-                  backend: str = None) -> dict:
+                  backend: str = None, provider: str = "claude_code",
+                  max_dispatches: int | None = None, sandbox_mode: str | None = None,
+                  permission_profile: str | None = None) -> dict:
     """카나리 request 조립. 예산은 **선언받는다**(기본값 ✗ — `turn_budget` 참조).
 
     `model` 은 선언이다(2026-09-05 · G-A1): 어댑터가 모델을 막지 않으므로 여기 값도 게이트가 아니라
@@ -171,18 +180,20 @@ def build_request(topology: str, manifest_path: str, *,
     if missing:
         raise SystemExit(f"[canary] FAIL: nodes[sub] 필수 필드 미해소 {missing} — "
                          f"추측해서 접속하지 않는다(틀린 계정/경로는 권한 평면을 바꾼다).")
-    bud = turn_budget.declare(max_turns, timeout_seconds, source=budget_source or "")
+    unit = "wall_time" if provider == "codex_cli" else "native_turns"
+    bud = turn_budget.declare(max_turns, timeout_seconds, source=budget_source or "",
+                              unit=unit, max_dispatches=max_dispatches)
     sub_mode, mode_source = resolve_sub_mode(topology, manifest_path)
     if sub_mode not in TASK_BY_MODE:
         raise SystemExit(f"[canary] FAIL: 알 수 없는 sub_mode={sub_mode!r}(출처 {mode_source}) — "
                          f"정체성이 정해지지 않으면 물어볼 내용도 정해지지 않는다.")
-    return {
-        "schema_version": 1,
-        "provider": "claude_code",
+    request = {
+        "schema_version": 2 if provider == "codex_cli" else 1,
+        "provider": provider,
         "intent": "bootstrap_canary",
         # 2026-09-08: 백엔드별 기본 모델은 **어댑터가 소유한다**(BACKEND_DEFAULT_MODEL).
         #   종전에는 `k3[1m]` 리터럴이 여기 손으로 적혀 있어, 백엔드가 늘면 갈라지는 자리였다.
-        "model": model or _backend_default_model(backend),
+        "model": model or _backend_default_model(backend, provider),
         "task": TASK_COMMON + TASK_BY_MODE[sub_mode],
         "target": {
             "role": "sub",
@@ -198,6 +209,16 @@ def build_request(topology: str, manifest_path: str, *,
         "timeout_seconds": bud["timeout_seconds"],
         "max_turns": bud["max_turns"],
     }
+    if provider == "codex_cli":
+        request.update(budget_unit=unit, max_dispatches=bud["max_dispatches"])
+        if sandbox_mode and permission_profile:
+            raise SystemExit("[canary] FAIL: choose sandbox_mode OR permission_profile")
+        if permission_profile:
+            request["permission_profile"] = permission_profile
+        else:
+            request["sandbox_mode"] = sandbox_mode or "read-only"
+        request["task"] = "AGENTS.md 를 먼저 읽고 그 문서가 지정한 정본 지침을 읽어라. " + request["task"]
+    return request
 
 
 def _self_test() -> int:
@@ -279,6 +300,12 @@ def main() -> int:
     ap.add_argument("--emit", metavar="PATH", help="request JSON 을 이 경로에 쓴다(기본: stdout)")
     ap.add_argument("--max-turns", type=int, default=None,
                     help="이 카나리에 배정할 턴 예산(선언 필수 — 기본값 없음)")
+    ap.add_argument("--provider", choices=("claude_code", "codex_cli"), default="claude_code")
+    ap.add_argument("--max-dispatches", type=int, default=None,
+                    help="Codex wall-time 계약의 명시적 외부 위임 상한")
+    permissions = ap.add_mutually_exclusive_group()
+    permissions.add_argument("--sandbox-mode", choices=("read-only", "workspace-write"))
+    permissions.add_argument("--permission-profile")
     ap.add_argument("--timeout-seconds", type=int, default=None,
                     help="매달림을 잡는 상한(scope ⊥ budget — 예산과 별개 노브)")
     ap.add_argument("--budget-source", default=None, help="그 예산을 그렇게 정한 근거(필수)")
@@ -297,7 +324,9 @@ def main() -> int:
     manifest = a.manifest or os.path.join(REPO, "output", a.topology, "manifest.yaml")
     req = build_request(a.topology, manifest, max_turns=a.max_turns,
                         timeout_seconds=a.timeout_seconds, budget_source=a.budget_source,
-                        model=a.model, backend=a.backend)
+                        model=a.model, backend=a.backend, provider=a.provider,
+                        max_dispatches=a.max_dispatches, sandbox_mode=a.sandbox_mode,
+                        permission_profile=a.permission_profile)
     blob = json.dumps(req, ensure_ascii=False, indent=2) + "\n"
     if a.emit:
         with open(a.emit, "w", encoding="utf-8") as f:

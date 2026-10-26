@@ -24,13 +24,17 @@
   "properties": {
     "schema_version": {
       "type": "integer",
-      "const": 1
+      "enum": [
+        1,
+        2
+      ]
     },
     "provider": {
-      "description": "Provider-neutral orchestrator identifier. Phase 6 scope is Claude Code only.",
+      "description": "Inner harness identity. v1 is Claude Code; v2 is Codex CLI.",
       "type": "string",
       "enum": [
-        "claude_code"
+        "claude_code",
+        "codex_cli"
       ]
     },
     "intent": {
@@ -142,6 +146,39 @@
       ],
       "minimum": 0,
       "description": "provider 가 보고한 **API** 소요(ms). 출처는 provider payload 이며 메인이 재지 않는다."
+    },
+    "raw_exit_code": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "execution_started": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "description": "Observed native turn/item execution. null means it cannot be excluded, not safe to replay."
+    },
+    "usage": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Native observed usage without synthesizing Claude turns."
+    },
+    "failure_evidence": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "description": "Structured failure signal and raw stdout/stderr. rotate is false for unknown or started execution."
+    },
+    "raw_events": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
     }
   },
   "oneOf": [
@@ -162,6 +199,102 @@
         "output": {
           "type": "string",
           "minLength": 1
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "provider": {
+          "const": "claude_code"
+        },
+        "raw_exit_code": {
+          "enum": []
+        },
+        "execution_started": {
+          "enum": []
+        },
+        "usage": {
+          "enum": []
+        },
+        "failure_evidence": {
+          "enum": []
+        },
+        "raw_events": {
+          "enum": []
+        }
+      }
+    },
+    {
+      "properties": {
+        "status": {
+          "const": "completed"
+        },
+        "exit_code": {
+          "const": 0
+        },
+        "model_used": {
+          "description": "모델 게이트 폐기(2026-09-05 · G-A1) 뒤 provider 가 metadata 를 주지 않으면 빈 배열이다 — 기록의 부재를 차단으로 바꾸지 않는다."
+        },
+        "reason_codes": {
+          "maxItems": 0
+        },
+        "output": {
+          "type": "string",
+          "minLength": 1
+        },
+        "schema_version": {
+          "const": 2
+        },
+        "provider": {
+          "const": "codex_cli"
+        }
+      },
+      "required": [
+        "raw_exit_code",
+        "execution_started",
+        "usage",
+        "failure_evidence",
+        "raw_events"
+      ]
+    },
+    {
+      "properties": {
+        "status": {
+          "const": "invalid_request"
+        },
+        "exit_code": {
+          "const": 2
+        },
+        "model_used": {
+          "maxItems": 0
+        },
+        "reason_codes": {
+          "const": [
+            "REQUEST_SCHEMA_INVALID"
+          ]
+        },
+        "output": {
+          "const": null
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "provider": {
+          "const": "claude_code"
+        },
+        "raw_exit_code": {
+          "enum": []
+        },
+        "execution_started": {
+          "enum": []
+        },
+        "usage": {
+          "enum": []
+        },
+        "failure_evidence": {
+          "enum": []
+        },
+        "raw_events": {
+          "enum": []
         }
       }
     },
@@ -183,6 +316,68 @@
         },
         "output": {
           "const": null
+        },
+        "schema_version": {
+          "const": 2
+        },
+        "provider": {
+          "const": "codex_cli"
+        }
+      },
+      "required": [
+        "raw_exit_code",
+        "execution_started",
+        "usage",
+        "failure_evidence",
+        "raw_events"
+      ]
+    },
+    {
+      "properties": {
+        "status": {
+          "const": "execution_failed"
+        },
+        "exit_code": {
+          "const": 4
+        },
+        "reason_codes": {
+          "minItems": 1,
+          "items": {
+            "enum": [
+              "NONZERO_EXIT",
+              "IS_ERROR",
+              "PERMISSION_DENIED",
+              "RUNNER_UNAVAILABLE"
+            ]
+          }
+        },
+        "output": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "실패 경로도 **진단을 실을 수 있다**. 2026-09-05 실측: 권한 거부 경로가 거부된 도구 목록을 output 에 담아 돌려주는데 이 자리가 `const: null` 이라 결과가 스키마 위반이 됐고, orchestrator 가 그것을 PROVIDER_RESULT_INVALID 봉투로 갈아끼워 **그 진단이 호출자에게 한 번도 도달하지 못했다**(만든 것과 도는 것은 다르다)."
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "provider": {
+          "const": "claude_code"
+        },
+        "raw_exit_code": {
+          "enum": []
+        },
+        "execution_started": {
+          "enum": []
+        },
+        "usage": {
+          "enum": []
+        },
+        "failure_evidence": {
+          "enum": []
+        },
+        "raw_events": {
+          "enum": []
         }
       }
     },
@@ -211,6 +406,62 @@
             "null"
           ],
           "description": "실패 경로도 **진단을 실을 수 있다**. 2026-09-05 실측: 권한 거부 경로가 거부된 도구 목록을 output 에 담아 돌려주는데 이 자리가 `const: null` 이라 결과가 스키마 위반이 됐고, orchestrator 가 그것을 PROVIDER_RESULT_INVALID 봉투로 갈아끼워 **그 진단이 호출자에게 한 번도 도달하지 못했다**(만든 것과 도는 것은 다르다)."
+        },
+        "schema_version": {
+          "const": 2
+        },
+        "provider": {
+          "const": "codex_cli"
+        }
+      },
+      "required": [
+        "raw_exit_code",
+        "execution_started",
+        "usage",
+        "failure_evidence",
+        "raw_events"
+      ]
+    },
+    {
+      "properties": {
+        "status": {
+          "const": "malformed_output"
+        },
+        "exit_code": {
+          "const": 5
+        },
+        "reason_codes": {
+          "minItems": 1,
+          "items": {
+            "enum": [
+              "MALFORMED_JSON",
+              "PROVIDER_RESULT_INVALID"
+            ]
+          }
+        },
+        "output": {
+          "const": null
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "provider": {
+          "const": "claude_code"
+        },
+        "raw_exit_code": {
+          "enum": []
+        },
+        "execution_started": {
+          "enum": []
+        },
+        "usage": {
+          "enum": []
+        },
+        "failure_evidence": {
+          "enum": []
+        },
+        "raw_events": {
+          "enum": []
         }
       }
     },
@@ -233,6 +484,61 @@
         },
         "output": {
           "const": null
+        },
+        "schema_version": {
+          "const": 2
+        },
+        "provider": {
+          "const": "codex_cli"
+        }
+      },
+      "required": [
+        "raw_exit_code",
+        "execution_started",
+        "usage",
+        "failure_evidence",
+        "raw_events"
+      ]
+    },
+    {
+      "properties": {
+        "status": {
+          "const": "timeout"
+        },
+        "exit_code": {
+          "const": 124
+        },
+        "model_used": {
+          "maxItems": 0
+        },
+        "reason_codes": {
+          "const": [
+            "TIMEOUT"
+          ]
+        },
+        "output": {
+          "const": null
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "provider": {
+          "const": "claude_code"
+        },
+        "raw_exit_code": {
+          "enum": []
+        },
+        "execution_started": {
+          "enum": []
+        },
+        "usage": {
+          "enum": []
+        },
+        "failure_evidence": {
+          "enum": []
+        },
+        "raw_events": {
+          "enum": []
         }
       }
     },
@@ -254,8 +560,21 @@
         },
         "output": {
           "const": null
+        },
+        "schema_version": {
+          "const": 2
+        },
+        "provider": {
+          "const": "codex_cli"
         }
-      }
+      },
+      "required": [
+        "raw_exit_code",
+        "execution_started",
+        "usage",
+        "failure_evidence",
+        "raw_events"
+      ]
     }
   ]
 }
