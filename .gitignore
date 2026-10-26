@@ -2,7 +2,12 @@
 # AI 에이전트 / 코딩 어시스턴트 작업 파일
 # ===========================================
 .agent/
-.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/*/
+.agents/skills/*/*
+!.agents/skills/*/SKILL.md
 .cursor/
 .windsurf/
 .taskmaster/
@@ -11,7 +16,11 @@
 .ouroboros/
 # Claude/Hermes control runtime overlay — maintainer-local only; never distribute or sync.
 /.hermes-claude-control/
-.codex/
+.codex/*
+!.codex/config.toml
+!.codex/rules/
+.codex/rules/*
+!.codex/rules/*.rules
 .copilot/
 .codeium/
 .docker-skills/
@@ -140,6 +149,9 @@ configs/*.sh
 #   예외: multi-node 손작성 컨테이너 정의는 *.template 졸업 전까지 정본 → 추적 유지(Plan 2서 ignore 강등).
 #   규칙 근거: docs/plan/plan_2026062312_1
 # ===========================================
+# Node-local dispatch locks are coordination state, not deployment inputs.
+output/.a2a-worker.lock
+output/.relay-dispatch.lock
 output/*/*
 !output/*/.gitkeep
 !output/multi/Dockerfile

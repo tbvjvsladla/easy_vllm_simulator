@@ -113,11 +113,13 @@
 > 어휘·판정·회전·소진은 이 절이 소유한다. 실행 문법(바이너리·별칭 표)은
 > `references/orchestration/agent-control-adapter.md` §2.1 이 소유한다.
 
-**어휘.** 러너 = **(backend, model) 한 쌍**이다. 두 축이 아니다 — shim 이
+**어휘.** 러너 = **(provider, backend, model)** 이다. provider는 이너 하네스, backend는 그 하네스의
+모델 제공 경로다. Claude 내부에서는 backend/model이 한 쌍이다 — shim 이
 `ANTHROPIC_DEFAULT_*_MODEL` 을 자기 슬롯으로 덮으므로 kimi 아래의 `sonnet` 은 sonnet 이 아니고,
 모델 토큰은 백엔드 사이에서 **이식되지 않는다**. 별칭(`sonnet`·`opus`·`haiku`·`kimi-claude`·
 `minimax-claude`·`meta-claude`)을 쌍으로 펴는 **닫힌 표**는 어댑터가 소유하고, 중립 통로는
-`agent_control.py runners` 다(사본 ✗).
+`agent_control.py runners --provider all` 다(사본 ✗). Codex 선택은 `codex-gpt-6.1-sol`이며
+기존 `openai-claude`와 다르다. 별칭 등재는 선택 가능성을 뜻하고 기본 사다리를 바꾸지 않는다.
 
 > ⚠ **shim 은 판정 모델까지 덮는다**(2026-09-15 실측). auto mode 의 안전 판정 호출도 shim 의 모델
 > 슬롯을 타므로, 그 엔드포인트가 판정에 응답하지 못하면 Edit·Bash·Agent 가 전부
@@ -126,8 +128,9 @@
 > 타지 않는다. 대화형 메인을 shim 으로 띄울 때는 auto mode 를 쓰지 않는다. 서브의 root 관리설정은
 > 머신 전체·최상위라 **서브에만** 둔다 — 메인에 깔면 `Edit(<ws>/.claude/**)` deny 가 하네스 수정을 막는다.
 
-**사다리와 회전.** 사다리 = 러너의 순서 있는 목록(`relay.py --runners a,b,c`). 회전 = **같은 과업·
-같은 예산·같은 재개 선언**을 다음 칸으로 다시 발급하는 것이다. 사다리는 **순환**한다(4→1→…).
+**사다리와 회전.** 사다리 = 러너의 순서 있는 목록(`relay.py --runners a,b,c`). 회전은
+실행 전 러너 불가가 증명된 경우에만 승인된 과업을 다음 칸으로 넘긴다. provider별 예산 단위는
+보존한다. provider가 바뀌면 native 세션은 새로 열고 아티팩트로 인계한다. 사다리는 **순환**한다(4→1→…).
 바뀌는 것은 *누가 실행하는가* 하나이므로 **회전은 재시도도 예산 사건도 아니다**(`scope ⊥ budget`
 에 축이 하나 붙는다). 생략 시 1칸(`sonnet`)이며 이는 이 기능 도입 **전과 동작이 같다**.
 
@@ -165,11 +168,39 @@
 | `supervise_decide` 의 `rotate_runner` 분기 | 스텝 사이에 죽어 있던 것을 감독이 볼 때(`--apply` 면 재발급) |
 
 - **커서를 저장하지 않는다** — 다음 칸은 원장에서 파생한다(같은 개념이 두 자리에 앉으면 갈라진다).
-- **세션 선언은 회전해도 바꾸지 않는다.** 러너 실패 봉투는 `session_id` 를 **싣고 오지만**
-  그것은 백엔드가 첫 요청 전에 연 빈 껍데기다 — 이으면 다음 칸이 빈 세션을 재개한다. 그래서
-  `_reached_sub` 가 러너 실패를 **"닿지 않음"** 으로 판정하고, 그 한 술어가 예산 바닥·정체
-  카운트·마지막 세션·비용 상한 **넷을 함께** 옳게 만든다.
+- **native 세션은 provider·target·권한 선택에 결속한다.** 같은 provider에서만 일치하는 세션을
+  재개한다. provider 변경은 새 native 세션과 원장 기반 인계이며, 이전 ID를 새 provider에 보내지 않는다.
+  실행이 시작된 뒤의 러너 실패는 이미 발생한 효과가 있을 수 있으므로 자동 회전하지 않는다.
+- `run_attempt`와 감독 `supervise_decide` 모두 `runner_evidence.rotate=true`를 요구한다.
+  판정이 없거나 false이면 감독이 다음 스텝에서 회전을 다시 열지 않는다.
 - **회전은 비용이 아니다** — `--cost-cap-attempts` 는 서브에 닿은 attempt 만 센다.
+
+**Codex 예산과 상태 소유권.** Codex는 v2 wall-time 계약을 쓴다. `--max-turns`를 넘기지 않고
+`--timeout-seconds`·`--max-dispatches`·`--budget-source`를 선언한다. native turn 수는 모르면 null이다.
+외부 dispatch cap은 실패한 발행도 세며 Claude native 비용 상한과 별도다. 운영 서브는
+`--permission-profile vllm-sub`, 읽기 전용 카나리는 `--sandbox-mode read-only`를 사용한다.
+named profile이 없거나 신뢰되지 않았으면 수리·검증하고 다시 진입한다. 더 넓은 sandbox로 대체하지 않는다.
+
+이 cap은 context 전체에 결속되므로 Claude-only 러너로 전환해도 없어지지 않는다. 마지막 허용
+dispatch가 완료된 경우에는 완료를 보고하며, cap은 다음 발행을 막는다. 감독은 context마다
+campaign·통제변인·node·권한을 원장에서 새로 복원하고 수동 재개와 같은 정체성·잔존 서비스 게이트를 통과한다.
+
+릴레이 CLI는 저장소 단일 writer 잠금을 얻고, 외부 실행 **전에** 원장에 context·과업·topology·manifest,
+`inflight`·dispatch ID·요청 바이트 digest(비추적 요청)·예약 outcome 경로를 기록한다.
+원장은 revision을 대조해 오래된 writer를 거부하며 pending HITL은 읽기부터 쓰기까지
+직렬화한다. 프로세스가 사라져도 미해소 inflight를 시간 경과만으로 지우거나 재발행하지 않는다.
+반환된 dispatch ID가 현재 예약과 다르면 늦은 결과로 거부한다. 이 상태에서는 기존 A2A·문서 회수
+경로로 종료와 효과를 확인한 증거가 있어야 한다. 로컬 잠금 자체가 원격 종료를 증명하지는 않는다.
+
+`agent_control invoke`는 정규화한 provider 결과를 예약된 outcome 파일에 원자적으로 영속화한 뒤
+stdout으로 보낸다. 파일은 dispatch ID와 **전체 요청**에 결속되며 덮어쓰지 않는다. stdout 유실 뒤에는
+`relay.py --context-id <ctx> --reconcile-inflight [--campaign-id <camp>]`로 검증하고, 같은 명령에
+`--apply`를 붙여 **저장된 결과만** 원장에 append한다. 선택 경로가 필요하면 `--reconcile-result
+<예약 outcome 경로>`를 쓴다. 재위임은 하지 않고 해당 dispatch를 소비한 것으로 센다.
+요청 digest·dispatch ID·provider 결과 schema·요청 echo를 대조하며 경로 구성요소의 symlink를 거부한다.
+잘못된 task self-report는 raw로 보존하며 completed로 승격하지 않는다. outcome이 없거나 정체성이
+갈리면 계속 차단한다 — 임의 산문·시간 경과로 inflight를 지우거나 성공·종료를 만들어 적지 않는다.
+이 outcome은 제어평면 증거이며 benchmark·artifact·hint 완료 게이트를 대신하지 않는다.
 
 **소진 → HITL.** 서브에 닿은 마지막 attempt 이후로 사다리를 **한 바퀴** 다 돌았는데 전부 러너
 평면에서 실패하면, 차단성 항목을 `pending_hitl` 에 표면화하고(답 없이는 `--continue` 진행 ✗)

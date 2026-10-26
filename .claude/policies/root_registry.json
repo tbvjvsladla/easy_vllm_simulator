@@ -10,6 +10,27 @@
   },
   "entries": [
     {
+      "name": "AGENTS.md",
+      "kind": "file",
+      "git": "tracked",
+      "owner": "헌법",
+      "role": "Codex 진입문서 — 공통 헌법과 적용 규칙으로 연결하는 얇은 어댑터"
+    },
+    {
+      "name": ".agents",
+      "kind": "dir",
+      "git": "tracked",
+      "owner": "헌법·스킬",
+      "role": "Codex 스킬 발견 wrapper — 도메인 본문은 .claude/skills 단일 권위"
+    },
+    {
+      "name": ".codex",
+      "kind": "dir",
+      "git": "tracked",
+      "owner": "헌법·권한",
+      "role": "추적 프로젝트 권한 profile·명령 rules만 배포, 인증·개인 설정·세션은 제외"
+    },
+    {
       "name": "CLAUDE.md",
       "kind": "file",
       "git": "tracked",

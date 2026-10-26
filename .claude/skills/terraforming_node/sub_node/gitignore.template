@@ -25,6 +25,16 @@ hints/.push_authority
 hints/.central_authority
 hints/.drafts/
 .claude/pii_terms.txt
+# Codex deployment contains project policy only; credentials, sessions and local overrides never sync.
+.codex/*
+!.codex/config.toml
+!.codex/rules/
+.codex/rules/*
+!.codex/rules/*.rules
+.agents/*
+!.agents/skills/
+.agents/skills/*/*
+!.agents/skills/*/SKILL.md
 # ── tiktoken 에어갭 자산(gpt-oss o200k — 서브가 사전적재/자체복구. 호스트 자산·배포물 아님, 메인 .gitignore 정합) ──
 tiktoken_cache/
 
@@ -51,6 +61,9 @@ envs/.env.*
 #   ★ 2026-08-13 이전 이 목록은 4줄(multi Dockerfile 3종 + .gitkeep)에서 멈춰 있었고 메인은 19줄이었다.
 #   서브 git 은 메인의 **관측 장치**인데(권한평면 B) 그 눈이 가려져, 배달받은 빌드킷 전부가 비추적이라
 #   `[sync]` 커밋이 실제 배달분을 과소기록했다. 관측이 멀면 오배달도 침묵한다.
+# Native A2A worker and main-side relay exclusion files remain node-local.
+output/.a2a-worker.lock
+output/.relay-dispatch.lock
 output/*/*
 !output/*/.gitkeep
 !output/multi/Dockerfile

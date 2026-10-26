@@ -1,0 +1,7 @@
+# Project defaults preserve user approvals and managed requirements. Native provider invocations
+# select this named permission profile explicitly; do not combine it with legacy --sandbox.
+default_permissions = "vllm-main"
+
+[permissions.vllm-main]
+description = "Main workspace development under the existing approval and topology contracts."
+extends = ":workspace"

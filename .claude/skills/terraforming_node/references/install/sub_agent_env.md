@@ -12,6 +12,7 @@
 - 2.4 A2A-개념 협업 계약 (서버 없음)
 - 2.5 완료 게이트 — model-less 카나리 라운드트립 (R1 정합)
 - 2.5.1 hint 발행 장착 — single 서브 한정 (신설 2026-10-11 · `plan_26101104` Step 3)
+- 2.5.2 Codex 배포와 실제 권한 준비성
 - 2.7.10 Agent_Card v2 (A2A 1.0.1) · 서브 manifest (신설 2026-09-05 · `plan_26090516` §7.2–7.3 · H1)
 - 서브 템플릿 (옛 §4 에서 이관)
 
@@ -41,12 +42,15 @@
 | 경로(서브 루트) | 내용 | 전달타입 |
 |---|---|---|
 | `CLAUDE.md` | 페르소나(Karpathy B1–B4, **노드정체성 bake**, 자율 triplet 저작 + 자기교정) | 렌더(gitignored) |
+| `AGENTS.md` | 같은 역할 헌법·통신·리포트로 연결하는 Codex 진입문서 | 역할별 렌더 |
+| `.agents/skills/*/SKILL.md` | canonical `.claude/skills`를 가리키는 얇은 발견 wrapper | `node_role_contract.tool_plane`이 지목한 스킬만 복제 |
+| `.codex/config.toml` · `.codex/rules/sub.rules` | `vllm-sub` named permission profile·직접 argv 차단 보조층 | 역할별 렌더 + 정적 rules 복제 |
 | `Agent_Card.json` | A2A 능력카드(skills[]·노드정체성) | 렌더(gitignored) |
 | `.claude/settings.local.json` | **스코프드** 권한(블랭킷 ✗) | 렌더(gitignored) |
 | `.claude/skills/vllm-recipe-explorer/` | 런타임블럭(git-tracked만) | 복제 |
 | `.claude/skills/hint-publisher/` · `hints/{HINT_ISSUANCE_CONTRACT.md,vocab.json}` · 엔진 의존(`completion_gate.py`·`evidence_publisher.py`·스키마 3·명명 shim `policies/runtime/doc_naming.py` → 정본 `wiki-desk/src/doc_naming.ts`) · `check_sub_hint_equip.py` | single 서브 hint 엔진(정본 `render_sub_env.HINT_ENGINE_DEPENDENCIES` · 색인·카탈로그·역할 마커는 `HINT_NEVER_DELIVER` 로 영구 미배달) | 복제(a2a-agent 만) |
 | `.claude/rules/comms.md` | 통신 정적계약 | 복제 |
-| `.claude/rules/docs.md` | 문서발행 규약(D12 — 서브 동일 규약 발행 → 상향 문서기반 회수) | 복제(메인 `.claude/rules/docs.md`) |
+| `.claude/rules/strategy.topology.md` | 이 체크아웃의 특화헌법 | 복제(반대 브랜치의 특화 바이트는 옮기지 않음) |
 | `.claude/schemas/task-report.schema.json` | 자기검증 스키마 | 복제 |
 | `.gitignore` | 서브 로컬 git 추적규칙(D12 — docs persist·생성물 무시) | 복제(`sub_node/gitignore.template`) |
 | `docs/{plan,devlog,testlog,simlog}/example.md` | 발행 스켈레톤(D12 — 서브 insight 문서) | 복제(메인 docs/*/example.md) |
@@ -81,7 +85,7 @@
 - 메인=client(Task 발급·리포트 검증·피드백) · 서브=remote(자율 수행·자기검증 리포트 1개). A2A 어휘 차용, HTTP 서버 ✗(전송=SSH 단발 `delegate(task)` — provider 문법은 `references/orchestration/agent-control-adapter.md`).
 - **검증 = push-attestation**: 서브가 self-verification(config-parse·schema·runner 문법·checksum·**로컬 스모크**)을 리포트에 담아 회신 → **메인은 리포트만 검증, 서브 워크스페이스 재스캔 ✗**.
 - **성공술어**: phase 별(comms.md). 예: config = triplet 생성 + 로컬 스모크 응답("린트 통과 ≠ 서빙됨").
-- **상태=파일**: `campaigns/<camp-id>/relay/<context_id>.json`("파일=세션" · 2026-09-06 루트 `tasks/` 에서 이관 · 활성 캠페인 부재 시 `_bootstrap`). 턴 예산은 **메인이 매 attempt 선언한다**(`--max-turns`·`--timeout-seconds`·`--budget-source`) — 옛 `max-turns=3`(2026-09-03 폐기)에 이어 그 대체물이던 **grade 표도 2026-09-05 폐기**됐다(표가 실측 없이 정본 행세를 했고 교정 소비자가 0 이었다 · `audit_26090515` G-A2). `scripts/turn_budget.py` 는 이제 선언을 **검증**만 한다(상한은 요청 스키마에서 읽는다). 소진은 terminal 이고 다음은 **더 큰 예산의 새 attempt** 이며, 그 이어붙이기는 `scripts/relay.py --continue` 가 **본문을 조립**한다(재개의 기본은 `--supervise-step --apply` 자동 재발급이고, 사람은 팝업된 예외에서만 답·승인한다 — §2.7.7a).
+- **상태=파일**: `campaigns/<camp-id>/relay/<context_id>.json`("파일=세션" · 2026-09-06 루트 `tasks/` 에서 이관 · 활성 캠페인 부재 시 `_bootstrap`). 예산은 **메인이 매 attempt 단위와 함께 선언한다**(공통 `--timeout-seconds`·`--budget-source`, Claude Code의 native-turn 한도 `--max-turns`, Codex의 wall-time·outer dispatch 한도) — 옛 `max-turns=3`(2026-09-03 폐기)에 이어 그 대체물이던 **grade 표도 2026-09-05 폐기**됐다(표가 실측 없이 정본 행세를 했고 교정 소비자가 0 이었다 · `audit_26090515` G-A2). `scripts/turn_budget.py` 는 이제 선언을 **검증**만 한다(상한은 요청 스키마에서 읽는다). 소진은 terminal 이고 다음은 **더 큰 예산의 새 attempt** 이며, 그 이어붙이기는 `scripts/relay.py --continue` 가 **본문을 조립**한다(재개의 기본은 `--supervise-step --apply` 자동 재발급이고, 사람은 팝업된 예외에서만 답·승인한다 — §2.7.7a).
 - per-task 휘발값(모델명·예산·NAS 서브디렉토리)은 **Task Message** 로(manifest 복제 아님).
 - single의 독립 `a2a-agent` sub campaign은 main-derived declaration을 relay task body의 JSON으로 받고, `campaign_init.py --init <id> --plan-ref <ref> --from-slice - --apply`로 stdin에서 소비한다. 별도 slice 파일은 만들지 않는다. `--from-slice <PATH>`는 호환 입력이다. multi의 `ray-worker`는 main-owned distributed cell에 참여하므로 독립 campaign slice/자율 init 대상이 아니다.
 
@@ -152,6 +156,53 @@ single 서브(sub_mode `a2a-agent`)는 **자기가 잰 셀을 스스로 hint 태
   `hint.py catalog derive`. 엔진 버전 어긋남은 차단하지 않고 기재한다.
 - 자체검사: `check_sub_hint_equip.py --self-test`(verify_distribution) · `render_sub_env.py --self-test` (4b)·(4d) · `campaign_init.py --selftest`(운반 양·음성).
 
+
+### 2.5.2 Codex 배포와 실제 권한 준비성
+
+공통 헌법의 권위와 토폴로지 역할은 유지한다. `AGENTS.md`·`.agents`는 진입 어댑터이고 도메인 본문은
+기존 `CLAUDE.md`·`.claude/skills`에 하나만 둔다. 서브에는 메인의 AGENTS나 전체 스킬을 복사하지 않는다.
+렌더는 `node_role_contract.tool_plane`에서 canonical 스킬과 wrapper를 같은 집합으로 파생하며,
+`terraforming_node`의 캠페인 지원 스크립트를 받는 것은 main orchestration 스킬을 받는 것과 다르다.
+Git-index 스냅샷·브랜치 allowlist/mirror·역할별 잔재 회수에도 새 발견 루트가 포함돼야 한다.
+
+배달된 Codex 설정은 `vllm-sub`을 `:workspace`에서 확장한다. 정책·정체성 파일과 `.claude` canonical 코드는
+read-only이며, 로컬 git 계약을 위한 `.git`와 single의 generated recipe feedback subtree만 좁게 예외를 둔다.
+single은 자기 빌드킷을 쓸 수 있고 multi는 배달된 빌드킷을 읽기만 한다. shell 네트워크는 승인된 도서관 SSH·
+외부 코드 clone·빌드 입력을 위해 열지만 domain filtering으로 부르지 않는다. `sub.rules`의 argv prefix는
+방어심층이다. git 옵션 재배열·절대 실행 경로·interpreter 내부·Docker daemon·원격 프로세스까지 집행한다고
+주장하지 않으며, HF URL wildcard나 exact 승인을 부정확한 prefix로 자동 치환하지 않는다.
+
+다음 준비성은 **서브가 자기 실행으로 관측하고 문서로 회신**한다. 메인이 서브를 무단 스캔하지 않는다.
+
+1. **바이너리·인증·설정:** 대상 노드에서 `codex` 실제 버전과 `CODEX_HOME`의 해소 출처를 확인한다.
+   인증은 존재/유효성만 기록하고 내용을 출력·복제하지 않는다. 프로젝트가 신뢰돼 `.codex/config.toml`과
+   `.rules`를 로드하는지, 관리 요구사항과 충돌하지 않는지 확인한다. 파일 존재는 실제 로딩의 증명이 아니다.
+2. **read-only discovery:** `bootstrap_canary.py --provider codex_cli --model gpt-6.1-sol`에 선언된 wall-time
+   예산을 주고 `--sandbox-mode read-only`로 호출한다. AGENTS·역할·manifest·Card·실제 발견 스킬·리포트 계약을
+   보고하고 작업공간 변경이 없음을 확인한다. CLI/provider 성공, task-report schema, 업무 증거 게이트를 각각 기록한다.
+3. **named profile 검증:** 행동 위임에는 `--permission-profile vllm-sub`를 사용하고 native argv에
+   `-c default_permissions="vllm-sub"`가 있으며 `--sandbox`·`--approve-for-me`가 없는지 확인한다.
+   로딩된 어느 config의 legacy `sandbox_mode`도 named profile을 덮을 수 있으므로 effective policy가 불명확하면
+   중단한다. 없는 profile·미신뢰 config·미지원 CLI를 legacy/full-access로 조용히 대체하지 않는다.
+4. **허용·차단의 실제 음성대조:** 전용 임시 캠페인 영역에 쓰기·정리와 기존 로컬 git 동작을 확인한다.
+   identity/policy 보호는 파일 내용을 손상시키지 않는 동일 바이트 쓰기 시도로 검증한다. single의 빌드킷 쓰기와
+   multi의 동일 바이트 빌드킷 쓰기 거부를 대조하고, 정본이 실제로 보존됐는지 기록한다.
+   `codex execpolicy check`의 `decision=forbidden`은 비실행 규칙 평가이며 실제 OS 차단 증거와 구분한다.
+5. **중단·재개·통신:** 선언한 timeout/cancel에서 자식 프로세스가 남지 않는지, 같은 provider/target/권한의
+   명시적 native 세션만 재개되는지, 도서관 질의와 schema-valid task-report가 정상 왕복하는지 확인한다.
+   하네스를 바꾸면 새 native 세션에 캠페인 아티팩트를 인계하고 원래 실행자를 다른 실행자로 대체 집계하지 않는다.
+
+실제 allow/deny·종료·왕복을 확인하기 전에는 Codex 배포를 promotion-ready로 부르지 않는다.
+Linux/WSL에서 `bwrap`의 namespace/uid-map 준비가 실패하면 profile 집행 자체가 시작되지 않은 것이다.
+그 사실과 stderr를 보존하고 기존 request/HITL 통로로 환경 정비를 요청한다. bypass 플래그·전역 managed 파일
+변경·호스트 보안 완화로 우회하지 않는다. 사용자별 누적 승인과 managed 정책은 그대로 두며 저장소는 인증이나
+사용자 전체 설정을 배포하지 않는다.
+
+공식 계약: [Codex Permissions](https://learn.chatgpt.com/docs/permissions),
+[Codex Rules](https://learn.chatgpt.com/docs/agent-configuration/rules).
+참고 seed `hermes-subagent-control-plane`의 `codex-cli-control` 브랜치에서 preflight → discovery → action과
+primary/fallback 증거 분리 원칙을 수용한다. seed의 legacy `-s` 예제를 named profile 행동 위임에 섞지 않는다.
+TOML profile 생성·검증은 Python 3.11 이상의 stdlib `tomllib`을 사용한다.
 
 ### 2.7.10 Agent_Card v2 (A2A 1.0.1) · 서브 manifest (신설 2026-09-05 · `plan_26090516` §7.2–7.3 · H1)
 

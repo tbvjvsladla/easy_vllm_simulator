@@ -4,7 +4,7 @@ description: >-
   **토폴로지-중립 진입(온보딩) 오케스트레이터** — fresh-clone/미테라포밍 환경에서 능동 발동해 **첫 동작으로
   토폴로지(① 단일노드 ② N대 멀티노드)를 인터뷰로 확정**하고, 그에 따라 노드를 스캔·manifest.yaml(스킬 간
   단일 계약)을 채운다. **single → 단일노드 온보딩**(manifest nodes:[] 기본; 서브 등록 시 A2A 에이전트 제어만 활성 — 빌드킷 배달 평면은 dormant) · **multi →
-  서브노드 스캔·연결/성능 검증 + 서브 코드에이전트(Claude Code) 작업환경 구축**(메인 렌더→전달→model-less 카나리).
+  서브노드 스캔·연결/성능 검증 + 서브 코드에이전트(Claude Code·Codex) 작업환경 구축**(메인 렌더→전달→model-less 카나리).
   "이제 뭐해야해", "환경 셋업", "온보딩", "테라포밍", "노드 스캔", "단일/멀티 결정", "manifest 생성",
   "서브노드 셋업", "인터커넥트 점검", "서브 에이전트 환경 구축", "서브 코드에이전트 셋업" 같은 지시·fresh-clone 감지에 발동.
   **무단 스캔 금지** — 토폴로지 인터뷰 → (multi면 5-전제조건 인터뷰) → 사용자 승인 후 스캔. 토폴로지 미선언 시
@@ -167,8 +167,9 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/staleness_gate.py` | spine 1 · §0.5 | — | 조건부 preflight 트리거 |
 | `scripts/bootstrap_canary.py` | §2.5 | — | model-less 카나리 실행자 |
 | `scripts/relay.py` | §2.7.7a · §2.7.11 | — | 턴제 릴레이·감독 스텝·러너 사다리 |
-| `scripts/turn_budget.py` | §2.7.7a | — | 턴 예산 선언 검증기 |
-| `scripts/agent_control.py` · `scripts/providers/` | §2.7.7 | — | provider-neutral 전송 orchestrator · Claude CLI 구문의 유일 발행처는 `providers/claude_code.py` |
+| `scripts/turn_budget.py` | §2.7.7a | — | 하네스별 native-turn·wall-time 예산 선언 검증기 |
+| `scripts/agent_control.py` · `scripts/providers/` | §2.7.7 | — | provider-neutral 전송 orchestrator · native 실행 구문은 각 provider adapter만 발행 · v1 native-turn / v2 wall-time 계약 |
+| `scripts/selftest_harness_switch.py` | §2.7.7 | — | 하네스 전환·예산·세션 결속·중복 실행·원장 경쟁 음성대조 |
 | `scripts/library_access.py` | §2.7.8 | — | 서브 서고 접근점 발급·회수(키·강제명령·manifest library 블록 · HITL) |
 | `scripts/node_blackbox/node_identity.sh` | §2.7.6 | ✓ | node_id 해소(실패하면 죽는다) |
 | `scripts/node_blackbox/`(런타임: `blackbox_session.py` · `budget_renew_loop.sh` · `blackbox_eta.py` · `regen_envelope.py` · `blackbox_thermal.py` · `mem_watchdog_eta.sh` · `thermal_watchdog.sh` · `agent_guard.py`) | §2.6 | ✓ | `references/blackbox/host_safety.md` |

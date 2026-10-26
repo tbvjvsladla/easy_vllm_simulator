@@ -39,6 +39,9 @@ EXIT_MALFORMED_OUTPUT = 5
 EXIT_TIMEOUT = 124
 
 PROVIDER_NAME = "claude_code"
+SUPPORTS = {"schema_versions": [1], "budget_units": ["native_turns"],
+            "native_turn_limit": True, "resume": "explicit_native_id",
+            "structured_output": "json", "capabilities_mode": "automatic_approval_list"}
 
 # 2026-09-08: 러너(백엔드×모델) 평면이 죽어서 실패한 것. `NONZERO_EXIT` 와 갈라 두는 이유는
 #   **처방이 다르기 때문**이다 — 이쪽은 사다리의 다음 칸으로 회전하면 낫고, 저쪽은 낫지 않는다.
@@ -131,11 +134,16 @@ def classify_runner_failure(payload, returncode: int, transport: str) -> dict | 
     if payload.get("terminal_reason") != TERMINAL_REASON_API_ERROR:
         return None                      # ★ 유일한 1차 신호. 서브가 일하다 실패한 것은 여기 오지 않는다
     status = payload.get("api_error_status")
-    status = status if isinstance(status, int) and not isinstance(status, bool) else None
-    if status in NO_ROTATE_ON_STATUS:
+    # A missing/wrong-typed field is not the observed null used for connection failures.
+    if "api_error_status" not in payload or (status is not None and
+            (not isinstance(status, int) or isinstance(status, bool))):
+        return {"signal": "unclassified_api_error", "api_error_status": status,
+                "rotate": False, "provenance": "measured", "returncode": returncode,
+                "detail": "API error status is missing or has an unsupported type"}
+    if status is not None and status not in ROTATE_ON_STATUS:
         return {"signal": "api_error", "api_error_status": status, "rotate": False,
                 "provenance": "doc", "returncode": returncode,
-                "detail": "요청 자체가 거절됐다 — 러너를 바꿔도 같은 거절을 받는다"}
+                "detail": "요청 거절 또는 미등록 상태 — 회전 근거가 없다"}
     return {
         "signal": "api_error",
         "api_error_status": status,      # None = 연결 오류(HTTP 응답 없음 · 공식문서 error_status null)
@@ -356,7 +364,13 @@ def invoke(request: dict) -> dict:
     except OSError as exc:
         # 2026-09-03(F4): `claude` 가 PATH 에 없거나 work_dir 이 없는 것과 "서브 에이전트가 돌다 실패"
         #   가 같은 NONZERO_EXIT 한 단어로 접혔다. 스키마 enum 은 못 늘리므로 사유는 stderr 로 낸다.
-        if isinstance(exc, FileNotFoundError):
+        if isinstance(exc, FileNotFoundError) and exc.filename == argv[0] and exc.filename != cwd:
+            # subprocess reports a missing cwd through exc.filename too.  SSH itself is
+            # transport infrastructure, not a runner that the ladder can replace.
+            if target["transport"] == "ssh":
+                _diag(request, "NONZERO_EXIT", "SSH executable is unavailable")
+                return _result(request, status=STATUS_EXECUTION_FAILED,
+                               exit_code=EXIT_EXECUTION_FAILED, reason_codes=["NONZERO_EXIT"])
             # 러너 바이너리가 이 노드에 없다 — 사다리의 다음 칸은 있을 수 있으므로 회전 대상이다.
             return _runner_unavailable(request, {
                 "signal": "missing_binary", "rotate": True, "provenance": "measured",

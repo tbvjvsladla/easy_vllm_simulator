@@ -3,6 +3,24 @@
   "description": "기초층(.claude/policies/**) → 스킬(.claude/skills/**) 간선의 닫힌 목록(plan_26093022 §4 · 차단 검사 ② · runtime_selftest tripwire⑨). 키 = (caller, callee: skills/ 아래 대상 경로). 새 간선은 이유와 함께 행을 추가하는 커밋으로만 열린다. runtime_operational = 운영 경로가 스킬 코드를 실행하거나 정책 판정이 스킬 로직에 기댐 · verification_plane = 검증 러너·술어·경로 문자열·원장·docstring. branch_layer_ledger.json(append-only 이력)은 판정 대상 밖.",
   "edges": [
     {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/selftest_harness_switch.py",
+      "phase": "verification_plane",
+      "reason": "하네스 전환 배포 검증 — 실제 relay·canary builder와 provider 결과·세션·원장 통합 픽스처를 실행한다(plan_26102623)"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "wiki-desk/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "Codex 발견 폐포 음성대조 — Git 없는 배포본의 wiki-desk wrapper를 변이하고 canonical target 연결을 검증한다(plan_26102623)"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "{name}/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "Codex 발견 폐포 — EXPECTED_SKILLS의 닫힌 public skill 집합에서 각 wrapper의 canonical SKILL.md 실재를 검증한다(plan_26102623)"
+    },
+    {
       "caller": ".claude/policies/claim_bindings.json",
       "callee": "adversarial-benchmark/scripts/resolve_bench_tool.py",
       "phase": "verification_plane",

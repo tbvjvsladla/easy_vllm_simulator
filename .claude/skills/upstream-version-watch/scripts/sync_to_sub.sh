@@ -1225,7 +1225,7 @@ prepare_transactional_source() {
     #   연결하지 못했고, 로그를 FAIL/STOP 으로 좁혀 보는 습관이 그 한 줄을 잘라냈다.
     #   인덱스 권위 자체는 계약이므로 **차단하지 않는다** — 다만 무엇이 갈렸는지는 반드시 보인다.
     local _drift
-    _drift="$(git -C "$CANONICAL_SRC" diff --name-only -- .claude CLAUDE.md .gitignore campaigns hints output/multi output/single 2>/dev/null)"
+    _drift="$(git -C "$CANONICAL_SRC" diff --name-only -- .claude CLAUDE.md AGENTS.md .agents .codex .gitignore campaigns hints output/multi output/single 2>/dev/null)"
     if [ -n "$_drift" ]; then
         # 아래 영문 한 줄은 `verify_distribution` 의 `sub_transactional_source_uses_git_index` 가
         #   앵커로 쓴다 — 트랜잭션 소스가 인덱스 권위임을 코드가 스스로 말하는 자리다. 지우지 마라
@@ -1243,7 +1243,7 @@ prepare_transactional_source() {
     #   산다. **트랜잭션 소스에 들어오는 것 ≠ 서브로 가는 것**이다 — 서브로 가는 것은 render_sub_env 가 스테이징에
     #   복사하는 것뿐이고(HINT_ENGINE_DEPENDENCIES · tool_plane 이 hint-publisher 를 지목할 때만), 색인·카탈로그·
     #   역할 마커는 렌더가 단언으로 막는다(HINT_NEVER_DELIVER). 비추적인 역할 마커는 인덱스 권위라 애초에 여기 없다.
-    git -C "$CANONICAL_SRC" ls-files -z -- .claude CLAUDE.md .gitignore campaigns hints output/multi output/single \
+    git -C "$CANONICAL_SRC" ls-files -z -- .claude CLAUDE.md AGENTS.md .agents .codex .gitignore campaigns hints output/multi output/single \
         | git -C "$CANONICAL_SRC" checkout-index -z --stdin --prefix="$TRANSACTIONAL_SRC/"
     # ★ plan_26091607 (H2·H3): filesystem-exception 루프의 침묵 스킵(`|| continue`)을 fail-loud 로 뒤집고,
     #   cross-worktree 해소(`resolve_render_input`)를 도입한다. required 항목은 어느 워크트리에도
@@ -1628,7 +1628,18 @@ report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 
 #   루트가 아니어서 09-10 autosave(`1c9c270`)가 쓸어 담은 옛 `rules/workflow.md`(34KB · 서브가 매
 #   세션 자동 로드)와 메인 전용 스키마 6종이 이 리포트에 **"잔재 0건"** 으로 보였다 — 틀린 게 아니라
 #   **보지 않는 자리**였다(수렴 리포트는 같은 파일을 봤다 · 두 관측이 어긋난 원인).
-RUNTIME_BLOCK_OWNED_ROOTS=(.claude/skills .claude/policies .claude/hooks .claude/pii_terms.txt .claude/rules .claude/schemas)
+# Codex wrappers and project policy are rendered by the main too. Without these roots,
+# additive delivery leaves removed wrappers discoverable even after canonical skill retirement.
+RUNTIME_BLOCK_OWNED_ROOTS=(
+    .claude/skills
+    .claude/policies
+    .claude/hooks
+    .claude/pii_terms.txt
+    .claude/rules
+    .claude/schemas
+    .agents/skills
+    .codex
+)
 # 메인 `.gitignore` 가 비추적으로 선언하지만 **서브가 저작한 적이 없는** 경로(닫힌 목록 · tripwire).
 #   `drop_node_local_paths` 의 전제("메인에도 그 노드의 사본이 있다 = 노드-로컬")가 여기서는 거짓이다 —
 #   이 파일은 메인의 사적 PII 리터럴 목록이고 서브의 사본은 옛 배달·autosave 가 남긴 것뿐이다.

@@ -9,16 +9,20 @@
 
 ## 1. provider-neutral request
 
+계약 v1은 기존 Claude 경로이며 v2는 Codex의 시간 예산·권한 선택·세션 결속을 명시한다.
+schema와 `agent_control.py`의 교차필드 검증이 정본이다. `capabilities`는 작업 의도이며
+도구 가용성의 보안 경계가 아니다. 실제 집행은 하네스의 권한·파일·네트워크 정책이 소유한다.
+
 필수 필드:
 
 - `schema_version: 1`
 - `provider: "claude_code"`
 - `intent: delegate | probe | bootstrap_canary`
-- `model: "sonnet"`
+- `model`: 호출자가 선언한 모델(예시의 sonnet은 고정 제약이 아니다)
 - `task`: 비어 있지 않은 instruction
-- `target`: `main/local` 또는 `sub/ssh`, 명시적 `work_dir`; SSH는 `host` 필수
+- `target`: `main/local` 또는 `sub/ssh`, 명시적 `work_dir`; SSH는 `host`·`ssh_user` 필수
 - `timeout_seconds`, `max_turns`: 유한한 실행 경계
-- `capabilities`: provider-neutral least-privilege 목록(`read`, `execute`, `edit`, `write`)
+- `capabilities`: 작업 의도 목록(`read`, `execute`, `edit`, `write`, `search`)
 
 예시:
 
@@ -46,7 +50,7 @@
 python3 .claude/skills/terraforming_node/scripts/agent_control.py invoke --request /path/to/request.json
 ```
 
-## 2. Claude Code adapter (현재 유일 구현)
+## 2. Claude Code adapter (v1)
 
 `claude_code.py`만 generic capability를 Claude tool 이름으로 변환하고 다음 provider argv를 생성한다.
 이 명령은 구현 계약 설명용이며 운영 호출자는 직접 복제하지 않고 위 orchestrator를 사용한다.
@@ -106,15 +110,52 @@ minimax/`MiniMax-M3`). 백엔드별 기본 모델은 `BACKEND_DEFAULT_MODEL` 이
 
 ## 3. result와 fail-closed 판정
 
-성공은 provider exit 0만으로 판정하지 않는다. wrapper가 `is_error=false`, `subtype=success`, 비어 있지 않은
-`result`, Sonnet-only `modelUsage`를 모두 제공해야 한다. 다음은 stable structured nonzero result로 차단한다.
+성공은 provider exit 0만으로 판정하지 않는다. Claude wrapper의 성공 형상과 비어 있지 않은
+`result`를 확인한다. `modelUsage`는 관측 기록이며 Sonnet 전용 제약이 아니다. Codex는 별도 JSONL
+파서로 thread/turn/최종 agent_message/프로세스 종료를 함께 확인한다. 다음은 structured nonzero result로 차단한다.
 
 - request/target/bounds/capability 위반
 - provider nonzero, timeout, malformed JSON
 - wrapper success-shape 또는 provider result schema 위반
 
 stdout은 항상 `agent-control-result.schema.json`의 정렬된 JSON이다. 성공 시 `output`에 agent text를 보존하고,
-실패 시 `output=null`이다.
+실패 시 관측된 진단·부분 응답을 보존할 수 있다. 프로세스 성공은 task-report나 도메인 완료의 증거를 대신하지 않는다.
+
+### 3.1 Codex adapter (v2)
+
+`scripts/providers/codex_cli.py`가 `codex exec` 구문의 유일한 발행처다. runner의 정체성은
+`provider × backend × model`이며 `backend=openai`인 Claude shim과 Codex는 다른 provider다.
+`agent_control.py runners --provider all`로 전체 별칭을 읽는다. 이번 명시적 선택은
+`codex-gpt-6.1-sol`이고 기존 기본 사다리는 바꾸지 않는다.
+
+- 예산: `max_turns: null`, `budget_unit: wall_time`, 유한한 `timeout_seconds`, 명시적
+  `max_dispatches`. 마지막 값은 relay context의 외부 위임 상한이다. Codex의 완료 이벤트를
+  Claude native turn으로 세지 않는다. 시간 한도는 토큰·금액의 하드 한도가 아니다.
+- 권한: `sandbox_mode` 또는 `permission_profile` 중 하나. 읽기 전용 카나리는 `read-only`,
+  운영 위임은 검증된 `vllm-main`/`vllm-sub` named profile을 사용한다. named profile에서는
+  legacy sandbox 옵션을 붙이지 않는다. 미설치·미신뢰 profile을 다른 권한 모드로 대체하지 않는다.
+- 재개: `resume_session_id`와 정확한 `{provider,target,permission selector}` 결속을 함께 보낸다.
+  provider가 바뀌면 native session은 새로 시작하고 원장·리포트·아티팩트를 전달한다.
+- 관측: 실제 보고된 값만 `model_used`, `usage`, `raw_exit_code`, `execution_started`,
+  `raw_events`에 남긴다. 보고하지 않은 native 턴·API 시간·모델은 null/빈 배열이다.
+- 실패: 잘린 JSONL, 빈 최종 메시지, native failure, 권한 거부, timeout을 성공으로 바꾸지 않는다.
+  미지 오류·권한 거부·효과가 발생했을 수 있는 실패는 자동 회전하지 않는다.
+
+`agent_control.py invoke --request <file> --result-file <unique-path> --dispatch-id <id>`는
+선택적 provider-neutral 영속 출력 계약이다. 두 추가 옵션은 함께 사용한다. schema 검증을 마친
+`{schema_version:1,dispatch_id,request,result}`를 고유 파일에 flush·fsync·원자적 publish하고 나서
+stdout을 낸다. 기존 파일은 덮어쓰지 않는다. relay는 이 경로와 요청 바이트 digest를 **실행 전**에
+예약하며 정상 반환도 영속본과 대조한다. stdout이 끊겼으면 relay의 `--reconcile-inflight`가
+저장된 결과를 검증해 1회만 소비한다. 인증 파일이나 환경 전체를 수집하는 인터페이스는 아니다.
+- SSH: manifest의 명시적 계정·경로, 기존 host-key 검증, 원격 deadline과 종료 유예를 사용한다.
+  로컬 프로세스 종료만으로 원격 작업이 정리됐다고 주장하지 않는다. 실제 종료 카나리가 필요하다.
+
+참조한 seed는 `hermes-subagent-control-plane`의 `codex-cli-control` 브랜치다. 작업공간 결속과
+실제 CLI 호출·독립 검증 원칙을 적용한다. seed의 Agent Card 스키마나 Hermes 등급표를 프로젝트의
+정체성·예산 정본에 덧씌우지 않으며, 손상된 JSONL을 일반 텍스트로 통과시키는 폴백도 채택하지 않는다.
+
+공식 실행 계약: [Codex non-interactive mode](https://learn.chatgpt.com/docs/non-interactive-mode).
+권한 계약: [Codex permissions](https://learn.chatgpt.com/docs/permissions).
 
 ## 4. 다른 provider를 붙일 때
 

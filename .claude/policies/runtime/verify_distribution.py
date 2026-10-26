@@ -18,6 +18,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import tomllib
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[3]
@@ -343,8 +344,81 @@ def _tracked_scratch_paths() -> list[str]:
     return sorted(p for p in paths if any(part.lower() in SCRATCH_DIR_NAMES for part in p.split("/")[:-1]))
 
 
+def _codex_discovery_checks(root: Path) -> list[dict]:
+    """Check actual entry/wrapper targets in Git checkouts and Git-less distribution trees."""
+    defects = []
+    for rel in ("AGENTS.md", "CLAUDE.md", ".claude/rules/workflow.md", ".claude/rules/docs.md",
+                ".claude/rules/strategy.topology.md", ".codex/config.toml"):
+        if not (root / rel).is_file():
+            defects.append(f"missing:{rel}")
+    wrappers = {p.parent.name for p in (root / ".agents/skills").glob("*/SKILL.md")}
+    if wrappers != EXPECTED_SKILLS:
+        defects.append(f"wrapper-set:{sorted(wrappers)}")
+    for name in sorted(wrappers):
+        path = root / ".agents/skills" / name / "SKILL.md"
+        expected = f"../../../.claude/skills/{name}/SKILL.md"
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError) as exc:
+            defects.append(f"wrapper-unreadable:{name}:{type(exc).__name__}")
+            continue
+        if (path.is_symlink() or expected not in text
+                or not (path.parent / expected).is_file() or len(text.encode("utf-8")) > 2048):
+            defects.append(f"wrapper-closure:{name}")
+    try:
+        with (root / ".codex/config.toml").open("rb") as f:
+            config = tomllib.load(f)
+        profile = config["permissions"]["vllm-main"]
+        if config.get("default_permissions") != "vllm-main" or profile.get("extends") != ":workspace":
+            defects.append("main-permission-profile")
+        if "sandbox_mode" in config or "sandbox_workspace_write" in config:
+            defects.append("legacy-sandbox-overrides-profile")
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        defects.append(f"main-config:{type(exc).__name__}:{exc}")
+    return [{"name": "codex_entry_and_skill_closure", "ok": not defects, "defects": defects}]
+
+
+def _codex_discovery_selftest() -> dict:
+    """A Git-less copy must discover skills; missing links and legacy policy must fail closed."""
+    with tempfile.TemporaryDirectory(prefix="codex-discovery-contract.") as td:
+        root = Path(td)
+        paths = ["AGENTS.md", "CLAUDE.md", ".codex/config.toml",
+                 ".claude/rules/workflow.md", ".claude/rules/docs.md",
+                 ".claude/rules/strategy.topology.md"]
+        for name in sorted(EXPECTED_SKILLS):
+            paths += [f".agents/skills/{name}/SKILL.md", f".claude/skills/{name}/SKILL.md"]
+        try:
+            for rel in paths:
+                dst = root / rel
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(REPO / rel, dst)
+            good = _codex_discovery_checks(root)[0]["ok"]
+            wrapper = root / ".agents/skills/wiki-desk/SKILL.md"
+            wrapper.write_text(wrapper.read_text(encoding="utf-8").replace(
+                "../../../.claude/skills/wiki-desk/SKILL.md", "../../../missing/SKILL.md"), encoding="utf-8")
+            missing_rejected = not _codex_discovery_checks(root)[0]["ok"]
+            shutil.copyfile(REPO / ".agents/skills/wiki-desk/SKILL.md", wrapper)
+            # A valid top-level legacy setting takes precedence over named permissions.
+            config = root / ".codex/config.toml"
+            config.write_text('sandbox_mode = "workspace-write"\n' + config.read_text(encoding="utf-8"), encoding="utf-8")
+            legacy_rejected = not _codex_discovery_checks(root)[0]["ok"]
+            return {"name": "codex_gitless_discovery_selftest", "ok": good and missing_rejected and legacy_rejected,
+                    "gitless_ok": good, "missing_target_rejected": missing_rejected,
+                    "legacy_override_rejected": legacy_rejected}
+        except (OSError, ValueError) as exc:
+            return {"name": "codex_gitless_discovery_selftest", "ok": False,
+                    "error": f"{type(exc).__name__}:{exc}"}
+
+
 def verify() -> dict:
     checks: list[dict] = []
+    checks += _codex_discovery_checks(REPO)
+    checks.append(_codex_discovery_selftest())
+    dockerignore = (REPO / ".dockerignore").read_text(encoding="utf-8").splitlines()
+    # Build-context policy is branch-local. Require harness exclusions without replacing other
+    # intentional branch-specific excludes when common building blocks are synchronized.
+    checks.append({"name": "codex_build_context_excludes",
+                   "ok": {".agents/", ".codex/"} <= {line.strip() for line in dockerignore}})
     # scratch 평면(temp·tmp·test·tests · 깊이 무관)은 배포물이 아니다 — 하네스가 기대는 것은 승격 심사를 거쳐
     #   scratch 이름 밖으로 옮긴다(workflow.md §scratch 평면 승격 심사 · plan_26102609). 옛 root_tests_contract 는 퇴역.
     scratch = _tracked_scratch_paths()
@@ -385,6 +459,11 @@ def verify() -> dict:
     sub_sync = REPO / ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh"
     try:
         local_text = local_sync.read_text(encoding="utf-8")
+        harness_roots = {"AGENTS.md", ".agents/skills", ".codex"}
+        checks.append({"name": "codex_shared_branch_sync_closure",
+                       "ok": harness_roots <= _shell_array(local_text, "ALLOWLIST")
+                       and {".agents/skills", ".codex"} <= _shell_array(local_text, "MIRROR_DIRS")
+                       and "PATHS+=(':(exclude)*.topology.md')" in local_text})
         local_actual = _shell_array(local_text, "ROOT_RELOCATION_TOMBSTONES")
         replacements = _shell_array(local_text, "ROOT_RELOCATION_REPLACEMENTS")
         # ── 앵커 이설 (2026-09-03 · F-1f) ────────────────────────────────────────
@@ -479,7 +558,7 @@ def verify() -> dict:
             {"name": "sub_transactional_source_uses_git_index",
              "ok": ("checkout-index -z --stdin" in sub_text
                     and "filesystem bytes are excluded in favor of index authority" in sub_text
-                    and "ls-files -z -- .claude CLAUDE.md .gitignore campaigns hints output/multi output/single"
+                    and "ls-files -z -- .claude CLAUDE.md AGENTS.md .agents .codex .gitignore campaigns hints output/multi output/single"
                     in sub_text  # campaigns = 2026-09-06 신설 루트(커밋 4043ff4) · hints = 2026-10-11(plan_26101104 Step 3)
                     and 'render_input="manifest.yaml"' in sub_text
                     and 'render_input="sub_manifest.yaml"' in sub_text
@@ -521,6 +600,7 @@ def verify() -> dict:
                  else "")},
             {"name": "sub_topology_aware_retirement_wired",
              "ok": ("retire_runtime_block_residue()" in sub_text
+                    and {".agents/skills", ".codex"} <= _shell_array(sub_text, "RUNTIME_BLOCK_OWNED_ROOTS")
                     # 대상은 손목록이 아니라 **파생**이다 — 정본이 이 토폴로지에 무엇을 주는가가 정한다.
                     and "RUNTIME_BLOCK_OWNED_ROOTS[@]" in sub_text
                     # 대량 삭제의 문 = 사람이 숫자를 말한다(ALLOW_DELETE 와 같은 idiom).
@@ -769,6 +849,8 @@ def verify() -> dict:
              ".claude/policies/runtime/constitution_lint.py", "--self-test"], {0}),
         _run("agent_control_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/agent_control.py", "--self-test"], {0}),
+        _run("harness_switch_integration_selftest", [sys.executable, "-B",
+             ".claude/skills/terraforming_node/scripts/selftest_harness_switch.py"], {0}),
         _run("terraform_turn_budget_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/turn_budget.py", "--self-test"], {0}),
         _run("terraform_relay_selftest", [sys.executable,
