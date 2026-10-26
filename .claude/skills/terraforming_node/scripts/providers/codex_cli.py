@@ -112,7 +112,7 @@ def _result(request: dict, *, status="execution_failed", exit_code=4,
 
 
 def parse_output(request: dict, stdout: str, stderr: str, returncode: int, *,
-                 timed_out=False, cancelled=False) -> dict:
+                 timed_out=False, cancelled=False, cancellation_signal=None) -> dict:
     """Parse observed events even after nonzero exit, preserving partial session/evidence.
 
     A completed CLI turn is control-plane completion, not project task completion. The
@@ -188,16 +188,42 @@ def parse_output(request: dict, stdout: str, stderr: str, returncode: int, *,
     evidence = {"signal": "unclassified", "rotate": False,
                 "raw_stdout": stdout, "raw_stderr": stderr, "returncode": returncode,
                 "lock_acquired": lock_acquired, "malformed_jsonl": malformed}
+    # A negative subprocess rc observes a signal directly. Shell-style 128+signal
+    # exits are conventions, so retain that weaker provenance rather than claiming
+    # who sent it. In particular SIGTERM does not establish a user's intent.
+    child_signal = (-returncode if returncode < 0 else
+                    returncode - 128 if returncode in (130, 137, 143) else None)
+    if cancelled or child_signal is not None:
+        evidence["termination"] = {
+            "adapter_received_signal": cancellation_signal,
+            "child_signal": child_signal,
+            "child_signal_source": ("negative_returncode" if returncode < 0 else
+                                    "shell_exit_status" if child_signal else None),
+        }
+    failure_reasons = ["NONZERO_EXIT"]
+    if denial:
+        failure_reasons.append("PERMISSION_DENIED")
+    denial_note = "[permission_denials] Codex denied the requested operation" if denial else None
+    if denial_note and isinstance(message, str) and message.strip():
+        denial_note += "\n\n" + message
+    # Receiving an adapter signal is a separate observation, even when the child
+    # also exits124. A TERM sent only by our deadline cleanup is not cancellation.
+    if cancelled:
+        evidence["signal"] = "process_signal" if child_signal or cancellation_signal else "execution_interrupted"
+        return _result(request, reasons=failure_reasons, output=denial_note, evidence=evidence,
+                       budget_outcome="external_interruption", **common)
     if worker_busy:
         evidence["signal"] = "worker_busy"
         return _result(request, reasons=["NONZERO_EXIT"], evidence=evidence, **common)
     if timed_out or returncode == 124:
         evidence["signal"] = "wall_timeout"
-        return _result(request, status="timeout", exit_code=124, reasons=["TIMEOUT"],
+        return _result(request, status="timeout", exit_code=124,
+                       reasons=["TIMEOUT"] + (["PERMISSION_DENIED"] if denial else []),
+                       output=denial_note,
                        evidence=evidence, budget_outcome="external_interruption", **common)
-    if cancelled or returncode in (-signal.SIGTERM, -signal.SIGINT, 137, 143):
-        evidence["signal"] = "external_interruption"
-        return _result(request, reasons=["NONZERO_EXIT"], evidence=evidence,
+    if child_signal is not None:
+        evidence["signal"] = "process_signal"
+        return _result(request, reasons=failure_reasons, output=denial_note, evidence=evidence,
                        budget_outcome="external_interruption", **common)
     if runner_missing and not started and not malformed and len(events) == 1 and returncode == 127:
         evidence.update(signal="missing_binary", rotate=True, detail="Codex runner is not installed")
@@ -206,11 +232,8 @@ def parse_output(request: dict, stdout: str, stderr: str, returncode: int, *,
                        evidence=evidence, **common)
     if denial:
         evidence["signal"] = "permission_denied"
-        note = "[permission_denials] Codex denied the requested operation"
-        if isinstance(message, str) and message.strip():
-            note += "\n\n" + message
         return _result(request, reasons=["PERMISSION_DENIED"],
-                       output=note,
+                       output=denial_note,
                        evidence=evidence, **common)
     if failed:
         evidence["signal"] = "native_failure"
@@ -296,14 +319,15 @@ def invoke(request: dict) -> dict:
                 previous_handlers[signum] = signal.signal(signum, cancel)
             except ValueError:  # Non-main-thread callers cannot install process handlers.
                 pass
-        timed_out, cancelled = False, False
+        timed_out, cancelled, cancellation_signal = False, False, None
         try:
             stdout, stderr = process.communicate(timeout=timeout)
         except subprocess.TimeoutExpired:
             timed_out = True
             stdout, stderr = _stop_process(process)
-        except _Cancelled:
+        except _Cancelled as exc:
             cancelled = True
+            cancellation_signal = exc.signum
             # Further signals use their original disposition during bounded cleanup.
             for signum, previous in previous_handlers.items():
                 signal.signal(signum, previous)
@@ -319,7 +343,8 @@ def invoke(request: dict) -> dict:
         invalid_utf8 = True
         text, diagnostics = stdout.decode("utf-8", errors="replace"), stderr.decode("utf-8", errors="replace")
     result = parse_output(request, text, diagnostics, process.returncode,
-                          timed_out=timed_out, cancelled=cancelled)
+                          timed_out=timed_out, cancelled=cancelled,
+                          cancellation_signal=cancellation_signal)
     if invalid_utf8:
         evidence = result["failure_evidence"] or {"signal": "invalid_utf8", "rotate": False}
         evidence.update(raw_stdout_base64=base64.b64encode(stdout).decode("ascii"),
