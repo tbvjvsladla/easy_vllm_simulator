@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 81,
-  "generated_kst": "2026-10-27T19:16:39",
+  "count": 82,
+  "generated_kst": "2026-10-27T19:18:02",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1393,6 +1393,28 @@
       "source": "remote-derived",
       "tag": "hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610270807",
       "tagged_utc": "2026-10-26T23:23:25Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_granite42-8b-v031/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "81067f7b65e88f4a312b5a0c9c5f60488d1c2af5",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": "ibm-granite/granite-4.1-8b-base",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102708_granite-4.2-8b_GB10_0.31.0.md))",
+      "brief": "Granite-4.2-8B를GB10 GPU1개·노드1대 TP1에서v0.31.0 source-build·bf16·길이32768·KVauto·PLE없음·specoff·graph기본으로서빙했고 이 정정판이 재사용하는 Full의 동시성1 decode12.44 t/s를 기록했다. 과거언클램프보호종료(W1),측정로그범위(W6),CNN캐시재적중(W7)을교정한계보이며근거는 기존 캠페인의 synthetic 측정이며 이 정정판에서 재측정하지 않았다. gmu0.39와KV절대클램프는승계값(V1·V4)이며최적값이나제거시필요조건으로확인한값이아니다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE"
+      ],
+      "model": "granite-4.2-8b",
+      "object": "b1967a0eca90fb6a5728a8e4afd2a896ca86a56a",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610271816",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610271816",
+      "tagged_utc": "2026-10-27T10:18:02Z",
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_granite42-8b-v031/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
