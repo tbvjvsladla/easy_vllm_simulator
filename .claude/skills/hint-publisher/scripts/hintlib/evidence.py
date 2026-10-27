@@ -4265,8 +4265,17 @@ def _runtime_observations(repo: Path, ev: CellEvidence) -> list[dict]:
         data, _bad = _read_json_soft(target)
         if not isinstance(data, dict):
             continue
-        source = (f"{_rel(repo, target)} (관측 기록 · {_rel(repo, path)}가 config={config}, node={ev.node}, "
-                  f"sweep_dir={sw['dir']}, measured_utc={measured}로 결속; 수집 명령/컴파일 바이트 일치는 별도 미검증)")
+        runtime_rel = _rel(repo, target)
+        if "collection_argv" not in data:
+            command = "이 runtime 기록에 collection_argv 필드 없음(다른 실행 원장 미조회)"
+        else:
+            argv = data["collection_argv"]
+            shape = (isinstance(argv, list) and bool(argv)
+                     and all(isinstance(arg, str) and arg.strip() for arg in argv))
+            command = (f"수집 명령 {'기록' if shape else '필드(argv 형식 미확인)'}: {runtime_rel}#/collection_argv"
+                       "(실행 성공·진위·값 출처는 이 필드만으로 미검증)")
+        source = (f"{runtime_rel} (관측 기록 · {_rel(repo, path)}가 config={config}, node={ev.node}, "
+                  f"sweep_dir={sw['dir']}, measured_utc={measured}로 결속; {command}; 컴파일 바이트 일치는 별도 미검증)")
         out.append({"data": data, "source": source,
                     "files": [(_rel(repo, path), "raw_json"), (_rel(repo, target), "raw_json")]})
     return out
@@ -4290,7 +4299,8 @@ def vllm_observed(ev: CellEvidence, repo=None) -> dict:
       engine_self_report         엔진 기동 배너(이 측정 → 같은 digest 를 기록한 다른 로그 → digest 미기록이지만 괄호로 추론한 로그 순) ·
                                  `_basis` 가 그 지위를 말한다(추론은 추론이라 적는다)
       certificate_vllm_version   인증서 강한 키 + `_producer`(측정 시점 sweep_bench.sh 판본에서 검증한 파생 규칙) · `_source`
-      wheel_meta                 설치 배포 메타(attestation · pip freeze · 빌드 원장 · 측정에 결속된 runtime 관측)
+      wheel_meta                 설치 배포 메타(attestation · pip freeze · 빌드 원장)
+      runtime_version            측정에 결속된 runtime vllm_version 기록(모듈/배포 메타 출처를 추측하지 않는다)
       runtime_source_checkout/describe  runtime checkout 관측(이름 입력 SHA/컴파일 바이트 증명으로 승격하지 않는다)
     `source` 는 옛 소비자용 요약(칸별 출처를 한 줄로)."""
     # 저장소를 cwd 로 대신하지 않는다(2026-09-22 적대 검토 — 옛 `ev.repo or "."` 는 결정 경로의 침묵 폴백이었다: 다른 체크아웃의 로그·git 을
@@ -4308,9 +4318,11 @@ def vllm_observed(ev: CellEvidence, repo=None) -> dict:
         wheel_src += ("(sweep_index.meta.vllm_build="
                       f"{meta.get('vllm_build')!r} 는 sweep_bench 가 엔진 로그에서 `v<x.y.z…>` 정규식으로 잡는 값이다 → engine_self_report 의 원천)")
     observations = _runtime_observations(rp, ev)
+    runtime_version, runtime_version_src = _runtime_observed_field(observations, "vllm_version")
     checkout, checkout_src = _runtime_observed_field(observations, "source_head")
     describe, describe_src = _runtime_observed_field(observations, "source_describe")
-    runtime = ({"runtime_source_checkout": checkout, "runtime_source_checkout_source": checkout_src,
+    runtime = ({"runtime_version": runtime_version, "runtime_version_source": runtime_version_src,
+                "runtime_source_checkout": checkout, "runtime_source_checkout_source": checkout_src,
                 "runtime_source_describe": describe, "runtime_source_describe_source": describe_src}
                if observations else {})
     return {"engine_self_report": banner["value"], "engine_self_report_source": banner["source"],
@@ -4358,7 +4370,7 @@ def _wheel_meta(repo: Path, ev: CellEvidence) -> tuple[str | None, str]:
     ② native serve proof 가 보존한 pip freeze 의 `vllm==` 줄(노드별). 옛 판본은 attestation 에 그 칸이 있는데도 "측정 경로에 관측자가
     없다" 고 적었다. 노드끼리 다르면 값을 고르지 않는다(None · 출처가 두 값을 말한다).
     native 셀은 ② 가 먼저다 — 실행 평면이 venv 이고, 묶인 attestation 은 원천 이미지(Docker) 실행의 것이다(다른 평면의 관측).
-    ③ 이미지 빌드 원장 ④ config/node/sweep/UTC 결속 runtime 기록도 별도 출처로 읽는다."""
+    ③ 이미지 빌드 원장. generic runtime vllm_version 은 수집 방법을 보장하지 않으므로 runtime_version 으로 별도 관측한다."""
     v, where, by_node = _attested_host(ev.attestation, "vllm_dist_version", _attestation_timing_note(ev))
     if v is not None and ev.plane != "native":
         if len(set(by_node.values())) > 1:
@@ -4389,11 +4401,7 @@ def _wheel_meta(repo: Path, ev: CellEvidence) -> tuple[str | None, str]:
         led, lsrc = ev.image_ledger.get("vllm") or {}, f"{ev.image_ledger.get('source')} vllm.dist_version"
     if led.get("dist_version") and ev.plane != "native":
         return str(led["dist_version"]), f"{lsrc}(빌드 시점 measured · 이미지 안 배포 메타)"
-    # A measurement-bound observation can exist without a build ledger. Keep its weaker provenance.
-    runtime, source = _runtime_observed_field(_runtime_observations(repo, ev), "vllm_version")
-    if runtime is not None or "상충" in source:
-        return runtime, source + " · installed distribution 관측 기록(빌드 입력/엔진 배너와 별개)"
-    return None, "미관측 — 확인한 attestation vllm_dist_version · native pip freeze · 빌드 원장 vllm.dist_version · 측정 결속 runtime vllm_version에 값 없음"
+    return None, "미관측 — 확인한 attestation vllm_dist_version · native pip freeze · 빌드 원장 vllm.dist_version에 값 없음(runtime_version 기록은 배포 메타로 간주하지 않는다)"
 
 
 _ATTEST_TIME_KEYS = ("written_utc", "captured_utc", "generated_utc", "utc")
@@ -8873,11 +8881,46 @@ def _selftest_runtime_epochs(ck, repo: Path) -> None:
        observed.get("runtime_source_checkout") == "e" * 40 and observed.get("runtime_source_describe") == "v0.9.0"
        and "컴파일 바이트" in observed["runtime_source_checkout_source"]
        and json.dumps(ev.build_identity, sort_keys=True) == before and ev.build_identity["vllm_sha"] is None)
-    ck("FC3 installed distribution comes from the bound runtime record, not the banner/build label",
-       observed["wheel_meta"] == observation["vllm_version"] and runtime_rel in observed["wheel_meta_source"]
-       and index_rel in observed["wheel_meta_source"])
+    ck("F3 generic runtime version is preserved separately, never promoted to distribution metadata",
+       observed["runtime_version"] == observation["vllm_version"] and observed["wheel_meta"] is None
+       and runtime_rel in observed["runtime_version_source"] and index_rel in observed["runtime_version_source"])
+    ck("F3 missing collection field describes this record only, not other execution ledgers",
+       "이 runtime 기록에 collection_argv 필드 없음" in observed["runtime_version_source"]
+       and "다른 실행 원장 미조회" in observed["runtime_version_source"])
     ck("FC2/3 both declaration and observation files are retained for lineage",
        _runtime_observations(repo, ev)[0]["files"] == [(index_rel, "raw_json"), (runtime_rel, "raw_json")])
+    for name, argv in (("module attribute", ["python3", "-c", "import vllm; print(vllm.__version__)"]),
+                       ("opaque distribution-looking command", ["python3", "-c", "import importlib.metadata as m; print(m.version('vllm'))"])):
+        core.write_json(repo / runtime_rel, {**observation, "collection_argv": argv})
+        recorded = (repo / runtime_rel).read_bytes()
+        got = vllm_observed(ev)
+        ck(f"F3 {name}: preserve command pointer without inferring its output provenance",
+           got["runtime_version"] == observation["vllm_version"] and got["wheel_meta"] is None
+           and f"{runtime_rel}#/collection_argv" in got["runtime_version_source"]
+           and "수집 명령 기록" in got["runtime_version_source"]
+           and "실행 성공·진위·값 출처는 이 필드만으로 미검증" in got["runtime_version_source"]
+           and "collection_argv 필드 없음" not in got["runtime_version_source"]
+           and (repo / runtime_rel).read_bytes() == recorded)
+    core.write_json(repo / runtime_rel, {**observation, "collection_argv": "python3 -c ..."})
+    malformed = vllm_observed(ev)
+    ck("F3 malformed argv still has a source pointer, without claiming a verified argv record",
+       f"{runtime_rel}#/collection_argv" in malformed["runtime_version_source"]
+       and "argv 형식 미확인" in malformed["runtime_version_source"] and malformed["wheel_meta"] is None)
+    core.write_json(repo / runtime_rel, observation)
+    distribution = "0.9.0+distribution"
+    for origin, with_distribution in (
+            ("attestation", dataclasses.replace(ev, attestation={"nodes": {"sub": {"vllm_dist_version": distribution}}})),
+            ("build ledger", dataclasses.replace(ev, image_ledger={"vllm": {"dist_version": distribution}, "source": "fixture build ledger"}))):
+        got = vllm_observed(with_distribution)
+        ck(f"F3 genuine {origin} metadata remains distinct from a different generic runtime value",
+           got["wheel_meta"] == distribution and got["runtime_version"] == observation["vllm_version"]
+           and runtime_rel not in got["wheel_meta_source"])
+    freeze_rel = "docs/simlog/epoch/pip-freeze-sub.txt"
+    (repo / freeze_rel).write_text(f"vllm=={distribution}\n", encoding="utf-8")
+    native = vllm_observed(dataclasses.replace(ev, plane="native", pip_freeze_paths={"sub": freeze_rel}))
+    ck("F3 native pip freeze retains distribution authority alongside a generic runtime record",
+       native["wheel_meta"] == distribution and "pip freeze" in native["wheel_meta_source"]
+       and native["runtime_version"] == observation["vllm_version"])
     for key, bad in (("config", "other"), ("measured_node", "main"), ("sweep_generated_utc", "2026-01-01T03:00:00Z"),
                      ("sweep_dir", "output/single/benchlog/sweep_old"), ("installed_runtime_identity", "docs/simlog/../escape.json")):
         core.write_json(repo / index_rel, {**binding, key: bad})
@@ -8901,7 +8944,7 @@ def _selftest_runtime_epochs(ck, repo: Path) -> None:
     ev.pointers.append({"kind": "simlog", "path": second_rel, "cell_id": cell, "node_id": "sub"})
     conflict = vllm_observed(ev)
     ck("FC2/3 contradictory current-runtime records are reported, never silently selected",
-       conflict["wheel_meta"] is None and "상충" in conflict["wheel_meta_source"]
+       conflict["wheel_meta"] is None and conflict["runtime_version"] is None and "상충" in conflict["runtime_version_source"]
        and conflict["runtime_source_checkout"] is None and "상충" in conflict["runtime_source_checkout_source"])
     ev.pointers = [{"kind": "simlog", "path": index_rel, "cell_id": "other", "node_id": "sub"}]
     ck("FC2/3 another cell's pointer is not searched", not _runtime_observations(repo, ev))
