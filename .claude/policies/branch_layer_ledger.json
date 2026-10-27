@@ -2319,6 +2319,35 @@
           "reason": "양 토폴로지의 node/config/topology/time 명시 메타데이터로 세션 사건과 계보를 연결하고 자유 라벨의 모순 재채택을 차단하는 공통 증거 reader·회귀."
         }
       ]
+    },
+    {
+      "entry_id": "sync-261027-single-to-multi-runtime-version-guidance-9e16b1d",
+      "utc": "2026-10-27T10:40:03Z",
+      "departure": "single-node",
+      "departure_commit": "9e16b1dc1628ced31cca7d9059173d3721bd21a1",
+      "approved_by": "user: 이너 하네스 agnostic 작업 후 서브노드 및 싱글노드·멀티노드 브랜치 전파 지시",
+      "approved_utc": "2026-10-26T20:04:48Z",
+      "_execution_note": "기존 사용자 공통층·양브랜치 전파 승인 재사용. source HEAD/index 및 기존3dirtyworktree·특화층 보존. target 원장 append/commit→공식 dry-run/apply→집중검증→commit/착지검증→소유 worktree만 회수. 원격push·subsync·native/GPU/sudo 없음.",
+      "classification": [
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/evidence.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "양 토폴로지의 공통 FACT 생산자에서 generic runtime version과 설치 배포 메타데이터를 분리하고 실제 수집 명령 기록의 범위를 보존한다."
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/template.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "측정에 결속된 generic runtime version을 별도 FACT 행으로 표시하는 양 토폴로지 공통 hint 템플릿과 회귀다."
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/fetch_sub_docs.sh",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공식 문서 회수 후 동일한 유효 승인 재사용을 명확히 안내하는 공통 문구이며 기능·인가 게이트·승인 범위를 변경하지 않는다."
+        }
+      ]
     }
   ]
 }
