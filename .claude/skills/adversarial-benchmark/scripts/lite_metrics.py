@@ -194,12 +194,13 @@ def render_multi(gen, ttft, caps, kv_gib):
     # caps: {"main": {...}, "sub": {...}}. 속도/cold=마스터 1행, 용량 3종=per-node 열.
     main, sub = caps.get("main", {}), caps.get("sub")
     subcol = (lambda k: sub.get(k) if sub else "— (probe 실패)")
-    kvmain = f"{kv_gib:.1f} GiB (클러스터)" if kv_gib is not None else "N/A (fail-soft)"
+    # Engine KV bytes/GiB are per worker/GPU; no aggregate or TP division is observed.
+    kvmain = f"{kv_gib:.1f} GiB/GPU (main 로그)" if kv_gib is not None else "N/A (fail-soft)"
     rows = [
         ("gen tokens/sec (warm) [master]", f"{gen:.2f} t/s" if gen is not None else "N/A", "—"),
         ("cold-start TTFT [master]", f"{ttft:.0f} ms" if ttft is not None else "N/A", "—"),
         ("GPU VRAM 점유", main.get("gpu", "N/A"), subcol("gpu")),
-        ("KV cache 점유", kvmain, "≈ ÷TP (클러스터 공유)"),
+        ("KV cache 점유", kvmain, "N/A (sub KV 로그 미수집)"),
         ("시스템 RAM 점유", main.get("ram", "N/A"), subcol("ram")),
     ]
     out = ["| 메트릭 | Main | Sub |", "|---|---|---|"]
