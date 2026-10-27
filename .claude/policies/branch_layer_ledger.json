@@ -1919,6 +1919,23 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261027-single-to-multi-kv-report-a9e8623",
+      "utc": "2026-10-27T01:28:12Z",
+      "departure": "single-node",
+      "departure_commit": "a9e86230c03e35476063be2176ac482a8a071ebc",
+      "approved_by": "user: 이너 하네스 agnostic 작업 후 서브노드 및 싱글노드·멀티노드 브랜치 전파 지시",
+      "approved_utc": "2026-10-26T20:04:48Z",
+      "_execution_note": "기존 사용자 브랜치 전파 승인과 현재 세션의 명시적 KV 보고서 1파일 전파 지시에 따라 target 원장 append/commit→공식 sync dry-run 검토→apply/commit을 실행한다. 새 사용자 승인을 만들지 않는다. primary checkout/index와 기존 사용자 worktree 3개를 보존하고 핀 a9e8623의 공통 바이트를 대조한다. root의 전체 배포 검사와 별도 큰 suite를 반복하지 않으며 source push·SSH·GPU·벤치·모델 호출·호스트 변경·서브 전환/배포는 수행하지 않는다.",
+      "classification": [
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/lite_metrics.py",
+          "verdict": "common_promote",
+          "reason": "공통 multi 보고서의 KV 범위를 main 로그에서 관측한 per-GPU 값으로 표시하고, sub KV 로그 미수집을 명시한다. 클러스터 합산·TP 나눗셈을 관측처럼 표시하던 문구만 고치며 측정·판정·가드 예산은 불변이다.",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
