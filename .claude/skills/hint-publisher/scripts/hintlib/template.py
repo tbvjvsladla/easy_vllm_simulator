@@ -1994,7 +1994,8 @@ def _f_event_timeline(c: _Ctx) -> str:
              + (f" · 같은 셀 이름 · 앞선 캠페인 {n_prior}행" if n_prior else "") + "(내용 칸에 표기)"
              if isinstance(bnd, dict) and bnd.get("utc") and (n_prior or n_same) else "")
     n_other = sum(1 for r in rows if r.get("label_scope") == _LABEL_SCOPE_OTHER)
-    other = (f" · 라벨 다름(같은 노드 · 창 밖 이 셀 행과 시간이 겹치는 다른 라벨 선언 창) {n_other}행 — 이 셀의 선언으로 세지 않는다"
+    other = (f" · 라벨 다름(같은 노드 · 창 밖 이 셀 행과 시간이 겹치는 다른 라벨 선언 창) {n_other}행 — "
+             "셀 라벨 일치 집계에서 제외(세션·호출 기록의 귀속 확인과 별도)"
              if n_other else "")
     out = ([f"**블랙박스 이벤트 {len(rows)}행**(원장에서 이 셀 label·config 에 맞는 행"
             + ("과 그와 시간이 겹치는 같은 노드의 다른 라벨 창" if n_other else "만") + f" · 시각순 · 기계 발췌{split}{other})"]
@@ -4809,6 +4810,10 @@ def selftest() -> list[str]:
         ck("★F5 라벨 다른 창으로 연 앞선 시도 = 선언 · 트립 셈 · label 칸 '라벨 다름' 표지('선언 행 없음' · '사살 없음' ✗) · 머리 개수",
            "| 앞선-1 | sub | `serve-x-v030`(라벨 다름 — 같은 노드 · 이 셀 라벨 아님) | 2026-01-01T00:00:00Z | 없음 | `watchdog_trip` 1 |" in t5
            and "선언 행 없음" not in t5 and "| 1 | sub | `smoke-x-35b-v030` |" in t5 and "(라벨 다름" not in t5.split("앞선-1")[0]
+           and "라벨 다름(같은 노드 · 창 밖 이 셀 행과 시간이 겹치는 다른 라벨 선언 창) 2행" in e5)
+        ck("custom label summary limits exclusion to label matching, not execution attribution",
+           "셀 라벨 일치 집계에서 제외(세션·호출 기록의 귀속 확인과 별도)" in e5
+           and "이 셀의 선언으로 세지 않는다" not in e5
            and "라벨 다름(같은 노드 · 창 밖 이 셀 행과 시간이 겹치는 다른 라벨 선언 창) 2행" in e5)
         # 2026-10-11 · plan_26101104 셀 D 사실검증 F6: 부표 머리 — 라벨 다름 시도가 섞이면 "라벨이 같아 묶였다" ✗ · 같은 라벨 · 라벨 다름 각각 센다
         f6 = [{"utc": "2025-12-31T23:00:00Z", "node": "sub", "kind": "budget_declare", "label": "smoke-x-35b-v030",

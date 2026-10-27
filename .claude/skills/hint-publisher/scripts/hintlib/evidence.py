@@ -2306,7 +2306,8 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                         if measured is None:
                             rel_m = "측정 시각 미관측"
                         elif _win_holds(w, measured):
-                            rel_m = f"measured_utc {measured} 가 이 창 시간 안 — 라벨이 달라 이 측정의 기동으로 귀속하지 않는다"
+                            rel_m = (f"measured_utc {measured} 가 이 창 시간 안 — "
+                                     "라벨 불일치만으로 이 측정·기동의 귀속 여부를 판단하지 않는다")
                         else:
                             rel_m = f"measured_utc {measured} 는 이 창 밖(" + ("측정 뒤)" if w["start_ts"] > measured else "측정 전)")
                         detail = (f"예산 선언(선언값 — 측정 아님{_DECL_MEM_TAIL if _MEM_TOTAL_NOTE in fields else ''}) · {fields} · {note} · budget_renew {renews}회 · {closed} · {rel_m}")
@@ -2362,7 +2363,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
 #   선언되면 그 선언 5건 · 트립 3건이 통째로 떨어지고, 남은 이 셀 행(세션 기동 등)만으로 연 시도가 "선언 행 없음 · 사살 없음" 이라
 #   적혔다(원장에 있는 사건을 없다고 말하는 바이트). 처방: **이 셀 행이 창 밖에 남은 시각**(세션 [기동, 정지] 구간 · 그 밖 행은 그 시각)과
 #   시간이 겹치는 같은 노드의 다른 라벨 창은 행째로 싣되, 모든 행에 `label_scope: other-label-same-node` · 창 라벨 · 문장 표지를 단다
-#   (이 셀의 선언으로 세지 않는다 — 기동 창 k/n 번호 · 측정 창 선택 밖). 겹치지 않는 다른 라벨 창(다른 모델 · 접두만 같은 다른 셀)은
+#   (셀 라벨 일치 집계 밖 — 기동 창 k/n 번호 · 측정 창 선택 밖이며, 실제 실행 귀속의 부정은 아니다). 겹치지 않는 다른 라벨 창은
 #   종전대로 싣지 않는다 — 넓히면 노드의 모든 서빙이 이 셀의 여정으로 섞인다.
 LABEL_SCOPE_OTHER = "other-label-same-node"
 
@@ -2370,7 +2371,7 @@ LABEL_SCOPE_OTHER = "other-label-same-node"
 def foreign_label_note(label, cell: str) -> str:
     """라벨이 다른 같은 노드 창의 행 표지(문장 한 벌 — template 시도 표도 이 문구의 머리를 쓴다)."""
     return (f"라벨 다름: `{label}` — 같은 노드 · 이 셀 라벨(`{cell}`) 아님 · 창 밖에 남은 이 셀 행과 시간이 겹치는 선언 창이라 싣는다"
-            "(이 셀의 선언으로 세지 않는다)")
+            "(셀 라벨 일치 집계에서 제외 · 이 라벨 분류는 세션·호출 기록의 귀속 확인과 별도)")
 
 
 def _foreign_label_windows(streams: list, taken: dict, cell: str) -> list[dict]:
@@ -8762,6 +8763,12 @@ def _selftest_custom_sessions(ck, repo: Path) -> None:
         ck("custom label: only overlapping budget window is shown, still explicitly other-label-same-node",
            len(budgets) == 1 and budgets[0]["label"] == "operator-label"
            and budgets[0]["label_scope"] == LABEL_SCOPE_OTHER and budget_window is None)
+        ck("custom label: literal mismatch does not deny the independently bound session's measurement",
+           bound and bound["session_id"] == sid and "라벨 불일치만으로 이 측정·기동의 귀속 여부를 판단하지 않는다" in budgets[0]["detail"]
+           and "셀 라벨 일치 집계에서 제외" in budgets[0]["detail"]
+           and "세션·호출 기록의 귀속 확인과 별도" in budgets[0]["detail"]
+           and "이 셀의 선언으로 세지 않는다" not in budgets[0]["detail"]
+           and "이 측정의 기동으로 귀속하지 않는다" not in budgets[0]["detail"])
         ck("custom ID: binding journal is retained in timeline lineage",
            (_rel(repo, journal), "raw_json") in _timeline_parts(repo, ev)[1])
         ck("custom ID: observation never edits original journals/events", all(p.read_bytes() == b for p, b in original.items()))
