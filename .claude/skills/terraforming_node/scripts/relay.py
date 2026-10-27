@@ -1160,6 +1160,117 @@ def load_report(repo_root: str, att: dict):
         return (json.load(f) or {}).get("report")
 
 
+def _instruction_scope(doc: dict) -> dict:
+    return {key: doc.get(key) for key in ("context_id", "campaign_id", "topology",
+                                         "campaign_node", "campaign_context_kind", "campaign_cell",
+                                         "control_variables")}
+
+
+def _instruction_refusal(reason: str):
+    # This is a main-owned evidence/technical handoff problem, not a fabricated
+    # user answer or a Codex permission/control recovery event.
+    raise SystemExit("[relay] TASK_INSTRUCTION_SOURCE_UNRESOLVED: " + reason
+                     + "; main must review the issued requests and supply a complete explicit --task-file "
+                       "under the existing dispatch guards; do not reset the context or budget")
+
+
+def _instruction_request(repo_root: str, doc: dict, att: dict) -> dict:
+    """Read an issued request bound to this ledger, never a caller-guessed task file."""
+    number, context = att.get("attempt"), doc.get("context_id")
+    if not isinstance(number, int) or isinstance(number, bool) or number < 1 or not isinstance(context, str) or not context:
+        _instruction_refusal("instruction attempt/context is absent or malformed")
+    expected = str(Path("campaigns") / (doc.get("campaign_id") or "_bootstrap") / "relay"
+                   / (context + ".requests") / ("attempt-%02d.json" % number))
+    if att.get("request_path") != expected:
+        _instruction_refusal("instruction request path does not belong to this context/attempt")
+    try:
+        path = _owned_artifact(repo_root, expected)
+        raw = path.read_bytes()
+        request = json.loads(raw)
+    except (OSError, ValueError, UnicodeDecodeError, SystemExit) as exc:
+        _instruction_refusal("issued instruction request is unavailable: " + type(exc).__name__)
+    digest = att.get("request_digest")
+    if digest is not None:
+        if hashlib.sha256(raw).hexdigest() != digest:
+            _instruction_refusal("issued instruction request bytes changed")
+    elif att.get("task_instruction") is not None:
+        _instruction_refusal("issued instruction request digest is absent")
+    else:
+        # Pre-revision ledgers retain the same request in the durable dispatch
+        # outcome. Require that independent persisted copy for legacy readback.
+        try:
+            outcome_path = _owned_artifact(repo_root, att.get("outcome_path") or "")
+            wrapper = json.loads(outcome_path.read_bytes())
+        except (OSError, ValueError, UnicodeDecodeError, SystemExit) as exc:
+            _instruction_refusal("legacy instruction outcome is unavailable: " + type(exc).__name__)
+        if (not isinstance(wrapper, dict) or wrapper.get("schema_version") != 1
+                or wrapper.get("dispatch_id") != att.get("dispatch_id") or not att.get("dispatch_id")
+                or wrapper.get("request") != request):
+            _instruction_refusal("legacy instruction outcome does not match the issued dispatch")
+    if (not isinstance(request, dict) or _agent_control.request_schema_violations(request)
+            or request.get("intent") != "delegate"
+            or permission_binding(request) != att.get("session_binding")
+            or request.get("provider") != att.get("provider")
+            or request.get("campaign_id") != doc.get("campaign_id")
+            or request.get("control_variables") != doc.get("control_variables")
+            or not isinstance(request.get("task"), str)):
+        _instruction_refusal("issued instruction target/provider/campaign binding differs")
+    return request
+
+
+def continuation_instruction(repo_root: str, doc: dict) -> dict:
+    """Latest explicit full task; assembled continuations never become task revisions."""
+    attempts = doc.get("attempts") or []
+    if not attempts:
+        _instruction_refusal("there is no issued task")
+    if any(not isinstance(a, dict) or a.get("attempt") != i for i, a in enumerate(attempts, 1)):
+        _instruction_refusal("instruction attempt sequence is malformed")
+    latest = attempts[-1]
+    instruction = latest.get("task_instruction")
+    if instruction is None:
+        # Old records did not distinguish explicit feedback from assembled text.
+        # A multi-attempt history cannot safely be guessed from prompt wording.
+        if len(attempts) != 1:
+            _instruction_refusal("legacy multiple attempts have no explicit task-source declaration")
+        request = _instruction_request(repo_root, doc, latest)
+        body = doc.get("task")
+        if not isinstance(body, str) or not body or not request["task"].endswith(body):
+            _instruction_refusal("legacy initial task does not match its issued request")
+        return {"attempt": 1, "body": body, "request_path": latest["request_path"], "legacy": True}
+    if not isinstance(instruction, dict):
+        _instruction_refusal("instruction metadata is malformed")
+    source = instruction.get("source_attempt")
+    if not isinstance(source, int) or isinstance(source, bool) or not 1 <= source <= len(attempts):
+        _instruction_refusal("instruction source attempt is invalid")
+    origin = attempts[source - 1]
+    declared = origin.get("task_instruction")
+    if declared is None:
+        if source != 1:
+            _instruction_refusal("a legacy feedback attempt cannot be selected implicitly")
+        resolved = continuation_instruction(repo_root, {**doc, "attempts": [origin]})
+    else:
+        if (not isinstance(declared, dict) or declared.get("schema_version") != 1
+                or declared.get("kind") != "explicit" or declared.get("source_attempt") != source
+                or declared.get("scope") != _instruction_scope(doc)):
+            _instruction_refusal("explicit task source scope/kind is invalid")
+        body = declared.get("body")
+        request = _instruction_request(repo_root, doc, origin)
+        if (not isinstance(body, str) or not body or hashlib.sha256(body.encode()).hexdigest() != declared.get("body_digest")
+                or not request["task"].endswith(body)):
+            _instruction_refusal("explicit task body differs from its issued request")
+        resolved = {"attempt": source, "body": body, "request_path": origin["request_path"], "legacy": False}
+    for att in attempts[source:]:
+        ref = att.get("task_instruction")
+        if (not isinstance(ref, dict) or set(ref) != {"schema_version", "kind", "source_attempt", "scope"}
+                or ref.get("schema_version") != 1 or ref.get("kind") != "continuation"
+                or ref.get("source_attempt") != source or ref.get("scope") != _instruction_scope(doc)):
+            _instruction_refusal("later task source is missing, stale, or ambiguous")
+        request = _instruction_request(repo_root, doc, att)
+        if request["target"] != origin["session_binding"]["target"]:
+            _instruction_refusal("continuation target differs from its instruction source")
+    return resolved
+
+
 def assemble_continuation(repo_root: str, doc: dict, pending: list) -> str:
     """이어붙일 task 본문을 **기계가** 조립한다 — 이것이 없어서 자율 재개가 성립하지 않았다.
 
@@ -1172,9 +1283,10 @@ def assemble_continuation(repo_root: str, doc: dict, pending: list) -> str:
       · 직전 attempt 의 제어 상태(원장)
       · 서브가 보낸 리포트의 `artifacts[]`·`next_steps`·`notes`(서브가 쓴 그대로)
       · 사람이 `pending_hitl.json` 에 적어 넣은 `answer`(사람이 쓴 그대로)
-      · 원래 지시(원장에 보존한 원문)
+      · 실제 발급 증거에 결속된 최신 명시 지시(최초 원문은 이력으로 보존)
     메인이 추측한 진행상황을 여기에 적으면 그것이 SILENT_FALLBACK 이다.
     """
+    instruction = continuation_instruction(repo_root, doc)
     atts = [a for a in (doc.get("attempts") or []) if _reached_sub(a)]
     last = atts[-1] if atts else None
     report = load_report(repo_root, last)
@@ -1210,7 +1322,10 @@ def assemble_continuation(repo_root: str, doc: dict, pending: list) -> str:
             out.append(f"- {e.get('prompt') or '(질문 문구 없음 · request_id=%s)' % e.get('request_id')}")
     out += ["", "- 이번 attempt 의 시간·턴이 남은 일에 모자라 보이면, 필요한 값을 산문이 아니라 리포트 "
             "`budget_recommendation{max_turns,timeout_seconds,why}` 에 **수치로** 적어라 — 감독 재발급은 그 필드만 읽는다."]
-    out += ["", "## 원래 지시(변경 없음)", "", doc.get("task") or "(원장에 원 지시가 없다)"]
+    out += ["", "## 현재 적용할 명시 지시", "",
+            f"- 원문 출처: attempt {instruction['attempt']} · {instruction['request_path']}",
+            "- 최초 지시는 원장 이력에 보존돼 있다. 이번 재개에는 아래 최신 명시 원문을 적용한다.",
+            "", instruction["body"]]
     return "\n".join(out) + "\n"
 
 
@@ -1635,6 +1750,7 @@ def _supervise_resume(a, lp: str, doc: dict, secs, why: str) -> int:
         a.max_turns = min(a.max_turns or max(budget_floor(doc), 1), cap)
     bud = declared_budget(a, secs or turn_budget.schema_cap("timeout_seconds"),
                            f"감독 스텝 자동 재발급 · {why}", doc)
+    a._continuation_source_attempt = continuation_instruction(a.repo_root, doc)["attempt"]
     task = assemble_continuation(a.repo_root, doc, pend)
     return run_attempt(a, doc, lp, task, bud, lks.get("session_id") or "new")
 
@@ -1803,10 +1919,23 @@ def _self_test() -> int:
         json.dump({"report": {"artifacts": [{"kind": "log", "path": "output/x.json"}],
                               "next_steps": ["serve 재기동"], "notes": "KV 미정"}},
                   open(os.path.join(rd, "attempt-01.json"), "w", encoding="utf-8"))
-        d8 = {"task": "원 지시 본문", "attempts": [
+        d8 = {"context_id": "ctx-c", "topology": "multi", "task": "원 지시 본문", "attempts": [
             {"attempt": 1, "status": "input-required", "phase": "build", "session_id": "s1",
              "budget_outcome": "exhausted", "max_turns_allocated": 25,
              "report_path": "campaigns/_bootstrap/relay/ctx-c.reports/attempt-01.json"}]}
+        _im = Path(d) / "instruction-manifest.yaml"
+        _im.write_text("topology: multi\nnodes:\n  - role: sub\n    host: 192.0.2.11\n"
+                       "    ssh_user: fixture\n    work_dir: /srv/fixture\n", encoding="utf-8")
+        _iq = build_request("multi", str(_im), d8["task"], BUD25, context_id="ctx-c", attempt=1,
+                            model="sonnet", backend="anthropic")
+        _ip = Path(d) / "campaigns/_bootstrap/relay/ctx-c.requests/attempt-01.json"
+        _ip.parent.mkdir(parents=True)
+        _ip.write_text(json.dumps(_iq), encoding="utf-8")
+        d8["attempts"][0].update(provider="claude_code", session_binding=permission_binding(_iq),
+            request_path=str(_ip.relative_to(d)), request_digest=hashlib.sha256(_ip.read_bytes()).hexdigest(),
+            task_instruction={"schema_version": 1, "kind": "explicit", "source_attempt": 1,
+                              "scope": _instruction_scope(d8), "body": d8["task"],
+                              "body_digest": hashlib.sha256(d8["task"].encode()).hexdigest()})
         body = assemble_continuation(d, d8, [{"request_id": "r9", "blocking": True,
                                               "answer": "답 A", "prompt": "질문 Q"}])
         for token in ("output/x.json", "serve 재기동", "KV 미정", "답 A", "원 지시 본문", "예산 소진"):
@@ -2420,6 +2549,11 @@ def commit_dispatch_outcome(a, doc: dict, lp: str, request: dict, result: dict, 
                             "failure_evidence", "raw_events")}})
     att["report_path"] = os.path.relpath(path, a.repo_root)
     att["outcome_path"] = reservation["outcome_path"]
+    att["request_digest"] = reservation["request_digest"]
+    if "task_instruction" in reservation:
+        # Keep the issued raw task and its authority on the immutable attempt.
+        # Reconciliation consumes the same reservation without inventing a revision.
+        att["task_instruction"] = reservation["task_instruction"]
     if reconciled:
         att["reconciliation"] = {"utc": ended, "source": reservation["outcome_path"],
                                  "method": "dispatch-bound-provider-outcome", "replayed": False}
@@ -2490,6 +2624,19 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
     if violations:
         raise SystemExit("[relay] STOP: request rejected before remote preflight: " + "; ".join(violations))
 
+    source_attempt = getattr(a, "_continuation_source_attempt", None)
+    task_instruction = {"schema_version": 1, "scope": _instruction_scope(doc)}
+    # Context/topology are filled below on the first dispatch; bind the input now.
+    task_instruction["scope"].update(context_id=a.context_id, topology=a.topology)
+    if source_attempt is None:
+        task_instruction.update(kind="explicit", source_attempt=attempt_no, body=task,
+                                body_digest=hashlib.sha256(task.encode()).hexdigest())
+    else:
+        resolved = continuation_instruction(a.repo_root, doc)
+        if resolved["attempt"] != source_attempt:
+            _instruction_refusal("continuation source changed before dispatch")
+        task_instruction.update(kind="continuation", source_attempt=source_attempt)
+
     if a.emit_only:
         json.dump(req, sys.stdout, ensure_ascii=False, indent=2)
         sys.stdout.write("\n")
@@ -2519,6 +2666,7 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
                        "target": req["target"], "provider": provider,
                        "request_path": os.path.relpath(_qp, a.repo_root),
                        "request_digest": hashlib.sha256(Path(_qp).read_bytes()).hexdigest(),
+                       "task_instruction": task_instruction,
                        "outcome_path": os.path.relpath(outcome_path, a.repo_root),
                        "budget": dict(bud), "runner": dict(runner),
                        "resume_declared": effective_resume,
@@ -2869,6 +3017,7 @@ def _main() -> int:
                 "  → Codex 미해결 실패의 명시적 수동 복구 조건은 그대로 적용된다.")
 
         lks = last_known_session(doc)
+        a._continuation_source_attempt = continuation_instruction(a.repo_root, doc)["attempt"]
         task = assemble_continuation(a.repo_root, doc, pend)
         floor = budget_floor(doc)
         _last_out = (last or {}).get("budget_outcome")

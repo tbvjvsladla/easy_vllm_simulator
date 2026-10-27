@@ -3036,23 +3036,92 @@ def value_status_candidates(repo: Path, ev: Any, *, forward_module: Any | None =
 
 
 # ── 재현 절차 · 관측 소요 ────────────────────────────────────────────────────────────────────
-def _events_for(repo: Path, label: str) -> list[dict]:
-    """블랙박스 이벤트(`docs/logs/<node>/events/<YYYY-MM>.jsonl`) 중 label 이 같은 것. 비추적 기계 평면 · 읽기만."""
-    base = repo / "docs" / "logs"
-    out: list[dict] = []
-    if not base.is_dir():
-        return out
-    for f in sorted(base.glob("*/events/*.jsonl")):
-        if not re.fullmatch(r"\d{4}-\d{2}\.jsonl", f.name):
+def current_serve_window(repo: Path, ev: Any, *, measure_start: str | None = None,
+                         measure_end: str | None = None) -> dict | None:
+    """Official API-server session containing this measurement; no name-only historical join.
+
+    An open journal alone does not prove that an old process survived until measurement. Require
+    the latest matching session to have a recorded stop after the measurement, with no restart
+    inside it. Local/mirrored journals follow the event reader's node ownership rule.
+    """
+    from . import evidence as _evidence
+    repo = Path(repo)
+    sweep = _get(ev, "sweep") or {}
+    measure_start = _utc_z(measure_start or _first_measure_utc(repo, ev)[0] or _lite_measured_utc(repo, ev)[0])
+    measure_end = _utc_z(measure_end or sweep.get("generated_utc") or measure_start)
+    if not measure_start or not measure_end or measure_end < measure_start:
+        return None
+    meta = (sweep.get("index") or {}).get("meta") or {}
+    cell = str(meta.get("config_name") or _get(ev, "cell") or "")
+    topo, axis = _get(ev, "topology"), _get(ev, "node")
+    role = "main" if axis == "cluster" else axis
+    decl = _get(ev, "declaration") or {}
+    nodes = [str(n["node_id"]) for n in decl.get("nodes", [])
+             if isinstance(n, dict) and n.get("role") == role and n.get("node_id")]
+    nodes = list(dict.fromkeys(nodes or [role]))
+    own_node = _evidence._self_node(repo)[0]
+    records = []
+    for node in nodes:
+        if not isinstance(node, str) or not node or "/" in node or node.startswith("."):
             continue
-        for ln in f.read_text(encoding="utf-8", errors="replace").splitlines():
-            try:
-                row = json.loads(ln)
-            except ValueError:
+        local = {p.name: p for p in (repo / _evidence.REL_EVENTS_ROOT / node / "sessions").glob("*.json")}
+        mirror = {} if node == own_node else {
+            p.name: p for p in (repo / _evidence.REL_EVENTS_RECOVERED_ROOT / node / "sessions").glob("*.json")}
+        for p in {**local, **mirror}.values():
+            if (any(q.is_symlink() for q in (p, *p.parents)) or not p.is_file()
+                    or not p.resolve().is_relative_to(repo.resolve())):
                 continue
-            if isinstance(row, dict) and row.get("label") == label and isinstance(row.get("ts"), str):
-                out.append({**row, "_file": f.relative_to(repo).as_posix()})
-    return sorted(out, key=lambda r: r["ts"])
+            d = _json_file(p) or {}
+            start, stop = _utc_z(d.get("started_utc")), _utc_z(d.get("stopped_utc"))
+            if (d.get("config_file") != cell or d.get("topology") != topo or not start
+                    or not _evidence._session_is_cell(d.get("session_id"), cell)):
+                continue
+            records.append({"start_utc": start, "end_utc": stop, "session_id": d["session_id"],
+                            "node_id": node, "source": core.rel(repo, p)})
+    earlier = [r for r in records if r["start_utc"] <= measure_start]
+    if not earlier:
+        return None
+    latest = max(r["start_utc"] for r in earlier)
+    candidates = [r for r in earlier if r["start_utc"] == latest]
+    if len(candidates) != 1:
+        return None
+    chosen = candidates[0]
+    if (not chosen["end_utc"] or chosen["end_utc"] < measure_end
+            or any(measure_start < r["start_utc"] <= measure_end for r in records)):
+        return None
+    return chosen
+
+
+def _serve_budget_window(c: _Ctx, first: str | None, end: str | None) -> dict | None:
+    """Legacy upper bound only when an observed budget window covers the whole measurement."""
+    from types import SimpleNamespace
+    from . import evidence as _evidence
+    if not first or not end:
+        return None
+    ev = SimpleNamespace(declaration=_get(c.ev, "declaration"), node=c.node)
+    candidates = []
+    for node in _evidence._event_node_dirs(c.repo, ev):
+        streams = _evidence._node_streams(c.repo, node)
+        for _key, rows, sources, bad in streams:
+            if not rows or any(bad.values()):
+                continue
+            for w in _evidence._event_windows(rows, _evidence._node_opens(streams)):
+                # Later unrelated events do not prove that a stale open budget stayed valid.
+                # A known TTL also bounds a late clear; never extend expiry to the clear time.
+                finish = w["end_ts"]
+                if finish is None:
+                    continue
+                i = w["rows"][0]
+                ttl = rows[i][2].get("ttl_s")
+                if isinstance(ttl, (int, float)) and not isinstance(ttl, bool):
+                    import datetime as _dt
+                    expiry = core.parse_utc(w["start_ts"]) + _dt.timedelta(seconds=ttl)
+                    finish = min(finish, expiry.strftime("%Y-%m-%dT%H:%M:%SZ"))
+                if (w["open_kind"] == "budget_declare" and _evidence._label_is_cell(w["label"], c.cell)
+                        and w["start_ts"] <= first <= end < finish):
+                    candidates.append({"start_utc": w["start_ts"], "source":
+                        f"{sources[i]}:{rows[i][1]} budget_declare(label {w['label']}) · 관측된 예산 창 안의 측정"})
+    return candidates[0] if len(candidates) == 1 else None
 
 
 def _first_measure_utc(repo: Path, ev: Any) -> tuple[str | None, str | None]:
@@ -3317,68 +3386,93 @@ def _bench_commands(c: _Ctx) -> tuple[str, str]:
                                                          else "reconstructed(bench json)")
 
 
-# 같은 serve 세션 안의 **최종 스윕 전 요청**(2026-10-11 · plan_26101104 셀 D 사실검증 F5). 첫 스윕이 끊기고(서브 하네스 백그라운드 10분
-#   제한) 같은 서빙 위에서 재실행되면 스윕 디렉터리는 재실행분으로 덮이고, bench 소요 · serve 상한이 재실행 스윕만으로 'exact' 처럼 나왔다.
-#   관측: lite_bench.sh 가 같은 컨테이너 로그의 머리(`lite_engine_head_<셀>.log`)와 꼬리(`lite_engine_<셀>.log`)를 남긴다 — 그 안의
-#   `POST /v1/(chat/)completions` 접근 줄은 시각이 없으므로 **다음 시각 줄**(vLLM `INFO MM-DD HH:MM:SS`)을 그 요청의 상한 시각으로 삼는다
-#   (컨테이너 시계 = 호스트 커널 시계 · UTC 로 읽는 가정). 상한이 최종 스윕 첫 측정 시각보다 앞인 요청이 스모크 계약의 추론 1회
-#   (single/multi 스모크 '추론 1회')를 넘으면 앞선 요청이 있었다고 **표시**한다 — 끊긴 스윕이라 단정하지 않고 값도 바꾸지 않는다.
+# Untimed POST lines are attributable only between two monotone timestamps inside the bound
+# current session and before this sweep. Cumulative head/tail captures may contain older boots;
+# a next timestamp alone cannot pull their requests into the current session.
 _POST_REQ = re.compile(r'"POST /v1/(?:chat/)?completions HTTP/[0-9.]+"')
 SMOKE_INFERENCE_REQUESTS = 1          # 스모크 성공 판정의 '추론 1회'(serve 단계 success 문구와 같은 계약)
 
 
-def _pre_sweep_requests(c: _Ctx, measure_start: str | None) -> dict | None:
-    """{count, first_ub, last_ub, sources[]} | None — 위 주석. 머리·꼬리 캡처가 겹친 같은 줄(같은 텍스트 · 같은 상한)은 한 번만 센다."""
+def _pre_sweep_requests(c: _Ctx, measure_start: str | None, session: dict | None = None) -> dict | None:
+    """Bounded observed access lines, not a total across accumulated engine epochs."""
     sweep = _get(c.ev, "sweep") or {}
     sdir = sweep.get("dir") if isinstance(sweep, dict) else None
-    if not measure_start or not isinstance(sdir, str) or not (c.repo / sdir).is_dir():
+    if not measure_start or not session or not isinstance(sdir, str) or not (c.repo / sdir).is_dir():
         return None
     import datetime as _dt
+    from collections import Counter
     from . import evidence as _evidence
     try:
         y0 = core.parse_utc(measure_start)
     except core.HintError:
         return None
-    seen: set[tuple[str, str]] = set()
-    srcs: list[str] = []
+    def timestamp(line):
+        tm = _evidence._ENGINE_TS.search(line)
+        if not tm:
+            return None
+        mo, d, h, mi, se = (int(x) for x in tm.groups())
+        try:
+            return _dt.datetime(y0.year - (1 if (mo, d) > (y0.month, y0.day) else 0),
+                                mo, d, h, mi, se).strftime("%Y-%m-%dT%H:%M:%SZ")
+        except ValueError:
+            return None
+
+    captures = {}
+    epoch_start = session["start_utc"]
     for name in (f"lite_engine_head_{c.cell}.log", f"lite_engine_{c.cell}.log"):
         f = c.repo / sdir / name
-        if not f.is_file():
-            continue
+        if f.is_file():
+            captures[f] = [_evidence._ANSI.sub("", line) for line in f.read_bytes().decode("utf-8", "replace").split("\n")]
+            for line in captures[f]:
+                if "Initializing a V1 LLM engine" in line or "Starting vLLM server" in line:
+                    t = timestamp(line)
+                    if t and epoch_start <= t < measure_start:
+                        epoch_start = t
+    seen: Counter = Counter()
+    srcs: list[str] = []
+    for f, lines in captures.items():
         pending: list[str] = []
+        lower = None
+        counts: Counter = Counter()
         hit = False
-        for line in f.read_bytes().decode("utf-8", "replace").split("\n"):
-            clean = _evidence._ANSI.sub("", line)
+        for clean in lines:
             if _POST_REQ.search(clean):
-                pending.append(clean.strip())
+                if lower is not None:
+                    pending.append(clean.strip())
                 continue
-            tm = _evidence._ENGINE_TS.search(clean)
-            if not tm or not pending:
+            ub = timestamp(clean)
+            if ub is None:
+                if _evidence._ENGINE_TS.search(clean):
+                    pending, lower = [], None
                 continue
-            mo, d, h, mi, se = (int(x) for x in tm.groups())
-            try:
-                ub = _dt.datetime(y0.year - (1 if (mo, d) > (y0.month, y0.day) else 0), mo, d, h, mi, se).strftime("%Y-%m-%dT%H:%M:%SZ")
-            except ValueError:
-                pending = []
-                continue
-            if ub < measure_start:
+            restart = "Initializing a V1 LLM engine" in clean or "Starting vLLM server" in clean
+            if not restart and lower is not None and epoch_start <= lower <= ub < measure_start:
                 for p_ in pending:
-                    seen.add((p_, ub))
-                hit = True
+                    counts[(p_, ub)] += 1
+                hit = hit or bool(pending)
             pending = []
+            lower = ub if epoch_start <= ub < measure_start else None
         if hit:
             srcs.append(f.relative_to(c.repo).as_posix())
-    if len(seen) <= SMOKE_INFERENCE_REQUESTS:
+        # A head/tail overlap is one observation. Preserve repeated identical access lines in
+        # each capture, but do not sum duplicate captures of those same timestamp-bounded lines.
+        seen |= counts
+    count = sum(seen.values())
+    if count <= SMOKE_INFERENCE_REQUESTS:
         return None
     ubs = sorted(u for _, u in seen)
-    return {"count": len(seen), "first_ub": ubs[0], "last_ub": ubs[-1], "sources": srcs}
+    return {"count": count, "first_ub": ubs[0], "last_ub": ubs[-1], "sources": srcs,
+            "session_id": session["session_id"], "session_source": session["source"],
+            "epoch_start_utc": epoch_start,
+            "scope": "current-session timestamp-bounded access lines; not total requests"}
 
 
 def pre_sweep_note(pre: dict) -> str:
     """bench · serve 소요 칸의 표지(문장 한 벌)."""
-    return (f"최종(재실행) 스윕 기준 — 같은 serve 세션 안 최종 스윕 첫 측정 전 completions 요청 {pre['count']}건 관측"
-            f"(상한 시각 {pre['first_ub']}~{pre['last_ub']} · 스모크 추론 {SMOKE_INFERENCE_REQUESTS}회 초과 = 앞선 벤치 실행(끊긴 스윕 등)이 "
-            f"있었을 수 있다 · 출처 {' · '.join(pre['sources'])} 의 POST 접근 줄 × 다음 vLLM 시각 줄(컨테이너 시계 UTC 가정))")
+    return (f"최종 스윕 기준 — 관측된 serve 세션 경계 안 첫 측정 전 completions 요청 {pre['count']}건 관측"
+            f"(상한 시각 {pre['first_ub']}~{pre['last_ub']} · 스모크 최소 추론 {SMOKE_INFERENCE_REQUESTS}회 초과"
+            f"(요청 목적·앞선 벤치 여부는 미관측) · 세션 {pre['session_source']} · 출처 {' · '.join(pre['sources'])} 의 POST 접근 줄 × 전후 vLLM 시각 줄"
+            "(컨테이너 시계 UTC 가정 · 구간을 확인한 요청만, 세션 전체 요청 수 아님))")
 
 
 def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = None) -> list[dict]:
@@ -3425,6 +3519,7 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
                 measure_start, measure_src, lite_start = ls_, lsrc_, True
     elif host_start:
         lite_start = True       # P14: 첫 측정 시각 = lite_raw measured_utc(호스트 date -u) — serve 상한의 끝 문구도 '시각' 으로 적는다
+    session = current_serve_window(repo, c.ev, measure_start=measure_start, measure_end=sweep_end)
     if plane == "docker":
         if topo == "multi":
             # 2026-09-22 S2 round 3 적대 리뷰: 렌더러가 측정 뒤 바뀌었으면(git 관측) 명령 앞에 그 사실 · 측정 전 개정을 주석으로 단다.
@@ -3460,21 +3555,14 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
         else:
             step("build", build_cmd, "빌드 OK · 이미지 실재", None, created, "none",
                  f"docker image inspect {_image_ref(c)[0]} .Created(종료만 관측)" if created else "미관측", build_src, extra)
-        # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 A F15: 라벨은 러너가 붙인 `<접두>-<셀>` 닫힌 목록(evidence 의 한 벌 ·
-        #   multinode_serve_smoke `smoke-` · single_serve_up `serve-`) — 옛 판은 smoke- 만 찾아 single 셀의 선언을 '없음' 으로 적었다.
-        from . import evidence as _evidence
-        events = sorted((e for pfx in _evidence._EVENT_LABEL_PREFIXES for e in _events_for(repo, f"{pfx}-{cell}")
-                         if e.get("kind") == "budget_declare"), key=lambda e: e["ts"])
         # FACT_FIX2 G7: lite-only 셀의 첫 측정 시각 = lite 측정 시작(lite_raw measured_utc) — 위에서 measure_start 로 채웠다
         s_end, s_end_src = (measure_start, (f"첫 측정 시각({measure_src})" if lite_start else f"첫 측정 date({measure_src})")) \
             if measure_start else (None, None)
-        if s_end:
-            events = [e for e in events if e["ts"] <= s_end]
-        decl = events[-1] if events and s_end else None     # 첫 측정 시각이 없으면 어느 선언인지 가를 수 없다
-        step("serve", serve_cmd, "health 200 + 추론 1회(스모크 판정)", decl["ts"] if decl else None, s_end,
-             "upper" if decl and s_end else "none",
-             (f"{decl['_file']} budget_declare(label {decl.get('label')}) → {s_end_src}"
-              if decl and s_end else "미관측(예산 선언 또는 첫 측정 시각 없음)"),
+        bound = session or _serve_budget_window(c, measure_start, sweep_end)
+        step("serve", serve_cmd, "health 200 + 추론 1회(스모크 판정)", bound["start_utc"] if bound else None, s_end,
+             "upper" if bound and s_end else "none",
+             (f"{bound['source']} {'started_utc(측정을 포함하는 세션)' if session else ''} → {s_end_src}"
+              if bound and s_end else "미관측(이 측정을 포함하는 serve 세션 또는 예산 창 미관측 — 과거 같은 셀 선언으로 대체하지 않음)"),
              "derived(스모크 사용법)")
     else:
         if src_ctx is not None and sel:
@@ -3506,9 +3594,9 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
                 f"{measure_src} date → sweep_index.generated_utc(호스트 UTC — 시작과 시계 다름 · 근사)")
     else:
         bsrc = f"시작만 관측 — {measure_src}" if measure_start else "미관측"
-    step("bench", bench_cmd, "리포트 발행(+PASS 면 인증서)",
+    step("bench", bench_cmd, "리포트 발행(루브릭 권한 explicit ∧ PASS일 때만 full 인증서)",
          measure_start, sweep_end, bench_bound if measure_start and sweep_end else "none", bsrc, bench_src)
-    pre = _pre_sweep_requests(c, measure_start)
+    pre = _pre_sweep_requests(c, measure_start, session)
     if pre:
         # 값은 바꾸지 않는다(관측된 것은 최종 스윕의 구간) — 그 값이 셀의 bench 소요 전부로 읽히지 않게 소요 · 출처 칸에 표지(F5)
         note = pre_sweep_note(pre)
@@ -5032,7 +5120,7 @@ def selftest() -> list[str]:
         (repo / "docs/logs/main/events/2026-01.jsonl").write_text(
             json.dumps({"kind": "budget_declare", "label": f"smoke-{cell}", "ts": "2026-01-01T18:30:00Z"}) + "\n"
             + json.dumps({"kind": "budget_declare", "label": f"smoke-{cell}", "ts": "2026-01-01T21:00:00Z"}) + "\n"
-            + json.dumps({"kind": "budget_declare", "label": "smoke-other", "ts": "2026-01-01T18:59:00Z"}) + "\n",
+            + json.dumps({"kind": "budget_declare", "label": "smoke-other", "ts": "2026-01-01T18:20:00Z"}) + "\n",
             encoding="utf-8")
         ev = {"topology": "multi", "cell": cell, "node": "cluster", "lockset": {"kv_source": "measured-clamp",
                                                                                "batch_source": "hand-lever"},
@@ -5392,7 +5480,8 @@ def selftest() -> list[str]:
         evp = repo / "docs/logs/main/events/2026-01.jsonl"
         ev_bytes = evp.read_bytes()
         evp.write_text(json.dumps({"kind": "budget_declare", "label": f"serve-{cell}", "ts": "2026-01-01T18:40:00Z"}) + "\n"
-                       + json.dumps({"kind": "budget_declare", "label": f"serve-{cell}x", "ts": "2026-01-01T18:50:00Z"}) + "\n",
+                       + json.dumps({"kind": "budget_declare", "label": f"serve-{cell}x", "ts": "2026-01-01T18:20:00Z"}) + "\n"
+                       + json.dumps({"kind": "budget_clear", "ts": "2026-01-01T21:00:00Z"}) + "\n",
                        encoding="utf-8")
         try:
             rs15 = {x["step"]: x for x in reproduce_steps(repo, ev, runner=docker_old)}
@@ -5409,6 +5498,10 @@ def selftest() -> list[str]:
         #   보이면 bench · serve 소요에 '최종(재실행) 스윕 기준' 표지 — 값은 그대로 · 스모크 추론 1회만이면 표지 없음.
         sd5 = repo / "output/multi/benchlog/sweep_c1-mmp"
         hd5, tl5 = sd5 / f"lite_engine_head_{cell}.log", sd5 / f"lite_engine_{cell}.log"
+        journal = repo / "docs/logs/main/sessions" / f"serve-{cell}-20260101T183000Z.json"
+        journal.parent.mkdir(parents=True)
+        session_doc = {"session_id": journal.stem, "config_file": cell, "topology": "multi",
+                       "started_utc": "2026-01-01T18:30:00Z", "stopped_utc": "2026-01-01T20:00:00Z"}
 
         def post5(port: int) -> str:
             return f'(APIServer pid=1) INFO:     127.0.0.1:{port} - "POST /v1/chat/completions HTTP/1.1" 200 OK'
@@ -5416,6 +5509,7 @@ def selftest() -> list[str]:
         def stamp5(hms: str) -> str:
             return f"(APIServer pid=1) INFO 01-01 {hms} [loggers.py:259] Engine 000: Avg prompt throughput: 1.0 tokens/s"
         try:
+            journal.write_text(json.dumps(session_doc), encoding="utf-8")
             (sd5 / f"lite_raw_{cell}.json").write_text(json.dumps({"config_name": cell, "measured_utc": "2026-01-01T18:59:41Z"}),
                                                      encoding="utf-8")
             hd5.write_text("\n".join(["INFO 01-01 18:30:00 [api_server.py] Starting vLLM server on http://0.0.0.0:8000", post5(40001),
@@ -5427,17 +5521,96 @@ def selftest() -> list[str]:
             tl5.write_text("\n".join([post5(40009), stamp5("18:59:50")]) + "\n", encoding="utf-8")
             rs5n = {x["step"]: x for x in reproduce_steps(repo, ev, runner=docker_old)}
         finally:
-            for f_ in (hd5, tl5, sd5 / f"lite_raw_{cell}.json"):
+            for f_ in (hd5, tl5, sd5 / f"lite_raw_{cell}.json", journal):
                 if f_.exists():
                     f_.unlink()
         pr5 = rs5["bench"]["observed"].get("pre_final_sweep_requests") or {}
         ck("★F5 최종 스윕 첫 측정 전 요청 4건(스모크 1 + 앞선 3 · 머리·꼬리 겹친 줄 1번 · 첫 측정 뒤 요청 ✗) → bench·serve 소요 표지 · 값 불변",
            pr5.get("count") == 4 and pr5.get("first_ub") == "2026-01-01T18:31:00Z" and pr5.get("last_ub") == "2026-01-01T18:40:10Z"
            and rs5["bench"]["observed"]["seconds"] == 1819 and "(최종 스윕 기준 · 그 전 요청 4건 — 소요 출처 칸)" in rs5["bench"]["duration"]
-           and "최종(재실행) 스윕 기준 — 같은 serve 세션 안 최종 스윕 첫 측정 전 completions 요청 4건 관측" in rs5["bench"]["source"]
+           and "최종 스윕 기준 — 관측된 serve 세션 경계 안 첫 측정 전 completions 요청 4건 관측" in rs5["bench"]["source"]
            and "(끝 = 최종 스윕 첫 측정 · 그 전 요청 4건 — 소요 출처 칸)" in rs5["serve"]["duration"])
         ck("★F5 음성대조: 첫 측정 전 요청이 스모크 추론 1회뿐이면 표지 없음",
            "pre_final_sweep_requests" not in rs5n["bench"]["observed"] and "최종(재실행)" not in rs5n["bench"]["source"])
+        # FC1: accumulated captures and stale/open journals cannot turn a previous campaign into
+        # this serving session. The final sweep's measured duration remains unchanged.
+        prior = journal.with_name(f"serve-{cell}-20251222T183000Z.json")
+        restart = journal.with_name(f"serve-{cell}-20260101T191000Z.json")
+        old_events = evp.read_bytes()
+        try:
+            prior.write_text(json.dumps(dict(session_doc, session_id=prior.stem,
+                started_utc="2025-12-22T18:30:00Z", stopped_utc=None)), encoding="utf-8")
+            journal.write_text(json.dumps(dict(session_doc, started_utc="2026-01-01T18:50:00Z")), encoding="utf-8")
+            (sd5 / f"lite_raw_{cell}.json").write_text(json.dumps({"config_name": cell,
+                "measured_utc": "2026-01-01T18:59:41Z"}), encoding="utf-8")
+            hd5.write_text("\n".join(["INFO 12-22 18:30:00 Starting vLLM server on fixture", post5(40001),
+                post5(40002), "INFO 12-22 18:31:00 old metrics", post5(40003),
+                "INFO 01-01 18:50:20 Starting vLLM server on fixture", post5(40011),
+                post5(40012), stamp5("18:50:40")]) + "\n", encoding="utf-8")
+            tl5.write_text("\n".join([post5(40003), stamp5("18:50:20"), post5(40011),
+                post5(40012), stamp5("18:50:40")]) + "\n", encoding="utf-8")
+            before = {p: p.read_bytes() for p in (hd5, tl5, journal, prior)}
+            scoped = {s["step"]: s for s in reproduce_steps(repo, ev, runner=docker_old)}
+            ck("★FC1 current session bounds old head/tail epochs and untimed leading requests; final sweep unchanged",
+               scoped["serve"]["observed"]["start_utc"] == "2026-01-01T18:50:00Z"
+               and scoped["bench"]["observed"]["seconds"] == 1819
+               and scoped["bench"]["observed"].get("pre_final_sweep_requests", {}).get("count") == 2
+               and all(p.read_bytes() == raw for p, raw in before.items()))
+            ck("★FC6 full certificate requires explicit authority and PASS in the reproduction contract",
+               "explicit ∧ PASS" in scoped["bench"]["success"] and "+PASS 면 인증서" not in scoped["bench"]["success"])
+            with hd5.open("a", encoding="utf-8") as f:
+                f.write("\n".join(["INFO 01-01 18:52:00 Starting vLLM server on fixture", post5(40021),
+                                     post5(40022), stamp5("18:53:00")]) + "\n")
+            epoch = {s["step"]: s for s in reproduce_steps(repo, ev, runner=docker_old)}
+            ep = epoch["bench"]["observed"].get("pre_final_sweep_requests") or {}
+            ck("★FC1 later engine epoch inside a session excludes earlier-epoch requests across both captures",
+               ep.get("count") == 2 and ep.get("epoch_start_utc") == "2026-01-01T18:52:00Z"
+               and ep.get("first_ub") == "2026-01-01T18:53:00Z")
+            restart.write_text(json.dumps(dict(session_doc, session_id=restart.stem,
+                started_utc="2026-01-01T19:10:00Z")), encoding="utf-8")
+            ck("★FC1 restart during the measured sweep refuses current-session binding",
+               current_serve_window(repo, ev) is None)
+            restart.unlink()
+            for label, changes in (("open-only", {"stopped_utc": None}),
+                                   ("stopped before sweep end", {"stopped_utc": "2026-01-01T19:20:00Z"}),
+                                   ("other config", {"config_file": cell + "-other"}),
+                                   ("other topology", {"topology": "single"})):
+                journal.write_text(json.dumps(dict(session_doc, started_utc="2026-01-01T18:50:00Z", **changes)), encoding="utf-8")
+                ck(f"★FC1 {label} cannot supply the current serve window", current_serve_window(repo, ev) is None)
+            journal.write_text(json.dumps(session_doc), encoding="utf-8")
+            alias = repo / "docs/logs/alias/sessions"
+            alias.parent.mkdir()
+            alias.symlink_to(journal.parent, target_is_directory=True)
+            try:
+                alias_ev = dict(ev, declaration={"nodes": [{"node_id": "alias", "role": "main"}]})
+                ck("★FC1 session journal ancestor symlink cannot redirect node identity",
+                   current_serve_window(repo, alias_ev) is None)
+            finally:
+                alias.unlink()
+                alias.parent.rmdir()
+            journal.unlink()
+            # A closed historical budget cannot replace the missing current session either.
+            evp.write_text(json.dumps({"kind": "budget_declare", "label": f"serve-{cell}",
+                "ts": "2025-12-22T18:30:00Z"}) + "\n" + json.dumps({"kind": "budget_clear",
+                "ts": "2025-12-22T19:00:00Z"}) + "\n", encoding="utf-8")
+            unknown = {s["step"]: s for s in reproduce_steps(repo, ev, runner=docker_old)}
+            ck("★FC1 absent current boundary is scoped unobserved, not historical start/count or changed bench time",
+               unknown["serve"]["observed"]["start_utc"] is None
+               and unknown["bench"]["observed"]["seconds"] == 1819
+               and "pre_final_sweep_requests" not in unknown["bench"]["observed"])
+            stale_open = [{"kind": "budget_declare", "label": f"serve-{cell}", "ts": "2025-12-22T18:30:00Z"},
+                          {"kind": "sample", "ts": "2026-01-01T20:00:00Z"}]
+            for label, rows in (("stale open budget", stale_open), ("late clear after known TTL", [
+                    dict(stale_open[0], ttl_s=1800), {"kind": "budget_clear", "ts": "2026-01-01T20:00:00Z"}])):
+                evp.write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+                stale = {s["step"]: s for s in reproduce_steps(repo, ev, runner=docker_old)}
+                ck(f"★FC1 {label} cannot reintroduce an old serve start through the budget fallback",
+                   stale["serve"]["observed"]["start_utc"] is None
+                   and "pre_final_sweep_requests" not in stale["bench"]["observed"])
+        finally:
+            evp.write_bytes(old_events)
+            for p in (hd5, tl5, journal, prior, restart, sd5 / f"lite_raw_{cell}.json"):
+                p.unlink(missing_ok=True)
         # 캠페인 phase — phases/<X> 의 X 는 **노드 id** 다(축 이름 아님 · 2026-09-22 감사). cluster = 선언 노드 전부의 같은 셀
         # 기록에서 가장 이른 시작 ~ 가장 늦은 끝 · 다른 셀 기록은 쓰지 않는다 · main/sub 축은 evidence 가 해소한 ev.phases 만.
         for nid, st, en, cid_cell in (("gx-a", "2026-01-01T10:00:00Z", "2026-01-01T11:00:00Z", cell),

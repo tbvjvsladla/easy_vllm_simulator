@@ -759,7 +759,8 @@ def _f_resolved(c: _Ctx) -> str:
     rows = [
         ("vLLM 빌드 입력(종류)", _cell(nbi.get("kind")), src(nbi.get("kind"), "naming.vllm_build_input")),
         ("vLLM 빌드 입력(ref)", _cell(ref), src(ref, bsrc.get("vllm_ref"), "naming.vllm_build_input")),
-        ("vLLM 소스 SHA(40자)", _cell(sha), src(sha, bsrc.get("vllm_sha"), "naming.vllm_build_input")),
+        ("vLLM 빌드 계보 SHA(40자)", _cell(sha), src(sha, bsrc.get("vllm_sha"), "naming.vllm_build_input")
+         if sha else "빌드 입력/원장에 결속된 SHA 미관측 — runtime checkout 관측과 컴파일 바이트 증명은 별개"),
         _prev_release_row(nbi, build, bsrc, src),
         *_vllm_observed_rows(nobs),
         ("체크포인트 revision(HF · git HEAD)", _cell(ident.get("hf_revision")),
@@ -832,6 +833,8 @@ _VLLM_OBS_LABELS = {
     "engine_self_report": "vLLM 엔진 자기보고(엔진 로그 기동 배너)",
     "certificate_vllm_version": "인증서 `vllm_version`(강한 일치 키)",
     "wheel_meta": "wheel 메타(`vllm_build`)",
+    "runtime_source_checkout": "vLLM runtime source checkout SHA(컴파일 바이트 증명 아님)",
+    "runtime_source_describe": "vLLM runtime source describe(관측 기록)",
 }
 _VLLM_OBS_ALWAYS = ("engine_self_report", "wheel_meta")
 # 키별 메타 칸(evidence.vllm_observed): `_producer` = 생산자 코드(예 image-tag-line) · `_source` = 출처 서술 · `_basis` = 관측의 지위
@@ -5434,6 +5437,20 @@ def selftest() -> list[str]:
         qf9["build"]["source"].update({"vllm_describe": "빌드 원장(docker-image) vllm.describe",
                                        "vllm_prev_pin": "output/single/resolved.json upstream_delta.from_ref"})
         rs9 = _f_resolved(_Ctx(repo, qf9, tpls))
+        qfr = json.loads(core.dumps(qf9))
+        qfr["build"]["vllm_sha"] = None
+        qfr["naming"]["vllm_observed"] = {
+            "runtime_source_checkout": "e" * 40,
+            "runtime_source_checkout_source": "runtime_identity.json source_head · 컴파일 바이트 미검증",
+            "runtime_source_describe": "v0.31.0",
+            "runtime_source_describe_source": "runtime_identity.json source_describe · 관측 기록",
+            "wheel_meta": "0.31.1.dev0+gfixture.cu133", "wheel_meta_source": "runtime_identity.json vllm_version"}
+        rsr = _f_resolved(_Ctx(repo, qfr, tpls))
+        ck("FC2/3 runtime source/install observations render separately from absent build provenance",
+           "vLLM 빌드 계보 SHA(40자) | 미관측" in rsr and "컴파일 바이트 증명은 별개" in rsr
+           and "vLLM runtime source checkout SHA(컴파일 바이트 증명 아님) | " + "e" * 40 in rsr
+           and "vLLM runtime source describe(관측 기록) | v0.31.0" in rsr
+           and "0.31.1.dev0+gfixture.cu133" in rsr)
         qf9c = json.loads(core.dumps(qf9))
         qf9c["naming"]["vllm_build_input"].update({"kind": "commit", "prev_release": None})
         rs9c = _f_resolved(_Ctx(repo, qf9c, tpls))

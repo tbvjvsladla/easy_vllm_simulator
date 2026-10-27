@@ -3860,8 +3860,9 @@ def measurement_env_observed(repo, ev: CellEvidence) -> list[dict]:
     return [rows[k] for k in order]
 
 
-def _banner_of(path: Path) -> tuple[int, str, str | None] | None:
-    """엔진 로그의 첫 vLLM 기동 배너 → (줄, 버전 원문, 컨테이너 시각 `MM-DD HH:MM:SS`|None). 없으면 None."""
+def _banners_of(path: Path) -> list[tuple[int, str, str | None]]:
+    """All startup epochs in an accumulated engine log, with original line numbers."""
+    out = []
     for i, line in enumerate(_log_lines(path), 1):
         for seg in line.split("\r"):
             clean = _ANSI.sub("", seg)
@@ -3869,8 +3870,29 @@ def _banner_of(path: Path) -> tuple[int, str, str | None] | None:
                 m = rx.search(clean)
                 if m:
                     tm = _ENGINE_TS.search(clean)
-                    return i, m.group(1), (f"{tm.group(1)}-{tm.group(2)} {tm.group(3)}:{tm.group(4)}:{tm.group(5)}" if tm else None)
-    return None
+                    out.append((i, m.group(1), (f"{tm.group(1)}-{tm.group(2)} {tm.group(3)}:{tm.group(4)}:{tm.group(5)}" if tm else None)))
+                    break
+    return out
+
+
+def _banner_of(path: Path) -> tuple[int, str, str | None] | None:
+    return next(iter(_banners_of(path)), None)
+
+
+def _banner_in_window(stamp: str | None, start: str, end: str) -> str | None:
+    """Yearless container clock is UTC-assumed; exactly one year must fit the bound window."""
+    a, b = _utc_dt(start), _utc_dt(end)
+    if not a or not b or a > b or not stamp:
+        return None
+    hits = []
+    for year in range(a.year, b.year + 1):
+        try:
+            value = _dt.datetime.strptime(f"{year}-{stamp}", "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%dT%H:%M:%SZ")
+        except ValueError:
+            continue
+        if start <= value <= end:
+            hits.append(value)
+    return hits[0] if len(hits) == 1 else None
 
 
 def _read_json_soft(path: Path):
@@ -3903,7 +3925,8 @@ def _digest_sweeps(repo: Path, ev: CellEvidence, digest: str | None, tag: str | 
 
 
 def _engine_banner(repo: Path, ev: CellEvidence) -> dict:
-    """엔진 자기보고(기동 배너) — {value, source, basis, files}. basis: `this-measurement`(이 측정의 스윕 meta.vllm_build · 엔진 로그) ·
+    """엔진 자기보고(기동 배너) — {value, source, basis, files}. `this-measurement` requires a current serve-session epoch;
+    captured logs/meta without that boundary are `measurement-capture-unbound`, not proof of the current startup.
     `same-digest-recorded`(측정 digest 를 **기록한** 다른 스윕의 로그) · `same-digest-inferred`(digest 를 기록하지 않은 serve_fail 로그 —
     같은 IMAGE_TAG 이고 그 시각 앞뒤의 스윕이 같은 태그→digest 를 측정했을 때만 · 추론이라 적는다) · `conflict` · `unobserved`.
     값이 둘 이상이면 고르지 않는다(conflict)."""
@@ -3913,21 +3936,35 @@ def _engine_banner(repo: Path, ev: CellEvidence) -> dict:
     digest = mm.get("image_digest") or (ev.build_identity or {}).get("image_digest")
     tag = mm.get("image_tag") if str(mm.get("image_tag_source", "")).startswith("sweep_index.meta.image_tag(measured") else None
     measured = _measured_key(repo, ev)
-    # ① 이 측정 — sweep_bench 가 레벨 엔진 로그 배너에서 잡은 meta.vllm_build · 없으면 이 측정 로그를 직접 훑는다
-    if sw.get("binding") == "output" and not _unobserved(meta.get("vllm_build")):
-        ip = repo / sw["dir"] / "sweep_index.json"
-        ln = _json_key_line(ip, "vllm_build", meta["vllm_build"])
-        rel = _rel(repo, ip)
-        return {"value": str(meta["vllm_build"]), "basis": "this-measurement", "files": [(rel, "sweep_json")],
-                "source": (f"{rel}:{ln or '?'} meta.vllm_build(sweep_bench 가 이 측정의 레벨 엔진 로그에서 `v<x.y.z…>` 정규식으로 잡은 값 — "
-                           "배너 전용 규칙은 아니다)")}
+    # Capturing a file during a measurement does not make its oldest startup this run's startup.
+    from . import artifacts
     logs_, _w, copies = _measured_engine_logs_ex(repo, ev)
+    first, last, _src = _measure_window(repo, ev)
+    window = artifacts.current_serve_window(repo, ev, measure_start=first, measure_end=last)
+    current, unbound = [], []
     for lp in logs_:
-        b = _banner_of(lp)
-        if b:
+        for b in _banners_of(lp):
             rel = _rel(repo, lp)
-            return {"value": b[1], "basis": "this-measurement", "files": [(rel, "engine_log")],
-                    "source": f"{rel}:{b[0]}(이 측정의 엔진 로그 기동 배너" + (f" · {copies[lp]}" if lp in copies else "") + ")"}
+            source = f"{rel}:{b[0]}" + (f" · {copies[lp]}" if lp in copies else "")
+            unbound.append((measured, b[1], source, [(rel, "engine_log")]))
+            if window:
+                upper = min(x for x in (first, measured, window["end_utc"]) if x)
+                stamp = _banner_in_window(b[2], window["start_utc"], upper)
+                if stamp:
+                    current.append((stamp, b[1], source + f" · 기동 {stamp}(컨테이너 시계 UTC 가정) · {window['source']}",
+                                    [(rel, "engine_log"), (window["source"], "raw_json")]))
+    if current:
+        return _pick_banner(current, measured, "this-measurement", "측정 창을 포함한 현재 serve 세션 안·첫 측정 이전 기동 배너")
+    if not window:
+        if sw.get("binding") == "output" and not _unobserved(meta.get("vllm_build")):
+            ip = repo / sw["dir"] / "sweep_index.json"
+            rel = _rel(repo, ip)
+            unbound.append((measured, str(meta["vllm_build"]),
+                            f"{rel}:{_json_key_line(ip, 'vllm_build', meta['vllm_build']) or '?'} meta.vllm_build",
+                            [(rel, "sweep_json")]))
+        if unbound:
+            return _pick_banner(unbound, measured, "measurement-capture-unbound",
+                                "측정 캡처에 기록된 값 · 현재 serve 세션 경계 미관측 — 누적 로그의 기동 epoch 귀속 미검증")
     # tag 를 넘겨야 `tag_ok` 가 뜻을 갖는다(2026-09-22 · S2 round 3 적대 검토): 옛 판본은 None 을 넘겨 모든 스윕이 tag_ok=True 였고,
     #   ③ 괄호의 "앞뒤 스윕이 **같은 태그**→digest 를 측정" 조건이 죽은 코드였다 — 다른 태그로 같은 digest 를 잰 스윕도 괄호가 됐다.
     #   ② 는 digest 만 본다(tag_ok 로 거르지 않는다 — 같은 digest 를 기록한 로그는 태그와 무관하게 같은 이미지다).
@@ -3980,8 +4017,9 @@ def _engine_banner(repo: Path, ev: CellEvidence) -> dict:
                             [(rel, "engine_log")]))
     if inf:
         return _pick_banner(inf, measured, "same-digest-inferred", "digest 를 기록하지 않은 기동 실패 로그의 배너")
-    why = ("측정 digest 미관측" if not digest else
-           "이 측정 로그는 꼬리 캡처라 배너가 없고(sweep meta.vllm_build 도 NA) 같은 digest 를 기록·추론할 수 있는 다른 로그에도 배너가 없다")
+    why = ("현재 serve 세션에 결속되는 배너 없음(누적 로그의 과거·미래·시각 없는 기동은 이번 측정으로 세지 않는다)"
+           if window else "측정 digest 미관측" if not digest else
+           "측정 캡처와 같은 digest 보조 로그에서 기동 배너 관측 없음")
     # factcheck F1 2차(2026-10-06): 이 측정에서 읽은 로그가 전부 꼬리 창(머리 캡처 · 전체 사본 없음)이면 그 범위를 밝힌다 — env 표의
     #   log_window 와 같은 판정(_tail_windows). "미관측" 이 "배너가 없었다" 로 읽히지 않게(배너 자리는 창 앞이다).
     win = _tail_windows(repo, ev, logs_, copies) if logs_ else {}
@@ -4110,6 +4148,82 @@ def _cert_vllm_producer(repo: Path, ev: CellEvidence, sel: dict | None = None) -
                           f"({env_txt} — 덮어쓰기였을 수 있다)")
 
 
+def _runtime_observations(repo: Path, ev: CellEvidence) -> list[dict]:
+    """Recorded runtime observations explicitly joined by a cell's evidence index.
+
+    The index must bind config, node, sweep path and measured UTC, and name a regular
+    sibling runtime JSON. This is a recorded runtime observation, never a build ledger or
+    compiled-byte attestation. Do not find arbitrary runtime_identity.json files by recency.
+    """
+    def local(rel):
+        if not isinstance(rel, str) or not rel.startswith("docs/simlog/") or ".." in Path(rel).parts:
+            return None
+        path = repo / rel
+        if any(p.is_symlink() for p in (path, *path.parents) if p == repo or repo in p.parents):
+            return None
+        try:
+            path.resolve().relative_to(repo.resolve())
+        except ValueError:
+            return None
+        return path
+
+    sw = ev.sweep or {}
+    idx = sw.get("index") or {}
+    config = (idx.get("meta") or {}).get("config_name") or idx.get("config") or ev.cell
+    measured = _measured_key(repo, ev)
+    if not measured or not sw.get("dir") or sw.get("binding") != "output":
+        return []
+    candidates: set[Path] = set()
+    for ptr in ev.pointers or []:
+        if not isinstance(ptr, dict) or ptr.get("cell_id") != ev.cell:
+            continue
+        rel = ptr.get("path")
+        if ptr.get("kind") == "simlog":
+            path = local(rel)
+            if path and path.is_dir():
+                candidates.update(path.rglob("evidence_index.json"))
+            elif path and path.is_file() and path.suffix == ".json":
+                candidates.add(path)
+        elif ptr.get("kind") in ("plan", "devlog", "testlog") and isinstance(rel, str) \
+                and rel.startswith("docs/") and ".." not in Path(rel).parts and (repo / rel).is_file() \
+                and not any(p.is_symlink() for p in (repo / rel, *(repo / rel).parents) if repo in p.parents):
+            # Replay retains narrative pointers even after the campaign's simlog membership is purged.
+            for dirname in _SIMLOG_DIR_REF.findall((repo / rel).read_text(encoding="utf-8", errors="replace")):
+                path = local(f"docs/simlog/{dirname}")
+                if path and path.is_dir():
+                    candidates.update(path.rglob("evidence_index.json"))
+    out = []
+    for path in sorted(candidates):
+        if local(_rel(repo, path)) is None:
+            continue
+        doc, _bad = _read_json_soft(path)
+        if not isinstance(doc, dict) or doc.get("config") != config or doc.get("measured_node") != ev.node \
+                or doc.get("sweep_generated_utc") != measured or doc.get("sweep_dir") != sw["dir"]:
+            continue
+        target = local(doc.get("installed_runtime_identity"))
+        if target is None or target.parent != path.parent or not target.is_file():
+            continue
+        data, _bad = _read_json_soft(target)
+        if not isinstance(data, dict):
+            continue
+        source = (f"{_rel(repo, target)} (관측 기록 · {_rel(repo, path)}가 config={config}, node={ev.node}, "
+                  f"sweep_dir={sw['dir']}, measured_utc={measured}로 결속; 수집 명령/컴파일 바이트 일치는 별도 미검증)")
+        out.append({"data": data, "source": source,
+                    "files": [(_rel(repo, path), "raw_json"), (_rel(repo, target), "raw_json")]})
+    return out
+
+
+def _runtime_observed_field(observations: list[dict], key: str) -> tuple[str | None, str]:
+    got = [(str(o["data"][key]), f"{o['source']} {key}") for o in observations
+           if isinstance(o["data"].get(key), str) and not _unobserved(o["data"][key])
+           and (key != "source_head" or _SHA40.fullmatch(o["data"][key]))]
+    if not got:
+        return None, f"미관측 — 이 측정에 결속된 runtime 관측의 {key} 없음"
+    if len({value for value, _source in got}) != 1:
+        return None, "상충하는 runtime 관측 — 고르지 않는다: " + " · ".join(f"{v} ← {s}" for v, s in got)
+    return got[0][0], " · ".join(dict.fromkeys(source for _value, source in got))
+
+
 def vllm_observed(ev: CellEvidence, repo=None) -> dict:
     """PAYLOAD.naming.vllm_observed — vLLM 버전 관측 **라벨**(이름 입력 ✗ · 00 사실 블록 전용 · X18).
     2026-09-22(S2 round 3): 옛 판본은 인증서 vllm_version(0.29.0)을 `engine_self_report` 에 실었다 — 그 값은 측정 시점 sweep_bench.sh
@@ -4117,7 +4231,8 @@ def vllm_observed(ev: CellEvidence, repo=None) -> dict:
       engine_self_report         엔진 기동 배너(이 측정 → 같은 digest 를 기록한 다른 로그 → digest 미기록이지만 괄호로 추론한 로그 순) ·
                                  `_basis` 가 그 지위를 말한다(추론은 추론이라 적는다)
       certificate_vllm_version   인증서 강한 키 + `_producer`(측정 시점 sweep_bench.sh 판본에서 검증한 파생 규칙) · `_source`
-      wheel_meta                 wheel 배포 메타 — 측정 경로에 관측자가 없다(sweep meta.vllm_build 는 엔진 로그 배너 정규식이지 wheel 메타가 아니다)
+      wheel_meta                 설치 배포 메타(attestation · pip freeze · 빌드 원장 · 측정에 결속된 runtime 관측)
+      runtime_source_checkout/describe  runtime checkout 관측(이름 입력 SHA/컴파일 바이트 증명으로 승격하지 않는다)
     `source` 는 옛 소비자용 요약(칸별 출처를 한 줄로)."""
     # 저장소를 cwd 로 대신하지 않는다(2026-09-22 적대 검토 — 옛 `ev.repo or "."` 는 결정 경로의 침묵 폴백이었다: 다른 체크아웃의 로그·git 을
     #   읽고도 출처는 이 저장소처럼 적었다). 해소기(_assemble)가 ev.repo 를 채우므로 둘 다 없으면 호출 결함이다.
@@ -4133,11 +4248,18 @@ def vllm_observed(ev: CellEvidence, repo=None) -> dict:
     if wheel is None:
         wheel_src += ("(sweep_index.meta.vllm_build="
                       f"{meta.get('vllm_build')!r} 는 sweep_bench 가 엔진 로그에서 `v<x.y.z…>` 정규식으로 잡는 값이다 → engine_self_report 의 원천)")
+    observations = _runtime_observations(rp, ev)
+    checkout, checkout_src = _runtime_observed_field(observations, "source_head")
+    describe, describe_src = _runtime_observed_field(observations, "source_describe")
+    runtime = ({"runtime_source_checkout": checkout, "runtime_source_checkout_source": checkout_src,
+                "runtime_source_describe": describe, "runtime_source_describe_source": describe_src}
+               if observations else {})
     return {"engine_self_report": banner["value"], "engine_self_report_source": banner["source"],
             "engine_self_report_basis": banner["basis"],
             "certificate_vllm_version": cert_v, "certificate_vllm_version_producer": label,
             "certificate_vllm_version_source": psrc,
             "wheel_meta": wheel, "wheel_meta_source": wheel_src,
+            **runtime,
             # 옛 소비자(칸 하나의 source)용 요약 — 칸별 서술을 다시 적지 않는다(같은 바이트 두 벌 ✗ · 정본은 `*_source`).
             "source": (f"칸별 출처는 *_source — engine_self_report={banner['basis']} · certificate_vllm_version={label}"
                        + ("(빌드 입력 태그 파생 · 엔진 자기보고 아님)" if label == "image-tag-line"
@@ -4172,11 +4294,12 @@ def bind_image_ledger(ev: CellEvidence, view: dict | None) -> None:
 
 
 def _wheel_meta(repo: Path, ev: CellEvidence) -> tuple[str | None, str]:
-    """설치된 vLLM 배포 메타 버전(`importlib.metadata.version('vllm')` = wheel METADATA) — 관측 원천 둘(2026-09-29 · plan_26092908 §4.5
+    """설치된 vLLM 배포 메타 버전(`importlib.metadata.version('vllm')` = wheel METADATA) — 관측 원천(2026-09-29 · plan_26092908 §4.5
     "미관측 오판"): ① 노드 정합 attestation `nodes.<n>.vllm_dist_version`(multinode_serve_smoke 가 실행 중 컨테이너에서 캡처)
     ② native serve proof 가 보존한 pip freeze 의 `vllm==` 줄(노드별). 옛 판본은 attestation 에 그 칸이 있는데도 "측정 경로에 관측자가
     없다" 고 적었다. 노드끼리 다르면 값을 고르지 않는다(None · 출처가 두 값을 말한다).
-    native 셀은 ② 가 먼저다 — 실행 평면이 venv 이고, 묶인 attestation 은 원천 이미지(Docker) 실행의 것이다(다른 평면의 관측)."""
+    native 셀은 ② 가 먼저다 — 실행 평면이 venv 이고, 묶인 attestation 은 원천 이미지(Docker) 실행의 것이다(다른 평면의 관측).
+    ③ 이미지 빌드 원장 ④ config/node/sweep/UTC 결속 runtime 기록도 별도 출처로 읽는다."""
     v, where, by_node = _attested_host(ev.attestation, "vllm_dist_version", _attestation_timing_note(ev))
     if v is not None and ev.plane != "native":
         if len(set(by_node.values())) > 1:
@@ -4207,7 +4330,11 @@ def _wheel_meta(repo: Path, ev: CellEvidence) -> tuple[str | None, str]:
         led, lsrc = ev.image_ledger.get("vllm") or {}, f"{ev.image_ledger.get('source')} vllm.dist_version"
     if led.get("dist_version") and ev.plane != "native":
         return str(led["dist_version"]), f"{lsrc}(빌드 시점 measured · 이미지 안 배포 메타)"
-    return None, "미관측 — attestation vllm_dist_version · native pip freeze · 빌드 원장 vllm.dist_version 모두 없다"
+    # A measurement-bound observation can exist without a build ledger. Keep its weaker provenance.
+    runtime, source = _runtime_observed_field(_runtime_observations(repo, ev), "vllm_version")
+    if runtime is not None or "상충" in source:
+        return runtime, source + " · installed distribution 관측 기록(빌드 입력/엔진 배너와 별개)"
+    return None, "미관측 — 확인한 attestation vllm_dist_version · native pip freeze · 빌드 원장 vllm.dist_version · 측정 결속 runtime vllm_version에 값 없음"
 
 
 _ATTEST_TIME_KEYS = ("written_utc", "captured_utc", "generated_utc", "utc")
@@ -4704,6 +4831,8 @@ def _assemble(repo: Path, ev: CellEvidence, *, measured_key: str | None, simlog_
         cands.append({"path": _rel(repo, lp), "kind": "engine_log"})
     for f, kind in _engine_banner(repo, ev)["files"]:
         cands.append({"path": f, "kind": kind})
+    for observation in _runtime_observations(repo, ev):
+        cands.extend({"path": path, "kind": kind} for path, kind in observation["files"])
     seen: set[str] = set()
     seeds["evidence_candidates"] = [c for c in cands if not (c["path"] in seen or seen.add(c["path"]))]
     ev.lineage_seeds = seeds
@@ -7628,8 +7757,8 @@ def _selftest_round3(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict) -> No
     idx_doc["meta"]["vllm_build"] = "0.9.0rc2.dev8+gthis"
     core.write_json(idx_p, idx_doc)
     vt = vllm_observed(from_campaign(repo, "c1", "c1-a", docker=_fake_docker(fx["docker"])))
-    ck("이 측정의 meta.vllm_build 가 있으면 그것(this-measurement · 색인 줄)", vt["engine_self_report"] == "0.9.0rc2.dev8+gthis"
-       and vt["engine_self_report_basis"] == "this-measurement" and "sweep_c1-a/sweep_index.json:" in vt["engine_self_report_source"])
+    ck("스윕 meta의 값만 있고 serve 경계가 없으면 epoch 귀속은 미검증", vt["engine_self_report"] == "0.9.0rc2.dev8+gthis"
+       and vt["engine_self_report_basis"] == "measurement-capture-unbound" and "sweep_c1-a/sweep_index.json:" in vt["engine_self_report_source"])
     idx_p.write_text(idx_text, encoding="utf-8")
     for p in sorted(made_b, key=lambda x: -len(x.parts)):
         if p.is_dir():
@@ -7705,8 +7834,8 @@ def _selftest_round3(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict) -> No
     (sdir / "lite_engine_head_c1-a.log").write_text("INFO 01-02 00:10:00 Initializing a V1 LLM engine (v0.9.0rc2.dev9+ghead)\n",
                                                     encoding="utf-8")
     bh = _engine_banner(g, evg)
-    ck("★F1 머리 캡처가 있으면 배너를 그대로 관측한다(창 표기 ✗)", bh["value"] == "0.9.0rc2.dev9+ghead"
-       and bh["basis"] == "this-measurement" and "lite_engine_head_c1-a.log:1" in bh["source"])
+    ck("★F1 머리 캡처 배너는 읽되 serve 경계 없는 기동 epoch를 현재 실행으로 승격하지 않는다", bh["value"] == "0.9.0rc2.dev9+ghead"
+       and bh["basis"] == "measurement-capture-unbound" and "lite_engine_head_c1-a.log:1" in bh["source"])
     # ★P15(2026-10-10 · plan_26101017 · M2 factcheck P15): 머리 캡처(head -n N 상한 도달) 행 = log_head_window · 꼬리 창(log_window)과 섞지 않는다
     (sdir / "lite_engine_head_c1-a.log").write_text("x\n" + nccl.replace("GID_INDEX", "HEADKEY"), encoding="utf-8")   # 2줄 = 머리 상한 2
     core.write_json(sdir / "lite_raw_c1-a.json", {"config_name": "c1-a", "measured_utc": _M_UTC, "engine_log_head_lines": 2,
@@ -8522,6 +8651,92 @@ def _selftest_lite_tool_args(ck, td: Path) -> None:
        and "--random-input-len 2048" not in command_missing and source_missing == "reconstructed(bench json)")
 
 
+def _selftest_runtime_epochs(ck, repo: Path) -> None:
+    """FC2/3/4: observations are not build attestations; captures are not session boundaries."""
+    cell, measured = "epoch-cell", "2026-01-02T03:00:00Z"
+    swrel = f"output/single/benchlog/sweep_{cell}_fresh"
+    swdir = repo / swrel
+    idx = {"generated_utc": measured, "lite": {}, "levels": [],
+           "meta": {"config_name": cell, "vllm_build": "0.8.0-old"}}
+    core.write_json(swdir / "sweep_index.json", idx)
+    core.write_json(swdir / f"lite_raw_{cell}.json", {"config_name": cell, "measured_utc": "2026-01-02T02:30:00Z"})
+    head, tail = swdir / f"lite_engine_head_{cell}.log", swdir / f"lite_engine_{cell}.log"
+    head.write_text("INFO 01-01 01:00:00 Initializing a V1 LLM engine (v0.8.0-old)\n", encoding="utf-8")
+    tail.write_text("old capture\nINFO 01-02 02:00:05 Initializing a V1 LLM engine (v0.9.0-current)\n"
+                    "INFO 01-02 03:01:00 Initializing a V1 LLM engine (v0.9.1-after)\n"
+                    "Initializing a V1 LLM engine (v0.9.2-untimed)\n", encoding="utf-8")
+    session = repo / f"docs/logs/sub/sessions/serve-{cell}-20260102T020000Z.json"
+    core.write_json(session, {"session_id": f"serve-{cell}-20260102T020000Z", "config_file": cell,
+                             "topology": "single", "started_utc": "2026-01-02T02:00:00Z", "stopped_utc": "2026-01-02T03:10:00Z"})
+    ev = CellEvidence(mode="campaign", campaign_id="epoch", cell=cell, node="sub", topology="single", repo=str(repo),
+                      sweep={"dir": swrel, "binding": "output", "generated_utc": measured, "index": idx, "levels": []},
+                      build_identity={"vllm_sha": None, "source": {}})
+    captured = {p: p.read_bytes() for p in (head, tail, session)}
+    banner = _engine_banner(repo, ev)
+    ck("FC4 old head/meta, future and untimed banners do not replace the current bound epoch",
+       banner["value"] == "0.9.0-current" and banner["basis"] == "this-measurement"
+       and f"lite_engine_{cell}.log:2" in banner["source"] and _rel(repo, session) in banner["source"])
+    ck("FC4 banner observation preserves captured bytes", all(p.read_bytes() == b for p, b in captured.items()))
+    tail.write_text("Initializing a V1 LLM engine (v0.9.2-untimed)\n", encoding="utf-8")
+    ck("FC4 a bound session with only historical/untimed banners stays unobserved",
+       _engine_banner(repo, ev)["value"] is None)
+    tail.write_bytes(captured[tail])
+    session.unlink()
+    ck("FC4 missing session boundary never claims this-measurement",
+       _engine_banner(repo, ev)["basis"] != "this-measurement")
+    session.write_bytes(captured[session])
+    ck("FC4 yearless timestamps cross the year only inside the declared window",
+       _banner_in_window("12-31 23:59:55", "2025-12-31T23:59:50Z", "2026-01-01T00:00:10Z") == "2025-12-31T23:59:55Z"
+       and _banner_in_window("01-01 01:00:00", "2025-12-31T23:59:50Z", "2026-01-01T00:00:10Z") is None)
+
+    index_rel = "docs/simlog/epoch/attempt2/evidence_index.json"
+    runtime_rel = "docs/simlog/epoch/attempt2/runtime_identity.json"
+    observation = {"source_head": "e" * 40, "source_describe": "v0.9.0", "vllm_version": "0.9.1.dev0+gfixture.cu130"}
+    binding = {"config": cell, "measured_node": "sub", "sweep_dir": swrel,
+               "sweep_generated_utc": measured, "installed_runtime_identity": runtime_rel}
+    core.write_json(repo / index_rel, binding)
+    core.write_json(repo / runtime_rel, observation)
+    ev.pointers = [{"kind": "simlog", "path": index_rel, "cell_id": cell, "node_id": "sub"}]
+    before = json.dumps(ev.build_identity, sort_keys=True)
+    observed = vllm_observed(ev)
+    ck("FC2 runtime checkout/describe are observed without minting a build SHA",
+       observed.get("runtime_source_checkout") == "e" * 40 and observed.get("runtime_source_describe") == "v0.9.0"
+       and "컴파일 바이트" in observed["runtime_source_checkout_source"]
+       and json.dumps(ev.build_identity, sort_keys=True) == before and ev.build_identity["vllm_sha"] is None)
+    ck("FC3 installed distribution comes from the bound runtime record, not the banner/build label",
+       observed["wheel_meta"] == observation["vllm_version"] and runtime_rel in observed["wheel_meta_source"]
+       and index_rel in observed["wheel_meta_source"])
+    ck("FC2/3 both declaration and observation files are retained for lineage",
+       _runtime_observations(repo, ev)[0]["files"] == [(index_rel, "raw_json"), (runtime_rel, "raw_json")])
+    for key, bad in (("config", "other"), ("measured_node", "main"), ("sweep_generated_utc", "2026-01-01T03:00:00Z"),
+                     ("sweep_dir", "output/single/benchlog/sweep_old"), ("installed_runtime_identity", "docs/simlog/../escape.json")):
+        core.write_json(repo / index_rel, {**binding, key: bad})
+        ck(f"FC2/3 mismatched {key} is not runtime evidence", not _runtime_observations(repo, ev))
+    core.write_json(repo / index_rel, binding)
+    outside = repo / "docs/simlog/epoch/runtime-outside.json"
+    core.write_json(outside, observation)
+    core.write_json(repo / index_rel, {**binding, "installed_runtime_identity": _rel(repo, outside)})
+    ck("FC2/3 runtime file outside the declared attempt is not adopted", not _runtime_observations(repo, ev))
+    core.write_json(repo / index_rel, binding)
+    saved = (repo / runtime_rel).read_bytes()
+    (repo / runtime_rel).unlink()
+    (repo / runtime_rel).symlink_to(outside)
+    ck("FC2/3 symlink observation is rejected", not _runtime_observations(repo, ev))
+    (repo / runtime_rel).unlink()
+    (repo / runtime_rel).write_bytes(saved)
+    second_rel = "docs/simlog/epoch/attempt-other/evidence_index.json"
+    second_runtime = "docs/simlog/epoch/attempt-other/runtime_identity.json"
+    core.write_json(repo / second_rel, {**binding, "installed_runtime_identity": second_runtime})
+    core.write_json(repo / second_runtime, {**observation, "vllm_version": "0.9.2-conflicting", "source_head": "f" * 40})
+    ev.pointers.append({"kind": "simlog", "path": second_rel, "cell_id": cell, "node_id": "sub"})
+    conflict = vllm_observed(ev)
+    ck("FC2/3 contradictory current-runtime records are reported, never silently selected",
+       conflict["wheel_meta"] is None and "상충" in conflict["wheel_meta_source"]
+       and conflict["runtime_source_checkout"] is None and "상충" in conflict["runtime_source_checkout_source"])
+    ev.pointers = [{"kind": "simlog", "path": index_rel, "cell_id": "other", "node_id": "sub"}]
+    ck("FC2/3 another cell's pointer is not searched", not _runtime_observations(repo, ev))
+
+
 def selftest() -> list[str]:
     """실패 메시지 목록(빈 목록 = 통과). 격리 저장소 · 라이브 태그/브랜치/캠페인 비의존 · ★ = 음성대조."""
     from . import naming
@@ -8530,6 +8745,9 @@ def selftest() -> list[str]:
     def ck(name: str, cond) -> None:
         if not cond:
             bad.append(f"evidence: {name}")
+
+    with tempfile.TemporaryDirectory() as td:
+        _selftest_runtime_epochs(ck, Path(td))
 
     # Preserved runs: fixture identities/times, not benchmark measurements.
     with tempfile.TemporaryDirectory() as td:
