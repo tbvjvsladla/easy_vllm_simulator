@@ -17,6 +17,10 @@
   ],
   "additionalProperties": false,
   "properties": {
+    "capture_native_events": {
+      "type": "boolean",
+      "description": "Explicit Claude diagnostic opt-in: preserve native stream events in the private result. Absent/false keeps the ordinary JSON invocation unchanged."
+    },
     "schema_version": {
       "type": "integer",
       "enum": [
@@ -275,6 +279,9 @@
         "sandbox_mode"
       ],
       "properties": {
+        "capture_native_events": {
+          "enum": []
+        },
         "schema_version": {
           "const": 2
         },
@@ -299,6 +306,9 @@
         "permission_profile"
       ],
       "properties": {
+        "capture_native_events": {
+          "enum": []
+        },
         "schema_version": {
           "const": 2
         },

@@ -142,6 +142,8 @@ def _request_contract_violations(request: dict) -> list[str]:
     role = target["role"]
     transport = target["transport"]
     out = []
+    if request.get("capture_native_events") is True and request["intent"] not in ("probe", "bootstrap_canary"):
+        out.append("$.capture_native_events: native evidence capture is diagnostic-only")
     if (role, transport) not in (("main", "local"), ("sub", "ssh")):
         out.append("$.target: role/transport mismatch")
     if not isinstance(target.get("work_dir"), str) or not target["work_dir"]:
@@ -229,7 +231,7 @@ def _invalid_request_result(request) -> dict:
 
 
 def _invalid_provider_result(request: dict) -> dict:
-    return _versioned_result({
+    result = _versioned_result({
         "schema_version": request["schema_version"],
         "provider": request["provider"],
         "intent": request["intent"],
@@ -247,6 +249,9 @@ def _invalid_provider_result(request: dict) -> dict:
         "duration_ms": None,
         "duration_api_ms": None,
     })
+    if request.get("capture_native_events") is True:
+        result["raw_events"] = []
+    return result
 
 
 def _emit(result: dict) -> None:
@@ -256,12 +261,19 @@ def _emit(result: dict) -> None:
 
 def _result_contract_violations(result: dict, request: dict) -> list[str]:
     """A valid envelope from another provider/invocation is still the wrong result."""
-    return [f"$.{key}: provider result does not match the dispatched request"
+    out = [f"$.{key}: provider result does not match the dispatched request"
             for key, expected in (("schema_version", request["schema_version"]),
                                   ("provider", request["provider"]),
                                   ("intent", request["intent"]),
                                   ("model_requested", request["model"]))
             if result.get(key) != expected]
+    if request["provider"] == "claude_code":
+        capture = request.get("capture_native_events") is True
+        if capture and "raw_events" not in result:
+            out.append("$.raw_events: requested native event evidence is absent")
+        elif not capture and "raw_events" in result:
+            out.append("$.raw_events: unsolicited native event evidence")
+    return out
 
 
 def cmd_invoke(args: argparse.Namespace) -> None:

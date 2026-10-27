@@ -4,7 +4,7 @@ description: >-
   **토폴로지-중립 진입(온보딩) 오케스트레이터** — fresh-clone/미테라포밍 환경에서 능동 발동해 **첫 동작으로
   토폴로지(① 단일노드 ② N대 멀티노드)를 인터뷰로 확정**하고, 그에 따라 노드를 스캔·manifest.yaml(스킬 간
   단일 계약)을 채운다. **single → 단일노드 온보딩**(manifest nodes:[] 기본; 서브 등록 시 A2A 에이전트 제어만 활성 — 빌드킷 배달 평면은 dormant) · **multi →
-  서브노드 스캔·연결/성능 검증 + 서브 코드에이전트(Claude Code·Codex) 작업환경 구축**(메인 렌더→전달→model-less 카나리).
+  서브노드 스캔·연결/성능 검증 + 서브 코드에이전트(Claude Code·Codex) 작업환경 구축**(메인 렌더→전달→discovery·실제 업무 권한 카나리).
   "이제 뭐해야해", "환경 셋업", "온보딩", "테라포밍", "노드 스캔", "단일/멀티 결정", "manifest 생성",
   "서브노드 셋업", "인터커넥트 점검", "서브 에이전트 환경 구축", "서브 코드에이전트 셋업" 같은 지시·fresh-clone 감지에 발동.
   **무단 스캔 금지** — 토폴로지 인터뷰 → (multi면 5-전제조건 인터뷰) → 사용자 승인 후 스캔. 토폴로지 미선언 시
@@ -14,6 +14,7 @@ when_to_use: >-
   ETA·열·전력 워치독, docs/logs 데이터 평면, L3 수행지시서. (2) 노드 오케스트레이터: 메인↔서브 제어 평면,
   A2A 위임·턴제 릴레이·세션 재개·감독 스텝(--supervise-step), 러너 사다리 회전, 서고 접근자(서브 wiki-desk → 메인 __llm-wiki ssh 게이트웨이 발급·회수).
   (3) 캠페인 체인: campaigns/ 배치·phase 전이·campaign_init writer·배정(assignments)·purge 게이트.
+  하네스 추가·전환·권한 개정도 이 스킬이 주관한다: 기존 승인 복구 → 역할별 설정 → 조건부 호스트 설치 request → 실제 A2A 검증.
 ---
 
 # terraforming_node
@@ -31,7 +32,7 @@ when_to_use: >-
 ## Contract
 
 - **Goal** — 토폴로지를 인터뷰로 확정하고 노드 사실을 스캔해 `output/<topology>/manifest.yaml` + 테라포밍-완수 Flag 를 발급한다(멀티면 서브 에이전트 작업환경까지).
-- **When to invoke** — fresh-clone(미테라포밍) 감지 · HW/네트워크/manifest 변경 · `scripts/staleness_gate.py` 가 preflight 필요를 반환할 때. **조건부 preflight** 이지 매 작업 상시단계가 아니다. 블랙박스·오케스트레이션·캠페인 절차가 필요할 때는 아래 §라우팅 표의 reference 로 간다.
+- **When to invoke** — fresh-clone(미테라포밍) 감지 · HW/네트워크/manifest 변경 · `scripts/staleness_gate.py` 가 preflight 필요를 반환할 때. 하네스/provider·권한·프로젝트 신뢰·실행환경이 바뀌면 HW 재스캔 없이 §2.5.2로 들어간다. **조건부 preflight** 이지 매 작업 상시단계가 아니다. 기존 유효 승인·캠페인·로그인을 다시 요구하지 않는다. 블랙박스·오케스트레이션·캠페인 절차가 필요할 때는 아래 §라우팅 표의 reference 로 간다.
 - **Inputs** — 사용자 인터뷰 답(토폴로지·모델 획득 모드·multi 5-전제조건) · 노드 실측 스캔 · 현재 git 브랜치 · (선택) 이전 attestation.
 - **Outputs** — `output/<topology>/manifest.yaml`(HITL 반영) · Flag attestation · (multi) `output/<topology>/sub_provision/` 스테이징 + 카나리 리포트.
 - **State transitions** — 산출물은 `execution-approved` 의 **전제**(HW 사실·Flag)를 만든다. runtime-ready/evidence-complete/promotion-ready 판정은 `.claude/policies/runtime/completion_gate.py` 소유.
@@ -43,12 +44,12 @@ when_to_use: >-
 
 필수 순서다 — 앞 단계의 증거 없이 뒤 단계로 가지 않는다(무단 스캔·무증거 기입 차단이 이 순서에서 나온다).
 
-1. **staleness 판정(조건부 preflight 진입)** — `python3 .claude/skills/terraforming_node/scripts/staleness_gate.py --topology <single|multi> --repo . --now <YYYY-MM-DD> [--observed <scan.json>]`. exit 0(`FRESH`)이면 재진입 불요 — 여기서 끝낸다. exit 4 면 reason code(`MANIFEST_ABSENT`/`FLAG_ABSENT`/`HW_DRIFT`/`ATTESTATION_STALE`)가 아래 단계의 착수 근거다.
+1. **staleness 판정(조건부 preflight 진입)** — `python3 .claude/skills/terraforming_node/scripts/staleness_gate.py --topology <single|multi> --repo . --now <YYYY-MM-DD> [--observed <scan.json>]`. exit 0(`FRESH`)이면 HW 온보딩 재진입은 불요하다. 하네스/provider·권한·프로젝트 신뢰·실행환경 변경은 별도 축이므로 §2.5.2를 수행하고, 두 축 모두 변경이 없을 때 끝낸다. exit 4 면 reason code(`MANIFEST_ABSENT`/`FLAG_ABSENT`/`HW_DRIFT`/`ATTESTATION_STALE`)가 아래 단계의 착수 근거다.
 2. **토폴로지 인터뷰**(§0.5.2) — 스캔보다 먼저. 미선언 시 emit fail-closed(§0.5.3), 브랜치 불일치 시 HITL 브랜치 전환(§0.5.4).
 3. **모델 획득 모드 인터뷰**(§0.5.7) → **0차 init-plan 발행 + 자기-HITL 승인**(§0.5.8).
 4. **스캔**(single=§1S · multi=§1.1 5-전제조건 인터뷰 → §1.2 사용자 승인 → §1.3 스캔 → §1.4 성능 게이트).
 5. **게이트 + 3자-일치 단언**(§1.5) → 통과 시에만 **manifest + Flag 기입**(§1.6 / §1S, HITL).
-6. **(multi) 서브 에이전트 환경** — 렌더 → 전달 → **model-less 카나리**(§2.3–§2.5). 카나리 미통과 시 done 선언 ✗.
+6. **하네스 실행환경(main 및 등록된 sub)** — 역할별 업무 권한 → 렌더 → 공식 전달 → discovery·실제 권한 카나리(§2.3–§2.5.2). sudo 작업은 개정마다 생기는 것이 아니라 실제 호스트 전제조건 결손 때만 수행지시서로 발행한다. single의 등록된 A2A 서브도 이 단계에 포함하고 빌드킷 배달은 계속 dormant다. 카나리 미통과 시 해당 하네스 배포 done 선언 ✗.
 7. **호스트 안전체계 세션 최종 Y/N**(§2.6) — Flag 발급 **이후**의 독립 선택조항.
 
 
@@ -60,6 +61,7 @@ when_to_use: >-
 | 스캔/게이트/3자-일치 blocked(비0 종료) · emit fail-closed | `.claude/skills/terraforming_node/scripts/scan_node.py` · `references/install/onboarding.md` |
 | 서브 환경 렌더 실패(미치환 placeholder·필수 필드 누락) | `.claude/skills/terraforming_node/scripts/render_sub_env.py` · `references/install/sub_agent_env.md` |
 | 서브 위임/카나리의 provider 실행문법이 필요 | `.claude/skills/terraforming_node/references/orchestration/agent-control-adapter.md` |
+| 하네스 전환·권한 동등성·sandbox 기동 실패·sudo 설치 request | `references/install/harness_environment.md` · `templates/requests/codex_linux_sandbox.md` |
 | Flag 미발급이라 런타임 스킬이 info-only 로 떨어짐 | `.claude/skills/terraforming_node/scripts/manifest_contract.py` |
 | 서브에 무엇을 해도 되는지 모호(저작/스캔/정비) · 평면 A/B 혼동 · 서브 git 교착 | §2.7 → `references/orchestration/control_planes.md` |
 | "고쳤는데 안 갔다" / "안 고쳤는데 갔다"(커밋 vs 인덱스 vs 파일시스템) | §2.7.4 → `references/orchestration/control_planes.md` |
@@ -90,6 +92,9 @@ when_to_use: >-
 
 ## 2. 서브 에이전트 환경 구축 (A2A-개념)
 → `references/install/sub_agent_env.md` — ### 2.1 스킬 분류학 · ### 2.2 구축 아티팩트 · ### 2.3 렌더-온-메인 → 전달(인가 체인) · ### 2.4 A2A-개념 협업 계약 · ### 2.5 완료 게이트 — model-less 카나리 라운드트립 · ### 2.5.1 hint 발행 장착(single 서브 한정 · 클론·역할 선언·토큰 존재 확인 · 2026-10-11). **카나리 미통과 = done ✗.**
+
+### 2.5.2 하네스별 실행환경·업무 권한 동등성
+→ `references/install/harness_environment.md`. 공통 업무·소유·승인을 provider별 실행 계약에 연결한다. 테라포밍이 설정·조건부 환경 복구 request·검증을 소유하며, 호스트 정책 설치는 **사람이 sudo로 수행**한다. 에이전트는 설치 요청을 발행하고 회수 증거를 판정한다. HW Flag와 독립된 하네스 검증이며 별도 비공식 ready flag를 발급하지 않는다.
 
 ### 블랙박스 — `references/blackbox/`
 
@@ -166,6 +171,10 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/render_sub_env.py` | §2.3 | — | 서브 환경·Card·서브 manifest 렌더 |
 | `scripts/staleness_gate.py` | spine 1 · §0.5 | — | 조건부 preflight 트리거 |
 | `scripts/bootstrap_canary.py` | §2.5 | — | model-less 카나리 실행자 |
+| `scripts/harness_permission_probe.py` | §2.5.2 | ✓ | 요청된 native 하네스 안에서 실행하는 업무 권한 관측; 자체 실행만으로 A2A 성공 선언 금지 |
+| `scripts/selftest_bootstrap_permissions.py` | §2.5.2 | — | 카나리 증거·음성대조 회귀 |
+| `scripts/selftest_sub_hint_write_scopes.py` | §2.5.2 | — | 외부 hint 경로의 역할·대상·범위 검증 회귀 |
+| `scripts/selftest_claude_native_events.py` | §2.5.2 | — | opt-in native 도구 실행 기록과 기존 Claude 호출 호환 회귀 |
 | `scripts/relay.py` | §2.7.7a · §2.7.11 | — | 턴제 릴레이·감독 스텝·러너 사다리 |
 | `scripts/turn_budget.py` | §2.7.7a | — | 하네스별 native-turn·wall-time 예산 선언 검증기 |
 | `scripts/agent_control.py` · `scripts/providers/` | §2.7.7 | — | provider-neutral 전송 orchestrator · native 실행 구문은 각 provider adapter만 발행 · v1 native-turn / v2 wall-time 계약 |

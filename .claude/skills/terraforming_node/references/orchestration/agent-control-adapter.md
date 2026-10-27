@@ -59,6 +59,12 @@ python3 .claude/skills/terraforming_node/scripts/agent_control.py invoke --reque
 claude -p '<task>' --model <요청이 선언한 model> --output-format json --max-turns <N> --allowedTools <TOOLS>
 ```
 
+실제 도구 결과를 검증하는 카나리는 선택 필드 `capture_native_events: true`를 명시한다.
+이때만 adapter가 `--output-format stream-json --verbose`로 실행하고 native 이벤트를 `raw_events`에 보존한다.
+최종 result·session·turn/budget 판정은 동일하며, 잘린 stream·중복 terminal result를 성공으로 바꾸지 않는다.
+필드 부재/false인 일반 호출은 기존 JSON 계약을 유지한다. 이 옵션은 Claude v1 전용이며 Codex v2에는 싣지 않는다.
+native tool_use/tool_result 결속과 실제 출력은 실행 증거이지, 해당 업무의 성공을 자동으로 보장하는 표식은 아니다.
+
 ### 2.1 백엔드 축 (`backend` 선택 필드 · 2026-09-07 신설)
 
 같은 Claude Code 하네스를 **내부 LLM만** 바꾸는 것은 provider 교체가 아니라 백엔드 선택이다

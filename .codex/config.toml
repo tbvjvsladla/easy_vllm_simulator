@@ -5,3 +5,12 @@ default_permissions = "vllm-main"
 [permissions.vllm-main]
 description = "Main workspace development under the existing approval and topology contracts."
 extends = ":workspace"
+
+[permissions.vllm-main.filesystem.":workspace_roots"]
+# Approved local commits are part of the main orchestrator's existing work.
+".git" = "write"
+
+[permissions.vllm-main.network]
+# A2A SSH, library access, and approved build inputs need command network access.
+# This is connectivity, not domain filtering or approval for remote side effects.
+enabled = true

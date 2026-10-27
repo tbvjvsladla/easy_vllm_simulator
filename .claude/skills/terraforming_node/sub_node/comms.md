@@ -1,8 +1,8 @@
 # comms.md — 메인↔서브 통신 계약 (A2A-개념, 서버 없음)
 
 > 서브노드 `.claude/rules/comms.md` 로 복제되는 **정적 계약**(양 노드 동일 · PII-free · 추적).
-> terraforming_node 가 서브에 전달. 서브 CC 가 매 턴 자동 로드(.claude/rules/ auto-load)해 이 규약을 지킨다.
-> A2A(Agent2Agent) 개념을 **차용**하되 HTTP/JSON-RPC 서버는 안 띄운다 — 전송은 `ssh claude -p` 단발.
+> terraforming_node 가 서브에 전달. 각 하네스의 진입문서가 이 규약을 연결한다.
+> A2A(Agent2Agent) 개념을 **차용**하되 HTTP/JSON-RPC 서버는 안 띄운다 — 전송은 SSH, 실행은 명시적으로 선택한 provider다.
 
 ## 역할 (누가 무엇을)
 - **메인 = client agent**. Task 를 발급하고, 서브 리포트를 검증하고, 실패 시 feedback 을 보낸다.
@@ -11,8 +11,10 @@
 - **DON'T** 메인이 네 워크스페이스를 재스캔/파일교정하길 기대하지 마라 — 그건 일어나지 않는다.
 
 ## 전송 (transport)
-- 메인 → 서브: `ssh <user>@<sub> claude -p '<Task JSON or instruction>' --output-format json --permission-mode acceptEdits`.
-  **정본 = `acceptEdits` + 스코프드 allowlist(`settings.local.json`)** — `bypassPermissions` 는 하네스 가드레일이 차단한다(원격 자율 에이전트, testlog_26062422). 비-allowlist 명령은 `bash -c` 래퍼로(설계상 escape hatch).
+- 메인 → 서브: provider-neutral 요청을 메인 `agent_control` adapter가 SSH·native CLI로 변환한다.
+  Claude Code/claude-sub와 Codex는 같은 역할·업무·승인 계약을 따르되 도구 승인·OS sandbox는 다른 집행 표면이다.
+  실제 호출 옵션이 정본이며 과거 문서의 permission mode 예제를 현재 실행으로 간주하지 않는다.
+  권한 부족은 `input-required` 리포트로 돌린다. 셸 래퍼·다른 provider·권한 완화로 우회하지 않는다.
 - **HTTP(health 폴링·스모크)는 python urllib 로** 한다 — `curl`/`wget` 은 allowlist deny. 대기는 python `time.sleep`.
 - 서브 → 메인: stdout 으로 **task-report.schema.json 에 맞는 JSON 1개**. raw 로그 금지.
 - 코드/정본 전달은 별개 평면: 메인이 `sync_to_sub.sh`(rsync)로 push. 너는 정본을 받기만 한다.
@@ -28,17 +30,18 @@
 - 한 작업 = 하나 `context_id`. 진행상태는 **`campaigns/<camp-id>/relay/<context_id>.json`** 에 산다 —
   **파일이 세션이다**(데몬 없음). 활성 캠페인을 모르면 `_bootstrap` 이며 루트에 쓰지 않는다(옛 `tasks/` 폐기 · 2026-09-06).
 - 매 턴: (1) `campaigns/<camp-id>/relay/<context_id>.json` 이 있으면 읽어 이전 턴/피드백을 복원 (2) 작업 수행 (3) 네 턴 결과를 그 파일에 덧쓰고 (4) 리포트 반환.
-- **턴 예산은 메인이 매 attempt 선언한다 — 고정값도 등급표도 없다**(2026-09-05 개정 · `plan_26090516` ③).
-  위임 헤더가 `max_turns_allocated` 와 **그 예산을 그렇게 정한 근거**를 함께 준다. 등급 어휘(S·L0~L4)는
+- **실행 예산은 메인이 매 attempt 선언한다 — 고정값도 등급표도 없다**(2026-09-05 개정 · `plan_26090516` ③).
+  위임 헤더가 native-turn 또는 wall-time/dispatch 예산과 **그 예산을 그렇게 정한 근거**를 함께 준다. 등급 어휘(S·L0~L4)는
   폐기됐다 — 표가 실측 없이 정본 행세를 했고 교정하는 코드가 없었다. 필요하다고 보는 예산이 있으면
-  리포트 `budget_recommendation{max_turns,timeout_seconds,why}` 에 **수치로** 제안하라(배정은 메인이 한다).
+  리포트 `budget_recommendation`에 해당 하네스가 지원하는 단위와 근거로 제안하라(배정은 메인이 한다).
   예산은 비용 노브이지 hang 노브가 아니다 — 매달림은 `timeout_seconds` 가 잡는다(scope ⊥ budget).
 - **예산을 다 쓰면 그 자리에서 멈춘다(terminal)**. `status=failed` 로 끝내되 `budget_outcome=exhausted`
-  와 `max_turns_used` 를 리포트에 담아라. **메인은 같은 예산으로 재시도하지 않고 더 큰 예산의 새 attempt 를
+  를 리포트에 담고 native-turn 사용량은 실제 관측됐을 때만 적어라. Codex 완료 이벤트를 Claude 턴으로 세지 않는다.
+  **메인은 같은 예산으로 재시도하지 않고 더 큰 예산의 새 attempt 를
   연다** — 예산을 줄이는 방향은 하강나선이다. 소진 직전 만든 부분 산출물이 있으면 `artifacts` 에 남겨라
   (다음 attempt 가 그것을 이어받는다).
 - **답을 기다려야 하면 실패가 아니라 `input-required`** 다. `hitl.needed=true` + `hitl.request_id` 를 담아
-  끝내라 — 메인이 답을 실어 **같은 세션을 재개**(`--resume <session_id>`)하므로 컨텍스트를 다시 쌓지 않아도 된다.
+  끝내라 — 메인이 답을 실어 **같은 provider·대상·권한에 결속된 세션을 재개**한다. 하네스를 바꾸면 새 native 세션에서 기존 아티팩트를 잇는다.
 - **근거가 필요하면 도서관을 직접 조회하라** — 도서관(`__llm-wiki`)은 메인에 하나지만 네 wiki-desk 는 메인과
   **같은 CLI** 로 그 서고에 닿는다(경로만 다르다 · 아래 §도서관). 메인에 물어 달라고 턴을 끝내지 마라.
   열린 역방향 통로는 **사서 게이트웨이 하나**다 — 그 밖의 메인 접속(ssh 셸·scp·rsync 직접)은 시도하지 마라.
@@ -108,7 +111,7 @@ node .claude/skills/wiki-desk/src/cli.ts sync --apply                           
 
 ## 경계 (B3 Surgical)
 <!-- MODE:a2a-agent -->
-- 너는 **모델별 `configs/`·`envs/` 만** 자작한다. 컨테이너 정본(Dockerfile/requirements/compose/serve_runner)·빌딩블럭(.claude/, CLAUDE.md, Agent_Card.json)은 **건드리지 않는다**.
+- 너는 **자기 빌드킷과 모델별 `configs/`·`envs/`를** 해당 owner 스킬로 저작한다. 배달된 공통 runner·빌딩블럭(.claude/, CLAUDE.md, AGENTS.md, .agents/, .codex/, Agent_Card.json)은 **건드리지 않는다**.
 <!-- /MODE:a2a-agent -->
 <!-- MODE:ray-worker -->
 - 너는 서빙 설정을 자작하지 않는다 — `configs/`·`envs/` 도 메인이 배달한다. 컨테이너 정본(Dockerfile/requirements/compose/serve_runner)·빌딩블럭(.claude/, CLAUDE.md, Agent_Card.json)은 **건드리지 않는다**.

@@ -83,7 +83,14 @@ def read_env_key(ws: Path, key: str) -> str | None:
 
 
 def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess:
-    env = dict(os.environ, GIT_TERMINAL_PROMPT="0")
+    # cwd and its on-disk Git metadata are the observation authority. Inherited
+    # repository/index/config injection must not redirect a local readiness read.
+    # Keep transport/authentication settings such as GIT_SSH_COMMAND unchanged.
+    redirected = {"GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE",
+                  "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES"}
+    env = {k: v for k, v in os.environ.items()
+           if k not in redirected and not k.startswith("GIT_CONFIG")}
+    env.update(GIT_TERMINAL_PROMPT="0", GIT_OPTIONAL_LOCKS="0")
     return subprocess.run(["git", *args], cwd=str(cwd), capture_output=True, text=True, env=env)
 
 
@@ -135,7 +142,17 @@ def check_clone(ws: Path) -> dict:
     hint_ref = "present" if ref.returncode == 0 else "absent"
     st = "ok" if hint_ref == "present" and _scheme(u) != "http" else "invalid"
     reason = None if st == "ok" else ("hint 브랜치 ref 가 없다" if hint_ref == "absent" else "평문 http 원격은 거부한다")
-    return dict(out, status=st, reason=reason, origin_scheme=_scheme(u), hint_ref=hint_ref)
+    # Local observation only. This does not approve paths or prove native sandbox
+    # write access. Linked worktrees can keep both metadata directories elsewhere.
+    metadata = {}
+    for key, args in (("git_dir", ("rev-parse", "--absolute-git-dir")),
+                      ("git_common_dir", ("rev-parse", "--path-format=absolute", "--git-common-dir"))):
+        observed = _git(p, *args)
+        value = observed.stdout.strip()
+        metadata[key] = str(Path(value).resolve()) if observed.returncode == 0 and Path(value).is_absolute() else None
+    return dict(out, status=st, reason=reason, origin_scheme=_scheme(u), hint_ref=hint_ref,
+                hint_clone_dir=str(p.resolve()), observed_home_dir=str(Path.home().resolve()),
+                **metadata)
 
 
 def _ignored(ws: Path, rel: str) -> bool | None:
