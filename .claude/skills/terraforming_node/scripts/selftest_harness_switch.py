@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import contextlib
 import copy
+import hashlib
 import io
 import json
 import multiprocessing
@@ -546,6 +547,7 @@ class HarnessSwitchChecks(unittest.TestCase):
             observed.append(a)
             return 0
         with mock.patch.object(relay, "pending_for", return_value=[]), \
+             mock.patch.object(relay, "continuation_instruction", return_value={"attempt": 1}), \
              mock.patch.object(relay, "assemble_continuation", return_value="artifact facts"), \
              mock.patch.object(relay, "run_attempt", side_effect=record):
             relay._supervise_resume(args, "unused", state, 30, "explicit context evidence")
@@ -678,6 +680,129 @@ class HarnessSwitchChecks(unittest.TestCase):
         self.assertFalse(final["attempts"][0]["sub_reported"])
         report = json.loads((self.root / final["attempts"][0]["report_path"]).read_text())
         self.assertEqual(report["raw_output"], '{"status":"completed"}')
+
+    def instruction_fixture(self, *, legacy=False):
+        """An actual builder request in fixture storage; no native/remote execution."""
+        state = {"context_id": "switch", "topology": "multi", "task": "initial approved full task", "attempts": []}
+        request = relay.build_request("multi", str(self.manifest), state["task"], self.wall,
+            context_id="switch", attempt=1, provider="codex_cli", model="gpt-6.1-sol",
+            backend="openai", permission_profile="vllm-sub")
+        path = self.root / "campaigns/_bootstrap/relay/switch.requests/attempt-01.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(request), encoding="utf-8")
+        att = {"attempt": 1, "provider": "codex_cli", "session_binding": relay.permission_binding(request),
+               "request_path": str(path.relative_to(self.root)), "dispatch_id": "fixture-dispatch-1",
+               "status": "input-required", "phase": "inspect", "session_id": "fixture-session",
+               "running_services": [], "budget_outcome": "within_budget", "max_turns_allocated": None}
+        if legacy:
+            outcome = self.root / "campaigns/_bootstrap/relay/switch.outcomes/fixture-dispatch-1.json"
+            outcome.parent.mkdir(parents=True, exist_ok=True)
+            outcome.write_text(json.dumps({"schema_version": 1, "dispatch_id": att["dispatch_id"],
+                                            "request": request, "result": {}}), encoding="utf-8")
+            att["outcome_path"] = str(outcome.relative_to(self.root))
+        else:
+            att["request_digest"] = hashlib.sha256(path.read_bytes()).hexdigest()
+            att["task_instruction"] = {"schema_version": 1, "kind": "explicit", "source_attempt": 1,
+                "scope": relay._instruction_scope(state), "body": state["task"],
+                "body_digest": hashlib.sha256(state["task"].encode()).hexdigest()}
+        state["attempts"].append(att)
+        return state
+
+    def test_instruction_corruption_never_falls_back_to_initial_task(self):
+        state = self.instruction_fixture()
+        self.assertEqual(relay.continuation_instruction(str(self.root), state)["body"], state["task"])
+        for field, value in (("source_attempt", 99), ("kind", "continuation"), ("body", "changed"),
+                             ("body_digest", "bad"), ("scope", {})):
+            bad = copy.deepcopy(state); bad["attempts"][0]["task_instruction"][field] = value
+            self.assertRejected(relay.continuation_instruction, str(self.root), bad,
+                                message="TASK_INSTRUCTION_SOURCE_UNRESOLVED")
+        for field, value in (("request_digest", None), ("request_path", "campaigns/other/relay/switch.requests/attempt-01.json"),
+                             ("provider", "claude_code"), ("session_binding", {}), ("task_instruction", "broken")):
+            bad = copy.deepcopy(state); bad["attempts"][0][field] = value
+            self.assertRejected(relay.continuation_instruction, str(self.root), bad,
+                                message="TASK_INSTRUCTION_SOURCE_UNRESOLVED")
+        for field, value in (("campaign_id", "another-campaign"), ("context_id", "another-context"),
+                             ("campaign_cell", "other-cell"), ("control_variables", {"model": "other"})):
+            bad = copy.deepcopy(state); bad[field] = value
+            self.assertRejected(relay.continuation_instruction, str(self.root), bad,
+                                message="TASK_INSTRUCTION_SOURCE_UNRESOLVED")
+        path = self.root / state["attempts"][0]["request_path"]
+        original = path.read_bytes()
+        for raw in (b'not-json', original + b'\n'):
+            path.write_bytes(raw)
+            self.assertRejected(relay.continuation_instruction, str(self.root), state,
+                                message="TASK_INSTRUCTION_SOURCE_UNRESOLVED")
+        path.unlink()
+        self.assertRejected(relay.continuation_instruction, str(self.root), state,
+                            message="TASK_INSTRUCTION_SOURCE_UNRESOLVED")
+
+    def test_legacy_single_requires_issued_evidence_and_multi_needs_main_handoff(self):
+        state = self.instruction_fixture(legacy=True)
+        resolved = relay.continuation_instruction(str(self.root), state)
+        self.assertTrue(resolved["legacy"])
+        self.assertEqual(resolved["body"], state["task"])
+        bad = copy.deepcopy(state); bad["task"] = "unissued replacement"
+        self.assertRejected(relay.continuation_instruction, str(self.root), bad, message="does not match")
+        bad = copy.deepcopy(state); bad["attempts"].append(dict(bad["attempts"][0], attempt=2))
+        self.assertRejected(relay.continuation_instruction, str(self.root), bad, message="legacy multiple attempts")
+        self.assertEqual(relay.pending_for(str(self.root), "switch"), [], "technical handoff is not a human recovery question")
+        self.assertNotIn("recovery_required", state["attempts"][0])
+        (self.root / state["attempts"][0]["outcome_path"]).unlink()
+        self.assertRejected(relay.continuation_instruction, str(self.root), state, message="legacy instruction outcome")
+
+    def test_explicit_feedback_survives_supervision_without_recursive_task_growth(self):
+        args = self.dispatch_args()
+        args.ladder = [self.codex]; args.max_turns = None; args.max_dispatches = 6
+        args.manifest = str(self.manifest)
+        wall = turn_budget.declare(None, 90, source="fixture explicit finite sequence", unit="wall_time", max_dispatches=6)
+        path = relay.ledger_path(str(self.root), "switch")
+        state = relay.load_ledger(path)
+        initial = "OBSOLETE: all HTTP must use urllib."
+        corrected = "CURRENT: approved canonical internal HTTP is allowed; finish the approved cell and stop services."
+        observed = []
+        provider = agent_control._load_provider("codex_cli")
+        real_run = subprocess.run
+        def invoke(command, **kwargs):
+            if command[1:3] != [relay.AGENT_CONTROL, "invoke"]:
+                return real_run(command, **kwargs)
+            request = json.loads(Path(command[command.index("--request") + 1]).read_text())
+            observed.append(request)
+            report = {"status": "input-required", "context_id": "switch", "phase": "bench",
+                      "running_services": [], "hitl": {"needed": False, "blocking": False},
+                      "next_steps": ["finish measured-result narrative"],
+                      "artifacts": [{"kind": "log", "path": "docs/testlog/progress-%s.md" % len(observed)}]}
+            events = [{"type": "thread.started", "thread_id": "fixture-session"}, {"type": "turn.started"},
+                      {"type": "item.completed", "item": {"type": "agent_message", "text": json.dumps(report)}},
+                      {"type": "turn.completed", "usage": {}}]
+            result = provider.parse_output(request, "".join(json.dumps(e) + "\n" for e in events), "", 0)
+            agent_control.persist_outcome(command[command.index("--result-file") + 1],
+                dispatch_id=command[command.index("--dispatch-id") + 1], request=request, result=result)
+            return SimpleNamespace(stdout=json.dumps(result), stderr="", returncode=0)
+        with mock.patch.object(relay, "assert_sub_branch", return_value="multi"), \
+             mock.patch.object(relay.subprocess, "run", side_effect=invoke), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(relay.run_attempt_once(args, state, path, initial, wall, "new", self.codex), 2)
+            first = copy.deepcopy(state["attempts"][0])
+            self.assertEqual(relay.run_attempt_once(args, state, path, corrected, wall, "fixture-session", self.codex), 2)
+            for _ in range(2):
+                state = relay.load_ledger(path)
+                self.assertEqual(relay.supervise_decide(state)["action"], "resume")
+                self.assertEqual(relay._supervise_resume(args, path, state, 90, "fixture observed progress"), 2)
+        state = relay.load_ledger(path)
+        self.assertEqual(state["task"], initial)
+        self.assertEqual(state["attempts"][0], first)
+        for att in state["attempts"][2:]:
+            self.assertEqual(att["task_instruction"]["kind"], "continuation")
+            self.assertEqual(att["task_instruction"]["source_attempt"], 2)
+            self.assertNotIn("body", att["task_instruction"])
+        for request in observed[2:]:
+            self.assertNotIn(initial, request["task"])
+            self.assertEqual(request["task"].count(corrected), 1)
+            self.assertEqual(request["task"].count("## 이어받기"), 1)
+        self.assertEqual(relay.pending_for(str(self.root), "switch"), [])
+        self.assertEqual(state["max_dispatches"], 6)
+        self.assertEqual(relay.continuation_instruction(str(self.root), state)["attempt"], 2)
+        stale = copy.deepcopy(state); stale["attempts"][-1]["task_instruction"]["source_attempt"] = 1
+        self.assertRejected(relay.continuation_instruction, str(self.root), stale, message="later task source")
 
 
 if __name__ == "__main__":

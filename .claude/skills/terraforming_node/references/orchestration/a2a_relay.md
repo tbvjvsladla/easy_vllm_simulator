@@ -53,7 +53,7 @@
 | 명령 | 언제 | 무엇 | 평면 |
 |---|---|---|---|
 | `relay.py --task ... --max-turns N --timeout-seconds N --budget-source "..." --resume new` | 첫 위임 | **선언한 예산·재개**로 delegate · 원장 개설(`campaigns/<camp-id>/relay/<ctx>.json`) | B |
-| `relay.py --task-file <feedback> --context-id <동일 context> --resume <동일 session> …` | 서브가 메인 소유의 정본 수정·기술 판단을 요청했고 메인이 해결했을 때 | 명시적 feedback을 새 attempt로 보존한다. 기존 캠페인·셀·provider·권한 결속과 예산·HITL·복구 가드는 그대로 적용한다 | B |
+| `relay.py --task-file <현재 적용할 전체 지시> --context-id <동일 context> --resume <동일 session> …` | 서브가 메인 소유의 정본 수정·기술 판단을 요청했고 메인이 해결했을 때 | 정정과 유지할 조건을 포함한 명시 원문을 새 attempt의 지시 출처로 보존한다. 기존 캠페인·셀·provider·권한 결속과 예산·HITL·복구 가드는 그대로 적용한다 | B |
 | `relay.py --continue` | 소진·유보 뒤 | **원장에서 본문을 조립**해 미리보기 + 예산·세션 **사실** 표시(기본 dry-run) | B |
 | `relay.py --continue --apply --max-turns N --timeout-seconds N --budget-source "..." --resume <id\|new>` | **예외 경로** — 감독 스텝이 팝업한 뒤 사람이 본문을 승인 | 조립 본문 + 새로 선언한 예산 + **선언한 세션**으로 delegate | B |
 | `relay.py --supervise-step <camp> [--apply]` | attempt 사이 | 원장 + 회수 브리핑을 읽어 **한 번 판정**하고 원장에 적는다. `--apply` 면 전진이 보이는 중단을 자동 재발급 | B |
@@ -64,10 +64,20 @@
   선언된 비용 상한·모델/통신 평면 실패·미해결 승인/권한 거부다. Codex의 관측된 신호 종료·중단·불명 native/control 실패도
   전진만으로 재개하지 않는다(아래 복구 계약). 전진이 없는 중단도 팝업이다(예산을 키우기 전에 묻는다).
 - **기술 feedback은 사람의 답이 아니다.** 메인이 소유한 코드·계약을 수정한 뒤에는 같은 context에 `--task-file`로
-  정정 내용과 근거를 보낼 수 있다. `pending_hitl.answer`에 이를 사람 답처럼 기입하지 않는다. 이 경로도
+  정정 내용·근거와 **계속 유효한 조건을 포함한 전체 지시**를 보낼 수 있다. 부분 변경을 발행기가 의미 추론으로
+  병합하지 않는다. `pending_hitl.answer`에 이를 사람 답처럼 기입하지 않는다. 이 경로도
   `require_dispatch_recovery`와 동일한 결속·잔존 서비스 가드를 거치므로 미해결 승인·권한 거부·중단을 우회할 수 없다.
-  원장의 최초 `task`는 보존되고 feedback은 해당 `request_path`에 남는다. 후속 자동 조립에는 최초 지시와 직전
-  `next_steps`가 다시 들어가므로, 폐기된 지시가 있으면 적용 정본과 정정 범위를 명시하고 재개 본문을 확인한다.
+  최초 `task`는 이력으로 보존한다. 명시 입력 원문은 dispatch reservation을 거쳐 append-only attempt의
+  `task_instruction`에 남고, `request_path`·`request_digest`·해당 attempt의 실행 결속·캠페인/셀 축으로 검증한다.
+  수동·자동 재개의 활성 지시는 **최신 명시 원문**이다. 자동 조립된 이어받기 본문은 새 명시 지시로 승격하지 않고
+  `source_attempt`만 이어받으므로 오래된 지시 재주입과 본문의 재귀 중첩을 막는다. 직전 리포트의 사실·남은 일과
+  실제 사람 답은 별도로 보존하며, 지시 출처가 있다는 사실로 실패 복구·예산·잔존 서비스 가드를 열지 않는다.
+- **구 원장의 지시 출처 결손은 메인 소유의 기술 인계다.** 단일 최초 attempt는 실제 request와 durable outcome의
+  결속 및 최초 원문의 일치를 확인한 경우만 호환해서 읽는다. 명시 입력과 자동 조립을 구분하지 않은 다중 attempt는
+  문구를 보고 추측하지 않는다. 출처 부재·파손·불일치도 최초 `task`로 침묵 복귀하지 않고
+  `TASK_INSTRUCTION_SOURCE_UNRESOLVED`를 낸다. 메인이 기존 request와 승인 범위를 검토하여 완전한 `--task-file`을
+  명시 발급하면 이후 재개의 출처가 확정된다. 이것만으로 사용자 HITL이나 권한/제어 실패 복구 질문을 새로 만들지
+  않는다. 기존 실제 차단 사유는 그대로 해소해야 하며, 구 원장·진행 중 reservation·예산은 손편집하거나 초기화하지 않는다.
 - **전진 신호는 넷이다**(2026-09-29 · `plan_26092919` P1): phase 변화 · 회수 브리핑 `last_utc` · 원장
   (리포트의 산출물·`next_steps` 변화) · **문서 평면**(회수 미러 문서가 그 context_id 를 담고 mtime 이 attempt
   창 안). 브리핑이 없는 서브(멀티 Ray 워커)와 리포트 없이 잘린 attempt 를 위해 뒤의 둘을 더했다. 질문의
@@ -129,7 +139,7 @@ provider 변경은 그 잠금을 풀지 않는다. 기존 `completed_with_denial
 다만 같은 timeout에 구조화된 승인/권한 거부가 관측되면 그 거부를 지우지 않고 복구 질문으로 차단한다.
 
 - **조립기는 합성하지 않는다** — 직전 attempt 의 제어 상태(원장) · 서브가 보낸 `artifacts[]`·
-  `next_steps`·`notes` · 사람이 `campaigns/<camp-id>/relay/pending_hitl.json` 에 적은 `answer` · 원 지시. 그 넷뿐이다.
+  `next_steps`·`notes` · 사람이 `campaigns/<camp-id>/relay/pending_hitl.json` 에 적은 `answer` · 발급 증거로 검증한 최신 명시 지시. 그 넷뿐이다.
   메인이 추측한 진행상황을 본문에 적으면 그것이 SILENT_FALLBACK 이다.
 - **정지 조건 둘**(루프를 만들면서 정지 조건을 미루지 않는다): ⓐ 직전이 `completed` 이고 미해결 제어
   상태가 없으면 이을 중단점이 없다. 완료 뒤 신호 중단은 위 Codex 복구 계약을 따른다.
