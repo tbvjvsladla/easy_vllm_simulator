@@ -1,0 +1,25 @@
+{
+  "assembly_branch": "single-node",
+  "generated_utc": "2026-10-27T01:23:25Z",
+  "payload_files": [
+    "00-hint.md",
+    "01-artifacts.md",
+    "02-narrative.md",
+    "03-benchmark.md",
+    "LINEAGE.json",
+    "PAYLOAD.json",
+    "PROVENANCE.json",
+    "README.md",
+    "artifacts/build_recipe/Dockerfile.source-build",
+    "artifacts/build_recipe/requirements.txt",
+    "artifacts/compose/.env.template",
+    "artifacts/compose/docker-compose.yaml",
+    "artifacts/triplet/.env.granite42-30b-v030",
+    "artifacts/triplet/granite42-30b-v030.sh",
+    "artifacts/triplet/granite42-30b-v030.yaml"
+  ],
+  "schema_version": 2,
+  "source_anchor": "a85af01ac8f43de27feb9d532ff1c4472009b2ee",
+  "source_anchor_is_head": false,
+  "tag": "hint/0.30.0/granite-4.2-30b/gb10-1g1n-main-native/qbf16-len131072-kvauto"
+}
