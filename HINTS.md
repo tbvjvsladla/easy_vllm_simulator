@@ -112,7 +112,14 @@ arch·recipe 의 모양이 다릅니다.
 에 있습니다.
 
 <!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->
-> 원격 `origin` 의 발행 태그 **78건** · 모델 18종에서 파생 · 생성 `2026-10-27T10:23:25` KST · 로컬 오브젝트 부재(미수령) 3건.
+> 원격 `origin` 의 발행 태그 **79건** · 모델 18종에서 파생 · 생성 `2026-10-27T11:53:21` KST · 로컬 오브젝트 부재(미수령) 3건.
+
+### `gemma-4-26b-a4b-it` (2)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.31.0/gemma-4-26b-a4b-it/gb10-1g1n-main-native/qbf16-len262144-kvfp8-t2610271153` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
+| `hint/0.31.0/gemma-4-26b-a4b-it/gb10-1g1n-main-native/qbf16-len262144-kvfp8` | gb10-1g1n-main-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE |
 
 ### `granite-4.2-30b` (2)
 
@@ -137,12 +144,6 @@ arch·recipe 의 모양이 다릅니다.
 | `hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610270807` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
 | `hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610170951` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
 | `hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
-
-### `gemma-4-26b-a4b-it` (1)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.31.0/gemma-4-26b-a4b-it/gb10-1g1n-main-native/qbf16-len262144-kvfp8` | gb10-1g1n-main-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE |
 
 ### `qwen3.8-flash-next-fp8` (11)
 

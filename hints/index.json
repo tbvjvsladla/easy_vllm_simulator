@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 78,
-  "generated_kst": "2026-10-27T10:23:25",
+  "count": 79,
+  "generated_kst": "2026-10-27T11:53:21",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1313,6 +1313,26 @@
       "source": "remote-derived",
       "tag": "hint/0.31.0/gemma-4-26b-a4b-it/gb10-1g1n-main-native/qbf16-len262144-kvfp8",
       "tagged_utc": "2026-10-25T04:10:00Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gemma26b-ctx-single/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "127d22062deb7958532a41054612b619eb569f41",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": "google/gemma-4-26B-A4B",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102711_gemma-4-26b-a4b-it_GB10_0.31.0.md))",
+      "brief": "Gemma-4-26B-A4B-it BF16를GB10 GPU1·노드1·TP1에서0.31.0 source이미지·native262144·KVfp8·PLE없음·specoff형상으로서빙했고이번신규Full 동시성1 decode23.32t/s를측정했다. 과거unclamped KV의memwatch종료(W1)와내부포트혼동(W2)을넘은형상을승계했으며이번새레버조정은없다. KV클램프존재의과거음성대조(V3)와정확3368402176바이트값의최적성은구분한다.",
+      "grammar": "v7",
+      "missing": [],
+      "model": "gemma-4-26b-a4b-it",
+      "object": "aaed4bdaf4a6576615c1892aa855f6b8bc18ef02",
+      "published": true,
+      "recipe": "qbf16-len262144-kvfp8-t2610271153",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/gemma-4-26b-a4b-it/gb10-1g1n-main-native/qbf16-len262144-kvfp8-t2610271153",
+      "tagged_utc": "2026-10-27T02:53:21Z",
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gemma26b-ctx-single/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
