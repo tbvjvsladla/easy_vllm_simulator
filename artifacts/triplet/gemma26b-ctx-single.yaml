@@ -1,0 +1,15 @@
+# Gemma_4/gemma-4-26B-A4B-it 서빙 설정 (vllm-recipe-explorer 생성)
+# 레시피: quant=none max_model_len=262144 gpu_mem_util=0.85
+# 출처(explorer 각인): gpu-memory-utilization ← gmu_source=hand
+# ── VRAM 분해 (Phase 2 절대 KV 클램프 기준) ──
+#   weights: 48.54 GiB
+#   kv_cache: 3.1370689868927 GiB
+#   budget: 121.68767166137695 GiB
+model: /app/models/Google/Gemma_4/gemma-4-26B-A4B-it
+host: 0.0.0.0
+port: 8000   # 컨테이너 내부 포트 — compose 가 ${SERVING_PORT}:8000 으로 매핑(생성기가 호스트 포트를 적어 health 불도달 · plan_26101410 결함 기록과 동일 · 2026-10-24 교정)
+# gpu-memory-utilization = startup free-memory 게이트(기동 전 free ≥ ceil(total×gmu) · 통합메모리 ≤0.90) + 총량 cap 은 관측된 작용(한 셀 관측 · 유효맥락 kv-clamp.md §1 · vLLM 소스에서 기전 미확정); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어
+gpu-memory-utilization: 0.85
+max-model-len: 262144
+kv-cache-memory-bytes: 3368402176
+kv-cache-dtype: fp8
