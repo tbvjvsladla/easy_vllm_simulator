@@ -801,13 +801,23 @@ def _collect(repo: Path, ev, dn, *, utc: str, topic: str, draft: Path, payload: 
     absence = evidence.campaign_absence(ev, repo)
     if "HINT_MISSING_CAMPAIGN_INSTANCE" in missing and absence.get("reason"):
         reasons["HINT_MISSING_CAMPAIGN_INSTANCE"] = absence["reason"]
-    naming_base = {**dn.to_payload(), "vllm_observed": evidence.vllm_observed(ev, repo)}
     vocab = naming.load_vocab(repo)
+    # Image probing can bind a previously unobserved build SHA/source. Re-derive
+    # the complete naming payload, rather than retaining the pre-probe snapshot.
+    # Collection may write inside draft, but a changed base name must stop before
+    # publication binding/sealing; never pair a new naming payload with an old tag.
+    collected_facts = evidence.naming_facts(repo, ev)
+    collected_name = naming.derive_name(collected_facts, vocab)
+    if collected_name.tag != dn.tag:
+        core.fail("HINT_DERIVED_NAME_MISMATCH",
+                  f"이미지 원장 수집 뒤 기본 이름 {collected_name.tag!r} ≠ 수집 전 {dn.tag!r}",
+                  "관측된 빌드 입력을 정정하고 이름을 다시 파생한다. 기존 이름에 새 명명 메타만 덮어쓰지 않는다.")
+    naming_base = {**collected_name.to_payload(), "vllm_observed": evidence.vllm_observed(ev, repo)}
     return {
         "ident": ident, "tool_snaps": tool_snaps, "env_observed": env_observed, "att_scope": att_scope, "lineage": lin, "art": art,
         "bench_src": bench_src, "missing": missing, "missing_reasons": reasons, "naming_base": naming_base,
         "tail_sources": evidence.tail_sources(repo, ev),
-        "tail_candidates": naming.tail_candidates(evidence.naming_facts(repo, ev), vocab),
+        "tail_candidates": naming.tail_candidates(collected_facts, vocab),
     }
 
 
@@ -1501,15 +1511,17 @@ def refacts(repo: Path, *, draft: Path, rt: Runtime | None = None) -> dict:
               for n in template.payload_docs(template.load_snapshot(draft / "inputs" / template.FACTS_SNAPSHOT))
               if (payload / n).is_file()}
     rebind = None
-    if st.get("mode") == "campaign":
-        rebind = evidence.rebind_campaign_narratives(repo, ev, topic=st["topic"], generated_utc=utc, draft_dir=draft)
-        if core.rel(repo, rebind["manifest"]) != st["manifest"]:
-            core.fail("HINT_REFACTS_MANIFEST_MISMATCH", f"재생성한 work-manifest {core.rel(repo, rebind['manifest'])} ≠ draft 의 {st['manifest']}")
-    man = _manifest_doc(repo, st)
     with tempfile.TemporaryDirectory(prefix=".refacts-", dir=str(draft)) as td:
         tmp = Path(td) / "payload"
         col = _collect(repo, ev, dn, utc=utc, topic=st["topic"], draft=draft, payload=tmp, lineage_add=st.get("lineage_add") or (),
                        rt=rt)
+        # A late naming mismatch must be rejected before rebinding publication
+        # records. Draft-local collection writes above are not claimed side-effect-free.
+        if st.get("mode") == "campaign":
+            rebind = evidence.rebind_campaign_narratives(repo, ev, topic=st["topic"], generated_utc=utc, draft_dir=draft)
+            if core.rel(repo, rebind["manifest"]) != st["manifest"]:
+                core.fail("HINT_REFACTS_MANIFEST_MISMATCH", f"재생성한 work-manifest {core.rel(repo, rebind['manifest'])} ≠ draft 의 {st['manifest']}")
+        man = _manifest_doc(repo, st)
         facts, doc = _assemble(repo, ev, dn, col, utc=utc, topic=st["topic"], manifest_rel=st["manifest"], man=man)
         # 산출물 교체 — Agent 가 저작한 요청 파일(스캐폴드 자리표시가 없는 것)은 보존한다
         old_art = payload / "artifacts"
@@ -3381,6 +3393,145 @@ def _selftest_build_doc_local_digest(ck) -> None:
        and b3["source"]["image_digest"] == "sweep meta(measured)")
 
 
+def _selftest_collect_late_naming(ck) -> None:
+    """Late image-ledger observations cross real collect/publish/refacts in an isolated repo.
+
+    Parsed fixture evidence is configured as unresolved/late-ledger/drift input;
+    naming, binding, publication records and writers are real. This does not test
+    real global-resolve rejection. Docker is fake; no live model/network is used.
+    """
+    from unittest import mock
+    late_sha = "d" * 40
+    view = {"vllm": {"git_sha": late_sha, "describe": "v0.9.0"},
+            "source": "fixture image:/opt/easy-vllm/build_ledger.json", "provenance": "fixture-observed"}
+    real_from, real_collect = evidence.from_campaign, artifacts.collect
+    live = {"view": None, "drift": False}
+    with tempfile.TemporaryDirectory(prefix="hint-late-naming-") as td, \
+            mock.patch.dict(os.environ, {"GIT_ALLOW_PROTOCOL": "file"}):
+        repo, fx = _fx_repo(Path(td))
+        rt = Runtime(docker=_fx_docker(fx["docker"]))
+
+        def unresolved(*args, **kwargs):
+            ev = real_from(*args, **kwargs)
+            ev.attestation, ev.resolve = None, None
+            ev.build_identity["vllm_sha"] = None
+            ev.build_identity["source"]["vllm_sha"] = "미관측(fixture unresolved build SHA)"
+            ev.missing = sorted(set(ev.missing) | {"HINT_MISSING_RESOLVE"})
+            return ev
+
+        def observed(*args, **kwargs):
+            art = real_collect(*args, **kwargs)
+            art["build_ledger_vllm"] = live["view"]
+            if live["drift"]:
+                # Input changes while collecting must not pair the new name with
+                # the caller's old tag, nor bind a publication record first.
+                args[1].build_identity["vllm_ref"] = "v0.9.1"
+            return art
+
+        def collected(ev, dn, label):
+            draft = Path(td) / label
+            return _collect(repo, ev, dn, utc=_FX_PUBLISH_UTC, topic=evidence.topic_for(ev),
+                            draft=draft, payload=draft / "payload", lineage_add=(), rt=rt)
+
+        with mock.patch.object(artifacts, "collect", side_effect=observed):
+            vocab = naming.load_vocab(repo)
+            ev = unresolved(repo, "c1", "c1-a", None, docker=rt.docker)
+            dn = naming.derive_name(evidence.naming_facts(repo, ev), vocab)
+            empty = collected(ev, dn, "no-ledger")
+            ck("late naming: no ledger keeps SHA unobserved and missing resolve", empty["naming_base"]["vllm_build_input"]["sha"] is None
+               and "HINT_MISSING_RESOLVE" in empty["missing"])
+            live["view"] = view
+            late = collected(ev, dn, "late-ledger")
+            ck("late naming: observed SHA reaches naming with source and unchanged release name",
+               late["naming_base"]["vllm_build_input"]["sha"] == late_sha
+               and "fixture image:" in late["naming_base"]["segments"]["vllm"]["source"]
+               and naming.compose_from_payload(late["naming_base"]) == dn.tag
+               and "HINT_MISSING_RESOLVE" in late["missing"])
+            for label, attested in (("resolved", False), ("attestation", True)):
+                prior = real_from(repo, "c1", "c1-a", None, docker=rt.docker)
+                if attested:
+                    prior.resolve = None
+                    prior.attestation = {"_path": "fixture attestation", "build_ledger": {
+                        "vllm": {"git_sha": evidence._SHA_A, "describe": "v0.9.0"}}}
+                    prior.build_identity["vllm_sha"] = None
+                    evidence.bind_image_ledger(prior, None)
+                else:
+                    prior.attestation = None  # Exercise resolved priority without an attestation masking the image.
+                prior_source = prior.build_identity["source"]["vllm_sha"]
+                original = naming.derive_name(evidence.naming_facts(repo, prior), vocab)
+                retained = collected(prior, original, label)
+                ck(f"late naming: existing {label} SHA has priority over image SHA",
+                   retained["naming_base"]["vllm_build_input"]["sha"] == evidence._SHA_A
+                   and prior_source in retained["naming_base"]["segments"]["vllm"]["source"]
+                   and naming.compose_from_payload(retained["naming_base"]) == original.tag)
+            commit = real_from(repo, "c1", "c1-a", None, docker=rt.docker)
+            commit.build_identity["vllm_ref"] = evidence._SHA_A
+            commit.attestation = {"build_ledger": {"vllm": {"git_sha": evidence._SHA_A, "describe": "v0.9.0"}}}
+            commit_name = naming.derive_name(evidence.naming_facts(repo, commit), vocab)
+            stable = collected(commit, commit_name, "commit")
+            ck("late naming: commit identity remains consistent with SHA-derived name",
+               stable["naming_base"]["vllm_build_input"]["kind"] == "commit"
+               and stable["naming_base"]["vllm_build_input"]["sha"] == evidence._SHA_A
+               and naming.compose_from_payload(stable["naming_base"]) == commit_name.tag)
+
+            def quiet(fn, *args, **kwargs):
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                    return fn(*args, **kwargs)
+
+            with mock.patch.object(evidence, "from_campaign", side_effect=unresolved):
+                live["view"] = None
+                before_refs = _refs(repo)
+                result = quiet(publish, repo, campaign="c1", cell="c1-a", generated_utc=_FX_PUBLISH_UTC,
+                               out=Path(td) / "refacts-flow", remote_check=False, rt=rt)
+                draft = result["draft"]
+                prior_base = _load_state(draft)["base_tag"]
+                live["view"] = view
+                quiet(refacts, repo, draft=draft, rt=rt)
+                nb = core.read_json(draft / "inputs" / NAMING_BASE_NAME)
+                payload = core.read_json(draft / "payload" / branch.PAYLOAD_JSON)
+                facts = core.read_json(draft / "inputs" / template.FACTS_SNAPSHOT)
+                ck("late naming: refacts updates naming_base/PAYLOAD/FACT together without renaming or resolving missing input",
+                   nb["vllm_build_input"]["sha"] == late_sha and payload["naming"] == facts["naming"] == nb
+                   and payload["tag"] == _load_state(draft)["base_tag"] == prior_base == naming.compose_from_payload(nb)
+                   and "HINT_MISSING_RESOLVE" in payload["missing"] and _refs(repo) == before_refs)
+                published = quiet(publish, repo, campaign="c1", cell="c1-a", generated_utc=_FX_PUBLISH_UTC,
+                                  out=Path(td) / "publish-flow", remote_check=False, rt=rt)
+                named = core.read_json(published["draft"] / "inputs" / NAMING_BASE_NAME)
+                ck("late naming: publish uses post-probe SHA and source with its base tag",
+                   named["vllm_build_input"]["sha"] == late_sha
+                   and "fixture image:" in named["segments"]["vllm"]["source"]
+                   and published["tag"] == naming.compose_from_payload(named))
+                old_doc, new_doc = fx["testlog"], "docs/testlog/testlog_26010213_05_00_fixture.md"
+                (repo / old_doc).rename(repo / new_doc)
+                core.run_python(repo, core.REL_CAMPAIGN_INIT, "--campaign-id", "c1", "--evidence-relocate",
+                                "--kind", "testlog", "--path", old_doc, "--to", new_doc,
+                                "--relocate-reason", "fixture documented rename", "--utc", _FX_PUBLISH_UTC, check=True)
+                renamed = quiet(refacts, repo, draft=draft, rt=rt)
+                state = _load_state(draft)
+                manifest = core.read_json(repo / state["manifest"])
+                pii_doc = core.read_json(draft / "inputs/pii.json")
+                full_lineage = core.read_json(draft / "inputs" / lineage.LINEAGE_FULL_NAME)
+                paths = {doc.get("path") for doc in full_lineage["documents"]}
+                ck("late naming: refacts after official narrative relocation updates LINEAGE/manifest/PII to the new document",
+                   renamed["rebind"]["rebound"] == [{"kind": "testlog", "from": old_doc, "to": new_doc}]
+                   and new_doc in paths and old_doc not in paths
+                   and Path(new_doc).name in json.dumps(manifest["evidence"])
+                   and Path(old_doc).name not in json.dumps(manifest["evidence"])
+                   and any(p.endswith(Path(new_doc).name) for p in pii_doc["scanned_paths"])
+                   and not any(p.endswith(Path(old_doc).name) for p in pii_doc["scanned_paths"]))
+                live["drift"] = True
+                with mock.patch.object(evidence, "drive_publisher", side_effect=AssertionError("publication bound before drift rejection")):
+                    ok, why = _raises(lambda: quiet(publish, repo, campaign="c1", cell="c1-a", generated_utc=_FX_PUBLISH_UTC,
+                                                   out=Path(td) / "drift-flow", remote_check=False, rt=rt),
+                                      "HINT_DERIVED_NAME_MISMATCH")
+                    ck("late naming: publish drift fails before publication binding (draft-local writes allowed): " + why, ok)
+                snapshot = _fx_tree(draft)
+                with mock.patch.object(evidence, "rebind_campaign_narratives", side_effect=AssertionError("publication rebound before drift rejection")):
+                    ok, why = _raises(lambda: quiet(refacts, repo, draft=draft, rt=rt), "HINT_DERIVED_NAME_MISMATCH")
+                    ck("late naming: refacts drift fails before publication rebind and keeps existing payload: " + why,
+                       ok and _fx_tree(draft) == snapshot and _refs(repo) == before_refs)
+
+
 _GIT_ENV_LEAKS = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE", "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES",
                   "GIT_COMMON_DIR", "GIT_NAMESPACE", "GIT_PREFIX")
 
@@ -3394,6 +3545,7 @@ def _self_test_body(ck, bad: list[str], ran: list[int]) -> None:
     _selftest_static_docs(ck)
     print(f"{_OUT} self-test — FACT 생산자 교정(plan_26092908 §4.5 F2)")
     _selftest_build_doc_local_digest(ck)
+    _selftest_collect_late_naming(ck)
     print(f"{_OUT} self-test — 격리 E2E(임시 저장소 · bare 원격 · 가짜 docker · 라이브 비의존)")
     try:
         _selftest_e2e(ck)
