@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 79,
-  "generated_kst": "2026-10-27T11:53:21",
+  "count": 81,
+  "generated_kst": "2026-10-27T19:16:39",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1448,6 +1448,28 @@
       "vllm": "0.31.0"
     },
     {
+      "anchor": "7630fa87fb982d835bd72095fb990f33de51bcaa",
+      "arch": "gb10-1g1n-sub-native",
+      "base_model": "LiquidAI/LFM2.5-2.6B-Base",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102716_lfm2.5-2.6b_GB10_0.31.0.md))",
+      "brief": "LFM2.5-2.6B BF16를 GB10 한 노드·한 GPU에서 v0.31.0 source-build 입력으로 서빙했고, context 32768·KV auto·spec off·기본 graph 경로의 동시성 1 판정점은 34.36 tok/s였다. 계보의 free-memory 시작 거부와 이번 실행의 증거 경로·발행 문서 결속 벽을 배포 GMU 재선택과 공식 writer 절차로 넘었다(W1·W9·W12). KV clamp와 동시 시퀀스는 이번 캠페인에서 탐색한 최적값이 아니라 승계한 손레버다(V3·V4).",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_BUILD_LEDGER"
+      ],
+      "model": "lfm2.5-2.6b",
+      "object": "38383b7aee1dc365e55bb4e728f957a2fcb8a6a2",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610271715",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto-t2610271715",
+      "tagged_utc": "2026-10-27T09:24:21Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_lfm25-26b-v031_camp-26102705_a02/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
       "anchor": "c9c4a87dda9d00a2b5ae4f68a9f675d3d5b998b0",
       "arch": "gb10-1g1n-main-native",
       "base_model": null,
@@ -1528,6 +1550,28 @@
       "source": "remote-derived",
       "tag": "hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610270824",
       "tagged_utc": "2026-10-26T23:34:50Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "c5526cf75334c135d21235de316bc0f1d5e52e58",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102707_minicpm5-2b_GB10_0.31.0.md))",
+      "brief": "MiniCPM5-2B를 GB10 GPU1개·노드1대 TP1에서 v0.31.0 source-build·bf16·길이32768·KVauto·PLE없음·specoff·graph기본으로 서빙했고 이 정정판이 인용하는 이번 캠페인 Full의 동시성1 decode37.34 t/s를 기록했다. 공유이미지의빌드입력경로(W0),장기로그KV파싱(W1),CNN행선택(W2)을교정한계보이며 근거는 이번 캠페인의 synthetic Full이며 정정판 작업에서 재측정하지 않았다. gmu0.39와KV클램프는승계값(V1·V4)이고최적화나필요조건검증이아니다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE"
+      ],
+      "model": "minicpm5-2b",
+      "object": "d03c9cb02377dceecbe6898fd696f5f4bdf51972",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610271814",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610271814",
+      "tagged_utc": "2026-10-27T10:16:39Z",
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
