@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 84,
-  "generated_kst": "2026-10-27T19:19:29",
+  "count": 85,
+  "generated_kst": "2026-10-27T20:28:33",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -336,6 +336,29 @@
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gptoss120b-0191-c0/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.19.1"
+    },
+    {
+      "anchor": "865f1894e65f07b0c128c8e17e43e708035b6f84",
+      "arch": "gb10-1g1n-sub-native",
+      "base_model": "Qwen/Qwen3-4B-Base",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102719_qwen3-4b_GB10_0.26.0.md))",
+      "brief": "Qwen3-4B를 NVIDIA GB10 한 노드·GPU 한 개에서 vLLM 빌드 입력 v0.26.0, BF16 가중치·TurboQuant KV·비투기 graph 형상으로 재측정했고 동시성 1 decode 21.68 t/s의 weak PASS를 얻었다. 과거 backend 번역 오류와 하네스 종료를 구분한 W2/W3를 계승하되 이번에는 기본 Full을 새 경로에서 완주했다. V4의 고정 KV는 승계값이며 최적값·다른 GPU의 필요조건이 아니다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_BUILD_LEDGER",
+        "HINT_MISSING_RESOLVE"
+      ],
+      "model": "qwen3-4b",
+      "object": "10414da6426a286b00d5789e6fd3d1c4cc0e8bcb",
+      "published": true,
+      "recipe": "qbf16-len32768-kvturboquant4bitnc",
+      "source": "remote-derived",
+      "tag": "hint/0.26.0/qwen3-4b/gb10-1g1n-sub-native/qbf16-len32768-kvturboquant4bitnc",
+      "tagged_utc": "2026-10-27T11:18:23Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_c-tq4nc_camp-26102705_qwen_a01_20261027T093346Z/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.26.0"
     },
     {
       "anchor": "9a2f5f0b78f1677a03912a3dfe0a67e79e07423b",

@@ -112,7 +112,20 @@ arch·recipe 의 모양이 다릅니다.
 에 있습니다.
 
 <!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->
-> 원격 `origin` 의 발행 태그 **84건** · 모델 18종에서 파생 · 생성 `2026-10-27T19:19:29` KST · 로컬 오브젝트 부재(미수령) 3건.
+> 원격 `origin` 의 발행 태그 **85건** · 모델 18종에서 파생 · 생성 `2026-10-27T20:28:33` KST · 로컬 오브젝트 부재(미수령) 3건.
+
+### `qwen3-4b` (8)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.26.0/qwen3-4b/gb10-1g1n-sub-native/qbf16-len32768-kvturboquant4bitnc` | gb10-1g1n-sub-native | 0.26.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
+| `hint/0.26.0/qwen3-4b/gb10-1g1n-sub-native/qbf16-len32768-kvturboquant4bitnc-kv11g` | gb10-1g1n-sub-native | 0.26.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
+| `hint/0.27.1/qwen3-4b/h10080gb-main-native/len32768-kvauto-pleresident` | h10080gb-main-native | 0.27.1 | 미기재(구판) | full | — |
+| `hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant3bitnc` | gb10-sub-sim-kv24g | 0.26.0 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE |
+| `hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant4bitnc` | gb10-sub-sim-kv24g | 0.26.0 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE |
+| `hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvfp8` | gb10-main-sim-kv24g | 0.26.0 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE |
+| `hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvauto` | gb10-main-sim-kv24g | 0.26.0 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE |
+| `hint/0.31.0/qwen3-4b/rtxpro6000ws-1g1n-main-native/qbf16-len40960-kvauto` | rtxpro6000ws-1g1n-main-native | 0.31.0 | 미수령 | 미수령 | 미수령 |
 
 ### `gemma-4-26b-a4b-it` (3)
 
@@ -208,18 +221,6 @@ arch·recipe 의 모양이 다릅니다.
 | 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
 |---|---|---|---|---|---|
 | `hint/0.31.0/ornith-1.5-9b/gb10-1g1n-sub-native/qbf16-len32768-kvauto` | gb10-1g1n-sub-native | 0.31.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_CELL_CONFIG · HINT_MISSING_CELL_STATUS · HINT_MISSING_LOCKSET · HINT_MISSING_RESOLVE |
-
-### `qwen3-4b` (7)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.26.0/qwen3-4b/gb10-1g1n-sub-native/qbf16-len32768-kvturboquant4bitnc-kv11g` | gb10-1g1n-sub-native | 0.26.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
-| `hint/0.27.1/qwen3-4b/h10080gb-main-native/len32768-kvauto-pleresident` | h10080gb-main-native | 0.27.1 | 미기재(구판) | full | — |
-| `hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant3bitnc` | gb10-sub-sim-kv24g | 0.26.0 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE |
-| `hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant4bitnc` | gb10-sub-sim-kv24g | 0.26.0 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE |
-| `hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvfp8` | gb10-main-sim-kv24g | 0.26.0 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE |
-| `hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvauto` | gb10-main-sim-kv24g | 0.26.0 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE |
-| `hint/0.31.0/qwen3-4b/rtxpro6000ws-1g1n-main-native/qbf16-len40960-kvauto` | rtxpro6000ws-1g1n-main-native | 0.31.0 | 미수령 | 미수령 | 미수령 |
 
 ### `ornith-1.5-35b-a3b` (1)
 
