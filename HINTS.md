@@ -112,7 +112,14 @@ arch·recipe 의 모양이 다릅니다.
 에 있습니다.
 
 <!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->
-> 원격 `origin` 의 발행 태그 **77건** · 모델 18종에서 파생 · 생성 `2026-10-27T08:34:50` KST · 로컬 오브젝트 부재(미수령) 3건.
+> 원격 `origin` 의 발행 태그 **78건** · 모델 18종에서 파생 · 생성 `2026-10-27T10:23:25` KST · 로컬 오브젝트 부재(미수령) 3건.
+
+### `granite-4.2-30b` (2)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.30.0/granite-4.2-30b/gb10-1g1n-main-native/qbf16-len131072-kvauto` | gb10-1g1n-main-native | 0.30.0 | PASS | full | HINT_MISSING_RESOLVE |
+| `hint/0.30.0/granite-4.2-30b/gb10-1g1n-main-native/qbf16-len131072-kvauto-kv33g` | gb10-1g1n-main-native | 0.30.0 | PASS | full | — |
 
 ### `minicpm5-2b` (4)
 
@@ -221,12 +228,6 @@ arch·recipe 의 모양이 다릅니다.
 | `hint/0.19.1/gpt-oss-120b/gb10-1g1n-main-native/qmxfp4-len131072-kvfp8` | gb10-1g1n-main-native | 0.19.1 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
 | `hint/0.19.0/gpt-oss-120b/gb10x2-cluster-native/qmxfp4-len131072-kvfp8` | gb10x2-cluster-native | 0.19.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
 | `hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8` | gb10x2-sim-h100 | 0.19.0 | 미기재(구판) | 미기재 | 미선언 |
-
-### `granite-4.2-30b` (1)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.30.0/granite-4.2-30b/gb10-1g1n-main-native/qbf16-len131072-kvauto-kv33g` | gb10-1g1n-main-native | 0.30.0 | PASS | full | — |
 
 ### `deepseek-v4.1-flash-exl3-2.0bpw-sfxnz` (2)
 
