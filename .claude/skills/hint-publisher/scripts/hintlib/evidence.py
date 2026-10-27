@@ -1990,6 +1990,54 @@ def _session_is_cell(sid, cell: str) -> bool:
     return isinstance(sid, str) and re.fullmatch(pat, sid) is not None
 
 
+def _node_session_docs(repo: Path, node: str) -> dict[str, dict | None]:
+    """Official journals by filename/SID, with the event reader's local/mirror ownership.
+
+    A present but unsafe/malformed journal stays None: it cannot fall back to a name guess.
+    Custom IDs are supported by blackbox_session; config/topology, not ID spelling, bind them.
+    """
+    if not isinstance(node, str) or not _CELL_RE.fullmatch(node) or node.startswith("."):
+        return {}
+    local = {p.name: p for p in (repo / REL_EVENTS_ROOT / node / "sessions").glob("*.json")}
+    mirror = {} if node == _self_node(repo)[0] else {
+        p.name: p for p in (repo / REL_EVENTS_RECOVERED_ROOT / node / "sessions").glob("*.json")}
+    out: dict[str, dict | None] = {}
+    for p in {**local, **mirror}.values():
+        sid = p.stem
+        out[sid] = None
+        if (not re.fullmatch(r"[A-Za-z0-9._-]+", sid) or any(q.is_symlink() for q in (p, *p.parents))
+                or not p.is_file() or not p.resolve().is_relative_to(repo.resolve())):
+            continue
+        d, _bad = _read_json_soft(p)
+        if not isinstance(d, dict) or d.get("session_id") != sid:
+            continue
+        start, stop = d.get("started_utc"), d.get("stopped_utc")
+        if (not isinstance(start, str) or not _UTC.fullmatch(start) or _utc_dt(start) is None
+                or (stop is not None and (not isinstance(stop, str) or not _UTC.fullmatch(stop)
+                                         or _utc_dt(stop) is None or stop < start))):
+            continue
+        out[sid] = {**d, "_source": _rel(repo, p)}
+    return out
+
+
+def _session_event_is_cell(d: dict, ts: str, ev: CellEvidence, sessions: dict) -> bool:
+    """A custom event needs the same node's journal identity and exact start/stop timestamp.
+
+    Keep legacy naming only when no journal exists; explicit contradictory metadata wins.
+    """
+    sid, kind = d.get("session_id"), d.get("kind")
+    if not isinstance(sid, str) or kind not in ("serve_start", "serve_stop"):
+        return False
+    if sid not in sessions:
+        return _session_is_cell(sid, ev.cell)
+    doc = sessions[sid]
+    config = (((ev.sweep or {}).get("index") or {}).get("meta") or {}).get("config_name") or ev.cell
+    time_key = "started_utc" if kind == "serve_start" else "stopped_utc"
+    return bool(doc and doc.get("config_file") == config and doc.get("topology") == ev.topology
+                and d.get("topology") in (None, ev.topology) and d.get("source") in (None, "blackbox_session")
+                and doc.get(time_key) == ts)
+
+
 # 2026-10-25(Qwen 싱글 재생 FC-15): budget_declare 계열 행의 `mem_total_mib` 는 선언이 아니라 **러너가 기동 때 그 노드에서 잰 값**이다 —
 #   쓰는 문은 blackbox_session `declare-budget --mem-total-mib`(인자 계약 help "/proc/meminfo MemTotal") 하나이고, 호출부 러너
 #   (single_serve_up.sh · multinode_serve_smoke.sh · native_multinode_serve.py)가 모두 /proc/meminfo MemTotal 을 넘긴다. 이 문이 쓰는 kind 만
@@ -2169,6 +2217,7 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
     measured_win = None
     for node in _event_node_dirs(repo, ev):
         streams = _node_streams(repo, node)
+        sessions = _node_session_docs(repo, node)
         opens = _node_opens(streams)
         if ctx is not None:
             ctx.setdefault("nodes", []).append(node)
@@ -2197,16 +2246,20 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                 if not _label_is_cell(w["label"], cell):
                     continue
                 for idx in w["rows"]:
+                    ts, _ln, d = rows[idx]
+                    if d.get("kind") in ("serve_start", "serve_stop") and not _session_event_is_cell(d, ts, ev, sessions):
+                        continue
                     in_win.add(idx)
                     taken[(rel, idx)] = w
                 if w["open_kind"] == "budget_declare":
                     w["stream_last"] = rows[-1][0]
                     declare_wins.append((rel, w))
-            for idx, (_ts, _ln, d) in enumerate(rows):
+            for idx, (ts, _ln, d) in enumerate(rows):
                 if idx in in_win:
                     continue
-                if _label_is_cell(d.get("label"), cell) or (
-                        d.get("kind") in ("serve_start", "serve_stop") and _session_is_cell(d.get("session_id"), cell)):
+                match = (_session_event_is_cell(d, ts, ev, sessions) if d.get("kind") in ("serve_start", "serve_stop")
+                         else _label_is_cell(d.get("label"), cell))
+                if match:
                     taken[(rel, idx)] = None
         foreign_wins = _foreign_label_windows(streams, taken, cell)
         # 창을 열지 않는 스트림(thermal 등)의 라벨 없는 행 — 같은 노드의 선언 창 **시간 구간**에 귀속한다(라벨 다른 창 포함 · F5).
@@ -2290,7 +2343,11 @@ def _ledger_timeline(repo: Path, ev: CellEvidence, ctx: dict | None = None) -> t
                     detail = f"{k} · {fields} · 창 시작 {w['start_ts']} 후 {_dur(w['start_ts'], ts)}"
                 else:
                     detail = f"{k} · {fields}" + (f" · session={d.get('session_id')}" if d.get("session_id") else "")
-                out.append({"utc": ts, "node": node, "kind": k, "label": label, "detail": detail, "source": f"{rel}:{ln}"})
+                entry = {"utc": ts, "node": node, "kind": k, "label": label, "detail": detail, "source": f"{rel}:{ln}"}
+                if (_session_event_is_cell(d, ts, ev, sessions) and not _session_is_cell(d.get("session_id"), cell)
+                        and sessions.get(d.get("session_id"))):
+                    entry["session_binding_source"] = sessions[d["session_id"]]["_source"]
+                out.append(entry)
             for brel, bad in sorted(bads.items()):
                 if bad and brel in used:            # 행을 낸 파일의 판독 불가만(종전과 같다 — 무관한 월 파일 ✗)
                     out.append({"utc": None, "node": node, "kind": "ledger_unparsable_lines", "label": None,
@@ -2782,7 +2839,7 @@ def _note_same_cell(bnd: dict, same: list[dict]) -> dict:
 # D: 캠페인이 측정 **뒤**(08:04:57Z)에 선언돼 경계 = 측정 서빙의 선언 창 시작(05:07:56Z)이 됐고, 그 앞의 이 E2E 1차 기동(04:55:14Z)이
 #   '같은 셀 이름 · 앞선 캠페인' 으로 분류됐다 — 원장 serve_start 세션 id `serve-granite42-30b-v030-20261010T045514Z` 가 이 셀 testlog 가
 #   인용한 simlog 의 기동 로그(a_serve.log L15 · L22)에 그대로 있었다(관측 조인 — 추론 ✗). 규칙(모두 관측 · 하나라도 불성립이면 종전 분류):
-#   ① 경계 이전 원장 serve_start 의 session_id 가 이 셀 세션 꼴(_session_is_cell)
+#   ① 경계 이전 원장 serve_start 가 공식 세션 메타데이터·시각과 일치(저널 없는 옛 기록만 세션 이름 관행)
 #   ② 그 id 의 **문자 그대로**가 이 셀 포인터(testlog · devlog · cell_id = 이 셀)가 인용한 `docs/simlog/<dir>/` 바로 아래 *.log 에 있다
 #   ③ 행 귀속 구간 = [그 serve_start ts, 그 뒤 첫 이 셀 budget_declare(> ts) 또는 다음 같은-셀 세션 시작 또는 경계) — 그 구간의 행만
 #      `campaign_scope: same-cell-pre-boundary`(이 셀의 시도로 센다 · template 은 prior-campaign 만 따로 싣는다).
@@ -2818,11 +2875,12 @@ def _same_cell_pre_sessions(repo: Path, ev: CellEvidence, b: str | None) -> list
     starts: list[tuple[str, str]] = []
     declares: list[str] = []
     for node in _event_node_dirs(repo, ev):
+        sessions = _node_session_docs(repo, node)
         for f in _node_event_files(repo, node)[0]:
             for ts, _ln, d in _event_rows(f)[0]:
                 if ts >= b:
                     continue
-                if d.get("kind") == "serve_start" and _session_is_cell(d.get("session_id"), ev.cell):
+                if d.get("kind") == "serve_start" and _session_event_is_cell(d, ts, ev, sessions):
                     starts.append((ts, d["session_id"]))
                 elif d.get("kind") == "budget_declare" and _label_is_cell(d.get("label"), ev.cell):
                     declares.append(ts)
@@ -2874,6 +2932,7 @@ def _timeline_parts(repo: Path, ev: CellEvidence) -> tuple[list[dict], list[tupl
     out = _scope_rows(sorted(rows + mrows + _startup_markers(repo, ev, win), key=_timeline_key), bnd,
                       _same_cell_pre_sessions(repo, ev, bnd.get("utc")))
     cited = {f: "events_ledger" for f in files}
+    cited.update({r["session_binding_source"]: "raw_json" for r in rows if r.get("session_binding_source")})
     for f, k in mfiles:
         cited.setdefault(f, k)
     return out, sorted(cited.items())
@@ -8651,6 +8710,117 @@ def _selftest_lite_tool_args(ck, td: Path) -> None:
        and "--random-input-len 2048" not in command_missing and source_missing == "reconstructed(bench json)")
 
 
+def _selftest_custom_sessions(ck, repo: Path) -> None:
+    """Official custom IDs bind through node/config/topology/time, never a free label or name."""
+    from . import artifacts
+    cell, config, node, sid = "fixture-cell", "fixture-config", "worker-a", "operator_attempt-01"
+    start, stop, measured = "2026-01-02T02:00:01Z", "2026-01-02T03:10:00Z", "2026-01-02T03:00:00Z"
+    journal = repo / REL_EVENTS_RECOVERED_ROOT / node / "sessions" / f"{sid}.json"
+    local = repo / REL_EVENTS_ROOT / node / "sessions" / journal.name
+    doc = {"session_id": sid, "config_file": config, "topology": "single", "started_utc": start, "stopped_utc": stop}
+    core.write_json(journal, doc)
+    core.write_json(local, {**doc, "config_file": "other-config"})
+    ledger = journal.parent.parent / "events/2026-01.jsonl"
+    ledger.parent.mkdir()
+    start_event = {"kind": "serve_start", "session_id": sid, "ts": start, "source": "blackbox_session", "topology": "single"}
+    events = [{"kind": "budget_declare", "label": "unrelated-label", "ts": "2026-01-02T01:00:00Z"},
+              {"kind": "budget_clear", "ts": "2026-01-02T01:30:00Z"},
+              {"kind": "budget_declare", "label": "operator-label", "ts": "2026-01-02T02:00:00Z"}, start_event,
+              {**start_event, "ts": "2026-01-02T02:01:00Z"},
+              {"kind": "budget_renew", "label": "operator-label", "ts": "2026-01-02T02:30:00Z"},
+              {"kind": "serve_stop", "session_id": sid, "ts": stop, "source": "blackbox_session"},
+              {"kind": "budget_clear", "ts": "2026-01-02T03:10:01Z"}]
+    ledger.write_text("".join(json.dumps(d) + "\n" for d in events), encoding="utf-8")
+    ev = CellEvidence(mode="campaign", campaign_id="fixture", cell=cell, topology="single", node="sub", repo=str(repo),
+                      declaration={"nodes": [{"node_id": node, "role": "sub"}]},
+                      sweep={"generated_utc": measured, "index": {"meta": {"config_name": config}}})
+    def window():
+        return artifacts.current_serve_window(repo, ev, measure_start="2026-01-02T02:30:00Z", measure_end=measured)
+    key = str(repo.resolve())
+    old_self = _SELF_NODE_CACHE.get(key)
+    try:
+        _SELF_NODE_CACHE[key] = ("main", "fixture")
+        original = {p: p.read_bytes() for p in (journal, local, ledger)}
+        bound = window()
+        ck("custom ID: official mirrored journal binds config alias/node/topology and closed measured window",
+           bound and bound["session_id"] == sid and bound["node_id"] == node
+           and bound["source"] == _rel(repo, journal) and bound["start_utc"] == start)
+        rows, _files, budget_window = _ledger_timeline(repo, ev)
+        starts = [r for r in rows if r["kind"] == "serve_start"]
+        ck("custom ID: exact journal start/stop events are included; another timestamp is not this session event",
+           len(starts) == 1 and starts[0]["utc"] == start and starts[0]["session_binding_source"] == _rel(repo, journal)
+           and len([r for r in rows if r["kind"] == "serve_stop"]) == 1)
+        budgets = [r for r in rows if r["kind"] == "budget_declare"]
+        ck("custom label: only overlapping budget window is shown, still explicitly other-label-same-node",
+           len(budgets) == 1 and budgets[0]["label"] == "operator-label"
+           and budgets[0]["label_scope"] == LABEL_SCOPE_OTHER and budget_window is None)
+        ck("custom ID: binding journal is retained in timeline lineage",
+           (_rel(repo, journal), "raw_json") in _timeline_parts(repo, ev)[1])
+        ck("custom ID: observation never edits original journals/events", all(p.read_bytes() == b for p, b in original.items()))
+        core.write_json(journal, {**doc, "stopped_utc": None})
+        open_rows = _ledger_timeline(repo, ev)[0]
+        ck("custom ID: open journal proves start only, never a closed measurement window or unmatched stop",
+           window() is None and len([r for r in open_rows if r["kind"] == "serve_start"]) == 1
+           and not any(r["kind"] == "serve_stop" for r in open_rows))
+        for label, patch in (("config", {"config_file": "other"}), ("topology", {"topology": "multi"}),
+                             ("filename/SID", {"session_id": "different_id"}), ("invalid start", {"started_utc": "invalid"}),
+                             ("stop before start", {"stopped_utc": "2026-01-01T03:10:00Z"})):
+            core.write_json(journal, {**doc, **patch})
+            ck(f"custom ID: {label} mismatch cannot bind by free name/label or stale local copy",
+               window() is None and not _ledger_timeline(repo, ev)[0])
+        core.write_json(journal, doc)
+        sessions = _node_session_docs(repo, node)
+        for label, event in (("timestamp", {**start_event, "ts": "2026-01-02T02:01:00Z"}),
+                             ("topology", {**start_event, "topology": "multi"}),
+                             ("source", {**start_event, "source": "free-form-log"})):
+            ck(f"custom ID: conflicting event {label} is rejected",
+               not _session_event_is_cell(event, event["ts"], ev, sessions))
+        legacy = f"serve-{cell}-20260102T020001Z"
+        legacy_event = {**start_event, "session_id": legacy}
+        ck("legacy canonical event remains supported when no journal exists",
+           _session_event_is_cell(legacy_event, start, ev, {}))
+        ck("explicit contradictory journal overrides even a canonical-looking session name",
+           not _session_event_is_cell(legacy_event, start, ev, {legacy: {**doc, "config_file": "other"}}))
+        canonical_journal = journal.with_name(legacy + ".json")
+        core.write_json(canonical_journal, {**doc, "session_id": legacy, "config_file": "other"})
+        canonical_label = f"serve-{cell}"
+        labelled = [{"kind": "budget_declare", "label": canonical_label, "ts": "2026-01-02T02:00:00Z"},
+                    {**legacy_event, "label": canonical_label},
+                    {"kind": "budget_clear", "ts": "2026-01-02T02:10:00Z"},
+                    {**legacy_event, "kind": "serve_stop", "label": canonical_label, "ts": stop}]
+        ledger.write_text("".join(json.dumps(d) + "\n" for d in labelled), encoding="utf-8")
+        labelled_rows = _ledger_timeline(repo, ev)[0]
+        ck("canonical label cannot override contradictory journal inside or outside a same-label budget window",
+           any(r["kind"] == "budget_declare" for r in labelled_rows)
+           and not any(r["kind"] in ("serve_start", "serve_stop") for r in labelled_rows))
+        ledger.write_bytes(original[ledger])
+        canonical_journal.unlink()
+        _SELF_NODE_CACHE[key] = (node, "fixture")
+        ck("own-node journal uses local bytes, never the recovered mirror", window() is None)
+        _SELF_NODE_CACHE[key] = ("main", "fixture")
+        journal.unlink()
+        journal.symlink_to(local)
+        ck("custom ID: symlink journal cannot supply session identity", window() is None and not _ledger_timeline(repo, ev)[0])
+        journal.unlink()
+        core.write_json(journal, doc)
+        saved_dir = journal.parent.with_name("session-storage")
+        journal.parent.rename(saved_dir)
+        journal.parent.symlink_to(saved_dir, target_is_directory=True)
+        ck("custom ID: ancestor symlink cannot redirect node identity", window() is None and not _ledger_timeline(repo, ev)[0])
+        journal.parent.unlink()
+        saved_dir.rename(journal.parent)
+        other = repo / REL_EVENTS_RECOVERED_ROOT / "worker-b/sessions" / journal.name
+        other.parent.mkdir(parents=True)
+        journal.rename(other)
+        ck("custom ID: same journal under another node does not bind this node's event/window",
+           window() is None and not _ledger_timeline(repo, ev)[0])
+    finally:
+        if old_self is None:
+            _SELF_NODE_CACHE.pop(key, None)
+        else:
+            _SELF_NODE_CACHE[key] = old_self
+
+
 def _selftest_runtime_epochs(ck, repo: Path) -> None:
     """FC2/3/4: observations are not build attestations; captures are not session boundaries."""
     cell, measured = "epoch-cell", "2026-01-02T03:00:00Z"
@@ -8745,6 +8915,9 @@ def selftest() -> list[str]:
     def ck(name: str, cond) -> None:
         if not cond:
             bad.append(f"evidence: {name}")
+
+    with tempfile.TemporaryDirectory() as td:
+        _selftest_custom_sessions(ck, Path(td))
 
     with tempfile.TemporaryDirectory() as td:
         _selftest_runtime_epochs(ck, Path(td))
