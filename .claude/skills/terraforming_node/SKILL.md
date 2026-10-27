@@ -122,7 +122,7 @@ when_to_use: >-
 → `references/orchestration/topology_identity.md` — (a) node_id — 이름 · (b) rank — 위치(멀티 전용) · (c) 렌더 산출물에 실릴 형태
 
 ### 2.7.7 A2A 제어명령 프로토콜
-→ `references/orchestration/a2a_relay.md` — 2.7.7a 턴제 릴레이와 자율 재개. **재개의 기본은 `relay.py --supervise-step <camp> --apply` 자동 재발급**이고, 비용 상한·통신/모델 붕괴·전진 없음만 사람에게 팝업한다(그때의 수동 경로 = `--continue --apply`).
+→ `references/orchestration/a2a_relay.md` — 2.7.7a 턴제 릴레이와 자율 재개. **재개의 기본은 `relay.py --supervise-step <camp> --apply` 자동 재발급**이다. 전진이 보여도 정본의 승인·중단·실패 복구 가드를 통과해야 한다. 사람 확인과 명시적 수동 복구 조건은 해당 reference를 따른다.
 
 ### 2.7.8 서고 접근자 — 서브 wiki-desk ↔ 메인 서고(같은 CLI · 경로만 다름)
 → `references/orchestration/grounding_exchange.md` — manifest `library` 접근자 · ssh 강제명령 게이트웨이 · 발급·회수(`library_access.py` · HITL) · 그라운딩 게이트 대칭. **누락은 기계가 fail-closed 로 잡고 거짓은 사람이 리뷰한다.** (2026-10-19 · A2A 3메시지 교환 은퇴)
