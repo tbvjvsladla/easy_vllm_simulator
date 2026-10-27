@@ -185,11 +185,20 @@ def permission_plan(request: dict) -> dict | None:
     return p if p.get("argv") == expected else None
 
 
-def _permission_task(topology: str, target: dict, nonce: str) -> str:
+def _permission_task(topology: str, target: dict, nonce: str, provider: str) -> str:
     argv = ["python3", "-B", PROBE_REL, "--workspace", target["work_dir"],
             "--topology", topology, "--role", target["role"], "--nonce", nonce]
     plan = {"schema_version": 1, "phase": "permissions", "nonce": nonce,
             "topology": topology, "target": target, "argv": argv}
+    build_outcome = "denied" if topology == "multi" and target["role"] == "sub" else "allowed"
+    enforcement = (
+        "os_enforcement의 protected:*는 denied이고 preserved=true여야 정상 음성대조다. "
+        "이 예상된 차단을 errors나 HITL로 보고하지 마라. "
+        f"이 역할의 buildkit:*는 {build_outcome}이고 preserved=true여야 한다. "
+        if provider == "codex_cli" else
+        "os_enforcement는 OS write-open 관측일 뿐 Claude 도구/managed 정책 집행의 증명이 아니다. "
+        "이 표면만으로 업무 실패나 HITL을 만들지 말고 실제 관측과 미입증 한계를 notes에 남겨라. "
+    )
     return (
         "업무 권한 카나리다. serving 모델·GPU·빌드·sudo·인증변경·원격 git·정책변경을 하지 마라. "
         "이 요청의 native 도구에서 아래 명령을 그대로 정확히 1회 실행하라. "
@@ -199,7 +208,14 @@ def _permission_task(topology: str, target: dict, nonce: str) -> str:
         + shlex.join(argv) + "\n"
         "마지막 응답은 task-report.schema.json에 맞는 JSON 객체 1개다. "
         f"task_id=context_id='harness-canary-{nonce}', turn=1, node_id='{target['role']}', phase='inspect'. "
-        "실제 수행만 self_verification.checks_run에 적고, 미관측/거부는 input-required와 hitl로 보고한다. "
+        "실제 수행만 self_verification.checks_run에 적어라. "
+        "functional 검사는 모두 allowed여야 하며, model_source=ephemeral인 model_asset_read만 "
+        "not_applicable이 정상이다. "
+        + enforcement +
+        "필요한 기능의 거부·미관측 또는 기대 결과 불일치는 input-required와 hitl로 보고한다. "
+        "모든 해당 조건을 만족하면 status=completed, errors=[], hitl.needed=false, "
+        "hitl.blocking=false로 보고하라. 이 제한된 카나리 밖의 build/run·원격 hint 발행·재개가 "
+        "미검증인 것은 notes의 한계이며 그 자체로 추가 승인 요청을 만들지 않는다. "
         "helper stdout은 native 도구 결과에 남긴다. notes의 자기주장만으로 검증을 대신하지 않는다.\n"
         + PLAN_PREFIX + json.dumps(plan, ensure_ascii=False, separators=(",", ":"))
     )
@@ -425,7 +441,7 @@ def build_request(topology: str, manifest_path: str, *,
             raise SystemExit("[canary] FAIL: permissions phase requires explicit --model")
         if provider == "codex_cli" and (sandbox_mode or permission_profile != "vllm-" + target_role):
             raise SystemExit("[canary] FAIL: permissions phase requires the exact named role profile, no legacy sandbox")
-        request["task"] = _permission_task(topology, request["target"], secrets.token_hex(16))
+        request["task"] = _permission_task(topology, request["target"], secrets.token_hex(16), provider)
         request["capabilities"] = ["read", "execute", "edit", "write"]
         if provider == "claude_code":
             request["capture_native_events"] = True
