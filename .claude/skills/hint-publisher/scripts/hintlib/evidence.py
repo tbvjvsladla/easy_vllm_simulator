@@ -581,20 +581,69 @@ def _sweep_doc(repo: Path, directory: Path, binding: str) -> dict | None:
             "binding": binding}
 
 
+def _output_sweeps(repo: Path, topology: str, cell: str | None = None) -> list[dict]:
+    """Read preserved output runs; custom names require the producer's config identity."""
+    base = repo / "output" / topology / "benchlog"
+    docs = []
+    for directory in sorted(base.glob("sweep_*")):
+        if not directory.is_dir() or directory.resolve() != directory.absolute():
+            continue
+        if cell is None or directory.name == f"sweep_{cell}":
+            idx = _read_json_opt(directory / "sweep_index.json", "sweep_index.json")
+        else:
+            idx, _unreadable = _read_json_soft(directory / "sweep_index.json")
+        if not isinstance(idx, dict):
+            continue
+        name = (idx.get("meta") or {}).get("config_name") or idx.get("config")
+        if cell is None:
+            if not isinstance(name, str) or not _CELL_RE.fullmatch(name):
+                continue
+        elif name != cell and not (name is None and directory.name == f"sweep_{cell}"):
+            continue
+        docs.append({"dir": _rel(repo, directory), "index": idx, "generated_utc": idx.get("generated_utc")})
+    return docs
+
+
 def _bind_sweep(repo: Path, topology: str, cell: str, measured_utc: str | None,
-                simlog_dirs=()) -> tuple[dict | None, list[str], str]:
-    """(sweep | None, 결손 코드, 출처 문장). 조인 키 없이 이름만으로 묶지 않는다(모듈 docstring · G6)."""
-    out_dir = repo / "output" / topology / "benchlog" / f"sweep_{cell}"
-    out_doc = _sweep_doc(repo, out_dir, "output") if out_dir.is_dir() else None
+                simlog_dirs=(), *, sweep_dir=None, sweep_config=None,
+                sweep_generated_utc=None) -> tuple[dict | None, list[str], str]:
+    """Bind an official pointer or a unique config/time match, never a name alone."""
+    if sweep_dir is not None:
+        base = repo / "output" / topology / "benchlog"
+        if not isinstance(sweep_generated_utc, str) or not _UTC.fullmatch(sweep_generated_utc):
+            core.fail("HINT_SWEEP_POINTER_INVALID", "measurement.sweep_dir requires its producer sweep_generated_utc")
+        if (not isinstance(sweep_dir, str) or not sweep_dir or Path(sweep_dir).is_absolute()
+                or ".." in Path(sweep_dir).parts):
+            core.fail("HINT_SWEEP_POINTER_INVALID", "measurement.sweep_dir must be a repository-relative output path")
+        directory = repo / sweep_dir
+        if (directory.parent != base or not directory.name.startswith("sweep_")
+                or directory.resolve() != directory.absolute()):
+            core.fail("HINT_SWEEP_POINTER_INVALID", "measurement.sweep_dir escapes the topology benchlog or uses a symlink")
+        doc = _sweep_doc(repo, directory, "output") if directory.is_dir() else None
+        if doc is not None:
+            idx = doc["index"]
+            name = (idx.get("meta") or {}).get("config_name") or idx.get("config")
+            if (name != (sweep_config or cell) or doc["generated_utc"] != sweep_generated_utc
+                    or (measured_utc is not None and doc["generated_utc"] != measured_utc)):
+                core.fail("HINT_SWEEP_POINTER_MISMATCH", "measurement.sweep_dir disagrees with the cell or measurement UTC")
+        out_docs = [doc] if doc is not None else []
+    else:
+        out_docs = _output_sweeps(repo, topology, cell)
     if measured_utc is None:
-        if out_doc is None:
+        if not out_docs:
             return None, [], "스윕 디렉터리 없음(조인 키도 없음 — lite 셀이면 정상)"
-        return None, ["HINT_MISSING_SWEEP"], (f"{out_doc['dir']} 실재하나 조인 키(인증서 measured_utc · 리포트 생성일)가 없어 "
+        return None, ["HINT_MISSING_SWEEP"], (f"{out_docs[0]['dir']} 실재하나 조인 키(인증서 measured_utc · 리포트 생성일)가 없어 "
                                              "묶지 않았다")
-    if out_doc is not None and out_doc["generated_utc"] == measured_utc:
+    matches = [d for d in out_docs if d["generated_utc"] == measured_utc]
+    if len(matches) > 1:
+        core.fail("HINT_SWEEP_AMBIGUOUS", f"same cell and measurement UTC match {len(matches)} output runs")
+    if matches:
+        out_doc = _sweep_doc(repo, repo / matches[0]["dir"], "output")
         return out_doc, [], f"{out_doc['dir']} (generated_utc = measured_utc {measured_utc})"
-    refused = (f"{out_doc['dir']} 의 generated_utc={out_doc['generated_utc']!r} ≠ measured_utc={measured_utc!r} — 다른 측정"
-               if out_doc is not None else f"output/{topology}/benchlog/sweep_{cell} 부재")
+    refused = (f"output/{topology}/benchlog의 셀 {cell} 스윕에 measured_utc={measured_utc!r} 일치가 없음"
+               if out_docs else f"{sweep_dir or f'output/{topology}/benchlog/sweep_{cell}'} 부재")
+    if sweep_dir is not None:
+        return None, ["HINT_MISSING_SWEEP"], f"공식 measurement.sweep_dir를 묶지 않음 — {refused}"
     for sd in simlog_dirs:
         sd = repo / sd
         if sd.is_dir():
@@ -2894,10 +2943,9 @@ def _other_measurements(repo: Path, ev: CellEvidence) -> list[dict]:
         extra = (f" · simlog 사본 generated_utc {gu}{'(같음)' if gu == mu else ' ≠ measured_utc — 기록끼리 어긋남'}" if gu
                  else f" · simlog 사본 {idx_bad}" if idx_bad else "")
         add(mu, node, f"발행 기록 {rid}(셀 대조 {via} · verdict {verdict or '미기재'}){extra}", source, files)
-    sw = ev.sweep or {}
-    out_idx = repo / "output" / ev.topology / "benchlog" / f"sweep_{ev.cell}" / "sweep_index.json"
-    if sw.get("binding") != "output" and out_idx.is_file():
-        doc, _bad = _read_json_soft(out_idx)
+    for output_sweep in _output_sweeps(repo, ev.topology, ev.cell):
+        out_idx = repo / output_sweep["dir"] / "sweep_index.json"
+        doc = output_sweep["index"]
         meta = (doc or {}).get("meta") if isinstance((doc or {}).get("meta"), dict) else {}
         gu = (doc or {}).get("generated_utc")
         sid = {"model": meta.get("model"), "gpu": meta.get("gpu_model"), "topology": meta.get("topology"),
@@ -2905,7 +2953,7 @@ def _other_measurements(repo: Path, ev: CellEvidence) -> list[dict]:
         if isinstance(gu, str) and meta.get("config_name") == ev.cell and lineage.identity_equal(sid, ident):
             rel = _rel(repo, out_idx)
             ln = _json_key_line(out_idx, "generated_utc", gu)
-            add(gu, meta.get("measured_node"), "출력 평면 스윕(이 측정에 묶이지 않음 — 다른 측정이 덮었다)",
+            add(gu, meta.get("measured_node"), "출력 평면에 보존된 같은 셀의 다른 측정",
                 f"{rel}:{ln}" if ln else rel, [(rel, "sweep_json")])
     return [found[k] for k in sorted(found)]
 
@@ -4511,7 +4559,11 @@ def _assemble(repo: Path, ev: CellEvidence, *, measured_key: str | None, simlog_
         #   결손으로 적지도 않는다(측정 형태가 다를 뿐이다 · 그 사실은 BENCH_MODE_LITE 가 말한다).
         ev.sweep, ev.sources["sweep"] = None, "lite 셀(경량 리포트) — 스윕 조인 대상 아님"
     else:
-        ev.sweep, sm, ev.sources["sweep"] = _bind_sweep(repo, ev.topology, ev.cell, measured_key, simlog_dirs)
+        measurement = (ev.cell_status or {}).get("measurement") or {}
+        ev.sweep, sm, ev.sources["sweep"] = _bind_sweep(
+            repo, ev.topology, ev.cell, measured_key, simlog_dirs,
+            sweep_dir=measurement.get("sweep_dir"), sweep_config=measurement.get("sweep_config"),
+            sweep_generated_utc=measurement.get("sweep_generated_utc"))
         missing += sm
     if not ev.certificate and "HINT_MISSING_CERTIFICATE" in missing:
         not_due = _certificate_not_due(repo, ev)
@@ -4667,14 +4719,17 @@ def _release_of(ref) -> str | None:
 
 
 def _tp_signal(repo: Path, topology: str, cell: str, *, cert: dict | None, measured_key: str | None, report_rel: str | None,
-               simlog_dirs=()) -> tuple[int | None, str]:
+               simlog_dirs=(), measurement=None) -> tuple[int | None, str]:
     """노드 축 자동 파생의 입력 — 이 셀의 측정 TP 와 출처. 측정 > 선언: 인증서 tensor_parallel_size > 조인된 스윕 meta(generated_utc =
     측정 키) > 리포트 측정 환경 표 > 서빙 yaml(선언 · 측정 기록이 TP 를 들지 않을 때만 · 출처에 그렇게 적는다)."""
     tp = _as_int(_norm_value((cert or {}).get("tensor_parallel_size")))
     if tp is not None:
         return tp, "인증서 tensor_parallel_size"
     if measured_key:
-        sw, _m, _s = _bind_sweep(repo, topology, cell, measured_key, simlog_dirs)
+        measurement = measurement or {}
+        sw, _m, _s = _bind_sweep(repo, topology, cell, measured_key, simlog_dirs,
+                                sweep_dir=measurement.get("sweep_dir"), sweep_config=measurement.get("sweep_config"),
+                                sweep_generated_utc=measurement.get("sweep_generated_utc"))
         meta = ((sw or {}).get("index") or {}).get("meta") or {}
         tp = _as_int(_norm_value(meta.get("tensor_parallel_size")))
         if tp is not None:
@@ -4692,7 +4747,7 @@ def _tp_signal(repo: Path, topology: str, cell: str, *, cert: dict | None, measu
 
 
 def _auto_node(repo: Path, topology: str, cell: str, *, cert: dict | None, measured_key: str | None, report_rel: str | None,
-               simlog_dirs=()) -> tuple[str | None, str]:
+               simlog_dirs=(), measurement=None) -> tuple[str | None, str]:
     """`--node` 미지정일 때 **cluster** 축 자동 파생(2026-09-29 · plan_26092908 §4.8 · V11 ③ — 멀티 셀 3/3 이 `--node cluster` 를 손으로
     줬다: 인증서 없는 REFUTE·lite 셀은 measured_node 가 없어 배정(main)으로 떨어지고 TP=2 측정이 HINT_ARCH_TP_CONFLICT 로 막혔다).
     신호: ① 측정 TP > manifest gpus_per_node(한 노드가 가진 GPU 보다 큰 TP 는 단일 노드 형상일 수 없다) ② 멀티 serve proof
@@ -4702,7 +4757,7 @@ def _auto_node(repo: Path, topology: str, cell: str, *, cert: dict | None, measu
     if topology != "multi":
         return None, f"topology={topology} — cluster 자동 파생 대상 아님"
     tp, tp_src = _tp_signal(repo, topology, cell, cert=cert, measured_key=measured_key, report_rel=report_rel,
-                            simlog_dirs=simlog_dirs)
+                            simlog_dirs=simlog_dirs, measurement=measurement)
     man, man_src = _manifest(repo, topology)
     gpn = _as_int((man or {}).get("gpus_per_node"))
     sp, sp_rel = _serve_proof(repo, topology, cell)
@@ -4845,7 +4900,8 @@ def from_campaign(repo, campaign_id, cell, node=None, *, docker=None) -> CellEvi
                       and (repo / p["path"]).is_file()})
         pre_rel = pre[0] if len(pre) == 1 else _report_twin(cert_rel)
         auto = _auto_node(repo, topology, cell, cert=cert, report_rel=pre_rel,
-                          measured_key=_norm_value((cert or {}).get("measured_utc")) or _report_born_utc(repo, pre_rel))
+                          measured_key=_norm_value((cert or {}).get("measured_utc")) or _report_born_utc(repo, pre_rel),
+                          measurement=(status.get("measurement") if isinstance(status, dict) else None))
     node, sources["node"] = _resolve_node(node, measured=(cert or {}).get("measured_node"), topology=topology,
                                           assigned=assigned, declared=declared, cert_node_source="인증서", auto=auto)
     pointers = sorted((p for p in cell_ptrs if _pointer_ok(p, node, declared, val)),
@@ -4979,14 +5035,13 @@ def _cell_of_publication(repo: Path, topology: str, measured_key: str | None, si
                 return name, f"{sd}/sweep_index.json meta.config_name(발행 기록의 simlog 사본)"
     if measured_key:
         hits = []
-        for idx_path in sorted((repo / "output" / topology / "benchlog").glob("sweep_*/sweep_index.json")):
-            idx = _read_json_opt(idx_path, "sweep_index.json")
-            if isinstance(idx, dict) and idx.get("generated_utc") == measured_key:
+        for output_sweep in _output_sweeps(repo, topology):
+            idx = output_sweep["index"]
+            if idx.get("generated_utc") == measured_key:
                 name = (idx.get("meta") or {}).get("config_name") or idx.get("config")
-                if isinstance(name, str) and idx_path.parent.name == f"sweep_{name}":
-                    hits.append(name)
+                hits.append((name, output_sweep["dir"]))
         if len(hits) == 1:
-            return hits[0], f"output/{topology}/benchlog/sweep_{hits[0]}(generated_utc = measured_utc {measured_key})"
+            return hits[0][0], f"{hits[0][1]}(generated_utc = measured_utc {measured_key})"
         if len(hits) > 1:
             core.fail("HINT_CELL_AMBIGUOUS", f"measured_utc={measured_key} 인 스윕이 {len(hits)}개다: {hits}")
         # lite-only 셀(2026-09-29 · plan_26092908 §4.8 재생 — D2 `nv4-f8-262k-mmp` 가 purge 뒤 재생 불가였다): 스윕이 없고 발행 기록에
@@ -8474,6 +8529,67 @@ def selftest() -> list[str]:
     def ck(name: str, cond) -> None:
         if not cond:
             bad.append(f"evidence: {name}")
+
+    # Preserved runs: fixture identities/times, not benchmark measurements.
+    with tempfile.TemporaryDirectory() as td:
+        repo = Path(td)
+        base = repo / "output/single/benchlog"
+        old = base / "sweep_cell-a"
+        fresh = base / "sweep_cell-a_fresh"
+        old.mkdir(parents=True)
+        fresh.mkdir()
+        old_utc, fresh_utc = "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z"
+        for path, utc in ((old, old_utc), (fresh, fresh_utc)):
+            (path / "sweep_index.json").write_text(json.dumps({
+                "generated_utc": utc, "meta": {"config_name": "cell-a", "tensor_parallel_size": 1}, "levels": []}))
+        old_bytes = (old / "sweep_index.json").read_bytes()
+        fresh_rel = fresh.relative_to(repo).as_posix()
+        got, missing, _ = _bind_sweep(repo, "single", "cell-a", fresh_utc, sweep_generated_utc=fresh_utc, sweep_dir=fresh_rel)
+        ck("fresh output pointer binds the matching run", got["dir"] == fresh_rel and not missing)
+        got, missing, _ = _bind_sweep(repo, "single", "cell-a", fresh_utc)
+        ck("replay finds the preserved custom run by config and UTC", got["dir"] == fresh_rel and not missing)
+        ck("publication cell comes from custom run metadata",
+           _cell_of_publication(repo, "single", fresh_utc, ())[0] == "cell-a")
+        ck("old sweep bytes and original path survive reads", (old / "sweep_index.json").read_bytes() == old_bytes)
+        ck("legacy measured UTC still binds the old run",
+           _bind_sweep(repo, "single", "cell-a", old_utc)[0]["dir"] == old.relative_to(repo).as_posix())
+        ck("explicit stale pointer cannot silently select a different run",
+           _code(_bind_sweep, repo, "single", "cell-a", fresh_utc,
+                 sweep_generated_utc=fresh_utc, sweep_dir=old.relative_to(repo).as_posix()) == "HINT_SWEEP_POINTER_MISMATCH")
+        ck("explicit wrong cell pointer is rejected",
+           _code(_bind_sweep, repo, "single", "cell-b", fresh_utc,
+                 sweep_generated_utc=fresh_utc, sweep_dir=fresh_rel) == "HINT_SWEEP_POINTER_MISMATCH")
+        ck("official sweep config permits a distinct campaign cell identifier",
+           _bind_sweep(repo, "single", "campaign-cell", fresh_utc,
+                       sweep_generated_utc=fresh_utc, sweep_dir=fresh_rel, sweep_config="cell-a")[0]["dir"] == fresh_rel)
+        ck("explicit missing pointer does not fall back to a matching run",
+           _bind_sweep(repo, "single", "cell-a", fresh_utc,
+                       sweep_generated_utc=fresh_utc, sweep_dir="output/single/benchlog/sweep_missing")[0] is None)
+        for wrong in (str(fresh), "output/multi/benchlog/sweep_cell-a", "output/single/benchlog/../sweep_cell-a"):
+            ck("unsafe output pointer rejected: " + wrong,
+               _code(_bind_sweep, repo, "single", "cell-a", fresh_utc,
+                     sweep_generated_utc=fresh_utc, sweep_dir=wrong) == "HINT_SWEEP_POINTER_INVALID")
+        alias = base / "sweep_alias"
+        alias.symlink_to(fresh, target_is_directory=True)
+        ck("symlink pointer rejected", _code(_bind_sweep, repo, "single", "cell-a", fresh_utc,
+           sweep_generated_utc=fresh_utc, sweep_dir=alias.relative_to(repo).as_posix()) == "HINT_SWEEP_POINTER_INVALID")
+        duplicate = base / "sweep_cell-a_duplicate"
+        duplicate.mkdir()
+        (duplicate / "sweep_index.json").write_bytes((fresh / "sweep_index.json").read_bytes())
+        ck("ambiguous replay does not choose a run",
+           _code(_bind_sweep, repo, "single", "cell-a", fresh_utc) == "HINT_SWEEP_AMBIGUOUS")
+        ck("official exact pointer disambiguates the preserved runs",
+           _bind_sweep(repo, "single", "cell-a", fresh_utc, sweep_generated_utc=fresh_utc, sweep_dir=fresh_rel)[0]["dir"] == fresh_rel)
+        ck("writer UTC cannot be replaced by a later matching index and report",
+           _code(_bind_sweep, repo, "single", "cell-a", fresh_utc,
+                 sweep_dir=fresh_rel, sweep_generated_utc=old_utc) == "HINT_SWEEP_POINTER_MISMATCH")
+        ck("explicit pointer requires the producer UTC",
+           _code(_bind_sweep, repo, "single", "cell-a", fresh_utc,
+                 sweep_dir=fresh_rel) == "HINT_SWEEP_POINTER_INVALID")
+        ck("TP discovery honors the exact pointer despite duplicate candidates",
+           _tp_signal(repo, "single", "cell-a", cert=None, measured_key=fresh_utc, report_rel=None,
+                      measurement={"sweep_dir": fresh_rel, "sweep_config": "cell-a",
+                                   "sweep_generated_utc": fresh_utc})[0] == 1)
 
     # ★ 스트림 교차 창 상한(2026-10-16 · plan_26101614 P12 사실 검증 F3/F4): 워치독 스트림은 A 창을 연 채이고 월 원장이 B 로 교체했다 —
     #   교체 뒤의 라벨 없는 hold 는 A 창이 아니다 · 열린 창의 끝은 지어 넣지 않는다 · 같은 라벨 재선언은 자르지 않는다.

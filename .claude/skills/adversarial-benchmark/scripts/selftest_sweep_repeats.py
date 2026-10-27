@@ -50,6 +50,8 @@
   B5★ 같은 상태 파일의 status·map(읽기 경로)은 막히지 않는다 — 반복 수는 absent 로 기재
   B6★ broad_search 에 노드 간 허용오차 짝이 맞지 않거나 정수가 아니다 → 셀 진입 전 exit 2(측정·--serve-failed 둘 다 · 셀 기록 0)
   B8★ lite ② 셀 → 사유 lite_server_failed · lite_verdict · 이전 스윕 index 값 비적재(2026-09-29)
+  O1~O6★ 명시 새 sweep 경로 — 읽기 전용 check/dry-run · 기존 원시 보존 · broad/judge/셀 포인터 배선 ·
+      기존/탈출/중첩/symlink 거부 · 재조립 시각 승계 · 동시 mkdir claim은 한 호출만 성공
   B7★ broad_search --serve-failed 셀 종결(single · self_role 없는 manifest) → 대조 노드는 소유자 규칙으로 선 이 노드(main) ·
       구간 안 사살 → 사인 = 이벤트(노드 계획 불성립으로 not-scanned 에 접히지 않는다)
   M1★ multi 배선 끝-끝(sweep_bench --topology multi · meta.measured_node=cluster · --manifest · node_role_contract):
@@ -72,6 +74,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[4]
@@ -693,6 +696,84 @@ def main() -> int:
            stop.get("runs_attempted") == 3 and stop.get("repeats_mismatch") == []
            and (stop.get("declared_budget") or {}).get("repeats") == 3, stop)
 
+        # ── O 새 출력 경로: 이전 측정의 바이트와 경로를 보존한다 ────────────────────────────
+        old_dir = sb.sweep_dir("cfg-ba")
+
+        def tree_bytes(path):
+            return {str(p.relative_to(path)): (p.read_bytes(), p.stat().st_mtime_ns)
+                    for p in path.rglob("*") if p.is_file()}
+
+        old_tree = tree_bytes(old_dir)
+        fresh = old_dir.with_name("sweep_cfg-ba_fresh")
+        cp_check = sb.run(["bash", str(sb.sdir / "sweep_bench.sh"), "cfg-ba", "--topology", "single",
+                           "--sweep-dir", str(fresh.relative_to(sb.root)), "--check-sweep-dir"])
+        cp_dry = sb.sweep("cfg-ba", "--sweep-dir", str(fresh), "--dry-run", levels="1")
+        ck("O1 명시 경로 check/dry-run은 출력 디렉터리를 만들지 않고 이전 측정을 보존",
+           cp_check.returncode == 0 and cp_check.stdout.strip() == str(fresh)
+           and cp_dry.returncode == 0 and not fresh.exists() and tree_bytes(old_dir) == old_tree,
+           (cp_check.returncode, cp_dry.returncode, cp_dry.stderr[-400:]))
+
+        sb.reset_calls()
+        cp = cell("cell-a", "cfg-ba", {"tpot": {"1": [25.0, 25.5, 24.5]}},
+                  "--sweep-dir", str(fresh.relative_to(sb.root)))
+        fresh_idx = sb.load(fresh / "sweep_index.json") or {}
+        fresh_mode = sb.load(fresh / "bench_mode.json") or {}
+        fresh_rec = record("cell-a")
+        ck("O2 broad→sweep→judge는 새 경로만 사용하고 기존 원시 바이트·mtime을 보존",
+           cp.returncode == 0 and tree_bytes(old_dir) == old_tree
+           and len([c for c in sb.calls() if "level=" in c]) == 3
+           and (fresh / "verdict.json").is_file() and (fresh / "roofline.json").is_file()
+           and (fresh / "level_01/run_03/measured.json").is_file()
+           and (fresh_idx.get("meta") or {}).get("config_name") == "cfg-ba"
+           and fresh_mode.get("sweep_index_generated_utc") == fresh_idx.get("generated_utc"),
+           (cp.returncode, sb.calls(), cp.stderr[-600:]))
+        ck("O2 공식 sweep 셀 기록은 새 repo-relative 경로와 실제 generated_utc를 운반",
+           fresh_rec.get("sweep_dir") == str(fresh.relative_to(sb.root))
+           and fresh_rec.get("sweep_generated_utc") == fresh_idx.get("generated_utc")
+           and bool(fresh_idx.get("generated_utc")), fresh_rec)
+
+        before_reject = tree_bytes(fresh)
+        state_before = state.read_bytes()
+        stop_path = state.with_suffix(".stop.json")
+        stop_before = stop_path.read_bytes()
+        sb.reset_calls()
+        cp = cell("cell-a", "cfg-ba", {}, "--sweep-dir", str(fresh))
+        ck("O3 기존 명시 경로는 부하·stop sidecar·셀 기록 전 거부하고 모든 원시를 보존",
+           cp.returncode == 2 and not sb.calls() and state.read_bytes() == state_before
+           and stop_path.read_bytes() == stop_before and tree_bytes(fresh) == before_reject
+           and tree_bytes(old_dir) == old_tree, (cp.returncode, cp.stderr[-400:]))
+
+        for label, bad in (("escape", sb.root / "docs/sweep_bad"),
+                           ("nested", old_dir / "sweep_bad"),
+                           ("parent-traversal", fresh.parent / ".." / "benchlog" / "sweep_bad")):
+            cp = sb.run(["bash", str(sb.sdir / "sweep_bench.sh"), "cfg-ba", "--topology", "single",
+                         "--sweep-dir", str(bad), "--check-sweep-dir"])
+            ck("O4 경로 %s 거부 · 부하 없음" % label, cp.returncode == 2 and not sb.calls(), cp.stderr[-300:])
+        link = fresh.with_name("sweep_link")
+        link.symlink_to(old_dir, target_is_directory=True)
+        cp = sb.run(["bash", str(sb.sdir / "sweep_bench.sh"), "cfg-ba", "--topology", "single",
+                     "--sweep-dir", str(link), "--check-sweep-dir", "--reassemble-only"])
+        ck("O4 재조립도 symlink 출력은 거부", cp.returncode == 2 and tree_bytes(old_dir) == old_tree,
+           cp.stderr[-300:])
+
+        sb.reset_calls()
+        cp = sb.run(["bash", str(sb.sdir / "sweep_bench.sh"), "cfg-ba", "--topology", "single",
+                     "--sweep-dir", str(fresh), "--reassemble-only"])
+        ck("O5 명시 경로 재조립은 부하0·측정시각 승계·기존 다른 경로 불변",
+           cp.returncode == 0 and not sb.calls() and tree_bytes(old_dir) == old_tree
+           and (sb.load(fresh / "sweep_index.json") or {}).get("generated_utc") == fresh_idx.get("generated_utc"),
+           (cp.returncode, cp.stderr[-400:]))
+
+        race = fresh.with_name("sweep_cfg-ba_race")
+        race_args = ["bash", str(sb.sdir / "sweep_bench.sh"), "cfg-ba", "--topology", "single",
+                     "--sweep-dir", str(race), "--tool", "guidellm", "--bench-budget-mib", "4096",
+                     "--backend", "openai", *KR, "--levels", "1", *KR_LV]
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            raced = list(pool.map(lambda _: sb.run(race_args), range(2)))
+        ck("O6 같은 새 경로 경합은 mkdir로 하나만 획득 · 다른 호출 rc2 · 기존 경로 보존",
+           sorted(r.returncode for r in raced) == [0, 2] and tree_bytes(old_dir) == old_tree,
+           [(r.returncode, r.stderr[-200:]) for r in raced])
+
         cp = cell("cell-b", "cfg-bb", {"fail": {"1:2": "kill"}})
         rec = record("cell-b")
         ck("B3★ shim 이 run 2 에 사살 이벤트를 남기고 죽는다 → 셀 기록 lite · blackbox_kill(events 출처)",
@@ -859,7 +940,7 @@ def main() -> int:
     if failures:
         print("[selftest_sweep_repeats] FAIL %d건: %s" % (len(failures), failures), file=sys.stderr)
         return 1
-    print("[selftest_sweep_repeats] PASS — N1~N8 · P1~P3 · R1 · G(lite 게이트 5) · F1~F8 · V1 · A1~A4 · B1~B8 · M1~M2 · R★(실패주입·음성대조 포함)")
+    print("[selftest_sweep_repeats] PASS — N1~N8 · P1~P3 · R1 · G(lite 게이트 5) · F1~F8 · V1 · A1~A4 · B1~B8 · O1~O6 · M1~M2 · R★(실패주입·음성대조 포함)")
     return 0
 
 

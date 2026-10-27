@@ -15,7 +15,7 @@
   Claude Code/claude-sub와 Codex는 같은 역할·업무·승인 계약을 따르되 도구 승인·OS sandbox는 다른 집행 표면이다.
   실제 호출 옵션이 정본이며 과거 문서의 permission mode 예제를 현재 실행으로 간주하지 않는다.
   권한 부족은 `input-required` 리포트로 돌린다. 셸 래퍼·다른 provider·권한 완화로 우회하지 않는다.
-- **HTTP(health 폴링·스모크)는 python urllib 로** 한다 — `curl`/`wget` 은 allowlist deny. 대기는 python `time.sleep`.
+- **직접 작성하는 HTTP health·스모크 점검은 python urllib 로** 한다. 직접 `curl`/`wget` 호출의 deny는 유지한다. 승인된 정본 서빙·벤치 스크립트가 선언된 서비스 endpoint에 수행하는 내부 health·metrics·추론 HTTP 호출은 그 업무의 구현으로 허용한다. 임의 래퍼·다운로드·endpoint 변경으로 제한을 우회하지 않으며, 실제 도구 거부는 그대로 보고한다. 직접 작성하는 대기는 python `time.sleep`을 사용한다.
 - 서브 → 메인: stdout 으로 **task-report.schema.json 에 맞는 JSON 1개**. raw 로그 금지.
 - 코드/정본 전달은 별개 평면: 메인이 `sync_to_sub.sh`(rsync)로 push. 너는 정본을 받기만 한다.
 
@@ -56,7 +56,7 @@
   `WebFetch`)가 열려 있다. 검색했으면 **반드시** 리포트의 `external_search[]` 에 `query`·`sources`·
   `finding`·`used_for`·`accepted` 를 남겨라 — 인용 없는 결정은 거짓이 아니라 **누락**이고(불변식 B),
   그 기록이 메인의 자산이 된다. 웹은 *바깥* 지식이고 도서관은 *이 프로젝트가 쌓은* 지식이다 —
-  둘을 섞지 마라. `curl`/`wget` 은 여전히 금지다(다른 평면).
+  둘을 섞지 마라. 외부 자료 획득을 위한 직접 `curl`/`wget` 호출과 임의 래퍼 우회는 금지다(위 §전송의 정본 서비스 점검과 다른 평면).
 <!-- /MODE:a2a-agent -->
 
 ## 도서관 — 메인 서고를 직접 조회·입고한다 (헌법 불변식 B · policy:LIBRARY_GROUNDING_FAIL_CLOSED C5·C6)
@@ -96,7 +96,7 @@ node .claude/skills/wiki-desk/src/cli.ts sync --apply                           
 <!-- MODE:a2a-agent -->
 | config | 지정 모델 3종(.yaml+.sh+.env)을 **vllm-recipe-explorer 결정론 엔진으로 자율 생성** + config-parse OK(+ 가능 시 로컬 스모크 응답). |
 | build | `docker compose --profile debug build` 성공(메인 빌드 독립 재현). |
-| serve | **독립서빙(T3 검증 — 0.23.0 E2E)**: `--profile serve up -d`(env export: NAS_MODEL_PATH·TIKTOKEN_HOST_PATH·CONFIG_FILE·SERVING_PORT) → `:PORT/health` http200 폴링(**python urllib — curl deny**) → 로컬 functional smoke(완성/reasoning, finish=stop). "startup complete" 로그는 거짓양성. |
+| serve | **독립서빙(T3 검증 — 0.23.0 E2E)**: `--profile serve up -d`(env export: NAS_MODEL_PATH·TIKTOKEN_HOST_PATH·CONFIG_FILE·SERVING_PORT) → `:PORT/health` http200 폴링(정본 스크립트 내부 호출 또는 직접 점검 시 python urllib — §전송) → 로컬 functional smoke(완성/reasoning, finish=stop). "startup complete" 로그는 거짓양성. |
 <!-- /MODE:a2a-agent -->
 <!-- MODE:ray-worker -->
 | config | 저작하지 않는다 — 받은 빌드킷과 주입된 env 로 합류만 한다(트리플렛은 서브로 전파되지 않는다). |
@@ -105,7 +105,7 @@ node .claude/skills/wiki-desk/src/cli.ts sync --apply                           
 <!-- /MODE:ray-worker -->
 
 ## Message 타입
-- **instruction**(메인→서브): 수행할 Task(phase + per-task 값: 모델명·VRAM 예산·NAS 모델 서브디렉토리). **single 서빙 태스크**면 추가 슬롯: max_model_len·served_model_name·SERVING_PORT·reasoning_parser. 운영 절차(env export·detached up·health200 python·reasoning max_tokens)는 §phase serve 술어(single 분기)에 있으니 매번 재기술 불요. **신규 vLLM build-job**은 승인된 패킷과 manifest/Flag/topology 준비성이 모두 확인된 경우에만 전파한다.
+- **instruction**(메인→서브): 수행할 Task(phase + per-task 값: 모델명·VRAM 예산·NAS 모델 서브디렉토리). **single 서빙 태스크**면 추가 슬롯: max_model_len·served_model_name·SERVING_PORT·reasoning_parser. 운영 절차(env export·detached up·health200·reasoning max_tokens)는 §phase serve 술어(single 분기)에 있으니 매번 재기술 불요. **신규 vLLM build-job**은 승인된 패킷과 manifest/Flag/topology 준비성이 모두 확인된 경우에만 전파한다.
 - **feedback**(메인→서브): "여기가 틀렸으니 이렇게 고쳐". 너는 **직접 고쳐** 다음 턴에 재-attest(자기교정).
 - **report**(서브→메인): task-report.schema.json JSON 1개.
 
