@@ -15,7 +15,7 @@ producer 는 0 이었다. 이제 바이트를 쓰는 문은 하나이고, 그 �
 | `cells/<cell>/{config.yaml,lockset.json,cell.status.json}` 생성 | 셀 착수 전(서빙된 셀이면 발행 전) | 동 `--cell-materialize <cell> [--set K=V…] --utc` | 셀을 맡은 노드(메인 · single 서브 모두) — 파생값은 서빙 yaml·env·manifest·`/proc/meminfo`, 선언 축은 `--set`(닫힌 목록 · 요구 없음 = `K=null`) · 빈칸이 남거나 이미 있으면 거부(2026-10-16 · plan_26101622 F1: 서브 hint 2건이 이 단계 없이 셀 입력 결손 3건을 안고 발행됐다) |
 | `cells/<cell>/cell.status.json` + `journey.jsonl` | 셀 트랜잭션 종료 | 동 `--cell-set` | `adversarial-benchmark` `broad_search.sh cell`(sweep 레코드를 쓴 **같은 트랜잭션** · 이번 셀 lite raw 를 `--lite-raw` 로) |
 | `cells/<cell>/cell.status.json#reentry.decision` + 여정 | lite ② 재발동 제안에 사람이 답한 직후 | 동 `--reentry-decide` | 사람 승인 인자 필수(`--approved-by` 발화 전사) · 제안 없는 셀은 거부 |
-| `evidence_pointers.json` | 증거 발행 직후 | 동 `--evidence-add` | `publish_benchmark_record.py`(인증서 발행 지점) · 리포트·testlog·devlog 발행자 |
+| `evidence_pointers.json` | 증거 발행 직후 | 동 `--evidence-add` | `publish_benchmark_record.py`(인증서 발행 지점) · 리포트·로컬 실행계획·testlog·devlog 발행자 |
 | `campaign.yaml.revisions[]` | layer-1 개정 | 동 `--revise` | 사람 승인 인자 필수 · **메인 단일 창구**(서브는 릴레이로 요청만) |
 | `campaign.yaml.assignments` + `assignment_revisions[]` | 배정 변경(셀 추가·은퇴·순서·mode) | 동 `--assign-set <node>` · 서브 `--slice-update -` | 사람 승인 4필드(`--assign-reason`·`--assign-evidence`·`--assign-approved-by`·`--utc`) · **pending 셀만**(돌았거나 도는 셀 · hint 승인 셀은 거부) · 다른 노드 셀 = 이중 배정 거부(이동 = 제거+추가) · 서브 몫은 `relay.py --campaign-control reslice`(2026-10-17 · plan_26101722 K8) |
 | `grounding/<utc>.json` | 캠페인 착수·셀 축 변경 | 동 `--ground` | 서빙·트라이얼 진입 백스톱이 이 파일을 요구한다(`policy:LIBRARY_GROUNDING_FAIL_CLOSED`) |
@@ -30,3 +30,15 @@ producer 는 0 이었다. 이제 바이트를 쓰는 문은 하나이고, 그 �
   착수**하고 **반증된 축을 재시도하지 않는 것**이다.
 - **여정 한 줄(`--next-intent`)은 새 절차가 아니라 이미 도는 자동쓰기에 얹은 인자 하나다.** 감수하지
   말아야 할 유실은 여정 하나이며, 벤치 결과·3+1+1 산출물은 결손 기재로 복원된다.
+
+### 위임된 계획 권위와 로컬 실행계획
+
+서브 선언의 `campaign.yaml.plan_ref`는 메인에서 승인·선언한 계획을 그대로 가리킨다. 서브에 그 파일이
+배포되지 않아도 위임은 유효하다. hint용 서사를 채우려고 메인 계획을 복사하거나 `plan_ref`를 바꾸지 않는다.
+서브는 배정된 셀의 기존 승인 범위 안에서 **자기가 수행할 절차와 근거**를 `docs/plan/`에 작성하고,
+공식 writer로 `--evidence-add --kind plan --path docs/plan/<문서>.md --cell <셀> --node <서브> --campaign-id <id>`를
+등록한다. 이 포인터는 로컬 실행 서사이며, 새 승인이나 `hint_targets`·배정·통제변인 개정의 근거를 만들어내지 않는다.
+
+`--write-brief`와 문서 회수는 이 포인터의 셀·노드 귀속을 유지한다. hint 발행기는 실재하는 계획 후보가
+하나여야 진행한다. 로컬 `plan_ref` 파일이 없고 로컬 실행계획 포인터만 있으면 후자를 쓰며, 둘 다 실재하면
+기존 모호성 오류를 유지한다(발행기가 임의로 선택하지 않는다). 로컬 실행계획까지 없으면 서사 결손이다.
