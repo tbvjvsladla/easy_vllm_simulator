@@ -1953,6 +1953,155 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261027-single-to-multi-terraform-permissions-3b0da2d",
+      "utc": "2026-10-27T06:02:41Z",
+      "departure": "single-node",
+      "departure_commit": "3b0da2d8fcb64d553518a5e31a431e12bb496bb5",
+      "approved_by": "user: 이너 하네스 agnostic 작업 후 서브노드 및 싱글노드·멀티노드 브랜치 전파 지시",
+      "approved_utc": "2026-10-26T20:04:48Z",
+      "_execution_note": "기존 사용자 공통층·양브랜치 전파 승인과 현재 3b0da2d 공통23파일 전파 지시에 따라 target 원장 append/commit→공식 dry-run 검토→apply→집중3suite→commit·착지검증·임시worktree회수를 수행한다. 새 승인을 만들지 않으며 source HEAD/index와 기존3worktree를 보존한다. source push·SSH·GPU·모델·sudo·호스트 변경·서브 전환은 하지 않는다.",
+      "classification": [
+        {
+          "file": ".claude/policies/base_skill_edges.json",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/verify_distribution.py",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/schemas/agent-control-request.schema.json",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/schemas/agent-control-result.schema.json",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/harness_environment.md",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/onboarding.md",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/sub_agent_env.md",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/orchestration/agent-control-adapter.md",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/agent_control.py",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/bootstrap_canary.py",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/check_sub_hint_equip.py",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/harness_permission_probe.py",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/providers/claude_code.py",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/selftest_bootstrap_permissions.py",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/selftest_claude_native_events.py",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/selftest_sub_hint_write_scopes.py",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/codex.config.template.toml",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/comms.md",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/templates/requests/codex_linux_sandbox.md",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".codex/config.toml",
+          "verdict": "common_promote",
+          "reason": "공통 terraforming 하네스의 실제 도구 회신·업무권한 카나리, 명시적 single 외부 hint 쓰기 스코프, 승인된 Linux 환경정비 요청과 배달 폐포를 반영한다. 도메인 역할·기존 승인·실측 완료판정은 유지하고 특화층은 전파하지 않는다.",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
