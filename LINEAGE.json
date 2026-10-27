@@ -1,0 +1,133 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26102401",
+      "depth": 1,
+      "excerpts": 1,
+      "path": "docs/plan/plan_26102401_4모델_싱글멀티_최대context_양자화_기동검증.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102412",
+      "depth": 2,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26102412_gemma26b_싱글_262k_기동_근접추론_lite_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102418",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102418_4모델_싱글멀티_연속캠페인_결과요약_종결.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102420",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102420_PLE_mmap_재이식_full벤치_hint_Solar_슬롯화.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102504",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102504_S5_full벤치_5셀_GuideLLM_판정_및_하네스_결함.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102504",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26102504_PLE_mmap_재이식_full벤치_hint발행_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102509",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102509_gemma-4-26b-a4b-it_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26102700",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102700_코덱스_싱글8종_멀티4종_실측.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102711",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102711_gemma26b_ctx_single_코덱스_메인_Full_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102711",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26102711_gemma26b_ctx_single_코덱스_메인_Full_여정.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102711",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102711_gemma-4-26b-a4b-it_GB10_0.31.0.md",
+      "role": "bench_report"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [
+      {
+        "excerpts": 1,
+        "path": "docs/simlog/2026102406_2_gemma4-26b-a4b-262k/run_summary.json"
+      },
+      {
+        "excerpts": 1,
+        "path": "docs/simlog/2026102406_2_gemma4-26b-a4b-262k/trial01_memwatch.log"
+      }
+    ],
+    "count": 230
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 경로(발췌 머리 stem = 파일명) · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26102718",
+  "schema_version": 3,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26102711_gemma-4-26b-a4b-it_GB10_0.31.0.md",
+      "sha256": "b396afdbdd679bd7fd2252f465b1af3adb9bf6e8f1591b32fd5900941464a971"
+    },
+    {
+      "path": "docs/logs/main/events/2026-10.jsonl",
+      "sha256": "047a9352030f7ced89b38b813328a1c85952e4235004871d2011794b88bdba53"
+    },
+    {
+      "path": "docs/plan/plan_26102401_4모델_싱글멀티_최대context_양자화_기동검증.md",
+      "sha256": "c1708fe0f296f68f7b98822c500dfebe41cb6176f4d51c10197c8f686c3431b6"
+    },
+    {
+      "path": "docs/simlog/2026102406_2_gemma4-26b-a4b-262k/run_summary.json",
+      "sha256": "f6484bab133bc0d9e1a85f296b09b37dae53fcb74208c6e60071195200f737b5"
+    },
+    {
+      "path": "docs/simlog/2026102406_2_gemma4-26b-a4b-262k/trial01_memwatch.log",
+      "sha256": "ff12d815e01ee8d3e0e972f78f1865de15d8c249531352d40dc9697cc4e28391"
+    },
+    {
+      "path": "docs/testlog/testlog_26102412_gemma26b_싱글_262k_기동_근접추론_lite_판정.md",
+      "sha256": "982aca73bd64b9954ff8a5c7189f8e594996208f21abea61d42d53e8c6b7848f"
+    },
+    {
+      "path": "docs/testlog/testlog_26102711_gemma26b_ctx_single_코덱스_메인_Full_판정.md",
+      "sha256": "54b0e39d473971686d44901da6cd831c125d1df2227454cd27acacc43104898c"
+    },
+    {
+      "path": "output/single/benchlog/serve_fail_gemma26b-ctx-single/engine_timeout_20261023T220342Z.log",
+      "sha256": "0baf8f5fbc251924b13a8e2d195733489580191d8d455f94914c35e8289ce08e"
+    }
+  ]
+}
