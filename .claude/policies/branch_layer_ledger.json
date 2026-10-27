@@ -2119,6 +2119,71 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261027-single-to-multi-first-cell-contract-317bae8",
+      "utc": "2026-10-27T07:23:30Z",
+      "departure": "single-node",
+      "departure_commit": "317bae8db93631f8e472743c6b8075dffe114605",
+      "approved_by": "user: 이너 하네스 agnostic 작업 후 서브노드 및 싱글노드·멀티노드 브랜치 전파 지시",
+      "approved_utc": "2026-10-26T20:04:48Z",
+      "_execution_note": "기존 사용자 공통층·양브랜치 전파 승인과 현재 317bae8 공통9파일 전파 지시를 재사용한다. target 원장 append/commit, 공식 dry-run 검토/apply, 집중 회귀검사, commit·착지검증·소유 worktree 회수만 수행한다. source HEAD/index와 기존3worktree 및 특화층을 보존하며 원격 push·SSH·GPU·native·sudo·서브 역할 전환은 수행하지 않는다.",
+      "classification": [
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
+          "verdict": "common_promote",
+          "reason": "공식 셀 실행기의 선택한 새 계측 경로와 생성시각을 상태 원장에 운반해 양 토폴로지에서 기존 raw 보존 및 증거 조인을 성립시킨다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_precheck.py",
+          "verdict": "common_promote",
+          "reason": "셀 기록 fixture에 실제 계약이 요구하는 구성과 생성시각을 명시해 공통 provenance precheck 회귀를 검증한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_repeats.py",
+          "verdict": "common_promote",
+          "reason": "새 경로 검증·원자적 점유·기존 raw 보존·출력 전달·기존 기본값 호환을 외부 자원 없는 공통 회귀로 검증한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
+          "verdict": "common_promote",
+          "reason": "출력 통로를 토폴로지별 benchlog로 제한한 선택적 fresh sweep 경로와 원자적 점유를 제공하며 기본 동작을 보존한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/evidence.py",
+          "verdict": "common_promote",
+          "reason": "공식 writer가 운반한 계측 경로·구성·UTC로 hint 증거를 결속하고 불일치·모호한 대체 조인을 거부하는 공통 검증이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/orchestration/a2a_relay.md",
+          "verdict": "common_promote",
+          "reason": "서브 A2A 피드백은 공식 수집·인입 경로를 사용하고 메인 소유·권한 경계를 보존하도록 provider 독립 계약을 바로잡는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "verdict": "common_promote",
+          "reason": "공식 sweep 상태의 계측 경로·구성·UTC를 검증 후 셀 증거로 운반하여 기존 실행·import·hint 전환의 provenance 계약을 유지한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/CLAUDE.template.md",
+          "verdict": "common_promote",
+          "reason": "서브가 읽는 공통 작업계약에 공식 증거 경로와 권한 경계를 반영하며 토폴로지 특화·역할 계약을 바꾸지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/comms.md",
+          "verdict": "common_promote",
+          "reason": "서브 A2A 작업 결과와 피드백의 공식 전달 계약을 바로잡아 두 토폴로지와 양 provider가 같은 근거를 사용한다.",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
