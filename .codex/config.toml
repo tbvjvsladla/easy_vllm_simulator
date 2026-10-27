@@ -1,6 +1,8 @@
-# Project defaults preserve user approvals and managed requirements. Native provider invocations
-# select this named permission profile explicitly; do not combine it with legacy --sandbox.
+# Approved campaign work runs without repeated native approval prompts. Domain approvals,
+# user rules and managed requirements remain authoritative; never does not grant access.
+# Native provider invocations select this profile explicitly; do not mix in legacy --sandbox.
 default_permissions = "vllm-main"
+approval_policy = "never"
 
 [permissions.vllm-main]
 description = "Main workspace development under the existing approval and topology contracts."
@@ -9,6 +11,9 @@ extends = ":workspace"
 [permissions.vllm-main.filesystem.":workspace_roots"]
 # Approved local commits are part of the main orchestrator's existing work.
 ".git" = "write"
+# Main authors the shared harness and its provider entry points. Sub protects these paths.
+".agents" = "write"
+".codex" = "write"
 
 [permissions.vllm-main.network]
 # A2A SSH, library access, and approved build inputs need command network access.

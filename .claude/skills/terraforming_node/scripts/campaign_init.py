@@ -457,7 +457,9 @@ CELL_OUTCOMES = ("pending", "measured", "serve_failed", "build_failed", "void",
 # 뜻이라 남은 일이고, `measurement_void` 는 **잰 것이 파괴됐다**는 관측이라 반증 축이다.
 CELL_OUTCOMES_PENDING = ("pending", "not_measured")
 CELL_OUTCOMES_REFUTED = ("serve_failed", "build_failed", "void", "measurement_void")
-EVIDENCE_KINDS = ("certificate", "bench_report", "sweep_map", "testlog", "devlog", "simlog",
+# A sub keeps the main's plan_ref even when that file is not deployed. Its own execution
+# narrative is a cell-scoped plan pointer; adding one never rewrites the declaration/approval.
+EVIDENCE_KINDS = ("certificate", "bench_report", "sweep_map", "plan", "testlog", "devlog", "simlog",
                   "relay_summary")
 FILL = "<<FILL>>"
 JOURNEY_NAME = "journey.jsonl"
@@ -4105,6 +4107,63 @@ def _selftest() -> int:
            _boom(lambda: import_sub_mirror(camp, _mir, utc="2026-09-08T22:30:00Z", unfreeze=True))
            and _tree_bytes(camp) == _before_import)
         _late_brief.unlink()
+
+        # A delegated plan_ref remains main authority; a locally authored plan is evidence only.
+        _planbase = REPO_ROOT / "campaigns" / "local-plan"
+        _plan_decl = {
+            "id": "local-plan", "self_role": "sub", "plan_ref": "docs/plan/plan_main_authority.md",
+            "nodes": [{"node_id": "sub", "role": "sub", "topology": "single"}],
+            "assignments": {"sub": [{"cell": "pc1"}]}, "control_variables": {"topology": "single"},
+            "hint_targets": [{"node_id": "sub", "cells": ["pc1"], "approval": {
+                "approved_by": "fixture: prior main approval", "approved_utc": "2026-10-27T00:00:00Z",
+                "source": "fixture: main declaration slice"}}]}
+        _write_json(_planbase / "campaign.yaml", _plan_decl)
+        _plan_before = (_planbase / "campaign.yaml").read_bytes()
+        _local_plan_rel = "docs/plan/plan_sub_execution.md"
+        _local_plan = REPO_ROOT / _local_plan_rel
+        _local_plan.parent.mkdir(parents=True, exist_ok=True)
+        _local_plan.write_text("Fixture: local execution narrative within the delegated scope.\n", encoding="utf-8")
+        writer_add_evidence(_planbase, kind="plan", path_rel=_local_plan_rel,
+                            node=None, cell_id="pc1", unfreeze=False)
+        _plan_ptrs = _read_json(_planbase / "evidence_pointers.json")["pointers"]
+        ck("★local plan writer preserves main plan_ref/approval bytes without copying the main plan",
+           (_planbase / "campaign.yaml").read_bytes() == _plan_before
+           and not (REPO_ROOT / _plan_decl["plan_ref"]).exists()
+           and _plan_ptrs == [{"kind": "plan", "path": _local_plan_rel, "node_id": "sub", "cell_id": "pc1"}])
+        _plan_tree = _tree_bytes(_planbase)
+        for _label, _path, _cell in (("absent local file", "docs/plan/absent.md", "pc1"),
+                                     ("other cell", _local_plan_rel, "other"),
+                                     ("directory", "docs/plan", "pc1")):
+            ck(f"★local plan {_label} refuses without mutating campaign bytes",
+               _boom(lambda: writer_add_evidence(_planbase, kind="plan", path_rel=_path,
+                                                 node="sub", cell_id=_cell, unfreeze=False))
+               and _tree_bytes(_planbase) == _plan_tree)
+        _plan_brief = campaign_brief(_planbase, node="sub", utc="2026-10-27T01:00:00Z")
+        ck("★brief carries local plan evidence separately from the unchanged authoritative plan_ref",
+           _plan_brief["plan_ref"] == _plan_decl["plan_ref"]
+           and _plan_brief["evidence_pointers"] == _plan_ptrs)
+        _plan_main = REPO_ROOT / "plan-import" / "local-plan"
+        _write_json(_plan_main / "campaign.yaml", dict(_plan_decl, self_role="main", nodes=[
+            {"node_id": "main", "role": "main", "topology": "single"}, *_plan_decl["nodes"]]))
+        _main_plan_before = (_plan_main / "campaign.yaml").read_bytes()
+        _plan_mirror = REPO_ROOT / "sync_staging" / "plan_docs"
+        _write_json(_plan_mirror / "logs/sub/campaign_brief.json", _plan_brief)
+        _mirrored_plan = _plan_mirror / _local_plan_rel.removeprefix("docs/")
+        _mirrored_plan.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(_local_plan, _mirrored_plan)
+        (_mirrored_plan.parent / "plan_unclaimed.md").write_text("Unclaimed fixture.\n", encoding="utf-8")
+        _plan_wrote, _plan_warn = import_sub_mirror(_plan_main, _plan_mirror, utc="2026-10-27T01:05:00Z")
+        ck("★writer→brief→import preserves cell/node-scoped plan membership without adopting unclaimed plans",
+           bool(_plan_wrote) and not _plan_warn
+           and _read_json(_plan_main / "evidence_pointers.json")["pointers"] == [
+               dict(_plan_ptrs[0], path=_rel(_mirrored_plan))]
+           and (_plan_main / "campaign.yaml").read_bytes() == _main_plan_before)
+        _mirrored_plan.unlink()
+        _plan_import_before = _tree_bytes(_plan_main)
+        _plan_wrote, _plan_warn = import_sub_mirror(_plan_main, _plan_mirror, utc="2026-10-27T01:10:00Z")
+        ck("★missing mirrored plan remains a reported evidence gap, never a replacement approval",
+           not _plan_wrote and len(_plan_warn) == 1 and "증거 미등재" in _plan_warn[0]
+           and _tree_bytes(_plan_main) == _plan_import_before)
 
         # The sub writer refuses a local control ledger as upward evidence, without deleting it.
         _subbase = REPO_ROOT / "campaigns" / "sub-evidence"

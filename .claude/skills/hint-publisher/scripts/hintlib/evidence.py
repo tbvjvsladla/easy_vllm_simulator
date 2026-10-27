@@ -6288,7 +6288,7 @@ def _publisher(repo: Path, sub: str, *args: str, accept=(0,)) -> tuple[int, dict
 
 
 def _narratives(ev: CellEvidence) -> dict:
-    """plan = 캠페인 선언 plan_ref · devlog/testlog = 이 셀의 캠페인 포인터(하나씩). 없거나 모호하면 **쓰기 전에** 죽는다."""
+    """plan = 실재하는 plan_ref 또는 셀 plan 포인터; 서사는 종류마다 하나. 없거나 모호하면 쓰기 전에 죽는다."""
     out: dict = {}
     plan = (ev.declaration or {}).get("plan_ref")
     for kind in ("plan", "devlog", "testlog"):
@@ -6298,8 +6298,9 @@ def _narratives(ev: CellEvidence) -> dict:
         cands = [c for c in cands if (Path(ev.repo) / c).is_file()]
         if not cands:
             core.fail("HINT_NARRATIVE_EVIDENCE_ABSENT", f"셀 {ev.cell!r} 의 {kind} 증거가 없다.",
-                      f"셀 testlog·devlog 를 먼저 발행하고 `campaign_init.py --evidence-add --kind {kind} --path <docs/…> "
-                      f"--cell {ev.cell} --node <n> --campaign-id {ev.campaign_id}` 로 등록한다(plan 은 campaign.yaml plan_ref).")
+                      f"셀 {kind} 문서를 먼저 발행하고 `campaign_init.py --evidence-add --kind {kind} --path <docs/…> "
+                      f"--cell {ev.cell} --node <n> --campaign-id {ev.campaign_id}` 로 등록한다. "
+                      "plan_ref가 원격 계획이면 선언을 유지하고 기존 위임 범위의 로컬 실행계획을 등록한다.")
         if len(cands) > 1:
             core.fail("HINT_NARRATIVE_EVIDENCE_AMBIGUOUS", f"셀 {ev.cell!r} 의 {kind} 후보가 {len(cands)}건이다: {cands}",
                       "이 셀의 판정·서사 문서 하나만 가리키도록 포인터를 정리한다 — 발행기가 고르지 않는다.")
