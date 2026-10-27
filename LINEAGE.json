@@ -1,0 +1,146 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26100107",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/plan/plan_26100107_vllm030_bump_서브지침배달_멀티싱글_E2E캠페인.md",
+      "role": "plan"
+    },
+    {
+      "date": "26100111",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26100111_v030_싱글_이종모델_동시서빙_서브지침배달_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26100113",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26100113_v030캠페인_후속_하네스결함교정_공통층동기화_서브정비.md",
+      "role": "plan"
+    },
+    {
+      "date": "26100117",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26100117_하네스결함교정_재빌드일관성_E2E_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101011",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101011_벤치_knob_프리셋_자산화.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101016",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101016_벤치_knob_프리셋_E2E_6셀_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101016",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101016_granite-4.2-30b_GB10_0.30.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26101017",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101017_knob_E2E_hint발행.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101017",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101017_08_29_knob프리셋_E2E_셀A_granite42_30b_v030_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101017",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/devlog/devlog_26101017_08_29_knob프리셋_E2E_셀A_granite42_30b_v030.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102700",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102700_코덱스_싱글8종_멀티4종_실측.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102710",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102710_granite42_30b_v030_코덱스_메인_Full_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102710",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26102710_granite42_30b_v030_코덱스_메인_Full_여정.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102710",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102710_granite-4.2-30b_GB10_0.30.0.md",
+      "role": "bench_report"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [
+      {
+        "excerpts": 1,
+        "path": "docs/simlog/26101012_벤치_knob_프리셋_E2E/a_sweep_try1_budget_block.log"
+      }
+    ],
+    "count": 317
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 경로(발췌 머리 stem = 파일명) · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26102718",
+  "schema_version": 3,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26101016_granite-4.2-30b_GB10_0.30.0.md",
+      "sha256": "a3a55be37597aff7058d7fc44b3e42e5d61ef204e58887ad5ade05301fb3a054"
+    },
+    {
+      "path": "docs/benchmark/bench_report_26102710_granite-4.2-30b_GB10_0.30.0.md",
+      "sha256": "57e95cac60f8eb80acfb1546fe26cca68c9eee3b4186b6c5d8519a705b7f003c"
+    },
+    {
+      "path": "docs/devlog/devlog_26101017_08_29_knob프리셋_E2E_셀A_granite42_30b_v030.md",
+      "sha256": "81184d47bcb6d55d8440b4513594b28d5965aae3fcc616552ee3eb4a87a15b2a"
+    },
+    {
+      "path": "docs/plan/plan_26100107_vllm030_bump_서브지침배달_멀티싱글_E2E캠페인.md",
+      "sha256": "e0013f784daaf0513826dd8381a30f64c62d9b37f828e5807c8f1f6c1329f104"
+    },
+    {
+      "path": "docs/simlog/26101012_벤치_knob_프리셋_E2E/a_sweep_try1_budget_block.log",
+      "sha256": "e2e089607b8e040dbe542df176b0ca1468581bd880f2b5632dccb9d3bd6c0056"
+    },
+    {
+      "path": "docs/testlog/testlog_26101017_08_29_knob프리셋_E2E_셀A_granite42_30b_v030_판정.md",
+      "sha256": "de45c819cacc6d11426e14656bb2ed8cd482caf9c5c2bf5193a7fff9730eba91"
+    },
+    {
+      "path": "docs/testlog/testlog_26102710_granite42_30b_v030_코덱스_메인_Full_판정.md",
+      "sha256": "ed4b99d9fd61b79f18938153d1c590fdcafd9f6a71b5e922e10e9b8631b8e57b"
+    }
+  ]
+}
