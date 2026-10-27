@@ -2864,8 +2864,9 @@ def _main() -> int:
             ids = ", ".join(str(e.get("request_id")) for e in blocked)
             raise SystemExit(
                 f"[relay] STOP: 답이 필요한 **차단성** 요청이 있다 — {ids}\n"
-                f"  → {relay_root(a.repo_root)}/{PENDING_HITL} 의 해당 항목 `answer` 에 답을 적고 다시 --continue 하라.\n"
-                "  → 이것이 사람의 승인 정문이다(답 = 승인). 답 없이 진행하면 서브가 근거 없이 결정한다.")
+                f"  → {relay_root(a.repo_root)}/{PENDING_HITL} 의 해당 항목 `answer` 에 실제 사용자 답을 기록하라.\n"
+                "  → 답의 존재는 승인이 아니다. 사용자의 재개 의사를 확인한 경우에만 --continue 하라.\n"
+                "  → Codex 미해결 실패의 명시적 수동 복구 조건은 그대로 적용된다.")
 
         lks = last_known_session(doc)
         task = assemble_continuation(a.repo_root, doc, pend)
