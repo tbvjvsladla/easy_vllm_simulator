@@ -1,0 +1,206 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26101410",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/plan/plan_26101410_vllm031_bump_14B이하_4종_양노드_서빙_lite.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101411",
+      "depth": 3,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101411_granite-4.2-8b_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26101412",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101412_v031_14B이하_4종_양노드_상주서빙_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101412",
+      "depth": 3,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101412_v031_bump_4종_양노드_상주서빙_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26101614",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101614_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101616",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101616_데이터셋knob_서브배달_서브E2E_hint발행.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101616",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101616_granite-4.2-8b_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26101619",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/testlog/testlog_26101619_CNN_fullbench_셀_granite42_8b_v031_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101619",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101619_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26101619",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101619_54_16_CNN_fullbench_셀_minicpm5_2b_v031_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101622",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101622_후속4건_안정화_데이터셋knob_lite_hint_기준선.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101622",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101622_plan_26101614_종결판정_데이터셋knob_CNN_lite분리.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101622",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101622_47_43_Q1_prefix_cache_hit_rate_귀속_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101707",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101707_Q6_granite42_8b_v031_CNN_재측정_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101707",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101707_Q6_CNN_재측정_granite42_8b_v031.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26101707",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101707_Q6_granite42_8b_v031_CNN_재측정.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26101707",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101707_granite-4.2-8b_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26102700",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102700_코덱스_싱글8종_멀티4종_실측.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102708",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102708_granite42_8b_v031_코덱스_메인_Full_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102708",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26102708_granite42_8b_v031_코덱스_메인_Full_여정.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102708",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102708_granite-4.2-8b_GB10_0.31.0.md",
+      "role": "bench_report"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [],
+    "count": 231
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 경로(발췌 머리 stem = 파일명) · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26102718",
+  "schema_version": 3,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26102708_granite-4.2-8b_GB10_0.31.0.md",
+      "sha256": "91a1e0edeac4baa70c69bc3b5e530608af64db863a4c8e331829f728fc726f40"
+    },
+    {
+      "path": "docs/devlog/devlog_26101412_v031_bump_4종_양노드_상주서빙_서사.md",
+      "sha256": "879010fd0280dfb11d860f8e1f6475a8af132d65f3b121e21c1a40ff15c92779"
+    },
+    {
+      "path": "docs/devlog/devlog_26101619_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "sha256": "cb7cbec188a260dff249a7bd05ae5570ee01e1137dd78bad04b3b76f475aaba1"
+    },
+    {
+      "path": "docs/plan/plan_26101410_vllm031_bump_14B이하_4종_양노드_서빙_lite.md",
+      "sha256": "9641c12818b9524dcc12fc78f6faa7a7c94599e4ed9f16bb5a52cae7173a88ee"
+    },
+    {
+      "path": "docs/plan/plan_26101614_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "sha256": "95a5bb81b2168a0686a2fba23d9f67cfd51c1b9c9b1cb0ad97c48ce19f13cb79"
+    },
+    {
+      "path": "docs/testlog/testlog_26101412_v031_14B이하_4종_양노드_상주서빙_판정.md",
+      "sha256": "874a0b7898e8d8c13a14ba468fa525f15fe6d356818406a09259f8379dfa897b"
+    },
+    {
+      "path": "docs/testlog/testlog_26101619_CNN_fullbench_셀_granite42_8b_v031_판정.md",
+      "sha256": "390c00987a94bd60b555e3b6e384a3dd562144f248d3cba42a067cd60a68d642"
+    },
+    {
+      "path": "docs/testlog/testlog_26101622_47_43_Q1_prefix_cache_hit_rate_귀속_판정.md",
+      "sha256": "afc6d729312902c88364cdeacfbbf58f8f28a9dfdfab6ce12c35164dbbb4743c"
+    },
+    {
+      "path": "docs/testlog/testlog_26101622_plan_26101614_종결판정_데이터셋knob_CNN_lite분리.md",
+      "sha256": "b3c3aa2aa059402e1b0bfd5fa8476c235529a332845c2b1532d1faa5f76a552a"
+    },
+    {
+      "path": "docs/testlog/testlog_26101707_Q6_granite42_8b_v031_CNN_재측정_판정.md",
+      "sha256": "c7d4b302f8454a051200dc4bdf49d4f7ab8bb9e73f5fb89a4d588fb98449eb3c"
+    },
+    {
+      "path": "docs/testlog/testlog_26102708_granite42_8b_v031_코덱스_메인_Full_판정.md",
+      "sha256": "4b4b465538b748ca938ed0f08eedc1e0107c783c4339d1c9eba700b499749a3d"
+    }
+  ]
+}
