@@ -40,6 +40,7 @@ from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from quant_table import dtype_bpw  # noqa: E402
+from parse_model_config import count_mxfp4_params  # noqa: E402
 
 HF_API_BASE = "https://huggingface.co/api/models"
 
@@ -96,7 +97,7 @@ def _canonical_shards(model_dir: str) -> list:
     return sorted(glob.glob(os.path.join(model_dir, "*.safetensors")))
 
 
-def scan_dtypes(model_dir: str) -> dict:
+def scan_dtypes(model_dir: str, mxfp4: "dict | None" = None) -> dict:
     """**정본 샤드**(index weight_map) 헤더만 읽어 dtype별 텐서수·byte + expert/비-expert 분리 + 정밀도 시그니처."""
     shards = _canonical_shards(model_dir)
     if not shards:
@@ -124,7 +125,8 @@ def scan_dtypes(model_dir: str) -> dict:
     has_fp8 = any(d in _FP8 for d in counts)
     has_high = any(d in _HIGH for d in counts)
     # 4-bit(MXFP4-류) = int8 패킹 + 마이크로스케일 동반 (expert 가중치에 집중)
-    fourbit = has_intpack and has_scale
+    # U8라는 dtype만으로 scale을 추측하지 않는다. 선언+전체 packing 검증이 있을 때만 인정.
+    fourbit = (has_intpack and has_scale) or mxfp4 is not None
     classes = []
     if fourbit:
         classes.append("4bit(MXFP4-pack: int8+microscale)")
@@ -142,7 +144,9 @@ def scan_dtypes(model_dir: str) -> dict:
         "nonexpert_dtypes": dict(other_dt),
         "precision_classes": classes,
         "is_mixed_precision": len(classes) >= 2,
-        "fourbit_experts": fourbit and bool(expert_dt) and any(d in _INTPACK for d in expert_dt),
+        "fourbit_experts": (bool(mxfp4["packed_expert_tensor_count"]) if mxfp4 is not None
+                            else fourbit and bool(expert_dt) and any(d in _INTPACK for d in expert_dt)),
+        **({"mxfp4_layout": mxfp4} if mxfp4 is not None else {}),
     }
 
 
@@ -254,7 +258,8 @@ def crosscheck_external_vram(local_num_params: "int | None", local_native_weight
 
 
 def crosscheck(model_dir: str, hf_repo_id: "str | None" = None,
-               local_num_params: "int | None" = None) -> dict:
+               local_num_params: "int | None" = None,
+               local_parse_error: "str | None" = None) -> dict:
     if not os.path.isdir(model_dir):
         raise FileNotFoundError(f"모델 디렉토리 부재(다운로드 금지): {model_dir}")
     cfg_path = os.path.join(model_dir, "config.json")
@@ -264,14 +269,22 @@ def crosscheck(model_dir: str, hf_repo_id: "str | None" = None,
     card_path = next((os.path.join(model_dir, n) for n in ("README.md", "readme.md", "MODEL_CARD.md")
                       if os.path.isfile(os.path.join(model_dir, n))), None)
     card = open(card_path, encoding="utf-8", errors="replace").read() if card_path else ""
-    dt = scan_dtypes(model_dir)
+    cprec = config_precision(cfg)
+    mxfp4, layout_error = None, None
+    if isinstance(cfg.get("quantization_config"), dict) and cfg["quantization_config"].get("quant_method") == "mxfp4":
+        try:
+            mxfp4 = count_mxfp4_params(model_dir)
+        except ValueError as exc:
+            layout_error = str(exc)
+    dt = scan_dtypes(model_dir, mxfp4=mxfp4) if layout_error is None else {"present": False}
     deps = read_inference_deps(model_dir)
     name = os.path.basename(model_dir.rstrip("/"))
 
     checks, recs = [], []
+    if layout_error is not None:
+        checks.append({"name": "mxfp4_layout", "verdict": "MISMATCH", "reason": layout_error})
 
     # ── 1. 정밀도 교차검증 (coarse-label 함정) ──
-    cprec = config_precision(cfg)
     cardp = card_precision(card, name) if card else {"table_row": None, "keywords": []}
     sig = dt.get("precision_classes", []) if dt.get("present") else []
     verdict, note = "info", ""
@@ -279,7 +292,7 @@ def crosscheck(model_dir: str, hf_repo_id: "str | None" = None,
     if dt.get("present"):
         coarse_single = ("/" not in cprec and cprec.lower() in ("fp8", "fp16", "bf16")) or \
                         (isinstance(cfg.get("quantization_config"), dict) and "+" not in cprec)
-        if dt.get("is_mixed_precision") and coarse_single:
+        if dt.get("is_mixed_precision") and coarse_single and mxfp4 is None:
             verdict = "MISMATCH"
             note = (f"config quant='{cprec}'(coarse) 가 실제 혼합정밀도를 과소표기. "
                     f"실측 dtype classes={sig}"
@@ -291,6 +304,8 @@ def crosscheck(model_dir: str, hf_repo_id: "str | None" = None,
             note = f"카드는 혼합정밀도('{cardp.get('table_row')}') 인데 실측 dtype 단일({sig}) — 다운로드본 변형 의심."
         else:
             note = f"config='{cprec}' · 실측={sig} · 카드='{cardp.get('table_row') or cardp.get('keywords')}'"
+            if mxfp4 is not None:
+                note += "; 검증된 MXFP4 packed weights + 비패킹 부동소수 텐서(설명 가능한 혼합 저장)"
     checks.append({"name": "precision", "config": cprec, "dtype_evidence": sig,
                    "card": cardp.get("table_row") or cardp.get("keywords"), "verdict": verdict, "note": note})
 
@@ -326,10 +341,18 @@ def crosscheck(model_dir: str, hf_repo_id: "str | None" = None,
     # ── 6. 외부(HF API) VRAM 이중검증 (managed — plan_26070814) ──
     # du -sh 류 디렉토리 전체크기의 .git 오염 실증(2026-07-08) 대응. hf_repo_id 미지정 시 스킵(info).
     if hf_repo_id:
-        extv = crosscheck_external_vram(local_num_params, None, hf_repo_id)
+        if local_parse_error is not None:
+            # 실패한 관리형 관측을 None(미관측)으로 지워 ephemeral 성공으로 바꾸지 않는다.
+            extv = {"verdict": "MISMATCH", "mode": "managed-doublecheck",
+                    "repo_id": hf_repo_id, "local_num_params": None, "external_total": None,
+                    "reason": "local_parse_failed", "note": local_parse_error}
+        else:
+            extv = crosscheck_external_vram(local_num_params, None, hf_repo_id)
         ev_verdict = extv["verdict"] if extv["verdict"] in ("MISMATCH",) else ("info" if extv["verdict"] == "UNAVAILABLE" else "OK")
         checks.append({"name": "external_vram", "verdict": ev_verdict, **extv})
-        if extv["verdict"] == "MISMATCH":
+        if extv.get("reason") == "local_parse_failed":
+            recs.append("로컬 파라미터 관측 실패를 먼저 해소한다(외부 사전추정으로 대체하지 않음).")
+        elif extv["verdict"] == "MISMATCH":
             recs.append(f"외부(HF API) 파라미터 총계와 로컬 실측 불일치({extv.get('note')}) — "
                         f"로컬 safetensors 파일이 손상/변형됐을 가능성. 재검증 필요.")
     else:
@@ -359,6 +382,8 @@ def _human(r: dict) -> str:
             L.append(f"  {mark} precision: config={c['config']} | 실측={c['dtype_evidence']} | 카드={c['card']}")
             if c.get("note"):
                 L.append(f"       {c['note']}")
+        elif c["name"] == "mxfp4_layout":
+            L.append(f"  {mark} mxfp4_layout: {c['reason']}")
         elif c["name"] == "special_deps":
             if c["flagged"]:
                 for f in c["flagged"]:
@@ -416,17 +441,19 @@ def main():
         print("[crosscheck] STOP: managed 모드는 모델 디렉토리 경로 필수(또는 --ephemeral-estimate)", file=sys.stderr)
         sys.exit(3)
 
-    local_num_params = None
+    local_num_params, local_parse_error = None, None
     if a.hf_repo_id:
         try:
             sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
             from parse_model_config import parse as _parse_model_config
             local_num_params = _parse_model_config(a.path).get("num_params")
-        except Exception as e:  # noqa: BLE001 — 이중검증은 best-effort, parse 실패해도 나머지 체크는 진행
-            print(f"[crosscheck] WARN: num_params 재측정 실패({e}) — external_vram 체크 스킵", file=sys.stderr)
+        except Exception as e:  # noqa: BLE001 — 실패를 보존하면서 나머지 체크도 보고한다
+            local_parse_error = str(e)
+            print(f"[crosscheck] STOP: num_params 재측정 실패({e}) — managed 대조 불성립", file=sys.stderr)
 
     try:
-        r = crosscheck(a.path, hf_repo_id=a.hf_repo_id, local_num_params=local_num_params)
+        r = crosscheck(a.path, hf_repo_id=a.hf_repo_id, local_num_params=local_num_params,
+                       local_parse_error=local_parse_error)
     except FileNotFoundError as e:
         print(f"[crosscheck] STOP: {e}", file=sys.stderr)
         sys.exit(3)

@@ -26,6 +26,9 @@ from quant_table import dtype_bpw, vllm_quant_bpw_or_none  # noqa: E402
 # /app/models 컨테이너 경로가 매핑되는 호스트 NAS 루트 기본값 (CONTRACT 경로 매핑).
 DEFAULT_NAS_HOST_ROOT = "/mnt/models"
 
+# safetensors/src/tensor.rs MAX_HEADER_SIZE. 가중치 payload를 헤더로 읽지 않는다.
+_SAFETENSORS_MAX_HEADER = 100_000_000
+
 # safetensors 헤더 dtype 문자열 → 온디스크 bytes-per-weight (disk_bpw).
 # F32→4, F16/BF16→2, F8*→1. (config torch_dtype 가 거짓일 수 있으므로 실측이 진실의 원천.)
 _SAFETENSORS_DTYPE_BPW: dict[str, float] = {
@@ -172,6 +175,8 @@ def _read_safetensors_header(st_path: str) -> dict | None:
             if len(length_bytes) != 8:
                 return None
             header_len = struct.unpack("<Q", length_bytes)[0]
+            if header_len > _SAFETENSORS_MAX_HEADER or header_len > os.fstat(f.fileno()).st_size - 8:
+                return None
             header_bytes = f.read(header_len)
             if len(header_bytes) != header_len:
                 return None
@@ -442,6 +447,133 @@ def _count_params_from_headers(host_path: str) -> int | None:
     return total if total > 0 else None
 
 
+def count_mxfp4_params(host_path: str) -> dict:
+    """명시된 MXFP4의 헤더만 검증·집계한다(미지원 구조는 근사하지 않는다).
+
+    OpenAI gpt_oss/torch/weights.py 및 Transformers integrations/mxfp4.py:
+    U8 blocks 마지막 축 16 = FP4 32개, U8 scales.shape = blocks.shape[:-1].
+    scales는 exponent 메타데이터이며 일반 부동소수 텐서와 별도로 센다.
+    호출자는 quant_method=mxfp4를 확인해야 한다. 모델 이름/총계는 사용하지 않는다.
+    """
+    def fail(reason):
+        raise ValueError("MXFP4_HEADER_LAYOUT_UNSUPPORTED: " + reason)
+
+    def unique_keys(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                fail(f"JSON 중복 키: {key}")
+            result[key] = value
+        return result
+
+    index_path = os.path.join(host_path, "model.safetensors.index.json")
+    weight_map = None
+    if os.path.exists(index_path):
+        try:
+            with open(index_path, encoding="utf-8") as f:
+                weight_map = json.load(f, object_pairs_hook=unique_keys).get("weight_map")
+        except (OSError, ValueError, AttributeError) as exc:
+            fail(f"index 읽기 실패: {exc}")
+        if not isinstance(weight_map, dict) or not weight_map:
+            fail("index weight_map 부재/부정합")
+        if any(not isinstance(k, str) or not k or not isinstance(v, str)
+               or os.path.basename(v) != v or not v.endswith(".safetensors")
+               for k, v in weight_map.items()):
+            fail("index 텐서/샤드 이름 부정합")
+        files = sorted(set(weight_map.values()))
+    else:
+        files = sorted(os.path.basename(p) for p in
+                       glob.glob(os.path.join(host_path, "*.safetensors")))
+    if not files:
+        fail("정본 safetensors 샤드 부재")
+
+    tensors = {}
+    payload_bytes = file_bytes = storage_numel = 0
+    float_types = {"BF16", "F16", "F32", "F64"}
+    for shard in files:
+        path = os.path.join(host_path, shard)
+        try:
+            size = os.path.getsize(path)
+            with open(path, "rb") as f:
+                n = struct.unpack("<Q", f.read(8))[0]
+                if n > _SAFETENSORS_MAX_HEADER or n > size - 8:
+                    fail(f"{shard}: 헤더가 크기 상한/파일 경계를 초과")
+                header = json.loads(f.read(n), object_pairs_hook=unique_keys)
+        except (OSError, ValueError, struct.error) as exc:
+            fail(f"{shard}: 헤더 읽기 실패: {exc}")
+        if not isinstance(header, dict):
+            fail(f"{shard}: 헤더 객체 부재")
+        spans = []
+        for name, meta in header.items():
+            if name == "__metadata__":
+                continue
+            if name in tensors or not isinstance(meta, dict):
+                fail(f"{name}: 중복 텐서/헤더 부정합")
+            if weight_map is not None and weight_map.get(name) != shard:
+                fail(f"{name}: index와 실제 샤드 불일치")
+            dt, shape, offsets = meta.get("dtype"), meta.get("shape"), meta.get("data_offsets")
+            if not isinstance(dt, str) or dt not in float_types | {"U8"}:
+                fail(f"{name}: 미지원 dtype {dt!r}")
+            if not isinstance(shape, list) or any(type(d) is not int or d <= 0 for d in shape):
+                fail(f"{name}: shape 부정합")
+            numel = 1
+            for d in shape:
+                numel *= d
+            if not (isinstance(offsets, list) and len(offsets) == 2
+                    and all(type(o) is int and o >= 0 for o in offsets)
+                    and offsets[1] - offsets[0] == numel * _SAFETENSORS_DTYPE_ELEM_BYTES[dt]
+                    and offsets[1] <= size - 8 - n):
+                fail(f"{name}: dtype/shape/offset/파일 경계 불일치")
+            spans.append(tuple(offsets))
+            tensors[name] = (dt, shape, numel)
+            storage_numel += numel
+        end = 0
+        for start, stop in sorted(spans):
+            if start != end:
+                fail(f"{shard}: payload 중복/빈 구간")
+            end = stop
+        if end != size - 8 - n:
+            fail(f"{shard}: payload와 헤더 크기 불일치")
+        payload_bytes += end
+        file_bytes += size
+    if weight_map is not None and set(tensors) != set(weight_map):
+        fail("index가 선언한 텐서 누락")
+
+    unpacked = packed = scales = pairs = expert_pairs = 0
+    consumed = set()
+    for name, (dt, shape, numel) in tensors.items():
+        suffix = next((s for s in ("_blocks", ".blocks") if name.endswith(s)), None)
+        if suffix is None:
+            continue
+        scale_name = name[:-len(suffix)] + suffix.replace("blocks", "scales")
+        scale = tensors.get(scale_name)
+        if (dt != "U8" or len(shape) < 2 or shape[-1] != 16 or scale is None
+                or scale[0] != "U8" or shape[:-1] != scale[1]):
+            fail(f"{name}: U8 blocks[...,16]/scales[...] 쌍 부정합")
+        consumed.update((name, scale_name))
+        packed += numel
+        scales += scale[2]
+        pairs += 1
+        expert_pairs += int("expert" in name.lower() and "shared" not in name.lower())
+    if not pairs:
+        fail("지원하는 blocks/scales 쌍 부재")
+    for name, (dt, _shape, numel) in tensors.items():
+        if name in consumed:
+            continue
+        if dt not in float_types or name.endswith(("_scales", ".scales")):
+            fail(f"{name}: 미확인 packed 텐서/고아 scale")
+        unpacked += numel
+    return {
+        "format": "mxfp4-blocks16-u8-scales-u8",
+        "num_shards": len(files), "tensor_count": len(tensors),
+        "logical_params": unpacked + 2 * packed,
+        "unpacked_params": unpacked, "packed_storage_numel": packed,
+        "scale_metadata_numel": scales, "storage_numel": storage_numel,
+        "payload_bytes": payload_bytes, "file_bytes": file_bytes,
+        "packed_tensor_count": pairs, "packed_expert_tensor_count": expert_pairs,
+    }
+
+
 def parse(model_path: str, nas_host_root: str = DEFAULT_NAS_HOST_ROOT,
           nas_container_root: str = "/app/models") -> dict:
     """config.json 을 결정론으로 파싱해 정규화 dict 를 반환.
@@ -613,6 +745,8 @@ def parse(model_path: str, nas_host_root: str = DEFAULT_NAS_HOST_ROOT,
     )
 
     # 7) weight 바이트 원천 + disk_bpw 실측.
+    # 명시 MXFP4는 미지원/깨진 헤더를 legacy dtype 추정에 넘기기 전에 검증한다.
+    parameter_count = count_mxfp4_params(host_path) if quant_method_native == "mxfp4" else None
     native_weight_bytes = _native_weight_bytes(host_path, warnings)
 
     # disk_bpw 실측: 가장 큰 *.safetensors 헤더 읽어 온디스크 dtype 판정.
@@ -639,12 +773,18 @@ def parse(model_path: str, nas_host_root: str = DEFAULT_NAS_HOST_ROOT,
             _disk_native_mismatch = True
             warnings.append(
                 "disk_dtype(%s, bpw=%s) != native_dtype(%s, bpw=%s) — 저장 정밀도 ≠ "
-                "config dtype. num_params 는 헤더 numel 합(정확) 우선, 불가 시 보수적 bpw 폴백"
+                "config dtype. "
                 % (disk_dtype, disk_bpw, native_dtype, serve_bpw)
+                + ("num_params 는 MXFP4 blocks/scales 논리 원소 검증값(미지원 구조는 중단)"
+                   if parameter_count is not None else
+                   "num_params 는 헤더 numel 합(정확) 우선, 불가 시 보수적 bpw 폴백")
             )
 
-    # num_params 산출.
-    if native_weight_bytes is None:
+    # num_params 산출. MXFP4는 혼합 저장 바이트/bpw가 아니라 검증된 논리 원소를 센다.
+    if parameter_count is not None:
+        num_params = parameter_count["logical_params"]
+        weight_basis = "safetensors_mxfp4_logical_numel(exact)"
+    elif native_weight_bytes is None:
         num_params = None
         weight_basis = None
         warnings.append(
@@ -653,8 +793,7 @@ def parse(model_path: str, nas_host_root: str = DEFAULT_NAS_HOST_ROOT,
     elif prequantized:
         # prequantized: native weight 를 양자화 bpw 로 나눠 best-effort 파라미터 수.
         # 미지 quant_method(테이블 미등록)면 ValueError 로 죽지 않고(=비결정 traceback 금지)
-        # disk_bpw 실측으로 폴백한다(명시 경고). estimate 의 prequant 분기는
-        # native_weight_bytes 만 쓰므로 num_params 부정확은 게이트 안전성에 영향 없음.
+        # disk_bpw 실측으로 폴백한다(명시 경고). MXFP4는 위의 검증된 별도 경로다.
         bpw, qwarn = vllm_quant_bpw_or_none(quant_method_native, serve_bpw)
         if bpw is None:
             warnings.append(
@@ -720,15 +859,182 @@ def parse(model_path: str, nas_host_root: str = DEFAULT_NAS_HOST_ROOT,
         "native_weight_bytes": native_weight_bytes,
         "num_params": num_params,
         "weight_basis": weight_basis,
+        **({"parameter_count": parameter_count} if parameter_count is not None else {}),
         "warnings": warnings,
     }
 
 
 # ===========================================================================
-# 자체검사 (--self-test) — 하이브리드 KV 층수 인지(plan_26082223 결함 A).
-#   `resolve_kv_layers` 는 순수 함수라 파일 IO·모델·하드웨어가 필요 없다
-#   (다른 스킬 도구의 `--self-test` 계약과 동일).
+# 자체검사 (--self-test) — 하이브리드 KV + 소형 MXFP4 파일 fixture.
+#   실제 모델/하드웨어/네트워크 없이 정본 parser→crosscheck 경로를 확인한다.
 # ===========================================================================
+
+def _mxfp4_self_tests(check):
+    import contextlib
+    import copy
+    import io
+    import tempfile
+    from pathlib import Path
+    from unittest.mock import patch
+    import crosscheck_model_card as C
+    import parse_model_config as P
+
+    # 서로 다른 샤드에 pair를 두며 일반 BF16 10개 + packed FP4 64개 = 논리 74개.
+    blocks = "model.experts.proj_blocks"
+    scales = "model.experts.proj_scales"
+    base = {
+        "a.safetensors": {"norm.weight": {"dtype": "BF16", "shape": [10], "data_offsets": [0, 20]},
+                          blocks: {"dtype": "U8", "shape": [2, 16], "data_offsets": [20, 52]}},
+        "b.safetensors": {scales: {"dtype": "U8", "shape": [2], "data_offsets": [0, 2]}},
+    }
+    cfg = {"model_type": "fixture", "hidden_size": 16, "num_hidden_layers": 2,
+           "num_attention_heads": 2, "torch_dtype": "bfloat16",
+           "quantization_config": {"quant_method": "mxfp4"}}
+    with tempfile.TemporaryDirectory(prefix="mxfp4-headers-") as tmp:
+        root = Path(tmp)
+
+        def write(headers=None, config=None, mapping=None):
+            for path in root.iterdir():
+                path.unlink()
+            headers = copy.deepcopy(base if headers is None else headers)
+            for shard, header in headers.items():
+                encoded = json.dumps(header).encode()
+                length = max(meta["data_offsets"][1] for meta in header.values())
+                (root / shard).write_bytes(struct.pack("<Q", len(encoded)) + encoded + bytes(length))
+            wm = {name: shard for shard, hdr in headers.items() for name in hdr}
+            (root / "model.safetensors.index.json").write_text(json.dumps({"weight_map": wm if mapping is None else mapping}))
+            (root / "config.json").write_text(json.dumps(cfg if config is None else config))
+            return str(root)
+
+        def reject(name, headers=None, alter=None):
+            write(headers)
+            if alter:
+                alter()
+            try:
+                parse(str(root))
+            except ValueError as exc:
+                check(name, "MXFP4_HEADER_LAYOUT_UNSUPPORTED" in str(exc), True)
+            else:
+                check(name, "accepted", "rejected")
+
+        write()
+        observed = parse(str(root))
+        details = observed["parameter_count"]
+        check("M1.logical", observed["num_params"], 74)
+        check("M1.storage", details["storage_numel"], 44)
+        check("M1.scale_metadata", details["scale_metadata_numel"], 2)
+        check("M1.payload", details["payload_bytes"], 54)
+        check("M1.physical", observed["native_weight_bytes"], details["file_bytes"])
+        check("M1.headers_not_params", observed["num_params"] != round(details["file_bytes"] / .5), True)
+        (root / "unreferenced.safetensors").write_bytes(b"not the canonical checkpoint")
+        check("M2.index_canonical", parse(str(root))["parameter_count"], details)
+
+        dotted = {shard: {name.replace("_blocks", ".blocks").replace("_scales", ".scales"): meta
+                          for name, meta in hdr.items()} for shard, hdr in base.items()}
+        write(dotted)
+        check("M3.dot_loader_naming", parse(str(root))["num_params"], 74)
+        (root / "model.safetensors.index.json").unlink()
+        check("M3.no_index_all_shards", parse(str(root))["num_params"], 74)
+
+        bad = copy.deepcopy(base)
+        bad["b.safetensors"] = {"opaque_u8": bad["b.safetensors"][scales]}
+        reject("M4.unknown_u8_missing_pair", bad)
+        bad = copy.deepcopy(base)
+        bad["b.safetensors"]["orphan_scales"] = {"dtype": "U8", "shape": [1], "data_offsets": [2, 3]}
+        reject("M5.orphan_scale", bad)
+        bad = copy.deepcopy(base)
+        bad["b.safetensors"][scales]["shape"] = [1, 2]
+        reject("M6.pair_shape", bad)
+        bad = copy.deepcopy(base)
+        bad["b.safetensors"][scales] = {"dtype": "F16", "shape": [2], "data_offsets": [0, 4]}
+        reject("M7.scale_dtype", bad)
+        bad = copy.deepcopy(base)
+        bad["a.safetensors"][blocks]["shape"] = [4, 8]
+        bad["b.safetensors"][scales] = {"dtype": "U8", "shape": [4], "data_offsets": [0, 4]}
+        reject("M8.block_width", bad)
+        bad = copy.deepcopy(base)
+        bad["a.safetensors"][blocks]["data_offsets"] = [20, 51]
+        reject("M9.payload_length", bad)
+        bad = copy.deepcopy(base)
+        bad["a.safetensors"][blocks]["data_offsets"] = [19, 51]
+        reject("M10.overlap", bad)
+        reject("M11.truncated", alter=lambda: (root / "a.safetensors").write_bytes((root / "a.safetensors").read_bytes()[:-1]))
+        reject("M12.missing_shard", alter=lambda: (root / "b.safetensors").unlink())
+        reject("M13.all_shards_absent", alter=lambda: [(root / p).unlink() for p in base])
+        reject("M14.malformed_index", alter=lambda: (root / "model.safetensors.index.json").write_text("{}"))
+        mapping = {name: shard for shard, hdr in base.items() for name in hdr}
+        mapping[scales] = "a.safetensors"
+        reject("M15.wrong_index_map", alter=lambda: (root / "model.safetensors.index.json").write_text(json.dumps({"weight_map": mapping})))
+        mapping = {name: shard for shard, hdr in base.items() for name in hdr}
+        mapping["missing.weight"] = "a.safetensors"
+        reject("M16.missing_index_tensor", alter=lambda: (root / "model.safetensors.index.json").write_text(json.dumps({"weight_map": mapping})))
+
+        write()
+        with patch.object(C, "fetch_hf_safetensors_total", return_value={"ok": True, "total": 74, "parameters": {}}):
+            result = C.crosscheck(str(root), "fixture/model", local_num_params=74)
+            check("M17.valid_crosscheck", result["verdict"], "OK")
+            check("M17.mixed_evidence", result["dtype_scan"]["is_mixed_precision"], True)
+            check("M17.expert_evidence", result["dtype_scan"]["fourbit_experts"], True)
+            check("M18.real_external_mismatch", C.crosscheck(str(root), "fixture/model", local_num_params=100)["verdict"], "MISMATCH")
+            check("M18.tolerance_unchanged", C.crosscheck_external_vram(77, None, "fixture/model")["verdict"], "OK")
+            check("M19.ephemeral_unchanged", C.crosscheck_external_vram(None, None, "fixture/model")["mode"], "ephemeral-estimate")
+        with patch.object(C, "fetch_hf_safetensors_total", return_value={"ok": False, "reason": "unavailable"}):
+            check("M20.optional_unavailable", C.crosscheck_external_vram(74, None, "fixture/model")["verdict"], "UNAVAILABLE")
+        with patch.object(P, "parse", side_effect=ValueError("local observation failed")), \
+             patch.object(C, "fetch_hf_safetensors_total", side_effect=AssertionError("must not estimate")), \
+             patch.object(sys, "argv", ["crosscheck", str(root), "--hf-repo-id", "fixture/model", "--json"]), \
+             contextlib.redirect_stdout(io.StringIO()) as out, contextlib.redirect_stderr(io.StringIO()):
+            try:
+                C.main()
+            except SystemExit as exc:
+                check("M21.managed_parse_failure_exit", exc.code, 2)
+            check("M21.managed_failure_preserved", json.loads(out.getvalue())["checks"][-1]["reason"], "local_parse_failed")
+        (root / "b.safetensors").unlink()
+        check("M22.layout_gate_without_external", C.crosscheck(str(root))["verdict"], "MISMATCH")
+        with contextlib.redirect_stderr(io.StringIO()):
+            check("M22.parse_cli_failure", _main([str(root), "--json"]), 2)
+
+        # 다른 형식/선언 없음에 U8만 보고 MXFP4를 부여하지 않는다.
+        undeclared = dict(cfg)
+        undeclared.pop("quantization_config")
+        write(config=undeclared)
+        check("M23.undeclared_u8", C.crosscheck(str(root))["dtype_scan"]["fourbit_experts"], False)
+        high_mixed = {"a.safetensors": {
+            "experts.packed": {"dtype": "U8", "shape": [16], "data_offsets": [0, 16]},
+            "experts.scale": {"dtype": "F8_E8M0", "shape": [1], "data_offsets": [16, 17]},
+            "norm": {"dtype": "BF16", "shape": [1], "data_offsets": [17, 19]}}}
+        coarse = {**cfg, "quantization_config": {"quant_method": "fp8"}}
+        write(high_mixed, config=coarse)
+        check("M24.other_coarse_gate", C.crosscheck(str(root))["verdict"], "MISMATCH")
+        dense = {"a.safetensors": {"weight": {"dtype": "BF16", "shape": [10], "data_offsets": [0, 20]}}}
+        write(dense, config=undeclared)
+        check("M25.dense_count_unchanged", parse(str(root))["num_params"], 10)
+        check("M25.dense_fields_unchanged", "parameter_count" in parse(str(root)), False)
+
+        def oversize_header():
+            with (root / "a.safetensors").open("r+b") as f:
+                f.write(struct.pack("<Q", _SAFETENSORS_MAX_HEADER + 1))
+                f.truncate(_SAFETENSORS_MAX_HEADER + 9)  # sparse: payload를 쓰거나 읽지 않음
+        reject("M26.header_read_bound", alter=oversize_header)
+        check("M26.legacy_reader_bound", _read_safetensors_header(str(root / "a.safetensors")), None)
+
+        def duplicate_header():
+            path = root / "a.safetensors"
+            data = path.read_bytes()
+            n = struct.unpack("<Q", data[:8])[0]
+            header = data[8:8+n].decode().replace('"dtype": "BF16"', '"dtype": "U8", "dtype": "BF16"')
+            path.write_bytes(struct.pack("<Q", len(header)) + header.encode() + data[8+n:])
+        reject("M27.duplicate_header_key", alter=duplicate_header)
+        def duplicate_index():
+            path = root / "model.safetensors.index.json"
+            path.write_text(path.read_text().replace('"norm.weight": "a.safetensors"',
+                           '"norm.weight": "b.safetensors", "norm.weight": "a.safetensors"'))
+        reject("M28.duplicate_index_key", alter=duplicate_index)
+        bad = copy.deepcopy(base)
+        bad["a.safetensors"][blocks] = {"dtype": "U8", "shape": [16], "data_offsets": [20, 36]}
+        bad["b.safetensors"][scales] = {"dtype": "U8", "shape": [], "data_offsets": [0, 1]}
+        reject("M29.loader_requires_group_axis", bad)
+
 
 def _self_test() -> int:
     failures: list[str] = []
@@ -793,13 +1099,15 @@ def _self_test() -> int:
     check("A8.hybrid_per_token", _E.per_token_kv_bytes(parsed_hybrid, 2), 65536)
     check("A8.dense_per_token", _E.per_token_kv_bytes(parsed_dense, 2), 262144)
 
+    _mxfp4_self_tests(check)
+
     if failures:
         sys.stderr.write("[parse_model_config --self-test] FAIL %d 건:\n" % len(failures))
         for f in failures:
             sys.stderr.write("  - %s\n" % f)
         return 1
-    sys.stdout.write("[parse_model_config --self-test] OK — A1~A8 통과"
-                     " (하이브리드 KV 층수 인지 · plan_26082223 결함 A)\n")
+    sys.stdout.write("[parse_model_config --self-test] OK — A1~A8 + M1~M29 통과"
+                     " (하이브리드 KV · MXFP4 헤더/관리형 교차검증)\n")
     return 0
 
 
@@ -809,7 +1117,7 @@ def _main(argv: list[str] | None = None) -> int:
     )
     ap.add_argument("path", nargs="?", help="모델 경로 (/app/models/<Org>/<Name> 또는 호스트 경로)")
     ap.add_argument("--self-test", action="store_true",
-                    help="하이브리드 KV 층수 인지 회귀(모델/하드웨어 불요)")
+                    help="하이브리드 KV·MXFP4 헤더/교차검증 회귀(모델/하드웨어/네트워크 불요)")
     ap.add_argument(
         "--nas-root",
         default=DEFAULT_NAS_HOST_ROOT,

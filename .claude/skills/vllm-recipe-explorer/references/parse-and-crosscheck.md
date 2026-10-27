@@ -54,8 +54,16 @@ python3 scripts/parse_model_config.py <path> [--nas-root R] [--json] > parsed.js
 - **num_params 산출(로컬 파싱, 결정론)**: 비prequantized 모델은 **index 가 가리키는 정본 샤드들의 safetensors 헤더에서
   텐서별 numel(shape 곱)을 합산** — 저장 dtype 과 무관한 정확한 파라미터 수다(config `torch_dtype` 이 거짓이거나
   [Motif-2.6B: 디스크 fp32지만 bf16 모델], 한 디렉토리에 복수 정밀도 체크포인트가 공존해도[LFM2-8B-A1B] 정확).
-  prequantized(mxfp4 등)는 `quant_method_native` bpw 로 native weight 를 나눈 best-effort. `native_weight_bytes` 는 index
-  `total_size`(없으면 파일 크기 합), `disk_bpw` 는 최대 safetensors 헤더의 온디스크 dtype 실측(폴백·보고용).
+  명시된 **MXFP4**는 정본 헤더의 U8 `*_blocks[...,16]`와 U8 `*_scales[...]` 쌍을 검증해
+  `일반 부동소수 numel + blocks numel × 2`를 센다(`.blocks/.scales`도 지원). scales는 exponent
+  메타데이터로 제외한다. `parameter_count`는 논리 원소·저장 원소·scale 원소·payload/파일 바이트를
+  구분한다. 미지원 U8·쌍/shape/offset/index 불일치는 비0 오류이며 바이트 근사로 숨기지 않는다.
+  다른 prequantized 형식은 기존 `quant_method_native` bpw 기반 best-effort를 유지한다.
+  `native_weight_bytes`는 index가 가리키는 **실제 정본 파일 크기 합**(index 부재 시 파일 폴백)이며
+  `disk_bpw`는 최대 safetensors 헤더의 온디스크 dtype 실측(폴백·보고용)이다. 파일 바이트·weight 항은
+  보존되지만 num_params를 쓰는 activation 추정 항은 논리 총계 정정에 따라 달라진다.
+  packing 근거: [OpenAI loader](https://github.com/openai/gpt-oss/blob/main/gpt_oss/torch/weights.py),
+  [Transformers MXFP4 loader](https://github.com/huggingface/transformers/blob/main/src/transformers/integrations/mxfp4.py).
 - 디렉토리/`config.json` 부재 → 명시적 에러(비0 종료, 다운로드 금지).
 
 ## 3. ①.5 모델카드 교차검증 (결정론 · serving 착수 전 필수 루틴)
@@ -73,6 +81,9 @@ python3 scripts/crosscheck_model_card.py --ephemeral-estimate --hf-repo-id <org/
   부풀 수 있음이 실증됨(2026-07-08, gemma-4-E2B-it 20GB→실 9.54GiB) — **모델 용량 판단에 `du -sh` 를 근거로 쓰지 않는다**.
   `--hf-repo-id` 지정 시 HF 공개 API(`GET /api/models/<repo_id>` — 모델 다운로드 없이 `safetensors.total` 조회)로 로컬 실측과
   대조하거나, `--ephemeral-estimate`(다운로드 전) 로 파라미터 총계만으로 사전추정한다. 조회 실패는 음성정직(verdict=UNAVAILABLE).
+  관리형 로컬 parse가 실패하면 해당 실패를 MISMATCH로 보존하며 사전추정 성공으로 바꾸지 않는다.
+  명시 MXFP4와 전체 blocks/scales 검증이 함께 성립한 일반 부동소수 혼합은 형식상 설명 가능한 저장이다.
+  U8 dtype만으로 MXFP4를 추측하지 않으며 다른 coarse-label 불일치와 외부 5% 문턱은 그대로다.
 - **special-dep 분류·핸드오프 (발견≠소유 — per-model 3+1+1, plan_26062812)**:
   · **빌드-바깥 의존**(native lib/커널: DeepGEMM·tilelang·flash_attn…) = **patch.py ✗ · recipe-explorer 자체수정 ✗** →
   **`upstream-version-watch` 핸드오프**(빌드 평면 — `build_patches/<NN>-*.sh`; 메인) / **서브면 docs insight 상향**(D12).
