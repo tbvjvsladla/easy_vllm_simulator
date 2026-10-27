@@ -3059,25 +3059,13 @@ def current_serve_window(repo: Path, ev: Any, *, measure_start: str | None = Non
     nodes = [str(n["node_id"]) for n in decl.get("nodes", [])
              if isinstance(n, dict) and n.get("role") == role and n.get("node_id")]
     nodes = list(dict.fromkeys(nodes or [role]))
-    own_node = _evidence._self_node(repo)[0]
     records = []
     for node in nodes:
-        if not isinstance(node, str) or not node or "/" in node or node.startswith("."):
-            continue
-        local = {p.name: p for p in (repo / _evidence.REL_EVENTS_ROOT / node / "sessions").glob("*.json")}
-        mirror = {} if node == own_node else {
-            p.name: p for p in (repo / _evidence.REL_EVENTS_RECOVERED_ROOT / node / "sessions").glob("*.json")}
-        for p in {**local, **mirror}.values():
-            if (any(q.is_symlink() for q in (p, *p.parents)) or not p.is_file()
-                    or not p.resolve().is_relative_to(repo.resolve())):
+        for d in _evidence._node_session_docs(repo, node).values():
+            if not d or d.get("config_file") != cell or d.get("topology") != topo:
                 continue
-            d = _json_file(p) or {}
-            start, stop = _utc_z(d.get("started_utc")), _utc_z(d.get("stopped_utc"))
-            if (d.get("config_file") != cell or d.get("topology") != topo or not start
-                    or not _evidence._session_is_cell(d.get("session_id"), cell)):
-                continue
-            records.append({"start_utc": start, "end_utc": stop, "session_id": d["session_id"],
-                            "node_id": node, "source": core.rel(repo, p)})
+            records.append({"start_utc": d["started_utc"], "end_utc": d.get("stopped_utc"), "session_id": d["session_id"],
+                            "node_id": node, "source": d["_source"]})
     earlier = [r for r in records if r["start_utc"] <= measure_start]
     if not earlier:
         return None
@@ -5535,7 +5523,8 @@ def selftest() -> list[str]:
         # FC1: accumulated captures and stale/open journals cannot turn a previous campaign into
         # this serving session. The final sweep's measured duration remains unchanged.
         prior = journal.with_name(f"serve-{cell}-20251222T183000Z.json")
-        restart = journal.with_name(f"serve-{cell}-20260101T191000Z.json")
+        restart = journal.with_name("operator_attempt-restart.json")
+        custom = journal.with_name("operator_attempt-01.json")
         old_events = evp.read_bytes()
         try:
             prior.write_text(json.dumps(dict(session_doc, session_id=prior.stem,
@@ -5558,6 +5547,24 @@ def selftest() -> list[str]:
                and all(p.read_bytes() == raw for p, raw in before.items()))
             ck("★FC6 full certificate requires explicit authority and PASS in the reproduction contract",
                "explicit ∧ PASS" in scoped["bench"]["success"] and "+PASS 면 인증서" not in scoped["bench"]["success"])
+            custom_doc = dict(session_doc, session_id=custom.stem, started_utc="2026-01-01T18:50:00Z")
+            journal.unlink()
+            custom.write_text(json.dumps(custom_doc), encoding="utf-8")
+            custom_before = custom.read_bytes()
+            custom_steps = {s["step"]: s for s in reproduce_steps(repo, ev, runner=docker_old)}
+            custom_window = current_serve_window(repo, ev)
+            ck("custom official session ID binds by config/topology, preserving measured duration and request scope",
+               custom_window and custom_window["session_id"] == custom.stem
+               and all(custom_steps["serve"]["observed"][k] == scoped["serve"]["observed"][k]
+                       for k in ("start_utc", "end_utc", "seconds", "bound"))
+               and custom_steps["bench"]["observed"]["seconds"] == 1819
+               and custom_steps["bench"]["observed"].get("pre_final_sweep_requests", {}).get("count") == 2
+               and custom_steps["bench"]["observed"]["pre_final_sweep_requests"]["session_id"] == custom.stem
+               and custom.read_bytes() == custom_before)
+            custom.write_text(json.dumps(dict(custom_doc, session_id="unrelated_filename")), encoding="utf-8")
+            ck("custom session ID must match its official journal filename", current_serve_window(repo, ev) is None)
+            custom.unlink()
+            journal.write_text(json.dumps(dict(session_doc, started_utc="2026-01-01T18:50:00Z")), encoding="utf-8")
             with hd5.open("a", encoding="utf-8") as f:
                 f.write("\n".join(["INFO 01-01 18:52:00 Starting vLLM server on fixture", post5(40021),
                                      post5(40022), stamp5("18:53:00")]) + "\n")
@@ -5609,7 +5616,7 @@ def selftest() -> list[str]:
                    and "pre_final_sweep_requests" not in stale["bench"]["observed"])
         finally:
             evp.write_bytes(old_events)
-            for p in (hd5, tl5, journal, prior, restart, sd5 / f"lite_raw_{cell}.json"):
+            for p in (hd5, tl5, journal, prior, restart, custom, sd5 / f"lite_raw_{cell}.json"):
                 p.unlink(missing_ok=True)
         # 캠페인 phase — phases/<X> 의 X 는 **노드 id** 다(축 이름 아님 · 2026-09-22 감사). cluster = 선언 노드 전부의 같은 셀
         # 기록에서 가장 이른 시작 ~ 가장 늦은 끝 · 다른 셀 기록은 쓰지 않는다 · main/sub 축은 evidence 가 해소한 ev.phases 만.
