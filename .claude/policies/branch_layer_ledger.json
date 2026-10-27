@@ -1884,6 +1884,41 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261027-single-to-multi-hitl-doc-a85af01",
+      "utc": "2026-10-27T00:25:01Z",
+      "departure": "single-node",
+      "departure_commit": "a85af01ac8f43de27feb9d532ff1c4472009b2ee",
+      "approved_by": "user: 이너 하네스 agnostic 작업 후 서브노드 및 싱글노드·멀티노드 브랜치 전파 지시",
+      "approved_utc": "2026-10-26T20:04:48Z",
+      "_execution_note": "기존 사용자 브랜치 전파 승인과 현재 세션의 명시적 문구 4파일 전파 지시에 따라 target 원장 append/commit→공식 sync dry-run 검토→apply/commit을 실행한다. 새 사용자 승인을 만들지 않는다. primary checkout/index와 기존 사용자 worktree 3개는 보존하며 핀 a85af01의 공통 바이트를 대조한다. source push·SSH·GPU·벤치·모델 호출·호스트 변경·서브 배포는 수행하지 않는다.",
+      "classification": [
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "공통 A2A 요약이 승인·중단·실패 복구의 정본 reference를 따르게 하며 기존 자동 재개 기본값은 유지한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/orchestration/a2a_relay.md",
+          "verdict": "common_promote",
+          "reason": "완료 리포트 뒤 미해결 제어 상태의 명시적 복구 예외와 실제 사용자 의사에 따른 재개 결정을 정확히 설명한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/relay.py",
+          "verdict": "common_promote",
+          "reason": "답의 존재를 승인으로 오독하지 않도록 차단 분기의 사용자 안내 문자열만 바꾼다. 제어 로직과 측정 코드는 불변이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "CLAUDE.md",
+          "verdict": "common_promote",
+          "reason": "공통 감독 요약을 정본의 재개·승인 가드에 결속하고 불완전한 예외 목록을 제거한다. 새 승인이나 실행 권한을 만들지 않는다.",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
