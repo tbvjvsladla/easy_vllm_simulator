@@ -2249,6 +2249,53 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261027-single-to-multi-relay-fact-ae5c598",
+      "utc": "2026-10-27T09:07:17Z",
+      "departure": "single-node",
+      "departure_commit": "ae5c5984f0a71f9daa8f97329b52644e7e170f9c",
+      "approved_by": "user: 이너 하네스 agnostic 작업 후 서브노드 및 싱글노드·멀티노드 브랜치 전파 지시",
+      "approved_utc": "2026-10-26T20:04:48Z",
+      "_execution_note": "기존 사용자 공통층·양브랜치 전파 승인과 현재 ae5c598 공통6파일 지시를 재사용한다. target 원장 append/commit→공식 dry-run 검토/apply→집중 회귀→commit·착지검증→소유 worktree 회수 범위다. source HEAD/index와 기존3worktree·특화층을 보존한다. 원격 push·서브 sync·native·GPU·sudo는 수행하지 않는다.",
+      "classification": [
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/artifacts.py",
+          "verdict": "common_promote",
+          "reason": "양 토폴로지 재현 FACT를 현재 측정의 공식 세션·엔진 구간에 결속하고 증거 없는 과거 시간/요청 합산을 배제한다. 인증서 발행의 explicit 및 PASS 조건을 복원하며 수치 문턱은 바꾸지 않는다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/evidence.py",
+          "verdict": "common_promote",
+          "reason": "runtime checkout·설치 버전의 관측과 빌드 계보 증명을 구분하고 현재 세션에 묶인 엔진 배너만 현재 측정으로 표시한다. 토폴로지 공통 증거 producer와 회귀다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/template.py",
+          "verdict": "common_promote",
+          "reason": "공통 FACT 표에 runtime 관측을 빌드 계보와 구분해 렌더하여 기록된 사실을 전역 미관측으로 오도하지 않도록 한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/orchestration/a2a_relay.md",
+          "verdict": "common_promote",
+          "reason": "양 provider·토폴로지에 공통인 최신 명시 지시의 검증·승계 계약과 구 원장 기술 인계 절차를 설명한다. 기존 승인·예산·서비스 복구 경계를 보존한다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/relay.py",
+          "verdict": "common_promote",
+          "reason": "명시 지시를 dispatch 증거에 결속하고 후속 재개에서 최신 유효 원문을 승계한다. 낡은 지시 재주입·자동본문 재귀 및 출처 결손의 침묵 복귀를 차단하는 공통 제어 기능이다.",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/selftest_harness_switch.py",
+          "verdict": "common_promote",
+          "reason": "명시/자동 지시 승계와 provenance 파손·복구 경계를 기존 외부 호출 없는 fixture로 검증하는 공통 회귀다.",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
