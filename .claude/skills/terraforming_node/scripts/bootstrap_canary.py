@@ -25,6 +25,9 @@ from __future__ import annotations
 import argparse
 import json
 import os
+from pathlib import Path
+import secrets
+import shlex
 import subprocess
 import sys
 
@@ -155,6 +158,198 @@ def backend_choices() -> list:
 
 
 DEFAULT_CANARY_MODEL = "sonnet"    # 카나리 1왕복의 **기본 선언값**이지 게이트가 아니다(--model 로 바꾼다)
+PROBE_REL = ".claude/skills/terraforming_node/scripts/harness_permission_probe.py"
+PLAN_PREFIX = "HARNESS_CANARY_PLAN="
+
+
+def permission_plan(request: dict) -> dict | None:
+    """Bounded plan carried by the existing request, not a parallel readiness flag."""
+    lines = [x[len(PLAN_PREFIX):] for x in request.get("task", "").splitlines()
+             if x.startswith(PLAN_PREFIX)]
+    if len(lines) != 1:
+        return None
+    try:
+        p = json.loads(lines[0])
+    except ValueError:
+        return None
+    if not isinstance(p, dict) or p.get("phase") != "permissions":
+        return None
+    if (p.get("schema_version") != 1 or p.get("topology") not in ("single", "multi")
+            or not isinstance(p.get("nonce"), str) or len(p["nonce"]) != 32
+            or any(c not in "0123456789abcdef" for c in p["nonce"])
+            or p.get("target") != request.get("target")):
+        return None
+    target = request["target"]
+    expected = ["python3", "-B", PROBE_REL, "--workspace", target["work_dir"],
+                "--topology", p["topology"], "--role", target["role"], "--nonce", p["nonce"]]
+    return p if p.get("argv") == expected else None
+
+
+def _permission_task(topology: str, target: dict, nonce: str) -> str:
+    argv = ["python3", "-B", PROBE_REL, "--workspace", target["work_dir"],
+            "--topology", topology, "--role", target["role"], "--nonce", nonce]
+    plan = {"schema_version": 1, "phase": "permissions", "nonce": nonce,
+            "topology": topology, "target": target, "argv": argv}
+    return (
+        "업무 권한 카나리다. serving 모델·GPU·빌드·sudo·인증변경·원격 git·정책변경을 하지 마라. "
+        "이 요청의 native 도구에서 아래 명령을 그대로 정확히 1회 실행하라. "
+        "helper는 전용 scratch/독점 marker만 쓰고 회수하며 기존 canonical 파일에는 쓰지 않는다. "
+        "도서관 query는 기존 파생 cache를 만들 수 있다. Docker는 version 조회만 한다. "
+        "helper를 읽기만 하거나 결과를 만들어 쓰지 마라. 도구가 거부하면 우회·재실행하지 말고 보고하라.\n"
+        + shlex.join(argv) + "\n"
+        "마지막 응답은 task-report.schema.json에 맞는 JSON 객체 1개다. "
+        f"task_id=context_id='harness-canary-{nonce}', turn=1, node_id='{target['role']}', phase='inspect'. "
+        "실제 수행만 self_verification.checks_run에 적고, 미관측/거부는 input-required와 hitl로 보고한다. "
+        "helper stdout은 native 도구 결과에 남긴다. notes의 자기주장만으로 검증을 대신하지 않는다.\n"
+        + PLAN_PREFIX + json.dumps(plan, ensure_ascii=False, separators=(",", ":"))
+    )
+
+
+def _command_matches(command, argv) -> bool:
+    if not isinstance(command, str):
+        return False
+    try:
+        tokens = shlex.split(command)
+        if tokens and tokens[0] in ("/bin/bash", "bash", "/bin/sh", "sh"):
+            if len(tokens) == 3 and tokens[1] in ("-lc", "-c"):
+                tokens = shlex.split(tokens[2])
+        return tokens == argv
+    except ValueError:
+        return False
+
+
+def _tool_receipts(result: dict, argv) -> list[str]:
+    """Only native completed tool results; never assistant text or final notes."""
+    receipts, uses, seen_ids = [], {}, set()
+    for e in result.get("raw_events") or []:
+        if not isinstance(e, dict):
+            continue
+        item = e.get("item")
+        if (result.get("provider") == "codex_cli" and e.get("type") == "item.completed" and isinstance(item, dict)
+                and item.get("type") == "command_execution"
+                and item.get("status") == "completed" and item.get("exit_code") == 0
+                and _command_matches(item.get("command"), argv)
+                and isinstance(item.get("aggregated_output"), str)):
+            receipts.append(item["aggregated_output"])
+        if result.get("provider") != "claude_code":
+            continue
+        message = e.get("message")
+        if not isinstance(message, dict):
+            continue
+        for block in message.get("content") or []:
+            if not isinstance(block, dict):
+                continue
+            if e.get("type") == "assistant" and block.get("type") == "tool_use":
+                ident = block.get("id")
+                if not isinstance(ident, str) or not ident or ident in seen_ids:
+                    return []
+                seen_ids.add(ident)
+            if (e.get("type") == "assistant" and block.get("type") == "tool_use"
+                    and block.get("name") == "Bash" and isinstance(block.get("input"), dict)
+                    and _command_matches(block["input"].get("command"), argv)):
+                uses[block.get("id")] = True
+            if (e.get("type") == "user" and block.get("type") == "tool_result"
+                    and block.get("tool_use_id") in uses and block.get("is_error") is not True):
+                body = block.get("content")
+                if isinstance(body, list):
+                    body = "\n".join(b.get("text", "") for b in body
+                                     if isinstance(b, dict) and b.get("type") == "text")
+                if isinstance(body, str):
+                    receipts.append(body)
+    return receipts
+
+
+def verify_result(request: dict, result: dict) -> dict:
+    """Three existing evidence layers, with no disk/SSH rescan and no fallback executor."""
+    import agent_control as ac
+    if not isinstance(request, dict) or not isinstance(result, dict):
+        return {"status": "input-required", "phase": "inspect", "reason": "REQUEST_OR_RESULT_NOT_OBJECT"}
+    problems = ac.request_schema_violations(request)
+    problems += ac._schema_violations(result, ac._load_schema(ac.RESULT_SCHEMA_PATH))
+    if not ac.request_schema_violations(request):
+        problems += ac._result_contract_violations(result, request)
+    native_ok = not problems and (result.get("status"), result.get("exit_code")) == ("completed", 0)
+    native_ok = native_ok and result.get("provider") == request.get("provider")
+    native_ok = native_ok and result.get("model_requested") == request.get("model")
+    try:
+        report = json.loads(result.get("output") or "")
+    except (ValueError, TypeError):
+        report = None
+    schema = ac._load_schema(Path(HERE).parent / "sub_node/task-report.schema.json")
+    schema_errors = ac._schema_violations(report, schema)
+    report_ok = not schema_errors and report.get("phase") == "inspect" and report.get("status") == "completed"
+    plan = permission_plan(request)
+    domain = {"status": "unproven", "reasons": []}
+    enforcement = {"status": "unproven", "surface": "os_write_open", "limitations": []}
+    if plan is None:
+        domain["reasons"].append("DISCOVERY_ONLY_NO_WORK_PERMISSION_OBSERVATIONS")
+    else:
+        expected_context = "harness-canary-" + str(plan.get("nonce"))
+        report_ok = report_ok and all(report.get(k) == expected_context for k in ("task_id", "context_id"))
+        report_ok = report_ok and report.get("node_id") == request["target"]["role"]
+        import harness_permission_probe as probe
+        packets = []
+        for receipt in _tool_receipts(result, plan.get("argv")):
+            for line in receipt.splitlines():
+                if line.startswith(probe.MARKER):
+                    try:
+                        packets.append(json.loads(line[len(probe.MARKER):]))
+                    except ValueError:
+                        packets.append(None)
+        if len(packets) != 1 or not isinstance(packets[0], dict):
+            domain["reasons"].append("EXACT_NATIVE_PROBE_RECEIPT_ABSENT_OR_AMBIGUOUS")
+        else:
+            packet = packets[0]
+            bound = (packet.get("schema_version") == probe.SCHEMA_VERSION
+                     and packet.get("nonce") == plan.get("nonce")
+                     and packet.get("topology") == plan.get("topology")
+                     and packet.get("role") == request["target"]["role"]
+                     and packet.get("workspace") == request["target"]["work_dir"]
+                     and packet.get("provenance") == "observed_local_process")
+            checks = packet.get("checks")
+            valid = isinstance(checks, list) and all(isinstance(c, dict) and isinstance(c.get("name"), str) for c in checks)
+            by_name = {c["name"]: c for c in checks} if valid else {}
+            valid = valid and len(by_name) == len(checks)
+            required = {"scratch_write_cleanup", "scratch_local_git", "scratch_removed",
+                        "workspace_git_metadata", "docker_daemon_read", "docker_compose_read", "library_query",
+                        "model_asset_read", "buildkit_declaration"}
+            if plan.get("topology") == "single" and request["target"]["role"] == "sub":
+                required.update(("hint_clone_write", "hint_clone_git_discovery", "hint_clone_write_git_1"))
+            functional = bound and valid and required <= set(by_name)
+            functional = functional and all(c.get("outcome") == "allowed" or (
+                c.get("name") == "model_asset_read" and c.get("outcome") == "not_applicable"
+                and c.get("model_source") == "ephemeral") for c in checks if c.get("axis") == "functional")
+            functional = functional and all(by_name[n].get("axis") == "functional" for n in required)
+            domain.update(status="pass" if functional else "unproven", observations=packet)
+            if not functional:
+                domain["reasons"].append("REQUIRED_ROLE_WORK_UNOBSERVED_OR_FAILED")
+            build_files = packet.get("build_files")
+            build_valid = (isinstance(build_files, list) and all(isinstance(n, str) for n in build_files)
+                           and len(build_files) == len(set(build_files))
+                           and set(probe.BUILD_FILES) <= set(build_files)
+                           and bool(set(probe.DOCKERFILES) & set(build_files))
+                           and set(build_files) <= set(probe.BUILD_FILES + probe.DOCKERFILES))
+            os_required = {"buildkit:" + n: ("denied" if request["target"]["role"] == "sub"
+                            and plan.get("topology") == "multi" else "allowed") for n in (build_files if build_valid else [])}
+            os_required.update({"protected:" + n: "denied"
+                                for n in probe.protected_files(request["target"]["role"])})
+            os_ok = bound and valid and build_valid and all(by_name.get(n, {}).get("outcome") == outcome
+                    and by_name[n].get("preserved") is True and by_name[n].get("axis") == "os_enforcement"
+                    for n, outcome in os_required.items())
+            if request.get("provider") == "codex_cli":
+                enforcement["status"] = "pass" if os_ok else "unproven"
+            else:
+                enforcement["limitations"].append("Claude tool/managed deny must be observed at its native tool surface; Python write-open does not establish that boundary")
+    complete = native_ok and report_ok and domain["status"] == "pass"
+    if request.get("provider") == "codex_cli":
+        complete = complete and enforcement["status"] == "pass"
+    return {"status": "completed" if complete else "input-required", "phase": "inspect",
+            "native_cli": {"status": "pass" if native_ok else "unproven", "schema_errors": problems,
+                           "model_requested": request.get("model"), "model_observed": result.get("model_used", [])},
+            "task_report": {"status": "pass" if report_ok else "unproven", "schema_errors": schema_errors},
+            "domain_evidence": domain, "enforcement_evidence": enforcement,
+            "limitations": ["No model serving, Docker build/run, remote push, or native resume proof",
+                            "completed is this canary's bounded evidence, not performance/promotion completion"]}
 
 
 def build_request(topology: str, manifest_path: str, *,
@@ -162,7 +357,8 @@ def build_request(topology: str, manifest_path: str, *,
                   budget_source: str = None, model: str = None,
                   backend: str = None, provider: str = "claude_code",
                   max_dispatches: int | None = None, sandbox_mode: str | None = None,
-                  permission_profile: str | None = None) -> dict:
+                  permission_profile: str | None = None, phase: str = "discovery",
+                  target_role: str = "sub", main_work_dir: str | None = None) -> dict:
     """카나리 request 조립. 예산은 **선언받는다**(기본값 ✗ — `turn_budget` 참조).
 
     `model` 은 선언이다(2026-09-05 · G-A1): 어댑터가 모델을 막지 않으므로 여기 값도 게이트가 아니라
@@ -171,20 +367,22 @@ def build_request(topology: str, manifest_path: str, *,
     if not os.path.exists(manifest_path):
         raise SystemExit(f"[canary] FAIL: manifest 부재 — {manifest_path}")
     man = _load_yaml_min(manifest_path)
+    if phase not in ("discovery", "permissions") or target_role not in ("main", "sub"):
+        raise SystemExit("[canary] FAIL: unknown phase/target")
     sub = next((n for n in (man.get("nodes") or []) if str(n.get("role")) == "sub"), None)
-    if sub is None:
+    if target_role == "sub" and sub is None:
         raise SystemExit("[canary] FAIL: manifest nodes[] 에 role: sub 가 없다 — 서브 미등록 상태에서는 "
                          "카나리를 조립할 수 없다(§2.5 는 전달 후 게이트다).")
     missing = [k for k in ("host", "ssh_user", "work_dir")
-               if not sub.get(k) or str(sub[k]).startswith("__REQUIRED__")]
-    if missing:
+               if not sub.get(k) or str(sub[k]).startswith("__REQUIRED__")] if target_role == "sub" else []
+    if target_role == "sub" and missing:
         raise SystemExit(f"[canary] FAIL: nodes[sub] 필수 필드 미해소 {missing} — "
                          f"추측해서 접속하지 않는다(틀린 계정/경로는 권한 평면을 바꾼다).")
     unit = "wall_time" if provider == "codex_cli" else "native_turns"
     bud = turn_budget.declare(max_turns, timeout_seconds, source=budget_source or "",
                               unit=unit, max_dispatches=max_dispatches)
-    sub_mode, mode_source = resolve_sub_mode(topology, manifest_path)
-    if sub_mode not in TASK_BY_MODE:
+    sub_mode, mode_source = resolve_sub_mode(topology, manifest_path) if target_role == "sub" else ("main", "explicit main target")
+    if target_role == "sub" and sub_mode not in TASK_BY_MODE:
         raise SystemExit(f"[canary] FAIL: 알 수 없는 sub_mode={sub_mode!r}(출처 {mode_source}) — "
                          f"정체성이 정해지지 않으면 물어볼 내용도 정해지지 않는다.")
     request = {
@@ -194,14 +392,18 @@ def build_request(topology: str, manifest_path: str, *,
         # 2026-09-08: 백엔드별 기본 모델은 **어댑터가 소유한다**(BACKEND_DEFAULT_MODEL).
         #   종전에는 `k3[1m]` 리터럴이 여기 손으로 적혀 있어, 백엔드가 늘면 갈라지는 자리였다.
         "model": model or _backend_default_model(backend, provider),
-        "task": TASK_COMMON + TASK_BY_MODE[sub_mode],
-        "target": {
+        "task": (TASK_COMMON + TASK_BY_MODE[sub_mode] if target_role == "sub" else
+                 "메인 discovery 카나리다. serving 모델·GPU·빌드·파일변경을 하지 마라. "
+                 "CLAUDE.md와 AGENTS.md의 정본·메인 역할·output/<topology>/manifest.yaml을 확인하고 "
+                 ".claude/skills/terraforming_node/sub_node/task-report.schema.json 정본에 맞는 "
+                 "phase=inspect schema-valid JSON 리포트 1개를 반환하라. 서브 comms나 sub_mode를 요구하지 않는다."),
+        "target": ({
             "role": "sub",
             "transport": "ssh",
             "host": str(sub["host"]),
             "ssh_user": str(sub["ssh_user"]),
             "work_dir": str(sub["work_dir"]),
-        },
+        } if target_role == "sub" else {"role": "main", "transport": "local", "work_dir": os.path.abspath(main_work_dir or REPO)}),
         "capabilities": ["read", "execute"],
         **({"backend": backend} if backend else {}),  # 미지정=anthropic 기본(스키마 선택 필드)
         # 예산은 선언된 값 두 개만 싣는다 — 요청 스키마는 `additionalProperties: false` 라
@@ -218,6 +420,15 @@ def build_request(topology: str, manifest_path: str, *,
         else:
             request["sandbox_mode"] = sandbox_mode or "read-only"
         request["task"] = "AGENTS.md 를 먼저 읽고 그 문서가 지정한 정본 지침을 읽어라. " + request["task"]
+    if phase == "permissions":
+        if not model:
+            raise SystemExit("[canary] FAIL: permissions phase requires explicit --model")
+        if provider == "codex_cli" and (sandbox_mode or permission_profile != "vllm-" + target_role):
+            raise SystemExit("[canary] FAIL: permissions phase requires the exact named role profile, no legacy sandbox")
+        request["task"] = _permission_task(topology, request["target"], secrets.token_hex(16))
+        request["capabilities"] = ["read", "execute", "edit", "write"]
+        if provider == "claude_code":
+            request["capture_native_events"] = True
     return request
 
 
@@ -297,6 +508,12 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="§2.5 model-less 카나리 request 조립기/실행자")
     ap.add_argument("--topology", choices=["single", "multi"])
     ap.add_argument("--manifest", default=None, help="기본 output/<topology>/manifest.yaml")
+    ap.add_argument("--phase", choices=("discovery", "permissions"), default="discovery",
+                    help="기존 읽기 discovery 또는 실제 native 도구 업무권한 관측")
+    ap.add_argument("--target", choices=("main", "sub"), default="sub")
+    ap.add_argument("--main-work-dir", help="main/local 대상 작업공간(기본 이 checkout); sub는 manifest만 사용")
+    ap.add_argument("--verify-request", help="보존 request JSON과 --verify-result를 오프라인 검증(실행 없음)")
+    ap.add_argument("--verify-result", help="보존 agent_control result JSON; native/schema/domain 분리 판정")
     ap.add_argument("--emit", metavar="PATH", help="request JSON 을 이 경로에 쓴다(기본: stdout)")
     ap.add_argument("--max-turns", type=int, default=None,
                     help="이 카나리에 배정할 턴 예산(선언 필수 — 기본값 없음)")
@@ -319,6 +536,16 @@ def main() -> int:
     a = ap.parse_args()
     if a.self_test:
         return _self_test()
+    if a.verify_request or a.verify_result:
+        if not (a.verify_request and a.verify_result) or a.invoke or a.emit:
+            ap.error("--verify-request/--verify-result require both, without --invoke/--emit")
+        with open(a.verify_request, encoding="utf-8") as f:
+            request = json.load(f)
+        with open(a.verify_result, encoding="utf-8") as f:
+            result = json.load(f)
+        verification = verify_result(request, result)
+        print(json.dumps(verification, ensure_ascii=False, indent=2))
+        return 0 if verification["status"] == "completed" else 4
     if not a.topology:
         raise SystemExit("[canary] --topology 필수(토폴로지는 인터뷰가 정한다 — 브랜치로 추론하지 않는다)")
     manifest = a.manifest or os.path.join(REPO, "output", a.topology, "manifest.yaml")
@@ -326,14 +553,15 @@ def main() -> int:
                         timeout_seconds=a.timeout_seconds, budget_source=a.budget_source,
                         model=a.model, backend=a.backend, provider=a.provider,
                         max_dispatches=a.max_dispatches, sandbox_mode=a.sandbox_mode,
-                        permission_profile=a.permission_profile)
+                        permission_profile=a.permission_profile, phase=a.phase,
+                        target_role=a.target, main_work_dir=a.main_work_dir)
     blob = json.dumps(req, ensure_ascii=False, indent=2) + "\n"
     if a.emit:
         with open(a.emit, "w", encoding="utf-8") as f:
             f.write(blob)
         print(f"[canary] request → {a.emit} (max_turns={req['max_turns']} "
               f"timeout={req['timeout_seconds']}s · {a.budget_source})")
-    else:
+    elif not (a.invoke and a.phase == "permissions"):
         sys.stdout.write(blob)
     if not a.invoke:
         return 0
@@ -342,6 +570,23 @@ def main() -> int:
         tf.write(blob)
         tmp = tf.name
     try:
+        if a.phase == "permissions":
+            # Adapter remains the only native executor. Do not retry, switch provider,
+            # substitute a legacy policy, or read the remote filesystem after failure.
+            invoked = subprocess.run([sys.executable, AGENT_CONTROL, "invoke", "--request", tmp],
+                                     capture_output=True, text=True)
+            try:
+                result = json.loads(invoked.stdout)
+            except ValueError:
+                print(json.dumps({"status": "input-required", "phase": "inspect",
+                                  "native_cli": {"status": "unproven", "returncode": invoked.returncode},
+                                  "reason": "NATIVE_RESULT_NOT_JSON", "raw_stdout": invoked.stdout,
+                                  "raw_stderr": invoked.stderr}, ensure_ascii=False, indent=2))
+                return 4
+            verification = verify_result(req, result)
+            print(json.dumps({"request": req, "native_result": result,
+                              "verification": verification}, ensure_ascii=False, indent=2))
+            return 0 if verification["status"] == "completed" else 4
         return subprocess.run([sys.executable, AGENT_CONTROL, "invoke", "--request", tmp]).returncode
     finally:
         os.unlink(tmp)

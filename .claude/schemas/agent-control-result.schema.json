@@ -219,7 +219,7 @@
           "enum": []
         },
         "raw_events": {
-          "enum": []
+          "description": "Optional diagnostic native evidence; dispatch-bound opt-in is checked by agent_control."
         }
       }
     },
@@ -294,7 +294,7 @@
           "enum": []
         },
         "raw_events": {
-          "enum": []
+          "description": "Optional diagnostic native evidence; dispatch-bound opt-in is checked by agent_control."
         }
       }
     },
@@ -377,7 +377,7 @@
           "enum": []
         },
         "raw_events": {
-          "enum": []
+          "description": "Optional diagnostic native evidence; dispatch-bound opt-in is checked by agent_control."
         }
       }
     },
@@ -461,7 +461,7 @@
           "enum": []
         },
         "raw_events": {
-          "enum": []
+          "description": "Optional diagnostic native evidence; dispatch-bound opt-in is checked by agent_control."
         }
       }
     },
@@ -538,7 +538,7 @@
           "enum": []
         },
         "raw_events": {
-          "enum": []
+          "description": "Optional diagnostic native evidence; dispatch-bound opt-in is checked by agent_control."
         }
       }
     },

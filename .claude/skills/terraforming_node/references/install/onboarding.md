@@ -4,6 +4,10 @@
 > 이관 전 원문: `git show dcb713a:.claude/skills/terraforming_node/SKILL.md` (plan_26093022 Step 4 — 본문 바이트는 그대로 옮겼다).
 
 ## 0. 전제 / 입력
+
+하네스 추가·전환·권한 개정은 `harness_environment.md`(§2.5.2)의 부분 재진입이다. HW Flag가 유효해도
+해당 하네스의 실행 가능성을 증명하지는 않는다. 기존 topology·승인·캠페인을 복구하고 메인과 등록된 서브의
+설정·실제 A2A 업무만 검증한다. 일반 설정 렌더/배달은 sudo가 아니며, 확인된 호스트 결손만 사람 수행 request로 분리한다.
 - **토폴로지-중립 진입**: single·multi **공통** 발동. (과거 "multi 전용·single 비활성(α)"는 plan_26063009_44_23 에서 폐기 — single 진입점 부재 = chicken-and-egg 갭이었음: "single이냐 multi이냐"를 묻는 주체가 multi일 때만 발동했음.) **첫 동작 = 토폴로지 인터뷰(§0.5)**. 이하 §1(진입 루틴)·§2(서브 환경구축)는 **topology=multi 분기**, single 은 §0.5→§1S 로 짧게 완결.
 - **SSH = Case A**(multi 한정): 메인↔서브 패스워드리스 SSH는 **사전조건**(검증만, 키 교환·물리망 설정은 안 함).
 - 계약 스켈레톤 = `manifest.template.yaml`(루트, 추적). **실값 = `output/<topology>/manifest.yaml`**(브랜치 파생 통로 — single=`output/single/`·multi=`output/multi/`; 비추적, plan_26062315). **(multi) 서브엔 메인 manifest 를 전달하지 않는다**(메인 단일계약 — render-on-main, D10 · single 서브가 받는 **서브 manifest** 는 §2.7.10).
@@ -25,7 +29,8 @@
 
 ## 1S. 단일노드 온보딩 (topology=single — 짧은 경로)
 
-> §0.5 에서 single 확정 시. 서브가 없으므로 §1(5-전제조건/성능)·§2(서브 환경구축)는 **N/A**.
+> §0.5 에서 single 확정 시. 서브 미등록이면 §1(5-전제조건/성능)·§2(서브 환경구축)는 **N/A**.
+> A2A 서브가 등록돼 있으면 §2의 역할별 에이전트 오버레이·§2.5.2 검증을 수행한다. 멀티 빌드킷 배달·성능 게이트를 켜는 것은 아니다.
 
 - **스캔**(결정론): `python3 scripts/scan_node.py --topology single` — interconnect 검증 skip(=α 정상).
 - **게이트**: α — RoCE 하드웨어가 있어도 비blocking 경고(멀티 가능 머신의 단일 운용은 정상).

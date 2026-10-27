@@ -179,10 +179,14 @@ def _inner_argv(request: dict) -> list[str]:
     claude_args = [
         "-p", request["task"],
         "--model", request["model"],
-        "--output-format", "json",
+        "--output-format", "stream-json" if request.get("capture_native_events") is True else "json",
         "--max-turns", str(request["max_turns"]),
         "--allowedTools", allowed_tools,
     ]
+    if request.get("capture_native_events") is True:
+        # Diagnostic opt-in only; do not change the ordinary JSON/resume/backend contract.
+        # https://code.claude.com/docs/en/headless#stream-responses
+        claude_args += ["--verbose"]
     resume = request.get("resume_session_id")
     if isinstance(resume, str) and resume.strip():
         claude_args += ["--resume", resume.strip()]
@@ -336,7 +340,48 @@ def _budget_outcome(payload: dict, request: dict) -> str:
     return "unknown"
 
 
+def _native_stream(stdout) -> tuple[dict | None, list[dict], bool]:
+    """Keep native events, never promote assistant prose into an execution receipt.
+
+    The complete stream must contain one final result. Partial events remain useful
+    evidence after timeout or malformed output, but cannot establish completion.
+    """
+    if isinstance(stdout, bytes):
+        try:
+            stdout = stdout.decode("utf-8")
+        except UnicodeDecodeError:
+            return None, [], True
+    if not isinstance(stdout, str):
+        return None, [], True
+    events, malformed = [], False
+    for line in stdout.splitlines():
+        if not line.strip():
+            continue
+        try:
+            event = json.loads(line)
+        except (ValueError, RecursionError):
+            malformed = True
+            continue
+        if not isinstance(event, dict) or not isinstance(event.get("type"), str):
+            malformed = True
+            continue
+        events.append(event)
+    results = [event for event in events if event.get("type") == "result"]
+    if len(results) != 1 or not events or events[-1].get("type") != "result":
+        malformed = True
+    return (results[0] if len(results) == 1 else None), events, malformed
+
+
 def invoke(request: dict) -> dict:
+    """Preserve ordinary envelopes; add observed events only for an explicit canary opt-in."""
+    observation = {} if request.get("capture_native_events") is True else None
+    result = _invoke(request, observation)
+    if observation is not None:
+        result["raw_events"] = observation.get("events", [])
+    return result
+
+
+def _invoke(request: dict, observation: dict | None = None) -> dict:
     """Actually runs the `claude` provider binary (resolved via PATH) for `request` and returns a
     result dict shaped per agent-control-result.schema.json. Fail-closed (never raises)."""
     argv = build_argv(request)
@@ -351,7 +396,9 @@ def invoke(request: dict) -> dict:
             argv, cwd=cwd, capture_output=True, text=True, timeout=timeout_seconds,
             stdin=subprocess.DEVNULL,
         )
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
+        if observation is not None:
+            _, observation["events"], _ = _native_stream(exc.stdout)
         _diag(request, "TIMEOUT", f"provider exceeded timeout_seconds={timeout_seconds!r}")
         # 2026-09-05(F): 시한 초과는 **예산이 모자란 것이 아니다**. 예산을 키워도 같은 자리서 끊긴다 —
         #   원장이 둘을 섞으면 다음 attempt 의 처방을 정반대로 고르게 된다.
@@ -379,6 +426,16 @@ def invoke(request: dict) -> dict:
               f"provider could not be executed: {type(exc).__name__}: {exc} · argv[0]={argv[0]!r}")
         return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
                         reason_codes=["NONZERO_EXIT"])
+
+    if observation is not None:
+        terminal, observation["events"], malformed = _native_stream(completed.stdout)
+        if malformed:
+            _diag(request, "MALFORMED_JSON", "native event stream is incomplete or malformed")
+            return _result(request, status=STATUS_MALFORMED_OUTPUT,
+                           exit_code=EXIT_MALFORMED_OUTPUT, reason_codes=["MALFORMED_JSON"])
+        # Existing result classification owns denials, budgets, sessions and runner errors.
+        # Only replace the transport representation; never synthesize a terminal result.
+        completed.stdout = json.dumps(terminal, ensure_ascii=False)
 
     if completed.returncode != 0:
         # 2026-09-04(P4 라이브 실측 · plan_26090317): 이 조기 반환이 아래의 **예산 소진 분기를

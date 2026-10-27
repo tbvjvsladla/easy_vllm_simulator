@@ -1645,6 +1645,24 @@
       "callee": "wiki-desk",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/selftest_claude_native_events.py",
+      "phase": "verification_plane",
+      "reason": "네이티브 도구 실행 기록 opt-in·기존 Claude 호출 호환·실제 결과 보존 회귀"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/selftest_bootstrap_permissions.py",
+      "phase": "verification_plane",
+      "reason": "하네스별 실제 카나리 증거와 역할별 업무·OS 집행 판정의 양·음성 회귀"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/selftest_sub_hint_write_scopes.py",
+      "phase": "verification_plane",
+      "reason": "명시 관측·기존 승인에 결속한 외부 hint 쓰기와 역할별 배달·범위 거부 회귀"
     }
   ]
 }

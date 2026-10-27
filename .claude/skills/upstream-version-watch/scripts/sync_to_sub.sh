@@ -54,6 +54,8 @@ usage() {
   --manifest   work-manifest JSON; relative paths use the caller's original CWD (required)
   --apply      execute delivery (default: dry-run)
   --provision  allow missing remote work directory creation with --apply
+  --hint-write-scopes  explicit observed/approved single-sub hint scope JSON for the renderer;
+               relative paths use the caller's original CWD; never inferred from the main HOME
   --retire-residue  retire main-only residue the canonical render does NOT deliver for this
                topology (tracked files only; requires RETIRE_ALLOW=<exact count>)
   --branch     multi, single, or both (default: multi). Must equal this checkout's specialized
@@ -72,6 +74,7 @@ ORIGINAL_CWD="$(pwd)"
 GATE_MODE=""; HAVE_MODE=0
 MANIFEST_ARG=""; HAVE_MANIFEST=0
 MODE="dryrun"; PROVISION=0; BRANCH="multi"
+HINT_WRITE_SCOPES=""
 # 토폴로지-aware 은퇴(2026-09-11). **기본 미집행** — 잔재 삭제는 배달의 부수효과가 아니라
 #   사람이 숫자로 승인하는 별도 행위다(D5: 안내문이 분류를 잘못 말하면 가드가 있어도 사고가 난다).
 RETIRE_RESIDUE=0
@@ -86,6 +89,15 @@ while [ $# -gt 0 ]; do
             MANIFEST_ARG="$2"; HAVE_MANIFEST=1; shift 2 ;;
         --apply) MODE="apply"; shift ;;
         --provision) PROVISION=1; shift ;;
+        --hint-write-scopes)
+            [ $# -ge 2 ] || { echo "[sync] FAIL: --hint-write-scopes requires a path" >&2; exit 2; }
+            [ -n "$2" ] || { echo "[sync] FAIL: empty hint scope path" >&2; exit 2; }
+            if [[ "$2" = /* ]]; then
+                HINT_WRITE_SCOPES="$2"
+            else
+                HINT_WRITE_SCOPES="$ORIGINAL_CWD/$2"
+            fi
+            shift 2 ;;
         --retire-residue) RETIRE_RESIDUE=1; shift ;;
         --branch)
             [ $# -ge 2 ] || { echo "[sync] FAIL: --branch requires multi|single|both" >&2; exit 2; }
@@ -95,6 +107,11 @@ while [ $# -gt 0 ]; do
     esac
 done
 case "$BRANCH" in multi|single|both) ;; *) echo "[sync] FAIL: --branch must be multi|single|both" >&2; exit 6 ;; esac
+if [ -n "$HINT_WRITE_SCOPES" ]; then
+    [ "$BRANCH" = "single" ] || { echo "[sync] FAIL: hint write scopes are single-sub only" >&2; exit 2; }
+    [ -f "$HINT_WRITE_SCOPES" ] && [ ! -L "$HINT_WRITE_SCOPES" ] || {
+        echo "[sync] FAIL: hint write scopes must be an explicit regular file" >&2; exit 2; }
+fi
 
 # Gate location is immutable and derived from this script, never from caller-controlled SRC.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
@@ -921,7 +938,11 @@ render_topology() {
     _tracked_list="$(mktemp)"
     git -C "$REPO_ROOT" ls-files -z > "$_tracked_list" || {
         rm -f "$_tracked_list"; echo "[sync] FAIL: tracked 목록 생성 실패 — 런타임블럭 배달 중단" >&2; return 9; }
-    python3 "$RENDER" --topology "$1" --tracked-list "$_tracked_list" >/dev/null || {
+    local hint_scope_args=()
+    if [ -n "$HINT_WRITE_SCOPES" ]; then
+        hint_scope_args=(--hint-write-scopes "$HINT_WRITE_SCOPES")
+    fi
+    python3 "$RENDER" --topology "$1" --tracked-list "$_tracked_list" "${hint_scope_args[@]}" >/dev/null || {
         rm -f "$_tracked_list"; return 9; }
     rm -f "$_tracked_list"
     if [ "$1" != "multi" ] && [ -d "$output_dir/envs" ] \

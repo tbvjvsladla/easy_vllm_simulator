@@ -371,6 +371,10 @@ def _codex_discovery_checks(root: Path) -> list[dict]:
         profile = config["permissions"]["vllm-main"]
         if config.get("default_permissions") != "vllm-main" or profile.get("extends") != ":workspace":
             defects.append("main-permission-profile")
+        if profile.get("filesystem", {}).get(":workspace_roots", {}).get(".git") != "write":
+            defects.append("main-local-git-write-missing")
+        if profile.get("network", {}).get("enabled") is not True:
+            defects.append("main-a2a-network-missing")
         if "sandbox_mode" in config or "sandbox_workspace_write" in config:
             defects.append("legacy-sandbox-overrides-profile")
     except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -402,9 +406,15 @@ def _codex_discovery_selftest() -> dict:
             config = root / ".codex/config.toml"
             config.write_text('sandbox_mode = "workspace-write"\n' + config.read_text(encoding="utf-8"), encoding="utf-8")
             legacy_rejected = not _codex_discovery_checks(root)[0]["ok"]
-            return {"name": "codex_gitless_discovery_selftest", "ok": good and missing_rejected and legacy_rejected,
+            original_config = (REPO / ".codex/config.toml").read_text(encoding="utf-8")
+            config.write_text(original_config.replace('".git" = "write"', '".git" = "read"'), encoding="utf-8")
+            git_rejected = "main-local-git-write-missing" in _codex_discovery_checks(root)[0]["defects"]
+            config.write_text(original_config.replace('enabled = true', 'enabled = false'), encoding="utf-8")
+            network_rejected = "main-a2a-network-missing" in _codex_discovery_checks(root)[0]["defects"]
+            return {"name": "codex_gitless_discovery_selftest", "ok": good and missing_rejected and legacy_rejected and git_rejected and network_rejected,
                     "gitless_ok": good, "missing_target_rejected": missing_rejected,
-                    "legacy_override_rejected": legacy_rejected}
+                    "legacy_override_rejected": legacy_rejected, "local_git_read_only_rejected": git_rejected,
+                    "a2a_network_disabled_rejected": network_rejected}
         except (OSError, ValueError) as exc:
             return {"name": "codex_gitless_discovery_selftest", "ok": False,
                     "error": f"{type(exc).__name__}:{exc}"}
@@ -851,12 +861,18 @@ def verify() -> dict:
              ".claude/skills/terraforming_node/scripts/agent_control.py", "--self-test"], {0}),
         _run("harness_switch_integration_selftest", [sys.executable, "-B",
              ".claude/skills/terraforming_node/scripts/selftest_harness_switch.py"], {0}),
+        _run("claude_native_events_selftest", [sys.executable, "-B",
+             ".claude/skills/terraforming_node/scripts/selftest_claude_native_events.py"], {0}),
         _run("terraform_turn_budget_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/turn_budget.py", "--self-test"], {0}),
         _run("terraform_relay_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/relay.py", "--self-test"], {0}),
         _run("terraform_bootstrap_canary_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/bootstrap_canary.py", "--self-test"], {0}),
+        _run("terraform_bootstrap_permissions_selftest", [sys.executable, "-B",
+             ".claude/skills/terraforming_node/scripts/selftest_bootstrap_permissions.py"], {0}),
+        _run("terraform_sub_hint_write_scopes_selftest", [sys.executable, "-B",
+             ".claude/skills/terraforming_node/scripts/selftest_sub_hint_write_scopes.py"], {0}),
         # single 서브 hint 발행 장착 판정·장착(plan_26101104 Step 3 · 2026-10-11). 호출자 없는 자체검사는 L1(산문)이다.
         #   무엇을 지키나: 클론은 워크스페이스 밖(SUB_GIT_LOCAL_ONLY) · 역할 마커는 git-ignore 될 때만 쓴다 · 토큰은 존재만
         #   보고 값은 출력하지 않는다 · 카탈로그 권위 선언·워크스페이스 원격은 위반 · 토큰 판독 규칙 = hintlib.tag(교차검증).

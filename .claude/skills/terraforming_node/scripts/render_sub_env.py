@@ -29,6 +29,7 @@ stdlib 만. PII(실 manifest)는 읽되 gitignored 스테이징으로만 쓴다(
 """
 from __future__ import annotations
 import argparse
+from datetime import datetime
 import glob
 import hashlib
 import json
@@ -145,6 +146,8 @@ CAMPAIGN_TOOLS = (
 SUB_CONTRACT_READERS = (
     "manifest_contract.py",            # Flag·topology 준비성 판정(lite_bench·run_bench 가 부른다)
 )
+# Both roles run this explicit local permission canary; its self-tests remain main-only.
+SUB_PERMISSION_PROBES = ("harness_permission_probe.py",)
 
 RUNTIME_BLOCK_EXCLUDES = {
     "upstream-version-watch": (
@@ -399,7 +402,8 @@ RECIPE_REFERENCE_REL = ".claude/skills/wiki-desk/reference/references.md"
 def support_delivery(tool_plane) -> list:
     """런타임블럭 밖에 싣는 **지원 배달분**(스킬로 실행하지 않되 잔재도 아니다) — render_tree 와 같은 규칙:
     캠페인 도구 + 계약 리더는 모든 서브에, 사서 참조 발췌는 recipe 스킬이 가는 서브에만."""
-    out = [f".claude/skills/terraforming_node/scripts/{t}" for t in CAMPAIGN_TOOLS + SUB_CONTRACT_READERS]
+    out = [f".claude/skills/terraforming_node/scripts/{t}" for t in
+           CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES]
     # 사서 참조 발췌(references.md)는 2026-10-19 부터 wiki-desk 런타임블럭이 통째로 싣는다 — 지원 배달분이 아니다.
     if "hint-publisher" in tool_plane:
         # 엔진 의존 + 장착 판정 도구(2026-10-11 · plan_26101104 Step 3). render_tree 의 (3.5) 와 같은 규칙.
@@ -471,6 +475,116 @@ def _unrendered(text: str) -> list[str]:
     return sorted(set(PLACEHOLDER_RE.findall(text)))
 
 
+def validate_hint_write_scopes(ph: dict, declaration: dict | None) -> dict:
+    """Bind operator-approved scopes to reported sub paths; never inspect the remote FS.
+
+    Observation provenance and existing approval provenance are separate inputs. A
+    declaration is not a new approval prompt or proof of effective native access.
+    No declaration preserves existing rendering, without claiming hint readiness.
+    """
+    if declaration is None:
+        return {"status": "not-declared", "write_paths": []}
+
+    def require(ok, reason):
+        if not ok:
+            raise SystemExit("[render] HINT_WRITE_SCOPES_INVALID: " + reason)
+
+    keys = {"schema_version", "topology", "target", "observed_home_dir", "hint_clone_dir",
+            "git_dir", "git_common_dir", "observation_source", "observed_utc",
+            "approved_by", "approved_utc", "evidence"}
+    require(isinstance(declaration, dict) and set(declaration) == keys,
+            "explicit observation, target and existing approval fields are required")
+    require(type(declaration["schema_version"]) is int and declaration["schema_version"] == 1,
+            "schema_version must be 1")
+    require(ph.get("TOPOLOGY") == "single" and ph.get("SUB_MODE") == "a2a-agent"
+            and declaration["topology"] == "single", "external hint writes are single a2a-agent only")
+    expected = {"host": ph.get("SUB_HOST"), "ssh_user": ph.get("SSH_USER"),
+                "work_dir": ph.get("WORKSPACE_PATH")}
+    require(declaration["target"] == expected, "target must match this exact manifest sub endpoint/workspace")
+    for key in ("observation_source", "approved_by", "evidence"):
+        value = declaration[key]
+        require(isinstance(value, str) and value == value.strip() and bool(value)
+                and not any(ord(c) < 32 for c in value)
+                and value.lower() not in {"unknown", "pending", "tbd", "none"}
+                and not any(c in value for c in "<>"), key + " must cite an actual source/decision")
+    for key in ("observed_utc", "approved_utc"):
+        value = declaration[key]
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00")) if isinstance(value, str) else None
+        except ValueError:
+            parsed = None
+        require(parsed is not None and value.endswith("Z") and parsed.utcoffset() is not None
+                and parsed.utcoffset().total_seconds() == 0, key + " must be a UTC timestamp")
+
+    def path(value, name):
+        require(isinstance(value, str) and value.startswith("/") and not value.startswith("//")
+                and str(pathlib.PurePosixPath(value)) == value
+                and not any(c in value for c in "\\*?[]{}")
+                and not any(ord(c) < 32 or ord(c) == 127 for c in value)
+                and ".." not in pathlib.PurePosixPath(value).parts,
+                name + " must be a canonical literal absolute POSIX path (no globs/escapes/traversal)")
+        return pathlib.PurePosixPath(value)
+
+    def inside(child, parent):
+        return child == parent or parent in child.parents
+
+    workspace = path(expected["work_dir"], "target.work_dir")
+    home = path(declaration["observed_home_dir"], "observed_home_dir")
+    require(str(home) not in {"/", "/home", "/srv", "/tmp", "/var"}, "home must be the reported account home")
+    roots = {"/", "/home", "/root", "/Users", "/tmp", "/var", "/var/lib", "/var/cache", "/srv", "/mnt", "/media", "/opt"}
+    protected = [workspace, *(home / p for p in (".ssh", ".aws", ".codex", ".claude", ".config"))]
+    nas = ph.get("NAS_MOUNT")
+    if nas:
+        protected.append(path(nas, "NAS_MOUNT"))
+    writes = []
+    for key in ("hint_clone_dir", "git_dir", "git_common_dir"):
+        p = path(declaration[key], key)
+        account_home = len(p.parts) == 3 and p.parts[1] in {"home", "Users"}
+        require(len(p.parts) >= 3 and str(p) not in roots and not account_home and not inside(home, p),
+                key + " cannot grant a root or whole account home")
+        require(not any(inside(p, pathlib.PurePosixPath(prefix)) for prefix in
+                        ("/etc", "/usr", "/bin", "/sbin", "/lib", "/lib64", "/proc", "/sys", "/dev", "/boot", "/run")),
+                key + " cannot grant system policy/runtime trees")
+        require(not any(inside(p, q) or inside(q, p) for q in protected),
+                key + " overlaps workspace, NAS or private configuration")
+        writes.append(p)
+    clone, git_dir, common = writes
+    require(git_dir != clone and common != clone and inside(git_dir, common),
+            "git_dir must be the actual metadata directory at or beneath git_common_dir, distinct from clone")
+    return {**declaration, "status": "declared", "write_paths": list(dict.fromkeys(map(str, writes)))}
+
+
+def hint_write_scopes_toml(scopes: dict) -> str:
+    """Quoted TOML keys preserve literal paths; a declaration never adds workspace roots."""
+    if scopes["status"] != "declared":
+        return "# External hint write scopes are not declared; publication readiness is unverified."
+    return ("# Explicit single-sub hint paths; observation and approval remain in the input declaration.\n"
+            "[permissions.vllm-sub.filesystem]\n" +
+            "\n".join(json.dumps(p, ensure_ascii=False) + ' = "write"' for p in scopes["write_paths"]))
+
+
+def load_hint_write_scopes(path: str | None) -> dict | None:
+    if path is None:
+        return None
+
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("duplicate scope field: " + key)
+            result[key] = value
+        return result
+
+    try:
+        with open(path, encoding="utf-8") as stream:
+            result = json.load(stream, object_pairs_hook=unique)
+        if not isinstance(result, dict):
+            raise ValueError("scope declaration must be an object")
+        return result
+    except (OSError, ValueError, UnicodeError) as exc:
+        raise SystemExit("[render] HINT_WRITE_SCOPES_INVALID: cannot read declaration (" + type(exc).__name__ + ")")
+
+
 # ── 렌더 한 판 (스테이징 트리 산출) ──
 def topology_rules_mismatch(topology: str, rules_path: str | None = None) -> str | None:
     """렌더가 복사할 특화헌법의 자기선언이 `topology` 와 다르면 사유 문자열, 같으면 None.
@@ -495,7 +609,8 @@ def topology_rules_mismatch(topology: str, rules_path: str | None = None) -> str
 
 def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 tracked_list: list | None = None,
-                sub_manifest_path: str | None = None) -> dict:
+                sub_manifest_path: str | None = None,
+                hint_write_scopes: dict | None = None) -> dict:
     """치환된 placeholders 로 스테이징 트리를 만든다. 반환 = 산출 매니페스트(검증용).
 
     Agent Card is unsigned capability/discovery metadata. Provisioned endpoint
@@ -503,6 +618,8 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     manifest Flag and topology contract. `sub_manifest_path` is copied to
     `output/<topology>/manifest.yaml`.
     """
+    scopes = validate_hint_write_scopes(ph, hint_write_scopes)
+    ph = {**ph, "HINT_EXTERNAL_WRITE_TOML": hint_write_scopes_toml(scopes)}
     if os.path.isdir(out_dir):
         shutil.rmtree(out_dir)
     claude = os.path.join(out_dir, ".claude")
@@ -712,7 +829,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     _ci_src = os.path.join(REPO, ".claude", "skills", "terraforming_node", "scripts")
     _ci_dst = os.path.join(claude, "skills", "terraforming_node", "scripts")
     os.makedirs(_ci_dst, exist_ok=True)
-    for _tool in CAMPAIGN_TOOLS + SUB_CONTRACT_READERS:
+    for _tool in CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES:
         _abs = os.path.join(_ci_src, _tool)
         if not os.path.isfile(_abs):
             raise SystemExit(
@@ -858,7 +975,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
         shutil.copyfile(ex, dst)
     produced.append(f"docs/*/example.md ({len(DOC_TYPES)} skeletons)")
 
-    return {"out_dir": out_dir, "produced": produced}
+    return {"out_dir": out_dir, "produced": produced, "hint_write_scopes": scopes}
 
 
 def _copy_tracked(src_skill: str, dst: str, tracked_list: list | None = None,
@@ -1172,7 +1289,7 @@ def _self_test() -> int:
         #   ① 있어야 할 2개가 있다 ② 그 밖의 terraforming 스크립트가 새지 않았다.
         _tn = os.path.join(_out, ".claude", "skills", "terraforming_node", "scripts")
         _tn_files = sorted(os.listdir(_tn)) if os.path.isdir(_tn) else []
-        _tn_want = sorted(CAMPAIGN_TOOLS + SUB_CONTRACT_READERS
+        _tn_want = sorted(CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES
                           + (SUB_HINT_EQUIP_TOOLS if "hint-publisher" in _want else ()))
         _tn_ok = _tn_files == _tn_want
         # 해소 자산은 싱글 서브에 가지 않는다 — 가면 서브가 스스로 해소할 이유가 없어진다(F4).
@@ -1452,6 +1569,9 @@ def main() -> int:
     ap.add_argument("--sub-manifest", default=None,
                     help="서브 manifest(terraforming 실측 · scan_node.py --emit-sub-manifest 산출). 기본 "
                          "output/<topology>/sub_manifest.yaml. single 은 필수(서브도 manifest 를 갖는다 · §7.3), multi 는 선택.")
+    ap.add_argument("--hint-write-scopes", default=None,
+                    help="single 서브가 관측한 hint clone/git/common-dir와 기존 유효 승인 출처를 결속한 JSON. "
+                         "원격 경로를 추정하거나 새 승인을 생성하지 않는다. 미지정은 외부 발행 권한 미검증.")
     ap.add_argument("--self-test", action="store_true", help="fixture 렌더 회귀(하드웨어/실 manifest 불요)")
     args = ap.parse_args()
 
@@ -1497,8 +1617,9 @@ def main() -> int:
             blob = f.read()
         tracked = [x for x in (blob.split("\0") if "\0" in blob else blob.splitlines()) if x.strip()]
     res = render_tree(ph, out_dir, copy_runtime_block=not args.no_runtime_block, tracked_list=tracked,
-                      sub_manifest_path=sub_manifest)
+                      sub_manifest_path=sub_manifest, hint_write_scopes=load_hint_write_scopes(args.hint_write_scopes))
     print(f"[render] OK → {res['out_dir']}")
+    print(f"[render] external hint write scopes: {res['hint_write_scopes']['status']} (native access unverified)")
     for p in res["produced"]:
         print(f"   + {p}")
     # 2026-09-03(B0 · plan_26090317 P1): 여기서 찍던 명령은 필수 인가 인자(--mode·--manifest)가 없어

@@ -7,6 +7,8 @@ approval_policy = "never"
 description = "Provisioned {{ SUB_MODE }}: preserve role ownership and approved local execution."
 extends = ":workspace"
 
+{{ HINT_EXTERNAL_WRITE_TOML }}
+
 [permissions.vllm-sub.filesystem.":workspace_roots"]
 ".git" = "write" # Existing local-only git commit/branch contract; remote git stays prohibited.
 "AGENTS.md" = "read"
