@@ -1,0 +1,129 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26090807",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26090807_qwen3_4b_tq_kvquant_서브.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101015",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/testlog/testlog_26101015_knob프리셋_E2E_셀D_qwen3-4b.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101015",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101015_qwen3-4b_GB10_0.26.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26101104",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/plan/plan_26101104_hint발행체제_개편_서브자체발행.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101108",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/devlog/devlog_26101108_c-tq4nc_셀D_서빙_측정_knob해소.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26101108",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101108_29_02_셀D_qwen3-4b_hint_자체발행.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102718",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102718_Qwen3_4B_c_tq4nc_신규_Full_hint.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102718",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/devlog/devlog_26102718_Qwen3_4B_c_tq4nc_신규실측_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102719",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/testlog/testlog_26102719_Qwen3_4B_c_tq4nc_신규_Full_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102719",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102719_qwen3-4b_GB10_0.26.0.md",
+      "role": "bench_report"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [],
+    "count": 204
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 경로(발췌 머리 stem = 파일명) · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26102719",
+  "schema_version": 3,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26102719_qwen3-4b_GB10_0.26.0.md",
+      "sha256": "575ff16d64df75494539f2a3b581d6a107b3f0467bea45b28e46d4a7a3d60784"
+    },
+    {
+      "path": "docs/devlog/devlog_26101108_c-tq4nc_셀D_서빙_측정_knob해소.md",
+      "sha256": "6b1adc2724bb6dc4a08315b18e212d23c88687ed9accf7050ced6dbe10ad7b6c"
+    },
+    {
+      "path": "docs/devlog/devlog_26102718_Qwen3_4B_c_tq4nc_신규실측_서사.md",
+      "sha256": "75e0d8daac5d2b76ae810b1a40a7003f61c93934f44f92c968a48947fdeab263"
+    },
+    {
+      "path": "docs/plan/plan_26101104_hint발행체제_개편_서브자체발행.md",
+      "sha256": "218dae04eedcf391ff41c9c82ee5f72ef0538a5f2f02357e2701fe052e700fe7"
+    },
+    {
+      "path": "docs/simlog/single8_qwen3_4b_20261027T093346Z/attempt1/excerpt_sources/devlog_26101108_c-tq4nc_셀D_서빙_측정_knob해소",
+      "sha256": "6b1adc2724bb6dc4a08315b18e212d23c88687ed9accf7050ced6dbe10ad7b6c"
+    },
+    {
+      "path": "docs/simlog/single8_qwen3_4b_20261027T093346Z/attempt1/excerpt_sources/devlog_26102718_Qwen3_4B_c_tq4nc_신규실측_서사",
+      "sha256": "a13ffad0ea2852e9dccdede29fcd208422485782296950b607b404fb0241785b"
+    },
+    {
+      "path": "docs/simlog/single8_qwen3_4b_20261027T093346Z/attempt1/excerpt_sources/plan_26102718_Qwen3_4B_c_tq4nc_신규_Full_hint",
+      "sha256": "b30119de03e032e8cc9f4a12cfc48db569e60453f1365d0d27494f3a9d753920"
+    },
+    {
+      "path": "docs/simlog/single8_qwen3_4b_20261027T093346Z/attempt1/excerpt_sources/testlog_26102719_Qwen3_4B_c_tq4nc_신규_Full_판정",
+      "sha256": "bdd5af0f99d798f7c726bbdda87af81baef3375731581fb0ba149c10d84a9f1d"
+    },
+    {
+      "path": "docs/testlog/testlog_26090807_qwen3_4b_tq_kvquant_서브.md",
+      "sha256": "067951dea68a94eead1936874bf30b37d6e66659be4335c30a600c91cbb4443f"
+    },
+    {
+      "path": "docs/testlog/testlog_26101015_knob프리셋_E2E_셀D_qwen3-4b.md",
+      "sha256": "578a44638617594af32b9083193c4106d2f306a182758a9027afdd5db3ecc5f5"
+    },
+    {
+      "path": "docs/testlog/testlog_26102719_Qwen3_4B_c_tq4nc_신규_Full_판정.md",
+      "sha256": "0f2dbfc10255226beaaa88044e3adf7909df8c1259132fa2f5fd42957bc52ecc"
+    }
+  ]
+}
