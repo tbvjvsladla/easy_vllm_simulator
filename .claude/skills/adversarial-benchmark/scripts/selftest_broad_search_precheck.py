@@ -95,8 +95,12 @@ def _build_fixture(root: Path, bindir: Path) -> None:
            "target_gpu:\n  gpu_model: fixture\n  target_gmu: 0.85\n")
     _write(root / "output" / "single" / "envs" / f".env.{CONFIG}", "SERVING_PORT=18080\n")
     sweep = root / "output" / "single" / "benchlog" / f"sweep_{CONFIG}"
+    # Reassembly carries the producer's config/time binding too; these are fixture facts,
+    # not live measurement evidence. Omitting them now correctly makes the writer refuse.
     _write(sweep / "sweep_index.json", json.dumps(
-        {"meta": {"gpu_memory_utilization": "0.80", "image_digest": "sha256:fixture"}, "levels": []}))
+        {"generated_utc": NOW,
+         "meta": {"config_name": CONFIG, "topology": "single",
+                  "gpu_memory_utilization": "0.80", "image_digest": "sha256:fixture"}, "levels": []}))
     _write(sweep / "level_01" / "measured.json", json.dumps({"measurement_ok": True}))
     # curl shim — 호출되면 표지 파일을 남기고 `000` 을 낸다(health≠200 → serve 미가동 경로).
     _write(bindir / "curl", "#!/bin/sh\ntouch \"$(dirname \"$0\")/curl.called\"\nprintf 000\n")

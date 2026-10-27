@@ -53,6 +53,7 @@
 | 명령 | 언제 | 무엇 | 평면 |
 |---|---|---|---|
 | `relay.py --task ... --max-turns N --timeout-seconds N --budget-source "..." --resume new` | 첫 위임 | **선언한 예산·재개**로 delegate · 원장 개설(`campaigns/<camp-id>/relay/<ctx>.json`) | B |
+| `relay.py --task-file <feedback> --context-id <동일 context> --resume <동일 session> …` | 서브가 메인 소유의 정본 수정·기술 판단을 요청했고 메인이 해결했을 때 | 명시적 feedback을 새 attempt로 보존한다. 기존 캠페인·셀·provider·권한 결속과 예산·HITL·복구 가드는 그대로 적용한다 | B |
 | `relay.py --continue` | 소진·유보 뒤 | **원장에서 본문을 조립**해 미리보기 + 예산·세션 **사실** 표시(기본 dry-run) | B |
 | `relay.py --continue --apply --max-turns N --timeout-seconds N --budget-source "..." --resume <id\|new>` | **예외 경로** — 감독 스텝이 팝업한 뒤 사람이 본문을 승인 | 조립 본문 + 새로 선언한 예산 + **선언한 세션**으로 delegate | B |
 | `relay.py --supervise-step <camp> [--apply]` | attempt 사이 | 원장 + 회수 브리핑을 읽어 **한 번 판정**하고 원장에 적는다. `--apply` 면 전진이 보이는 중단을 자동 재발급 | B |
@@ -62,6 +63,11 @@
   (2026-09-07 실측: HITL 응답 대기 70분이 순차 실행의 직접 원인 중 하나였다). 자동의 **예외**는
   선언된 비용 상한·모델/통신 평면 실패·미해결 승인/권한 거부다. Codex의 관측된 신호 종료·중단·불명 native/control 실패도
   전진만으로 재개하지 않는다(아래 복구 계약). 전진이 없는 중단도 팝업이다(예산을 키우기 전에 묻는다).
+- **기술 feedback은 사람의 답이 아니다.** 메인이 소유한 코드·계약을 수정한 뒤에는 같은 context에 `--task-file`로
+  정정 내용과 근거를 보낼 수 있다. `pending_hitl.answer`에 이를 사람 답처럼 기입하지 않는다. 이 경로도
+  `require_dispatch_recovery`와 동일한 결속·잔존 서비스 가드를 거치므로 미해결 승인·권한 거부·중단을 우회할 수 없다.
+  원장의 최초 `task`는 보존되고 feedback은 해당 `request_path`에 남는다. 후속 자동 조립에는 최초 지시와 직전
+  `next_steps`가 다시 들어가므로, 폐기된 지시가 있으면 적용 정본과 정정 범위를 명시하고 재개 본문을 확인한다.
 - **전진 신호는 넷이다**(2026-09-29 · `plan_26092919` P1): phase 변화 · 회수 브리핑 `last_utc` · 원장
   (리포트의 산출물·`next_steps` 변화) · **문서 평면**(회수 미러 문서가 그 context_id 를 담고 mtime 이 attempt
   창 안). 브리핑이 없는 서브(멀티 Ray 워커)와 리포트 없이 잘린 attempt 를 위해 뒤의 둘을 더했다. 질문의

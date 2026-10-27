@@ -587,6 +587,52 @@ def _sweep_image(sweep_path: Path, cell: str) -> "tuple[dict | None, str]":
     return None, f"sweep 기록에 셀 {cell!r} 이 없다: {_rel(sweep_path)}"
 
 
+def _sweep_output(base: Path, sweep_path: Path, cell: str, node: str | None) -> dict | None:
+    """Carry the producer's measured output path; never guess a new run from a directory name."""
+    state = _read_json(sweep_path)
+    records = state.get("cells") if isinstance(state, dict) else None
+    hits = [r for r in (records or []) if isinstance(r, dict) and r.get("cell_key") == cell]
+    if not hits or all("sweep_dir" not in r for r in hits):
+        return None                         # legacy producer; fixed-path consumers remain compatible
+    if len(hits) != 1:
+        raise WriterRefusal(f"sweep 출력 경로의 셀 기록이 유일하지 않다: {cell}")
+    rec = hits[0]
+    rel, stamp = rec.get("sweep_dir"), rec.get("sweep_generated_utc")
+    if rel is None and stamp is None:
+        return None                         # no measured output was carried
+    if rec.get("cell_outcome") != "measured" or not isinstance(rel, str) or not isinstance(stamp, str) or not stamp:
+        raise WriterRefusal("sweep 출력 경로는 measured 셀의 실제 경로·generated_utc 짝이어야 한다")
+    decl = read_declaration(base)
+    topology = next((n.get("topology") for n in (decl.get("nodes") or [])
+                     if isinstance(n, dict) and n.get("node_id") == node), None) or _declared_topology(base)
+    parts = Path(rel).parts
+    if topology not in ("single", "multi") or Path(rel).is_absolute() or ".." in parts \
+            or len(parts) != 4 or parts[:3] != ("output", topology, "benchlog") \
+            or not re.fullmatch(r"sweep_[A-Za-z0-9][A-Za-z0-9._-]*", parts[-1]):
+        raise WriterRefusal(f"sweep 출력 경로는 이 topology의 benchlog 아래여야 한다: {rel!r}")
+    path = REPO_ROOT / rel
+    root = REPO_ROOT / "output" / topology / "benchlog"
+    if any(p.is_symlink() for p in (path, *path.parents) if p != REPO_ROOT and REPO_ROOT in p.parents):
+        raise WriterRefusal(f"sweep 출력 경로에 symlink가 있다: {rel}")
+    try:
+        path.resolve().relative_to(root.resolve())
+    except ValueError as exc:
+        raise WriterRefusal(f"sweep 출력 경로가 benchlog 밖이다: {rel}") from exc
+    index_path = path / "sweep_index.json"
+    if index_path.is_symlink() or not index_path.is_file():
+        raise WriterRefusal("sweep 출력 index는 실재 정규파일이어야 한다(symlink 불가)")
+    index = _read_json(index_path)
+    meta = index.get("meta") if isinstance(index, dict) and isinstance(index.get("meta"), dict) else {}
+    config = rec.get("config")
+    if not isinstance(index, dict) or not isinstance(config, str) or not config \
+            or (meta.get("config_name") or index.get("config")) != config \
+            or index.get("generated_utc") != stamp \
+            or meta.get("topology") not in (None, topology):
+        raise WriterRefusal("sweep 출력 index의 config/UTC가 공식 셀 기록과 일치하지 않는다")
+    return {"sweep_dir": rel, "sweep_generated_utc": stamp, "sweep_config": config,
+            "sweep_source": f"sweep:{_rel(sweep_path)}#cells[cell_key={cell}].sweep_dir"}
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # 셀 출처 (2026-09-14 · plan_26091407 §4.0 · 사용자 결정 Q1·Q8)
 #
@@ -983,6 +1029,9 @@ def writer_set_cell(base: Path, *, cell: str, outcome: str, node: str | None,
             gap = why
         else:
             decode_tps, measurement_source = str(val), why
+    sweep_output = _sweep_output(base, Path(sweep_state), cell, node) if sweep_state else None
+    if sweep_output and outcome != "measured":
+        raise WriterRefusal("measured sweep 출력 경로와 셀 outcome이 모순이다")
     path = base / "cells" / cell / "cell.status.json"
     doc = _read_json(path) if path.is_file() else None
     doc = doc if isinstance(doc, dict) else {"schema_version": 1}
@@ -993,6 +1042,11 @@ def writer_set_cell(base: Path, *, cell: str, outcome: str, node: str | None,
             doc[key] = val
         doc.setdefault(key, None)
     meas = doc.get("measurement") if isinstance(doc.get("measurement"), dict) else {}
+    if sweep_state:
+        for key in ("sweep_dir", "sweep_generated_utc", "sweep_config", "sweep_source"):
+            meas.pop(key, None)
+        if sweep_output:
+            meas.update(sweep_output)
     if decode_tps is not None:
         try:
             meas["decode_tps_conc1"] = float(decode_tps)
@@ -1300,18 +1354,55 @@ def read_journey(base: Path) -> list:
     return out
 
 
+def _sub_evidence_binding(base: Path, node: str | None, cell_id: str | None) -> None:
+    decl = read_declaration(base)
+    own = [n for n in (decl.get("nodes") or []) if isinstance(n, dict) and n.get("node_id") == node]
+    if not isinstance(node, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", node) \
+            or len(own) != 1 or own[0].get("role") != "sub":
+        raise WriterRefusal(f"서브 증거 node_id가 선언된 sub가 아니다: {node!r}")
+    if cell_id is not None and (not isinstance(cell_id, str)
+            or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", cell_id)
+            or node_of_cell(base, cell_id) != node):
+        raise WriterRefusal(f"서브 증거 셀이 이 노드 배정과 다르다: node={node!r}, cell={cell_id!r}")
+
+
+def _sub_evidence_path(kind: str, path_rel: str, docs_root: Path) -> Path:
+    """One docs-only path contract for the sub writer and upward brief importer."""
+    if kind not in EVIDENCE_KINDS or not isinstance(path_rel, str) or not path_rel.startswith("docs/") \
+            or ".." in Path(path_rel).parts or Path(path_rel).is_absolute() or len(Path(path_rel).parts) < 3:
+        raise WriterRefusal(f"서브 evidence claim은 docs 아래의 유효 kind/상대경로여야 한다: {kind!r}, {path_rel!r}")
+    _no_fill(path_rel=path_rel)
+    local = docs_root / path_rel.removeprefix("docs/")
+    if docs_root.is_symlink() or any(p.is_symlink() for p in (local, *local.parents)
+                                   if p != docs_root and docs_root in p.parents):
+        raise WriterRefusal(f"서브 evidence 경로에 symlink가 있다: {path_rel}")
+    try:
+        local.resolve().relative_to(docs_root.resolve())
+    except ValueError as exc:
+        raise WriterRefusal(f"서브 evidence 경로가 docs/mirror 밖으로 벗어난다: {path_rel}") from exc
+    return local
+
+
 def writer_add_evidence(base: Path, *, kind: str, path_rel: str, cell_id: str | None,
                         node: str | None, unfreeze: bool) -> Path:
     if kind not in EVIDENCE_KINDS:
         raise WriterRefusal(f"kind 는 {EVIDENCE_KINDS} 중 하나여야 한다: {kind!r}")
     _no_fill(path_rel=path_rel)
+    if not node and cell_id:
+        node = node_of_cell(base, cell_id)
+    declaration = read_declaration(base)
+    declared = [n for n in (declaration.get("nodes") or []) if isinstance(n, dict)]
+    if declaration.get("self_role") == "sub":
+        if not node and len(declared) == 1:
+            node = declared[0].get("node_id")
+        _sub_evidence_binding(base, node, cell_id)
+        local = _sub_evidence_path(kind, path_rel, REPO_ROOT / "docs")
+        if not local.is_file() and not (kind == "simlog" and local.is_dir()):
+            raise WriterRefusal(f"서브 증거는 실재 정규파일 또는 simlog 디렉터리여야 한다: {path_rel}")
     if not (REPO_ROOT / path_rel).exists():
         # 증거는 docs 평면에서 **태어난다** — 포인터가 가리키는 것이 없으면 그것은 포인터가 아니다.
         raise WriterRefusal(f"증거가 실재하지 않는다: {path_rel} "
                             f"(증거는 docs 평면에서 태어나고 여기엔 포인터만 둔다)")
-    if not node and cell_id:
-        node = node_of_cell(base, cell_id)
-    declared = [n for n in (read_declaration(base).get("nodes") or []) if isinstance(n, dict)]
     if len(declared) > 1 and not node:
         # ★ 2026-09-08: camp-26090721 의 포인터 6건이 **전부** node_id null 이었다. 그래서 P2 는
         #   검사할 노드를 하나도 찾지 못한 채 통과했다 — 게이트가 있는데 아무것도 안 물은 것이다.
@@ -1393,14 +1484,17 @@ def writer_untag_evidence(base: Path, *, kind: str, path_rel: str, cell_id: str,
 
 
 def writer_relocate_evidence(base: Path, *, kind: str, path_from: str, path_to: str, reason: str,
-                             utc: str, unfreeze: bool) -> Path:
+                             utc: str, unfreeze: bool, correct_reference: bool = False,
+                             node: str | None = None, cell_id: str | None = None) -> Path:
     """포인터의 경로를 옮긴다 — 문서가 개명됐을 때(명명 SSOT 로 다시 지은 이름) 포인터를 따라 옮기는 정식 연산.
 
     왜(2026-09-29 · camp-26092913 · plan_26092908 S10): 발행 직전 판정 testlog·devlog·simlog 를 명명 SSOT 와 다른 시각(KST 시)으로
     지었다가 바로잡았는데, writer 에는 추가·귀속 해제·스텁 제거만 있고 **경로를 옮기는 연산이 없었다** — 옛 경로 포인터는 purge
     게이트(전수 실재)를 막고, 남은 길은 상태 파일 손편집뿐이었다(연산이 없으면 손이 들어온다 · untag 와 같은 형태).
-    옮김은 증거를 지우지 않는다: 옛 경로에 파일이 **없고** 새 경로에 파일이 **있을** 때만(개명의 관측) · 같은 종류의 새 경로
+    기본 옮김은 증거를 지우지 않는다: 옛 경로에 파일이 **없고** 새 경로에 파일이 **있을** 때만(개명의 관측) · 같은 종류의 새 경로
     포인터가 이미 있으면 거부(중복) · 셀 귀속은 그대로 · 사유·시각 없는 옮김은 거부 · 이력은 `relocated[]`.
+    명시적 correct_reference는 sub relay_summary의 잘못된 제어원장 참조를 docs/testlog 요약으로 정정한다.
+    이 경우에만 원본 relay 파일의 존속을 요구하며 node/cell 귀속과 정정 이력을 함께 검증한다.
     """
     if not reason or not str(reason).strip() or not utc:
         raise WriterRefusal("--evidence-relocate 는 --relocate-reason 과 --utc 가 필요하다")
@@ -1412,7 +1506,7 @@ def writer_relocate_evidence(base: Path, *, kind: str, path_from: str, path_to: 
         raise WriterRefusal(f"이 스냅샷은 {doc['frozen_utc']} 에 동결됐다 — 사람이 --unfreeze 를 붙여야 한다")
     if Path(path_to).is_absolute() or ".." in Path(path_to).parts:
         raise WriterRefusal(f"새 경로는 저장소 상대여야 한다: {path_to!r}")
-    if (REPO_ROOT / path_from).exists():
+    if (REPO_ROOT / path_from).exists() and not correct_reference:
         raise WriterRefusal(f"옛 경로가 아직 실재한다({path_from}) — 개명이 아니다(증거를 옮기지 않는다)")
     if not (REPO_ROOT / path_to).exists():
         raise WriterRefusal(f"새 경로가 실재하지 않는다: {path_to}")
@@ -1423,7 +1517,27 @@ def writer_relocate_evidence(base: Path, *, kind: str, path_from: str, path_to: 
     if any(x.get("path") == path_to and x.get("kind") == kind for x in ptrs):
         raise WriterRefusal(f"(kind={kind!r}, path={path_to!r}) 포인터가 이미 있다 — 중복 ✗")
     ptr = hits[0]
-    ptr.setdefault("relocated", []).append({"from": path_from, "reason": str(reason).strip(), "utc": utc})
+    history = {"from": path_from, "reason": str(reason).strip(), "utc": utc}
+    if correct_reference:
+        # A relay ledger is retained locally; its upward evidence is a separate docs summary.
+        # This is an explicit reference correction, never a claim that the source was renamed.
+        if kind != "relay_summary" or read_declaration(base).get("self_role") != "sub" or not node or not cell_id:
+            raise WriterRefusal("--correct-reference 는 sub relay_summary 정정이며 --node --cell이 필요하다")
+        _sub_evidence_binding(base, node, cell_id)
+        if ptr.get("node_id") != node or ptr.get("cell_id") != cell_id:
+            raise WriterRefusal("정정할 포인터의 node/cell 귀속이 --node/--cell과 다르다")
+        source = REPO_ROOT / path_from
+        if Path(path_from).is_absolute() or ".." in Path(path_from).parts or not source.is_file() \
+                or source.is_symlink() or source.parent.resolve() != (base / "relay").resolve():
+            raise WriterRefusal("정정 원본은 이 캠페인의 보존할 relay 정규파일이어야 한다")
+        target = _sub_evidence_path(kind, path_to, REPO_ROOT / "docs")
+        if not path_to.startswith("docs/testlog/") or not target.is_file() or target.suffix != ".md":
+            raise WriterRefusal("정정 목적지는 실제 docs/testlog Markdown 요약 정규파일이어야 한다")
+        history.update(mode="reference-correction", source_preserved=True, node_id=node, cell_id=cell_id)
+    elif read_declaration(base).get("self_role") == "sub":
+        _sub_evidence_binding(base, ptr.get("node_id"), ptr.get("cell_id"))
+        _sub_evidence_path(kind, path_to, REPO_ROOT / "docs")
+    ptr.setdefault("relocated", []).append(history)
     ptr["path"] = path_to
     _write_json(ep, doc)
     return ep
@@ -2135,6 +2249,49 @@ def import_sub_mirror(base: Path, mirror: Path, *, utc: str,
     if not briefs:
         raise WriterRefusal(f"현재 캠페인({base.name})의 브리핑이 회수 미러에 없다 — "
                             "다른 캠페인의 역사로 현재 진행표를 만들지 않는다")
+    # Validate every claim in every current brief before the first write. Previously an invalid
+    # final relay pointer raised only after phases/cells/journey and earlier evidence were changed.
+    claim_paths: dict[tuple[str, int], Path] = {}
+    for bpath, doc in briefs:
+        node = doc["node_id"]
+        _sub_evidence_binding(base, node, None)
+        phases = doc.get("phases") or {}
+        cells = doc.get("cells") or []
+        journey = doc.get("journey_tail") or []
+        if not isinstance(phases, dict) or not isinstance(cells, list) or not isinstance(journey, list):
+            raise WriterRefusal(f"브리핑의 phases/cells/journey_tail 형식이 무효다: {_rel(bpath)}")
+        for phase, st in phases.items():
+            if not isinstance(st, dict) or phase not in PHASE_NAMES:
+                continue
+            if (st.get("state") or "pending") not in PHASE_STATES:
+                raise WriterRefusal(f"브리핑 phase state가 무효다: {phase}={st.get('state')!r}")
+            _no_fill(source=st.get("proof_source") or "")
+        for cell in cells:
+            if isinstance(cell, dict) and cell.get("cell_id") and cell.get("cell_outcome") in CELL_OUTCOMES:
+                _sub_evidence_binding(base, node, cell["cell_id"])
+        for entry in journey:
+            if isinstance(entry, dict) and not _is_lifecycle(entry):
+                if entry.get("node_id") not in (None, node):
+                    raise WriterRefusal("브리핑 journey의 node_id가 brief node와 다르다")
+                _sub_evidence_binding(base, node, entry.get("cell_id"))
+        claims = doc.get("evidence_pointers")
+        if claims is None:
+            continue
+        if not isinstance(claims, list):
+            raise WriterRefusal(f"브리핑 evidence_pointers 가 목록이 아니다: {_rel(bpath)}")
+        for i, claim in enumerate(claims):
+            if not isinstance(claim, dict):
+                raise WriterRefusal(f"브리핑 evidence claim 이 객체가 아니다: {_rel(bpath)}")
+            kind, path, claim_node = claim.get("kind"), claim.get("path"), claim.get("node_id")
+            if claim_node != node:
+                raise WriterRefusal(f"브리핑 evidence claim node_id({claim_node!r})가 brief node({node!r})와 다르다")
+            _sub_evidence_binding(base, node, claim.get("cell_id"))
+            local = _sub_evidence_path(kind, path, mirror)
+            try:
+                local.relative_to(REPO_ROOT)
+            except ValueError as exc:
+                raise WriterRefusal(f"회수 evidence mirror는 저장소 안이어야 한다: {_rel(mirror)}") from exc
+            claim_paths[(str(bpath), i)] = local
     for bpath, doc in briefs:
         node = doc["node_id"]
         for phase, st in (doc.get("phases") or {}).items():
@@ -2178,21 +2335,9 @@ def import_sub_mirror(base: Path, mirror: Path, *, utc: str,
         if claims is None:
             warnings.append(f"브리핑에 scoped evidence_pointers 가 없다: {_rel(bpath)} — 진행표만 편입")
             continue
-        if not isinstance(claims, list):
-            raise WriterRefusal(f"브리핑 evidence_pointers 가 목록이 아니다: {_rel(bpath)}")
-        for claim in claims:
-            if not isinstance(claim, dict):
-                raise WriterRefusal(f"브리핑 evidence claim 이 객체가 아니다: {_rel(bpath)}")
-            kind, path, claim_node = claim.get("kind"), claim.get("path"), claim.get("node_id")
-            if kind not in EVIDENCE_KINDS or not isinstance(path, str) or not path.startswith("docs/"):
-                raise WriterRefusal(f"브리핑 evidence claim 형식이 무효다: {claim!r}")
-            if claim_node != node:
-                raise WriterRefusal(f"브리핑 evidence claim node_id({claim_node!r})가 brief node({node!r})와 다르다")
-            local = (mirror / path.removeprefix("docs/")).resolve()
-            try:
-                local.relative_to(mirror.resolve())
-            except ValueError as exc:
-                raise WriterRefusal(f"브리핑 evidence 경로가 mirror 밖으로 벗어난다: {path}") from exc
+        for i, claim in enumerate(claims):
+            kind = claim["kind"]
+            local = claim_paths[(str(bpath), i)]
             if not local.is_file():
                 warnings.append(f"증거 미등재 {_rel(local)} (brief가 선언했으나 미러에 없다)")
                 continue
@@ -3932,6 +4077,131 @@ def _selftest() -> int:
                 {"kind": "bench_report", "path": "docs/benchmark/bench_report_26090807_x.md",
                  "cell_id": "c9", "node_id": "sub"}],
             "last_utc": "2026-09-08T22:00:00Z"})
+        # Invalid tail claims must refuse before writing even the earlier valid phase/cell facts.
+        _brief_file = _mir / "logs" / "sub" / "campaign_brief.json"
+        _brief_good = _read_json(_brief_file)
+        def _tree_bytes(root):
+            return {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+        _before_import = _tree_bytes(camp)
+        _bad_claims = [
+            ("non-doc relay", {"kind": "relay_summary", "path": "campaigns/w1/relay/ctx.json", "node_id": "sub", "cell_id": "c9"}),
+            ("unknown kind", {"kind": "unknown", "path": "docs/testlog/t.md", "node_id": "sub"}),
+            ("cross-node", {"kind": "testlog", "path": "docs/testlog/t.md", "node_id": "main"}),
+            ("cross-cell", {"kind": "testlog", "path": "docs/testlog/t.md", "node_id": "sub", "cell_id": "c1"}),
+            ("escape", {"kind": "testlog", "path": "docs/../outside.md", "node_id": "sub"}),
+            ("non-object", "bad-tail"),
+        ]
+        for _label, _bad in _bad_claims:
+            _mut = json.loads(json.dumps(_brief_good))
+            _mut["evidence_pointers"].append(_bad)
+            _write_json(_brief_file, _mut)
+            ck(f"★import malformed tail {_label} → all campaign bytes unchanged",
+               _boom(lambda: import_sub_mirror(camp, _mir, utc="2026-09-08T22:30:00Z", unfreeze=True))
+               and _tree_bytes(camp) == _before_import)
+        _write_json(_brief_file, _brief_good)
+        _late_brief = _mir / "logs" / "zzz" / "campaign_brief.json"
+        _write_json(_late_brief, _mut)
+        ck("★import validates later brief before applying earlier valid brief",
+           _boom(lambda: import_sub_mirror(camp, _mir, utc="2026-09-08T22:30:00Z", unfreeze=True))
+           and _tree_bytes(camp) == _before_import)
+        _late_brief.unlink()
+
+        # The sub writer refuses a local control ledger as upward evidence, without deleting it.
+        _subbase = REPO_ROOT / "campaigns" / "sub-evidence"
+        _write_json(_subbase / "campaign.yaml", {
+            "self_role": "sub", "nodes": [{"node_id": "sub", "role": "sub", "topology": "single"}],
+            "assignments": {"sub": [{"cell": "sc1"}]}, "control_variables": {"topology": "single"}})
+        _relay = _subbase / "relay" / "ctx.json"
+        _write_json(_relay, {"fixture": "local relay retained"})
+        _relay_rel = _rel(_relay)
+        _summary = REPO_ROOT / "docs" / "testlog" / "testlog_fixture_relay.md"
+        _summary.parent.mkdir(parents=True, exist_ok=True)
+        _summary.write_text("fixture: docs relay summary\n", encoding="utf-8")
+        _summary_rel = _rel(_summary)
+        ck("★sub writer refuses campaigns relay pointer before creating evidence state",
+           _boom(lambda: writer_add_evidence(_subbase, kind="relay_summary", path_rel=_relay_rel,
+                                             node="sub", cell_id="sc1", unfreeze=False))
+           and not (_subbase / "evidence_pointers.json").exists())
+        _summary_link = _summary.parent / "testlog_fixture_link.md"
+        _summary_link.symlink_to(_summary)
+        ck("★sub writer rejects symlink evidence even inside docs",
+           _boom(lambda: writer_add_evidence(_subbase, kind="testlog", path_rel=_rel(_summary_link),
+                                             node="sub", cell_id="sc1", unfreeze=False))
+           and not (_subbase / "evidence_pointers.json").exists())
+        _rawdir = REPO_ROOT / "docs" / "simlog" / "fixture-vault"
+        _rawdir.mkdir(parents=True)
+        writer_add_evidence(_subbase, kind="simlog", path_rel=_rel(_rawdir),
+                            node="sub", cell_id="sc1", unfreeze=False)
+        ck("★sub writer preserves simlog-directory evidence contract",
+           _read_json(_subbase / "evidence_pointers.json")["pointers"][0]["path"] == _rel(_rawdir))
+        _write_json(_subbase / "evidence_pointers.json", {"pointers": [
+            {"kind": "relay_summary", "path": _relay_rel, "node_id": "sub", "cell_id": "sc1"}]})
+        _before_correction = _tree_bytes(_subbase)
+        def _correct(**kw):
+            args = dict(kind="relay_summary", path_from=_relay_rel, path_to=_summary_rel,
+                        reason="Replace erroneous control-ledger claim with upward docs summary",
+                        utc="2026-09-08T22:40:00Z", unfreeze=False, node="sub", cell_id="sc1")
+            args.update(kw)
+            return writer_relocate_evidence(_subbase, **args)
+        ck("★default relocate still refuses an existing source and changes nothing",
+           _boom(_correct) and _tree_bytes(_subbase) == _before_correction)
+        for _label, _kw in (("reason", {"reason": " "}), ("utc", {"utc": None}),
+                            ("node", {"node": "main"}), ("cell", {"cell_id": "other"}),
+                            ("destination", {"path_to": _relay_rel})):
+            ck(f"★reference correction requires valid {_label} and preserves original bytes",
+               _boom(lambda: _correct(correct_reference=True, **_kw))
+               and _tree_bytes(_subbase) == _before_correction)
+        _source_bytes = _relay.read_bytes()
+        _correct(correct_reference=True)
+        _fixed_ptr = _read_json(_subbase / "evidence_pointers.json")["pointers"][0]
+        ck("★reference correction preserves relay file and node/cell, records source/reason/UTC/mode",
+           _relay.read_bytes() == _source_bytes and _fixed_ptr["path"] == _summary_rel
+           and _fixed_ptr["node_id"] == "sub" and _fixed_ptr["cell_id"] == "sc1"
+           and _fixed_ptr["relocated"][0]["from"] == _relay_rel
+           and _fixed_ptr["relocated"][0]["mode"] == "reference-correction"
+           and _fixed_ptr["relocated"][0]["source_preserved"] is True
+           and bool(_fixed_ptr["relocated"][0]["reason"]) and _fixed_ptr["relocated"][0]["utc"])
+        _sweep_rel = "output/single/benchlog/sweep_cfg-new"
+        _idxpath = REPO_ROOT / _sweep_rel / "sweep_index.json"
+        _write_json(_idxpath, {"generated_utc": "2026-09-08T22:45:00Z", "meta": {"config_name": "cfg-new"}})
+        _sweep_state = _subbase / "sweeps" / "s.json"
+        _sweep_rec = {"cell_key": "sc1", "config": "cfg-new", "cell_outcome": "measured",
+                      "sweep_dir": _sweep_rel, "sweep_generated_utc": "2026-09-08T22:45:00Z"}
+        _write_json(_sweep_state, {"cells": [_sweep_rec]})
+        _outptr = _sweep_output(_subbase, _sweep_state, "sc1", "sub")
+        ck("★official sweep output binding preserves actual config even when config != cell",
+           _outptr["sweep_dir"] == _sweep_rel and _outptr["sweep_config"] == "cfg-new"
+           and _outptr["sweep_generated_utc"] == "2026-09-08T22:45:00Z")
+        def _write_sweep_cell():
+            return writer_set_cell(_subbase, cell="sc1", outcome="measured", node="sub",
+                version=None, model=None, decode_tps="6", measurement_source="fixture: measured producer row",
+                void_reason=None, void_reason_source=None, axis_citation=None, next_intent=None,
+                utc="2026-09-08T22:45:00Z", sweep_state=str(_sweep_state))
+        _write_sweep_cell()
+        ck("★cell writer carries verified fresh sweep pointer from producer without manual setter",
+           _read_json(_subbase / "cells/sc1/cell.status.json")["measurement"]["sweep_dir"] == _sweep_rel)
+        _before_bad_sweep = _tree_bytes(_subbase / "cells")
+        _nested_sweep = _sweep_rel + "/sweep_nested"
+        _write_json(REPO_ROOT / _nested_sweep / "sweep_index.json", _read_json(_idxpath))
+        for _field, _value in (("sweep_dir", "output/multi/benchlog/sweep_cfg-new"),
+                               ("sweep_dir", "output/single/benchlog/../escape"),
+                               ("sweep_dir", _nested_sweep),
+                               ("sweep_generated_utc", "stale"), ("config", "other")):
+            _write_json(_sweep_state, {"cells": [dict(_sweep_rec, **{_field: _value})]})
+            ck(f"★sweep output rejects {_field}={_value}",
+               _boom(_write_sweep_cell) and _tree_bytes(_subbase / "cells") == _before_bad_sweep)
+        _write_json(_sweep_state, {"cells": [{"cell_key": "sc1"}]})
+        ck("★legacy sweep without output pointer remains supported",
+           _sweep_output(_subbase, _sweep_state, "sc1", "sub") is None)
+        _write_sweep_cell()
+        ck("★new legacy sweep does not retain previous run's explicit output pointer",
+           "sweep_dir" not in _read_json(_subbase / "cells/sc1/cell.status.json")["measurement"])
+        _write_json(_sweep_state, {"cells": [_sweep_rec]})
+        _index_copy = _idxpath.with_name("index-fixture.json")
+        _idxpath.rename(_index_copy)
+        _idxpath.symlink_to(_index_copy)
+        ck("★sweep writer refuses symlink index before reading it",
+           _boom(_write_sweep_cell))
         _n0 = len(read_journey(camp))
         _w0, _warn0 = import_sub_mirror(camp, _mir, utc="2026-09-08T23:00:00Z")
         ck("★동결된 스냅샷을 만나도 진행표는 적히고 증거만 결손 기재된다(차단 ✗ · D17)",
@@ -4642,6 +4912,9 @@ def main(argv: list[str] | None = None) -> int:
                         "--kind --path(옛) --to(새) --relocate-reason --utc 필수")
     w.add_argument("--to", dest="relocate_to", help="--evidence-relocate 의 새 저장소 상대경로")
     w.add_argument("--relocate-reason", help="--evidence-relocate 의 사유(필수)")
+    w.add_argument("--correct-reference", action="store_true",
+                   help="--evidence-relocate: sub relay_summary의 잘못된 캠페인 relay 포인터를 docs/testlog 요약으로 정정. "
+                        "원본 보존·node/cell 불변·이력 기록 · --node --cell 필수")
     w.add_argument("--evidence-prune-stubs", action="store_true",
                    help="뼈대에서 딸려온 <<FILL>> 스텁 포인터를 정식 경로로 제거한다 "
                         "(값이 든 포인터는 건드리지 않는다 · 손삭제 대체)")
@@ -4676,6 +4949,8 @@ def main(argv: list[str] | None = None) -> int:
                    help="인스턴스만 읽고 재개 요약을 낸다(README 읽기 순서 0번)")
     a = ap.parse_args(argv)
     try:
+        if a.correct_reference and not a.evidence_relocate:
+            raise WriterRefusal("--correct-reference 는 --evidence-relocate와 함께만 쓴다")
         if a.selftest:
             return _selftest()
         if a.active:
@@ -4941,7 +5216,9 @@ def main(argv: list[str] | None = None) -> int:
                 if not (a.kind and a.path and a.relocate_to):
                     raise WriterRefusal("--evidence-relocate 는 --kind --path --to 가 필요하다")
                 wrote.append(_rel(writer_relocate_evidence(base, kind=a.kind, path_from=a.path, path_to=a.relocate_to,
-                                                           reason=a.relocate_reason, utc=a.utc, unfreeze=a.unfreeze)))
+                                                           reason=a.relocate_reason, utc=a.utc, unfreeze=a.unfreeze,
+                                                           correct_reference=a.correct_reference,
+                                                           node=a.node, cell_id=a.cell)))
             if a.evidence_prune_stubs:
                 epath, dropped = writer_prune_stubs(base, unfreeze=a.unfreeze)
                 wrote.append(_rel(epath))

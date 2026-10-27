@@ -15,6 +15,8 @@
 #        [--input-len N] [--output-len N] [--num-prompts N] [--warmups N] [--vllm-version X] [--dry-run]
 #        [--preset NAME|PATH] [--knob-reason KNOB=CODE]... [--approved-by TEXT] [--pin KNOB=VALUE... --pinned-by TEXT]
 #        [--repeats N [--repeats-source TEXT]] [--campaign-id ID] [--reassemble-only]
+#        [--sweep-dir output/<topo>/benchlog/sweep_<unique-run>] (새 측정은 기존 경로 거부)
+#        --check-sweep-dir --sweep-dir PATH --topology T (경로만 읽기 검증하고 정규화 경로 출력)
 #        [--cross-node-tolerance-s N --cross-node-tolerance-source TEXT]   (multi 원격 노드 사살 대조 · 선언으로만)
 #
 # ★ 측정 형상은 프리셋이 정한다(2026-10-10 · plan_26101011 · interview_20261010_015151). full-bench(현재 구현체 GuideLLM)
@@ -66,6 +68,7 @@ set -euo pipefail
 
 CONFIG="${1:?config_name 필요}"; shift || true
 TOPO=""; SERVE_PLANE="docker"; HOST_ENDPOINT=""; CLIENT_VLLM=""; NATIVE_ELOG=""; VLLM_VER=""; DRYRUN=0; REASSEMBLE=0
+SWEEP_DIR_ARG=""; CHECK_SWEEP_DIR=0
 # 측정 형상은 빈 값으로 출발한다 — 기본값의 자리는 프리셋 하나다(위 헤더 ★ · bench_preset.py 가 채운다).
 LEVELS=""; ILEN=""; OLEN=""; NPROMPTS=""; WARMUPS=""
 PRESET=""; PINNED_BY=""; APPROVED_BY=""; PIN_ARGS=(); KNOB_REASON_ARGS=()
@@ -105,6 +108,10 @@ while [ $# -gt 0 ]; do case "$1" in
   --campaign-id) CAMPAIGN_ID="$2"; shift 2;;
   --campaign-cell) CAMPAIGN_CELL="$2"; shift 2;;
   --topology) TOPO="$2"; shift 2;;
+  --sweep-dir)
+    [ $# -ge 2 ] && [ -n "$2" ] || { echo "[sweep_bench] --sweep-dir requires a nonempty path" >&2; exit 2; }
+    SWEEP_DIR_ARG="$2"; shift 2;;
+  --check-sweep-dir) CHECK_SWEEP_DIR=1; shift;;
   --serve-plane) SERVE_PLANE="$2"; shift 2;;
   --host-endpoint) HOST_ENDPOINT="$2"; shift 2;;
   --client-vllm) CLIENT_VLLM="$2"; shift 2;;
@@ -123,6 +130,55 @@ while [ $# -gt 0 ]; do case "$1" in
   --dry-run) DRYRUN=1; shift;;
   *) echo "[sweep_bench] 알 수 없는 인자: $1" >&2; exit 2;;
 esac; done
+
+SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO="$(git -C "$SDIR" rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# 명시 출력은 과거 sweep을 덮지 않는 새 direct child다. broad_search의 선검사와
+# 실제 측정 진입이 이 한 검증자를 쓴다. check는 읽기 전용, claim은 mkdir의 EEXIST로 경합을 거부한다.
+_selected_sweep_dir() {
+  python3 - "$REPO" "$TOPO" "$SWEEP_DIR_ARG" "$REASSEMBLE" "$1" <<'SWEEP_PATH_PY'
+import os, re, sys
+from pathlib import Path
+repo, topo, raw, reassemble, action = sys.argv[1:]
+def refuse(reason):
+    print('[sweep_bench] ERROR --sweep-dir: ' + reason, file=sys.stderr)
+    raise SystemExit(2)
+if topo not in ('single', 'multi') or not raw:
+    refuse('explicit topology single|multi and a nonempty path are required')
+repo = Path(repo).resolve()
+path = Path(raw)
+if '..' in path.parts:
+    refuse('parent traversal is not allowed')
+if not path.is_absolute():
+    path = repo / path
+parent = repo / 'output' / topo / 'benchlog'
+if path.parent != parent or not re.fullmatch(r'sweep_[A-Za-z0-9][A-Za-z0-9._-]*', path.name):
+    refuse('choose one sweep_* directory directly under output/<topology>/benchlog')
+for part in (repo / 'output', parent.parent, parent, path):
+    if part.is_symlink():
+        refuse('symlink paths are not allowed')
+if reassemble == '1':
+    if not path.is_dir():
+        refuse('reassembly requires an existing directory')
+elif os.path.lexists(path):
+    refuse('fresh measurement requires an absent directory; existing evidence is preserved')
+if action == 'claim' and reassemble != '1':
+    try:
+        parent.mkdir(parents=True, exist_ok=True)
+        if parent.resolve() != parent:
+            refuse('output parent changed to a symlink')
+        path.mkdir()  # atomic claim: never merge into an existing output
+    except OSError as exc:
+        refuse(f'cannot claim fresh output: {exc}')
+print(path)
+SWEEP_PATH_PY
+}
+if [ "$CHECK_SWEEP_DIR" = 1 ]; then
+  # No preset, manifest, health, phase, filesystem write or measurement in this path.
+  _selected_sweep_dir check
+  exit $?
+fi
 
 case "$SERVE_PLANE" in
   docker|native) ;;
@@ -191,9 +247,6 @@ case "$TOOL" in
   *) echo "[sweep_bench] 알 수 없는 --tool: $TOOL (vllm|guidellm)" >&2; exit 2;;
 esac
 
-SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO="$(git -C "$SDIR" rev-parse --show-toplevel 2>/dev/null || pwd)"
-
 REPEATS=""; REPEATS_SOURCE=""; REPEAT_KIND=""
 if [ -z "$TOPO" ]; then
   # ★ 2026-09-14(⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고 브랜치로 추론하지 않는다"): 종전 관용구는
@@ -210,6 +263,11 @@ CFGYAML="$REPO/output/$TOPO/configs/${CONFIG}.yaml"
 EF="$REPO/output/$TOPO/envs/.env.${CONFIG}"
 MANIFEST="$REPO/output/$TOPO/manifest.yaml"
 SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
+if [ -n "$SWEEP_DIR_ARG" ]; then
+  _SWEEP_ACTION=claim
+  [ "$DRYRUN" = 1 ] && _SWEEP_ACTION=check
+  SWEEPDIR="$(_selected_sweep_dir "$_SWEEP_ACTION")" || exit 2
+fi
 
 # ── 측정 형상 해소(프리셋 · 2026-10-10 plan_26101011) — **어떤 부하도 걸기 전에** 친다 ─────────────────────────
 #   재조립은 측정하지 않으므로 해소하지 않는다 — 측정 시점의 `bench_knobs`·요청 반복을 기존 index 에서 승계한다(아래 PY).

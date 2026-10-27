@@ -47,6 +47,7 @@
 #                              cell 은 --authority 를 받지 않는다(plan_26100113 D1).
 #                            [--serve-failed REASON --serve-started-utc T] [--symptom KIND]...
 #                            --bench-budget-mib N --now-utc T --confirm-risk [--topology t]
+#                            [--sweep-dir output/<topo>/benchlog/sweep_<unique-run>] (기존 원시 경로 보존)
 #                            [--cross-node-tolerance-s N --cross-node-tolerance-source TEXT]  (multi 원격 노드 사살 대조 · 선언으로만)
 #                            [--preset NAME|PATH] --knob-reason backend=<code> --knob-reason bench_budget_mib=<code>
 #                            [--knob-reason KNOB=CODE]... [--approved-by TEXT] [--pin KNOB=VALUE... --pinned-by TEXT]
@@ -66,6 +67,7 @@ CMD="${1:?서브커맨드 필요: init|cell|status|map}"; shift || true
 STATE=""; NOW=""; SWEEP_ID=""; CELLS=""; CTRL=""; AUTHORITY=""; NODE=""
 MAX_CELLS=""; WALL=""; FAILLIMIT=""; DECLARED_BY=""; BASIS=""
 CELL_KEY=""; CONFIG=""; CITATION=""; BENCH_BUDGET=""; TOPO=""; CONFIRM=0
+SWEEP_DIR_ARG=""
 # 여정 한 줄(2026-09-07 · plan_26090715 §4.3 · 인터뷰 Q4). 새 절차를 만들지 않고 **이미 도는
 # 자동쓰기**(이 셀 트랜잭션)에 인자 하나를 얹는다. 감수하지 말아야 할 유실은 여정 하나이며,
 # 벤치 결과·3+1+1 산출물은 결손 기재로 복원된다.
@@ -123,6 +125,9 @@ while [ $# -gt 0 ]; do case "$1" in
   --basis) BASIS="$2"; shift 2;;
   --cell-key) CELL_KEY="$2"; shift 2;;
   --config) CONFIG="$2"; shift 2;;
+  --sweep-dir)
+    [ $# -ge 2 ] && [ -n "$2" ] || { echo "[broad_search] --sweep-dir requires a nonempty path" >&2; exit 2; }
+    SWEEP_DIR_ARG="$2"; shift 2;;
   --axis-citation) CITATION="$2"; shift 2;;
   --next-intent) NEXT_INTENT="$2"; shift 2;;
   --ack-uncalibrated-thermal) ACK_UNCAL=1; shift;;
@@ -167,6 +172,9 @@ while [ $# -gt 0 ]; do case "$1" in
   --out-json) OUT_JSON="$2"; shift 2;;
   *) echo "[broad_search] 알 수 없는 인자: $1" >&2; exit 2;;
 esac; done
+if [ -n "$SWEEP_DIR_ARG" ] && [ "$CMD" != cell ]; then
+  echo "[broad_search] --sweep-dir is a cell output selection" >&2; exit 2
+fi
 
 [ -n "$STATE" ] || { echo "[broad_search] ERROR --state 는 필수다" >&2; exit 2; }
 [ -n "$NOW" ]   || { echo "[broad_search] ERROR --now-utc 는 필수다(벽시계 금지 — 시각은 주입만)" >&2; exit 2; }
@@ -409,6 +417,15 @@ print(a)
   fi
   _resolve_topo
 
+  SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
+  if [ -n "$SWEEP_DIR_ARG" ]; then
+    _SDCHECK=("$CONFIG" --topology "$TOPO" --sweep-dir "$SWEEP_DIR_ARG" --check-sweep-dir)
+    [ "$REASSEMBLE" = 1 ] && _SDCHECK+=(--reassemble-only)
+    # Before _stop writes its sidecar or any health/measurement call. This does not
+    # create the output: sweep_bench claims it atomically when measurement starts.
+    SWEEPDIR="$(bash "$SDIR/sweep_bench.sh" "${_SDCHECK[@]}")" || exit 2
+  fi
+
   # 진입 전 정지 조건. 이미 멈춰야 하는 스윕에 셀을 하나 더 밀어 넣지 않는다.
   #   단 `--serve-failed` 는 **이미 끝난 일의 기록**이다 — 컨테이너도 벤치도 띄우지 않고
   #   상태 파일에 사실 한 줄을 적을 뿐이다. 게이트의 목적은 *새 작업 착수*를 막는 것이지
@@ -453,7 +470,6 @@ print("%s\x1f%s" % (b.get("repeats", ""), b.get("repeats_source") or "출처 미
       echo "[broad_search] ⚠ --serve-started-utc 미지정 — 대조 구간이 [기록시각, 지금] 이라" >&2
       echo "[broad_search]   실제 서빙 시도 구간의 사살 이벤트를 놓칠 수 있다(사인이 correlation-miss 로 남는다)." >&2
     fi
-    SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
     CELL_PROV='{"status": "not_evaluated", "reason": "--serve-failed 기록 — 트리플렛이 없는 실패 기록은 셀 출처 precheck 를 타지 않는다(envfile 검사와 같은 면제)"}'
     echo "[broad_search] serve_failed 기록 — $SERVE_FAILED_REASON"
   else
@@ -532,7 +548,7 @@ print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str
   SERVE_RC=0
   if [ "$REASSEMBLE" = "1" ]; then
     # 판정은 **기존 산출물**이 한다: 판정점 measured.json 의 measurement_ok 가 유일한 근거다.
-    SWEEPDIR_PRE="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
+    SWEEPDIR_PRE="$SWEEPDIR"
     if python3 -c "import json,sys;d=json.load(open('$SWEEPDIR_PRE/level_01/measured.json'));sys.exit(0 if d.get('measurement_ok') else 1)" 2>/dev/null; then
       MEASURE_RC=0
     else
@@ -549,10 +565,10 @@ print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str
   # 2026-09-05(G-B13): 기본 0 삭제 — "측정 안 함"과 "측정 성공"이 같은 값이 되면 재조립 경로가
   #   아무것도 재지 않고 `measured` 로 종결된다. 부재는 `absent` 로 **명시**해 넘긴다.
   MEASURE_RC="${MEASURE_RC:-absent}"
-  SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
   if [ "$SERVE_RC" = "0" ] && [ "$REASSEMBLE" != "1" ]; then
     set +e
     SB_ARGS=("$CONFIG" --topology "$TOPO" --tool guidellm --bench-budget-mib "$BENCH_BUDGET")
+    [ -n "$SWEEP_DIR_ARG" ] && SB_ARGS+=(--sweep-dir "$SWEEPDIR")
     [ -n "$BACKEND" ] && SB_ARGS+=(--backend "$BACKEND")
     [ -n "$MAX_ERROR_RATE" ] && SB_ARGS+=(--max-error-rate "$MAX_ERROR_RATE")
     [ -n "$LEVELS" ] && SB_ARGS+=(--levels "$LEVELS")
@@ -603,7 +619,7 @@ print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str
   [ -n "$LITE_RAW_CELL" ] && _CLS_ARGS+=(--lite-raw "$LITE_RAW_CELL")
   CLS="$(python3 "$SDIR/classify_cell.py" "${_CLS_ARGS[@]}")"
 
-  CELL_KEY="$CELL_KEY" CONFIG="$CONFIG" CITATION="$CITATION" SWEEPDIR="$SWEEPDIR" \
+  CELL_KEY="$CELL_KEY" CONFIG="$CONFIG" CITATION="$CITATION" SWEEPDIR="$SWEEPDIR" REPO="$REPO" \
   CLS="$CLS" ENDED="$ENDED" STARTED="$STARTED" SERVE_FAILED_REASON="$SERVE_FAILED_REASON" \
   NEXT_INTENT="$NEXT_INTENT" THERMAL_UNCAL="${_UNCAL:-}" ACK_UNCAL="$ACK_UNCAL" \
   CELL_PROV="${CELL_PROV:-}" SDIR="$SDIR" \
@@ -657,6 +673,8 @@ vector = {str(l.get("level")): ((l.get("measured") or {}).get("decode_tps"))
           for l in (index.get("levels") or [])}
 cell = {
     "cell_key": os.environ["CELL_KEY"],
+    "sweep_dir": os.path.relpath(sweepdir, os.environ["REPO"]) if index_carried else None,
+    "sweep_generated_utc": index.get("generated_utc") if index_carried else None,
     "config": os.environ["CONFIG"],
     "started_utc": os.environ["STARTED"],
     "ended_utc": os.environ["ENDED"],
