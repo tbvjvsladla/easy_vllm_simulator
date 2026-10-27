@@ -833,6 +833,7 @@ _VLLM_OBS_LABELS = {
     "engine_self_report": "vLLM 엔진 자기보고(엔진 로그 기동 배너)",
     "certificate_vllm_version": "인증서 `vllm_version`(강한 일치 키)",
     "wheel_meta": "wheel 메타(`vllm_build`)",
+    "runtime_version": "vLLM runtime 버전(관측 기록 · 배포 메타 여부 미판정)",
     "runtime_source_checkout": "vLLM runtime source checkout SHA(컴파일 바이트 증명 아님)",
     "runtime_source_describe": "vLLM runtime source describe(관측 기록)",
 }
@@ -5444,13 +5445,22 @@ def selftest() -> list[str]:
             "runtime_source_checkout_source": "runtime_identity.json source_head · 컴파일 바이트 미검증",
             "runtime_source_describe": "v0.31.0",
             "runtime_source_describe_source": "runtime_identity.json source_describe · 관측 기록",
-            "wheel_meta": "0.31.1.dev0+gfixture.cu133", "wheel_meta_source": "runtime_identity.json vllm_version"}
+            "runtime_version": "0.31.1.dev0+gfixture.cu133",
+            "runtime_version_source": "runtime_identity.json vllm_version · 수집 명령 기록: runtime_identity.json#/collection_argv",
+            "wheel_meta": None, "wheel_meta_source": "배포 메타 미관측"}
         rsr = _f_resolved(_Ctx(repo, qfr, tpls))
-        ck("FC2/3 runtime source/install observations render separately from absent build provenance",
+        ck("F3 runtime source/version observations render separately from absent build/distribution provenance",
            "vLLM 빌드 계보 SHA(40자) | 미관측" in rsr and "컴파일 바이트 증명은 별개" in rsr
            and "vLLM runtime source checkout SHA(컴파일 바이트 증명 아님) | " + "e" * 40 in rsr
            and "vLLM runtime source describe(관측 기록) | v0.31.0" in rsr
-           and "0.31.1.dev0+gfixture.cu133" in rsr)
+           and "vLLM runtime 버전(관측 기록 · 배포 메타 여부 미판정) | 0.31.1.dev0+gfixture.cu133" in rsr
+           and "wheel 메타(`vllm_build`) | 미관측 | 배포 메타 미관측" in rsr
+           and "runtime_identity.json#/collection_argv" in rsr)
+        qfr["naming"]["vllm_observed"].update({"wheel_meta": "0.31.0+distribution", "wheel_meta_source": "빌드 원장 vllm.dist_version"})
+        rsrd = _f_resolved(_Ctx(repo, qfr, tpls))
+        ck("F3 genuine distribution and generic runtime versions render in distinct rows with distinct sources",
+           "wheel 메타(`vllm_build`) | 0.31.0+distribution | 빌드 원장 vllm.dist_version" in rsrd
+           and "vLLM runtime 버전(관측 기록 · 배포 메타 여부 미판정) | 0.31.1.dev0+gfixture.cu133" in rsrd)
         qf9c = json.loads(core.dumps(qf9))
         qf9c["naming"]["vllm_build_input"].update({"kind": "commit", "prev_release": None})
         rs9c = _f_resolved(_Ctx(repo, qf9c, tpls))

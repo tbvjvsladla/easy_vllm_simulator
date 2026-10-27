@@ -9,7 +9,7 @@
 #            작업코드/설정(configs/envs/.claude/CLAUDE.md)은 가져오지 않는다 — 회수는 문서기반 only.
 #
 # 방향: 서브 → 메인 (read-only on sub — rsync FROM sub). 서브를 변경하지 않는다.
-# 산출: sync_staging/sub_docs/ (메인 로컬, gitignored — 회수 작업본). 그 뒤 사람이 읽고 재저작.
+# 산출: sync_staging/sub_docs/ (메인 로컬, gitignored — 회수 작업본). 메인이 기존 유효 승인 범위에서 검토·재저작.
 #
 # 사용:
 #   bash fetch_sub_docs.sh                 # DRY-RUN (무엇을 가져올지 미리보기)
@@ -168,4 +168,4 @@ else
     echo "[fetch] ⚠ campaigns writer 부재($_CI) — 회수는 됐지만 아무도 편입하지 않았다." >&2
 fi
 
-echo "[fetch] 다음(사람): 이 문서를 열람 → 반영할 개선을 메인 템플릿/헌법/스킬에 HITL 재저작(자동 머지 없음)."
+echo "[fetch] 다음(메인): 문서 검토 → 기존 유효 승인 범위에서 메인 템플릿/헌법/스킬에 재저작(자동 머지 없음). 같은 범위의 반복 회수는 재승인을 요구하지 않는다. 승인 부재·새 범위/예산·사용자 선택·별도 승인 게이트는 기존 HITL 계약을 따른다."
