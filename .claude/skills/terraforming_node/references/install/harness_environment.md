@@ -40,7 +40,7 @@ Claude가 OS sandbox를 사용한다고 추정하거나, Codex만 강한 격리�
    동일한 `--hint-write-scopes`를 넘긴다. multi에 그 입력을 쓰거나 전체 HOME·시스템 루트·workspace 상위를
    쓰기 허용하는 것은 거부한다. scope 미지정은 과거 렌더 호환일 뿐 single hint 기능 준비의 증거가 아니다.
    일반 정책 렌더·오버레이는 기존 승인된 전달 경로이며 sudo 설치가 아니다. 사용자 설정/managed/자격증명을 복사하지 않는다.
-   메인 `vllm-main`도 승인된 로컬 git 쓰기와 A2A SSH에 필요한 network 접근을 선언한다. network 활성화는
+   메인 `vllm-main`도 승인된 로컬 git·하네스 진입점(`.agents`·`.codex`) 쓰기와 A2A SSH에 필요한 network 접근을 선언한다. network 활성화는
    원격 side effect 승인이나 domain filtering이 아니며, 사용자/managed 정책과 도메인 승인 경계는 계속 적용된다.
 4. **환경 전제조건:** 대상 main/sub 각각 CLI 지원, 인증, 실제 프로젝트 신뢰/설정 로딩, 명령 기동을 확인한다.
    Codex named 선택을 legacy `sandbox_mode`가 덮거나 managed 정책이 거부하면 request로 표면화한다.
@@ -66,6 +66,37 @@ permissions의 `harness_permission_probe.py`는 요청된 native 하네스 **안
 보호를 검사할 때 내용 쓰기·교체는 하지 않는다. 직접 OS open 결과는 Claude의 native Edit/Write deny를
 증명하지 못한다. 사용자/managed 정책 전체의 동등성과 Docker/Ray 원격 동작은 별도 실제 업무 증거가 필요하다.
 중단·재개·세션 결속은 기존 provider/relay 검사와 실제 종료 회수로 확인하고 새 provider로 성공을 대체하지 않는다.
+
+## 장시간 캠페인과 승인 지속성
+
+승인 팝업의 저장과 업무 승인의 권위는 구분한다. Claude의 로컬 tool 규칙은 `.claude/settings.local.json`,
+Codex의 native 재승인 생략 규칙은 `$CODEX_HOME/rules/default.rules`(기본 `~/.codex/rules/default.rules`), 프로젝트의 실행 기본값은
+`.codex/config.toml`이 소유한다. 한 provider의 승인 이력을 다른 파일에 복사하거나, 셸 prefix 허용을
+다운로드·sudo·태그 발행의 도메인 승인으로 재해석하지 않는다. 기존 유효 업무 승인은 캠페인 아티팩트에서
+복구한다. 하네스 전환·새 세션·이미 승인된 단계의 재개만을 이유로 같은 승인을 다시 받지 않는다.
+
+main/sub의 프로젝트 기본 `approval_policy = "never"`는 승인된 장기 업무에서 native 도구 팝업 대기를
+없애는 설정이다. 권한을 추가하거나 실패를 성공으로 바꾸지 않는다. 부족한 파일·network 범위, 신뢰 미로딩,
+호스트 sandbox 기동 실패는 계속 실패하며, 메인 소유 설정 수리와 실제 호스트 request를 구분해 처리한다.
+메인은 공통 하네스의 저작 owner이므로 `.agents`·`.codex` 쓰기가 양성대조이고 서브에서는 같은 경로의
+거부가 음성대조다. main의 두 경로 쓰기 성공만으로 외부 쓰기 격리 전체를 증명했다고 하지 않는다.
+
+다음 세션의 준비는 다음 관측으로 판단한다.
+
+1. 새 native 프로세스의 `config/read`·`permissionProfile/list`에서 신뢰된 project layer, 역할별 named
+   profile, `approval_policy`와 legacy override 여부를 확인한다. 사용자/managed 계층을 덮지 않는다.
+2. 실제 선택된 profile의 명령 기동과 역할별 업무 카나리를 수행한다. 메인의 외부 hint clone·git common
+   directory·branch worktree가 필요하면 실제 경로와 기존 승인에 결속한 권한을 별도로 확인한다. 전체 HOME
+   쓰기를 대신 열거나 단순 설정 로딩을 실행 성공으로 세지 않는다.
+3. 대화 중 `/permissions` 변경은 기존 보조 세션·별도 `codex exec`·다음 새 세션까지 갱신되었다는 증거가
+   아니다. 남아 있는 보조 세션의 실제 선택을 확인하고, 변경 전 선택으로 정지한 세션은 인계 자료를 보존한
+   후 현재 선택을 받는 새 세션으로 재위임한다. 원격 실행은 기존 relay 세션 결속·복구 가드를 유지한다.
+4. 승인된 실행의 주기 관측과 기술적 정정은 메인이 맡는다. 새 범위/예산/실제 사용자 선택이 필요한 경우만
+   기존 HITL 계약으로 올린다. `never` 때문에 숨은 실패를 무한 재시도하거나 사용자에게 같은 도구 승인을
+   반복 요청하지 않는다. 긴 실행의 자동 재개는 기존 감독 스텝·예산·복구 가드에 종속되며 무제한 재개가 아니다.
+
+이 준비는 다음 세션의 기본값과 관측된 기능에 대한 증거다. 아직 실행하지 않은 2일 캠페인의 무중단 완료나
+인증 만료·호스트 장애까지 해결했다는 보증으로 확대하지 않는다.
 
 ## 사람 수행 request
 

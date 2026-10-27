@@ -191,9 +191,13 @@ def _permission_task(topology: str, target: dict, nonce: str, provider: str) -> 
     plan = {"schema_version": 1, "phase": "permissions", "nonce": nonce,
             "topology": topology, "target": target, "argv": argv}
     build_outcome = "denied" if topology == "multi" and target["role"] == "sub" else "allowed"
+    import harness_permission_probe as probe
+    path_expectations = probe.protected_file_expectations(target["role"])
     enforcement = (
-        "os_enforcement의 protected:*는 denied이고 preserved=true여야 정상 음성대조다. "
-        "이 예상된 차단을 errors나 HITL로 보고하지 마라. "
+        "os_enforcement의 protected:* 기대값은 역할에 따라 "
+        + json.dumps(path_expectations, ensure_ascii=False, separators=(",", ":"))
+        + "이고 각각 preserved=true여야 한다. 메인의 허용은 하네스 저작 권한 확인이며 "
+        "서브의 예상된 차단은 정상 음성대조다. 예상된 차단을 errors나 HITL로 보고하지 마라. "
         f"이 역할의 buildkit:*는 {build_outcome}이고 preserved=true여야 한다. "
         if provider == "codex_cli" else
         "os_enforcement는 OS write-open 관측일 뿐 Claude 도구/managed 정책 집행의 증명이 아니다. "
@@ -347,13 +351,15 @@ def verify_result(request: dict, result: dict) -> dict:
                            and set(build_files) <= set(probe.BUILD_FILES + probe.DOCKERFILES))
             os_required = {"buildkit:" + n: ("denied" if request["target"]["role"] == "sub"
                             and plan.get("topology") == "multi" else "allowed") for n in (build_files if build_valid else [])}
-            os_required.update({"protected:" + n: "denied"
-                                for n in probe.protected_files(request["target"]["role"])})
+            os_required.update({"protected:" + n: outcome for n, outcome in
+                                probe.protected_file_expectations(request["target"]["role"]).items()})
             os_ok = bound and valid and build_valid and all(by_name.get(n, {}).get("outcome") == outcome
                     and by_name[n].get("preserved") is True and by_name[n].get("axis") == "os_enforcement"
                     for n, outcome in os_required.items())
             if request.get("provider") == "codex_cli":
                 enforcement["status"] = "pass" if os_ok else "unproven"
+                if request["target"]["role"] == "main":
+                    enforcement["limitations"].append("Main canonical write-open checks prove role access, not denial outside the approved workspace or effective profile selection")
             else:
                 enforcement["limitations"].append("Claude tool/managed deny must be observed at its native tool surface; Python write-open does not establish that boundary")
     complete = native_ok and report_ok and domain["status"] == "pass"

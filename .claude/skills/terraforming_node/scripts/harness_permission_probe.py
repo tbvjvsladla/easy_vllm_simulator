@@ -26,8 +26,9 @@ PROTECTED_FILES = ("AGENTS.md", "CLAUDE.md", "Agent_Card.json",
                    ".agents/skills/wiki-desk/SKILL.md")
 PROTECTED_FILES_BY_ROLE = {
     "sub": PROTECTED_FILES,
-    # Main owns canonical harness development. Only the named workspace profile's
-    # default protected policy/discovery paths are negative controls here.
+    # Main owns canonical harness development, including provider/discovery files.
+    # Keep the historical protected:* receipt names; they name normally protected
+    # paths, not a universal denied outcome. The role decides the expected result.
     "main": (".codex/config.toml", ".agents/skills/wiki-desk/SKILL.md"),
 }
 BUILD_FILES = ("docker-compose.yaml", "requirements.txt")
@@ -36,6 +37,12 @@ DOCKERFILES = ("Dockerfile", "Dockerfile.source-build", "Dockerfile.source-build
 
 def protected_files(role: str):
     return PROTECTED_FILES_BY_ROLE[role]
+
+
+def protected_file_expectations(role: str) -> dict[str, str]:
+    """Role ownership, not a result packet, defines these write-open expectations."""
+    return {path: "allowed" if role == "main" else "denied"
+            for path in protected_files(role)}
 
 
 def _command(argv, cwd):
@@ -265,6 +272,7 @@ def observe(workspace: Path, topology: str, role: str, nonce: str) -> dict:
             "hint_work_plane": ("node-local external clone" if topology == "single" and role == "sub"
                                 else "workspace git" if role == "main" else "not applicable"),
             "limits": ["write-open is not file modification/rename/create confinement proof",
+                       "main canonical write access is a positive role check, not proof of outside-workspace denial",
                        "Docker read access does not prove build/run or daemon confinement",
                        "library query can populate its existing derived cache; no model or remote git",
                        "hint markers prove local clone/git writes, not publication or network push",

@@ -57,8 +57,8 @@ class CanaryTests(unittest.TestCase):
         checks += [{"name": "buildkit:" + n, "axis": "os_enforcement", "preserved": True,
                     "outcome": "denied" if plan["topology"] == "multi" and request["target"]["role"] == "sub" else "allowed"}
                    for n in (*probe.BUILD_FILES, "Dockerfile.source-build")]
-        checks += [{"name": "protected:" + n, "axis": "os_enforcement", "outcome": "denied", "preserved": True}
-                   for n in probe.protected_files(request["target"]["role"])]
+        checks += [{"name": "protected:" + n, "axis": "os_enforcement", "outcome": outcome, "preserved": True}
+                   for n, outcome in probe.protected_file_expectations(request["target"]["role"]).items()]
         return dict(schema_version=1, nonce=plan["nonce"], topology=plan["topology"], role=request["target"]["role"],
                     workspace=request["target"]["work_dir"], provenance="observed_local_process", checks=checks,
                     build_files=[*probe.BUILD_FILES, "Dockerfile.source-build"])
@@ -238,19 +238,51 @@ class CanaryTests(unittest.TestCase):
             self.assertEqual(self.check(req, res)["status"], "input-required")
         self.assertEqual(self.check(req, [])["status"], "input-required")
 
-    def test_main_requires_named_profile_negative_controls(self):
+    def test_main_requires_owned_canonical_writes_and_preserved_bytes(self):
         req = self.request(role="main")
-        self.assertEqual(probe.protected_files("main"),
-                         (".codex/config.toml", ".agents/skills/wiki-desk/SKILL.md"))
-        self.assertNotIn("CLAUDE.md", probe.protected_files("main"))
-        for outcome in ("allowed", "unobserved"):
-            packet = self.packet(req)
-            for c in packet["checks"]:
-                if c["name"].startswith("protected:"): c["outcome"] = outcome
-            result = self.check(req, self.result(req, packet))
-            self.assertEqual(result["domain_evidence"]["status"], "pass")
-            self.assertEqual(result["enforcement_evidence"]["status"], "unproven")
-            self.assertEqual(result["status"], "input-required")
+        self.assertEqual(probe.protected_file_expectations("main"),
+                         {".codex/config.toml": "allowed", ".agents/skills/wiki-desk/SKILL.md": "allowed"})
+        out = self.check(req, self.result(req))
+        self.assertEqual(out["status"], "completed")
+        self.assertIn("not denial outside", out["enforcement_evidence"]["limitations"][0])
+        for name in ("protected:.codex/config.toml", "protected:.agents/skills/wiki-desk/SKILL.md"):
+            for change in ({"outcome": "denied"}, {"outcome": "unobserved"}, {"preserved": False}):
+                with self.subTest(name=name, change=change):
+                    packet = self.packet(req)
+                    item = next(c for c in packet["checks"] if c["name"] == name)
+                    item.update(change)
+                    result = self.check(req, self.result(req, packet))
+                    self.assertEqual(result["domain_evidence"]["status"], "pass")
+                    self.assertEqual(result["enforcement_evidence"]["status"], "unproven")
+                    self.assertEqual(result["status"], "input-required")
+            packet = self.packet(req); packet["checks"] = [c for c in packet["checks"] if c["name"] != name]
+            self.assertEqual(self.check(req, self.result(req, packet))["status"], "input-required")
+
+    def test_main_write_grant_does_not_authorize_sub_canonical_writes(self):
+        for topology in ("single", "multi"):
+            req = self.request(topology=topology)
+            for rel in probe.PROTECTED_FILES:
+                with self.subTest(topology=topology, path=rel):
+                    packet = self.packet(req)
+                    item = next(c for c in packet["checks"] if c["name"] == "protected:" + rel)
+                    # A packet's proposed expectation cannot replace the role contract.
+                    item.update(outcome="allowed", expected_outcome="allowed")
+                    result = self.check(req, self.result(req, packet))
+                    self.assertEqual(result["enforcement_evidence"]["status"], "unproven")
+                    self.assertEqual(result["status"], "input-required")
+
+    def test_permission_prompt_uses_the_same_role_expectations(self):
+        for role, outcome in (("main", "allowed"), ("sub", "denied")):
+            req = self.request(role=role)
+            self.assertIn('".codex/config.toml":"' + outcome + '"', req["task"])
+            self.assertIn('".agents/skills/wiki-desk/SKILL.md":"' + outcome + '"', req["task"])
+
+    def test_main_write_open_observation_preserves_canonical_fixture_bytes(self):
+        for rel in (".codex/config.toml", ".agents/skills/wiki-desk/SKILL.md"):
+            path = self.root / rel; path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(b'canonical fixture\n')
+            self.assertEqual(probe._write_open(path), {"outcome": "allowed", "preserved": True})
+            self.assertEqual(path.read_bytes(), b'canonical fixture\n')
 
     def test_wheel_track_requires_active_file_not_absent_source_file(self):
         req = self.request(); packet = self.packet(req)
