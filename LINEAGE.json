@@ -1,0 +1,195 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26101411",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101411_lfm2.5-2.6b_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26101412",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/testlog/testlog_26101412_lfm25-26b-v031_싱글서브_서빙_lite.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101616",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/plan/plan_26101616_데이터셋knob_서브배달_서브E2E_hint발행.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101620",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101620_p10_cnn_fullbench.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101620",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101620_lfm2.5-2.6b_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26101620",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101620_49_30_lfm25_26b_v031_CNN_hint셀.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101620",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101620_49_30_lfm25_26b_v031_CNN_hint셀.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26101622",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101622_후속4건_안정화_데이터셋knob_lite_hint_기준선.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101622",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101622_Q2_서브_hint_결손5건_정체.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101623",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101623_q6_서브_lite셀_materialize_resolve_렌더점검.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101623",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101623_q7_서브_lite셀_push.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101623",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101623_q6_서브_lite셀_저작.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26101623",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101623_lfm2.5-2.6b_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26102715",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26102715_lfm25_default_full_기동전_계약충돌.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102716",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102716_lfm25_attempt1_정정과_attempt2_재개.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102716",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26102716_lfm25_default_full_신규판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102716",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26102716_lfm25_default_full_신규실측.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102716",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102716_lfm2.5-2.6b_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26102717",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102717_lfm25_기존Full이후_hint발행_실행계획.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102717",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26102717_lfm25_hint저작_독립검증_생산자인계.md",
+      "role": "testlog"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [],
+    "count": 219
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 경로(발췌 머리 stem = 파일명) · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26102717",
+  "schema_version": 3,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26102716_lfm2.5-2.6b_GB10_0.31.0.md",
+      "sha256": "b18a9a6376cfacbc9d77df213cafd49fbfe5f26fbd90b579d6daf951530f3c01"
+    },
+    {
+      "path": "docs/devlog/devlog_26101620_49_30_lfm25_26b_v031_CNN_hint셀.md",
+      "sha256": "07b72921a502e78fb5b9c5b325c8d1f278cf95e70ea483f7573cec9aea9074f1"
+    },
+    {
+      "path": "docs/devlog/devlog_26102716_lfm25_default_full_신규실측.md",
+      "sha256": "fe95b29cd4fc5044575491caa73011c8e67e28d97220f327b93cc0748a9de2ce"
+    },
+    {
+      "path": "docs/plan/plan_26101616_데이터셋knob_서브배달_서브E2E_hint발행.md",
+      "sha256": "6da153afa3f76a56a33a566328227ca4b8cfd29a8b7a482220945ba42d4d02a4"
+    },
+    {
+      "path": "docs/plan/plan_26102717_lfm25_기존Full이후_hint발행_실행계획.md",
+      "sha256": "74a6cc4b850066a60ce00d5d21a89adfefbc18f2217b981f265c9fe480c2b66c"
+    },
+    {
+      "path": "docs/testlog/testlog_26101412_lfm25-26b-v031_싱글서브_서빙_lite.md",
+      "sha256": "2927ccede4106bea68391a1db86ac50a3a27e00f056c0aa880dc489a8ccc8b41"
+    },
+    {
+      "path": "docs/testlog/testlog_26101623_q6_서브_lite셀_materialize_resolve_렌더점검.md",
+      "sha256": "7cbf346e5a49759818dcbccb7e32e0022096559b55695086149629f57619248c"
+    },
+    {
+      "path": "docs/testlog/testlog_26102716_lfm25_attempt1_정정과_attempt2_재개.md",
+      "sha256": "4dddc3d550a5c9529b693afac0137a680e6c5ee92c24b50b5af6fd0048837349"
+    },
+    {
+      "path": "docs/testlog/testlog_26102716_lfm25_default_full_신규판정.md",
+      "sha256": "9a73e0d6b7c99a1aed96e8fe649db1ac2336a157512fbf020f392dd4b79f3438"
+    },
+    {
+      "path": "docs/testlog/testlog_26102717_lfm25_hint저작_독립검증_생산자인계.md",
+      "sha256": "499cdb3248ca6c1f581e1d0eb2cfdf85ff0a4700313b1baaad266d5eb4c568a3"
+    }
+  ]
+}

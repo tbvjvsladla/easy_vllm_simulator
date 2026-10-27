@@ -1,0 +1,19 @@
+# Liquid-AI/LFM2.5-2.6B 서빙 설정 (vllm-recipe-explorer 생성)
+# 레시피: quant=None max_model_len=32768 gpu_mem_util=0.8
+# 출처(explorer 각인): max-num-seqs ← batch_source=hand-lever · gpu-memory-utilization ← gmu_source=target_gmu
+# ── VRAM 분해 (Phase 2 절대 KV 클램프 기준) ──
+#   weights: 5.05 GiB
+#   kv_cache: 37.89999999944121 GiB
+#   budget: 59.6 GiB
+# ── 타겟-GPU 이식 클램프 (host≠target, gpu_model=NVIDIA GB10 (DGX Spark 64GB OEM)) ──
+# host-측정 weights/overhead 이전값. target≠host arch 면 target-margin 이 쿠션(정량보증 아님).
+# 가능하면 타겟에서 재측정(Phase-2)을 권장. per-token-KV·weights 는 GPU-불변, overhead 는 런타임 성질 일부 포함.
+model: /app/models/Liquid-AI/LFM2.5-2.6B
+host: 0.0.0.0
+port: 8000   # 컨테이너 내부 포트(호스트 SERVING_PORT=8002 가 compose 로 8000 에 매핑)
+# gpu-memory-utilization = startup free-memory 게이트(기동 전 free ≥ ceil(total×gmu) · 통합메모리 ≤0.90) + 총량 cap 은 관측된 작용(한 셀 관측 · 유효맥락 kv-clamp.md §1 · vLLM 소스에서 기전 미확정); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어
+# 메인 지시 C2-1: 배포 gmu 0.39(= 47.7GiB ÷ 호스트 121.7) — 같은 노드 2모델 공존용 free-memory 검사 · gmu_source=hand. KV 는 클램프(37.9GiB = 천장 47.68 − weights 5.05 − overhead 실측 ≈4.7 · kv_source=hand)가 결정
+gpu-memory-utilization: 0.39
+max-model-len: 32768
+max-num-seqs: 8
+kv-cache-memory-bytes: 40694815129
