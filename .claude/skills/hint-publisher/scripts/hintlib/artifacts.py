@@ -1453,9 +1453,18 @@ def _observe_ledger(c: _Ctx) -> tuple[dict | None, str | None, dict[str, dict], 
     if per_node:
         # 다른 역할의 원장만 있다 — 그 노드가 무엇을 돌렸는지로 이 노드의 적용 집합을 대리하지 않는다.
         probes[-1]["result"] = f"partial(원장 역할 {sorted(per_node)} — {want} 원장 없음 · 대리하지 않는다)"
-    # ② 메인 로컬 이미지 — 서브 셀(node=sub)은 서브의 이미지라 메인 로컬 동명 이미지가 대리하지 못한다.
+    # Remote sub evidence stays documents-only; a single-node sub may inspect its own measured digest.
     if c.node == "sub":
-        probes.append({"tier": "local-image", "result": "skipped(node=sub — 서브 스캔 ✗ · 문서기반 회수만)"})
+        digest = str((_get(c.ev, "build_identity") or {}).get("image_digest") or "")
+        if (_topology(c.ev) != "single" or not _local_image_owner(c.repo, c.ev)
+                or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest)):
+            probes.append({"tier": "local-image", "result": "skipped(node=sub — 로컬 소유·측정 digest 미확인 · 문서기반 회수만)"})
+            return None, None, per_node, probes
+    elif c.node == "cluster" and not _local_image_owner(c.repo, c.ev):
+        probes.append({"tier": "local-image", "result": "skipped(cluster — 로컬 main 소유 미확인)"})
+        return None, None, per_node, probes
+    elif c.node != "sub" and not _local_image_owner(c.repo, c.ev):
+        probes.append({"tier": "local-image", "result": "skipped(로컬 노드 소유 미확인)"})
         return None, None, per_node, probes
     image, image_src = _image_ref(c)
     if not image:
@@ -1490,7 +1499,11 @@ def _observe_ledger(c: _Ctx) -> tuple[dict | None, str | None, dict[str, dict], 
                       "upstream 빌드 원장 스탠자(source-build.md §4.1)를 확인한다.")
         probes.append({"tier": "local-image", "image": image, "image_source": image_src, "method": "docker create+cp(시작 ✗)",
                        "result": "observed" + ("" if got == "ok" else f"({got})")})
-        return doc, f"docker-image(main-local):{image}:{LEDGER_IN_IMAGE}", per_node, probes
+        return doc, f"docker-image({'sub' if c.node == 'sub' else 'main'}-local):{image}:{LEDGER_IN_IMAGE} · 빌드 시 원장(후속 이미지 층은 별도 관측)", per_node, probes
+    if c.node == "sub":
+        probes.append({"tier": "local-image", "image": image, "image_source": image_src,
+                       "result": "skipped(local sub requires create/cp/rm probe capability; no image execution)"})
+        return None, None, per_node, probes
     cls, proc = c.docker("run", "--rm", "--network", "none", "--pull", "never", "--entrypoint", "cat",
                          image, LEDGER_IN_IMAGE)
     if cls != "ok" or proc is None:
@@ -1509,7 +1522,7 @@ def _observe_ledger(c: _Ctx) -> tuple[dict | None, str | None, dict[str, dict], 
         core.fail("HINT_BUILD_LEDGER_UNREADABLE", f"이미지 원장이 JSON 객체가 아니다: {image}:{LEDGER_IN_IMAGE}",
                   "upstream 빌드 원장 스탠자(source-build.md §4.1)를 확인한다.")
     probes.append({"tier": "local-image", "image": image, "image_source": image_src, "result": "observed"})
-    return doc, f"docker-image(main-local):{image}:{LEDGER_IN_IMAGE}", per_node, probes
+    return doc, f"docker-image({'sub' if c.node == 'sub' else 'main'}-local):{image}:{LEDGER_IN_IMAGE} · 빌드 시 원장(후속 이미지 층은 별도 관측)", per_node, probes
 
 
 # ── 패치 목록 · 자기게이트 재구성 ──────────────────────────────────────────────────────────────
@@ -1902,6 +1915,29 @@ def _cp_from_image(c: _Ctx, image: str, path: str) -> tuple[bytes | None, str]:
     return data, got
 
 
+def _local_image_owner(repo: Path, ev: Any) -> bool:
+    """Canonical local identity: own node or multi cluster owned by its unique main."""
+    from . import evidence
+    self_node, _ = evidence._self_node(repo)
+    target_node = _get(ev, "node")
+    declaration = _get(ev, "declaration") or {}
+    nodes = declaration.get("nodes") if isinstance(declaration, dict) else None
+    main_ids = [n.get("node_id") for n in nodes if isinstance(n, dict) and n.get("role") == "main" and n.get("node_id")] if isinstance(nodes, list) else []
+    manifest = _get(ev, "manifest")
+    if target_node == "sub" and (_get(ev, "topology") != "single"
+            or not isinstance(manifest, dict) or manifest.get("topology") != "single"
+            or manifest.get("self_role") != "sub"):
+        return False
+    local_cluster = (target_node == "cluster" and _get(ev, "topology") == "multi"
+                     and isinstance(manifest, dict) and manifest.get("topology") == "multi"
+                     and manifest.get("self_role") == "main"
+                     and len(main_ids) == 1 and self_node == main_ids[0])
+    if not self_node or (not local_cluster if target_node == "cluster" else self_node != target_node):
+        return False
+    return True
+
+
+
 def bind_image_git_release(repo: Path, ev: Any, *, runner=None) -> None:
     """Bind an exact source tag only from the measured image's isolated Git objects."""
     import tempfile
@@ -1915,17 +1951,7 @@ def bind_image_git_release(repo: Path, ev: Any, *, runner=None) -> None:
             or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest)
             or naming.vllm_repo_kind(b.get("vllm_repo")) != "upstream"):
         return
-    self_node, _ = evidence._self_node(repo)
-    target_node = _get(ev, "node")
-    declaration = _get(ev, "declaration") or {}
-    nodes = declaration.get("nodes") if isinstance(declaration, dict) else None
-    main_ids = [n.get("node_id") for n in nodes if isinstance(n, dict) and n.get("role") == "main" and n.get("node_id")] if isinstance(nodes, list) else []
-    manifest = _get(ev, "manifest")
-    local_cluster = (target_node == "cluster" and _get(ev, "topology") == "multi"
-                     and isinstance(manifest, dict) and manifest.get("topology") == "multi"
-                     and manifest.get("self_role") == "main"
-                     and len(main_ids) == 1 and self_node == main_ids[0])
-    if not self_node or (not local_cluster if target_node == "cluster" else self_node != target_node):
+    if not _local_image_owner(repo, ev):
         return
     c = _ctx(repo, ev, runner=runner)
     if not _probe_allowed(c)[0]:
@@ -5098,6 +5124,9 @@ def selftest() -> list[str]:
     own = core.SKILL_DIR.parents[2]
     with tempfile.TemporaryDirectory(prefix="hint-artifacts-") as tmp:
         repo = Path(tmp).resolve()
+        # Isolated test repository represents a known local main; production still uses the canonical resolver.
+        from . import evidence as _fixture_evidence
+        _fixture_evidence._SELF_NODE_CACHE[str(repo)] = ("main", "isolated fixture")
         # 소유 모듈 실물(slave_forward · render_dockerfile)을 격리 저장소로 복사 — 대역이 실물보다 좁지 않게.
         for rel_path in (core.REL_SLAVE_FORWARD, core.REL_RENDER_DOCKERFILE):
             (repo / rel_path).parent.mkdir(parents=True, exist_ok=True)
@@ -5208,7 +5237,10 @@ def selftest() -> list[str]:
             + json.dumps({"kind": "budget_declare", "label": f"smoke-{cell}", "ts": "2026-01-01T21:00:00Z"}) + "\n"
             + json.dumps({"kind": "budget_declare", "label": "smoke-other", "ts": "2026-01-01T18:20:00Z"}) + "\n",
             encoding="utf-8")
-        ev = {"topology": "multi", "cell": cell, "node": "cluster", "lockset": {"kv_source": "measured-clamp",
+        ev = {"topology": "multi", "cell": cell, "node": "cluster",
+              "manifest": {"topology": "multi", "self_role": "main"},
+              "declaration": {"nodes": [{"node_id": "main", "role": "main"}, {"node_id": "sub", "role": "sub"}]},
+              "lockset": {"kv_source": "measured-clamp",
                                                                                "batch_source": "hand-lever"},
               "cell_status": {}, "attestation": None, "build_identity": {"image_tag": "easy-vllm:fx-source"},
               "sweep": {"dir": "output/multi/benchlog/sweep_c1-mmp", "generated_utc": "2026-01-01T19:30:00Z",
@@ -7210,4 +7242,5 @@ def selftest() -> list[str]:
             ck("출처 어휘 전부에 지위 후보", all(v in _SOURCE_STATUS for vals in owner.values() for v in vals))
         else:
             bad.append("artifacts: LOCKSET_KNOB_SOURCES 리터럴을 찾지 못했다(소유자 이동 — 교차대조 갱신)")
+    _fixture_evidence._SELF_NODE_CACHE.pop(str(repo), None)
     return bad
