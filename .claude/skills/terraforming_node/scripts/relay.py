@@ -36,6 +36,7 @@ import shlex
 import subprocess
 import sys
 import tempfile
+import time
 import uuid
 from pathlib import Path
 
@@ -2647,6 +2648,9 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
         return 0
 
     branch = assert_sub_branch(req, a.topology)
+    policy = getattr(a, "_prepared_capacity_policy", None)
+    if policy and not capacity_deadline_fits(policy, bud):
+        raise SystemExit("[relay] STOP: capacity deadline cannot fit the full attempt after preflight")
     print(f"[relay] attempt={attempt_no} runner={runner['name']} "
           f"(backend={runner['backend']} model={runner['model']}) "
           f"max_turns={bud['max_turns']} timeout={bud['timeout_seconds']}s ({bud['source']}) "
@@ -2666,6 +2670,8 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
     outcome_path = os.path.join(outcome_dir, dispatch_id + ".json")
     doc.update(context_id=a.context_id, topology=a.topology, manifest=a.manifest_path)
     doc["task"] = doc.get("task") or task
+    if policy:
+        doc["capacity_policy"] = policy
     doc["inflight"] = {"dispatch_id": dispatch_id, "attempt": attempt_no,
                        "target": req["target"], "provider": provider,
                        "request_path": os.path.relpath(_qp, a.repo_root),
@@ -2684,6 +2690,10 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
     if provider == "codex_cli":
         doc["permission_selection"] = {k: req[k] for k in ("permission_profile", "sandbox_mode") if k in req}
     save_ledger(lp, doc)  # reserve durably before the external process can produce side effects
+    if policy and not capacity_deadline_fits(policy, bud):
+        doc.pop("inflight")
+        save_ledger(lp, doc)
+        raise SystemExit("[relay] STOP: capacity deadline cannot fit the full attempt before launch")
     out = subprocess.run([sys.executable, AGENT_CONTROL, "invoke", "--request", _qp,
                           "--result-file", outcome_path, "--dispatch-id", dispatch_id],
                          capture_output=True, text=True)
@@ -2792,6 +2802,129 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
     return 0 if att["status"] == "completed" else 2
 
 
+def capacity_policy(a, doc, lp, bud):
+    values = [getattr(a, k, None) for k in ("capacity_retries", "capacity_backoff_seconds",
+              "capacity_deadline_utc", "capacity_approval_file")]
+    if not any(v is not None for v in values):
+        return None
+    if any(v is None for v in values):
+        raise SystemExit("[relay] STOP: capacity policy requires all four options")
+    retries, delay, deadline, file = values
+    if not 1 <= retries <= 10 or not 1 <= delay <= turn_budget.schema_cap("timeout_seconds"):
+        raise SystemExit("[relay] STOP: invalid capacity retry bounds")
+    try:
+        expiry = datetime.datetime.strptime(deadline, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+        approval = json.loads(Path(file).read_text(encoding="utf-8"))
+    except (OSError, ValueError, UnicodeError):
+        raise SystemExit("[relay] STOP: invalid capacity deadline or approval file")
+    if (not isinstance(approval, dict) or set(approval) != {"authorization", "source"}
+            or any(not isinstance(approval[k], str) or not approval[k].strip() for k in approval)):
+        raise SystemExit("[relay] STOP: capacity approval needs verbatim authorization and source")
+    existing = doc.get("capacity_policy")
+    candidate = {"retries": retries, "backoff_seconds": delay, "deadline_utc": deadline,
+                 "authorization": approval["authorization"], "source": approval["source"]}
+    if existing:
+        if any(existing.get(k) != v for k, v in candidate.items()):
+            raise SystemExit("[relay] STOP: capacity policy cannot be reset or changed")
+    else:
+        if doc.get("inflight"):
+            raise SystemExit("[relay] STOP: cannot start capacity batch with inflight dispatch")
+        if (expiry - datetime.datetime.now(datetime.timezone.utc)).total_seconds() < bud["timeout_seconds"]:
+            raise SystemExit("[relay] STOP: insufficient capacity batch deadline")
+        candidate.update(start_attempt=len(doc.get("attempts") or []), allocated_slots=1 + retries)
+        existing = candidate
+    return existing
+
+
+def capacity_deadline_fits(policy, bud):
+    deadline = datetime.datetime.strptime(policy["deadline_utc"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+    return (deadline - datetime.datetime.now(datetime.timezone.utc)).total_seconds() >= bud["timeout_seconds"]
+
+
+def capacity_retry_ready(a, doc, bud, runner, policy):
+    if not policy or doc.get("inflight"):
+        return False
+    attempts = doc.get("attempts") or []
+    if len(attempts) - policy["start_attempt"] >= policy["allocated_slots"]:
+        return False
+    last = attempts[-1] if attempts else {}
+    if ((last.get("failure_evidence") or {}).get("signal") != "provider_capacity"
+            or not last.get("session_id") or last.get("resume_honored") is False
+            or last.get("runner") != runner or runner.get("provider") != "codex_cli"):
+        return False
+    if continuation_stop_reasons(doc, allow_control_recovery=True):
+        return False
+    try:
+        path = _owned_artifact(a.repo_root, last["outcome_path"])
+        wrapper = json.loads(path.read_text(encoding="utf-8"))
+        req, result = wrapper["request"], wrapper["result"]
+        request_path = _owned_artifact(a.repo_root, last["request_path"])
+        if (hashlib.sha256(request_path.read_bytes()).hexdigest() != last.get("request_digest")
+                or json.loads(request_path.read_text(encoding="utf-8")) != req
+                or result.get("session_id") != last.get("session_id")
+                or (result.get("failure_evidence") or {}).get("signal") != "provider_capacity"):
+            return False
+        if (wrapper.get("schema_version") != 1 or set(wrapper) != {"schema_version", "dispatch_id", "request", "result"}
+            or _agent_control.request_schema_violations(req)
+            or _agent_control._schema_violations(result, _agent_control._load_schema(_agent_control.RESULT_SCHEMA_PATH))
+            or _agent_control._result_contract_violations(result, req)
+            or result.get("provider") != req.get("provider")
+            or result.get("model_requested") != req.get("model")
+            or result.get("status") != "execution_failed"
+            or result.get("status") != last.get("control_status")
+            or result.get("raw_exit_code") != last.get("raw_exit_code")
+            or result.get("reason_codes") != last.get("reason_codes")
+            or wrapper.get("dispatch_id") != last.get("dispatch_id") or
+            permission_binding(req) != last.get("session_binding") or
+            req.get("model") != runner["model"] or
+            req.get("reasoning_effort") != getattr(a, "reasoning_effort", None)):
+            return False
+        open_commands = set()
+        for event in result.get("raw_events") or []:
+            item = event.get("item") if isinstance(event, dict) else None
+            if not isinstance(item, dict) or item.get("type") != "command_execution":
+                continue
+            ident = item.get("id")
+            if not isinstance(ident, str) or not ident:
+                return False
+            if event.get("type") == "item.completed":
+                if item.get("status") in ("in_progress", "running"):
+                    return False
+                open_commands.discard(ident)
+            elif event.get("type") in ("item.started", "item.updated"):
+                open_commands.add(ident)
+            else:
+                return False
+        if open_commands:
+            return False
+        deadline = datetime.datetime.strptime(policy["deadline_utc"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+        if (deadline - datetime.datetime.now(datetime.timezone.utc)).total_seconds() < policy["backoff_seconds"] + bud["timeout_seconds"]:
+            return False
+        cap = doc.get("max_dispatches") or bud.get("max_dispatches")
+        if not cap or len(attempts) >= cap:
+            return False
+        pending = pending_for(a.repo_root, doc.get("context_id"))
+        recovery = codex_recovery_requirement(last)
+        if not recovery or any(entry_blocking(e) and e.get("recovery_required") != recovery and not e.get("answer") for e in pending):
+            return False
+        return True
+    except (OSError, ValueError, KeyError, TypeError, SystemExit):
+        return False
+
+
+def capacity_answer(repo_root, context_id, last, policy):
+    path = os.path.join(relay_root(repo_root), PENDING_HITL)
+    with state_lock(path):
+        doc = json.loads(Path(path).read_text(encoding="utf-8"))
+        matches = [e for e in doc.get("pending", []) if e.get("context_id") == context_id
+                   and e.get("recovery_required") == codex_recovery_requirement(last)]
+        if len(matches) != 1 or matches[0].get("answer"):
+            raise SystemExit("[relay] STOP: capacity recovery pending does not match")
+        matches[0]["answer"] = policy["authorization"]
+        matches[0]["answer_source"] = policy["source"]
+        _atomic_json(path, doc)
+
+
 def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) -> int:
     """사다리를 **회전하며** 한 attempt 를 성립시킨다.
 
@@ -2804,6 +2937,14 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     native session using the artifact continuation, never a failed runner's empty session.
     """
     ladder = a.ladder
+    requested_policy = any(getattr(a, k, None) is not None for k in
+                           ("capacity_retries", "capacity_backoff_seconds", "capacity_deadline_utc", "capacity_approval_file"))
+    if requested_policy and (len(ladder) != 1 or ladder[0].get("provider") != "codex_cli"):
+        raise SystemExit("[relay] STOP: capacity retry requires one Codex runner")
+    policy = capacity_policy(a, doc, lp, bud)
+    if policy and len(doc.get("attempts") or []) != policy["start_attempt"]:
+        raise SystemExit("[relay] STOP: capacity batch already started; do not reset its allocation")
+    a._prepared_capacity_policy = policy
     start = next_runner_index(doc, ladder)
     if len(ladder) > 1:
         print(f"[relay] 사다리 {len(ladder)}칸: {ladder_names(ladder)} · 시작 칸 "
@@ -2815,6 +2956,19 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
         if a.emit_only:
             return rc
         last = (doc.get("attempts") or [])[-1]
+        while capacity_retry_ready(a, doc, bud, runner, policy):
+            time.sleep(policy["backoff_seconds"])
+            if not capacity_retry_ready(a, doc, bud, runner, dict(policy, backoff_seconds=0)):
+                break
+            capacity_answer(a.repo_root, a.context_id, last, policy)
+            a.continue_, a.apply, a.resume = True, True, last["session_id"]
+            require_dispatch_recovery(a, doc, a.resume)
+            a._continuation_source_attempt = continuation_instruction(a.repo_root, doc)["attempt"]
+            task = ("먼저 기존 실행 중 서비스와 명령 및 산출물을 확인하고 부분 파일을 보존하라. "
+                    "이미 실행된 벤치를 다시 시작하거나 부분 파일을 덮어쓰지 마라.\n" +
+                    assemble_continuation(a.repo_root, doc, pending_for(a.repo_root, a.context_id)))
+            rc = run_attempt_once(a, doc, lp, task, bud, a.resume, runner)
+            last = (doc.get("attempts") or [])[-1]
         if last.get("end_reason") != "runner_unavailable":
             return rc
         ev = last.get("runner_evidence") or {}
@@ -2877,6 +3031,10 @@ def _main() -> int:
     ap.add_argument("--backend", choices=_canary.backend_choices(), default=None,
                     help="provider 실행 백엔드(생략 = anthropic). 선택지는 전송 스키마 enum 에서 읽는다. "
                          "별칭으로 부르려면 --runners(예: meta-claude)")
+    ap.add_argument("--capacity-retries", type=int)
+    ap.add_argument("--capacity-backoff-seconds", type=int)
+    ap.add_argument("--capacity-deadline-utc")
+    ap.add_argument("--capacity-approval-file")
     ap.add_argument("--reasoning-effort", choices=("none", "minimal", "low", "medium", "high", "xhigh", "max"), default=None)
     ap.add_argument("--model", default=None,
                     help="위임 모델 선언(기본은 카나리 기본값). 어댑터는 모델로 차단하지 않는다 — "
@@ -2938,6 +3096,8 @@ def _main() -> int:
         ap.error("--task and --task-file are mutually exclusive")
     if a.continue_ and a.task:
         ap.error("--continue accepts --task-file, not --task")
+    if a.supervise_step and any(getattr(a, k, None) is not None for k in ("capacity_retries", "capacity_backoff_seconds", "capacity_deadline_utc", "capacity_approval_file")):
+        ap.error("capacity policy requires an explicit dispatch, not supervision")
     if a.supervise_step and (a.task or a.task_file):
         ap.error("--supervise-step does not accept task input")
     if a.reconcile_result and not a.reconcile_inflight:

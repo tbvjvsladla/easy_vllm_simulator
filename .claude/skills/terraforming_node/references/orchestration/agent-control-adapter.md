@@ -167,3 +167,5 @@ stdout을 낸다. 기존 파일은 덮어쓰지 않는다. relay는 이 경로�
 
 동일 provider-neutral request/result를 구현하는 adapter만 추가한다. public skill 본문은 수정하지 않는다.
 placeholder adapter는 만들지 않는다. 현재 구현된 provider는 Claude Code와 native Codex CLI다.
+
+Codex의 정확한 구조화 capacity 오류는 `provider_capacity`로 관측하며 실패 상태를 유지한다. 다른 오류나 명령 출력으로부터 용량을 추정하지 않는다. 제한된 선택적 재시도는 relay가 별도 dispatch로 발행한다.

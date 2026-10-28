@@ -384,6 +384,194 @@ class HarnessSwitchChecks(unittest.TestCase):
                     self.assertEqual(final["attempts"][1]["max_dispatches"], 3)
                     self.assertEqual(relay.pending_for(str(root), "switch"), [])
 
+    def test_capacity_is_strict_structured_failure_and_retains_recovery_gate(self):
+        adapter = agent_control._load_provider("codex_cli")
+        request = self.request("codex_cli")
+        msg = "Selected model is at capacity. Please try a different model."
+        base = [{"type": "thread.started", "thread_id": "session"}, {"type": "turn.started"}]
+        failures = [{"type": "error", "message": msg}, {"type": "turn.failed", "error": {"message": msg}}]
+        def parse(events, rc=1, **kw):
+            return adapter.parse_output(request, "".join(json.dumps(e) + "\n" for e in events), "", rc, **kw)
+        result = parse(base + failures)
+        self.assertEqual(result["failure_evidence"]["signal"], "provider_capacity")
+        self.assertNotEqual(result["status"], "completed")
+        att = relay.record_attempt({"attempts": []}, context_id="switch", bud=self.wall, result=result, runner=self.codex)
+        self.assertIsNotNone(relay.codex_recovery_requirement(att))
+        for events, rc, kwargs in ((base + [{"type": "item.completed", "item": {"type": "agent_message", "text": msg}}], 1, {}),
+                                   (base + failures + [{"type": "error", "message": "other"}], 1, {}),
+                                   (base + failures, 143, {}), (base + failures, 124, {}),
+                                   (base + failures, 1, {"cancelled": True}),
+                                   (base + failures + [{"type": "error", "code": "permission_denied"}], 1, {})):
+            self.assertNotEqual(parse(events, rc, **kwargs)["failure_evidence"]["signal"], "provider_capacity")
+        malformed = adapter.parse_output(request, json.dumps(failures[0]) + "\n{bad", "", 1)
+        self.assertNotEqual(malformed["failure_evidence"]["signal"], "provider_capacity")
+
+    def test_capacity_batch_counts_and_durable_recovery(self):
+        args = self.dispatch_args()
+        args.ladder = [self.codex]
+        args.reasoning_effort = "low"
+        args.capacity_retries = 2
+        args.capacity_backoff_seconds = 1
+        args.capacity_deadline_utc = "2099-01-01T00:00:00Z"
+        approval = self.root / "approval.json"
+        approval.write_text(json.dumps({"authorization": "actual user authorization", "source": "fixture message"}))
+        args.capacity_approval_file = str(approval)
+        path = relay.ledger_path(str(self.root), "switch")
+        state = relay.load_ledger(path)
+        provider = agent_control._load_provider("codex_cli")
+        real_run = subprocess.run
+        calls = []
+        def invoke(command, **kwargs):
+            if command[1:3] != [relay.AGENT_CONTROL, "invoke"]:
+                return real_run(command, **kwargs)
+            request = json.loads(Path(command[command.index("--request") + 1]).read_text())
+            calls.append(request)
+            events = [{"type": "thread.started", "thread_id": "capacity-session"}, {"type": "turn.started"},
+                      {"type": "turn.failed", "error": {"message": "Selected model is at capacity. Please try a different model."}}]
+            result = provider.parse_output(request, "".join(json.dumps(e) + "\n" for e in events), "", 1)
+            agent_control.persist_outcome(command[command.index("--result-file") + 1],
+                dispatch_id=command[command.index("--dispatch-id") + 1], request=request, result=result)
+            return SimpleNamespace(stdout=json.dumps(result), stderr="", returncode=1)
+        with mock.patch.object(relay, "assert_sub_branch", return_value="multi"), \
+             mock.patch.object(relay.subprocess, "run", side_effect=invoke), \
+             mock.patch.object(relay.time, "sleep"), contextlib.redirect_stdout(io.StringIO()):
+            relay.run_attempt(args, state, path, "full task", self.wall, "new")
+        saved = relay.load_ledger(path)
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(len({x["dispatch_id"] for x in saved["attempts"]}), 3)
+        self.assertEqual(saved["capacity_policy"]["allocated_slots"], 3)
+        self.assertEqual([r.get("resume_session_id") for r in calls], [None, "capacity-session", "capacity-session"])
+        self.assertTrue(all(r["model"] == "gpt-6.1-sol" and r["reasoning_effort"] == "low" for r in calls))
+        self.assertEqual(saved["attempts"][1]["task_instruction"]["kind"], "continuation")
+        self.assertIn("벤치", calls[1]["task"])
+        self.assertEqual(len(relay.resume_blockers(relay.pending_for(str(self.root), "switch"))), 1)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertRejected(relay.run_attempt, args, saved, path, "full task", self.wall, "new", message="already started")
+        self.assertEqual(len(calls), 3)
+
+    def test_capacity_batch_two_failures_then_completed(self):
+        args = self.dispatch_args()
+        args.ladder = [self.codex]
+        args.reasoning_effort = "low"
+        args.capacity_retries = 2
+        args.capacity_backoff_seconds = 1
+        args.capacity_deadline_utc = "2099-01-01T00:00:00Z"
+        approval = self.root / "approval.json"
+        approval.write_text(json.dumps({"authorization": "actual user authorization", "source": "fixture message"}))
+        args.capacity_approval_file = str(approval)
+        path = relay.ledger_path(str(self.root), "switch")
+        state = relay.load_ledger(path)
+        provider = agent_control._load_provider("codex_cli")
+        real_run = subprocess.run
+        calls = []
+        def invoke(command, **kwargs):
+            if command[1:3] != [relay.AGENT_CONTROL, "invoke"]:
+                return real_run(command, **kwargs)
+            request = json.loads(Path(command[command.index("--request") + 1]).read_text())
+            calls.append(request)
+            events = [{"type": "thread.started", "thread_id": "capacity-session"}, {"type": "turn.started"},
+                      {"type": "turn.failed", "error": {"message": "Selected model is at capacity. Please try a different model."}}]
+            if len(calls) == 3:
+                events = [{"type": "thread.started", "thread_id": "capacity-session"}, {"type": "turn.started"},
+                          {"type": "item.completed", "item": {"type": "agent_message", "text": json.dumps(
+                              {"status": "completed", "context_id": "switch", "phase": "bench", "running_services": [], "artifacts": []})}},
+                          {"type": "turn.completed", "usage": {}}]
+            result = provider.parse_output(request, "".join(json.dumps(e) + "\n" for e in events), "", 0 if len(calls) == 3 else 1)
+            agent_control.persist_outcome(command[command.index("--result-file") + 1],
+                dispatch_id=command[command.index("--dispatch-id") + 1], request=request, result=result)
+            return SimpleNamespace(stdout=json.dumps(result), stderr="", returncode=1)
+        with mock.patch.object(relay, "assert_sub_branch", return_value="multi"), \
+             mock.patch.object(relay.subprocess, "run", side_effect=invoke), \
+             mock.patch.object(relay.time, "sleep"), contextlib.redirect_stdout(io.StringIO()):
+            relay.run_attempt(args, state, path, "full task", self.wall, "new")
+        saved = relay.load_ledger(path)
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(len({x["dispatch_id"] for x in saved["attempts"]}), 3)
+        self.assertEqual(saved["capacity_policy"]["allocated_slots"], 3)
+        self.assertEqual([r.get("resume_session_id") for r in calls], [None, "capacity-session", "capacity-session"])
+        self.assertTrue(all(r["model"] == "gpt-6.1-sol" and r["reasoning_effort"] == "low" for r in calls))
+        self.assertEqual(saved["attempts"][1]["task_instruction"]["kind"], "continuation")
+        self.assertIn("벤치", calls[1]["task"])
+        self.assertEqual(saved["attempts"][2]["status"], "completed")
+        self.assertEqual([x["failure_evidence"]["signal"] for x in saved["attempts"][:2]], ["provider_capacity"] * 2)
+        self.assertEqual(len(relay.resume_blockers(relay.pending_for(str(self.root), "switch"))), 0)
+        self.assertTrue(all(r["target"] == calls[0]["target"] and r["permission_profile"] == "vllm-sub" for r in calls))
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertRejected(relay.run_attempt, args, saved, path, "full task", self.wall, "new", message="already started")
+        self.assertEqual(len(calls), 3)
+
+    def test_capacity_policy_preview_and_rejections_preserve_ledger(self):
+        args = self.dispatch_args()
+        args.ladder = [self.codex]
+        args.capacity_retries = 2
+        args.capacity_backoff_seconds = 1
+        args.capacity_deadline_utc = "2099-01-01T00:00:00Z"
+        approval = self.root / "approval.json"
+        approval.write_text(json.dumps({"authorization": "user text", "source": "fixture"}))
+        args.capacity_approval_file = str(approval)
+        path = relay.ledger_path(str(self.root), "switch")
+        state = relay.load_ledger(path)
+        relay.save_ledger(path, state)
+        before = Path(path).read_bytes()
+        args.emit_only = True
+        with contextlib.redirect_stdout(io.StringIO()):
+            relay.run_attempt(args, state, path, "preview", self.wall, "new")
+        self.assertEqual(Path(path).read_bytes(), before)
+        args.emit_only = False
+        args.ladder = [self.claude]
+        self.assertRejected(relay.run_attempt, args, state, path, "task", self.wall, "new")
+        self.assertEqual(Path(path).read_bytes(), before)
+        args.ladder = [self.codex]
+        with mock.patch.object(relay, "require_dispatch_recovery", side_effect=SystemExit("blocked")):
+            self.assertRejected(relay.run_attempt, args, state, path, "task", self.wall, "new")
+        self.assertEqual(Path(path).read_bytes(), before)
+        with mock.patch.object(relay, "assert_sub_branch", return_value="multi"), \
+             mock.patch.object(relay, "capacity_deadline_fits", return_value=False):
+            self.assertRejected(relay.run_attempt, args, state, path, "task", self.wall, "new", message="deadline")
+        self.assertEqual(Path(path).read_bytes(), before)
+
+    def test_capacity_batch_blocks_unfinished_command_and_missing_session(self):
+        provider = agent_control._load_provider("codex_cli")
+        for case in ("unfinished", "missing_session", "denial"):
+            with self.subTest(case=case):
+                root = self.root / case
+                root.mkdir()
+                args = self.dispatch_args()
+                args.repo_root = str(root)
+                args.ladder = [self.codex]
+                args.capacity_retries = 2
+                args.capacity_backoff_seconds = 1
+                args.capacity_deadline_utc = "2099-01-01T00:00:00Z"
+                approval = root / "approval.json"
+                approval.write_text(json.dumps({"authorization": "user text", "source": "fixture"}))
+                args.capacity_approval_file = str(approval)
+                path = relay.ledger_path(str(root), "switch")
+                state = relay.load_ledger(path)
+                calls = []
+                real_run = subprocess.run
+                def invoke(command, **kwargs):
+                    if command[1:3] != [relay.AGENT_CONTROL, "invoke"]:
+                        return real_run(command, **kwargs)
+                    request = json.loads(Path(command[command.index("--request") + 1]).read_text())
+                    calls.append(request)
+                    events = ([{"type": "thread.started", "thread_id": "session"}] if case != "missing_session" else [])
+                    events += [{"type": "turn.started"}]
+                    if case == "unfinished":
+                        events += [{"type": "item.started", "item": {"type": "command_execution", "id": "cmd"}}]
+                    if case == "denial":
+                        events += [{"type": "error", "code": "permission_denied"}]
+                    events += [{"type": "turn.failed", "error": {"message": "Selected model is at capacity. Please try a different model."}}]
+                    result = provider.parse_output(request, "".join(json.dumps(e) + "\n" for e in events), "", 1)
+                    agent_control.persist_outcome(command[command.index("--result-file") + 1],
+                        dispatch_id=command[command.index("--dispatch-id") + 1], request=request, result=result)
+                    return SimpleNamespace(stdout=json.dumps(result), stderr="", returncode=1)
+                with mock.patch.object(relay, "assert_sub_branch", return_value="multi"), \
+                     mock.patch.object(relay.subprocess, "run", side_effect=invoke), \
+                     mock.patch.object(relay.time, "sleep"), contextlib.redirect_stdout(io.StringIO()):
+                    relay.run_attempt(args, state, path, "full task", self.wall, "new")
+                self.assertEqual(len(calls), 1)
+                self.assertEqual(len(relay.resume_blockers(relay.pending_for(str(root), "switch"))), 1)
+
     def test_codex_wall_timeout_and_successful_cli_without_report_keep_d9(self):
         provider = agent_control._load_provider("codex_cli")
         request = self.request("codex_cli", sandbox_mode="read-only")

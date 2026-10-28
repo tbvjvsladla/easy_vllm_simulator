@@ -272,7 +272,7 @@ def render(parsed: dict, source_name: str) -> str:
                    for lv in levels)
     out = [SECTION_TITLE, "",
            "> 단일 running serve 에 **동시 요청 수만** 바꿔 잰 곡선이다(reload 없음 · request-rate=inf).",
-           "> `동시성=1` 행이 인증서의 판정점이며, 나머지 행은 그 레시피가 **부하에서 어떻게 되는지**를 말한다.",
+           "> `★판정점`은 원천이 표시한 판정 지점이며, 나머지 행은 그 레시피가 **부하에서 어떻게 되는지**를 말한다. 인증서 발행 여부는 판정과 루브릭 권한에 따른다.",
            f"> 출처: `{source_name}` ({parsed['source_kind']}) · 소수 2자리 표시 반올림 · 결측은 `N/A`(0 이 아니다).",
            "> 이 표는 스크립트가 파싱해 렌더한다 — 손으로 옮긴 수치가 아니며 `--verify` 가 diff 0 을 요구한다.",
            ""]
