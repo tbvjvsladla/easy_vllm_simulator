@@ -1318,6 +1318,88 @@ class HarnessSwitchChecks(unittest.TestCase):
         state["attempts"].append(att)
         return state
 
+    def test_slice_header_distinguishes_existing_campaign(self):
+        ci = mock.Mock()
+        ci.Path = Path
+        ci.read_declaration.return_value = {"nodes": [{"node_id": "sub", "role": "sub"}]}
+        ci.emit_slice.return_value = {"plan_ref": "plan.md"}
+        with mock.patch.object(relay, "_campaign_init", return_value=ci):
+            header = relay.campaign_slice_block("single", "camp-x", "sub")
+        self.assertIn("없으면", header)
+        self.assertIn("--init camp-x", header)
+        self.assertIn("이미 존재하면", header)
+        self.assertIn("--slice-update - --utc <현재 UTC> --apply", header)
+        self.assertIn("개정 번호와 값을 확인", header)
+
+    def test_revised_control_axis_preserves_old_echo_and_requires_new_instruction(self):
+        old_axis = {"model": "target", "vllm_version": "0.19.1"}
+        new_axis = {"model": "target", "vllm_version": "0.32.0"}
+        campaign = "approved-campaign"
+        declaration_path = self.root / "campaigns" / campaign / "campaign.yaml"
+        declaration_path.parent.mkdir(parents=True, exist_ok=True)
+        declaration_path.write_text(json.dumps({"id": campaign, "control_variables": old_axis, "revisions": [
+            {"rev": 0, "values": old_axis},
+            {"rev": 1, "values": new_axis, "declared_utc": "2026-10-29T00:00:00Z",
+             "reason": "latest requested", "evidence": "fixture", "approved_by": "user: latest"}]}), encoding="utf-8")
+        saved_campaign = relay._RELAY_CAMPAIGN
+        relay._RELAY_CAMPAIGN = campaign
+        self.addCleanup(setattr, relay, "_RELAY_CAMPAIGN", saved_campaign)
+        state = {"context_id": "switch", "campaign_id": campaign, "topology": "multi",
+                 "manifest": str(self.manifest), "control_variables": old_axis,
+                 "task": "original full task", "attempts": [], "permission_selection": {"permission_profile": "vllm-sub"}}
+        request = relay.build_request("multi", str(self.manifest), state["task"], self.wall,
+            context_id="switch", attempt=1, provider="codex_cli", model="gpt-6.1-sol", backend="openai",
+            permission_profile="vllm-sub", campaign_id=campaign, control_variables=old_axis)
+        path = self.root / "campaigns" / campaign / "relay/switch.requests/attempt-01.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(request), encoding="utf-8")
+        att = {"attempt": 1, "provider": "codex_cli", "runner": self.codex, "session_binding": relay.permission_binding(request),
+               "request_path": str(path.relative_to(self.root)), "request_digest": hashlib.sha256(path.read_bytes()).hexdigest(),
+               "status": "input-required", "control_status": "completed", "sub_reported": True,
+               "context_id_reported": "switch", "campaign_id_reported": campaign,
+               "control_variables_echo": old_axis, "session_id": "fixture-session", "running_services": [],
+               "budget_outcome": "within_budget", "max_turns_allocated": None}
+        state["attempts"].append(att)
+        ledger = relay.ledger_path(str(self.root), "switch")
+        relay.save_ledger(ledger, state)
+        task_file = self.root / "new-task.txt"
+        task_file.write_text("Updated complete approved task", encoding="utf-8")
+        command = ["relay.py", "--repo-root", str(self.root), "--context-id", "switch", "--continue", "--apply",
+                   "--resume", "fixture-session", "--campaign-id", campaign, "--task-file", str(task_file),
+                   "--timeout-seconds", "90", "--budget-source", "fixture"]
+        captured = []
+        def dispatch(a, doc, lp, task, bud, resume):
+            relay.require_dispatch_recovery(a, doc, resume)
+            new_req = relay.build_request("multi", str(self.manifest), task, bud, provider="codex_cli",
+                model="gpt-6.1-sol", backend="openai", permission_profile="vllm-sub",
+                campaign_id=campaign, control_variables=a.control_variables)
+            captured.append(new_req)
+            return 0
+        with mock.patch.object(relay, "resolve_campaign_axis", return_value=(campaign, new_axis)), \
+             mock.patch.object(relay, "run_attempt", side_effect=dispatch), \
+             mock.patch.object(sys, "argv", command), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(relay.main(), 0)
+        self.assertEqual(captured[0]["control_variables"], new_axis)
+        declaration = json.loads(declaration_path.read_text(encoding="utf-8"))
+        for bad_revisions in ([declaration["revisions"][0]],
+                              [declaration["revisions"][0], dict(declaration["revisions"][1], approved_by="")]):
+            bad = dict(declaration, revisions=bad_revisions)
+            declaration_path.write_text(json.dumps(bad), encoding="utf-8")
+            self.assertRejected(relay.require_official_axis_revision, str(self.root), campaign, old_axis, new_axis)
+        declaration_path.write_text(json.dumps(declaration), encoding="utf-8")
+        state["attempts"][0]["control_variables_echo"] = {"model": "target", "vllm_version": "wrong"}
+        relay.save_ledger(ledger, state)
+        with mock.patch.object(relay, "resolve_campaign_axis", return_value=(campaign, new_axis)), \
+             mock.patch.object(relay, "run_attempt", side_effect=AssertionError("mismatched echo dispatched")), \
+             mock.patch.object(sys, "argv", command), contextlib.redirect_stdout(io.StringIO()):
+            self.assertRejected(relay.main, message="echo")
+        state["attempts"][0]["control_variables_echo"] = old_axis
+        relay.save_ledger(ledger, state)
+        no_file = command[:command.index("--task-file")] + command[command.index("--task-file") + 2:]
+        with mock.patch.object(relay, "resolve_campaign_axis", return_value=(campaign, new_axis)), \
+             mock.patch.object(sys, "argv", no_file), contextlib.redirect_stdout(io.StringIO()):
+            self.assertRejected(relay.main, message="explicit --task-file")
+
     def test_instruction_corruption_never_falls_back_to_initial_task(self):
         state = self.instruction_fixture()
         self.assertEqual(relay.continuation_instruction(str(self.root), state)["body"], state["task"])

@@ -470,8 +470,9 @@ def campaign_slice_block(topology: str, campaign_id: str | None, delegated_node:
     slice_doc = ci.emit_slice(base, delegated_node, utc="delegated-task-body")
     blob = json.dumps(slice_doc, ensure_ascii=False, indent=2)
     return ("## [relay] main-derived campaign declaration — stdin으로만 소비(중간 파일 생성 금지)\n"
-            f"아래 JSON을 정확히 stdin으로 넘겨 `campaign_init.py --init {campaign_id} "
-            f"--plan-ref {slice_doc.get('plan_ref')} --from-slice - --apply` 를 실행하라.\n"
+            f"서브에 campaigns/{campaign_id}/campaign.yaml 이 없으면 아래 JSON을 정확히 stdin으로 넘겨 "
+            f"`campaign_init.py --init {campaign_id} --plan-ref {slice_doc.get('plan_ref')} --from-slice - --apply` 를 실행하라.\n"
+            "이미 존재하면 같은 JSON을 stdin으로 넘겨 `campaign_init.py --slice-update - --utc <현재 UTC> --apply` 를 실행하고 개정 번호와 값을 확인하라.\n"
             "```json\n" + blob + "\n```\n\n")
 
 
@@ -669,6 +670,35 @@ def resolve_campaign_axis(a) -> "tuple[str | None, dict | None]":
     control = {k: v for k, v in cur.items()
                if isinstance(k, str) and not k.startswith("_") and not isinstance(v, (dict, list))}
     return camp, (control or None)
+
+
+def require_official_axis_revision(repo_root: str, campaign_id: str, old_axis, new_axis) -> None:
+    """Only an explicit appended campaign revision can change a live context's axis."""
+    try:
+        path = Path(repo_root) / "campaigns" / campaign_id / "campaign.yaml"
+        declaration = json.loads(path.read_text(encoding="utf-8"))
+        revisions = declaration.get("revisions")
+        if (declaration.get("id") != campaign_id or not isinstance(old_axis, dict) or not old_axis
+                or not isinstance(revisions, list) or len(revisions) < 2
+                or not isinstance(declaration.get("control_variables"), dict)
+                or revisions[0].get("values") != declaration["control_variables"]):
+            raise ValueError("missing original or revision")
+        def axis(values):
+            if not isinstance(values, dict):
+                raise ValueError("invalid revision values")
+            return {k: v for k, v in values.items() if isinstance(k, str) and not k.startswith("_")
+                    and not isinstance(v, (dict, list))}
+        for i, revision in enumerate(revisions):
+            if not isinstance(revision, dict) or type(revision.get("rev")) is not int or revision["rev"] != i:
+                raise ValueError("invalid revision sequence")
+            if i and any(not isinstance(revision.get(k), str) or not revision[k].strip()
+                         for k in ("declared_utc", "reason", "evidence", "approved_by")):
+                raise ValueError("incomplete revision approval")
+        if axis(revisions[-1].get("values")) != new_axis or not any(
+                axis(revision.get("values")) == old_axis for revision in revisions[:-1]):
+            raise ValueError("historical or current control axis not in revision chain")
+    except (OSError, ValueError, TypeError, AttributeError, KeyError):
+        raise SystemExit("[relay] STOP: control axis change lacks an approved campaign revision")
 
 
 def _campaign_init():
@@ -1119,7 +1149,8 @@ def require_dispatch_recovery(a, doc: dict, resume_declared) -> None:
         if not answered or not manual:
             raise SystemExit("[relay] STOP: unresolved Codex failure requires its human recovery answer "
                              "and explicit --continue --apply --resume <session_id|new>; automatic replay is forbidden")
-    reasons = continuation_stop_reasons(doc, allow_control_recovery=bool(recovery and manual))
+    reasons = continuation_stop_reasons(doc, allow_control_recovery=bool(recovery and manual),
+                                        historical_control_variables=getattr(a, "_historical_control_variables", None))
     if reasons:
         raise SystemExit("[relay] STOP: " + "; ".join(reasons))
 
@@ -1348,7 +1379,8 @@ def _last_reached(doc: dict) -> dict | None:
     return next((x for x in reversed(doc.get("attempts") or []) if _reached_sub(x)), None)
 
 
-def continuation_stop_reasons(doc: dict, *, allow_control_recovery: bool = False) -> list[str]:
+def continuation_stop_reasons(doc: dict, *, allow_control_recovery: bool = False,
+                              historical_control_variables=None) -> list[str]:
     """Manual and supervised resumes respect the same identity/resource boundaries."""
     if doc.get("inflight"):
         return ["unresolved in-flight dispatch; reconcile before replay"]
@@ -1361,7 +1393,8 @@ def continuation_stop_reasons(doc: dict, *, allow_control_recovery: bool = False
         return reasons
     reasons += echo_stop_reasons(last, context_id=doc.get("context_id"),
                                 campaign_id=doc.get("campaign_id"),
-                                control_variables=doc.get("control_variables"))
+                                control_variables=(historical_control_variables if historical_control_variables is not None
+                                                   else doc.get("control_variables")))
     if isinstance(last.get("running_services"), list) and last["running_services"]:
         reasons.append("previous attempt left running services; use explicit A2A cleanup or a declared new context")
     return reasons
@@ -2960,10 +2993,14 @@ def capacity_handoff_reentry(a, doc, runner, policy, resume_declared):
             or codex_recovery_requirement(last) or not session
             or resume_declared != session or getattr(a, "resume", None) != session
             or last.get("resume_honored") is False or last.get("runner") != runner
-            or continuation_stop_reasons(doc) or resume_blockers(pending_for(a.repo_root, doc.get("context_id")))):
+            or continuation_stop_reasons(doc, historical_control_variables=getattr(a, "_historical_control_variables", None))
+            or resume_blockers(pending_for(a.repo_root, doc.get("context_id")))):
         return False
     try:
-        req = _instruction_request(a.repo_root, doc, last)
+        historical_doc = dict(doc)
+        if getattr(a, "_historical_control_variables", None) is not None:
+            historical_doc["control_variables"] = a._historical_control_variables
+        req = _instruction_request(a.repo_root, historical_doc, last)
         binding = last.get("session_binding") or {}
         reservation = {"outcome_path": last["outcome_path"], "request_path": last["request_path"],
                        "request_digest": last["request_digest"], "dispatch_id": last["dispatch_id"],
@@ -3205,6 +3242,7 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
         rc = run_attempt_once(a, doc, lp, task, bud, resume_declared, runner)
         if a.emit_only:
             return rc
+        a._historical_control_variables = None
         last = (doc.get("attempts") or [])[-1]
         while capacity_retry_ready(a, doc, bud, runner, policy):
             time.sleep(policy["backoff_seconds"])
@@ -3385,6 +3423,18 @@ def _main() -> int:
         # 선언된 사다리를 원장에 적는다 — 감독 재발급이 명시 없이도 같은 사다리를 잇는다(ledger_runner_spec).
         doc["runner_ladder"] = ",".join(r["name"] for r in a.ladder)
     a.campaign_id, a.control_variables = resolve_campaign_axis(a)
+    old_axis = doc.get("control_variables")
+    if (a.continue_ and doc.get("attempts") and a.control_variables and old_axis != a.control_variables):
+        if not a.task_file:
+            raise SystemExit("[relay] STOP: revised campaign controls require a complete explicit --task-file")
+        require_official_axis_revision(a.repo_root, a.campaign_id, old_axis, a.control_variables)
+        previous = _last_reached(doc)
+        if not previous:
+            raise SystemExit("[relay] STOP: revised controls have no prior reached checkpoint")
+        issued = _instruction_request(a.repo_root, doc, previous)
+        if issued.get("control_variables") != old_axis or issued.get("campaign_id") != a.campaign_id:
+            raise SystemExit("[relay] STOP: prior checkpoint request does not bind its historical campaign axis")
+        a._historical_control_variables = dict(old_axis or {})
     if a.campaign_id:
         doc["campaign_id"] = a.campaign_id
     if a.control_variables:
@@ -3434,7 +3484,7 @@ def _main() -> int:
                       "따르게 하라.", file=sys.stderr)
             _stop = echo_stop_reasons(last, context_id=a.context_id,
                                       campaign_id=(a.campaign_id or doc.get("campaign_id")),
-                                      control_variables=doc.get("control_variables"))
+                                      control_variables=getattr(a, "_historical_control_variables", doc.get("control_variables")))
             if _stop:
                 raise SystemExit(
                     "[relay] STOP: 서브 정체성 echo 가 성립하지 않는다 — 부재도 불일치도 STOP 이다.\n"
