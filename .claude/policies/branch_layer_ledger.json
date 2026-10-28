@@ -2796,6 +2796,34 @@
           "reason": "공통 캠페인 개정 전달과 버전 요구사항 생성 로직이며 topology 특화층이 아니다."
         }
       ]
+    },
+    {
+      "entry_id": "sync-261029-single-to-multi-version-guard-0fdcc2d",
+      "utc": "2026-10-28T20:09:27Z",
+      "departure": "single-node",
+      "departure_commit": "0fdcc2d6c03a93deb5ed2d58aa49523c18d3f701",
+      "approved_by": "user: 이너 하네스 agnostic 작업 후 서브노드 및 싱글노드·멀티노드 브랜치 전파 지시",
+      "approved_utc": "2026-10-26T20:04:48Z",
+      "classification": [
+        {
+          "file": ".claude/skills/terraforming_node/references/campaign/writers.md",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 버전 판정 및 요구사항 검증과 문서 서식이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/judge_version_delta.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 버전 판정 및 요구사항 검증과 문서 서식이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/regen_requirements.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 버전 판정 및 요구사항 검증과 문서 서식이며 topology 특화층이 아니다."
+        }
+      ]
     }
   ]
 }
