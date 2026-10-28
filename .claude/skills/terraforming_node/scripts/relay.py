@@ -2841,6 +2841,63 @@ def capacity_deadline_fits(policy, bud):
     return (deadline - datetime.datetime.now(datetime.timezone.utc)).total_seconds() >= bud["timeout_seconds"]
 
 
+def capacity_handoff_reentry(a, doc, runner, policy, resume_declared):
+    """Spend an existing slot only on an explicit completed technical handoff."""
+    attempts = doc.get("attempts") or []
+    used = len(attempts) - policy["start_attempt"]
+    if (doc.get("inflight") or used <= 0 or used >= policy["allocated_slots"]
+            or not getattr(a, "continue_", False) or not getattr(a, "apply", False)
+            or not getattr(a, "task_file", None) or not attempts):
+        return False
+    last = attempts[-1]
+    session = last.get("session_id")
+    if (last.get("control_status") != "completed" or last.get("status") != "input-required"
+            or last.get("end_reason") != "sub_input_required" or not last.get("sub_reported")
+            or codex_recovery_requirement(last) or not session
+            or resume_declared != session or getattr(a, "resume", None) != session
+            or last.get("resume_honored") is False or last.get("runner") != runner
+            or continuation_stop_reasons(doc) or resume_blockers(pending_for(a.repo_root, doc.get("context_id")))):
+        return False
+    try:
+        req = _instruction_request(a.repo_root, doc, last)
+        binding = last.get("session_binding") or {}
+        reservation = {"outcome_path": last["outcome_path"], "request_path": last["request_path"],
+                       "request_digest": last["request_digest"], "dispatch_id": last["dispatch_id"],
+                       "target": req["target"], "provider": req["provider"]}
+        issued, result = load_dispatch_outcome(a.repo_root, {"inflight": reservation})
+        expected_report = str(Path("campaigns") / (doc.get("campaign_id") or "_bootstrap") / "relay"
+                              / (doc["context_id"] + ".reports") / ("attempt-%02d.json" % last["attempt"]))
+        if last.get("report_path") != expected_report or issued != req:
+            return False
+        wrapped = json.loads(_owned_artifact(a.repo_root, expected_report).read_text(encoding="utf-8"))
+        if not isinstance(wrapped, dict):
+            return False
+        report = wrapped.get("report")
+        report_schema = _agent_control._load_schema(_agent_control.RUNTIME_DIR.parent / "sub_node" / "task-report.schema.json")
+        if (wrapped.get("attempt") != last["attempt"] or not isinstance(report, dict)
+                or _agent_control._schema_violations(report, report_schema)
+                or parse_report(result.get("output") or "") != report
+                or result.get("status") != "completed" or result.get("session_id") != session
+                or result.get("raw_exit_code") != last.get("raw_exit_code")
+                or result.get("reason_codes") != last.get("reason_codes")
+                or wrapped.get("control") != {k: result.get(k) for k in
+                    ("status", "exit_code", "reason_codes", "session_id", "num_turns", "budget_outcome",
+                     "duration_ms", "duration_api_ms", "raw_exit_code", "execution_started", "usage",
+                     "failure_evidence", "raw_events")}
+                or any(last.get(ledger_key) != report.get(report_key) for ledger_key, report_key in
+                       (("status", "status"), ("phase", "phase"), ("context_id_reported", "context_id"),
+                        ("campaign_id_reported", "campaign_id"), ("control_variables_echo", "control_variables_echo"),
+                        ("running_services", "running_services")))):
+            return False
+        return (req.get("provider") == runner.get("provider") == "codex_cli"
+                and req.get("model") == runner.get("model")
+                and req.get("reasoning_effort") == getattr(a, "reasoning_effort", None)
+                and binding.get("permission_profile") == getattr(a, "permission_profile", None)
+                and binding.get("sandbox_mode") == getattr(a, "sandbox_mode", None))
+    except (SystemExit, OSError, ValueError, TypeError, KeyError):
+        return False
+
+
 def capacity_retry_ready(a, doc, bud, runner, policy):
     if not policy or doc.get("inflight"):
         return False
@@ -2942,7 +2999,8 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     if requested_policy and (len(ladder) != 1 or ladder[0].get("provider") != "codex_cli"):
         raise SystemExit("[relay] STOP: capacity retry requires one Codex runner")
     policy = capacity_policy(a, doc, lp, bud)
-    if policy and len(doc.get("attempts") or []) != policy["start_attempt"]:
+    if (policy and len(doc.get("attempts") or []) != policy["start_attempt"]
+            and not capacity_handoff_reentry(a, doc, ladder[0], policy, resume_declared)):
         raise SystemExit("[relay] STOP: capacity batch already started; do not reset its allocation")
     a._prepared_capacity_policy = policy
     start = next_runner_index(doc, ladder)

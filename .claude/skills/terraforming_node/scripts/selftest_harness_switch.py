@@ -500,6 +500,119 @@ class HarnessSwitchChecks(unittest.TestCase):
             self.assertRejected(relay.run_attempt, args, saved, path, "full task", self.wall, "new", message="already started")
         self.assertEqual(len(calls), 3)
 
+    def test_capacity_handoff_reuses_only_remaining_slots(self):
+        args = self.dispatch_args()
+        args.ladder = [self.codex]
+        args.reasoning_effort = "low"
+        args.capacity_retries = 2
+        args.capacity_backoff_seconds = 1
+        args.capacity_deadline_utc = "2099-01-01T00:00:00Z"
+        approval = self.root / "approval.json"
+        approval.write_text(json.dumps({"authorization": "actual user authorization", "source": "fixture message"}))
+        args.capacity_approval_file = str(approval)
+        path = relay.ledger_path(str(self.root), "switch")
+        state = relay.load_ledger(path)
+        provider = agent_control._load_provider("codex_cli")
+        real_run = subprocess.run
+        calls = []
+        def invoke(command, **kwargs):
+            if command[1:3] != [relay.AGENT_CONTROL, "invoke"]:
+                return real_run(command, **kwargs)
+            request = json.loads(Path(command[command.index("--request") + 1]).read_text())
+            calls.append(request)
+            events = [{"type": "thread.started", "thread_id": "capacity-session"}, {"type": "turn.started"},
+                      {"type": "turn.failed", "error": {"message": "Selected model is at capacity. Please try a different model."}}]
+            if len(calls) == 1:
+                events = [{"type": "thread.started", "thread_id": "capacity-session"}, {"type": "turn.started"},
+                          {"type": "item.completed", "item": {"type": "agent_message", "text": json.dumps(
+                              {"status": "input-required", "context_id": "switch", "phase": "bench", "running_services": [], "artifacts": [],
+                               "task_id": "fixture", "node_id": "fixture-sub", "turn": 1, "self_verification": {"checks_run": []}})}},
+                          {"type": "turn.completed", "usage": {}}]
+            if len(calls) == 3:
+                events = [{"type": "thread.started", "thread_id": "capacity-session"}, {"type": "turn.started"},
+                          {"type": "item.completed", "item": {"type": "agent_message", "text": json.dumps(
+                              {"status": "completed", "context_id": "switch", "phase": "bench", "running_services": [], "artifacts": []})}},
+                          {"type": "turn.completed", "usage": {}}]
+            result = provider.parse_output(request, "".join(json.dumps(e) + "\n" for e in events), "", 0 if len(calls) in (1, 3) else 1)
+            agent_control.persist_outcome(command[command.index("--result-file") + 1],
+                dispatch_id=command[command.index("--dispatch-id") + 1], request=request, result=result)
+            return SimpleNamespace(stdout=json.dumps(result), stderr="", returncode=1)
+        with mock.patch.object(relay, "assert_sub_branch", return_value="multi"), \
+             mock.patch.object(relay.subprocess, "run", side_effect=invoke), \
+             mock.patch.object(relay.time, "sleep"), contextlib.redirect_stdout(io.StringIO()):
+            relay.run_attempt(args, state, path, "full task", self.wall, "new")
+            self.assertEqual(len(calls), 1)
+            original_policy = dict(state["capacity_policy"])
+            args.continue_, args.apply, args.resume = True, True, "capacity-session"
+            args.task_file = "explicit-task-file"
+            last = state["attempts"][-1]
+            outcome_path = self.root / last["outcome_path"]
+            report_path = self.root / last["report_path"]
+            outcome_bytes, report_bytes = outcome_path.read_bytes(), report_path.read_bytes()
+            for which, broken in ((outcome_path, b"{"), (report_path, b"{"),
+                                  (outcome_path, b""), (report_path, b""),
+                                  (report_path, b"[]"), (report_path, b"null")):
+                which.write_bytes(broken)
+                self.assertFalse(relay.capacity_handoff_reentry(args, state, self.codex, original_policy, "capacity-session"))
+                which.write_bytes(outcome_bytes if which == outcome_path else report_bytes)
+            outcome_path.unlink()
+            self.assertFalse(relay.capacity_handoff_reentry(args, state, self.codex, original_policy, "capacity-session"))
+            outcome_path.write_bytes(outcome_bytes)
+            report_path.unlink()
+            self.assertFalse(relay.capacity_handoff_reentry(args, state, self.codex, original_policy, "capacity-session"))
+            report_path.write_bytes(report_bytes)
+            different = json.loads(report_bytes)
+            different["report"]["task_id"] = "different-valid-report"
+            report_path.write_text(json.dumps(different))
+            self.assertFalse(relay.capacity_handoff_reentry(args, state, self.codex, original_policy, "capacity-session"))
+            report_path.write_bytes(report_bytes)
+            different = json.loads(outcome_bytes)
+            different["result"]["session_id"] = "wrong-session"
+            outcome_path.write_text(json.dumps(different))
+            self.assertFalse(relay.capacity_handoff_reentry(args, state, self.codex, original_policy, "capacity-session"))
+            outcome_path.write_bytes(outcome_bytes)
+            relay.run_attempt(args, state, path, "updated complete task", self.wall, "capacity-session")
+            self.assertEqual(state["capacity_policy"], original_policy)
+        saved = relay.load_ledger(path)
+        self.assertEqual(len(calls), 3)
+        self.assertEqual(len({x["dispatch_id"] for x in saved["attempts"]}), 3)
+        self.assertEqual(saved["capacity_policy"]["allocated_slots"], 3)
+        self.assertEqual([r.get("resume_session_id") for r in calls], [None, "capacity-session", "capacity-session"])
+        self.assertTrue(all(r["model"] == "gpt-6.1-sol" and r["reasoning_effort"] == "low" for r in calls))
+        self.assertEqual(saved["attempts"][1]["task_instruction"]["kind"], "explicit")
+        self.assertEqual(saved["attempts"][2]["task_instruction"]["kind"], "continuation")
+        self.assertIn("벤치", calls[2]["task"])
+        self.assertEqual(saved["attempts"][2]["status"], "completed")
+        self.assertEqual(saved["attempts"][1]["failure_evidence"]["signal"], "provider_capacity")
+        self.assertEqual(len(relay.resume_blockers(relay.pending_for(str(self.root), "switch"))), 0)
+        self.assertTrue(all(r["target"] == calls[0]["target"] and r["permission_profile"] == "vllm-sub" for r in calls))
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertRejected(relay.run_attempt, args, saved, path, "full task", self.wall, "new", message="already started")
+        self.assertEqual(len(calls), 3)
+
+    def test_capacity_handoff_rejects_unsafe_or_exhausted_reentry(self):
+        args = self.dispatch_args()
+        args.continue_, args.apply, args.resume, args.task_file = True, True, "session", "full-task"
+        args.reasoning_effort = "low"
+        policy = {"start_attempt": 3, "allocated_slots": 3}
+        last = {"attempt": 4, "control_status": "completed", "status": "input-required",
+                "end_reason": "sub_input_required", "sub_reported": True, "session_id": "session",
+                "runner": self.codex, "session_binding": {"permission_profile": "vllm-sub"}}
+        doc = {"context_id": "switch", "attempts": [{}, {}, {}, last]}
+        req = {"provider": "codex_cli", "model": "gpt-6.1-sol", "reasoning_effort": "low"}
+        with mock.patch.object(relay, "_instruction_request", return_value=req), \
+             mock.patch.object(relay, "continuation_stop_reasons", return_value=[]), \
+             mock.patch.object(relay, "pending_for", return_value=[]):
+            for change in ({"control_status": "execution_failed"}, {"status": "completed"},
+                           {"sub_reported": False}, {"session_id": None}, {"resume_honored": False}):
+                altered = dict(doc, attempts=doc["attempts"][:-1] + [dict(last, **change)])
+                self.assertFalse(relay.capacity_handoff_reentry(args, altered, self.codex, policy, "session"))
+            self.assertFalse(relay.capacity_handoff_reentry(args, dict(doc, inflight={"id": 1}), self.codex, policy, "session"))
+            self.assertFalse(relay.capacity_handoff_reentry(args, dict(doc, attempts=doc["attempts"] + [{}, last]), self.codex, policy, "session"))
+            self.assertFalse(relay.capacity_handoff_reentry(args, doc, self.codex, policy, "different"))
+            args.task_file = None
+            self.assertFalse(relay.capacity_handoff_reentry(args, doc, self.codex, policy, "session"))
+
     def test_capacity_policy_preview_and_rejections_preserve_ledger(self):
         args = self.dispatch_args()
         args.ladder = [self.codex]
