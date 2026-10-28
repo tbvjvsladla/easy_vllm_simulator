@@ -124,6 +124,76 @@ class HarnessSwitchChecks(unittest.TestCase):
                 with self.assertRaises(SystemExit):
                     relay.main()
 
+    def test_continue_preview_reports_selected_provider_budget_without_writes(self):
+        path = relay.ledger_path(str(self.root), "switch")
+        doc = relay.load_ledger(path)
+        result = {"status": "completed", "provider": "codex_cli", "session_id": "native",
+                  "execution_started": True, "reason_codes": [], "budget_outcome": "within_budget"}
+        relay.record_attempt(doc, context_id="switch", bud=turn_budget.declare(None, 3600, source="fixture", unit="wall_time"),
+                             result=result, runner=self.codex,
+                             report={"status": "input-required", "context_id": "switch", "running_services": []},
+                             started_utc="2026-10-28T21:23:51Z", ended_utc="2026-10-28T22:14:00Z")
+        doc.update(topology="multi", manifest=str(self.manifest), runner_ladder=self.codex["name"])
+        relay.save_ledger(path, doc)
+        task = self.root / "preview-task.txt"
+        task.write_text("complete task\n", encoding="utf-8")
+        before = Path(path).read_bytes()
+        argv = [str(HERE / "relay.py"), "--repo-root", str(self.root), "--context-id", "switch", "--no-campaign",
+                "--continue", "--task-file", str(task), "--timeout-seconds", "1800"]
+        out = io.StringIO()
+        with mock.patch.object(sys, "argv", argv), contextlib.redirect_stdout(out):
+            self.assertEqual(relay.main(), 0)
+        preview = out.getvalue()
+        self.assertIn("provider=codex_cli", preview)
+        self.assertIn("직전 wall 배정 3600초", preview)
+        self.assertIn("관측 경과 3009초(main 시작/종료 시각)", preview)
+        self.assertIn("다음 wall 배정 1800초(명시)", preview)
+        self.assertNotIn("max_turns", preview)
+        self.assertNotIn("--max-turns", preview)
+        self.assertNotIn("전송 상한 100", preview)
+        self.assertEqual(Path(path).read_bytes(), before)
+        self.assertFalse((Path(relay.relay_root(str(self.root))) / "switch.requests").exists())
+        request = relay.build_request("multi", str(self.manifest), "task",
+            turn_budget.declare(None, 1800, source="fixture", unit="wall_time"),
+            provider="codex_cli", backend="openai", model=self.codex["model"], sandbox_mode="read-only")
+        self.assertEqual((request["budget_unit"], request["max_turns"], request["timeout_seconds"]),
+                         ("wall_time", None, 1800))
+        unknown, _ = relay.continuation_budget_preview(doc, [self.codex], {}, None)
+        self.assertIn("관측 경과 미관측", unknown)
+        self.assertIn("다음 wall 배정 미선언", unknown)
+        measured, _ = relay.continuation_budget_preview(doc, [self.codex], {"duration_ms": 1250}, None)
+        self.assertIn("1.25초(provider duration_ms)", measured)
+        claude_doc = {"attempts": [{"max_turns_allocated": 24, "execution_started": True}]}
+        claude, flags = relay.continuation_budget_preview(claude_doc, [self.claude], None, None)
+        self.assertIn("native turn", claude)
+        self.assertIn("바닥 24", claude)
+        self.assertIn("스키마 필드 상한 100", claude)
+        self.assertIn("--max-turns", flags)
+        with mock.patch.object(relay, "next_runner_index", return_value=1):
+            mixed, flags = relay.continuation_budget_preview(doc, [self.claude, self.codex], doc["attempts"][-1], None)
+        self.assertIn("provider=codex_cli", mixed)
+        self.assertIn("--max-turns", flags)
+        self.assertIn("Claude fallback", flags)
+        mixed_argv = argv + ["--runners", "codex-gpt-6.1-sol,sonnet", "--max-turns", "24"]
+        mixed_out = io.StringIO()
+        with mock.patch.object(sys, "argv", mixed_argv), contextlib.redirect_stdout(mixed_out):
+            self.assertEqual(relay.main(), 0)
+        self.assertIn("provider=codex_cli", mixed_out.getvalue())
+        self.assertIn("Claude fallback용 --max-turns", mixed_out.getvalue())
+        emit = mixed_argv + ["--apply", "--emit-only", "--resume", "new", "--budget-source", "fixture",
+                             "--sandbox-mode", "read-only"]
+        emitted = io.StringIO()
+        with mock.patch.object(sys, "argv", emit), contextlib.redirect_stdout(emitted):
+            self.assertEqual(relay.main(), 0)
+        blob = emitted.getvalue()
+        mixed_request = json.loads(blob[blob.index("{\n"):])
+        self.assertEqual((mixed_request["provider"], mixed_request["max_turns"], mixed_request["timeout_seconds"]),
+                         ("codex_cli", None, 1800))
+        with mock.patch.object(sys, "argv", [x for x in emit if x not in ("--max-turns", "24")]), \
+             contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            self.assertRejected(relay.main)
+        self.assertEqual(Path(path).read_bytes(), before)
+
     def test_v1_builder_remains_valid_and_uses_native_budget(self):
         request = self.request()
         self.assertEqual(agent_control.request_schema_violations(request), [])

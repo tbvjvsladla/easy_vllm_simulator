@@ -293,6 +293,32 @@ def budget_floor(doc: dict) -> int:
                 if a.get("max_turns_allocated") and _reached_sub(a)] or [0])
 
 
+def continuation_budget_preview(doc: dict, ladder: list, last: dict | None,
+                                next_timeout: int | None) -> tuple[str, str]:
+    """Format observed budget facts for the runner actually selected next."""
+    runner = ladder[next_runner_index(doc, ladder)]
+    provider = runner.get("provider", "claude_code")
+    if provider == "codex_cli":
+        previous = last or {}
+        allocation = previous.get("timeout_seconds_allocated")
+        allocation = f"{allocation}초" if isinstance(allocation, int) and not isinstance(allocation, bool) and allocation > 0 else "미관측"
+        duration = previous.get("duration_ms")
+        if isinstance(duration, (int, float)) and not isinstance(duration, bool) and duration > 0:
+            elapsed = f"{duration / 1000:g}초(provider duration_ms)"
+        else:
+            start, end = _utc_epoch(previous.get("started_utc")), _utc_epoch(previous.get("ended_utc"))
+            elapsed = f"{end - start:g}초(main 시작/종료 시각)" if start is not None and end is not None and end > start else "미관측"
+        proposed = f"{next_timeout}초(명시)" if next_timeout is not None else "미선언"
+        flags = "--timeout-seconds/--budget-source 와 --resume"
+        if any(r.get("provider", "claude_code") != "codex_cli" for r in ladder):
+            flags += " (혼합 사다리의 Claude fallback용 --max-turns 도 선언 · Codex native turn 아님)"
+        return (f"다음 러너 {runner['name']} · provider={provider} · 직전 wall 배정 {allocation}"
+                f" · 관측 경과 {elapsed} · 다음 wall 배정 {proposed}", flags)
+    return (f"다음 러너 {runner['name']} · provider={provider} · 집행된 native turn 바닥 {budget_floor(doc)}"
+            f" · max_turns 스키마 필드 상한 {turn_budget.schema_cap('max_turns')}",
+            "--max-turns/--timeout-seconds/--budget-source 와 --resume")
+
+
 def stalled_attempts(doc: dict) -> int:
     """**전진 없이** 이어진 말미 attempt 수. dry-run 이 이 수를 보여준다.
 
@@ -3510,7 +3536,6 @@ def _main() -> int:
         else:
             a._continuation_source_attempt = continuation_instruction(a.repo_root, doc)["attempt"]
             task = assemble_continuation(a.repo_root, doc, pend)
-        floor = budget_floor(doc)
         _last_out = (last or {}).get("budget_outcome")
         if not a.apply:
             # dry-run 은 **사실만** 보여준다 — 예산도 재개도 이 화면을 본 쪽이 선언한다.
@@ -3518,8 +3543,8 @@ def _main() -> int:
             print(f"[relay] 마지막 알려진 세션: {lks['session_id'] or '(없음)'} "
                   f"(attempt {lks['attempt']} · sub_status={lks['status']} · "
                   f"budget={lks['budget_outcome']}) → `--resume <id|new>` 로 선언하라")
-            print(f"[relay] 예산 사실: 집행된 바닥 {floor} · 직전 결과 {_last_out} · "
-                  f"전송 상한 {turn_budget.schema_cap('max_turns')} · 대기 요청 {len(pend)}건 · "
+            budget_text, budget_flags = continuation_budget_preview(doc, a.ladder, last, a.timeout_seconds)
+            print(f"[relay] 예산 사실: {budget_text} · 직전 결과 {_last_out} · 대기 요청 {len(pend)}건 · "
                   f"전진 없는 연속 attempt {stalled}회")
             if _last_out == "exhausted":
                 print("[relay]   직전 호출은 소진됐다 — 새 실행 예산을 선언하고 checkpoint부터 이어라. "
@@ -3527,8 +3552,7 @@ def _main() -> int:
             print("─" * 72)
             sys.stdout.write(task)
             print("─" * 72)
-            print("[relay] 위 본문으로 위임하려면 --max-turns/--timeout-seconds/--budget-source 와 "
-                  "--resume 을 선언해 --apply 하라(사람 승인 정문).")
+            print(f"[relay] 위 본문으로 위임하려면 {budget_flags} 을 선언해 --apply 하라.")
             return 0
         bud = declared_budget(a, a.timeout_seconds, a.budget_source or "", doc)
         return run_attempt(a, doc, lp, task, bud, require_resume(a.resume, lks))
