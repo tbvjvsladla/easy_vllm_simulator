@@ -1,0 +1,72 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26102905",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102905_GPT120_서브_v0320_실행계획.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102907",
+      "depth": 0,
+      "excerpts": 4,
+      "path": "docs/testlog/testlog_26102907_GPT120_v0320_Full_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102907",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26102907_GPT120_v0320_실측과_인계.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102907",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102907_gpt-oss-120b_GB10_0.32.0.md",
+      "role": "bench_report"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [
+      {
+        "excerpts": 1,
+        "path": "docs/simlog/single8_gptoss120b_20261028T135226Z/build_dependency_repair/probe.txt"
+      },
+      {
+        "excerpts": 1,
+        "path": "docs/simlog/single8_gptoss120b_20261028T135226Z/build_result_context/runtime_probe.txt"
+      }
+    ],
+    "count": 160
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 경로(발췌 머리 stem = 파일명) · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26102907",
+  "schema_version": 3,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26102907_gpt-oss-120b_GB10_0.32.0.md",
+      "sha256": "c9ff785e80bfce821037b13e666754927ce35c8980e224eb83f1ea8874f69bfa"
+    },
+    {
+      "path": "docs/devlog/devlog_26102907_GPT120_v0320_실측과_인계.md",
+      "sha256": "37b2a0ffb5d5a304703ce7c49b0856a0bfc4fbcc21001da26c123070b0c20280"
+    },
+    {
+      "path": "docs/simlog/single8_gptoss120b_20261028T135226Z/build_dependency_repair/probe.txt",
+      "sha256": "999571b5675cb6f2c62ce9a7d9f1e5bbc87cfa01385caee0e9e4018aa3f604f9"
+    },
+    {
+      "path": "docs/simlog/single8_gptoss120b_20261028T135226Z/build_result_context/runtime_probe.txt",
+      "sha256": "e12048950c3a148df2f9d7c2211892b6ca22d509a4628fd4063a8c0314baf930"
+    },
+    {
+      "path": "docs/testlog/testlog_26102907_GPT120_v0320_Full_판정.md",
+      "sha256": "90baded23e4d9d295d1bc4d0241a5c6dfd45f410a80a64e7035cd8c5e9bc7187"
+    }
+  ]
+}

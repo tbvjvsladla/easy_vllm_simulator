@@ -1,0 +1,25 @@
+{
+  "assembly_branch": "single",
+  "generated_utc": "2026-10-28T22:57:30Z",
+  "payload_files": [
+    "00-hint.md",
+    "01-artifacts.md",
+    "02-narrative.md",
+    "03-benchmark.md",
+    "LINEAGE.json",
+    "PAYLOAD.json",
+    "PROVENANCE.json",
+    "README.md",
+    "artifacts/build_recipe/Dockerfile.source-build",
+    "artifacts/build_recipe/requirements.txt",
+    "artifacts/compose/.env.template",
+    "artifacts/compose/docker-compose.yaml",
+    "artifacts/triplet/.env.gptoss120b-0191-c0",
+    "artifacts/triplet/gptoss120b-0191-c0.sh",
+    "artifacts/triplet/gptoss120b-0191-c0.yaml"
+  ],
+  "schema_version": 2,
+  "source_anchor": "40e156d416f239911ab746176f42762f29457d3d",
+  "source_anchor_is_head": false,
+  "tag": "hint/0.32.0-g5df63a7203cd/gpt-oss-120b/gb10-1g1n-sub-native/qmxfp4-len8192-kvauto"
+}
