@@ -833,8 +833,8 @@ def _build_identity(repo: Path, *, topology: str, env: dict, env_rel: str | None
         # F2(2026-10-10 · plan_26101017 · 셀 B F2): 기본값 꼴이 없으면 compose 리터럴 `build.dockerfile:` 을 읽어 **적는다** — 선택자로
         #   채택하지는 않는다(현재 compose 의 선언이지 이 이미지를 지은 증거가 아니다 · 트랙 판정 규칙은 그대로).
         lit_kind, lit = compose_build_dockerfile(compose) if not dockerfile else (None, None)
-        lit_txt = (f"output/{topology}/docker-compose.yaml 리터럴 build.dockerfile: {lit}(선택자 변수 없음 — compose build 는 늘 {lit} 를 "
-                   "짓는다 · 이 이미지를 지은 증거 아님)") if lit_kind == "literal" else None
+        lit_txt = (f"output/{topology}/docker-compose.yaml 리터럴 build.dockerfile: {lit}(이 파일만 단독 적용하고 override 가 없을 때 "
+                   f"{lit} 선택 · 과거 빌드에 이 compose 또는 override 를 사용했는지는 미관측)") if lit_kind == "literal" else None
         src["dockerfile"] = (f"output/{topology}/docker-compose.yaml 기본값 ${{BUILD_DOCKERFILE:-{dockerfile}}}"
                              "(셀 env 선택자 없음 · 현재 compose 기준)" if dockerfile
                              else f"셀 env 선택자 없음 · {lit_txt}" if lit_txt
@@ -9398,7 +9398,9 @@ def selftest() -> list[str]:
                "지어지지 않았다)' · '모두 부재' ✗",
                compose_build_dockerfile(comp) == ("literal", "Dockerfile")
                and ev_lit.build_identity.get("dockerfile") == "Dockerfile.source-build"
-               and "리터럴 build.dockerfile: Dockerfile(" in s_lit and "compose 또는 override 여부는 미관측" in s_lit and "모두 부재" not in s_lit)
+               and "리터럴 build.dockerfile: Dockerfile(" in s_lit and "이 파일만 단독 적용하고 override 가 없을 때" in s_lit
+               and "과거 빌드에 이 compose 또는 override 를 사용했는지는 미관측" in s_lit
+               and "compose build 는 늘" not in s_lit and "모두 부재" not in s_lit)
             ck("F2 compose_build_dockerfile: 기본값 꼴 = selector · 블록 없음 = (None, None)",
                compose_build_dockerfile(Path(td) / "nope.yaml") == (None, None)
                and (comp.write_text(comp_text + "    build:\n      dockerfile: ${BUILD_DOCKERFILE:-Dockerfile.x}\n",
