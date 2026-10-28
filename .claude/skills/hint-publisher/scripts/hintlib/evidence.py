@@ -4402,7 +4402,20 @@ def _wheel_meta(repo: Path, ev: CellEvidence) -> tuple[str | None, str]:
         led, lsrc = ev.image_ledger.get("vllm") or {}, f"{ev.image_ledger.get('source')} vllm.dist_version"
     if led.get("dist_version") and ev.plane != "native":
         return str(led["dist_version"]), f"{lsrc}(빌드 시점 measured · 이미지 안 배포 메타)"
-    return None, "미관측 — 확인한 attestation vllm_dist_version · native pip freeze · 빌드 원장 vllm.dist_version에 값 없음(runtime_version 기록은 배포 메타로 간주하지 않는다)"
+    observations = _runtime_observations(repo, ev)
+    candidates = [o for o in observations if isinstance(o["data"].get("distribution_metadata_version"), str)
+                  and not _unobserved(o["data"]["distribution_metadata_version"])]
+    explicit = [o for o in candidates if isinstance(o["data"].get("distribution_metadata_version_source"), str)
+                and o["data"]["distribution_metadata_version_source"].strip()]
+    if len(explicit) != len(candidates):
+        return None, "배포 메타 값은 기록되었으나 명시적 출처가 없어 미검증 — 값을 고르지 않는다: " + " · ".join(o["source"] for o in candidates)
+    recorded, recorded_source = _runtime_observed_field(explicit, "distribution_metadata_version")
+    if candidates and recorded is None:
+        return None, recorded_source
+    if recorded is not None:
+        sources = " · ".join(f"{o['source']} distribution_metadata_version_source={o['data']['distribution_metadata_version_source']!r}" for o in explicit)
+        return recorded, recorded_source + f" · 기록된 출처(선언 · 검증되지 않음): {sources} · 수집 성공은 별도 검증"
+    return None, "미관측 — 결속된 명시적 배포 메타 기록 · attestation vllm_dist_version · native pip freeze · 빌드 원장 vllm.dist_version에 값 없음(runtime_version 기록은 배포 메타로 간주하지 않는다)"
 
 
 _ATTEST_TIME_KEYS = ("written_utc", "captured_utc", "generated_utc", "utc")
@@ -8891,6 +8904,28 @@ def _selftest_runtime_epochs(ck, repo: Path) -> None:
     ck("F3 generic runtime version is preserved separately, never promoted to distribution metadata",
        observed["runtime_version"] == observation["vllm_version"] and observed["wheel_meta"] is None
        and runtime_rel in observed["runtime_version_source"] and index_rel in observed["runtime_version_source"])
+    explicit = {**observation, "distribution_metadata_version": "0.9.0+cu130",
+                "distribution_metadata_version_source": 'importlib.metadata.distribution("vllm").version'}
+    core.write_json(repo / runtime_rel, explicit)
+    got = vllm_observed(ev)
+    ck("explicit bound distribution observation remains separate from module version",
+       got["wheel_meta"] == "0.9.0+cu130" and got["runtime_version"] == observation["vllm_version"]
+       and "수집 성공은 별도 검증" in got["wheel_meta_source"])
+    core.write_json(repo / runtime_rel, {**explicit, "distribution_metadata_version_source": "another collector"})
+    declared = vllm_observed(ev)
+    ck("typed explicit distribution source is reported as an unverified declaration",
+       declared["wheel_meta"] == explicit["distribution_metadata_version"] and "검증되지 않음" in declared["wheel_meta_source"])
+    core.write_json(repo / runtime_rel, {**explicit, "distribution_metadata_version_source": ""})
+    missing_source = vllm_observed(ev)
+    ck("distribution value without source is reported as unverified, not absent",
+       missing_source["wheel_meta"] is None and "명시적 출처가 없어 미검증" in missing_source["wheel_meta_source"])
+    core.write_json(repo / runtime_rel, explicit)
+    diverged = dataclasses.replace(ev, attestation={"nodes": {"main": {"vllm_dist_version": "0.9.0"},
+                                                                 "sub": {"vllm_dist_version": "0.9.1"}}})
+    divergence = vllm_observed(diverged)
+    ck("divergent node attestation is not masked by bound runtime distribution",
+       divergence["wheel_meta"] is None and "상이" in divergence["wheel_meta_source"])
+    core.write_json(repo / runtime_rel, observation)
     ck("F3 missing collection field describes this record only, not other execution ledgers",
        "이 runtime 기록에 collection_argv 필드 없음" in observed["runtime_version_source"]
        and "다른 실행 원장 미조회" in observed["runtime_version_source"])

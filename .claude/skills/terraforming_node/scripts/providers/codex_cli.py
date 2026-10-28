@@ -140,6 +140,7 @@ def parse_output(request: dict, stdout: str, stderr: str, returncode: int, *,
     started, completed, failed, denial, runner_missing = False, False, False, False, False
     lock_acquired = False
     protocol_bad, model_used = False, []
+    failure_messages = []
     for event in events:
         kind = event["type"]
         if kind == "thread.started":
@@ -162,6 +163,9 @@ def parse_output(request: dict, stdout: str, stderr: str, returncode: int, *,
                     protocol_bad = True
         if kind in ("turn.failed", "error"):
             failed = True
+            failure_messages.append(event.get("message") if kind == "error" else
+                                    (event.get("error") or {}).get("message")
+                                    if isinstance(event.get("error"), dict) else None)
         if kind == "adapter.runner_missing":
             runner_missing = True
         if kind == "adapter.lock_acquired":
@@ -239,7 +243,10 @@ def parse_output(request: dict, stdout: str, stderr: str, returncode: int, *,
                        output=denial_note,
                        evidence=evidence, **common)
     if failed:
-        evidence["signal"] = "native_failure"
+        capacity = (not malformed and not protocol_bad and not completed and returncode == 1
+                    and failure_messages and all(message == "Selected model is at capacity. Please try a different model."
+                                                 for message in failure_messages))
+        evidence["signal"] = "provider_capacity" if capacity else "native_failure"
         return _result(request, reasons=["IS_ERROR"], evidence=evidence, **common)
     if malformed or protocol_bad:
         evidence["signal"] = "malformed_jsonl" if malformed else "invalid_event_sequence"
