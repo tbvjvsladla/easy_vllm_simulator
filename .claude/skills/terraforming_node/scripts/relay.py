@@ -14,7 +14,7 @@
     `tasks/` 는 폐지 · root_registry tombstone).
 
 규율(참고 프로젝트 차용 — memory: hermes-control-plane-reference-turn-budget):
-    · scope ⊥ budget · 소진은 terminal → **더 큰 예산의 새 attempt**(예산 축소 금지)
+    · scope ⊥ budget · 호출 소진 뒤 checkpoint에서 새 예산을 선언해 이어간다
     · SILENT_FALLBACK 금지 — 메인이 대신 한 것을 서브 성공으로 집계하지 않는다
     · 원장은 예산 서사(선언값·출처·사용량·결과)를 매 턴 적는다
 
@@ -30,6 +30,7 @@ import contextlib
 import fcntl
 import hashlib
 import json
+import math
 import os
 import re
 import shlex
@@ -198,7 +199,7 @@ def codex_recovery_requirement(att: dict) -> dict | None:
             return None
         kind = "permission_denied"
     elif (att.get("control_status") == "timeout" and "TIMEOUT" in codes
-          and evidence.get("signal") in (None, "wall_timeout")):
+          and evidence.get("signal") in ("controlled_local_deadline", "controlled_remote_deadline")):
         return None
     elif att.get("control_status") == "completed":
         return None
@@ -608,7 +609,6 @@ def build_request(topology: str, manifest: str, task: str, bud: dict,
                                  timeout_seconds=bud["timeout_seconds"],
                                  budget_source=bud["source"],
                                  model=model, backend=backend, provider=provider,
-                                 max_dispatches=bud.get("max_dispatches"),
                                  sandbox_mode=sandbox_mode,
                                  permission_profile=permission_profile, reasoning_effort=reasoning_effort)
     allocated = bud["max_turns"]
@@ -864,7 +864,6 @@ def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, repor
         "timeout_seconds_allocated": bud["timeout_seconds"],
         "budget_source": bud["source"],
         "budget_unit": bud.get("budget_unit", "native_turns"),
-        "max_dispatches": bud.get("max_dispatches"),
         "execution_started": result.get("execution_started"),
         "raw_exit_code": result.get("raw_exit_code"),
         "usage": result.get("usage"),
@@ -1387,8 +1386,8 @@ def ledger_progress(last: dict, prev: dict | None) -> str | None:
 
     · 직전이 있으면: 새 산출물 경로가 생겼거나 남은 일(next_steps)이 바뀌었다.
     · 첫 중단이면: 이 attempt 가 턴을 쓰고 산출물 또는 남은 일을 남겼다(일한 흔적).
-    같은 남은 일·같은 산출물이 반복되면 전진이 아니다 — 무한 재발급은 이 음성대조와
-    `--cost-cap-attempts` 가 막는다.
+    같은 남은 일·같은 산출물이 반복되면 전진이 아니다. 판정 불가 중단은 이 전진 판정과
+    잔존 서비스 가드를 따른다.
     """
     arts, steps = last.get("artifact_paths"), last.get("next_steps")
     if arts is None and steps is None:
@@ -1472,20 +1471,11 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
     if not atts:
         return {"action": "await_dispatch",
                 "reason": "이 context 에 아직 아무것도 나가지 않았다 — 지시서를 열어라"}
-    dispatch_cap = doc.get("max_dispatches")
-    if (dispatch_cap and len(atts) >= dispatch_cap
-            and atts[-1].get("end_reason") not in ("completed", "completed_with_denials")):
-        return {"action": "popup", "reason": f"declared outer dispatch cap reached: {len(atts)}/{dispatch_cap}"}
-    # 2026-09-08: 비용 상한은 **닿은 attempt** 만 센다. 러너 회전은 서브에 닿지 않았으므로 비용이
-    #   아니고, 세면 회전 몇 번에 상한이 소진돼 팝업이 **틀린 사유로** 뜬다.
-    _billed = len([x for x in atts if _reached_sub(x)])
-    if cost_cap_attempts and _billed >= cost_cap_attempts:
-        return {"action": "popup",
-                "reason": f"선언된 비용 상한 도달 — attempt {_billed}/{cost_cap_attempts}"
-                          f"(회전 제외 · 전체 {len(atts)}). "
-                          f"자동 재개는 여기서 멈춘다(사용자 결정 D9: 비용 상한은 팝업)"}
     recovery = codex_recovery_requirement(atts[-1])
     if recovery:
+        deferred = doc.get("capacity_deferred") or {}
+        if recovery.get("signal") == "provider_capacity" and deferred.get("dispatch_id") == atts[-1].get("dispatch_id"):
+            return {"action": "resume", "reason": "capacity burst deferred; continue with a new bounded burst"}
         return {"action": "popup",
                 "reason": f"unresolved Codex outcome ({recovery['kind']}; {recovery['signal']}); "
                           "human answer and explicit manual resume required; progress does not authorize replay"}
@@ -1537,9 +1527,14 @@ def supervise_decide(doc: dict, *, brief: dict | None = None,
     # ★ 2026-09-08 라이브: 계획은 자동 재개를 `external_interruption|budget_exhausted` 로만 적었다.
     #   그런데 실제로 3회 중 2회는 **제어가 completed 인데 서브 리포트가 기계판독 불가**여서
     #   `unclassified` 로 끝났다(서브가 산문으로 끝맺었다). 그 상태를 매번 사람에게 올리면 사용자
-    #   결정 D9("재개는 항상 자동, 예외는 비용 상한과 통신 단절")이 리포트 형식 미준수 하나로
-    #   무력해진다. `unclassified` 는 비용 상한도 통신 단절도 아니다 — **전진이 관측되면** 잇고,
+    #   불명 중단은 보고서 형식만으로 성공을 추정하지 않는다. `unclassified` 는
+    #   **전진이 관측되면** 잇고,
     #   전진이 없으면 그때 묻는다. 판정 불가는 추측의 근거가 아니라 관측을 볼 이유다.
+    if reason == "budget_exhausted":
+        return {"action": "resume", "reason": "native invocation budget exhausted; reconcile and resume"}
+    if (reason == "external_interruption" and
+            (last.get("failure_evidence") or {}).get("signal") in ("controlled_local_deadline", "controlled_remote_deadline")):
+        return {"action": "resume", "reason": "controlled local invocation deadline; reconcile and resume"}
     if reason in ("external_interruption", "budget_exhausted", "unclassified", "sub_input_required"):
         # 여기 도달한 sub_input_required 는 위에서 걸러진 **예산 양보**뿐이다(질문이 아니다).
         prev = [a for a in (doc.get("attempts") or []) if _reached_sub(a)][:-1]
@@ -1645,7 +1640,11 @@ def supervise_step(a) -> int:
                                     ladder=getattr(a, "ladder", None),
                                     doc_progress=doc_plane_progress(a.repo_root, doc))
         if decision["action"] in ("resume", "rotate_runner"):
-            reasons = continuation_stop_reasons(doc)
+            deferred = doc.get("capacity_deferred") or {}
+            last = (doc.get("attempts") or [None])[-1] or {}
+            allow_capacity = (deferred.get("dispatch_id") == last.get("dispatch_id") and
+                              (last.get("failure_evidence") or {}).get("signal") == "provider_capacity")
+            reasons = continuation_stop_reasons(doc, allow_control_recovery=allow_capacity)
             if reasons:
                 decision = {"action": "popup", "reason": "; ".join(reasons)}
         # 수명 가드(2026-10-17 · plan_26101719 D4·D13): 감독은 id 를 직접 받으므로 ACTIVE 를 거치지 않는다. 보류·미결·잔재
@@ -1674,12 +1673,10 @@ def supervise_step(a) -> int:
             if not a.apply:
                 print("  → 회전은 `--supervise-step <camp> --apply` 로 실행한다(단일 스텝).")
             else:
-                secs, why = derive_timeout(a.repo_root, camp, node)
-                rc = max(rc, _supervise_resume(a, path, doc, secs,
-                                               f"{why} · 러너 회전(실행자 교체 · 예산 불변)"))
+                rc = max(rc, _supervise_resume(a, path, doc, None,
+                                               "러너 회전; context의 호출 증거로 예산 선택"))
         elif decision["action"] == "resume":
-            secs, why = derive_timeout(a.repo_root, camp, node)
-            print(f"  → 예산 파생: timeout={secs or '(상한)'} · 근거: {why}")
+            secs, why = None, "context의 호출 증거로 예산 선택"
             if not a.apply:
                 print("  → 재발급은 `--supervise-step <camp> --apply` 로 실행한다(단일 스텝).")
             else:
@@ -1717,10 +1714,108 @@ def resume_blockers(pending: list) -> list:
     return [e for e in pending if entry_blocking(e) and not e.get("answer")]
 
 
+def select_supervised_budget(a, doc: dict, fallback_seconds=None, fallback_reason="") -> dict:
+    """Choose a fresh per-invocation budget from this context's recorded evidence."""
+    attempts = doc.get("attempts") or []
+    last = _last_reached(doc) or {}
+    phase = last.get("phase")
+    previous = next((x for x in reversed(attempts[:-1]) if _reached_sub(x)), None)
+    progress = bool(last.get("sub_reported") and (
+        (previous and phase and previous.get("phase") and previous.get("phase") != phase)
+        or ledger_progress(last, previous)))
+    rec = last.get("budget_recommended") if last.get("sub_reported") else None
+    rec = rec if isinstance(rec, dict) else {}
+    providers = {r.get("provider", "claude_code") for r in a.ladder}
+    selected_runner = a.ladder[next_runner_index(doc, a.ladder)]
+    selected_provider = selected_runner.get("provider", "claude_code")
+    selected_model = selected_runner.get("model")
+    reasons = []
+
+    def positive(value):
+        return value if isinstance(value, int) and not isinstance(value, bool) and value > 0 else None
+
+    def choose(field, explicit, rec_key, allocation_key, sample_key, exhausted):
+        cap = turn_budget.schema_cap(field)
+        if explicit is not None:
+            reasons.append(f"{field}: caller explicit={explicit}")
+            return explicit
+        prior = positive(last.get(allocation_key))
+        recommendation = positive(rec.get(rec_key))
+        if exhausted and prior:
+            raw = max(math.ceil(prior * 1.5), recommendation or 0)
+            chosen = min(raw, cap)
+            reasons.append(f"{field}: observed exhaustion allocation={prior} × policy margin=1.5"
+                           f" recommendation={recommendation} selected={chosen}"
+                           + (f" schema ceiling={cap}; checkpoint continues" if raw > cap else ""))
+            return chosen
+        if recommendation and (not prior or recommendation >= prior or progress):
+            chosen = min(recommendation, cap)
+            reasons.append(f"{field}: sub recommendation={recommendation} progress={bool(progress)} selected={chosen}"
+                           + (f" schema ceiling={cap}" if recommendation > cap else ""))
+            return chosen
+        def observed_value(item):
+            value = positive(item.get(sample_key))
+            if value:
+                return value, sample_key
+            if sample_key == "duration_ms":
+                started, ended = _utc_epoch(item.get("started_utc")), _utc_epoch(item.get("ended_utc"))
+                if started is not None and ended is not None and ended > started:
+                    return int((ended - started) * 1000), "main_wall_ms"
+            return None, None
+        def observed_model_matches(item):
+            observed = item.get("model_used")
+            return (not observed or (isinstance(observed, list)
+                    and all(isinstance(model, str) and model == selected_model for model in observed)))
+        def successful_checkpoint(item):
+            if (item.get("control_status") != "completed" or not item.get("sub_reported")
+                    or item.get("budget_outcome") == "exhausted" or item.get("permission_denials")
+                    or any(code in ("PERMISSION_DENIED", "TIMEOUT", "NONZERO_EXIT")
+                           for code in item.get("reason_codes") or [])):
+                return False
+            return (item.get("status") == "completed" or
+                    (item.get("status") == "input-required" and item.get("hitl_needed") is False))
+        sample = next((x for x in reversed(attempts) if phase and x.get("phase") == phase
+                       and successful_checkpoint(x)
+                       and (x.get("provider") or (x.get("runner") or {}).get("provider")) == selected_provider
+                       and (x.get("model_declared") or (x.get("runner") or {}).get("model")) == selected_model
+                       and selected_model and observed_model_matches(x) and observed_value(x)[0]), None)
+        if sample:
+            observed, observed_source = observed_value(sample)
+            raw = math.ceil(observed * 1.5 / (1000 if sample_key == "duration_ms" else 1))
+            chosen = min(max(raw, 1), cap)
+            if not prior or chosen >= prior or progress:
+                reasons.append(f"{field}: same-context same-phase provider={selected_provider} "
+                               f"declared_model={selected_model} attempt={sample.get('attempt')} "
+                               f"observed {observed_source}={observed} × policy margin=1.5 selected={chosen}"
+                               + (f" schema ceiling={cap}" if raw > cap else ""))
+                return chosen
+        if prior:
+            reasons.append(f"{field}: last declared per-call allocation={prior}; no comparable observation")
+            return prior
+        raise SystemExit(f"[relay] STOP: no comparable per-call {field} evidence; declare it explicitly")
+
+    timeout_signal = (last.get("failure_evidence") or {}).get("signal")
+    secs = choose("timeout_seconds", getattr(a, "timeout_seconds", None), "timeout_seconds",
+                  "timeout_seconds_allocated", "duration_ms",
+                  timeout_signal in ("controlled_local_deadline", "controlled_remote_deadline"))
+    turns = None
+    if providers != {"codex_cli"}:
+        turns = choose("max_turns", getattr(a, "max_turns", None), "max_turns",
+                       "max_turns_allocated", "max_turns_used", last.get("budget_outcome") == "exhausted")
+    source = "supervisor per-invocation: " + "; ".join(reasons)
+    if providers == {"codex_cli"}:
+        return turn_budget.declare(getattr(a, "max_turns", None), secs, source=source, unit="wall_time")
+    return turn_budget.declare(turns, secs, source=source)
+
+
 def _supervise_resume(a, lp: str, doc: dict, secs, why: str) -> int:
     """Resume the ledger context; a provider change starts a fresh native session."""
     a = argparse.Namespace(**vars(a))  # One context's permissions/budget must not leak to the next.
-    reasons = continuation_stop_reasons(doc)
+    last = (doc.get("attempts") or [None])[-1] or {}
+    deferred = doc.get("capacity_deferred") or {}
+    allow_capacity = (deferred.get("dispatch_id") == last.get("dispatch_id") and
+                      (last.get("failure_evidence") or {}).get("signal") == "provider_capacity")
+    reasons = continuation_stop_reasons(doc, allow_control_recovery=allow_capacity)
     if reasons:
         print("[relay] STOP: " + "; ".join(reasons))
         return 3
@@ -1744,18 +1839,32 @@ def _supervise_resume(a, lp: str, doc: dict, secs, why: str) -> int:
     if getattr(a, "reasoning_effort", None) is None:
         a.reasoning_effort = doc.get("reasoning_effort")
     lks = last_known_session(doc)
-    rec = recommended_timeout(doc)
-    if rec and (secs is None or rec > secs):
-        secs = min(rec, turn_budget.schema_cap("timeout_seconds"))
-        why = f"{why} · 서브 제안 budget_recommendation.timeout_seconds={rec} 반영(배정은 메인 · 상한 캡)"
-    providers = {r.get("provider", "claude_code") for r in a.ladder}
-    if providers != {"codex_cli"}:
-        cap = turn_budget.schema_cap("max_turns")
-        a.max_turns = min(a.max_turns or max(budget_floor(doc), 1), cap)
-    bud = declared_budget(a, secs or turn_budget.schema_cap("timeout_seconds"),
-                           f"감독 스텝 자동 재발급 · {why}", doc)
+    deadline_resume = (last.get("failure_evidence") or {}).get("signal") in ("controlled_local_deadline", "controlled_remote_deadline")
+    native_exhausted = last.get("end_reason") == "budget_exhausted"
+    if native_exhausted and not native_budget_exhaustion_ready(a.repo_root, doc):
+        print("[relay] STOP: native budget exhaustion lacks durable same-session evidence")
+        return 3
+    if deadline_resume and not controlled_deadline_ready(a.repo_root, doc):
+        print("[relay] STOP: controlled deadline lacks durable same-session/command evidence")
+        return 3
+    if allow_capacity:
+        previous = next((b for b in reversed(doc.get("capacity_bursts") or [])
+                         if b.get("burst_id") == deferred.get("burst_id")), None)
+        answered = next((e for e in pend if e.get("recovery_required") == codex_recovery_requirement(last)
+                         and e.get("answer") == (previous or {}).get("authorization")
+                         and e.get("answer_source") == (previous or {}).get("source")), None)
+        if not last.get("session_id") or not previous or not answered:
+            print("[relay] STOP: deferred capacity lacks its recorded burst authorization")
+            return 3
+        a._capacity_resume_policy = previous
+        a.continue_, a.apply, a.resume = True, True, last["session_id"]
+    bud = select_supervised_budget(a, doc, secs, why)
     a._continuation_source_attempt = continuation_instruction(a.repo_root, doc)["attempt"]
     task = assemble_continuation(a.repo_root, doc, pend)
+    if deadline_resume or native_exhausted:
+        task = ("다른 행동 전에 기존 백그라운드 명령, 실행 중 서비스, sweep 상태와 산출물을 확인해 "
+                "상태를 조정하고 부분 파일을 보존하라. 조정 전에는 벤치를 재시작하거나 "
+                "기존 파일을 덮어쓰지 마라.\n" + task)
     return run_attempt(a, doc, lp, task, bud, lks.get("session_id") or "new")
 
 
@@ -2178,8 +2287,8 @@ def _self_test() -> int:
                           _mk(attempt=2, end_reason="budget_exhausted", phase="serve")]}
     chk(supervise_decide(_prog)["action"] == "resume",
         "★감독: 소진이지만 phase 가 전진했으면 **자동 재발급**(D9 항상 자동)")
-    _stall = {"attempts": [_mk(end_reason="budget_exhausted", phase="serve"),
-                           _mk(attempt=2, end_reason="budget_exhausted", phase="serve")]}
+    _stall = {"attempts": [_mk(end_reason="unclassified", phase="serve"),
+                           _mk(attempt=2, end_reason="unclassified", phase="serve")]}
     chk(supervise_decide(_stall)["action"] == "popup",
         "★감독: 전진이 없으면 예산을 키우기 전에 사람에게 묻는다")
     chk(supervise_decide(_stall, brief={"last_utc": "2026-09-08T20:00:00Z"})["action"] == "resume",
@@ -2187,8 +2296,8 @@ def _self_test() -> int:
     chk(supervise_decide(dict(_stall, supervisor_last_seen_utc="2026-09-08T21:00:00Z"),
                          brief={"last_utc": "2026-09-08T20:00:00Z"})["action"] == "popup",
         "★감독: 브리핑이 직전 스텝이 본 값보다 앞서지 않으면 전진이 아니다")
-    chk(supervise_decide(_prog, cost_cap_attempts=2)["action"] == "popup",
-        "★감독: 선언된 비용 상한에 닿으면 자동 재개 대신 팝업(D9)")
+    chk(supervise_decide(_prog, cost_cap_attempts=2)["action"] == "resume",
+        "★감독: 과거 누적 비용 상한은 재개를 막지 않는다")
     chk(supervise_decide({"attempts": [_mk(end_reason="transport_or_launch_failure")]}
                          )["action"] == "popup",
         "★감독: 통신·모델 평면이 깨지면 재개로 낫지 않는다 → 팝업")
@@ -2207,7 +2316,7 @@ def _self_test() -> int:
         "★감독 음성대조: hitl.needed 가 있으면 질문이다 → 팝업")
     chk(supervise_decide({"attempts": [_mk(**dict(_y, hitl_needed=None))]})["action"] == "popup",
         "★감독 음성대조: hitl 표지를 모르는 옛 원장(None)은 양보로 읽지 않는다 — 모르면 묻는다")
-    chk(supervise_decide({"attempts": [_mk(**_y)]}, cost_cap_attempts=1)["action"] == "popup",
+    chk(supervise_decide({"attempts": [_mk(**_y)]}, cost_cap_attempts=1)["action"] == "resume",
         "★감독 음성대조: 예산 양보 재개도 비용 상한을 넘지 않는다")
     chk(ledger_runner_spec({"runner_ladder": "kimi-claude,sonnet-5.5",
                             "attempts": [{"runner": {"name": "sonnet"}}]}) == "kimi-claude,sonnet-5.5"
@@ -2247,9 +2356,9 @@ def _self_test() -> int:
         _doc("a.md", "# T1\ncontext_id c-t1 · campaign x\n")
         _dp = doc_plane_progress(_d, _cut)
         chk(_dp is not None and "a.md" in _dp, f"★문서 평면: 창 안 · 같은 context 문서 → 전진 ({_dp})")
-        chk(supervise_decide(_cut)["action"] == "popup"
+        chk(supervise_decide(_cut)["action"] == "resume"
             and supervise_decide(_cut, doc_progress=_dp)["action"] == "resume",
-            "★감독: 강제 절단 + 문서 평면 전진 → 자동 재발급(R3-ⓑ) · 신호 없으면 종전대로 팝업")
+            "★감독: 호출 예산 소진은 증거 검증 후 이어진다")
     chk(supervise_decide({"attempts": [_mk(end_reason="sub_input_required", next_steps=["x"])]}
                          )["action"] == "popup",
         "★감독 음성대조: 표지 필드가 없는 옛 원장은 양보로 읽지 않는다(모르면 묻는다)")
@@ -2453,18 +2562,9 @@ def bound_resume(doc: dict, declared, request: dict) -> tuple[str, dict | None]:
 
 def declared_budget(a, timeout_seconds, source: str, doc: dict | None = None) -> dict:
     providers = {r.get("provider", "claude_code") for r in a.ladder}
-    cap = getattr(a, "max_dispatches", None)
-    if cap is None:
-        cap = (doc or {}).get("max_dispatches")
     if providers == {"codex_cli"}:
-        return turn_budget.declare(a.max_turns, timeout_seconds, source=source,
-                                   unit="wall_time", max_dispatches=cap)
-    native = turn_budget.declare(a.max_turns, timeout_seconds, source=source)
-    if "codex_cli" in providers or cap is not None:
-        wall = turn_budget.declare(None, timeout_seconds, source=source,
-                                   unit="wall_time", max_dispatches=cap)
-        native["max_dispatches"] = wall["max_dispatches"]
-    return native
+        return turn_budget.declare(a.max_turns, timeout_seconds, source=source, unit="wall_time")
+    return turn_budget.declare(a.max_turns, timeout_seconds, source=source)
 
 
 def _owned_artifact(repo_root: str, relative: str):
@@ -2594,13 +2694,6 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
         bud.update(max_turns=None, budget_unit="wall_time")
     else:
         bud.pop("budget_unit", None)
-    dispatch_cap = bud.get("max_dispatches")
-    if dispatch_cap is None:
-        dispatch_cap = doc.get("max_dispatches")
-        if dispatch_cap is not None:
-            bud["max_dispatches"] = dispatch_cap
-    if dispatch_cap is not None and attempt_no > dispatch_cap:
-        raise SystemExit(f"[relay] STOP: outer dispatch cap {dispatch_cap} reached")
     require_dispatch_recovery(a, doc, resume_declared)
     profile = getattr(a, "permission_profile", None)
     sandbox = getattr(a, "sandbox_mode", None)
@@ -2671,7 +2764,9 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
     doc.update(context_id=a.context_id, topology=a.topology, manifest=a.manifest_path)
     doc["task"] = doc.get("task") or task
     if policy:
-        doc["capacity_policy"] = policy
+        bursts = doc.setdefault("capacity_bursts", [])
+        if not any(b.get("burst_id") == policy["burst_id"] for b in bursts):
+            bursts.append(dict(policy))
     doc["inflight"] = {"dispatch_id": dispatch_id, "attempt": attempt_no,
                        "target": req["target"], "provider": provider,
                        "request_path": os.path.relpath(_qp, a.repo_root),
@@ -2681,8 +2776,6 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
                        "budget": dict(bud), "runner": dict(runner),
                        "resume_declared": effective_resume,
                        "started_utc": started, "owner_pid": os.getpid()}
-    if dispatch_cap is not None:
-        doc["max_dispatches"] = dispatch_cap
     if "reasoning_effort" in req:
         doc["reasoning_effort"] = req["reasoning_effort"]
     elif "reasoning_effort" in doc:
@@ -2780,9 +2873,8 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
             print(f"[relay]   백엔드가 남긴 말: {str(_ev['message'])[:300]}")
         return 5
     if att["budget_outcome"] == "exhausted":
-        print(f"[relay] ⚠ 예산 소진(terminal). 자동 재시도하지 않는다 — "
-              f"`relay.py --continue --context-id {a.context_id}` 로 이어라(본문은 기계가 조립한다).\n"
-              f"[relay]   다음 예산은 **선언**이다: 집행된 바닥 {budget_floor(doc)} 아래로 내리면 하강나선이다.")
+        print(f"[relay] 호출 예산 소진. 다음 실행 예산을 선언하고 checkpoint부터 이어라; "
+              f"관측과 남은 과업에 따라 필요하면 조정한다. context={a.context_id}")
         return 3
     if report is None:
         # 2026-09-05(N6): 종전 문구는 **검증하지 않은 원인**을 단정했다("산문만 왔다"). 라이브에서
@@ -2805,35 +2897,48 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
 def capacity_policy(a, doc, lp, bud):
     values = [getattr(a, k, None) for k in ("capacity_retries", "capacity_backoff_seconds",
               "capacity_deadline_utc", "capacity_approval_file")]
-    if not any(v is not None for v in values):
+    inherited = getattr(a, "_capacity_resume_policy", None)
+    if not any(v is not None for v in values) and not inherited:
         return None
-    if any(v is None for v in values):
-        raise SystemExit("[relay] STOP: capacity policy requires all four options")
-    retries, delay, deadline, file = values
-    if not 1 <= retries <= 10 or not 1 <= delay <= turn_budget.schema_cap("timeout_seconds"):
-        raise SystemExit("[relay] STOP: invalid capacity retry bounds")
-    try:
-        expiry = datetime.datetime.strptime(deadline, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
-        approval = json.loads(Path(file).read_text(encoding="utf-8"))
-    except (OSError, ValueError, UnicodeError):
-        raise SystemExit("[relay] STOP: invalid capacity deadline or approval file")
+    if inherited and not any(v is not None for v in values):
+        retries, delay = inherited.get("retries"), inherited.get("backoff_seconds")
+        approval = {"authorization": inherited.get("authorization"), "source": inherited.get("source")}
+        if (not isinstance(retries, int) or isinstance(retries, bool) or not 1 <= retries <= 10
+                or not isinstance(delay, int) or isinstance(delay, bool)
+                or not 1 <= delay <= turn_budget.schema_cap("timeout_seconds")):
+            raise SystemExit("[relay] STOP: invalid inherited capacity burst bounds")
+        expiry = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(
+            seconds=(retries + 1) * bud["timeout_seconds"] + retries * delay)
+        not_after = inherited.get("not_after_utc", inherited.get("deadline_utc"))
+        try:
+            independent_deadline = datetime.datetime.strptime(not_after, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+        except (TypeError, ValueError):
+            raise SystemExit("[relay] STOP: invalid recorded capacity not-after deadline")
+        expiry = min(expiry, independent_deadline)
+        deadline = expiry.strftime("%Y-%m-%dT%H:%M:%SZ")
+    else:
+        if any(v is None for v in values):
+            raise SystemExit("[relay] STOP: capacity policy requires all four options")
+        retries, delay, deadline, file = values
+        not_after = deadline
+        if not 1 <= retries <= 10 or not 1 <= delay <= turn_budget.schema_cap("timeout_seconds"):
+            raise SystemExit("[relay] STOP: invalid capacity retry bounds")
+        try:
+            expiry = datetime.datetime.strptime(deadline, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
+            approval = json.loads(Path(file).read_text(encoding="utf-8"))
+        except (OSError, ValueError, UnicodeError):
+            raise SystemExit("[relay] STOP: invalid capacity deadline or approval file")
     if (not isinstance(approval, dict) or set(approval) != {"authorization", "source"}
             or any(not isinstance(approval[k], str) or not approval[k].strip() for k in approval)):
         raise SystemExit("[relay] STOP: capacity approval needs verbatim authorization and source")
-    existing = doc.get("capacity_policy")
-    candidate = {"retries": retries, "backoff_seconds": delay, "deadline_utc": deadline,
-                 "authorization": approval["authorization"], "source": approval["source"]}
-    if existing:
-        if any(existing.get(k) != v for k, v in candidate.items()):
-            raise SystemExit("[relay] STOP: capacity policy cannot be reset or changed")
-    else:
-        if doc.get("inflight"):
-            raise SystemExit("[relay] STOP: cannot start capacity batch with inflight dispatch")
-        if (expiry - datetime.datetime.now(datetime.timezone.utc)).total_seconds() < bud["timeout_seconds"]:
-            raise SystemExit("[relay] STOP: insufficient capacity batch deadline")
-        candidate.update(start_attempt=len(doc.get("attempts") or []), allocated_slots=1 + retries)
-        existing = candidate
-    return existing
+    if doc.get("inflight"):
+        raise SystemExit("[relay] STOP: cannot start capacity burst with inflight dispatch")
+    if (expiry - datetime.datetime.now(datetime.timezone.utc)).total_seconds() < bud["timeout_seconds"]:
+        raise SystemExit("[relay] STOP: insufficient capacity burst deadline")
+    return {"burst_id": uuid.uuid4().hex, "retries": retries, "backoff_seconds": delay,
+            "deadline_utc": deadline, "not_after_utc": not_after,
+            "authorization": approval["authorization"], "source": approval["source"], "start_attempt": len(doc.get("attempts") or []),
+            "allocated_slots": 1 + retries}
 
 
 def capacity_deadline_fits(policy, bud):
@@ -2844,8 +2949,7 @@ def capacity_deadline_fits(policy, bud):
 def capacity_handoff_reentry(a, doc, runner, policy, resume_declared):
     """Spend an existing slot only on an explicit completed technical handoff."""
     attempts = doc.get("attempts") or []
-    used = len(attempts) - policy["start_attempt"]
-    if (doc.get("inflight") or used <= 0 or used >= policy["allocated_slots"]
+    if (doc.get("inflight")
             or not getattr(a, "continue_", False) or not getattr(a, "apply", False)
             or not getattr(a, "task_file", None) or not attempts):
         return False
@@ -2898,7 +3002,78 @@ def capacity_handoff_reentry(a, doc, runner, policy, resume_declared):
         return False
 
 
-def capacity_retry_ready(a, doc, bud, runner, policy):
+def native_budget_exhaustion_ready(repo_root, doc):
+    """Accept only a durable provider-reported native budget exhaustion."""
+    last = (doc.get("attempts") or [None])[-1] or {}
+    if (last.get("provider") != "claude_code" or last.get("end_reason") != "budget_exhausted"
+            or not last.get("session_id") or last.get("resume_honored") is False
+            or last.get("permission_denials") or continuation_stop_reasons(doc)):
+        return False
+    try:
+        req = _instruction_request(repo_root, doc, last)
+        reservation = {"outcome_path": last["outcome_path"], "request_path": last["request_path"],
+                       "request_digest": last["request_digest"], "dispatch_id": last["dispatch_id"],
+                       "target": req["target"], "provider": req["provider"]}
+        issued, result = load_dispatch_outcome(repo_root, {"inflight": reservation})
+        return (issued == req and req.get("provider") == "claude_code"
+                and permission_binding(req) == last.get("session_binding")
+                and result.get("session_id") == last.get("session_id")
+                and result.get("budget_outcome") == "exhausted"
+                and not any(code in ("PERMISSION_DENIED", "TIMEOUT")
+                            for code in result.get("reason_codes") or []))
+    except (OSError, ValueError, KeyError, TypeError, SystemExit):
+        return False
+
+
+def controlled_deadline_ready(repo_root, doc):
+    """Verify the owned worker was reaped; unfinished tools require reconciliation."""
+    last = (doc.get("attempts") or [None])[-1] or {}
+    binding = last.get("session_binding") or {}
+    if (not last.get("session_id") or last.get("resume_honored") is False or
+            (last.get("failure_evidence") or {}).get("signal") not in ("controlled_local_deadline", "controlled_remote_deadline")):
+        return False
+    try:
+        req = _instruction_request(repo_root, doc, last)
+        reservation = {"outcome_path": last["outcome_path"], "request_path": last["request_path"],
+                       "request_digest": last["request_digest"], "dispatch_id": last["dispatch_id"],
+                       "target": req["target"], "provider": req["provider"]}
+        issued, result = load_dispatch_outcome(repo_root, {"inflight": reservation})
+        signal_kind = (result.get("failure_evidence") or {}).get("signal")
+        if (issued != req or permission_binding(req) != binding or result.get("status") != "timeout" or
+                result.get("session_id") != last["session_id"] or
+                signal_kind != (last.get("failure_evidence") or {}).get("signal") or
+                (signal_kind == "controlled_local_deadline" and req["target"].get("transport") != "local") or
+                (signal_kind == "controlled_remote_deadline" and req["target"].get("transport") != "ssh")):
+            return False
+        if signal_kind == "controlled_remote_deadline":
+            provider = _agent_control._load_provider("codex_cli")
+            events = result.get("raw_events") or []
+            if not events or events[-1] != {"type": "adapter.deadline_reaped", "request_digest": provider._request_digest(req)}:
+                return False
+        if signal_kind not in ("controlled_local_deadline", "controlled_remote_deadline"):
+            return False
+        open_commands = set()
+        for event in result.get("raw_events") or []:
+            item = event.get("item") if isinstance(event, dict) else None
+            if not isinstance(item, dict) or item.get("type") != "command_execution":
+                continue
+            ident = item.get("id")
+            if not isinstance(ident, str) or not ident:
+                return False
+            if event.get("type") == "item.completed" and item.get("status") not in ("in_progress", "running"):
+                open_commands.discard(ident)
+            elif event.get("type") in ("item.started", "item.updated"):
+                open_commands.add(ident)
+            else:
+                return False
+        # An unfinished tool is evidence to reconcile, not evidence of completion.
+        # The next task carries the mandatory reconciliation-first instruction.
+        return True
+    except (OSError, ValueError, KeyError, TypeError, SystemExit):
+        return False
+
+
+def capacity_retry_ready(a, doc, bud, runner, policy, *, check_deadline=True):
     if not policy or doc.get("inflight"):
         return False
     attempts = doc.get("attempts") or []
@@ -2955,10 +3130,7 @@ def capacity_retry_ready(a, doc, bud, runner, policy):
         if open_commands:
             return False
         deadline = datetime.datetime.strptime(policy["deadline_utc"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
-        if (deadline - datetime.datetime.now(datetime.timezone.utc)).total_seconds() < policy["backoff_seconds"] + bud["timeout_seconds"]:
-            return False
-        cap = doc.get("max_dispatches") or bud.get("max_dispatches")
-        if not cap or len(attempts) >= cap:
+        if check_deadline and (deadline - datetime.datetime.now(datetime.timezone.utc)).total_seconds() < policy["backoff_seconds"] + bud["timeout_seconds"]:
             return False
         pending = pending_for(a.repo_root, doc.get("context_id"))
         recovery = codex_recovery_requirement(last)
@@ -2994,14 +3166,16 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     native session using the artifact continuation, never a failed runner's empty session.
     """
     ladder = a.ladder
-    requested_policy = any(getattr(a, k, None) is not None for k in
-                           ("capacity_retries", "capacity_backoff_seconds", "capacity_deadline_utc", "capacity_approval_file"))
+    requested_policy = bool(getattr(a, "_capacity_resume_policy", None)) or any(
+        getattr(a, k, None) is not None for k in
+        ("capacity_retries", "capacity_backoff_seconds", "capacity_deadline_utc", "capacity_approval_file"))
     if requested_policy and (len(ladder) != 1 or ladder[0].get("provider") != "codex_cli"):
         raise SystemExit("[relay] STOP: capacity retry requires one Codex runner")
     policy = capacity_policy(a, doc, lp, bud)
-    if (policy and len(doc.get("attempts") or []) != policy["start_attempt"]
+    prior = (doc.get("attempts") or [None])[-1]
+    if (policy and prior and prior.get("status") == "input-required" and getattr(a, "task_file", None)
             and not capacity_handoff_reentry(a, doc, ladder[0], policy, resume_declared)):
-        raise SystemExit("[relay] STOP: capacity batch already started; do not reset its allocation")
+        raise SystemExit("[relay] STOP: explicit handoff lacks durable same-session evidence")
     a._prepared_capacity_policy = policy
     start = next_runner_index(doc, ladder)
     if len(ladder) > 1:
@@ -3010,6 +3184,24 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     tried = []
     for step in range(len(ladder)):
         runner = ladder[(start + step) % len(ladder)]
+        last = (doc.get("attempts") or [None])[-1]
+        if (policy and not a.emit_only and last and (last.get("failure_evidence") or {}).get("signal") == "provider_capacity"):
+            if not capacity_retry_ready(a, doc, bud, runner, policy):
+                raise SystemExit("[relay] STOP: capacity continuation lacks session, evidence, or remaining wall time")
+            if resume_declared != last.get("session_id"):
+                raise SystemExit("[relay] STOP: capacity continuation must resume the same session")
+            time.sleep(policy["backoff_seconds"])
+            if not capacity_retry_ready(a, doc, bud, runner, dict(policy, backoff_seconds=0)):
+                raise SystemExit("[relay] STOP: capacity continuation deadline or evidence changed")
+            pending = pending_for(a.repo_root, a.context_id)
+            if any(e.get("recovery_required") == codex_recovery_requirement(last) and not e.get("answer") for e in pending):
+                capacity_answer(a.repo_root, a.context_id, last, policy)
+            a.continue_, a.apply, a.resume = True, True, resume_declared
+            require_dispatch_recovery(a, doc, resume_declared)
+            a._continuation_source_attempt = continuation_instruction(a.repo_root, doc)["attempt"]
+            task = ("먼저 기존 실행 중 서비스와 명령 및 산출물을 확인하고 부분 파일을 보존하라. "
+                    "이미 실행된 벤치를 다시 시작하거나 부분 파일을 덮어쓰지 마라.\n" +
+                    assemble_continuation(a.repo_root, doc, pending_for(a.repo_root, a.context_id)))
         rc = run_attempt_once(a, doc, lp, task, bud, resume_declared, runner)
         if a.emit_only:
             return rc
@@ -3027,6 +3219,16 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
                     assemble_continuation(a.repo_root, doc, pending_for(a.repo_root, a.context_id)))
             rc = run_attempt_once(a, doc, lp, task, bud, a.resume, runner)
             last = (doc.get("attempts") or [])[-1]
+        if (policy and (last.get("failure_evidence") or {}).get("signal") == "provider_capacity"):
+            probe = dict(policy, allocated_slots=len(doc.get("attempts") or []) - policy["start_attempt"] + 1)
+            if capacity_retry_ready(a, doc, bud, runner, probe, check_deadline=False):
+                pending = pending_for(a.repo_root, a.context_id)
+                if any(e.get("recovery_required") == codex_recovery_requirement(last) and not e.get("answer") for e in pending):
+                    capacity_answer(a.repo_root, a.context_id, last, policy)
+                doc["capacity_deferred"] = {"dispatch_id": last["dispatch_id"], "burst_id": policy["burst_id"]}
+                save_ledger(lp, doc)
+                print("[relay] capacity burst deferred; a later bounded burst may continue the same session")
+                return 2
         if last.get("end_reason") != "runner_unavailable":
             return rc
         ev = last.get("runner_evidence") or {}
@@ -3078,7 +3280,7 @@ def _main() -> int:
                     help="이 attempt 에 배정할 턴 예산(선언 필수 — 등급표 폐기 · 기본값 없음)")
     ap.add_argument("--provider", choices=("claude_code", "codex_cli"), default=None)
     ap.add_argument("--max-dispatches", type=int, default=None,
-                    help="Codex가 포함된 context의 외부 위임 횟수 상한(선언)")
+                    help="구 호출 호환 인자; 누적 호출 상한으로 적용하지 않음")
     permissions = ap.add_mutually_exclusive_group()
     permissions.add_argument("--permission-profile")
     permissions.add_argument("--sandbox-mode", choices=("read-only", "workspace-write"))
@@ -3137,7 +3339,7 @@ def _main() -> int:
                     help="감독 한 걸음 — 원장+회수 브리핑을 읽어 판정하고 원장에 적고 끝난다. "
                          "상주 ✗(세션 리볼빙 · D7). --apply 면 전진이 보이는 중단을 자동 재발급한다")
     ap.add_argument("--cost-cap-attempts", type=int, default=None,
-                    help="감독 스텝의 비용 상한(선언) — 이 수에 닿으면 자동 재개 대신 팝업(D9)")
+                    help="구 호출 호환 인자; 누적 호출 상한으로 적용하지 않음")
     ap.add_argument("--utc", default=None, help="감독 스텝 기록 시각(주입 · 생략 시 메인 벽시계)")
     ap.add_argument("--campaign-control", choices=tuple(CAMPAIGN_CONTROLS), default=None,
                     help="수명 전이(보류·재개·종결·포기)를 서브에 A2A 로 전한다 · --campaign-id --node 필수 · 지시 본문은 "
@@ -3154,8 +3356,6 @@ def _main() -> int:
         ap.error("--task and --task-file are mutually exclusive")
     if a.continue_ and a.task:
         ap.error("--continue accepts --task-file, not --task")
-    if a.supervise_step and any(getattr(a, k, None) is not None for k in ("capacity_retries", "capacity_backoff_seconds", "capacity_deadline_utc", "capacity_approval_file")):
-        ap.error("capacity policy requires an explicit dispatch, not supervision")
     if a.supervise_step and (a.task or a.task_file):
         ap.error("--supervise-step does not accept task input")
     if a.reconcile_result and not a.reconcile_inflight:
@@ -3272,8 +3472,8 @@ def _main() -> int:
                   f"전송 상한 {turn_budget.schema_cap('max_turns')} · 대기 요청 {len(pend)}건 · "
                   f"전진 없는 연속 attempt {stalled}회")
             if _last_out == "exhausted":
-                print("[relay]   직전은 **소진**이다 — 같은 값으로 다시 열면 그 자리서 또 소진된다"
-                      "(감액은 하강나선 · scope ⊥ budget).")
+                print("[relay]   직전 호출은 소진됐다 — 새 실행 예산을 선언하고 checkpoint부터 이어라. "
+                      "관측과 남은 과업에 따라 필요하면 조정한다.")
             print("─" * 72)
             sys.stdout.write(task)
             print("─" * 72)

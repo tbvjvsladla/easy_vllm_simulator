@@ -13,9 +13,8 @@
 보존한 규율 두 문장 — 이제 값이 아니라 **문장**으로만 남는다(강제하는 코드는 없다):
   ① **scope ⊥ budget** — `max_turns` 는 비용 노브이지 hang 노브가 아니다. 매달림은
      `timeout_seconds` + 진행로그 + post-verify 로 따로 잡는다. 그래서 둘을 **함께** 선언한다.
-  ② **소진은 terminal 이고 다음은 더 큰 예산의 새 attempt 다** — 줄이면 하강나선이다.
-     원장이 집행된 예산과 소진 사실을 그대로 보여주므로(`relay.py --continue` dry-run),
-     선언하는 쪽이 그것을 보고 정한다. 규율을 지키는 주체가 표에서 사람·에이전트로 옮겨졌다.
+  ② 호출 소진은 checkpoint를 보존한 새 attempt에서 이어진다. 다음 예산은 남은 과업,
+     실제 호출 관측과 제안을 근거로 정하며, 같은 값이나 작은 값도 상황에 따라 가능하다.
 """
 from __future__ import annotations
 
@@ -65,9 +64,6 @@ def declare(max_turns, timeout_seconds, *, source: str, caps: dict = None,
     if unit == "wall_time":
         if max_turns is not None:
             raise SystemExit("[turn-budget] FAIL: wall_time provider cannot enforce native max_turns")
-        if (not isinstance(max_dispatches, int) or isinstance(max_dispatches, bool)
-                or max_dispatches < 1):
-            raise SystemExit("[turn-budget] FAIL: wall_time requires an explicit positive max_dispatches")
     vals = {"timeout_seconds": timeout_seconds}
     if unit == "native_turns":
         vals["max_turns"] = max_turns
@@ -76,7 +72,7 @@ def declare(max_turns, timeout_seconds, *, source: str, caps: dict = None,
             raise SystemExit(
                 f"[turn-budget] FAIL: {k} 가 선언되지 않았다 — 기본값을 만들지 않는다(등급표 폐기).\n"
                 "  → 예산은 과업의 크기를 아는 쪽이 정한다. `--max-turns`/`--timeout-seconds` 로 선언하라.\n"
-                "  → 규율: scope ⊥ budget(매달림은 timeout 이 잡는다) · 소진 뒤 감액 ✗.")
+                "  → 규율: scope ⊥ budget(매달림은 timeout 이 잡는다) · checkpoint부터 재개.")
         if not isinstance(v, int) or isinstance(v, bool) or v < 1:
             raise SystemExit(f"[turn-budget] FAIL: {k}={v!r} 은 1 이상의 정수가 아니다.")
         if v > caps[k]:
@@ -88,7 +84,9 @@ def declare(max_turns, timeout_seconds, *, source: str, caps: dict = None,
         raise SystemExit("[turn-budget] FAIL: 예산 출처(source)가 비어 있다 — 값 옆에 출처를 적는다.")
     result = {"max_turns": max_turns, "timeout_seconds": timeout_seconds, "source": source.strip()}
     if unit == "wall_time":
-        result.update(budget_unit=unit, max_dispatches=max_dispatches)
+        # Legacy callers may supply max_dispatches; cumulative dispatch limits are
+        # not a native budget and are deliberately not emitted.
+        result.update(budget_unit=unit)
     return result
 
 
@@ -136,6 +134,19 @@ def _self_test() -> int:
         chk(False, "출처 없는 선언 → fail-loud")
     except SystemExit:
         chk(True, "출처 없는 선언 → fail-loud(출처 표시 규율)")
+
+    wall = declare(None, 90, source="per-invocation", unit="wall_time")
+    chk(wall["budget_unit"] == "wall_time" and "max_dispatches" not in wall,
+        "Codex wall-time declaration requires no cumulative dispatch count")
+    legacy = declare(None, 90, source="historical caller", unit="wall_time", max_dispatches=3)
+    chk("max_dispatches" not in legacy, "new budgets do not emit a legacy dispatch count")
+    for kwargs in ({"max_turns": None, "timeout_seconds": None},
+                   {"max_turns": 2, "timeout_seconds": 90}):
+        try:
+            declare(source="negative", unit="wall_time", **kwargs)
+            chk(False, "Codex missing timeout or native turn cap rejected")
+        except SystemExit:
+            chk(True, "Codex missing timeout or native turn cap rejected")
 
     print("self-test: %s" % ("PASS" if ok else "FAIL"))
     return 0 if ok else 2

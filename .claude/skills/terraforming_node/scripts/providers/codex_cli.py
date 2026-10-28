@@ -15,6 +15,7 @@ does not reuse its text fallback: malformed JSONL must not become successful pro
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import shlex
@@ -78,12 +79,75 @@ def _inner_argv(request: dict) -> list[str]:
     return argv
 
 
+def _request_digest(request: dict) -> str:
+    return hashlib.sha256(json.dumps(request, sort_keys=True, ensure_ascii=False,
+                                     separators=(",", ":")).encode("utf-8")).hexdigest()
+
+
+# The marker is written by the remote watchdog only after its owned process
+# group has been signalled and the direct child reaped. Native argv stays here.
+_REMOTE_WATCHDOG = r"""import base64,json,os,selectors,signal,subprocess,sys,time
+seconds=float(sys.argv[1]); digest=sys.argv[2]
+p=subprocess.Popen(sys.argv[3:], stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, start_new_session=True)
+def emit(obj): print(json.dumps(obj,separators=(',',':')),flush=True)
+def child_line(data): emit({'type':'adapter.child_line','data':base64.b64encode(data).decode('ascii')})
+emit({'type':'adapter.framing_started','request_digest':digest})
+sel=selectors.DefaultSelector(); sel.register(p.stdout,selectors.EVENT_READ)
+buf=b''; deadline=time.monotonic()+seconds; timed_out=False
+while True:
+    rc=p.poll()
+    if rc is not None: break
+    remaining=deadline-time.monotonic()
+    if remaining <= 0:
+        if p.poll() is not None: break
+        try: os.killpg(p.pid, signal.SIGTERM); timed_out=True
+        except ProcessLookupError: pass
+        if timed_out:
+            try: p.wait(timeout=3)
+            except subprocess.TimeoutExpired:
+                try: os.killpg(p.pid, signal.SIGKILL)
+                except ProcessLookupError: pass
+                p.wait()
+            try: os.killpg(p.pid, signal.SIGKILL)
+            except ProcessLookupError: pass
+        break
+    for key,_ in sel.select(min(remaining,0.1)):
+        data=os.read(key.fd,65536)
+        if not data:
+            sel.unregister(p.stdout)
+            continue
+        buf+=data
+        while b'\n' in buf:
+            line,buf=buf.split(b'\n',1); child_line(line)
+# Drain only currently available bytes: an inherited pipe FD must not hold the
+# watchdog open or turn a child exit into a fabricated timeout.
+remaining_drain=1048576
+while remaining_drain and sel.get_map() and sel.select(0):
+    data=os.read(p.stdout.fileno(),min(65536,remaining_drain))
+    if not data: break
+    remaining_drain-=len(data); buf+=data
+    while b'\n' in buf:
+        line,buf=buf.split(b'\n',1); child_line(line)
+incomplete=not remaining_drain and bool(sel.get_map()) and bool(sel.select(0))
+if buf: child_line(buf)
+sel.close(); p.stdout.close()
+if incomplete: emit({'type':'adapter.output_incomplete'})
+if timed_out:
+    emit({'type':'adapter.deadline_reaped','request_digest':digest})
+    sys.exit(124)
+rc=p.wait(); rc=128-rc if rc<0 else rc
+emit({'type':'adapter.worker_exited','request_digest':digest,'exit_code':rc})
+sys.exit(rc)
+"""
+
+
 def build_argv(request: dict) -> list[str]:
     inner = _inner_argv(request)
     target = request["target"]
     if target["transport"] == "local":
-        return ["timeout", "--signal=TERM", "--kill-after=" + str(KILL_GRACE_SECONDS) + "s",
-                str(request["timeout_seconds"]) + "s", *_locked_argv(inner, target["work_dir"])]
+        # The adapter watchdog is the sole local deadline owner; a natural child
+        # exit 124 remains ambiguous instead of racing a nested timeout wrapper.
+        return _locked_argv(inner, target["work_dir"])
     # Host/user are one ssh operand, and all remote grammar is emitted from quoted tokens.
     # The marker distinguishes a missing runner from timeout/ssh/cd launch failures.
     marker = json.dumps({"type": "adapter.runner_missing"}, separators=(",", ":"))
@@ -91,9 +155,9 @@ def build_argv(request: dict) -> list[str]:
         "cd " + shlex.quote(target["work_dir"]) + " && mkdir -p -- output && "
         "{ command -v codex >/dev/null 2>&1 || "
         "{ printf '%s\\n' " + shlex.quote(marker) + "; exit 127; }; "
-        "exec timeout --signal=TERM --kill-after=" + str(KILL_GRACE_SECONDS) + "s "
-        + str(request["timeout_seconds"]) + "s "
-        + " ".join(shlex.quote(token) for token in _locked_argv(inner, target["work_dir"])) + "; }"
+        "exec " + " ".join(shlex.quote(token) for token in
+            ["python3", "-c", _REMOTE_WATCHDOG, str(request["timeout_seconds"]),
+             _request_digest(request), *_locked_argv(inner, target["work_dir"])]) + "; }"
     )
     return ["ssh", *SSH_HARDENING, "--", target["ssh_user"] + "@" + target["host"],
             "bash -lc " + shlex.quote(script)]
@@ -124,6 +188,10 @@ def parse_output(request: dict, stdout: str, stderr: str, returncode: int, *,
     marker is the sole remote rotation signal and must precede all native execution.
     """
     events, malformed = [], False
+    framed = False
+    terminal_count = 0
+    terminal_seen = False
+    child_count = 0
     for line in stdout.splitlines():
         if not line.strip():
             continue
@@ -135,7 +203,51 @@ def parse_output(request: dict, stdout: str, stderr: str, returncode: int, *,
         if not isinstance(obj, dict) or not isinstance(obj.get("type"), str):
             malformed = True
             continue
+        if obj.get("type") == "adapter.framing_started":
+            if framed or events or obj != {"type": "adapter.framing_started", "request_digest": _request_digest(request)}:
+                malformed = True
+            else:
+                framed = True
+            continue
+        if framed and obj.get("type") == "adapter.child_line":
+            if terminal_seen:
+                malformed = True
+            try:
+                if set(obj) != {"type", "data"} or not isinstance(obj["data"], str):
+                    raise ValueError("invalid child frame")
+                raw = base64.b64decode(obj["data"], validate=True)
+                child = json.loads(raw.decode("utf-8"))
+                if not isinstance(child, dict) or not isinstance(child.get("type"), str):
+                    raise ValueError("invalid native event")
+                # The first line is emitted by our flock wrapper before exec.
+                # All other adapter.* records are untrusted child output.
+                if child["type"].startswith("adapter.") and not (
+                        child_count == 0 and child == {"type": "adapter.lock_acquired"}):
+                    events.append({"type": "adapter.quarantined_child", "data": obj["data"]})
+                    malformed = True
+                else:
+                    events.append(child)
+                child_count += 1
+            except (ValueError, UnicodeError, RecursionError):
+                events.append({"type": "adapter.quarantined_child", "data": obj.get("data")})
+                malformed = True
+            continue
+        if framed:
+            kind = obj.get("type")
+            if kind not in ("adapter.deadline_reaped", "adapter.worker_exited"):
+                malformed = True
+                continue
+            terminal_count += 1
+            terminal_seen = True
+            if terminal_count != 1:
+                malformed = True
+            if kind == "adapter.worker_exited" and obj != {
+                    "type": "adapter.worker_exited", "request_digest": _request_digest(request),
+                    "exit_code": returncode}:
+                malformed = True
         events.append(obj)
+    if framed and terminal_count != 1:
+        malformed = True
     session, usage, message = None, None, None
     started, completed, failed, denial, runner_missing = False, False, False, False, False
     lock_acquired = False
@@ -223,7 +335,18 @@ def parse_output(request: dict, stdout: str, stderr: str, returncode: int, *,
         evidence["signal"] = "worker_busy"
         return _result(request, reasons=["NONZERO_EXIT"], evidence=evidence, **common)
     if timed_out or returncode == 124:
-        evidence["signal"] = "wall_timeout"
+        # Only the local adapter's own deadline and process-group cleanup prove
+        # this was our controlled deadline; an SSH watchdog or exit 124 is ambiguous.
+        remote_markers = [event for event in events if event.get("type") == "adapter.deadline_reaped"]
+        remote_controlled = (framed and not timed_out and returncode == 124 and request["target"]["transport"] == "ssh"
+                             and len(remote_markers) == 1 and events[-1] == remote_markers[0]
+                             and remote_markers[0] == {"type": "adapter.deadline_reaped",
+                                                       "request_digest": _request_digest(request)})
+        common_controlled = (lock_acquired and not malformed and not protocol_bad and not failed
+                             and not completed and not denial and bool(session) and started)
+        local_controlled = timed_out and request["target"]["transport"] == "local"
+        evidence["signal"] = (("controlled_remote_deadline" if remote_controlled else "controlled_local_deadline")
+                              if common_controlled and (remote_controlled or local_controlled) else "wall_timeout")
         return _result(request, status="timeout", exit_code=124,
                        reasons=["TIMEOUT"] + (["PERMISSION_DENIED"] if denial else []),
                        output=denial_note,

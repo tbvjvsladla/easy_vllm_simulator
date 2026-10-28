@@ -134,8 +134,8 @@ stdout은 항상 `agent-control-result.schema.json`의 정렬된 JSON이다. 성
 `agent_control.py runners --provider all`로 전체 별칭을 읽는다. 이번 명시적 선택은
 `codex-gpt-6.1-sol`이고 기존 기본 사다리는 바꾸지 않는다.
 
-- 예산: `max_turns: null`, `budget_unit: wall_time`, 유한한 `timeout_seconds`, 명시적
-  `max_dispatches`. 마지막 값은 relay context의 외부 위임 상한이다. Codex의 완료 이벤트를
+- 예산: `max_turns: null`, `budget_unit: wall_time`, 한 번의 실행에 대한 유한한 `timeout_seconds`를
+  선언한다. 새 요청에 누적 `max_dispatches`를 싣지 않으며 과거 필드는 호환 관측으로만 읽는다. Codex의 완료 이벤트를
   Claude native turn으로 세지 않는다. 시간 한도는 토큰·금액의 하드 한도가 아니다.
 - 권한: `sandbox_mode` 또는 `permission_profile` 중 하나. 읽기 전용 카나리는 `read-only`,
   운영 위임은 검증된 `vllm-main`/`vllm-sub` named profile을 사용한다. named profile에서는
@@ -146,6 +146,11 @@ stdout은 항상 `agent-control-result.schema.json`의 정렬된 JSON이다. 성
   `raw_events`에 남긴다. 보고하지 않은 native 턴·API 시간·모델은 null/빈 배열이다.
 - 실패: 잘린 JSONL, 빈 최종 메시지, native failure, 권한 거부, timeout을 성공으로 바꾸지 않는다.
   미지 오류·권한 거부·효과가 발생했을 수 있는 실패는 자동 회전하지 않는다.
+
+정상 워커 예산 소진과 과업 종료는 다르다. adapter가 실제 deadline 집행과 워커 종료·회수를
+요청에 결속해 관측한 경우 체크포인트 재개를 허용한다. 단순 exit124나 원격 SSH 감시 timeout은
+그 증명이 아니다. 재개 워커는 남아 있는 명령·서비스·부분 산출물을 먼저 확인하며 성공이나 중복
+실행을 추론하지 않는다. 이 계약은 메인 자체가 상위 오케스트레이터의 워커인 경우에도 같다.
 
 `agent_control.py invoke --request <file> --result-file <unique-path> --dispatch-id <id>`는
 선택적 provider-neutral 영속 출력 계약이다. 두 추가 옵션은 함께 사용한다. schema 검증을 마친

@@ -437,7 +437,7 @@ def build_request(topology: str, manifest_path: str, *,
     if reasoning_effort is not None:
         request["reasoning_effort"] = reasoning_effort
     if provider == "codex_cli":
-        request.update(budget_unit=unit, max_dispatches=bud["max_dispatches"])
+        request.update(budget_unit=unit)
         if sandbox_mode and permission_profile:
             raise SystemExit("[canary] FAIL: choose sandbox_mode OR permission_profile")
         if permission_profile:
@@ -496,6 +496,12 @@ def _self_test() -> int:
             "multi 카나리 문구가 ray-worker 정체성을 묻는다")
         chk(req["max_turns"] == 10 and req["timeout_seconds"] == 600 and "source" not in req,
             "turn 예산이 **선언**으로 들어오고 출처는 요청 밖에 남는다(등급표 ✗)")
+        for legacy_count in (None, 3):
+            codex = build_request("multi", mp, timeout_seconds=90, budget_source="per invocation",
+                                  provider="codex_cli", backend="openai", max_dispatches=legacy_count)
+            chk("max_dispatches" not in codex and codex["timeout_seconds"] == 90
+                and _ac.request_schema_violations(codex) == [],
+                "Codex request omits historical cumulative count and preserves wall timeout")
         # 음성대조 ⓪: 예산을 선언하지 않으면 조립되지 않는다(기본값이 없다).
         try:
             build_request("multi", mp)
@@ -544,7 +550,7 @@ def main() -> int:
                     help="이 카나리에 배정할 턴 예산(선언 필수 — 기본값 없음)")
     ap.add_argument("--provider", choices=("claude_code", "codex_cli"), default="claude_code")
     ap.add_argument("--max-dispatches", type=int, default=None,
-                    help="Codex wall-time 계약의 명시적 외부 위임 상한")
+                    help="과거 호출 호환 인자; 새 요청의 누적 호출 상한으로 쓰지 않음")
     permissions = ap.add_mutually_exclusive_group()
     permissions.add_argument("--sandbox-mode", choices=("read-only", "workspace-write"))
     permissions.add_argument("--permission-profile")
