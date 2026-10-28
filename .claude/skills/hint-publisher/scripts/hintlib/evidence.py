@@ -844,8 +844,8 @@ def _build_identity(repo: Path, *, topology: str, env: dict, env_rel: str | None
         obs_df, obs_note = _history_track_dockerfile((facts or {}).get("history_build_args") or {})
         if obs_df and obs_df != dockerfile:
             src["dockerfile"] = obs_note + (f" — {src['dockerfile']} 은 이 이미지 관측과 모순 · 관측이 이긴다" if dockerfile else
-                                            f" — {src['dockerfile']}" + (f" · ⚠ compose 리터럴 {lit} ≠ 관측 {obs_df}(이 이미지는 "
-                                                                        "compose build 로 지어지지 않았다)" if lit_txt and lit != obs_df else ""))
+                                            f" — {src['dockerfile']}" + (f" · ⚠ compose 리터럴 {lit} ≠ 관측 {obs_df}(이미지 빌드에 사용된 "
+                                                                        "compose 또는 override 여부는 미관측)" if lit_txt and lit != obs_df else ""))
             dockerfile = obs_df
         elif not dockerfile:
             src["dockerfile"] += f" · {obs_note}" + ("" if facts is not None else " · 이미지 탐침 결과 없음(docker 미가용 · 이미지 부재)")
@@ -9398,7 +9398,7 @@ def selftest() -> list[str]:
                "지어지지 않았다)' · '모두 부재' ✗",
                compose_build_dockerfile(comp) == ("literal", "Dockerfile")
                and ev_lit.build_identity.get("dockerfile") == "Dockerfile.source-build"
-               and "리터럴 build.dockerfile: Dockerfile(" in s_lit and "compose build 로 지어지지 않았다" in s_lit and "모두 부재" not in s_lit)
+               and "리터럴 build.dockerfile: Dockerfile(" in s_lit and "compose 또는 override 여부는 미관측" in s_lit and "모두 부재" not in s_lit)
             ck("F2 compose_build_dockerfile: 기본값 꼴 = selector · 블록 없음 = (None, None)",
                compose_build_dockerfile(Path(td) / "nope.yaml") == (None, None)
                and (comp.write_text(comp_text + "    build:\n      dockerfile: ${BUILD_DOCKERFILE:-Dockerfile.x}\n",

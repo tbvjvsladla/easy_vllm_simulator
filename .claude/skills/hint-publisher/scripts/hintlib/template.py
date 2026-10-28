@@ -3961,6 +3961,23 @@ def render_bench_source(repo: Path, source) -> str:
     return _render_bench_source(Path(repo), source)
 
 
+_LEGACY_SLOT_INTRO = "> 기계가 적용 증거(빌드 원장 · 원장이 없으면 라벨된 재구성) × 파일 × 선언을 대사한 결과다. `artifacts/` 에는 **적용된 것만** 실렸다 — 빌드 때 스스로 skip 된 패치와 쓰이지 않은 평면의 파일은 표에만 남고 싣지 않는다."
+
+
+def slot_intro(text: str) -> tuple[int, str]:
+    """The uniquely owned first visible line of chapter 1.1; reject ambiguous structure."""
+    doc = _Doc.parse("01-artifacts", text)
+    heads = [i for i, chapter, _ in doc.chapters if chapter == "1.1"]
+    if doc.structure or len(heads) != 1:
+        core.fail("HINT_SLOT_INTRO_AMBIGUOUS", "01-artifacts §1.1 구조가 유일하지 않다.")
+    pos = heads[0] + 1
+    while pos < len(doc.lines) and not doc.lines[pos].strip():
+        pos += 1
+    if pos >= len(doc.lines) or doc.chapter_of[pos] != "1.1" or doc.masked[pos] or doc.fence[pos]:
+        core.fail("HINT_SLOT_INTRO_AMBIGUOUS", "01-artifacts §1.1 도입 줄을 식별할 수 없다.")
+    return pos, doc.lines[pos]
+
+
 def update_facts(repo: Path, payload_dir: Path, changes: dict, *, snapshot_path: Path | None = None) -> list[str]:
     """facts 스냅샷에 `changes` 를 덮어쓰고, 그 사실로 렌더되는 **기계 사실 블록만** 다시 쓴다(2026-09-22 통합 · continue 가
     승인 기록·슬롯 적용 사유를 반영할 때). 저작 영역·PROMPT·봉인 질문 줄·파생 블록(wall_map·knob_status)은 건드리지 않는다 —
@@ -3974,9 +3991,15 @@ def update_facts(repo: Path, payload_dir: Path, changes: dict, *, snapshot_path:
     if not isinstance(changes, dict):
         core.fail("HINT_FACTS_SHAPE", "changes 는 dict 여야 한다")
     new = _normalize_facts({**old, **changes})
-    if new == old:
-        return []
+    p01 = payload_dir / "01-artifacts.md"
     templates = _load_templates(repo)
+    _, fixed_new = slot_intro(templates["01-artifacts"].text)
+    intro_index, intro = slot_intro(p01.read_text(encoding="utf-8")) if p01.is_file() else (None, None)
+    if intro not in (_LEGACY_SLOT_INTRO, fixed_new):
+        core.fail("HINT_SLOT_INTRO_AMBIGUOUS", "01-artifacts §1.1 도입이 알려진 이전 문구나 현행 템플릿과 다르다.")
+    migrate = intro == _LEGACY_SLOT_INTRO and intro != fixed_new
+    if new == old and not migrate:
+        return []
     ctx = _Ctx(repo, new, templates)
     writes: dict[Path, str] = {}
     changed: list[str] = []
@@ -3988,6 +4011,9 @@ def update_facts(repo: Path, payload_dir: Path, changes: dict, *, snapshot_path:
             core.fail("HINT_DOCUMENT_ABSENT", f"사실 블록을 다시 쓸 문서 부재: {name}.md")
         doc = _Doc.parse(name, p.read_text(encoding="utf-8"))
         lines = list(doc.lines)
+        if name == "01-artifacts" and migrate:
+            lines[intro_index] = fixed_new
+            changed.append("01-artifacts:fixed-introduction")
         edits = []
         for f in doc.facts:
             if f.fid in DERIVED_FACTS or f.fid not in FACT_RENDERERS:
@@ -3998,7 +4024,7 @@ def update_facts(repo: Path, payload_dir: Path, changes: dict, *, snapshot_path:
             body = want.split("\n") if want else []
             edits.append((f.start + 1, f.end, [""] + body + [""] if f.open_ended else body))
             changed.append(f.fid)
-        if edits:
+        if edits or (name == "01-artifacts" and migrate):
             for start, end, body in sorted(edits, key=lambda e: e[0], reverse=True):
                 lines[start:end] = body
             writes[p] = "\n".join(lines)
@@ -5180,6 +5206,20 @@ def selftest() -> list[str]:
         ck(f"update_facts — 승인 변경은 meta 블록만 다시 쓴다({ch})", ch == ["meta"] and "사용자(발화 전사) — 갱신" in after_00
            and before_00.split("<!-- FACT:meta -->")[0] == after_00.split("<!-- FACT:meta -->")[0])
         ck("update_facts — 멱등(같은 변경 = 쓰기 0)", update_facts(repo, uf, {"approval": new_appr}) == [])
+        p01 = uf / "01-artifacts.md"
+        fresh = p01.read_text(encoding="utf-8")
+        new_intro = next(line for line in fresh.splitlines() if "재현 입력과 확인되지 않은 참고 형상도 포함될 수 있다" in line)
+        old_intro = "> 기계가 적용 증거(빌드 원장 · 원장이 없으면 라벨된 재구성) × 파일 × 선언을 대사한 결과다. `artifacts/` 에는 **적용된 것만** 실렸다 — 빌드 때 스스로 skip 된 패치와 쓰이지 않은 평면의 파일은 표에만 남고 싣지 않는다."
+        authored = "독립 저작 문장 보존\n" + old_intro + "\n```\n" + old_intro + "\n```"
+        p01.write_text(fresh.replace(new_intro, old_intro) + "\n" + authored + "\n", encoding="utf-8")
+        migrated = update_facts(repo, uf, {"approval": new_appr})
+        after_migrate = p01.read_text(encoding="utf-8")
+        ck("refacts migrates exact old fixed introduction without changing author prose even with unchanged facts",
+           migrated == ["01-artifacts:fixed-introduction"] and new_intro in after_migrate and after_migrate.count(old_intro) == 2
+           and after_migrate.endswith(authored + "\n") and update_facts(repo, uf, {"approval": new_appr}) == [])
+        p01.write_text(fresh.replace(new_intro, "저자가 바꾼 도입", 1), encoding="utf-8")
+        ck("ambiguous fixed introduction fails closed", raises(lambda: update_facts(repo, uf, {}), "HINT_SLOT_INTRO_AMBIGUOUS"))
+        p01.write_text(fresh, encoding="utf-8")
         fence_h3 = variant("h3", edit("01-artifacts.md", "### 60-fixture-patch.sh", "```\n### 60-fixture-patch.sh\n```"))
         ck("★subsections: 코드 펜스 안 `###` 는 소제목이 아니다", subsections(fence_h3, "01-artifacts", "1.2") == [])
         uf_issues = lint(repo, uf, **kw)
