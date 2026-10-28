@@ -2,6 +2,7 @@
 """Offline image Git provenance: no Docker, network, or image execution."""
 import os
 import contextlib
+import json
 import io
 import hint
 from pathlib import Path
@@ -28,7 +29,8 @@ class ImageGitRelease(unittest.TestCase):
         self.sha = subprocess.check_output(['git', '-C', str(self.repo), 'rev-parse', 'HEAD'], text=True).strip()
         self.ev = SimpleNamespace(build_identity={'vllm_ref': self.sha, 'vllm_sha': self.sha,
             'vllm_repo': 'https://github.com/vllm-project/vllm.git', 'image_digest': 'sha256:' + 'a' * 64,
-            'track': 'source-build', 'source': {}}, attestation=None, node='sub')
+            'track': 'source-build', 'source': {}}, attestation=None, node='sub',
+            topology='single', manifest={'topology': 'single', 'self_role': 'sub'})
         self.calls = []
         self.runner = SimpleNamespace(image_probe=True)
         self.ctx = SimpleNamespace(runner=self.runner, default_runner=False, docker=self.docker)
@@ -102,6 +104,95 @@ class ImageGitRelease(unittest.TestCase):
         self.assertNotIn('image_git_exact_tag', self.ev.build_identity)
         self.assertFalse(helper_marker.exists())
         self.assertEqual([x[0] for x in self.calls], ['create', 'cp', 'rm'] * 3)
+
+    def test_local_sub_ledger_is_bound_as_build_time_not_later_layer(self):
+        self.ev.topology = "single"
+        self.ev.manifest = {"topology": "single", "self_role": "sub"}
+        self.ev.declaration = {"nodes": [{"node_id": "sub", "role": "sub"}]}
+        self.ev.image_ledger = None
+        self.ev.resolve = None
+        self.ev.sources = {}
+        self.ev.plane = "docker"
+        self.ev.pip_freeze_paths = {}
+        self.ev.pip_freeze_path = None
+        ledger = {"provenance": "measured(build-time, in-image)", "vllm": {"git_sha": self.sha,
+                  "describe": "v1.2.3", "dist_version": "1.2.4.dev0+gfixture"}, "patches": []}
+        calls = []
+        def docker(*args, **kwargs):
+            calls.append(args)
+            if args[0] == "image":
+                return "ok", SimpleNamespace(stdout=self.ev.build_identity["image_digest"])
+            if args[0] == "create":
+                return "ok", SimpleNamespace(stdout="a" * 64)
+            if args[0] == "cp":
+                Path(args[-1]).write_text(json.dumps(ledger))
+                return "ok", SimpleNamespace(stderr="")
+            if args[0] == "rm":
+                return "ok", SimpleNamespace(stdout="")
+            raise AssertionError(args)
+        ctx = SimpleNamespace(repo=self.root, ev=self.ev, node="sub", runner=self.runner,
+                              default_runner=False, docker=docker)
+        with mock.patch.object(artifacts, "_attestation_ref", return_value="fixture"), \
+             mock.patch.object(evidence, "_self_node", return_value=("sub", "fixture")), \
+             mock.patch.object(artifacts, "_image_ref", return_value=(self.ev.build_identity["image_digest"], "measured")):
+            got, source, _, probes = artifacts._observe_ledger(ctx)
+        self.assertEqual(got, ledger)
+        self.assertIn("후속 이미지 층은 별도 관측", source)
+        self.assertEqual(probes[-1]["result"], "observed")
+        self.assertEqual([c[0] for c in calls], ["image", "create", "cp", "rm"])
+        evidence.bind_image_ledger(self.ev, {"vllm": ledger["vllm"], "source": source, "provenance": ledger["provenance"]})
+        version, where = evidence._wheel_meta(self.root, self.ev)
+        self.assertEqual(version, ledger["vllm"]["dist_version"])
+        self.assertIn("빌드 시점", where)
+        self.assertNotIn("release", version)
+
+    def test_sub_ledger_remote_missing_digest_and_multi_sub_do_not_probe(self):
+        self.ev.topology = "single"
+        ctx = SimpleNamespace(repo=self.root, ev=self.ev, node="sub", runner=self.runner,
+                              default_runner=False, docker=mock.Mock())
+        with mock.patch.object(artifacts, "_attestation_ref", return_value="fixture"):
+            for local, topology, digest in (("main", "single", "sha256:" + "a" * 64),
+                                             ("sub", "single", None),
+                                             ("sub", "multi", "sha256:" + "a" * 64)):
+                self.ev.topology = topology
+                self.ev.build_identity["image_digest"] = digest
+                with mock.patch.object(evidence, "_self_node", return_value=(local, "fixture")):
+                    ledger, _, _, probes = artifacts._observe_ledger(ctx)
+                self.assertIsNone(ledger)
+                self.assertTrue(probes[-1]["result"].startswith("skipped"))
+        self.ev.node = "main"
+        self.ev.topology = "multi"
+        ctx.node = "main"
+        with mock.patch.object(artifacts, "_attestation_ref", return_value="fixture"), \
+             mock.patch.object(evidence, "_self_node", return_value=("sub", "fixture")):
+            ledger, _, _, probes = artifacts._observe_ledger(ctx)
+        self.assertIsNone(ledger)
+        self.assertTrue(probes[-1]["result"].startswith("skipped"))
+        ctx.docker.assert_not_called()
+
+    def test_multi_sub_git_and_readonly_sub_ledger_never_run(self):
+        self.ev.topology = "multi"
+        self.ev.manifest = {"topology": "multi", "self_role": "sub"}
+        self.probe()
+        self.assertEqual(self.calls, [])
+        self.ev.topology = "single"
+        self.ev.manifest = {"topology": "single", "self_role": "sub"}
+        self.runner.image_probe = False
+        calls = []
+        def docker(*args, **kwargs):
+            calls.append(args)
+            if args[0] == "image":
+                return "ok", SimpleNamespace(stdout="measured")
+            raise AssertionError("read-only sub must not execute image")
+        ctx = SimpleNamespace(repo=self.root, ev=self.ev, node="sub", runner=self.runner,
+                              default_runner=False, docker=docker)
+        with mock.patch.object(artifacts, "_attestation_ref", return_value="fixture"), \
+             mock.patch.object(evidence, "_self_node", return_value=("sub", "fixture")), \
+             mock.patch.object(artifacts, "_image_ref", return_value=(self.ev.build_identity["image_digest"], "measured")):
+            ledger, _, _, probes = artifacts._observe_ledger(ctx)
+        self.assertIsNone(ledger)
+        self.assertEqual([c[0] for c in calls], ["image"])
+        self.assertIn("no image execution", probes[-1]["result"])
 
     def test_public_name_path_does_not_probe(self):
         args = SimpleNamespace(repo=str(self.root), campaign="camp", cell="cell", publication=None, node="sub", json=True)
