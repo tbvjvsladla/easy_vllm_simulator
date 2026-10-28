@@ -59,12 +59,18 @@ class HintWriteScopes(unittest.TestCase):
         self.assertEqual(render.validate_hint_write_scopes(self.ph, None),
                          {"status": "not-declared", "write_paths": []})
         fs = profile(self.ph)["filesystem"]
-        self.assertEqual(set(fs), {":workspace_roots"})
+        self.assertEqual(set(fs), {":workspace_roots", "~/.docker/buildx"})
+        self.assertEqual(fs["~/.docker/buildx"], {"activity": "write", "refs": "write"})
 
     def test_exact_single_paths_and_existing_protections(self):
         fs = profile(self.ph, self.decl)["filesystem"]
-        self.assertEqual({k: v for k, v in fs.items() if k != ":workspace_roots"},
+        self.assertEqual({k: v for k, v in fs.items() if k not in (":workspace_roots", "~/.docker/buildx")},
                          {"/srv/hint checkout": "write", "/srv/hint checkout/.git": "write"})
+        self.assertEqual(fs["~/.docker/buildx"], {"activity": "write", "refs": "write"})
+        self.assertNotIn("~/.docker", fs)
+        self.assertNotIn("~/.docker/config.json", fs)
+        self.assertNotIn("config", fs["~/.docker/buildx"])
+        self.assertNotIn("instances", fs["~/.docker/buildx"])
         self.assertEqual(fs[":workspace_roots"][".claude"], "read")
         self.assertEqual(fs[":workspace_roots"][".git"], "write")
         self.assertNotIn("workspace_roots", profile(self.ph, self.decl))
@@ -119,7 +125,7 @@ class HintWriteScopes(unittest.TestCase):
         fs = profile(self.ph, d)["filesystem"]
         self.assertEqual(fs[clone], "write")
         self.assertEqual(fs[clone + "/.git"], "write")
-        self.assertEqual(set(fs), {clone, clone + "/.git", ":workspace_roots"})
+        self.assertEqual(set(fs), {clone, clone + "/.git", ":workspace_roots", "~/.docker/buildx"})
 
     def test_bad_declaration_cannot_delete_existing_staging(self):
         with tempfile.TemporaryDirectory() as td:

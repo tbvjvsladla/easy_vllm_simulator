@@ -9,6 +9,13 @@ extends = ":workspace"
 
 {{ HINT_EXTERNAL_WRITE_TOML }}
 
+<!-- MODE:a2a-agent -->
+# Buildx runtime bookkeeping only; Docker config and builder definitions remain read-only.
+[permissions.vllm-sub.filesystem."~/.docker/buildx"]
+activity = "write"
+refs = "write"
+<!-- /MODE:a2a-agent -->
+
 [permissions.vllm-sub.filesystem.":workspace_roots"]
 ".git" = "write" # Existing local-only git commit/branch contract; remote git stays prohibited.
 "AGENTS.md" = "read"
