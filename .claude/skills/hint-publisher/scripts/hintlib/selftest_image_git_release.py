@@ -48,6 +48,61 @@ class ImageGitRelease(unittest.TestCase):
         with mock.patch.object(artifacts, '_ctx', return_value=self.ctx), mock.patch.object(evidence, '_self_node', return_value=('sub', 'fixture')):
             artifacts.bind_image_git_release(self.root, self.ev)
 
+    def test_real_partial_clone_local_objects_and_missing_objects(self):
+        # file:// + upload-pack filtering creates real .promisor packs without network.
+        subprocess.run(['git', '-C', str(self.repo), 'config', 'uploadpack.allowFilter', 'true'], check=True)
+        subprocess.run(['git', '-C', str(self.repo), '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
+                        'tag', '-a', 'v1.2.4', '-m', 'annotated'], check=True)
+        subprocess.run(['git', '-C', str(self.repo), 'tag', '-d', 'v1.2.3'], check=True, capture_output=True)
+        partial = self.root / 'partial'
+        subprocess.run(['git', 'clone', '-q', '--filter=blob:none', '--no-checkout', self.repo.as_uri(), str(partial)], check=True)
+        self.assertTrue(list((partial / '.git/objects/pack').glob('*.promisor')))
+        self.repo = partial
+        with mock.patch.object(artifacts.subprocess, 'run', wraps=subprocess.run) as runs:
+            self.probe()
+        self.assertEqual(self.ev.build_identity.get('image_git_exact_tag'), 'v1.2.4')
+        git_calls = [c.args[0] for c in runs.call_args_list if c.args and c.args[0][0] == 'git']
+        self.assertTrue(git_calls)
+        self.assertTrue(all(x[1:3] == ['-c', 'protocol.allow=never'] for x in git_calls))
+        for call in runs.call_args_list:
+            if call.args and call.args[0][0] == 'git':
+                self.assertEqual(call.kwargs['env']['GIT_ALLOW_PROTOCOL'], '')
+                self.assertEqual(call.kwargs['env']['GIT_CONFIG_NOSYSTEM'], '1')
+                self.assertEqual(call.kwargs['env']['GIT_CONFIG_GLOBAL'], os.devnull)
+        self.ev.build_identity.pop('image_git_exact_tag')
+        # Forge a missing tag object; copied hostile helpers/config must never execute.
+        helper_marker = self.root / 'helper-ran'
+        with (partial / '.git/config').open('a') as config:
+            config.write('\n[credential]\n helper = !touch ' + str(helper_marker) + '\n')
+            config.write('[remote "origin"]\n uploadpack = touch ' + str(helper_marker) + '\n')
+        packed = partial / '.git/packed-refs'
+        original_refs = packed.read_text()
+        lines = original_refs.splitlines()
+        forged = []
+        drop_peeled = False
+        for line in lines:
+            if line.endswith(' refs/tags/v1.2.4'):
+                forged.append('f' * 40 + ' refs/tags/v1.2.4')
+                drop_peeled = True
+            elif drop_peeled and line.startswith('^'):
+                drop_peeled = False
+            else:
+                forged.append(line)
+                drop_peeled = False
+        packed.write_text('\n'.join(forged) + '\n')
+        self.probe()
+        self.assertNotIn('image_git_exact_tag', self.ev.build_identity)
+        self.assertFalse(helper_marker.exists())
+        packed.write_text(original_refs)
+        # Remove all locally packed objects: neither missing annotated tag nor commit can fetch.
+        for path in (partial / '.git/objects/pack').iterdir():
+            if path.suffix in ('.pack', '.idx'):
+                path.unlink()
+        self.probe()
+        self.assertNotIn('image_git_exact_tag', self.ev.build_identity)
+        self.assertFalse(helper_marker.exists())
+        self.assertEqual([x[0] for x in self.calls], ['create', 'cp', 'rm'] * 3)
+
     def test_public_name_path_does_not_probe(self):
         args = SimpleNamespace(repo=str(self.root), campaign="camp", cell="cell", publication=None, node="sub", json=True)
         derived = SimpleNamespace(tag="hint/fixture", to_payload=lambda: {})

@@ -1945,8 +1945,7 @@ def bind_image_git_release(repo: Path, ev: Any, *, runner=None) -> None:
                 mode = path.lstat().st_mode
                 if not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
                     return
-            if (any((copied / "objects/info" / n).exists() for n in ("alternates", "http-alternates"))
-                    or list((copied / "objects/pack").glob("*.promisor"))):
+            if any((copied / "objects/info" / n).exists() for n in ("alternates", "http-alternates")):
                 return
             safe = root / "bare"; safe.mkdir()
             for name in ("objects", "refs"):
@@ -1960,10 +1959,10 @@ def bind_image_git_release(repo: Path, ev: Any, *, runner=None) -> None:
             (safe / "config").write_text("[core]\n repositoryformatversion = 0\n bare = true\n", encoding="utf-8")
             env = {"PATH": os.defpath, "GIT_CONFIG_NOSYSTEM": "1",
                    "GIT_CONFIG_GLOBAL": os.devnull, "GIT_NO_REPLACE_OBJECTS": "1", "GIT_NO_LAZY_FETCH": "1",
-                   "GIT_TERMINAL_PROMPT": "0", "LC_ALL": "C"}
+                   "GIT_TERMINAL_PROMPT": "0", "GIT_ALLOW_PROTOCOL": "", "LC_ALL": "C"}
             def git(*args):
                 try:
-                    return subprocess.run(["git", "--git-dir", str(safe), *args], env=env, capture_output=True, text=True, timeout=20)
+                    return subprocess.run(["git", "-c", "protocol.allow=never", "--git-dir", str(safe), *args], env=env, capture_output=True, text=True, timeout=20)
                 except (OSError, subprocess.TimeoutExpired):
                     return None
             head = git("rev-parse", "--verify", "HEAD^{commit}")
