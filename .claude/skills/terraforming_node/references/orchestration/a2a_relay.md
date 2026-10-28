@@ -53,7 +53,7 @@
 | 명령 | 언제 | 무엇 | 평면 |
 |---|---|---|---|
 | `relay.py --task ... --max-turns N --timeout-seconds N --budget-source "..." --resume new` | 첫 위임 | **선언한 예산·재개**로 delegate · 원장 개설(`campaigns/<camp-id>/relay/<ctx>.json`) | B |
-| `relay.py --task-file <현재 적용할 전체 지시> --context-id <동일 context> --resume <동일 session> …` | 서브가 메인 소유의 정본 수정·기술 판단을 요청했고 메인이 해결했을 때 | 정정과 유지할 조건을 포함한 명시 원문을 새 attempt의 지시 출처로 보존한다. 기존 캠페인·셀·provider·권한 결속과 예산·HITL·복구 가드는 그대로 적용한다 | B |
+| `relay.py --continue --apply --task-file <현재 적용할 전체 지시> --context-id <동일 context> --resume <id|new> …` | 서브가 메인 소유의 정본 수정·기술 판단을 요청했고 메인이 해결했을 때 | 정정과 유지할 조건을 포함한 명시 원문을 새 attempt의 지시 출처로 보존한다. 기존 캠페인·셀·provider·권한 결속과 예산·HITL·복구 가드는 그대로 적용한다 | B |
 | `relay.py --continue` | 소진·유보 뒤 | **원장에서 본문을 조립**해 미리보기 + 예산·세션 **사실** 표시(기본 dry-run) | B |
 | `relay.py --continue --apply --max-turns N --timeout-seconds N --budget-source "..." --resume <id\|new>` | **예외 경로** — 감독 스텝이 팝업한 뒤 사람이 본문을 승인 | 조립 본문 + 새로 선언한 예산 + **선언한 세션**으로 delegate | B |
 | `relay.py --supervise-step <camp> [--apply]` | attempt 사이 | 원장 + 회수 브리핑을 읽어 **한 번 판정**하고 원장에 적는다. `--apply` 면 전진이 보이는 중단을 자동 재발급 | B |
@@ -63,6 +63,7 @@
   (2026-09-07 실측: HITL 응답 대기 70분이 순차 실행의 직접 원인 중 하나였다). 자동의 **예외**는
   선언된 비용 상한·모델/통신 평면 실패·미해결 승인/권한 거부다. Codex의 관측된 신호 종료·중단·불명 native/control 실패도
   전진만으로 재개하지 않는다(아래 복구 계약). 전진이 없는 중단도 팝업이다(예산을 키우기 전에 묻는다).
+- `--continue --task-file`은 파일의 전체 원문을 명시 지시로 보존하고 미리보기에도 표시한다. 파일이 없으면 기존 지시 출처를 이어 조립한다. `--continue --task` 및 `--task`와 `--task-file` 동시 사용은 거부한다. 기존 차단성 요청과 수동 복구 조건은 동일하게 적용한다.
 - **기술 feedback은 사람의 답이 아니다.** 메인이 소유한 코드·계약을 수정한 뒤에는 같은 context에 `--task-file`로
   정정 내용·근거와 **계속 유효한 조건을 포함한 전체 지시**를 보낼 수 있다. 부분 변경을 발행기가 의미 추론으로
   병합하지 않는다. `pending_hitl.answer`에 이를 사람 답처럼 기입하지 않는다. 이 경로도
