@@ -120,6 +120,9 @@ PLANE_RULES = [
     # ── REPO_META: 상류 리포의 에이전트/편집기 메타 ──
     (".claude/**", "REPO_META"),
     (".gemini/**", "REPO_META"),
+    # v0.32.0 upstream agent skills are developer instructions and helpers,
+    # not packaged vllm modules. Other .agents paths remain fail-closed.
+    (".agents/skills/**", "REPO_META"),
 ]
 
 BUILD_INPUT_GLOBS = [g for g, p in PLANE_RULES if p == "BUILD_INPUT"]
@@ -643,6 +646,9 @@ def run_pipeline(*, repo, from_ref, to_ref, generated_kst, repo_cache=None,
     ax_b, unk_b = axis_b(files, provenance, bundle_files_root, reader, from_ref, to_ref,
                          scope_origin=scope_origin, scope_path=scope_path)
     unknown = [f"UNKNOWN_PLANE: {p}" for p in ax_a["unknown_plane_paths"]] + unk_b
+    if delta.get("delta_source") != "git-local" and len(files) >= 300:
+        unknown.append("INCOMPLETE_DELTA: 300 or more files from GitHub compare or an unverified source "
+                       "cannot establish completeness — use --repo-cache with a complete SHA-bound git diff")
 
     meta = {
         "schema_version": SCHEMA_VERSION,
@@ -869,6 +875,10 @@ def self_test():
     check("buildkite → CI", classify_plane(".buildkite/release-pipeline.yaml")[0] == "CI")
     check("csrc → BUILD_INPUT", classify_plane("csrc/moe/x.cu")[0] == "BUILD_INPUT")
     check("root md → DOCS", classify_plane("README.md")[0] == "DOCS")
+    for path in (".agents/skills/model-recipes/SKILL.md", ".agents/skills/model-recipes/agents/openai.yaml",
+                 ".agents/skills/transformers-upgrade/scripts/dump_configs.py"):
+        check(f"agent skill metadata → REPO_META: {path}", classify_plane(path)[0] == "REPO_META")
+    check("unknown agent plane remains unknown", classify_plane(".agents/runtime/loader.py")[0] == UNKNOWN_PLANE)
     check("*.md 는 / 를 넘지 않음", classify_plane("newplane/a.md")[0] == UNKNOWN_PLANE)
     check("열거 밖 → UNKNOWN_PLANE", classify_plane("newplane/thing.toml")[0] == UNKNOWN_PLANE)
 
@@ -879,6 +889,22 @@ def self_test():
     check("csrc 변경 → IMPACT", axis_a(f_bi)["verdict"] == "IMPACT")
     f_un = classify_files([{"path": "newplane/thing.toml"}])
     check("UNKNOWN_PLANE → UNDETERMINED", axis_a(f_un)["verdict"] == "UNDETERMINED")
+
+    print("[compare completeness]")
+    for source, count, expected in (("github-compare-api", 299, "NO_IMPACT"),
+                                    ("github-compare-api", 300, "UNDETERMINED"),
+                                    (None, 300, "UNDETERMINED"),
+                                    ("unknown", 300, "UNDETERMINED"),
+                                    ("git-local", 300, "NO_IMPACT")):
+        replay = {"delta_files": [{"path": f"docs/fixture-{n}.md"} for n in range(count)],
+                  "delta_source": source}
+        out, _ = run_pipeline(repo="fixture/repo", from_ref="A", to_ref="B", generated_kst="00000000", replay=replay)
+        check(f"{source} {count} files → {expected}", out["verdict"] == expected
+              and (any("INCOMPLETE_DELTA" in s for s in out["unknown"]) == (source != "git-local" and count >= 300)))
+    missing_source, _ = run_pipeline(repo="fixture/repo", from_ref="A", to_ref="B", generated_kst="00000000",
+                                     replay={"delta_files": [{"path": f"docs/fixture-{n}.md"} for n in range(300)]})
+    check("missing delta_source 300 files → UNDETERMINED", missing_source["verdict"] == "UNDETERMINED"
+          and any("INCOMPLETE_DELTA" in s for s in missing_source["unknown"]))
 
     print("[axis_b 프로브]")
     P = "vllm/x.py"
