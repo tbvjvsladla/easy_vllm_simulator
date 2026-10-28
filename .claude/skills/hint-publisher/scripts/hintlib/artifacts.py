@@ -1157,8 +1157,8 @@ def _select_tracked(c: _Ctx, path: Path) -> dict:
             out["warning"] = (f"측정({measured}) 뒤 mtime {mt} — 측정 전 개정을 찾을 수 없다({why}) · 실린 작업트리 바이트가 측정 당시 "
                               "바이트라는 보장 없음")
         else:
-            out.update(basis="mtime≤measured", verified=True,
-                       method=f"worktree(mtime {mt} ≤ 측정 {measured}({msrc}) — 측정 당시 바이트 · {why})")
+            out.update(basis="mtime≤measured", verified=False,
+                       method=f"worktree(mtime {mt} ≤ 측정 {measured}({msrc}) — 측정 당시 바이트 후보 · {why} · 실행 바이트 미검증)")
     else:
         rev = _git_rev_before(c, rel, measured)
         rev_bytes = core.git_bytes(c.repo, "show", f"{rev}:{rel}", check=False) if rev else None
@@ -1175,12 +1175,12 @@ def _select_tracked(c: _Ctx, path: Path) -> dict:
         out.update(commits_after_measurement=[s[:12] for s in after], cross_check=cross)
         head = f"git log -1 --before={measured} -- {rel}"
         if not newer:
-            out.update(basis="mtime≤measured", verified=True)
+            out.update(basis="mtime≤measured", verified=False)
             if rev and rev_bytes == wt:
                 out.update(commit=rev, method=f"worktree(mtime {mt} ≤ 측정 {measured}({msrc}) · 바이트 = 측정 전 마지막 커밋 {rev[:12]})")
             elif rev:
-                out["method"] = (f"worktree(mtime {mt} ≤ 측정 {measured}({msrc}) — 측정 당시 작업트리 바이트 · 측정 전 마지막 커밋 "
-                                 f"{rev[:12]} 와 다르다: 측정에 미커밋 수정이 쓰였다)")
+                out["method"] = (f"worktree(mtime {mt} ≤ 측정 {measured}({msrc}) · 측정 전 마지막 커밋 "
+                                 f"{rev[:12]} 와 다르다 — 측정 당시 바이트는 미검증)")
             else:
                 out["method"] = f"worktree(mtime {mt} ≤ 측정 {measured}({msrc}) · 측정 전 커밋 없음)"
         elif rev and rev_bytes is not None:
@@ -4146,10 +4146,10 @@ def _file_records(c: _Ctx, payload: Path, slots: dict, marks: dict, applied: dic
                 rec["relevance"] = "required"
                 rec["relevance_basis"] = "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)"
             else:
-                # F13(plan_26092908 §4.5): 실행되지 않은 생성물(generated-unverified)은 이 셀의 필요를 말할 신호가 없다 — required ✗
+                # 검증되지 않은 파일은 그 자체로 실행 여부나 필요 여부를 증명하지 않는다.
                 rec["relevance"] = "unknown"
-                rec["relevance_basis"] = (f"이 셀은 이 경로로 실행되지 않았다(generated-unverified · 생성 {rec['generated_by']}) — "
-                                          "실행 기록이 없어 필요 여부를 판정하지 않는다(참고 형상)")
+                rec["relevance_basis"] = (f"파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 {rec['generated_by']}) — "
+                                          "이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)")
             for key, vocab in (("verification", VERIFICATION_VALUES), ("generated_by", GENERATED_BY_VALUES),
                                ("relevance", RELEVANCE_VALUES)):
                 if key == "generated_by" and generated_by_ok(rec[key]):
@@ -4456,7 +4456,7 @@ def _docker_slots(c: _Ctx, payload: Path, measured: str | None, missing: list[st
                               "(측정 당시 마운트본과 다르면 이 셀의 러너가 아니다 — 발행 대상을 확인한다).")
                 rsel["cross_check"] = list(rsel["cross_check"]) + [
                     f"마운트본 output/{c.topo}/configs/{name}"
-                    + (f"(mtime {mmt} ≤ 측정 — 서빙한 러너)" if served and measured else "") + " 바이트 일치"]
+                    + (f"(mtime {mmt} ≤ 측정 — 마운트본의 현재 mtime 관측)" if served and measured else "") + " 바이트 일치"]
             else:
                 rsel["cross_check"] = list(rsel["cross_check"]) + [
                     f"마운트본 output/{c.topo}/configs/{name} 은 측정 뒤(mtime {mmt}) 다시 쓰였다 — 서빙 증거 아님 · 대조 생략"]
@@ -4544,7 +4544,7 @@ def _docker_slots(c: _Ctx, payload: Path, measured: str | None, missing: list[st
     n_shipped = sum(1 for e in env_shapes if e.get("template"))
     compose_ev = {"kind": "file", "ref": core.rel(c.repo, c.compose_path),
                   "note": (f"서빙 러너 {shipped_runners} · env 형상 실림 {n_shipped}/{len(env_shapes)}"
-                           + (f" · compose = 측정 당시 개정 {csel['shipped']}" if csel["shipped"] != "worktree" else "")
+                           + (f" · compose = 측정 전 이력 기반 후보 {csel['shipped']}" if csel["shipped"] != "worktree" else "")
                            + (f" · ⚠ 측정({measured}) 뒤 재생성 {sorted(regenerated)} — 형상 미실림"
                               f"({POST_MEASUREMENT_REGENERATED} · 측정 당시 env 는 {ENV_OBSERVED_POINTER})"
                               if regenerated else "")),
@@ -4667,6 +4667,13 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
     ctx_src = c                              # build_context_map 의 Dockerfile·compose 텍스트를 읽는 문맥
     if plane == "docker":
         applied, sel, ledger, env_shapes, recipe = _docker_slots(c, payload, measured, missing, files, slots)
+        for tracked in (slots["compose"].get("evidence") or {}).get("selected_revisions") or []:
+            name = PurePath(tracked.get("path") or "").name
+            for rel_f in slots["compose"]["files"]:
+                if PurePath(rel_f).name == name and rel_f not in marks and not tracked.get("verified"):
+                    why = f"{name}: {tracked.get('method')} — 측정 당시 실행 바이트는 별도 관측되지 않았다"
+                    marks[rel_f] = {"verification": "generated-unverified", "generated_by": "renderer",
+                                    "header": _insert_header(payload, rel_f, why, "renderer"), "verification_basis": why}
         # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 B F3: 실린 Dockerfile 이 측정 이미지 docker history RUN·COPY 와
         #   전수 일치하지 않으면(대조는 했으나 불일치 — _select_dockerfile.verified False) 이 이미지를 지은 바이트로 확인되지 않았다 —
         #   verified · cell-run 이 아니라 generated-unverified(renderer · 렌더 산출물)로 내리고 표시 3자리(파일 머리 경고 · file_records ·
@@ -5869,6 +5876,14 @@ def selftest() -> list[str]:
             rsame = collect(repo, ev_rev, repo / "p_rev_same", render_module=fake_rd, runner=dk_rev)
             ssame = rsame["slots"]["build_recipe"]["evidence"]["selected_revision"]
             rvs = {r["path"]: r for r in rsame["slots"]["build_recipe"]["evidence"]["recipe_vs_image"]}
+            same_record = next(r for r in rsame["slots"]["build_recipe"]["file_records"]
+                               if PurePath(r["path"]).name == "Dockerfile.rev")
+            ck("history command match does not prove full bytes or imply execution absent",
+               ssame["history_match"]["matched"] == ssame["history_match"]["total"]
+               and same_record["verification"] == "generated-unverified" and same_record["bytes_observed"] is False
+               and same_record["relevance"] == "unknown"
+               and "경로 실행 여부나 필요 여부를 판정하지 않는다" in same_record["relevance_basis"]
+               and "실행되지 않았다" not in same_record["relevance_basis"])
             ck("F1 작업트리가 history 와 전수 일치 = 작업트리(HEAD 대비 수정본 경고는 실린 파일의 결함이 아니다)",
                ssame["commit"] is None and ssame["method"].startswith("worktree(측정 이미지 docker history")
                and rvs["output/multi/Dockerfile.rev"].get("worktree_equals_head") is False
@@ -5910,7 +5925,7 @@ def selftest() -> list[str]:
                 cev = rcr["slots"]["compose"]["evidence"]
                 csr = cev["selected_revision"]
                 ck("★compose 작업트리가 측정 뒤 바뀌었으면 측정 전 마지막 커밋 바이트(측정 뒤 커밋 ✗) · 방법·교차대조 기재",
-                   (repo / "p_crev/artifacts/compose/docker-compose.yaml").read_bytes() == compose0
+                   (repo / "p_crev/artifacts/compose/docker-compose.yaml").read_bytes().endswith(compose0)
                    and csr["commit"] == rev_c and csr["shipped"] == f"git:{rev_c}"
                    and csr["path"] == "output/multi/docker-compose.yaml"
                    and csr["basis"] == "git-rev-before-measurement" and csr["verified"] is False
@@ -5926,12 +5941,12 @@ def selftest() -> list[str]:
                    and sub_recipe(repo, ev, render_module=fake_rd)["role_diff"]["slave_config_file"] == "default")
                 srun = {r["path"]: r for r in cev["selected_revisions"]}
                 ck("★러너 정본이 측정 뒤 바뀌어도 측정 전 커밋 = 서빙한 마운트본(mtime ≤ 측정)과 일치 → 차단 ✗ · 실린 러너 = 측정 당시 바이트",
-                   (repo / "p_crev/artifacts/compose/serve_runner.sh").read_bytes() == runner0
+                   (repo / "p_crev/artifacts/compose/serve_runner.sh").read_bytes().replace((repo / "p_crev/artifacts/compose/serve_runner.sh").read_bytes().splitlines(keepends=True)[1], b"", 1) == runner0
                    and srun.get(asset_rel, {}).get("commit") == rev_c
-                   and any("서빙한 러너" in x for x in srun.get(asset_rel, {}).get("cross_check", []))
+                   and any("마운트본의 현재 mtime 관측" in x for x in srun.get(asset_rel, {}).get("cross_check", []))
                    and set(srun) >= {"output/multi/docker-compose.yaml", asset_rel})
                 ck("공유 계약: compose 선택 행 = build_recipe 와 같은 자리(selected_revision · selected_revisions) · 문구에 compose 개정",
-                   "compose = 측정 당시 개정 git:" in cev["note"] and isinstance(cev["selected_revisions"], list))
+                   "compose = 측정 전 이력 기반 후보 git:" in cev["note"] and isinstance(cev["selected_revisions"], list))
                 # ★서빙한 마운트본(mtime ≤ 측정)이 실을 바이트와 다르면 = 이 셀의 러너가 아니다 → 차단
                 (out / "configs/serve_runner.sh").write_bytes(runner0 + b"# served-different\n")
                 _set_mtime(out / "configs/serve_runner.sh", "2026-01-01T10:00:00Z")
@@ -5955,9 +5970,9 @@ def selftest() -> list[str]:
                 rcw = collect(repo, ev, repo / "p_crev_wt", render_module=fake_rd, runner=docker_old)
                 cw = rcw["slots"]["compose"]["evidence"]["selected_revision"]
                 ck("★compose mtime ≤ 측정 = 작업트리(측정 당시 바이트 · verified) · 측정 전 커밋과 다르면 미커밋 사실 기재",
-                   (repo / "p_crev_wt/artifacts/compose/docker-compose.yaml").read_bytes() == compose_wt
-                   and cw["shipped"] == "worktree" and cw["basis"] == "mtime≤measured" and cw["verified"] is True
-                   and cw["commit"] is None and "미커밋" in cw["method"])
+                   (repo / "p_crev_wt/artifacts/compose/docker-compose.yaml").read_bytes().endswith(compose_wt)
+                   and cw["shipped"] == "worktree" and cw["basis"] == "mtime≤measured" and cw["verified"] is False
+                   and cw["commit"] is None and "측정 당시 바이트는 미검증" in cw["method"])
                 # ★측정 시각 미관측 = 작업트리 · 대조 불가 기재(개정을 추측하지 않는다)
                 _set_mtime(out / "docker-compose.yaml", "2026-01-02T00:00:00Z")
                 rcn = collect(repo, dict(ev, sweep={k: v for k, v in ev["sweep"].items() if k != "generated_utc"}),
@@ -5966,7 +5981,7 @@ def selftest() -> list[str]:
                 ck("★측정 시각 미관측 = compose 작업트리 · basis unobserved · '측정 시각 미관측' 기재",
                    cn["shipped"] == "worktree" and cn["basis"] == "unobserved" and cn["commit"] is None
                    and "측정 시각 미관측" in cn["method"]
-                   and (repo / "p_crev_none/artifacts/compose/docker-compose.yaml").read_bytes() == compose_wt)
+                   and (repo / "p_crev_none/artifacts/compose/docker-compose.yaml").read_bytes().endswith(compose_wt))
                 # ★mtime 은 측정 뒤지만 바이트가 측정 전 커밋과 같다 = 같은 바이트(작업트리) · 개정 기재
                 (out / "docker-compose.yaml").write_bytes(compose0)
                 _set_mtime(out / "docker-compose.yaml", "2026-01-02T00:00:00Z")
@@ -5981,7 +5996,7 @@ def selftest() -> list[str]:
                 _set_mtime(out / "envs/.env.late", "2026-01-02T00:00:00Z")
                 un2 = _select_tracked(_ctx(repo, ev), out / "envs/.env.late")
                 ck("★측정 전 개정 없는 파일: mtime ≤ 측정 = verified · 측정 뒤 = 작업트리 + 경고",
-                   un["verified"] is True and un["basis"] == "mtime≤measured"
+                   un["verified"] is False and un["basis"] == "mtime≤measured"
                    and un2["shipped"] == "worktree" and "warning" in un2 and un2["commit"] is None)
                 # ── 2026-09-22 S2 round 3 적대 리뷰 ──
                 # (a) 마운트본이 측정 **뒤** 다시 쓰였으면 서빙 증거가 아니다: 정본도 측정 뒤 바뀌었으면(측정 전 커밋을 싣는다) 대조를 건너뛰고
@@ -5996,7 +6011,7 @@ def selftest() -> list[str]:
                 rms = collect(repo, ev, repo / "p_crev_mnt", render_module=fake_rd, runner=docker_old)
                 msr = {r["path"]: r for r in rms["slots"]["compose"]["evidence"]["selected_revisions"]}.get(asset_rel, {})
                 ck("★마운트본 측정 뒤 재작성 + 정본 측정 뒤 수정 = 차단 ✗(서빙 증거 아님 기재) · 실린 러너 = 측정 전 커밋 바이트",
-                   (repo / "p_crev_mnt/artifacts/compose/serve_runner.sh").read_bytes() == runner0
+                   (repo / "p_crev_mnt/artifacts/compose/serve_runner.sh").read_bytes().replace((repo / "p_crev_mnt/artifacts/compose/serve_runner.sh").read_bytes().splitlines(keepends=True)[1], b"", 1) == runner0
                    and msr.get("commit") == rev_c and any("서빙 증거 아님" in x for x in msr.get("cross_check", [])))
                 ck("★sub_recipe GPU 합류 리터럴 = 측정 당시 개정의 러너(정본이 측정 뒤 \"4\" 로 바뀌어도 \"2\")",
                    (rms["sub_recipe"] or {}).get("role_diff", {}).get("runner_gpu_join_literal", {}).get("value") == "2"
@@ -6802,12 +6817,11 @@ def selftest() -> list[str]:
             ck("★generated-unverified 파일 전부 첫 줄(셸은 shebang 뒤 2행 · JSON 은 _verification 키) 경고 = 기록된 헤더 · 생성 주체 문구",
                hdr_ok and all("생성: renderer" in (r.get("header") or {}).get("text", "") for r in comp)
                and (rn2["sub_recipe"] or {}).get(UNVERIFIED_HEADER_KEY, "").startswith("⚠ generated-unverified"))
-            ck("Docker 셀: 전부 verified(cell-run) · 헤더 없음 · sub_recipe 에 경고 키 없음",
-               all((r["verification"] == "generated-unverified" if PurePath(r["path"]).name.startswith("Dockerfile") else
-                    r["verification"] == "verified" and r["generated_by"] == "cell-run" and "header" not in r)
-                   for v in rd2["slots"].values() for r in v["file_records"])
-               and UNVERIFIED_HEADER_KEY not in (rd2["sub_recipe"] or {})
-               and not (repo / "p_doc_u/artifacts/compose/docker-compose.yaml").read_text(encoding="utf-8").startswith("# ⚠"))
+            ck("Docker compose 후보의 원본 바이트는 미검증이며 경고를 싣는다",
+               all(r["verification"] == "generated-unverified" and r.get("header")
+                   for r in rd2["slots"]["compose"]["file_records"]
+                   if PurePath(r["path"]).name in ("docker-compose.yaml", "serve_runner.sh"))
+               and UNVERIFIED_HEADER_KEY not in (rd2["sub_recipe"] or {}))
             rel_ = {PurePath(p_).name: r for p_, r in recs.items() if "/build_patch_" in p_}
             ck("★관련성: 선언 일치 × 발화 = required · 선언 불일치 × 무발화 = inactive-inferred · 발화 서명 없음·범용 = unknown",
                rel_["70-fx-fire.sh"]["relevance"] == "required"
@@ -6841,10 +6855,10 @@ def selftest() -> list[str]:
                and "이 셀 run 아님" in str(rn2["slots"]["compose"].get("machine_reason")))
             ck("★F5 음성대조: 기계 사유는 rationale(선언 신호)에 넣지 않는다 — confidence 불변",
                all(v.get("rationale") is None and v["confidence"] == slot_confidence(v) for v in rd2["slots"].values()))
-            ck("★F13 generated-unverified(실행 안 된 생성물) 관련성 = unknown · 근거 '이 셀은 이 경로로 실행되지 않았다'",
-               all(r["relevance"] == "unknown" and "이 셀은 이 경로로 실행되지 않았다" in r["relevance_basis"] for r in comp))
+            ck("★F13 generated-unverified 는 실행 여부를 증명하지 않는다 · 관련성 unknown",
+               all(r["relevance"] == "unknown" and "경로 실행 여부나 필요 여부를 판정하지 않는다" in r["relevance_basis"] for r in comp))
             ck("F13 음성대조: Docker 셀 compose(실행됨 · verified) = required",
-               all(r["relevance"] == "required" for r in rd2["slots"]["compose"]["file_records"]))
+               all(r["relevance"] == "unknown" for r in rd2["slots"]["compose"]["file_records"] if r["path"] in {"artifacts/compose/docker-compose.yaml", "artifacts/compose/serve_runner.sh"}))
             nrev = rn2["slots"]["compose"]["evidence"].get("selected_revisions") or []
             ck("G5 native(실행 안 된 compose 경로) 개정 행 = executed False · verified None(쓰인 바이트 관측 ✗)",
                nrev and all(x.get("executed") is False and x.get("verified") is None for x in nrev))

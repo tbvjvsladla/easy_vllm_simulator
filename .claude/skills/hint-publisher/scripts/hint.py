@@ -1507,6 +1507,7 @@ def refacts(repo: Path, *, draft: Path, rt: Runtime | None = None) -> dict:
     tag.check_ref_format(repo, dn.tag)
     _require_name_pii_clean(repo, dn.tag)
     # 셀 등급별 문서(2026-10-16 · plan_26101614 — lite 셀 = 03 없음) · 실물 부재는 건너뛴다(비교 = 있는 블록끼리)
+    intro_before = template.slot_intro((payload / "01-artifacts.md").read_text(encoding="utf-8"))[1]
     before = {n: template.fact_blocks((payload / n).read_text(encoding="utf-8"))
               for n in template.payload_docs(template.load_snapshot(draft / "inputs" / template.FACTS_SNAPSHOT))
               if (payload / n).is_file()}
@@ -1547,6 +1548,11 @@ def refacts(repo: Path, *, draft: Path, rt: Runtime | None = None) -> dict:
     after = {n: template.fact_blocks((payload / n).read_text(encoding="utf-8")) for n in template.payload_docs(facts)
              if (payload / n).is_file()}
     changed, diff = [], []
+    intro_after = template.slot_intro((payload / "01-artifacts.md").read_text(encoding="utf-8"))[1]
+    if intro_before != intro_after:
+        changed.append(("01-artifacts.md", "fixed-introduction"))
+        diff += list(difflib.unified_diff([intro_before], [intro_after], "01-artifacts.md fixed introduction (이전)",
+                                          "01-artifacts.md fixed introduction (재파생)", lineterm=""))
     for n in sorted(after):
         for fid in sorted(set(before.get(n, {})) | set(after[n])):
             a, b = before.get(n, {}).get(fid, ""), after[n].get(fid, "")
@@ -2663,6 +2669,20 @@ def _selftest_e2e(ck) -> None:
             rx2 = quiet(refacts, repo, draft=draft, rt=rt)
             ck("refacts 멱등(두 번째 = 바뀐 FACT 없음 · 산출물 추가 · 제거 0)", rx2["changed"] == [] and not rx2["artifacts"]["added"]
                and not rx2["artifacts"]["removed"])
+            p01 = payload / "01-artifacts.md"
+            original = p01.read_text(encoding="utf-8")
+            intro = template.slot_intro(original)[1]
+            authored = "\n저작 인용:\n" + template._LEGACY_SLOT_INTRO + "\n```\n" + template._LEGACY_SLOT_INTRO + "\n```\n"
+            p01.write_text(original.replace(intro, template._LEGACY_SLOT_INTRO, 1) + authored, encoding="utf-8")
+            rx_intro = quiet(refacts, repo, draft=draft, rt=rt)
+            migrated = p01.read_text(encoding="utf-8")
+            ck("public refacts reports fixed introduction migration and preserves quoted/fenced legacy text",
+               ("01-artifacts.md", "fixed-introduction") in rx_intro["changed"] and intro in rx_intro["diff"]
+               and template._LEGACY_SLOT_INTRO in rx_intro["diff"] and migrated.endswith(authored)
+               and template.slot_intro(migrated)[1] == intro)
+            rx_intro2 = quiet(refacts, repo, draft=draft, rt=rt)
+            ck("public fixed introduction migration is idempotent", ("01-artifacts.md", "fixed-introduction") not in rx_intro2["changed"])
+            p01.write_text(original, encoding="utf-8")
             ex = excerpt_text(repo, draft, Path(_FX_TESTLOG).stem, "7-8")
             ck("excerpt 도우미 --lines(치환 후 원문 · 1-기반)", _FX_WALL_SIG in ex and ex.count("\n") == 1)
             ok, why = _raises(lambda: excerpt_text(repo, draft, Path(_FX_TESTLOG).stem, "9999-9999"), "HINT_EXCERPT_LINES_OUT_OF_RANGE")
