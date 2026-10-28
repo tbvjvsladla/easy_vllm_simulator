@@ -6018,7 +6018,7 @@ def naming_facts(repo, ev: CellEvidence) -> dict:
             "vllm_sha": b.get("vllm_sha"), "prev_release": _prev_release(ev), "wheel_url": b.get("wheel_url"),
             "source": " · ".join(s for s in (f"track={bsrc.get('track')}", f"ref={bsrc.get('vllm_ref')}",
                                               f"version={bsrc.get('vllm_version')}", f"repo={bsrc.get('vllm_repo', '미관측')}",
-                                              f"sha={bsrc.get('vllm_sha', '미관측')}")
+                                              f"sha={bsrc.get('vllm_sha', '미관측')}", f"exact_tag={bsrc.get('image_git_exact_tag', '미관측')}")
                                  if s)}
     model = {"hf_repo": ck.get("hf_repo"), "model_path": ck.get("model_path"),
              "source": f"서빙 yaml model({yrel})" + (f" · hf_repo={ck.get('hf_repo_source')}" if ck.get("hf_repo") else "")}
@@ -6176,9 +6176,14 @@ def _ledger_vllm(att) -> dict:
 
 
 def _prev_release(ev: CellEvidence) -> str | None:
-    """커밋 핀의 직전 릴리스 — 빌드 원장 `vllm.describe` 만(이미지 안 git describe 는 docker run 이라 여기서 부르지 않는다)."""
+    """커밋 핀 릴리스: 원장 describe 또는 측정 이미지의 격리된 Git 정확 태그."""
     d = _ledger_vllm(ev.attestation).get("describe")
-    return str(d) if d else None
+    exact = (ev.build_identity or {}).get("image_git_exact_tag")
+    if d and exact:
+        from . import naming
+        if naming._describe_release(d) != naming._describe_release(exact):
+            core.fail("HINT_VLLM_INPUT_CONFLICT", "build ledger describe conflicts with measured image exact tag")
+    return str(d) if d else exact
 
 
 def _arch_facts(repo: Path, ev: CellEvidence) -> dict:

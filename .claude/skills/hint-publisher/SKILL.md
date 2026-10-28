@@ -80,6 +80,9 @@ python3 $H continue --campaign <id> --cell <cell> --generated-utc <UTC>  # 승�
   만으로 이미지 안 패치 사본 · 적용 표지 · 원장을 본다(run · start ✗ · 정책 자체검사 계약도 이 모양이다). `--docker-read-only` 가 끈다 —
   그러면 docker 호출은 inspect · history 뿐이고 이미지 표지로만 가를 수 있는 패치는 1.1 에 `unobserved` 로 남는다(태그2 셀: 9개 중 7개).
   `--docker-probe` 는 옛 이름이다(받되 아무것도 바꾸지 않는다).
+  SHA로 고정한 상류 소스 입력의 릴리스 근거가 없으면 active publish/refacts가 측정된 불변 이미지의 Git HEAD와 exact tag도
+  create/cp/rm으로 대조한다. 로컬 관측 권한·SHA·태그가 확인될 때만 이름에 사용하며 이미지와 빌드 원장은 바꾸지 않는다.
+  `name`은 읽기 전용이므로 이 탐침을 실행하지 않는다. 이 경우 선택적 `name`의 근거 부재를 active publish의 선행 차단으로 삼지 않는다.
 - **저작**은 발행 Agent 의 일이다. LINEAGE 읽기 목록을 읽고 챕터마다 질문에 답한다: 02 에 벽마다 산문 + `kind: wall` 블록(≥ 1 필수) ·
   기각 · 오진 · 열린 물음 · 01 §1.3 의 서빙 노브마다 `kind: value-status` 블록(전송·신원 노브 `model`·`host`·`port`·`served-model-name` 제외) ·
   원인·해소는 출처의 **원문 발췌**로. 발췌와 서명은 `excerpt` 출력에서 글자 그대로 옮긴다 — 린터가 출처와 대조한다(계약 §8).

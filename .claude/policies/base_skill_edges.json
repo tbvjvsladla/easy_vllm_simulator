@@ -1663,6 +1663,12 @@
       "callee": "terraforming_node/scripts/selftest_sub_hint_write_scopes.py",
       "phase": "verification_plane",
       "reason": "명시 관측·기존 승인에 결속한 외부 hint 쓰기와 역할별 배달·범위 거부 회귀"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "hint-publisher/scripts",
+      "phase": "verification_plane",
+      "reason": "이미지 Git 출처 회귀를 private hintlib.selftest_image_git_release 모듈로 실행하는 작업 디렉터리 — 공개 CLI 폐포를 보존하며 측정 digest·노드 소유·SHA/tag·격리·정리의 양·음성 대조를 호출한다(plan_26102904)"
     }
   ]
 }

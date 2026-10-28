@@ -846,7 +846,11 @@ def _test_codex_provider() -> None:
             child_pid = int(pid_path.read_text())
             stat = Path(f"/proc/{child_pid}/stat")
             # A just-killed child can be a zombie until reaped by its adopted parent.
-            _require(not stat.exists() or stat.read_text().split(")", 1)[1].split()[0] == "Z",
+            try:
+                child_state = stat.read_text().split(")", 1)[1].split()[0]
+            except (FileNotFoundError, ProcessLookupError):
+                child_state = None
+            _require(child_state in (None, "Z"),
                      "timeout left a live TERM-ignoring descendant")
             # A separate producer gets a busy result without entering the child.
             entered = Path(temp) / "entered"
