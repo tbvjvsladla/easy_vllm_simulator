@@ -4,6 +4,12 @@
 달라졌을 때도 여기로 들어온다. HW `FRESH`는 이 검증을 대신하지 않는다. 기존 manifest·캠페인·유효 승인·인증은
 복구해 이어 쓰고, 하네스 변경만으로 다시 스캔하거나 승인 전체를 초기화하지 않는다.
 
+단일 a2a-agent의 Codex 역할 설정은 일반 Docker build에 필요한 `~/.docker/buildx/activity`와
+`~/.docker/buildx/refs`만 쓰기로 연다. 실제 build에서 이 bookkeeping 경로의 read-only 거부가 관측되면
+메인이 역할 설정을 정식 배포하고 새 native 권한 카나리와 build 재시도로 확인한다. Docker 설정·builder
+정의와 나머지 HOME은 쓰기 범위에 넣지 않으며 sudo나 환경변수 변경으로 우회하지 않는다. 실제 호스트
+전제조건이 없을 때만 그 결손을 기존 request 계약으로 보고한다.
+
 ## 계약과 집행 표면
 
 동일 권한의 기준은 **같은 역할에 승인된 업무를 수행하고 같은 도메인 소유·승인 경계를 지키는 것**이다.

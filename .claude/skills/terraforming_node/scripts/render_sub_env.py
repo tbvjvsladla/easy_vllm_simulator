@@ -1242,6 +1242,7 @@ def _self_test() -> int:
         _codex_ok = (_codex.get("default_permissions") == "vllm-sub"
                      and "sandbox_mode" not in _codex and _cp.get("extends") == ":workspace"
                      and _identity_ro and _fs.get(".git") == "write" and _kit_ro != _want_allow
+                     and (_cp["filesystem"].get("~/.docker/buildx") == {"activity": "write", "refs": "write"}) == _want_allow
                      and (_fs.get(".claude/skills/vllm-recipe-explorer/feedback") == "write") == _want_allow)
         _c = ((_in_allow == _want_allow) and (_in_deny != _want_allow) and _no_marker and _common
               and _no_write_rule and _codex_ok)
