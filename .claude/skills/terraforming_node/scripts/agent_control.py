@@ -710,7 +710,13 @@ def _test_codex_provider() -> None:
     request.update(schema_version=2, provider="codex_cli", model="gpt-6.1-sol",
                    max_turns=None, budget_unit="wall_time", max_dispatches=2,
                    sandbox_mode="read-only")
-    _require(not request_schema_violations(request), "valid v2 wall-time request rejected")
+    _require(not request_schema_violations(request), "legacy v2 wall-time request rejected")
+    uncapped = dict(request)
+    uncapped.pop("max_dispatches")
+    _require(not request_schema_violations(uncapped), "per-invocation v2 request rejected without cumulative count")
+    missing_timeout = dict(uncapped)
+    missing_timeout.pop("timeout_seconds")
+    _require(request_schema_violations(missing_timeout), "v2 request without timeout accepted")
     for key, value in (("max_turns", 1), ("max_dispatches", 0), ("budget_unit", "native_turns")):
         bad = dict(request, **{key: value})
         _require(request_schema_violations(bad), f"unsupported v2 budget accepted: {key}={value!r}")
@@ -768,7 +774,8 @@ def _test_codex_provider() -> None:
     # Exact safe quoted prompt is an operand, not executable shell grammar.
     _require(shlex.quote(hostile["task"]) in script and shlex.quote(hostile["target"]["work_dir"]) in script,
              "SSH prompt/workspace shell quoting changed")
-    _require("BatchMode=yes" in argv and "--kill-after=3s" in script and "exec timeout" in script,
+    _require("BatchMode=yes" in argv and "adapter.deadline_reaped" in script
+             and "os.killpg" in script and "python3" in script,
              "SSH must have noninteractive identity and remote bounded termination")
     _require(provider._inner_argv(hostile)[-2:] == ["--", hostile["task"]],
              "hostile prompt was not terminated as a positional operand")

@@ -38,6 +38,7 @@ when_to_use: >-
 - **State transitions** — 산출물은 `execution-approved` 의 **전제**(HW 사실·Flag)를 만든다. runtime-ready/evidence-complete/promotion-ready 판정은 `.claude/policies/runtime/completion_gate.py` 소유.
 - **Deterministic commands** — 아래 §공개 표면 표가 전수다. 플래그의 단일 권위는 각 스크립트의 `--help` 다(여기 손으로 적지 않는다).
 - **Handoff contract** — Flag 발급 → `upstream-version-watch`(컨테이너 빌드) → `vllm-recipe-explorer`(서빙전략). 서브 전달차는 `upstream-version-watch/scripts/sync_to_sub.sh` 단일 경로.
+- **Worker/checkpoint contract** — 남은 작업·동일 단계 실측·소진 원인·서브 제안으로 native 실행 예산을 매번 편성하되 A2A 누적 호출 횟수로 캠페인을 끊지 않는다. 정상 예산 소진 뒤 상태 회수·재호출은 세션 리볼버의 역할이며 메인 자체가 워커가 되어도 같다. 호출 횟수는 이력으로 보존한다. 실제 권한·정체성·중복 실행·미해결 실패 가드는 유지한다.
 - **Owns (state)** — `manifest.yaml`(메인 + **서브 manifest** §2.7.10) · `terraforming-flag` · `agent-card`(unsigned capability/discovery metadata) · `sub-agent-env` · `node-identity`(§2.7.6) · `topology-axis-contract`(§2.7.0) · `sub-control-plane`(§2.7) · `grounding-exchange`(§2.7.8) · 캠페인 체인 writer(`campaign_init.py`) · 블랙박스 데이터 평면(`docs/logs/<node_id>/`).
 
 ## Mandatory procedural spine

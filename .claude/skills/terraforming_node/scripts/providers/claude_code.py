@@ -476,8 +476,8 @@ def _invoke(request: dict, observation: dict | None = None) -> dict:
             if _payload.get("subtype") == "error_max_turns":
                 _diag(request, "TURN_BUDGET_EXHAUSTED",
                       f"provider 가 max_turns={request.get('max_turns')} 를 소진했다"
-                      f"(num_turns={_turns0}). 같은 예산의 자동 재시도 ✗ — 더 큰 예산의 새 attempt 를 "
-                      f"열고 session_id 로 이어라(scope ⊥ budget).")
+                      f"(num_turns={_turns0}). checkpoint와 남은 과업을 확인하고 session_id로 이어라; "
+                      f"관측과 남은 작업에 맞게 다음 호출 예산을 선언한다(scope ⊥ budget).")
                 return _result(request, status=STATUS_EXECUTION_FAILED,
                                exit_code=EXIT_EXECUTION_FAILED, reason_codes=["NONZERO_EXIT"],
                                session_id=_sess0, num_turns=_turns0, budget_outcome="exhausted",
@@ -585,7 +585,7 @@ def _invoke(request: dict, observation: dict | None = None) -> dict:
     if payload.get("subtype") == "error_max_turns":
         _diag(request, "TURN_BUDGET_EXHAUSTED",
               f"provider 가 max_turns={request.get('max_turns')} 를 소진했다(num_turns={_turns}). "
-              f"같은 예산의 자동 재시도 ✗ — 더 큰 예산의 새 attempt 를 열어라(scope ⊥ budget).")
+              f"checkpoint와 남은 과업을 확인하고 관측에 맞게 다음 호출 예산을 선언해 이어라(scope ⊥ budget).")
         return _result(request, status=STATUS_EXECUTION_FAILED, exit_code=EXIT_EXECUTION_FAILED,
                        reason_codes=["NONZERO_EXIT"], session_id=_sess, num_turns=_turns,
                        budget_outcome="exhausted", duration_ms=_dur, duration_api_ms=_dur_api)

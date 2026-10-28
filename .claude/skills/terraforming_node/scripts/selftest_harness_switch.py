@@ -141,8 +141,8 @@ class HarnessSwitchChecks(unittest.TestCase):
         self.assertEqual(agent_control.request_schema_violations(request), [])
         self.assertEqual(request["schema_version"], 2)
         self.assertIsNone(request["max_turns"])
-        self.assertEqual((request["budget_unit"], request["timeout_seconds"],
-                          request["max_dispatches"]), ("wall_time", 90, 3))
+        self.assertEqual((request["budget_unit"], request["timeout_seconds"]), ("wall_time", 90))
+        self.assertNotIn("max_dispatches", request)
         self.assertIn("AGENTS.md", request["task"])
         for changes in ({"schema_version": 1}, {"provider": "claude_code"},
                         {"max_turns": 12}, {"max_dispatches": 0},
@@ -152,12 +152,10 @@ class HarnessSwitchChecks(unittest.TestCase):
             with self.subTest(changes=changes):
                 self.assertTrue(agent_control.request_schema_violations(dict(request, **changes)))
         missing = dict(request)
-        missing.pop("max_dispatches")
-        self.assertTrue(agent_control.request_schema_violations(missing))
-        for native, dispatch in ((1, 3), (None, None), (None, 0), (None, True)):
-            with self.subTest(native=native, dispatch=dispatch):
-                self.assertRejected(turn_budget.declare, native, 90, source="declared",
-                                    unit="wall_time", max_dispatches=dispatch)
+        missing["max_dispatches"] = 3  # Historical request remains readable.
+        self.assertEqual(agent_control.request_schema_violations(missing), [])
+        self.assertRejected(turn_budget.declare, 1, 90, source="declared", unit="wall_time")
+        self.assertNotIn("max_dispatches", turn_budget.declare(None, 90, source="declared", unit="wall_time"))
 
     def test_real_runner_registry_preserves_default_and_provider_identity(self):
         default = relay.resolve_ladder(str(HERE.parents[3]), None)
@@ -225,7 +223,7 @@ class HarnessSwitchChecks(unittest.TestCase):
         decision = relay.supervise_decide(doc, cost_cap_attempts=1,
                                           ladder=[self.codex, self.claude])
         self.assertEqual(decision["action"], "popup")
-        self.assertIn("1/1", decision["reason"])
+        self.assertNotIn("1/1", decision["reason"])
         self.assertEqual(relay.supervise_decide(doc, ladder=[self.codex, self.claude])["action"], "popup")
 
     def test_stale_ledger_cannot_erase_new_attempt(self):
@@ -381,7 +379,7 @@ class HarnessSwitchChecks(unittest.TestCase):
                     self.assertEqual(instruction["kind"], "explicit")
                     self.assertEqual(instruction["body"], task_body)
                     self.assertEqual(instruction["body_digest"], hashlib.sha256(task_body.encode()).hexdigest())
-                    self.assertEqual(final["attempts"][1]["max_dispatches"], 3)
+                    self.assertNotIn("max_dispatches", final["attempts"][1])
                     self.assertEqual(relay.pending_for(str(root), "switch"), [])
 
     def test_capacity_is_strict_structured_failure_and_retains_recovery_gate(self):
@@ -439,15 +437,28 @@ class HarnessSwitchChecks(unittest.TestCase):
         saved = relay.load_ledger(path)
         self.assertEqual(len(calls), 3)
         self.assertEqual(len({x["dispatch_id"] for x in saved["attempts"]}), 3)
-        self.assertEqual(saved["capacity_policy"]["allocated_slots"], 3)
+        self.assertEqual(saved["capacity_bursts"][0]["allocated_slots"], 3)
         self.assertEqual([r.get("resume_session_id") for r in calls], [None, "capacity-session", "capacity-session"])
         self.assertTrue(all(r["model"] == "gpt-6.1-sol" and r["reasoning_effort"] == "low" for r in calls))
         self.assertEqual(saved["attempts"][1]["task_instruction"]["kind"], "continuation")
         self.assertIn("벤치", calls[1]["task"])
-        self.assertEqual(len(relay.resume_blockers(relay.pending_for(str(self.root), "switch"))), 1)
-        with contextlib.redirect_stdout(io.StringIO()):
-            self.assertRejected(relay.run_attempt, args, saved, path, "full task", self.wall, "new", message="already started")
-        self.assertEqual(len(calls), 3)
+        self.assertEqual(len(relay.resume_blockers(relay.pending_for(str(self.root), "switch"))), 0)
+        self.assertEqual(saved["capacity_deferred"]["dispatch_id"], saved["attempts"][-1]["dispatch_id"])
+        self.assertEqual(relay.supervise_decide(saved)["action"], "resume")
+        wake = SimpleNamespace(repo_root=str(self.root), topology=None, manifest=None, context_id="switch",
+                               ladder=[self.codex], max_turns=None, permission_profile=None, sandbox_mode=None,
+                               reasoning_effort=None, apply=True, emit_only=False)
+        with mock.patch.object(relay, "assert_sub_branch", return_value="multi"), \
+             mock.patch.object(relay.subprocess, "run", side_effect=invoke), \
+             mock.patch.object(relay.time, "sleep"), contextlib.redirect_stdout(io.StringIO()):
+            relay._supervise_resume(wake, path, saved, 90, "deferred wake")
+        again = relay.load_ledger(path)
+        self.assertEqual(len(calls), 6)
+        self.assertEqual(len(again["capacity_bursts"]), 2)
+        self.assertEqual(len({x["dispatch_id"] for x in again["attempts"]}), 6)
+        self.assertEqual(again["capacity_bursts"][0], saved["capacity_bursts"][0])
+        self.assertTrue(all(r.get("resume_session_id") == "capacity-session" for r in calls[1:]))
+        self.assertEqual(relay.supervise_decide(again)["action"], "resume")
 
     def test_capacity_batch_two_failures_then_completed(self):
         args = self.dispatch_args()
@@ -487,7 +498,7 @@ class HarnessSwitchChecks(unittest.TestCase):
         saved = relay.load_ledger(path)
         self.assertEqual(len(calls), 3)
         self.assertEqual(len({x["dispatch_id"] for x in saved["attempts"]}), 3)
-        self.assertEqual(saved["capacity_policy"]["allocated_slots"], 3)
+        self.assertEqual(saved["capacity_bursts"][0]["allocated_slots"], 3)
         self.assertEqual([r.get("resume_session_id") for r in calls], [None, "capacity-session", "capacity-session"])
         self.assertTrue(all(r["model"] == "gpt-6.1-sol" and r["reasoning_effort"] == "low" for r in calls))
         self.assertEqual(saved["attempts"][1]["task_instruction"]["kind"], "continuation")
@@ -496,8 +507,6 @@ class HarnessSwitchChecks(unittest.TestCase):
         self.assertEqual([x["failure_evidence"]["signal"] for x in saved["attempts"][:2]], ["provider_capacity"] * 2)
         self.assertEqual(len(relay.resume_blockers(relay.pending_for(str(self.root), "switch"))), 0)
         self.assertTrue(all(r["target"] == calls[0]["target"] and r["permission_profile"] == "vllm-sub" for r in calls))
-        with contextlib.redirect_stdout(io.StringIO()):
-            self.assertRejected(relay.run_attempt, args, saved, path, "full task", self.wall, "new", message="already started")
         self.assertEqual(len(calls), 3)
 
     def test_capacity_handoff_reuses_only_remaining_slots(self):
@@ -542,7 +551,7 @@ class HarnessSwitchChecks(unittest.TestCase):
              mock.patch.object(relay.time, "sleep"), contextlib.redirect_stdout(io.StringIO()):
             relay.run_attempt(args, state, path, "full task", self.wall, "new")
             self.assertEqual(len(calls), 1)
-            original_policy = dict(state["capacity_policy"])
+            original_policy = dict(state["capacity_bursts"][0])
             args.continue_, args.apply, args.resume = True, True, "capacity-session"
             args.task_file = "explicit-task-file"
             last = state["attempts"][-1]
@@ -572,11 +581,11 @@ class HarnessSwitchChecks(unittest.TestCase):
             self.assertFalse(relay.capacity_handoff_reentry(args, state, self.codex, original_policy, "capacity-session"))
             outcome_path.write_bytes(outcome_bytes)
             relay.run_attempt(args, state, path, "updated complete task", self.wall, "capacity-session")
-            self.assertEqual(state["capacity_policy"], original_policy)
+            self.assertEqual(state["capacity_bursts"][0], original_policy)
         saved = relay.load_ledger(path)
         self.assertEqual(len(calls), 3)
         self.assertEqual(len({x["dispatch_id"] for x in saved["attempts"]}), 3)
-        self.assertEqual(saved["capacity_policy"]["allocated_slots"], 3)
+        self.assertEqual(saved["capacity_bursts"][0]["allocated_slots"], 3)
         self.assertEqual([r.get("resume_session_id") for r in calls], [None, "capacity-session", "capacity-session"])
         self.assertTrue(all(r["model"] == "gpt-6.1-sol" and r["reasoning_effort"] == "low" for r in calls))
         self.assertEqual(saved["attempts"][1]["task_instruction"]["kind"], "explicit")
@@ -586,11 +595,9 @@ class HarnessSwitchChecks(unittest.TestCase):
         self.assertEqual(saved["attempts"][1]["failure_evidence"]["signal"], "provider_capacity")
         self.assertEqual(len(relay.resume_blockers(relay.pending_for(str(self.root), "switch"))), 0)
         self.assertTrue(all(r["target"] == calls[0]["target"] and r["permission_profile"] == "vllm-sub" for r in calls))
-        with contextlib.redirect_stdout(io.StringIO()):
-            self.assertRejected(relay.run_attempt, args, saved, path, "full task", self.wall, "new", message="already started")
         self.assertEqual(len(calls), 3)
 
-    def test_capacity_handoff_rejects_unsafe_or_exhausted_reentry(self):
+    def test_capacity_handoff_rejects_unsafe_reentry(self):
         args = self.dispatch_args()
         args.continue_, args.apply, args.resume, args.task_file = True, True, "session", "full-task"
         args.reasoning_effort = "low"
@@ -608,7 +615,6 @@ class HarnessSwitchChecks(unittest.TestCase):
                 altered = dict(doc, attempts=doc["attempts"][:-1] + [dict(last, **change)])
                 self.assertFalse(relay.capacity_handoff_reentry(args, altered, self.codex, policy, "session"))
             self.assertFalse(relay.capacity_handoff_reentry(args, dict(doc, inflight={"id": 1}), self.codex, policy, "session"))
-            self.assertFalse(relay.capacity_handoff_reentry(args, dict(doc, attempts=doc["attempts"] + [{}, last]), self.codex, policy, "session"))
             self.assertFalse(relay.capacity_handoff_reentry(args, doc, self.codex, policy, "different"))
             args.task_file = None
             self.assertFalse(relay.capacity_handoff_reentry(args, doc, self.codex, policy, "session"))
@@ -642,6 +648,28 @@ class HarnessSwitchChecks(unittest.TestCase):
              mock.patch.object(relay, "capacity_deadline_fits", return_value=False):
             self.assertRejected(relay.run_attempt, args, state, path, "task", self.wall, "new", message="deadline")
         self.assertEqual(Path(path).read_bytes(), before)
+
+    def test_inherited_capacity_burst_never_extends_not_after(self):
+        import datetime
+        now = datetime.datetime.now(datetime.timezone.utc)
+        until = (now + datetime.timedelta(seconds=120)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        inherited = {"retries": 2, "backoff_seconds": 1, "deadline_utc": until,
+                     "not_after_utc": until, "authorization": "actual authorization", "source": "user"}
+        args = SimpleNamespace(_capacity_resume_policy=inherited)
+        policy = relay.capacity_policy(args, {"attempts": []}, "unused", self.wall)
+        self.assertEqual(policy["deadline_utc"], until)
+        self.assertEqual(policy["not_after_utc"], until)
+        approval = self.root / "deadline-approval.json"
+        approval.write_text(json.dumps({"authorization": "actual authorization", "source": "user"}))
+        explicit = SimpleNamespace(capacity_retries=2, capacity_backoff_seconds=1,
+                                   capacity_deadline_utc="2099-01-01T00:00:00Z",
+                                   capacity_approval_file=str(approval))
+        legacy = {"attempts": [], "capacity_policy": {"deadline_utc": until}}
+        self.assertEqual(relay.capacity_policy(explicit, legacy, "unused", self.wall)["deadline_utc"], "2099-01-01T00:00:00Z")
+        expired = dict(inherited, not_after_utc="2000-01-01T00:00:00Z")
+        args._capacity_resume_policy = expired
+        self.assertRejected(relay.capacity_policy, args, {"attempts": []}, "unused", self.wall,
+                            message="deadline")
 
     def test_capacity_batch_blocks_unfinished_command_and_missing_session(self):
         provider = agent_control._load_provider("codex_cli")
@@ -698,6 +726,10 @@ class HarnessSwitchChecks(unittest.TestCase):
                 result = provider.parse_output(request, "".join(json.dumps(e) + "\n" for e in events), "", rc, **opts)
                 doc = {"context_id": "switch", "attempts": []}
                 att = relay.record_attempt(doc, context_id="switch", bud=self.wall, result=result, runner=self.codex)
+                if name != "completed_cli_without_report":
+                    self.assertIsNotNone(relay.codex_recovery_requirement(att))
+                    self.assertEqual(relay.supervise_decide(doc, doc_progress="observed context document")["action"], "popup")
+                    continue
                 self.assertIsNone(relay.codex_recovery_requirement(att))
                 self.assertEqual(relay.continuation_stop_reasons(doc), [])
                 self.assertEqual(relay.supervise_decide(doc)["action"], "popup")
@@ -846,18 +878,248 @@ class HarnessSwitchChecks(unittest.TestCase):
         self.assertEqual(relay.supervise_decide(doc)["action"], "popup",
                          "completed older attempt must not hide unresolved dispatch")
 
-    def test_outer_cap_survives_switch_to_claude_and_completion_is_not_a_cap_error(self):
+    def test_remote_deadline_marker_requires_bound_complete_control_evidence(self):
+        import base64
+        provider = agent_control._load_provider("codex_cli")
+        request = self.request("codex_cli", sandbox_mode="read-only")
+        digest = provider._request_digest(request)
+        marker = {"type": "adapter.deadline_reaped", "request_digest": digest}
+        start = [{"type": "adapter.lock_acquired"}, {"type": "thread.started", "thread_id": "native"},
+                 {"type": "turn.started"}]
+        header = {"type": "adapter.framing_started", "request_digest": digest}
+        def frames(events):
+            return [header] + [{"type": "adapter.child_line", "data": base64.b64encode(json.dumps(e).encode()).decode()} for e in events]
+        def parse(events, **opts):
+            return provider.parse_output(request, "".join(json.dumps(e) + "\n" for e in events), "", 124, **opts)
+        self.assertEqual(parse(frames(start) + [marker])["failure_evidence"]["signal"], "controlled_remote_deadline")
+        for events, opts in ((frames(start), {}), (frames(start) + [dict(marker, request_digest="wrong")], {}),
+                             (frames(start) + [marker, {"type": "turn.started"}], {}),
+                             (frames(start[1:]) + [marker], {}),
+                             (frames(start + [{"type": "error", "code": "approval_required"}]) + [marker], {}),
+                             (frames(start) + [marker], {"timed_out": True}),
+                             (frames(start) + [marker], {"cancelled": True})):
+            self.assertNotEqual(parse(events, **opts)["failure_evidence"]["signal"], "controlled_remote_deadline")
+        run = subprocess.run([sys.executable, "-c", provider._REMOTE_WATCHDOG, "0.05", digest,
+                              sys.executable, "-c", "import time; time.sleep(5)"],
+                             capture_output=True, text=True, timeout=5)
+        self.assertEqual(run.returncode, 124)
+        self.assertEqual(json.loads(run.stdout.splitlines()[-1]), marker)
+        # The child can know the request digest. Its own JSONL must never be
+        # mistaken for the watchdog's terminal proof, even with an exact match.
+        forged_events = start + [marker]
+        child = "import sys; sys.stdout.write(" + repr("".join(json.dumps(e) + "\n" for e in forged_events)) + "); sys.exit(124)"
+        forged = subprocess.run([sys.executable, "-c", provider._REMOTE_WATCHDOG, "5", digest,
+                                 sys.executable, "-c", child], capture_output=True, text=True, timeout=5)
+        self.assertEqual(forged.returncode, 124)
+        self.assertNotEqual(provider.parse_output(request, forged.stdout, forged.stderr, forged.returncode)
+                            ["failure_evidence"]["signal"], "controlled_remote_deadline")
+        proc_attack = ("import os,sys,time; time.sleep(.05); "
+                       "os.write(os.open('/proc/%d/fd/1' % os.getppid(),os.O_WRONLY), "
+                       + repr((json.dumps(marker) + "\n").encode()) + "); sys.exit(124)")
+        direct = subprocess.run([sys.executable, "-c", provider._REMOTE_WATCHDOG, "5", digest,
+                                 sys.executable, "-c", proc_attack], capture_output=True, text=True, timeout=5)
+        self.assertEqual(direct.returncode, 124)
+        self.assertNotEqual(provider.parse_output(request, direct.stdout, direct.stderr, direct.returncode)
+                            ["failure_evidence"]["signal"], "controlled_remote_deadline")
+        inherited = "import subprocess,sys; subprocess.Popen([sys.executable,'-c','import time; time.sleep(1)']); sys.exit(124)"
+        late = subprocess.run([sys.executable, "-c", provider._REMOTE_WATCHDOG, "0.5", digest,
+                               sys.executable, "-c", inherited], capture_output=True, text=True, timeout=3)
+        self.assertEqual(late.returncode, 124)
+        self.assertNotIn("adapter.deadline_reaped", late.stdout)
+        writer = "import os,time; end=time.monotonic()+.4\nwhile time.monotonic()<end:\n try: os.write(1,b'x'*4096)\n except BrokenPipeError: break"
+        parent = "import subprocess,sys; subprocess.Popen([sys.executable,'-c'," + repr(writer) + "],stderr=subprocess.DEVNULL); sys.exit(124)"
+        busy = subprocess.run([sys.executable, "-c", provider._REMOTE_WATCHDOG, "2", digest,
+                               sys.executable, "-c", parent], capture_output=True, text=True, timeout=4)
+        self.assertEqual(busy.returncode, 124)
+        self.assertNotEqual(provider.parse_output(request, busy.stdout, busy.stderr, busy.returncode)
+                            ["failure_evidence"]["signal"], "controlled_remote_deadline")
+
+    def test_local_deadline_uses_one_watchdog_and_bare_124_is_ambiguous(self):
+        provider = agent_control._load_provider("codex_cli")
+        request = self.request("codex_cli", sandbox_mode="read-only")
+        request["target"] = {"role": "main", "transport": "local", "work_dir": str(self.root)}
+        argv = provider.build_argv(request)
+        self.assertNotEqual(argv[0], "timeout")
+        self.assertNotIn("timeout", argv)
+        events = [{"type": "adapter.lock_acquired"}, {"type": "thread.started", "thread_id": "native"},
+                  {"type": "turn.started"}]
+        raw = "".join(json.dumps(e) + "\n" for e in events)
+        self.assertEqual(provider.parse_output(request, raw, "", 124)["failure_evidence"]["signal"], "wall_timeout")
+        self.assertEqual(provider.parse_output(request, raw, "", -15, timed_out=True)["failure_evidence"]["signal"],
+                         "controlled_local_deadline")
+
+    def test_supervised_budget_uses_current_phase_evidence_and_typed_recommendations(self):
+        args = SimpleNamespace(ladder=[self.codex], timeout_seconds=None, max_turns=None)
+        old = {"attempt": 1, "phase": "serve", "control_status": "completed", "status": "completed",
+               "duration_ms": 900000, "execution_started": True, "sub_reported": True,
+               "budget_outcome": "within_budget", "provider": "codex_cli", "runner": self.codex}
+        last = {"attempt": 2, "phase": "publish", "control_status": "completed", "status": "input-required",
+                "execution_started": True, "sub_reported": True, "next_steps": ["remaining"], "provider": "codex_cli", "runner": self.codex,
+                "timeout_seconds_allocated": 600, "budget_recommended": {"timeout_seconds": 120}}
+        doc = {"attempts": [old, last]}
+        budget = relay.select_supervised_budget(args, doc, 99999, "unrelated aggregate")
+        self.assertEqual(budget["timeout_seconds"], 120)
+        self.assertIsNone(budget["max_turns"])
+        self.assertIn("recommendation", budget["source"])
+        last["budget_recommended"] = {"timeout_seconds": "120"}
+        budget = relay.select_supervised_budget(args, doc, 99999, "unrelated aggregate")
+        self.assertEqual(budget["timeout_seconds"], 600)
+        same = dict(old, attempt=3, phase="publish", duration_ms=80000, next_steps=["prior checkpoint"])
+        doc["attempts"] = [old, same, last]
+        self.assertEqual(relay.select_supervised_budget(args, doc)["timeout_seconds"], 120)
+        last["failure_evidence"] = {"signal": "controlled_remote_deadline"}
+        self.assertEqual(relay.select_supervised_budget(args, doc)["timeout_seconds"], 900)
+        args.timeout_seconds = 77
+        self.assertEqual(relay.select_supervised_budget(args, doc)["timeout_seconds"], 77)
+        args.timeout_seconds = None
+        last["timeout_seconds_allocated"] = turn_budget.schema_cap("timeout_seconds")
+        capped = relay.select_supervised_budget(args, doc)
+        self.assertEqual(capped["timeout_seconds"], turn_budget.schema_cap("timeout_seconds"))
+        self.assertIn("checkpoint continues", capped["source"])
+        args.ladder = [self.claude]
+        last.pop("failure_evidence")
+        last.update(max_turns_allocated=100, budget_recommended={"timeout_seconds": 120, "max_turns": 20})
+        reduced = relay.select_supervised_budget(args, doc)
+        self.assertEqual((reduced["timeout_seconds"], reduced["max_turns"]), (120, 20))
+        last["budget_outcome"] = "exhausted"
+        self.assertEqual(relay.select_supervised_budget(args, doc)["max_turns"], turn_budget.schema_cap("max_turns"))
+        args.ladder = [self.codex]
+        args.max_turns = 10
+        self.assertRejected(relay.select_supervised_budget, args, doc)
+
+    def test_supervised_budget_shrink_needs_new_progress_and_same_provider(self):
+        args = SimpleNamespace(ladder=[self.codex], timeout_seconds=None, max_turns=None)
+        previous = {"attempt": 1, "phase": "bench", "provider": "codex_cli", "execution_started": True,
+                    "status": "input-required", "control_status": "completed", "sub_reported": True, "runner": self.codex,
+                    "artifact_paths": ["same"], "next_steps": ["same"]}
+        last = dict(previous, attempt=2, timeout_seconds_allocated=600,
+                    budget_recommended={"timeout_seconds": 120})
+        doc = {"attempts": [previous, last]}
+        self.assertEqual(relay.select_supervised_budget(args, doc)["timeout_seconds"], 600)
+        for change in ({"phase": "publish"}, {"artifact_paths": ["same", "new"]}, {"next_steps": ["changed"]}):
+            doc["attempts"][-1] = dict(last, **change)
+            self.assertEqual(relay.select_supervised_budget(args, doc)["timeout_seconds"], 120)
+        for other_runner in (self.claude, dict(self.codex, model="other-model")):
+            other = dict(previous, attempt=3, provider=other_runner["provider"], runner=other_runner,
+                         status="completed", duration_ms=10000)
+            doc["attempts"] = [other, last]
+            self.assertEqual(relay.select_supervised_budget(args, doc)["timeout_seconds"], 600)
+        contradicted = dict(previous, attempt=3, status="completed", duration_ms=10000,
+                            model_used=["other-observed-model"])
+        doc["attempts"] = [contradicted, last]
+        self.assertEqual(relay.select_supervised_budget(args, doc)["timeout_seconds"], 600)
+
+    def test_successful_worker_checkpoint_calibrates_wall_without_completing_task(self):
+        args = SimpleNamespace(ladder=[self.codex], timeout_seconds=None, max_turns=None)
+        checkpoint = {"attempt": 1, "phase": "publish", "provider": "codex_cli", "runner": self.codex,
+                      "control_status": "completed", "status": "input-required", "sub_reported": True,
+                      "hitl_needed": False, "budget_outcome": "within_budget", "execution_started": True,
+                      "started_utc": "2026-10-28T10:46:50Z", "ended_utc": "2026-10-28T10:50:04Z",
+                      "duration_ms": None, "next_steps": ["old"]}
+        last = dict(checkpoint, attempt=2, started_utc=None, ended_utc=None, next_steps=["new"],
+                    timeout_seconds_allocated=600)
+        doc = {"attempts": [checkpoint, last]}
+        budget = relay.select_supervised_budget(args, doc)
+        self.assertEqual(budget["timeout_seconds"], 291)
+        self.assertIn("main_wall_ms", budget["source"])
+        self.assertEqual(checkpoint["status"], "input-required")
+        for bad in ({"control_status": "execution_failed"}, {"hitl_needed": True},
+                    {"budget_outcome": "exhausted"}, {"permission_denials": ["denied"]}):
+            doc["attempts"][0] = dict(checkpoint, **bad)
+            self.assertEqual(relay.select_supervised_budget(args, doc)["timeout_seconds"], 600)
+
+    def test_controlled_deadline_requires_durable_bound_outcome(self):
+        import base64
+        args = self.dispatch_args()
+        args.ladder = [self.codex]
+        path = relay.ledger_path(str(self.root), "switch")
+        state = relay.load_ledger(path)
+        provider = agent_control._load_provider("codex_cli")
+        real_run = subprocess.run
+        def invoke(command, **kwargs):
+            if command[1:3] != [relay.AGENT_CONTROL, "invoke"]:
+                return real_run(command, **kwargs)
+            req = json.loads(Path(command[command.index("--request") + 1]).read_text())
+            digest = provider._request_digest(req)
+            child = [{"type": "adapter.lock_acquired"}, {"type": "thread.started", "thread_id": "deadline-session"},
+                     {"type": "turn.started"}]
+            events = [{"type": "adapter.framing_started", "request_digest": digest}] + [
+                {"type": "adapter.child_line", "data": base64.b64encode(json.dumps(e).encode()).decode()} for e in child] + [
+                {"type": "adapter.deadline_reaped", "request_digest": digest}]
+            result = provider.parse_output(req, "".join(json.dumps(e) + "\n" for e in events), "", 124)
+            agent_control.persist_outcome(command[command.index("--result-file") + 1],
+                dispatch_id=command[command.index("--dispatch-id") + 1], request=req, result=result)
+            return SimpleNamespace(stdout=json.dumps(result), stderr="", returncode=1)
+        with mock.patch.object(relay, "assert_sub_branch", return_value="multi"), \
+             mock.patch.object(relay.subprocess, "run", side_effect=invoke), contextlib.redirect_stdout(io.StringIO()):
+            relay.run_attempt(args, state, path, "task", self.wall, "new")
+        saved = relay.load_ledger(path)
+        last = saved["attempts"][-1]
+        self.assertTrue(relay.controlled_deadline_ready(str(self.root), saved))
+        outcome = self.root / last["outcome_path"]
+        raw = outcome.read_bytes()
+        outcome.unlink()
+        self.assertFalse(relay.controlled_deadline_ready(str(self.root), saved))
+        outcome.write_bytes(raw)
+        for mutate in (lambda x: x["result"].update(session_id="wrong"),
+                       lambda x: x["request"].update(model="wrong"),
+                       lambda x: x["result"]["raw_events"][-1].update(request_digest="wrong")):
+            altered = json.loads(raw)
+            mutate(altered)
+            outcome.write_text(json.dumps(altered), encoding="utf-8")
+            self.assertFalse(relay.controlled_deadline_ready(str(self.root), saved))
+        outcome.write_bytes(raw)
+        self.assertTrue(relay.controlled_deadline_ready(str(self.root), saved))
+        altered = json.loads(raw)
+        altered["result"]["raw_events"].insert(-1, {"type": "item.started", "item": {"type": "command_execution", "id": "open"}})
+        outcome.write_text(json.dumps(altered), encoding="utf-8")
+        self.assertTrue(relay.controlled_deadline_ready(str(self.root), saved))
+
+    def test_historical_count_caps_do_not_stop_supervision_or_enter_new_budgets(self):
         args = SimpleNamespace(ladder=[self.claude], max_turns=10, max_dispatches=None)
         state = {"max_dispatches": 1, "attempts": [{"attempt": 1}]}
         budget = relay.declared_budget(args, 30, "explicit inherited context cap", state)
-        self.assertEqual(budget["max_dispatches"], 1)
-        with mock.patch.object(relay, "build_request", side_effect=AssertionError("cap bypass")):
-            self.assertRejected(relay.run_attempt_once, SimpleNamespace(), state, "unused", "task",
-                                budget, "new", self.claude, message="dispatch cap")
-        args.max_dispatches = 0
-        self.assertRejected(relay.declared_budget, args, 30, "zero must not inherit", state)
-        state["attempts"] = [{"end_reason": "completed", "status": "completed"}]
-        self.assertEqual(relay.supervise_decide(state)["action"], "next_cell")
+        self.assertNotIn("max_dispatches", budget)
+        for provider in (self.claude, self.codex):
+            for count in (6, 101):
+                attempts = [{"attempt": n, "end_reason": "sub_input_required", "status": "input-required",
+                             "hitl_needed": False, "next_steps": [str(n)], "phase": "bench",
+                             "execution_started": True, "control_status": "completed", "runner": provider} for n in range(1, count + 1)]
+                doc = {"max_dispatches": 6, "attempts": attempts}
+                with mock.patch.object(relay, "ledger_progress", return_value="observed progress"):
+                    decision = relay.supervise_decide(doc, cost_cap_attempts=1, doc_progress="progress")
+                self.assertEqual(decision["action"], "resume")
+                self.assertEqual(len(doc["attempts"]), count)
+
+    def test_native_exhaustion_requires_bound_proof_and_reconciliation_prelude(self):
+        req = self.request()
+        binding = relay.permission_binding(req)
+        last = {"provider": "claude_code", "end_reason": "budget_exhausted", "session_id": "native",
+                "session_binding": binding, "outcome_path": "o", "request_path": "r", "request_digest": "d",
+                "dispatch_id": "id", "attempt": 1, "execution_started": True, "runner": self.claude,
+                "timeout_seconds_allocated": 90, "max_turns_allocated": 12}
+        doc = {"context_id": "switch", "topology": "multi", "manifest": str(self.manifest), "attempts": [last]}
+        result = {"session_id": "native", "budget_outcome": "exhausted", "reason_codes": []}
+        args = SimpleNamespace(ladder=[self.claude], max_turns=None, max_dispatches=None, topology=None,
+                               manifest=None, repo_root=str(self.root), campaign_id=None, node=None,
+                               permission_profile=None, sandbox_mode=None)
+        with mock.patch.object(relay, "_instruction_request", return_value=req), \
+             mock.patch.object(relay, "load_dispatch_outcome", return_value=(req, result)), \
+             mock.patch.object(relay, "continuation_stop_reasons", return_value=[]), \
+             mock.patch.object(relay, "pending_for", return_value=[]), \
+             mock.patch.object(relay, "continuation_instruction", return_value={"attempt": 1}), \
+             mock.patch.object(relay, "assemble_continuation", return_value="checkpoint"), \
+             mock.patch.object(relay, "run_attempt", return_value=0) as dispatch:
+            self.assertTrue(relay.native_budget_exhaustion_ready(str(self.root), doc))
+            self.assertEqual(relay._supervise_resume(args, "unused", doc, 30, "evidence"), 0)
+            task = dispatch.call_args.args[3]
+            self.assertIn("백그라운드 명령", task)
+            self.assertIn("sweep 상태", task)
+            self.assertIn("조정 전에는 벤치를 재시작", task)
+            for bad in (dict(result, budget_outcome="unknown"), dict(result, session_id="other"),
+                        dict(result, reason_codes=["PERMISSION_DENIED"])):
+                with mock.patch.object(relay, "load_dispatch_outcome", return_value=(req, bad)):
+                    self.assertFalse(relay.native_budget_exhaustion_ready(str(self.root), doc))
 
     def test_preflight_quotes_apostrophe_and_has_local_and_remote_deadlines(self):
         request = self.request("codex_cli", sandbox_mode="read-only")
@@ -885,8 +1147,9 @@ class HarnessSwitchChecks(unittest.TestCase):
                  "max_dispatches": 3, "reasoning_effort": "low", "permission_selection": {"permission_profile": "vllm-sub"},
                  "attempts": [{"attempt": 1, "status": "working", "execution_started": True,
                                "session_id": "native", "runner": self.codex,
-                               "control_status": "timeout", "reason_codes": ["TIMEOUT"],
-                               "failure_evidence": {"signal": "wall_timeout", "rotate": False}}]}
+                               "timeout_seconds_allocated": 90,
+                               "control_status": "completed", "reason_codes": [],
+                               "failure_evidence": {"signal": "completed", "rotate": False}}]}
         observed = []
         def record(a, *_args):
             observed.append(a)
@@ -990,7 +1253,7 @@ class HarnessSwitchChecks(unittest.TestCase):
         self.assertEqual(final["attempts"][0]["session_id"], "recovered-native")
         self.assertEqual(final["attempts"][0]["end_reason"], "completed")
         self.assertFalse(final["attempts"][0]["reconciliation"]["replayed"])
-        self.assertEqual(final["attempts"][0]["max_dispatches"], 3)
+        self.assertNotIn("max_dispatches", final["attempts"][0])
         self.assertRejected(relay.reconcile_inflight, args, final, path, message="no unresolved")
         self.assertEqual(len(final["attempts"]), 1)
 
@@ -1146,7 +1409,7 @@ class HarnessSwitchChecks(unittest.TestCase):
             self.assertEqual(request["task"].count(corrected), 1)
             self.assertEqual(request["task"].count("## 이어받기"), 1)
         self.assertEqual(relay.pending_for(str(self.root), "switch"), [])
-        self.assertEqual(state["max_dispatches"], 6)
+        self.assertNotIn("max_dispatches", state)
         self.assertEqual(relay.continuation_instruction(str(self.root), state)["attempt"], 2)
         stale = copy.deepcopy(state); stale["attempts"][-1]["task_instruction"]["source_attempt"] = 1
         self.assertRejected(relay.continuation_instruction, str(self.root), stale, message="later task source")

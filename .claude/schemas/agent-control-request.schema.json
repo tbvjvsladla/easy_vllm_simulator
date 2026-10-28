@@ -2,7 +2,7 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://easy-vllm-simulator.local/schemas/agent-control-request.schema.json",
   "title": "agent-control-request",
-  "description": "Phase 6 (plan_26072506) provider-neutral INPUT contract for .claude/skills/terraforming_node/scripts/agent_control.py. Vocabulary mirrors .claude/skills/terraforming_node/references/orchestration/agent-control-adapter.md section 1. provider is the ONLY place the literal token 'claude' may appear, as an enum VALUE (never as a field name). model is intentionally NOT constrained here: 2026-09-05 (G-A1) the adapter's Sonnet-only enforcement was deleted as model overfitting. model is the caller's DECLARATION and the model that actually ran is recorded in the result's model_used. v2 codex_cli uses an explicit wall-time budget, outer dispatch ceiling, and exactly one permission selection.",
+  "description": "Phase 6 (plan_26072506) provider-neutral INPUT contract for .claude/skills/terraforming_node/scripts/agent_control.py. Vocabulary mirrors .claude/skills/terraforming_node/references/orchestration/agent-control-adapter.md section 1. provider is the ONLY place the literal token 'claude' may appear, as an enum VALUE (never as a field name). model is intentionally NOT constrained here: 2026-09-05 (G-A1) the adapter's Sonnet-only enforcement was deleted as model overfitting. model is the caller's DECLARATION and the model that actually ran is recorded in the result's model_used. v2 codex_cli uses an explicit per-invocation wall-time budget and exactly one permission selection; historical max_dispatches is accepted for read compatibility only.",
   "type": "object",
   "required": [
     "schema_version",
@@ -160,7 +160,7 @@
     "max_dispatches": {
       "type": "integer",
       "minimum": 1,
-      "description": "Declared outer context dispatch ceiling; the relay consumes it, never the provider."
+      "description": "Legacy outer dispatch field retained for historical request parsing; not a native budget and not emitted by new request builders."
     },
     "sandbox_mode": {
       "type": "string",
@@ -291,7 +291,6 @@
     {
       "required": [
         "budget_unit",
-        "max_dispatches",
         "sandbox_mode"
       ],
       "properties": {
@@ -318,7 +317,6 @@
     {
       "required": [
         "budget_unit",
-        "max_dispatches",
         "permission_profile"
       ],
       "properties": {

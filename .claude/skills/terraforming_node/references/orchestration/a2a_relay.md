@@ -55,13 +55,13 @@
 | `relay.py --task ... --max-turns N --timeout-seconds N --budget-source "..." --resume new` | 첫 위임 | **선언한 예산·재개**로 delegate · 원장 개설(`campaigns/<camp-id>/relay/<ctx>.json`) | B |
 | `relay.py --continue --apply --task-file <현재 적용할 전체 지시> --context-id <동일 context> --resume <id|new> …` | 서브가 메인 소유의 정본 수정·기술 판단을 요청했고 메인이 해결했을 때 | 정정과 유지할 조건을 포함한 명시 원문을 새 attempt의 지시 출처로 보존한다. 기존 캠페인·셀·provider·권한 결속과 예산·HITL·복구 가드는 그대로 적용한다 | B |
 | `relay.py --continue` | 소진·유보 뒤 | **원장에서 본문을 조립**해 미리보기 + 예산·세션 **사실** 표시(기본 dry-run) | B |
-| `relay.py --continue --apply --max-turns N --timeout-seconds N --budget-source "..." --resume <id\|new>` | **예외 경로** — 감독 스텝이 팝업한 뒤 사람이 본문을 승인 | 조립 본문 + 새로 선언한 예산 + **선언한 세션**으로 delegate | B |
+| `relay.py --continue --apply --max-turns N --timeout-seconds N --budget-source "..." --resume <id\|new>` | 명시적 후속 지시·체크포인트 재개. 실제 미해결 사람 결정은 별도로 충족 | 조립 본문 + 한 번의 실행 예산 + **선언한 세션**으로 delegate | B |
 | `relay.py --supervise-step <camp> [--apply]` | attempt 사이 | 원장 + 회수 브리핑을 읽어 **한 번 판정**하고 원장에 적는다. `--apply` 면 전진이 보이는 중단을 자동 재발급 | B |
 
-- **재개의 기본은 감독 스텝 자동 재발급이다**(`--supervise-step <camp> --apply` · 사용자 결정 D9). 수동 경로 `--continue --apply` 는 **예외 팝업 뒤 사람이 고른 경우에만** 쓴다. 5시간 한도
+- **재개의 기본은 감독 스텝 자동 재발급이다**(`--supervise-step <camp> --apply` · 사용자 결정 D9). `--continue --apply --task-file`로 기존 승인 범위의 기술 정정도 명시할 수 있다. 실제 미해결 사람 결정은 먼저 충족한다. 5시간 한도
   프로바이더만 쓰는 환경에서 매 재개마다 사람을 기다리면 그 대기가 캠페인의 벽시계를 지배한다
   (2026-09-07 실측: HITL 응답 대기 70분이 순차 실행의 직접 원인 중 하나였다). 자동의 **예외**는
-  선언된 비용 상한·모델/통신 평면 실패·미해결 승인/권한 거부다. Codex의 관측된 신호 종료·중단·불명 native/control 실패도
+  미해결 모델/통신 평면 실패·미해결 승인/권한 거부다. 누적 호출 횟수는 예외가 아니다. Codex의 관측된 신호 종료·중단·불명 native/control 실패도
   전진만으로 재개하지 않는다(아래 복구 계약). 전진이 없는 중단도 팝업이다(예산을 키우기 전에 묻는다).
 - `--continue --task-file`은 파일의 전체 원문을 명시 지시로 보존하고 미리보기에도 표시한다. 파일이 없으면 기존 지시 출처를 이어 조립한다. `--continue --task` 및 `--task`와 `--task-file` 동시 사용은 거부한다. 기존 차단성 요청과 수동 복구 조건은 동일하게 적용한다.
 - **기술 feedback은 사람의 답이 아니다.** 메인이 소유한 코드·계약을 수정한 뒤에는 같은 context에 `--task-file`로
@@ -115,6 +115,11 @@ native/process 실패와 불명 control 실패는 원장 `recovery_required`와 
 `relay-recovery-aNN`(`blocking:true`)에 같은 attempt·dispatch ID로 결속한다. 전진 흔적이나
 provider 변경은 그 잠금을 풀지 않는다. 기존 `completed_with_denials`의 완수 판정과 거부 기록은 유지한다.
 
+정상 native 실행 예산 소진은 위의 불명 실패와 구분한다. Claude의 관측된 native-turn 소진이나
+Codex adapter의 제어된 deadline 집행·워커 회수 증거가 durable 요청/결과와 같은 세션·권한에
+결속되면 자동 체크포인트 재개 대상이다. 이전 워커가 남긴 명령·서비스를 먼저 확인하며 예산 소진을
+과업 완료로 세지 않는다. 단순 exit124나 SSH 감시 timeout은 워커 회수의 증거가 아니다.
+
 - provider는 실제로 받은 signal 번호, 자식의 음수 rc, rc130/137/143의 shell signal 관례를
   `failure_evidence.termination`에 출처별로 보존한다. SIGTERM이나 ESC 화면 닫힘만으로
   **사용자가 취소했다**고 단정하지 않는다. 관측된 중단은 `process_interrupted`, 불명 control 실패는
@@ -128,15 +133,16 @@ provider 변경은 그 잠금을 풀지 않는다. 기존 `completed_with_denial
 - 현재 dispatch에 결속된 질문의 `answer`에 사람의 복구 결정을 **비어 있지 않은 문자열**로 기록한 뒤,
   `--continue --apply --resume <session_id|new>`와 예산 근거를 명시한다. 답만 기록하고 감독을 다시 부르면
   여전히 팝업이다. 답은 도구 권한 확대를 허용하지 않으며, 같은 provider/target/권한 resume 결속,
-  요청 digest, 잔존 서비스·정체성 가드, 외부 dispatch cap은 그대로 적용된다.
+  요청 digest, 잔존 서비스·정체성 가드는 그대로 적용된다. 과거 외부 호출 상한은 실행 이력으로만 남는다.
   완수 리포트 뒤 제어 프로세스가 신호로 끊긴 경우에도 이 명시적 복구 경로를 사용한다. 리포트의
   completed를 지우지 않으며, 그것만으로 미해결 제어 상태를 완료 처리하거나 복구를 영구 금지하지 않는다.
 - producer가 원장 기록 후 질문 기록 전에 종료됐거나 pending 파일이 사라져도, 다음 continue/감독/dispatch
   진입은 원장 관측에서 같은 blocking 질문을 복원한다. 다른 dispatch의 답은 승계하지 않는다.
   복구한 실행도 새 dispatch 1회로 계상하며, 이전 실패와 raw 증거는 유지한다.
 
-관측된 정상 wall timeout(`TIMEOUT`, `wall_timeout`)은 사용자 취소로 취급하지 않는다. timeout에
-전진이 있거나 **CLI는 completed이고 task report만 파싱되지 않은** 경우의 기존 D9 재개는 유지한다.
+wall timeout은 사용자 취소로 단정하지 않는다. 제어된 워커 회수 증명이 있는 정상 예산 소진과,
+**CLI는 completed이고 task report만 파싱되지 않은** 경우의 기존 D9 재개는 유지한다. 불명 timeout을
+전진 흔적만으로 정상 소진이라고 바꾸지 않는다.
 다만 같은 timeout에 구조화된 승인/권한 거부가 관측되면 그 거부를 지우지 않고 복구 질문으로 차단한다.
 
 - **조립기는 합성하지 않는다** — 직전 attempt 의 제어 상태(원장) · 서브가 보낸 `artifacts[]`·
@@ -225,17 +231,26 @@ provider 변경은 그 잠금을 풀지 않는다. 기존 `completed_with_denial
   실행이 시작된 뒤의 러너 실패는 이미 발생한 효과가 있을 수 있으므로 자동 회전하지 않는다.
 - `run_attempt`와 감독 `supervise_decide` 모두 `runner_evidence.rotate=true`를 요구한다.
   판정이 없거나 false이면 감독이 다음 스텝에서 회전을 다시 열지 않는다.
-- **회전은 비용이 아니다** — `--cost-cap-attempts` 는 서브에 닿은 attempt 만 센다.
+- **호출 이력은 중단 조건이 아니다.** 회전·실제 워커 실행·실패는 각각 관측대로 센다. 과거 `--cost-cap-attempts` 값이나 원장의 누적 횟수만으로 다음 워커를 막지 않는다.
 
 **Codex 예산과 상태 소유권.** Codex는 v2 wall-time 계약을 쓴다. `--max-turns`를 넘기지 않고
-`--timeout-seconds`·`--max-dispatches`·`--budget-source`를 선언한다. native turn 수는 모르면 null이다.
-외부 dispatch cap은 실패한 발행도 세며 Claude native 비용 상한과 별도다. 운영 서브는
+`--timeout-seconds`·`--budget-source`로 한 번의 실행 예산을 선언한다. native turn 수는 모르면 null이다.
+`max_dispatches`는 과거 요청을 읽기 위한 호환 필드이며 새 요청에는 싣지 않는다. 누적 호출 횟수는
+관측 이력이고 Codex·Claude 어느 경로에서도 자동 재개의 한도가 아니다. 운영 서브는
 `--permission-profile vllm-sub`, 읽기 전용 카나리는 `--sandbox-mode read-only`를 사용한다.
 named profile이 없거나 신뢰되지 않았으면 수리·검증하고 다시 진입한다. 더 넓은 sandbox로 대체하지 않는다.
 
-이 cap은 context 전체에 결속되므로 Claude-only 러너로 전환해도 없어지지 않는다. 마지막 허용
-dispatch가 완료된 경우에는 완료를 보고하며, cap은 다음 발행을 막는다. 감독은 context마다
+메인 자신이 상위 오케스트레이터가 호출한 워커여도 같은 규칙이다. 정상 실행 예산 소진 뒤에는
+캠페인과 체크포인트에서 이어받으며 과업 종료·성공·새 승인을 추론하지 않는다. 감독은 context마다
 campaign·통제변인·node·권한을 원장에서 새로 복원하고 수동 재개와 같은 정체성·잔존 서비스 게이트를 통과한다.
+
+**호출별 예산은 동적으로 편성한다.** 명시된 현재 작업의 예산과 근거를 우선하고, 감독 재개는
+서브의 유효한 제안·같은 context/단계의 최근 실제 실행 사용량·직전 예산 소진을 평가한다.
+관련 없는 다른 단계의 총 경과시간이나 메인 대기 시간을 필요 예산으로 쓰지 않는다. 실제 예산
+부족으로 소진됐으면 여유를 늘리고, 체크포인트가 전진해 남은 일이 줄었다면 근거 있는 작은
+제안도 반영할 수 있다. native 전송 상한에 닿아도 과업 전체를 끝내지 않고 다음 실행에서 잇는다.
+관측값·제안값·정책 여유계수·상한 조정의 출처를 `budget_source`에 구분한다. 같은 크기 반복이나
+고정 등급표가 기본 정책은 아니며, Codex의 미관측 native 턴을 추정해서 만들지 않는다.
 
 릴레이 CLI는 저장소 단일 writer 잠금을 얻고, 외부 실행 **전에** 원장에 context·과업·topology·manifest,
 `inflight`·dispatch ID·요청 바이트 digest(비추적 요청)·예약 outcome 경로를 기록한다.
@@ -277,8 +292,8 @@ stdout으로 보낸다. 파일은 dispatch ID와 **전체 요청**에 결속되�
 
 #### 명시된 용량 재시도 배치
 
-Codex 구조화 오류의 정확한 `Selected model is at capacity. Please try a different model.`만 선택적 재시도 대상이다. HTTP 코드나 rate limit은 추론하지 않는다. 호출자는 `--capacity-retries N --capacity-backoff-seconds N --capacity-deadline-utc YYYY-MM-DDTHH:MM:SSZ --capacity-approval-file FILE` 네 값을 함께 선언한다. FILE은 실제 사용자의 원문 `authorization`과 그 출처 `source` 두 문자열을 담는 JSON이다. 호출자는 시작 전에 글로벌 남은 횟수에서 최초 호출 + N을 예약하고 다른 native 배치를 동시에 열지 않으며 종료 후 실제 attempt 증가량을 정산한다. relay는 원장에 불변 배치 선언과 시작 attempt를 저장하고 각 dispatch를 별도 기록한다. 재시작은 이 할당을 초기화하지 않는다. deadline 안에 backoff와 전체 다음 attempt 시간 예산이 남아야 한다.
+Codex 구조화 오류의 정확한 `Selected model is at capacity. Please try a different model.`만 선택적 재시도 대상이다. HTTP 코드나 rate limit은 추론하지 않는다. `--capacity-retries`는 한 번의 재시도 묶음에서 즉시 수행할 추가 시도 수다. 과업 전체나 세션의 호출 상한이 아니다. backoff·해당 묶음의 시간 조건·실제 사용자 사전승인 출처를 선언하고, 각 실행과 묶음은 고유 ID로 원장에 보존한다. 예전 `start_attempt`·`allocated_slots`는 과거 기록이며 다음 묶음을 막지 않는다.
 
-이 예외는 알려진 세션과 동일 모델·provider·권한·대상에 결속되고 미완 명령이 없어야 한다. 보존된 capacity 실패와 해당 pending 질문에 실제 사전승인 원문을 적은 뒤 기존 수동 복구 게이트를 통과한다. 이어받는 지시는 서비스·명령·산출물부터 확인하고 부분 파일과 이미 수행된 벤치를 보존하도록 요구한다. 신호·취소·권한 거부·불명 실패, 잘못된 이벤트, 세션/결속 부재, 다른 미해결 질문, 남은 할당이나 시간 부족은 기존 차단을 유지한다. 보고서가 없으면 완료로 기록하지 않는다.
+한 묶음이 끝나도 실패를 성공으로 바꾸거나 호출 횟수 때문에 사용자에게 묻지 않는다. 체크포인트를 남기고 다음 감독 시점에 다시 판단한다. 재개는 같은 모델·provider·권한·대상과 관측된 세션 및 durable 요청/결과에 결속되며, capacity 복구의 미해결 명령·실제 권한 거부·불명 실패 가드는 유지한다. 현재 묶음에서 넘겨받은 deadline은 지키지만 모든 과거 묶음의 시각을 영구 과업 상한으로 합치지 않는다. 새 작업 상황에 대한 명시적 예산 선언은 새 이력이며 기존 기록을 충전하거나 지우지 않는다. GPU 탐색의 중지 조건처럼 독립된 owner의 제약과 사용자 중지는 그대로 지킨다.
 
-기존 배치에서 정상 제어 완료와 `input-required` 기술 인계가 기록된 경우, 같은 세션·모델·권한의 명시적 `--continue --apply --task-file`은 남은 원래 배정 한 칸을 쓴다. 원래 시작점·할당·승인·마감은 변경하지 않으며 미완 실행·실패·차단 질문·소진은 재진입을 허용하지 않는다.
+정상 워커 실행 예산 소진은 별도로 다룬다. 실제 제한 집행과 워커 종료·회수가 결속된 관측으로 확인되면 다음 워커는 서비스·진행 중 명령·sweep·부분 산출물을 먼저 재확인하고 이어받는다. 진행 중인 벤치가 있어도 이를 완료로 기록하거나 새 벤치로 덮어쓰지 않는다. 원격 SSH 감시 timeout이나 단순 exit124처럼 이전 워커의 종료를 확인하지 못한 경우는 정상 회수라고 추정하지 않는다. 실제 권한·정체성·미해결 실행 상태의 차단은 유지한다.
