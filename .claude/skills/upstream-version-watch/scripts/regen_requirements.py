@@ -110,18 +110,22 @@ def self_test():
     """Offline regression for the exact-version guard and metadata identity."""
     from unittest import mock
     import importlib.metadata as metadata
+    def check(condition, label):
+        if not condition:
+            raise AssertionError(label)
     reqs = ["transformers>=5.16.1,<5.20.0", "fastapi>=0.133.0"]
     for version in (None, "0.31.0", "0.32.1", "0.32.0+local"):
         lines, applied = parse_requires(reqs, version)
-        assert any("<5.15.0" in line for line in lines) and "transformers<5.15.0" in applied
+        check(any("<5.15.0" in line for line in lines) and "transformers<5.15.0" in applied,
+              f"older/unknown guard: {version}")
     lines, applied = parse_requires(reqs, "0.32.0")
-    assert lines == ["fastapi>=0.133.0,<0.137.0", "transformers>=5.16.1,<5.20.0"]
-    assert applied == ["fastapi<0.137.0"]
+    check(lines == ["fastapi>=0.133.0,<0.137.0", "transformers>=5.16.1,<5.20.0"], "exact-version requirements")
+    check(applied == ["fastapi<0.137.0"], "fastapi ceiling")
     text = ("Metadata-Version: 2.3\nName: vllm\nVersion: 0.32.0\n"
             "Requires-Dist: transformers>=5.16.1,<5.20.0\nRequires-Dist: fastapi>=0.133.0\n\n")
     fake = mock.Mock(metadata=Parser().parsestr(text))
     with mock.patch.object(metadata, "distribution", return_value=fake):
-        assert installed_metadata() == (reqs, "0.32.0") and from_installed() == reqs
+        check(installed_metadata() == (reqs, "0.32.0") and from_installed() == reqs, "installed metadata")
     with tempfile.TemporaryDirectory() as td:
         source = os.path.join(td, "source.whl")
         with zipfile.ZipFile(source, "w") as z:
@@ -130,7 +134,8 @@ def self_test():
             with open(source, "rb") as src, open(destination, "wb") as dst:
                 dst.write(src.read())
         with mock.patch.object(urllib.request, "urlretrieve", side_effect=copy_wheel):
-            assert wheel_metadata("fixture") == (reqs, "0.32.0") and from_wheel_url("fixture") == reqs
+            check(wheel_metadata("fixture") == (reqs, "0.32.0") and from_wheel_url("fixture") == reqs,
+                  "wheel metadata")
     for bad in ("Name: vllm\n\n", "Name: vllm\nVersion: 0.32.0\nVersion: 0.31.0\n\n",
                 "Name: other\nVersion: 0.32.0\n\n", "Name: vllm\nVersion: bad version\n\n"):
         try:

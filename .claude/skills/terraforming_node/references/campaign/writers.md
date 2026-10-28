@@ -18,10 +18,10 @@ producer 는 0 이었다. 이제 바이트를 쓰는 문은 하나이고, 그 �
 | `evidence_pointers.json` | 증거 발행 직후 | 동 `--evidence-add` | `publish_benchmark_record.py`(인증서 발행 지점) · 리포트·로컬 실행계획·testlog·devlog 발행자 |
 | `campaign.yaml.revisions[]` | layer-1 개정 | 동 `--revise` | 사람 승인 인자 필수 · **메인 단일 창구**(서브는 릴레이로 요청만) |
 | `campaign.yaml.assignments` + `assignment_revisions[]` | 배정 변경(셀 추가·은퇴·순서·mode) | 동 `--assign-set <node>` · 서브 `--slice-update -` | 사람 승인 4필드(`--assign-reason`·`--assign-evidence`·`--assign-approved-by`·`--utc`) · **pending 셀만**(돌았거나 도는 셀 · hint 승인 셀은 거부) · 다른 노드 셀 = 이중 배정 거부(이동 = 제거+추가) · 서브 몫은 `relay.py --campaign-control reslice`(2026-10-17 · plan_26101722 K8) |
-
 | `grounding/<utc>.json` | 캠페인 착수·셀 축 변경 | 동 `--ground` | 서빙·트라이얼 진입 백스톱이 이 파일을 요구한다(`policy:LIBRARY_GROUNDING_FAIL_CLOSED`) |
 | `docs/logs/<node>/campaign_brief.json` | phase 전이·publish 마다 | 동 `--write-brief` | 서브 실행 스크립트 종료부 · **메인이 서브 진행을 읽는 유일한 자리** |
 | 회수 편입(서브 phase·셀·증거) | 문서 회수 직후 | 동 `--import-sub` | `fetch_sub_docs.sh` 종료부(사후 손저작 대체) |
+
 `--slice-update`는 메인의 승인된 layer-1 개정 이력도 t0와 기존 이력의 접두 일치를 검사한 뒤 그대로 이어 붙인다. 이력이 충돌하거나 후퇴하면 거부하고, 배정이 같으면 배정 이력을 바꾸지 않는다. 적용 뒤 서브의 개정 번호와 값을 직접 확인한다. 기존 relay 문맥에서 layer-1 값이 바뀌면 새 값을 반영한 전체 `--task-file`을 명시해 이어간다.
 
 - **`ACTIVE` 가 `_bootstrap` 이면 writer 는 no-op 이다** — 캠페인 밖 평시 서빙이 빈 인스턴스에 상태를
