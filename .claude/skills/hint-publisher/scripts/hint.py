@@ -363,8 +363,10 @@ def _mark(draft: Path, st: dict, name: str, **data) -> None:
 # ── 증거 · 이름 ────────────────────────────────────────────────────────────────────────────────
 def _evidence(repo: Path, *, campaign, cell, publication, node, rt: Runtime):
     if publication is not None:
-        return evidence.from_publication(repo, publication, node, docker=rt.docker)
-    return evidence.from_campaign(repo, campaign, cell, node, docker=rt.docker)
+        ev = evidence.from_publication(repo, publication, node, docker=rt.docker)
+    else:
+        ev = evidence.from_campaign(repo, campaign, cell, node, docker=rt.docker)
+    return ev
 
 
 def _check_selectors(*, campaign, cell, publication, replay, require_replay: bool) -> None:
@@ -930,6 +932,7 @@ def publish(repo: Path, *, campaign=None, cell=None, publication=None, replay=Fa
     # ① 증거(명시 id 만 · ACTIVE ✗ · --node 미지정 = evidence 자동 파생) ② 발행 자격 = 관측(X8 · 불성립 = 차단)
     ev = _evidence(repo, campaign=campaign, cell=cell, publication=publication, node=node, rt=rt)
     evidence.qualification(ev)
+    artifacts.bind_image_git_release(repo, ev, runner=rt.docker)
     label = evidence.topology_label(evidence.identity(ev))
     # ③ 기본 이름(도구 파생 · 충돌 = 차단) — 발행기 구동(첫 draft 밖 쓰기) **전에** 끝낸다: 이름이 막히면 부수효과 0.
     #   기본 이름이 이미 있어도 최종 이름(꼬리 · timestamp)이 가를 수 있지만, 같은 셀의 판이 이미 있다는 사실은 여기서 알린다(막지 않는다 —
@@ -1500,6 +1503,7 @@ def refacts(repo: Path, *, draft: Path, rt: Runtime | None = None) -> dict:
         ev = evidence.from_campaign(repo, sel.get("campaign"), sel.get("cell"), node, docker=rt.docker)
     else:
         ev = evidence.from_publication(repo, sel.get("publication") or st["topic"], node, docker=rt.docker)
+    artifacts.bind_image_git_release(repo, ev, runner=rt.docker)
     if evidence.topic_for(ev) != st["topic"]:
         core.fail("HINT_REFACTS_TOPIC_MISMATCH", f"재파생한 발행 토픽 {evidence.topic_for(ev)!r} ≠ draft 의 {st['topic']!r}")
     utc = st["generated_utc"]

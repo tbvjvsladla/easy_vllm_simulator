@@ -834,6 +834,9 @@ def verify() -> dict:
         #   bootstrap_families 는 이관이 아니라 families.json 과 함께 **폐기**다(O3 · 죽은 데이터 K10) — 옮길 음성대조가 없다.
         _run("hint_selftest", [sys.executable,
              ".claude/skills/hint-publisher/scripts/hint.py", "--self-test"], {0}),
+        _run("hint_image_git_release_selftest", [sys.executable,
+             "-m", "hintlib.selftest_image_git_release"], {0},
+             cwd=REPO / ".claude/skills/hint-publisher/scripts"),
         _run("hint_bench_section_selftest", [sys.executable,
              ".claude/skills/hint-publisher/scripts/render_bench_section.py", "--selftest"], {0}),
         _run("terraform_scan_selftest", [sys.executable,

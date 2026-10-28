@@ -1902,6 +1902,92 @@ def _cp_from_image(c: _Ctx, image: str, path: str) -> tuple[bytes | None, str]:
     return data, got
 
 
+def bind_image_git_release(repo: Path, ev: Any, *, runner=None) -> None:
+    """Bind an exact source tag only from the measured image's isolated Git objects."""
+    import tempfile
+    import stat
+    from . import evidence, naming
+    b = _get(ev, "build_identity") or {}
+    ref = str(b.get("vllm_ref") or "").lower()
+    digest = str(b.get("image_digest") or "")
+    if (not re.fullmatch(r"[0-9a-f]{40}", ref)
+            or str(b.get("vllm_sha") or "").lower() != ref
+            or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest)
+            or naming.vllm_repo_kind(b.get("vllm_repo")) != "upstream"):
+        return
+    self_node, _ = evidence._self_node(repo)
+    target_node = _get(ev, "node")
+    declaration = _get(ev, "declaration") or {}
+    nodes = declaration.get("nodes") if isinstance(declaration, dict) else None
+    main_ids = [n.get("node_id") for n in nodes if isinstance(n, dict) and n.get("role") == "main" and n.get("node_id")] if isinstance(nodes, list) else []
+    manifest = _get(ev, "manifest")
+    local_cluster = (target_node == "cluster" and _get(ev, "topology") == "multi"
+                     and isinstance(manifest, dict) and manifest.get("topology") == "multi"
+                     and manifest.get("self_role") == "main"
+                     and len(main_ids) == 1 and self_node == main_ids[0])
+    if not self_node or (not local_cluster if target_node == "cluster" else self_node != target_node):
+        return
+    c = _ctx(repo, ev, runner=runner)
+    if not _probe_allowed(c)[0]:
+        return
+    cls, proc = c.docker("create", "--pull", "never", "--network", "none", "--entrypoint", "/bin/true", digest, cache=False)
+    cid = (proc.stdout or "").strip().splitlines()[-1] if proc is not None and (proc.stdout or "").strip() else ""
+    if cls != "ok" or not re.fullmatch(r"[0-9a-f]{12,64}", cid):
+        return
+    try:
+        with tempfile.TemporaryDirectory(prefix="hint-source-git-") as tmp:
+            root = Path(tmp); copied = root / "copied"
+            copied_status, _ = c.docker("cp", f"{cid}:/workspace/vllm-src/.git", str(copied), cache=False)
+            if copied_status != "ok" or copied.is_symlink() or not copied.is_dir():
+                return
+            # Refuse all links and alternates; copy only object and ref stores into a sterile bare repository.
+            for path in copied.rglob("*"):
+                mode = path.lstat().st_mode
+                if not (stat.S_ISREG(mode) or stat.S_ISDIR(mode)):
+                    return
+            if (any((copied / "objects/info" / n).exists() for n in ("alternates", "http-alternates"))
+                    or list((copied / "objects/pack").glob("*.promisor"))):
+                return
+            safe = root / "bare"; safe.mkdir()
+            for name in ("objects", "refs"):
+                source = copied / name
+                if source.is_dir():
+                    shutil.copytree(source, safe / name)
+            for name in ("HEAD", "packed-refs", "shallow"):
+                source = copied / name
+                if source.is_file():
+                    shutil.copyfile(source, safe / name)
+            (safe / "config").write_text("[core]\n repositoryformatversion = 0\n bare = true\n", encoding="utf-8")
+            env = {"PATH": os.defpath, "GIT_CONFIG_NOSYSTEM": "1",
+                   "GIT_CONFIG_GLOBAL": os.devnull, "GIT_NO_REPLACE_OBJECTS": "1", "GIT_NO_LAZY_FETCH": "1",
+                   "GIT_TERMINAL_PROMPT": "0", "LC_ALL": "C"}
+            def git(*args):
+                try:
+                    return subprocess.run(["git", "--git-dir", str(safe), *args], env=env, capture_output=True, text=True, timeout=20)
+                except (OSError, subprocess.TimeoutExpired):
+                    return None
+            head = git("rev-parse", "--verify", "HEAD^{commit}")
+            tags = git("tag", "--list", "--points-at", ref)
+            if not head or head.returncode or head.stdout.strip().lower() != ref or not tags or tags.returncode:
+                return
+            releases = [t for t in tags.stdout.splitlines() if naming.release_of(t)]
+            if len(releases) != 1:
+                return
+            tag = releases[0]
+            peeled = git("rev-parse", "--verify", "refs/tags/" + tag + "^{commit}")
+            if not peeled or peeled.returncode or peeled.stdout.strip().lower() != ref:
+                return
+            b["image_git_exact_tag"] = tag
+            b.setdefault("source", {})["image_git_exact_tag"] = f"measured image {digest}: /workspace/vllm-src/.git HEAD and exact tag peeled to {ref} (create/cp, no start)"
+    finally:
+        cls, rm_result = c.docker("rm", "-v", cid, cache=False)
+        if cls != "ok":
+            b.pop("image_git_exact_tag", None)
+            b.setdefault("source", {}).pop("image_git_exact_tag", None)
+            detail = ((getattr(rm_result, "stderr", "") or getattr(rm_result, "stdout", "") or "")[:500])
+            core.fail("HINT_IMAGE_PROBE_CLEANUP_FAILED", f"source Git probe container {cid} cleanup failed: {cls}: {detail}")
+
+
 def _image_probe(c: _Ctx, df_text: str) -> dict:
     """측정 이미지 안의 패치 스크립트(COPY 대상 디렉터리) · 컨텍스트 COPY 대상 파일 · 스크립트가 선언한 마커의 대상 파일을 꺼낸다.
     `docker create`(start ✗ · `--pull never` · `--network none`) → `docker cp` → finally `docker rm`(항상). 바이트는 메모리에만
