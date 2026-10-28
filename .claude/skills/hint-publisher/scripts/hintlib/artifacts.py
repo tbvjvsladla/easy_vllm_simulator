@@ -809,17 +809,17 @@ def _select_dockerfile(c: _Ctx, dockerfile: str) -> dict:
         floor = scores[best] if best else w
         hit = None if (w_full or b_full) else _dockerfile_from_history(c, dockerfile, rel, hist, union, floor)
         if w_full:
-            out.update(method="worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치)", history_match=w, verified=True)
+            out.update(method="worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치 · Dockerfile 전체 바이트는 미검증)", history_match=w, verified=False)
         elif best and (b_full or hit is None):
             b = dict(cands)[best]
             sb = scores[best]
             out.update(bytes=b, shipped=f"git:{best}", commit=best, history_match=sb,
-                       verified=sb["matched"] == sb["total"],
+                       verified=False,
                        method=(f"git log -1 --before={created} -- {rel} · docker history 대조(개정 {sb['matched']}/{sb['total']} "
                                f"> 작업트리 {w['matched']}/{w['total']}) — 이 개정의 바이트를 싣는다(git show)"))
         elif hit is not None:
             out.update(bytes=hit["bytes"], shipped=f"git:{hit['commit']}", commit=hit["commit"], history_match=hit["score"],
-                       verified=hit["full"], origin_path=hit["path"], origin_commit_utc=hit["utc"],
+                       verified=False, origin_path=hit["path"], origin_commit_utc=hit["utc"],
                        method=(f"git log --all -- {_RECIPE_DIR_GLOB}/{dockerfile} · {hit['commit'][:12]}:{hit['path']} 가 docker history "
                                + (f"RUN·COPY 와 전수 일치({hit['score']['matched']}/{hit['score']['total']}"
                                   if hit["full"] else
@@ -4673,11 +4673,13 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
         #   01 검증 열)를 맞춘다. history 미관측(대조 불가)은 종전 표시 그대로(범위 밖 · 근거 문장이 대조 불가를 말한다).
         dsel_ = c.memo.get(("dockerfile", sel["dockerfile"])) if isinstance(sel, dict) and sel.get("dockerfile") else None
         hm3 = (dsel_ or {}).get("history_match") if isinstance((dsel_ or {}).get("history_match"), dict) else None
-        if dsel_ and not dsel_.get("verified") and hm3 and hm3.get("total"):
+        if dsel_ and not dsel_.get("verified"):
             for rel_f in slots["build_recipe"]["files"]:
                 if PurePath(rel_f).name == sel["dockerfile"] and rel_f not in marks:
-                    why3 = (f"실린 {sel['dockerfile']}({dsel_.get('shipped')})이 측정 이미지 docker history RUN·COPY 와 "
-                            f"{hm3['matched']}/{hm3['total']} 만 일치 — 이 이미지를 지은 바이트임을 관측으로 확인하지 못했다")
+                    comparison = (f"docker history RUN·COPY {hm3['matched']}/{hm3['total']} 일치" if hm3 and hm3.get("total")
+                                  else "docker history 대조 미관측")
+                    why3 = (f"실린 {sel['dockerfile']}({dsel_.get('shipped')}) · {comparison} — "
+                            "Dockerfile 전체 원본 바이트의 동일성은 확인하지 못했다")
                     marks[rel_f] = {"verification": "generated-unverified", "generated_by": "renderer",
                                     "header": _insert_header(payload, rel_f, why3, "renderer"),
                                     "verification_basis": f"{why3}(_select_dockerfile · {dsel_.get('method')})"}
@@ -5731,11 +5733,11 @@ def selftest() -> list[str]:
             srv = rrv["slots"]["build_recipe"]["evidence"]["selected_revision"]
             ck("★F1 작업트리가 이미지 history 와 다르면 Created 이전 개정을 싣는다(Created 뒤 커밋 ✗)",
                srv["commit"] == rev1 and srv["history_match"] == {"matched": 5, "total": 5}
-               and (repo / "p_rev/artifacts/build_recipe/Dockerfile.rev").read_text(encoding="utf-8") == df_rev
+               and (repo / "p_rev/artifacts/build_recipe/Dockerfile.rev").read_text(encoding="utf-8").split("\n", 1)[1] == df_rev
                and {"revision": "worktree", "matched": 4, "total": 8} in srv["candidates"])
             rvr = {r["path"]: r for r in rrv["slots"]["build_recipe"]["evidence"]["recipe_vs_image"]}
             ck("F1 대조로 확인된 개정을 실으면 작업트리 경고 대신 무엇이 실렸는지 적는다",
-               "warning" not in rvr["output/multi/Dockerfile.rev"] and rvr["output/multi/Dockerfile.rev"]["shipped"] ==
+               rvr["output/multi/Dockerfile.rev"]["shipped"] ==
                f"git:{rev1}")
             ck("★F1 COPY 판독 = 이미지를 지은 개정 텍스트(작업트리가 더한 post COPY 는 이 빌드의 입력이 아니다)",
                any(x["file"] == "10-shared.sh" and x["why"].startswith("excluded_by_recipe")
@@ -5795,7 +5797,7 @@ def selftest() -> list[str]:
                 core.git(repo, "update-ref", "-d", "refs/heads/single-fx", env_extra=genv)
             ck("★F4 다른 ref · 다른 통로(output/single)의 전수 일치 Dockerfile = 그 커밋·경로로 싣는다(Created 뒤 커밋이어도 · 바이트가 증거)",
                sx["commit"] == c_single and sx["history_match"]["matched"] == sx["history_match"]["total"]
-               and (repo / "p_rev_x/artifacts/build_recipe/Dockerfile.rev").read_text(encoding="utf-8") == df_x
+               and (repo / "p_rev_x/artifacts/build_recipe/Dockerfile.rev").read_text(encoding="utf-8").split("\n", 1)[1] == df_x
                and "output/single/Dockerfile.rev" in sx["method"] and "통로(output/multi/Dockerfile.rev) 밖" in sx["method"])
             ck("★F4 빌드 명령 = 그 통로를 컨텍스트로(-f output/single/… · output/single) · 스모크·compose 동등 경로 없음 명시",
                "-f output/single/Dockerfile.rev" in bx and bx.rstrip().splitlines()[-2].strip() == "output/single"
@@ -5838,11 +5840,11 @@ def selftest() -> list[str]:
             ck("★F3 history 대조 불일치 Dockerfile = generated-unverified(renderer) · 표시 3자리(머리 경고 = file_records header · 대조 수)",
                fr3.get("verification") == "generated-unverified" and fr3.get("generated_by") == "renderer"
                and body3.split("\n")[fr3["header"]["line"] - 1] == fr3["header"]["text"]
-               and f"{hm3x['matched']}/{hm3x['total']} 만 일치" in fr3["header"]["text"] and fr3.get("bytes_observed") is not True)
+               and f"{hm3x['matched']}/{hm3x['total']} 일치" in fr3["header"]["text"] and fr3.get("bytes_observed") is not True)
             bb3 = {s["step"]: s for s in rbad["reproduce_steps"]}["build"]["command"]
             ck("★F3 빌드 머리 = '실린 개정 … 확인 못함'('이미지를 지은 개정' ✗) · 전수 일치 개정은 종전 문구",
                "실린 개정: worktree — 이미지를 지은 바이트임을 관측으로 확인 못함" in bb3 and "이미지를 지은 개정:" not in bb3
-               and "이미지를 지은 개정: git:" in brv["command"])
+               and "실린 개정: git:" in brv["command"])
             dfx = repo / "p_dirx.Dockerfile"
             dfx.write_text("# syntax=docker/dockerfile:1\nFROM x\n", encoding="utf-8")
             hx = _insert_header(repo, "p_dirx.Dockerfile", "r", "renderer")
@@ -5870,7 +5872,7 @@ def selftest() -> list[str]:
             ck("F1 작업트리가 history 와 전수 일치 = 작업트리(HEAD 대비 수정본 경고는 실린 파일의 결함이 아니다)",
                ssame["commit"] is None and ssame["method"].startswith("worktree(측정 이미지 docker history")
                and rvs["output/multi/Dockerfile.rev"].get("worktree_equals_head") is False
-               and "warning" not in rvs["output/multi/Dockerfile.rev"] and "note" in rvs["output/multi/Dockerfile.rev"])
+               and "history" in ssame["method"])
             ck("정규화: 이어짐 주석·--mount·heredoc·빌더 스테이지", _dockerfile_steps(df_rev) == [
                 "COPY requirements.txt /tmp/requirements.txt", "RUN pip install fx-pkg && echo done",
                 "RUN python3 - <<'PY' import sys print(\"hoist\") PY", "COPY build_patches_src/ /tmp/build_patches_src/",
@@ -6532,7 +6534,7 @@ def selftest() -> list[str]:
         sp_ = {s["path"]: s for s in rp_["slots"]["build_recipe"]["evidence"]["selected_revisions"]}
         ck("F1 COPY 대상 파일(requirements) = 이미지 안 바이트와 대조 · Dockerfile = history 전수 일치",
            sp_["output/single/requirements.txt"]["verified"] is True
-           and sp_["output/single/Dockerfile.probe"]["verified"] is True)
+           and sp_["output/single/Dockerfile.probe"]["verified"] is False)
         ck("F3 single: 무장 패치 없음 = arm_patch.sh 미실림", "artifacts/compose/arm_patch.sh" not in rp_["files"])
         bps = {s["step"]: s for s in rp_["reproduce_steps"]}["build"]["command"]
         ck("F5 single 빌드 명령(history 인자 · compose 컨텍스트)",
@@ -6801,7 +6803,8 @@ def selftest() -> list[str]:
                hdr_ok and all("생성: renderer" in (r.get("header") or {}).get("text", "") for r in comp)
                and (rn2["sub_recipe"] or {}).get(UNVERIFIED_HEADER_KEY, "").startswith("⚠ generated-unverified"))
             ck("Docker 셀: 전부 verified(cell-run) · 헤더 없음 · sub_recipe 에 경고 키 없음",
-               all(r["verification"] == "verified" and r["generated_by"] == "cell-run" and "header" not in r
+               all((r["verification"] == "generated-unverified" if PurePath(r["path"]).name.startswith("Dockerfile") else
+                    r["verification"] == "verified" and r["generated_by"] == "cell-run" and "header" not in r)
                    for v in rd2["slots"].values() for r in v["file_records"])
                and UNVERIFIED_HEADER_KEY not in (rd2["sub_recipe"] or {})
                and not (repo / "p_doc_u/artifacts/compose/docker-compose.yaml").read_text(encoding="utf-8").startswith("# ⚠"))

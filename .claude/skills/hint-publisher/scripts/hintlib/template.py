@@ -1712,7 +1712,7 @@ def _f_measurement_env_nodes(c: _Ctx) -> str:
     바이트 채점), 다르거나 한쪽만 관측된 키만 행으로 싣는다 — 두 노드가 같아야 하는 값의 어긋남이 여기서 보인다."""
     f = c.facts
     if _topology(f) != "multi":
-        return "해당 없음 — single 토폴로지(서브 노드 없음)."
+        return "해당 없음 — single 토폴로지의 단일 측정 노드에는 노드 간 비교 대상이 없다."
     rows = _env_rows(f)
     if not rows:
         return "_노드별 env 관측 없음 — 01 §1.4 측정 env 관측 표가 비었다._"
