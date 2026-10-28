@@ -380,7 +380,8 @@ def build_request(topology: str, manifest_path: str, *,
                   backend: str = None, provider: str = "claude_code",
                   max_dispatches: int | None = None, sandbox_mode: str | None = None,
                   permission_profile: str | None = None, phase: str = "discovery",
-                  target_role: str = "sub", main_work_dir: str | None = None) -> dict:
+                  target_role: str = "sub", main_work_dir: str | None = None,
+                  reasoning_effort: str | None = None) -> dict:
     """카나리 request 조립. 예산은 **선언받는다**(기본값 ✗ — `turn_budget` 참조).
 
     `model` 은 선언이다(2026-09-05 · G-A1): 어댑터가 모델을 막지 않으므로 여기 값도 게이트가 아니라
@@ -433,6 +434,8 @@ def build_request(topology: str, manifest_path: str, *,
         "timeout_seconds": bud["timeout_seconds"],
         "max_turns": bud["max_turns"],
     }
+    if reasoning_effort is not None:
+        request["reasoning_effort"] = reasoning_effort
     if provider == "codex_cli":
         request.update(budget_unit=unit, max_dispatches=bud["max_dispatches"])
         if sandbox_mode and permission_profile:
@@ -548,6 +551,7 @@ def main() -> int:
     ap.add_argument("--timeout-seconds", type=int, default=None,
                     help="매달림을 잡는 상한(scope ⊥ budget — 예산과 별개 노브)")
     ap.add_argument("--budget-source", default=None, help="그 예산을 그렇게 정한 근거(필수)")
+    ap.add_argument("--reasoning-effort", choices=("none", "minimal", "low", "medium", "high", "xhigh", "max"))
     ap.add_argument("--model", default=None,
                     help=f"위임 모델 선언(기본 = 백엔드의 기본 모델 · 어댑터는 모델을 막지 않는다)")
     ap.add_argument("--backend", choices=backend_choices(), default=None,
@@ -576,7 +580,8 @@ def main() -> int:
                         model=a.model, backend=a.backend, provider=a.provider,
                         max_dispatches=a.max_dispatches, sandbox_mode=a.sandbox_mode,
                         permission_profile=a.permission_profile, phase=a.phase,
-                        target_role=a.target, main_work_dir=a.main_work_dir)
+                        target_role=a.target, main_work_dir=a.main_work_dir,
+                        reasoning_effort=a.reasoning_effort)
     blob = json.dumps(req, ensure_ascii=False, indent=2) + "\n"
     if a.emit:
         with open(a.emit, "w", encoding="utf-8") as f:

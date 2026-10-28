@@ -241,6 +241,19 @@
         }
       },
       "description": "Must equal the resumed provider, exact target and permission selection; checked by agent_control."
+    },
+    "reasoning_effort": {
+      "type": "string",
+      "enum": [
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "description": "Optional Codex model reasoning effort; caller declaration."
     }
   },
   "oneOf": [
@@ -268,6 +281,9 @@
           "enum": []
         },
         "resume_binding": {
+          "enum": []
+        },
+        "reasoning_effort": {
           "enum": []
         }
       }

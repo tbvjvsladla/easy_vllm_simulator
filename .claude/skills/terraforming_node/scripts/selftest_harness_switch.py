@@ -91,6 +91,39 @@ class HarnessSwitchChecks(unittest.TestCase):
         if message:
             self.assertIn(message, str(caught.exception))
 
+    def test_codex_reasoning_effort_contract_and_argv(self):
+        adapter = agent_control._load_provider("codex_cli")
+        request = self.request("codex_cli", reasoning_effort="low")
+        self.assertEqual(agent_control.request_schema_violations(request), [])
+        argv = adapter._inner_argv(request)
+        self.assertEqual(argv[argv.index("--model") + 1], "gpt-6.1-sol")
+        self.assertIn('model_reasoning_effort="low"', argv)
+        resumed = dict(request, resume_session_id="native-id")
+        self.assertEqual(adapter._inner_argv(resumed),
+                         argv[:4] + ["resume"] + argv[4:argv.index("--sandbox")] +
+                         ["-c", 'sandbox_mode="read-only"', "--", "native-id", request["task"]])
+        old = self.request("codex_cli")
+        self.assertNotIn("reasoning_effort", old)
+        self.assertFalse(any("model_reasoning_effort" in item for item in adapter._inner_argv(old)))
+        self.assertTrue(agent_control.request_schema_violations(dict(request, reasoning_effort="invalid")))
+        self.assertTrue(agent_control.request_schema_violations(dict(self.request(), reasoning_effort="low")))
+
+    def test_canary_cli_forwards_effort(self):
+        command = [sys.executable, str(HERE / "bootstrap_canary.py"), "--topology", "multi",
+                   "--manifest", str(self.manifest), "--provider", "codex_cli", "--backend", "openai",
+                   "--model", "gpt-6.1-terra", "--reasoning-effort", "low", "--timeout-seconds", "90",
+                   "--max-dispatches", "3", "--budget-source", "offline fixture"]
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        request = json.loads(result.stdout)
+        self.assertEqual((request["model"], request["reasoning_effort"]), ("gpt-6.1-terra", "low"))
+        self.assertEqual(agent_control.request_schema_violations(request), [])
+
+    def test_relay_rejects_ambiguous_task_arguments(self):
+        for args in (("--task", "one", "--task-file", "two"), ("--continue", "--task", "one")):
+            with mock.patch.object(sys, "argv", ["relay.py", *args]), contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit):
+                    relay.main()
+
     def test_v1_builder_remains_valid_and_uses_native_budget(self):
         request = self.request()
         self.assertEqual(agent_control.request_schema_violations(request), [])
@@ -311,6 +344,13 @@ class HarnessSwitchChecks(unittest.TestCase):
                     pending_path.unlink()
                     relay.ensure_recovery_pending(str(root), relay.load_ledger(path))
                     self.assertEqual(len(relay.resume_blockers(relay.pending_for(str(root), "switch"))), 1)
+                    task_file = root / "recovery-task.txt"
+                    task_body = "Updated complete instruction: Terra low.\nRemaining work only.\n"
+                    task_file.write_text(task_body, encoding="utf-8")
+                    blocked_command = [str(HERE / "relay.py"), "--repo-root", str(root), "--context-id", "switch",
+                                       "--continue", "--apply", "--task-file", str(task_file), "--resume", "new", "--no-campaign"]
+                    with mock.patch.object(sys, "argv", blocked_command):
+                        self.assertRejected(relay.main, message="차단성")
                     document = json.loads(pending_path.read_text())
                     entry = document["pending"][0]
                     entry["answer"] = "Human reviewed observed effects; explicitly resume this task."
@@ -328,7 +368,7 @@ class HarnessSwitchChecks(unittest.TestCase):
                     self.assertEqual(relay.supervise_decide(saved, doc_progress="still progressing")["action"], "popup")
                     # The official manual path consumes one new dispatch, with all normal guards.
                     command = [str(HERE / "relay.py"), "--repo-root", str(root), "--context-id", "switch",
-                               "--continue", "--apply", "--resume", "new", "--no-campaign",
+                               "--continue", "--apply", "--task-file", str(task_file), "--resume", "new", "--no-campaign",
                                "--timeout-seconds", "90", "--budget-source", "explicit human recovery fixture"]
                     with mock.patch.object(sys, "argv", command):
                         self.assertEqual(relay.main(), 0)
@@ -337,6 +377,10 @@ class HarnessSwitchChecks(unittest.TestCase):
                     self.assertEqual(len(final["attempts"]), 2)
                     self.assertEqual(final["attempts"][0], attempt)
                     self.assertNotEqual(final["attempts"][0]["dispatch_id"], final["attempts"][1]["dispatch_id"])
+                    instruction = final["attempts"][1]["task_instruction"]
+                    self.assertEqual(instruction["kind"], "explicit")
+                    self.assertEqual(instruction["body"], task_body)
+                    self.assertEqual(instruction["body_digest"], hashlib.sha256(task_body.encode()).hexdigest())
                     self.assertEqual(final["attempts"][1]["max_dispatches"], 3)
                     self.assertEqual(relay.pending_for(str(root), "switch"), [])
 
@@ -537,7 +581,7 @@ class HarnessSwitchChecks(unittest.TestCase):
                                campaign_id=None, node=None, permission_profile=None, sandbox_mode=None)
         state = {"context_id": "switch", "campaign_id": "approved-campaign", "campaign_node": "sub-one",
                  "control_variables": {"model": "fixed-target"}, "topology": "multi", "manifest": str(self.manifest),
-                 "max_dispatches": 3, "permission_selection": {"permission_profile": "vllm-sub"},
+                 "max_dispatches": 3, "reasoning_effort": "low", "permission_selection": {"permission_profile": "vllm-sub"},
                  "attempts": [{"attempt": 1, "status": "working", "execution_started": True,
                                "session_id": "native", "runner": self.codex,
                                "control_status": "timeout", "reason_codes": ["TIMEOUT"],
@@ -552,10 +596,12 @@ class HarnessSwitchChecks(unittest.TestCase):
              mock.patch.object(relay, "run_attempt", side_effect=record):
             relay._supervise_resume(args, "unused", state, 30, "explicit context evidence")
             other = dict(state, context_id="other", campaign_node="sub-two",
-                         permission_selection={"sandbox_mode": "read-only"})
+                         permission_selection={"sandbox_mode": "read-only"}, reasoning_effort=None)
             relay._supervise_resume(args, "unused", other, 30, "explicit second context")
             self.assertEqual(observed[0].campaign_id, "approved-campaign")
             self.assertEqual(observed[0].control_variables, {"model": "fixed-target"})
+            self.assertEqual(observed[0].reasoning_effort, "low")
+            self.assertIsNone(observed[1].reasoning_effort)
             self.assertEqual(observed[0].node, "sub-one")
             self.assertEqual(observed[1].node, "sub-two")
             self.assertEqual(observed[1].sandbox_mode, "read-only")

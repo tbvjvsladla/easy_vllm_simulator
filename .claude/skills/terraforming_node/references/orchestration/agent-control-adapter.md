@@ -129,7 +129,7 @@ stdout은 항상 `agent-control-result.schema.json`의 정렬된 JSON이다. 성
 
 ### 3.1 Codex adapter (v2)
 
-`scripts/providers/codex_cli.py`가 `codex exec` 구문의 유일한 발행처다. runner의 정체성은
+`scripts/providers/codex_cli.py`가 `codex exec` 구문의 유일한 발행처다. 선택적 `reasoning_effort`는 Codex 요청에만 허용되며 명시 시 `-c model_reasoning_effort="<값>"`로 전달한다. 생략 시 override는 없다. relay의 명시 값은 request와 재개 선택에 보존된다; 실제 모델 관측은 별도다. runner의 정체성은
 `provider × backend × model`이며 `backend=openai`인 Claude shim과 Codex는 다른 provider다.
 `agent_control.py runners --provider all`로 전체 별칭을 읽는다. 이번 명시적 선택은
 `codex-gpt-6.1-sol`이고 기존 기본 사다리는 바꾸지 않는다.

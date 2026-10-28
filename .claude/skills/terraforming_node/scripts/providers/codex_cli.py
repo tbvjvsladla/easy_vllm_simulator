@@ -24,7 +24,8 @@ import subprocess
 
 PROVIDER_NAME = "codex_cli"
 BACKEND_DEFAULT_MODEL = {"openai": "gpt-6.1-sol"}
-RUNNER_ALIASES = {"codex-gpt-6.1-sol": ("openai", BACKEND_DEFAULT_MODEL["openai"])}
+RUNNER_ALIASES = {"codex-gpt-6.1-sol": ("openai", BACKEND_DEFAULT_MODEL["openai"]),
+                  "codex-gpt-6.1-terra": ("openai", "gpt-6.1-terra")}
 SUPPORTS = {
     "schema_versions": [2], "budget_units": ["wall_time"], "native_turn_limit": False,
     "resume": "explicit_native_id_with_binding", "structured_output": "jsonl",
@@ -61,6 +62,8 @@ def _inner_argv(request: dict) -> list[str]:
     if resume:
         argv.append("resume")
     argv += ["--json", "--model", request["model"], "-c", 'approval_policy="never"']
+    if "reasoning_effort" in request:
+        argv += ["-c", "model_reasoning_effort=" + json.dumps(request["reasoning_effort"])]
     if "permission_profile" in request:
         argv += ["-c", "default_permissions=" + json.dumps(request["permission_profile"])]
     elif resume:

@@ -600,7 +600,8 @@ def build_request(topology: str, manifest: str, task: str, bud: dict,
                   campaign_id: str = None, control_variables: dict = None,
                   backend: str = None, delegated_node: str | None = None,
                   provider: str = "claude_code", sandbox_mode: str | None = None,
-                  permission_profile: str | None = None, resume_binding: dict | None = None) -> dict:
+                  permission_profile: str | None = None, resume_binding: dict | None = None,
+                  reasoning_effort: str | None = None) -> dict:
     """위임 request 조립. `bud` 는 **선언된** 예산이다(`turn_budget.declare` 산출)."""
     base = _canary.build_request(topology, manifest, max_turns=bud["max_turns"],
                                  timeout_seconds=bud["timeout_seconds"],
@@ -608,7 +609,7 @@ def build_request(topology: str, manifest: str, task: str, bud: dict,
                                  model=model, backend=backend, provider=provider,
                                  max_dispatches=bud.get("max_dispatches"),
                                  sandbox_mode=sandbox_mode,
-                                 permission_profile=permission_profile)
+                                 permission_profile=permission_profile, reasoning_effort=reasoning_effort)
     allocated = bud["max_turns"]
     base["intent"] = "delegate"
     camp_block = campaign_control_block(campaign_id, control_variables)
@@ -1739,6 +1740,8 @@ def _supervise_resume(a, lp: str, doc: dict, secs, why: str) -> int:
     if not (getattr(a, "permission_profile", None) or getattr(a, "sandbox_mode", None)):
         for key, value in (doc.get("permission_selection") or {}).items():
             setattr(a, key, value)
+    if getattr(a, "reasoning_effort", None) is None:
+        a.reasoning_effort = doc.get("reasoning_effort")
     lks = last_known_session(doc)
     rec = recommended_timeout(doc)
     if rec and (secs is None or rec > secs):
@@ -2606,6 +2609,7 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
                         context_id=a.context_id, attempt=attempt_no,
                         model=runner["model"], backend=runner["backend"],
                         provider=provider, permission_profile=profile, sandbox_mode=sandbox,
+                        reasoning_effort=getattr(a, "reasoning_effort", None),
                         campaign_id=getattr(a, "campaign_id", None),
                         control_variables=getattr(a, "control_variables", None),
                         # 수명 제어 지시에는 개설 선언(slice)을 싣지 않는다 — 서브가 그것을 보고 --init 을 치면 전이가 아니라 개설이 된다.
@@ -2673,6 +2677,10 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
                        "started_utc": started, "owner_pid": os.getpid()}
     if dispatch_cap is not None:
         doc["max_dispatches"] = dispatch_cap
+    if "reasoning_effort" in req:
+        doc["reasoning_effort"] = req["reasoning_effort"]
+    elif "reasoning_effort" in doc:
+        del doc["reasoning_effort"]
     if provider == "codex_cli":
         doc["permission_selection"] = {k: req[k] for k in ("permission_profile", "sandbox_mode") if k in req}
     save_ledger(lp, doc)  # reserve durably before the external process can produce side effects
@@ -2869,6 +2877,7 @@ def _main() -> int:
     ap.add_argument("--backend", choices=_canary.backend_choices(), default=None,
                     help="provider 실행 백엔드(생략 = anthropic). 선택지는 전송 스키마 enum 에서 읽는다. "
                          "별칭으로 부르려면 --runners(예: meta-claude)")
+    ap.add_argument("--reasoning-effort", choices=("none", "minimal", "low", "medium", "high", "xhigh", "max"), default=None)
     ap.add_argument("--model", default=None,
                     help="위임 모델 선언(기본은 카나리 기본값). 어댑터는 모델로 차단하지 않는다 — "
                          "실제로 돈 모델은 원장 `model_used` 가 말한다(2026-09-05 · G-A1).")
@@ -2925,6 +2934,12 @@ def _main() -> int:
     a = ap.parse_args()
     if a.self_test:
         return _self_test()
+    if a.task and a.task_file:
+        ap.error("--task and --task-file are mutually exclusive")
+    if a.continue_ and a.task:
+        ap.error("--continue accepts --task-file, not --task")
+    if a.supervise_step and (a.task or a.task_file):
+        ap.error("--supervise-step does not accept task input")
     if a.reconcile_result and not a.reconcile_inflight:
         raise SystemExit("[relay] --reconcile-result requires --reconcile-inflight")
     if a.reconcile_inflight and (a.continue_ or a.task or a.task_file or a.supervise_step or a.campaign_control):
@@ -2965,6 +2980,8 @@ def _main() -> int:
         a.topology = a.topology or doc.get("topology")
         if not (a.runners or a.backend or a.model or a.provider) and ledger_runner_spec(doc):
             a.ladder = resolve_ladder(a.repo_root, ledger_runner_spec(doc))   # 러너를 조용히 바꾸지 않는다
+        if a.reasoning_effort is None:
+            a.reasoning_effort = doc.get("reasoning_effort")
         if not (a.permission_profile or a.sandbox_mode):
             for key, value in (doc.get("permission_selection") or {}).items():
                 setattr(a, key, value)
@@ -3017,8 +3034,14 @@ def _main() -> int:
                 "  → Codex 미해결 실패의 명시적 수동 복구 조건은 그대로 적용된다.")
 
         lks = last_known_session(doc)
-        a._continuation_source_attempt = continuation_instruction(a.repo_root, doc)["attempt"]
-        task = assemble_continuation(a.repo_root, doc, pend)
+        if a.task_file:
+            with open(a.task_file, encoding="utf-8", newline="") as f:
+                task = f.read()
+            if not task.strip():
+                raise SystemExit("[relay] STOP: --task-file is empty")
+        else:
+            a._continuation_source_attempt = continuation_instruction(a.repo_root, doc)["attempt"]
+            task = assemble_continuation(a.repo_root, doc, pend)
         floor = budget_floor(doc)
         _last_out = (last or {}).get("budget_outcome")
         if not a.apply:
