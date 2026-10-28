@@ -467,6 +467,7 @@ def g_assign(fx: Fixture):
     print("## assign — 배정 writer · reslice(K8)")
     base = fx.camp("AS", active=True, sub=True)
     d = ci.read_declaration(base)
+    d["declared_utc"] = UTC
     d["assignments"] = {"main": [{"cell": "c1"}, {"cell": "c2"}], "sub1": [{"cell": "s1"}]}
     d["hint_targets"] = [{"node_id": "main", "cells": ["c2"], "approval": {"approved_by": "사람", "utc": UTC}}]
     (base / "campaign.yaml").write_text(json.dumps(d), encoding="utf-8")
@@ -537,6 +538,44 @@ def g_assign(fx: Fixture):
         ck("서브 --slice-update → 자기 배정이 메인 선언과 같아진다 · 승인 전사는 main-a2a",
            rc == 0 and [i["cell"] for i in ci.read_declaration(sbase)["assignments"]["sub1"]] == ["s1", "s2"]
            and ci.read_declaration(sbase)["assignment_revisions"][-1]["approved_by"].startswith("main-a2a"))
+        # A layer-1-only revision must not touch assignment history or hint approval.
+        before = ci.read_declaration(sbase)
+        before["hint_targets"] = [{"node_id": "sub1", "cells": ["s1"], "approval": {
+            "approved_by": "user fixture", "approved_utc": UTC, "source": "declaration-popup"}}]
+        ci._write_json(sbase / "campaign.yaml", before)
+        ci.writer_add_revision(base, values={"vllm_version": "0.32.0"}, reason="user requested latest",
+                               evidence="fixture release", approved_by="user: latest", utc=UTC)
+        revised = ci.emit_slice(base, "sub1", utc=UTC)
+        sp.write_text(json.dumps(revised), encoding="utf-8")
+        old_bytes = (sbase / "campaign.yaml").read_bytes()
+        old_journey = (sbase / ci.JOURNEY_NAME).read_bytes()
+        rc, msg = run("--slice-update", str(sp), "--utc", UTC)
+        ck("control revision dry run does not write", rc == 0 and (sbase / "campaign.yaml").read_bytes() == old_bytes)
+        rc, msg = run("--slice-update", str(sp), "--utc", UTC, "--apply")
+        updated = ci.read_declaration(sbase)
+        ck("main control revision imports exact history; existing assignment and approval untouched",
+           rc == 0 and updated["revisions"] == revised["revisions"]
+           and updated["control_variables"] == before["control_variables"]
+           and updated["assignments"] == before["assignments"]
+           and updated["assignment_revisions"] == before["assignment_revisions"]
+           and updated["hint_targets"] == before["hint_targets"]
+           and (sbase / ci.JOURNEY_NAME).read_bytes() == old_journey)
+        applied_bytes = (sbase / "campaign.yaml").read_bytes()
+        rc, msg = run("--slice-update", str(sp), "--utc", UTC, "--apply")
+        ck("control revision reimport is idempotent", rc == 0 and (sbase / "campaign.yaml").read_bytes() == applied_bytes)
+        for label, mutate in (
+            ("downgrade", lambda d: d.update(revisions=[])),
+            ("conflicting prefix", lambda d: d["revisions"][1].update(values={"vllm_version": "bad"})),
+            ("missing approval", lambda d: d["revisions"][1].update(approved_by="")),
+            ("wrong main", lambda d: d.update(derived_from="other")),
+            ("changed t0", lambda d: d["control_variables"].update(vllm_version="bad")),
+            ("wrong node role", lambda d: d["nodes"][0].update(role="main"))):
+            bad_slice = json.loads(json.dumps(revised))
+            mutate(bad_slice)
+            sp.write_text(json.dumps(bad_slice), encoding="utf-8")
+            rc, msg = run("--slice-update", str(sp), "--utc", UTC, "--apply")
+            ck("revision reject " + label, rc != 0 and (sbase / "campaign.yaml").read_bytes() == applied_bytes)
+        sp.write_text(json.dumps(revised), encoding="utf-8")
         ci.writer_append_journey(sbase, ci._lifecycle_event("campaign_suspended", UTC, approved_by="x"))
         rc, msg = run("--slice-update", str(sp), "--utc", UTC, "--apply")
         ck("★음성대조 보류 중 서브 재배정 거부(진행성 쓰기)", rc != 0 and "suspended" in msg)

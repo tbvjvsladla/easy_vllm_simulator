@@ -1835,6 +1835,47 @@ def writer_assign_set(base: Path, *, node: str, items: list, reason: str, eviden
     return path, rev
 
 
+def _slice_revision_extension(decl: dict, sd: dict) -> list:
+    """Validate a main-derived control history against the sub's immutable prefix."""
+    for key in ("id", "plan_ref", "declared_utc", "control_variables", "derived_from"):
+        if decl.get(key) != sd.get(key):
+            raise WriterRefusal(f"slice-update control identity mismatch: {key}")
+    if not isinstance(decl.get("control_variables"), dict):
+        raise WriterRefusal("slice-update original control variables are missing")
+    if not isinstance(decl.get("derived_from"), str) or not decl["derived_from"].strip():
+        raise WriterRefusal("slice-update main origin is missing")
+    local = decl.get("revisions", [])
+    incoming = sd.get("revisions")
+    if not isinstance(local, list) or not isinstance(incoming, list):
+        raise WriterRefusal("slice-update revision history is missing or malformed")
+    if not local and not incoming:
+        return []
+    t0 = {"rev": 0, "declared_utc": decl.get("declared_utc"), "values": decl["control_variables"],
+          "reason": "t0 선언", "evidence": decl.get("plan_ref"), "approved_by": "t0"}
+    if not isinstance(t0["declared_utc"], str) or not t0["declared_utc"].strip() or not isinstance(t0["evidence"], str) or not t0["evidence"].strip():
+        raise WriterRefusal("slice-update original revision identity is incomplete")
+    def validate(history):
+        if not history:
+            return
+        if history[0] != t0:
+            raise WriterRefusal("slice-update t0 revision conflicts with original declaration")
+        previous = t0["values"]
+        for number, item in enumerate(history[1:], 1):
+            if (not isinstance(item, dict) or set(item) != {"rev", "declared_utc", "values", "reason", "evidence", "approved_by"}
+                    or type(item.get("rev")) is not int or item["rev"] != number
+                    or not isinstance(item.get("values"), dict) or not set(previous).issubset(item["values"])
+                    or any(not isinstance(item.get(k), str) or not item[k].strip()
+                           for k in ("declared_utc", "reason", "evidence", "approved_by"))
+                    or item["approved_by"] == "t0"):
+                raise WriterRefusal("slice-update malformed or unapproved control revision")
+            previous = item["values"]
+    validate(local)
+    validate(incoming)
+    if len(incoming) < len(local) or incoming[:len(local)] != local:
+        raise WriterRefusal("slice-update control history conflicts or downgrades the existing prefix")
+    return incoming[len(local):]
+
+
 def slice_update(source: str, *, utc, apply: bool) -> list:
     """서브 자기 인스턴스의 배정을 메인 파생 선언으로 바꾼다(K8 · relay `reslice` 의 실행부). pending 규칙은 같은 writer 가
     서브 자기 상태로 다시 검사한다 — 메인이 본 상태와 서브 실물이 갈라졌으면 여기서 거부된다(우회 ✗ · 보고)."""
@@ -1854,18 +1895,34 @@ def slice_update(source: str, *, utc, apply: bool) -> list:
     own = [n.get("node_id") for n in (decl.get("nodes") or []) if isinstance(n, dict)]
     if len(nodes) != 1 or nodes[0] not in own:
         raise WriterRefusal(f"선언의 배정 노드 {nodes} 가 이 인스턴스의 노드 {own} 가 아니다(오배달 방지)")
+    if sd.get("nodes") != decl.get("nodes") or any(n.get("role") != "sub" for n in sd.get("nodes", []) if isinstance(n, dict)):
+        raise WriterRefusal("slice-update node identity or role differs")
+    extension = _slice_revision_extension(decl, sd)
     meta = sd.get("_assignment_revision") or {}
     guard_writer_ops(base, {"assign_set": True})
-    items = [i for i in (sd["assignments"][nodes[0]] or []) if isinstance(i, dict)]
+    raw_items = sd["assignments"][nodes[0]]
+    if not isinstance(raw_items, list) or any(not isinstance(i, dict) for i in raw_items):
+        raise WriterRefusal("slice-update assignment list is malformed")
+    items = raw_items
+    changed = validator().assignment_items(decl, nodes[0]) != items
+    if changed and any(not isinstance(meta.get(k), str) or not meta[k].strip()
+                       for k in ("reason", "evidence", "approved_by", "declared_utc")):
+        raise WriterRefusal("slice-update assignment change lacks main approval evidence")
     if not apply:
-        return [f"dry-run slice-update {camp}@{nodes[0]} → {[i.get('cell') for i in items]}"]
-    _p, rev = writer_assign_set(base, node=nodes[0], items=items,
-                                reason=meta.get("reason") or "메인 재배정",
-                                evidence=meta.get("evidence") or str(sd.get("plan_ref")),
-                                approved_by=f"main-a2a: {meta.get('approved_by') or '메인 재배정 승인'}", utc=utc,
-                                source=f"campaign_init --slice-update (main rev {meta.get('rev')})")
-    return [f"slice-update {camp}@{nodes[0]} rev {rev['rev']} (main rev {meta.get('rev')}) → "
-            f"{[i.get('cell') for i in items]}"]
+        return [f"dry-run slice-update {camp}@{nodes[0]} → {[i.get('cell') for i in items]}; control revisions +{len(extension)}"]
+    if changed:
+        _p, rev = writer_assign_set(base, node=nodes[0], items=items,
+                                    reason=meta["reason"], evidence=meta["evidence"],
+                                    approved_by=f"main-a2a: {meta['approved_by']}", utc=utc,
+                                    source=f"campaign_init --slice-update (main rev {meta.get('rev')})")
+    else:
+        rev = None
+    if extension:
+        current = read_declaration(base)
+        current["revisions"] = list(current.get("revisions") or []) + extension
+        _write_json(base / "campaign.yaml", current)
+    return [f"slice-update {camp}@{nodes[0]} assignment rev {rev['rev'] if rev else 'unchanged'}; "
+            f"control revisions +{len(extension)} → {[i.get('cell') for i in items]}"]
 
 
 def _assignment_plan(doc: dict) -> list:
