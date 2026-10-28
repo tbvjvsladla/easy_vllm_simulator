@@ -125,7 +125,7 @@ MISSING_CODES: dict[str, str] = {
     #   실제로 발행되는 APPLIED_PATCH_FILE·NATIVE_RECIPE 는 빠져 있었다).
     "HINT_MISSING_APPLIED_PATCH_FILE": ("원장(또는 재구성)이 **적용됐다**고 말한 빌드 패치 스크립트가 출력 평면에 없다 — 적용 사실은 "
                                         "있으나 그 바이트를 실을 수 없다(01 적용 판정표에 `file_absent` 로 기재 · artifacts 가 기재)."),
-    "HINT_MISSING_BUILD_LEDGER": ("빌드 원장(`/opt/easy-vllm/build_ledger.json`) 부재 — 원장 도입 전 이미지다. 패치 적용 결과는 "
+    "HINT_MISSING_BUILD_LEDGER": ("빌드 원장(`/opt/easy-vllm/build_ledger.json`) 부재 — 도입 시점과 부재 원인은 미관측이다. 패치 적용 결과는 "
                                   "`applied_set.status: unobservable` 과 라벨된 재구성으로만 말한다(X9)."),
     # 2026-09-22 S2 round 3 통합: 이 뜻 문구는 페이로드(00 · PAYLOAD.missing)로 수신자에게 간다 — 수신자가 풀 수 없는 내부 문서
     #   좌표(옛 '코드맵 campaign_plane TL;DR 6')를 걷고 그 내용(옛 스모크 판본이 대조 행을 쓰지 않았다)만 남긴다(2차 저작자 지적).
@@ -3105,15 +3105,25 @@ def bench_definition(repo, ev: CellEvidence) -> dict:
             if m:
                 out["current_full_definition"], out["source_line"] = m.group(0), i
                 break
+    if not out["current_full_definition"]:
+        skill_rel = ".claude/skills/adversarial-benchmark/SKILL.md"
+        skill = repo / skill_rel
+        if skill.is_file():
+            for i, ln in enumerate(skill.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
+                if "full bench 의 정의" in ln and "`full = lite ∪ GuideLLM × 반복 ≥3`" in ln:
+                    out.update(current_full_definition="`full = lite ∪ GuideLLM × 반복 ≥3`", source=skill_rel,
+                               source_line=i, required_repeats=3, required_legs=["lite", "GuideLLM"])
+                    break
     sent = out["current_full_definition"]
     if sent:
         dm = _FULL_DEF_RE.search(sent)
-        rm = _FULL_REPEATS_RE.search(dm.group("inner"))
-        out["required_repeats"] = int(rm.group(1)) if rm else None
-        legs = dm.group("inner").split("×")[0]
+        rm = _FULL_REPEATS_RE.search(dm.group("inner")) if dm else None
+        if dm:
+            out["required_repeats"] = int(rm.group(1)) if rm else None
+            legs = dm.group("inner").split("×")[0]
         # 현행 판의 머리 `lite 게이트 →` 는 레그다(lite ⊂ full · lite 가 full 의 첫 단계) — 옛 판의 `lite ∪` 와 같은 레그 목록이 나온다.
-        gate = [g for g in _FULL_GATE_LEG_RE.findall(dm.group("head"))]
-        out["required_legs"] = list(dict.fromkeys(gate + [x.strip() for x in legs.split("∪") if x.strip()]))
+            gate = [g for g in _FULL_GATE_LEG_RE.findall(dm.group("head"))]
+            out["required_legs"] = list(dict.fromkeys(gate + [x.strip() for x in legs.split("∪") if x.strip()]))
     else:
         out["reasons"].append(f"{REL_DOCS_RULES} 에서 full 정의 문장(`full 계측(…)`)을 읽지 못했다 — 대조하지 않는다")
     mc = measurement_config(repo, ev)
@@ -3180,6 +3190,15 @@ def bench_definition(repo, ev: CellEvidence) -> dict:
             out["reasons"].append(f"측정 기록의 bench_mode=full 은 기록된 라벨({mc.get('source')})이다 — 위 대조는 현행 정의 기준이라 "
                                   "두 판정이 갈린다")
     out["meets_current_full"] = verdict
+    if out["source"].endswith("adversarial-benchmark/SKILL.md") and verdict is True:
+        lite = (sw.get("index") or {}).get("lite") or {}
+        levels = sw.get("levels") or []
+        counts = [_as_int((lv.get("measured") or {}).get("repeats_completed")) for lv in levels if isinstance(lv, dict)]
+        if lite.get("lite_verdict") == "pass" and levels and len(counts) == len(levels) and all(n is not None and n >= need for n in counts):
+            out["reasons"].append(f"sweep_index lite_verdict=pass · 측정 레벨 {len(levels)}개 모두 완주 반복 ≥{need}")
+        else:
+            out["meets_current_full"] = None
+            out["reasons"].append("판정점 반복과 도구는 확인했다 — lite 통과 또는 전체 측정 레벨의 완주 반복을 확인하지 못했다")
     return out
 
 
@@ -7391,6 +7410,18 @@ def _selftest_round2(ck, repo: Path, td: Path, ev: CellEvidence, ident: dict) ->
     bd0 = bench_definition(repo, ev)
     ck("★docs.md 부재 = 정의 미관측 → 충족 판정 None(모름 ≠ 미충족)", bd0["current_full_definition"] is None
        and bd0["meets_current_full"] is None)
+    skill = repo / ".claude/skills/adversarial-benchmark/SKILL.md"
+    skill.parent.mkdir(parents=True, exist_ok=True)
+    skill.write_text("- **full bench 의 정의** — **`full = lite ∪ GuideLLM × 반복 ≥3`**\n", encoding="utf-8")
+    sw_skill = {**(ev.sweep or {}), "index": {**((ev.sweep or {}).get("index") or {}), "lite": {"lite_verdict": "pass"}},
+                "levels": [{"level": 1, "measured": {"repeats_completed": 3}}, {"level": 2, "measured": {"repeats_completed": 3}}]}
+    ev_skill = dataclasses.replace(ev, certificate={**(ev.certificate or {}), "bench_tool": "guidellm"}, sweep=sw_skill)
+    fallback = bench_definition(repo, ev_skill)
+    ck("skill definition fallback: lite pass and all measured levels completed", fallback["source"].endswith("SKILL.md")
+       and fallback["meets_current_full"] is True)
+    sw_missing = {**sw_skill, "index": {**sw_skill["index"], "lite": {}}}
+    ck("skill fallback does not infer missing lite pass", bench_definition(repo, dataclasses.replace(ev_skill, sweep=sw_missing))["meets_current_full"] is None)
+    skill.unlink()
     rules = repo / REL_DOCS_RULES
     rules.parent.mkdir(parents=True, exist_ok=True)
     rules.write_text("# docs\n\n| `benchmark/` | full 계측(`lite ∪ GuideLLM × 반복 ≥3`) · lite-only 셀의 경량 report | x |\n",

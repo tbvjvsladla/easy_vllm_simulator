@@ -280,3 +280,5 @@ stdout으로 보낸다. 파일은 dispatch ID와 **전체 요청**에 결속되�
 Codex 구조화 오류의 정확한 `Selected model is at capacity. Please try a different model.`만 선택적 재시도 대상이다. HTTP 코드나 rate limit은 추론하지 않는다. 호출자는 `--capacity-retries N --capacity-backoff-seconds N --capacity-deadline-utc YYYY-MM-DDTHH:MM:SSZ --capacity-approval-file FILE` 네 값을 함께 선언한다. FILE은 실제 사용자의 원문 `authorization`과 그 출처 `source` 두 문자열을 담는 JSON이다. 호출자는 시작 전에 글로벌 남은 횟수에서 최초 호출 + N을 예약하고 다른 native 배치를 동시에 열지 않으며 종료 후 실제 attempt 증가량을 정산한다. relay는 원장에 불변 배치 선언과 시작 attempt를 저장하고 각 dispatch를 별도 기록한다. 재시작은 이 할당을 초기화하지 않는다. deadline 안에 backoff와 전체 다음 attempt 시간 예산이 남아야 한다.
 
 이 예외는 알려진 세션과 동일 모델·provider·권한·대상에 결속되고 미완 명령이 없어야 한다. 보존된 capacity 실패와 해당 pending 질문에 실제 사전승인 원문을 적은 뒤 기존 수동 복구 게이트를 통과한다. 이어받는 지시는 서비스·명령·산출물부터 확인하고 부분 파일과 이미 수행된 벤치를 보존하도록 요구한다. 신호·취소·권한 거부·불명 실패, 잘못된 이벤트, 세션/결속 부재, 다른 미해결 질문, 남은 할당이나 시간 부족은 기존 차단을 유지한다. 보고서가 없으면 완료로 기록하지 않는다.
+
+기존 배치에서 정상 제어 완료와 `input-required` 기술 인계가 기록된 경우, 같은 세션·모델·권한의 명시적 `--continue --apply --task-file`은 남은 원래 배정 한 칸을 쓴다. 원래 시작점·할당·승인·마감은 변경하지 않으며 미완 실행·실패·차단 질문·소진은 재진입을 허용하지 않는다.
