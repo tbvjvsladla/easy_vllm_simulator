@@ -1471,9 +1471,10 @@ def _f_reproduce(c: _Ctx) -> str:
             out += ["", "> ⚠ `render` 단계는 **지금의** 렌더러로 env 를 다시 만든다 — 측정 뒤 재생성된 env 형상(01 §1.1 싣지 않은 파일 "
                         f"`{_POST_MEASUREMENT}`: " + " · ".join(f"`{x}`" for x in _regenerated_env(c.facts))
                         + ")이 있으니 렌더러가 측정 뒤 바뀌었을 수 있다 — 다시 렌더한 값을 아래 '측정 실행의 env 관측' 표(측정 당시 값)와 대조한다."]
-        out += ["", "**단계별 명령**(기계 파생 — `명령 출처` 가 `derived(…)` 면 사용법에서 파생 · `reconstructed(…)` 면 괄호 안 관측"
-                "(docker history build-arg · compose build · bench JSON 필드)에서 재구성한 명령이다. 어느 쪽도 실행 원문(로그에 남은 줄)은 "
-                "아니다)", ""]
+        out += ["", "**단계별 명령**(기계 파생 — `명령 출처`가 `derived(…)`이면 사용법에서 파생하고 "
+                "`reconstructed(…)`이면 괄호 안에 명시된 관측, 파일 선언·설정 또는 추론을 조합해 재구성한다. "
+                "예를 들어 docker history와 bench JSON은 기록된 관측이며 compose 파일은 선언·설정이다. "
+                "설정만으로 과거 compose build 실행 여부는 알 수 없다. 어느 명령도 실행 원문(로그에 남은 줄)은 아니다)", ""]
         out += cmds
         while out and not out[-1]:
             out.pop()
@@ -4883,6 +4884,11 @@ def selftest() -> list[str]:
         obs_facts = json.loads(core.dumps(facts_json))
         obs_facts["reproduce_steps"][1]["observed"] = {"start_utc": "2026-09-12T18:54:37Z", "end_utc": "2026-09-12T19:25:31Z",
                                                        "seconds": 1854, "bound": "upper"}
+        reproduce_header = _f_reproduce(_Ctx(repo, facts_json, tpls))
+        ck("재현 명령 출처: 관측·파일 설정·추론을 구분하고 과거 실행으로 단정하지 않는다",
+           "관측, 파일 선언·설정 또는 추론" in reproduce_header
+           and "설정만으로 과거 compose build 실행 여부는 알 수 없다" in reproduce_header
+           and "괄호 안 관측(docker history build-arg · compose build" not in reproduce_header)
         ck("1.4 재현 표: 관측 구간 칸(start → end (bound))",
            "2026-09-12T18:54:37Z → 2026-09-12T19:25:31Z (upper)" in _f_reproduce(_Ctx(repo, obs_facts, tpls))
            and "| 관측 구간(UTC) |" in _f_reproduce(_Ctx(repo, facts_json, tpls)))

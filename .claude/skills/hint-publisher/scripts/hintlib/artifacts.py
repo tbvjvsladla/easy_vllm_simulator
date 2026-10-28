@@ -3259,9 +3259,10 @@ def _build_command(c: _Ctx, sel: dict) -> tuple[str, str]:
     else:
         tail = [f"# 동등 경로(compose): docker compose -f output/{c.topo}/docker-compose.yaml --env-file "
                 f"output/{c.topo}/envs/.env.{c.cell} build"]
-    src = (f"reconstructed({asrc} + compose build)" if asrc and args else "reconstructed(compose build · build-arg 미관측)")
+    src = (f"reconstructed({asrc} + compose build 선언/설정(실행 관측 아님))" if asrc and args else
+           "reconstructed(compose build 선언/설정(실행 관측 아님) · build-arg 미관측)")
     if ctx is None:
-        src += f"(compose build.context 미해석 — {context} 로 둔다)"
+        src += f"(compose 파일 build.context 미해석 — {context} 로 둔다)"
     return "\n".join(head + [" \\\n".join(parts)] + tail), src
 
 
@@ -5447,7 +5448,11 @@ def selftest() -> list[str]:
         ck("F5 빌드 = docker build -f <Dockerfile> --build-arg(history) … -t <tag> <context>",
            "docker build -f output/multi/Dockerfile.source-build \\" in bcmd and "--build-arg SM12X_PORT=0" in bcmd
            and "--build-arg BUILD_JOBS=8" in bcmd and "-t easy-vllm:fx-source" in bcmd and "\n  output/multi\n" in bcmd
-           and steps["build"]["command_source"] == "reconstructed(docker-history build-args + compose build)")
+           and steps["build"]["command_source"] == "reconstructed(docker-history build-args + compose build 선언/설정(실행 관측 아님))")
+        no_args_cmd, no_args_src = _build_command(_ctx(repo, ev), {"dockerfile": "Dockerfile.source-build"})
+        ck("build-arg 미관측 재구성도 compose 설정과 실행 관측을 구분한다",
+           no_args_src.startswith("reconstructed(compose build 선언/설정(실행 관측 아님) · build-arg 미관측)")
+           and "docker build -f output/multi/Dockerfile.source-build" in no_args_cmd)
         ck("F5 벤치 = bench JSON 필드 복원(vllm bench serve)", steps["bench"]["command_source"] == "reconstructed(bench json)"
            and "vllm bench serve --backend openai --model fx --tokenizer /app/models/X --dataset-name random "
                "--random-input-len 1024 --random-output-len 256 --num-prompts 4 --max-concurrency 1 --request-rate inf"
@@ -6698,7 +6703,7 @@ def selftest() -> list[str]:
            and rl["applied_set"]["patches"][0]["ledger_result_source"] == "exit-code"
            and "--build-arg FX_OPEN=1" in {s["step"]: s for s in rl["reproduce_steps"]}["build"]["command"]
            and {s["step"]: s for s in rl["reproduce_steps"]}["build"]["command_source"]
-           == "reconstructed(build-ledger build_args + compose build)")
+           == "reconstructed(build-ledger build_args + compose build 선언/설정(실행 관측 아님))")
         # ★원장 부재 + 컨테이너 제거 실패 = "원장 없음" 줄에 rm 실패가 남는다(부수효과 사실을 접어 버리지 않는다)
         base_rm = _fake_image_docker(layers=lay_p, created="2026-01-02T03:04:05+09:00", fs=img_fs, env=img_env)
 
