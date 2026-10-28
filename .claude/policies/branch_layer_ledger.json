@@ -2712,6 +2712,22 @@
           "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
         }
       ]
+    },
+    {
+      "entry_id": "sync-261028-single-to-multi-a07-f10-ac14813",
+      "utc": "2026-10-28T13:26:53Z",
+      "departure": "single-node",
+      "departure_commit": "ac14813825415c2066f8c304cf9bbeff79578e1d",
+      "approved_by": "user: 이너 하네스 agnostic 작업 후 서브노드 및 싱글노드·멀티노드 브랜치 전파 지시",
+      "approved_utc": "2026-10-26T20:04:48Z",
+      "classification": [
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/artifacts.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 hint 재현 예시와 근거의 단독 compose 조건을 명확히 하며 topology 특화층이 아니다."
+        }
+      ]
     }
   ]
 }
