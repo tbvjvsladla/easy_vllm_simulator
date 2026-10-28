@@ -1,0 +1,1626 @@
+{
+  "agent_requests": [],
+  "applied_set": {
+    "excluded": [
+      {
+        "file": ".gitkeep",
+        "phase": "post",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      },
+      {
+        "file": ".gitkeep",
+        "phase": "pre",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      }
+    ],
+    "patches": [],
+    "probes": [
+      {
+        "ref": "output/single/benchlog/attestation_gpt-oss-20b-gb10.json(부재)",
+        "result": "absent",
+        "tier": "attestation"
+      },
+      {
+        "result": "skipped(node=sub — 서브 스캔 ✗ · 문서기반 회수만)",
+        "tier": "local-image"
+      },
+      {
+        "result": "done",
+        "source": "docker history --no-trunc sha256:b2c993d8bf628ad46100dd9bdaf260599f564aea3539fce9b7bbfb57ca91e54a(RUN |N 인자 · 쓰인 Dockerfile 의 ARG 만 · measured image_digest(evidence.build_identity · 내용 권위))",
+        "tier": "reconstruction"
+      },
+      {
+        "container_removed": true,
+        "copies": [
+          {
+            "result": "ok",
+            "src": "/tmp/requirements.txt"
+          }
+        ],
+        "image": "sha256:b2c993d8bf628ad46100dd9bdaf260599f564aea3539fce9b7bbfb57ca91e54a",
+        "image_source": "measured image_digest(evidence.build_identity · 내용 권위)",
+        "python_roots": [],
+        "result": "done",
+        "tier": "image-probe"
+      }
+    ],
+    "reconstruction": {
+      "build_args": {
+        "CUDA_VERSION": "130",
+        "RAY_VERSION": "2.48.0",
+        "VLLM_MANYLINUX": "manylinux_2_35",
+        "VLLM_VERSION": "0.18.0"
+      },
+      "build_args_source": "docker history --no-trunc sha256:b2c993d8bf628ad46100dd9bdaf260599f564aea3539fce9b7bbfb57ca91e54a(RUN |N 인자 · 쓰인 Dockerfile 의 ARG 만 · measured image_digest(evidence.build_identity · 내용 권위))",
+      "caveat": "원장 부재 — 결과는 **라벨된 재구성**이다(관측된 원장이 아니다). skipped = history 빌드 인자가 자기게이트를 끈다 · applied = 이미지에 구워진 스크립트 바이트(탐침)가 skip 경로 없음 × fail-loud 루프 × 측정 이미지 실재(reconstructed(fail-loud+built)) 또는 이미지에 구워진 스크립트 바이트 × 선언 마커 전부 실재(image-probe(script-sha+marker) — 패치 후 상태 관측) · 그 밖 = 미관측(X9) — 탐침이 없으면 applied 는 나오지 않는다. skipped 는 탐침이 없을 때 작업트리 바이트로 판정한다(script_identity 가 image-probe 가 아니면 빌드 당시 바이트와 같다는 보장이 없다).",
+      "image": "sha256:b2c993d8bf628ad46100dd9bdaf260599f564aea3539fce9b7bbfb57ca91e54a",
+      "source": "docker-history+gate-rule · fail-loud-rule · image-probe"
+    },
+    "source": "no-build-ledger",
+    "status": "unobservable"
+  },
+  "approval": {
+    "approved_by": "사용자: 싱글 메인·서브 각각 서로 다른 4개 모델 총 8개 고유 모델, 모든 모델 Full bench 성공 후 hint 태그 발행까지 수행",
+    "approved_utc": "2026-10-26T21:47:32Z",
+    "source": "campaign:hint_targets"
+  },
+  "attestation_scope": null,
+  "bench_definition": {
+    "bench_tool": "guidellm",
+    "bench_tool_source": "bench_report(bench_report_26102816_gpt-oss-20b_GB10_0.18.0.md)",
+    "current_full_definition": "`full = lite ∪ GuideLLM × 반복 ≥3`",
+    "meets_current_full": true,
+    "reasons": [
+      "판정점 반복 3 ≥ 3 · 도구 guidellm",
+      "sweep_index lite_verdict=pass · 측정 레벨 5개 모두 완주 반복 ≥3"
+    ],
+    "repeats_requested": 3,
+    "repeats_source": "측정 구성 표 repeats_completed(완주 · bench_report(bench_report_26102816_gpt-oss-20b_GB10_0.18.0.md))",
+    "required_legs": [
+      "lite",
+      "GuideLLM"
+    ],
+    "required_repeats": 3,
+    "source": ".claude/skills/adversarial-benchmark/SKILL.md",
+    "source_line": 33,
+    "this_repeats": 3,
+    "verdict_level": 1
+  },
+  "build": {
+    "cpu_arch": "arm64",
+    "cuda": "13.1.1.006",
+    "dockerfile": "Dockerfile",
+    "driver": "580.178.04",
+    "driver_by_node": {
+      "sub": "580.178.04"
+    },
+    "driver_check": {
+      "declared": "580.178.04",
+      "observed": "580.178.04",
+      "sources": {
+        "declared": "sweep_index.meta.driver_version(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z · 측정 시 조립 — sweep_bench.sh 가 manifest 에서 읽는다) (manifest 선언 옮김)",
+        "observed": "측정 엔진 로그 기동 배너 'kernel driver version'(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/lite_engine_head_gpt-oss-20b-gb10.log:30 · 컨테이너가 보고한 호스트 커널 드라이버 · 이 측정의 엔진 로그 17개 중 그 줄이 있는 로그 모두 같은 값)"
+      },
+      "verdict": "agree"
+    },
+    "driver_conflict": null,
+    "image_digest": "sha256:b2c993d8bf628ad46100dd9bdaf260599f564aea3539fce9b7bbfb57ca91e54a",
+    "image_tag": "easy-vllm:0.18.0-cu130-aarch64-wheel",
+    "ngc": "26.01",
+    "os": null,
+    "source": {
+      "cpu_arch": "docker image inspect Architecture",
+      "cuda": "docker image inspect Config.Env CUDA_VERSION",
+      "dockerfile": "image-history:docker history build-arg 관측(VLLM_VERSION=0.18.0 · VLLM_REF 없음 → wheel Dockerfile) — 셀 env 선택자 없음 · output/single/docker-compose.yaml 리터럴 build.dockerfile: Dockerfile.source-build(이 파일만 단독 적용하고 override 가 없을 때 Dockerfile.source-build 선택 · 과거 빌드에 이 compose 또는 override 를 사용했는지는 미관측) · ⚠ compose 리터럴 Dockerfile.source-build ≠ 관측 Dockerfile(이미지 빌드에 사용된 compose 또는 override 여부는 미관측)",
+      "driver": "측정 엔진 로그 기동 배너 'kernel driver version'(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/lite_engine_head_gpt-oss-20b-gb10.log:30 · 컨테이너가 보고한 호스트 커널 드라이버 · 이 측정의 엔진 로그 17개 중 그 줄이 있는 로그 모두 같은 값)",
+      "driver_by_node": "측정 엔진 로그 기동 배너 'kernel driver version'(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/lite_engine_head_gpt-oss-20b-gb10.log:30 · 컨테이너가 보고한 호스트 커널 드라이버 · 이 측정의 엔진 로그 17개 중 그 줄이 있는 로그 모두 같은 값)",
+      "image_digest": "sweep_index.meta.image_digest(measured(docker inspect .Image))",
+      "image_tag": "셀 env(output/single/envs/.env.gpt-oss-20b-gb10) IMAGE_TAG",
+      "ngc": "docker image inspect Config.Env NVIDIA_PYTORCH_VERSION",
+      "os": "미관측(attestation·인증서·스윕 meta·manifest 에 ['os', 'os_release', 'os_name', 'os_version', 'kernel', 'kernel_release'] 키 없음 — 지어내지 않는다)",
+      "torch": "docker image inspect Config.Env PYTORCH_VERSION",
+      "track": "artifacts 선택자(image-history:docker history build-arg 관측(VLLM_VERSION=0.18.0 · VLLM_REF 없음 → wheel Dockerfile) — 셀 env 선택자 없음 · output/single/docker-compose.yaml 리터럴 build.dockerfile: Dockerfile.source-build(이 파일만 단독 적용하고 override 가 없을 때 Dockerfile.source-build 선택 · 과거 빌드에 이 compose 또는 override 를 사용했는지는 미관측) · ⚠ compose 리터럴 Dockerfile.source-build ≠ 관측 Dockerfile(이미지 빌드에 사용된 compose 또는 override 여부는 미관측))",
+      "vllm_ref": "VLLM_REF 미관측",
+      "vllm_repo": "VLLM_REPO 미관측"
+    },
+    "torch": "2.10.0a0+a36e1d3",
+    "track": "wheel",
+    "vllm_describe": null,
+    "vllm_prev_pin": null,
+    "vllm_ref": null,
+    "vllm_repo": null,
+    "vllm_sha": null
+  },
+  "build_context_map": [
+    {
+      "basis": "compose env_file envs/.env.${CONFIG_FILE}(셀 env)",
+      "context_path": "envs/.env.gpt-oss-20b-gb10",
+      "slot_path": "artifacts/triplet/.env.gpt-oss-20b-gb10"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/gpt-oss-20b-gb10.sh",
+      "slot_path": "artifacts/triplet/gpt-oss-20b-gb10.sh"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/gpt-oss-20b-gb10.yaml",
+      "slot_path": "artifacts/triplet/gpt-oss-20b-gb10.yaml"
+    },
+    {
+      "basis": "이 zip 재현 예시의 docker build -f Dockerfile 입력 · build.context .(실린 compose 파일만 단독 사용하고 override가 없으면 build.dockerfile 리터럴은 Dockerfile.source-build이므로 이 파일과 다름; 과거 실행 경로는 미관측)",
+      "context_path": "Dockerfile",
+      "slot_path": "artifacts/build_recipe/Dockerfile"
+    },
+    {
+      "basis": "Dockerfile COPY requirements.txt",
+      "context_path": "requirements.txt",
+      "slot_path": "artifacts/build_recipe/requirements.txt"
+    },
+    {
+      "basis": "compose 변수치환 프로젝트 .env(${…} 참조)",
+      "context_path": ".env",
+      "slot_path": "artifacts/compose/.env.template"
+    },
+    {
+      "basis": "compose 파일(빌드 컨텍스트 루트)",
+      "context_path": "docker-compose.yaml",
+      "slot_path": "artifacts/compose/docker-compose.yaml"
+    }
+  ],
+  "campaign": {
+    "cell": "gpt-oss-20b-gb10",
+    "id": "camp-26102705-codex-single8",
+    "mode": "campaign",
+    "node": "sub"
+  },
+  "cell_grade": "full",
+  "dataset_provenance": {
+    "dataset_column_map": null,
+    "dataset_duplicate_sampling": null,
+    "dataset_id": null,
+    "dataset_kind": "synthetic",
+    "dataset_preprocess_strategy": null,
+    "dataset_provenance": null,
+    "dataset_revision": null,
+    "dataset_seed": null,
+    "dataset_source": null,
+    "dataset_source_sha256": null,
+    "dataset_tokenizer": null,
+    "source": "bench_report(bench_report_26102816_gpt-oss-20b_GB10_0.18.0.md) 측정 구성 표",
+    "status": "recorded"
+  },
+  "evidence_pointers": [
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "bench_report",
+      "node_id": "sub",
+      "path": "docs/benchmark/bench_report_26102816_gpt-oss-20b_GB10_0.18.0.md"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "devlog",
+      "node_id": "sub",
+      "path": "docs/devlog/devlog_26102816_GPT_OSS_20B_신규_Full_서빙_여정.md"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "plan",
+      "node_id": "sub",
+      "path": "docs/plan/plan_26102816_GPT_OSS_20B_재개_Full_hint.md"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "relay_summary",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt1/task_report.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/26102816_gptoss20b_resume_a03/run_summary.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/26102816_gptoss20b_resume_a03/trial01_profile.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/26102816_gptoss20b_resume_a03/trial01_smoke.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt1"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt1/header_diagnostic.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/api_smoke_summary.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/bench_invocation.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/boundary_analysis.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/broad_cell.receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/checker_invocation_receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/closed_service_journal.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/down_verification.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/engine_full.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/evidence_index.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/execution_source_readback.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/external_search.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/fresh_sweep_raw.tar.gz"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/full_verification.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/hint_draft_author_checker.tar.gz"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/independent_factcheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/lint_author_02.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/model_crosscheck.stdout.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/model_parse.stdout.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/producer_handoff.md"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/runtime_identity.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/serve_down.receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/serve_invocation.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/serve_up.receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/tool_interpretation.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/bench_verify.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/checker/claims_inventory.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/checker/event_fields.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/checker/event_inventory.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/checker/fact_text_inventory.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/checker/image_history.jsonl"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/checker/progress.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/checker/quote_inventory.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/checker/raw_inventory.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/checker/raw_metrics.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/checker_invocation_receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/draft_after_independent_review.tar.gz"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/hint_equipment.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/independent_factcheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/lint.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/producer_handoff.md"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/refacts.stdout.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt4/runtime_reconciliation.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/bench_verify.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/actual_00-hint.md.diff"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/actual_01-artifacts.md.diff"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/actual_02-narrative.md.diff"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/actual_03-benchmark.md.diff"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/attempts_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/config_dataset_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/context_mapping_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/context_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/event_claims_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/header_grade_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/image_env_receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/image_probe_receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/inventory.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/inventory_by_claim.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/legend_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/lineage_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/measurement_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/meta_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/naming_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/previous_inventory_presence.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/prose_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/raw_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/resolved_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/resolved_unknown_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/slots_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/snapshots_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker/value_status_recheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/checker_invocation_receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/draft_after_review.tar.gz"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/hint_equipment.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/independent_factcheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/lint.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/producer_handoff.md"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/refacts.receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/refacts.stderr.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt5/refacts.stdout.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt6/bench_verify.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt6/checker/independent_factcheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt6/checker/inventory_by_claim.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt6/checker_invocation_receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt6/draft_after_review.tar.gz"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt6/draft_full_diff.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt6/hint_equipment.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt6/independent_factcheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt6/lint.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt6/producer_handoff.md"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt6/refacts.receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt6/refacts.stderr.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt6/refacts.stdout.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt7/bench_verify.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt7/checker_invocation_receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt7/draft_after_review.tar.gz"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt7/draft_full_diff.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt7/hint_equipment.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt7/independent_factcheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt7/lint.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt7/producer_handoff.md"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt7/refacts.receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt7/refacts.stderr.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt7/refacts.stdout.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt8/bench_verify.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt8/checker/independent_factcheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt8/checker/inventory.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt8/checker_invocation_receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt8/draft_after_review.tar.gz"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt8/draft_full_diff.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt8/hint_equipment.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt8/independent_factcheck.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt8/lint.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt8/producer_handoff.md"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt8/refacts.receipt.json"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt8/refacts.stderr.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "simlog",
+      "node_id": "sub",
+      "path": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt8/refacts.stdout.log"
+    },
+    {
+      "cell_id": "gpt-oss-20b-gb10",
+      "kind": "testlog",
+      "node_id": "sub",
+      "path": "docs/testlog/testlog_26102816_GPT_OSS_20B_신규_Full_판정.md"
+    }
+  ],
+  "factcheck": {
+    "author": "gptoss20b-hint-author",
+    "checked_utc": "2026-10-28T13:47:43Z",
+    "checker": "gptoss20b-a09-independent-checker",
+    "claims_checked": 12,
+    "fixed": 12,
+    "items": 12,
+    "open": [],
+    "reason_code": null,
+    "source": "inputs/factcheck.json",
+    "status": "passed"
+  },
+  "format": "hint-payload/v7",
+  "generated_utc": "2026-10-28T07:53:08Z",
+  "identity": {
+    "base_model": null,
+    "base_slug": "gpt-oss-20b",
+    "gpu": "NVIDIA GB10",
+    "hf_repo": "openai/gpt-oss-20b",
+    "hf_revision": "d666cf3b67006cf8227666739edf25164aaffdeb",
+    "model": "gpt-oss-20b",
+    "quant": "mxfp4",
+    "quant_composition": [
+      {
+        "dtype": "mxfp4",
+        "scope": "quantization_config 선언 대상(양자화 층 · 제외 목록 밖)",
+        "source": "/app/models/OpenAI/gpt-oss-20b → <manifest.nas_model_path>/OpenAI/gpt-oss-20b/config.json quantization_config quant_method"
+      }
+    ],
+    "source": {
+      "base_model": "README 머리 YAML 에 base_model 없음(/app/models/OpenAI/gpt-oss-20b → <manifest.nas_model_path>/OpenAI/gpt-oss-20b)",
+      "base_slug": "model(gpt-oss-20b) − vocab quant_suffixes(naming.base_slug)",
+      "gpu": "sweep_index.meta(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z)",
+      "hf_repo": "체크포인트 .git/config remote url(huggingface.co · /app/models/OpenAI/gpt-oss-20b → <manifest.nas_model_path>/OpenAI/gpt-oss-20b)",
+      "hf_revision": "체크포인트 .git HEAD → refs/heads/main → loose ref(/app/models/OpenAI/gpt-oss-20b → <manifest.nas_model_path>/OpenAI/gpt-oss-20b) · refs/remotes/origin/main 와 일치(받아 온 원격 커밋) — checkout 커밋(작업트리 일치는 미검증) · reflog: 측정 시점 checkout = 지금 HEAD(measured_utc 2026-10-28T07:50:10Z 이전 마지막 이동 2025-08-18T07:25:53Z)",
+      "model": "sweep_index.meta(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z)",
+      "quant": "sweep_index.meta(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z)",
+      "quant_composition": "/app/models/OpenAI/gpt-oss-20b → <manifest.nas_model_path>/OpenAI/gpt-oss-20b/config.json(+hf_quant_config.json) 관측 칸(evidence._quant_composition 닫힌 목록)",
+      "topology": "sweep_index.meta(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z)",
+      "tp": "sweep_index.meta(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z)",
+      "vllm": "sweep_index.meta(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z)"
+    },
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.18.0"
+  },
+  "measurement": {
+    "accept_len": null,
+    "benchmark_mode": "full",
+    "decode_tps_conc1": "45.47",
+    "floor_tps": "16.69",
+    "generated_utc": "2026-10-28T07:50:10Z",
+    "levels": [
+      {
+        "accept_len": null,
+        "completed": 16,
+        "decode_tps": 45.47,
+        "decode_tps_mean": 45.46,
+        "failed": 0,
+        "itl_ms_median": 21.454508164349726,
+        "level": 1,
+        "max_concurrency": 1,
+        "measurement_ok": true,
+        "output_throughput": 45.53398646317813,
+        "status": "ok",
+        "tpot_ms_median": 21.993867121636868,
+        "ttft_ms_median": 160.26830673217773
+      },
+      {
+        "accept_len": null,
+        "completed": 15,
+        "decode_tps": 43.28,
+        "decode_tps_mean": 43.42,
+        "failed": 1,
+        "itl_ms_median": 23.04865612703211,
+        "level": 2,
+        "max_concurrency": 2,
+        "measurement_ok": true,
+        "output_throughput": 81.72393164830027,
+        "status": "ok",
+        "tpot_ms_median": 23.105903528630733,
+        "ttft_ms_median": 62.70098686218262
+      },
+      {
+        "accept_len": null,
+        "completed": 16,
+        "decode_tps": 34.15,
+        "decode_tps_mean": 34.58,
+        "failed": 0,
+        "itl_ms_median": 29.08630558088714,
+        "level": 4,
+        "max_concurrency": 4,
+        "measurement_ok": true,
+        "output_throughput": 113.13210747505453,
+        "status": "ok",
+        "tpot_ms_median": 29.28479202091694,
+        "ttft_ms_median": 67.7027702331543
+      },
+      {
+        "accept_len": null,
+        "completed": 18,
+        "decode_tps": 27.16,
+        "decode_tps_mean": 28.26,
+        "failed": 0,
+        "itl_ms_median": 36.647653579711914,
+        "level": 8,
+        "max_concurrency": 8,
+        "measurement_ok": true,
+        "output_throughput": 185.29465878314778,
+        "status": "ok",
+        "tpot_ms_median": 36.81755252182484,
+        "ttft_ms_median": 79.38408851623535
+      },
+      {
+        "accept_len": null,
+        "completed": 18,
+        "decode_tps": 21.76,
+        "decode_tps_mean": 22.98,
+        "failed": 0,
+        "itl_ms_median": 45.872073080025466,
+        "level": 16,
+        "max_concurrency": 16,
+        "measurement_ok": true,
+        "output_throughput": 261.6013956728525,
+        "status": "ok",
+        "tpot_ms_median": 45.94860039651394,
+        "ttft_ms_median": 92.47326850891113
+      }
+    ],
+    "lite": {
+      "cold_ttft_ms": 97.9,
+      "engine_kv_gib": 48.0,
+      "engine_kv_tokens": 2097152,
+      "engine_reserved_total_gib": 61.72,
+      "engine_weights_gib": 13.72,
+      "gen_src": "median_tpot",
+      "gen_tps": 46.87,
+      "kv_gib": 48.0
+    },
+    "measured_utc": "2026-10-28T07:50:10Z",
+    "primary_source": "expected_achievable(roofline×MBU)",
+    "primary_tps": "19.63",
+    "ratio_M_over_primary": "2.316",
+    "rubric_authority": "weak",
+    "source": "판정 원천(verdict.json) + sweep_index(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z · output)",
+    "sources": {
+      "accept_len": "output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/verdict.json measured_accept_len = null(측정값 없음) · rubric.spec_axis: declared=off · accept_len=1.0 · accept_len_source=declared-absent · missing=false — spec 미선언이라 루브릭이 1.0 을 쓴다(선언값 · 측정 아님 · 결손 아님)",
+      "benchmark_mode": "measurement_config.bench_mode(bench_report(bench_report_26102816_gpt-oss-20b_GB10_0.18.0.md))",
+      "decode_tps_conc1": "output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/verdict.json(output · verdict_rule 출력) measured_decode_tps",
+      "floor_tps": "output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/verdict.json(output · verdict_rule 출력) rubric.floor",
+      "levels": "sweep_index(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z · output)",
+      "lite": "sweep_index.lite(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z)",
+      "lite.engine_kv_gib": "sweep_index.lite(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z) — 서빙 yaml `kv-cache-memory-bytes: 51539607552`(48.0 GiB)의 **선언 클램프를 엔진이 되읽은 값**(측정 아님 · output/single/configs/gpt-oss-20b-gb10.yaml)",
+      "lite.kv_gib": "sweep_index.lite(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z) — 서빙 yaml `kv-cache-memory-bytes: 51539607552`(48.0 GiB)의 **선언 클램프를 엔진이 되읽은 값**(측정 아님 · output/single/configs/gpt-oss-20b-gb10.yaml)",
+      "measured_utc": "sweep_index.generated_utc(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z)",
+      "primary_source": "output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/verdict.json(output · verdict_rule 출력) rubric.source",
+      "primary_tps": "output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/verdict.json(output · verdict_rule 출력) rubric.primary",
+      "ratio_M_over_primary": "output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/verdict.json(output · verdict_rule 출력) rubric.ratio_M_over_primary",
+      "rubric_authority": "output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/verdict.json(output · verdict_rule 출력) rubric.authority",
+      "spec_on": "output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/verdict.json(output · verdict_rule 출력) measured_spec_on",
+      "tolerance": "output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/verdict.json(output · verdict_rule 출력) rubric.tolerance",
+      "verdict": "output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/verdict.json(output · verdict_rule 출력) verdict",
+      "verdict_point_level": "sweep_index(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z · output)"
+    },
+    "spec_on": "false",
+    "tolerance": "0.15",
+    "verdict": "PASS",
+    "verdict_point_level": 1
+  },
+  "measurement_config": {
+    "bench_mode": "full",
+    "bench_mode_kind": "full",
+    "bench_tool": "guidellm",
+    "bench_tool_version": "0.7.3",
+    "downgrade_reason": null,
+    "repeats": 3,
+    "repeats_completed": 3,
+    "source": "bench_report(bench_report_26102816_gpt-oss-20b_GB10_0.18.0.md)"
+  },
+  "measurement_env_observed": [],
+  "missing": [
+    "HINT_MISSING_BUILD_LEDGER",
+    "HINT_MISSING_RESOLVE"
+  ],
+  "missing_reasons": {},
+  "naming": {
+    "axes": {
+      "gpus_per_node": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(캠페인 assignments(배정 SSOT)) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "1"
+      },
+      "hw": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(캠페인 assignments(배정 SSOT)) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언) · vocab hw[gb10]←'NVIDIA GB10'",
+        "value": "gb10"
+      },
+      "kv": {
+        "source": "서빙 yaml kv-cache-dtype(output/single/configs/gpt-oss-20b-gb10.yaml) · vocab kv[fp8]←'fp8'",
+        "value": "fp8"
+      },
+      "len": {
+        "source": "서빙 yaml max-model-len(output/single/configs/gpt-oss-20b-gb10.yaml)",
+        "value": "131072"
+      },
+      "nodes": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(캠페인 assignments(배정 SSOT)) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "1"
+      },
+      "plane": {
+        "source": "artifacts.plane_of → cell-env(IMAGE_TAG|BUILD_DOCKERFILE) · vocab plane[docker]→''",
+        "token": "",
+        "value": "docker"
+      },
+      "q": {
+        "source": "/app/models/OpenAI/gpt-oss-20b → <manifest.nas_model_path>/OpenAI/gpt-oss-20b/config.json quantization_config quant_method=mxfp4 · vocab quant[mxfp4]←'mxfp4'",
+        "value": "mxfp4"
+      },
+      "role": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(캠페인 assignments(배정 SSOT)) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "sub"
+      },
+      "target": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(캠페인 assignments(배정 SSOT)) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언) · target_gpu 'NVIDIA GB10' = 호스트 hw → native",
+        "value": "native"
+      }
+    },
+    "grammar": "v7",
+    "segments": {
+      "arch": {
+        "source": "derived(hw·gpus_per_node·nodes·role·target·plane)",
+        "value": "gb10-1g1n-sub-native"
+      },
+      "model": {
+        "source": "서빙 yaml model(output/single/configs/gpt-oss-20b-gb10.yaml) · hf_repo=체크포인트 .git/config remote url(huggingface.co · /app/models/OpenAI/gpt-oss-20b → <manifest.nas_model_path>/OpenAI/gpt-oss-20b) · hf_repo(openai/gpt-oss-20b) 마지막 성분 소문자",
+        "value": "gpt-oss-20b"
+      },
+      "recipe": {
+        "source": "derived(q·len·kv)",
+        "value": "qmxfp4-len131072-kvfp8"
+      },
+      "vllm": {
+        "source": "track=선택자 Dockerfile(docker history build-arg 관측) · ref=VLLM_REF 미관측 · version=docker history build-arg VLLM_VERSION · repo=VLLM_REPO 미관측 · sha=미관측 · VLLM_VERSION=0.18.0(wheel 릴리스)",
+        "value": "0.18.0"
+      }
+    },
+    "tail": [],
+    "timestamp": null,
+    "vllm_build_input": {
+      "kind": "wheel",
+      "prev_release": null,
+      "ref": "0.18.0",
+      "sha": null
+    },
+    "vllm_observed": {
+      "certificate_vllm_version": null,
+      "certificate_vllm_version_producer": "absent",
+      "certificate_vllm_version_source": "인증서 vllm_version 없음",
+      "engine_self_report": "0.18.0",
+      "engine_self_report_basis": "this-measurement",
+      "engine_self_report_source": "output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/lite_engine_gpt-oss-20b-gb10.log:62 · 기동 2026-10-28T07:32:16Z(컨테이너 시계 UTC 가정) · docs/logs/sub/sessions/serve-gpt-oss-20b-gb10-a03-20261028T073154Z.json — 측정 창을 포함한 현재 serve 세션 안·첫 측정 이전 기동 배너 · 같은 값의 다른 로그 3건",
+      "runtime_source_checkout": null,
+      "runtime_source_checkout_source": "미관측 — 이 측정에 결속된 runtime 관측의 source_head 없음",
+      "runtime_source_describe": null,
+      "runtime_source_describe_source": "미관측 — 이 측정에 결속된 runtime 관측의 source_describe 없음",
+      "runtime_version": "0.18.0",
+      "runtime_version_source": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/runtime_identity.json (관측 기록 · docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/evidence_index.json가 config=gpt-oss-20b-gb10, node=sub, sweep_dir=output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z, measured_utc=2026-10-28T07:50:10Z로 결속; 수집 명령 기록: docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/runtime_identity.json#/collection_argv(실행 성공·진위·값 출처는 이 필드만으로 미검증); 컴파일 바이트 일치는 별도 미검증) vllm_version",
+      "source": "칸별 출처는 *_source — engine_self_report=this-measurement · certificate_vllm_version=absent · wheel_meta=관측",
+      "wheel_meta": "0.18.0+cu130",
+      "wheel_meta_source": "docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/runtime_identity.json (관측 기록 · docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/evidence_index.json가 config=gpt-oss-20b-gb10, node=sub, sweep_dir=output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z, measured_utc=2026-10-28T07:50:10Z로 결속; 수집 명령 기록: docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/runtime_identity.json#/collection_argv(실행 성공·진위·값 출처는 이 필드만으로 미검증); 컴파일 바이트 일치는 별도 미검증) distribution_metadata_version · 기록된 출처(선언 · 검증되지 않음): docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/runtime_identity.json (관측 기록 · docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/evidence_index.json가 config=gpt-oss-20b-gb10, node=sub, sweep_dir=output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z, measured_utc=2026-10-28T07:50:10Z로 결속; 수집 명령 기록: docs/simlog/single8_gptoss20b_20261027T112514Z/attempt3/runtime_identity.json#/collection_argv(실행 성공·진위·값 출처는 이 필드만으로 미검증); 컴파일 바이트 일치는 별도 미검증) distribution_metadata_version_source='importlib.metadata.distribution(\"vllm\").version' · 수집 성공은 별도 검증"
+    }
+  },
+  "native_source": null,
+  "plane": "docker",
+  "prior_approval": null,
+  "publication": {
+    "manifest_ref": "docs/_evidence/camp_26102705_codex_single8__sub__gpt_oss_20b_gb10.work-manifest.json",
+    "task_class": "full_benchmark",
+    "topic": "camp_26102705_codex_single8__sub__gpt_oss_20b_gb10"
+  },
+  "qualification": {
+    "health_200": true,
+    "inference_observed": true,
+    "method": "post_health+guidellm(parse_guidellm completed = request_totals.successful)",
+    "sources": [
+      "output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/level_01/post_health_gpt-oss-20b-gb10.json",
+      "output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/level_01/guidellm_gpt-oss-20b-gb10.json"
+    ]
+  },
+  "schema_version": 3,
+  "slots": {
+    "build_patch_post": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "원장 부재 — 라벨된 재구성: applied 0 · skip 판정 = docker-history+gate",
+        "ref": "no-build-ledger"
+      },
+      "excluded": [
+        {
+          "file": ".gitkeep",
+          "phase": "post",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        }
+      ],
+      "file_records": [],
+      "files": [],
+      "machine_reason": "적용 판정 없음 — 원장 부재 — 라벨된 재구성: applied 0 · skip 판정 = docker-history+gate",
+      "rationale": null
+    },
+    "build_patch_pre": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "원장 부재 — 라벨된 재구성: applied 0 · skip 판정 = docker-history+gate",
+        "ref": "no-build-ledger"
+      },
+      "excluded": [
+        {
+          "file": ".gitkeep",
+          "phase": "pre",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        }
+      ],
+      "file_records": [],
+      "files": [],
+      "machine_reason": "적용 판정 없음 — 원장 부재 — 라벨된 재구성: applied 0 · skip 판정 = docker-history+gate",
+      "rationale": null
+    },
+    "build_recipe": {
+      "applicable": true,
+      "confidence": "2-signal",
+      "evidence": {
+        "kind": "file",
+        "note": "requirements.txt: Dockerfile 이 COPY",
+        "recipe_vs_image": [
+          {
+            "history_match": {
+              "matched": 7,
+              "total": 7
+            },
+            "image_created_utc": "2026-09-05T12:00:11Z",
+            "last_commit_utc": "2026-09-05T12:01:35Z",
+            "path": "output/single/Dockerfile",
+            "selection_method": "worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치 · Dockerfile 전체 바이트는 미검증)",
+            "shipped": "worktree",
+            "tracked": true,
+            "warning": "이미지 빌드 뒤 바뀐 레시피일 수 있다 — 마지막 커밋이 이미지 Created 뒤",
+            "worktree_equals_head": true
+          },
+          {
+            "image_created_utc": "2026-09-05T12:00:11Z",
+            "last_commit_utc": "2026-10-14T01:51:45Z",
+            "path": "output/single/requirements.txt",
+            "selection_method": "worktree(이미지 안 바이트와 다르고 이미지 Created 이전 개정도 같지 않다 — recipe_vs_image 경고 · 이미지 sha256 d2645eefe2d4722e)",
+            "shipped": "worktree",
+            "tracked": true,
+            "warning": "이미지 안 COPY 대상 바이트가 실린 작업트리 바이트와 다르다(일치하는 개정 없음) · 이미지 빌드 뒤 바뀐 레시피일 수 있다 — 마지막 커밋이 이미지 Created 뒤",
+            "worktree_equals_head": true
+          }
+        ],
+        "ref": "image-history:docker history build-arg 관측(VLLM_VERSION=0.18.0 · VLLM_REF 없음 → wheel Dockerfile) — 셀 env 선택자 없음 · output/single/docker-compose.yaml 리터럴 build.dockerfile: Dockerfile.source-build(이 파일만 단독 적용하고 override 가 없을 때 Dockerfile.source-build 선택 · 과거 빌드에 이 compose 또는 override 를 사용했는지는 미관측) · ⚠ compose 리터럴 Dockerfile.source-build ≠ 관측 Dockerfile(이미지 빌드에 사용된 compose 또는 override 여부는 미관측)",
+        "selected_revision": {
+          "candidates": [
+            {
+              "matched": 7,
+              "revision": "worktree",
+              "total": 7
+            }
+          ],
+          "commit": null,
+          "history_match": {
+            "matched": 7,
+            "total": 7
+          },
+          "method": "worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치 · Dockerfile 전체 바이트는 미검증)",
+          "path": "output/single/Dockerfile"
+        },
+        "selected_revisions": [
+          {
+            "commit": null,
+            "history_match": {
+              "matched": 7,
+              "total": 7
+            },
+            "method": "worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치 · Dockerfile 전체 바이트는 미검증)",
+            "path": "output/single/Dockerfile",
+            "shipped": "worktree",
+            "verified": false
+          },
+          {
+            "commit": null,
+            "history_match": null,
+            "method": "worktree(이미지 안 바이트와 다르고 이미지 Created 이전 개정도 같지 않다 — recipe_vs_image 경고 · 이미지 sha256 d2645eefe2d4722e)",
+            "path": "output/single/requirements.txt",
+            "shipped": "worktree",
+            "verified": false
+          }
+        ]
+      },
+      "file_records": [
+        {
+          "bytes_observed": false,
+          "generated_by": "renderer",
+          "header": {
+            "line": 2,
+            "style": "comment",
+            "text": "# ⚠ generated-unverified — 실린 Dockerfile(worktree) · docker history RUN·COPY 7/7 일치 — Dockerfile 전체 원본 바이트의 동일성은 확인하지 못했다 · 생성: renderer",
+            "why_line_2": "Dockerfile 파서 지시자 보존"
+          },
+          "path": "artifacts/build_recipe/Dockerfile",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 renderer) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "fd84d6f5d4024a448b71ef54279f89c4d9bad36d52c165861e1397e4a856c3ff",
+          "verification": "generated-unverified",
+          "verification_basis": "실린 Dockerfile(worktree) · docker history RUN·COPY 7/7 일치 — Dockerfile 전체 원본 바이트의 동일성은 확인하지 못했다(_select_dockerfile · worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치 · Dockerfile 전체 바이트는 미검증))"
+        },
+        {
+          "bytes_observed": false,
+          "generated_by": "renderer",
+          "header": {
+            "line": 1,
+            "style": "comment",
+            "text": "# ⚠ generated-unverified — 실린 requirements.txt(worktree · sha256 ff5b5c72731459c9)이 측정 이미지 안 COPY 대상 바이트와 다르다 — 이 이미지를 지은 바이트임을 관측으로 확인하지 못했다(참고 형상) · 생성: renderer"
+          },
+          "path": "artifacts/build_recipe/requirements.txt",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 renderer) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "ce6f15beabb02e154b1b1656a7003a6e345406609e14ac124f7fab48b02a988b",
+          "verification": "generated-unverified",
+          "verification_basis": "실린 requirements.txt(worktree · sha256 ff5b5c72731459c9)이 측정 이미지 안 COPY 대상 바이트와 다르다 — 이 이미지를 지은 바이트임을 관측으로 확인하지 못했다(참고 형상)(_select_copied · worktree(이미지 안 바이트와 다르고 이미지 Created 이전 개정도 같지 않다 — recipe_vs_image 경고 · 이미지 sha256 d2645eefe2d4722e))"
+        }
+      ],
+      "files": [
+        "artifacts/build_recipe/Dockerfile",
+        "artifacts/build_recipe/requirements.txt"
+      ],
+      "machine_reason": "쓰인 Dockerfile 선택자 Dockerfile(image-history:docker history build-arg 관측(VLLM_VERSION=0.18.0 · VLLM_REF 없음 → wheel Dockerfile) — 셀 env 선택자 없음 · output/single/docker-compose.yaml 리터럴 build.dockerfile: Dockerfile.source-build(이 파일만 단독 적용하고 override 가 없을 때 Dockerfile.source-build 선택 · 과거 빌드에 이 compose 또는 override 를 사용했는지는 미관측) · ⚠ compose 리터럴 Dockerfile.source-build ≠ 관측 Dockerfile(이미지 빌드에 사용된 compose 또는 override 여부는 미관측)) + 그것이 COPY 하는 파일",
+      "rationale": "이미지 history에서 wheel 입력을 관측했다. 실린 requirements 바이트는 이미지 안 사본과 달라 이 빌드의 바이트로 입증되지 않았다. 빌드 원장은 없어 패치 적용 여부를 단정할 수 없다."
+    },
+    "compose": {
+      "applicable": true,
+      "confidence": "2-signal",
+      "evidence": {
+        "kind": "file",
+        "measured_utc": "2026-10-28T07:50:10Z",
+        "note": "서빙 러너 [] · env 형상 실림 1/1",
+        "post_measurement_regenerated": [],
+        "ref": "output/single/docker-compose.yaml",
+        "selected_revision": {
+          "basis": "mtime≤measured",
+          "commit": "80284db86dd7bc6dbb0d27141c0708cd0e7f4deb",
+          "commits_after_measurement": [],
+          "cross_check": [
+            "측정 뒤 커밋 0",
+            "작업트리 = HEAD"
+          ],
+          "history_match": null,
+          "measured_utc": "2026-10-28T07:50:10Z",
+          "method": "worktree(mtime 2026-10-25T22:53:44Z ≤ 측정 2026-10-28T07:50:10Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 80284db86dd7)",
+          "mtime_utc": "2026-10-25T22:53:44Z",
+          "path": "output/single/docker-compose.yaml",
+          "shipped": "worktree",
+          "verified": false
+        },
+        "selected_revisions": [
+          {
+            "basis": "mtime≤measured",
+            "commit": "80284db86dd7bc6dbb0d27141c0708cd0e7f4deb",
+            "commits_after_measurement": [],
+            "cross_check": [
+              "측정 뒤 커밋 0",
+              "작업트리 = HEAD"
+            ],
+            "history_match": null,
+            "measured_utc": "2026-10-28T07:50:10Z",
+            "method": "worktree(mtime 2026-10-25T22:53:44Z ≤ 측정 2026-10-28T07:50:10Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 80284db86dd7)",
+            "mtime_utc": "2026-10-25T22:53:44Z",
+            "path": "output/single/docker-compose.yaml",
+            "shipped": "worktree",
+            "verified": false
+          }
+        ]
+      },
+      "excluded": [
+        {
+          "file": "arm_patch.sh",
+          "why": "not-armed(output/single/configs/gpt-oss-20b-gb10_patch.py 없음(CONFIG_FILE) — arm_patch.sh 는 no-op · arm_patch.sh 측정 당시 개정(fad2d7c6f157) `_cfg=` 키 체인 RUNTIME_PATCH_STEM > CONFIG_FILE > 'default')"
+        }
+      ],
+      "file_records": [
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/.env.template",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "54d0212847d4443e5342f553ae98ec8b15613875f8b0344c9f72e4077f6beaee",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "bytes_observed": false,
+          "generated_by": "renderer",
+          "header": {
+            "line": 1,
+            "style": "comment",
+            "text": "# ⚠ generated-unverified — docker-compose.yaml: worktree(mtime 2026-10-25T22:53:44Z ≤ 측정 2026-10-28T07:50:10Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 80284db86dd7) — 측정 당시 실행 바이트는 별도 관측되지 않았다 · 생성: renderer"
+          },
+          "path": "artifacts/compose/docker-compose.yaml",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 renderer) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "11d4cf1ebf96b27a9ac8f9c708cebb5e2b9bb147c0b2bf9555980a559edee74d",
+          "verification": "generated-unverified",
+          "verification_basis": "docker-compose.yaml: worktree(mtime 2026-10-25T22:53:44Z ≤ 측정 2026-10-28T07:50:10Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 80284db86dd7) — 측정 당시 실행 바이트는 별도 관측되지 않았다"
+        }
+      ],
+      "files": [
+        "artifacts/compose/.env.template",
+        "artifacts/compose/docker-compose.yaml"
+      ],
+      "machine_reason": "single 서빙 경로(compose · 러너 · env 형상) — 측정 당시 개정(selected_revisions)",
+      "rationale": "이 셀의 serving 설정과 compose 경로다. 생성된 포트와 compose 포트의 불일치는 입력과 생성물에서 정정했다."
+    },
+    "fork_pin": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "VARIANT 줄 부재 = stock",
+        "ref": ".claude/policies/arch_variant_ledger.json"
+      },
+      "file_records": [],
+      "files": [],
+      "machine_reason": "셀 env 에 VARIANT 줄 없음 = stock(workflow.md §변종 좌표의 거처)",
+      "rationale": null
+    },
+    "runtime_patch": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "런타임 패치 파일 없음",
+        "ref": "output/single/configs/gpt-oss-20b-gb10_patch.py"
+      },
+      "file_records": [],
+      "files": [],
+      "machine_reason": "output/single/configs/gpt-oss-20b-gb10_patch.py 없음 — arm_patch.sh 는 no-op(런타임 패치 불해당)",
+      "rationale": null
+    },
+    "triplet": {
+      "applicable": true,
+      "confidence": "2-signal",
+      "evidence": {
+        "kind": "file",
+        "measured_utc": "2026-10-28T07:50:10Z",
+        "note": "측정이 이 셀 config 로 돌았다(스윕 색인)",
+        "observed": "output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/sweep_index.json#config",
+        "post_measurement_regenerated": [],
+        "ref": "output/single/configs/gpt-oss-20b-gb10.yaml"
+      },
+      "file_records": [
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/.env.gpt-oss-20b-gb10",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "a48be9d64478da0abdf55291129064e727e58771ceb8ba7ae0c284182b982059",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/gpt-oss-20b-gb10.sh",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "dffd5510c66009c6e4fd371a8e73e074f863dd4a6ce69c18544d212f8ecfc52b",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/gpt-oss-20b-gb10.yaml",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "867e8031090d0d1cb78a146f29216c9d9b3c1c6f1c09d8726ff740dd0fb4ed26",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        }
+      ],
+      "files": [
+        "artifacts/triplet/.env.gpt-oss-20b-gb10",
+        "artifacts/triplet/gpt-oss-20b-gb10.sh",
+        "artifacts/triplet/gpt-oss-20b-gb10.yaml"
+      ],
+      "machine_reason": "셀 id gpt-oss-20b-gb10 = 트리플렛 이름(configs/gpt-oss-20b-gb10.yaml · .sh · envs/.env.gpt-oss-20b-gb10)",
+      "rationale": null
+    }
+  },
+  "tag": "hint/0.18.0/gpt-oss-20b/gb10-1g1n-sub-native/qmxfp4-len131072-kvfp8",
+  "tool_snapshots": [
+    {
+      "driver_note": "그 판본의 .claude/skills/adversarial-benchmark/scripts/ 안에서 sweep_bench.sh 를 부르는 드라이버: broad_search.sh 후보(미검증)",
+      "git_rev": "b799890f7e4996fecf84b3999b9b0100909f80b6",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-27T07:28:50Z",
+      "head_at_measurement": "203d50f9a28f0399103cbf721041c47580b0de53",
+      "name": "sweep_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "203d50f9a28f..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
+      "rev_method": "reflog HEAD@{1793172273}(2026-10-28T07:24:33Z) = 측정 시각 2026-10-28T07:50:10Z 직전 체크아웃",
+      "role": "sweep",
+      "snapshot_rel": "inputs/sources/sweep_bench.sh@b799890f7e49",
+      "why": "스윕 색인 조립자(output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/sweep_index.json · generated_utc = measured_utc 조인)",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "1629609b34dfe6851338eb7b8353411a1016924d",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-16T21:44:18Z",
+      "head_at_measurement": "203d50f9a28f0399103cbf721041c47580b0de53",
+      "name": "run_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "203d50f9a28f..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+      "rev_method": "reflog HEAD@{1793172273}(2026-10-28T07:24:33Z) = 측정 시각 2026-10-28T07:50:10Z 직전 체크아웃",
+      "role": "bench",
+      "snapshot_rel": "inputs/sources/run_bench.sh@1629609b34df",
+      "why": "그 판본 sweep_bench.sh 가 레벨마다 부른다(`\"$SDIR/run_bench.sh\"`) · 색인에 레벨 기록",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "a7083a8f933d98cd6d739fdac838ebbe3e3b7d3f",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-17T13:17:27Z",
+      "head_at_measurement": "203d50f9a28f0399103cbf721041c47580b0de53",
+      "name": "lite_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "203d50f9a28f..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/lite_bench.sh",
+      "rev_method": "reflog HEAD@{1793172273}(2026-10-28T07:24:33Z) = 측정 시각 2026-10-28T07:50:10Z 직전 체크아웃",
+      "role": "lite",
+      "snapshot_rel": "inputs/sources/lite_bench.sh@a7083a8f933d",
+      "why": "그 판본 sweep_bench.sh 가 lite 레그로 부른다(`\"$SDIR/lite_bench.sh\"`) · 색인에 lite 기록",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "b799890f7e4996fecf84b3999b9b0100909f80b6",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-27T07:28:50Z",
+      "head_at_measurement": "203d50f9a28f0399103cbf721041c47580b0de53",
+      "name": "broad_search.sh",
+      "next_rev": null,
+      "next_rev_basis": "203d50f9a28f..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
+      "rev_method": "reflog HEAD@{1793172273}(2026-10-28T07:24:33Z) = 측정 시각 2026-10-28T07:50:10Z 직전 체크아웃",
+      "role": "driver-candidate",
+      "snapshot_rel": "inputs/sources/broad_search.sh@b799890f7e49",
+      "why": "그 판본에서 sweep_bench.sh 를 부르는 스크립트 · 넘기는 --tool 상수 ['guidellm'] 가 이 측정과 어긋나지 않는다 — 이 선택기는 호출 기록을 조회하지 않는다(정적 소스 기반 후보이며 실제 드라이버 여부는 이 선택기에서 미검증). 별도 호출 관측과 이 판본의 실제 실행 바이트 결속은 구분한다",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    }
+  ]
+}

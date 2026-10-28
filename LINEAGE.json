@@ -1,0 +1,88 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26102720",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/plan/plan_26102720_GPT_OSS_20B_Full_hint_게이트복구.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102720",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/testlog/testlog_26102720_GPT_OSS_20B_MXFP4_crosscheck_중단.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102720",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26102720_GPT_OSS_20B_producer_기술인계.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102816",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102816_GPT_OSS_20B_재개_Full_hint.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102816",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/testlog/testlog_26102816_GPT_OSS_20B_신규_Full_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102816",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/devlog/devlog_26102816_GPT_OSS_20B_신규_Full_서빙_여정.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102816",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102816_gpt-oss-20b_GB10_0.18.0.md",
+      "role": "bench_report"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [],
+    "count": 294
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 경로(발췌 머리 stem = 파일명) · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26102816",
+  "schema_version": 3,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26102816_gpt-oss-20b_GB10_0.18.0.md",
+      "sha256": "25a3b29eb63c1ac7ae626d25ede0a3a9324ce9eb40c7b1322d8bb1509ffe4071"
+    },
+    {
+      "path": "docs/devlog/devlog_26102816_GPT_OSS_20B_신규_Full_서빙_여정.md",
+      "sha256": "4217b362afd24e580642f90da5f83e03f8e67ca5013ffd8823471599e35ca05e"
+    },
+    {
+      "path": "docs/plan/plan_26102720_GPT_OSS_20B_Full_hint_게이트복구.md",
+      "sha256": "34255babcf8ad1765d6c732c6bc064a7250e879e606e978a8c876ec3d97f22aa"
+    },
+    {
+      "path": "docs/plan/plan_26102816_GPT_OSS_20B_재개_Full_hint.md",
+      "sha256": "827efc312008e144244589ef12c1cb1084fe7006b892449b4a2516204dccc493"
+    },
+    {
+      "path": "docs/testlog/testlog_26102720_GPT_OSS_20B_MXFP4_crosscheck_중단.md",
+      "sha256": "5b2c1b80b05bb3f4fa6483c55222b8d7abd9ac609507952c7ebf06e6211231aa"
+    },
+    {
+      "path": "docs/testlog/testlog_26102816_GPT_OSS_20B_신규_Full_판정.md",
+      "sha256": "5df512d7c27708bad958e035fb965423bb7ac84d74026a492fe8df18579c217f"
+    }
+  ]
+}
