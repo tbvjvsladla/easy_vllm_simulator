@@ -2606,6 +2606,112 @@
           "reason": "공통 hint 근거 설명 정정이며 topology 특화층이 아니다."
         }
       ]
+    },
+    {
+      "entry_id": "sync-261028-single-to-multi-worker-revolver-e53a8b1",
+      "utc": "2026-10-28T13:13:33Z",
+      "departure": "single-node",
+      "departure_commit": "e53a8b126b3bc7119a9e093e30fb47a2ed130987",
+      "approved_by": "user: 이너 하네스 agnostic 작업 후 서브노드 및 싱글노드·멀티노드 브랜치 전파 지시",
+      "approved_utc": "2026-10-26T20:04:48Z",
+      "classification": [
+        {
+          "file": ".claude/rules/workflow.md",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/schemas/agent-control-request.schema.json",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/campaign/assignment_supervision.md",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/orchestration/a2a_relay.md",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/orchestration/agent-control-adapter.md",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/agent_control.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/bootstrap_canary.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/providers/claude_code.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/providers/codex_cli.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/relay.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/selftest_harness_switch.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/turn_budget.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/CLAUDE.template.md",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/comms.md",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        },
+        {
+          "file": "CLAUDE.md",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "공통 하네스별 호출 예산·체크포인트 재개 및 권한 계약이며 topology 특화층이 아니다."
+        }
+      ]
     }
   ]
 }
