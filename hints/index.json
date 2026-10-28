@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 85,
-  "generated_kst": "2026-10-27T20:28:33",
+  "count": 86,
+  "generated_kst": "2026-10-28T22:49:32",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -214,6 +214,29 @@
       "verdict": "—",
       "verdict_source": "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)",
       "vllm": "0.1.1.dev53+g30118ba27"
+    },
+    {
+      "anchor": "20250a5f378f25143f659264d1a1dbcab9ae479b",
+      "arch": "gb10-1g1n-sub-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102816_gpt-oss-20b_GB10_0.18.0.md))",
+      "brief": "이 셀은 GB10에서 GPT-OSS-20B의 Harmony completion Full을 수행해 weak PASS를 얻었다. 각 레벨 3회이며 도구 경계 오류 2건과 별도 tool 요청 실패가 함께 기록됐다. 같은 결과는 같은 조건에서만 해석한다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_BUILD_LEDGER",
+        "HINT_MISSING_RESOLVE"
+      ],
+      "model": "gpt-oss-20b",
+      "object": "62755a31b1add539500af6a76172aea09a2bf404",
+      "published": true,
+      "recipe": "qmxfp4-len131072-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.18.0/gpt-oss-20b/gb10-1g1n-sub-native/qmxfp4-len131072-kvfp8",
+      "tagged_utc": "2026-10-28T13:48:03Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.18.0"
     },
     {
       "anchor": "a3fc9e82ded52ff0dfc7a31432a8d9f1ea7504fe",

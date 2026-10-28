@@ -112,7 +112,16 @@ arch·recipe 의 모양이 다릅니다.
 에 있습니다.
 
 <!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->
-> 원격 `origin` 의 발행 태그 **85건** · 모델 18종에서 파생 · 생성 `2026-10-27T20:28:33` KST · 로컬 오브젝트 부재(미수령) 3건.
+> 원격 `origin` 의 발행 태그 **86건** · 모델 18종에서 파생 · 생성 `2026-10-28T22:49:32` KST · 로컬 오브젝트 부재(미수령) 3건.
+
+### `gpt-oss-20b` (4)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.18.0/gpt-oss-20b/gb10-1g1n-sub-native/qmxfp4-len131072-kvfp8` | gb10-1g1n-sub-native | 0.18.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
+| `hint/0.18.0/gpt-oss-20b/gb10-sub-native/qmxfp4-len131072-kvfp8` | gb10-sub-native | 0.18.0 | 미기재(구판) | 미기재 | HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8` | gb10-main-native | 0.18.0 | 미기재(구판) | 미기재 | — |
+| `hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8` | gb10-sim-h100 | 0.18.0 | 미기재(구판) | 미기재 | 미선언 |
 
 ### `qwen3-4b` (8)
 
@@ -268,14 +277,6 @@ arch·recipe 의 모양이 다릅니다.
 | `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/len262144-kvfp8` | rtxpro6000-main-native | 0.28.0 | 미기재(구판) | 미기재 | HINT_MISSING_LITE |
 | `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvauto` | rtxpro6000-main-native | 0.28.0 | 미기재(구판) | 미기재 | HINT_MISSING_LITE |
 | `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvfp8` | rtxpro6000-main-native | 0.28.0 | 미기재(구판) | 미기재 | HINT_MISSING_LITE |
-
-### `gpt-oss-20b` (3)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.18.0/gpt-oss-20b/gb10-sub-native/qmxfp4-len131072-kvfp8` | gb10-sub-native | 0.18.0 | 미기재(구판) | 미기재 | HINT_MISSING_SWEEP_LEVELS |
-| `hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8` | gb10-main-native | 0.18.0 | 미기재(구판) | 미기재 | — |
-| `hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8` | gb10-sim-h100 | 0.18.0 | 미기재(구판) | 미기재 | 미선언 |
 
 ### `muse-glimmer-30b` (1)
 
