@@ -1,0 +1,61 @@
+{
+  "_verification": "⚠ generated-unverified — 명시 parent manifest와 main 실행/alias/leaf 원장에서 재구성한 새 양노드 local-build 예시이며 실행하지 않았다 · 생성: agent",
+  "schema_version": 1,
+  "kind": "hint-parent-source-core",
+  "selected_image_digest": "sha256:8227e7d79471b6b92f21157acfb38c7cc617d1510a5c56f3dec7eb8e48567884",
+  "context_root": "output/multi/cache/v032-stock-build",
+  "files": {
+    "context/Dockerfile.source-build": {
+      "source": "output/multi/cache/v032-stock-build/Dockerfile.source-build",
+      "sha256": "ef219c7054e426c4623c889c79a02988298bfa6f4cf5242fbf281336860f7ddf",
+      "role": "frozen-context"
+    },
+    "context/build_patches/.gitkeep": {
+      "source": "output/multi/cache/v032-stock-build/build_patches/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "role": "frozen-context"
+    },
+    "context/build_patches/05-ngc-source032-deps-compat.sh": {
+      "source": "output/multi/cache/v032-stock-build/build_patches/05-ngc-source032-deps-compat.sh",
+      "sha256": "ef79a410b90cae256d9b520e95ad32e7480059a8f2ffce194810749e225dbc54",
+      "role": "frozen-context"
+    },
+    "context/build_patches_src/.gitkeep": {
+      "source": "output/multi/cache/v032-stock-build/build_patches_src/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "role": "frozen-context"
+    },
+    "context/requirements.txt": {
+      "source": "output/multi/cache/v032-stock-build/requirements.txt",
+      "sha256": "4618157b8e50ba411ea9008a1fb2e4d032738bce8a117d3a24e2b9476aa1a6c4",
+      "role": "frozen-context"
+    },
+    "alias-evidence.json": {
+      "source": "output/multi/parent-build/qwen032-deps2/alias-evidence.json",
+      "sha256": "90d10101db6e8876a80ea9932d1f9aee0be7c3a174058aa22bf7c85f0948aec3",
+      "role": "observed-evidence"
+    },
+    "core-build-command.txt": {
+      "source": "output/multi/parent-build/qwen032-deps2/core-build-command.txt",
+      "sha256": "3d82bed10154dc7c28fe368cc90264126e4ca6f0c3f1236a4e804e90b62840ce",
+      "role": "observed-evidence"
+    },
+    "leaf-ledger-evidence.json": {
+      "source": "output/multi/parent-build/qwen032-deps2/leaf-ledger-evidence.json",
+      "sha256": "33d8421e181227afa0ab5f06e2f4c5d709eb7a3dc46a7556e8b40759d90b6526",
+      "role": "observed-evidence"
+    },
+    "README.md": {
+      "source": "output/multi/parent-build/qwen032-deps2/README.md",
+      "sha256": "fc0b3648b8e1f3c779ab987cc40639ca75b3597666974ed72a41b6d7ba755ba1",
+      "role": "generated-instructions"
+    }
+  },
+  "commands": {
+    "parent_source_core": "# generated-unverified: new reproduction, not an observed invocation\n: \"${REPRO_CORE_TAG:?set an independent local core tag}\"\ndocker pull nvcr.io/nvidia/pytorch@sha256:2140e699b3beaf7f96a0081fd9c9406bc3832b435cdb60dfa2d261f7d2f34a1c\ndocker tag nvcr.io/nvidia/pytorch@sha256:2140e699b3beaf7f96a0081fd9c9406bc3832b435cdb60dfa2d261f7d2f34a1c nvcr.io/nvidia/pytorch:26.07-py3\ndocker build --progress plain --build-arg VLLM_REF=5df63a7203cdb9328d824a27b682e77c7b9928be --build-arg TORCH_CUDA_ARCH=12.1 --build-arg BUILD_JOBS=8 -t \"$REPRO_CORE_TAG\" -f parent-source-core/context/Dockerfile.source-build parent-source-core/context",
+    "alias": "# generated-unverified: main observed same-ID alias; reproduce locally, no separate build\n: \"${REPRO_DEPS1_TAG:?set an independent local alias tag}\"\ndocker tag \"$REPRO_CORE_TAG\" \"$REPRO_DEPS1_TAG\"",
+    "leaf": "# generated-unverified: reconstructed from selected leaf ledger, original full CLI unavailable\n: \"${REPRO_IMAGE_TAG:?set an independent local leaf tag}\"\nmkdir -p build_patches\ncp ../build_patch_post/06-b12x-optional032.sh build_patches/06-b12x-optional032.sh\ndocker build --build-arg BASE_IMAGE=\"$REPRO_DEPS1_TAG\" --build-arg VLLM_REPO=https://github.com/vllm-project/vllm.git --build-arg VLLM_REF=5df63a7203cdb9328d824a27b682e77c7b9928be --build-arg SM12X_PORT=0 --build-arg SRC_DEPS_AUTHORITY=0 -t \"$REPRO_IMAGE_TAG\" -f Dockerfile.source-build-deps2 ."
+  },
+  "generated_reason": "명시 parent manifest와 main 실행/alias/leaf 원장에서 재구성한 새 양노드 local-build 예시이며 실행하지 않았다",
+  "historical_scope": "main observed core+POST05 build → same-ID deps1 alias (no build) → deps2 POST06. Sub historical old core unavailable; this is a new main-path reproduction proposal for independent local builds on both nodes, not sub historical execution proof."
+}

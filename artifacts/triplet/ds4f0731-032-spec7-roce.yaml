@@ -1,0 +1,18 @@
+# Stable approved cell ID contains historical spec7 label; actual initial candidate is DSparkK5/B12X.
+model: /app/models/DeepSeek/DeepSeek-V4/DeepSeek-V4-Flash-0731
+host: 0.0.0.0
+port: 8080
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+gpu-memory-utilization: 0.85
+max-model-len: 262144
+quantization: fp8
+kv-cache-dtype: fp8
+kv-cache-memory-bytes: 10737418240
+max-num-seqs: 1
+moe-backend: b12x
+enforce-eager: false
+speculative-config: '{"method": "dspark", "num_speculative_tokens": 5}'
+reasoning-parser: deepseek_v4
+tool-call-parser: deepseek_v4
+enable-auto-tool-choice: true
