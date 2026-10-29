@@ -1,0 +1,509 @@
+{
+  "provenance": "measured(main local immutable candidate GPU container)",
+  "required_checks": {
+    "tensor_math": true,
+    "vllm._C_stable_libtorch": true,
+    "vllm._moe_C_stable_libtorch": true,
+    "b12x_wrapper_api": true,
+    "source_pin": true,
+    "pip_check": true,
+    "ledger_present": true,
+    "variant_selfcheck": true,
+    "exl3_registry": true,
+    "core_source_unchanged": true,
+    "parent_ledger_preserved": true
+  },
+  "optional_modules": {
+    "flashinfer": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/flashinfer/__init__.py",
+      "version": "0.7.0.post1"
+    },
+    "humming": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/humming/__init__.py",
+      "version": "0.1.17"
+    },
+    "tilelang": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/tilelang/__init__.py",
+      "version": "0.1.12"
+    },
+    "fast_hadamard_transform": {
+      "import_ok": false,
+      "exception": "Traceback (most recent call last):\n  File \"<stdin>\", line 25, in <module>\n  File \"/usr/lib/python3.12/importlib/__init__.py\", line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import\n  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1324, in _find_and_load_unlocked\nModuleNotFoundError: No module named 'fast_hadamard_transform'\n"
+    },
+    "deep_gemm": {
+      "import_ok": false,
+      "exception": "Traceback (most recent call last):\n  File \"<stdin>\", line 25, in <module>\n  File \"/usr/lib/python3.12/importlib/__init__.py\", line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import\n  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1324, in _find_and_load_unlocked\nModuleNotFoundError: No module named 'deep_gemm'\n"
+    },
+    "triton_kernels": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/triton_kernels/__init__.py",
+      "version": null
+    },
+    "b12x": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/b12x/__init__.py",
+      "version": null
+    },
+    "b12x.moe.fused_moe": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/__init__.py",
+      "version": null
+    },
+    "vllm.utils.b12x": {
+      "import_ok": true,
+      "file": "/workspace/vllm-src/vllm/utils/b12x.py",
+      "version": null
+    },
+    "fla": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/fla/__init__.py",
+      "version": "0.6.0"
+    },
+    "fla.ops": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/fla/ops/__init__.py",
+      "version": null
+    },
+    "marisa_trie": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/marisa_trie.cpython-312-aarch64-linux-gnu.so",
+      "version": null
+    }
+  },
+  "source_head": {
+    "rc": 0,
+    "stdout": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+    "stderr": ""
+  },
+  "source_describe": {
+    "rc": 0,
+    "stdout": "v0.32.0",
+    "stderr": ""
+  },
+  "source_dirty": {
+    "rc": 0,
+    "stdout": "M pyproject.toml\n M requirements/build/cpu.txt\n M requirements/build/cuda.txt\n M requirements/build/rock.txt\n M requirements/build/rocm.txt\n M requirements/build/tpu.txt\n M requirements/cpu.txt\n M requirements/cuda.txt\n M requirements/rubin-prerelease.txt\n M requirements/test/cpu.txt\n M requirements/test/cuda.in\n M requirements/test/cuda.txt\n M requirements/test/rocm.in\n M requirements/test/rocm.txt\n M requirements/test/xpu.in\n M requirements/test/xpu.txt\n M requirements/xpu.txt\n M vllm/model_executor/layers/linear.py\n M vllm/model_executor/layers/quantization/__init__.py\n M vllm/model_executor/layers/vocab_parallel_embedding.py\n M vllm/model_executor/model_loader/ep_weight_filter.py\n M vllm/model_executor/model_loader/weight_utils.py\n M vllm/models/deepseek_v4/nvidia/mtp.py\n M vllm/models/deepseek_v41/attention.py\n M vllm/models/deepseek_v41/common/engram.py\n M vllm/models/deepseek_v41/nvidia/dspark.py\n M vllm/models/deepseek_v41/nvidia/flashinfer_sparse.py\n M vllm/models/deepseek_v41/nvidia/model.py\n M vllm/models/deepseek_v41/nvidia/model_state.py\n M vllm/models/deepseek_v41/nvidia/vl_model.py\n M vllm/v1/attention/backends/mla/indexer.py\n M vllm/v1/worker/gpu/model_runner.py\n M vllm/v1/worker/gpu_worker.py\n?? vllm/models/deepseek_v41/common/engram_file_backend.py\n?? vllm/models/deepseek_v41/common/engram_layout.py",
+    "stderr": ""
+  },
+  "host_driver": {
+    "rc": 0,
+    "stdout": "580.178.04",
+    "stderr": ""
+  },
+  "distributions": {
+    "vllm": "0.32.1.dev0+g5df63a720.d20261029.cu133",
+    "torch": "2.13.0a0+9186a08b2c.nv26.7.59513937",
+    "ray": "2.48.0",
+    "transformers": "5.19.0",
+    "tokenizers": "0.23.3",
+    "huggingface-hub": "1.33.0",
+    "datasets": "5.0.0",
+    "pytest": "9.2.0",
+    "tilelang": "0.1.12",
+    "flashinfer-python": "0.7.0.post1",
+    "humming-kernels": "0.1.17",
+    "fast-hadamard-transform": null,
+    "b12x": "1.5.1",
+    "exllamav3": "1.4.5",
+    "vllm-exl3": "0.4.2",
+    "flash-linear-attention": "0.6.0",
+    "fla-core": "0.6.0",
+    "marisa-trie": "1.4.1"
+  },
+  "vllm_module_version": "0.32.1.dev0+g5df63a720.d20261029",
+  "torch_cuda": "13.3",
+  "cuda_device": {
+    "name": "NVIDIA GB10",
+    "capability": [
+      12,
+      1
+    ]
+  },
+  "exl3_registry": {
+    "accepted": true,
+    "class": "<class 'vllm_exl3.exl3.Exl3Config'>"
+  },
+  "b12x_wrapper_api": {
+    "symbols": {
+      "ActivationSpec": "type",
+      "BlockQuantWeights": "type",
+      "Caps": "type",
+      "MoEGeometry": "type",
+      "PackedSource": "type",
+      "bind": "function",
+      "is_supported": "function",
+      "plan": "function",
+      "plan_execution": "function",
+      "plan_weights": "function",
+      "prepare_weights": "function",
+      "run": "function"
+    },
+    "vllm_backend_import_ok": true,
+    "scope": "imports and API only; no model MoE kernels executed"
+  },
+  "pip_check": {
+    "rc": 0,
+    "stdout": "No broken requirements found.",
+    "stderr": ""
+  },
+  "ledger": {
+    "base": {
+      "cuda_version": null,
+      "ngc_pytorch_version": "26.07",
+      "pytorch_build_version": "2.13.0a0+9186a08",
+      "source": {
+        "cuda_version": "/usr/local/cuda/version.json",
+        "ngc_pytorch_version": "base-image ENV NVIDIA_PYTORCH_VERSION",
+        "pytorch_build_version": "base-image ENV PYTORCH_BUILD_VERSION"
+      }
+    },
+    "build_args": {
+      "BASE_IMAGE": "easy-vllm:0.32.0-cu133-aarch64-source-deps2",
+      "BUILD_JOBS": "4",
+      "SM12X_PORT": "1",
+      "SRC_DEPS_AUTHORITY": "0",
+      "TORCH_CUDA_ARCH": "12.1a",
+      "VLLM_REF": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+      "VLLM_REPO": "https://github.com/vllm-project/vllm.git"
+    },
+    "context_inventory": {
+      "build_patch_post": [
+        ".gitkeep",
+        "05-ngc-source032-deps-compat.sh",
+        "06-b12x-optional032.sh",
+        "70-exllamav3-build.sh",
+        "72-exl3-row-store.sh",
+        "73-vllm-exl3-build.sh",
+        "74-exl3-moe-prep-fused.sh",
+        "75-exl3-python-deps032.sh",
+        "79-exl3-port-selfcheck.sh",
+        "Dockerfile.source-build-deps2"
+      ],
+      "build_patch_pre": [
+        ".gitkeep",
+        "80-exl3-quant-method.sh",
+        "81-exl3-model-wiring.sh",
+        "82-exl3-h2d-stage.sh",
+        "83-engram-file-backend.sh",
+        "84-sm12x-block-shim.sh",
+        "85-exl3-serial-streams.sh",
+        "86-exl3-worker-hooks.sh",
+        "87-engram-embed-skip.sh",
+        "88-engram-prestage.sh",
+        "89-kv-null-block-zero.sh",
+        "PROVENANCE.json",
+        "exl3_port_lib.py"
+      ]
+    },
+    "cpu_arch": "aarch64",
+    "dockerfile": "Dockerfile.source-build-sm12x",
+    "errors": {
+      "cuda_version_json": "absent"
+    },
+    "kind": "easy_vllm_build_ledger",
+    "patches": [
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "80-exl3-quant-method.sh",
+        "log_tail_sha256": "5d500108791d739eb86ed1c5c2dc4ea8dabd82659fa73a6d80bd1ec0a414627f",
+        "phase": "pre",
+        "reason": "lazy registration hook + chat template installed",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "19f70ed4dd0d98d6318209a1a987daec90515252397cecb33f21a5acb18a4e21"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "81-exl3-model-wiring.sh",
+        "log_tail_sha256": "df9537c8eb4c2a23a925f55374abc986ac19739527db10aa2c1156dfe1742d30",
+        "phase": "pre",
+        "reason": "3 edits (3 newly applied)",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "78d5606a73127488052cd1ffde5dbbe533cfeada1c2343095061f121d42f68b4"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "82-exl3-h2d-stage.sh",
+        "log_tail_sha256": "a7d1afe1adb90b5eec9e3a41518b07735b37104a363fab88c1fc00aa29742ca0",
+        "phase": "pre",
+        "reason": "14 new edits/footers",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "373f1aa3fb7f80c921be8a793b85bf223b22520a0c5dbe19382e3fc15a8f6d4c"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "83-engram-file-backend.sh",
+        "log_tail_sha256": "6bd33c47c53475f8645fa0244d471ed92259f0aa6b431b4d99f170bc7a9f0ee6",
+        "phase": "pre",
+        "reason": "engram backend retargeted to common/engram.py",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "e65f4871384d970c6cb1833eebe24756e3449489523f85291bd25bea7ca51112"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "84-sm12x-block-shim.sh",
+        "log_tail_sha256": "868bb241a577ffb47f0e47f4023eff550f185ca13a248a3026e2db82510607ec",
+        "phase": "pre",
+        "reason": "6 new edits/footers",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "ce18151a93c9f9a6b101dc44efde8232aef5ed6a67c10c86c5fb2751b9dfc8ef"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "85-exl3-serial-streams.sh",
+        "log_tail_sha256": "1e5dd8ac6a9107220cb5656366e7ae371c0161fb48a459b2cf403410990384b8",
+        "phase": "pre",
+        "reason": "2 new edits",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "b6c5cadf73a667c892ce017edd33cdf7c56b0b3e4f4b44fc6b36feb5ded0147b"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "86-exl3-worker-hooks.sh",
+        "log_tail_sha256": "b84289842e91d8f66ce392bb012361c75d39b20da5905659655339e6286bd067",
+        "phase": "pre",
+        "reason": "worker hooks footer installed",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "f4b142ccb0360b887376306d9af1db78820b021aacf607b204346f4a4f9a8d58"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "87-engram-embed-skip.sh",
+        "log_tail_sha256": "4c8b23289e4639a524fd11b9666dd81f9d9f8254f4fbf58738fb714277dd6e3b",
+        "phase": "pre",
+        "reason": "engram embed skip installed",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "91c254f6bc88120d710ca02296d9e2faf352eae157080379b94b76d3fb79d39e"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "88-engram-prestage.sh",
+        "log_tail_sha256": "df1399c05e7a707c756e0f14c33dc2574800cff0394e3f0f77750594c70f71ff",
+        "phase": "pre",
+        "reason": "2 new edits (prestage v2: census+early)",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "185f6d23574158a812858240cfe55d8a6a60139377fd03466883ac4d42b88022"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "89-kv-null-block-zero.sh",
+        "log_tail_sha256": "a2d1fd7b2e2f572665a12cfa30c6be12468aeeea964ab462bcb3d0cea965758a",
+        "phase": "pre",
+        "reason": "2 new edits",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "2ede1ae09b75a75af3580789ff632107514ffec5ee1f8ee166a9a51540209abe"
+      },
+      {
+        "declared_model_trigger": "generic shared runtime dependency consistency; no model weights.",
+        "exit_code": 0,
+        "file": "05-ngc-source032-deps-compat.sh",
+        "log_tail_sha256": "87423ff69153a4e3ec1ba9b3d1a63b7a9be06d9fef7f8086d1624aa978085ce1",
+        "phase": "post",
+        "reason": "NGC26.07 source032 measured hub/pytest intersection reused; pip check passed",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "ef79a410b90cae256d9b520e95ad32e7480059a8f2ffce194810749e225dbc54"
+      },
+      {
+        "declared_model_trigger": "Generic SM120/SM121 B12X optional backend; no model weights.",
+        "exit_code": 0,
+        "file": "06-b12x-optional032.sh",
+        "log_tail_sha256": "b17e42a563c1c5a3ff77983f31ef039420805580b11c18d09834fe48dd43813c",
+        "phase": "post",
+        "reason": "Official vLLM0.32 optional B12X1.5.1 exact wheel; pip check passed; GPU kernels unverified",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "70-exllamav3-build.sh",
+        "log_tail_sha256": "5628538997546316a17955064e7e6b28379ed5ecba1b599e553864d0b98ef65f",
+        "phase": "post",
+        "reason": "exllamav3 1.4.5 @ e648f1a13136 built for 12.1a",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "e3ce003d2c2a69de56567f3b7c0d0ae0c4757e268255c393a139a415025342b6"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "72-exl3-row-store.sh",
+        "log_tail_sha256": "b53f6c76127ce4e7781312aa024ca7b4c7ec54fb9300719db4ef7f024e9436af",
+        "phase": "post",
+        "reason": "librow_store.so built (/opt/exl3-port/librow_store.so)",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "110c360787c24033617519127e6f0d1373508288f1bb12c70b7d5d7251bf5e39"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "73-vllm-exl3-build.sh",
+        "log_tail_sha256": "24e0f1ca1b9b85190ee836c8a0ecc1955dbcb83994cbe13d2b04e6741ed222a2",
+        "phase": "post",
+        "reason": "vllm-exl3 0.4.2 @ d3cfd3949203 + sfxnz p2b shapes/mrow/cfg1/codebook/fshift/srcsort/coop/dataflow @ 3de914682d08 built for 12.1a",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "36fec33430a034392f6451be53557f0acba35b5c46dfe08729a530d729ab77e8"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "74-exl3-moe-prep-fused.sh",
+        "log_tail_sha256": "57218ef5f95a5ab785703bbe8b197b79fef2dfd2370d120c8627c9468acc13a6",
+        "phase": "post",
+        "reason": "sfxnz moe_prep_fused @ 3de914682d08 (runtime /opt/exl3-port/dsv41-patch) + exl3.py arming footer (DSV41_MOE_PREP_FUSED gate)",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "cc290b5449c0a603bed4b3455b84e8bb9ae82c53579672f33ecbbc3e24886cfa"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "75-exl3-python-deps032.sh",
+        "log_tail_sha256": "1883b0c601ccd3176a3c36beb8de66388090a0f9113eb2244ceaad6437446c62",
+        "phase": "post",
+        "reason": "FLA0.6.0/fla-core0.6.0/marisa1.4.1 closure; pinned wheel SHA",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "c1a3fc81d31d9b6be28f5c2c60c9f88b9ebca1055f0403149f5712e4755df89d"
+      },
+      {
+        "declared_model_trigger": null,
+        "exit_code": 0,
+        "file": "79-exl3-port-selfcheck.sh",
+        "log_tail_sha256": "cc30a80613938a74b4138b66496ce14d074daf49a332fa56edc737bfa8c5e7f4",
+        "phase": "post",
+        "reason": "self-check PASS (registry, classes, plugin edits, natives, engram hook + embed skip)",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "56227afebc5b1f22d864ee76dfd618cf6a54489e4a556cbf0a8cca9d9d7cb07c"
+      }
+    ],
+    "pip_freeze_sha256": "41fa19ef38d47b040f3aa413c08226911e63409bed0ebed66b01ba181e170d1f",
+    "provenance": "measured(build-time, in-image)",
+    "requirements_sha256": "4618157b8e50ba411ea9008a1fb2e4d032738bce8a117d3a24e2b9476aa1a6c4",
+    "schema_version": 1,
+    "slots_supported": [
+      "build_patch_post",
+      "build_patch_pre"
+    ],
+    "torch": {
+      "dist_version": "2.13.0a0+9186a08b2c.nv26.7.59513937"
+    },
+    "track": "source-build",
+    "vllm": {
+      "describe": "v0.32.0",
+      "direct_url": {
+        "dir_info": {
+          "editable": true
+        },
+        "url": "file:///workspace/vllm-src"
+      },
+      "dist_version": "0.32.1.dev0+g5df63a720.d20261029.cu133",
+      "git_sha": "5df63a7203cdb9328d824a27b682e77c7b9928be"
+    }
+  },
+  "variant_selfcheck": {
+    "rc": 0,
+    "stdout": "[79-exl3-port-selfcheck] PASS registry: <class 'vllm_exl3.exl3.Exl3Config'>\n[79-exl3-port-selfcheck] PASS exl3-abstracts: Exl3* classes concrete\n[79-exl3-port-selfcheck] PASS plugin-edits: vllm-exl3 0.4.2; weight_block_size copied; lm_head hook + staged H2D present; no entry point\n[79-exl3-port-selfcheck] PASS natives: exllamav3_ext + vllm_exl3_c + librow_store.so + LinearEXL3 + license files\n[79-exl3-port-selfcheck] PASS engram-hook: dispatcher installed; opt-in gate OK; embed skip active only when a table dir is configured\n[79-exl3-port-selfcheck] OK",
+    "stderr": "W1029 11:59:51.170000 280 torch/utils/_pytree.py:630] <enum 'KernelPreference'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.\nW1029 11:59:51.184000 280 torch/utils/_pytree.py:630] <enum 'ScaleCalculationMode'> is an Enum subclass and is now natively supported by torch.compile as an opaque value type. Calling register_constant() on Enum subclasses is deprecated and will be an error in a future release.\nengram_table_dir lookup failed (AssertionError: Current vLLM config is not set. This typically means get_current_vllm_config() was called outside of a set_current_vllm_config() context, or a CustomOp was instantiated at module import time or model forward time when config is not set. For tests that directly test custom ops/modules, use the 'default_vllm_config' pytest fixture from tests/conftest.py.); file-backed Engram not requested\nengram_table_dir lookup failed (AssertionError: Current vLLM config is not set. This typically means get_current_vllm_config() was called outside of a set_current_vllm_config() context, or a CustomOp was instantiated at module import time or model forward time when config is not set. For tests that directly test custom ops/modules, use the 'default_vllm_config' pytest fixture from tests/conftest.py.); file-backed Engram not requested\nTraceback (most recent call last):\n  File \"/usr/lib/python3.12/weakref.py\", line 666, in _exitfunc\n    f()\n  File \"/usr/lib/python3.12/weakref.py\", line 590, in __call__\n    return info.func(*info.args, **(info.kwargs or {}))\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/torch/library.py\", line 663, in _del_library\n    _clear_torch_ops_cache(op_defs)\n  File \"/usr/local/lib/python3.12/dist-packages/torch/library.py\", line 628, in _clear_torch_ops_cache\n    if not hasattr(namespace, name):\n           ^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/torch/_ops.py\", line 1387, in __getattr__\n    op, overload_names = _get_packet(qualified_op_name, module_name)\n                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/local/lib/python3.12/dist-packages/torch/_ops.py\", line 1412, in _get_packet\n    op, overload_names = torch._C._jit_get_operation(qualname)\n                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nUnicodeDecodeError: 'utf-8' codec can't decode byte 0x9a in position 182: invalid start byte"
+  },
+  "core_source_diff": {
+    "rc": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  "parent_ledger": {
+    "base": {
+      "cuda_version": null,
+      "ngc_pytorch_version": "26.07",
+      "pytorch_build_version": "2.13.0a0+9186a08",
+      "source": {
+        "cuda_version": "/usr/local/cuda/version.json",
+        "ngc_pytorch_version": "base-image ENV NVIDIA_PYTORCH_VERSION",
+        "pytorch_build_version": "base-image ENV PYTORCH_BUILD_VERSION"
+      }
+    },
+    "build_args": {
+      "BASE_IMAGE": "easy-vllm:0.32.0-cu133-aarch64-source-deps1",
+      "SM12X_PORT": "0",
+      "SRC_DEPS_AUTHORITY": "0",
+      "VLLM_REF": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+      "VLLM_REPO": "https://github.com/vllm-project/vllm.git"
+    },
+    "context_inventory": {
+      "build_patch_post": [
+        "06-b12x-optional032.sh"
+      ],
+      "build_patch_pre": []
+    },
+    "cpu_arch": "aarch64",
+    "dockerfile": "Dockerfile.source-build-deps2",
+    "errors": {
+      "cuda_version_json": "absent"
+    },
+    "kind": "easy_vllm_build_ledger",
+    "patches": [
+      {
+        "declared_model_trigger": "Generic SM120/SM121 B12X optional backend; no model weights.",
+        "exit_code": 0,
+        "file": "06-b12x-optional032.sh",
+        "log_tail_sha256": "9bc54c5d578c635e088e93c86861a8a09c3efad761f5c6a44b5491c3eb0f63ea",
+        "phase": "post",
+        "reason": "Official vLLM0.32 optional B12X1.5.1 exact wheel; pip check passed; GPU kernels unverified",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15"
+      }
+    ],
+    "pip_freeze_sha256": "4edf940b7baf162b8d64768d6ad3fa79d830d08ae92fcf07ff0a0fc2f796fe27",
+    "provenance": "measured(build-time, in-image)",
+    "requirements_sha256": "4618157b8e50ba411ea9008a1fb2e4d032738bce8a117d3a24e2b9476aa1a6c4",
+    "schema_version": 1,
+    "slots_supported": [
+      "build_patch_post",
+      "build_patch_pre"
+    ],
+    "torch": {
+      "dist_version": "2.13.0a0+9186a08b2c.nv26.7.59513937"
+    },
+    "track": "source-build",
+    "vllm": {
+      "describe": "v0.32.0",
+      "direct_url": {
+        "dir_info": {
+          "editable": true
+        },
+        "url": "file:///workspace/vllm-src"
+      },
+      "dist_version": "0.32.1.dev0+g5df63a720.d20261029.cu133",
+      "git_sha": "5df63a7203cdb9328d824a27b682e77c7b9928be"
+    }
+  },
+  "required_passed": true
+}

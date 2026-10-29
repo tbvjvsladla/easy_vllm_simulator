@@ -1,0 +1,25 @@
+# Official0.32 + freshly ported EXL3 candidate; native build/GPU/serving unverified.
+model: /app/quant_models/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz
+host: 0.0.0.0
+port: 8080
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+quantization: exl3
+tokenizer-mode: deepseek_v41
+hf-overrides: '{"engram_table_dir":"/app/ple_mmap/v41-engram-a"}'
+block-size: 64
+kernel-config: '{"sparse_indexer_topk_backend":"per_row"}'
+kv-cache-dtype: fp8
+kv-cache-memory-bytes: 8589934592
+gpu-memory-utilization: 0.8
+max-model-len: 131072
+max-num-seqs: 1
+max-num-batched-tokens: 1536
+enforce-eager: true
+no-enable-flashinfer-autotune: true
+reasoning-parser: deepseek_v41
+tool-call-parser: deepseek_v41
+enable-auto-tool-choice: true
+speculative-config: '{"method":"dspark","num_speculative_tokens":3,"draft_sample_method":"greedy"}'
+language-model-only: true
+engram-config: '{"cpu_offload": true, "dp_shared_memory": false, "use_thp": false}'
