@@ -4264,6 +4264,9 @@ def _file_records(c: _Ctx, payload: Path, slots: dict, marks: dict, applied: dic
                          "verification_basis": m.get("verification_basis") or _default_basis(slot, row, name)}
             if m.get("header"):
                 rec["header"] = m["header"]
+            if "frozen_source_sha256" in m:
+                rec["frozen_source_sha256"] = m["frozen_source_sha256"]
+                rec["source_identity_basis"] = "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning"
             if name in sel_by:
                 rec["bytes_observed"] = bool(sel_by[name].get("verified"))
             if "parent_source" in m:
@@ -4548,6 +4551,30 @@ def _parent_build(c: _Ctx) -> dict | None:
     return out
 
 
+def _marked_leaf_matches_frozen(shipped: bytes, frozen: bytes, target: str, mark: dict) -> bool:
+    """Keep the raw identity gate; recognize only the official leaf-Dockerfile warning insertion."""
+    if shipped == frozen:
+        return not mark.get("header")
+    header = mark.get("header") or {}
+    if target != "Dockerfile" or mark.get("verification") != "generated-unverified" or mark.get("generated_by") != "renderer" or header.get("style") != "comment":
+        return False
+    line = header.get("text")
+    if not isinstance(line, str) or not line.startswith("# ⚠ generated-unverified — ") or not line.endswith(" · 생성: renderer") or "\n" in line or "\r" in line:
+        return False
+    text = frozen.decode("utf-8")
+    lines = text.split("\n")
+    if text.startswith("#!"):
+        index = 1
+    elif _DOCKERFILE_DIRECTIVE.match(text):
+        index = next(i for i, row in enumerate(lines) if not _DOCKERFILE_DIRECTIVE.match(row + "\n"))
+    else:
+        index = 0
+    if header.get("line") != index + 1:
+        return False
+    expected = "\n".join(lines[:index] + [line] + lines[index:]).encode("utf-8")
+    return shipped == expected
+
+
 def _append_parent_build(c: _Ctx, payload: Path, files: list, slots: dict, marks: dict) -> None:
     parent = _parent_build(c)
     if not parent:
@@ -4610,7 +4637,8 @@ def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: d
             reused = (ext or {}).get("reuse", {}).get(rel_f)
             if reused:
                 rows.append({"slot_path": rel_f, "context_path": reused["target"], "context_root": "leaf-sm12x/context", "stage": "leaf-sm12x",
-                             "context_scope": "reconstruction_example", "basis": "existing slot bytes equal explicit final leaf frozen inventory; no duplicate artifact"})
+                             "context_scope": "reconstruction_example", "frozen_source_sha256": core.sha256_bytes(reused["bytes"]),
+                             "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact"})
                 continue
             if rel_f.startswith(_PARENT_PREFIX):
                 parent = _parent_build(c)
@@ -5269,11 +5297,12 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
             core.fail("HINT_ARTIFACT_PII", "artifacts/ 에 배포 금지 패턴:\n  " + pii.render_hits(hits, 10),
                       "해당 파일의 출처(트리플렛·compose·패치)를 고치거나 형상 규칙을 고친다(덧칠 ✗).")
 
-    # Explicit leaf closure stays byte-identical after all header/mark processing too.
+    # Raw frozen closure was checked before annotation; only the exact recorded Dockerfile warning may differ.
     ext = (_parent_build(c) or {}).get("extension") if plane == "docker" else None
     for rel_f, item in ((ext or {}).get("reuse") or {}).items():
-        if (payload / rel_f).read_bytes() != item["bytes"]:
+        if not _marked_leaf_matches_frozen((payload / rel_f).read_bytes(), item["bytes"], item["target"], marks.get(rel_f) or {}):
             core.fail("HINT_ARTIFACT_MARK_INVALID", f"final marked leaf slot differs from frozen context: {rel_f}")
+        marks.setdefault(rel_f, {})["frozen_source_sha256"] = core.sha256_bytes(item["bytes"])
     # 파일 단위 표시(2026-09-29 · plan_26092908 §4.2·§4.3): 검증·생성 주체·근거 · 관련성. 적용 집합 미관측(판정 못 한 패치)도 결손.
     _slot_machine_reasons(c, slots, applied, sel, plane, vctx)
     rel_ctx = _relevance_context(c, slots, applied)
