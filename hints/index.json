@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 91,
-  "generated_kst": "2026-10-30T01:10:45",
+  "count": 92,
+  "generated_kst": "2026-10-30T01:22:50",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1911,6 +1911,28 @@
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_solar31-nv4-1m-tp2/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
+    },
+    {
+      "anchor": "22bcac2207d273f88e87b9045a096817b0062263",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26103001_deepseek-v4-flash-0731_GB10_0.32.0.md))",
+      "brief": "DeepSeek-V4-Flash-0731을GB10 노드당GPU하나×두노드TP2,공식vLLM0.32.0 exactSHA 입력에서FP8로더·FP4 experts·262144·KVfp8·PLE없음·DSpark5·graph로측정해동시성1 decode36.32t/s의weak REFUTE를기록했다. 역사KV기동밸리·RoCE배선은별도근거로정리했고(W7/W12),현재B12X경로의유효Full도사전외부E에미달했다(W14). KV와context는손레버승계값(V4/V7)이며spec7은셀ID의역사표기다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "deepseek-v4-flash-0731",
+      "object": "4b11d569d0e1953f42e375dbc25a34305784f2c1",
+      "published": true,
+      "recipe": "qfp8-len262144-kvfp8-dspark5",
+      "source": "remote-derived",
+      "tag": "hint/0.32.0-g5df63a7203cd/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len262144-kvfp8-dspark5",
+      "tagged_utc": "2026-10-29T16:22:50Z",
+      "verdict": "REFUTE",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_ds4f0731-032-spec7-roce_261030A/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.32.0-g5df63a7203cd"
     },
     {
       "anchor": "d413f8c82902d2b33ed47fb0e2de1246b7d36e60",
