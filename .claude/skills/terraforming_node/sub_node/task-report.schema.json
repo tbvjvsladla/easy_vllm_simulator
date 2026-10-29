@@ -15,6 +15,49 @@
     "node_id"
   ],
   "properties": {
+    "campaign_control_echo": {
+      "description": "Optional relay lifecycle control response; relay validates campaign identity and transition semantics.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["campaign_id", "control", "state", "first_line"],
+          "properties": {
+            "campaign_id": {"type": "string", "minLength": 1},
+            "control": {"type": "string", "enum": ["suspend", "resume", "close", "abandon", "reslice"]},
+            "state": {"type": "string", "minLength": 1},
+            "first_line": {"type": "string"},
+            "close_reason": {"type": ["string", "null"]},
+            "rev": {"type": "integer", "minimum": 0},
+            "assigned_cells": {"type": "array", "items": {"type": "string"}}
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["control", "summary_testlog", "results", "first_line"],
+          "properties": {
+            "control": {"const": "orphan_sweep"},
+            "summary_testlog": {"type": "string"},
+            "first_line": {"type": "string"},
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["campaign_id", "state", "close_reason", "refusal"],
+                "properties": {
+                  "campaign_id": {"type": "string", "minLength": 1},
+                  "state": {"type": "string", "minLength": 1},
+                  "close_reason": {"type": ["string", "null"]},
+                  "refusal": {"type": ["string", "null"]}
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
     "task_id": {
       "type": "string",
       "description": "A2A Task id. 한 작업 단위(메인이 발급)."

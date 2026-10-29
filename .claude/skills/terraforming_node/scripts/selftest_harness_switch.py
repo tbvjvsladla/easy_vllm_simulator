@@ -64,6 +64,49 @@ def _pending_worker(root, context, start):
 
 
 class HarnessSwitchChecks(unittest.TestCase):
+    def test_lifecycle_echo_schema_matches_relay_contract(self):
+        schema = agent_control._load_schema(HERE.parent / "sub_node" / "task-report.schema.json")
+        report = {"task_id": "close", "context_id": "ctx", "turn": 1, "phase": "inspect", "status": "completed",
+                  "node_id": "sub", "self_verification": {"schema_valid": True}}
+        report["self_verification"] = {"schema_valid": True, "checks_run": []}
+        echo = {"campaign_id": "campaign", "control": "close", "state": "closed",
+                "close_reason": "completed", "first_line": "상태: ACTIVE=_bootstrap"}
+        def violations(value):
+            return agent_control._schema_violations(value, schema)
+        base_errors = violations(report)
+        self.assertEqual(base_errors, [])
+        report["campaign_control_echo"] = echo
+        self.assertEqual(violations(report), base_errors)
+        self.assertTrue(relay.campaign_control_echo_ok(report, "campaign", "close")[0])
+        normal = schema["properties"]["campaign_control_echo"]["oneOf"][0]
+        self.assertEqual(set(normal["properties"]["control"]["enum"]), set(relay.CAMPAIGN_CONTROLS))
+        for control, state in relay.CAMPAIGN_CONTROLS.items():
+            report["campaign_control_echo"] = {"campaign_id": "campaign", "control": control, "state": state,
+                                               "first_line": "fixture"}
+            self.assertEqual(violations(report), base_errors)
+        report["campaign_control_echo"] = {"campaign_id": "campaign", "control": "reslice", "state": "active",
+                                           "first_line": "fixture", "rev": 2, "assigned_cells": ["a", "b"]}
+        self.assertEqual(violations(report), [])
+        report["campaign_control_echo"] = {"control": "orphan_sweep", "summary_testlog": "t.md", "first_line": "fixture",
+            "results": [{"campaign_id": "old", "state": "closed", "close_reason": "abandoned", "refusal": None}]}
+        self.assertEqual(violations(report), base_errors)
+        self.assertTrue(relay.orphan_sweep_echo_ok(report, ["old"])[0])
+        refused = copy.deepcopy(report)
+        refused["campaign_control_echo"]["results"][0].update(state="active", close_reason=None, refusal="gate denied")
+        self.assertEqual(violations(refused), [])
+        self.assertFalse(relay.orphan_sweep_echo_ok(refused, ["old"])[0])
+        for change in ({"unexpected": 1}, {"first_line": 3}, {"results": [{"campaign_id": "old", "state": "closed",
+                      "close_reason": "abandoned", "refusal": 12}]}):
+            bad = copy.deepcopy(report); bad["campaign_control_echo"].update(change)
+            self.assertTrue(any("campaign_control_echo" in x for x in violations(bad)))
+        bad = copy.deepcopy(report); bad["unexpected"] = True
+        self.assertTrue(any("unexpected" in x for x in violations(bad)))
+        bad = copy.deepcopy(report); bad["campaign_control_echo"] = dict(echo, rev=True)
+        self.assertTrue(any("campaign_control_echo" in x for x in violations(bad)))
+        bad = copy.deepcopy(report); bad["campaign_control_echo"] = dict(echo, campaign_id="wrong")
+        self.assertEqual(violations(bad), base_errors)
+        self.assertFalse(relay.campaign_control_echo_ok(bad, "campaign", "close")[0])
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="harness-switch-")
         self.addCleanup(self.temp.cleanup)
