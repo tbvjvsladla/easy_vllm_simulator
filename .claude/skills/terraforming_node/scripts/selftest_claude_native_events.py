@@ -139,7 +139,7 @@ class NativeEvents(unittest.TestCase):
             self.assertTrue(control.request_schema_violations({**self.request, **changes}))
         codex = {**self.request, "schema_version": 2, "provider": "codex_cli", "backend": "openai",
                  "max_turns": None, "budget_unit": "wall_time", "max_dispatches": 1,
-                 "permission_profile": "vllm-main"}
+                 "permission_profile": ":danger-full-access"}
         self.assertFalse(control.request_schema_violations(codex))
         for value in (True, False):
             self.assertTrue(control.request_schema_violations({**codex, "capture_native_events": value}))

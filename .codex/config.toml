@@ -1,21 +1,5 @@
-# Approved campaign work runs without repeated native approval prompts. Domain approvals,
-# user rules and managed requirements remain authoritative; never does not grant access.
-# Native provider invocations select this profile explicitly; do not mix in legacy --sandbox.
-default_permissions = "vllm-main"
+# Main and sub use the same built-in permissions; roles come from manifest and node contracts.
+# https://learn.chatgpt.com/docs/permissions
+# Do not add legacy sandbox_mode / sandbox_workspace_write overrides.
+default_permissions = ":danger-full-access"
 approval_policy = "never"
-
-[permissions.vllm-main]
-description = "Main workspace development under the existing approval and topology contracts."
-extends = ":workspace"
-
-[permissions.vllm-main.filesystem.":workspace_roots"]
-# Approved local commits are part of the main orchestrator's existing work.
-".git" = "write"
-# Main authors the shared harness and its provider entry points. Sub protects these paths.
-".agents" = "write"
-".codex" = "write"
-
-[permissions.vllm-main.network]
-# A2A SSH, library access, and approved build inputs need command network access.
-# This is connectivity, not domain filtering or approval for remote side effects.
-enabled = true

@@ -3,9 +3,9 @@
 
 CLI grammar is isolated here. Model identifiers are caller declarations; JSONL does not
 necessarily report the actual model, so absent observations stay empty. Operation
-capabilities are intent, not a per-tool allowlist. The selected sandbox/named profile,
-existing rules and managed policy enforce permissions. Named profiles require the
-node's deployment/trust/denial canary; this adapter never bypasses policy or invents
+capabilities are intent, not a per-tool allowlist. The selected sandbox/built-in profile,
+existing rules and managed policy enforce permissions. Permission profiles require the
+node's deployment/trust/native-work canary; this adapter never bypasses policy or invents
 effective-policy observations.
 
 Seed reviewed: seed/hermes-subagent-control-plane (codex-cli-control). Reuses explicit
@@ -32,8 +32,8 @@ SUPPORTS = {
     "resume": "explicit_native_id_with_binding", "structured_output": "jsonl",
     "capabilities_mode": "intent_only",
     "sandbox_modes": ["read-only", "workspace-write"],
-    "permission_profiles": ["vllm-main", "vllm-sub"],
-    "permission_profile_verification": "deployment_and_denial_canary_required",
+    "permission_profiles": [":danger-full-access"],
+    "permission_profile_verification": "deployment_and_native_work_canary_required",
     "cancellation": "local_process_group_and_remote_deadline",
     "workspace_exclusion": "nonblocking_flock_in_output",
 }

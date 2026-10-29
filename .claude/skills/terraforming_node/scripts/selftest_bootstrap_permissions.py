@@ -40,7 +40,7 @@ class CanaryTests(unittest.TestCase):
                     max_turns=None if provider == "codex_cli" else 10, timeout_seconds=120,
                     budget_source="declared: offline permission receipt fixture",
                     main_work_dir=str(self.root),
-                    **({"max_dispatches": 1, "permission_profile": "vllm-" + role}
+                    **({"max_dispatches": 1, "permission_profile": ":danger-full-access"}
                        if provider == "codex_cli" else {}))
         args.update(extra)
         self.manifest.write_text(self.manifest.read_text().replace("topology: multi", "topology: " + topology))
@@ -59,6 +59,10 @@ class CanaryTests(unittest.TestCase):
                    for n in (*probe.BUILD_FILES, "Dockerfile.source-build")]
         checks += [{"name": "protected:" + n, "axis": "os_enforcement", "outcome": outcome, "preserved": True}
                    for n, outcome in probe.protected_file_expectations(request["target"]["role"]).items()]
+        if request["provider"] == "codex_cli":
+            for check in checks:
+                if check["axis"] == "os_enforcement":
+                    check["outcome"] = "allowed"
         return dict(schema_version=1, nonce=plan["nonce"], topology=plan["topology"], role=request["target"]["role"],
                     workspace=request["target"]["work_dir"], provenance="observed_local_process", checks=checks,
                     build_files=[*probe.BUILD_FILES, "Dockerfile.source-build"])
@@ -101,7 +105,7 @@ class CanaryTests(unittest.TestCase):
         self.assertEqual(req["target"], {"role": "main", "transport": "local", "work_dir": str(self.root)})
         self.assertFalse(ac.request_schema_violations(req))
 
-    def test_codex_permission_phase_requires_explicit_model_and_named_role(self):
+    def test_codex_permission_phase_requires_explicit_model_and_builtin_profile(self):
         for changes in ({"model": None}, {"permission_profile": None},
                         {"sandbox_mode": "read-only"}, {"permission_profile": "vllm-main"}):
             with self.subTest(changes=changes), self.assertRaises(SystemExit):
@@ -125,6 +129,13 @@ class CanaryTests(unittest.TestCase):
         for name in ("scratch_removed", "docker_daemon_read", "library_query", "workspace_git_metadata", "protected:AGENTS.md"):
             packet = self.packet(req); packet["checks"] = [c for c in packet["checks"] if c["name"] != name]
             self.assertEqual(self.check(req, self.result(req, packet))["status"], "input-required", name)
+
+    def test_full_access_does_not_accept_denied_or_modified_files(self):
+        req = self.request()
+        for change in ({"outcome": "denied"}, {"preserved": False}):
+            packet = self.packet(req)
+            next(c for c in packet["checks"] if c["name"] == "protected:AGENTS.md").update(change)
+            self.assertEqual(self.check(req, self.result(req, packet))["status"], "input-required")
 
     def test_single_external_clone_required_but_multi_has_no_hint_grant(self):
         req = self.request("single"); packet = self.packet(req)
@@ -244,7 +255,7 @@ class CanaryTests(unittest.TestCase):
                          {".codex/config.toml": "allowed", ".agents/skills/wiki-desk/SKILL.md": "allowed"})
         out = self.check(req, self.result(req))
         self.assertEqual(out["status"], "completed")
-        self.assertIn("not denial outside", out["enforcement_evidence"]["limitations"][0])
+        self.assertIn("do not prove role ownership", out["enforcement_evidence"]["limitations"][0])
         for name in ("protected:.codex/config.toml", "protected:.agents/skills/wiki-desk/SKILL.md"):
             for change in ({"outcome": "denied"}, {"outcome": "unobserved"}, {"preserved": False}):
                 with self.subTest(name=name, change=change):
@@ -258,24 +269,18 @@ class CanaryTests(unittest.TestCase):
             packet = self.packet(req); packet["checks"] = [c for c in packet["checks"] if c["name"] != name]
             self.assertEqual(self.check(req, self.result(req, packet))["status"], "input-required")
 
-    def test_main_write_grant_does_not_authorize_sub_canonical_writes(self):
+    def test_sub_full_access_still_requires_preserved_observations(self):
         for topology in ("single", "multi"):
             req = self.request(topology=topology)
             for rel in probe.PROTECTED_FILES:
                 with self.subTest(topology=topology, path=rel):
                     packet = self.packet(req)
                     item = next(c for c in packet["checks"] if c["name"] == "protected:" + rel)
-                    # A packet's proposed expectation cannot replace the role contract.
-                    item.update(outcome="allowed", expected_outcome="allowed")
+                    # Full access still requires observed access and preserved canonical bytes.
+                    item.update(outcome="denied", expected_outcome="allowed")
                     result = self.check(req, self.result(req, packet))
                     self.assertEqual(result["enforcement_evidence"]["status"], "unproven")
                     self.assertEqual(result["status"], "input-required")
-
-    def test_permission_prompt_uses_the_same_role_expectations(self):
-        for role, outcome in (("main", "allowed"), ("sub", "denied")):
-            req = self.request(role=role)
-            self.assertIn('".codex/config.toml":"' + outcome + '"', req["task"])
-            self.assertIn('".agents/skills/wiki-desk/SKILL.md":"' + outcome + '"', req["task"])
 
     def test_main_write_open_observation_preserves_canonical_fixture_bytes(self):
         for rel in (".codex/config.toml", ".agents/skills/wiki-desk/SKILL.md"):

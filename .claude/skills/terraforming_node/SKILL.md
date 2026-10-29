@@ -14,7 +14,7 @@ when_to_use: >-
   ETA·열·전력 워치독, docs/logs 데이터 평면, L3 수행지시서. (2) 노드 오케스트레이터: 메인↔서브 제어 평면,
   A2A 위임·턴제 릴레이·세션 재개·감독 스텝(--supervise-step), 러너 사다리 회전, 서고 접근자(서브 wiki-desk → 메인 __llm-wiki ssh 게이트웨이 발급·회수).
   (3) 캠페인 체인: campaigns/ 배치·phase 전이·campaign_init writer·배정(assignments)·purge 게이트.
-  하네스 추가·전환·권한 개정도 이 스킬이 주관한다: 기존 승인 복구 → 역할별 설정 → 조건부 호스트 설치 request → 실제 A2A 검증.
+  하네스 추가·전환·권한 개정도 이 스킬이 주관한다: 기존 승인 복구 → 하네스 설정(Codex는 main/sub 공통 권한) → 실행환경 검증 → 실제 A2A 검증.
 ---
 
 # terraforming_node
@@ -62,7 +62,7 @@ when_to_use: >-
 | 스캔/게이트/3자-일치 blocked(비0 종료) · emit fail-closed | `.claude/skills/terraforming_node/scripts/scan_node.py` · `references/install/onboarding.md` |
 | 서브 환경 렌더 실패(미치환 placeholder·필수 필드 누락) | `.claude/skills/terraforming_node/scripts/render_sub_env.py` · `references/install/sub_agent_env.md` |
 | 서브 위임/카나리의 provider 실행문법이 필요 | `.claude/skills/terraforming_node/references/orchestration/agent-control-adapter.md` |
-| 하네스 전환·권한 동등성·sandbox 기동 실패·sudo 설치 request | `references/install/harness_environment.md` · `templates/requests/codex_linux_sandbox.md` |
+| 하네스 전환·공통 Codex 권한·설정 로딩·실행 실패 | `references/install/harness_environment.md` · `templates/requests/codex_linux_sandbox.md` |
 | Flag 미발급이라 런타임 스킬이 info-only 로 떨어짐 | `.claude/skills/terraforming_node/scripts/manifest_contract.py` |
 | 서브에 무엇을 해도 되는지 모호(저작/스캔/정비) · 평면 A/B 혼동 · 서브 git 교착 | §2.7 → `references/orchestration/control_planes.md` |
 | "고쳤는데 안 갔다" / "안 고쳤는데 갔다"(커밋 vs 인덱스 vs 파일시스템) | §2.7.4 → `references/orchestration/control_planes.md` |
@@ -95,7 +95,7 @@ when_to_use: >-
 → `references/install/sub_agent_env.md` — ### 2.1 스킬 분류학 · ### 2.2 구축 아티팩트 · ### 2.3 렌더-온-메인 → 전달(인가 체인) · ### 2.4 A2A-개념 협업 계약 · ### 2.5 완료 게이트 — model-less 카나리 라운드트립 · ### 2.5.1 hint 발행 장착(single 서브 한정 · 클론·역할 선언·토큰 존재 확인 · 2026-10-11). **카나리 미통과 = done ✗.**
 
 ### 2.5.2 하네스별 실행환경·업무 권한 동등성
-→ `references/install/harness_environment.md`. 공통 업무·소유·승인을 provider별 실행 계약에 연결한다. 테라포밍이 설정·조건부 환경 복구 request·검증을 소유하며, 호스트 정책 설치는 **사람이 sudo로 수행**한다. 에이전트는 설치 요청을 발행하고 회수 증거를 판정한다. HW Flag와 독립된 하네스 검증이며 별도 비공식 ready flag를 발급하지 않는다.
+→ `references/install/harness_environment.md`. Codex는 main/sub 모두 `default_permissions = ":danger-full-access"`와 `approval_policy = "never"`를 설치하며 역할별 named 프로필을 생성하지 않는다. 정체성·업무 소유는 manifest·SSH·노드 제어 계약으로 검증한다. 공통 업무·소유·승인을 provider별 실행 계약에 연결한다. 테라포밍이 설정·조건부 환경 복구 request·검증을 소유하며, 호스트 정책 설치는 **사람이 sudo로 수행**한다. 에이전트는 설치 요청을 발행하고 회수 증거를 판정한다. HW Flag와 독립된 하네스 검증이며 별도 비공식 ready flag를 발급하지 않는다.
 
 ### 블랙박스 — `references/blackbox/`
 

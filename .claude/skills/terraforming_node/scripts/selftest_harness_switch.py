@@ -250,7 +250,7 @@ class HarnessSwitchChecks(unittest.TestCase):
         self.assertIn("--max-turns", argv[-1])
 
     def test_v2_builder_and_real_transport_validator(self):
-        request = self.request("codex_cli", permission_profile="vllm-sub")
+        request = self.request("codex_cli", permission_profile=":danger-full-access")
         self.assertEqual(agent_control.request_schema_violations(request), [])
         self.assertEqual(request["schema_version"], 2)
         self.assertIsNone(request["max_turns"])
@@ -355,7 +355,7 @@ class HarnessSwitchChecks(unittest.TestCase):
         return SimpleNamespace(repo_root=str(self.root), context_id="switch", topology="multi",
                                manifest_path=str(self.manifest), emit_only=False, campaign_id=None,
                                control_variables=None, campaign_control=None, node=None,
-                               permission_profile="vllm-sub", sandbox_mode=None,
+                               permission_profile=":danger-full-access", sandbox_mode=None,
                                continue_=False, apply=False, resume=None)
 
     def test_codex_failure_recovery_is_durable_and_never_replays_on_progress(self):
@@ -619,7 +619,7 @@ class HarnessSwitchChecks(unittest.TestCase):
         self.assertEqual(saved["attempts"][2]["status"], "completed")
         self.assertEqual([x["failure_evidence"]["signal"] for x in saved["attempts"][:2]], ["provider_capacity"] * 2)
         self.assertEqual(len(relay.resume_blockers(relay.pending_for(str(self.root), "switch"))), 0)
-        self.assertTrue(all(r["target"] == calls[0]["target"] and r["permission_profile"] == "vllm-sub" for r in calls))
+        self.assertTrue(all(r["target"] == calls[0]["target"] and r["permission_profile"] == ":danger-full-access" for r in calls))
         self.assertEqual(len(calls), 3)
 
     def test_capacity_handoff_reuses_only_remaining_slots(self):
@@ -707,7 +707,7 @@ class HarnessSwitchChecks(unittest.TestCase):
         self.assertEqual(saved["attempts"][2]["status"], "completed")
         self.assertEqual(saved["attempts"][1]["failure_evidence"]["signal"], "provider_capacity")
         self.assertEqual(len(relay.resume_blockers(relay.pending_for(str(self.root), "switch"))), 0)
-        self.assertTrue(all(r["target"] == calls[0]["target"] and r["permission_profile"] == "vllm-sub" for r in calls))
+        self.assertTrue(all(r["target"] == calls[0]["target"] and r["permission_profile"] == ":danger-full-access" for r in calls))
         self.assertEqual(len(calls), 3)
 
     def test_capacity_handoff_rejects_unsafe_reentry(self):
@@ -717,7 +717,7 @@ class HarnessSwitchChecks(unittest.TestCase):
         policy = {"start_attempt": 3, "allocated_slots": 3}
         last = {"attempt": 4, "control_status": "completed", "status": "input-required",
                 "end_reason": "sub_input_required", "sub_reported": True, "session_id": "session",
-                "runner": self.codex, "session_binding": {"permission_profile": "vllm-sub"}}
+                "runner": self.codex, "session_binding": {"permission_profile": ":danger-full-access"}}
         doc = {"context_id": "switch", "attempts": [{}, {}, {}, last]}
         req = {"provider": "codex_cli", "model": "gpt-6.1-sol", "reasoning_effort": "low"}
         with mock.patch.object(relay, "_instruction_request", return_value=req), \
@@ -918,7 +918,7 @@ class HarnessSwitchChecks(unittest.TestCase):
         self.assertEqual(attempt["usage"], {"input_tokens": 12, "output_tokens": 4})
         self.assertEqual(attempt["model_used"], [], "declared model is not an observation")
         self.assertEqual(attempt["end_reason"], "completed")
-        self.assertEqual(attempt["session_binding"]["permission_profile"], "vllm-sub")
+        self.assertEqual(attempt["session_binding"]["permission_profile"], ":danger-full-access")
         self.assertTrue((self.root / attempt["report_path"]).is_file())
 
     def test_lost_dispatch_output_preserves_reservation_and_prevents_replay(self):
@@ -1257,7 +1257,7 @@ class HarnessSwitchChecks(unittest.TestCase):
                                campaign_id=None, node=None, permission_profile=None, sandbox_mode=None)
         state = {"context_id": "switch", "campaign_id": "approved-campaign", "campaign_node": "sub-one",
                  "control_variables": {"model": "fixed-target"}, "topology": "multi", "manifest": str(self.manifest),
-                 "max_dispatches": 3, "reasoning_effort": "low", "permission_selection": {"permission_profile": "vllm-sub"},
+                 "max_dispatches": 3, "reasoning_effort": "low", "permission_selection": {"permission_profile": ":danger-full-access"},
                  "attempts": [{"attempt": 1, "status": "working", "execution_started": True,
                                "session_id": "native", "runner": self.codex,
                                "timeout_seconds_allocated": 90,
@@ -1409,7 +1409,7 @@ class HarnessSwitchChecks(unittest.TestCase):
         state = {"context_id": "switch", "topology": "multi", "task": "initial approved full task", "attempts": []}
         request = relay.build_request("multi", str(self.manifest), state["task"], self.wall,
             context_id="switch", attempt=1, provider="codex_cli", model="gpt-6.1-sol",
-            backend="openai", permission_profile="vllm-sub")
+            backend="openai", permission_profile=":danger-full-access")
         path = self.root / "campaigns/_bootstrap/relay/switch.requests/attempt-01.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(request), encoding="utf-8")
@@ -1459,10 +1459,10 @@ class HarnessSwitchChecks(unittest.TestCase):
         self.addCleanup(setattr, relay, "_RELAY_CAMPAIGN", saved_campaign)
         state = {"context_id": "switch", "campaign_id": campaign, "topology": "multi",
                  "manifest": str(self.manifest), "control_variables": old_axis,
-                 "task": "original full task", "attempts": [], "permission_selection": {"permission_profile": "vllm-sub"}}
+                 "task": "original full task", "attempts": [], "permission_selection": {"permission_profile": ":danger-full-access"}}
         request = relay.build_request("multi", str(self.manifest), state["task"], self.wall,
             context_id="switch", attempt=1, provider="codex_cli", model="gpt-6.1-sol", backend="openai",
-            permission_profile="vllm-sub", campaign_id=campaign, control_variables=old_axis)
+            permission_profile=":danger-full-access", campaign_id=campaign, control_variables=old_axis)
         path = self.root / "campaigns" / campaign / "relay/switch.requests/attempt-01.json"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(request), encoding="utf-8")
@@ -1484,7 +1484,7 @@ class HarnessSwitchChecks(unittest.TestCase):
         def dispatch(a, doc, lp, task, bud, resume):
             relay.require_dispatch_recovery(a, doc, resume)
             new_req = relay.build_request("multi", str(self.manifest), task, bud, provider="codex_cli",
-                model="gpt-6.1-sol", backend="openai", permission_profile="vllm-sub",
+                model="gpt-6.1-sol", backend="openai", permission_profile=":danger-full-access",
                 campaign_id=campaign, control_variables=a.control_variables)
             captured.append(new_req)
             return 0

@@ -1,49 +1,5 @@
-# Rendered per role. Do not add sandbox_mode: it overrides named permission profiles.
-# https://learn.chatgpt.com/docs/permissions (verified 2026-10-26; Codex 0.164.0)
-default_permissions = "vllm-sub"
+# Main and sub use the same built-in permissions; roles come from manifest and node contracts.
+# https://learn.chatgpt.com/docs/permissions
+# Do not add legacy sandbox_mode / sandbox_workspace_write overrides.
+default_permissions = ":danger-full-access"
 approval_policy = "never"
-
-[permissions.vllm-sub]
-description = "Provisioned {{ SUB_MODE }}: preserve role ownership and approved local execution."
-extends = ":workspace"
-
-{{ HINT_EXTERNAL_WRITE_TOML }}
-
-<!-- MODE:a2a-agent -->
-# Buildx runtime bookkeeping only; Docker config and builder definitions remain read-only.
-[permissions.vllm-sub.filesystem."~/.docker/buildx"]
-activity = "write"
-refs = "write"
-<!-- /MODE:a2a-agent -->
-
-[permissions.vllm-sub.filesystem.":workspace_roots"]
-".git" = "write" # Existing local-only git commit/branch contract; remote git stays prohibited.
-"AGENTS.md" = "read"
-"CLAUDE.md" = "read"
-"Agent_Card.json" = "read"
-".claude" = "read"
-".agents" = "read"
-".codex" = "read"
-"docs/report" = "read"
-"docs/request" = "read"
-"docs/checklist" = "read"
-"output/{{ TOPOLOGY }}/serve_runner.sh" = "read"
-"output/{{ TOPOLOGY }}/debug-init.sh" = "read"
-<!-- MODE:a2a-agent -->
-# Runtime feedback is generated state, not canonical skill code.
-".claude/skills/vllm-recipe-explorer/feedback" = "write"
-<!-- /MODE:a2a-agent -->
-<!-- MODE:ray-worker -->
-"output/{{ TOPOLOGY }}/Dockerfile" = "read"
-"output/{{ TOPOLOGY }}/Dockerfile.source-build" = "read"
-"output/{{ TOPOLOGY }}/Dockerfile.source-build-upstage" = "read"
-"output/{{ TOPOLOGY }}/docker-compose.yaml" = "read"
-"output/{{ TOPOLOGY }}/requirements.txt" = "read"
-"output/{{ TOPOLOGY }}/build_patches" = "read"
-"output/{{ TOPOLOGY }}/build_patches_src" = "read"
-<!-- /MODE:ray-worker -->
-
-[permissions.vllm-sub.network]
-# Approved library SSH, external source clones, and build inputs need command network access.
-# This is not domain filtering; model acquisition and command deny intent remain separate gates.
-enabled = true

@@ -41,9 +41,8 @@ def declaration(ph):
 def profile(ph, scopes=None):
     txt = Path(render.SUBNODE_DIR, "codex.config.template.toml").read_text()
     txt = render.apply_mode_blocks(txt, ph["SUB_MODE"])
-    values = {**ph, "HINT_EXTERNAL_WRITE_TOML": render.hint_write_scopes_toml(
-        render.validate_hint_write_scopes(ph, scopes))}
-    return tomllib.loads(render.render_text(txt, values))["permissions"]["vllm-sub"]
+    render.validate_hint_write_scopes(ph, scopes)
+    return tomllib.loads(render.render_text(txt, ph))
 
 
 class HintWriteScopes(unittest.TestCase):
@@ -55,25 +54,12 @@ class HintWriteScopes(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "HINT_WRITE_SCOPES_INVALID"):
             render.validate_hint_write_scopes(ph or self.ph, value)
 
-    def test_existing_render_has_no_external_write_grant(self):
-        self.assertEqual(render.validate_hint_write_scopes(self.ph, None),
-                         {"status": "not-declared", "write_paths": []})
-        fs = profile(self.ph)["filesystem"]
-        self.assertEqual(set(fs), {":workspace_roots", "~/.docker/buildx"})
-        self.assertEqual(fs["~/.docker/buildx"], {"activity": "write", "refs": "write"})
-
-    def test_exact_single_paths_and_existing_protections(self):
-        fs = profile(self.ph, self.decl)["filesystem"]
-        self.assertEqual({k: v for k, v in fs.items() if k not in (":workspace_roots", "~/.docker/buildx")},
-                         {"/srv/hint checkout": "write", "/srv/hint checkout/.git": "write"})
-        self.assertEqual(fs["~/.docker/buildx"], {"activity": "write", "refs": "write"})
-        self.assertNotIn("~/.docker", fs)
-        self.assertNotIn("~/.docker/config.json", fs)
-        self.assertNotIn("config", fs["~/.docker/buildx"])
-        self.assertNotIn("instances", fs["~/.docker/buildx"])
-        self.assertEqual(fs[":workspace_roots"][".claude"], "read")
-        self.assertEqual(fs[":workspace_roots"][".git"], "write")
-        self.assertNotIn("workspace_roots", profile(self.ph, self.decl))
+    def test_common_builtin_permissions_preserve_scope_records(self):
+        for ph, scopes in ((self.ph, None), (self.ph, self.decl), (placeholders("multi"), None)):
+            self.assertEqual(profile(ph, scopes),
+                             {"default_permissions": ":danger-full-access", "approval_policy": "never"})
+        validated = render.validate_hint_write_scopes(self.ph, self.decl)
+        self.assertEqual(validated["write_paths"], [self.decl["hint_clone_dir"], self.decl["git_dir"]])
 
     def test_linked_worktree_metadata_is_explicit_not_inferred(self):
         self.decl.update(git_dir="/srv/hint-meta.git/worktrees/publish", git_common_dir="/srv/hint-meta.git")
@@ -82,12 +68,8 @@ class HintWriteScopes(unittest.TestCase):
         self.decl["git_dir"] = "/srv/unrelated.git"
         self.reject(self.decl)
 
-    def test_multi_rejects_grants_but_keeps_read_only_buildkit(self):
-        multi = placeholders("multi")
-        self.reject(self.decl, multi)
-        p = profile(multi)
-        self.assertEqual(set(p["filesystem"]), {":workspace_roots"})
-        self.assertEqual(p["filesystem"][":workspace_roots"]["output/multi/Dockerfile"], "read")
+    def test_multi_rejects_single_hint_scope(self):
+        self.reject(self.decl, placeholders("multi"))
 
     def test_target_identity_is_exact(self):
         for key in ("host", "ssh_user", "work_dir"):
@@ -119,13 +101,11 @@ class HintWriteScopes(unittest.TestCase):
             with self.subTest(path=path):
                 self.reject({**self.decl, "hint_clone_dir": path})
 
-    def test_toml_quotes_unicode_and_injection_are_literal_keys(self):
+    def test_scope_paths_do_not_become_permission_profiles(self):
         clone = '/srv/hint "출판" # key = "deny"'
         d = {**self.decl, "hint_clone_dir": clone, "git_dir": clone + "/.git", "git_common_dir": clone + "/.git"}
-        fs = profile(self.ph, d)["filesystem"]
-        self.assertEqual(fs[clone], "write")
-        self.assertEqual(fs[clone + "/.git"], "write")
-        self.assertEqual(set(fs), {clone, clone + "/.git", ":workspace_roots", "~/.docker/buildx"})
+        self.assertEqual(render.validate_hint_write_scopes(self.ph, d)["write_paths"], [clone, clone + "/.git"])
+        self.assertNotIn("permissions", profile(self.ph, d))
 
     def test_bad_declaration_cannot_delete_existing_staging(self):
         with tempfile.TemporaryDirectory() as td:
@@ -140,7 +120,7 @@ class HintWriteScopes(unittest.TestCase):
             single = render.render_tree(self.ph, str(Path(td) / "single"), copy_runtime_block=False,
                                         hint_write_scopes=self.decl)
             config = tomllib.loads(Path(single["out_dir"], ".codex/config.toml").read_text())
-            self.assertEqual(config["permissions"]["vllm-sub"]["filesystem"][self.decl["hint_clone_dir"]], "write")
+            self.assertEqual(config, {"default_permissions": ":danger-full-access", "approval_policy": "never"})
             self.assertEqual(single["hint_write_scopes"]["approved_by"], self.decl["approved_by"])
             multi = render.render_tree(placeholders("multi"), str(Path(td) / "multi"), copy_runtime_block=False)
             helper = ".claude/skills/terraforming_node/scripts/harness_permission_probe.py"

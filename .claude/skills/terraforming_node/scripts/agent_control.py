@@ -168,10 +168,10 @@ def _request_contract_violations(request: dict) -> list[str]:
         elif binding is not None:
             out.append("$.resume_binding: forbidden without resume_session_id")
         profile = request.get("permission_profile")
-        if profile and profile != f"vllm-{role}":
-            out.append("$.permission_profile: must match the target role")
+        if profile and profile != ":danger-full-access":
+            out.append("$.permission_profile: must be :danger-full-access for main and sub")
         if role == "sub" and request.get("sandbox_mode") == "workspace-write":
-            out.append("$.sandbox_mode: sub writes require the named vllm-sub profile; a legacy override discards role protection")
+            out.append("$.sandbox_mode: sub writes require :danger-full-access via permission_profile; do not use a legacy override")
     return out
 
 
@@ -743,12 +743,12 @@ def _test_codex_provider() -> None:
         _require(request_schema_violations(bad), f"mismatched native resume accepted: {change}")
     named = dict(request)
     named.pop("sandbox_mode")
-    named["permission_profile"] = "vllm-main"
+    named["permission_profile"] = ":danger-full-access"
     _require(not request_schema_violations(named), "named-profile v2 request rejected")
     _require(request_schema_violations(dict(named, sandbox_mode="workspace-write")),
              "simultaneous named profile and legacy sandbox accepted")
     _require(request_schema_violations(dict(named, permission_profile="vllm-sub")),
-             "named profile for wrong node role accepted")
+             "retired role-specific profile accepted")
     sub = dict(request, target={"role": "sub", "transport": "ssh", "host": "192.0.2.10",
                                "ssh_user": "probe", "work_dir": "/tmp/sub"})
     _require(request_schema_violations(dict(sub, sandbox_mode="workspace-write")),
@@ -760,7 +760,7 @@ def _test_codex_provider() -> None:
     missing_workspace["target"].pop("work_dir")
     _require(request_schema_violations(missing_workspace), "missing v2 workspace crashed or passed the gate")
     named_argv = provider.build_argv(named)
-    _require('--sandbox' not in named_argv and 'default_permissions="vllm-main"' in named_argv,
+    _require('--sandbox' not in named_argv and 'default_permissions=":danger-full-access"' in named_argv,
              f"named profile was overridden by legacy sandbox: {named_argv}")
     resume_argv = provider.build_argv(resume)
     _require("resume" in resume_argv and '--last' not in resume_argv

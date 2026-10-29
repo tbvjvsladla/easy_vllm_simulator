@@ -368,13 +368,12 @@ def _codex_discovery_checks(root: Path) -> list[dict]:
     try:
         with (root / ".codex/config.toml").open("rb") as f:
             config = tomllib.load(f)
-        profile = config["permissions"]["vllm-main"]
-        if config.get("default_permissions") != "vllm-main" or profile.get("extends") != ":workspace":
+        if config.get("default_permissions") != ":danger-full-access":
             defects.append("main-permission-profile")
-        if profile.get("filesystem", {}).get(":workspace_roots", {}).get(".git") != "write":
-            defects.append("main-local-git-write-missing")
-        if profile.get("network", {}).get("enabled") is not True:
-            defects.append("main-a2a-network-missing")
+        if config.get("approval_policy") != "never":
+            defects.append("main-approval-policy")
+        if "permissions" in config:
+            defects.append("unexpected-custom-permission-profiles")
         if "sandbox_mode" in config or "sandbox_workspace_write" in config:
             defects.append("legacy-sandbox-overrides-profile")
     except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -407,14 +406,14 @@ def _codex_discovery_selftest() -> dict:
             config.write_text('sandbox_mode = "workspace-write"\n' + config.read_text(encoding="utf-8"), encoding="utf-8")
             legacy_rejected = not _codex_discovery_checks(root)[0]["ok"]
             original_config = (REPO / ".codex/config.toml").read_text(encoding="utf-8")
-            config.write_text(original_config.replace('".git" = "write"', '".git" = "read"'), encoding="utf-8")
-            git_rejected = "main-local-git-write-missing" in _codex_discovery_checks(root)[0]["defects"]
-            config.write_text(original_config.replace('enabled = true', 'enabled = false'), encoding="utf-8")
-            network_rejected = "main-a2a-network-missing" in _codex_discovery_checks(root)[0]["defects"]
-            return {"name": "codex_gitless_discovery_selftest", "ok": good and missing_rejected and legacy_rejected and git_rejected and network_rejected,
+            config.write_text(original_config.replace('":danger-full-access"', '"vllm-main"'), encoding="utf-8")
+            retired_rejected = "main-permission-profile" in _codex_discovery_checks(root)[0]["defects"]
+            config.write_text(original_config + '\n[permissions.vllm-main]\nextends = ":workspace"\n', encoding="utf-8")
+            custom_rejected = "unexpected-custom-permission-profiles" in _codex_discovery_checks(root)[0]["defects"]
+            return {"name": "codex_gitless_discovery_selftest", "ok": good and missing_rejected and legacy_rejected and retired_rejected and custom_rejected,
                     "gitless_ok": good, "missing_target_rejected": missing_rejected,
-                    "legacy_override_rejected": legacy_rejected, "local_git_read_only_rejected": git_rejected,
-                    "a2a_network_disabled_rejected": network_rejected}
+                    "legacy_override_rejected": legacy_rejected, "retired_profile_rejected": retired_rejected,
+                    "custom_profiles_rejected": custom_rejected}
         except (OSError, ValueError) as exc:
             return {"name": "codex_gitless_discovery_selftest", "ok": False,
                     "error": f"{type(exc).__name__}:{exc}"}

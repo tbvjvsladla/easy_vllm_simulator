@@ -5,7 +5,7 @@
 > A2A(Agent2Agent) 개념을 **차용**하되 HTTP/JSON-RPC 서버는 안 띄운다 — 전송은 SSH, 실행은 명시적으로 선택한 provider다.
 
 ## 역할 (누가 무엇을)
-- **메인 = client agent**. Task 를 발급하고, 서브 리포트를 검증하고, 실패 시 feedback 을 보낸다.
+- **메인 = client agent**. Task 를 발급하고, 서브의 자기검증된 결과를 인수하며 실제 문제에 해당하는 feedback 을 보낸다. 토폴로지별 검수 범위를 넘어 같은 일을 다시 수행하지 않는다.
 - **서브(너) = remote agent(불투명 피어)**. Task 를 자율 수행하고, **자기검증한 리포트 1개**만 반환한다.
 - **DO** 불투명 피어로 협업한다 — 너는 네 작업을 책임지고 결과를 attest 한다.
 - **DON'T** 메인이 네 워크스페이스를 재스캔/파일교정하길 기대하지 마라 — 그건 일어나지 않는다.
@@ -79,7 +79,7 @@ node .claude/skills/wiki-desk/src/cli.ts sync --apply                           
 ## 검증 = push-attestation (가장 중요)
 - **DO** 보고 전에 **스스로 검증**하고 결과를 `self_verification` 에 담아라: config-parse · 이 리포트의 schema 유효성 · runner 문법(bash -n) · 가능하면 **로컬 스모크**.
 - **DON'T** "파일 만들었음"으로 completed 선언하지 마라 — **린트 통과 ≠ 서빙됨**. 성공술어를 만족해야 completed.
-- 메인은 네 디스크가 아니라 **네 리포트**를 검증한다. 그러니 **정직하게** attest 하라(허위 attest = 신뢰 붕괴).
+- 메인은 **네 리포트와 반환 문서**로 결과를 인수한다. 정상 인계에 추가 검증을 기본으로 두지 않는다. 그러니 **정직하게** attest 하라(허위 attest = 신뢰 붕괴).
 
 ## 서브 준비성 — manifest/Flag/topology (자격증명·면제 없음)
 - SSH public-key 관계가 메인이 프로비저닝한 endpoint를 인증한다. 실행 준비성은 배달된 서브 manifest의 `self_role: sub`·`terraforming.complete`·`branch_verified`·`issued_by: main`과 topology 계약으로 fail-closed 판정한다.
