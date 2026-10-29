@@ -8,4 +8,4 @@ The branch selects a specialized constitution and output channel; the manifest r
 
 Keep native CLI syntax in provider adapters. Claude Code and Codex sessions, budgets, tool approvals, and output envelopes are different contracts. Use an explicitly selected supported provider and model, preserve actual execution evidence, and never count a substitute executor as the requested executor's success.
 
-Codex uses the trusted project `.codex/config.toml` named permission profile. Keep user and managed policies in place. Do not bypass missing permissions or profile loading; surface a blocked operation through the existing request/HITL contract. Do not copy credentials, private user configuration, or main-only orchestration to a subnode.
+Codex uses the trusted project `.codex/config.toml` built-in `:danger-full-access` permission profile. Keep user and managed policies in place. Do not bypass missing permissions or profile loading; surface a blocked operation through the existing request/HITL contract. Do not copy credentials, private user configuration, or main-only orchestration to a subnode.

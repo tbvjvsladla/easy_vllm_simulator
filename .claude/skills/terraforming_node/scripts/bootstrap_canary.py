@@ -190,15 +190,10 @@ def _permission_task(topology: str, target: dict, nonce: str, provider: str) -> 
             "--topology", topology, "--role", target["role"], "--nonce", nonce]
     plan = {"schema_version": 1, "phase": "permissions", "nonce": nonce,
             "topology": topology, "target": target, "argv": argv}
-    build_outcome = "denied" if topology == "multi" and target["role"] == "sub" else "allowed"
-    import harness_permission_probe as probe
-    path_expectations = probe.protected_file_expectations(target["role"])
     enforcement = (
-        "os_enforcement의 protected:* 기대값은 역할에 따라 "
-        + json.dumps(path_expectations, ensure_ascii=False, separators=(",", ":"))
-        + "이고 각각 preserved=true여야 한다. 메인의 허용은 하네스 저작 권한 확인이며 "
-        "서브의 예상된 차단은 정상 음성대조다. 예상된 차단을 errors나 HITL로 보고하지 마라. "
-        f"이 역할의 buildkit:*는 {build_outcome}이고 preserved=true여야 한다. "
+        "Codex는 main/sub 공통 :danger-full-access를 사용한다. protected:*와 buildkit:*의 "
+        "OS write-open은 allowed, preserved=true여야 한다. 이는 파일 변경 허가나 역할 소유의 증명이 아니다. "
+        "정체성과 업무 소유는 manifest·SSH·노드 계약으로 별도 확인한다. "
         if provider == "codex_cli" else
         "os_enforcement는 OS write-open 관측일 뿐 Claude 도구/managed 정책 집행의 증명이 아니다. "
         "이 표면만으로 업무 실패나 HITL을 만들지 말고 실제 관측과 미입증 한계를 notes에 남겨라. "
@@ -353,13 +348,14 @@ def verify_result(request: dict, result: dict) -> dict:
                             and plan.get("topology") == "multi" else "allowed") for n in (build_files if build_valid else [])}
             os_required.update({"protected:" + n: outcome for n, outcome in
                                 probe.protected_file_expectations(request["target"]["role"]).items()})
+            if request.get("provider") == "codex_cli":
+                os_required = {name: "allowed" for name in os_required}
             os_ok = bound and valid and build_valid and all(by_name.get(n, {}).get("outcome") == outcome
                     and by_name[n].get("preserved") is True and by_name[n].get("axis") == "os_enforcement"
                     for n, outcome in os_required.items())
             if request.get("provider") == "codex_cli":
                 enforcement["status"] = "pass" if os_ok else "unproven"
-                if request["target"]["role"] == "main":
-                    enforcement["limitations"].append("Main canonical write-open checks prove role access, not denial outside the approved workspace or effective profile selection")
+                enforcement["limitations"].append("Full-access write-open observations do not prove role ownership, sandbox isolation or effective config selection")
             else:
                 enforcement["limitations"].append("Claude tool/managed deny must be observed at its native tool surface; Python write-open does not establish that boundary")
     complete = native_ok and report_ok and domain["status"] == "pass"
@@ -448,8 +444,8 @@ def build_request(topology: str, manifest_path: str, *,
     if phase == "permissions":
         if not model:
             raise SystemExit("[canary] FAIL: permissions phase requires explicit --model")
-        if provider == "codex_cli" and (sandbox_mode or permission_profile != "vllm-" + target_role):
-            raise SystemExit("[canary] FAIL: permissions phase requires the exact named role profile, no legacy sandbox")
+        if provider == "codex_cli" and (sandbox_mode or permission_profile != ":danger-full-access"):
+            raise SystemExit("[canary] FAIL: permissions phase requires :danger-full-access, no legacy sandbox")
         request["task"] = _permission_task(topology, request["target"], secrets.token_hex(16), provider)
         request["capabilities"] = ["read", "execute", "edit", "write"]
         if provider == "claude_code":

@@ -1218,6 +1218,63 @@ def load_report(repo_root: str, att: dict):
         return (json.load(f) or {}).get("report")
 
 
+def reuse_completed_handoff(a, doc: dict, lp: str) -> bool:
+    """Accept a completed result without dispatching a verification worker.
+
+    An observed handoff issue takes the existing explicit feedback path. This
+    guard owns neither native execution outcomes nor a second completion ledger.
+    """
+    if getattr(a, "campaign_control", None) or not (doc.get("attempts") or []):
+        return False
+    last = doc["attempts"][-1]
+    if (last.get("status") != "completed" or last.get("control_status") != "completed"
+            or not last.get("sub_reported") or codex_recovery_requirement(last)):
+        return False
+    if getattr(a, "handoff_issue", None):
+        return False
+    # A declared new campaign input is actual new work, not a repeat check.
+    prior_axis = last.get("control_variables_echo")
+    if prior_axis is not None and doc.get("control_variables") != prior_axis:
+        return False
+    topology = getattr(a, "topology", None)
+    if topology and topology != doc.get("topology"):
+        raise SystemExit("[relay] HANDOFF_RESULT_SCOPE_MISMATCH: topology differs")
+    manifest = getattr(a, "manifest", None)
+    if manifest and os.path.realpath(manifest) != os.path.realpath(doc.get("manifest") or ""):
+        raise SystemExit("[relay] HANDOFF_RESULT_SCOPE_MISMATCH: manifest differs")
+    blockers = continuation_stop_reasons(doc)
+    if resume_blockers(pending_for(a.repo_root, a.context_id)):
+        blockers.append("existing blocking request remains")
+    if blockers:
+        raise SystemExit("[relay] HANDOFF_RESULT_UNAVAILABLE: " + "; ".join(blockers))
+    try:
+        expected = (Path(lp).resolve().with_suffix(".reports") /
+                    ("attempt-%02d.json" % last["attempt"])).relative_to(Path(a.repo_root).resolve())
+        if last.get("report_path") != expected.as_posix():
+            raise ValueError("report does not belong to this context/attempt")
+        stored = json.loads(_owned_artifact(a.repo_root, last["report_path"]).read_text(encoding="utf-8"))
+        report = stored["report"]
+        schema = _agent_control._load_schema(
+            _agent_control.RUNTIME_DIR.parent / "sub_node" / "task-report.schema.json")
+        if (_agent_control._schema_violations(report, schema) or report.get("status") != "completed"
+                or report.get("context_id") != a.context_id
+                or (doc.get("campaign_node") and report.get("node_id") != doc["campaign_node"])):
+            raise ValueError("completed report scope/schema differs")
+    except (OSError, ValueError, KeyError, TypeError, UnicodeError) as exc:
+        raise SystemExit("[relay] HANDOFF_RESULT_UNAVAILABLE: " + str(exc)) from exc
+    decision = {"action": "reuse_completed_result", "reason": "no_new_handoff_issue",
+                "context_id": a.context_id, "source_attempt": last["attempt"],
+                "report_path": last["report_path"], "execution_started": False,
+                "continue_workflow": True}
+    persist = not getattr(a, "emit_only", False) and (
+        not getattr(a, "continue_", False) or getattr(a, "apply", False))
+    if persist and doc.get("handoff_reuse") != decision:
+        doc["handoff_reuse"] = decision
+        save_ledger(lp, doc)
+    print(json.dumps({**decision, "report": report}, ensure_ascii=False))
+    return True
+
+
 def _instruction_scope(doc: dict) -> dict:
     return {key: doc.get(key) for key in ("context_id", "campaign_id", "topology",
                                          "campaign_node", "campaign_context_kind", "campaign_cell",
@@ -1927,6 +1984,95 @@ def _supervise_resume(a, lp: str, doc: dict, secs, why: str) -> int:
     return run_attempt(a, doc, lp, task, bud, lks.get("session_id") or "new")
 
 
+def _self_test_handoff_reuse(chk):
+    """Exercise the real CLI routing with a local returned report; no worker runs."""
+    import copy
+    import io
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    global _RELAY_CAMPAIGN
+    previous_campaign = _RELAY_CAMPAIGN
+    _RELAY_CAMPAIGN = None
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            ctx = "handoff-test"
+            lp = ledger_path(td, ctx)
+            rel = str((Path(lp).with_suffix(".reports") / "attempt-01.json").relative_to(td))
+            report = {"task_id": "task-1", "context_id": ctx, "turn": 1, "phase": "publish",
+                      "status": "completed", "node_id": "sub", "running_services": [],
+                      "self_verification": {"checks_run": ["identity", "schema_valid"], "identity_ok": True},
+                      "artifacts": [{"kind": "report", "path": "docs/testlog/result.md"}]}
+            _atomic_json(str(Path(td) / rel), {"report": report})
+            att = {"attempt": 1, "status": "completed", "control_status": "completed",
+                   "sub_reported": True, "context_id_reported": ctx, "report_path": rel,
+                   "running_services": [], "provider": "claude_code", "session_id": "original-native",
+                   "execution_started": True, "reason_codes": [], "budget_outcome": "within_budget"}
+            base = {"context_id": ctx, "topology": "single", "campaign_node": "sub",
+                    "manifest": str(Path(td) / "manifest.yaml"), "attempts": [att]}
+            a = SimpleNamespace(repo_root=td, context_id=ctx, topology="single", manifest=None,
+                                campaign_control=None, handoff_issue=None, continue_=True,
+                                apply=False, emit_only=False)
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                reused = reuse_completed_handoff(a, copy.deepcopy(base), lp)
+            got = json.loads(output.getvalue())
+            chk(reused and got["report"] == report and got["execution_started"] is False
+                and got["continue_workflow"], "handoff: return the original report without native execution")
+
+            def rejected(doc, args=a):
+                try:
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        reuse_completed_handoff(args, doc, lp)
+                except SystemExit:
+                    return True
+                return False
+
+            chk(rejected({**base, "inflight": {"dispatch_id": "running"}}),
+                "handoff: unresolved execution is not hidden by reuse")
+            wrong = copy.copy(a)
+            wrong.topology = "multi"
+            chk(rejected(copy.deepcopy(base), wrong), "handoff: other topology cannot reuse this report")
+            _atomic_json(str(Path(td) / rel), {"report": {**report, "context_id": "other"}})
+            chk(rejected(copy.deepcopy(base)), "handoff: wrong report context is not accepted")
+            _atomic_json(str(Path(td) / rel), {"report": report})
+            changed = copy.deepcopy(base)
+            changed["attempts"][0]["control_variables_echo"] = {"model": "old"}
+            changed["control_variables"] = {"model": "new"}
+            chk(not reuse_completed_handoff(a, changed, lp), "handoff: changed declared inputs require actual work")
+            failed = copy.deepcopy(base)
+            failed["attempts"][0]["status"] = "failed"
+            chk(not reuse_completed_handoff(a, failed, lp), "handoff: failed work is not reused as success")
+
+            module = sys.modules[__name__]
+            cli = ["relay.py", "--repo-root", td, "--context-id", ctx]
+            runner = [{"name": "fixture", "provider": "claude_code", "backend": "anthropic", "model": "sonnet"}]
+            with patch.object(module, "resolve_ladder", return_value=runner), \
+                    patch.object(module, "resolve_campaign_axis", return_value=(None, None)):
+                for flags in (["--continue", "--apply"], ["--topology", "single", "--task", "다시 전부 검증"]):
+                    Path(lp).unlink(missing_ok=True)
+                    save_ledger(lp, copy.deepcopy(base))
+                    with patch.object(sys, "argv", cli + flags), \
+                            patch.object(module, "run_attempt", side_effect=AssertionError("worker must not start")), \
+                            contextlib.redirect_stdout(io.StringIO()):
+                        rc = _main()
+                    saved = load_ledger(lp)
+                    chk(rc == 0 and saved["attempts"] == base["attempts"]
+                        and saved["handoff_reuse"]["execution_started"] is False,
+                        "handoff CLI: suppress completed-context reissue without attempt or runner failure")
+                Path(lp).unlink(missing_ok=True)
+                save_ledger(lp, copy.deepcopy(base))
+                with patch.object(sys, "argv", cli + ["--topology", "single", "--task", "해당 항목을 정정하라",
+                                  "--handoff-issue", "docs/testlog/result.md#F03 실제 모순",
+                                  "--max-turns", "2", "--timeout-seconds", "30", "--budget-source", "fixture",
+                                  "--resume", "new"]), \
+                        patch.object(module, "run_attempt", return_value=73) as dispatch:
+                    rc = _main()
+                chk(rc == 73 and dispatch.call_count == 1 and "F03" in dispatch.call_args.args[3],
+                    "handoff CLI: observed issue follows the existing explicit feedback path")
+    finally:
+        _RELAY_CAMPAIGN = previous_campaign
+
+
 def _self_test() -> int:
     ok = True
 
@@ -1934,6 +2080,8 @@ def _self_test() -> int:
         nonlocal ok
         print("  [%s] %s" % ("PASS" if cond else "FAIL", label))
         ok = ok and bool(cond)
+
+    _self_test_handoff_reuse(chk)
 
     BUD25 = turn_budget.declare(25, 1800, source="선언: 자체검사 픽스처")
     with tempfile.TemporaryDirectory() as d:
@@ -3375,6 +3523,7 @@ def _main() -> int:
                          "코드가 대신 정하지 않는다(2026-09-05 · 축 F).")
     ap.add_argument("--task", help="서브에 보낼 지시(또는 --task-file)")
     ap.add_argument("--task-file")
+    ap.add_argument("--handoff-issue", help="반환 결과에서 발견한 실제 인계 문제와 근거 위치; 명시적인 정정 Task와 함께 사용")
     ap.add_argument("--continue", dest="continue_", action="store_true",
                     help="원장의 중단점에서 이어간다 — 본문을 기계가 조립한다. 기본 dry-run.")
     ap.add_argument("--apply", action="store_true",
@@ -3420,6 +3569,9 @@ def _main() -> int:
         ap.error("--task and --task-file are mutually exclusive")
     if a.continue_ and a.task:
         ap.error("--continue accepts --task-file, not --task")
+    if a.handoff_issue is not None:
+        if not a.handoff_issue.strip() or not (a.task or a.task_file):
+            ap.error("--handoff-issue requires an observed issue and an explicit correction task")
     if a.supervise_step and (a.task or a.task_file):
         ap.error("--supervise-step does not accept task input")
     if a.reconcile_result and not a.reconcile_inflight:
@@ -3466,6 +3618,9 @@ def _main() -> int:
     if a.control_variables:
         doc["control_variables"] = a.control_variables
 
+    if (a.continue_ or a.task or a.task_file) and reuse_completed_handoff(a, doc, lp):
+        return 0
+
     if a.continue_:
         # 이어가기에 필요한 것은 전부 **원장**에서 온다 — 사람이 다시 적지 않는다.
         if not (doc.get("attempts") or []):
@@ -3487,7 +3642,8 @@ def _main() -> int:
         # ── 정지 조건. 예산·전진 수는 **보여주고**, 멈출지는 --apply(승인 정문)가 정한다.
         stalled = stalled_attempts(doc)
         last = next((x for x in reversed(doc["attempts"]) if _reached_sub(x)), None)
-        if last and last.get("status") == "completed" and not codex_recovery_requirement(last):
+        if (last and last.get("status") == "completed" and not codex_recovery_requirement(last)
+                and not a.handoff_issue and not getattr(a, "_historical_control_variables", None)):
             raise SystemExit("[relay] STOP: 직전 attempt 가 completed 다 — 이을 중단점이 없다.\n"
                              "  → 새 과업이면 새 --context-id 로 `--task` 를 연다.")
         if last:
@@ -3536,6 +3692,8 @@ def _main() -> int:
         else:
             a._continuation_source_attempt = continuation_instruction(a.repo_root, doc)["attempt"]
             task = assemble_continuation(a.repo_root, doc, pend)
+        if a.handoff_issue:
+            task = "[실제 인계 문제의 정정·설명 요청] " + a.handoff_issue + "\n" + task
         _last_out = (last or {}).get("budget_outcome")
         if not a.apply:
             # dry-run 은 **사실만** 보여준다 — 예산도 재개도 이 화면을 본 쪽이 선언한다.
@@ -3629,6 +3787,8 @@ def _main() -> int:
             task = f.read()
     if not task:
         raise SystemExit("[relay] --task 또는 --task-file 필수")
+    if a.handoff_issue:
+        task = "[실제 인계 문제의 정정·설명 요청] " + a.handoff_issue + "\n" + task
     a.manifest_path = a.manifest or os.path.join(REPO, "output", a.topology, "manifest.yaml")
     _timeout, _src = a.timeout_seconds, a.budget_source or ""
     if a.budget_from_phase and _timeout is None:

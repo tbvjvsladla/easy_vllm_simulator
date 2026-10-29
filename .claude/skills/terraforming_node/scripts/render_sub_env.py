@@ -184,6 +184,7 @@ RUNTIME_BLOCK_EXCLUDES = {
 #   `orchestration.topology.md` 는 여기 없다 — `terraforming_node` 자체가 서브로 가지 않기 때문이고,
 #   그것은 결함이 아니라 의도다(오케스트레이션은 메인의 일이다).
 TOPOLOGY_RULES = os.path.join(REPO, ".claude", "rules", "strategy.topology.md")
+HANDOFF_REFERENCE = os.path.join(REPO, ".claude", "policies", "handoff_exception.topology.md")
 DOC_SKELETONS = os.path.join(SKILL_DIR, "templates", "document_skeletons")  # 배포 포함 docs/*/example.md 정본(D12)
 RECIPE_REFERENCE = os.path.join(REPO, ".claude", "skills", "wiki-desk", "reference", "references.md")
 
@@ -404,6 +405,9 @@ def support_delivery(tool_plane) -> list:
     캠페인 도구 + 계약 리더는 모든 서브에, 사서 참조 발췌는 recipe 스킬이 가는 서브에만."""
     out = [f".claude/skills/terraforming_node/scripts/{t}" for t in
            CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES]
+    if (os.path.isfile(TOPOLOGY_RULES) and "handoff_exception.topology.md" in
+            pathlib.Path(TOPOLOGY_RULES).read_text(encoding="utf-8")):
+        out.append(".claude/policies/handoff_exception.topology.md")
     # 사서 참조 발췌(references.md)는 2026-10-19 부터 wiki-desk 런타임블럭이 통째로 싣는다 — 지원 배달분이 아니다.
     if "hint-publisher" in tool_plane:
         # 엔진 의존 + 장착 판정 도구(2026-10-11 · plan_26101104 Step 3). render_tree 의 (3.5) 와 같은 규칙.
@@ -554,15 +558,6 @@ def validate_hint_write_scopes(ph: dict, declaration: dict | None) -> dict:
     return {**declaration, "status": "declared", "write_paths": list(dict.fromkeys(map(str, writes)))}
 
 
-def hint_write_scopes_toml(scopes: dict) -> str:
-    """Quoted TOML keys preserve literal paths; a declaration never adds workspace roots."""
-    if scopes["status"] != "declared":
-        return "# External hint write scopes are not declared; publication readiness is unverified."
-    return ("# Explicit single-sub hint paths; observation and approval remain in the input declaration.\n"
-            "[permissions.vllm-sub.filesystem]\n" +
-            "\n".join(json.dumps(p, ensure_ascii=False) + ' = "write"' for p in scopes["write_paths"]))
-
-
 def load_hint_write_scopes(path: str | None) -> dict | None:
     if path is None:
         return None
@@ -619,7 +614,6 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     `output/<topology>/manifest.yaml`.
     """
     scopes = validate_hint_write_scopes(ph, hint_write_scopes)
-    ph = {**ph, "HINT_EXTERNAL_WRITE_TOML": hint_write_scopes_toml(scopes)}
     if os.path.isdir(out_dir):
         shutil.rmtree(out_dir)
     claude = os.path.join(out_dir, ".claude")
@@ -719,6 +713,13 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     if os.path.isfile(TOPOLOGY_RULES):
         shutil.copyfile(TOPOLOGY_RULES, os.path.join(claude, "rules", "strategy.topology.md"))
         produced.append(".claude/rules/strategy.topology.md")
+        # Shared policy reference, not the main-only orchestration skill. Keep
+        # exception details outside rules so they are read only on an issue.
+        if "handoff_exception.topology.md" in pathlib.Path(TOPOLOGY_RULES).read_text(encoding="utf-8"):
+            target = os.path.join(claude, "policies", "handoff_exception.topology.md")
+            os.makedirs(os.path.dirname(target), exist_ok=True)
+            shutil.copyfile(HANDOFF_REFERENCE, target)
+            produced.append(".claude/policies/handoff_exception.topology.md")
 
     # recipe.py 가 읽는 references.md 는 wiki-desk 런타임블럭(아래 3)이 싣는다(2026-10-19 · 사서가 두 토폴로지에 간다).
     #   런타임블럭 복제를 끈 렌더(self-test 등)에는 오지 않는다 — 그 경로는 배달이 아니라 렌더 검사다.
@@ -1234,16 +1235,10 @@ def _self_test() -> int:
         import tomllib
         with open(os.path.join(_out, ".codex/config.toml"), "rb") as f:
             _codex = tomllib.load(f)
-        _cp = _codex["permissions"]["vllm-sub"]
-        _fs = _cp["filesystem"][":workspace_roots"]
-        _identity_ro = all(_fs.get(p) == "read" for p in
-                           ("AGENTS.md", "CLAUDE.md", "Agent_Card.json", ".claude", ".agents", ".codex"))
-        _kit_ro = _fs.get(f"output/{_topo}/Dockerfile") == "read"
-        _codex_ok = (_codex.get("default_permissions") == "vllm-sub"
-                     and "sandbox_mode" not in _codex and _cp.get("extends") == ":workspace"
-                     and _identity_ro and _fs.get(".git") == "write" and _kit_ro != _want_allow
-                     and (_cp["filesystem"].get("~/.docker/buildx") == {"activity": "write", "refs": "write"}) == _want_allow
-                     and (_fs.get(".claude/skills/vllm-recipe-explorer/feedback") == "write") == _want_allow)
+        _codex_ok = (_codex.get("default_permissions") == ":danger-full-access"
+                     and _codex.get("approval_policy") == "never"
+                     and not any(k in _codex for k in
+                                 ("permissions", "sandbox_mode", "sandbox_workspace_write")))
         _c = ((_in_allow == _want_allow) and (_in_deny != _want_allow) and _no_marker and _common
               and _no_write_rule and _codex_ok)
         print(f"  [{'PASS' if _c else 'FAIL'}] 권한 평면 {_topo}({_label}): "
@@ -1582,6 +1577,9 @@ def main() -> int:
     # 특화헌법 ↔ 통로 대조는 **어떤 읽기·쓰기보다 먼저**다(⑧-pre D2 S6) -- 막히면 스테이징 트리를 만들지도 않는다.
     #   정상 차단이다: 우회 인자 없음. 해소는 그 토폴로지 브랜치를 체크아웃한 트리에서 도는 것뿐이다.
     _mismatch = topology_rules_mismatch(args.topology)
+    if (not _mismatch and "handoff_exception.topology.md" in
+            pathlib.Path(TOPOLOGY_RULES).read_text(encoding="utf-8")):
+        _mismatch = topology_rules_mismatch(args.topology, HANDOFF_REFERENCE)
     if _mismatch:
         print(f"[render] STOP(TOPOLOGY_RULES_MISMATCH): {_mismatch}\n"
               f"        해소: '{args.topology}' 토폴로지 브랜치를 체크아웃한 트리에서 --topology {args.topology} 로 렌더하라"

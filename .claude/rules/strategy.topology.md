@@ -36,6 +36,15 @@
 - **서브도 자기 manifest 를 갖는다** — 메인 terraforming 이 실측·생성·배달하며(`self_role: sub` ·
   Flag `issued_by: main`), `Agent_Card` 는 A2A 평면 계약이지 HW 사실의 자리가 아니다.
 
+## 결과 인수
+
+서브는 기존 workflow 안에서 자기 검증을 마치고 문서로 반환한다. 메인은 정상 결과를 인수해 자기
+오케스트레이션·카탈로그 업무를 수행하며, 같은 일을 표본·전수로 다시 검증하지 않는다. 실제 문제가
+드러나면 해당 항목의 설명·정정을 서브에 요청하고 수정된 결과를 인수한다.
+
+반환 결과에서 실제 인계 문제가 드러난 경우에만 해당 토폴로지의 예외 처리 참조를 읽는다.
+참조: [싱글 인계 예외](../policies/handoff_exception.topology.md).
+
 ## 배달 평면은 dormant · 오버레이만 열린다
 
 - S2.5 의 **빌드킷 평면은 이 브랜치에서 dormant** 다(`node_role_contract` 의 `delivery_plane` 판정).

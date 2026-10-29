@@ -172,10 +172,9 @@
     "permission_profile": {
       "type": "string",
       "enum": [
-        "vllm-main",
-        "vllm-sub"
+        ":danger-full-access"
       ],
-      "description": "Named configured permission profile. No legacy sandbox override or policy fallback."
+      "description": "Built-in permission profile shared by main and sub. No legacy sandbox override or policy fallback."
     },
     "resume_binding": {
       "type": "object",
@@ -234,10 +233,9 @@
         "permission_profile": {
           "type": "string",
           "enum": [
-            "vllm-main",
-            "vllm-sub"
+            ":danger-full-access"
           ],
-          "description": "Named configured permission profile. No legacy sandbox override or policy fallback."
+          "description": "Built-in permission profile shared by main and sub. No legacy sandbox override or policy fallback."
         }
       },
       "description": "Must equal the resumed provider, exact target and permission selection; checked by agent_control."

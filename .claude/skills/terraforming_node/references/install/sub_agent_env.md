@@ -44,7 +44,7 @@
 | `CLAUDE.md` | 페르소나(Karpathy B1–B4, **노드정체성 bake**, 자율 triplet 저작 + 자기교정) | 렌더(gitignored) |
 | `AGENTS.md` | 같은 역할 헌법·통신·리포트로 연결하는 Codex 진입문서 | 역할별 렌더 |
 | `.agents/skills/*/SKILL.md` | canonical `.claude/skills`를 가리키는 얇은 발견 wrapper | `node_role_contract.tool_plane`이 지목한 스킬만 복제 |
-| `.codex/config.toml` · `.codex/rules/sub.rules` | `vllm-sub` named permission profile·직접 argv 차단 보조층 | 역할별 렌더 + 정적 rules 복제 |
+| `.codex/config.toml` · `.codex/rules/sub.rules` | main/sub 공통 `:danger-full-access` 기본값·직접 argv 차단 보조층 | 공통 권한 렌더 + 정적 rules 복제 |
 | `Agent_Card.json` | A2A 능력카드(skills[]·노드정체성) | 렌더(gitignored) |
 | `.claude/settings.local.json` | **스코프드** 권한(블랭킷 ✗) | 렌더(gitignored) |
 | `.claude/skills/vllm-recipe-explorer/` | 런타임블럭(git-tracked만) | 복제 |
@@ -167,10 +167,11 @@ HW Flag가 FRESH여도 하네스/권한/신뢰 변경 시 이 절로 부분 재�
 `bootstrap_canary.py --phase discovery`의 읽기 확인만으로 업무 권한 준비를 선언하지 않는다.
 `--phase permissions --target main|sub`의 실제 도구 실행 증거·schema·역할 업무를 확인한다. single의 외부
 hint clone/git/common-dir은 명시 관측·기존 승인에 결속한 `--hint-write-scopes`를 renderer와 공식 sync에 넘긴다.
-미지정은 과거 렌더 호환일 뿐 hint 발행 권한 확인이 아니다. multi에 같은 범위를 추가하지 않는다.
+이 기록은 대상·승인 결속이며 Codex filesystem 허용 목록을 생성하지 않는다. 미지정은 hint 발행 준비의 증거가 아니다. multi에 같은 발행 범위를 추가하지 않는다.
 
-서브의 bwrap/AppArmor 기동 실패는 환경 전제조건 결손이다. 정본 request 템플릿은
-`templates/requests/codex_linux_sandbox.md`이며, 정상 환경에 불필요한 sudo 설치를 요구하지 않는다.
+Codex 설치 기본값은 main/sub 모두 `default_permissions = ":danger-full-access"`이며 별도 역할 프로필과
+bwrap/AppArmor 설치를 요구하지 않는다. bwrap 기동 실패는 실제 선택·legacy override·신뢰 로딩을 먼저
+진단한다. 설정 진단 request 경로는 `templates/requests/codex_linux_sandbox.md`다.
 운영자 설치 완료·실제 native 권한·A2A 왕복·캠페인 Full/hint는 서로 별개의 완료 조건이다.
 
 ### 2.7.10 Agent_Card v2 (A2A 1.0.1) · 서브 manifest (신설 2026-09-05 · `plan_26090516` §7.2–7.3 · H1)

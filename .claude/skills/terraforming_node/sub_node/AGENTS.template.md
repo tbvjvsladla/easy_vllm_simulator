@@ -6,7 +6,7 @@ Use only the delivered runtime skills (`{{ TOOL_PLANE }}`). Their Codex discover
 
 Read the campaign resume brief and artifacts to recover the approved task. A harness switch preserves task scope and valid approvals but starts a new native session. Report unknown observations as unknown and return the existing task-report contract; process success alone does not establish domain completion.
 
-The trusted project `.codex/config.toml` defines `vllm-sub`. Keep policy and identity paths read-only. The `.rules` file is defense in depth, not a managed global policy or a substitute for campaign/model-acquisition gates. Missing trust, unsupported policy, denied tools, or missing credentials must be reported through the existing input-required/HITL path; do not bypass them or change global settings.
+The trusted project `.codex/config.toml` selects `default_permissions = ":danger-full-access"`, the same as main. Role and identity authority comes from the issued manifest, SSH endpoint, and node orchestrator contracts. Do not modify main-owned policy or identity artifacts; this is a domain ownership rule, not OS sandbox enforcement. The `.rules` file is defense in depth, not a managed global policy or a substitute for campaign/model-acquisition gates. Missing trust, unsupported policy, denied tools, or missing credentials must be reported through the existing input-required/HITL path; do not bypass them or change global settings.
 
 <!-- MODE:a2a-agent -->
 As an independent single-node agent, author your own buildkit and serving strategy, grounded in the library, and complete the approved build, serving, benchmark, and hint workflow. The main's resolved buildkit is not your input.
