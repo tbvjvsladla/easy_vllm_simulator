@@ -1,0 +1,698 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26090918",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/plan/plan_26090918_qwen38_flashnext_multi_딥캠페인.md",
+      "role": "plan"
+    },
+    {
+      "date": "26090919",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26090919_qwen38fn_p0_build_delivery.md",
+      "role": "plan"
+    },
+    {
+      "date": "26090919",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26090919_qwen38fn_p0_build_delivery.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26090919",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26090919_qwen38fn_p0_build_delivery.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26090921",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26091001",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26091001",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26091001_qwen38fn_phase0_자체이식3종_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26091006",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26091006_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26091008",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/sweep_map_26091008_nv4-262k-mmp-levers.md",
+      "role": "sweep_map"
+    },
+    {
+      "date": "26091008",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/sweep_map_26091008_nv4-262k-res.md",
+      "role": "sweep_map"
+    },
+    {
+      "date": "26091008",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/sweep_map_26091008_nv4-262k-res_l0-base.md",
+      "role": "sweep_map"
+    },
+    {
+      "date": "26091008",
+      "depth": 3,
+      "excerpts": 0,
+      "path": "docs/benchmark/sweep_map_26091008_nv4-f8-262k-mmp-levers.md",
+      "role": "sweep_map"
+    },
+    {
+      "date": "26091009",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26091009_qwen38fn_24셀_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26091009",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26091009_qwen38fn_24셀_캠페인종합_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26091009",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/report/perf_26091009_qwen38fn_24cells_종합.md",
+      "role": "report"
+    },
+    {
+      "date": "26091011",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26091011_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26091108",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26091108_qwen38fn_22셀_재수행_캠페인.md",
+      "role": "plan"
+    },
+    {
+      "date": "26091108",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26091108_캠페인재수행_선행_하네스교정.md",
+      "role": "plan"
+    },
+    {
+      "date": "26091109",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26091109_하네스교정_R0R10_역채점_음성대조.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26091114",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26091114",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26091114_qwen38fn_22셀재수행_7셀체크포인트_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26091114",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/report/perf_26091114_qwen38fn_22셀재수행_7셀체크포인트.md",
+      "role": "report"
+    },
+    {
+      "date": "26091117",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26091117_qwen38fn_22셀재수행_512k그룹완료체크포인트_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26091117",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26091117_qwen38fn_22셀재수행_512k그룹완료체크포인트_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26091117",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/report/perf_26091117_qwen38fn_22셀재수행_512k그룹완료체크포인트.md",
+      "role": "report"
+    },
+    {
+      "date": "26091121",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26091121_qwen38fn_22셀재수행_캠페인완주_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26091121",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26091121_qwen38fn_22셀재수행_캠페인완주_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26091121",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/report/perf_26091121_qwen38fn_22셀재수행_캠페인완주.md",
+      "role": "report"
+    },
+    {
+      "date": "26091122",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/report/perf_26091122_qwen38fn_24전략_종합리포트.md",
+      "role": "report"
+    },
+    {
+      "date": "26091216",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26091216_qwen38fn_res최소조건_후속캠페인.md",
+      "role": "plan"
+    },
+    {
+      "date": "26091223",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26091223_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26091304",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26091304_qwen38fn_res최소조건_262k재발행_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26091304",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26091304_qwen38fn_res최소조건_후속캠페인.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26091304",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26091304_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26091305",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/report/perf_26091305_qwen38fn_res최소조건_후속캠페인.md",
+      "role": "report"
+    },
+    {
+      "date": "26091314",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/report/perf_26091314_qwen38fn_rtxpro6000x2_네이티브_14셀_종합.md",
+      "role": "report"
+    },
+    {
+      "date": "26091322",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/report/perf_26091322_qwen38fn_rtxpro6000x2_네이티브_10셀_동시성곡선.md",
+      "role": "report"
+    },
+    {
+      "date": "26091323",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/report/audit_26091323_qwen38fn_네이티브_캠페인_감사.md",
+      "role": "report"
+    },
+    {
+      "date": "26091412",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26091412_하네스교정_항목1_acceptlen승계_소급재판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26092119",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26092119_hint_publisher_재구성_계보서사_셀단위발행_E2E.md",
+      "role": "plan"
+    },
+    {
+      "date": "26092223",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26092223_hint_publisher_재구성_S1S5_오프라인재생_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26092300",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26092300_hint_publisher_G1G3_통합판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26092300",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26092300_hint_publisher_G1G3_실행서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26092310",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26092310_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26092310",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26092310_56_16_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26092311",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26092311_native_분산서빙_정문_구현_N1.md",
+      "role": "plan"
+    },
+    {
+      "date": "26092311",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26092311_hint_publisher_G3_D2_lite_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26092311",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26092311_hint_publisher_G3_D1발행_D2_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26092317",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26092317_native_N1_분산서빙_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26092317",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26092317_native_N1_구현_라이브_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26092317",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26092317_qwen3.8-flash-next-nvfp4_GB10_0.29.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26100107",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26100107_vllm030_bump_서브지침배달_멀티싱글_E2E캠페인.md",
+      "role": "plan"
+    },
+    {
+      "date": "26100109",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26100109_v030_멀티_q38fn_fullbench_서브지침배달_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26100109",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26100109_qwen3.8-flash-next-nvfp4_GB10_0.30.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26100111",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26100111_vllm030_bump_서브지침배달_멀티싱글_E2E_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26101011",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101011_벤치_knob_프리셋_자산화.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101013",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101013_qwen3.8-flash-next-nvfp4_GB10_0.30.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26101017",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101017_knob_E2E_hint발행.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101017",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101017_knob프리셋_E2E_셀M1_q38fn030_nv4_res_262k_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101017",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101017_knob프리셋_E2E_셀M1_q38fn030_nv4_res_262k.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26101104",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101104_hint발행체제_개편_서브자체발행.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101108",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101108_hint발행체제_개편_서브자체발행_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102401",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102401_4모델_싱글멀티_최대context_양자화_기동검증.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102406",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102406_q38fn_nv4_싱글_사전판정_불가_멀티이관.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102412",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102412_4모델_멀티캠페인_Solar_Qwen_TP2_최대context.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102412",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102412_q38fn_fp8_싱글_사전판정_불가_멀티이관.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102414",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102414_q38fn_nv4_멀티_TP2_1M_YaRN_기동_needle_lite_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102418",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102418_4모델_싱글멀티_연속캠페인_결과요약_종결.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102420",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102420_PLE_mmap_재이식_full벤치_hint_Solar_슬롯화.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102420",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102420_PLE_mmap_0.31.0_재이식_S1_선판정_런타임패치_슬롯_정정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102504",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102504_S5_full벤치_5셀_GuideLLM_판정_및_하네스_결함.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102504",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26102504_PLE_mmap_재이식_full벤치_hint발행_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102505",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102505_qwen3.8-flash-next-fp8_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26102510",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102510_qwen3.8-flash-next-fp8_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26102510",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102510_qwen3.8-flash-next-nvfp4_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26102511",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102511_qwen3.8-flash-next-nvfp4_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26102700",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102700_코덱스_싱글8종_멀티4종_실측.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102707",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102707_멀티_캠페인_후보_사전검토.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102919",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102919_멀티4종_v032_완주.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102919",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26102919_멀티032_진행_체크포인트.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102920",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26102920_Qwen032_CUTLASS_Full_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102920",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102920_Qwen032_MoE_대안_정적지원.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102920",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102920_qwen3.8-flash-next-nvfp4_GB10_0.32.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26102921",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102921_Qwen032_Marlin_Full_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102921",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102921_qwen3.8-flash-next-nvfp4_GB10_0.32.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26102923",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102923_qwen3.8-flash-next-nvfp4_GB10_0.32.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26103000",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26103000_Qwen032_유효Full과_발행후보_선택.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26103000",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26103000_Qwen032_경로탐색과_B_인계.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26103000",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26103000_11_58_GuideLLM_요청지연_단위_교정.md",
+      "role": "testlog"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [],
+    "count": 399
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 경로(발췌 머리 stem = 파일명) · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26103000",
+  "schema_version": 3,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26102920_qwen3.8-flash-next-nvfp4_GB10_0.32.0.md",
+      "sha256": "d97f9decbd3e4d710c8b7c7346eb201ad9da52797e83f760ea3a77ca3283c93e"
+    },
+    {
+      "path": "docs/devlog/devlog_26103000_Qwen032_경로탐색과_B_인계.md",
+      "sha256": "39fae15253a57318f7540795637154b2647ffe2e43985063cb59388a955a1510"
+    },
+    {
+      "path": "docs/logs/main/events/2026-10.jsonl",
+      "sha256": "fe182796c77d19065a29d2addddba645fd4fac47bd7a5db02a4c4f90b6754b59"
+    },
+    {
+      "path": "docs/logs/main/events/watchdog.jsonl",
+      "sha256": "a810001428831c14f70c72ddd60a17bf086fc2eb05b02b0c61444d25848f81cc"
+    },
+    {
+      "path": "docs/plan/plan_26090918_qwen38_flashnext_multi_딥캠페인.md",
+      "sha256": "7a1a703591901cfb765ac05f07bacd5cb25bad61ea55df80ea9016b643ae0d64"
+    },
+    {
+      "path": "docs/report/perf_26091122_qwen38fn_24전략_종합리포트.md",
+      "sha256": "fdb13be2b7c63c37672b5cc19534aca22350cc3f60af73a44c45925db5ce690d"
+    },
+    {
+      "path": "docs/testlog/testlog_26090921_p0-1_nvfp4_mixed_패치_스모크_판정.md",
+      "sha256": "d793938ad2b99377b5e7d3db8f34f6971ef3a2a362471cf4e34581eda97cc0f8"
+    },
+    {
+      "path": "docs/testlog/testlog_26091001_p0-2_ple_mmap_p0-3_qsa_fp8kv_스모크_판정.md",
+      "sha256": "96f59551da020b17ae4fe1388c580022a99fd8955cf282029faa75b8da5d336d"
+    },
+    {
+      "path": "docs/testlog/testlog_26091121_qwen38fn_22셀재수행_캠페인완주_판정.md",
+      "sha256": "1bdfd015f35f49e0965c545cb16d7af51576cb4377872ca870f05903eb5a79d9"
+    },
+    {
+      "path": "docs/testlog/testlog_26091304_qwen38fn_res최소조건_262k재발행_판정.md",
+      "sha256": "c2b17b2c6c3cad4874b5b9a74b08f520f441cc9ca1a157571fd5a3d51a80d2bc"
+    },
+    {
+      "path": "docs/testlog/testlog_26102414_q38fn_nv4_멀티_TP2_1M_YaRN_기동_needle_lite_판정.md",
+      "sha256": "f8de7dbd663d5d0056c2fb06b152b122fb59df77dcf83241ee08353a2e7d36f5"
+    },
+    {
+      "path": "docs/testlog/testlog_26102920_Qwen032_CUTLASS_Full_판정.md",
+      "sha256": "4b928913f987ec76e2b8ca886e06d30c37b30ac29a18c0856c34167f6661ec47"
+    },
+    {
+      "path": "docs/testlog/testlog_26102921_Qwen032_Marlin_Full_판정.md",
+      "sha256": "b45ef6e4de02c5a72c2d77d88707affda91321e6444dfbd2459ff7e9c11e29a2"
+    },
+    {
+      "path": "docs/testlog/testlog_26103000_11_58_GuideLLM_요청지연_단위_교정.md",
+      "sha256": "63307512ddeadf606068654b0d08ed1e0ef3142ce15fe61073755a028a7aee79"
+    },
+    {
+      "path": "docs/testlog/testlog_26103000_Qwen032_유효Full과_발행후보_선택.md",
+      "sha256": "1ca9c5b22f93e8398a3090fc40a9214541c262d25e2526621901e0216d0972fe"
+    }
+  ]
+}

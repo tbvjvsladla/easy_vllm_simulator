@@ -1,0 +1,196 @@
+{
+  "provenance": "measured(main local immutable candidate GPU container)",
+  "required_checks": {
+    "tensor_math": true,
+    "vllm._C_stable_libtorch": true,
+    "vllm._moe_C_stable_libtorch": true,
+    "b12x_wrapper_api": true,
+    "source_pin": true,
+    "pip_check": true,
+    "ledger_present": true
+  },
+  "optional_modules": {
+    "flashinfer": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/flashinfer/__init__.py",
+      "version": "0.7.0.post1"
+    },
+    "humming": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/humming/__init__.py",
+      "version": "0.1.17"
+    },
+    "tilelang": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/tilelang/__init__.py",
+      "version": "0.1.12"
+    },
+    "fast_hadamard_transform": {
+      "import_ok": false,
+      "exception": "Traceback (most recent call last):\n  File \"/tmp/main-gpu-probe.py\", line 25, in <module>\n    mod=importlib.import_module(name);out['optional_modules'][name]={'import_ok':True,'file':getattr(mod,'__file__',None),'version':getattr(mod,'__version__',None)}\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/importlib/__init__.py\", line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import\n  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1324, in _find_and_load_unlocked\nModuleNotFoundError: No module named 'fast_hadamard_transform'\n"
+    },
+    "deep_gemm": {
+      "import_ok": false,
+      "exception": "Traceback (most recent call last):\n  File \"/tmp/main-gpu-probe.py\", line 25, in <module>\n    mod=importlib.import_module(name);out['optional_modules'][name]={'import_ok':True,'file':getattr(mod,'__file__',None),'version':getattr(mod,'__version__',None)}\n        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/importlib/__init__.py\", line 90, in import_module\n    return _bootstrap._gcd_import(name[level:], package, level)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen importlib._bootstrap>\", line 1387, in _gcd_import\n  File \"<frozen importlib._bootstrap>\", line 1360, in _find_and_load\n  File \"<frozen importlib._bootstrap>\", line 1324, in _find_and_load_unlocked\nModuleNotFoundError: No module named 'deep_gemm'\n"
+    },
+    "triton_kernels": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/triton_kernels/__init__.py",
+      "version": null
+    },
+    "b12x": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/b12x/__init__.py",
+      "version": null
+    },
+    "b12x.moe.fused_moe": {
+      "import_ok": true,
+      "file": "/usr/local/lib/python3.12/dist-packages/b12x/moe/fused_moe/__init__.py",
+      "version": null
+    },
+    "vllm.utils.b12x": {
+      "import_ok": true,
+      "file": "/workspace/vllm-src/vllm/utils/b12x.py",
+      "version": null
+    }
+  },
+  "source_head": {
+    "rc": 0,
+    "stdout": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+    "stderr": ""
+  },
+  "source_describe": {
+    "rc": 0,
+    "stdout": "v0.32.0",
+    "stderr": ""
+  },
+  "source_dirty": {
+    "rc": 0,
+    "stdout": "M pyproject.toml\n M requirements/build/cpu.txt\n M requirements/build/cuda.txt\n M requirements/build/rock.txt\n M requirements/build/rocm.txt\n M requirements/build/tpu.txt\n M requirements/cpu.txt\n M requirements/cuda.txt\n M requirements/rubin-prerelease.txt\n M requirements/test/cpu.txt\n M requirements/test/cuda.in\n M requirements/test/cuda.txt\n M requirements/test/rocm.in\n M requirements/test/rocm.txt\n M requirements/test/xpu.in\n M requirements/test/xpu.txt\n M requirements/xpu.txt",
+    "stderr": ""
+  },
+  "host_driver": {
+    "rc": 0,
+    "stdout": "580.178.04",
+    "stderr": ""
+  },
+  "distributions": {
+    "vllm": "0.32.1.dev0+g5df63a720.d20261029.cu133",
+    "torch": "2.13.0a0+9186a08b2c.nv26.7.59513937",
+    "ray": "2.48.0",
+    "transformers": "5.19.0",
+    "tokenizers": "0.23.3",
+    "huggingface-hub": "1.33.0",
+    "datasets": "5.0.0",
+    "pytest": "9.2.0",
+    "tilelang": "0.1.12",
+    "flashinfer-python": "0.7.0.post1",
+    "humming-kernels": "0.1.17",
+    "fast-hadamard-transform": null,
+    "b12x": "1.5.1"
+  },
+  "vllm_module_version": "0.32.1.dev0+g5df63a720.d20261029",
+  "torch_cuda": "13.3",
+  "cuda_device": {
+    "name": "NVIDIA GB10",
+    "capability": [
+      12,
+      1
+    ]
+  },
+  "exl3_stock_registry": {
+    "accepted": false,
+    "exception": "Traceback (most recent call last):\n  File \"/tmp/main-gpu-probe.py\", line 29, in <module>\n    q=get_quantization_config('exl3')\n      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/workspace/vllm-src/vllm/model_executor/layers/quantization/__init__.py\", line 114, in get_quantization_config\n    raise ValueError(f\"Invalid quantization method: {quantization}\")\nValueError: Invalid quantization method: exl3\n"
+  },
+  "b12x_wrapper_api": {
+    "symbols": {
+      "ActivationSpec": "type",
+      "BlockQuantWeights": "type",
+      "Caps": "type",
+      "MoEGeometry": "type",
+      "PackedSource": "type",
+      "bind": "function",
+      "is_supported": "function",
+      "plan": "function",
+      "plan_execution": "function",
+      "plan_weights": "function",
+      "prepare_weights": "function",
+      "run": "function"
+    },
+    "vllm_backend_import_ok": true,
+    "scope": "imports and API only; no model MoE kernels executed"
+  },
+  "pip_check": {
+    "rc": 0,
+    "stdout": "No broken requirements found.",
+    "stderr": ""
+  },
+  "ledger": {
+    "base": {
+      "cuda_version": null,
+      "ngc_pytorch_version": "26.07",
+      "pytorch_build_version": "2.13.0a0+9186a08",
+      "source": {
+        "cuda_version": "/usr/local/cuda/version.json",
+        "ngc_pytorch_version": "base-image ENV NVIDIA_PYTORCH_VERSION",
+        "pytorch_build_version": "base-image ENV PYTORCH_BUILD_VERSION"
+      }
+    },
+    "build_args": {
+      "BASE_IMAGE": "easy-vllm:0.32.0-cu133-aarch64-source-deps1",
+      "SM12X_PORT": "0",
+      "SRC_DEPS_AUTHORITY": "0",
+      "VLLM_REF": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+      "VLLM_REPO": "https://github.com/vllm-project/vllm.git"
+    },
+    "context_inventory": {
+      "build_patch_post": [
+        "06-b12x-optional032.sh"
+      ],
+      "build_patch_pre": []
+    },
+    "cpu_arch": "aarch64",
+    "dockerfile": "Dockerfile.source-build-deps2",
+    "errors": {
+      "cuda_version_json": "absent"
+    },
+    "kind": "easy_vllm_build_ledger",
+    "patches": [
+      {
+        "declared_model_trigger": "Generic SM120/SM121 B12X optional backend; no model weights.",
+        "exit_code": 0,
+        "file": "06-b12x-optional032.sh",
+        "log_tail_sha256": "9bc54c5d578c635e088e93c86861a8a09c3efad761f5c6a44b5491c3eb0f63ea",
+        "phase": "post",
+        "reason": "Official vLLM0.32 optional B12X1.5.1 exact wheel; pip check passed; GPU kernels unverified",
+        "result": "applied",
+        "result_source": "status-file",
+        "script_sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15"
+      }
+    ],
+    "pip_freeze_sha256": "4edf940b7baf162b8d64768d6ad3fa79d830d08ae92fcf07ff0a0fc2f796fe27",
+    "provenance": "measured(build-time, in-image)",
+    "requirements_sha256": "4618157b8e50ba411ea9008a1fb2e4d032738bce8a117d3a24e2b9476aa1a6c4",
+    "schema_version": 1,
+    "slots_supported": [
+      "build_patch_post",
+      "build_patch_pre"
+    ],
+    "torch": {
+      "dist_version": "2.13.0a0+9186a08b2c.nv26.7.59513937"
+    },
+    "track": "source-build",
+    "vllm": {
+      "describe": "v0.32.0",
+      "direct_url": {
+        "dir_info": {
+          "editable": true
+        },
+        "url": "file:///workspace/vllm-src"
+      },
+      "dist_version": "0.32.1.dev0+g5df63a720.d20261029.cu133",
+      "git_sha": "5df63a7203cdb9328d824a27b682e77c7b9928be"
+    }
+  },
+  "required_passed": true
+}

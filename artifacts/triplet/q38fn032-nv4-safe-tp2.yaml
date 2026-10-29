@@ -1,0 +1,16 @@
+# Newly grounded candidate for official vLLM0.32.0, not yet served; provenance hand-authored.
+model: /app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4
+host: 0.0.0.0
+port: 8080
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+gpu-memory-utilization: 0.8
+max-model-len: 262144
+kv-cache-dtype: fp8_e4m3
+kv-cache-memory-bytes: 15032385536
+enforce-eager: false
+max-num-seqs: 6
+max-num-batched-tokens: 4096
+engram-config: '{"cpu_offload": false}'
+compilation-config: '{"mode": 0, "cudagraph_mode": "FULL_DECODE_ONLY"}'
+speculative-config: '{"method": "mtp", "num_speculative_tokens": 3}'

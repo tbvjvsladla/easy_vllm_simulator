@@ -1,0 +1,1 @@
+docker build --progress plain --build-arg VLLM_REF=5df63a7203cdb9328d824a27b682e77c7b9928be --build-arg TORCH_CUDA_ARCH=12.1 --build-arg BUILD_JOBS=8 -t easy-vllm:0.32.0-cu133-aarch64-source -f output/multi/Dockerfile.source-build output/multi/cache/v032-stock-build

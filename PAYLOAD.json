@@ -1,0 +1,1732 @@
+{
+  "agent_requests": [],
+  "applied_set": {
+    "excluded": [
+      {
+        "file": ".gitkeep",
+        "phase": "post",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      },
+      {
+        "file": "05-ngc-source032-deps-compat.sh",
+        "phase": "post",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches/05-ngc-source032-deps-compat.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "70-exllamav3-build.sh",
+        "phase": "post",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches/70-exllamav3-build.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "72-exl3-row-store.sh",
+        "phase": "post",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches/72-exl3-row-store.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "73-vllm-exl3-build.sh",
+        "phase": "post",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches/73-vllm-exl3-build.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "74-exl3-moe-prep-fused.sh",
+        "phase": "post",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches/74-exl3-moe-prep-fused.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "75-exl3-python-deps032.sh",
+        "phase": "post",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches/75-exl3-python-deps032.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "79-exl3-port-selfcheck.sh",
+        "phase": "post",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches/79-exl3-port-selfcheck.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": ".gitkeep",
+        "phase": "pre",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      },
+      {
+        "file": "80-exl3-quant-method.sh",
+        "phase": "pre",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/80-exl3-quant-method.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "81-exl3-model-wiring.sh",
+        "phase": "pre",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/81-exl3-model-wiring.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "82-exl3-h2d-stage.sh",
+        "phase": "pre",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/82-exl3-h2d-stage.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "83-engram-file-backend.sh",
+        "phase": "pre",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/83-engram-file-backend.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "84-sm12x-block-shim.sh",
+        "phase": "pre",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/84-sm12x-block-shim.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "85-exl3-serial-streams.sh",
+        "phase": "pre",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/85-exl3-serial-streams.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "86-exl3-worker-hooks.sh",
+        "phase": "pre",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/86-exl3-worker-hooks.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "87-engram-embed-skip.sh",
+        "phase": "pre",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/87-engram-embed-skip.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "88-engram-prestage.sh",
+        "phase": "pre",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/88-engram-prestage.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "89-kv-null-block-zero.sh",
+        "phase": "pre",
+        "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/89-kv-null-block-zero.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+      },
+      {
+        "file": "PROVENANCE.json",
+        "phase": "pre",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      },
+      {
+        "file": "exl3_port_lib.py",
+        "phase": "pre",
+        "why": "nonconforming(<NN>-*.sh 규약 밖 — 싣지 않음)"
+      }
+    ],
+    "patches": [
+      {
+        "declared_model_trigger": "Generic SM120/SM121 B12X optional backend; no model weights.",
+        "file": "06-b12x-optional032.sh",
+        "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger: Generic SM120/SM121 B12X optional backend; no model weights.)",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15",
+        "phase": "post",
+        "reason": "Official vLLM0.32 optional B12X1.5.1 exact wheel; pip check passed; GPU kernels unverified",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15",
+        "shared_image_input": true
+      }
+    ],
+    "per_node_patchsets": {
+      "main": [
+        "post/06-b12x-optional032.sh=applied"
+      ],
+      "sub": [
+        "post/06-b12x-optional032.sh=applied"
+      ]
+    },
+    "probes": [
+      {
+        "ref": "output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json",
+        "result": "observed",
+        "tier": "attestation"
+      }
+    ],
+    "source": "attestation:output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json#main",
+    "status": "observed"
+  },
+  "approval": {
+    "approved_by": "사용자: 마지막 멀티브랜치 4종 캠페인을 공식 vLLM0.32.0으로 고정하고 자율형상/Full3회/hint까지 끝까지 진행",
+    "approved_utc": "2026-10-29T09:57:19Z",
+    "source": "campaign:hint_targets"
+  },
+  "attestation_scope": {
+    "bound_by": "cell-name",
+    "config": "q38fn032-nv4-safe-tp2",
+    "measure_window": {
+      "end_utc": "2026-10-29T11:41:26Z",
+      "source": "시작 output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json measured_utc(호스트 date -u · lite_bench.sh 가 cold 레그 직전에 찍는 측정 시작) · 끝 = 측정 키(인증서 measured_utc · 스윕 generated_utc · lite 리포트 생성일)",
+      "start_utc": "2026-10-29T11:27:11Z"
+    },
+    "path": "output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json",
+    "phase": "serve",
+    "scope": "same config(q38fn032-nv4-safe-tp2) · serve — 측정 뒤 작성된 관측(측정 시점·같은 기동 여부는 시각만으로 미검증 · 파일은 다음 실행이 덮는다)",
+    "timing": "after-measurement",
+    "timing_note": "작성 2026-10-29T11:42:14Z > 측정 끝 2026-10-29T11:41:26Z — 측정 뒤 작성된 관측(측정 시점·같은 기동 여부는 시각만으로 미검증)",
+    "written_utc": "2026-10-29T11:42:14Z",
+    "written_utc_source": "output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json 파일 mtime(파일시스템 관측 — 문서에 시각 칸이 없다 · 기록 필드 아님)"
+  },
+  "bench_definition": {
+    "bench_tool": "guidellm",
+    "bench_tool_source": "bench_report(bench_report_26102920_qwen3.8-flash-next-nvfp4_GB10_0.32.0.md)",
+    "current_full_definition": "full 계측(lite 게이트 → `GuideLLM × 반복 ≥3` · lite ⊂ full)",
+    "meets_current_full": true,
+    "reasons": [
+      "판정점 반복 3 ≥ 3 · 도구 guidellm"
+    ],
+    "repeats_requested": 3,
+    "repeats_source": "측정 구성 표 repeats_completed(완주 · bench_report(bench_report_26102920_qwen3.8-flash-next-nvfp4_GB10_0.32.0.md))",
+    "required_legs": [
+      "lite",
+      "GuideLLM"
+    ],
+    "required_repeats": 3,
+    "source": ".claude/rules/docs.md",
+    "source_line": 42,
+    "this_repeats": 3,
+    "verdict_level": 1
+  },
+  "build": {
+    "cpu_arch": "arm64",
+    "cuda": "13.3.1.008",
+    "dockerfile": "Dockerfile.source-build-deps2",
+    "driver": "580.178.04",
+    "driver_by_node": {
+      "main": "580.178.04",
+      "sub": "580.178.04"
+    },
+    "driver_check": {
+      "declared": "580.178.04",
+      "observation_scope": "이 측정에 결속된 구조화 드라이버 관측 입력",
+      "observed": "580.178.04",
+      "sources": {
+        "declared": "sweep_index.meta.driver_version(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B · 측정 시 조립 — sweep_bench.sh 가 manifest 에서 읽는다) (manifest 선언 옮김)",
+        "observed": "attestation parity.driver(output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json · 노드별 관측 · verdict=equal) — main=sub 일치 · 이 측정 실행과 같은 실행인지 미검증(같은 호스트의 관측) · 작성 2026-10-29T11:42:14Z > 측정 끝 2026-10-29T11:41:26Z — 측정 뒤 작성된 관측(측정 시점·같은 기동 여부는 시각만으로 미검증)"
+      },
+      "verdict": "agree"
+    },
+    "driver_conflict": null,
+    "image_digest": "sha256:8227e7d79471b6b92f21157acfb38c7cc617d1510a5c56f3dec7eb8e48567884",
+    "image_tag": "easy-vllm:0.32.0-cu133-aarch64-source-deps2",
+    "ngc": "26.07",
+    "os": null,
+    "source": {
+      "cpu_arch": "docker image inspect Architecture",
+      "cuda": "docker image inspect Config.Env CUDA_VERSION",
+      "dockerfile": "build-ledger.dockerfile",
+      "driver": "attestation parity.driver(output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json · 노드별 관측 · verdict=equal) — main=sub 일치 · 이 측정 실행과 같은 실행인지 미검증(같은 호스트의 관측) · 작성 2026-10-29T11:42:14Z > 측정 끝 2026-10-29T11:41:26Z — 측정 뒤 작성된 관측(측정 시점·같은 기동 여부는 시각만으로 미검증)",
+      "driver_by_node": "attestation parity.driver(output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json · 노드별 관측 · verdict=equal) — main=sub 일치 · 이 측정 실행과 같은 실행인지 미검증(같은 호스트의 관측) · 작성 2026-10-29T11:42:14Z > 측정 끝 2026-10-29T11:41:26Z — 측정 뒤 작성된 관측(측정 시점·같은 기동 여부는 시각만으로 미검증)",
+      "image_digest": "sweep_index.meta.image_digest(measured(docker inspect .Image))",
+      "image_tag": "셀 env(output/multi/envs/.env.q38fn032-nv4-safe-tp2) IMAGE_TAG",
+      "ngc": "docker image inspect Config.Env NVIDIA_PYTORCH_VERSION",
+      "os": "미관측(attestation·인증서·스윕 meta·manifest 에 ['os', 'os_release', 'os_name', 'os_version', 'kernel', 'kernel_release'] 키 없음 — 지어내지 않는다)",
+      "torch": "docker image inspect Config.Env PYTORCH_VERSION",
+      "track": "artifacts 선택자(build-ledger.dockerfile)",
+      "vllm_describe": "빌드 원장(output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json · attestation) vllm.describe(git describe --tags · 빌드 시점)",
+      "vllm_prev_pin": "output/multi/resolved.json upstream_delta.from_ref(해소 기록)",
+      "vllm_ref": "docker history build-arg VLLM_REF",
+      "vllm_repo": "docker history build-arg VLLM_REPO",
+      "vllm_sha": "VLLM_REF(40자 커밋 · docker history build-arg VLLM_REF)"
+    },
+    "torch": "2.13.0a0+9186a08",
+    "track": "source-build",
+    "vllm_describe": "v0.32.0",
+    "vllm_prev_pin": "v0.31.0",
+    "vllm_ref": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+    "vllm_repo": "https://github.com/vllm-project/vllm.git",
+    "vllm_sha": "5df63a7203cdb9328d824a27b682e77c7b9928be"
+  },
+  "build_context_map": [
+    {
+      "basis": "compose env_file envs/.env.${CONFIG_FILE}(셀 env)",
+      "context_path": "envs/.env.q38fn032-nv4-safe-tp2",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/triplet/.env.q38fn032-nv4-safe-tp2"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/q38fn032-nv4-safe-tp2.sh",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/triplet/q38fn032-nv4-safe-tp2.sh"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/q38fn032-nv4-safe-tp2.yaml",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/triplet/q38fn032-nv4-safe-tp2.yaml"
+    },
+    {
+      "basis": "Dockerfile.source-build-deps2 COPY build_patches/06-b12x-optional032.sh (or whole directory)",
+      "context_path": "build_patches/06-b12x-optional032.sh",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_patch_post/06-b12x-optional032.sh"
+    },
+    {
+      "basis": "Dockerfile.source-build-deps2 COPY build_patches/06-b12x-optional032.sh",
+      "context_path": "build_patches/06-b12x-optional032.sh",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/06-b12x-optional032.sh"
+    },
+    {
+      "basis": "compose build.dockerfile ${BUILD_DOCKERFILE} · build.context .",
+      "context_path": "Dockerfile.source-build-deps2",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/Dockerfile.source-build-deps2"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": null,
+      "context_root": null,
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/README.md",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": null,
+      "context_root": null,
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/alias-evidence.json",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "Dockerfile.source-build",
+      "context_root": "parent-source-core/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/context/Dockerfile.source-build",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "build_patches/.gitkeep",
+      "context_root": "parent-source-core/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/context/build_patches/.gitkeep",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "build_patches/05-ngc-source032-deps-compat.sh",
+      "context_root": "parent-source-core/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/context/build_patches/05-ngc-source032-deps-compat.sh",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "build_patches_src/.gitkeep",
+      "context_root": "parent-source-core/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/context/build_patches_src/.gitkeep",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "requirements.txt",
+      "context_root": "parent-source-core/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/context/requirements.txt",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": null,
+      "context_root": null,
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/core-build-command.txt",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": null,
+      "context_root": null,
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/leaf-ledger-evidence.json",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": null,
+      "context_root": null,
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/manifest.json",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "compose env_file envs/.env.cluster",
+      "context_path": "envs/.env.cluster",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/compose/.env.cluster.template"
+    },
+    {
+      "basis": "compose env_file envs/.env.interconnect",
+      "context_path": "envs/.env.interconnect",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/compose/.env.interconnect.template"
+    },
+    {
+      "basis": "compose 변수치환 프로젝트 .env(${…} 참조)",
+      "context_path": ".env",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/compose/.env.template"
+    },
+    {
+      "basis": "compose 파일(빌드 컨텍스트 루트)",
+      "context_path": "docker-compose.yaml",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/compose/docker-compose.yaml"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/serve_runner.sh",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/compose/serve_runner.sh"
+    },
+    {
+      "basis": "빌드 컨텍스트 입력 아님(Dockerfile COPY · compose 참조 밖)",
+      "context_path": null,
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/compose/sub_recipe.json"
+    },
+    {
+      "basis": "parent frozen inventory: empty PRE scaffold only; no current i5 PRE modules",
+      "context_path": "build_patches_src/",
+      "context_root": "parent-source-core/context",
+      "context_scope": "reconstruction_example",
+      "create": "empty-dir",
+      "inventory": [
+        ".gitkeep"
+      ],
+      "slot_path": null,
+      "stage": "parent-source-core"
+    }
+  ],
+  "campaign": {
+    "cell": "q38fn032-nv4-safe-tp2",
+    "id": "camp-26102919-codex-multi4-v032",
+    "mode": "campaign",
+    "node": "cluster"
+  },
+  "cell_grade": "full",
+  "dataset_provenance": {
+    "dataset_column_map": null,
+    "dataset_duplicate_sampling": null,
+    "dataset_id": null,
+    "dataset_kind": "synthetic",
+    "dataset_preprocess_strategy": null,
+    "dataset_provenance": null,
+    "dataset_revision": null,
+    "dataset_seed": null,
+    "dataset_source": null,
+    "dataset_source_sha256": null,
+    "dataset_tokenizer": null,
+    "source": "bench_report(bench_report_26102920_qwen3.8-flash-next-nvfp4_GB10_0.32.0.md) 측정 구성 표",
+    "status": "recorded"
+  },
+  "evidence_pointers": [
+    {
+      "cell_id": "q38fn032-nv4-safe-tp2",
+      "kind": "bench_report",
+      "node_id": "main",
+      "path": "docs/benchmark/bench_report_26102920_qwen3.8-flash-next-nvfp4_GB10_0.32.0.md"
+    },
+    {
+      "cell_id": "q38fn032-nv4-safe-tp2",
+      "kind": "devlog",
+      "node_id": "main",
+      "path": "docs/devlog/devlog_26103000_Qwen032_경로탐색과_B_인계.md"
+    },
+    {
+      "cell_id": "q38fn032-nv4-safe-tp2",
+      "kind": "testlog",
+      "node_id": "main",
+      "path": "docs/testlog/testlog_26103000_Qwen032_유효Full과_발행후보_선택.md"
+    }
+  ],
+  "factcheck": {
+    "author": "main_hint_author",
+    "checked_utc": "2026-10-29T16:09:26Z",
+    "checker": "root_independent_factchecker",
+    "claims_checked": 120,
+    "fixed": 7,
+    "items": 7,
+    "open": [],
+    "reason_code": null,
+    "source": "inputs/factcheck.json",
+    "status": "passed"
+  },
+  "format": "hint-payload/v7",
+  "generated_utc": "2026-10-29T15:19:36Z",
+  "identity": {
+    "base_model": "Qwen/Qwen3.8-Flash-Next",
+    "base_slug": "qwen3.8-flash-next",
+    "gpu": "NVIDIA GB10",
+    "hf_repo": "nvidia/Qwen3.8-Flash-Next-NVFP4",
+    "hf_revision": "fc694b54fb0174e0913e6adf86691ef85a4ead47",
+    "model": "qwen3.8-flash-next-nvfp4",
+    "quant": "nvfp4",
+    "quant_composition": [
+      {
+        "count": 48,
+        "dtype": "NVFP4",
+        "scope": "quantized_layers 48개(예 model.language_model.layers.0.mlp.experts)",
+        "source": "/app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4 → <manifest.quant_model_path>/Qwen/Qwen3.8-Flash-Next-NVFP4/config.json quantization_config quantized_layers(modelopt MIXED_PRECISION)"
+      },
+      {
+        "count": 1,
+        "dtype": "FP8",
+        "scope": "quantized_layers 1개(예 model.language_model.layers.1.ple.ple_embedding.ngram_embedding)",
+        "source": "/app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4 → <manifest.quant_model_path>/Qwen/Qwen3.8-Flash-Next-NVFP4/config.json quantization_config quantized_layers(modelopt MIXED_PRECISION)"
+      },
+      {
+        "count": 1,
+        "dtype": "FP8_PB_WO",
+        "scope": "quantized_layers 1개(예 mtp.layers.0.mlp.experts)",
+        "source": "/app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4 → <manifest.quant_model_path>/Qwen/Qwen3.8-Flash-Next-NVFP4/config.json quantization_config quantized_layers(modelopt MIXED_PRECISION)"
+      },
+      {
+        "count": 292,
+        "dtype": "unquantized(아래 기본 dtype)",
+        "scope": "양자화 제외 모듈 292개",
+        "source": "/app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4 → <manifest.quant_model_path>/Qwen/Qwen3.8-Flash-Next-NVFP4/config.json quantization_config ignore·exclude_modules"
+      },
+      {
+        "dtype": "bfloat16",
+        "scope": "기본 dtype(비양자화 가중치·계산)",
+        "source": "/app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4 → <manifest.quant_model_path>/Qwen/Qwen3.8-Flash-Next-NVFP4/config.json dtype"
+      }
+    ],
+    "source": {
+      "base_model": "체크포인트 README base_model(/app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4 → <manifest.quant_model_path>/Qwen/Qwen3.8-Flash-Next-NVFP4)",
+      "base_slug": "model(qwen3.8-flash-next-nvfp4) − vocab quant_suffixes(naming.base_slug)",
+      "gpu": "sweep_index.meta(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B)",
+      "hf_repo": "체크포인트 .git/config remote url(huggingface.co · /app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4 → <manifest.quant_model_path>/Qwen/Qwen3.8-Flash-Next-NVFP4)",
+      "hf_revision": "체크포인트 .git HEAD → refs/heads/main → loose ref(/app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4 → <manifest.quant_model_path>/Qwen/Qwen3.8-Flash-Next-NVFP4) · refs/remotes/origin/main 와 일치(받아 온 원격 커밋) — checkout 커밋(작업트리 일치는 미검증) · reflog: 측정 시점 checkout = 지금 HEAD(measured_utc 2026-10-29T11:41:26Z 이전 마지막 이동 2026-09-08T10:37:13Z)",
+      "model": "sweep_index.meta(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B)",
+      "quant": "naming-axis(q) — 측정 identity quantization 미관측(sweep_index.meta(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B)) · q 축 = /app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4 → <manifest.quant_model_path>/Qwen/Qwen3.8-Flash-Next-NVFP4/config.json quantization_config(modelopt MIXED_PRECISION) quantized_layers 우세 NVFP4 48/50 · vocab quant[nvfp4]←'modelopt-dominant:NVFP4'",
+      "quant_composition": "/app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4 → <manifest.quant_model_path>/Qwen/Qwen3.8-Flash-Next-NVFP4/config.json(+hf_quant_config.json) 관측 칸(evidence._quant_composition 닫힌 목록)",
+      "topology": "sweep_index.meta(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B)",
+      "tp": "sweep_index.meta(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B)",
+      "vllm": "sweep_index.meta(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B)"
+    },
+    "topology": "multi",
+    "tp": 2,
+    "vllm": "0.32.0"
+  },
+  "measurement": {
+    "accept_len": "2.284023668639053",
+    "benchmark_mode": "full",
+    "decode_tps_conc1": "41.11",
+    "floor_tps": "45.65",
+    "generated_utc": "2026-10-29T11:41:26Z",
+    "levels": [
+      {
+        "accept_len": 2.284023668639053,
+        "completed": 16,
+        "decode_tps": 41.11,
+        "decode_tps_mean": 37.53,
+        "failed": 0,
+        "itl_ms_median": 23.159212224623737,
+        "level": 1,
+        "max_concurrency": 1,
+        "measurement_ok": true,
+        "output_throughput": 37.658953496754606,
+        "status": "ok",
+        "tpot_ms_median": 24.325428530573845,
+        "ttft_ms_median": 328.8431167602539
+      },
+      {
+        "accept_len": 2.284023668639053,
+        "completed": 16,
+        "decode_tps": 33.68,
+        "decode_tps_mean": 31.73,
+        "failed": 0,
+        "itl_ms_median": 28.420049068974514,
+        "level": 2,
+        "max_concurrency": 2,
+        "measurement_ok": true,
+        "output_throughput": 61.07117424278657,
+        "status": "ok",
+        "tpot_ms_median": 29.690164141356945,
+        "ttft_ms_median": 353.56950759887695
+      },
+      {
+        "accept_len": 2.284023668639053,
+        "completed": 16,
+        "decode_tps": 24.34,
+        "decode_tps_mean": 23.39,
+        "failed": 0,
+        "itl_ms_median": 39.7553518706677,
+        "level": 4,
+        "max_concurrency": 4,
+        "measurement_ok": true,
+        "output_throughput": 78.38359166900358,
+        "status": "ok",
+        "tpot_ms_median": 41.07917007058859,
+        "ttft_ms_median": 385.8377933502197
+      }
+    ],
+    "lite": {
+      "cold_ttft_ms": 185.8,
+      "engine_kv_gib": 14.0,
+      "engine_kv_tokens": 1595769,
+      "engine_reserved_total_gib": 14.0,
+      "engine_weights_gib": 63.04,
+      "gen_src": "median_tpot",
+      "gen_tps": 45.92,
+      "kv_gib": 14.0
+    },
+    "measured_utc": "2026-10-29T11:41:26Z",
+    "primary_source": "E(external_reference)",
+    "primary_tps": "53.7",
+    "ratio_M_over_primary": "0.766",
+    "rubric_authority": "weak",
+    "source": "판정 원천(verdict.json) + sweep_index(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B · output)",
+    "sources": {
+      "accept_len": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/verdict.json(output · verdict_rule 출력) measured_accept_len",
+      "benchmark_mode": "measurement_config.bench_mode(bench_report(bench_report_26102920_qwen3.8-flash-next-nvfp4_GB10_0.32.0.md))",
+      "decode_tps_conc1": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/verdict.json(output · verdict_rule 출력) measured_decode_tps",
+      "floor_tps": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/verdict.json(output · verdict_rule 출력) rubric.floor",
+      "levels": "sweep_index(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B · output)",
+      "lite": "sweep_index.lite(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B)",
+      "lite.engine_kv_gib": "sweep_index.lite(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B) — 서빙 yaml `kv-cache-memory-bytes: 15032385536`(14.0 GiB)의 **선언 클램프를 엔진이 되읽은 값**(측정 아님 · output/multi/configs/q38fn032-nv4-safe-tp2.yaml)",
+      "lite.kv_gib": "sweep_index.lite(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B) — 서빙 yaml `kv-cache-memory-bytes: 15032385536`(14.0 GiB)의 **선언 클램프를 엔진이 되읽은 값**(측정 아님 · output/multi/configs/q38fn032-nv4-safe-tp2.yaml)",
+      "measured_utc": "sweep_index.generated_utc(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B)",
+      "primary_source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/verdict.json(output · verdict_rule 출력) rubric.source",
+      "primary_tps": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/verdict.json(output · verdict_rule 출력) rubric.primary",
+      "ratio_M_over_primary": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/verdict.json(output · verdict_rule 출력) rubric.ratio_M_over_primary",
+      "rubric_authority": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/verdict.json(output · verdict_rule 출력) rubric.authority",
+      "spec_on": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/verdict.json(output · verdict_rule 출력) measured_spec_on",
+      "tolerance": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/verdict.json(output · verdict_rule 출력) rubric.tolerance",
+      "verdict": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/verdict.json(output · verdict_rule 출력) verdict",
+      "verdict_point_level": "sweep_index(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B · output)",
+      "verdict_reasons": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/verdict.json(output · verdict_rule 출력) verdict"
+    },
+    "spec_on": "true",
+    "tolerance": "0.15",
+    "verdict": "REFUTE",
+    "verdict_point_level": 1,
+    "verdict_reasons": [
+      "M(41.11) < 53.7×(1−0.15)=45.65 [E(external_reference)] (ratio 0.766) → 기대 이하"
+    ]
+  },
+  "measurement_config": {
+    "bench_mode": "full",
+    "bench_mode_kind": "full",
+    "bench_tool": "guidellm",
+    "bench_tool_version": "0.7.3",
+    "downgrade_reason": null,
+    "repeats": 3,
+    "repeats_completed": 3,
+    "source": "bench_report(bench_report_26102920_qwen3.8-flash-next-nvfp4_GB10_0.32.0.md)"
+  },
+  "measurement_env_observed": [
+    {
+      "key": "VLLM_PLE_MMAP",
+      "kind": "key-present",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": null,
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L64",
+      "value": null,
+      "value_note": "키 존재만 관측 · 값 미관측(vLLM 'Unknown vLLM environment variable detected' 경고 — 값은 로그에 없다)"
+    },
+    {
+      "key": "VLLM_PLE_MMAP_DIR",
+      "kind": "key-present",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": null,
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L65",
+      "value": null,
+      "value_note": "키 존재만 관측 · 값 미관측(vLLM 'Unknown vLLM environment variable detected' 경고 — 값은 로그에 없다)"
+    },
+    {
+      "key": "VLLM_REF",
+      "kind": "key-present",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": null,
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L66",
+      "value": null,
+      "value_note": "키 존재만 관측 · 값 미관측(vLLM 'Unknown vLLM environment variable detected' 경고 — 값은 로그에 없다)"
+    },
+    {
+      "key": "NCCL_SOCKET_IFNAME",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L101",
+      "value": "<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_SOCKET_IFNAME",
+      "kind": "param-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L102",
+      "value": "<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "nccl:version",
+      "kind": "runtime",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L105",
+      "value": "2.30.7+cuda13.3"
+    },
+    {
+      "key": "NCCL_NET_PLUGIN",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L107",
+      "value": "spcx"
+    },
+    {
+      "key": "NCCL_IB_DISABLE",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L112",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_IB_HCA",
+      "kind": "param-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L114",
+      "value": "=<nic:cluster>,<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_IB_MERGE_NICS",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L117",
+      "value": "1"
+    },
+    {
+      "key": "nccl:net_ib_devices",
+      "kind": "runtime",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L120",
+      "value": "[0]<nic:cluster>:1/RoCE [1]<nic:cluster>:1/RoCE [RO]; OOB <nic:cluster>:<node:main><0>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_IB_QPS_PER_CONNECTION",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L133",
+      "value": "4"
+    },
+    {
+      "key": "nccl:network",
+      "kind": "runtime",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": "sub",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L156",
+      "value": "IB"
+    },
+    {
+      "key": "NCCL_DMABUF_ENABLE",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": "sub",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L158",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_CROSS_NIC",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": "sub",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L161",
+      "value": "1"
+    },
+    {
+      "key": "NCCL_IB_SPLIT_DATA_ON_QPS",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": "sub",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L549",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_IB_GID_INDEX",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_raw_q38fn032-nv4-safe-tp2.json engine_log_head_lines)",
+      "node": "sub",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:L558",
+      "value": "3"
+    },
+    {
+      "key": "NCCL_SOCKET_IFNAME",
+      "kind": "env-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "sub",
+      "ray_repeated": 3,
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_q38fn032-nv4-safe-tp2.log:L358",
+      "value": "<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_SOCKET_IFNAME",
+      "kind": "param-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "sub",
+      "ray_repeated": 2,
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_q38fn032-nv4-safe-tp2.log:L359",
+      "value": "<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "nccl:version",
+      "kind": "runtime",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "sub",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_q38fn032-nv4-safe-tp2.log:L362",
+      "value": "2.30.7+cuda13.3"
+    },
+    {
+      "key": "NCCL_NET_PLUGIN",
+      "kind": "env-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "sub",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_q38fn032-nv4-safe-tp2.log:L364",
+      "value": "spcx"
+    },
+    {
+      "key": "NCCL_IB_DISABLE",
+      "kind": "env-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "sub",
+      "ray_repeated": 2,
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_q38fn032-nv4-safe-tp2.log:L369",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_IB_HCA",
+      "kind": "param-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "sub",
+      "ray_repeated": 2,
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_q38fn032-nv4-safe-tp2.log:L370",
+      "value": "=<nic:cluster>,<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_IB_MERGE_NICS",
+      "kind": "env-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "sub",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_q38fn032-nv4-safe-tp2.log:L372",
+      "value": "1"
+    },
+    {
+      "key": "nccl:net_ib_devices",
+      "kind": "runtime",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "main",
+      "ray_repeated": 3,
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_q38fn032-nv4-safe-tp2.log:L374",
+      "value": "[RO]; OOB <nic:cluster>:<node:main><0>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "nccl:network",
+      "kind": "runtime",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "main",
+      "ray_repeated": 3,
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_q38fn032-nv4-safe-tp2.log:L397",
+      "value": "IB"
+    },
+    {
+      "key": "NCCL_DMABUF_ENABLE",
+      "kind": "env-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_q38fn032-nv4-safe-tp2.log:L399",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_CROSS_NIC",
+      "kind": "env-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_q38fn032-nv4-safe-tp2.log:L402",
+      "value": "1"
+    },
+    {
+      "key": "NCCL_IB_SPLIT_DATA_ON_QPS",
+      "kind": "env-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_q38fn032-nv4-safe-tp2.log:L457",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_IB_GID_INDEX",
+      "kind": "env-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_q38fn032-nv4-safe-tp2.log:L462",
+      "value": "3"
+    }
+  ],
+  "missing": [],
+  "missing_reasons": {},
+  "naming": {
+    "axes": {
+      "gpus_per_node": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_q38fn032-nv4-safe-tp2.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "1"
+      },
+      "hw": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_q38fn032-nv4-safe-tp2.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언) · vocab hw[gb10]←'NVIDIA GB10'",
+        "value": "gb10"
+      },
+      "kv": {
+        "source": "서빙 yaml kv-cache-dtype(output/multi/configs/q38fn032-nv4-safe-tp2.yaml) · vocab kv[fp8]←'fp8_e4m3'",
+        "value": "fp8"
+      },
+      "len": {
+        "source": "서빙 yaml max-model-len(output/multi/configs/q38fn032-nv4-safe-tp2.yaml)",
+        "value": "262144"
+      },
+      "nodes": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_q38fn032-nv4-safe-tp2.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "2"
+      },
+      "plane": {
+        "source": "artifacts.plane_of → cell-env(IMAGE_TAG|BUILD_DOCKERFILE) · vocab plane[docker]→''",
+        "token": "",
+        "value": "docker"
+      },
+      "q": {
+        "source": "/app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4 → <manifest.quant_model_path>/Qwen/Qwen3.8-Flash-Next-NVFP4/config.json quantization_config(modelopt MIXED_PRECISION) quantized_layers 우세 NVFP4 48/50 · vocab quant[nvfp4]←'modelopt-dominant:NVFP4'",
+        "value": "nvfp4"
+      },
+      "role": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_q38fn032-nv4-safe-tp2.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "cluster"
+      },
+      "target": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_q38fn032-nv4-safe-tp2.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언) · target_gpu 'NVIDIA GB10' = 호스트 hw → native",
+        "value": "native"
+      }
+    },
+    "grammar": "v7",
+    "segments": {
+      "arch": {
+        "source": "derived(hw·gpus_per_node·nodes·role·target·plane)",
+        "value": "gb10-1g2n-cluster-native"
+      },
+      "model": {
+        "source": "서빙 yaml model(output/multi/configs/q38fn032-nv4-safe-tp2.yaml) · hf_repo=체크포인트 .git/config remote url(huggingface.co · /app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4 → <manifest.quant_model_path>/Qwen/Qwen3.8-Flash-Next-NVFP4) · hf_repo(nvidia/Qwen3.8-Flash-Next-NVFP4) 마지막 성분 소문자",
+        "value": "qwen3.8-flash-next-nvfp4"
+      },
+      "recipe": {
+        "source": "derived(q·len·kv)",
+        "value": "qnvfp4-len262144-kvfp8"
+      },
+      "vllm": {
+        "source": "track=선택자 Dockerfile.source-build-deps2 · ref=docker history build-arg VLLM_REF · version=VLLM_VERSION 미관측 · repo=docker history build-arg VLLM_REPO · sha=VLLM_REF(40자 커밋 · docker history build-arg VLLM_REF) · exact_tag=measured image sha256:8227e7d79471b6b92f21157acfb38c7cc617d1510a5c56f3dec7eb8e48567884: /workspace/vllm-src/.git HEAD and exact tag peeled to 5df63a7203cdb9328d824a27b682e77c7b9928be (create/cp, no start) · VLLM_REF=5df63a7203cd…(40자 커밋) → <직전 릴리스 0.32.0>-g<sha12>",
+        "value": "0.32.0-g5df63a7203cd"
+      }
+    },
+    "tail": [],
+    "timestamp": null,
+    "vllm_build_input": {
+      "kind": "commit",
+      "prev_release": "0.32.0",
+      "ref": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+      "sha": "5df63a7203cdb9328d824a27b682e77c7b9928be"
+    },
+    "vllm_observed": {
+      "certificate_vllm_version": null,
+      "certificate_vllm_version_producer": "absent",
+      "certificate_vllm_version_source": "인증서 vllm_version 없음",
+      "engine_self_report": "0.32.1.dev0+g5df63a720.d20261029",
+      "engine_self_report_basis": "measurement-capture-unbound",
+      "engine_self_report_source": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log:59 — 측정 캡처에 기록된 값 · 현재 serve 세션 경계 미관측 — 누적 로그의 기동 epoch 귀속 미검증 · 같은 값의 다른 로그 1건",
+      "source": "칸별 출처는 *_source — engine_self_report=measurement-capture-unbound · certificate_vllm_version=absent · wheel_meta=노드별 상이·공통값 미선택",
+      "wheel_meta": null,
+      "wheel_meta_basis": "observed-node-difference",
+      "wheel_meta_label": "vLLM 설치 distribution 메타(출처별 관측 · 다운로드 wheel 증명 아님)",
+      "wheel_meta_source": "노드별 상이 — 값을 고르지 않는다: attestation nodes.<n>.vllm_dist_version(output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json · 노드별 관측) — ⚠ 노드별 상이(main=0.32.1.dev0+g5df63a720.d20261029.cu133 · sub=0.32.1.dev0+g5df63a720.d20261028.cu133 · 값 = main) · 이 측정 실행과 같은 실행인지 미검증(같은 호스트의 관측) · 작성 2026-10-29T11:42:14Z > 측정 끝 2026-10-29T11:41:26Z — 측정 뒤 작성된 관측(측정 시점·같은 기동 여부는 시각만으로 미검증)(sweep_index.meta.vllm_build='NA' 는 sweep_bench 가 엔진 로그에서 `v<x.y.z…>` 정규식으로 잡는 값이다 → engine_self_report 의 원천)"
+    }
+  },
+  "native_source": null,
+  "plane": "docker",
+  "prior_approval": null,
+  "publication": {
+    "manifest_ref": "docs/_evidence/camp_26102919_codex_multi4_v032__cluster__q38fn032_nv4_safe_tp2.work-manifest.json",
+    "task_class": "full_benchmark",
+    "topic": "camp_26102919_codex_multi4_v032__cluster__q38fn032_nv4_safe_tp2"
+  },
+  "qualification": {
+    "health_200": true,
+    "inference_observed": true,
+    "method": "serve_proof",
+    "sources": [
+      "output/multi/benchlog/serve_proof_q38fn032-nv4-safe-tp2.json"
+    ]
+  },
+  "schema_version": 3,
+  "slots": {
+    "build_patch_post": {
+      "applicable": true,
+      "confidence": "3-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": "원장 관측",
+        "ref": "attestation:output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json#main"
+      },
+      "excluded": [
+        {
+          "file": ".gitkeep",
+          "phase": "post",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        },
+        {
+          "file": "05-ngc-source032-deps-compat.sh",
+          "phase": "post",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches/05-ngc-source032-deps-compat.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "70-exllamav3-build.sh",
+          "phase": "post",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches/70-exllamav3-build.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "72-exl3-row-store.sh",
+          "phase": "post",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches/72-exl3-row-store.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "73-vllm-exl3-build.sh",
+          "phase": "post",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches/73-vllm-exl3-build.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "74-exl3-moe-prep-fused.sh",
+          "phase": "post",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches/74-exl3-moe-prep-fused.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "75-exl3-python-deps032.sh",
+          "phase": "post",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches/75-exl3-python-deps032.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "79-exl3-port-selfcheck.sh",
+          "phase": "post",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches/79-exl3-port-selfcheck.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        }
+      ],
+      "file_records": [
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_post/06-b12x-optional032.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_head_q38fn032-nv4-safe-tp2.log",
+              "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/lite_engine_q38fn032-nv4-safe-tp2.log",
+              "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/level_01/engine_q38fn032-nv4-safe-tp2.log",
+              "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/level_01/run_02/engine_q38fn032-nv4-safe-tp2.log",
+              "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/level_01/run_03/engine_q38fn032-nv4-safe-tp2.log",
+              "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/level_02/engine_q38fn032-nv4-safe-tp2.log",
+              "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/level_02/run_02/engine_q38fn032-nv4-safe-tp2.log",
+              "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/level_02/run_03/engine_q38fn032-nv4-safe-tp2.log",
+              "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/level_04/engine_q38fn032-nv4-safe-tp2.log",
+              "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/level_04/run_02/engine_q38fn032-nv4-safe-tp2.log",
+              "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/level_04/run_03/engine_q38fn032-nv4-safe-tp2.log"
+            ],
+            "engine_logs": 11,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15",
+          "sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json#main) · 원장 관측"
+        }
+      ],
+      "files": [
+        "artifacts/build_patch_post/06-b12x-optional032.sh"
+      ],
+      "machine_reason": "build_patches/ — 적용 판정 build-ledger: applied 1 · 실린 것 = skip 아닌 패치",
+      "rationale": "06-b12x-optional032.sh는SM120/121 optional backend공유의존이다. 정확wheelURL/해시를pip설치하고version1.5.1 assertion과pipcheck가실패하면set-e로빌드를중단한다. 모델trigger가안맞으면자동skip하는가드는없다. 상태줄applied는설치/pipcheck이며GPUkernel미검증을명시한다. 선택B의MoE경로는CUTLASS/TRITON이므로설치됐다는사실을nativeb12x사용으로읽지않는다."
+    },
+    "build_patch_pre": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": "원장 관측",
+        "ref": "attestation:output/multi/benchlog/attestation_q38fn032-nv4-safe-tp2.json#main"
+      },
+      "excluded": [
+        {
+          "file": ".gitkeep",
+          "phase": "pre",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        },
+        {
+          "file": "80-exl3-quant-method.sh",
+          "phase": "pre",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/80-exl3-quant-method.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "81-exl3-model-wiring.sh",
+          "phase": "pre",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/81-exl3-model-wiring.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "82-exl3-h2d-stage.sh",
+          "phase": "pre",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/82-exl3-h2d-stage.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "83-engram-file-backend.sh",
+          "phase": "pre",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/83-engram-file-backend.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "84-sm12x-block-shim.sh",
+          "phase": "pre",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/84-sm12x-block-shim.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "85-exl3-serial-streams.sh",
+          "phase": "pre",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/85-exl3-serial-streams.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "86-exl3-worker-hooks.sh",
+          "phase": "pre",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/86-exl3-worker-hooks.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "87-engram-embed-skip.sh",
+          "phase": "pre",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/87-engram-embed-skip.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "88-engram-prestage.sh",
+          "phase": "pre",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/88-engram-prestage.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "89-kv-null-block-zero.sh",
+          "phase": "pre",
+          "why": "excluded_by_recipe(Dockerfile.source-build-deps2 이 build_patches_src/89-kv-null-block-zero.sh 를 COPY 하지 않는다 — 실행된 적 없음)"
+        },
+        {
+          "file": "PROVENANCE.json",
+          "phase": "pre",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        },
+        {
+          "file": "exl3_port_lib.py",
+          "phase": "pre",
+          "why": "nonconforming(<NN>-*.sh 규약 밖 — 싣지 않음)"
+        }
+      ],
+      "file_records": [],
+      "files": [],
+      "machine_reason": "적용 판정 없음 — 원장 관측",
+      "rationale": null
+    },
+    "build_recipe": {
+      "applicable": true,
+      "confidence": "3-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": "build_patches/06-b12x-optional032.sh: Dockerfile.source-build-deps2 이 COPY",
+        "parent_source_core": {
+          "context_inventory": [
+            "context/Dockerfile.source-build",
+            "context/build_patches/.gitkeep",
+            "context/build_patches/05-ngc-source032-deps-compat.sh",
+            "context/build_patches_src/.gitkeep",
+            "context/requirements.txt"
+          ],
+          "historical_scope": "main observed core+POST05 build → same-ID deps1 alias (no build) → deps2 POST06. Sub historical old core unavailable; this is a new main-path reproduction proposal for independent local builds on both nodes, not sub historical execution proof.",
+          "manifest": "output/multi/parent-build/qwen032-deps2/manifest.json",
+          "selected_image_digest": "sha256:8227e7d79471b6b92f21157acfb38c7cc617d1510a5c56f3dec7eb8e48567884"
+        },
+        "recipe_vs_image": [
+          {
+            "history_match": {
+              "matched": 5,
+              "total": 10
+            },
+            "image_created_utc": "2026-10-29T10:50:18Z",
+            "path": "output/multi/Dockerfile.source-build-deps2",
+            "selection_method": "worktree(어느 개정도 이미지 history 와 더 맞지 않는다 · 작업트리 5/10 · 대조할 개정 없음(이미지 Created 이전 커밋 부재 · 비추적) · 전 이력(output/*/Dockerfile.source-build-deps2 · 모든 ref)에도 전수 일치 개정 없음 — recipe_vs_image 경고 유지)",
+            "shipped": "worktree",
+            "tracked": false,
+            "warning": "실린 바이트(worktree)가 측정 이미지 docker history 의 RUN·COPY 와 전수 일치하지 않는다(5/10)",
+            "worktree_equals_head": null
+          },
+          {
+            "image_created_utc": "2026-10-29T10:50:18Z",
+            "path": "output/multi/build_patches/06-b12x-optional032.sh",
+            "selection_method": "worktree(이미지 안 COPY 대상 바이트 미관측 — 이미지 탐침 안 함)",
+            "shipped": "worktree",
+            "tracked": false,
+            "worktree_equals_head": null
+          }
+        ],
+        "ref": "build-ledger.dockerfile",
+        "selected_revision": {
+          "candidates": [
+            {
+              "matched": 5,
+              "revision": "worktree",
+              "total": 10
+            }
+          ],
+          "commit": null,
+          "history_match": {
+            "matched": 5,
+            "total": 10
+          },
+          "method": "worktree(어느 개정도 이미지 history 와 더 맞지 않는다 · 작업트리 5/10 · 대조할 개정 없음(이미지 Created 이전 커밋 부재 · 비추적) · 전 이력(output/*/Dockerfile.source-build-deps2 · 모든 ref)에도 전수 일치 개정 없음 — recipe_vs_image 경고 유지)",
+          "path": "output/multi/Dockerfile.source-build-deps2"
+        },
+        "selected_revisions": [
+          {
+            "commit": null,
+            "history_match": {
+              "matched": 5,
+              "total": 10
+            },
+            "method": "worktree(어느 개정도 이미지 history 와 더 맞지 않는다 · 작업트리 5/10 · 대조할 개정 없음(이미지 Created 이전 커밋 부재 · 비추적) · 전 이력(output/*/Dockerfile.source-build-deps2 · 모든 ref)에도 전수 일치 개정 없음 — recipe_vs_image 경고 유지)",
+            "path": "output/multi/Dockerfile.source-build-deps2",
+            "shipped": "worktree",
+            "verified": false
+          },
+          {
+            "commit": null,
+            "history_match": null,
+            "method": "worktree(이미지 안 COPY 대상 바이트 미관측 — 이미지 탐침 안 함)",
+            "path": "output/multi/build_patches/06-b12x-optional032.sh",
+            "shipped": "worktree",
+            "verified": false
+          }
+        ]
+      },
+      "file_records": [
+        {
+          "bytes_observed": false,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_recipe/06-b12x-optional032.sh",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15",
+          "verification": "verified",
+          "verification_basis": "쓰인 레시피(build-ledger.dockerfile) — 개정 선택 slots.build_recipe.evidence.selected_revisions"
+        },
+        {
+          "bytes_observed": false,
+          "generated_by": "renderer",
+          "header": {
+            "line": 2,
+            "style": "comment",
+            "text": "# ⚠ generated-unverified — 실린 Dockerfile.source-build-deps2(worktree) · docker history RUN·COPY 5/10 일치 — Dockerfile 전체 원본 바이트의 동일성은 확인하지 못했다 · 생성: renderer",
+            "why_line_2": "Dockerfile 파서 지시자 보존"
+          },
+          "path": "artifacts/build_recipe/Dockerfile.source-build-deps2",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 renderer) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "3924e23d77920acc48cf93957fbca510b10f822554ad78d70f2c87cb7c2e2f3f",
+          "verification": "generated-unverified",
+          "verification_basis": "실린 Dockerfile.source-build-deps2(worktree) · docker history RUN·COPY 5/10 일치 — Dockerfile 전체 원본 바이트의 동일성은 확인하지 못했다(_select_dockerfile · worktree(어느 개정도 이미지 history 와 더 맞지 않는다 · 작업트리 5/10 · 대조할 개정 없음(이미지 Created 이전 커밋 부재 · 비추적) · 전 이력(output/*/Dockerfile.source-build-deps2 · 모든 ref)에도 전수 일치 개정 없음 — recipe_vs_image 경고 유지))"
+        },
+        {
+          "bytes_observed": false,
+          "generated_by": "agent",
+          "header": {
+            "line": 1,
+            "style": "comment",
+            "text": "# ⚠ generated-unverified — 명시 parent manifest와 main 실행/alias/leaf 원장에서 재구성한 새 양노드 local-build 예시이며 실행하지 않았다 · 생성: agent"
+          },
+          "parent_source": "README.md",
+          "path": "artifacts/build_recipe/parent-source-core/README.md",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 agent) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "fc0b3648b8e1f3c779ab987cc40639ca75b3597666974ed72a41b6d7ba755ba1",
+          "verification": "generated-unverified",
+          "verification_basis": "명시 parent manifest와 main 실행/alias/leaf 원장에서 재구성한 새 양노드 local-build 예시이며 실행하지 않았다"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "alias-evidence.json",
+          "path": "artifacts/build_recipe/parent-source-core/alias-evidence.json",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "90d10101db6e8876a80ea9932d1f9aee0be7c3a174058aa22bf7c85f0948aec3",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/qwen032-deps2/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "context/Dockerfile.source-build",
+          "path": "artifacts/build_recipe/parent-source-core/context/Dockerfile.source-build",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "ef219c7054e426c4623c889c79a02988298bfa6f4cf5242fbf281336860f7ddf",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/qwen032-deps2/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "context/build_patches/.gitkeep",
+          "path": "artifacts/build_recipe/parent-source-core/context/build_patches/.gitkeep",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/qwen032-deps2/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "context/build_patches/05-ngc-source032-deps-compat.sh",
+          "path": "artifacts/build_recipe/parent-source-core/context/build_patches/05-ngc-source032-deps-compat.sh",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "ef79a410b90cae256d9b520e95ad32e7480059a8f2ffce194810749e225dbc54",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/qwen032-deps2/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "context/build_patches_src/.gitkeep",
+          "path": "artifacts/build_recipe/parent-source-core/context/build_patches_src/.gitkeep",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/qwen032-deps2/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "context/requirements.txt",
+          "path": "artifacts/build_recipe/parent-source-core/context/requirements.txt",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "4618157b8e50ba411ea9008a1fb2e4d032738bce8a117d3a24e2b9476aa1a6c4",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/qwen032-deps2/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "core-build-command.txt",
+          "path": "artifacts/build_recipe/parent-source-core/core-build-command.txt",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "3d82bed10154dc7c28fe368cc90264126e4ca6f0c3f1236a4e804e90b62840ce",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/qwen032-deps2/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "leaf-ledger-evidence.json",
+          "path": "artifacts/build_recipe/parent-source-core/leaf-ledger-evidence.json",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "33d8421e181227afa0ab5f06e2f4c5d709eb7a3dc46a7556e8b40759d90b6526",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/qwen032-deps2/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": false,
+          "generated_by": "agent",
+          "header": {
+            "key": "_verification",
+            "style": "json-key",
+            "text": "⚠ generated-unverified — 명시 parent manifest와 main 실행/alias/leaf 원장에서 재구성한 새 양노드 local-build 예시이며 실행하지 않았다 · 생성: agent"
+          },
+          "parent_source": "manifest.json",
+          "path": "artifacts/build_recipe/parent-source-core/manifest.json",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 agent) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "e0a330632daba66b5d936c55b3a37d2556372af79f2c11bfd23ef5af19797d02",
+          "verification": "generated-unverified",
+          "verification_basis": "명시 parent manifest와 main 실행/alias/leaf 원장에서 재구성한 새 양노드 local-build 예시이며 실행하지 않았다"
+        }
+      ],
+      "files": [
+        "artifacts/build_recipe/06-b12x-optional032.sh",
+        "artifacts/build_recipe/Dockerfile.source-build-deps2",
+        "artifacts/build_recipe/parent-source-core/README.md",
+        "artifacts/build_recipe/parent-source-core/alias-evidence.json",
+        "artifacts/build_recipe/parent-source-core/context/Dockerfile.source-build",
+        "artifacts/build_recipe/parent-source-core/context/build_patches/.gitkeep",
+        "artifacts/build_recipe/parent-source-core/context/build_patches/05-ngc-source032-deps-compat.sh",
+        "artifacts/build_recipe/parent-source-core/context/build_patches_src/.gitkeep",
+        "artifacts/build_recipe/parent-source-core/context/requirements.txt",
+        "artifacts/build_recipe/parent-source-core/core-build-command.txt",
+        "artifacts/build_recipe/parent-source-core/leaf-ledger-evidence.json",
+        "artifacts/build_recipe/parent-source-core/manifest.json"
+      ],
+      "machine_reason": "쓰인 Dockerfile 선택자 Dockerfile.source-build-deps2(build-ledger.dockerfile) + 그것이 COPY 하는 파일",
+      "rationale": "실린Dockerfile.source-build-deps2는history5/10일치의generated-unverified참고형상이다. deps1부모에서공식40SHA를test하고원장을parents로보존한뒤06만COPY·실행하는층이다. 이파일전체가실제build바이트와같다는보장은없다. 같이실린06은원장script hash와일치한verified바이트다."
+    },
+    "compose": {
+      "applicable": true,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "file",
+        "measured_utc": "2026-10-29T11:41:26Z",
+        "note": "서빙 러너 ['serve_runner.sh'] · env 형상 실림 3/3",
+        "post_measurement_regenerated": [],
+        "ref": "output/multi/docker-compose.yaml",
+        "selected_revision": {
+          "basis": "mtime≤measured",
+          "commit": null,
+          "commits_after_measurement": [
+            "bccd08091976"
+          ],
+          "cross_check": [
+            "측정 뒤 커밋 1(bccd08091976)",
+            "작업트리 = HEAD"
+          ],
+          "history_match": null,
+          "measured_utc": "2026-10-29T11:41:26Z",
+          "method": "worktree(mtime 2026-10-29T10:01:25Z ≤ 측정 2026-10-29T11:41:26Z(sweep_index.generated_utc) · 측정 전 마지막 커밋 d781f26e4ebc 와 다르다 — 측정 당시 바이트는 미검증)",
+          "mtime_utc": "2026-10-29T10:01:25Z",
+          "path": "output/multi/docker-compose.yaml",
+          "shipped": "worktree",
+          "verified": false
+        },
+        "selected_revisions": [
+          {
+            "basis": "mtime≤measured",
+            "commit": "50a5ce48673875468007fac5dab6fef9f15b9601",
+            "commits_after_measurement": [],
+            "cross_check": [
+              "측정 뒤 커밋 0",
+              "작업트리 = HEAD",
+              "마운트본 output/multi/configs/serve_runner.sh(mtime 2026-10-29T10:01:25Z ≤ 측정 — 마운트본의 현재 mtime 관측) 바이트 일치"
+            ],
+            "history_match": null,
+            "measured_utc": "2026-10-29T11:41:26Z",
+            "method": "worktree(mtime 2026-09-06T21:57:53Z ≤ 측정 2026-10-29T11:41:26Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 50a5ce486738)",
+            "mtime_utc": "2026-09-06T21:57:53Z",
+            "path": ".claude/skills/upstream-version-watch/assets/configs/serve_runner.sh",
+            "shipped": "worktree",
+            "verified": false
+          },
+          {
+            "basis": "mtime≤measured",
+            "commit": null,
+            "commits_after_measurement": [
+              "bccd08091976"
+            ],
+            "cross_check": [
+              "측정 뒤 커밋 1(bccd08091976)",
+              "작업트리 = HEAD"
+            ],
+            "history_match": null,
+            "measured_utc": "2026-10-29T11:41:26Z",
+            "method": "worktree(mtime 2026-10-29T10:01:25Z ≤ 측정 2026-10-29T11:41:26Z(sweep_index.generated_utc) · 측정 전 마지막 커밋 d781f26e4ebc 와 다르다 — 측정 당시 바이트는 미검증)",
+            "mtime_utc": "2026-10-29T10:01:25Z",
+            "path": "output/multi/docker-compose.yaml",
+            "shipped": "worktree",
+            "verified": false
+          }
+        ]
+      },
+      "excluded": [
+        {
+          "file": "arm_patch.sh",
+          "why": "not-armed(output/multi/configs/q38fn032-nv4-safe-tp2_patch.py 없음(CONFIG_FILE) · slave default_patch.py(CONFIG_FILE) 없음 — arm_patch.sh 는 no-op · arm_patch.sh 측정 당시 개정(1b1df2cd4034) `_cfg=` 키 체인 RUNTIME_PATCH_STEM > CONFIG_FILE > 'default')"
+        }
+      ],
+      "file_records": [
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/.env.cluster.template",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "a86a58c5c804edeb234e73373b2d3cd3ee01acbcba082ab35a0fb3deec031325",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/.env.interconnect.template",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "41349b4e726faae915a9809ea29c9ea9b15b6ad838ea36830c0a70d903c88209",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/.env.template",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "a186ca935745394a3ef85b362dc3e212c6ee33ce40c13358c6c6e991afc48fd2",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "bytes_observed": false,
+          "generated_by": "renderer",
+          "header": {
+            "line": 1,
+            "style": "comment",
+            "text": "# ⚠ generated-unverified — docker-compose.yaml: worktree(mtime 2026-10-29T10:01:25Z ≤ 측정 2026-10-29T11:41:26Z(sweep_index.generated_utc) · 측정 전 마지막 커밋 d781f26e4ebc 와 다르다 — 측정 당시 바이트는 미검증) — 측정 당시 실행 바이트는 별도 관측되지 않았다 · 생성: renderer"
+          },
+          "path": "artifacts/compose/docker-compose.yaml",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 renderer) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "63069372708a58fddb42ef30a248072cde10f6bb78193921e2af9ba026446efb",
+          "verification": "generated-unverified",
+          "verification_basis": "docker-compose.yaml: worktree(mtime 2026-10-29T10:01:25Z ≤ 측정 2026-10-29T11:41:26Z(sweep_index.generated_utc) · 측정 전 마지막 커밋 d781f26e4ebc 와 다르다 — 측정 당시 바이트는 미검증) — 측정 당시 실행 바이트는 별도 관측되지 않았다"
+        },
+        {
+          "bytes_observed": false,
+          "generated_by": "renderer",
+          "header": {
+            "line": 2,
+            "style": "comment",
+            "text": "# ⚠ generated-unverified — serve_runner.sh: worktree(mtime 2026-09-06T21:57:53Z ≤ 측정 2026-10-29T11:41:26Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 50a5ce486738) — 측정 당시 실행 바이트는 별도 관측되지 않았다 · 생성: renderer",
+            "why_line_2": "shebang 보존"
+          },
+          "path": "artifacts/compose/serve_runner.sh",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 renderer) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "b972465feaf09130b0329742609d7a877ad7dcb04e5c7645aedf46ae6f516597",
+          "verification": "generated-unverified",
+          "verification_basis": "serve_runner.sh: worktree(mtime 2026-09-06T21:57:53Z ≤ 측정 2026-10-29T11:41:26Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 50a5ce486738) — 측정 당시 실행 바이트는 별도 관측되지 않았다"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/sub_recipe.json",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "efa70fe8826caad90aee2c8a50a0fe232d34b46c36bc95e16d762cbd6ed3bdf3",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        }
+      ],
+      "files": [
+        "artifacts/compose/.env.cluster.template",
+        "artifacts/compose/.env.interconnect.template",
+        "artifacts/compose/.env.template",
+        "artifacts/compose/docker-compose.yaml",
+        "artifacts/compose/serve_runner.sh",
+        "artifacts/compose/sub_recipe.json"
+      ],
+      "machine_reason": "multi 서빙 경로(compose · 러너 · env 형상) — 측정 당시 개정(selected_revisions)",
+      "rationale": null
+    },
+    "fork_pin": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "VARIANT 줄 부재 = stock",
+        "ref": ".claude/policies/arch_variant_ledger.json"
+      },
+      "file_records": [],
+      "files": [],
+      "machine_reason": "셀 env 에 VARIANT 줄 없음 = stock(workflow.md §변종 좌표의 거처)",
+      "rationale": null
+    },
+    "runtime_patch": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "런타임 패치 파일 없음",
+        "ref": "output/multi/configs/q38fn032-nv4-safe-tp2_patch.py"
+      },
+      "file_records": [],
+      "files": [],
+      "machine_reason": "output/multi/configs/q38fn032-nv4-safe-tp2_patch.py 없음 — arm_patch.sh 는 no-op(런타임 패치 불해당)",
+      "rationale": null
+    },
+    "triplet": {
+      "applicable": true,
+      "confidence": "2-signal",
+      "evidence": {
+        "kind": "file",
+        "measured_utc": "2026-10-29T11:41:26Z",
+        "note": "측정이 이 셀 config 로 돌았다(스윕 색인) · ⚠ 측정(2026-10-29T11:41:26Z) 뒤 mtime: ['output/multi/configs/q38fn032-nv4-safe-tp2.yaml', 'output/multi/configs/q38fn032-nv4-safe-tp2.sh', 'output/multi/envs/.env.q38fn032-nv4-safe-tp2'] — 실린 값이 측정 당시 값과 같다는 보장 없음",
+        "observed": "output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/sweep_index.json#config",
+        "post_measurement_regenerated": [
+          "output/multi/configs/q38fn032-nv4-safe-tp2.yaml",
+          "output/multi/configs/q38fn032-nv4-safe-tp2.sh",
+          "output/multi/envs/.env.q38fn032-nv4-safe-tp2"
+        ],
+        "ref": "output/multi/configs/q38fn032-nv4-safe-tp2.yaml"
+      },
+      "file_records": [
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/.env.q38fn032-nv4-safe-tp2",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "486a38c0e9adf06787350a1ab95e8588199712ef5b1dce64831d4dd8f2148388",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인) · ⚠ 측정(2026-10-29T11:41:26Z) 뒤 mtime: ['output/multi/configs/q38fn032-nv4-safe-tp2.yaml', 'output/multi/configs/q38fn032-nv4-safe-tp2.sh', 'output/multi/envs/.env.q38fn032-nv4-safe-tp2'] — 실린 값이 측정 당시 값과 같다는 보장 없음"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/q38fn032-nv4-safe-tp2.sh",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "d80bffe13999c8d241ece680549adf6393b3f9b7eabd1f40c30c33ae71ad8289",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인) · ⚠ 측정(2026-10-29T11:41:26Z) 뒤 mtime: ['output/multi/configs/q38fn032-nv4-safe-tp2.yaml', 'output/multi/configs/q38fn032-nv4-safe-tp2.sh', 'output/multi/envs/.env.q38fn032-nv4-safe-tp2'] — 실린 값이 측정 당시 값과 같다는 보장 없음"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/q38fn032-nv4-safe-tp2.yaml",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "0f9cae19e4a94349115b5de014df42948f933108e624e88368e0cee75dc2f5a8",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인) · ⚠ 측정(2026-10-29T11:41:26Z) 뒤 mtime: ['output/multi/configs/q38fn032-nv4-safe-tp2.yaml', 'output/multi/configs/q38fn032-nv4-safe-tp2.sh', 'output/multi/envs/.env.q38fn032-nv4-safe-tp2'] — 실린 값이 측정 당시 값과 같다는 보장 없음"
+        }
+      ],
+      "files": [
+        "artifacts/triplet/.env.q38fn032-nv4-safe-tp2",
+        "artifacts/triplet/q38fn032-nv4-safe-tp2.sh",
+        "artifacts/triplet/q38fn032-nv4-safe-tp2.yaml"
+      ],
+      "machine_reason": "셀 id q38fn032-nv4-safe-tp2 = 트리플렛 이름(configs/q38fn032-nv4-safe-tp2.yaml · .sh · envs/.env.q38fn032-nv4-safe-tp2)",
+      "rationale": null
+    }
+  },
+  "tag": "hint/0.32.0-g5df63a7203cd/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8",
+  "tool_snapshots": [
+    {
+      "driver_note": "그 판본의 .claude/skills/adversarial-benchmark/scripts/ 안에서 sweep_bench.sh 를 부르는 드라이버: broad_search.sh 후보(미검증)",
+      "git_rev": "17959581d8ae97c2e951120dbca09a5a882e3051",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-27T07:26:14Z",
+      "head_at_measurement": "dc28b060813350a4c74d175f7c03277d561b7fa4",
+      "name": "sweep_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "dc28b0608133..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
+      "rev_method": "reflog HEAD@{1793267750}(2026-10-29T09:55:50Z) = 측정 시각 2026-10-29T11:41:26Z 직전 체크아웃",
+      "role": "sweep",
+      "snapshot_rel": "inputs/sources/sweep_bench.sh@17959581d8ae",
+      "why": "스윕 색인 조립자(output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/sweep_index.json · generated_utc = measured_utc 조인)",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "29cbdbc89a3d694097e94a9f9d6c56dde4bc1ee0",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-17T02:03:29Z",
+      "head_at_measurement": "dc28b060813350a4c74d175f7c03277d561b7fa4",
+      "name": "run_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "dc28b0608133..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+      "rev_method": "reflog HEAD@{1793267750}(2026-10-29T09:55:50Z) = 측정 시각 2026-10-29T11:41:26Z 직전 체크아웃",
+      "role": "bench",
+      "snapshot_rel": "inputs/sources/run_bench.sh@29cbdbc89a3d",
+      "why": "그 판본 sweep_bench.sh 가 레벨마다 부른다(`\"$SDIR/run_bench.sh\"`) · 색인에 레벨 기록",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "d33b0878a6c37dc7d89aec06861ba438ceffb4de",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-17T13:18:03Z",
+      "head_at_measurement": "dc28b060813350a4c74d175f7c03277d561b7fa4",
+      "name": "lite_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "dc28b0608133..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/lite_bench.sh",
+      "rev_method": "reflog HEAD@{1793267750}(2026-10-29T09:55:50Z) = 측정 시각 2026-10-29T11:41:26Z 직전 체크아웃",
+      "role": "lite",
+      "snapshot_rel": "inputs/sources/lite_bench.sh@d33b0878a6c3",
+      "why": "그 판본 sweep_bench.sh 가 lite 레그로 부른다(`\"$SDIR/lite_bench.sh\"`) · 색인에 lite 기록",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "17959581d8ae97c2e951120dbca09a5a882e3051",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-27T07:26:14Z",
+      "head_at_measurement": "dc28b060813350a4c74d175f7c03277d561b7fa4",
+      "name": "broad_search.sh",
+      "next_rev": null,
+      "next_rev_basis": "dc28b0608133..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
+      "rev_method": "reflog HEAD@{1793267750}(2026-10-29T09:55:50Z) = 측정 시각 2026-10-29T11:41:26Z 직전 체크아웃",
+      "role": "driver-candidate",
+      "snapshot_rel": "inputs/sources/broad_search.sh@17959581d8ae",
+      "why": "그 판본에서 sweep_bench.sh 를 부르는 스크립트 · 넘기는 --tool 상수 ['guidellm'] 가 이 측정과 어긋나지 않는다 — 이 선택기는 호출 기록을 조회하지 않는다(정적 소스 기반 후보이며 실제 드라이버 여부는 이 선택기에서 미검증). 별도 호출 관측과 이 판본의 실제 실행 바이트 결속은 구분한다",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    }
+  ]
+}
