@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 86,
-  "generated_kst": "2026-10-28T22:49:32",
+  "count": 87,
+  "generated_kst": "2026-10-29T09:43:35",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1869,6 +1869,28 @@
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_solar31-nv4-1m-tp2/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
+    },
+    {
+      "anchor": "d413f8c82902d2b33ed47fb0e2de1246b7d36e60",
+      "arch": "gb10-1g1n-sub-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102907_gpt-oss-120b_GB10_0.32.0.md))",
+      "brief": "GPT-OSS-120B를 단일 GB10에서 v0.32.0 소스 커밋 기반 MXFP4, 길이 8192, auto KV, spec off와 graph로 측정해 동시성 1 decode 35.86 tok/s를 얻었다. 원본 의존성 충돌은 별도 계층으로 수리했다(W1). gmu는 손으로 선언한 값이지 메모리 강제 cap이나 최적값이 아니다(V1).",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_RESOLVE"
+      ],
+      "model": "gpt-oss-120b",
+      "object": "5493de620d6b8dc6fe412cdf07a0cedb2bbaaec6",
+      "published": true,
+      "recipe": "qmxfp4-len8192-kvauto",
+      "source": "remote-derived",
+      "tag": "hint/0.32.0-g5df63a7203cd/gpt-oss-120b/gb10-1g1n-sub-native/qmxfp4-len8192-kvauto",
+      "tagged_utc": "2026-10-28T22:57:30Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gpt120v0320_20261028T2143/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.32.0-g5df63a7203cd"
     }
   ],
   "remote": "origin",

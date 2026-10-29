@@ -112,7 +112,16 @@ arch·recipe 의 모양이 다릅니다.
 에 있습니다.
 
 <!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->
-> 원격 `origin` 의 발행 태그 **86건** · 모델 18종에서 파생 · 생성 `2026-10-28T22:49:32` KST · 로컬 오브젝트 부재(미수령) 3건.
+> 원격 `origin` 의 발행 태그 **87건** · 모델 18종에서 파생 · 생성 `2026-10-29T09:43:35` KST · 로컬 오브젝트 부재(미수령) 3건.
+
+### `gpt-oss-120b` (4)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.32.0-g5df63a7203cd/gpt-oss-120b/gb10-1g1n-sub-native/qmxfp4-len8192-kvauto` | gb10-1g1n-sub-native | 0.32.0-g5df63a7203cd | PASS | full | HINT_MISSING_RESOLVE |
+| `hint/0.19.1/gpt-oss-120b/gb10-1g1n-main-native/qmxfp4-len131072-kvfp8` | gb10-1g1n-main-native | 0.19.1 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
+| `hint/0.19.0/gpt-oss-120b/gb10x2-cluster-native/qmxfp4-len131072-kvfp8` | gb10x2-cluster-native | 0.19.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8` | gb10x2-sim-h100 | 0.19.0 | 미기재(구판) | 미기재 | 미선언 |
 
 ### `gpt-oss-20b` (4)
 
@@ -236,14 +245,6 @@ arch·recipe 의 모양이 다릅니다.
 | 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
 |---|---|---|---|---|---|
 | `hint/0.30.0/ornith-1.5-35b-a3b/gb10-1g1n-sub-native/qbf16-len262144-kvauto-moetriton-kv8g` | gb10-1g1n-sub-native | 0.30.0 | PASS | full | HINT_MISSING_APPLIED_SET · HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
-
-### `gpt-oss-120b` (3)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.19.1/gpt-oss-120b/gb10-1g1n-main-native/qmxfp4-len131072-kvfp8` | gb10-1g1n-main-native | 0.19.1 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
-| `hint/0.19.0/gpt-oss-120b/gb10x2-cluster-native/qmxfp4-len131072-kvfp8` | gb10x2-cluster-native | 0.19.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8` | gb10x2-sim-h100 | 0.19.0 | 미기재(구판) | 미기재 | 미선언 |
 
 ### `deepseek-v4.1-flash-exl3-2.0bpw-sfxnz` (2)
 
