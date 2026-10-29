@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 92,
-  "generated_kst": "2026-10-30T01:22:50",
+  "count": 93,
+  "generated_kst": "2026-10-30T05:38:57",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1932,6 +1932,28 @@
       "tagged_utc": "2026-10-29T16:22:50Z",
       "verdict": "REFUTE",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_ds4f0731-032-spec7-roce_261030A/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.32.0-g5df63a7203cd"
+    },
+    {
+      "anchor": "fac4412f8458cfeb8e6cc7a9ae85c561cf40727d",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26103001_deepseek-v4.1-flash-exl3-2.0bpw-sfxnz_GB10_0.32.0.md))",
+      "brief": "DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz를GB10 노드당GPU하나×두노드TP2,공식vLLM0.32.0 exactSHA 기반SM12x후보에서EXL3·131072·KVfp8·fileEngram·DSpark3·eager로측정해동시성1 decode24.04t/s의weakREFUTE를기록했다. commonEngram/V2이식과native의존결손은새PRE/POST로해소했지만(W11/W12)과거graph10kernel성공은승계하지않았다. KV/context/seq는손레버inherited(V9/V11/V12)이며회귀부재로CANDIDATE를유지한다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "deepseek-v4.1-flash-exl3-2.0bpw-sfxnz",
+      "object": "d23e2e48c662099a82af937a6cdc32c640f77a97",
+      "published": true,
+      "recipe": "qexl3-len131072-kvfp8-eager",
+      "source": "remote-derived",
+      "tag": "hint/0.32.0-g5df63a7203cd/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len131072-kvfp8-eager",
+      "tagged_utc": "2026-10-29T20:38:57Z",
+      "verdict": "REFUTE",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_i5-032-sm12x_261030A/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.32.0-g5df63a7203cd"
     },
     {
