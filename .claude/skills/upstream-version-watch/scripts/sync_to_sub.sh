@@ -467,47 +467,16 @@ fi
 #   *동치 아님*. output/<t>/ Band2 추적은 gitignore.template 의 output/ 예외(!output/<t>/configs/serve_runner.sh 등)가 관할.
 BAND2_CONFIGS=(serve_runner.sh debug-init.sh arm_patch.sh)   # topology-keyed 분산서빙 인프라(Band2, 멀티). arm_patch.sh=모델구동 패치 arming(제네릭 결정론·양노드)
 BAND2_ENVS=(.env.interconnect .env.cluster)          # topology/network-keyed env(Band2): NCCL(.interconnect) + 클러스터배포(.cluster=S6 materialize)
-BAND2_TOP=(Dockerfile Dockerfile.source-build Dockerfile.source-build-upstage docker-compose.yaml requirements.txt .gitkeep)  # 최상위 빌드킷(Band2)
-# 빌드 패치 디렉토리의 **단일 소유**(2026-08-13 신설). 두 소비자가 여기서 파생한다:
-#   _band2_filters(rsync --include) · assert_band_classification(_b2top 등록).
-# ★ 왜 신설했나: `build_patches_src/`(빌드패치 **pre** 위상 = 자체 이식 = 포크 사다리 3번째 칸)가
-#   .gitignore 예외·rsync include·린터 목록 **3곳 모두**에서 누락돼 서브 배달 경로가 아예 없었다.
-#   더 나쁜 건 침묵이다 — 린터는 prepare_transactional_source 이후의 **index 스냅샷**을 도는데,
-#   비추적 항목은 스냅샷에 없으므로 "미분류 fail-loud" 가 발화하지 못한다(gitignore 가 게이트의 눈을
-#   가린다). 목록을 세 벌 두면 또 갈라지므로 여기 한 곳에서만 선언한다.
-#   ⚠ pre 슬롯은 `workflow.md:77` 기준 **미검증 슬롯**(배관은 동작 확인, 그 위 서빙 성공 사례 없음).
-# ⛔ 비움(2026-09-10 · 사용자 결정): build_patches · build_patches_src 의 추적 예외가 철회되면서
-#   이 배달 표면도 함께 비운다. 두 목록은 쌍이다 — `.gitignore` 에서 예외를 걷고 여기를 그대로 두면
-#   parity 검사가 정확히 "보내지 않는 것을 지우게 된다" 로 막는다(2026-09-10 실측: --apply 배달 거부).
-#   ⇒ 슬롯 산출물의 서브 배달은 index 권위 스냅샷이 아니라 `regen_build_patches_src.py`(pre 위상
-#     생성엔진)와 hint 페이로드가 맡는다. post 위상(build_patches/)의 배달 경로는 **아직 비어 있다** —
-#     그 공백은 이 비움이 만든 것이 아니라 드러낸 것이다(후속: plan_26091021 §4 후속).
-BAND2_PATCH_DIRS=()
-# 패치 디렉토리 **안쪽**의 배달 범위(payload glob)의 단일 소유(2026-08-14 신설 · R0 사전점검에서 발견).
-# ★ 무엇이 틀려 있었나: 배달 스코프와 삭제 스코프가 **서로 다른 정의**를 쓰고 있었다.
-#     배달 = git index(prepare_transactional_source) → `files/` 는 .gitignore:156 으로 비추적이라 **부재**
-#     삭제 = rsync `--include=/<d>/**` → `files/` 가 **삭제 대상에 포함**
-#   즉 "보내지는 않는데 지우기는 한다". 2026-08-13 에 gitignore 만 좁히고(92파일 비추적화) rsync 는
-#   `/**` 로 남겨둔 결과이며, 실측 dry-run 이 서브의 92파일 + 부모 3디렉토리를 삭제예정으로 세웠다.
-#   삭제brake(ALLOW_DELETE)가 1차로 막지만, 브레이크는 **개수만** 말하므로 운영자가 안내대로
-#   `ALLOW_DELETE=95` 를 주면 그대로 파괴된다 — 2026-08-01 브랜치 불일치 사고와 **동형**이다.
-# ★ 처방(D3): 우회(예외 하드코딩)가 아니라 **두 스코프를 한 정의로 묶는다**. rsync 의 include 집합은
-#   전송 대상이자 삭제 대상이므로, include 를 추적 allowlist 와 일치시키면 두 스코프가 **구성적으로**
-#   같아진다. 값은 여기가 소유하고 .gitignore 두 벌은 assert_band2_top_gitignore_parity 가 대조한다.
-# 값 근거 = 밴드 규정: build_patches 는 전부 손작성(post 위상 .sh) · build_patches_src 는 손작성분만
-#   (`*.sh`+`PROVENANCE.json`)이고 `files/` 는 업스트림 벤더링 = **파생 산출물**이라 비추적이다
-#   (.gitignore:140-156 · PROVENANCE.json 유도식 + 파일별 sha256 으로 재생성한다).
-# ★ 2026-08-14 교정(B-5): 비추적이 **비배달**을 함의한다고 적었던 것은 틀렸다. 서브는 egress-restricted 라
-#   상류를 clone 할 수 없다 → 재생성을 서브에서 할 수 없고, rsync 도 안 보내면 payload 를 **영원히 얻지
-#   못한다**. 그래서 배달 경로가 없는 채로 "재생성하면 된다"고 적혀 있었다(전제 없는 규정 = 구멍).
-#   처방은 우회(추적 승격·수작업 scp)가 아니라 **평면 신설**이다 — 아래 deliver_source_port_payload 가
-#   `메인 파생 → 결정론 번들 → 배달 → 서브 해체·검증` 을 소유한다. rsync 는 여전히 손작성분만 나른다.
-declare -A BAND2_PATCH_DIR_PAYLOAD=(
-    [build_patches]='*'                          # post 위상: 디렉토리 전체가 손작성 정본
-    [build_patches_src]='*.sh PROVENANCE.json'   # pre 위상: 손작성분만. `files/` = 파생 → rsync 비대상·**비삭제**(번들 평면 소관)
-)
+BAND2_UNTRACKED_TOP=(Dockerfile.source-build-sm12x Dockerfile.source-build-deps2)  # closed generated recipes, no tracking exception
+BAND2_TOP=(Dockerfile Dockerfile.source-build Dockerfile.source-build-upstage Dockerfile.source-build-sm12x Dockerfile.source-build-deps2 docker-compose.yaml requirements.txt .gitkeep)  # 최상위 빌드킷(Band2)
+# Post slots are untracked build inputs, explicitly snapshotted from the canonical
+# filesystem. PRE script-modules require explicit provenance/inventory verification;
+# legacy files-map regeneration and bundle delivery remain unchanged.
+# One payload declaration owns snapshot admission, rsync and deletion scope.
+BAND2_PATCH_DIRS=(build_patches build_patches_src)
+declare -A BAND2_PATCH_DIR_PAYLOAD=([build_patches]='*' [build_patches_src]='*.sh PROVENANCE.json')
 # 파생 payload 의 배달 평면(2026-08-14 신설 · B-5). rsync 평면과 **의도적으로 분리**한다:
-#   rsync   = 인덱스 권위 + 손작성 정본 → 추적 allowlist 와 1:1(parity 단언이 그 정합을 지킨다)
+#   rsync   = index snapshot + explicitly admitted untracked post inputs (same payload scope)
 #   번들     = 파일시스템 payload + **인덱스 PROVENANCE 로 검증** → 판정 권위는 추적물에 남는다
 #   두 평면을 섞으면(= payload glob 에 files/ 추가) parity 단언이 61,846줄 벤더링을 추적물로 끌어올린다.
 SOURCE_PORT_DIR="build_patches_src"
@@ -532,28 +501,196 @@ SOURCE_PORT_BUNDLE_SHA=""                          # materialize 단계에서 �
 #     처방은 전파 경로 신설이 아니라 **공유 스토리지 + manifest 포인터**다(사용자 결정 — NAS 배치).
 #       자산 정본 = `manifest.tiktoken_host_path` 가 가리키는 공유 경로. 그러면 전파가 불필요해지므로
 #       이 제외 목록은 그대로 옳다. 되돌아감 방지는 `manifest_contract.py` 의 노드-로컬 경고가 맡는다.
-BAND2_EXCLUDED_TOP=(manifest.yaml sub_provision .env benchlog cache tiktoken_cache a2a_signing sub_manifest.yaml
-                    build_patches build_patches_src)
-#   build_patches·build_patches_src=3+1+1 빌드 패치 슬롯의 **산출물**(2026-09-10 추적 예외 철회의 짝).
-#   BAND2_PATCH_DIRS 를 비우면 이 둘은 배달 목록에서 빠지지만 **분류에서도 빠져** assert_band_classification
-#   이 '미분류 top-level' 로 정당하게 막는다(실측: --apply 배달 거부). 분류는 파티션이라 배달을 그만두는
-#   것과 제외로 선언하는 것이 **한 쌍**이다 — 한쪽만 하면 침묵이 아니라 교착이 된다.
-#   여기 등재가 주는 것: 배달 제외 + 서브측 삭제 보호(rsync 는 exclude 된 수신측 항목을 지우지 않는다)
-#   + 밴드 분류. 서브가 자기 슬롯 산출물을 자율 저작해도 메인이 지우지 않는다.
+BAND2_EXCLUDED_TOP=(manifest.yaml sub_provision .env benchlog cache tiktoken_cache a2a_signing sub_manifest.yaml)
+#   Legacy build_patches_src remains excluded dynamically; only verified script-modules
+#   enter Band2. files/ never enters this direct-file plane.
+#   build_patches is admitted by snapshot_post_build_patches; absent/empty slots stay
+#   protected by effective_band2_exclusions so this change cannot delete old payloads.
 #   a2a_signing=retired local private material. It remains excluded defensively so an
 #   abandoned key directory can never reach a sub; it is not a render input or runtime dependency.
 #   sub_manifest.yaml=서브 manifest 의 **발급 원본**(서브 사본은 오버레이가 output/<t>/manifest.yaml 로 나른다).
 #   여기 등재는 배달 제외 + 삭제 보호 + 밴드 분류를 동시에 준다.
-BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3 solar31-nv4-1m-tp2 q38fn31-nv4-mmap-1m-tp2 q38fn31-fp8-1m-tp2)          # owner-local provenance-bound runtime patches; wildcard authority 금지
+BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3 solar31-nv4-1m-tp2 solar032-nv4-safe-tp2 q38fn31-nv4-mmap-1m-tp2 q38fn31-fp8-1m-tp2)          # owner-local provenance-bound runtime patches; wildcard authority 금지
 # ↑ Dockerfile.source-build-upstage = Solar-Open2 변종 트랙(UpstageAI 포크 @ v0.22.0-solar-open2).
 #   Band2 편입 근거 = **빌드-평면**: 멀티는 클러스터-와이드 이미지라 슬레이브도 동일 이미지를 빌드해야 한다
 #   (헌법 변종이미지 build-plane ≠ serve-plane 따름정리 · workflow.md S2.5). 모델-키잉 ✗ — track 은 포크
 #   **벤더**명이며 stock 0.22.0 의 superset. Band3 모델 트리플렛은 계속 배제.
 
+script_modules_active() { # $1=topology; only explicit discriminator enters direct PRE delivery
+    local man="${SRC%/}/output/$1/build_patches_src/PROVENANCE.json"
+    [ -f "$man" ] && [ ! -L "$man" ] || return 1
+    python3 - "$man" <<'SCRIPT_MODULE_KIND'
+import json, sys
+with open(sys.argv[1]) as fh:
+    man = json.load(fh)
+raise SystemExit(0 if man.get("source_payload", {}).get("kind") == "script-modules" else 1)
+SCRIPT_MODULE_KIND
+}
+
+script_module_files() { # selected snapshot already passed exact inventory validation
+    python3 - "${SRC%/}/output/$1/build_patches_src/PROVENANCE.json" <<'SCRIPT_MODULE_FILES'
+import json, sys
+with open(sys.argv[1]) as fh:
+    man = json.load(fh)
+for name in sorted(man["source_payload"]["modules_sha256"]):
+    print(name)
+print("PROVENANCE.json")
+SCRIPT_MODULE_FILES
+}
+
+snapshot_script_modules() { # $1=topology; files-map/absent slots retain their existing path
+    python3 - "$CANONICAL_SRC" "$TRANSACTIONAL_SRC" "$1" <<'SCRIPT_MODULE_SNAPSHOT'
+import importlib.util, json, os, pathlib, shutil, stat, subprocess, sys
+canonical, snapshot, topology = sys.argv[1:]
+if topology not in ("single", "multi"):
+    raise SystemExit("[sync] FAIL(PRE modules): invalid topology")
+tool = pathlib.Path(snapshot) / ".claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py"
+spec = importlib.util.spec_from_file_location("sync_regen_modules", tool)
+regen = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(regen)
+relative = f"output/{topology}/build_patches_src"
+root = pathlib.Path(canonical) / relative
+try:
+    fd = regen.open_module_root(root)
+except FileNotFoundError:
+    raise SystemExit(0)
+try:
+    try:
+        inp = os.open("PROVENANCE.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
+    except FileNotFoundError:
+        raise SystemExit(0)
+    with os.fdopen(inp, "rb") as fh:
+        st = os.fstat(fh.fileno())
+        if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
+            raise SystemExit("[sync] FAIL(PRE modules): nonregular provenance")
+        man = json.load(fh)
+    kind = man.get("source_payload", {}).get("kind")
+    if kind in (None, "files-map"):
+        if "files" not in man:
+            raise SystemExit("[sync] FAIL(PRE modules): authored modules require an explicit script-modules discriminator")
+        raise SystemExit(0)  # existing index/provenance + files/ pipeline is authoritative
+    if kind != "script-modules":
+        raise SystemExit("[sync] FAIL(PRE modules): unknown source payload kind")
+    if "source" not in man or "files" in man:
+        raise SystemExit("[sync] FAIL(PRE modules): ambiguous/invalid provenance schema")
+    regen.verify_script_modules(root, man)
+    tracked = subprocess.check_output(["git", "-C", canonical, "ls-files", "-z", "--", relative])
+    if any(n and n != os.fsencode(relative + "/.gitkeep") for n in tracked.split(b"\0")):
+        raise SystemExit("[sync] FAIL(PRE modules): authored modules must remain untracked")
+    dest = pathlib.Path(snapshot) / relative
+    dest.mkdir(parents=True, exist_ok=True)
+    for name in sorted(set(regen.script_module_inventory(man)) | {"PROVENANCE.json"}):
+        inp = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
+        with os.fdopen(inp, "rb") as fh:
+            st = os.fstat(fh.fileno())
+            if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
+                raise SystemExit("[sync] FAIL(PRE modules): input changed type")
+            with (dest / name).open("xb") as out:
+                shutil.copyfileobj(fh, out)
+            os.chmod(dest / name, stat.S_IMODE(st.st_mode) & 0o777)
+    regen.verify_script_modules(dest, man)
+    print(f"[sync] script-modules snapshot: {relative}; no files/ derivation or bundle")
+finally:
+    os.close(fd)
+SCRIPT_MODULE_SNAPSHOT
+}
+
+effective_band2_exclusions() { # $1=topology; shared rsync/inventory/prune scope
+    EFFECTIVE_BAND2_EXCLUDED_TOP=("${BAND2_EXCLUDED_TOP[@]}")
+    local slot
+    for slot in "${BAND2_PATCH_DIRS[@]}"; do
+        if [ "$slot" = "build_patches_src" ] && ! script_modules_active "$1"; then
+            EFFECTIVE_BAND2_EXCLUDED_TOP+=("$slot"); continue
+        fi
+        if [ ! -d "${SRC%/}/output/$1/$slot" ] || [ -z "$(find "${SRC%/}/output/$1/$slot" -mindepth 1 -maxdepth 1 -type f ! -name .gitkeep -print -quit)" ]; then
+            EFFECTIVE_BAND2_EXCLUDED_TOP+=("$slot")
+        fi
+    done
+}
+
+band2_post_files() { # $1=topology; admitted POST/PRE direct inputs only, no recursion
+    local slot name
+    for slot in "${BAND2_PATCH_DIRS[@]}"; do
+        if [ "$slot" = "build_patches_src" ]; then
+            script_modules_active "$1" || continue
+            while IFS= read -r name; do printf '%s/%s\n' "$slot" "$name"; done < <(script_module_files "$1")
+            continue
+        fi
+        [ -d "${SRC%/}/output/$1/$slot" ] || continue
+        find "${SRC%/}/output/$1/$slot" -mindepth 1 -maxdepth 1 -type f -printf "$slot/%f\n"
+    done
+    return 0
+}
+
+snapshot_post_build_patches() { # $1=topology $2=post|arch-dockerfile|deps-dockerfile; closed regular-file exceptions
+    python3 - "$CANONICAL_SRC" "$TRANSACTIONAL_SRC" "$1" "${2:-post}" <<'POST_PATCH_SNAPSHOT'
+import os, pathlib, re, shutil, stat, subprocess, sys
+canonical, snapshot, topology, kind = sys.argv[1:]
+if topology not in ("single", "multi") or kind not in ("post", "arch-dockerfile", "deps-dockerfile"):
+    raise SystemExit("[sync] FAIL(post slot): invalid topology/input kind")
+leaf = {"post": "build_patches", "arch-dockerfile": "Dockerfile.source-build-sm12x",
+        "deps-dockerfile": "Dockerfile.source-build-deps2"}[kind]
+relative = f"output/{topology}/{leaf}"
+tracked = subprocess.check_output(["git", "-C", canonical, "ls-files", "-z", "--", relative])
+if any(n and n != os.fsencode(relative + "/.gitkeep") for n in tracked.split(b"\0")):
+    raise SystemExit("[sync] FAIL(build input): generated payload must remain untracked")
+# The existing index-owned empty scaffold is metadata, never generated payload.
+scaffold = pathlib.Path(snapshot) / relative / ".gitkeep"
+if kind == "post" and os.path.lexists(scaffold):
+    st = scaffold.lstat()
+    if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1 or st.st_size != 0:
+        raise SystemExit("[sync] FAIL(post slot): invalid index-owned .gitkeep scaffold")
+# Open every ancestor without following symlinks; no parent/slot escape or FIFO open.
+fd = os.open(canonical.rstrip("/"), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+try:
+    for part in (("output", topology, "build_patches") if kind == "post" else ("output", topology)):
+        try:
+            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+        except FileNotFoundError:
+            print(f"[sync] info: optional post slot absent: {relative}")
+            raise SystemExit(0)
+        os.close(fd)
+        fd = child
+    if kind == "post":
+        names = sorted(n for n in os.listdir(fd) if n != ".gitkeep")  # index-owned scaffold, never filesystem payload
+    else:
+        try:
+            os.stat(leaf, dir_fd=fd, follow_symlinks=False)
+        except FileNotFoundError:
+            raise SystemExit(0)  # optional arch track not rendered
+        names = [leaf]
+    for name in names:
+        st = os.stat(name, dir_fd=fd, follow_symlinks=False)
+        if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
+            raise SystemExit(f"[sync] FAIL(post slot): nonregular/symlink/hardlink payload: {relative}/{name}")
+        if not re.fullmatch(r"[A-Za-z0-9_.-]+", name):
+            raise SystemExit(f"[sync] FAIL(post slot): unsafe filename: {name!r}")
+    if names:
+        dest = pathlib.Path(snapshot) / (relative if kind == "post" else f"output/{topology}")
+        dest.mkdir(parents=True, exist_ok=True)
+        for name in names:
+            inp = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
+            with os.fdopen(inp, "rb") as source:
+                before = os.fstat(source.fileno())
+                if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+                    raise SystemExit("[sync] FAIL(post slot): payload changed type while copying")
+                with (dest / name).open("xb") as out:
+                    shutil.copyfileobj(source, out)
+                after = os.fstat(source.fileno())
+                if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+                    raise SystemExit("[sync] FAIL(post slot): payload changed while copying")
+                os.chmod(dest / name, stat.S_IMODE(before.st_mode) & 0o777)
+    print(f"[sync] info: untracked {kind} build-input snapshot: {relative} ({len(names)} regular files)")
+finally:
+    os.close(fd)
+POST_PATCH_SNAPSHOT
+}
+
 _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = output/<t>/.
     FILT=()
     local f g; local -a payload
-    for f in "${BAND2_EXCLUDED_TOP[@]}"; do FILT+=(--exclude="/$f"); done   # 단일 소유 = BAND2_EXCLUDED_TOP
+    effective_band2_exclusions "${1:-${TARGETS[0]}}"
+    for f in "${EFFECTIVE_BAND2_EXCLUDED_TOP[@]}"; do FILT+=(--exclude="/$f"); done   # 단일 소유 = BAND2_EXCLUDED_TOP
     FILT+=(--include='/configs/')
     for f in "${BAND2_CONFIGS[@]}"; do FILT+=(--include="/configs/$f"); done
     for f in "${BAND2_RUNTIME_PATCH_STEMS[@]}"; do
@@ -581,10 +718,17 @@ _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = ou
             echo "[sync]   → 선언 없이 두면 terminal exclude 만 남아 **아무것도 배달되지 않는다**(침묵 누락)." >&2
             return 1
         }
-        FILT+=(--filter="P /$f/" --include="/$f/")
+        FILT+=(--filter="P /$f/" --include="/$f/" --exclude="/$f/*/")
         # ⚠ `read -a` 로 쪼갠다 — 비인용 확장은 payload 의 `*` 가 **CWD 에 대해 경로확장**된다
         #   (실측: `[build_patches]='*'` 가 리포 최상위 15개 이름으로 터졌다). read 는 glob 을 하지 않는다.
         payload=(); IFS=' ' read -r -a payload <<<"${BAND2_PATCH_DIR_PAYLOAD[$f]}"
+        if [ "$f" = "build_patches_src" ] && script_modules_active "${1:-${TARGETS[0]}}"; then
+            mapfile -t payload < <(script_module_files "${1:-${TARGETS[0]}}")
+            # Source snapshot has already passed its exact inventory check. Retain
+            # the existing shell-module deletion scope so stale receiver scripts
+            # appear in the dry-run and remain subject to ALLOW_DELETE/rollback.
+            payload+=('*.sh')
+        fi
         for g in "${payload[@]}"; do FILT+=(--include="/$f/$g"); done
         FILT+=(--exclude="/$f/*")
     done
@@ -642,6 +786,7 @@ assert_band2_top_gitignore_parity() {  # 0=ok, 1=drift
         path="${label#*:}"; label="${label%%:*}"
         for t in multi single; do
             for f in "${BAND2_TOP[@]}"; do
+                [[ " ${BAND2_UNTRACKED_TOP[*]} " = *" $f "* ]] && continue
                 [ "$f" = ".gitkeep" ] && continue      # .gitkeep 은 `!output/*/.gitkeep` 와일드카드가 커버
                 grep -qxF "!output/$t/$f" "$path" || {
                     echo "[sync] FAIL(parity/$label): BAND2_TOP 에 '$f' 가 있으나 '!output/$t/$f' 예외가 없다." >&2
@@ -649,25 +794,9 @@ assert_band2_top_gitignore_parity() {  # 0=ok, 1=drift
                     bad=1
                 }
             done
-            for d in "${BAND2_PATCH_DIRS[@]}"; do      # 디렉토리는 자기 줄 + 내용 줄(`/*` 또는 `/**`) 둘 다 필요
-                grep -qxF "!output/$t/$d/" "$path" || {
-                    echo "[sync] FAIL(parity/$label): BAND2_PATCH_DIRS 의 '$d' 에 '!output/$t/$d/' 예외가 없다." >&2; bad=1; }
-                # 내용 예외는 **선언된 payload glob 과 1:1 대조**한다(2026-08-14 강화).
-                #   초판은 "최소 1줄 존재"만 봤다 — 범위를 정규식으로 못박으면 밴드 규정이 바뀔 때마다
-                #   정규식을 고쳐야 한다는 이유였다. 그 이유는 이제 성립하지 않는다: 범위의 소유자가
-                #   손으로 적은 정규식이 아니라 **BAND2_PATCH_DIR_PAYLOAD 선언**이므로, 규정이 바뀌면
-                #   배열만 고치면 되고 이 대조는 자동으로 따라온다.
-                #   느슨함의 실해악은 실측됐다: 2026-08-13 에 gitignore 를 `/**`→`*.sh`+`PROVENANCE.json`
-                #   으로 좁혔을 때 "1줄은 남아 있어서" 게이트가 통과했고, 그 결과 추적(배달)에서 빠진
-                #   92파일이 rsync 삭제 스코프에는 그대로 남아 **배달 ✗ / 삭제 ✓** 상태가 침묵으로 유지됐다.
-                payload=(); IFS=' ' read -r -a payload <<<"${BAND2_PATCH_DIR_PAYLOAD[$d]:-}"  # 비인용 확장 금지(경로확장 위험)
-                for g in "${payload[@]}"; do
-                    grep -qxF "!output/$t/$d/$g" "$path" || {
-                        echo "[sync] FAIL(parity/$label): '$d' 의 payload glob '$g' 에 '!output/$t/$d/$g' 예외가 없다." >&2
-                        echo "[sync]   → 배달(index 권위)과 삭제(rsync include)가 갈라진다 — 보내지 않는 것을 지우게 된다." >&2
-                        bad=1; }
-                done
-            done
+            # Post patch slots are deliberately untracked; snapshot_post_build_patches
+            # validates them. Requiring gitignore exceptions would violate that contract.
+
         done
     done
     return $bad
@@ -981,11 +1110,12 @@ validate_inventory_relative_path() { # $1=repo-relative path
 validate_inventory_tree() { # $1=root  $2=1 이면 BAND2_EXCLUDED_TOP 최상위 prune(output/<t> 트리 전용)
     # prune 근거는 validate_remote_deletion_tree 와 동일 — 검사 범위 = 전송 범위.
     local root="$1" prune="${2:-0}" path rel ex
+    if [ "$prune" = "1" ]; then effective_band2_exclusions "${3:?topology required}"; fi
     [ -d "$root" ] || return 0
     while IFS= read -r -d '' path; do
         rel="${path#"$root/"}"
         if [ "$prune" = "1" ]; then
-            for ex in "${BAND2_EXCLUDED_TOP[@]}"; do
+            for ex in "${EFFECTIVE_BAND2_EXCLUDED_TOP[@]}"; do
                 [ "$rel" = "$ex" ] || [ "${rel#"$ex/"}" != "$rel" ] && continue 2
             done
         fi
@@ -1009,10 +1139,13 @@ validate_inventory_tree() { # $1=root  $2=1 이면 BAND2_EXCLUDED_TOP 최상위 
 #   메인은 서브에 대해 이 정도의 정비 권한을 갖는다(헌법 평면 B §파이프라인 정비 — 저작도 스캔도 아니다).
 # ⚠ 침묵 삭제 금지 — 제거한 경로를 항상 출력한다(docs.md 의 log_evicted 규율과 동형).
 prune_remote_empty_dirs() { # $1=topology → 0=ok(제거분 로그), 9=실패
-    local root="${DEST}output/$1" skip out
-    skip="$(IFS=:; printf '%s' "${BAND2_EXCLUDED_TOP[*]}")"
+    local root="${DEST}output/$1" skip post out
+    effective_band2_exclusions "$1"
+    skip="$(IFS=:; printf '%s' "${EFFECTIVE_BAND2_EXCLUDED_TOP[*]}")"
+    post="$(IFS=:; printf '%s' "${BAND2_PATCH_DIRS[*]}")"
     out="$(ssh_run "$SUB_HOST" "python3 -c 'import os,sys
 root,skip=sys.argv[1],set(x for x in sys.argv[2].split(\":\") if x)
+post=set(x for x in sys.argv[3].split(\":\") if x)
 if not os.path.isdir(root): raise SystemExit(0)
 removed=[]
 def excluded(base):
@@ -1022,7 +1155,7 @@ def excluded(base):
  #    rsync 가 건드리지 않는 영역을 파이프라인이 정비한 셈으로, 2026-08-01 사고와 동일한 형태의
  #    "검사 범위 ≠ 전송 범위" 위반이다.)
  rel=os.path.relpath(base,root)
- return rel!=\".\" and rel.split(os.sep)[0] in skip
+ return rel!=\".\" and (rel.split(os.sep)[0] in skip or (os.sep in rel and rel.split(os.sep)[0] in post))
 # bottom-up: 안쪽을 지우면 바깥이 비므로 반복 없이 한 번에 수렴한다.
 for base,dirs,files in os.walk(root, topdown=False):
  if base==root or excluded(base): continue
@@ -1032,7 +1165,7 @@ for base,dirs,files in os.walk(root, topdown=False):
  except OSError as e:
   sys.stderr.write(\"prune-failed %s: %s\n\" % (base,e)); raise SystemExit(9)
 print(\"\n\".join(removed))
-' '$root' '$skip'")" || { echo "[sync] FAIL: 서브 빈 디렉터리 prune 실패($1) — 권한/경합 확인" >&2; return 9; }
+' '$root' '$skip' '$post'")" || { echo "[sync] FAIL: 서브 빈 디렉터리 prune 실패($1) — 권한/경합 확인" >&2; return 9; }
     if [ -n "$out" ]; then
         echo "[sync] [$1] 배달 전제 복구: 빈 디렉터리 $(printf '%s\n' "$out" | grep -c .)건 제거(정보량 0 · 롤백 인벤토리가 담지 못하는 유일한 형태)" >&2
         printf '%s\n' "$out" | sed 's|^|    prune: output/'"$1"'/|' >&2
@@ -1049,21 +1182,25 @@ validate_remote_deletion_tree() { # $1=topology
     #   운영자가 무엇을 고쳐야 할지 알 수 없었다(plan_26081310 D5: "안내문이 분류를 잘못 말하면
     #   가드가 있어도 사고가 난다" — 여기선 분류를 아예 하지 않았다).
     prune_remote_empty_dirs "$1" || return 9
-    local root="${DEST}output/$1" skip bad
-    skip="$(IFS=:; printf '%s' "${BAND2_EXCLUDED_TOP[*]}")"
+    local root="${DEST}output/$1" skip post bad
+    effective_band2_exclusions "$1"
+    skip="$(IFS=:; printf '%s' "${EFFECTIVE_BAND2_EXCLUDED_TOP[*]}")"
+    post="$(IFS=:; printf '%s' "${BAND2_PATCH_DIRS[*]}")"
     bad="$(ssh_run "$SUB_HOST" "python3 -c 'import os,sys
 root,skip=sys.argv[1],set(x for x in sys.argv[2].split(\":\") if x)
+post=set(x for x in sys.argv[3].split(\":\") if x)
 if not os.path.isdir(root): raise SystemExit(0)
 hits=[]
 for base,dirs,files in os.walk(root):
  if base==root: dirs[:]=[d for d in dirs if d not in skip]
+ elif os.path.relpath(base,root) in post: dirs[:]=[]
  for name in dirs+files:
   if base==root and name in skip: continue
   raw=os.fsencode(name)
   if any(byte<=32 or byte==127 for byte in raw):
    hits.append(os.path.relpath(os.path.join(base,name),root))
 print(\"\n\".join(hits))
-' '$root' '$skip'")" || { echo "[sync] FAIL: 서브 삭제 인벤토리 검사 실패($1)" >&2; return 9; }
+' '$root' '$skip' '$post'")" || { echo "[sync] FAIL: 서브 삭제 인벤토리 검사 실패($1)" >&2; return 9; }
     if [ -n "$bad" ]; then
         echo "[sync] FAIL: 서브 경로에 공백/제어문자 — 경로 주입 방어로 fail-closed(대상 아래)." >&2
         printf '%s\n' "$bad" | sed 's|^|    bad-path: output/'"$1"'/|' >&2
@@ -1076,7 +1213,7 @@ build_remote_touch_inventory() { # $1=topology $2=output file
     st="$(staging_dir "$t")"
     : >"$out"
     validate_inventory_tree "$st" || return 9                    # 오버레이 staging — prune 없음(전량 전송 대상)
-    validate_inventory_tree "${SRC}output/$t" 1 || return 9       # output/<t> — 전송 제외 최상위는 prune
+    validate_inventory_tree "${SRC}output/$t" 1 "$t" || return 9       # output/<t> — 전송 제외 최상위는 prune
     if [ -d "$st" ]; then
         while IFS= read -r -d '' rel; do printf '%s\n' "${rel#"$st/"}" >>"$out"; done \
             < <(find "$st" \( -type f -o -type l \) -print0)
@@ -1089,7 +1226,7 @@ build_remote_touch_inventory() { # $1=topology $2=output file
     # If deletion was explicitly authorized, inventory those destination-only Band2 paths too.
     if [ "${ALLOW_DELETE:-0}" -gt 0 ]; then
         validate_remote_deletion_tree "$t" || return 9
-        _band2_filters || return 9
+        _band2_filters "$t" || return 9
         scan="$(mktemp "${TMPDIR:-/tmp}/easy-vllm-delete-scan.XXXXXX")"
         if ! rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_RSH" \
             "${SRC}output/$t/" "$SUB_HOST:${DEST}output/$t/" >"$scan" 2>&1; then
@@ -1235,7 +1372,8 @@ prepare_transactional_source() {
         return 9
     fi
     # Git index bytes/modes are the accepted control/build-plane authority. Mutable or untracked
-    # output files never enter the snapshot. The filesystem exceptions are the untracked render
+    # output files enter only through explicit scoped exceptions below: post build inputs,
+    # provenance-bound runtime patches and untracked render
     # inputs manifest.yaml and issued sub_manifest.yaml. Both are copied mode 0600 and excluded
     # from remote delivery by _band2_filters (BAND2_EXCLUDED_TOP). Retired signing material is
     # deliberately neither copied nor used as a render input.
@@ -1289,6 +1427,12 @@ prepare_transactional_source() {
         else
             echo "[sync] info: optional render input absent: output/$topology/$render_input" >&2
         fi
+    done
+    for topology in "${TARGETS[@]}"; do
+        snapshot_post_build_patches "$topology" || return 9
+        snapshot_post_build_patches "$topology" arch-dockerfile || return 9
+        snapshot_post_build_patches "$topology" deps-dockerfile || return 9
+        snapshot_script_modules "$topology" || return 9
     done
     # ★ 런타임 패치(Band2 예외 · BAND2_RUNTIME_PATCH_STEMS) 는 **비추적**이 계약이다(휘발 · 해시 사이드카가 그 바이트를
     #   묶는다 — 추적하면 사이드카의 digest 가 git 이 든 blob 과 겹쳐 단일 권위 tripwire 가 울린다 · 2026-10-24 실측).
@@ -1349,6 +1493,11 @@ materialize_source_port_payload() {  # $1=topology → 0=ok(또는 해당없음)
         echo "[sync]   → PROVENANCE.json 만 추적되고 생성엔진이 비추적이면 서브는 payload 를 만들 수 없다." >&2
         return 9
     fi
+    if script_modules_active "$t"; then
+        python3 "$REGEN_TOOL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" || return 9
+        echo "[sync] [$t] script-modules verified directly; files/ derive/bundle not applicable"
+        return 0
+    fi
     if [ ! -d "$payload" ]; then
         echo "[sync] FAIL(source-port/$t): 파생 payload 부재 — $payload" >&2
         echo "[sync]   → 정상 차단이다(우회 금지). 아래로 좌표에서 재파생한 뒤 재실행하라:" >&2
@@ -1381,6 +1530,7 @@ build_source_port_bundle() {  # $1=topology $2=출력경로 → SOURCE_PORT_BUND
 source_port_active() {  # $1=topology → 0=이식 변종 존재
     # Source-port replacement removes its remote temporary bundle, so it is outside the
     # established deletion-free propagation scope.
+    script_modules_active "$1" && return 1  # direct authored modules have no files/ bundle
     [ "$PROPAGATION_SCOPE" != "1" ] || return 1
     [ -d "${SRC%/}/output/$1/$SOURCE_PORT_DIR/$SOURCE_PORT_PAYLOAD" ]
 }
@@ -1415,6 +1565,10 @@ deliver_source_port_payload() {  # $1=topology → 0=ok/해당없음
 # 배달 후 독립 검증 — verify_checksums 와 같은 자리에서 "108/0/0" 을 사람에게 보인다.
 verify_source_port_payload() {  # $1=topology
     local t="$1"
+    if script_modules_active "$t"; then
+        ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && python3 - verify --root 'output/$t/$SOURCE_PORT_DIR'" <"$REGEN_TOOL"
+        return $?
+    fi
     source_port_active "$t" || return 0
     if ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && python3 - verify \
             --root 'output/$t/$SOURCE_PORT_DIR'" <"$REGEN_TOOL" | sed 's/^/  /'; then
@@ -1427,6 +1581,10 @@ verify_source_port_payload() {  # $1=topology
 
 preview_source_port_payload() {  # $1=topology (dry-run 미리보기)
     local t="$1" remote_dir n
+    if script_modules_active "$t"; then
+        echo "    source-port: verified script-modules; direct Band2 input, no files/ bundle"
+        return 0
+    fi
     if ! source_port_active "$t"; then
         echo "    source-port payload: 해당없음(이식 변종 미등재)"; return 0
     fi
@@ -1443,7 +1601,7 @@ preview_source_port_payload() {  # $1=topology (dry-run 미리보기)
 #   = full mirror 아님. stale main-origin Band3 잔재 회수는 gate③ cleanup 소관(루트 Band1 leak 과 동일 평면).
 deliver_build() {  # $1=topology $2=dry(0/1)
     validate_runtime_patches "$1" || return 9
-    _band2_filters || return 9
+    _band2_filters "$1" || return 9
     local src="${SRC%/}/output/$1/" dst="${DEST}output/$1/"
     if [ "$2" = "1" ]; then
         rsync -az --delete --dry-run --itemize-changes "${FILT[@]}" -e "$SSH_RSH" "$src" "$SUB_HOST:$dst"
@@ -1560,6 +1718,9 @@ report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 
     for _b2 in "${BAND2_TOP[@]}"; do
         [ -f "${SRC%/}/output/$1/$_b2" ] && canon="${canon}"$'\n'"output/$1/$_b2"
     done
+    while IFS= read -r _b2; do
+        canon="${canon}"$'\n'"output/$1/$_b2"
+    done < <(band2_post_files "$1")
     canon="$(printf '%s\n' "$canon" | grep -v '^$' | LC_ALL=C sort -u)"
     # 비교 범위 = 정본이 **파일을 두는 그 디렉터리**뿐이며 재귀하지 않는다(-maxdepth 1).
     #   2026-09-05 첫 실행 교정: 최상위(`docs` 등)로 잡았더니 서브가 만든 블랙박스 로그
@@ -1943,7 +2104,9 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
     if [ "${2:-0}" = "1" ]; then
         echo "  ⏭  빌드킷 대조 생략(평면 dormant — 이 배달의 범위 밖)"
     else
-    for f in "${BAND2_TOP[@]}"; do
+    local -a build_files=("${BAND2_TOP[@]}")
+    while IFS= read -r f; do build_files+=("$f"); done < <(band2_post_files "$1")
+    for f in "${build_files[@]}"; do
         [ -f "${SRC%/}/output/$1/$f" ] || continue
         L=$(md5sum "${SRC%/}/output/$1/$f" | awk '{print $1}')
         R=$(ssh_run "$SUB_HOST" "md5sum '${SUB_WORK_DIR}/output/$1/$f' 2>/dev/null" | awk '{print $1}')

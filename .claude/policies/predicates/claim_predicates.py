@@ -1200,6 +1200,15 @@ def predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C1():
     band2_configs = _extract_bash_array(src, "BAND2_CONFIGS")
     band2_envs = _extract_bash_array(src, "BAND2_ENVS")
     patch_stems = _extract_bash_array(src, "BAND2_RUNTIME_PATCH_STEMS")
+    band2_top = _extract_bash_array(src, "BAND2_TOP")
+    patch_dirs = _extract_bash_array(src, "BAND2_PATCH_DIRS")
+    excluded_top = _extract_bash_array(src, "BAND2_EXCLUDED_TOP")
+    payload_decl = re.search(r"^declare -A BAND2_PATCH_DIR_PAYLOAD=\([^)]*\)", src, re.M)
+    _require(payload_decl, 'post payload declaration must accompany the real filter')
+    payload_array = payload_decl.group(0)
+    exclusion_fn = _extract_bash_function(src, "effective_band2_exclusions")
+    module_kind_fn = _extract_bash_function(src, "script_modules_active")
+    module_files_fn = _extract_bash_function(src, "script_module_files")
     stems = _stem_allowlist(src)
     fn = _extract_bash_function(src, "_band2_filters")
     _require("'/configs/*_patch.py'" not in fn, 'runtime patch wildcard authority is forbidden')
@@ -1222,8 +1231,17 @@ set -e
 {band2_configs}
 {band2_envs}
 {patch_stems}
+{band2_top}
+{patch_dirs}
+{payload_array}
+{excluded_top}
+SRC="{Path(tmp) / 'src'}/"
+TARGETS=(multi)
+{module_kind_fn}
+{module_files_fn}
+{exclusion_fn}
 {fn}
-_band2_filters
+_band2_filters multi
 rsync -a --itemize-changes "${{FILT[@]}}" "{srcdir}/" "{dstdir}/"
 """
         proc = _run_bash(script)
