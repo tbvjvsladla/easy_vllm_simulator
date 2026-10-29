@@ -1,0 +1,163 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26102401",
+      "depth": 1,
+      "excerpts": 1,
+      "path": "docs/plan/plan_26102401_4모델_싱글멀티_최대context_양자화_기동검증.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102412",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102412_4모델_멀티캠페인_Solar_Qwen_TP2_최대context.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102413",
+      "depth": 1,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26102413_solar_open2_stock_0.31.0_아키텍처_미지원_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102418",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102418_4모델_싱글멀티_연속캠페인_결과요약_종결.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102418",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102418_solar_open2_nvfp4_멀티_TP2_1M_자체이식_기동_needle_lite_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102420",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102420_PLE_mmap_재이식_full벤치_hint_Solar_슬롯화.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102504",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26102504_S5_full벤치_5셀_GuideLLM_판정_및_하네스_결함.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102504",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26102504_PLE_mmap_재이식_full벤치_hint발행_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102512",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102512_solar-open2-250b-nota-nvfp4_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26102700",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102700_코덱스_싱글8종_멀티4종_실측.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102919",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/plan/plan_26102919_solar032_레시피_준비.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102919",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102919_멀티4종_v032_완주.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102921",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102921_Solar_i5_032_성능루브릭.md",
+      "role": "plan"
+    },
+    {
+      "date": "26103000",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26103000_Solar032_TP2와_Full_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26103000",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26103000_Solar032_정식이식과_실측_인계.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26103000",
+      "depth": 0,
+      "excerpts": 1,
+      "path": "docs/benchmark/bench_report_26103000_solar-open2-250b-nota-nvfp4_GB10_0.32.0.md",
+      "role": "bench_report"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [],
+    "count": 46
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 경로(발췌 머리 stem = 파일명) · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26103001",
+  "schema_version": 3,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26103000_solar-open2-250b-nota-nvfp4_GB10_0.32.0.md",
+      "sha256": "ee3875b6322ace07f1e9f09ef47bc1084de223afdee79260d039154e703a8a7d"
+    },
+    {
+      "path": "docs/plan/plan_26102401_4모델_싱글멀티_최대context_양자화_기동검증.md",
+      "sha256": "c1708fe0f296f68f7b98822c500dfebe41cb6176f4d51c10197c8f686c3431b6"
+    },
+    {
+      "path": "docs/plan/plan_26102412_4모델_멀티캠페인_Solar_Qwen_TP2_최대context.md",
+      "sha256": "7d3459e75ff75b39da8e4e46aa745ae88421e7c192c9137dbb109ed9f6782535"
+    },
+    {
+      "path": "docs/plan/plan_26102420_PLE_mmap_재이식_full벤치_hint_Solar_슬롯화.md",
+      "sha256": "6d5bd795b725a2b522e8111fce414d0e4f603769a2a39601e6df042294cc6d63"
+    },
+    {
+      "path": "docs/plan/plan_26102919_solar032_레시피_준비.md",
+      "sha256": "46929487321d8b00f78c13cde7c4829b01da14a2c52c19e5b529cc03ae3e48e1"
+    },
+    {
+      "path": "docs/testlog/testlog_26102413_solar_open2_stock_0.31.0_아키텍처_미지원_판정.md",
+      "sha256": "491c9ba1c475656f1f41f15ca04896298b3469027eecee9755b8f50aec6259b9"
+    },
+    {
+      "path": "docs/testlog/testlog_26102418_solar_open2_nvfp4_멀티_TP2_1M_자체이식_기동_needle_lite_판정.md",
+      "sha256": "ee939d5b18150038370362db190e9ac4a6bf148c72ac843b93740fc270daf9d0"
+    },
+    {
+      "path": "docs/testlog/testlog_26102504_S5_full벤치_5셀_GuideLLM_판정_및_하네스_결함.md",
+      "sha256": "b419157081e2d0206c7b5cf3aa9831ed4039907f5a6b1b504a3f45a760c24f9e"
+    },
+    {
+      "path": "docs/testlog/testlog_26103000_Solar032_TP2와_Full_판정.md",
+      "sha256": "340a3f3f2f1d165b8168b8a18c414b08c084640f85cc1865848dac79c7b3710a"
+    }
+  ]
+}

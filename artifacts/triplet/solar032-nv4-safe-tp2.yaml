@@ -1,0 +1,24 @@
+# Solar Open2 NVFP4 candidate for official vLLM0.32.0; not runtime-validated.
+# Grounding: docs/logs/multi4_26102919/solar/compatibility.json and plan_26102919_solar032_레시피_준비.md.
+# 12 full-attention +36 KDA layers. No RoPE/YaRN override. Smaller262k context and8GiB/GPU KV
+# are fresh conservative declarations; actual load/kv-fit must be observed before Full.
+model: /app/quant_models/Upstage/Solar-Open2-250B-Nota-NVFP4
+host: 0.0.0.0
+port: 8080
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+enable-expert-parallel: true
+moe-backend: marlin
+gpu-memory-utilization: 0.80
+max-model-len: 262144
+kv-cache-dtype: fp8_e4m3
+kv-cache-memory-bytes: 8589934592
+enforce-eager: true
+max-num-seqs: 1
+max-num-batched-tokens: 2048
+mamba-cache-mode: none
+reasoning-parser: solar_open2
+tool-call-parser: solar_open2
+enable-auto-tool-choice: true
+logits-processors: solar_open2_plugin.logits_processor:SolarOpen2TemplateLogitsProcessor
+default-chat-template-kwargs: '{"think_render_option":"preserved"}'
