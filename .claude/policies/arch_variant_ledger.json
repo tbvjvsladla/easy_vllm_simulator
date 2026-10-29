@@ -151,7 +151,7 @@
           "docs/testlog/testlog_26102919_i5_032_stock_EXL3_등록부_거부.md"
         ]
       },
-      "status": "CANDIDATE — official0.32 stock registry rejects exl3; fresh PRE80-89 + POST70/72/73/74/75/79 main local derived build and GPU primitive/native API/registry/selfcheck/pipcheck passed. Model EXL3 kernels, TP2 serving and Full remain unverified. No0.30 runtime success inherited.",
+      "status": "CANDIDATE — official0.32 stock registry rejects exl3; fresh PRE80-89/helper + POST70/72/73/74/75/79 final attempt2 native variant built locally on both nodes; native extensions recompiled after POST75 dependency repair. Actual TP2 EXL3 MCG/file-backed Engram/DSpark3 serving smoke PASS (health200/chat.content1/reasoning101; model+draft73.96GiB per node), Full C1×3 valid24.04/22.73/23.66t/s, weak REFUTE against predeclared E43.73/floor37.17. Context131072/seq1/KV8GiB/eager; optional performance patches90-92 unexecuted; no0.30 runtime success inherited. VALIDATED not promoted: existing-model regression_evidence remains absent. Evidence: docs/testlog/testlog_26103005_i5_032_TP2와_Full_판정.md; docs/benchmark/bench_report_26103001_deepseek-v4.1-flash-exl3-2.0bpw-sfxnz_GB10_0.32.0.md.",
       "_build_reuse_note": "The core csrc/CMake inputs are unchanged by the Python-only PRE port; derive over each node local verified source-deps2, preserve direct parent ledger and create a new child application ledger.",
       "_current_build_evidence": "docs/logs/multi4_26102919/i5/main-variant-result.json; docs/testlog/testlog_26102919_i5_032_변종_로컬빌드.md"
     }
