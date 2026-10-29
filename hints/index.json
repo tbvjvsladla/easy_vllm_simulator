@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 90,
-  "generated_kst": "2026-10-30T00:19:36",
+  "count": 91,
+  "generated_kst": "2026-10-30T01:10:45",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1952,6 +1952,28 @@
       "tagged_utc": "2026-10-29T15:19:36Z",
       "verdict": "REFUTE",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.32.0-g5df63a7203cd"
+    },
+    {
+      "anchor": "8cf72efe7b5fbe83963d55e2c720dfec0f76ff9c",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "upstage/Solar-Open2-250B",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26103000_solar-open2-250b-nota-nvfp4_GB10_0.32.0.md))",
+      "brief": "Solar-Open2-250B-Nota-NVFP4를 GB10 노드당GPU하나×두노드 TP2, 공식vLLM0.32.0 exactSHA 입력에서 NVFP4·262144·KV fp8_e4m3·PLE없음·specoff·eager로 측정했고 동시성1 decode16.65t/s의 weak PASS다. stock 모델/파서 부재와 V2·배달 접점은 새런타임 플러그인으로 재확정했다(W1~W7); CPU검사와배달provenance를 GPU성공으로세지않았다(W9/W10). KV와context는손레버승계값(V6/V8)이며 전체길이품질·최적성·외부E달성을뜻하지않는다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "solar-open2-250b-nota-nvfp4",
+      "object": "b0ab0c81ebf94d3f6d4d5633f04d0695f5339692",
+      "published": true,
+      "recipe": "qnvfp4-len262144-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.32.0-g5df63a7203cd/solar-open2-250b-nota-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8",
+      "tagged_utc": "2026-10-29T16:10:45Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_solar032-nv4-safe-tp2_261030A/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.32.0-g5df63a7203cd"
     }
   ],
