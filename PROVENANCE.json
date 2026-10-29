@@ -1,0 +1,25 @@
+{
+  "assembly_branch": "single",
+  "generated_utc": "2026-10-29T09:45:40Z",
+  "payload_files": [
+    "00-hint.md",
+    "01-artifacts.md",
+    "02-narrative.md",
+    "03-benchmark.md",
+    "LINEAGE.json",
+    "PAYLOAD.json",
+    "PROVENANCE.json",
+    "README.md",
+    "artifacts/build_recipe/Dockerfile.source-build",
+    "artifacts/build_recipe/requirements.txt",
+    "artifacts/compose/.env.template",
+    "artifacts/compose/docker-compose.yaml",
+    "artifacts/triplet/.env.lfm25-26b-v031",
+    "artifacts/triplet/lfm25-26b-v031.sh",
+    "artifacts/triplet/lfm25-26b-v031.yaml"
+  ],
+  "schema_version": 2,
+  "source_anchor": "6ea16a845769b4c21f7ce2a4357007c9cf76f98e",
+  "source_anchor_is_head": true,
+  "tag": "hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto-t2610291845"
+}

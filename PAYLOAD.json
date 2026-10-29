@@ -1,0 +1,904 @@
+{
+  "agent_requests": [],
+  "applied_set": {
+    "excluded": [
+      {
+        "file": ".gitkeep",
+        "phase": "post",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      },
+      {
+        "file": ".gitkeep",
+        "phase": "pre",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      }
+    ],
+    "patches": [],
+    "probes": [
+      {
+        "ref": "output/single/benchlog/attestation_lfm25-26b-v031.json(부재)",
+        "result": "absent",
+        "tier": "attestation"
+      },
+      {
+        "image": "sha256:667eee7bd3b4e84b204ad4887bd811c87dd3537428d026eaeb580ab825d88c8e",
+        "image_source": "measured image_digest(evidence.build_identity · 내용 권위)",
+        "method": "docker create+cp(시작 ✗)",
+        "result": "no-ledger(이미지에 /opt/easy-vllm/build_ledger.json 없음 — docker cp)",
+        "tier": "local-image"
+      },
+      {
+        "result": "done",
+        "source": "docker history --no-trunc sha256:667eee7bd3b4e84b204ad4887bd811c87dd3537428d026eaeb580ab825d88c8e(RUN |N 인자 · 쓰인 Dockerfile 의 ARG 만 · measured image_digest(evidence.build_identity · 내용 권위))",
+        "tier": "reconstruction"
+      },
+      {
+        "container_removed": true,
+        "copies": [
+          {
+            "result": "ok",
+            "src": "/tmp/build_patches_src"
+          },
+          {
+            "result": "ok",
+            "src": "/tmp/build_patches"
+          },
+          {
+            "result": "ok",
+            "src": "/tmp/requirements.txt"
+          }
+        ],
+        "image": "sha256:667eee7bd3b4e84b204ad4887bd811c87dd3537428d026eaeb580ab825d88c8e",
+        "image_source": "measured image_digest(evidence.build_identity · 내용 권위)",
+        "python_roots": [],
+        "result": "done",
+        "tier": "image-probe"
+      }
+    ],
+    "reconstruction": {
+      "build_args": {
+        "BUILD_JOBS": "8",
+        "RAY_VERSION": "2.48.0",
+        "SM12X_PORT": "0",
+        "SRC_DEPS_AUTHORITY": "0",
+        "TORCH_CUDA_ARCH": "12.1a",
+        "VLLM_PRETEND_VERSION": "",
+        "VLLM_REF": "v0.31.0",
+        "VLLM_REPO": "https://github.com/vllm-project/vllm.git"
+      },
+      "build_args_source": "docker history --no-trunc sha256:667eee7bd3b4e84b204ad4887bd811c87dd3537428d026eaeb580ab825d88c8e(RUN |N 인자 · 쓰인 Dockerfile 의 ARG 만 · measured image_digest(evidence.build_identity · 내용 권위))",
+      "caveat": "원장 부재 — 결과는 **라벨된 재구성**이다(관측된 원장이 아니다). skipped = history 빌드 인자가 자기게이트를 끈다 · applied = 이미지에 구워진 스크립트 바이트(탐침)가 skip 경로 없음 × fail-loud 루프 × 측정 이미지 실재(reconstructed(fail-loud+built)) 또는 이미지에 구워진 스크립트 바이트 × 선언 마커 전부 실재(image-probe(script-sha+marker) — 패치 후 상태 관측) · 그 밖 = 미관측(X9) — 탐침이 없으면 applied 는 나오지 않는다. skipped 는 탐침이 없을 때 작업트리 바이트로 판정한다(script_identity 가 image-probe 가 아니면 빌드 당시 바이트와 같다는 보장이 없다).",
+      "image": "sha256:667eee7bd3b4e84b204ad4887bd811c87dd3537428d026eaeb580ab825d88c8e",
+      "source": "docker-history+gate-rule · fail-loud-rule · image-probe"
+    },
+    "source": "no-build-ledger",
+    "status": "unobservable"
+  },
+  "approval": {
+    "approved_by": "사용자: 인계 문서를 읽고 싱글브랜치 캠페인 E2E 진행; 승인된 main/sub 각 1셀 Full 및 hint 발행 범위 재개",
+    "approved_utc": "2026-10-29T09:21:56Z",
+    "source": "campaign:hint_targets"
+  },
+  "attestation_scope": null,
+  "bench_definition": {
+    "bench_tool": "guidellm",
+    "bench_tool_source": "bench_report(bench_report_26102918_lfm2.5-2.6b_GB10_0.31.0.md)",
+    "current_full_definition": "`full = lite ∪ GuideLLM × 반복 ≥3`",
+    "meets_current_full": true,
+    "reasons": [
+      "판정점 반복 3 ≥ 3 · 도구 guidellm",
+      "sweep_index lite_verdict=pass · 측정 레벨 4개 모두 완주 반복 ≥3"
+    ],
+    "repeats_requested": 3,
+    "repeats_source": "측정 구성 표 repeats_completed(완주 · bench_report(bench_report_26102918_lfm2.5-2.6b_GB10_0.31.0.md))",
+    "required_legs": [
+      "lite",
+      "GuideLLM"
+    ],
+    "required_repeats": 3,
+    "source": ".claude/skills/adversarial-benchmark/SKILL.md",
+    "source_line": 33,
+    "this_repeats": 3,
+    "verdict_level": 1
+  },
+  "build": {
+    "cpu_arch": "arm64",
+    "cuda": "13.3.1.008",
+    "dockerfile": "Dockerfile.source-build",
+    "driver": "580.178.04",
+    "driver_by_node": null,
+    "driver_check": {
+      "declared": "580.178.04",
+      "observation_scope": "이 측정에 결속된 구조화 드라이버 관측 입력",
+      "observed": null,
+      "sources": {
+        "declared": "sweep_index.meta.driver_version(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3 · 측정 시 조립 — sweep_bench.sh 가 manifest 에서 읽는다) (manifest 선언 옮김)",
+        "observed": null
+      },
+      "verdict": "unpaired"
+    },
+    "driver_conflict": null,
+    "image_digest": "sha256:667eee7bd3b4e84b204ad4887bd811c87dd3537428d026eaeb580ab825d88c8e",
+    "image_tag": "easy-vllm:0.31.0-cu133-aarch64-source",
+    "ngc": "nvcr.io/nvidia/pytorch:26.07-py3",
+    "os": null,
+    "source": {
+      "cpu_arch": "docker image inspect Architecture",
+      "cuda": "docker image inspect Config.Env CUDA_VERSION",
+      "dockerfile": "image-history:docker history build-arg 관측(VLLM_REF=v0.31.0 · VLLM_VERSION 없음 → 소스빌드 Dockerfile) — 셀 env 선택자 없음 · output/single/docker-compose.yaml 리터럴 build.dockerfile: Dockerfile.source-build(이 파일만 단독 적용하고 override 가 없을 때 Dockerfile.source-build 선택 · 과거 빌드에 이 compose 또는 override 를 사용했는지는 미관측)",
+      "driver": "sweep_index.meta.driver_version(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3 · 측정 시 조립 — sweep_bench.sh 가 manifest 에서 읽는다) (manifest 선언 옮김)",
+      "driver_by_node": "이 측정에 결속된 노드별 구조화 관측 입력 없음(다른 시점 관측의 부재를 뜻하지 않음)",
+      "image_digest": "sweep_index.meta.image_digest(measured(docker inspect .Image))",
+      "image_tag": "셀 env(output/single/envs/.env.lfm25-26b-v031) IMAGE_TAG",
+      "ngc": "docker image inspect Config.Env NVIDIA_PYTORCH_VERSION = resolved.json ngc_base.image 접두 일치",
+      "os": "미관측(attestation·인증서·스윕 meta·manifest 에 ['os', 'os_release', 'os_name', 'os_version', 'kernel', 'kernel_release'] 키 없음 — 지어내지 않는다)",
+      "torch": "docker image inspect Config.Env PYTORCH_VERSION",
+      "track": "artifacts 선택자(image-history:docker history build-arg 관측(VLLM_REF=v0.31.0 · VLLM_VERSION 없음 → 소스빌드 Dockerfile) — 셀 env 선택자 없음 · output/single/docker-compose.yaml 리터럴 build.dockerfile: Dockerfile.source-build(이 파일만 단독 적용하고 override 가 없을 때 Dockerfile.source-build 선택 · 과거 빌드에 이 compose 또는 override 를 사용했는지는 미관측))",
+      "vllm_ref": "docker history build-arg VLLM_REF",
+      "vllm_repo": "docker history build-arg VLLM_REPO"
+    },
+    "torch": "2.13.0a0+9186a08",
+    "track": "source-build",
+    "vllm_describe": null,
+    "vllm_prev_pin": null,
+    "vllm_ref": "v0.31.0",
+    "vllm_repo": "https://github.com/vllm-project/vllm.git",
+    "vllm_sha": null
+  },
+  "build_context_map": [
+    {
+      "basis": "compose env_file envs/.env.${CONFIG_FILE}(셀 env)",
+      "context_path": "envs/.env.lfm25-26b-v031",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/triplet/.env.lfm25-26b-v031"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/lfm25-26b-v031.sh",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/triplet/lfm25-26b-v031.sh"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/lfm25-26b-v031.yaml",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/triplet/lfm25-26b-v031.yaml"
+    },
+    {
+      "basis": "compose build.dockerfile Dockerfile.source-build(리터럴) · build.context .",
+      "context_path": "Dockerfile.source-build",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/Dockerfile.source-build"
+    },
+    {
+      "basis": "Dockerfile.source-build COPY requirements.txt",
+      "context_path": "requirements.txt",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/requirements.txt"
+    },
+    {
+      "basis": "compose 변수치환 프로젝트 .env(${…} 참조)",
+      "context_path": ".env",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/compose/.env.template"
+    },
+    {
+      "basis": "compose 파일(빌드 컨텍스트 루트)",
+      "context_path": "docker-compose.yaml",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/compose/docker-compose.yaml"
+    },
+    {
+      "basis": "Dockerfile.source-build COPY build_patches_src/ · 실린 패치 없음 — 빈 디렉터리를 만든다(없으면 COPY 단계에서 빌드가 멈춘다) · 빌드 원장 context_inventory 미관측 — 빌드 때 내용 모름(실린 패치 없음)",
+      "context_path": "build_patches_src/",
+      "context_scope": "reconstruction_example",
+      "create": "empty-dir",
+      "inventory": null,
+      "slot_path": null
+    },
+    {
+      "basis": "Dockerfile.source-build COPY build_patches/ · 실린 패치 없음 — 빈 디렉터리를 만든다(없으면 COPY 단계에서 빌드가 멈춘다) · 빌드 원장 context_inventory 미관측 — 빌드 때 내용 모름(실린 패치 없음)",
+      "context_path": "build_patches/",
+      "context_scope": "reconstruction_example",
+      "create": "empty-dir",
+      "inventory": null,
+      "slot_path": null
+    }
+  ],
+  "campaign": {
+    "cell": "lfm25-26b-v031",
+    "id": "camp-26102918-handoff-single2",
+    "mode": "campaign",
+    "node": "sub"
+  },
+  "cell_grade": "full",
+  "dataset_provenance": {
+    "dataset_column_map": null,
+    "dataset_duplicate_sampling": null,
+    "dataset_id": null,
+    "dataset_kind": "synthetic",
+    "dataset_preprocess_strategy": null,
+    "dataset_provenance": null,
+    "dataset_revision": null,
+    "dataset_seed": null,
+    "dataset_source": null,
+    "dataset_source_sha256": null,
+    "dataset_tokenizer": null,
+    "source": "bench_report(bench_report_26102918_lfm2.5-2.6b_GB10_0.31.0.md) 측정 구성 표",
+    "status": "recorded"
+  },
+  "evidence_pointers": [
+    {
+      "cell_id": "lfm25-26b-v031",
+      "kind": "bench_report",
+      "node_id": "sub",
+      "path": "docs/benchmark/bench_report_26102918_lfm2.5-2.6b_GB10_0.31.0.md"
+    },
+    {
+      "cell_id": "lfm25-26b-v031",
+      "kind": "devlog",
+      "node_id": "sub",
+      "path": "docs/devlog/devlog_26102918_LFM_새셀_실행.md"
+    },
+    {
+      "cell_id": "lfm25-26b-v031",
+      "kind": "plan",
+      "node_id": "sub",
+      "path": "docs/plan/plan_26102918_LFM_싱글_재사용_실행계획.md"
+    },
+    {
+      "cell_id": "lfm25-26b-v031",
+      "kind": "testlog",
+      "node_id": "sub",
+      "path": "docs/testlog/testlog_26102918_LFM_새_Full_실측.md"
+    }
+  ],
+  "factcheck": {
+    "author": "handoff2-lfm25-author",
+    "checked_utc": "2026-10-29T09:47:39Z",
+    "checker": "handoff2-lfm25-independent-checker",
+    "claims_checked": 56,
+    "fixed": 4,
+    "items": 4,
+    "open": [],
+    "reason_code": null,
+    "source": "inputs/factcheck.json",
+    "status": "passed"
+  },
+  "format": "hint-payload/v7",
+  "generated_utc": "2026-10-29T09:45:40Z",
+  "identity": {
+    "base_model": "LiquidAI/LFM2.5-2.6B-Base",
+    "base_slug": "lfm2.5-2.6b",
+    "gpu": "NVIDIA GB10",
+    "hf_repo": "LiquidAI/LFM2.5-2.6B",
+    "hf_revision": "ab00687315bc1298e9d54e9c4b611dde9867ccc2",
+    "model": "lfm2.5-2.6b",
+    "quant": "bf16",
+    "quant_composition": [
+      {
+        "dtype": "bfloat16",
+        "scope": "기본 dtype(비양자화 가중치·계산)",
+        "source": "/app/models/Liquid-AI/LFM2.5-2.6B → <manifest.nas_model_path>/Liquid-AI/LFM2.5-2.6B/config.json dtype"
+      }
+    ],
+    "source": {
+      "base_model": "체크포인트 README base_model(/app/models/Liquid-AI/LFM2.5-2.6B → <manifest.nas_model_path>/Liquid-AI/LFM2.5-2.6B)",
+      "base_slug": "model(lfm2.5-2.6b) − vocab quant_suffixes(naming.base_slug)",
+      "gpu": "sweep_index.meta(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3)",
+      "hf_repo": "체크포인트 .git/config remote url(huggingface.co · /app/models/Liquid-AI/LFM2.5-2.6B → <manifest.nas_model_path>/Liquid-AI/LFM2.5-2.6B)",
+      "hf_revision": "체크포인트 .git HEAD → refs/heads/main → loose ref(/app/models/Liquid-AI/LFM2.5-2.6B → <manifest.nas_model_path>/Liquid-AI/LFM2.5-2.6B) · refs/remotes/origin/main 와 일치(받아 온 원격 커밋) — checkout 커밋(작업트리 일치는 미검증) · reflog: 측정 시점 checkout = 지금 HEAD(measured_utc 2026-10-29T09:43:49Z 이전 마지막 이동 2026-08-11T01:46:56Z)",
+      "model": "sweep_index.meta(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3)",
+      "quant": "naming-axis(q) — 측정 identity quantization 미관측(sweep_index.meta(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3)) · q 축 = /app/models/Liquid-AI/LFM2.5-2.6B → <manifest.nas_model_path>/Liquid-AI/LFM2.5-2.6B/config.json quantization_config·hf_quant_config.json 부재 관측 → 비양자화 · vocab quant[bf16]←'none'",
+      "quant_composition": "/app/models/Liquid-AI/LFM2.5-2.6B → <manifest.nas_model_path>/Liquid-AI/LFM2.5-2.6B/config.json(+hf_quant_config.json) 관측 칸(evidence._quant_composition 닫힌 목록)",
+      "topology": "sweep_index.meta(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3)",
+      "tp": "sweep_index.meta(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3)",
+      "vllm": "sweep_index.meta(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3)"
+    },
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "measurement": {
+    "accept_len": null,
+    "benchmark_mode": "full",
+    "decode_tps_conc1": "33.74",
+    "floor_tps": "32.19",
+    "generated_utc": "2026-10-29T09:43:49Z",
+    "levels": [
+      {
+        "accept_len": null,
+        "completed": 16,
+        "decode_tps": 33.74,
+        "decode_tps_mean": 33.75,
+        "failed": 0,
+        "itl_ms_median": 29.29353433496812,
+        "level": 1,
+        "max_concurrency": 1,
+        "measurement_ok": true,
+        "output_throughput": 33.78244336842981,
+        "status": "ok",
+        "tpot_ms_median": 29.63504008948803,
+        "ttft_ms_median": 114.88628387451172
+      },
+      {
+        "accept_len": null,
+        "completed": 16,
+        "decode_tps": 40.45,
+        "decode_tps_mean": 40.46,
+        "failed": 0,
+        "itl_ms_median": 24.48576104407217,
+        "level": 2,
+        "max_concurrency": 2,
+        "measurement_ok": true,
+        "output_throughput": 80.93850896355585,
+        "status": "ok",
+        "tpot_ms_median": 24.720323272049427,
+        "ttft_ms_median": 82.3216438293457
+      },
+      {
+        "accept_len": null,
+        "completed": 18,
+        "decode_tps": 40.08,
+        "decode_tps_mean": 40.15,
+        "failed": 0,
+        "itl_ms_median": 24.72551663716634,
+        "level": 4,
+        "max_concurrency": 4,
+        "measurement_ok": true,
+        "output_throughput": 144.8195824391235,
+        "status": "ok",
+        "tpot_ms_median": 24.947467260062695,
+        "ttft_ms_median": 81.04395866394043
+      },
+      {
+        "accept_len": null,
+        "completed": 18,
+        "decode_tps": 39.4,
+        "decode_tps_mean": 39.51,
+        "failed": 0,
+        "itl_ms_median": 25.163772059421913,
+        "level": 8,
+        "max_concurrency": 8,
+        "measurement_ok": true,
+        "output_throughput": 239.3828851359653,
+        "status": "ok",
+        "tpot_ms_median": 25.377916172146797,
+        "ttft_ms_median": 77.66532897949219
+      }
+    ],
+    "lite": {
+      "cold_ttft_ms": 88.7,
+      "engine_kv_gib": 37.9,
+      "engine_kv_tokens": 2476552,
+      "engine_reserved_total_gib": 42.95,
+      "engine_weights_gib": 5.05,
+      "gen_src": "median_tpot",
+      "gen_tps": 34.31,
+      "kv_gib": 37.9
+    },
+    "measured_utc": "2026-10-29T09:43:49Z",
+    "primary_source": "E(external_reference)",
+    "primary_tps": "37.87",
+    "ratio_M_over_primary": "0.891",
+    "rubric_authority": "weak",
+    "source": "판정 원천(verdict.json) + sweep_index(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3 · output)",
+    "sources": {
+      "accept_len": "output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/verdict.json measured_accept_len = null(측정값 없음) · rubric.spec_axis: declared=off · accept_len=1.0 · accept_len_source=declared-absent · missing=false — spec 미선언이라 루브릭이 1.0 을 쓴다(선언값 · 측정 아님 · 결손 아님)",
+      "benchmark_mode": "measurement_config.bench_mode(bench_report(bench_report_26102918_lfm2.5-2.6b_GB10_0.31.0.md))",
+      "decode_tps_conc1": "output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/verdict.json(output · verdict_rule 출력) measured_decode_tps",
+      "floor_tps": "output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/verdict.json(output · verdict_rule 출력) rubric.floor",
+      "levels": "sweep_index(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3 · output)",
+      "lite": "sweep_index.lite(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3)",
+      "lite.engine_kv_gib": "sweep_index.lite(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3) — 서빙 yaml `kv-cache-memory-bytes: 40694815129`(37.9 GiB)의 **선언 클램프를 엔진이 되읽은 값**(측정 아님 · output/single/configs/lfm25-26b-v031.yaml)",
+      "lite.kv_gib": "sweep_index.lite(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3) — 서빙 yaml `kv-cache-memory-bytes: 40694815129`(37.9 GiB)의 **선언 클램프를 엔진이 되읽은 값**(측정 아님 · output/single/configs/lfm25-26b-v031.yaml)",
+      "measured_utc": "sweep_index.generated_utc(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3)",
+      "primary_source": "output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/verdict.json(output · verdict_rule 출력) rubric.source",
+      "primary_tps": "output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/verdict.json(output · verdict_rule 출력) rubric.primary",
+      "ratio_M_over_primary": "output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/verdict.json(output · verdict_rule 출력) rubric.ratio_M_over_primary",
+      "rubric_authority": "output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/verdict.json(output · verdict_rule 출력) rubric.authority",
+      "spec_on": "output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/verdict.json(output · verdict_rule 출력) measured_spec_on",
+      "tolerance": "output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/verdict.json(output · verdict_rule 출력) rubric.tolerance",
+      "verdict": "output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/verdict.json(output · verdict_rule 출력) verdict",
+      "verdict_point_level": "sweep_index(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3 · output)"
+    },
+    "spec_on": "false",
+    "tolerance": "0.15",
+    "verdict": "PASS",
+    "verdict_point_level": 1
+  },
+  "measurement_config": {
+    "bench_mode": "full",
+    "bench_mode_kind": "full",
+    "bench_tool": "guidellm",
+    "bench_tool_version": "0.7.3",
+    "downgrade_reason": null,
+    "repeats": 3,
+    "repeats_completed": 3,
+    "source": "bench_report(bench_report_26102918_lfm2.5-2.6b_GB10_0.31.0.md)"
+  },
+  "measurement_env_observed": [],
+  "missing": [
+    "HINT_MISSING_BUILD_LEDGER"
+  ],
+  "missing_reasons": {},
+  "naming": {
+    "axes": {
+      "gpus_per_node": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(발행 인자 --node) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "1"
+      },
+      "hw": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(발행 인자 --node) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언) · vocab hw[gb10]←'NVIDIA GB10'",
+        "value": "gb10"
+      },
+      "kv": {
+        "source": "서빙 yaml kv-cache-dtype 부재 관측(output/single/configs/lfm25-26b-v031.yaml) → 엔진 기본값 auto · vocab kv[auto]←'auto'",
+        "value": "auto"
+      },
+      "len": {
+        "source": "서빙 yaml max-model-len(output/single/configs/lfm25-26b-v031.yaml)",
+        "value": "32768"
+      },
+      "nodes": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(발행 인자 --node) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "1"
+      },
+      "plane": {
+        "source": "artifacts.plane_of → cell-env(IMAGE_TAG|BUILD_DOCKERFILE) · vocab plane[docker]→''",
+        "token": "",
+        "value": "docker"
+      },
+      "q": {
+        "source": "/app/models/Liquid-AI/LFM2.5-2.6B → <manifest.nas_model_path>/Liquid-AI/LFM2.5-2.6B/config.json quantization_config·hf_quant_config.json 부재 관측 → 비양자화 · vocab quant[bf16]←'none'",
+        "value": "bf16"
+      },
+      "role": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(발행 인자 --node) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "sub"
+      },
+      "target": {
+        "source": "output/single/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(발행 인자 --node) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언) · target_gpu 'NVIDIA GB10' = 호스트 hw → native",
+        "value": "native"
+      }
+    },
+    "grammar": "v7",
+    "segments": {
+      "arch": {
+        "source": "derived(hw·gpus_per_node·nodes·role·target·plane)",
+        "value": "gb10-1g1n-sub-native"
+      },
+      "model": {
+        "source": "서빙 yaml model(output/single/configs/lfm25-26b-v031.yaml) · hf_repo=체크포인트 .git/config remote url(huggingface.co · /app/models/Liquid-AI/LFM2.5-2.6B → <manifest.nas_model_path>/Liquid-AI/LFM2.5-2.6B) · hf_repo(LiquidAI/LFM2.5-2.6B) 마지막 성분 소문자",
+        "value": "lfm2.5-2.6b"
+      },
+      "recipe": {
+        "source": "derived(q·len·kv) + timestamp(이름 중복 · generated_utc KST)",
+        "value": "qbf16-len32768-kvauto-t2610291845"
+      },
+      "vllm": {
+        "source": "track=선택자 Dockerfile.source-build(docker history build-arg 관측) · ref=docker history build-arg VLLM_REF · version=VLLM_VERSION 미관측 · repo=docker history build-arg VLLM_REPO · sha=미관측 · exact_tag=미관측 · VLLM_REF=v0.31.0(업스트림 릴리스 태그 · v 제거)",
+        "value": "0.31.0"
+      }
+    },
+    "tail": [],
+    "timestamp": "t2610291845",
+    "vllm_build_input": {
+      "kind": "release",
+      "prev_release": null,
+      "ref": "v0.31.0",
+      "sha": null
+    },
+    "vllm_observed": {
+      "certificate_vllm_version": null,
+      "certificate_vllm_version_producer": "absent",
+      "certificate_vllm_version_source": "인증서 vllm_version 없음",
+      "engine_self_report": "0.31.1.dev0+gdb9527a46.d20261014",
+      "engine_self_report_basis": "this-measurement",
+      "engine_self_report_source": "output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/lite_engine_head_lfm25-26b-v031.log:49 · 기동 2026-10-29T09:26:26Z(컨테이너 시계 UTC 가정) · docs/logs/sub/sessions/serve-handoff2-lfm25.json — 측정 창을 포함한 현재 serve 세션 안·첫 측정 이전 기동 배너 · 같은 값의 다른 로그 3건",
+      "source": "칸별 출처는 *_source — engine_self_report=this-measurement · certificate_vllm_version=absent · wheel_meta=미관측",
+      "wheel_meta": null,
+      "wheel_meta_label": "vLLM 설치 distribution 메타(출처별 관측 · 다운로드 wheel 증명 아님)",
+      "wheel_meta_source": "미관측 — 결속된 명시적 배포 메타 기록 · attestation vllm_dist_version · native pip freeze · 빌드 원장 vllm.dist_version에 값 없음(runtime_version 기록은 배포 메타로 간주하지 않는다)(sweep_index.meta.vllm_build='NA' 는 sweep_bench 가 엔진 로그에서 `v<x.y.z…>` 정규식으로 잡는 값이다 → engine_self_report 의 원천)"
+    }
+  },
+  "native_source": null,
+  "plane": "docker",
+  "prior_approval": null,
+  "publication": {
+    "manifest_ref": "docs/_evidence/camp_26102918_handoff_single2__sub__lfm25_26b_v031.work-manifest.json",
+    "task_class": "full_benchmark",
+    "topic": "camp_26102918_handoff_single2__sub__lfm25_26b_v031"
+  },
+  "qualification": {
+    "health_200": true,
+    "inference_observed": true,
+    "method": "post_health+guidellm(parse_guidellm completed = request_totals.successful)",
+    "sources": [
+      "output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/level_01/post_health_lfm25-26b-v031.json",
+      "output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/level_01/guidellm_lfm25-26b-v031.json"
+    ]
+  },
+  "schema_version": 3,
+  "slots": {
+    "build_patch_post": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "원장 부재 — 라벨된 재구성: applied 0 · skip 판정 = docker-history+gate",
+        "ref": "no-build-ledger"
+      },
+      "excluded": [
+        {
+          "file": ".gitkeep",
+          "phase": "post",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        }
+      ],
+      "file_records": [],
+      "files": [],
+      "machine_reason": "적용 판정 없음 — 원장 부재 — 라벨된 재구성: applied 0 · skip 판정 = docker-history+gate",
+      "rationale": null
+    },
+    "build_patch_pre": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "원장 부재 — 라벨된 재구성: applied 0 · skip 판정 = docker-history+gate",
+        "ref": "no-build-ledger"
+      },
+      "excluded": [
+        {
+          "file": ".gitkeep",
+          "phase": "pre",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        }
+      ],
+      "file_records": [],
+      "files": [],
+      "machine_reason": "적용 판정 없음 — 원장 부재 — 라벨된 재구성: applied 0 · skip 판정 = docker-history+gate",
+      "rationale": null
+    },
+    "build_recipe": {
+      "applicable": true,
+      "confidence": "2-signal",
+      "evidence": {
+        "kind": "file",
+        "note": "requirements.txt: Dockerfile.source-build 이 COPY → /etc/pip/constraint.txt(제약 천장 · wheel 설치 입력 아님)",
+        "recipe_vs_image": [
+          {
+            "history_match": {
+              "matched": 16,
+              "total": 16
+            },
+            "image_created_utc": "2026-10-14T01:50:16Z",
+            "last_commit_utc": "2026-10-14T01:51:45Z",
+            "path": "output/single/Dockerfile.source-build",
+            "selection_method": "worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치 · Dockerfile 전체 바이트는 미검증)",
+            "shipped": "worktree",
+            "tracked": true,
+            "warning": "이미지 빌드 뒤 바뀐 레시피일 수 있다 — 마지막 커밋이 이미지 Created 뒤",
+            "worktree_equals_head": true
+          },
+          {
+            "image_created_utc": "2026-10-14T01:50:16Z",
+            "last_commit_utc": "2026-10-14T01:51:45Z",
+            "note": "작업트리 경고(이미지 빌드 뒤 바뀐 레시피일 수 있다 — 마지막 커밋이 이미지 Created 뒤)는 실린 파일에 해당하지 않는다 — 실린 바이트 = worktree · worktree(image-probe: 이미지 안 COPY 대상 바이트와 sha256 일치)",
+            "path": "output/single/requirements.txt",
+            "selection_method": "worktree(image-probe: 이미지 안 COPY 대상 바이트와 sha256 일치)",
+            "shipped": "worktree",
+            "tracked": true,
+            "worktree_equals_head": true
+          }
+        ],
+        "ref": "image-history:docker history build-arg 관측(VLLM_REF=v0.31.0 · VLLM_VERSION 없음 → 소스빌드 Dockerfile) — 셀 env 선택자 없음 · output/single/docker-compose.yaml 리터럴 build.dockerfile: Dockerfile.source-build(이 파일만 단독 적용하고 override 가 없을 때 Dockerfile.source-build 선택 · 과거 빌드에 이 compose 또는 override 를 사용했는지는 미관측)",
+        "selected_revision": {
+          "candidates": [
+            {
+              "matched": 16,
+              "revision": "worktree",
+              "total": 16
+            },
+            {
+              "matched": 13,
+              "revision": "80284db86dd7bc6dbb0d27141c0708cd0e7f4deb",
+              "total": 19
+            }
+          ],
+          "commit": null,
+          "history_match": {
+            "matched": 16,
+            "total": 16
+          },
+          "method": "worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치 · Dockerfile 전체 바이트는 미검증)",
+          "path": "output/single/Dockerfile.source-build"
+        },
+        "selected_revisions": [
+          {
+            "commit": null,
+            "history_match": {
+              "matched": 16,
+              "total": 16
+            },
+            "method": "worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치 · Dockerfile 전체 바이트는 미검증)",
+            "path": "output/single/Dockerfile.source-build",
+            "shipped": "worktree",
+            "verified": false
+          },
+          {
+            "commit": null,
+            "history_match": null,
+            "method": "worktree(image-probe: 이미지 안 COPY 대상 바이트와 sha256 일치)",
+            "path": "output/single/requirements.txt",
+            "shipped": "worktree",
+            "verified": true
+          }
+        ]
+      },
+      "file_records": [
+        {
+          "bytes_observed": false,
+          "generated_by": "renderer",
+          "header": {
+            "line": 2,
+            "style": "comment",
+            "text": "# ⚠ generated-unverified — 실린 Dockerfile.source-build(worktree) · docker history RUN·COPY 16/16 일치 — Dockerfile 전체 원본 바이트의 동일성은 확인하지 못했다 · 생성: renderer",
+            "why_line_2": "Dockerfile 파서 지시자 보존"
+          },
+          "path": "artifacts/build_recipe/Dockerfile.source-build",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 renderer) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "a684a99b938fe5521e6bf64df877d6e78d79b1c34ef6ad4b86e6a15787083195",
+          "verification": "generated-unverified",
+          "verification_basis": "실린 Dockerfile.source-build(worktree) · docker history RUN·COPY 16/16 일치 — Dockerfile 전체 원본 바이트의 동일성은 확인하지 못했다(_select_dockerfile · worktree(측정 이미지 docker history 의 RUN·COPY 와 전수 일치 · Dockerfile 전체 바이트는 미검증))"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "path": "artifacts/build_recipe/requirements.txt",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "ff5b5c72731459c9b98c1fc572cccf5b4a0970fe3a572cc2cf3d8c704455b697",
+          "verification": "verified",
+          "verification_basis": "쓰인 레시피(image-history:docker history build-arg 관측(VLLM_REF=v0.31.0 · VLLM_VERSION 없음 → 소스빌드 Dockerfile) — 셀 env 선택자 없음 · output/single/docker-compose.yaml 리터럴 build.dockerfile: Dockerfile.source-build(이 파일만 단독 적용하고 override 가 없을 때 Dockerfile.source-build 선택 · 과거 빌드에 이 compose 또는 override 를 사용했는지는 미관측)) — 개정 선택 slots.build_recipe.evidence.selected_revisions"
+        }
+      ],
+      "files": [
+        "artifacts/build_recipe/Dockerfile.source-build",
+        "artifacts/build_recipe/requirements.txt"
+      ],
+      "machine_reason": "쓰인 Dockerfile 선택자 Dockerfile.source-build(image-history:docker history build-arg 관측(VLLM_REF=v0.31.0 · VLLM_VERSION 없음 → 소스빌드 Dockerfile) — 셀 env 선택자 없음 · output/single/docker-compose.yaml 리터럴 build.dockerfile: Dockerfile.source-build(이 파일만 단독 적용하고 override 가 없을 때 Dockerfile.source-build 선택 · 과거 빌드에 이 compose 또는 override 를 사용했는지는 미관측)) + 그것이 COPY 하는 파일",
+      "rationale": "Dockerfile.source-build와 requirements.txt는 이미지 history 및 이미지 안 COPY 대상 대조를 근거로 실렸다(01 §1.1의 선택 리비전/범례). 원장 부재로 모든 빌드 동작을 확정한 것은 아니다. 전자는 NGC torch에 _C를 링크하는 빌드 구조, 후자는 의존 제약을 담는다. 이번 재빌드/패치 적용 시험은 없었고, 다른 ABI 조합에서는 다시 검증한다."
+    },
+    "compose": {
+      "applicable": true,
+      "confidence": "2-signal",
+      "evidence": {
+        "kind": "file",
+        "measured_utc": "2026-10-29T09:43:49Z",
+        "note": "서빙 러너 [] · env 형상 실림 1/1",
+        "post_measurement_regenerated": [],
+        "ref": "output/single/docker-compose.yaml",
+        "selected_revision": {
+          "basis": "mtime≤measured",
+          "commit": "80284db86dd7bc6dbb0d27141c0708cd0e7f4deb",
+          "commits_after_measurement": [],
+          "cross_check": [
+            "측정 뒤 커밋 0",
+            "작업트리 = HEAD"
+          ],
+          "history_match": null,
+          "measured_utc": "2026-10-29T09:43:49Z",
+          "method": "worktree(mtime 2026-10-25T22:53:44Z ≤ 측정 2026-10-29T09:43:49Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 80284db86dd7)",
+          "mtime_utc": "2026-10-25T22:53:44Z",
+          "path": "output/single/docker-compose.yaml",
+          "shipped": "worktree",
+          "verified": false
+        },
+        "selected_revisions": [
+          {
+            "basis": "mtime≤measured",
+            "commit": "80284db86dd7bc6dbb0d27141c0708cd0e7f4deb",
+            "commits_after_measurement": [],
+            "cross_check": [
+              "측정 뒤 커밋 0",
+              "작업트리 = HEAD"
+            ],
+            "history_match": null,
+            "measured_utc": "2026-10-29T09:43:49Z",
+            "method": "worktree(mtime 2026-10-25T22:53:44Z ≤ 측정 2026-10-29T09:43:49Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 80284db86dd7)",
+            "mtime_utc": "2026-10-25T22:53:44Z",
+            "path": "output/single/docker-compose.yaml",
+            "shipped": "worktree",
+            "verified": false
+          }
+        ]
+      },
+      "excluded": [
+        {
+          "file": "arm_patch.sh",
+          "why": "not-armed(output/single/configs/lfm25-26b-v031_patch.py 없음(CONFIG_FILE) — arm_patch.sh 는 no-op · arm_patch.sh 측정 당시 개정(fad2d7c6f157) `_cfg=` 키 체인 RUNTIME_PATCH_STEM > CONFIG_FILE > 'default')"
+        }
+      ],
+      "file_records": [
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/.env.template",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "ed5dbb80a36a925e206b20323aa2d06112b94a44278832853bc1a78806ff0b66",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "bytes_observed": false,
+          "generated_by": "renderer",
+          "header": {
+            "line": 1,
+            "style": "comment",
+            "text": "# ⚠ generated-unverified — docker-compose.yaml: worktree(mtime 2026-10-25T22:53:44Z ≤ 측정 2026-10-29T09:43:49Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 80284db86dd7) — 측정 당시 실행 바이트는 별도 관측되지 않았다 · 생성: renderer"
+          },
+          "path": "artifacts/compose/docker-compose.yaml",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 renderer) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "88856c8c09bfe2c9ea6a723378cad04622d9f578d54332b53dc4054401e85208",
+          "verification": "generated-unverified",
+          "verification_basis": "docker-compose.yaml: worktree(mtime 2026-10-25T22:53:44Z ≤ 측정 2026-10-29T09:43:49Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 80284db86dd7) — 측정 당시 실행 바이트는 별도 관측되지 않았다"
+        }
+      ],
+      "files": [
+        "artifacts/compose/.env.template",
+        "artifacts/compose/docker-compose.yaml"
+      ],
+      "machine_reason": "single 서빙 경로(compose · 러너 · env 형상) — 측정 당시 개정(selected_revisions)",
+      "rationale": "compose와 프로젝트 env 형상은 마운트·port mapping·선택된 triplet을 연결한다. host8002와 container8000의 구분은 이전 포트 교정 기록에 근거한다(testlog_26101412_lfm25-26b-v031_싱글서브_서빙_lite §1. 트리플렛). env 형상은 토큰을 포함한 운영자 실물 env가 아니므로 대상 manifest에서 준비한다. 다른 토폴로지/마운트이면 재도출한다."
+    },
+    "fork_pin": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "VARIANT 줄 부재 = stock",
+        "ref": ".claude/policies/arch_variant_ledger.json"
+      },
+      "file_records": [],
+      "files": [],
+      "machine_reason": "셀 env 에 VARIANT 줄 없음 = stock(workflow.md §변종 좌표의 거처)",
+      "rationale": null
+    },
+    "runtime_patch": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "런타임 패치 파일 없음",
+        "ref": "output/single/configs/lfm25-26b-v031_patch.py"
+      },
+      "file_records": [],
+      "files": [],
+      "machine_reason": "output/single/configs/lfm25-26b-v031_patch.py 없음 — arm_patch.sh 는 no-op(런타임 패치 불해당)",
+      "rationale": null
+    },
+    "triplet": {
+      "applicable": true,
+      "confidence": "3-signal",
+      "evidence": {
+        "kind": "file",
+        "measured_utc": "2026-10-29T09:43:49Z",
+        "note": "측정이 이 셀 config 로 돌았다(스윕 색인)",
+        "observed": "output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/sweep_index.json#config",
+        "post_measurement_regenerated": [],
+        "ref": "output/single/configs/lfm25-26b-v031.yaml"
+      },
+      "file_records": [
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/.env.lfm25-26b-v031",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "4c2c994e9d52f58b1f8f5dbcab0f4d8e83ea80540221a60201dafb5b368cbff6",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/lfm25-26b-v031.sh",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "7572b04b11fc792ba9b0254fa07cd39e016f859e85101c10863072f6d77b07e5",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/lfm25-26b-v031.yaml",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "0b36a2f55d5b00f2ea66802af14e0663937e58a3fccf1fe8661a62d18e940e94",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        }
+      ],
+      "files": [
+        "artifacts/triplet/.env.lfm25-26b-v031",
+        "artifacts/triplet/lfm25-26b-v031.sh",
+        "artifacts/triplet/lfm25-26b-v031.yaml"
+      ],
+      "machine_reason": "셀 id lfm25-26b-v031 = 트리플렛 이름(configs/lfm25-26b-v031.yaml · .sh · envs/.env.lfm25-26b-v031)",
+      "rationale": "yaml의 절대 KV/GMU/동시성, sh의 qwen3/lfm2 파서, 셀 env의 이미지/서빙 이름이 실제 서빙 입력이다. 기능 발화는 completion/reasoning/tool smoke로 확인했다. 파서 제거 대조나 다른 버전 검증을 대신하지 않는다."
+    }
+  },
+  "tag": "hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto-t2610291845",
+  "tool_snapshots": [
+    {
+      "driver_note": "그 판본의 .claude/skills/adversarial-benchmark/scripts/ 안에서 sweep_bench.sh 를 부르는 드라이버: broad_search.sh 후보(미검증)",
+      "git_rev": "b799890f7e4996fecf84b3999b9b0100909f80b6",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-27T07:28:50Z",
+      "head_at_measurement": "6ea16a845769b4c21f7ce2a4357007c9cf76f98e",
+      "name": "sweep_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "6ea16a845769..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
+      "rev_method": "reflog HEAD@{1793265649}(2026-10-29T09:20:49Z) = 측정 시각 2026-10-29T09:43:49Z 직전 체크아웃",
+      "role": "sweep",
+      "snapshot_rel": "inputs/sources/sweep_bench.sh@b799890f7e49",
+      "why": "스윕 색인 조립자(output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/sweep_index.json · generated_utc = measured_utc 조인)",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "1629609b34dfe6851338eb7b8353411a1016924d",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-16T21:44:18Z",
+      "head_at_measurement": "6ea16a845769b4c21f7ce2a4357007c9cf76f98e",
+      "name": "run_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "6ea16a845769..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+      "rev_method": "reflog HEAD@{1793265649}(2026-10-29T09:20:49Z) = 측정 시각 2026-10-29T09:43:49Z 직전 체크아웃",
+      "role": "bench",
+      "snapshot_rel": "inputs/sources/run_bench.sh@1629609b34df",
+      "why": "그 판본 sweep_bench.sh 가 레벨마다 부른다(`\"$SDIR/run_bench.sh\"`) · 색인에 레벨 기록",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "a7083a8f933d98cd6d739fdac838ebbe3e3b7d3f",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-17T13:17:27Z",
+      "head_at_measurement": "6ea16a845769b4c21f7ce2a4357007c9cf76f98e",
+      "name": "lite_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "6ea16a845769..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/lite_bench.sh",
+      "rev_method": "reflog HEAD@{1793265649}(2026-10-29T09:20:49Z) = 측정 시각 2026-10-29T09:43:49Z 직전 체크아웃",
+      "role": "lite",
+      "snapshot_rel": "inputs/sources/lite_bench.sh@a7083a8f933d",
+      "why": "그 판본 sweep_bench.sh 가 lite 레그로 부른다(`\"$SDIR/lite_bench.sh\"`) · 색인에 lite 기록",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "b799890f7e4996fecf84b3999b9b0100909f80b6",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-27T07:28:50Z",
+      "head_at_measurement": "6ea16a845769b4c21f7ce2a4357007c9cf76f98e",
+      "name": "broad_search.sh",
+      "next_rev": null,
+      "next_rev_basis": "6ea16a845769..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
+      "rev_method": "reflog HEAD@{1793265649}(2026-10-29T09:20:49Z) = 측정 시각 2026-10-29T09:43:49Z 직전 체크아웃",
+      "role": "driver-candidate",
+      "snapshot_rel": "inputs/sources/broad_search.sh@b799890f7e49",
+      "why": "그 판본에서 sweep_bench.sh 를 부르는 스크립트 · 넘기는 --tool 상수 ['guidellm'] 가 이 측정과 어긋나지 않는다 — 이 선택기는 호출 기록을 조회하지 않는다(정적 소스 기반 후보이며 실제 드라이버 여부는 이 선택기에서 미검증). 별도 호출 관측과 이 판본의 실제 실행 바이트 결속은 구분한다",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    }
+  ]
+}
