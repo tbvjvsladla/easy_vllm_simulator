@@ -3664,6 +3664,9 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
             for pstep in ("parent_source_core", "alias"):
                 step(pstep, parent["doc"]["commands"][pstep], "generated-unverified: 새 양노드 local reproduction 예시 · 미실행",
                      source=parent["doc"]["historical_scope"], command_source=f"generated-unverified(explicit manifest {parent['ref']})")
+            if parent.get("extension"):
+                step("intermediate_deps2", parent["extension"]["intermediate"]["command"], "generated-unverified: explicit observed intermediate inputs; new local build not run",
+                     source=parent["doc"]["historical_scope"], command_source=f"generated-unverified(explicit manifest {parent['ref']})")
             build_cmd, build_src = parent["doc"]["commands"]["leaf"], f"generated-unverified(explicit manifest {parent['ref']} · leaf ledger args; full original CLI unavailable)"
 
         p_start, p_end, p_src = _phase_span(repo, c.ev, c.node, "build", cell)
@@ -4382,6 +4385,91 @@ def _parent_input(c: _Ctx, rel: str) -> tuple[Path, bytes]:
     return q, data
 
 
+def _parent_intermediate(c: _Ctx, doc: dict, leaf: dict, alias: dict, mp: Path, data: dict) -> dict | None:
+    """One explicit deps2 intermediate and exact final leaf inventory; never recurse FROM."""
+    mid, lc = doc.get("intermediate_layer"), doc.get("leaf_context")
+    if mid is None and lc is None:
+        return None
+    if not isinstance(mid, dict) or not isinstance(lc, dict):
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "one intermediate requires its explicit final leaf inventory")
+    inv = mid.get("files")
+    allowed = {"Dockerfile.source-build-deps2", "build_patches/06-b12x-optional032.sh"}
+    if not isinstance(inv, dict) or set(inv) != allowed or not re.fullmatch(r"sha256:[0-9a-f]{64}", str(mid.get("image_digest"))) or not isinstance(mid.get("command"), str) or not mid["command"].startswith("# generated-unverified") or len(mid["command"]) > 8192:
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "intermediate must declare exactly its deps2 recipe/POST06 and generated command")
+    observed = leaf.get("parent_ledger") or {}
+    args = observed.get("build_args") or {}
+    if args != mid.get("build_args") or args.get("BASE_IMAGE") != alias.get("alias") or (leaf.get("ledger") or {}).get("build_args", {}).get("BASE_IMAGE") != mid.get("image_tag"):
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "intermediate BASE_IMAGE chain/observed ledger args differ")
+    for target, item in inv.items():
+        if not isinstance(item, dict) or not str(item.get("source")).startswith(f"output/{c.topo}/cache/"):
+            core.fail("HINT_ARTIFACT_MARK_INVALID", "intermediate source must be an explicit frozen topology cache file")
+        _, body = _parent_input(c, item["source"])
+        if item.get("sha256") != core.sha256_bytes(body):
+            core.fail("HINT_ARTIFACT_MARK_INVALID", "intermediate source sha256 mismatch")
+        data["intermediate-deps2/context/" + target] = body
+    for name, field in (("leaf-result-evidence.json", "identity_evidence"), ("leaf-build-command.txt", "build_command")):
+        rec = lc.get(field)
+        if not isinstance(rec, dict) or rec.get("source") != mp.parent.relative_to(c.repo).as_posix() + "/" + name:
+            core.fail("HINT_ARTIFACT_MARK_INVALID", "leaf identity/argv requires explicit sibling evidence")
+        _, body = _parent_input(c, rec["source"])
+        if rec.get("sha256") != core.sha256_bytes(body):
+            core.fail("HINT_ARTIFACT_MARK_INVALID", "leaf identity/argv sha256 mismatch")
+        data[name] = body
+    ident = json.loads(data["leaf-result-evidence.json"])
+    if (ident.get("image") or {}).get("id") != doc["selected_image_digest"] or (ident.get("parent") or {}).get("id") != mid["image_digest"] or (ident.get("parent") or {}).get("tag") != mid.get("image_tag"):
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "observed leaf/parent image identity chain differs")
+    root, inventory = lc.get("root"), lc.get("files")
+    import shlex, os
+    argv = shlex.split(data["leaf-build-command.txt"].decode("utf-8"))
+    if not isinstance(root, str) or not root.startswith(f"output/{c.topo}/cache/") or not argv or argv[-1] != root or "-f" not in argv or argv[argv.index("-f") + 1] != root + "/Dockerfile" or not isinstance(inventory, dict) or len(inventory) != 24:
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "leaf inventory must bind the actual final build argv/context")
+    ledger = leaf.get("ledger") or {}
+    patches = {(r.get("phase"), r.get("file")): r for r in ledger.get("patches") or [] if isinstance(r, dict)}
+    required = {"Dockerfile", "build_patches_src/PROVENANCE.json", "build_patches_src/exl3_port_lib.py", "build_patches_src/.gitkeep", "build_patches/.gitkeep", "build_patches/Dockerfile.source-build-deps2"}
+    expected = required | {("build_patches_src/" if ph == "pre" else "build_patches/") + name for ph, name in patches if ph in ("pre", "post")}
+    if set(inventory) != expected or len(patches) != 18:
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "leaf inventory is not the observed 18 scripts plus six exact context files")
+    reuse, support, frozen = {}, {}, {}
+    for target, item in inventory.items():
+        if not isinstance(item, dict) or item.get("source") != root + "/" + target:
+            core.fail("HINT_ARTIFACT_MARK_INVALID", "leaf inventory path escape/location mismatch")
+        _, body = _parent_input(c, item["source"])
+        if item.get("sha256") != core.sha256_bytes(body) or target.endswith("/.gitkeep") and body:
+            core.fail("HINT_ARTIFACT_MARK_INVALID", "leaf frozen input sha256/scaffold mismatch")
+        frozen[target] = body
+        if target == "Dockerfile":
+            slot = "artifacts/build_recipe/" + str(ledger.get("dockerfile"))
+        elif target.endswith(".sh"):
+            ph = "pre" if target.startswith("build_patches_src/") else "post"
+            row = patches.get((ph, PurePath(target).name)) or {}
+            if row.get("result") != "applied" or row.get("script_sha256") != item["sha256"]:
+                core.fail("HINT_ARTIFACT_MARK_INVALID", "leaf script differs from observed applied ledger")
+            slot = "artifacts/build_patch_" + ph + "/" + PurePath(target).name
+        else:
+            slot = None
+        if item.get("slot_path") != slot:
+            core.fail("HINT_ARTIFACT_MARK_INVALID", "leaf reuse must reference its existing recipe/patch slot")
+        if slot:
+            reuse[slot] = {"target": target, "bytes": body}
+        else:
+            support["leaf-support/" + target] = body
+    actual = set()
+    for base, dirs, names in os.walk(c.repo / root, followlinks=False):
+        for name in dirs:
+            q = Path(base) / name
+            if q.is_symlink() or q.relative_to(c.repo / root).as_posix() not in ("build_patches", "build_patches_src"):
+                core.fail("HINT_ARTIFACT_MARK_INVALID", "undeclared leaf directory")
+        actual.update((Path(base) / n).relative_to(c.repo / root).as_posix() for n in names)
+    if actual != set(inventory) or len(reuse) != 19 or len(support) != 5:
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "leaf exact inventory/reuse/support count mismatch")
+    prov = json.loads(frozen["build_patches_src/PROVENANCE.json"])
+    for name, digest in (prov.get("source_payload") or {}).get("modules_sha256", {}).items():
+        if core.sha256_bytes(frozen.get("build_patches_src/" + name, b"")) != digest:
+            core.fail("HINT_ARTIFACT_MARK_INVALID", "leaf PRE helper/script provenance disagrees")
+    data.update(support)
+    return {"reuse": reuse, "root": root, "inventory": inventory, "intermediate": mid}
+
+
 def _parent_build(c: _Ctx) -> dict | None:
     if "explicit_parent_build" in c.memo:
         return c.memo["explicit_parent_build"]
@@ -4448,13 +4536,14 @@ def _parent_build(c: _Ctx) -> dict | None:
     alias = json.loads(data["alias-evidence.json"])
     leaf = json.loads(data["leaf-ledger-evidence.json"])
     if alias.get("build_performed") is not False or alias.get("image_id") != alias.get("alias_image_id") or not re.fullmatch(
-        r"sha256:[0-9a-f]{64}", str(alias.get("image_id"))) or (leaf.get("ledger") or {}).get("build_args", {}).get("BASE_IMAGE") != alias.get("alias"):
+        r"sha256:[0-9a-f]{64}", str(alias.get("image_id"))) or not doc.get("intermediate_layer") and (leaf.get("ledger") or {}).get("build_args", {}).get("BASE_IMAGE") != alias.get("alias"):
         core.fail("HINT_ARTIFACT_MARK_INVALID", "main parent alias/leaf base evidence does not agree")
+    extension = _parent_intermediate(c, doc, leaf, alias, mp, data)
     header = "# " + unverified_header(doc["generated_reason"], "agent")
     readme = data["README.md"].decode("utf-8")
-    if doc.get(UNVERIFIED_HEADER_KEY) != header[2:] or not readme.startswith(header + "\n") or any(v not in readme for v in commands.values()):
+    if doc.get(UNVERIFIED_HEADER_KEY) != header[2:] or not readme.startswith(header + "\n") or any(v not in readme for v in commands.values()) or extension and extension["intermediate"]["command"] not in readme:
         core.fail("HINT_ARTIFACT_MARK_INVALID", "parent README generated-unverified header/commands mismatch")
-    out = {"ref": ref, "doc": doc, "data": data, "header": header}
+    out = {"ref": ref, "doc": doc, "data": data, "header": header, "extension": extension}
     c.memo["explicit_parent_build"] = out
     return out
 
@@ -4463,6 +4552,9 @@ def _append_parent_build(c: _Ctx, payload: Path, files: list, slots: dict, marks
     parent = _parent_build(c)
     if not parent:
         return
+    for rel, item in ((parent.get("extension") or {}).get("reuse") or {}).items():
+        if not (payload / rel).is_file() or (payload / rel).read_bytes() != item["bytes"]:
+            core.fail("HINT_ARTIFACT_MARK_INVALID", f"existing leaf slot does not equal final frozen attempt: {rel}")
     for name, data in sorted(parent["data"].items()):
         rel = _write_bytes(payload, "build_recipe", "parent-source-core/" + name, data)
         files.append(rel)
@@ -4477,6 +4569,12 @@ def _append_parent_build(c: _Ctx, payload: Path, files: list, slots: dict, marks
                                      if name == "manifest.json" else {"style": "comment", "line": 1, "text": parent["header"]})
     slots["build_recipe"]["evidence"]["parent_source_core"] = {"manifest": parent["ref"], "selected_image_digest": parent["doc"]["selected_image_digest"],
         "context_inventory": sorted(n for n in parent["doc"]["files"] if n.startswith("context/")), "historical_scope": parent["doc"]["historical_scope"]}
+    if parent.get("extension"):
+        ext = parent["extension"]
+        slots["build_recipe"]["evidence"]["parent_source_core"].update(
+            intermediate_layer={"image_digest": ext["intermediate"]["image_digest"], "files": sorted(ext["intermediate"]["files"])},
+            leaf_context={"frozen_root": ext["root"], "inventory": {k: v["sha256"] for k, v in ext["inventory"].items()},
+                          "reused_existing_slots": len(ext["reuse"]), "additional_support_files": 5})
 
 
 def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: dict | None = None) -> list[dict]:
@@ -4508,12 +4606,23 @@ def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: d
         for rel_f in (slots.get(slot) or {}).get("files") or []:
             name = PurePath(rel_f).name
             ctx_path, basis = None, "빌드 컨텍스트 입력 아님(Dockerfile COPY · compose 참조 밖)"
+            ext = (_parent_build(c) or {}).get("extension")
+            reused = (ext or {}).get("reuse", {}).get(rel_f)
+            if reused:
+                rows.append({"slot_path": rel_f, "context_path": reused["target"], "context_root": "leaf-sm12x/context", "stage": "leaf-sm12x",
+                             "context_scope": "reconstruction_example", "basis": "existing slot bytes equal explicit final leaf frozen inventory; no duplicate artifact"})
+                continue
             if rel_f.startswith(_PARENT_PREFIX):
                 parent = _parent_build(c)
                 part = rel_f[len(_PARENT_PREFIX):]
                 ctx_path = part[len("context/"):] if part.startswith("context/") else None
-                rows.append({"slot_path": rel_f, "context_path": ctx_path, "context_root": "parent-source-core/context" if ctx_path else None,
-                             "stage": "parent-source-core", "context_scope": "reconstruction_example",
+                ctx_root, stage = "parent-source-core/context" if ctx_path else None, "parent-source-core"
+                if part.startswith("intermediate-deps2/context/"):
+                    ctx_path, ctx_root, stage = part[len("intermediate-deps2/context/"):], "parent-source-core/intermediate-deps2/context", "intermediate-deps2"
+                elif part.startswith("leaf-support/"):
+                    ctx_path, ctx_root, stage = part[len("leaf-support/"):], "leaf-sm12x/context", "leaf-sm12x"
+                rows.append({"slot_path": rel_f, "context_path": ctx_path, "context_root": ctx_root,
+                             "stage": stage, "context_scope": "reconstruction_example",
                              "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context"})
                 continue
             if slot == "triplet" and name in native_at:
@@ -5160,6 +5269,11 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
             core.fail("HINT_ARTIFACT_PII", "artifacts/ 에 배포 금지 패턴:\n  " + pii.render_hits(hits, 10),
                       "해당 파일의 출처(트리플렛·compose·패치)를 고치거나 형상 규칙을 고친다(덧칠 ✗).")
 
+    # Explicit leaf closure stays byte-identical after all header/mark processing too.
+    ext = (_parent_build(c) or {}).get("extension") if plane == "docker" else None
+    for rel_f, item in ((ext or {}).get("reuse") or {}).items():
+        if (payload / rel_f).read_bytes() != item["bytes"]:
+            core.fail("HINT_ARTIFACT_MARK_INVALID", f"final marked leaf slot differs from frozen context: {rel_f}")
     # 파일 단위 표시(2026-09-29 · plan_26092908 §4.2·§4.3): 검증·생성 주체·근거 · 관련성. 적용 집합 미관측(판정 못 한 패치)도 결손.
     _slot_machine_reasons(c, slots, applied, sel, plane, vctx)
     rel_ctx = _relevance_context(c, slots, applied)
