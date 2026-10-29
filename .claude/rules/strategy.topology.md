@@ -34,6 +34,15 @@ SKILL.md §2.7.0 이며, 파생값을 여기에 다시 적지 않는다.
   하는 것은 vLLM git SHA · torch · driver 셋이다. digest 를 커플링 판정 기준으로 쓰면 정상 배포를
   불일치로 오판한다.
 
+## 결과 인수
+
+기존 분산 workflow의 정합 검증은 유지한다. 정상 반환을 인수한 뒤 같은 결과를 별도로 표본·전수
+재검증하지 않는다. 실제 연결 문제가 드러나면 해당 항목의 설명·정정을 요청하고, 그래도 남는
+분산 연결 쟁점에 한해 서브가 제출한 추가 근거를 확인한다.
+
+반환 결과에서 실제 인계 문제가 드러난 경우에만 해당 토폴로지의 예외 처리 참조를 읽는다.
+참조: [멀티 인계 예외](../policies/handoff_exception.topology.md).
+
 ## 배달 평면은 active 다
 
 - S2.5 sync 는 이 브랜치에서 **열린다** — `sync_to_sub.sh` 가 dry-run 뒤 tracked runtime·unsigned capability Card·빌드킷
