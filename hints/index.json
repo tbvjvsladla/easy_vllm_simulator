@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 88,
-  "generated_kst": "2026-10-29T18:40:00",
+  "count": 89,
+  "generated_kst": "2026-10-29T18:50:30",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1580,6 +1580,28 @@
       "tagged_utc": "2026-10-27T09:24:21Z",
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_lfm25-26b-v031_camp-26102705_a02/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "3ce6e02194190cdd7f2b0443cac0c5599595aae8",
+      "arch": "gb10-1g1n-sub-native",
+      "base_model": "LiquidAI/LFM2.5-2.6B-Base",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102918_lfm2.5-2.6b_GB10_0.31.0.md))",
+      "brief": "LFM2.5-2.6B BF16를 단일 GB10에서 기존 source-build 이미지로 서빙하고 기본 부하의 Full 반복을 측정했다. 동시성 1 판정점 33.74 tok/s는 weak 기준 PASS다. 서빙 노브는 승계값이며 다른 환경에서는 메모리와 기능을 다시 검증해야 한다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_BUILD_LEDGER"
+      ],
+      "model": "lfm2.5-2.6b",
+      "object": "1433654d795ccbc575e7fafe9c2d93dcf1e906c7",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610291845",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto-t2610291845",
+      "tagged_utc": "2026-10-29T09:45:40Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
     },
     {
