@@ -536,6 +536,8 @@ def _recipe_vs_image(c: _Ctx, rels: list[str], created: str | None, selected: di
                 if isinstance(hm, dict) and hm.get("matched", 0) < hm.get("total", 0):
                     row["warning"] = (f"실린 바이트({s0.get('shipped')})가 측정 이미지 docker history 의 RUN·COPY 와 전수 일치하지 "
                                       f"않는다({hm['matched']}/{hm['total']})")
+                elif s0.get("ledger_sha256_match") is False:
+                    row["warning"] = "빌드 시 원장의 COPY 원천 sha256과 실린 바이트가 다르다(이미지 파일 직접 관측 아님)"
                 elif s0.get("image_bytes_differ"):
                     row["warning"] = "이미지 안 COPY 대상 바이트가 실린 바이트와 다르다(일치하는 개정 없음)"
             out.append(row)
@@ -579,6 +581,10 @@ def _recipe_vs_image(c: _Ctx, rels: list[str], created: str | None, selected: di
                 prev = row.get("warning")
                 row["warning"] = (f"실린 바이트({s.get('shipped')})가 측정 이미지 docker history 의 RUN·COPY 와 전수 일치하지 않는다"
                                   f"({hm['matched']}/{hm['total']})" + (f" · {prev}" if prev else ""))
+            elif s.get("ledger_sha256_match") is False:
+                prev = row.get("warning")
+                row["warning"] = ("빌드 시 원장의 COPY 원천 sha256과 실린 작업트리 바이트가 다르다(이미지 파일 직접 관측 아님)"
+                                  + (f" · {prev}" if prev else ""))
             elif s.get("image_bytes_differ"):
                 prev = row.get("warning")
                 row["warning"] = ("이미지 안 COPY 대상 바이트가 실린 작업트리 바이트와 다르다(일치하는 개정 없음)"
@@ -941,7 +947,6 @@ def _select_copied(c: _Ctx, src_rel: str, path: Path, baked: bytes | None, probe
         out.update(ledger_sha256_match=False,
                    method=(f"worktree(빌드 원장 sha256 {ledger_sha256[:16]} 과 작업트리·이미지 Created 이전 개정 · 전 이력"
                            f"({_RECIPE_DIR_GLOB}/{path.name} · 모든 ref)이 모두 다르다 — 쓰인 바이트가 아니다 · recipe_vs_image 경고)"))
-        out["image_bytes_differ"] = True
         return out
     if baked is None:
         out["method"] = f"worktree(이미지 안 COPY 대상 바이트 미관측 — {probe_note})"
@@ -3327,12 +3332,12 @@ def _build_command(c: _Ctx, sel: dict) -> tuple[str, str]:
     dmem0 = c.memo.get(("dockerfile", sel["dockerfile"])) or {}
     origin = dmem0.get("origin_path")       # 실린 바이트의 이력 통로(전수 일치든 가장 가까운 개정이든 — 실린 파일이 놓일 자리)
     if origin and str(PurePath(origin).parent) != context and context != ".":
-        # F4(2026-10-25): 이미지를 지은 Dockerfile 이 다른 토폴로지 통로(예 output/single)에 있었다 — 그 통로가 빌드 컨텍스트다
-        context = str(PurePath(origin).parent)
+        # A historical recipe path is provenance, not proof of the actual build context.
+        context = core.rel(c.repo, c.out)
     df = sel["dockerfile"] if context == "." else f"{context}/{sel['dockerfile']}"
     parts = [f"docker build -f {shlex.quote(df)}"] + [f"  --build-arg {shlex.quote(f'{k}={v}')}" for k, v in sorted(args.items())]
     if sel.get("image_tag"):
-        parts.append(f"  -t {shlex.quote(str(sel['image_tag']))}")
+        parts.append('  -t "${REPRO_IMAGE_TAG:?set a separate reproduction image tag}"')
     parts.append(f"  {shlex.quote(context)}")
     dmem = c.memo.get(("dockerfile", sel["dockerfile"])) or {}
     shipped = dmem.get("shipped") or "worktree"
@@ -3344,7 +3349,8 @@ def _build_command(c: _Ctx, sel: dict) -> tuple[str, str]:
                if dmem.get("verified") else
                f"실린 개정: {shipped} — 이미지를 지은 바이트임을 관측으로 확인 못함(docker history RUN·COPY {hm_['matched']}/{hm_['total']})"
                if hm_ else f"실린 개정: {shipped} — 이미지를 지은 바이트임은 미검증(history 대조 없음)")
-    head = [f"# 실린 artifacts/build_recipe/{sel['dockerfile']}({rev_txt})를 {df} 자리에 두고 컨텍스트에서 짓는다."]
+    head = [f"# 실린 artifacts/build_recipe/{sel['dockerfile']}({rev_txt})를 {df} 자리에 두는 재현 예시다(실제 빌드 컨텍스트 아님).",
+            "# 독립 재현용 태그를 지정한다. 측정 이미지와 동일한 바이트·후속 빌드 층까지 재현되는지는 별도 검증한다."]
     empties = _empty_copy_dirs(c, dmem.get("text") or "")
     if empties:
         # F13(2026-10-25): 실린 Dockerfile 이 COPY 하는 패치 디렉터리에 실린 파일이 없으면 빈 디렉터리를 만들어야 COPY 가 성립한다
@@ -3357,18 +3363,18 @@ def _build_command(c: _Ctx, sel: dict) -> tuple[str, str]:
     from . import evidence as _evidence
     lit_kind, lit = _evidence.compose_build_dockerfile(c.compose_path) if c.compose_path is not None else (None, None)
     if origin and str(PurePath(origin).parent) != core.rel(c.repo, c.out):
-        # F4(2026-10-25): 스모크 · compose 는 이 체크아웃 통로(output/<topo>/)의 Dockerfile 을 짓는다 — 이 이미지의 레시피 통로가 아니다
-        tail = [f"# 이 zip 재현 예시에서는 레시피 통로 {PurePath(origin).parent}를 사용한다. 스모크 기본 통로 "
-                f"{core.rel(c.repo, c.out)}/와 다르므로 동등 여부는 별도 확인한다. "
+        # Historical origin identifies the shipped recipe, not the actual measured build context.
+        tail = [f"# 실린 레시피의 이력 출처는 {PurePath(origin).parent}다. 이 zip 재현 예시는 현재 토폴로지 통로 "
+                f"{core.rel(c.repo, c.out)}/를 사용하며 실제 빌드 경로와 동등 여부는 별도 확인한다. "
                 "실린 compose 파일만 단독 사용하고 override가 없을 때의 설정을 확인하라. 과거 실행 경로는 미관측이다."]
     elif c.topo == "multi":
-        tail = [f"# 동등 경로(스모크 사용법): bash {REL_SMOKE_MULTI} {c.cell} --build-only"]
+        tail = [f"# 스모크 빌드 사용법(실제 실행·재현 등치는 미검증): bash {REL_SMOKE_MULTI} {c.cell} --build-only"]
     elif lit_kind == "literal" and lit != sel["dockerfile"]:
         tail = [f"# 이 zip 재현 예시: 실린 output/{c.topo}/docker-compose.yaml 파일만 단독 사용하고 override가 없으면 "
                 f"build.dockerfile 리터럴은 {lit}이다(실린 레시피 {sel['dockerfile']}과 다름). "
                 "그 조건의 compose build는 위 예시와 동등 경로가 아니다. 위 docker build는 재현 권장 예시이며 과거 실행 경로는 미관측이다."]
     else:
-        tail = [f"# 동등 경로(compose): docker compose -f output/{c.topo}/docker-compose.yaml --env-file "
+        tail = [f"# compose 빌드 사용법(실제 실행·재현 등치는 미검증): docker compose -f output/{c.topo}/docker-compose.yaml --env-file "
                 f"output/{c.topo}/envs/.env.{c.cell} build"]
     src = (f"reconstructed({asrc} + compose build 선언/설정(실행 관측 아님))" if asrc and args else
            "reconstructed(compose build 선언/설정(실행 관측 아님) · build-arg 미관측)")
@@ -3647,7 +3653,8 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
         span = (c.memo.get(("dockerfile", sel["dockerfile"])) or {}).get("layer_span") if sel else None
         extra = {"layer_span": span} if span else None
         if p_start and p_end:
-            step("build", build_cmd, "빌드 OK · 이미지 실재", p_start, p_end, "exact", p_src, build_src, extra)
+            step("build", build_cmd, "재현 예시 · 측정 이미지와 동일 여부 별도 확인", p_start, p_end, "exact",
+                 f"{p_src} · 기록된 phase 구간(이 재구성 명령 또는 측정 이미지의 전체 빌드 소요로 결속되지 않음)", build_src, extra)
         elif span and span.get("oldest_utc") and span.get("newest_utc"):
             # 2026-09-22 S2 round 3(공유 계약): 캠페인 phase 기록이 없으면 관측 구간 = docker history 층 CreatedAt 첫 층 → 끝 층(우리
             #   Dockerfile 층). 한계 `layer-window` — 캐시 재사용 층은 이전 빌드의 시각이라 창이지 소요가 아니다(상한·하한 어느 쪽도 아님).
@@ -4333,11 +4340,9 @@ def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: d
     dsel = _select_dockerfile(c, df_name) if df_name and (c.out / df_name).is_file() else {}
     df_text = dsel.get("text") or ""
     copies = _dockerfile_copies(df_text) if df_text else []
-    # NVFP4 F15(2026-10-25): 실린 Dockerfile 이 다른 통로(origin_path)의 이력 blob 이면 그 빌드의 컨텍스트는 그 통로다(01 §1.4 2단계
-    #   `docker build -f <origin> … <통로>` 와 같은 자리) — 빌드 레시피 · 빌드 패치 행은 그 컨텍스트 뿌리(context_root)를 달고, compose 를
-    #   근거로 들지 않는다(그 통로에서는 compose build 가 동등 경로가 아니다). 트리플렛 · compose 슬롯 행은 종전(이 체크아웃 통로).
+    # Historical recipe origin is provenance, not an observed build context; use the current topology for the reproduction example.
     origin = dsel.get("origin_path")
-    rroot = (str(PurePath(origin).parent) if origin and str(PurePath(origin).parent) != core.rel(c.repo, c.out) else None)
+    rroot = (core.rel(c.repo, c.out) if origin and str(PurePath(origin).parent) != core.rel(c.repo, c.out) else None)
     ctext = _compose_text(c)
     vols = _compose_volumes(ctext)
     env_refs = set(_ENV_FILE_REF.findall(ctext))
@@ -4364,7 +4369,7 @@ def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: d
                     ctx_path, basis = f"{d}/{name}", f"{df_name} COPY {d}/"
             elif slot == "build_recipe" and df_text:
                 if name == df_name and rroot:
-                    ctx_path, basis = name, (f"이 zip 재현 예시: docker build -f {origin} · 컨텍스트 {rroot}(실린 레시피 통로). "
+                    ctx_path, basis = name, (f"이 zip 재현 예시: docker build -f {rroot}/{df_name} · 컨텍스트 {rroot}(현재 토폴로지 통로; 실린 바이트 이력 출처 {origin}). "
                                              f"실린 compose 파일만 단독 사용하고 override가 없는 구성은 {core.rel(c.repo, c.out)}/의 기본 통로와 대조한다. "
                                              "과거 실행 경로는 미관측이다.")
                 elif name == df_name:
@@ -4809,7 +4814,8 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
         #   sha256 · 이미지 탐침)와 **대조했고 다르면**(`image_bytes_differ`) 쓰인 바이트가 아니다. 옛 판본은 Dockerfile 만 강등해
         #   같은 블록의 경고("쓰인 바이트가 아니다")와 검증 열("verified · cell-run · 쓰인 레시피")이 서로 모순됐다. 대조 불가(미관측)는 범위 밖.
         for rel_f, fsel in sorted((c.memo.get("copied_sel") or {}).items()):
-            if rel_f in slots["build_recipe"]["files"] and rel_f not in marks and fsel.get("image_bytes_differ") \
+            if rel_f in slots["build_recipe"]["files"] and rel_f not in marks \
+                    and (fsel.get("image_bytes_differ") or fsel.get("ledger_sha256_match") is False) \
                     and not fsel.get("verified"):
                 led = fsel.get("ledger_sha256")
                 why7 = (f"실린 {PurePath(rel_f).name}({fsel.get('shipped')} · sha256 {core.sha256_bytes(fsel['bytes'])[:16]})이 "
@@ -5562,9 +5568,16 @@ def selftest() -> list[str]:
         ck("벤치 = 첫 측정 → generated_utc", steps["bench"]["observed"]["seconds"] == 1800)
         # F5(2026-09-22 S2 round 2): 빌드·벤치 = 독립 실행 가능한 재구성 명령 · 자리표시(§) ✗
         bcmd = steps["build"]["command"]
+        ev_phase = dict(ev, campaign_id="fixture-phase", phases={"build": {
+            "started_utc": "2026-01-01T17:00:00Z", "ended_utc": "2026-01-01T17:37:55Z"}})
+        phase_build = next(x for x in reproduce_steps(repo, ev_phase, runner=docker_old) if x["step"] == "build")
+        ck("reproduction image tag is separate and phase duration is not attributed to that command",
+           "${REPRO_IMAGE_TAG:?set a separate reproduction image tag}" in bcmd
+           and phase_build["observed"]["seconds"] == 2275
+           and "측정 이미지의 전체 빌드 소요로 결속되지 않음" in phase_build["source"])
         ck("F5 빌드 = docker build -f <Dockerfile> --build-arg(history) … -t <tag> <context>",
            "docker build -f output/multi/Dockerfile.source-build \\" in bcmd and "--build-arg SM12X_PORT=0" in bcmd
-           and "--build-arg BUILD_JOBS=8" in bcmd and "-t easy-vllm:fx-source" in bcmd and "\n  output/multi\n" in bcmd
+           and "--build-arg BUILD_JOBS=8" in bcmd and "${REPRO_IMAGE_TAG:?set a separate reproduction image tag}" in bcmd and "\n  output/multi\n" in bcmd
            and steps["build"]["command_source"] == "reconstructed(docker-history build-args + compose build 선언/설정(실행 관측 아님))")
         no_args_cmd, no_args_src = _build_command(_ctx(repo, ev), {"dockerfile": "Dockerfile.source-build"})
         ck("build-arg 미관측 재구성도 compose 설정과 실행 관측을 구분한다",
@@ -5931,8 +5944,8 @@ def selftest() -> list[str]:
                sx["commit"] == c_single and sx["history_match"]["matched"] == sx["history_match"]["total"]
                and (repo / "p_rev_x/artifacts/build_recipe/Dockerfile.rev").read_text(encoding="utf-8").split("\n", 1)[1] == df_x
                and "output/single/Dockerfile.rev" in sx["method"] and "통로(output/multi/Dockerfile.rev) 밖" in sx["method"])
-            ck("★F4 빌드 명령 = 그 통로를 컨텍스트로(-f output/single/… · output/single) · 스모크·compose 동등 경로 없음 명시",
-               "-f output/single/Dockerfile.rev" in bx and bx.rstrip().splitlines()[-2].strip() == "output/single"
+            ck("★F4 빌드 예시 = 현재 토폴로지 통로 · 과거 실제 경로 및 동등성 미관측 명시",
+               "-f output/multi/Dockerfile.rev" in bx and bx.rstrip().splitlines()[-2].strip() == "output/multi"
                and "동등 여부는 별도 확인" in bx and "실린 compose 파일만 단독" in bx and "override가 없을" in bx
                and "과거 실행 경로는 미관측" in bx and "--build-only" not in bx)
             rvx = {r["path"]: r for r in rx["slots"]["build_recipe"]["evidence"]["recipe_vs_image"]}
@@ -5946,9 +5959,9 @@ def selftest() -> list[str]:
                "50·55·60 은 열거되지 않는다 · 실린 pre 패치 0",
                [x["file"] for x in exx] == [".gitkeep"] and not rx["slots"]["build_patch_pre"]["files"])
             bmx = {r["slot_path"]: r for r in rx["build_context_map"] if r.get("slot_path")}
-            ck("★NVFP4 F15 레시피 통로가 다르면 build_recipe 행 = 그 컨텍스트 뿌리 · docker build 근거(compose ✗) · 트리플렛 행은 종전",
-               bmx["artifacts/build_recipe/Dockerfile.rev"].get("context_root") == "output/single"
-               and "docker build -f output/single/Dockerfile.rev" in bmx["artifacts/build_recipe/Dockerfile.rev"]["basis"]
+            ck("★F15 이력 통로가 달라도 build_recipe 예시는 현재 토폴로지 뿌리 · 이력 출처는 별도",
+               bmx["artifacts/build_recipe/Dockerfile.rev"].get("context_root") == "output/multi"
+               and "docker build -f output/multi/Dockerfile.rev" in bmx["artifacts/build_recipe/Dockerfile.rev"]["basis"]
                and "실린 compose 파일만 단독" in bmx["artifacts/build_recipe/Dockerfile.rev"]["basis"]
                and "override가 없는" in bmx["artifacts/build_recipe/Dockerfile.rev"]["basis"]
                and "과거 실행 경로는 미관측" in bmx["artifacts/build_recipe/Dockerfile.rev"]["basis"]
@@ -5957,7 +5970,9 @@ def selftest() -> list[str]:
             mkx = [r for r in rx["build_context_map"] if r.get("create") == "empty-dir"]
             ck("★F13 실린 Dockerfile 이 COPY 하는 패치 디렉터리에 실린 파일이 없으면 빈 디렉터리 생성 행 · 빌드 명령에 mkdir -p(컨텍스트 통로)",
                [r["context_path"] for r in mkx] == ["build_patches_src/"] and "미관측" in mkx[0]["basis"]
-               and "mkdir -p output/single/build_patches_src" in bx)
+               and "mkdir -p output/multi/build_patches_src" in bx)
+            ck("ledger hash mismatch does not claim direct image-file observation",
+               qn.get("ledger_sha256_match") is False and not qn.get("image_bytes_differ"))
             ck("★F4 requirements = 원장 sha256 과 바이트가 같은 이력 blob(다른 ref · 다른 통로) · verified · 출처 경로 · 음성대조: 없으면 종전(쓰인 바이트 아님)",
                qx["verified"] is True and qx["commit"] == c_single and qx["origin_path"] == "output/single/requirements.txt"
                and qx["bytes"] == req_x and qn["verified"] is False and "전 이력" in qn["method"])
@@ -6683,7 +6698,7 @@ def selftest() -> list[str]:
         bps = {s["step"]: s for s in rp_["reproduce_steps"]}["build"]["command"]
         ck("F5 single 빌드 명령(history 인자 · compose 컨텍스트)",
            "docker build -f output/single/Dockerfile.probe" in bps and "--build-arg FX_OPEN=1" in bps
-           and "-t easy-vllm:fx-probe" in bps and "docker compose -f output/single/docker-compose.yaml" in bps)
+           and "${REPRO_IMAGE_TAG:?set a separate reproduction image tag}" in bps and "docker compose -f output/single/docker-compose.yaml" in bps)
         # 2026-10-10 · plan_26101017 · 셀 A F14~F17 · 셀 B F1~F3 — 셀 B F2: compose build.dockerfile 리터럴이 이 이미지의 Dockerfile 과
         #   다르면 compose build 를 '동등 경로' 로 내지 않고 매핑 근거도 리터럴을 말한다 · 같으면 동등 경로 유지
         cmp_ = so / "docker-compose.yaml"
@@ -6707,7 +6722,7 @@ def selftest() -> list[str]:
            and "파일만 단독 사용하고 override가 없으면" in str(mp2.get("basis"))
            and "과거 실행 경로는 미관측" in str(mp2.get("basis")))
         ck("F2 음성대조: 리터럴 = 이 이미지 Dockerfile 이면 동등 경로 유지 · 근거 '(리터럴)'",
-           "동등 경로(compose)" in bl3 and "compose build.dockerfile Dockerfile.probe(리터럴)" in str(mp3.get("basis")))
+           "compose 빌드 사용법(실제 실행·재현 등치는 미검증)" in bl3 and "compose build.dockerfile Dockerfile.probe(리터럴)" in str(mp3.get("basis")))
         ck("F12 슬롯 증거: 전부 applied 인 슬롯만 reconstruction", rp_["slots"]["build_patch_pre"]["evidence"]["kind"] == "none"
            and "적용 미관측" in rp_["slots"]["build_patch_pre"]["evidence"]["note"])
         # ★읽기 전용 실행기(image_probe 미선언) = create/cp/rm 0 · 탐침이 가르던 30·40 은 미관측 · 61 은 작업트리 바이트로 판정

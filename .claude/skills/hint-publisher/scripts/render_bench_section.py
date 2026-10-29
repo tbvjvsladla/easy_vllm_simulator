@@ -37,6 +37,9 @@ import sys
 from pathlib import Path
 
 SECTION_TITLE = "## 부하 스윕 곡선 — 동시성별 (결정론 파싱 · 손저작 ✗)"
+LEGACY_CAPTION = "> 단일 running serve 에 **동시 요청 수만** 바꿔 잰 곡선이다(reload 없음 · request-rate=inf)."
+CURRENT_CAPTION = ("> 동시 요청 수를 부하 축으로 표시한다. 값이 있는 행은 원천에 기록된 해당 레벨의 대표 run(첫 완주 run)을 나타낸다.\n"
+                   "> 반복 run의 warmup·요청 수·완료 결과는 서로 다를 수 있으므로 원천 기록을 함께 확인한다.")
 # `render_report.py` 가 내는 표의 머리행. 이 문자열이 두 스크립트 사이의 **계약**이다 —
 # 바뀌면 여기서 fail-loud 하고, 조용히 빈 표를 내지 않는다.
 REPORT_HEADER = "| 동시성 | decode t/s | 출력 tok/s | 총 tok/s | TTFT p50(ms) | ITL p50(ms) | 완료/실패 |"
@@ -271,7 +274,7 @@ def render(parsed: dict, source_name: str) -> str:
     has_tail = any(lv.get("ttft_ms_p99") is not None or lv.get("itl_ms_p99") is not None
                    for lv in levels)
     out = [SECTION_TITLE, "",
-           "> 단일 running serve 에 **동시 요청 수만** 바꿔 잰 곡선이다(reload 없음 · request-rate=inf).",
+           CURRENT_CAPTION,
            "> `★판정점`은 원천이 표시한 판정 지점이며, 나머지 행은 그 레시피가 **부하에서 어떻게 되는지**를 말한다. 인증서 발행 여부는 판정과 루브릭 권한에 따른다.",
            f"> 출처: `{source_name}` ({parsed['source_kind']}) · 소수 2자리 표시 반올림 · 결측은 `N/A`(0 이 아니다).",
            "> 이 표는 스크립트가 파싱해 렌더한다 — 손으로 옮긴 수치가 아니며 `--verify` 가 diff 0 을 요구한다.",
@@ -360,6 +363,9 @@ def _selftest() -> int:
     ck("렌더에 두 레벨이 모두 있다", "| 1 ★판정점 |" in body and "| 2 |" in body)
     ck("표시 반올림(원본 오염 ✗)", "50.70" in body and "50.69957426582275" not in body)
     ck("절삭이 절에 남는다", "level 4 truncated" in body)
+    ck("대표 run 범위와 반복별 warmup·요청 수 차이를 명시", "대표 run(첫 완주 run)" in body
+       and "반복 run의 warmup·요청 수·완료 결과는 서로 다를 수" in body
+       and "동시 요청 수만" not in body and "request-rate=inf" not in body)
 
     raised = None
     try:
@@ -381,6 +387,12 @@ def _selftest() -> int:
         "truncated": []}
     tail_body = render(parse_sweep_index(idx), "sweep_index.json")
     ck("sweep_index 는 꼬리 열(p99)을 낸다", "TTFT p99" in tail_body and "217.60" in tail_body)
+    idx["levels"][0]["measured"]["runs"] = [
+        {"completed": 16, "warmup": 2}, {"completed": 18, "warmup": 0}]
+    heterogeneous = render(parse_sweep_index(idx), "sweep_index.json")
+    ck("반복별 요청·warmup 차이가 있어도 대표 표 값은 유지하고 동일 반복이라고 단정하지 않는다",
+       "16/0" in heterogeneous and "대표 run(첫 완주 run)" in heterogeneous
+       and "서로 다를 수" in heterogeneous and "동시 요청 수만" not in heterogeneous)
     ck("레벨 1개면 곡선 부재를 명시한다", "레벨이 **하나뿐**" in tail_body)
 
     doc = "머리말\n\n" + body + "\n## 그다음\n내용\n"
