@@ -3366,13 +3366,13 @@ def _build_command(c: _Ctx, sel: dict) -> tuple[str, str]:
         # Historical origin identifies the shipped recipe, not the actual measured build context.
         tail = [f"# 실린 레시피의 이력 출처는 {PurePath(origin).parent}다. 이 zip 재현 예시는 현재 토폴로지 통로 "
                 f"{core.rel(c.repo, c.out)}/를 사용하며 실제 빌드 경로와 동등 여부는 별도 확인한다. "
-                "실린 compose 파일만 단독 사용하고 override가 없을 때의 설정을 확인하라. 과거 실행 경로는 미관측이다."]
+                "실린 compose 파일만 단독 사용하고 override가 없을 때의 설정을 확인하라. 실제 원본·후속층 실행 경로는 별도 실행 기록에서 확인한다."]
     elif c.topo == "multi":
         tail = [f"# 스모크 빌드 사용법(실제 실행·재현 등치는 미검증): bash {REL_SMOKE_MULTI} {c.cell} --build-only"]
     elif lit_kind == "literal" and lit != sel["dockerfile"]:
         tail = [f"# 이 zip 재현 예시: 실린 output/{c.topo}/docker-compose.yaml 파일만 단독 사용하고 override가 없으면 "
                 f"build.dockerfile 리터럴은 {lit}이다(실린 레시피 {sel['dockerfile']}과 다름). "
-                "그 조건의 compose build는 위 예시와 동등 경로가 아니다. 위 docker build는 재현 권장 예시이며 과거 실행 경로는 미관측이다."]
+                "그 조건의 compose build는 위 예시와 동등 경로가 아니다. 위 docker build는 재현 권장 예시이며 실제 원본·후속층 실행 경로는 별도 실행 기록에서 확인한다."]
     else:
         tail = [f"# compose 빌드 사용법(실제 실행·재현 등치는 미검증): docker compose -f output/{c.topo}/docker-compose.yaml --env-file "
                 f"output/{c.topo}/envs/.env.{c.cell} build"]
@@ -4371,7 +4371,7 @@ def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: d
                 if name == df_name and rroot:
                     ctx_path, basis = name, (f"이 zip 재현 예시: docker build -f {rroot}/{df_name} · 컨텍스트 {rroot}(현재 토폴로지 통로; 실린 바이트 이력 출처 {origin}). "
                                              f"실린 compose 파일만 단독 사용하고 override가 없는 구성은 {core.rel(c.repo, c.out)}/의 기본 통로와 대조한다. "
-                                             "과거 실행 경로는 미관측이다.")
+                                             "실제 원본·후속층 실행 경로는 별도 실행 기록에서 확인한다.")
                 elif name == df_name:
                     # 셀 B F2(2026-10-10 · plan_26101017): compose 의 실제 dockerfile 키를 읽는다 — 리터럴이 이 파일과 다르면 compose 가
                     #   실린 파일 단독·override 없음 조건에서만 이 파일을 가리키지 않는다.
@@ -4380,7 +4380,7 @@ def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: d
                     basis = ("compose build.dockerfile ${BUILD_DOCKERFILE} · build.context ." if lk != "literal" else
                              f"compose build.dockerfile {lv}(리터럴) · build.context ." if lv == name else
                              f"이 zip 재현 예시의 docker build -f {name} 입력 · build.context .(실린 compose 파일만 단독 사용하고 "
-                             f"override가 없으면 build.dockerfile 리터럴은 {lv}이므로 이 파일과 다름; 과거 실행 경로는 미관측)")
+                             f"override가 없으면 build.dockerfile 리터럴은 {lv}이므로 이 파일과 다름; 실제 원본·후속층 실행 경로는 별도 실행 기록에서 확인)")
                     ctx_path = name
                 else:
                     src = next((s for s in copies if PurePath(s).name == name and s not in PATCH_DIRS.values()), None)
@@ -4399,12 +4399,13 @@ def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: d
                                   (f"/app/configs/{name}" in ctext or name in trip_names or name.endswith("_patch.py")
                                    or slot == "compose")):
                     ctx_path, basis = f"{cfg_dir}/{name}", f"compose volumes ./{cfg_dir}:/app/configs"
-            row = {"slot_path": rel_f, "context_path": ctx_path, "basis": basis}
+            row = {"slot_path": rel_f, "context_path": ctx_path, "basis": basis, "context_scope": "reconstruction_example"}
             if rroot and ctx_path and slot in ("build_recipe", "build_patch_pre", "build_patch_post"):
                 row["context_root"] = rroot
             rows.append(row)
     for e in _empty_copy_dirs(c, df_text, slots):
         row = {"slot_path": None, "context_path": f"{e['dir']}/", "create": "empty-dir", "inventory": e["inventory"],
+               "context_scope": "reconstruction_example",
                "basis": f"{df_name} COPY {e['dir']}/ · 실린 패치 없음 — 빈 디렉터리를 만든다(없으면 COPY 단계에서 빌드가 멈춘다) · "
                         f"{e['source']}"}
         if rroot:
@@ -5947,7 +5948,7 @@ def selftest() -> list[str]:
             ck("★F4 빌드 예시 = 현재 토폴로지 통로 · 과거 실제 경로 및 동등성 미관측 명시",
                "-f output/multi/Dockerfile.rev" in bx and bx.rstrip().splitlines()[-2].strip() == "output/multi"
                and "동등 여부는 별도 확인" in bx and "실린 compose 파일만 단독" in bx and "override가 없을" in bx
-               and "과거 실행 경로는 미관측" in bx and "--build-only" not in bx)
+               and "실제 원본·후속층 실행 경로는 별도 실행 기록에서 확인" in bx and "--build-only" not in bx)
             rvx = {r["path"]: r for r in rx["slots"]["build_recipe"]["evidence"]["recipe_vs_image"]}
             ck("★F15 레시피 대조 행 = 실린 파일의 경로·커밋(이 체크아웃 통로 작업트리 경로 · 그 마지막 커밋 ✗)",
                "output/single/Dockerfile.rev" in rvx and "output/multi/Dockerfile.rev" not in rvx
@@ -5964,7 +5965,7 @@ def selftest() -> list[str]:
                and "docker build -f output/multi/Dockerfile.rev" in bmx["artifacts/build_recipe/Dockerfile.rev"]["basis"]
                and "실린 compose 파일만 단독" in bmx["artifacts/build_recipe/Dockerfile.rev"]["basis"]
                and "override가 없는" in bmx["artifacts/build_recipe/Dockerfile.rev"]["basis"]
-               and "과거 실행 경로는 미관측" in bmx["artifacts/build_recipe/Dockerfile.rev"]["basis"]
+               and "실제 원본·후속층 실행 경로는 별도 실행 기록에서 확인" in bmx["artifacts/build_recipe/Dockerfile.rev"]["basis"]
                and "compose build.dockerfile" not in bmx["artifacts/build_recipe/Dockerfile.rev"]["basis"]
                and not any(r.get("context_root") for k, r in bmx.items() if "/triplet/" in k or "/compose/" in k))
             mkx = [r for r in rx["build_context_map"] if r.get("create") == "empty-dir"]
@@ -6716,11 +6717,11 @@ def selftest() -> list[str]:
         mp3 = {r["slot_path"]: r for r in rl3["build_context_map"]}.get("artifacts/build_recipe/Dockerfile.probe") or {}
         ck("★F2 compose 리터럴(Dockerfile.source-build) ≠ 이 이미지 Dockerfile → '동등 경로(compose)' ✗ · '동등 경로가 아니다' · 매핑 근거 = 리터럴",
            "동등 경로(compose)" not in bl2 and "파일만 단독 사용하고 override가 없으면" in bl2
-           and "Dockerfile.source-build이다" in bl2 and "과거 실행 경로는 미관측" in bl2
+           and "Dockerfile.source-build이다" in bl2 and "실제 원본·후속층 실행 경로는 별도 실행 기록에서 확인" in bl2
            and "위 docker build 명령만 쓴다" not in bl2
            and "${BUILD_DOCKERFILE}" not in str(mp2.get("basis"))
            and "파일만 단독 사용하고 override가 없으면" in str(mp2.get("basis"))
-           and "과거 실행 경로는 미관측" in str(mp2.get("basis")))
+           and "실제 원본·후속층 실행 경로는 별도 실행 기록에서 확인" in str(mp2.get("basis")))
         ck("F2 음성대조: 리터럴 = 이 이미지 Dockerfile 이면 동등 경로 유지 · 근거 '(리터럴)'",
            "compose 빌드 사용법(실제 실행·재현 등치는 미검증)" in bl3 and "compose build.dockerfile Dockerfile.probe(리터럴)" in str(mp3.get("basis")))
         ck("F12 슬롯 증거: 전부 applied 인 슬롯만 reconstruction", rp_["slots"]["build_patch_pre"]["evidence"]["kind"] == "none"
