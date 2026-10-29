@@ -458,6 +458,43 @@ def ladder_names(ladder: list) -> str:
     return " → ".join(r["name"] for r in ladder)
 
 
+def runner_effort(a, runner: dict) -> tuple[str, str]:
+    overrides = getattr(a, "runner_efforts", None) or {}
+    name = runner["name"]
+    if name in overrides:
+        return overrides[name], "runner:" + name
+    effort = getattr(a, "reasoning_effort", None)
+    return (effort, "caller") if effort is not None else ("default", "native-default")
+
+
+def effort_matches(a, runner: dict, request: dict) -> bool:
+    # Historical omission and explicit default both preserve native selection.
+    return request.get("reasoning_effort", "default") == runner_effort(a, runner)[0]
+
+
+def restore_runner_efforts(a, doc: dict) -> None:
+    declared = getattr(a, "runner_effort", None)
+    values = dict(doc.get("runner_efforts") or {})
+    names = {r["name"] for r in a.ladder}
+    if getattr(a, "runners", None):
+        # An explicit replacement ladder also removes configuration for its
+        # removed slots. Historical attempts retain their original requests.
+        values = {name: level for name, level in values.items() if name in names}
+    seen = set()
+    for entry in declared or []:
+        name, sep, level = entry.partition("=")
+        allowed = _agent_control._load_schema(_agent_control.REQUEST_SCHEMA_PATH)["properties"]["reasoning_effort"]["enum"]
+        if not sep or name not in names or level not in allowed or name in seen:
+            raise SystemExit("[relay] STOP: --runner-effort requires a unique declared RUNNER=LEVEL")
+        values[name] = level
+        seen.add(name)
+    if set(values) - names:
+        raise SystemExit("[relay] STOP: saved effort slots do not match the declared ladder")
+    a.runner_efforts = values
+    if values or "runner_efforts" in doc:
+        doc["runner_efforts"] = values
+
+
 def next_runner_index(doc: dict, ladder: list) -> int:
     """다음에 쓸 칸. **커서를 저장하지 않고 원장에서 파생한다** — 같은 개념이 두 자리에 앉으면
     갈라지고, 갈라진 쪽이 조용히 늦는다(workflow.md §4종 안티패턴)."""
@@ -950,6 +987,7 @@ def record_attempt(doc: dict, *, context_id: str, bud: dict, result: dict, repor
         #   나중에 증명할 수 없다.
         "model_declared": result.get("model_requested"),
         "model_used": result.get("model_used") or [],
+        "reasoning_selection": result.get("reasoning_selection"),
         # 2026-09-08: **어느 러너가 이 결정을 냈는가**. 회전이 조용하면 그 결정의 출처가 사라진다 —
         #   약한 칸으로 내려간 것이 판단 품질을 바꿀 수 있고, 그러면 추적 가능해야 한다.
         "runner": dict(runner) if isinstance(runner, dict) else None,
@@ -1954,6 +1992,7 @@ def _supervise_resume(a, lp: str, doc: dict, secs, why: str) -> int:
             setattr(a, key, value)
     if getattr(a, "reasoning_effort", None) is None:
         a.reasoning_effort = doc.get("reasoning_effort")
+    restore_runner_efforts(a, doc)
     lks = last_known_session(doc)
     deadline_resume = (last.get("failure_evidence") or {}).get("signal") in ("controlled_local_deadline", "controlled_remote_deadline")
     native_exhausted = last.get("end_reason") == "budget_exhausted"
@@ -2910,11 +2949,12 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
                         context_id=a.context_id, attempt=attempt_no,
                         model=runner["model"], backend=runner["backend"],
                         provider=provider, permission_profile=profile, sandbox_mode=sandbox,
-                        reasoning_effort=getattr(a, "reasoning_effort", None),
+                        reasoning_effort=runner_effort(a, runner)[0],
                         campaign_id=getattr(a, "campaign_id", None),
                         control_variables=getattr(a, "control_variables", None),
                         # 수명 제어 지시에는 개설 선언(slice)을 싣지 않는다 — 서브가 그것을 보고 --init 을 치면 전이가 아니라 개설이 된다.
                         delegated_node=(None if getattr(a, "campaign_control", None) else getattr(a, "node", None)))
+    req["reasoning_effort_source"] = runner_effort(a, runner)[1]
     effective_resume, binding = bound_resume(doc, resume_declared, req)
     resume = None if effective_resume == "new" else effective_resume
     if effective_resume != resume_declared:
@@ -2955,6 +2995,8 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
           f"(backend={runner['backend']} model={runner['model']}) "
           f"max_turns={bud['max_turns']} timeout={bud['timeout_seconds']}s ({bud['source']}) "
           f"resume={resume_declared} sub_branch={branch}")
+    print(f"[relay] reasoning_effort={req['reasoning_effort']} source={req['reasoning_effort_source']} "
+          "(selection declaration; upstream observation is separate)")
     # 2026-09-05(축 F): 보낸 요청을 **보존한다**. 종전에는 임시파일로 보내고 지웠기 때문에 "그때
     #   무엇을 보냈는가" 가 남지 않았고, 조립기는 매번 다시 조립하므로 재현도 되지 않았다.
     _qdir = os.path.join(relay_root(a.repo_root), f"{a.context_id}.requests")
@@ -2983,10 +3025,13 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
                        "budget": dict(bud), "runner": dict(runner),
                        "resume_declared": effective_resume,
                        "started_utc": started, "owner_pid": os.getpid()}
-    if "reasoning_effort" in req:
-        doc["reasoning_effort"] = req["reasoning_effort"]
-    elif "reasoning_effort" in doc:
-        del doc["reasoning_effort"]
+    # Persist the global declaration, never the selected slot's resolved value.
+    # Otherwise a rotation silently turns one slot override into a ladder default.
+    if getattr(a, "reasoning_effort", None) is not None:
+        doc["reasoning_effort"] = a.reasoning_effort
+    else:
+        doc.pop("reasoning_effort", None)
+    doc["runner_efforts"] = getattr(a, "runner_efforts", None) or {}
     if provider == "codex_cli":
         doc["permission_selection"] = {k: req[k] for k in ("permission_profile", "sandbox_mode") if k in req}
     save_ledger(lp, doc)  # reserve durably before the external process can produce side effects
@@ -3206,7 +3251,7 @@ def capacity_handoff_reentry(a, doc, runner, policy, resume_declared):
             return False
         return (req.get("provider") == runner.get("provider") == "codex_cli"
                 and req.get("model") == runner.get("model")
-                and req.get("reasoning_effort") == getattr(a, "reasoning_effort", None)
+                and effort_matches(a, runner, req)
                 and binding.get("permission_profile") == getattr(a, "permission_profile", None)
                 and binding.get("sandbox_mode") == getattr(a, "sandbox_mode", None))
     except (SystemExit, OSError, ValueError, TypeError, KeyError):
@@ -3320,7 +3365,7 @@ def capacity_retry_ready(a, doc, bud, runner, policy, *, check_deadline=True):
             or wrapper.get("dispatch_id") != last.get("dispatch_id") or
             permission_binding(req) != last.get("session_binding") or
             req.get("model") != runner["model"] or
-            req.get("reasoning_effort") != getattr(a, "reasoning_effort", None)):
+            not effort_matches(a, runner, req)):
             return False
         open_commands = set()
         for event in result.get("raw_events") or []:
@@ -3377,6 +3422,12 @@ def run_attempt(a, doc: dict, lp: str, task: str, bud: dict, resume_declared) ->
     native session using the artifact continuation, never a failed runner's empty session.
     """
     ladder = a.ladder
+    for slot in ladder:
+        validator = getattr(_agent_control._load_provider(slot.get("provider", "claude_code")),
+                            "reasoning_violations", None)
+        violations = validator({"reasoning_effort": runner_effort(a, slot)[0]}) if validator else []
+        if violations:
+            raise SystemExit("[relay] STOP: invalid effort for " + slot["name"] + ": " + "; ".join(violations))
     requested_policy = bool(getattr(a, "_capacity_resume_policy", None)) or any(
         getattr(a, k, None) is not None for k in
         ("capacity_retries", "capacity_backoff_seconds", "capacity_deadline_utc", "capacity_approval_file"))
@@ -3507,7 +3558,9 @@ def _main() -> int:
     ap.add_argument("--capacity-backoff-seconds", type=int)
     ap.add_argument("--capacity-deadline-utc")
     ap.add_argument("--capacity-approval-file")
-    ap.add_argument("--reasoning-effort", choices=("none", "minimal", "low", "medium", "high", "xhigh", "max"), default=None)
+    ap.add_argument("--reasoning-effort", choices=("default", "none", "minimal", "low", "medium", "high", "xhigh", "max"), default=None)
+    ap.add_argument("--runner-effort", action="append", metavar="RUNNER=LEVEL",
+                    help="Per-slot effort override; repeat for multiple slots. default uses target native policy.")
     ap.add_argument("--model", default=None,
                     help="위임 모델 선언(기본은 카나리 기본값). 어댑터는 모델로 차단하지 않는다 — "
                          "실제로 돈 모델은 원장 `model_used` 가 말한다(2026-09-05 · G-A1).")
@@ -3600,6 +3653,9 @@ def _main() -> int:
     if a.runners:
         # 선언된 사다리를 원장에 적는다 — 감독 재발급이 명시 없이도 같은 사다리를 잇는다(ledger_runner_spec).
         doc["runner_ladder"] = ",".join(r["name"] for r in a.ladder)
+    # Continuation may restore its ladder below; restore effort slots afterwards.
+    if not a.continue_:
+        restore_runner_efforts(a, doc)
     a.campaign_id, a.control_variables = resolve_campaign_axis(a)
     old_axis = doc.get("control_variables")
     if (a.continue_ and doc.get("attempts") and a.control_variables and old_axis != a.control_variables):
@@ -3631,6 +3687,7 @@ def _main() -> int:
             a.ladder = resolve_ladder(a.repo_root, ledger_runner_spec(doc))   # 러너를 조용히 바꾸지 않는다
         if a.reasoning_effort is None:
             a.reasoning_effort = doc.get("reasoning_effort")
+        restore_runner_efforts(a, doc)
         if not (a.permission_profile or a.sandbox_mode):
             for key, value in (doc.get("permission_selection") or {}).items():
                 setattr(a, key, value)
@@ -3698,6 +3755,9 @@ def _main() -> int:
         if not a.apply:
             # dry-run 은 **사실만** 보여준다 — 예산도 재개도 이 화면을 본 쪽이 선언한다.
             print(f"[relay] --continue DRY-RUN · context={a.context_id}")
+            slot = a.ladder[next_runner_index(doc, a.ladder)]
+            effort, source = runner_effort(a, slot)
+            print(f"[relay] 추론 강도 선언: runner={slot['name']} effort={effort} source={source}")
             print(f"[relay] 마지막 알려진 세션: {lks['session_id'] or '(없음)'} "
                   f"(attempt {lks['attempt']} · sub_status={lks['status']} · "
                   f"budget={lks['budget_outcome']}) → `--resume <id|new>` 로 선언하라")

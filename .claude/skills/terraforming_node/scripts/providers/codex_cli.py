@@ -63,7 +63,7 @@ def _inner_argv(request: dict) -> list[str]:
     if resume:
         argv.append("resume")
     argv += ["--json", "--model", request["model"], "-c", 'approval_policy="never"']
-    if "reasoning_effort" in request:
+    if request.get("reasoning_effort") not in (None, "default"):
         argv += ["-c", "model_reasoning_effort=" + json.dumps(request["reasoning_effort"])]
     if "permission_profile" in request:
         argv += ["-c", "default_permissions=" + json.dumps(request["permission_profile"])]

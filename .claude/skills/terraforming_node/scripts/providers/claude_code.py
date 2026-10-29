@@ -24,6 +24,8 @@ keeps it next to `model_requested`). Absent or odd metadata is now reported on s
 from __future__ import annotations
 
 import json
+import re
+import time
 import shlex
 import subprocess
 import sys
@@ -88,7 +90,19 @@ RUNNER_ALIASES = {
     "claude-sub-sonnet":   ("claude-sub", "sonnet"),
     "claude-sub-deepseek": ("claude-sub", "deepseek-flash"),
     "claude-sub-minimax":  ("claude-sub", "minimax-m3.1-flash"),
+    "claude-sub-deepseek-pro": ("claude-sub", "deepseek-pro"),
+    "claude-sub-kimi": ("claude-sub", "kimi-k3.1-pro"),
+    "claude-sub-minimax-m3": ("claude-sub", "minimax-m3"),
 }
+
+EFFORT_LEVELS = ("low", "medium", "high", "xhigh", "max")
+
+
+def reasoning_violations(request: dict) -> list[str]:
+    effort = request.get("reasoning_effort")
+    if effort is not None and effort not in (*EFFORT_LEVELS, "default"):
+        return ["$.reasoning_effort: Claude supports default, low, medium, high, xhigh, max"]
+    return []
 
 # ── 러너 평면 실패 판정 (2026-09-08 · 실측 수확분 + 공식문서) ────────────────────────────────
 # 왜 이 판정이 회전보다 먼저인가: "백엔드가 죽었다" 와 "서브가 자기 작업에 실패했다" 가 종전에는
@@ -187,6 +201,8 @@ def _inner_argv(request: dict) -> list[str]:
         # Diagnostic opt-in only; do not change the ordinary JSON/resume/backend contract.
         # https://code.claude.com/docs/en/headless#stream-responses
         claude_args += ["--verbose"]
+    if request.get("reasoning_effort") not in (None, "default"):
+        claude_args += ["--effort", request["reasoning_effort"]]
     resume = request.get("resume_session_id")
     if isinstance(resume, str) and resume.strip():
         claude_args += ["--resume", resume.strip()]
@@ -374,8 +390,45 @@ def _native_stream(stdout) -> tuple[dict | None, list[dict], bool]:
 
 def invoke(request: dict) -> dict:
     """Preserve ordinary envelopes; add observed events only for an explicit canary opt-in."""
+    selection = None
+    def policy_failure(result, events):
+        if request.get("capture_native_events") is True:
+            result["raw_events"] = events
+        return result
+    if request.get("reasoning_effort") == "default":
+        # Ask the requested node's native resolver. No private settings are copied,
+        # and a local slash command is never counted as a model's successful work.
+        started = time.monotonic()
+        probe = dict(request, task="/effort status", capture_native_events=True)
+        probe.pop("reasoning_effort", None)
+        observed = {}
+        policy = _invoke(probe, observed)
+        terminal = next((e for e in reversed(observed.get("events", []))
+                         if e.get("type") == "result"), {})
+        status = policy.get("output") or ""
+        match = re.fullmatch(r"Effort level: (auto|low|medium|high|xhigh|max)(?: \(currently (low|medium|high|xhigh|max)\))?", status.strip())
+        resume = request.get("resume_session_id")
+        if (policy.get("status") != STATUS_COMPLETED or terminal.get("local_command") != "effort" or not match
+                or (resume and policy.get("session_id") != resume)):
+            if policy.get("status") != STATUS_COMPLETED:
+                return policy_failure(policy, observed.get("events", []))
+            _diag(request, "PROVIDER_RESULT_INVALID", "Native effort policy could not be resolved from /effort status")
+            return policy_failure(_result(request, status=STATUS_MALFORMED_OUTPUT, exit_code=EXIT_MALFORMED_OUTPUT,
+                           reason_codes=["PROVIDER_RESULT_INVALID"]), observed.get("events", []))
+        displayed = match.group(2) or (None if match.group(1) == "auto" else match.group(1))
+        selection = {"requested": "default", "resolved": displayed,
+                     "source": "target-native:/effort status", "native_status": status,
+                     "mode": "native-default", "upstream_observed": None}
+        # Auto is a native mode, not an instruction to force the displayed level.
+        remaining = request["timeout_seconds"] - (time.monotonic() - started)
+        if remaining < 1:
+            return policy_failure(_result(request, status=STATUS_TIMEOUT, exit_code=EXIT_TIMEOUT,
+                           reason_codes=["TIMEOUT"], budget_outcome="external_interruption"), observed.get("events", []))
+        request = dict(request, timeout_seconds=max(1, int(remaining)))
     observation = {} if request.get("capture_native_events") is True else None
     result = _invoke(request, observation)
+    if selection is not None:
+        result["reasoning_selection"] = selection
     if observation is not None:
         result["raw_events"] = observation.get("events", [])
     return result

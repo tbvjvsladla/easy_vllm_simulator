@@ -249,9 +249,15 @@
         "medium",
         "high",
         "xhigh",
-        "max"
+        "max",
+        "default"
       ],
-      "description": "Optional Codex model reasoning effort; caller declaration."
+      "description": "Per-invocation reasoning selection. default preserves the requested node native model policy; explicit levels are provider-validated."
+    },
+    "reasoning_effort_source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Selection origin: caller, runner slot override, or native-default; not an execution observation."
     }
   },
   "oneOf": [
@@ -279,9 +285,6 @@
           "enum": []
         },
         "resume_binding": {
-          "enum": []
-        },
-        "reasoning_effort": {
           "enum": []
         }
       }

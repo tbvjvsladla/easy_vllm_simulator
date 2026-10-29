@@ -181,6 +181,9 @@ def request_schema_violations(request) -> list[str]:
     violations = _schema_violations(request, _load_schema(REQUEST_SCHEMA_PATH))
     if not violations:
         violations.extend(_request_contract_violations(request))
+        validator = getattr(_load_provider(request["provider"]), "reasoning_violations", None)
+        if validator:
+            violations.extend(validator(request))
     return violations
 
 
@@ -273,6 +276,9 @@ def _result_contract_violations(result: dict, request: dict) -> list[str]:
             out.append("$.raw_events: requested native event evidence is absent")
         elif not capture and "raw_events" in result:
             out.append("$.raw_events: unsolicited native event evidence")
+    selection = result.get("reasoning_selection")
+    if selection is not None and selection.get("requested") != request.get("reasoning_effort"):
+        out.append("$.reasoning_selection: does not match the requested effort")
     return out
 
 
@@ -297,6 +303,14 @@ def cmd_invoke(args: argparse.Namespace) -> None:
 
     provider_module = _load_provider(request["provider"])
     result = provider_module.invoke(request)
+    if "reasoning_effort" in request:
+        effort = request["reasoning_effort"]
+        selection = result.setdefault("reasoning_selection", {
+            "requested": effort, "resolved": None if effort == "default" else effort,
+            "source": "target-native-policy" if effort == "default" else "request",
+            "mode": "native-default" if effort == "default" else "explicit",
+            "upstream_observed": None})
+        selection["selection_source"] = request.get("reasoning_effort_source", "caller")
 
     result_schema = _load_schema(RESULT_SCHEMA_PATH)
     result_violations = _schema_violations(result, result_schema)
