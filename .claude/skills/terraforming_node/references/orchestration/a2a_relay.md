@@ -79,6 +79,19 @@
   `TASK_INSTRUCTION_SOURCE_UNRESOLVED`를 낸다. 메인이 기존 request와 승인 범위를 검토하여 완전한 `--task-file`을
   명시 발급하면 이후 재개의 출처가 확정된다. 이것만으로 사용자 HITL이나 권한/제어 실패 복구 질문을 새로 만들지
   않는다. 기존 실제 차단 사유는 그대로 해소해야 하며, 구 원장·진행 중 reservation·예산은 손편집하거나 초기화하지 않는다.
+- **독립 산출물 검증 인계**: 해당 노드의 `node_role_contract`와 산출물 owner가 독립 검증을 요구하는 경우,
+  저자는 lint 0·자기 서비스 정리 뒤 draft·원천·남은 일을 checkpoint로 남긴다. 메인 호출자는 지원되는 독립 실행
+  경로를 골라 같은 승인 셀을 참조하는 **새 검증 역할 context와 새 native 세션**을 발급한다. 이는 기존 저자 셀
+  context의 소유·원장을 대체하거나 새 셀을 만드는 것이 아니다. provider·model·effort·권한 선택과 현재 단계의
+  동적 실행 예산을 명시하고, 실행 요청과 실제 관측을 구분한다. 검증자는 저자가 아니며 factcheck 보고와 docs
+  receipt를 남긴다. 열린 지적이 있어도 검증 범위 전체와 요구된 모든 부류를 먼저 대조·기록한다. owner가 처방하고
+  독립 검증자가 재확인한 뒤 저자가 공식 발행 경로를 잇는다. 검증 역할 `completed`는 셀 완료나 태그 발행이 아니다.
+  상세 게이트·7부류는 `hint-publisher` SKILL.md §2의 소유다.
+  중첩 provider 실행이 항상 가능하다고 가정하지 않는다. 실제 사례에서 nested 실행은 세션 생성 전 ROFS로 실패해
+  모델 실행·receipt가 없었고, 메인이 별도 정식 A2A 검증 context를 발급해 실제 세션을 관측했다. 그 오류의 원인을
+  추측하지 않는다. 정식 경로도 막히면 기존 owner·request/HITL 계약으로 사실을 인계한다. profile 확대·우회,
+  사적 설정 복사, 전역 쓰기 권한 부여 또는 새 blanket 승인을 만들지 않는다. 멀티 Ray worker의 역할은 manifest에서
+  파생하며 이 절이 서브 publisher 권한을 만들지 않는다.
 - **전진 신호는 넷이다**(2026-09-29 · `plan_26092919` P1): phase 변화 · 회수 브리핑 `last_utc` · 원장
   (리포트의 산출물·`next_steps` 변화) · **문서 평면**(회수 미러 문서가 그 context_id 를 담고 mtime 이 attempt
   창 안). 브리핑이 없는 서브(멀티 Ray 워커)와 리포트 없이 잘린 attempt 를 위해 뒤의 둘을 더했다. 질문의

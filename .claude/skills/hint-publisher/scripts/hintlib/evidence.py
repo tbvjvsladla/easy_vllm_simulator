@@ -1037,6 +1037,7 @@ def _host_facts(ev: CellEvidence, repo=None) -> None:
     if layers:
         b["driver"], src["driver"] = layers[0][0], layers[0][1]
     b.pop("driver_by_node", None)
+    src["driver_by_node"] = "이 측정에 결속된 노드별 구조화 관측 입력 없음(다른 시점 관측의 부재를 뜻하지 않음)"
     if by_node and not other_run:
         b["driver_by_node"] = by_node
         src["driver_by_node"] = obs_src
@@ -1067,7 +1068,8 @@ def _host_facts(ev: CellEvidence, repo=None) -> None:
         b["driver_check"] = {"verdict": verdict, "observed": observed[0] if observed else None,
                              "declared": declared[0] if declared else None,
                              "sources": {"observed": observed[1] if observed else None,
-                                         "declared": declared[1] if declared else None}}
+                                         "declared": declared[1] if declared else None},
+                             "observation_scope": "이 측정에 결속된 구조화 드라이버 관측 입력"}
     b["os"], src["os"] = None, f"미관측(attestation·인증서·스윕 meta·manifest 에 {list(_OS_KEYS)} 키 없음 — 지어내지 않는다)"
     for k in _OS_KEYS:
         v, where, _bn = _attested_host(ev.attestation, k)
@@ -4345,7 +4347,8 @@ def vllm_observed(ev: CellEvidence, repo=None) -> dict:
                 "runtime_source_checkout": checkout, "runtime_source_checkout_source": checkout_src,
                 "runtime_source_describe": describe, "runtime_source_describe_source": describe_src}
                if observations else {})
-    return {"engine_self_report": banner["value"], "engine_self_report_source": banner["source"],
+    return {"wheel_meta_label": "vLLM 설치 distribution 메타(출처별 관측 · 다운로드 wheel 증명 아님)",
+            "engine_self_report": banner["value"], "engine_self_report_source": banner["source"],
             "engine_self_report_basis": banner["basis"],
             "certificate_vllm_version": cert_v, "certificate_vllm_version_producer": label,
             "certificate_vllm_version_source": psrc,
@@ -4827,6 +4830,8 @@ def _assemble(repo: Path, ev: CellEvidence, *, measured_key: str | None, simlog_
                                             measured=_measured_meta(ev.sweep, ev.certificate), manifest=ev.manifest,
                                             runner=runner)
     missing += bm
+    if ev.build_identity.get("track") == "source-build":
+        ev.build_identity["source_coordinate_scope"] = "소스 기준점 — 변경 작업트리·컴파일 바이트 일치는 별도 증거 필요"
     ev.sources["build_identity"] = "build_identity.source(필드별)"
     ev.resolve, ev.sources["resolve"] = _bind_resolve(repo, ev.topology, ev.build_identity)
     ref = str(ev.build_identity.get("vllm_ref") or "").strip().lower()

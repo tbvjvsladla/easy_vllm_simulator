@@ -740,7 +740,7 @@ def _subst_table(repo: Path, st: dict) -> list:
     return pii.substitution_table(repo, evidence.output_manifest(repo, st["topology"]))
 
 
-def _lint(repo: Path, payload: Path, draft: Path, st: dict, *, sealed: bool) -> list[dict]:
+def _lint(repo: Path, payload: Path, draft: Path, st: dict, *, sealed: bool, historical_verify: bool = False) -> list[dict]:
     """template.lint — publish 때와 같은 입력(스냅샷 facts · **전체** LINEAGE(draft inputs · plan_26092908 §4.6) · 치환표 · work-manifest ·
     벤치 원천). payload 는 draft 의 payload 가 아닐 수 있다(lint 임시 사본 · verify 의 봉인 트리) — 전체 계보는 늘 draft 에서 읽는다."""
     lin = _lineage_full(draft, draft / "payload")
@@ -748,10 +748,10 @@ def _lint(repo: Path, payload: Path, draft: Path, st: dict, *, sealed: bool) -> 
     man = _manifest_doc(repo, st) if (repo / st["manifest"]).is_file() else None
     # draft_dir = 측정 도구 스냅샷(`inputs/sources/`)의 자리 — payload 는 임시 사본(lint) · 봉인 트리를 푼 자리(verify)일 수 있다(2026-09-22 round 3)
     return template.lint(repo, payload, lineage=lin, subst_table=_subst_table(repo, st), manifest=man,
-                         bench_report=st.get("bench_source"), facts=facts, sealed=sealed, draft_dir=draft)
+                         bench_report=st.get("bench_source"), facts=facts, sealed=sealed, historical_verify=historical_verify, draft_dir=draft)
 
 
-def _lint_fn(draft: Path | None, st: dict | None, workspace: Path | None = None):
+def _lint_fn(draft: Path | None, st: dict | None, workspace: Path | None = None, *, historical_verify: bool = False):
     """tag.verify_local 의 서사 린터 주입구: 봉인된 **git 오브젝트** 트리를 임시 디렉터리에 풀어(branch.export_tree) sealed 린트.
     workspace(plan_26101104 · 별도 hint 클론): 오브젝트는 넘겨받은 repo(클론)에서 풀고, 출처 대조 린트는 워크스페이스에서 한다."""
     def fn(*, repo, anchor, tag):  # noqa: A002 — tag.verify_local 의 키워드 계약
@@ -762,7 +762,7 @@ def _lint_fn(draft: Path | None, st: dict | None, workspace: Path | None = None)
         with tempfile.TemporaryDirectory(prefix="hint-verify-") as td:
             dst = Path(td) / "payload"
             branch.export_tree(Path(repo), anchor, dst)
-            return _lint(Path(workspace) if workspace is not None else Path(repo), dst, draft, st, sealed=True)
+            return _lint(Path(workspace) if workspace is not None else Path(repo), dst, draft, st, sealed=True, historical_verify=historical_verify)
     return fn
 
 
@@ -1210,6 +1210,18 @@ def _seal_lineage(repo: Path, draft: Path, st: dict, payload: Path) -> dict:
     return {"sealed_sources": len(snap), "excerpt_sources": len(cited["excerpt_counts"])}
 
 
+def _refresh_lineage_summary(repo: Path, draft: Path, payload: Path) -> bool:
+    """Refresh current resolved excerpt counts without asserting sealed-source evidence."""
+    full = _lineage_full(draft, payload)
+    cited = template.cited_sources(repo, payload, lineage=full, draft_dir=draft)
+    summary = lineage.receiver_summary(full, excerpt_counts=cited["excerpt_counts"])
+    path = payload / "LINEAGE.json"
+    if path.is_file() and json.loads(path.read_text(encoding="utf-8")) == json.loads(core.dumps(summary)):
+        return False
+    core.write_json(path, summary)
+    return True
+
+
 def _lineage_full(draft: Path, payload: Path) -> dict:
     """린트 · 발췌 · 봉인 스냅샷이 읽는 **전체** 계보(draft `inputs/LINEAGE.full.json`). v6 draft(분리 전)는 페이로드 LINEAGE.json 이 전체다
     — 그 모양(evidence_candidates 키)일 때만 읽는다(요약을 전체로 오독하지 않는다)."""
@@ -1549,6 +1561,7 @@ def refacts(repo: Path, *, draft: Path, rt: Runtime | None = None) -> dict:
     template.write_agent_requests(payload, facts.get("agent_requests"))
     template.update_facts(repo, payload, facts)
     _write_payload_meta(repo, draft, payload, tag_name=dn.tag, utc=utc, doc=doc, col=col)
+    _refresh_lineage_summary(repo, draft, payload)
     after = {n: template.fact_blocks((payload / n).read_text(encoding="utf-8")) for n in template.payload_docs(facts)
              if (payload / n).is_file()}
     changed, diff = [], []
@@ -1649,7 +1662,10 @@ def refresh_draft(repo: Path, draft: Path) -> list[str]:
                   "커밋 뒤 개정은 새 publish(새 이름)다 — continue 재실행은 커밋한 내용 그대로 잇는다.")
     if not (draft / "payload").is_dir():
         core.fail("HINT_DRAFT_PAYLOAD_ABSENT", f"draft 에 payload/ 가 없다: {draft}")
-    return template.refresh(draft / "payload")
+    changed = template.refresh(draft / "payload")
+    if _refresh_lineage_summary(repo, draft, draft / "payload"):
+        changed.append("LINEAGE.json")
+    return changed
 
 
 def cmd_refresh(a) -> int:
@@ -1759,7 +1775,7 @@ def verify_tag(repo: Path, tagname: str, *, draft: str | None = None, infos: lis
         return tag.verify_local(repo, tagname, infos=infos)   # 태그·footer 부재 — 게이트를 물을 manifest 가 없다(결함 목록만)
     _gate(repo, footer["manifest_ref"], "verify")
     d, st = _draft_state_for(repo, tagname, draft)
-    return tag.verify_local(repo, tagname, lint_fn=_lint_fn(d, st), infos=infos)
+    return tag.verify_local(repo, tagname, lint_fn=_lint_fn(d, st, historical_verify=True), infos=infos)
 
 
 def cmd_verify(a) -> int:
@@ -2656,6 +2672,12 @@ def _selftest_e2e(ck) -> None:
             tl_p.write_text(tl_p.read_text(encoding="utf-8") + "\n## 5. 추가\nrefacts 재파생 시험 줄.\n", encoding="utf-8")
             rx = quiet(refacts, repo, draft=draft, rt=rt)
             rx_lint = [i["code"] for i in quiet(lint_draft, repo, draft)]
+            rx_full = _lineage_full(draft, payload)
+            rx_counts = template.cited_sources(repo, payload, lineage=rx_full, draft_dir=draft)["excerpt_counts"]
+            rx_summary = json.loads((payload / "LINEAGE.json").read_text(encoding="utf-8"))
+            ck("refacts refreshes actual resolved excerpt counts without sealing sources",
+               bool(rx_counts) and rx_summary == lineage.receiver_summary(rx_full, excerpt_counts=rx_counts)
+               and lineage.SEALED_SOURCES_KEY not in rx_summary)
             ck("refacts(campaign) = 서사 재바인딩 경로를 탄다 — 바인딩 = 캠페인 포인터면 no-op · 같은 manifest 재생성",
                rx.get("rebind") == {"rebound": [], "manifest": _load_state(draft)["manifest"]}
                and (_load_state(draft).get("steps") or {}).get("refacts", {}).get("narratives_rebound") == [])
@@ -2795,6 +2817,24 @@ def _selftest_e2e(ck) -> None:
                and before00.split("<!-- FACT:wall_map -->")[0] == after00.split("<!-- FACT:wall_map -->")[0])
             ck("refresh 멱등(두 번째 = 바뀐 블록 없음) · refresh 뒤에도 lint 0", refresh_draft(repo, draft) == []
                and quiet(lint_draft, repo, draft) == [])
+            refresh_copy = td / "lineage-refresh-copy"
+            shutil.copytree(draft, refresh_copy)
+            refresh_payload = refresh_copy / "payload"
+            narrative = refresh_payload / "02-narrative.md"
+            before_counts = template.cited_sources(repo, refresh_payload, lineage=_lineage_full(refresh_copy, refresh_payload),
+                                                    draft_dir=refresh_copy)["excerpt_counts"]
+            source_line = excerpt_text(repo, refresh_copy, Path(_FX_TESTLOG).stem, "1-1")
+            block = f"\n\n> [원문] {Path(_FX_TESTLOG).stem} §L1-1\n> {source_line}\n"
+            narrative.write_text(narrative.read_text(encoding="utf-8") + block * 4, encoding="utf-8")
+            changed_summary = refresh_draft(repo, refresh_copy)
+            updated = json.loads((refresh_payload / "LINEAGE.json").read_text(encoding="utf-8"))
+            updated_counts = template.cited_sources(repo, refresh_payload, lineage=_lineage_full(refresh_copy, refresh_payload),
+                                                     draft_dir=refresh_copy)["excerpt_counts"]
+            testlog_row = next((x for x in updated.get("documents", []) if x.get("path") == _FX_TESTLOG), {})
+            ck("refresh counts four newly authored excerpts without sealing or weakening source checks",
+               "LINEAGE.json" in changed_summary and updated_counts.get(_FX_TESTLOG, 0) == before_counts.get(_FX_TESTLOG, 0) + 4
+               and testlog_row.get("excerpts") == updated_counts[_FX_TESTLOG]
+               and lineage.SEALED_SOURCES_KEY not in updated and refresh_draft(repo, refresh_copy) == [])
             ok, why = _raises(lambda: cmd_refresh(argparse.Namespace(repo=str(repo), draft=str(td / "no-draft"))), "HINT_DRAFT_ABSENT")
             ck(f"★refresh: publish 된 draft 가 아니면 HINT_DRAFT_ABSENT({why[:60]})", ok)
 

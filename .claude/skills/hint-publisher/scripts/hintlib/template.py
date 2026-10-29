@@ -694,6 +694,8 @@ _BUILD_LABELS = {"track": "빌드 트랙", "dockerfile": "Dockerfile(선택자)"
 def _build_row(key: str, v, bsrc: dict, src, build: dict | None = None) -> tuple[str, str, str]:
     """00 §0.4 빌드 행 하나. 2026-09-29 plan_26092908 §4.5 F3: `driver_by_node` · `driver_conflict` 는 dict 라 옛 판은 값 칸에 원시 JSON 을,
     출처 칸에 '출처 미기재' 를 실었다 — 값은 읽는 모양으로 · 출처는 생산자가 준 출처(evidence `source.<키>` · 충돌은 두 층의 출처)로 싣는다."""
+    if key == "driver_by_node" and not v and bsrc.get("driver_by_node"):
+        return _BUILD_LABELS[key], "이 측정에 결속된 노드별 입력 미관측", _cell(bsrc["driver_by_node"])
     if key == "driver_by_node" and isinstance(v, dict) and v:
         return (_BUILD_LABELS[key], " · ".join(f"{_cell(n)}={_cell(x)}" for n, x in sorted(v.items())),
                 src(v, bsrc.get(key), bsrc.get("driver")))
@@ -711,7 +713,8 @@ def _build_row(key: str, v, bsrc: dict, src, build: dict | None = None) -> tuple
             val = f"충돌 없음 — 관측 {_cell(chk.get('observed'))} = 선언 {_cell(chk.get('declared'))}"
         else:
             val = ("대조 불가 — " + (f"관측 {_cell(chk.get('observed'))} · 선언 없음" if chk.get("observed")
-                                    else f"선언 {_cell(chk.get('declared'))} · 관측 없음"))
+                                    else f"선언 {_cell(chk.get('declared'))} · " +
+                                    ("이 측정에 결속된 관측 입력 없음" if chk.get("observation_scope") else "관측 없음")))
         return _BUILD_LABELS[key], val, where or "출처 미기재"
     if key == "image_digest" and v in (None, "") and bsrc.get("image_digest_local_note"):
         # F2: 측정 digest 없음 + 현 로컬 이미지가 측정 뒤 빌드 — 값은 비우고 그 관측을 출처 칸이 말한다(부재 ≠ 미관측 · 부류 7)
@@ -768,12 +771,15 @@ def _f_resolved(c: _Ctx) -> str:
     ]
     for key in _BUILD_KNOWN:
         rows.append(_build_row(key, build.get(key), bsrc, src, build))
-    skip = set(_BUILD_KNOWN) | {"source", "vllm_ref", "vllm_sha", "driver_check", "vllm_describe", "vllm_prev_pin"}
+    skip = set(_BUILD_KNOWN) | {"source", "vllm_ref", "vllm_sha", "driver_check", "vllm_describe", "vllm_prev_pin", "source_coordinate_scope"}
     for key in sorted(k for k in build if k not in skip):
         rows.append((f"`{key}`", _cell(build.get(key)), src(build.get(key), bsrc.get(key))))
     out = _table(("항목", "값", "출처"), rows)
-    out += ["", "> 재현 좌표는 빌드 입력(릴리스 태그 또는 40자 SHA)이다 — 엔진 자기보고 · 인증서 · wheel 의 버전 문자열은 빌드 입력이 아니다"
-                "(각 값을 만든 생산자는 출처 칸)."]
+    if build.get("source_coordinate_scope"):
+        out += ["", "> 빌드 입력의 릴리스 태그 또는 SHA는 소스 기준점이다. 변경된 작업트리와 컴파일 바이트의 동일성은 별도 증거가 필요하다. 엔진·인증서·설치 distribution 버전은 각각의 출처로 구분한다."]
+    else:
+        out += ["", "> 재현 좌표는 빌드 입력(릴리스 태그 또는 40자 SHA)이다 — 엔진 자기보고 · 인증서 · wheel 의 버전 문자열은 빌드 입력이 아니다"
+                    "(각 값을 만든 생산자는 출처 칸)."]
     # 2026-09-29 plan_26092908 §4.1(U9 · V10): 이름의 q 축은 체크포인트가 **선언한** 방식 하나다 — 혼합 구성(예 dense fp8 + routed
     #   expert fp4)은 evidence.identity.quant_composition(관측 칸만)에서 싣는다(바이트 비중 해석 ✗).
     qc = ident.get("quant_composition")
@@ -3300,6 +3306,7 @@ def _section_in_headings(label: str, text: str, substitute) -> bool:
 
 def lint(repo: Path, payload_dir: Path, *, lineage: dict, subst_table=None, manifest: dict | None = None,
          bench_report: Path | str | None = None, facts: dict | None = None, sealed: bool = False,
+         historical_verify: bool = False,
          substitute: Callable[[str], str] | None = None, source_text: Callable[[str], str | None] | None = None,
          resolve_stem: Callable[[dict, str], str | None] | None = None, pii_terms=_UNSET,
          draft_dir: Path | None = None, snapshot_origin: Callable[[str, str], bytes | None] | None = None) -> list[dict]:
@@ -3701,10 +3708,16 @@ def lint(repo: Path, payload_dir: Path, *, lineage: dict, subst_table=None, mani
             except Exception as e:  # BenchSectionFailure · OSError · ValueError — 원인을 삼키지 않고 기재한다
                 add("HINT_BENCH_SECTION_UNVERIFIABLE", "03-benchmark.md", 1, f"{type(e).__name__}: {e}")
             else:
-                if body != expected_b:
+                # Historical verification only: reproduce exactly the old caption, then compare the
+                # complete section to a fresh source rendering. Fresh sealing never gets this path.
+                mod = _bench_module(repo)
+                legacy_b = (expected_b.replace(mod.CURRENT_CAPTION, mod.LEGACY_CAPTION, 1)
+                            if historical_verify and sealed and expected_b.count(mod.CURRENT_CAPTION) == 1 else None)
+                accepted_b = legacy_b if legacy_b is not None and body == legacy_b else expected_b
+                if body != accepted_b:
                     add("HINT_BENCH_SECTION_DRIFT", "03-benchmark.md", got_b[0].start + 1 if got_b else 1,
                         f"부하 곡선이 원천(`{Path(str(bench_report)).name}`) 재렌더와 다르다")
-                elif cli_cut is None or cli_cut.strip() != expected_b.strip():
+                elif cli_cut is None or cli_cut.strip() != accepted_b.strip():
                     add("HINT_BENCH_SECTION_DRIFT", "03-benchmark.md", got_b[0].start + 1 if got_b else 1,
                         "render_bench_section --verify 의 절 추출(첫 제목 줄 ~ 다음 `## `)이 재렌더와 다르다 — 같은 절 제목 "
                         "줄이 문서 앞쪽에 한 번 더 있다(CLI 는 첫 줄을 잡는다)")
@@ -4529,6 +4542,29 @@ def selftest() -> list[str]:
         tampered_rep = root / "bench_report_26091304_fixture_GB10_0.29.0.md"
         tampered_rep.write_text(files[rep_p].replace("38.81", "39.81"), encoding="utf-8")
         ck("★벤치 원천 불일치", "HINT_BENCH_SECTION_DRIFT" in lint_v(payload, bench_report=tampered_rep))
+        # An old immutable payload may retain its historical caption; source numbers still rerender exactly.
+        bm = _bench_module(repo)
+        legacy_payload = variant("legacy-bench", edit("03-benchmark.md", bm.CURRENT_CAPTION, bm.LEGACY_CAPTION))
+        legacy_facts = dict(facts_json, bench_section_md=facts_json["bench_section_md"].replace(bm.CURRENT_CAPTION, bm.LEGACY_CAPTION, 1))
+        ck("historical sealed verify preserves old caption with identical source numbers",
+           "HINT_BENCH_SECTION_DRIFT" not in lint_v(legacy_payload, facts=legacy_facts, sealed=True, historical_verify=True))
+        ck("fresh draft and new sealing reject old caption",
+           "HINT_BENCH_SECTION_DRIFT" in lint_v(legacy_payload, facts=legacy_facts)
+           and "HINT_BENCH_SECTION_DRIFT" in lint_v(legacy_payload, facts=legacy_facts, sealed=True))
+        legacy_bad = root / "v" / "legacy-bad" / "payload"
+        shutil.copytree(legacy_payload, legacy_bad)
+        edit("03-benchmark.md", bench_row, "| 1 ★판정점 | 38.18 |")(legacy_bad)
+        ck("historical caption cannot hide numeric tampering",
+           "HINT_BENCH_SECTION_DRIFT" in lint_v(legacy_bad, facts=legacy_facts, sealed=True, historical_verify=True))
+        legacy_text = root / "v" / "legacy-text" / "payload"
+        shutil.copytree(legacy_payload, legacy_text)
+        edit("03-benchmark.md", bm.LEGACY_CAPTION, bm.LEGACY_CAPTION + " EXTRA")(legacy_text)
+        ck("historical caption cannot hide extra text",
+           "HINT_BENCH_SECTION_DRIFT" in lint_v(legacy_text, facts=legacy_facts, sealed=True, historical_verify=True))
+        seal_prompts(legacy_payload)
+        old_sealed_issues = lint(repo, legacy_payload, **dict(kw, facts=legacy_facts, sealed=True, historical_verify=True))
+        ck(f"historical sealed payload with unchanged benchmark source passes: {old_sealed_issues[:3]}",
+           old_sealed_issues == [])
         ck("★벤치 원천 부재", "HINT_BENCH_SECTION_UNVERIFIABLE" in lint_v(payload, bench_report=None))
         no_table = root / "bench_report_26091304_notable_GB10_0.29.0.md"
         no_table.write_text("# bench report\n\n표가 없다.\n", encoding="utf-8")
@@ -5520,6 +5556,18 @@ def selftest() -> list[str]:
            "| 직전 릴리스(prev_release) | 해당 없음 — 릴리스 태그 빌드" in rs9 and "빌드 원장 describe `v0.31.0`" in rs9
            and "업스트림 델타 from_ref `v0.30.0`" in rs9 and "`vllm_describe`" not in rs9 and "`vllm_prev_pin`" not in rs9
            and f"| 직전 릴리스(prev_release) | {_MISSING_TEXT}(이름 입력) · 관측:" in rs9c)
+        scoped = dict(qf4)
+        scoped["build"] = {**qf4["build"], "source_coordinate_scope": "baseline only",
+                           "source": {**qf4["build"].get("source", {}), "driver_by_node": "bound input absent; other observations not excluded"},
+                           "driver_by_node": None,
+                           "driver_check": {"verdict": "unpaired", "declared": "580.178.04", "observed": None,
+                                            "observation_scope": "bound structured input", "sources": {}}}
+        scoped["naming"] = {**qf4.get("naming", {}), "vllm_observed": {"wheel_meta": "1.2.dev0", "wheel_meta_label": "설치 distribution 메타(다운로드 wheel 증명 아님)"}}
+        scoped_text = _f_resolved(_Ctx(repo, scoped, tpls))
+        ck("scoped source baseline, driver absence and editable distribution metadata remain distinct",
+           "변경된 작업트리와 컴파일 바이트의 동일성은 별도 증거" in scoped_text
+           and "이 측정에 결속된 노드별 입력 미관측" in scoped_text
+           and "설치 distribution 메타(다운로드 wheel 증명 아님)" in scoped_text)
         ck("★F12 관측 = 선언 = '충돌 없음'(두 출처) · 미관측 ✗ · driver_check 는 별도 행으로 새지 않는다",
            "| ⚠ 드라이버 관측 ≠ 선언 | 충돌 없음 — 관측 580.178.04 = 선언 580.178.04 | 관측: attestation parity.driver(fx) · 선언: manifest(fx) |"
            in rs4 and "`driver_check`" not in rs4)
