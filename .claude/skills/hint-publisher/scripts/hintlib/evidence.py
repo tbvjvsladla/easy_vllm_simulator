@@ -4336,6 +4336,10 @@ def vllm_observed(ev: CellEvidence, repo=None) -> dict:
     cert_v = _norm_value((ev.certificate or {}).get("vllm_version"))
     meta = ((ev.sweep or {}).get("index") or {}).get("meta") or {}
     wheel, wheel_src = _wheel_meta(rp, ev)
+    # Docker attestation 우선 경로: 값은 관측됐지만 노드마다 달라 공통값을 고르지 않은 상태다.
+    _wv, _ws, wheel_nodes = _attested_host(ev.attestation, "vllm_dist_version", _attestation_timing_note(ev))
+    wheel_basis = ("observed-node-difference" if wheel is None and ev.plane != "native"
+                   and len(set(wheel_nodes.values())) > 1 else None)
     if wheel is None:
         wheel_src += ("(sweep_index.meta.vllm_build="
                       f"{meta.get('vllm_build')!r} 는 sweep_bench 가 엔진 로그에서 `v<x.y.z…>` 정규식으로 잡는 값이다 → engine_self_report 의 원천)")
@@ -4352,14 +4356,14 @@ def vllm_observed(ev: CellEvidence, repo=None) -> dict:
             "engine_self_report_basis": banner["basis"],
             "certificate_vllm_version": cert_v, "certificate_vllm_version_producer": label,
             "certificate_vllm_version_source": psrc,
-            "wheel_meta": wheel, "wheel_meta_source": wheel_src,
+            "wheel_meta": wheel, "wheel_meta_source": wheel_src, "wheel_meta_basis": wheel_basis,
             **runtime,
             # 옛 소비자(칸 하나의 source)용 요약 — 칸별 서술을 다시 적지 않는다(같은 바이트 두 벌 ✗ · 정본은 `*_source`).
             "source": (f"칸별 출처는 *_source — engine_self_report={banner['basis']} · certificate_vllm_version={label}"
                        + ("(빌드 입력 태그 파생 · 엔진 자기보고 아님)" if label == "image-tag-line"
                           # lite 등급(F8): 리포트 출처가 envfile IMAGE_TAG 파생일 때만 같은 꼬리 — 다른 출처는 그 서술이 *_source 에 있다.
                           or (label == "lite-report-identity" and "derived(envfile IMAGE_TAG)" in psrc) else "")
-                       + f" · wheel_meta={'관측' if wheel else '미관측'}")}
+                       + f" · wheel_meta={'관측' if wheel else '노드별 상이·공통값 미선택' if wheel_basis else '미관측'}")}
 
 
 def bind_image_ledger(ev: CellEvidence, view: dict | None) -> None:
@@ -4461,7 +4465,7 @@ def attestation_scope(repo, ev: CellEvidence) -> dict | None:
     if cfg != ev.cell:
         scope = ATTESTATION_SCOPE_OTHER_RUN
     elif timing == "after-measurement":
-        scope = f"same config({cfg}) · {phase} — 측정 뒤 재기동의 관측이다(이 측정 실행의 관측이 아니다 · 파일은 다음 실행이 덮는다)"
+        scope = f"same config({cfg}) · {phase} — 측정 뒤 작성된 관측(측정 시점·같은 기동 여부는 시각만으로 미검증 · 파일은 다음 실행이 덮는다)"
     elif timing == "before-measurement" and (sb := attestation_same_boot(repo, ev, written, win)):
         mark = SAME_BOOT_MARK if sb.get("strength") == "strong" else WEAK_SAME_BOOT_MARK
         scope = f"same config({cfg}) · {phase} — {mark}(판별: {sb['basis']})"
@@ -4762,7 +4766,7 @@ def _attestation_timing(repo: Path, ev: CellEvidence, written: str | None) -> tu
         return None, None, None
     win = {"start_utc": start, "end_utc": end, "source": src}
     if written > end:
-        return "after-measurement", f"작성 {written} > 측정 끝 {end} — 측정 뒤 재기동의 관측", win
+        return "after-measurement", f"작성 {written} > 측정 끝 {end} — 측정 뒤 작성된 관측(측정 시점·같은 기동 여부는 시각만으로 미검증)", win
     if start and written < start:
         return "before-measurement", f"작성 {written} < 측정 시작 {start} — 측정 전(빌드·스모크)의 관측", win
     if start:
@@ -5356,7 +5360,7 @@ def serve_proof_scope(repo, ev: CellEvidence) -> dict | None:
     if not tnote:
         return None
     return {"written_utc": written, "written_utc_source": wsrc, "timing": timing,
-            "timing_note": tnote.replace("측정 뒤 재기동의 관측", "측정 뒤 재기동의 스모크 산출물 — 측정을 서빙한 기동의 자격 관측이 아니다")}
+            "timing_note": tnote.replace("측정 뒤 작성된 관측", "측정 뒤 작성된 스모크 산출물")}
 
 
 def qualification(ev: CellEvidence) -> dict:
@@ -7677,16 +7681,18 @@ def _selftest_round3(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict) -> No
        and "미검증" in sc["scope"] and sc["written_utc"] == "2026-01-01T00:00:00Z" and "mtime" in sc["written_utc_source"])
     ck("attestation 범위 — 문서 시각 칸이 있으면 그것", attestation_scope(repo, dataclasses.replace(
         ev_c, attestation={**ev_c.attestation, "captured_utc": "2026-01-02T00:00:00Z"}))["written_utc_source"] == "attestation captured_utc")
-    # F7(plan_26092908 §4.5): 작성 시각 대 측정 창 — 측정 끝(_M_UTC) 뒤 작성 = 측정 뒤 재기동 · 앞 = 측정 전/끝 이전
+    # F7: 작성 시각의 선후만 분류한다. 측정 뒤 작성 자체는 재기동의 증거가 아니다.
     mk_ = _measured_key(repo, ev_c)
     sc7 = attestation_scope(repo, dataclasses.replace(ev_c, attestation={**ev_c.attestation, "captured_utc": "2099-01-01T00:00:00Z"}))
-    ck("★F7 작성 > 측정 끝 = '측정 뒤 재기동의 관측'(scope · timing_note · 창)", mk_ and sc7.get("timing") == "after-measurement"
-       and "측정 뒤 재기동" in sc7["scope"] and "측정 뒤 재기동" in sc7["timing_note"] and sc7["measure_window"]["end_utc"] == mk_)
+    ck("★F7 작성 > 측정 끝 = 후작성 관측 · 시각만으로 재기동/다른 실행을 단정하지 않는다", mk_ and sc7.get("timing") == "after-measurement"
+       and "측정 뒤 작성된 관측" in sc7["scope"] and "미검증" in sc7["timing_note"]
+       and "재기동" not in sc7["scope"] and "재기동" not in sc7["timing_note"]
+       and sc7["measure_window"]["end_utc"] == mk_)
     ck("F7 음성대조: 작성 ≤ 측정 끝 = 측정 뒤 ✗(측정 전 또는 끝 이전)", sc.get("timing") in ("before-measurement", "before-end")
        and "측정 뒤" not in sc["scope"])
     ck("F7 호스트 사실 출처에도 같은 문장(드라이버 · wheel 메타 출처가 창을 말한다)",
        (_attestation_timing_note(dataclasses.replace(ev_c, attestation={**ev_c.attestation, "captured_utc": "2099-01-01T00:00:00Z"}))
-        or "").endswith("측정 뒤 재기동의 관측"))
+        or "").endswith("측정 뒤 작성된 관측(측정 시점·같은 기동 여부는 시각만으로 미검증)"))
     # F2(plan_26092908 §4.5): 측정 digest 없음 → 현 로컬 태그 inspect(Id · Created) — 측정 전 빌드면 same_build · 뒤면 표시만
     def _dk2(created):
         return _fake_docker({"images": {"fx:tag": {"Id": "sha256:" + "e" * 64, "Created": created, "Config": {}}}, "history": {}})
@@ -8347,6 +8353,11 @@ def _selftest_v7(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict, dk) -> No
     ck("음성대조: 원천이 없으면 None + 미관측", _wheel_meta(repo, dataclasses.replace(ev, attestation=None))[0] is None)
     ck("★노드별 상이 wheel 은 고르지 않는다", _wheel_meta(repo, dataclasses.replace(ev, attestation={"_path": "a", "nodes": {
         "main": {"vllm_dist_version": "1"}, "sub": {"vllm_dist_version": "2"}}}))[0] is None)
+    different_wheel = vllm_observed(dataclasses.replace(ev, plane="docker", attestation={"_path": "a", "nodes": {
+        "main": {"vllm_dist_version": "1"}, "sub": {"vllm_dist_version": "2"}}}), repo)
+    ck("노드별 배포메타 관측 차이는 공통값 None을 유지하되 미관측으로 접지 않는다",
+       different_wheel["wheel_meta"] is None and different_wheel["wheel_meta_basis"] == "observed-node-difference"
+       and "노드별 상이·공통값 미선택" in different_wheel["source"])
     fz = repo / "docs/simlog/fx_native"
     fz.mkdir(parents=True, exist_ok=True)
     (fz / "pip-freeze-main.txt").write_text("torch==2.9\nvllm==0.9.0+native\n", encoding="utf-8")
@@ -8521,8 +8532,9 @@ def _selftest_fix2(ck, td: Path, ev: CellEvidence) -> None:
     ev2 = dataclasses.replace(ev7, serve_proof={"config": "cl"}, sources={**ev7.sources, "serve_proof": "output/multi/benchlog/serve_proof_cl.json"})
     os.utime(sp, (1767326400, 1767326400))           # 2026-01-02T04:00:00Z > 측정 끝
     sc2 = serve_proof_scope(r, ev2)
-    ck("G2 serve_proof 작성 > 측정 끝 = 측정 뒤 재기동의 스모크 산출물(자격 관측이 아니다)",
-       sc2 and sc2["timing"] == "after-measurement" and "측정 뒤 재기동의 스모크 산출물" in sc2["timing_note"])
+    ck("G2 serve_proof 후작성은 재기동 단정 없이 측정 시점 직접관측 미검증으로 남긴다",
+       sc2 and sc2["timing"] == "after-measurement" and "측정 뒤 작성된 스모크 산출물" in sc2["timing_note"]
+       and "미검증" in sc2["timing_note"] and "재기동" not in sc2["timing_note"])
     os.utime(sp, (1767322800, 1767322800))           # 2026-01-02T03:00:00Z … 시작과 같은 초 → 창 안
     os.utime(sp, (1767322700, 1767322700))           # 2026-01-02T02:58:20Z < 시작
     sc2b = serve_proof_scope(r, ev2)

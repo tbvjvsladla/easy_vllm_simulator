@@ -2331,8 +2331,10 @@ def _applied(c: _Ctx, *, probe: bool = True) -> tuple[dict, dict, dict | None, d
             excluded.append({"phase": ph, "file": name, "why": "nonconforming(<NN>-*.sh 규약 밖 — 싣지 않음)"})
         if ph not in in_recipe:
             for p in patches:
+                if f"{d}/{p.name}" in copies:  # an exact-file COPY does not copy the entire slot
+                    continue
                 excluded.append({"phase": ph, "file": p.name,
-                                 "why": f"excluded_by_recipe({sel['dockerfile']} 이 {d}/ 를 COPY 하지 않는다 — 실행된 적 없음)"})
+                                 "why": f"excluded_by_recipe({sel['dockerfile']} 이 {d}/{p.name} 를 COPY 하지 않는다 — 실행된 적 없음)"})
     if ledger is not None:
         rows = [_ledger_script_identity(c, _post_label(r)) for r in _ledger_rows(ledger)]
         in_ledger = {(r["phase"], r["file"]) for r in rows}
@@ -3201,6 +3203,7 @@ def _serve_budget_window(c: _Ctx, first: str | None, end: str | None) -> dict | 
     from types import SimpleNamespace
     from . import evidence as _evidence
     if not first or not end:
+        c.memo["serve_budget_window_diagnostic"] = {"status": "measurement-window-unavailable", "candidate_count": 0}
         return None
     ev = SimpleNamespace(declaration=_get(c.ev, "declaration"), node=c.node)
     candidates = []
@@ -3225,7 +3228,17 @@ def _serve_budget_window(c: _Ctx, first: str | None, end: str | None) -> dict | 
                         and w["start_ts"] <= first <= end < finish):
                     candidates.append({"start_utc": w["start_ts"], "source":
                         f"{sources[i]}:{rows[i][1]} budget_declare(label {w['label']}) · 관측된 예산 창 안의 측정"})
+    c.memo["serve_budget_window_diagnostic"] = {"status": "selected" if len(candidates) == 1 else
+        "multiple-covering-windows" if candidates else "no-covering-window", "candidate_count": len(candidates), "candidates": candidates}
     return candidates[0] if len(candidates) == 1 else None
+
+
+def _unselected_serve_window_reason(c: _Ctx) -> str:
+    diag = c.memo.get("serve_budget_window_diagnostic") or {}
+    if diag.get("status") == "multiple-covering-windows":
+        return (f"관측됨(이 측정 전체를 포함하는 예산 창 {diag['candidate_count']}개 · 복수 후보이므로 단일 상한 선택 안 함; "
+                "서빙 세션·하나의 소요시간으로 합성하지 않음)")
+    return "미관측(이 측정을 포함하는 serve 세션 또는 단일 예산 창 후보 없음 — 과거 같은 셀 선언으로 대체하지 않음)"
 
 
 def _first_measure_utc(repo: Path, ev: Any) -> tuple[str | None, str | None]:
@@ -3646,6 +3659,13 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
         else:
             serve_cmd = f"bash {REL_SMOKE_SINGLE} {cell}"
         build_cmd, build_src = _build_command(c, sel) if sel else ("", "unobserved(빌드 선택자 없음)")
+        parent = _parent_build(c)
+        if parent:
+            for pstep in ("parent_source_core", "alias"):
+                step(pstep, parent["doc"]["commands"][pstep], "generated-unverified: 새 양노드 local reproduction 예시 · 미실행",
+                     source=parent["doc"]["historical_scope"], command_source=f"generated-unverified(explicit manifest {parent['ref']})")
+            build_cmd, build_src = parent["doc"]["commands"]["leaf"], f"generated-unverified(explicit manifest {parent['ref']} · leaf ledger args; full original CLI unavailable)"
+
         p_start, p_end, p_src = _phase_span(repo, c.ev, c.node, "build", cell)
         created = _image_created(c)
         # 이미지 층 시각(관측): 우리 Dockerfile 층의 가장 오래된 ~ 가장 새 층. 캐시 재사용 층은 **이전 빌드의 시각**을 가진다 —
@@ -3671,8 +3691,9 @@ def _reproduce(c: _Ctx, sel: dict | None, plane: str, src_ctx: _Ctx | None = Non
         step("serve", serve_cmd, "health 200 + 추론 1회(스모크 판정)", bound["start_utc"] if bound else None, s_end,
              "upper" if bound and s_end else "none",
              (f"{bound['source']} {'started_utc(측정을 포함하는 세션)' if session else ''} → {s_end_src}"
-              if bound and s_end else "미관측(이 측정을 포함하는 serve 세션 또는 예산 창 미관측 — 과거 같은 셀 선언으로 대체하지 않음)"),
-             "derived(스모크 사용법)")
+              if bound and s_end else _unselected_serve_window_reason(c)),
+             "derived(스모크 사용법)", extra={"budget_window_selection": c.memo.get("serve_budget_window_diagnostic")}
+             if not bound and c.memo.get("serve_budget_window_diagnostic") else None)
     else:
         if src_ctx is not None and sel:
             # 2026-09-29 plan_26092908 §4.2: 원천 이미지 빌드(native 설치의 입력 · 이 셀의 wheelhouse 가 그 이미지에서 재포장됐다).
@@ -4242,6 +4263,10 @@ def _file_records(c: _Ctx, payload: Path, slots: dict, marks: dict, applied: dic
                 rec["header"] = m["header"]
             if name in sel_by:
                 rec["bytes_observed"] = bool(sel_by[name].get("verified"))
+            if "parent_source" in m:
+                rec["parent_source"] = m["parent_source"]
+                rec["bytes_observed"] = m["parent_source"] not in ("README.md", "manifest.json")
+
             if rel_f in per:
                 prow = per[rel_f]["row"]
                 trig = prow.get("declared_model_trigger") or _patch_trigger(texts[rel_f])
@@ -4332,6 +4357,128 @@ def _empty_copy_dirs(c: _Ctx, df_text: str, slots: dict | None = None) -> list[d
     return out
 
 
+# Explicit parent source inputs only: no FROM discovery, image traversal or new artifact slot.
+_PARENT_PREFIX = "artifacts/build_recipe/parent-source-core/"
+
+
+def _parent_input(c: _Ctx, rel: str) -> tuple[Path, bytes]:
+    if not isinstance(rel, str) or not rel or Path(rel).is_absolute() or any(
+        part in ("", ".", "..") or not re.fullmatch(r"[A-Za-z0-9_.-]+", part) for part in rel.split("/")
+    ) or not rel.startswith(f"output/{c.topo}/"):
+        core.fail("HINT_ARTIFACT_MARK_INVALID", f"parent build input escapes the selected topology: {rel!r}")
+    q = c.repo
+    for part in PurePath(rel).parts:
+        q = q / part
+        if q.is_symlink():
+            core.fail("HINT_ARTIFACT_MARK_INVALID", f"parent build input symlink: {rel}")
+    import stat
+    if not q.is_file() or not stat.S_ISREG(q.stat().st_mode) or q.stat().st_nlink != 1 or q.stat().st_size > 2 * 1024 * 1024:
+        core.fail("HINT_ARTIFACT_MARK_INVALID", f"parent build input must be a bounded regular UTF8 file: {rel}")
+    data = q.read_bytes()
+    try:
+        data.decode("utf-8")
+    except UnicodeDecodeError:
+        core.fail("HINT_ARTIFACT_MARK_INVALID", f"parent build input is not UTF8: {rel}")
+    return q, data
+
+
+def _parent_build(c: _Ctx) -> dict | None:
+    if "explicit_parent_build" in c.memo:
+        return c.memo["explicit_parent_build"]
+    ref = c.env.get("HINT_PARENT_BUILD_MANIFEST")
+    if not ref:
+        c.memo["explicit_parent_build"] = None
+        return None
+    mp, raw = _parent_input(c, ref)
+    if not ref.startswith(f"output/{c.topo}/parent-build/"):
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "parent manifest must be under topology parent-build/")
+    try:
+        doc = json.loads(raw)
+    except (ValueError, TypeError):
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "invalid parent build manifest JSON")
+    if not isinstance(doc, dict) or doc.get("schema_version") != 1 or doc.get("kind") != "hint-parent-source-core":
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "unsupported explicit parent source manifest")
+    digest = doc.get("selected_image_digest")
+    if not isinstance(digest, str) or not re.fullmatch(r"sha256:[0-9a-f]{64}", digest) or digest != _image_ref(c)[0]:
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "parent manifest does not bind the selected measured image digest")
+    root = doc.get("context_root")
+    if not isinstance(root, str) or not root.startswith(f"output/{c.topo}/cache/"):
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "parent source context must be an explicit topology cache snapshot")
+    declared = doc.get("files")
+    commands = doc.get("commands")
+    if not isinstance(declared, dict) or len(declared) != 9 or not isinstance(commands, dict) or set(commands) != {"parent_source_core", "alias", "leaf"} or any(
+        not isinstance(v, str) or not v.startswith("# generated-unverified") or len(v) > 8192 for v in commands.values()
+    ) or not isinstance(doc.get("historical_scope"), str) or not isinstance(doc.get("generated_reason"), str):
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "parent manifest requires exact bounded inputs, generated commands and historical scope")
+    metadata = {"alias-evidence.json", "core-build-command.txt", "leaf-ledger-evidence.json", "README.md"}
+    context = {n[len("context/"):] for n in declared if n.startswith("context/")}
+    required = {"Dockerfile.source-build", "requirements.txt", "build_patches/.gitkeep", "build_patches_src/.gitkeep"}
+    if set(declared) != {"context/" + n for n in context} | metadata or len(context) != 5 or not required <= context or any(
+        not re.fullmatch(r"build_patches/[0-9]{2}-[A-Za-z0-9_.-]+\.sh", n) for n in context - required
+    ):
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "parent source context must contain only the declared core/requirements/one POST/empty PRE scaffolds")
+    data = {"manifest.json": raw}
+    for target, item in declared.items():
+        if not isinstance(item, dict):
+            core.fail("HINT_ARTIFACT_MARK_INVALID", "invalid parent input record")
+        source = item.get("source")
+        expected = root + "/" + target[len("context/"):] if target.startswith("context/") else mp.parent.relative_to(c.repo).as_posix() + "/" + target
+        if source != expected:
+            core.fail("HINT_ARTIFACT_MARK_INVALID", f"parent source path differs from explicit frozen input location: {target}")
+        _, body = _parent_input(c, source)
+        if item.get("sha256") != core.sha256_bytes(body):
+            core.fail("HINT_ARTIFACT_MARK_INVALID", f"parent input sha256 mismatch: {target}")
+        if target.endswith("/.gitkeep") and body:
+            core.fail("HINT_ARTIFACT_MARK_INVALID", "parent PRE/POST scaffolds must be empty")
+        data[target] = body
+    allowed_dirs = {"build_patches", "build_patches_src"}
+    import os
+    actual = set()
+    for base, dirs, names in os.walk(c.repo / root, followlinks=False):
+        for name in dirs:
+            q = Path(base) / name
+            if q.is_symlink() or q.relative_to(c.repo / root).as_posix() not in allowed_dirs:
+                core.fail("HINT_ARTIFACT_MARK_INVALID", "undeclared/symlink parent context directory")
+        for name in names:
+            actual.add((Path(base) / name).relative_to(c.repo / root).as_posix())
+            if not actual <= context:
+                core.fail("HINT_ARTIFACT_MARK_INVALID", "undeclared parent context file (active PRE/POST contamination)")
+    if actual != context:
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "parent context inventory mismatch")
+    alias = json.loads(data["alias-evidence.json"])
+    leaf = json.loads(data["leaf-ledger-evidence.json"])
+    if alias.get("build_performed") is not False or alias.get("image_id") != alias.get("alias_image_id") or not re.fullmatch(
+        r"sha256:[0-9a-f]{64}", str(alias.get("image_id"))) or (leaf.get("ledger") or {}).get("build_args", {}).get("BASE_IMAGE") != alias.get("alias"):
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "main parent alias/leaf base evidence does not agree")
+    header = "# " + unverified_header(doc["generated_reason"], "agent")
+    readme = data["README.md"].decode("utf-8")
+    if doc.get(UNVERIFIED_HEADER_KEY) != header[2:] or not readme.startswith(header + "\n") or any(v not in readme for v in commands.values()):
+        core.fail("HINT_ARTIFACT_MARK_INVALID", "parent README generated-unverified header/commands mismatch")
+    out = {"ref": ref, "doc": doc, "data": data, "header": header}
+    c.memo["explicit_parent_build"] = out
+    return out
+
+
+def _append_parent_build(c: _Ctx, payload: Path, files: list, slots: dict, marks: dict) -> None:
+    parent = _parent_build(c)
+    if not parent:
+        return
+    for name, data in sorted(parent["data"].items()):
+        rel = _write_bytes(payload, "build_recipe", "parent-source-core/" + name, data)
+        files.append(rel)
+        slots["build_recipe"]["files"].append(rel)
+        generated = name in ("README.md", "manifest.json")
+        marks[rel] = {"verification": "generated-unverified" if generated else "verified", "generated_by": "agent" if generated or name == "manifest.json" else "cell-run",
+                      "verification_basis": (parent["doc"]["generated_reason"] if generated else
+                                             f"explicit manifest {parent['ref']} · selected image digest bound · frozen source sha256 verified · main historical scope only"),
+                      "parent_source": name}
+        if generated:
+            marks[rel]["header"] = ({"style": "json-key", "key": UNVERIFIED_HEADER_KEY, "text": parent["header"][2:]}
+                                     if name == "manifest.json" else {"style": "comment", "line": 1, "text": parent["header"]})
+    slots["build_recipe"]["evidence"]["parent_source_core"] = {"manifest": parent["ref"], "selected_image_digest": parent["doc"]["selected_image_digest"],
+        "context_inventory": sorted(n for n in parent["doc"]["files"] if n.startswith("context/")), "historical_scope": parent["doc"]["historical_scope"]}
+
+
 def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: dict | None = None) -> list[dict]:
     """zip 슬롯 경로 → Dockerfile·compose 가 기대하는 빌드 컨텍스트(`output/<t>/`) 상대 경로(plan §4.6 V14 · 수신자가
     `build_patch_pre/` 를 어디에 두어야 하는지 묻지 않게). 파생 원천은 **실린 Dockerfile 의 COPY** · compose 의 env_file·volumes·
@@ -4361,12 +4508,20 @@ def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: d
         for rel_f in (slots.get(slot) or {}).get("files") or []:
             name = PurePath(rel_f).name
             ctx_path, basis = None, "빌드 컨텍스트 입력 아님(Dockerfile COPY · compose 참조 밖)"
+            if rel_f.startswith(_PARENT_PREFIX):
+                parent = _parent_build(c)
+                part = rel_f[len(_PARENT_PREFIX):]
+                ctx_path = part[len("context/"):] if part.startswith("context/") else None
+                rows.append({"slot_path": rel_f, "context_path": ctx_path, "context_root": "parent-source-core/context" if ctx_path else None,
+                             "stage": "parent-source-core", "context_scope": "reconstruction_example",
+                             "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context"})
+                continue
             if slot == "triplet" and name in native_at:
                 ctx_path, basis = native_at[name], "native 트리플렛 원래 자리(render_native_triplet 산출 · native 정문이 읽는 곳)"
             elif slot in ("build_patch_pre", "build_patch_post"):
                 d = PATCH_DIRS["pre" if slot == "build_patch_pre" else "post"]
-                if d in copies:
-                    ctx_path, basis = f"{d}/{name}", f"{df_name} COPY {d}/"
+                if d in copies or f"{d}/{name}" in copies:
+                    ctx_path, basis = f"{d}/{name}", f"{df_name} COPY {d}/{name} (or whole directory)"
             elif slot == "build_recipe" and df_text:
                 if name == df_name and rroot:
                     ctx_path, basis = name, (f"이 zip 재현 예시: docker build -f {rroot}/{df_name} · 컨텍스트 {rroot}(현재 토폴로지 통로; 실린 바이트 이력 출처 {origin}). "
@@ -4403,6 +4558,10 @@ def _build_context_map(c: _Ctx, slots: dict, sel: dict | None, native_triplet: d
             if rroot and ctx_path and slot in ("build_recipe", "build_patch_pre", "build_patch_post"):
                 row["context_root"] = rroot
             rows.append(row)
+    if _parent_build(c):
+        rows.append({"slot_path": None, "context_path": "build_patches_src/", "context_root": "parent-source-core/context", "stage": "parent-source-core",
+                     "create": "empty-dir", "inventory": [".gitkeep"], "context_scope": "reconstruction_example",
+                     "basis": "parent frozen inventory: empty PRE scaffold only; no current i5 PRE modules"})
     for e in _empty_copy_dirs(c, df_text, slots):
         row = {"slot_path": None, "context_path": f"{e['dir']}/", "create": "empty-dir", "inventory": e["inventory"],
                "context_scope": "reconstruction_example",
@@ -4788,6 +4947,7 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
     ctx_src = c                              # build_context_map 의 Dockerfile·compose 텍스트를 읽는 문맥
     if plane == "docker":
         applied, sel, ledger, env_shapes, recipe = _docker_slots(c, payload, measured, missing, files, slots)
+        _append_parent_build(c, payload, files, slots, marks)
         for tracked in (slots["compose"].get("evidence") or {}).get("selected_revisions") or []:
             name = PurePath(tracked.get("path") or "").name
             for rel_f in slots["compose"]["files"]:
@@ -5333,6 +5493,19 @@ def selftest() -> list[str]:
         apw = applied_set(repo, ev_w, runner=docker_old)
         ck("★wheel 트랙 패치 미실행(excluded_by_recipe)", apw["patches"] == []
            and sum(x["why"].startswith("excluded_by_recipe") for x in apw["excluded"]) == 5)
+        # Exact-file COPY admits only that file; other active PRE/POST modules stay excluded.
+        _wheel_text = (out / "Dockerfile").read_text(encoding="utf-8")
+        (out / "build_patches/20-other.sh").write_text("#!/bin/bash\n", encoding="utf-8")
+        (out / "Dockerfile").write_text(_wheel_text + "\nCOPY build_patches/10-shared.sh /tmp/build_patches/\n", encoding="utf-8")
+        _file_copy = applied_set(repo, ev_w, runner=docker_old)
+        _copy_excluded = {(r["phase"], r["file"]) for r in _file_copy["excluded"]
+                          if r["why"].startswith("excluded_by_recipe")}
+        ck("exact-file COPY is not falsely excluded", ("post", "10-shared.sh") not in _copy_excluded)
+        ck("exact-file COPY does not admit uncopied POST/PRE files",
+           _copy_excluded == {("post", "20-other.sh"), ("pre", "50-port.sh"),
+                              ("pre", "55-deps.sh"), ("pre", "58-effect-first.sh"), ("pre", "60-ungated.sh")})
+        (out / "Dockerfile").write_text(_wheel_text, encoding="utf-8")
+        (out / "build_patches/20-other.sh").unlink()
         # ★결함 B(2026-10-10 · plan_26101017 · M2): 원장 · 셀 env 선택자 없음 → evidence 의 이미지 history build-arg 관측이 compose 기본값보다
         #   먼저(compose 기본값 = 현재 compose 선언 · 그 이미지를 지은 증거 아님)
         from . import evidence as _ev_mod
