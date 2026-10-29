@@ -4524,11 +4524,11 @@ def _attestation_timing_note(ev: CellEvidence) -> str | None:
 #   2026-09-29 교정: ②의 대조는 원장 `budget_declare` ts 와 스모크 로그 `budget_honored` ts 의 **문자 일치**였다 — 실 워치독은 선언 1초 뒤에
 #   honored 를 쓴다(원장 declare 04:54:44Z · watchdog.jsonl honored 04:54:45Z) → 스모크 로그가 있어도 늘 불성립이었다. 이제 스모크 로그
 #   honored ts 가 {D ts} ∪ {원장의 같은 라벨 `budget_honored` 중 D 이후 · attestation 작성 이전} 에 들면 같은 선언이다.
-#   약한 판별(스모크 로그 미보존 · ② 불성립 · ①③ 성립): attestation · serve_proof(같은 config · 있으면) 작성 시각이 모두 [D, 측정 시작) 안이고,
+#   약한 판별(제한검색에서 결속된 스모크 로그 미확인 · ② 불성립 · ①③ 성립): attestation · serve_proof(같은 config · 있으면) 작성 시각이 모두 [D, 측정 시작) 안이고,
 #   측정 엔진 로그의 API 서버 기동 시각(`Starting vLLM server on` · 컨테이너 시계 = UTC 가정)이 관측되면 D ≤ 기동 ≤ attestation 작성
 #   (스모크 PASS 는 서버가 떠 있어야 난다) — 모순이면 판별 ✗. 표지 = WEAK_SAME_BOOT_MARK(강한 판별과 다른 문구 · 근거 문장 필수).
 SAME_BOOT_MARK = "측정을 서빙한 같은 기동의 스모크 직후 관측"
-WEAK_SAME_BOOT_MARK = "원장 순서로 판별한 같은 기동의 관측(스모크 로그 미보존 · 약한 판별)"
+WEAK_SAME_BOOT_MARK = "원장 순서로 판별한 같은 기동의 관측(결속된 스모크 로그 미확인 · 제한검색 · 약한 판별)"
 _SERVER_STARTING = re.compile(r"Starting vLLM server on ")
 _APISERVER_PID = re.compile(r"\(APIServer pid=(\d+)\)")
 _HONORED_TS = re.compile(r'budget_honored\b.*?"ts"\s*:\s*"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)"')
@@ -4622,7 +4622,7 @@ def attestation_same_boot(repo, ev: CellEvidence, written: str | None, win: dict
                  f"ts {hts} = 그 선언" + ("" if hts == d[0] else "의 원장 budget_honored") + f" · {pid_txt}"
                  + (f" · 측정 시작 {start}" if start else ""))
         return {"basis": basis, "files": [_rel(repo, lg), d[3]], "strength": "strong"}
-    # ── 약한 판별: 원장 순서만 — 스모크 로그가 **없을 때만**(있는데 순서 · 선언 대조가 불성립이면 모순이다 · 판별 ✗) ──
+    # ── 약한 판별: 원장 순서만 — 제한검색에서 결속 로그 미확인일 때만(검색된 로그의 순서 · 선언 모순은 판별 ✗) ──
     if seen or not start or not (d[0] <= written < start):
         return None
     times = [f"attestation 작성 {written}"]
@@ -4640,7 +4640,7 @@ def attestation_same_boot(repo, ev: CellEvidence, written: str | None, win: dict
         return None                     # API 서버 기동이 선언 전이거나 attestation 뒤 — 원장 순서와 모순
     srv_txt = (f"API 서버 기동 {srv}({srv_src} · 컨테이너 시계 = UTC 가정) ∈ [선언, attestation 작성]" if srv
                else "API 서버 기동 시각 미관측(모순 검사 불가)")
-    basis = (f"원장 순서로 판별(스모크 로그 미보존 — docs/simlog/**/*serve*.log 에 이 attestation 을 적은 스모크 로그 없음): "
+    basis = (f"원장 순서로 판별(결속된 스모크 로그 미확인 · 제한검색 — docs/simlog/**/*serve*.log 에서 이 attestation 을 적은 로그 미확인; 다른 경로의 보존 여부는 판정하지 않음): "
              f"원장 {d[3]}:{d[1]} budget_declare({label} · {d[0]}) ≤ {' · '.join(times)} < 측정 시작 {start} · 그 선언이 측정 끝 {end} 까지 "
              f"재선언 · 창 닫힘 없이 이어짐({node} 원장 기록 범위 안) · {srv_txt} · {pid_txt}")
     return {"basis": basis, "files": [d[3]] + ([srv_src.rsplit(":", 1)[0]] if srv_src else []), "strength": "weak"}
@@ -8682,14 +8682,18 @@ def _selftest_fix2(ck, td: Path, ev: CellEvidence) -> None:
     ck("★F10 음성대조: 같은 기동 판별 불성립(순서 어긋남)이면 스모크 로그 echo 를 싣지 않는다",
        "smoke_echo" not in {x["node"]: x for x in event_ledger_spans(r, ev10)}["sub"])
     (sl / "fx_serve.log").write_text("\n".join(off) + "\n", encoding="utf-8")
-    # ── 약한 판별: 스모크 로그 미보존 · 원장 순서만 ──
+    # ── 약한 판별: 제한검색에서 결속 로그 미확인 · 원장 순서만 ──
     (sl / "fx_serve.log").unlink()
+    outside_smoke = r / "docs/logs/fx_serve.log"
+    outside_smoke.parent.mkdir(parents=True, exist_ok=True)
+    outside_smoke.write_text("\n".join(good) + "\n", encoding="utf-8")
     (bl / "lite_engine_cl.log").write_text("(APIServer pid=5) INFO 01-02 02:52:00 [entry.py:1] Starting vLLM server on http://x\n",
                                            encoding="utf-8")
     sbw = attestation_same_boot(r, ev10, "2026-01-02T02:55:00Z", win)
     scw = attestation_scope(r, ev10)
-    ck("G10 약한 판별: 스모크 로그 없음 · 선언 ≤ serve_proof · attestation 작성 < 측정 시작 · API 서버 기동 ∈ [선언, 작성] = 원장 순서 판별",
-       sbw and sbw["strength"] == "weak" and "원장 순서로 판별(스모크 로그 미보존" in sbw["basis"]
+    ck("G10 약한 판별: 제한검색 밖 스모크 로그 보존을 부정하지 않으며 기존 원장 순서 판별 유지",
+       sbw and sbw["strength"] == "weak" and "결속된 스모크 로그 미확인 · 제한검색" in sbw["basis"]
+       and "다른 경로의 보존 여부는 판정하지 않음" in sbw["basis"] and "미보존" not in sbw["basis"]
        and "serve_proof 작성 2026-01-02T02:58:20Z" in sbw["basis"] and "API 서버 기동 2026-01-02T02:52:00Z" in sbw["basis"]
        and WEAK_SAME_BOOT_MARK in scw["scope"] and SAME_BOOT_MARK not in scw["scope"] and "미검증" not in scw["scope"]
        and WEAK_SAME_BOOT_MARK in (_attestation_timing_note(dataclasses.replace(ev10, repo=str(r))) or ""))
