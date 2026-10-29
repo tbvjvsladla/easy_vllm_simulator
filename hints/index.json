@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 72,
-  "generated_kst": "2026-10-25T13:10:00",
+  "count": 90,
+  "generated_kst": "2026-10-30T00:19:36",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -216,6 +216,29 @@
       "vllm": "0.1.1.dev53+g30118ba27"
     },
     {
+      "anchor": "20250a5f378f25143f659264d1a1dbcab9ae479b",
+      "arch": "gb10-1g1n-sub-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102816_gpt-oss-20b_GB10_0.18.0.md))",
+      "brief": "이 셀은 GB10에서 GPT-OSS-20B의 Harmony completion Full을 수행해 weak PASS를 얻었다. 각 레벨 3회이며 도구 경계 오류 2건과 별도 tool 요청 실패가 함께 기록됐다. 같은 결과는 같은 조건에서만 해석한다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_BUILD_LEDGER",
+        "HINT_MISSING_RESOLVE"
+      ],
+      "model": "gpt-oss-20b",
+      "object": "62755a31b1add539500af6a76172aea09a2bf404",
+      "published": true,
+      "recipe": "qmxfp4-len131072-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.18.0/gpt-oss-20b/gb10-1g1n-sub-native/qmxfp4-len131072-kvfp8",
+      "tagged_utc": "2026-10-28T13:48:03Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gpt-oss-20b-gb10_camp26102705_resume_20261028T073540Z/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.18.0"
+    },
+    {
       "anchor": "a3fc9e82ded52ff0dfc7a31432a8d9f1ea7504fe",
       "arch": "gb10-main-native",
       "bench_mode": "미기재",
@@ -336,6 +359,29 @@
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gptoss120b-0191-c0/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.19.1"
+    },
+    {
+      "anchor": "865f1894e65f07b0c128c8e17e43e708035b6f84",
+      "arch": "gb10-1g1n-sub-native",
+      "base_model": "Qwen/Qwen3-4B-Base",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102719_qwen3-4b_GB10_0.26.0.md))",
+      "brief": "Qwen3-4B를 NVIDIA GB10 한 노드·GPU 한 개에서 vLLM 빌드 입력 v0.26.0, BF16 가중치·TurboQuant KV·비투기 graph 형상으로 재측정했고 동시성 1 decode 21.68 t/s의 weak PASS를 얻었다. 과거 backend 번역 오류와 하네스 종료를 구분한 W2/W3를 계승하되 이번에는 기본 Full을 새 경로에서 완주했다. V4의 고정 KV는 승계값이며 최적값·다른 GPU의 필요조건이 아니다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_BUILD_LEDGER",
+        "HINT_MISSING_RESOLVE"
+      ],
+      "model": "qwen3-4b",
+      "object": "10414da6426a286b00d5789e6fd3d1c4cc0e8bcb",
+      "published": true,
+      "recipe": "qbf16-len32768-kvturboquant4bitnc",
+      "source": "remote-derived",
+      "tag": "hint/0.26.0/qwen3-4b/gb10-1g1n-sub-native/qbf16-len32768-kvturboquant4bitnc",
+      "tagged_utc": "2026-10-27T11:18:23Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_c-tq4nc_camp-26102705_qwen_a01_20261027T093346Z/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.26.0"
     },
     {
       "anchor": "9a2f5f0b78f1677a03912a3dfe0a67e79e07423b",
@@ -1210,6 +1256,28 @@
       "vllm": "0.30.0"
     },
     {
+      "anchor": "34761139305208d1aab348915d4893aabf6e3961",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": "ibm-granite/granite-4.1-30b-base",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102710_granite-4.2-30b_GB10_0.30.0.md))",
+      "brief": "Granite-4.2-30B dense BF16를 GB10 GPU1개·노드1대 TP1에서 v0.30.0 source-build·길이131072·KVauto·PLE없음·specoff·graph 형상으로 서빙했고, 이번 신규 Full 동시성1 decode 3.9 t/s를 기록했다. 계보의 KV 부족 두 회차(W1·W2)는 절대 클램프를 늘려 넘겼고, 벤치 예산 차단(W3)은 허용 선택지 안의 작은 클라이언트 몫으로 해소했다. gmu는 승계값(V2)이며 KV 클램프의 과거 조정(V4)을 이번 새 최적화나 모든 환경의 최소 필요량으로 읽지 않는다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_RESOLVE"
+      ],
+      "model": "granite-4.2-30b",
+      "object": "d9daca5eec2d59a20e9dfb2cf36680bbfafdac49",
+      "published": true,
+      "recipe": "qbf16-len131072-kvauto",
+      "source": "remote-derived",
+      "tag": "hint/0.30.0/granite-4.2-30b/gb10-1g1n-main-native/qbf16-len131072-kvauto",
+      "tagged_utc": "2026-10-27T01:23:25Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_granite42-30b-v030/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.30.0"
+    },
+    {
       "anchor": "2de140f29d46b6ddff27fd1280bb4d50c02e3c74",
       "arch": "gb10-1g1n-main-native",
       "base_model": "ibm-granite/granite-4.1-30b-base",
@@ -1225,6 +1293,29 @@
       "source": "remote-derived",
       "tag": "hint/0.30.0/granite-4.2-30b/gb10-1g1n-main-native/qbf16-len131072-kvauto-kv33g",
       "tagged_utc": "2026-10-10T08:57:46Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_granite42-30b-v030/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.30.0"
+    },
+    {
+      "anchor": "0dda49363fdb1aabe2b32a80d37bb33097911978",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": "ibm-granite/granite-4.1-30b-base",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102710_granite-4.2-30b_GB10_0.30.0.md))",
+      "brief": "Granite-4.2-30B dense BF16를 GB10 GPU1개·노드1대 TP1에서 v0.30.0 source-build·길이131072·KVauto·PLE없음·specoff·graph 형상으로 서빙했고, 원래 캠페인의 Full 동시성1 decode 3.9 t/s를 기록했다. 이번 정정판은 그 측정을 재사용한다. 계보의 KV 부족 두 회차(W1·W2)는 절대 클램프를 늘려 넘겼고, 벤치 예산 차단(W3)은 허용 선택지 안의 작은 클라이언트 몫으로 해소했다. gmu는 승계값(V2)이며 KV 클램프의 과거 조정(V4)을 이번 새 최적화나 모든 환경의 최소 필요량으로 읽지 않는다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE",
+        "HINT_MISSING_RESOLVE"
+      ],
+      "model": "granite-4.2-30b",
+      "object": "9155471cdc281bd600c11b2af6552bcfe967ba38",
+      "published": true,
+      "recipe": "qbf16-len131072-kvauto-t2610271816",
+      "source": "remote-derived",
+      "tag": "hint/0.30.0/granite-4.2-30b/gb10-1g1n-main-native/qbf16-len131072-kvauto-t2610271816",
+      "tagged_utc": "2026-10-27T10:18:49Z",
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_granite42-30b-v030/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.30.0"
@@ -1274,6 +1365,70 @@
       "vllm": "0.30.0"
     },
     {
+      "anchor": "6d60065db9741a37b738cd3bfb8552d010b6f0b0",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": "google/gemma-4-26B-A4B",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102509_gemma-4-26b-a4b-it_GB10_0.31.0.md))",
+      "brief": "Gemma-4-26B-A4B-it(BF16)을 GB10 1대(TP=1 · 싱글)에서 vLLM v0.31.0 stock 소스빌드로 max-model-len 262144 · KV fp8 · PLE 없음 · spec off · cudagraph 로 서빙했고, 판정점 동시성 1 decode 23.29 t/s(GuideLLM × 반복 3 · synthetic)는 roofline 하한 13.69 대비 PASS(권한 weak · 인증서 없음)다. 가장 비싼 벽은 KV 절대 클램프 없이 뜬 첫 트라이얼이 통합메모리에서 KV 를 과다하게 잡아 호스트 memwatch 에 사살된 것이고 kv-cache-memory-bytes 절대 클램프로 넘었다(W1 · M1) — 그다음은 생성기가 yaml port 에 호스트 포트를 적어 health 가 닿지 않은 것이다(W2). 가장 오해하기 쉬운 값은 KV 클램프 3368402176(V3)이다 — 필요조건은 클램프의 존재이고 값은 262144 토큰 한 요청분이라 동시 장문 요청을 받지 못하며, gmu 0.85(V1)는 손레버 승계값이다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE"
+      ],
+      "model": "gemma-4-26b-a4b-it",
+      "object": "12d999ebf785afe0f44e2a92031711ab4d5f31d8",
+      "published": true,
+      "recipe": "qbf16-len262144-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/gemma-4-26b-a4b-it/gb10-1g1n-main-native/qbf16-len262144-kvfp8",
+      "tagged_utc": "2026-10-25T04:10:00Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gemma26b-ctx-single/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "127d22062deb7958532a41054612b619eb569f41",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": "google/gemma-4-26B-A4B",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102711_gemma-4-26b-a4b-it_GB10_0.31.0.md))",
+      "brief": "Gemma-4-26B-A4B-it BF16를GB10 GPU1·노드1·TP1에서0.31.0 source이미지·native262144·KVfp8·PLE없음·specoff형상으로서빙했고이번신규Full 동시성1 decode23.32t/s를측정했다. 과거unclamped KV의memwatch종료(W1)와내부포트혼동(W2)을넘은형상을승계했으며이번새레버조정은없다. KV클램프존재의과거음성대조(V3)와정확3368402176바이트값의최적성은구분한다.",
+      "grammar": "v7",
+      "missing": [],
+      "model": "gemma-4-26b-a4b-it",
+      "object": "aaed4bdaf4a6576615c1892aa855f6b8bc18ef02",
+      "published": true,
+      "recipe": "qbf16-len262144-kvfp8-t2610271153",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/gemma-4-26b-a4b-it/gb10-1g1n-main-native/qbf16-len262144-kvfp8-t2610271153",
+      "tagged_utc": "2026-10-27T02:53:21Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gemma26b-ctx-single/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "8b13ae96240d371d9603618ca152f62e95c5ef25",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": "google/gemma-4-26B-A4B",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102711_gemma-4-26b-a4b-it_GB10_0.31.0.md))",
+      "brief": "Gemma-4-26B-A4B-it BF16를GB10 GPU1·노드1·TP1에서0.31.0 source이미지·native262144·KVfp8·PLE없음·specoff형상으로서빙했고원래 캠페인의 Full 동시성1 decode23.32t/s를 측정했다. 이번 정정판은 그 측정을 재사용한다. 과거unclamped KV의memwatch종료(W1)와내부포트혼동(W2)을넘은형상을승계했으며이번새레버조정은없다. KV클램프존재의과거음성대조(V3)와정확3368402176바이트값의최적성은구분한다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE"
+      ],
+      "model": "gemma-4-26b-a4b-it",
+      "object": "1a6a12a31efa93c2d6f099b4e993f0fa6afcf6d4",
+      "published": true,
+      "recipe": "qbf16-len262144-kvfp8-t2610271817",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/gemma-4-26b-a4b-it/gb10-1g1n-main-native/qbf16-len262144-kvfp8-t2610271817",
+      "tagged_utc": "2026-10-27T10:19:29Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gemma26b-ctx-single/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
       "anchor": "bc0270f73c8871ccc214ac8d8533cd19806afb75",
       "arch": "gb10-1g1n-main-native",
       "base_model": "ibm-granite/granite-4.1-8b-base",
@@ -1309,6 +1464,48 @@
       "source": "remote-derived",
       "tag": "hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610170951",
       "tagged_utc": "2026-10-17T00:51:01Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_granite42-8b-v031/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "f94c9fb9b2045b3db9267d92a935cc7589b2df33",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": "ibm-granite/granite-4.1-8b-base",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102708_granite-4.2-8b_GB10_0.31.0.md))",
+      "brief": "Granite-4.2-8B를GB10 GPU1개·노드1대 TP1에서v0.31.0 source-build·bf16·길이32768·KVauto·PLE없음·specoff·graph기본으로서빙했고신규Full 동시성1 decode12.44 t/s를기록했다. 과거언클램프보호종료(W1),측정로그범위(W6),CNN캐시재적중(W7)을교정한계보이며이번은새synthetic측정이다. gmu0.39와KV절대클램프는승계값(V1·V4)이며최적값이나제거시필요조건으로확인한값이아니다.",
+      "grammar": "v7",
+      "missing": [],
+      "model": "granite-4.2-8b",
+      "object": "4aeee33b14caf01f67acf6f095ceba77cb1575ab",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610270807",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610270807",
+      "tagged_utc": "2026-10-26T23:23:25Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_granite42-8b-v031/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "81067f7b65e88f4a312b5a0c9c5f60488d1c2af5",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": "ibm-granite/granite-4.1-8b-base",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102708_granite-4.2-8b_GB10_0.31.0.md))",
+      "brief": "Granite-4.2-8B를GB10 GPU1개·노드1대 TP1에서v0.31.0 source-build·bf16·길이32768·KVauto·PLE없음·specoff·graph기본으로서빙했고 이 정정판이 재사용하는 Full의 동시성1 decode12.44 t/s를 기록했다. 과거언클램프보호종료(W1),측정로그범위(W6),CNN캐시재적중(W7)을교정한계보이며근거는 기존 캠페인의 synthetic 측정이며 이 정정판에서 재측정하지 않았다. gmu0.39와KV절대클램프는승계값(V1·V4)이며최적값이나제거시필요조건으로확인한값이아니다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE"
+      ],
+      "model": "granite-4.2-8b",
+      "object": "b1967a0eca90fb6a5728a8e4afd2a896ca86a56a",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610271816",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610271816",
+      "tagged_utc": "2026-10-27T10:18:02Z",
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_granite42-8b-v031/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
@@ -1364,6 +1561,50 @@
       "vllm": "0.31.0"
     },
     {
+      "anchor": "7630fa87fb982d835bd72095fb990f33de51bcaa",
+      "arch": "gb10-1g1n-sub-native",
+      "base_model": "LiquidAI/LFM2.5-2.6B-Base",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102716_lfm2.5-2.6b_GB10_0.31.0.md))",
+      "brief": "LFM2.5-2.6B BF16를 GB10 한 노드·한 GPU에서 v0.31.0 source-build 입력으로 서빙했고, context 32768·KV auto·spec off·기본 graph 경로의 동시성 1 판정점은 34.36 tok/s였다. 계보의 free-memory 시작 거부와 이번 실행의 증거 경로·발행 문서 결속 벽을 배포 GMU 재선택과 공식 writer 절차로 넘었다(W1·W9·W12). KV clamp와 동시 시퀀스는 이번 캠페인에서 탐색한 최적값이 아니라 승계한 손레버다(V3·V4).",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_BUILD_LEDGER"
+      ],
+      "model": "lfm2.5-2.6b",
+      "object": "38383b7aee1dc365e55bb4e728f957a2fcb8a6a2",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610271715",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto-t2610271715",
+      "tagged_utc": "2026-10-27T09:24:21Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_lfm25-26b-v031_camp-26102705_a02/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "3ce6e02194190cdd7f2b0443cac0c5599595aae8",
+      "arch": "gb10-1g1n-sub-native",
+      "base_model": "LiquidAI/LFM2.5-2.6B-Base",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102918_lfm2.5-2.6b_GB10_0.31.0.md))",
+      "brief": "LFM2.5-2.6B BF16를 단일 GB10에서 기존 source-build 이미지로 서빙하고 기본 부하의 Full 반복을 측정했다. 동시성 1 판정점 33.74 tok/s는 weak 기준 PASS다. 서빙 노브는 승계값이며 다른 환경에서는 메모리와 기능을 다시 검증해야 한다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_BUILD_LEDGER"
+      ],
+      "model": "lfm2.5-2.6b",
+      "object": "1433654d795ccbc575e7fafe9c2d93dcf1e906c7",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610291845",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto-t2610291845",
+      "tagged_utc": "2026-10-29T09:45:40Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_lfm25_handoff2_20261029_run3/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
       "anchor": "c9c4a87dda9d00a2b5ae4f68a9f675d3d5b998b0",
       "arch": "gb10-1g1n-main-native",
       "base_model": null,
@@ -1404,6 +1645,90 @@
       "tagged_utc": "2026-10-16T12:39:26Z",
       "verdict": "lite(기동 가능)",
       "verdict_source": "payload(PAYLOAD.cell_grade = lite · 기계 판정 measurement.verdict = OBSERVATION-ONLY)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "b96e3e66206f34ff7afc570d4e16bbf338446af0",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102707_minicpm5-2b_GB10_0.31.0.md))",
+      "brief": "MiniCPM5-2B를 GB10 GPU1개·노드1대 TP1에서 v0.31.0 source-build·bf16·길이32768·KVauto·PLE없음·specoff·graph기본으로 서빙했고 신규 Full의 동시성1 decode37.34 t/s를 기록했다. 공유이미지의빌드입력경로(W0),장기로그KV파싱(W1),CNN행선택(W2)을교정한계보이며 이번은 synthetic 재측정이다. gmu0.39와KV클램프는승계값(V1·V4)이고최적화나필요조건검증이아니다.",
+      "grammar": "v7",
+      "missing": [],
+      "model": "minicpm5-2b",
+      "object": "6eea1d08e1dac8b36818c319f22ef54b9ccc1d42",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610270714",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610270714",
+      "tagged_utc": "2026-10-26T22:54:15Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "295d136fa43475a38f265fa347fd412451f6de60",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102707_minicpm5-2b_GB10_0.31.0.md))",
+      "brief": "MiniCPM5-2B를 GB10 GPU1개·노드1대 TP1에서 v0.31.0 source-build·bf16·길이32768·KVauto·PLE없음·specoff·graph기본으로 서빙했고 이 정정판이 인용하는 이번 캠페인 Full의 동시성1 decode37.34 t/s를 기록했다. 공유이미지의빌드입력경로(W0),장기로그KV파싱(W1),CNN행선택(W2)을교정한계보이며 근거는 이번 캠페인의 synthetic Full이며 정정판 작업에서 재측정하지 않았다. gmu0.39와KV클램프는승계값(V1·V4)이고최적화나필요조건검증이아니다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE"
+      ],
+      "model": "minicpm5-2b",
+      "object": "c5a6041b257bbb89d40dceba5bdcaa0d86df2aa2",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610270824",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610270824",
+      "tagged_utc": "2026-10-26T23:34:50Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "c5526cf75334c135d21235de316bc0f1d5e52e58",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102707_minicpm5-2b_GB10_0.31.0.md))",
+      "brief": "MiniCPM5-2B를 GB10 GPU1개·노드1대 TP1에서 v0.31.0 source-build·bf16·길이32768·KVauto·PLE없음·specoff·graph기본으로 서빙했고 이 정정판이 인용하는 이번 캠페인 Full의 동시성1 decode37.34 t/s를 기록했다. 공유이미지의빌드입력경로(W0),장기로그KV파싱(W1),CNN행선택(W2)을교정한계보이며 근거는 이번 캠페인의 synthetic Full이며 정정판 작업에서 재측정하지 않았다. gmu0.39와KV클램프는승계값(V1·V4)이고최적화나필요조건검증이아니다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE"
+      ],
+      "model": "minicpm5-2b",
+      "object": "d03c9cb02377dceecbe6898fd696f5f4bdf51972",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610271814",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610271814",
+      "tagged_utc": "2026-10-27T10:16:39Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_minicpm5-2b-v031/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
+      "anchor": "2966dbec39f39f98a3bcb637c0f286c204bda351",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102918_minicpm5-2b_GB10_0.31.0.md))",
+      "brief": "MiniCPM5-2B를 GB10 GPU1개·노드1대 TP1에서 v0.31.0 source-build·bf16·길이32768·KVauto·PLE없음·specoff·graph기본으로 새 기동해 Full 동시성1 decode36.98 t/s를 기록했다. 공유이미지 빌드입력경로(W0), 장기로그 KV파싱(W1), CNN행선택(W2)을 교정한 과거 계보를 재사용했으며 이번 입력은 같은 레시피의 신규 synthetic Full이다. gmu0.39와 절대KV클램프는 승계값(V1·V4)으로 이번 최적화나 필요조건 검증 결과가 아니다.",
+      "grammar": "v7",
+      "missing": [],
+      "model": "minicpm5-2b",
+      "object": "8507b8941f9e869279144001fd6d8b4016d4b840",
+      "published": true,
+      "recipe": "qbf16-len32768-kvauto-t2610291840",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610291840",
+      "tagged_utc": "2026-10-29T09:40:00Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_handoff2_minicpm5_20261029T092610Z/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
     },
     {
@@ -1517,6 +1842,29 @@
       "vllm": "0.31.0"
     },
     {
+      "anchor": "c799320f538e07504f8b4a3ac12b59c38434f3a4",
+      "arch": "gb10-1g1n-main-native",
+      "base_model": "Qwen/Qwen3.8-Flash-Next",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102510_qwen3.8-flash-next-nvfp4_GB10_0.31.0.md))",
+      "brief": "Qwen3.8-Flash-Next-NVFP4(nvidia)를 GB10 1대(싱글 TP=1) · vLLM `v0.31.0` 소스빌드 공유 이미지에서 max-model-len 1048576(YaRN factor 4) · KV fp8_e4m3 · eager · spec decode 없음 · **PLE 테이블을 디스크 mmap 으로 읽는 런타임 플러그인**으로 서빙했고, GuideLLM 동시성 1 decode 16.72 t/s 는 roofline 하한 6.7 대비 weak PASS 다(외부 기준 E 는 이 형상의 물리상한을 넘어 무효 · M2). 가장 비싼 벽은 PLE 상주 싱글의 산술 사전판정 불가(W3)와 빌드 패치 62 의 앵커 전멸(W5)이며, stock 임베딩 클래스를 바꾸는 플러그인 `q38fn31-nv4-mmap-1m-tp1_patch.py`(`VLLM_PLE_MMAP=1` · 노드 로컬 스테이징 · 이미지 재빌드 없음)와 single 하네스 교정(W6 · 로드-전 RAM 게이트)으로 넘었다. 가장 오해하기 쉬운 값: `max-num-seqs: 1`(V7)이 부하 곡선을 한 점으로 만들었고 KV 클램프(V4)는 다른 셀 실측에서 옮긴 손계산이며, yaml 노브 중 필요조건은 `hf-overrides`(V10) 하나다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_CAMPAIGN_INSTANCE",
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "bf76daf21c3ac6549f7ebfca9463c4fc0b916494",
+      "published": true,
+      "recipe": "qnvfp4-len1048576-kvfp8-plemmap",
+      "source": "remote-derived",
+      "tag": "hint/0.31.0/qwen3.8-flash-next-nvfp4/gb10-1g1n-main-native/qnvfp4-len1048576-kvfp8-plemmap",
+      "tagged_utc": "2026-10-25T04:10:00Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_q38fn31-nv4-mmap-1m-tp1/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.31.0"
+    },
+    {
       "anchor": "dce3d9d31318ae536972c0a77eac32b008f77970",
       "arch": "gb10-1g2n-cluster-native",
       "base_model": "Qwen/Qwen3.8-Flash-Next",
@@ -1563,6 +1911,48 @@
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_solar31-nv4-1m-tp2/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.31.0"
+    },
+    {
+      "anchor": "d413f8c82902d2b33ed47fb0e2de1246b7d36e60",
+      "arch": "gb10-1g1n-sub-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102907_gpt-oss-120b_GB10_0.32.0.md))",
+      "brief": "GPT-OSS-120B를 단일 GB10에서 v0.32.0 소스 커밋 기반 MXFP4, 길이 8192, auto KV, spec off와 graph로 측정해 동시성 1 decode 35.86 tok/s를 얻었다. 원본 의존성 충돌은 별도 계층으로 수리했다(W1). gmu는 손으로 선언한 값이지 메모리 강제 cap이나 최적값이 아니다(V1).",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_RESOLVE"
+      ],
+      "model": "gpt-oss-120b",
+      "object": "5493de620d6b8dc6fe412cdf07a0cedb2bbaaec6",
+      "published": true,
+      "recipe": "qmxfp4-len8192-kvauto",
+      "source": "remote-derived",
+      "tag": "hint/0.32.0-g5df63a7203cd/gpt-oss-120b/gb10-1g1n-sub-native/qmxfp4-len8192-kvauto",
+      "tagged_utc": "2026-10-28T22:57:30Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gpt120v0320_20261028T2143/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.32.0-g5df63a7203cd"
+    },
+    {
+      "anchor": "a612da4ee94feab190055db5daa1a9a494fc7842",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "Qwen/Qwen3.8-Flash-Next",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102920_qwen3.8-flash-next-nvfp4_GB10_0.32.0.md))",
+      "brief": "Qwen3.8-Flash-Next-NVFP4를 GB10 GPU1개씩 2노드 Ray TP2에서 공식 v0.32.0 소스 커밋으로 서빙한 후보B다. resident PLE·MTP3·graph·KV fp8_e4m3·길이262144 설정에서 Full 동시성1 대표41.11 t/s로 weak E53.7 대비 REFUTE다. 과거 혼합PLE/백엔드/메모리 벽(W1~W8) 뒤 공식0.32의 target NVFP4 CUTLASS·draft FP8 TRITON 조합을 선택했고, 후속 분리백엔드·메모리 실패와 단위오류는 별도로 기록했다(W10~W14). seq6와 절대KV클램프는 손레버 승계값(V6·V8)이며 Full 실측은 동시성1/2/4의 짧은 요청이다. 설정 최대길이 전체의 품질·동시성6 검증으로 읽지 않는다.",
+      "grammar": "v7",
+      "missing": [],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "59fa9d44cc61d15dd9b198129217097eeacba412",
+      "published": true,
+      "recipe": "qnvfp4-len262144-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.32.0-g5df63a7203cd/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8",
+      "tagged_utc": "2026-10-29T15:19:36Z",
+      "verdict": "REFUTE",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.32.0-g5df63a7203cd"
     }
   ],
   "remote": "origin",

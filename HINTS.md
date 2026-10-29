@@ -112,28 +112,14 @@ arch·recipe 의 모양이 다릅니다.
 에 있습니다.
 
 <!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->
-> 원격 `origin` 의 발행 태그 **72건** · 모델 17종에서 파생 · 생성 `2026-10-25T13:10:00` KST · 로컬 오브젝트 부재(미수령) 3건.
+> 원격 `origin` 의 발행 태그 **90건** · 모델 18종에서 파생 · 생성 `2026-10-30T00:19:36` KST · 로컬 오브젝트 부재(미수령) 3건.
 
-### `qwen3.8-flash-next-fp8` (11)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.31.0/qwen3.8-flash-next-fp8/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-plemmap` | gb10-1g2n-cluster-native | 0.31.0 | REFUTE | full | HINT_MISSING_CAMPAIGN_INSTANCE · HINT_MISSING_RESOLVE · HINT_MISSING_SWEEP_LEVELS |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleresident` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleoffload` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len1048576-kvauto-pleoffload` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len524288-kvauto-pleoffload` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_PII_TERMS |
-| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-
-### `qwen3.8-flash-next-nvfp4` (18)
+### `qwen3.8-flash-next-nvfp4` (20)
 
 | 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
 |---|---|---|---|---|---|
+| `hint/0.32.0-g5df63a7203cd/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8` | gb10-1g2n-cluster-native | 0.32.0-g5df63a7203cd | REFUTE | full | — |
+| `hint/0.31.0/qwen3.8-flash-next-nvfp4/gb10-1g1n-main-native/qnvfp4-len1048576-kvfp8-plemmap` | gb10-1g1n-main-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE · HINT_MISSING_SWEEP_LEVELS |
 | `hint/0.31.0/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8` | gb10-1g2n-cluster-native | 0.31.0 | REFUTE | full | HINT_MISSING_CAMPAIGN_INSTANCE · HINT_MISSING_RESOLVE · HINT_MISSING_SWEEP_LEVELS |
 | `hint/0.30.0/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-pleresident` | gb10-1g2n-cluster-native | 0.30.0 | REFUTE | full | — |
 | `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native-bare/qnvfp4-len262144-kvauto-plemmap-spec3-eager` | gb10-1g2n-cluster-native-bare | 0.29.0rc6 | 미기재(구판) | full | HINT_MISSING_CERTIFICATE |
@@ -153,43 +139,49 @@ arch·recipe 의 모양이 다릅니다.
 | `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
 | `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
 
-### `solar-open2-250b-nota-nvfp4` (1)
+### `lfm2.5-2.6b` (4)
 
 | 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
 |---|---|---|---|---|---|
-| `hint/0.31.0/solar-open2-250b-nota-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8` | gb10-1g2n-cluster-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE · HINT_MISSING_RESOLVE · HINT_MISSING_SWEEP_LEVELS |
-
-### `granite-4.2-8b` (2)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610170951` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
-| `hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
-
-### `lfm2.5-2.6b` (2)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
+| `hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto-t2610291845` | gb10-1g1n-sub-native | 0.31.0 | PASS | full | HINT_MISSING_BUILD_LEDGER |
+| `hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto-t2610271715` | gb10-1g1n-sub-native | 0.31.0 | PASS | full | HINT_MISSING_BUILD_LEDGER |
 | `hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto-t2610162309` | gb10-1g1n-sub-native | 0.31.0 | lite(기동 가능) | lite(선언) | BENCH_MODE_LITE · HINT_MISSING_BUILD_LEDGER · HINT_MISSING_SWEEP_LEVELS |
 | `hint/0.31.0/lfm2.5-2.6b/gb10-1g1n-sub-native/qbf16-len32768-kvauto` | gb10-1g1n-sub-native | 0.31.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_CELL_CONFIG · HINT_MISSING_CELL_STATUS · HINT_MISSING_LOCKSET · HINT_MISSING_RESOLVE |
 
-### `minicpm5-2b` (2)
+### `minicpm5-2b` (6)
 
 | 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
 |---|---|---|---|---|---|
+| `hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610291840` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
+| `hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610271814` | gb10-1g1n-main-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE |
+| `hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610270824` | gb10-1g1n-main-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE |
+| `hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610270714` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
 | `hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610162139` | gb10-1g1n-main-native | 0.31.0 | lite(기동 가능) | lite(선언) | BENCH_MODE_LITE · HINT_MISSING_SWEEP_LEVELS |
 | `hint/0.31.0/minicpm5-2b/gb10-1g1n-main-native/qbf16-len32768-kvauto` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
 
-### `ornith-1.5-9b` (1)
+### `gpt-oss-120b` (4)
 
 | 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
 |---|---|---|---|---|---|
-| `hint/0.31.0/ornith-1.5-9b/gb10-1g1n-sub-native/qbf16-len32768-kvauto` | gb10-1g1n-sub-native | 0.31.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_CELL_CONFIG · HINT_MISSING_CELL_STATUS · HINT_MISSING_LOCKSET · HINT_MISSING_RESOLVE |
+| `hint/0.32.0-g5df63a7203cd/gpt-oss-120b/gb10-1g1n-sub-native/qmxfp4-len8192-kvauto` | gb10-1g1n-sub-native | 0.32.0-g5df63a7203cd | PASS | full | HINT_MISSING_RESOLVE |
+| `hint/0.19.1/gpt-oss-120b/gb10-1g1n-main-native/qmxfp4-len131072-kvfp8` | gb10-1g1n-main-native | 0.19.1 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
+| `hint/0.19.0/gpt-oss-120b/gb10x2-cluster-native/qmxfp4-len131072-kvfp8` | gb10x2-cluster-native | 0.19.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8` | gb10x2-sim-h100 | 0.19.0 | 미기재(구판) | 미기재 | 미선언 |
 
-### `qwen3-4b` (7)
+### `gpt-oss-20b` (4)
 
 | 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
 |---|---|---|---|---|---|
+| `hint/0.18.0/gpt-oss-20b/gb10-1g1n-sub-native/qmxfp4-len131072-kvfp8` | gb10-1g1n-sub-native | 0.18.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
+| `hint/0.18.0/gpt-oss-20b/gb10-sub-native/qmxfp4-len131072-kvfp8` | gb10-sub-native | 0.18.0 | 미기재(구판) | 미기재 | HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8` | gb10-main-native | 0.18.0 | 미기재(구판) | 미기재 | — |
+| `hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8` | gb10-sim-h100 | 0.18.0 | 미기재(구판) | 미기재 | 미선언 |
+
+### `qwen3-4b` (8)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.26.0/qwen3-4b/gb10-1g1n-sub-native/qbf16-len32768-kvturboquant4bitnc` | gb10-1g1n-sub-native | 0.26.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
 | `hint/0.26.0/qwen3-4b/gb10-1g1n-sub-native/qbf16-len32768-kvturboquant4bitnc-kv11g` | gb10-1g1n-sub-native | 0.26.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
 | `hint/0.27.1/qwen3-4b/h10080gb-main-native/len32768-kvauto-pleresident` | h10080gb-main-native | 0.27.1 | 미기재(구판) | full | — |
 | `hint/0.26.0/qwen3-4b/gb10-sub-sim-kv24g/len32768-kvturboquant3bitnc` | gb10-sub-sim-kv24g | 0.26.0 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE |
@@ -198,25 +190,64 @@ arch·recipe 의 모양이 다릅니다.
 | `hint/0.26.0/qwen3-4b/gb10-main-sim-kv24g/len32768-kvauto` | gb10-main-sim-kv24g | 0.26.0 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE |
 | `hint/0.31.0/qwen3-4b/rtxpro6000ws-1g1n-main-native/qbf16-len40960-kvauto` | rtxpro6000ws-1g1n-main-native | 0.31.0 | 미수령 | 미수령 | 미수령 |
 
+### `gemma-4-26b-a4b-it` (3)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.31.0/gemma-4-26b-a4b-it/gb10-1g1n-main-native/qbf16-len262144-kvfp8-t2610271817` | gb10-1g1n-main-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE |
+| `hint/0.31.0/gemma-4-26b-a4b-it/gb10-1g1n-main-native/qbf16-len262144-kvfp8-t2610271153` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
+| `hint/0.31.0/gemma-4-26b-a4b-it/gb10-1g1n-main-native/qbf16-len262144-kvfp8` | gb10-1g1n-main-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE |
+
+### `granite-4.2-30b` (3)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.30.0/granite-4.2-30b/gb10-1g1n-main-native/qbf16-len131072-kvauto-t2610271816` | gb10-1g1n-main-native | 0.30.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE · HINT_MISSING_RESOLVE |
+| `hint/0.30.0/granite-4.2-30b/gb10-1g1n-main-native/qbf16-len131072-kvauto` | gb10-1g1n-main-native | 0.30.0 | PASS | full | HINT_MISSING_RESOLVE |
+| `hint/0.30.0/granite-4.2-30b/gb10-1g1n-main-native/qbf16-len131072-kvauto-kv33g` | gb10-1g1n-main-native | 0.30.0 | PASS | full | — |
+
+### `granite-4.2-8b` (4)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610271816` | gb10-1g1n-main-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE |
+| `hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610270807` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
+| `hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto-t2610170951` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
+| `hint/0.31.0/granite-4.2-8b/gb10-1g1n-main-native/qbf16-len32768-kvauto` | gb10-1g1n-main-native | 0.31.0 | PASS | full | — |
+
+### `qwen3.8-flash-next-fp8` (11)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.31.0/qwen3.8-flash-next-fp8/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-plemmap` | gb10-1g2n-cluster-native | 0.31.0 | REFUTE | full | HINT_MISSING_CAMPAIGN_INSTANCE · HINT_MISSING_RESOLVE · HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleresident` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len262144-kvauto-pleoffload` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len1048576-kvauto-pleoffload` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-fp8/rtxpro6000x2-main-native/qfp8-len524288-kvauto-pleoffload` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_PII_TERMS |
+| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len1048576-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len524288-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+
+### `solar-open2-250b-nota-nvfp4` (1)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.31.0/solar-open2-250b-nota-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8` | gb10-1g2n-cluster-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE · HINT_MISSING_RESOLVE · HINT_MISSING_SWEEP_LEVELS |
+
+### `ornith-1.5-9b` (1)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.31.0/ornith-1.5-9b/gb10-1g1n-sub-native/qbf16-len32768-kvauto` | gb10-1g1n-sub-native | 0.31.0 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_CELL_CONFIG · HINT_MISSING_CELL_STATUS · HINT_MISSING_LOCKSET · HINT_MISSING_RESOLVE |
+
 ### `ornith-1.5-35b-a3b` (1)
 
 | 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
 |---|---|---|---|---|---|
 | `hint/0.30.0/ornith-1.5-35b-a3b/gb10-1g1n-sub-native/qbf16-len262144-kvauto-moetriton-kv8g` | gb10-1g1n-sub-native | 0.30.0 | PASS | full | HINT_MISSING_APPLIED_SET · HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
-
-### `gpt-oss-120b` (3)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.19.1/gpt-oss-120b/gb10-1g1n-main-native/qmxfp4-len131072-kvfp8` | gb10-1g1n-main-native | 0.19.1 | PASS | full | HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
-| `hint/0.19.0/gpt-oss-120b/gb10x2-cluster-native/qmxfp4-len131072-kvfp8` | gb10x2-cluster-native | 0.19.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.19.0/gpt-oss-120b/gb10x2-sim-h100/qmxfp4-len131072-kvfp8` | gb10x2-sim-h100 | 0.19.0 | 미기재(구판) | 미기재 | 미선언 |
-
-### `granite-4.2-30b` (1)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.30.0/granite-4.2-30b/gb10-1g1n-main-native/qbf16-len131072-kvauto-kv33g` | gb10-1g1n-main-native | 0.30.0 | PASS | full | — |
 
 ### `deepseek-v4.1-flash-exl3-2.0bpw-sfxnz` (2)
 
@@ -250,14 +281,6 @@ arch·recipe 의 모양이 다릅니다.
 | `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/len262144-kvfp8` | rtxpro6000-main-native | 0.28.0 | 미기재(구판) | 미기재 | HINT_MISSING_LITE |
 | `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvauto` | rtxpro6000-main-native | 0.28.0 | 미기재(구판) | 미기재 | HINT_MISSING_LITE |
 | `hint/0.28.0/qwen3.8-27b/rtxpro6000-main-native/qfp8-len262144-kvfp8` | rtxpro6000-main-native | 0.28.0 | 미기재(구판) | 미기재 | HINT_MISSING_LITE |
-
-### `gpt-oss-20b` (3)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.18.0/gpt-oss-20b/gb10-sub-native/qmxfp4-len131072-kvfp8` | gb10-sub-native | 0.18.0 | 미기재(구판) | 미기재 | HINT_MISSING_SWEEP_LEVELS |
-| `hint/0.18.0/gpt-oss-20b/gb10-main-native/qmxfp4-len131072-kvfp8` | gb10-main-native | 0.18.0 | 미기재(구판) | 미기재 | — |
-| `hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8` | gb10-sim-h100 | 0.18.0 | 미기재(구판) | 미기재 | 미선언 |
 
 ### `muse-glimmer-30b` (1)
 
