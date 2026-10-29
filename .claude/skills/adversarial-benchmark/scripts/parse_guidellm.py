@@ -157,6 +157,7 @@ def build(doc, benchmark_index=0, engine_max=None, spec=None, max_error_rate=0.0
 
     tpot_median = _stat(metrics, "time_per_output_token_ms", "median")
     tpot_mean = _stat(metrics, "time_per_output_token_ms", "mean")
+    request_latency_p99_s = _pct(metrics, "request_latency")
     decode_tps = _inv(tpot_median)
 
     successful = _count(metrics, "successful")
@@ -215,7 +216,8 @@ def build(doc, benchmark_index=0, engine_max=None, spec=None, max_error_rate=0.0
         "itl_ms_std": _stat(metrics, "inter_token_latency_ms", "std_dev"),
         "tpot_ms_p99": _pct(metrics, "time_per_output_token_ms"),
         "tpot_ms_std": _stat(metrics, "time_per_output_token_ms", "std_dev"),
-        "request_latency_ms_p99": _pct(metrics, "request_latency"),
+        # GuideLLM request_latency is seconds; the output contract is milliseconds.
+        "request_latency_ms_p99": None if request_latency_p99_s is None else request_latency_p99_s * 1000.0,
         "accept_len": accept_len,
         "spec_on": bool(accept_len and accept_len > 1.05),
         "completed": successful,
@@ -503,7 +505,30 @@ def _self_test():
         sys.stderr.write("[parse_guidellm --self-test] FAIL %d 건: %s\n" % (len(failures), failures))
         return 1
 
-    print("[parse_guidellm --self-test] OK — G1~G28 전부 통과")
+    # G29: the existing real GuideLLM 0.7.3 fixture proves seconds from request timestamps.
+    with open(sample, encoding="utf-8") as handle:
+        latency_doc = json.load(handle)
+    latency_run = latency_doc["benchmarks"][0]
+    p99_s = _pct(latency_run["metrics"], "request_latency")
+    latency_req = next(r for r in latency_run["requests"]["successful"]
+                       if r["request_latency"] == p99_s)
+    elapsed_s = latency_req["request_end_time"] - latency_req["request_start_time"]
+    latency_out = build(latency_doc, spec={"source": "declared-absent"})
+    latency_cases_ok = True
+    for value, expected in ((None, None), (True, None), (False, None), ("1.25", None),
+                            (2, 2000.0), (1.25, 1250.0)):
+        changed = json.loads(json.dumps(latency_doc))
+        changed["benchmarks"][0]["metrics"]["request_latency"]["successful"]["percentiles"]["p99"] = value
+        latency_cases_ok = latency_cases_ok and (
+            build(changed, spec={"source": "declared-absent"})["request_latency_ms_p99"] == expected)
+    check("G29 request latency seconds→ms · real timestamps · None/numeric/bool contract",
+          abs(elapsed_s - p99_s) < 1e-9
+          and abs(latency_out["request_latency_ms_p99"] - elapsed_s * 1000.0) < 1e-6
+          and latency_out["decode_tps"] == real["decode_tps"] and latency_cases_ok)
+    if failures:
+        sys.stderr.write("[parse_guidellm --self-test] FAIL %d 건: %s\n" % (len(failures), failures))
+        return 1
+    print("[parse_guidellm --self-test] OK — G1~G29 전부 통과")
     return 0
 
 
