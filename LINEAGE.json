@@ -1,0 +1,215 @@
+{
+  "depth": 4,
+  "documents": [
+    {
+      "date": "26101410",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/plan/plan_26101410_vllm031_bump_14B이하_4종_양노드_서빙_lite.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101411",
+      "depth": 3,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101411_minicpm5-2b_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26101412",
+      "depth": 2,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26101412_v031_14B이하_4종_양노드_상주서빙_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101412",
+      "depth": 3,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101412_v031_bump_4종_양노드_상주서빙_서사.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26101614",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101614_GuideLLM_데이터셋knob_CNN프리셋_lite등급분리.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101616",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26101616_데이터셋knob_서브배달_서브E2E_hint발행.md",
+      "role": "plan"
+    },
+    {
+      "date": "26101616",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101616_minicpm5-2b_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26101616",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101616_54_23_minicpm5-2b_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26101619",
+      "depth": 1,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101619_minicpm5-2b_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26101619",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101619_54_16_CNN_fullbench_셀_minicpm5_2b_v031_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101620",
+      "depth": 0,
+      "excerpts": 2,
+      "path": "docs/devlog/devlog_26101620_CNN_fullbench_셀_minicpm5_2b_v031.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26101621",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26101621_lite셀_minicpm5_2b_v031.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26101621",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26101621_minicpm5-2b_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26101621",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101621_36_59_lite셀_minicpm5_2b_v031_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101622",
+      "depth": 2,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26101622_plan_26101614_종결판정_데이터셋knob_CNN_lite분리.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26101622",
+      "depth": 2,
+      "excerpts": 1,
+      "path": "docs/testlog/testlog_26101622_47_43_Q1_prefix_cache_hit_rate_귀속_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102700",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102700_코덱스_싱글8종_멀티4종_실측.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102707",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102707_minicpm5_2b_v031_코덱스_메인_Full_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102707",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26102707_minicpm5_2b_v031_코덱스_메인_Full_여정.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102707",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102707_minicpm5-2b_GB10_0.31.0.md",
+      "role": "bench_report"
+    },
+    {
+      "date": "26102917",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/plan/plan_26102917_노드간_검수_간소화와_2셀_E2E.md",
+      "role": "plan"
+    },
+    {
+      "date": "26102918",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/testlog/testlog_26102918_minicpm5_2b_E2E_Full_판정.md",
+      "role": "testlog"
+    },
+    {
+      "date": "26102918",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/devlog/devlog_26102918_minicpm5_2b_E2E_여정.md",
+      "role": "devlog"
+    },
+    {
+      "date": "26102918",
+      "depth": 0,
+      "excerpts": 0,
+      "path": "docs/benchmark/bench_report_26102918_minicpm5-2b_GB10_0.31.0.md",
+      "role": "bench_report"
+    }
+  ],
+  "evidence_candidates": {
+    "cited": [],
+    "count": 344
+  },
+  "kind": "receiver-summary",
+  "note": "수신자 요약 — 서사가 읽은 계보 문서의 경로(발췌 머리 stem = 파일명) · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).",
+  "publish_kst": "26102918",
+  "schema_version": 3,
+  "sealed_sources": [
+    {
+      "path": "docs/benchmark/bench_report_26102918_minicpm5-2b_GB10_0.31.0.md",
+      "sha256": "9361eec5df943d91d61523bd3ed9abbbb6fd000475de24441137956b8e8a02aa"
+    },
+    {
+      "path": "docs/devlog/devlog_26101620_CNN_fullbench_셀_minicpm5_2b_v031.md",
+      "sha256": "bf476fdf6d5f1922276db8f582bb65734c5cabf89d7e2a9e9355cc6f7a7506c9"
+    },
+    {
+      "path": "docs/plan/plan_26101410_vllm031_bump_14B이하_4종_양노드_서빙_lite.md",
+      "sha256": "9641c12818b9524dcc12fc78f6faa7a7c94599e4ed9f16bb5a52cae7173a88ee"
+    },
+    {
+      "path": "docs/testlog/testlog_26101412_v031_14B이하_4종_양노드_상주서빙_판정.md",
+      "sha256": "874a0b7898e8d8c13a14ba468fa525f15fe6d356818406a09259f8379dfa897b"
+    },
+    {
+      "path": "docs/testlog/testlog_26101621_36_59_lite셀_minicpm5_2b_v031_판정.md",
+      "sha256": "44937964c14204c7c70b778af58ea600a1790a17c9298c5b3087bd51095a4d89"
+    },
+    {
+      "path": "docs/testlog/testlog_26101622_47_43_Q1_prefix_cache_hit_rate_귀속_판정.md",
+      "sha256": "afc6d729312902c88364cdeacfbbf58f8f28a9dfdfab6ce12c35164dbbb4743c"
+    },
+    {
+      "path": "docs/testlog/testlog_26102707_minicpm5_2b_v031_코덱스_메인_Full_판정.md",
+      "sha256": "0f1ffcbd335b48582b299b9dd26b89d31efaab6513ecd7718d9909bf82f3cb67"
+    },
+    {
+      "path": "docs/testlog/testlog_26102918_minicpm5_2b_E2E_Full_판정.md",
+      "sha256": "170ad2f9b419da5d5a58f32df4e068514f2cbf171a6e9112f8652831bffbb6f3"
+    }
+  ]
+}

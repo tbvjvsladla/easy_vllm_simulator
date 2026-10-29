@@ -1,0 +1,10 @@
+# MiniCPM5/MiniCPM5-2B 서빙 설정 (vllm-recipe-explorer 생성)
+# 레시피: quant=none max_model_len=32768 gpu_mem_util=0.39
+model: /app/models/Openbmb/MiniCPM5/MiniCPM5-2B
+host: 0.0.0.0
+port: 8000   # 컨테이너 내부 포트 — compose 가 ${SERVING_PORT}:8000 으로 매핑(생성기는 호스트 포트를 적어 불일치 · plan_26101410 결함 기록)
+# gpu-memory-utilization = startup free-memory 게이트(기동 전 free ≥ ceil(total×gmu) · 통합메모리 ≤0.90) + 총량 cap 은 관측된 작용(한 셀 관측 · 유효맥락 kv-clamp.md §1 · vLLM 소스에서 기전 미확정); 실제 KV·이식성은 kv-cache-memory-bytes 절대 클램프가 제어
+gpu-memory-utilization: 0.39
+max-model-len: 32768
+max-num-seqs: 8
+kv-cache-memory-bytes: 37580963840
