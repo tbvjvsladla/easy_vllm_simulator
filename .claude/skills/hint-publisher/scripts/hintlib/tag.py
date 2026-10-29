@@ -725,7 +725,7 @@ def _lint_findings(fn, repo: Path, anchor: str, tag: str) -> list[str]:
     return out
 
 
-def verify_local(repo: Path, tag: str, *, lint_fn=None, infos: list | None = None) -> list[str]:
+def verify_local(repo: Path, tag: str, *, lint_fn=None, infos: list | None = None, source_repo: Path | None = None) -> list[str]:
     """push 전 로컬 봉인 검증 — **이 태그 하나만**(D10). 반환 = `CODE: 설명` 정렬 목록(빈 = 통과). 읽기만 한다.
 
     묻는 것: ref 형식·신규 문법 · annotated · 태그 헤더 이름 · 대상이 커밋 · tagger = 합성 신원(+PII tripwire) ·
@@ -811,11 +811,11 @@ def verify_local(repo: Path, tag: str, *, lint_fn=None, infos: list | None = Non
         except core.HintError as e:   # 트리·blob 을 읽지 못함(부분 클론·손상 오브젝트) — 통과로 접지 않는다
             probs.append(_problem(e.code, e.message))
         if lint_fn is not None:
-            probs += _downgrade_source_drift(repo, obj["target"], _lint_findings(lint_fn, repo, obj["target"], tag), infos)
+            probs += _downgrade_source_drift(repo, obj["target"], _lint_findings(lint_fn, repo, obj["target"], tag), infos, source_repo=source_repo)
     return sorted(set(probs))
 
 
-def _downgrade_source_drift(repo: Path, anchor: str, findings: list[str], infos: list | None) -> list[str]:
+def _downgrade_source_drift(repo: Path, anchor: str, findings: list[str], infos: list | None, *, source_repo: Path | None = None) -> list[str]:
     """lint 발견 → (FAIL 로 남길 것). 출처 의존 코드 ∧ 봉인 스냅샷 존재 ∧ 바뀐 출처 ≥1 인 발견만 INFO 로 옮긴다."""
     cand = [f for f in findings if f.split(":", 1)[0] in SOURCE_DEPENDENT_LINT_CODES]
     if not cand:
@@ -826,7 +826,7 @@ def _downgrade_source_drift(repo: Path, anchor: str, findings: list[str], infos:
         return findings                      # 스냅샷을 읽지 못하면 강등하지 않는다(판정 불가 ≠ 출처 변경)
     if snap is None or snap_probs:
         return findings                      # 스냅샷 없음(v6 이하)·모양 결함(구조 결함으로 따로 보고) = 강등 근거 없음
-    changed = changed_sealed_sources(repo, snap)
+    changed = changed_sealed_sources(source_repo if source_repo is not None else repo, snap)
     if not changed:
         return findings
     keep: list[str] = []
@@ -1100,7 +1100,7 @@ def git_push_authenticated(repo: Path, remote: str, refspec: str, *, dry_run: bo
 
 
 def push_tag(repo: Path, remote: str, tag: str, *, dry_run: bool = False, lint_fn=None,
-             infos: list | None = None) -> dict:
+             infos: list | None = None, source_repo: Path | None = None) -> dict:
     """태그 **하나**를 정확한 refspec `refs/tags/<tag>:refs/tags/<tag>` 로 민다(O2: 브랜치 ✗ · `--tags` ✗ · glob ✗).
 
     ① ref 형식(`hint/` · glob ✗ · refs/heads ✗) ② annotated ③ verify_local(이 태그 · lint_fn 전달) 0 이어야 한다
@@ -1114,7 +1114,7 @@ def push_tag(repo: Path, remote: str, tag: str, *, dry_run: bool = False, lint_f
         core.fail("HINT_TAG_ABSENT", f"로컬에 태그가 없다: {tag}")
     if kind != "tag":
         core.fail("HINT_TAG_NOT_ANNOTATED", f"annotated 태그가 아니다({kind}) — lightweight 태그는 밀지 않는다.")
-    probs = verify_local(repo, tag, lint_fn=lint_fn, infos=infos)
+    probs = verify_local(repo, tag, lint_fn=lint_fn, infos=infos, source_repo=source_repo)
     if probs:
         _fail_problems("HINT_PUSH_UNVERIFIED", "push 전 로컬 검증(이 태그)", probs,
                        "hint.py verify --tag <태그> 로 확인하고 고친다 — 검증되지 않은 것은 밀지 않는다.")

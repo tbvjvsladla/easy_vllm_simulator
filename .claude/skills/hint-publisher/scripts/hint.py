@@ -1266,6 +1266,17 @@ def _commit_catalog(repo: Path, tagname: str) -> dict:
     return {"status": "committed", "commit": sha, "paths": mine}
 
 
+def _hint_clone_repo(workspace: Path, hint_clone: Path) -> Path:
+    """Validate the separate object repository without altering workspace authority."""
+    g = Path(hint_clone).resolve()
+    if core.git(g, "rev-parse", "--is-inside-work-tree", check=False).returncode != 0:
+        core.fail("HINT_CLONE_NOT_A_REPO", f"--hint-clone {g} 이 git 저장소가 아니다.",
+                  "terraforming_node 서브 설치 절차(hint 발행 장착)가 만든 hint 클론 경로를 준다.")
+    if g == Path(workspace).resolve():
+        core.fail("HINT_CLONE_IS_WORKSPACE", "--hint-clone 이 워크스페이스 자신이다 — 별도 저장소여야 한다(SUB_GIT_LOCAL_ONLY).")
+    return g
+
+
 # ── continue ───────────────────────────────────────────────────────────────────────────────────
 def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, approved_utc=None, remote="origin",
               no_push=False, factcheck_waiver=None, guide_commit=None, rt: Runtime | None = None,
@@ -1277,12 +1288,7 @@ def continue_(repo: Path, *, draft: Path, generated_utc, approved_by=None, appro
         return _continue(repo, draft=draft, generated_utc=generated_utc, approved_by=approved_by, approved_utc=approved_utc,
                          remote=remote, no_push=no_push, factcheck_waiver=factcheck_waiver, guide_commit=guide_commit, rt=rt,
                          git_repo=None)
-    g = Path(hint_clone).resolve()
-    if core.git(g, "rev-parse", "--is-inside-work-tree", check=False).returncode != 0:
-        core.fail("HINT_CLONE_NOT_A_REPO", f"--hint-clone {g} 이 git 저장소가 아니다.",
-                  "terraforming_node 서브 설치 절차(hint 발행 장착)가 만든 hint 클론 경로를 준다.")
-    if g == Path(repo).resolve():
-        core.fail("HINT_CLONE_IS_WORKSPACE", "--hint-clone 이 워크스페이스 자신이다 — 별도 저장소여야 한다(SUB_GIT_LOCAL_ONLY).")
+    g = _hint_clone_repo(repo, hint_clone)
     prev = core.set_aux_root(Path(repo).resolve())
     try:
         return _continue(repo, draft=draft, generated_utc=generated_utc, approved_by=approved_by, approved_utc=approved_utc,
@@ -1401,7 +1407,7 @@ def _continue(repo: Path, *, draft: Path, generated_utc, approved_by, approved_u
         raise
     lint_fn = _lint_fn(draft, st, workspace=repo)
     infos: list = []
-    vprobs = tag.verify_local(g, tagname, lint_fn=lint_fn, infos=infos)
+    vprobs = tag.verify_local(g, tagname, lint_fn=lint_fn, infos=infos, source_repo=repo)
     for line in infos:
         _log(line)
     if vprobs:
@@ -1424,7 +1430,7 @@ def _continue(repo: Path, *, draft: Path, generated_utc, approved_by, approved_u
     _gate(repo, manifest, "push")
     pinfos: list = []
     try:
-        pres = tag.push_tag(g, remote, tagname, lint_fn=lint_fn, infos=pinfos)
+        pres = tag.push_tag(g, remote, tagname, lint_fn=lint_fn, infos=pinfos, source_repo=repo)
     except tag.HintProblemsError as e:
         _mark(draft, st, "push", ok=False, remote=remote, codes=tag.problem_codes(e.problems))
         raise
@@ -1766,22 +1772,30 @@ def _draft_state_for(repo: Path, tagname: str, draft_arg: str | None) -> tuple[P
     return d, st
 
 
-def verify_tag(repo: Path, tagname: str, *, draft: str | None = None, infos: list | None = None) -> list[str]:
-    """이 태그 1개(D10). footer 의 manifest 로 hint_verify 게이트를 묻고(읽기 전용) verify_local(서사 린트 주입). infos = 봉인 뒤 출처
-    변경으로 FAIL 대신 INFO 로 강등된 발견(plan_26092908 §4.9 · tag.verify_local 이 append)."""
-    tag.check_ref_format(repo, tagname)
-    footer = _footer_of(repo, tagname)
-    if footer is None:
-        return tag.verify_local(repo, tagname, infos=infos)   # 태그·footer 부재 — 게이트를 물을 manifest 가 없다(결함 목록만)
-    _gate(repo, footer["manifest_ref"], "verify")
-    d, st = _draft_state_for(repo, tagname, draft)
-    return tag.verify_local(repo, tagname, lint_fn=_lint_fn(d, st, historical_verify=True), infos=infos)
+def verify_tag(repo: Path, tagname: str, *, draft: str | None = None, infos: list | None = None,
+               hint_clone: Path | None = None) -> list[str]:
+    """Verify tag objects in the optional clone while retaining workspace gate/source authority."""
+    workspace = Path(repo).resolve()
+    objects = _hint_clone_repo(workspace, hint_clone) if hint_clone is not None else workspace
+    prev = core.set_aux_root(workspace) if hint_clone is not None else None
+    try:
+        tag.check_ref_format(objects, tagname)
+        footer = _footer_of(objects, tagname)
+        if footer is None:
+            return tag.verify_local(objects, tagname, infos=infos)
+        _gate(workspace, footer["manifest_ref"], "verify")
+        d, st = _draft_state_for(workspace, tagname, draft)
+        return tag.verify_local(objects, tagname, lint_fn=_lint_fn(d, st, workspace=workspace, historical_verify=True),
+                                infos=infos, source_repo=workspace)
+    finally:
+        if hint_clone is not None:
+            core.set_aux_root(prev)
 
 
 def cmd_verify(a) -> int:
     repo = core.resolve_repo(a.repo)
     infos: list = []
-    probs = verify_tag(repo, a.tag, draft=a.draft, infos=infos)
+    probs = verify_tag(repo, a.tag, draft=a.draft, infos=infos, hint_clone=getattr(a, "hint_clone", None))
     for line in infos:
         print(f"{_OUT} {line}")
     if probs:
@@ -1928,6 +1942,7 @@ def _build_parser() -> argparse.ArgumentParser:
     v = sub.add_parser("verify", help="이 태그 1개 · push 전 로컬 봉인 검증(D10)")
     v.add_argument("--tag", required=True)
     v.add_argument("--draft", help="그 태그를 봉인한 draft(기본: hints/.drafts 에서 태그로 찾는다)")
+    v.add_argument("--hint-clone", metavar="PATH", default=None, help="별도 hint 클론에서 태그 오브젝트를 읽고 게이트·출처는 워크스페이스에서 검증")
     v.set_defaults(fn=cmd_verify)
 
     pu = sub.add_parser("push", help="태그 1개 push(정확한 refspec · 기본 dry-run)")
@@ -2979,6 +2994,59 @@ def _selftest_e2e(ck) -> None:
                == branch.synthetic_identity())
             ck("★끊김 뒤 재실행 = 같은 커밋(첫 커밋 시각 재사용 · 같은 부모 = 안내 커밋 · 중복 커밋 ✗)", anchor == crash_tip
                and parents == [fx["guide"]])
+
+            # Separate object repository: gate, draft, PII and source checks remain workspace-owned.
+            verify_clone = td / "verify-object-clone"
+            clone_result = subprocess.run(["git", "clone", "-q", "--no-checkout", str(repo), str(verify_clone)],
+                                          capture_output=True, text=True)
+            verify_infos = []
+            clone_probs = verify_tag(repo, tagname, draft=str(draft), infos=verify_infos, hint_clone=verify_clone) if clone_result.returncode == 0 else ["clone failed"]
+            ck("standalone verify uses separate object clone and workspace gate/source, without false drift",
+               clone_result.returncode == 0 and not clone_probs and not verify_infos
+               and not (verify_clone / core.REL_COMPLETION_GATE).exists()
+               and core.aux_root(verify_clone) == verify_clone)
+            ck("verify CLI --hint-clone uses workspace and verifies the clone tag",
+               quiet(main, ["--repo", str(repo), "verify", "--tag", tagname, "--draft", str(draft),
+                            "--hint-clone", str(verify_clone)]) == 0)
+            ck("single-repository verify remains compatible", not verify_tag(repo, tagname, draft=str(draft)))
+            # A missing clone-side source must not downgrade a genuine unchanged-workspace lint error.
+            drift_infos = []
+            injected = lambda **kw: [{"code": "HINT_BENCH_SECTION_DRIFT", "message": "fixture unchanged source"}]
+            prev_test_aux = core.set_aux_root(repo)
+            try:
+                drift_problems = tag.verify_local(verify_clone, tagname, lint_fn=injected, infos=drift_infos, source_repo=repo)
+            finally:
+                core.set_aux_root(prev_test_aux)
+            ck("clone source absence cannot downgrade an unchanged-workspace lint failure",
+               "HINT_BENCH_SECTION_DRIFT" in tag.problem_codes(drift_problems) and not drift_infos)
+            prev_test_aux = core.set_aux_root(repo)
+            try:
+                push_blocked, _ = _raises(lambda: tag.push_tag(verify_clone, "origin", tagname, dry_run=True,
+                                          lint_fn=injected, source_repo=repo), "HINT_PUSH_UNVERIFIED")
+            finally:
+                core.set_aux_root(prev_test_aux)
+            ck("clone push verifies against workspace sources and blocks unchanged-source lint failure", push_blocked)
+            # Exercise the actual continue path against a disposable draft copy; no remote push.
+            from unittest import mock
+            continue_copy = td / "verify-continue-copy"
+            shutil.copytree(draft, continue_copy)
+            with mock.patch.object(sys.modules[__name__], "_lint_fn", return_value=injected):
+                blocked_continue, _ = _raises(lambda: continue_(repo, draft=continue_copy, generated_utc=_FX_CONTINUE_UTC,
+                                            rt=rt, hint_clone=verify_clone, no_push=True), "HINT_LOCAL_VERIFY_FAILED")
+            ck("separate-clone continue cannot downgrade unchanged-workspace source failure", blocked_continue)
+            gate_p = repo / core.REL_COMPLETION_GATE
+            gate_link = os.readlink(gate_p) if gate_p.is_symlink() else None
+            gate_bytes = gate_p.read_bytes() if gate_link is None and gate_p.is_file() else None
+            gate_p.unlink()
+            try:
+                missing_gate, _ = _raises(lambda: verify_tag(repo, tagname, draft=str(draft), hint_clone=verify_clone),
+                                          "HINT_OWNER_MODULE_MISSING")
+            finally:
+                if gate_link is not None:
+                    os.symlink(gate_link, gate_p)
+                elif gate_bytes is not None:
+                    gate_p.write_bytes(gate_bytes)
+            ck("separate clone never substitutes missing workspace gate", missing_gate and core.aux_root(verify_clone) == verify_clone)
 
             # ── ★커밋 뒤 draft 가 바뀌면 재실행이 막힌다(같은 이름으로 다른 내용 ✗) ──
             nar = payload / "02-narrative.md"
