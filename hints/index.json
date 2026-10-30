@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 94,
-  "generated_kst": "2026-10-30T22:32:43",
+  "count": 95,
+  "generated_kst": "2026-10-31T01:00:30",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1932,6 +1932,28 @@
       "tagged_utc": "2026-10-29T16:22:50Z",
       "verdict": "REFUTE",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_ds4f0731-032-spec7-roce_261030A/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.32.0-g5df63a7203cd"
+    },
+    {
+      "anchor": "29ce66c3786333792b69982f20192296da2c1139",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26103100_deepseek-v4.1-flash-exl3-2.0bpw-sfxnz_GB10_0.32.0.md))",
+      "brief": "DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz를 GB10 두 노드·TP2, vLLM 소스5df63a7203cdb9328d824a27b682e77c7b9928be에서 max-model-len1048576·FP8 KV·file-backed Engram·DSpark3·eager로 서빙했고 local 대표 full의 C1 decode는22.26t/s, weak REFUTE다. EXL3 최소 이식과 Engram source 결속을 확인했다(W13~W18). KV·동시성은 고정 손레버이며 최소 필요량·자동 수렴값이 아니다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "deepseek-v4.1-flash-exl3-2.0bpw-sfxnz",
+      "object": "512238bae3f1dd3dced4f525c5f74989bb40048f",
+      "published": true,
+      "recipe": "qexl3-len1048576-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.32.0-g5df63a7203cd/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8",
+      "tagged_utc": "2026-10-30T16:00:30Z",
+      "verdict": "REFUTE",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_loading_ds41-load-local-1m/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.32.0-g5df63a7203cd"
     },
     {

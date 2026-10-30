@@ -112,7 +112,16 @@ arch·recipe 의 모양이 다릅니다.
 에 있습니다.
 
 <!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->
-> 원격 `origin` 의 발행 태그 **94건** · 모델 18종에서 파생 · 생성 `2026-10-30T22:32:43` KST · 로컬 오브젝트 부재(미수령) 3건.
+> 원격 `origin` 의 발행 태그 **95건** · 모델 18종에서 파생 · 생성 `2026-10-31T01:00:30` KST · 로컬 오브젝트 부재(미수령) 3건.
+
+### `deepseek-v4.1-flash-exl3-2.0bpw-sfxnz` (4)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.32.0-g5df63a7203cd/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8` | gb10-1g2n-cluster-native | 0.32.0-g5df63a7203cd | REFUTE | full | HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.32.0-g5df63a7203cd/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len131072-kvfp8-eager` | gb10-1g2n-cluster-native | 0.32.0-g5df63a7203cd | REFUTE | full | HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8-spec3-densegemv-moeprep-t2610101710` | gb10-1g2n-cluster-native | 0.30.0 | PASS | full | HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8-spec3-densegemv-moeprep` | gb10-1g2n-cluster-native | 0.30.0 | lite(기동 가능) | lite(선언) | BENCH_MODE_LITE · HINT_MISSING_CELL_CONFIG · HINT_MISSING_SWEEP_LEVELS |
 
 ### `qwen3.8-flash-next-nvfp4` (21)
 
@@ -139,14 +148,6 @@ arch·recipe 의 모양이 다릅니다.
 | `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
 | `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
 | `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-
-### `deepseek-v4.1-flash-exl3-2.0bpw-sfxnz` (3)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.32.0-g5df63a7203cd/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len131072-kvfp8-eager` | gb10-1g2n-cluster-native | 0.32.0-g5df63a7203cd | REFUTE | full | HINT_MISSING_SWEEP_LEVELS |
-| `hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8-spec3-densegemv-moeprep-t2610101710` | gb10-1g2n-cluster-native | 0.30.0 | PASS | full | HINT_MISSING_SWEEP_LEVELS |
-| `hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8-spec3-densegemv-moeprep` | gb10-1g2n-cluster-native | 0.30.0 | lite(기동 가능) | lite(선언) | BENCH_MODE_LITE · HINT_MISSING_CELL_CONFIG · HINT_MISSING_SWEEP_LEVELS |
 
 ### `deepseek-v4-flash-0731` (9)
 
