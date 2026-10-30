@@ -2301,9 +2301,25 @@ def selftest() -> list[str]:
                                     for i in range(79)], "evidence_candidates": [{"path": f"x{i}"} for i in range(276)]}
         s79 = receiver_summary(q79)
         v2_like = {**s79, "documents": [{**x, "stem": PurePosixPath(x["path"]).stem} for x in s79["documents"]]}
-        ck("★실물 모양 79문서 요약 = 상한 안(v3 · stem 칸 없음) · 같은 문서에 stem 을 되살리면 상한 초과(픽스처 폭 대조)",
+        ck("★79문서 요약 상한 안 · 역사적 v2 들여쓰기 형상의 중복 stem 크기 대조",
            len(core.dumps(s79).encode()) <= SUMMARY_MAX_BYTES and all("stem" not in x for x in s79["documents"])
-           and len(core.dumps(v2_like).encode()) > SUMMARY_MAX_BYTES and s79["schema_version"] == SUMMARY_SCHEMA_VERSION == 3)
+           and len((json.dumps(v2_like, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode()) > SUMMARY_MAX_BYTES
+           and s79["schema_version"] == SUMMARY_SCHEMA_VERSION == 3)
+        # 97문서 + 봉인 출처 11건: 필드나 출처를 버리지 않고 실제 배포 바이트만 줄인다.
+        q97 = {**q79, "documents": [{**q79["documents"][i % 79],
+                   "path": f"docs/testlog/testlog_2610{i:04d}_Qwen_1M_로딩비교와_대표_NVMe_full_bench_{i:02d}.md"}
+                  for i in range(97)]}
+        seals97 = [{"path": d["path"], "sha256": "a" * 64} for d in q97["documents"][:11]]
+        s97 = receiver_summary(q97, sealed_sources=seals97)
+        encoded97 = core.dumps(s97)
+        pretty97 = json.dumps(s97, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+        summary_path = repo / "receiver-summary.json"
+        core.write_json(summary_path, s97)
+        ck("★97문서+11봉인 출처: 공백 압축만 · 전 필드 roundtrip · 실제 파일 상한",
+           len(pretty97.encode()) > SUMMARY_MAX_BYTES
+           and len(encoded97.encode()) <= SUMMARY_MAX_BYTES
+           and json.loads(encoded97) == s97 and s97[SEALED_SOURCES_KEY] == seals97
+           and summary_path.read_bytes() == encoded97.encode())
         ss = sealed_sources(repo, [d0, d0])
         ck("봉인 스냅샷: 중복 제거 · sha256 = 현재 바이트", ss == [{"path": d0, "sha256": hashlib.sha256(
             (repo / d0).read_bytes()).hexdigest()}])

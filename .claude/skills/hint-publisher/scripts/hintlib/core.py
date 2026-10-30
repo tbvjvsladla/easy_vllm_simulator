@@ -228,7 +228,9 @@ def git_date(utc: str) -> str:
 
 # ── 결정론 직렬화 · 해시 ──────────────────────────────────────────────────────────────────────
 def dumps(obj) -> str:
-    """배포·비교 대상 JSON 의 단일 직렬화(키 정렬 · UTF-8 원문 · 들여쓰기 2 · 끝 개행)."""
+    """결정론 JSON 직렬화. 크기 제한이 있는 수신자 계보는 공백만 압축한다."""
+    if isinstance(obj, dict) and obj.get("kind") == "receiver-summary":
+        return json.dumps(obj, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n"
     return json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
 
