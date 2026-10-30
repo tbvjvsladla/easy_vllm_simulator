@@ -66,8 +66,10 @@ TASK_BY_MODE = {
         "추가로 이 정도 과업에 필요하다고 보는 턴 수(budget_recommendation)와 needs_hitl 을 notes 에 담아라."
     ),
     "ray-worker": (
-        "너는 멀티노드 Ray 워커다. 런타임 스킬은 받지 않는 것이 정상이므로 "
-        "skills_loaded 가 비어 있어야 한다 — 비어 있음을 확인해 보고하라. rank 값을 함께 보고하라."
+        "너는 멀티노드 Ray 워커다. 허용된 스킬 %d종(%s)의 실제 경로를 확인하고 " % (
+            len(_nrc.TOOL_PLANE_BY_SUB_MODE["ray-worker"]),
+            " · ".join(_nrc.TOOL_PLANE_BY_SUB_MODE["ray-worker"])) +
+        "그 목록을 skills_loaded 에 보고하라. rank 값을 함께 보고하라."
     ),
 }
 

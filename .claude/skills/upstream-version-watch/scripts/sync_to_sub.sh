@@ -48,11 +48,13 @@ preview_lines(){   # stdin → 앞부분 + (잘렸으면) 남은 줄 수 고지
 
 usage() {
     cat <<'EOF'
-사용법: sync_to_sub.sh --mode <experimental|promotion> --manifest <path> [--apply] [--provision] [--branch multi|single]
+사용법: sync_to_sub.sh --mode <experimental|promotion> --manifest <path> [--apply] [--provision] [--overlay-only] [--branch multi|single]
 
   --mode       side-effect authorization mode (required)
   --manifest   work-manifest JSON; relative paths use the caller's original CWD (required)
   --apply      execute delivery (default: dry-run)
+  --overlay-only  update an existing sub's rendered agent environment without buildkit,
+               source-port or runtime-patch delivery; topology/authorization guards still apply
   --provision  allow missing remote work directory creation with --apply
   --hint-write-scopes  explicit observed/approved single-sub hint scope JSON for the renderer;
                relative paths use the caller's original CWD; never inferred from the main HOME
@@ -73,7 +75,7 @@ EOF
 ORIGINAL_CWD="$(pwd)"
 GATE_MODE=""; HAVE_MODE=0
 MANIFEST_ARG=""; HAVE_MANIFEST=0
-MODE="dryrun"; PROVISION=0; BRANCH="multi"
+MODE="dryrun"; PROVISION=0; BRANCH="multi"; OVERLAY_ONLY=0
 HINT_WRITE_SCOPES=""
 # 토폴로지-aware 은퇴(2026-09-11). **기본 미집행** — 잔재 삭제는 배달의 부수효과가 아니라
 #   사람이 숫자로 승인하는 별도 행위다(D5: 안내문이 분류를 잘못 말하면 가드가 있어도 사고가 난다).
@@ -88,6 +90,7 @@ while [ $# -gt 0 ]; do
             [ $# -ge 2 ] || { echo "[sync] FAIL: --manifest requires a path" >&2; exit 2; }
             MANIFEST_ARG="$2"; HAVE_MANIFEST=1; shift 2 ;;
         --apply) MODE="apply"; shift ;;
+        --overlay-only) OVERLAY_ONLY=1; shift ;;
         --provision) PROVISION=1; shift ;;
         --hint-write-scopes)
             [ $# -ge 2 ] || { echo "[sync] FAIL: --hint-write-scopes requires a path" >&2; exit 2; }
@@ -2102,7 +2105,7 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
     #   전건 불일치로 배달이 죽는다(오버레이는 129/129 일치인데도). 검증 범위는 배달 범위를 따른다 —
     #   "안 보냈다" 와 "보냈는데 틀렸다" 는 다른 사실이고, 후자만 실패다.
     if [ "${2:-0}" = "1" ]; then
-        echo "  ⏭  빌드킷 대조 생략(평면 dormant — 이 배달의 범위 밖)"
+        echo "  ⏭  빌드킷 대조 생략(이 배달의 범위 밖)"
     else
     local -a build_files=("${BAND2_TOP[@]}")
     while IFS= read -r f; do build_files+=("$f"); done < <(band2_post_files "$1")
@@ -2257,6 +2260,10 @@ case "$_hg_rc" in
     *) echo "[sync] STOP(F6): 서브 .git 존재 여부 판독 불가(rc=$_hg_rc) — 모르는 상태에서 B0 를 발동하지 않는다." >&2
        echo "       확인: ssh_run '$SUB_HOST' \"ls -d '$SUB_WORK_DIR/.git'\"" >&2; exit 3 ;;
 esac
+if [ "$OVERLAY_ONLY" = "1" ] && [ "$HAS_GIT" = "0" ]; then
+    echo "[sync] STOP(OVERLAY_ONLY_B0): --overlay-only requires an existing sub git; use the normal bootstrap path for a new sub." >&2
+    exit 5
+fi
 if [ "$PROPAGATION_SCOPE" = "1" ] && [ "$HAS_GIT" = "0" ]; then
     echo "[sync] STOP(PROPAGATION_SCOPE_B0): approved same-scope propagation does not authorize B0/bootstrap; existing sub git is required." >&2
     exit 5
@@ -2290,7 +2297,10 @@ if [ "$MODE" = "dryrun" ]; then
             # dry-run 은 HITL 미리보기다 — apply 가 실제로 할 일과 어긋나면 사람이 잘못된 판단을 한다.
             #   (2026-09-03 평면 분리: 빌드킷만 skip, 에이전트 환경 오버레이는 배달된다.)
             _dry_skip_buildkit=0
-            if [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then
+            if [ "$OVERLAY_ONLY" = "1" ]; then
+                _dry_skip_buildkit=1
+                echo "  --- [$t] --overlay-only: build/source-port skip · 에이전트 환경 오버레이만 배달 ---"
+            elif [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then
                 _dry_skip_buildkit=1
                 echo "  --- [single] 빌드킷 평면 dormant → build/source-port skip · **오버레이는 배달** ---"
             fi
@@ -2460,7 +2470,10 @@ for t in "${TARGETS[@]}"; do
     #     · 빌드킷(deliver_build·source-port) → dormant 면 skip. 싱글 서브는 자율 저작한다.
     #     · 에이전트 환경(deliver_overlay)     → 배달한다. 그것이 확장기능의 내용이다.
     SKIP_BUILDKIT=0
-    if [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then
+    if [ "$OVERLAY_ONLY" = "1" ]; then
+        SKIP_BUILDKIT=1
+        echo "[sync] [$t] --overlay-only: 빌드킷·source-port 배달 범위 제외 — topology 계약은 유지한다."
+    elif [ "$t" = "single" ] && [ $SINGLE_ACTIVE = 0 ]; then
         SKIP_BUILDKIT=1
         echo "[sync] [single] 빌드킷 평면 DORMANT — delivery_plane=dormant (source=${SINGLE_PLANE_SOURCE})."
         echo "           싱글의 sub 는 A2A 원격 에이전트다 — 자기 빌드킷을 자율 저작한다(헌법 §불변식 A)."
@@ -2495,7 +2508,7 @@ for t in "${TARGETS[@]}"; do
     # (3) rsync(빌드 + 오버레이) — render/band/runner/delegation/runtime-patch
     # source checks all passed before checkout; deliver_build repeats patch validation.
     if [ "$SKIP_BUILDKIT" = "1" ]; then
-        echo "[sync] [$t] 빌드킷·source-port 배달 skip(평면 dormant) — 오버레이만 진행."
+        echo "[sync] [$t] 빌드킷·source-port 배달 skip(이 배달의 범위 밖) — 오버레이만 진행."
     else
         deliver_build "$t" 0
         # 파생 payload 는 rsync 뒤에 온다 — 판정 권위인 PROVENANCE.json 이 먼저 서브에 있어야 한다.
