@@ -160,6 +160,9 @@ VALIDATED_SOURCE_BUILD_KEYS = {
     ("26.07-py3", "0.31.0"),  # 2026-10-14 승급(single-node): 양 노드 소스빌드 + TP=1 4모델(Granite-4.2-8B·MiniCPM5-2B·
                               #   Ornith-1.5-9B·LFM2.5-2.6B) 스모크·툴콜·lite PASS · 전제 = tools/use_existing_torch.py 자기적응(#58572)
                               #   · libdw-dev · transformers<5.15.0. testlog_26101412 · 사용자 HITL ④ 승인.
+    ("26.07-py3", "0.32.0"),  # 2026-10-29: official5df63a7 source core + NGC torch2.13alpha; deps2에서 core 불변 확인.
+                              #   Qwen TP2 CUTLASS/Marlin health·실제생성 PASS 범위. bare-stock 모델서빙·i5/wheel 승격 아님.
+                              #   testlog_26102923_공식032_source_build_key_codify.md 참조.
 }
 
 # ── 출구① 상속(inherit) 원장 — plan_26082112 §5.2 · P4 ────────────────────────

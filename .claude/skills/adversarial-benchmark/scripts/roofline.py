@@ -144,9 +144,13 @@ _MTP_RE = re.compile(r"(^|\.)mtp[\._]|\.mtp_block\.|model\.layers\.\d+\.mtp")
 #   매 토큰 전체를 읽어야 하면 디스크로 못 낸다 ③ 예산 게이트(`resident_weights_mib`)는
 #   이미 같은 바이트를 `ple_mib` 로 **분리해 왔다**(48,828MiB = 47.68GiB, 일치).
 _PLE_RE = re.compile(r"\.ple\.ple_embedding\.|\.ngram_embedding\.")
+# DeepSeek Engram also gathers selected rows, rather than streaming its full table.
+# Same tensor suffixes as parse_model_config.MMAP_OFFLOADABLE_PATTERNS['engram_file'];
+# this classification applies to per-token traffic regardless of residency mode.
+_ENGRAM_RE = re.compile(r"\.engram\.embed\.(weight|scale)$")
 
 
-def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok):
+def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok, excluded_by_kind=None):
     """safetensors index/단일파일 헤더를 categorize → per-token 활성 가중치 바이트(MoE)."""
     idx = os.path.join(host_dir, "model.safetensors.index.json")
     shards = set()
@@ -163,7 +167,7 @@ def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok):
 
     dense = 0       # 항상 읽힘: attention·shared_experts·embed·norm·lm_head
     routed = 0      # routed experts 전체 합(이후 k/n 스케일)
-    ple = 0         # PLE n-gram 테이블 — 행 gather 라 active 제외(_PLE_RE 주석 참조)
+    lookup = 0      # sparse lookup 테이블 — 전체 크기를 토큰마다 읽지 않음
     for sh in sorted(shards):
         hdr = _st_header(os.path.join(host_dir, sh))
         for name, meta in hdr.items():
@@ -175,8 +179,12 @@ def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok):
             nbytes = int(off[1]) - int(off[0])
             if _MTP_RE.search(name):
                 continue  # MTP draft 모듈 = R_fp(메인 forward) 제외(accept_len 으로 모델링)
-            if _PLE_RE.search(name):
-                ple += nbytes   # 세지만 active 에 넣지 않는다(0 으로 숨기면 출처가 사라진다)
+            lookup_kind = ("ple" if _PLE_RE.search(name) else
+                           "engram" if _ENGRAM_RE.search(name) else None)
+            if lookup_kind:
+                lookup += nbytes
+                if excluded_by_kind is not None:
+                    excluded_by_kind[lookup_kind] = excluded_by_kind.get(lookup_kind, 0) + nbytes
                 continue
             if _ROUTED_RE.search(name) and "shared_expert" not in name:
                 routed += nbytes
@@ -189,7 +197,7 @@ def _active_bytes_moe(host_dir, num_experts, num_experts_per_tok):
     if k <= 0:   # k 불명을 0 으로 접으면 routed active 가 사라져 기대치가 낮아진다 — 결정 경로의 침묵 폴백 ✗
         _die("MoE 인데 top-k(num_experts_per_tok 류) 불명 — config 키를 확인하고 roofline.py 의 pick 목록에 등재하라")
     active_routed = int(routed * (k / n))
-    return dense + active_routed, dense, routed, k, n, ple
+    return dense + active_routed, dense, routed, k, n, lookup
 
 
 def _total_bytes_dense(host_dir):
@@ -385,17 +393,21 @@ def main():
     ic_gbps = args.interconnect_gbps if args.interconnect_gbps else ic_gbps
 
     # --- 활성 바이트 (per forward pass) ---
-    ple_b = 0
+    lookup_b = 0
+    lookup_by_kind = {}
     if is_moe:
-        active_bytes, dense_b, routed_b, k, n, ple_b = _active_bytes_moe(host_dir, num_experts, n_per_tok)
+        active_bytes, dense_b, routed_b, k, n, lookup_b = _active_bytes_moe(
+            host_dir, num_experts, n_per_tok, lookup_by_kind)
         notes.append("MoE active = dense %.2fGiB + (%d/%d)×routed %.2fGiB" % (dense_b/GIB, k, n, routed_b/GIB))
     else:
         active_bytes = _total_bytes_dense(host_dir)
         notes.append("dense 모델 — active = 전 가중치")
-    if ple_b:
-        notes.append("PLE n-gram %.2fGiB 는 active 제외(행 gather) — 포함하면 active 가 %.2fGiB 로 "
-                     "부풀어 실측이 자기 물리상한을 넘는다(2026-09-12 camp-26091216 실증)"
-                     % (ple_b/GIB, (active_bytes + ple_b)/GIB))
+    if lookup_b:
+        notes.append("sparse lookup 테이블 %.2fGiB 는 active 제외(행 gather; 종류=%s) — "
+                     "전체 테이블을 합산하면 active 가 %.2fGiB 로 과대계산된다"
+                     % (lookup_b/GIB, ",".join(sorted(lookup_by_kind)), (active_bytes + lookup_b)/GIB))
+    ple_b = lookup_by_kind.get("ple", 0)
+    engram_b = lookup_by_kind.get("engram", 0)
 
     per_node_read = active_bytes / tp
     bw_bytes = bw_gbps * 1e9                      # GB/s → bytes/s
@@ -435,6 +447,12 @@ def main():
         # 값이 안 보이면 "PLE 가 없는 모델"과 "빼고 계산했다"가 구분되지 않는다.
         "ple_excluded_bytes": int(ple_b),
         "ple_excluded_gib": round(ple_b / GIB, 3),
+        "engram_excluded_bytes": int(engram_b),
+        "engram_excluded_gib": round(engram_b / GIB, 3),
+        "sparse_lookup_excluded_bytes": int(lookup_b),
+        "sparse_lookup_excluded_source": (
+            "measured:safetensors header data_offsets; row-lookup tensor name classification"
+            if is_moe else "not-applicable:dense total-weight accounting"),
         "per_node_read_gib": round(per_node_read / GIB, 3),
         "t_weight_ms": round(t_weight * 1e3, 4),
         "t_comm_ms": round(t_comm * 1e3, 4),

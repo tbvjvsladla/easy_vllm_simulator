@@ -179,6 +179,50 @@
       "items": {
         "type": "object"
       }
+    },
+    "reasoning_selection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested",
+        "resolved",
+        "source",
+        "mode",
+        "upstream_observed"
+      ],
+      "properties": {
+        "requested": {
+          "type": "string"
+        },
+        "resolved": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "source": {
+          "type": "string"
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "explicit",
+            "native-default"
+          ]
+        },
+        "native_status": {
+          "type": "string"
+        },
+        "selection_source": {
+          "type": "string"
+        },
+        "upstream_observed": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
     }
   },
   "oneOf": [

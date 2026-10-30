@@ -873,7 +873,10 @@ def _vllm_observed_rows(nobs: dict) -> list[tuple[str, str, str]]:
         label = label or nobs.get(f"{k}_label") or _VLLM_OBS_LABELS.get(k) or f"`{k}`"
         if val in (None, ""):
             # 값이 없으면 키별 사유만 싣는다 — 옛 단일 `source` 는 **있는 값**의 출처라 빈 칸에 붙이면 거짓 출처가 된다
-            rows.append((_cell(label), _MISSING_TEXT, _cell(src) if src else _MISSING_TEXT))
+            missing_value = ("노드별 상이·공통값 미선택(각 값은 출처)"
+                             if k == "wheel_meta" and nobs.get("wheel_meta_basis") == "observed-node-difference"
+                             else _MISSING_TEXT)
+            rows.append((_cell(label), missing_value, _cell(src) if src else _MISSING_TEXT))
         else:
             src = src or nobs.get("source")
             rows.append((_cell(label), _cell(val), _cell(src) if src else "출처 미기재"))
@@ -4807,10 +4810,10 @@ def selftest() -> list[str]:
            and "원장 관측 범위" not in _f_event_timeline(_Ctx(repo, dict(facts_json, event_ledger_spans=None), tpls)))
         q2 = {"health_200": True, "inference_observed": True, "sources": ["output/multi/benchlog/serve_proof_x.json"],
               "scope": {"written_utc": "2026-09-28T01:31:48Z", "written_utc_source": "파일 mtime", "timing": "after-measurement",
-                        "timing_note": "작성 2026-09-28T01:31:48Z > 측정 끝 2026-09-28T00:35:13Z — 측정 뒤 재기동의 스모크 산출물"}}
+                        "timing_note": "작성 2026-09-28T01:31:48Z > 측정 끝 2026-09-28T00:35:13Z — 측정 뒤 작성된 스모크 산출물(측정 시점·같은 기동 여부는 시각만으로 미검증)"}}
         ck("G2 발행 자격 근거(FACT:grade · 재현 끝 줄)에 serve_proof 시점 범위",
-           "측정 뒤 재기동의 스모크 산출물" in _qualification_line({"qualification": q2})
-           and "측정 뒤 재기동의 스모크 산출물" in _qual_scope_text(q2))
+           "측정 뒤 작성된 스모크 산출물(측정 시점·같은 기동 여부는 시각만으로 미검증)" in _qualification_line({"qualification": q2})
+           and "측정 뒤 작성된 스모크 산출물(측정 시점·같은 기동 여부는 시각만으로 미검증)" in _qual_scope_text(q2))
         ck("★G2 음성대조: 범위가 없으면 근거 칸에 덧붙이지 않는다", _qual_scope_text({**q2, "scope": None}) == "")
         rl5 = _revision_line("compose", {"path": "x.sh", "commit": "a" * 40, "method": "worktree", "basis": "mtime≤measured",
                                          "verified": None, "executed": False})
@@ -5566,6 +5569,11 @@ def selftest() -> list[str]:
         ck("F3 genuine distribution and generic runtime versions render in distinct rows with distinct sources",
            "wheel 메타(`vllm_build`) | 0.31.0+distribution | 빌드 원장 vllm.dist_version" in rsrd
            and "vLLM runtime 버전(관측 기록 · 배포 메타 여부 미판정) | 0.31.1.dev0+gfixture.cu133" in rsrd)
+        different_dist = _vllm_observed_rows({"wheel_meta": None, "wheel_meta_basis": "observed-node-difference",
+            "wheel_meta_source": "attestation main=1/sub=2 · 값을 고르지 않는다"})
+        ck("노드별 설치 배포메타 차이는 미관측 대신 공통값 미선택으로 표시하고 실제값은 고르지 않는다",
+           any("공통값 미선택" in value and "main=1/sub=2" in source
+               for label, value, source in different_dist if "wheel" in label))
         qf9c = json.loads(core.dumps(qf9))
         qf9c["naming"]["vllm_build_input"].update({"kind": "commit", "prev_release": None})
         rs9c = _f_resolved(_Ctx(repo, qf9c, tpls))

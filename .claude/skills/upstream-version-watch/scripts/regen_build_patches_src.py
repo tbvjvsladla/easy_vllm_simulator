@@ -31,6 +31,10 @@
 #   이 도구 = **파일시스템 payload + 인덱스 PROVENANCE 검증**. 즉 판정 권위는 추적물(인덱스)에 있고
 #   바이트만 파일시스템에서 온다. 그래서 비추적 payload 를 배달해도 "무엇이 배달됐는지"는 추적물이 정한다.
 #
+# Explicit source_payload.kind=script-modules is a separate authored PRE input contract:
+# verify exact top-level script/helper inventory only; no files/ derivation, bundle or unbundle.
+# Legacy source+files manifests retain the existing vendor-payload pipeline below.
+#
 # usage:
 #   verify              --root <build_patches_src>          # payload ↔ PROVENANCE sha256 대조
 #   derive              --root <build_patches_src> --work <dir>   # 상류 좌표에서 재파생(네트워크 필요)
@@ -45,6 +49,8 @@ import gzip
 import hashlib
 import json
 import os
+import re
+import stat
 import shutil
 import subprocess
 import sys
@@ -91,6 +97,14 @@ def load_provenance(root, override):
         fail(f"PROVENANCE.json 부재: {path} — 이식 변종이 아니면 이 도구를 부르지 않는다")
     with open(path, "rb") as fh:
         man = json.load(fh)
+    kind = man.get("source_payload", {}).get("kind")
+    if kind == "script-modules":
+        if "source" not in man or "files" in man:
+            fail("script-modules requires source and forbids a files-map (including empty files)")
+        script_module_inventory(man)
+        return man, path
+    if kind not in (None, "files-map"):
+        fail(f"unknown source_payload.kind: {kind!r}")
     for key in ("source", "files"):
         if key not in man:
             fail(f"PROVENANCE.json 스키마 위반: '{key}' 부재 ({path})")
@@ -98,6 +112,83 @@ def load_provenance(root, override):
     if declared is not None and declared != len(man["files"]):
         fail(f"PROVENANCE.json 자기모순: counts.files={declared} 인데 files 항목은 {len(man['files'])}개")
     return man, path
+
+
+def script_module_inventory(man):
+    """Explicit authored PRE modules; no vendor files/, caches or implicit *.py payload."""
+    payload = man.get("source_payload", {})
+    modules, helpers = payload.get("modules_sha256"), payload.get("helpers", [])
+    if payload.get("kind") != "script-modules" or not isinstance(modules, dict) or not modules:
+        fail("script-modules needs a nonempty modules_sha256 inventory")
+    if not isinstance(helpers, list) or len(set(helpers)) != len(helpers) or any(
+        not isinstance(n, str) or not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*\.py", n)
+        for n in helpers
+    ):
+        fail("script-modules helpers must be explicit top-level Python basenames")
+    for name, digest in modules.items():
+        if not isinstance(name, str) or not (
+            re.fullmatch(r"[0-9]{2}-[A-Za-z0-9_.-]+\.sh", name) or name in helpers
+        ) or not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+            fail(f"invalid script module inventory item: {name!r}")
+    if set(helpers) - set(modules) or not any(n.endswith(".sh") for n in modules):
+        fail("script-modules must contain scripts and every explicit helper")
+    return modules
+
+
+def open_module_root(root):
+    """Directory descriptor with no symlink ancestor; used by explicit module snapshotting."""
+    absolute = os.path.abspath(root)
+    fd = os.open(os.path.sep, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        for part in absolute.split(os.path.sep)[1:]:
+            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            os.close(fd)
+            fd = child
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def verify_script_modules(root, man, quiet=False):
+    modules = script_module_inventory(man)
+    fd = open_module_root(root)
+    try:
+        actual = set(os.listdir(fd))
+        allowed = set(modules) | {"PROVENANCE.json", ".gitkeep"}
+        missing = (set(modules) | {"PROVENANCE.json"}) - actual
+        extra = actual - allowed
+        if missing or extra:
+            fail(f"script-modules exact inventory mismatch: missing={sorted(missing)} extra={sorted(extra)}")
+        for name in sorted(actual):
+            before = os.stat(name, dir_fd=fd, follow_symlinks=False)
+            if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
+                fail(f"script-modules refuses nonregular/symlink/hardlink: {name}")
+            inp = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
+            with os.fdopen(inp, "rb") as fh:
+                st = os.fstat(fh.fileno())
+                if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
+                    fail(f"script-modules input changed type: {name}")
+                data = fh.read()
+                after = os.fstat(fh.fileno())
+                if (st.st_size, st.st_mtime_ns, st.st_ctime_ns) != (after.st_size, after.st_mtime_ns, after.st_ctime_ns):
+                    fail(f"script-modules input changed while reading: {name}")
+            if name in modules and hashlib.sha256(data).hexdigest() != modules[name]:
+                fail(f"script-modules sha256 mismatch: {name}")
+            if name == "PROVENANCE.json" and json.loads(data) != man:
+                fail("script-modules provenance differs from selected authority")
+            if name == ".gitkeep" and data:
+                fail("tracked .gitkeep scaffold must be empty, not payload")
+    finally:
+        os.close(fd)
+    if not quiet:
+        log(f"script-modules verified: {len(modules)} authored modules; files-map derive/bundle not applicable")
+    return 0
+
+
+def require_files_map(man, operation):
+    if man.get("source_payload", {}).get("kind") == "script-modules":
+        fail(f"{operation} is not applicable to script-modules: authored modules are verified and delivered directly; no files/ derivation or bundle")
 
 
 def run(cmd, cwd=None, check=True, capture=True):
@@ -338,6 +429,11 @@ def materialize(tree, files_root, man):
 # ── 서브커맨드 ───────────────────────────────────────────────────────────────
 def cmd_verify(args):
     man, path = load_provenance(args.root, args.provenance)
+    if man.get("source_payload", {}).get("kind") == "script-modules":
+        if args.files_root:
+            fail("script-modules verify does not accept --files-root")
+        log(f"authority={path}")
+        return verify_script_modules(args.root, man, quiet=args.quiet)
     files_root = args.files_root or os.path.join(args.root, "files")
     log(f"authority={path}")
     return verify(files_root, man, quiet=args.quiet)
@@ -345,6 +441,7 @@ def cmd_verify(args):
 
 def cmd_bundle(args):
     man, path = load_provenance(args.root, args.provenance)
+    require_files_map(man, "bundle")
     files_root = args.files_root or os.path.join(args.root, "files")
     if verify(files_root, man, quiet=True) != 0:
         fail("payload 무결성 실패 — 번들을 만들지 않는다(검증되지 않은 바이트는 배달하지 않는다)")
@@ -359,6 +456,7 @@ def cmd_bundle(args):
 
 def cmd_unbundle(args):
     man, path = load_provenance(args.root, args.provenance)
+    require_files_map(man, "unbundle")
     files_root = args.files_root or os.path.join(args.root, "files")
     if not os.path.isfile(args.bundle):
         fail(f"번들 부재: {args.bundle}")
@@ -397,6 +495,7 @@ def cmd_unbundle(args):
 
 def cmd_derive(args):
     man, path = load_provenance(args.root, args.provenance)
+    require_files_map(man, "derive")
     files_root = args.files_root or os.path.join(args.root, "files")
     spec_path, patch_path = resolutions_paths(man, args.repo)
     with open(spec_path) as fh:
@@ -421,6 +520,7 @@ def cmd_derive(args):
 def cmd_snapshot_resolutions(args):
     """현재 payload 를 정답으로 놓고 ①②③ 분류를 **자동 판정**해 잔차 자산을 재발행한다(메인 전용 저작)."""
     man, _path = load_provenance(args.root, args.provenance)
+    require_files_map(man, "snapshot-resolutions")
     files_root = args.files_root or os.path.join(args.root, "files")
     if verify(files_root, man, quiet=True) != 0:
         fail("현재 payload 가 PROVENANCE 와 불일치 — 잔차를 뜰 기준이 없다")

@@ -74,7 +74,6 @@
   references.md).
 - manifest가 하드웨어 사실·TP·모델 획득 모드의 단일 권위다 — git 브랜치로 추론하지 않는다(공식·우선순위는
   references.md).
-- 아치-enablement 변종 트랙: policy:ARCH_WALL_VARIANT_LADDER.
 - 변종이미지 build/serve 평면 경계: policy:VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.
 - 모델 트리플렛 서브 미전파: policy:MODEL_TRIPLET_NO_SUB_PROPAGATION.
 - 서브 git은 로컬 전용이다: policy:SUB_GIT_LOCAL_ONLY.
@@ -170,23 +169,7 @@
 
 ## 정책 경계
 
-- policy:A2A_IDENTITY_PROOF_FAIL_CLOSED
-- policy:ARCH_WALL_VARIANT_LADDER
-- policy:BRANCH_CONSTITUTION_LAYERING
-- policy:GIT_SINGLE_AUTHORITY
-- policy:HINT_TAG_ACTIVATION_GATE
-- policy:HOST_SAFETY_LAYERED_DEFENSE
-- policy:KV_ABSOLUTE_CLAMP_PORTABILITY
-- policy:LAST_GOOD_ROLLBACK_ANCHOR
-- policy:LIBRARY_GROUNDING_FAIL_CLOSED
-- policy:MODEL_ACQUISITION_TERNARY_GATE
-- policy:MODEL_TRIPLET_NO_SUB_PROPAGATION
 - policy:ROOT_SURFACE_REGISTRY
-- policy:RUNTIME_PATCH_NO_CARRY_FORWARD
-- policy:SUB_GIT_LOCAL_ONLY
-- policy:SUB_SYNC_DIRTY_AUTOSAVE
-- policy:TERRAFORM_FLAG_GATE
-- policy:VARIANT_IMAGE_BUILD_VS_SERVE_PLANE
 
 ## 조건부 참조
 

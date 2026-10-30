@@ -128,6 +128,32 @@
       },
       "_formal_smoke_testlogs": "정식화 스모크 판정(후보 evidence 는 plan·stock_infeasible_testlogs 두 키만 허용이라 사람 주석으로 둔다 · plan_26101011 Step 0): docs/testlog/testlog_26100414_V4_1_Flash_정식화_커널레버_K1_K3_판정.md · docs/testlog/testlog_26100420_V4_1_Flash_정식화_F2_K6_moe_prep_판정.md · docs/testlog/testlog_26100510_V4_1_Flash_i5_a_kern_정식레시피_판정.md",
       "status": "CANDIDATE — 2026-10-06 정식 Dockerfile.source-build(SM12X_PORT=1 · PRE 55·80~92 · POST 70~74·79) 양 노드 재빌드 3회(F1·F2·F3) 모두 SMOKE PASS · attestation serve 4축 equal(build_ledger·driver·torch·vllm_sha) · i5-a-kern(A 2.0bpw · TP=2 · 1M) lite 44.74 · Full c=1 39.8~40.8 t/s · hint 발행(hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/…-spec3-densegemv-moeprep). 저자 패치(sfxnz@3de91468 · MIT)는 핀 트리 digest + 파일 sha256 검증 후 빌드 시 적용(PROVENANCE sfxnz_p2b·woa·b12x·gemv·moeprep). VALIDATED 미승격 사유: 기존모델 회귀 재스모크(regression_evidence) 부재 — 선행 변종과 같은 사유."
+    },
+    "deepseek-v41-flash-sm12x-port-0.32.0": {
+      "variant_id": "source-sm12x-port-vllm-0.32.0",
+      "architecture": "sm12x",
+      "track": "source-sm12x-port",
+      "vllm_repo": "https://github.com/vllm-project/vllm.git",
+      "vllm_ref": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+      "build_patch_selectors": {
+        "SM12X_PORT": "1"
+      },
+      "image_tag": "easy-vllm:0.32.0-cu133-aarch64-source-sm12x",
+      "port_manifest": {
+        "path": "output/multi/build_patches_src/PROVENANCE.json",
+        "upstream_base_sha": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+        "files": 11
+      },
+      "_port_manifest_note": "files counts the explicit authored PRE script/helper inventory, not copied upstream source files. Generated script-modules are not a legacy files-map payload.",
+      "evidence": {
+        "plan": "docs/plan/plan_26102919_멀티4종_v032_완주.md",
+        "stock_infeasible_testlogs": [
+          "docs/testlog/testlog_26102919_i5_032_stock_EXL3_등록부_거부.md"
+        ]
+      },
+      "status": "CANDIDATE — official0.32 stock registry rejects exl3; fresh PRE80-89/helper + POST70/72/73/74/75/79 final attempt2 native variant built locally on both nodes; native extensions recompiled after POST75 dependency repair. Actual TP2 EXL3 MCG/file-backed Engram/DSpark3 serving smoke PASS (health200/chat.content1/reasoning101; model+draft73.96GiB per node), Full C1×3 valid24.04/22.73/23.66t/s, weak REFUTE against predeclared E43.73/floor37.17. Context131072/seq1/KV8GiB/eager; optional performance patches90-92 unexecuted; no0.30 runtime success inherited. VALIDATED not promoted: existing-model regression_evidence remains absent. Evidence: docs/testlog/testlog_26103005_i5_032_TP2와_Full_판정.md; docs/benchmark/bench_report_26103001_deepseek-v4.1-flash-exl3-2.0bpw-sfxnz_GB10_0.32.0.md.",
+      "_build_reuse_note": "The core csrc/CMake inputs are unchanged by the Python-only PRE port; derive over each node local verified source-deps2, preserve direct parent ledger and create a new child application ledger.",
+      "_current_build_evidence": "docs/logs/multi4_26102919/i5/main-variant-result.json; docs/testlog/testlog_26102919_i5_032_변종_로컬빌드.md"
     }
   }
 }

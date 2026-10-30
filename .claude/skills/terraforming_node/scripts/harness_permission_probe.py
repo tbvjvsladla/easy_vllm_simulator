@@ -142,7 +142,23 @@ def _build_files(workspace: Path, topology: str):
     """Inspect the declared compose input; unresolved interpolation is not proof."""
     try:
         import manifest_contract as mc
-        compose = mc._load_manifest(workspace / "output" / topology / "docker-compose.yaml")
+        compose_path = workspace / "output" / topology / "docker-compose.yaml"
+        compose = mc._load_manifest(compose_path)
+        # Multi build inputs select Dockerfiles through Compose interpolation.
+        # Observe Compose's actual selection; unresolved strings are never proof.
+        if any(isinstance(service, dict) and isinstance(service.get("build"), dict)
+               and "$" in str(service["build"].get("dockerfile", ""))
+               for service in compose.get("services", {}).values()):
+            argv = ["docker", "compose", "--profile", "*"]
+            env_path = compose_path.parent / ".env"
+            if env_path.is_file():
+                argv += ["--env-file", str(env_path)]
+            rc, out = _command(argv + ["-f", str(compose_path), "config", "--format", "json"], workspace)
+            if rc != 0:
+                return None
+            compose = json.loads(out)
+            if not isinstance(compose, dict):
+                return None
         selected = set()
         for service in compose.get("services", {}).values():
             build = service.get("build") if isinstance(service, dict) else None

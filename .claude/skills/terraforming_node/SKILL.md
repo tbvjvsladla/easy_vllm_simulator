@@ -191,7 +191,7 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 - 사용자 승인 없는 자동스캔 / 서브노드 무단 프로빙. 서브 조사는 A2A·문서 회수로 한다.
 - **HITL 없는 서브 work_dir 자동 신설**(§1.7). 성능(ib_write_bw) 미검증 멀티-ready 기입(fail-closed).
 - 무증거 manifest 오버라이드 / topology 를 브랜치와 어긋나게 기입(3자-일치 위반).
-- **빌딩블럭 스킬(terraforming_node·upstream-version-watch)·메인 manifest 를 서브에 전달 금지**(런타임블럭·렌더 산출물만 — §2.1/§2.3). 서브가 받는 것은 메인이 실측·발급한 **서브 manifest**(§2.7.10 · 설치 오버레이)뿐이다.
+- **빌딩블럭 스킬(terraforming_node)·메인 manifest 를 서브에 전달 금지**(런타임블럭·렌더 산출물만 — §2.1/§2.3). 서브가 받는 것은 메인이 실측·발급한 **서브 manifest**(§2.7.10 · 설치 오버레이)뿐이다.
 - **무증거 빈 정체성 렌더 금지**(render_sub_env.py 필수 필드 누락 시 fail-loud) · 템플릿에 IP·호스트 baking 금지(PII-free).
 - **카나리(§2.5) 미통과 시 done 선언 금지** · 서브 워크스페이스 재스캔으로 "검증" 대체 금지(push-attestation 위반).
 - SSH 키 교환·물리망 구성 대행(검증·가이드까지만).

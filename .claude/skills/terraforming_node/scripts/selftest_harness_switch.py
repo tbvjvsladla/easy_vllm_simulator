@@ -149,7 +149,8 @@ class HarnessSwitchChecks(unittest.TestCase):
         self.assertNotIn("reasoning_effort", old)
         self.assertFalse(any("model_reasoning_effort" in item for item in adapter._inner_argv(old)))
         self.assertTrue(agent_control.request_schema_violations(dict(request, reasoning_effort="invalid")))
-        self.assertTrue(agent_control.request_schema_violations(dict(self.request(), reasoning_effort="low")))
+        self.assertEqual(agent_control.request_schema_violations(dict(self.request(), reasoning_effort="low")), [])
+        self.assertTrue(agent_control.request_schema_violations(dict(self.request(), reasoning_effort="minimal")))
 
     def test_canary_cli_forwards_effort(self):
         command = [sys.executable, str(HERE / "bootstrap_canary.py"), "--topology", "multi",
@@ -160,6 +161,89 @@ class HarnessSwitchChecks(unittest.TestCase):
         request = json.loads(result.stdout)
         self.assertEqual((request["model"], request["reasoning_effort"]), ("gpt-6.1-terra", "low"))
         self.assertEqual(agent_control.request_schema_violations(request), [])
+
+    def test_slot_efforts_restore_without_cross_slot_leakage(self):
+        args = SimpleNamespace(ladder=[self.codex, self.claude], reasoning_effort="high",
+                               runner_effort=["sonnet=low"])
+        doc = {}
+        relay.restore_runner_efforts(args, doc)
+        self.assertEqual(relay.runner_effort(args, self.claude), ("low", "runner:sonnet"))
+        self.assertEqual(relay.runner_effort(args, self.codex), ("high", "caller"))
+        resumed = SimpleNamespace(ladder=args.ladder, reasoning_effort=None, runner_effort=None)
+        relay.restore_runner_efforts(resumed, doc)
+        self.assertEqual(relay.runner_effort(resumed, self.claude), ("low", "runner:sonnet"))
+        self.assertEqual(relay.runner_effort(resumed, self.codex), ("default", "native-default"))
+        self.assertTrue(relay.effort_matches(resumed, self.codex, {}))
+        for entries in (["typo=low"], ["sonnet=typo"], ["sonnet=low", "sonnet=high"]):
+            args.runner_effort = entries
+            self.assertRejected(relay.restore_runner_efforts, args, {})
+        changed = SimpleNamespace(ladder=[self.codex], runners="codex-gpt-6.1-sol", runner_effort=None)
+        relay.restore_runner_efforts(changed, doc)
+        self.assertEqual(doc["runner_efforts"], {})
+
+    def test_claude_effort_argv_and_unsupported_levels(self):
+        adapter = agent_control._load_provider("claude_code")
+        for backend, model in (("anthropic", "sonnet"), ("claude-sub", "deepseek-flash")):
+            for effort in ("low", "medium", "high", "xhigh", "max"):
+                request = dict(self.request(reasoning_effort=effort), backend=backend, model=model)
+                self.assertEqual(agent_control.request_schema_violations(request), [])
+                argv = adapter._inner_argv(request)
+                self.assertEqual(argv[argv.index("--effort") + 1], effort)
+        for effort in ("none", "minimal", "typo"):
+            self.assertTrue(agent_control.request_schema_violations(self.request(reasoning_effort=effort)))
+        request = self.request(reasoning_effort="default")
+        self.assertNotIn("--effort", adapter._inner_argv(request))
+        codex = agent_control._load_provider("codex_cli")
+        self.assertFalse(any("model_reasoning_effort" in x for x in
+                             codex._inner_argv(self.request("codex_cli", reasoning_effort="default"))))
+
+    def test_native_effort_default_is_measured_without_forcing_auto(self):
+        adapter = agent_control._load_provider("claude_code")
+        request = self.request(reasoning_effort="default", resume_session_id="existing-native")
+        success = {"status": "completed", "output": "work result"}
+        calls = []
+        def execute(req, observation=None):
+            calls.append(req)
+            if req["task"] == "/effort status":
+                observation["events"] = [{"type": "result", "local_command": "effort"}]
+                return {"status": "completed", "output": "Effort level: auto (currently high)",
+                        "session_id": req.get("resume_session_id")}
+            return dict(success)
+        with mock.patch.object(adapter, "_invoke", side_effect=execute):
+            result = adapter.invoke(request)
+        self.assertEqual(calls[0]["resume_session_id"], "existing-native")
+        self.assertNotIn("reasoning_effort", calls[0])
+        self.assertEqual(calls[1]["resume_session_id"], "existing-native")
+        self.assertNotIn("--effort", adapter._inner_argv(calls[1]))
+        self.assertLessEqual(calls[1]["timeout_seconds"], request["timeout_seconds"])
+        self.assertEqual(result["reasoning_selection"]["resolved"], "high")
+        self.assertEqual(result["reasoning_selection"]["mode"], "native-default")
+        self.assertIsNone(result["reasoning_selection"]["upstream_observed"])
+
+    def test_native_effort_status_rejects_fabricated_model_reply_and_timeout(self):
+        adapter = agent_control._load_provider("claude_code")
+        request = self.request(reasoning_effort="default")
+        # A model saying the exact phrase is not native policy evidence.
+        with mock.patch.object(adapter, "_invoke", return_value={
+                "status": "completed", "output": "Effort level: high"}) as call:
+            result = adapter.invoke(request)
+        self.assertEqual(result["status"], "malformed_output")
+        self.assertEqual(call.call_count, 1)
+        def slow(req, observation=None):
+            observation["events"] = [{"type": "result", "local_command": "effort"}]
+            return {"status": "completed", "output": "Effort level: high"}
+        with mock.patch.object(adapter, "_invoke", side_effect=slow) as call, \
+                mock.patch.object(adapter.time, "monotonic", side_effect=[0, 1000]):
+            result = adapter.invoke(request)
+        self.assertEqual(result["status"], "timeout")
+        self.assertEqual(call.call_count, 1)
+        capture = dict(request, intent="probe", capture_native_events=True)
+        with mock.patch.object(adapter, "_invoke", return_value={
+                "status": "completed", "output": "Effort level: high"}):
+            result = adapter.invoke(capture)
+        self.assertEqual(result["raw_events"], [])
+        self.assertEqual(agent_control._schema_violations(result,
+                         agent_control._load_schema(agent_control.RESULT_SCHEMA_PATH)), [])
 
     def test_relay_rejects_ambiguous_task_arguments(self):
         for args in (("--task", "one", "--task-file", "two"), ("--continue", "--task", "one")):
@@ -920,6 +1004,48 @@ class HarnessSwitchChecks(unittest.TestCase):
         self.assertEqual(attempt["end_reason"], "completed")
         self.assertEqual(attempt["session_binding"]["permission_profile"], ":danger-full-access")
         self.assertTrue((self.root / attempt["report_path"]).is_file())
+
+    def test_mixed_rotation_preserves_slot_efforts_in_durable_requests(self):
+        args = self.dispatch_args()
+        args.ladder = [self.codex, self.claude]
+        args.reasoning_effort = "high"
+        args.runner_effort = ["codex-gpt-6.1-sol=low", "sonnet=medium"]
+        path = relay.ledger_path(str(self.root), "switch")
+        state = relay.load_ledger(path)
+        relay.restore_runner_efforts(args, state)
+        real_run = subprocess.run
+        requests = []
+        def invoke(command, **kwargs):
+            if command[1:3] != [relay.AGENT_CONTROL, "invoke"]:
+                return real_run(command, **kwargs)
+            request = json.loads(Path(command[command.index("--request") + 1]).read_text())
+            requests.append(request)
+            self.assertEqual(agent_control.request_schema_violations(request), [])
+            adapter = agent_control._load_provider(request["provider"])
+            if request["provider"] == "codex_cli":
+                result = adapter._result(request, reasons=["RUNNER_UNAVAILABLE"],
+                    execution_started=False, evidence={"signal": "missing_binary", "rotate": True})
+            else:
+                report = {"context_id": "switch", "status": "completed", "phase": "inspect",
+                          "running_services": [], "artifacts": []}
+                result = adapter._result(request, status="completed", exit_code=0, reason_codes=[],
+                    output=json.dumps(report), session_id="fixture-claude", budget_outcome="within_budget")
+            result["reasoning_selection"] = {"requested": request["reasoning_effort"],
+                "resolved": request["reasoning_effort"], "source": "request", "mode": "explicit",
+                "upstream_observed": None, "selection_source": request["reasoning_effort_source"]}
+            agent_control.persist_outcome(command[command.index("--result-file") + 1],
+                dispatch_id=command[command.index("--dispatch-id") + 1], request=request, result=result)
+            return SimpleNamespace(stdout=json.dumps(result), stderr="", returncode=result["exit_code"])
+        with mock.patch.object(relay, "assert_sub_branch", return_value="multi"), \
+                mock.patch.object(relay.subprocess, "run", side_effect=invoke), \
+                contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(relay.run_attempt(args, state, path, "task", self.native, "new"), 0)
+        self.assertEqual([(r["provider"], r["reasoning_effort"]) for r in requests],
+                         [("codex_cli", "low"), ("claude_code", "medium")])
+        saved = relay.load_ledger(path)
+        self.assertEqual(saved["reasoning_effort"], "high")
+        self.assertEqual(saved["runner_efforts"], {"codex-gpt-6.1-sol": "low", "sonnet": "medium"})
+        self.assertEqual([a["reasoning_selection"]["requested"] for a in saved["attempts"]], ["low", "medium"])
 
     def test_lost_dispatch_output_preserves_reservation_and_prevents_replay(self):
         args = self.dispatch_args()

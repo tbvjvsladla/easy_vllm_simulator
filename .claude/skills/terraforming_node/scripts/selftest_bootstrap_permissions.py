@@ -304,6 +304,21 @@ class CanaryTests(unittest.TestCase):
         with mock.patch.object(probe, "_command") as run:
             self.assertIsNone(probe._hint_root(ws)); run.assert_not_called()
 
+    def test_interpolated_build_files_use_observed_compose_profiles(self):
+        output = self.root / "output/multi"; output.mkdir(parents=True)
+        (output / "docker-compose.yaml").write_text('services:\n  worker:\n    build:\n      dockerfile: ${BUILD_DOCKERFILE:-Dockerfile.source-build}\n')
+        (output / ".env").write_text("BUILD_DOCKERFILE=Dockerfile.source-build\n")
+        packet = {"services": {"worker": {"build": {"dockerfile": "Dockerfile.source-build"}}}}
+        with mock.patch.object(probe, "_command", return_value=(0, json.dumps(packet))) as run:
+            self.assertEqual(probe._build_files(self.root, "multi"), [*probe.BUILD_FILES, "Dockerfile.source-build"])
+            argv, cwd = run.call_args.args
+            self.assertIn("*", argv); self.assertIn("--profile", argv)
+            self.assertIn(str(output / ".env"), argv); self.assertEqual(cwd, self.root)
+        for result in ((1, ""), (0, "not-json"), (0, json.dumps({"services": {}})),
+                       (0, json.dumps({"services": {"worker": {"build": {"dockerfile": "${UNRESOLVED}"}}}}))):
+            with self.subTest(result=result), mock.patch.object(probe, "_command", return_value=result):
+                self.assertIsNone(probe._build_files(self.root, "multi"))
+
     def test_ambient_git_location_and_template_cannot_touch_existing_repo(self):
         outside = self.root / "existing"; outside.mkdir()
         subprocess.run(["git", "init", "--quiet", "--template=", str(outside)], check=True, capture_output=True)

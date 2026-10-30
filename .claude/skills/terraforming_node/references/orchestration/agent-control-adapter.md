@@ -93,13 +93,10 @@ minimax/`MiniMax-M3`). 백엔드별 기본 모델은 `BACKEND_DEFAULT_MODEL` 이
 ⚠ shim 은 auto mode 판정 호출까지 자기 모델로 보낸다 — 대화형 세션을 shim 으로 띄울 때는 auto mode 를
 쓰지 않는다(판정 불가 오류는 권한 거부가 아니다 · 정본 `SKILL.md` §2.7.11).
 
-- `kimi-claude`·`minimax-claude`·`meta-claude` 는 **노드 로컬 shim**(`~/.local/bin/<name>`, 비추적)이다 — .bashrc 의 셸 함수는
-  ssh 비대화형(`bash -lc`)에서 로드되지 않으므로 실행 파일 형태가 계약이다 — 2026-09-08 양 노드
-  실측으로 이유가 **둘**임이 확인됐다: ⓐ `.bashrc` 가 `case $- in *i*)` 로 조기 return 한다
-  ⓑ 어댑터가 감싸는 `timeout <n> <cmd>` 는 셸 함수를 exec 할 수 없다(둘은 독립이라 한쪽만 고쳐도
-  여전히 안 된다). env 라우팅(엔드포인트·
-  API 키·모델 슬롯)은 shim 과 `~/.kimi-claude.env`(0600)가 소유하며, **이 저장소의 추적 파일에는
-  키·엔드포인트를 적지 않는다**.
+- 외부 backend는 현재 adapter가 `bash -ic`에서 위치 인자로 호출하므로 노드 로컬 실행 파일과
+  셸 함수를 모두 해소할 수 있다. `claude-sub`도 이 경로다. 과거 비대화형 셸에서 함수가 사라졌던
+  사례는 현재 interactive shell 경로의 실행 파일 필수 근거가 아니다. 엔드포인트·키·모델 슬롯은
+  대상 노드 로컬 launcher가 소유하며 개인 설정과 자격증명을 메인 추적물에 복사하지 않는다.
 - backend 별 model 기본 선언은 어댑터의 `BACKEND_DEFAULT_MODEL` 이 준다(선언일 뿐이며, 실제 실행 모델은
   결과의 `model_used` 가 기록한다 — G-A1 계약 불변).
 - shim 부재는 provider 실행 실패(`NONZERO_EXIT` + stderr 진단)로 표면화된다 — 조용한 anthropic
@@ -129,7 +126,7 @@ stdout은 항상 `agent-control-result.schema.json`의 정렬된 JSON이다. 성
 
 ### 3.1 Codex adapter (v2)
 
-`scripts/providers/codex_cli.py`가 `codex exec` 구문의 유일한 발행처다. 선택적 `reasoning_effort`는 Codex 요청에만 허용되며 명시 시 `-c model_reasoning_effort="<값>"`로 전달한다. 생략 시 override는 없다. relay의 명시 값은 request와 재개 선택에 보존된다; 실제 모델 관측은 별도다. runner의 정체성은
+`scripts/providers/codex_cli.py`가 `codex exec` 구문의 유일한 발행처다. 선택적 `reasoning_effort`의 구체 값은 `-c model_reasoning_effort="<값>"`로 전달한다. 생략 또는 `default`는 override가 없다. Claude 요청도 아래 §3.2의 provider별 계약으로 effort를 지원한다. relay의 명시 값은 request와 재개 선택에 보존된다; 실제 모델 관측은 별도다. runner의 정체성은
 `provider × backend × model`이며 `backend=openai`인 Claude shim과 Codex는 다른 provider다.
 `agent_control.py runners --provider all`로 전체 별칭을 읽는다. 이번 명시적 선택은
 `codex-gpt-6.1-sol`이고 기존 기본 사다리는 바꾸지 않는다.
@@ -147,6 +144,40 @@ stdout은 항상 `agent-control-result.schema.json`의 정렬된 JSON이다. 성
   `raw_events`에 남긴다. 보고하지 않은 native 턴·API 시간·모델은 null/빈 배열이다.
 - 실패: 잘린 JSONL, 빈 최종 메시지, native failure, 권한 거부, timeout을 성공으로 바꾸지 않는다.
   미지 오류·권한 거부·효과가 발생했을 수 있는 실패는 자동 회전하지 않는다.
+
+### 3.2 추론 강도 — 슬롯 선택과 native 정책 출처
+
+`relay.py --runner-effort <러너별칭>=<강도>`를 반복하여 슬롯별로 지정한다. 선택 순서는 슬롯 선언 →
+`--reasoning-effort` 공통 선언 → `default`다. 사다리·전역 선언·슬롯 선언은 각각 원장에 보존되며,
+현재 슬롯의 값으로 전역 선언을 덮지 않는다. 수동/감독 재개도 슬롯 선언을 복구한다.
+각 attempt의 요청에는 `reasoning_effort`와 `reasoning_effort_source`가 있고 결과/원장에는
+`reasoning_selection`의 requested/resolved/source/mode가 남는다. `upstream_observed=null`은
+상류 전송 강도를 관측하지 않았다는 뜻이다. 요청값을 실제 추론량이나 효과로 승격하지 않는다.
+
+Claude의 명시 강도는 `low|medium|high|xhigh|max`이며 adapter가 `--effort`로 전달한다.
+`none|minimal`은 Claude CLI effort가 아니므로 dispatch 전 거부한다. router가 thinking off를 지원한다는
+사실이 이 CLI에 `--effort none`을 만들지는 않는다. Codex의 enum은 별도 계약을 유지한다.
+공식 근거: [Claude CLI reference](https://code.claude.com/docs/en/cli-reference),
+[effort 해소와 기본값](https://code.claude.com/docs/en/model-config#adjust-effort-level).
+
+Claude `default`는 실제 대상에서 같은 launcher/model로 `/effort status`를 실행하여 정책을 관측한다.
+raw terminal의 `local_command=effort`와 정확한 출력 형식을 함께 검증하므로 모델이 같은 문장을
+답했다고 기본값 근거로 받아들이지 않는다. 파싱 불가·실패·시간 소진은 본 작업을 실행하지 않는다.
+정책 관측 시간도 원래 timeout 안에서 차감한다. 이 local command는 모델 업무 성공이 아니다.
+`auto (currently high)`처럼 표시되면 resolved는 native 표시 수준인 high, mode는 native-default로
+구분하고 실제 호출에는 수치 override를 넣지 않는다. 자동 모드·사용자/managed 정책·모델별 기본값을
+보존하며 해당 노드의 개인 설정을 메인으로 복사하지 않는다. 명시적 resume이면 정책 질의도 같은 native 세션을 사용하고 반환 session ID를 대조한다.
+세션 내부 정책과 새 세션 기본값을 다른 것으로 기록하지 않는다.
+
+Codex `default`도 native override를 생략하지만 이 변경은 Codex의 전체 config 해소기를 복제하지
+않는다. 결과의 resolved는 null, source는 target-native-policy다. 수치 관측이 없음을 그대로 남긴다.
+기존 요청의 effort 필드 생략은 호환되며 새로운 relay 실행은 default 선택을 명시한다.
+
+Claude-sub 별칭은 기존 Flash/M3.1 별칭 외에 `claude-sub-deepseek-pro`, `claude-sub-kimi`,
+`claude-sub-minimax-m3`가 각각 `deepseek-pro`, `kimi-k3.1-pro`, `minimax-m3`를 선택한다.
+이 등재로 기본 사다리를 바꾸지 않는다. 제3자 router의 mapping은 그 router가 단일 소유하며 이
+저장소에 복제하지 않는다. 특히 MiniMax M3처럼 양의 effort를 omit하는 정책은 세분화된 강도 조절을
+뜻하지 않는다. 네이티브 CLI 표시, router 입력/출력, 실제 모델 추론량은 별도 관측이다.
 
 정상 워커 예산 소진과 과업 종료는 다르다. adapter가 실제 deadline 집행과 워커 종료·회수를
 요청에 결속해 관측한 경우 체크포인트 재개를 허용한다. 단순 exit124나 원격 SSH 감시 timeout은

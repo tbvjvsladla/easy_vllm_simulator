@@ -553,7 +553,7 @@ def main() -> int:
     ap.add_argument("--timeout-seconds", type=int, default=None,
                     help="매달림을 잡는 상한(scope ⊥ budget — 예산과 별개 노브)")
     ap.add_argument("--budget-source", default=None, help="그 예산을 그렇게 정한 근거(필수)")
-    ap.add_argument("--reasoning-effort", choices=("none", "minimal", "low", "medium", "high", "xhigh", "max"))
+    ap.add_argument("--reasoning-effort", choices=("default", "none", "minimal", "low", "medium", "high", "xhigh", "max"))
     ap.add_argument("--model", default=None,
                     help=f"위임 모델 선언(기본 = 백엔드의 기본 모델 · 어댑터는 모델을 막지 않는다)")
     ap.add_argument("--backend", choices=backend_choices(), default=None,
