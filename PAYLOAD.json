@@ -1,0 +1,2814 @@
+{
+  "agent_requests": [],
+  "applied_set": {
+    "excluded": [
+      {
+        "file": ".gitkeep",
+        "phase": "post",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      },
+      {
+        "file": ".gitkeep",
+        "phase": "pre",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      },
+      {
+        "file": "PROVENANCE.json",
+        "phase": "pre",
+        "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+      },
+      {
+        "file": "exl3_port_lib.py",
+        "phase": "pre",
+        "why": "nonconforming(<NN>-*.sh 규약 밖 — 싣지 않음)"
+      }
+    ],
+    "patches": [
+      {
+        "file": "80-exl3-quant-method.sh",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "19f70ed4dd0d98d6318209a1a987daec90515252397cecb33f21a5acb18a4e21",
+        "phase": "pre",
+        "reason": "lazy registration hook + chat template installed",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "19f70ed4dd0d98d6318209a1a987daec90515252397cecb33f21a5acb18a4e21"
+      },
+      {
+        "file": "81-exl3-model-wiring.sh",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "78d5606a73127488052cd1ffde5dbbe533cfeada1c2343095061f121d42f68b4",
+        "phase": "pre",
+        "reason": "3 edits (3 newly applied)",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "78d5606a73127488052cd1ffde5dbbe533cfeada1c2343095061f121d42f68b4"
+      },
+      {
+        "file": "82-exl3-h2d-stage.sh",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "373f1aa3fb7f80c921be8a793b85bf223b22520a0c5dbe19382e3fc15a8f6d4c",
+        "phase": "pre",
+        "reason": "14 new edits/footers",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "373f1aa3fb7f80c921be8a793b85bf223b22520a0c5dbe19382e3fc15a8f6d4c"
+      },
+      {
+        "file": "83-engram-file-backend.sh",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "e65f4871384d970c6cb1833eebe24756e3449489523f85291bd25bea7ca51112",
+        "phase": "pre",
+        "reason": "engram backend retargeted to common/engram.py",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "e65f4871384d970c6cb1833eebe24756e3449489523f85291bd25bea7ca51112"
+      },
+      {
+        "file": "84-sm12x-block-shim.sh",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "ce18151a93c9f9a6b101dc44efde8232aef5ed6a67c10c86c5fb2751b9dfc8ef",
+        "phase": "pre",
+        "reason": "6 new edits/footers",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "ce18151a93c9f9a6b101dc44efde8232aef5ed6a67c10c86c5fb2751b9dfc8ef"
+      },
+      {
+        "file": "85-exl3-serial-streams.sh",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "b6c5cadf73a667c892ce017edd33cdf7c56b0b3e4f4b44fc6b36feb5ded0147b",
+        "phase": "pre",
+        "reason": "2 new edits",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "b6c5cadf73a667c892ce017edd33cdf7c56b0b3e4f4b44fc6b36feb5ded0147b"
+      },
+      {
+        "file": "86-exl3-worker-hooks.sh",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "f4b142ccb0360b887376306d9af1db78820b021aacf607b204346f4a4f9a8d58",
+        "phase": "pre",
+        "reason": "worker hooks footer installed",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "f4b142ccb0360b887376306d9af1db78820b021aacf607b204346f4a4f9a8d58"
+      },
+      {
+        "file": "87-engram-embed-skip.sh",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "91c254f6bc88120d710ca02296d9e2faf352eae157080379b94b76d3fb79d39e",
+        "phase": "pre",
+        "reason": "engram embed skip installed",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "91c254f6bc88120d710ca02296d9e2faf352eae157080379b94b76d3fb79d39e"
+      },
+      {
+        "file": "88-engram-prestage.sh",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "185f6d23574158a812858240cfe55d8a6a60139377fd03466883ac4d42b88022",
+        "phase": "pre",
+        "reason": "2 new edits (prestage v2: census+early)",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "185f6d23574158a812858240cfe55d8a6a60139377fd03466883ac4d42b88022"
+      },
+      {
+        "file": "89-kv-null-block-zero.sh",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "2ede1ae09b75a75af3580789ff632107514ffec5ee1f8ee166a9a51540209abe",
+        "phase": "pre",
+        "reason": "2 new edits",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "2ede1ae09b75a75af3580789ff632107514ffec5ee1f8ee166a9a51540209abe"
+      },
+      {
+        "declared_model_trigger": "generic shared runtime dependency consistency; no model weights.",
+        "file": "05-ngc-source032-deps-compat.sh",
+        "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger: generic shared runtime dependency consistency; no model weights.)",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "ef79a410b90cae256d9b520e95ad32e7480059a8f2ffce194810749e225dbc54",
+        "phase": "post",
+        "reason": "NGC26.07 source032 measured hub/pytest intersection reused; pip check passed",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "ef79a410b90cae256d9b520e95ad32e7480059a8f2ffce194810749e225dbc54",
+        "shared_image_input": true
+      },
+      {
+        "declared_model_trigger": "Generic SM120/SM121 B12X optional backend; no model weights.",
+        "file": "06-b12x-optional032.sh",
+        "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger: Generic SM120/SM121 B12X optional backend; no model weights.)",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15",
+        "phase": "post",
+        "reason": "Official vLLM0.32 optional B12X1.5.1 exact wheel; pip check passed; GPU kernels unverified",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15",
+        "shared_image_input": true
+      },
+      {
+        "file": "70-exllamav3-build.sh",
+        "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger 헤더 없음)",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "e3ce003d2c2a69de56567f3b7c0d0ae0c4757e268255c393a139a415025342b6",
+        "phase": "post",
+        "reason": "exllamav3 1.4.5 @ e648f1a13136 built for 12.1a",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "e3ce003d2c2a69de56567f3b7c0d0ae0c4757e268255c393a139a415025342b6",
+        "shared_image_input": true
+      },
+      {
+        "file": "72-exl3-row-store.sh",
+        "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger 헤더 없음)",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "110c360787c24033617519127e6f0d1373508288f1bb12c70b7d5d7251bf5e39",
+        "phase": "post",
+        "reason": "librow_store.so built (/opt/exl3-port/librow_store.so)",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "110c360787c24033617519127e6f0d1373508288f1bb12c70b7d5d7251bf5e39",
+        "shared_image_input": true
+      },
+      {
+        "file": "73-vllm-exl3-build.sh",
+        "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger 헤더 없음)",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "36fec33430a034392f6451be53557f0acba35b5c46dfe08729a530d729ab77e8",
+        "phase": "post",
+        "reason": "vllm-exl3 0.4.2 @ d3cfd3949203 + sfxnz p2b shapes/mrow/cfg1/codebook/fshift/srcsort/coop/dataflow @ 3de914682d08 built for 12.1a",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "36fec33430a034392f6451be53557f0acba35b5c46dfe08729a530d729ab77e8",
+        "shared_image_input": true
+      },
+      {
+        "file": "74-exl3-moe-prep-fused.sh",
+        "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger 헤더 없음)",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "cc290b5449c0a603bed4b3455b84e8bb9ae82c53579672f33ecbbc3e24886cfa",
+        "phase": "post",
+        "reason": "sfxnz moe_prep_fused @ 3de914682d08 (runtime /opt/exl3-port/dsv41-patch) + exl3.py arming footer (DSV41_MOE_PREP_FUSED gate)",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "cc290b5449c0a603bed4b3455b84e8bb9ae82c53579672f33ecbbc3e24886cfa",
+        "shared_image_input": true
+      },
+      {
+        "file": "75-exl3-python-deps032.sh",
+        "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger 헤더 없음)",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "c1a3fc81d31d9b6be28f5c2c60c9f88b9ebca1055f0403149f5712e4755df89d",
+        "phase": "post",
+        "reason": "FLA0.6.0/fla-core0.6.0/marisa1.4.1 closure; pinned wheel SHA",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "c1a3fc81d31d9b6be28f5c2c60c9f88b9ebca1055f0403149f5712e4755df89d",
+        "shared_image_input": true
+      },
+      {
+        "file": "79-exl3-port-selfcheck.sh",
+        "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger 헤더 없음)",
+        "ledger_result_source": "status-file",
+        "ledger_script_sha256": "56227afebc5b1f22d864ee76dfd618cf6a54489e4a556cbf0a8cca9d9d7cb07c",
+        "phase": "post",
+        "reason": "self-check PASS (registry, classes, plugin edits, natives, engram hook + embed skip)",
+        "result": "applied",
+        "result_source": "build-ledger",
+        "script_identity": "build-ledger(원장 script_sha256 = 작업트리 바이트 — 실린 바이트 = 빌드가 실행한 바이트)",
+        "script_sha256": "56227afebc5b1f22d864ee76dfd618cf6a54489e4a556cbf0a8cca9d9d7cb07c",
+        "shared_image_input": true
+      }
+    ],
+    "per_node_patchsets": {
+      "main": [
+        "post/05-ngc-source032-deps-compat.sh=applied",
+        "post/06-b12x-optional032.sh=applied",
+        "post/70-exllamav3-build.sh=applied",
+        "post/72-exl3-row-store.sh=applied",
+        "post/73-vllm-exl3-build.sh=applied",
+        "post/74-exl3-moe-prep-fused.sh=applied",
+        "post/75-exl3-python-deps032.sh=applied",
+        "post/79-exl3-port-selfcheck.sh=applied",
+        "pre/80-exl3-quant-method.sh=applied",
+        "pre/81-exl3-model-wiring.sh=applied",
+        "pre/82-exl3-h2d-stage.sh=applied",
+        "pre/83-engram-file-backend.sh=applied",
+        "pre/84-sm12x-block-shim.sh=applied",
+        "pre/85-exl3-serial-streams.sh=applied",
+        "pre/86-exl3-worker-hooks.sh=applied",
+        "pre/87-engram-embed-skip.sh=applied",
+        "pre/88-engram-prestage.sh=applied",
+        "pre/89-kv-null-block-zero.sh=applied"
+      ],
+      "sub": [
+        "post/05-ngc-source032-deps-compat.sh=applied",
+        "post/06-b12x-optional032.sh=applied",
+        "post/70-exllamav3-build.sh=applied",
+        "post/72-exl3-row-store.sh=applied",
+        "post/73-vllm-exl3-build.sh=applied",
+        "post/74-exl3-moe-prep-fused.sh=applied",
+        "post/75-exl3-python-deps032.sh=applied",
+        "post/79-exl3-port-selfcheck.sh=applied",
+        "pre/80-exl3-quant-method.sh=applied",
+        "pre/81-exl3-model-wiring.sh=applied",
+        "pre/82-exl3-h2d-stage.sh=applied",
+        "pre/83-engram-file-backend.sh=applied",
+        "pre/84-sm12x-block-shim.sh=applied",
+        "pre/85-exl3-serial-streams.sh=applied",
+        "pre/86-exl3-worker-hooks.sh=applied",
+        "pre/87-engram-embed-skip.sh=applied",
+        "pre/88-engram-prestage.sh=applied",
+        "pre/89-kv-null-block-zero.sh=applied"
+      ]
+    },
+    "probes": [
+      {
+        "ref": "output/multi/benchlog/attestation_ds41-load-local-1m.json",
+        "result": "observed",
+        "tier": "attestation"
+      }
+    ],
+    "source": "attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main",
+    "status": "observed"
+  },
+  "approval": {
+    "approved_by": "사용자: hint태그도 발행해야 하니 full bench도 수행해줘. 범위2(모델별 대표 정책에서 full bench 및 hint) 선택. 대표 정책③을 포함한 실행 계획에 서브 모델 지정 후 진행 지시.",
+    "approved_utc": "2026-10-30T08:39:00Z",
+    "source": "campaign:hint_targets"
+  },
+  "attestation_scope": {
+    "bound_by": "cell-name",
+    "config": "ds41-load-local-1m",
+    "measure_window": {
+      "end_utc": "2026-10-30T15:54:26Z",
+      "source": "시작 output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json measured_utc(호스트 date -u · lite_bench.sh 가 cold 레그 직전에 찍는 측정 시작) · 끝 = 측정 키(인증서 measured_utc · 스윕 generated_utc · lite 리포트 생성일)",
+      "start_utc": "2026-10-30T15:42:48Z"
+    },
+    "path": "output/multi/benchlog/attestation_ds41-load-local-1m.json",
+    "phase": "serve",
+    "scope": "same config(ds41-load-local-1m) · serve — 원장 순서로 판별한 같은 기동의 관측(결속된 스모크 로그 미확인 · 제한검색 · 약한 판별)(판별: 원장 순서로 판별(결속된 스모크 로그 미확인 · 제한검색 — docs/simlog/**/*serve*.log 에서 이 attestation 을 적은 로그 미확인; 다른 경로의 보존 여부는 판정하지 않음): 원장 docs/logs/main/events/2026-10.jsonl:952 budget_declare(smoke-ds41-load-local-1m · 2026-10-30T15:34:53Z) ≤ attestation 작성 2026-10-30T15:42:25Z · serve_proof 작성 2026-10-30T15:42:25Z < 측정 시작 2026-10-30T15:42:48Z · 그 선언이 측정 끝 2026-10-30T15:54:26Z 까지 재선언 · 창 닫힘 없이 이어짐(main 원장 기록 범위 안) · API 서버 기동 2026-10-30T15:41:58Z(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log:726 · 컨테이너 시계 = UTC 가정) ∈ [선언, attestation 작성] · 측정 엔진 로그 APIServer pid 1 하나)",
+    "timing": "before-measurement",
+    "timing_note": "작성 2026-10-30T15:42:25Z < 측정 시작 2026-10-30T15:42:48Z — 측정 전(빌드·스모크)의 관측",
+    "written_utc": "2026-10-30T15:42:25Z",
+    "written_utc_source": "output/multi/benchlog/attestation_ds41-load-local-1m.json 파일 mtime(파일시스템 관측 — 문서에 시각 칸이 없다 · 기록 필드 아님)"
+  },
+  "bench_definition": {
+    "bench_tool": "guidellm",
+    "bench_tool_source": "bench_report(bench_report_26103100_deepseek-v4.1-flash-exl3-2.0bpw-sfxnz_GB10_0.32.0.md)",
+    "current_full_definition": "full 계측(lite 게이트 → `GuideLLM × 반복 ≥3` · lite ⊂ full)",
+    "meets_current_full": true,
+    "reasons": [
+      "판정점 반복 3 ≥ 3 · 도구 guidellm"
+    ],
+    "repeats_requested": 3,
+    "repeats_source": "측정 구성 표 repeats_completed(완주 · bench_report(bench_report_26103100_deepseek-v4.1-flash-exl3-2.0bpw-sfxnz_GB10_0.32.0.md))",
+    "required_legs": [
+      "lite",
+      "GuideLLM"
+    ],
+    "required_repeats": 3,
+    "source": ".claude/rules/docs.md",
+    "source_line": 42,
+    "this_repeats": 3,
+    "verdict_level": 1
+  },
+  "build": {
+    "cpu_arch": "arm64",
+    "cuda": "13.3.1.008",
+    "dockerfile": "Dockerfile.source-build-sm12x",
+    "driver": "580.178.04",
+    "driver_by_node": {
+      "main": "580.178.04",
+      "sub": "580.178.04"
+    },
+    "driver_check": {
+      "declared": "580.178.04",
+      "observation_scope": "이 측정에 결속된 구조화 드라이버 관측 입력",
+      "observed": "580.178.04",
+      "sources": {
+        "declared": "sweep_index.meta.driver_version(output/multi/benchlog/sweep_loading_ds41-load-local-1m · 측정 시 조립 — sweep_bench.sh 가 manifest 에서 읽는다) (manifest 선언 옮김)",
+        "observed": "attestation parity.driver(output/multi/benchlog/attestation_ds41-load-local-1m.json · 노드별 관측 · verdict=equal) — main=sub 일치 · 작성 2026-10-30T15:42:25Z < 측정 시작 2026-10-30T15:42:48Z — 측정 전(빌드·스모크)의 관측 · 원장 순서로 판별한 같은 기동의 관측(결속된 스모크 로그 미확인 · 제한검색 · 약한 판별)(판별 근거 = attestation 범위 줄 · 원장 docs/logs/main/events/2026-10.jsonl)"
+      },
+      "verdict": "agree"
+    },
+    "driver_conflict": null,
+    "image_digest": "sha256:436bd187022965d2e41f8969695d8446baeca6c5d50692d8b6db76ae2877a916",
+    "image_tag": "easy-vllm:0.32.0-cu133-aarch64-source-sm12x",
+    "ngc": "26.07",
+    "os": null,
+    "source": {
+      "cpu_arch": "docker image inspect Architecture",
+      "cuda": "docker image inspect Config.Env CUDA_VERSION",
+      "dockerfile": "build-ledger.dockerfile",
+      "driver": "attestation parity.driver(output/multi/benchlog/attestation_ds41-load-local-1m.json · 노드별 관측 · verdict=equal) — main=sub 일치 · 작성 2026-10-30T15:42:25Z < 측정 시작 2026-10-30T15:42:48Z — 측정 전(빌드·스모크)의 관측 · 원장 순서로 판별한 같은 기동의 관측(결속된 스모크 로그 미확인 · 제한검색 · 약한 판별)(판별 근거 = attestation 범위 줄 · 원장 docs/logs/main/events/2026-10.jsonl)",
+      "driver_by_node": "attestation parity.driver(output/multi/benchlog/attestation_ds41-load-local-1m.json · 노드별 관측 · verdict=equal) — main=sub 일치 · 작성 2026-10-30T15:42:25Z < 측정 시작 2026-10-30T15:42:48Z — 측정 전(빌드·스모크)의 관측 · 원장 순서로 판별한 같은 기동의 관측(결속된 스모크 로그 미확인 · 제한검색 · 약한 판별)(판별 근거 = attestation 범위 줄 · 원장 docs/logs/main/events/2026-10.jsonl)",
+      "image_digest": "sweep_index.meta.image_digest(measured(docker inspect .Image))",
+      "image_tag": "셀 env(output/multi/envs/.env.ds41-load-local-1m) IMAGE_TAG",
+      "ngc": "docker image inspect Config.Env NVIDIA_PYTORCH_VERSION",
+      "os": "미관측(attestation·인증서·스윕 meta·manifest 에 ['os', 'os_release', 'os_name', 'os_version', 'kernel', 'kernel_release'] 키 없음 — 지어내지 않는다)",
+      "torch": "docker image inspect Config.Env PYTORCH_VERSION",
+      "track": "artifacts 선택자(build-ledger.dockerfile)",
+      "vllm_describe": "빌드 원장(output/multi/benchlog/attestation_ds41-load-local-1m.json · attestation) vllm.describe(git describe --tags · 빌드 시점)",
+      "vllm_prev_pin": "output/multi/resolved.json upstream_delta.from_ref(해소 기록)",
+      "vllm_ref": "docker history build-arg VLLM_REF",
+      "vllm_repo": "docker history build-arg VLLM_REPO",
+      "vllm_sha": "VLLM_REF(40자 커밋 · docker history build-arg VLLM_REF)"
+    },
+    "torch": "2.13.0a0+9186a08",
+    "track": "source-build",
+    "vllm_describe": "v0.32.0",
+    "vllm_prev_pin": "v0.31.0",
+    "vllm_ref": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+    "vllm_repo": "https://github.com/vllm-project/vllm.git",
+    "vllm_sha": "5df63a7203cdb9328d824a27b682e77c7b9928be"
+  },
+  "build_context_map": [
+    {
+      "basis": "compose env_file envs/.env.${CONFIG_FILE}(셀 env)",
+      "context_path": "envs/.env.ds41-load-local-1m",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/triplet/.env.ds41-load-local-1m"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/ds41-load-local-1m.sh",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/triplet/ds41-load-local-1m.sh"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/ds41-load-local-1m.yaml",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/triplet/ds41-load-local-1m.yaml"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches_src/80-exl3-quant-method.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "19f70ed4dd0d98d6318209a1a987daec90515252397cecb33f21a5acb18a4e21",
+      "slot_path": "artifacts/build_patch_pre/80-exl3-quant-method.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches_src/81-exl3-model-wiring.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "78d5606a73127488052cd1ffde5dbbe533cfeada1c2343095061f121d42f68b4",
+      "slot_path": "artifacts/build_patch_pre/81-exl3-model-wiring.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches_src/82-exl3-h2d-stage.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "373f1aa3fb7f80c921be8a793b85bf223b22520a0c5dbe19382e3fc15a8f6d4c",
+      "slot_path": "artifacts/build_patch_pre/82-exl3-h2d-stage.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches_src/83-engram-file-backend.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "e65f4871384d970c6cb1833eebe24756e3449489523f85291bd25bea7ca51112",
+      "slot_path": "artifacts/build_patch_pre/83-engram-file-backend.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches_src/84-sm12x-block-shim.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "ce18151a93c9f9a6b101dc44efde8232aef5ed6a67c10c86c5fb2751b9dfc8ef",
+      "slot_path": "artifacts/build_patch_pre/84-sm12x-block-shim.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches_src/85-exl3-serial-streams.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "b6c5cadf73a667c892ce017edd33cdf7c56b0b3e4f4b44fc6b36feb5ded0147b",
+      "slot_path": "artifacts/build_patch_pre/85-exl3-serial-streams.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches_src/86-exl3-worker-hooks.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "f4b142ccb0360b887376306d9af1db78820b021aacf607b204346f4a4f9a8d58",
+      "slot_path": "artifacts/build_patch_pre/86-exl3-worker-hooks.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches_src/87-engram-embed-skip.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "91c254f6bc88120d710ca02296d9e2faf352eae157080379b94b76d3fb79d39e",
+      "slot_path": "artifacts/build_patch_pre/87-engram-embed-skip.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches_src/88-engram-prestage.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "185f6d23574158a812858240cfe55d8a6a60139377fd03466883ac4d42b88022",
+      "slot_path": "artifacts/build_patch_pre/88-engram-prestage.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches_src/89-kv-null-block-zero.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "2ede1ae09b75a75af3580789ff632107514ffec5ee1f8ee166a9a51540209abe",
+      "slot_path": "artifacts/build_patch_pre/89-kv-null-block-zero.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches/05-ngc-source032-deps-compat.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "ef79a410b90cae256d9b520e95ad32e7480059a8f2ffce194810749e225dbc54",
+      "slot_path": "artifacts/build_patch_post/05-ngc-source032-deps-compat.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches/06-b12x-optional032.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15",
+      "slot_path": "artifacts/build_patch_post/06-b12x-optional032.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches/70-exllamav3-build.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "e3ce003d2c2a69de56567f3b7c0d0ae0c4757e268255c393a139a415025342b6",
+      "slot_path": "artifacts/build_patch_post/70-exllamav3-build.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches/72-exl3-row-store.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "110c360787c24033617519127e6f0d1373508288f1bb12c70b7d5d7251bf5e39",
+      "slot_path": "artifacts/build_patch_post/72-exl3-row-store.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches/73-vllm-exl3-build.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "36fec33430a034392f6451be53557f0acba35b5c46dfe08729a530d729ab77e8",
+      "slot_path": "artifacts/build_patch_post/73-vllm-exl3-build.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches/74-exl3-moe-prep-fused.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "cc290b5449c0a603bed4b3455b84e8bb9ae82c53579672f33ecbbc3e24886cfa",
+      "slot_path": "artifacts/build_patch_post/74-exl3-moe-prep-fused.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches/75-exl3-python-deps032.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "c1a3fc81d31d9b6be28f5c2c60c9f88b9ebca1055f0403149f5712e4755df89d",
+      "slot_path": "artifacts/build_patch_post/75-exl3-python-deps032.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "build_patches/79-exl3-port-selfcheck.sh",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "56227afebc5b1f22d864ee76dfd618cf6a54489e4a556cbf0a8cca9d9d7cb07c",
+      "slot_path": "artifacts/build_patch_post/79-exl3-port-selfcheck.sh",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "raw slot equals explicit final frozen source before annotation; selected Dockerfile may carry the recorded generated-unverified warning; file_records.sha256 hashes shipped bytes; no duplicate artifact",
+      "context_path": "Dockerfile",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "frozen_source_sha256": "25fca737e28b87cf264456fcfe41523490915fb9433720b9d5c8c64e794acebe",
+      "slot_path": "artifacts/build_recipe/Dockerfile.source-build-sm12x",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": null,
+      "context_root": null,
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/README.md",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": null,
+      "context_root": null,
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/alias-evidence.json",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "Dockerfile.source-build",
+      "context_root": "parent-source-core/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/context/Dockerfile.source-build",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "build_patches/.gitkeep",
+      "context_root": "parent-source-core/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/context/build_patches/.gitkeep",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "build_patches/05-ngc-source032-deps-compat.sh",
+      "context_root": "parent-source-core/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/context/build_patches/05-ngc-source032-deps-compat.sh",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "build_patches_src/.gitkeep",
+      "context_root": "parent-source-core/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/context/build_patches_src/.gitkeep",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "requirements.txt",
+      "context_root": "parent-source-core/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/context/requirements.txt",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": null,
+      "context_root": null,
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/core-build-command.txt",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "Dockerfile.source-build-deps2",
+      "context_root": "parent-source-core/intermediate-deps2/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/intermediate-deps2/context/Dockerfile.source-build-deps2",
+      "stage": "intermediate-deps2"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "build_patches/06-b12x-optional032.sh",
+      "context_root": "parent-source-core/intermediate-deps2/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/intermediate-deps2/context/build_patches/06-b12x-optional032.sh",
+      "stage": "intermediate-deps2"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": null,
+      "context_root": null,
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/leaf-build-command.txt",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": null,
+      "context_root": null,
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/leaf-ledger-evidence.json",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": null,
+      "context_root": null,
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/leaf-result-evidence.json",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "build_patches/.gitkeep",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/leaf-support/build_patches/.gitkeep",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "build_patches/Dockerfile.source-build-deps2",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/leaf-support/build_patches/Dockerfile.source-build-deps2",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "build_patches_src/.gitkeep",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/leaf-support/build_patches_src/.gitkeep",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "build_patches_src/PROVENANCE.json",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/leaf-support/build_patches_src/PROVENANCE.json",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": "build_patches_src/exl3_port_lib.py",
+      "context_root": "leaf-sm12x/context",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/leaf-support/build_patches_src/exl3_port_lib.py",
+      "stage": "leaf-sm12x"
+    },
+    {
+      "basis": "explicit selected-image-bound parent manifest; main frozen context only; metadata is not build context",
+      "context_path": null,
+      "context_root": null,
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/build_recipe/parent-source-core/manifest.json",
+      "stage": "parent-source-core"
+    },
+    {
+      "basis": "compose env_file envs/.env.cluster",
+      "context_path": "envs/.env.cluster",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/compose/.env.cluster.template"
+    },
+    {
+      "basis": "compose env_file envs/.env.interconnect",
+      "context_path": "envs/.env.interconnect",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/compose/.env.interconnect.template"
+    },
+    {
+      "basis": "compose 변수치환 프로젝트 .env(${…} 참조)",
+      "context_path": ".env",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/compose/.env.template"
+    },
+    {
+      "basis": "compose 파일(빌드 컨텍스트 루트)",
+      "context_path": "docker-compose.yaml",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/compose/docker-compose.yaml"
+    },
+    {
+      "basis": "compose volumes ./configs:/app/configs",
+      "context_path": "configs/serve_runner.sh",
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/compose/serve_runner.sh"
+    },
+    {
+      "basis": "빌드 컨텍스트 입력 아님(Dockerfile COPY · compose 참조 밖)",
+      "context_path": null,
+      "context_scope": "reconstruction_example",
+      "slot_path": "artifacts/compose/sub_recipe.json"
+    },
+    {
+      "basis": "parent frozen inventory: empty PRE scaffold only; no current i5 PRE modules",
+      "context_path": "build_patches_src/",
+      "context_root": "parent-source-core/context",
+      "context_scope": "reconstruction_example",
+      "create": "empty-dir",
+      "inventory": [
+        ".gitkeep"
+      ],
+      "slot_path": null,
+      "stage": "parent-source-core"
+    }
+  ],
+  "campaign": {
+    "cell": "ds41-load-local-1m",
+    "id": "camp-26103017-nas-nvme-loading",
+    "mode": "campaign",
+    "node": "cluster"
+  },
+  "cell_grade": "full",
+  "dataset_provenance": {
+    "dataset_column_map": null,
+    "dataset_duplicate_sampling": null,
+    "dataset_id": null,
+    "dataset_kind": "synthetic",
+    "dataset_preprocess_strategy": null,
+    "dataset_provenance": null,
+    "dataset_revision": null,
+    "dataset_seed": null,
+    "dataset_source": null,
+    "dataset_source_sha256": null,
+    "dataset_tokenizer": null,
+    "source": "bench_report(bench_report_26103100_deepseek-v4.1-flash-exl3-2.0bpw-sfxnz_GB10_0.32.0.md) 측정 구성 표",
+    "status": "recorded"
+  },
+  "evidence_pointers": [
+    {
+      "cell_id": "ds41-load-local-1m",
+      "kind": "bench_report",
+      "node_id": "main",
+      "path": "docs/benchmark/bench_report_26103100_deepseek-v4.1-flash-exl3-2.0bpw-sfxnz_GB10_0.32.0.md"
+    },
+    {
+      "cell_id": "ds41-load-local-1m",
+      "kind": "devlog",
+      "node_id": "main",
+      "path": "docs/devlog/devlog_26103023_DeepSeek_1M_로딩비교_진행.md"
+    },
+    {
+      "cell_id": "ds41-load-local-1m",
+      "kind": "simlog",
+      "node_id": "main",
+      "path": "docs/simlog/26103017_NAS_NVMe_로딩비교/trials/ds41-load-local-1m/trial-3/master.log"
+    },
+    {
+      "cell_id": "ds41-load-local-1m",
+      "kind": "simlog",
+      "node_id": "main",
+      "path": "docs/simlog/26103017_NAS_NVMe_로딩비교/trials/ds41-load-local-1m/trial-3/measurement.json"
+    },
+    {
+      "cell_id": "ds41-load-local-1m",
+      "kind": "simlog",
+      "node_id": "main",
+      "path": "docs/simlog/26103017_NAS_NVMe_로딩비교/trials/ds41-load-local-1m/trial-3/serve_attestation.json"
+    },
+    {
+      "cell_id": "ds41-load-local-1m",
+      "kind": "simlog",
+      "node_id": "main",
+      "path": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/sweep_index.json"
+    },
+    {
+      "cell_id": "ds41-load-local-1m",
+      "kind": "testlog",
+      "node_id": "main",
+      "path": "docs/testlog/testlog_26103023_DeepSeek_1M_로딩비교_진행.md"
+    }
+  ],
+  "factcheck": {
+    "author": "main-author",
+    "checked_utc": "2026-10-30T16:06:58Z",
+    "checker": "independent-factchecker",
+    "claims_checked": 1043,
+    "fixed": 2,
+    "items": 2,
+    "open": [],
+    "reason_code": null,
+    "source": "inputs/factcheck.json",
+    "status": "passed"
+  },
+  "format": "hint-payload/v7",
+  "generated_utc": "2026-10-30T16:00:30Z",
+  "identity": {
+    "base_model": "deepseek-ai/DeepSeek-V4.1-Flash",
+    "base_slug": "deepseek-v4.1-flash-exl3-2.0bpw-sfxnz",
+    "gpu": "NVIDIA GB10",
+    "hf_repo": null,
+    "hf_revision": null,
+    "model": "deepseek-v4.1-flash-exl3-2.0bpw-sfxnz",
+    "quant": "exl3",
+    "quant_composition": [
+      {
+        "dtype": "exl3 (weight_block_size=[32, 32])",
+        "scope": "quantization_config 선언 대상(양자화 층 · 제외 목록 밖)",
+        "source": "/app/quant_models/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz → <manifest.quant_model_path>/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz/config.json quantization_config quant_method"
+      },
+      {
+        "dtype": "bfloat16",
+        "scope": "기본 dtype(비양자화 가중치·계산)",
+        "source": "/app/quant_models/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz → <manifest.quant_model_path>/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz/config.json dtype"
+      }
+    ],
+    "source": {
+      "base_model": "체크포인트 README base_model(/app/quant_models/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz → <manifest.quant_model_path>/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz)",
+      "base_slug": "model(deepseek-v4.1-flash-exl3-2.0bpw-sfxnz) − vocab quant_suffixes(naming.base_slug)",
+      "gpu": "sweep_index.meta(output/multi/benchlog/sweep_loading_ds41-load-local-1m)",
+      "hf_repo": "체크포인트 .git/config 부재(/app/quant_models/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz → <manifest.quant_model_path>/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz) — HF repo 미관측",
+      "hf_revision": "체크포인트 .git/HEAD 부재(/app/quant_models/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz → <manifest.quant_model_path>/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz) — revision 미관측",
+      "model": "sweep_index.meta(output/multi/benchlog/sweep_loading_ds41-load-local-1m)",
+      "quant": "sweep_index.meta(output/multi/benchlog/sweep_loading_ds41-load-local-1m)",
+      "quant_composition": "/app/quant_models/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz → <manifest.quant_model_path>/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz/config.json(+hf_quant_config.json) 관측 칸(evidence._quant_composition 닫힌 목록)",
+      "topology": "sweep_index.meta(output/multi/benchlog/sweep_loading_ds41-load-local-1m)",
+      "tp": "sweep_index.meta(output/multi/benchlog/sweep_loading_ds41-load-local-1m)",
+      "vllm": "sweep_index.meta(output/multi/benchlog/sweep_loading_ds41-load-local-1m)"
+    },
+    "topology": "multi",
+    "tp": 2,
+    "vllm": "0.32.0"
+  },
+  "measurement": {
+    "accept_len": "1.7579908675799087",
+    "benchmark_mode": "full",
+    "decode_tps_conc1": "22.26",
+    "floor_tps": "37.17",
+    "generated_utc": "2026-10-30T15:54:26Z",
+    "levels": [
+      {
+        "accept_len": 1.7579908675799087,
+        "completed": 16,
+        "decode_tps": 22.26,
+        "decode_tps_mean": 22.03,
+        "failed": 0,
+        "itl_ms_median": 42.139861162971044,
+        "level": 1,
+        "max_concurrency": 1,
+        "measurement_ok": true,
+        "output_throughput": 22.115934004263103,
+        "status": "ok",
+        "tpot_ms_median": 44.91893947124481,
+        "ttft_ms_median": 750.4868507385254
+      }
+    ],
+    "lite": {
+      "cold_ttft_ms": 2161.1,
+      "engine_kv_gib": 8.0,
+      "engine_kv_tokens": 2608092,
+      "engine_reserved_total_gib": 8.0,
+      "engine_weights_gib": 73.96,
+      "gen_src": "median_tpot",
+      "gen_tps": 18.81,
+      "kv_gib": 8.0
+    },
+    "measured_utc": "2026-10-30T15:54:26Z",
+    "primary_source": "E(external_reference)",
+    "primary_tps": "43.73",
+    "ratio_M_over_primary": "0.509",
+    "rubric_authority": "weak",
+    "source": "판정 원천(verdict.json) + sweep_index(output/multi/benchlog/sweep_loading_ds41-load-local-1m · output)",
+    "sources": {
+      "accept_len": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/verdict.json(output · verdict_rule 출력) measured_accept_len",
+      "benchmark_mode": "measurement_config.bench_mode(bench_report(bench_report_26103100_deepseek-v4.1-flash-exl3-2.0bpw-sfxnz_GB10_0.32.0.md))",
+      "decode_tps_conc1": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/verdict.json(output · verdict_rule 출력) measured_decode_tps",
+      "floor_tps": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/verdict.json(output · verdict_rule 출력) rubric.floor",
+      "levels": "sweep_index(output/multi/benchlog/sweep_loading_ds41-load-local-1m · output)",
+      "lite": "sweep_index.lite(output/multi/benchlog/sweep_loading_ds41-load-local-1m)",
+      "lite.engine_kv_gib": "sweep_index.lite(output/multi/benchlog/sweep_loading_ds41-load-local-1m) — 서빙 yaml `kv-cache-memory-bytes: 8589934592`(8.0 GiB)의 **선언 클램프를 엔진이 되읽은 값**(측정 아님 · output/multi/configs/ds41-load-local-1m.yaml)",
+      "lite.kv_gib": "sweep_index.lite(output/multi/benchlog/sweep_loading_ds41-load-local-1m) — 서빙 yaml `kv-cache-memory-bytes: 8589934592`(8.0 GiB)의 **선언 클램프를 엔진이 되읽은 값**(측정 아님 · output/multi/configs/ds41-load-local-1m.yaml)",
+      "measured_utc": "sweep_index.generated_utc(output/multi/benchlog/sweep_loading_ds41-load-local-1m)",
+      "primary_source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/verdict.json(output · verdict_rule 출력) rubric.source",
+      "primary_tps": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/verdict.json(output · verdict_rule 출력) rubric.primary",
+      "ratio_M_over_primary": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/verdict.json(output · verdict_rule 출력) rubric.ratio_M_over_primary",
+      "rubric_authority": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/verdict.json(output · verdict_rule 출력) rubric.authority",
+      "spec_on": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/verdict.json(output · verdict_rule 출력) measured_spec_on",
+      "tolerance": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/verdict.json(output · verdict_rule 출력) rubric.tolerance",
+      "verdict": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/verdict.json(output · verdict_rule 출력) verdict",
+      "verdict_point_level": "sweep_index(output/multi/benchlog/sweep_loading_ds41-load-local-1m · output)",
+      "verdict_reasons": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/verdict.json(output · verdict_rule 출력) verdict"
+    },
+    "spec_on": "true",
+    "tolerance": "0.15",
+    "verdict": "REFUTE",
+    "verdict_point_level": 1,
+    "verdict_reasons": [
+      "M(22.26) < 43.73×(1−0.15)=37.17 [E(external_reference)] (ratio 0.509) → 기대 이하"
+    ]
+  },
+  "measurement_config": {
+    "bench_mode": "full",
+    "bench_mode_kind": "full",
+    "bench_tool": "guidellm",
+    "bench_tool_version": "0.7.3",
+    "downgrade_reason": null,
+    "repeats": 3,
+    "repeats_completed": 3,
+    "source": "bench_report(bench_report_26103100_deepseek-v4.1-flash-exl3-2.0bpw-sfxnz_GB10_0.32.0.md)"
+  },
+  "measurement_env_observed": [
+    {
+      "key": "VLLM_PLE_MMAP",
+      "kind": "key-present",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": null,
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L65",
+      "value": null,
+      "value_note": "키 존재만 관측 · 값 미관측(vLLM 'Unknown vLLM environment variable detected' 경고 — 값은 로그에 없다)"
+    },
+    {
+      "key": "VLLM_PLE_MMAP_DIR",
+      "kind": "key-present",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": null,
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L66",
+      "value": null,
+      "value_note": "키 존재만 관측 · 값 미관측(vLLM 'Unknown vLLM environment variable detected' 경고 — 값은 로그에 없다)"
+    },
+    {
+      "key": "VLLM_REF",
+      "kind": "key-present",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": null,
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L67",
+      "value": null,
+      "value_note": "키 존재만 관측 · 값 미관측(vLLM 'Unknown vLLM environment variable detected' 경고 — 값은 로그에 없다)"
+    },
+    {
+      "key": "VLLM_EXL3_MOE_KERNEL",
+      "kind": "key-present",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": null,
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L68",
+      "value": null,
+      "value_note": "키 존재만 관측 · 값 미관측(vLLM 'Unknown vLLM environment variable detected' 경고 — 값은 로그에 없다)"
+    },
+    {
+      "key": "NCCL_SOCKET_IFNAME",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L103",
+      "value": "<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_SOCKET_IFNAME",
+      "kind": "param-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L104",
+      "value": "<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "nccl:version",
+      "kind": "runtime",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L107",
+      "value": "2.30.7+cuda13.3"
+    },
+    {
+      "key": "NCCL_NET_PLUGIN",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L109",
+      "value": "spcx"
+    },
+    {
+      "key": "NCCL_IB_DISABLE",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L114",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_IB_HCA",
+      "kind": "param-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L116",
+      "value": "=<nic:cluster>,<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_IB_MERGE_NICS",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L119",
+      "value": "1"
+    },
+    {
+      "key": "nccl:net_ib_devices",
+      "kind": "runtime",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L122",
+      "value": "[0]<nic:cluster>:1/RoCE [1]<nic:cluster>:1/RoCE [RO]; OOB <nic:cluster>:<node:main><0>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_IB_QPS_PER_CONNECTION",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L135",
+      "value": "4"
+    },
+    {
+      "key": "nccl:network",
+      "kind": "runtime",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "sub",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L158",
+      "value": "IB"
+    },
+    {
+      "key": "NCCL_DMABUF_ENABLE",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "sub",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L160",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_CROSS_NIC",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "sub",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L163",
+      "value": "1"
+    },
+    {
+      "key": "NCCL_MAX_NCHANNELS",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "sub",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L334",
+      "value": "8"
+    },
+    {
+      "key": "NCCL_LL128_BUFFSIZE",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "sub",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L344",
+      "value": "262144"
+    },
+    {
+      "key": "NCCL_BUFFSIZE",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L356",
+      "value": "1048576"
+    },
+    {
+      "key": "NCCL_PROTO",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L375",
+      "value": "^LL128"
+    },
+    {
+      "key": "NCCL_IB_SPLIT_DATA_ON_QPS",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L407",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_IB_GID_INDEX",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L416",
+      "value": "3"
+    },
+    {
+      "key": "NCCL_SOCKET_IFNAME",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "sub",
+      "ray_repeated": 3,
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L555",
+      "value": "<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_SOCKET_IFNAME",
+      "kind": "param-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "sub",
+      "ray_repeated": 2,
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L556",
+      "value": "<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "nccl:version",
+      "kind": "runtime",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "sub",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L559",
+      "value": "2.30.7+cuda13.3"
+    },
+    {
+      "key": "NCCL_NET_PLUGIN",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "sub",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L561",
+      "value": "spcx"
+    },
+    {
+      "key": "NCCL_IB_DISABLE",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "sub",
+      "ray_repeated": 2,
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L566",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_IB_HCA",
+      "kind": "param-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "sub",
+      "ray_repeated": 2,
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L567",
+      "value": "=<nic:cluster>,<nic:cluster>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_IB_MERGE_NICS",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "sub",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L569",
+      "value": "1"
+    },
+    {
+      "key": "nccl:net_ib_devices",
+      "kind": "runtime",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "ray_repeated": 3,
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L571",
+      "value": "[RO]; OOB <nic:cluster>:<node:main><0>",
+      "value_note": "기계 치환(pii.substitution_table · 장치·호스트·주소는 자리표시 — 원문은 출처 줄)"
+    },
+    {
+      "key": "NCCL_IB_QPS_PER_CONNECTION",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "sub",
+      "ray_repeated": 3,
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L581",
+      "value": "4"
+    },
+    {
+      "key": "NCCL_DMABUF_ENABLE",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L596",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_CROSS_NIC",
+      "kind": "env-echo",
+      "log_head_window": "head-600(output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_raw_ds41-load-local-1m.json engine_log_head_lines)",
+      "node": "main",
+      "seen_in_logs": 2,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:L599",
+      "value": "1"
+    },
+    {
+      "key": "NCCL_MAX_NCHANNELS",
+      "kind": "env-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log:L369",
+      "value": "8"
+    },
+    {
+      "key": "NCCL_LL128_BUFFSIZE",
+      "kind": "env-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "main",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log:L372",
+      "value": "262144"
+    },
+    {
+      "key": "NCCL_BUFFSIZE",
+      "kind": "env-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "sub",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log:L373",
+      "value": "1048576"
+    },
+    {
+      "key": "NCCL_IB_SPLIT_DATA_ON_QPS",
+      "kind": "env-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "sub",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log:L396",
+      "value": "0"
+    },
+    {
+      "key": "NCCL_IB_GID_INDEX",
+      "kind": "env-echo",
+      "log_window": "tail-800(lite_bench.sh@d33b0878a6c3 L234)",
+      "node": "sub",
+      "seen_in_logs": 1,
+      "source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log:L448",
+      "value": "3"
+    }
+  ],
+  "missing": [
+    "HINT_MISSING_SWEEP_LEVELS"
+  ],
+  "missing_reasons": {},
+  "naming": {
+    "axes": {
+      "gpus_per_node": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_loading_ds41-load-local-1m · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_ds41-load-local-1m.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_ds41-load-local-1m.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "1"
+      },
+      "hw": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_loading_ds41-load-local-1m · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_ds41-load-local-1m.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_ds41-load-local-1m.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언) · vocab hw[gb10]←'NVIDIA GB10'",
+        "value": "gb10"
+      },
+      "kv": {
+        "source": "서빙 yaml kv-cache-dtype(output/multi/configs/ds41-load-local-1m.yaml) · vocab kv[fp8]←'fp8'",
+        "value": "fp8"
+      },
+      "len": {
+        "source": "서빙 yaml max-model-len(output/multi/configs/ds41-load-local-1m.yaml)",
+        "value": "1048576"
+      },
+      "nodes": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_loading_ds41-load-local-1m · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_ds41-load-local-1m.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_ds41-load-local-1m.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "2"
+      },
+      "plane": {
+        "source": "artifacts.plane_of → cell-env(IMAGE_TAG|BUILD_DOCKERFILE) · vocab plane[docker]→''",
+        "token": "",
+        "value": "docker"
+      },
+      "q": {
+        "source": "/app/quant_models/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz → <manifest.quant_model_path>/DeepSeek/DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz/config.json quantization_config quant_method=exl3 · vocab quant[exl3]←'exl3'",
+        "value": "exl3"
+      },
+      "role": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_loading_ds41-load-local-1m · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_ds41-load-local-1m.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_ds41-load-local-1m.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언)",
+        "value": "cluster"
+      },
+      "target": {
+        "source": "output/multi/manifest.yaml(manifest_contract 로더) gpu_model·gpus_per_node·nodes[] · 발행 노드 축(자동 파생 — 측정 TP=2(sweep_index.meta.tensor_parallel_size(output/multi/benchlog/sweep_loading_ds41-load-local-1m · generated_utc = 측정 키)) > gpus_per_node=1(output/multi/manifest.yaml(manifest_contract 로더)) · 단일 노드 형상일 수 없다 · 일치 신호: 멀티 serve proof output/multi/benchlog/serve_proof_ds41-load-local-1m.json(kind=multinode_serve_proof) · 노드 정합 attestation output/multi/benchlog/attestation_ds41-load-local-1m.json) · sweep meta gpu_model 일치 · target: 셀 config target_gpu.gpu_model(선언) · target_gpu 'NVIDIA GB10' = 호스트 hw → native",
+        "value": "native"
+      }
+    },
+    "grammar": "v7",
+    "segments": {
+      "arch": {
+        "source": "derived(hw·gpus_per_node·nodes·role·target·plane)",
+        "value": "gb10-1g2n-cluster-native"
+      },
+      "model": {
+        "source": "서빙 yaml model(output/multi/configs/ds41-load-local-1m.yaml) · model_path basename(DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz) 소문자 = 인증서 model 키 규칙",
+        "value": "deepseek-v4.1-flash-exl3-2.0bpw-sfxnz"
+      },
+      "recipe": {
+        "source": "derived(q·len·kv)",
+        "value": "qexl3-len1048576-kvfp8"
+      },
+      "vllm": {
+        "source": "track=선택자 Dockerfile.source-build-sm12x · ref=docker history build-arg VLLM_REF · version=VLLM_VERSION 미관측 · repo=docker history build-arg VLLM_REPO · sha=VLLM_REF(40자 커밋 · docker history build-arg VLLM_REF) · exact_tag=measured image sha256:436bd187022965d2e41f8969695d8446baeca6c5d50692d8b6db76ae2877a916: /workspace/vllm-src/.git HEAD and exact tag peeled to 5df63a7203cdb9328d824a27b682e77c7b9928be (create/cp, no start) · VLLM_REF=5df63a7203cd…(40자 커밋) → <직전 릴리스 0.32.0>-g<sha12>",
+        "value": "0.32.0-g5df63a7203cd"
+      }
+    },
+    "tail": [],
+    "timestamp": null,
+    "vllm_build_input": {
+      "kind": "commit",
+      "prev_release": "0.32.0",
+      "ref": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+      "sha": "5df63a7203cdb9328d824a27b682e77c7b9928be"
+    },
+    "vllm_observed": {
+      "certificate_vllm_version": null,
+      "certificate_vllm_version_producer": "absent",
+      "certificate_vllm_version_source": "인증서 vllm_version 없음",
+      "engine_self_report": "0.32.1.dev0+g5df63a720.d20261029",
+      "engine_self_report_basis": "measurement-capture-unbound",
+      "engine_self_report_source": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log:60 — 측정 캡처에 기록된 값 · 현재 serve 세션 경계 미관측 — 누적 로그의 기동 epoch 귀속 미검증 · 같은 값의 다른 로그 1건",
+      "source": "칸별 출처는 *_source — engine_self_report=measurement-capture-unbound · certificate_vllm_version=absent · wheel_meta=노드별 상이·공통값 미선택",
+      "wheel_meta": null,
+      "wheel_meta_basis": "observed-node-difference",
+      "wheel_meta_label": "vLLM 설치 distribution 메타(출처별 관측 · 다운로드 wheel 증명 아님)",
+      "wheel_meta_source": "노드별 상이 — 값을 고르지 않는다: attestation nodes.<n>.vllm_dist_version(output/multi/benchlog/attestation_ds41-load-local-1m.json · 노드별 관측) — ⚠ 노드별 상이(main=0.32.1.dev0+g5df63a720.d20261029.cu133 · sub=0.32.1.dev0+g5df63a720.d20261028.cu133 · 값 = main) · 작성 2026-10-30T15:42:25Z < 측정 시작 2026-10-30T15:42:48Z — 측정 전(빌드·스모크)의 관측 · 원장 순서로 판별한 같은 기동의 관측(결속된 스모크 로그 미확인 · 제한검색 · 약한 판별)(판별 근거 = attestation 범위 줄 · 원장 docs/logs/main/events/2026-10.jsonl)(sweep_index.meta.vllm_build='NA' 는 sweep_bench 가 엔진 로그에서 `v<x.y.z…>` 정규식으로 잡는 값이다 → engine_self_report 의 원천)"
+    }
+  },
+  "native_source": null,
+  "plane": "docker",
+  "prior_approval": null,
+  "publication": {
+    "manifest_ref": "docs/_evidence/camp_26103017_nas_nvme_loading__cluster__ds41_load_local_1m.work-manifest.json",
+    "task_class": "full_benchmark",
+    "topic": "camp_26103017_nas_nvme_loading__cluster__ds41_load_local_1m"
+  },
+  "qualification": {
+    "health_200": true,
+    "inference_observed": true,
+    "method": "serve_proof",
+    "sources": [
+      "output/multi/benchlog/serve_proof_ds41-load-local-1m.json"
+    ]
+  },
+  "schema_version": 3,
+  "slots": {
+    "build_patch_post": {
+      "applicable": true,
+      "confidence": "3-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": "원장 관측",
+        "ref": "attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main"
+      },
+      "excluded": [
+        {
+          "file": ".gitkeep",
+          "phase": "post",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        }
+      ],
+      "file_records": [
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "ef79a410b90cae256d9b520e95ad32e7480059a8f2ffce194810749e225dbc54",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_post/05-ngc-source032-deps-compat.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "ef79a410b90cae256d9b520e95ad32e7480059a8f2ffce194810749e225dbc54",
+          "sha256": "ef79a410b90cae256d9b520e95ad32e7480059a8f2ffce194810749e225dbc54",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_post/06-b12x-optional032.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15",
+          "sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "e3ce003d2c2a69de56567f3b7c0d0ae0c4757e268255c393a139a415025342b6",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_post/70-exllamav3-build.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "e3ce003d2c2a69de56567f3b7c0d0ae0c4757e268255c393a139a415025342b6",
+          "sha256": "e3ce003d2c2a69de56567f3b7c0d0ae0c4757e268255c393a139a415025342b6",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "110c360787c24033617519127e6f0d1373508288f1bb12c70b7d5d7251bf5e39",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_post/72-exl3-row-store.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "110c360787c24033617519127e6f0d1373508288f1bb12c70b7d5d7251bf5e39",
+          "sha256": "110c360787c24033617519127e6f0d1373508288f1bb12c70b7d5d7251bf5e39",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "36fec33430a034392f6451be53557f0acba35b5c46dfe08729a530d729ab77e8",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_post/73-vllm-exl3-build.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음 · 편집하는 공유(모델 디렉터리 밖) 파일 ['vllm/model_executor/model_loader/weight_utils.py']",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [],
+              "shared_files": [
+                "vllm/model_executor/model_loader/weight_utils.py"
+              ]
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": true,
+            "fired_signatures": {
+              "exl3-port: lm_head": 2
+            },
+            "signatures": [
+              "exl3-port: lm_head"
+            ]
+          },
+          "script_sha256_ledger": "36fec33430a034392f6451be53557f0acba35b5c46dfe08729a530d729ab77e8",
+          "sha256": "36fec33430a034392f6451be53557f0acba35b5c46dfe08729a530d729ab77e8",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "cc290b5449c0a603bed4b3455b84e8bb9ae82c53579672f33ecbbc3e24886cfa",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_post/74-exl3-moe-prep-fused.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "cc290b5449c0a603bed4b3455b84e8bb9ae82c53579672f33ecbbc3e24886cfa",
+          "sha256": "cc290b5449c0a603bed4b3455b84e8bb9ae82c53579672f33ecbbc3e24886cfa",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "c1a3fc81d31d9b6be28f5c2c60c9f88b9ebca1055f0403149f5712e4755df89d",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_post/75-exl3-python-deps032.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "c1a3fc81d31d9b6be28f5c2c60c9f88b9ebca1055f0403149f5712e4755df89d",
+          "sha256": "c1a3fc81d31d9b6be28f5c2c60c9f88b9ebca1055f0403149f5712e4755df89d",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "56227afebc5b1f22d864ee76dfd618cf6a54489e4a556cbf0a8cca9d9d7cb07c",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_post/79-exl3-port-selfcheck.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "56227afebc5b1f22d864ee76dfd618cf6a54489e4a556cbf0a8cca9d9d7cb07c",
+          "sha256": "56227afebc5b1f22d864ee76dfd618cf6a54489e4a556cbf0a8cca9d9d7cb07c",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        }
+      ],
+      "files": [
+        "artifacts/build_patch_post/05-ngc-source032-deps-compat.sh",
+        "artifacts/build_patch_post/06-b12x-optional032.sh",
+        "artifacts/build_patch_post/70-exllamav3-build.sh",
+        "artifacts/build_patch_post/72-exl3-row-store.sh",
+        "artifacts/build_patch_post/73-vllm-exl3-build.sh",
+        "artifacts/build_patch_post/74-exl3-moe-prep-fused.sh",
+        "artifacts/build_patch_post/75-exl3-python-deps032.sh",
+        "artifacts/build_patch_post/79-exl3-port-selfcheck.sh"
+      ],
+      "machine_reason": "build_patches/ — 적용 판정 build-ledger: applied 8 · 실린 것 = skip 아닌 패치",
+      "rationale": "공유 NGC/vLLM 의존성의 hub/pytest 교집합을 설치·pip check한다. DeepSeek 전용 GPU 커널의 필요조건을 입증한 것은 아니다. 적용 증거와 이 셀에서의 활성 범위는1.1의 해당 행을 따른다. 제거 대조가 없으면 이 파일 전체를 현재 셀의 최소 필요조건으로 단정하지 않는다. 상위 소스에서는 대상 심벌·지원 여부·게이트·실제 종료 경로를 읽고 새 smoke로 판정한다. · 공식 optional B12X wheel을 설치한다. 설치 확인과 각 runtime kernel의 선택은 구별한다. 적용 증거와 이 셀에서의 활성 범위는1.1의 해당 행을 따른다. 제거 대조가 없으면 이 파일 전체를 현재 셀의 최소 필요조건으로 단정하지 않는다. 상위 소스에서는 대상 심벌·지원 여부·게이트·실제…"
+    },
+    "build_patch_pre": {
+      "applicable": true,
+      "confidence": "3-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": "원장 관측",
+        "ref": "attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main"
+      },
+      "excluded": [
+        {
+          "file": ".gitkeep",
+          "phase": "pre",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        },
+        {
+          "file": "PROVENANCE.json",
+          "phase": "pre",
+          "why": "known-non-patch(패치가 아님 — 명시적 건너뜀)"
+        },
+        {
+          "file": "exl3_port_lib.py",
+          "phase": "pre",
+          "why": "nonconforming(<NN>-*.sh 규약 밖 — 싣지 않음)"
+        }
+      ],
+      "file_records": [
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "19f70ed4dd0d98d6318209a1a987daec90515252397cecb33f21a5acb18a4e21",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_pre/80-exl3-quant-method.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음 · 편집하는 공유(모델 디렉터리 밖) 파일 ['vllm/model_executor/layers/quantization/__init__.py']",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [],
+              "shared_files": [
+                "vllm/model_executor/layers/quantization/__init__.py"
+              ]
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "19f70ed4dd0d98d6318209a1a987daec90515252397cecb33f21a5acb18a4e21",
+          "sha256": "19f70ed4dd0d98d6318209a1a987daec90515252397cecb33f21a5acb18a4e21",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "78d5606a73127488052cd1ffde5dbbe533cfeada1c2343095061f121d42f68b4",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_pre/81-exl3-model-wiring.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 선언 ['models/deepseek_v41'] ∋ 셀 모델(architectures ['DeepseekV41ForCausalLM'] · model_type deepseek_v41) · ② 패치가 심는 logger 발화 서명 없음(발화 미관측)",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [
+                "deepseek_v41"
+              ],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "78d5606a73127488052cd1ffde5dbbe533cfeada1c2343095061f121d42f68b4",
+          "sha256": "78d5606a73127488052cd1ffde5dbbe533cfeada1c2343095061f121d42f68b4",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "373f1aa3fb7f80c921be8a793b85bf223b22520a0c5dbe19382e3fc15a8f6d4c",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_pre/82-exl3-h2d-stage.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 선언 ['models/deepseek_v41'] ∋ 셀 모델(architectures ['DeepseekV41ForCausalLM'] · model_type deepseek_v41) · ② 패치가 심는 logger 발화 서명 없음(발화 미관측) · 편집하는 공유(모델 디렉터리 밖) 파일 ['vllm/model_executor/layers/linear.py', 'vllm/model_executor/layers/vocab_parallel_embedding.py', 'vllm/model_executor/model_loader/weight_utils.py']",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [
+                "deepseek_v41"
+              ],
+              "shared_files": [
+                "vllm/model_executor/layers/linear.py",
+                "vllm/model_executor/layers/vocab_parallel_embedding.py",
+                "vllm/model_executor/model_loader/weight_utils.py"
+              ]
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "373f1aa3fb7f80c921be8a793b85bf223b22520a0c5dbe19382e3fc15a8f6d4c",
+          "sha256": "373f1aa3fb7f80c921be8a793b85bf223b22520a0c5dbe19382e3fc15a8f6d4c",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "e65f4871384d970c6cb1833eebe24756e3449489523f85291bd25bea7ca51112",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_pre/83-engram-file-backend.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 선언 ['models/deepseek_v41'] ∋ 셀 모델(architectures ['DeepseekV41ForCausalLM'] · model_type deepseek_v41) · ② 엔진 로그 5개에서 서명 무발화(서명 3개 전부 0회) — 두 신호가 한 방향을 가리키지 않는다",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [
+                "deepseek_v41"
+              ],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": false,
+            "fired_signatures": {},
+            "signatures": [
+              "engram_table_dir lookup failed (",
+              "installed file-backed Engram (row_store, no 47GiB pin)",
+              "installed file-backed Engram dispatcher (active only when an Engram table dir is configured)"
+            ]
+          },
+          "script_sha256_ledger": "e65f4871384d970c6cb1833eebe24756e3449489523f85291bd25bea7ca51112",
+          "sha256": "e65f4871384d970c6cb1833eebe24756e3449489523f85291bd25bea7ca51112",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "ce18151a93c9f9a6b101dc44efde8232aef5ed6a67c10c86c5fb2751b9dfc8ef",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_pre/84-sm12x-block-shim.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 선언 ['models/deepseek_v41'] ∋ 셀 모델(architectures ['DeepseekV41ForCausalLM'] · model_type deepseek_v41) · ② 패치가 심는 logger 발화 서명 없음(발화 미관측) · 편집하는 공유(모델 디렉터리 밖) 파일 ['vllm/model_executor/layers/sparse_attn_indexer.py', 'vllm/v1/attention/backends/mla/indexer.py']",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [
+                "deepseek_v41"
+              ],
+              "shared_files": [
+                "vllm/model_executor/layers/sparse_attn_indexer.py",
+                "vllm/v1/attention/backends/mla/indexer.py"
+              ]
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "ce18151a93c9f9a6b101dc44efde8232aef5ed6a67c10c86c5fb2751b9dfc8ef",
+          "sha256": "ce18151a93c9f9a6b101dc44efde8232aef5ed6a67c10c86c5fb2751b9dfc8ef",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "b6c5cadf73a667c892ce017edd33cdf7c56b0b3e4f4b44fc6b36feb5ded0147b",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_pre/85-exl3-serial-streams.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 선언 ['models/deepseek_v4', 'models/deepseek_v41'] ∋ 셀 모델(architectures ['DeepseekV41ForCausalLM'] · model_type deepseek_v41) · ② 패치가 심는 logger 발화 서명 없음(발화 미관측)",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [
+                "deepseek_v4",
+                "deepseek_v41"
+              ],
+              "shared_files": []
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "b6c5cadf73a667c892ce017edd33cdf7c56b0b3e4f4b44fc6b36feb5ded0147b",
+          "sha256": "b6c5cadf73a667c892ce017edd33cdf7c56b0b3e4f4b44fc6b36feb5ded0147b",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "f4b142ccb0360b887376306d9af1db78820b021aacf607b204346f4a4f9a8d58",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_pre/86-exl3-worker-hooks.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음 · 편집하는 공유(모델 디렉터리 밖) 파일 ['vllm/v1/worker/gpu_worker.py']",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [],
+              "shared_files": [
+                "vllm/v1/worker/gpu_worker.py"
+              ]
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": true,
+            "fired_signatures": {
+              "exl3-port: dropped page cache of": 2
+            },
+            "signatures": [
+              "exl3-port: fadvise",
+              "exl3-port: dropped page cache of",
+              "exl3-port: DSV41_EXL3_PRETUNE=1 but vllm_exl3.exl3 has no pretune_exl3_shapes (plugin is not the Mia lineage); skipped"
+            ]
+          },
+          "script_sha256_ledger": "f4b142ccb0360b887376306d9af1db78820b021aacf607b204346f4a4f9a8d58",
+          "sha256": "f4b142ccb0360b887376306d9af1db78820b021aacf607b204346f4a4f9a8d58",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "91c254f6bc88120d710ca02296d9e2faf352eae157080379b94b76d3fb79d39e",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_pre/87-engram-embed-skip.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 선언 ['models/deepseek_v41'] ∋ 셀 모델(architectures ['DeepseekV41ForCausalLM'] · model_type deepseek_v41) · ② 패치가 심는 logger 발화 서명 없음(발화 미관측) · 편집하는 공유(모델 디렉터리 밖) 파일 ['vllm/model_executor/model_loader/ep_weight_filter.py']",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [
+                "deepseek_v41"
+              ],
+              "shared_files": [
+                "vllm/model_executor/model_loader/ep_weight_filter.py"
+              ]
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "91c254f6bc88120d710ca02296d9e2faf352eae157080379b94b76d3fb79d39e",
+          "sha256": "91c254f6bc88120d710ca02296d9e2faf352eae157080379b94b76d3fb79d39e",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "185f6d23574158a812858240cfe55d8a6a60139377fd03466883ac4d42b88022",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_pre/88-engram-prestage.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 선언 ['models/deepseek_v41'] ∋ 셀 모델(architectures ['DeepseekV41ForCausalLM'] · model_type deepseek_v41) · ② 패치가 심는 logger 발화 서명 없음(발화 미관측) · 편집하는 공유(모델 디렉터리 밖) 파일 ['vllm/v1/worker/gpu/model_runner.py']",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [
+                "deepseek_v41"
+              ],
+              "shared_files": [
+                "vllm/v1/worker/gpu/model_runner.py"
+              ]
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": null,
+            "fired_signatures": {},
+            "signatures": []
+          },
+          "script_sha256_ledger": "185f6d23574158a812858240cfe55d8a6a60139377fd03466883ac4d42b88022",
+          "sha256": "185f6d23574158a812858240cfe55d8a6a60139377fd03466883ac4d42b88022",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        },
+        {
+          "applied_result": "applied",
+          "bytes_observed": true,
+          "frozen_source_sha256": "2ede1ae09b75a75af3580789ff632107514ffec5ee1f8ee166a9a51540209abe",
+          "generated_by": "cell-run",
+          "path": "artifacts/build_patch_pre/89-kv-null-block-zero.sh",
+          "relevance": "unknown",
+          "relevance_basis": "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음 · 편집하는 공유(모델 디렉터리 밖) 파일 ['vllm/v1/worker/gpu/model_runner.py']",
+          "relevance_evidence": {
+            "declared": {
+              "archs": [],
+              "general": false,
+              "modules": [],
+              "shared_files": [
+                "vllm/v1/worker/gpu/model_runner.py"
+              ]
+            },
+            "engine_log_paths": [
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_head_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/lite_engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_02/engine_ds41-load-local-1m.log",
+              "output/multi/benchlog/sweep_loading_ds41-load-local-1m/level_01/run_03/engine_ds41-load-local-1m.log"
+            ],
+            "engine_logs": 5,
+            "fired": false,
+            "fired_signatures": {},
+            "signatures": [
+              "exl3-port: kv null block census",
+              "exl3-port: kv null block zeroed after capture (tensors="
+            ]
+          },
+          "script_sha256_ledger": "2ede1ae09b75a75af3580789ff632107514ffec5ee1f8ee166a9a51540209abe",
+          "sha256": "2ede1ae09b75a75af3580789ff632107514ffec5ee1f8ee166a9a51540209abe",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "verified",
+          "verification_basis": "적용 판정 build-ledger(attestation:output/multi/benchlog/attestation_ds41-load-local-1m.json#main) · 원장 관측"
+        }
+      ],
+      "files": [
+        "artifacts/build_patch_pre/80-exl3-quant-method.sh",
+        "artifacts/build_patch_pre/81-exl3-model-wiring.sh",
+        "artifacts/build_patch_pre/82-exl3-h2d-stage.sh",
+        "artifacts/build_patch_pre/83-engram-file-backend.sh",
+        "artifacts/build_patch_pre/84-sm12x-block-shim.sh",
+        "artifacts/build_patch_pre/85-exl3-serial-streams.sh",
+        "artifacts/build_patch_pre/86-exl3-worker-hooks.sh",
+        "artifacts/build_patch_pre/87-engram-embed-skip.sh",
+        "artifacts/build_patch_pre/88-engram-prestage.sh",
+        "artifacts/build_patch_pre/89-kv-null-block-zero.sh"
+      ],
+      "machine_reason": "build_patches_src/ — 적용 판정 build-ledger: applied 10 · 실린 것 = skip 아닌 패치",
+      "rationale": "EXL3 quant method와 registry 접점을 구성한다(W13). 적용 증거와 이 셀에서의 활성 범위는1.1의 해당 행을 따른다. 제거 대조가 없으면 이 파일 전체를 현재 셀의 최소 필요조건으로 단정하지 않는다. 상위 소스에서는 대상 심벌·지원 여부·게이트·실제 종료 경로를 읽고 새 smoke로 판정한다. · DeepSeek 모델과 EXL3 로더 접점을 구성한다. 적용 증거와 이 셀에서의 활성 범위는1.1의 해당 행을 따른다. 제거 대조가 없으면 이 파일 전체를 현재 셀의 최소 필요조건으로 단정하지 않는다. 상위 소스에서는 대상 심벌·지원 여부·게이트·실제 종료 경로를 읽고 새 smoke로 판정한다. · EXL3 로딩의 H2D staging 경로를 구성한다. 적용 증거와 이 셀에서의 활성 범위는…"
+    },
+    "build_recipe": {
+      "applicable": true,
+      "confidence": "3-signal",
+      "evidence": {
+        "kind": "build-ledger",
+        "note": null,
+        "parent_source_core": {
+          "context_inventory": [
+            "context/Dockerfile.source-build",
+            "context/build_patches/.gitkeep",
+            "context/build_patches/05-ngc-source032-deps-compat.sh",
+            "context/build_patches_src/.gitkeep",
+            "context/requirements.txt"
+          ],
+          "historical_scope": "Main official source+POST05 build -> same-ID deps1 alias -> observed deps2 POST06 -> final i5 attempt2: cached PRE layer, native POST rerun/recompiled including75. This new reconstruction was not built or GPU-tested. Sub normal result is accepted through its own documents, not reconstructed or revalidated here.",
+          "intermediate_layer": {
+            "files": [
+              "Dockerfile.source-build-deps2",
+              "build_patches/06-b12x-optional032.sh"
+            ],
+            "image_digest": "sha256:8227e7d79471b6b92f21157acfb38c7cc617d1510a5c56f3dec7eb8e48567884"
+          },
+          "leaf_context": {
+            "additional_support_files": 5,
+            "frozen_root": "output/multi/cache/v032-sm12x-build-attempt2",
+            "inventory": {
+              "Dockerfile": "25fca737e28b87cf264456fcfe41523490915fb9433720b9d5c8c64e794acebe",
+              "build_patches/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "build_patches/05-ngc-source032-deps-compat.sh": "ef79a410b90cae256d9b520e95ad32e7480059a8f2ffce194810749e225dbc54",
+              "build_patches/06-b12x-optional032.sh": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15",
+              "build_patches/70-exllamav3-build.sh": "e3ce003d2c2a69de56567f3b7c0d0ae0c4757e268255c393a139a415025342b6",
+              "build_patches/72-exl3-row-store.sh": "110c360787c24033617519127e6f0d1373508288f1bb12c70b7d5d7251bf5e39",
+              "build_patches/73-vllm-exl3-build.sh": "36fec33430a034392f6451be53557f0acba35b5c46dfe08729a530d729ab77e8",
+              "build_patches/74-exl3-moe-prep-fused.sh": "cc290b5449c0a603bed4b3455b84e8bb9ae82c53579672f33ecbbc3e24886cfa",
+              "build_patches/75-exl3-python-deps032.sh": "c1a3fc81d31d9b6be28f5c2c60c9f88b9ebca1055f0403149f5712e4755df89d",
+              "build_patches/79-exl3-port-selfcheck.sh": "56227afebc5b1f22d864ee76dfd618cf6a54489e4a556cbf0a8cca9d9d7cb07c",
+              "build_patches/Dockerfile.source-build-deps2": "bfffc28b8a7de98e239f6677fc233c25eedb97858937119f359a65d2e7f363ad",
+              "build_patches_src/.gitkeep": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "build_patches_src/80-exl3-quant-method.sh": "19f70ed4dd0d98d6318209a1a987daec90515252397cecb33f21a5acb18a4e21",
+              "build_patches_src/81-exl3-model-wiring.sh": "78d5606a73127488052cd1ffde5dbbe533cfeada1c2343095061f121d42f68b4",
+              "build_patches_src/82-exl3-h2d-stage.sh": "373f1aa3fb7f80c921be8a793b85bf223b22520a0c5dbe19382e3fc15a8f6d4c",
+              "build_patches_src/83-engram-file-backend.sh": "e65f4871384d970c6cb1833eebe24756e3449489523f85291bd25bea7ca51112",
+              "build_patches_src/84-sm12x-block-shim.sh": "ce18151a93c9f9a6b101dc44efde8232aef5ed6a67c10c86c5fb2751b9dfc8ef",
+              "build_patches_src/85-exl3-serial-streams.sh": "b6c5cadf73a667c892ce017edd33cdf7c56b0b3e4f4b44fc6b36feb5ded0147b",
+              "build_patches_src/86-exl3-worker-hooks.sh": "f4b142ccb0360b887376306d9af1db78820b021aacf607b204346f4a4f9a8d58",
+              "build_patches_src/87-engram-embed-skip.sh": "91c254f6bc88120d710ca02296d9e2faf352eae157080379b94b76d3fb79d39e",
+              "build_patches_src/88-engram-prestage.sh": "185f6d23574158a812858240cfe55d8a6a60139377fd03466883ac4d42b88022",
+              "build_patches_src/89-kv-null-block-zero.sh": "2ede1ae09b75a75af3580789ff632107514ffec5ee1f8ee166a9a51540209abe",
+              "build_patches_src/PROVENANCE.json": "9c23a7bf20ad92788c28ff70e8fcbb3e6c90189bf90e0398310eeda72d299f35",
+              "build_patches_src/exl3_port_lib.py": "cd232a52fed1a47093514f8421149092378647494ee94d8f05c586b57814ade5"
+            },
+            "reused_existing_slots": 19
+          },
+          "manifest": "output/multi/parent-build/i5-sm12x032/manifest.json",
+          "selected_image_digest": "sha256:436bd187022965d2e41f8969695d8446baeca6c5d50692d8b6db76ae2877a916"
+        },
+        "recipe_vs_image": [
+          {
+            "history_match": {
+              "matched": 9,
+              "total": 31
+            },
+            "image_created_utc": "2026-10-29T11:59:03Z",
+            "path": "output/multi/Dockerfile.source-build-sm12x",
+            "selection_method": "worktree(어느 개정도 이미지 history 와 더 맞지 않는다 · 작업트리 9/31 · 대조할 개정 없음(이미지 Created 이전 커밋 부재 · 비추적) · 전 이력(output/*/Dockerfile.source-build-sm12x · 모든 ref)에도 전수 일치 개정 없음 — recipe_vs_image 경고 유지)",
+            "shipped": "worktree",
+            "tracked": false,
+            "warning": "실린 바이트(worktree)가 측정 이미지 docker history 의 RUN·COPY 와 전수 일치하지 않는다(9/31)",
+            "worktree_equals_head": null
+          }
+        ],
+        "ref": "build-ledger.dockerfile",
+        "selected_revision": {
+          "candidates": [
+            {
+              "matched": 9,
+              "revision": "worktree",
+              "total": 31
+            }
+          ],
+          "commit": null,
+          "history_match": {
+            "matched": 9,
+            "total": 31
+          },
+          "method": "worktree(어느 개정도 이미지 history 와 더 맞지 않는다 · 작업트리 9/31 · 대조할 개정 없음(이미지 Created 이전 커밋 부재 · 비추적) · 전 이력(output/*/Dockerfile.source-build-sm12x · 모든 ref)에도 전수 일치 개정 없음 — recipe_vs_image 경고 유지)",
+          "path": "output/multi/Dockerfile.source-build-sm12x"
+        },
+        "selected_revisions": [
+          {
+            "commit": null,
+            "history_match": {
+              "matched": 9,
+              "total": 31
+            },
+            "method": "worktree(어느 개정도 이미지 history 와 더 맞지 않는다 · 작업트리 9/31 · 대조할 개정 없음(이미지 Created 이전 커밋 부재 · 비추적) · 전 이력(output/*/Dockerfile.source-build-sm12x · 모든 ref)에도 전수 일치 개정 없음 — recipe_vs_image 경고 유지)",
+            "path": "output/multi/Dockerfile.source-build-sm12x",
+            "shipped": "worktree",
+            "verified": false
+          }
+        ]
+      },
+      "file_records": [
+        {
+          "bytes_observed": false,
+          "frozen_source_sha256": "25fca737e28b87cf264456fcfe41523490915fb9433720b9d5c8c64e794acebe",
+          "generated_by": "renderer",
+          "header": {
+            "line": 2,
+            "style": "comment",
+            "text": "# ⚠ generated-unverified — 실린 Dockerfile.source-build-sm12x(worktree) · docker history RUN·COPY 9/31 일치 — Dockerfile 전체 원본 바이트의 동일성은 확인하지 못했다 · 생성: renderer",
+            "why_line_2": "Dockerfile 파서 지시자 보존"
+          },
+          "path": "artifacts/build_recipe/Dockerfile.source-build-sm12x",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 renderer) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "b93b29eae0ae372d3217dae477a7588e74caf36debb0af5e76b47864925323fb",
+          "source_identity_basis": "raw frozen source validated before annotation; sha256 hashes shipped bytes including any recorded warning",
+          "verification": "generated-unverified",
+          "verification_basis": "실린 Dockerfile.source-build-sm12x(worktree) · docker history RUN·COPY 9/31 일치 — Dockerfile 전체 원본 바이트의 동일성은 확인하지 못했다(_select_dockerfile · worktree(어느 개정도 이미지 history 와 더 맞지 않는다 · 작업트리 9/31 · 대조할 개정 없음(이미지 Created 이전 커밋 부재 · 비추적) · 전 이력(output/*/Dockerfile.source-build-sm12x · 모든 ref)에도 전수 일치 개정 없음 — recipe_vs_image 경고 유지))"
+        },
+        {
+          "bytes_observed": false,
+          "generated_by": "agent",
+          "header": {
+            "line": 1,
+            "style": "comment",
+            "text": "# ⚠ generated-unverified — main 최종 attempt2 동결 입력과 관측 원장에서 조립한 새 local 재현안이며 미실행 · 생성: agent"
+          },
+          "parent_source": "README.md",
+          "path": "artifacts/build_recipe/parent-source-core/README.md",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 agent) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "5cdcaea21d15632b70a5155277de29f5fac752289c21dcb377f375ff0fb5f960",
+          "verification": "generated-unverified",
+          "verification_basis": "main 최종 attempt2 동결 입력과 관측 원장에서 조립한 새 local 재현안이며 미실행"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "alias-evidence.json",
+          "path": "artifacts/build_recipe/parent-source-core/alias-evidence.json",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "90d10101db6e8876a80ea9932d1f9aee0be7c3a174058aa22bf7c85f0948aec3",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "context/Dockerfile.source-build",
+          "path": "artifacts/build_recipe/parent-source-core/context/Dockerfile.source-build",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "ef219c7054e426c4623c889c79a02988298bfa6f4cf5242fbf281336860f7ddf",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "context/build_patches/.gitkeep",
+          "path": "artifacts/build_recipe/parent-source-core/context/build_patches/.gitkeep",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "context/build_patches/05-ngc-source032-deps-compat.sh",
+          "path": "artifacts/build_recipe/parent-source-core/context/build_patches/05-ngc-source032-deps-compat.sh",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "ef79a410b90cae256d9b520e95ad32e7480059a8f2ffce194810749e225dbc54",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "context/build_patches_src/.gitkeep",
+          "path": "artifacts/build_recipe/parent-source-core/context/build_patches_src/.gitkeep",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "context/requirements.txt",
+          "path": "artifacts/build_recipe/parent-source-core/context/requirements.txt",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "4618157b8e50ba411ea9008a1fb2e4d032738bce8a117d3a24e2b9476aa1a6c4",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "core-build-command.txt",
+          "path": "artifacts/build_recipe/parent-source-core/core-build-command.txt",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "3d82bed10154dc7c28fe368cc90264126e4ca6f0c3f1236a4e804e90b62840ce",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "intermediate-deps2/context/Dockerfile.source-build-deps2",
+          "path": "artifacts/build_recipe/parent-source-core/intermediate-deps2/context/Dockerfile.source-build-deps2",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "bfffc28b8a7de98e239f6677fc233c25eedb97858937119f359a65d2e7f363ad",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "intermediate-deps2/context/build_patches/06-b12x-optional032.sh",
+          "path": "artifacts/build_recipe/parent-source-core/intermediate-deps2/context/build_patches/06-b12x-optional032.sh",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "leaf-build-command.txt",
+          "path": "artifacts/build_recipe/parent-source-core/leaf-build-command.txt",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "6452b6bfb90a28b565884ca4f97c501760b617ec0e7f57e663ed8d214d376fc1",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "leaf-ledger-evidence.json",
+          "path": "artifacts/build_recipe/parent-source-core/leaf-ledger-evidence.json",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "155a52dc3bf0cdc7c2dde1caf1c58d49a73f57b46071fc3be5bb59d9460f150b",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "leaf-result-evidence.json",
+          "path": "artifacts/build_recipe/parent-source-core/leaf-result-evidence.json",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "856ed3085f47ad8ab2626fec506e1652b0218805fb056171ad8f1d387da8f02b",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "leaf-support/build_patches/.gitkeep",
+          "path": "artifacts/build_recipe/parent-source-core/leaf-support/build_patches/.gitkeep",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "leaf-support/build_patches/Dockerfile.source-build-deps2",
+          "path": "artifacts/build_recipe/parent-source-core/leaf-support/build_patches/Dockerfile.source-build-deps2",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "bfffc28b8a7de98e239f6677fc233c25eedb97858937119f359a65d2e7f363ad",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "leaf-support/build_patches_src/.gitkeep",
+          "path": "artifacts/build_recipe/parent-source-core/leaf-support/build_patches_src/.gitkeep",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "leaf-support/build_patches_src/PROVENANCE.json",
+          "path": "artifacts/build_recipe/parent-source-core/leaf-support/build_patches_src/PROVENANCE.json",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "9c23a7bf20ad92788c28ff70e8fcbb3e6c90189bf90e0398310eeda72d299f35",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": true,
+          "generated_by": "cell-run",
+          "parent_source": "leaf-support/build_patches_src/exl3_port_lib.py",
+          "path": "artifacts/build_recipe/parent-source-core/leaf-support/build_patches_src/exl3_port_lib.py",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "cd232a52fed1a47093514f8421149092378647494ee94d8f05c586b57814ade5",
+          "verification": "verified",
+          "verification_basis": "explicit manifest output/multi/parent-build/i5-sm12x032/manifest.json · selected image digest bound · frozen source sha256 verified · main historical scope only"
+        },
+        {
+          "bytes_observed": false,
+          "generated_by": "agent",
+          "header": {
+            "key": "_verification",
+            "style": "json-key",
+            "text": "⚠ generated-unverified — main 최종 attempt2 동결 입력과 관측 원장에서 조립한 새 local 재현안이며 미실행 · 생성: agent"
+          },
+          "parent_source": "manifest.json",
+          "path": "artifacts/build_recipe/parent-source-core/manifest.json",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 agent) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "730d89a2efe5dfed48ce78015e4becac5ecab53b7fbcd03d9c60128b2b065ee2",
+          "verification": "generated-unverified",
+          "verification_basis": "main 최종 attempt2 동결 입력과 관측 원장에서 조립한 새 local 재현안이며 미실행"
+        }
+      ],
+      "files": [
+        "artifacts/build_recipe/Dockerfile.source-build-sm12x",
+        "artifacts/build_recipe/parent-source-core/README.md",
+        "artifacts/build_recipe/parent-source-core/alias-evidence.json",
+        "artifacts/build_recipe/parent-source-core/context/Dockerfile.source-build",
+        "artifacts/build_recipe/parent-source-core/context/build_patches/.gitkeep",
+        "artifacts/build_recipe/parent-source-core/context/build_patches/05-ngc-source032-deps-compat.sh",
+        "artifacts/build_recipe/parent-source-core/context/build_patches_src/.gitkeep",
+        "artifacts/build_recipe/parent-source-core/context/requirements.txt",
+        "artifacts/build_recipe/parent-source-core/core-build-command.txt",
+        "artifacts/build_recipe/parent-source-core/intermediate-deps2/context/Dockerfile.source-build-deps2",
+        "artifacts/build_recipe/parent-source-core/intermediate-deps2/context/build_patches/06-b12x-optional032.sh",
+        "artifacts/build_recipe/parent-source-core/leaf-build-command.txt",
+        "artifacts/build_recipe/parent-source-core/leaf-ledger-evidence.json",
+        "artifacts/build_recipe/parent-source-core/leaf-result-evidence.json",
+        "artifacts/build_recipe/parent-source-core/leaf-support/build_patches/.gitkeep",
+        "artifacts/build_recipe/parent-source-core/leaf-support/build_patches/Dockerfile.source-build-deps2",
+        "artifacts/build_recipe/parent-source-core/leaf-support/build_patches_src/.gitkeep",
+        "artifacts/build_recipe/parent-source-core/leaf-support/build_patches_src/PROVENANCE.json",
+        "artifacts/build_recipe/parent-source-core/leaf-support/build_patches_src/exl3_port_lib.py",
+        "artifacts/build_recipe/parent-source-core/manifest.json"
+      ],
+      "machine_reason": "쓰인 Dockerfile 선택자 Dockerfile.source-build-sm12x(build-ledger.dockerfile) + 그것이 COPY 하는 파일",
+      "rationale": "공유 NGC/vLLM 의존성의 hub/pytest 교집합을 설치·pip check한다. DeepSeek 전용 GPU 커널의 필요조건을 입증한 것은 아니다. 적용 증거와 이 셀에서의 활성 범위는1.1의 해당 행을 따른다. 제거 대조가 없으면 이 파일 전체를 현재 셀의 최소 필요조건으로 단정하지 않는다. 상위 소스에서는 대상 심벌·지원 여부·게이트·실제 종료 경로를 읽고 새 smoke로 판정한다. · 공식 optional B12X wheel을 설치한다. 설치 확인과 각 runtime kernel의 선택은 구별한다. 적용 증거와 이 셀에서의 활성 범위는1.1의 해당 행을 따른다. 제거 대조가 없으면 이 파일 전체를 현재 셀의 최소 필요조건으로 단정하지 않는다. 상위 소스에서는 대상 심벌·지원 여부·게이트·실제…"
+    },
+    "compose": {
+      "applicable": true,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "file",
+        "measured_utc": "2026-10-30T15:54:26Z",
+        "note": "서빙 러너 ['serve_runner.sh'] · env 형상 실림 3/3",
+        "post_measurement_regenerated": [],
+        "ref": "output/multi/docker-compose.yaml",
+        "selected_revision": {
+          "basis": "mtime≤measured",
+          "commit": "bccd080919769730f16f2e5fad2aa2e15f8bebb0",
+          "commits_after_measurement": [],
+          "cross_check": [
+            "측정 뒤 커밋 0",
+            "작업트리 = HEAD"
+          ],
+          "history_match": null,
+          "measured_utc": "2026-10-30T15:54:26Z",
+          "method": "worktree(mtime 2026-10-29T10:01:25Z ≤ 측정 2026-10-30T15:54:26Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 bccd08091976)",
+          "mtime_utc": "2026-10-29T10:01:25Z",
+          "path": "output/multi/docker-compose.yaml",
+          "shipped": "worktree",
+          "verified": false
+        },
+        "selected_revisions": [
+          {
+            "basis": "mtime≤measured",
+            "commit": "50a5ce48673875468007fac5dab6fef9f15b9601",
+            "commits_after_measurement": [],
+            "cross_check": [
+              "측정 뒤 커밋 0",
+              "작업트리 = HEAD",
+              "마운트본 output/multi/configs/serve_runner.sh(mtime 2026-10-29T10:01:25Z ≤ 측정 — 마운트본의 현재 mtime 관측) 바이트 일치"
+            ],
+            "history_match": null,
+            "measured_utc": "2026-10-30T15:54:26Z",
+            "method": "worktree(mtime 2026-09-06T21:57:53Z ≤ 측정 2026-10-30T15:54:26Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 50a5ce486738)",
+            "mtime_utc": "2026-09-06T21:57:53Z",
+            "path": ".claude/skills/upstream-version-watch/assets/configs/serve_runner.sh",
+            "shipped": "worktree",
+            "verified": false
+          },
+          {
+            "basis": "mtime≤measured",
+            "commit": "bccd080919769730f16f2e5fad2aa2e15f8bebb0",
+            "commits_after_measurement": [],
+            "cross_check": [
+              "측정 뒤 커밋 0",
+              "작업트리 = HEAD"
+            ],
+            "history_match": null,
+            "measured_utc": "2026-10-30T15:54:26Z",
+            "method": "worktree(mtime 2026-10-29T10:01:25Z ≤ 측정 2026-10-30T15:54:26Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 bccd08091976)",
+            "mtime_utc": "2026-10-29T10:01:25Z",
+            "path": "output/multi/docker-compose.yaml",
+            "shipped": "worktree",
+            "verified": false
+          }
+        ]
+      },
+      "excluded": [
+        {
+          "file": "arm_patch.sh",
+          "why": "not-armed(output/multi/configs/ds41-load-local-1m_patch.py 없음(CONFIG_FILE) · slave default_patch.py(CONFIG_FILE) 없음 — arm_patch.sh 는 no-op · arm_patch.sh 측정 당시 개정(1b1df2cd4034) `_cfg=` 키 체인 RUNTIME_PATCH_STEM > CONFIG_FILE > 'default')"
+        }
+      ],
+      "file_records": [
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/.env.cluster.template",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "7080b80df613e14e4451527e9e31f30bed1a7039f5942bd8ed57ef24e93faf5f",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/.env.interconnect.template",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "304c70c8c371edbfd3d227b804810d69e3a29c390653639785058262eb868a20",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/.env.template",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "d56247ca27afe663cffc14d2d30b69b17f7dabc353966dcc1e80ff5f378b2b25",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        },
+        {
+          "bytes_observed": false,
+          "generated_by": "renderer",
+          "header": {
+            "line": 1,
+            "style": "comment",
+            "text": "# ⚠ generated-unverified — docker-compose.yaml: worktree(mtime 2026-10-29T10:01:25Z ≤ 측정 2026-10-30T15:54:26Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 bccd08091976) — 측정 당시 실행 바이트는 별도 관측되지 않았다 · 생성: renderer"
+          },
+          "path": "artifacts/compose/docker-compose.yaml",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 renderer) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "771826edf02b9e8556fb1707db654ea9719828e8084e2e3bb73204841ac39a60",
+          "verification": "generated-unverified",
+          "verification_basis": "docker-compose.yaml: worktree(mtime 2026-10-29T10:01:25Z ≤ 측정 2026-10-30T15:54:26Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 bccd08091976) — 측정 당시 실행 바이트는 별도 관측되지 않았다"
+        },
+        {
+          "bytes_observed": false,
+          "generated_by": "renderer",
+          "header": {
+            "line": 2,
+            "style": "comment",
+            "text": "# ⚠ generated-unverified — serve_runner.sh: worktree(mtime 2026-09-06T21:57:53Z ≤ 측정 2026-10-30T15:54:26Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 50a5ce486738) — 측정 당시 실행 바이트는 별도 관측되지 않았다 · 생성: renderer",
+            "why_line_2": "shebang 보존"
+          },
+          "path": "artifacts/compose/serve_runner.sh",
+          "relevance": "unknown",
+          "relevance_basis": "파일의 실행 당시 바이트가 확인되지 않았다(generated-unverified · 생성 renderer) — 이 표시만으로 경로 실행 여부나 필요 여부를 판정하지 않는다(참고 형상)",
+          "sha256": "df4a5fdb2193e0752b0beecbcfdc0909a13af4ca57dff30243aa70bc221cc07d",
+          "verification": "generated-unverified",
+          "verification_basis": "serve_runner.sh: worktree(mtime 2026-09-06T21:57:53Z ≤ 측정 2026-10-30T15:54:26Z(sweep_index.generated_utc) · 바이트 = 측정 전 마지막 커밋 50a5ce486738) — 측정 당시 실행 바이트는 별도 관측되지 않았다"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/compose/sub_recipe.json",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "cd4bfa5d4c8e08649d4ded469179add4a6de5eba797d22ec600ae52bef0db441",
+          "verification": "verified",
+          "verification_basis": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"
+        }
+      ],
+      "files": [
+        "artifacts/compose/.env.cluster.template",
+        "artifacts/compose/.env.interconnect.template",
+        "artifacts/compose/.env.template",
+        "artifacts/compose/docker-compose.yaml",
+        "artifacts/compose/serve_runner.sh",
+        "artifacts/compose/sub_recipe.json"
+      ],
+      "machine_reason": "multi 서빙 경로(compose · 러너 · env 형상) — 측정 당시 개정(selected_revisions)",
+      "rationale": null
+    },
+    "fork_pin": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "VARIANT 줄 부재 = stock",
+        "ref": ".claude/policies/arch_variant_ledger.json"
+      },
+      "file_records": [],
+      "files": [],
+      "machine_reason": "셀 env 에 VARIANT 줄 없음 = stock(workflow.md §변종 좌표의 거처)",
+      "rationale": null
+    },
+    "runtime_patch": {
+      "applicable": false,
+      "confidence": "1-signal",
+      "evidence": {
+        "kind": "none",
+        "note": "런타임 패치 파일 없음",
+        "ref": "output/multi/configs/ds41-load-local-1m_patch.py"
+      },
+      "file_records": [],
+      "files": [],
+      "machine_reason": "output/multi/configs/ds41-load-local-1m_patch.py 없음 — arm_patch.sh 는 no-op(런타임 패치 불해당)",
+      "rationale": null
+    },
+    "triplet": {
+      "applicable": true,
+      "confidence": "2-signal",
+      "evidence": {
+        "kind": "file",
+        "measured_utc": "2026-10-30T15:54:26Z",
+        "note": "측정이 이 셀 config 로 돌았다(스윕 색인)",
+        "observed": "output/multi/benchlog/sweep_loading_ds41-load-local-1m/sweep_index.json#config",
+        "post_measurement_regenerated": [],
+        "ref": "output/multi/configs/ds41-load-local-1m.yaml",
+        "substituted": "QUANT_MODEL_PATH → manifest.quant_model_path (host bind source; original env unchanged)"
+      },
+      "file_records": [
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/.env.ds41-load-local-1m",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "a4dc88d5689476f43326b385dfc7cee2ae46b4c68ebe0c5d7b2797732c19a3cc",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/ds41-load-local-1m.sh",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "814a57d9912b7ab8a1d8e1ac6df914db9f0e7e60364fd38a0d5c63eaa268055b",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        },
+        {
+          "generated_by": "cell-run",
+          "path": "artifacts/triplet/ds41-load-local-1m.yaml",
+          "relevance": "required",
+          "relevance_basis": "재현 경로 입력(패치 아님 — 관련성 판정은 빌드 패치만 · 이 셀의 빌드·기동 경로가 읽는 파일)",
+          "sha256": "5b958a6f903ba5feee9252b6ce8fb6ab412c1fb9bb21d2cae8b1b8e3ba065c79",
+          "verification": "verified",
+          "verification_basis": "셀 트리플렛 — 측정이 이 셀 config 로 돌았다(스윕 색인)"
+        }
+      ],
+      "files": [
+        "artifacts/triplet/.env.ds41-load-local-1m",
+        "artifacts/triplet/ds41-load-local-1m.sh",
+        "artifacts/triplet/ds41-load-local-1m.yaml"
+      ],
+      "machine_reason": "셀 id ds41-load-local-1m = 트리플렛 이름(configs/ds41-load-local-1m.yaml · .sh · envs/.env.ds41-load-local-1m)",
+      "rationale": null
+    }
+  },
+  "tag": "hint/0.32.0-g5df63a7203cd/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8",
+  "tool_snapshots": [
+    {
+      "driver_note": "그 판본의 .claude/skills/adversarial-benchmark/scripts/ 안에서 sweep_bench.sh 를 부르는 드라이버: broad_search.sh 후보(미검증)",
+      "git_rev": "17959581d8ae97c2e951120dbca09a5a882e3051",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-27T07:26:14Z",
+      "head_at_measurement": "ede01ab6a83526a6d8ea52c850a5cb5e38dfc055",
+      "name": "sweep_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "ede01ab6a835..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
+      "rev_method": "reflog HEAD@{1793369423}(2026-10-30T14:10:23Z) = 측정 시각 2026-10-30T15:54:26Z 직전 체크아웃",
+      "role": "sweep",
+      "snapshot_rel": "inputs/sources/sweep_bench.sh@17959581d8ae",
+      "why": "스윕 색인 조립자(output/multi/benchlog/sweep_loading_ds41-load-local-1m/sweep_index.json · generated_utc = measured_utc 조인)",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "29cbdbc89a3d694097e94a9f9d6c56dde4bc1ee0",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-17T02:03:29Z",
+      "head_at_measurement": "ede01ab6a83526a6d8ea52c850a5cb5e38dfc055",
+      "name": "run_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "ede01ab6a835..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+      "rev_method": "reflog HEAD@{1793369423}(2026-10-30T14:10:23Z) = 측정 시각 2026-10-30T15:54:26Z 직전 체크아웃",
+      "role": "bench",
+      "snapshot_rel": "inputs/sources/run_bench.sh@29cbdbc89a3d",
+      "why": "그 판본 sweep_bench.sh 가 레벨마다 부른다(`\"$SDIR/run_bench.sh\"`) · 색인에 레벨 기록",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "d33b0878a6c37dc7d89aec06861ba438ceffb4de",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-17T13:18:03Z",
+      "head_at_measurement": "ede01ab6a83526a6d8ea52c850a5cb5e38dfc055",
+      "name": "lite_bench.sh",
+      "next_rev": null,
+      "next_rev_basis": "ede01ab6a835..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/lite_bench.sh",
+      "rev_method": "reflog HEAD@{1793369423}(2026-10-30T14:10:23Z) = 측정 시각 2026-10-30T15:54:26Z 직전 체크아웃",
+      "role": "lite",
+      "snapshot_rel": "inputs/sources/lite_bench.sh@d33b0878a6c3",
+      "why": "그 판본 sweep_bench.sh 가 lite 레그로 부른다(`\"$SDIR/lite_bench.sh\"`) · 색인에 lite 기록",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    },
+    {
+      "driver_note": null,
+      "git_rev": "17959581d8ae97c2e951120dbca09a5a882e3051",
+      "git_rev_note": null,
+      "git_rev_utc": "2026-10-27T07:26:14Z",
+      "head_at_measurement": "ede01ab6a83526a6d8ea52c850a5cb5e38dfc055",
+      "name": "broad_search.sh",
+      "next_rev": null,
+      "next_rev_basis": "ede01ab6a835..HEAD 경로 이력에 변경 없음(지금 HEAD 까지 같은 바이트)",
+      "next_rev_utc": null,
+      "repo_path": ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
+      "rev_method": "reflog HEAD@{1793369423}(2026-10-30T14:10:23Z) = 측정 시각 2026-10-30T15:54:26Z 직전 체크아웃",
+      "role": "driver-candidate",
+      "snapshot_rel": "inputs/sources/broad_search.sh@17959581d8ae",
+      "why": "그 판본에서 sweep_bench.sh 를 부르는 스크립트 · 넘기는 --tool 상수 ['guidellm'] 가 이 측정과 어긋나지 않는다 — 이 선택기는 호출 기록을 조회하지 않는다(정적 소스 기반 후보이며 실제 드라이버 여부는 이 선택기에서 미검증). 별도 호출 관측과 이 판본의 실제 실행 바이트 결속은 구분한다",
+      "worktree_note": "측정 시각의 워킹트리(미커밋 편집)는 관측 대상 밖 — 이 바이트는 그때의 **커밋된** 판본이다"
+    }
+  ]
+}

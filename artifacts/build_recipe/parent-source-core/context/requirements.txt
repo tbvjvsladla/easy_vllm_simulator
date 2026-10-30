@@ -1,0 +1,83 @@
+# vLLM 런타임 의존성 — wheel 의 Requires-Dist(METADATA) 기준(권위 소스).
+# source: https://github.com/vllm-project/vllm/releases/download/v0.32.0/vllm-0.32.0-cp38-abi3-manylinux_2_28_aarch64.whl
+# distribution METADATA Version: 0.32.0
+# base 제공분(torch/torchvision/torchaudio/setuptools)은 제외(--no-deps 보호).
+# extra(fastapi[standard] 등)는 그대로 — pip 가 빌드 시 transitive(uvicorn→uvloop) 해소.
+# ⚠ KNOWN_INCOMPAT 천장 적용(시간드리프트 회귀 차단; upstream 수정 시 regen_requirements.py KNOWN_INCOMPAT 에서 제거): fastapi<0.137.0
+# KNOWN_INCOMPAT exemption: transformers<5.15.0 omitted for exact METADATA Version 0.32.0; compatibility and smoke unverified.
+PyNvVideoCodec==2.0.4
+aiohttp>=3.14.3
+anthropic>=0.71.0
+apache-tvm-ffi==0.1.11
+blake3
+cachetools
+cbor2
+cloudpickle
+compressed-tensors==0.17.0
+depyf==0.20.0
+einops
+fastapi[standard]<0.137.0,>=0.133.0,<0.137.0
+fastsafetensors>=0.3.3
+filelock>=3.20.3
+flashinfer-python==0.7.0.post1
+huggingface_hub>=1.31.0
+humming-kernels[cu13]==0.1.17
+ijson
+instanttensor>=0.2.2
+jsonschema>=4.23.0
+lark==1.2.2
+llguidance<1.8.0,>=1.7.0
+lm-format-enforcer==0.11.3
+mcp<3.0.0,>=2.0.0
+mistral_common[image]>=1.11.6
+model-hosting-container-standards<1.0.0,>=0.1.14
+msgspec
+ninja
+numba==0.65.0
+nvidia-cudnn-frontend>=1.19.1
+nvidia-cutlass-dsl[cu13]==4.8.0
+nvtx==0.2.15
+openai>=2.25.0
+opencv-python-headless>=4.13.0
+opentelemetry-api>=1.27.0
+opentelemetry-exporter-otlp>=1.27.0
+opentelemetry-sdk>=1.27.0
+opentelemetry-semantic-conventions-ai>=0.4.1
+oss-harmony>=0.0.11
+outlines_core==0.2.14
+partial-json-parser
+pillow>=12.3.0
+prometheus-fastapi-instrumentator>=8.0.0
+prometheus_client>=0.18.0
+protobuf!=6.30.*,!=6.31.*,!=6.32.*,!=6.33.0.*,!=6.33.1.*,!=6.33.2.*,!=6.33.3.*,!=6.33.4.*,>=5.29.6
+protobuf==7.36.1
+psutil
+py-cpuinfo
+pybase64
+pydantic>=2.12.0
+python-json-logger
+pyyaml
+pyzmq>=25.0.0
+quack-kernels==0.6.5
+regex
+requests>=2.33.0
+safetensors>=0.6.2
+sentencepiece
+setproctitle
+six>=1.16.0
+starlette>=1.0.1
+tiktoken>=0.6.0
+tilelang==0.1.12
+tokenizers>=0.23.2
+tokenspeed-mla==0.2.15
+torchcodec>=0.14
+tqdm
+transformers<5.20.0,>=5.16.1
+typing_extensions>=4.10
+watchfiles
+xgrammar==0.2.8
+
+# Compatibility intersection reused from same NGC26.07 / official source5df63a7 measured dependency repair:
+# docs/simlog/single8_gptoss120b_20261028T135226Z/build_dependency_repair/{installed_metadata.txt,pip-dryrun.json,probe.txt} on sub.
+# NGC datasets requires hub<2; vLLM0.32 requires hub>=1.31. Only hub1.33 and pytest9.2 were selected and pip-check passed there.
+huggingface-hub==1.33.0

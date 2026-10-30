@@ -1,0 +1,9 @@
+{
+  "provenance": "measured(main local docker alias after GPU probe)",
+  "source": "easy-vllm:0.32.0-cu133-aarch64-source",
+  "alias": "easy-vllm:0.32.0-cu133-aarch64-source-deps1",
+  "image_id": "sha256:a9fcfe61a72537f6fb09f121476f569e0ad17d6b9c4972cff1118e70d87580ed",
+  "alias_image_id": "sha256:a9fcfe61a72537f6fb09f121476f569e0ad17d6b9c4972cff1118e70d87580ed",
+  "build_performed": false,
+  "basis": "new stock source build already completed; deps1 is additional same-ID local tag to align verified sub recipe"
+}
