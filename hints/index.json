@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 93,
-  "generated_kst": "2026-10-30T05:38:57",
+  "count": 94,
+  "generated_kst": "2026-10-30T22:32:43",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1976,6 +1976,28 @@
       "tagged_utc": "2026-10-28T22:57:30Z",
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gpt120v0320_20261028T2143/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.32.0-g5df63a7203cd"
+    },
+    {
+      "anchor": "ebc5d4910db98ea2d4ad567be18284aaf3d53544",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "Qwen/Qwen3.8-Flash-Next",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26103022_qwen3.8-flash-next-nvfp4_GB10_0.32.0.md))",
+      "brief": "Qwen3.8-Flash-Next-NVFP4를 GB10 두 노드·TP2, vLLM 소스5df63a7203cdb9328d824a27b682e77c7b9928be 빌드에서 max-model-len1048576·FP8 KV·resident PLE·MTP off·eager로 서빙했고, local NVMe 대표 full의 concurrency1 decode는21.40t/s다. YaRN 길이 의미와 worker mount 입력을 확인했다(W2/W3). KV와 동시성은 이번 비교에서 고정한 손레버이며 최소 필요값이나 자동 수렴값이 아니다(V6/V9).",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "33546463ef146eba2e390658a085720296d953c2",
+      "published": true,
+      "recipe": "qnvfp4-len1048576-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.32.0-g5df63a7203cd/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8",
+      "tagged_utc": "2026-10-30T13:32:43Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_loading_q38-load-local-1m/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.32.0-g5df63a7203cd"
     },
     {
