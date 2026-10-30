@@ -1,0 +1,216 @@
+{
+  "_verification": "⚠ generated-unverified — main 최종 attempt2 동결 입력과 관측 원장에서 조립한 새 local 재현안이며 미실행 · 생성: agent",
+  "schema_version": 1,
+  "kind": "hint-parent-source-core",
+  "selected_image_digest": "sha256:436bd187022965d2e41f8969695d8446baeca6c5d50692d8b6db76ae2877a916",
+  "context_root": "output/multi/cache/v032-stock-build",
+  "files": {
+    "context/Dockerfile.source-build": {
+      "source": "output/multi/cache/v032-stock-build/Dockerfile.source-build",
+      "sha256": "ef219c7054e426c4623c889c79a02988298bfa6f4cf5242fbf281336860f7ddf",
+      "role": "frozen-context"
+    },
+    "context/build_patches/.gitkeep": {
+      "source": "output/multi/cache/v032-stock-build/build_patches/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "role": "frozen-context"
+    },
+    "context/build_patches/05-ngc-source032-deps-compat.sh": {
+      "source": "output/multi/cache/v032-stock-build/build_patches/05-ngc-source032-deps-compat.sh",
+      "sha256": "ef79a410b90cae256d9b520e95ad32e7480059a8f2ffce194810749e225dbc54",
+      "role": "frozen-context"
+    },
+    "context/build_patches_src/.gitkeep": {
+      "source": "output/multi/cache/v032-stock-build/build_patches_src/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "role": "frozen-context"
+    },
+    "context/requirements.txt": {
+      "source": "output/multi/cache/v032-stock-build/requirements.txt",
+      "sha256": "4618157b8e50ba411ea9008a1fb2e4d032738bce8a117d3a24e2b9476aa1a6c4",
+      "role": "frozen-context"
+    },
+    "alias-evidence.json": {
+      "source": "output/multi/parent-build/i5-sm12x032/alias-evidence.json",
+      "sha256": "90d10101db6e8876a80ea9932d1f9aee0be7c3a174058aa22bf7c85f0948aec3",
+      "role": "observed-evidence"
+    },
+    "core-build-command.txt": {
+      "source": "output/multi/parent-build/i5-sm12x032/core-build-command.txt",
+      "sha256": "3d82bed10154dc7c28fe368cc90264126e4ca6f0c3f1236a4e804e90b62840ce",
+      "role": "observed-evidence"
+    },
+    "leaf-ledger-evidence.json": {
+      "source": "output/multi/parent-build/i5-sm12x032/leaf-ledger-evidence.json",
+      "sha256": "155a52dc3bf0cdc7c2dde1caf1c58d49a73f57b46071fc3be5bb59d9460f150b",
+      "role": "observed-evidence"
+    },
+    "README.md": {
+      "source": "output/multi/parent-build/i5-sm12x032/README.md",
+      "sha256": "5cdcaea21d15632b70a5155277de29f5fac752289c21dcb377f375ff0fb5f960",
+      "role": "generated-instructions"
+    }
+  },
+  "commands": {
+    "parent_source_core": "# generated-unverified: new reproduction, not an observed invocation\n: \"${REPRO_CORE_TAG:?set an independent local core tag}\"\ndocker pull nvcr.io/nvidia/pytorch@sha256:2140e699b3beaf7f96a0081fd9c9406bc3832b435cdb60dfa2d261f7d2f34a1c\ndocker tag nvcr.io/nvidia/pytorch@sha256:2140e699b3beaf7f96a0081fd9c9406bc3832b435cdb60dfa2d261f7d2f34a1c nvcr.io/nvidia/pytorch:26.07-py3\ndocker build --progress plain --build-arg VLLM_REF=5df63a7203cdb9328d824a27b682e77c7b9928be --build-arg TORCH_CUDA_ARCH=12.1 --build-arg BUILD_JOBS=8 -t \"$REPRO_CORE_TAG\" -f parent-source-core/context/Dockerfile.source-build parent-source-core/context",
+    "alias": "# generated-unverified: main observed same-ID alias; reproduce locally, no separate build\n: \"${REPRO_DEPS1_TAG:?set an independent local alias tag}\"\ndocker tag \"$REPRO_CORE_TAG\" \"$REPRO_DEPS1_TAG\"",
+    "leaf": "# generated-unverified: attempt2 source context assembled from existing slots plus five support files; selected Dockerfile may include its recorded warning\nmkdir -p leaf-sm12x/context/build_patches leaf-sm12x/context/build_patches_src\ncp Dockerfile.source-build-sm12x leaf-sm12x/context/Dockerfile\ncp parent-source-core/leaf-support/build_patches/.gitkeep leaf-sm12x/context/build_patches/.gitkeep\ncp ../build_patch_post/05-ngc-source032-deps-compat.sh leaf-sm12x/context/build_patches/05-ngc-source032-deps-compat.sh\ncp ../build_patch_post/06-b12x-optional032.sh leaf-sm12x/context/build_patches/06-b12x-optional032.sh\ncp ../build_patch_post/70-exllamav3-build.sh leaf-sm12x/context/build_patches/70-exllamav3-build.sh\ncp ../build_patch_post/72-exl3-row-store.sh leaf-sm12x/context/build_patches/72-exl3-row-store.sh\ncp ../build_patch_post/73-vllm-exl3-build.sh leaf-sm12x/context/build_patches/73-vllm-exl3-build.sh\ncp ../build_patch_post/74-exl3-moe-prep-fused.sh leaf-sm12x/context/build_patches/74-exl3-moe-prep-fused.sh\ncp ../build_patch_post/75-exl3-python-deps032.sh leaf-sm12x/context/build_patches/75-exl3-python-deps032.sh\ncp ../build_patch_post/79-exl3-port-selfcheck.sh leaf-sm12x/context/build_patches/79-exl3-port-selfcheck.sh\ncp parent-source-core/leaf-support/build_patches/Dockerfile.source-build-deps2 leaf-sm12x/context/build_patches/Dockerfile.source-build-deps2\ncp parent-source-core/leaf-support/build_patches_src/.gitkeep leaf-sm12x/context/build_patches_src/.gitkeep\ncp ../build_patch_pre/80-exl3-quant-method.sh leaf-sm12x/context/build_patches_src/80-exl3-quant-method.sh\ncp ../build_patch_pre/81-exl3-model-wiring.sh leaf-sm12x/context/build_patches_src/81-exl3-model-wiring.sh\ncp ../build_patch_pre/82-exl3-h2d-stage.sh leaf-sm12x/context/build_patches_src/82-exl3-h2d-stage.sh\ncp ../build_patch_pre/83-engram-file-backend.sh leaf-sm12x/context/build_patches_src/83-engram-file-backend.sh\ncp ../build_patch_pre/84-sm12x-block-shim.sh leaf-sm12x/context/build_patches_src/84-sm12x-block-shim.sh\ncp ../build_patch_pre/85-exl3-serial-streams.sh leaf-sm12x/context/build_patches_src/85-exl3-serial-streams.sh\ncp ../build_patch_pre/86-exl3-worker-hooks.sh leaf-sm12x/context/build_patches_src/86-exl3-worker-hooks.sh\ncp ../build_patch_pre/87-engram-embed-skip.sh leaf-sm12x/context/build_patches_src/87-engram-embed-skip.sh\ncp ../build_patch_pre/88-engram-prestage.sh leaf-sm12x/context/build_patches_src/88-engram-prestage.sh\ncp ../build_patch_pre/89-kv-null-block-zero.sh leaf-sm12x/context/build_patches_src/89-kv-null-block-zero.sh\ncp parent-source-core/leaf-support/build_patches_src/PROVENANCE.json leaf-sm12x/context/build_patches_src/PROVENANCE.json\ncp parent-source-core/leaf-support/build_patches_src/exl3_port_lib.py leaf-sm12x/context/build_patches_src/exl3_port_lib.py\n: \"${REPRO_IMAGE_TAG:?set independent i5 leaf tag}\"\ndocker build --build-arg BASE_IMAGE=\"$REPRO_INTERMEDIATE_TAG\" --build-arg VLLM_REF=5df63a7203cdb9328d824a27b682e77c7b9928be --build-arg TORCH_CUDA_ARCH=12.1a --build-arg BUILD_JOBS=4 --build-arg SM12X_PORT=1 -t \"$REPRO_IMAGE_TAG\" -f leaf-sm12x/context/Dockerfile leaf-sm12x/context"
+  },
+  "generated_reason": "main 최종 attempt2 동결 입력과 관측 원장에서 조립한 새 local 재현안이며 미실행",
+  "historical_scope": "Main official source+POST05 build -> same-ID deps1 alias -> observed deps2 POST06 -> final i5 attempt2: cached PRE layer, native POST rerun/recompiled including75. This new reconstruction was not built or GPU-tested. Sub normal result is accepted through its own documents, not reconstructed or revalidated here.",
+  "intermediate_layer": {
+    "image_tag": "easy-vllm:0.32.0-cu133-aarch64-source-deps2",
+    "image_digest": "sha256:8227e7d79471b6b92f21157acfb38c7cc617d1510a5c56f3dec7eb8e48567884",
+    "files": {
+      "Dockerfile.source-build-deps2": {
+        "source": "output/multi/cache/v032-deps2-recipe-path-correction/Dockerfile.source-build-deps2",
+        "sha256": "bfffc28b8a7de98e239f6677fc233c25eedb97858937119f359a65d2e7f363ad"
+      },
+      "build_patches/06-b12x-optional032.sh": {
+        "source": "output/multi/cache/v032-deps2-build/build_patches/06-b12x-optional032.sh",
+        "sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15"
+      }
+    },
+    "build_args": {
+      "BASE_IMAGE": "easy-vllm:0.32.0-cu133-aarch64-source-deps1",
+      "SM12X_PORT": "0",
+      "SRC_DEPS_AUTHORITY": "0",
+      "VLLM_REF": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+      "VLLM_REPO": "https://github.com/vllm-project/vllm.git"
+    },
+    "command": "# generated-unverified: reconstructed deps2 intermediate from observed parent ledger args\n: \"${REPRO_INTERMEDIATE_TAG:?set independent deps2 tag}\"\ndocker build --build-arg BASE_IMAGE=\"$REPRO_DEPS1_TAG\" --build-arg VLLM_REPO=https://github.com/vllm-project/vllm.git --build-arg VLLM_REF=5df63a7203cdb9328d824a27b682e77c7b9928be --build-arg SM12X_PORT=0 --build-arg SRC_DEPS_AUTHORITY=0 -t \"$REPRO_INTERMEDIATE_TAG\" -f parent-source-core/intermediate-deps2/context/Dockerfile.source-build-deps2 parent-source-core/intermediate-deps2/context"
+  },
+  "leaf_context": {
+    "root": "output/multi/cache/v032-sm12x-build-attempt2",
+    "files": {
+      "Dockerfile": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/Dockerfile",
+        "sha256": "25fca737e28b87cf264456fcfe41523490915fb9433720b9d5c8c64e794acebe",
+        "slot_path": "artifacts/build_recipe/Dockerfile.source-build-sm12x"
+      },
+      "build_patches/.gitkeep": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches/.gitkeep",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "slot_path": null
+      },
+      "build_patches/05-ngc-source032-deps-compat.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches/05-ngc-source032-deps-compat.sh",
+        "sha256": "ef79a410b90cae256d9b520e95ad32e7480059a8f2ffce194810749e225dbc54",
+        "slot_path": "artifacts/build_patch_post/05-ngc-source032-deps-compat.sh"
+      },
+      "build_patches/06-b12x-optional032.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches/06-b12x-optional032.sh",
+        "sha256": "aebff978bb9bf4f06accc04b52ec872b66f96c11b3c1922032a4e2f0240bba15",
+        "slot_path": "artifacts/build_patch_post/06-b12x-optional032.sh"
+      },
+      "build_patches/70-exllamav3-build.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches/70-exllamav3-build.sh",
+        "sha256": "e3ce003d2c2a69de56567f3b7c0d0ae0c4757e268255c393a139a415025342b6",
+        "slot_path": "artifacts/build_patch_post/70-exllamav3-build.sh"
+      },
+      "build_patches/72-exl3-row-store.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches/72-exl3-row-store.sh",
+        "sha256": "110c360787c24033617519127e6f0d1373508288f1bb12c70b7d5d7251bf5e39",
+        "slot_path": "artifacts/build_patch_post/72-exl3-row-store.sh"
+      },
+      "build_patches/73-vllm-exl3-build.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches/73-vllm-exl3-build.sh",
+        "sha256": "36fec33430a034392f6451be53557f0acba35b5c46dfe08729a530d729ab77e8",
+        "slot_path": "artifacts/build_patch_post/73-vllm-exl3-build.sh"
+      },
+      "build_patches/74-exl3-moe-prep-fused.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches/74-exl3-moe-prep-fused.sh",
+        "sha256": "cc290b5449c0a603bed4b3455b84e8bb9ae82c53579672f33ecbbc3e24886cfa",
+        "slot_path": "artifacts/build_patch_post/74-exl3-moe-prep-fused.sh"
+      },
+      "build_patches/75-exl3-python-deps032.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches/75-exl3-python-deps032.sh",
+        "sha256": "c1a3fc81d31d9b6be28f5c2c60c9f88b9ebca1055f0403149f5712e4755df89d",
+        "slot_path": "artifacts/build_patch_post/75-exl3-python-deps032.sh"
+      },
+      "build_patches/79-exl3-port-selfcheck.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches/79-exl3-port-selfcheck.sh",
+        "sha256": "56227afebc5b1f22d864ee76dfd618cf6a54489e4a556cbf0a8cca9d9d7cb07c",
+        "slot_path": "artifacts/build_patch_post/79-exl3-port-selfcheck.sh"
+      },
+      "build_patches/Dockerfile.source-build-deps2": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches/Dockerfile.source-build-deps2",
+        "sha256": "bfffc28b8a7de98e239f6677fc233c25eedb97858937119f359a65d2e7f363ad",
+        "slot_path": null
+      },
+      "build_patches_src/.gitkeep": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches_src/.gitkeep",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "slot_path": null
+      },
+      "build_patches_src/80-exl3-quant-method.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches_src/80-exl3-quant-method.sh",
+        "sha256": "19f70ed4dd0d98d6318209a1a987daec90515252397cecb33f21a5acb18a4e21",
+        "slot_path": "artifacts/build_patch_pre/80-exl3-quant-method.sh"
+      },
+      "build_patches_src/81-exl3-model-wiring.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches_src/81-exl3-model-wiring.sh",
+        "sha256": "78d5606a73127488052cd1ffde5dbbe533cfeada1c2343095061f121d42f68b4",
+        "slot_path": "artifacts/build_patch_pre/81-exl3-model-wiring.sh"
+      },
+      "build_patches_src/82-exl3-h2d-stage.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches_src/82-exl3-h2d-stage.sh",
+        "sha256": "373f1aa3fb7f80c921be8a793b85bf223b22520a0c5dbe19382e3fc15a8f6d4c",
+        "slot_path": "artifacts/build_patch_pre/82-exl3-h2d-stage.sh"
+      },
+      "build_patches_src/83-engram-file-backend.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches_src/83-engram-file-backend.sh",
+        "sha256": "e65f4871384d970c6cb1833eebe24756e3449489523f85291bd25bea7ca51112",
+        "slot_path": "artifacts/build_patch_pre/83-engram-file-backend.sh"
+      },
+      "build_patches_src/84-sm12x-block-shim.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches_src/84-sm12x-block-shim.sh",
+        "sha256": "ce18151a93c9f9a6b101dc44efde8232aef5ed6a67c10c86c5fb2751b9dfc8ef",
+        "slot_path": "artifacts/build_patch_pre/84-sm12x-block-shim.sh"
+      },
+      "build_patches_src/85-exl3-serial-streams.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches_src/85-exl3-serial-streams.sh",
+        "sha256": "b6c5cadf73a667c892ce017edd33cdf7c56b0b3e4f4b44fc6b36feb5ded0147b",
+        "slot_path": "artifacts/build_patch_pre/85-exl3-serial-streams.sh"
+      },
+      "build_patches_src/86-exl3-worker-hooks.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches_src/86-exl3-worker-hooks.sh",
+        "sha256": "f4b142ccb0360b887376306d9af1db78820b021aacf607b204346f4a4f9a8d58",
+        "slot_path": "artifacts/build_patch_pre/86-exl3-worker-hooks.sh"
+      },
+      "build_patches_src/87-engram-embed-skip.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches_src/87-engram-embed-skip.sh",
+        "sha256": "91c254f6bc88120d710ca02296d9e2faf352eae157080379b94b76d3fb79d39e",
+        "slot_path": "artifacts/build_patch_pre/87-engram-embed-skip.sh"
+      },
+      "build_patches_src/88-engram-prestage.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches_src/88-engram-prestage.sh",
+        "sha256": "185f6d23574158a812858240cfe55d8a6a60139377fd03466883ac4d42b88022",
+        "slot_path": "artifacts/build_patch_pre/88-engram-prestage.sh"
+      },
+      "build_patches_src/89-kv-null-block-zero.sh": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches_src/89-kv-null-block-zero.sh",
+        "sha256": "2ede1ae09b75a75af3580789ff632107514ffec5ee1f8ee166a9a51540209abe",
+        "slot_path": "artifacts/build_patch_pre/89-kv-null-block-zero.sh"
+      },
+      "build_patches_src/PROVENANCE.json": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches_src/PROVENANCE.json",
+        "sha256": "9c23a7bf20ad92788c28ff70e8fcbb3e6c90189bf90e0398310eeda72d299f35",
+        "slot_path": null
+      },
+      "build_patches_src/exl3_port_lib.py": {
+        "source": "output/multi/cache/v032-sm12x-build-attempt2/build_patches_src/exl3_port_lib.py",
+        "sha256": "cd232a52fed1a47093514f8421149092378647494ee94d8f05c586b57814ade5",
+        "slot_path": null
+      }
+    },
+    "build_command": {
+      "source": "output/multi/parent-build/i5-sm12x032/leaf-build-command.txt",
+      "sha256": "6452b6bfb90a28b565884ca4f97c501760b617ec0e7f57e663ed8d214d376fc1"
+    },
+    "identity_evidence": {
+      "source": "output/multi/parent-build/i5-sm12x032/leaf-result-evidence.json",
+      "sha256": "856ed3085f47ad8ab2626fec506e1652b0218805fb056171ad8f1d387da8f02b"
+    }
+  }
+}

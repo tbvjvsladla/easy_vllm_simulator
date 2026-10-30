@@ -1,0 +1,339 @@
+{
+  "schema": 2,
+  "source": {
+    "upstream_base_tag": "v0.32.0",
+    "upstream_base_sha": "5df63a7203cdb9328d824a27b682e77c7b9928be"
+  },
+  "purpose": "Official v0.32.0 EXL3 + file-backed common Engram self-port candidate, SM12X_PORT=1; CPU patch-application is not runtime evidence.",
+  "variant_gate": "SM12X_PORT=1",
+  "target_vllm": {
+    "tag": "v0.32.0",
+    "sha": "5df63a7203cdb9328d824a27b682e77c7b9928be",
+    "note": "New official0.32 self-port candidate. Each script must be reapplied against this source; no0.30runtime success inherited."
+  },
+  "install": {
+    "opt_dir": "/opt/exl3-port",
+    "chat_template_path": "/opt/dsv41/chat_template.jinja",
+    "row_store_lib": "/opt/exl3-port/librow_store.so",
+    "exllamav3_patched_src": "/opt/exl3-port/exllamav3-src",
+    "fetch_cache": "/tmp/exl3_port_cache",
+    "licenses_dir": "/opt/exl3-port/licenses",
+    "vllm_exl3_src": "/opt/exl3-port/vllm-exl3-src"
+  },
+  "sources": {
+    "mia_overlay": {
+      "repo": "MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks",
+      "commit": "6f7d1590ad49a2b8995188e45d7b9db31e677452",
+      "commit_utc": "2026-09-19T13:38:32Z",
+      "resolved_utc": "2026-10-02",
+      "resolution": "GitHub API commits/HEAD at authoring time (default branch head); pinned, never floating",
+      "tarball_url": "https://github.com/MiaAI-Lab/DeepSeek-v4.1-Flash-EXL3-2x-DGX-Sparks/archive/{commit}.tar.gz",
+      "license": {
+        "repo_level": "AGPL-3.0 (LICENSE; Dockerfile label org.opencontainers.image.licenses)",
+        "readme_statement": "Launcher/overlay: AGPL-3.0, plus MIT for files that carry LICENSE.MIT",
+        "license_mit_note": "LICENSE.MIT = MIT, Copyright (c) 2023 DeepSeek; before 2026-09-07 the repo was MIT and that text is retained for contributions made under it",
+        "spdx_header_inconsistency": "overlay/exl3.py line 1 carries SPDX Apache-2.0, inconsistent with the repo-level AGPL-3.0 statement",
+        "license_sha256": {
+          "LICENSE": "8d56b405468aad11f87ab5763f901e276e08d9646ff5c8481b1762b6b789e9ed",
+          "LICENSE.MIT": "d48b01844af2aa68bc3fbea765069b94d70adb0c67dc4a62ca605c067aec9ab3"
+        },
+        "caveat": "Facts only. Whether baking AGPL-3.0 code into a distributed image triggers obligations is a legal question not assessed here. Files are fetched at build time, not vendored in the repo."
+      },
+      "files_sha256": {
+        "overlay/engram_file_backend.py": "bc1969b6ca9875b3f00ab683fb8b70d4e014ebfbd032a8a505455ec1d99f70b2",
+        "overlay/engram_layout.py": "7b38f7d731a34bf4563a317ff43ee2b39669a7b53bcef28eebf7fdc627788741",
+        "files/chat_template.jinja": "7d1356675e429ec4a55cbcc1a6fbeb40615dbeb257aca25b8c3705a42087f33e",
+        "overlay/patch_exl3_ext_aarch64.py": "960443aecd6a4a06b4c6bd62d17c0cf0e85d2abdf5750704e17bb8191f0d5ad3",
+        "overlay/patch_exl3_fat_kernel.py": "c24d29259e95bdf1620d33e86b5494b950705a8bea0984bff0369a642143a038",
+        "overlay/exl3_fat_gemm.cu": "1442a09d79915206abdc2379c093f9bb25b45cd74d295486c1135bd112cc6ea7",
+        "overlay/exl3_fat_gemm.cuh": "b5ed5ee3d2b028d4be2091d5c5f14ae13daa2df44246fe9acda08ff92ab3262a",
+        "overlay/exl3_fat_moe.cu": "21e625aa439367ed13feb88bbb55b72a06f2e5ce56d3615b3d4e1a28cb231e44",
+        "overlay/exl3_fat_moe.cuh": "0b3ae15e9d42a582c32368ec4f36e386580d4207408cedb0cd44784ee85a8e0e",
+        "overlay/row_store.cpp": "79c3747f7c4bdf6f5a552dea146620f4d5b9f92f128ee74b820c89d2dab60505"
+      },
+      "role_v2": "round 2: Mia is no longer the EXL3 quantization-method source. Still fetched for: exllamav3 aarch64+fat-kernel patch inputs (70), engram file backend + layout (83), row_store.cpp (72), chat template (80). overlay/exl3.py, exl3_k_map.json and the e3v2 fat-MoE extension (71, removed) are NOT used for pack A."
+    },
+    "exllamav3": {
+      "repo": "turboderp-org/exllamav3",
+      "commit": "e648f1a131365aae15920073e761a3fa5a527654",
+      "commit_utc": "2026-08-31T20:44:14Z",
+      "version": "1.4.5",
+      "selection": "the exact commit used by the Mia Dockerfile (ARG EXLLAMAV3_COMMIT=e648f1a1...); full SHA resolved via GitHub API",
+      "tarball_url": "https://github.com/turboderp-org/exllamav3/archive/{commit}.tar.gz",
+      "tree_digest": {
+        "algorithm": "sha256 over '\\n'.join(sorted('<posix relpath> <sha256 of file bytes>') for every regular file in the extracted tree, root dir stripped)",
+        "sha256": "353bd1fd11571459729c6a02141732c6adf96fc4e22b70d7e2c5532327eaaf35",
+        "file_count": 614
+      },
+      "license": "MIT, Copyright (c) 2025 Turboderp (LICENSE in tree; installed to /opt/exl3-port/licenses/exllamav3/LICENSE by 73)"
+    },
+    "vllm_exl3": {
+      "repo": "vcruz305/vllm-exl3",
+      "commit": "d3cfd394920360d69f820d2dc96f8292a9e10283",
+      "commit_utc": "2026-09-09T07:22:32Z",
+      "resolved_utc": "2026-10-03",
+      "resolution": "GitHub API commits/d3cfd394 -> full 40-hex SHA (the pin used by sfxnz docker/Dockerfile.e14 ARG VLLM_EXL3_REF); pinned, never floating",
+      "version": "0.4.2",
+      "version_note": "pyproject.toml says 0.4.2 but the tag v0.4.2 resolves to commit 4f50a69c5ff7c1f8687c9e4cc91cf539ae067ed9; the pin d3cfd394 is a LATER commit on main (chore: remove one-time SUH cache maintenance workflow) that still carries version 0.4.2",
+      "tarball_url": "https://github.com/vcruz305/vllm-exl3/archive/{commit}.tar.gz",
+      "tree_digest": {
+        "algorithm": "sha256 over '\\n'.join(sorted('<posix relpath> <sha256 of file bytes>') for every regular file in the extracted tree, root dir stripped)",
+        "sha256": "d2a2519d9016be32c57e671e401af31ec8129d5b4c159341ea4cc18b725d0a54",
+        "file_count": 77
+      },
+      "files_sha256": {
+        "LICENSE": "cf0b6664ce73f379c829d162e2c738dcd867448fbc2ee3962ef2b000297a6083",
+        "LICENSE.APACHE-2.0": "230a88fc02af8381245b5d611f2bfe553975da6dfd64d61c15428cf4d9e9e6c5",
+        "NOTICE": "2a30702aef1ca3af34bc324c160cb0908841dad92dc7871b005cd177e4fa695b",
+        "THIRD_PARTY_NOTICES.md": "3c23458d09b0874676be2936ac1520232b02c94006ecd2818f5647b6cf3e6aaa",
+        "pyproject.toml": "c35ae01e22840d42f88464943327d75715a1407839f8b1167874e479019908aa",
+        "setup.py": "0cfb362734a9cd21b8ff3a3c8e8e0b0ec5780e28c040781bff573bced8715425",
+        "src/vllm_exl3/__init__.py": "b8b987094476605b7721168c1d2c1167d8a0ff4519b1f70ad186fbe5a90ddbfc",
+        "src/vllm_exl3/exl3.py": "03f24c869e77d9d209b4e1158d5c8460c77fe461cad0b4c62674701710016359",
+        "src/vllm_exl3/runtime_policy.py": "4092c56f5f873d36f8ec07a8e054ed2e5f95c414b3bca384f7f694f4a9004137",
+        "csrc/bindings.cpp": "4dea4abe5d6d5b5a93844164c16d3e4c70bea4064e60d52ddbcd04ec35f9584d",
+        "csrc/exl3_fat_gemm.cu": "961009f828f2e5cfdfd2ac94b04d99917fcb8c9ca30e0167db7097cfe9ba28fe",
+        "csrc/exl3_gemm.cu": "699af09376e6cefcef3f797a6621fbf0da13edfb9b4595b238d4d1f5f0ee71b9",
+        "csrc/exl3_gemv.cu": "a53dfbab14198321ca3ff020377b9510eeb4128724a872d826797986375ee842",
+        "csrc/p2b_batched.cu": "719454fe993548190675ad6768a6bb1ee990d7f896e1cba65e23d5b968b26f87",
+        "csrc/p2b_moe.cu": "e14d9ff3b07eb0df7db92176b51606305d06d39f4d5b533aedede0dacb7e514c"
+      },
+      "install_form": "plain pip package (vllm_exl3 + native vllm_exl3_c), NO entry-point: 73 strips [project.entry-points.\"vllm.general_plugins\"] from pyproject before install; registration is only via the lazy hook in quantization/__init__.py (80)",
+      "setup_py_fix": "setup.py CUDAExtension sources are absolute (str(ROOT/'csrc'/...)) and setuptools rejects absolute paths; rewritten to repo-relative 'csrc/<f>' exactly as sfxnz docker/patch/fix_vllm_exl3_setup.py does (re-implemented in 73, nothing fetched from sfxnz)",
+      "license": {
+        "project": "GNU AGPL-3.0-only (LICENSE; pyproject license = AGPL-3.0-only); earlier releases Apache-2.0 (LICENSE.APACHE-2.0 retained)",
+        "license_files_installed_to": "/opt/exl3-port/licenses/vllm-exl3/",
+        "notice_requirement": "NOTICE: THIRD_PARTY_NOTICES.md 'must be retained with any redistribution'; derives from MIT work by Mia's AI Lab (GLM-5.3 overlay, fat GEMM kernels, (c) 2026) and Turboderp (ExLlamaV3, (c) 2025)",
+        "src/vllm_exl3/exl3.py header": "SPDX-License-Identifier: Apache-2.0 on line ~13 while repo-level license is AGPL-3.0-only (same kind of inconsistency as the Mia overlay)",
+        "modified_by_us": "73 applies anchored source edits to exl3.py/setup.py/pyproject.toml of the fetched tree at BUILD time (weight_block_size, MXFP8 lm_head hook, h2d staging, p2b-engaged log, entry-point removal) and runs the sfxnz p2b chain over csrc/p2b_moe.cu + exl3.py; edits live in build_patches/73-vllm-exl3-build.sh and in the pinned sfxnz scripts",
+        "caveat": "Facts only. Whether baking AGPL-3.0 (modified) code into a distributed/network-served image creates source-offer obligations is a legal question not assessed here. Nothing is vendored in our repo; the code is fetched at build time."
+      },
+      "p2b_chain": "applied at build time by 73: the sfxnz widen_p2b_* scripts listed in sources.sfxnz_p2b.chain (fetched at that pin, sha256-verified, run in that order) replace 73's earlier own p2b-shapes re-implementation; widen_p2b_mma.py is not applied (sfxnz Dockerfile.mma experiment, decode regression 10.2 vs 15.1 tok/s per widen_p2b_coop.py docstring)"
+    },
+    "sfxnz_p2b": {
+      "repo": "sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark",
+      "commit": "3de914682d0880c8e478712a60ada930339c22e4",
+      "commit_utc": "2026-09-27T09:43:07Z",
+      "resolved_utc": "2026-10-04",
+      "resolution": "pin shared with the reference image easy-vllm-ref:sfx-dsv41-e14-3de9146; local clone HEAD == commit verified 2026-10-04; codeload tarball tree digest computed from the same commit; pinned, never floating",
+      "tarball_url": "https://github.com/sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark/archive/{commit}.tar.gz",
+      "tree_digest": {
+        "algorithm": "sha256 over '\\n'.join(sorted('<posix relpath> <sha256 of file bytes>') for every regular file in the extracted tree, root dir stripped)",
+        "sha256": "54136f900a10e1d3950e6f3caf17d1d432041cad866e5b301bba90c1fcae1173",
+        "file_count": 4479
+      },
+      "chain": [
+        "docker/patch/widen_p2b_shapes.py",
+        "docker/patch/widen_p2b_mrow.py",
+        "docker/patch/widen_p2b_cfg1.py",
+        "docker/patch/widen_p2b_codebook.py",
+        "docker/patch/widen_p2b_fshift.py",
+        "docker/patch/widen_p2b_srcsort.py",
+        "docker/patch/widen_p2b_coop.py",
+        "docker/patch/widen_p2b_dataflow.py"
+      ],
+      "chain_order_source": "sfxnz docker/Dockerfile and docker/Dockerfile.e14 (canonical-e14): fix_vllm_exl3_setup (= our 73 setup edit) -> shapes -> mrow -> cfg1 -> codebook -> fshift -> srcsort -> coop -> dataflow",
+      "files_sha256": {
+        "docker/patch/widen_p2b_shapes.py": "b25121b83e8a14a748c00f0cde581caf9596a5c47d09b1e8168870ef2cec54ba",
+        "docker/patch/widen_p2b_mrow.py": "7e823adf46e41392194de97016d71303852acb555ff7e6a0ded69a057af4399a",
+        "docker/patch/widen_p2b_cfg1.py": "469609510b188a2984f225d010b2a7e24b2509c63b82f8b8519170d79cec817b",
+        "docker/patch/widen_p2b_codebook.py": "3dad3dcb2501356030f1a25f80cfbfb268fda57e04bdac9997ae492767576770",
+        "docker/patch/widen_p2b_fshift.py": "193eedf97f62a05e020ceed8adfed4292b3b0ec39464e5a8468f416abcd158ff",
+        "docker/patch/widen_p2b_srcsort.py": "085fdb913c62728f601b84d3a09c155bd1c1565aa833bad4bd3338189a1bfb7a",
+        "docker/patch/widen_p2b_coop.py": "6cede6f6d260794ace7e1f387a04bba0bfded2471a1fd5a027244b5653164519",
+        "docker/patch/widen_p2b_dataflow.py": "acdcc3abfcbd79c3f625ae2042db42f3d52f064436ce307d97c6db247e888719"
+      },
+      "not_used": {
+        "docker/patch/widen_p2b_mma.py": "experiment-only (Dockerfile.mma, 'Decode regresses on this image'); not in the canonical chain and its anchors assume the mrow-before-cfg1 interleave"
+      },
+      "runtime_levers": "DSV41_P2B_COOP (unset/0 = SORT=0/1 kernels; 1 = coop SORT=2; 2 = dataflow coop, author default since round 35) and DSV41_P2B_SRC_SORT (1 = src-sorted SORT=1 order, ignored when COOP selects 1/2); read once per process via getenv in csrc/p2b_moe.cu. Native p2b itself still needs VLLM_EXL3_MOE_KERNEL=native.",
+      "license": {
+        "repo_level": "MIT (LICENSE: MIT text, Copyright (c) 2023 DeepSeek)",
+        "license_sha256": {
+          "LICENSE": "f2c6c602815669d292889e5be8c802f2ed950653b77999b1584e8e6aed25d040"
+        },
+        "installed_to": "/opt/exl3-port/licenses/sfxnz-p2b/LICENSE",
+        "caveat": "Facts only. The scripts are fetched and run at build time and not kept in the image; CUDA code they insert ends up compiled into vllm_exl3_c (itself AGPL-3.0-only). Legal effect not assessed here."
+      }
+    },
+    "sfxnz_reference": {
+      "repo": "sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark",
+      "fetched": "partially - the p2b kernel scripts are fetched as sources.sfxnz_p2b (same commit as the reference image); everything else (Dockerfile.e14 recipe, fix_vllm_exl3_setup.py, sitecustomize exl3_weight_block_size, lmhead_mxfp8.py) remains a read-only reference re-implemented as our own anchored edits",
+      "license": "MIT (LICENSE: MIT text, Copyright (c) 2023 DeepSeek); README states vllm-exl3 is AGPL-3.0",
+      "pack": "sfxnz/DeepSeek-V4.1-Flash-EXL3 revision 2.0bpw-mcg-viterbi-lmhead-mxfp8 (MIT, DeepSeek base weights)"
+    },
+    "sfxnz_woa": {
+      "repo": "sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark",
+      "commit": "3de914682d0880c8e478712a60ada930339c22e4",
+      "commit_utc": "2026-09-27T09:43:07Z",
+      "tarball_url": "https://github.com/sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark/archive/{commit}.tar.gz",
+      "tree_digest": {
+        "algorithm": "sha256 over '\\n'.join(sorted('<posix relpath> <sha256 of file bytes>') for every regular file in the extracted tree, root dir stripped)",
+        "sha256": "54136f900a10e1d3950e6f3caf17d1d432041cad866e5b301bba90c1fcae1173",
+        "file_count": 4479
+      },
+      "chain": [
+        "docker/patch/probe_wo_a.py",
+        "docker/patch/fix_o_proj_woa_fp8.py"
+      ],
+      "chain_order_source": "sfxnz docker/Dockerfile (E10 probe_wo_a then E11 fix_o_proj_woa_fp8; the fix header says 'Apply AFTER probe_wo_a.py')",
+      "files_sha256": {
+        "docker/patch/probe_wo_a.py": "ade748aafac42763a6d234806958792d4b807ae53e216972cd91378d6916a54e",
+        "docker/patch/fix_o_proj_woa_fp8.py": "fbea751ac07b87b9c700b5305219308f4d4aef0bb824e64c55ade0295e2cddcc"
+      },
+      "license": {
+        "repo_level": "MIT (LICENSE: MIT text, Copyright (c) 2023 DeepSeek)",
+        "license_sha256": {
+          "LICENSE": "f2c6c602815669d292889e5be8c802f2ed950653b77999b1584e8e6aed25d040"
+        },
+        "installed_to": "/opt/exl3-port/licenses/sfxnz-woa/LICENSE",
+        "caveat": "Facts only. The scripts are fetched and run at build time and not kept in the image; the Python they insert stays in vllm/models/deepseek_v4/nvidia/ops/o_proj.py (vLLM Apache-2.0 tree). Legal effect not assessed here."
+      },
+      "runtime_levers": "DSV41_WOA_PREPACK (author code default 0, author run.sh default 1), DSV41_PROBE_WO_A_EVERY, EXL3PORT_WOA_REQUANT (our gate, default 1)",
+      "resolution": "same pin as sources.sfxnz_p2b and the reference image easy-vllm-ref:sfx-dsv41-e14-3de9146; file sha256 computed from the local clone at that commit (git HEAD == commit verified 2026-10-04)",
+      "resolved_utc": "2026-10-04"
+    },
+    "sfxnz_b12x": {
+      "repo": "sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark",
+      "commit": "3de914682d0880c8e478712a60ada930339c22e4",
+      "commit_utc": "2026-09-27T09:43:07Z",
+      "tarball_url": "https://github.com/sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark/archive/{commit}.tar.gz",
+      "tree_digest": {
+        "algorithm": "sha256 over '\\n'.join(sorted('<posix relpath> <sha256 of file bytes>') for every regular file in the extracted tree, root dir stripped)",
+        "sha256": "54136f900a10e1d3950e6f3caf17d1d432041cad866e5b301bba90c1fcae1173",
+        "file_count": 4479
+      },
+      "chain": [
+        "docker/patch/prefer_b12x_mxfp8.py"
+      ],
+      "chain_order_source": "sfxnz docker/patch/sitecustomize.py:167-177 (_p_prefer_b12x_mxfp8 applies it to the vllm tree); flags.md:77",
+      "files_sha256": {
+        "docker/patch/prefer_b12x_mxfp8.py": "81d40e019525d43bf73741b6b6ad77ef7036c2fa52e9ce1034d0c0429c18ae64"
+      },
+      "license": {
+        "repo_level": "MIT (LICENSE: MIT text, Copyright (c) 2023 DeepSeek)",
+        "license_sha256": {
+          "LICENSE": "f2c6c602815669d292889e5be8c802f2ed950653b77999b1584e8e6aed25d040"
+        },
+        "installed_to": "/opt/exl3-port/licenses/sfxnz-b12x/LICENSE",
+        "caveat": "Facts only. The script is fetched and run at build time and not kept in the image; its one-line rewrite (backend=\"auto\") stays in vllm/model_executor/kernels/linear/mxfp8/flashinfer.py (vLLM Apache-2.0 tree). Legal effect not assessed here."
+      },
+      "runtime_levers": "DSV41_WOA_PREPACK (author code default 0, author run.sh default 1), DSV41_PROBE_WO_A_EVERY, EXL3PORT_WOA_REQUANT (our gate, default 1)",
+      "resolution": "same pin as sources.sfxnz_p2b and the reference image easy-vllm-ref:sfx-dsv41-e14-3de9146; file sha256 computed from the local clone at that commit (git HEAD == commit verified 2026-10-04)",
+      "resolved_utc": "2026-10-04"
+    },
+    "sfxnz_gemv": {
+      "repo": "sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark",
+      "commit": "3de914682d0880c8e478712a60ada930339c22e4",
+      "commit_utc": "2026-09-27T09:43:07Z",
+      "tarball_url": "https://github.com/sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark/archive/{commit}.tar.gz",
+      "tree_digest": {
+        "algorithm": "sha256 over '\\n'.join(sorted('<posix relpath> <sha256 of file bytes>') for every regular file in the extracted tree, root dir stripped)",
+        "sha256": "54136f900a10e1d3950e6f3caf17d1d432041cad866e5b301bba90c1fcae1173",
+        "file_count": 4479
+      },
+      "chain": [
+        "docker/patch/dense_gemv.py"
+      ],
+      "chain_order_source": "sfxnz docker/patch/sitecustomize.py:193-205 (dense_gemv.apply(<vllm tree>) at interpreter start when DSV41_DENSE_GEMV=1; ours runs the same apply() once at build time via `python3 dense_gemv.py <vllm tree>`, the runtime gate stays DSV41_DENSE_GEMV); flags.md:163",
+      "files_sha256": {
+        "docker/patch/dense_gemv.py": "d30f098643a18254cbc6704343d5f96a8c59940fce6d77a0c9ff6d6174a5e791",
+        "docker/patch/dense_gemv_kernel.cu": "8d7aae4937c7e647e8eebd316d1af89c298864b7af8cf62daa3ad362349149f9"
+      },
+      "runtime_install": {
+        "dir": "/opt/exl3-port/dsv41-patch",
+        "files": {
+          "docker/patch/dense_gemv.py": "dense_gemv.py",
+          "docker/patch/dense_gemv_kernel.cu": "dense_gemv_kernel.cu"
+        },
+        "why": "the hooks import `dense_gemv` at runtime and dense_gemv.py JIT-compiles its sibling dense_gemv_kernel.cu (torch.utils.cpp_extension.load, nvcc -gencode arch=compute_121a,code=sm_121a, build dir /tmp/dsv41-dense-gemv-<sha1[:12]>) at the first armed layer; author path /opt/dsv41-patch is put on sys.path by its sitecustomize, ours by an [exl3-port:dense-gemv] header in each hooked file"
+      },
+      "license": {
+        "repo_level": "MIT (LICENSE: MIT text, Copyright (c) 2023 DeepSeek)",
+        "license_sha256": {
+          "LICENSE": "f2c6c602815669d292889e5be8c802f2ed950653b77999b1584e8e6aed25d040"
+        },
+        "installed_to": "/opt/exl3-port/licenses/sfxnz-gemv/LICENSE",
+        "caveat": "Facts only. dense_gemv.py and dense_gemv_kernel.cu are kept verbatim in the image (runtime module + JIT source); the hook lines the script inserts stay in vllm/model_executor/kernels/linear/mxfp8/flashinfer.py and vllm/models/deepseek_v4/nvidia/ops/o_proj.py (vLLM Apache-2.0 tree). Legal effect not assessed here."
+      },
+      "runtime_levers": "DSV41_DENSE_GEMV=0 (author code default; unset/0 = stock, the rollback) | 1, DSV41_DENSE_GEMV_SHAPES (empty = every tuned shape + wo_a), DSV41_DENSE_DG_SMALLM (must stay 0/unset); self-test reference is mm_mxfp8 via EXL3PORT_MXFP8_BACKEND (91, must stay auto)",
+      "resolution": "same pin as sources.sfxnz_p2b and the reference image easy-vllm-ref:sfx-dsv41-e14-3de9146; file sha256 computed from the local clone at that commit (git HEAD == commit verified 2026-10-04)",
+      "resolved_utc": "2026-10-04"
+    },
+    "sfxnz_moeprep": {
+      "repo": "sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark",
+      "commit": "3de914682d0880c8e478712a60ada930339c22e4",
+      "commit_utc": "2026-09-27T09:43:07Z",
+      "tarball_url": "https://github.com/sfxnz/DeepSeek-V4.1-Flash-EXL3-vLLM-2x-DGX-Spark/archive/{commit}.tar.gz",
+      "tree_digest": {
+        "algorithm": "sha256 over '\\n'.join(sorted('<posix relpath> <sha256 of file bytes>') for every regular file in the extracted tree, root dir stripped)",
+        "sha256": "54136f900a10e1d3950e6f3caf17d1d432041cad866e5b301bba90c1fcae1173",
+        "file_count": 4479
+      },
+      "chain": [
+        "docker/patch/moe_prep_fused.py"
+      ],
+      "chain_order_source": "sfxnz docker/patch/decode_levers.py:245-250 (_install_moe_prep_fused: when DSV41_MOE_PREP_FUSED=1, `import moe_prep_fused; print(f\"dsv41: moe prep fused: {moe_prep_fused.install()}\")`, called from sitecustomize.py:1212 at interpreter start); ours installs moe_prep_fused.py verbatim and makes the same call from a footer appended to the installed vllm_exl3/exl3.py (build_patches/74), so install() still rewrites _apply_native_fused_moe / apply_exl3_experts at runtime via inspect.getsource + exec exactly as the author; flags.md:137",
+      "files_sha256": {
+        "docker/patch/moe_prep_fused.py": "72e658f34af4cefb8893e7a69d4314e515b37f4b8616e3bd6d3b90e181a731a4"
+      },
+      "arming_reference": {
+        "file": "docker/patch/decode_levers.py",
+        "lines": "245-250",
+        "sha256": "704351acca7aaae4093c5072efb4a1f0ad0c1876696882b4e790bbc223383eab",
+        "why": "the author's arming call that our exl3.py footer reproduces (same env test, same print, same 'decode lever moe-prep-fused FAILED, lever is OFF' fallback line); verified at build time, not installed"
+      },
+      "runtime_install": {
+        "dir": "/opt/exl3-port/dsv41-patch",
+        "files": {
+          "docker/patch/moe_prep_fused.py": "moe_prep_fused.py"
+        },
+        "why": "the exl3.py footer imports `moe_prep_fused` at plugin import time when DSV41_MOE_PREP_FUSED=1; author path /opt/dsv41-patch is on sys.path via its sitecustomize, ours is appended by the footer (same dir as sources.sfxnz_gemv)"
+      },
+      "license": {
+        "repo_level": "MIT (LICENSE: MIT text, Copyright (c) 2023 DeepSeek)",
+        "license_sha256": {
+          "LICENSE": "f2c6c602815669d292889e5be8c802f2ed950653b77999b1584e8e6aed25d040"
+        },
+        "installed_to": "/opt/exl3-port/licenses/sfxnz-moeprep/LICENSE",
+        "caveat": "Facts only. moe_prep_fused.py is kept verbatim in the image (runtime module); the footer that arms it is appended to the installed vllm_exl3/exl3.py (AGPL-3.0-only plugin, see sources.vllm_exl3). Legal effect not assessed here."
+      },
+      "runtime_levers": "DSV41_MOE_PREP_FUSED=0 (author code default; unset/0 = stock functions untouched, the rollback) | 1; DSV41_MOE_PREP_VERIFY (default 16, min 1: eager calls also run the stock ops and compare raw bits, mismatch disarms for good). Engages only on the native p2b path (VLLM_EXL3_MOE_KERNEL=native) with expert_map None (TP layout).",
+      "resolution": "same pin as sources.sfxnz_p2b and the reference image easy-vllm-ref:sfx-dsv41-e14-3de9146 (whose boot log prints 'dsv41: moe prep fused: vllm_exl3 _apply_native_fused_moe glue fused, p2b output cast once (verify=16)'); file sha256 computed from the local clone at that commit (git HEAD == commit verified 2026-10-04)",
+      "resolved_utc": "2026-10-04"
+    }
+  },
+  "build": {
+    "torch_cuda_arch_list": "12.1a"
+  },
+  "port_from": {
+    "source": {
+      "upstream_base_tag": "v0.30.0",
+      "upstream_base_sha": "ced6857afa0ea7b2e3f0846a62e1394e90f15607"
+    },
+    "target_vllm": {
+      "tag": "v0.30.0",
+      "note": "pre-compile scripts assume the DSV41 tree at vllm/models/deepseek_v41/ (NOT deepseek_v4_1/ as in the authors' 0909 base)",
+      "sha": "ced6857afa0ea7b2e3f0846a62e1394e90f15607"
+    }
+  },
+  "source_payload": {
+    "kind": "script-modules",
+    "modules_sha256": {
+      "80-exl3-quant-method.sh": "19f70ed4dd0d98d6318209a1a987daec90515252397cecb33f21a5acb18a4e21",
+      "81-exl3-model-wiring.sh": "78d5606a73127488052cd1ffde5dbbe533cfeada1c2343095061f121d42f68b4",
+      "82-exl3-h2d-stage.sh": "373f1aa3fb7f80c921be8a793b85bf223b22520a0c5dbe19382e3fc15a8f6d4c",
+      "83-engram-file-backend.sh": "e65f4871384d970c6cb1833eebe24756e3449489523f85291bd25bea7ca51112",
+      "84-sm12x-block-shim.sh": "ce18151a93c9f9a6b101dc44efde8232aef5ed6a67c10c86c5fb2751b9dfc8ef",
+      "85-exl3-serial-streams.sh": "b6c5cadf73a667c892ce017edd33cdf7c56b0b3e4f4b44fc6b36feb5ded0147b",
+      "86-exl3-worker-hooks.sh": "f4b142ccb0360b887376306d9af1db78820b021aacf607b204346f4a4f9a8d58",
+      "87-engram-embed-skip.sh": "91c254f6bc88120d710ca02296d9e2faf352eae157080379b94b76d3fb79d39e",
+      "88-engram-prestage.sh": "185f6d23574158a812858240cfe55d8a6a60139377fd03466883ac4d42b88022",
+      "89-kv-null-block-zero.sh": "2ede1ae09b75a75af3580789ff632107514ffec5ee1f8ee166a9a51540209abe",
+      "exl3_port_lib.py": "cd232a52fed1a47093514f8421149092378647494ee94d8f05c586b57814ade5"
+    },
+    "helpers": [
+      "exl3_port_lib.py"
+    ]
+  }
+}

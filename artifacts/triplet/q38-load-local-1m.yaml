@@ -1,0 +1,17 @@
+# Storage-loading candidate; configuration must pass current-image 1M smoke before measured trials.
+model: /app/quant_models/Qwen/Qwen3.8-Flash-Next-NVFP4
+host: 0.0.0.0
+port: 8088
+tensor-parallel-size: 2
+distributed-executor-backend: ray
+gpu-memory-utilization: 0.80
+max-model-len: 1048576
+kv-cache-dtype: fp8_e4m3
+kv-cache-memory-bytes: 15032385536
+enforce-eager: true
+async-scheduling: false
+max-num-seqs: 1
+max-num-batched-tokens: 2048
+language-model-only: true
+engram-config: '{"cpu_offload": false}'
+hf-overrides: '{"text_config":{"max_position_embeddings":1048576,"rope_parameters":{"mrope_interleaved":true,"mrope_section":[11,11,10],"partial_rotary_factor":0.25,"rope_theta":10000000,"rope_type":"yarn","factor":4,"original_max_position_embeddings":262144}}}'

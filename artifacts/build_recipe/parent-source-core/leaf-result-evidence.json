@@ -1,0 +1,54 @@
+{
+  "provenance": "measured main local derived variant build and GPU container",
+  "build_exit": 0,
+  "image": {
+    "tag": "easy-vllm:0.32.0-cu133-aarch64-source-sm12x",
+    "id": "sha256:436bd187022965d2e41f8969695d8446baeca6c5d50692d8b6db76ae2877a916"
+  },
+  "parent": {
+    "tag": "easy-vllm:0.32.0-cu133-aarch64-source-deps2",
+    "id": "sha256:8227e7d79471b6b92f21157acfb38c7cc617d1510a5c56f3dec7eb8e48567884",
+    "unchanged": true
+  },
+  "required_checks": {
+    "tensor_math": true,
+    "vllm._C_stable_libtorch": true,
+    "vllm._moe_C_stable_libtorch": true,
+    "b12x_wrapper_api": true,
+    "source_pin": true,
+    "pip_check": true,
+    "ledger_present": true,
+    "variant_selfcheck": true,
+    "exl3_registry": true,
+    "core_source_unchanged": true,
+    "parent_ledger_preserved": true
+  },
+  "package_delta": {
+    "exllamav3": {
+      "before": null,
+      "after": "1.4.5"
+    },
+    "vllm-exl3": {
+      "before": null,
+      "after": "0.4.2"
+    },
+    "flash-linear-attention": {
+      "before": null,
+      "after": "0.6.0"
+    },
+    "fla-core": {
+      "before": null,
+      "after": "0.6.0"
+    },
+    "marisa-trie": {
+      "before": null,
+      "after": "1.4.1"
+    }
+  },
+  "limitations": [
+    "No model weights loaded, no EXL3 quantized GPU kernel executed, no TP2 serving inference or benchmark in this probe.",
+    "Torch alpha weakref cleanup emits UnicodeDecodeError after selfcheck PASS and exit0; reproduced during GPU selfcheck, not suppressed; model process behavior remains to observe.",
+    "Canonical ledger retains cuda_version_json absent."
+  ],
+  "updated_utc": "2026-10-29T12:00:18.648292+00:00"
+}
