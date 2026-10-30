@@ -28,6 +28,8 @@
 #   --no-budget   : 서빙 예산 **선언 생략**(무보호 진입 — plan_26081415 C3 탈출구).
 #                   선언 없이 로드하면 ETA 워치독이 현행 규칙 그대로 돌아 대형 로드를 사살할 수 있다.
 #                   생략 사실은 로그와 `budget_skipped` 이벤트로 **반드시** 남는다(침묵 금지).
+# STRICT_DROP_CACHES=1: teardown에서 양 노드 cache helper 출력/rc를 보존하고 실패 시 비0.
+# SAVE_SERVE_LOGS=1: 성공·실패에 관계없이 현재 양 노드 엔진 로그를 종료 전에 보존한다.
 # 종료코드: 0=스모크 통과, 2=미준비/스모크 실패, 3=NAS/설정 실패(7=RAM 게이트 거부 포함 시 3으로 수렴),
 #           4=예산 선언 실패(진입 차단 — plan_26081415 C3 실패정책 ㄴ. 로드는 0초도 시작하지 않았다).
 set -uo pipefail
@@ -770,8 +772,17 @@ teardown_serve(){
   # 지워진 선언을 되살리려다 fail-loud 로 죽는다(회수 순서: 루프 정지 → clear-budget).
   reap_renew_loops master
   reap_renew_loops slave
-  [ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches >/dev/null 2>&1
-  $SSH "$SUB_HOST" "[ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches" >/dev/null 2>&1
+  local cache_main_rc=0 cache_sub_rc=0
+  if [ "${STRICT_DROP_CACHES:-0}" = "1" ]; then
+    # Storage loading measurements require observed success on both clients.
+    # Keep ordinary teardown best-effort unless explicitly requested by its caller.
+    sudo -n /usr/local/sbin/vllm-drop-caches 2>&1 | sed 's/^/[mn] cache-clear(main): /' || cache_main_rc=$?
+    $SSH "$SUB_HOST" "[ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches" 2>&1 | sed 's/^/[mn] cache-clear(sub): /' || cache_sub_rc=$?
+    echo "[mn] cache-clear proof: main_rc=$cache_main_rc sub_rc=$cache_sub_rc"
+  else
+    [ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches >/dev/null 2>&1
+    $SSH "$SUB_HOST" "[ -x /usr/local/sbin/vllm-drop-caches ] && sudo -n /usr/local/sbin/vllm-drop-caches" >/dev/null 2>&1
+  fi
   # 예산 회수(C3-4). 서빙을 내렸으면 선언도 내린다 — 남겨 두면 다음 로드가 **남의 바닥**으로 무장한다.
   #   standalone 은 이 실행이 선언한 바가 없으므로 `BUDGET_DECLARED` 가 0 이다. 그래도 **무조건** 회수한다 —
   #   내리려는 그 서빙의 선언은 다른 실행이 남긴 것이고, 그것을 남기는 것이 정확히 이 함수가 고치는 결함이다.
@@ -780,13 +791,17 @@ teardown_serve(){
     python3 "$MAIN_SESSION_PY" --node-dir "$(budget_node_dir_main)" clear-budget --now "$(NOW_ISO)" 2>&1 | sed 's/^/[mn] 예산회수(main): /'
     [ -n "$SUB_NODE_ID" ] && timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $SUB_SESSION_PY --node-dir $SUB_WORK_DIR/docs/logs/$SUB_NODE_ID clear-budget --now $(NOW_ISO)'" 2>&1 | sed 's/^/[mn] 예산회수(sub): /'
   fi
+  if [ "${STRICT_DROP_CACHES:-0}" = "1" ] && { [ "$cache_main_rc" != "0" ] || [ "$cache_sub_rc" != "0" ]; }; then
+    echo "[mn] FAIL: cache-clear success was not observed on both nodes" >&2
+    return 3
+  fi
 }
 
 # ── `--down` 진입점: 여기까지가 변수 파생이고, 아래부터가 기동이다. 내리기만 할 때는 여기서 끝낸다. ──
 if [ "$DOWN" = "1" ]; then
   echo "[mn] --down: 상주 서빙 회수(컨테이너 · 워치독 · 페이지캐시 · 예산선언) — 기동·스모크 없음"
   echo "[mn]   대상: $MC / ${SLVC:-slave} · compose=$COMPOSE_MULTI · config=$CONFIG"
-  teardown_serve standalone
+  teardown_serve standalone || exit $?
   echo "[mn] --down 완료. 재기동은 인자에서 --down 을 빼고 실행하라."
   echo "[mn] 종료코드 0"
   exit 0
@@ -1161,6 +1176,10 @@ _save_serve_logs() {   # $1=사유 태그
     # 슬레이브 컨테이너명은 콤보 env 의 SLAVE_CONTAINER_NAME(=$SLVC)이 정본이며, 부재 시 폴백은
     #   compose 기본값과 같아야 한다 — 이름이 갈리면 로그를 엉뚱한 곳에서 찾는다(129행 주석 참조).
     $SSH "$SUB_HOST" "docker logs '${SLVC:-vllm-slave-serve-container}' 2>&1" > "$dir/slave_$1.log" 2>&1 || true
+    if [ "${SAVE_SERVE_LOGS:-0}" = "1" ]; then
+      docker inspect -f '{{json .Mounts}}' "$MC" > "$dir/master_$1.mounts.json" 2>/dev/null || true
+      $SSH "$SUB_HOST" "docker inspect -f '{{json .Mounts}}' '${SLVC:-vllm-slave-serve-container}'" > "$dir/slave_$1.mounts.json" 2>/dev/null || true
+    fi
     echo "[mn] 엔진 로그 보존 → $dir (master/slave · teardown 을 견딘다)"
     # 닫힌 목록 밖의 사인을 사람이 바로 보게 한다 — 목록을 늘리는 대신 **넓게 보여준다**.
     echo "[mn] ── master 로그 꼬리 40줄(사인 후보) ──"
@@ -1327,6 +1346,11 @@ else
   #   진행표는 그 사실대로 proof.ok 없이 적는다(술어를 낮추지 않는다).
   _campaign_phase serve "$([ "$RESULT" = "0" ] && echo done || echo failed)" 0 "health 200 + 추론 1회" \
     "multinode_serve_smoke.sh: ready=$READY health=${LAST_HTTP:-none} verdict=$SMOKE_VERDICT → ${SERVE_PROOF#$REPO/}" "$_SERVE_T0"
+fi
+
+# 로딩 시간 실험은 성공한 로그도 command-start marker와 가중치 구간의 증거로 보존한다.
+if [ "${SAVE_SERVE_LOGS:-0}" = "1" ]; then
+  _save_serve_logs "measured"
 fi
 
 # ── 정리 ──

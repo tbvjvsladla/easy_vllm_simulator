@@ -2484,6 +2484,29 @@ def _manifest_ph(field_name: str) -> str:
     return pii.manifest_placeholder(field_name)
 
 
+def _docker_triplet_env_shape(text: str) -> tuple[str, bool]:
+    """Export the host model-root selector as a recipient coordinate.
+
+    Docker model/sh paths are container coordinates, but QUANT_MODEL_PATH is
+    a host bind source and may differ from the original manifest NAS root.
+    Leave tuning values and unknown keys intact; the normal PII gate still
+    rejects any other unshaped operator data. Never rewrite the source file.
+    """
+    lines: list[str] = []
+    substituted = False
+    for line in text.splitlines(keepends=True):
+        body = line.rstrip("\r\n")
+        ending = line[len(body):]
+        left, sep, value = body.partition("=")
+        key = re.sub(r"^export\s+", "", left.strip()).strip()
+        if sep and key == "QUANT_MODEL_PATH" and value.strip().strip("\"'").strip():
+            lines.append(left + "=" + _manifest_ph("quant_model_path") + ending)
+            substituted = True
+        else:
+            lines.append(line)
+    return "".join(lines), substituted
+
+
 def _field_of(detail: Any) -> str:
     """env_tier 세부(`interconnect.nccl_transport` · `manifest.fixture.x`) → manifest 필드 이름(`manifest.` 접두 제거)."""
     d = str(detail)
@@ -5028,9 +5051,10 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
     missing: list[str] = []
     files: list[str] = []
     slots: dict[str, dict] = {}
+    docker_triplet_env_substituted = False
     if plane == "native":
-        # native 트리플렛(2026-09-23 · plan_26092311): yaml `model:`·PLE 디렉터리·env 가 **호스트 운영자 경로**를 든다(Docker 는
-        #   컨테이너 경로라 원문 그대로 실어도 됐다). 원문을 실으면 봉인 PII 게이트(abs-op-path)가 막고, 게이트를 비켜 가면 운영자
+        # native 트리플렛(2026-09-23 · plan_26092311): yaml `model:`·PLE 디렉터리·env 가 **호스트 운영자 경로**를 든다(Docker yaml/sh는
+        #   컨테이너 좌표이고 env의 host selector만 아래에서 형상화한다). 원문을 실으면 봉인 PII 게이트(abs-op-path)가 막고, 게이트를 비켜 가면 운영자
         #   지문이 배포된다 — 싣는 사본만 manifest 파생 치환표로 자리표시한다(`<manifest.quant_model_path>/…` · 원본은 불변).
         from . import evidence as _evidence, pii as _pii
         _table = _pii.substitution_table(c.repo, _evidence.output_manifest(c.repo, c.topo))
@@ -5039,7 +5063,12 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
         for rel_f, k in zip(trip_files, ("yaml", "sh", "env")):
             (payload / rel_f).chmod(c.triplet[k].stat().st_mode & 0o777)
     else:
-        trip_files = [_copy(payload, c.triplet[k], "triplet") for k in ("yaml", "sh", "env")]
+        trip_files = [_copy(payload, c.triplet[k], "triplet") for k in ("yaml", "sh")]
+        env_text, docker_triplet_env_substituted = _docker_triplet_env_shape(
+            c.triplet["env"].read_text(encoding="utf-8"))
+        env_rel = _write(payload, "triplet", c.triplet["env"].name, env_text)
+        (payload / env_rel).chmod(c.triplet["env"].stat().st_mode & 0o777)
+        trip_files.append(env_rel)
     files += trip_files
     sweep = _get(c.ev, "sweep") or {}
     sidx = sweep.get("index") if isinstance(sweep, dict) else None
@@ -5057,6 +5086,8 @@ def _collect(c: _Ctx, payload: Path, art: Path) -> dict:
         trip_ev["note"] += f" · ⚠ 측정({measured}) 뒤 mtime: {trip_regen} — 실린 값이 측정 당시 값과 같다는 보장 없음"
     if plane == "native":
         trip_ev["substituted"] = "pii.substitution_table(manifest) — 운영자 경로 → 자리표시(싣는 사본만)"
+    elif docker_triplet_env_substituted:
+        trip_ev["substituted"] = "QUANT_MODEL_PATH → manifest.quant_model_path (host bind source; original env unchanged)"
     slots["triplet"] = _slot(trip_files, trip_ev)
 
     # runtime patch — 파일 신호 + 무장 서명 로그 관측(2026-10-25 F2 · 옛 판본은 "arming 로그 미배선" 이라 파일 신호만 셌다)
@@ -5431,6 +5462,18 @@ def selftest() -> list[str]:
         except core.HintError as e:
             ck(f"{name}({e.code})", e.code == code)
 
+    operator_root = "/".join(("", "home", "fixture", "models"))
+    source_env = ("# model settings\nVLLM_PLE_MMAP_DIR=/app/ple/x\nBUILD_JOBS=8\n"
+                  f"export QUANT_MODEL_PATH='{operator_root}'\nOTHER_ROOT={operator_root}\n")
+    shaped_env, shaped_root = _docker_triplet_env_shape(source_env)
+    ck("Docker triplet host model root is a recipient coordinate; tuning/container paths stay intact",
+       shaped_root and "QUANT_MODEL_PATH=<manifest.quant_model_path>" in shaped_env
+       and "VLLM_PLE_MMAP_DIR=/app/ple/x\nBUILD_JOBS=8\n" in shaped_env
+       and f"OTHER_ROOT={operator_root}" in shaped_env)
+    ck("Docker triplet absent/empty selector is unchanged",
+       _docker_triplet_env_shape("BUILD_JOBS=8\nQUANT_MODEL_PATH=\n")
+       == ("BUILD_JOBS=8\nQUANT_MODEL_PATH=\n", False))
+
     own = core.SKILL_DIR.parents[2]
     with tempfile.TemporaryDirectory(prefix="hint-artifacts-") as tmp:
         repo = Path(tmp).resolve()
@@ -5787,6 +5830,31 @@ def selftest() -> list[str]:
         # ── 수집(원장 부재 이미지) ──
         payload = repo / "payload"
         res = collect(repo, ev, payload, render_module=fake_rd, runner=docker_old)
+        # Regression: a measured Docker profile may bind a local model root
+        # outside the manifest NAS directory. Export only its recipient path;
+        # retain the original measured env and reject unknown operator fields.
+        env_path = out / "envs" / f".env.{cell}"
+        env_original, env_stat = env_path.read_bytes(), env_path.stat()
+        try:
+            env_local = env_original + f"QUANT_MODEL_PATH={operator_root}\n".encode()
+            env_path.write_bytes(env_local)
+            local_payload = repo / "payload_local_model_root"
+            local_result = collect(repo, ev, local_payload, render_module=fake_rd, runner=docker_old)
+            exported = (local_payload / "artifacts/triplet" / env_path.name).read_text()
+            ck("Docker local model-root export passes PII without changing measured source",
+               operator_root not in exported and "QUANT_MODEL_PATH=<manifest.quant_model_path>" in exported
+               and env_path.read_bytes() == env_local
+               and "original env unchanged" in local_result["slots"]["triplet"]["evidence"]["substituted"])
+            ck("Docker model-root shaping does not rewrite container model YAML or launch script",
+               all((local_payload / "artifacts/triplet" / cpath.name).read_bytes() == cpath.read_bytes()
+                   for cpath in (out / "configs" / f"{cell}.yaml", out / "configs" / f"{cell}.sh")))
+            env_path.write_bytes(env_local + f"OTHER_ROOT={operator_root}\n".encode())
+            raises("Unknown Docker triplet operator data still fails closed", "HINT_ARTIFACT_PII",
+                   lambda: collect(repo, ev, repo / "payload_unknown_operator_root",
+                                   render_module=fake_rd, runner=docker_old))
+        finally:
+            env_path.write_bytes(env_original)
+            os.utime(env_path, ns=(env_stat.st_atime_ns, env_stat.st_mtime_ns))
         names = set(res["files"])
         ck("쓰인 source Dockerfile 포함", "artifacts/build_recipe/Dockerfile.source-build" in names)
         ck("★쓰이지 않은 wheel Dockerfile 제외", "artifacts/build_recipe/Dockerfile" not in names)
