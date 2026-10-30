@@ -80,6 +80,9 @@
   — 메인 rsync(코드) **이후** 스테이징을 서브 루트로 **오버레이(--delete 없음)**. 빌딩블럭 스킬·메인 manifest 는 전달 안 됨(런타임블럭 · 서브 manifest 는 §2.7.10 설치 오버레이만).
   - `--mode promotion` 은 verify 가 `promotion-ready` 에 도달한 경우에만 열린다(hint·last-good 평면). 서브 배달은 통상 `experimental`.
 - **단일 전달차**: 코드+에이전트환경 모두 sync_to_sub.sh 한 경로. dry-run 기본 → 사람 검토 후 --apply.
+- 기존 서브의 지침·하네스 환경만 갱신하면 같은 정식 명령에 `--overlay-only`를 준다.
+  빌드킷·source-port·모델 런타임 패치를 배달하지 않고 오버레이 checksum만 검사한다. 기본 배달과
+  토폴로지·인가·dirty 보존·rollback 계약은 유지하며, 서브 git이 없는 초기 구축에는 사용할 수 없다.
 
 ### 2.4 A2A-개념 협업 계약 (서버 없음)
 - 메인=client(Task 발급·리포트 검증·피드백) · 서브=remote(자율 수행·자기검증 리포트 1개). A2A 어휘 차용, HTTP 서버 ✗(전송=SSH 단발 `delegate(task)` — provider 문법은 `references/orchestration/agent-control-adapter.md`).
