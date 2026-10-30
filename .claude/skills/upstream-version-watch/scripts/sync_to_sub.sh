@@ -634,11 +634,11 @@ relative = f"output/{topology}/{leaf}"
 tracked = subprocess.check_output(["git", "-C", canonical, "ls-files", "-z", "--", relative])
 if any(n and n != os.fsencode(relative + "/.gitkeep") for n in tracked.split(b"\0")):
     raise SystemExit("[sync] FAIL(build input): generated payload must remain untracked")
-# The existing index-owned empty scaffold is metadata, never generated payload.
+# The index-owned scaffold may contain documentation; it is never generated payload.
 scaffold = pathlib.Path(snapshot) / relative / ".gitkeep"
 if kind == "post" and os.path.lexists(scaffold):
     st = scaffold.lstat()
-    if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1 or st.st_size != 0:
+    if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
         raise SystemExit("[sync] FAIL(post slot): invalid index-owned .gitkeep scaffold")
 # Open every ancestor without following symlinks; no parent/slot escape or FIFO open.
 fd = os.open(canonical.rstrip("/"), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
