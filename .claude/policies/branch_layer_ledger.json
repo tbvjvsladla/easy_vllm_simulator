@@ -3084,6 +3084,58 @@
           "reason": "공통 A2A 수명 제어 응답 스키마 및 호환성 검증이며 topology 특화층이 아니다."
         }
       ]
+    },
+    {
+      "entry_id": "sync-261031-multi-to-single-readme-dba80c7",
+      "utc": "2026-10-30T22:40:00Z",
+      "departure": "multi-node",
+      "departure_commit": "dba80c77bfc19834d5d6fea68d1675dd77748dac",
+      "approved_by": "user: README 개정 승인 · 싱글노드 브랜치 전파 및 원격 푸시 지시(plan_26103107)",
+      "approved_utc": "2026-10-30T22:33:00Z",
+      "classification": [
+        {
+          "file": "README.md",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "README·삽화·hint 발행 엔진·공통 스크립트·원격 파생 카탈로그는 양 토폴로지가 같은 바이트를 들어야 하는 공통층이며 topology 특화층이 아니다."
+        },
+        {
+          "file": "assets/campaign-chain.svg",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "README·삽화·hint 발행 엔진·공통 스크립트·원격 파생 카탈로그는 양 토폴로지가 같은 바이트를 들어야 하는 공통층이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/artifacts.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "README·삽화·hint 발행 엔진·공통 스크립트·원격 파생 카탈로그는 양 토폴로지가 같은 바이트를 들어야 하는 공통층이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/core.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "README·삽화·hint 발행 엔진·공통 스크립트·원격 파생 카탈로그는 양 토폴로지가 같은 바이트를 들어야 하는 공통층이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/lineage.py",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "README·삽화·hint 발행 엔진·공통 스크립트·원격 파생 카탈로그는 양 토폴로지가 같은 바이트를 들어야 하는 공통층이며 topology 특화층이 아니다."
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "README·삽화·hint 발행 엔진·공통 스크립트·원격 파생 카탈로그는 양 토폴로지가 같은 바이트를 들어야 하는 공통층이며 topology 특화층이 아니다."
+        },
+        {
+          "file": "hints/index.json",
+          "verdict": "common_promote",
+          "provenance": "agent-judged",
+          "reason": "README·삽화·hint 발행 엔진·공통 스크립트·원격 파생 카탈로그는 양 토폴로지가 같은 바이트를 들어야 하는 공통층이며 topology 특화층이 아니다."
+        }
+      ]
     }
   ]
 }
