@@ -3136,6 +3136,107 @@
           "reason": "README·삽화·hint 발행 엔진·공통 스크립트·원격 파생 카탈로그는 양 토폴로지가 같은 바이트를 들어야 하는 공통층이며 topology 특화층이 아니다."
         }
       ]
+    },
+    {
+      "entry_id": "sync-261031-multi-to-single-wsl-overfit-5c9207e",
+      "utc": "2026-10-31T11:55:00Z",
+      "departure": "multi-node",
+      "departure_commit": "5c9207e3de24cf8e8acf736a799dee8340dd1588",
+      "approved_by": "AhnSangHun",
+      "approved_utc": "2026-10-31T11:55:00Z",
+      "_reach": "single-node vs HEAD 트리차이 · 동기 지점 deaa4fff0df3(departure-landed)",
+      "classification": [
+        {
+          "file": ".claude/policies/predicates/claim_predicates.py",
+          "verdict": "common_promote",
+          "reason": "두 정책 술어 픽스처에 source_build.torch_cuda_arch 를 채움 — 공통 렌더 가드의 짝이라 양 토폴로지가 같은 술어를 돌린다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "verdict": "common_promote",
+          "reason": "셀 materialize 의 메모리 총량·KV 바이트·포트 파생 — 캠페인 writer 는 양 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
+          "verdict": "common_promote",
+          "reason": "systemd/WSL 선검사 — 호스트 안전 설치자는 토폴로지와 무관",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py",
+          "verdict": "common_promote",
+          "reason": "GPU 전력 축을 보정 GPU 에 묶음 — 노드 블랙박스는 양 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/install_node_blackbox.sh",
+          "verdict": "common_promote",
+          "reason": "--gpu-model 전달·systemd/WSL·L3 선검사 — 블랙박스 설치자는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/thermal_watchdog.sh",
+          "verdict": "common_promote",
+          "reason": "BB_TP_GPU_AXIS 비무장 분기 — 핫루프는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/scan_node.py",
+          "verdict": "common_promote",
+          "reason": "메모리 모델·VRAM·CC 수집 — 테라포밍 스캔은 양 토폴로지가 읽는 HW 사실",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/references/resolve-and-render.md",
+          "verdict": "common_promote",
+          "reason": "arch 기본값·resolve_build_track 호출 예시 갱신 — S1 절차는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py",
+          "verdict": "common_promote",
+          "reason": "source-build arch 미해소 fail-loud — 렌더러는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/resolve_build_track.py",
+          "verdict": "common_promote",
+          "reason": "--topology manifest 통로 파생·compute_capability 주석 — 공통 해소기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py",
+          "verdict": "common_promote",
+          "reason": "--arch 기본 = 호스트 — 공통 해소기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/resolve_wheel.py",
+          "verdict": "common_promote",
+          "reason": "--arch 기본 = 호스트 — 공통 해소기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/recipe.py",
+          "verdict": "common_promote",
+          "reason": "메모리 모델 판정·device total 해소 — explorer 엔진은 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "campaigns/_template/cells/_cell/config.yaml",
+          "verdict": "common_promote",
+          "reason": "캠페인 뼈대 셀 템플릿 상수 → <<FILL>> — 뼈대는 양 브랜치 추적 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": "manifest.template.yaml",
+          "verdict": "common_promote",
+          "reason": "manifest 계약 템플릿에 3키 추가 — 단일 계약 인터페이스는 공통",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
