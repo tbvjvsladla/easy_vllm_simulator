@@ -10,7 +10,7 @@ GitHub Release 자산 목록을 실제 조회해 wheel URL을 '실재 확인 후
   python3 resolve_wheel.py 0.21.0 --arch aarch64           # CUDA 자동(자산 최고 cuXXX)
   python3 resolve_wheel.py 0.21.0 --arch aarch64 --cuda 129
 """
-import sys, json, argparse, urllib.request, re
+import sys, json, argparse, urllib.request, re, platform
 
 API = "https://api.github.com/repos/vllm-project/vllm/releases/tags/v{v}"
 
@@ -25,7 +25,8 @@ def fetch_json(url: str):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("vllm_version", help="예: 0.21.0")
-    ap.add_argument("--arch", default="aarch64", help="uname -m 값 (aarch64 | x86_64)")
+    # 기본값 = 이 호스트의 uname -m. 종전 고정 aarch64 는 GB10 전용 가정이었다(plan_26103120).
+    ap.add_argument("--arch", default=platform.machine(), help="uname -m 값 (aarch64 | x86_64 · 기본: 이 호스트)")
     ap.add_argument("--cuda", default=None, help="예 129. 미지정 시 자산에서 최고 cuXXX 자동")
     a = ap.parse_args()
 

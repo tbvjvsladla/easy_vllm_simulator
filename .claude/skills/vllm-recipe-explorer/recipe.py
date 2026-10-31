@@ -210,24 +210,65 @@ REFERENCES_MD_PATH = os.path.join(
 )
 
 
+def _memory_model(man=None):
+    """이 노드의 GPU 메모리 모델 → ('unified'|'discrete'|None, 출처). **관측 사실**에서만 읽는다.
+
+    2026-10-31(plan_26103120 · WSL2/RTX 5090 피드백 U1): 종전엔 메모리 모델을 수집하지 않고
+    "디바이스 풀 = 호스트 RAM" 을 가정했다 — GB10 에서만 참이다. 순서:
+      ① manifest `gpu_memory_model`(scan_node 가 nvidia-smi memory.total 로 판정 — [N/A] = unified)
+      ② references.md §4 의 `gpu_model` 헤더(통합메모리 표지 · 등재된 GPU 만)
+      ③ 둘 다 없으면 None — 호출부가 추측하지 않는다.
+    """
+    if man is None:
+        man = _read_manifest(REPO_ROOT)[0]
+    mm = str(man.get("gpu_memory_model") or "").strip().strip('"')
+    if mm in ("unified", "discrete"):
+        return mm, "manifest.gpu_memory_model"
+    gpu_model = str(man.get("gpu_model") or "").strip().strip('"')
+    looked_up, is_unified = _lookup_gpu_spec(gpu_model)
+    if is_unified is not None:
+        return ("unified" if is_unified else "discrete"), "references.md §4 헤더(gpu_model=%s)" % gpu_model
+    return None, "미상(manifest gpu_memory_model 부재 · references.md 미등재)"
+
+
 def _resolve_device_total_gib(cfg):
     """디바이스 메모리 total(GiB)과 그 **출처**. 코드에 하드웨어 숫자를 적지 않는다(G-B5).
 
     ① config 가 `test_device_total_gib` 를 선언했으면 그것(사람이 잰 값이 가장 강하다).
-    ② 아니면 `/proc/meminfo MemTotal` 실측 — 통합메모리 노드(GB10 계열)에서는 디바이스 풀이
-       곧 호스트 RAM 풀이라 이 값이 그대로 디바이스 total 이다.
-    ③ 둘 다 없으면 **추측하지 않고 죽는다**. 이 값은 overhead 유도(=예산·gmu 판정)의 입력이라
+    ② 메모리 모델(`_memory_model`)이 discrete 면 manifest `gpu_vram_mib`(scan 실측 per-card 총량).
+    ③ unified 로 **확정**됐을 때만 `/proc/meminfo MemTotal` — 통합메모리 노드(GB10 계열)에서는 디바이스
+       풀이 곧 호스트 RAM 풀이라 이 값이 그대로 디바이스 total 이다. discrete·미상에서 이 값을 쓰면
+       호스트 RAM(WSL 이면 VM 크기)을 VRAM 으로 적는다(2026-10-31 실측 결함).
+    ④ 그 밖에는 **추측하지 않고 죽는다**. 이 값은 overhead 유도(=예산·gmu 판정)의 입력이라
        틀리면 조용히 틀린 상한을 만든다.
     """
     declared = cfg.get("test_device_total_gib")
     if declared:
         return float(declared), "declared(config test_device_total_gib)"
+    man = _read_manifest(REPO_ROOT)[0]
+    mm, mm_src = _memory_model(man)
+    if mm == "discrete":
+        vram = man.get("gpu_vram_mib")
+        if vram:
+            return float(vram) / 1024.0, "measured(manifest gpu_vram_mib · discrete ← %s)" % mm_src
+        looked_up, _ = _lookup_gpu_spec(str(man.get("gpu_model") or "").strip().strip('"'))
+        if looked_up is not None:
+            return float(looked_up), "references.md §4 per-card VRAM(discrete ← %s)" % mm_src
+        raise SystemExit(
+            "[recipe] FAIL: discrete GPU(%s)인데 manifest 에 gpu_vram_mib 가 없다 — 호스트 RAM 을 VRAM 으로 "
+            "쓰지 않는다.\n  → terraforming_node 재스캔으로 채우거나 config 에 `test_device_total_gib` 를 선언하라."
+            % mm_src)
+    if mm != "unified":
+        raise SystemExit(
+            "[recipe] FAIL: 디바이스 메모리 total 을 알 수 없다 — 메모리 모델 %s.\n"
+            "  → config 에 `test_device_total_gib: <실측 GiB>` 를 선언하거나 terraforming_node 재스캔으로 "
+            "manifest gpu_memory_model 을 채워라(통합메모리일 때만 /proc/meminfo 를 쓴다)." % mm_src)
     try:
         with open("/proc/meminfo", encoding="utf-8") as fh:
             for line in fh:
                 if line.startswith("MemTotal:"):
                     return (int(line.split()[1]) / (1024.0 * 1024.0),
-                            "measured(/proc/meminfo MemTotal · 통합메모리 가정)")
+                            "measured(/proc/meminfo MemTotal · 통합메모리 ← %s)" % mm_src)
     except (OSError, IndexError, ValueError):
         pass
     raise SystemExit(
@@ -248,7 +289,14 @@ def _is_unified_memory(device_total_gib, tolerance=0.05):
     `/proc/meminfo MemTotal`)에서 파생되므로, 손으로 적으면 §4종 안티패턴의 "파생 가능한데
     손으로 적은 것"이 된다. 판정 불가(meminfo 못 읽음/디바이스 total 미상)면 None 이며,
     소비자는 None 을 "캡 걸지 않음"으로 처리한다(fail-closed 방향 = 현행 동작 유지).
+
+    2026-10-31(plan_26103120 U1′): 관측된 메모리 모델(`_memory_model`)이 있으면 그것이 답이다.
+    아래 크기 비교는 모델이 미상일 때만 쓴다 — device_total 이 /proc/meminfo 에서 왔으면 비교는
+    자기 자신과의 비교라 discrete 도 항상 "통합"이 됐다(순환 판정).
     """
+    mm, _src = _memory_model()
+    if mm is not None:
+        return mm == "unified"
     if not device_total_gib:
         return None
     try:
@@ -373,8 +421,9 @@ def _host_target_gpu(cfg, repo_root):
 
     칸별 해소(선언 > 실측·참조 > fail-loud — 추측하지 않는다):
       · gpu_model      = manifest `gpu_model`
-      · per_card_vram  = 통합메모리(references.md 헤더)면 `_resolve_device_total_gib`(선언 test_device_total_gib
-                         > /proc/meminfo) · 그 외는 선언 test_device_total_gib > references.md §4 역룩업
+      · per_card_vram  = 통합메모리(`_memory_model` — manifest gpu_memory_model > references.md 헤더)면
+                         `_resolve_device_total_gib`(선언 test_device_total_gib > /proc/meminfo) · 그 외는
+                         선언 test_device_total_gib > manifest gpu_vram_mib(scan 실측) > references.md §4 역룩업
       · target_gmu     = config.safety_margin **명시값 승계** — host 흐름에는 target_gmu 칸이 없다.
                          승계 사실은 호출부가 lockset `gmu_source` 와 stderr 에 표시한다(침묵 폴백 ✗).
                          명시값이 없으면 멈춘다(기본값 0.90 을 배포 gmu 로 쓰지 않는다)
@@ -387,13 +436,16 @@ def _host_target_gpu(cfg, repo_root):
         _die("host 흐름(target_gpu 미정의)인데 manifest(%s) 에 gpu_model 이 없다 — 이 노드 GPU 의 per-card "
              "VRAM·통합메모리 여부를 정할 근거가 없다(추측 ✗). terraforming_node 스캔으로 채우거나 "
              "config.target_gpu 블록을 선언하라(plan_26091407 §4.3)." % mpath, code=5)
-    looked_up, is_unified = _lookup_gpu_spec(gpu_model)
+    looked_up, _ = _lookup_gpu_spec(gpu_model)
+    mm, mm_src = _memory_model(man)
     declared_total = cfg.get("test_device_total_gib")
-    if is_unified:
+    if mm == "unified":
         per_card, per_card_src = _resolve_device_total_gib(cfg)
-        per_card_src = "통합메모리(references.md 헤더) → " + per_card_src
+        per_card_src = "통합메모리(%s) → %s" % (mm_src, per_card_src)
     elif declared_total:
         per_card, per_card_src = float(declared_total), "declared(config test_device_total_gib)"
+    elif mm == "discrete" and man.get("gpu_vram_mib"):
+        per_card, per_card_src = float(man["gpu_vram_mib"]) / 1024.0, "measured(manifest gpu_vram_mib)"
     elif looked_up is not None:
         per_card, per_card_src = float(looked_up), "references.md §4 역룩업(gpu_model=%s)" % gpu_model
     else:

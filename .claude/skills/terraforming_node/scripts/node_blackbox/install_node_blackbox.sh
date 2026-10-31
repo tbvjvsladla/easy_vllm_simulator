@@ -166,6 +166,26 @@ fi
 if [ "$APPLY" = 1 ] && [ "$(id -u)" -ne 0 ]; then
   say "FAIL: --apply 는 root 필요 — sudo bash $0 --apply --level=$LEVEL"; exit 1
 fi
+# ── 플랫폼 전제(2026-10-31 · plan_26103120 · WSL2 피드백) ──────────────────────────────
+#   이 설치자는 systemd 유닛을 쓴다. PID 1 이 systemd 가 아니면(systemd 미활성 WSL2 · 컨테이너) 유닛이
+#   조용히 안 도는 무방비 설치가 된다 — 판정은 sd_booted(3) 와 같은 `/run/systemd/system` 존재다.
+_PLAT_WSL=0; grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null && _PLAT_WSL=1
+if [ ! -d /run/systemd/system ]; then
+  if [ "$_PLAT_WSL" = 1 ]; then
+    _PLAT_HINT="WSL2: /etc/wsl.conf 에 [boot] systemd=true 를 넣고 Windows 에서 'wsl --shutdown' 뒤 다시 연다"
+  else
+    _PLAT_HINT="systemd 로 부팅된 호스트에서 실행한다(컨테이너 안 실행 ✗)"
+  fi
+  if [ "$APPLY" = 1 ]; then
+    say "FAIL: PID 1 이 systemd 가 아니다(/run/systemd/system 부재) — 유닛이 돌지 않는다. $_PLAT_HINT"; exit 1
+  fi
+  say "⚠ PID 1 이 systemd 가 아니다 — --apply 는 거부된다. $_PLAT_HINT"
+fi
+# L3(efi_pstore·crashkernel·grub)는 호스트 커널·부트로더를 다룬다 — WSL2 의 커널·부팅은 Windows(Hyper-V)
+#   소유라 이 계층은 성립하지 않는다(MS WSL 커널은 kexec/crash dump 미빌드). 적용하지 않고 멈춘다.
+if [ "$_PLAT_WSL" = 1 ] && [ "$LEVEL" = "L3" ]; then
+  say "FAIL: --level=L3 은 WSL2 에서 적용 불가(커널·부트로더가 Windows 소유) — L1 을 쓴다"; exit 1
+fi
 
 # ── node_id 해소 (fail-loud · 기본값 없음) ───────────────────────────────
 #   여기서 실패하면 설치가 멈춘다. 예전처럼 hostname 으로 밀고 나가면 유닛에 엉뚱한 경로가
@@ -291,7 +311,11 @@ fi
 # 그 사실이 로그 한 줄(`params=defaults(내장)`)로만 남아 사실상 보이지 않는다.
 say "   열·전력 상수 생성 → $ETC/thermal_params.env (하한 가드 통과 시에만 기록)"
 if [ "$APPLY" = 1 ]; then
-  if python3 "$SDIR/blackbox_thermal.py" --emit-params "$ETC/thermal_params.env"; then
+  # GPU 전력 축은 보정된 GPU(GB10)에서만 무장한다 — 보정 밖 discrete GPU 에 80 W 임계를 걸면
+  #   정상 서빙이 60초 뒤 kill 된다(plan_26103120). 이름은 호스트 사실(nvidia-smi)이다.
+  _BB_GPU_MODEL="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)"
+  if python3 "$SDIR/blackbox_thermal.py" --emit-params "$ETC/thermal_params.env" \
+       ${_BB_GPU_MODEL:+--gpu-model "$_BB_GPU_MODEL"}; then
     say "   ✓ thermal_params.env"
   else
     say "   ✗ 열·전력 파라미터 거부(하한 가드) — 설치 중단"

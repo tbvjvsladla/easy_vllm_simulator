@@ -14,7 +14,7 @@ skopeo 불필요 — `docker buildx imagetools inspect` (익명, 레이어 pull 
   python3 resolve_ngc_tag.py 2.11.0 --start 26.05 --months 18 --arch arm64
   python3 resolve_ngc_tag.py 2.11.0 --candidates 26.03-py3,26.01-py3
 """
-import sys, json, argparse, subprocess, re
+import sys, json, argparse, subprocess, re, platform
 
 IMAGE = "nvcr.io/nvidia/pytorch"
 
@@ -79,11 +79,15 @@ def gen_candidates(start: str, months: int):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("torch_pin", help="예: 2.11.0")
-    ap.add_argument("--arch", default="arm64", help="arm64(DGX Spark) | amd64")
+    # 기본값 = 이 호스트(uname -m → docker 플랫폼 어휘). 종전 고정 arm64 는 GB10 전용 가정이었다(plan_26103120).
+    _host = {"aarch64": "arm64", "arm64": "arm64", "x86_64": "amd64", "amd64": "amd64"}.get(platform.machine())
+    ap.add_argument("--arch", default=_host, help="arm64 | amd64 (기본: 이 호스트 = %s)" % _host)
     ap.add_argument("--start", default=None, help="YY.MM (가장 최신 후보). newest→oldest 프로빙")
     ap.add_argument("--months", type=int, default=18, help="--start 부터 거슬러 프로빙할 개월수")
     ap.add_argument("--candidates", default=None, help="명시 태그 목록(쉼표, newest-first)")
     a = ap.parse_args()
+    if a.arch not in ("arm64", "amd64"):
+        sys.exit("[ngc] FAIL: --arch 를 정할 수 없다(호스트 %r) — arm64 | amd64 를 명시하라" % platform.machine())
 
     target = norm(a.torch_pin)
     if a.candidates:

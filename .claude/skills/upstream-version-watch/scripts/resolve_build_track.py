@@ -25,6 +25,7 @@ stdlib 만 사용(폐쇄망 — 외부 네트워크 없음). manifest.yaml 은 p
 import sys
 import json
 import argparse
+import os
 
 # build_track 제안 휴리스틱(검증된 ABI 벽 경계, memory: torch 2.10→wheel / 2.11+→source-build).
 # 이건 **제안**이며 스모크가 최종 중재한다. 경계는 packaging 없이 (major, minor) 튜플 비교.
@@ -157,7 +158,10 @@ def _strip_inline_comment(val):
     return val
 
 
-# manifest 에서 compute-capability 를 읽을 때 허용하는 키 별칭(scan 산물 — 미확정이라 관용).
+# manifest 에서 compute-capability 를 읽을 때 허용하는 키 별칭. 정본 = `compute_capability`(scan_node 가
+# nvidia-smi compute_cap 으로 기입 · 2026-10-31 plan_26103120 — 그 전엔 생산자가 없어 손 --sm-arch 뿐이었다).
+# 접미 없는 CC(예 12.0)가 이식 가능한 입력이다: vLLM cmake `cuda_archs_loose_intersection` 이 대상 목록의
+# x.y 를 보고 x.ya 커널을 스스로 고른다. 반대로 `a` 접미 빌드는 정확히 그 CC 에서만 돈다(12.1a ✗ sm_120).
 _MANIFEST_SM_KEYS = ("compute_capability", "sm_arch", "gpu_compute_capability", "cuda_arch")
 
 
@@ -200,6 +204,7 @@ def _self_test():
     _require(map_torch_cuda_arch("sm_90a") == "9.0a", "sm_90a mapping")
     _require(map_torch_cuda_arch("89") == "8.9", "89 mapping")
     _require(map_torch_cuda_arch("12.1a") == "12.1a", "12.1a mapping")
+    _require(map_torch_cuda_arch("12.0") == "12.0", "12.0(RTX 5090 · nvidia-smi compute_cap) mapping")
     _require(map_torch_cuda_arch(None) is None, "None arch mapping")
     # 파싱 실패 → 보수적 source-build
     _require(resolve("garbage", None)["build_track"]["decision"] == "source-build", "invalid version fail-closed")
@@ -212,8 +217,10 @@ def main():
     ap.add_argument("--torch-pin", help="resolve_torch_pin.py 의 torch_pin (예: 2.11.0)")
     ap.add_argument("--sm-arch", default=None,
                     help="GPU compute-capability (예: sm_121a | 121a | 12.1a). manifest 보다 우선")
-    ap.add_argument("--manifest", default="manifest.yaml",
-                    help="--sm-arch 미지정 시 여기서 compute-capability 읽음")
+    ap.add_argument("--manifest", default=None,
+                    help="--sm-arch 미지정 시 여기서 compute-capability 읽음(기본: output/<--topology>/manifest.yaml)")
+    ap.add_argument("--topology", choices=("single", "multi"), default=None,
+                    help="manifest 통로 파생(output/<t>/manifest.yaml) — 루트 manifest.yaml 은 없다(plan_26103120)")
     ap.add_argument("--self-test", action="store_true", help="내장 self-test")
     a = ap.parse_args()
 
@@ -229,7 +236,8 @@ def main():
     sm_arch = a.sm_arch
     sm_source = "--sm-arch"
     if not sm_arch:
-        manifest = load_manifest(a.manifest)
+        mpath = a.manifest or (f"output/{a.topology}/manifest.yaml" if a.topology else "manifest.yaml")
+        manifest = load_manifest(mpath) if os.path.isfile(mpath) else {}
         sm_arch, key = sm_from_manifest(manifest)
         sm_source = f"manifest[{key}]" if key else None
 

@@ -51,6 +51,21 @@ FAIL=0
 if [ "$APPLY" = "1" ] && [ "$(id -u)" -ne 0 ]; then
   say "FAIL: --apply 는 root 필요 — sudo bash .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh --apply"; exit 1
 fi
+# ── 플랫폼 전제(2026-10-31 · plan_26103120 · WSL2 피드백) ──────────────────────────────
+#   이 설치자는 systemd 유닛을 쓴다. PID 1 이 systemd 가 아니면(systemd 미활성 WSL2 · 컨테이너) 유닛이
+#   조용히 안 도는 무방비 설치가 된다 — 판정은 sd_booted(3) 와 같은 `/run/systemd/system` 존재다.
+_PLAT_WSL=0; grep -qi microsoft /proc/sys/kernel/osrelease 2>/dev/null && _PLAT_WSL=1
+if [ ! -d /run/systemd/system ]; then
+  if [ "$_PLAT_WSL" = 1 ]; then
+    _PLAT_HINT="WSL2: /etc/wsl.conf 에 [boot] systemd=true 를 넣고 Windows 에서 'wsl --shutdown' 뒤 다시 연다"
+  else
+    _PLAT_HINT="systemd 로 부팅된 호스트에서 실행한다(컨테이너 안 실행 ✗)"
+  fi
+  if [ "$APPLY" = 1 ]; then
+    say "FAIL: PID 1 이 systemd 가 아니다(/run/systemd/system 부재) — 유닛이 돌지 않는다. $_PLAT_HINT"; exit 1
+  fi
+  say "⚠ PID 1 이 systemd 가 아니다 — --apply 는 거부된다. $_PLAT_HINT"
+fi
 [ -f "$SDIR/mem_watchdog.sh" ] || { say "FAIL: $SDIR/mem_watchdog.sh 부재"; exit 1; }
 [ -f "$SDIR/systemd/easy-vllm-memwatch.service" ] || { say "FAIL: systemd 유닛 템플릿 부재"; exit 1; }
 [ -f "$SDIR/host/vllm-drop-caches.sh" ] || { say "FAIL: drop-caches 헬퍼 원본 부재"; exit 1; }

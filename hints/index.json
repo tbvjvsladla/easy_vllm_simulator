@@ -1,7 +1,7 @@
 {
   "_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.",
-  "count": 89,
-  "generated_kst": "2026-10-29T18:50:30",
+  "count": 95,
+  "generated_kst": "2026-10-31T20:55:00",
   "hints": [
     {
       "anchor": "b0e4b84875b8aaa5e650e396f5b9e8bc37e440bb",
@@ -1913,6 +1913,72 @@
       "vllm": "0.31.0"
     },
     {
+      "anchor": "22bcac2207d273f88e87b9045a096817b0062263",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": null,
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26103001_deepseek-v4-flash-0731_GB10_0.32.0.md))",
+      "brief": "DeepSeek-V4-Flash-0731을GB10 노드당GPU하나×두노드TP2,공식vLLM0.32.0 exactSHA 입력에서FP8로더·FP4 experts·262144·KVfp8·PLE없음·DSpark5·graph로측정해동시성1 decode36.32t/s의weak REFUTE를기록했다. 역사KV기동밸리·RoCE배선은별도근거로정리했고(W7/W12),현재B12X경로의유효Full도사전외부E에미달했다(W14). KV와context는손레버승계값(V4/V7)이며spec7은셀ID의역사표기다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "deepseek-v4-flash-0731",
+      "object": "4b11d569d0e1953f42e375dbc25a34305784f2c1",
+      "published": true,
+      "recipe": "qfp8-len262144-kvfp8-dspark5",
+      "source": "remote-derived",
+      "tag": "hint/0.32.0-g5df63a7203cd/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len262144-kvfp8-dspark5",
+      "tagged_utc": "2026-10-29T16:22:50Z",
+      "verdict": "REFUTE",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_ds4f0731-032-spec7-roce_261030A/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.32.0-g5df63a7203cd"
+    },
+    {
+      "anchor": "29ce66c3786333792b69982f20192296da2c1139",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26103100_deepseek-v4.1-flash-exl3-2.0bpw-sfxnz_GB10_0.32.0.md))",
+      "brief": "DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz를 GB10 두 노드·TP2, vLLM 소스5df63a7203cdb9328d824a27b682e77c7b9928be에서 max-model-len1048576·FP8 KV·file-backed Engram·DSpark3·eager로 서빙했고 local 대표 full의 C1 decode는22.26t/s, weak REFUTE다. EXL3 최소 이식과 Engram source 결속을 확인했다(W13~W18). KV·동시성은 고정 손레버이며 최소 필요량·자동 수렴값이 아니다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "deepseek-v4.1-flash-exl3-2.0bpw-sfxnz",
+      "object": "512238bae3f1dd3dced4f525c5f74989bb40048f",
+      "published": true,
+      "recipe": "qexl3-len1048576-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.32.0-g5df63a7203cd/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8",
+      "tagged_utc": "2026-10-30T16:00:30Z",
+      "verdict": "REFUTE",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_loading_ds41-load-local-1m/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.32.0-g5df63a7203cd"
+    },
+    {
+      "anchor": "fac4412f8458cfeb8e6cc7a9ae85c561cf40727d",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26103001_deepseek-v4.1-flash-exl3-2.0bpw-sfxnz_GB10_0.32.0.md))",
+      "brief": "DeepSeek-V4.1-Flash-EXL3-2.0bpw-sfxnz를GB10 노드당GPU하나×두노드TP2,공식vLLM0.32.0 exactSHA 기반SM12x후보에서EXL3·131072·KVfp8·fileEngram·DSpark3·eager로측정해동시성1 decode24.04t/s의weakREFUTE를기록했다. commonEngram/V2이식과native의존결손은새PRE/POST로해소했지만(W11/W12)과거graph10kernel성공은승계하지않았다. KV/context/seq는손레버inherited(V9/V11/V12)이며회귀부재로CANDIDATE를유지한다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "deepseek-v4.1-flash-exl3-2.0bpw-sfxnz",
+      "object": "d23e2e48c662099a82af937a6cdc32c640f77a97",
+      "published": true,
+      "recipe": "qexl3-len131072-kvfp8-eager",
+      "source": "remote-derived",
+      "tag": "hint/0.32.0-g5df63a7203cd/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len131072-kvfp8-eager",
+      "tagged_utc": "2026-10-29T20:38:57Z",
+      "verdict": "REFUTE",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_i5-032-sm12x_261030A/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.32.0-g5df63a7203cd"
+    },
+    {
       "anchor": "d413f8c82902d2b33ed47fb0e2de1246b7d36e60",
       "arch": "gb10-1g1n-sub-native",
       "base_model": null,
@@ -1933,9 +1999,73 @@
       "verdict": "PASS",
       "verdict_source": "payload(PAYLOAD.measurement.verdict · output/single/benchlog/sweep_gpt120v0320_20261028T2143/verdict.json(output · verdict_rule 출력) verdict)",
       "vllm": "0.32.0-g5df63a7203cd"
+    },
+    {
+      "anchor": "ebc5d4910db98ea2d4ad567be18284aaf3d53544",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "Qwen/Qwen3.8-Flash-Next",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26103022_qwen3.8-flash-next-nvfp4_GB10_0.32.0.md))",
+      "brief": "Qwen3.8-Flash-Next-NVFP4를 GB10 두 노드·TP2, vLLM 소스5df63a7203cdb9328d824a27b682e77c7b9928be 빌드에서 max-model-len1048576·FP8 KV·resident PLE·MTP off·eager로 서빙했고, local NVMe 대표 full의 concurrency1 decode는21.40t/s다. YaRN 길이 의미와 worker mount 입력을 확인했다(W2/W3). KV와 동시성은 이번 비교에서 고정한 손레버이며 최소 필요값이나 자동 수렴값이 아니다(V6/V9).",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "33546463ef146eba2e390658a085720296d953c2",
+      "published": true,
+      "recipe": "qnvfp4-len1048576-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.32.0-g5df63a7203cd/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8",
+      "tagged_utc": "2026-10-30T13:32:43Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_loading_q38-load-local-1m/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.32.0-g5df63a7203cd"
+    },
+    {
+      "anchor": "a612da4ee94feab190055db5daa1a9a494fc7842",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "Qwen/Qwen3.8-Flash-Next",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26102920_qwen3.8-flash-next-nvfp4_GB10_0.32.0.md))",
+      "brief": "Qwen3.8-Flash-Next-NVFP4를 GB10 GPU1개씩 2노드 Ray TP2에서 공식 v0.32.0 소스 커밋으로 서빙한 후보B다. resident PLE·MTP3·graph·KV fp8_e4m3·길이262144 설정에서 Full 동시성1 대표41.11 t/s로 weak E53.7 대비 REFUTE다. 과거 혼합PLE/백엔드/메모리 벽(W1~W8) 뒤 공식0.32의 target NVFP4 CUTLASS·draft FP8 TRITON 조합을 선택했고, 후속 분리백엔드·메모리 실패와 단위오류는 별도로 기록했다(W10~W14). seq6와 절대KV클램프는 손레버 승계값(V6·V8)이며 Full 실측은 동시성1/2/4의 짧은 요청이다. 설정 최대길이 전체의 품질·동시성6 검증으로 읽지 않는다.",
+      "grammar": "v7",
+      "missing": [],
+      "model": "qwen3.8-flash-next-nvfp4",
+      "object": "59fa9d44cc61d15dd9b198129217097eeacba412",
+      "published": true,
+      "recipe": "qnvfp4-len262144-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.32.0-g5df63a7203cd/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8",
+      "tagged_utc": "2026-10-29T15:19:36Z",
+      "verdict": "REFUTE",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_q38fn032-nv4-safe-tp2_261029B/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.32.0-g5df63a7203cd"
+    },
+    {
+      "anchor": "8cf72efe7b5fbe83963d55e2c720dfec0f76ff9c",
+      "arch": "gb10-1g2n-cluster-native",
+      "base_model": "upstage/Solar-Open2-250B",
+      "bench_mode": "full",
+      "bench_mode_source": "payload(PAYLOAD.measurement_config · bench_report(bench_report_26103000_solar-open2-250b-nota-nvfp4_GB10_0.32.0.md))",
+      "brief": "Solar-Open2-250B-Nota-NVFP4를 GB10 노드당GPU하나×두노드 TP2, 공식vLLM0.32.0 exactSHA 입력에서 NVFP4·262144·KV fp8_e4m3·PLE없음·specoff·eager로 측정했고 동시성1 decode16.65t/s의 weak PASS다. stock 모델/파서 부재와 V2·배달 접점은 새런타임 플러그인으로 재확정했다(W1~W7); CPU검사와배달provenance를 GPU성공으로세지않았다(W9/W10). KV와context는손레버승계값(V6/V8)이며 전체길이품질·최적성·외부E달성을뜻하지않는다.",
+      "grammar": "v7",
+      "missing": [
+        "HINT_MISSING_SWEEP_LEVELS"
+      ],
+      "model": "solar-open2-250b-nota-nvfp4",
+      "object": "b0ab0c81ebf94d3f6d4d5633f04d0695f5339692",
+      "published": true,
+      "recipe": "qnvfp4-len262144-kvfp8",
+      "source": "remote-derived",
+      "tag": "hint/0.32.0-g5df63a7203cd/solar-open2-250b-nota-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8",
+      "tagged_utc": "2026-10-29T16:10:45Z",
+      "verdict": "PASS",
+      "verdict_source": "payload(PAYLOAD.measurement.verdict · output/multi/benchlog/sweep_solar032-nv4-safe-tp2_261030A/verdict.json(output · verdict_rule 출력) verdict)",
+      "vllm": "0.32.0-g5df63a7203cd"
     }
   ],
-  "remote": "origin",
+  "remote": "github-ssh",
   "schema": 5,
   "source": "remote-derived"
 }

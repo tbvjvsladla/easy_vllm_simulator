@@ -13,6 +13,9 @@ cpu_arch: "<auto: uname -m>"      # 자동탐지(aarch64 | x86_64). NGC 베이�
 cuda_version: "<auto: nvcc 또는 인터뷰>"   # 자동탐지(nvcc --version), 실패 시 인터뷰. 예: "129"
 gpus_per_node: <int>              # 노드당 GPU 수(탈-DGX 일반화 — tp 산정 입력). 예: 1
 gpu_model: "<auto: nvidia-smi --query-gpu=name>"   # 노드 GPU 모델명(서브 페르소나 정체성 bake). 예: "NVIDIA GB10". 미탐지 시 빈값 → 렌더러가 arch×count 로 폴백
+gpu_memory_model: "<auto: nvidia-smi memory.total>"  # unified(memory.total [N/A] · GB10 류 — 디바이스 풀 = 호스트 RAM) | discrete. 미탐지 null = 미상(추측 ✗)
+gpu_vram_mib: <auto: nvidia-smi memory.total>        # discrete 의 per-card 총량(MiB). unified 면 null(풀은 /proc/meminfo)
+compute_capability: "<auto: nvidia-smi compute_cap>" # 예 "12.1"(GB10) · "12.0"(RTX 5090). resolve_build_track → TORCH_CUDA_ARCH
 
 # === 테라포밍 완수 Flag (attestation · plan_26063018 · 헌법 §테라포밍-완수 Flag 게이트 따름정리) ===
 # scan_node 가 §1.5(topology 확정 + branch↔topology 3자일치) 통과 시에만 complete:true 기입(보수적 — 미검증이면 false 유지).

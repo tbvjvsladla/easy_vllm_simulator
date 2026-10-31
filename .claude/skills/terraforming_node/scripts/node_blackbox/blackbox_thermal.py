@@ -121,6 +121,25 @@ PARAM_PROVENANCE = {
     "stale_after_s": "derived:수집기 1Hz 격자 + 여유",
 }
 
+# GPU 전력 축의 보정이 성립하는 GPU(2026-10-31 · plan_26103120). `gpu_pwr_w=80` 은 GB10 의 ~90 W
+#   하드오프와 이 유닛 23일 실측에서 나온 값이다 — 400~575 W 를 정상으로 쓰는 discrete GPU(예: RTX 5090)에
+#   걸면 모든 정상 서빙이 60초 뒤 kill 된다. 보정 밖 GPU 에서는 이 축을 **무장하지 않고** 그 사실을 상수
+#   파일에 적는다(`BB_TP_GPU_AXIS=0`). SoC 열 축은 GPU 와 무관하므로 유지한다. 사람이 `--set gpu_pwr_w=`
+#   로 그 GPU 의 값을 선언하면 무장한다(선언 출처). GPU 미상(nvidia-smi 부재)이면 종전대로 무장한다.
+CALIBRATED_GPU_MODELS = ("NVIDIA GB10",)
+
+
+def gpu_axis_armed(gpu_model, declared_pwr):
+    """(무장 여부, 사유). 순수 함수."""
+    if declared_pwr:
+        return True, "declared:--set gpu_pwr_w(사람 선언)"
+    if not gpu_model:
+        return True, "unknown-gpu:보정 판정 불가 → 종전 무장 유지"
+    if gpu_model.strip() in CALIBRATED_GPU_MODELS:
+        return True, "calibrated:%s" % gpu_model.strip()
+    return False, "uncalibrated-gpu:%s — 보정값(GB10 실측)을 옮기지 않는다" % gpu_model.strip()
+
+
 # 교정되지 않은 파라미터. `--emit-params` 가 상수 파일에 이 사실을 **적어서** 내보낸다.
 UNCALIBRATED = tuple(sorted(k for k, v in PARAM_PROVENANCE.items()
                             if v.startswith("external_report:")))
@@ -225,7 +244,7 @@ def validate_params(params):
     return (not errs), errs
 
 
-def emit_shell_params(params, path):
+def emit_shell_params(params, path, gpu_axis=(True, "default")):
     """1 초 핫루프가 source 할 셸 상수(`BB_TP_*`). 전력 경계는 **데시와트 정수**로 낸다.
 
     ETA 의 `eta_params.env` 와 **파일을 나눈다** -- 두 워치독은 수명·활성화·교정 주기가 다르고,
@@ -254,6 +273,8 @@ def emit_shell_params(params, path):
     for k in UNCALIBRATED:
         lines.append("#     %s = %s" % (k, p[k]))
     lines.append("BB_TP_UNCALIBRATED=\"%s\"" % " ".join(UNCALIBRATED))
+    lines.append("# GPU 전력 축 무장: %s" % gpu_axis[1])
+    lines.append("BB_TP_GPU_AXIS=%d" % (1 if gpu_axis[0] else 0))
     tmp = path + ".tmp"
     with open(tmp, "w", encoding="utf-8") as fh:
         fh.write("\n".join(lines) + "\n")
@@ -400,7 +421,7 @@ def _self_test():
                     _shvals[_k] = int(_v)       # 첫 등장 = 내장 기본값(뒤는 자체시험용 재설정)
     except OSError:
         _mismatch.append("thermal_watchdog.sh 판독 불가")
-    _expect = {"BB_TP_GPU_PWR_DW": int(DEFAULTS["gpu_pwr_w"]) * 10,
+    _expect = {"BB_TP_GPU_PWR_DW": int(DEFAULTS["gpu_pwr_w"]) * 10, "BB_TP_GPU_AXIS": 1,
                "BB_TP_GPU_BUCKET_CAP": bucket_cap(DEFAULTS["gpu_sustain_s"]),
                "BB_TP_SOC_BUCKET_CAP": bucket_cap(DEFAULTS["soc_sustain_s"]),
                "BB_TP_SOC_PLAUSIBLE_MIN_C": SOC_PLAUSIBLE_C[0],
@@ -536,6 +557,16 @@ def _self_test():
         chk("emit: 미교정 목록을 데이터로 실어 본다(2026-09-09 전수 교정 — 빈 목록이 정답)",
             'BB_TP_UNCALIBRATED=""' in txt)
         chk("emit: GPU 온도가 축이 아님을 상수파일이 밝힌다", "GPU '온도'는 트립 축이" in txt)
+        chk("emit: 기본은 GPU 전력 축 무장", "BB_TP_GPU_AXIS=1" in txt)
+        emit_shell_params({}, env, gpu_axis=gpu_axis_armed("NVIDIA GeForce RTX 5090", None))
+        _t2 = open(env, encoding="utf-8").read()
+        chk("emit: 보정 밖 GPU(RTX 5090) → GPU 전력 축 비무장 + 사유 기재",
+            "BB_TP_GPU_AXIS=0" in _t2 and "uncalibrated-gpu" in _t2)
+    chk("gpu_axis: GB10 = 보정 무장", gpu_axis_armed("NVIDIA GB10", None)[0])
+    chk("gpu_axis: 미상 GPU = 종전 무장(fail-safe)", gpu_axis_armed(None, None)[0])
+    chk("gpu_axis: 보정 밖 + 사람 선언 = 무장", gpu_axis_armed("NVIDIA GeForce RTX 5090", 450)[0])
+    with tempfile.TemporaryDirectory() as td:
+        env = os.path.join(td, "thermal_params.env")
         chk("emit: 원자적 교체(임시파일 잔재 없음)",
             not os.path.exists(env + ".tmp"))
 
@@ -613,6 +644,8 @@ def main(argv=None):
                     help="주어진 전력·SoC열이 몇 초 지속되면 트립하는지 설명")
     ap.add_argument("--replay", nargs="+", metavar="CSV",
                     help="samples CSV 를 재생해 kill 횟수를 센다(음성대조 증거)")
+    ap.add_argument("--gpu-model", default=None,
+                    help="이 노드 GPU 이름(nvidia-smi name) — 보정 밖 GPU 면 GPU 전력 축을 무장하지 않는다")
     ap.add_argument("--self-test", action="store_true")
     args = ap.parse_args(argv)
 
@@ -685,7 +718,10 @@ def main(argv=None):
         return 0
 
     if args.emit_params:
-        emit_shell_params(params, args.emit_params)
+        axis = gpu_axis_armed(args.gpu_model, params.get("gpu_pwr_w"))
+        emit_shell_params(params, args.emit_params, gpu_axis=axis)
+        if not axis[0]:
+            print("[thermal] ⚠ GPU 전력 축 비무장 — %s" % axis[1], file=sys.stderr)
         print("[thermal] emit %s (gpu>=%dW %ds 지속 · soc>=%dC %ds 지속 · soc>=%dC %d폴)"
               % (args.emit_params, p["gpu_pwr_w"], p["gpu_sustain_s"], p["soc_warn_c"],
                  p["soc_sustain_s"], p["soc_hard_c"], p["soc_hard_polls"]))

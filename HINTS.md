@@ -112,7 +112,63 @@ arch·recipe 의 모양이 다릅니다.
 에 있습니다.
 
 <!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->
-> 원격 `origin` 의 발행 태그 **89건** · 모델 18종에서 파생 · 생성 `2026-10-29T18:50:30` KST · 로컬 오브젝트 부재(미수령) 3건.
+> 원격 `github-ssh` 의 발행 태그 **95건** · 모델 18종에서 파생 · 생성 `2026-10-31T20:55:00` KST · 로컬 오브젝트 부재(미수령) 3건.
+
+### `deepseek-v4.1-flash-exl3-2.0bpw-sfxnz` (4)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.32.0-g5df63a7203cd/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8` | gb10-1g2n-cluster-native | 0.32.0-g5df63a7203cd | REFUTE | full | HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.32.0-g5df63a7203cd/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len131072-kvfp8-eager` | gb10-1g2n-cluster-native | 0.32.0-g5df63a7203cd | REFUTE | full | HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8-spec3-densegemv-moeprep-t2610101710` | gb10-1g2n-cluster-native | 0.30.0 | PASS | full | HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8-spec3-densegemv-moeprep` | gb10-1g2n-cluster-native | 0.30.0 | lite(기동 가능) | lite(선언) | BENCH_MODE_LITE · HINT_MISSING_CELL_CONFIG · HINT_MISSING_SWEEP_LEVELS |
+
+### `qwen3.8-flash-next-nvfp4` (21)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.32.0-g5df63a7203cd/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8` | gb10-1g2n-cluster-native | 0.32.0-g5df63a7203cd | PASS | full | HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.32.0-g5df63a7203cd/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8` | gb10-1g2n-cluster-native | 0.32.0-g5df63a7203cd | REFUTE | full | — |
+| `hint/0.31.0/qwen3.8-flash-next-nvfp4/gb10-1g1n-main-native/qnvfp4-len1048576-kvfp8-plemmap` | gb10-1g1n-main-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE · HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.31.0/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8` | gb10-1g2n-cluster-native | 0.31.0 | REFUTE | full | HINT_MISSING_CAMPAIGN_INSTANCE · HINT_MISSING_RESOLVE · HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.30.0/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-pleresident` | gb10-1g2n-cluster-native | 0.30.0 | REFUTE | full | — |
+| `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native-bare/qnvfp4-len262144-kvauto-plemmap-spec3-eager` | gb10-1g2n-cluster-native-bare | 0.29.0rc6 | 미기재(구판) | full | HINT_MISSING_CERTIFICATE |
+| `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8-plemmap-spec3-eager` | gb10-1g2n-cluster-native | 0.29.0rc6 | 미기재(구판) | lite(선언) | BENCH_MODE_LITE · HINT_MISSING_CERTIFICATE · HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-plemmap-spec3-eager` | gb10-1g2n-cluster-native | 0.29.0rc6 | 미기재(구판) | full | HINT_MISSING_CERTIFICATE |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleoffload` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleoffload` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleresident` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleresident` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleoffload` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
+| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleresident` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
+| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-pleresident` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
+
+### `deepseek-v4-flash-0731` (9)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.32.0-g5df63a7203cd/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len262144-kvfp8-dspark5` | gb10-1g2n-cluster-native | 0.32.0-g5df63a7203cd | REFUTE | full | HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-spec7-graph-autotool` | gb10-1g2n-cluster-native | 0.29.0rc6 | PASS | full | — |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-plenone-spec7-graph` | gb10-1g2n-cluster-native | 0.29.0rc6 | PASS | full | — |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph1-len1m` | gb10x2-cluster-native | 0.29.0rc6 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0-len1m` | gb10x2-cluster-native | 0.29.0rc6 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph1` | gb10x2-cluster-native | 0.29.0rc6 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph0` | gb10x2-cluster-native | 0.29.0rc6 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0` | gb10x2-cluster-native | 0.29.0rc6 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION |
+| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/len786432-kvfp8-spec7-graph` | gb10x2-cluster-native | 0.29.0rc6 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_SLAVE_ATTESTATION |
+
+### `solar-open2-250b-nota-nvfp4` (2)
+
+| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
+|---|---|---|---|---|---|
+| `hint/0.32.0-g5df63a7203cd/solar-open2-250b-nota-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8` | gb10-1g2n-cluster-native | 0.32.0-g5df63a7203cd | PASS | full | HINT_MISSING_SWEEP_LEVELS |
+| `hint/0.31.0/solar-open2-250b-nota-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8` | gb10-1g2n-cluster-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE · HINT_MISSING_RESOLVE · HINT_MISSING_SWEEP_LEVELS |
 
 ### `lfm2.5-2.6b` (4)
 
@@ -206,36 +262,6 @@ arch·recipe 의 모양이 다릅니다.
 | `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
 | `hint/0.29.0/qwen3.8-flash-next-fp8/gb10x2-cluster-native/len262144-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
 
-### `qwen3.8-flash-next-nvfp4` (19)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.31.0/qwen3.8-flash-next-nvfp4/gb10-1g1n-main-native/qnvfp4-len1048576-kvfp8-plemmap` | gb10-1g1n-main-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE · HINT_MISSING_SWEEP_LEVELS |
-| `hint/0.31.0/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8` | gb10-1g2n-cluster-native | 0.31.0 | REFUTE | full | HINT_MISSING_CAMPAIGN_INSTANCE · HINT_MISSING_RESOLVE · HINT_MISSING_SWEEP_LEVELS |
-| `hint/0.30.0/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-pleresident` | gb10-1g2n-cluster-native | 0.30.0 | REFUTE | full | — |
-| `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native-bare/qnvfp4-len262144-kvauto-plemmap-spec3-eager` | gb10-1g2n-cluster-native-bare | 0.29.0rc6 | 미기재(구판) | full | HINT_MISSING_CERTIFICATE |
-| `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvfp8-plemmap-spec3-eager` | gb10-1g2n-cluster-native | 0.29.0rc6 | 미기재(구판) | lite(선언) | BENCH_MODE_LITE · HINT_MISSING_CERTIFICATE · HINT_MISSING_SWEEP_LEVELS |
-| `hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-plemmap-spec3-eager` | gb10-1g2n-cluster-native | 0.29.0rc6 | 미기재(구판) | full | HINT_MISSING_CERTIFICATE |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleoffload` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleoffload` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len1048576-kvauto-pleresident` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len524288-kvauto-pleresident` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleoffload` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
-| `hint/0.1.1.dev53+g30118ba27/qwen3.8-flash-next-nvfp4/rtxpro6000x2-main-native/qnvfp4-len262144-kvauto-pleresident` | rtxpro6000x2-main-native | 0.1.1.dev53+g30118ba27 | 미기재(구판) | 미기재 | HINT_MISSING_CERTIFICATE |
-| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvauto-pleresident` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len1048576-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len524288-kvauto-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0/qwen3.8-flash-next-nvfp4/gb10x2-cluster-native/len262144-kvfp8e4m3-plemmap` | gb10x2-cluster-native | 0.29.0 | 미기재(구판) | 미기재 | HINT_MISSING_SLAVE_ATTESTATION |
-
-### `solar-open2-250b-nota-nvfp4` (1)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.31.0/solar-open2-250b-nota-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len1048576-kvfp8` | gb10-1g2n-cluster-native | 0.31.0 | PASS | full | HINT_MISSING_CAMPAIGN_INSTANCE · HINT_MISSING_RESOLVE · HINT_MISSING_SWEEP_LEVELS |
-
 ### `ornith-1.5-9b` (1)
 
 | 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
@@ -247,26 +273,6 @@ arch·recipe 의 모양이 다릅니다.
 | 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
 |---|---|---|---|---|---|
 | `hint/0.30.0/ornith-1.5-35b-a3b/gb10-1g1n-sub-native/qbf16-len262144-kvauto-moetriton-kv8g` | gb10-1g1n-sub-native | 0.30.0 | PASS | full | HINT_MISSING_APPLIED_SET · HINT_MISSING_BUILD_LEDGER · HINT_MISSING_RESOLVE |
-
-### `deepseek-v4.1-flash-exl3-2.0bpw-sfxnz` (2)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8-spec3-densegemv-moeprep-t2610101710` | gb10-1g2n-cluster-native | 0.30.0 | PASS | full | HINT_MISSING_SWEEP_LEVELS |
-| `hint/0.30.0/deepseek-v4.1-flash-exl3-2.0bpw-sfxnz/gb10-1g2n-cluster-native/qexl3-len1048576-kvfp8-spec3-densegemv-moeprep` | gb10-1g2n-cluster-native | 0.30.0 | lite(기동 가능) | lite(선언) | BENCH_MODE_LITE · HINT_MISSING_CELL_CONFIG · HINT_MISSING_SWEEP_LEVELS |
-
-### `deepseek-v4-flash-0731` (8)
-
-| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |
-|---|---|---|---|---|---|
-| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-spec7-graph-autotool` | gb10-1g2n-cluster-native | 0.29.0rc6 | PASS | full | — |
-| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10-1g2n-cluster-native/qfp8-len1048576-kvfp8-plenone-spec7-graph` | gb10-1g2n-cluster-native | 0.29.0rc6 | PASS | full | — |
-| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph1-len1m` | gb10x2-cluster-native | 0.29.0rc6 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0-len1m` | gb10x2-cluster-native | 0.29.0rc6 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph1` | gb10x2-cluster-native | 0.29.0rc6 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec7-graph0` | gb10x2-cluster-native | 0.29.0rc6 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/spec0-graph0` | gb10x2-cluster-native | 0.29.0rc6 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_LITE · HINT_MISSING_SLAVE_ATTESTATION |
-| `hint/0.29.0rc6/deepseek-v4-flash-0731/gb10x2-cluster-native/len786432-kvfp8-spec7-graph` | gb10x2-cluster-native | 0.29.0rc6 | 미기재(구판) | 미기재 | HINT_MISSING_BENCH_REPORT · HINT_MISSING_CERTIFICATE · HINT_MISSING_SLAVE_ATTESTATION |
 
 ### `qwen3.8-27b` (8)
 
