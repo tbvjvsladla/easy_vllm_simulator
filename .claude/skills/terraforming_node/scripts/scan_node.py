@@ -422,6 +422,37 @@ def scan_driver_version() -> str | None:
     return ln[0].strip() if ln else None
 
 
+# GPU 메모리 모델 · compute capability (2026-10-31 · plan_26103120 · WSL2/RTX 5090 피드백 U1·D).
+# 종전엔 "디바이스 메모리 = 호스트 RAM(/proc/meminfo)" 과 "CC = 12.1" 이 **수집되지 않은 가정**이었다 —
+# GB10 에서만 참이다. 소비자(recipe·campaign_init·resolve_build_track)가 가정 대신 이 사실을 읽는다.
+# 판정 근거: iGPU(GB10)는 전용 framebuffer 가 없어 memory.total 이 [N/A] 다(NVIDIA DGX Spark known issues).
+_NVSMI_ABSENT = ("[n/a]", "n/a", "not supported", "[not supported]", "")
+
+
+def parse_gpu_memory_line(line: str) -> dict:
+    """`memory.total,compute_cap` (csv,noheader,nounits) 한 줄 → 3필드. 순수 파서(판독 불가 = None)."""
+    parts = [p.strip() for p in (line or "").split(",")]
+    if len(parts) < 2:
+        return {"gpu_memory_model": None, "gpu_vram_mib": None, "compute_capability": None}
+    mem, cc = parts[0], parts[1]
+    if mem.lower() in _NVSMI_ABSENT:
+        model, vram = "unified", None
+    elif mem.isdigit():
+        model, vram = "discrete", int(mem)
+    else:
+        model, vram = None, None
+    cc_ok = re.fullmatch(r"\d+\.\d+", cc)
+    return {"gpu_memory_model": model, "gpu_vram_mib": vram,
+            "compute_capability": cc if cc_ok else None}
+
+
+def scan_gpu_memory() -> dict:
+    """첫 GPU 의 메모리 모델·per-card VRAM(MiB)·CC. nvidia-smi 부재/실패 → 전부 None(추측 ✗)."""
+    ln = _run(["nvidia-smi", "--query-gpu=memory.total,compute_cap",
+               "--format=csv,noheader,nounits"]).strip().splitlines()
+    return parse_gpu_memory_line(ln[0] if ln else "")
+
+
 def collect_local_hw() -> dict:
     """메인(로컬) HW 동질성 비교용 5종(cuda 는 raw 'X.Y' — 버전 튜플 비교용)."""
     m = re.search(r"release\s+(\d+\.\d+)", _run(["nvcc", "--version"]))
@@ -440,7 +471,9 @@ _PEER_HW_PROBE = (
     "printf 'GPUS=%s\\n' \"$(nvidia-smi -L 2>/dev/null | grep -c '^GPU ')\"; "
     "printf 'MODEL=%s\\n' \"$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)\"; "
     "printf 'DRIVER=%s\\n' \"$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1)\"; "
-    "printf 'CUDA=%s\\n' \"$(nvcc --version 2>/dev/null | grep -oE 'release [0-9]+\\.[0-9]+' | grep -oE '[0-9]+\\.[0-9]+')\""
+    "printf 'CUDA=%s\\n' \"$(nvcc --version 2>/dev/null | grep -oE 'release [0-9]+\\.[0-9]+' | grep -oE '[0-9]+\\.[0-9]+')\"; "
+    # 메모리 모델·CC(plan_26103120) — 메인과 같은 질의 · 같은 파서(parse_gpu_memory_line)
+    "printf 'GPUMEM=%s\\n' \"$(nvidia-smi --query-gpu=memory.total,compute_cap --format=csv,noheader,nounits 2>/dev/null | head -1)\""
 )
 
 
@@ -477,6 +510,7 @@ def collect_peer_hw(ssh_target: str, ssh_opts: list[str] | None = None) -> dict:
         "gpus_per_node": int(g) if g.isdigit() else None,
         "cuda": kv.get("CUDA") or None,
         "driver": kv.get("DRIVER") or None,
+        **parse_gpu_memory_line(kv.get("GPUMEM", "")),
     }
 
 
@@ -595,6 +629,9 @@ def build_sub_manifest(result: dict, peer_hw: dict, main_manifest: dict, scanned
         "gpus_per_node": peer_hw.get("gpus_per_node"),
         "gpu_model": peer_hw.get("gpu_model"),
         "driver_version": peer_hw.get("driver"),
+        "gpu_memory_model": peer_hw.get("gpu_memory_model"),
+        "gpu_vram_mib": peer_hw.get("gpu_vram_mib"),
+        "compute_capability": peer_hw.get("compute_capability"),
         "terraforming": {
             "complete": True,
             "branch_verified": True,
@@ -677,6 +714,11 @@ def emit_manifest_block(result: dict) -> str:
         f"gpus_per_node: {gpus}",
         f"gpu_model: {gpu_model}",
         f"driver_version: {driver}",
+        # 메모리 모델·CC(plan_26103120). staleness HW_FIELDS 에는 넣지 않는다 — 넣으면 이 필드가 없는
+        # 기존 유효 manifest 가 전부 한쪽-부재 드리프트가 된다. 소비자는 부재를 "미상"으로 다룬다.
+        f"gpu_memory_model: {_yaml_str(result.get('gpu_memory_model'))}   # unified(GB10 류 · memory.total [N/A]) | discrete",
+        f"gpu_vram_mib: {result['gpu_vram_mib'] if result.get('gpu_vram_mib') is not None else 'null'}",
+        f"compute_capability: {_yaml_str(result.get('compute_capability'))}   # nvidia-smi compute_cap → resolve_build_track",
     ]
 
     # ── 모델 획득(인터뷰 확정분) — 있으면 채우고, 없으면 센티넬 ──
@@ -1188,6 +1230,22 @@ def _self_test() -> int:
         passed += 1 if _ok else 0
         n += 1
 
+    # GPU 메모리 모델 파서(plan_26103120) — GB10 실측 줄 · RTX 5090 류 · nvidia-smi 부재
+    _gm = [
+        ("GB10 '[N/A], 12.1' → unified · vram None · cc 12.1",
+         parse_gpu_memory_line("[N/A], 12.1") == {"gpu_memory_model": "unified", "gpu_vram_mib": None, "compute_capability": "12.1"}),
+        ("discrete '32607, 12.0' → discrete · 32607 MiB · cc 12.0",
+         parse_gpu_memory_line("32607, 12.0") == {"gpu_memory_model": "discrete", "gpu_vram_mib": 32607, "compute_capability": "12.0"}),
+        ("nvidia-smi 부재(빈 줄) → 전부 None(추측 ✗)",
+         parse_gpu_memory_line("") == {"gpu_memory_model": None, "gpu_vram_mib": None, "compute_capability": None}),
+        ("판독 불가 값 → None(unified 로 접지 않는다)",
+         parse_gpu_memory_line("garbage, x")["gpu_memory_model"] is None),
+    ]
+    for _n, _ok in _gm:
+        print("  [%s] %s" % ("PASS" if _ok else "FAIL", _n))
+        passed += 1 if _ok else 0
+        n += 1
+
     print(f"self-test: {passed}/{n} {'PASS' if passed == n else 'FAIL'}")
     return 0 if passed == n else 1
 
@@ -1235,6 +1293,7 @@ def build_local_scan_result(ic: dict, compose: str, topology: str,
         # emission_blockers 에는 넣지 않는다 — GPU-less 그라운딩 세션에서 발행을 막으면 안 되므로
         # 부재는 null 로 정직하게 흘린다(gpu_model 과 동일한 None-가드 계열).
         "driver_version": scan_driver_version(),
+        **scan_gpu_memory(),
         "interconnect": {k: v for k, v in ic.items() if not k.startswith("_")},
         "scan_detail": {k: v for k, v in ic.items() if k.startswith("_")},
         "cross_validation": cross_validate(ic, compose, env_interconnect),

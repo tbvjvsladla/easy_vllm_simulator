@@ -36,11 +36,11 @@
 대상 vLLM 버전에 대해 아래를 순서대로 실행해 사실을 수집한다(`docker`·`python3`+`packaging` 필요).
 
 ```bash
-V=<target_vllm_version>; ARCH=$(uname -m)          # DGX Spark → aarch64
+V=<target_vllm_version>; ARCH=$(uname -m)          # aarch64 | x86_64 (두 해소기의 --arch 기본값도 이 호스트다)
 # ① vLLM → torch 핀
 python3 scripts/resolve_torch_pin.py "$V"
 # ② torch 핀 → 매칭 NGC 태그 (PYTORCH_BUILD_VERSION 접두어 매칭, 최신 우선)
-python3 scripts/resolve_ngc_tag.py <torch_prefix> --start <ngc_probe_start> --arch arm64
+python3 scripts/resolve_ngc_tag.py <torch_prefix> --start <ngc_probe_start>   # --arch 기본 = 호스트(arm64|amd64)
 # ③ wheel URL (GitHub Release 자산 실재 검증, 404 방지)
 python3 scripts/resolve_wheel.py "$V" --arch "$ARCH"          # cuda 미지정 시 자동
 # ④ requirements 재생성 — wheel METADATA(Requires-Dist) 기준 (권위 소스, requirements/*.txt 아님)
@@ -51,7 +51,7 @@ python3 scripts/check_smoke_model.py <config_name> --topology <single|multi> --r
 # ⑥ 실패 분류 (빌드/스모크 실패 시): requirements-fixable(0)/source-build-class(1)/unknown(2)
 docker logs <c> 2>&1 | python3 scripts/classify_failure.py
 # ⑦ 빌드 트랙 제안 (proposer): torch핀 휴리스틱(2.10→wheel/2.11+→source) + SM arch(manifest scan)
-python3 scripts/resolve_build_track.py "$V"   # build_track.decision·source_build.torch_cuda_arch → resolved.json
+python3 scripts/resolve_build_track.py --torch-pin <torch_pin> --topology <single|multi>   # build_track.decision·source_build.torch_cuda_arch(← manifest compute_capability · --sm-arch 가 우선) → resolved.json
 ```
 
 - ①torch 핀: vLLM `pyproject.toml` `[build-system].requires` 에서 추출.

@@ -895,7 +895,8 @@ def _cell_provenance(base: Path, cell: str, node: str | None, sweep_state: str |
 #   (사람이 정하는 축 — `--set 키=값` 으로만 받는다 · 요구가 없으면 `키=null` 을 명시). 빈칸이 하나라도 남으면 쓰지 않는다.
 MATERIALIZE_SET_KEYS = ("vram_budget_gb", "per_card_vram_gib", "ple_mode", "control_variable",
                         "concurrency_requirement", "typical_request_tokens", "tiktoken_host_path",
-                        "nas_host_root", "target_gmu", "variant")   # 닫힌 목록 — 파생 키도 명시 --set 이 이긴다(출처 주석에 남는다)
+                        "nas_host_root", "target_gmu", "variant",
+                        "test_device_total_gib", "kv_cache_dtype_bytes", "port")   # 닫힌 목록 — 파생 키도 명시 --set 이 이긴다(출처 주석에 남는다)
 
 
 def _yaml_scalar(v) -> str:
@@ -926,6 +927,33 @@ def _meminfo_gib(path: Path = Path("/proc/meminfo")) -> "float | None":
     except OSError:
         return None
     return round(int(m.group(1)) / (1024 * 1024), 1) if m else None
+
+
+# vLLM --kv-cache-dtype 어휘 → 원소 바이트(plan_26103120 · U1). 닫힌 목록 — 밖의 어휘(예: 새 양자화 KV)는
+#   파생하지 않고 빈칸으로 남겨 `--set kv_cache_dtype_bytes=` 를 요구한다(추측 ✗).
+#   auto = 모델 dtype 을 따른다 — 서빙 대상(bf16/fp16 체크포인트)의 2바이트로 읽는다(출처 주석에 그 전제를 적는다).
+_KV_DTYPE_BYTES = {"auto": 2, "bfloat16": 2, "float16": 2, "half": 2,
+                   "fp8": 1, "fp8_e4m3": 1, "fp8_e5m2": 1, "fp8_inc": 1, "fp8_ds_mla": 1}
+
+
+def _device_total_gib(mf: dict, meminfo: Path) -> "tuple[float | None, str]":
+    """셀의 test_device_total_gib 와 출처 — manifest 메모리 모델(scan 사실)을 따른다(plan_26103120 · U1).
+    종전엔 /proc/meminfo 를 무조건 썼다 — GB10 통합메모리에서만 참이고, discrete 에서는 호스트 RAM(WSL 이면
+    VM 크기)을 VRAM 으로 적어 explorer 의 per-card 해소·통합 판정을 둘 다 오염시켰다. 미상이면 빈칸(→ --set).
+    메모리 모델 판정 규칙(manifest > references.md 헤더)은 소유자 `recipe._memory_model` 에게 묻는다(복제 ✗)."""
+    import importlib.util
+    mod_path = Path(__file__).resolve().parents[2] / "vllm-recipe-explorer" / "recipe.py"
+    if not mod_path.is_file():
+        return None, f"미상(판정 소유자 부재: {mod_path})"
+    spec = importlib.util.spec_from_file_location("_recipe_memory_model", mod_path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mm, mm_src = mod._memory_model(mf)
+    if mm == "unified":
+        return _meminfo_gib(meminfo), f"measured /proc/meminfo MemTotal(통합메모리 ← {mm_src})"
+    if mm == "discrete" and mf.get("gpu_vram_mib"):
+        return round(float(mf["gpu_vram_mib"]) / 1024, 1), f"measured manifest gpu_vram_mib(discrete ← {mm_src})"
+    return None, mm_src
 
 
 def writer_materialize_cell(base: Path, *, cell: str, repo: Path, sets: "dict[str, str]", utc: str,
@@ -971,7 +999,10 @@ def writer_materialize_cell(base: Path, *, cell: str, repo: Path, sets: "dict[st
         "gpu_model": (mf.get("gpu_model"), f"output/{topo}/manifest.yaml#gpu_model"),
         "nas_host_root": (mf.get("nas_model_path") if mf.get("model_source") == "managed" else None,
                           f"output/{topo}/manifest.yaml#nas_model_path(model_source=managed)"),
-        "test_device_total_gib": (_meminfo_gib(meminfo), "measured /proc/meminfo MemTotal"),
+        "test_device_total_gib": _device_total_gib(mf, meminfo),
+        "kv_cache_dtype_bytes": (_KV_DTYPE_BYTES.get(str(sv.get("kv-cache-dtype", "auto"))),
+                                 "서빙 yaml#kv-cache-dtype → 원소 바이트(auto = 모델 dtype bf16/fp16 전제)"),
+        "port": (sv.get("port", 8000), "서빙 yaml#port(부재 = vLLM 기본 8000)"),
     }
     vals: dict = {}
     src: dict = {}

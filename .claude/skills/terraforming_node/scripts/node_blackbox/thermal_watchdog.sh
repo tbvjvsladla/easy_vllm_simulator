@@ -69,6 +69,8 @@ BB_TP_SOC_HARD_C=99;  BB_TP_SOC_HARD_POLLS=3
 BB_TP_BUCKET_DECAY=1; BB_TP_STALE_AFTER_S=10; BB_TP_POLL_INTERVAL_S=1
 BB_TP_SOC_PLAUSIBLE_MIN_C=-40; BB_TP_SOC_PLAUSIBLE_MAX_C=150
 BB_TP_UNCALIBRATED=""
+# BB_TP_GPU_AXIS 0 = 보정 밖 GPU — GPU 전력 축 비무장(blackbox_thermal.gpu_axis_armed · plan_26103120)
+BB_TP_GPU_AXIS=1
 PARAMS_SRC="defaults(내장)"
 if [ -r "$BB_TP_PARAMS" ]; then
   # shellcheck disable=SC1090
@@ -146,7 +148,9 @@ tp_read_gpu(){ # $1=csv 경로
 TP_GPU_BUCKET=0; TP_SOC_BUCKET=0; TP_SOC_HARD_STREAK=0; TP_RULE="none"
 tp_step(){
   local w="$1" c="$2" stale="${3:-0}"
-  if [ "$stale" = 1 ] || [ "$w" -eq "$ABSENT" ]; then
+  if [ "$BB_TP_GPU_AXIS" = 0 ]; then
+    :                                            # 비무장 — 보정 밖 GPU 의 전력 축은 없는 것이다
+  elif [ "$stale" = 1 ] || [ "$w" -eq "$ABSENT" ]; then
     :                                            # 동결 — 더하지도 빼지도 않는다
   elif [ "$w" -ge "$BB_TP_GPU_PWR_DW" ]; then
     TP_GPU_BUCKET=$(( TP_GPU_BUCKET + 1 ))
@@ -309,6 +313,7 @@ if [ "$SELFTEST" = 1 ]; then
   # 경계값 자체는 고부하로 센다(>=)
   tp_reset; tp_step 800 $ABSENT 0; ck "  80.0W 경계는 고부하(>=)" 1 "$TP_GPU_BUCKET"
   tp_reset; tp_step 799 $ABSENT 0; ck "  79.9W 는 고부하 아님"     0 "$TP_GPU_BUCKET"
+  BB_TP_GPU_AXIS=0; tp_reset; tp_step 5000 $ABSENT 0; ck "  비무장(보정 밖 GPU) → 500W 도 버킷 0" 0 "$TP_GPU_BUCKET"; BB_TP_GPU_AXIS=1
   # 저전력은 아무리 길어도 미발동
   # shellcheck disable=SC2046
   seq_test "  45W 600폴 → 미발동" 1 "" $(rep 600 "450:-1")

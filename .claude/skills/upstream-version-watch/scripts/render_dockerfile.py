@@ -515,6 +515,15 @@ def build_context(manifest: dict, resolved: dict) -> dict:
     if track == "source":
         cuda = _compact_cuda(ngc.get("cuda_version", "")) or "src"
         dockerfile = "Dockerfile.source-build"
+        # 2026-10-31(plan_26103120 · D): 미해소 arch 가 `str(None)` 으로 `ARG TORCH_CUDA_ARCH=None` 이 되어
+        #   렌더를 통과했다 — 빈 arch 는 이 노드 GPU 에 맞는 커널이 없다는 뜻이다. 다른 GPU 의 값(12.1a)을
+        #   기본으로 쓰지 않고 멈춘다. 해소: resolve_build_track.py(--sm-arch 또는 manifest compute_capability).
+        _arch = resolved.get("source_build", {}).get("torch_cuda_arch")
+        if _arch is None or str(_arch).strip() in ("", "None", "null"):
+            raise SystemExit(
+                "[render] FAIL: source-build 인데 resolved.source_build.torch_cuda_arch 미해소(%r) — "
+                "resolve_build_track.py 를 --sm-arch 또는 manifest compute_capability(terraforming_node 스캔)로 "
+                "다시 돌려라. 다른 GPU 의 arch 를 기본값으로 쓰지 않는다." % (_arch,))
     else:
         cuda = str(wheel.get("cuda", "") or "")
         dockerfile = "Dockerfile"

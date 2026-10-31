@@ -13,7 +13,7 @@ nas_host_root: <<FILL>>               # 호스트 NAS 루트(운영자 지문)
 tiktoken_host_path: <<FILL>>          # 필요 모델만
 
 # ── 실측(measured) ──
-test_device_total_gib: <<FILL>>       # 이 노드의 실제 총량(GB10 통합메모리는 /proc/meminfo 가 권위)
+test_device_total_gib: <<FILL>>       # 이 노드의 실제 디바이스 총량 — manifest gpu_memory_model 이 정한다(unified = /proc/meminfo · discrete = gpu_vram_mib)
 vram_budget_gb: <<FILL>>
 safety_margin: 0.90
 
@@ -48,8 +48,8 @@ target_gpu:
                                     #   위 safety_margin 은 다른 칸(예산 검증 게이트 승수)이다. 서빙 yaml 과 다르면 cell.status.provenance_mismatch[] 에 기재된다
   cards_per_node: 1
 
-kv_cache_dtype_bytes: 1
+kv_cache_dtype_bytes: <<FILL>>      # 서빙 yaml kv-cache-dtype 에서 파생(auto/bf16 = 2 · fp8* = 1 · 어휘 밖 = --set)
 serving:
   config_name: <<FILL>>               # = cell_id. 이름이 곧 증거 연결이다(hint 게이트가 이걸로 묶는다).
-  port: 8080
+  port: <<FILL>>                      # 서빙 yaml port 에서 파생(부재 = vLLM 기본 8000)
   served_model_name: <<FILL>>

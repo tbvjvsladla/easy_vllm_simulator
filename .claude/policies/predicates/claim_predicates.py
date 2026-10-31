@@ -2507,7 +2507,8 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C1():
     sample_ctx = render_dockerfile.build_context(
         {"cpu_arch": "aarch64"},
         {"vllm_version": "0.25.1", "ngc_base": {"tag": "26.05-py3", "cuda_version": "13.2"},
-         "build_track": {"decision": "source-build"}})
+         "build_track": {"decision": "source-build"},
+         "source_build": {"torch_cuda_arch": "12.1a"}})   # source-build 렌더는 해소된 arch 를 요구한다(plan_26103120)
     _require(sample_ctx['IMAGE_TAG'] == '0.25.1-cu132-aarch64-source', sample_ctx['IMAGE_TAG'])
     _require('arm_patch.sh' in render_dockerfile.RUNNER_SCRIPTS, "arm_patch.sh must be one of the generic, model-agnostic runner scripts materialized into the stock image's output pathway regardless of which model is later served")
 
@@ -3600,7 +3601,8 @@ def predicate_ARCH_WALL_VARIANT_LADDER_C2():
     manifest = {"cpu_arch": "aarch64", "nas_model_path": ""}
     resolved = {"vllm_version": "0.25.1", "torch": {"pin": "2.11.0"},
                 "ngc_base": {"tag": "26.05-py3", "cuda_version": "13.2"},
-                "build_track": {"decision": "source-build"}, "wheel": {}}
+                "build_track": {"decision": "source-build"}, "wheel": {},
+                "source_build": {"torch_cuda_arch": "12.1a"}}   # source-build 렌더는 해소된 arch 를 요구한다(plan_26103120)
     ctx = render_dockerfile.build_context(manifest, resolved)
     _require(ctx['IMAGE_TAG'] == '0.25.1-cu132-aarch64-source', 'predicate requirement failed at original line 2776')
     manifest["model_name"] = "deepseek-v4-flash"
