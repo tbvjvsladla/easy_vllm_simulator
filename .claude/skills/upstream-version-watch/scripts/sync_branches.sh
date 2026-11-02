@@ -58,6 +58,9 @@ ALLOWLIST=(
     #   된다. ★ MIRROR_DIRS 에도 함께 넣는다(한쪽만 넣어 침묵 누락된 선례 3건: families.json ·
     #   HINT_ISSUANCE_CONTRACT.md · assets).
     .claude/hooks
+    # A2A 위임 호출자 평면(2026-11-02 · plan_26110216). 헌장 공통층 불변식의 설치물이라 양 브랜치가 같아야
+    #   한다 — 빠지면 한 브랜치에서만 에이전트가 위임을 직접 실행한다. 단일 파일이므로 MIRROR_DIRS 대상 아님.
+    .claude/settings.json
     .gitignore
     manifest.template.yaml
     .gitattributes

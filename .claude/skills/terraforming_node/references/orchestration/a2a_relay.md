@@ -263,8 +263,10 @@ wall timeout은 사용자 취소로 단정하지 않는다. 제어된 워커 회
 **Codex 예산과 상태 소유권.** Codex는 v2 wall-time 계약을 쓴다. `--max-turns`를 넘기지 않고
 `--timeout-seconds`·`--budget-source`로 한 번의 실행 예산을 선언한다. native turn 수는 모르면 null이다.
 `max_dispatches`는 과거 요청을 읽기 위한 호환 필드이며 새 요청에는 싣지 않는다. 누적 호출 횟수는
-관측 이력이고 Codex·Claude 어느 경로에서도 자동 재개의 한도가 아니다. 운영 서브는
-`--permission-profile :danger-full-access`, 읽기 전용 카나리는 `--sandbox-mode read-only`를 사용한다.
+관측 이력이고 Codex·Claude 어느 경로에서도 자동 재개의 한도가 아니다. 운영 서브 위임은 권한 인자를
+**생략**한다 — relay 가 워커 평면 설치값(`sub_node/codex.config.template.toml` `default_permissions`)에서
+파생하고 원장 attempt 에 `permission_source: provisioned` 를 남긴다(plan_26110216). 명시 인자는 하위호환이며
+설치값과 다르면 거부된다. 읽기 전용 카나리는 종전대로 `--sandbox-mode read-only`를 명시한다.
 main/sub는 같은 built-in 권한을 쓰며 역할별 named 프로필을 생성하지 않는다. 설정이 신뢰되지 않았거나
 managed 정책이 거부하면 기존 request로 보고한다. 기존 세션의 권한 결속이 다르면 아티팩트로 새 세션에 인계한다.
 
