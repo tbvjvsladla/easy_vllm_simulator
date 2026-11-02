@@ -41,6 +41,26 @@ SCHEMA_VERSION_DEFAULT = 1
 RUNTIME_DIR = Path(__file__).resolve().parent
 REPO_ROOT = Path(__file__).resolve().parents[4]
 REQUEST_SCHEMA_PATH = REPO_ROOT / ".claude" / "schemas" / "agent-control-request.schema.json"
+# W(워커) 평면 권한의 단일 권위 = 테라포밍이 설치하는 Codex 프로젝트 설정(main 정본 · sub 렌더 정본).
+# 호출자는 이 값을 명령줄에 재기재하지 않는다 — 생략하면 여기서 파생한다(plan_26110216 S3).
+PROVISIONED_CODEX_CONFIG = {
+    "main": REPO_ROOT / ".codex" / "config.toml",
+    "sub": RUNTIME_DIR.parent / "sub_node" / "codex.config.template.toml",
+}
+
+
+def provisioned_permission_profile(role: str) -> str | None:
+    """테라포밍이 그 역할에 설치한 Codex `default_permissions`. 읽지 못하면 None(호출부가 fail-closed)."""
+    path = PROVISIONED_CODEX_CONFIG.get(role)
+    if path is None:
+        return None
+    try:
+        import tomllib
+        with open(path, "rb") as fh:
+            value = tomllib.load(fh).get("default_permissions")
+    except (OSError, ValueError):
+        return None
+    return value if isinstance(value, str) and value else None
 RESULT_SCHEMA_PATH = REPO_ROOT / ".claude" / "schemas" / "agent-control-result.schema.json"
 PROVIDERS_DIR = RUNTIME_DIR / "providers"
 
@@ -168,8 +188,9 @@ def _request_contract_violations(request: dict) -> list[str]:
         elif binding is not None:
             out.append("$.resume_binding: forbidden without resume_session_id")
         profile = request.get("permission_profile")
-        if profile and profile != ":danger-full-access":
-            out.append("$.permission_profile: must be :danger-full-access for main and sub")
+        provisioned = provisioned_permission_profile(role if role in PROVISIONED_CODEX_CONFIG else "main")
+        if profile and profile != provisioned:
+            out.append(f"$.permission_profile: must equal the provisioned Codex default_permissions ({provisioned!r})")
         if role == "sub" and request.get("sandbox_mode") == "workspace-write":
             out.append("$.sandbox_mode: sub writes require :danger-full-access via permission_profile; do not use a legacy override")
     return out

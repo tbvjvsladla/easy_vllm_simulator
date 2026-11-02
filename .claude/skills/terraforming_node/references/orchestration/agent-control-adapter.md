@@ -135,7 +135,8 @@ stdout은 항상 `agent-control-result.schema.json`의 정렬된 JSON이다. 성
   선언한다. 새 요청에 누적 `max_dispatches`를 싣지 않으며 과거 필드는 호환 관측으로만 읽는다. Codex의 완료 이벤트를
   Claude native turn으로 세지 않는다. 시간 한도는 토큰·금액의 하드 한도가 아니다.
 - 권한: `sandbox_mode` 또는 `permission_profile` 중 하나. 읽기 전용 카나리는 `read-only`,
-  운영 위임은 main/sub 모두 `permission_profile: ":danger-full-access"`를 사용한다.
+  운영 위임의 `permission_profile` 은 그 역할의 설치값(`PROVISIONED_CODEX_CONFIG` → `default_permissions`)과
+  같아야 한다. relay 는 호출자가 생략하면 이 값을 파생해 싣는다(호출자 재기재 ✗ · plan_26110216).
   legacy sandbox 옵션을 함께 붙이지 않는다. 정체성은 manifest·SSH·노드 계약으로 검증하며
   미신뢰 설정·managed 거부는 보고한다.
 - 재개: `resume_session_id`와 정확한 `{provider,target,permission selector}` 결속을 함께 보낸다.

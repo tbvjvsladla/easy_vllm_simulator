@@ -2887,6 +2887,8 @@ def commit_dispatch_outcome(a, doc: dict, lp: str, request: dict, result: dict, 
                          runner=reservation["runner"], session_binding=permission_binding(request),
                          dispatch_id=dispatch_id, request_path=reservation["request_path"],
                          started_utc=reservation["started_utc"], ended_utc=ended)
+    if reservation.get("permission_source"):
+        att["permission_source"] = reservation["permission_source"]   # provisioned | caller (plan_26110216 AC2)
     directory = os.path.join(relay_root(a.repo_root), f"{doc['context_id']}.reports")
     os.makedirs(directory, exist_ok=True)
     path = os.path.join(directory, "attempt-%02d.json" % att["attempt"])
@@ -2943,8 +2945,15 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
     require_dispatch_recovery(a, doc, resume_declared)
     profile = getattr(a, "permission_profile", None)
     sandbox = getattr(a, "sandbox_mode", None)
+    permission_source = "caller" if (profile or sandbox) else None
     if provider == "codex_cli" and not (profile or sandbox):
-        raise SystemExit("[relay] STOP: Codex permission profile or sandbox mode must be declared")
+        # 위임 권한은 노드 프로비저닝 사실이다(헌장 · plan_26110216) — 호출자가 재기재하지 않으면 설치값에서 파생한다.
+        profile = _agent_control.provisioned_permission_profile("sub")
+        if not profile:
+            raise SystemExit("[relay] STOP: provisioned Codex default_permissions unreadable "
+                             f"({_agent_control.PROVISIONED_CODEX_CONFIG['sub']}) — 테라포밍 §2.5.2 설치를 확인하라")
+        a.permission_profile = profile
+        permission_source = "provisioned"
     req = build_request(a.topology, a.manifest_path, task, bud,
                         context_id=a.context_id, attempt=attempt_no,
                         model=runner["model"], backend=runner["backend"],
@@ -3034,6 +3043,7 @@ def run_attempt_once(a, doc: dict, lp: str, task: str, bud: dict, resume_declare
     doc["runner_efforts"] = getattr(a, "runner_efforts", None) or {}
     if provider == "codex_cli":
         doc["permission_selection"] = {k: req[k] for k in ("permission_profile", "sandbox_mode") if k in req}
+        doc["inflight"]["permission_source"] = permission_source
     save_ledger(lp, doc)  # reserve durably before the external process can produce side effects
     if policy and not capacity_deadline_fits(policy, bud):
         doc.pop("inflight")

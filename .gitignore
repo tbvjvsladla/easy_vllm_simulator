@@ -50,6 +50,7 @@ CLAUDE.local.md
 # 추적 git 훅(core.hooksPath = .claude/hooks). 훅은 배포 대상 빌딩블럭이다 — `.git/hooks` 는
 #   클론에 실리지 않으므로 추적 디렉터리에 두고 hooksPath 로 가리켜야 배포본에서도 산다.
 !.claude/hooks/
+!.claude/settings.json
 .claude/schemas/*
 !.claude/schemas/work-manifest.schema.json
 !.claude/schemas/completion-manifest.schema.json

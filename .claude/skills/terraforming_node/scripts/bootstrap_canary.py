@@ -533,12 +533,49 @@ def _self_test() -> int:
     return 0 if ok else 2
 
 
+# 호출자 평면(C) — 메인 하네스가 위임 진입점을 사람 대행 없이 실행할 설치물(plan_26110216 S5).
+# 규칙 문자열의 정본은 여기다(harness_environment.md §호출자 평면은 이 목록을 설명한다).
+CALLER_PLANE_RULES = {
+    "claude_code": (".claude/settings.json", (
+        "Bash(python3 .claude/skills/terraforming_node/scripts/relay.py *)",
+        "Bash(bash .claude/skills/upstream-version-watch/scripts/fetch_sub_docs.sh *)",
+    )),
+}
+
+
+def caller_plane_check(repo: str, harness: str = "claude_code") -> dict:
+    """정적 전제 판정: 추적 설치물에 좁은 위임 규칙이 있는가. 실제 통과 증명은 위임 1회다(관측 한계 명시)."""
+    spec = CALLER_PLANE_RULES.get(harness)
+    if spec is None:
+        return {"phase": "caller", "harness": harness, "status": "completed",
+                "reason": "no caller-plane installable for this harness (worker config suffices)"}
+    rel, rules = spec
+    path = os.path.join(repo, rel)
+    try:
+        with open(path, encoding="utf-8") as fh:
+            allow = ((json.load(fh).get("permissions") or {}).get("allow") or [])
+    except (OSError, ValueError) as exc:
+        return {"phase": "caller", "harness": harness, "status": "input-required", "installable": rel,
+                "missing": list(rules), "reason": f"unreadable: {type(exc).__name__}",
+                "installer": "human (agent self-modification is refused by design)"}
+    missing = [r for r in rules if r not in allow]
+    tracked = subprocess.run(["git", "-C", repo, "ls-files", "--error-unmatch", rel],
+                             capture_output=True).returncode == 0
+    ok = not missing and tracked
+    return {"phase": "caller", "harness": harness, "status": "completed" if ok else "input-required",
+            "installable": rel, "tracked": tracked, "missing": missing,
+            "installer": "human (agent self-modification is refused by design)",
+            "proof_limit": "static precondition only; live proof = one agent-run relay delegation with zero denials"}
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="§2.5 model-less 카나리 request 조립기/실행자")
     ap.add_argument("--topology", choices=["single", "multi"])
     ap.add_argument("--manifest", default=None, help="기본 output/<topology>/manifest.yaml")
-    ap.add_argument("--phase", choices=("discovery", "permissions"), default="discovery",
-                    help="기존 읽기 discovery 또는 실제 native 도구 업무권한 관측")
+    ap.add_argument("--phase", choices=("discovery", "permissions", "caller"), default="discovery",
+                    help="기존 읽기 discovery · 실제 native 도구 업무권한 관측 · 호출자 평면 설치물 정적 판정")
+    ap.add_argument("--caller-harness", choices=("claude_code", "codex_cli"), default="claude_code",
+                    help="--phase caller: 판정할 메인 하네스")
     ap.add_argument("--target", choices=("main", "sub"), default="sub")
     ap.add_argument("--main-work-dir", help="main/local 대상 작업공간(기본 이 checkout); sub는 manifest만 사용")
     ap.add_argument("--verify-request", help="보존 request JSON과 --verify-result를 오프라인 검증(실행 없음)")
@@ -576,6 +613,10 @@ def main() -> int:
         verification = verify_result(request, result)
         print(json.dumps(verification, ensure_ascii=False, indent=2))
         return 0 if verification["status"] == "completed" else 4
+    if a.phase == "caller":
+        verdict = caller_plane_check(REPO, a.caller_harness)
+        print(json.dumps(verdict, ensure_ascii=False, indent=2))
+        return 0 if verdict["status"] == "completed" else 4
     if not a.topology:
         raise SystemExit("[canary] --topology 필수(토폴로지는 인터뷰가 정한다 — 브랜치로 추론하지 않는다)")
     manifest = a.manifest or os.path.join(REPO, "output", a.topology, "manifest.yaml")
