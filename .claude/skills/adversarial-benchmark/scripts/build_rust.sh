@@ -24,5 +24,7 @@ while [ "$#" -gt 0 ]; do
 done
 bash "$BOOTSTRAP" exec "${runtime_args[@]}" -- cargo build --release --locked \
   --manifest-path "$CRATE/Cargo.toml" --target-dir "$CRATE/target" "${cargo_args[@]}"
-bash "$SDIR/sweep_stop.sh" --self-test
-bash "$SDIR/parse_bench.sh" self-test
+SWEEP_STOP_BIN="$CRATE/target/release/sweep_stop" bash "$SDIR/sweep_stop.sh" --self-test
+PARSE_BENCH_BIN="$CRATE/target/release/parse_bench" bash "$SDIR/parse_bench.sh" self-test
+ROOFLINE_BIN="$CRATE/target/release/roofline" bash "$SDIR/roofline.sh" self-test
+VERDICT_RULE_BIN="$CRATE/target/release/verdict_rule" bash "$SDIR/verdict_rule.sh" --self-test

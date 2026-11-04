@@ -21,6 +21,14 @@ name = "parse_bench"
 path = "src/bin/parse_bench.rs"
 
 [[bin]]
+name = "roofline"
+path = "src/bin/roofline.rs"
+
+[[bin]]
+name = "verdict_rule"
+path = "src/bin/verdict_rule.rs"
+
+[[bin]]
 name = "sweep_stop_bench"
 path = "src/bin/sweep_stop_bench.rs"
 
@@ -60,6 +68,30 @@ path = "checks/parse_bench_numbers.rs"
 name = "stdout_boundary"
 path = "checks/stdout_boundary.rs"
 
+[[test]]
+name = "roofline_verdict_api"
+path = "checks/roofline_verdict_api.rs"
+
+[[test]]
+name = "roofline_verdict_cli"
+path = "checks/roofline_verdict_cli.rs"
+
+[[test]]
+name = "roofline_verdict_layouts"
+path = "checks/roofline_verdict_layouts.rs"
+
+[[test]]
+name = "roofline_verdict_streams"
+path = "checks/roofline_verdict_streams.rs"
+
+[[test]]
+name = "package_paths"
+path = "checks/package_paths.rs"
+
+[[test]]
+name = "yaml_reader"
+path = "checks/yaml_reader.rs"
+
 [dependencies]
 num-bigint = "0.4"
 num-traits = "0.2"
@@ -73,3 +105,7 @@ rustix = { version = "1", default-features = false, features = ["std", "termios"
 
 [build-dependencies]
 serde_json = "1"
+
+[[test]]
+name = "yaml_depth"
+path = "checks/yaml_depth.rs"

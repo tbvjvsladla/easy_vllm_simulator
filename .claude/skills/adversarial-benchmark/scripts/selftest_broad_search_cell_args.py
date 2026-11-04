@@ -37,6 +37,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[4]
 AB = ".claude/skills/adversarial-benchmark/scripts"
 COPIES = (
+    ".claude/skills/adversarial-benchmark/rust/target/release/roofline",
+    ".claude/skills/adversarial-benchmark/rust/target/release/verdict_rule",
     f"{AB}/broad_search.sh",
     f"{AB}/sweep_stop.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/sweep_stop",
@@ -46,8 +48,8 @@ COPIES = (
     f"{AB}/bench_preset.py",
     ".claude/skills/adversarial-benchmark/config/bench_bindings.yaml",
     ".claude/skills/adversarial-benchmark/config/guide-llm/default_preset.yaml",
-    f"{AB}/verdict_rule.py",
-    f"{AB}/roofline.py",
+    f"{AB}/verdict_rule.sh",
+    f"{AB}/roofline.sh",
     ".claude/skills/terraforming_node/scripts/campaign_init.py",
     ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
 )
@@ -93,7 +95,7 @@ def _build(root: Path, bindir: Path) -> None:
 
 
 def _bs(root: Path, env: dict, *args: str) -> subprocess.CompletedProcess:
-    return subprocess.run(["bash", str(root / COPIES[0]), *args], cwd=str(root), env=env,
+    return subprocess.run(["bash", str(root / f"{AB}/broad_search.sh"), *args], cwd=str(root), env=env,
                           capture_output=True, text=True, timeout=120)
 
 

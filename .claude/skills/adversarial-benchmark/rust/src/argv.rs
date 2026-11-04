@@ -13,7 +13,9 @@
 //! [`crate::terminal`].
 
 use crate::help_layouts::Layout;
+use crate::pynumber::{float_from_str, int_from_str};
 use crate::pystr::{is_decimal_digit, PyStr};
+use num_bigint::BigInt;
 
 /// The program name argparse derives from `sys.argv[0]` of the original `sweep_stop.py`.
 pub const PROG: &str = "sweep_stop.py";
@@ -26,12 +28,67 @@ pub enum Kind {
     Flag,
 }
 
+/// How `argparse` converts the text of a value option (`type=`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Conversion {
+    Text,
+    Float,
+    Int,
+}
+
 /// One registered action. `name` is argparse's `_get_action_name`: the option strings joined with `/`.
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct ActionDef {
     pub name: &'static str,
     pub kind: Kind,
     pub required: bool,
+    pub conversion: Conversion,
+    /// `choices=`: the allowed texts (empty when unrestricted).
+    pub choices: &'static [&'static str],
+}
+
+/// An action that takes no restrictions; the base of the tables below.
+const PLAIN: ActionDef = ActionDef {
+    name: "",
+    kind: Kind::Flag,
+    required: false,
+    conversion: Conversion::Text,
+    choices: &[],
+};
+
+const fn flag(name: &'static str) -> ActionDef {
+    ActionDef {
+        name,
+        kind: Kind::Flag,
+        ..PLAIN
+    }
+}
+
+const fn text_option(name: &'static str, required: bool) -> ActionDef {
+    ActionDef {
+        name,
+        kind: Kind::Value,
+        required,
+        ..PLAIN
+    }
+}
+
+const fn number(name: &'static str, conversion: Conversion) -> ActionDef {
+    ActionDef {
+        name,
+        kind: Kind::Value,
+        conversion,
+        ..PLAIN
+    }
+}
+
+const fn choice(name: &'static str, choices: &'static [&'static str]) -> ActionDef {
+    ActionDef {
+        name,
+        kind: Kind::Value,
+        choices,
+        ..PLAIN
+    }
 }
 
 /// A fixed parser: its program name, actions, option strings in registration order and captured help layouts.
@@ -83,23 +140,11 @@ pub const SWEEP_STOP: Spec = Spec {
         ActionDef {
             name: "-h/--help",
             kind: Kind::Help,
-            required: false,
+            ..PLAIN
         },
-        ActionDef {
-            name: "--state",
-            kind: Kind::Value,
-            required: false,
-        },
-        ActionDef {
-            name: "--now-utc",
-            kind: Kind::Value,
-            required: false,
-        },
-        ActionDef {
-            name: "--self-test",
-            kind: Kind::Flag,
-            required: false,
-        },
+        text_option("--state", false),
+        text_option("--now-utc", false),
+        flag("--self-test"),
     ],
     options: &[
         ("-h", HELP_ACTION),
@@ -125,23 +170,11 @@ pub const PARSE_BENCH: Spec = Spec {
         ActionDef {
             name: "-h/--help",
             kind: Kind::Help,
-            required: false,
+            ..PLAIN
         },
-        ActionDef {
-            name: "--bench-json",
-            kind: Kind::Value,
-            required: true,
-        },
-        ActionDef {
-            name: "--engine-log",
-            kind: Kind::Value,
-            required: false,
-        },
-        ActionDef {
-            name: "--json",
-            kind: Kind::Flag,
-            required: false,
-        },
+        text_option("--bench-json", true),
+        text_option("--engine-log", false),
+        flag("--json"),
     ],
     options: &[
         ("-h", HELP_ACTION),
@@ -151,6 +184,136 @@ pub const PARSE_BENCH: Spec = Spec {
         ("--json", JSON_FLAG),
     ],
     layouts: crate::help_layouts_parse_bench::LAYOUTS,
+};
+
+/// Indices of the `roofline.py` actions.
+pub mod roofline_args {
+    pub const MODEL_PATH: usize = 1;
+    pub const NAS_ROOT: usize = 2;
+    pub const QUANT_ROOT: usize = 3;
+    pub const MANIFEST: usize = 4;
+    pub const TP: usize = 5;
+    pub const ACCEPT_LEN: usize = 6;
+    pub const ACCEPT_LEN_SOURCE: usize = 7;
+    pub const ACCEPT_LEN_EVIDENCE: usize = 8;
+    pub const BANDWIDTH_GBPS: usize = 9;
+    pub const INTERCONNECT_GBPS: usize = 10;
+    pub const ACT_DTYPE_BYTES: usize = 11;
+    pub const COMM_LATENCY_US_PER_LAYER: usize = 12;
+    pub const REALISTIC_FRACTION: usize = 13;
+    pub const JSON: usize = 14;
+}
+
+/// The `accept_len` provenance vocabulary (`roofline.ACCEPT_LEN_SOURCES`); one list for the parser and the library.
+pub const ACCEPT_LEN_SOURCE_NAMES: &[&str] = &["measured", "declared", "declared-absent", "absent"];
+
+/// The original `roofline.py` parser.
+pub const ROOFLINE: Spec = Spec {
+    prog: "roofline.py",
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            ..PLAIN
+        },
+        text_option("--model-path", true),
+        text_option("--nas-root", false),
+        text_option("--quant-root", false),
+        text_option("--manifest", false),
+        number("--tp", Conversion::Int),
+        number("--accept-len", Conversion::Float),
+        choice("--accept-len-source", ACCEPT_LEN_SOURCE_NAMES),
+        text_option("--accept-len-evidence", false),
+        number("--bandwidth-gbps", Conversion::Float),
+        number("--interconnect-gbps", Conversion::Float),
+        number("--act-dtype-bytes", Conversion::Int),
+        number("--comm-latency-us-per-layer", Conversion::Float),
+        number("--realistic-fraction", Conversion::Float),
+        flag("--json"),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--model-path", 1),
+        ("--nas-root", 2),
+        ("--quant-root", 3),
+        ("--manifest", 4),
+        ("--tp", 5),
+        ("--accept-len", 6),
+        ("--accept-len-source", 7),
+        ("--accept-len-evidence", 8),
+        ("--bandwidth-gbps", 9),
+        ("--interconnect-gbps", 10),
+        ("--act-dtype-bytes", 11),
+        ("--comm-latency-us-per-layer", 12),
+        ("--realistic-fraction", 13),
+        ("--json", 14),
+    ],
+    layouts: crate::help_layouts_roofline::LAYOUTS,
+};
+
+/// Indices of the `verdict_rule.py` actions.
+pub mod verdict_args {
+    pub const MEASURED: usize = 1;
+    pub const ROOFLINE: usize = 2;
+    pub const REFERENCE_TPS: usize = 3;
+    pub const TARGET_TPS: usize = 4;
+    pub const AUTHORITY: usize = 5;
+    pub const TOLERANCE: usize = 6;
+    pub const SPEC_SUPPORTED: usize = 7;
+    pub const SPEC_DECLARED: usize = 8;
+    pub const E_SEARCH: usize = 9;
+    pub const NODE_VRAM_GIB: usize = 10;
+    pub const BALANCE_TOL: usize = 11;
+    pub const SELF_TEST: usize = 12;
+    pub const JSON: usize = 13;
+}
+
+pub const AUTHORITY_NAMES: &[&str] = &["weak", "explicit", "explore"];
+pub const SPEC_DECLARED_NAMES: &[&str] = &["on", "off", "unknown"];
+pub const E_SEARCH_NAMES: &[&str] = &["hit", "empty", "no"];
+
+/// The original `verdict_rule.py` parser.
+pub const VERDICT_RULE: Spec = Spec {
+    prog: "verdict_rule.py",
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            ..PLAIN
+        },
+        text_option("--measured", false),
+        text_option("--roofline", false),
+        number("--reference-tps", Conversion::Float),
+        number("--target-tps", Conversion::Float),
+        choice("--authority", AUTHORITY_NAMES),
+        number("--tolerance", Conversion::Float),
+        flag("--spec-supported"),
+        choice("--spec-declared", SPEC_DECLARED_NAMES),
+        choice("--e-search", E_SEARCH_NAMES),
+        text_option("--node-vram-gib", false),
+        number("--balance-tol", Conversion::Float),
+        flag("--self-test"),
+        flag("--json"),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--measured", 1),
+        ("--roofline", 2),
+        ("--reference-tps", 3),
+        ("--target-tps", 4),
+        ("--authority", 5),
+        ("--tolerance", 6),
+        ("--spec-supported", 7),
+        ("--spec-declared", 8),
+        ("--e-search", 9),
+        ("--node-vram-gib", 10),
+        ("--balance-tol", 11),
+        ("--self-test", 12),
+        ("--json", 13),
+    ],
+    layouts: crate::help_layouts_verdict_rule::LAYOUTS,
 };
 
 /// `parser.format_usage()` of `sweep_stop.py` at the given terminal width.
@@ -168,6 +331,14 @@ pub fn help(columns: u32) -> &'static str {
 pub struct Matches {
     values: Vec<Option<PyStr>>,
     seen: Vec<bool>,
+    numbers: Vec<Option<ArgNumber>>,
+}
+
+/// The converted value of a `type=float` / `type=int` option.
+#[derive(Clone, Debug, PartialEq)]
+pub enum ArgNumber {
+    Float(f64),
+    Int(BigInt),
 }
 
 impl Matches {
@@ -175,12 +346,29 @@ impl Matches {
         Matches {
             values: vec![None; spec.actions.len()],
             seen: vec![false; spec.actions.len()],
+            numbers: vec![None; spec.actions.len()],
         }
     }
 
     /// The value of a `Kind::Value` action, if given.
     pub fn value(&self, action: usize) -> Option<&PyStr> {
         self.values[action].as_ref()
+    }
+
+    /// The converted value of a `type=float` option, if given.
+    pub fn float(&self, action: usize) -> Option<f64> {
+        match self.numbers[action] {
+            Some(ArgNumber::Float(number)) => Some(number),
+            _ => None,
+        }
+    }
+
+    /// The converted value of a `type=int` option, if given.
+    pub fn int(&self, action: usize) -> Option<&BigInt> {
+        match &self.numbers[action] {
+            Some(ArgNumber::Int(number)) => Some(number),
+            _ => None,
+        }
     }
 
     /// Whether a `Kind::Flag` action was given.
@@ -486,6 +674,42 @@ pub fn parse_with(spec: &Spec, args: &[PyStr]) -> Outcome {
     Outcome::Error(message)
 }
 
+/// `_get_values` for a value option: the `type=` conversion, then the `choices` check.
+fn convert_value(definition: &ActionDef, text: &PyStr) -> Result<Option<ArgNumber>, PyStr> {
+    let invalid = |kind: &str| {
+        PyStr::new(&format!(
+            "argument {}: invalid {kind} value: {}",
+            definition.name,
+            text.repr()
+        ))
+    };
+    let number = match definition.conversion {
+        Conversion::Text => None,
+        Conversion::Float => Some(ArgNumber::Float(
+            float_from_str(text).map_err(|_| invalid("float"))?,
+        )),
+        Conversion::Int => Some(ArgNumber::Int(
+            int_from_str(text).map_err(|_| invalid("int"))?,
+        )),
+    };
+    if !definition.choices.is_empty()
+        && !definition.choices.iter().any(|choice| text.equals(choice))
+    {
+        let allowed: Vec<String> = definition
+            .choices
+            .iter()
+            .map(|choice| PyStr::new(choice).repr())
+            .collect();
+        return Err(PyStr::new(&format!(
+            "argument {}: invalid choice: {} (choose from {})",
+            definition.name,
+            text.repr(),
+            allowed.join(", ")
+        )));
+    }
+    Ok(number)
+}
+
 fn consume_optional(
     spec: &Spec,
     start: usize,
@@ -566,9 +790,19 @@ fn consume_optional(
         }
     }
     for (action, mut values) in queued {
-        match spec.actions[action].kind {
+        let definition = &spec.actions[action];
+        match definition.kind {
             Kind::Help => return Consumed::Help,
-            Kind::Value => parsed.values[action] = values.pop(),
+            Kind::Value => {
+                let value = values.pop();
+                if let Some(text) = &value {
+                    match convert_value(definition, text) {
+                        Ok(number) => parsed.numbers[action] = number,
+                        Err(message) => return Consumed::Error(message),
+                    }
+                }
+                parsed.values[action] = value;
+            }
             Kind::Flag => {}
         }
         parsed.seen[action] = true;

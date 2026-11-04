@@ -53,7 +53,7 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[4]
 SCRIPTS_REL = ".claude/skills/adversarial-benchmark/scripts"
-COPIES = ("judge_bench.sh", "roofline.py", "verdict_rule.py")
+COPIES = ("judge_bench.sh", "roofline.sh", "verdict_rule.sh")
 PUBLISHER = "publish_benchmark_record.py"   # 사본에 두지 않는다 — 스텁으로 대체
 STUB_SENTINEL = "SELFTEST_JUDGE_BENCH_PUBLISH_STUB"
 MISSING = object()
@@ -79,6 +79,10 @@ class Sandbox:
         self.sdir.mkdir(parents=True)
         for name in COPIES:
             shutil.copy2(REPO / SCRIPTS_REL / name, self.sdir / name)
+        binaries = Path(SCRIPTS_REL).parent / "rust/target/release"
+        (root / binaries).mkdir(parents=True)
+        for name in ("roofline", "verdict_rule"):
+            shutil.copy2(REPO / binaries / name, root / binaries / name)
         _write(self.sdir / PUBLISHER, STUB)
         subprocess.run(["git", "init", "-q", str(root)], check=True, timeout=60)
         _write(root / "output/single/manifest.yaml",
@@ -304,8 +308,8 @@ def main() -> int:
               and not out8.exists(),
               (cp.returncode, out8.exists(), cp.stdout[-300:]))
 
-        # ── J10★ roofline 조합 계약 — 사본 roofline.py 를 직접 부른다(judge_bench 는 모순 조합을 만들지 않는다) ──
-        roof_base = ["python3", str(sb.sdir / "roofline.py"), "--model-path", str(sb.model),
+        # ── J10★ roofline 조합 계약 — 사본 native 런처를 직접 부른다(judge_bench 는 모순 조합을 만들지 않는다) ──
+        roof_base = ["bash", str(sb.sdir / "roofline.sh"), "--model-path", str(sb.model),
                      "--manifest", str(sb.root / "output/single/manifest.yaml"), "--tp", "1", "--json"]
 
         def roof(*extra):

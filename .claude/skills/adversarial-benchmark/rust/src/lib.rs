@@ -14,18 +14,28 @@ pub mod error;
 pub mod evaluate;
 mod help_layouts;
 mod help_layouts_parse_bench;
+mod help_layouts_roofline;
+mod help_layouts_verdict_rule;
 pub mod jsonl;
 pub mod parse_bench;
 pub mod pyjson;
 pub mod pynumber;
+pub mod pyops;
 pub mod pystr;
 pub mod pyvalue;
+pub mod pyyaml;
 pub mod report;
+pub mod roofline;
+pub mod roofline_cli;
+mod roofline_selftest;
 pub mod selftest;
 pub mod stdout;
 pub mod terminal;
 mod unicode_tables;
 pub mod utc;
+pub mod verdict;
+pub mod verdict_cli;
+mod verdict_selftest;
 
 mod repeat_floor {
     include!(concat!(env!("OUT_DIR"), "/full_repeats_min.rs"));

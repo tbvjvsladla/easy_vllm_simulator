@@ -5,6 +5,7 @@ use crate::pystr::PyStr;
 use num_bigint::BigInt;
 use num_traits::{FromPrimitive, Zero};
 use std::fmt;
+use std::sync::Arc;
 
 /// `sys.get_int_max_str_digits()` default: Python refuses to render longer integers.
 const MAX_INT_DIGITS: usize = 4300;
@@ -20,6 +21,13 @@ pub enum DumpError {
     IntegerTooLong,
     /// Containers nested beyond what the pure-Python encoder can recurse through (`RecursionError`).
     TooDeep,
+    /// A value of a type JSON cannot carry (`TypeError: Object of type date is not JSON serializable`); holds the
+    /// type's short name.
+    NotSerializable(&'static str),
+    /// A value that contains itself (`ValueError: Circular reference detected`).
+    Circular,
+    /// A dict key JSON cannot spell (`TypeError: keys must be str, int, float, bool or None, not date`).
+    KeyNotAllowed(&'static str),
 }
 
 impl DumpError {
@@ -27,6 +35,9 @@ impl DumpError {
         match self {
             DumpError::IntegerTooLong => "ValueError",
             DumpError::TooDeep => "RecursionError",
+            DumpError::NotSerializable(_) => "TypeError",
+            DumpError::Circular => "ValueError",
+            DumpError::KeyNotAllowed(_) => "TypeError",
         }
     }
 }
@@ -39,13 +50,16 @@ impl fmt::Display for DumpError {
                 "ValueError: Exceeds the limit ({MAX_INT_DIGITS} digits) for integer string conversion; use sys.set_int_max_str_digits() to increase the limit"
             ),
             DumpError::TooDeep => f.write_str("RecursionError: maximum recursion depth exceeded"),
+            DumpError::NotSerializable(name) => write!(f, "TypeError: Object of type {name} is not JSON serializable"),
+            DumpError::Circular => f.write_str("ValueError: Circular reference detected"),
+            DumpError::KeyNotAllowed(name) => write!(f, "TypeError: keys must be str, int, float, bool or None, not {name}"),
         }
     }
 }
 
 impl std::error::Error for DumpError {}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum PyValue {
     None,
     Bool(bool),
@@ -54,6 +68,44 @@ pub enum PyValue {
     Str(PyStr),
     List(Vec<PyValue>),
     Dict(PyDict),
+    /// `bytes` (what YAML's `!!binary` makes). Never produced by the JSON reader.
+    Bytes(Vec<u8>),
+    /// A `tuple` (items of YAML's `!!omap` and `!!pairs`); JSON writes it as an array.
+    Tuple(Vec<PyValue>),
+    /// A Python object JSON cannot carry (`datetime.date`, `datetime.datetime`, `set`) known by its type name and `repr`.
+    Opaque(Opaque),
+    /// One Python object that several places of a YAML document refer to (an alias target). Python shares the object;
+    /// so does this: the wrapper is cloned by reference, never by content. It is transparent - every operation below
+    /// sees the value inside - and only the YAML reader produces it, around collections that more than one place of
+    /// the document refers to. Code that matches on the variant of a value taken out of a YAML document calls
+    /// [`PyValue::peel`] first.
+    Shared(Arc<PyValue>),
+}
+
+impl PartialEq for PyValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self.peel(), other.peel()) {
+            (PyValue::None, PyValue::None) => true,
+            (PyValue::Bool(a), PyValue::Bool(b)) => a == b,
+            (PyValue::Int(a), PyValue::Int(b)) => a == b,
+            (PyValue::Float(a), PyValue::Float(b)) => a == b,
+            (PyValue::Str(a), PyValue::Str(b)) => a == b,
+            (PyValue::List(a), PyValue::List(b)) => a == b,
+            (PyValue::Dict(a), PyValue::Dict(b)) => a == b,
+            (PyValue::Bytes(a), PyValue::Bytes(b)) => a == b,
+            (PyValue::Tuple(a), PyValue::Tuple(b)) => a == b,
+            (PyValue::Opaque(a), PyValue::Opaque(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+/// A value of a type that only YAML produces; it has a type name, a `repr` and a truth value, and cannot be dumped.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Opaque {
+    pub type_name: &'static str,
+    pub repr: String,
+    pub truthy: bool,
 }
 
 /// Insertion-ordered dict. Assigning an existing key replaces the value and keeps the original position,
@@ -72,7 +124,7 @@ impl PyDict {
         match self
             .entries
             .iter_mut()
-            .find(|(existing, _)| *existing == key)
+            .find(|(existing, _)| same_key(existing, &key))
         {
             Some(slot) => slot.1 = value,
             None => self.entries.push((key, value)),
@@ -109,6 +161,15 @@ impl PyDict {
 }
 
 impl PyValue {
+    /// The value without the sharing wrapper.
+    pub fn peel(&self) -> &PyValue {
+        let mut value = self;
+        while let PyValue::Shared(inner) = value {
+            value = inner;
+        }
+        value
+    }
+
     pub fn int(value: impl Into<BigInt>) -> PyValue {
         PyValue::Int(value.into())
     }
@@ -127,6 +188,10 @@ impl PyValue {
             PyValue::Str(_) => "str",
             PyValue::List(_) => "list",
             PyValue::Dict(_) => "dict",
+            PyValue::Bytes(_) => "bytes",
+            PyValue::Tuple(_) => "tuple",
+            PyValue::Opaque(opaque) => opaque.type_name,
+            PyValue::Shared(inner) => inner.type_name(),
         }
     }
 
@@ -140,12 +205,16 @@ impl PyValue {
             PyValue::Str(text) => !text.is_empty(),
             PyValue::List(items) => !items.is_empty(),
             PyValue::Dict(map) => !map.is_empty(),
+            PyValue::Bytes(bytes) => !bytes.is_empty(),
+            PyValue::Tuple(items) => !items.is_empty(),
+            PyValue::Opaque(opaque) => opaque.truthy,
+            PyValue::Shared(inner) => inner.is_truthy(),
         }
     }
 
     /// The value when it is a real `int` (`bool` is excluded, as `isinstance(v, int) and not isinstance(v, bool)`).
     pub fn as_plain_int(&self) -> Option<&BigInt> {
-        match self {
+        match self.peel() {
             PyValue::Int(number) => Some(number),
             _ => None,
         }
@@ -153,7 +222,7 @@ impl PyValue {
 
     /// Python `value == number` for a non-negative `int` the caller holds.
     pub fn equals_int(&self, number: &BigInt) -> bool {
-        match self {
+        match self.peel() {
             PyValue::Int(own) => own == number,
             PyValue::Bool(flag) => BigInt::from(u8::from(*flag)) == *number,
             PyValue::Float(own) => {
@@ -181,16 +250,27 @@ impl PyValue {
             PyValue::Dict(map) => {
                 let inner: Vec<String> = map
                     .iter()
-                    .map(|(key, value)| format!("{}: {}", key.repr(), value.repr()))
+                    .map(|(key, value)| format!("{}: {}", key_repr(key), value.repr()))
                     .collect();
                 format!("{{{}}}", inner.join(", "))
             }
+            PyValue::Bytes(bytes) => bytes_repr(bytes),
+            PyValue::Tuple(items) => {
+                let inner: Vec<String> = items.iter().map(PyValue::repr).collect();
+                if inner.len() == 1 {
+                    format!("({},)", inner[0])
+                } else {
+                    format!("({})", inner.join(", "))
+                }
+            }
+            PyValue::Opaque(opaque) => opaque.repr.clone(),
+            PyValue::Shared(inner) => inner.repr(),
         }
     }
 
     /// Python `str(value)`: a string is itself, everything else is its repr.
     pub fn display_text(&self) -> PyStr {
-        match self {
+        match self.peel() {
             PyValue::Str(text) => text.clone(),
             other => PyStr::new(&other.repr()),
         }
@@ -229,6 +309,25 @@ impl PyValue {
                     items[index].write_json(out, inner, ascii)
                 })?
             }
+            PyValue::Bytes(_) => return Err(DumpError::NotSerializable("bytes")),
+            PyValue::Tuple(items) => {
+                write_sequence(out, layout, ('[', ']'), items.len(), |out, index, inner| {
+                    items[index].write_json(out, inner, ascii)
+                })?
+            }
+            PyValue::Shared(inner) => inner.write_json(out, layout, ascii)?,
+            PyValue::Opaque(opaque) if opaque.repr == "[...]" || opaque.repr == "{...}" => {
+                return Err(DumpError::Circular)
+            }
+            PyValue::Opaque(opaque) => {
+                return Err(DumpError::NotSerializable(
+                    opaque
+                        .type_name
+                        .rsplit('.')
+                        .next()
+                        .unwrap_or(opaque.type_name),
+                ))
+            }
             PyValue::Dict(map) => {
                 let entries: Vec<&(PyStr, PyValue)> = map.iter().collect();
                 write_sequence(
@@ -238,7 +337,7 @@ impl PyValue {
                     entries.len(),
                     |out, index, inner| {
                         let (key, value) = entries[index];
-                        key.write_json(out, ascii);
+                        json_key(key)?.write_json(out, ascii);
                         out.push_str(": ");
                         value.write_json(out, inner, ascii)
                     },
@@ -433,6 +532,81 @@ fn float_json(number: f64) -> String {
         .to_string()
     } else {
         float_repr(number)
+    }
+}
+
+/// Python `repr(bytes)`.
+pub fn bytes_repr(bytes: &[u8]) -> String {
+    let quote = if bytes.contains(&b'\'') && !bytes.contains(&b'"') {
+        '"'
+    } else {
+        '\''
+    };
+    let mut out = format!("b{quote}");
+    for &byte in bytes {
+        match byte {
+            b'\\' => out.push_str("\\\\"),
+            b'\t' => out.push_str("\\t"),
+            b'\n' => out.push_str("\\n"),
+            b'\r' => out.push_str("\\r"),
+            b if char::from(b) == quote => {
+                out.push('\\');
+                out.push(quote);
+            }
+            0x20..=0x7E => out.push(char::from(byte)),
+            _ => out.push_str(&format!("\\x{byte:02x}")),
+        }
+    }
+    out.push(quote);
+    out
+}
+
+/// Dict keys that are not strings (YAML allows them) are stored as `\0yaml-key:<canonical>\0<repr>`: equal Python keys
+/// (`1`, `1.0`, `True`) share the canonical part, and the repr is what Python would print.
+pub const NON_STRING_KEY: &str = "\u{0}yaml-key:";
+
+fn key_repr(key: &PyStr) -> String {
+    match key.to_utf8() {
+        Some(text) if text.starts_with(NON_STRING_KEY) => {
+            text.rsplit('\u{0}').next().unwrap_or("").to_string()
+        }
+        _ => key.repr(),
+    }
+}
+
+/// What `json.dumps` writes for a dict key: strings as they are, `None`/`bool`/`int`/`float` as their JSON spelling,
+/// anything else is the `TypeError` Python raises.
+fn json_key(key: &PyStr) -> Result<PyStr, DumpError> {
+    let Some(text) = key.to_utf8().filter(|t| t.starts_with(NON_STRING_KEY)) else {
+        return Ok(key.clone());
+    };
+    let repr = text.rsplit('\u{0}').next().unwrap_or("");
+    let spelled = match repr {
+        "None" => "null".to_string(),
+        "True" => "true".to_string(),
+        "False" => "false".to_string(),
+        "inf" => "Infinity".to_string(),
+        "-inf" => "-Infinity".to_string(),
+        "nan" => "NaN".to_string(),
+        other if other.parse::<f64>().is_ok() => other.to_string(),
+        other if other.starts_with("datetime.datetime") => {
+            return Err(DumpError::KeyNotAllowed("datetime"))
+        }
+        other if other.starts_with("datetime.date") => {
+            return Err(DumpError::KeyNotAllowed("date"))
+        }
+        _ => return Err(DumpError::KeyNotAllowed("bytes")),
+    };
+    Ok(PyStr::new(&spelled))
+}
+
+/// Dict key equality: strings by content; non-string keys by their canonical part (see [`NON_STRING_KEY`]).
+fn same_key(left: &PyStr, right: &PyStr) -> bool {
+    match (left.to_utf8(), right.to_utf8()) {
+        (Some(a), Some(b)) if a.starts_with(NON_STRING_KEY) && b.starts_with(NON_STRING_KEY) => {
+            a.split('\u{0}').nth(1) == b.split('\u{0}').nth(1) && a.split('\u{0}').nth(2).is_some()
+        }
+        _ => left == right,
     }
 }
 

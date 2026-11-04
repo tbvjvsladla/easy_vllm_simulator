@@ -1,0 +1,12 @@
+{
+ "allowed_final_exception_lines": {
+  "x-cli-0141-roofline-model-dense-wm-mixed": [
+   "TypeError: '<' not supported between instances of 'int' and 'str'",
+   "TypeError: '<' not supported between instances of 'str' and 'int'"
+  ],
+  "x-cli-0142-roofline-model-dense-wm-mixed": [
+   "TypeError: '<' not supported between instances of 'int' and 'str'",
+   "TypeError: '<' not supported between instances of 'str' and 'int'"
+  ]
+ }
+}

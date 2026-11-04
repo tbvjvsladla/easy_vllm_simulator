@@ -92,27 +92,34 @@ fn translate_newlines(points: Vec<u32>) -> PyStr {
 /// The message names the offending bytes the way `UnicodeDecodeError` does: one byte as `byte 0xXX in position
 /// P`, a longer invalid or truncated sequence as `bytes in position P-Q`.
 pub fn decode_file_text(bytes: &[u8]) -> Result<PyStr, LoadError> {
+    decode_utf8_strict(bytes).map(|text| translate_newlines(text.code_points().to_vec()))
+}
+
+/// `bytes.decode("utf-8")`: strict, with no newline translation (what `open()` adds on top of it).
+pub fn decode_utf8_strict(bytes: &[u8]) -> Result<PyStr, LoadError> {
     match std::str::from_utf8(bytes) {
-        Ok(text) => Ok(translate_newlines(text.chars().map(u32::from).collect())),
-        Err(error) => {
-            let start = error.valid_up_to();
-            let (length, reason) = match error.error_len() {
-                None => (bytes.len() - start, "unexpected end of data"),
-                Some(length) if (0xC2..=0xF4).contains(&bytes[start]) => {
-                    (length, "invalid continuation byte")
-                }
-                Some(length) => (length, "invalid start byte"),
-            };
-            let subject = if length == 1 {
-                format!("byte 0x{:02x} in position {start}", bytes[start])
-            } else {
-                format!("bytes in position {start}-{}", start + length - 1)
-            };
-            Err(LoadError::Encoding(format!(
-                "'utf-8' codec can't decode {subject}: {reason}"
-            )))
-        }
+        Ok(text) => Ok(PyStr::new(text)),
+        Err(error) => Err(LoadError::Encoding(utf8_error_text(bytes, &error))),
     }
+}
+
+/// `str(UnicodeDecodeError)` of `bytes.decode("utf-8")` for the failure `from_utf8` reported: the offending byte(s)
+/// named by position and the reason Python gives.
+pub fn utf8_error_text(bytes: &[u8], error: &std::str::Utf8Error) -> String {
+    let start = error.valid_up_to();
+    let (length, reason) = match error.error_len() {
+        None => (bytes.len() - start, "unexpected end of data"),
+        Some(length) if (0xC2..=0xF4).contains(&bytes[start]) => {
+            (length, "invalid continuation byte")
+        }
+        Some(length) => (length, "invalid start byte"),
+    };
+    let subject = if length == 1 {
+        format!("byte 0x{:02x} in position {start}", bytes[start])
+    } else {
+        format!("bytes in position {start}-{}", start + length - 1)
+    };
+    format!("'utf-8' codec can't decode {subject}: {reason}")
 }
 
 /// `sys.stdin.read()` on this interpreter: UTF-8 with `surrogateescape` and universal newlines. Undecodable bytes

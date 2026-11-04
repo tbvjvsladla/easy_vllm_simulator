@@ -63,9 +63,12 @@ fn int_of(value: Option<&PyValue>) -> Option<usize> {
 }
 
 fn scratch(name: &str) -> PathBuf {
+    // Tests run on parallel threads and several ask for the same name: every call gets a directory of its own.
+    static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
         .join("stdout_boundary")
-        .join(name);
+        .join(format!("{name}-{}-{call}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).expect("scratch directory");
     dir

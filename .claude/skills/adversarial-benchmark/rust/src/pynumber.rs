@@ -39,7 +39,12 @@ impl PyException {
 
 impl fmt::Display for PyException {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}: {}", self.class, self.message)
+        if self.message.is_empty() {
+            // Python prints just the class name when `str(exception)` is empty (e.g. `MemoryError`).
+            f.write_str(self.class)
+        } else {
+            write!(f, "{}: {}", self.class, self.message)
+        }
     }
 }
 
@@ -198,6 +203,15 @@ pub fn float_call(value: &PyValue) -> Result<f64, PyException> {
         PyValue::Int(number) => float_from_int(number),
         PyValue::Float(number) => Ok(*number),
         PyValue::Str(text) => float_from_str(text),
+        PyValue::Bytes(bytes) => float_from_str(&latin1(bytes)).map_err(|error| {
+            PyException::new(
+                error.class,
+                format!(
+                    "could not convert string to float: {}",
+                    crate::pyvalue::bytes_repr(bytes)
+                ),
+            )
+        }),
         other => Err(PyException::new(
             "TypeError",
             format!(
@@ -286,6 +300,22 @@ pub fn int_call(value: &PyValue) -> Result<BigInt, PyException> {
         PyValue::Int(number) => Ok(number.clone()),
         PyValue::Float(number) => int_from_float(*number),
         PyValue::Str(text) => int_from_str(text),
+        PyValue::Bytes(bytes) => int_from_str(&latin1(bytes)).map_err(|error| {
+            if error.message.starts_with("Exceeds the limit") {
+                error
+            } else {
+                PyException::new(
+                    error.class,
+                    format!(
+                        "invalid literal for int() with base 10: {}",
+                        crate::pyvalue::bytes_repr(bytes)
+                            .chars()
+                            .take(200)
+                            .collect::<String>()
+                    ),
+                )
+            }
+        }),
         other => Err(PyException::new(
             "TypeError",
             format!(
@@ -296,15 +326,40 @@ pub fn int_call(value: &PyValue) -> Result<BigInt, PyException> {
     }
 }
 
-/// Python `round(number, 2)`: the double nearest to the exact value rounded half-to-even at two decimals.
+/// Python `round(number, 2)`; see [`round_to_places`].
+pub fn round_to_two_places(number: f64) -> f64 {
+    round_to_places(number, 2)
+}
+
+/// Python `round(number, places)` for a small positive `places`: the double nearest to the exact value rounded
+/// half-to-even at that many decimals.
 ///
 /// Python does not scale and round; it rounds the exact decimal expansion of the double (so `round(2.675, 2)` is
 /// `2.67` because the double is below the tie, and `round(0.125, 2)` is `0.12` because it is exactly a tie), then
 /// converts the decimal string back with correct rounding. This does the same with exact integer arithmetic.
-pub fn round_to_two_places(number: f64) -> f64 {
+pub fn round_to_places(number: f64, places: u32) -> f64 {
     if !number.is_finite() {
         return number;
     }
+    fixed_text(number, places)
+        .parse()
+        .expect("a decimal literal parses")
+}
+
+/// Python `'%.{places}f' % number`: exact decimal expansion rounded half-to-even; `nan`, `inf`, `-inf` spelled
+/// like Python.
+pub fn format_fixed(number: f64, places: u32) -> String {
+    if number.is_nan() {
+        "nan".to_string()
+    } else if number.is_infinite() {
+        if number > 0.0 { "inf" } else { "-inf" }.to_string()
+    } else {
+        fixed_text(number, places)
+    }
+}
+
+/// The decimal text of a finite double rounded to `places` decimals (see [`round_to_places`]).
+fn fixed_text(number: f64, places: u32) -> String {
     let bits = number.to_bits();
     let negative = bits >> 63 == 1;
     let exponent_bits = ((bits >> 52) & 0x7FF) as i64;
@@ -315,8 +370,9 @@ pub fn round_to_two_places(number: f64) -> f64 {
     } else {
         (fraction | (1u64 << 52), exponent_bits - 1075)
     };
-    let scaled = BigInt::from(mantissa) * 100;
-    let hundredths = if exponent >= 0 {
+    let unit = BigInt::from(10u8).pow(places);
+    let scaled = BigInt::from(mantissa) * &unit;
+    let units = if exponent >= 0 {
         scaled << exponent as usize
     } else {
         let shift = (-exponent) as usize;
@@ -335,10 +391,18 @@ pub fn round_to_two_places(number: f64) -> f64 {
             quotient
         }
     };
-    let (whole, cents): (BigInt, BigInt) = (&hundredths / 100, &hundredths % 100);
-    let cents = cents.to_u32().expect("remainder of 100 fits");
-    let text = format!("{}{whole}.{cents:02}", if negative { "-" } else { "" });
-    text.parse().expect("a decimal literal parses")
+    let (whole, fractional): (BigInt, BigInt) = (&units / &unit, &units % &unit);
+    format!(
+        "{}{whole}.{fractional:0>width$}",
+        if negative { "-" } else { "" },
+        width = places as usize
+    )
+}
+
+/// The bytes as a string of code points 0..=255; `float()` and `int()` of `bytes` accept only ASCII, and every
+/// other byte makes the literal invalid either way.
+fn latin1(bytes: &[u8]) -> PyStr {
+    PyStr::from_code_points(bytes.iter().map(|&b| u32::from(b)).collect())
 }
 
 #[cfg(test)]

@@ -45,6 +45,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[4]
 COPIES = (
+    ".claude/skills/adversarial-benchmark/rust/target/release/roofline",
+    ".claude/skills/adversarial-benchmark/rust/target/release/verdict_rule",
     ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
     ".claude/skills/adversarial-benchmark/scripts/sweep_stop.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/sweep_stop",
@@ -59,8 +61,8 @@ COPIES = (
     ".claude/skills/adversarial-benchmark/config/bench_bindings.yaml",
     ".claude/skills/adversarial-benchmark/config/guide-llm/default_preset.yaml",
     # 루브릭 권한 값역의 단일 소유자(2026-10-01 · plan_26100113 D1) — cell 은 상태 파일 권한을 이 목록으로 검사한다.
-    ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py",
-    ".claude/skills/adversarial-benchmark/scripts/roofline.py",   # verdict_rule 의 import 의존
+    ".claude/skills/adversarial-benchmark/scripts/verdict_rule.sh",
+    ".claude/skills/adversarial-benchmark/scripts/roofline.sh",   # 판정 체인의 native owner 진입점
 )
 # 부하를 거는 스크립트는 사본에 **두지 않는다** — 경로가 잘못 열려도 실행할 대상이 없다.
 NEVER_COPY = (
@@ -118,7 +120,7 @@ def _lockset(root: Path, doc: dict | None) -> None:
 
 def _bs(root: Path, env: dict, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["bash", str(root / COPIES[0]), *args], cwd=str(root), env=env,
+        ["bash", str(root / ".claude/skills/adversarial-benchmark/scripts/broad_search.sh"), *args], cwd=str(root), env=env,
         capture_output=True, text=True, timeout=120)
 
 

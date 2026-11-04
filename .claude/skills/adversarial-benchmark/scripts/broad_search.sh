@@ -226,7 +226,12 @@ _stop(){   # 상태 → 정지 판정 파일. rc 0=계속 · 3=정지 를 그대
   set +e
   bash "$SDIR/sweep_stop.sh" --state "$STATE" --now-utc "$NOW" > "$STOPJSON"
   local rc=$?
-  [ "$rc" = "2" ] && { cat "$STOPJSON" >&2; echo "[broad_search] 정지 조건을 판정할 수 없다" >&2; exit 2; }
+  # Only an evaluated continue/stop result may leave this gate. Preserve native diagnostics for every failure.
+  if [ "$rc" != "0" ] && [ "$rc" != "3" ]; then
+    cat "$STOPJSON" >&2
+    echo "[broad_search] 정지 조건을 판정할 수 없다" >&2
+    exit 2
+  fi
   return "$rc"
 }
 
@@ -393,18 +398,8 @@ PY
   fi
   CELL_AUTHORITY=""
   if [ "$NO_LOAD" != 1 ]; then
-    # 값역의 단일 소유자는 verdict_rule.AUTHORITIES 다 — 여기서 목록을 다시 적지 않고 불러 쓴다.
-    CELL_AUTHORITY="$(python3 -c '
-import json, sys
-sys.path.insert(0, sys.argv[2])
-from verdict_rule import AUTHORITIES
-a = (json.load(open(sys.argv[1], encoding="utf-8")) or {}).get("rubric_authority")
-if a not in AUTHORITIES:
-    sys.stderr.write("[broad_search] ERROR 상태 파일의 rubric_authority=%r 가 없거나 값역 %s 밖이다 — "
-                     "권한 없이 판정하지 않는다(기본값을 넣지 않는다)\n" % (a, "|".join(AUTHORITIES)))
-    raise SystemExit(2)
-print(a)
-' "$STATE" "$SDIR")" || exit 2
+    # 값역의 단일 소유자는 verdict_rule.AUTHORITIES 다 — native owner가 직접 상태 값을 확인한다.
+    CELL_AUTHORITY="$(bash "$SDIR/verdict_rule.sh" authority-check --state "$STATE")" || exit 2
     # ── 측정기 인자 선검사(F3) — 부하 경로가 반드시 넘겨야 하는 것을 측정 진입 **전**에 친다. 종전에는 누락이
     #   sweep_bench 의 rc 2 로 돌아와 셀 결과(void)로 기록되고 셀 예산(max-cells)을 먹었다(2026-10-01 실측).
     #   여기서는 **유무**만 본다 — 값역(openai|openai-chat)은 sweep_bench 가 소유하고, 값역 밖이면 아래 rc 2 전달이 받는다.

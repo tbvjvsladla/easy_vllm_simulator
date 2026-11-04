@@ -190,3 +190,45 @@ pub fn run_on_pty(
         Attach::StdinAndStderr => (String::from_utf8(output.stdout).unwrap(), terminal_text),
     }
 }
+
+// ── roofline / verdict_rule fixtures ────────────────────────────────────────────
+
+/// Writes the fixture input files (`data/roofline_verdict/inputs.jsonl`) into a scratch tree under the build
+/// directory, once per test binary, and returns its root. `{DIR}/<kind>/…` in the case files means this root.
+pub fn roofline_inputs() -> &'static Path {
+    static ROOT: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    ROOT.get_or_init(|| {
+        let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
+            .join(format!("roofline_verdict_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        for record in load_jsonl("roofline_verdict/inputs.jsonl") {
+            let path = root.join(text_of(record.get("path")));
+            if matches!(record.get("dir"), Some(PyValue::Bool(true))) {
+                std::fs::create_dir_all(&path).expect("input directory");
+                continue;
+            }
+            std::fs::create_dir_all(path.parent().expect("parent")).expect("input directory");
+            std::fs::write(&path, hex_decode(&text_of(record.get("hex")))).expect("input file");
+        }
+        root
+    })
+}
+
+/// Type-aware equality of two parsed JSON documents: key order matters, NaN equals NaN, `1` differs from `1.0`.
+pub fn same(left: &PyValue, right: &PyValue) -> bool {
+    match (left, right) {
+        (PyValue::Float(a), PyValue::Float(b)) => {
+            a == b && a.is_sign_negative() == b.is_sign_negative() || (a.is_nan() && b.is_nan())
+        }
+        (PyValue::List(a), PyValue::List(b)) => {
+            a.len() == b.len() && a.iter().zip(b).all(|(x, y)| same(x, y))
+        }
+        (PyValue::Dict(a), PyValue::Dict(b)) => {
+            a.len() == b.len()
+                && a.iter()
+                    .zip(b.iter())
+                    .all(|((ka, va), (kb, vb))| ka == kb && same(va, vb))
+        }
+        _ => left == right,
+    }
+}

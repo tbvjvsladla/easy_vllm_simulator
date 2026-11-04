@@ -162,49 +162,11 @@ fi
 
 # spec 축 승계(위 헤더 ★). 한 줄 = US(\x1f) 구분 4필드: spec_declared · accept_len(없으면 -) · 출처 · 근거.
 #   구분자를 탭이 아니라 US 로 두는 이유: 탭은 IFS 공백류라 빈 필드가 접혀 뒤 필드가 밀린다.
-#   유효성 술어는 roofline.accept_len_state 를 **import** 한다(복제 ✗). 사람 명시값의 유효성은 여기서
+#   native spec-row가 roofline.accept_len_state를 직접 사용한다(복제 ✗). 사람 명시값의 유효성은 여기서
 #   판정하지 않고 roofline 이 exit 2 로 거부한다(값역의 단일 소유자).
 #   파싱이 실패하면(측정 JSON 손상 등) 빈 줄로 흘리지 않고 멈춘다 — 빈 값이 absent 로 접히면 결손이 위장된다.
-_SPEC_ROW="$(
-  SDIR="$SDIR" AL_HUMAN="${AL:-}" LEVEL_REL="$LEVEL_REL" python3 - "$INDEX" "$MEASURED" <<'PY'
-import json, os, sys
-sys.path.insert(0, os.environ["SDIR"])
-from roofline import (ACCEPT_LEN_ABSENT, ACCEPT_LEN_DECLARED, ACCEPT_LEN_DECLARED_ABSENT,
-                      ACCEPT_LEN_MEASURED, accept_len_state)
-from verdict_rule import SPEC_DECLARED
-
-meta = (json.load(open(sys.argv[1], encoding="utf-8")).get("meta") or {})
-declared = meta.get("spec_declared")
-# 값역 밖·부재는 unknown 이다 — 모르는 선언을 off 로 접으면 결손이 "정상 1.0" 으로 위장한다.
-declared = declared if declared in SPEC_DECLARED else "unknown"
-rel = os.environ["LEVEL_REL"]
-human = os.environ.get("AL_HUMAN") or ""
-md = json.load(open(sys.argv[2], encoding="utf-8"))
-raw = md.get("accept_len") if isinstance(md, dict) else None
-state, val = accept_len_state(raw)
-# 파서 쪽 `spec_axis_source` 는 **다른 층의 어휘**다(parse_guidellm: 승계원 부재 선언 ≠ roofline
-#   declared-absent — roofline.py 어휘 주석). 출처로 옮기지 않고 층 이름을 붙여 근거에만 싣는다.
-axis_src = md.get("spec_axis_source") if isinstance(md, dict) else None
-axis_note = " · measured.spec_axis_source=%s" % axis_src if axis_src else ""
-if human:
-    # 사람 명시가 이긴다(declared). 그러나 덮은 실측을 **지우지 않는다** — 명시값은 expected_achievable
-    #   (합격선)에도 곱해지므로, 실측과 다른 명시는 흔적 없이 문턱을 옮긴다(측정 > 선언 · 기재만 · 게이트 ✗).
-    ev = "argv(--accept-len)"
-    if state == "valid":
-        ev += " · shadowed measured=%r(%s)" % (val, rel)
-    row = (declared, human, ACCEPT_LEN_DECLARED, ev)
-elif state == "valid":
-    row = (declared, repr(val), ACCEPT_LEN_MEASURED, rel + axis_note)
-elif declared == "off":
-    # 선언의 출처도 싣는다 — 재조립·소급으로 **현재 파일에서** 뽑은 off 는 retro 표지를 달고 온다.
-    row = (declared, "-", ACCEPT_LEN_DECLARED_ABSENT,
-           "sweep_index.meta.spec_declared=off(%s) · %s accept_len=%r"
-           % (meta.get("spec_declared_source"), rel, raw))
-else:
-    row = (declared, "-", ACCEPT_LEN_ABSENT, "%s accept_len=%r(%s)%s" % (rel, raw, state, axis_note))
-print("\x1f".join(str(x).replace("\x1f", " ") for x in row))
-PY
-)" || { echo "[judge_bench] ERROR spec 축 승계 입력 해석 실패($INDEX · $MEASURED) — 판정하지 않는다" >&2; exit 2; }
+_SPEC_ROW="$(bash "$SDIR/verdict_rule.sh" spec-row --index "$INDEX" --measured "$MEASURED" \
+  --human-value "${AL:-}" --level-rel "$LEVEL_REL")" || { echo "[judge_bench] ERROR spec 축 승계 입력 해석 실패($INDEX · $MEASURED) — 판정하지 않는다" >&2; exit 2; }
 IFS=$'\x1f' read -r SPEC_DECLARED AL_VALUE AL_SOURCE AL_EVIDENCE <<< "$_SPEC_ROW"
 NAS_ROOT="$(sed -n 's/^[[:space:]]*nas_model_path:[[:space:]]*"\{0,1\}\([^"#]*\)"\{0,1\}.*/\1/p' \
              "$MANIFEST" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')"
@@ -212,7 +174,7 @@ NAS_ROOT="$(sed -n 's/^[[:space:]]*nas_model_path:[[:space:]]*"\{0,1\}\([^"#]*\)
 QUANT_ROOT="$(sed -n 's/^[[:space:]]*quant_model_path:[[:space:]]*"\{0,1\}\([^"#]*\)"\{0,1\}.*/\1/p' \
              "$MANIFEST" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')"
 
-ROOF_CMD=(python3 "$SDIR/roofline.py" --model-path "$MODEL_PATH" --json)
+ROOF_CMD=(bash "$SDIR/roofline.sh" --model-path "$MODEL_PATH" --json)
 [ "$TP" != "-" ] && ROOF_CMD+=(--tp "$TP")
 [ -f "$MANIFEST" ] && ROOF_CMD+=(--manifest "$MANIFEST")
 [ -n "$NAS_ROOT" ] && ROOF_CMD+=(--nas-root "$NAS_ROOT")
@@ -228,7 +190,7 @@ ROOF_CMD+=(--accept-len-source "$AL_SOURCE" --accept-len-evidence "$AL_EVIDENCE"
 ROOF_TMP="$ROOF.partial.$$"
 OUT_TMP="$OUT.partial.$$"
 
-VERDICT_CMD=(python3 "$SDIR/verdict_rule.py" --measured "$MEASURED" --roofline "$ROOF_TMP"
+VERDICT_CMD=(bash "$SDIR/verdict_rule.sh" --measured "$MEASURED" --roofline "$ROOF_TMP"
              --authority "$AUTHORITY" --spec-declared "$SPEC_DECLARED"
              "${PASS_ARGS[@]+"${PASS_ARGS[@]}"}")
 [ "$SPEC" = 1 ] && VERDICT_CMD+=(--spec-supported)

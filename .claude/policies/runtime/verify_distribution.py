@@ -944,8 +944,8 @@ def verify() -> dict:
                        ".claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py",
                        "--check-parity"], {0}))
     checks += [
-        _run("benchmark_verdict_fixture", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py", "--measured",
+        _run("benchmark_verdict_fixture", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/verdict_rule.sh", "--measured",
              ".claude/skills/adversarial-benchmark/fixtures/measured_pass.json", "--roofline",
              ".claude/skills/adversarial-benchmark/fixtures/roofline_sample.json"], {0}),
         # 공허 PASS 게이트의 **집행** (plan_26082219 B2 · 2026-08-22 배선).
@@ -954,8 +954,8 @@ def verify() -> dict:
         #   L1(산문)** 이다 — 2026-08-16 실측(`gen_recipe_set --check-parity` tripwire 가 호출자 0 개라
         #   실제 위반이 커밋과 이 검증기를 그대로 통과했다)이 그 실증이다. 여기서 매 검증마다 돌린다.
         #   순수 결정론 단위검사(픽스처 파일·네트워크·서빙 불요)라 미테라포밍 레포에서도 안전하다.
-        _run("benchmark_verdict_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py", "--self-test"], {0}),
+        _run("benchmark_verdict_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/verdict_rule.sh", "--self-test"], {0}),
         # recipe-explorer 결정론 자체검사의 **집행** (plan_26082223 §4 · 2026-08-23 배선).
         #   같은 이유다 — 호출자 없는 자체검사는 L2 가 아니라 L1(산문)이다. 셋 다 순수
         #   결정론 단위검사(모델·NAS·docker·GPU 불요)라 미테라포밍 레포에서도 안전하다.
@@ -1003,6 +1003,8 @@ def verify() -> dict:
              ".claude/skills/adversarial-benchmark/scripts/sweep_stop.sh", "--self-test"], {0}),
         _run("benchmark_parse_bench_native_selftest", ["bash",
              ".claude/skills/adversarial-benchmark/scripts/parse_bench.sh", "self-test"], {0}),
+        _run("benchmark_roofline_native_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/roofline.sh", "self-test"], {0}),
         # 루브릭 권한 통로의 fail-closed (plan_26090415 §1.2 · CP2 · 2026-09-04).
         #   `--authority` 를 넘기는 실행 코드가 0건이었던 것이 explore 인증서 0건의 원인이다.
         #   통로를 만들었으니 그 통로가 **권한을 발명하지 않는지**를 여기서 집행한다 —

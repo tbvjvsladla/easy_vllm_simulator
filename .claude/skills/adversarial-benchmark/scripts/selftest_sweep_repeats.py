@@ -81,11 +81,13 @@ REPO = Path(__file__).resolve().parents[4]
 AB = ".claude/skills/adversarial-benchmark"
 TN = ".claude/skills/terraforming_node/scripts"
 COPIES = (
+    ".claude/skills/adversarial-benchmark/rust/target/release/roofline",
+    ".claude/skills/adversarial-benchmark/rust/target/release/verdict_rule",
     f"{AB}/scripts/sweep_bench.sh", f"{AB}/scripts/repeat_axis.py", f"{AB}/scripts/parse_guidellm.py",
     f"{AB}/scripts/parse_bench.sh", f"{AB}/rust/target/release/parse_bench", f"{AB}/scripts/doc_naming.py", f"{AB}/scripts/lite_metrics.py",
     f"{AB}/scripts/classify_cell.py", f"{AB}/scripts/render_report.py", f"{AB}/scripts/render_sweep_map.py",
     f"{AB}/scripts/sweep_stop.sh", f"{AB}/rust/target/release/sweep_stop", f"{AB}/scripts/broad_search.sh", f"{AB}/scripts/judge_bench.sh",
-    f"{AB}/scripts/roofline.py", f"{AB}/scripts/verdict_rule.py", f"{AB}/scripts/publish_benchmark_record.py",
+    f"{AB}/scripts/roofline.sh", f"{AB}/scripts/verdict_rule.sh", f"{AB}/scripts/publish_benchmark_record.py",
     f"{AB}/fixtures/guidellm_benchmarks_sample.json",
     # 측정 형상 프리셋(plan_26101011) — 배포되는 바인딩·기본 프리셋·해소기를 그대로 쓴다(픽스처가 실물보다 좁지 않게).
     f"{AB}/scripts/bench_preset.py", f"{AB}/config/bench_bindings.yaml", f"{AB}/config/guide-llm/default_preset.yaml",

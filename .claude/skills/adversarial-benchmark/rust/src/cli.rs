@@ -70,6 +70,16 @@ impl<'a> Streams<'a> {
             .map_err(PrintFailure::Write)
     }
 
+    /// `sys.stdout.write(text)`: one write, no newline added.
+    pub(crate) fn write_plain(&mut self, text: &PyStr) -> Result<(), PrintFailure> {
+        let bytes = text
+            .to_surrogateescape_bytes()
+            .map_err(PrintFailure::Encode)?;
+        self.model
+            .write(self.stdout, &bytes)
+            .map_err(PrintFailure::Write)
+    }
+
     /// One `print` of a text whose last character is the newline `print` would add.
     pub(crate) fn print_body(&mut self, text: &PyStr) -> Result<(), PrintFailure> {
         let mut points = text.code_points().to_vec();
@@ -206,6 +216,17 @@ pub(crate) fn print_failed(
     stderr_so_far: &str,
 ) -> i32 {
     let text = format!("{stderr_so_far}{TRACEBACK_HEADER}{}\n", failure.line());
+    write_stderr(io, &PyStr::new(&text));
+    1
+}
+
+/// The program dies on an uncaught exception: `stderr_so_far`, the traceback marker, `Class: message`, status 1.
+pub(crate) fn raise(
+    io: &mut Streams<'_>,
+    stderr_so_far: &str,
+    error: &crate::pynumber::PyException,
+) -> i32 {
+    let text = format!("{stderr_so_far}{TRACEBACK_HEADER}{error}\n");
     write_stderr(io, &PyStr::new(&text));
     1
 }
