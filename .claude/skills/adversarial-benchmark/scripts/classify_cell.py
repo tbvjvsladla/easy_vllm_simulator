@@ -545,7 +545,7 @@ def read_cell_lite(raw_path, started):
         return {"lite_verdict": None, "lite_verdict_source": "lite_raw(%s) 판독 실패" % raw_path, "lite_raw_status": "unreadable"}
     import importlib.util as _iu
     _spec = _iu.spec_from_file_location("lite_metrics", os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                                                      "lite_metrics.py"))
+                                                                      "lite_metrics_native.py"))
     _lm = _iu.module_from_spec(_spec)
     _spec.loader.exec_module(_lm)
     try:

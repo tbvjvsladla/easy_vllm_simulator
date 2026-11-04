@@ -51,7 +51,7 @@ def main() -> int:
         print("[selftest_lite_gate] FAIL git 이 없다 — 격리 저장소를 만들 수 없다", file=sys.stderr)
         return 1
     slr = _load("_gate_slr", SDIR / "selftest_lite_report.py")
-    lm = _load("_gate_lm", SDIR / "lite_metrics.py")
+    lm = _load("_gate_lm", SDIR / "lite_metrics_native.py")
     gate = _load("_gate_cg", REPO / ".claude/policies/runtime/completion_gate.py")
 
     with tempfile.TemporaryDirectory(prefix="lite-gate-selftest.") as td:

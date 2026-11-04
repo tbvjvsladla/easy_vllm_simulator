@@ -1191,7 +1191,7 @@ REENTRY_ROUTES = {"explorer": "vllm-recipe-explorer(서빙전략 재수립)",
 def _read_lite_raw(raw_path: str) -> "tuple[str | None, str | None, str]":
     """lite raw → (판정|None, measured_utc|None, 출처). 판정 읽기 규칙은 소유자에게 묻는다(복제 ✗)."""
     import importlib.util
-    mod_path = (Path(__file__).resolve().parents[2] / "adversarial-benchmark" / "scripts" / "lite_metrics.py")
+    mod_path = (Path(__file__).resolve().parents[2] / "adversarial-benchmark" / "scripts" / "lite_metrics_native.py")
     raw = _read_json(Path(raw_path))
     if not isinstance(raw, dict):
         raise WriterRefusal(f"--lite-raw 를 JSON 객체로 읽을 수 없다: {raw_path}")

@@ -36,7 +36,7 @@
   **정량 threshold 금지**(커뮤니티 자료 신뢰성은 가변). 결정론 게이트화 ✗.
 - **측정 사양**: `lite_bench.sh <config>` — cold(무-warmup 단일요청→cold TTFT 별도 1줄) + warm burst(**N=3**·conc=1·warmup 1 제외,
   `config bench.lite_burst_n`/`--burst-n` 조정) 2회 `vllm bench serve`. **5종 메트릭**: gen tokens/sec(warm, =1000/median_tpot) ·
-  cold-start TTFT · GPU VRAM 점유(GiB+%) · KV cache 점유(GiB+%) · 시스템 RAM(GiB+%). 산정·표 렌더 = 결정론 `lite_metrics.py`.
+  cold-start TTFT · GPU VRAM 점유(GiB+%) · KV cache 점유(GiB+%) · 시스템 RAM(GiB+%). 산정·표 렌더 = 결정론 `lite_metrics.sh`.
   통합메모리(GB10)는 nvidia-smi 메모리 N/A → **serve-log VRAM 분해 폴백**, 그도 없으면 값 없이 "N/A(source)" 음성정직
   (대체값 날조 ✗). engine-log KV 라인 부재 시 fail-soft null.
 - **출력**: **single = 채팅 5행 표**(메트릭|값 · 용량은 GiB+% 병기 · cold TTFT 별도 행). **multi = 병합 표 1개** —

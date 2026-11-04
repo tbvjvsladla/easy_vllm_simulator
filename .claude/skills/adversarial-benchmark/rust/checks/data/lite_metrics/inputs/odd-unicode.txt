@@ -1,0 +1,3 @@
+KV cache １２.５ GiB
+GPU KV cache size: １,２３ tokens
+Model weights take ١٢ GiB

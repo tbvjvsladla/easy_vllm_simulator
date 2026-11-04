@@ -13,7 +13,7 @@ const PREFIX: &str = "generation throughput:";
 const SUFFIX: &str = "tokens/s";
 
 /// One pattern character against one text character under `re.IGNORECASE` (Unicode).
-fn matches_ignoring_case(text: char, pattern: char) -> bool {
+pub(crate) fn matches_ignoring_case(text: char, pattern: char) -> bool {
     match pattern {
         // The only characters whose simple lower-case mapping is `i` / `k` beyond ASCII are U+0130 (İ) and
         // U+212A (KELVIN SIGN); `re` also treats `ı` as `i` and `ſ` as `s` (its `_equivalences` table).

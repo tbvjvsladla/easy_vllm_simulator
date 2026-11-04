@@ -419,6 +419,10 @@ pub fn format_fixed(number: f64, places: u32) -> String {
 fn fixed_text(number: f64, places: u32) -> String {
     let (negative, mantissa, exponent) = decompose(number);
     if let Some((units, unit)) = scaled_units(mantissa, exponent, places) {
+        if places == 0 {
+            // `'%.0f'` has no decimal point.
+            return format!("{}{units}", if negative { "-" } else { "" });
+        }
         return format!(
             "{}{}.{:0>width$}",
             if negative { "-" } else { "" },
@@ -454,6 +458,9 @@ fn fixed_text_big(number: f64, places: u32) -> String {
             quotient
         }
     };
+    if places == 0 {
+        return format!("{}{units}", if negative { "-" } else { "" });
+    }
     let (whole, fractional): (BigInt, BigInt) = (&units / &unit, &units % &unit);
     format!(
         "{}{whole}.{fractional:0>width$}",

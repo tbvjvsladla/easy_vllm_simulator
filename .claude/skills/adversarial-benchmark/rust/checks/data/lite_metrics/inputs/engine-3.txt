@@ -1,0 +1,2 @@
+Initial free memory 113.47 GiB, reserved 20.0 GiB memory for KV Cache
+non-torch memory: 1.25 GiB

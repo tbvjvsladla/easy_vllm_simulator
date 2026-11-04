@@ -179,7 +179,7 @@ ENTRY_BETA, ENTRY_GAMMA = "beta_lite_only_cell", "gamma_demoted_lite"
 
 def _load_lite_metrics():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import lite_metrics
+    import lite_metrics_native as lite_metrics
     return lite_metrics
 
 

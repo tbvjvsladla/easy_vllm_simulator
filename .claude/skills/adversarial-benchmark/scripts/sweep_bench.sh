@@ -468,7 +468,7 @@ try:
     raw=json.load(open(sys.argv[2]))
 except Exception:
     raw=None
-print(m.read_lite_verdict(raw) or "")' "$SDIR/lite_metrics.py" "$LITE_RAW" 2>/dev/null || true)"
+print(m.read_lite_verdict(raw) or "")' "$SDIR/lite_metrics_native.py" "$LITE_RAW" 2>/dev/null || true)"
 if [ "$LITE_RC" = 0 ] && [ "$LITE_VERDICT" = "pass" ]; then
   echo "[sweep_bench] lite 게이트 통과(lite_verdict=pass) → $LITE_RAW"
 else
@@ -1200,7 +1200,7 @@ _lraw = os.environ.get("LITE_RAW") or ""
 if _lraw and os.path.isfile(_lraw):
     try:
         import importlib.util as _ilu
-        _lm_path = os.path.join(os.environ["SDIR"], "lite_metrics.py")
+        _lm_path = os.path.join(os.environ["SDIR"], "lite_metrics_native.py")
         _spec = _ilu.spec_from_file_location("lite_metrics", _lm_path)
         _lm = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_lm)
         with open(_lraw, encoding="utf-8") as f:

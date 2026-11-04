@@ -197,6 +197,36 @@ pub const PARSE_BENCH: Spec = Spec {
     layouts: crate::help_layouts_parse_bench::LAYOUTS,
 };
 
+/// Indices of the `lite_metrics.py` actions.
+pub mod lite_args {
+    pub const RAW_JSON: usize = 1;
+    pub const JSON: usize = 2;
+    pub const JUDGE: usize = 3;
+}
+
+/// The original `lite_metrics.py` parser: required `--raw-json`, the flags `--json` and `--judge`.
+pub const LITE_METRICS: Spec = Spec {
+    prog: "lite_metrics.py",
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            ..PLAIN
+        },
+        text_option("--raw-json", true),
+        flag("--json"),
+        flag("--judge"),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--raw-json", lite_args::RAW_JSON),
+        ("--json", lite_args::JSON),
+        ("--judge", lite_args::JUDGE),
+    ],
+    layouts: crate::help_layouts_lite_metrics::LAYOUTS,
+};
+
 /// Indices of the `parse_guidellm.py` actions.
 pub mod guidellm_args {
     pub const BENCHMARKS_JSON: usize = 1;

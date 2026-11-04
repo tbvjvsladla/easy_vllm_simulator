@@ -579,7 +579,7 @@ def main_lite(a):
         sys.stderr.write("[render_report] ERROR lite raw 에 measured_utc(UTC 초) 가 없다 — 측정시각을 날조하지 않는다\n")
         sys.exit(2)
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import lite_metrics
+    import lite_metrics_native as lite_metrics
     try:
         lite = lite_metrics.build(raw)
         identity = lite_identity(raw)

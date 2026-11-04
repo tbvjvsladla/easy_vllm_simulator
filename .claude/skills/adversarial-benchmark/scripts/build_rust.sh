@@ -42,3 +42,6 @@ BENCH_PRESET_BIN="$CRATE/target/release/bench_preset" \
   BENCH_PRESET_SKILL_DIR="$SDIR/.." \
   REPEAT_AXIS_CAMPAIGN_ADAPTER="$SDIR/repeat_axis_owner_query.py" \
   bash "$SDIR/bench_preset.sh" --self-test
+LITE_METRICS_API_BIN="$CRATE/target/release/lite_metrics_api" \
+  LITE_METRICS_FIXTURE="$SDIR/../fixtures/lite_raw_d1_connection_refused.json" \
+  bash "$SDIR/lite_metrics_api.sh" self-test

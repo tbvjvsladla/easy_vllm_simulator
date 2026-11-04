@@ -424,8 +424,14 @@ impl PyValue {
 
     /// `json.dumps(value, ensure_ascii=False, indent=2)`; the text may still hold lone surrogates.
     pub fn dumps_pretty(&self) -> Result<PyStr, DumpError> {
+        self.dumps_indented(2)
+    }
+
+    /// `json.dumps(value, ensure_ascii=False, indent=indent)` for a positive integer `indent`; the text may still
+    /// hold lone surrogates.
+    pub fn dumps_indented(&self, indent: usize) -> Result<PyStr, DumpError> {
         let mut out = PyStr::default();
-        self.write_json(&mut out, Layout::Pretty { level: 0 }, false)?;
+        self.write_json(&mut out, Layout::Pretty { level: 0, indent }, false)?;
         Ok(out)
     }
 
@@ -501,14 +507,21 @@ impl PyValue {
 #[derive(Clone, Copy)]
 enum Layout {
     Compact,
-    Pretty { level: usize },
+    /// `level` nesting depth; `indent` spaces per level.
+    Pretty {
+        level: usize,
+        indent: usize,
+    },
 }
 
 impl Layout {
     fn nested(self) -> Layout {
         match self {
             Layout::Compact => Layout::Compact,
-            Layout::Pretty { level } => Layout::Pretty { level: level + 1 },
+            Layout::Pretty { level, indent } => Layout::Pretty {
+                level: level + 1,
+                indent,
+            },
         }
     }
 }
@@ -520,7 +533,7 @@ fn write_sequence(
     count: usize,
     mut write_item: impl FnMut(&mut PyStr, usize, Layout) -> Result<(), DumpError>,
 ) -> Result<(), DumpError> {
-    if matches!(layout, Layout::Pretty { level } if level + 1 > PRETTY_MAX_DEPTH) {
+    if matches!(layout, Layout::Pretty { level, .. } if level + 1 > PRETTY_MAX_DEPTH) {
         return Err(DumpError::TooDeep);
     }
     out.push_code_point(u32::from(open));
@@ -541,17 +554,17 @@ fn write_sequence(
         }
         write_item(out, index, inner)?;
     }
-    if let Layout::Pretty { level } = layout {
-        push_indent(out, Layout::Pretty { level });
+    if matches!(layout, Layout::Pretty { .. }) {
+        push_indent(out, layout);
     }
     out.push_code_point(u32::from(close));
     Ok(())
 }
 
 fn push_indent(out: &mut PyStr, layout: Layout) {
-    if let Layout::Pretty { level } = layout {
+    if let Layout::Pretty { level, indent } = layout {
         out.push_code_point(u32::from('\n'));
-        for _ in 0..level * 2 {
+        for _ in 0..level * indent {
             out.push_code_point(u32::from(' '));
         }
     }

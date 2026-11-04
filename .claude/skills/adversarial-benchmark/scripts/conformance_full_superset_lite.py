@@ -53,10 +53,10 @@ def main():
     sweep = read("sweep_bench.sh")
     report = read("render_report.py")
     cert = read("publish_benchmark_record.py")
-    lite_m = read("lite_metrics.py")
+    lite_m = read("lite_metrics_native.py")
 
     for label, src in (("sweep_bench.sh", sweep), ("render_report.py", report),
-                       ("publish_benchmark_record.py", cert), ("lite_metrics.py", lite_m)):
+                       ("publish_benchmark_record.py", cert), ("lite_metrics_native.py", lite_m)):
         check("파일 존재: %s" % label, src is not None)
     if any(s is None for s in (sweep, report, cert, lite_m)):
         _emit(results)
@@ -114,7 +114,7 @@ def main():
     sys.path.insert(0, SDIR)
     try:
         import json as _json
-        import lite_metrics as _lm
+        import lite_metrics_native as _lm
         check("E 판정 어휘·종료코드 = pass 0 · measurement_path_failed 6 · server_failed 7",
               tuple(_lm.LITE_VERDICTS) == ("pass", "measurement_path_failed", "server_failed")
               and _lm.LITE_EXIT == {"pass": 0, "measurement_path_failed": 6, "server_failed": 7})

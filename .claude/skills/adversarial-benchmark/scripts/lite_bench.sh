@@ -307,8 +307,8 @@ cat > "$RAW" <<JSON
 JSON
 
 echo "[lite_bench] 표 렌더 + lite 판정:"
-LM="$REPO/.claude/skills/adversarial-benchmark/scripts/lite_metrics.py"
-python3 "$LM" --raw-json "$RAW" --judge || { echo "[lite_bench] 판정기 실패 — raw 에 판정이 없다(호출부는 불통과로 읽는다)" >&2; exit 6; }
+LM="$REPO/.claude/skills/adversarial-benchmark/scripts/lite_metrics.sh"
+bash "$LM" --raw-json "$RAW" --judge || { echo "[lite_bench] 판정기 실패 — raw 에 판정이 없다(호출부는 불통과로 읽는다)" >&2; exit 6; }
 echo ""
 # 종료코드는 raw 의 판정에서 **파생**한다(두 자리가 갈라질 수 없다 — 같은 값을 읽는다).
 LITE_VERDICT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("lite_verdict",""))' "$RAW" 2>/dev/null || true)"

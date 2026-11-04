@@ -618,3 +618,113 @@ JSON 디코더와 YAML 읽기는 각각 위 출처의 NaN을 만든다(공유 �
 아직Python인캠페인소유자질의비용이며 S4후같은입력을재측정할열린항목이다. 반복/캠페인규칙복제나cache로가리지않았다.
 상태는 계산핵심검증/연결완료·소유의존지연OPEN이다. 로컬표본을서빙/LLM이나통계적우월성으로확대하지않는다.
 상세원시·검사주체·초기실패·native실행분모는 상위과업문서의R6최종절에연결한다. 전체과업은계속한다.
+
+## R7 lite 지표(`lite_metrics`) 이행 — 후보 기록 (정본 적용 전)
+
+상태: **후보 변환·자체검사 COMPLETE, 정본 연결·독립 검증·전체 배포·성능은 NOT_RUN(root 소유)**. 원본은 head `831068cb5777798cc8209374ecb42e0657d671a4`의
+`lite_metrics.py` 405줄(`git show`로 읽은 참조이며 Python 런타임 대체 경로가 아니다). 이 후보는 6프로필 평가가 아니며 전체 과업 완료 선언이 아니다.
+
+**1. 출력 경로.** `r7-candidate/`: 새 소스 `src/lite_metrics.rs`(계산·읽기·렌더·판정) · `src/lite_engine_log.rs`(엔진 로그 패턴) · `src/lite_metrics_cli.rs`(옛 CLI) ·
+`src/lite_metrics_api_cli.rs`(API 전송/상수/native-help/self-test) · `src/lite_metrics_selftest.rs` · `src/help_layouts_lite_metrics.rs`(원본에서 캡처한 생성 데이터) ·
+`src/bin/{lite_metrics,lite_metrics_api,lite_metrics_bench}.rs`, 검사 `checks/lite_metrics_{cases,files}.rs`와 `checks/data/lite_metrics/`. 의존성은 늘리지 않았다
+(`Cargo.lock` 불변, `--locked` 빌드).
+
+**2. 원본 → Rust 대응.**
+
+| 원본 | Rust |
+|---|---|
+| `_load_json` | `lite_metrics::load_json` |
+| `_num` | `number_or_none` |
+| `gen_tps_from_bench` / `accept_len_from_bench` / `cold_ttft_ms` | 같은 이름, 결과는 `GenTps` / `AcceptLength` / `Option<f64>` |
+| `_KV_PATTERNS` · `_KV_TOKENS_PAT` · `_WEIGHTS_PAT` · `_NONTORCH_PAT` · `_grep_first` | `lite_engine_log` 손작성 매처(우선순위 순서·게으른 `[^\n]*?`·유니코드 `\d`/`\s` 보존). 공개 상수는 원본 패턴 문자열 그대로 |
+| `parse_engine_log` | `parse_engine_log` → `EngineLog` |
+| `node_capacity` | `node_capacity` → `NodeCapacity` |
+| `render_single` / `render_multi` | 같은 이름(원시 값 인자) |
+| `build` | `build` → `LiteMetrics`(`to_value`가 원본 dict 순서) |
+| `_requests_ok` / `judge_lite` / `_verdict` / `read_lite_verdict` | `requests_ok`(`RequestsCheck`) / `judge_lite`(`Judgement`, `LiteVerdict`) / `verdict_record` / `read_lite_verdict` |
+| `LITE_VERDICTS` · `LITE_EXIT` · `GIB` · `_INITIAL_TEST_FAILED` · `_CONNECT_ERROR_RE` | `lite_metrics` 상수, `lite_metrics_api constants`가 한 JSON으로 노출(정규식은 패턴 문자열) |
+| `main`(argparse `--raw-json`·`--json`·`--judge`) | `lite_metrics_cli::run`(옛 CLI만), 사용법·도움말은 `argv::LITE_METRICS` + 폭별 캡처 51단계 |
+
+**3. 보존한 계약(원본 버그 포함, 바꾸지 않았다).** 값은 `PyValue` 원시 입력으로 받아 원본이 실제 연산에서 내는 예외·truthiness를 그 자리에서 낸다: `.get`의 `AttributeError`,
+`bool`이 `int`, `float("1_0")`·전각 숫자, `NaN`/`inf`의 `round`·서식, 거대한 `int`의 `OverflowError`, `%d`/`format`의 `TypeError`/`ValueError`, `open(경로)`의
+`TypeError`(비-문자 경로)·`ValueError`(NUL·음수 기술자)와 `OSError`(→ fail-soft). `_load_json`은 `OSError`/`ValueError`만, `parse_engine_log`는 `OSError`만 삼킨다.
+엔진 로그는 `errors="replace"`와 범용 개행(`\r\n`·`\r` → `\n`)으로 읽는다. `reserved_total_gib`는 CPython 3.12의 보정 합산(`sum`)을 따른다. 원본 신뢰성 관측
+(`NaN` 용량이 `pass`, `bool` 요청 수 통과, `--judge` tmp가 raw를 가리키는 자기 링크)은 호환 이행에서 고치지 않았고 별도 신뢰성 단계에서 다룬다. `--judge`는 verdict가
+6/7이어도 종료 0이며 호출부가 raw의 `lite_verdict`에서 종료코드를 파생한다.
+**파일 경계**: `open(PATH+".tmp","w")` → 점진 `json.dump(indent=1, ensure_ascii=False)` → `os.replace` 순서. 심볼릭 링크 raw는 일반 파일로 교체되고, tmp 링크는 따라 쓴 뒤 링크째 이동하며,
+tmp가 디렉터리면 열기에서 `IsADirectoryError`(변화 0), 짝 없는 서로게이트는 그 문자열 조각 앞까지(독립 기준선 703바이트와 같은 접두)만 tmp에 남고 `UnicodeEncodeError`로 끝난다.
+**읽기 방식**: 파일 JSON은 `pyfs`의 `json.load` 판(엄격 UTF-8, `NaN` 허용, 일반 `Float`)이다. NaN 객체 정체성이 필요한 규칙이 없어(`failed in (0, None)` 등은 값 비교) R6 `loads_objects`는
+API 전송(행·`arguments_json`)에만 쓰고 파일 읽기에는 쓰지 않는다.
+
+**4. 공유 모듈 변경과 이유.** (a) `pyvalue::dumps_indented(indent)` + `Layout::Pretty{indent}`: `--judge`의 `json.dump(indent=1)`에 필요(기존 `dumps_pretty`는 `indent=2` 그대로, 영향 검사 =
+JSON 직렬화를 쓰는 R1~R6 전부). (b) `pynumber::format_fixed`/`round_to_places`의 `places == 0`: `'%.0f'`는 소수점이 없어야 하나 기존은 `5.0`을 냈다(원본 `:.0f` 필요, 기존 소비자 없음). (c)
+`engine_log::matches_ignoring_case`를 `pub(crate)`로: 연결 오류 정규식 `re.I`의 `i`/`s` 등가(`İ ı ſ`)에 같은 매처를 쓴다(다른 모듈 패턴으로 대체하지 않았다). (d) `argv::LITE_METRICS`·`lib.rs`·
+`Cargo.toml`의 bin/test 등록. 반복/캠페인/프리셋 규칙은 복제하지 않았다.
+
+**5. 외부 표면.** 옛 `lite_metrics`는 원본 CLI만 받는다(`self-test` 등은 원본의 `unrecognized arguments`). Rust 전용은 `lite_metrics_api`: `evaluate-jsonl`(행 `{id,operation,arguments}` →
+`{id,kind:value,value}` 또는 `{id,kind:exception,type,message}`, `SystemExit`은 별도 `type`, 선택 `arguments_json`·`result_json`), 연산 15개
+(`gen_tps_from_bench accept_len_from_bench cold_ttft_ms parse_engine_log node_capacity render_single render_multi build judge_lite read_lite_verdict _load_json _num _requests_ok _verdict constants`),
+`constants`, `native-help`, `self-test`(핵심 연산 실평가 + 소유자 D1 픽스처 `LITE_METRICS_FIXTURE` 필수, 부재/형제 파일 부재는 실패, 건너뛰기 없음). 출처 라벨 `lite_metrics.judge_lite(raw)`는 그대로다.
+`lite_metrics_bench`는 인자만 타이머 밖에서 준비하고 전체 결과를 `black_box`·drop 하는 일반 하네스이며(케이스 인식 없음) 이 후보는 성능을 주장하지 않는다(스모크만).
+
+**6. 연결되지 않은 경계(root).** 런처 `lite_metrics.sh`/`lite_metrics_api.sh`, `lite_metrics_native.py` 브리지, `lite_bench.sh`·Python 소비자·인라인 호출부·검증 스크립트의 실제 배선, 여덟 번째 자체검사,
+통합 초안 12경로 적용은 이 후보에 없다. 브리지 프로토타입도 만들지 않았다.
+
+**7. 실제 검사(작업 경로 작업 검사 폴더, 로그 `logs/`, 도구체인 = 관리 Rust 1.99.1, `rust_bootstrap.sh exec`, offline·locked, target = 작업 검사 폴더의 `cargo-target`).**
+환경변수: `EASY_VLLM_SOURCE_ROOT`/`BENCH_PRESET_REPO_ROOT`/`REPEAT_AXIS_REPO_ROOT`=실제 대상, `REPEAT_AXIS_CAMPAIGN_ADAPTER`, `PARSE_GUIDELLM_FIXTURE`, `LITE_METRICS_FIXTURE`(`cargo_env.sh`).
+
+| 검사 | 결과 |
+|---|---|
+| `cargo fmt -- --check` | PASS (`fmt-check-attempt4`) |
+| `cargo build --release --bins` | PASS (`build-release-attempt3`) |
+| `cargo clippy --release --all-targets -- -D warnings` | PASS (`clippy-attempt3`; pedantic 탐침으로 린트가 실제로 도는 것도 확인) |
+| `cargo test --release` 전체 | PASS 48 suite · 195 테스트(기존 179 + 새 16: cases 3, files 5, `lite_engine_log` 단위 8) (`test-all-release-attempt2`) |
+| 새 검사 debug(`--lib` + 두 검사) | PASS 83+3+5 (`test-lite-debug-attempt1`, 산술 오버플로 확인) |
+| 고정 원본 API 132 + CLI 18(외부 `check_r7_external.py`, `result.json`) | PASS 132/132 · 18/18 (`external-attempt2`; 첫 시도는 131/132 FAIL — `ttfts:[NaN]`이 `Shared` NaN을 `float()`에 넘겨 `TypeError`, `float_call(first.peel())`로 해소, `external-attempt1` 보존) |
+| 같은 고정 데이터의 인트리 재생(`checks/lite_metrics_cases.rs`) | PASS API 132 · CLI 18 · 전/후 트리 전체 |
+| 독립 기준선 FS 5건(`compare_baseline_fs.py`, 전체 전/후 바이트·링크·모드·출력·종료) | PASS 5/5 (`fs-baseline-attempt1`) |
+| 추가 원본 포획 306행(`odd_cases.jsonl`: 숫자 문자열·거대 정수·NaN/inf/-0.0·기술자/비경로 인자·CRLF/전각/잘못된 UTF-8 로그·보정 합산·정수 나눗셈·예외 전수) | PASS 306/306 (`test-lite-cases-attempt3`) |
+| 차분 탐침(원본 in-process 관측기 ↔ API): 임의 형 입력 3910/5874/5880/5854행, 임의 엔진 로그 24 000개 | 불일치 0 (`parity_probe.py`, `engine_fuzz.py`; 탐침 자체가 `built` 예외 행을 건너뛰어야 했던 하네스 결함 1건은 수정·기록) |
+| CLI argv 차분 33줄(약어·`=`·`--`·빈 경로·디렉터리·반복 옵션 등) | 32 일치 + 1건(`--js` = `--json` 약어)은 원본의 `engine` 집합 순서 비결정만 다름(파싱 비교로 일치) (`cli_probe.py`) |
+| `lite_metrics_api self-test`(`LITE_METRICS_FIXTURE`=소유자 D1) | PASS 15 항목, 환경변수 미설정이면 FAIL 항목 + 비-0 (로그 `self-test-with-fixture`; 미설정 `self-test-without-fixture` 비-0; 형제 파일 부재 `self-test-missing-sibling` 비-0) |
+| 성능 | NOT_RUN (root가 사전 선언된 세 경계로 측정, `lite_metrics_bench`는 스모크 실행만) |
+
+**8. 알려진 한계와 미해결.**
+(1) [정정됨, 아래 R7.9] 정수 경로 기술자 읽기는 처음에 `/proc/self/fd/N`을 다시 열어 오프셋 0에서 읽고 기술자를 닫지 않았다 — 원본 `open(fd)`와 달랐다.
+(2) 정수÷정수 나눗셈은 정확 반올림이지만 결과가 비정규 수일 때의 이중 반올림은 CPython과 같은지
+확인하지 못했다(입력 경계 밖). (3) `engine` 하위 맵 키 순서는 고정 순서다(원본은 `set` 순서라 프로세스마다 다름, 계약대로 비순서 비교). (4) traceback 프레임은 재현하지 않고 앞부분과 마지막 `Class: message`만
+같다. (5) `_grep_first`는 일반 정규식을 받는 API 연산으로 노출하지 않았다(패턴 상수만). (6) 포획한 원본 traceback 한 건의 개발자 절대경로는 이식 가능한 검사 데이터에서 `scripts/lite_metrics.py`로 치환했다(비교는
+traceback 앞부분과 마지막 줄만 쓰므로 판정 대상 불변). (7) 이 기록의 어떤 숫자도 실제 서빙·LLM 측정이나 통계적 우월성 주장이 아니다.
+
+### R7.9 기술자 인자(`open(fd)`) 정정 — root 검토 지적 반영
+
+**문제.** 0이 아닌 `int`/`bool` 경로는 원본에서 `open(fd)`이다: 그 기술자의 **공유 현재 오프셋**부터 끝까지 읽고(오프셋은 끝에 남는다), 읽기·디코드가 실패해도 그 번호를 **닫는다**.
+첫 구현은 `/proc/self/fd/N`을 새로 열어 오프셋 0에서 읽고 닫지 않았다. `0`/`False`는 거짓이라 열기 전에 반환한다(stdin은 그대로).
+
+**원본 포획(후보 수정 전).** `fd_cases_definition.py` + `capture_fd_original.py`(원본만 사용, 케이스마다 격리된 자식 Python 프로세스)가 22개 시나리오의 결과·복제 기술자로 본 공유 오프셋·열림 여부·해제 번호 재사용·
+자식 stdout이던 파일의 오프셋/바이트를 기록했다(명령·원시 출력: 작업 검사 폴더 `fd-original/`, `fd-original-v2/`; 앞 20건은 v2에서 동일). 현재 오프셋 유효 JSON, 오프셋 0, EOF, 깨진/빈/잘못된 UTF-8, 쓰기 전용, 같은 번호 재호출과 재사용, 이미 닫힌 번호,
+`parse_engine_log` 0이 아닌 오프셋·CRLF·잘못된 UTF-8·쓰기 전용·재호출, `0`/`False`(stdio 불변), 읽기-쓰기 stdout(오프셋 2에서 `int 1`과 `True`)·쓰기 전용 stdout, 디렉터리 기술자(`open`이 소유 전에 `IsADirectoryError` →
+**닫히지 않음**).
+
+**수정.** `lite_metrics::read_descriptor`가 R4 `guidellm_cli::read_descriptor`와 같은 소유권 방식으로 `File::from_raw_fd`를 쓴다. 닫히는 규칙은 원본과 같다: 열려 있지 않은 번호와 디렉터리는 `/proc/self/fd/N`의 `stat`(R4와 같은 탐침)으로 **`from_raw_fd` 이전에** 거른다
+(`EBADF`/`EISDIR`, 소유권을 잡지 않으므로 **닫지 않는다**). 통과한 비디렉터리 기술자만 `File::from_raw_fd`로 넘겨받고, 그 뒤에는 읽기가 성공하든 실패하든 `File`의 drop이 닫는다(다시 열지 않으므로 공유 오프셋 유지).
+(R7.9 초판은 `from_raw_fd` 뒤에 `metadata`로 거르고 `into_raw_fd`로 돌려줬다 — 생성 시점에 유효·열림 전제를 어기는 순서여서 root 검토로 이 순서로 바꿨다.) `unsafe` 계약은 함수 문서와 `SAFETY` 주석에 있다: 유효·열림은 검증으로, 소유는 원본 계약으로 충족한다 — 원시 읽기가 가리킨 번호는 이 한 번의 읽기에 넘겨지고, 프로그램에
+그 번호의 다른 소유자가 없으며 이 함수가 도는 동안 다른 스레드가 그 번호를 열거나 닫거나 읽지 않는다(검사와 인수 사이의 동시 close는 이 계약이 배제하는 사용이다). `_load_json`/`parse_engine_log`의 `OSError`·`ValueError` 처리 구분은 그대로다.
+
+**등록 검사.** `checks/lite_metrics_descriptors.rs`(`harness = false`, `Cargo.toml` 등록): 같은 실행 파일이 검사자이자 시나리오마다 다시 실행되는 격리 자식이다. 닫는 시나리오(fd 1 포함)가 실행기의 기술자를 건드리지 못하고
+libtest 배너가 리디렉션된 stdout을 오염시키지 않는다. 자식은 결과 파일로만 관측을 남긴다. 수정 전 코드로 먼저 실행해 실패를 보존했다(`test-fd-descriptors-attempt1-BEFORE-FIX`: 오프셋·닫힘·쓰기 전용·0이 아닌 오프셋 파싱·stdout 읽기
+불일치). 수정 후 22/22 일치(`test-fd-descriptors-attempt3`).
+
+**경계.** 격리 자식에서 확인한 것은 위 22개 시나리오다. 소켓·파이프·tty 기술자, 논블로킹 기술자의 읽기 중 `EAGAIN`, 다른 스레드가 같은 번호를 동시에 쓰는 경쟁은 포획·검사하지 않았다(그런 번호는 원본도 같은 방식으로 닫는다고 가정하지 않는다).
+기술자 0/1/2의 비격리 호출(실행 중인 호출부의 stdin/stdout/stderr)은 원본처럼 stdout/stderr를 닫을 수 있다 — 호출부가 그런 번호를 원시 JSON에 쓰지 않는다는 것은 이 후보가 보장하지 않는다.
+
+
+## R7 정본 연결·최종 측정 — 2026-11-05T04:37:01+09:00
+
+상위 과업의 계획·개발기록·검증 문서에 세부 근거를 보존한다. 현재 R7은 두 셸 런처·계산 없는 Python JSON bridge·실제 소비자에 연결됐다. 자동 빌드/설치나 Python fallback은 없다. 기존 실행 비트는 유지했고 CRLF 입력 하나는 같은 디렉터리의 .gitattributes -text로 추적 bytes를 보존한다.
+
+관리 source build8실제 자체검사(D1 포함), fmt/release195+별도FD22/Clippy, 고정132API/18CLI, 독립5FS+3FD, 실제연결3control, 전체배포128, 새 공백 경로의 Gitindex432파일(Rust406/의존26) source build8/관련Cargo10+FD22가 PASS다. 원본의 NaN/boolean 요청 통과·tmp 자기symlink는 후속 신뢰성 개선 대상으로 보존했다. FD는 단독 소유 전달·동시close/use없음 조건이며 검사는 그 범위를 넘는 보증이 아니다.
+
+품질 후 고정11교차round pure92×200: Python490.530924ns/Rust273.985761ns=1.790352배. 실제읽기21:12777.047619ns/6531ns=1.956369배. 실제BashCLI6의 round평균중앙값26.173297ms/4.078241ms=6.417791배. 개별 정상·판정5개는3.77~4.85배, raw배열 오류1개는15.16배이며 오류traceback프레임 전문은 비교범위밖이다. 집계를 모든 정상경로의 개선으로 확대하지 않는다. 로컬 표본이고 실제서빙·LLM·통계적 우월성 주장은 아니다.
+
+이 연결 단위는 CONNECTED_CORE_VERIFIED이며 전체 Rust/물리노드/프로필/LongE2E 수용은 아직 아니다.

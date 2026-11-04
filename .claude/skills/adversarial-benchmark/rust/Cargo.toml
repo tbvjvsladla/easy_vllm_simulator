@@ -53,6 +53,18 @@ name = "sweep_stop_bench"
 path = "src/bin/sweep_stop_bench.rs"
 
 [[bin]]
+name = "lite_metrics"
+path = "src/bin/lite_metrics.rs"
+
+[[bin]]
+name = "lite_metrics_api"
+path = "src/bin/lite_metrics_api.rs"
+
+[[bin]]
+name = "lite_metrics_bench"
+path = "src/bin/lite_metrics_bench.rs"
+
+[[bin]]
 name = "bench_preset"
 path = "src/bin/bench_preset.rs"
 
@@ -192,3 +204,17 @@ path = "checks/preset_hash.rs"
 [[test]]
 name = "preset_nan_identity"
 path = "checks/preset_nan_identity.rs"
+
+[[test]]
+name = "lite_metrics_cases"
+path = "checks/lite_metrics_cases.rs"
+
+[[test]]
+name = "lite_metrics_files"
+path = "checks/lite_metrics_files.rs"
+
+# Re-executes itself as an isolated child per scenario (closing fd 1 must not reach a libtest runner).
+[[test]]
+name = "lite_metrics_descriptors"
+path = "checks/lite_metrics_descriptors.rs"
+harness = false
