@@ -1,6 +1,6 @@
 # benchmark Rust 이행 기록
 
-현재 native 범위는 `sweep_stop`, `parse_bench`, `roofline`, `verdict_rule`의 판정·측정 해석·CLI와 명시된 셸 호출부다. 아래 R1/R2 기록의 수치와 검사는 각 시점의 근거이며 R3 이후의 성능으로 소급하지 않는다.
+현재 native 범위는 `sweep_stop`, `parse_bench`, `roofline`, `verdict_rule`, `parse_guidellm`의 판정·측정 해석·CLI와 명시된 셸 호출부다. 아래 R1/R2 기록의 수치와 검사는 각 시점의 근거이며 R3 이후의 성능으로 소급하지 않는다.
 원본은 이행 대조 기준으로 보존한다. 다른 Python 도구·LLM provider·서빙 엔진의 이행 완료가 아니다.
 이번 정지 판정 경계의 정본 호출/배치·독립 검증·전체 배포126검사를 통과했다.
 좁은 화면의 도움말은 COLUMNS와 실제 stdout 터미널 폭을 반영한다.
@@ -243,3 +243,139 @@ R3 단위는 기능·정본 연결·필요한 독립 검증·로컬 성능 비�
 - Builder 자체 약1.75μs와 root 최종2.32μs를 합치거나 더 좋은 값만 최종으로 고르지 않는다. 최종값은 정본의 별도11round다. 측정환경은 Linux GNU aarch64/CPython3.12.3/PyYAML6.0.3/관리Rust1.99.1이다. 표본 범위의 측정이며 통계적 우월성·LLM/서빙 가속을 주장하지 않는다.
 
 원시: 상위 과업 temp의 r3-key-range-canonical/commands.json·fixed-reproductions/, r3-post-key-benchmark/quality-gate.json·r3-benchmark-results/, 별도 r3-independent-261104의 perf-numeric/와 key-encoding/range-final/. 원래 r3-benchmark-results/의 순수 연산11.67배 지연 FAIL은 그대로 유지한다.
+
+## R4 parse_guidellm (후보 · 정본 적용 전)
+
+상태: Builder 후보. 루트의 독립 검증·정본 연결·성능 수용은 아직이다. 이 절은 앞선 R1/R2/R3 기록을 대체하지 않는다.
+범위는 `scripts/parse_guidellm.py` 전체(626줄 — 함수 `build`·`classify_errors`·`inherit_accept_len`·`prefix_cache_run`, CLI, 실제
+자체검사 **G1~G29**(요청서의 G1~G25가 아니다))와 `sweep_bench.sh` `_spec_axis_args`의 인라인 Python 본문이다. 원본 `.py`는 대조 기준으로 둔다.
+
+```bash
+parse_guidellm --benchmarks-json P (--accept-len-src P | --spec-axis-absent) [--engine-log P] [--benchmark-index N]
+               [--post-health-json P] [--prefix-cache-json P] [--max-error-rate R] [--json] [-h]   # 원본 옵션·약어·종료 0/2/1
+parse_guidellm --self-test                       # 원본 G1~G29 그대로(전사까지 바이트 동일)
+parse_guidellm evaluate-jsonl                    # Rust 전용: {id, operation, arguments} → {id, kind: value|exception, ...}
+parse_guidellm spec-source --lite-raw PATH       # Rust 전용: sweep_bench 인라인 본문(성공=warm 경로 한 줄 · 실패=Class: message, exit 1)
+parse_guidellm bench-tool                        # Rust 전용: BENCH_TOOL 토큰(guidellm) 하나
+parse_guidellm native-help
+```
+
+### 구조(책임)
+
+| 모듈 | 책임 |
+|---|---|
+| `src/guidellm.rs` | 도메인: `build`(전체 순서 있는 측정 객체) · `classify_errors`(`ErrorSplit`) · `inherit_accept_len`(`SpecAxis`) · `carry_prefix_cache`; `Failure`(메시지가 PyStr — argv 서로게이트가 메시지에 남는다) |
+| `src/guidellm_cli.rs` | argparse 면 + 입력 읽기 순서(accept-len-src → engine log → post-health → benchmarks → prefix-cache) · 종료 분류(`Termination::Handled` exit 2 / `Uncaught` exit 1+traceback) · `evaluate-jsonl` · `spec-source` |
+| `src/guidellm_selftest.rs` | G1~G29. G11/G29는 **실행 시** 실제 owner 표본을 읽는다 |
+| `src/help_layouts_parse_guidellm.rs` | 원본 argparse 출력의 폭별 표(COLUMNS 1..480 관측, 319 이상 상수) — 생성 데이터 |
+| `src/bin/parse_guidellm.rs`, `src/bin/parse_guidellm_bench.rs` | 실행파일, 전체 결과 생성 시간 측정기(측정 전용) |
+
+재사용: `PyValue/PyStr/PyDict/lit!`(정적 리터럴), `argv`(Spec 표만 추가), `PyException`·`float_from_int/str`·`round_to_two_places`·`format_fixed`,
+`pyjson`(strict UTF-8·깊이 9997·`LoadError`), `engine_log`(정규식 동치 매처), `Streams`/stdout 모델. 기존 R1/R2/R3 동작·데이터는 바꾸지 않았다(공유 파일 변경은 `argv.rs`의 PARSE_GUIDELLM 표 추가, `lib.rs` 모듈 등록, `Cargo.toml` bin/test 등록뿐).
+
+### 보존한 원본 특성(고치지 않음)
+
+- 전체 키 순서·`bool/int/float`·NaN/Inf: `error_rate` 등은 `float(failed)/float(total)`, 거대 정수는 `OverflowError`(exit 1), `request_latency_ms_p99 = p99_s*1000.0`.
+- 엔진 로그: `OSError`만 WARN(`engine-log: ...`) — 정규식이 `,` 하나에도 맞아 `float('')`이 `ValueError`로 **탈출**한다(exit 1, parse_bench와 다름). `round(max,2)`, 거대 자릿수는 inf.
+- 도구경계 분류: 패턴 목록 **그리고** `output_tokens`(또는 `output_metrics.text_tokens`) 둘 다일 때만 면제, `server_alive_at_bench_end=False`면 면제 무효. 판정의 `.lower()`는 `İ`(→`i`+결합점)·켈빈 기호(→`k`)까지 파이썬과 같다. 레코드/정보 모양이 틀리면 원본처럼 `AttributeError`가 탈출한다(`rec.get`이 앞).
+- `streams` 모양별 실패: 문자열은 문자를, dict는 `KeyError`, 숫자는 `TypeError: object of type 'int' has no len()`, 빈 값은 `request_concurrency` 중앙값으로 대체.
+- `inherit_accept_len`: 수용길이 키도 `completed`도 없으면 거부(lite raw 포인터 문서). `bool`은 수가 아니다. `prefix_cache_run`: `isinstance(r,(int,float))`가 `bool`을 포함해 `True`도 경고(`1.00`), 키는 닫힌 목록 순서로만 싣는다.
+- `--json`은 받지만 출력은 항상 JSON. `--benchmark-index -1`은 argparse가 값으로 소비해 `범위 밖` ValueError(exit 2).
+
+### Rust 전용 면과 한계
+
+- (**SUPERSEDED-IN-PART — 아래 "R4 교정(2차)"가 이 항목의 타입 제한을 철회한다**) `evaluate-jsonl`은 값 전체(순서 있는 객체)를 반환한다. 전송 인자 중 `engine_max`는 null/float, `max_error_rate`는 float/int, `spec`은 객체/null, `server_alive_at_bench_end`는 null/bool, `benchmark_index`는 정수만 받는다(그 밖은 `TypeError` 예외 기록 — 의도한 명시 오류). 기본값은 원본 시그니처(`0`/`None`/`None`/`0.0`/`None`)이고 `doc`/`src`/`path`/`run`은 필수(`KeyError`).
+- (**한계 항목은 아래 "R4 교정(2차)"에서 해소 — 파일 기술자 포인터는 이제 재현한다**) `spec-source`는 파일 읽기·JSON 오류 클래스를 원본 인라인 본문처럼 `FileNotFoundError`/`JSONDecodeError`/`UnicodeDecodeError`/`ValueError`로 낸다. 바깥 Bash의 `-z`/`! -s` 우회(부재·빈 raw)는 이 도움말 밖이다. **한계**: `bench_warm_json`이 정수/불리언(파일 기술자 번호)이고 그 기술자가 비어 있지 않은 일반 파일을 가리키면 재현하지 않고 `NotImplementedError`(exit 1)로 끝난다(원본은 그 기술자를 읽는다 — 실사용 입력이 아니다). 그 밖의 비문자열 포인터(`list/dict/float`의 `TypeError`, 범위 밖 정수의 `OverflowError`, 존재하지 않는 기술자의 `ValueError`)는 원본과 같다.
+- 자체검사 실행 전제: **owner 표본 파일**. 런처가 `PARSE_GUIDELLM_FIXTURE=<SDIR>/../fixtures/guidellm_benchmarks_sample.json`을 내보내고, 직접 실행은 `<skill>/rust/target/release/parse_guidellm` 배치에서 `<skill>/fixtures/`를 유도한다. 둘 다 파일이 아니면 원본처럼 `G11` 실패(`[FAIL] G11 ... 부재`, exit 1, G14 뒤 게이트에서 정지). 컴파일에 표본을 넣지 않아 삭제가 가려지지 않는다. 전역 환경·설정은 바꾸지 않는다.
+- 이식 대상 소비자(정본 연결은 루트): `sweep_bench.sh` 메인 파서 호출과 `_spec_axis_args`, `classify_cell.py`의 `BENCH_TOOL`(`parse_guidellm bench-tool`), `hintlib.evidence`의 `build(gdoc).completed`, 상속 직접 시험(`selftest_sweep_meta`), 반복 픽스처 복사. 이 후보는 그 파일들을 수정하지 않았다.
+
+### 후보 검증(이 절의 수치는 후보 자체 측정이며 루트 수용이 아니다)
+
+| 검사 | 결과 |
+|---|---|
+| 루트 `check_r4_external.py`(릴리스, `PARSE_GUIDELLM_FIXTURE` 지정) | API 145/145 · CLI 140 · engine 13 · malformed 3 · spec-source 18 · depth 48 + boundary 44 전부 일치. 환경 변수 없이 실행한 **최초 시도는 `0128-cli`(`--self-test`)만 불일치(표본 부재 G11)**로 원시 보존 |
+| 원본 자체검사 대조 | 전사(stdout) 바이트 동일, stderr 동일, exit 0 |
+| 추가 차분(원본 vs 후보 실시간) | `diff_extra` 379건(구조·타입·argparse·유니코드·거대 정수·서로게이트) 0 불일치 · `spec-source` 51건 0 불일치(최초 1건: 범위 밖 정수 기술자 `OverflowError` — 수정 후 0) |
+| 패키지 `guidellm_cases` | 8검사: API 145 전체 순서 비교 · frozen 174 · depth 92 · 추가 379 · 도움말 132(COLUMNS 22값) · 자체검사 전사 · 표본 부재 실패 · 네이티브 단어 |
+| `cargo fmt --check` · `clippy --all-targets -D warnings` · release/debug `cargo test` | 통과(전체 136검사, 0 실패). clippy 최초 시도 실패 2건(`unnecessary_map_or`)은 원시 보존 후 수정 |
+| 공유 파일 변경 회귀 | 루트 R3 348/184/150 · R2 221 · R1 543 전부 일치 |
+| 성능(후보 표본, 루트 수용 아님) | 사전 고정 34 value 케이스, 전체 결과 생성+해제(JSON·기동 제외), 교대 11라운드×200: Python 중앙값 4540 ns/값, Rust 1283 ns/값(약 3.5배). 실제 CLI 진입점은 따로 측정하지 않았다 |
+
+### 알려진 한계·잔여
+
+① 원본 stack frame은 재현하지 않는다(클래스/메시지와 traceback 앞 텍스트만). ② 기준 환경은 CPython 3.12.3·Linux GNU·UTF-8 스트림이다. ③ `evaluate-jsonl`의 비지원 전송 타입은 명시 오류다. ④ 도움말 표는 COLUMNS 319 이상 상수이며 700/1000/5000을 재확인했다.
+⑤ 정본 연결(런처 `parse_guidellm.sh`, `sweep_bench.sh`/`classify_cell.py`/`hintlib.evidence` 호출부, `build_rust.sh` 자체검사, 배포 검사·스킬 문서)과 독립 검증·실제 CLI 성능 비교는 루트 작업이다. 6프로파일·실제 E2E·나머지 Python 이행은 열려 있다.
+
+## R4 교정(2차) — 원시 JSON 인자 · 파일 기술자 포인터 · JSON 전송 (후보 · 정본 적용 전)
+
+독립 검증의 2건(I1 `server_alive_at_bench_end=0`을 새 타입 검사로 거부, I2 `benchmark_index=1.0`의 실패 시점·문구)과 새 원본 관측 12+6건이 같은 결함의 증상이었다 —
+전송/라이브러리가 원본 Python API의 **원시 JSON 인자**를 `Option<bool>`/`BigInt`/`f64`/`SpecAxis`로 좁혔다. 초기 후보의 해당 서술은 위 절에 보존하고 여기서 철회한다.
+
+### 1. API: 인자를 좁히지 않는다(`src/guidellm.rs`)
+
+`BuildRequest`의 다섯 필드(`benchmark_index`·`engine_max`·`spec`·`max_error_rate`·`server_alive_at_bench_end`)는 모두 호출자가 준 `PyValue`다. 검사는 원본의 **연산 지점**에서만 한다.
+
+| 인자 | 원본 지점 | 결과 |
+|---|---|---|
+| `doc` / `benchmarks` | 맨 앞 `ValueError` | 다른 인자 오류보다 먼저(`doc-before-args`, `runs-before-spec`) |
+| `benchmark_index` | `0 <= i < len(runs)` → `runs[i]` | 순서 안 맞는 형은 `TypeError`(`int`와 비교), 범위 밖은 `%d` 렌더링(float 절단·`NaN`/`inf` 오류) 뒤 `ValueError`, 범위 안 float는 `TypeError: list indices must be integers or slices, not float`, bool은 0/1 |
+| `engine_max` | `if engine_max and decode_tps` → `/` | 원시 그대로 출력(int/bool/str 포함); 참이고 디코드가 있을 때만 나눗셈 — 문자열 등은 `TypeError: unsupported operand type(s) for /`, int 초과는 `OverflowError` |
+| `spec` | `spec or {}` → `.get` | 거짓값(`False`/`[]`/`""`/`0`)은 미지정, 참인 비매핑은 분류·분해 뒤에 `AttributeError` |
+| `max_error_rate` | `measurement_ok` 단락 평가 | 원시 그대로 출력, 비교는 `successful`·`decode_tps` 뒤 — `None`은 그 지점에서만 `TypeError` |
+| `server_alive_at_bench_end` | `is not False` / `is False` / `is True` | **`Liveness::{Dead, Alive, Unobserved}`** — `0`·`""`·`null`·그 밖은 모두 관측 없음; 원시값(`0`)을 그대로 저장 |
+| `classify_errors`의 `benchmark_index` | `run["benchmarks"][i]` `except (KeyError, IndexError, TypeError)` | 리스트는 int/bool 위치, 매핑은 문자열 키, 그 밖은 `None` |
+| `inherit_accept_len`의 `path` | `%s` | 어떤 JSON 값이든 `str()` 모양으로 메시지·출처에 |
+
+CLI는 같은 필드에 타입 값(`int`/`float`/`bool`/`None`)을 넣을 뿐이며 argparse·post-health의 원래 타입 검사는 그대로다. `ErrorRateLimit`·`Option<bool>` 같은 좁은 타입은 제거했다.
+차분: 원본 함수를 프로세스 안에서 호출한 8388건(17개 문서 × 인자 하나씩 바꾼 형 변주 + 문서당 무작위 120 + classify/inherit 형 조합)을 두 시드(1, 2)로 돌려 0 불일치.
+
+### 2. 파일 기술자 포인터(`spec-source`)
+
+`bench_warm_json`이 정수/불리언이면 `os.stat(fd)`·`open(fd)`처럼 **그 번호의 열린 기술자**를 쓴다. 근거 5건(`regular-zero/offset`, `malformed-json`, `empty-file`, `write-only`)의 exit/stdout/stderr와 공유 offset 부작용을 그대로 재현한다.
+- 상태(`isfile`·`getsize`)는 프로세스 기술자 표(`/proc/self/fd/N` = 그 기술자의 `fstat`)로 읽는다 — **Linux `/proc` 전제**(원본 실행 환경과 같다). 닫힌/음수 번호는 `ValueError: bench_warm_json 부재/빈 파일: N`, C `int` 밖은 `OverflowError`, 실수·리스트·매핑은 `TypeError`(`os.stat`의 문구) — 모두 원본과 같다.
+- 읽기는 `/proc/self/fd/N`을 **다시 열지 않는다**(offset 0이 되기 때문). 한 곳의 `unsafe`(`read_descriptor`)로 번호의 소유를 `File`로 옮겨 **현재 offset부터 끝까지** 읽고 기술자를 닫는다(Python의 `open(fd)`가 소유를 넘겨받아 닫는 것과 같다). 안전 계약: 직전에 열린 기술자임을 확인했고, 이 프로세스에서 다른 Rust 핸들이 소유하지 않으며(표준 스트림은 표준 라이브러리가 닫지 않는다), 한 번만 소비한다. 쓰기 전용 기술자는 `OSError: [Errno 9] Bad file descriptor`(파일명 없음).
+- 검증: `fd_driver`(원본 인라인 본문 vs 후보, 새 기술자를 `dup2`+`pass_fds`로 주고 시작 offset을 맞춘 뒤 **종료 후 offset 비교**) 27건 0 불일치(근거 5건은 기대값과도 대조 + 추가 22: 중간 offset·EOF·RDWR·UTF-8 오류·BOM·CRLF·범위 밖·stdin/stderr 등). 패키지 시험은 셸이 기술자 3을 열어 같은 순서를 재현한다.
+- 남은 한정: 기술자가 일반 파일이 아니거나(파이프 등) 비어 있으면 원본처럼 `부재/빈 파일` 오류, **더 이상 `NotImplementedError`는 없다**.
+
+### 3. 일반 JSON 전송(`evaluate-jsonl` opt-in)
+
+요청 `{id, operation, arguments_json: {이름: 원시 JSON 텍스트}, result_json: true}` (`arguments`와 상호 배타). 각 인자를 **따로** 같은 깊이 문맥(`loads_text`, 9997)으로 읽어 요청이 문서를 한 단계 더 중첩하지 않는다 — 같은 전체 라이브러리 함수를 부른다. 응답은 이 모드에서만 `{id, encoding: "json-values-v1", kind: "value", value_json}`(전체 결과의 compact ASCII JSON 텍스트) 또는 `{id, encoding, kind: "exception", type, message}`다. `arguments` 표준 레코드(163 근거)는 바이트·스키마 동일(encoding 필드 없음). 잘못된 원시 JSON은 `JSONDecodeError`, 너무 깊으면 `RecursionError`, 둘 다 예외 레코드다. 비즈니스 규칙·캐시·결과 투영은 없다.
+- 실제 root 초안 어댑터(`parse_guidellm_native.py` + `parse_guidellm.sh`, 수정 없이 복사)를 **새 owner 배치 임시 샌드박스**(`scripts/`·`rust/target/release/`·`fixtures/`, 명시 `PARSE_GUIDELLM_BIN`)에서 후보로 검증: 32검사 0 실패 — 9996 중첩 문서 `build.completed == 16`·전체 결과 원본과 동일(표준 봉투의 `json.dumps`는 RecursionError임을 같은 실행에서 확인), NaN/Inf/서로게이트/거대 정수, `ValueError`/`TypeError`/`KeyError`/`OverflowError`/`AttributeError` 사상, 무작위 300건 원시형 대조, `bench-tool`, **전송 인코딩이 없는 낡은 바이너리는 `RuntimeError`(재빌드 안내)·부재 바이너리는 `ImportError`**.
+- 한계: 현재 Python 소비자가 쓰는 JSON 값만 전달한다. 임의 Python 객체(바이트·집합 등) 직렬화는 주장하지 않는다.
+
+### 4. 검증 요약(후보 자체 측정 — 루트 수용 아님)
+
+| 검사 | 결과 |
+|---|---|
+| 루트 `check_r4_external.py`(릴리스, `PARSE_GUIDELLM_FIXTURE` 지정) | API 163/163(원본 145 + 형 12 + 경로·인덱스 6)·CLI 140·engine 13·malformed 3·spec-source 18·depth 48+44 모두 일치 |
+| 독립 2건(`api-liveness-zero-is-not-False`, `api-float-index-typeerror`) | 기대 레코드와 문자열까지 동일 |
+| 패키지 `guidellm_cases` | 14검사(기존 8 + 원시 형 API 12+6+1200 · 독립 2건 · 기술자 5 · 숫자 포인터 7 · 전송 깊이 · 전송 특수값/오류) |
+| fmt · clippy `--all-targets -D warnings` (bench bin 포함) · release/debug 전체 `cargo test` | 통과, 각 142검사 0 실패(최초 clippy 실패 `useless_format` 2건 원시 보존 후 수정) |
+| R1 543 · R2 221 · R3 348/184/150 | 전부 일치 |
+| 성능(후보 표본, 루트 수용 아님) | 동일 34 value 케이스·전체 결과 생성+해제: Python 4567 ns/값, Rust 1191 ns/값(약 3.8배; 교정 전 1283) |
+
+### 잔여
+
+원시 인자 의미의 정본은 원본 Python이다 — 위 차분이 닿지 않은 형 조합이 남았을 수 있다. 정본 연결(런처·`sweep_bench`·`classify_cell`·`hintlib.evidence` 어댑터 설치·`build_rust.sh`·배포 검사)과 독립 재검증·실제 CLI 성능은 루트 작업이다.
+
+## R4 정본 연결 검증 진행
+
+위는 Builder의 후보 자체검사 기록이다. root 고정163 API/266 CLI·helper·depth, FD5의 출력/종료/공유 offset, 별도 Validator의 원본 I1/I2·FD·실제 bridge6검사는 PASS다. 이제 source와13경로연결안을검토해정본에반영했고 managed빌드/통합/배포/실제성능은아직검증중이다. 원본 Python은참조용으로남기며실제호출은native로연결한다.
+
+## R4 정본 적용과 검증 완료
+
+전체 GuideLLM build/inherit_accept_len/classify_errors·CLI·G1~G29 자체검사를 Rust로 연결했다. sweep_bench의 실제 파서/승계 경로, classify_cell 토큰, hint qualification의 owner build가 native를 호출한다. 얇은 Python bridge는 JSON/subprocess 전달과 원래 예외 복구만 맡고 규칙·기본값·원본 fallback을 갖지 않는다. 기존 parse_guidellm.py는 원본 대조용으로 보존했다.
+
+최초 독립 I1(생존값 0은 False 객체와 다름), I2(1.0 인덱스의 실제 list 오류 순서)를 수정했고 같은 원본 입력으로 재검증했다. 원시 JSON 인자를 함수의 실제 사용 지점까지 유지한다. spec-source의 상속 FD는 현재 공유 offset에서 읽고 닫는다. root FD5검사는 출력·종료와 부모에서 관측한 offset까지 일치했다. opt-in arguments_json/result_json 전송은 원본이 처리하는 깊은 doc에 envelope가 먼저 실패하던 실제 결함을 교정한다. 원래 API 레코드 형식은 유지하며 임의 Python 객체 전체 지원을 주장하지 않는다.
+
+root 실제 관리 빌드와 다섯 just-built 자체검사, fmt·release Cargo142·all-target Clippy, 고정163 API/266 CLI·helper·depth, FD5, 이전 R1/R2/R3 및 sweep_meta/repeats/precheck/cell_args와 classify 자체검사, 전체 배포128이 PASS다. 독립 검증은 초기 6개 교정 재현과 최종 7개 실제 적용 경계(힌트 native 판정·ValueError 차단 포함)를 통과했다. 권한 보호를 우회하지 않고 root가 정본에 따로 적용했다.
+
+배포 준비 중 원본 입력16개의 .log 확장자가 Git 제외 규칙에 걸리는 실패를 확인했다. payload를 유지한 .txt와 metadata의 가역 경로 치환으로 정리하고 무참조 생성 transcript13개는 제외했다. 의도적인 invalid UTF8 음성 입력3개는 bytes 그대로 보존했다. Git index의 소스만 새 root에 복사한325파일(그중 Rust323)에서 외부 source-root env 없이 offline locked build·관련16검사·실제 fixture 자체검사를 통과했다. 독립 검토도 index/worktree/freshcopy와 원본 payload를 대조했다. force-add나 ignore 정책 변경은 없다.
+
+사전 고정34 value(23 정상/11 measurement_ok=false)의 전체 결과 생성·해제를 11교차round×200회 비교했다. Python 4439.240441ns/Rust1229.8ns, 약3.6097배였다. 실제 Bash CLI12×11교차round는22.57226217ms/4.063543ms, 약5.5548배이며 stdout/stderr/종료가 모두 고정 원본과 같았다. 로컬 표본이며 LLM·서빙·통계적 우월성이나 다른 입력 전체의 속도를 의미하지 않는다.
+
+원시 근거: val_agent/temp/real-worker-261104의 r4-prototype/review-envelope.json, r4-canonical-build.log, r4-canonical-checks/, r4-distribution.json, r4-packaging-fix/, r4-benchmark-contract.json·r4-benchmark-results/. 별도 Validator 근거: val_agent/temp/r4-independent-261104의 prototype/followup/canonical/. 초기 실패는 같은 위치에 보존했다.
+
+native 두 묶음은 같은 session 53e74e77-0636-425d-8e65-fcee80c91764, 관측126턴·reported duration1997.185초(실제 wrapper wall2003.930초), permission_denials0이었다. 실제 모델 claude-sonnet-5-5를 관측했으며 요청 high를 별도 실제 effort 관측으로 채우지 않는다. 이는 구현 작업 귀속이며 6프로필 업무 평가가 아니다. 전체 S1~S7·하네스·6프로필·실제 Long E2E는 계속 진행한다.
+
+갱신: 2026-11-05T00:23:14+09:00

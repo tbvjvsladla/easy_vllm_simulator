@@ -491,7 +491,7 @@ fi
 #     spec 을 선언한 GuideLLM 스윕의 measured.json 이 전부 accept_len=null 이 된 뿌리다(실측:
 #     sweep_nv4-bf-262k-res 의 warm JSON 에는 spec_decode_acceptance_length=2.2069 가 있었다). 포인터 해석은
 #     lite_metrics 가 이미 쓰는 `bench_warm_json` 키 하나로 한다.
-#   ★ 그 warm JSON 이 승계원 모양인지는 **파서가 받기 전에** 파서의 술어(`inherit_accept_len` import ·
+#   ★ 그 warm JSON 이 승계원 모양인지는 **파서가 받기 전에** 파서의 술어(native `spec-source` ·
 #     복제 ✗)로 판정한다(리뷰 정정). 받지 못할 문서(잘린 JSON·bench 결과 아닌 모양)를 그대로 넘기면 파서가
 #     exit 2 로 끝나고, 레벨 1 에서는 스윕 전체가 exit 3 으로 죽는다 — inform-only lite 레그의 결손이
 #     판정점 측정 불가로 격상되는 것이다. 무효면 사유를 truncation.log 에 적고 부재 명시로 강등한다:
@@ -501,22 +501,7 @@ _spec_axis_args() {   # $1=lite raw 경로(빈 값 = lite 절삭) · $2=truncati
   SPEC_AXIS_ARGS=(--spec-axis-absent)
   # lite 절삭·raw 부재는 이미 truncation.log 에 적혀 있다(여기서 다시 적지 않는다).
   if [ -z "$raw" ] || [ ! -s "$raw" ]; then return 0; fi
-  out="$(python3 -c '
-import json, os, sys
-sys.path.insert(0, sys.argv[1])
-from parse_guidellm import inherit_accept_len
-try:
-    doc = json.load(open(sys.argv[2], encoding="utf-8"))
-    warm = doc.get("bench_warm_json") if isinstance(doc, dict) else None
-    if not warm:
-        raise ValueError("lite raw 에 bench_warm_json 이 없다")
-    if not os.path.isfile(warm) or os.path.getsize(warm) == 0:
-        raise ValueError("bench_warm_json 부재/빈 파일: %s" % warm)
-    inherit_accept_len(json.load(open(warm, encoding="utf-8")), warm)
-except (OSError, ValueError) as exc:
-    sys.exit("%s: %s" % (type(exc).__name__, exc))
-print(warm)
-' "$sdir" "$raw" 2>&1)" || rc=$?
+  out="$(bash "$sdir/parse_guidellm.sh" spec-source --lite-raw "$raw" 2>&1)" || rc=$?
   if [ "$rc" = 0 ] && [ -n "$out" ]; then
     SPEC_AXIS_ARGS=(--accept-len-src "$out")
   else
@@ -565,7 +550,7 @@ for L in "${SORTED[@]}"; do
         BJSON="$RDIR/guidellm_${CONFIG}.json"
         # spec 축은 GuideLLM 이 보고하지 않는다. **같은 스윕의 lite 레그**에서 승계한다(위 `_spec_axis_args` ·
         # 루프 앞에서 1회 판정 · 자체검사가 함수 구간을 바이트 그대로 실행).
-        PARSE_CMD=(python3 "$SDIR/parse_guidellm.py" --benchmarks-json "$BJSON"
+        PARSE_CMD=(bash "$SDIR/parse_guidellm.sh" --benchmarks-json "$BJSON"
                    --engine-log "$ELOG" "${SPEC_AXIS_ARGS[@]}")
         [ -n "$MAX_ERROR_RATE" ] && PARSE_CMD+=(--max-error-rate "$MAX_ERROR_RATE")
         # 벤치 종료 시 서버 생존 관측(2026-09-07 · 유예 결함 ②). run_bench 가 벤치 직후 · teardown

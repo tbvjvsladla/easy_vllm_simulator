@@ -766,7 +766,7 @@ def classify_bench_mode(index, event_lines, events_scanned, tolerance_s=0, node_
     _tool = ((index.get("meta") or {}).get("bench_tool") if isinstance(index.get("meta"), dict) else None)
     if established and _tool not in (None, "", "NA"):
         try:
-            from parse_guidellm import BENCH_TOOL as _full_tool
+            from parse_guidellm_native import BENCH_TOOL as _full_tool
         except ImportError as exc:   # 배선 결함 — 부재를 full 로 접지 않는다
             return _bench_mode_record(None, "undeterminable(parse_guidellm 적재 실패: %s)" % exc, repetition=summ)
         if _tool != _full_tool:

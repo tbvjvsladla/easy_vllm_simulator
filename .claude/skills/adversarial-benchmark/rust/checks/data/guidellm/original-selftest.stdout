@@ -1,0 +1,31 @@
+  [PASS] G1 정본 지표 = 1000/median(TPOT)
+  [PASS] G2 mean 도 median 과 같은 산정식
+  [PASS] G3 parse_bench 계약 키를 전부 낸다
+  [PASS] G4 도구 지문은 산출물에서 실측한다
+  [PASS] G5 동시성은 profile.streams 에서 읽는다
+  [PASS] G6 spec 축 부재는 출처로 남는다
+  [PASS] G7 lite 승계 accept_len 이 spec_on 을 켠다
+  [PASS] G8 incomplete 는 실패로 세되 개수를 따로 남긴다
+  [PASS] G9 TPOT 0 은 무한대가 아니라 None(침묵 나눗셈 ✗)
+  [PASS] G10 불량 문서 거부(비었다)
+  [PASS] G10 불량 문서 거부(metrics)
+  [PASS] G11 실측 산출물 픽스처가 계약을 만족한다
+  [PASS] G12 기본은 엄격 — 오류 1건이면 measurement_ok=False
+  [PASS] G13 선언한 허용치 안이면 통과하되 오류율을 **항상 싣는다**
+  [PASS] G14 ★음성대조 선언 허용치를 넘으면 여전히 False
+  [PASS] G15 ★도구 경계 3건은 엄격 허용치에서도 measurement_ok 를 깨지 않는다
+  [PASS] G16 ★음성대조 서버 오류가 섞이면 엄격 허용치에서 False
+  [PASS] G17 ★패턴만 맞고 토큰 0 이면 경계가 아니다(두 조건 동시 충족)
+  [PASS] G18 ★requests 부재면 가르지 않고 전량 서버 오류(fail-closed)
+  [PASS] G19 미분류 사유를 표본으로 남긴다(삼키지 않는다)
+  [PASS] G20 서버 생존이면 도구 경계 면제가 유지된다
+  [PASS] G21 ★음성대조 서버가 죽었으면 면제 무효 — 전량 서버 오류로 센다
+  [PASS] G22 관측이 없으면 모름으로 남긴다(False 로 접지 않는다)
+  [PASS] G23 bench 결과의 수용길이를 승계한다
+  [PASS] G24 spec 키 없는 정상 bench 결과(spec off)는 None 승계가 맞다
+  [PASS] G25 ★음성대조 lite raw 포인터 문서는 거부한다(조용한 None 승계 ✗)
+  [PASS] G26 관측 파일 없음 = None(0 으로 접지 않는다)
+  [PASS] G27 measured 운반 · 키 닫힌 목록 · 높은 적중률 경고
+  [PASS] G28 unobserved 는 값 없이 사유째 운반
+  [PASS] G29 request latency seconds→ms · real timestamps · None/numeric/bool contract
+[parse_guidellm --self-test] OK — G1~G29 전부 통과

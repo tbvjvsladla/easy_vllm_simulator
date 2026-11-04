@@ -28,3 +28,6 @@ SWEEP_STOP_BIN="$CRATE/target/release/sweep_stop" bash "$SDIR/sweep_stop.sh" --s
 PARSE_BENCH_BIN="$CRATE/target/release/parse_bench" bash "$SDIR/parse_bench.sh" self-test
 ROOFLINE_BIN="$CRATE/target/release/roofline" bash "$SDIR/roofline.sh" self-test
 VERDICT_RULE_BIN="$CRATE/target/release/verdict_rule" bash "$SDIR/verdict_rule.sh" --self-test
+PARSE_GUIDELLM_BIN="$CRATE/target/release/parse_guidellm" \
+  PARSE_GUIDELLM_FIXTURE="$SDIR/../fixtures/guidellm_benchmarks_sample.json" \
+  bash "$SDIR/parse_guidellm.sh" --self-test

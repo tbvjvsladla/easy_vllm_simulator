@@ -4,7 +4,8 @@
 //! see `notices/NOTICE.md`) for parsers made of `-h/--help`, value options and flags only, no positionals,
 //! abbreviations allowed. Each original program contributes a [`Spec`] table: `sweep_stop.py` ([`SWEEP_STOP`]:
 //! `--state STATE`, `--now-utc NOW_UTC`, `--self-test`) and `parse_bench.py` ([`PARSE_BENCH`]: required
-//! `--bench-json`, `--engine-log`, `--json`). Option strings are tried in the order argparse
+//! `--bench-json`, `--engine-log`, `--json`) and `parse_guidellm.py` ([`PARSE_GUIDELLM`]: spec-axis, health and
+//! prefix-cache inputs, `--benchmark-index`, `--max-error-rate`). Option strings are tried in the order argparse
 //! registered them, and arguments are code points (Python decodes argv with `surrogateescape`).
 //!
 //! Usage and help text are laid out by argparse from the terminal width. For a fixed parser that layout is a
@@ -184,6 +185,57 @@ pub const PARSE_BENCH: Spec = Spec {
         ("--json", JSON_FLAG),
     ],
     layouts: crate::help_layouts_parse_bench::LAYOUTS,
+};
+
+/// Indices of the `parse_guidellm.py` actions.
+pub mod guidellm_args {
+    pub const BENCHMARKS_JSON: usize = 1;
+    pub const ENGINE_LOG: usize = 2;
+    pub const BENCHMARK_INDEX: usize = 3;
+    pub const ACCEPT_LEN_SRC: usize = 4;
+    pub const SPEC_AXIS_ABSENT: usize = 5;
+    pub const POST_HEALTH_JSON: usize = 6;
+    pub const PREFIX_CACHE_JSON: usize = 7;
+    pub const MAX_ERROR_RATE: usize = 8;
+    pub const JSON: usize = 9;
+    pub const SELF_TEST: usize = 10;
+}
+
+/// The original `parse_guidellm.py` parser.
+pub const PARSE_GUIDELLM: Spec = Spec {
+    prog: "parse_guidellm.py",
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            ..PLAIN
+        },
+        text_option("--benchmarks-json", false),
+        text_option("--engine-log", false),
+        number("--benchmark-index", Conversion::Int),
+        text_option("--accept-len-src", false),
+        flag("--spec-axis-absent"),
+        text_option("--post-health-json", false),
+        text_option("--prefix-cache-json", false),
+        number("--max-error-rate", Conversion::Float),
+        flag("--json"),
+        flag("--self-test"),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--benchmarks-json", 1),
+        ("--engine-log", 2),
+        ("--benchmark-index", 3),
+        ("--accept-len-src", 4),
+        ("--spec-axis-absent", 5),
+        ("--post-health-json", 6),
+        ("--prefix-cache-json", 7),
+        ("--max-error-rate", 8),
+        ("--json", 9),
+        ("--self-test", 10),
+    ],
+    layouts: crate::help_layouts_parse_guidellm::LAYOUTS,
 };
 
 /// Indices of the `roofline.py` actions.

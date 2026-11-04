@@ -1,0 +1,1 @@
+{"topology": "multi", "burst_n": 3, "bench_warm_json": "lite_warm_x.json", "bench_cold_json": "lite_cold_x.json", "nodes": []}

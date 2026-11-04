@@ -1,0 +1,1 @@
+generation throughput: ١٢.٥ tokens/s

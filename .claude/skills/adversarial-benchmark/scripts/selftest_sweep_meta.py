@@ -392,7 +392,7 @@ def main():
                 print("  ..   %s → %s" % (name, args))
     # 음성대조: W1 이 넘긴 경로가 아니라 **포인터 문서**를 파서가 받으면 거부된다(호출부 교정이 필요했던 이유).
     sys.path.insert(0, str(SDIR))
-    from parse_guidellm import inherit_accept_len          # noqa: E402 — 배포되는 술어 그대로
+    from parse_guidellm_native import inherit_accept_len          # noqa: E402 — 배포되는 술어 그대로
     try:
         inherit_accept_len(dict(_POINTER, bench_warm_json="lite_warm_x.json"), "lite_raw_x.json")
         failures.append("W1 음성대조: 포인터 문서가 승계원으로 수용됐다(조용한 None 승계)")

@@ -1072,7 +1072,7 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/parse_guidellm.py",
+      "callee": "adversarial-benchmark/scripts/parse_guidellm.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },

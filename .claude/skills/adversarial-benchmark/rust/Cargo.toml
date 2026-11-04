@@ -21,6 +21,14 @@ name = "parse_bench"
 path = "src/bin/parse_bench.rs"
 
 [[bin]]
+name = "parse_guidellm"
+path = "src/bin/parse_guidellm.rs"
+
+[[bin]]
+name = "parse_guidellm_bench"
+path = "src/bin/parse_guidellm_bench.rs"
+
+[[bin]]
 name = "roofline"
 path = "src/bin/roofline.rs"
 
@@ -117,3 +125,7 @@ path = "checks/key_encoding.rs"
 [[test]]
 name = "key_range"
 path = "checks/key_range.rs"
+
+[[test]]
+name = "guidellm_cases"
+path = "checks/guidellm_cases.rs"

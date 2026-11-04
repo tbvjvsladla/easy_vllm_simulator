@@ -1037,8 +1037,8 @@ def verify() -> dict:
              ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py", "--self-test"], {0}),
         # GuideLLM 산출물 파서 (CP4). 실측 산출물 픽스처를 함께 검사하므로 합성 픽스처만 보고
         #   초록이 되지 않는다.
-        _run("benchmark_parse_guidellm_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.py", "--self-test"], {0}),
+        _run("benchmark_parse_guidellm_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.sh", "--self-test"], {0}),
         # 광의의 탐색 결정론 3종 (CP6). 셀 종결 분류·지도 렌더러가 각각 음성 사례를 갖는다.
         #   특히 render_sweep_map 의 R8~R10 은 **순위 금지**를 산문이 아니라 결정론으로 지킨다 —
         #   산문으로만 적으면 다음 편집이 조용히 정렬 한 줄을 넣는다.

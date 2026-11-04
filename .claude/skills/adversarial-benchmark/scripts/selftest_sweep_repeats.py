@@ -10,7 +10,7 @@
 격리 방식 — 부하 도구는 **shim** 이다(테스트 평면의 외부 의존 차단 · 정당한 모킹):
   · `run_bench.sh`·`lite_bench.sh` 는 사본이 아니라 shim 이다. GPU·docker·서빙에 닿지 않고, 레벨 run 산출물로
     **실측 GuideLLM 산출물 픽스처**(`fixtures/guidellm_benchmarks_sample.json`)를 복제해 TPOT 중앙값·미완결 수만
-    바꿔 쓴다 — 파서(`parse_guidellm.py`)는 실물 그대로 돈다(픽스처가 실물보다 좁지 않게).
+    바꿔 쓴다 — 파서(native `parse_guidellm.sh`)는 실물 그대로 돈다(픽스처가 실물보다 좁지 않게).
     shim 산출물은 `guidellm_version=0.0.0+selftest-shim` 로 **스스로 가짜임을 밝힌다**(실측인 척 ✗).
   · `curl` 은 PATH 앞단 shim 이 200 을 낸다(broad_search 의 health 프로브). 임시 저장소 밖에는 아무것도 쓰지 않는다.
   · 실패주입은 shim 계획(`SHIM_PLAN`)이 정한다: run 의 measurement_ok=false(미완결 요청) · run_bench 비0 ·
@@ -83,7 +83,8 @@ TN = ".claude/skills/terraforming_node/scripts"
 COPIES = (
     ".claude/skills/adversarial-benchmark/rust/target/release/roofline",
     ".claude/skills/adversarial-benchmark/rust/target/release/verdict_rule",
-    f"{AB}/scripts/sweep_bench.sh", f"{AB}/scripts/repeat_axis.py", f"{AB}/scripts/parse_guidellm.py",
+    f"{AB}/scripts/sweep_bench.sh", f"{AB}/scripts/repeat_axis.py", f"{AB}/scripts/parse_guidellm.sh", f"{AB}/scripts/parse_guidellm_native.py",
+    f"{AB}/rust/target/release/parse_guidellm",
     f"{AB}/scripts/parse_bench.sh", f"{AB}/rust/target/release/parse_bench", f"{AB}/scripts/doc_naming.py", f"{AB}/scripts/lite_metrics.py",
     f"{AB}/scripts/classify_cell.py", f"{AB}/scripts/render_report.py", f"{AB}/scripts/render_sweep_map.py",
     f"{AB}/scripts/sweep_stop.sh", f"{AB}/rust/target/release/sweep_stop", f"{AB}/scripts/broad_search.sh", f"{AB}/scripts/judge_bench.sh",

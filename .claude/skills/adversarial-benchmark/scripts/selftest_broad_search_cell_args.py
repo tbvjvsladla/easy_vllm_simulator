@@ -37,6 +37,9 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[4]
 AB = ".claude/skills/adversarial-benchmark/scripts"
 COPIES = (
+    ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.sh",
+    ".claude/skills/adversarial-benchmark/scripts/parse_guidellm_native.py",
+    ".claude/skills/adversarial-benchmark/rust/target/release/parse_guidellm",
     ".claude/skills/adversarial-benchmark/rust/target/release/roofline",
     ".claude/skills/adversarial-benchmark/rust/target/release/verdict_rule",
     f"{AB}/broad_search.sh",
