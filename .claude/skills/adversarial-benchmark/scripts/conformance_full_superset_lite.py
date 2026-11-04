@@ -22,10 +22,53 @@ lite 만 cold TTFT·시스템 RAM·per-node nvidia-smi 를 재고, full 만 스�
 종료: 0=PASS · 1=FAIL
 """
 import os
+import json
+import subprocess
+import tempfile
+from pathlib import Path
 import re
 import sys
 
 SDIR = os.path.dirname(os.path.abspath(__file__))
+
+def native_value(operation, arguments):
+    row = {"id": "conformance", "operation": operation, "arguments": arguments}
+    cp = subprocess.run(["bash", str(Path(SDIR) / "bench_reporting_api.sh"), "evaluate-jsonl"],
+                        input=json.dumps(row) + "\n", capture_output=True, text=True, timeout=120)
+    if cp.returncode or cp.stderr:
+        raise RuntimeError("native reporting call failed: %s" % cp.stderr[-600:])
+    result = json.loads(cp.stdout)
+    if result.get("id") != row["id"] or result.get("kind") != "value" or not isinstance(result.get("value"), str):
+        raise RuntimeError("native reporting returned no text: %r" % result)
+    return result["value"]
+
+
+def native_lite_certificate_gates():
+    # Real installed publication CLI: beta refusal; gamma refusal and its positive control.
+    with tempfile.TemporaryDirectory(prefix="native-lite-cert-gates.") as td:
+        root = Path(td)
+        raw = root / "raw.json"
+        raw.write_text(json.dumps({"lite_verdict": "server_failed"}), encoding="utf-8")
+        cli = ["bash", str(Path(SDIR) / "publish_benchmark_record.sh")]
+        beta = subprocess.run(cli + ["--lite-raw-json", str(raw), "--stdout"],
+                              capture_output=True, text=True, timeout=120)
+        stamp = "2026-09-04T11:22:33Z"
+        index = {"meta": {}, "generated_utc": stamp, "levels": [], "repetition": {"requested": 3},
+                 "lite": {"lite_verdict": "server_failed"}}
+        idx, verdict = root / "sweep_index.json", root / "verdict.json"
+        verdict.write_text(json.dumps({"verdict": "PASS"}), encoding="utf-8")
+        (root / "bench_mode.json").write_text(json.dumps({"sweep_index_generated_utc": stamp,
+            "bench_mode": "lite", "downgrade_reason": "run_failed", "bench_mode_source": "self-test fixture"}), encoding="utf-8")
+        argv = cli + ["--sweep-index", str(idx), "--verdict-json", str(verdict), "--stdout"]
+        idx.write_text(json.dumps(index), encoding="utf-8")
+        gamma_no = subprocess.run(argv, capture_output=True, text=True, timeout=120)
+        index["lite"]["lite_verdict"] = "pass"
+        idx.write_text(json.dumps(index), encoding="utf-8")
+        gamma_yes = subprocess.run(argv, capture_output=True, text=True, timeout=120)
+        return (beta.returncode == 3 and not beta.stdout and gamma_no.returncode == 0 and not gamma_no.stdout
+                and gamma_yes.returncode == 0 and "benchmark_mode: lite" in gamma_yes.stdout
+                and "verdict: not_applicable" in gamma_yes.stdout)
+
 
 # lite 가 사람에게 보여주는 5종(references/lite-and-publication.md §1 "5종 메트릭").
 # 이 목록이 늘면 아래 검사가 자동으로 full 쪽 결손을 잡는다.
@@ -51,12 +94,12 @@ def main():
         results.append((name, ok, detail))
 
     sweep = read("sweep_bench.sh")
-    report = read("render_report.py")
-    cert = read("publish_benchmark_record.py")
+    report = read("render_report.sh")
+    cert = read("publish_benchmark_record.sh")
     lite_m = read("lite_metrics_native.py")
 
-    for label, src in (("sweep_bench.sh", sweep), ("render_report.py", report),
-                       ("publish_benchmark_record.py", cert), ("lite_metrics_native.py", lite_m)):
+    for label, src in (("sweep_bench.sh", sweep), ("render_report.sh", report),
+                       ("publish_benchmark_record.sh", cert), ("lite_metrics_native.py", lite_m)):
         check("파일 존재: %s" % label, src is not None)
     if any(s is None for s in (sweep, report, cert, lite_m)):
         _emit(results)
@@ -80,9 +123,19 @@ def main():
     lite_sh = read("lite_bench.sh") or ""
     check("E lite_bench 가 판정기(--judge)를 부르고 종료코드를 raw 판정에서 파생한다",
           "--judge" in lite_sh and 'exit "$LITE_RC"' in lite_sh and "server_failed) LITE_RC=7" in lite_sh)
-    check("E 인증서 발행기가 lite 판정 pass 에서만 lite 등급 인증서를 낸다(β read_lite_verdict · γ index.lite)",
-          'read_lite_verdict(raw)' in cert and 'lite.get("lite_verdict") != "pass"' in cert
-          and "benchmark_mode: lite" in cert and "verdict: not_applicable" in cert)
+    rendered_lite, rendered_missing, rendered_certificate = "", "", ""
+    try:
+        gates_ok = native_lite_certificate_gates()
+        sample = {"meta": {}, "levels": [], "lite": {"table": "native-conformance-lite-table"}}
+        call = {"index": sample, "verdict": {"verdict": "PASS"}, "roofline": None}
+        rendered_lite = native_value("render_report.build_md", call)
+        call["index"] = {"meta": {}, "levels": []}
+        rendered_missing = native_value("render_report.build_md", call)
+        rendered_certificate = native_value("publish_benchmark_record.build_yaml",
+                                            {"index": sample, "verdict": {"verdict": "PASS"}})
+        check("E 인증서 발행기가 실제 beta/gamma lite gate를 지킨다(양성 포함)", gates_ok)
+    except Exception as exc:
+        check("native report/certificate output and gate checks", False, repr(exc))
     # E② 배선(2026-09-29 · plan_26092923_58_27) — ② 신호가 셀 상태·explorer cap 까지 닿는 사슬의 각 홉이 실재한다.
     #   판정 읽기는 모든 홉이 소유자 규칙(read_lite_verdict) 하나를 쓴다(값을 다시 판정하지 않는다).
     bsearch = read("broad_search.sh") or ""
@@ -167,14 +220,14 @@ def main():
 
     # B. report 가 lite 를 렌더하는가
     check("render_report 가 lite 블록을 렌더한다",
-          'index.get("lite")' in report and "full ⊇ lite" in report)
+          "native-conformance-lite-table" in rendered_lite and "full ⊇ lite" in rendered_lite)
     check("render_report 가 lite 결손을 경고한다",
-          "lite 미포함" in report,
+          "lite 미포함" in rendered_missing,
           "결손을 조용히 넘기면 비교 불가 사실이 숨는다")
 
     # C. 인증서가 lite 5종을 emit 하는가
     for f in CERT_LITE_FIELDS:
-        check("인증서가 '%s' 를 emit 한다" % f, f in cert)
+        check("인증서가 '%s' 를 emit 한다" % f, "\n" + f + ": " in rendered_certificate)
 
     ok = _emit(results)
     return 0 if ok else 1

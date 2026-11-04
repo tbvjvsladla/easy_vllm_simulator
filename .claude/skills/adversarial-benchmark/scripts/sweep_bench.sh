@@ -657,7 +657,7 @@ SWEEPDIR="$SWEEPDIR" VLLM_VER="$VLLM_VER" COMPLETED="${COMPLETED[*]:-}" ILEN="$I
  LITE_RAW="$LITE_RAW" SDIR="$SDIR" SERVE_PLANE="$SERVE_PLANE" python3 - <<'PY'
 import json, os, re, glob, sys, datetime
 sys.path.insert(0, os.environ["SDIR"])   # 벤치 명명 SSOT(같은 스킬 디렉터리 · 서브에도 배달됨)
-from doc_naming import gpu_key as _gpu_key
+from doc_naming_native import gpu_key as _gpu_key
 
 cfg = os.environ["CONFIG"]; topo = os.environ["TOPO"]
 sweepdir = os.environ["SWEEPDIR"]

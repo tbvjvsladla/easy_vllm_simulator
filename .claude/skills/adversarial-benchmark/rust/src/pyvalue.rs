@@ -435,6 +435,14 @@ impl PyValue {
         Ok(out)
     }
 
+    /// `json.dumps(value, ensure_ascii=False)`: default separators, non-ASCII text kept as is (it may still hold lone
+    /// surrogates).
+    pub fn dumps_unicode(&self) -> Result<PyStr, DumpError> {
+        let mut out = PyStr::default();
+        self.write_json(&mut out, Layout::Compact, false)?;
+        Ok(out)
+    }
+
     /// `json.dumps(value)`: default separators and `ensure_ascii=True`, so the text is pure ASCII.
     pub fn dumps_ascii(&self) -> Result<String, DumpError> {
         let mut out = PyStr::default();

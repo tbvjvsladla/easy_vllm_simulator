@@ -80,7 +80,23 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[4]
 AB = ".claude/skills/adversarial-benchmark"
 TN = ".claude/skills/terraforming_node/scripts"
-COPIES = (
+COPIES = ('.claude/skills/adversarial-benchmark/scripts/render_report.sh',
+    '.claude/skills/adversarial-benchmark/scripts/render_sweep_map.sh',
+    '.claude/skills/adversarial-benchmark/scripts/render_max_report.sh',
+    '.claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.sh',
+    '.claude/skills/adversarial-benchmark/scripts/bench_doc_naming.sh',
+    '.claude/skills/adversarial-benchmark/scripts/bench_reporting_api.sh',
+    '.claude/skills/adversarial-benchmark/scripts/reporting_native.py',
+    '.claude/skills/adversarial-benchmark/scripts/doc_naming_native.py',
+    '.claude/skills/adversarial-benchmark/scripts/render_report_native.py',
+    '.claude/skills/adversarial-benchmark/scripts/render_sweep_map_native.py',
+    '.claude/skills/adversarial-benchmark/scripts/render_max_report_native.py',
+    '.claude/skills/adversarial-benchmark/scripts/publish_benchmark_record_native.py',
+    '.claude/skills/adversarial-benchmark/rust/target/release/render_report',
+    '.claude/skills/adversarial-benchmark/rust/target/release/render_sweep_map',
+    '.claude/skills/adversarial-benchmark/rust/target/release/publish_benchmark_record',
+    '.claude/skills/adversarial-benchmark/rust/target/release/bench_reporting_api',
+
     ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell_api.sh",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell_native.py",
@@ -378,12 +394,12 @@ def main() -> int:
                                                        "tolerance": 0.1}}), encoding="utf-8")
 
         def report(cfg, *extra):
-            return sb.py("render_report.py", "--sweep-index", str(sb.sweep_dir(cfg) / "sweep_index.json"),
-                         "--verdict-json", str(verdict_pass), "--stdout", *extra)
+            return sb.run(["bash", str(sb.sdir / "render_report.sh"), "--sweep-index", str(sb.sweep_dir(cfg) / "sweep_index.json"),
+                         "--verdict-json", str(verdict_pass), "--stdout", *extra])
 
         def publish(cfg):
-            return sb.py("publish_benchmark_record.py", "--sweep-index", str(sb.sweep_dir(cfg) / "sweep_index.json"),
-                         "--verdict-json", str(verdict_pass), "--stdout")
+            return sb.run(["bash", str(sb.sdir / "publish_benchmark_record.sh"), "--sweep-index", str(sb.sweep_dir(cfg) / "sweep_index.json"),
+                         "--verdict-json", str(verdict_pass), "--stdout"])
         cp = report("cfg-n")
         md = cp.stdout
         ck("N4 리포트 반복 절 — 완주/요청 3/3 · measured(n=3) · bench_mode full",

@@ -84,6 +84,8 @@ class Sandbox:
         for name in ("roofline", "verdict_rule"):
             shutil.copy2(REPO / binaries / name, root / binaries / name)
         _write(self.sdir / PUBLISHER, STUB)
+        _write(self.sdir / "publish_benchmark_record.sh",
+               '#!/bin/bash\nexec python3 "$(dirname "$0")/publish_benchmark_record.py" "$@"\n')
         subprocess.run(["git", "init", "-q", str(root)], check=True, timeout=60)
         _write(root / "output/single/manifest.yaml",
                'topology: single\ngpus_per_node: 1\ngpu_model: "NVIDIA GB10"\n')

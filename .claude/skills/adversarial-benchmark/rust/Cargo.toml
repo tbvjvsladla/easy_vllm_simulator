@@ -88,6 +88,34 @@ path = "src/bin/classify_cell_api.rs"
 name = "classify_cell_bench"
 path = "src/bin/classify_cell_bench.rs"
 
+[[bin]]
+name = "render_report"
+path = "src/bin/render_report.rs"
+
+[[bin]]
+name = "render_sweep_map"
+path = "src/bin/render_sweep_map.rs"
+
+[[bin]]
+name = "render_max_report"
+path = "src/bin/render_max_report.rs"
+
+[[bin]]
+name = "publish_benchmark_record"
+path = "src/bin/publish_benchmark_record.rs"
+
+[[bin]]
+name = "bench_doc_naming"
+path = "src/bin/bench_doc_naming.rs"
+
+[[bin]]
+name = "bench_reporting_api"
+path = "src/bin/bench_reporting_api.rs"
+
+[[bin]]
+name = "bench_reporting_bench"
+path = "src/bin/bench_reporting_bench.rs"
+
 [[test]]
 name = "oracle_cases"
 path = "checks/oracle_cases.rs"
@@ -164,6 +192,22 @@ rustix = { version = "1", default-features = false, features = ["std", "termios"
 
 [build-dependencies]
 serde_json = "1"
+
+[[test]]
+name = "reporting_api_cases"
+path = "checks/reporting_api_cases.rs"
+
+[[test]]
+name = "reporting_io_cases"
+path = "checks/reporting_io_cases.rs"
+
+[[test]]
+name = "reporting_cli_cases"
+path = "checks/reporting_cli_cases.rs"
+
+[[test]]
+name = "reporting_stream_cases"
+path = "checks/reporting_stream_cases.rs"
 
 [[test]]
 name = "classify_cell_cases"

@@ -833,3 +833,93 @@ Independent source review found that the initial timing helper dropped errors/di
 After quality, the same 127 values x 200 iterations x 11 alternating rounds gave Python 1521.187402 ns/value and Rust 1072.589803 ns/value (1.418238x). Dispatch, binding, full production result creation and drop remain timed. The actual six Bash CLI cases gave round-mean median 34.311961 / 12.794162 ms (2.681845x). Every CLI invocation checked full output, exit and after-tree. These are local observations, not serving or statistical claims.
 
 Regressions stay OPEN_S3: actual owner/file/atomic-write 22 calls gave 2.459533 / 5.813904 ms (0.423043x); bench-multi CLI gave 43.630557 / 55.462552 ms (0.786667x). The pending Python node-role and identity owner costs are included. Repeat the identical 22-call and six-CLI boundaries after the real owner migration, without copied decision rules or caches. Whole-project Rust, harness, profile and real Long E2E acceptance remain incomplete.
+
+## R9 보고·인증서·지도·명명 이행 (후보 · 정본 적용 전)
+
+상태: **COMPLETE (이 변환 범위의 후보)** — 전체 과업·여섯 프로파일·실제 Long E2E 의 완료가 아니다. 대상은 원본 다섯 파일 전부다:
+`render_report.py`(672) · `render_sweep_map.py`(394) · `render_max_report.py`(123) · `publish_benchmark_record.py`(434) · 벤치 `doc_naming.py`(305).
+원본(기준 `831068cb`)은 이행 대조 기준으로 보존하며 런타임 대체 경로는 없다. 산문 명명 TypeScript 소유자는 범위 밖이다.
+
+### 인터페이스 델타
+
+| 산출 | 내용 |
+|---|---|
+| CLI 5 | `render_report` · `render_sweep_map`(+`--self-test` R1~R18) · `render_max_report` · `publish_benchmark_record` — 원본 argparse(prog 이름·약어·도움말/사용법 폭 1..700 캡처·오류 문구)·출력·종료코드(0/2/3/1)·실패 시점을 그대로 재현. `bench_doc_naming` — 원본 `doc_naming` 의 인자 없는 자체검사를 **어떤 인자가 와도** 실행(원본 동작). |
+| 라이브러리 | `bench_naming`(명명 소유자) · `render_report` · `render_sweep_map` · `render_max_report` · `publish_record` · 공용 `report_support`(`na`·`fnum`·`_cell`·`scalar`·읽기/로드/키 조회)·`pyformat`(Python `str % float`)·`report_cli`(실행 결과 수집·종료 규약)·`reporting_cli`·`reporting_selftest`. |
+| 범용 API | `bench_reporting_api evaluate-jsonl` — 행 `{id, operation, arguments}`; `operation` 은 `<owner>.<function>`(예 `render_report.build_md`, `doc_naming.bench_filename`) 또는 맨 함수명 + `owner` 필드. 결과 `{id,kind,value}` / `{id,kind:exception,type,message}` + (표준오류를 썼을 때) `stderr`. 튜플은 JSON 배열, 누락·미지·타입 오류는 Python 호출 오류와 같은 TypeError. 소유자: `render_report` `render_sweep_map` `render_max_report` `publish_benchmark_record` `doc_naming`. `arguments_json`/`result_json` 옵션은 다른 API 와 같다. |
+| 시간 측정 | `bench_reporting_bench ROWS.jsonl ROUNDS ITERATIONS [ID...]` — 같은 연산 디스패치, 사례 지식 없음; 준비(행 파싱)는 밖, 디스패치·바인딩·본문·파일·전체 값 생성/해제는 안; 시간 밖 워밍 1회가 `Ok`·무진단·`expected_json`(컴팩트 ASCII) 전체 일치를 요구하고 시간 안의 `Err`/진단은 종료 1 · 타이밍 없음. |
+| 공유 런타임 편집(가산·가시성) | `pyvalue.rs` `dumps_unicode`(= `json.dumps(ensure_ascii=False)`) 추가 · `pyjson.rs` `translate_newlines` 와 `lite_metrics_cli.rs` `unencodable_chunk` 를 `pub(crate)` · `argv.rs` 에 4개 `Spec` + 인덱스 모듈 · `lib.rs` 모듈 등록 · `Cargo.toml` bin 7 + `[[test]]` 3 · 생성 데이터 `help_layouts_*`(4) · `unicode_digit_tables`(`str.isdigit` 용 보조 표). 의존성 추가 없음(기존 lock 그대로). |
+
+### 원본 → Rust 대응
+
+`doc_naming`: `kst_tokens` `gpu_key` `measurement_ts` `scan_bench_dir` `bench_filename` + 예외 `NamingCollisionExhausted`/`NamingSourceUnreadable`(클래스명이 곧 정체성; 브리지가 한 번만 정의해 `.claude/policies/runtime/doc_naming.py` 가 같은 객체를 재수출) · `_self_test` → `reporting_selftest::run_naming_self_test`(임시 디렉터리를 원본처럼 **남긴다**).
+`render_report`: `load` `na` `fnum` `repo_root` `_bench_mode_view` `_repetition_section` `_cell` `measurement_config_section` `full_measurement_config` `manifest_path_labels` `_label_path` `build_md` `_read_text` `_grep_yaml` `_grep_env` `lite_identity`(+`LiteIdentityError`) `lite_measurement_config` `build_lite_md` `main_lite`/`main` → `reporting_cli::run_render_report`.
+`render_sweep_map`: `assert_no_ranking` `build` `render_markdown` `_na` `_repetition_line` `RenderError` `_self_test`(R1~R18) `main`.
+`render_max_report`: `load` `na` `repo_root` `build_md` `main`. `publish_benchmark_record`: `load` `repo_root` `scalar` `build_yaml` `build_lite_yaml` `main_lite_raw` `_gamma_lite_certificate` `_full_definition_unmet` `_register_campaign_evidence` `main`.
+분류기·lite 지표는 이미 이행된 **프로세스 안** 소유자(`classify_cell`·`lite_metrics`)를 직접 호출한다(서브프로세스 계산 없음).
+
+### 보존한 특이 동작
+
+* 파일 읽기: 텍스트는 보편 개행 번역, `_read_text` 는 `errors="replace"`, 스캔은 `errors="ignore"`, 로드는 엄격 UTF-8; 읽기 실패 문구는 원본(`[Errno 2] No such file or directory: '경로'`, JSON·UnicodeDecodeError 문구)과 같고 `load` 는 `[<프로그램>] ERROR <라벨>: <사유>` 후 `SystemExit(2)`.
+* 명명: 슬롯은 종류 무관 합집합, 시각을 못 읽는 점유자는 덮어쓰기도 접미도 하지 않고 거부, 측정 시각은 본문의 `measured_utc|generated_utc|생성일` 뒤 첫 UTC 초; 접미 슬롯이 다른 측정이면 `NamingCollisionExhausted`. `existing` 가 dict 가 아니면 원본의 TypeError/AttributeError. 호출자가 잡지 않은 명명 예외의 추적 줄은 원본처럼 `doc_naming.` 접두를 가진다.
+* 보고서: 값 없음 = `N/A`(`None`·`""`·`NA`·`N/A`, 공백·대소문자 무시), 표 셀의 `|` 이스케이프·공백 접기, `fnum` 의 임의 `fmt` 는 Python `%` 서식(오류 TypeError/ValueError 는 `N/A`, OverflowError·ZeroDivisionError 는 전파), 출처 필드와 기재·판정 구분, 관례 위치의 `bench_mode` 기록 부재는 `미확정 — 사유` 로 발행하고 **명시한** 경로가 쓸 수 없으면 종료 2.
+* 지도: 순위 키 폐쇄 목록(소문자 비교, 임의 깊이)·표 머리 순위 열 금지·미완 지도 발행·자기 산출물 거부(종료 3)·출력 파일은 본문을 렌더하기 **전에** 만들어진다(렌더 실패 시 빈 파일이 남는다).
+* 인증서: 평평한 YAML 직접 방출(스칼라 인용 규칙 포함), 강등 lite(γ)·전용 lite(β)·full 순서와 각 미발행 사유·종료 0/3, **인증서 쓰기 → 캠페인 증거 등재** 순서, 등재 소유자(`campaign_init.py`)는 설치된 저장소 경로에서 **실제 CLI 로** 호출(`PUBLISH_BENCHMARK_PYTHON`, 기본 `python3`), 부재는 경고 후 계속, 실패는 stderr 경고, 규칙 복제·캐시 없음.
+* 처리하지 않은 예외는 추적 머리 표지 + 마지막 `Class: message` 와 종료 1(파이썬 스택 프레임은 재현하지 않음).
+
+### 알려진 한계·미연결(root)
+
+(1) 런처·`build_rust.sh` 검사 등록·소비자 배선·정본 적용은 root 단계다(초안: 공통 전송 브리지 `reporting_native.py`, API 런처, CLI 런처 템플릿 — 작업 폴더 `drafts/`). (2) 캠페인 소유자는 아직 Python 이다: `PUBLISH_BENCHMARK_PYTHON`(없으면 `python3`)이 필요하고 그 호출 비용은 인증서 쓰기 경계에 **포함**된다. (3) `repo_root` 는 `//x` 같은 자기 부모 경로에서 원본이 영원히 도는 것과 달리 작업 디렉터리를 돌려준다. (4) `--out-json` 의 `RecursionError`/정수 길이 오류는 원본이 파일에 일부를 쓴 뒤 실패하는 구간을 쓰지 않고 실패한다(이미 이행한 `lite_metrics` 와 같은 한계). (5) `assert_no_ranking` 의 파이썬 재귀 한도(RecursionError)는 재현하지 않는다. (6) 도움말 폭은 COLUMNS 1..700 캡처에서 상수 구간까지(render_report 233 · sweep_map 127 · max 87 · publish 162 이상 동일). (7) 보편 소문자·`isdigit` 는 Rust 표준 유니코드와 CPython 3.12 UCD 15.0 의 버전 차이만큼 극히 드문 문자에서 갈릴 수 있다.
+
+### 검사
+
+| 검사 | 결과 |
+|---|---|
+| `cargo fmt -- --check` | PASS |
+| `cargo clippy --all-targets -- -D warnings` | PASS |
+| `cargo build --release --bins` · `cargo test --release --no-fail-fast` | PASS (64 suite · 243 테스트 · 실패 0; R1~R8 suite 포함 영향 확인) |
+| 고정 원본 API 203(순수) + 129(명명·lite 문서) | PASS 332/332 (값·예외 클래스·메시지·`stderr`) |
+| 고정 원본 파일 IO 39(읽기·식별 우선순위·스캔·전/후 트리 전체) | PASS 39/39 |
+| 고정 원본 CLI 83 + 8 (자체검사 R1~R18·명명 자체검사·인자 무시·실제 소유자 3) | PASS 91/91 (종료·stdout·stderr(추적 투영)·전체 트리) |
+| 이식한 Cargo 점검 | `reporting_api_cases` 3 · `reporting_io_cases` 1 · `reporting_cli_cases` 1 + 측정기 단위 3 |
+| 표적 차분(자체 증거, 기준 변경 아님): 값 변이 9000행 · 서식/명명/달력/유니코드/키 조회 20000행 · 실제 파일 식별·라벨·읽기·스캔 6000행 | 불일치 0 (첫 변이 실행의 불일치 42 = 키 조회 잘못된 타입 문구, 수정 후 0; 첫 실패 로그 보존) |
+| 성능(자체 구현 증거, root 최종 아님) | 고정 id 36 보고/지도/인증서 값 × 200 × 11: Rust 4.6 µs / Python 8.4 µs 값당 (≈1.8×), 명명 82 값: 0.41 / 1.92 µs (≈4.7×). 개별 사례에 Python 보다 느린 것이 남아 있음(주로 지도 `build`·작은 `build_md`) — root 의 11회 측정이 기준 |
+
+### R9 정정 (독립 검토·root 재귀 관측 반영 · 후보 · 정본 적용 전)
+
+앞 절의 한계 (4)(5)는 **특성 기술이었지 면제가 아니었고**, 원본 먼저 관측한 실제 불일치로 확인되어 아래처럼 고쳤다. 앞 절의 기록은 이력으로 남긴다.
+
+1. **JSON 지도 쓰기는 원본처럼 chunk 단위 스트리밍이다**(`src/json_stream.rs`). 이전 후보는 문서를 통째로 직렬화·인코딩한 뒤 한 번에 썼기 때문에 인코딩 불가 문자열(lone surrogate) 앞의 chunk 가 파일에 남지 않았고 오류 위치도 문서 전체 기준이었다. 이제 `json.encoder._make_iterencode` 의 chunk 경계(딕셔너리 키·`": "`·값·구분자는 각자 한 chunk, **리스트 항목은 앞 구분자와 한 chunk**)대로 만들고 chunk 마다 엄격 UTF-8 로 인코딩해 파일에 쓴다. 실패한 chunk 의 앞은 파일에 남고(닫을 때 flush) 오류 위치는 그 chunk 안의 위치다. 파일은 `open(path, "w")` 처럼 직접 열어 잘라내며(심볼릭 링크를 따라가 같은 inode), Markdown 을 렌더 **전에** 열고 닫은 뒤에 JSON 을 연다. 원자 교체·전체 사전 인코딩은 하지 않는다. 정수 자릿수 한도·직렬화 불가 값도 해당 chunk 에서 실패한다.
+2. **파이썬 프레임 한도를 구조적으로 재현한다.** `assert_no_ranking` 은 값마다(스칼라 포함) 한 프레임을 쓰므로 `main()` 호출은 3번째 프레임에서 시작해 1000 을 넘으면 `RecursionError: maximum recursion depth exceeded` 로 **어떤 출력 파일도 건드리기 전에** 끝난다(라이브러리 API 호출은 2번째 프레임 기준). `json.dump` 는 컨테이너마다 제너레이터 프레임 하나이고 최외곽 컨테이너가 5번째이며, 한도를 넘는 컨테이너를 **만드는 시점**에 실패해 그 앞 chunk 는 이미 쓰였다. 실수(float)는 인코더의 파이썬 보조 함수 `floatstr` 를 거치므로 한 프레임 더 쓴다(문자열·정수는 내장 호출). 원본 관측: 깊이 992 전체 기록, 993/994 는 JSON 1 000 545 바이트 prefix 후 실패(Markdown 은 완성), 995 이상은 출력 불변. 이 규칙은 지도 CLI 의 `assert_no_ranking`/JSON 쓰기에만 걸리며 다른 모드는 바뀌지 않는다. `ranking` 위반만 종료 3 이고 `RecursionError` 는 처리되지 않은 예외(종료 1)다. Markdown 의 `json.dumps` 는 C 인코더(한도 약 10 000)라 이 경로에서는 앞선 프레임 검사가 먼저 걸린다.
+3. **상수 내보내기**: `bench_reporting_api constants` 가 기존 `MEASUREMENT_CONFIG_TITLE`·`LITE_BENCH_TOOL`(및 lite 선언 문구 3개)도 낸다(새 리터럴 없음; 소비자 브리지는 이 명령에서 읽는다).
+4. **`repo_root` 자기 부모 경로(`//x`)**: 원본은 `.git` 을 못 찾은 채 끝나지 않는 반복이고 후보는 작업 디렉터리를 돌려준다. 이것은 **동치가 아니라 의도한 종료 보장**이며(root 의 전체 신뢰성 범위 기록) 정상적으로 `.git` 을 찾거나 못 찾는 일반 경로의 동작은 원본과 같다. 끝나지 않는 반복을 재현하지 않는다.
+
+검증: 원본 먼저 관측한 깊이 900~997 프로브 10개(`map.md`/`map.json` 바이트 포함)·독립 R9-I1 원본 1개(링크 대상 정확히 1000바이트, 위치 7, inode·링크 유지)·CLI 수준 표적 차분 300건(lone surrogate·깊은 dict/list/float 를 키·값·리스트 항목·doc 수준 필드에 배치)에서 바이트까지 같다. 회귀는 `checks/reporting_stream_cases.rs`(5)와 `json_stream` 단위 시험(3)이다.
+
+### R9 정정 2 — 닫기(flush) 실패의 우선순위
+
+지도 JSON 쓰기에서 덤프 실패와 닫기 실패가 함께 있을 때 이전 후보는 덤프 실패를 먼저 돌려줬다. 원본의 `with open(...)` 는 예외가 풀리는 동안 파일을 닫고, 그 닫기(flush) 실패가 앞선 덤프 오류를 **대체**한다. 그래서 인코딩 불가 chunk 앞부분이 버퍼에만 있고 닫을 때 `ENOSPC`(예: 가득 찬 장치)가 나면 최종 예외는 `UnicodeEncodeError` 가 아니라 `OSError: [Errno 28] No space left on device` 다. 이제 닫기는 덤프 성공·실패와 무관하게 호출되고 닫기 실패가 우선한다(`closed?` 후 `dumped?`). 추가 flush·타이머 이동·특수 경로는 없고, 일반 파일의 Unicode prefix·재귀 동작과 chunk 의미는 그대로다. 회귀: `checks/reporting_stream_cases.rs` 의 `a_close_failure_replaces_an_earlier_dump_failure_like_the_original`(surrogate 입력 + `/dev/full`)과 `a_plain_dump_to_a_full_disk_fails_with_the_same_close_error`(`/dev/full` 필요, 없으면 NOT_RUN 으로 실패).
+
+
+## R9 정본 통합 판정
+
+보고서·지도·envelope·인증서·벤치 명명 기능을 Rust CLI/단일 JSON transport로 실제 호출부에 연결했다.
+정본 offline build11 자체검사·fmt·release253(65 suites)+별도FD22·Clippy, 외부371API/91CLI, 독립3개
+및 close 오류2개와 recursion3개, 설치 bridge10개와 격리된 naming shim import가 PASS다.
+Git-index 소스508파일(Rust463+의존45)만 새 공백 경로로 옮긴 offline build11과 관련 Cargo5targets도 PASS다.
+첫 배포129는 sibling import/검사 사본 의존성 누락으로125/4 FAIL이었다. shim 로드경로와 lineage 자체검사
+closure를 교정하고 유효125개 및 hint 내부211개는 재사용, 영향3개 명령과 lineage 하위검사를 재실행해129항목을 충족했다.
+이는 두 번째 전체 배포 실행을 뜻하지 않는다. 앞선 실패 근거는 외부 수행기록에 남아 있다.
+
+사전 고정11교차round의 전체 값/반환/해제 성능은 full render36×200: Python7723.997222ns/
+Rust4724.098056ns=1.635021배, naming82×200:1840.642805ns/725.438659ns=2.537282배,
+실제 파일I/O25:15779.76ns/11740.12ns=1.344088배다. 실제 Bash CLI7의 round평균 중앙값은
+45.005490ms/21.932023ms=2.052045배이며 개별7개도 모두1배 이상이다. 각 호출 전체값·출력·종료·파일을 확인했다.
+함수66측정 뒤 CLI 임시부모 생성 누락으로 실행기가 중단돼 그66개를 모두 보존·재사용하고 CLI는 새 작업폴더에서 처음 수행했다.
+캐시·입력축소·측정경계 이동은 없으며, warm 전체반환 대조와 timed 오류 시 timing 거부를 유지한다.
+이 수치는 현재 로컬 경계의 결과이며 LLM·서빙·통계적 일반화 성과가 아니다.
+
+남은 소유자는 실제 Python campaign_init(S4)이며 그 비용도 CLI에 포함된다. S6 hint lineage가 쓰는
+기존 Python benchmark 문법은 소비자 이행 단계까지 명시적으로 남아 있다. retained reference 전체제거나
+Python 사용0건을 주장하지 않는다. repo_root의 self-parent 무한대기 종료는 의도된 신뢰성 차이로 따로 기록한다.
+전체 S1~S7·하네스·6프로필·실제LongE2E 수용은 계속 미완료다.

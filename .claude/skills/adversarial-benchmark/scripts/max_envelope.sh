@@ -146,7 +146,7 @@ done
 CONFIG="$CONFIG" TOPO="$TOPO" CFGYAML="$MAXDIR/original_config.yaml" EF="$EF" MANIFEST="$MANIFEST" \
 MAXDIR="$MAXDIR" SAFE_CEIL="${SAFE_CEIL:-}" SAFE_LEVELS="${SAFE_LEVELS[*]:-}" ORIG_LEN="${ORIG_LEN:-}" SDIR="$SDIR" python3 - <<'PY'
 import json, os, re, datetime, sys
-sys.path.insert(0, os.environ["SDIR"]); from doc_naming import gpu_key as _gpu_key
+sys.path.insert(0, os.environ["SDIR"]); from doc_naming_native import gpu_key as _gpu_key
 def read(p):
     try:
         with open(p, encoding="utf-8", errors="replace") as f: return f.read()
@@ -182,4 +182,4 @@ print("[max_envelope] max_index.json → %s (안전상한 max-model-len=%s · �
 PY
 
 echo "[max_envelope] DONE — 안전상한 max-model-len=${SAFE_CEIL:-없음}. MAX_INDEX=$MAXDIR/max_index.json"
-echo "[max_envelope] 다음: render_max_report.py --max-index $MAXDIR/max_index.json  (→ docs/benchmark/max_envelope_*.md)"
+echo "[max_envelope] 다음: bash \"$SDIR/render_max_report.sh\" --max-index $MAXDIR/max_index.json  (→ docs/benchmark/max_envelope_*.md)"

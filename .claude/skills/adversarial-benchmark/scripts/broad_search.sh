@@ -330,7 +330,7 @@ map)
   set +e; _stop; set -e
   MAP_ARGS=(--state "$STATE" --stop-json "$STOPJSON" --out-md "$OUT_MD")
   [ -n "$OUT_JSON" ] && MAP_ARGS+=(--out-json "$OUT_JSON")
-  python3 "$SDIR/render_sweep_map.py" "${MAP_ARGS[@]}"
+  bash "$SDIR/render_sweep_map.sh" "${MAP_ARGS[@]}"
   ;;
 
 cell)

@@ -199,7 +199,7 @@ def main() -> int:
            cp.returncode == 0 and "bench phase" not in cp.stderr, cp.stderr[-300:])
 
         # ── K5 발행기 음성대조 ────────────────────────────────────────────────────────────
-        pbr = str(sb.root / slr.AB / "publish_benchmark_record.py")
+        pbr = str(sb.root / slr.AB / "publish_benchmark_record.sh")
         good = raw() or {}
         for label, mut in (("판정 부재", lambda d: d.pop("lite_verdict", None)),
                            ("어휘 밖", lambda d: d.update(lite_verdict="ok")),
@@ -209,10 +209,10 @@ def main() -> int:
             p = sb.root / "bad_raw.json"
             p.write_text(json.dumps(bad), encoding="utf-8")
             clean_docs()
-            cp = sb.run([sys.executable, pbr, "--lite-raw-json", str(p)])
+            cp = sb.run(["bash", pbr, "--lite-raw-json", str(p)])
             ck("K5★ %s raw → 인증서 발행기 exit 3 · 인증서 0" % label, cp.returncode == 3 and sb.certs() == [],
                (cp.returncode, sb.certs(), cp.stderr[-300:]))
-        cp = sb.run([sys.executable, pbr, "--lite-raw-json", str(sb.raw_path()), "--sweep-index", "x.json"])
+        cp = sb.run(["bash", pbr, "--lite-raw-json", str(sb.raw_path()), "--sweep-index", "x.json"])
         ck("K5 --lite-raw-json 과 full 인자 혼합 → exit 2", cp.returncode == 2, cp.stderr[-200:])
 
     if failures:

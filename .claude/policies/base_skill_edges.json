@@ -964,7 +964,7 @@
     },
     {
       "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "adversarial-benchmark/scripts/render_report.py",
+      "callee": "adversarial-benchmark/scripts/render_report.sh",
       "phase": "verification_plane",
       "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
     },
@@ -1078,7 +1078,7 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/render_sweep_map.py",
+      "callee": "adversarial-benchmark/scripts/render_sweep_map.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
@@ -1630,7 +1630,7 @@
     },
     {
       "caller": ".claude/policies/runtime/doc_naming.py",
-      "callee": "adversarial-benchmark/scripts/doc_naming.py",
+      "callee": "adversarial-benchmark/scripts/doc_naming_native.py",
       "phase": "runtime_operational",
       "reason": "벤치 명명 SSOT 재수출 — 정본 모듈 객체를 그대로 다시 내보낸다(사본 ✗ · plan_26090410 P0.5b)"
     },
@@ -1687,6 +1687,18 @@
       "callee": "hint-publisher/scripts",
       "phase": "verification_plane",
       "reason": "이미지 Git 출처 회귀를 private hintlib.selftest_image_git_release 모듈로 실행하는 작업 디렉터리 — 공개 CLI 폐포를 보존하며 측정 digest·노드 소유·SHA/tag·격리·정리의 양·음성 대조를 호출한다(plan_26102904)"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "adversarial-benchmark/scripts/bench_reporting_api.sh",
+      "phase": "verification_plane",
+      "reason": "실제 native report 출력과 verdict-table 소비 파서 계약을 대조한다"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/bench_doc_naming.sh",
+      "phase": "verification_plane",
+      "reason": "Rust 벤치 명명 소유자의 실제 자체검사를 수행한다"
     }
   ]
 }

@@ -165,7 +165,7 @@ fn is_surrogate(code_point: u32) -> bool {
 /// Where `json.dump` stops when the document holds a lone surrogate: every string (key or value) is one chunk
 /// that `TextIOWrapper.write` encodes whole, so the file keeps everything before the opening quote of the first
 /// string that cannot be encoded. Returns that offset and the failure (positions are within the chunk).
-fn unencodable_chunk(points: &[u32]) -> Option<(usize, EncodeFailure)> {
+pub(crate) fn unencodable_chunk(points: &[u32]) -> Option<(usize, EncodeFailure)> {
     let surrogate = points.iter().position(|&point| is_surrogate(point))?;
     let quote = u32::from('"');
     let backslash = u32::from('\\');

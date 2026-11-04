@@ -234,7 +234,7 @@ if [ "$NO_PUBLISH" = 1 ]; then
   echo "[judge_bench] 인증서 발행 억제 — verdict=$_V authority=$_A (--no-publish${OUTDIR:+ · --out-dir=$OUTDIR 는 정본 판정 자리가 아니다})"
 elif [ "$_V" = "PASS" ] && [ "$_A" = "explicit" ]; then
   echo "[judge_bench] 인증서 자동 발행 — verdict=PASS · authority=explicit"
-  python3 "$SDIR/publish_benchmark_record.py" --sweep-index "$INDEX" --verdict-json "$OUT" \
+  bash "$SDIR/publish_benchmark_record.sh" --sweep-index "$INDEX" --verdict-json "$OUT" \
     || echo "[judge_bench] ⚠ 인증서 발행 실패 — 판정은 남았고 인증서만 없다(위 사유 참조)" >&2
 else
   # 음성정직: "발행 안 함" 은 결손이 아니라 판정 결과다. 그 사실이 로그에 남아야 나중에

@@ -1044,8 +1044,10 @@ def verify() -> dict:
         #   산문으로만 적으면 다음 편집이 조용히 정렬 한 줄을 넣는다.
         _run("benchmark_classify_cell_selftest", ["bash",
              ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh", "--self-test"], {0}),
-        _run("benchmark_sweep_map_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.py", "--self-test"], {0}),
+        _run("benchmark_sweep_map_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.sh", "--self-test"], {0}),
+        _run("benchmark_naming_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/bench_doc_naming.sh"], {0}),
         # full bench 반복 축의 **집행** (plan_26091407 §4.4 · §7 O4 · 2026-09-14 배선). 호출자 없는 자체검사는
         #   L1(산문)이다(위 선례). 무엇을 지키나: full 정의(`lite ∪ GuideLLM × 반복 ≥3`)와 강등 트리거(판정점 run 실패 ·
         #   스윕이 멈춘 자리의 블랙박스 kill 만 · 분산 ✗ · 포화 경계 클램프 ✗)는 sweep_bench 레벨 루프 → repeat_axis 집계 →

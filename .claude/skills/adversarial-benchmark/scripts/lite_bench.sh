@@ -319,18 +319,18 @@ case "$LITE_VERDICT" in
 esac
 if [ "$PUBLISH_REPORT" = "1" ]; then
   # 리포트는 판정과 무관하게 발행한다("왜 실패했나"도 사람이 본다 — full report 와 같은 규율). 인증서는 pass 만.
-  if REPORT_PATH="$(python3 "$REPO/.claude/skills/adversarial-benchmark/scripts/render_report.py" --lite-only --lite-raw-json "$RAW")"; then
+  if REPORT_PATH="$(bash "$REPO/.claude/skills/adversarial-benchmark/scripts/render_report.sh" --lite-only --lite-raw-json "$RAW")"; then
     echo "[lite_bench] 경량 리포트 발행 → $REPORT_PATH (mode: lite · lite_verdict=$LITE_VERDICT)"
   else
     echo "[lite_bench] ⚠ 경량 리포트 발행 실패(위 사유) — 측정 산출물은 남았다: RAW=$RAW" >&2
-    echo "[lite_bench]   원인을 고친 뒤 재측정 없이 다시 렌더할 수 있다: render_report.py --lite-only --lite-raw-json $RAW" >&2
+    echo "[lite_bench]   원인을 고친 뒤 재측정 없이 다시 렌더할 수 있다: bash \"$SDIR/render_report.sh\" --lite-only --lite-raw-json $RAW" >&2
     exit 5
   fi
   if [ "$LITE_RC" = 0 ]; then
-    if CERT_PATH="$(python3 "$REPO/.claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.py" --lite-raw-json "$RAW")"; then
+    if CERT_PATH="$(bash "$REPO/.claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.sh" --lite-raw-json "$RAW")"; then
       echo "[lite_bench] lite 등급 인증서 발행 → $CERT_PATH (bench_mode: lite · verdict: not_applicable · hint 발행 자격)"
     else
-      echo "[lite_bench] ⚠ lite 인증서 발행 실패(위 사유) — 재측정 없이: publish_benchmark_record.py --lite-raw-json $RAW" >&2
+      echo "[lite_bench] ⚠ lite 인증서 발행 실패(위 사유) — 재측정 없이: bash \"$SDIR/publish_benchmark_record.sh\" --lite-raw-json $RAW" >&2
       exit 5
     fi
   else

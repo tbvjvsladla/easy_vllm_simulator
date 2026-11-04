@@ -65,7 +65,7 @@ impl fmt::Display for LoadError {
 impl std::error::Error for LoadError {}
 
 /// Universal-newline translation of a text stream opened with `newline=None`.
-fn translate_newlines(points: Vec<u32>) -> PyStr {
+pub(crate) fn translate_newlines(points: Vec<u32>) -> PyStr {
     const CR: u32 = 0x0D;
     const LF: u32 = 0x0A;
     if !points.contains(&CR) {

@@ -36,6 +36,6 @@ max_envelope.sh <config> [--levels 131072,262144,393216,524288] --confirm-risk [
 
 ## 4. 산출물
 
-`max_envelope.sh` → `max_index.json` → `render_max_report.py` →
+`max_envelope.sh` → `max_index.json` → `render_max_report.sh` →
 `docs/benchmark/max_envelope_<YYMMDDHH>_<model>_<gpu>_<vllm>.md`(안전상한·레벨별 결과·절삭 로그 · **inform-only** 특성화 표시 ·
 판정 게이트 아님). single-node serve+smoke = 후속(현재 multi 우선).

@@ -5,7 +5,7 @@
   - 산문 문서(plan/devlog/testlog/request/checklist · simlog · report) 명명 = `.claude/skills/wiki-desk/src/doc_naming.ts`
     (TypeScript · wiki-desk 안 Python 0). 함수는 `node doc_naming.ts <함수> '<JSON 인자>'` 로 부르고, 정규식은
     `--patterns` 원문을 받아 같은 문자열로 컴파일한다(이름 그룹 `(?<x>` → `(?P<x>` 만 바꾼다).
-  - 벤치 명명(kst_tokens · gpu_key · bench_filename · scan_bench_dir · 예외 2종) = `adversarial-benchmark/scripts/doc_naming.py`
+  - 벤치 명명(kst_tokens · gpu_key · bench_filename · scan_bench_dir · 예외 2종) = Rust `bench_reporting_api` via `adversarial-benchmark/scripts/doc_naming_native.py`
     — 재수출한다(사본 ✗). TS 의 KST 변환과 이 벤치 kst_tokens 의 일치는 `--self-test` 가 교차검증한다.
 
 호출자: evidence_publisher.py · hint-publisher hintlib/lineage.py · upstream-version-watch native_multinode_serve.py.
@@ -24,7 +24,7 @@ from pathlib import Path
 
 _REPO = Path(__file__).resolve().parents[3]
 _TS = _REPO / ".claude" / "skills" / "wiki-desk" / "src" / "doc_naming.ts"
-_BENCH_NAMING_PATH = _REPO / ".claude" / "skills" / "adversarial-benchmark" / "scripts" / "doc_naming.py"
+_BENCH_NAMING_PATH = _REPO / ".claude" / "skills" / "adversarial-benchmark" / "scripts" / "doc_naming_native.py"
 _NODE_MAJOR_MIN = 24
 
 
@@ -34,7 +34,14 @@ def _load_bench_naming():
                           "substitute its own copy (plan_26090410 P0.5b)" % _BENCH_NAMING_PATH)
     spec = importlib.util.spec_from_file_location("_bench_doc_naming", _BENCH_NAMING_PATH)
     mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
+    # File-based consumers do not add the native bridge directory to their import path.
+    # Keep its sibling transport import local to this load; the imported module retains shared exception identity.
+    bridge_dir = str(_BENCH_NAMING_PATH.parent)
+    sys.path.insert(0, bridge_dir)
+    try:
+        spec.loader.exec_module(mod)
+    finally:
+        sys.path.remove(bridge_dir)
     return mod
 
 

@@ -1325,3 +1325,150 @@ mod tests {
         );
     }
 }
+
+/// Indices of the `render_report.py` actions.
+pub mod render_report_args {
+    pub const SWEEP_INDEX: usize = 1;
+    pub const VERDICT_JSON: usize = 2;
+    pub const LITE_ONLY: usize = 3;
+    pub const LITE_RAW_JSON: usize = 4;
+    pub const ROOFLINE_JSON: usize = 5;
+    pub const BENCH_MODE_JSON: usize = 6;
+    pub const OUT_DIR: usize = 7;
+    pub const STDOUT: usize = 8;
+}
+
+/// The original `render_report.py` parser.
+pub const RENDER_REPORT: Spec = Spec {
+    prog: "render_report.py",
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            ..PLAIN
+        },
+        text_option("--sweep-index", false),
+        text_option("--verdict-json", false),
+        flag("--lite-only"),
+        text_option("--lite-raw-json", false),
+        text_option("--roofline-json", false),
+        text_option("--bench-mode-json", false),
+        text_option("--out-dir", false),
+        flag("--stdout"),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--sweep-index", render_report_args::SWEEP_INDEX),
+        ("--verdict-json", render_report_args::VERDICT_JSON),
+        ("--lite-only", render_report_args::LITE_ONLY),
+        ("--lite-raw-json", render_report_args::LITE_RAW_JSON),
+        ("--roofline-json", render_report_args::ROOFLINE_JSON),
+        ("--bench-mode-json", render_report_args::BENCH_MODE_JSON),
+        ("--out-dir", render_report_args::OUT_DIR),
+        ("--stdout", render_report_args::STDOUT),
+    ],
+    layouts: crate::help_layouts_render_report::LAYOUTS,
+};
+
+/// Indices of the `render_sweep_map.py` actions.
+pub mod sweep_map_args {
+    pub const STATE: usize = 1;
+    pub const STOP_JSON: usize = 2;
+    pub const OUT_MD: usize = 3;
+    pub const OUT_JSON: usize = 4;
+    pub const SELF_TEST: usize = 5;
+}
+
+/// The original `render_sweep_map.py` parser.
+pub const RENDER_SWEEP_MAP: Spec = Spec {
+    prog: "render_sweep_map.py",
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            ..PLAIN
+        },
+        text_option("--state", false),
+        text_option("--stop-json", false),
+        text_option("--out-md", false),
+        text_option("--out-json", false),
+        flag("--self-test"),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--state", sweep_map_args::STATE),
+        ("--stop-json", sweep_map_args::STOP_JSON),
+        ("--out-md", sweep_map_args::OUT_MD),
+        ("--out-json", sweep_map_args::OUT_JSON),
+        ("--self-test", sweep_map_args::SELF_TEST),
+    ],
+    layouts: crate::help_layouts_render_sweep_map::LAYOUTS,
+};
+
+/// Indices of the `render_max_report.py` actions.
+pub mod max_report_args {
+    pub const MAX_INDEX: usize = 1;
+    pub const OUT_DIR: usize = 2;
+    pub const STDOUT: usize = 3;
+}
+
+/// The original `render_max_report.py` parser (`--max-index` is required).
+pub const RENDER_MAX_REPORT: Spec = Spec {
+    prog: "render_max_report.py",
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            ..PLAIN
+        },
+        text_option("--max-index", true),
+        text_option("--out-dir", false),
+        flag("--stdout"),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--max-index", max_report_args::MAX_INDEX),
+        ("--out-dir", max_report_args::OUT_DIR),
+        ("--stdout", max_report_args::STDOUT),
+    ],
+    layouts: crate::help_layouts_render_max_report::LAYOUTS,
+};
+
+/// Indices of the `publish_benchmark_record.py` actions.
+pub mod publish_args {
+    pub const SWEEP_INDEX: usize = 1;
+    pub const VERDICT_JSON: usize = 2;
+    pub const LITE_RAW_JSON: usize = 3;
+    pub const OUT_DIR: usize = 4;
+    pub const STDOUT: usize = 5;
+}
+
+/// The original `publish_benchmark_record.py` parser.
+pub const PUBLISH_BENCHMARK_RECORD: Spec = Spec {
+    prog: "publish_benchmark_record.py",
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            ..PLAIN
+        },
+        text_option("--sweep-index", false),
+        text_option("--verdict-json", false),
+        text_option("--lite-raw-json", false),
+        text_option("--out-dir", false),
+        flag("--stdout"),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--sweep-index", publish_args::SWEEP_INDEX),
+        ("--verdict-json", publish_args::VERDICT_JSON),
+        ("--lite-raw-json", publish_args::LITE_RAW_JSON),
+        ("--out-dir", publish_args::OUT_DIR),
+        ("--stdout", publish_args::STDOUT),
+    ],
+    layouts: crate::help_layouts_publish_benchmark_record::LAYOUTS,
+};

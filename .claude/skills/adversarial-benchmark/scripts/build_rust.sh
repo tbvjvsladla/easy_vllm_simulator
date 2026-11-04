@@ -50,3 +50,7 @@ CLASSIFY_CELL_BIN="$CRATE/target/release/classify_cell" \
   CLASSIFY_CELL_SCRIPTS_DIR="$SDIR" \
   CLASSIFY_CELL_ROLE_ADAPTER="$SDIR/classify_cell_role_query.py" \
   bash "$SDIR/classify_cell.sh" --self-test
+RENDER_SWEEP_MAP_BIN="$CRATE/target/release/render_sweep_map" \
+  bash "$SDIR/render_sweep_map.sh" --self-test
+BENCH_DOC_NAMING_BIN="$CRATE/target/release/bench_doc_naming" \
+  bash "$SDIR/bench_doc_naming.sh"
