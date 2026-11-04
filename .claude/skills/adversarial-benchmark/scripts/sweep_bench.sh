@@ -1304,11 +1304,11 @@ PY
 #     아직 회수되지 않았으면 대조는 not_scanned 로 **기재**된다 — 회수 뒤 `--reassemble-only` 로 이 기록을 다시 쓴다.
 _BM_ARGS=(--sweep-index "$SWEEPDIR/sweep_index.json" --events-from-repo "$REPO" --manifest "$MANIFEST" --write-bench-mode)
 [ -n "$XNODE_TOL" ] && _BM_ARGS+=(--cross-node-tolerance-s "$XNODE_TOL" --cross-node-tolerance-source "$XNODE_TOL_SRC")
-if _BM_OUT="$(python3 "$SDIR/classify_cell.py" "${_BM_ARGS[@]}")"; then
+if _BM_OUT="$(bash "$SDIR/classify_cell.sh" "${_BM_ARGS[@]}")"; then
   printf '%s' "$_BM_OUT" | python3 -c '
 import json, sys
 sys.path.insert(0, sys.argv[1])
-from classify_cell import events_scan_summary
+from classify_cell_native import events_scan_summary
 d = json.load(sys.stdin)
 print("[sweep_bench] bench_mode=%s · 사유 %s · 대조 %s · 기록 %s\n[sweep_bench]   출처: %s\n[sweep_bench]   %s" % (
       d.get("bench_mode"), d.get("downgrade_reason"), d.get("downgrade_correlation"), d.get("record_path"),

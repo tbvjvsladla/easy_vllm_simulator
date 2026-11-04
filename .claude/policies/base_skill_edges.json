@@ -916,7 +916,7 @@
     },
     {
       "caller": ".claude/policies/runtime/evidence_publisher.py",
-      "callee": "adversarial-benchmark/scripts/classify_cell.py",
+      "callee": "adversarial-benchmark/scripts/classify_cell_native.py",
       "phase": "runtime_operational",
       "reason": "강등 어휘(DOWNGRADE_REASONS·bench_mode)의 단일 소유자에서 늦게 적재 — 적재 실패는 fail-closed"
     },
@@ -1054,7 +1054,7 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/classify_cell.py",
+      "callee": "adversarial-benchmark/scripts/classify_cell.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },

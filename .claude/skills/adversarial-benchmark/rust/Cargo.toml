@@ -76,6 +76,18 @@ path = "src/bin/bench_preset_api.rs"
 name = "bench_preset_bench"
 path = "src/bin/bench_preset_bench.rs"
 
+[[bin]]
+name = "classify_cell"
+path = "src/bin/classify_cell.rs"
+
+[[bin]]
+name = "classify_cell_api"
+path = "src/bin/classify_cell_api.rs"
+
+[[bin]]
+name = "classify_cell_bench"
+path = "src/bin/classify_cell_bench.rs"
+
 [[test]]
 name = "oracle_cases"
 path = "checks/oracle_cases.rs"
@@ -152,6 +164,14 @@ rustix = { version = "1", default-features = false, features = ["std", "termios"
 
 [build-dependencies]
 serde_json = "1"
+
+[[test]]
+name = "classify_cell_cases"
+path = "checks/classify_cell_cases.rs"
+
+[[test]]
+name = "classify_cell_files"
+path = "checks/classify_cell_files.rs"
 
 [[test]]
 name = "yaml_depth"

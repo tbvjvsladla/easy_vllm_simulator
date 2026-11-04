@@ -81,6 +81,12 @@ REPO = Path(__file__).resolve().parents[4]
 AB = ".claude/skills/adversarial-benchmark"
 TN = ".claude/skills/terraforming_node/scripts"
 COPIES = (
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh",
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell_api.sh",
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell_native.py",
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell_role_query.py",
+    ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell",
+    ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell_api",
     ".claude/skills/adversarial-benchmark/rust/target/release/roofline",
     ".claude/skills/adversarial-benchmark/rust/target/release/verdict_rule",
     f"{AB}/scripts/sweep_bench.sh", f"{AB}/scripts/repeat_axis.py", f"{AB}/scripts/parse_guidellm.sh", f"{AB}/scripts/parse_guidellm_native.py",
@@ -347,7 +353,7 @@ def main() -> int:
                 evf = Path(td) / ("events_%s.jsonl" % cfg)
                 evf.write_text("".join(json.dumps(e) + "\n" for e in events), encoding="utf-8")
                 args += ["--events", str(evf)]
-            cp_ = sb.py("classify_cell.py", *args)
+            cp_ = sb.run(["bash", str(sb.sdir / "classify_cell.sh"), *args])
             try:
                 return json.loads(cp_.stdout), cp_
             except ValueError:

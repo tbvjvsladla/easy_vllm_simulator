@@ -227,6 +227,82 @@ pub const LITE_METRICS: Spec = Spec {
     layouts: crate::help_layouts_lite_metrics::LAYOUTS,
 };
 
+/// Indices of the `classify_cell.py` actions.
+pub mod classify_args {
+    pub const SERVE_RC: usize = 1;
+    pub const MEASURE_RC: usize = 2;
+    pub const STARTED_UTC: usize = 3;
+    pub const ENDED_UTC: usize = 4;
+    pub const EVENTS: usize = 5;
+    pub const EVENTS_FROM_REPO: usize = 6;
+    pub const TOPOLOGY: usize = 7;
+    pub const MANIFEST: usize = 8;
+    pub const TOLERANCE_S: usize = 9;
+    pub const CROSS_NODE_TOLERANCE_S: usize = 10;
+    pub const CROSS_NODE_TOLERANCE_SOURCE: usize = 11;
+    pub const SWEEP_INDEX: usize = 12;
+    pub const WRITE_BENCH_MODE: usize = 13;
+    pub const LITE_RAW: usize = 14;
+    pub const JSON: usize = 15;
+    pub const SELF_TEST: usize = 16;
+}
+
+/// The original `classify_cell.py` parser: the cell-closing and bench-mode options, every one optional (the program
+/// itself decides which are required, after parsing).
+pub const CLASSIFY_CELL: Spec = Spec {
+    prog: "classify_cell.py",
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            ..PLAIN
+        },
+        number("--serve-rc", Conversion::Int),
+        text_option("--measure-rc", false),
+        text_option("--started-utc", false),
+        text_option("--ended-utc", false),
+        append_option("--events"),
+        text_option("--events-from-repo", false),
+        choice("--topology", &["single", "multi"]),
+        text_option("--manifest", false),
+        number("--tolerance-s", Conversion::Int),
+        number("--cross-node-tolerance-s", Conversion::Int),
+        text_option("--cross-node-tolerance-source", false),
+        text_option("--sweep-index", false),
+        flag("--write-bench-mode"),
+        text_option("--lite-raw", false),
+        flag("--json"),
+        flag("--self-test"),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--serve-rc", classify_args::SERVE_RC),
+        ("--measure-rc", classify_args::MEASURE_RC),
+        ("--started-utc", classify_args::STARTED_UTC),
+        ("--ended-utc", classify_args::ENDED_UTC),
+        ("--events", classify_args::EVENTS),
+        ("--events-from-repo", classify_args::EVENTS_FROM_REPO),
+        ("--topology", classify_args::TOPOLOGY),
+        ("--manifest", classify_args::MANIFEST),
+        ("--tolerance-s", classify_args::TOLERANCE_S),
+        (
+            "--cross-node-tolerance-s",
+            classify_args::CROSS_NODE_TOLERANCE_S,
+        ),
+        (
+            "--cross-node-tolerance-source",
+            classify_args::CROSS_NODE_TOLERANCE_SOURCE,
+        ),
+        ("--sweep-index", classify_args::SWEEP_INDEX),
+        ("--write-bench-mode", classify_args::WRITE_BENCH_MODE),
+        ("--lite-raw", classify_args::LITE_RAW),
+        ("--json", classify_args::JSON),
+        ("--self-test", classify_args::SELF_TEST),
+    ],
+    layouts: crate::help_layouts_classify_cell::LAYOUTS,
+};
+
 /// Indices of the `parse_guidellm.py` actions.
 pub mod guidellm_args {
     pub const BENCHMARKS_JSON: usize = 1;

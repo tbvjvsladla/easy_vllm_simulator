@@ -610,7 +610,7 @@ print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str
              --events-from-repo "$REPO" --topology "$TOPO" --manifest "$REPO/output/$TOPO/manifest.yaml")
   [ -n "$XNODE_TOL$XNODE_TOL_SRC" ] && _CLS_ARGS+=(--cross-node-tolerance-s "$XNODE_TOL" --cross-node-tolerance-source "$XNODE_TOL_SRC")
   [ -n "$LITE_RAW_CELL" ] && _CLS_ARGS+=(--lite-raw "$LITE_RAW_CELL")
-  CLS="$(python3 "$SDIR/classify_cell.py" "${_CLS_ARGS[@]}")"
+  CLS="$(bash "$SDIR/classify_cell.sh" "${_CLS_ARGS[@]}")"
 
   CELL_KEY="$CELL_KEY" CONFIG="$CONFIG" CITATION="$CITATION" SWEEPDIR="$SWEEPDIR" REPO="$REPO" \
   CLS="$CLS" ENDED="$ENDED" STARTED="$STARTED" SERVE_FAILED_REASON="$SERVE_FAILED_REASON" \
@@ -649,7 +649,7 @@ def _bench_mode_fields():
         return dict({k: None for k in keys}, bench_mode_source=(
             "not_applicable(cell_outcome=%s — 측정이 성립하지 않은 셀에는 bench_mode 가 없다)" % cls.get("cell_outcome")))
     sys.path.insert(0, os.environ["SDIR"])
-    import classify_cell as _cc
+    import classify_cell_native as _cc
     record, status = _cc.read_bench_mode_record(os.path.join(sweepdir, "sweep_index.json"), index)
     if record is None:
         return dict({k: None for k in keys}, bench_mode_source="not_evaluated(판정 기록 %s)" % status)

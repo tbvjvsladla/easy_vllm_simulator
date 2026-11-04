@@ -47,7 +47,8 @@ REPO = Path(__file__).resolve().parents[4]
 AB = ".claude/skills/adversarial-benchmark/scripts"
 COPIES = ("lite_bench.sh", "lite_metrics.py", "render_report.py", "classify_cell.py", "doc_naming.py", "repeat_axis.py",
           "repeat_axis.sh", "repeat_axis_api.sh", "repeat_axis_native.py", "repeat_axis_owner_query.py",
-          "publish_benchmark_record.py", "lite_metrics.sh", "lite_metrics_api.sh", "lite_metrics_native.py")
+          "publish_benchmark_record.py", "lite_metrics.sh", "lite_metrics_api.sh", "lite_metrics_native.py",
+          "classify_cell.sh", "classify_cell_api.sh", "classify_cell_native.py", "classify_cell_role_query.py")
 SHIM_SENTINEL = "selftest-lite-report-shim"
 CFG = "fx-lite"
 MEASURED_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -117,7 +118,7 @@ class Sandbox:
         shutil.copy2(REPO / native_rel, native_dst)
         native_api_rel = ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis_api"
         shutil.copy2(REPO / native_api_rel, self.root / native_api_rel)
-        for native_name in ("lite_metrics", "lite_metrics_api"):
+        for native_name in ("lite_metrics", "lite_metrics_api", "classify_cell", "classify_cell_api"):
             rel = ".claude/skills/adversarial-benchmark/rust/target/release/" + native_name
             shutil.copy2(REPO / rel, self.root / rel)
         _write(self.root / ".claude/skills/terraforming_node/scripts/manifest_contract.py",
@@ -183,7 +184,7 @@ def main() -> int:
         return 1
     rbs = _load("_lite_rbs", REPO / ".claude/skills/hint-publisher/scripts/render_bench_section.py")
     rr = _load("_lite_render_report", SDIR / "render_report.py")
-    cc = _load("_lite_classify_cell", SDIR / "classify_cell.py")
+    cc = _load("_lite_classify_cell", SDIR / "classify_cell_native.py")
     dn = _load("_lite_doc_naming", SDIR / "doc_naming.py")
     ep = _load("_lite_evidence_publisher", REPO / ".claude/policies/runtime/evidence_publisher.py")
 

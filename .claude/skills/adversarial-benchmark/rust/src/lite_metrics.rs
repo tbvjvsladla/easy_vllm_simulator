@@ -327,13 +327,13 @@ fn python_float_sum(parts: &[f64]) -> f64 {
 // ── bench JSON ────────────────────────────────────────────────────────────────────────
 
 /// What `open(path)` is asked to open: a path, or an inherited file descriptor (an `int`).
-enum OpenTarget {
+pub(crate) enum OpenTarget {
     Path(PyStr),
     Descriptor(i32),
 }
 
 /// The checks `open(path, ...)` makes of its argument before it touches a file.
-fn open_target(path: &PyValue) -> Result<OpenTarget, Failure> {
+pub(crate) fn open_target(path: &PyValue) -> Result<OpenTarget, Failure> {
     let not_a_path = |value: &PyValue| {
         failure(
             "TypeError",
@@ -379,7 +379,7 @@ fn open_target(path: &PyValue) -> Result<OpenTarget, Failure> {
 /// never name the runner's own descriptors). The check and the take-over are two steps, so a concurrent close
 /// between them is exactly the use this contract excludes. The number is consumed once: the drop of the `File`
 /// closes it.
-fn read_descriptor(descriptor: i32) -> std::io::Result<Vec<u8>> {
+pub(crate) fn read_descriptor(descriptor: i32) -> std::io::Result<Vec<u8>> {
     use std::io::Read;
     use std::os::fd::FromRawFd;
     match std::fs::metadata(format!("/proc/self/fd/{descriptor}")) {

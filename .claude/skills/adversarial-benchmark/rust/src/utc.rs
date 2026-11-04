@@ -606,6 +606,52 @@ fn ordinal_to_ymd(ordinal: i64) -> (i64, i64, i64) {
     (year, month, n - preceding + 1)
 }
 
+/// Why a timestamp text did not become an instant, for callers that word their own errors (`classify_cell._utc`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum InstantFailure {
+    /// Not a `str`, or nothing but whitespace.
+    NotText,
+    /// `datetime.fromisoformat` raised `ValueError` with this `str(exception)`.
+    Unreadable(String),
+    /// A well-formed text without a UTC offset (a naive `datetime`).
+    NoTimezone,
+    /// `astimezone(timezone.utc)` left years 1..9999 (`OverflowError: date value out of range`).
+    OutOfRange,
+}
+
+/// `datetime.fromisoformat(text.strip()[:-1] + "+00:00" if it ends with "Z" else ...).astimezone(timezone.utc)`
+/// with the failure kinds kept apart. This is the same parse as [`parse_utc`] (same grammar, same `ValueError` text);
+/// only the wording around it is the caller's.
+pub fn parse_instant(value: &PyValue) -> Result<UtcInstant, InstantFailure> {
+    let PyValue::Str(text) = value.peel() else {
+        return Err(InstantFailure::NotText);
+    };
+    let mut stripped = text.strip();
+    if stripped.is_empty() {
+        return Err(InstantFailure::NotText);
+    }
+    if stripped.ends_with_code_point('Z' as u32) {
+        let mut points = stripped.code_points().to_vec();
+        points.pop();
+        points.extend("+00:00".chars().map(u32::from));
+        stripped = PyStr::from_code_points(points);
+    }
+    let parsed = parse_iso_datetime(&stripped).map_err(InstantFailure::Unreadable)?;
+    let Some(offset_micros) = parsed.offset_micros else {
+        return Err(InstantFailure::NoTimezone);
+    };
+    UtcInstant::from_micros(parsed.local_micros() - offset_micros).ok_or(InstantFailure::OutOfRange)
+}
+
+impl UtcInstant {
+    /// `self + timedelta(microseconds=delta_micros)`; `None` when the result leaves years 1..9999
+    /// (`OverflowError: date value out of range`).
+    pub fn shifted_by_micros(&self, delta_micros: i128) -> Option<UtcInstant> {
+        let moved = i128::from(self.micros_since_origin).checked_add(delta_micros)?;
+        UtcInstant::from_micros(i64::try_from(moved).ok()?)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

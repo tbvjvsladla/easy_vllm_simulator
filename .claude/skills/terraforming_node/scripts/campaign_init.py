@@ -4454,10 +4454,13 @@ def _selftest() -> int:
         #    분류기가 내는 값을 writer 가 모르면 셀 기록이 통째로 사라진다. 실제로 그랬다.
         _cc = REPO_ROOT.parent if False else None
         _cc_path = (Path(__file__).resolve().parents[2] / "adversarial-benchmark" / "scripts"
-                    / "classify_cell.py")
+                    / "classify_cell_native.py")
         if _cc_path.is_file():
-            _src = _cc_path.read_text(encoding="utf-8")
-            _vocab = set(re.findall(r'^OUTCOME_[A-Z_]+\s*=\s*"([a-z_]+)"', _src, re.M))
+            import importlib.util as _cc_iu
+            _cc_spec = _cc_iu.spec_from_file_location("_campaign_classify_native", _cc_path)
+            _cc_mod = _cc_iu.module_from_spec(_cc_spec)
+            _cc_spec.loader.exec_module(_cc_mod)
+            _vocab = {getattr(_cc_mod, name) for name in vars(_cc_mod) if name.startswith("OUTCOME_")}
             ck("★분류기 어휘가 writer 어휘의 부분집합이다(갈라지면 셀 기록이 사라진다)",
                bool(_vocab) and _vocab <= set(CELL_OUTCOMES))
         else:

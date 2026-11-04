@@ -86,7 +86,18 @@ def main():
     # E② 배선(2026-09-29 · plan_26092923_58_27) — ② 신호가 셀 상태·explorer cap 까지 닿는 사슬의 각 홉이 실재한다.
     #   판정 읽기는 모든 홉이 소유자 규칙(read_lite_verdict) 하나를 쓴다(값을 다시 판정하지 않는다).
     bsearch = read("broad_search.sh") or ""
-    ccell = read("classify_cell.py") or ""
+    ccell = read("classify_cell_native.py") or ""
+    check("E② native 분류기 Python 호출 경로가 존재한다", bool(ccell))
+    # The classifier rule and CLI now live in the installed Rust owner.
+    for _name in ("classify_cell.rs", "classify_cell_cli.rs", "argv.rs"):
+        _path = os.path.join(os.path.dirname(SDIR), "rust", "src", _name)
+        try:
+            with open(_path, encoding="utf-8") as _handle:
+                _source = _handle.read()
+        except OSError:
+            _source = ""
+        check("E② native 분류기 소유 소스 존재: %s" % _name, bool(_source))
+        ccell += "\n" + _source
     skills = os.path.dirname(os.path.dirname(SDIR))
 
     def _sk(rel):

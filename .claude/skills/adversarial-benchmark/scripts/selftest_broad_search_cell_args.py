@@ -37,6 +37,12 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[4]
 AB = ".claude/skills/adversarial-benchmark/scripts"
 COPIES = (
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh",
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell_api.sh",
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell_native.py",
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell_role_query.py",
+    ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell",
+    ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell_api",
     ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.sh",
     ".claude/skills/adversarial-benchmark/scripts/parse_guidellm_native.py",
     ".claude/skills/adversarial-benchmark/rust/target/release/parse_guidellm",

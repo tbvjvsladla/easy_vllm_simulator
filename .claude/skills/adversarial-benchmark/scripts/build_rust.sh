@@ -45,3 +45,8 @@ BENCH_PRESET_BIN="$CRATE/target/release/bench_preset" \
 LITE_METRICS_API_BIN="$CRATE/target/release/lite_metrics_api" \
   LITE_METRICS_FIXTURE="$SDIR/../fixtures/lite_raw_d1_connection_refused.json" \
   bash "$SDIR/lite_metrics_api.sh" self-test
+CLASSIFY_CELL_BIN="$CRATE/target/release/classify_cell" \
+  CLASSIFY_CELL_API_BIN="$CRATE/target/release/classify_cell_api" \
+  CLASSIFY_CELL_SCRIPTS_DIR="$SDIR" \
+  CLASSIFY_CELL_ROLE_ADAPTER="$SDIR/classify_cell_role_query.py" \
+  bash "$SDIR/classify_cell.sh" --self-test

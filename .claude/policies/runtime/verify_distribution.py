@@ -1042,8 +1042,8 @@ def verify() -> dict:
         # 광의의 탐색 결정론 3종 (CP6). 셀 종결 분류·지도 렌더러가 각각 음성 사례를 갖는다.
         #   특히 render_sweep_map 의 R8~R10 은 **순위 금지**를 산문이 아니라 결정론으로 지킨다 —
         #   산문으로만 적으면 다음 편집이 조용히 정렬 한 줄을 넣는다.
-        _run("benchmark_classify_cell_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/classify_cell.py", "--self-test"], {0}),
+        _run("benchmark_classify_cell_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh", "--self-test"], {0}),
         _run("benchmark_sweep_map_selftest", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.py", "--self-test"], {0}),
         # full bench 반복 축의 **집행** (plan_26091407 §4.4 · §7 O4 · 2026-09-14 배선). 호출자 없는 자체검사는

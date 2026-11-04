@@ -68,7 +68,7 @@ def _bench_mode_view(index, record, record_status):
     # 대조 대상 노드별 사실(2026-09-14 · ⑧ 분석 발견 T1) — 서술은 어휘 소유자(classify_cell)가 만든다. `not_scanned`·
     #   `unavailable` 은 "사살 없음" 이 아니라 "보지 못했음" 이며 강등 트리거도 아니다(기재 · 사용자 결정 Q3·Q7).
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from classify_cell import events_scan_summary
+    from classify_cell_native import events_scan_summary
     scope = events_scan_summary(record.get("events_scan"))
     # 표지는 bench_mode 행 전체에 붙는다(강등 행도 — lite·run_failed 이면서 대조 not_scanned 일 수 있다 · 2026-09-14 리뷰 정정).
     unseen = (" · ⚠ **대조 불가**(보지 못했음 — 사살 없음이 아니다 · 강등 트리거 아님 · 기재)"
@@ -177,7 +177,7 @@ def measurement_config_section(values):
 def full_measurement_config(index, bench_mode_record, bench_mode_status):
     """full 스윕 산출물 → 측정 구성 값. bench_mode 의 권위는 classify_cell 판정 기록이다(여기서 다시 판정 ✗)."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from classify_cell import bench_mode_kind
+    from classify_cell_native import bench_mode_kind
     meta = index.get("meta") or {}
     rep = index.get("repetition") if isinstance(index.get("repetition"), dict) else {}
     rec = bench_mode_record if isinstance(bench_mode_record, dict) else None
@@ -503,7 +503,7 @@ def lite_identity(raw, environ=None):
 def lite_measurement_config():
     """선언된 lite-only 셀의 측정 구성 값. bench_mode 기록의 **모양**은 classify_cell(어휘 소유자)이 만든다."""
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from classify_cell import bench_mode_kind, declared_lite_record
+    from classify_cell_native import bench_mode_kind, declared_lite_record
     rec = declared_lite_record(LITE_DECLARED_DETAIL)
     return {"bench_mode": rec["bench_mode"], "bench_mode_kind": bench_mode_kind(rec),
             "bench_mode_source": rec["bench_mode_source"],
@@ -641,7 +641,7 @@ def main():
     # 발행이고, 파생 기록의 결손을 발행 실패로 격상하지 않는다(리뷰 정정). 사람이 **명시**한 경로가 그러면 인자
     # 오류라 exit 2 다.
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    from classify_cell import read_bench_mode_record
+    from classify_cell_native import read_bench_mode_record
     bm_record, bm_status = read_bench_mode_record(a.sweep_index, index, a.bench_mode_json)
     if a.bench_mode_json and bm_record is None:
         sys.stderr.write("[render_report] ERROR --bench-mode-json 을 쓸 수 없다: %s\n" % bm_status)

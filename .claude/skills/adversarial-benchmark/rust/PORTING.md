@@ -728,3 +728,59 @@ libtest 배너가 리디렉션된 stdout을 오염시키지 않는다. 자식은
 품질 후 고정11교차round pure92×200: Python490.530924ns/Rust273.985761ns=1.790352배. 실제읽기21:12777.047619ns/6531ns=1.956369배. 실제BashCLI6의 round평균중앙값26.173297ms/4.078241ms=6.417791배. 개별 정상·판정5개는3.77~4.85배, raw배열 오류1개는15.16배이며 오류traceback프레임 전문은 비교범위밖이다. 집계를 모든 정상경로의 개선으로 확대하지 않는다. 로컬 표본이고 실제서빙·LLM·통계적 우월성 주장은 아니다.
 
 이 연결 단위는 CONNECTED_CORE_VERIFIED이며 전체 Rust/물리노드/프로필/LongE2E 수용은 아직 아니다.
+
+## R8 셀 분류(`classify_cell`) 이행 — 후보 기록 (정본 적용 전)
+
+상태: **후보 변환·자체검사 COMPLETE(아래 표), 정본 연결·독립 검증·전체 배포·성능은 NOT_RUN(root 소유)**. 원본은 head `831068cb5777798cc8209374ecb42e0657d671a4` 의 `classify_cell.py` 1515줄(자체검사 83 포함) 전체다. 이 후보는 6프로필 평가·전체 과업 완료 선언이 아니다. 후속 교정 2회(역할 소유자 전송·정수 한도 상속, 아래 R8.2) 반영본이다.
+
+### R8.1 원본 → Rust 대응
+
+| 원본 | Rust |
+|---|---|
+| 상수(`OUTCOME_*`·`KILL_EVENT_KINDS`·`BENCH_MODE_*`·`DOWNGRADE_*`·`CORRELATION_*`·`NODE_SCAN_*`·`LITE_VOID_REASONS`…) | `classify_cell` 상수, `classify_cell_api constants` 가 한 JSON 으로 노출 |
+| `classify` · `_miss_source` | `classify` · `miss_source` (임의 JSON 값 인자: 원본 동적 타이핑의 `TypeError`/`KeyError`/`AttributeError` 문구까지) |
+| `kill_events_in_window` · `_newest_event_ts` · `correlate_nodes` · `_utc` · `_iso` | 같은 이름. 시각은 `utc::UtcInstant`(마이크로초·타임존·`astimezone` 범위), 허용오차는 `pydyn::timedelta_seconds_micros`(CPython `timedelta(seconds=…)` 생성 규칙: int/bool 정확, float 반올림, 범위 `OverflowError`), `datetime` 이 아닌 값은 `Moment::Other` 로 사용 시점에 Python 연산 `TypeError` |
+| `events_scan_summary` · `bench_mode_kind` · `declared_lite_record` · `_bench_mode_record` | 같은 이름(`BenchModeFields`) |
+| `bench_mode_record_path` · `read_bench_mode_record` · `write_bench_mode_record` | 같은 이름. 쓰기 = `mkstemp` 동형(0600·무작위 이름) → `json.dump(indent=2)` **청크 단위** 인코딩(짝 없는 서로게이트의 위치 = 그 청크 안 위치) → `os.replace`, 실패 시 임시 파일 제거 |
+| `read_cell_lite` · `_read_events` · `scan_node_events` | 같은 이름. glob 은 `os.path`/`fnmatch`/`glob` 이식(`ospath`: 경로·노드 이름의 `[`·`*`·`?` 는 패턴, 숨김·디렉터리 제외, 정렬) |
+| `classify_bench_mode` | 같은 이름. 반복 요약·판정점 조건 = 기존 Rust `repeat_axis::{summarize, repetition_established}`, 도구 토큰 = `guidellm::BENCH_TOOL`, lite 판정 어휘 = `lite_metrics::read_lite_verdict` 를 **직접** 호출(규칙 복제 0, Python 폴백 0) |
+| `events_node_plan` · `resolve_self_node` · `_node_identity_resolver` · `_node_role_contract` | `events_node_plan` · `Owners::{resolve_self_node, node_identity_resolver, open_role_contract}` (아래 R8.2) |
+| `main`(argparse 17옵션 · 두 모드) | `classify_cell_cli::run` + `argv::CLASSIFY_CELL`(폭별 148 레이아웃 캡처 `help_layouts_classify_cell.rs`) |
+| `_self_test`(83 검사) | `classify_cell_selftest`(원본 점검을 **실제 연산으로** 이식 · 이름은 원본 AST 에서 추출한 `classify_cell_selftest_names`) |
+
+외부 표면: 옛 `classify_cell`(원본 CLI 만) · `classify_cell_api`(`evaluate-jsonl` · `constants` · `self-test` · `native-help`; 행 `{id,operation,arguments}`, 선택 `arguments_json`·`result_json`; 경고가 있으면 행에 `"stderr"`; **datetime 은 `{"datetime_utc": ISO}`** 로 전송) · `classify_cell_bench`(인자 준비만 타이머 밖, 함수 본문·파일 읽기/쓰기/정리·소유자 질의·반환/해제가 안; 캐시·사례 인식 없음).
+
+### R8.2 소유자 경계(OPEN_S3) — 규칙 복제 없음
+
+* 설치 위치: 원본은 `__file__` 로 소유자를 찾았다. native 는 `CLASSIFY_CELL_SCRIPTS_DIR`(없으면 `…/adversarial-benchmark/rust/target/<profile>/` 설치 배치, 그다음 `EASY_VLLM_SOURCE_ROOT`)를 `abspath` 로 정규화해 같은 상대 경로(`../../terraforming_node/scripts/…`, 런타임 배달본 `../../../runtime/node_blackbox/…`)를 쓴다. 호출자 cwd 는 쓰지 않는다. 미설정 + 소유자가 필요한 연산 = 이름 있는 `ClassifyCellConfigurationError`(침묵 "부재" 아님).
+* `node_identity.sh`: **실제** `bash <resolver> --resolve --repo REPO` 를 원본과 같은 60초 한도·`text=True` 의미로 실행하고, 원본 실패 문구(`rc=…`·stderr 앞 두 줄·`실행 실패: …`·`timed out after 60 seconds`)를 그대로 싣는다.
+* `node_role_contract.py`: 조회 어댑터(Python, 임시) `classify_cell_role_query.py`(`CLASSIFY_CELL_ROLE_ADAPTER`, 미지정이면 scripts 폴더 옆 같은 이름, 인터프리터 `CLASSIFY_CELL_PYTHON`)가 소유자의 `load_yaml`/`evaluate_manifest` 를 그대로 부르고 **문서·결과를 소유자 프로세스에 둔다**. Rust 는 분류기 코드가 실제로 만지는 것만 기계 프리미티브(`get`·`items`·타입/길이·`materialize`)로 지연 조회한다: `doc.get("nodes")`, 각 노드 `role`, `result["violations"]`, 각 위반 `code`. 읽지 않는 메타데이터(float 로 못 바꾸는 큰 정수 키·자기참조 앵커)는 계획을 바꿀 수 없다. 소유자 예외는 원본 보고 문구로, 소유자 부재·적재 실패는 원본의 "부재"로, 어댑터 설정 누락·통신 실패는 `RoleContractAdapterError`(폴백 없음). 이 경계의 지연(프로세스 시작)은 **OPEN_S3** 이며 S3 뒤 같은 입력으로 다시 잰다.
+* **R8.2 교정(root 검토)**: 첫 전송은 문서 전체를 타입 JSON 으로 복사해 유효 매니페스트 둘(미사용 `2**2048` 정수 키, 미사용 `&loop [*loop]`)을 `manifest 판독 실패` 로 거부했다(원본은 유효 계획). 초기 실패 기록 작업 폴더 `logs/role-rows-initial-failure.json`·초기 어댑터 `logs/classify_cell_role_query.initial-protocol.py.txt` 보존. 새 프로토콜 후 같은 두 원본 행 PASS(`role-rows-after-fix-*.json`), 숫자 키 동일성은 정확(float 변환 없음). 등록 검사: `checks/classify_cell_cases.rs::valid_manifests_with_unread_metadata_equal_the_original`(실제 소유자·어댑터, 원본 기대값 `role_transport_cases.json`), `checks/classify_cell_files.rs::metadata_the_classifier_never_reads_cannot_change_a_valid_plan` · `owner_answers_and_exceptions_become_the_originals_plan_reports`. 어댑터의 테스트 사본은 `checks/data/classify_cell/classify_cell_role_query.py`(root 가 적용하는 `scripts/classify_cell_role_query.py` 와 같은 내용이어야 한다).
+
+* **R8.2 교정 2(root 검토, 정수 문자열 한도)**: 어댑터가 시작 시 `sys.set_int_max_str_digits(0)` 을 전역으로 바꿔 소유자의 YAML 파서 동작이 달라졌다(원본은 상속된 4300 을 적용해 5000자리 십진 값 매니페스트를 `Exceeds the limit (4300 digits)…` 로 거부, 후보는 유효 계획). 이는 JSON 봉투 한도가 아니다(JSON 으로 가는 것은 매니페스트 경로뿐). **전역 설정 변경을 제거**했다: 소유자의 적재·`load_yaml`·`evaluate_manifest` 는 인터프리터의 상속 설정으로 실행되고, 어댑터는 정수를 **16진 문자열**로 보내(십진 변환·한도 무관) 직렬화에 한도 결정이 없다(어댑터에 4300 같은 규칙 상수 없음). 초기 실패 `logs/digit-row-initial-failure.json`·초기 어댑터 `logs/classify_cell_role_query.setdigits0.py.txt` 보존, 수정 후 같은 원본 행 PASS(`digit-row-after-fix.json`), 앞선 미사용 메타데이터 두 행 PASS 유지. 등록 검사: `classify_cell_cases.rs::valid_manifests_with_unread_metadata_equal_the_original`(세 번째 행 = 5000자리 값, 원본 기대값), `classify_cell_files.rs::a_huge_integer_the_classifier_reads_crosses_the_wire_exactly_and_the_limit_stays_inherited`(한도 상속 = 소유자가 `get_int_max_str_digits()==4300` 을 보고, 한도 밖 정수 값이 16진으로 정확히 건너옴). 어댑터 초안과 크레이트 사본은 동일하다.
+
+### R8.3 공유 모듈 변경(추가·가시성만)과 영향
+
+`utc.rs`(`parse_instant`·`InstantFailure`·`UtcInstant::shifted_by_micros` 추가) · `lite_metrics.rs`(`open_target`·`read_descriptor`·`OpenTarget` 를 `pub(crate)`) · `argv.rs`(`CLASSIFY_CELL` 표) · `lib.rs`·`Cargo.toml`(모듈·bin 3·test 2 등록; 의존성·`Cargo.lock` 불변, `--locked`). 영향 검사 = 전체 `cargo test --release`(기존 R1~R7 검사 포함) 226 통과.
+
+### R8.4 보존한 원본 특이 동작(고치지 않음)
+
+`measure_rc` `absent`/빈 문자열 = 부재(0 과 다름) · `--sweep-index ""` 는 셀 종결 모드로 떨어짐 · 빈 `--measure-rc` 처리 순서 · `float('nan')`/`True` 등 `!= 0` 동적 의미 · 경고(`WARN events 판독 실패`)는 쓰이는 순서대로 stderr, 이후 예외는 traceback(마지막 `Class: message` 줄만) · `bench_mode.json` 최종 모드 0600(`mkstemp`) · 4300자리 초과 정수·재귀 한도(995단계)는 `json` 한도 그대로 · K-mirror 는 `fetch_sub_docs.sh` 부재(서브 배달 트리 — 메인 전용 스크립트)면 원본처럼 `[SKIP]` 줄을 찍는다(메인 체크아웃에서 SKIP 이면 scripts 경로가 틀린 것이고 F00 도 실패한다).
+
+### R8.5 실제 검사(작업 폴더, 로그 `logs/`, 도구체인 = 관리 Rust 1.99.1 `rust_bootstrap.sh exec`, offline·locked, 외부 target)
+
+| 검사 | 결과 |
+|---|---|
+| `cargo fmt -- --check` | PASS (`fmt-check-final`) |
+| `cargo clippy --all-targets -- -D warnings` | PASS (`clippy-final`; 첫 시도 FAIL 3건·1건 교정 `clippy-attempt1/2` 보존) |
+| `cargo build --release --bins` | PASS (`build-release-final`) |
+| `cargo test --release` 전체 | PASS 53 suite · 226 테스트 · 실패 0 (`test-all-release-final`; 변경 전 첫 전체 `test-all-release-attempt1` 도 PASS) |
+| 고정 원본 API 121+45(+레코드 8 트리)·CLI 17+3 (자체 재생 `check_r8_own.py`, 루트 기준은 읽기 전용) | PASS 121/121 · 45/45 · 8/8 · 17/17 · 3/3 (`own-replay-release-final`) |
+| 원본 `--self-test` 대 native `--self-test` | exit 0 · 83 PASS · 전사 바이트 동일 · SKIP 0 (`selftest-release-final.*`); 소유자 없는 scripts 경로는 FAIL 7 + SKIP·exit 1 로 침묵하지 않음(`selftest-negative-empty-owners.*`) |
+| 역할 전송 원본 2행(root 검토 기록) | 초기 FAIL 2 보존 → 수정 후 PASS 2/2 |
+| 표적 차분(자체 증거, 기준 변경 아님): 비정상형·값 API 1462행, CLI 155건(argv 약어·허용오차·시각·파일 형태·링크·권한·glob·역할 계획), 도움말 144(폭 18×8) | 불일치 0 · 파일 시스템 전/후 동일 (`odd-run-final`, `cli-odd-final`) |
+| 성능 | NOT_RUN (`classify_cell_bench` 스모크만: 20행 2×3 실행, 수치 주장 없음) |
+
+### R8.6 알려진 한계·미연결(root)
+
+(1) 런처 `classify_cell.sh`/`classify_cell_api.sh`·Python 브리지·`build_rust.sh` 9번째 검사·소비자 15곳 배선·정본 어댑터 적용은 root 단계다(초안만 작업 폴더 `drafts/`). (2) **JSON 봉투 한도**: API 행·`arguments_json` 에 4300자리 초과 십진 정수를 실으면 전송 디코더가 원본 `json.loads` 처럼 거부해 그런 값을 API 인자로는 검증하지 못했다. 이것은 소유자 YAML 파서의 정수 한도와 별개다: 매니페스트 **내용**의 큰 정수는 JSON 을 거치지 않고(경로만 전송) 소유자가 상속 한도로 처리한다(R8.2 교정 2). (3) `datetime` 이 아닌 값이 `datetime` 자리에 오는 경우 오류 문구는 기록한 Python 연산 기준이며 두 인자가 동시에 틀린 순서는 대표 사례만 대조했다. (4) 임의 폭 도움말은 COLUMNS 1..700 캡처(468 이상 동일)다. (5) 소유자 조회 지연(어댑터·`node_identity.sh` 프로세스)은 OPEN_S3. (6) 어떤 수치도 서빙·LLM·통계적 우월성 주장이 아니다.

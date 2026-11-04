@@ -1,0 +1,179 @@
+{
+ "owner_tree": {
+  "docs": {
+   "kind": "directory"
+  },
+  "docs/logs": {
+   "kind": "directory"
+  },
+  "docs/logs/main": {
+   "kind": "directory"
+  },
+  "docs/logs/main/events": {
+   "kind": "directory"
+  },
+  "docs/logs/main/events/a.jsonl": {
+   "kind": "file",
+   "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0KbWFsZm9ybWVkCg=="
+  },
+  "docs/logs/sub": {
+   "kind": "directory"
+  },
+  "docs/logs/sub/events": {
+   "kind": "directory"
+  },
+  "docs/logs/sub/events/a.jsonl": {
+   "kind": "file",
+   "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0KbWFsZm9ybWVkCg=="
+  },
+  "output": {
+   "kind": "directory"
+  },
+  "output/multi": {
+   "kind": "directory"
+  },
+  "output/multi/manifest.yaml": {
+   "kind": "file",
+   "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBtdWx0aQpncHVzX3Blcl9ub2RlOiAxCm5vZGVzOgogIC0gcm9sZTogbWFpbgogICAgaG9zdDogMTkyLjAuMi4xMAogIC0gcm9sZTogc3ViCiAgICBob3N0OiAxOTIuMC4yLjExCg=="
+  },
+  "sync_staging": {
+   "kind": "directory"
+  },
+  "sync_staging/sub_docs": {
+   "kind": "directory"
+  },
+  "sync_staging/sub_docs/logs": {
+   "kind": "directory"
+  },
+  "sync_staging/sub_docs/logs/sub": {
+   "kind": "directory"
+  },
+  "sync_staging/sub_docs/logs/sub/events": {
+   "kind": "directory"
+  },
+  "sync_staging/sub_docs/logs/sub/events/z.jsonl": {
+   "kind": "file",
+   "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDExOjAwOjAwWiIsICJraW5kIjogImJ1ZGdldF9yZW5ldyIsICJtb2RlIjogImFybWVkIiwgInNvdXJjZSI6ICJtZW1fd2F0Y2hkb2dfZXRhIiwgInRhcmdldHMiOiAib3JpZ2luYWwtZml4dHVyZSJ9Cg=="
+  }
+ },
+ "records": [
+  {
+   "id": "owner-037-absent",
+   "dir": "record-absent",
+   "before": {},
+   "after": {}
+  },
+  {
+   "id": "owner-038-malformed",
+   "dir": "record-malformed",
+   "before": {
+    "bench_mode.json": {
+     "kind": "file",
+     "bytes_base64": "e2JhZA=="
+    }
+   },
+   "after": {
+    "bench_mode.json": {
+     "kind": "file",
+     "bytes_base64": "e2JhZA=="
+    }
+   }
+  },
+  {
+   "id": "owner-039-array",
+   "dir": "record-array",
+   "before": {
+    "bench_mode.json": {
+     "kind": "file",
+     "bytes_base64": "W10="
+    }
+   },
+   "after": {
+    "bench_mode.json": {
+     "kind": "file",
+     "bytes_base64": "W10="
+    }
+   }
+  },
+  {
+   "id": "owner-040-stale",
+   "dir": "record-stale",
+   "before": {
+    "bench_mode.json": {
+     "kind": "file",
+     "bytes_base64": "eyJzd2VlcF9pbmRleF9nZW5lcmF0ZWRfdXRjIjogIm9sZCJ9"
+    }
+   },
+   "after": {
+    "bench_mode.json": {
+     "kind": "file",
+     "bytes_base64": "eyJzd2VlcF9pbmRleF9nZW5lcmF0ZWRfdXRjIjogIm9sZCJ9"
+    }
+   }
+  },
+  {
+   "id": "owner-041-ok",
+   "dir": "record-ok",
+   "before": {
+    "bench_mode.json": {
+     "kind": "file",
+     "bytes_base64": "eyJzd2VlcF9pbmRleF9nZW5lcmF0ZWRfdXRjIjogIm5vdyIsICJiZW5jaF9tb2RlIjogImZ1bGwifQ=="
+    }
+   },
+   "after": {
+    "bench_mode.json": {
+     "kind": "file",
+     "bytes_base64": "eyJzd2VlcF9pbmRleF9nZW5lcmF0ZWRfdXRjIjogIm5vdyIsICJiZW5jaF9tb2RlIjogImZ1bGwifQ=="
+    }
+   }
+  },
+  {
+   "id": "owner-042-invalid-utf8",
+   "dir": "record-invalid-utf8",
+   "before": {
+    "bench_mode.json": {
+     "kind": "file",
+     "bytes_base64": "/w=="
+    }
+   },
+   "after": {
+    "bench_mode.json": {
+     "kind": "file",
+     "bytes_base64": "/w=="
+    }
+   }
+  },
+  {
+   "id": "owner-043-normal",
+   "dir": "write-normal",
+   "before": {
+    "bench_mode.json": {
+     "kind": "file",
+     "bytes_base64": "b2xkLW9yaWdpbmFsLXJlY29yZAo="
+    }
+   },
+   "after": {
+    "bench_mode.json": {
+     "kind": "file",
+     "bytes_base64": "ewogICJiZW5jaF9tb2RlIjogImZ1bGwiLAogICJub3RlIjogIuybkOuzuCIKfQo="
+    }
+   }
+  },
+  {
+   "id": "owner-044-surrogate",
+   "dir": "write-surrogate",
+   "before": {
+    "bench_mode.json": {
+     "kind": "file",
+     "bytes_base64": "b2xkLW9yaWdpbmFsLXJlY29yZAo="
+    }
+   },
+   "after": {
+    "bench_mode.json": {
+     "kind": "file",
+     "bytes_base64": "b2xkLW9yaWdpbmFsLXJlY29yZAo="
+    }
+   }
+  }
+ ]
+}
