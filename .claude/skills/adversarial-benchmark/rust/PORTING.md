@@ -90,10 +90,10 @@ Python 전체 결과 구성21.61μs/Rust6.56μs(약3.30배), 실제 셸 런처�
 동일12입력·11round·교차순서의 실제 셸진입점 포함 CLI 중앙값은 Python21.57ms/Rust4.05ms로
 약5.33배였다. 이 로컬 입력의 비용이며 LLM·서빙 성능이나 원격 배포의 증거가 아니다.
 
-## roofline · verdict_rule (R3 기능 통합 PASS · 연산 성능 개선 중)
+## roofline · verdict_rule (R3 기능 통합·로컬 연산 개선 PASS)
 
 범위는 `scripts/roofline.py`(476줄)와 `scripts/verdict_rule.py`(981줄) 전체 — 함수/API와 CLI — 및 `judge_bench.sh`의 `SPEC_ROW`
-계산과 `broad_search.sh`의 `rubric_authority` 확인이다. 원본 `.py`는 대조용으로 유지한다. 다른 Python 도구·실제 서빙 측정의 이행 완료가 아니다. 후보 자체검사·독립 표적 검증 이후 정본에 연결했고 아래 정본 통합 검사도 통과했다. 전체 연산 성능 목표는 아직 충족하지 못했다. 초기 I1/I2/Y1 및 후속 I3/I4/I5 실패 원시는 보존하고 같은 입력의 재검증으로 해소했다.
+계산과 `broad_search.sh`의 `rubric_authority` 확인이다. 원본 `.py`는 대조용으로 유지한다. 다른 Python 도구·실제 서빙 측정의 이행 완료가 아니다. 후보 자체검사·독립 표적 검증 이후 정본에 연결했고 아래 정본 통합 검사도 통과했다. 그 시점의 연산 회귀는 아래 최종 교정으로 재검증했다. 초기 I1/I2/Y1 및 후속 I3/I4/I5 실패 원시는 보존하고 같은 입력의 재검증으로 해소했다.
 
 ```bash
 roofline --model-path PATH [--manifest M --tp N --accept-len L --accept-len-source S ...]   # 원본 옵션·약어·종료 0/2/1
@@ -167,3 +167,79 @@ roofline native-help · verdict_rule native-help
 별도 Validator는 정본12명령/17검사에서 두 런처 정상/부재2·Python 대체 없음, judge의 실제 native 체인·양 단계 실패 시 파일 보존, broad authority의 native 확인을 검증했다. 빌드 helper와 stop 가드는 검증된 draft와 byte동일하여 앞선 근거를 재사용했다.
 
 사전 고정100입력의 전체 build_verdict 객체 생성(입출력 JSON 제외), 11교차 round×200반복은 Python 중앙값2.7905μs/Rust32.5627μs로 Rust가 약11.67배 느렸다. 이 연산 개선 목표는 FAIL이며 후보 최적화를 계속한다. 별도로 실제 Bash 진입점10개×11교차 round는 모든 출력이 일치했고 Python26.3787ms/Rust4.2094ms(약6.27배)였다. CLI 기동 비용의 절감으로 연산 지연을 숨기지 않는다. 이 수치는 현재 로컬 결정론 단위의 측정이며 LLM·서빙·원격 배포 결과가 아니다. 원시 기준과 실패 결과는 상위 과업의 `r3-benchmark-*`에 유지한다.
+
+## 성능·키 교정 후보의 정본 검증 진행
+
+아래는 Builder의 자체검사와 후보 측정이다. 정본8경로에 반영해 실제 영향 검사 중이며 새 독립·정본·11round 측정은 아직 수용 전이다. 앞선5acbf9e의 고정 기능 검사 결과는 그 범위에서 보존하되 새 R3-K1 문자열 키 충돌은 FAIL로 기록했고 이 후보에서 타입으로 구분해 수정했다.
+
+## 성능 교정 (R3 · 순수 계산)
+
+정본 통합 뒤 얼린 비교에서 전체 `build_verdict` 값 구성(미리 파싱한 입력 → 전체 순서 있는 값, 직렬화·파싱·프로세스 시작 제외) 비용이 Python 2 790 ns/값,
+Rust 32 563 ns/값(약 11.7배 느림)으로 나왔다. 시작 시간 이득(CLI 4.2ms 대 26.4ms)은 이 계산 비용의 대체가 아니므로 같은 경계에서 고쳤다.
+
+**원인(프로파일)**: 표집(gdb 반복 중단, 45~80 표본/단계) 결과 `PyDict::insert` 안의 `same_key` 가 비교마다 두 키를 `String` 으로 변환(`to_utf8`)하는 것이
+첫 단계 표본의 약 65%였다. 그다음은 리터럴 키·메시지를 매번 `Vec<u32>` 로 다시 만드는 `PyStr::new`(재할당 포함), 원자적 참조 계수, 딕트·후보 목록의 불필요한 복제,
+BigInt 로 하는 고정소수 반올림, 값마다 두 번 도는 `float_repr` 의 서식 할당이었다.
+
+**수정(일반적·유지 가능한 것만, 케이스 식별·결과 캐시·근사 없음)**:
+- `same_key`: 표지가 붙은 비문자열 키 둘이 아니면 일반 문자열 동등으로 바로 비교(할당 없음) — 의미 동일.
+- `PyStr`: 소유(`Owned`)/정적(`Static`) 이중 표현. 소스에 적힌 리터럴은 사용처마다 한 번만 변환해 프로그램 수명 동안 유지하는 버퍼를 포인터로 복제(`lit!`; 사용처 수만큼, 무한 인터닝 아님),
+  쓰기 전에는 복사. `PyStr::new`/`push_str`/`message` 는 용량을 미리 잡는다. ASCII 비교 경로.
+- 딕트: 소스에 적힌 서로 다른 키로 만드는 `dict_of` 는 중복 확인 없이 항목을 받는다(디버그 빌드가 주장을 검사). 배열 인자로 `Vec` 할당 제거, `updated`/후보 목록/`spec_axis` 는 복제 대신 소유권 이동.
+- 숫자: `round_to_places`/`format_fixed` 는 128비트 정수 정확 경로(미충족 시 기존 BigInt 경로); 반올림 결과는 정확한 피연산자 나눗셈. 불가능한 동점은 증명된 조건(`tie_possible`)으로만 건너뛰고,
+  `float_repr` 는 스택 버퍼와 한 번의 출력 할당.
+- 위 각각에 기존 구현(BigInt·할당 경로)을 기준으로 삼는 차분 시험을 두었다(`pynumber`·`pyvalue` 단위 시험: 수십만 입력, 동점·부분정규·무작위 비트).
+
+**측정**(`r3-perf-probe`: 얼린 100 triplet × 200, 워밍업 1회, Rust 는 `black_box` 로 전체 결과 소비 — 루트 벤치 소스와 같은 경계·같은 잠금 의존성; 교대 6회):
+
+| | ns/값 |
+|---|---|
+| Python 전체 `build_verdict` | 2 781 (중앙값; 2 763~2 791) |
+| Rust 수정 전 | 32 425 (32 333~32 494) → Python 의 11.7배 |
+| Rust 수정 후 | 1 749 (1 719~1 760) → Python 의 0.63배(약 1.59배 빠름) |
+
+중간 단계: 8 110 (`same_key`) → 4 650 (리터럴 공유) → 3 430 (정적 저장) → 2 700 → 1 950 → 1 830 → 1 750.
+이것은 로컬 순수 계산 경계의 표본이며 CLI 시작·서빙 성능이나 통계적 우월성을 뜻하지 않는다. 새 코드는 루트 독립/정본 수용 전이다.
+
+## 키 종류 교정 (R3-K1)
+
+**결함**: YAML 의 비문자열 키(`true:`, `1:`, 날짜)를 `\0yaml-key:<정체성>\0<repr>` 모양의 *문자열*로 `PyDict` 에 저장했고, 키를 읽을 때 문자열 내용만 보고 비문자열 키로 간주했다.
+그래서 JSON 에서 온 평범한 문자열 키 `"\u0000yaml-key:num:1\u0000True"` 가 `true` 키로 바뀌고(원본은 그대로 보존), 이유 문구의 repr 도 `{True: 5}` 로 변했으며,
+정체성 부분이 같은 서로 다른 두 문자열은 삽입 때 하나로 합쳐졌다. 접두사를 다른 것으로 바꾸는 방식은 같은 결함이 남으므로 쓰지 않았다.
+
+**설계**(`src/pyvalue.rs`, `src/pyyaml/compose.rs`): 키의 종류를 내용이 아니라 **타입**으로 가른다.
+- `NonStringKey { identity, repr }` 와 `DictKey::{Str, Other}` 를 두었다. `identity` 는 파이썬 키 동등(`1`·`1.0`·`True` 하나, `nan` 은 자기와도 다름), `repr` 는 `repr(key)` 이다.
+- `PyDict` 는 항목(`Vec<(PyStr, PyValue)>`, 비문자열 키는 `repr` 텍스트)과 **위치로 색인한 비문자열 키 목록**(`others`, 오름차순)을 가진다. 목록은 비문자열 키가 있는 딕트에만 있어 JSON 객체는 추가 데이터도
+  추가 검사도 없다. 문자열 삽입·`get` 은 비문자열 항목을 건너뛰므로 문자열이 비문자열 키와 섞이지 않는다. 비문자열 키는 `insert_key(DictKey::Other)` 로만 들어가며 YAML 구성기(`dict_key`)만 만든다.
+- 동등 키는 첫 위치와 첫 표기를 유지하고 값만 마지막 것으로 바꾼다(파이썬 dict 와 같다). `repr`/JSON 출력은 항목의 종류로 갈린다: 비문자열 키는 `repr` 와 JSON 철자(`true`, `null`, `Infinity`…, date/datetime/bytes 는 `TypeError`)를,
+  문자열은 평소처럼 `repr`/JSON 이스케이프를 쓴다. 서로게이트·NUL·유니코드 문자열은 그냥 문자열이다.
+- 제거: `NON_STRING_KEY` 접두사, `key_repr`, `json_key(&PyStr)`, `is_marked`, `same_key`.
+
+**검사**: 새 `checks/key_encoding.rs` + `checks/data/roofline_verdict/key_encoding_cases.json`(입력 28개 파일, 23 사례, 원본이 낸 exit/stdout/stderr): 기준 사전 관측 10(CLI 6 + PyYAML repr 4), 루트 프로브, 독립 K1 + 음성 대조,
+추가 원본 캡처 10(표지처럼 보이는 문자열의 여러 모양, 서로게이트 접두사 — 원본 exit 1 `UnicodeEncodeError`, 중첩, `True`/`true` 문자열 공존). 단위 시험 2개(문자열 키 내용 비교/비문자열 키 정체성, 표지 모양 문자열은 문자열일 뿐).
+교정 전 정본 5acbf9e binary 로 같은 13개 관측을 재생하면 10건 불일치, 교정 후 0건이다(`k1-evidence/replay-before-canonical-5acbf9e.txt`, `replay-final.txt`).
+
+**검증**(원시는 과업의 `k*` 파일): fmt `--check` rc 0 · Clippy `-D warnings` rc 0 · release 빌드 rc 0 · `cargo test` release/debug 각 127 통과 0 실패(YAML 리더 3208 문서의 비문자열 키 포함) · 네이티브 자체검사 4종 rc 0 ·
+루트 R3 348/348, 184/184, 150/150 · R2 221/221 · R1 543+CLI 8 · 추가 대조 불일치는 set 순서 프로브 2건뿐 · alias 42회·독립 기록 64건 불일치 0.
+같은 전체 결과 경계의 순수 계산(얼린 100 triplet, 교대 6회): Python 2 789 ns/값, Rust 1 749 ns/값(0.63배) — 직전 성능 교정 결과(1 749)와 같아 회귀 없음. 이는 루트 측정이 아니며 수용 주장이 아니다.
+
+**한계**: 비문자열 키의 `identity` 는 구성기가 만드는 문자열(`num:…`, `float:…`, `other:…`)이며 *비문자열 키끼리* 비교에만 쓰인다. 문자열 키와는 타입으로 구분되므로 어떤 문자열도 이를 흉내 낼 수 없다.
+`PyDict::iter()` 는 비문자열 키를 `repr` 텍스트로 돌려준다 — 현재 이를 순회하는 곳은 JSON 에서 온 딕트뿐이다. 새 코드는 루트 독립/정본 수용 전이다.
+
+## K2/K3 키 범위·정체성 최종 교정
+
+구성기의 유한 정수 float 정체성은 int_from_float의 정확한 BigInt 값이며 i128 포화 변환을 제거했다. NaN은 .nan 클래스 공유 객체와 나머지 scalar node의 새 객체를 구분하고, alias/merge는 원래 node를 재사용한다. 문자열 키와 비문자열 타입 분리는 유지한다. 단일 로드/문서의 현재 소비 경계이며 다른 문서 사이 객체를 합치는 API까지 보증하지 않는다.
+
+새 key_range21사례의 원본 raw stdout을 패키지로 보존했다. 후보 자체 debug/release128·고정대조·자체검사는 통과했다. 별도 Validator는 K2와 NaN 생성4경로의 같은5재현에서 exit/stdout/stderr byte동일 및 키 수1/2/1/2를 확인했다. production source는 compose.rs만 바뀌었고 숫자8함수/기타 source는 동일하여 독립 숫자36·K1·iter 근거를 재사용했다. 정본 빌드·영향 검사는 진행 중이며 최종11round 속도 수용 전이다.
+
+## R3 최종 교정의 정본 판정 — 2026-11-04T13:44:45Z
+
+R3 단위는 기능·정본 연결·필요한 독립 검증·로컬 성능 비교를 완료했다. 초기 기능/성능 FAIL과 중간 자체측정은 시점별 기록으로 보존하며 아래 실제 정본 결과로 현재 판정한다. 전체 프로젝트 이행이나 원격/6프로필/Long E2E 완료가 아니다.
+
+- 최종 managed offline release와 네 just-built 자체검사, fmt/release128/Clippy PASS. K2/K3 수정 뒤 실제 정본 launcher의 같은5재현도 exact PASS. 앞선 고정348/184/150·R2 221·R1 543+8·5통합·새 key10·배포128은 관련 source/연결이 유지되는 범위로 재사용했다. 최종 production delta는 YAML compose의 키 정체성뿐이다.
+- 별도 Validator: 숫자36대표·동일프로세스 제어·K1/음성/YAML 키 구분·iter 현재 소비 경로·최종 K2/K3 같은5재현 PASS, 보호 source/bin 변화0. 숫자8함수/나머지 source가 같아 재사용했다.
+- 원래 runner byte동일 사본·같은 frozen100슬롯(93고유)·200반복·11교차round의 full build_verdict: Python 2.7854μs/Rust 2.3208μs, Python/Rust 1.2002배. JSON 입력/출력·프로세스 기동은 이 API timer 밖이며 전체 결과 생성/해제는 안이다.
+- 같은 실제 Bash CLI10입력×11교차round: Python 23.3001ms/Rust 4.0605ms, 5.7383배. 모든 실제 출력/오류/종료는 frozen 원본과 일치했다.
+- Builder 자체 약1.75μs와 root 최종2.32μs를 합치거나 더 좋은 값만 최종으로 고르지 않는다. 최종값은 정본의 별도11round다. 측정환경은 Linux GNU aarch64/CPython3.12.3/PyYAML6.0.3/관리Rust1.99.1이다. 표본 범위의 측정이며 통계적 우월성·LLM/서빙 가속을 주장하지 않는다.
+
+원시: 상위 과업 temp의 r3-key-range-canonical/commands.json·fixed-reproductions/, r3-post-key-benchmark/quality-gate.json·r3-benchmark-results/, 별도 r3-independent-261104의 perf-numeric/와 key-encoding/range-final/. 원래 r3-benchmark-results/의 순수 연산11.67배 지연 FAIL은 그대로 유지한다.

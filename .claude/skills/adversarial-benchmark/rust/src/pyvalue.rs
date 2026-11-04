@@ -108,11 +108,34 @@ pub struct Opaque {
     pub truthy: bool,
 }
 
+/// A dict key that is not a string. YAML allows any hashable value as a key (`1: x`, `true: y`, `2026-01-01: z`);
+/// JSON never produces one. It is told apart from strings by *type*, not by how it is spelled: a user string, whatever
+/// characters it holds, is never one of these.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NonStringKey {
+    /// Equal exactly when Python's keys are equal (`1`, `1.0` and `True` share one; `nan` never equals itself).
+    pub identity: String,
+    /// What Python's `repr` prints for the key.
+    pub repr: String,
+}
+
+/// A key as a dict is given it.
+#[derive(Clone, Debug)]
+pub enum DictKey {
+    Str(PyStr),
+    Other(NonStringKey),
+}
+
 /// Insertion-ordered dict. Assigning an existing key replaces the value and keeps the original position,
 /// as Python does for duplicate keys in a JSON object.
+///
+/// Entries hold the key text (for a non-string key: its `repr`). Which entries are non-string keys is kept beside them,
+/// by position and only for the dicts that have any, so a JSON object carries no extra data and no check on its keys.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PyDict {
     entries: Vec<(PyStr, PyValue)>,
+    /// `(position in entries, key)` of the non-string keys, ascending.
+    others: Vec<(usize, NonStringKey)>,
 }
 
 impl PyDict {
@@ -120,14 +143,73 @@ impl PyDict {
         Self::default()
     }
 
+    /// A dict display `{k1: v1, k2: v2, ...}` whose keys are strings written out in the source and differ from each
+    /// other: there is nothing to replace, so the entries are taken as they are. (Debug builds check the claim.)
+    pub fn from_distinct_entries<const N: usize>(items: [(PyStr, PyValue); N]) -> Self {
+        debug_assert!(
+            items
+                .iter()
+                .enumerate()
+                .all(|(at, (key, _))| items[..at].iter().all(|(earlier, _)| earlier != key)),
+            "dict display with a repeated key"
+        );
+        PyDict {
+            entries: Vec::from(items),
+            others: Vec::new(),
+        }
+    }
+
+    pub fn reserve(&mut self, additional: usize) {
+        self.entries.reserve(additional);
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self {
+        PyDict {
+            entries: Vec::with_capacity(capacity),
+            others: Vec::new(),
+        }
+    }
+
+    /// Whether the entry at `at` has a non-string key.
+    fn is_other(&self, at: usize) -> bool {
+        !self.others.is_empty()
+            && self
+                .others
+                .binary_search_by_key(&at, |(index, _)| *index)
+                .is_ok()
+    }
+
+    /// Insert under a string key; a non-string key never equals it.
     pub fn insert(&mut self, key: PyStr, value: PyValue) {
-        match self
+        let found = self
             .entries
-            .iter_mut()
-            .find(|(existing, _)| same_key(existing, &key))
-        {
-            Some(slot) => slot.1 = value,
+            .iter()
+            .enumerate()
+            .position(|(at, (existing, _))| *existing == key && !self.is_other(at));
+        match found {
+            Some(at) => self.entries[at].1 = value,
             None => self.entries.push((key, value)),
+        }
+    }
+
+    /// Insert under a key of either kind.
+    pub fn insert_key(&mut self, key: DictKey, value: PyValue) {
+        match key {
+            DictKey::Str(text) => self.insert(text, value),
+            DictKey::Other(other) => {
+                let found = self
+                    .others
+                    .iter()
+                    .find(|(_, existing)| existing.identity == other.identity)
+                    .map(|(at, _)| *at);
+                match found {
+                    Some(at) => self.entries[at].1 = value,
+                    None => {
+                        self.others.push((self.entries.len(), other.clone()));
+                        self.entries.push((PyStr::new(&other.repr), value));
+                    }
+                }
+            }
         }
     }
 
@@ -139,8 +221,9 @@ impl PyDict {
     pub fn get(&self, key: &str) -> Option<&PyValue> {
         self.entries
             .iter()
-            .find(|(existing, _)| existing.equals(key))
-            .map(|(_, value)| value)
+            .enumerate()
+            .find(|(at, (existing, _))| existing.equals(key) && !self.is_other(*at))
+            .map(|(_, (_, value))| value)
     }
 
     pub fn contains_key(&self, key: &str) -> bool {
@@ -155,8 +238,24 @@ impl PyDict {
         self.entries.is_empty()
     }
 
+    /// The entries in order, keys as text (a non-string key by its `repr`; see [`PyDict::keyed_entries`]).
     pub fn iter(&self) -> impl Iterator<Item = &(PyStr, PyValue)> {
         self.entries.iter()
+    }
+
+    /// The entries in order with each key's kind.
+    fn keyed_entries(&self) -> impl Iterator<Item = (Option<&NonStringKey>, &PyStr, &PyValue)> {
+        let mut others = self.others.iter().peekable();
+        self.entries
+            .iter()
+            .enumerate()
+            .map(move |(at, (key, value))| {
+                let other = match others.peek() {
+                    Some((index, _)) if *index == at => others.next().map(|(_, other)| other),
+                    _ => None,
+                };
+                (other, key, value)
+            })
     }
 }
 
@@ -249,8 +348,11 @@ impl PyValue {
             }
             PyValue::Dict(map) => {
                 let inner: Vec<String> = map
-                    .iter()
-                    .map(|(key, value)| format!("{}: {}", key_repr(key), value.repr()))
+                    .keyed_entries()
+                    .map(|(other, key, value)| {
+                        let key = other.map_or_else(|| key.repr(), |other| other.repr.clone());
+                        format!("{key}: {}", value.repr())
+                    })
                     .collect();
                 format!("{{{}}}", inner.join(", "))
             }
@@ -329,15 +431,19 @@ impl PyValue {
                 ))
             }
             PyValue::Dict(map) => {
-                let entries: Vec<&(PyStr, PyValue)> = map.iter().collect();
+                let entries: Vec<(Option<&NonStringKey>, &PyStr, &PyValue)> =
+                    map.keyed_entries().collect();
                 write_sequence(
                     out,
                     layout,
                     ('{', '}'),
                     entries.len(),
                     |out, index, inner| {
-                        let (key, value) = entries[index];
-                        json_key(key)?.write_json(out, ascii);
+                        let (other, key, value) = entries[index];
+                        match other {
+                            Some(other) => json_key(other)?.write_json(out, ascii),
+                            None => key.write_json(out, ascii),
+                        }
                         out.push_str(": ");
                         value.write_json(out, inner, ascii)
                     },
@@ -421,7 +527,38 @@ fn scientific_digits(magnitude: f64, precision: usize) -> (String, i32) {
 /// the exact value and, when two are equally close (the exact value ends in a 5 right after them), the one with
 /// the even last digit: `repr(2175058994972888.25)` is `2175058994972888.2`. Rust's shortest formatter breaks that
 /// tie upward (`...8.3`). `digits` is Rust's shortest form; the Python choice is returned.
-fn settle_exact_tie(magnitude: f64, digits: String, exponent: i32) -> (String, i32) {
+fn settle_exact_tie(magnitude: f64, digits: &str, exponent: i32) -> Option<(String, i32)> {
+    if !tie_possible(magnitude) {
+        return None;
+    }
+    Some(settle_exact_tie_unfiltered(
+        magnitude,
+        digits.to_string(),
+        exponent,
+    ))
+}
+
+/// A tie needs the exact value to be a decimal of at most 18 significant digits. With `m` the odd part of the mantissa
+/// and `e` the matching binary exponent (value = m·2^e): for `e < -40` the digits of `m·5^-e` (odd, 28 or more digits,
+/// no trailing zeros) are all significant; for `e > 120` the digits of `2^(e-22)` (at least 29 digits) are, after the at
+/// most 22 trailing zeros `m` can contribute. Either way far more than 18, so no tie and nothing to settle.
+fn tie_possible(magnitude: f64) -> bool {
+    let bits = magnitude.to_bits();
+    let exponent_bits = ((bits >> 52) & 0x7FF) as i64;
+    let fraction = bits & ((1u64 << 52) - 1);
+    let (mantissa, exponent) = if exponent_bits == 0 {
+        (fraction, -1074)
+    } else {
+        (fraction | (1u64 << 52), exponent_bits - 1075)
+    };
+    if mantissa == 0 {
+        return false;
+    }
+    let odd_exponent = exponent + i64::from(mantissa.trailing_zeros());
+    (-40..=120).contains(&odd_exponent)
+}
+
+fn settle_exact_tie_unfiltered(magnitude: f64, digits: String, exponent: i32) -> (String, i32) {
     let length = digits.len();
     let (wide, wide_exponent) = scientific_digits(magnitude, length);
     if wide.len() != length + 1 || !wide.ends_with('5') {
@@ -469,6 +606,7 @@ fn settle_exact_tie(magnitude: f64, digits: String, exponent: i32) -> (String, i
 
 /// Python `repr(float)`: shortest round-trip digits, exponent form outside `1e-4 <= |x| < 1e16`.
 pub fn float_repr(number: f64) -> String {
+    use std::fmt::Write;
     if number.is_nan() {
         return "nan".to_string();
     }
@@ -483,40 +621,92 @@ pub fn float_repr(number: f64) -> String {
         }
         .to_string();
     }
-    let scientific = format!("{:e}", number.abs());
+    // Rust's shortest digits, written to the stack: at most 17 digits, a point and an exponent
+    let mut scientific = StackText::default();
+    write!(scientific, "{:e}", number.abs()).expect("fits: 17 digits, point, exponent");
     let (mantissa, exponent) = scientific
+        .as_str()
         .split_once('e')
         .expect("{:e} always has an exponent");
-    let exponent: i32 = exponent.parse().expect("exponent is an integer");
-    let digits: String = mantissa.chars().filter(|c| c.is_ascii_digit()).collect();
-    let (digits, exponent) = settle_exact_tie(number.abs(), digits, exponent);
-    let sign = if number < 0.0 { "-" } else { "" };
-    if !(-4..16).contains(&exponent) {
-        let fraction = if digits.len() > 1 {
-            format!(".{}", &digits[1..])
-        } else {
-            String::new()
-        };
-        let exponent_sign = if exponent < 0 { '-' } else { '+' };
-        return format!(
-            "{sign}{}{fraction}e{exponent_sign}{:02}",
-            &digits[..1],
-            exponent.abs()
-        );
+    let mut exponent: i32 = exponent.parse().expect("exponent is an integer");
+    let mut digits = StackText::default();
+    for digit in mantissa.chars().filter(char::is_ascii_digit) {
+        digits.push(digit);
     }
-    if exponent >= 0 {
+    let settled;
+    let mut digits = digits.as_str();
+    if let Some((text, adjusted)) = settle_exact_tie(number.abs(), digits, exponent) {
+        settled = text;
+        digits = &settled;
+        exponent = adjusted;
+    }
+    let mut out = String::with_capacity(32);
+    if number < 0.0 {
+        out.push('-');
+    }
+    if !(-4..16).contains(&exponent) {
+        out.push_str(&digits[..1]);
+        if digits.len() > 1 {
+            out.push('.');
+            out.push_str(&digits[1..]);
+        }
+        out.push('e');
+        out.push(if exponent < 0 { '-' } else { '+' });
+        let _ = write!(out, "{:02}", exponent.abs());
+    } else if exponent >= 0 {
         let integer_len = exponent as usize + 1;
         if digits.len() <= integer_len {
-            format!("{sign}{digits}{}.0", "0".repeat(integer_len - digits.len()))
+            out.push_str(digits);
+            out.extend(std::iter::repeat_n('0', integer_len - digits.len()));
+            out.push_str(".0");
         } else {
-            format!(
-                "{sign}{}.{}",
-                &digits[..integer_len],
-                &digits[integer_len..]
-            )
+            out.push_str(&digits[..integer_len]);
+            out.push('.');
+            out.push_str(&digits[integer_len..]);
         }
     } else {
-        format!("{sign}0.{}{digits}", "0".repeat((-exponent - 1) as usize))
+        out.push_str("0.");
+        out.extend(std::iter::repeat_n('0', (-exponent - 1) as usize));
+        out.push_str(digits);
+    }
+    out
+}
+
+/// A short ASCII text on the stack (at most 40 bytes), for formatting without an allocation.
+struct StackText {
+    bytes: [u8; 40],
+    len: usize,
+}
+
+impl Default for StackText {
+    fn default() -> Self {
+        StackText {
+            bytes: [0; 40],
+            len: 0,
+        }
+    }
+}
+
+impl StackText {
+    fn push(&mut self, c: char) {
+        self.bytes[self.len] = c as u8;
+        self.len += 1;
+    }
+
+    fn as_str(&self) -> &str {
+        std::str::from_utf8(&self.bytes[..self.len]).expect("ASCII")
+    }
+}
+
+impl std::fmt::Write for StackText {
+    fn write_str(&mut self, text: &str) -> std::fmt::Result {
+        let end = self.len + text.len();
+        if end > self.bytes.len() {
+            return Err(std::fmt::Error);
+        }
+        self.bytes[self.len..end].copy_from_slice(text.as_bytes());
+        self.len = end;
+        Ok(())
     }
 }
 
@@ -561,26 +751,10 @@ pub fn bytes_repr(bytes: &[u8]) -> String {
     out
 }
 
-/// Dict keys that are not strings (YAML allows them) are stored as `\0yaml-key:<canonical>\0<repr>`: equal Python keys
-/// (`1`, `1.0`, `True`) share the canonical part, and the repr is what Python would print.
-pub const NON_STRING_KEY: &str = "\u{0}yaml-key:";
-
-fn key_repr(key: &PyStr) -> String {
-    match key.to_utf8() {
-        Some(text) if text.starts_with(NON_STRING_KEY) => {
-            text.rsplit('\u{0}').next().unwrap_or("").to_string()
-        }
-        _ => key.repr(),
-    }
-}
-
 /// What `json.dumps` writes for a dict key: strings as they are, `None`/`bool`/`int`/`float` as their JSON spelling,
 /// anything else is the `TypeError` Python raises.
-fn json_key(key: &PyStr) -> Result<PyStr, DumpError> {
-    let Some(text) = key.to_utf8().filter(|t| t.starts_with(NON_STRING_KEY)) else {
-        return Ok(key.clone());
-    };
-    let repr = text.rsplit('\u{0}').next().unwrap_or("");
+fn json_key(key: &NonStringKey) -> Result<PyStr, DumpError> {
+    let repr = key.repr.as_str();
     let spelled = match repr {
         "None" => "null".to_string(),
         "True" => "true".to_string(),
@@ -600,19 +774,232 @@ fn json_key(key: &PyStr) -> Result<PyStr, DumpError> {
     Ok(PyStr::new(&spelled))
 }
 
-/// Dict key equality: strings by content; non-string keys by their canonical part (see [`NON_STRING_KEY`]).
-fn same_key(left: &PyStr, right: &PyStr) -> bool {
-    match (left.to_utf8(), right.to_utf8()) {
-        (Some(a), Some(b)) if a.starts_with(NON_STRING_KEY) && b.starts_with(NON_STRING_KEY) => {
-            a.split('\u{0}').nth(1) == b.split('\u{0}').nth(1) && a.split('\u{0}').nth(2).is_some()
-        }
-        _ => left == right,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn float_repr_reference(number: f64) -> String {
+        if number.is_nan() {
+            return "nan".to_string();
+        }
+        if number.is_infinite() {
+            return if number > 0.0 { "inf" } else { "-inf" }.to_string();
+        }
+        if number == 0.0 {
+            return if number.is_sign_negative() {
+                "-0.0"
+            } else {
+                "0.0"
+            }
+            .to_string();
+        }
+        let scientific = format!("{:e}", number.abs());
+        let (mantissa, exponent) = scientific
+            .split_once('e')
+            .expect("{:e} always has an exponent");
+        let exponent: i32 = exponent.parse().expect("exponent is an integer");
+        let digits: String = mantissa.chars().filter(|c| c.is_ascii_digit()).collect();
+        let (digits, exponent) = settle_exact_tie_unfiltered(number.abs(), digits, exponent);
+        let sign = if number < 0.0 { "-" } else { "" };
+        if !(-4..16).contains(&exponent) {
+            let fraction = if digits.len() > 1 {
+                format!(".{}", &digits[1..])
+            } else {
+                String::new()
+            };
+            let exponent_sign = if exponent < 0 { '-' } else { '+' };
+            return format!(
+                "{sign}{}{fraction}e{exponent_sign}{:02}",
+                &digits[..1],
+                exponent.abs()
+            );
+        }
+        if exponent >= 0 {
+            let integer_len = exponent as usize + 1;
+            if digits.len() <= integer_len {
+                format!("{sign}{digits}{}.0", "0".repeat(integer_len - digits.len()))
+            } else {
+                format!(
+                    "{sign}{}.{}",
+                    &digits[..integer_len],
+                    &digits[integer_len..]
+                )
+            }
+        } else {
+            format!("{sign}0.{}{digits}", "0".repeat((-exponent - 1) as usize))
+        }
+    }
+
+    fn other(identity: &str, repr: &str) -> DictKey {
+        DictKey::Other(NonStringKey {
+            identity: identity.to_string(),
+            repr: repr.to_string(),
+        })
+    }
+
+    #[test]
+    fn string_keys_compare_by_content_and_non_string_keys_by_identity() {
+        let mut map = PyDict::new();
+        map.insert(PyStr::new("a"), PyValue::int(1));
+        map.insert(PyStr::new("a"), PyValue::int(2));
+        map.insert(PyStr::new("b"), PyValue::int(3));
+        assert_eq!(map.len(), 2);
+        assert_eq!(map.get("a").unwrap().repr(), "2");
+        // equal Python keys (1, True) are one entry: first position and spelling, last value
+        map.insert_key(other("num:1", "True"), PyValue::int(10));
+        map.insert_key(other("num:1", "1"), PyValue::int(11));
+        map.insert_key(other("num:2", "2"), PyValue::int(12));
+        assert_eq!(map.len(), 4);
+        assert_eq!(
+            PyValue::Dict(map.clone()).repr(),
+            "{'a': 2, 'b': 3, True: 11, 2: 12}"
+        );
+        assert_eq!(
+            PyValue::Dict(map.clone())
+                .dumps_pretty()
+                .unwrap()
+                .to_utf8()
+                .unwrap()
+                .replace(['\n', ' '], ""),
+            "{\"a\":2,\"b\":3,\"true\":11,\"2\":12}"
+        );
+    }
+
+    #[test]
+    fn a_string_that_looks_like_a_marker_is_only_a_string() {
+        // the spelling the old private encoding used: it must neither collide with a real key nor be taken for one
+        let lookalike = "\u{0}yaml-key:num:1\u{0}True";
+        let mut map = PyDict::new();
+        map.insert(PyStr::new(lookalike), PyValue::int(5));
+        assert_eq!(map.get(lookalike).unwrap().repr(), "5");
+        assert_eq!(
+            PyValue::Dict(map.clone()).repr(),
+            "{'\\x00yaml-key:num:1\\x00True': 5}"
+        );
+        assert_eq!(
+            PyValue::Dict(map.clone())
+                .dumps_pretty()
+                .unwrap()
+                .to_utf8()
+                .unwrap()
+                .replace(['\n', ' '], ""),
+            "{\"\\u0000yaml-key:num:1\\u0000True\":5}"
+        );
+        // two different strings that share the inner part stay two keys, and a real True key joins them as a third
+        map.insert(PyStr::new("\u{0}yaml-key:num:1\u{0}1"), PyValue::int(6));
+        map.insert_key(other("num:1", "True"), PyValue::int(7));
+        map.insert_key(other("num:1", "1"), PyValue::int(8));
+        assert_eq!(map.len(), 3);
+        // a non-string key is not reachable by name, not even by its own repr
+        assert!(map.get("True").is_none() && map.get("1").is_none());
+        // a string equal to a non-string key's repr stays separate from it
+        map.insert(PyStr::new("True"), PyValue::int(9));
+        assert_eq!(map.len(), 4);
+        assert_eq!(map.get("True").unwrap().repr(), "9");
+        // a lone surrogate inside such text is still just text
+        let mut broken = PyStr::new(lookalike);
+        broken.push_code_point(0xD800);
+        map.insert(broken.clone(), PyValue::int(1));
+        map.insert(broken, PyValue::int(2));
+        assert_eq!(map.len(), 5);
+    }
+
+    #[test]
+    fn float_repr_equals_the_allocating_reference() {
+        let mut state = 0x1234_5678_9ABC_DEF1u64;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let mut numbers = vec![
+            0.1,
+            1.5,
+            100.0,
+            1e16,
+            1e15,
+            1e-4,
+            1e-5,
+            123456789012345680.0,
+            5e-324,
+            f64::MAX,
+            f64::MIN_POSITIVE,
+            8700235979891553.0 / 4.0,
+            2.675,
+            0.30000000000000004,
+            -0.0,
+            0.0,
+            1e22,
+            1e23,
+            273.0,
+            12.6,
+        ];
+        for _ in 0..40000 {
+            let value = f64::from_bits(next());
+            if value.is_finite() {
+                numbers.push(value);
+                numbers.push(-value);
+            }
+            numbers.push((next() % 100_000) as f64 / 100.0);
+            numbers.push((next() % 1_000_000) as f64 * 2f64.powi((next() % 120) as i32 - 60));
+        }
+        for number in numbers {
+            assert_eq!(
+                float_repr(number),
+                float_repr_reference(number),
+                "{number:e}"
+            );
+        }
+    }
+
+    #[test]
+    fn skipping_impossible_ties_changes_nothing() {
+        let mut state = 0x2545_F491_4F6C_DD1Du64;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let mut numbers = vec![
+            8700235979891553.0 / 4.0,
+            0.5,
+            0.25,
+            1e22,
+            1e23,
+            5e-324,
+            2f64.powi(80),
+            2f64.powi(-60),
+            273.0,
+            12.6,
+        ];
+        for _ in 0..30000 {
+            let value = f64::from_bits(next());
+            if value.is_finite() {
+                numbers.push(value.abs());
+            }
+            // dyadic values with few significant bits: where ties live
+            let bits = (next() % (1 << 20)) as f64;
+            numbers.push(bits * 2f64.powi((next() % 90) as i32 - 50));
+            numbers.push((next() >> 11) as f64 * 2f64.powi(-((next() % 12) as i32)));
+        }
+        for number in numbers {
+            if number == 0.0 || !number.is_finite() {
+                continue;
+            }
+            let scientific = format!("{:e}", number);
+            let (mantissa, exp) = scientific.split_once('e').unwrap();
+            let digits: String = mantissa.chars().filter(|c| c.is_ascii_digit()).collect();
+            let exp: i32 = exp.parse().unwrap();
+            let full = settle_exact_tie_unfiltered(number, digits.clone(), exp);
+            assert_eq!(
+                settle_exact_tie(number, &digits, exp).unwrap_or((digits, exp)),
+                full,
+                "{number:e}"
+            );
+        }
+    }
 
     #[test]
     fn float_repr_matches_python() {

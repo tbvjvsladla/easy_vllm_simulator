@@ -109,3 +109,11 @@ serde_json = "1"
 [[test]]
 name = "yaml_depth"
 path = "checks/yaml_depth.rs"
+
+[[test]]
+name = "key_encoding"
+path = "checks/key_encoding.rs"
+
+[[test]]
+name = "key_range"
+path = "checks/key_range.rs"

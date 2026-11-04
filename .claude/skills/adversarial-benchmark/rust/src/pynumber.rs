@@ -341,9 +341,66 @@ pub fn round_to_places(number: f64, places: u32) -> f64 {
     if !number.is_finite() {
         return number;
     }
+    let (negative, mantissa, exponent) = decompose(number);
+    if let Some((units, unit)) = scaled_units(mantissa, exponent, places) {
+        // `units / 10^places` of two exactly representable numbers is the correctly rounded decimal value (the
+        // classic exact-operand division); the sign is symmetric, so -0.0 and tiny negatives stay negative zero
+        if units < (1u128 << 53) && unit <= 10_000_000_000_000_000_000_000 {
+            let value = units as f64 / unit as f64;
+            return if negative { -value } else { value };
+        }
+    }
     fixed_text(number, places)
         .parse()
         .expect("a decimal literal parses")
+}
+
+/// Sign, mantissa and binary exponent of a finite double: `number = ±mantissa × 2^exponent` exactly (subnormals have
+/// no implicit leading one).
+fn decompose(number: f64) -> (bool, u64, i64) {
+    let bits = number.to_bits();
+    let exponent_bits = ((bits >> 52) & 0x7FF) as i64;
+    let fraction = bits & ((1u64 << 52) - 1);
+    if exponent_bits == 0 {
+        (bits >> 63 == 1, fraction, -1074)
+    } else {
+        (
+            bits >> 63 == 1,
+            fraction | (1u64 << 52),
+            exponent_bits - 1075,
+        )
+    }
+}
+
+/// `round-half-even(mantissa × 2^exponent × 10^places)` and `10^places` in 128-bit arithmetic, or `None` when the
+/// scaled value needs more than 128 bits (the caller then uses big integers).
+fn scaled_units(mantissa: u64, exponent: i64, places: u32) -> Option<(u128, u128)> {
+    if places > 22 {
+        return None;
+    }
+    let unit = 10u128.pow(places);
+    let scaled = u128::from(mantissa) * unit;
+    let units = if exponent >= 0 {
+        let shift = u32::try_from(exponent).ok()?;
+        if shift > scaled.leading_zeros() {
+            return None;
+        }
+        scaled << shift
+    } else {
+        let shift = u32::try_from(-exponent).ok()?;
+        if shift >= 128 {
+            // below one unit in the last place by a wide margin: no tie is possible, it rounds to zero
+            0
+        } else {
+            let quotient = scaled >> shift;
+            let remainder = scaled - (quotient << shift);
+            let twice = remainder << 1;
+            let divisor = 1u128 << shift;
+            let round_up = twice > divisor || (twice == divisor && quotient & 1 == 1);
+            quotient + u128::from(round_up)
+        }
+    };
+    Some((units, unit))
 }
 
 /// Python `'%.{places}f' % number`: exact decimal expansion rounded half-to-even; `nan`, `inf`, `-inf` spelled
@@ -360,16 +417,22 @@ pub fn format_fixed(number: f64, places: u32) -> String {
 
 /// The decimal text of a finite double rounded to `places` decimals (see [`round_to_places`]).
 fn fixed_text(number: f64, places: u32) -> String {
-    let bits = number.to_bits();
-    let negative = bits >> 63 == 1;
-    let exponent_bits = ((bits >> 52) & 0x7FF) as i64;
-    let fraction = bits & ((1u64 << 52) - 1);
-    // number = mantissa * 2^exponent exactly (subnormals have no implicit leading one).
-    let (mantissa, exponent) = if exponent_bits == 0 {
-        (fraction, -1074)
-    } else {
-        (fraction | (1u64 << 52), exponent_bits - 1075)
-    };
+    let (negative, mantissa, exponent) = decompose(number);
+    if let Some((units, unit)) = scaled_units(mantissa, exponent, places) {
+        return format!(
+            "{}{}.{:0>width$}",
+            if negative { "-" } else { "" },
+            units / unit,
+            units % unit,
+            width = places as usize
+        );
+    }
+    fixed_text_big(number, places)
+}
+
+/// [`fixed_text`] with big integers, for any magnitude and number of places.
+fn fixed_text_big(number: f64, places: u32) -> String {
+    let (negative, mantissa, exponent) = decompose(number);
     let unit = BigInt::from(10u8).pow(places);
     let scaled = BigInt::from(mantissa) * &unit;
     let units = if exponent >= 0 {
@@ -415,6 +478,57 @@ mod tests {
 
     fn int_of(text: &str) -> Option<String> {
         int_from_str(&PyStr::new(text)).ok().map(|n| n.to_string())
+    }
+
+    #[test]
+    fn the_128_bit_path_equals_the_big_integer_path() {
+        // a deterministic spread: random bit patterns, decimal-looking values, ties and subnormals
+        let mut state = 0x9E37_79B9_7F4A_7C15u64;
+        let mut next = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            state
+        };
+        let mut numbers = vec![
+            0.0,
+            -0.0,
+            0.125,
+            2.675,
+            0.375,
+            5e-324,
+            -5e-324,
+            1e22,
+            1e23,
+            f64::MAX,
+            0.5,
+            1.5,
+            2.5,
+        ];
+        for _ in 0..20000 {
+            let bits = next();
+            let value = f64::from_bits(bits);
+            if value.is_finite() {
+                numbers.push(value);
+            }
+            let decimal = (next() % 2_000_000) as f64 / 1000.0 - 1000.0;
+            numbers.push(decimal);
+            numbers.push(decimal / 8.0);
+            numbers.push(f64::from(next() as u32) / 1e6);
+        }
+        for number in numbers {
+            for places in [0u32, 1, 2, 3, 5, 9, 22, 23, 30] {
+                let exact = fixed_text_big(number, places);
+                assert_eq!(fixed_text(number, places), exact, "{number:e} at {places}");
+                let reference: f64 = exact.parse().unwrap();
+                let rounded = round_to_places(number, places);
+                assert_eq!(
+                    rounded.to_bits(),
+                    reference.to_bits(),
+                    "{number:e} at {places}"
+                );
+            }
+        }
     }
 
     #[test]

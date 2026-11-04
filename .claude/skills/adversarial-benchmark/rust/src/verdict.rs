@@ -15,7 +15,7 @@ use crate::pyops::{
     compare, divide, is_positive_number, multiply, num_of, percent_fixed, subtract, trunc_to_int,
     Compare,
 };
-use crate::pystr::PyStr;
+use crate::pystr::{lit, PyStr};
 use crate::pyvalue::{PyDict, PyValue};
 use num_bigint::BigInt;
 
@@ -91,11 +91,11 @@ fn shown(value: &PyValue) -> PyStr {
 
 /// Concatenates message pieces (text may carry lone surrogates, so pieces are code-point strings).
 fn message(parts: &[&PyStr]) -> PyStr {
-    let mut out = PyStr::default();
+    let mut points = Vec::with_capacity(parts.iter().map(|part| part.len()).sum());
     for part in parts {
-        out.push_py(part);
+        points.extend_from_slice(part.code_points());
     }
-    out
+    PyStr::from_code_points(points)
 }
 
 fn t(text: &str) -> PyStr {
@@ -110,16 +110,34 @@ fn text_value(text: &str) -> PyValue {
     PyValue::str(text)
 }
 
+/// The text of one of the ladder's source labels, shared like a literal.
+fn source_text(label: &str) -> PyStr {
+    match label {
+        SRC_E => lit!(SRC_E),
+        SRC_C => lit!(SRC_C),
+        SRC_EXPECTED => lit!(SRC_EXPECTED),
+        other => PyStr::new(other),
+    }
+}
+
+/// `PASS` / `REFUTE` and the two strategy labels as shared text.
+fn verdict_text(label: &str) -> PyStr {
+    match label {
+        "PASS" => lit!("PASS"),
+        "REFUTE" => lit!("REFUTE"),
+        "strategy" => lit!("strategy"),
+        "structural?" => lit!("structural?"),
+        other => PyStr::new(other),
+    }
+}
+
 fn string_value(text: PyStr) -> PyValue {
     PyValue::Str(text)
 }
 
-fn dict_of(items: Vec<(&str, PyValue)>) -> PyDict {
-    let mut map = PyDict::new();
-    for (key, value) in items {
-        map.set(key, value);
-    }
-    map
+/// A dict display with written-out, distinct keys (the keys are literals of this file).
+fn dict_of<const N: usize>(items: [(PyStr, PyValue); N]) -> PyDict {
+    PyDict::from_distinct_entries(items)
 }
 
 fn optional_float(number: Option<f64>) -> PyValue {
@@ -145,6 +163,14 @@ impl Candidate {
         }
     }
 
+    pub fn state_text(&self) -> PyStr {
+        match self {
+            Candidate::Unset => lit!("unset"),
+            Candidate::Invalid(_) => lit!("invalid"),
+            Candidate::Valid(_) => lit!("valid"),
+        }
+    }
+
     /// The `(state, value)` pair the original returns.
     pub fn to_value(&self) -> PyValue {
         let value = match self {
@@ -152,7 +178,7 @@ impl Candidate {
             Candidate::Invalid(raw) => raw.clone(),
             Candidate::Valid(number) => PyValue::Float(*number),
         };
-        PyValue::List(vec![text_value(self.state()), value])
+        PyValue::List(vec![PyValue::Str(self.state_text()), value])
     }
 }
 
@@ -213,13 +239,13 @@ impl Default for CliArguments {
     /// The defaults of the self-test helper `_st_opts` (which are also the CLI defaults).
     fn default() -> Self {
         CliArguments {
-            authority: text_value("weak"),
+            authority: PyValue::Str(lit!("weak")),
             reference_tps: PyValue::None,
             target_tps: PyValue::None,
             tolerance: PyValue::Float(0.15),
             node_vram_gib: PyValue::None,
             balance_tol: PyValue::Float(0.10),
-            spec_declared: text_value("unknown"),
+            spec_declared: PyValue::Str(lit!("unknown")),
         }
     }
 }
@@ -232,18 +258,18 @@ pub fn validate_cli(arguments: &CliArguments) -> Result<(PyDict, Vec<PyStr>), Py
 
     if !is_one_of(authority, &AUTHORITIES) {
         errors.push(message(&[
-            &t("--authority 는 "),
+            &lit!("--authority 는 "),
             &t(&AUTHORITIES.join("|")),
-            &t(" 중 하나여야 한다(받은 값: "),
+            &lit!(" 중 하나여야 한다(받은 값: "),
             &r(authority),
-            &t(")"),
+            &lit!(")"),
         ]));
     }
     if equals_text(authority, "explore") && !matches!(arguments.target_tps, PyValue::None) {
-        errors.push(t("--authority explore 인데 --target-tps 가 주어졌다 — explore 는 정의상 **목표를 세우지 않는 상태**다(모순). 목표를 세우려면 --authority explicit 을 쓰라."));
+        errors.push(lit!("--authority explore 인데 --target-tps 가 주어졌다 — explore 는 정의상 **목표를 세우지 않는 상태**다(모순). 목표를 세우려면 --authority explicit 을 쓰라."));
     }
     if equals_text(authority, "explicit") && matches!(arguments.target_tps, PyValue::None) {
-        errors.push(t("--authority explicit 인데 --target-tps 부재 — 명시적 권한은 사용자 목표(c)를 정본으로 요구한다(fail-closed)."));
+        errors.push(lit!("--authority explicit 인데 --target-tps 부재 — 명시적 권한은 사용자 목표(c)를 정본으로 요구한다(fail-closed)."));
     }
     for (flag, raw) in [
         ("--target-tps", &arguments.target_tps),
@@ -255,9 +281,9 @@ pub fn validate_cli(arguments: &CliArguments) -> Result<(PyDict, Vec<PyStr>), Py
         if !matches!(rubric_candidate(raw)?, Candidate::Valid(_)) {
             errors.push(message(&[
                 &t(flag),
-                &t("="),
+                &lit!("="),
                 &r(raw),
-                &t(" 은 루브릭이 될 수 없다(유한 양수 아님) — 이 값이 정본으로 낙찰되면 floor=0 인 **공허 PASS**(어떤 측정치도 통과)가 만들어진다. 목표 미설정(광범위 탐색)을 원하면 `--authority explore` 를 쓰고 --target-tps 는 넘기지 마십시오."),
+                &lit!(" 은 루브릭이 될 수 없다(유한 양수 아님) — 이 값이 정본으로 낙찰되면 floor=0 인 **공허 PASS**(어떤 측정치도 통과)가 만들어진다. 목표 미설정(광범위 탐색)을 원하면 `--authority explore` 를 쓰고 --target-tps 는 넘기지 마십시오."),
             ]));
         }
     }
@@ -267,9 +293,9 @@ pub fn validate_cli(arguments: &CliArguments) -> Result<(PyDict, Vec<PyStr>), Py
         Some(value) if tolerance_ok && (0.0..1.0).contains(&value) => Some(value),
         _ => {
             errors.push(message(&[
-                &t("--tolerance="),
+                &lit!("--tolerance="),
                 &r(&arguments.tolerance),
-                &t(" 는 0 ≤ tol < 1 이어야 한다 — tol=1 이면 floor=primary×0=0 이라 루브릭 값과 무관하게 **공허 PASS** 가 된다(같은 결함의 두 번째 입구)."),
+                &lit!(" 는 0 ≤ tol < 1 이어야 한다 — tol=1 이면 floor=primary×0=0 이라 루브릭 값과 무관하게 **공허 PASS** 가 된다(같은 결함의 두 번째 입구)."),
             ]));
             None
         }
@@ -277,11 +303,11 @@ pub fn validate_cli(arguments: &CliArguments) -> Result<(PyDict, Vec<PyStr>), Py
 
     if !is_one_of(&arguments.spec_declared, &SPEC_DECLARED) {
         errors.push(message(&[
-            &t("--spec-declared 는 "),
+            &lit!("--spec-declared 는 "),
             &t(&SPEC_DECLARED.join("|")),
-            &t(" 중 하나여야 한다(받은 값: "),
+            &lit!(" 중 하나여야 한다(받은 값: "),
             &r(&arguments.spec_declared),
-            &t(")"),
+            &lit!(")"),
         ]));
     }
 
@@ -304,29 +330,31 @@ pub fn validate_cli(arguments: &CliArguments) -> Result<(PyDict, Vec<PyStr>), Py
         }
         if failed {
             errors.push(message(&[
-                &t("--node-vram-gib 파싱 실패: "),
+                &lit!("--node-vram-gib 파싱 실패: "),
                 &r(&arguments.node_vram_gib),
             ]));
         } else if parsed.len() < 2 {
-            errors.push(t("--node-vram-gib 은 2개 이상 노드값 필요(멀티노드 전용)"));
+            errors.push(lit!(
+                "--node-vram-gib 은 2개 이상 노드값 필요(멀티노드 전용)"
+            ));
         } else {
             node_values = Some(parsed);
         }
     }
 
-    let opts = dict_of(vec![
-        ("authority", authority.clone()),
-        ("reference_tps", arguments.reference_tps.clone()),
-        ("target_tps", arguments.target_tps.clone()),
-        ("tolerance", optional_float(tolerance)),
+    let opts = dict_of([
+        (lit!("authority"), authority.clone()),
+        (lit!("reference_tps"), arguments.reference_tps.clone()),
+        (lit!("target_tps"), arguments.target_tps.clone()),
+        (lit!("tolerance"), optional_float(tolerance)),
         (
-            "node_vram",
+            lit!("node_vram"),
             node_values.map_or(PyValue::None, |values| {
                 PyValue::List(values.into_iter().map(PyValue::Float).collect())
             }),
         ),
-        ("balance_tol", arguments.balance_tol.clone()),
-        ("spec_declared", arguments.spec_declared.clone()),
+        (lit!("balance_tol"), arguments.balance_tol.clone()),
+        (lit!("spec_declared"), arguments.spec_declared.clone()),
     ]);
     Ok((opts, errors))
 }
@@ -365,98 +393,111 @@ pub fn resolve_spec_axis(
     };
     let has_value = source_has_value && value.is_some();
     let r = |v: &PyValue| PyStr::new(&v.repr());
-    let mut axis = dict_of(vec![
-        ("declared", spec_declared.clone()),
-        ("accept_len", raw.clone()),
-        ("accept_len_source", source.clone()),
+    let mut axis = dict_of([
+        (lit!("declared"), spec_declared.clone()),
+        (lit!("accept_len"), raw.clone()),
+        (lit!("accept_len_source"), source.clone()),
         (
-            "accept_len_evidence",
+            lit!("accept_len_evidence"),
             get(roofline, "accept_len_evidence")?.clone(),
         ),
-        ("measured_spec_on", PyValue::Bool(measured_spec_on)),
-        ("limit", PyValue::None),
-        ("basis", PyValue::None),
-        ("missing", PyValue::Bool(false)),
-        ("mismatch", PyValue::None),
+        (lit!("measured_spec_on"), PyValue::Bool(measured_spec_on)),
+        (lit!("limit"), PyValue::None),
+        (lit!("basis"), PyValue::None),
+        (lit!("missing"), PyValue::Bool(false)),
+        (lit!("mismatch"), PyValue::None),
     ]);
     if equals_text(spec_declared, "on") {
         if has_value {
-            axis.set("limit", text_value("R_token"));
-            axis.set(
-                "basis",
+            axis.insert(lit!("limit"), PyValue::Str(lit!("R_token")));
+            axis.insert(
+                lit!("basis"),
                 string_value(message(&[
-                    &t("spec 선언 on ∧ accept_len 출처="),
+                    &lit!("spec 선언 on ∧ accept_len 출처="),
                     &shown(source),
                 ])),
             );
         } else {
-            axis.set("missing", PyValue::Bool(true));
+            axis.insert(lit!("missing"), PyValue::Bool(true));
             let why = if !is_one_of(source, &ACCEPT_LEN_SOURCES) {
-                t("roofline.accept_len_source 부재(구세대 산출물 — 값의 출처를 말하지 못한다)")
+                lit!("roofline.accept_len_source 부재(구세대 산출물 — 값의 출처를 말하지 못한다)")
             } else if source_has_value {
-                message(&[&t("accept_len="), &r(raw), &t(" 무효(유한 ∧ ≥1 아님)")])
+                message(&[
+                    &lit!("accept_len="),
+                    &r(raw),
+                    &lit!(" 무효(유한 ∧ ≥1 아님)"),
+                ])
             } else {
                 message(&[
-                    &t("accept_len 출처="),
+                    &lit!("accept_len 출처="),
                     &shown(source),
-                    &t("(실측·명시 없음)"),
+                    &lit!("(실측·명시 없음)"),
                 ])
             };
-            axis.set(
-                "basis",
-                string_value(message(&[&t("spec 선언 on 인데 "), &why])),
+            axis.insert(
+                lit!("basis"),
+                string_value(message(&[&lit!("spec 선언 on 인데 "), &why])),
             );
         }
     } else if equals_text(spec_declared, "off") {
         if measured_spec_on {
-            axis.set("limit", text_value("R_token"));
-            axis.set("basis", text_value("선언 off ↔ 실측 spec_on — 측정 우선"));
+            axis.insert(lit!("limit"), PyValue::Str(lit!("R_token")));
+            axis.insert(
+                lit!("basis"),
+                PyValue::Str(lit!("선언 off ↔ 실측 spec_on — 측정 우선")),
+            );
             let accept = r(get(measured, "accept_len")?);
-            axis.set(
-                "mismatch",
+            axis.insert(
+                lit!("mismatch"),
                 string_value(message(&[
-                    &t("YES(declared=off · measured spec_on accept_len="),
+                    &lit!("YES(declared=off · measured spec_on accept_len="),
                     &accept,
-                    &t(")"),
+                    &lit!(")"),
                 ])),
             );
         } else if has_value && value.is_some_and(|number| number > 1.0) {
-            axis.set("limit", text_value("R_fp"));
-            axis.set(
-                "basis",
+            axis.insert(lit!("limit"), PyValue::Str(lit!("R_fp")));
+            axis.insert(
+                lit!("basis"),
                 string_value(message(&[
-                    &t("선언 off ∧ 실측 spec_off 인데 accept_len 출처="),
+                    &lit!("선언 off ∧ 실측 spec_off 인데 accept_len 출처="),
                     &shown(source),
-                    &t(" 값="),
+                    &lit!(" 값="),
                     &r(raw),
-                    &t(" 이 R_token·expected_achievable 에 곱해졌다 — 상한은 R_fp"),
+                    &lit!(" 이 R_token·expected_achievable 에 곱해졌다 — 상한은 R_fp"),
                 ])),
             );
-            axis.set(
-                "mismatch",
+            axis.insert(
+                lit!("mismatch"),
                 string_value(message(&[
-                    &t("YES(declared=off · accept_len_source="),
+                    &lit!("YES(declared=off · accept_len_source="),
                     &shown(source),
-                    &t(" accept_len="),
+                    &lit!(" accept_len="),
                     &r(raw),
-                    &t(")"),
+                    &lit!(")"),
                 ])),
             );
         } else {
-            axis.set("limit", text_value("R_fp"));
-            axis.set(
-                "basis",
-                text_value("spec 미선언(off) — accept_len 1.0 이 정상(결손 아님)"),
+            axis.insert(lit!("limit"), PyValue::Str(lit!("R_fp")));
+            axis.insert(
+                lit!("basis"),
+                PyValue::Str(lit!("spec 미선언(off) — accept_len 1.0 이 정상(결손 아님)")),
             );
         }
     } else {
-        axis.set(
-            "limit",
-            text_value(if measured_spec_on { "R_token" } else { "R_fp" }),
+        axis.insert(
+            lit!("limit"),
+            PyValue::Str(if measured_spec_on {
+                lit!("R_token")
+            } else {
+                lit!("R_fp")
+            }),
         );
-        axis.set(
-            "basis",
-            text_value("spec 선언 지문 부재(unknown) — 종전 규율(measured.spec_on) 보존"),
+        axis.insert(
+            lit!("basis"),
+            PyValue::Str(lit!(
+                "spec 선언 지문 부재(unknown) — 종전 규율(measured.spec_on) 보존"
+            )),
         );
     }
     Ok(axis)
@@ -522,14 +563,16 @@ fn build_ladder(
     let candidates = slots
         .iter()
         .map(|(label, state)| {
-            let mut entry = dict_of(vec![("source", text_value(label))]);
+            let mut entry = dict_of([(lit!("source"), PyValue::Str(source_text(label)))]);
             match state {
-                None => entry.set("state", text_value("absent-by-authority")),
+                None => entry.insert(lit!("state"), PyValue::Str(lit!("absent-by-authority"))),
                 Some(candidate) => {
-                    entry.set("state", text_value(candidate.state()));
+                    entry.insert(lit!("state"), PyValue::Str(candidate.state_text()));
                     match candidate {
-                        Candidate::Valid(value) => entry.set("value", PyValue::Float(*value)),
-                        Candidate::Invalid(value) => entry.set("value", value.clone()),
+                        Candidate::Valid(value) => {
+                            entry.insert(lit!("value"), PyValue::Float(*value))
+                        }
+                        Candidate::Invalid(value) => entry.insert(lit!("value"), value.clone()),
                         Candidate::Unset => {}
                     }
                 }
@@ -546,10 +589,10 @@ fn build_ladder(
 // ── build_verdict ───────────────────────────────────────────────────────────────
 
 /// `dict(base)` followed by `.update(extra)`: existing keys keep their position, new keys are appended.
-fn updated(base: &PyDict, extra: Vec<(&str, PyValue)>) -> PyDict {
-    let mut map = base.clone();
+fn updated<const N: usize>(mut map: PyDict, extra: [(PyStr, PyValue); N]) -> PyDict {
+    map.reserve(N);
     for (key, value) in extra {
-        map.set(key, value);
+        map.insert(key, value);
     }
     map
 }
@@ -570,8 +613,8 @@ pub fn build_verdict(
         PyValue::Dict(map) => map
             .get("e_search")
             .cloned()
-            .unwrap_or_else(|| text_value("no")),
-        _ => text_value("no"),
+            .unwrap_or_else(|| PyValue::Str(lit!("no"))),
+        _ => PyValue::Str(lit!("no")),
     };
 
     let (measure_ok, measure) = finite_measure(get(measured, "decode_tps")?)?;
@@ -583,30 +626,33 @@ pub fn build_verdict(
 
     if !get(measured, "measurement_ok")?.is_truthy() || !measure_ok {
         let reason = message(&[
-            &t("측정 실패(completed="),
+            &lit!("측정 실패(completed="),
             &shown(get(measured, "completed")?),
-            &t(" failed="),
+            &lit!(" failed="),
             &shown(get(measured, "failed")?),
-            &t(" decode_tps="),
+            &lit!(" decode_tps="),
             &PyStr::new(&get(measured, "decode_tps")?.repr()),
-            &t(") — 재측정 필요"),
+            &lit!(") — 재측정 필요"),
         ]);
-        return Ok(PyValue::Dict(dict_of(vec![
-            ("verdict", text_value("INVALID")),
-            ("failure_axis", PyValue::None),
-            ("structural_or_strategy", PyValue::None),
-            ("reason", string_value(reason)),
-            ("measured_decode_tps", get(measured, "decode_tps")?.clone()),
-            ("rubric", PyValue::None),
-            ("reason_code", PyValue::None),
-            ("e_search", e_search),
+        return Ok(PyValue::Dict(dict_of([
+            (lit!("verdict"), PyValue::Str(lit!("INVALID"))),
+            (lit!("failure_axis"), PyValue::None),
+            (lit!("structural_or_strategy"), PyValue::None),
+            (lit!("reason"), string_value(reason)),
+            (
+                lit!("measured_decode_tps"),
+                get(measured, "decode_tps")?.clone(),
+            ),
+            (lit!("rubric"), PyValue::None),
+            (lit!("reason_code"), PyValue::None),
+            (lit!("e_search"), e_search),
         ])));
     }
     let measure = measure.expect("ok implies a value");
 
     let reference_tps = subscript(opts, "reference_tps")?;
     let target_tps = subscript(opts, "target_tps")?;
-    let ladder = build_ladder(authority, reference_tps, target_tps, &expected)?;
+    let mut ladder = build_ladder(authority, reference_tps, target_tps, &expected)?;
     let explore = equals_text(authority, "explore");
     let loop_until_done = !explore;
     let target_c_out = if explore {
@@ -615,14 +661,17 @@ pub fn build_verdict(
         subscript(opts, "target_tps")?.clone()
     };
 
-    let mut rubric_common = dict_of(vec![
-        ("tolerance", tolerance.clone()),
-        ("R_fp", r_fp.clone()),
-        ("R_token", r_token.clone()),
-        ("expected_achievable", expected.clone()),
-        ("reference_E", subscript(opts, "reference_tps")?.clone()),
-        ("target_c", target_c_out),
-        ("authority", authority.clone()),
+    let mut rubric_common = dict_of([
+        (lit!("tolerance"), tolerance.clone()),
+        (lit!("R_fp"), r_fp.clone()),
+        (lit!("R_token"), r_token.clone()),
+        (lit!("expected_achievable"), expected.clone()),
+        (
+            lit!("reference_E"),
+            subscript(opts, "reference_tps")?.clone(),
+        ),
+        (lit!("target_c"), target_c_out),
+        (lit!("authority"), authority.clone()),
     ]);
     if !is_one_of(authority, &AUTHORITIES) {
         return Err(match authority {
@@ -634,125 +683,136 @@ pub fn build_verdict(
         });
     }
     let authority_name = authority.display_text().to_utf8().unwrap_or_default();
-    rubric_common.set(
-        "authority_note",
+    rubric_common.insert(
+        lit!("authority_note"),
         text_value(authority_note(&authority_name)),
     );
-    rubric_common.set("loop_until_done", PyValue::Bool(loop_until_done));
-    rubric_common.set("candidates", PyValue::List(ladder.candidates.clone()));
+    rubric_common.insert(lit!("loop_until_done"), PyValue::Bool(loop_until_done));
+    rubric_common.insert(
+        lit!("candidates"),
+        PyValue::List(std::mem::take(&mut ladder.candidates)),
+    );
 
     let spec_declared = match opts {
         PyValue::Dict(map) => map
             .get("spec_declared")
             .cloned()
-            .unwrap_or_else(|| text_value("unknown")),
-        _ => text_value("unknown"),
+            .unwrap_or_else(|| PyValue::Str(lit!("unknown"))),
+        _ => PyValue::Str(lit!("unknown")),
     };
     let spec_axis = resolve_spec_axis(&spec_declared, roofline, measured)?;
-    rubric_common.set("spec_axis", PyValue::Dict(spec_axis.clone()));
     let axis_text = |key: &str| spec_axis.get(key).cloned().unwrap_or(PyValue::None);
+    // read what the next steps need, then hand the axis itself to the rubric
+    let axis_missing = axis_text("missing");
+    let axis_basis = if axis_missing.is_truthy() {
+        axis_text("basis")
+    } else {
+        PyValue::None
+    };
+    let axis_limit = axis_text("limit");
+    rubric_common.insert(lit!("spec_axis"), PyValue::Dict(spec_axis));
 
-    if axis_text("missing").is_truthy() {
+    if axis_missing.is_truthy() {
         let rubric = updated(
-            &rubric_common,
-            vec![
-                ("primary", PyValue::None),
-                ("source", PyValue::None),
-                ("floor", PyValue::None),
-                ("ratio_M_over_primary", PyValue::None),
+            rubric_common,
+            [
+                (lit!("primary"), PyValue::None),
+                (lit!("source"), PyValue::None),
+                (lit!("floor"), PyValue::None),
+                (lit!("ratio_M_over_primary"), PyValue::None),
             ],
         );
         let reason = message(&[
-            &t("루브릭 못 세움("),
+            &lit!("루브릭 못 세움("),
             &t(REASON_SPEC_ACCEPT_LEN_MISSING),
-            &t("): "),
-            &shown(&axis_text("basis")),
-            &t(". accept_len 은 R_token 과 expected_achievable(= realistic_fraction × accept_len × R_fp) 양쪽에 곱해지므로 1.0 으로 메우면 물리 상한과 합격선이 함께 내려간다 — 자동 대체하지 않는다."),
+            &lit!("): "),
+            &shown(&axis_basis),
+            &lit!(". accept_len 은 R_token 과 expected_achievable(= realistic_fraction × accept_len × R_fp) 양쪽에 곱해지므로 1.0 으로 메우면 물리 상한과 합격선이 함께 내려간다 — 자동 대체하지 않는다."),
         ]);
-        return Ok(PyValue::Dict(dict_of(vec![
-            ("verdict", text_value("NEEDS_RUBRIC")),
-            ("failure_axis", text_value("establish")),
-            ("reason_code", text_value(REASON_SPEC_ACCEPT_LEN_MISSING)),
-            ("structural_or_strategy", PyValue::None),
-            ("reason", string_value(reason)),
-            ("measured_decode_tps", PyValue::Float(measure)),
-            ("measured_spec_on", PyValue::Bool(spec_on)),
-            ("measured_accept_len", accept_measured),
-            ("rubric", PyValue::Dict(rubric)),
-            ("authority", authority.clone()),
-            ("e_search", e_search),
-            ("ask_user", text_value("spec(speculative) 이 선언된 서빙인데 accept_len 실측이 없습니다. 판정 레벨의 측정이 수용길이를 싣도록 재측정하거나(lite 레그 `vllm bench serve` 의 spec_decode_acceptance_length), 값을 알고 있으면 `judge_bench.sh --accept-len L` 로 명시하세요(출처는 declared 로 기록됩니다).")),
+        return Ok(PyValue::Dict(dict_of([
+            (lit!("verdict"), PyValue::Str(lit!("NEEDS_RUBRIC"))),
+            (lit!("failure_axis"), PyValue::Str(lit!("establish"))),
+            (lit!("reason_code"), text_value(REASON_SPEC_ACCEPT_LEN_MISSING)),
+            (lit!("structural_or_strategy"), PyValue::None),
+            (lit!("reason"), string_value(reason)),
+            (lit!("measured_decode_tps"), PyValue::Float(measure)),
+            (lit!("measured_spec_on"), PyValue::Bool(spec_on)),
+            (lit!("measured_accept_len"), accept_measured),
+            (lit!("rubric"), PyValue::Dict(rubric)),
+            (lit!("authority"), authority.clone()),
+            (lit!("e_search"), e_search),
+            (lit!("ask_user"), PyValue::Str(lit!("spec(speculative) 이 선언된 서빙인데 accept_len 실측이 없습니다. 판정 레벨의 측정이 수용길이를 싣도록 재측정하거나(lite 레그 `vllm bench serve` 의 spec_decode_acceptance_length), 값을 알고 있으면 `judge_bench.sh --accept-len L` 로 명시하세요(출처는 declared 로 기록됩니다)."))),
         ])));
     }
 
     if ladder.admitted.is_empty() {
         let rubric = updated(
-            &rubric_common,
-            vec![
-                ("primary", PyValue::None),
-                ("source", PyValue::None),
-                ("floor", PyValue::None),
-                ("ratio_M_over_primary", PyValue::None),
+            rubric_common,
+            [
+                (lit!("primary"), PyValue::None),
+                (lit!("source"), PyValue::None),
+                (lit!("floor"), PyValue::None),
+                (lit!("ratio_M_over_primary"), PyValue::None),
             ],
         );
         let ask = message(&[
-            &t("동일 HW("),
+            &lit!("동일 HW("),
             &shown(get(roofline, "gpu_model")?),
-            &t(", tp="),
+            &lit!(", tp="),
             &shown(get(roofline, "tp")?),
-            &t(")에서 이 모델의 정상 디코드 t/s 레퍼런스를 제공해 주세요."),
+            &lit!(")에서 이 모델의 정상 디코드 t/s 레퍼런스를 제공해 주세요."),
         ]);
-        return Ok(PyValue::Dict(dict_of(vec![
-            ("verdict", text_value("NEEDS_RUBRIC")),
-            ("failure_axis", text_value("establish")),
-            ("structural_or_strategy", PyValue::None),
-            ("reason", text_value("루브릭 못 세움: 사다리의 유효 후보가 없다(부재 또는 invalid) → (c) 사용자 백스톱 필요")),
-            ("reason_code", PyValue::None),
-            ("measured_decode_tps", PyValue::Float(measure)),
-            ("rubric", PyValue::Dict(rubric)),
-            ("authority", authority.clone()),
-            ("e_search", e_search),
-            ("ask_user", string_value(ask)),
+        return Ok(PyValue::Dict(dict_of([
+            (lit!("verdict"), PyValue::Str(lit!("NEEDS_RUBRIC"))),
+            (lit!("failure_axis"), PyValue::Str(lit!("establish"))),
+            (lit!("structural_or_strategy"), PyValue::None),
+            (lit!("reason"), PyValue::Str(lit!("루브릭 못 세움: 사다리의 유효 후보가 없다(부재 또는 invalid) → (c) 사용자 백스톱 필요"))),
+            (lit!("reason_code"), PyValue::None),
+            (lit!("measured_decode_tps"), PyValue::Float(measure)),
+            (lit!("rubric"), PyValue::Dict(rubric)),
+            (lit!("authority"), authority.clone()),
+            (lit!("e_search"), e_search),
+            (lit!("ask_user"), string_value(ask)),
         ])));
     }
 
     let (primary_source, primary) = ladder.admitted[0];
-    let limit_is_token = equals_text(&axis_text("limit"), "R_token");
+    let limit_is_token = equals_text(&axis_limit, "R_token");
     let physical_limit = if limit_is_token {
         r_token.clone()
     } else {
         r_fp.clone()
     };
     let limit_source = if limit_is_token {
-        "R_token(spec on)"
+        lit!("R_token(spec on)")
     } else {
-        "R_fp(spec off)"
+        lit!("R_fp(spec off)")
     };
-    let mut physical = dict_of(vec![
-        ("limit_source", text_value(limit_source)),
-        ("limit_tps", physical_limit.clone()),
-        ("exceeds", PyValue::Bool(false)),
-        ("required_bandwidth_gbps", PyValue::None),
+    let mut physical = dict_of([
+        (lit!("limit_source"), PyValue::Str(limit_source.clone())),
+        (lit!("limit_tps"), physical_limit.clone()),
+        (lit!("exceeds"), PyValue::Bool(false)),
+        (lit!("required_bandwidth_gbps"), PyValue::None),
     ]);
     let primary_value = PyValue::Float(primary);
     if is_positive_number(&physical_limit)?
         && compare(Compare::Greater, &primary_value, &physical_limit)?
     {
-        physical.set("exceeds", PyValue::Bool(true));
+        physical.insert(lit!("exceeds"), PyValue::Bool(true));
         let bandwidth = get(roofline, "bandwidth_gbps")?;
         if is_positive_number(bandwidth)? {
             let product = multiply(bandwidth, &primary_value)?;
             let required = divide(&product, &physical_limit)?;
-            physical.set("required_bandwidth_gbps", rounded(required, 1));
+            physical.insert(lit!("required_bandwidth_gbps"), rounded(required, 1));
         }
         let rubric = updated(
-            &rubric_common,
-            vec![
-                ("primary", primary_value.clone()),
-                ("source", text_value(primary_source)),
-                ("floor", PyValue::None),
-                ("ratio_M_over_primary", PyValue::None),
-                ("physical", PyValue::Dict(physical.clone())),
+            rubric_common,
+            [
+                (lit!("primary"), primary_value.clone()),
+                (lit!("source"), PyValue::Str(source_text(primary_source))),
+                (lit!("floor"), PyValue::None),
+                (lit!("ratio_M_over_primary"), PyValue::None),
+                (lit!("physical"), PyValue::Dict(physical.clone())),
             ],
         );
         let required = physical
@@ -761,44 +821,44 @@ pub fn build_verdict(
             .unwrap_or(PyValue::None);
         let required_text = if required.is_truthy() {
             message(&[
-                &t(" — 달성하려면 "),
+                &lit!(" — 달성하려면 "),
                 &shown(&required),
-                &t(" GB/s 가 필요하나 이 HW 는 "),
+                &lit!(" GB/s 가 필요하나 이 HW 는 "),
                 &shown(get(roofline, "bandwidth_gbps")?),
-                &t(" GB/s 다"),
+                &lit!(" GB/s 다"),
             ])
         } else {
             PyStr::default()
         };
         let reason = message(&[
-            &t("루브릭 못 세움(물리 초과): 정본 문턱 "),
+            &lit!("루브릭 못 세움(물리 초과): 정본 문턱 "),
             &float_text(primary),
-            &t(" t/s ["),
-            &t(primary_source),
-            &t("] 가 이 구성의 물리 상한 "),
+            &lit!(" t/s ["),
+            &source_text(primary_source),
+            &lit!("] 가 이 구성의 물리 상한 "),
             &shown(&physical_limit),
-            &t(" t/s ["),
-            &t(limit_source),
-            &t("] 를 넘는다"),
+            &lit!(" t/s ["),
+            &limit_source,
+            &lit!("] 를 넘는다"),
             &required_text,
-            &t(". 도달 불가능한 문턱으로 낸 REFUTE 는 측정이 아니라 루브릭의 결함이다."),
+            &lit!(". 도달 불가능한 문턱으로 낸 REFUTE 는 측정이 아니라 루브릭의 결함이다."),
         ]);
         let ask = message(&[
-            &t("문턱 "),
+            &lit!("문턱 "),
             &float_text(primary),
-            &t(" t/s 의 출처가 **이 구성과 like-with-like** 인지 확인해 주세요 (같은 모델·HW 라도 양자화 범위·커널 백엔드가 다르면 active 바이트가 달라져 루프라인이 달라집니다). like-with-like 수치가 없으면 --e-search empty 로 재판정하세요."),
+            &lit!(" t/s 의 출처가 **이 구성과 like-with-like** 인지 확인해 주세요 (같은 모델·HW 라도 양자화 범위·커널 백엔드가 다르면 active 바이트가 달라져 루프라인이 달라집니다). like-with-like 수치가 없으면 --e-search empty 로 재판정하세요."),
         ]);
-        return Ok(PyValue::Dict(dict_of(vec![
-            ("verdict", text_value("NEEDS_RUBRIC")),
-            ("failure_axis", text_value("establish")),
-            ("reason_code", PyValue::None),
-            ("structural_or_strategy", PyValue::None),
-            ("reason", string_value(reason)),
-            ("measured_decode_tps", PyValue::Float(measure)),
-            ("rubric", PyValue::Dict(rubric)),
-            ("authority", authority.clone()),
-            ("e_search", e_search),
-            ("ask_user", string_value(ask)),
+        return Ok(PyValue::Dict(dict_of([
+            (lit!("verdict"), PyValue::Str(lit!("NEEDS_RUBRIC"))),
+            (lit!("failure_axis"), PyValue::Str(lit!("establish"))),
+            (lit!("reason_code"), PyValue::None),
+            (lit!("structural_or_strategy"), PyValue::None),
+            (lit!("reason"), string_value(reason)),
+            (lit!("measured_decode_tps"), PyValue::Float(measure)),
+            (lit!("rubric"), PyValue::Dict(rubric)),
+            (lit!("authority"), authority.clone()),
+            (lit!("e_search"), e_search),
+            (lit!("ask_user"), string_value(ask)),
         ])));
     }
 
@@ -807,7 +867,7 @@ pub fn build_verdict(
     let floor = num_of(&floor_value).expect("float times number").to_f64()?;
     let passed = measure >= floor;
     let ratio = round_to_places(measure / primary, 3);
-    rubric_common.set("physical", PyValue::Dict(physical));
+    rubric_common.insert(lit!("physical"), PyValue::Dict(physical));
 
     let mut notes: Vec<PyValue> = Vec::new();
     let mut reasons: Vec<PyValue> = Vec::new();
@@ -829,13 +889,13 @@ pub fn build_verdict(
         )?
     {
         let hint = message(&[
-            &t("speculative(MTP) OFF 감지(accept_len="),
+            &lit!("speculative(MTP) OFF 감지(accept_len="),
             &shown(&accept_measured),
-            &t("). 지원 모델인데 미사용 → R_token("),
+            &lit!("). 지원 모델인데 미사용 → R_token("),
             &shown(&r_token),
-            &t(") 대비 단일패스 R_fp("),
+            &lit!(") 대비 단일패스 R_fp("),
             &shown(&r_fp),
-            &t(")에 묶임. enable 권장."),
+            &lit!(")에 묶임. enable 권장."),
         ]);
         notes.push(string_value(hint.clone()));
         spec_hint = Some(hint);
@@ -847,65 +907,65 @@ pub fn build_verdict(
     let mut structural: Option<&str> = None;
     if passed {
         reasons.push(string_value(message(&[
-            &t("M("),
+            &lit!("M("),
             &float_text(measure),
-            &t(") ≥ "),
+            &lit!(") ≥ "),
             &float_text(primary),
-            &t("×(1−"),
+            &lit!("×(1−"),
             &t(&tolerance_text),
-            &t(")="),
+            &lit!(")="),
             &t(&floor_text),
-            &t(" ["),
-            &t(primary_source),
-            &t("] → 충족"),
+            &lit!(" ["),
+            &source_text(primary_source),
+            &lit!("] → 충족"),
         ])));
     } else {
         verdict = "REFUTE";
         reasons.push(string_value(message(&[
-            &t("M("),
+            &lit!("M("),
             &float_text(measure),
-            &t(") < "),
+            &lit!(") < "),
             &float_text(primary),
-            &t("×(1−"),
+            &lit!("×(1−"),
             &t(&tolerance_text),
-            &t(")="),
+            &lit!(")="),
             &t(&floor_text),
-            &t(" ["),
-            &t(primary_source),
-            &t("] (ratio "),
+            &lit!(" ["),
+            &source_text(primary_source),
+            &lit!("] (ratio "),
             &float_text(ratio),
-            &t(") → 기대 이하"),
+            &lit!(") → 기대 이하"),
         ])));
         let claim_reason = message(&[
-            &t("단일스트림 디코드 "),
+            &lit!("단일스트림 디코드 "),
             &float_text(measure),
-            &t(" t/s 가 루브릭 "),
+            &lit!(" t/s 가 루브릭 "),
             &float_text(primary),
-            &t(" t/s("),
-            &t(primary_source),
-            &t(")의 "),
+            &lit!(" t/s("),
+            &source_text(primary_source),
+            &lit!(")의 "),
             &float_text(ratio),
-            &t("배 — floor "),
+            &lit!("배 — floor "),
             &t(&floor_text),
-            &t(" 미달"),
+            &lit!(" 미달"),
         ]);
-        let evidence = dict_of(vec![
-            ("measured", get(measured, "decode_tps")?.clone()),
+        let evidence = dict_of([
+            (lit!("measured"), get(measured, "decode_tps")?.clone()),
             (
-                "engine_cross",
+                lit!("engine_cross"),
                 get(measured, "engine_gen_throughput_max")?.clone(),
             ),
-            ("R_fp", r_fp.clone()),
-            ("R_token", r_token.clone()),
-            ("expected", expected.clone()),
+            (lit!("R_fp"), r_fp.clone()),
+            (lit!("R_token"), r_token.clone()),
+            (lit!("expected"), expected.clone()),
         ]);
-        refuted_claims.push(PyValue::Dict(dict_of(vec![
+        refuted_claims.push(PyValue::Dict(dict_of([
             (
-                "claim",
-                text_value("서빙이 충분히 빠르다(production/agent-ready)"),
+                lit!("claim"),
+                PyValue::Str(lit!("서빙이 충분히 빠르다(production/agent-ready)")),
             ),
-            ("reason", string_value(claim_reason)),
-            ("evidence", PyValue::Dict(evidence)),
+            (lit!("reason"), string_value(claim_reason)),
+            (lit!("evidence"), PyValue::Dict(evidence)),
         ])));
         if spec_hint.is_some() {
             structural = Some("strategy");
@@ -922,9 +982,11 @@ pub fn build_verdict(
         {
             structural = Some("structural?");
             notes.push(string_value(message(&[
-                &t("spec on 인데도 expected("),
+                &lit!("spec on 인데도 expected("),
                 &shown(&expected),
-                &t(") 한참 아래 → 커널/이미지/백엔드 구조 의심(escalation 후보 — 외부 확증 필요)."),
+                &lit!(
+                    ") 한참 아래 → 커널/이미지/백엔드 구조 의심(escalation 후보 — 외부 확증 필요)."
+                ),
             ])));
         } else {
             structural = Some("strategy");
@@ -933,7 +995,7 @@ pub fn build_verdict(
             ));
         }
         if !loop_until_done {
-            notes.push(text_value("explore: loop-until-done 해제 상태 — 이 REFUTE 는 재탐색 강제가 아니라 **벽 지도 데이터**다(다음 항목으로 진행 가능). reconciliation_cap 규율은 불변."));
+            notes.push(PyValue::Str(lit!("explore: loop-until-done 해제 상태 — 이 REFUTE 는 재탐색 강제가 아니라 **벽 지도 데이터**다(다음 항목으로 진행 가능). reconciliation_cap 규율은 불변.")));
         }
     }
 
@@ -948,37 +1010,37 @@ pub fn build_verdict(
     }
 
     let rubric = updated(
-        &rubric_common,
-        vec![
-            ("primary", primary_value),
-            ("source", text_value(primary_source)),
-            ("floor", rounded(floor, 2)),
-            ("ratio_M_over_primary", PyValue::Float(ratio)),
+        rubric_common,
+        [
+            (lit!("primary"), primary_value),
+            (lit!("source"), PyValue::Str(source_text(primary_source))),
+            (lit!("floor"), rounded(floor, 2)),
+            (lit!("ratio_M_over_primary"), PyValue::Float(ratio)),
         ],
     );
-    let mut out = dict_of(vec![
-        ("verdict", text_value(verdict)),
-        ("failure_axis", text_value("meet")),
-        ("reason_code", PyValue::None),
+    let mut out = dict_of([
+        (lit!("verdict"), PyValue::Str(verdict_text(verdict))),
+        (lit!("failure_axis"), PyValue::Str(lit!("meet"))),
+        (lit!("reason_code"), PyValue::None),
         (
-            "structural_or_strategy",
-            if verdict == "REFUTE" { structural.map_or(PyValue::None, text_value) } else { PyValue::None },
+            lit!("structural_or_strategy"),
+            if verdict == "REFUTE" { structural.map_or(PyValue::None, |label| PyValue::Str(verdict_text(label))) } else { PyValue::None },
         ),
-        ("measured_decode_tps", PyValue::Float(measure)),
-        ("measured_spec_on", PyValue::Bool(spec_on)),
-        ("measured_accept_len", accept_measured),
-        ("rubric", PyValue::Dict(rubric)),
-        ("e_search", e_search),
-        ("reasons", PyValue::List(reasons)),
-        ("refuted_claims", PyValue::List(refuted_claims)),
-        ("diagnosis_hint", PyValue::List(notes)),
-        ("note", text_value("게이트=결정론(이 규칙). LLM Devil's Advocate 는 E 외부검색·정성 진단·재탐색힌트만 보탠다(최종 structural/strategy = LLM+HITL).")),
+        (lit!("measured_decode_tps"), PyValue::Float(measure)),
+        (lit!("measured_spec_on"), PyValue::Bool(spec_on)),
+        (lit!("measured_accept_len"), accept_measured),
+        (lit!("rubric"), PyValue::Dict(rubric)),
+        (lit!("e_search"), e_search),
+        (lit!("reasons"), PyValue::List(reasons)),
+        (lit!("refuted_claims"), PyValue::List(refuted_claims)),
+        (lit!("diagnosis_hint"), PyValue::List(notes)),
+        (lit!("note"), PyValue::Str(lit!("게이트=결정론(이 규칙). LLM Devil's Advocate 는 E 외부검색·정성 진단·재탐색힌트만 보탠다(최종 structural/strategy = LLM+HITL)."))),
     ]);
     if verdict == "PASS" {
-        out.set("failure_axis", text_value("meet"));
+        out.insert(lit!("failure_axis"), PyValue::Str(lit!("meet")));
     }
     if let Some(text) = warning {
-        out.set("warning", text_value(text));
+        out.insert(lit!("warning"), text_value(text));
     }
 
     let node_values = match opts {
@@ -1041,19 +1103,19 @@ fn apply_balance(
     };
     let balance_tol = subscript(opts, "balance_tol")?;
     let pass = compare(Compare::LessEqual, &PyValue::Float(deviation), balance_tol)?;
-    let balance = dict_of(vec![
-        ("node_vram_gib", node_values.clone()),
-        ("max_gib", maximum.clone()),
-        ("min_gib", minimum.clone()),
-        ("balance_dev", rounded(deviation, 4)),
-        ("tolerance", balance_tol.clone()),
-        ("pass", PyValue::Bool(pass)),
-        ("gates_verdict", PyValue::Bool(gates)),
+    let balance = dict_of([
+        (lit!("node_vram_gib"), node_values.clone()),
+        (lit!("max_gib"), maximum.clone()),
+        (lit!("min_gib"), minimum.clone()),
+        (lit!("balance_dev"), rounded(deviation, 4)),
+        (lit!("tolerance"), balance_tol.clone()),
+        (lit!("pass"), PyValue::Bool(pass)),
+        (lit!("gates_verdict"), PyValue::Bool(gates)),
     ]);
-    out.set("balance", PyValue::Dict(balance.clone()));
+    out.insert(lit!("balance"), PyValue::Dict(balance.clone()));
     if !pass && gates {
-        out.set("verdict", text_value("REFUTE"));
-        out.set("failure_axis", text_value("balance"));
+        out.insert(lit!("verdict"), PyValue::Str(lit!("REFUTE")));
+        out.insert(lit!("failure_axis"), PyValue::Str(lit!("balance")));
         let percent = trunc_to_int(&multiply(balance_tol, &PyValue::int(100))?)?;
         let dev4 = crate::pynumber::format_fixed(deviation, 4);
         let tolerance2 = percent_fixed(balance_tol, 2)?;
@@ -1067,13 +1129,13 @@ fn apply_balance(
         push_list(
             out,
             "refuted_claims",
-            PyValue::Dict(dict_of(vec![
-                ("claim", string_value(claim)),
-                ("reason", string_value(reason)),
-                ("evidence", PyValue::Dict(balance)),
+            PyValue::Dict(dict_of([
+                (lit!("claim"), string_value(claim)),
+                (lit!("reason"), string_value(reason)),
+                (lit!("evidence"), PyValue::Dict(balance)),
             ])),
         );
-        push_list(out, "diagnosis_hint", text_value("노드간 VRAM 편차 초과 → recipe-explorer 재탐색(per-GPU 클램프 재산정 — plan_26070809_47_07 §4.8)."));
+        push_list(out, "diagnosis_hint", PyValue::Str(lit!("노드간 VRAM 편차 초과 → recipe-explorer 재탐색(per-GPU 클램프 재산정 — plan_26070809_47_07 §4.8).")));
     } else if !pass {
         let dev4 = crate::pynumber::format_fixed(deviation, 4);
         let tolerance2 = percent_fixed(balance_tol, 2)?;

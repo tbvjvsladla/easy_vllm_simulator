@@ -12,7 +12,7 @@ use super::parser::{Ev, Event, Parser};
 use super::{marked, plain, Failure, Mark, Parsed};
 use crate::pynumber::{float_from_str, int_from_str};
 use crate::pystr::PyStr;
-use crate::pyvalue::{Opaque, PyDict, PyValue};
+use crate::pyvalue::{DictKey, NonStringKey, Opaque, PyDict, PyValue};
 use num_bigint::BigInt;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -1075,6 +1075,29 @@ impl Builder {
         Ok(PyValue::Float(sign * convert(&body)?))
     }
 
+    /// Which Python object a NaN key is. `.nan` (with any sign or underscores) is `SafeConstructor.nan_value`, one object
+    /// for every such scalar; any other NaN (`!!float nan`, `-nan`, a sexagesimal with a NaN part) is built fresh for
+    /// its node, and an alias reuses the node's object. Python's dict keeps one entry per object, because `nan != nan`
+    /// and only identity makes a lookup succeed. `0` is the shared object, `node + 1` the one of a node.
+    fn nan_origin(&self, id: usize) -> usize {
+        let NodeKind::Scalar(text) = &self.nodes[id].kind else {
+            return id + 1;
+        };
+        let cleaned: String = text
+            .code_points()
+            .iter()
+            .filter(|&&p| p != u32::from('_'))
+            .filter_map(|&p| char::from_u32(p))
+            .collect::<String>()
+            .to_lowercase();
+        let body = cleaned.strip_prefix(['+', '-']).unwrap_or(&cleaned);
+        if body == ".nan" {
+            0
+        } else {
+            id + 1
+        }
+    }
+
     fn binary_value(&self, id: usize) -> Parsed<PyValue> {
         let value = self.scalar_text(id)?;
         let points = value.code_points();
@@ -1415,7 +1438,7 @@ impl Builder {
                 for &(key, value) in pairs {
                     let key_value = self.assemble(key);
                     let value = self.assemble(value);
-                    map.insert(dict_key(&key_value), value);
+                    map.insert_key(dict_key(&key_value, self.nan_origin(key)), value);
                 }
                 PyValue::Dict(map)
             }
@@ -1479,34 +1502,31 @@ fn timedelta_args(seconds: i64) -> String {
     }
 }
 
-/// A dict key made of a YAML value. Strings stay strings; every other hashable value gets a private spelling that
-/// is equal exactly when Python's keys are (`1`, `1.0` and `True` are one key; `nan` is never equal to itself).
-fn dict_key(value: &PyValue) -> PyStr {
-    let marker = |canonical: String| {
-        PyStr::new(&format!(
-            "{}{canonical}\u{0}{}",
-            crate::pyvalue::NON_STRING_KEY,
-            value.repr()
-        ))
+/// A dict key made of a YAML value. A string is a string key; every other hashable value is a non-string key whose
+/// identity is equal exactly when Python's keys are: `1`, `1.0` and `True` are one key, whatever the size of the integral
+/// float (exact integer value); a NaN is equal only to the same object (`nan_origin`: see [`Builder::nan_origin`]).
+fn dict_key(value: &PyValue, nan_origin: usize) -> DictKey {
+    let other = |identity: String| {
+        DictKey::Other(NonStringKey {
+            identity,
+            repr: value.repr(),
+        })
     };
     match value {
-        PyValue::Str(text) => text.clone(),
-        PyValue::None => marker("none".to_string()),
-        PyValue::Bool(flag) => marker(format!("num:{}", u8::from(*flag))),
-        PyValue::Int(number) => marker(format!("num:{number}")),
-        PyValue::Float(number) if number.is_nan() => marker(format!(
-            "nan:{}",
-            NAN_KEYS.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
-        )),
+        PyValue::Str(text) => DictKey::Str(text.clone()),
+        PyValue::None => other("none".to_string()),
+        PyValue::Bool(flag) => other(format!("num:{}", u8::from(*flag))),
+        PyValue::Int(number) => other(format!("num:{number}")),
+        PyValue::Float(number) if number.is_nan() => other(format!("nan:{nan_origin}")),
         PyValue::Float(number) if number.is_finite() && number.fract() == 0.0 => {
-            marker(format!("num:{}", BigInt::from(*number as i128)))
+            let exact = crate::pynumber::int_from_float(*number)
+                .expect("a finite integral float converts to an integer exactly");
+            other(format!("num:{exact}"))
         }
-        PyValue::Float(number) => marker(format!("float:{}", crate::pyvalue::float_repr(*number))),
-        other => marker(format!("other:{}", other.repr())),
+        PyValue::Float(number) => other(format!("float:{}", crate::pyvalue::float_repr(*number))),
+        value => other(format!("other:{}", value.repr())),
     }
 }
-
-static NAN_KEYS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 /// How `repr` spells one character of a `UnicodeEncodeError` message (`\\xNN`, `\\uNNNN` or `\\UNNNNNNNN`, lower case).
 fn unicode_escape(point: u32) -> String {

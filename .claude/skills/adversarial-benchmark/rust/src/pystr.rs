@@ -7,8 +7,43 @@
 use crate::unicode_tables::{DECIMAL_DIGITS, NON_PRINTABLE, PYTHON_WHITESPACE};
 use std::fmt;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct PyStr(Vec<u32>);
+/// Text built by the program is `Owned` (and grows in place); text fixed in the source is `Static`: converted once
+/// per use site (see [`lit!`]) into a buffer that lives for the whole run - one per literal in the source, never one
+/// per use - and copied by reference. Both read the same; writing to static text copies it first.
+#[derive(Clone, Debug)]
+enum Repr {
+    Owned(Vec<u32>),
+    Static(&'static [u32]),
+}
+
+#[derive(Clone, Debug)]
+pub struct PyStr(Repr);
+
+impl Default for PyStr {
+    fn default() -> Self {
+        PyStr(Repr::Owned(Vec::new()))
+    }
+}
+
+impl PartialEq for PyStr {
+    fn eq(&self, other: &Self) -> bool {
+        let (left, right) = (self.points(), other.points());
+        std::ptr::eq(left, right) || left == right
+    }
+}
+
+impl Eq for PyStr {}
+
+/// A `PyStr` for text fixed in the source, converted once for this use site and a plain pointer copy afterwards.
+macro_rules! lit {
+    ($text:expr) => {{
+        static CELL: std::sync::OnceLock<&'static [u32]> = std::sync::OnceLock::new();
+        $crate::pystr::PyStr::from_static(
+            *CELL.get_or_init(|| $crate::pystr::PyStr::static_points($text)),
+        )
+    }};
+}
+pub(crate) use lit;
 
 fn in_ranges(table: &[(u32, u32)], code_point: u32) -> bool {
     table
@@ -49,11 +84,47 @@ pub(crate) fn is_python_space(code_point: u32) -> bool {
 
 impl PyStr {
     pub fn new(text: &str) -> Self {
-        PyStr(text.chars().map(u32::from).collect())
+        // one code point per character, so the byte length is an upper bound: no regrowth while filling
+        let mut points = Vec::with_capacity(text.len());
+        points.extend(text.chars().map(u32::from));
+        PyStr(Repr::Owned(points))
+    }
+
+    /// The code points of text fixed in the source, in a buffer kept for the rest of the run. Called once per
+    /// use site by [`lit!`]; not for text that varies.
+    pub fn static_points(text: &str) -> &'static [u32] {
+        Box::leak(
+            text.chars()
+                .map(u32::from)
+                .collect::<Vec<u32>>()
+                .into_boxed_slice(),
+        )
+    }
+
+    pub fn from_static(points: &'static [u32]) -> Self {
+        PyStr(Repr::Static(points))
     }
 
     pub fn from_code_points(points: Vec<u32>) -> Self {
-        PyStr(points)
+        PyStr(Repr::Owned(points))
+    }
+
+    fn points(&self) -> &[u32] {
+        match &self.0 {
+            Repr::Owned(points) => points,
+            Repr::Static(points) => points,
+        }
+    }
+
+    /// The buffer for writing; shared text is copied first.
+    fn owned(&mut self) -> &mut Vec<u32> {
+        if let Repr::Static(points) = &self.0 {
+            self.0 = Repr::Owned(points.to_vec());
+        }
+        match &mut self.0 {
+            Repr::Owned(points) => points,
+            Repr::Static(_) => unreachable!("made owned above"),
+        }
     }
 
     /// `bytes.decode("utf-8", "surrogateescape")`: valid sequences decode normally and every byte of an
@@ -64,7 +135,7 @@ impl PyStr {
             match std::str::from_utf8(bytes) {
                 Ok(valid) => {
                     points.extend(valid.chars().map(u32::from));
-                    return PyStr(points);
+                    return PyStr::from_code_points(points);
                 }
                 Err(error) => {
                     let (valid, rest) = bytes.split_at(error.valid_up_to());
@@ -83,46 +154,60 @@ impl PyStr {
     }
 
     pub fn code_points(&self) -> &[u32] {
-        &self.0
+        self.points()
     }
 
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.points().is_empty()
     }
 
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.points().len()
     }
 
     pub fn push_str(&mut self, text: &str) {
-        self.0.extend(text.chars().map(u32::from));
+        let points = self.owned();
+        points.reserve(text.len());
+        points.extend(text.chars().map(u32::from));
     }
 
     pub fn push_code_point(&mut self, code_point: u32) {
-        self.0.push(code_point);
+        self.owned().push(code_point);
     }
 
     pub fn push_py(&mut self, other: &PyStr) {
-        self.0.extend_from_slice(&other.0);
+        self.owned().extend_from_slice(other.points());
     }
 
     /// Compares with a Rust string without allocating.
     pub fn equals(&self, text: &str) -> bool {
-        self.0.iter().copied().eq(text.chars().map(u32::from))
+        let points = self.points();
+        if text.is_ascii() {
+            // one code point per byte: compare lengths first, then without decoding
+            return points.len() == text.len()
+                && points
+                    .iter()
+                    .zip(text.bytes())
+                    .all(|(&point, byte)| point == u32::from(byte));
+        }
+        points.iter().copied().eq(text.chars().map(u32::from))
     }
 
     /// `None` when the string holds a lone surrogate, which has no UTF-8 form.
     pub fn to_utf8(&self) -> Option<String> {
-        self.0.iter().map(|&point| char::from_u32(point)).collect()
+        self.points()
+            .iter()
+            .map(|&point| char::from_u32(point))
+            .collect()
     }
 
     pub fn ends_with_code_point(&self, code_point: u32) -> bool {
-        self.0.last() == Some(&code_point)
+        self.points().last() == Some(&code_point)
     }
 
     /// True when `strip()` would leave nothing: empty or whitespace only.
     pub fn is_blank(&self) -> bool {
-        self.0
+        self.points()
             .iter()
             .all(|&point| in_ranges(PYTHON_WHITESPACE, point))
     }
@@ -131,26 +216,26 @@ impl PyStr {
     pub fn strip(&self) -> PyStr {
         let is_space = |point: &&u32| in_ranges(PYTHON_WHITESPACE, **point);
         let start = self
-            .0
+            .points()
             .iter()
             .position(|p| !is_space(&p))
-            .unwrap_or(self.0.len());
+            .unwrap_or(self.points().len());
         let end = self
-            .0
+            .points()
             .iter()
             .rposition(|p| !is_space(&p))
             .map_or(start, |last| last + 1);
-        PyStr(self.0[start..end].to_vec())
+        PyStr::from_code_points(self.points()[start..end].to_vec())
     }
 
     /// Python `repr(str)`.
     pub fn repr(&self) -> String {
-        let has_single = self.0.contains(&('\'' as u32));
-        let has_double = self.0.contains(&('"' as u32));
+        let has_single = self.points().contains(&('\'' as u32));
+        let has_double = self.points().contains(&('"' as u32));
         let quote = if has_single && !has_double { '"' } else { '\'' };
-        let mut out = String::with_capacity(self.0.len() + 2);
+        let mut out = String::with_capacity(self.points().len() + 2);
         out.push(quote);
-        for &point in &self.0 {
+        for &point in self.points() {
             match point {
                 0x5C => out.push_str("\\\\"),
                 0x09 => out.push_str("\\t"),
@@ -177,7 +262,7 @@ impl PyStr {
     /// can be written to a stream is decided by the stream encoder.
     pub fn write_json(&self, out: &mut PyStr, ensure_ascii: bool) {
         out.push_code_point(0x22);
-        for &point in &self.0 {
+        for &point in self.points() {
             match point {
                 0x22 => out.push_str("\\\""),
                 0x5C => out.push_str("\\\\"),
@@ -197,10 +282,10 @@ impl PyStr {
     /// `text.encode("utf-8", "surrogateescape")`: `U+DC80..U+DCFF` become the original bytes; any other lone
     /// surrogate fails like Python's `UnicodeEncodeError`.
     pub fn to_surrogateescape_bytes(&self) -> Result<Vec<u8>, EncodeFailure> {
-        let mut bytes = Vec::with_capacity(self.0.len());
+        let mut bytes = Vec::with_capacity(self.points().len());
         let mut index = 0;
-        while index < self.0.len() {
-            let point = self.0[index];
+        while index < self.points().len() {
+            let point = self.points()[index];
             if let Some(character) = char::from_u32(point) {
                 let mut buffer = [0; 4];
                 bytes.extend_from_slice(character.encode_utf8(&mut buffer).as_bytes());
@@ -209,22 +294,22 @@ impl PyStr {
             } else {
                 // CPython emits the leading escapable bytes of a surrogate run, then reports the rest of the run
                 // (from the first character it cannot escape) as one error.
-                let run_start = self.0[..index]
+                let run_start = self.points()[..index]
                     .iter()
                     .rposition(|&p| !is_surrogate(p))
                     .map_or(0, |last| last + 1);
                 let start = (run_start..index)
-                    .find(|&k| !(0xDC80..=0xDCFF).contains(&self.0[k]))
+                    .find(|&k| !(0xDC80..=0xDCFF).contains(&self.points()[k]))
                     .unwrap_or(index);
                 let end = index
-                    + self.0[index..]
+                    + self.points()[index..]
                         .iter()
                         .take_while(|&&p| is_surrogate(p))
                         .count();
                 return Err(EncodeFailure {
                     start,
                     end,
-                    first: self.0[start],
+                    first: self.points()[start],
                 });
             }
             index += 1;
@@ -234,8 +319,8 @@ impl PyStr {
 
     /// `text.encode("utf-8", "backslashreplace")`, which is how Python writes to `sys.stderr`.
     pub fn to_backslashreplace_bytes(&self) -> Vec<u8> {
-        let mut bytes = Vec::with_capacity(self.0.len());
-        for &point in &self.0 {
+        let mut bytes = Vec::with_capacity(self.points().len());
+        for &point in self.points() {
             match char::from_u32(point) {
                 Some(character) => {
                     let mut buffer = [0; 4];
@@ -308,6 +393,25 @@ impl fmt::Display for EncodeFailure {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn static_text_reads_like_owned_text_and_is_copied_before_it_is_written() {
+        let fixed = lit!("값 abc");
+        let owned = PyStr::new("값 abc");
+        assert_eq!(fixed, owned);
+        assert_eq!(owned, fixed);
+        assert!(fixed.equals("값 abc") && !fixed.equals("값 abd") && !fixed.equals("값 ab"));
+        assert!(PyStr::new("abc").equals("abc") && !PyStr::new("abc").equals("abcd"));
+        // writing to a copy never changes the literal other users of the same site get
+        let mut copy = fixed.clone();
+        copy.push_str("!");
+        copy.push_code_point(0xD800);
+        assert_eq!(fixed.len(), 5);
+        assert_eq!(copy.len(), 7);
+        assert_eq!(lit!("값 abc").len(), 5);
+        assert!(copy.to_utf8().is_none());
+        assert_eq!(fixed.repr(), "'값 abc'");
+    }
 
     #[test]
     fn repr_picks_quotes_like_python() {
