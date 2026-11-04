@@ -35,7 +35,7 @@ use crate::FULL_REPEATS_MIN;
 
 const NATIVE_HELP: &str = "repeat_axis_api Rust-only commands:\n  repeat_axis_api evaluate-jsonl   JSON lines on stdin: {id, operation, arguments} (API differential transport)\n  repeat_axis_api constants        the module constants as one JSON object\n  repeat_axis_api native-help      this text\n";
 /// Wire encoding of the opt-in `result_json` transport; a bridge checks it to fail loudly against an older binary.
-const JSON_VALUES_ENCODING: &str = "json-values-v1";
+pub(crate) const JSON_VALUES_ENCODING: &str = "json-values-v1";
 
 /// Runs the program and returns its exit status. `args` excludes the program name.
 pub fn run(args: &[PyStr], runtime: &Runtime, io: &mut Streams<'_>) -> i32 {
@@ -56,14 +56,14 @@ pub fn run(args: &[PyStr], runtime: &Runtime, io: &mut Streams<'_>) -> i32 {
     io.finish(status)
 }
 
-fn print_text(io: &mut Streams<'_>, text: &str) -> i32 {
+pub(crate) fn print_text(io: &mut Streams<'_>, text: &str) -> i32 {
     match io.print(&PyStr::new(text)) {
         Ok(()) => 0,
         Err(failure) => print_failed(io, &failure),
     }
 }
 
-fn print_failed(io: &mut Streams<'_>, failure: &PrintFailure) -> i32 {
+pub(crate) fn print_failed(io: &mut Streams<'_>, failure: &PrintFailure) -> i32 {
     let mut text = PyStr::new(TRACEBACK_HEADER);
     text.push_str(&failure.line());
     text.push_str("\n");
@@ -71,7 +71,7 @@ fn print_failed(io: &mut Streams<'_>, failure: &PrintFailure) -> i32 {
     1
 }
 
-fn strings(names: &[&str]) -> PyValue {
+pub(crate) fn strings(names: &[&str]) -> PyValue {
     PyValue::List(names.iter().map(|name| PyValue::str(name)).collect())
 }
 
@@ -107,12 +107,12 @@ pub fn constants() -> PyValue {
 
 /// The parameters of one Python function: `positional` may be given by keyword here (there is no other way on the
 /// wire), `keyword_only` follow `*`. The names of parameters with defaults are listed so that an absent one is fine.
-struct Signature {
-    function: &'static str,
-    positional: &'static [&'static str],
-    keyword_only: &'static [&'static str],
+pub(crate) struct Signature {
+    pub(crate) function: &'static str,
+    pub(crate) positional: &'static [&'static str],
+    pub(crate) keyword_only: &'static [&'static str],
     /// Parameters (of either kind) that have a default.
-    optional: &'static [&'static str],
+    pub(crate) optional: &'static [&'static str],
 }
 
 fn name_list(names: &[&str]) -> String {
@@ -131,7 +131,7 @@ fn name_list(names: &[&str]) -> String {
 impl Signature {
     /// The call `function(**arguments)`: an unexpected name first (in argument order), then the missing
     /// parameters, as CPython reports them.
-    fn bind<'a>(&self, arguments: &'a PyDict) -> Result<Bound<'a>, Failure> {
+    pub(crate) fn bind<'a>(&self, arguments: &'a PyDict) -> Result<Bound<'a>, Failure> {
         for (name, _) in arguments.iter() {
             let known = self
                 .positional
@@ -186,19 +186,19 @@ impl Signature {
     }
 }
 
-struct Bound<'a>(&'a PyDict);
+pub(crate) struct Bound<'a>(&'a PyDict);
 
 impl Bound<'_> {
-    fn get(&self, name: &str) -> PyValue {
+    pub(crate) fn get(&self, name: &str) -> PyValue {
         self.0.get(name).cloned().unwrap_or(PyValue::None)
     }
 
-    fn get_or(&self, name: &str, default: PyValue) -> PyValue {
+    pub(crate) fn get_or(&self, name: &str, default: PyValue) -> PyValue {
         self.0.get(name).cloned().unwrap_or(default)
     }
 
     /// `repo_root`: the argument when given, else the process's configured root.
-    fn repo_root(&self) -> RepoRoot {
+    pub(crate) fn repo_root(&self) -> RepoRoot {
         match self.0.get("repo_root") {
             Some(value) => RepoRoot::from_value(value),
             None => RepoRoot::from_environment(),
@@ -380,14 +380,14 @@ fn evaluate_operation(
 // ── evaluate-jsonl ──────────────────────────────────────────────────────────────
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum Wire {
+pub(crate) enum Wire {
     /// `{id, kind: value, value}`: the result is a nested JSON value.
     Values,
     /// `result_json: true`: `{id, encoding, kind: value, value_json}`.
     JsonText,
 }
 
-fn exception_record(id: PyValue, failure: &Failure, wire: Wire) -> PyValue {
+pub(crate) fn exception_record(id: PyValue, failure: &Failure, wire: Wire) -> PyValue {
     let mut map = PyDict::new();
     map.set("id", id);
     if wire == Wire::JsonText {
@@ -399,7 +399,7 @@ fn exception_record(id: PyValue, failure: &Failure, wire: Wire) -> PyValue {
     PyValue::Dict(map)
 }
 
-fn value_record(id: PyValue, value: PyValue, wire: Wire) -> PyValue {
+pub(crate) fn value_record(id: PyValue, value: PyValue, wire: Wire) -> PyValue {
     let mut map = PyDict::new();
     map.set("id", id.clone());
     match wire {
@@ -426,11 +426,11 @@ fn value_record(id: PyValue, value: PyValue, wire: Wire) -> PyValue {
     PyValue::Dict(map)
 }
 
-fn transport_error(message: &str) -> Failure {
+pub(crate) fn transport_error(message: &str) -> Failure {
     Failure::new("TypeError", message)
 }
 
-fn load_failure(error: &LoadError) -> Failure {
+pub(crate) fn load_failure(error: &LoadError) -> Failure {
     let text = error.to_string();
     match error {
         LoadError::TooDeep { .. } => Failure::new(
@@ -445,7 +445,7 @@ fn load_failure(error: &LoadError) -> Failure {
 
 /// The arguments of a row: `arguments` (nested JSON) or `arguments_json` (each argument a raw JSON text decoded on
 /// its own); the two are mutually exclusive.
-fn row_arguments(row: &PyDict) -> Result<PyDict, Failure> {
+pub(crate) fn row_arguments(row: &PyDict) -> Result<PyDict, Failure> {
     match (row.get("arguments"), row.get("arguments_json")) {
         (Some(_), Some(_)) => Err(transport_error(
             "arguments and arguments_json are mutually exclusive",

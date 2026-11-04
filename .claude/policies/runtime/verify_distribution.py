@@ -1067,8 +1067,8 @@ def verify() -> dict:
         #   열거 밖 기본값 · 미정의 근거 코드 · user knob 비기본 ≠ escalate · repeats < full 하한) · 해소 거부(근거 코드 부재 ·
         #   승인 없는 confirm · Agent 의 escalate · 핀 충돌 · 서빙 상한 위반 · 필수값 부재). 실행 시점 집행자는 sweep_bench 가
         #   부하 전에 부르는 bench_preset.py resolve 이고 그 배선은 위 selftest_sweep_repeats P1~P3 가 친다.
-        _run("benchmark_bench_preset_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/selftest_bench_preset.py"], {0}),
+        _run("benchmark_bench_preset_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/bench_preset.sh", "--self-test"], {0}),
         # lite hint 통로의 **리포트 평면** (plan_26091407 §4.5 · §7 O5 · 2026-09-14 배선). 호출자 없는 자체검사는 L1(산문)이다.
         #   무엇을 지키나: lite 만 잰 셀도 hint 를 내려면 바인딩할 문서가 있어야 하는데 lite_bench 는 문서를 내지 않았다
         #   (audit_26091323 §1.2 A2). 배포되는 lite_bench.sh 사본을 격리 저장소에서 shim(docker·curl·nvidia-smi)으로 돌려

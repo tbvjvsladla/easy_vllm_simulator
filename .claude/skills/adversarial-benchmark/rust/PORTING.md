@@ -486,3 +486,65 @@ Git index363파일(Rust348과 실제 소유 의존15)만 새 공백 경로로 �
 근거는 상위 task_id 수행·검증 문서의 R5 절에 연결한다. 정본 검사·배포·새 복사·성능 원시와 독립 baseline/prototype/fix1fix2/canonical, CPython 공식 source/license 및 초기 실패를 같은 과업에 보존했다. 이어서 R6 프리셋, 나머지 S1~S7·하네스·6프로필·실제 Long E2E를 계속한다.
 
 갱신: 2026-11-05T01:59:11+09:00
+
+## R6 프리셋 해소(`bench_preset`) 이행 — 후보 기록
+
+상태: 후보(정본 적용 전). 범위는 원본 `bench_preset.py` 전체(상수·닫힌 스키마·바인딩/프리셋 로더·검증·서빙 상한·값 해소·데이터셋 실행 검사·CLI·자체검사)다.
+`dataset_prep`·`campaign_init` 전체 이행과 launcher/소비자(`sweep_bench`·`broad_search`·`run_bench`) 연결은 이 단위의 범위 밖이며 연결되지 않은 경계로 남는다.
+
+### 원본→Rust 대응
+
+| 원본 | Rust | 비고 |
+|---|---|---|
+| `validate_preset` · `_dataset_shape_problem` · `dataset_cross_problems` | `bench_preset::{validate_preset, dataset_shape_problem, dataset_cross_problems}` | 문서는 `PyValue`로 받고 Python의 `==`(bool/int/float 동치)·진리값·`in`·`repr`로 판정한다. 해시 불가 값은 같은 `TypeError`다 |
+| `load_bindings` · `preset_path` · `load_preset` · `_load_yaml` | 동명 함수 | YAML은 `yaml.safe_load(str)` 경로다: 표식 이름 `<unicode string>`, 파일 전체 엄격 UTF-8 해독 뒤 읽는다(`pyyaml::safe_load_text`). 호출 스택 기준선은 명령별로 다르다(`CallDepth`) |
+| `serving_caps` · `_grep_yaml_int` | 동명 함수 | `re.search` 정규식의 역추적(값 앞 공백 되돌림)을 손으로 재현했다. 대체 해독(`errors="replace"`)·범용 개행 변환 포함 |
+| `_parse_cli_value` · `_norm` · `_parse_knob_reasons` · `_parse_pins` · `_campaign_pins` | 동명 함수 | `json.dumps(sort_keys=True)`는 `dumps_sorted`(키 정렬 시점의 TypeError 포함) |
+| `check_dataset_runtime` | 동명 함수 | `is_file`→`os.access`→1 MiB 단위 읽기와 증분 SHA-256(`sha2 =0.10.9`, 정확 고정) →`stat` 순서. 다이제스트를 저장하거나 재사용하지 않는다 |
+| `resolve` | `bench_preset::resolve` | 반복 수는 R5 `resolve_repeats`, 캠페인 선언은 R5 `load_campaign_budgets`와 질의 어댑터(S4 이전의 Python 소유자)를 그대로 쓴다. `FULL_REPEATS_MIN`도 R5 상수다 |
+| `_cmd_resolve`·`main` | `bench_preset_cli` (`bench_preset` 실행파일) | argparse 사용법/도움말/오류는 원본 출력으로 캡처한 표(`help_layouts_bench_preset.rs`, COLUMNS 1..480, `resolve`는 1..1500) |
+| `--self-test` / `selftest_bench_preset.py` | `bench_preset_selftest` | K1~K4·V1~V15·R*·D1~D11을 실제 설치된 config·캠페인 스키마·소유자 복사본으로 평가한다(통과 출력을 찍지 않는다) |
+| (Rust 전용) | `bench_preset_api` (`evaluate-jsonl` · `constants` · `native-help`) | R5와 같은 전송. `arguments_json`·`result_json` 옵트인 깊이 보존 |
+| (Rust 전용) | `bench_preset_bench` | 인자 준비는 타이머 밖, 함수 본문·파일 I/O·해시·소유자 질의는 타이머 안, 결과는 `black_box` 뒤 해제. 특정 사례를 모른다 |
+
+### 바인딩과 환경 계약
+
+원본은 자기 파일 위치로 `SKILL_DIR`/`REPO_ROOT`를 찾았다. native 실행파일은 `BENCH_PRESET_SKILL_DIR`, `BENCH_PRESET_REPO_ROOT`(없으면 R5의 `REPEAT_AXIS_REPO_ROOT`)를
+받고(경로는 원본의 `Path(__file__).resolve()`처럼 정규화) 없으면 이름 있는 `BenchPresetConfigurationError`/`RepeatAxisConfigurationError`로 거부한다.
+캠페인 소유자는 R5와 같이 `REPEAT_AXIS_CAMPAIGN_ADAPTER`·`REPEAT_AXIS_PYTHON`으로 질의하며 `repeat_axis.py`·`bench_preset.py`로 폴백하지 않는다.
+설치된 소유자/어댑터/config가 없으면 검사는 `NOT_RUN`으로 실패한다(숨은 임시 의존 없음).
+
+### R1~R5 공유 파일의 변경(추가만)
+
+* `argv.rs`: `Kind::Append`(`action="append"`)와 `Matches::values_of`, `bench_preset` 파서 4개 표. 기존 파서의 동작은 그대로다(전체 기존 검사 재실행).
+* `pyvalue.rs`: `keyed_entries`를 `pub(crate)`로(비문자열 키의 값 복원).
+* `pyyaml/{mod,reader}.rs`: `str` 원본 입구 `safe_load_text`/`Reader::from_text`(기존 파일 스트림 입구는 그대로).
+* `repeat_api_cli.rs`: 호출 바인딩·레코드 보조를 `pub(crate)`로.
+
+### 검증(이번 작성 단위가 직접 관측한 것)
+
+고정 원본 관측을 그대로 재생했다: API 746개(검증 목록 25·`_parse_cli_value` 721) 전체 레코드, 해소/데이터셋 67개 전체 레코드와 트리 불변, CLI 45개의
+종료 코드·stdout·stderr·전체 before/after 트리, 원본 자체검사 전사. 각 검사는 `checks/preset_*.rs`(Cargo)와 작업 폴더의 외부 재생 스크립트로 두 번 확인했다.
+관리 `fmt`/`clippy --all-targets -D warnings`/debug 전체 Cargo(기존 163 + 새 9, 라이브러리 75)가 통과했다. 초기 실패(도움말 표 범위 부족, 재생 스크립트의 상대 경로 2건,
+미포함 traceback 모듈 접두 2건, Clippy 2건, 보조 fixture 환경 미설정 NOT_RUN)와 교정은 작업 폴더 로그에 그대로 남아 있다.
+
+### 알려진 한계와 미해결
+
+* 해소 결과의 비문자열 dict 키 정렬 순서는 CPython의 집합 반복 순서를 모사하지 않는다(선언 순서를 쓴다; 혼합 형 키의 TypeError 문구는 집합 순서에 따라 원본도 달라질 수 있다).
+* `json.dumps(sort_keys=True)`의 인코더 재귀 한계 오류는 재현하지 않는다(YAML 읽기가 먼저 같은 깊이에서 거부한다).
+* 처리되지 않은 예외의 traceback은 프레임을 재현하지 않고 앞 텍스트와 최종 `Class: message` 줄을 보존한다(R5와 같은 규칙; `repeat_axis.RepeatAxisError`의 모듈 접두 포함).
+* launcher/소비자 연결, 정본 적용, 독립 검증, 실제 계약 성능(정식 임시 레이아웃의 원본 831 기준선 포함)은 root 단계다. 이 단위에서는 스모크 실행만 했다.
+* 기본 해소의 외부 Python 질의 지연(R5 041)은 S4 의존으로 그대로 남는다. 결과 캐시나 규칙 복제로 가리지 않았다.
+
+## R6 정본 연결 이후 검사와 첫 성능 판정
+
+프리셋 런처와 실제 sweep/broad-search 소비자, 복사 fixture·배포검사·명시적 node-local build의 일곱 번째 자체검사를 정본에 연결했다.
+관리 build7자체검사·fmt/release Cargo172·Clippy, 고정746API/67해소/45CLI의 전체값·종료·파일결과, 독립 원본6경계와 설치 런처2경계,
+전체배포128이 PASS다. 추적 소스386파일(Rust366/설치소유의존20)만 새 공백 경로에 복사하고 기존 관리 도구체인/cache를 명시 재사용한
+source build7자체검사·관련 Cargo11도 PASS다. 전역 설정이나 배포 target/cache/인증을 복사하지 않았다.
+
+첫 계약 성능은 기능 PASS와 다르다. pure652×200×11의 Python1819.047960ns/Rust1906.973367ns=0.953893배, 전체해소18값은
+67.856966/124.622359ms=0.544501배였다. 전체 파일해시1/16/64MiB는0.644766/3.566663ms,7.709196/30.000562ms,
+29.640115/119.364523ms로 회귀다. 실제CLI6개 집계83.656411/74.252723ms=1.126644배지만 개별024/043의 회귀도 보존한다.
+원본 결과와 최종 파일은 모두 같다. 순수연산·ARM 해시 경로를 같은 세션에서 교정 중이며, Python 소유자 의존은 S4 후속에 남는다.
+이 기록은 초기 관측이며 성능 완료나 전체 과업 완료가 아니다. 상세 원시·실행 조건은 상위 과업 문서의 R6 기능/성능 절에 연결한다.

@@ -189,7 +189,29 @@ impl Failure {
 /// under the recursion limit the original CLI runs with.
 pub fn safe_load(bytes: &[u8], name: &PyStr) -> Result<PyValue, YamlError> {
     frames::reset(frames::LIMIT, false);
-    load(bytes, name).map_err(Failure::into_error)
+    load(Source::File { bytes, name }).map_err(Failure::into_error)
+}
+
+/// The name PyYAML shows in the marks of a `str` source.
+pub const TEXT_SOURCE_NAME: &str = "<unicode string>";
+
+/// The recursion limit of the interpreter the original runs on.
+const PYTHON_RECURSION_LIMIT: usize = 1000;
+
+/// `yaml.safe_load(text)` for a `str` already read: the marks name `<unicode string>` and the document is read whole
+/// (no 8192-byte decoding chunks). `open_frames` is how many Python frames the caller of `safe_load` keeps open
+/// (module, `main`, ...); `safe_load` itself is the next one.
+pub fn safe_load_text(text: &PyStr, open_frames: usize) -> Result<PyValue, YamlError> {
+    frames::reset(PYTHON_RECURSION_LIMIT.saturating_sub(open_frames), false);
+    load(Source::Text(text)).map_err(Failure::into_error)
+}
+
+/// Where the characters of a load come from.
+enum Source<'a> {
+    /// An open text file: the bytes, and the name the marks show.
+    File { bytes: &'a [u8], name: &'a PyStr },
+    /// A `str`.
+    Text(&'a PyStr),
 }
 
 /// What a load did besides its result: the deepest Python stack the original would have reached (`safe_load` = 1)
@@ -205,7 +227,7 @@ pub struct Probe {
 /// structure with the original's (`roofline yaml-depth`).
 pub fn probe(bytes: &[u8], name: &PyStr) -> Probe {
     frames::reset(usize::MAX / 2, true);
-    let result = load(bytes, name).map_err(Failure::into_error);
+    let result = load(Source::File { bytes, name }).map_err(Failure::into_error);
     let mut trace = frames::take_trace();
     if !trace.iter().any(|(_, name)| *name == "get_single_data") {
         trace.clear();
@@ -223,16 +245,24 @@ pub fn probe(bytes: &[u8], name: &PyStr) -> Probe {
     }
 }
 
-fn load(bytes: &[u8], name: &PyStr) -> Parsed<PyValue> {
+fn load(source: Source<'_>) -> Parsed<PyValue> {
     let _safe_load = frames::frame("safe_load")?;
     let _load = frames::frame("load")?;
-    let name = Rc::new(name.clone());
+    let name = Rc::new(match &source {
+        Source::File { name, .. } => (*name).clone(),
+        Source::Text(_) => PyStr::new(TEXT_SOURCE_NAME),
+    });
     // `Loader.__init__` builds the reader (`Reader.__init__` -> `determine_encoding`) and then the scanner
     let loader = frames::frame("__init__")?;
     let reader = {
         let _init = frames::frame("__init__")?;
-        let _determine = frames::frame("determine_encoding")?;
-        reader::Reader::new(name, bytes)?
+        match &source {
+            Source::File { bytes, .. } => {
+                let _determine = frames::frame("determine_encoding")?;
+                reader::Reader::new(name, bytes)?
+            }
+            Source::Text(text) => reader::Reader::from_text(name, text)?,
+        }
     };
     let scanner = {
         let _init = frames::frame("__init__")?;

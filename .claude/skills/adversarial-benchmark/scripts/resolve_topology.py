@@ -189,7 +189,8 @@ def _self_test():
             ab = os.path.join(root, ".claude", "skills", "adversarial-benchmark", "scripts")
             os.makedirs(ab)
             for name in scripts + ("resolve_topology.py", "repeat_axis.py", "bench_preset.py",
-                                    "repeat_axis.sh", "repeat_axis_api.sh", "repeat_axis_native.py", "repeat_axis_owner_query.py"):
+                                    "repeat_axis.sh", "repeat_axis_api.sh", "repeat_axis_native.py", "repeat_axis_owner_query.py",
+                                    "bench_preset.sh", "bench_preset_api.sh"):
                 shutil.copy2(os.path.join(here, name), os.path.join(ab, name))
             native_rel = ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis"
             native_dst = os.path.join(root, native_rel)
@@ -197,6 +198,9 @@ def _self_test():
             shutil.copy2(os.path.join(real_repo, native_rel), native_dst)
             native_api_rel = ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis_api"
             shutil.copy2(os.path.join(real_repo, native_api_rel), os.path.join(root, native_api_rel))
+            for native_name in ("bench_preset", "bench_preset_api"):
+                rel = ".claude/skills/adversarial-benchmark/rust/target/release/" + native_name
+                shutil.copy2(os.path.join(real_repo, rel), os.path.join(root, rel))
             # 측정 형상 프리셋(plan_26101011) — sweep_bench 는 토폴로지 해소 **뒤** 프리셋을 해소한다(바이트 사본).
             shutil.copytree(os.path.join(os.path.dirname(here), "config"), os.path.join(os.path.dirname(ab), "config"))
             git(root, "init", "-q")

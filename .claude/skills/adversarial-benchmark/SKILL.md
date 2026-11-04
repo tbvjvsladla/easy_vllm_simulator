@@ -35,7 +35,7 @@ description: >-
 - **State transitions** — **explicit PASS** 는 인증서로 `promotion-ready` 의 성능 조건을 채운다. 인증서가 발행되지 않는 판정(weak·explore 의 PASS · REFUTE)은 bench_report **판정 표**(`## 판정 (표시만 …)` 의 `verdict`·`루브릭 권한` 행)가 요구 증거이고, `completion_gate` 가 그 표를 manifest rubric 계약(floor>0 · ratio · primary_source · 출처 표시)과 교차검증한다(2026-09-29 · plan_26092908 §4.8 — 인증서를 손으로 만들지 않는다). lite 는 어떤 상태도 진행시키지 않는다. 최종 상태 판정은 `.claude/policies/runtime/completion_gate.py` 소유.
 - **HITL/safety boundaries** — **serve 를 기동하지 않는다**(미가동 시 중단·보고) · 모델 자동 다운로드 ✗ · 무승인 escalate/rebuild ✗ · 무한 기각 ✗(cap → Model-C) · 게이트는 규칙(LLM 다수결 ✗).
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
-- **Deterministic commands** — `scripts/roofline.sh` · `run_bench.sh` · `parse_bench.sh` · `verdict_rule.sh` · `lite_bench.sh` · `lite_metrics.py` · `sweep_bench.sh` · `bench_preset.py` · `repeat_axis.py` · `classify_cell.py` · `render_report.py` · `publish_benchmark_record.py` · `max_envelope.sh` · `render_max_report.py`.
+- **Deterministic commands** — `scripts/roofline.sh` · `run_bench.sh` · `parse_bench.sh` · `verdict_rule.sh` · `lite_bench.sh` · `lite_metrics.py` · `sweep_bench.sh` · `bench_preset.sh` · `repeat_axis.py` · `classify_cell.py` · `render_report.py` · `publish_benchmark_record.py` · `max_envelope.sh` · `render_max_report.py`.
 - **Handoff contract** — 반증된 셀 → `campaigns/<id>/escalation_candidates.jsonl` 에 후보 한 줄(`campaign_init --escalation-add`) · 종결 시 `--escalation-summary` 를 사람이 읽고 발동 여부를 정한다 · 구조적 → `upstream-version-watch` escalation · 증거 조회/입고 → `wiki-desk`(sidecar).
 - **Owns (state)** — `bench-verdict` · `bench-report` · `bench-certificate` · `max-envelope`
 
@@ -177,7 +177,7 @@ description: >-
 - **기본값 없음 유지**: `backend` · `bench_budget_mib` 는 default 가 `null` 이다(값이 없으면 기동 거부 — 2026-09-07 · §4.8).
 - **기록**: `sweep_index.json` 최상위 `bench_knobs` — 프리셋 이름·경로 · 바인딩 · knob 별 값/출처(preset|campaign|
   cli_pin|agent)/등급/근거 코드/필터 제외분 · 승인·핀 전사. 재조립은 측정 시점 기록을 승계한다.
-- **집행자 둘**: 리뷰 시점 `scripts/selftest_bench_preset.py`(verify_distribution) · 실행 시점 `bench_preset.py resolve`
+- **집행자 둘**: 리뷰 시점 `scripts/bench_preset.sh --self-test`(verify_distribution) · 실행 시점 `bench_preset.sh resolve`
   (sweep_bench 가 부하 전에 부른다 · 위반 = exit 2). 판정 knob(error rate · 노드 간 허용치 · 루브릭)은 판정 평면이라
   프리셋 밖이고, lite(`vllm bench serve`)는 이번 범위 밖이다(`config/<도구>/` 로 나중에 붙인다).
 
@@ -205,7 +205,7 @@ description: >-
 ## 9. 보조 파일
 
 **결정론 스크립트**
-- `config/bench_bindings.yaml` · `config/guide-llm/default_preset.yaml` · `scripts/bench_preset.py` · `scripts/selftest_bench_preset.py` — full-bench 바인딩 · 측정 형상 프리셋(유일한 기본값 층) · 로더/해소기(단일 소유자 · `validate`/`resolve`) · 리뷰 시점 거부 묶음(§4 · 2026-10-10 · `plan_26101011`).
+- `config/bench_bindings.yaml` · `config/guide-llm/default_preset.yaml` · `scripts/bench_preset.sh` · `scripts/bench_preset.sh --self-test` — full-bench 바인딩 · 측정 형상 프리셋(유일한 기본값 층) · 로더/해소기(단일 소유자 · `validate`/`resolve`) · 리뷰 시점 거부 묶음(§4 · 2026-10-10 · `plan_26101011`).
 - `scripts/roofline.sh` — (a) spec-aware R_fp/R_token/expected(manifest+config/index). **accept_len 은 R_token 과 expected_achievable(= realistic_fraction × accept_len × R_fp) 양쪽에 곱해진다** — E·c 가 없으면 expected 가 primary 이므로 accept_len 은 상한만이 아니라 합격선을 움직인다(2026-09-14 · plan_26091407 F6). 그래서 값 옆에 `accept_len_source` 를 싣고 그 닫힌 어휘를 이 파일이 소유한다: `measured`(판정 레벨 measured.json 실측 승계) · `declared`(사람 `--accept-len` 명시) · `declared-absent`(spec 미선언 — 1.0 이 정상) · `absent`(실측도 명시도 없음 — 1.0 은 자리표시자, 뜻은 판정기가 정한다). 무효 값(비유한·<1)은 조용히 1.0 으로 눕히지 않고 exit 2 다(모델을 읽기 전에 판정한다). ⚠ `parse_guidellm` 의 `spec_axis_source=declared-absent`(lite 승계원 부재 명시)는 **다른 층의 같은 토큰**이며 이 어휘로 옮기지 않는다 — roofline 기준으로는 선언 지문에 따라 `absent` 또는 `declared-absent` 다.
 - `scripts/run_bench.sh` · `scripts/parse_bench.sh` — 측정 M(+engine-log 교차). `--tool vllm|guidellm`(기본 `vllm`)이 도구를 고른다 — **lite 는 언제나 `vllm bench serve`**, full 만 GuideLLM 으로 간다(도구 구성 `full = lite ∪ GuideLLM` · 반복 축을 포함한 정의는 위 **full bench 의 정의**). 두 경로를 이질적으로 유지하는 것이 설계다: 통합하면 같은 버그가 양쪽에 균일하게 먹어 **일치해 보이면서 둘 다 틀리는** 상태가 되고, 실제로 그 이질성이 실결함 2건을 잡았다(2026-09-01·09-03).
 - `scripts/parse_guidellm.sh` — GuideLLM `benchmarks.json` → **`parse_bench` 와 동일 계약**의 측정 M(소비자가 도구를 몰라도 되게). 정본 지표도 그대로 `1000/median(TPOT)`. **spec 축은 추측하지 않고 요구한다** — GuideLLM 은 수용길이를 보고하지 않는데 `verdict_rule` 은 `spec_on` 으로 물리 상한을 R_token/R_fp 중에서 고르므로, 조용한 False 는 거짓 판정이 된다. `--accept-len-src`(같은 스윕 lite 레그에서 승계) 또는 `--spec-axis-absent`(부재 명시) 중 **정확히 하나**가 필수다. 승계원은 **`vllm bench serve` 결과**여야 한다 — lite raw 포인터 문서(`bench_warm_json` …)를 넘기면 exit 2(2026-09-14: 종전에는 포인터 문서를 받아 None 을 조용히 승계해 spec 선언 GuideLLM 스윕이 전부 결손으로 기록됐고, `sweep_bench.sh` 는 이제 포인터가 가리키는 warm JSON 을 넘긴다). **`--self-test`**(G1~G25 · 실측 산출물 픽스처 포함).

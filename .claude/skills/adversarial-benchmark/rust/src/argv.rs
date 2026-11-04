@@ -26,6 +26,8 @@ pub const PROG: &str = "sweep_stop.py";
 pub enum Kind {
     Help,
     Value,
+    /// `action="append"`: a value option whose every occurrence is kept, in order.
+    Append,
     Flag,
 }
 
@@ -70,6 +72,14 @@ const fn text_option(name: &'static str, required: bool) -> ActionDef {
         name,
         kind: Kind::Value,
         required,
+        ..PLAIN
+    }
+}
+
+const fn append_option(name: &'static str) -> ActionDef {
+    ActionDef {
+        name,
+        kind: Kind::Append,
         ..PLAIN
     }
 }
@@ -500,6 +510,135 @@ pub const REPEAT_AXIS_AGGREGATE_LEVEL: Spec = Spec {
     layouts: crate::help_layouts_repeat_axis::AGGREGATE_LEVEL,
 };
 
+/// Indices of the actions of the four `bench_preset.py` parsers (the top parser and its three subparsers).
+pub mod bench_preset_args {
+    pub const SELF_TEST: usize = 1;
+
+    pub mod validate {
+        pub const PRESET: usize = 1;
+    }
+
+    pub mod default {
+        pub const KNOB: usize = 1;
+        pub const PRESET: usize = 2;
+    }
+
+    pub mod resolve {
+        pub const TOOL: usize = 1;
+        pub const PRESET: usize = 2;
+        pub const SERVING_YAML: usize = 3;
+        pub const DRY_RUN: usize = 4;
+        pub const RECORD_OUT: usize = 5;
+        pub const LEVELS: usize = 6;
+        pub const INPUT_LEN: usize = 7;
+        pub const OUTPUT_LEN: usize = 8;
+        pub const NUM_PROMPTS: usize = 9;
+        pub const WARMUPS: usize = 10;
+        pub const REPEATS: usize = 11;
+        pub const REPEATS_SOURCE: usize = 12;
+        pub const BACKEND: usize = 13;
+        pub const BENCH_BUDGET_MIB: usize = 14;
+        pub const PIN: usize = 15;
+        pub const PINNED_BY: usize = 16;
+        pub const KNOB_REASON: usize = 17;
+        pub const APPROVED_BY: usize = 18;
+        pub const CAMPAIGN_ID: usize = 19;
+    }
+}
+
+/// The top parser of `bench_preset.py`: `-h`, `--self-test` and the subcommand word, which
+/// [`crate::bench_preset_cli`] dispatches.
+pub const BENCH_PRESET: Spec = Spec {
+    prog: "bench_preset.py",
+    actions: &[HELP_DEFINITION, flag("--self-test")],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--self-test", 1),
+    ],
+    layouts: crate::help_layouts_bench_preset::TOP,
+};
+
+/// The `validate` subparser.
+pub const BENCH_PRESET_VALIDATE: Spec = Spec {
+    prog: "bench_preset.py validate",
+    actions: &[HELP_DEFINITION, text_option("--preset", false)],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--preset", 1),
+    ],
+    layouts: crate::help_layouts_bench_preset::VALIDATE,
+};
+
+/// The `default` subparser.
+pub const BENCH_PRESET_DEFAULT: Spec = Spec {
+    prog: "bench_preset.py default",
+    actions: &[
+        HELP_DEFINITION,
+        required_option("--knob", Conversion::Text),
+        text_option("--preset", false),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--knob", 1),
+        ("--preset", 2),
+    ],
+    layouts: crate::help_layouts_bench_preset::DEFAULT,
+};
+
+/// The `resolve` subparser.
+pub const BENCH_PRESET_RESOLVE: Spec = Spec {
+    prog: "bench_preset.py resolve",
+    actions: &[
+        HELP_DEFINITION,
+        required_option("--tool", Conversion::Text),
+        text_option("--preset", false),
+        text_option("--serving-yaml", false),
+        flag("--dry-run"),
+        required_option("--record-out", Conversion::Text),
+        text_option("--levels", false),
+        text_option("--input-len", false),
+        text_option("--output-len", false),
+        text_option("--num-prompts", false),
+        text_option("--warmups", false),
+        text_option("--repeats", false),
+        text_option("--repeats-source", false),
+        text_option("--backend", false),
+        text_option("--bench-budget-mib", false),
+        append_option("--pin"),
+        text_option("--pinned-by", false),
+        append_option("--knob-reason"),
+        text_option("--approved-by", false),
+        text_option("--campaign-id", false),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--tool", 1),
+        ("--preset", 2),
+        ("--serving-yaml", 3),
+        ("--dry-run", 4),
+        ("--record-out", 5),
+        ("--levels", 6),
+        ("--input-len", 7),
+        ("--output-len", 8),
+        ("--num-prompts", 9),
+        ("--warmups", 10),
+        ("--repeats", 11),
+        ("--repeats-source", 12),
+        ("--backend", 13),
+        ("--bench-budget-mib", 14),
+        ("--pin", 15),
+        ("--pinned-by", 16),
+        ("--knob-reason", 17),
+        ("--approved-by", 18),
+        ("--campaign-id", 19),
+    ],
+    layouts: crate::help_layouts_bench_preset::RESOLVE,
+};
+
 /// `parser.format_usage()` of `sweep_stop.py` at the given terminal width.
 pub fn usage(columns: u32) -> &'static str {
     SWEEP_STOP.usage(columns)
@@ -514,6 +653,8 @@ pub fn help(columns: u32) -> &'static str {
 #[derive(Debug)]
 pub struct Matches {
     values: Vec<Option<PyStr>>,
+    /// Every value of an `append` action, in command-line order.
+    appended: Vec<Vec<PyStr>>,
     seen: Vec<bool>,
     numbers: Vec<Option<ArgNumber>>,
 }
@@ -529,6 +670,7 @@ impl Matches {
     fn new(spec: &Spec) -> Self {
         Matches {
             values: vec![None; spec.actions.len()],
+            appended: vec![Vec::new(); spec.actions.len()],
             seen: vec![false; spec.actions.len()],
             numbers: vec![None; spec.actions.len()],
         }
@@ -537,6 +679,11 @@ impl Matches {
     /// The value of a `Kind::Value` action, if given.
     pub fn value(&self, action: usize) -> Option<&PyStr> {
         self.values[action].as_ref()
+    }
+
+    /// Every value an `append` action collected, in command-line order (empty when it was not given).
+    pub fn values_of(&self, action: usize) -> &[PyStr] {
+        &self.appended[action]
     }
 
     /// The converted value of a `type=float` option, if given.
@@ -918,7 +1065,10 @@ fn consume_optional(
             return Consumed::Next(start + 1);
         };
         if let Some(value) = explicit.clone() {
-            let takes = usize::from(spec.actions[current].kind == Kind::Value);
+            let takes = usize::from(matches!(
+                spec.actions[current].kind,
+                Kind::Value | Kind::Append
+            ));
             if takes == 0 && option_string[1] != u32::from('-') && !value.is_empty() {
                 if separator == Separator::Equals || value[0] == u32::from('-') {
                     return Consumed::Error(argument_error(
@@ -960,7 +1110,10 @@ fn consume_optional(
                 ));
             }
         } else {
-            let wanted = usize::from(spec.actions[current].kind == Kind::Value);
+            let wanted = usize::from(matches!(
+                spec.actions[current].kind,
+                Kind::Value | Kind::Append
+            ));
             if wanted == 1 && pattern.get(start + 1) != Some(&'A') {
                 return Consumed::Error(argument_error(spec, current, "expected one argument"));
             }
@@ -977,12 +1130,15 @@ fn consume_optional(
         let definition = &spec.actions[action];
         match definition.kind {
             Kind::Help => return Consumed::Help,
-            Kind::Value => {
+            Kind::Value | Kind::Append => {
                 let value = values.pop();
                 if let Some(text) = &value {
                     match convert_value(definition, text) {
                         Ok(number) => parsed.numbers[action] = number,
                         Err(message) => return Consumed::Error(message),
+                    }
+                    if definition.kind == Kind::Append {
+                        parsed.appended[action].push(text.clone());
                     }
                 }
                 parsed.values[action] = value;

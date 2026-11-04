@@ -1,0 +1,73 @@
+  [PASS] K1 닫힌 키 표 = 스냅샷
+  [PASS] K2 배포 default_preset 통과 · 키 집합이 표와 정확히 같다
+  [PASS] K3 바인딩 full-bench → 존재하는 도구 폴더
+  [PASS] K4 campaign.schema budgets.bench_pins 키 = knob 표 − repeats(반복 수 핀은 budgets.repeats 하나)
+  [PASS] V1 미지 최상위 키(꺼 둔 vllm-bench 블록) 거부
+  [PASS] V2 knob 누락 거부
+  [PASS] V3 knob 미지 키 거부
+  [PASS] V4 기본값이 열거 밖 거부
+  [PASS] V5 미정의 근거 코드 참조 거부
+  [PASS] V6 user knob 비기본 값이 auto 면 거부
+  [PASS] V7 repeats 선택지 < full 하한 거부
+  [PASS] V8 기본값 없음 knob(backend)에 값 거부
+  [PASS] V9 bench 불일치 거부
+  [PASS] V10 기본값이 confirm 이면 거부
+  [PASS] V11 잘못된 등급 이름 거부
+  [PASS] V12 levels 기본값에 판정점 1 없음 거부
+  [PASS] V13 허용되지 않은 상한 필터 거부
+  [PASS] V14 바인딩 키 추가 거부
+  [PASS] V15 바인딩이 없는 폴더를 가리키면 거부
+  [PASS] R14a 커스텀 프리셋 이름으로 선택 · 같은 검증 통과
+  [PASS] R14b 커스텀 프리셋 경로로 선택
+  [PASS] R14c 계약 위반 커스텀 프리셋은 선택되지 않는다
+  [PASS] R14d 없는 프리셋 이름 거부
+  [PASS] R1 기본값 + 상한 필터: max-num-seqs 2 → levels [1,2] · 4·8·16 제외 기록
+  [PASS] R1b 반복 수 = 프리셋 기본 3 · repeat_axis 출처
+  [PASS] R2 Agent 비기본 선택에 근거 코드 없음 → 거부
+  [PASS] R2b 근거 코드 동반 Agent 선택 → source agent · reason 기록
+  [PASS] R3 confirm(16384)을 승인 없이 Agent 가 고름 → 거부
+  [PASS] R3b confirm + 사전 승인 전사 → 통과 · approved_by 기록
+  [PASS] R4 escalate(32768)를 Agent 가 고름 → 거부(승인 전사가 있어도)
+  [PASS] R4b escalate 를 사람 핀(--pinned-by)이 연다 · reason human_pin
+  [PASS] R5 열거 밖 값은 사람 핀이어도 거부
+  [PASS] R5b 귀속 없는 --pin 거부
+  [PASS] R5c Agent 값과 사람 핀이 다르면 거부
+  [PASS] R15 user knob(output_len 512)을 Agent 가 고름 → 거부(escalate)
+  [PASS] R6 캠페인 핀 → source campaign · reason human_pin
+  [PASS] R6b Agent 선택이 캠페인 핀과 다르면 거부(조용히 덮어쓰지 않는다)
+  [PASS] R7 CLI 사람 핀 > 캠페인 핀 · 덮은 값 기록
+  [PASS] R8 bench_pins.repeats(두 번째 자리) 거부
+  [PASS] R8b bench_pins 미지 knob 거부
+  [PASS] R11 캠페인 budgets.repeats 5 → source campaign(escalate 를 사람 선언이 연다)
+  [PASS] R11b 반복 수 4 를 귀속 없이 → Agent 선택 · escalate 거부
+  [PASS] R11c --repeats-source 귀속 → cli_pin
+  [PASS] R11d 반복 수 2 → full 정의 위반 거부
+  [PASS] R9 backend 부재 → 거부(기본값 없음)
+  [PASS] R11e 반복 수 사람 핀(--pin repeats=4) → cli_pin
+  [PASS] R9b guidellm 인데 예산 부재 → 거부
+  [PASS] R9c vllm 도구는 예산 not_applicable 로 기록
+  [PASS] R9d 예산 16384(confirm)를 승인 없이 → 거부
+  [PASS] R10 input+output > max-model-len → 거부
+  [PASS] R12 Agent 선택이 아닌 knob 에 --knob-reason → 거부
+  [PASS] R12b 다른 knob 의 근거 코드를 쓰면 거부
+  [PASS] R13 실측에서 서빙 yaml 부재 → 거부
+  [PASS] R13b dry-run 은 unavailable 로 기록
+  [PASS] R16 서빙 yaml 에 한계 선언이 없으면 필터는 not_applied 로 기록(값을 만들지 않는다)
+  [PASS] R17 판정점 1 은 Agent 가 빼도 포함된다
+  [PASS] R18 levels 32(confirm)를 승인 없이 → 거부
+  [PASS] D1 기본 프리셋 = synthetic · 나머지 null · 기록 블록에 dataset 이 실린다
+  [PASS] D2 사용자 프리셋(CNN 모양)이 같은 검증을 통과한다
+  [PASS] D3 상대경로 dataset_path 거부
+  [PASS] D4 40자 hex 가 아닌 revision 거부
+  [PASS] D5 닫힌 목록 밖 dataset_kind 거부
+  [PASS] D6 교차 규칙: 실제 데이터셋인데 sha256 이 null → 거부
+  [PASS] D6b 교차 규칙: synthetic 인데 경로가 있다 → 거부
+  [PASS] D6c column_map 은 text_column 하나만
+  [PASS] D7 측정 시점: 원본 실재 · sha256 일치 → 통과하고 관측을 기록
+  [PASS] D8 --tool vllm + 실제 데이터셋 → 거부(조용히 synthetic 으로 재지 않는다)
+  [PASS] D9 sha256 불일치 → 거부
+  [PASS] D9b 원본 부재 → 거부
+  [PASS] D9c dry-run 은 원본 검사를 건너뛰고 그 사실을 기록
+  [PASS] D10 ephemeral 은 이번 개정에서 경로가 없다 → 거부
+  [PASS] D11 기본 프리셋의 비기본 데이터셋 값은 escalate(Agent 가 못 연다) · 데이터셋 knob 은 스윕 플래그가 없다
+[selftest_bench_preset] OK — K1~K4 · V1~V15 · R1~R18(+R5b·R5c·R11e) · D1~D11 전부 통과

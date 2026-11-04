@@ -244,7 +244,9 @@ impl PyDict {
     }
 
     /// The entries in order with each key's kind.
-    fn keyed_entries(&self) -> impl Iterator<Item = (Option<&NonStringKey>, &PyStr, &PyValue)> {
+    pub(crate) fn keyed_entries(
+        &self,
+    ) -> impl Iterator<Item = (Option<&NonStringKey>, &PyStr, &PyValue)> {
         let mut others = self.others.iter().peekable();
         self.entries
             .iter()

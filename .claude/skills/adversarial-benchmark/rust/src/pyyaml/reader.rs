@@ -147,6 +147,42 @@ impl<'a> Reader<'a> {
         Ok(reader)
     }
 
+    /// `Reader.__init__(stream)` for a `str` source (what `yaml.safe_load(path.read_text())` gives it): the name is
+    /// the caller's (`<unicode string>`), the whole text is checked for non-printable characters at once and becomes
+    /// the buffer, with no raw buffer left to refill.
+    pub fn from_text(name: Rc<PyStr>, text: &PyStr) -> Parsed<Self> {
+        let points = text.code_points();
+        let offset = points
+            .iter()
+            .position(|&p| char::from_u32(p).is_none_or(|c| !printable(c)));
+        nested(if offset.is_some() {
+            &["check_printable", "__init__"][..]
+        } else {
+            &["check_printable"][..]
+        })?;
+        if let Some(offset) = offset {
+            return Err(Failure::Reader {
+                name,
+                position: offset,
+                character: points[offset],
+                reason: "special characters are not allowed",
+            });
+        }
+        let mut buffer: Vec<char> = points.iter().filter_map(|&p| char::from_u32(p)).collect();
+        buffer.push('\0');
+        Ok(Reader {
+            name,
+            stream: TextStream::new(&[]),
+            buffer,
+            pointer: 0,
+            raw_buffer: None,
+            eof: true,
+            index: 0,
+            line: 0,
+            column: 0,
+        })
+    }
+
     fn update_raw(&mut self) -> Parsed<()> {
         let _frame = frame("update_raw")?;
         let data = self.stream.read(CHAR_CHUNK)?;

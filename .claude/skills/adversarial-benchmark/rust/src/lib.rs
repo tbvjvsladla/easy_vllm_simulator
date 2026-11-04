@@ -7,6 +7,10 @@
 
 pub mod argv;
 pub mod bench_cli;
+pub mod bench_preset;
+pub mod bench_preset_api_cli;
+pub mod bench_preset_cli;
+mod bench_preset_selftest;
 mod bench_selftest;
 pub mod cli;
 pub mod engine_log;
@@ -16,6 +20,7 @@ pub mod guidellm;
 pub mod guidellm_cli;
 mod guidellm_selftest;
 mod help_layouts;
+mod help_layouts_bench_preset;
 mod help_layouts_parse_bench;
 mod help_layouts_parse_guidellm;
 mod help_layouts_repeat_axis;

@@ -266,7 +266,7 @@ init)
   _RA=(resolve)
   if [ -n "$REPEATS" ]; then _RA+=(--repeats "$REPEATS"); fi
   # 최하단 기본값은 프리셋이 넘긴다(2026-10-10 · plan_26101011 — repeat_axis 는 코드 안 숫자로 메우지 않는다).
-  _PD="$(python3 "$SDIR/bench_preset.py" default --knob repeats ${PRESET:+--preset "$PRESET"})" || {
+  _PD="$(bash "$SDIR/bench_preset.sh" default --knob repeats ${PRESET:+--preset "$PRESET"})" || {
     echo "[broad_search] ERROR 프리셋에서 반복 수 기본값을 읽지 못했다(위 사유) — 스윕을 열지 않는다" >&2; exit 2; }
   IFS=$'\x1f' read -r _PD_VAL _PD_NAME <<< "$_PD"
   _RA+=(--preset-default "$_PD_VAL" --preset-source "$_PD_NAME")

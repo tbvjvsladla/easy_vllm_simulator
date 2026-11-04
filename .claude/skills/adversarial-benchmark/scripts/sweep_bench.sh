@@ -293,7 +293,7 @@ if [ "$REASSEMBLE" != "1" ]; then
   [ -n "$APPROVED_BY" ] && _BP+=(--approved-by "$APPROVED_BY")
   [ "${#PIN_ARGS[@]}" -gt 0 ] && _BP+=("${PIN_ARGS[@]}")
   [ "${#KNOB_REASON_ARGS[@]}" -gt 0 ] && _BP+=("${KNOB_REASON_ARGS[@]}")
-  _BPO="$(python3 "$SDIR/bench_preset.py" "${_BP[@]}")" || {
+  _BPO="$(bash "$SDIR/bench_preset.sh" "${_BP[@]}")" || {
     echo "[sweep_bench] ERROR 측정 형상 프리셋 해소 실패(위 사유) — 측정하지 않는다(knob 계약 · plan_26101011)" >&2; exit 2; }
   PRESET_PATH=""
   while IFS=$'\x1f' read -r _k _v; do

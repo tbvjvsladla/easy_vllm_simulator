@@ -36,3 +36,9 @@ REPEAT_AXIS_BIN="$CRATE/target/release/repeat_axis" \
   REPEAT_AXIS_REPO_ROOT="$REPO" \
   REPEAT_AXIS_CAMPAIGN_ADAPTER="$SDIR/repeat_axis_owner_query.py" \
   bash "$SDIR/repeat_axis.sh" --self-test
+BENCH_PRESET_BIN="$CRATE/target/release/bench_preset" \
+  BENCH_PRESET_API_BIN="$CRATE/target/release/bench_preset_api" \
+  BENCH_PRESET_REPO_ROOT="$REPO" \
+  BENCH_PRESET_SKILL_DIR="$SDIR/.." \
+  REPEAT_AXIS_CAMPAIGN_ADAPTER="$SDIR/repeat_axis_owner_query.py" \
+  bash "$SDIR/bench_preset.sh" --self-test

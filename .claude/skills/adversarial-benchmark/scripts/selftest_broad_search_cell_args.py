@@ -55,6 +55,10 @@ COPIES = (
     ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis_api",
     # 측정 형상 프리셋(plan_26101011) — init 이 반복 수 기본값을 프리셋에서 받는다(bench_preset.py default).
     f"{AB}/bench_preset.py",
+    ".claude/skills/adversarial-benchmark/scripts/bench_preset.sh",
+    ".claude/skills/adversarial-benchmark/scripts/bench_preset_api.sh",
+    ".claude/skills/adversarial-benchmark/rust/target/release/bench_preset",
+    ".claude/skills/adversarial-benchmark/rust/target/release/bench_preset_api",
     ".claude/skills/adversarial-benchmark/config/bench_bindings.yaml",
     ".claude/skills/adversarial-benchmark/config/guide-llm/default_preset.yaml",
     f"{AB}/verdict_rule.sh",
