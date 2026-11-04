@@ -46,6 +46,7 @@ SDIR = Path(__file__).resolve().parent
 REPO = Path(__file__).resolve().parents[4]
 AB = ".claude/skills/adversarial-benchmark/scripts"
 COPIES = ("lite_bench.sh", "lite_metrics.py", "render_report.py", "classify_cell.py", "doc_naming.py", "repeat_axis.py",
+          "repeat_axis.sh", "repeat_axis_api.sh", "repeat_axis_native.py", "repeat_axis_owner_query.py",
           "publish_benchmark_record.py")
 SHIM_SENTINEL = "selftest-lite-report-shim"
 CFG = "fx-lite"
@@ -110,6 +111,12 @@ class Sandbox:
         self.shimdir = tmp / "shimdata"
         for name in COPIES:
             _write(self.root / AB / name, (SDIR / name).read_text(encoding="utf-8"))
+        native_rel = ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis"
+        native_dst = self.root / native_rel
+        native_dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPO / native_rel, native_dst)
+        native_api_rel = ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis_api"
+        shutil.copy2(REPO / native_api_rel, self.root / native_api_rel)
         _write(self.root / ".claude/skills/terraforming_node/scripts/manifest_contract.py",
                MC_STUB.replace("@SENTINEL@", SHIM_SENTINEL), 0o755)
         _write(self.bindir / "docker", DOCKER_SHIM.replace("@SENTINEL@", SHIM_SENTINEL), 0o755)

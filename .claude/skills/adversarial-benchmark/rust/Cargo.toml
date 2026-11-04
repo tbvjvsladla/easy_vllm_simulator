@@ -37,6 +37,18 @@ name = "verdict_rule"
 path = "src/bin/verdict_rule.rs"
 
 [[bin]]
+name = "repeat_axis"
+path = "src/bin/repeat_axis.rs"
+
+[[bin]]
+name = "repeat_axis_api"
+path = "src/bin/repeat_axis_api.rs"
+
+[[bin]]
+name = "repeat_axis_bench"
+path = "src/bin/repeat_axis_bench.rs"
+
+[[bin]]
 name = "sweep_stop_bench"
 path = "src/bin/sweep_stop_bench.rs"
 
@@ -129,3 +141,15 @@ path = "checks/key_range.rs"
 [[test]]
 name = "guidellm_cases"
 path = "checks/guidellm_cases.rs"
+
+[[test]]
+name = "repeat_axis_cases"
+path = "checks/repeat_axis_cases.rs"
+
+[[test]]
+name = "sort_schedule"
+path = "checks/sort_schedule.rs"
+
+[[test]]
+name = "pty_inheritance"
+path = "checks/pty_inheritance.rs"

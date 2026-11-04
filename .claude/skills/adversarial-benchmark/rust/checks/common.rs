@@ -103,8 +103,12 @@ pub struct Pty {
     pub slave: File,
 }
 
+/// A pseudo-terminal pair. The master is created close-on-exec: tests run on parallel threads and spawn children, and
+/// an exec child that inherited this master would keep the terminal alive after the owner dropped it ("master gone"
+/// is then false), which turned a deterministic EIO into a normal exit in the `pty-gone` checks.
 pub fn open_pty(rows: u16, columns: u16) -> Pty {
-    let master = openpt(OpenptFlags::RDWR | OpenptFlags::NOCTTY).expect("openpt");
+    let master =
+        openpt(OpenptFlags::RDWR | OpenptFlags::NOCTTY | OpenptFlags::CLOEXEC).expect("openpt");
     grantpt(&master).expect("grantpt");
     unlockpt(&master).expect("unlockpt");
     let name = ptsname(&master, Vec::new()).expect("ptsname");

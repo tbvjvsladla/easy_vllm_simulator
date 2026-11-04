@@ -272,7 +272,7 @@ init)
   _RA+=(--preset-default "$_PD_VAL" --preset-source "$_PD_NAME")
   _ST_CAMP="$(_state_campaign "$STATE")"
   if [ -n "$_ST_CAMP" ]; then _RA+=(--campaign-id "$_ST_CAMP"); fi
-  _RR="$(python3 "$SDIR/repeat_axis.py" "${_RA[@]}")" || {
+  _RR="$(bash "$SDIR/repeat_axis.sh" "${_RA[@]}")" || {
     echo "[broad_search] ERROR 반복 수를 해소하지 못했다(위 사유) — 선언 없이 스윕을 열지 않는다(§4.8)" >&2; exit 2; }
   IFS=$'\x1f' read -r REP_N REP_SRC _REP_KIND <<< "$_RR"
   mkdir -p "$(dirname "$STATE")"

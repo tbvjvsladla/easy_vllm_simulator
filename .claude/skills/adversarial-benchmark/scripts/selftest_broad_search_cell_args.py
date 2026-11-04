@@ -47,6 +47,12 @@ COPIES = (
     ".claude/skills/adversarial-benchmark/rust/target/release/sweep_stop",
     f"{AB}/classify_cell.py",
     f"{AB}/repeat_axis.py",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis.sh",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_api.sh",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_native.py",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_owner_query.py",
+    ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis",
+    ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis_api",
     # 측정 형상 프리셋(plan_26101011) — init 이 반복 수 기본값을 프리셋에서 받는다(bench_preset.py default).
     f"{AB}/bench_preset.py",
     ".claude/skills/adversarial-benchmark/config/bench_bindings.yaml",

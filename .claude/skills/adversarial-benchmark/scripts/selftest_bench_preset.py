@@ -28,7 +28,7 @@ import yaml
 SDIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SDIR))
 import bench_preset as bp  # noqa: E402
-import repeat_axis as ra  # noqa: E402
+import repeat_axis_native as ra  # noqa: E402
 
 # 스키마 스냅샷(tripwire). 바뀌면 이 줄과 프리셋·문서가 함께 리뷰돼야 한다.
 SNAP_TOP = ("schema_version", "bench", "tool", "reason_codes", "knobs")

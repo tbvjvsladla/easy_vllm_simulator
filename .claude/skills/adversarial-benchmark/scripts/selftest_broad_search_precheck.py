@@ -59,6 +59,12 @@ COPIES = (
     # 반복 축 소유자(2026-09-14 · plan_26091407 §4.4) — init 이 declared_budget.repeats 를 여기서 파생하고
     # 정지 평가기·분류기가 full 정의 하한을 여기서 읽는다. 사본에 없으면 init 이 스윕을 열지 않는다(fail-closed).
     ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis.sh",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_api.sh",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_native.py",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_owner_query.py",
+    ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis",
+    ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis_api",
     # 측정 형상 프리셋(plan_26101011) — init 이 반복 수 기본값을 프리셋에서 받는다(bench_preset.py default).
     ".claude/skills/adversarial-benchmark/scripts/bench_preset.py",
     ".claude/skills/adversarial-benchmark/config/bench_bindings.yaml",

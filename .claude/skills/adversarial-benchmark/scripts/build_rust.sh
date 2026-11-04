@@ -31,3 +31,8 @@ VERDICT_RULE_BIN="$CRATE/target/release/verdict_rule" bash "$SDIR/verdict_rule.s
 PARSE_GUIDELLM_BIN="$CRATE/target/release/parse_guidellm" \
   PARSE_GUIDELLM_FIXTURE="$SDIR/../fixtures/guidellm_benchmarks_sample.json" \
   bash "$SDIR/parse_guidellm.sh" --self-test
+REPEAT_AXIS_BIN="$CRATE/target/release/repeat_axis" \
+  REPEAT_AXIS_API_BIN="$CRATE/target/release/repeat_axis_api" \
+  REPEAT_AXIS_REPO_ROOT="$REPO" \
+  REPEAT_AXIS_CAMPAIGN_ADAPTER="$SDIR/repeat_axis_owner_query.py" \
+  bash "$SDIR/repeat_axis.sh" --self-test

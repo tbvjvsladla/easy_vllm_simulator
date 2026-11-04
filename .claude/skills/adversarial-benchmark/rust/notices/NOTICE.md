@@ -47,6 +47,25 @@ produced; no CPython source is reproduced in them.
 
 ## Distribution
 
-Copies of `src/pyyaml/`, `src/utc.rs`, `src/pyjson.rs`, `src/argv.rs`, `src/help_layouts.rs`, `notices/PyYAML-6.0.3-LICENSE.txt`, `src/help_layouts_parse_bench.rs`, `src/help_layouts_parse_guidellm.rs`, `src/help_layouts_roofline.rs`, `src/help_layouts_verdict_rule.rs` or `src/unicode_tables.rs` must travel
+Copies of `src/pyyaml/`, `src/pysort.rs`, `src/utc.rs`, `src/pyjson.rs`, `src/argv.rs`, `src/help_layouts.rs`, `notices/PyYAML-6.0.3-LICENSE.txt`, `src/help_layouts_parse_bench.rs`, `src/help_layouts_parse_guidellm.rs`, `src/help_layouts_roofline.rs`, `src/help_layouts_verdict_rule.rs` or `src/unicode_tables.rs` must travel
 with this directory (or an equivalent notice file in the destination skill folder). Generated checks data under
 `checks/data/` contains output captured from CPython 3.12.3 and is test data, not source code.
+
+### Repeat axis (R5)
+
+`src/pysort.rs` is a port of the sorting code of CPython 3.12.3 `Objects/listobject.c`
+(<https://github.com/python/cpython/blob/v3.12.3/Objects/listobject.c>, with the design notes of
+`Objects/listsort.txt`; PSF License): `count_run`, `merge_compute_minrun`, `binarysort`, `gallop_left`, `gallop_right`,
+`merge_lo`, `merge_hi`, `merge_at`, `powerloop`, `found_new_run` and `merge_force_collapse`, rewritten in safe Rust over
+index permutations (temporary arrays are `Vec`s) so that the comparisons occur in CPython's order. It is a derivative
+of Python in the sense of the retained notice below, and the PSF License text in `CPython-3.12.3-LICENSE.txt` and the
+copyright notice above accompany it; this paragraph is the brief summary of changes (C to Rust, index permutation
+instead of pointer slices, no temporary-array growth policy, no keyfunc/reverse/specialised-compare machinery).
+`src/help_layouts_repeat_axis.rs` is generated data: the usage and help text of the four `argparse` parsers of the original
+`repeat_axis.py` as laid out by CPython 3.12.3 `argparse`/`textwrap` at every terminal width. The additions to
+`src/argv.rs` (the `repeat_axis` parser tables) follow the same ported `argparse` logic as the rest of that file.
+`src/pyfs.rs` (`pathlib` path text, `Path.mkdir`, `Path.is_dir`, `Path.write_text` and `open()` behaviour) re-implements
+observable CPython 3.12.3 behaviour, and `python_float_sum` in `src/repeat_axis.rs` reproduces the compensated float
+summation of CPython 3.12's `sum()`; no CPython source text is reproduced in those two. `checks/data/repeat_axis/` holds
+output captured from the original `repeat_axis.py` and from CPython 3.12.3 (including the comparison schedules of
+`list.sort`) and is test data.

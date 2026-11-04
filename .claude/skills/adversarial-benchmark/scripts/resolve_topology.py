@@ -188,8 +188,15 @@ def _self_test():
             root = os.path.join(td, "repo")
             ab = os.path.join(root, ".claude", "skills", "adversarial-benchmark", "scripts")
             os.makedirs(ab)
-            for name in scripts + ("resolve_topology.py", "repeat_axis.py", "bench_preset.py"):
+            for name in scripts + ("resolve_topology.py", "repeat_axis.py", "bench_preset.py",
+                                    "repeat_axis.sh", "repeat_axis_api.sh", "repeat_axis_native.py", "repeat_axis_owner_query.py"):
                 shutil.copy2(os.path.join(here, name), os.path.join(ab, name))
+            native_rel = ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis"
+            native_dst = os.path.join(root, native_rel)
+            os.makedirs(os.path.dirname(native_dst), exist_ok=True)
+            shutil.copy2(os.path.join(real_repo, native_rel), native_dst)
+            native_api_rel = ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis_api"
+            shutil.copy2(os.path.join(real_repo, native_api_rel), os.path.join(root, native_api_rel))
             # 측정 형상 프리셋(plan_26101011) — sweep_bench 는 토폴로지 해소 **뒤** 프리셋을 해소한다(바이트 사본).
             shutil.copytree(os.path.join(os.path.dirname(here), "config"), os.path.join(os.path.dirname(ab), "config"))
             git(root, "init", "-q")

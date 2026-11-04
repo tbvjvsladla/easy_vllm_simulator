@@ -368,6 +368,138 @@ pub const VERDICT_RULE: Spec = Spec {
     layouts: crate::help_layouts_verdict_rule::LAYOUTS,
 };
 
+/// Indices of the actions of the four `repeat_axis.py` parsers (the top parser and its three subparsers).
+pub mod repeat_axis_args {
+    pub const SELF_TEST: usize = 1;
+
+    pub mod resolve {
+        pub const REPEATS: usize = 1;
+        pub const REPEATS_SOURCE: usize = 2;
+        pub const CAMPAIGN_ID: usize = 3;
+        pub const PRESET_DEFAULT: usize = 4;
+        pub const PRESET_SOURCE: usize = 5;
+    }
+
+    pub mod record_run {
+        pub const RUN_DIR: usize = 1;
+        pub const LEVEL: usize = 2;
+        pub const RUN: usize = 3;
+        pub const STARTED_UTC: usize = 4;
+        pub const ENDED_UTC: usize = 5;
+        pub const RUN_BENCH_RC: usize = 6;
+        pub const PARSE_RC: usize = 7;
+    }
+
+    pub mod aggregate_level {
+        pub const LEVEL_DIR: usize = 1;
+        pub const REQUESTED: usize = 2;
+        pub const REQUESTED_SOURCE: usize = 3;
+        pub const KIND: usize = 4;
+    }
+}
+
+const fn required_option(name: &'static str, conversion: Conversion) -> ActionDef {
+    ActionDef {
+        name,
+        kind: Kind::Value,
+        required: true,
+        conversion,
+        choices: &[],
+    }
+}
+
+const HELP_DEFINITION: ActionDef = ActionDef {
+    name: "-h/--help",
+    kind: Kind::Help,
+    required: false,
+    conversion: Conversion::Text,
+    choices: &[],
+};
+
+/// The top parser of `repeat_axis.py`: `-h`, `--self-test` and the subcommand word, which [`crate::repeat_cli`]
+/// dispatches (this table covers the options before it).
+pub const REPEAT_AXIS: Spec = Spec {
+    prog: "repeat_axis.py",
+    actions: &[HELP_DEFINITION, flag("--self-test")],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--self-test", 1),
+    ],
+    layouts: crate::help_layouts_repeat_axis::TOP,
+};
+
+/// The `resolve` subparser.
+pub const REPEAT_AXIS_RESOLVE: Spec = Spec {
+    prog: "repeat_axis.py resolve",
+    actions: &[
+        HELP_DEFINITION,
+        text_option("--repeats", false),
+        text_option("--repeats-source", false),
+        text_option("--campaign-id", false),
+        text_option("--preset-default", false),
+        text_option("--preset-source", false),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--repeats", 1),
+        ("--repeats-source", 2),
+        ("--campaign-id", 3),
+        ("--preset-default", 4),
+        ("--preset-source", 5),
+    ],
+    layouts: crate::help_layouts_repeat_axis::RESOLVE,
+};
+
+/// The `record-run` subparser.
+pub const REPEAT_AXIS_RECORD_RUN: Spec = Spec {
+    prog: "repeat_axis.py record-run",
+    actions: &[
+        HELP_DEFINITION,
+        text_option("--run-dir", true),
+        required_option("--level", Conversion::Int),
+        required_option("--run", Conversion::Int),
+        text_option("--started-utc", true),
+        text_option("--ended-utc", true),
+        required_option("--run-bench-rc", Conversion::Int),
+        required_option("--parse-rc", Conversion::Int),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--run-dir", 1),
+        ("--level", 2),
+        ("--run", 3),
+        ("--started-utc", 4),
+        ("--ended-utc", 5),
+        ("--run-bench-rc", 6),
+        ("--parse-rc", 7),
+    ],
+    layouts: crate::help_layouts_repeat_axis::RECORD_RUN,
+};
+
+/// The `aggregate-level` subparser (`--kind` defaults to `warm-rerun` in the program, not here).
+pub const REPEAT_AXIS_AGGREGATE_LEVEL: Spec = Spec {
+    prog: "repeat_axis.py aggregate-level",
+    actions: &[
+        HELP_DEFINITION,
+        text_option("--level-dir", true),
+        required_option("--requested", Conversion::Int),
+        text_option("--requested-source", true),
+        text_option("--kind", false),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--level-dir", 1),
+        ("--requested", 2),
+        ("--requested-source", 3),
+        ("--kind", 4),
+    ],
+    layouts: crate::help_layouts_repeat_axis::AGGREGATE_LEVEL,
+};
+
 /// `parser.format_usage()` of `sweep_stop.py` at the given terminal width.
 pub fn usage(columns: u32) -> &'static str {
     SWEEP_STOP.usage(columns)

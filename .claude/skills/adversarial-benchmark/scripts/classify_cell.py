@@ -690,7 +690,7 @@ def classify_bench_mode(index, event_lines, events_scanned, tolerance_s=0, node_
     """
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        import repeat_axis as _ra
+        import repeat_axis_native as _ra
     except ImportError as exc:   # 배선 결함 — 부재를 full/lite 로 접지 않는다
         return _bench_mode_record(None, "undeterminable(repeat_axis 적재 실패: %s)" % exc)
     if not isinstance(index, dict) or not isinstance(index.get("levels"), list) or not index["levels"]:

@@ -1,0 +1,45 @@
+{
+ "FULL_REPEATS_MIN": 3,
+ "REPEAT_KIND_WARM": "warm-rerun",
+ "REPEAT_KIND_COLD": "cold-restart",
+ "REPEAT_KINDS": [
+  "warm-rerun",
+  "cold-restart"
+ ],
+ "IMPLEMENTED_REPEAT_KINDS": [
+  "warm-rerun"
+ ],
+ "RUN_META_NAME": "repeat_run.json",
+ "SIGNAL_RUN_FAILED": "run_failed",
+ "STOP_KIND_REPEAT_BREAK": "repeat-break",
+ "STOP_KIND_CLAMP": "clamp",
+ "RUN_METRIC_KEYS": [
+  "decode_tps",
+  "output_throughput",
+  "ttft_ms_median",
+  "itl_ms_median",
+  "tpot_ms_median",
+  "completed",
+  "failed",
+  "server_error_rate",
+  "accept_len"
+ ],
+ "BAND_METRIC": "decode_tps",
+ "BAND_FORMULA": "(max-min)/mean*100",
+ "CAMPAIGN_INIT_REL": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+ "SCHEMA_REL": "campaigns/_template/campaign.schema.json",
+ "RUN_DIR_PATTERN": "^run_(\\d{2,})$",
+ "AGGREGATE_KEYS": [
+  "runs",
+  "repeats_requested",
+  "repeats_requested_source",
+  "repeats_completed",
+  "repeat_kind",
+  "representative_run",
+  "representative_run_rule",
+  "repro_band_pct",
+  "repro_band_source",
+  "repro_band_metric",
+  "repro_band_formula"
+ ]
+}

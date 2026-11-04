@@ -1057,8 +1057,8 @@ def verify() -> dict:
         #   판정 불가·인증서 미발행) · 분산만 큼 → full · 반복 <3 선언 → 부하 전 exit 2 · 판정 기록 결손 → 리포트는
         #   발행·인증서는 미발행 · 재조립 레벨 부활 ✗ · repeats 미선언 상태 파일 → 셀 진입 거부(status·map 은 통과).
         #   E2E 정상 경로는 강등 경로를 밟지 않으므로 이것이 그 경로의 상시 증거다 — GPU·docker·NAS 불요.
-        _run("benchmark_repeat_axis_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py", "--self-test"], {0}),
+        _run("benchmark_repeat_axis_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/repeat_axis.sh", "--self-test"], {0}),
         _run("benchmark_sweep_repeats_selftest", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_repeats.py"], {0}),
         # full-bench knob 프리셋 계약의 **리뷰 시점 집행자**(plan_26101011 · 2026-10-10). 호출자 없는 자체검사는 L1(산문)이다.

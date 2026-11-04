@@ -574,7 +574,7 @@ for L in "${SORTED[@]}"; do
     fi
     RUN_ENDED="$(date -u +%FT%TZ)"
     # run 경계 사실(시각·rc) — 반복 중단의 시각 대조 창이 여기서 온다(사인 확정은 classify_cell).
-    python3 "$SDIR/repeat_axis.py" record-run --run-dir "$RDIR" --level "$L" --run "$K" \
+    bash "$SDIR/repeat_axis.sh" record-run --run-dir "$RDIR" --level "$L" --run "$K" \
       --started-utc "$RUN_STARTED" --ended-utc "$RUN_ENDED" --run-bench-rc "$RB_RC" --parse-rc "$PARSE_RC" >/dev/null \
       || echo "[sweep_bench] ⚠ level $L run $K 경계 사실 기록 실패 — 이 레벨의 runs[] 집계가 판정 불가로 남는다" | tee -a "$TRUNCLOG"
     if [ "$RUN_OK" = "1" ]; then
@@ -613,7 +613,7 @@ for L in "${SORTED[@]}"; do
   done
   case " ${COMPLETED[*]:-} " in
     *" $L "*)
-      python3 "$SDIR/repeat_axis.py" aggregate-level --level-dir "$LDIR" --requested "$REPEATS" \
+      bash "$SDIR/repeat_axis.sh" aggregate-level --level-dir "$LDIR" --requested "$REPEATS" \
         --requested-source "$REPEATS_SOURCE" --kind "$REPEAT_KIND" \
         || echo "[sweep_bench] ⚠ level $L 반복 집계 실패(위 사유) — runs[] 없는 레벨로 남아 bench_mode 가 판정 불가가 된다" | tee -a "$TRUNCLOG"
       ;;
@@ -1228,7 +1228,7 @@ if _lraw and os.path.isfile(_lraw):
 #   레벨별 완주·재현 밴드·반복 중단 즉시 신호. 요약 함수의 소유는 repeat_axis 이고 분류기도 같은 함수로 raw
 #   runs[] 에서 다시 계산한다(이 블록을 믿지 않는다). 재조립은 **측정 시점의 요청 반복**을 기존 index 에서
 #   승계한다 — 지금 캠페인 선언을 다시 읽으면 측정하지 않은 반복 수가 실린다(spec 지문 승계와 같은 규율).
-import repeat_axis as _ra
+import repeat_axis_native as _ra
 if reassemble:
     _prep = prior.get("repetition") if isinstance(prior.get("repetition"), dict) else {}
     _rep_n = _prep.get("requested")

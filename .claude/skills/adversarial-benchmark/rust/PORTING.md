@@ -1,6 +1,6 @@
 # benchmark Rust 이행 기록
 
-현재 native 범위는 `sweep_stop`, `parse_bench`, `roofline`, `verdict_rule`, `parse_guidellm`의 판정·측정 해석·CLI와 명시된 셸 호출부다. 아래 R1/R2 기록의 수치와 검사는 각 시점의 근거이며 R3 이후의 성능으로 소급하지 않는다.
+현재 native 범위는 `sweep_stop`, `parse_bench`, `roofline`, `verdict_rule`, `parse_guidellm`, `repeat_axis`의 판정·측정 해석·CLI와 명시된 셸 호출부다. 아래 R1/R2 기록의 수치와 검사는 각 시점의 근거이며 R3 이후의 성능으로 소급하지 않는다.
 원본은 이행 대조 기준으로 보존한다. 다른 Python 도구·LLM provider·서빙 엔진의 이행 완료가 아니다.
 이번 정지 판정 경계의 정본 호출/배치·독립 검증·전체 배포126검사를 통과했다.
 좁은 화면의 도움말은 COLUMNS와 실제 stdout 터미널 폭을 반영한다.
@@ -379,3 +379,110 @@ root 실제 관리 빌드와 다섯 just-built 자체검사, fmt·release Cargo1
 native 두 묶음은 같은 session 53e74e77-0636-425d-8e65-fcee80c91764, 관측126턴·reported duration1997.185초(실제 wrapper wall2003.930초), permission_denials0이었다. 실제 모델 claude-sonnet-5-5를 관측했으며 요청 high를 별도 실제 effort 관측으로 채우지 않는다. 이는 구현 작업 귀속이며 6프로필 업무 평가가 아니다. 전체 S1~S7·하네스·6프로필·실제 Long E2E는 계속 진행한다.
 
 갱신: 2026-11-05T00:23:14+09:00
+
+
+## R5 반복 축(`repeat_axis`) 이행 — 후보 기록
+
+상태: 후보(Builder) 자체검사. 정본 적용·정본 연결·별도 Validator·성능 수용은 이 기록의 범위가 아니다.
+원본 `scripts/repeat_axis.py`(R4 시점 정본과 같은 내용)의 공개 API·상수·CLI 세 명령·자체검사 A1/B/P/R/G/H 전체를 이식했다. 원본은 대조 기준으로 보존한다.
+
+### 구조와 소유
+
+| Rust | 책임 | 원본 대응 |
+|---|---|---|
+| `repeat_axis` | 순수 API: 상수, `parse_repeats`, `band_pct`, `summarize`(→ `Summary`/`Stop`), `repetition_established`(→ `RepetitionVerdict`) | 같은 이름의 함수·상수 |
+| `repeat_owner` | `load_campaign_budgets`, `resolve_repeats`(argv > 캠페인 선언 > 프리셋 기본값), `CampaignOwner` 질의 경계, `RepoRoot` | 같은 이름의 함수 |
+| `repeat_fs` | `record_run`, `aggregate_level`(제자리 쓰기·멱등) | 같은 이름의 함수 |
+| `repeat_cli` | argparse 최상위+하위 파서·`resolve`/`record-run`/`aggregate-level`/`--self-test` | `main` |
+| `repeat_selftest` | 실제 A1·B·P·R·G·H 실행(원본 출력 재생이 아님) | `_self_test` |
+| `repeat_api_cli` / 실행파일 `repeat_axis_api` | `evaluate-jsonl`(모든 공개 연산·`arguments_json`/`result_json` 전송), `constants`, `native-help` | 없음(Rust 전용) |
+| `pyfs` · `pysort` | pathlib/`open()` · `list.sort` 비교 일정 전체(run 탐색·minrun·이진 삽입·powersort 병합·merge_lo/hi·galloping)와 `==`/`<` 의미 | CPython 3.12.3 `listobject.c` |
+| 실행파일 `repeat_axis`, `repeat_axis_bench` | 원본 CLI와 같은 표면 / 순수 API 시간 측정 | |
+
+Rust 전용 명령은 원본이 쓰는 위치(하위 명령 단어)와 충돌하므로 `repeat_axis` 가 아니라 별도 실행파일 `repeat_axis_api` 에 둔다. `repeat_axis` 는 원본이 거부하는 단어를 그대로 거부한다.
+반복 하한 `FULL_REPEATS_MIN` 은 build.rs가 실제 캠페인 스키마에서 읽은 값이며 숫자는 코드에 없다. 자체검사 A1은 실행 시점의 스키마와 이 상수를 비교하고, 스키마가 없으면 FAIL이다.
+반복 로직(해소 우선순위·밴드·집계·요약·반복 조건·원시 `campaign_id` 의 참/선택/순서)은 전부 Rust가 소유한다.
+
+### 미이행 소유자(S4까지) — 전체 런타임이 Python-free 가 아니다
+
+활성 캠페인·경로 파생·예약 ID·`BOOTSTRAP` 의 소유자는 아직 이행하지 않은 `campaign_init.py` 다. Rust는 그 규칙을 복제하지 않고 `CampaignOwner` 로만 묻는다. 유일한 구현 `PythonCampaignOwner` 는 환경 변수 `REPEAT_AXIS_CAMPAIGN_ADAPTER` 의 좁은 질의 어댑터(Python)를 띄워 실제 `campaign_init.py` 를 원본처럼 적재한 뒤 `active_campaign_id()`, `BOOTSTRAP`, `RESERVED_IDS`, `derive_path("root", camp_id=…)` 의 결과나 예외만 중계한다. 어댑터에는 반복 로직이 없다. 소유자 파일이 있는데 어댑터가 없거나 시작되지 않으면 `CampaignOwnerAdapterError` 로 이름을 남기고 멈춘다(`repeat_axis.py` 나 다른 Python 반복 계산으로 대체하지 않는다). 소유자 파일이 없으면 원본처럼 어댑터 없이 "해소자 부재" 대체 경로로 간다. 저장소 루트는 `REPEAT_AXIS_REPO_ROOT`(또는 API의 `repo_root`)로 주며 필요한 연산에서만 요구한다.
+어댑터 시제품은 후보 밖(검토용)에 있다. 정본 통합은 설치된 소유자 위치에서 런처가 어댑터 경로와 저장소 루트를 정하게 하고, 소유자가 이행되면 어댑터를 제거한다.
+
+### 보존 경계
+
+* 정수/bool/float/원시 문자열 인자 구분, 유니코드 숫자, 큰 정수 한도(4300자리), NaN·Inf, CPython 3.12 `sum`의 보정 합산, `round(x, 4)`.
+* 필드 순서(요약·집계 문서·`runs[]`), 재집계 시 소유 키를 문서 끝으로 옮기는 멱등성, 파일 바이트·`json.dumps(indent=2)`·끝 개행.
+* 변경 순서와 부분 실패 상태: 디렉터리 생성 → 파일 열기(생성/절단) → 인코딩 → 쓰기. 인코딩 불가 문서는 빈 파일을 남기고, 집계 실패는 아무것도 쓰지 않는다.
+* 첫 오류의 종류와 메시지(예외 클래스 이름·`str(e)`), 하위 파서 오류·`-h`·미인식 인자가 최상위 파서에서 나는 순서, usage/help의 COLUMNS 폭 의존, 종료 코드 0/2/1.
+* 잡히지 않은 예외: 종료 1과 마지막 `Class: message` 줄만 재현한다(파이썬 스택 프레임은 아니다).
+
+### 알려진 한계
+
+* 정렬은 길이 제한이 없다. 이전 후보의 63개 이하 정확·64개 이상 안정 병합 정렬 한계는 제거했다(아래 "R5 보정 1").
+* 소유자 속성은 JSON으로 중계 가능한 값만 다룬다. `SyntaxError` 계열의 잡히지 않은 마지막 줄은 `str(e)` 의 ` (파일, line N)` 꼬리를 떼어 재현한다.
+* `aggregate_level` 의 `run_NN` 중복(`run_02`·`run_002`)은 디렉터리 나열 순서를 그대로 따른다(원본과 같은 OS 나열 순서).
+* 기준 환경은 Linux GNU·CPython3.12.3이다. 다른 인터프리터 한도나 locale은 보증하지 않는다.
+
+### 자체검사 결과(후보)
+
+| 검사 | 결과 |
+|---|---|
+| fmt `--check` · clippy `--all-targets -D warnings`(bench 포함) | 통과(최초 clippy 실패 `unused_must_use` 1건 원시 보존 후 수정) |
+| 패키지 `repeat_axis_cases`(이전 단계 기록) | 11검사 통과: 고정 API103(전체 순서 있는 결과 비교) · 파일시스템 CLI42(전후 트리 바이트·stdout·종료·stderr) · 소유 캠페인 질의82(원본 트리 불변) · argparse 경계454 · 소유자 변종60 · 상수 · 자체검사 원본 출력 재현+스키마 부재/소유자 원본 부재 실패 · 어댑터 부재/시작 실패/루트 미설정 |
+| 원본과 무작위 차분 | API 26000(요약·반복조건·밴드·값역; 예외 종류 5종 포함) 불일치 0 · CLI 800 불일치 0 · 파일시스템 750 불일치 0 · 특이 입출력 21(무효 UTF-8 인자·읽기 전용·심볼릭 링크·권한) 불일치 0 |
+| 기존 R1~R4 검사 | 공통 소스 변경은 `argv.rs`(repeat_axis 파서 표 추가), `lib.rs`(모듈 등록), `Cargo.toml`(실행파일·검사 등록)뿐이며 전체 `cargo test` 로 재검증 |
+
+이전 후보 단계에서 `package_paths` 와 `stdout_boundary`(pty 1건)가 각각 R4 문서 문구·PTY FD 상속 때문에 실패했고, 두 원인은 위 "R5 보정 2"와 R4 문단 교정으로 처리했다(검사 기준은 바꾸지 않았다).
+
+### 성능 측정 경계
+
+`repeat_axis_bench` 는 케이스 파일의 인자를 시간 밖에서 연산별로 바인딩하고, 시간 안에서 전체 타입 결과와 순서 있는 값을 만들어 `black_box` 로 소비한 뒤 해제한다. 측정 전에 모든 케이스를 `expected` 와 대조하고 어긋나면 측정을 거부한다. 후보 시점 실행은 동작 확인용 한 번이며 속도 향상을 주장하지 않는다(정본 비교는 루트가 별도로 수행).
+
+### R5 보정 1 — 모든 길이의 `list.sort` 비교 일정 이식
+
+root가 원본에서 고정한 `summarize` 8건(길이 63/64/65/80/100/128, NaN 레벨)에서 이전 후보는 6건 불일치였다. 64개 이상에서 CPython의
+galloping 병합 대신 안정 병합 정렬을 쓴 것이 원인이었고, 길이 상한·NaN 특례·기대 변경 없이 CPython 3.12.3의 정렬 알고리즘 전체를
+이식했다: `count_run`, `merge_compute_minrun`, `binarysort`, powersort 병합 정책(`powerloop`·`found_new_run`·`merge_force_collapse`),
+`merge_at`, `merge_lo`/`merge_hi`(`MIN_GALLOP`·적응형 `min_gallop`), `gallop_left`/`gallop_right`. 비교는 같은 쌍을 같은 순서로 하므로
+NaN 같은 비전순 키의 배치와 비교 불가 키의 첫 `TypeError` 도 같다. 키 비교 자체(`==`/`<`)는 기존 `PyValue` 비교기를 그대로 쓴다.
+사용자 정의 객체 실행·`reverse`·keyfunc 는 이식 대상이 아니다(JSON 값 영역에서 쓰이지 않는다).
+증거: 원본 CPython이 `__lt__` 로 기록한 비교열 439건(길이 0~300, 63/64·127~129·255~257 경계, run/gallop/병합 전이, 내림·중복·톱니·블록·
+오르간 파이프·동일 길이 run, NaN 위치별, 혼합 숫자·문자열·리스트 키, 위치별 첫 오류)을 Rust가 쌍 단위로 재현한다
+(`sort_schedule`). 변이 대조(MIN_GALLOP, 적응 감소 제거, minrun 경계, run 동률, merge_lo/hi 선택, gallop 경계)는 모두 이 검사가 실패시키며
+동치 변이 1건(powersort `>` 대 `>=`: CPython 자체 단언이 동률 불가를 보장)만 통과한다. 동일 길이 run 사례는 `merge_force_collapse` 동률 변이가
+처음 살아남은 뒤 추가했다. 고정 8건 전체 순서 결과 비교와 길이 2~260 `summarize` 14000건(값 2421 포함, NaN·중복·혼합 키) 차분은 불일치 0이다.
+
+### R5 보정 2 — 검사 PTY 보조의 master FD 상속
+
+공유 검사 보조 `checks/common.rs` 의 `open_pty` 가 master 를 CLOEXEC 없이 만들어, 병렬 검사 thread 가 그동안 exec 한 무관한 자식이 master 를
+물고 있으면 소유자가 master 를 닫아도 터미널이 살아 있어 `pb-pty-gone-8191` 이 EIO traceback(1) 대신 정상 0 을 냈다(독립 조사로 같은 결과의
+메커니즘을 입증; 과거 사건의 특정 자식 PID 는 입증되지 않음). master 생성에 `OpenptFlags::CLOEXEC` 만 추가했고 sink·오류 기대와 런타임 stdout
+정책은 그대로다. 새 검사 `pty_inheritance` 는 실제 exec 한 자식의 `/proc/<pid>/fd` 를 읽어 (1) CLOEXEC 없는 master 는 상속된다(양성 대조),
+보조의 master 는 상속되지 않는다, (2) 살아 있는 무관한 자식이 있어도 master 를 버린 slave 에 실제 `parse_bench` 의 8191 본문이 EIO 로 실패한다를
+확인한다. CLOEXEC 를 임시 제거하면 (1)에서 실패함을 확인한 뒤 복원했다. 플래그 존재만 단언하지 않는다.
+
+### R5 보정 — R4 PORTING 문구
+
+정본에서 서술만 교정된 R4 원시 근거 문단(로컬 경로 제거)을 그대로 가져왔고 R4·R5 이력은 유지한다. `package_paths` 기준은 바꾸지 않았다.
+
+## R5 정본 계산·호출 검증과 S4 잔여
+
+반복 선언 해소·경계 기록·레벨 집계·밴드·요약·판정점 반복 조건과 실제 자체검사를 Rust로 연결했다. 기존 repeat_axis.py는 원본 기준으로 보존한다. legacy CLI는 repeat_axis.sh, 별도 JSON/상수 질의는 repeat_axis_api.sh다. broad_search·sweep_bench·classify_cell·bench_preset이 정본 native를 사용하며 격리 사본도 두 실행파일/launchers/소유 질의 전달부를 포함한다.
+
+최초 후보는63개 이하에서만 원본과 같은 정렬을 사용했다. root가 구현 후 추가한 실제 원본8관측 중6불일치를 재현했고, 공식 CPython3.12.3의 run/minrun·powersort·merge/gallop 비교 순서를 이식해 같은8건이 모두 일치했다. 소유자 변종 초기3건과 argparse 단독--도 교정했다. source 영역의 길이 상한·NaN 입력 특례·기준 완화는 없다. 공유 PTY test helper는 masterFD가 실제 exec child로 상속돼0/빈stderr를 만들 수 있음을 독립적으로 재현한 뒤 CLOEXEC를 추가했다. 새 회귀는 실제 자식 FD와 writer EIO/1을 확인한다. 과거 실패의 특정 holderPID까지 증명하지 않았다.
+
+root는31Rust경로·18호출/설치경로를 검토·반영했다. 설치 레이아웃이 source/adapter를 제공하는 Cargo test 기본 바인딩만 root가 추가했고 실제 파일 부재를 여전히 실패로 처리한다. 관리 offline build와 여섯 just-built 자체검사, fmt/release Cargo163/Clippy, 실제 launchers103API·42filesystem·82campaign, 기존 프리셋 해소 전체67, sweep_meta/repeats/precheck/cellargs·bench_preset/lite_report·classify/topology 및 전체 배포128이 PASS다. 이전 R1~R4 runtime source와 argv의 기존 줄이 같아 해당 외부 차분 근거는 재사용했다.
+
+독립 검증은 원본6개, 수정 후 정렬5관측과 실제 후보 helper, 정본 연결7관측/12명령을 각기 수행했다. 부분 쓰기/링크/Unicode순서와 실제 bridge/프리셋/분류기, 양성·원래 오류·실행파일 부재를 확인했다. JSON bridge는 원본 값과 보고된 예외명/문자열/catch계층을 전달하며 원본 Python 예외 객체의 전체 생성 인자/속성까지 보존한다고 하지 않는다. 복잡한 builtin 오류의 module 표기는 builtins로 유지해 실제 소비자의 오류 이름을 보존한다.
+
+Git index363파일(Rust348과 실제 소유 의존15)만 새 공백 경로로 복사해 기존 node-local managed toolchain/cache를 명시 재사용했다. 외부 task/source-root/binary override를 제거한 offline source build·여섯 실제 자체검사·관련 Cargo16이 PASS다. target/cache/인증 파일은 복사하지 않았다. 최초 새 복사 뒤 bridge의 오류 module metadata 한 줄이 바뀌어 현재 index와 차이1개가 생겼다. 이를 동기화하고 새 경로에서 actual bridge 양성/invalidUTF8 ACTIVE의 예외명·module·문자열·catch계층이 원본과 같은지 좁게 확인했다. Rust source·기존 build 결과는 그대로 재사용했다.
+
+사전 고정72개의 모든 value 결과 생성·해제를11교차round×200으로 측정했다. Python1136.558889ns/Rust739.555ns, 약1.5368배였다. 실제 Bash CLI5입력×11교차round의 round평균 중앙값은29.4498744ms/11.409153ms, 약2.58125배며 stdout/stderr/종료/최종트리가 모두 같다. 5입력은 record1·aggregate1·argparse거부1·resolve2이고 I/O가 수행되는 곳의 I/O를 포함했다. 로컬 표본이며 서빙/LLM시간이나 통계적 우월성으로 확대하지 않는다.
+
+개별 결과를 숨기지 않는다. 아직 Python 캠페인 소유자를 질의하는 기본 해소041은22.810927ms→36.625875ms로 약1.61배 느렸다. 나머지4경로는 각3.95/7.03/5.13/4.66배였다. 순수 연산·대표 CLI 집계의 개선과 모든 경로의 개선은 구분한다. S4가 소유 캠페인을 Rust로 전환한 뒤 같은041/전체5입력으로 이 잔여를 다시 측정해야 하며 전체 Rust 기동·성능 완료는 아직 아니다. 캠페인 활성/경로/예약 규칙을 반복 모듈에 복제해 속도를 메우지 않는다.
+
+실제 두 native 묶음은 같은 session16c9b5c5-d1a8-4c11-a464-c2c61ebfa7cd,84+32=116턴·reported2687.835초(wrapper2693.017초), denials0이었다. actualmodel claude-sonnet-5-5와 high요청을 구분했다. cumulative cost를 합산하지 않으며 이 작성 작업을6프로필 평가로 세지 않는다. 최초 원시·교정·초회 root checker 상대경로 설정오류와 실제 차이를 구분해 보존했다.
+
+근거는 상위 task_id 수행·검증 문서의 R5 절에 연결한다. 정본 검사·배포·새 복사·성능 원시와 독립 baseline/prototype/fix1fix2/canonical, CPython 공식 source/license 및 초기 실패를 같은 과업에 보존했다. 이어서 R6 프리셋, 나머지 S1~S7·하네스·6프로필·실제 Long E2E를 계속한다.
+
+갱신: 2026-11-05T01:59:11+09:00

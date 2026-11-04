@@ -1,0 +1,1827 @@
+[
+ {
+  "id": "000-record",
+  "argv": [
+   "record-run",
+   "--run-dir",
+   "level_01/run_02",
+   "--level",
+   "1",
+   "--run",
+   "1",
+   "--started-utc",
+   "2026-11-04T00:00:00Z",
+   "--ended-utc",
+   "2026-11-04T00:00:01Z",
+   "--run-bench-rc",
+   "0",
+   "--parse-rc",
+   "0"
+  ],
+  "before": {},
+  "exit_code": 0,
+  "stdout": "level_01/run_02/repeat_run.json\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAsCiAgInByb3ZlbmFuY2UiOiAibWVhc3VyZWQoc3dlZXBfYmVuY2gg67CY67O1IOujqO2UhCDCtyDsi5zqsIHsnYAgcnVuIOqyveqzhOyXkOyEnCDsnrAg67K97Iuc6rOEKSIKfQo="
+   }
+  }
+ },
+ {
+  "id": "001-overwrite",
+  "argv": [
+   "record-run",
+   "--run-dir",
+   "level_01/run_02",
+   "--level",
+   "1",
+   "--run",
+   "1",
+   "--started-utc",
+   "2026-11-04T00:00:00Z",
+   "--ended-utc",
+   "2026-11-04T00:00:01Z",
+   "--run-bench-rc",
+   "0",
+   "--parse-rc",
+   "0"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "b2xkCg=="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "level_01/run_02/repeat_run.json\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAsCiAgInByb3ZlbmFuY2UiOiAibWVhc3VyZWQoc3dlZXBfYmVuY2gg67CY67O1IOujqO2UhCDCtyDsi5zqsIHsnYAgcnVuIOqyveqzhOyXkOyEnCDsnrAg67K97Iuc6rOEKSIKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "002-record",
+  "argv": [
+   "record-run",
+   "--run-dir",
+   "level_01/run_02",
+   "--level",
+   "0",
+   "--run",
+   "0",
+   "--started-utc",
+   "2026-11-04T00:00:00Z",
+   "--ended-utc",
+   "2026-11-04T00:00:01Z",
+   "--run-bench-rc",
+   "0",
+   "--parse-rc",
+   "0"
+  ],
+  "before": {},
+  "exit_code": 0,
+  "stdout": "level_01/run_02/repeat_run.json\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMCwKICAicnVuIjogMCwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAsCiAgInByb3ZlbmFuY2UiOiAibWVhc3VyZWQoc3dlZXBfYmVuY2gg67CY67O1IOujqO2UhCDCtyDsi5zqsIHsnYAgcnVuIOqyveqzhOyXkOyEnCDsnrAg67K97Iuc6rOEKSIKfQo="
+   }
+  }
+ },
+ {
+  "id": "003-overwrite",
+  "argv": [
+   "record-run",
+   "--run-dir",
+   "level_01/run_02",
+   "--level",
+   "0",
+   "--run",
+   "0",
+   "--started-utc",
+   "2026-11-04T00:00:00Z",
+   "--ended-utc",
+   "2026-11-04T00:00:01Z",
+   "--run-bench-rc",
+   "0",
+   "--parse-rc",
+   "0"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "b2xkCg=="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "level_01/run_02/repeat_run.json\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMCwKICAicnVuIjogMCwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAsCiAgInByb3ZlbmFuY2UiOiAibWVhc3VyZWQoc3dlZXBfYmVuY2gg67CY67O1IOujqO2UhCDCtyDsi5zqsIHsnYAgcnVuIOqyveqzhOyXkOyEnCDsnrAg67K97Iuc6rOEKSIKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "004-record",
+  "argv": [
+   "record-run",
+   "--run-dir",
+   "level_01/run_02",
+   "--level",
+   "-1",
+   "--run",
+   "-2",
+   "--started-utc",
+   "2026-11-04T00:00:00Z",
+   "--ended-utc",
+   "2026-11-04T00:00:01Z",
+   "--run-bench-rc",
+   "1",
+   "--parse-rc",
+   "0"
+  ],
+  "before": {},
+  "exit_code": 0,
+  "stdout": "level_01/run_02/repeat_run.json\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogLTEsCiAgInJ1biI6IC0yLAogICJzdGFydGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAwWiIsCiAgImVuZGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAxWiIsCiAgInJ1bl9iZW5jaF9yYyI6IDEsCiAgInBhcnNlX3JjIjogMCwKICAicHJvdmVuYW5jZSI6ICJtZWFzdXJlZChzd2VlcF9iZW5jaCDrsJjrs7Ug66Oo7ZSEIMK3IOyLnOqwgeydgCBydW4g6rK96rOE7JeQ7IScIOyesCDrsr3si5zqs4QpIgp9Cg=="
+   }
+  }
+ },
+ {
+  "id": "005-overwrite",
+  "argv": [
+   "record-run",
+   "--run-dir",
+   "level_01/run_02",
+   "--level",
+   "-1",
+   "--run",
+   "-2",
+   "--started-utc",
+   "2026-11-04T00:00:00Z",
+   "--ended-utc",
+   "2026-11-04T00:00:01Z",
+   "--run-bench-rc",
+   "1",
+   "--parse-rc",
+   "0"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "b2xkCg=="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "level_01/run_02/repeat_run.json\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogLTEsCiAgInJ1biI6IC0yLAogICJzdGFydGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAwWiIsCiAgImVuZGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAxWiIsCiAgInJ1bl9iZW5jaF9yYyI6IDEsCiAgInBhcnNlX3JjIjogMCwKICAicHJvdmVuYW5jZSI6ICJtZWFzdXJlZChzd2VlcF9iZW5jaCDrsJjrs7Ug66Oo7ZSEIMK3IOyLnOqwgeydgCBydW4g6rK96rOE7JeQ7IScIOyesCDrsr3si5zqs4QpIgp9Cg=="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "006-record",
+  "argv": [
+   "record-run",
+   "--run-dir",
+   "level_01/run_02",
+   "--level",
+   "2",
+   "--run",
+   "3",
+   "--started-utc",
+   "2026-11-04T00:00:00Z",
+   "--ended-utc",
+   "2026-11-04T00:00:01Z",
+   "--run-bench-rc",
+   "-9",
+   "--parse-rc",
+   "0"
+  ],
+  "before": {},
+  "exit_code": 0,
+  "stdout": "level_01/run_02/repeat_run.json\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMiwKICAicnVuIjogMywKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAtOSwKICAicGFyc2VfcmMiOiAwLAogICJwcm92ZW5hbmNlIjogIm1lYXN1cmVkKHN3ZWVwX2JlbmNoIOuwmOuztSDro6jtlIQgwrcg7Iuc6rCB7J2AIHJ1biDqsr3qs4Tsl5DshJwg7J6wIOuyveyLnOqzhCkiCn0K"
+   }
+  }
+ },
+ {
+  "id": "007-overwrite",
+  "argv": [
+   "record-run",
+   "--run-dir",
+   "level_01/run_02",
+   "--level",
+   "2",
+   "--run",
+   "3",
+   "--started-utc",
+   "2026-11-04T00:00:00Z",
+   "--ended-utc",
+   "2026-11-04T00:00:01Z",
+   "--run-bench-rc",
+   "-9",
+   "--parse-rc",
+   "0"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "b2xkCg=="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "level_01/run_02/repeat_run.json\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMiwKICAicnVuIjogMywKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAtOSwKICAicGFyc2VfcmMiOiAwLAogICJwcm92ZW5hbmNlIjogIm1lYXN1cmVkKHN3ZWVwX2JlbmNoIOuwmOuztSDro6jtlIQgwrcg7Iuc6rCB7J2AIHJ1biDqsr3qs4Tsl5DshJwg7J6wIOuyveyLnOqzhCkiCn0K"
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "008-record",
+  "argv": [
+   "record-run",
+   "--run-dir",
+   "level_01/run_02",
+   "--level",
+   "1",
+   "--run",
+   "10",
+   "--started-utc",
+   "2026-11-04T00:00:00Z",
+   "--ended-utc",
+   "2026-11-04T00:00:01Z",
+   "--run-bench-rc",
+   "0",
+   "--parse-rc",
+   "0"
+  ],
+  "before": {},
+  "exit_code": 0,
+  "stdout": "level_01/run_02/repeat_run.json\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMTAsCiAgInN0YXJ0ZWRfdXRjIjogIjIwMjYtMTEtMDRUMDA6MDA6MDBaIiwKICAiZW5kZWRfdXRjIjogIjIwMjYtMTEtMDRUMDA6MDA6MDFaIiwKICAicnVuX2JlbmNoX3JjIjogMCwKICAicGFyc2VfcmMiOiAwLAogICJwcm92ZW5hbmNlIjogIm1lYXN1cmVkKHN3ZWVwX2JlbmNoIOuwmOuztSDro6jtlIQgwrcg7Iuc6rCB7J2AIHJ1biDqsr3qs4Tsl5DshJwg7J6wIOuyveyLnOqzhCkiCn0K"
+   }
+  }
+ },
+ {
+  "id": "009-overwrite",
+  "argv": [
+   "record-run",
+   "--run-dir",
+   "level_01/run_02",
+   "--level",
+   "1",
+   "--run",
+   "10",
+   "--started-utc",
+   "2026-11-04T00:00:00Z",
+   "--ended-utc",
+   "2026-11-04T00:00:01Z",
+   "--run-bench-rc",
+   "0",
+   "--parse-rc",
+   "0"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "b2xkCg=="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "level_01/run_02/repeat_run.json\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMTAsCiAgInN0YXJ0ZWRfdXRjIjogIjIwMjYtMTEtMDRUMDA6MDA6MDBaIiwKICAiZW5kZWRfdXRjIjogIjIwMjYtMTEtMDRUMDA6MDA6MDFaIiwKICAicnVuX2JlbmNoX3JjIjogMCwKICAicGFyc2VfcmMiOiAwLAogICJwcm92ZW5hbmNlIjogIm1lYXN1cmVkKHN3ZWVwX2JlbmNoIOuwmOuztSDro6jtlIQgwrcg7Iuc6rCB7J2AIHJ1biDqsr3qs4Tsl5DshJwg7J6wIOuyveyLnOqzhCkiCn0K"
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "010-record-blocked",
+  "argv": [
+   "record-run",
+   "--run-dir",
+   "blocked/run",
+   "--level",
+   "1",
+   "--run",
+   "1",
+   "--started-utc",
+   "bad",
+   "--ended-utc",
+   "bad",
+   "--run-bench-rc",
+   "0",
+   "--parse-rc",
+   "0"
+  ],
+  "before": {
+   "blocked": {
+    "kind": "file",
+    "bytes_base64": "ZmlsZQ=="
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\n  (native: Python stack frames are not reproduced)\nNotADirectoryError: [Errno 20] Not a directory: 'blocked/run'\n",
+  "after": {
+   "blocked": {
+    "kind": "file",
+    "bytes_base64": "ZmlsZQ=="
+   }
+  }
+ },
+ {
+  "id": "011-aggregate-one",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "[repeat_axis] level_01 \uc644\uc8fc 1/3 \u00b7 \ubc34\ub4dc None (unavailable(n=1 \u2014 \uc0b0\ud3ec\ub294 \uc644\uc8fc 2\ud68c \uc774\uc0c1\uc5d0\uc11c\ub9cc \uc815\uc758\ub41c\ub2e4))\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicnVucyI6IFsKICAgIHsKICAgICAgInJ1biI6IDEsCiAgICAgICJkaXIiOiAiLiIsCiAgICAgICJzdGFydGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAwWiIsCiAgICAgICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICAgICAicnVuX2JlbmNoX3JjIjogMCwKICAgICAgInBhcnNlX3JjIjogMCwKICAgICAgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwKICAgICAgImRlY29kZV90cHMiOiAzMC4wLAogICAgICAib3V0cHV0X3Rocm91Z2hwdXQiOiBudWxsLAogICAgICAidHRmdF9tc19tZWRpYW4iOiBudWxsLAogICAgICAiaXRsX21zX21lZGlhbiI6IG51bGwsCiAgICAgICJ0cG90X21zX21lZGlhbiI6IG51bGwsCiAgICAgICJjb21wbGV0ZWQiOiA0LAogICAgICAiZmFpbGVkIjogMCwKICAgICAgInNlcnZlcl9lcnJvcl9yYXRlIjogbnVsbCwKICAgICAgImFjY2VwdF9sZW4iOiBudWxsCiAgICB9CiAgXSwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiAzLAogICJyZXBlYXRzX3JlcXVlc3RlZF9zb3VyY2UiOiAiZml4dHVyZS1zb3VyY2UiLAogICJyZXBlYXRzX2NvbXBsZXRlZCI6IDEsCiAgInJlcGVhdF9raW5kIjogIndhcm0tcmVydW4iLAogICJyZXByZXNlbnRhdGl2ZV9ydW4iOiAxLAogICJyZXByZXNlbnRhdGl2ZV9ydW5fcnVsZSI6ICLssqsg7JmE7KO8IHJ1biDigJQg7LWc7IOB7JyEIOy4oeyglSDtlYTrk5zCt+2MkOygleygkMK37J247Kad7ISc6rCAIOydtCBydW4g7ZWY64KY7JeQIOustuyduOuLpCjtlanshLEg4pyXKSIsCiAgInJlcHJvX2JhbmRfcGN0IjogbnVsbCwKICAicmVwcm9fYmFuZF9zb3VyY2UiOiAidW5hdmFpbGFibGUobj0xIOKAlCDsgrDtj6zripQg7JmE7KO8IDLtmowg7J207IOB7JeQ7ISc66eMIOygleydmOuQnOuLpCkiLAogICJyZXByb19iYW5kX21ldHJpYyI6ICJkZWNvZGVfdHBzIiwKICAicmVwcm9fYmFuZF9mb3JtdWxhIjogIihtYXgtbWluKS9tZWFuKjEwMCIKfQo="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "012-aggregate-directory",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzEuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMiwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "[repeat_axis] level_01 \uc644\uc8fc 2/3 \u00b7 \ubc34\ub4dc 3.2787 (measured(n=2))\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicnVucyI6IFsKICAgIHsKICAgICAgInJ1biI6IDEsCiAgICAgICJkaXIiOiAiLiIsCiAgICAgICJzdGFydGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAwWiIsCiAgICAgICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICAgICAicnVuX2JlbmNoX3JjIjogMCwKICAgICAgInBhcnNlX3JjIjogMCwKICAgICAgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwKICAgICAgImRlY29kZV90cHMiOiAzMC4wLAogICAgICAib3V0cHV0X3Rocm91Z2hwdXQiOiBudWxsLAogICAgICAidHRmdF9tc19tZWRpYW4iOiBudWxsLAogICAgICAiaXRsX21zX21lZGlhbiI6IG51bGwsCiAgICAgICJ0cG90X21zX21lZGlhbiI6IG51bGwsCiAgICAgICJjb21wbGV0ZWQiOiA0LAogICAgICAiZmFpbGVkIjogMCwKICAgICAgInNlcnZlcl9lcnJvcl9yYXRlIjogbnVsbCwKICAgICAgImFjY2VwdF9sZW4iOiBudWxsCiAgICB9LAogICAgewogICAgICAicnVuIjogMiwKICAgICAgImRpciI6ICJydW5fMDIiLAogICAgICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICAgICAiZW5kZWRfdXRjIjogIjIwMjYtMTEtMDRUMDA6MDA6MDFaIiwKICAgICAgInJ1bl9iZW5jaF9yYyI6IDAsCiAgICAgICJwYXJzZV9yYyI6IDAsCiAgICAgICJtZWFzdXJlbWVudF9vayI6IHRydWUsCiAgICAgICJkZWNvZGVfdHBzIjogMzEuMCwKICAgICAgIm91dHB1dF90aHJvdWdocHV0IjogbnVsbCwKICAgICAgInR0ZnRfbXNfbWVkaWFuIjogbnVsbCwKICAgICAgIml0bF9tc19tZWRpYW4iOiBudWxsLAogICAgICAidHBvdF9tc19tZWRpYW4iOiBudWxsLAogICAgICAiY29tcGxldGVkIjogNCwKICAgICAgImZhaWxlZCI6IDAsCiAgICAgICJzZXJ2ZXJfZXJyb3JfcmF0ZSI6IG51bGwsCiAgICAgICJhY2NlcHRfbGVuIjogbnVsbAogICAgfQogIF0sCiAgInJlcGVhdHNfcmVxdWVzdGVkIjogMywKICAicmVwZWF0c19yZXF1ZXN0ZWRfc291cmNlIjogImZpeHR1cmUtc291cmNlIiwKICAicmVwZWF0c19jb21wbGV0ZWQiOiAyLAogICJyZXBlYXRfa2luZCI6ICJ3YXJtLXJlcnVuIiwKICAicmVwcmVzZW50YXRpdmVfcnVuIjogMSwKICAicmVwcmVzZW50YXRpdmVfcnVuX3J1bGUiOiAi7LKrIOyZhOyjvCBydW4g4oCUIOy1nOyDgeychCDsuKHsoJUg7ZWE65OcwrftjJDsoJXsoJDCt+yduOymneyEnOqwgCDsnbQgcnVuIO2VmOuCmOyXkCDrrLbsnbjri6Qo7ZWp7ISxIOKclykiLAogICJyZXByb19iYW5kX3BjdCI6IDMuMjc4NywKICAicmVwcm9fYmFuZF9zb3VyY2UiOiAibWVhc3VyZWQobj0yKSIsCiAgInJlcHJvX2JhbmRfbWV0cmljIjogImRlY29kZV90cHMiLAogICJyZXByb19iYW5kX2Zvcm11bGEiOiAiKG1heC1taW4pL21lYW4qMTAwIgp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "level_01/run_02": {
+    "kind": "directory"
+   },
+   "level_01/run_02/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzEuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/run_02/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMiwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "013-aggregate-directory",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "level_01/run_003": {
+    "kind": "directory"
+   },
+   "level_01/run_003/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMjkuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/run_003/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMywKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "[repeat_axis] level_01 \uc644\uc8fc 2/3 \u00b7 \ubc34\ub4dc 3.3898 (measured(n=2))\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicnVucyI6IFsKICAgIHsKICAgICAgInJ1biI6IDEsCiAgICAgICJkaXIiOiAiLiIsCiAgICAgICJzdGFydGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAwWiIsCiAgICAgICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICAgICAicnVuX2JlbmNoX3JjIjogMCwKICAgICAgInBhcnNlX3JjIjogMCwKICAgICAgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwKICAgICAgImRlY29kZV90cHMiOiAzMC4wLAogICAgICAib3V0cHV0X3Rocm91Z2hwdXQiOiBudWxsLAogICAgICAidHRmdF9tc19tZWRpYW4iOiBudWxsLAogICAgICAiaXRsX21zX21lZGlhbiI6IG51bGwsCiAgICAgICJ0cG90X21zX21lZGlhbiI6IG51bGwsCiAgICAgICJjb21wbGV0ZWQiOiA0LAogICAgICAiZmFpbGVkIjogMCwKICAgICAgInNlcnZlcl9lcnJvcl9yYXRlIjogbnVsbCwKICAgICAgImFjY2VwdF9sZW4iOiBudWxsCiAgICB9LAogICAgewogICAgICAicnVuIjogMywKICAgICAgImRpciI6ICJydW5fMDAzIiwKICAgICAgInN0YXJ0ZWRfdXRjIjogIjIwMjYtMTEtMDRUMDA6MDA6MDBaIiwKICAgICAgImVuZGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAxWiIsCiAgICAgICJydW5fYmVuY2hfcmMiOiAwLAogICAgICAicGFyc2VfcmMiOiAwLAogICAgICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICAgICAiZGVjb2RlX3RwcyI6IDI5LjAsCiAgICAgICJvdXRwdXRfdGhyb3VnaHB1dCI6IG51bGwsCiAgICAgICJ0dGZ0X21zX21lZGlhbiI6IG51bGwsCiAgICAgICJpdGxfbXNfbWVkaWFuIjogbnVsbCwKICAgICAgInRwb3RfbXNfbWVkaWFuIjogbnVsbCwKICAgICAgImNvbXBsZXRlZCI6IDQsCiAgICAgICJmYWlsZWQiOiAwLAogICAgICAic2VydmVyX2Vycm9yX3JhdGUiOiBudWxsLAogICAgICAiYWNjZXB0X2xlbiI6IG51bGwKICAgIH0KICBdLAogICJyZXBlYXRzX3JlcXVlc3RlZCI6IDMsCiAgInJlcGVhdHNfcmVxdWVzdGVkX3NvdXJjZSI6ICJmaXh0dXJlLXNvdXJjZSIsCiAgInJlcGVhdHNfY29tcGxldGVkIjogMiwKICAicmVwZWF0X2tpbmQiOiAid2FybS1yZXJ1biIsCiAgInJlcHJlc2VudGF0aXZlX3J1biI6IDEsCiAgInJlcHJlc2VudGF0aXZlX3J1bl9ydWxlIjogIuyyqyDsmYTso7wgcnVuIOKAlCDstZzsg4HsnIQg7Lih7KCVIO2VhOuTnMK37YyQ7KCV7KCQwrfsnbjspp3shJzqsIAg7J20IHJ1biDtlZjrgpjsl5Ag66y27J2464ukKO2VqeyEsSDinJcpIiwKICAicmVwcm9fYmFuZF9wY3QiOiAzLjM4OTgsCiAgInJlcHJvX2JhbmRfc291cmNlIjogIm1lYXN1cmVkKG49MikiLAogICJyZXByb19iYW5kX21ldHJpYyI6ICJkZWNvZGVfdHBzIiwKICAicmVwcm9fYmFuZF9mb3JtdWxhIjogIihtYXgtbWluKS9tZWFuKjEwMCIKfQo="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "level_01/run_003": {
+    "kind": "directory"
+   },
+   "level_01/run_003/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMjkuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/run_003/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMywKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "014-aggregate-directory",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "level_01/run_\u0661\u0662": {
+    "kind": "directory"
+   },
+   "level_01/run_\u0661\u0662/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMjguMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/run_\u0661\u0662/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMTIsCiAgInN0YXJ0ZWRfdXRjIjogIjIwMjYtMTEtMDRUMDA6MDA6MDBaIiwKICAiZW5kZWRfdXRjIjogIjIwMjYtMTEtMDRUMDA6MDA6MDFaIiwKICAicnVuX2JlbmNoX3JjIjogMCwKICAicGFyc2VfcmMiOiAwCn0K"
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "[repeat_axis] level_01 \uc644\uc8fc 2/3 \u00b7 \ubc34\ub4dc 6.8966 (measured(n=2))\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicnVucyI6IFsKICAgIHsKICAgICAgInJ1biI6IDEsCiAgICAgICJkaXIiOiAiLiIsCiAgICAgICJzdGFydGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAwWiIsCiAgICAgICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICAgICAicnVuX2JlbmNoX3JjIjogMCwKICAgICAgInBhcnNlX3JjIjogMCwKICAgICAgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwKICAgICAgImRlY29kZV90cHMiOiAzMC4wLAogICAgICAib3V0cHV0X3Rocm91Z2hwdXQiOiBudWxsLAogICAgICAidHRmdF9tc19tZWRpYW4iOiBudWxsLAogICAgICAiaXRsX21zX21lZGlhbiI6IG51bGwsCiAgICAgICJ0cG90X21zX21lZGlhbiI6IG51bGwsCiAgICAgICJjb21wbGV0ZWQiOiA0LAogICAgICAiZmFpbGVkIjogMCwKICAgICAgInNlcnZlcl9lcnJvcl9yYXRlIjogbnVsbCwKICAgICAgImFjY2VwdF9sZW4iOiBudWxsCiAgICB9LAogICAgewogICAgICAicnVuIjogMTIsCiAgICAgICJkaXIiOiAicnVuX9mh2aIiLAogICAgICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICAgICAiZW5kZWRfdXRjIjogIjIwMjYtMTEtMDRUMDA6MDA6MDFaIiwKICAgICAgInJ1bl9iZW5jaF9yYyI6IDAsCiAgICAgICJwYXJzZV9yYyI6IDAsCiAgICAgICJtZWFzdXJlbWVudF9vayI6IHRydWUsCiAgICAgICJkZWNvZGVfdHBzIjogMjguMCwKICAgICAgIm91dHB1dF90aHJvdWdocHV0IjogbnVsbCwKICAgICAgInR0ZnRfbXNfbWVkaWFuIjogbnVsbCwKICAgICAgIml0bF9tc19tZWRpYW4iOiBudWxsLAogICAgICAidHBvdF9tc19tZWRpYW4iOiBudWxsLAogICAgICAiY29tcGxldGVkIjogNCwKICAgICAgImZhaWxlZCI6IDAsCiAgICAgICJzZXJ2ZXJfZXJyb3JfcmF0ZSI6IG51bGwsCiAgICAgICJhY2NlcHRfbGVuIjogbnVsbAogICAgfQogIF0sCiAgInJlcGVhdHNfcmVxdWVzdGVkIjogMywKICAicmVwZWF0c19yZXF1ZXN0ZWRfc291cmNlIjogImZpeHR1cmUtc291cmNlIiwKICAicmVwZWF0c19jb21wbGV0ZWQiOiAyLAogICJyZXBlYXRfa2luZCI6ICJ3YXJtLXJlcnVuIiwKICAicmVwcmVzZW50YXRpdmVfcnVuIjogMSwKICAicmVwcmVzZW50YXRpdmVfcnVuX3J1bGUiOiAi7LKrIOyZhOyjvCBydW4g4oCUIOy1nOyDgeychCDsuKHsoJUg7ZWE65OcwrftjJDsoJXsoJDCt+yduOymneyEnOqwgCDsnbQgcnVuIO2VmOuCmOyXkCDrrLbsnbjri6Qo7ZWp7ISxIOKclykiLAogICJyZXByb19iYW5kX3BjdCI6IDYuODk2NiwKICAicmVwcm9fYmFuZF9zb3VyY2UiOiAibWVhc3VyZWQobj0yKSIsCiAgInJlcHJvX2JhbmRfbWV0cmljIjogImRlY29kZV90cHMiLAogICJyZXByb19iYW5kX2Zvcm11bGEiOiAiKG1heC1taW4pL21lYW4qMTAwIgp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "level_01/run_\u0661\u0662": {
+    "kind": "directory"
+   },
+   "level_01/run_\u0661\u0662/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMjguMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/run_\u0661\u0662/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMTIsCiAgInN0YXJ0ZWRfdXRjIjogIjIwMjYtMTEtMDRUMDA6MDA6MDBaIiwKICAiZW5kZWRfdXRjIjogIjIwMjYtMTEtMDRUMDA6MDA6MDFaIiwKICAicnVuX2JlbmNoX3JjIjogMCwKICAicGFyc2VfcmMiOiAwCn0K"
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "015-aggregate-measured",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiBmYWxzZSwKICAiY29tcGxldGVkIjogNCwKICAiZmFpbGVkIjogMCwKICAic3BlY19vbiI6IGZhbHNlLAogICJub3RlIjogInJldGFpbiIsCiAgInJlcGVhdHNfcmVxdWVzdGVkIjogOTkKfQo="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[repeat_axis] ERROR level_01/measured.json \uac00 \uc644\uc8fc\ud55c \ub300\ud45c run \uc774 \uc544\ub2c8\ub2e4 \u2014 \uc808\uc0ad \ub808\ubca8\uc740 \uc9d1\uacc4 \ub300\uc0c1\uc774 \uc544\ub2c8\ub2e4\n",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiBmYWxzZSwKICAiY29tcGxldGVkIjogNCwKICAiZmFpbGVkIjogMCwKICAic3BlY19vbiI6IGZhbHNlLAogICJub3RlIjogInJldGFpbiIsCiAgInJlcGVhdHNfcmVxdWVzdGVkIjogOTkKfQo="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "016-aggregate-measured",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiAxLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[repeat_axis] ERROR level_01/measured.json \uac00 \uc644\uc8fc\ud55c \ub300\ud45c run \uc774 \uc544\ub2c8\ub2e4 \u2014 \uc808\uc0ad \ub808\ubca8\uc740 \uc9d1\uacc4 \ub300\uc0c1\uc774 \uc544\ub2c8\ub2e4\n",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiAxLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "017-aggregate-measured",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogbnVsbCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "[repeat_axis] level_01 \uc644\uc8fc 1/3 \u00b7 \ubc34\ub4dc None (unavailable(n=0 \u2014 \uc0b0\ud3ec\ub294 \uc644\uc8fc 2\ud68c \uc774\uc0c1\uc5d0\uc11c\ub9cc \uc815\uc758\ub41c\ub2e4))\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogbnVsbCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicnVucyI6IFsKICAgIHsKICAgICAgInJ1biI6IDEsCiAgICAgICJkaXIiOiAiLiIsCiAgICAgICJzdGFydGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAwWiIsCiAgICAgICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICAgICAicnVuX2JlbmNoX3JjIjogMCwKICAgICAgInBhcnNlX3JjIjogMCwKICAgICAgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwKICAgICAgImRlY29kZV90cHMiOiBudWxsLAogICAgICAib3V0cHV0X3Rocm91Z2hwdXQiOiBudWxsLAogICAgICAidHRmdF9tc19tZWRpYW4iOiBudWxsLAogICAgICAiaXRsX21zX21lZGlhbiI6IG51bGwsCiAgICAgICJ0cG90X21zX21lZGlhbiI6IG51bGwsCiAgICAgICJjb21wbGV0ZWQiOiA0LAogICAgICAiZmFpbGVkIjogMCwKICAgICAgInNlcnZlcl9lcnJvcl9yYXRlIjogbnVsbCwKICAgICAgImFjY2VwdF9sZW4iOiBudWxsCiAgICB9CiAgXSwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiAzLAogICJyZXBlYXRzX3JlcXVlc3RlZF9zb3VyY2UiOiAiZml4dHVyZS1zb3VyY2UiLAogICJyZXBlYXRzX2NvbXBsZXRlZCI6IDEsCiAgInJlcGVhdF9raW5kIjogIndhcm0tcmVydW4iLAogICJyZXByZXNlbnRhdGl2ZV9ydW4iOiAxLAogICJyZXByZXNlbnRhdGl2ZV9ydW5fcnVsZSI6ICLssqsg7JmE7KO8IHJ1biDigJQg7LWc7IOB7JyEIOy4oeyglSDtlYTrk5zCt+2MkOygleygkMK37J247Kad7ISc6rCAIOydtCBydW4g7ZWY64KY7JeQIOustuyduOuLpCjtlanshLEg4pyXKSIsCiAgInJlcHJvX2JhbmRfcGN0IjogbnVsbCwKICAicmVwcm9fYmFuZF9zb3VyY2UiOiAidW5hdmFpbGFibGUobj0wIOKAlCDsgrDtj6zripQg7JmE7KO8IDLtmowg7J207IOB7JeQ7ISc66eMIOygleydmOuQnOuLpCkiLAogICJyZXByb19iYW5kX21ldHJpYyI6ICJkZWNvZGVfdHBzIiwKICAicmVwcm9fYmFuZF9mb3JtdWxhIjogIihtYXgtbWluKS9tZWFuKjEwMCIKfQo="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "018-aggregate-measured",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogTmFOLAogICJtZWFzdXJlbWVudF9vayI6IHRydWUsCiAgImNvbXBsZXRlZCI6IDQsCiAgImZhaWxlZCI6IDAsCiAgInNwZWNfb24iOiBmYWxzZSwKICAibm90ZSI6ICJyZXRhaW4iLAogICJyZXBlYXRzX3JlcXVlc3RlZCI6IDk5Cn0K"
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "[repeat_axis] level_01 \uc644\uc8fc 1/3 \u00b7 \ubc34\ub4dc None (unavailable(n=0 \u2014 \uc0b0\ud3ec\ub294 \uc644\uc8fc 2\ud68c \uc774\uc0c1\uc5d0\uc11c\ub9cc \uc815\uc758\ub41c\ub2e4))\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogTmFOLAogICJtZWFzdXJlbWVudF9vayI6IHRydWUsCiAgImNvbXBsZXRlZCI6IDQsCiAgImZhaWxlZCI6IDAsCiAgInNwZWNfb24iOiBmYWxzZSwKICAibm90ZSI6ICJyZXRhaW4iLAogICJydW5zIjogWwogICAgewogICAgICAicnVuIjogMSwKICAgICAgImRpciI6ICIuIiwKICAgICAgInN0YXJ0ZWRfdXRjIjogIjIwMjYtMTEtMDRUMDA6MDA6MDBaIiwKICAgICAgImVuZGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAxWiIsCiAgICAgICJydW5fYmVuY2hfcmMiOiAwLAogICAgICAicGFyc2VfcmMiOiAwLAogICAgICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICAgICAiZGVjb2RlX3RwcyI6IE5hTiwKICAgICAgIm91dHB1dF90aHJvdWdocHV0IjogbnVsbCwKICAgICAgInR0ZnRfbXNfbWVkaWFuIjogbnVsbCwKICAgICAgIml0bF9tc19tZWRpYW4iOiBudWxsLAogICAgICAidHBvdF9tc19tZWRpYW4iOiBudWxsLAogICAgICAiY29tcGxldGVkIjogNCwKICAgICAgImZhaWxlZCI6IDAsCiAgICAgICJzZXJ2ZXJfZXJyb3JfcmF0ZSI6IG51bGwsCiAgICAgICJhY2NlcHRfbGVuIjogbnVsbAogICAgfQogIF0sCiAgInJlcGVhdHNfcmVxdWVzdGVkIjogMywKICAicmVwZWF0c19yZXF1ZXN0ZWRfc291cmNlIjogImZpeHR1cmUtc291cmNlIiwKICAicmVwZWF0c19jb21wbGV0ZWQiOiAxLAogICJyZXBlYXRfa2luZCI6ICJ3YXJtLXJlcnVuIiwKICAicmVwcmVzZW50YXRpdmVfcnVuIjogMSwKICAicmVwcmVzZW50YXRpdmVfcnVuX3J1bGUiOiAi7LKrIOyZhOyjvCBydW4g4oCUIOy1nOyDgeychCDsuKHsoJUg7ZWE65OcwrftjJDsoJXsoJDCt+yduOymneyEnOqwgCDsnbQgcnVuIO2VmOuCmOyXkCDrrLbsnbjri6Qo7ZWp7ISxIOKclykiLAogICJyZXByb19iYW5kX3BjdCI6IG51bGwsCiAgInJlcHJvX2JhbmRfc291cmNlIjogInVuYXZhaWxhYmxlKG49MCDigJQg7IKw7Y+s64qUIOyZhOyjvCAy7ZqMIOydtOyDgeyXkOyEnOunjCDsoJXsnZjrkJzri6QpIiwKICAicmVwcm9fYmFuZF9tZXRyaWMiOiAiZGVjb2RlX3RwcyIsCiAgInJlcHJvX2JhbmRfZm9ybXVsYSI6ICIobWF4LW1pbikvbWVhbioxMDAiCn0K"
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "019-aggregate-meta",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAxLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\n  (native: Python stack frames are not reproduced)\nIndexError: list index out of range\n",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAxLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "020-aggregate-meta",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiBmYWxzZSwKICAicGFyc2VfcmMiOiAwCn0K"
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "[repeat_axis] level_01 \uc644\uc8fc 1/3 \u00b7 \ubc34\ub4dc None (unavailable(n=1 \u2014 \uc0b0\ud3ec\ub294 \uc644\uc8fc 2\ud68c \uc774\uc0c1\uc5d0\uc11c\ub9cc \uc815\uc758\ub41c\ub2e4))\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicnVucyI6IFsKICAgIHsKICAgICAgInJ1biI6IDEsCiAgICAgICJkaXIiOiAiLiIsCiAgICAgICJzdGFydGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAwWiIsCiAgICAgICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICAgICAicnVuX2JlbmNoX3JjIjogZmFsc2UsCiAgICAgICJwYXJzZV9yYyI6IDAsCiAgICAgICJtZWFzdXJlbWVudF9vayI6IHRydWUsCiAgICAgICJkZWNvZGVfdHBzIjogMzAuMCwKICAgICAgIm91dHB1dF90aHJvdWdocHV0IjogbnVsbCwKICAgICAgInR0ZnRfbXNfbWVkaWFuIjogbnVsbCwKICAgICAgIml0bF9tc19tZWRpYW4iOiBudWxsLAogICAgICAidHBvdF9tc19tZWRpYW4iOiBudWxsLAogICAgICAiY29tcGxldGVkIjogNCwKICAgICAgImZhaWxlZCI6IDAsCiAgICAgICJzZXJ2ZXJfZXJyb3JfcmF0ZSI6IG51bGwsCiAgICAgICJhY2NlcHRfbGVuIjogbnVsbAogICAgfQogIF0sCiAgInJlcGVhdHNfcmVxdWVzdGVkIjogMywKICAicmVwZWF0c19yZXF1ZXN0ZWRfc291cmNlIjogImZpeHR1cmUtc291cmNlIiwKICAicmVwZWF0c19jb21wbGV0ZWQiOiAxLAogICJyZXBlYXRfa2luZCI6ICJ3YXJtLXJlcnVuIiwKICAicmVwcmVzZW50YXRpdmVfcnVuIjogMSwKICAicmVwcmVzZW50YXRpdmVfcnVuX3J1bGUiOiAi7LKrIOyZhOyjvCBydW4g4oCUIOy1nOyDgeychCDsuKHsoJUg7ZWE65OcwrftjJDsoJXsoJDCt+yduOymneyEnOqwgCDsnbQgcnVuIO2VmOuCmOyXkCDrrLbsnbjri6Qo7ZWp7ISxIOKclykiLAogICJyZXByb19iYW5kX3BjdCI6IG51bGwsCiAgInJlcHJvX2JhbmRfc291cmNlIjogInVuYXZhaWxhYmxlKG49MSDigJQg7IKw7Y+s64qUIOyZhOyjvCAy7ZqMIOydtOyDgeyXkOyEnOunjCDsoJXsnZjrkJzri6QpIiwKICAicmVwcm9fYmFuZF9tZXRyaWMiOiAiZGVjb2RlX3RwcyIsCiAgInJlcHJvX2JhbmRfZm9ybXVsYSI6ICIobWF4LW1pbikvbWVhbioxMDAiCn0K"
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiBmYWxzZSwKICAicGFyc2VfcmMiOiAwCn0K"
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "021-aggregate-meta",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IG51bGwKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\n  (native: Python stack frames are not reproduced)\nIndexError: list index out of range\n",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IG51bGwKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "022-aggregate-corrupt-meta",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": ""
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[repeat_axis] ERROR level_01/repeat_run.json \ubd80\uc7ac\u00b7\ud30c\uc190 \u2014 run \uacbd\uacc4 \uc0ac\uc2e4\uc774 \uc5c6\uc73c\uba74 \uc2dc\uac01 \ub300\uc870\uac00 \uc131\ub9bd\ud558\uc9c0 \uc54a\ub294\ub2e4\n",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": ""
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "023-aggregate-corrupt-meta",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ew=="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[repeat_axis] ERROR level_01/repeat_run.json \ubd80\uc7ac\u00b7\ud30c\uc190 \u2014 run \uacbd\uacc4 \uc0ac\uc2e4\uc774 \uc5c6\uc73c\uba74 \uc2dc\uac01 \ub300\uc870\uac00 \uc131\ub9bd\ud558\uc9c0 \uc54a\ub294\ub2e4\n",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ew=="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "024-aggregate-corrupt-meta",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "bnVsbA=="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[repeat_axis] ERROR level_01/repeat_run.json \ubd80\uc7ac\u00b7\ud30c\uc190 \u2014 run \uacbd\uacc4 \uc0ac\uc2e4\uc774 \uc5c6\uc73c\uba74 \uc2dc\uac01 \ub300\uc870\uac00 \uc131\ub9bd\ud558\uc9c0 \uc54a\ub294\ub2e4\n",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "bnVsbA=="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "025-aggregate-corrupt-meta",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "W10="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[repeat_axis] ERROR level_01/repeat_run.json \ubd80\uc7ac\u00b7\ud30c\uc190 \u2014 run \uacbd\uacc4 \uc0ac\uc2e4\uc774 \uc5c6\uc73c\uba74 \uc2dc\uac01 \ub300\uc870\uac00 \uc131\ub9bd\ud558\uc9c0 \uc54a\ub294\ub2e4\n",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "W10="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "026-aggregate-corrupt-meta",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "/w=="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[repeat_axis] ERROR level_01/repeat_run.json \ubd80\uc7ac\u00b7\ud30c\uc190 \u2014 run \uacbd\uacc4 \uc0ac\uc2e4\uc774 \uc5c6\uc73c\uba74 \uc2dc\uac01 \ub300\uc870\uac00 \uc131\ub9bd\ud558\uc9c0 \uc54a\ub294\ub2e4\n",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "/w=="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "027-aggregate-kind",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source",
+   "--kind",
+   "cold-restart"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[repeat_axis] ERROR repeat_kind='cold-restart' \ub294 \uad6c\ud604\ub418\uc9c0 \uc54a\uc558\ub2e4(\uad6c\ud604: ('warm-rerun',) \u00b7 \uc120\uc5b8 \uc2ac\ub86f: ('warm-rerun', 'cold-restart'))\n",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "028-aggregate-kind",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source",
+   "--kind",
+   "unknown"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[repeat_axis] ERROR repeat_kind='unknown' \ub294 \uad6c\ud604\ub418\uc9c0 \uc54a\uc558\ub2e4(\uad6c\ud604: ('warm-rerun',) \u00b7 \uc120\uc5b8 \uc2ac\ub86f: ('warm-rerun', 'cold-restart'))\n",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "029-aggregate-kind",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "3",
+   "--requested-source",
+   "fixture-source",
+   "--kind",
+   "warm-rerun"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "[repeat_axis] level_01 \uc644\uc8fc 1/3 \u00b7 \ubc34\ub4dc None (unavailable(n=1 \u2014 \uc0b0\ud3ec\ub294 \uc644\uc8fc 2\ud68c \uc774\uc0c1\uc5d0\uc11c\ub9cc \uc815\uc758\ub41c\ub2e4))\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicnVucyI6IFsKICAgIHsKICAgICAgInJ1biI6IDEsCiAgICAgICJkaXIiOiAiLiIsCiAgICAgICJzdGFydGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAwWiIsCiAgICAgICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICAgICAicnVuX2JlbmNoX3JjIjogMCwKICAgICAgInBhcnNlX3JjIjogMCwKICAgICAgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwKICAgICAgImRlY29kZV90cHMiOiAzMC4wLAogICAgICAib3V0cHV0X3Rocm91Z2hwdXQiOiBudWxsLAogICAgICAidHRmdF9tc19tZWRpYW4iOiBudWxsLAogICAgICAiaXRsX21zX21lZGlhbiI6IG51bGwsCiAgICAgICJ0cG90X21zX21lZGlhbiI6IG51bGwsCiAgICAgICJjb21wbGV0ZWQiOiA0LAogICAgICAiZmFpbGVkIjogMCwKICAgICAgInNlcnZlcl9lcnJvcl9yYXRlIjogbnVsbCwKICAgICAgImFjY2VwdF9sZW4iOiBudWxsCiAgICB9CiAgXSwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiAzLAogICJyZXBlYXRzX3JlcXVlc3RlZF9zb3VyY2UiOiAiZml4dHVyZS1zb3VyY2UiLAogICJyZXBlYXRzX2NvbXBsZXRlZCI6IDEsCiAgInJlcGVhdF9raW5kIjogIndhcm0tcmVydW4iLAogICJyZXByZXNlbnRhdGl2ZV9ydW4iOiAxLAogICJyZXByZXNlbnRhdGl2ZV9ydW5fcnVsZSI6ICLssqsg7JmE7KO8IHJ1biDigJQg7LWc7IOB7JyEIOy4oeyglSDtlYTrk5zCt+2MkOygleygkMK37J247Kad7ISc6rCAIOydtCBydW4g7ZWY64KY7JeQIOustuyduOuLpCjtlanshLEg4pyXKSIsCiAgInJlcHJvX2JhbmRfcGN0IjogbnVsbCwKICAicmVwcm9fYmFuZF9zb3VyY2UiOiAidW5hdmFpbGFibGUobj0xIOKAlCDsgrDtj6zripQg7JmE7KO8IDLtmowg7J207IOB7JeQ7ISc66eMIOygleydmOuQnOuLpCkiLAogICJyZXByb19iYW5kX21ldHJpYyI6ICJkZWNvZGVfdHBzIiwKICAicmVwcm9fYmFuZF9mb3JtdWxhIjogIihtYXgtbWluKS9tZWFuKjEwMCIKfQo="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "030-aggregate-count",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "0",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "[repeat_axis] level_01 \uc644\uc8fc 1/0 \u00b7 \ubc34\ub4dc None (unavailable(n=1 \u2014 \uc0b0\ud3ec\ub294 \uc644\uc8fc 2\ud68c \uc774\uc0c1\uc5d0\uc11c\ub9cc \uc815\uc758\ub41c\ub2e4))\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicnVucyI6IFsKICAgIHsKICAgICAgInJ1biI6IDEsCiAgICAgICJkaXIiOiAiLiIsCiAgICAgICJzdGFydGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAwWiIsCiAgICAgICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICAgICAicnVuX2JlbmNoX3JjIjogMCwKICAgICAgInBhcnNlX3JjIjogMCwKICAgICAgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwKICAgICAgImRlY29kZV90cHMiOiAzMC4wLAogICAgICAib3V0cHV0X3Rocm91Z2hwdXQiOiBudWxsLAogICAgICAidHRmdF9tc19tZWRpYW4iOiBudWxsLAogICAgICAiaXRsX21zX21lZGlhbiI6IG51bGwsCiAgICAgICJ0cG90X21zX21lZGlhbiI6IG51bGwsCiAgICAgICJjb21wbGV0ZWQiOiA0LAogICAgICAiZmFpbGVkIjogMCwKICAgICAgInNlcnZlcl9lcnJvcl9yYXRlIjogbnVsbCwKICAgICAgImFjY2VwdF9sZW4iOiBudWxsCiAgICB9CiAgXSwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiAwLAogICJyZXBlYXRzX3JlcXVlc3RlZF9zb3VyY2UiOiAiZml4dHVyZS1zb3VyY2UiLAogICJyZXBlYXRzX2NvbXBsZXRlZCI6IDEsCiAgInJlcGVhdF9raW5kIjogIndhcm0tcmVydW4iLAogICJyZXByZXNlbnRhdGl2ZV9ydW4iOiAxLAogICJyZXByZXNlbnRhdGl2ZV9ydW5fcnVsZSI6ICLssqsg7JmE7KO8IHJ1biDigJQg7LWc7IOB7JyEIOy4oeyglSDtlYTrk5zCt+2MkOygleygkMK37J247Kad7ISc6rCAIOydtCBydW4g7ZWY64KY7JeQIOustuyduOuLpCjtlanshLEg4pyXKSIsCiAgInJlcHJvX2JhbmRfcGN0IjogbnVsbCwKICAicmVwcm9fYmFuZF9zb3VyY2UiOiAidW5hdmFpbGFibGUobj0xIOKAlCDsgrDtj6zripQg7JmE7KO8IDLtmowg7J207IOB7JeQ7ISc66eMIOygleydmOuQnOuLpCkiLAogICJyZXByb19iYW5kX21ldHJpYyI6ICJkZWNvZGVfdHBzIiwKICAicmVwcm9fYmFuZF9mb3JtdWxhIjogIihtYXgtbWluKS9tZWFuKjEwMCIKfQo="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "031-aggregate-count",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "-1",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "[repeat_axis] level_01 \uc644\uc8fc 1/-1 \u00b7 \ubc34\ub4dc None (unavailable(n=1 \u2014 \uc0b0\ud3ec\ub294 \uc644\uc8fc 2\ud68c \uc774\uc0c1\uc5d0\uc11c\ub9cc \uc815\uc758\ub41c\ub2e4))\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicnVucyI6IFsKICAgIHsKICAgICAgInJ1biI6IDEsCiAgICAgICJkaXIiOiAiLiIsCiAgICAgICJzdGFydGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAwWiIsCiAgICAgICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICAgICAicnVuX2JlbmNoX3JjIjogMCwKICAgICAgInBhcnNlX3JjIjogMCwKICAgICAgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwKICAgICAgImRlY29kZV90cHMiOiAzMC4wLAogICAgICAib3V0cHV0X3Rocm91Z2hwdXQiOiBudWxsLAogICAgICAidHRmdF9tc19tZWRpYW4iOiBudWxsLAogICAgICAiaXRsX21zX21lZGlhbiI6IG51bGwsCiAgICAgICJ0cG90X21zX21lZGlhbiI6IG51bGwsCiAgICAgICJjb21wbGV0ZWQiOiA0LAogICAgICAiZmFpbGVkIjogMCwKICAgICAgInNlcnZlcl9lcnJvcl9yYXRlIjogbnVsbCwKICAgICAgImFjY2VwdF9sZW4iOiBudWxsCiAgICB9CiAgXSwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiAtMSwKICAicmVwZWF0c19yZXF1ZXN0ZWRfc291cmNlIjogImZpeHR1cmUtc291cmNlIiwKICAicmVwZWF0c19jb21wbGV0ZWQiOiAxLAogICJyZXBlYXRfa2luZCI6ICJ3YXJtLXJlcnVuIiwKICAicmVwcmVzZW50YXRpdmVfcnVuIjogMSwKICAicmVwcmVzZW50YXRpdmVfcnVuX3J1bGUiOiAi7LKrIOyZhOyjvCBydW4g4oCUIOy1nOyDgeychCDsuKHsoJUg7ZWE65OcwrftjJDsoJXsoJDCt+yduOymneyEnOqwgCDsnbQgcnVuIO2VmOuCmOyXkCDrrLbsnbjri6Qo7ZWp7ISxIOKclykiLAogICJyZXByb19iYW5kX3BjdCI6IG51bGwsCiAgInJlcHJvX2JhbmRfc291cmNlIjogInVuYXZhaWxhYmxlKG49MSDigJQg7IKw7Y+s64qUIOyZhOyjvCAy7ZqMIOydtOyDgeyXkOyEnOunjCDsoJXsnZjrkJzri6QpIiwKICAicmVwcm9fYmFuZF9tZXRyaWMiOiAiZGVjb2RlX3RwcyIsCiAgInJlcHJvX2JhbmRfZm9ybXVsYSI6ICIobWF4LW1pbikvbWVhbioxMDAiCn0K"
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "032-aggregate-count",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "1",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "[repeat_axis] level_01 \uc644\uc8fc 1/1 \u00b7 \ubc34\ub4dc None (unavailable(n=1 \u2014 \uc0b0\ud3ec\ub294 \uc644\uc8fc 2\ud68c \uc774\uc0c1\uc5d0\uc11c\ub9cc \uc815\uc758\ub41c\ub2e4))\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicnVucyI6IFsKICAgIHsKICAgICAgInJ1biI6IDEsCiAgICAgICJkaXIiOiAiLiIsCiAgICAgICJzdGFydGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAwWiIsCiAgICAgICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICAgICAicnVuX2JlbmNoX3JjIjogMCwKICAgICAgInBhcnNlX3JjIjogMCwKICAgICAgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwKICAgICAgImRlY29kZV90cHMiOiAzMC4wLAogICAgICAib3V0cHV0X3Rocm91Z2hwdXQiOiBudWxsLAogICAgICAidHRmdF9tc19tZWRpYW4iOiBudWxsLAogICAgICAiaXRsX21zX21lZGlhbiI6IG51bGwsCiAgICAgICJ0cG90X21zX21lZGlhbiI6IG51bGwsCiAgICAgICJjb21wbGV0ZWQiOiA0LAogICAgICAiZmFpbGVkIjogMCwKICAgICAgInNlcnZlcl9lcnJvcl9yYXRlIjogbnVsbCwKICAgICAgImFjY2VwdF9sZW4iOiBudWxsCiAgICB9CiAgXSwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiAxLAogICJyZXBlYXRzX3JlcXVlc3RlZF9zb3VyY2UiOiAiZml4dHVyZS1zb3VyY2UiLAogICJyZXBlYXRzX2NvbXBsZXRlZCI6IDEsCiAgInJlcGVhdF9raW5kIjogIndhcm0tcmVydW4iLAogICJyZXByZXNlbnRhdGl2ZV9ydW4iOiAxLAogICJyZXByZXNlbnRhdGl2ZV9ydW5fcnVsZSI6ICLssqsg7JmE7KO8IHJ1biDigJQg7LWc7IOB7JyEIOy4oeyglSDtlYTrk5zCt+2MkOygleygkMK37J247Kad7ISc6rCAIOydtCBydW4g7ZWY64KY7JeQIOustuyduOuLpCjtlanshLEg4pyXKSIsCiAgInJlcHJvX2JhbmRfcGN0IjogbnVsbCwKICAicmVwcm9fYmFuZF9zb3VyY2UiOiAidW5hdmFpbGFibGUobj0xIOKAlCDsgrDtj6zripQg7JmE7KO8IDLtmowg7J207IOB7JeQ7ISc66eMIOygleydmOuQnOuLpCkiLAogICJyZXByb19iYW5kX21ldHJpYyI6ICJkZWNvZGVfdHBzIiwKICAicmVwcm9fYmFuZF9mb3JtdWxhIjogIihtYXgtbWluKS9tZWFuKjEwMCIKfQo="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "033-aggregate-count",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "4",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "[repeat_axis] level_01 \uc644\uc8fc 1/4 \u00b7 \ubc34\ub4dc None (unavailable(n=1 \u2014 \uc0b0\ud3ec\ub294 \uc644\uc8fc 2\ud68c \uc774\uc0c1\uc5d0\uc11c\ub9cc \uc815\uc758\ub41c\ub2e4))\n",
+  "stderr": "",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicnVucyI6IFsKICAgIHsKICAgICAgInJ1biI6IDEsCiAgICAgICJkaXIiOiAiLiIsCiAgICAgICJzdGFydGVkX3V0YyI6ICIyMDI2LTExLTA0VDAwOjAwOjAwWiIsCiAgICAgICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICAgICAicnVuX2JlbmNoX3JjIjogMCwKICAgICAgInBhcnNlX3JjIjogMCwKICAgICAgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwKICAgICAgImRlY29kZV90cHMiOiAzMC4wLAogICAgICAib3V0cHV0X3Rocm91Z2hwdXQiOiBudWxsLAogICAgICAidHRmdF9tc19tZWRpYW4iOiBudWxsLAogICAgICAiaXRsX21zX21lZGlhbiI6IG51bGwsCiAgICAgICJ0cG90X21zX21lZGlhbiI6IG51bGwsCiAgICAgICJjb21wbGV0ZWQiOiA0LAogICAgICAiZmFpbGVkIjogMCwKICAgICAgInNlcnZlcl9lcnJvcl9yYXRlIjogbnVsbCwKICAgICAgImFjY2VwdF9sZW4iOiBudWxsCiAgICB9CiAgXSwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA0LAogICJyZXBlYXRzX3JlcXVlc3RlZF9zb3VyY2UiOiAiZml4dHVyZS1zb3VyY2UiLAogICJyZXBlYXRzX2NvbXBsZXRlZCI6IDEsCiAgInJlcGVhdF9raW5kIjogIndhcm0tcmVydW4iLAogICJyZXByZXNlbnRhdGl2ZV9ydW4iOiAxLAogICJyZXByZXNlbnRhdGl2ZV9ydW5fcnVsZSI6ICLssqsg7JmE7KO8IHJ1biDigJQg7LWc7IOB7JyEIOy4oeyglSDtlYTrk5zCt+2MkOygleygkMK37J247Kad7ISc6rCAIOydtCBydW4g7ZWY64KY7JeQIOustuyduOuLpCjtlanshLEg4pyXKSIsCiAgInJlcHJvX2JhbmRfcGN0IjogbnVsbCwKICAicmVwcm9fYmFuZF9zb3VyY2UiOiAidW5hdmFpbGFibGUobj0xIOKAlCDsgrDtj6zripQg7JmE7KO8IDLtmowg7J207IOB7JeQ7ISc66eMIOygleydmOuQnOuLpCkiLAogICJyZXByb19iYW5kX21ldHJpYyI6ICJkZWNvZGVfdHBzIiwKICAicmVwcm9fYmFuZF9mb3JtdWxhIjogIihtYXgtbWluKS9tZWFuKjEwMCIKfQo="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "034-aggregate-count",
+  "argv": [
+   "aggregate-level",
+   "--level-dir",
+   "level_01",
+   "--requested",
+   "bad",
+   "--requested-source",
+   "fixture-source"
+  ],
+  "before": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: repeat_axis.py aggregate-level [-h] --level-dir LEVEL_DIR --requested\n                                      REQUESTED --requested-source\n                                      REQUESTED_SOURCE [--kind KIND]\nrepeat_axis.py aggregate-level: error: argument --requested: invalid int value: 'bad'\n",
+  "after": {
+   "level_01": {
+    "kind": "directory"
+   },
+   "level_01/measured.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJkZWNvZGVfdHBzIjogMzAuMCwKICAibWVhc3VyZW1lbnRfb2siOiB0cnVlLAogICJjb21wbGV0ZWQiOiA0LAogICJmYWlsZWQiOiAwLAogICJzcGVjX29uIjogZmFsc2UsCiAgIm5vdGUiOiAicmV0YWluIiwKICAicmVwZWF0c19yZXF1ZXN0ZWQiOiA5OQp9Cg=="
+   },
+   "level_01/repeat_run.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDEsCiAgImxldmVsIjogMSwKICAicnVuIjogMSwKICAic3RhcnRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMFoiLAogICJlbmRlZF91dGMiOiAiMjAyNi0xMS0wNFQwMDowMDowMVoiLAogICJydW5fYmVuY2hfcmMiOiAwLAogICJwYXJzZV9yYyI6IDAKfQo="
+   },
+   "untouched.bin": {
+    "kind": "file",
+    "bytes_base64": "a2VlcAD/"
+   }
+  }
+ },
+ {
+  "id": "035-cli",
+  "argv": [],
+  "before": {},
+  "exit_code": 2,
+  "stdout": "usage: repeat_axis.py [-h] [--self-test]\n                      {resolve,record-run,aggregate-level} ...\n\nfull bench \ubc18\ubcf5 \ucd95(\ud574\uc18c\u00b7\uc9d1\uacc4\u00b7\uc694\uc57d)\n\npositional arguments:\n  {resolve,record-run,aggregate-level}\n    resolve             \ubc18\ubcf5 \uc218 \ud574\uc18c \u2192 'N<US>\ucd9c\ucc98<US>\uc885\ub958' \ud55c \uc904\n    record-run          run \uacbd\uacc4 \uc0ac\uc2e4 \uae30\ub85d\n    aggregate-level     \ub300\ud45c run measured.json \uc5d0 runs[]\u00b7\ubc34\ub4dc\ub97c \ub367\ubd99\uc778\ub2e4\n\noptions:\n  -h, --help            show this help message and exit\n  --self-test\n",
+  "stderr": "",
+  "after": {}
+ },
+ {
+  "id": "036-cli",
+  "argv": [
+   "-h"
+  ],
+  "before": {},
+  "exit_code": 0,
+  "stdout": "usage: repeat_axis.py [-h] [--self-test]\n                      {resolve,record-run,aggregate-level} ...\n\nfull bench \ubc18\ubcf5 \ucd95(\ud574\uc18c\u00b7\uc9d1\uacc4\u00b7\uc694\uc57d)\n\npositional arguments:\n  {resolve,record-run,aggregate-level}\n    resolve             \ubc18\ubcf5 \uc218 \ud574\uc18c \u2192 'N<US>\ucd9c\ucc98<US>\uc885\ub958' \ud55c \uc904\n    record-run          run \uacbd\uacc4 \uc0ac\uc2e4 \uae30\ub85d\n    aggregate-level     \ub300\ud45c run measured.json \uc5d0 runs[]\u00b7\ubc34\ub4dc\ub97c \ub367\ubd99\uc778\ub2e4\n\noptions:\n  -h, --help            show this help message and exit\n  --self-test\n",
+  "stderr": "",
+  "after": {}
+ },
+ {
+  "id": "037-cli",
+  "argv": [
+   "record-run",
+   "--help"
+  ],
+  "before": {},
+  "exit_code": 0,
+  "stdout": "usage: repeat_axis.py record-run [-h] --run-dir RUN_DIR --level LEVEL --run\n                                 RUN --started-utc STARTED_UTC --ended-utc\n                                 ENDED_UTC --run-bench-rc RUN_BENCH_RC\n                                 --parse-rc PARSE_RC\n\noptions:\n  -h, --help            show this help message and exit\n  --run-dir RUN_DIR\n  --level LEVEL\n  --run RUN\n  --started-utc STARTED_UTC\n  --ended-utc ENDED_UTC\n  --run-bench-rc RUN_BENCH_RC\n  --parse-rc PARSE_RC\n",
+  "stderr": "",
+  "after": {}
+ },
+ {
+  "id": "038-cli",
+  "argv": [
+   "aggregate-level",
+   "--help"
+  ],
+  "before": {},
+  "exit_code": 0,
+  "stdout": "usage: repeat_axis.py aggregate-level [-h] --level-dir LEVEL_DIR --requested\n                                      REQUESTED --requested-source\n                                      REQUESTED_SOURCE [--kind KIND]\n\noptions:\n  -h, --help            show this help message and exit\n  --level-dir LEVEL_DIR\n  --requested REQUESTED\n  --requested-source REQUESTED_SOURCE\n  --kind KIND\n",
+  "stderr": "",
+  "after": {}
+ },
+ {
+  "id": "039-cli",
+  "argv": [
+   "resolve",
+   "--repeats",
+   "3",
+   "--repeats-source",
+   "fixture-source"
+  ],
+  "before": {},
+  "exit_code": 0,
+  "stdout": "3\u001fdeclared(argv --repeats \u00b7 fixture-source)\u001fwarm-rerun\n",
+  "stderr": "",
+  "after": {}
+ },
+ {
+  "id": "040-cli",
+  "argv": [
+   "resolve",
+   "--repeats",
+   "2"
+  ],
+  "before": {},
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[repeat_axis] ERROR --repeats=2 \ub294 full \uc815\uc758(\ubc18\ubcf5 \u22653) \uc704\ubc18\uc774\ub2e4 \u2014 \ubc18\ubcf5 \uc218\ub97c \ub0ae\ucdb0 full \uc744 \uc120\uc5b8\ud558\uc9c0 \uc54a\ub294\ub2e4. \ubc18\ubcf5\uc774 \uc131\ub9bd\ud558\uc9c0 \uc54a\uc73c\uba74 \uc120\uc5b8\uc774 \uc544\ub2c8\ub77c \uae30\uacc4 \uc774\ubca4\ud2b8(run \uc2e4\ud328\u00b7\ube14\ub799\ubc15\uc2a4 kill)\uac00 \uc140\uc744 lite \ub85c \uac15\ub4f1\ud55c\ub2e4(classify_cell). lite \ub9cc \uc7ac\ub824\uba74 lite_bench.sh \ub97c \uc4f0\ub77c.\n",
+  "after": {}
+ },
+ {
+  "id": "041-cli",
+  "argv": [
+   "resolve",
+   "--preset-default",
+   "3",
+   "--preset-source",
+   "default_preset"
+  ],
+  "before": {},
+  "exit_code": 0,
+  "stdout": "3\u001fdefaulted(preset default_preset \uae30\ubcf8 3 \u00b7 \ud65c\uc131 \ucea0\ud398\uc778 \uc5c6\uc74c(_bootstrap))\u001fwarm-rerun\n",
+  "stderr": "",
+  "after": {}
+ }
+]
