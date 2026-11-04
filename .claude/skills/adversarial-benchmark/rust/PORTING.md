@@ -374,7 +374,7 @@ root 실제 관리 빌드와 다섯 just-built 자체검사, fmt·release Cargo1
 
 사전 고정34 value(23 정상/11 measurement_ok=false)의 전체 결과 생성·해제를 11교차round×200회 비교했다. Python 4439.240441ns/Rust1229.8ns, 약3.6097배였다. 실제 Bash CLI12×11교차round는22.57226217ms/4.063543ms, 약5.5548배이며 stdout/stderr/종료가 모두 고정 원본과 같았다. 로컬 표본이며 LLM·서빙·통계적 우월성이나 다른 입력 전체의 속도를 의미하지 않는다.
 
-원시 근거: val_agent/temp/real-worker-261104의 r4-prototype/review-envelope.json, r4-canonical-build.log, r4-canonical-checks/, r4-distribution.json, r4-packaging-fix/, r4-benchmark-contract.json·r4-benchmark-results/. 별도 Validator 근거: val_agent/temp/r4-independent-261104의 prototype/followup/canonical/. 초기 실패는 같은 위치에 보존했다.
+원시 근거는 상위 task_id 문서의 R4 수행·검증 항목에서 조회한다. native 반환, 정본 검사, 배포·새 복사 검사, 성능 계약과 결과 및 독립 prototype/followup/canonical 보고서를 연결했고 초기 실패도 보존했다. 로컬 작업 폴더의 구체 경로는 해당 과업 문서가 소유한다.
 
 native 두 묶음은 같은 session 53e74e77-0636-425d-8e65-fcee80c91764, 관측126턴·reported duration1997.185초(실제 wrapper wall2003.930초), permission_denials0이었다. 실제 모델 claude-sonnet-5-5를 관측했으며 요청 high를 별도 실제 effort 관측으로 채우지 않는다. 이는 구현 작업 귀속이며 6프로필 업무 평가가 아니다. 전체 S1~S7·하네스·6프로필·실제 Long E2E는 계속 진행한다.
 
