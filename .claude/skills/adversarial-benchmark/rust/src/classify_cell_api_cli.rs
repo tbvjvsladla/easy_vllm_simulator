@@ -212,6 +212,9 @@ const NODE_IDENTITY_RESOLVER: Signature = signature("_node_identity_resolver", &
 const NODE_ROLE_CONTRACT: Signature = signature("_node_role_contract", &[], &[]);
 const CONSTANTS: Signature = signature("constants", &[], &[]);
 
+/// The default `tolerance_s=0`.
+static ZERO: std::sync::LazyLock<PyValue> = std::sync::LazyLock::new(|| PyValue::int(0));
+
 fn pair(first: PyValue, second: PyValue) -> PyValue {
     PyValue::Tuple(vec![first, second])
 }
@@ -252,12 +255,12 @@ pub fn evaluate_operation(
         "classify" => {
             let call: Bound<'_> = CLASSIFY.bind(arguments)?;
             classify(
-                &call.get("serve_rc"),
-                &call.get("measure_rc"),
-                &call.get("kill_hits"),
-                &call.get("events_scanned"),
-                &call.get("correlation"),
-                &call.get("lite"),
+                call.get_ref("serve_rc"),
+                call.get_ref("measure_rc"),
+                call.get_ref("kill_hits"),
+                call.get_ref("events_scanned"),
+                call.get_ref("correlation"),
+                call.get_ref("lite"),
             )
         }
         "kill_events_in_window" => {
@@ -287,7 +290,7 @@ pub fn evaluate_operation(
         }
         "events_scan_summary" => {
             let call = EVENTS_SCAN_SUMMARY.bind(arguments)?;
-            events_scan_summary(&call.get("scan_doc"))
+            events_scan_summary(call.get_ref("scan_doc"))
         }
         "bench_mode_record_path" => {
             let call = BENCH_MODE_RECORD_PATH.bind(arguments)?;
@@ -322,35 +325,25 @@ pub fn evaluate_operation(
         }
         "classify_bench_mode" => {
             let call = CLASSIFY_BENCH_MODE.bind(arguments)?;
-            let (index, lines, scanned) = (
-                call.get("index"),
-                call.get("event_lines"),
-                call.get("events_scanned"),
-            );
-            let tolerance = call.get_or("tolerance_s", PyValue::int(0));
-            let (scans, plan) = (call.get("node_scans"), call.get("plan"));
-            let (cross, source) = (
-                call.get("cross_node_tolerance_s"),
-                call.get("cross_node_tolerance_source"),
-            );
+            let tolerance = call.get_or_ref("tolerance_s", &ZERO);
             classify_bench_mode(&BenchModeRequest {
-                index: &index,
-                event_lines: &lines,
-                events_scanned: &scanned,
-                tolerance_s: &tolerance,
-                node_scans: &scans,
-                plan: &plan,
-                cross_node_tolerance_s: &cross,
-                cross_node_tolerance_source: &source,
+                index: call.get_ref("index"),
+                event_lines: call.get_ref("event_lines"),
+                events_scanned: call.get_ref("events_scanned"),
+                tolerance_s: tolerance,
+                node_scans: call.get_ref("node_scans"),
+                plan: call.get_ref("plan"),
+                cross_node_tolerance_s: call.get_ref("cross_node_tolerance_s"),
+                cross_node_tolerance_source: call.get_ref("cross_node_tolerance_source"),
             })
         }
         "declared_lite_record" => {
             let call = DECLARED_LITE_RECORD.bind(arguments)?;
-            declared_lite_record(&call.get("detail"))
+            declared_lite_record(call.get_ref("detail"))
         }
         "bench_mode_kind" => {
             let call = BENCH_MODE_KIND.bind(arguments)?;
-            Ok(PyValue::str(bench_mode_kind(&call.get("record"))))
+            Ok(PyValue::str(bench_mode_kind(call.get_ref("record"))))
         }
         "events_node_plan" => {
             let call = EVENTS_NODE_PLAN.bind(arguments)?;

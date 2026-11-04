@@ -784,3 +784,52 @@ libtest 배너가 리디렉션된 stdout을 오염시키지 않는다. 자식은
 ### R8.6 알려진 한계·미연결(root)
 
 (1) 런처 `classify_cell.sh`/`classify_cell_api.sh`·Python 브리지·`build_rust.sh` 9번째 검사·소비자 15곳 배선·정본 어댑터 적용은 root 단계다(초안만 작업 폴더 `drafts/`). (2) **JSON 봉투 한도**: API 행·`arguments_json` 에 4300자리 초과 십진 정수를 실으면 전송 디코더가 원본 `json.loads` 처럼 거부해 그런 값을 API 인자로는 검증하지 못했다. 이것은 소유자 YAML 파서의 정수 한도와 별개다: 매니페스트 **내용**의 큰 정수는 JSON 을 거치지 않고(경로만 전송) 소유자가 상속 한도로 처리한다(R8.2 교정 2). (3) `datetime` 이 아닌 값이 `datetime` 자리에 오는 경우 오류 문구는 기록한 Python 연산 기준이며 두 인자가 동시에 틀린 순서는 대표 사례만 대조했다. (4) 임의 폭 도움말은 COLUMNS 1..700 캡처(468 이상 동일)다. (5) 소유자 조회 지연(어댑터·`node_identity.sh` 프로세스)은 OPEN_S3. (6) 어떤 수치도 서빙·LLM·통계적 우월성 주장이 아니다.
+
+## R8 순수 계산 경로 성능 교정 (후보 · 정본 적용 전)
+
+배경: root 의 사전 선언 경계 `pure 127 값 × 200 × 11` 교차 측정에서 Python 1526.8 ns / Rust 1799.1 ns (Rust 17.8% 느림, 0.8487×)였다(`r8-benchmark-results-v3`, 첫 측정은 보존). 이 절은 **순수 계산 경로만** 고친다. 전체 IO 22·CLI `bench-multi` 의 소유자 질의 비용(OPEN_S3)은 건드리지 않았고 숨기지도 않았다.
+
+**관찰(자체, 선택 근거).** `classify_cell_bench` 를 id 별로 돌려 연산별 비용을 쟀다: 교정 전 `classify`(86행) 102.5 µs/패스(행당 ≈1.2 µs, Python ≈0.43 µs 로 가장 큰 격차), `classify_bench_mode`(22행) 135 µs, `events_scan_summary` 4.6 µs. 원인은 호출 경로의 일반 비용이었다: (1) 바인딩된 인자마다 값 전체 복제(`Bound::get`; `kill_hits` 목록 등), (2) `classify` 의 목록 복제 순회, (3) 고정 문구·사전 키를 호출마다 `str → 코드포인트` 변환·할당(`Text::lit`·`PyDict::set(PyStr::new)`), (4) 키마다 선형 중복 검사하는 사전 조립, (5) `classify_bench_mode` 안의 불필요한 `clone`(선언·`stop`·`hits`).
+
+**변경(정확한 델타, 동작 불변).**
+
+| 파일 | 변경 |
+|---|---|
+| `src/repeat_api_cli.rs` | `Bound::get_ref`·`get_or_ref` 추가(읽기만 하는 연산이 인자를 빌림; 기존 `get` 불변) |
+| `src/pydyn.rs` | `Items`·`iterate_borrowed`(목록/튜플 순회를 복제 없이), `Text::fixed`(원본 고정 문구를 복사로 덧붙임), `Text::val` 이 문자열·정수를 중간 문자열 없이 덧붙임 |
+| `src/classify_cell.rs` | `classify` 재작성(빌린 순회·`first_kill` 참조·`cell_result` = 원본 키 순서의 5항목 사전, 고정 문구는 `lit!` = 소스 상수당 한 번 변환되는 기존 관용), `BenchModeFields::into_record` 사전 조립을 `from_distinct_entries` 로, `classify_bench_mode` 의 복제 제거(선언·`stop`·`hits`·`tool`)와 고정 문구 `lit!`, `miss_source`·`correlation_value` 상수화 |
+| `src/classify_cell_api_cli.rs` | `classify`·`classify_bench_mode`·`events_scan_summary`·`bench_mode_kind`·`declared_lite_record` 가 인자를 `get_ref` 로 빌림(바인딩·디스패치 작업 자체는 그대로) |
+
+**하지 않은 것.** 입출력/결과 캐시, 특정 행·ID 를 아는 코드, 입력 좁힘, 타이머 밖 이동, 벤치 전용 경로, 소유자(Python) 규칙 복제 — 없음. 결과 값·오류 종류·메시지·키 순서·부작용은 그대로이며 `lit!` 상수는 소스에 적힌 고정 텍스트일 뿐 입력이나 결과의 캐시가 아니다.
+
+**자체 측정(root 최종 성능 아님; 같은 준비 입력, 같은 127값×200, 교차 실행).** 교정 후 Rust 중앙값 1069.8 ns/값(9회 1061.7~1079.5) vs 같은 환경 Python 1521.2 ns/값 → 1.42× (root v3 의 17.8% 열세와 반대). 연산별(교정 후, µs/패스): `classify` 34.1(이전 102.5) · `classify_bench_mode` 91.5(135) · `events_scan_summary` 1.6(4.6) · `declared_lite_record` 1.1 · `bench_mode_kind` 0.8. 교정 전 바이너리는 같은 방식에서 ≈1800 ns 였다(`logs/perf-own-pure-before.txt`). 단일 1회·짧은 실행에서 가끔 한 번 더 느린 값이 섞인다(CPU 상태; 위 9회에 해당 값은 없었음) — root 의 11회 중앙값 측정이 기준이다. 첫 실행 산출물: `perf/classify_cell_bench.before`(교정 전 실행파일), `perf/src-before-perf-snapshot`(교정 전 소스).
+
+**검증(교정 후 소스).** `cargo fmt -- --check` PASS · `clippy --all-targets -D warnings` PASS · `build --release --bins` PASS · `cargo test --release` 전체 53 suite · 226 테스트 · 실패 0 · 고정 원본 API 121+45(+레코드 8)·CLI 17+3 PASS · 역할 소유자 원본 3행(미사용 키·순환·5000자리 값) PASS · `--self-test` 83 PASS 전사 동일 · 표적 차분 API 1462·CLI 155 불일치 0.
+
+**한계.** 전체 IO 22 와 `bench-multi` 의 열세는 소유자 질의(어댑터·`node_identity.sh` 프로세스) 비용이라 이 교정 범위 밖이며 OPEN_S3 로 남는다(소유자 이행 뒤 같은 입력으로 재측정). 어떤 수치도 서빙·LLM·통계적 우월성 주장이 아니다.
+
+## R8 성능 측정기(`classify_cell_bench`) 관측 검증 보강 (후보 · 정본 적용 전)
+
+배경: 독립 소스 검토 F1 — 이전 측정기는 `evaluate_operation` 의 `Result`/`Diagnostics` 를 검사 없이 버려, 시간이 잰 호출이 성공했는지·기대한 값을 돌려줬는지 연결이 없었다. 이는 **관측기 공백**이며 v3 의 실제 호출이 실패했다는 증거가 아니다. v3 원시 파일은 그대로 보존된다. 이 절 이전의 모든 기록(R8.1~R8.6 · 성능 교정)은 그대로다. 변경 전 측정기 소스는 작업 폴더 `perf/classify_cell_bench.rs.before-observer` 에 보존했다.
+
+변경(측정기 한 파일 + 점검): `src/bin/classify_cell_bench.rs` 만. 생산 코드는 `expected_json` 을 모른다.
+
+* 행 `{id, operation, arguments[, expected_json]}`. `expected_json` 은 문자열(`json.dumps(value, ensure_ascii=True, separators=(',', ':'))`)이며 문자열이 아니면(숫자·null·객체 등) 행 준비에서 거부한다.
+* **시간 밖의 같은 한 번의 워밍 호출**(추가 호출 없음)이 `Ok` 이고 stderr 진단이 비어야 하며, `expected_json` 이 있으면 반환 **전체 값**을 같은 컴팩트 ASCII JSON 으로 직렬화해 정확히 비교한다(없으면 `Ok`·무진단만 요구). 불일치·`Err`·진단은 종료 코드 1, 타이밍 JSON 없음.
+* **시간 안의 호출**은 여전히 디스패치·인자 바인딩·함수 본문·파일/소유자·전체 반환값의 `black_box`·해제를 모두 포함한다. 각 호출은 `Err` 이거나 진단이 있으면 "깨끗하지 않음"을 세고(플래그 두 개 읽기뿐), 하나라도 있으면 프로세스가 종료 코드 1 로 실패하며 **성공 타이밍 JSON 을 내지 않는다**.
+* 문서 정정: 이전 머리말의 "바인딩된 인자" 표현은 부정확했다 — 바인딩·디스패치(`Signature::bind`)는 타이머 **안**이다. 소유자 질의 비용은 현재 런타임 비용에 **포함**되며 OPEN_S3 이다.
+
+점검(`checks/classify_cell_bench.rs` + 측정기 단위 시험): 원본 고정 값 10행의 전체 `expected_json` 수용(`data/classify_cell/bench_expected.jsonl`), 행마다 한 글자 바꾼 기대값 거부(무타이밍), 잘못된 `expected_json` 타입 5종 거부, 알 수 없는 연산·인자 누락 거부, `Ok` 이지만 진단을 쓰는 호출(`_read_events` 없는 경로) 거부, 기대값 없는 깨끗한 행 수용; 단위 시험은 세 번째 호출에서만 실패하는 주입 호출이 전체 실행을 실패시키고(모든 timed 호출은 그대로 수행) 타이밍을 돌려주지 않음과, 실제 호출이 알 수 없는 연산을 "깨끗하지 않음"으로 센다는 것을 확인한다. 일회성 확인: 사전 선언 pure 127행 전부의 원본 기대값(컴팩트 JSON)이 워밍 검증을 통과(`logs`의 인자 파일 `perf/pure-expected-calls.jsonl`, 1×1 실행, 시간 주장 아님). 이 측정기 보강은 생산 경로를 바꾸지 않는다(검사 후 자체 확인 ≈1058~1062 ns/값(3회, `logs/perf-own-pure-after-observer.txt`), root 의 11회 중앙값이 기준).
+
+
+## R8 root integration and measured boundaries
+
+CONNECTED_CORE_VERIFIED_DEPENDENCY_LATENCY_OPEN. The classifier is connected through installed Bash launchers and a transport-only Python bridge to the actual campaign, sweep, reporting, hint and evidence callers. Original Python reference files remain available. Runtime launchers fail explicitly when the binary is missing; they neither build nor fall back to Python classification.
+
+The final canonical managed source build ran nine real self-tests, including the original classifier 83 scenarios. fmt, release Cargo 235 tests across 54 suites plus the separate 22 descriptor scenarios, Clippy, fixed external 166 API / 20 CLI / 3 owner transport boundaries and all 128 distribution checks passed. A fresh space-containing path built from 462 Git-index source files (429 Rust plus 33 owner dependencies), without copied target/cache/credentials, passed build and registered classifier/observer/package checks. Existing managed toolchain/cache reuse was explicit. Existing executable modes were preserved.
+
+Independent source review found that the initial timing helper dropped errors/diagnostics and did not connect expected values. This does not establish an actual error in the old run. Raw initial observations remain preserved with that limitation. The corrected generic helper checks each original full value on its existing single warm call and refuses timings on any timed error/diagnostic. Independent review closed that gap using source, original-data metadata and existing control logs; it did not rerun workloads. Production computation never reads expected values.
+
+After quality, the same 127 values x 200 iterations x 11 alternating rounds gave Python 1521.187402 ns/value and Rust 1072.589803 ns/value (1.418238x). Dispatch, binding, full production result creation and drop remain timed. The actual six Bash CLI cases gave round-mean median 34.311961 / 12.794162 ms (2.681845x). Every CLI invocation checked full output, exit and after-tree. These are local observations, not serving or statistical claims.
+
+Regressions stay OPEN_S3: actual owner/file/atomic-write 22 calls gave 2.459533 / 5.813904 ms (0.423043x); bench-multi CLI gave 43.630557 / 55.462552 ms (0.786667x). The pending Python node-role and identity owner costs are included. Repeat the identical 22-call and six-CLI boundaries after the real owner migration, without copied decision rules or caches. Whole-project Rust, harness, profile and real Long E2E acceptance remain incomplete.

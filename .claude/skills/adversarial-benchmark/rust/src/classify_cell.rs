@@ -18,11 +18,13 @@ use crate::guidellm::{Failure, BENCH_TOOL};
 use crate::lite_metrics::{open_target, read_descriptor, read_lite_verdict, OpenTarget};
 use crate::ospath;
 use crate::pydyn::{
-    as_get_target, dict_of, ensure_hashable, equals, equals_zero, is_text, iterate, join,
-    join_values, key_error, or_none, subscript, timedelta_seconds_micros, type_error, Text,
+    as_get_target, dict_of, ensure_hashable, equals, equals_zero, is_text, iterate,
+    iterate_borrowed, join, join_values, key_error, or_none, subscript, timedelta_seconds_micros,
+    type_error, Text,
 };
 use crate::pyfs::{os_error_class, os_string};
 use crate::pyjson::{decode_file_text, loads_text, LoadError};
+use crate::pystr::lit;
 use crate::pystr::PyStr;
 use crate::pyvalue::{DumpError, PyDict, PyValue};
 use crate::repeat_axis::{repetition_established, summarize, SummarizeRequest};
@@ -991,16 +993,16 @@ impl BenchModeFields {
         } else {
             PyValue::List(Vec::new())
         };
-        dict_from(vec![
-            ("bench_mode", self.mode),
-            ("bench_mode_source", self.source),
-            ("downgrade_reason", self.reason),
-            ("downgrade_reason_source", self.reason_source),
-            ("downgrade_correlation", self.correlation),
-            ("events_scan", self.events_scan),
-            ("repetition", self.repetition),
-            ("repetition_kill_events", kill_events),
-        ])
+        PyValue::Dict(PyDict::from_distinct_entries([
+            (lit!("bench_mode"), self.mode),
+            (lit!("bench_mode_source"), self.source),
+            (lit!("downgrade_reason"), self.reason),
+            (lit!("downgrade_reason_source"), self.reason_source),
+            (lit!("downgrade_correlation"), self.correlation),
+            (lit!("events_scan"), self.events_scan),
+            (lit!("repetition"), self.repetition),
+            (lit!("repetition_kill_events"), kill_events),
+        ]))
     }
 }
 
@@ -1041,17 +1043,16 @@ pub fn declared_lite_record(detail: &PyValue) -> Result<PyValue, Failure> {
 pub fn miss_source(correlation: &PyValue, events_scanned: &PyValue) -> Result<PyStr, Failure> {
     ensure_hashable(correlation)?;
     let prefix = if is_text(correlation, CORRELATION_NOT_SCANNED) {
-        "not-scanned"
+        lit!("not-scanned(")
     } else if is_text(correlation, CORRELATION_UNAVAILABLE) {
-        "correlation-unavailable"
+        lit!("correlation-unavailable(")
     } else {
-        "correlation-miss"
+        lit!("correlation-miss(")
     };
     Ok(Text::new()
-        .lit(prefix)
-        .lit("(")
+        .fixed(&prefix)
         .val(events_scanned)
-        .lit(")")
+        .fixed(&lit!(")"))
         .done())
 }
 
@@ -1200,202 +1201,190 @@ pub fn classify(
     correlation: &PyValue,
     lite: &PyValue,
 ) -> Result<PyValue, Failure> {
-    let mut executed: Vec<PyValue> = Vec::new();
-    for hit in iterate(kill_hits)? {
-        let kind = subscript(&hit, "kind")?;
+    let hits = iterate_borrowed(kill_hits)?;
+    let mut executed: Vec<&PyValue> = Vec::new();
+    for hit in hits.as_slice() {
+        let kind = subscript(hit, "kind")?;
         if KILL_EVENT_KINDS.iter().any(|name| is_text(kind, name)) {
-            executed.push(hit.clone());
+            executed.push(hit);
         }
     }
     let unseen = is_text(correlation, CORRELATION_NOT_SCANNED)
         || is_text(correlation, CORRELATION_UNAVAILABLE);
-    let first_kill = |executed: &[PyValue]| -> Result<(PyValue, PyValue), Failure> {
-        let first = &executed[0];
-        Ok((
-            subscript(first, "kind")?.clone(),
-            subscript(first, "ts")?.clone(),
-        ))
-    };
-    let unseen_text = |seen: &str, unseen_note: &str| {
-        if unseen {
-            unseen_note.to_string()
-        } else {
-            seen.to_string()
-        }
+    let events_source = || {
+        text_value(
+            Text::new()
+                .fixed(&lit!("events("))
+                .val(events_scanned)
+                .fixed(&lit!(")"))
+                .done(),
+        )
     };
     if !equals_zero(serve_rc) {
         if !executed.is_empty() {
             let (kind, ts) = first_kill(&executed)?;
-            return Ok(dict_from(vec![
-                ("cell_outcome", PyValue::str(OUTCOME_SERVE_FAILED)),
-                ("void_reason", kind.clone()),
-                (
-                    "void_reason_source",
-                    text_value(Text::new().lit("events(").val(events_scanned).lit(")").done()),
-                ),
-                ("kill_events", kill_hits.clone()),
-                (
-                    "note",
-                    text_value(
-                        Text::new()
-                            .lit("서빙이 성립하지 않았다(rc=")
-                            .val(serve_rc)
-                            .lit("). 구간 안에서 ")
-                            .val(&kind)
-                            .lit(" 가 ")
-                            .val(&ts)
-                            .lit(" 에 **집행**됐다 — 이 죽음은 모델·빌드 평면의 구동불가가 아니라 호스트 평면의 사살이다.")
-                            .done(),
-                    ),
-                ),
-            ]));
+            return Ok(cell_result(
+                PyValue::Str(lit!(OUTCOME_SERVE_FAILED)),
+                kind.clone(),
+                events_source(),
+                kill_hits.clone(),
+                Text::new()
+                    .fixed(&lit!("서빙이 성립하지 않았다(rc="))
+                    .val(serve_rc)
+                    .fixed(&lit!("). 구간 안에서 "))
+                    .val(kind)
+                    .fixed(&lit!(" 가 "))
+                    .val(ts)
+                    .fixed(&lit!(" 에 **집행**됐다 — 이 죽음은 모델·빌드 평면의 구동불가가 아니라 호스트 평면의 사살이다."))
+                    .done(),
+            ));
         }
         let source = miss_source(correlation, events_scanned)?;
-        return Ok(dict_from(vec![
-            ("cell_outcome", PyValue::str(OUTCOME_SERVE_FAILED)),
-            ("void_reason", PyValue::None),
-            ("void_reason_source", text_value(source)),
-            ("kill_events", kill_hits.clone()),
-            (
-                "note",
-                text_value(
-                    Text::new()
-                        .lit("서빙이 성립하지 않아 측정 단계에 도달하지 않았다(rc=")
-                        .val(serve_rc)
-                        .lit("). ")
-                        .lit(&unseen_text(
-                            "구간 안에 집행된 사살 이벤트는 없다",
-                            "대조 대상 노드 중 구간을 보지 못한 노드가 있다",
-                        ))
-                        .lit(" — 사인을 추측하지 않는다.")
-                        .done(),
-                ),
-            ),
-        ]));
+        return Ok(cell_result(
+            PyValue::Str(lit!(OUTCOME_SERVE_FAILED)),
+            PyValue::None,
+            text_value(source),
+            kill_hits.clone(),
+            Text::new()
+                .fixed(&lit!(
+                    "서빙이 성립하지 않아 측정 단계에 도달하지 않았다(rc="
+                ))
+                .val(serve_rc)
+                .fixed(&lit!("). "))
+                .fixed(&if unseen {
+                    lit!("대조 대상 노드 중 구간을 보지 못한 노드가 있다")
+                } else {
+                    lit!("구간 안에 집행된 사살 이벤트는 없다")
+                })
+                .fixed(&lit!(" — 사인을 추측하지 않는다."))
+                .done(),
+        ));
     }
     if matches!(measure_rc.peel(), PyValue::None) {
-        return Ok(dict_from(vec![
-            ("cell_outcome", PyValue::str(OUTCOME_NOT_MEASURED)),
-            ("void_reason", PyValue::None),
-            ("void_reason_source", PyValue::None),
-            ("kill_events", kill_hits.clone()),
-            (
-                "note",
-                PyValue::str("서빙은 성립했으나 측정 단계에 들어가지 않았다(rc 부재) — 성공으로 집계하지 않는다."),
-            ),
-        ]));
+        return Ok(cell_result(
+            PyValue::Str(lit!(OUTCOME_NOT_MEASURED)),
+            PyValue::None,
+            PyValue::None,
+            kill_hits.clone(),
+            lit!("서빙은 성립했으나 측정 단계에 들어가지 않았다(rc 부재) — 성공으로 집계하지 않는다."),
+        ));
     }
     if !equals_zero(measure_rc) {
         if !executed.is_empty() {
             let (kind, ts) = first_kill(&executed)?;
-            return Ok(dict_from(vec![
-                ("cell_outcome", PyValue::str(OUTCOME_MEASUREMENT_VOID)),
-                ("void_reason", kind.clone()),
-                (
-                    "void_reason_source",
-                    text_value(
-                        Text::new()
-                            .lit("events(")
-                            .val(events_scanned)
-                            .lit(")")
-                            .done(),
-                    ),
-                ),
-                ("kill_events", kill_hits.clone()),
-                (
-                    "note",
-                    text_value(
-                        Text::new()
-                            .lit("서빙은 성립했으나 ")
-                            .val(&kind)
-                            .lit(" 가 ")
-                            .val(&ts)
-                            .lit(" 에 집행되어 측정이 파괴됐다.")
-                            .done(),
-                    ),
-                ),
-            ]));
+            return Ok(cell_result(
+                PyValue::Str(lit!(OUTCOME_MEASUREMENT_VOID)),
+                kind.clone(),
+                events_source(),
+                kill_hits.clone(),
+                Text::new()
+                    .fixed(&lit!("서빙은 성립했으나 "))
+                    .val(kind)
+                    .fixed(&lit!(" 가 "))
+                    .val(ts)
+                    .fixed(&lit!(" 에 집행되어 측정이 파괴됐다."))
+                    .done(),
+            ));
         }
-        let lite_value = if lite.is_truthy() {
-            lite.clone()
-        } else {
-            PyValue::Dict(PyDict::new())
-        };
-        let lite_map = as_get_target(&lite_value)?;
-        let lite_verdict = or_none(lite_map.get("lite_verdict"));
-        ensure_hashable(&lite_verdict)?;
+        let lite_value = if lite.is_truthy() { lite } else { &*EMPTY_DICT };
+        let lite_map = as_get_target(lite_value)?;
+        let lite_verdict = or_none_ref(lite_map.get("lite_verdict"));
+        ensure_hashable(lite_verdict)?;
         if let Some((_, void_reason)) = LITE_VOID_REASONS
             .iter()
-            .find(|(name, _)| is_text(&lite_verdict, name))
+            .find(|(name, _)| is_text(lite_verdict, name))
         {
             let source = lite_map
                 .get("lite_verdict_source")
                 .cloned()
                 .ok_or_else(|| key_error("lite_verdict_source"))?;
-            let explanation = if is_text(&lite_verdict, "server_failed") {
-                "서버가 응답했지만 실패했다(실사용 불가 · 재발동 제안 대상)"
+            let explanation = if is_text(lite_verdict, "server_failed") {
+                lit!("서버가 응답했지만 실패했다(실사용 불가 · 재발동 제안 대상)")
             } else {
-                "요청이 서버에 닿지 못했다(하네스 결함 · cap 차감 ✗)"
+                lit!("요청이 서버에 닿지 못했다(하네스 결함 · cap 차감 ✗)")
             };
-            return Ok(dict_from(vec![
-                ("cell_outcome", PyValue::str(OUTCOME_MEASUREMENT_VOID)),
-                ("void_reason", PyValue::str(void_reason)),
-                ("void_reason_source", source),
-                ("kill_events", kill_hits.clone()),
-                (
-                    "note",
-                    text_value(
-                        Text::new()
-                            .lit("서빙은 성립했으나 lite 게이트가 불통과였다(rc=")
-                            .val(measure_rc)
-                            .lit(" · lite_verdict=")
-                            .val(&lite_verdict)
-                            .lit(") — ")
-                            .lit(explanation)
-                            .lit(". 구간 안에 집행된 사살은 없다.")
-                            .done(),
-                    ),
-                ),
-            ]));
+            return Ok(cell_result(
+                PyValue::Str(lit!(OUTCOME_MEASUREMENT_VOID)),
+                PyValue::str(void_reason),
+                source,
+                kill_hits.clone(),
+                Text::new()
+                    .fixed(&lit!("서빙은 성립했으나 lite 게이트가 불통과였다(rc="))
+                    .val(measure_rc)
+                    .fixed(&lit!(" · lite_verdict="))
+                    .val(lite_verdict)
+                    .fixed(&lit!(") — "))
+                    .fixed(&explanation)
+                    .fixed(&lit!(". 구간 안에 집행된 사살은 없다."))
+                    .done(),
+            ));
         }
         let source = miss_source(correlation, events_scanned)?;
-        return Ok(dict_from(vec![
-            ("cell_outcome", PyValue::str(OUTCOME_MEASUREMENT_VOID)),
-            ("void_reason", PyValue::str("unknown")),
-            ("void_reason_source", text_value(source)),
-            ("kill_events", kill_hits.clone()),
-            (
-                "note",
-                text_value(
-                    Text::new()
-                        .lit("서빙은 성립했으나 측정이 실패했고(rc=")
-                        .val(measure_rc)
-                        .lit(") ")
-                        .lit(&unseen_text(
-                            "구간 안에 집행된 사살 이벤트가 없다",
-                            "대조 대상 노드 중 구간을 보지 못한 노드가 있다",
-                        ))
-                        .lit(" — 사인을 추측하지 않는다.")
-                        .done(),
-                ),
-            ),
-        ]));
+        return Ok(cell_result(
+            PyValue::Str(lit!(OUTCOME_MEASUREMENT_VOID)),
+            PyValue::Str(lit!("unknown")),
+            text_value(source),
+            kill_hits.clone(),
+            Text::new()
+                .fixed(&lit!("서빙은 성립했으나 측정이 실패했고(rc="))
+                .val(measure_rc)
+                .fixed(&lit!(") "))
+                .fixed(&if unseen {
+                    lit!("대조 대상 노드 중 구간을 보지 못한 노드가 있다")
+                } else {
+                    lit!("구간 안에 집행된 사살 이벤트가 없다")
+                })
+                .fixed(&lit!(" — 사인을 추측하지 않는다."))
+                .done(),
+        ));
     }
     let note = if executed.is_empty() {
-        PyStr::new("측정 성립.")
+        lit!("측정 성립.")
     } else {
         PyStr::new(&format!(
             "측정 성립. 다만 같은 구간에 집행된 사살 이벤트가 {}건 있다 — 대상이 이 셀이 아니었을 수 있으나 기록으로 남긴다.",
             executed.len()
         ))
     };
-    Ok(dict_from(vec![
-        ("cell_outcome", PyValue::str(OUTCOME_MEASURED)),
-        ("void_reason", PyValue::None),
-        ("void_reason_source", PyValue::None),
-        ("kill_events", kill_hits.clone()),
-        ("note", text_value(note)),
+    Ok(cell_result(
+        PyValue::Str(lit!(OUTCOME_MEASURED)),
+        PyValue::None,
+        PyValue::None,
+        kill_hits.clone(),
+        note,
+    ))
+}
+
+/// `first["kind"]`, `first["ts"]` of the first carried-out kill (the `KeyError` of a hit without a time).
+fn first_kill<'a>(executed: &[&'a PyValue]) -> Result<(&'a PyValue, &'a PyValue), Failure> {
+    let first = executed[0];
+    Ok((subscript(first, "kind")?, subscript(first, "ts")?))
+}
+
+/// The five-key cell close in the original's key order.
+fn cell_result(
+    outcome: PyValue,
+    void_reason: PyValue,
+    void_reason_source: PyValue,
+    kill_events: PyValue,
+    note: PyStr,
+) -> PyValue {
+    PyValue::Dict(PyDict::from_distinct_entries([
+        (lit!("cell_outcome"), outcome),
+        (lit!("void_reason"), void_reason),
+        (lit!("void_reason_source"), void_reason_source),
+        (lit!("kill_events"), kill_events),
+        (lit!("note"), text_value(note)),
     ]))
+}
+
+/// `{}` for `(lite or {})`.
+static EMPTY_DICT: std::sync::LazyLock<PyValue> =
+    std::sync::LazyLock::new(|| PyValue::Dict(PyDict::new()));
+
+fn or_none_ref(value: Option<&PyValue>) -> &PyValue {
+    static NONE: PyValue = PyValue::None;
+    value.unwrap_or(&NONE)
 }
 
 // ── node plan and scan ──────────────────────────────────────────────────────────
@@ -1916,24 +1905,20 @@ pub fn classify_bench_mode(request: &BenchModeRequest<'_>) -> Result<PyValue, Fa
         ));
     };
     let levels = map.get("levels").expect("checked above");
-    let declared_value = match map.get("repetition") {
-        Some(value) if dict_of(value).is_some() => value.clone(),
-        _ => PyValue::Dict(PyDict::new()),
+    static NO_DECLARATION: std::sync::LazyLock<PyDict> = std::sync::LazyLock::new(PyDict::new);
+    let declared: &PyDict = match map.get("repetition").and_then(dict_of) {
+        Some(declared) => declared,
+        None => &NO_DECLARATION,
     };
-    let declared = dict_of(&declared_value).expect("a dict");
-    let requested = or_none(declared.get("requested"));
-    let requested_source = or_none(declared.get("requested_source"));
-    let kind = or_none(declared.get("kind"));
-    let clamp_run = or_none(declared.get("clamp_run"));
     let summary = summarize(&SummarizeRequest {
         levels,
-        requested: &requested,
-        requested_source: &requested_source,
-        kind: &kind,
-        clamp_run: &clamp_run,
+        requested: or_none_ref(declared.get("requested")),
+        requested_source: or_none_ref(declared.get("requested_source")),
+        kind: or_none_ref(declared.get("kind")),
+        clamp_run: or_none_ref(declared.get("clamp_run")),
     })?
     .to_value();
-    let verdict = repetition_established(&summary, &or_none(map.get("verdict_point_level")))?;
+    let verdict = repetition_established(&summary, or_none_ref(map.get("verdict_point_level")))?;
     let why = verdict.reason.clone();
     let Some(established) = verdict.established else {
         return Ok(BenchModeFields {
@@ -1977,67 +1962,70 @@ pub fn classify_bench_mode(request: &BenchModeRequest<'_>) -> Result<PyValue, Fa
                 }
             }
         };
-        PyValue::List(vec![dict_from(vec![
-            ("node", PyValue::str("explicit")),
-            ("remote", PyValue::Bool(false)),
-            ("lines", lines),
-            ("files", files),
-        ])])
+        PyValue::List(vec![PyValue::Dict(PyDict::from_distinct_entries([
+            (lit!("node"), PyValue::Str(lit!("explicit"))),
+            (lit!("remote"), PyValue::Bool(false)),
+            (lit!("lines"), lines),
+            (lit!("files"), files),
+        ]))])
     };
     let plan_is_dict = dict_of(request.plan).is_some();
     let plan_value = if plan_is_dict {
         request.plan.clone()
     } else {
-        dict_from(vec![(
-            "source",
-            PyValue::str("explicit(호출자가 대상 events 를 선언했다 — 노드 계획 없음)"),
-        )])
+        PyValue::Dict(PyDict::from_distinct_entries([(
+            lit!("source"),
+            PyValue::Str(lit!(
+                "explicit(호출자가 대상 events 를 선언했다 — 노드 계획 없음)"
+            )),
+        )]))
     };
-    let mut scan_doc = PyDict::with_capacity(4);
-    scan_doc.set("plan", plan_value);
-    scan_doc.set("nodes", PyValue::None);
-    scan_doc.set(
-        "cross_node_tolerance_s",
-        request.cross_node_tolerance_s.clone(),
-    );
-    scan_doc.set(
-        "cross_node_tolerance_source",
-        request.cross_node_tolerance_source.clone(),
-    );
+    let mut scan_doc = PyDict::from_distinct_entries([
+        (lit!("plan"), plan_value),
+        (lit!("nodes"), PyValue::None),
+        (
+            lit!("cross_node_tolerance_s"),
+            request.cross_node_tolerance_s.clone(),
+        ),
+        (
+            lit!("cross_node_tolerance_source"),
+            request.cross_node_tolerance_source.clone(),
+        ),
+    ]);
 
-    let stop = summary_get(&summary, "stop");
+    let stop = or_none_ref(dict_of(&summary).and_then(|map| map.get("stop")));
     let mut hits: Vec<PyValue> = Vec::new();
     let mut correlation = CORRELATION_NOT_APPLICABLE;
     let mut window: Option<PyStr> = None;
     let mut signal: Option<PyStr> = None;
-    if let Some(stop_map) = dict_of(&stop) {
-        let part = |name: &str| or_none(stop_map.get(name));
+    if let Some(stop_map) = dict_of(stop) {
+        let part = |name: &str| or_none_ref(stop_map.get(name));
         signal = Some(
             Text::new()
-                .lit("stop[")
-                .val(&part("kind"))
-                .lit(" · level=")
-                .val(&part("level"))
-                .lit(" · run=")
-                .val(&part("run"))
-                .lit("](")
-                .val(&part("detail"))
-                .lit(")")
+                .fixed(&lit!("stop["))
+                .val(part("kind"))
+                .fixed(&lit!(" · level="))
+                .val(part("level"))
+                .fixed(&lit!(" · run="))
+                .val(part("run"))
+                .fixed(&lit!("]("))
+                .val(part("detail"))
+                .fixed(&lit!(")"))
                 .done(),
         );
         window = Some(
             Text::new()
-                .lit("[")
-                .val(&part("window_start_utc"))
-                .lit(", ")
-                .val(&part("window_end_utc"))
-                .lit("] tol=")
+                .fixed(&lit!("["))
+                .val(part("window_start_utc"))
+                .fixed(&lit!(", "))
+                .val(part("window_end_utc"))
+                .fixed(&lit!("] tol="))
                 .val(request.tolerance_s)
-                .lit("s")
+                .fixed(&lit!("s"))
                 .done(),
         );
-        let bounds = parse_utc(&part("window_start_utc"), "stop.window_start_utc").and_then(|lo| {
-            parse_utc(&part("window_end_utc"), "stop.window_end_utc").map(|hi| (lo, hi))
+        let bounds = parse_utc(part("window_start_utc"), "stop.window_start_utc").and_then(|lo| {
+            parse_utc(part("window_end_utc"), "stop.window_end_utc").map(|hi| (lo, hi))
         });
         match bounds {
             Err(error) if is_classify_error(&error) => {
@@ -2061,7 +2049,7 @@ pub fn classify_bench_mode(request: &BenchModeRequest<'_>) -> Result<PyValue, Fa
                 )?;
                 hits = found;
                 correlation = aggregate;
-                scan_doc.set("nodes", PyValue::List(per_node));
+                scan_doc.insert(lit!("nodes"), PyValue::List(per_node));
             }
         }
     }
@@ -2080,54 +2068,55 @@ pub fn classify_bench_mode(request: &BenchModeRequest<'_>) -> Result<PyValue, Fa
             _ => PyStr::default(),
         }
     };
-    let window_text = window.clone().unwrap_or_else(|| PyStr::new("None"));
-    let signal_text = signal.clone().unwrap_or_else(|| PyStr::new("None"));
-    let executed: Vec<&PyValue> = hits
-        .iter()
-        .filter(|hit| {
-            dict_of(hit)
-                .and_then(|map| map.get("kind"))
-                .is_some_and(|kind| KILL_EVENT_KINDS.iter().any(|name| is_text(kind, name)))
-        })
-        .collect();
-    let hits_value = PyValue::List(hits.clone());
-    if let Some(first) = executed.first() {
+    let window_text = window.unwrap_or_else(|| lit!("None"));
+    let signal_text = signal.unwrap_or_else(|| lit!("None"));
+    let first_executed = hits.iter().find(|hit| {
+        dict_of(hit)
+            .and_then(|map| map.get("kind"))
+            .is_some_and(|kind| KILL_EVENT_KINDS.iter().any(|name| is_text(kind, name)))
+    });
+    // The text that names the first carried-out kill, built while the hit is still borrowed from `hits`.
+    let kill_source: Option<PyStr> = first_executed.map(|first| {
         let first_map = dict_of(first).expect("hits are dicts");
         let node_part = if plan_is_dict {
             Text::new()
-                .lit(" · node=")
-                .val(&or_none(first_map.get("node")))
+                .fixed(&lit!(" · node="))
+                .val(or_none_ref(first_map.get("node")))
                 .done()
         } else {
             PyStr::default()
         };
-        let reason_source = Text::new()
-            .lit("events(")
+        Text::new()
+            .fixed(&lit!("events("))
             .val(&scanned_txt)
-            .lit(") · ")
-            .val(&or_none(first_map.get("kind")))
-            .lit(" @ ")
-            .val(&or_none(first_map.get("ts")))
+            .fixed(&lit!(") · "))
+            .val(or_none_ref(first_map.get("kind")))
+            .fixed(&lit!(" @ "))
+            .val(or_none_ref(first_map.get("ts")))
             .str(&node_part)
-            .lit(" ∈ ")
+            .fixed(&lit!(" ∈ "))
             .str(&window_text)
-            .lit(" · ")
+            .fixed(&lit!(" · "))
             .str(&signal_text)
             .str(&scope_tail(&scope))
-            .done();
+            .done()
+    });
+    let trips = hits.len();
+    let hits_value = PyValue::List(hits);
+    if let Some(reason_source) = kill_source {
         return Ok(BenchModeFields {
-            reason: PyValue::str(DOWNGRADE_BLACKBOX_KILL),
+            reason: PyValue::Str(lit!(DOWNGRADE_BLACKBOX_KILL)),
             reason_source: text_value(reason_source),
             repetition: summary,
             kill_hits: hits_value,
-            correlation: PyValue::str(correlation),
+            correlation: correlation_value(correlation),
             events_scan: scan_doc,
             ..BenchModeFields::new(
-                PyValue::str(BENCH_MODE_LITE),
+                PyValue::Str(lit!(BENCH_MODE_LITE)),
                 text_value(
                     Text::new()
                         .str(&why)
-                        .lit(" · 멈춘 자리 창 안에 집행된 사살 — kill 이벤트는 레벨·run 순번과 무관한 강등 트리거")
+                        .fixed(&lit!(" · 멈춘 자리 창 안에 집행된 사살 — kill 이벤트는 레벨·run 순번과 무관한 강등 트리거"))
                         .done(),
                 ),
             )
@@ -2136,20 +2125,15 @@ pub fn classify_bench_mode(request: &BenchModeRequest<'_>) -> Result<PyValue, Fa
     }
     let tail = scope_tail(&scope);
     let note: PyStr = if correlation == CORRELATION_MISS {
-        let trips = hits.len();
-        Text::new()
-            .lit("correlation-miss(")
+        let mut text = Text::new()
+            .fixed(&lit!("correlation-miss("))
             .val(&scanned_txt)
-            .lit(" · 창 ")
-            .str(&window_text)
-            .lit(&if trips > 0 {
-                format!(" · 트립 {trips}건은 집행이 아니라 사인 불충분")
-            } else {
-                String::new()
-            })
-            .str(&tail)
-            .lit(")")
-            .done()
+            .fixed(&lit!(" · 창 "))
+            .str(&window_text);
+        if trips > 0 {
+            text = text.lit(&format!(" · 트립 {trips}건은 집행이 아니라 사인 불충분"));
+        }
+        text.str(&tail).fixed(&lit!(")")).done()
     } else if correlation == CORRELATION_NOT_SCANNED {
         if plan_is_dict {
             Text::new()
@@ -2169,7 +2153,7 @@ pub fn classify_bench_mode(request: &BenchModeRequest<'_>) -> Result<PyValue, Fa
         let nodes_known = dict_of(&scan_doc)
             .and_then(|map| map.get("nodes"))
             .is_some_and(|nodes| !matches!(nodes.peel(), PyValue::None));
-        if dict_of(&stop).is_some() && nodes_known {
+        if dict_of(stop).is_some() && nodes_known {
             Text::new()
                 .lit("correlation-unavailable(원격 노드 시계 허용오차 미선언 — 미스를 결론내지 않는다 · 창 ")
                 .str(&window_text)
@@ -2189,30 +2173,25 @@ pub fn classify_bench_mode(request: &BenchModeRequest<'_>) -> Result<PyValue, Fa
 
     // `full` is `lite ∪ GuideLLM × repeats >= 3`: an index that names a measurement tool other than the bound one is
     // not full, and is not a downgrade either, so it is not decided.
-    let tool = match map.get("meta") {
-        Some(meta) if dict_of(meta).is_some() => {
-            let meta_map = dict_of(meta).expect("a dict");
-            match meta_map.get("bench_tool") {
-                Some(tool) => tool.clone(),
-                None => PyValue::None,
-            }
-        }
-        _ => PyValue::None,
-    };
+    let tool: &PyValue = or_none_ref(
+        map.get("meta")
+            .and_then(dict_of)
+            .and_then(|meta| meta.get("bench_tool")),
+    );
     let tool_unnamed =
-        matches!(tool.peel(), PyValue::None) || is_text(&tool, "") || is_text(&tool, "NA");
-    if established && !tool_unnamed && !is_text(&tool, BENCH_TOOL) {
+        matches!(tool.peel(), PyValue::None) || is_text(tool, "") || is_text(tool, "NA");
+    if established && !tool_unnamed && !is_text(tool, BENCH_TOOL) {
         return Ok(BenchModeFields {
             repetition: summary,
             kill_hits: hits_value,
-            correlation: PyValue::str(correlation),
+            correlation: correlation_value(correlation),
             events_scan: scan_doc,
             ..BenchModeFields::new(
                 PyValue::None,
                 text_value(
                     Text::new()
                         .lit("undeterminable(측정 도구 ")
-                        .val(&tool)
+                        .val(tool)
                         .lit(" ≠ full-bench 바인딩 도구 ")
                         .lit(BENCH_TOOL)
                         .lit(" — 반복은 성립했으나 full 정의 불충족 · ")
@@ -2233,26 +2212,39 @@ pub fn classify_bench_mode(request: &BenchModeRequest<'_>) -> Result<PyValue, Fa
         return Ok(BenchModeFields {
             repetition: summary,
             kill_hits: hits_value,
-            correlation: PyValue::str(correlation),
+            correlation: correlation_value(correlation),
             events_scan: scan_doc,
-            ..BenchModeFields::new(PyValue::str(BENCH_MODE_FULL), text_value(source))
+            ..BenchModeFields::new(PyValue::Str(lit!(BENCH_MODE_FULL)), text_value(source))
         }
         .into_record());
     }
     Ok(BenchModeFields {
-        reason: PyValue::str(DOWNGRADE_RUN_FAILED),
-        reason_source: text_value(Text::new().str(&signal_text).lit(" · ").str(&note).done()),
+        reason: PyValue::Str(lit!(DOWNGRADE_RUN_FAILED)),
+        reason_source: text_value(
+            Text::new()
+                .str(&signal_text)
+                .fixed(&lit!(" · "))
+                .str(&note)
+                .done(),
+        ),
         repetition: summary,
         kill_hits: hits_value,
-        correlation: PyValue::str(correlation),
+        correlation: correlation_value(correlation),
         events_scan: scan_doc,
-        ..BenchModeFields::new(PyValue::str(BENCH_MODE_LITE), text_value(why))
+        ..BenchModeFields::new(PyValue::Str(lit!(BENCH_MODE_LITE)), text_value(why))
     }
     .into_record())
 }
 
-fn summary_get(summary: &PyValue, key: &str) -> PyValue {
-    or_none(dict_of(summary).and_then(|map| map.get(key)))
+/// The value of one of the correlation vocabulary words.
+fn correlation_value(word: &str) -> PyValue {
+    PyValue::Str(match word {
+        CORRELATION_MATCHED => lit!(CORRELATION_MATCHED),
+        CORRELATION_MISS => lit!(CORRELATION_MISS),
+        CORRELATION_NOT_SCANNED => lit!(CORRELATION_NOT_SCANNED),
+        CORRELATION_UNAVAILABLE => lit!(CORRELATION_UNAVAILABLE),
+        _ => lit!(CORRELATION_NOT_APPLICABLE),
+    })
 }
 
 /// `text.split(",")`.

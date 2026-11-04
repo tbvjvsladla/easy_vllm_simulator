@@ -170,6 +170,10 @@ name = "classify_cell_cases"
 path = "checks/classify_cell_cases.rs"
 
 [[test]]
+name = "classify_cell_bench"
+path = "checks/classify_cell_bench.rs"
+
+[[test]]
 name = "classify_cell_files"
 path = "checks/classify_cell_files.rs"
 

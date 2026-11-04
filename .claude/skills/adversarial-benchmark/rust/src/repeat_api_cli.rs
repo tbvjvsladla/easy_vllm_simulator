@@ -193,6 +193,17 @@ impl Bound<'_> {
         self.0.get(name).cloned().unwrap_or(PyValue::None)
     }
 
+    /// The argument as the caller gave it, borrowed (a missing one is `None`): for operations that only read it.
+    pub(crate) fn get_ref(&self, name: &str) -> &PyValue {
+        static NONE: PyValue = PyValue::None;
+        self.0.get(name).unwrap_or(&NONE)
+    }
+
+    /// [`Bound::get_ref`] with a default for a missing argument.
+    pub(crate) fn get_or_ref<'a>(&'a self, name: &str, default: &'a PyValue) -> &'a PyValue {
+        self.0.get(name).unwrap_or(default)
+    }
+
     pub(crate) fn get_or(&self, name: &str, default: PyValue) -> PyValue {
         self.0.get(name).cloned().unwrap_or(default)
     }

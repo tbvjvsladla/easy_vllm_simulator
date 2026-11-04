@@ -59,6 +59,30 @@ pub fn iterate(value: &PyValue) -> Result<Vec<PyValue>, Failure> {
     }
 }
 
+/// The items of `for item in value`, borrowed when the value is a list or tuple (the common case) and built only for the
+/// other iterables (a dict's keys, a string's characters, ...).
+pub enum Items<'a> {
+    Borrowed(&'a [PyValue]),
+    Built(Vec<PyValue>),
+}
+
+impl Items<'_> {
+    pub fn as_slice(&self) -> &[PyValue] {
+        match self {
+            Items::Borrowed(items) => items,
+            Items::Built(items) => items,
+        }
+    }
+}
+
+/// [`iterate`] without copying a list or tuple.
+pub fn iterate_borrowed(value: &PyValue) -> Result<Items<'_>, Failure> {
+    match value.peel() {
+        PyValue::List(items) | PyValue::Tuple(items) => Ok(Items::Borrowed(items)),
+        _ => iterate(value).map(Items::Built),
+    }
+}
+
 /// `hash(value)` succeeds: lists, dicts and sets are unhashable.
 pub fn ensure_hashable(value: &PyValue) -> Result<(), Failure> {
     match value.peel() {
@@ -168,7 +192,18 @@ impl Text {
     }
 
     pub fn val(mut self, value: &PyValue) -> Self {
-        self.0.push_py(&value.display_text());
+        match value.peel() {
+            // `str(value)` of a string is itself, and of an integer its digits: no intermediate text is built.
+            PyValue::Str(text) => self.0.push_py(text),
+            PyValue::Int(number) => self.0.push_str(&number.to_string()),
+            other => self.0.push_py(&other.display_text()),
+        }
+        self
+    }
+
+    /// Text fixed in the source (see `lit!`), appended by copying its code points.
+    pub fn fixed(mut self, text: &PyStr) -> Self {
+        self.0.push_py(text);
         self
     }
 
