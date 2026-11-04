@@ -6,7 +6,7 @@
 //! `Modules/_json.c` (scanner) and `Lib/json/decoder.py`; see `notices/NOTICE.md`.
 
 use crate::pystr::PyStr;
-use crate::pyvalue::{PyDict, PyValue};
+use crate::pyvalue::{json_nan_constant, PyDict, PyValue};
 use num_bigint::BigInt;
 use std::fmt;
 
@@ -138,8 +138,25 @@ pub fn loads(text: &str) -> Result<PyValue, LoadError> {
 /// Recursion follows the document's nesting, up to [`MAX_DEPTH`] levels; callers parsing untrusted deep
 /// documents on a small stack should run on a thread with a large one (`cli::run` does).
 pub fn loads_text(text: &PyStr) -> Result<PyValue, LoadError> {
+    loads_text_with(text, false)
+}
+
+/// `json.loads(text)` where the literal `NaN` is the one object Python's decoder returns for it (the same object in
+/// every document of the process), so that a program that tests membership finds it again. Everything else is
+/// [`loads_text`]; the plain decoder keeps `Float` values, which most readers match on directly.
+pub fn loads_objects(text: &str) -> Result<PyValue, LoadError> {
+    loads_text_with(&PyStr::new(text), true)
+}
+
+/// [`loads_objects`] for text that may hold lone surrogates.
+pub fn loads_text_objects(text: &PyStr) -> Result<PyValue, LoadError> {
+    loads_text_with(text, true)
+}
+
+fn loads_text_with(text: &PyStr, nan_objects: bool) -> Result<PyValue, LoadError> {
     let reader = Reader {
         points: text.code_points(),
+        nan_objects,
     };
     if reader.at(0) == Some(0xFEFF) {
         return Err(reader.decode_error("Unexpected UTF-8 BOM (decode using utf-8-sig)", 0));
@@ -164,6 +181,8 @@ enum Failure {
 
 struct Reader<'a> {
     points: &'a [u32],
+    /// Whether `NaN` decodes to the shared object (see [`loads_objects`]).
+    nan_objects: bool,
 }
 
 fn code(c: char) -> u32 {
@@ -233,7 +252,14 @@ impl Reader<'_> {
             'n' if self.matches_literal(index, "null") => Ok((PyValue::None, index + 4)),
             't' if self.matches_literal(index, "true") => Ok((PyValue::Bool(true), index + 4)),
             'f' if self.matches_literal(index, "false") => Ok((PyValue::Bool(false), index + 5)),
-            'N' if self.matches_literal(index, "NaN") => Ok((PyValue::Float(f64::NAN), index + 3)),
+            'N' if self.matches_literal(index, "NaN") => Ok((
+                if self.nan_objects {
+                    json_nan_constant()
+                } else {
+                    PyValue::Float(f64::NAN)
+                },
+                index + 3,
+            )),
             'I' if self.matches_literal(index, "Infinity") => {
                 Ok((PyValue::Float(f64::INFINITY), index + 8))
             }

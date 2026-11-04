@@ -12,7 +12,9 @@ use super::parser::{Ev, Event, Parser};
 use super::{marked, plain, Failure, Mark, Parsed};
 use crate::pynumber::{float_from_str, int_from_str};
 use crate::pystr::PyStr;
-use crate::pyvalue::{DictKey, NonStringKey, Opaque, PyDict, PyValue};
+use crate::pyvalue::{
+    nan_object, yaml_nan_constant, DictKey, NonStringKey, Opaque, PyDict, PyValue,
+};
 use num_bigint::BigInt;
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
@@ -610,6 +612,8 @@ struct Builder {
     under_construction: HashSet<usize>,
     /// State of [`Builder::assemble`], set up once the containers are filled.
     shape: Shape,
+    /// Whether NaNs are objects of their own ([`nan_object`]) rather than plain floats.
+    nan_objects: bool,
 }
 
 /// How the built nodes refer to each other: what [`Builder::assemble`] needs to share an object like Python does.
@@ -656,7 +660,7 @@ fn constructor_error(
     marked("ConstructorError", context, context_mark, problem, mark)
 }
 
-pub(crate) fn construct_document(composed: Composed) -> Parsed<PyValue> {
+pub(crate) fn construct_document(composed: Composed, nan_objects: bool) -> Parsed<PyValue> {
     let _frame = frame("construct_document")?;
     let Composed { nodes, root } = composed;
     let Some(root) = root else {
@@ -668,6 +672,7 @@ pub(crate) fn construct_document(composed: Composed) -> Parsed<PyValue> {
         queue: VecDeque::new(),
         under_construction: HashSet::new(),
         shape: Shape::default(),
+        nan_objects,
     };
     builder.construct_object(root)?;
     while let Some(id) = builder.queue.pop_front() {
@@ -1061,8 +1066,20 @@ impl Builder {
             return Ok(PyValue::Float(sign * f64::INFINITY));
         }
         if body == ".nan" {
-            return Ok(PyValue::Float(f64::NAN));
+            return Ok(if self.nan_objects {
+                yaml_nan_constant()
+            } else {
+                PyValue::Float(f64::NAN)
+            });
         }
+        // any other NaN is an object of this node (built once; an alias reuses the node's value)
+        let own = |number: f64| {
+            if number.is_nan() && self.nan_objects {
+                nan_object()
+            } else {
+                PyValue::Float(number)
+            }
+        };
         if body.contains(':') {
             let mut total = 0.0f64;
             let mut base = 1.0f64;
@@ -1070,9 +1087,9 @@ impl Builder {
                 total += convert(part)? * base;
                 base *= 60.0;
             }
-            return Ok(PyValue::Float(sign * total));
+            return Ok(own(sign * total));
         }
-        Ok(PyValue::Float(sign * convert(&body)?))
+        Ok(own(sign * convert(&body)?))
     }
 
     /// Which Python object a NaN key is. `.nan` (with any sign or underscores) is `SafeConstructor.nan_value`, one object
@@ -1512,7 +1529,7 @@ fn dict_key(value: &PyValue, nan_origin: usize) -> DictKey {
             repr: value.repr(),
         })
     };
-    match value {
+    match value.peel() {
         PyValue::Str(text) => DictKey::Str(text.clone()),
         PyValue::None => other("none".to_string()),
         PyValue::Bool(flag) => other(format!("num:{}", u8::from(*flag))),

@@ -127,8 +127,9 @@ path = "checks/yaml_reader.rs"
 [dependencies]
 num-bigint = "0.4"
 num-traits = "0.2"
-# SHA-256 of the dataset source (`hashlib.sha256` of the original), pinned exactly; no hand-written digest.
-sha2 = "=0.10.9"
+# SHA-256 of the dataset source (`hashlib.sha256` of the original): the `ring` digest `Context` (its own aarch64/x86_64
+# assembly with run-time CPU feature dispatch), pinned exactly. Replaced the first plan, `sha2` =0.10.9 (kept in PORTING.md).
+ring = "=0.17.14"
 # Safe wrappers of TIOCGWINSZ on stdout only (what shutil.get_terminal_size asks via os.get_terminal_size) and of
 # fstat on stdout (the buffer size and presence of the interpreter's sys.stdout).
 rustix = { version = "1", default-features = false, features = ["std", "termios", "fs"] }
@@ -187,3 +188,7 @@ path = "checks/preset_selftest.rs"
 [[test]]
 name = "preset_hash"
 path = "checks/preset_hash.rs"
+
+[[test]]
+name = "preset_nan_identity"
+path = "checks/preset_nan_identity.rs"

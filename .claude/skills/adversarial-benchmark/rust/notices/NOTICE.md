@@ -18,7 +18,7 @@ purpose). Full license texts, downloaded 2026-11-04 from the primary URLs below,
 | `src/help_layouts_bench_preset.rs` | The *output* of CPython **v3.12.3** `Lib/argparse.py` and `Lib/textwrap.py` for the original `bench_preset.py` parsers (top, `validate`, `default`, `resolve`) at terminal widths 1..480 (`resolve` 1..1500; constant from the last listed width up; wider widths re-checked) | PSF License | Generated text captured by running the original program (the dev-time `gen_preset_help_layouts.py`); no argparse or textwrap source is copied. |
 | `src/unicode_tables.rs` | Unicode Character Database **15.0.0** (<https://www.unicode.org/Public/15.0.0/ucd/>), as exposed by CPython 3.12.3 `str.isprintable` / `isspace` / `isdecimal` | Unicode License V3 (`Unicode-License-V3.txt`, <https://www.unicode.org/license.txt>) | Only the code point ranges of three character properties were extracted by the dev-time generator `gen_unicode_tables.py`. |
 
-Cargo dependencies (`num-bigint`, `num-traits`, `rustix`, `sha2` pinned `=0.10.9` (RustCrypto), and build-only `serde_json`) are used as libraries under
+Cargo dependencies (`num-bigint`, `num-traits`, `rustix`, `ring` pinned `=0.17.14` (digest only; licence `Apache-2.0 AND ISC`, with BoringSSL-derived and once_cell-derived parts; its bundled C/assembly is compiled on the node with the existing compiler; build-time `cc`, `shlex`, `find-msvc-tools`), and build-only `serde_json`) are used as libraries under
 their own licenses (see the downloaded Cargo package metadata); none of their source is vendored here.
 `Cargo.lock` pins the resolved versions.
 

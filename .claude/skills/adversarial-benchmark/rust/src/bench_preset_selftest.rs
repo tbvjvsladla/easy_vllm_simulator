@@ -22,7 +22,7 @@ use crate::pyvalue::{PyDict, PyValue};
 use crate::repeat_axis::{CAMPAIGN_INIT_REL, SCHEMA_REL};
 use crate::repeat_owner::{PythonCampaignOwner, RepoRoot};
 use crate::FULL_REPEATS_MIN;
-use sha2::{Digest, Sha256};
+use ring::digest::{digest, SHA256};
 use std::path::{Path, PathBuf};
 
 /// What the suite printed and how it ended.
@@ -1087,8 +1087,12 @@ fn scenarios(suite: &mut Suite, runtime: &Runtime) -> Result<(), Failure> {
     let raw = scratch.text("raw.parquet");
     std::fs::write(to_path(&raw), b"cnn-fixture")
         .map_err(|error| Failure::new("OSError", &error.to_string()))?;
-    let digest = Sha256::digest(b"cnn-fixture");
-    let good_sha: String = digest.iter().map(|byte| format!("{byte:02x}")).collect();
+    let digest = digest(&SHA256, b"cnn-fixture");
+    let good_sha: String = digest
+        .as_ref()
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
     let dataset_values = |over: &[(&str, PyValue)]| -> Vec<(&'static str, PyValue)> {
         let mut values: Vec<(&'static str, PyValue)> = vec![
             ("dataset_kind", s("parquet_file")),

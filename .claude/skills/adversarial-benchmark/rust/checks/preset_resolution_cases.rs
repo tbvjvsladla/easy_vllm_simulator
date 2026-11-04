@@ -13,9 +13,22 @@ const API: &str = env!("CARGO_BIN_EXE_bench_preset_api");
 
 #[test]
 fn frozen_67_original_resolutions_match_whole_records_and_leave_the_tree() {
+    replay("resolution_cases.json", 67);
+}
+
+/// The independent validator's four direct `resolve` requests (three that already passed and the NaN one), with the
+/// ORIGINAL's frozen answers: bool/float-equal option keys keep the last grade, neighbouring integers and floats stay
+/// distinct, an unhashable option value is refused after a missing grade, and a `NaN` that the JSON decoder shares
+/// between a default and an option is found again (the same object) although `nan != nan`.
+#[test]
+fn independent_four_direct_resolves_match_the_original() {
+    replay("independent_cases.json", 4);
+}
+
+fn replay(file: &str, count: usize) {
     let repo = real_repo();
-    let cases = load_json(&data_path("resolution_cases.json"));
-    assert_eq!(items(&cases).len(), 67);
+    let cases = load_json(&data_path(file));
+    assert_eq!(items(&cases).len(), count);
     let mut failures = Vec::new();
     for case in items(&cases) {
         let id = text(field(case, "id"));

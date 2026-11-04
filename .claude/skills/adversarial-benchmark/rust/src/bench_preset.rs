@@ -17,9 +17,9 @@
 
 use crate::guidellm::Failure;
 use crate::pyfs;
-use crate::pyjson::{decode_file_text, loads_text};
+use crate::pyjson::{decode_file_text, loads_text_objects};
 use crate::pyops::{compare, Compare};
-use crate::pysort::{py_eq, sorted_by_key};
+use crate::pysort::{py_eq, same_or_eq, sorted_by_key};
 use crate::pystr::{is_python_space, PyStr};
 use crate::pyvalue::{DumpError, NonStringKey, Opaque, PyDict, PyValue};
 use crate::pyyaml;
@@ -31,7 +31,8 @@ use crate::repeat_text::cat;
 use crate::FULL_REPEATS_MIN;
 use num_bigint::BigInt;
 use num_traits::Zero;
-use sha2::{Digest, Sha256};
+use ring::digest::{Context, SHA256};
+use std::borrow::Cow;
 use std::collections::HashSet;
 use std::io::Read;
 
@@ -356,8 +357,40 @@ fn is_str(value: &PyValue, text: &str) -> bool {
     matches!(value.peel(), PyValue::Str(own) if own.equals(text))
 }
 
+/// A document value that is absent reads as this (`dict.get(key)` without a default).
+const NONE: &PyValue = &PyValue::None;
+
+/// `map.get(key)` of a dict, `None` when absent.
+fn field_of<'a>(map: &'a PyDict, key: &str) -> &'a PyValue {
+    map.get(key).unwrap_or(NONE)
+}
+
+/// Whether the dict's keys are exactly the strings `wanted` (in any order). The common case, the keys in the order
+/// of `wanted`, is one pass without lookups.
+fn keys_exactly(map: &PyDict, wanted: &[&str]) -> bool {
+    if map.len() != wanted.len() {
+        return false;
+    }
+    let in_order = map
+        .keyed_entries()
+        .zip(wanted)
+        .all(|((other, key, _), name)| other.is_none() && key.equals(name));
+    in_order || wanted.iter().all(|name| map.get(name).is_some())
+}
+
+/// `value == number` for a small integer (`bool`, `int` and integral `float` compare equal to it).
+fn is_small_int(value: &PyValue, number: i64) -> bool {
+    use num_traits::ToPrimitive;
+    match value.peel() {
+        PyValue::Int(own) => own.to_i64() == Some(number),
+        PyValue::Bool(flag) => i64::from(*flag) == number,
+        PyValue::Float(own) => *own == number as f64,
+        _ => false,
+    }
+}
+
 fn list_contains(items: &[PyValue], needle: &PyValue) -> bool {
-    items.iter().any(|item| py_eq(item, needle))
+    items.iter().any(|item| same_or_eq(item, needle))
 }
 
 fn text_contains(items: &[&str], value: &PyValue) -> bool {
@@ -439,8 +472,8 @@ fn rebuild_key(key: &NonStringKey) -> PyValue {
 
 /// `key in dict`: a hash lookup, so a list or dict key is a `TypeError`.
 fn dict_has_key(map: &PyDict, key: &PyValue) -> Result<bool, Failure> {
-    hash_key(key)?;
-    Ok(dict_keys(map).iter().any(|own| py_eq(own, key)))
+    check_hashable(key)?;
+    Ok(dict_keys(map).iter().any(|own| same_or_eq(own, key)))
 }
 
 /// The names of the keys that are strings equal to one of `wanted`, and the other keys of the dict sorted as
@@ -490,88 +523,58 @@ impl KeyContract {
 
 // ── hashing of dict keys ────────────────────────────────────────────────────────
 
-/// The identity a Python `dict` or `set` gives a hashable value: numbers that compare equal are one key.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-enum HashKey {
-    None,
-    Int(BigInt),
-    Float(u64),
-    /// A NaN equals nothing, not even itself.
-    Nan(usize),
-    Str(Vec<u32>),
-    Bytes(Vec<u8>),
-    Tuple(Vec<HashKey>),
-    Other(String),
-}
-
-fn hash_key(value: &PyValue) -> Result<HashKey, Failure> {
-    static NAN_COUNTER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-    Ok(match value.peel() {
-        PyValue::None => HashKey::None,
-        PyValue::Bool(flag) => HashKey::Int(BigInt::from(u8::from(*flag))),
-        PyValue::Int(number) => HashKey::Int(number.clone()),
-        PyValue::Float(number) => {
-            if number.is_nan() {
-                HashKey::Nan(NAN_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed))
-            } else if number.is_finite() && number.fract() == 0.0 {
-                use num_traits::FromPrimitive;
-                HashKey::Int(BigInt::from_f64(*number).unwrap_or_default())
-            } else {
-                HashKey::Float(number.to_bits())
-            }
-        }
-        PyValue::Str(text) => HashKey::Str(text.code_points().to_vec()),
-        PyValue::Bytes(bytes) => HashKey::Bytes(bytes.clone()),
-        PyValue::Tuple(items) => HashKey::Tuple(
-            items
-                .iter()
-                .map(hash_key)
-                .collect::<Result<Vec<_>, Failure>>()?,
-        ),
-        PyValue::List(_) => return Err(type_error("unhashable type: 'list'")),
-        PyValue::Dict(_) => return Err(type_error("unhashable type: 'dict'")),
+/// A hashable value is any value Python can hash: a list, dict or set is not (`TypeError`), a tuple is when its
+/// items are.
+fn check_hashable(value: &PyValue) -> Result<(), Failure> {
+    match value.peel() {
+        PyValue::List(_) => Err(type_error("unhashable type: 'list'")),
+        PyValue::Dict(_) => Err(type_error("unhashable type: 'dict'")),
         PyValue::Opaque(opaque) if opaque.type_name == "set" => {
-            return Err(type_error("unhashable type: 'set'"))
+            Err(type_error("unhashable type: 'set'"))
         }
-        PyValue::Opaque(opaque) => HashKey::Other(opaque.repr.clone()),
-        PyValue::Shared(_) => unreachable!("peeled"),
-    })
+        PyValue::Tuple(items) => items.iter().try_for_each(check_hashable),
+        _ => Ok(()),
+    }
 }
 
-/// An insertion-ordered dict keyed by hashable values: `grade_of` of the original.
+/// An insertion-ordered dict keyed by hashable values: `grade_of` of the original. Keys compare as a Python dict
+/// compares them (`==` for hashable values, so `1`, `1.0` and `True` are one key); the maps here hold a handful of
+/// entries, so a lookup is a scan. Keys and grades are borrowed from the document being read where they can be.
 #[derive(Default)]
-struct GradeMap {
-    entries: Vec<(HashKey, PyValue, PyValue)>,
+struct GradeMap<'a> {
+    entries: Vec<(Cow<'a, PyValue>, Cow<'a, PyValue>)>,
 }
 
-impl GradeMap {
-    fn position(&self, key: &HashKey) -> Option<usize> {
-        self.entries.iter().position(|(own, _, _)| own == key)
+impl<'a> GradeMap<'a> {
+    fn position(&self, key: &PyValue) -> Result<Option<usize>, Failure> {
+        check_hashable(key)?;
+        Ok(self
+            .entries
+            .iter()
+            .position(|(own, _)| same_or_eq(own, key)))
     }
 
     /// `key in grade_of`
     fn contains(&self, key: &PyValue) -> Result<bool, Failure> {
-        Ok(self.position(&hash_key(key)?).is_some())
+        Ok(self.position(key)?.is_some())
     }
 
     /// `grade_of[key]`
     fn get(&self, key: &PyValue) -> Result<Option<&PyValue>, Failure> {
-        let hashed = hash_key(key)?;
-        Ok(self.position(&hashed).map(|at| &self.entries[at].2))
+        Ok(self.position(key)?.map(|at| &*self.entries[at].1))
     }
 
     /// `grade_of[key] = grade`: an existing key keeps its place and its first spelling.
-    fn set(&mut self, key: PyValue, grade: PyValue) -> Result<(), Failure> {
-        let hashed = hash_key(&key)?;
-        match self.position(&hashed) {
-            Some(at) => self.entries[at].2 = grade,
-            None => self.entries.push((hashed, key, grade)),
+    fn set(&mut self, key: Cow<'a, PyValue>, grade: Cow<'a, PyValue>) -> Result<(), Failure> {
+        match self.position(&key)? {
+            Some(at) => self.entries[at].1 = grade,
+            None => self.entries.push((key, grade)),
         }
         Ok(())
     }
 
     fn iter(&self) -> impl Iterator<Item = (&PyValue, &PyValue)> {
-        self.entries.iter().map(|(_, key, grade)| (key, grade))
+        self.entries.iter().map(|(key, grade)| (&**key, &**grade))
     }
 }
 
@@ -656,6 +659,14 @@ fn write_sorted(value: &PyValue, out: &mut String) -> Result<(), Failure> {
         scalar => out.push_str(&scalar.dumps_ascii().map_err(dump_failure)?),
     }
     Ok(())
+}
+
+/// `_norm(v)` that keeps a value that needs no conversion where it is.
+fn norm_cow(value: &PyValue) -> Result<Cow<'_, PyValue>, Failure> {
+    match value.peel() {
+        PyValue::Dict(_) => Ok(Cow::Owned(PyValue::str(&dumps_sorted(value)?))),
+        _ => Ok(Cow::Borrowed(value)),
+    }
 }
 
 /// `_norm(v)` for callers outside this module.
@@ -1184,17 +1195,26 @@ fn map_shape(value: &PyValue) -> PyStr {
 /// `dataset_cross_problems(values)`: `synthetic` means every other dataset knob is null, anything else means none
 /// is. `values` is read with `.get`, so a knob that is absent counts as null.
 pub fn dataset_cross_problems(values: &PyValue) -> Result<Vec<PyStr>, Failure> {
-    let get = |name: &str| get_or_none(values, name);
-    let kind = get("dataset_kind")?;
+    match values.peel() {
+        PyValue::Dict(map) => Ok(cross_problems(&|name| field_of(map, name))),
+        other => Err(Failure::new(
+            "AttributeError",
+            &format!("'{}' object has no attribute 'get'", other.type_name()),
+        )),
+    }
+}
+
+/// The cross rule over a reader of the dataset knob values.
+fn cross_problems<'a>(get: &dyn Fn(&str) -> &'a PyValue) -> Vec<PyStr> {
+    let kind = get("dataset_kind");
     let rest = &DATASET_KNOBS[1..];
-    if py_eq(&kind, &PyValue::str(DATASET_SYNTHETIC)) {
-        let mut bad = Vec::new();
-        for name in rest {
-            if !matches!(get(name)?.peel(), PyValue::None) {
-                bad.push(*name);
-            }
-        }
-        return Ok(if bad.is_empty() {
+    if is_str(kind, DATASET_SYNTHETIC) {
+        let bad: Vec<&str> = rest
+            .iter()
+            .copied()
+            .filter(|name| !matches!(get(name).peel(), PyValue::None))
+            .collect();
+        return if bad.is_empty() {
             Vec::new()
         } else {
             vec![cat!(
@@ -1202,15 +1222,14 @@ pub fn dataset_cross_problems(values: &PyValue) -> Result<Vec<PyStr>, Failure> {
                 names_repr(&bad),
                 " 가 null 이 아니다 — 합성 입력에는 출처 값이 없다"
             )]
-        });
+        };
     }
-    let mut missing = Vec::new();
-    for name in rest {
-        if matches!(get(name)?.peel(), PyValue::None) {
-            missing.push(*name);
-        }
-    }
-    Ok(if missing.is_empty() {
+    let missing: Vec<&str> = rest
+        .iter()
+        .copied()
+        .filter(|name| matches!(get(name).peel(), PyValue::None))
+        .collect();
+    if missing.is_empty() {
         Vec::new()
     } else {
         vec![cat!(
@@ -1220,7 +1239,7 @@ pub fn dataset_cross_problems(values: &PyValue) -> Result<Vec<PyStr>, Failure> {
             names_repr(&missing),
             " 가 비었다 — 실제 데이터셋은 출처 전부를 선언한다"
         )]
-    })
+    }
 }
 
 /// `check_dataset_runtime(values)`: at measurement time, the source exists, is readable and has the declared
@@ -1259,7 +1278,7 @@ pub fn check_dataset_runtime(values: &PyValue) -> Result<PyValue, Failure> {
             &crate::cli::os_error_text(&error, &path),
         )
     })?;
-    let mut digest = Sha256::new();
+    let mut digest = Context::new(&SHA256);
     let mut chunk = vec![0u8; 1 << 20];
     loop {
         let filled = read_piece(&mut file, &mut chunk)?;
@@ -1268,7 +1287,7 @@ pub fn check_dataset_runtime(values: &PyValue) -> Result<PyValue, Failure> {
         }
         digest.update(&chunk[..filled]);
     }
-    let measured = hex_lower(&digest.finalize());
+    let measured = hex_lower(digest.finish().as_ref());
     let declared = item(values, "source_sha256")?;
     if !py_eq(&PyValue::str(&measured), &declared) {
         return Err(preset_error(cat!(
@@ -1329,13 +1348,15 @@ fn hex_lower(bytes: &[u8]) -> String {
 // ── validation ──────────────────────────────────────────────────────────────────
 
 /// `validate_preset(doc, bindings)`: the violations of the closed schema (empty = pass). `bindings` is not read.
+///
+/// The document is only read: a value is looked at where it lies, and a message is built only for a violation.
 pub fn validate_preset(doc: &PyValue, _bindings: &PyValue) -> Result<Vec<PyStr>, Failure> {
     let mut problems: Vec<PyStr> = Vec::new();
     let PyValue::Dict(top) = doc.peel() else {
         return Ok(vec![PyStr::new("프리셋 최상위가 객체가 아니다")]);
     };
-    let top_contract = KeyContract::of(top, &TOP_KEYS)?;
-    if !top_contract.holds() {
+    if !keys_exactly(top, &TOP_KEYS) {
+        let top_contract = KeyContract::of(top, &TOP_KEYS)?;
         problems.push(cat!(
             "최상위 키 계약 위반(누락 ",
             top_contract.missing_repr(),
@@ -1344,9 +1365,8 @@ pub fn validate_preset(doc: &PyValue, _bindings: &PyValue) -> Result<Vec<PyStr>,
             ") — 값만 조정한다. 꺼 둔 블록·다른 도구 블록을 실제 키로 남기지 않는다"
         ));
     }
-    let field = |name: &str| top.get(name).cloned().unwrap_or(PyValue::None);
-    let version = field("schema_version");
-    if !py_eq(&version, &int_value(SCHEMA_VERSION)) {
+    let version = field_of(top, "schema_version");
+    if !is_small_int(version, SCHEMA_VERSION) {
         problems.push(cat!(
             "schema_version 은 ",
             SCHEMA_VERSION.to_string(),
@@ -1355,8 +1375,8 @@ pub fn validate_preset(doc: &PyValue, _bindings: &PyValue) -> Result<Vec<PyStr>,
             ")"
         ));
     }
-    let bench = field("bench");
-    if !is_str(&bench, FULL_BENCH) {
+    let bench = field_of(top, "bench");
+    if !is_str(bench, FULL_BENCH) {
         problems.push(cat!(
             "bench 는 바인딩 키 '",
             FULL_BENCH,
@@ -1365,8 +1385,8 @@ pub fn validate_preset(doc: &PyValue, _bindings: &PyValue) -> Result<Vec<PyStr>,
             ")"
         ));
     }
-    let tool = field("tool");
-    if !text_contains(&KNOWN_TOOLS, &tool) {
+    let tool = field_of(top, "tool");
+    if !text_contains(&KNOWN_TOOLS, tool) {
         problems.push(cat!(
             "tool 은 ",
             names_repr(&KNOWN_TOOLS),
@@ -1375,16 +1395,14 @@ pub fn validate_preset(doc: &PyValue, _bindings: &PyValue) -> Result<Vec<PyStr>,
             ")"
         ));
     }
-    let reason_codes = field("reason_codes");
-    let reasons_map = match reason_codes.peel() {
-        PyValue::Dict(map) if !map.is_empty() => Some(map.clone()),
+    let empty = PyDict::new();
+    let reasons_map: &PyDict = match field_of(top, "reason_codes").peel() {
+        PyValue::Dict(map) if !map.is_empty() => map,
         _ => {
             problems.push(PyStr::new("reason_codes 는 비어 있지 않은 객체여야 한다"));
-            None
+            &empty
         }
     };
-    let empty = PyDict::new();
-    let reasons_map = reasons_map.as_ref().unwrap_or(&empty);
     for (other, code, description) in reasons_map.keyed_entries() {
         let code_ok = other.is_none() && is_reason_code(code);
         if !code_ok {
@@ -1398,8 +1416,7 @@ pub fn validate_preset(doc: &PyValue, _bindings: &PyValue) -> Result<Vec<PyStr>,
                 " 는 [a-z][a-z0-9_]* 여야 한다"
             ));
         }
-        let description_ok =
-            matches!(description.peel(), PyValue::Str(text) if !text.strip().is_empty());
+        let description_ok = matches!(description.peel(), PyValue::Str(text) if !text.is_blank());
         if !description_ok {
             let shown = match other {
                 Some(other) => other.repr.clone(),
@@ -1417,14 +1434,13 @@ pub fn validate_preset(doc: &PyValue, _bindings: &PyValue) -> Result<Vec<PyStr>,
             ));
         }
     }
-    let knobs_value = field("knobs");
-    let PyValue::Dict(knobs) = knobs_value.peel() else {
+    let PyValue::Dict(knobs) = field_of(top, "knobs").peel() else {
         problems.push(PyStr::new("knobs 는 객체여야 한다"));
         return Ok(problems);
     };
     let spec_names: Vec<&'static str> = KNOB_SPECS.iter().map(|spec| spec.name).collect();
-    let knob_contract = KeyContract::of(knobs, &spec_names)?;
-    if !knob_contract.holds() {
+    if !keys_exactly(knobs, &spec_names) {
+        let knob_contract = KeyContract::of(knobs, &spec_names)?;
         problems.push(cat!(
             "knobs 키 계약 위반(누락 ",
             knob_contract.missing_repr(),
@@ -1433,13 +1449,16 @@ pub fn validate_preset(doc: &PyValue, _bindings: &PyValue) -> Result<Vec<PyStr>,
             ")"
         ));
     }
-    for (other, name_text, knob_value) in knobs.keyed_entries() {
-        let Some(spec) = other
-            .is_none()
-            .then(|| name_text.to_utf8())
-            .flatten()
-            .and_then(|name| knob_spec(&name))
-        else {
+    for (position, (other, name_text, knob_value)) in knobs.keyed_entries().enumerate() {
+        if other.is_some() {
+            continue;
+        }
+        // the table is usually in the document's order: try the spec at the same position first
+        let spec = KNOB_SPECS
+            .get(position)
+            .filter(|spec| name_text.equals(spec.name))
+            .or_else(|| KNOB_SPECS.iter().find(|spec| name_text.equals(spec.name)));
+        let Some(spec) = spec else {
             continue;
         };
         validate_knob(spec, knob_value, reasons_map, &mut problems)?;
@@ -1448,12 +1467,11 @@ pub fn validate_preset(doc: &PyValue, _bindings: &PyValue) -> Result<Vec<PyStr>,
         .iter()
         .all(|name| matches!(knobs.get(name).map(PyValue::peel), Some(PyValue::Dict(_))));
     if all_datasets {
-        let mut defaults = PyDict::new();
-        for name in DATASET_KNOBS {
-            let knob_doc = knobs.get(name).expect("checked above");
-            defaults.set(name, get_or_none(knob_doc, "default")?);
-        }
-        for problem in dataset_cross_problems(&PyValue::Dict(defaults))? {
+        let default_of = |name: &str| match knobs.get(name).map(PyValue::peel) {
+            Some(PyValue::Dict(knob)) => field_of(knob, "default"),
+            _ => NONE,
+        };
+        for problem in cross_problems(&default_of) {
             problems.push(cat!("knobs 기본값 ", problem));
         }
     }
@@ -1483,15 +1501,15 @@ fn validate_knob(
     problems: &mut Vec<PyStr>,
 ) -> Result<(), Failure> {
     let name = spec.name;
-    let where_ = format!("knobs.{name}");
+    let where_ = || format!("knobs.{name}");
     let PyValue::Dict(knob_map) = knob_doc.peel() else {
-        problems.push(cat!(where_, " 는 객체여야 한다"));
+        problems.push(cat!(where_(), " 는 객체여야 한다"));
         return Ok(());
     };
-    let contract = KeyContract::of(knob_map, &KNOB_KEYS)?;
-    if !contract.holds() {
+    if !keys_exactly(knob_map, &KNOB_KEYS) {
+        let contract = KeyContract::of(knob_map, &KNOB_KEYS)?;
         problems.push(cat!(
-            where_,
+            where_(),
             " 키 계약 위반(누락 ",
             contract.missing_repr(),
             " · 미지 ",
@@ -1500,20 +1518,19 @@ fn validate_knob(
         ));
         return Ok(());
     }
-    let field = |key: &str| knob_map.get(key).cloned().unwrap_or(PyValue::None);
-    let owner = field("owner");
-    if !text_contains(&OWNERS, &owner) {
+    let owner = field_of(knob_map, "owner");
+    if !text_contains(&OWNERS, owner) {
         problems.push(cat!(
-            where_,
+            where_(),
             ".owner 는 ",
             names_repr(&OWNERS),
             " 중 하나다"
         ));
     }
-    let kind = field("kind");
-    if !is_str(&kind, spec.kind) {
+    let kind = field_of(knob_map, "kind");
+    if !is_str(kind, spec.kind) {
         problems.push(cat!(
-            where_,
+            where_(),
             ".kind 는 ",
             spec.kind,
             " 여야 한다(지금 ",
@@ -1521,10 +1538,10 @@ fn validate_knob(
             ")"
         ));
     }
-    let serving_cap = field("serving_cap");
-    if !text_contains(spec.caps, &serving_cap) {
+    let serving_cap = field_of(knob_map, "serving_cap");
+    if !text_contains(spec.caps, serving_cap) {
         problems.push(cat!(
-            where_,
+            where_(),
             ".serving_cap 은 ",
             names_repr(spec.caps),
             " 중 하나다(지금 ",
@@ -1532,40 +1549,44 @@ fn validate_knob(
             ")"
         ));
     }
-    let options = field("options");
     let mut grade_of = GradeMap::default();
-    let option_list: Vec<PyValue> = match options.peel() {
-        PyValue::List(list) if !list.is_empty() => list.clone(),
+    let option_list: &[PyValue] = match field_of(knob_map, "options").peel() {
+        PyValue::List(list) if !list.is_empty() => list,
         _ => {
-            problems.push(cat!(where_, ".options 는 비어 있지 않은 목록이어야 한다"));
-            Vec::new()
+            problems.push(cat!(where_(), ".options 는 비어 있지 않은 목록이어야 한다"));
+            &[]
         }
     };
     for (index, option) in option_list.iter().enumerate() {
-        let PyValue::Dict(option_map) = option.peel() else {
-            problems.push(cat!(
-                where_,
-                ".options[",
-                index.to_string(),
-                "] 는 정확히 {value, grade} 여야 한다"
-            ));
-            continue;
+        let option_map = match option.peel() {
+            PyValue::Dict(map) if keys_exactly(map, &OPTION_KEYS) => map,
+            PyValue::Dict(map) => {
+                // the contract check of the original sorts the stray keys, which can fail
+                KeyContract::of(map, &OPTION_KEYS)?;
+                problems.push(cat!(
+                    where_(),
+                    ".options[",
+                    index.to_string(),
+                    "] 는 정확히 {value, grade} 여야 한다"
+                ));
+                continue;
+            }
+            _ => {
+                problems.push(cat!(
+                    where_(),
+                    ".options[",
+                    index.to_string(),
+                    "] 는 정확히 {value, grade} 여야 한다"
+                ));
+                continue;
+            }
         };
-        if !KeyContract::of(option_map, &OPTION_KEYS)?.holds() {
-            problems.push(cat!(
-                where_,
-                ".options[",
-                index.to_string(),
-                "] 는 정확히 {value, grade} 여야 한다"
-            ));
-            continue;
-        }
-        let value = option_map.get("value").cloned().unwrap_or(PyValue::None);
-        let grade = option_map.get("grade").cloned().unwrap_or(PyValue::None);
+        let value = field_of(option_map, "value");
+        let grade = field_of(option_map, "grade");
         let nullable = is_dataset_knob(name) && matches!(value.peel(), PyValue::None);
-        if !nullable && !spec.value_type.accepts(&value) {
+        if !nullable && !spec.value_type.accepts(value) {
             problems.push(cat!(
-                where_,
+                where_(),
                 ".options[",
                 index.to_string(),
                 "].value=",
@@ -1577,9 +1598,9 @@ fn validate_knob(
             continue;
         }
         if is_dataset_knob(name) {
-            if let Some(bad) = dataset_shape_problem(name, &value)? {
+            if let Some(bad) = dataset_shape_problem(name, value)? {
                 problems.push(cat!(
-                    where_,
+                    where_(),
                     ".options[",
                     index.to_string(),
                     "].value ",
@@ -1588,22 +1609,18 @@ fn validate_knob(
                 continue;
             }
         }
-        let value = if matches!(value.peel(), PyValue::Dict(_)) {
-            PyValue::str(&dumps_sorted(&value)?)
-        } else {
-            value
-        };
+        let value = norm_cow(value)?;
         if grade_of.contains(&value)? {
             problems.push(cat!(
-                where_,
+                where_(),
                 ".options 에 값 ",
                 value.repr(),
                 " 가 중복된다"
             ));
         }
-        if !text_contains(&GRADES, &grade) {
+        if !text_contains(&GRADES, grade) {
             problems.push(cat!(
-                where_,
+                where_(),
                 ".options[",
                 index.to_string(),
                 "].grade 는 ",
@@ -1611,20 +1628,25 @@ fn validate_knob(
                 " 중 하나다"
             ));
         }
-        grade_of.set(value, grade)?;
+        grade_of.set(value, Cow::Borrowed(grade))?;
     }
-    let reasons_value = field("reasons");
-    let reasons: Vec<PyValue> = match reasons_value.peel() {
-        PyValue::List(list) if !list.is_empty() => list.clone(),
+    let reasons: &[PyValue] = match field_of(knob_map, "reasons").peel() {
+        PyValue::List(list) if !list.is_empty() => list,
         _ => {
-            problems.push(cat!(where_, ".reasons 는 비어 있지 않은 목록이어야 한다"));
-            Vec::new()
+            problems.push(cat!(where_(), ".reasons 는 비어 있지 않은 목록이어야 한다"));
+            &[]
         }
     };
-    for reason in &reasons {
-        if !dict_has_key(reason_codes, reason)? {
+    for reason in reasons {
+        let defined = match reason.peel() {
+            PyValue::Str(text) => reason_codes
+                .keyed_entries()
+                .any(|(other, key, _)| other.is_none() && key == text),
+            _ => dict_has_key(reason_codes, reason)?,
+        };
+        if !defined {
             problems.push(cat!(
-                where_,
+                where_(),
                 ".reasons 의 ",
                 reason.repr(),
                 " 가 reason_codes 에 정의돼 있지 않다(정의 자리는 하나)"
@@ -1634,57 +1656,55 @@ fn validate_knob(
     let has_reason = |wanted: &str| reasons.iter().any(|reason| is_str(reason, wanted));
     if !has_reason(HUMAN_PIN_REASON) {
         problems.push(cat!(
-            where_,
+            where_(),
             ".reasons 에 '",
             HUMAN_PIN_REASON,
             "' 가 없다 — 사람 핀은 어느 knob 에나 열려 있다"
         ));
     }
-    let default = field("default");
+    let default = field_of(knob_map, "default");
     if spec.no_default {
         if !matches!(default.peel(), PyValue::None) {
             problems.push(cat!(
-                where_,
+                where_(),
                 ".default 는 null 이어야 한다(기본값 없음 결정 유지 — 값이 없으면 기동 거부)"
             ));
         }
     } else {
         let is_list_kind = spec.kind == "list";
-        let mut default_values: Vec<PyValue> = if is_list_kind {
+        let raw_defaults: &[PyValue] = if is_list_kind {
             match default.peel() {
-                PyValue::List(list) | PyValue::Tuple(list) => list.clone(),
-                _ => Vec::new(),
+                PyValue::List(list) if !list.is_empty() => list,
+                _ => {
+                    problems.push(cat!(where_(), ".default 는 비어 있지 않은 목록이어야 한다"));
+                    &[]
+                }
             }
         } else {
-            vec![default.clone()]
+            std::slice::from_ref(default)
         };
-        if is_list_kind && !matches!(default.peel(), PyValue::List(list) if !list.is_empty()) {
-            problems.push(cat!(where_, ".default 는 비어 있지 않은 목록이어야 한다"));
-            default_values = Vec::new();
-        }
         if !has_reason(DEFAULT_REASON) {
             problems.push(cat!(
-                where_,
+                where_(),
                 ".reasons 에 '",
                 DEFAULT_REASON,
                 "' 가 없다(기본값이 있는 knob)"
             ));
         }
-        let mut converted = Vec::with_capacity(default_values.len());
-        for value in default_values {
-            converted.push(norm(&value)?);
-        }
-        let default_values = converted;
+        let default_values: Vec<Cow<'_, PyValue>> = raw_defaults
+            .iter()
+            .map(norm_cow)
+            .collect::<Result<_, Failure>>()?;
         for value in &default_values {
             match grade_of.get(value)? {
                 None => problems.push(cat!(
-                    where_,
+                    where_(),
                     ".default 의 ",
                     value.repr(),
                     " 가 options 밖이다"
                 )),
                 Some(grade) if !is_str(grade, "auto") => problems.push(cat!(
-                    where_,
+                    where_(),
                     ".default 의 ",
                     value.repr(),
                     " 는 auto 여야 한다(기본값은 누구나 열 수 있어야 한다)"
@@ -1692,19 +1712,24 @@ fn validate_knob(
                 Some(_) => {}
             }
         }
-        if name == "levels" && !list_contains(&default_values, &int_value(VERDICT_LEVEL)) {
+        if name == "levels"
+            && !default_values
+                .iter()
+                .any(|value| is_small_int(value, VERDICT_LEVEL))
+        {
             problems.push(cat!(
-                where_,
+                where_(),
                 ".default 는 판정점 ",
                 VERDICT_LEVEL.to_string(),
                 " 을 포함해야 한다"
             ));
         }
-        if is_str(&owner, "user") {
+        if is_str(owner, "user") {
             for (value, grade) in grade_of.iter() {
-                if !list_contains(&default_values, value) && !is_str(grade, "escalate") {
+                let is_default = default_values.iter().any(|own| same_or_eq(own, value));
+                if !is_default && !is_str(grade, "escalate") {
                     problems.push(cat!(
-                        where_,
+                        where_(),
                         " 는 owner: user 인데 비기본 값 ",
                         value.repr(),
                         " 가 ",
@@ -1715,9 +1740,13 @@ fn validate_knob(
             }
         }
     }
-    if name == "levels" && !grade_of.contains(&int_value(VERDICT_LEVEL))? {
+    if name == "levels"
+        && !grade_of
+            .iter()
+            .any(|(value, _)| is_small_int(value, VERDICT_LEVEL))
+    {
         problems.push(cat!(
-            where_,
+            where_(),
             ".options 에 판정점 ",
             VERDICT_LEVEL.to_string(),
             " 이 없다"
@@ -1726,9 +1755,14 @@ fn validate_knob(
     if name == "repeats" {
         for (value, _) in grade_of.iter() {
             if let PyValue::Int(number) = value.peel() {
-                if *number < BigInt::from(FULL_REPEATS_MIN) {
+                use num_traits::ToPrimitive;
+                let below = match number.to_i64() {
+                    Some(own) => own < i64::from(FULL_REPEATS_MIN),
+                    None => number.sign() == num_bigint::Sign::Minus,
+                };
+                if below {
                     problems.push(cat!(
-                        where_,
+                        where_(),
                         ".options 의 ",
                         value.repr(),
                         " 는 full 정의 하한 ",
@@ -1739,12 +1773,12 @@ fn validate_knob(
             }
         }
     }
-    if name == "backend" && !is_str(&owner, "agent") {
-        problems.push(cat!(where_, ".owner 는 agent 다(모델 계열에서 파생)"));
+    if name == "backend" && !is_str(owner, "agent") {
+        problems.push(cat!(where_(), ".owner 는 agent 다(모델 계열에서 파생)"));
     }
-    if is_dataset_knob(name) && !is_str(&owner, "user") {
+    if is_dataset_knob(name) && !is_str(owner, "user") {
         problems.push(cat!(
-            where_,
+            where_(),
             ".owner 는 user 다(데이터셋은 측정 축 — 프리셋 작성자가 정한다)"
         ));
     }
@@ -1929,17 +1963,20 @@ fn all_digits(text: &PyStr) -> bool {
 /// `None`.
 pub fn parse_cli_value(name: &PyValue, raw: &PyValue) -> Result<PyValue, Failure> {
     let spec = match name.peel() {
-        PyValue::Str(text) => text.to_utf8().as_deref().and_then(knob_spec),
+        PyValue::Str(text) => KNOB_SPECS.iter().find(|spec| text.equals(spec.name)),
         _ => None,
     };
     let Some(spec) = spec else {
-        hash_key(name)?;
+        check_hashable(name)?;
         return Err(Failure::with_message("KeyError", PyStr::new(&name.repr())));
     };
-    if matches!(raw.peel(), PyValue::None) || raw.display_text().strip().is_empty() {
+    // only a string can be blank (`str(value)` of anything else has characters)
+    if matches!(raw.peel(), PyValue::None)
+        || matches!(raw.peel(), PyValue::Str(text) if text.is_blank())
+    {
         return Ok(PyValue::None);
     }
-    let flag = flag_of(spec.name);
+    let flag = || flag_of(spec.name);
     let text = raw.display_text();
     if spec.kind == "list" {
         let mut values = Vec::new();
@@ -1949,7 +1986,7 @@ pub fn parse_cli_value(name: &PyValue, raw: &PyValue) -> Result<PyValue, Failure
                 continue;
             }
             if !all_digits(&token) {
-                return Err(preset_error(cat!(flag, " 원소는 정수만: ", token.repr())));
+                return Err(preset_error(cat!(flag(), " 원소는 정수만: ", token.repr())));
             }
             values.push(PyValue::Int(
                 crate::pynumber::int_from_str(&token).map_err(Failure::from)?,
@@ -1960,15 +1997,15 @@ pub fn parse_cli_value(name: &PyValue, raw: &PyValue) -> Result<PyValue, Failure
     if spec.value_type == ValueType::Int {
         let stripped = text.strip();
         if !all_digits(&stripped) {
-            return Err(preset_error(cat!(flag, " 는 정수다: ", raw.repr())));
+            return Err(preset_error(cat!(flag(), " 는 정수다: ", raw.repr())));
         }
         return Ok(PyValue::Int(
             crate::pynumber::int_from_str(&stripped).map_err(Failure::from)?,
         ));
     }
     if spec.value_type == ValueType::Dict {
-        let refused = || preset_error(cat!(flag, " 는 JSON 객체다: ", raw.repr()));
-        return match loads_text(&text) {
+        let refused = || preset_error(cat!(flag(), " 는 JSON 객체다: ", raw.repr()));
+        return match loads_text_objects(&text) {
             Ok(value @ PyValue::Dict(_)) => Ok(value),
             Ok(_) => Err(refused()),
             Err(error) if error.is_value_error() => Err(refused()),
@@ -2323,7 +2360,10 @@ pub fn resolve(
         let is_list = is_str(&kind, "list");
         let mut grade_of = GradeMap::default();
         for option in list_items(&item(spec, "options")?)? {
-            grade_of.set(norm(&item(&option, "value")?)?, item(&option, "grade")?)?;
+            grade_of.set(
+                Cow::Owned(norm(&item(&option, "value")?)?),
+                Cow::Owned(item(&option, "grade")?),
+            )?;
         }
         let cli_raw = get_or_none(cli, &name_utf8)?;
         let cli_value = parse_cli_value(&name_value, &cli_raw)?;
@@ -2516,7 +2556,7 @@ pub fn resolve(
         for entry in &vals {
             let normed = norm(entry)?;
             let grade = grade_of.get(&normed)?.cloned().unwrap_or(PyValue::None);
-            grades.set(normed, grade)?;
+            grades.set(Cow::Owned(normed), Cow::Owned(grade))?;
         }
         let reason: PyValue;
         if source == "cli_pin" || source == "campaign" {
@@ -2640,7 +2680,8 @@ pub fn resolve(
             } else {
                 let mut keep = Vec::new();
                 for entry in &vals {
-                    if compare(Compare::LessEqual, entry, &limit).map_err(Failure::from)?
+                    if compare(Compare::LessEqual, entry.peel(), limit.peel())
+                        .map_err(Failure::from)?
                         || py_eq(entry, &int_value(VERDICT_LEVEL))
                     {
                         keep.push(entry.clone());
@@ -2745,7 +2786,7 @@ pub fn resolve(
                 .cloned()
                 .ok_or_else(|| key_error("output_len"))?;
             let need = add_numbers(&input_len, &output_len)?;
-            if compare(Compare::Greater, &need, &model_len).map_err(Failure::from)? {
+            if compare(Compare::Greater, need.peel(), model_len.peel()).map_err(Failure::from)? {
                 return Err(preset_error(cat!(
                     "--input-len ",
                     percent_d(&input_len)?,
@@ -2884,12 +2925,10 @@ fn list_items(value: &PyValue) -> Result<Vec<PyValue>, Failure> {
 
 /// `sorted(dict.fromkeys(values))`: the distinct values (as a dict sees them), in order.
 fn sorted_unique(values: Vec<PyValue>) -> Result<Vec<PyValue>, Failure> {
-    let mut seen: Vec<HashKey> = Vec::new();
-    let mut unique = Vec::new();
+    let mut unique: Vec<PyValue> = Vec::new();
     for entry in values {
-        let key = hash_key(&entry)?;
-        if !seen.contains(&key) {
-            seen.push(key);
+        check_hashable(&entry)?;
+        if !unique.iter().any(|kept| same_or_eq(kept, &entry)) {
             unique.push(entry);
         }
     }

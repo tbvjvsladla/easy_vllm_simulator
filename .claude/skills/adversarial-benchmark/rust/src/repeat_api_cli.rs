@@ -17,7 +17,7 @@
 
 use crate::cli::{on_large_stack, write_stderr, PrintFailure, Streams, TRACEBACK_HEADER};
 use crate::guidellm::Failure;
-use crate::pyjson::{decode_file_text, loads, loads_text, LoadError};
+use crate::pyjson::{decode_file_text, loads, loads_text, loads_text_objects, LoadError};
 use crate::pystr::PyStr;
 use crate::pyvalue::{PyDict, PyValue};
 use crate::repeat_axis::{
@@ -445,7 +445,9 @@ pub(crate) fn load_failure(error: &LoadError) -> Failure {
 
 /// The arguments of a row: `arguments` (nested JSON) or `arguments_json` (each argument a raw JSON text decoded on
 /// its own); the two are mutually exclusive.
-pub(crate) fn row_arguments(row: &PyDict) -> Result<PyDict, Failure> {
+/// `nan_objects`: decode `arguments_json` texts so that a `NaN` is the decoder's shared object (see
+/// `pyjson::loads_objects`).
+pub(crate) fn row_arguments(row: &PyDict, nan_objects: bool) -> Result<PyDict, Failure> {
     match (row.get("arguments"), row.get("arguments_json")) {
         (Some(_), Some(_)) => Err(transport_error(
             "arguments and arguments_json are mutually exclusive",
@@ -466,7 +468,12 @@ pub(crate) fn row_arguments(row: &PyDict) -> Result<PyDict, Failure> {
                 };
                 decoded.insert(
                     name.clone(),
-                    loads_text(text).map_err(|error| load_failure(&error))?,
+                    if nan_objects {
+                        loads_text_objects(text)
+                    } else {
+                        loads_text(text)
+                    }
+                    .map_err(|error| load_failure(&error))?,
                 );
             }
             Ok(decoded)
@@ -498,7 +505,7 @@ fn evaluate_row(row: &PyValue, runtime: &Runtime) -> PyValue {
             Some(other) => other.repr(),
             None => return Err(Failure::new("KeyError", "'operation'")),
         };
-        evaluate_operation(&operation, &row_arguments(map)?, runtime)
+        evaluate_operation(&operation, &row_arguments(map, false)?, runtime)
     })();
     match outcome {
         Ok(value) => value_record(id, value, wire),

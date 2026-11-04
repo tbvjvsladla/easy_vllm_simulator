@@ -16,7 +16,14 @@
 use crate::guidellm::Failure;
 use crate::pynumber::PyException;
 use crate::pyops::{compare, num_of, Compare};
-use crate::pyvalue::PyValue;
+use crate::pyvalue::{same_nan_object, PyValue};
+
+/// Python's container comparison and `in`: two values that are the same object are equal, whatever `==` says
+/// (`[nan] == [nan]` when both hold one NaN object). The top-level `==` operator does not do this; `py_eq` does it
+/// only for the items of containers.
+pub fn same_or_eq(a: &PyValue, b: &PyValue) -> bool {
+    same_nan_object(a, b) || py_eq(a, b)
+}
 
 /// Python `a == b` for JSON values (numbers compare by value across `bool`/`int`/`float`).
 pub fn py_eq(a: &PyValue, b: &PyValue) -> bool {
@@ -33,14 +40,14 @@ pub fn py_eq(a: &PyValue, b: &PyValue) -> bool {
         (PyValue::Str(x), PyValue::Str(y)) => x == y,
         (PyValue::Bytes(x), PyValue::Bytes(y)) => x == y,
         (PyValue::List(x), PyValue::List(y)) | (PyValue::Tuple(x), PyValue::Tuple(y)) => {
-            x.len() == y.len() && x.iter().zip(y).all(|(p, q)| py_eq(p, q))
+            x.len() == y.len() && x.iter().zip(y).all(|(p, q)| same_or_eq(p, q))
         }
         (PyValue::Dict(x), PyValue::Dict(y)) => {
             x.len() == y.len()
                 && x.iter().all(|(key, value)| {
                     y.iter()
                         .find(|(other, _)| other == key)
-                        .is_some_and(|(_, other)| py_eq(value, other))
+                        .is_some_and(|(_, other)| same_or_eq(value, other))
                 })
         }
         (PyValue::Opaque(x), PyValue::Opaque(y)) => x == y,

@@ -12,12 +12,24 @@ const API: &str = env!("CARGO_BIN_EXE_bench_preset_api");
 
 #[test]
 fn frozen_746_original_observations_match_whole_records() {
-    let rows: Vec<String> = std::fs::read_to_string(data_path("api.jsonl"))
-        .expect("NOT_RUN: api.jsonl")
+    replay("api.jsonl", 746);
+}
+
+/// 78 hand-made edge documents (reordered keys, `bool`/`float` value equality, unhashable and odd types, big
+/// integers, dataset shapes) whose validation the ORIGINAL answered, captured from the original source and the actual
+/// installed config; they guard the validation hot path, which reads the document in place instead of copying it.
+#[test]
+fn original_answers_for_78_edge_documents_match_whole_records() {
+    replay("validate_edge.jsonl", 78);
+}
+
+fn replay(file: &str, count: usize) {
+    let rows: Vec<String> = std::fs::read_to_string(data_path(file))
+        .expect("NOT_RUN: case file")
         .lines()
         .map(str::to_string)
         .collect();
-    assert_eq!(rows.len(), 746);
+    assert_eq!(rows.len(), count);
     let mut payload = String::new();
     let mut expected = Vec::new();
     for line in &rows {

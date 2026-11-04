@@ -273,7 +273,8 @@ fn load(source: Source<'_>) -> Parsed<PyValue> {
     frames::forget_trace();
     let _get_single_data = frames::frame("get_single_data")?;
     let composed = compose::get_single_node(&mut parser)?;
-    compose::construct_document(composed)
+    // a `str` source is read by programs that test membership: its NaNs are objects (`pyvalue::nan_object`)
+    compose::construct_document(composed, matches!(source, Source::Text(_)))
 }
 
 #[cfg(test)]

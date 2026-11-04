@@ -5,7 +5,7 @@ use crate::pystr::PyStr;
 use num_bigint::BigInt;
 use num_traits::{FromPrimitive, Zero};
 use std::fmt;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 /// `sys.get_int_max_str_digits()` default: Python refuses to render longer integers.
 const MAX_INT_DIGITS: usize = 4300;
@@ -97,6 +97,48 @@ impl PartialEq for PyValue {
             (PyValue::Opaque(a), PyValue::Opaque(b)) => a == b,
             _ => false,
         }
+    }
+}
+
+/// NaN objects. `nan != nan` for every pair of numbers, but Python's `in`, dict lookup and container equality first ask
+/// whether both sides are the *same object*, so a NaN that two places share (`json.decoder`'s one `NaN` constant,
+/// `SafeConstructor.nan_value`, a YAML node reached through an alias) is found where a fresh NaN is not.
+///
+/// An object is an `Arc` around the number, carried as [`PyValue::Shared`] (the carrier YAML aliases already use):
+/// cloning a value clones the reference, so one object stays one object, and two separate `Arc`s are two objects. Its
+/// identity is the allocation, so nothing is encoded in the number and nothing can collide. A bare `PyValue::Float`
+/// is a NaN object nobody else refers to. Only the decoders that were asked for identity (see `pyjson::loads_objects`
+/// and `pyyaml::safe_load_text`) produce the carrier; every other reader keeps plain floats.
+pub fn nan_object() -> PyValue {
+    PyValue::Shared(Arc::new(PyValue::Float(f64::NAN)))
+}
+
+fn singleton(cell: &'static OnceLock<Arc<PyValue>>) -> PyValue {
+    PyValue::Shared(
+        cell.get_or_init(|| Arc::new(PyValue::Float(f64::NAN)))
+            .clone(),
+    )
+}
+
+/// The one object every JSON document decodes the literal `NaN` to (`json.decoder`'s constant).
+pub fn json_nan_constant() -> PyValue {
+    static CELL: OnceLock<Arc<PyValue>> = OnceLock::new();
+    singleton(&CELL)
+}
+
+/// The one object `.nan` is in every YAML document (`SafeConstructor.nan_value`); not JSON's.
+pub fn yaml_nan_constant() -> PyValue {
+    static CELL: OnceLock<Arc<PyValue>> = OnceLock::new();
+    singleton(&CELL)
+}
+
+/// Python `a is b` for NaN objects: both are the same carrier. Never true for numbers that merely compare.
+pub fn same_nan_object(a: &PyValue, b: &PyValue) -> bool {
+    match (a, b) {
+        (PyValue::Shared(x), PyValue::Shared(y)) => {
+            Arc::ptr_eq(x, y) && matches!(x.peel(), PyValue::Float(number) if number.is_nan())
+        }
+        _ => false,
     }
 }
 

@@ -28,7 +28,7 @@ use crate::bench_preset::{
 use crate::bench_preset_cli::Runtime;
 use crate::cli::{on_large_stack, write_stderr, Streams};
 use crate::guidellm::Failure;
-use crate::pyjson::{decode_file_text, loads};
+use crate::pyjson::{decode_file_text, loads_objects};
 use crate::pystr::PyStr;
 use crate::pyvalue::{PyDict, PyValue};
 use crate::repeat_api_cli::{
@@ -388,7 +388,7 @@ fn evaluate_row(row: &PyValue, runtime: &Runtime) -> PyValue {
             Some(other) => other.repr(),
             None => return Err(Failure::new("KeyError", "'operation'")),
         };
-        evaluate_operation(&operation, &row_arguments(map)?, runtime)
+        evaluate_operation(&operation, &row_arguments(map, true)?, runtime)
     })();
     match outcome {
         Ok(value) => value_record(id, value, wire),
@@ -421,7 +421,7 @@ fn run_jsonl(runtime: &Runtime, io: &mut Streams<'_>) -> i32 {
     let output = on_large_stack(|| {
         let mut out = String::new();
         for line in text.lines().filter(|line| !line.trim().is_empty()) {
-            let record = match loads(line) {
+            let record = match loads_objects(line) {
                 Ok(row) => evaluate_row(&row, runtime),
                 Err(error) => exception_record(PyValue::None, &load_failure(&error), Wire::Values),
             };
