@@ -4,6 +4,12 @@
   "edges": [
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/selftest_rust_bootstrap.sh",
+      "phase": "verification_plane",
+      "reason": "Rust 신규 노드 설치·실패·재실행·명시 실행의 offline 계약 회귀를 실행한다(RUST-BOOT)"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
       "callee": "terraforming_node/scripts/selftest_harness_switch.py",
       "phase": "verification_plane",
       "reason": "하네스 전환 배포 검증 — 실제 relay·canary builder와 provider 결과·세션·원장 통합 픽스처를 실행한다(plan_26102623)"

@@ -1,0 +1,9 @@
+# rust_toolchain.pin — Rust 도구체인 버전 정본. 이 파일 한 곳이 값을 소유한다(helper·문서·검사는 읽기만 한다).
+# 소비자: rust_bootstrap.sh (파싱은 KEY=VALUE 줄만 — 값 줄 끝에 주석을 붙이지 않는다).
+# 근거: 공식 stable 채널 manifest 실측(2026-11-04) — rust 1.99.1 · 배포 2026-10-15 · aarch64/x86_64 unknown-linux-gnu available.
+# 갱신은 이 파일을 고치는 커밋이며, 갱신 뒤 각 노드는 `rust_bootstrap.sh install` 로 stale → ready 가 된다.
+RUST_VERSION=1.99.1
+RUST_RELEASE_DATE=2026-10-15
+RUST_PROFILE=minimal
+RUST_COMPONENTS=rustfmt,clippy
+RUST_SUPPORTED_TRIPLES=aarch64-unknown-linux-gnu,x86_64-unknown-linux-gnu

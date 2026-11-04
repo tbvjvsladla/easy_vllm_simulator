@@ -148,6 +148,8 @@ SUB_CONTRACT_READERS = (
 )
 # Both roles run this explicit local permission canary; its self-tests remain main-only.
 SUB_PERMISSION_PROBES = ("harness_permission_probe.py",)
+SUB_RUST_BOOTSTRAP = ("rust_bootstrap.sh", "rust_toolchain.pin")
+RUST_RUNTIME_REFERENCE = ".claude/skills/terraforming_node/references/install/rust_runtime.md"
 
 RUNTIME_BLOCK_EXCLUDES = {
     "upstream-version-watch": (
@@ -404,7 +406,8 @@ def support_delivery(tool_plane) -> list:
     """런타임블럭 밖에 싣는 **지원 배달분**(스킬로 실행하지 않되 잔재도 아니다) — render_tree 와 같은 규칙:
     캠페인 도구 + 계약 리더는 모든 서브에, 사서 참조 발췌는 recipe 스킬이 가는 서브에만."""
     out = [f".claude/skills/terraforming_node/scripts/{t}" for t in
-           CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES]
+           CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES + SUB_RUST_BOOTSTRAP]
+    out.append(RUST_RUNTIME_REFERENCE)
     if (os.path.isfile(TOPOLOGY_RULES) and "handoff_exception.topology.md" in
             pathlib.Path(TOPOLOGY_RULES).read_text(encoding="utf-8")):
         out.append(".claude/policies/handoff_exception.topology.md")
@@ -830,7 +833,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     _ci_src = os.path.join(REPO, ".claude", "skills", "terraforming_node", "scripts")
     _ci_dst = os.path.join(claude, "skills", "terraforming_node", "scripts")
     os.makedirs(_ci_dst, exist_ok=True)
-    for _tool in CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES:
+    for _tool in CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES + SUB_RUST_BOOTSTRAP:
         _abs = os.path.join(_ci_src, _tool)
         if not os.path.isfile(_abs):
             raise SystemExit(
@@ -838,6 +841,13 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 "   뼈대만 보내고 채우는 손을 안 보내면 phases/sub가 실행자 0이 된다.")
         shutil.copy2(_abs, os.path.join(_ci_dst, _tool))
         produced.append(f".claude/skills/terraforming_node/scripts/{_tool}")
+
+    _rust_ref = os.path.join(REPO, RUST_RUNTIME_REFERENCE)
+    _tracked_or_die(RUST_RUNTIME_REFERENCE, tracked_list)
+    _rust_ref_dst = os.path.join(out_dir, RUST_RUNTIME_REFERENCE)
+    os.makedirs(os.path.dirname(_rust_ref_dst), exist_ok=True)
+    shutil.copy2(_rust_ref, _rust_ref_dst)
+    produced.append(RUST_RUNTIME_REFERENCE)
 
     # ★ 2026-09-07(plan_26090715 §5 ⑤ · 유예 결함 ⑤): `campaigns/README.md` 도 함께 보낸다.
     #   뼈대 파일은 도착하는데 **읽는 법**이 안 도착했다 — README 가 Agent 읽기 순서(0번
@@ -1285,9 +1295,16 @@ def _self_test() -> int:
         #   ① 있어야 할 2개가 있다 ② 그 밖의 terraforming 스크립트가 새지 않았다.
         _tn = os.path.join(_out, ".claude", "skills", "terraforming_node", "scripts")
         _tn_files = sorted(os.listdir(_tn)) if os.path.isdir(_tn) else []
-        _tn_want = sorted(CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES
+        _tn_want = sorted(CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES + SUB_RUST_BOOTSTRAP
                           + (SUB_HINT_EQUIP_TOOLS if "hint-publisher" in _want else ()))
         _tn_ok = _tn_files == _tn_want
+        _rust_helper = os.path.join(_tn, "rust_bootstrap.sh")
+        _rust_help = subprocess.run(["bash", _rust_helper, "--help"],
+                                    capture_output=True, text=True, timeout=20)
+        _rust_ok = (os.access(_rust_helper, os.X_OK)
+                    and _rust_help.returncode == 0
+                    and os.path.isfile(os.path.join(_out, RUST_RUNTIME_REFERENCE))
+                    and not os.path.exists(os.path.join(_out, ".claude/runtime/rust")))
         # 해소 자산은 싱글 서브에 가지 않는다 — 가면 서브가 스스로 해소할 이유가 없어진다(F4).
         _res = os.path.exists(os.path.join(
             _out, ".claude/skills/upstream-version-watch/assets/current-production-resolution.json"))
@@ -1301,7 +1318,7 @@ def _self_test() -> int:
         _sup_ok = _sup == _real
         # 색인·카탈로그·역할 마커는 어느 토폴로지에도 가지 않는다(엔진이 가는 single 에서도).
         _never = [r for r in HINT_NEVER_DELIVER if os.path.exists(os.path.join(_out, r))]
-        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok and _wrapper_ok
+        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok and _wrapper_ok and _rust_ok
               and not _res and _sup_ok and not _never)
         print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} "
               f"refs={_ref} 캠페인도구={_tn_files} 해소자산누수={_res} 지원배달목록일치={_sup_ok} "

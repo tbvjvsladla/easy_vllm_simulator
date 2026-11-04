@@ -43,12 +43,12 @@ def _require(condition: object, message: str) -> None:
 
 
 def _walk_governing_files(root: Path, pattern: str):
-    """Yield files governed by ``root``, excluding nested harness worktrees."""
+    """Yield harness sources, excluding nested worktrees and node-local installed tools."""
     claude_dir = root / ".claude"
     for dirpath, dirnames, filenames in os.walk(claude_dir):
         if Path(dirpath) == claude_dir:
-            # This is the harness isolation container, not a governed subtree.
-            dirnames[:] = [name for name in dirnames if name != "worktrees"]
+            # Runtime toolchains are generated/ignored host packages, not shipped harness code.
+            dirnames[:] = [name for name in dirnames if name not in {"worktrees", "runtime"}]
         for name in filenames:
             if fnmatch.fnmatch(name, pattern):
                 yield Path(dirpath) / name
@@ -129,11 +129,14 @@ def _test_nested_worktree_isolation() -> None:
             (nested / "stale.py").write_text("assert False\n", encoding="utf-8")
             (nested / "stale.bak").write_text("stale\n", encoding="utf-8")
             (nested / "stale.md").write_text("tracked_index\n", encoding="utf-8")
+            generated = root / ".claude/runtime/rust/lib"
+            generated.mkdir(parents=True)
+            (generated / "debugger.py").write_text("assert False\n", encoding="utf-8")
             _test_no_production_asserts(root)
             _test_no_backup_artifacts(root)
             _test_no_retired_hash_mechanism_prose(root)
             _require(not verify_distribution._shipped_python_paths(root),
-                     "distribution scan included nested worktree Python")
+                     "distribution scan included nested worktree or installed runtime Python")
 
             current_python = root / ".claude/current.py"
             current_python.write_text("assert False\n", encoding="utf-8")

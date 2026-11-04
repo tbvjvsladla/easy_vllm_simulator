@@ -261,10 +261,10 @@ def _terraform_flag_issued() -> bool:
 
 
 def _shipped_python_paths(root: Path = REPO) -> list[Path]:
-    """Return Python files shipped by this checkout, excluding nested harness worktrees."""
-    worktree_root = root / ".claude/worktrees"
+    """Return shipped Python sources, excluding nested worktrees and generated toolchains."""
+    excluded = (root / ".claude/worktrees", root / ".claude/runtime")
     return sorted(path for path in (root / ".claude").rglob("*.py")
-                  if worktree_root not in path.parents)
+                  if not any(directory in path.parents for directory in excluded))
 
 
 def _gitless_hint_match_checks() -> list[dict]:
@@ -873,6 +873,8 @@ def verify() -> dict:
              ".claude/skills/terraforming_node/scripts/bootstrap_canary.py", "--self-test"], {0}),
         _run("terraform_bootstrap_permissions_selftest", [sys.executable, "-B",
              ".claude/skills/terraforming_node/scripts/selftest_bootstrap_permissions.py"], {0}),
+        _run("terraform_rust_bootstrap_selftest", ["bash",
+             ".claude/skills/terraforming_node/scripts/selftest_rust_bootstrap.sh"], {0}),
         _run("terraform_sub_hint_write_scopes_selftest", [sys.executable, "-B",
              ".claude/skills/terraforming_node/scripts/selftest_sub_hint_write_scopes.py"], {0}),
         # single 서브 hint 발행 장착 판정·장착(plan_26101104 Step 3 · 2026-10-11). 호출자 없는 자체검사는 L1(산문)이다.

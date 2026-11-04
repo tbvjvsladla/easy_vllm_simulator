@@ -8,6 +8,10 @@ __pycache__/
 *.py[cod]
 *.so
 
+# Rust compiler/cache and build output belong to this node, not the overlay.
+/.claude/runtime/rust/
+target/
+
 # ── 캠페인 런타임 인스턴스 ──
 # 메인과 동일하게 틀(README.md + _template/**)만 추적한다. ACTIVE, _bootstrap 및
 # campaigns/<camp-id>/**(cmap/phase/cell/relay 중간 산출물 포함)는 checkout 대상이 아니다.
