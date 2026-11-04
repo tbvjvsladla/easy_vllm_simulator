@@ -999,8 +999,8 @@ def verify() -> dict:
         #   같은 이유다 — 호출자 없는 자체검사는 L2 가 아니라 L1(산문)이다. 이 평가기는 예산을
         #   선언 없이 판정하지 않는 fail-closed 이고(§4.8), 그 거부 경로가 살아 있는지는 음성
         #   사례 6건이 지킨다. 순수 결정론(파일·시계·서빙 불요 — 시각은 주입만 받는다).
-        _run("benchmark_sweep_stop_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/sweep_stop.py", "--self-test"], {0}),
+        _run("benchmark_sweep_stop_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/sweep_stop.sh", "--self-test"], {0}),
         # 루브릭 권한 통로의 fail-closed (plan_26090415 §1.2 · CP2 · 2026-09-04).
         #   `--authority` 를 넘기는 실행 코드가 0건이었던 것이 explore 인증서 0건의 원인이다.
         #   통로를 만들었으니 그 통로가 **권한을 발명하지 않는지**를 여기서 집행한다 —

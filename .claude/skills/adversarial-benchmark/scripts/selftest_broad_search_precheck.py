@@ -46,7 +46,8 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[4]
 COPIES = (
     ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
-    ".claude/skills/adversarial-benchmark/scripts/sweep_stop.py",
+    ".claude/skills/adversarial-benchmark/scripts/sweep_stop.sh",
+    ".claude/skills/adversarial-benchmark/rust/target/release/sweep_stop",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell.py",
     ".claude/skills/terraforming_node/scripts/campaign_init.py",
     ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
@@ -254,7 +255,8 @@ def main() -> int:
         # J — 판정자 부재. 부하 경로에서 hand-authored 로 두어, precheck 가 사라지면 curl 까지 가게 한다
         #     (음성대조가 실제로 "판정자 부재 → 통과" 변이를 잡으려면 통과 조건이 갖춰져 있어야 한다).
         _lockset(root, {"id": CELL, "provenance": "hand-authored"})
-        ci_copy = root / COPIES[3]
+        # 복사목록에 native 실행파일이 추가돼도 동일한 판정자 결손을 주입한다.
+        ci_copy = root / ".claude/skills/terraforming_node/scripts/campaign_init.py"
         ci_bytes = ci_copy.read_bytes()
         marker.unlink(missing_ok=True)
         ci_copy.unlink()
@@ -271,7 +273,7 @@ def main() -> int:
 
         # K — 검증기 부재. 판정자는 돌지만 판정하지 못한다(rc 1 · stdout 비어 있음). 출처 표시 문제로
         #     안내하면 운영자는 lockset 에 거짓 라벨을 덮어쓴다 — 분류가 달라야 한다.
-        val_copy = root / COPIES[4]
+        val_copy = root / ".claude/skills/terraforming_node/scripts/campaign_template_validator.py"
         val_bytes = val_copy.read_bytes()
         marker.unlink(missing_ok=True)
         val_copy.unlink()

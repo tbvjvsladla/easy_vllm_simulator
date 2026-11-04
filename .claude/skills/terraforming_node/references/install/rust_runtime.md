@@ -30,15 +30,35 @@ bash .claude/skills/terraforming_node/scripts/rust_bootstrap.sh exec -- cargo --
 fmt와 Clippy도 실행하며, 자신의 임시 probe만 정리한다. 이 검사를 통과하지 않은 노드를 Rust 준비 완료로
 기록하지 않는다. 별도 ready flag를 만들지 않는다. 실패 시 실제 원인·명령·종료를 testlog에 기록한다.
 
-이행된 실제 crate가 생기면 같은 `exec -- cargo build --locked --manifest-path <Cargo.toml>` 환경에서 빌드하고
-그 native 진입점의 `--self-test`/적용 검사를 수행한다. std-only probe 통과는 어플리케이션 이행 완료가 아니다.
+## 업무 실행파일 빌드·기동
+
+도구체인 검증 뒤에는 **그 노드에 배달된 Rust 업무 패키지**를 빌드한다. main과
+`adversarial-benchmark`를 받는 a2a-agent sub는 다음을 수행한다.
+
+```bash
+bash .claude/skills/adversarial-benchmark/scripts/build_rust.sh
+bash .claude/skills/adversarial-benchmark/scripts/sweep_stop.sh --self-test
+```
+
+owner의 build 진입점은 위 helper의 동일 관리 환경으로 `cargo build --release --locked`를 실행하고
+native 자체검사를 수행한다. Cargo.lock의 공개 의존성을 첫 빌드 때 내려받을 수 있어야 한다.
+캐시가 준비된 환경에서는 `build_rust.sh --offline`을 쓸 수 있으며, 캐시 결손은 실패로 반환한다.
+다른 관리 runtime 위치가 필요한 검증은 `--runtime-home DIR`로 명시한다.
+모든 생성물은 owner의 ignored `rust/target/`에 두고, 실행 런처는 컴파일 결과를 직접 기동한다.
+일반 기동이 설치/다운로드/컴파일을 수행하거나 Python으로 대체하지 않는다.
+
+tool_plane이 런타임 스킬 0종인 ray-worker sub는 이 업무 패키지 빌드가 적용되지 않는다.
+도구체인 install/check는 그 노드에도 적용한다. 실제 전달 대상에 owner 패키지가 있어야 하는데
+없거나 lockfile/빌드/기동 검사가 실패하면 해당 하네스 배포 완료로 기록하지 않는다.
+std-only probe 통과는 어플리케이션 이행 완료가 아니다.
 
 ## 서브와 다른 PC 배포
 
 새 checkout에도 helper·pin·이 참조가 있어야 한다. `terraforming_node` 전체를 서브에 복제하지 않는다.
 기존 renderer의 support delivery가 helper·pin·이 참조와 generated CLAUDE 안내를 전달한다.
 컴파일 결과·메인 runtime home·개인 `.cargo`/`.rustup`·인증은 배달하지 않는다.
-두 topology의 서브 모두 자기 노드에서 위 install → check를 수행한다.
+두 topology의 서브 모두 자기 노드에서 위 install → check를 수행하고,
+자기 tool_plane에 배달된 Rust 업무 패키지의 build → native 검사를 이어 수행한다.
 
 메인 워커는 기존 인가·dry-run → apply 오버레이로 자산을 배달하고 기존 A2A 경로로 서브에 설치/검증을
 지시한다. 실제 명령·pin·host·빌드/실행 결과는 서브 testlog로 발행하고 문서기반으로 회수한다.

@@ -42,7 +42,9 @@
 
 Rust 실행환경 지원분은 `scripts/rust_bootstrap.sh`·`scripts/rust_toolchain.pin`과
 `references/install/rust_runtime.md`다. renderer가 두 topology에 전달하고, 서브는 자기 노드에서
-기존 승인/A2A 경로로 install → check를 실행한다. 메인의 컴파일 결과/개인 Cargo 환경은 배달하지 않는다.
+기존 승인/A2A 경로로 install → check와 자기 tool_plane의 Rust 업무 패키지 build/native 검사를 실행한다.
+메인의 컴파일 결과/개인 Cargo 환경은 배달하지 않는다.
+
 | 경로(서브 루트) | 내용 | 전달타입 |
 |---|---|---|
 | `CLAUDE.md` | 페르소나(Karpathy B1–B4, **노드정체성 bake**, 자율 triplet 저작 + 자기교정) | 렌더(gitignored) |

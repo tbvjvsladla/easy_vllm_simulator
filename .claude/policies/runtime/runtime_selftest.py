@@ -132,6 +132,7 @@ def _test_nested_worktree_isolation() -> None:
             generated = root / ".claude/runtime/rust/lib"
             generated.mkdir(parents=True)
             (generated / "debugger.py").write_text("assert False\n", encoding="utf-8")
+            (generated / "Cargo.toml.orig").write_text("third-party Cargo metadata\n", encoding="utf-8")
             _test_no_production_asserts(root)
             _test_no_backup_artifacts(root)
             _test_no_retired_hash_mechanism_prose(root)
@@ -159,6 +160,17 @@ def _test_nested_worktree_isolation() -> None:
             else:
                 raise RuntimeSelftestFailure("backup scan did not catch current-tree violation")
             current_backup.unlink()
+
+            policy_backup = root / ".claude/policies/runtime/current.orig"
+            policy_backup.parent.mkdir(parents=True, exist_ok=True)
+            policy_backup.write_text("canonical violation\n", encoding="utf-8")
+            try:
+                _test_no_backup_artifacts(root)
+            except RuntimeSelftestFailure:
+                pass
+            else:
+                raise RuntimeSelftestFailure("backup scan omitted canonical policies/runtime")
+            policy_backup.unlink()
 
             current_prose = root / ".claude/current.md"
             current_prose.write_text("tracked_index\n", encoding="utf-8")
@@ -2121,6 +2133,11 @@ def _test_no_backup_artifacts(root: Path | None = None) -> None:
         rel_dir = os.path.relpath(dirpath, root)
         if rel_dir == ".":
             dirnames[:] = [d for d in dirnames if d not in _BACKUP_SCAN_PRUNE_TOP]
+        elif Path(rel_dir) == Path(".claude"):
+            # Cargo registry's Cargo.toml.orig is installed third-party metadata,
+            # like the generated toolchain Python files excluded by source scans.
+            # Only this node-local root is pruned; policies/runtime stays governed.
+            dirnames[:] = [d for d in dirnames if d != "runtime"]
         elif Path(rel_dir) == _WORKTREE_ISOLATION_REL:
             dirnames[:] = []
         for name in filenames:

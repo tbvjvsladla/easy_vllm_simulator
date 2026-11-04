@@ -20,7 +20,7 @@
 # 서브커맨드
 #   init   상태 파일 생성(선언 예산·계획 셀·통제변인·루브릭 권한)
 #   cell   **돌고 있는 serve** 한 칸을 측정·판정·기록한다(아래 경계 주의)
-#   status 정지 조건 평가(sweep_stop.py)
+#   status 정지 조건 평가(sweep_stop.sh → Rust native)
 #   map    지도 발행(render_sweep_map.py · 미완도 발행)
 #
 # ⚠ **경계 — 이 오퍼레이션은 serve 를 기동하지 않는다.**
@@ -224,7 +224,7 @@ _stop(){   # 상태 → 정지 판정 파일. rc 0=계속 · 3=정지 를 그대
   #   성립했는데 stdout·stderr 둘 다 비고 rc=3 만 남았다 — 가드가 듣는 사람 없는 자리에서
   #   울린 것이다. errexit 복원은 호출부 책임이다(모든 호출부가 이미 `set -e` 로 닫는다).
   set +e
-  python3 "$SDIR/sweep_stop.py" --state "$STATE" --now-utc "$NOW" > "$STOPJSON"
+  bash "$SDIR/sweep_stop.sh" --state "$STATE" --now-utc "$NOW" > "$STOPJSON"
   local rc=$?
   [ "$rc" = "2" ] && { cat "$STOPJSON" >&2; echo "[broad_search] 정지 조건을 판정할 수 없다" >&2; exit 2; }
   return "$rc"
@@ -442,7 +442,7 @@ print(a)
     set +e; _stop; STOPRC=$?; set -e
     if [ "$STOPRC" = "3" ]; then
       echo "[broad_search] 정지 조건 성립 — 셀을 실행하지 않는다:" >&2
-      python3 -c "import json;d=json.load(open('$STOPJSON'));print('  stopped_by:', d['stopped_by'])" >&2
+      bash "$SDIR/sweep_stop.sh" report stopped-by --stop-json "$STOPJSON" >&2
       exit 0
     fi
     # ── 반복 수 예산 진입 게이트(2026-09-14 · plan_26091407 §4.4 · 리뷰 정정) ──────────────────────────
@@ -451,9 +451,7 @@ print(a)
     #   반복 수가 갈라지고, 벽시계 예산을 승인한 근거에 반복이 없던 스윕에 3배 비용이 조용히 붙는다.
     #   정지 평가기(sweep_stop)는 부재를 None·absent 로 **기재만** 한다(status·map·재조립 같은 읽기 경로를
     #   막지 않는다). 값의 유효성(정수 ∧ ≥ full 정의)은 위 `_stop` 이 이미 판정했다.
-    _DR="$(python3 -c 'import json,sys
-b = json.load(open(sys.argv[1], encoding="utf-8")).get("declared_budget") or {}
-print("%s\x1f%s" % (b.get("repeats", ""), b.get("repeats_source") or "출처 미기재"))' "$STATE")"
+    _DR="$(bash "$SDIR/sweep_stop.sh" report declared-repeats --state "$STATE")"
     IFS=$'\x1f' read -r _DECL_REP _DECL_REP_SRC <<< "$_DR"
     if [ -z "$_DECL_REP" ]; then
       echo "[broad_search] ERROR declared_budget.repeats 미선언 — 반복 축 신설 전 상태 파일이다(셀 비용 = 레벨 × 반복)." >&2
@@ -879,7 +877,7 @@ print(d.get('void_reason') or '' if src.startswith(('events(', 'lite_raw(')) els
     echo "[broad_search]   서브라면(측정 스킬이 tool_plane 으로 열리는 서브 · node_role_contract) 오버레이 배달이 캠페인 도구를 빠뜨린 것이다(침묵 누락 ✗)." >&2
   fi
   set +e; _stop; rc=$?; set -e
-  python3 -c "import json;d=json.load(open('$STOPJSON'));print('[broad_search] stop=%s by=%s 남은셀=%d'%(d['stop'],d['stopped_by'],len(d['cells_remaining'])))"
+  bash "$SDIR/sweep_stop.sh" report status-line --stop-json "$STOPJSON"
   exit 0
   ;;
 

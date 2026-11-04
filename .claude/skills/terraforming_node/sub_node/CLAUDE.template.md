@@ -36,6 +36,8 @@
 
 Rust 기동 환경은 메인이 배달한 `scripts/rust_bootstrap.sh`와 버전 정본을 사용한다.
 정확한 경로·설치·검증·실행은 `.claude/skills/terraforming_node/references/install/rust_runtime.md`를 읽는다.
+도구체인 검증 뒤 자기 tool_plane에 배달된 Rust 업무 패키지도 빌드하고 native 기동을 확인한다.
+컴파일 결과는 자기 노드에서 생성하며, 실행파일 부재를 Python 대체로 감추지 않는다.
 신규 배포·pin 변경·실행환경 결손은 기존 승인 범위에서 `install` → `check`로 준비하고,
 명시 실행은 해당 helper의 `exec -- <명령>`으로 한다. 다른 노드의 컴파일 결과·개인 Cargo 설정을 복사하지 않는다.
 

@@ -1,0 +1,54 @@
+[package]
+name = "sweep-stop"
+version = "0.1.0"
+edition = "2021"
+description = "Broad Search stop-condition evaluator: Rust port of adversarial-benchmark/scripts/sweep_stop.py"
+publish = false
+build = "build.rs"
+# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
+autotests = false
+
+[lib]
+name = "sweep_stop"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sweep_stop"
+path = "src/bin/sweep_stop.rs"
+
+[[bin]]
+name = "sweep_stop_bench"
+path = "src/bin/sweep_stop_bench.rs"
+
+[[test]]
+name = "oracle_cases"
+path = "checks/oracle_cases.rs"
+
+[[test]]
+name = "python_semantics"
+path = "checks/python_semantics.rs"
+
+[[test]]
+name = "review_regressions"
+path = "checks/review_regressions.rs"
+
+[[test]]
+name = "terminal_width"
+path = "checks/terminal_width.rs"
+
+[[test]]
+name = "cli_contract"
+path = "checks/cli_contract.rs"
+
+[dependencies]
+num-bigint = "0.4"
+num-traits = "0.2"
+# Safe wrapper of TIOCGWINSZ on stdout only (what shutil.get_terminal_size asks via os.get_terminal_size).
+rustix = { version = "1", default-features = false, features = ["std", "termios"] }
+
+# The checks open a pseudo-terminal pair of their own to observe the width query.
+[dev-dependencies]
+rustix = { version = "1", default-features = false, features = ["std", "termios", "pty", "fs"] }
+
+[build-dependencies]
+serde_json = "1"

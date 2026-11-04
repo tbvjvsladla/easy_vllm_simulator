@@ -38,7 +38,8 @@ REPO = Path(__file__).resolve().parents[4]
 AB = ".claude/skills/adversarial-benchmark/scripts"
 COPIES = (
     f"{AB}/broad_search.sh",
-    f"{AB}/sweep_stop.py",
+    f"{AB}/sweep_stop.sh",
+    ".claude/skills/adversarial-benchmark/rust/target/release/sweep_stop",
     f"{AB}/classify_cell.py",
     f"{AB}/repeat_axis.py",
     # 측정 형상 프리셋(plan_26101011) — init 이 반복 수 기본값을 프리셋에서 받는다(bench_preset.py default).

@@ -1,0 +1,23 @@
+use std::io::{stderr, stdin, stdout};
+use std::os::unix::ffi::OsStrExt;
+use std::process::ExitCode;
+use sweep_stop::cli::{run, Streams};
+use sweep_stop::pystr::PyStr;
+
+fn main() -> ExitCode {
+    // Python decodes argv with `surrogateescape`; so do we, so odd bytes in arguments stay representable.
+    let args: Vec<PyStr> = std::env::args_os()
+        .skip(1)
+        .map(|arg| PyStr::from_surrogateescape(arg.as_bytes()))
+        .collect();
+    let (mut input, mut output, mut errors) = (stdin().lock(), stdout().lock(), stderr().lock());
+    let status = run(
+        &args,
+        &mut Streams {
+            stdin: &mut input,
+            stdout: &mut output,
+            stderr: &mut errors,
+        },
+    );
+    ExitCode::from(u8::try_from(status).unwrap_or(1))
+}
