@@ -26,7 +26,8 @@ bash .claude/skills/terraforming_node/scripts/rust_bootstrap.sh exec -- cargo --
 `source`하지 않아도 helper의 절대경로와 `exec -- <명령>`을 사용하면 같은 환경이 선택된다.
 `exec`가 실행하는 사용자 명령 자체의 네트워크 사용은 그 명령의 계약을 따른다.
 
-`check`는 버전 목록뿐 아니라 임시 std-only Cargo 프로젝트를 offline 빌드하고 native 결과를 실행한다.
+`check`는 버전 목록뿐 아니라 임시 C 소스를 `cc`로 컴파일하고 `ar`로 정적 아카이브를 만든 뒤,
+외부 Cargo 의존성 없는 Rust 프로젝트를 그 아카이브와 offline 연결해 native 함수를 호출한다.
 fmt와 Clippy도 실행하며, 자신의 임시 probe만 정리한다. 이 검사를 통과하지 않은 노드를 Rust 준비 완료로
 기록하지 않는다. 별도 ready flag를 만들지 않는다. 실패 시 실제 원인·명령·종료를 testlog에 기록한다.
 
@@ -50,7 +51,7 @@ native 자체검사를 수행한다. Cargo.lock의 공개 의존성을 첫 빌�
 tool_plane이 런타임 스킬 0종인 ray-worker sub는 이 업무 패키지 빌드가 적용되지 않는다.
 도구체인 install/check는 그 노드에도 적용한다. 실제 전달 대상에 owner 패키지가 있어야 하는데
 없거나 lockfile/빌드/기동 검사가 실패하면 해당 하네스 배포 완료로 기록하지 않는다.
-std-only probe 통과는 어플리케이션 이행 완료가 아니다.
+Rust/C probe 통과는 어플리케이션 이행 완료가 아니다.
 
 ## 서브와 다른 PC 배포
 
@@ -67,8 +68,9 @@ std-only probe 통과는 어플리케이션 이행 완료가 아니다.
 
 ## 지원 환경과 실패
 
-지원은 Linux GNU의 aarch64와 x86_64다. Rust 실행뿐 아니라 C 링커(`cc`)가 필요하다.
-링커/curl/시스템 전제가 없으면 해당 원인과 설치할 도구를 반환하며 sudo나 패키지 관리자를 자동 실행하지 않는다.
+지원은 Linux GNU의 aarch64와 x86_64다. Rust 실행뿐 아니라 C 컴파일러·링커(`cc`)와 정적 아카이브 도구(`ar`)가 필요하다.
+해시 같은 native C/어셈블리 의존성도 각 노드에서 빌드하므로 컴파일러의 존재만으로 준비 완료로 보지 않는다.
+컴파일러/링커/아카이브/curl 등의 전제가 없으면 원인과 설치할 도구(build-essential·binutils 등)를 반환하며 sudo나 패키지 관리자를 자동 실행하지 않는다.
 운영자 권한 작업이 필요하면 기존 request 절차로 전제·명령·성공판정·회수물을 전달한다.
 다른 OS/아키텍처·musl은 이 helper의 지원 범위 밖이며 실제 판정을 보존한다.
 

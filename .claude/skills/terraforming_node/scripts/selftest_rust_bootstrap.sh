@@ -1,5 +1,5 @@
 #!/bin/bash
-# Install-routing fixtures only; the separate real check compiles native Rust.
+# Install-routing fixtures; the separate real check runs the linked Rust/C probe.
 set -eu
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 T="$(mktemp -d "${TMPDIR:-/tmp}/rust-bootstrap-selftest.XXXXXX")"
@@ -105,7 +105,7 @@ expect 0 'ready state derives from installed tools' bash "$HELPER" status --runt
 before="$(grep -c '^curl ' "$RUST_TEST_TRACE")"
 expect 0 'idempotent install' bash "$HELPER" install --runtime-home "$RT"
 [ "$(grep -c '^curl ' "$RUST_TEST_TRACE")" = "$before" ]
-expect 0 'offline fixture build/run/fmt/clippy' bash "$HELPER" check --runtime-home "$RT"
+expect 0 'offline fixture build/run/fmt/clippy with real C compile/archive' bash "$HELPER" check --runtime-home "$RT"
 [ "$(grep -c '^curl ' "$RUST_TEST_TRACE")" = "$before" ]
 expect 0 'new cwd and inherited global selectors overridden' bash -c \
   'cd "$1"; CARGO_HOME=unused-global RUSTUP_HOME=unused-global RUSTUP_TOOLCHAIN=nightly /bin/bash "$2" exec --runtime-home "$3" -- rustc --version' \
@@ -130,6 +130,18 @@ grep -Fq "$T/new" "$T/stderr"
 mkdir -p "$T/no-cc"
 for utility in sed head tr env uname grep awk realpath dirname; do ln -s "$(command -v "$utility")" "$T/no-cc/$utility"; done
 expect 4 'missing linker is explicit' env PATH="$T/no-cc" /bin/bash "$HELPER" install --runtime-home "$T/no linker"
+mkdir -p "$T/no-ar"
+for utility in sed head tr env uname grep awk realpath dirname cc; do ln -s "$(command -v "$utility")" "$T/no-ar/$utility"; done
+expect 4 'missing native archiver is explicit' env PATH="$T/no-ar" /bin/bash "$HELPER" install --runtime-home "$T/no archiver"
+[ ! -e "$T/no archiver" ]
+mkdir -p "$T/bad-cc" "$T/bad-ar"
+printf '#!/bin/sh\nexit 42\n' > "$T/bad-cc/cc"
+printf '#!/bin/sh\nexit 43\n' > "$T/bad-ar/ar"
+chmod +x "$T/bad-cc/cc" "$T/bad-ar/ar"
+expect 7 'present but broken C compiler fails check' env PATH="$T/bad-cc:$PATH" bash "$HELPER" check --runtime-home "$RT"
+grep -q 'C probe 컴파일 실패' "$T/stderr"
+expect 7 'present but broken archiver fails check' env PATH="$T/bad-ar:$PATH" bash "$HELPER" check --runtime-home "$RT"
+grep -q 'C probe 정적 아카이브 실패' "$T/stderr"
 expect 0 'other supported architecture route' env RUST_TEST_ARCH=x86_64 bash "$HELPER" install --runtime-home "$T/x86" --rustup-init-file "$RUST_TEST_INIT"
 expect 4 'unsupported architecture' env RUST_TEST_ARCH=riscv64 bash "$HELPER" install --runtime-home "$T/unsupported"
 [ ! -e "$T/unsupported" ]

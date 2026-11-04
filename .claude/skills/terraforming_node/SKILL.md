@@ -177,7 +177,7 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/staleness_gate.py` | spine 1 · §0.5 | — | 조건부 preflight 트리거 |
 | `scripts/bootstrap_canary.py` | §2.5 | — | model-less 카나리 실행자 |
 | `scripts/harness_permission_probe.py` | §2.5.2 | ✓ | 요청된 native 하네스 안에서 실행하는 업무 권한 관측; 자체 실행만으로 A2A 성공 선언 금지 |
-| `scripts/rust_bootstrap.sh` | §2.5.2 | ✓ | 노드 로컬 Rust 설치·status·offline build/run 검사·명시 실행; pin은 동봉된 `rust_toolchain.pin` |
+| `scripts/rust_bootstrap.sh` | §2.5.2 | ✓ | 노드 로컬 Rust 설치·status·C 컴파일/아카이브와 Rust 연결 offline build/run 검사·명시 실행; pin은 동봉된 `rust_toolchain.pin` |
 | `scripts/rust_toolchain.pin` | §2.5.2 | ✓ | Rust 버전·컴포넌트·지원 target 정본 |
 | `scripts/selftest_rust_bootstrap.sh` | §2.5.2 | — | 네트워크 없는 설치/실패/재실행·환경 격리 계약 회귀 |
 | `scripts/selftest_bootstrap_permissions.py` | §2.5.2 | — | 카나리 증거·음성대조 회귀 |

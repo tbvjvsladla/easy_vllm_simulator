@@ -1,12 +1,12 @@
 #!/bin/bash
 # rust_bootstrap.sh — 노드 로컬 Rust 도구체인 설치·검증·실행 (terraforming_node §2.5.2 · references/install/rust_runtime.md)
 #
-# 이 파일은 bash + curl + coreutils 만 쓴다 — Cargo·Python 이 없어도 첫 실행이 된다(설치기가 Rust 를 요구하는 순환 ✗).
+# 설치 라우팅은 bash/curl/coreutils로 시작하고, check는 cc/ar와 설치한 Rust를 쓴다. Cargo·Python 없이 설치할 수 있다.
 # 버전의 단일 정본은 같은 디렉터리의 rust_toolchain.pin 이다(여기 숫자를 다시 적지 않는다).
 #
 # 명령(정본 = `--help`):
 #   install [--runtime-home DIR] [--rustup-init-file FILE]   유일하게 네트워크를 쓰는 명령(공식 rustup HTTPS)
-#   check   [--runtime-home DIR]                             버전 + std-only 임시 프로젝트 offline build·native 실행·fmt·clippy
+#   check   [--runtime-home DIR]                             버전 + Rust/C 임시 프로젝트 offline build·native 실행·fmt·clippy
 #   status  [--runtime-home DIR]                             missing|partial|stale|foreign|ready 판정만(읽기 전용)
 #   exec    [--runtime-home DIR] -- CMD [ARGS...]            pin 환경(CARGO_HOME·RUSTUP_HOME·RUSTUP_TOOLCHAIN·PATH)에서 CMD 실행
 #
@@ -21,7 +21,7 @@ TAG="[rust_bootstrap]"
 printf -v SELF 'bash %q' "$SDIR/rust_bootstrap.sh"
 
 # 종료코드(고정 계약): 0 성공 · 2 사용법/pin 결함 · 3 미설치·반쪽·stale·foreign(install 필요) ·
-#   4 미지원 플랫폼 또는 선행조건(curl·cc·sha256sum) 부재 · 5 다운로드/검증 실패 · 6 설치 실패 · 7 check probe 실패
+#   4 미지원 플랫폼 또는 선행조건(curl·cc·ar·sha256sum) 부재 · 5 다운로드/검증 실패 · 6 설치 실패 · 7 check probe 실패
 die() { local rc="$1"; shift; printf '%s ERROR rc=%s: %s\n' "$TAG" "$rc" "$*" >&2; exit "$rc"; }
 note() { printf '%s %s\n' "$TAG" "$*"; }
 
@@ -34,7 +34,7 @@ usage() {
       반쪽(partial)/stale 은 기존 rustup 으로 복구·갱신한다. 네트워크는 이 명령만 쓴다.
       --rustup-init-file FILE : 다운로드 대신 사전 준비한 rustup-init 실행파일을 쓴다(체크섬 검증 없음 · 폐쇄망/미러 준비용).
   check   [--runtime-home DIR]
-      pin 버전·sysroot(작업공간 설치인지)·cargo fmt/clippy 와, 임시 std-only 프로젝트의 offline build + native 실행을 확인한다.
+      pin 버전·sysroot·fmt/clippy 및 실제 C 컴파일·정적 아카이브와 연결한 Rust의 offline build/native 실행을 확인한다.
   status  [--runtime-home DIR]
       상태(missing|partial|stale|foreign|ready)만 출력한다. 읽기 전용.
   exec    [--runtime-home DIR] -- CMD [ARGS...]
@@ -75,9 +75,11 @@ detect_platform() {
   fi
 }
 
-require_cc() {
+require_native_tools() {
   command -v cc >/dev/null 2>&1 \
     || die 4 "C 컴파일러/링커(cc)가 PATH 에 없다 — rustc 가 링크에 쓴다. 이 helper 는 sudo·패키지매니저를 쓰지 않는다: 호스트 운영자가 build-essential(또는 gcc) 을 설치한 뒤 다시 실행하라."
+  command -v ar >/dev/null 2>&1 \
+    || die 4 "정적 아카이브 도구(ar)가 PATH 에 없다 — Rust 업무의 native 의존성 빌드에 필요하다. 호스트 운영자가 binutils(또는 build-essential) 를 준비한 뒤 다시 실행하라."
 }
 
 # ── 경로 · 환경 ────────────────────────────────────────────────────────────────
@@ -202,7 +204,7 @@ verify_install() {
 }
 
 cmd_install() {
-  detect_platform; require_cc
+  detect_platform; require_native_tools
   compute_state
   case "$STATE" in
     ready) note "install: 이미 ready — 다운로드·설치를 하지 않는다 ($STATE_WHY · home=$RT_HOME)"; return 0 ;;
@@ -235,7 +237,7 @@ cleanup_probe() {   # 자기 mktemp 산출물만 정리한다(이름 접두 확�
 }
 
 cmd_check() {
-  detect_platform; need_ready; require_cc
+  detect_platform; need_ready; require_native_tools
   local v sysroot out
   note "check: home=$RT_HOME triple=$TRIPLE pin=$PIN_VERSION state=$STATE"
   v="$(run_env "$CARGO_HOME/bin/rustc" --version 2>&1)" || die 7 "rustc --version 실패: $v"
@@ -254,12 +256,24 @@ cmd_check() {
   mkdir -p "$PROBE/src"
   printf '%s\n' '[package]' 'name = "rust-bootstrap-probe"' 'version = "0.0.0"' 'edition = "2021"' 'publish = false' '' \
                 '[dependencies]' '' '[workspace]' > "$PROBE/Cargo.toml"
-  printf '%s\n' 'fn main() {' '    let acc: u64 = (1..=10u64).map(|i| i * i).sum();' \
+  printf '%s\n' 'int rust_bootstrap_c_probe(void) { return 7; }' > "$PROBE/probe.c"
+  cc -c "$PROBE/probe.c" -o "$PROBE/probe.o" \
+    || die 7 "C probe 컴파일 실패 — native 의존성을 빌드할 C 컴파일러/assembler 를 확인하라"
+  ar crs "$PROBE/librust_bootstrap_c_probe.a" "$PROBE/probe.o" \
+    || die 7 "C probe 정적 아카이브 실패 — ar/binutils 를 확인하라"
+  printf '%s\n' 'fn main() {' \
+    '    let root = std::env::var("CARGO_MANIFEST_DIR").expect("probe root");' \
+    '    println!("cargo:rustc-link-search=native={root}");' \
+    '    println!("cargo:rustc-link-lib=static=rust_bootstrap_c_probe");' '}' > "$PROBE/build.rs"
+  printf '%s\n' 'extern "C" {' '    fn rust_bootstrap_c_probe() -> i32;' '}' '' 'fn main() {' \
+                '    // SAFETY: the linked C probe takes no arguments and returns an int.' \
+                '    assert_eq!(unsafe { rust_bootstrap_c_probe() }, 7);' \
+                '    let acc: u64 = (1..=10u64).map(|i| i * i).sum();' \
                 '    println!("rust-bootstrap-probe-ok {acc}");' '}' > "$PROBE/src/main.rs"
   # 새 cwd(probe) · 네트워크 금지(CARGO_NET_OFFLINE + --offline) · 산출물은 probe 안에만.
   ( cd "$PROBE" && run_env CARGO_NET_OFFLINE=true CARGO_TARGET_DIR="$PROBE/target" \
       "$CARGO_HOME/bin/cargo" build --offline --manifest-path "$PROBE/Cargo.toml" ) \
-    || die 7 "std-only probe offline build 실패 — 링커(cc)/디스크/TMPDIR(noexec 여부)를 확인하라"
+    || die 7 "Rust/C probe offline build 실패 — 링커(cc)/아카이브(ar)/디스크/TMPDIR(noexec 여부)를 확인하라"
   out="$("$PROBE/target/debug/rust-bootstrap-probe" 2>&1)" || die 7 "probe native 실행 실패: $out"
   [ "$out" = "rust-bootstrap-probe-ok 385" ] || die 7 "probe 출력이 기대와 다르다: '$out'"
   note "check: native 실행 OK — $out"
@@ -268,7 +282,7 @@ cmd_check() {
   ( cd "$PROBE" && run_env CARGO_NET_OFFLINE=true CARGO_TARGET_DIR="$PROBE/target" \
       "$CARGO_HOME/bin/cargo" clippy --offline --manifest-path "$PROBE/Cargo.toml" -- -D warnings ) \
     || die 7 "cargo clippy -D warnings 실패"
-  note "check: PASS — rustc/cargo/rustfmt/clippy 실행 + std-only offline build·native 실행(실제 실행 결과 · fixture 아님)"
+  note "check: PASS — rustc/cargo/rustfmt/clippy + C 컴파일·아카이브·Rust 연결 offline build/native 실행(실제 실행 결과 · fixture 아님)"
 }
 
 # ── status / exec ─────────────────────────────────────────────────────────────
