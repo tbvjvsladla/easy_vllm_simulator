@@ -37,7 +37,7 @@ fmt와 Clippy도 실행하며, 자신의 임시 probe만 정리한다. 이 검�
 
 ```bash
 bash .claude/skills/adversarial-benchmark/scripts/build_rust.sh
-bash .claude/skills/adversarial-benchmark/scripts/sweep_stop.sh --self-test
+# build_rust.sh가 sweep_stop --self-test와 parse_bench self-test 기동 검사까지 수행한다.
 ```
 
 owner의 build 진입점은 위 helper의 동일 관리 환경으로 `cargo build --release --locked`를 실행하고

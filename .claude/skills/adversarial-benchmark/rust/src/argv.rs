@@ -1,71 +1,202 @@
 //! The original program's command line, parsed the way CPython 3.12.3 `argparse` parses it.
 //!
 //! Ported from `Lib/argparse.py` (<https://github.com/python/cpython/blob/v3.12.3/Lib/argparse.py>, PSF License;
-//! see `notices/NOTICE.md`) for exactly this parser: `-h/--help`, `--state STATE`, `--now-utc NOW_UTC` and the
-//! `--self-test` flag, no positionals, abbreviations allowed. Option strings are tried in the order argparse
+//! see `notices/NOTICE.md`) for parsers made of `-h/--help`, value options and flags only, no positionals,
+//! abbreviations allowed. Each original program contributes a [`Spec`] table: `sweep_stop.py` ([`SWEEP_STOP`]:
+//! `--state STATE`, `--now-utc NOW_UTC`, `--self-test`) and `parse_bench.py` ([`PARSE_BENCH`]: required
+//! `--bench-json`, `--engine-log`, `--json`). Option strings are tried in the order argparse
 //! registered them, and arguments are code points (Python decodes argv with `surrogateescape`).
 //!
-//! Usage and help text are laid out by argparse from the terminal width. For this fixed parser that layout is a
-//! step function of `COLUMNS`, captured from the original program into `help_layouts` and looked up by
-//! [`usage`] / [`help`]; widths beyond the last captured step share its layout. How the width is found is in
+//! Usage and help text are laid out by argparse from the terminal width. For a fixed parser that layout is a
+//! step function of `COLUMNS`, captured from the original program into `help_layouts*` and looked up by
+//! [`Spec::usage`] / [`Spec::help`]; widths beyond the last captured step share its layout. How the width is found is in
 //! [`crate::terminal`].
 
-use crate::help_layouts::LAYOUTS;
+use crate::help_layouts::Layout;
 use crate::pystr::{is_decimal_digit, PyStr};
 
-/// The program name argparse derives from `sys.argv[0]` of the original script.
+/// The program name argparse derives from `sys.argv[0]` of the original `sweep_stop.py`.
 pub const PROG: &str = "sweep_stop.py";
 
-fn layout_for(columns: u32) -> &'static crate::help_layouts::Layout {
-    LAYOUTS
-        .iter()
-        .rev()
-        .find(|layout| layout.from_columns <= columns)
-        .unwrap_or(&LAYOUTS[0])
-}
-
-/// `parser.format_usage()` at the given terminal width (in columns).
-pub fn usage(columns: u32) -> &'static str {
-    layout_for(columns).usage
-}
-
-/// `parser.format_help()` at the given terminal width (in columns).
-pub fn help(columns: u32) -> &'static str {
-    layout_for(columns).help
-}
-
+/// How an argparse action consumes arguments (`store` with one value, `store_true`, or `help`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Action {
+pub enum Kind {
     Help,
-    State,
-    NowUtc,
-    SelfTest,
+    Value,
+    Flag,
 }
 
-impl Action {
-    fn takes_value(self) -> bool {
-        matches!(self, Action::State | Action::NowUtc)
+/// One registered action. `name` is argparse's `_get_action_name`: the option strings joined with `/`.
+#[derive(Debug)]
+pub struct ActionDef {
+    pub name: &'static str,
+    pub kind: Kind,
+    pub required: bool,
+}
+
+/// A fixed parser: its program name, actions, option strings in registration order and captured help layouts.
+/// The generic part of the port is shared; each original program contributes only this table.
+pub struct Spec {
+    pub prog: &'static str,
+    pub actions: &'static [ActionDef],
+    /// Option strings in the order argparse registered them, each with the index of its action.
+    pub options: &'static [(&'static str, usize)],
+    layouts: &'static [Layout],
+}
+
+impl Spec {
+    fn layout_for(&self, columns: u32) -> &'static Layout {
+        self.layouts
+            .iter()
+            .rev()
+            .find(|layout| layout.from_columns <= columns)
+            .unwrap_or(&self.layouts[0])
     }
 
-    /// argparse's `_get_action_name`: the option strings joined with `/`.
-    fn display_name(self) -> &'static str {
-        match self {
-            Action::Help => "-h/--help",
-            Action::State => "--state",
-            Action::NowUtc => "--now-utc",
-            Action::SelfTest => "--self-test",
+    /// `parser.format_usage()` at the given terminal width (in columns).
+    pub fn usage(&self, columns: u32) -> &'static str {
+        self.layout_for(columns).usage
+    }
+
+    /// `parser.format_help()` at the given terminal width (in columns).
+    pub fn help(&self, columns: u32) -> &'static str {
+        self.layout_for(columns).help
+    }
+
+    fn lookup(&self, option_string: &[u32]) -> Option<usize> {
+        self.options
+            .iter()
+            .find(|(name, _)| equals(option_string, name))
+            .map(|&(_, action)| action)
+    }
+}
+
+const HELP_ACTION: usize = 0;
+const STATE: usize = 1;
+const NOW_UTC: usize = 2;
+const SELF_TEST: usize = 3;
+
+/// The original `sweep_stop.py` parser (`-h/--help` is added first by `ArgumentParser`).
+pub const SWEEP_STOP: Spec = Spec {
+    prog: PROG,
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            required: false,
+        },
+        ActionDef {
+            name: "--state",
+            kind: Kind::Value,
+            required: false,
+        },
+        ActionDef {
+            name: "--now-utc",
+            kind: Kind::Value,
+            required: false,
+        },
+        ActionDef {
+            name: "--self-test",
+            kind: Kind::Flag,
+            required: false,
+        },
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--state", STATE),
+        ("--now-utc", NOW_UTC),
+        ("--self-test", SELF_TEST),
+    ],
+    layouts: crate::help_layouts::LAYOUTS,
+};
+
+/// Index of the `--bench-json` action in [`PARSE_BENCH`].
+pub const BENCH_JSON: usize = 1;
+/// Index of the `--engine-log` action in [`PARSE_BENCH`].
+pub const ENGINE_LOG: usize = 2;
+/// Index of the (accepted, unused) `--json` flag in [`PARSE_BENCH`].
+pub const JSON_FLAG: usize = 3;
+
+/// The original `parse_bench.py` parser.
+pub const PARSE_BENCH: Spec = Spec {
+    prog: "parse_bench.py",
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            required: false,
+        },
+        ActionDef {
+            name: "--bench-json",
+            kind: Kind::Value,
+            required: true,
+        },
+        ActionDef {
+            name: "--engine-log",
+            kind: Kind::Value,
+            required: false,
+        },
+        ActionDef {
+            name: "--json",
+            kind: Kind::Flag,
+            required: false,
+        },
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--bench-json", BENCH_JSON),
+        ("--engine-log", ENGINE_LOG),
+        ("--json", JSON_FLAG),
+    ],
+    layouts: crate::help_layouts_parse_bench::LAYOUTS,
+};
+
+/// `parser.format_usage()` of `sweep_stop.py` at the given terminal width.
+pub fn usage(columns: u32) -> &'static str {
+    SWEEP_STOP.usage(columns)
+}
+
+/// `parser.format_help()` of `sweep_stop.py` at the given terminal width.
+pub fn help(columns: u32) -> &'static str {
+    SWEEP_STOP.help(columns)
+}
+
+/// The values a successful parse produced, indexed by action: the last value given, and whether it was seen.
+#[derive(Debug)]
+pub struct Matches {
+    values: Vec<Option<PyStr>>,
+    seen: Vec<bool>,
+}
+
+impl Matches {
+    fn new(spec: &Spec) -> Self {
+        Matches {
+            values: vec![None; spec.actions.len()],
+            seen: vec![false; spec.actions.len()],
         }
     }
+
+    /// The value of a `Kind::Value` action, if given.
+    pub fn value(&self, action: usize) -> Option<&PyStr> {
+        self.values[action].as_ref()
+    }
+
+    /// Whether a `Kind::Flag` action was given.
+    pub fn flag(&self, action: usize) -> bool {
+        self.seen[action]
+    }
 }
 
-/// Registration order of `ArgumentParser` (`-h/--help` is added first).
-const OPTIONS: [(&str, Action); 5] = [
-    ("-h", Action::Help),
-    ("--help", Action::Help),
-    ("--state", Action::State),
-    ("--now-utc", Action::NowUtc),
-    ("--self-test", Action::SelfTest),
-];
+#[derive(Debug)]
+pub enum Outcome {
+    Run(Matches),
+    /// `-h` was reached before any error: print help and exit 0.
+    Help,
+    /// `parser.error(message)`: usage and `prog: error: message` on stderr, exit 2.
+    Error(PyStr),
+}
 
 #[derive(Debug, Default)]
 pub struct LegacyArgs {
@@ -94,7 +225,7 @@ enum Separator {
 }
 
 struct OptionTuple {
-    action: Option<Action>,
+    action: Option<usize>,
     option_string: Points,
     separator: Separator,
     explicit: Option<Points>,
@@ -110,13 +241,6 @@ fn equals(candidate: &[u32], text: &str) -> bool {
 
 fn starts_with(candidate: &[u32], prefix: &[u32]) -> bool {
     candidate.starts_with(prefix)
-}
-
-fn lookup(option_string: &[u32]) -> Option<Action> {
-    OPTIONS
-        .iter()
-        .find(|(name, _)| equals(option_string, name))
-        .map(|&(_, action)| action)
 }
 
 fn text(parts: &[&[u32]]) -> PyStr {
@@ -145,7 +269,7 @@ fn is_negative_number(arg: &[u32]) -> bool {
 }
 
 /// `_get_option_tuples` for an argument that starts with `-` and is at least two characters long.
-fn option_tuples(arg: &[u32]) -> Vec<OptionTuple> {
+fn option_tuples(spec: &Spec, arg: &[u32]) -> Vec<OptionTuple> {
     let dash = u32::from('-');
     let mut result = Vec::new();
     if arg[1] == dash {
@@ -153,7 +277,7 @@ fn option_tuples(arg: &[u32]) -> Vec<OptionTuple> {
             Some(at) => (&arg[..at], Separator::Equals, Some(arg[at + 1..].to_vec())),
             None => (arg, Separator::Absent, None),
         };
-        for (name, action) in OPTIONS {
+        for &(name, action) in spec.options {
             if starts_with(&points(name), prefix) {
                 result.push(OptionTuple {
                     action: Some(action),
@@ -165,7 +289,7 @@ fn option_tuples(arg: &[u32]) -> Vec<OptionTuple> {
         }
     } else {
         let (short_prefix, short_explicit) = arg.split_at(2);
-        for (name, action) in OPTIONS {
+        for &(name, action) in spec.options {
             let name_points = points(name);
             if name_points == short_prefix {
                 result.push(OptionTuple {
@@ -188,11 +312,11 @@ fn option_tuples(arg: &[u32]) -> Vec<OptionTuple> {
 }
 
 /// `_parse_optional`: `Ok(None)` means the argument is positional-like. An ambiguous prefix is a parser error.
-fn parse_optional(arg: &[u32]) -> Result<Option<OptionTuple>, PyStr> {
+fn parse_optional(spec: &Spec, arg: &[u32]) -> Result<Option<OptionTuple>, PyStr> {
     if arg.first() != Some(&u32::from('-')) {
         return Ok(None);
     }
-    if let Some(action) = lookup(arg) {
+    if let Some(action) = spec.lookup(arg) {
         return Ok(Some(OptionTuple {
             action: Some(action),
             option_string: arg.to_vec(),
@@ -204,7 +328,7 @@ fn parse_optional(arg: &[u32]) -> Result<Option<OptionTuple>, PyStr> {
         return Ok(None);
     }
     if let Some(at) = arg.iter().position(|&c| c == u32::from('=')) {
-        if let Some(action) = lookup(&arg[..at]) {
+        if let Some(action) = spec.lookup(&arg[..at]) {
             return Ok(Some(OptionTuple {
                 action: Some(action),
                 option_string: arg[..at].to_vec(),
@@ -213,7 +337,7 @@ fn parse_optional(arg: &[u32]) -> Result<Option<OptionTuple>, PyStr> {
             }));
         }
     }
-    let mut candidates = option_tuples(arg);
+    let mut candidates = option_tuples(spec, arg);
     if candidates.len() > 1 {
         let names: Vec<String> = candidates
             .iter()
@@ -245,8 +369,11 @@ fn parse_optional(arg: &[u32]) -> Result<Option<OptionTuple>, PyStr> {
     }))
 }
 
-fn argument_error(action: Action, message: &str) -> PyStr {
-    PyStr::new(&format!("argument {}: {message}", action.display_name()))
+fn argument_error(spec: &Spec, action: usize, message: &str) -> PyStr {
+    PyStr::new(&format!(
+        "argument {}: {message}",
+        spec.actions[action].name
+    ))
 }
 
 /// What `consume_optional` decided for one option argument.
@@ -256,8 +383,21 @@ enum Consumed {
     Error(PyStr),
 }
 
-/// Parses `args` (without the program name).
+/// Parses the arguments of the original `sweep_stop.py` (without the program name).
 pub fn parse(args: &[PyStr]) -> Parsed {
+    match parse_with(&SWEEP_STOP, args) {
+        Outcome::Help => Parsed::Help,
+        Outcome::Error(message) => Parsed::Error(message),
+        Outcome::Run(matches) => Parsed::Run(LegacyArgs {
+            state: matches.values[STATE].clone(),
+            now_utc: matches.values[NOW_UTC].clone(),
+            self_test: matches.flag(SELF_TEST),
+        }),
+    }
+}
+
+/// Parses `args` (without the program name) the way `ArgumentParser.parse_args` of the given parser does.
+pub fn parse_with(spec: &Spec, args: &[PyStr]) -> Outcome {
     let args: Vec<&[u32]> = args.iter().map(PyStr::code_points).collect();
     let mut pattern: Vec<char> = Vec::with_capacity(args.len());
     let mut tuples: Vec<Option<OptionTuple>> = Vec::with_capacity(args.len());
@@ -272,8 +412,8 @@ pub fn parse(args: &[PyStr]) -> Parsed {
             }
             break;
         }
-        match parse_optional(args[index]) {
-            Err(message) => return Parsed::Error(message),
+        match parse_optional(spec, args[index]) {
+            Err(message) => return Outcome::Error(message),
             Ok(None) => {
                 pattern.push('A');
                 tuples.push(None);
@@ -286,7 +426,7 @@ pub fn parse(args: &[PyStr]) -> Parsed {
         index += 1;
     }
 
-    let mut parsed = LegacyArgs::default();
+    let mut parsed = Matches::new(spec);
     let mut extras: Vec<PyStr> = Vec::new();
     let last_option = tuples.iter().rposition(Option::is_some);
     let mut start = 0;
@@ -301,6 +441,7 @@ pub fn parse(args: &[PyStr]) -> Parsed {
         );
         start = next;
         match consume_optional(
+            spec,
             start,
             &args,
             &pattern,
@@ -309,8 +450,8 @@ pub fn parse(args: &[PyStr]) -> Parsed {
             &mut parsed,
         ) {
             Consumed::Next(stop) => start = stop,
-            Consumed::Help => return Parsed::Help,
-            Consumed::Error(message) => return Parsed::Error(message),
+            Consumed::Help => return Outcome::Help,
+            Consumed::Error(message) => return Outcome::Error(message),
         }
     }
     extras.extend(
@@ -318,8 +459,22 @@ pub fn parse(args: &[PyStr]) -> Parsed {
             .iter()
             .map(|a| PyStr::from_code_points(a.to_vec())),
     );
+    // argparse checks required actions before `parse_args` looks at the leftover arguments.
+    let missing: Vec<&str> = spec
+        .actions
+        .iter()
+        .enumerate()
+        .filter(|(index, action)| action.required && !parsed.seen[*index])
+        .map(|(_, action)| action.name)
+        .collect();
+    if !missing.is_empty() {
+        return Outcome::Error(PyStr::new(&format!(
+            "the following arguments are required: {}",
+            missing.join(", ")
+        )));
+    }
     if extras.is_empty() {
-        return Parsed::Run(parsed);
+        return Outcome::Run(parsed);
     }
     let mut message = PyStr::new("unrecognized arguments: ");
     for (position, extra) in extras.iter().enumerate() {
@@ -328,16 +483,17 @@ pub fn parse(args: &[PyStr]) -> Parsed {
         }
         message.push_py(extra);
     }
-    Parsed::Error(message)
+    Outcome::Error(message)
 }
 
 fn consume_optional(
+    spec: &Spec,
     start: usize,
     args: &[&[u32]],
     pattern: &[char],
     tuples: &mut [Option<OptionTuple>],
     extras: &mut Vec<PyStr>,
-    parsed: &mut LegacyArgs,
+    parsed: &mut Matches,
 ) -> Consumed {
     let tuple = tuples[start].take().expect("start indexes an option");
     let (mut action, mut option_string, mut separator, mut explicit) = (
@@ -346,7 +502,7 @@ fn consume_optional(
         tuple.separator,
         tuple.explicit,
     );
-    let mut queued: Vec<(Action, Vec<PyStr>)> = Vec::new();
+    let mut queued: Vec<(usize, Vec<PyStr>)> = Vec::new();
     let stop;
     loop {
         let Some(current) = action else {
@@ -354,10 +510,11 @@ fn consume_optional(
             return Consumed::Next(start + 1);
         };
         if let Some(value) = explicit.clone() {
-            let takes = usize::from(current.takes_value());
+            let takes = usize::from(spec.actions[current].kind == Kind::Value);
             if takes == 0 && option_string[1] != u32::from('-') && !value.is_empty() {
                 if separator == Separator::Equals || value[0] == u32::from('-') {
                     return Consumed::Error(argument_error(
+                        spec,
                         current,
                         &format!("ignored explicit argument {}", quoted(&value)),
                     ));
@@ -365,7 +522,7 @@ fn consume_optional(
                 queued.push((current, Vec::new()));
                 let dash = option_string[0];
                 option_string = vec![dash, value[0]];
-                if let Some(next_action) = lookup(&option_string) {
+                if let Some(next_action) = spec.lookup(&option_string) {
                     action = Some(next_action);
                     let rest = value[1..].to_vec();
                     if rest.is_empty() {
@@ -389,14 +546,15 @@ fn consume_optional(
                 break;
             } else {
                 return Consumed::Error(argument_error(
+                    spec,
                     current,
                     &format!("ignored explicit argument {}", quoted(&value)),
                 ));
             }
         } else {
-            let wanted = usize::from(current.takes_value());
+            let wanted = usize::from(spec.actions[current].kind == Kind::Value);
             if wanted == 1 && pattern.get(start + 1) != Some(&'A') {
-                return Consumed::Error(argument_error(current, "expected one argument"));
+                return Consumed::Error(argument_error(spec, current, "expected one argument"));
             }
             stop = start + 1 + wanted;
             let values = args[start + 1..stop]
@@ -408,12 +566,12 @@ fn consume_optional(
         }
     }
     for (action, mut values) in queued {
-        match action {
-            Action::Help => return Consumed::Help,
-            Action::State => parsed.state = values.pop(),
-            Action::NowUtc => parsed.now_utc = values.pop(),
-            Action::SelfTest => parsed.self_test = true,
+        match spec.actions[action].kind {
+            Kind::Help => return Consumed::Help,
+            Kind::Value => parsed.values[action] = values.pop(),
+            Kind::Flag => {}
         }
+        parsed.seen[action] = true;
     }
     Consumed::Next(stop)
 }

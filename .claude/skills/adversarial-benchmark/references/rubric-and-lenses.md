@@ -76,7 +76,7 @@ decode-tps 축과 **직교**한 별도 루브릭 축. recipe-explorer 가 산정
   (client-side 토크나이저=마운트 모델 경로, 네트워크 불요) 실행 → `--save-result` JSON 회수 + `docker logs` 교차캡처.
 - **정본 디코드 지표 = `1000 / median_tpot_ms`**(단일스트림 warm; output_throughput 은 콜드 TTFT 에 끌려 과소 —
   `--num-warmups` 로 폐기). `accept_len` 은 bench JSON 의 `spec_decode_acceptance_length` 직독.
-- 교차검증: `parse_bench.py` 가 engine-log `generation throughput` 최대값과 client decode_tps 비교(괴리 = 콜드/warmup 의심).
+- 교차검증: `parse_bench.sh` 가 engine-log `generation throughput` 최대값과 client decode_tps 비교(괴리 = 콜드/warmup 의심).
 - **버전-exact 확증**: `vllm bench serve` 존재·플래그를 이미지에서 확인 후 사용(가정 금지).
 - 콜드 JIT(예 flashinfer SM120 첫 요청) → warmup 폐기로 흡수.
 

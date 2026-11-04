@@ -1,7 +1,7 @@
 //! Generated data - do not edit by hand.
 //!
 //! Source: CPython 3.12.3, unicodedata 15.0.0 (`str.isprintable` / `str.isspace`).
-//! Generator: val_agent/temp/real-worker-261104/r1-worker-checks/gen_unicode_tables.py
+//! Generator: gen_unicode_tables.py
 //! The tables let `repr(str)`, `str.strip()` and argparse's negative-number test match Python without calling it.
 //!
 //! Derived from the Unicode Character Database 15.0.0 as shipped in CPython; see notices/NOTICE.md and

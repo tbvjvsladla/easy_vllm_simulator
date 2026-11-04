@@ -1156,6 +1156,12 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/parse_bench.sh",
+      "phase": "verification_plane",
+      "reason": "Rust 측정 파서의 native 기동·변환·오류/경고 자체검사를 실행한다(R2)"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
       "callee": "adversarial-benchmark/scripts/verdict_rule.py",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"

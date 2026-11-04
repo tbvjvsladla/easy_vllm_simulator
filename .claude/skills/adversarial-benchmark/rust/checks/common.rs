@@ -2,7 +2,13 @@
 
 #![allow(dead_code)]
 
+use rustix::pty::{grantpt, openpt, ptsname, unlockpt, OpenptFlags};
+use rustix::termios::{tcsetwinsize, Winsize};
+use std::fs::{File, OpenOptions};
+use std::io::Read;
+use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 use sweep_stop::pyjson::{decode_file_text, loads_text};
 use sweep_stop::pyvalue::{PyDict, PyValue};
 
@@ -78,4 +84,109 @@ pub fn hex_decode(text: &str) -> Vec<u8> {
         .step_by(2)
         .map(|at| u8::from_str_radix(&text[at..at + 2], 16).expect("hex digits"))
         .collect()
+}
+
+// ── running a program under a controlled width ───────────────────────────────────
+
+/// A command with `COLUMNS` set (or removed) and `LINES` removed, per child, never in the test process.
+pub fn command(bin: &str, env: Option<&str>, argv: &[String]) -> Command {
+    let mut command = Command::new(bin);
+    command.args(argv).env_remove("COLUMNS").env_remove("LINES");
+    if let Some(value) = env {
+        command.env("COLUMNS", value);
+    }
+    command
+}
+
+pub struct Pty {
+    pub master: File,
+    pub slave: File,
+}
+
+pub fn open_pty(rows: u16, columns: u16) -> Pty {
+    let master = openpt(OpenptFlags::RDWR | OpenptFlags::NOCTTY).expect("openpt");
+    grantpt(&master).expect("grantpt");
+    unlockpt(&master).expect("unlockpt");
+    let name = ptsname(&master, Vec::new()).expect("ptsname");
+    let slave = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(std::ffi::OsStr::from_bytes(name.to_bytes()))
+        .expect("open pty slave");
+    tcsetwinsize(
+        &master,
+        Winsize {
+            ws_row: rows,
+            ws_col: columns,
+            ws_xpixel: 0,
+            ws_ypixel: 0,
+        },
+    )
+    .expect("set pty size");
+    Pty {
+        master: File::from(master),
+        slave,
+    }
+}
+
+/// Everything written to the terminal side, with the terminal's `\n` -> `\r\n` translation undone.
+pub fn drain(mut master: File) -> String {
+    let mut bytes = Vec::new();
+    let mut chunk = [0u8; 4096];
+    loop {
+        match master.read(&mut chunk) {
+            Ok(0) => break,
+            Ok(n) => bytes.extend_from_slice(&chunk[..n]),
+            Err(error) if error.raw_os_error() == Some(5) => break, // EIO: every slave descriptor is closed
+            Err(error) => panic!("reading the pty master: {error}"),
+        }
+    }
+    String::from_utf8(bytes)
+        .expect("UTF-8 output")
+        .replace("\r\n", "\n")
+}
+
+pub enum Attach {
+    /// stdout is the pty; stderr is a pipe, stdin is null.
+    Stdout,
+    /// stdout is a pipe; stdin and stderr are the pty.
+    StdinAndStderr,
+}
+
+/// Runs `sweep_stop` with the chosen streams on a pty of the given size; returns (stdout, stderr) as text.
+pub fn run_on_pty(
+    bin: &str,
+    attach: Attach,
+    rows: u16,
+    columns: u16,
+    env: Option<&str>,
+    argv: &[&str],
+) -> (String, String) {
+    let pty = open_pty(rows, columns);
+    let argv: Vec<String> = argv.iter().map(|a| a.to_string()).collect();
+    let mut child = command(bin, env, &argv);
+    match attach {
+        Attach::Stdout => {
+            child
+                .stdin(Stdio::null())
+                .stdout(Stdio::from(pty.slave.try_clone().unwrap()))
+                .stderr(Stdio::piped());
+        }
+        Attach::StdinAndStderr => {
+            child
+                .stdin(Stdio::from(pty.slave.try_clone().unwrap()))
+                .stdout(Stdio::piped())
+                .stderr(Stdio::from(pty.slave.try_clone().unwrap()));
+        }
+    }
+    let handle = child.spawn().expect("spawn");
+    drop(child);
+    let Pty { master, slave } = pty;
+    drop(slave);
+    let output = handle.wait_with_output().expect("wait");
+    let terminal_text = drain(master);
+    match attach {
+        Attach::Stdout => (terminal_text, String::from_utf8(output.stderr).unwrap()),
+        Attach::StdinAndStderr => (String::from_utf8(output.stdout).unwrap(), terminal_text),
+    }
 }

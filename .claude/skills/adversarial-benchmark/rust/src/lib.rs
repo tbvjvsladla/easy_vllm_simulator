@@ -6,16 +6,23 @@
 //! Python tools and the original's observable behaviour on odd input is part of the contract.
 
 pub mod argv;
+pub mod bench_cli;
+mod bench_selftest;
 pub mod cli;
+pub mod engine_log;
 pub mod error;
 pub mod evaluate;
 mod help_layouts;
+mod help_layouts_parse_bench;
 pub mod jsonl;
+pub mod parse_bench;
 pub mod pyjson;
+pub mod pynumber;
 pub mod pystr;
 pub mod pyvalue;
 pub mod report;
 pub mod selftest;
+pub mod stdout;
 pub mod terminal;
 mod unicode_tables;
 pub mod utc;

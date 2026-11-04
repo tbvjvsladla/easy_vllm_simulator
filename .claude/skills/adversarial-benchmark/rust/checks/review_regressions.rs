@@ -1,7 +1,7 @@
 //! Regressions for the independent review: argument semantics, stream byte handling, surrogate separators and
 //! nesting depth. Every golden record is the exact output of the original CLI on this interpreter
 //! (`sweep_stop.py` run by CPython 3.12.3, stdin/stdout `errors=surrogateescape`), captured by
-//! `r1-worker-checks/gen_review_goldens.py`; the binary under test must reproduce rc, stdout and stderr bytes.
+//! the dev-time generator `gen_review_goldens.py`; the binary under test must reproduce rc, stdout and stderr bytes.
 //! Where Python died with a traceback (rc 1) only its last line is compared.
 
 #[path = "common.rs"]

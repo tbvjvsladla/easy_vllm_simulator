@@ -2,7 +2,7 @@
 //!
 //! Usage and help text of the original `sweep_stop.py` as laid out by CPython 3.12.3 `argparse`/`textwrap` for
 //! every terminal width, captured from the original program by
-//! `val_agent/temp/real-worker-261104/r1-worker-checks/gen_help_layouts.py` (COLUMNS 1..200 observed; the layout is
+//! `gen_help_layouts.py` (COLUMNS 1..200 observed; the layout is
 //! constant from COLUMNS 77 up). See notices/NOTICE.md.
 
 /// One layout, valid from `from_columns` up to the next entry.

@@ -17,6 +17,10 @@ name = "sweep_stop"
 path = "src/bin/sweep_stop.rs"
 
 [[bin]]
+name = "parse_bench"
+path = "src/bin/parse_bench.rs"
+
+[[bin]]
 name = "sweep_stop_bench"
 path = "src/bin/sweep_stop_bench.rs"
 
@@ -40,11 +44,28 @@ path = "checks/terminal_width.rs"
 name = "cli_contract"
 path = "checks/cli_contract.rs"
 
+[[test]]
+name = "parse_bench_cases"
+path = "checks/parse_bench_cases.rs"
+
+[[test]]
+name = "parse_bench_width"
+path = "checks/parse_bench_width.rs"
+
+[[test]]
+name = "parse_bench_numbers"
+path = "checks/parse_bench_numbers.rs"
+
+[[test]]
+name = "stdout_boundary"
+path = "checks/stdout_boundary.rs"
+
 [dependencies]
 num-bigint = "0.4"
 num-traits = "0.2"
-# Safe wrapper of TIOCGWINSZ on stdout only (what shutil.get_terminal_size asks via os.get_terminal_size).
-rustix = { version = "1", default-features = false, features = ["std", "termios"] }
+# Safe wrappers of TIOCGWINSZ on stdout only (what shutil.get_terminal_size asks via os.get_terminal_size) and of
+# fstat on stdout (the buffer size and presence of the interpreter's sys.stdout).
+rustix = { version = "1", default-features = false, features = ["std", "termios", "fs"] }
 
 # The checks open a pseudo-terminal pair of their own to observe the width query.
 [dev-dependencies]

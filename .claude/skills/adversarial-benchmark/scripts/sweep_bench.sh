@@ -576,7 +576,7 @@ for L in "${SORTED[@]}"; do
         [ -s "$_PC" ] && PARSE_CMD+=(--prefix-cache-json "$_PC")
       else
         BJSON="$RDIR/bench_${CONFIG}.json"
-        PARSE_CMD=(python3 "$SDIR/parse_bench.py" --bench-json "$BJSON" --engine-log "$ELOG")
+        PARSE_CMD=(bash "$SDIR/parse_bench.sh" --bench-json "$BJSON" --engine-log "$ELOG")
       fi
       # 파서의 거부 사유를 버리지 않는다(2026-09-14 리뷰 정정) — 종전 `2>/dev/null` 은 파서가 exit 2 로
       #   이유를 말해도 절삭 로그에 "파싱 실패" 만 남겨, 레벨 1 중단(exit 3)의 원인을 아무도 읽을 수 없었다.

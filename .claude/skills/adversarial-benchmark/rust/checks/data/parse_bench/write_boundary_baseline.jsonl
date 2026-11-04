@@ -1,0 +1,64 @@
+{"label": "pb-devfull-436", "redirect": "devfull", "exit_code": 120, "stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nOSError: [Errno 28] No space left on device\n", "program": "parse_bench", "body_bytes": 436, "warn": false}
+{"label": "pb-epipe-436", "redirect": "epipe", "exit_code": 120, "stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nBrokenPipeError: [Errno 32] Broken pipe\n", "program": "parse_bench", "body_bytes": 436, "warn": false}
+{"label": "pb-file-436", "redirect": "file", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 436, "warn": false}
+{"label": "pb-pty-gone-436", "redirect": "pty-gone", "exit_code": 120, "stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nOSError: [Errno 5] Input/output error\n", "program": "parse_bench", "body_bytes": 436, "warn": false}
+{"label": "pb-closed-436", "redirect": "closed", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 436, "warn": false}
+{"label": "pb-devfull-4095", "redirect": "devfull", "exit_code": 120, "stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nOSError: [Errno 28] No space left on device\n", "program": "parse_bench", "body_bytes": 4095, "warn": false}
+{"label": "pb-epipe-4095", "redirect": "epipe", "exit_code": 120, "stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nBrokenPipeError: [Errno 32] Broken pipe\n", "program": "parse_bench", "body_bytes": 4095, "warn": false}
+{"label": "pb-file-4095", "redirect": "file", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 4095, "warn": false}
+{"label": "pb-pty-gone-4095", "redirect": "pty-gone", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 4095, "warn": false}
+{"label": "pb-closed-4095", "redirect": "closed", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 4095, "warn": false}
+{"label": "pb-devfull-4096", "redirect": "devfull", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 4096, "warn": false}
+{"label": "pb-epipe-4096", "redirect": "epipe", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 4096, "warn": false}
+{"label": "pb-file-4096", "redirect": "file", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 4096, "warn": false}
+{"label": "pb-pty-gone-4096", "redirect": "pty-gone", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 4096, "warn": false}
+{"label": "pb-closed-4096", "redirect": "closed", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 4096, "warn": false}
+{"label": "pb-devfull-4097", "redirect": "devfull", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 4097, "warn": false}
+{"label": "pb-epipe-4097", "redirect": "epipe", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 4097, "warn": false}
+{"label": "pb-file-4097", "redirect": "file", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 4097, "warn": false}
+{"label": "pb-pty-gone-4097", "redirect": "pty-gone", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 4097, "warn": false}
+{"label": "pb-closed-4097", "redirect": "closed", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 4097, "warn": false}
+{"label": "pb-devfull-8189", "redirect": "devfull", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 8189, "warn": false}
+{"label": "pb-epipe-8189", "redirect": "epipe", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 8189, "warn": false}
+{"label": "pb-file-8189", "redirect": "file", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 8189, "warn": false}
+{"label": "pb-pty-gone-8189", "redirect": "pty-gone", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 8189, "warn": false}
+{"label": "pb-closed-8189", "redirect": "closed", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 8189, "warn": false}
+{"label": "pb-devfull-8190", "redirect": "devfull", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 8190, "warn": false}
+{"label": "pb-epipe-8190", "redirect": "epipe", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 8190, "warn": false}
+{"label": "pb-file-8190", "redirect": "file", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 8190, "warn": false}
+{"label": "pb-pty-gone-8190", "redirect": "pty-gone", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 8190, "warn": false}
+{"label": "pb-closed-8190", "redirect": "closed", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 8190, "warn": false}
+{"label": "pb-devfull-8191", "redirect": "devfull", "exit_code": 1, "stderr": "Traceback (most recent call last):\nOSError: [Errno 28] No space left on device\n", "program": "parse_bench", "body_bytes": 8191, "warn": false}
+{"label": "pb-epipe-8191", "redirect": "epipe", "exit_code": 1, "stderr": "Traceback (most recent call last):\nBrokenPipeError: [Errno 32] Broken pipe\n", "program": "parse_bench", "body_bytes": 8191, "warn": false}
+{"label": "pb-file-8191", "redirect": "file", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 8191, "warn": false}
+{"label": "pb-pty-gone-8191", "redirect": "pty-gone", "exit_code": 1, "stderr": "Traceback (most recent call last):\nOSError: [Errno 5] Input/output error\n", "program": "parse_bench", "body_bytes": 8191, "warn": false}
+{"label": "pb-closed-8191", "redirect": "closed", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 8191, "warn": false}
+{"label": "pb-devfull-8192", "redirect": "devfull", "exit_code": 1, "stderr": "Traceback (most recent call last):\nOSError: [Errno 28] No space left on device\n", "program": "parse_bench", "body_bytes": 8192, "warn": false}
+{"label": "pb-epipe-8192", "redirect": "epipe", "exit_code": 1, "stderr": "Traceback (most recent call last):\nBrokenPipeError: [Errno 32] Broken pipe\n", "program": "parse_bench", "body_bytes": 8192, "warn": false}
+{"label": "pb-file-8192", "redirect": "file", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 8192, "warn": false}
+{"label": "pb-pty-gone-8192", "redirect": "pty-gone", "exit_code": 1, "stderr": "Traceback (most recent call last):\nOSError: [Errno 5] Input/output error\n", "program": "parse_bench", "body_bytes": 8192, "warn": false}
+{"label": "pb-closed-8192", "redirect": "closed", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 8192, "warn": false}
+{"label": "pb-devfull-10456", "redirect": "devfull", "exit_code": 1, "stderr": "Traceback (most recent call last):\nOSError: [Errno 28] No space left on device\n", "program": "parse_bench", "body_bytes": 10456, "warn": false}
+{"label": "pb-epipe-10456", "redirect": "epipe", "exit_code": 1, "stderr": "Traceback (most recent call last):\nBrokenPipeError: [Errno 32] Broken pipe\n", "program": "parse_bench", "body_bytes": 10456, "warn": false}
+{"label": "pb-file-10456", "redirect": "file", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 10456, "warn": false}
+{"label": "pb-pty-gone-10456", "redirect": "pty-gone", "exit_code": 1, "stderr": "Traceback (most recent call last):\nOSError: [Errno 5] Input/output error\n", "program": "parse_bench", "body_bytes": 10456, "warn": false}
+{"label": "pb-closed-10456", "redirect": "closed", "exit_code": 0, "stderr": "", "program": "parse_bench", "body_bytes": 10456, "warn": false}
+{"label": "pb-warn-devfull-436", "redirect": "devfull", "exit_code": 120, "stderr": "[parse_bench] WARN engine-log: [Errno 2] No such file or directory: '{DIR}/no-such-engine.log'\nException ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nOSError: [Errno 28] No space left on device\n", "program": "parse_bench", "body_bytes": 436, "warn": true}
+{"label": "pb-warn-devfull-10456", "redirect": "devfull", "exit_code": 1, "stderr": "[parse_bench] WARN engine-log: [Errno 2] No such file or directory: '{DIR}/no-such-engine.log'\nTraceback (most recent call last):\nOSError: [Errno 28] No space left on device\n", "program": "parse_bench", "body_bytes": 10456, "warn": true}
+{"label": "pb-help-devfull", "redirect": "devfull", "exit_code": 120, "stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nOSError: [Errno 28] No space left on device\n", "program": "parse_bench", "warn": false}
+{"label": "pb-help-closed", "redirect": "closed", "exit_code": 0, "stderr": "usage: parse_bench.py [-h] --bench-json BENCH_JSON [--engine-log ENGINE_LOG]\n                      [--json]\n\nvllm bench serve \uacb0\uacfc + engine-log \ud30c\uc2f1 \u2192 \uce21\uc815 M\n\noptions:\n  -h, --help            show this help message and exit\n  --bench-json BENCH_JSON\n                        vllm bench serve --save-result JSON \uacbd\ub85c\n  --engine-log ENGINE_LOG\n                        docker logs \ucea1\ucc98 \ud30c\uc77c(\uad50\ucc28\uac80\uc99d, \uc120\ud0dd)\n  --json\n", "program": "parse_bench", "warn": false}
+{"label": "ss-selftest-devfull", "redirect": "devfull", "exit_code": 120, "stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nOSError: [Errno 28] No space left on device\n", "program": "sweep_stop", "warn": false}
+{"label": "ss-selftest-epipe", "redirect": "epipe", "exit_code": 120, "stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nBrokenPipeError: [Errno 32] Broken pipe\n", "program": "sweep_stop", "warn": false}
+{"label": "ss-help-devfull", "redirect": "devfull", "exit_code": 120, "stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nOSError: [Errno 28] No space left on device\n", "program": "sweep_stop", "warn": false}
+{"label": "ss-continue-devfull", "redirect": "devfull", "exit_code": 120, "stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nOSError: [Errno 28] No space left on device\n", "program": "sweep_stop", "state_case": "continue", "warn": false}
+{"label": "ss-continue-epipe", "redirect": "epipe", "exit_code": 120, "stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nBrokenPipeError: [Errno 32] Broken pipe\n", "program": "sweep_stop", "state_case": "continue", "warn": false}
+{"label": "ss-continue-closed", "redirect": "closed", "exit_code": 0, "stderr": "", "program": "sweep_stop", "state_case": "continue", "warn": false}
+{"label": "ss-continue-file", "redirect": "file", "exit_code": 0, "stderr": "", "program": "sweep_stop", "state_case": "continue", "warn": false}
+{"label": "ss-stop-devfull", "redirect": "devfull", "exit_code": 120, "stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nOSError: [Errno 28] No space left on device\n", "program": "sweep_stop", "state_case": "stop", "warn": false}
+{"label": "ss-stop-epipe", "redirect": "epipe", "exit_code": 120, "stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nBrokenPipeError: [Errno 32] Broken pipe\n", "program": "sweep_stop", "state_case": "stop", "warn": false}
+{"label": "ss-stop-closed", "redirect": "closed", "exit_code": 3, "stderr": "", "program": "sweep_stop", "state_case": "stop", "warn": false}
+{"label": "ss-stop-file", "redirect": "file", "exit_code": 3, "stderr": "", "program": "sweep_stop", "state_case": "stop", "warn": false}
+{"label": "ss-big-continue-devfull", "redirect": "devfull", "exit_code": 1, "stderr": "Traceback (most recent call last):\nOSError: [Errno 28] No space left on device\n", "program": "sweep_stop", "state_case": "big-continue", "warn": false}
+{"label": "ss-big-continue-epipe", "redirect": "epipe", "exit_code": 1, "stderr": "Traceback (most recent call last):\nBrokenPipeError: [Errno 32] Broken pipe\n", "program": "sweep_stop", "state_case": "big-continue", "warn": false}
+{"label": "ss-big-continue-closed", "redirect": "closed", "exit_code": 0, "stderr": "", "program": "sweep_stop", "state_case": "big-continue", "warn": false}
+{"label": "ss-big-continue-file", "redirect": "file", "exit_code": 0, "stderr": "", "program": "sweep_stop", "state_case": "big-continue", "warn": false}

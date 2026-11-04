@@ -25,3 +25,4 @@ done
 bash "$BOOTSTRAP" exec "${runtime_args[@]}" -- cargo build --release --locked \
   --manifest-path "$CRATE/Cargo.toml" --target-dir "$CRATE/target" "${cargo_args[@]}"
 bash "$SDIR/sweep_stop.sh" --self-test
+bash "$SDIR/parse_bench.sh" self-test

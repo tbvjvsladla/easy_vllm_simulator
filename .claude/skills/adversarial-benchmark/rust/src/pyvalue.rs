@@ -308,6 +308,66 @@ fn push_indent(out: &mut PyStr, layout: Layout) {
     }
 }
 
+/// Digits and decimal exponent of a finite positive double in scientific form, as `format!("{:.*e}")` renders it.
+fn scientific_digits(magnitude: f64, precision: usize) -> (String, i32) {
+    let text = format!("{magnitude:.precision$e}");
+    let (mantissa, exponent) = text.split_once('e').expect("{:e} always has an exponent");
+    (
+        mantissa.chars().filter(|c| c.is_ascii_digit()).collect(),
+        exponent.parse().expect("exponent is an integer"),
+    )
+}
+
+/// Python's `repr` takes, among the shortest digit strings that read back as the same double, the one closest to
+/// the exact value and, when two are equally close (the exact value ends in a 5 right after them), the one with
+/// the even last digit: `repr(2175058994972888.25)` is `2175058994972888.2`. Rust's shortest formatter breaks that
+/// tie upward (`...8.3`). `digits` is Rust's shortest form; the Python choice is returned.
+fn settle_exact_tie(magnitude: f64, digits: String, exponent: i32) -> (String, i32) {
+    let length = digits.len();
+    let (wide, wide_exponent) = scientific_digits(magnitude, length);
+    if wide.len() != length + 1 || !wide.ends_with('5') {
+        return (digits, exponent);
+    }
+    // Only an expansion that stops right after that 5 is a tie; a double has at most 767 significant digits.
+    let (exact, _) = scientific_digits(magnitude, 800);
+    if exact[length + 1..].bytes().any(|digit| digit != b'0') {
+        return (digits, exponent);
+    }
+    let lower = &wide[..length];
+    let mut chosen = lower.to_string();
+    let mut chosen_exponent = wide_exponent;
+    if (lower.as_bytes()[length - 1] - b'0') % 2 == 1 {
+        let mut bytes = lower.as_bytes().to_vec();
+        let mut index = length;
+        loop {
+            if index == 0 {
+                bytes.insert(0, b'1');
+                bytes.truncate(length);
+                chosen_exponent += 1;
+                break;
+            }
+            index -= 1;
+            if bytes[index] == b'9' {
+                bytes[index] = b'0';
+            } else {
+                bytes[index] += 1;
+                break;
+            }
+        }
+        chosen = String::from_utf8(bytes).expect("ASCII digits");
+    }
+    let trimmed = chosen.trim_end_matches('0');
+    let trimmed = if trimmed.is_empty() { "0" } else { trimmed };
+    let reads_back = format!("{trimmed}e{}", chosen_exponent - (trimmed.len() as i32 - 1))
+        .parse::<f64>()
+        .is_ok_and(|value| value == magnitude);
+    if reads_back {
+        (trimmed.to_string(), chosen_exponent)
+    } else {
+        (digits, exponent)
+    }
+}
+
 /// Python `repr(float)`: shortest round-trip digits, exponent form outside `1e-4 <= |x| < 1e16`.
 pub fn float_repr(number: f64) -> String {
     if number.is_nan() {
@@ -330,6 +390,7 @@ pub fn float_repr(number: f64) -> String {
         .expect("{:e} always has an exponent");
     let exponent: i32 = exponent.parse().expect("exponent is an integer");
     let digits: String = mantissa.chars().filter(|c| c.is_ascii_digit()).collect();
+    let (digits, exponent) = settle_exact_tie(number.abs(), digits, exponent);
     let sign = if number < 0.0 { "-" } else { "" };
     if !(-4..16).contains(&exponent) {
         let fraction = if digits.len() > 1 {
@@ -395,6 +456,10 @@ mod tests {
             (-2.5, "-2.5"),
             (5e-324, "5e-324"),
             (1.7976931348623157e308, "1.7976931348623157e+308"),
+            // Two shortest strings read back as this double and are equally close; Python takes the even one.
+            (2_175_058_994_972_888.0 + 0.25, "2175058994972888.2"),
+            (2_175_058_994_972_888.0 + 0.75, "2175058994972888.8"),
+            (9007199254740993.0, "9007199254740992.0"),
         ];
         for (number, expected) in cases {
             assert_eq!(float_repr(number), expected, "{number:e}");

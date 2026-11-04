@@ -9,13 +9,10 @@
 #[path = "common.rs"]
 mod common;
 
-use common::{load_jsonl, text_of};
-use rustix::pty::{grantpt, openpt, ptsname, unlockpt, OpenptFlags};
-use rustix::termios::{tcsetwinsize, Winsize};
-use std::fs::{File, OpenOptions};
-use std::io::Read;
-use std::os::unix::ffi::OsStrExt;
-use std::process::{Command, Stdio};
+use common::{command, load_jsonl, run_on_pty, text_of, Attach};
+use std::process::Stdio;
+
+const BIN: &str = env!("CARGO_BIN_EXE_sweep_stop");
 use sweep_stop::pyvalue::{PyDict, PyValue};
 
 struct Golden {
@@ -51,22 +48,13 @@ fn goldens() -> Vec<Golden> {
         .collect()
 }
 
-fn command(env: Option<&str>, argv: &[String]) -> Command {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_sweep_stop"));
-    command.args(argv).env_remove("COLUMNS").env_remove("LINES");
-    if let Some(value) = env {
-        command.env("COLUMNS", value);
-    }
-    command
-}
-
 #[test]
 fn layouts_match_the_original_for_every_width_and_spelling() {
     let records = goldens();
     assert!(records.len() >= 450, "golden set shrank: {}", records.len());
     let mut failures = Vec::new();
     for golden in &records {
-        let output = command(golden.env.as_deref(), &golden.argv)
+        let output = command(BIN, golden.env.as_deref(), &golden.argv)
             .stdin(Stdio::null())
             .output()
             .expect("run sweep_stop");
@@ -115,106 +103,14 @@ fn golden_text(columns: &str, argv: &str) -> String {
     }
 }
 
-struct Pty {
-    master: File,
-    slave: File,
-}
-
-fn open_pty(rows: u16, columns: u16) -> Pty {
-    let master = openpt(OpenptFlags::RDWR | OpenptFlags::NOCTTY).expect("openpt");
-    grantpt(&master).expect("grantpt");
-    unlockpt(&master).expect("unlockpt");
-    let name = ptsname(&master, Vec::new()).expect("ptsname");
-    let slave = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(std::ffi::OsStr::from_bytes(name.to_bytes()))
-        .expect("open pty slave");
-    tcsetwinsize(
-        &master,
-        Winsize {
-            ws_row: rows,
-            ws_col: columns,
-            ws_xpixel: 0,
-            ws_ypixel: 0,
-        },
-    )
-    .expect("set pty size");
-    Pty {
-        master: File::from(master),
-        slave,
-    }
-}
-
-/// Everything written to the terminal side, with the terminal's `\n` -> `\r\n` translation undone.
-fn drain(mut master: File) -> String {
-    let mut bytes = Vec::new();
-    let mut chunk = [0u8; 4096];
-    loop {
-        match master.read(&mut chunk) {
-            Ok(0) => break,
-            Ok(n) => bytes.extend_from_slice(&chunk[..n]),
-            Err(error) if error.raw_os_error() == Some(5) => break, // EIO: every slave descriptor is closed
-            Err(error) => panic!("reading the pty master: {error}"),
-        }
-    }
-    String::from_utf8(bytes)
-        .expect("UTF-8 output")
-        .replace("\r\n", "\n")
-}
-
-enum Attach {
-    /// stdout is the pty; stderr is a pipe, stdin is null.
-    Stdout,
-    /// stdout is a pipe; stdin and stderr are the pty.
-    StdinAndStderr,
-}
-
-/// Runs `sweep_stop` with the chosen streams on a pty of the given size; returns (stdout, stderr) as text.
-fn run_on_pty(
-    attach: Attach,
-    rows: u16,
-    columns: u16,
-    env: Option<&str>,
-    argv: &[&str],
-) -> (String, String) {
-    let pty = open_pty(rows, columns);
-    let argv: Vec<String> = argv.iter().map(|a| a.to_string()).collect();
-    let mut child = command(env, &argv);
-    match attach {
-        Attach::Stdout => {
-            child
-                .stdin(Stdio::null())
-                .stdout(Stdio::from(pty.slave.try_clone().unwrap()))
-                .stderr(Stdio::piped());
-        }
-        Attach::StdinAndStderr => {
-            child
-                .stdin(Stdio::from(pty.slave.try_clone().unwrap()))
-                .stdout(Stdio::piped())
-                .stderr(Stdio::from(pty.slave.try_clone().unwrap()));
-        }
-    }
-    let handle = child.spawn().expect("spawn");
-    drop(child);
-    let Pty { master, slave } = pty;
-    drop(slave);
-    let output = handle.wait_with_output().expect("wait");
-    let terminal_text = drain(master);
-    match attach {
-        Attach::Stdout => (terminal_text, String::from_utf8(output.stderr).unwrap()),
-        Attach::StdinAndStderr => (String::from_utf8(output.stdout).unwrap(), terminal_text),
-    }
-}
-
 #[test]
 fn stdout_terminal_width_is_used_when_columns_is_unusable() {
     for (rows, width) in [(24, 55), (0, 55), (24, 20), (24, 120)] {
         let want = golden_text(&width.to_string(), "-h");
-        let (stdout, _) = run_on_pty(Attach::Stdout, rows, width, None, &["-h"]);
+        let (stdout, _) = run_on_pty(BIN, Attach::Stdout, rows, width, None, &["-h"]);
         assert_eq!(stdout, want, "pty {rows}x{width}, COLUMNS unset");
         for bad in ["abc", "0", "-3", "", "1e2", "4__0"] {
-            let (stdout, _) = run_on_pty(Attach::Stdout, rows, width, Some(bad), &["-h"]);
+            let (stdout, _) = run_on_pty(BIN, Attach::Stdout, rows, width, Some(bad), &["-h"]);
             assert_eq!(stdout, want, "pty {rows}x{width}, COLUMNS={bad:?}");
         }
     }
@@ -222,9 +118,9 @@ fn stdout_terminal_width_is_used_when_columns_is_unusable() {
 
 #[test]
 fn a_usable_columns_value_wins_over_the_terminal() {
-    let (stdout, _) = run_on_pty(Attach::Stdout, 24, 55, Some("30"), &["-h"]);
+    let (stdout, _) = run_on_pty(BIN, Attach::Stdout, 24, 55, Some("30"), &["-h"]);
     assert_eq!(stdout, golden_text("30", "-h"));
-    let (stdout, _) = run_on_pty(Attach::Stdout, 24, 55, Some("٣٠"), &["-h"]);
+    let (stdout, _) = run_on_pty(BIN, Attach::Stdout, 24, 55, Some("٣٠"), &["-h"]);
     assert_eq!(
         stdout,
         golden_text("30", "-h"),
@@ -234,7 +130,7 @@ fn a_usable_columns_value_wins_over_the_terminal() {
 
 #[test]
 fn a_terminal_reporting_zero_columns_means_eighty() {
-    let (stdout, _) = run_on_pty(Attach::Stdout, 24, 0, None, &["-h"]);
+    let (stdout, _) = run_on_pty(BIN, Attach::Stdout, 24, 0, None, &["-h"]);
     assert_eq!(
         stdout,
         golden_text("200", "-h"),
@@ -246,10 +142,10 @@ fn a_terminal_reporting_zero_columns_means_eighty() {
 #[test]
 fn only_stdout_is_asked_never_stdin_or_stderr() {
     // stdin and stderr are 40-column terminals but stdout is a pipe: Python falls back to 80, not 40.
-    let (stdout, stderr) = run_on_pty(Attach::StdinAndStderr, 24, 40, None, &["-h"]);
+    let (stdout, stderr) = run_on_pty(BIN, Attach::StdinAndStderr, 24, 40, None, &["-h"]);
     assert_eq!(stdout, golden_text("80", "-h"));
     assert_eq!(stderr, "");
     // The error text goes to stderr (a pipe) while stdout is the 40-column terminal: the layout follows stdout.
-    let (_, stderr) = run_on_pty(Attach::Stdout, 24, 40, None, &["--bogus"]);
+    let (_, stderr) = run_on_pty(BIN, Attach::Stdout, 24, 40, None, &["--bogus"]);
     assert_eq!(stderr, golden_text("40", "--bogus"));
 }

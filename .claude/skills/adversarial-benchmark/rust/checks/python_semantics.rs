@@ -1,5 +1,5 @@
 //! Differential checks of the Python behaviours the port re-implements, against data captured from
-//! CPython 3.12.3 by `r1-worker-checks/gen_oracle_data.py`:
+//! CPython 3.12.3 by the dev-time generator `gen_oracle_data.py`:
 //!
 //! * `_parse_utc` (strip, `fromisoformat`, `astimezone`, `strftime`) over about 27 000 inputs;
 //! * `json.loads` results and `JSONDecodeError` text over about 5 000 documents.
