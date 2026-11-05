@@ -443,6 +443,13 @@ impl PyValue {
         Ok(out)
     }
 
+    /// `json.dumps(value, separators=(",", ":"))`: the tightest layout with `ensure_ascii=True`, so the text is pure ASCII.
+    pub fn dumps_ascii_tight(&self) -> Result<String, DumpError> {
+        let mut out = PyStr::default();
+        self.write_json(&mut out, Layout::Tight, true)?;
+        Ok(out.to_utf8().expect("ensure_ascii output is ASCII"))
+    }
+
     /// `json.dumps(value)`: default separators and `ensure_ascii=True`, so the text is pure ASCII.
     pub fn dumps_ascii(&self) -> Result<String, DumpError> {
         let mut out = PyStr::default();
@@ -502,7 +509,11 @@ impl PyValue {
                             Some(other) => json_key(other)?.write_json(out, ascii),
                             None => key.write_json(out, ascii),
                         }
-                        out.push_str(": ");
+                        out.push_str(if matches!(inner, Layout::Tight) {
+                            ":"
+                        } else {
+                            ": "
+                        });
                         value.write_json(out, inner, ascii)
                     },
                 )?
@@ -515,6 +526,8 @@ impl PyValue {
 #[derive(Clone, Copy)]
 enum Layout {
     Compact,
+    /// `separators=(",", ":")`.
+    Tight,
     /// `level` nesting depth; `indent` spaces per level.
     Pretty {
         level: usize,
@@ -526,6 +539,7 @@ impl Layout {
     fn nested(self) -> Layout {
         match self {
             Layout::Compact => Layout::Compact,
+            Layout::Tight => Layout::Tight,
             Layout::Pretty { level, indent } => Layout::Pretty {
                 level: level + 1,
                 indent,
@@ -552,8 +566,9 @@ fn write_sequence(
     let inner = layout.nested();
     for index in 0..count {
         match (layout, index) {
-            (Layout::Compact, 0) => {}
+            (Layout::Compact | Layout::Tight, 0) => {}
             (Layout::Compact, _) => out.push_str(", "),
+            (Layout::Tight, _) => out.push_str(","),
             (Layout::Pretty { .. }, 0) => push_indent(out, inner),
             (Layout::Pretty { .. }, _) => {
                 out.push_code_point(u32::from(','));

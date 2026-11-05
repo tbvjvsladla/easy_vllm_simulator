@@ -1699,6 +1699,12 @@
       "callee": "adversarial-benchmark/scripts/bench_doc_naming.sh",
       "phase": "verification_plane",
       "reason": "Rust 벤치 명명 소유자의 실제 자체검사를 수행한다"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/dataset_prep.sh",
+      "phase": "verification_plane",
+      "reason": "데이터셋 최빈길이·BOS·salt 행 선택의 실제 Rust 자체검사를 실행한다(R10)"
     }
   ]
 }

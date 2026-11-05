@@ -405,23 +405,23 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
     || { echo "[run_bench] ERROR --dataset-spec 을 읽지 못했다: $DATASET_SPEC" >&2; return 2; }
   if [ "$DKIND" = "synthetic" ]; then
     DATA_ARG="kind=synthetic_text,prompt_tokens=$ILEN,output_tokens=$OLEN"
-    python3 "$SDIR/dataset_prep.py" synthetic-sidecar --input-len "$ILEN" --output-len "$OLEN" \
+    bash "$SDIR/dataset_prep.sh" synthetic-sidecar --input-len "$ILEN" --output-len "$OLEN" \
       --sidecar "$OUTDIR/dataset_${CONFIG}.json" || return 2
   else
     [ -n "$DATASET_CACHE" ] && [ -n "$DATASET_RUN_INDEX" ] || {
       echo "[run_bench] ERROR 실제 데이터셋(dataset_kind=$DKIND)에는 --dataset-cache 와 --dataset-run-index 가 필수다(sweep_bench 가 넘긴다)" >&2
       return 2; }
-    python3 "$SDIR/dataset_prep.py" prepare --spec "$DATASET_SPEC" --tokstage "$TOKSTAGE" --cache "$DATASET_CACHE" \
+    bash "$SDIR/dataset_prep.sh" prepare --spec "$DATASET_SPEC" --tokstage "$TOKSTAGE" --cache "$DATASET_CACHE" \
       --image "$IMAGE" --budget-mib "$BENCH_BUDGET_MIB" --input-len "$ILEN" --output-len "$OLEN" \
       || { echo "[run_bench] 데이터셋 전처리 실패 — 측정하지 않는다(합성으로 대체 ✗)" >&2; return 4; }
-    python3 "$SDIR/dataset_prep.py" slice --spec "$DATASET_SPEC" --cache "$DATASET_CACHE" \
+    bash "$SDIR/dataset_prep.sh" slice --spec "$DATASET_SPEC" --cache "$DATASET_CACHE" \
       --run-index "$DATASET_RUN_INDEX" --sweep-salt "$DATASET_SWEEP_SALT" --count "$TOTAL_REQ" --input-len "$ILEN" --output-len "$OLEN" \
       --out "$ABS_OUTDIR/dataset_rows.jsonl" --sidecar "$OUTDIR/dataset_${CONFIG}.json" \
       --tokenizer-label "$MODEL_PATH" || return 4   # 컨테이너 경로(/app/models/…) — 호스트 운영자 경로는 배포물 PII 다
-    DATA_ARG="$(python3 -c "import sys; sys.path.insert(0,sys.argv[1]); import dataset_prep as d
+    DATA_ARG="$(python3 -c "import sys; sys.path.insert(0,sys.argv[1]); import dataset_prep_native as d
 print(d.data_arg('json_file', '/out/dataset_rows.jsonl'))" "$SDIR")"
     DATA_EXTRA=(--data-column-mapper "$(python3 -c "
-import json,sys; sys.path.insert(0,sys.argv[2]); import dataset_prep as d
+import json,sys; sys.path.insert(0,sys.argv[2]); import dataset_prep_native as d
 print(d.column_mapper_arg(json.load(open(sys.argv[1])), with_counts=True))" "$DATASET_SPEC" "$SDIR")")
   fi
 

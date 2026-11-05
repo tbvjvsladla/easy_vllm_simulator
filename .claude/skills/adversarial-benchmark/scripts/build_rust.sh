@@ -54,3 +54,5 @@ RENDER_SWEEP_MAP_BIN="$CRATE/target/release/render_sweep_map" \
   bash "$SDIR/render_sweep_map.sh" --self-test
 BENCH_DOC_NAMING_BIN="$CRATE/target/release/bench_doc_naming" \
   bash "$SDIR/bench_doc_naming.sh"
+DATASET_PREP_BIN="$CRATE/target/release/dataset_prep" \
+  bash "$SDIR/dataset_prep.sh" --self-test

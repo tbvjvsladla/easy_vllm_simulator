@@ -308,6 +308,24 @@ pub fn read_bytes(path: &PyStr) -> Result<Vec<u8>, Failure> {
     std::fs::read(Path::new(&os)).map_err(|error| os_failure(error, path).into_failure())
 }
 
+/// The bytes of a file handed over in blocks, for a reader that folds them (a digest) and does not need them all at
+/// once: the open, read and error behaviour is that of [`read_bytes`] (`Path.read_bytes()`), without holding the file.
+pub fn read_in_blocks(path: &PyStr, mut consume: impl FnMut(&[u8])) -> Result<(), Failure> {
+    use std::io::Read;
+    let os = os_string(path).map_err(FsFailure::into_failure)?;
+    let mut file = std::fs::File::open(Path::new(&os))
+        .map_err(|error| os_failure(error, path).into_failure())?;
+    let mut block = vec![0_u8; 64 * 1024];
+    loop {
+        match file.read(&mut block) {
+            Ok(0) => return Ok(()),
+            Ok(count) => consume(&block[..count]),
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(os_failure(error, path).into_failure()),
+        }
+    }
+}
+
 /// `Path.write_bytes(data)`: create or truncate, then write.
 pub fn write_bytes(path: &PyStr, data: &[u8]) -> Result<(), Failure> {
     let os = os_string(path).map_err(FsFailure::into_failure)?;

@@ -923,3 +923,117 @@ Rust4724.098056ns=1.635021배, naming82×200:1840.642805ns/725.438659ns=2.537282
 기존 Python benchmark 문법은 소비자 이행 단계까지 명시적으로 남아 있다. retained reference 전체제거나
 Python 사용0건을 주장하지 않는다. repo_root의 self-parent 무한대기 종료는 의도된 신뢰성 차이로 따로 기록한다.
 전체 S1~S7·하네스·6프로필·실제LongE2E 수용은 계속 미완료다.
+
+## R10 데이터셋 전처리·행 선택(`dataset_prep`) 이행 (후보 · 정본 적용 전)
+
+상태: **COMPLETE (이 변환 범위의 후보)** — 전체 과업·여섯 프로파일·실제 Long E2E 의 완료가 아니다. 대상은 원본 `dataset_prep.py`(286줄) 전부다: `cmd_prepare` · `cmd_slice` ·
+`cmd_synthetic_sidecar` · `_load_spec` · `_dir_digest` · `target_rows` · `data_arg` · `column_mapper_arg` · `_die` · `main`(argparse 3개 서브명령 + `--self-test`) ·
+`_self_test`(T1~T7). 같은 폴더의 `resolve_bench_tool`·`resolve_guidellm`·`resolve_topology` 는 범위 밖이다(아직 이행하지 않았고 연결도 없다).
+원본(기준 `831068cb`)은 이행 대조 기준으로 보존하며 런타임 대체 경로(Python 호출)는 없다. 실제 `docker` 는 외부 런타임이며 크레이트가 흉내 내지 않는다.
+
+### 인터페이스 델타
+
+| 산출 | 내용 |
+|---|---|
+| CLI | `dataset_prep` — 원본 argparse(prog `dataset_prep.py` / `dataset_prep.py <서브명령>`, 서브명령 `prepare` `slice` `synthetic-sidecar`, 약어·`--opt=값`·`--`·오류 문구·도움말/사용법 폭 1..400 캡처·`--self-test` 는 단독 인자일 때만)·출력·종료코드(0/2/3, 처리되지 않은 예외 1)·실패 시점을 그대로 재현. 서브명령 단어 앞의 최상위 옵션, 서브명령 뒤의 미인식 인자(최상위 오류), 필수 누락이 미인식보다 먼저 보고되는 순서까지 원본과 같다. |
+| 라이브러리 | `dataset_prep`(상수·`load_spec`·`dir_digest`·`column_mapper_arg`·`data_arg`·`target_rows`·줄 읽기) · `dataset_commands`(`cmd_*`, Namespace = 동적 타입 속성) · `dataset_random`(MT19937 + CPython `str` 시드) · `dataset_prep_cli` · `dataset_prep_selftest` · `dataset_prep_api` · 생성 데이터 `help_layouts_dataset_prep`. |
+| 범용 API | `dataset_prep_api evaluate-jsonl` — 행 `{id, operation, arguments}`, `operation` 은 원본 함수명(`_load_spec` `_dir_digest` `column_mapper_arg` `data_arg` `target_rows` `cmd_prepare` `cmd_slice` `cmd_synthetic_sidecar` `main` `_self_test` `_die` `constants`). 결과 `{id,kind:value,value}` / `{id,kind:exception,type,message}` + (표준오류/표준출력을 썼을 때) `stderr`/`stdout`. `_load_spec` 의 거부는 `SystemExit` + `stderr`. `cmd_*` 는 `argparse.Namespace` 를 속성 객체로 받는다. `_dir_digest` 의 `d` 는 `pathlib.Path` 의 전송 표현(문자열)만 받는다(그 밖의 타입은 원본처럼 `iterdir` 없음 AttributeError). `arguments_json`/`result_json` 옵션과 `constants`(상수는 Rust 소유)·`native-help`. |
+| 시간 측정 | `dataset_prep_bench ROWS.jsonl ROUNDS ITERATIONS [ID...]` — 같은 `evaluate_operation` 디스패치, 사례 지식 없음. 준비(행 파싱)는 밖; 디스패치·바인딩·본문·파일 읽기·해시·전체 값 생성/해제는 안; 시간 밖 워밍 1회가 `Ok`·무진단·`expected_json`(컴팩트 ASCII) 전체 일치를 요구하고 시간 안의 `Err`/진단은 종료 1 · 타이밍 없음. |
+| 공유 런타임 편집(가산·가시성) | `pyvalue.rs` `dumps_ascii_tight`(`separators=(",",":")`) · `cli.rs` `on_large_stack` 공개 + `Streams::flush_if_terminal`(터미널일 때만 줄 단위 flush) · `argv.rs` 에 `Spec::with_layouts`·`parse_known_with`/`Known`/`unrecognized`/`is_option_like`(서브명령 분배용; `parse_with` 는 이를 감싸 동작 불변)와 `DATASET_*` 4개 `Spec` · `pyfs.rs` `read_in_blocks` · `lib.rs` 모듈 등록 · `Cargo.toml` bin 3 + `[[test]]` 7 + `rustix` 기능 `process`(getuid/getgid; 새 크레이트 없음, lock 불변) · `notices/`(MT19937 표기, 두 행 추가). |
+
+### 원본 → Rust 대응
+
+`_load_spec` → `dataset_prep::load_spec` · `_dir_digest` → `dir_digest` · `column_mapper_arg` · `data_arg` · `target_rows`(`TargetRows`) · `_die` → `die` · `cmd_prepare`/`cmd_slice`/`cmd_synthetic_sidecar` → `dataset_commands` ·
+`main` → `dataset_prep_cli::main_with`(+`run`) · `_self_test` → `dataset_prep_selftest::self_test`(임시 폴더는 `TemporaryDirectory` 처럼 지운다) · `random.Random(str).randrange` → `dataset_random::PythonRandom::randbelow`.
+
+### 보존한 특이 동작
+
+* **캐시 키**: `source_sha256`·`dataset_kind`·`column_map`·`preprocess_strategy`·`seed`(스펙 값 그대로)·`input_len`·`output_len`·`tokenizer_digest`·`image`. 토크나이저 폴더는 매번 정렬된 파일 이름과 **각 파일 전체의 SHA-256** 으로 해시한다(심볼릭 링크는 따라가고 하위 폴더·끊긴 링크는 건너뛴다; 이름은 엄격 UTF-8 인코딩이라 비-UTF-8 이름은 `UnicodeEncodeError`). 캐시 적중은 메타 `key` 가 키와 `==`(NaN 은 디코더의 공유 객체 정체성)일 때만이며 이때 Docker 를 부르지 않는다. 불일치/읽기 불가(ValueError 계열)는 메타·산출물을 원본 순서(`mkdir -p` → 메타 → 산출물 `unlink(missing_ok)`)로 지운다. OSError 는 잡지 않는다.
+* **Docker**: `--network none`·`--user uid:gid`·`--memory`/`--memory-swap`·`-e` 4개·`-v` 3개(`:ro`/`:ro`/쓰기)·`--entrypoint guidellm`·이미지·`preprocess dataset`·`data_arg`·`--tokenizer`·`--strategy`·`--data-column-mapper`·`--seed`(`int(spec["seed"])`) 순서 그대로; `finally` 의 `docker rm -f` 는 항상, 타임아웃이면 핸들러에서 한 번 더(총 두 번), `int(a.timeout_s)` 오류도 `finally` 를 거친다. 타임아웃은 `Popen._wait` 처럼 0.5ms 에서 50ms 로 늘어나는 폴링이며 초과 시 SIGKILL 후 회수. 자식은 부모의 입출력을 그대로 물려받는다 — **파이프에서는 자식의 표준출력이 Python 의 블록 버퍼링된 배너보다 먼저 나오고**(`StdoutModel`), 터미널에서는 `print` 마다 flush 해 배너가 먼저다(원본 PTY 관측과 같음). 자식 출력을 가리거나 잡지 않는다. `docker` 가 없으면 `FileNotFoundError: [Errno 2] No such file or directory: 'docker'` 가 `finally` 의 정리 호출에서 한 번 더 나며 그대로 전파된다.
+* **줄 읽기**: `for line in f` 는 `read()` 와 다르다 — 8192바이트 원시 읽기 단위로 증분 UTF-8 해석하므로 나쁜 바이트는 **자기 chunk 만** 잃고 앞 chunk 의 완성된 줄은 먼저 처리된다(그 줄의 JSON 오류가 해석 오류보다 우선); 위치는 보류 중인 바이트 기준; chunk 끝의 `\r` 은 다음 chunk 까지 보류; `\r\n`/`\r` → `\n`; `line.strip()` 은 유니코드 공백. `read_text()`(스펙·메타)는 한 번에 해석한다.
+* **slice**: 목표 길이는 정수 개수의 **최빈값**(동률이면 작은 값; `bool` 은 `int`, `True`/`1` 은 한 키이며 처음 철자가 남음; 키 정체성은 Python 과 같다)이고 `|target − input_len| > 8` 이면 빈 풀; 풀 선택의 등치 `c == target` 은 `1024.0`·`True` 도 포함한다. salt 는 `sha256(salt.encode())` 앞 16 hex 를 풀 크기로 나눈 나머지이며 연속 구간은 `mod len(pool)` 로 감긴다; 모자라면 `random.Random("%s:%d" % (seed, idx))` 의 `randrange` 중복 허용 추출(`dataset_random`: MT19937, 시드 = `str.encode()` + SHA-512 → 32비트 단어 `init_by_array`, `getrandbits` 단어 채움, 거부 표본). 출력 파일은 사이드카보다 먼저 쓰이고 사이드카 실패 시 남는다; 사이드카 딕셔너리 평가 순서(`int(a.output_len)` → `meta.get("rows")` → `a.tokenizer_label` → `meta["key"]["tokenizer_digest"]`)와 그 예외·부분 상태가 원본과 같다.
+* **예외·종료**: `_die` → stderr `[dataset_prep] 메시지` + `SystemExit(rc)`; 처리되지 않은 예외는 추적 머리 표지 + `Class: message`(`JSONDecodeError` 는 `json.decoder.JSONDecodeError`)와 종료 1(Python 프레임은 재현하지 않음); `except (OSError, ValueError)`·`except ValueError`·`except TimeoutExpired` 의 포착 범위를 그대로 따른다(`RecursionError` 는 잡지 않음).
+* **JSON 입력의 동적 타입**: 필드는 문서가 담은 아무 JSON 값이며 `Path(None)`/`Path(5)` TypeError 문구, `spec["x"]` 의 KeyError/TypeError 문구, `int()` 의 문구(공백·밑줄·유니코드 숫자·4300자리 한도), `%s`/`%d` 서식, `json.dumps` 의 `NaN`/`Infinity` 가 모두 원본과 같다.
+
+### 알려진 한계·미연결(root)
+
+(1) 런처·`build_rust.sh` 검사 등록·소비자(`run_bench.sh` 의 6곳) 배선·정본 적용은 root 단계다(초안 `drafts/`: CLI 런처 템플릿, API 런처, 전송 브리지 `dataset_prep_native.py`, 통합 노트). (2) 실제 Docker/GuideLLM/컨테이너 성공은 이 단위로 증명되지 않는다 — 검사는 명령·부수효과 고정물(PATH 의 가짜 `docker` 스크립트)만 쓴다. (3) 원본의 `--count 10000000000000000000000000` 같은 거대 값은 무작위 분기에서 끝나지 않는 반복이며(관측: 원본이 멈추지 않아 차분 실행 중 강제 종료), 후보는 `usize` 를 넘으면 `MemoryError` 로 끝낸다 — 동치가 아니라 의도한 종료 보장이다. (4) 타임아웃 폴링은 `time.monotonic` 대신 `Instant` 를 쓰며 지연 상한은 같다. (5) 터미널 줄 버퍼링은 `isatty(1)` 일 때 `print` 마다 flush 하는 모델이다(`sys.stdout.line_buffering` 의 관측 동작). (6) 도움말 폭은 COLUMNS 1..400 캡처에서 상수 구간까지(최상위 67 · prepare 191 · slice 231 · synthetic-sidecar 111 이상 동일). (7) Linux 전용 경로 모델(`os.fsencode` = UTF-8 surrogateescape). (8) 전체 1MiB 해시는 하드웨어(SHA-2 확장) 한계라 Python `hashlib` 과 거의 같은 속도다(아래 성능).
+
+### 검사 (후보 · 이 작업 폴더에서 offline · 외부 target 디렉터리)
+
+| 검사 | 결과 |
+|---|---|
+| `cargo fmt -- --check` · `cargo clippy --all-targets -- -D warnings` (lint 억제 없음) | PASS |
+| `cargo build --release --bins` · `cargo test --release --no-fail-fast` | PASS (75 suite · 270 테스트 · 실패 0; R1~R9 suite 포함 영향 확인) |
+| 고정 원본 순수 API 152 (`target_rows` 120 · `data_arg` 18 · `column_mapper_arg` 14; 값·예외 클래스·메시지·인자 불변) | PASS 152/152 (`dataset_pure_cases`) + 같은 152를 실제 `dataset_prep_api` 바이너리로 보낸 전송 검사 |
+| 고정 원본 파일 IO 19 (`_load_spec` · `_dir_digest`: 유효·null 종류·키 없음·null/list/깨진 JSON·잘못된 UTF-8·BOM·부재·디렉터리·심볼릭 링크·빈 폴더·1MiB·끊긴 링크·유니코드 정렬·비-UTF-8 이름; 전/후 트리 전체) | PASS 19/19 (`dataset_io_cases`) |
+| 고정 원본 CLI 83 (도움말·사용법 오류·`--self-test`·synthetic·slice·prepare; 종료·stdout·stderr(추적 투영)·전체 트리·가짜 docker 호출 기록) + 프로세스 출력 순서 2 | PASS 83/83 + 2/2 (`dataset_cli_cases`; PATH 의 실행 스크립트 고정물은 명령·부수효과 시험일 뿐 컨테이너를 만들지 않는다. 고정물이 자신의 실제 부모 PID·uid:gid 를 정규화하므로 하드코딩 값 없음) |
+| PRNG 기준열 285 (CPython `random.Random(str).randrange` 의 40 추출 × 시드 15 × 경계 19: 비-ASCII·선행 NUL·300자·`seed:index`·경계 1~2^64−1) | PASS (`dataset_random_vectors`) |
+| 터미널 출력(PTY): 배너가 자식 출력보다 먼저 | PASS (`dataset_terminal_cases`; 원본도 PTY 에서 같은 순서임을 직접 관측) |
+| 소스 자체검사 T1~T7 를 실제 바이너리로 | stdout 이 원본 재실행·고정 원본과 바이트 동일, 종료 0 (`--self-test`) |
+| 전송·측정기 검사 | `dataset_api_transport` 2 · `dataset_bench_harness` 3 · 측정기 단위 3 |
+| **원본 대조 차분(자체 증거, 기준 변경 아님)** — 원본 `dataset_prep.py` 를 자식 프로세스로 실행해 종료·stdout·stderr(추적 투영)·전체 트리를 비교 | 최종 실행: slice+synthetic 600 · prepare 220(가짜 docker 9모드·캐시 적중/불일치/깨짐·타임아웃 0/−1/1/2/5) · 비-UTF-8 인자+COLUMNS 변이+argv 400; 개발 중 실행: 150 · 120 · 160 · 300 · 300(성공 70) · 220 — 전부 불일치 0 |
+| 동적 타입 차분 — `cmd_synthetic_sidecar`/`cmd_slice` 를 원본 `argparse.Namespace`(인-프로세스)와 `dataset_prep_api` 에 같은 속성으로 호출 | 2000 + 500: 불일치 0 |
+| 순수 함수 무작위 차분(`target_rows`·`data_arg`·`column_mapper_arg`, 임의 JSON 타입·NaN·큰 정수·문자열/딕셔너리 행) | 8000 × 7 시드 + 큰 입력 60: 불일치 0 |
+
+### 실패한 시도·교정 (원시 로그는 비배포 작업 로그에 보존)
+
+1. **순수 차분 첫 실행 52/4000 불일치** — `input_len` 이 NaN 일 때 전송이 디코더의 공유 NaN 객체(`PyValue::Shared`)로 넘기는데 `target_rows` 가 뺄셈 전에 껍질을 벗기지 않아 `TypeError`(원본은 `NaN > 8` 거짓 → 정상 값). `target_rows` 와 `int()` 호출(Namespace 속성·시드)에서 껍질을 벗기도록 교정, 재실행 0. 첫 실행의 앞 8건 발췌만 보존(전체 출력은 파일로 저장하지 못했다).
+2. **차분 생성기의 거대 `--count`** — 원본이 `10000000000000000000000000` 개를 무작위 분기에서 끝없이 추출해 멈추지 않았다(원본 프로세스 2개를 강제 종료하고 값을 생성기에서 뺐다). 한계 (3).
+3. clippy 첫 실행 실패 2건(`vec_init_then_push`·`useless_format`)은 코드로 고쳤다(`#[allow]` 로 가리지 않음). 한때 둔 `too_many_arguments` 억제도 `SliceRun` 구조체로 풀어 제거했다. 검사 도우미 `dataset_common.rs` 의 `#![allow(dead_code)]` 는 기존 도우미(`common.rs`·`reporting_common.rs`)와 같은 관례다 — 서로 다른 검사 크레이트가 한 도우미의 일부만 쓰기 때문이다.
+4. 슬라이스 차분의 첫 생성기는 성공 경로가 150건 중 1건뿐이라 70% 를 깨끗한 입력으로 편향해 다시 돌렸다(성공 70/300). `pkill -f` 가 자기 셸을 죽여 한 번 실행이 끊겼다(재실행).
+5. 성능 첫 측정에서 작은 `target_rows` 행 15개가 Python 보다 느렸다(복사 과다). 행을 빌려 쓰고 정수 키를 작은 값으로 두어 최악 0.94배(잡음 수준)로 줄였다.
+
+### 성능 (자체 구현 증거, root 최종 아님 · 같은 전체 값/반환/해제 경계)
+
+고정 순수 108개 × 200 × 11: Rust 7.65 ms / Python 19.25 ms = **2.51×**(행별 중앙 2.64×, 최악 0.94×). 실제 작은 IO 7개: 0.066 ms / 0.144 ms = **2.2×**. 1 MiB 전체 해시 1개: 0.45–0.57 ms / 0.47 ms ≈ **1.0×**(SHA-256 하드웨어 한계 — Python `hashlib` 해시만 0.42 ms; 스트리밍 읽기로 바꿨으나 개선이 없었다). 실제 CLI(프로세스 시작 포함, 중앙 11회): slice 1.6 ms / 22–36 ms(13–22×), synthetic 1.3 / 36.6 ms, prepare 캐시 적중 1.7 / 37.2 ms, 큰 slice 3.4 / 22.6 ms. 캐시·입력 축소·측정 경계 이동 없음. 이 수치는 현재 로컬 경계의 결과이며 LLM·서빙·통계적 일반화 성과가 아니다.
+
+### 소스 → 시험 대응
+
+`target_rows`·`data_arg`·`column_mapper_arg` → `dataset_pure_cases`·`dataset_api_transport` · `_load_spec`·`_dir_digest` → `dataset_io_cases` · `cmd_*`·`main`·argparse·`_die` → `dataset_cli_cases` · `dataset_random` → `dataset_random_vectors` · 줄 읽기/터미널 → `dataset_cli_cases`(깨진 UTF-8·chunk 사례)·`dataset_terminal_cases` · 측정기 → `dataset_bench_harness` · `_self_test` → `--self-test` 바이트 대조.
+
+### R10 인수 정정 (종결 호출 · 소스 불변)
+
+앞 절의 증거 범위를 정확히 하기 위한 기록이며 소스·검사·고정물은 바꾸지 않았다.
+
+1. **로그와 보유 소스의 대응.** 마지막 소스 편집은 `target_rows` 의 빌림·작은 정수 키 최적화(성능 교정)이고, 그 뒤에 `fmt -- --check` · `clippy --all-targets -D warnings` · release 빌드 · `cargo test --release --no-fail-fast`(75 suite · 270 테스트 · 실패 0)와 `--self-test` 를 다시 돌렸다 — 이 최종 로그들은 보유 소스와 일치한다. 반면 **CLI/명령 수준 차분 최종 실행(slice+synthetic 600 · prepare 220 · raw+argv 400 · cmd 2000 · 순수 4×8000)은 그 최적화 이전 바이너리**로 돌았다. 최적화 이후에는 순수 무작위 차분 3×8000 과 큰 입력 60건(분포/해시 경로)을 다시 돌려 불일치 0 이었으나 **그 출력은 파일로 저장하지 않았다**(대화 기록에만 있다). 최적화 이후 CLI 차분은 다시 돌리지 않았다: `slice` 경로의 영향은 최종 `testfinal` 의 고정 원본 CLI 83·API 152·프로세스 2·PTY 1 로만 덮인다(소스 영향 메모).
+2. **끝나지 않은/중단된 실행의 분류(PASS 아님).** `diff_first` 로그는 0바이트다 — 첫 차분 실행은 **원본 프로세스가 끝나지 않아**(`--count 10000000000000000000000000` 무작위 분기의 끝없는 반복) 강제 종료했고 결과 없음이다(원본 멈춤으로 분류, 후보 불일치로 분류하지 않음). 같은 원인으로 백그라운드에서 멈춘 `diff_slice2` 첫 실행의 출력은 같은 이름으로 재실행하면서 덮어써 **보존하지 못했다**(분실). 생성기에서 해당 값을 뺀 재실행만 저장되어 있다. 비결정/불안정(flaky)으로 분류된 사례는 없다(타임아웃 시나리오는 고정물이 3초 잠든 뒤 1~2초 한도에서 죽는 구조라 결정적으로 관측됨).
+3. **진짜 후보 결함이 나온 실행.** 순수 차분 첫 실행 52/4000 불일치(NaN `input_len`)는 후보 결함이었고 고쳤다. 저장된 것은 앞 8건 발췌(`diff_pure_first_failure_excerpt.txt`)뿐이다.
+4. **저장된 로그와 저장되지 않은 결과.** 저장: `final_slice` `final_prepare` `final_raw` `final_cmd_11/12` `final_pure_31~34`, 개발 중 `diff_slice1/2/3` `diff_prepare1/2` `diff_raw1`, `fmtcheck` `clippyfinal` `buildfinal` `testfinal` `testall`(첫 전체 시험, 73 suite 265 테스트), `selftest_native.*`, `time_cli`. 대화 기록에만 있음: 초기 `diff_cmd` 500건, 최적화 이후 순수 3×8000·큰 입력 60, 성능 비교(순수 108 · 작은 IO 7 · 1MiB · 행별) 수치. `time_cli` 의 CLI 시간은 최적화 이전 바이너리 값이다.
+5. **공유 런타임 영향(재확인).** `pyfs.rs` 는 `read_in_blocks` 하나만 더했다(가산). `argv.rs` 는 `parse_with` 를 `parse_known_with` 위로 재구성했다(동작 보존; R1~R9 의 모든 argv 소비 suite 가 `testfinal` 에서 통과). 그 밖에 `pyvalue.rs`(`Layout::Tight`) · `cli.rs`(`on_large_stack` 공개, `flush_if_terminal`) · `lib.rs` · `Cargo.toml`(bin 3 · `[[test]]` 7 · `rustix` `process` 기능; lock 불변).
+6. **미해결 의미 한계(변경 없음).** 앞 절 한계 (1)~(8) 그대로다. 특히 (3) 거대 `--count`(원본은 끝나지 않고 후보는 `MemoryError`)는 동치가 아닌 의도한 종료 보장이고, 1MiB 전체 해시는 하드웨어 한계로 Python 과 거의 같으며, 실제 Docker/GuideLLM/컨테이너는 증명 범위 밖이다. 독립 후보 PASS·여섯 프로파일·실제 Long E2E·정본 적용·신규 clone·root 성능은 모두 NOT_RUN 이다.
+
+### R10 회귀 등록 — 비유한 `input_len` · 계수 해시 경로 (검사·자료만 추가, 소스 불변)
+
+앞 절 3번의 교정된 결함(전송 디코더의 공유 NaN 이 껍질을 벗기지 않은 채 뺄셈에 들어간 `TypeError`)과 개수 8 초과의 해시 조회 경로는 넓은 무작위 차분에서만 덮였고, 최적화 이후 성공 출력은 저장되지 않았다. 이를 막는 명시 회귀를 `checks/dataset_api_transport.rs` 의
+`non_finite_input_lengths_and_many_distinct_counts_answer_through_the_wire_like_the_original` 로 등록했다(기존 `[[test]] dataset_api_transport`, Cargo 변경 없음). 자료 `checks/data/dataset_prep/numeric_wire_cases.jsonl` 는 원본이 먼저 낸 9건(`{id, operation, arguments, expected}`: 빈/정수/bool/비정수 행 × NaN·±Infinity, 큰 정수 − NaN 의 `OverflowError`, 일반/해시 모드의 8 초과 계수·bool)이며 **실제 `dataset_prep_api evaluate-jsonl` 자식 프로세스**에 `id`·`operation`·`arguments` 만(NaN/Infinity 토큰 유지, `expected` 는 보내지 않음) 보내 전송 디코더를 거친 전체 값·예외 종류·메시지를 비교한다 — 도우미가 읽은 평범한 `Float(NaN)` 에 `evaluate_operation` 을 부르는 방식은 이 결함에 닿지 못한다. 변이 확인: 임시 사본에서 `subtract(&target, input_len.peel())` 의 `.peel()` 을 빼면 이 검사가 `int-nan` 에서 실패한다(로그 `numreg_mutation_unpeeled`; 사본은 지웠고 후보 소스는 건드리지 않았다). 원본 대조 기록(`original-cases`·결과)은 root 가 보관한다.
+
+
+## R10 정본 통합 판정
+
+데이터셋 전처리·캐시·행 선택·sidecar와 실제 run_bench의 세 CLI/두 helper 호출을 Rust로 연결했다.
+정본 build12자체검사·fmt·release271(75suites)+별도FD22·Clippy·외부171API/85CLI·실제caller2가 PASS다.
+독립2 actualCLI는 원본재실행 없이 hardlink/Unicode 실패와 stdoutPTY/cleanup/partial 파일을 보존했고,
+원본먼저 추가9 숫자 경계를 strict 타입까지 확인했다. 이9개는 실제 API wire decoder를 거치는 등록 회귀이며
+SharedNaN peel 삭제 변이에서 실패했다. 격리 Python transport·missingbinary7, Git-index537(Rust489+의존48)
+소스만 새 공백 경로로 옮긴 offline build12와 등록dataset7targets/package_paths도 PASS다.
+
+첫 배포130은128PASS/2FAIL이었다. R9의 오류 안내가 미정의 SDIR를 사용한 실제 회귀를 정의된 REPO 경로로
+고쳤고 L4의 기존 요구를 그대로 재실행했다. 해시 알고리즘 시험의 scalar 기대값은 임시 read-only 입력의
+정답이며 추적 blob 무결성 metadata와 구분했다. 다른metadata는 그대로검사한다. 새 분류기의 duplicate-key
+누락D1은 독립2 FAIL로 확인해중복키원문검사/numeric토큰보존으로고쳤고같은2개PASS다. 실패2명령을
+영향 재검증하고 유효128개를 재사용해 현재130항목을충족했다. 두번째전체배포를실행했다고하지않는다.
+R9의후검사안내변경뒤125항목재사용판정은L4부분에유효하지않았음을외부기록에정정했다.
+
+사전11교차round의전체반환/해제: pure108×200 Python771.091806ns/Rust358.389676ns=2.151546배,
+실제smallIO7 20589.714286ns/19263.857143ns=1.068826배, 1MiB파일전체digest는587437/461406ns=1.273146배다.
+실제 Bash CLI6 round평균중앙값28.174198/4.635046ms=6.078516배이며개별6개는
+5.073115/8.367079/7.872064/7.109388/4.739530/3.666461배다. 모든값·출력·종료·파일을대조했다.
+전처리캐시hit는실제전체해시와캐시읽기이며fake Docker 전처리속도를성과로세지않는다.
+입력/측정경계/캐시를유리하게바꾸지않았고actual Docker/GuideLLM·LLM·서빙·통계적일반화의성과가아니다.
+
+Native첫SDK120턴예산은121관측턴error_max_turns였다. 같은세션문서closeout과test-only회귀등록으로
+총132턴/reported2133.080초/wrapper2144.320초·denials0을기록했다. 일부과거fuzz원시가덮인한계는보존하고
+파일에없던3×8000/large60의실제tool출력은외부native전사에서회수했다. 원본의완료를관측하지못한
+주소공간초과count는Rust usize변환에서MemoryError이며성공원본동등성/모든큰입력의종료보장을뜻하지않는다.
+전체 S1~S7·하네스·6프로필·실제single4/multi2LongE2E는계속미완료다.

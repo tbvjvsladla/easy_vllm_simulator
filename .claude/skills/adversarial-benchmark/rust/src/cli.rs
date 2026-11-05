@@ -114,6 +114,15 @@ impl<'a> Streams<'a> {
         let _ = self.model.write(self.stdout, text.as_bytes());
     }
 
+    /// What a line-buffered `sys.stdout` does after each `print`: when descriptor 1 is a terminal the text goes out
+    /// at once (a file or pipe keeps its block buffer until exit, so inherited child output can come first).
+    pub(crate) fn flush_if_terminal(&mut self) -> Result<(), PrintFailure> {
+        if rustix::termios::isatty(std::io::stdout()) {
+            return self.model.flush(self.stdout).map_err(PrintFailure::Write);
+        }
+        Ok(())
+    }
+
     /// Interpreter exit: flush what is still buffered. A failure replaces the status with 120, as CPython does.
     pub(crate) fn finish(&mut self, status: i32) -> i32 {
         match self.model.flush(self.stdout) {
@@ -167,7 +176,7 @@ fn dispatch(args: &[PyStr], io: &mut Streams<'_>) -> i32 {
 }
 
 /// Runs `work` on a thread with a large stack, falling back to the current thread if none can be created.
-pub(crate) fn on_large_stack<T: Send>(work: impl FnOnce() -> T + Send) -> T {
+pub fn on_large_stack<T: Send>(work: impl FnOnce() -> T + Send) -> T {
     let slot = Mutex::new(Some(work));
     let take = || {
         slot.lock()

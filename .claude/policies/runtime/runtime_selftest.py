@@ -2236,6 +2236,99 @@ def _tracked_blob_digests(root: Path) -> set[str]:
     return digests
 
 
+def _digest_identity_literals(text: str, rel: str) -> set[str]:
+    """Integrity assertions in tracked data, keeping algorithm test results in their own role.
+
+    A read-only operation on a generated `@ROOT@` fixture may return the same digest as a tracked blob
+    (notably SHA256 of an empty input). Its scalar golden result tests an algorithm; it does not assert the
+    integrity of that blob. Only that result is outside this check. Other fields in the very same row, including
+    digest metadata, are still checked. The rule uses the Rust fixture role and observation shape, no path or
+    digest allowlist. Malformed or unrecognised data keeps the original literal scan.
+    """
+    raw = set(_HEX_CONST_RE.findall(text))
+    if not rel.endswith(".json") or "/rust/checks/data/" not in "/" + rel:
+        return raw
+    duplicate_keys = False
+    numeric_tokens: list[str] = []
+
+    def pairs(items):
+        nonlocal duplicate_keys
+        if len({key for key, _ in items}) != len(items):
+            duplicate_keys = True
+        return dict(items)
+
+    def number(token, convert):
+        numeric_tokens.append(token)
+        return convert(token)
+
+    try:
+        document = json.loads(text, object_pairs_hook=pairs,
+                              parse_int=lambda token: number(token, int),
+                              parse_float=lambda token: number(token, float))
+    except ValueError:
+        return raw
+    if duplicate_keys or not isinstance(document, list):
+        return raw
+
+    def strings(value):
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, dict):
+            for key, child in value.items():
+                yield str(key)
+                yield from strings(child)
+        elif isinstance(value, list):
+            for child in value:
+                yield from strings(child)
+
+    # Keep numeric spelling too: parsing a long number as int/float must not erase a literal the raw scan saw.
+    material = list(numeric_tokens)
+    for row in document:
+        if isinstance(row, dict):
+            args, before, expected = row.get("arguments"), row.get("before"), row.get("expected")
+            ephemeral = isinstance(args, dict) and any(
+                isinstance(value, str) and (value == "@ROOT@" or value.startswith("@ROOT@/"))
+                for value in args.values())
+            readonly = isinstance(before, dict) and (row.get("after") == "same" or row.get("after") == before)
+            oracle = (isinstance(row.get("operation"), str) and bool(row["operation"]) and ephemeral and readonly
+                      and isinstance(expected, dict) and expected.get("kind") == "value"
+                      and isinstance(expected.get("value"), str) and _HEX_CONST_RE.fullmatch(expected["value"]))
+            if oracle:
+                row = dict(row, expected={key: value for key, value in expected.items() if key != "value"})
+        material.extend(strings(row))
+    return {digest for value in material for digest in _HEX_CONST_RE.findall(value)}
+
+
+def _test_digest_data_roles() -> None:
+    """A scalar algorithm oracle is allowed; the same digest in integrity metadata is still detected."""
+    digest = hashlib.sha256(b"").hexdigest()
+    rel = "package/rust/checks/data/observations.json"
+    row = {"id": "empty", "operation": "directory_digest", "arguments": {"d": "@ROOT@"},
+           "before": {}, "after": "same", "expected": {"kind": "value", "value": digest}}
+    check = lambda data, path=rel: digest in _digest_identity_literals(json.dumps(data), path)
+    _require(not check([row]), "algorithm golden result was classified as tracked-file integrity metadata")
+    _require(check([dict(row, content_sha256=digest)]), "same-row integrity metadata escaped through an oracle")
+    _require(check([row, {"content_sha256": digest}]), "neighbouring integrity metadata escaped through an oracle")
+    _require(check([dict(row, expected={**row["expected"], "content_sha256": digest})]),
+             "extra expected metadata escaped through an oracle")
+    _require(check([row], ".claude/policies/integrity.json"), "ordinary data acquired the Rust fixture role")
+    _require(check([row], "package/notrust/checks/data/observations.json"),
+             "partial directory name acquired the Rust fixture role")
+    _require(check([dict(row, arguments={"d": ".claude/tracked.py"})]), "tracked input acquired a generated-root role")
+    _require(check([dict(row, after={"new": {"kind": "file"}})]), "writing operation acquired a read-only role")
+    _require(check({"expected": {"kind": "value", "value": digest}}), "ordinary expected metadata escaped")
+    duplicate = '"content_sha256":' + json.dumps(digest) + ',"content_sha256":"later-value"'
+    _require(digest in _digest_identity_literals('[{"metadata":{' + duplicate + '}}]', rel),
+             "earlier duplicate-key metadata was lost while parsing JSON")
+    duplicate_expected = json.dumps([dict(row, expected={**row["expected"], "content_sha256": digest})])
+    duplicate_expected = duplicate_expected.replace('"content_sha256": ' + json.dumps(digest), duplicate)
+    _require(digest in _digest_identity_literals(duplicate_expected, rel),
+             "earlier duplicate-key metadata in expected escaped through an oracle")
+    numeric = "1" * 40
+    _require(numeric in _digest_identity_literals('[{"metadata":' + numeric + '}]', rel),
+             "numeric literal was lost while parsing JSON")
+
+
 def _test_no_tracked_digest_rewrite(root: Path | None = None) -> None:
     """tripwire ② — **파생 술어**(allowlist 없음): git 이 이미 든 바이트의 해시를 추적 데이터가
     다시 적으면 FAIL.
@@ -2267,6 +2360,8 @@ def _test_no_tracked_digest_rewrite(root: Path | None = None) -> None:
         except (UnicodeDecodeError, OSError):
             continue
         hits = sorted({m for m in _HEX_CONST_RE.findall(text) if m.lower() in digests})
+        if hits:
+            hits = sorted({m for m in _digest_identity_literals(text, rel) if m.lower() in digests})
         if hits:
             offenders.append(f"{rel}:{len(hits)} (e.g. {hits[0]})")
     _require(not offenders,
@@ -3145,6 +3240,7 @@ def run_tripwires(root: Path | None = None) -> int:
         return 0
     try:
         _test_no_backup_artifacts(root)
+        _test_digest_data_roles()
         _test_no_tracked_digest_rewrite(root)
         _test_no_retired_hash_mechanism_prose(root)
         _test_no_duplicate_certificates(root)      # ④ plan_26090410 P4 — 사본 정리 뒤 배선
@@ -3204,6 +3300,7 @@ def main(argv: list[str] | None = None) -> int:
     # 여기서도 같은 SKIPPED 한 줄로 눈에 보이게 한다(침묵 no-op 금지).
     _announce_non_canonical(REPO_ROOT, "runtime_selftest")
     _test_no_backup_artifacts()
+    _test_digest_data_roles()
     _test_no_tracked_digest_rewrite()
     _test_no_retired_hash_mechanism_prose()
     _test_no_duplicate_certificates()

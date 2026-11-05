@@ -234,3 +234,5 @@ description: >-
 - `references/max-envelope.md` — Max 오퍼레이션(컨텍스트 안전측 스텝업·이중 게이트·산출물).
 
 **기타**: `fixtures/`(verdict 단위검증 + full/Max 발행 결정론 체인 라이브-불요 검증) · `config.example.yaml`(입력 스키마).
+
+데이터셋 전처리·행 선택·출처 사이드카는 설치된 `scripts/dataset_prep.sh`의 Rust CLI가 소유한다. `run_bench.sh`의 mapper/data 인자도 얇은 `dataset_prep_native.py` 전송으로 같은 Rust 소유자를 호출한다. 새 노드는 Terraform Rust 설치·검사 뒤 `scripts/build_rust.sh --offline`으로 노드에서 빌드한다.

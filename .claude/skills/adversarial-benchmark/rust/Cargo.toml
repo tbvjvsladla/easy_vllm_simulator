@@ -116,6 +116,18 @@ path = "src/bin/bench_reporting_api.rs"
 name = "bench_reporting_bench"
 path = "src/bin/bench_reporting_bench.rs"
 
+[[bin]]
+name = "dataset_prep"
+path = "src/bin/dataset_prep.rs"
+
+[[bin]]
+name = "dataset_prep_api"
+path = "src/bin/dataset_prep_api.rs"
+
+[[bin]]
+name = "dataset_prep_bench"
+path = "src/bin/dataset_prep_bench.rs"
+
 [[test]]
 name = "oracle_cases"
 path = "checks/oracle_cases.rs"
@@ -176,15 +188,44 @@ path = "checks/package_paths.rs"
 name = "yaml_reader"
 path = "checks/yaml_reader.rs"
 
+[[test]]
+name = "dataset_pure_cases"
+path = "checks/dataset_pure_cases.rs"
+
+[[test]]
+name = "dataset_io_cases"
+path = "checks/dataset_io_cases.rs"
+
+[[test]]
+name = "dataset_cli_cases"
+path = "checks/dataset_cli_cases.rs"
+
+[[test]]
+name = "dataset_random_vectors"
+path = "checks/dataset_random_vectors.rs"
+
+[[test]]
+name = "dataset_terminal_cases"
+path = "checks/dataset_terminal_cases.rs"
+
+[[test]]
+name = "dataset_api_transport"
+path = "checks/dataset_api_transport.rs"
+
+[[test]]
+name = "dataset_bench_harness"
+path = "checks/dataset_bench_harness.rs"
+
 [dependencies]
 num-bigint = "0.4"
 num-traits = "0.2"
 # SHA-256 of the dataset source (`hashlib.sha256` of the original): the `ring` digest `Context` (its own aarch64/x86_64
 # assembly with run-time CPU feature dispatch), pinned exactly. Replaced the first plan, `sha2` =0.10.9 (kept in PORTING.md).
 ring = "=0.17.14"
-# Safe wrappers of TIOCGWINSZ on stdout only (what shutil.get_terminal_size asks via os.get_terminal_size) and of
-# fstat on stdout (the buffer size and presence of the interpreter's sys.stdout).
-rustix = { version = "1", default-features = false, features = ["std", "termios", "fs"] }
+# Safe wrappers of TIOCGWINSZ on stdout only (what shutil.get_terminal_size asks via os.get_terminal_size), of
+# fstat on stdout (the buffer size and presence of the interpreter's sys.stdout) and of getuid/getgid (the user a
+# preprocessing container runs as).
+rustix = { version = "1", default-features = false, features = ["std", "termios", "fs", "process"] }
 
 # The checks open a pseudo-terminal pair of their own to observe the width query.
 [dev-dependencies]

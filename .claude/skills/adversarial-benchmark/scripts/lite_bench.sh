@@ -323,14 +323,14 @@ if [ "$PUBLISH_REPORT" = "1" ]; then
     echo "[lite_bench] 경량 리포트 발행 → $REPORT_PATH (mode: lite · lite_verdict=$LITE_VERDICT)"
   else
     echo "[lite_bench] ⚠ 경량 리포트 발행 실패(위 사유) — 측정 산출물은 남았다: RAW=$RAW" >&2
-    echo "[lite_bench]   원인을 고친 뒤 재측정 없이 다시 렌더할 수 있다: bash \"$SDIR/render_report.sh\" --lite-only --lite-raw-json $RAW" >&2
+    echo "[lite_bench]   원인을 고친 뒤 재측정 없이 다시 렌더할 수 있다: bash \"$REPO/.claude/skills/adversarial-benchmark/scripts/render_report.sh\" --lite-only --lite-raw-json $RAW" >&2
     exit 5
   fi
   if [ "$LITE_RC" = 0 ]; then
     if CERT_PATH="$(bash "$REPO/.claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.sh" --lite-raw-json "$RAW")"; then
       echo "[lite_bench] lite 등급 인증서 발행 → $CERT_PATH (bench_mode: lite · verdict: not_applicable · hint 발행 자격)"
     else
-      echo "[lite_bench] ⚠ lite 인증서 발행 실패(위 사유) — 재측정 없이: bash \"$SDIR/publish_benchmark_record.sh\" --lite-raw-json $RAW" >&2
+      echo "[lite_bench] ⚠ lite 인증서 발행 실패(위 사유) — 재측정 없이: bash \"$REPO/.claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.sh\" --lite-raw-json $RAW" >&2
       exit 5
     fi
   else

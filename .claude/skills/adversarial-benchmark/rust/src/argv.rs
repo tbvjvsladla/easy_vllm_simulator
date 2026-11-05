@@ -113,6 +113,21 @@ pub struct Spec {
 }
 
 impl Spec {
+    /// A table for a parser whose help layouts live in another module.
+    pub(crate) const fn with_layouts(
+        prog: &'static str,
+        actions: &'static [ActionDef],
+        options: &'static [(&'static str, usize)],
+        layouts: &'static [Layout],
+    ) -> Spec {
+        Spec {
+            prog,
+            actions,
+            options,
+            layouts,
+        }
+    }
+
     fn layout_for(&self, columns: u32) -> &'static Layout {
         self.layouts
             .iter()
@@ -1021,8 +1036,50 @@ pub fn parse(args: &[PyStr]) -> Parsed {
     }
 }
 
+/// Whether `argparse` classifies the argument as an option string (`O`) rather than a value (`A`) for this parser, or
+/// refuses it (an ambiguous abbreviation).
+pub(crate) fn is_option_like(spec: &Spec, argument: &PyStr) -> Result<bool, PyStr> {
+    parse_optional(spec, argument.code_points()).map(|found| found.is_some())
+}
+
 /// Parses `args` (without the program name) the way `ArgumentParser.parse_args` of the given parser does.
 pub fn parse_with(spec: &Spec, args: &[PyStr]) -> Outcome {
+    match parse_known_with(spec, args) {
+        Known::Help => Outcome::Help,
+        Known::Error(message) => Outcome::Error(message),
+        Known::Run(matches, extras) => {
+            if extras.is_empty() {
+                return Outcome::Run(matches);
+            }
+            Outcome::Error(unrecognized(&extras))
+        }
+    }
+}
+
+/// What `ArgumentParser.parse_known_args` of one parser leaves: the values, and the arguments it did not recognise.
+#[derive(Debug)]
+pub enum Known {
+    Run(Matches, Vec<PyStr>),
+    /// `-h` was reached before any error.
+    Help,
+    /// `parser.error(message)`.
+    Error(PyStr),
+}
+
+/// `parser.error("unrecognized arguments: ...")` text for the leftover arguments.
+pub fn unrecognized(extras: &[PyStr]) -> PyStr {
+    let mut message = PyStr::new("unrecognized arguments: ");
+    for (position, extra) in extras.iter().enumerate() {
+        if position > 0 {
+            message.push_str(" ");
+        }
+        message.push_py(extra);
+    }
+    message
+}
+
+/// `parse_known_args`: required actions are checked, leftover arguments are returned instead of refused.
+pub fn parse_known_with(spec: &Spec, args: &[PyStr]) -> Known {
     let args: Vec<&[u32]> = args.iter().map(PyStr::code_points).collect();
     let mut pattern: Vec<char> = Vec::with_capacity(args.len());
     let mut tuples: Vec<Option<OptionTuple>> = Vec::with_capacity(args.len());
@@ -1038,7 +1095,7 @@ pub fn parse_with(spec: &Spec, args: &[PyStr]) -> Outcome {
             break;
         }
         match parse_optional(spec, args[index]) {
-            Err(message) => return Outcome::Error(message),
+            Err(message) => return Known::Error(message),
             Ok(None) => {
                 pattern.push('A');
                 tuples.push(None);
@@ -1075,8 +1132,8 @@ pub fn parse_with(spec: &Spec, args: &[PyStr]) -> Outcome {
             &mut parsed,
         ) {
             Consumed::Next(stop) => start = stop,
-            Consumed::Help => return Outcome::Help,
-            Consumed::Error(message) => return Outcome::Error(message),
+            Consumed::Help => return Known::Help,
+            Consumed::Error(message) => return Known::Error(message),
         }
     }
     extras.extend(
@@ -1093,22 +1150,12 @@ pub fn parse_with(spec: &Spec, args: &[PyStr]) -> Outcome {
         .map(|(_, action)| action.name)
         .collect();
     if !missing.is_empty() {
-        return Outcome::Error(PyStr::new(&format!(
+        return Known::Error(PyStr::new(&format!(
             "the following arguments are required: {}",
             missing.join(", ")
         )));
     }
-    if extras.is_empty() {
-        return Outcome::Run(parsed);
-    }
-    let mut message = PyStr::new("unrecognized arguments: ");
-    for (position, extra) in extras.iter().enumerate() {
-        if position > 0 {
-            message.push_str(" ");
-        }
-        message.push_py(extra);
-    }
-    Outcome::Error(message)
+    Known::Run(parsed, extras)
 }
 
 /// `_get_values` for a value option: the `type=` conversion, then the `choices` check.
@@ -1472,3 +1519,131 @@ pub const PUBLISH_BENCHMARK_RECORD: Spec = Spec {
     ],
     layouts: crate::help_layouts_publish_benchmark_record::LAYOUTS,
 };
+
+// ── dataset_prep.py ─────────────────────────────────────────────────────────────
+
+const HELP_DEF: ActionDef = ActionDef {
+    name: "-h/--help",
+    kind: Kind::Help,
+    ..PLAIN
+};
+
+/// The top-level parser of `dataset_prep.py`: `-h` and the required subcommand (handled by the dispatcher in
+/// [`crate::dataset_prep_cli`], because the subcommand word hands the rest of the line to its own parser).
+pub const DATASET_TOP: Spec = Spec::with_layouts(
+    "dataset_prep.py",
+    &[HELP_DEF],
+    &[("-h", HELP_ACTION), ("--help", HELP_ACTION)],
+    crate::help_layouts_dataset_prep::LAYOUTS_TOP,
+);
+
+/// Indices of the `prepare` subcommand's actions.
+pub mod dataset_prepare_args {
+    pub const SPEC: usize = 1;
+    pub const TOKSTAGE: usize = 2;
+    pub const CACHE: usize = 3;
+    pub const IMAGE: usize = 4;
+    pub const BUDGET_MIB: usize = 5;
+    pub const INPUT_LEN: usize = 6;
+    pub const OUTPUT_LEN: usize = 7;
+    pub const TIMEOUT_S: usize = 8;
+}
+
+pub const DATASET_PREPARE: Spec = Spec::with_layouts(
+    "dataset_prep.py prepare",
+    &[
+        HELP_DEF,
+        text_option("--spec", true),
+        text_option("--tokstage", true),
+        text_option("--cache", true),
+        text_option("--image", true),
+        text_option("--budget-mib", true),
+        text_option("--input-len", true),
+        text_option("--output-len", true),
+        text_option("--timeout-s", false),
+    ],
+    &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--spec", dataset_prepare_args::SPEC),
+        ("--tokstage", dataset_prepare_args::TOKSTAGE),
+        ("--cache", dataset_prepare_args::CACHE),
+        ("--image", dataset_prepare_args::IMAGE),
+        ("--budget-mib", dataset_prepare_args::BUDGET_MIB),
+        ("--input-len", dataset_prepare_args::INPUT_LEN),
+        ("--output-len", dataset_prepare_args::OUTPUT_LEN),
+        ("--timeout-s", dataset_prepare_args::TIMEOUT_S),
+    ],
+    crate::help_layouts_dataset_prep::LAYOUTS_PREPARE,
+);
+
+/// Indices of the `slice` subcommand's actions.
+pub mod dataset_slice_args {
+    pub const SPEC: usize = 1;
+    pub const CACHE: usize = 2;
+    pub const RUN_INDEX: usize = 3;
+    pub const COUNT: usize = 4;
+    pub const INPUT_LEN: usize = 5;
+    pub const OUTPUT_LEN: usize = 6;
+    pub const OUT: usize = 7;
+    pub const SIDECAR: usize = 8;
+    pub const TOKENIZER_LABEL: usize = 9;
+    pub const SWEEP_SALT: usize = 10;
+}
+
+pub const DATASET_SLICE: Spec = Spec::with_layouts(
+    "dataset_prep.py slice",
+    &[
+        HELP_DEF,
+        text_option("--spec", true),
+        text_option("--cache", true),
+        text_option("--run-index", true),
+        text_option("--count", true),
+        text_option("--input-len", true),
+        text_option("--output-len", true),
+        text_option("--out", true),
+        text_option("--sidecar", true),
+        text_option("--tokenizer-label", true),
+        text_option("--sweep-salt", false),
+    ],
+    &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--spec", dataset_slice_args::SPEC),
+        ("--cache", dataset_slice_args::CACHE),
+        ("--run-index", dataset_slice_args::RUN_INDEX),
+        ("--count", dataset_slice_args::COUNT),
+        ("--input-len", dataset_slice_args::INPUT_LEN),
+        ("--output-len", dataset_slice_args::OUTPUT_LEN),
+        ("--out", dataset_slice_args::OUT),
+        ("--sidecar", dataset_slice_args::SIDECAR),
+        ("--tokenizer-label", dataset_slice_args::TOKENIZER_LABEL),
+        ("--sweep-salt", dataset_slice_args::SWEEP_SALT),
+    ],
+    crate::help_layouts_dataset_prep::LAYOUTS_SLICE,
+);
+
+/// Indices of the `synthetic-sidecar` subcommand's actions.
+pub mod dataset_synthetic_args {
+    pub const INPUT_LEN: usize = 1;
+    pub const OUTPUT_LEN: usize = 2;
+    pub const SIDECAR: usize = 3;
+}
+
+pub const DATASET_SYNTHETIC_SIDECAR: Spec = Spec::with_layouts(
+    "dataset_prep.py synthetic-sidecar",
+    &[
+        HELP_DEF,
+        text_option("--input-len", true),
+        text_option("--output-len", true),
+        text_option("--sidecar", true),
+    ],
+    &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--input-len", dataset_synthetic_args::INPUT_LEN),
+        ("--output-len", dataset_synthetic_args::OUTPUT_LEN),
+        ("--sidecar", dataset_synthetic_args::SIDECAR),
+    ],
+    crate::help_layouts_dataset_prep::LAYOUTS_SYNTHETIC_SIDECAR,
+);
