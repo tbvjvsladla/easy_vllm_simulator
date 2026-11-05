@@ -322,6 +322,34 @@ pub const RESOLVE_GUIDELLM: Spec = Spec {
     layouts: crate::help_layouts_resolve_guidellm::LAYOUTS,
 };
 
+/// Indices of the `resolve_topology.py` actions.
+pub mod resolve_topology_args {
+    pub const REPO: usize = 1;
+    pub const SELF_TEST: usize = 2;
+}
+
+/// The original `resolve_topology.py` parser: `--repo REPO` and `--self-test`, both optional (an option may be
+/// abbreviated to any unambiguous prefix, as in argparse).
+pub const RESOLVE_TOPOLOGY: Spec = Spec {
+    prog: "resolve_topology.py",
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            ..PLAIN
+        },
+        text_option("--repo", false),
+        flag("--self-test"),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--repo", resolve_topology_args::REPO),
+        ("--self-test", resolve_topology_args::SELF_TEST),
+    ],
+    layouts: crate::help_layouts_resolve_topology::LAYOUTS,
+};
+
 /// Indices of the `classify_cell.py` actions.
 pub mod classify_args {
     pub const SERVE_RC: usize = 1;

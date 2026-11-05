@@ -1158,9 +1158,9 @@ def verify() -> dict:
         #   브랜치 이름으로 고르고 unknown 을 조용히 single 로 접던 관용구가 돌아오지 않는지(S0 · abbrev-ref 0)와, 해소가 카드(unsigned)
         #   노드 = 카드↔자기 manifest · 메인 = 4자일치 술어로만 서는지. 배포되는 6종의 바이트 사본을 임시 git 저장소에서 돌려
         #   음성대조(운영 브랜치가 아닌 이름 → 해소 불가 · 통로 manifest 부재 → 미테라포밍 · 명시 > 파생 · confirm-risk 게이트가
-        #   해소보다 앞선다)를 함께 친다. 카드 검증기는 테스트 평면 스텁이다(서명 자체는 A2A 술어가 지킨다) — docker·GPU 불요.
-        _run("benchmark_resolve_topology_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/resolve_topology.py", "--self-test"], {0}),
+        #   해소보다 앞선다)를 함께 친다. topology_parity는 실제 소유자를 호출하고 Flag 게이트만 argv기록 스텁이다 — docker·GPU 불요.
+        _run("benchmark_resolve_topology_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/resolve_topology.sh", "--self-test"], {0}),
         # gmu 두 역할 분리 · max-num-seqs 산식 · lockset 기계 각인의 **집행** (plan_26091407 §4.2·§4.3 · §7 O3 ·
         #   2026-09-14 배선). 호출자 없는 자체검사는 L1(산문)이다(위 선례). 함수 층(역할 분리·derive_batch 3경우·
         #   sim_classify adjust_target=batch·클램프 경계)과 CLI 층(배포되는 recipe.py 바이트 사본을 임시 저장소에서

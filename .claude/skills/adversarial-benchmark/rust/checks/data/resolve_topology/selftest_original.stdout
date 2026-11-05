@@ -1,0 +1,31 @@
+  [PASS] R1 manifest 없음 → 3 미테라포밍
+  [PASS] R2 manifest 있으나 parity 없음 → 5
+  [PASS] P1 메인 multi-node 체크아웃 · 특화 헤더 multi · output/multi manifest 일치 → multi · 출처 4자일치
+  [PASS] ★P2 음성대조: 운영 브랜치가 아닌 이름 → 5(종전 관용구는 여기서 조용히 single)
+  [PASS] ★P3 음성대조: 특화 헤더가 반대 토폴로지 → 5
+  [PASS] ★P4 통로 manifest 부재(반대 통로 manifest 만 있다) → 3(브랜치 필터만으로 고르지 않는다)
+  [PASS] ★P5 음성대조: 통로 manifest 가 다른 topology 를 말한다 → 5
+  [PASS] S0 broad_search.sh 에 브랜치 이름 추론 형태가 없다(abbrev-ref·symbolic-ref·show-current·branch --show·multi-node)·single-node)·refs/heads/ 0) · 해소기를 부른다
+  [PASS] S0 judge_bench.sh 에 브랜치 이름 추론 형태가 없다(abbrev-ref·symbolic-ref·show-current·branch --show·multi-node)·single-node)·refs/heads/ 0) · 해소기를 부른다
+  [PASS] S0 lite_bench.sh 에 브랜치 이름 추론 형태가 없다(abbrev-ref·symbolic-ref·show-current·branch --show·multi-node)·single-node)·refs/heads/ 0) · 해소기를 부른다
+  [PASS] S0 run_bench.sh 에 브랜치 이름 추론 형태가 없다(abbrev-ref·symbolic-ref·show-current·branch --show·multi-node)·single-node)·refs/heads/ 0) · 해소기를 부른다
+  [PASS] S0 sweep_bench.sh 에 브랜치 이름 추론 형태가 없다(abbrev-ref·symbolic-ref·show-current·branch --show·multi-node)·single-node)·refs/heads/ 0) · 해소기를 부른다
+  [PASS] S0 max_envelope.sh 에 브랜치 이름 추론 형태가 없다(abbrev-ref·symbolic-ref·show-current·branch --show·multi-node)·single-node)·refs/heads/ 0) · 해소기를 부른다
+  [PASS] ★S0b 음성대조: 다른 형태의 브랜치 추론(symbolic-ref · case multi-node)) 은 S0 형태 목록에 걸린다
+  [PASS] S1 judge_bench(--topology 없음) → manifest 통로 multi 로 해소(output/multi 경로에서 멈춘다)
+  [PASS] S2 sweep_bench --dry-run(--topology 없음) → topo=multi
+  [PASS] S3 lite_bench(--topology 없음) → 해소된 multi 가 Flag 게이트까지 흘러간다(exit 4)
+  [PASS] S4 run_bench(--topology 없음) → 해소된 multi 가 Flag 게이트까지 흘러간다(exit 4)
+  [PASS] S5 broad_search init(--topology 없음) → 상태 파일 topology=multi
+  [PASS] S6 max_envelope --dry-run(--topology 없음) → topo=multi
+  [PASS] S7 broad_search cell 의 --confirm-risk 게이트(exit 5)는 토폴로지 해소보다 앞선다(인자 평면 가드 보존)
+  [PASS] ★S8 음성대조 judge_bench.sh: 브랜치 feature-x → exit 2 · 해소 불가 사유(BRANCH_UNKNOWN) · single 로 접지 않는다
+  [PASS] ★S8 음성대조 sweep_bench.sh: 브랜치 feature-x → exit 2 · 해소 불가 사유(BRANCH_UNKNOWN) · single 로 접지 않는다
+  [PASS] ★S8 음성대조 lite_bench.sh: 브랜치 feature-x → exit 4 · 해소 불가 사유(BRANCH_UNKNOWN) · single 로 접지 않는다
+  [PASS] ★S8 음성대조 run_bench.sh: 브랜치 feature-x → exit 4 · 해소 불가 사유(BRANCH_UNKNOWN) · single 로 접지 않는다
+  [PASS] ★S8 음성대조 broad_search.sh: 브랜치 feature-x → exit 2 · 해소 불가 사유(BRANCH_UNKNOWN) · single 로 접지 않는다
+  [PASS] ★S8 음성대조 max_envelope.sh: 브랜치 feature-x → exit 2 · 해소 불가 사유(BRANCH_UNKNOWN) · single 로 접지 않는다
+  [PASS] S9 --topology 명시는 해소기를 부르지 않는다(명시 > 파생) · output/single 경로
+  [PASS] S10 manifest 가 한 장도 없는 트리 → run_bench exit 4(미테라포밍 info-only · smoke_clone A8 계약 보존)
+  [PASS] S11 manifest 부재 트리 → judge_bench exit 2(fail-loud · --topology 명시 안내)
+[resolve_topology] --self-test OK — R1~R7 · P1~P5 · S0·S0b~S11 전부 통과

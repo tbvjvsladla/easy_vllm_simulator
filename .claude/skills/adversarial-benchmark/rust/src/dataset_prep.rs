@@ -490,74 +490,105 @@ pub fn text_lines(path: &PyStr) -> Result<TextLines, Failure> {
 }
 
 pub(crate) fn decode_lines(bytes: &[u8]) -> TextLines {
-    let newline = u32::from('\n');
-    let carriage_return = u32::from('\r');
-    let mut lines: Vec<PyStr> = Vec::new();
-    let mut current: Vec<u32> = Vec::new();
-    let mut pending: Vec<u8> = Vec::new();
-    let mut held_return = false;
-    let push_text =
-        |text: &str, current: &mut Vec<u32>, lines: &mut Vec<PyStr>, held: &mut bool| {
-            for character in text.chars() {
-                let point = u32::from(character);
-                if *held {
-                    *held = false;
-                    current.push(newline);
-                    lines.push(PyStr::from_code_points(std::mem::take(current)));
-                    if point == newline {
-                        continue;
-                    }
-                }
-                if point == carriage_return {
-                    *held = true;
-                } else if point == newline {
-                    current.push(newline);
-                    lines.push(PyStr::from_code_points(std::mem::take(current)));
-                } else {
-                    current.push(point);
+    let mut decoder = LineDecoder::default();
+    for chunk in bytes.chunks(READ_CHUNK) {
+        if let Err(failure) = decoder.feed(chunk) {
+            return TextLines {
+                lines: decoder.lines,
+                failure: Some(failure),
+            };
+        }
+    }
+    let failure = decoder.finish().err();
+    TextLines {
+        lines: decoder.lines,
+        failure,
+    }
+}
+
+/// The chunk size of one raw read of a text file (`TextIOWrapper._CHUNK_SIZE`), for readers that stop early.
+pub(crate) const TEXT_READ_CHUNK: usize = READ_CHUNK;
+
+/// The incremental decoder behind `for line in path.open(encoding="utf-8")`: each [`LineDecoder::feed`] is one raw
+/// read of at most [`TEXT_READ_CHUNK`] bytes and appends the lines that read completed to [`LineDecoder::lines`]. A
+/// reader that needs only the first lines can stop feeding once it has them, as the interpreter's iteration does.
+#[derive(Default)]
+pub(crate) struct LineDecoder {
+    pub(crate) lines: Vec<PyStr>,
+    current: Vec<u32>,
+    pending: Vec<u8>,
+    held_return: bool,
+}
+
+impl LineDecoder {
+    fn push_text(&mut self, text: &str) {
+        let newline = u32::from('\n');
+        let carriage_return = u32::from('\r');
+        for character in text.chars() {
+            let point = u32::from(character);
+            if self.held_return {
+                self.held_return = false;
+                self.current.push(newline);
+                self.lines
+                    .push(PyStr::from_code_points(std::mem::take(&mut self.current)));
+                if point == newline {
+                    continue;
                 }
             }
-        };
-    for chunk in bytes.chunks(READ_CHUNK) {
-        let mut buffer = std::mem::take(&mut pending);
+            if point == carriage_return {
+                self.held_return = true;
+            } else if point == newline {
+                self.current.push(newline);
+                self.lines
+                    .push(PyStr::from_code_points(std::mem::take(&mut self.current)));
+            } else {
+                self.current.push(point);
+            }
+        }
+    }
+
+    /// One raw read: the bytes join the pending incomplete sequence of the previous read. A bad byte fails the whole
+    /// read (its own lines are lost, the lines of earlier reads stay) and its position counts from the start of the
+    /// pending bytes; an incomplete sequence at the end waits for the next read.
+    pub(crate) fn feed(&mut self, chunk: &[u8]) -> Result<(), Failure> {
+        let mut buffer = std::mem::take(&mut self.pending);
         buffer.extend_from_slice(chunk);
         let valid_to = match std::str::from_utf8(&buffer) {
             Ok(_) => buffer.len(),
             Err(error) if error.error_len().is_none() => error.valid_up_to(),
             Err(error) => {
-                return TextLines {
-                    lines,
-                    failure: Some(Failure::new(
-                        "UnicodeDecodeError",
-                        &crate::pyjson::utf8_error_text(&buffer, &error),
-                    )),
-                };
+                return Err(Failure::new(
+                    "UnicodeDecodeError",
+                    &crate::pyjson::utf8_error_text(&buffer, &error),
+                ));
             }
         };
         let text = std::str::from_utf8(&buffer[..valid_to]).expect("validated prefix");
-        push_text(text, &mut current, &mut lines, &mut held_return);
-        pending = buffer[valid_to..].to_vec();
+        self.push_text(text);
+        self.pending = buffer[valid_to..].to_vec();
+        Ok(())
     }
-    if !pending.is_empty() {
-        let error = std::str::from_utf8(&pending).expect_err("an incomplete sequence");
-        return TextLines {
-            lines,
-            failure: Some(Failure::new(
+
+    /// End of file: an incomplete sequence is an error, a `\r` that ended the last read is a line end, and the last
+    /// line without a newline is a line.
+    pub(crate) fn finish(&mut self) -> Result<(), Failure> {
+        if !self.pending.is_empty() {
+            let error = std::str::from_utf8(&self.pending).expect_err("an incomplete sequence");
+            return Err(Failure::new(
                 "UnicodeDecodeError",
-                &crate::pyjson::utf8_error_text(&pending, &error),
-            )),
-        };
-    }
-    if held_return {
-        current.push(newline);
-        lines.push(PyStr::from_code_points(std::mem::take(&mut current)));
-    }
-    if !current.is_empty() {
-        lines.push(PyStr::from_code_points(current));
-    }
-    TextLines {
-        lines,
-        failure: None,
+                &crate::pyjson::utf8_error_text(&self.pending, &error),
+            ));
+        }
+        if self.held_return {
+            self.current.push(u32::from('\n'));
+            self.lines
+                .push(PyStr::from_code_points(std::mem::take(&mut self.current)));
+        }
+        if !self.current.is_empty() {
+            self.lines
+                .push(PyStr::from_code_points(std::mem::take(&mut self.current)));
+        }
+        Ok(())
     }
 }
 

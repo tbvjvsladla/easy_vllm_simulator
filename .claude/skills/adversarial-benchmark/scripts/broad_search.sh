@@ -195,7 +195,7 @@ esac
 _resolve_topo(){
   [ -n "$TOPO" ] && return 0
   local _rc=0
-  TOPO="$(python3 "$SDIR/resolve_topology.py" --repo "$REPO")" || _rc=$?
+  TOPO="$(bash "$SDIR/resolve_topology.sh" --repo "$REPO")" || _rc=$?
   if [ "$_rc" != 0 ]; then
     echo "[broad_search] ERROR 토폴로지를 정하지 못했다(위 사유) — --topology single|multi 로 명시하라(브랜치 이름으로 고르지 않는다)" >&2
     exit 2

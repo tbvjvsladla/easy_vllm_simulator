@@ -179,7 +179,7 @@ def _self_test():
         text = open(os.path.join(here, name), encoding="utf-8").read()
         found = [form for form in branch_forms if form in text]
         ck("S0 %s 에 브랜치 이름 추론 형태가 없다(%s 0) · 해소기를 부른다" % (name, "·".join(branch_forms)),
-           not found and "resolve_topology.py" in text, found)
+           not found and "resolve_topology.sh" in text, found)
     _probe = 'BR="$(git symbolic-ref --short HEAD)"\ncase "$BR" in multi-node) TOPO=multi;; esac\n'
     ck("★S0b 음성대조: 다른 형태의 브랜치 추론(symbolic-ref · case multi-node)) 은 S0 형태 목록에 걸린다",
        [form for form in branch_forms if form in _probe] == ["symbolic-ref", "multi-node)"])
@@ -188,7 +188,7 @@ def _self_test():
             root = os.path.join(td, "repo")
             ab = os.path.join(root, ".claude", "skills", "adversarial-benchmark", "scripts")
             os.makedirs(ab)
-            for name in scripts + ("resolve_topology.py", "repeat_axis.py", "bench_preset.py",
+            for name in scripts + ("resolve_topology.py", "resolve_topology.sh", "resolve_topology_api.sh", "repeat_axis.py", "bench_preset.py",
                                     "repeat_axis.sh", "repeat_axis_api.sh", "repeat_axis_native.py", "repeat_axis_owner_query.py",
                                     "bench_preset.sh", "bench_preset_api.sh"):
                 shutil.copy2(os.path.join(here, name), os.path.join(ab, name))
@@ -198,7 +198,7 @@ def _self_test():
             shutil.copy2(os.path.join(real_repo, native_rel), native_dst)
             native_api_rel = ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis_api"
             shutil.copy2(os.path.join(real_repo, native_api_rel), os.path.join(root, native_api_rel))
-            for native_name in ("bench_preset", "bench_preset_api"):
+            for native_name in ("bench_preset", "bench_preset_api", "resolve_topology", "resolve_topology_api"):
                 rel = ".claude/skills/adversarial-benchmark/rust/target/release/" + native_name
                 shutil.copy2(os.path.join(real_repo, rel), os.path.join(root, rel))
             # 측정 형상 프리셋(plan_26101011) — sweep_bench 는 토폴로지 해소 **뒤** 프리셋을 해소한다(바이트 사본).
@@ -216,6 +216,12 @@ def _self_test():
             write(os.path.join(root, ".claude", "skills", "terraforming_node", "scripts", "manifest_contract.py"),
                   "import sys\nopen(%r, 'a').write(' '.join(sys.argv[1:]) + '\\n')\nsys.exit(3)\n" % marker)
             env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
+            # The byte-copy probes execute their own deployed files, independent of parent test overrides.
+            for key in ("RESOLVE_TOPOLOGY_BIN", "RESOLVE_TOPOLOGY_API_BIN", "REPEAT_AXIS_BIN",
+                        "REPEAT_AXIS_API_BIN", "BENCH_PRESET_BIN", "BENCH_PRESET_API_BIN",
+                        "REPEAT_AXIS_REPO_ROOT", "REPEAT_AXIS_CAMPAIGN_ADAPTER",
+                        "BENCH_PRESET_REPO_ROOT", "BENCH_PRESET_SKILL_DIR"):
+                env.pop(key, None)
 
             def run(name, *args):
                 p = subprocess.run(["bash", os.path.join(ab, name), *args], cwd=root, capture_output=True, text=True,

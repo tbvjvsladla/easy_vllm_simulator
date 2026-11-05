@@ -95,7 +95,7 @@ if [ -z "$TOPO" ]; then
   #   브랜치 이름에서 토폴로지를 골랐고 알 수 없는 이름은 조용히 single 로 떨어졌다. 해소는 공용 해소기가 한다 —
   #   카드 노드(unsigned capability Card)는 카드↔자기 manifest, 메인은 4자일치 술어(topology_parity), 둘 다 아니면 fail-loud.
   #   아래 Flag 게이트와 같은 평면이다: manifest 가 없으면(3) 미테라포밍 info-only, 정하지 못하면 fail-closed — 둘 다 exit 4.
-  _TOPO_RC=0; TOPO="$(python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/resolve_topology.py" --repo "$REPO")" || _TOPO_RC=$?
+  _TOPO_RC=0; TOPO="$(bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/resolve_topology.sh" --repo "$REPO")" || _TOPO_RC=$?
   if [ "$_TOPO_RC" = 3 ]; then
     echo "[lite_bench] 토폴로지 사실(manifest) 부재 — 미테라포밍 info-only. terraforming_node 로 HW스캔·검증 먼저." >&2
     exit 4

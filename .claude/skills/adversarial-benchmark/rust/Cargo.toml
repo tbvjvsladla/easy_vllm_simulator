@@ -141,6 +141,18 @@ name = "resolve_bench_tool_bench"
 path = "src/bin/resolve_bench_tool_bench.rs"
 
 [[bin]]
+name = "resolve_topology"
+path = "src/bin/resolve_topology.rs"
+
+[[bin]]
+name = "resolve_topology_api"
+path = "src/bin/resolve_topology_api.rs"
+
+[[bin]]
+name = "resolve_topology_bench"
+path = "src/bin/resolve_topology_bench.rs"
+
+[[bin]]
 name = "resolve_guidellm"
 path = "src/bin/resolve_guidellm.rs"
 
@@ -427,3 +439,23 @@ path = "checks/bench_tool_row_shapes.rs"
 [[test]]
 name = "bench_tool_width_cases"
 path = "checks/bench_tool_width_cases.rs"
+
+[[test]]
+name = "resolve_topology_api_cases"
+path = "checks/resolve_topology_api_cases.rs"
+
+[[test]]
+name = "resolve_topology_cli_cases"
+path = "checks/resolve_topology_cli_cases.rs"
+
+[[test]]
+name = "resolve_topology_selftest_controls"
+path = "checks/resolve_topology_selftest_controls.rs"
+
+[[test]]
+name = "resolve_topology_reader_cases"
+path = "checks/resolve_topology_reader_cases.rs"
+
+[[test]]
+name = "resolve_topology_bench_harness"
+path = "checks/resolve_topology_bench_harness.rs"

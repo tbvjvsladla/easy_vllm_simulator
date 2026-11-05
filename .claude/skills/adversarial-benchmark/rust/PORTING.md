@@ -1403,3 +1403,124 @@ All case IDs, iterations, eleven rounds and timed function boundaries stayed fix
 corrected second-call postcondition and checked whole output trees. Prior observer corrections and functional TLS/CA
 failures are history, not erased PASS results. The retained Python source is a reference, not a runtime fallback;
 this unit does not complete the remaining migration, harness, profile evaluation or Long E2E work.
+
+## R13 토폴로지 해소기(`resolve_topology`) 이행 — 후보 기록 (정본 적용 전)
+
+**상태: COMPLETE — 이번 후보와 자체검사 범위에 한한다.** 성능(정본 계측)·실제 호스트 통합(런처 12결합·`build_rust.sh`·배포 검사 전환)·정본 적용·독립 SAME2 재생·
+전체 S1~S7·하네스·6프로필·실제 Long E2E 는 이 기록의 주장이 아니다(Root 소관·미완료). 원본 `resolve_topology.py`(동결 831줄 / 유지 313줄)는 실행하지 않았다(동결 참조만 읽음).
+실제 정책 판정자 `topology_parity.py` 는 S7 의존으로 **Python 프로세스 그대로** 호출한다(브랜치·노드·manifest 규칙을 Rust 로 재현하지 않으며 조용한 single 기본값이 없다).
+
+### 산출물과 책임
+| 경로 | 책임 |
+|---|---|
+| `src/resolve_topology.rs` | 원본 4함수: `manifests`(`_manifests`) · `manifest_topology_line` · `run`(`_run`) · `resolve`. 타입: `ResolveContext`(판정자 인터프리터) · `Resolution` · `RunOutput` · `RunLimit`. 검증 불변식: 판정은 판정자의 결과만 옮긴다 |
+| `src/captured_process.rs` | R11 `inspect` 의 단일스레드 `OwnedFd`/비차단 poll 포획기를 일반화해 이동. 한 기한이 프로세스 종료와 두 스트림 EOF 를 함께 덮고, 기한에 직접 자식만 kill/reap, 판독자는 함수 반환과 함께 닫힘. `ChildSettings`(cwd·env) 추가. **R11 호출자(120초)는 그대로** |
+| `src/dataset_prep.rs`(`LineDecoder`) | `decode_lines` 를 증분 디코더로 분해(동작 동일, 기존 소비자 테스트 유지). 위치 규약: 한 번의 8 KiB raw read 가 단위이고, 나쁜 바이트는 그 read 만 잃는다 |
+| `src/resolve_topology_cli.rs` | 원본 argparse 표면(`--repo`·`--self-test`·약어)·종료 0/2/3/5(+미처리 예외 1)·출처 stderr 후 topology stdout. 새 플래그 없음 |
+| `src/resolve_topology_api.rs` | `resolve_topology_api evaluate-jsonl/constants/native-help`. 베어 이름 `_manifests`·`_manifest_topology_line`·`_run(argv, timeout=60)`·`resolve(repo, python=None)` · 네트워크·동적 디스패치 없음 |
+| `src/resolve_topology_selftest.rs` | 네이티브 `--self-test`: R1~R2 · P1~P5(실제 판정자·git 체크아웃) · S0·S0b · S1~S11(바이트 사본 호출자 6종을 사본 런처·사본 네이티브 실행파일로 실행). 골든 출력이 아니다 |
+| `src/bin/resolve_topology{,_api,_bench}.rs` | CLI · API 전송 · 범용 전체 호출 계측기(`ROWS.jsonl ROUNDS ITERATIONS [ID...]`) |
+| `src/help_layouts_resolve_topology.rs` | 폭 1..700 usage/help — 원본을 실행하지 않고 같은 파서 정의를 재생해 생성, 기본 폭에서 동결 원본 도움말과 대조 |
+| `checks/resolve_topology_*.rs` · `checks/data/resolve_topology/` | 등록 검사 5개 파일(+공용 헬퍼)과 동결 데이터(API 59 · CLI 33 · 원본 selftest 출력) |
+
+공유 소스 변경(최소): `argv.rs`(RESOLVE_TOPOLOGY 표) · `bench_tool_pin.rs`(포획기 이동 · 120초 호출자 유지) · `dataset_prep.rs`(증분 디코더) · `lib.rs` · `Cargo.toml`(bin 3 · test 5). 새 의존성 없음(`Cargo.lock` 불변).
+
+### 보존한 외부 계약과 특이 동작
+- `_manifests`: `os.path.join(repo, "output", "*", "manifest.yaml")` 를 **glob 패턴으로** 쓴다(repo 경로의 `[`·`*`·`?` 도 패턴 — 검사로 고정) → `isfile`(끊긴 링크 제외) → 코드포인트 정렬.
+- `_manifest_topology_line`: yaml 파서 없이 첫 `topology:` 한 줄(첫 콜론 이후 첫 `#` 앞 · 공백 제거 · 따옴표 제거 · 빈 값 = None) · 첫 일치에서 중단. 읽기는 CPython `TextIOWrapper` 처럼 **8 KiB raw read 단위의 증분 UTF-8·보편 개행**:
+  첫 read 안의 일치 앞서 나쁜 바이트가 8200 에 있어도 읽지 않고, 짧은 파일의 나쁜 바이트는(같은 read 이므로) 예외. 경계 걸침(문자 분할·CRLF 분할·EOF 불완전 시퀀스)은 CPython 내장 `open()` 순회로 관측한 값과 대조(비밀 프로브 `probe_reader_boundaries_r13.py`, 판정자 호출 아님).
+  OSError(없음·디렉터리·권한·읽기 오류)는 None, UnicodeDecodeError·`embedded null byte` 는 전파.
+- `_run`: `subprocess.run(argv, capture_output=True, text=True, timeout)` — 보편 개행·엄격 UTF-8(stdout 먼저)·종료코드(신호 = 음수)·**한 기한이 종료+EOF 포함**(자손이 파이프를 쥐면 기한에서 `(None, "", "Command '[…]' timed out after <시간> seconds")`, 직접 자식 reap) ·
+  시간 글자는 호출자가 쓴 수 그대로(`0.2`·`5.0`·`60`) · 시작 실패 OSError·TimeoutExpired 는 값으로, 디코딩·argv 형태 오류는 전파. 부분 출력은 버린다.
+- `resolve`: 매니페스트 0장 → 3 · 판정자 파일 없음 → 5 · `[python, parity, "evaluate", "--repo", ABSREPO, "--format", "json"]` 를 기본 60초로 실행 · rc ∉ {0,5} 또는 비-dict → 5 `(rc=…)`+`[-300:]` 코드포인트 꼬리 ·
+  `verdict != "PASS"` 또는 `topology` 거짓 → 5 `RED — a / b` · `legs.manifest.status != "ok"` → 3. 잘못된 모양은 원본 예외 그대로(`.get` AttributeError, `str.join` TypeError, `legs_judged` 문자열은 문자별 join, 숫자 topology 의 표시 `True`).
+  인터프리터: `python` 인자가 truthy 면 그것(비문자열은 TypeError), falsy 면 컨텍스트 `RESOLVE_TOPOLOGY_PYTHON`(비면 없음 취급) 기본 `python3`.
+- CLI 미처리 예외: 종료 1·`Traceback (most recent call last):` 마커와 `Class: message` 마지막 줄(Python 소스 프레임은 재현하지 않음).
+
+### `--self-test` 의존 폐포와 환경
+`RESOLVE_TOPOLOGY_REPO_ROOT`(실제 판정자·설정 `…/adversarial-benchmark/config`·의존 스크립트 repeat_axis/bench_preset 8종) · `RESOLVE_TOPOLOGY_SCRIPTS_DIR`(호출자 6종과 `resolve_topology.{py,sh}`·`resolve_topology_api.sh` 바이트 사본) ·
+`RESOLVE_TOPOLOGY_RUNTIME_DIR`(다른 배포 네이티브 4종: repeat_axis{,_api}·bench_preset{,_api}). 자기 실행파일: CLI 는 `current_exe()`(이름이 `resolve_topology` 일 때) 아니면 `RESOLVE_TOPOLOGY_BIN` 또는 런타임 폴더, API 는 `RESOLVE_TOPOLOGY_API_BIN` 또는 런타임 폴더.
+사본 트리는 기대 릴리스 경로로 복사하고 자식 환경에서 `RESOLVE_TOPOLOGY_BIN/API_BIN`·`REPEAT_AXIS_*`·`BENCH_PRESET_*` 재정의를 제거(사본이 자기 파일을 실행). 미설정 출처는 구성 오류(`ResolveTopologyConfigurationError`)로 끝나며 더 짧은 실행이 아니다.
+선행조건(기존): git · bash · python3(판정자) · 테스트 평면의 Flag 게이트 소유자 스텁(사본 트리 안). 서빙·Docker·네트워크 없음.
+S0 은 호출자가 **`resolve_topology.sh`** 를 부르는지 본다(옛 `.py` 리터럴이면 실패 — 부정 대조 검사).
+
+### 실행한 검사 (후보 · 관측 근거는 작업자가 후보 밖에 둔 실행 로그 — HANDOFF 참조)
+`cargo fmt -- --check` PASS · `cargo build --release --bins` PASS(3 bin 안정) · `cargo clippy --all-targets -- -D warnings` PASS · `cargo test`(전체, `--offline --locked`) **379 PASS · 0 FAIL**(공유 헬퍼 회귀 포함: R11 포획 단위 5 · dataset·bench_tool 전부).
+등록 검사: API 59 동결 + 5 · CLI 33 동결(selftest 전체 출력 포함) + 2 · selftest 부정 대조 5(분기 추론 호출자 · `.py` 호출자 · 다른 판정 · 미설정 런타임 · 환경 재정의 무시) · 경계 읽기 6 · 계측기 3.
+네이티브 `--self-test` 출력은 동결 원본 출력과 **바이트 동일**(stderr 비어 있음).
+
+### 남은 한계 (사실대로)
+- 동결 owner 출력 4종 계측 행은 선언된 로컬 Python 스텁이며 실제 정책·LLM·네트워크 속도 근거가 아니다. 실제 판정자 프로세스 비용은 S7 소유다.
+- 지원 입력: 경로는 문자열(정수 = 파일기술자는 `UnsupportedInput`), `_run` 은 문자열 리스트 argv·양수/영/음수 수치 timeout(기한 없음·다른 타입·NaN·표현 불가 큰 수는 `UnsupportedInput` — 임의 축소 아님).
+- repo 경로에 NUL 이 있는 glob 은 `ospath::glob`(R8) 상속 한계. 모든 Python 객체 타입·모든 locale 을 증명하지 않는다(UTF-8 텍스트 모드 가정).
+- Python 소스 스택 프레임 비재현. 미테스트: Root 가 소유하는 설치 런처·사본 재배치·SAME2 독립 재생·정본 계측.
+
+### R13 교정 — `_manifest_topology_line` 의 메모리는 파일이 아니라 읽기 블록을 따른다 (후보 · 정본 적용 전)
+
+**실제 FAIL(Root 원본 우선 관측):** 18,022,400 바이트·1,638,400 개의 짧은 줄·`topology:` 키 없음 파일을 자식당 주소공간 96 MiB·core 0 한도에서 읽을 때
+원본 API 는 종료 0 과 `null`(0.114초), 후보 API 는 SIGABRT(`memory allocation of 64 bytes failed`, 1.251초). 원인은 호출자 `first_topology_line` 이 `LineDecoder.lines`
+전체를 유지하고 `examined` 인덱스만 올려, 이미 지나간 모든 줄을 EOF 까지 들고 있던 것이다(`for line in handle` 은 검사한 줄을 버린다). 이전 후보의 "증분 읽기" 주장은
+시간·오류 위치에만 맞았고 메모리는 O(파일)이었다 — 이 한계는 이전 기록에서 누락된 것이며 지금 정정한다.
+
+**정밀 수정(호출자만):** 매 read 의 `feed`/`finish` 뒤에 `std::mem::take(&mut decoder.lines)` 로 그 read 가 완성한 줄만 꺼내 순서대로 검사한다. 첫 일치(빈 값 포함) 즉시 중단·현재 read 의 엄격 디코드 우선·불완전 UTF-8/개행
+이월/EOF/오류 위치/실패 우선순위는 그대로다. `LineDecoder` 와 `dataset_prep::decode_lines`(전체 줄이 필요한 소비자)는 **변경하지 않았다**. 공개 헬퍼·포획기·selftest·인터페이스 불변, 새 의존성·lock 변경 없음.
+긴 한 줄은 원본처럼 그 줄만큼의 메모리가 필요하다(상한을 두지 않았고 크기·사례별 지름길이 없다).
+
+**등록 회귀:** `checks/resolve_topology_reader_cases.rs::many_short_lines_are_read_in_memory_bounded_by_the_block_not_by_the_file` — 같은 모양(18,022,400 B·1,638,400 줄)의 파일을 만들고
+API 자식을 `ulimit -c 0 && ulimit -v 98304`(자식 셸 한정, 전역 변경 없음, Python 없음)로 실행해 종료 0·stderr 비어 있음·`null` 을 요구하고, 같은 한도에서 뒤따르는 값(`multi`)과 빈 값 정지도 확인한다.
+**판별력 검증:** 예전의 유지형 호출자로 되돌리면 이 검사는 신호 종료로 실패한다(로그 `test-reader-mem-badvariant`), 수정본은 통과한다(`test-reader-mem-1`). 무제한 메모리에서의 "큰 파일이 None" 검사는 나쁜 판을 통과시키므로 쓰지 않았다.
+영향 범위 검사: 읽기·API·CLI(33)·selftest 부정 대조·계측기 5개 대상 PASS · fmt PASS · release 3 bin PASS · clippy `-D warnings` PASS. 전체 수트는 이번 변경 범위(호출자·검사 1개)에서는 다시 돌리지 않았다(Root 최종 정본 전체 수트가 뒤따른다).
+
+### R13 교정 — 부정 대조 검사의 설치 배치 가정 (검사만 · 제품 동작 불변)
+
+**실제 FAIL(Root 정본·새 사본 Cargo, 제품 실패 아님):** `the_abbreviated_and_repeated_options_follow_argparse` 가 `CARGO_BIN_EXE_resolve_topology --self` 를 환경 출처를 지운 채 실행하고 종료 1 과
+구성 오류를 기대했으나 0 을 받았다. 실행파일이 설치 배치(`…/adversarial-benchmark/rust/target/release`)에 있으면 `SelfTestSources::from_environment` 가 배치에서 출처를 올바르게 도출하므로
+환경 제거는 "맥락 없음"을 만들지 못한다. 후보의 외부 cargo-target 에는 그 배치가 없어 가정이 가려져 있었다. 기대 종료값을 0 으로 바꾸지 않았고 제품 소스는 바꾸지 않았다.
+
+**수정(`checks/resolve_topology_cli_cases.rs` 만):** 시험 대상 실행파일을 스크래치 하위 폴더에 `resolve_topology` 로 복사(`std::fs::copy` 가 실행 권한 보존)하고 그 사본을 실행한다. 사본 경로에 `rust` 조상이 없음을 단언(있으면 `NOT_RUN`)하며,
+`RESOLVE_TOPOLOGY_REPO_ROOT/SCRIPTS_DIR/RUNTIME_DIR/BIN/API_BIN` 를 모두 제거한다. 같은 종료 1·같은 구성 오류 첫 문구와 `--self` 약어 분기 증명을 유지하고, 반복 `--repo` 검사는 그대로 의미를 갖는다.
+재발 방지로 반대편 검사 `an_executable_in_the_installed_layout_finds_its_sources_without_environment` 를 등록했다: 의도된 고정물(`…/adversarial-benchmark/rust/target/release/resolve_topology` 사본 + 판정자 없는 체크아웃)에서
+환경 없이 `--self-test` 를 실행하면 구성 오류가 **아니라** 배치로 도출한 체크아웃의 판정자 파일 부재(`FileNotFoundError`, 도출한 경로 포함)로 끝난다 — 설치 배치 발견이 깨지면 이 검사가 실패한다. 조건부 skip 이 아니다.
+**검증:** 후보(외부 cargo-target, 배치 없음)와 설치 유사 배치(cargo target-dir 를 `…/adversarial-benchmark/rust/target` 로 둔 비공개 빌드, 실행파일의 `rust` 조상 존재) 양쪽에서 대상 4개 검사 PASS · fmt PASS · clippy `-D warnings` PASS.
+한계: 설치 유사 배치는 `debug` 프로파일 폴더이며 `rust` 조상 규칙만 같다(정본 release 경로 자체는 Root 의 실제 실행 소관). 전체 수트는 다시 돌리지 않았다.
+
+
+## R13 installed runtime acceptance (Root)
+
+The current deployed contract (string paths, list-of-string argv, default sixty-second owner query, UTF-8 environment)
+passed 59 original API and 33 CLI comparisons, the same two independent short-timeout/inherited-pipe and actual-owner
+(detached HEAD) observations, and source-delta review. This is not approval of every Python-object input: the documented
+integer-FD / no-deadline / other timeout / non-list argv limitations remain explicit. The resolver does not infer a
+branch/Card topology or clone the parity owner's policy; that actual Python policy owner remains the S7 dependency.
+The R11 120-second capture caller and inherited cwd/environment are retained by the extracted capture helper. A rare
+try_wait OS failure now names the actual program instead of a fixed docker label; that error path was source-reviewed,
+not claimed as an observed runtime equivalence test.
+
+Root's installed build passed 15 native self-tests; fmt, release Cargo (381 passed in 105 result blocks, plus the 22
+descriptor scenarios; one optional private CA replay ignored), Clippy, and the installed-launcher 59/33 fixed checks
+passed. A full distribution invocation passed 131/131. The Git-index-only relocated copy has 624 files (556 Rust package,
+68 source dependencies), offline build15, library114, the five topology targets and package paths, with index bytes equal.
+The earlier canonical/fresh Cargo failure was a negative test's missing-layout assumption: an installed executable can
+derive sources despite unset environment. Its copied-binary negative still expects the same exit1/configuration error;
+a positive installed-layout counterpart reaches the derived missing owner path. Runtime code and binaries were unchanged,
+and the valid initial15-selftest builds were reused. This is not a new physical-PC/sub-node deployment claim.
+
+The many-short-lines memory FAIL was preserved: an 18,022,400-byte untagged manifest under child AS96MiB/core0 returned
+null in the original, while the retaining reader aborted by SIGABRT. The caller-only completed-line consumption fix passed
+that exact saved file/limit with null/exit0 and no original re-execution. The registered equivalent-shape regression fails
+the retaining mutant and passes the fixed reader; the shared dataset all-lines behavior was not changed. A very long
+single line remains line-proportional memory, as documented. Earlier observer setup/companion-path/fixture-CWD corrections
+and the first failing tests remain raw history, rather than erased successful checks.
+
+The first complete official comparison used eleven alternating rounds, zero reused timings: 44 aggregate function
+records / 110 individual function records and 144 CLI records. Actual helper file/glob calls25x100: Python6.546296us /
+Rust6.312762us = 1.036993950x. Whole resolve with four declared local Python owner-output processes: Python14.36046625ms /
+Rust14.70029075ms = 0.976883144x (OPEN S7). Six actual Bash CLI paths: median round mean32.935943667ms /16.808937ms =
+1.959430490x; two no-owner paths4.527652227x, four owner paths1.778619583x. These are no synthetic purefunction measurements.
+The owner fixture reads a response and writes its call record in the inherited cwd, so each whole-owner case runs in its
+own scenario cwd (prepared outside the timer); four complete call timers are summed/divided outside the timed regions.
+All four IDs/one iteration/eleven rounds stayed fixed, both sides match, and original after_api trees (capture write
+included) were checked. The failed initial batched-CWD warm preparation was retained and corrected before candidate timing.
+The local fixture/process cost is not real policy, LLM, network, serving or profile speed; review the remaining S7 owner
+cost explicitly after that dependency's port. The source connection ledger is not line coverage or Python-zero proof.
+The remaining S1-S7, harness, six-profile and actual Long E2E work is still incomplete.

@@ -61,3 +61,4 @@ RESOLVE_BENCH_TOOL_BIN="$CRATE/target/release/resolve_bench_tool" \
 RESOLVE_GUIDELLM_BIN="$CRATE/target/release/resolve_guidellm" \
   GUIDELLM_RECORD_PATH="$SDIR/../bench_tool_pin.json" \
   bash "$SDIR/resolve_guidellm.sh" --self-test
+RESOLVE_TOPOLOGY_BIN="$CRATE/target/release/resolve_topology"   RESOLVE_TOPOLOGY_API_BIN="$CRATE/target/release/resolve_topology_api"   RESOLVE_TOPOLOGY_REPO_ROOT="$REPO"   RESOLVE_TOPOLOGY_SCRIPTS_DIR="$SDIR"   RESOLVE_TOPOLOGY_RUNTIME_DIR="$CRATE/target/release"   bash "$SDIR/resolve_topology.sh" --self-test
