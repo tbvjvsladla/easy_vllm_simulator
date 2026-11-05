@@ -141,6 +141,34 @@ pub struct Raised {
     /// The name a traceback prints for the class when it is not the bare `__name__`: `module.qualname` of an
     /// exception that came from another module (`None` = the bare class name; see [`Raised::qualified_class`]).
     qualified: Option<String>,
+    /// What the owner's interpreter said about the class of an exception that came from a Python owner. `None` for an
+    /// exception built in Rust, which falls back to its class name (see [`Raised::is_system_exit`]).
+    owner: Option<OwnerHierarchy>,
+    /// What an owner's `SystemExit` carried (its `code`), as the interpreter would end the process with it. `None`
+    /// for everything else; see [`Raised::system_exit_outcome`].
+    exit: Option<SystemExitOutcome>,
+}
+
+/// How the interpreter ends a process on `SystemExit(code)`: an integer (a `bool` is one) or `None` is an exit
+/// status, anything else is printed (its `str`) with a newline to standard error and the status is 1.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum SystemExitOutcome {
+    /// The status the process exits with, as the operating system sees it (0..=255): `None` is 0, `True` 1, an
+    /// integer its low eight bits as C's `exit` takes them, and an integer that does not fit a C `long` is 255
+    /// (CPython 3.12: `PyLong_AsLong` fails and answers -1).
+    Status(u8),
+    /// The reason text printed with a newline to standard error; the status is 1. An empty reason is still a reason.
+    Message(PyStr),
+}
+
+/// The two `isinstance` facts of an owner's exception, asked of the interpreter that raised it. They are
+/// authoritative: a class that merely carries the name `SystemExit` is neither more nor less than what these say.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct OwnerHierarchy {
+    /// `isinstance(error, Exception)`: whether `except Exception` of the original catches it.
+    pub is_exception: bool,
+    /// `isinstance(error, SystemExit)`: the builtin, whose string reason or status ends the process quietly.
+    pub is_system_exit: bool,
 }
 
 impl Raised {
@@ -155,6 +183,8 @@ impl Raised {
             failure,
             repr,
             qualified: None,
+            owner: None,
+            exit: None,
         }
     }
 
@@ -164,6 +194,8 @@ impl Raised {
             failure,
             repr,
             qualified: None,
+            owner: None,
+            exit: None,
         }
     }
 
@@ -184,6 +216,8 @@ impl Raised {
             failure,
             repr,
             qualified: None,
+            owner: None,
+            exit: None,
         }
     }
 
@@ -210,6 +244,8 @@ impl Raised {
                     failure,
                     repr,
                     qualified: None,
+                    owner: None,
+                    exit: None,
                 }
             }
             _ => Raised::from_failure(failure),
@@ -232,11 +268,44 @@ impl Raised {
         self.qualified.as_deref()
     }
 
-    /// Whether this is `SystemExit`: the one class a lite metrics record may name that is **not** an `Exception`
-    /// subclass, so no `except Exception` of the original catches it. It ends the checker instead of becoming
-    /// the detail of a failed check.
+    /// Records the hierarchy facts the owner's interpreter gave for this exception.
+    pub fn with_owner_hierarchy(mut self, hierarchy: OwnerHierarchy) -> Raised {
+        self.owner = Some(hierarchy);
+        self
+    }
+
+    /// Records the `SystemExit` payload the owner's interpreter reported.
+    pub fn with_system_exit_outcome(mut self, outcome: SystemExitOutcome) -> Raised {
+        self.exit = Some(outcome);
+        self
+    }
+
+    /// How a `SystemExit` ends the process. The owner's own payload when it reported one; for a `SystemExit` built
+    /// in Rust (its message is the reason text) the message.
+    pub fn system_exit_outcome(&self) -> SystemExitOutcome {
+        self.exit
+            .clone()
+            .unwrap_or_else(|| SystemExitOutcome::Message(self.failure.message.clone()))
+    }
+
+    /// `isinstance(error, Exception)`: whether `except Exception` of the original catches it. The owner's fact when
+    /// there is one; an exception built in Rust is ordinary unless it is `SystemExit`.
+    pub fn is_exception(&self) -> bool {
+        match self.owner {
+            Some(hierarchy) => hierarchy.is_exception,
+            None => !self.is_system_exit(),
+        }
+    }
+
+    /// `isinstance(error, SystemExit)`: the one class a lite metrics record may name that is **not** an `Exception`
+    /// subclass, so no `except Exception` of the original catches it; it ends the checker instead of becoming the
+    /// detail of a failed check. The owner's fact when there is one (a class that only carries the name is not it);
+    /// for an exception built in Rust, the class name.
     pub fn is_system_exit(&self) -> bool {
-        self.failure.class == "SystemExit"
+        match self.owner {
+            Some(hierarchy) => hierarchy.is_system_exit,
+            None => self.failure.class == "SystemExit",
+        }
     }
 
     pub fn into_failure(self) -> Failure {
@@ -607,6 +676,53 @@ pub fn splitlines(text: &PyStr) -> Vec<PyStr> {
 
 #[cfg(test)]
 mod tests {
+    use super::OwnerHierarchy;
+
+    #[test]
+    fn an_owners_hierarchy_facts_override_the_class_name_and_a_rust_error_falls_back_to_it() {
+        let named = |facts: Option<OwnerHierarchy>| {
+            let raised = Raised::new("SystemExit", "reason");
+            match facts {
+                Some(hierarchy) => raised.with_owner_hierarchy(hierarchy),
+                None => raised,
+            }
+        };
+        // built in Rust: the builtin `SystemExit` by name, outside `Exception`
+        assert!(named(None).is_system_exit() && !named(None).is_exception());
+        // an owner's ordinary `class SystemExit(Exception)`
+        let ordinary = named(Some(OwnerHierarchy {
+            is_exception: true,
+            is_system_exit: false,
+        }));
+        assert!(!ordinary.is_system_exit() && ordinary.is_exception());
+        // an owner's `class SystemExit(BaseException)`: neither the builtin nor an `Exception`
+        let base = named(Some(OwnerHierarchy {
+            is_exception: false,
+            is_system_exit: false,
+        }));
+        assert!(!base.is_system_exit() && !base.is_exception());
+        // the owner's real builtin
+        let real = named(Some(OwnerHierarchy {
+            is_exception: false,
+            is_system_exit: true,
+        }));
+        assert!(real.is_system_exit() && !real.is_exception());
+        // the outcome: an owner's payload when it reported one, else the Rust error's message as a reason
+        assert_eq!(
+            named(None).system_exit_outcome(),
+            SystemExitOutcome::Message(PyStr::new("reason"))
+        );
+        let with_status = named(None).with_system_exit_outcome(SystemExitOutcome::Status(17));
+        assert_eq!(
+            with_status.system_exit_outcome(),
+            SystemExitOutcome::Status(17)
+        );
+        // any other name built in Rust is an ordinary exception
+        assert!(
+            Raised::new("KeyError", "k").is_exception()
+                && !Raised::new("KeyError", "k").is_system_exit()
+        );
+    }
     use super::*;
     use crate::dataset_prep::Recorder;
     use crate::pyjson::loads;

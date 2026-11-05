@@ -18,6 +18,8 @@ pub enum DetailStyle {
     Plain,
     /// `name — detail[-900:]`: the lite programs, last 900 characters of `str(detail)`.
     TailedWithDash,
+    /// `name — detail[-N:]`: the repeat sweep program, last `N` (700) characters of `str(detail)`.
+    TailedWithDashOf(usize),
 }
 
 /// The `check(name, cond, detail)` of the programs and the failure summary data.
@@ -57,6 +59,7 @@ impl<'a> BracketChecks<'a> {
             let shown = match self.style {
                 DetailStyle::Plain => format!(" {detail}"),
                 DetailStyle::TailedWithDash => format!(" — {}", tail(&detail, 900)),
+                DetailStyle::TailedWithDashOf(count) => format!(" — {}", tail(&detail, count)),
             };
             self.failures.push(name.to_string());
             format!("  [FAIL] {name}{shown}")
@@ -298,6 +301,20 @@ mod tests {
         drop(checks);
         let line = console.stdout.to_utf8().expect("text");
         assert_eq!(line, format!("  [FAIL] bad — {}\n", "x".repeat(900)));
+    }
+
+    #[test]
+    fn a_failed_check_keeps_the_tail_length_its_program_names() {
+        let mut console = Recorder::default();
+        let mut checks = BracketChecks::new(&mut console, DetailStyle::TailedWithDashOf(700));
+        checks
+            .check("bad", false, || {
+                format!("{}{}", "a".repeat(300), "b".repeat(700))
+            })
+            .expect("printed");
+        drop(checks);
+        let line = console.stdout.to_utf8().expect("text");
+        assert_eq!(line, format!("  [FAIL] bad — {}\n", "b".repeat(700)));
     }
 
     #[test]

@@ -23,10 +23,14 @@
 //! stream is block-buffered, a terminal or unbuffered. Exceptions come back as [`Raised`] with the owner's class,
 //! message, `repr` and traceback class name; a `SystemExit` keeps its string reason or exit status.
 //!
+//! The repeat sweep verifier (`selftest_sweep_repeats`) uses the same session for one late operation of the hint reader
+//! ([`OwnerBridge::parse_sweep_report`]): it imports `render_bench_section` under that module name when the first report
+//! check runs, not when the session starts, so the reader's import side effects and errors keep their original time.
+//!
 //! This transport is the *current Python dependency* of the verifiers (see PORTING.md): it goes away with the
 //! stage that ports the owners. Nothing here falls back to the original verifier programs.
 
-use crate::conformance::Raised;
+use crate::conformance::{OwnerHierarchy, Raised, SystemExitOutcome};
 use crate::dataset_commands::spawn_failure;
 use crate::dataset_prep::Console;
 use crate::guidellm::Failure;
@@ -67,6 +71,19 @@ impl OwnerRole {
             OwnerRole::CompletionGate => "gate",
         }
     }
+}
+
+/// What the reader returned for a sweep report (`render_bench_section.parse_report`): the `level` of each parsed
+/// sweep row, the `truncated` value (`None` when the parsed report has no such key) and `repr(parsed)` for a
+/// failure detail.
+pub struct SweepReportParse {
+    pub levels: PyValue,
+    pub truncated: Option<PyValue>,
+    pub shown: String,
+}
+
+fn py_text_of(value: &PyValue) -> String {
+    value.display_text().to_utf8().unwrap_or_default()
 }
 
 /// A running session. Dropping it ends the interpreter.
@@ -148,10 +165,56 @@ fn raised_of(exception: &PyValue) -> Result<Raised, Raised> {
     };
     let raised = Raised::with_repr(failure, repr);
     // The owner's class as a traceback prints it (`module.qualname` unless builtin or `__main__`).
-    Ok(match text_of(map, "qualified") {
+    let raised = match text_of(map, "qualified") {
         Ok(qualified) => raised.with_qualified_class(qualified.to_utf8().unwrap_or(class)),
         Err(_) => raised,
+    };
+    // Its place in the hierarchy as the owner's interpreter answers it (`isinstance(error, Exception)` and
+    // `isinstance(error, SystemExit)`); these facts, not the class name, decide what the verifier may catch.
+    let fact = |name: &str| match map.get(name).map(PyValue::peel) {
+        Some(PyValue::Bool(answer)) => Some(*answer),
+        _ => None,
+    };
+    let raised = match (fact("is_exception"), fact("is_system_exit")) {
+        (Some(is_exception), Some(is_system_exit)) => raised.with_owner_hierarchy(OwnerHierarchy {
+            is_exception,
+            is_system_exit,
+        }),
+        _ => raised,
+    };
+    // What a `SystemExit` of the owner carried (`error.code`), as the interpreter's own record gives it.
+    Ok(match map.get("exit").map(PyValue::peel) {
+        Some(PyValue::Dict(payload)) => match exit_outcome_of(payload) {
+            Some(outcome) => raised.with_system_exit_outcome(outcome),
+            None => raised,
+        },
+        _ => raised,
     })
+}
+
+/// The typed outcome of a `SystemExit` payload record: `{"status": <int>}` or `{"message": <text>}`.
+fn exit_outcome_of(payload: &PyDict) -> Option<SystemExitOutcome> {
+    match (
+        payload.get("status").map(PyValue::peel),
+        payload.get("message").map(PyValue::peel),
+    ) {
+        (Some(PyValue::Int(status)), None) => {
+            Some(SystemExitOutcome::Status(process_status(status)))
+        }
+        (None, Some(PyValue::Str(text))) => Some(SystemExitOutcome::Message(text.clone())),
+        _ => None,
+    }
+}
+
+/// The status the operating system sees for `SystemExit(status)`: CPython 3.12 takes the integer as a C `long` and
+/// passes it to `exit`, which keeps the low eight bits; an integer that does not fit a `long` makes `PyLong_AsLong`
+/// answer -1, so the status is 255.
+fn process_status(status: &num_bigint::BigInt) -> u8 {
+    use num_traits::ToPrimitive;
+    match status.to_i64() {
+        Some(small) => u8::try_from(small.rem_euclid(256)).expect("a remainder below 256"),
+        None => 255,
+    }
 }
 
 impl OwnerBridge {
@@ -209,6 +272,17 @@ impl OwnerBridge {
         operation: &str,
         arguments: Vec<(&str, PyValue)>,
     ) -> Result<PyValue, Raised> {
+        self.call_split(console, operation, arguments)?
+    }
+
+    /// [`call`](Self::call) with the two kinds of failure kept apart: the outer `Err` is the transport (the session
+    /// itself broke), the inner `Err` is an exception the owner raised, carrying its hierarchy fact.
+    fn call_split(
+        &mut self,
+        console: &mut dyn Console,
+        operation: &str,
+        arguments: Vec<(&str, PyValue)>,
+    ) -> Result<Result<PyValue, Raised>, Raised> {
         let mut request = PyDict::new();
         request.set("op", PyValue::str(operation));
         for (name, value) in arguments {
@@ -266,10 +340,10 @@ impl OwnerBridge {
             }
             let succeeded = matches!(map.get("ok").map(PyValue::peel), Some(PyValue::Bool(true)));
             return if succeeded {
-                Ok(map.get("value").cloned().unwrap_or(PyValue::None))
+                Ok(Ok(map.get("value").cloned().unwrap_or(PyValue::None)))
             } else {
                 match map.get("exc") {
-                    Some(exception) => Err(raised_of(exception)?),
+                    Some(exception) => Ok(Err(raised_of(exception)?)),
                     None => Err(session_error(&format!(
                         "`{operation}` failed without a reason"
                     ))),
@@ -389,6 +463,42 @@ impl OwnerBridge {
             "rbs_parse_report_level_count",
             vec![("text", PyValue::str(text))],
         )
+    }
+
+    /// The late reader check of `selftest_sweep_repeats` (N4): inserts `directory` first on `sys.path`, imports
+    /// `render_bench_section` under its own name and parses the report. The owner's exception (a missing reader, a
+    /// failing import, a parse error) comes back as the inner `Err` with its place in the hierarchy
+    /// ([`Raised::is_exception`]); a failure of the session itself is the outer `Err`.
+    pub fn parse_sweep_report(
+        &mut self,
+        console: &mut dyn Console,
+        directory: &Path,
+        text: &str,
+    ) -> Result<Result<SweepReportParse, Raised>, Raised> {
+        let reply = match self.call_split(
+            console,
+            "rbs_parse_sweep_report",
+            vec![
+                ("directory", text_value(directory)),
+                ("text", PyValue::str(text)),
+            ],
+        )? {
+            Ok(reply) => reply,
+            Err(owner_exception) => return Ok(Err(owner_exception)),
+        };
+        let map = object_of(&reply)?;
+        let field = |name: &str| {
+            map.get(name).cloned().ok_or_else(|| {
+                session_error(&format!("the reader answer lacks the field `{name}`"))
+            })
+        };
+        Ok(Ok(SweepReportParse {
+            levels: field("levels")?,
+            truncated: matches!(field("has_truncated")?.peel(), PyValue::Bool(true))
+                .then(|| field("truncated"))
+                .transpose()?,
+            shown: py_text_of(&field("shown")?),
+        }))
     }
 
     /// An attribute of the reader that holds a contract constant (`MEASUREMENT_CONFIG_TITLE`, ...).
@@ -548,5 +658,67 @@ fn apply_event(console: &mut dyn Console, event: &PyDict) -> Result<Result<(), F
             })
         }
         other => Err(session_error(&format!("unknown stream event `{other}`"))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn payload(entries: Vec<(&str, PyValue)>) -> PyDict {
+        let mut map = PyDict::new();
+        for (key, value) in entries {
+            map.set(key, value);
+        }
+        map
+    }
+
+    #[test]
+    fn a_status_payload_is_what_the_operating_system_sees() {
+        // Confirmed against CPython 3.12.3 (`logs/python-exit-status-probe.txt` of the worker's check directory).
+        let status = |text: &str| {
+            let number: num_bigint::BigInt = text.parse().expect("an integer");
+            process_status(&number)
+        };
+        for (given, seen) in [
+            ("17", 17),
+            ("273", 17),
+            ("-1", 255),
+            ("-256", 0),
+            ("2147483653", 5),
+            ("4294967313", 17),
+            ("9223372036854775807", 255),
+            ("9223372036854775808", 255),
+            ("1180591620717411303424", 255),
+            ("0", 0),
+            ("1", 1),
+        ] {
+            assert_eq!(status(given), seen, "SystemExit({given})");
+        }
+    }
+
+    #[test]
+    fn a_payload_is_a_status_or_a_reason_and_nothing_else() {
+        assert_eq!(
+            exit_outcome_of(&payload(vec![("status", PyValue::int(17))])),
+            Some(SystemExitOutcome::Status(17))
+        );
+        assert_eq!(
+            exit_outcome_of(&payload(vec![("message", PyValue::str(""))])),
+            Some(SystemExitOutcome::Message(PyStr::new("")))
+        );
+        assert_eq!(exit_outcome_of(&payload(vec![])), None);
+        assert_eq!(
+            exit_outcome_of(&payload(vec![
+                ("status", PyValue::int(1)),
+                ("message", PyValue::str("both"))
+            ])),
+            None
+        );
+        // a boolean is not read as an integer here: the session turns `True` into the integer 1 before it speaks
+        assert_eq!(
+            exit_outcome_of(&payload(vec![("status", PyValue::Bool(true))])),
+            None
+        );
     }
 }

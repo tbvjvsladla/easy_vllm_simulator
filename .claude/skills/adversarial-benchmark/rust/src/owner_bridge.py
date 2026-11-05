@@ -167,6 +167,16 @@ def _operation(request):
         return rbs.render_lite(rbs.parse_lite_report(request["text"]), request["name"])
     if op == "rbs_parse_report_level_count":
         return len(_MODULES["rbs"].parse_report(request["text"])["levels"])
+    if op == "rbs_parse_sweep_report":
+        # The late import of the repeat-axis verifier's N4: module name `render_bench_section`, its directory inserted
+        # first on `sys.path` at the moment of the call (not at session start, and not under `_lite_rbs`).
+        sys.path.insert(0, request["directory"])
+        import render_bench_section
+        parsed = render_bench_section.parse_report(request["text"])
+        levels = [lv.get("level") for lv in parsed["levels"]]
+        has_truncated = "truncated" in parsed
+        return {"levels": levels, "has_truncated": has_truncated,
+                "truncated": parsed["truncated"] if has_truncated else None, "shown": repr(parsed)}
     if op == "rbs_constant":
         if request["name"] not in _RBS_CONSTANTS:
             raise ValueError("not an owner constant of the reader: %r" % request["name"])
@@ -190,6 +200,16 @@ def _operation(request):
     raise ValueError("unknown operation: %r" % op)
 
 
+def _exit_payload(code):
+    """What `SystemExit(code)` does to the process: None or an integer (bool included) is a status, anything else
+    is printed as its `str`."""
+    if code is None:
+        return {"status": 0}
+    if isinstance(code, int):
+        return {"status": int(code)}
+    return {"message": str(code)}
+
+
 def _failure(error):
     kind = type(error)
     # What a traceback prints: module-qualified unless the class is a builtin or lives in `__main__`.
@@ -199,9 +219,10 @@ def _failure(error):
         code = error.code
         return {"class": "SystemExit", "message": code if isinstance(code, str) else "",
                 "repr": repr(error), "qualified": qualified,
-                "exit": code if isinstance(code, int) else (0 if code is None else 1)}
+                "is_exception": isinstance(error, Exception), "is_system_exit": isinstance(error, SystemExit),
+                "exit": _exit_payload(code)}
     return {"class": kind.__name__, "message": str(error), "repr": repr(error), "qualified": qualified,
-            "exit": None}
+            "is_exception": isinstance(error, Exception), "is_system_exit": isinstance(error, SystemExit), "exit": None}
 
 
 def _serve():

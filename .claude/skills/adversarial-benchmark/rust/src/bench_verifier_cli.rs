@@ -1,24 +1,29 @@
-//! Command lines of the four judge, lite and sweep-meta verification programs: `selftest_judge_bench`,
-//! `selftest_lite_report`, `selftest_lite_gate` and `selftest_sweep_meta`.
+//! Command lines of the judge, lite, sweep-meta and repeat-sweep verification programs: `selftest_judge_bench`,
+//! `selftest_lite_report`, `selftest_lite_gate`, `selftest_sweep_meta` and `selftest_sweep_repeats`.
 //!
 //! Like the originals, the judge and the lite gate programs ignore their arguments entirely (`--help` included); the
-//! lite report and the sweep meta programs look only for `-v` among them. Standard output is the check list and the
+//! lite report, sweep meta and repeat sweep programs look only for `-v` among them. Standard output is the check list and the
 //! closing line. Exit status 0 when every check passed, 1 when one failed, and 1 with a traceback marker plus
 //! `Class: message` on standard error when the run raised an exception the original does not handle (the lines
 //! printed before it stay on standard output). A `SystemExit` with a string reason is not a traceback: the string and a
-//! newline go to standard error, exit 1; one with a status ends the run with that status.
+//! newline go to standard error, exit 1; one with a status ends the run with that status. Both come from the
+//! `SystemExit` payload the owner reported (`code`: `None` is status 0, an integer or `bool` its status, anything else
+//! its `str` as the reason), never from reading the exception's `repr`.
 //!
 //! Status 2 is this port's: the repository the deployed files are copied from is not known (neither
 //! `BENCH_VERIFY_REPO_ROOT` nor an installation around the running binary), so nothing was checked.
 
 use crate::cli::{write_stderr, Streams, TRACEBACK_HEADER};
-use crate::conformance::Raised;
+use crate::conformance::{Raised, SystemExitOutcome};
 use crate::conformance_cli::traceback_line;
 use crate::dataset_prep::Console;
 use crate::dataset_prep_cli::StreamsConsole;
 use crate::pystr::PyStr;
 use crate::verify_fixture::resolve_repo_root;
-use crate::{selftest_judge_bench, selftest_lite_gate, selftest_lite_report, selftest_sweep_meta};
+use crate::{
+    selftest_judge_bench, selftest_lite_gate, selftest_lite_report, selftest_sweep_meta,
+    selftest_sweep_repeats,
+};
 use std::path::Path;
 
 /// `selftest_judge_bench`: returns the exit status. `args` excludes the program name and is not read.
@@ -47,17 +52,16 @@ pub fn run_sweep_meta(args: &[PyStr], io: &mut Streams<'_>) -> i32 {
     })
 }
 
-fn has_verbose_flag(args: &[PyStr]) -> bool {
-    args.iter().any(|argument| argument.equals("-v"))
+/// `selftest_sweep_repeats`: returns the exit status. `-v` among `args` asks for the verbose lines.
+pub fn run_sweep_repeats(args: &[PyStr], io: &mut Streams<'_>) -> i32 {
+    let verbose = has_verbose_flag(args);
+    run_verifier(io, move |root, console| {
+        selftest_sweep_repeats::main(root, verbose, console)
+    })
 }
 
-/// The status a `SystemExit` carries when it is not a message: `SystemExit(<number>)`.
-fn exit_status_of(raised: &Raised) -> Option<i32> {
-    let inner = raised
-        .repr()
-        .strip_prefix("SystemExit(")?
-        .strip_suffix(')')?;
-    inner.parse::<i32>().ok()
+fn has_verbose_flag(args: &[PyStr]) -> bool {
+    args.iter().any(|argument| argument.equals("-v"))
 }
 
 fn run_verifier(
@@ -68,12 +72,12 @@ fn run_verifier(
     let mut console = StreamsConsole { io };
     let status = match verifier(repo_root.as_deref(), &mut console) {
         Ok(status) => status,
-        Err(raised) if raised.is_system_exit() => match exit_status_of(&raised) {
-            Some(status) => status,
-            None => {
-                // `SystemExit(reason)` with a string reason: the interpreter prints the string and a newline to
-                // standard error, without a traceback, and exits 1.
-                let mut text = raised.failure().message.clone();
+        // The owner's own `SystemExit` payload: a status ends the run quietly with it; a reason is printed with a
+        // newline to standard error (no traceback) and the status is 1.
+        Err(raised) if raised.is_system_exit() => match raised.system_exit_outcome() {
+            SystemExitOutcome::Status(status) => i32::from(status),
+            SystemExitOutcome::Message(reason) => {
+                let mut text = reason;
                 text.push_str("\n");
                 write_stderr(console.io, &text);
                 1

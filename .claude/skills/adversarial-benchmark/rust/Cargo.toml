@@ -200,6 +200,10 @@ path = "src/bin/selftest_lite_gate.rs"
 name = "selftest_sweep_meta"
 path = "src/bin/selftest_sweep_meta.rs"
 
+[[bin]]
+name = "selftest_sweep_repeats"
+path = "src/bin/selftest_sweep_repeats.rs"
+
 [[test]]
 name = "oracle_cases"
 path = "checks/oracle_cases.rs"
@@ -523,3 +527,7 @@ path = "checks/broad_search_selftest_cases.rs"
 [[test]]
 name = "bench_verifier_cases"
 path = "checks/bench_verifier_cases.rs"
+
+[[test]]
+name = "sweep_repeats_cases"
+path = "checks/sweep_repeats_cases.rs"

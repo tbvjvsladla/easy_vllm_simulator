@@ -2012,3 +2012,403 @@ Evidence: `r16-root-v3/`, `r16-owner-deltas-v3/`, `r16-installed-candidate/`, `r
 `stdio-delta-v3/` and `benchmark-review/`. Source-frame projections retain qualified classes, multiline messages
 and preceding diagnostics. Arbitrary Python stream objects, concurrent descriptor mutation, glob ties and universal
 liveness were not proved. Later stages must replace the remaining embedded and owner Python dependencies.
+
+## R17 반복 스윕 검증기 이행 — 후보 기록 (정본 적용 전)
+
+Status: **COMPLETE for this unit's own required checks** (fmt, all-target Clippy, the registered program checks, the
+shared-path impact checks and the explicit default release build all passed) and **INCOMPLETE for the whole task**.
+Root integration (the launcher, the 23rd startup check, the distribution call and edge, the SKILL guide), Root's
+official whole-CLI timing, installed-copy acceptance, independent review and the six-profile/Long E2E stages are not this
+unit's and are not claimed. Source head `fe4d585b5a13094f3efb0211665ff08062a8720e`; the candidate starts from the
+593 Git-index Rust-package files of that head and adds seven (600 files, no `target/`, no authentication, no cache).
+
+### Scope and output
+
+| Original (`.claude/skills/adversarial-benchmark/scripts/`) | Lines | Rust program | Rust modules |
+| --- | ---: | --- | --- |
+| `selftest_sweep_repeats.py` | 988 | `selftest_sweep_repeats` (`src/bin/selftest_sweep_repeats.rs`) | `src/selftest_sweep_repeats.rs` (program, groups N P R G F V A), `src/sweep_repeats_broad.rs` (groups B O M), `src/sweep_repeats_fixture.rs` (`Sandbox`, the 67 copies, the shims), `src/sweep_repeats_clock.rs` (the M1 time arithmetic) |
+
+Command line: `bench_verifier_cli::run_sweep_repeats` (same `run_verifier` mapping as the four R16 programs: `-v` is
+looked for among otherwise ignored arguments; exit 0/1; `Class: message` after a traceback marker for an unhandled
+exception, a string `SystemExit` as plain text; exit 2 is this port's "no repository known"). Library entry:
+`selftest_sweep_repeats::main(repo_root, verbose, console)`. Case names, condition order, eager details and printed
+text keep the original's; every one of the 75 checks (N1–N8, A3, P1–P3, R1, G×5 + conformance, F1–F8, V1, A1/A2/A4,
+B1–B8, O1–O6, M1–M2 and the R★ report-row controls) is a real run of the deployed chain, not a stored result.
+
+Reuse instead of new rules: `verify_fixture::{IsolatedCheckout (copy2 protections, git init, temporary directory with
+cleanup on error), run_text_within, TemporaryDirectory, load_json, write_str, …}`, `bench_verify_support::BracketChecks`
+(one new detail style, `TailedWithDashOf(700)`, because this original shows `str(detail)[-700:]` where the R16 programs
+show 900), `conformance::{Raised, py_equals, splitlines, iterate_values}`, `pyvalue::PyValue` (and its Python `repr` for
+details and for the `lite` dict that is part of a G check name), `pyjson::loads_text`, `owner_bridge::OwnerBridge`,
+`bench_verifier_cli::run_verifier`. No generic interpreter was added. The two R16 shared files that changed:
+`bench_verify_support.rs` (the added `DetailStyle` variant, one unit test) and `owner_bridge.{rs,py}` (one fixed
+operation, below). Nothing of the original Python verifier is run, imported or used as a fallback.
+
+### Preserved external behavior (what the checks execute)
+
+* Order: `git` on `PATH` first (message to standard error, exit 1, nothing created) → repository unknown (exit 2) →
+  sandbox build (copies, shims, `git init`, manifest, model, campaign) → groups in the original order
+  N, P, R1, G, F, V, A, B (init, B6, cell), O, B3, B8, B4, B5, B7, M1, M2 → failures summary (`FAIL N건: [...]` on
+  standard error, exit 1) or the closing PASS line.
+* A deployed file that is missing is the copy's own `FileNotFoundError` with its path before any check; the temporary
+  directory is removed on every path (normal, failed checks, exception, `SystemExit`).
+* Limits: every sandbox call `timeout=170` s (`RUN_SECONDS`), the conformance child 120 s (`CONFORMANCE_SECONDS`), the
+  checkout creation `git init` 60 s (shared). Standard input, environment and working directory of the conformance child
+  are the verifier's own; the sandbox calls get the working directory = the checkout, `PATH` = shim directory first,
+  `PYTHONDONTWRITEBYTECODE=1` and, when a plan is given, `SHIM_PLAN` (an empty plan object is still set).
+* The product environment is inherited as the original inherited it: an owner-root override (e.g.
+  `BENCH_PRESET_REPO_ROOT`) pointing at the outer tree hides the sandbox campaign and fails exactly four named checks
+  (registered check). Test runners therefore clear such overrides; the program does not.
+* N4: the hint reader is imported **late and once** under its own module name `render_bench_section`, with its directory
+  inserted first on `sys.path` at that moment; an `Exception` of the import or `parse_report` is the failed check whose
+  detail is `str(exception)`; `SystemExit` or a broken transport ends the run.
+* O6: two sandbox calls run on two threads at once; exactly one wins the `mkdir` claim.
+* M1: `window_end_utc` is read with `strptime("%Y-%m-%dT%H:%M:%SZ")` semantics and moved by seconds
+  (`sweep_repeats_clock`: first-matching alternatives, one-digit fields, case-insensitive `T`/`Z`, Python's messages;
+  unpadded year on output like glibc; confirmed against CPython 3.12 in `logs/python-strptime-probe.txt`).
+* Nothing is hard-linked: every copy is a new inode through `copy2` (`SameFileError` for the same file), and the passing
+  registered check proves that the deployed tree it ran on was not changed at all (contents, modes, inodes, times, no new
+  file such as a byte-code cache).
+
+### Owner bridge change (one fixed operation)
+
+`OwnerBridge::parse_sweep_report(directory, text)` ↔ session operation `rbs_parse_sweep_report`: `sys.path.insert(0,
+directory)`, `import render_bench_section`, `parse_report(text)`, and the `level` of each parsed row plus `truncated`
+(and `repr(parsed)` for a failure detail). The verifier makes the comparison (`levels == [1, 2]`, `truncated == []`) and
+treats a missing `truncated` as the `KeyError` the original's expression would raise. The R16 `load` role of the reader
+(`_lite_rbs`) is untouched and not used here. The session is started at this first use, not at program start (the
+original's import happened there), and ended right after; its failure to start is a named failure after the ten earlier
+lines, not a caught check failure.
+
+### Remaining Python and other limits (not Python-zero)
+
+* **Shim text.** `run_bench.sh` embeds a Python program (`python3 - <<'PY'`) and `lite_bench.sh` two `python3 -c`
+  one-liners; they are the original's test data, written byte for byte into the sandbox and still need `python3`.
+* **Hint reader** `render_bench_section.py`: real owner, reached through the Python session of `owner_bridge`
+  (interpreter `OWNER_BRIDGE_PYTHON` or `python3` on `PATH`). The session sets `PYTHONDONTWRITEBYTECODE=1`; the original
+  imported in its own process and could write a byte-code cache into the deployed reader directory. This is a safer,
+  deliberate difference.
+* **Deployed Python-backed owners** that the chain inside the sandbox still runs (`campaign_init.py`,
+  `repeat_axis_owner_query.py`, `classify_cell_role_query.py`, `doc_naming.py`, the programs embedded in
+  `sweep_bench.sh`/`broad_search.sh`, …) are the product's, copied from the installed tree; their migration is later.
+* Python stack-frame lines of a traceback are not reproduced (`(native: Python stack frames are not reproduced)`), as
+  for R16; the qualified exception class and message are.
+* `strptime` reads ASCII digits only; `Path.rglob` of the original's `tree_bytes` is followed without crossing directory
+  symlinks. The wall-clock limits are constants of the shared child runner and were not exercised by a 170/120 second wait
+  (NOT_RUN); the shared runner's timeout behaviour is the R16 one.
+* No performance claim: Root's official 12-record whole-CLI timing is not run here. Earlier limits (R14 whole programs
+  14.4 % slower, R16 judge/gate/meta without measured improvement, the OPEN S3/S4/S7/IO limits) remain.
+
+### Original-first and frozen references
+
+Frozen by Root before this unit (`r17-reference/`): default (75 PASS, 9061 stdout bytes), no `git`
+(stderr 125 bytes, exit 1), missing deployed sweep source (stderr 1263 bytes, exit 1). The final release binary on the
+private 235-file closure: default stdout **byte-identical** (`cmp`), no-git stderr **byte-identical**, missing-source
+header and final exception line **identical** (middle lines are the allowed Python frames), all with an empty temporary
+root afterwards (`logs/final-*`). The initial five failures (outer owner-root override and an absent conformance child)
+and the first corrected run (three Rust sources and `recipe.py` read as static text by conformance) are Root's
+retained observations; this program's registered check reproduces the override effect on purpose.
+
+Three narrow original-first experiments, each run once on a detached private tree, comparing the actual original
+and this program on the same mutated input (stdout, stderr, exit):
+
+1. the hint reader raises `RuntimeError('reader boom')` on import → one FAIL with detail `reader boom`, 74 PASS, exit 1,
+   summary `FAIL 1건` — identical (`logs/orig-reader-exception.*` vs `logs/probe-rb.*`);
+2. the reader raises `SystemExit('reader says stop')` → ten lines, `reader says stop` on standard error, exit 1 —
+   identical (`logs/orig-reader-systemexit.*` vs `logs/probe-se.*`);
+3. `--help -v x` → the first sweep's output tails after the first check — identical after normalizing only the random
+   temporary-directory name (`logs/orig-verbose.*` vs `logs/cand-verbose.*`).
+
+### Checks run (managed Rust 1.99.1, offline, locked, own target; working directory = the candidate)
+
+| Check | Result | Raw log (`logs/` of the worker's check directory) |
+| --- | --- | --- |
+| `cargo fmt -- --check` | PASS | `fmt-check1.log` |
+| `cargo clippy --all-targets -- -D warnings` (no `#[allow]` added) | PASS | `clippy2.log` (`clippy1.log` before the last comment edits) |
+| `cargo test --release --test sweep_repeats_cases` (new, 12 program checks) | **12 passed / 0 failed**, 18.89 s | `test-final-sr.log` |
+| `cargo test --release --test bench_verifier_cases --test package_paths` (R16 verifier + stdio/bridge regression, package paths — shared-path impact of the bridge and `bench_verify_support` change) | 20 + 2 passed | `test-bv1.log` |
+| `cargo test --release --lib -- sweep_repeats_clock bench_verify_support verify_fixture` | 23 passed (the later run of the two touched modules: 9 passed, `test-lib2.log`) | `test-lib1.log`, `test-lib2.log` |
+| `cargo build --release --bins` (default features, run **after** the tests) | PASS; `selftest_sweep_repeats` ELF aarch64 1,531,752 bytes | `build-release-bins1.log` |
+
+The 12 new program checks (`checks/sweep_repeats_cases.rs`, each runs the actual binary with a cleared environment on a
+private copy of the deployed tree): normal pass with the original output byte for byte and an unchanged tree · ignored
+arguments · `-v` among other arguments · no `git` / unknown repository · missing deployed sweep script · changed log
+line fails only N3 · reader raising on import fails only N4 and is imported once, late, as `render_bench_section` ·
+reader exit stops after ten lines · unusable owner interpreter · missing conformance program fails only G ·
+concurrent claim (both calls started before the first claim; one winner) · inherited owner-root override fails exactly
+four named checks. Every check asserts the temporary root is empty afterwards. Data: `checks/data/sweep_repeats/normal_stdout.txt`
+(the original's captured output). Full `cargo test` was not rerun: the changed shared paths have their focused checks above.
+
+Failures met and corrected (kept): the first version of the claim-race check measured the instants at which the two
+claim programs ran (a few hundred microseconds each, 13 ms apart) and failed with "did not overlap" — in the real chain
+the second call refuses at the existence test, not at `mkdir`; the check was redesigned to prove that both calls had
+started before the first claim (`logs/test-sr1.log` shows the failure, `test-sr2.log` and `test-final-sr.log` the
+redesign). A dead-code warning of an unused helper method was removed before Clippy.
+
+Resume if a gap is found: the deliverables are `src/selftest_sweep_repeats.rs`, `src/sweep_repeats_*.rs`,
+`src/bin/selftest_sweep_repeats.rs`, `checks/sweep_repeats_cases.rs`, `checks/data/sweep_repeats/`, the edits named above and
+the two manifest entries in `Cargo.toml`. Root owns the launcher, the build and distribution wiring and the SKILL text.
+
+### R17 v2 correction — catchability follows the real class hierarchy (after Root's original-first finding)
+
+Finding (kept): the held v1 port decided what N4's `except Exception` catches with a name list in
+`selftest_sweep_repeats.rs::is_base_exception` (`SystemExit`, `KeyboardInterrupt`, `GeneratorExit`,
+`OwnerBridgeError`). A custom `BaseException` subclass raised by the reader was therefore caught as a failed check
+and the run went on. Root ran the original once on that input (a reader whose `parse_report` raises
+`class R17FlowAbort(BaseException)` with a two-line Korean message): exit 1, stdout 1043 bytes (10 PASS, 0 FAIL), stderr
+875 bytes with the qualified `render_bench_section.R17FlowAbort` and both message lines, no failure summary. Held v1:
+exit 1, stdout 8926 bytes (74 PASS, 1 FAIL), stderr 164 bytes. Both raw results stay under Root's
+`r17-baseexception-reference/` and `r17-baseexception-candidate-v1/`; the first failure is not rewritten.
+
+Fix (smallest typed design, no name list, no new interpreter or eval):
+
+* `owner_bridge.py::_failure` adds one fact, `"is_exception": isinstance(error, Exception)`, asked of the real owner's
+  interpreter for the exception that was actually raised, in both the `SystemExit` and the general record.
+* `Raised` (`conformance.rs`) gets a private `outside_exception` flag (default `false` for everything built in Rust),
+  `Raised::outside_exception()` and `Raised::is_exception()` (`!outside_exception && !is_system_exit()`).
+  `owner_bridge::raised_of` sets the flag from the record. The qualified class, message and `repr` are untouched.
+* `OwnerBridge::call` is now a thin wrapper over `call_split`, whose outer `Err` is the transport (the session broke)
+  and whose inner `Err` is an exception the owner raised. `parse_sweep_report` returns
+  `Result<Result<SweepReportParse, Raised>, Raised>`: a transport failure stays fatal (outer `?`), and N4 catches an inner
+  exception only when `raised.is_exception()`. Every other caller of `call` behaves as before (the wrapper flattens).
+* Unchanged: the lazy reader session at the first report check, the plain module name and `sys.modules`, qualified
+  class and multi-line message, `SystemExit` handling, raw fragment/ACK/stdio behaviour, cleanup, the R16 defaults.
+
+Registered regressions (`checks/sweep_repeats_cases.rs`, now 14 program checks): the original-first input
+(`a_custom_base_exception_…`: exit 1, the first ten lines, 1043 bytes, 10 PASS / 0 FAIL, no failure summary, exact
+stderr `Traceback…` + `(native: Python stack frames are not reproduced)` + `render_bench_section.R17FlowAbort: R17 원본 중단`
++ `두 번째 줄`, empty temporary root) — it failed on v1 as Root's raw shows and passes now; and the hierarchy control
+(`a_custom_exception_subclass_…`: `class Leaf(Middle)`, `Middle(Exception)` with the same two-line message is a caught
+failed check, 74 PASS / 1 FAIL, the whole two-line detail printed, run continues). A `KeyboardInterrupt`, a custom
+`BaseException` or any other class is classified by inheritance only; no new name was added anywhere.
+
+Checks (managed Rust 1.99.1, offline, locked; logs in the worker's check directory `logs/`):
+
+| Check | Result | Log |
+| --- | --- | --- |
+| `cargo test --release --test sweep_repeats_cases` | 14 passed / 0 failed, 18.60 s | `test-v2-sr.log` |
+| changed-scope impact: `--lib` 158 · `bench_verifier_cases` 20 (stdio/ACK/qualified-class regression of R16) · `conformance_api_transport` 10 · `conformance_cli_cases` 12 · `conformance_helper_cases` 12 · `package_paths` 2 | all passed | `test-v2-impact.log` |
+| `cargo fmt -- --check` | PASS | `fmt-check2.log` |
+| `cargo clippy --all-targets -- -D warnings` | PASS | `clippy3.log` |
+| `cargo build --release --bins` (after the tests) | PASS; `selftest_sweep_repeats` 1,531,792 bytes | `build-release-bins2.log` |
+
+Reused, unchanged results (no rerun, source impact stated): Root's original-first default/noGit/missing-source and the
+installed and independent checks cover paths this change does not touch (the printed lines, the copies, the groups other
+than N4, the interpreter-failure and `SystemExit` paths); the v1 experiments of `logs/orig-*` and the strptime probe are
+about unchanged behaviour. The original and the official benchmark were not run again. No file was added (600 files).
+
+Remaining limits are those of v1: the shim text and the hint reader are still Python, reached through the owner
+bridge; Python stack-frame lines are not reproduced; the 170/120 s waits were not exercised; no speed claim. The whole task
+remains INCOMPLETE (S1–S7, harness, six profiles, actual single-4/multi-2 Long E2E).
+
+### R17 v3 correction — owner hierarchy facts are authoritative, not the class name
+
+Remaining gap (kept): the v2 `Raised::is_exception` was `!outside_exception && !is_system_exit()` and `is_system_exit`
+compared the bare class name. An owner's ordinary `class SystemExit(Exception)` was therefore ended as if it were the
+builtin although Python had said `isinstance(error, Exception)` is true. Root froze the original first
+(`r17-systemexit-name-reference/`: reader defines `class SystemExit(Exception)` and `parse_report` raises it; N4 catches
+it, exit 1, stdout 8922 bytes = 74 PASS + one failed N4 check, stderr 164 bytes) and then the held v2 once
+(`r17-systemexit-name-candidate-v2/`: FAIL, stdout 1043 bytes, stderr 29 bytes — the run ended and printed the reason).
+Both raw results and the independent source note stay as they are.
+
+Fix:
+
+* `owner_bridge.py::_failure` sends both `isinstance` facts for the exception actually raised:
+  `is_exception: isinstance(error, Exception)` and `is_system_exit: isinstance(error, SystemExit)` (the builtin;
+  a class that only carries the name is not an instance of it).
+* `Raised` holds `owner: Option<OwnerHierarchy { is_exception, is_system_exit }>` instead of the v2 `outside_exception`
+  flag. `Some` = what the owner's interpreter answered; `None` = built in Rust. `is_exception()` and `is_system_exit()` return
+  the owner's fact when there is one and fall back to the class name **only** for a Rust-built error (a genuine Rust
+  `SystemExit` still behaves as before). `owner_bridge::raised_of` sets `Some` only when the record carries both booleans.
+* Every CLI path that asked `is_system_exit()` (`bench_verifier_cli`, `conformance_cli`, `broad_search_selftest_cli`,
+  `selftest_sweep_meta`, `conformance_checks`) now gets the authoritative answer; no formatter compares a name. The real
+  builtin keeps its string reason / status behaviour (R16 tests); a `BaseException` named `SystemExit` takes the
+  traceback path with its qualified class (`render_bench_section.SystemExit`) and both message lines.
+* No name list anywhere, no new interpreter, evaluation or object support; transport and owner failures stay separate
+  (v2 `call_split`); lazy session, module name, ACK/stdio and import timing are untouched.
+
+Registered regressions (`checks/sweep_repeats_cases.rs`, now 16 program checks) and one unit test:
+`an_ordinary_exception_that_is_named_like_a_builtin_…` (`class SystemExit(Exception)` — the frozen input: exit 1,
+stdout exactly the normal output with N4's hint line failed and without the closing line, 8922 bytes, the one-failure summary
+on stderr, empty temporary root; and `class KeyboardInterrupt(Exception)`, the same classification by inheritance);
+`a_base_exception_that_is_named_system_exit_…` (`class SystemExit(BaseException)`: ten lines, traceback with
+`render_bench_section.SystemExit: …` and both lines, no quiet reason); `conformance::tests::an_owners_hierarchy_facts_…`
+(owner facts override the name; a Rust-built `SystemExit` still falls back). The v2 FAIL of the first is Root's raw
+(1043/29); the existing custom-`BaseException` test and the genuine-`SystemExit` test still pass unchanged. A first run
+of the new check failed on my own expectation (it kept the closing PASS line); the program output was right and
+the test helper was corrected (`logs/test-v3-sr.log` keeps the failure, `test-v3-sr2.log` the pass).
+
+Checks (managed Rust 1.99.1, offline, locked; logs in the worker's check directory `logs/`):
+
+| Check | Result | Log |
+| --- | --- | --- |
+| `cargo test --release --test sweep_repeats_cases` | 16 passed / 0 failed, 35.51 s | `test-v3-sr2.log` |
+| impact: `--lib` 159 · `bench_verifier_cases` 20 · `broad_search_selftest_cases` 17 · `conformance_api_transport` 10 · `conformance_cli_cases` 12 · `conformance_helper_cases` 12 · `conformance_import_cache` 4 · `package_paths` 2 | all passed | `test-v3-impact.log` |
+| `cargo fmt -- --check` | PASS | `fmt-check3.log` |
+| `cargo clippy --all-targets -- -D warnings` | PASS | `clippy4.log` |
+| `cargo build --release --bins` (after the tests) | PASS | `build-release-bins3.log` |
+
+Final default build: `selftest_sweep_repeats` **1,532,064 bytes**, sha256 `a9bab6f7486c071d49186a3eb489592e970ead2149b8ec6ddba47e64902eead2`.
+Bookkeeping correction: the v2 text above states 1,531,792 bytes for the v2 binary, whereas Root's held v2 binary is
+1,532,648 bytes with a matching hold hash. That figure was my oversight (I took it from an earlier listing and did not
+re-read it from the final build); I do not know why the text size differed and do not explain it. The held artifacts are
+unchanged; this size is read from the actual final default build.
+
+Reused (not rerun, source impact stated): Root's original-first default/noGit/missing-source, installed and independent
+checks, the v1 `logs/orig-*` experiments and the strptime probe cover paths this change does not touch; the original and the
+official benchmark were not run. No file added (600 files). Limits as before: the shim text and the hint reader are Python
+behind the owner bridge, stack-frame lines are not reproduced, the 170/120 s waits were not exercised, no speed claim.
+The whole task stays INCOMPLETE (S1–S7, harness, six profiles, actual single-4/multi-2 Long E2E).
+
+### R17 v4 correction — the `SystemExit` payload is typed, not read from `repr`
+
+Separate finding (kept): after v3 the CLI still decided a `SystemExit`'s ending in
+`bench_verifier_cli::exit_status_of` by stripping the prefix `SystemExit(` from `repr()` and parsing an integer. An owner's
+real subclass (`class R17RealExit(SystemExit)`) has the repr `R17RealExit(17)`, so its code was lost and its integer was
+read as a string reason. Root froze the original first (`r17-realexit-reference/`, one call each at N4, ten lines /
+1043 bytes in every case): `R17RealExit(17)` → exit 17, stderr empty; `R17RealExit(None)` → exit 0; `R17RealExit(True)` → exit
+1. Held v3 (`r17-realexit-candidate-v3/`): all three exit 1 with one newline on stderr. Raw results stay as they are.
+
+Fix:
+
+* `owner_bridge.py::_exit_payload(code)` reports the real `error.code` as a record: `{"status": int}` for `None` (0) and
+  for an integer including `bool` (`int(code)`), `{"message": str(code)}` for anything else. The session still holds no
+  rule beyond that Python fact; `_failure` emits it as `exit` (the old integer `exit` field is gone; nothing else read it).
+* `conformance::SystemExitOutcome { Status(u8), Message(PyStr) }` and `Raised::{with_system_exit_outcome,
+  system_exit_outcome}`: the owner's payload when it reported one; for a `SystemExit` built in Rust the message as a
+  reason (the existing fallback). `owner_bridge::exit_outcome_of`/`process_status` build it from the record. The status is
+  what the operating system sees, confirmed against CPython 3.12.3 (`logs/python-exit-status-probe.txt`): the integer's low
+  eight bits (273 → 17, -1 → 255, -256 → 0, 2147483653 → 5), and 255 for an integer that does not fit a C `long`
+  (`2**63`, `2**70`; `PyLong_AsLong` fails and answers -1). No cap was invented.
+* `bench_verifier_cli::run_verifier` uses `system_exit_outcome()` for an `is_system_exit()` error: a status ends the run
+  quietly with it, a reason (the empty string too) is written with a newline and the status is 1. `exit_status_of` and the
+  `repr` parsing are deleted. The other CLIs (`conformance_cli`, `broad_search_selftest_cli`) keep their string-reason
+  path, whose errors are Rust-built.
+* Unchanged: authoritative hierarchy facts (v3), transport/owner separation, ordinary `Exception` named `SystemExit` caught,
+  `BaseException` named `SystemExit` traceback, genuine `SystemExit` string, qualified multi-line messages, stdio/ACK, lazy
+  import, cleanup, R16 defaults. Arbitrary owner objects as `code` are printed by their `str` (what the interpreter does)
+  but are not a newly required, separately verified case.
+
+Registered checks (`checks/sweep_repeats_cases.rs`, now 17 program checks): `a_real_system_exit_subclass_…` runs eight
+codes on `class R17RealExit(SystemExit)` — Root's frozen `17`, `None`, `True` (each: exit 17/0/1, stdout the first ten lines
+= 1043 bytes, stderr empty) and `False`, `273`, `2 ** 70`, `''` (exit 1, stderr `\n`), `'R17 reason'` (exit 1, stderr
+`R17 reason\n`) — with an empty temporary root each time; the v3 FAIL of the first three is Root's raw. Unit tests: two in
+`owner_bridge` (status normalization table, payload shapes) and an extension of the `Raised` test.
+
+| Check | Result | Log |
+| --- | --- | --- |
+| `cargo test --release --test sweep_repeats_cases` | 17 passed / 0 failed, 35.71 s | `test-v4-sr.log` |
+| `--lib -- owner_bridge conformance::tests` | 13 passed | `test-v4-lib.log` |
+| impact: `--lib` 161 · `bench_verifier_cases` 20 · `broad_search_selftest_cases` 17 · `conformance_api_transport` 10 · `conformance_cli_cases` 12 · `conformance_helper_cases` 12 · `conformance_import_cache` 4 · `package_paths` 2 | all passed | `test-v4-impact.log` |
+| `cargo fmt -- --check` | PASS | `fmt-check4.log` |
+| `cargo clippy --all-targets -- -D warnings` | PASS | `clippy5.log` |
+| `cargo build --release --bins` (after the tests) | PASS | `build-release-bins4.log` |
+
+Final default build, read after the build: `selftest_sweep_repeats` **1,534,616 bytes**, sha256
+`2ea65537887ee4b68f934d82d500a7202abc8694d04f7a80f0678e291643b436`. (The log names `fmt-apply10`, `check-v4b` belong to a
+first attempt of this step whose helper script failed on a quoting error before writing anything; they are kept as they
+are and the step was redone under new names.)
+
+Reused, not rerun: Root's original-first cases, installed/independent checks, v1 `logs/orig-*` experiments, the strptime
+probe; the original and the benchmark were not run. No file added (600 files). Limits as before: shim text and hint reader
+are Python behind the owner bridge, stack-frame lines are not reproduced, the 170/120 s waits were not exercised, no speed
+claim. The whole task stays INCOMPLETE (S1–S7, harness, six profiles, actual single-4/multi-2 Long E2E).
+
+### R17 v6 — test-fixture premise correction (installed layout), production source unchanged
+
+Finding (kept): the canonical installed run of the selected Cargo checks had 216 passed and one failure,
+`sweep_repeats_cases::a_missing_git_is_named_before_any_fixture_and_an_unknown_repository_after_it`, line 424: expected
+`Some(2)`, got `Some(0)` (raw: Root's `r17-canonical-checks/affected.stdout` and `affected.stderr`). The no-git half passed.
+The unknown-repository half ran `CARGO_BIN_EXE_selftest_sweep_repeats`, which in a canonical installation sits in
+`<repo>/.claude/skills/adversarial-benchmark/rust/target/release/`; the binary therefore legitimately found that
+repository and ran all 75 checks. In the prototype layout the Cargo target directory is outside an installed tree, so the
+old premise held by accident. This was a premise error of the test, not a runtime bug: repository discovery and the
+expected status 2 are unchanged and were not weakened.
+
+Fix (only `checks/sweep_repeats_cases.rs` and this record):
+
+* `run(setup, scratch)` stays the run of Cargo's binary and now delegates to `run_binary(program, setup, scratch)`
+  (same cleared environment, same bounded `ETXTBSY`-only start retry).
+* The unknown-repository half copies the program with `copy_detached` (a new inode, never a link) to
+  `<scratch>/isolated-program/selftest_sweep_repeats` and runs that copy; the parent directory is not named `release`
+  (asserted), so the installed layout is false by construction whatever the caller's `TMPDIR`. The assertions are
+  unchanged: status 2, empty stdout, the named `ERROR BENCH_VERIFY_REPO_ROOT …`, empty temporary root.
+* New control `an_installed_layout_program_finds_its_repository_without_the_override`: the same program as a new file in
+  the release directory of a private tree, run with no override, finds that tree and prints the normal 75-check output
+  (status 0, stderr empty, stdout byte-identical to the original's), empty temporary root. It is the positive case of the
+  installed layout, in the prototype as in a canonical installation.
+* No path is hard-coded; nothing skipped, ignored or lowered.
+
+Focused run (managed Rust 1.99.1, offline, locked): `cargo test --release --test sweep_repeats_cases -- a_missing_git
+an_installed_layout` → 2 passed / 0 failed, 17.75 s (`logs/test-v5-focus.log`); `cargo fmt -- --check` PASS
+(`fmt-check5.log`, `fmt-check6.log` after a touch); `cargo clippy --all-targets -- -D warnings` PASS (`clippy6.log`,
+`clippy7.log`); `package_paths` 2 passed (`test-pp6.log`). The earlier prototype pass of the old test and Root's canonical
+failure are both retained as evidence. The full 17-check target, the original runs and the official benchmark were not
+rerun; Root reruns the failing check and the required source checks in the canonical tree. The target now has 18 program
+checks.
+
+Artifact sequence, read in order (historical record kept): in the v4 last tool call the default build and its `stat` gave
+1,534,616 bytes / sha256 `2ea65537…`; the later `PORTING.md` append and the `package_paths` run relinked the release product
+to 1,535,136 bytes / `7ef179…`; Root's default build after that test (0.244 s, no source change) restored exactly `2ea…`. So the
+earlier size difference was the order of my commands (a test after the default build), not corruption. This step ran the
+explicit default `build --release --bins` last, after all tests and `package_paths` (`logs/build-release-bins5.log`): final
+`selftest_sweep_repeats` **1,534,616 bytes**, sha256
+`2ea65537887ee4b68f934d82d500a7202abc8694d04f7a80f0678e291643b436`, identical to the held v5; the statistics are in the worker's
+`r17-final-v6-default-build.json`, written after the last Cargo command. This PORTING edit followed it and no Cargo command
+ran afterwards. Production Rust and `Cargo.toml` are unchanged; the package still has 600 files. The whole task stays INCOMPLETE.
+
+
+## R17 controller integration and whole-program comparison
+
+The actual `selftest_sweep_repeats.sh` launcher, distribution call, policy edge, two operative SKILL references and
+explicit build now use the native repeat verifier. The build runs 23 startup checks. All 75 scenario marks, actual
+deployed owners, fake-load provenance, local fixture work and cleanup are retained. This is not Python-zero: the
+shim strings, the real hint reader and deployed campaign/inline Python owners remain explicit later-stage work.
+
+Root compared the three frozen default/no-git/missing-source cases, four copied-installation cases, one custom
+BaseException, one ordinary Exception named SystemExit, and three scalar payloads of a real SystemExit subclass.
+The exception-name/hierarchy and payload/repr failures were corrected. The ordinary Exception continues as one failed
+N4 check; the custom BaseException stops after ten prior marks; genuine SystemExit status 17, None and True produce
+17, 0 and 1 with no diagnostic. The bridge now carries actual hierarchy facts and a typed status/message outcome.
+Valid earlier cases were reused across reviewed source changes. Independent validation compared two separately
+frozen N4/git faults and reviewed the saved new counterexamples and final artifact without replaying originals.
+
+Canonical validation passed fmt, all-target Clippy, 218 current selected cases and 23 startup checks. The 218 are
+216 valid cases from the first invocation, one corrected negative and one added positive; they are not a new single
+218-case invocation. The initial unknown-context test executed Cargo's binary inside an actual installation and
+wrongly expected status 2; its status-2 assertion was retained and the binary was detached into a non-release path.
+An implicit installed-layout positive control was added. The first failure and valid earlier checks are preserved.
+Fresh Git-index installation used 823 files (600 Rust package files), ran all 218 selected cases in one invocation,
+passed 23 startup checks and restored default products. Whole distribution passed 131/131 in 250.561381 seconds.
+This is a fresh local path, not a physical second PC, subnode or x86 run.
+
+Artifact sequencing was also corrected. The author's recorded v4 default build really was 1534616 bytes with its
+reported SHA; the subsequent PORTING append and package-path test relinked a different release executable, which
+Root first held as v4. The raw event sequence proves this order. Root's deterministic final default build after all
+tests restored the exact earlier default product in 0.244 seconds with source600 unchanged, held as v5. The later
+test-only v6 has the same production source and default binary. This is verification/build restoration by Root;
+the Rust source author remains the same Native Claude session. Canonical and fresh validation likewise finish
+with an explicit default build after every test. Historical size statements and artifacts are not deleted.
+
+Timing used one actual whole verifier, one warm pair and five alternating measured pairs: 12 new CLI records,
+two warm and ten measured. Observer clone preparation was outside the timer; the program's Git, private fixtures,
+deployed owners and embedded programs, IO, 75 checks, full output and cleanup were inside. Every complete output
+and exit matched the frozen original, and the private 235-file closure stayed unchanged.
+
+| Whole verifier | Python median seconds | Rust median seconds | Python/Rust |
+| --- | ---: | ---: | ---: |
+| repeat sweep | 17.625047333 | 17.522088685 | 1.005875935 |
+
+The small observed difference does not establish statistical significance. This boundary remains in the final
+Rust-time review with the preceding limits. No separate pure fragment, LLM, GPU, serving or six-profile result is
+inferred. The original 68-line roofline aggregation property was already ported as native roofline self-test R1
+with the same tensors and exact figures; its current passing startup result is reused instead of reimplementing it.
+Its legacy unittest frontend remains a reference, without a claim of generic unittest CLI compatibility.
+
+Evidence: `r17-root-default-product/`, `r17-realexit-default-product/`, `r17-installed-candidate/`,
+`r17-canonical-checks/`, `r17-canonical-continuation/`, `r17-canonical-installed-positive/`, `r17-packaging/`,
+`r17-distribution/`, `r17-benchmark-results/`, `r17-default-product-restore/`, `r17-roofline-reuse.json`, and the
+independent `final-v4/`, `default-product-v5/`, `install-layout-v6/` and `benchmark-review/`. Python source frames
+are projected separately from qualified/multiline diagnostics. The 170/120-second waits were not replayed, the
+private time reader consumes the deployed producer's ASCII UTC form, and arbitrary Python object/stream mutation
+is not proved. S1 inline/interop work, later stages, six actual profiles and Long E2E remain incomplete.

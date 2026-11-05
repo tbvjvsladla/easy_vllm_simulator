@@ -1067,8 +1067,8 @@ def verify() -> dict:
         #   E2E 정상 경로는 강등 경로를 밟지 않으므로 이것이 그 경로의 상시 증거다 — GPU·docker·NAS 불요.
         _run("benchmark_repeat_axis_selftest", ["bash",
              ".claude/skills/adversarial-benchmark/scripts/repeat_axis.sh", "--self-test"], {0}),
-        _run("benchmark_sweep_repeats_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_repeats.py"], {0}),
+        _run("benchmark_sweep_repeats_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_repeats.sh"], {0}),
         # full-bench knob 프리셋 계약의 **리뷰 시점 집행자**(plan_26101011 · 2026-10-10). 호출자 없는 자체검사는 L1(산문)이다.
         #   무엇을 지키나: "값만 조정, 키 추가·삭제는 계약 변경" · "등급 = 누가 선택지를 여나(auto/confirm/escalate)" ·
         #   기본값의 자리는 프리셋 하나. 스키마 고정(닫힌 키 표 스냅샷) · 로더 거부(미지/누락 키 · 꺼 둔 다른 도구 블록 ·
