@@ -958,9 +958,9 @@
     },
     {
       "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "adversarial-benchmark/scripts/sweep_bench.sh",
+      "callee": "adversarial-benchmark/rust/src/assemble_sweep_meta.rs",
       "phase": "verification_plane",
-      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+      "reason": "self-test 배포 사본이 실제 Rust index producer의 model 키 규칙 앵커를 읽도록 소유 소스를 복사한다"
     },
     {
       "caller": ".claude/policies/runtime/runtime_selftest.py",

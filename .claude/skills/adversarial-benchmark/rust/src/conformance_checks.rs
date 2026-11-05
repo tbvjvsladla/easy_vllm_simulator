@@ -12,14 +12,16 @@
 
 use crate::conformance::{
     dict_get, emit, equals_int, equals_text, equals_zero, find_position, join_value, py_equals,
-    read, read_file_bytes, read_optional_strict, sets_key_from_built, subscript, Context, Raised,
-    CERT_LITE_FIELDS, LITE_METRIC_KEYS,
+    read, read_file_bytes, read_optional_strict, subscript, Context, Raised, CERT_LITE_FIELDS,
+    LITE_METRIC_KEYS,
 };
 use crate::conformance_native::{native_lite_certificate_gates, native_value, LiteMetrics};
 use crate::dataset_prep::Console;
 use crate::pyjson::{decode_file_text, loads_text};
 use crate::pystr::PyStr;
 use crate::pyvalue::{PyDict, PyValue};
+use crate::sweep_meta_deployed::{caller_binding, DeployedProducer, ProducerRun};
+use crate::verify_fixture::TemporaryDirectory;
 
 /// The rows of the report: `(name, ok, detail)`, in check order.
 #[derive(Default)]
@@ -221,17 +223,46 @@ pub fn main(context: &Context, console: &mut dyn Console) -> Result<i32, Raised>
         report.check("E 판정기 적재·픽스처 판정", false, exception.repr());
     }
 
-    // A. the lite metric keys travel into the lite block of sweep_index
+    // A. sweep_bench hands the index assembly to the native producer, and the lite metric keys travel into the lite
+    //    block that producer writes: the caller and the installed owner are read, and one real run is looked at.
+    let producer_source = read_optional_strict(&crate::ospath::join_all(
+        &owner_sources,
+        &["assemble_sweep_meta.rs"],
+    ))?;
+    let binding = caller_binding(&sweep);
+    report.check(
+        "sweep_bench 가 index·meta 조립을 native 생성부 런처(assemble_sweep_meta.sh)로 호출하고 옛 python 생성부를 남기지 않는다",
+        binding.is_ok(),
+        binding.as_ref().err().map_or("", String::as_str),
+    );
+    let launcher_present = source(context, "assemble_sweep_meta.sh")?.is_some();
+    report.check(
+        "native index 생성부 런처·소유 소스가 설치돼 있다",
+        launcher_present && !producer_source.is_empty(),
+        "생성부가 없으면 full 산출물의 lite 블록을 만드는 주체가 없다",
+    );
+    let mut produced_lite = PyValue::None;
+    if let Some(exception) = caught_as_exception(produced_lite_block(context, &mut produced_lite))?
+    {
+        report.check(
+            "native index 생성부 실제 실행(lite 블록 포함)",
+            false,
+            exception.repr(),
+        );
+    }
     for key in LITE_METRIC_KEYS {
         report.check(
             &format!("sweep_index.lite 가 '{key}' 를 싣는다"),
-            sets_key_from_built(&sweep, key),
+            producer_source.contains(&format!("\"{key}\"")) && has_member(&produced_lite, key),
             "lite_metrics 산출 키가 full 산출물에 전달되지 않으면 열 결손",
         );
     }
     report.check(
-        "sweep_bench 가 lite_metrics 를 재구현하지 않고 import 한다",
-        sweep.contains("lite_metrics") && sweep.contains("spec_from_file_location"),
+        "native index 생성부가 lite 산정을 재구현하지 않고 소유자 함수를 직접 호출하며 raw 판정을 그대로 옮긴다",
+        producer_source.contains("crate::lite_metrics::build(")
+            && producer_source.contains("crate::lite_metrics::read_lite_verdict(")
+            && !producer_source.contains("fn gen_tps_from_bench")
+            && member_is_text(&produced_lite, "lite_verdict", PRODUCED_VERDICT),
         "산정식을 복제하면 두 벌이 되어 어긋난다(D4↔D6 계열)",
     );
 
@@ -323,6 +354,83 @@ fn caught_as_exception(outcome: Result<(), Raised>) -> Result<Option<Raised>, Ra
         Err(raised) if raised.is_system_exit() => Err(raised),
         Err(raised) => Ok(Some(raised)),
     }
+}
+
+/// The verdict the produced raw record carries: it must reach the index unchanged (the raw record is the one authority).
+const PRODUCED_VERDICT: &str = "server_failed";
+
+fn has_member(value: &PyValue, key: &str) -> bool {
+    matches!(value.peel(), PyValue::Dict(map) if map.contains_key(key))
+}
+
+fn member_is_text(value: &PyValue, key: &str, text: &str) -> bool {
+    matches!(value.peel(), PyValue::Dict(map)
+        if map.get(key).is_some_and(|member| crate::pydyn::is_text(member, text)))
+}
+
+fn runtime_error(message: &str) -> Raised {
+    Raised::new("RuntimeError", message)
+}
+
+/// One real run of the deployed producer on a private cell whose lite raw record is the D1 fixture (with its result
+/// files made absolute and a stored verdict); `lite` is the block it wrote into the index.
+fn produced_lite_block(context: &Context, lite: &mut PyValue) -> Result<(), Raised> {
+    let scripts = crate::pyfs::os_string(context.scripts_dir())
+        .map_err(|failure| Raised::from_failure(failure.into_failure()))?;
+    let producer = DeployedProducer::bind_installed(
+        std::path::Path::new(&scripts),
+        "conformance_full_superset_lite",
+    )
+    .map_err(|raised| runtime_error(&raised.failure().message.to_utf8().unwrap_or_default()))?;
+    let fixture = crate::ospath::join_all(
+        &context.skill_dir(),
+        &["fixtures", "lite_raw_d1_connection_refused.json"],
+    );
+    let bytes = read_file_bytes(&fixture)?;
+    let text = decode_file_text(&bytes).map_err(|error| Raised::decoding(&bytes, &error))?;
+    let mut raw = loads_text(&text)
+        .map_err(|error| Raised::from_failure(crate::repeat_api_cli::load_failure(&error)))?;
+    let fixture_dir = crate::ospath::dirname(&fixture);
+    for key in ["bench_cold_json", "bench_warm_json"] {
+        let joined = join_value(&fixture_dir, &subscript(&raw, key)?)?;
+        if let PyValue::Dict(map) = &mut raw {
+            map.set(key, PyValue::Str(joined));
+        }
+    }
+    if let PyValue::Dict(map) = &mut raw {
+        map.set("lite_verdict", PyValue::str(PRODUCED_VERDICT));
+    }
+    let directory = TemporaryDirectory::create("conformance-producer-")?;
+    let outcome = (|| -> Result<PyValue, Raised> {
+        let root = directory.path();
+        let cell = crate::assemble_sweep_meta_cli::lay_out_cell(root, "none")
+            .map_err(|message| runtime_error(&message))?;
+        let raw_path = root.join("lite_raw.json");
+        crate::verify_fixture::write_str(
+            &raw_path,
+            &raw.dumps_ascii()
+                .map_err(|error| runtime_error(&error.to_string()))?,
+        )?;
+        let mut environment = cell.pairs();
+        environment.push(("LITE_RAW", raw_path.to_string_lossy().into_owned()));
+        let run = producer.run(&environment)?;
+        if run.status != 0 {
+            let shown = ProducerRun::text(&run.stderr)?
+                .to_utf8()
+                .unwrap_or_default();
+            return Err(runtime_error(&format!(
+                "생성부가 비정상 종료했다(rc={}): {}",
+                run.status,
+                crate::verify_fixture::tail(shown.trim(), 300)
+            )));
+        }
+        let index =
+            crate::verify_fixture::load_json(&root.join("sweep_x").join("sweep_index.json"))?;
+        subscript(&index, "lite")
+    })();
+    directory.close()?;
+    *lite = outcome?;
+    Ok(())
 }
 
 fn is_none(value: &PyValue) -> bool {

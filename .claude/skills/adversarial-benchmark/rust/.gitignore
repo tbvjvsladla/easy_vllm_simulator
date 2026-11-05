@@ -1,0 +1,3 @@
+# Versioned mock input fixtures; operational manifests and logs retain parent ignore policy.
+!/checks/data/sweep_meta/**/manifest.yaml
+!/checks/data/sweep_meta/**/*.log

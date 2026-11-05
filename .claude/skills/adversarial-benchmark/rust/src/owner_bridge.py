@@ -1,8 +1,8 @@
 """Closed-operation transport to the Python owners the lite and sweep-meta verifiers still depend on.
 
 Transitional by design: the hint reader (`render_bench_section.py`), the evidence publisher
-(`evidence_publisher.py`), the completion gate (`completion_gate.py`) and the embedded production
-program of `sweep_bench.sh` are Python programs that have not been ported. This file holds no
+(`evidence_publisher.py`) and the completion gate (`completion_gate.py`) are Python programs that
+have not been ported. This file holds no
 verification logic. It loads those files the way the originals did, calls the owner's own
 functions for a fixed list of operations, and sends results or exceptions back as JSON lines.
 The Rust verifier owns every check, fixture and comparison.
@@ -21,8 +21,7 @@ verifier's own lines are therefore ordered as in one process. The only text kept
 text without a line break, as a line-buffered `sys.stderr` keeps it; it goes out at the end of the
 operation if the owner does not flush it earlier.
 
-There is no evaluation of caller-supplied code: `heredoc` runs the production source the verifier
-read from the deployed script.
+There is no evaluation of caller-supplied code: every operation is a fixed call of an owner's own function.
 """
 import importlib.util
 import io
@@ -128,25 +127,6 @@ def _load(role, path):
     _MODULES[role] = module
 
 
-def _run_heredoc(source, label, env, outer_unset):
-    saved_outer = {name: os.environ.pop(name, None) for name in outer_unset}
-    try:
-        saved = {name: os.environ.get(name) for name in env}
-        os.environ.update(env)
-        try:
-            exec(compile(source, label, "exec"), {"__name__": "__sweep_meta__"})
-        finally:
-            for name, value in saved.items():
-                if value is None:
-                    os.environ.pop(name, None)
-                else:
-                    os.environ[name] = value
-    finally:
-        for name, value in saved_outer.items():
-            if value is not None:
-                os.environ[name] = value
-
-
 def _operation(request):
     op = request["op"]
     if op == "start":
@@ -194,9 +174,6 @@ def _operation(request):
         return [fields, ok]
     if op == "gate_certificate_run_key_present":
         return _MODULES["gate"].certificate_run_key(request["fields"]) is not None
-    if op == "heredoc":
-        _run_heredoc(request["source"], request["label"], request["env"], request["outer_unset"])
-        return None
     raise ValueError("unknown operation: %r" % op)
 
 

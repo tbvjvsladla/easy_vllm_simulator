@@ -72,7 +72,7 @@ fn install(label: &str) -> (Tree, std::path::PathBuf) {
 }
 
 #[test]
-fn the_normal_run_prints_all_forty_one_checks_byte_for_byte() {
+fn the_normal_run_prints_all_forty_three_checks_byte_for_byte() {
     let (_tree, scripts) = install("normal");
     let output = cli(&[], &scripts);
     assert_eq!(output.status.code(), Some(0));
@@ -139,7 +139,7 @@ fn a_gate_after_the_level_call_reports_the_character_positions() {
     );
     let stdout = stdout_of(&output);
     assert!(stdout.contains(&expected), "{stdout}");
-    assert!(stdout.ends_with("full ⊇ lite conformance: 40/41 FAIL\n"));
+    assert!(stdout.ends_with("full ⊇ lite conformance: 42/43 FAIL\n"));
 }
 
 #[test]
@@ -156,7 +156,7 @@ fn a_publication_that_always_publishes_fails_only_the_gate_check() {
     assert!(
         stdout.contains("FAIL E 인증서 발행기가 실제 beta/gamma lite gate를 지킨다(양성 포함)\n")
     );
-    assert!(stdout.ends_with("full ⊇ lite conformance: 40/41 FAIL\n"));
+    assert!(stdout.ends_with("full ⊇ lite conformance: 42/43 FAIL\n"));
 }
 
 #[test]
@@ -174,7 +174,7 @@ fn a_reporting_owner_that_breaks_the_protocol_fails_every_dependent_check() {
         "FAIL native report/certificate output and gate checks  — RuntimeError('native reporting returned no text: {}')\n"
     ));
     assert!(stdout.contains("FAIL render_report 가 lite 결손을 경고한다  — 결손을 조용히 넘기면 비교 불가 사실이 숨는다\n"));
-    assert!(stdout.ends_with("full ⊇ lite conformance: 31/41 FAIL\n"));
+    assert!(stdout.ends_with("full ⊇ lite conformance: 33/43 FAIL\n"));
 }
 
 #[test]
@@ -208,6 +208,107 @@ fn a_host_dead_d1_verdict_ends_the_report_with_the_original_type_error() {
     assert!(stderr.starts_with("Traceback (most recent call last):\n"));
 }
 
+fn failed_rows(output: &Output) -> Vec<String> {
+    stdout_of(output)
+        .lines()
+        .filter(|line| line.starts_with("FAIL "))
+        .map(|line| line.split("  — ").next().unwrap_or(line).to_string())
+        .collect()
+}
+
+const BINDING_ROW: &str = "FAIL sweep_bench 가 index·meta 조립을 native 생성부 런처(assemble_sweep_meta.sh)로 호출하고 옛 python 생성부를 남기지 않는다";
+const INSTALLED_ROW: &str = "FAIL native index 생성부 런처·소유 소스가 설치돼 있다";
+const RUN_ROW: &str = "FAIL native index 생성부 실제 실행(lite 블록 포함)";
+const OWNER_CALL_ROW: &str = "FAIL native index 생성부가 lite 산정을 재구현하지 않고 소유자 함수를 직접 호출하며 raw 판정을 그대로 옮긴다";
+
+fn key_rows() -> Vec<String> {
+    [
+        "gen_tps",
+        "cold_ttft_ms",
+        "kv_gib",
+        "capacity",
+        "accept_len",
+    ]
+    .iter()
+    .map(|key| format!("FAIL sweep_index.lite 가 '{key}' 를 싣는다"))
+    .collect()
+}
+
+#[test]
+fn a_sweep_script_that_stopped_calling_the_producer_fails_only_the_binding_row() {
+    let (_tree, scripts) = install("no-caller");
+    let original = std::fs::read_to_string(scripts.join("sweep_bench.sh")).expect("source");
+    let call = "bash \"$SDIR/assemble_sweep_meta.sh\"";
+    assert!(
+        original.contains(call),
+        "the installed script calls the producer launcher"
+    );
+    std::fs::write(
+        scripts.join("sweep_bench.sh"),
+        original.replacen(call, "true", 1),
+    )
+    .expect("write");
+    let output = cli(&[], &scripts);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(failed_rows(&output), [BINDING_ROW]);
+    assert!(stdout_of(&output).ends_with("full ⊇ lite conformance: 42/43 FAIL\n"));
+}
+
+#[test]
+fn a_hidden_old_producer_program_fails_the_binding_row_even_when_the_call_remains() {
+    let (_tree, scripts) = install("dead-heredoc");
+    let mut text = std::fs::read_to_string(scripts.join("sweep_bench.sh")).expect("source");
+    text.push_str(
+        "\n: <<'UNUSED'\n# kept as a dead copy\nUNUSED\npython3 - <<'PY'\nimport json\njson.dump({}, open('sweep_index.json', 'w'))\nPY\n",
+    );
+    std::fs::write(scripts.join("sweep_bench.sh"), text).expect("write");
+    let output = cli(&[], &scripts);
+    assert_eq!(output.status.code(), Some(1));
+    assert_eq!(failed_rows(&output), [BINDING_ROW]);
+}
+
+#[test]
+fn a_missing_launcher_fails_the_install_row_and_every_row_that_reads_the_produced_block() {
+    let (_tree, scripts) = install("no-launcher");
+    std::fs::remove_file(scripts.join("assemble_sweep_meta.sh")).expect("remove");
+    let output = cli(&[], &scripts);
+    assert_eq!(output.status.code(), Some(1));
+    let mut expected = vec![INSTALLED_ROW.to_string(), RUN_ROW.to_string()];
+    expected.extend(key_rows());
+    expected.push(OWNER_CALL_ROW.to_string());
+    assert_eq!(failed_rows(&output), expected);
+    // the failed real run adds a row of its own to the 43
+    assert!(stdout_of(&output).ends_with("full ⊇ lite conformance: 36/44 FAIL\n"));
+}
+
+#[test]
+fn a_producer_program_that_does_not_start_is_a_failed_run_not_a_pass() {
+    let (tree, scripts) = install("broken-producer");
+    let broken = tree.path("broken_producer");
+    std::fs::write(&broken, "#!/bin/sh\nexit 0\n").expect("write");
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&broken, std::fs::Permissions::from_mode(0o755)).expect("mode");
+    }
+    let mut command = Command::new(CLI);
+    with_overrides(
+        &mut command,
+        env!("CARGO_BIN_EXE_bench_reporting_api"),
+        env!("CARGO_BIN_EXE_publish_benchmark_record"),
+        env!("CARGO_BIN_EXE_lite_metrics_api"),
+    );
+    command
+        .env("CONFORMANCE_SCRIPTS_DIR", &scripts)
+        .env("ASSEMBLE_SWEEP_META_BIN", &broken);
+    let output = output_retrying_busy(&mut command);
+    assert_eq!(output.status.code(), Some(1));
+    let mut expected = vec![RUN_ROW.to_string()];
+    expected.extend(key_rows());
+    expected.push(OWNER_CALL_ROW.to_string());
+    assert_eq!(failed_rows(&output), expected);
+    assert!(stdout_of(&output).contains("기동하지 않는다"));
+}
+
 /// With no `CONFORMANCE_SCRIPTS_DIR` and no installation around the binary, nothing is checked. The binary under
 /// test is placed outside any `rust/target/release` ancestor first: `CARGO_BIN_EXE_...` may itself live in an
 /// installed layout (an installed Cargo run), where the layout correctly supplies the scripts directory and the
@@ -223,10 +324,8 @@ fn without_a_scripts_directory_nothing_is_checked() {
         "NOT_RUN: the scratch location must not lie inside a `rust` folder"
     );
     let isolated = tree.path("conformance_full_superset_lite");
-    // a hard link opens no file for writing; a copy where the scratch space is on another file system
-    std::fs::hard_link(CLI, &isolated)
-        .or_else(|_| std::fs::copy(CLI, &isolated).map(|_| ()))
-        .expect("place binary");
+    // a detached copy: the fixture never shares an inode with the built program
+    std::fs::copy(CLI, &isolated).expect("place binary");
     let output = launch(isolated.to_str().expect("path"), &[], None);
     assert_eq!(output.status.code(), Some(2));
     assert!(output.stdout.is_empty());
@@ -239,11 +338,8 @@ fn a_copy_of_the_binary_inside_an_installation_finds_its_scripts() {
     let release = tree.path(".claude/skills/adversarial-benchmark/rust/target/release");
     std::fs::create_dir_all(&release).expect("release directory");
     let installed = release.join("conformance_full_superset_lite");
-    // A hard link of the built binary (the same file, so no write handle is ever open on it); a copy where the
-    // scratch space is on another file system.
-    std::fs::hard_link(CLI, &installed)
-        .or_else(|_| std::fs::copy(CLI, &installed).map(|_| ()))
-        .expect("place binary");
+    // A detached copy of the built binary: the installation never shares an inode with the built program.
+    std::fs::copy(CLI, &installed).expect("place binary");
     let output = launch(installed.to_str().expect("path"), &[], None);
     assert_eq!(output.status.code(), Some(0));
     assert_eq!(stdout_of(&output), read_text("normal_stdout.txt"));

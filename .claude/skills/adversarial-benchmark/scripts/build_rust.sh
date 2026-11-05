@@ -80,3 +80,5 @@ SELFTEST_LITE_GATE_BIN="$CRATE/target/release/selftest_lite_gate" BENCH_VERIFY_R
 SELFTEST_SWEEP_META_BIN="$CRATE/target/release/selftest_sweep_meta" BENCH_VERIFY_REPO_ROOT="$REPO" bash "$SDIR/selftest_sweep_meta.sh"
 
 SELFTEST_SWEEP_REPEATS_BIN="$CRATE/target/release/selftest_sweep_repeats" BENCH_VERIFY_REPO_ROOT="$REPO" bash "$SDIR/selftest_sweep_repeats.sh"
+
+ASSEMBLE_SWEEP_META_BIN="$CRATE/target/release/assemble_sweep_meta" bash "$SDIR/assemble_sweep_meta.sh" --self-test

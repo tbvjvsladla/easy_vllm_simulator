@@ -853,8 +853,7 @@ fn run_remaining_cases(
             engine,
             ..BuildMeta::default()
         };
-        let meta =
-            meta_source.build_meta(bridge, checks.console(), &arguments, &["EASY_VLLM_VERSION"])?;
+        let meta = meta_source.build_meta(checks.console(), &arguments)?;
         let directory = TemporaryDirectory::create("lite-identity.")?;
         let identity = (|| -> Result<PyValue, Raised> {
             let base = directory.path();
@@ -937,9 +936,15 @@ fn run_remaining_cases(
         cond,
         String::new,
     )?;
+    // The default tool token of the sweep assembly is read from what the deployed producer really writes for a level
+    // whose measurement names no tool (the fixture's `measured.json` does not).
+    let default_tool = get(
+        &meta_source.build_meta(checks.console(), &BuildMeta::default())?,
+        "bench_tool",
+    )?;
     checks.check(
         "L10 lite 도구 토큰이 sweep_bench 조립부의 도구 기본 토큰과 같은 철자다",
-        sweep_text.contains(&format!("_md.get(\"bench_tool\") or \"{LITE_BENCH_TOOL}\"")),
+        py_equals(&default_tool, &st(LITE_BENCH_TOOL)),
         String::new,
     )?;
     let lite_mode = bridge.publisher_constant(checks.console(), "LITE_BENCH_MODE")?;

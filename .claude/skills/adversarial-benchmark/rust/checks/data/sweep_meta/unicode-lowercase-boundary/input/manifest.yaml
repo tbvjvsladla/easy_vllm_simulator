@@ -1,0 +1,5 @@
+gpu_model: NVIDIA GB10
+gpus_per_node: 1
+topology: single
+driver_version: 1.2.3
+cuda_version: 132

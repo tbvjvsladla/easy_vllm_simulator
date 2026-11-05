@@ -151,7 +151,12 @@ pub fn install_copy(tree: &Tree) -> PathBuf {
     let skill = tree.path(".claude/skills/adversarial-benchmark");
     copy_files(&live_scripts, &skill.join("scripts"));
     copy_files(&live_skill.join("fixtures"), &skill.join("fixtures"));
-    for name in ["classify_cell.rs", "classify_cell_cli.rs", "argv.rs"] {
+    for name in [
+        "classify_cell.rs",
+        "classify_cell_cli.rs",
+        "argv.rs",
+        "assemble_sweep_meta.rs",
+    ] {
         let source = live_skill.join("rust/src").join(name);
         std::fs::create_dir_all(skill.join("rust/src")).expect("directory");
         std::fs::copy(&source, skill.join("rust/src").join(name))
@@ -169,7 +174,8 @@ pub fn install_copy(tree: &Tree) -> PathBuf {
     skill.join("scripts")
 }
 
-/// The overrides the launchers honour, naming the three owner binaries built from this crate.
+/// The overrides the launchers honour, naming the owner binaries built from this crate (the three the caller names
+/// and the sweep-index producer).
 pub fn owner_overrides(
     bench_reporting: &str,
     publish: &str,
@@ -179,6 +185,10 @@ pub fn owner_overrides(
         ("BENCH_REPORTING_API_BIN", bench_reporting.to_string()),
         ("PUBLISH_BENCHMARK_RECORD_BIN", publish.to_string()),
         ("LITE_METRICS_API_BIN", lite_metrics.to_string()),
+        (
+            "ASSEMBLE_SWEEP_META_BIN",
+            env!("CARGO_BIN_EXE_assemble_sweep_meta").to_string(),
+        ),
     ])
 }
 

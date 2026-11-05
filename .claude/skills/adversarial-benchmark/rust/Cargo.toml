@@ -17,6 +17,10 @@ name = "sweep_stop"
 path = "src/bin/sweep_stop.rs"
 
 [[bin]]
+name = "assemble_sweep_meta"
+path = "src/bin/assemble_sweep_meta.rs"
+
+[[bin]]
 name = "parse_bench"
 path = "src/bin/parse_bench.rs"
 
@@ -531,3 +535,11 @@ path = "checks/bench_verifier_cases.rs"
 [[test]]
 name = "sweep_repeats_cases"
 path = "checks/sweep_repeats_cases.rs"
+
+[[test]]
+name = "sweep_meta_cases"
+path = "checks/sweep_meta_cases.rs"
+
+[[test]]
+name = "pylower_cases"
+path = "checks/pylower_cases.rs"

@@ -324,7 +324,7 @@ fn the_deployed_tree_passes_every_check_and_leaves_no_fixture() {
     assert_clean_pass(&report, 28, "[selftest_lite_report] PASS", &scratch);
     assert!(
         report.stdout.contains("[sweep_bench] sweep_index.json → "),
-        "the embedded program's output is replayed"
+        "the producer's output is replayed"
     );
     let gate = run(LITE_GATE, Some(&root), &scratch, &[], &[]);
     assert_clean_pass(&gate, 25, "[selftest_lite_gate] PASS", &scratch);
@@ -503,31 +503,123 @@ fn a_publisher_that_always_succeeds_fails_the_gate_negative_controls() {
     scratch.assert_temporary_directory_removed();
 }
 
-#[test]
-fn a_missing_embedded_program_stops_the_meta_check_before_any_check_and_the_report_check_after_its_first_nineteen_passes(
-) {
-    let scratch = Scratch::new("heredoc");
-    let tree = private_tree(&scratch);
-    mutate(
-        &tree,
-        &format!("{SCRIPTS}/sweep_bench.sh"),
-        "python3 - <<'PY'\n",
-        "python3 - <<'PX'\n",
-    );
-    let message = "[selftest_sweep_meta] sweep_bench.sh 의 python heredoc 을 찾지 못했다 — 중단\n";
-    let meta = run(SWEEP_META, Some(&tree), &scratch, &[], &[]);
+const PRODUCER_CALL: &str = "bash \"$SDIR/assemble_sweep_meta.sh\"";
+const PRODUCER_RELEASE: &str =
+    ".claude/skills/adversarial-benchmark/rust/target/release/assemble_sweep_meta";
+
+/// What the meta check and the report check say when the producer binding fails: the meta check stops before any
+/// check, the report check passes its first nineteen checks and stops where it loads the meta source (L8).
+fn assert_both_stop_on_the_binding(tree: &Path, scratch: &Scratch, message: &str) {
+    let meta = run(SWEEP_META, Some(tree), scratch, &[], &[]);
     assert_eq!(
         (meta.status, meta.stdout.as_str(), meta.stderr.as_str()),
         (Some(1), "", message)
     );
-    let report = run(LITE_REPORT, Some(&tree), &scratch, &[], &[]);
+    let report = run(LITE_REPORT, Some(tree), scratch, &[], &[]);
     assert_eq!(report.status, Some(1));
     assert_eq!(
         report.stderr, message,
-        "the report check reaches L8 and loads the meta source there"
+        "the report check reaches L8 and binds to the producer there"
     );
     assert_eq!(report.passed(), 19, "{}", report.stdout);
     assert!(report.stdout.ends_with("  [PASS] L7 lite_bench 는 플래그가 있을 때만 render_report --lite-only 를 부른다(기본 PUBLISH_REPORT=0)\n"));
+}
+
+#[test]
+fn a_producer_the_script_no_longer_calls_stops_the_meta_check_before_any_check_and_the_report_check_after_its_first_nineteen_passes(
+) {
+    let scratch = Scratch::new("no-caller");
+    let tree = private_tree(&scratch);
+    mutate(
+        &tree,
+        &format!("{SCRIPTS}/sweep_bench.sh"),
+        PRODUCER_CALL,
+        "true",
+    );
+    assert_both_stop_on_the_binding(
+        &tree,
+        &scratch,
+        &format!(
+            "[selftest_sweep_meta] sweep_bench.sh 가 index 조립 생성부를 호출하지 않는다({PRODUCER_CALL} 부재) — 중단\n"
+        ),
+    );
+    scratch.assert_temporary_directory_removed();
+}
+
+#[test]
+fn an_old_python_program_left_in_the_script_is_a_binding_failure_even_when_the_call_remains() {
+    let scratch = Scratch::new("dead-program");
+    let tree = private_tree(&scratch);
+    append_to(
+        &tree,
+        &format!("{SCRIPTS}/sweep_bench.sh"),
+        "\npython3 - <<'PY'\nimport json\njson.dump({}, open('sweep_index.json', 'w'))\nPY\n",
+    );
+    assert_both_stop_on_the_binding(
+        &tree,
+        &scratch,
+        "[selftest_sweep_meta] sweep_bench.sh 에 index 를 조립하는 옛 python heredoc 이 남아 있다(호출 뒤의 죽은 생성부) — 중단\n",
+    );
+    scratch.assert_temporary_directory_removed();
+}
+
+#[test]
+fn a_missing_launcher_is_a_binding_failure() {
+    let scratch = Scratch::new("no-launcher");
+    let tree = private_tree(&scratch);
+    std::fs::remove_file(tree.join(format!("{SCRIPTS}/assemble_sweep_meta.sh"))).expect("remove");
+    assert_both_stop_on_the_binding(
+        &tree,
+        &scratch,
+        "[selftest_sweep_meta] assemble_sweep_meta.sh 런처가 설치돼 있지 않다 — 중단\n",
+    );
+    scratch.assert_temporary_directory_removed();
+}
+
+#[test]
+fn a_producer_program_that_is_missing_or_does_not_start_is_a_binding_failure_with_the_launchers_reason(
+) {
+    let scratch = Scratch::new("no-program");
+    let tree = private_tree(&scratch);
+    std::fs::remove_file(tree.join(PRODUCER_RELEASE)).expect("remove the program");
+    let meta = run(SWEEP_META, Some(&tree), &scratch, &[], &[]);
+    assert_eq!((meta.status, meta.stdout.as_str()), (Some(1), ""));
+    assert!(
+        meta.stderr
+            .starts_with("[selftest_sweep_meta] native index 생성부가 기동하지 않는다(rc=2): "),
+        "{}",
+        meta.stderr
+    );
+    assert!(
+        meta.stderr.contains("Rust 실행파일이 없다/실행 불가"),
+        "{}",
+        meta.stderr
+    );
+    // A program that exits quietly without the start-up answer is no producer either.
+    let silent = scratch.root.join("silent_producer");
+    std::fs::write(&silent, "#!/bin/sh\nexit 0\n").expect("write");
+    {
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&silent, std::fs::Permissions::from_mode(0o755)).expect("mode");
+    }
+    let overridden = run(
+        SWEEP_META,
+        Some(&tree),
+        &scratch,
+        &[("ASSEMBLE_SWEEP_META_BIN", silent.as_os_str())],
+        &[],
+    );
+    assert_eq!(
+        (overridden.status, overridden.stdout.as_str()),
+        (Some(1), "")
+    );
+    assert!(
+        overridden
+            .stderr
+            .starts_with("[selftest_sweep_meta] native index 생성부가 기동하지 않는다(rc=0): "),
+        "{}",
+        overridden.stderr
+    );
     scratch.assert_temporary_directory_removed();
 }
 
@@ -571,7 +663,7 @@ fn an_unusable_owner_interpreter_is_a_named_failure_before_any_check() {
     let root = canonical_root();
     let scratch = Scratch::new("interpreter");
     let missing = scratch.root.join("no-such-python");
-    for program in [LITE_REPORT, LITE_GATE, SWEEP_META] {
+    for program in [LITE_REPORT, LITE_GATE] {
         let outcome = run(
             program,
             Some(&root),
@@ -594,6 +686,17 @@ fn an_unusable_owner_interpreter_is_a_named_failure_before_any_check() {
             outcome.stderr
         );
     }
+    // The meta check has no Python owner any more: the deployed producer is a native program, so an unusable owner
+    // interpreter does not touch it (this was one of the three programs that failed here before the producer was ported).
+    let meta = run(
+        SWEEP_META,
+        Some(&root),
+        &scratch,
+        &[("OWNER_BRIDGE_PYTHON", missing.as_os_str())],
+        &[],
+    );
+    assert_eq!(meta.status, Some(0), "{}", meta.stderr);
+    assert!(!meta.stderr.contains("Traceback"), "{}", meta.stderr);
     scratch.assert_temporary_directory_removed();
 }
 
@@ -954,7 +1057,7 @@ def parse_measurement_config(text):
 fn an_owner_interpreter_that_exits_before_the_handshake_is_a_named_failure() {
     let root = canonical_root();
     let scratch = Scratch::new("early-exit");
-    for program in [LITE_REPORT, LITE_GATE, SWEEP_META] {
+    for program in [LITE_REPORT, LITE_GATE] {
         let outcome = run(
             program,
             Some(&root),
@@ -972,5 +1075,14 @@ fn an_owner_interpreter_that_exits_before_the_handshake_is_a_named_failure() {
             outcome.stderr
         );
     }
+    // The meta check starts no owner session: it runs the native producer and still passes.
+    let meta = run(
+        SWEEP_META,
+        Some(&root),
+        &scratch,
+        &[("OWNER_BRIDGE_PYTHON", OsStr::new("/bin/false"))],
+        &[],
+    );
+    assert_eq!(meta.status, Some(0), "{}", meta.stderr);
     scratch.assert_temporary_directory_removed();
 }

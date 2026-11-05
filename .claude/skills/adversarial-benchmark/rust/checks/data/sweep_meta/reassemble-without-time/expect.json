@@ -1,0 +1,22 @@
+{
+ "env": {
+  "CFGYAML": "{ROOT}/cfg.yaml",
+  "COMPLETED": "1",
+  "CONFIG": "x",
+  "EF": "{ROOT}/.env.x",
+  "ILEN": "1024",
+  "IMAGE_TAG_ACTUAL": "NA",
+  "KNOB_RECORD": "{ROOT}/bench_knobs.fixture.json",
+  "LITE_RAW": "",
+  "MANIFEST": "{ROOT}/manifest.yaml",
+  "REASSEMBLE": "1",
+  "SWEEPDIR": "{ROOT}/sweep_x",
+  "TOPO": "single",
+  "VLLM_VER": ""
+ },
+ "status": 1,
+ "stdout": "",
+ "stderr": "[sweep_bench] --reassemble-only: 기존 index 의 generated_utc 부재 — 측정시각 승계 불가(날조 금지) → 중단\n",
+ "index": "{\"meta\": {\"model\": \"old\"}}",
+ "fresh_clock": false
+}

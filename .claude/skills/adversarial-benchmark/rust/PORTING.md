@@ -2412,3 +2412,242 @@ independent `final-v4/`, `default-product-v5/`, `install-layout-v6/` and `benchm
 are projected separately from qualified/multiline diagnostics. The 170/120-second waits were not replayed, the
 private time reader consumes the deployed producer's ASCII UTC form, and arbitrary Python object/stream mutation
 is not proved. S1 inline/interop work, later stages, six actual profiles and Long E2E remain incomplete.
+
+
+## R18 sweep index and meta production
+
+Source: the 634-line Python program embedded in the deployed `sweep_bench.sh` (the one production site that
+assembled `sweep_index.json` and its `meta`). It is now one native owner: library `assemble_sweep_meta`
+(orchestration, environment, IO, index layout), `sweep_meta_scan` (the original's naive text expressions as hand-written
+matchers: the "YAML" and env readers, the engine-log patterns, the speculative-decoding declaration), the program
+`assemble_sweep_meta` (`--self-test` start-up check) and the thin launcher `assemble_sweep_meta.sh` that Root owns
+(`ASSEMBLE_SWEEP_META_BIN` override, else `../rust/target/release/assemble_sweep_meta`, status 2 when missing).
+
+Source mapping. Environment and level/int parsing with Python `int()`/`str.split()`/`isdigit()` semantics (existing
+`pynumber`, `pystr` tables); `read()`/`json.load` fallbacks with the original's `except` sets (`pyfs`, `pyjson`);
+image / version / build / native serve proof precedence; the mandatory GPU model (stderr + status 2); tensor-parallel
+derivation (a single-node manifest counts one node); model axis from the checkpoint basename; the measured-first
+quantization, KV dtype, attention and MoE axes with declaration and mismatch; the spec declaration and its
+reassembly inheritance / retro mark; measured-node provenance; the tool, tool-image and dataset sidecars; levels,
+truncation lines, lite block, repeat summary and clamp boundary, bench knobs; fresh UTC clock for a measurement and the
+inherited exact `generated_utc` for a reassembly. Existing owners are called directly and nothing is copied:
+`bench_naming::gpu_key`, `repeat_axis::summarize`, `lite_metrics::build` / `read_lite_verdict`. JSON is
+`json.dump(index, f, ensure_ascii=False, indent=2)`: no final newline, the file opened (and so emptied) before the text
+is made, and a lone surrogate leaves exactly the encoder chunks that preceded it on disk (position counted in the
+failing chunk, a list element carrying its separator; confirmed against CPython).
+
+Ending semantics: `sys.exit(2)`, `SystemExit("reason")` (reason + newline on stderr, status 1) and uncaught
+exceptions (traceback marker line, `Class: message`, status 1; `RepeatAxisError` and `JSONDecodeError` carry their
+module as Python prints them). Source stack frames are the only projection. A prior index survives every failure that
+precedes the open for writing. The owner's `SystemExit` raised from the lite metrics module is not an `Exception` and
+ends the run; every other lite failure is recorded as `lite_metrics 산정 실패: <message>`.
+
+Intended differences from the original: `SDIR` is not read (it only located Python helpers); no Python is started,
+imported or found on `PATH`; the Python interpreter start-up cost disappears. The list `ENV_NAMES` is the one place
+that names the variables the producer reads; the deployed boundary removes exactly those from an inherited
+environment, and a check proves the program asks for no other.
+
+Checker integration (intended binding changes, nothing deleted or weakened):
+
+* `selftest_sweep_meta` no longer extracts or executes a Python heredoc. `SweepMeta::load` binds to the deployed
+  producer (`sweep_meta_deployed`): `sweep_bench.sh` must call `bash "$SDIR/assemble_sweep_meta.sh"`, no hidden Python
+  program that writes `sweep_index.json` may remain, the launcher must exist and follow the install convention, and
+  `launcher --self-test` must answer; any failure is a `SystemExit` before the first scenario. Every fixture is one real
+  run of launcher and program with exactly the producer variables; all C1~C10, S1~S10, W1~W7, RC1~RC3 and real-log
+  scenarios, labels and order are unchanged. The Python session `heredoc` operation was removed from the owner bridge,
+  so the meta check no longer starts a Python session (two owner-interpreter checks now assert that it is unaffected).
+* `selftest_lite_report` L8 builds its `meta` through the same boundary; L10's tool-token spelling is read from what the
+  deployed producer writes for a level whose measurement names no tool instead of from the script text.
+* `conformance_full_superset_lite`: the old static rows (`"key": _built.get`, `spec_from_file_location`) are replaced by
+  eight rows that read the actual production owner and caller and one real output: the caller binding, the installed
+  launcher and owner source, the five `sweep_index.lite` keys (each needs the key in the owner source and in a real
+  producer output built from the D1 fixture with a stored verdict), and the direct owner calls with the raw verdict
+  carried unchanged. The report has 43 rows (was 41); a failed real run adds a row of its own.
+  `sets_key_from_built` and its unit test were removed with the shape they served.
+* Source/COPIES closures updated: the repeat sweep fixture copies the launcher and the release program (67 -> 69 files),
+  its private tree copies `assemble_sweep_meta.rs` as a conformance source, and the conformance installation copies it
+  too and points `ASSEMBLE_SWEEP_META_BIN` at the program built from this crate. Hard links of programs into private
+  conformance installations were replaced by detached copies.
+
+Registered checks (`checks/sweep_meta_cases.rs`, 31 tests): 23 frozen original cases (inputs, environment, whole
+stdout/stderr/status/index and the file delta of the run, run through the real program on clones, fixture root and a fresh
+clock projected; the clock is checked against the interval of the call); the original status classes 0/1/2, a
+reassembly, an uncaught exception and a `SystemExit(message)`; the producer reads only `ENV_NAMES` and each of them is
+read; scenarios the originals do not reach (tool, tool-image and dataset sidecars, dataset order and duplicate
+sampling, non-object sidecars, native serve proof variants, image/digest inheritance, integer and `%02d` semantics of
+levels, tensor-parallel derivation, model fallback and node provenance, version precedence, backends and warnings, the
+lite block and the owner's `SystemExit`, repeat request and clamp, knob record inheritance, required variables, open
+and encode failures with partial files, prior-index survival); the program with no `PATH`, its traceback form, its
+start-up check, and the installed launcher (override, missing and non-executable program = status 2).
+`conformance_cli_cases` gained four binding checks (caller gone, hidden dead program, launcher gone, program that does
+not start) and `bench_verifier_cases` four binding checks and the two interpreter checks above.
+
+Commands and results (managed Rust 1.99.1, offline, locked, own target): `cargo fmt --check` clean; `cargo clippy
+--all-targets -- -D warnings` clean; `cargo test --release --no-fail-fast` 125 targets, 575 tests passed, 0 failed
+(lib 166, `sweep_meta_cases` 31, `bench_verifier_cases` 23, `conformance_cli_cases` 16, `sweep_repeats_cases` 18 with the 75-check
+macro run through the real producer, `package_paths` 2); the 38 frozen originals match byte for byte through the worker
+comparison script as well. The first full run failed on stale release programs in the staged installation (the old
+conformance program) and on three conformance and one verifier expectation that this change moves (the 36/44 row count of
+a failed real run, the interpreter checks); those were corrected, not skipped. The tests run against an installation staged
+by the worker from the canonical closure, the four Root coupling snapshots, these sources and detached programs; the
+canonical checkout was only read.
+
+Limits: this is the one production site of the index, not the remaining inline Python of other stages (S1 inline and
+helper candidates, S2-S7, six profiles, Long E2E). `\w` follows Rust's alphanumeric class, which differs from CPython's
+`str.isalnum()` for combining marks only. Arbitrary Python object semantics beyond the JSON value kinds the sidecars hold
+are not modelled. No performance claim is made here; the Root-timed boundary comparison is separate.
+
+Final default `--release --lib --bins` build ran after the last Cargo test and no Cargo command ran after it: 49 programs,
+73,352,920 bytes; `assemble_sweep_meta` 1,459,936 bytes (sha256 `10e658dc…186a5c`), `selftest_sweep_meta` 1,186,096,
+`selftest_sweep_repeats` 1,529,840, `conformance_full_superset_lite` 1,205,160; the package has 795 files (272 Rust files);
+the new production files are `assemble_sweep_meta.rs` (1,422 lines), `sweep_meta_scan.rs` (884), `assemble_sweep_meta_cli.rs`
+(341) and `sweep_meta_deployed.rs` (206). The whole task stays INCOMPLETE.
+
+
+## R18 correction: Python word class and the second measurement read
+
+Two behaviours Root reviewed were wrong in the first R18 handover and are fixed.
+
+1. **`\w`, `\W` and `\b` are CPython's, not Rust's.** The earlier text above called the word-class difference a known
+   limit; it was a defect. A new original-first case (one more full call of the original program, frozen as
+   `checks/data/sweep_meta/unicode-word-boundaries`) places U+0345 (combining Greek ypogegrammeni, which Rust counts
+   as alphanumeric and CPython 3.12.3 does not: `isalnum()` false, `re` `\w` false) before `v8.9.10`, inside `Using
+   MARLIN <mark> MoE backend` and in `num_speculative_tokens<mark>3`. The original gives `vllm_build='8.9.10'`,
+   `moe_backend='NA'`, `spec_declared_k=3`; the held first version gave `'NA'`, `'marlin'` and null. No existing exact
+   helper was found (`pystr` had only decimal digits, spaces and the `isdigit` extras), so `pystr::is_python_word`
+   now reads `src/unicode_alnum_table.rs`: the 747 inclusive ranges of `str.isalnum()` (plus the underscore), enumerated
+   once over all 0x110000 code points by the dev-time generator `gen_unicode_alnum.py` under CPython 3.12.3 /
+   Unicode 15.0.0 (the generator refuses any other version; notice row added to `notices/NOTICE.md`). It is
+   compatibility data, not a domain rule, and no mark class is approximated. `sweep_meta_scan::is_word` uses it; no Python
+   runs. Regressions: the frozen case (24 frozen cases now), a producer scenario with the three expressions, a scanner
+   check of characters that differ between Rust and CPython, and a table unit test. `render_report.rs` still has its own
+   `is_alphanumeric` use for a different expression; it was not part of this unit and is untouched.
+2. **Three reads of the first readable `measured.json`.** The original loops over the levels three times (tool block,
+   server-alive block, level records). The first version kept the first read and reused it for the second block while
+   its comment said it read again. `append_sidecar_provenance` now calls `first_readable` a second time in the
+   original's place. A check makes `measured.json` a named pipe that answers every open with the next document: the
+   tool comes from read one, `server_alive_at_bench_end` / `boundary_exemption` from read two and the level record from
+   read three.
+
+Counts after this change (fmt clean; Clippy clean; only the affected targets rerun, the earlier full 575/0 run stays
+valid for unrelated sources): lib 167 (was 166), `sweep_meta_cases` 34 (was 31), `package_paths` 2,
+`conformance_helper_cases` 12 all passed; the 38 saved original cases still match byte for byte through the worker comparison
+script, with no original re-executed. The whole task stays INCOMPLETE.
+
+The explicit default `--release --lib --bins` build ran after the last Cargo test and no Cargo command ran after it: 49
+programs, 73,354,424 bytes; `assemble_sweep_meta` 1,459,400 bytes (sha256 `b2269ea8…6af55`), `selftest_sweep_meta` 1,186,008;
+the package has 804 files (273 Rust files). Earlier byte counts and hashes in this file describe the previous build.
+
+
+## R18 test-driver correction: the FIFO regression
+
+The regression I added for the second `measured.json` read (`the_first_readable_measurement_is_read_separately_by_each_of_the_originals_three_loops`) was
+unbounded and **did hang**. Its writer opened the pipe by successive `fs::write` calls with no reader-close handshake, so
+documents could coalesce into one read and a later open waited forever for a partner after the writer had ended. My first
+registered run stayed in that state until the 400-second background limit; the later cleanup-only change (a non-blocking
+drain loop) did **not** solve it, because `produce()` itself was the blocked call and the drain never ran. Root's own
+probe of that exact driver timed out again on its first call and Root sent SIGTERM to the detached test process only
+(not user cancellation, not capacity, not production): its receipts are Root's, the raw logs of my hung run and of its
+rerun stay in the worker's log directory (`test-d-1`, `test-d-2`). The earlier "34 passed" counts therefore included a
+test that was not sound; the production behaviour it targeted was not wrong and is unchanged.
+
+Replacement (test driver only; no production, library, caller or expected data changed): the test
+`a_second_read_of_the_first_readable_measurement_sees_what_replaced_it_after_the_first_read` links `measured.json` to a
+pipe. One writer thread opens the pipe once without blocking (retried on "no reader yet" only, 30-second deadline),
+writes document one, atomically replaces the link by a regular document two **before** closing the pipe, then closes.
+The first read stays on the pipe (document one, then end of file); every later read follows the regular file. On a
+failed premise the writer releases a late reader until the run is done (bounded 10 seconds) and the test fails with the
+reason; the writer thread is always joined. Assertions kept: the tool comes from read one, `server_alive_at_bench_end`
+(false) and `boundary_exemption` from a later read, the level record from a later read. It proves a second read happens
+after the first; it cannot tell the second from the third read. Negative control: a throw-away copy of the sources
+with the first read cached for the server-alive block fails this test at the server-alive assertion in 0.01 s (log
+`test-fifo-negative-control`; the copy was deleted); the real sources pass.
+
+Run after the change: `sweep_meta_cases` 34 passed / 0 failed, `package_paths` 2, `fmt --check` and Clippy
+`--all-targets -D warnings` clean (all `# exit=0` in the preserved logs). `src/`, `Cargo.toml`, `Cargo.lock`, `build.rs` and
+`notices/` are byte-identical to the held v2 source; only `checks/sweep_meta_cases.rs` and this file differ.
+
+
+## R18 correction: Python `str.lower()`, and a record correction
+
+**Record correction for the first FIFO driver (history above is kept).** The earlier section said my first registered run
+"stayed in that state until the 400-second background limit". The 400-second values are limits Native configured for its
+commands; a configured limit does not by itself show that a process was stopped. What Root's receipt
+`r18-fifo-regression-driver-termination.json` shows: Root sent SIGTERM to the first hung registered driver (PID 3842338).
+The second detached replay of the same driver (PID 3857996) was run by Root under a 4-second supervisor; that is a Root
+bound and not a Native time limit. The hang itself (successive pipe writes, no reader-close handshake, `produce()`
+blocked) and the failure of the cleanup-only change stand as recorded.
+
+**Lower case.** The original lower-cases at four producer sites: `_norm_measured` (`str.lower()` of the engine token),
+the mismatch comparison (`d.lower()`), the model axis (basename `.lower()`) and the `off` sentinel of a speculative
+declaration. The held version used Rust's `str::to_lowercase`, whose Unicode is newer than CPython 3.12.3's (Unicode
+15.0.0). A new original-first case (frozen as `checks/data/sweep_meta/unicode-lowercase-boundary`; one more full call of
+the original by Root, nothing replayed) uses U+1C89, unassigned in Unicode 15: the original keeps `x<U+1C89>` and
+`<U+1C89>` (mismatch `no`); the held version produced U+1C8A. Fix: `pylower::python_lower` is CPython's `unicode_lower`:
+the full lower-case mapping of every scalar (U+0130 becomes two scalars) and the locale-independent Final_Sigma rule
+(a capital sigma is final when a cased character precedes it and none follows it, case-ignorable characters being
+skipped on both sides). Its data, `src/unicode_lower_table.rs`, is generated by the dev-time `gen_unicode_lower.py` from
+the interpreter itself: mappings from `chr(cp).lower()` for every scalar (1,431 single, 1 multi), and the Cased /
+Case_Ignorable ranges (150 and 437) from CPython's exported `_PyUnicode_IsCased` / `_PyUnicode_IsCaseIgnorable`, reached
+through ctypes (a missing symbol stops the generator) and cross-checked for every scalar against behaviour probes of
+`str.lower()` on `X` + capital sigma. The generator refuses any other interpreter version. Notice row added
+(Unicode License V3). Only the four producer/scanner call sites adopted it; `render_report` and other stages are untouched.
+
+Checks: `checks/pylower_cases.rs` (3 tests) compares every scalar through one digest of the interpreter's answers and 600
+Final_Sigma / one-to-many / newer-Unicode strings, all produced once by the interpreter (`make_lower_oracle.py`, data in
+`checks/data/lowercase/oracle.json`), and shows Rust's own lower case really differs for U+1C89; two scanner/producer
+scenarios (final sigma in a model name, U+0130 in measured and declared quantization, the `off` sentinel); the frozen
+whole-IO case (25 frozen cases now). The oracle is a primitive probe, not a whole-producer call. Raw candidate runs on the
+saved lowercase and Unicode originals and on the 38 saved cases match (`compare_single_reference.py`,
+`compare_r18_reference.py`; outputs kept in the worker directory; no original was re-executed).
+
+Counts: lib 169 (was 167), `pylower_cases` 3, `sweep_meta_cases` 36 (was 34), `package_paths` 2, all passed; fmt and
+Clippy `--all-targets -D warnings` clean. Earlier evidence is reused: the full 575/0 run, Root's 39 whole-IO / installation /
+checker results and the FIFO replays concern unchanged behaviour; the IO, read-count, typed-error, binding and math code
+is unchanged. The whole task stays INCOMPLETE.
+
+## R18 external acceptance: deployed assembly, packaging and measured CLI
+
+The external supervisor accepted this unit's production assembly and checker connections, not the whole migration.
+The current generator passed 40 original-first full-IO cases (the initial 38 plus the word/lower Unicode counterexamples);
+an independent validator ran two other frozen original inputs against the candidate once each. Ordered whole index
+bytes, both streams/status, fresh UTC within the call interval, exact inherited reassembly UTC and declared file effects
+matched. The independent dataset cases preserve short-circuiting, symlinks and the existing index's hard-link identity,
+link count and write times before an error. The word/lower tables and Final_Sigma properties were separately audited
+against CPython 3.12.3 primitives; this is distinct from additional whole-producer execution.
+
+The supervisor corrected its own observation premises without changing expected production results: escaped projection
+markers, retained non-frame diagnostic payload, resolved invocation paths before changing directory, accepted the
+launcher's literal `scripts/../rust` missing-program path, and reused the meta check's valid 386-byte stderr after
+confirming it exactly matched the frozen original. Old failures and both hung FIFO-driver interventions remain in the
+external records. The corrected finite FIFO regression passed five bounded driver replays; the first cached-read
+negative control still fails the behavior assertion. No original verifier was used as a runtime fallback.
+
+Delivery required one crate-root `.gitignore` with two exact mock-fixture exceptions: the parent repository's operational
+manifest/log patterns had hidden 75 approved mock input files. Putting the exception inside the case catalog initially
+made it look like a case, so it was moved to the crate root. Real operational files remain ignored. Three existing
+producer-literal consumers/dependency copies now name this Rust owner, and the corresponding verification-plane edge
+was moved in its closed ledger. Their naming/campaign rules were unchanged; no dead Python text was restored to satisfy
+a stale source check.
+
+Current canonical verification is 299 selected passes composed of 200 initial valid passes, two corrected missing-context
+cases, 76 further valid passes, three cases after the fixture-catalog placement correction, and the remaining 18 repeat
+cases. It is not a new whole invocation of 299. A fresh installation from the Git index contains 1,041 source files
+(817 in this Rust package: 816 Native-authored inputs plus the tracking exception), passed the same 299 in one invocation
+and all 24 native start-up checks, then restored default products after Cargo tests. The copied deployment's five checker
+programs also passed with all 1,077 source/product files unchanged. Distribution currently satisfies 131 checks by reusing
+128 unaffected results and actually rechecking the changed hint, campaign and runtime checks; the first full run's
+129/131 FAIL and the later passes remain separate.
+
+Official timing used the six cases fixed before implementation: one warm-up and five alternating rounds per side,
+72 calls total (12 warm, 60 measured). The complete Bash-to-Python-stdin original producer and Bash-to-native launcher,
+actual owner computation/IO/JSON/output/status are inside the timer; fixture setup and comparisons are outside. Every
+call passed whole-IO quality. The medians of the six-case round means were Python 0.050131823166666666 seconds and Rust
+0.0034124955 seconds: Python/Rust 14.690663523707698. Per-case median ratios range 12.2397332165 to 16.6860199326.
+The independent saved-artifact audit recomputed all 72 records, their schedule, full IO/clock/file effects and aggregation
+without rerunning products, originals, Cargo or timing. This is the assembly CLI on six fixed fixtures; it is not a
+model-serving, whole-Long-E2E or statistical-significance claim. Earlier open Rust-time limits remain open.
+
+This appendix was added after that saved-artifact audit's protected interval ended. It is a documentation-only change;
+subsequent source-package checks and the final default product restore have their own execution records. Remaining S1
+inline/interop work, the other stages, six main/sub profiles and actual single/multi Long E2E are INCOMPLETE.

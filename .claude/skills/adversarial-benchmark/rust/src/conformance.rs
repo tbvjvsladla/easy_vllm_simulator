@@ -612,27 +612,6 @@ fn is_regex_space(c: char) -> bool {
     c.is_whitespace() || ('\u{1c}'..='\u{1f}').contains(&c)
 }
 
-/// `re.search(r'"KEY":\s*_built\.get', source) is not None`.
-///
-/// The original also tries the longer `"KEY":\s*_built\.get\("KEY"\)` first; every match of that is a match of
-/// this, so this alone decides the result.
-pub fn sets_key_from_built(source: &str, key: &str) -> bool {
-    let opening = format!("\"{key}\":");
-    let mut from = 0;
-    while let Some(found) = source[from..].find(&opening) {
-        let after = from + found + opening.len();
-        if source[after..]
-            .trim_start_matches(is_regex_space)
-            .starts_with("_built.get")
-        {
-            return true;
-        }
-        // continue after the opening quote of this occurrence (an ASCII byte, so a character boundary)
-        from += found + 1;
-    }
-    false
-}
-
 /// `str.rstrip()` of the text.
 pub fn rstrip(text: &PyStr) -> PyStr {
     let points = text.code_points();
@@ -735,24 +714,6 @@ mod tests {
     fn find_positions_count_characters_not_bytes() {
         assert_eq!(find_position("한글 gate", "gate"), 3);
         assert_eq!(find_position("abc", "z"), -1);
-    }
-
-    #[test]
-    fn the_built_get_search_follows_the_regular_expression() {
-        assert!(sets_key_from_built(
-            "\"kv_gib\":  _built.get(\"kv_gib\")",
-            "kv_gib"
-        ));
-        assert!(sets_key_from_built("\"kv_gib\":\n\t_built.get", "kv_gib"));
-        assert!(!sets_key_from_built("\"kv_gib\": built.get", "kv_gib"));
-        assert!(!sets_key_from_built("kv_gib: _built.get", "kv_gib"));
-        // a first occurrence that does not match does not hide a later one
-        assert!(sets_key_from_built(
-            "\"a\": x\n\"a\": _built.get(\"a\")",
-            "a"
-        ));
-        assert!(sets_key_from_built("\"a\":\u{1c}_built.get", "a"));
-        assert!(!sets_key_from_built("\"a\":\u{200b}_built.get", "a"));
     }
 
     #[test]

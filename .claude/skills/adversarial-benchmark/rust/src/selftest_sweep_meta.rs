@@ -6,12 +6,11 @@
 //! fingerprint (`spec_declared*`) is checked the same way, because the judge tells a missing accept length from a
 //! normal 1.0 only through it.
 //!
-//! **This check does not copy the parser.** The production program embedded in the deployed `sweep_bench.sh` (the
-//! Python `<<'PY'` text) is read from that file and executed as it is, for every fixture, through the Python
-//! session of [`crate::owner_bridge`]; the same goes for the shell function `_spec_axis_args`, which is cut out of
-//! the script byte for byte and run under `set -euo pipefail`. So what is checked is the deployed code. That embedded
-//! Python is the one production dependency of this program that is not Rust yet (it goes with the stage that ports
-//! the sweep assembly); nothing here falls back to the original verifier.
+//! **This check does not copy the parser.** The producer is the deployed one: `sweep_bench.sh` calls the launcher
+//! `assemble_sweep_meta.sh`, which starts the installed Rust program, and every fixture below is one real run of that
+//! chain ([`crate::sweep_meta_deployed`]). The shell function `_spec_axis_args` is cut out of the script byte for
+//! byte and run under `set -euo pipefail`. A producer that is not installed, that `sweep_bench.sh` no longer calls, or
+//! that does not start ends the check before any scenario; nothing here falls back to another implementation.
 //!
 //! [`SweepMeta::build_meta`] is also what the lite report check (`selftest_lite_report`, L8) uses.
 
@@ -19,9 +18,9 @@ use crate::bench_verify_support::{py_str, py_strip, st};
 use crate::captured_process::{run_captured_in, ChildSettings};
 use crate::conformance::{py_equals, splitlines, Raised};
 use crate::dataset_prep::Console;
-use crate::owner_bridge::OwnerBridge;
 use crate::pystr::PyStr;
 use crate::pyvalue::{PyDict, PyValue};
+use crate::sweep_meta_deployed::{DeployedProducer, ProducerRun};
 use crate::verify_fixture::{
     dumps, get, is_file, load_json, read_text, repo_root_unknown_message, write_str, write_text,
     TemporaryDirectory,
@@ -36,9 +35,6 @@ pub const PROGRAM: &str = "selftest_sweep_meta";
 /// The script directory of the benchmark skill, relative to a repository root.
 const SCRIPTS: &str = crate::verify_fixture::BENCHMARK_SCRIPTS;
 const SWEEP_SCRIPT: &str = "sweep_bench.sh";
-/// The marker pair that opens and closes the embedded program in the deployed script.
-const PROGRAM_OPEN: &str = "python3 - <<'PY'\n";
-const PROGRAM_CLOSE: &str = "\nPY\n";
 const AXIS_OPEN: &str = "# >>> spec-axis-args";
 const AXIS_CLOSE: &str = "# <<< spec-axis-args\n";
 /// The wall-clock limit of the shell function call (`timeout=60`).
@@ -72,20 +68,6 @@ fn system_exit(message: &str) -> Raised {
     Raised::new("SystemExit", message)
 }
 
-/// `re.search(r"python3 - <<'PY'\n(.*?)\nPY\n", text, re.S)`: the text between the first opening marker that has a
-/// closing marker after it, and that closing marker's first occurrence.
-fn embedded_program(script: &str) -> Option<&str> {
-    let mut from = 0;
-    while let Some(found) = script[from..].find(PROGRAM_OPEN) {
-        let body_start = from + found + PROGRAM_OPEN.len();
-        if let Some(length) = script[body_start..].find(PROGRAM_CLOSE) {
-            return Some(&script[body_start..body_start + length]);
-        }
-        from += found + 1;
-    }
-    None
-}
-
 /// `re.search(r"# >>> spec-axis-args[^\n]*\n(.*?)# <<< spec-axis-args\n", text, re.S)` with the group-contains check.
 fn spec_axis_function(script: &str) -> Option<&str> {
     let mut from = 0;
@@ -103,41 +85,28 @@ fn spec_axis_function(script: &str) -> Option<&str> {
     None
 }
 
-/// The deployed script and the program embedded in it: what the original module held in `SWEEP` and `SRC`.
+/// The deployed script and the producer installed beside it: what the original module held in `SWEEP` and `SRC`.
 pub struct SweepMeta {
-    scripts_dir: PathBuf,
     script_text: String,
-    program: String,
+    producer: DeployedProducer,
 }
 
 impl SweepMeta {
-    /// Reads `sweep_bench.sh` and cuts the embedded program out. A script that has none is a stop before any check
-    /// (`SystemExit`), never a pass: a check whose subject has gone must not read as green.
+    /// Reads `sweep_bench.sh` and binds to the installed producer. A script that does not call it, a hidden old
+    /// program, a missing launcher or a program that does not start is a stop before any check (`SystemExit`), never a
+    /// pass: a check whose subject has gone must not read as green.
     pub fn load(scripts_dir: &Path) -> Result<SweepMeta, Raised> {
+        let producer = DeployedProducer::bind(scripts_dir, PROGRAM)?;
         let script_text = read_text(&scripts_dir.join(SWEEP_SCRIPT))?;
-        let Some(program) = embedded_program(&script_text) else {
-            return Err(system_exit(
-                "[selftest_sweep_meta] sweep_bench.sh 의 python heredoc 을 찾지 못했다 — 중단",
-            ));
-        };
-        let program = program.to_string();
         Ok(SweepMeta {
-            scripts_dir: scripts_dir.to_path_buf(),
             script_text,
-            program,
+            producer,
         })
     }
 
     /// The deployed script text (`SWEEP.read_text`), for the cross-checks that read the script itself.
     pub fn script_text(&self) -> &str {
         &self.script_text
-    }
-
-    fn script_label(&self) -> String {
-        format!(
-            "{}::heredoc",
-            self.scripts_dir.join(SWEEP_SCRIPT).to_string_lossy()
-        )
     }
 }
 
@@ -161,29 +130,23 @@ pub struct BuildMeta<'a> {
 }
 
 impl SweepMeta {
-    /// Lays out one fixture and runs the **actual embedded program** on it; returns the `meta` it wrote.
-    ///
-    /// `outer_unset`: environment names removed from the session for the duration of the call and restored after
-    /// (the lite report check removes `EASY_VLLM_VERSION` this way).
+    /// Lays out one fixture and runs the **deployed producer** on it; returns the `meta` it wrote. What the producer
+    /// prints reaches the verifier's streams as it does for any owner.
     pub fn build_meta(
         &self,
-        bridge: &mut OwnerBridge,
         console: &mut dyn Console,
         arguments: &BuildMeta<'_>,
-        outer_unset: &[&str],
     ) -> Result<PyValue, Raised> {
         let directory = TemporaryDirectory::create("tmp")?;
-        let outcome = self.run_fixture(bridge, console, arguments, outer_unset, directory.path());
+        let outcome = self.run_fixture(console, arguments, directory.path());
         directory.close()?;
         outcome
     }
 
     fn run_fixture(
         &self,
-        bridge: &mut OwnerBridge,
         console: &mut dyn Console,
         arguments: &BuildMeta<'_>,
-        outer_unset: &[&str],
         root: &Path,
     ) -> Result<PyValue, Raised> {
         let sweep_dir = root.join("sweep_x");
@@ -279,7 +242,6 @@ cuda_version: 132\n",
             ("CFGYAML", path_text("cfg.yaml")),
             ("EF", path_text(".env.x")),
             ("MANIFEST", path_text("manifest.yaml")),
-            ("AGENT_CARD", path_text("nope.json")),
             ("SWEEPDIR", sweep_dir.to_string_lossy().into_owned()),
             ("VLLM_VER", String::new()),
             ("COMPLETED", "1".into()),
@@ -295,18 +257,32 @@ cuda_version: 132\n",
                 .into(),
             ),
             ("LITE_RAW", String::new()),
-            ("SDIR", self.scripts_dir.to_string_lossy().into_owned()),
         ];
-        bridge.run_embedded_program(
-            console,
-            &self.program,
-            &self.script_label(),
-            &environment,
-            outer_unset,
-        )?;
+        let run = self.producer.run(&environment)?;
+        replay_streams(console, &run)?;
+        if run.status != 0 {
+            return Err(Raised::new(
+                "RuntimeError",
+                &format!(
+                    "생성부가 비정상 종료했다(rc={}): {}",
+                    run.status,
+                    crate::verify_fixture::tail(String::from_utf8_lossy(&run.stderr).trim(), 300)
+                ),
+            ));
+        }
         let index = load_json(&sweep_dir.join("sweep_index.json"))?;
         crate::conformance::subscript(&index, "meta")
     }
+}
+
+/// What the producer printed reaches the verifier's own streams: its standard output as written, its standard error
+/// at once (the order between the two is not observable, they are separate streams).
+pub fn replay_streams(console: &mut dyn Console, run: &ProducerRun) -> Result<(), Raised> {
+    console
+        .write(&ProducerRun::text(&run.stdout)?)
+        .map_err(Raised::from_failure)?;
+    console.error(&ProducerRun::text(&run.stderr)?);
+    Ok(())
 }
 
 fn object(entries: Vec<(&str, PyValue)>) -> PyValue {
@@ -906,7 +882,6 @@ pub fn main(
     let canonical = std::fs::canonicalize(repo_root).unwrap_or_else(|_| repo_root.to_path_buf());
     let scripts_dir = canonical.join(SCRIPTS);
     let meta = SweepMeta::load(&scripts_dir)?;
-    let mut bridge = OwnerBridge::start(&scripts_dir, console)?;
     let mut failures: Vec<String> = Vec::new();
 
     let compare = |failures: &mut Vec<String>,
@@ -929,7 +904,7 @@ pub fn main(
     };
 
     for case in quantization_cases() {
-        match meta.build_meta(&mut bridge, console, &case.arguments, &[]) {
+        match meta.build_meta(console, &case.arguments) {
             Ok(document) => compare(&mut failures, case.name, &document, &case.expect)?,
             Err(raised) if raised.is_system_exit() => return Err(raised),
             Err(raised) => {
@@ -951,7 +926,7 @@ pub fn main(
     }
 
     for case in speculation_cases() {
-        match meta.build_meta(&mut bridge, console, &case.arguments, &[]) {
+        match meta.build_meta(console, &case.arguments) {
             Ok(document) => {
                 compare(&mut failures, case.name, &document, &case.expect)?;
                 if verbose {
@@ -1048,7 +1023,7 @@ pub fn main(
             cfg_text: Some(config),
             ..BuildMeta::default()
         };
-        let document = match meta.build_meta(&mut bridge, console, &arguments, &[]) {
+        let document = match meta.build_meta(console, &arguments) {
             Ok(document) => document,
             Err(raised) if raised.is_system_exit() => return Err(raised),
             Err(raised) => {
@@ -1089,7 +1064,7 @@ pub fn main(
             engine_log_text: Some(String::from_utf8_lossy(&bytes).into_owned()),
             ..BuildMeta::default()
         };
-        let document = match meta.build_meta(&mut bridge, console, &arguments, &[]) {
+        let document = match meta.build_meta(console, &arguments) {
             Ok(document) => document,
             Err(raised) if raised.is_system_exit() => return Err(raised),
             Err(raised) => {

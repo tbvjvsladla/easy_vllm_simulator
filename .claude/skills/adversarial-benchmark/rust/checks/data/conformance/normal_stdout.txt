@@ -24,12 +24,14 @@ PASS E D1 픽스처는 실물 모양이다(rc 0 인데 결과 파일이 전부 �
 PASS E D1 연결거부 픽스처 → measurement_path_failed · exit 6(하네스 결함 · 서버 실패로 접지 않는다)
 PASS E 음성대조: 같은 출력이라도 클라이언트 평면이 닿으면 연결 오류 문구가 ② 로 접히지 않는다(① 유지)
 PASS E 호스트 평면도 죽었으면(측정 중 서버 사망) → server_failed · exit 7
+PASS sweep_bench 가 index·meta 조립을 native 생성부 런처(assemble_sweep_meta.sh)로 호출하고 옛 python 생성부를 남기지 않는다
+PASS native index 생성부 런처·소유 소스가 설치돼 있다
 PASS sweep_index.lite 가 'gen_tps' 를 싣는다
 PASS sweep_index.lite 가 'cold_ttft_ms' 를 싣는다
 PASS sweep_index.lite 가 'kv_gib' 를 싣는다
 PASS sweep_index.lite 가 'capacity' 를 싣는다
 PASS sweep_index.lite 가 'accept_len' 를 싣는다
-PASS sweep_bench 가 lite_metrics 를 재구현하지 않고 import 한다
+PASS native index 생성부가 lite 산정을 재구현하지 않고 소유자 함수를 직접 호출하며 raw 판정을 그대로 옮긴다
 PASS render_report 가 lite 블록을 렌더한다
 PASS render_report 가 lite 결손을 경고한다
 PASS 인증서가 'lite_included' 를 emit 한다
@@ -40,4 +42,4 @@ PASS 인증서가 'lite_gpu_occupancy' 를 emit 한다
 PASS 인증서가 'lite_ram_occupancy' 를 emit 한다
 PASS 인증서가 'lite_accept_len' 를 emit 한다
 
-full ⊇ lite conformance: 41/41 PASS
+full ⊇ lite conformance: 43/43 PASS

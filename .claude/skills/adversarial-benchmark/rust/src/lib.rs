@@ -6,6 +6,8 @@
 //! Python tools and the original's observable behaviour on odd input is part of the contract.
 
 pub mod argv;
+pub mod assemble_sweep_meta;
+pub mod assemble_sweep_meta_cli;
 pub mod bench_cli;
 pub mod bench_naming;
 pub mod bench_preset;
@@ -87,6 +89,7 @@ pub mod pydyn;
 pub mod pyformat;
 pub mod pyfs;
 pub mod pyjson;
+pub mod pylower;
 pub mod pynumber;
 pub mod pyops;
 pub mod pysort;
@@ -122,11 +125,15 @@ mod selftest_lite_report;
 mod selftest_sweep_meta;
 mod selftest_sweep_repeats;
 pub mod stdout;
+pub(crate) mod sweep_meta_deployed;
+pub mod sweep_meta_scan;
 mod sweep_repeats_broad;
 mod sweep_repeats_clock;
 mod sweep_repeats_fixture;
 pub mod terminal;
+mod unicode_alnum_table;
 mod unicode_digit_tables;
+mod unicode_lower_table;
 mod unicode_tables;
 pub mod utc;
 pub mod verdict;

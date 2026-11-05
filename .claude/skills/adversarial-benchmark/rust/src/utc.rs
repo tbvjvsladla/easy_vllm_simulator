@@ -644,6 +644,20 @@ pub fn parse_instant(value: &PyValue) -> Result<UtcInstant, InstantFailure> {
 }
 
 impl UtcInstant {
+    /// `datetime.datetime.now(datetime.timezone.utc)` read from the system clock now, with microsecond precision.
+    pub fn now() -> UtcInstant {
+        let since_unix = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_or(0, |elapsed| {
+                i64::try_from(elapsed.as_micros()).unwrap_or(i64::MAX)
+            });
+        let unix_origin = (ymd_to_ordinal(1970, 1, 1) - 1) * MICROS_PER_DAY;
+        UtcInstant::from_micros(unix_origin + since_unix)
+            .expect("the system clock reads a year between 1 and 9999")
+    }
+}
+
+impl UtcInstant {
     /// `self + timedelta(microseconds=delta_micros)`; `None` when the result leaves years 1..9999
     /// (`OverflowError: date value out of range`).
     pub fn shifted_by_micros(&self, delta_micros: i128) -> Option<UtcInstant> {

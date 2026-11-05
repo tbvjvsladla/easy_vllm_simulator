@@ -607,15 +607,15 @@ def declared_node_ids(camp_dir: Path, role: str | None = None) -> list[str]:
 #   (multi 에서 GuideLLM 은 API 서버가 뜬 노드에만 붙는다 — `run_bench.sh --network host`).
 #   전 노드를 요구하면 Ray 워커(sub)의 없는 bench 진행표를 요구하게 되어 과잉차단이다.
 #
-# 이 목록은 **거울이다** — 정본은 producer(`sweep_bench.sh`)의 리터럴이고, 여기 사본이 갈라지면
+# 이 목록은 **거울이다** — 정본은 producer(`assemble_sweep_meta.rs`)의 리터럴이고, 여기 사본이 갈라지면
 #   P2 가 조용히 눈이 먼다. 그래서 셀프테스트가 producer 파일을 열어 리터럴 실재를 교차검증한다
 #   (workflow.md §결정론 규율: "단일 소유가 불가능하면 교차검증이 차선이다").
 DERIVED_MEASUREMENT_NODES = ("cluster",)
 
 # 교차검증 앵커 — producer 의 코드 토큰(주석 ✗ · 리팩터를 따라간다).
 _DERIVED_NODE_PRODUCER = (
-    ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
-    'measured_node, measured_node_source = "cluster"',
+    ".claude/skills/adversarial-benchmark/rust/src/assemble_sweep_meta.rs",
+    'if topology.equals("multi") {\n        (\n            "cluster".to_string(),',
 )
 
 

@@ -39,7 +39,7 @@ pub const KNOB_REASONS: [&str; 4] = [
 pub const LEVEL_REASON: [&str; 2] = ["--knob-reason", "levels=serving_concurrency"];
 
 /// The deployed files the sandbox copies, in the original's order (`COPIES`).
-const COPIES: [&str; 67] = [
+const COPIES: [&str; 69] = [
     ".claude/skills/adversarial-benchmark/scripts/render_report.sh",
     ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.sh",
     ".claude/skills/adversarial-benchmark/scripts/render_max_report.sh",
@@ -65,6 +65,8 @@ const COPIES: [&str; 67] = [
     ".claude/skills/adversarial-benchmark/rust/target/release/roofline",
     ".claude/skills/adversarial-benchmark/rust/target/release/verdict_rule",
     ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
+    ".claude/skills/adversarial-benchmark/scripts/assemble_sweep_meta.sh",
+    ".claude/skills/adversarial-benchmark/rust/target/release/assemble_sweep_meta",
     ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py",
     ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.sh",
     ".claude/skills/adversarial-benchmark/scripts/parse_guidellm_native.py",

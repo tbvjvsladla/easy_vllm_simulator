@@ -1,16 +1,14 @@
 //! A closed-operation session with the Python programs the lite and sweep-meta verifiers still depend on.
 //!
-//! The verifiers ask four owners that have not been ported (hint reader `render_bench_section.py`, evidence
-//! publisher `evidence_publisher.py`, completion gate `completion_gate.py`, and the production program embedded in
-//! `sweep_bench.sh`) and must see what those owners really answer, so none of their rules is copied here. This is
+//! The verifiers ask three owners that have not been ported (hint reader `render_bench_section.py`, evidence
+//! publisher `evidence_publisher.py` and completion gate `completion_gate.py`) and must see what those owners really answer, so none of their rules is copied here. This is
 //! transport only: [`OwnerBridge`] starts one Python interpreter that runs the program in `owner_bridge.py`
 //! (compiled into this crate and handed over as `-c` text; there is no file to deploy), keeps it for the whole
 //! verification run, and sends one named operation per request. The operations are the fixed methods below; no
-//! caller supplied code or callable name is ever evaluated, except the production source of the deployed script
-//! that [`OwnerBridge::run_embedded_program`] was handed on purpose.
+//! caller supplied code or callable name is ever evaluated.
 //!
 //! One interpreter for the whole run matters: the owners keep module state (the evidence publisher imports the
-//! reader again at every call, the embedded program reuses imported modules), exactly as they did when the original
+//! reader again at every call), exactly as they did when the original
 //! verifier called them in its own process. Every call is a real call: results are never cached or shared between
 //! callers.
 //!
@@ -580,38 +578,6 @@ impl OwnerBridge {
             vec![("fields", fields.clone())],
         )
         .map(|value| value.is_truthy())
-    }
-
-    /// Executes the production program embedded in the deployed `sweep_bench.sh`:
-    /// `exec(compile(source, label, "exec"), {"__name__": "__sweep_meta__"})` with `env` applied to the session's
-    /// environment for the duration (restored after, also after a failure) and every name in `outer_unset` removed
-    /// for the duration and restored after. What the program prints reaches the verifier's streams as it does for any owner.
-    pub fn run_embedded_program(
-        &mut self,
-        console: &mut dyn Console,
-        source: &str,
-        label: &str,
-        env: &[(&str, String)],
-        outer_unset: &[&str],
-    ) -> Result<(), Raised> {
-        let mut environment = PyDict::new();
-        for (name, value) in env {
-            environment.set(name, PyValue::str(value));
-        }
-        self.call(
-            console,
-            "heredoc",
-            vec![
-                ("source", PyValue::str(source)),
-                ("label", PyValue::str(label)),
-                ("env", PyValue::Dict(environment)),
-                (
-                    "outer_unset",
-                    PyValue::List(outer_unset.iter().map(|name| PyValue::str(name)).collect()),
-                ),
-            ],
-        )
-        .map(|_| ())
     }
 }
 

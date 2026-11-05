@@ -1,0 +1,5 @@
+model: /models/acme/Acme-7B
+max-model-len: 262144
+gpu-memory-utilization: 0.9
+# 레시피 주석: quant=DECOY_C kv-cache-dtype: DECOY_D
+speculative-config: '{"method":"mtp","num_speculative_tokens":3}'   # 주석: MTP k=3

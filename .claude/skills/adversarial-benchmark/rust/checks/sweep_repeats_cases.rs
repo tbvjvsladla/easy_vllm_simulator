@@ -147,7 +147,7 @@ fn copy_tree(from: &Path, to: &Path) {
 }
 
 /// A private tree with everything the program reads: the benchmark scripts and their owners, the release programs
-/// (as new files), the campaign template, and the four sources the conformance program reads as static text.
+/// (as new files), the campaign template, and the five sources the conformance program reads as static text.
 fn private_tree(scratch: &Scratch) -> PathBuf {
     let source = canonical_root();
     let target = scratch.repo();
@@ -170,6 +170,7 @@ fn private_tree(scratch: &Scratch) -> PathBuf {
         ".claude/skills/adversarial-benchmark/rust/src/classify_cell.rs",
         ".claude/skills/adversarial-benchmark/rust/src/classify_cell_cli.rs",
         ".claude/skills/adversarial-benchmark/rust/src/argv.rs",
+        ".claude/skills/adversarial-benchmark/rust/src/assemble_sweep_meta.rs",
         ".claude/skills/vllm-recipe-explorer/recipe.py",
     ] {
         if source.join(relative).is_file() {

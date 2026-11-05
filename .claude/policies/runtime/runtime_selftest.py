@@ -760,10 +760,10 @@ def _test_certificate_waiver_by_authority() -> None:
 
 _HINT_SCRIPTS_REL = ".claude/skills/hint-publisher/scripts"
 _HINT_CLI_REL = f"{_HINT_SCRIPTS_REL}/hint.py"
-# 배포 배치 사본에 **함께** 놓아야 하는 추적 파일(wave 1 요청): 어휘표는 이름 파생의 닫힌 목록이고, sweep_bench.sh 는
+# 배포 배치 사본에 **함께** 놓아야 하는 추적 파일(wave 1 요청): 어휘표는 이름 파생의 닫힌 목록이고, assemble_sweep_meta.rs 는
 #   naming 자체검사가 교차 대조하는 producer 리터럴 앵커다(인증서 model 키 규칙). 빠지면 사본이 실물보다 좁아진다.
 _HINT_VOCAB_REL = "hints/vocab.json"
-_SWEEP_BENCH_REL = ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh"
+_SWEEP_META_PRODUCER_REL = ".claude/skills/adversarial-benchmark/rust/src/assemble_sweep_meta.rs"
 _RENDER_REPORT_REL = ".claude/skills/adversarial-benchmark/scripts/render_report.sh"
 # 픽스처 셀과 기대 이름 — 이름은 **도구가 파생**한다(D8 · 발행자 입력 ✗). 아래 값은 파생 결과를 대조하는 앵커이지 입력이 아니다.
 _HINT_FX_CAMPAIGN = "c1"
@@ -959,7 +959,7 @@ def _hint_cli_fixture(td: Path, hint, *, legacy: bool) -> dict:
     shutil.copy2(real / _HINT_CLI_REL, dst / "hint.py")
     shutil.copytree(real / _HINT_SCRIPTS_REL / "hintlib", dst / "hintlib",
                     ignore=shutil.ignore_patterns("__pycache__"))
-    for rel in (_HINT_VOCAB_REL, _SWEEP_BENCH_REL):
+    for rel in (_HINT_VOCAB_REL, _SWEEP_META_PRODUCER_REL):
         (repo / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(real / rel, repo / rel)
     old = hint._fx_legacy_remote(td, repo, fx["bare"]) if legacy else {}

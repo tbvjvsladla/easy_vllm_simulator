@@ -77,6 +77,12 @@ pub(crate) fn decimal_digit_value(code_point: u32) -> Option<u32> {
         .map(|&(first, _)| (code_point - first) % 10)
 }
 
+/// `\w` of a `str` pattern of Python's `re`: `str.isalnum()` or the underscore (the table is CPython 3.12.3 /
+/// Unicode 15.0.0, see `unicode_alnum_table`).
+pub(crate) fn is_python_word(code_point: u32) -> bool {
+    code_point == u32::from('_') || in_ranges(crate::unicode_alnum_table::ALNUM, code_point)
+}
+
 /// `Py_UNICODE_ISSPACE`.
 pub(crate) fn is_python_space(code_point: u32) -> bool {
     in_ranges(PYTHON_WHITESPACE, code_point)
@@ -490,6 +496,50 @@ mod tests {
         assert_eq!(
             PyStr::from_code_points(vec![0x61, 0xDCFF, 0xD800]).to_backslashreplace_bytes(),
             b"a\\udcff\\ud800"
+        );
+    }
+}
+
+#[cfg(test)]
+mod word_class_tests {
+    use super::is_python_word;
+
+    #[test]
+    fn the_word_class_is_isalnum_or_underscore_of_cpython_3_12_3_unicode_15() {
+        let word = |c: char| is_python_word(u32::from(c));
+        for yes in [
+            'a',
+            'Z',
+            '9',
+            '_',
+            'é',
+            '٣',
+            '\u{2160}',
+            '\u{b2}',
+            '\u{4e00}',
+            '\u{10000}',
+        ] {
+            assert!(word(yes), "{yes:?}");
+        }
+        // alphabetic or marked in Rust's classes, but neither `isalnum()` nor `\w` in CPython
+        for no in [
+            '\u{345}',
+            '\u{300}',
+            '\u{93e}',
+            '\u{200b}',
+            ' ',
+            '-',
+            '\u{1f600}',
+        ] {
+            assert!(!word(no), "{no:?}");
+        }
+        assert!(
+            char::from_u32(0x345).is_some_and(char::is_alphanumeric),
+            "the difference this table exists for"
+        );
+        assert!(
+            !is_python_word(0xD800),
+            "a lone surrogate is no word character"
         );
     }
 }
