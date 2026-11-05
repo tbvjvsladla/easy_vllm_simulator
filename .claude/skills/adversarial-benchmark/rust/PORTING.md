@@ -1784,3 +1784,231 @@ from this unit. Python campaign owners and embedded production snippets remain e
 
 Evidence directories: `r15-canonical-checks/`, `r15-packaging/`, `r15-distribution/`, `r15-benchmark-results/`,
 `r15-tempdir-correction/`, `r15-installed-candidate/`, and the independent `candidate-v1/validation-delta/`.
+
+## R16 판정·lite·메타 검증기 이행 — 후보 기록 (정본 적용 전)
+
+Status: **INCOMPLETE for the whole task** (this unit's Rust scope is complete only as far as the checks below say; Root
+integration, installed-copy acceptance, the 48-record performance run and the six-profile/LongE2E stages are not this
+unit's). Source head `7e2aea9d8c18f8cacd99783a406e2961e03fb9b8`; the candidate starts from the 580 Git-index Rust
+sources of that head.
+
+### Scope and output
+
+Four deployed verification programs, 1432 source lines, are ported as whole programs, not as golden PASS prints:
+
+| Original (`.claude/skills/adversarial-benchmark/scripts/`) | Lines | Rust program | Rust module |
+| --- | ---: | --- | --- |
+| `selftest_judge_bench.py` | 370 | `selftest_judge_bench` | `src/selftest_judge_bench.rs` |
+| `selftest_lite_report.py` | 392 | `selftest_lite_report` | `src/selftest_lite_report.rs` |
+| `selftest_lite_gate.py` | 226 | `selftest_lite_gate` | `src/selftest_lite_gate.rs` |
+| `selftest_sweep_meta.py` | 444 | `selftest_sweep_meta` | `src/selftest_sweep_meta.rs` |
+
+Shared pieces: `src/bench_verify_support.rs` (the printed `[PASS]`/`[FAIL]` list in the two detail styles and the few Python
+evaluations the conditions are written in), `src/bench_verifier_cli.rs` (command lines and exit mapping),
+`src/owner_bridge.rs` + `src/owner_bridge.py` (the transitional Python-owner transport, below), four `src/bin/` entries,
+`checks/bench_verifier_cases.rs` (ten registered program checks). The one change to an existing module is
+`verify_fixture::run_text_within` (the original `run_text` now delegates to it with its unchanged 120 seconds; the judge
+program calls use 180 and the full-report render 60, as the originals did).
+
+Structure that follows the originals: `Sandbox` of the lite report program is the one the lite gate program runs in
+(the original `selftest_lite_gate.py` imported `selftest_lite_report.Sandbox`); `SweepMeta::build_meta` of the meta
+program is the one the lite report program's L8 uses (the original imported `selftest_sweep_meta.build_meta`). Case
+tables (C1–C10, S1–S10, RC1–RC3, W1–W7, J1–J12, K1–K9, L1–L10) keep the originals' names and printed text.
+
+### Native pieces reused, Python pieces transported
+
+Reused typed Rust libraries instead of the original's Python transport modules: `render_report::{lite_identity,
+Environment, MEASUREMENT_CONFIG_TITLE, MEASUREMENT_CONFIG_KEYS, LITE_BENCH_TOOL}`, `bench_naming::{bench_filename,
+measurement_ts}`, `classify_cell::{bench_mode_kind, BENCH_MODE_*}`, `lite_metrics::read_lite_verdict` and the verdict exit
+table, `guidellm::inherit_accept_len` (the W1 negative control). The original loaded `render_report_native.py`,
+`classify_cell_native.py`, `doc_naming_native.py`, `lite_metrics_native.py` and `parse_guidellm_native.py`; this port does
+not load them, so these programs no longer exercise those transports (their other consumers are unchanged).
+
+Current Python dependencies, each a real current owner and none copied or answered locally:
+
+| Owner | Reached by | Operations (fixed list) | Until |
+| --- | --- | --- | --- |
+| hint reader `hint-publisher/scripts/render_bench_section.py` | owner bridge | parse_measurement_config, is_lite_report, lite_metrics_present, render_lite(parse_lite_report), parse_report level count, four contract constants | S6/S7 port of the reader |
+| evidence publisher `policies/runtime/evidence_publisher.py` | owner bridge | bench-report name pattern match, `report_measurement_config(text)[0]`, `LITE_BENCH_MODE` | S6/S7 |
+| completion gate `policies/runtime/completion_gate.py` | owner bridge | `parse_flat_certificate`, `certificate_run_key(fields) is not None` | S6/S7 |
+| production Python embedded in the deployed `sweep_bench.sh` (`python3 - <<'PY'`) | owner bridge (`run_embedded_program`) | the extracted source runs per fixture as `exec(compile(...))` | S1 embedded-code migration |
+| wiki TS document naming (reached by the publisher's `doc_naming.py` shim) | the publisher | not called by this port directly | TS deferred |
+
+The deployed `sweep_bench.sh` text, its embedded program and the shell function `_spec_axis_args` are read from the
+file and executed as deployed; no parser is cloned. The original verifier programs are never run and nothing falls back
+to them.
+
+**Owner bridge** (`owner_bridge.py`, compiled into the crate with `include_str!` and passed as `python3 -c`; no file is
+deployed and no interpreter is installed): one persistent interpreter for the whole run, requests one JSON line, replies
+one JSON line on a private copy of standard output; what an operation prints is captured per request and replayed in
+order on the verifier's streams; exceptions return their class, `str()` and `repr()` (a `SystemExit` its reason or
+status). There is no evaluation of caller-supplied code or callable names. Owner modules are loaded as the original
+`_load` did (`sys.path.insert(0, parent)` then `exec_module`, same module names), the first path entry is the deployed
+scripts directory as when a script is run, and nothing is cached: each owner call is a call (the evidence publisher
+imports the reader again at every call, so a reader that appends a marker on import receives five lines in the lite
+report program: one for the program's own binding and one for each of four publisher calls, as the original). The
+interpreter is `python3` on `PATH` or `OWNER_BRIDGE_PYTHON`; an unusable one is a named `FileNotFoundError` traceback
+before any check. The session sets `PYTHONDONTWRITEBYTECODE=1` (the original wrote `__pycache__` into the deployed tree).
+
+### Preserved contracts
+
+Default calls keep the originals' meaning: no new public flags. The judge and lite gate programs ignore all arguments;
+the lite report and sweep meta programs look only for `-v`. Context: `BENCH_VERIFY_REPO_ROOT`, else the installation
+around the running binary (`<repo>/.claude/skills/adversarial-benchmark/rust/target/release/`); an unknown context is
+named with exit 2 before any fixture; the lite programs name a missing `git` first (exit 1). Check lines, closing
+lines, failure summaries (`[..] FAIL n 건: [...]`, the meta program's `  - ...` list), the judge's `name detail` and the
+lite programs' `name — detail[-900:]` styles, partial output before an exception, `SystemExit` with a string reason
+(stderr + exit 1), cleanup of every `TemporaryDirectory` including after failures, child timeouts (judge 180/120, lite
+120, full render 60, shell function 60) are kept. Embedded-program stdout/stderr (23 `[sweep_bench] sweep_index.json →`
+lines, two warnings) reach the verifier's streams unchanged. The sandbox files are written as the originals wrote them
+(text copies of scripts through UTF-8 read/write, byte copies of release programs with permission bits).
+
+### Evidence (builder self-checks; actual canonical tree read-only, `BENCH_VERIFY_REPO_ROOT` explicit)
+
+* Default four, candidate debug binaries against the frozen original-first `normal-cases.json`: stdout/stderr identical
+  for all four after normalizing only the declared dynamic temporary roots (`probes/n2-*`).
+* Failure/effect nine against private copies of the frozen nodes: identical exit, stdout and stderr for all nine except
+  one tail-cut random temporary-name fragment inside a 900-character detail window (`probes/f2-*`,
+  `probes/normalize_check.py`); the import-effect case leaves exactly five `rbs-import` lines and exit 0.
+* Verbose two: the meta program identical; the lite report program identical except the one live `/proc` RAM table cell
+  (observation variance, form checked) (`probes/v1-*`).
+* Commands (working directory = the candidate crate, node-managed Rust 1.99.1 through the project bootstrap, `--offline
+  --locked`, external target directory, `BENCH_VERIFY_REPO_ROOT` and the owner-input variables explicit): `cargo fmt --
+  --check` PASS; `cargo clippy --lib --bins -- -D warnings` PASS; whole `cargo test` (debug) exit 0 with **489 passed, 1
+  ignored** (the one ignored case is the preexisting CA-control case, not counted as passed; 479 earlier logical cases + the
+  10 new registered cases) over 121 result lines; the new `checks/bench_verifier_cases.rs` 10 PASS, the impacted
+  `broad_search_selftest_cases` 17 PASS and `package_paths` 2 PASS (shared `verify_fixture` change). After the full run only
+  a doc-comment placement in `selftest_sweep_meta.rs` changed; fmt, clippy, the 10 cases and package paths were rerun PASS.
+  The final explicit default `cargo build --release --bins` (after the tests) exit 0; the four new binaries are 1.19–1.53 MB.
+  Logs: `logs/test-full1.log`, `logs/test-bv4.log`, `logs/fmt-check3.log`, `logs/clippy3.log`, `logs/build-release1.log`.
+* The **release** binaries repeat the frozen comparison: normal four identical (`probes/rel1-*`); failure/effect nine
+  identical except the same tail-cut random temporary-name fragment (`probes/rf1-*`).
+* The canonical Git tree stayed clean at `7e2aea9` and no bytecode cache was created in it by these runs.
+* The package-path guard holds: no `test`/`tests`/`temp`/`tmp` path component and none of the forbidden content literals in
+  the new files.
+
+### Minimum coupling Root needs (proposed, not done here)
+
+Launchers for the four programs with the wrapper variables `SELFTEST_JUDGE_BENCH_BIN`, `SELFTEST_LITE_REPORT_BIN`,
+`SELFTEST_LITE_GATE_BIN`, `SELFTEST_SWEEP_META_BIN`; the `judge_bench.sh --self-test` dispatch to the new judge launcher; the
+build check list 18 → 22 programs (the four new names); the existing distribution check replacement (its 131 stay), call
+edges and the copy closure: each program reads the deployed files the original read (the benchmark scripts and release
+programs the sandboxes copy, `sweep_bench.sh`, the hint reader, the evidence publisher, the completion gate with its schema
+and wiki naming dependencies, `campaign_init.py` and its validator, `campaigns/_template`). The owner bridge adds **no
+deployed file** (compiled in) and needs `python3` on `PATH` (or `OWNER_BRIDGE_PYTHON`). Without `BENCH_VERIFY_REPO_ROOT` the
+programs find the repository only from an installation under `rust/target/release`.
+
+### R16 v2 corrections (after the independent and Root source-first findings)
+
+Fixed, each with a registered regression in `checks/bench_verifier_cases.rs` and the frozen v1 failures kept in the Root
+and independent records:
+
+* **I1, qualified owner class.** The session sends `module.qualname` (bare for `builtins` and `__main__`) with every
+  exception; `Raised::with_qualified_class` carries it and the shared `traceback_line` prints it. `failure().class` stays the bare
+  `__name__` (the meta program's `type(exc).__name__` text). Generic, no hard-coded class. `SystemExit` keeps its status/string.
+* **Raw and partial output, buffering order, standard input (v3).** The session's channel is a socket pair left open
+  across the spawn under a descriptor number given as an argument; descriptors 0, 1 and 2 are the verifier's own, so raw
+  `os.write`, inheriting children and reads of the real standard input behave as in the original process. The session's
+  `sys.stdout`/`sys.stderr` send every `write` and `flush` as an event and wait for the verifier's acknowledgement, so an
+  owner cannot do its next raw write before the event is applied. Stdout events go to `Console::write`/`flush`, i.e. the
+  verifier's own Python-faithful buffer (block buffer; line flush on a terminal; write-through when `PYTHONUNBUFFERED` is
+  non-empty, new `StdoutProfile::unbuffered`), so owner text and earlier check lines share one buffer as in one process;
+  stderr events are written at once. Replies are read to completion (300000-character diagnostics checked). A session
+  that is gone (reset, closed, exited before the handshake) is a named `OwnerBridgeError`. Root's raw-output, order and
+  the three stdio edge references (stderr order, unbuffered order, inherited stdin) give the original's exact stdout and
+  exit status; only the Python source-frame lines of the traceback differ (native placeholder).
+* **Eager details.** `BracketChecks::check` evaluates the detail right after the condition for a passing check too;
+  an exception while building it propagates (`and_then_value` and the detail closures return `Result`).
+* **Python `\d` and `strip`.** The measurement-time shape uses the project's Unicode decimal-digit predicate;
+  `strip`/`lstrip` use Python's white space set (`py_strip`, `py_lstrip`). Unit-tested (Arabic-Indic digits, U+001C).
+* **Same-file copy.** `verify_fixture::copy2` refuses a destination that is the source's own inode
+  (`shutil.SameFileError`, as `shutil.copy2`), and the check fixtures copy through `copy_detached` (unlink the name,
+  copy as a new file, assert a new inode).
+
+Remaining differences (none found by a frozen comparison): stderr text without a line break and without a flush is held
+by a line-buffered stream until a later newline, flush or exit in the original, here until the end of the operation
+that wrote it; `Path.glob` tie order; the Python owners and embedded program stay current dependencies (not Python-zero);
+no timing is claimed.
+
+Final v3 checks (current source, unchanged since): `fmt --check`, `clippy --all-targets -- -D warnings`, and one run of the
+affected set `logs/n-t5.log` (lib 153, `bench_verifier_cases` 20 including stderr order, unbuffered order, inherited standard
+input of 12 bytes `owner-stdin\n`, flush order, early-exit session, the shared-inode copy regression and the bounded
+start-only `ETXTBSY` retry of the check runner; Broad 17, `package_paths` 2, stdout boundary 7, descriptors 10, conformance
+12/12/4/4, dataset 1/1/2, reporting 4/1, `python_semantics` 7, `cli_contract` 6; all PASS). The three Root stdio edge
+originals give identical stdout and exit status (`probes/s1-*`, stderr identical but for the Python source frames); the
+earlier 17 comparisons repeat as before (`probes/c4-*`). No `unsafe` and no `pre_exec` is used: the channel is a safe
+`UnixStream` pair whose session end has its close-on-exec flag cleared with `rustix::io::fcntl_setfd` and is named by
+number; the verifier closes its copy after the spawn and the session marks it non-inheritable for its own children. No
+network, TCP or permission workaround. The old v1 stdin control was actually rerun during the stdio-fix attempt and hung for more than 584 seconds; the Bash tool ended it at its 600-second timeout. The outer attempt later timed out. The Root sent no signal. This corrects the author handoff claim; the original logs and failure are retained.
+
+### Deviation record: canonical runtime programs truncated by a check fixture (truthful)
+
+The first v1 check copied the deployed release programs into a private tree by hard link, and its second call in the same
+scratch directory copied each file onto itself with `std::fs::copy`, which truncates the shared inode. This zeroed the 43
+canonical generated release programs (and their same-inode dependency aliases) during the v2 work. It was an indirect write
+outside the allowed output directories. The tracked source stayed clean at `7e2aea9`. The Root restored all 43 programs
+atomically from the frozen base copies (`r16-runtime-recovery/`); the builder wrote nothing to the canonical tree. The
+fixture no longer links or copies onto an existing name (`copy_detached`), and `copy2` refuses a same-inode destination.
+Evidence: `probes/canonical-release-truncation.json` (the damage inventory, taken before the Root restoration) and
+`probes/canonical-proof-{before2,after2,...,after5}.json`: the 43 canonical program inodes, sizes and SHA-256 and the
+frozen base's 43 are unchanged across every v2 command. Forty-five generated cache files in the canonical release directory
+(44 `*.d`, one `.rlib`) are still zero bytes (the three zero cargo lock files are normal); they are build metadata, not
+run by any check, and are for the Root to regenerate by its own scoped build. This is not a claim that every path is protected.
+
+### Limits and deliberate boundaries (still true)
+
+* Python tie order of `Path.glob` for two raw files with an identical modification time is not reproduced.
+* The bridge, the embedded-program source and the three Python owners are current dependencies, not removed ones;
+  stage S1 (embedded code) and S6/S7 (reader, publisher, gate) replace them. This is not a Python-zero result.
+* Performance is not claimed: the builder ran no timing; Root's four-program 48-record contract and the earlier Rust-time
+  limits (including R15 BROAD2 0.988480/0.999747) stay for final review.
+
+
+## R16 controller integration and measured whole programs
+
+Four native verification entries now run through `selftest_judge_bench.sh`, `selftest_lite_report.sh`,
+`selftest_lite_gate.sh` and `selftest_sweep_meta.sh`. The actual judge `--self-test` dispatch and three distribution
+calls use those launchers. The explicit build runs 22 startup checks. Rust owns the verification checks and fixtures;
+the deployed Python hint reader, publisher, gate and embedded sweep program remain explicit transitional dependencies.
+There is no fallback to the original Python verifier programs. These originals remain references.
+
+Root compared 20 original-first CLI cases and 17 copied-installation cases. Independent validation compared two
+separate original-first faults, then reused the valid actual results across reviewed source changes. It directly
+audited the five saved new stdio cases without repeating the originals. The initial namespace, raw-output and
+stdio failures, observation corrections, budget checkpoints, capacity recovery and fixture damage are retained.
+
+Canonical fmt, all-target Clippy, 192 selected release cases (153 library, 20 verifier, 17 Broad Search, two package),
+and the default product build with 22 startup checks passed. This is not a claim of a new full Cargo run. Fresh
+Git-index-only installation passed with 815 files (593 Rust-package files), the same 192 selected cases and 22
+startup checks, followed by explicit default-feature product restoration. No build target or authentication files
+were copied. The node-managed toolchain and declared cache were explicitly reused. Whole distribution passed
+131/131 in one invocation (250.554595 seconds). A second physical PC, subnode and x86 execution were not performed.
+
+The damaged generated package cache was repaired with a scoped `cargo clean --package sweep-stop --release` and
+managed offline locked `build --release --lib --bins`. All 47 product ELF files and 49 root metadata/library files
+are nonempty, and 22 actual startup checks passed. Global toolchain, registry and unrelated package caches were not
+cleaned. The prior 43-program atomic recovery and zero-cache inventory remain historical evidence.
+
+Timing used four actual whole programs, one warm pair and five alternating measured pairs: 48 new records,
+eight warm and 40 measured. Observer clone preparation was outside the timer; the programs' fixtures, Git, deployed
+owners and embedded program, IO, full output and cleanup were inside. Every whole stdout/stderr/exit matched the
+frozen reference under the declared fixture-root projection, and the observed 256-file closure stayed unchanged.
+
+| Whole CLI | Python median seconds | Rust median seconds | Python/Rust |
+| --- | ---: | ---: | ---: |
+| selftest_judge_bench | 1.374262545 | 1.398833672 | 0.982434561 |
+| selftest_lite_report | 0.756951480 | 0.699287623 | 1.082460857 |
+| selftest_lite_gate | 1.801981819 | 1.811687955 | 0.994642490 |
+| selftest_sweep_meta | 0.394957098 | 0.433377583 | 0.911346395 |
+
+The median of four-program round means was 1.076291066 versus 1.084062000 seconds (0.992831651).
+This aggregate is not the mean of speedup ratios. Report improved in this sample; judge, gate and meta showed
+no measured improvement. Small differences do not establish statistical significance. These boundaries remain
+in the final Rust-time review with the prior limits. No LLM, GPU, serving, six-profile evaluation or whole-project
+completion is inferred. No separate pure fragment was invented for these verification programs.
+
+Evidence: `r16-root-v3/`, `r16-owner-deltas-v3/`, `r16-installed-candidate/`, `r16-canonical-checks/`,
+`r16-packaging/`, `r16-distribution/`, `r16-benchmark-results/`, `r16-runtime-recovery/`, and the independent
+`stdio-delta-v3/` and `benchmark-review/`. Source-frame projections retain qualified classes, multiline messages
+and preceding diagnostics. Arbitrary Python stream objects, concurrent descriptor mutation, glob ties and universal
+liveness were not proved. Later stages must replace the remaining embedded and owner Python dependencies.

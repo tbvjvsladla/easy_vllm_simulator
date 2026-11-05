@@ -138,6 +138,9 @@ impl Context {
 pub struct Raised {
     failure: Failure,
     repr: String,
+    /// The name a traceback prints for the class when it is not the bare `__name__`: `module.qualname` of an
+    /// exception that came from another module (`None` = the bare class name; see [`Raised::qualified_class`]).
+    qualified: Option<String>,
 }
 
 impl Raised {
@@ -148,12 +151,20 @@ impl Raised {
     /// An exception built from one message argument: `Class('message')`.
     pub fn from_failure(failure: Failure) -> Raised {
         let repr = format!("{}({})", failure.class, failure.message.repr());
-        Raised { failure, repr }
+        Raised {
+            failure,
+            repr,
+            qualified: None,
+        }
     }
 
     /// An exception whose `repr()` is not `Class(message)` (several arguments, or none).
     pub fn with_repr(failure: Failure, repr: String) -> Raised {
-        Raised { failure, repr }
+        Raised {
+            failure,
+            repr,
+            qualified: None,
+        }
     }
 
     /// An `OSError` of the file `path`: its message is `[Errno N] text: 'path'` and its arguments are
@@ -169,7 +180,11 @@ impl Raised {
             Some(errno) => format!("{}({errno}, {})", failure.class, PyStr::new(text).repr()),
             None => format!("{}({})", failure.class, PyStr::new(text).repr()),
         };
-        Raised { failure, repr }
+        Raised {
+            failure,
+            repr,
+            qualified: None,
+        }
     }
 
     /// The failure of decoding `bytes` (a stream or a file): a UTF-8 error carries its five arguments (codec,
@@ -191,7 +206,11 @@ impl Raised {
                     bytes_repr(bytes),
                     start + length
                 );
-                Raised { failure, repr }
+                Raised {
+                    failure,
+                    repr,
+                    qualified: None,
+                }
             }
             _ => Raised::from_failure(failure),
         }
@@ -199,6 +218,18 @@ impl Raised {
 
     pub fn failure(&self) -> &Failure {
         &self.failure
+    }
+
+    /// Records the class name as a traceback prints it (`module.qualname`, bare for `builtins` and `__main__`),
+    /// for an exception raised by a Python owner. `failure().class` stays the bare `__name__`.
+    pub fn with_qualified_class(mut self, name: String) -> Raised {
+        self.qualified = Some(name);
+        self
+    }
+
+    /// The class name a traceback prints when it differs from the bare one.
+    pub fn qualified_class(&self) -> Option<&str> {
+        self.qualified.as_deref()
     }
 
     /// Whether this is `SystemExit`: the one class a lite metrics record may name that is **not** an `Exception`

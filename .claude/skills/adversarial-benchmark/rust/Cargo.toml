@@ -184,6 +184,22 @@ path = "src/bin/selftest_broad_search_cell_args.rs"
 name = "selftest_broad_search_precheck"
 path = "src/bin/selftest_broad_search_precheck.rs"
 
+[[bin]]
+name = "selftest_judge_bench"
+path = "src/bin/selftest_judge_bench.rs"
+
+[[bin]]
+name = "selftest_lite_report"
+path = "src/bin/selftest_lite_report.rs"
+
+[[bin]]
+name = "selftest_lite_gate"
+path = "src/bin/selftest_lite_gate.rs"
+
+[[bin]]
+name = "selftest_sweep_meta"
+path = "src/bin/selftest_sweep_meta.rs"
+
 [[test]]
 name = "oracle_cases"
 path = "checks/oracle_cases.rs"
@@ -503,3 +519,7 @@ path = "checks/conformance_import_cache.rs"
 [[test]]
 name = "broad_search_selftest_cases"
 path = "checks/broad_search_selftest_cases.rs"
+
+[[test]]
+name = "bench_verifier_cases"
+path = "checks/bench_verifier_cases.rs"

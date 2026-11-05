@@ -50,6 +50,29 @@ impl Console for StreamsConsole<'_, '_> {
             .map_err(|failure| print_failure(&failure))
     }
 
+    /// `sys.stdout.write(text)`: on a terminal the stream is line-buffered, so text with a line break goes out at once.
+    fn write(&mut self, text: &PyStr) -> Result<(), Failure> {
+        self.io
+            .write_plain(text)
+            .map_err(|failure| print_failure(&failure))?;
+        let breaks_line = text
+            .code_points()
+            .iter()
+            .any(|&point| point == u32::from('\n') || point == u32::from('\r'));
+        if breaks_line {
+            self.io
+                .flush_if_terminal()
+                .map_err(|failure| print_failure(&failure))?;
+        }
+        Ok(())
+    }
+
+    fn flush(&mut self) -> Result<(), Failure> {
+        self.io
+            .flush_stdout()
+            .map_err(|failure| print_failure(&failure))
+    }
+
     fn help(&mut self, text: &str) {
         self.io.print_help(text);
     }

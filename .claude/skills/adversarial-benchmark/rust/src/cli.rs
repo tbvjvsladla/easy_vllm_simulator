@@ -123,6 +123,11 @@ impl<'a> Streams<'a> {
         Ok(())
     }
 
+    /// `sys.stdout.flush()`: the text layer's and the buffered layer's pending bytes go out now.
+    pub(crate) fn flush_stdout(&mut self) -> Result<(), PrintFailure> {
+        self.model.flush(self.stdout).map_err(PrintFailure::Write)
+    }
+
     /// Interpreter exit: flush what is still buffered. A failure replaces the status with 120, as CPython does.
     pub(crate) fn finish(&mut self, status: i32) -> i32 {
         match self.model.flush(self.stdout) {

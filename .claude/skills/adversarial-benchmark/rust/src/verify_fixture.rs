@@ -204,7 +204,21 @@ pub fn chmod(path: &Path, mode: u32) -> Result<(), Raised> {
 
 /// `shutil.copy2(source, destination)`: the bytes, the permission bits and the times. A failure names the file it
 /// concerns: the source when it cannot be opened or read, the destination when it cannot be written.
+///
+/// A destination that is the same file as the source (the same device and inode, as with a hard link) is refused with
+/// `shutil.SameFileError` before anything is opened for writing: opening it would truncate the source itself.
 pub fn copy2(source: &Path, destination: &Path) -> Result<(), Raised> {
+    if is_same_file(source, destination) {
+        return Err(Raised::new(
+            "SameFileError",
+            &format!(
+                "PosixPath({}) and PosixPath({}) are the same file",
+                path_text(source).repr(),
+                path_text(destination).repr()
+            ),
+        )
+        .with_qualified_class("shutil.SameFileError".to_string()));
+    }
     let mut reader = std::fs::File::open(source).map_err(|error| os_failure(&error, source))?;
     let mut writer =
         std::fs::File::create(destination).map_err(|error| os_failure(&error, destination))?;
@@ -236,6 +250,15 @@ pub fn copy2(source: &Path, destination: &Path) -> Result<(), Raised> {
     writer
         .set_times(times)
         .map_err(|error| os_failure(&error, destination))
+}
+
+/// `os.path.samefile`: both exist and name the same device and inode (an error reading either is "not the same").
+fn is_same_file(first: &Path, second: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    match (std::fs::metadata(first), std::fs::metadata(second)) {
+        (Ok(a), Ok(b)) => a.dev() == b.dev() && a.ino() == b.ino(),
+        _ => false,
+    }
 }
 
 // ── temporary directory ──────────────────────────────────────────────────────────
@@ -416,12 +439,22 @@ fn decode_stream(bytes: &[u8]) -> Result<String, Raised> {
 
 /// `subprocess.run(command, cwd=..., env=..., capture_output=True, text=True, timeout=120)`.
 pub fn run_text(command: &[OsString], settings: &ChildSettings) -> Result<TextRun, Raised> {
+    run_text_within(command, settings, CHILD_TIMEOUT_SECONDS)
+}
+
+/// [`run_text`] with the wall-clock limit of the call (`timeout=<seconds>`); the verification programs that do not
+/// use the 120 seconds of the Broad Search ones (judge: 180, a full report render: 60) name theirs.
+pub fn run_text_within(
+    command: &[OsString],
+    settings: &ChildSettings,
+    seconds: u64,
+) -> Result<TextRun, Raised> {
     let (shown, words) = command_words(command);
-    let limit_text = CHILD_TIMEOUT_SECONDS.to_string();
+    let limit_text = seconds.to_string();
     let captured = run_captured_in(
         &words,
         &shown,
-        Duration::from_secs(CHILD_TIMEOUT_SECONDS),
+        Duration::from_secs(seconds),
         &limit_text,
         settings,
     )
@@ -1001,6 +1034,28 @@ impl BroadSearchDriver {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn copy2_never_writes_through_a_name_that_is_the_source_file() {
+        use std::os::unix::fs::MetadataExt;
+        let directory = TemporaryDirectory::create("copy2-same-file.").expect("directory");
+        let source = directory.path().join("program");
+        std::fs::write(&source, b"binary bytes").expect("source");
+        let alias = directory.path().join("alias");
+        std::fs::hard_link(&source, &alias).expect("alias");
+        let inode = std::fs::metadata(&source).expect("metadata").ino();
+        let refused = copy2(&source, &alias).expect_err("the same file is refused");
+        assert_eq!(refused.failure().class, "SameFileError");
+        assert_eq!(refused.qualified_class(), Some("shutil.SameFileError"));
+        let other = directory.path().join("other");
+        copy2(&source, &other).expect("a different destination is written");
+        // Nothing was opened for writing through the shared inode.
+        for name in [&source, &alias] {
+            assert_eq!(std::fs::read(name).expect("read"), b"binary bytes");
+            assert_eq!(std::fs::metadata(name).expect("metadata").ino(), inode);
+        }
+        assert_eq!(std::fs::read(&other).expect("read"), b"binary bytes");
+    }
 
     #[test]
     fn head_and_tail_count_characters_not_bytes() {

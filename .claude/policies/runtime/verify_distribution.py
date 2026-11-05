@@ -993,8 +993,8 @@ def verify() -> dict:
         #   사람에게 **"양자화 없음"**으로 읽히므로, PASS 였다면 거짓 계약이 인증서로 배포됐다.
         #   이 검사는 sweep_bench.sh 의 조립 heredoc 을 **그대로 뽑아 실행**하므로(파서 복제 없음)
         #   배포되는 코드 자체를 친다. 순수 정적 픽스처 — 서빙·docker·모델 불요.
-        _run("benchmark_sweep_meta_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_meta.py"], {0}),
+        _run("benchmark_sweep_meta_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_meta.sh"], {0}),
         # Broad Search 정지 조건 평가기의 **집행** (plan_26090415 §4.7 · CP1 · 2026-09-04).
         #   같은 이유다 — 호출자 없는 자체검사는 L2 가 아니라 L1(산문)이다. 이 평가기는 예산을
         #   선언 없이 판정하지 않는 fail-closed 이고(§4.8), 그 거부 경로가 살아 있는지는 음성
@@ -1086,8 +1086,8 @@ def verify() -> dict:
         #   명명 키는 sweep_bench 조립 heredoc 실행과 교차검증 · full 리포트 측정 구성 표(full/강등/기록 부재).
         #   발행 끝단(격리 원격 publish→저작→continue→원격 SHA→카탈로그)은 runtime_selftest `_test_hint_map_only_publication`
         #   이 지킨다(2026-09-22 신 CLI 전 경로 · 그 경량 리포트도 배포되는 render_report 가 쓴다).
-        _run("benchmark_lite_report_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/selftest_lite_report.py"], {0}),
+        _run("benchmark_lite_report_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/selftest_lite_report.sh"], {0}),
         # lite ⊂ full — lite 판정이 full 의 **진입 게이트**다(plan_26092923 · 2026-09-29). 촉발은 D1(측정 0건인데 rc 0).
         #   계약 검사: 게이트 종료가 GuideLLM 레벨 호출보다 앞 · 판정 어휘/종료코드 · D1 연결거부 픽스처 → ① (정적+판정기).
         #   격리 시험: D1 연결거부 → exit 6 · 서버 실패 응답 → exit 7 · α(플래그 없음)는 리포트·인증서 0 · β 통과 → lite 등급
@@ -1095,8 +1095,8 @@ def verify() -> dict:
         #   sweep 게이트의 실행 층(lite 불통과 → GuideLLM 레벨 0)은 위 selftest_sweep_repeats G★ 가 친다.
         _run("benchmark_lite_gate_conformance", ["bash",
              ".claude/skills/adversarial-benchmark/scripts/conformance_full_superset_lite.sh"], {0}),
-        _run("benchmark_lite_gate_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/selftest_lite_gate.py"], {0}),
+        _run("benchmark_lite_gate_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/selftest_lite_gate.sh"], {0}),
         # Broad Search 이중 게이트의 **집행**: --confirm-risk 없이는 셀이 돌지 않는다(exit 5).
         # single 컨테이너 관리 진입점의 **인자 평면** fail-closed (plan_26090419 P1 · 2026-09-04).
         #   기동 경로는 예산선언·워치독 무장을 품고 있어 잘못 불리면 무보호 로드가 된다. 여기서는

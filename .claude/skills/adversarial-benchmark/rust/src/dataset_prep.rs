@@ -34,6 +34,10 @@ const TARGET_TOLERANCE: i64 = 8;
 pub trait Console {
     /// `print(line)`: the text is encoded for the stream first, so a lone surrogate is a `UnicodeEncodeError`.
     fn print(&mut self, line: &PyStr) -> Result<(), Failure>;
+    /// `sys.stdout.write(text)`: the text as it is, no newline added (a partial line stays partial).
+    fn write(&mut self, text: &PyStr) -> Result<(), Failure>;
+    /// `sys.stdout.flush()`.
+    fn flush(&mut self) -> Result<(), Failure>;
     /// `parser.print_help()`: one write of the whole text.
     fn help(&mut self, text: &str);
     /// `sys.stderr.write(text)`.
@@ -48,6 +52,18 @@ pub struct Recorder {
 }
 
 impl Console for Recorder {
+    fn flush(&mut self) -> Result<(), Failure> {
+        Ok(())
+    }
+
+    fn write(&mut self, text: &PyStr) -> Result<(), Failure> {
+        if let Err(failure) = text.to_surrogateescape_bytes() {
+            return Err(Failure::new("UnicodeEncodeError", &failure.message()));
+        }
+        self.stdout.push_py(text);
+        Ok(())
+    }
+
     fn print(&mut self, line: &PyStr) -> Result<(), Failure> {
         if let Err(failure) = line.to_surrogateescape_bytes() {
             return Err(Failure::new("UnicodeEncodeError", &failure.message()));

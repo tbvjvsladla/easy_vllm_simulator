@@ -40,6 +40,9 @@ pub struct StdoutProfile {
     pub buffer_capacity: usize,
     /// Descriptor 1 is not open: `sys.stdout` is `None` and `print` does nothing.
     pub absent: bool,
+    /// `python -u` / a non-empty `PYTHONUNBUFFERED`: the text layer writes through and the binary layer is
+    /// unbuffered, so every `write` reaches descriptor 1 at once.
+    pub unbuffered: bool,
 }
 
 impl Default for StdoutProfile {
@@ -47,6 +50,7 @@ impl Default for StdoutProfile {
         StdoutProfile {
             buffer_capacity: DEFAULT_BUFFER,
             absent: false,
+            unbuffered: false,
         }
     }
 }
@@ -54,12 +58,15 @@ impl Default for StdoutProfile {
 impl StdoutProfile {
     /// The profile of this process's descriptor 1.
     pub fn of_process() -> Self {
+        let unbuffered =
+            std::env::var_os("PYTHONUNBUFFERED").is_some_and(|value| !value.is_empty());
         match rustix::fs::fstat(io::stdout()) {
             Ok(stat) => {
                 let block = usize::try_from(stat.st_blksize).unwrap_or(0);
                 StdoutProfile {
                     buffer_capacity: if block > 1 { block } else { DEFAULT_BUFFER },
                     absent: false,
+                    unbuffered,
                 }
             }
             // Rust's runtime normally reopens a closed descriptor 1 as /dev/null before `main`; this covers hosts that do not.
@@ -67,7 +74,10 @@ impl StdoutProfile {
                 absent: true,
                 ..StdoutProfile::default()
             },
-            Err(_) => StdoutProfile::default(),
+            Err(_) => StdoutProfile {
+                unbuffered,
+                ..StdoutProfile::default()
+            },
         }
     }
 }
@@ -136,6 +146,9 @@ impl StdoutModel {
     pub fn write(&mut self, out: &mut dyn Write, bytes: &[u8]) -> Result<(), OutputFailure> {
         if self.profile.absent {
             return Ok(());
+        }
+        if self.profile.unbuffered {
+            return write_through(out, bytes);
         }
         if self.pending.len() + bytes.len() > TEXT_CHUNK {
             self.hand_over(out)?;
@@ -236,8 +249,27 @@ mod tests {
     fn profile(capacity: usize) -> StdoutProfile {
         StdoutProfile {
             buffer_capacity: capacity,
-            absent: false,
+            ..StdoutProfile::default()
         }
+    }
+
+    #[test]
+    fn an_unbuffered_stream_writes_every_write_through_at_once() {
+        let mut out = Sink {
+            errno: None,
+            written: Vec::new(),
+        };
+        let mut model = StdoutModel::new(StdoutProfile {
+            unbuffered: true,
+            ..profile(8192)
+        });
+        model.write(&mut out, b"owner-text:").expect("written");
+        assert_eq!(
+            out.written, b"owner-text:",
+            "reached the descriptor before any exit flush"
+        );
+        model.write(&mut out, b"x\n").expect("written");
+        assert_eq!(out.written, b"owner-text:x\n");
     }
 
     #[test]

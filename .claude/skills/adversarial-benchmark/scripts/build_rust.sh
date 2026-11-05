@@ -70,3 +70,11 @@ CONFORMANCE_BIN="$CRATE/target/release/conformance_full_superset_lite" \
 SELFTEST_BROAD_CELL_BIN="$CRATE/target/release/selftest_broad_search_cell_args" BENCH_VERIFY_REPO_ROOT="$REPO" bash "$SDIR/selftest_broad_search_cell_args.sh"
 
 SELFTEST_BROAD_PRECHECK_BIN="$CRATE/target/release/selftest_broad_search_precheck" BENCH_VERIFY_REPO_ROOT="$REPO" bash "$SDIR/selftest_broad_search_precheck.sh"
+
+SELFTEST_JUDGE_BENCH_BIN="$CRATE/target/release/selftest_judge_bench" BENCH_VERIFY_REPO_ROOT="$REPO" bash "$SDIR/selftest_judge_bench.sh"
+
+SELFTEST_LITE_REPORT_BIN="$CRATE/target/release/selftest_lite_report" BENCH_VERIFY_REPO_ROOT="$REPO" bash "$SDIR/selftest_lite_report.sh"
+
+SELFTEST_LITE_GATE_BIN="$CRATE/target/release/selftest_lite_gate" BENCH_VERIFY_REPO_ROOT="$REPO" bash "$SDIR/selftest_lite_gate.sh"
+
+SELFTEST_SWEEP_META_BIN="$CRATE/target/release/selftest_sweep_meta" BENCH_VERIFY_REPO_ROOT="$REPO" bash "$SDIR/selftest_sweep_meta.sh"

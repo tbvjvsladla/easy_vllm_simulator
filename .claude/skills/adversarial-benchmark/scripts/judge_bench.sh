@@ -52,7 +52,7 @@ set -euo pipefail
 if [ "${1:-}" = "--self-test" ]; then
   # 자체검사 본문은 별도 파일이다(파이썬 단언이 셸 heredoc 보다 읽기 쉽다). 검사 대상은 이 파일의
   # **바이트 사본**이므로 여기 적힌 코드가 그대로 시험된다.
-  exec python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/selftest_judge_bench.py"
+  exec bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/selftest_judge_bench.sh"
 fi
 
 CONFIG="${1:?config_name 필요}"; shift || true
