@@ -56,3 +56,5 @@ BENCH_DOC_NAMING_BIN="$CRATE/target/release/bench_doc_naming" \
   bash "$SDIR/bench_doc_naming.sh"
 DATASET_PREP_BIN="$CRATE/target/release/dataset_prep" \
   bash "$SDIR/dataset_prep.sh" --self-test
+RESOLVE_BENCH_TOOL_BIN="$CRATE/target/release/resolve_bench_tool" \
+  bash "$SDIR/resolve_bench_tool.sh" --self-test

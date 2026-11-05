@@ -281,9 +281,9 @@ bench_with_guidellm(){
   # `[ ... ] && x=(...)` 로 쓰면 조건이 거짓일 때 AND-리스트가 1 을 돌려주고 `set -e` 가 스크립트를
   # 죽인다 — 버전 미선언(정상 경로)에서 벤치가 통째로 사라지는 형태다. if 로 쓴다.
   if [ -n "${TOOL_VERSION:-}" ]; then VERARG=(--tool-version "$TOOL_VERSION"); fi
-  PINJSON="$(python3 "$SDIR/resolve_bench_tool.py" --tool guidellm "${VERARG[@]}" --json 2>/dev/null)"; PRC=$?
+  PINJSON="$(bash "$SDIR/resolve_bench_tool.sh" --tool guidellm "${VERARG[@]}" --json 2>/dev/null)"; PRC=$?
   if [ "$PRC" != "0" ]; then
-    python3 "$SDIR/resolve_bench_tool.py" --tool guidellm "${VERARG[@]}" >/dev/null  # 사유는 stderr 로
+    bash "$SDIR/resolve_bench_tool.sh" --tool guidellm "${VERARG[@]}" >/dev/null  # 사유는 stderr 로
     echo "[run_bench] 측정 도구 해소 실패(rc=$PRC) — 실행하지 않는다" >&2
     return "$PRC"
   fi

@@ -1,0 +1,695 @@
+[
+ {
+  "id": "000-load-version-0",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "version": null,
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "image_ref": "fixture/image:0.7.3",
+    "index_digest": "sha256:original",
+    "version_source": "declared original",
+    "extra": {
+     "kept": true
+    },
+    "version": "0.7.3"
+   }
+  }
+ },
+ {
+  "id": "001-load-version-1",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "version": "0.7.3",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "image_ref": "fixture/image:0.7.3",
+    "index_digest": "sha256:original",
+    "version_source": "declared original",
+    "extra": {
+     "kept": true
+    },
+    "version": "0.7.3"
+   }
+  }
+ },
+ {
+  "id": "002-load-version-2",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "version": "missing",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "PinError",
+   "message": "기록에 guidellm 버전 'missing' 이 없다(있는 것: ['0.7.3']) — 버전을 스테이징하라"
+  }
+ },
+ {
+  "id": "003-load-version-3",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "version": "",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "image_ref": "fixture/image:0.7.3",
+    "index_digest": "sha256:original",
+    "version_source": "declared original",
+    "extra": {
+     "kept": true
+    },
+    "version": "0.7.3"
+   }
+  }
+ },
+ {
+  "id": "004-load-version-4",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "version": false,
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "image_ref": "fixture/image:0.7.3",
+    "index_digest": "sha256:original",
+    "version_source": "declared original",
+    "extra": {
+     "kept": true
+    },
+    "version": "0.7.3"
+   }
+  }
+ },
+ {
+  "id": "005-load-version-5",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "version": [],
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "image_ref": "fixture/image:0.7.3",
+    "index_digest": "sha256:original",
+    "version_source": "declared original",
+    "extra": {
+     "kept": true
+    },
+    "version": "0.7.3"
+   }
+  }
+ },
+ {
+  "id": "006-load-version-6",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "version": {
+    "bad": 1
+   },
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "TypeError",
+   "message": "unhashable type: 'dict'"
+  }
+ },
+ {
+  "id": "007-load-tool-7",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "missing",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "PinError",
+   "message": "기록에 도구 'missing' 이 없다(있는 것: ['guidellm'])"
+  }
+ },
+ {
+  "id": "008-load-tool-8",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": null,
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "PinError",
+   "message": "기록에 도구 None 이 없다(있는 것: ['guidellm'])"
+  }
+ },
+ {
+  "id": "009-load-tool-9",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": 1,
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "PinError",
+   "message": "기록에 도구 1 이 없다(있는 것: ['guidellm'])"
+  }
+ },
+ {
+  "id": "010-load-tool-10",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": [
+    "guidellm"
+   ],
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "TypeError",
+   "message": "unhashable type: 'list'"
+  }
+ },
+ {
+  "id": "011-load-doc-null",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "bnVsbA=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "bnVsbA=="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "AttributeError",
+   "message": "'NoneType' object has no attribute 'get'"
+  }
+ },
+ {
+  "id": "012-load-doc-list",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "W10="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "W10="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "AttributeError",
+   "message": "'list' object has no attribute 'get'"
+  }
+ },
+ {
+  "id": "013-load-doc-empty",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "e30="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "e30="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "PinError",
+   "message": "기록에 도구 'guidellm' 이 없다(있는 것: 없음)"
+  }
+ },
+ {
+  "id": "014-load-doc-tools-list",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IFtdfQ=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IFtdfQ=="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "PinError",
+   "message": "기록에 도구 'guidellm' 이 없다(있는 것: 없음)"
+  }
+ },
+ {
+  "id": "015-load-doc-entry-null",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiBudWxsfX0="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiBudWxsfX0="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "AttributeError",
+   "message": "'NoneType' object has no attribute 'get'"
+  }
+ },
+ {
+  "id": "016-load-doc-entry-list",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiBbXX19"
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiBbXX19"
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "AttributeError",
+   "message": "'list' object has no attribute 'get'"
+  }
+ },
+ {
+  "id": "017-load-doc-no-versions",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiB7fX19"
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiB7fX19"
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "PinError",
+   "message": "기록 guidellm.versions 가 비었다 — 스테이징한 버전이 없다(resolve_guidellm.py --record 로 먼저 해소·스테이징하라)"
+  }
+ },
+ {
+  "id": "018-load-doc-empty-versions",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiB7InZlcnNpb25zIjoge30sICJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMifX19"
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiB7InZlcnNpb25zIjoge30sICJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMifX19"
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "PinError",
+   "message": "기록 guidellm.versions 가 비었다 — 스테이징한 버전이 없다(resolve_guidellm.py --record 로 먼저 해소·스테이징하라)"
+  }
+ },
+ {
+  "id": "019-load-row-blank-image",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiICIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiICIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "PinError",
+   "message": "기록 guidellm.0.7.3.image_ref 가 비었다"
+  }
+ },
+ {
+  "id": "020-load-row-bad-index",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAxMjMsICJ2ZXJzaW9uX3NvdXJjZSI6ICJkZWNsYXJlZCBvcmlnaW5hbCIsICJleHRyYSI6IHsia2VwdCI6IHRydWV9fX19fX0="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAxMjMsICJ2ZXJzaW9uX3NvdXJjZSI6ICJkZWNsYXJlZCBvcmlnaW5hbCIsICJleHRyYSI6IHsia2VwdCI6IHRydWV9fX19fX0="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "PinError",
+   "message": "기록 guidellm.0.7.3.index_digest 가 sha256: 로 시작하지 않는다(123)"
+  }
+ },
+ {
+  "id": "021-load-row-unrecorded-index",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiBudWxsLCAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgb3JpZ2luYWwiLCAiZXh0cmEiOiB7ImtlcHQiOiB0cnVlfX19fX19"
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiBudWxsLCAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgb3JpZ2luYWwiLCAiZXh0cmEiOiB7ImtlcHQiOiB0cnVlfX19fX19"
+   }
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "image_ref": "fixture/image:0.7.3",
+    "index_digest": null,
+    "version_source": "declared original",
+    "extra": {
+     "kept": true
+    },
+    "version": "0.7.3"
+   }
+  }
+ },
+ {
+  "id": "022-load-bad-json",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "e2JhZA=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "e2JhZA=="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "PinError",
+   "message": "기록 파일을 읽을 수 없다(@ROOT@/record.json): Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
+  }
+ },
+ {
+  "id": "023-load-invalid-utf8",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "/w=="
+   }
+  },
+  "after": {
+   "record.json": {
+    "kind": "file",
+    "bytes_base64": "/w=="
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "PinError",
+   "message": "기록 파일을 읽을 수 없다(@ROOT@/record.json): 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte"
+  }
+ },
+ {
+  "id": "024-load-absent",
+  "owner": "resolve_bench_tool",
+  "operation": "load_pin",
+  "arguments": {
+   "tool": "guidellm",
+   "path": "@ROOT@/record.json"
+  },
+  "before": {},
+  "after": {},
+  "expected": {
+   "kind": "exception",
+   "type": "PinError",
+   "message": "기록 파일을 읽을 수 없다(@ROOT@/record.json): [Errno 2] No such file or directory: '@ROOT@/record.json'"
+  }
+ }
+]

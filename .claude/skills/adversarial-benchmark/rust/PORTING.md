@@ -1037,3 +1037,185 @@ Native첫SDK120턴예산은121관측턴error_max_turns였다. 같은세션문서
 파일에없던3×8000/large60의실제tool출력은외부native전사에서회수했다. 원본의완료를관측하지못한
 주소공간초과count는Rust usize변환에서MemoryError이며성공원본동등성/모든큰입력의종료보장을뜻하지않는다.
 전체 S1~S7·하네스·6프로필·실제single4/multi2LongE2E는계속미완료다.
+
+## R11 측정 도구 핀 해소(`resolve_bench_tool`) 이행 — 후보 기록 (정본 적용 전)
+
+상태: **COMPLETE — R11 범위(원본 `resolve_bench_tool.py` 254줄 + `bench_tool_pin.json` 한 건)의 후보와 자체검사만.**
+정본 적용·정책/등록부 연결·공식 성능·독립 검증은 이 기록의 범위 밖이며 아래 "미연결과 잔여"에 있다.
+
+### 산출물
+
+| 경로 | 내용 |
+|---|---|
+| `src/bench_tool_pin.rs` | 라이브러리: `load_pin`, `accepted_digests`, `classify`, `inspect`(`_inspect`), `default_pin_path`, 상수 |
+| `src/bench_tool_cli.rs`, `src/bench_tool_selftest.rs` | argparse `main`(원본 사용법·오류·종료 코드), P1~P9 자체검사 |
+| `src/bench_tool_api.rs` | Rust 전용 전송 `evaluate-jsonl` / `constants` / `native-help` |
+| `src/help_layouts_resolve_bench_tool.rs`, `src/argv.rs`(`BENCH_TOOL`) | 터미널 폭 1..700의 사용법·도움말 배치(원본 파서 출력 캡처), 파서 표 |
+| `src/bin/resolve_bench_tool.rs` · `_api.rs` · `_bench.rs` | 원본 CLI · 전송 · 일반 전체호출 시간측정기 |
+| `checks/bench_tool_*.rs`, `checks/data/resolve_bench_tool/` | 자체검사 7개 대상(아래)과 고정 기준 데이터 |
+| 기존 R10 파일의 가시성만 변경 | `dataset_commands::{exec_argument, spawn_failure}`, `dataset_prep_cli::{StreamsConsole, exit_status}` 를 `pub(crate)` 로(동작 불변, R1~R10 검사 전부 재통과) |
+
+의존성 추가 없음(`Cargo.lock` 불변).
+
+### 원본 → Rust 대응
+
+| 원본 | Rust | 비고 |
+|---|---|---|
+| `PinError(ValueError)`, `load_pin(path, tool, version=None)` | `bench_tool_pin::load_pin` → `PyDict` | 실패는 `Failure{class:"PinError"}`; 행은 키·순서 보존 + `version` 마지막(이미 있으면 제자리) |
+| `accepted_digests(entry)` | `accepted_digests` → `AcceptedDigests`(문자열 집합 + "문자열 아닌 참 index_digest" 표시) | 내부 집합. **외부 와이어 연산이 아니다**(집합은 JSON 형태가 없다). 외부 수용은 `classify` + `load_pin` |
+| `classify(entry, repo_digests)` | `classify` → `Classification{resolution, observed_digest, matches_record}` | 전송에서는 `[rc, observed, matches]` 배열. 후보 선택은 원본의 `sorted` 최소 일치 |
+| `_inspect(image_ref)` | `inspect` → `Option<Vec<PyValue>>` | `docker image inspect IMAGE --format {{json .RepoDigests}}` 한 가지, timeout 120, 두 스트림 포획(strict UTF-8 + 보편 개행). **pull 하지 않는다** |
+| `_self_test()` P1~P9 | `bench_tool_selftest::self_test` | 출력 바이트가 원본과 같다(고정 골든) |
+| `main(argv)` | `bench_tool_cli::main_with` / `run` | 종료 0 해소 · 2 인자/기록 오류 · 3 이미지 부재 · 1 미처리 예외(트레이스백 마커 + 마지막 줄) |
+| `RC_OK/RC_ARGS/RC_ABSENT`, `DEFAULT_TOOL`, `PIN_RELATIVE` | `bench_tool_pin` 상수, `default_pin_path()` | 아래 "기본 핀" |
+
+타입과 소유권: 판정(어느 행·어느 digest·어떤 상태)은 `Resolution`/`Classification`/`AcceptedDigests` 로 닫고, 핀 파일이나 호출자에게서 온
+값은 원본이 어떤 JSON 모양이든 받아 파이썬 예외로 실패하므로 `PyValue` 를 유지했다(`.get` 의 AttributeError, 해시 불가 TypeError,
+`dict(row)` 의 ValueError/TypeError 등). 파이썬 판정 로직을 런타임 브리지로 옮기거나 원본 파이썬을 호출하지 않는다.
+
+### 보존한 특이 동작
+
+- 빈/거짓 `version` 은 `default_version` 으로 대체, 비어 있지 않은 잘못된 형은 원본 오류(`TypeError: unhashable type`, `PinError ... 버전 'x' 이 없다`).
+- `dict(row)`: 객체가 아닌 행(쌍 목록·문자열·스칼라·None)도 `dict(...)` 의 의미와 메시지로 처리, 문자열 아닌 키 허용.
+- digest 불일치는 **막지 않는다**(stderr NOTE만, 종료 0). 이미지 부재만 종료 3, 자동 pull 없음. `RepoDigests` 가 리스트가 아니면 부재.
+- 플랫폼으로 좁히지 않는다(`--platform` 은 출력 주석).
+- 비정상 종료 코드의 `docker` 도 두 스트림을 먼저 해독한다 — 해독 불가 바이트는 종료 코드와 무관하게 `UnicodeDecodeError` 트레이스백(검사 포함).
+- 반복 옵션은 마지막 값, 약어 허용, 원본 도움말·오류 문구와 터미널 폭 의존 배치(700폭 전수 대조).
+
+### 기본 핀(owner context)
+
+원본 `PIN_RELATIVE` 는 스크립트 옆 `../bench_tool_pin.json` 이다. Rust 는 환경변수 `BENCH_TOOL_PIN_PATH`(빈 값 = 미설정)를 먼저 읽고,
+없으면 빌드한 크레이트의 부모 폴더의 `bench_tool_pin.json`(노드에서 크레이트를 제자리 빌드한 맥락)을 쓴다. 얇은 런처가
+`${BENCH_TOOL_PIN_PATH:-$SDIR/../bench_tool_pin.json}` 으로 내보낸다. 사용자 `--pin PATH` 는 그대로 이긴다. 소스에 개발자 경로는 없다.
+
+### 실행 근거 (모두 후보 폴더 기준, 외부 `CARGO_TARGET_DIR`, 오프라인·`--locked`, 관리 도구체인)
+
+| 항목 | 명령 | 결과 |
+|---|---|---|
+| fmt | `cargo fmt -- --check` | PASS (exit 0) |
+| clippy | `cargo clippy --release --all-targets -- -D warnings` | PASS (exit 0) |
+| build | `cargo build --release` | PASS |
+| 전체 테스트 | `cargo test --release --no-fail-fast` (환경: 기존 R1~R10 검사용 변수 + `BENCH_TOOL_PIN_PATH`=원본 831 기록) | PASS — 통과 291, 실패 0, 무시 0 (기존 R1~R10 검사 포함 · 필터된 대상 0은 세지 않음) |
+| 고정 순수 기준 | `bench_tool_pure_cases` | PASS — `classify` 96건(값 53 · 예외 43, 인자 불변 포함) |
+| 고정 파일 기준 | `bench_tool_io_cases` | PASS — `load_pin` 25건(실제 파일, 전후 트리 전체 비교) |
+| 고정 CLI 기준 | `bench_tool_cli_cases` | PASS — 45건(상태·stdout·stderr·전후 트리/엔진 호출 기록) + 자체검사 골든 + docker 부재 + 부재 이미지 inspect 1회·pull 0 + 해독 불가 스트림 3종 = 5개 테스트 |
+| 전송 | `bench_tool_api_transport` | PASS — 순수 96·파일 25가 바이너리 `evaluate-jsonl` 로 동일, 답 모양 6종, 네이티브 명령 |
+| 행 모양 | `bench_tool_row_shapes` | PASS — `dict(row)` 12 모양, 디지스트 집합 |
+| 폭 | `bench_tool_width_cases` | PASS — 배치 변화 지점 + 80·700 (65폭) / 개발 시 700폭 전수 대조 0 차이 |
+| 측정기 | `bench_tool_bench_harness` | PASS — 3 (기대값 불일치·실패·진단·`expected_json` 오류는 시간 JSON 없이 종료 1) |
+| 런처(임시 노드 트리) | 얇은 런처로 self-test·기본 핀·`--pin` 우선·바이너리 부재 | PASS — 부재 시 종료 2, 자동 빌드 없음, 엔진 호출은 inspect 만 |
+
+고정 기준 데이터: 원본에서만 수집된 참조(순수 96 · 파일 25 · CLI 45)를 `checks/data/resolve_bench_tool/` 로 옮겼다. 값·메시지·종료 코드는
+그대로이고, 트레이스백은 확립된 투영(마커 앞 텍스트 + 마지막 줄)만 쓰며 개발자 argv 메타데이터는 뺐다. 엔진은 `PATH` 앞의 `.fixture-bin/docker`
+스크립트(실행 권한은 검사가 복원, 환경변수로만 응답, 호출 전체 기록)이며 실제 docker·이미지 질의·네트워크는 쓰지 않았다.
+
+작업자 자체 프로파일링(공식 성능 아님 · 공식 측정은 루트 소관): 순수 53×200 11라운드 라운드당 약 1.76 ms(호출당 약 0.17 µs),
+실제 `load_pin` 6건 11라운드 라운드당 약 21 µs. 파이썬과 비교하거나 속도 우위를 주장하지 않는다.
+
+### 알려진 한계 / 확인하지 못한 것
+
+- **NOT_RUN** `inspect` 의 120초 `TimeoutExpired` 경로(종료 코드·메시지는 구현했으나 120초 지연 픽스처로 실행하지 않았다).
+- `text=True` 는 로케일 인코딩을 쓴다. 고정 기준은 UTF-8 환경이며 Rust 는 항상 strict UTF-8 이다(다른 로케일은 비대응).
+- `load_pin` 의 경로 인자가 정수/불리언(파일 기술자)이면 `NotImplementedError` 로 거절한다(원본은 기술자를 연다 — 모사하지 않음). 그 밖의 비문자열은 `TypeError`.
+- 문자열 아닌 키의 동치는 `1`/`1.0`/`True` 와 NaN(매번 별개)까지만 구현했다. JSON 문서에서는 키가 항상 문자열이라 파일 경로로는 닿지 않고 쌍 목록 행에서만 닿는다.
+- 터미널 폭 배치는 원본 파서를 개발 시 프로세스 안에서 가져와 폭 1..700 의 출력을 캡처한 데이터다(이행 동작의 기준 실행이 아니라 도움말 배치 데이터 생성). 데이터 생성 외에 원본을 다시 실행하지 않았다.
+- `default_pin_path()` 의 크레이트-부모 대체 경로는 빌드 시 `CARGO_MANIFEST_DIR` 에 의존한다(소스 상수 아님). 런처를 쓰면 환경변수가 우선이다.
+
+### 미연결과 잔여 (루트 소관, 이 후보는 연결하지 않았다)
+
+- 정본 적용·`resolve_bench_tool.py` 처분, 얇은 런처 2종 설치, `build_rust.sh` 의 이진 목록, 공식 성능·신규/독립 검증.
+- 소비자: `run_bench.sh` 의 CLI 두 호출(`--json` 해소, 실패 사유 재호출), `verify_distribution.py` 의 `--self-test` 호출, 정책 C10(구 파이썬 텍스트 스캔 → 실제 Rust CLI의 pull 없음·부재 3·성공 0·드리프트 provenance 동작 검사),
+  `base_skill_edges.json`/`claim_bindings.json`/`registry.yaml`/`claim_predicates.py`/`antipattern_scan.py` 의 `resolve_bench_tool.py` 식별자·경로.
+
+## R11 교정 — `inspect` 캡처의 단일 총 기한 (후보 · 정본 적용 전)
+
+**실패한 증인.** 직접 자식이 유효한 응답을 쓰고 포크한 자손에게 상속 파이프를 쥐여 둔 채 먼저 종료 0 으로 끝나는 엔진 픽스처에서,
+원본은 `subprocess.TimeoutExpired`(120초)로 종료 1·빈 stdout 이고, 최초 후보 릴리스는 124.01초 만에 종료 0·JSON 성공을 돌려줬다(FAIL, 보존).
+원인: `run_captured` 가 자식 종료를 보면 유일한 기한 루프를 빠져나와 두 판독 스레드를 **기한 없이** `join` 했다 — 파이프가 열려 있는 한
+120초 제한이 적용되지 않았다.
+
+**구현 변경(`src/bench_tool_pin.rs`, 캡처 전송부만).** 판독 스레드를 없애고 한 스레드가 두 파이프를 비차단으로 `poll` 한다.
+하나의 총 기한이 (1) 두 스트림의 EOF 도달 (2) 자식 종료 확인 둘 다를 덮는다. 자식이 먼저 끝나도 파이프가 열려 있으면 기한까지 기다린 뒤
+`TimeoutExpired`(`Command '[...]' timed out after 120 seconds`)로 끝낸다. 기한이 지나면 **직접 자식만** kill+wait 로 거둔다(자손·프로세스 그룹은 건드리지 않는다).
+오류 경로도 같은 정리(kill+wait)를 하고 파이프는 함수 반환 시 닫히므로 호출보다 오래 사는 스레드가 없다. 보존: 정확한 인자
+`docker image inspect IMAGE --format {{json .RepoDigests}}`, stdin 상속, 출력 무절단 수집, 두 스트림 strict UTF-8 해독 뒤 종료 코드 판정, 보편 개행,
+종료/시그널(음수) 상태, 예외 클래스·메시지. 기한은 비공개 경계 `run_captured_within(command, shown, limit)` 로 주입 가능(운영은 `INSPECT_TIMEOUT` = 120초).
+`Cargo.toml`: 기존 의존성 `rustix` 에 `event`, `time` 기능만 추가(새 크레이트 없음, `Cargo.lock` 불변, `--locked` 통과).
+
+**등록된 회귀(`bench_tool_pin::capture_tests`, 같은 운영 구현을 실제 `/bin/sh` 자식으로 호출, 자식·자손 수명 유한).**
+(1) 조기 종료 직접 자식 + 파이프 쥔 자손 → 0.3초 한도에서 `TimeoutExpired`, 경과 0.3~2.5초, 자식 회수(`/proc` 부재) (2) 응답 없는 살아 있는 자식 → kill·회수
+(3) 스트림을 닫고 계속 도는 자식 → 기한 (4) 양성 대조: 파이프 버퍼보다 큰 stdout 30만 바이트와 stderr 보존·종료 3, 시그널 −9, 파이프를 쥐지 않는 자손은 기다리지 않음
+(5) 운영 한도 120초와 메시지의 초 표기. 타이머를 따로 복제한 시험이 아니다.
+
+**실제 명령과 결과**(오프라인·`--locked`·외부 target·관리 도구체인):
+`cargo fmt -- --check` PASS · `cargo build --release` PASS · `cargo clippy --release --all-targets -- -D warnings` PASS ·
+`cargo test --release --lib --test bench_tool_{pure_cases,io_cases,cli_cases,api_transport,row_shapes,width_cases,bench_harness}` PASS
+(lib 100 통과 — 신규 5 포함, 고정 기준 96/25/45 및 전송·폭·측정기 전부 재통과, 실패 0).
+같은 증인에 교정된 릴리스: **종료 1 · 빈 stdout · 120.04초 · 마지막 줄이 원본 raw 와 바이트 동일**
+(`subprocess.TimeoutExpired: Command '['docker', 'image', 'inspect', 'fixture/image:0.7.3', '--format', '{{json .RepoDigests}}']' timed out after 120 seconds`), 홀더는 헬퍼가 정리, 실제 Docker·네트워크 0.
+원본은 다시 실행하지 않았고 고정 기대값은 수정하지 않았다. 전체 스위트는 루트가 정본 적용 후 돌린다(이번 교정에서 돌리지 않음).
+
+**한계.** 이 교정은 `inspect` 캡처만 바꿨다 — 독립 해독 증인은 캡처 경로가 바뀌어 루트가 필요한 델타만 재요청한다. 120초 기본값 자체를 단위 시험에서 소모하지는
+않았다(주입 한도로 같은 구현을 검증, 실제 120초는 위 증인 한 번). `poll`/`read` 의 비차단 EAGAIN 처리는 리눅스에서만 검증했다. 성능 측정은 하지 않았다.
+
+## R11 교정 2 — 스트림 드레인의 구조적 기한·공정성 (후보 · 정본 적용 전)
+
+**출처 구분.** 이것은 관측된 실행 불일치가 아니라 **소스 리뷰 지적**이다. 앞선 120초 파이프 보유 증인(종료 1·빈 stdout·`TimeoutExpired`·120.04초, 원본 raw 와 일치)은
+실제 실행 FAIL 이 교정되어 PASS 한 기록이며, 이번 변경은 그 조건을 바꾸지 않으므로 **재실행하지 않고 그 증인을 그대로 재사용**한다. 원본도 다시 실행하지 않았다.
+
+**지적.** `Pipe::read_available` 이 EAGAIN/EOF 까지 기한 확인 없이, 호출당 바이트 제한 없이 반복 → 계속 보충되는 stdout 이 `capture_until` 의 유일한 기한 확인으로의
+복귀를 막고 stderr 도 굶길 수 있다(원본 `communicate` 는 기한 확인 사이에 제한된 읽기를 한다).
+
+**변경(`src/bench_tool_pin.rs`).** `read_available` → `read_once`: 호출당 **읽기 한 번**(`READ_BLOCK` = 65536 바이트 이하). EOF 는 파이프를 닫고, EAGAIN·EINTR 은 바깥 루프의
+기한 확인으로 돌아간다. 바깥 루프는 매 반복 기한 확인 → `poll` → stdout 한 번 → stderr 한 번 읽는다(공정). 읽은 바이트는 버리지 않고 반복으로 누적하므로 완전 수집은 유지된다(잘림·캐시·대체 경로 없음).
+
+**등록된 회귀(`bench_tool_pin::capture_tests`, 신규 2 + 기존 5 유지).**
+(1) `a_continuously_replenished_stream_does_not_defeat_the_deadline` — 직접 자식이 최대 64 MB 를 계속 쓰는 실제 생산자, 같은 운영 구현 `run_captured_within` 을 0.1초 한도로 호출 → `TimeoutExpired`·1.5초 미만·자식 회수(메모리는 생산 한도 64 MB 이하, 생산자는 자식 자신이라 기한에 죽음 · 고아 없음)
+(2) `one_read_is_bounded_and_keeps_every_byte` — 호출 한 번이 `READ_BLOCK` 을 넘지 않고 1,000,000 바이트가 반복으로 빠짐없이 모인다(기존 구조에서는 이 경계가 존재하지 않음).
+기존 양성 대조(30만 바이트 완전 stdout/stderr·종료 3·시그널 −9·파이프 없는 자손)와 세 가지 기한 시나리오는 그대로이며 통과한다.
+
+**명령과 결과**(오프라인·`--locked`·외부 target): `cargo fmt -- --check` PASS · `cargo build --release` PASS · `cargo clippy --release --all-targets -- -D warnings` PASS ·
+`cargo test --release --lib --test bench_tool_{pure_cases,io_cases,cli_cases,api_transport,row_shapes,width_cases,bench_harness}` PASS (lib 102 통과 — 캡처 7 포함; 고정 96/25/45·전송·폭·측정기 재통과, 실패 0).
+전체 스위트·121/45 재생·호출자 4·독립 해독 델타는 루트 소관이며 돌리지 않았다.
+
+**한계.** 흐름 시나리오(1)의 생산자는 이 기계에서 판독기보다 느려, 구(舊) 무제한 드레인에서도 통과했을 수 있다 — 구조적 경계를 확정하는 것은 (2)이고 (1)은 기한·정리 동작의 실행 확인이다(구 구현에 대한 돌연변이 시험은 하지 않았다).
+`READ_BLOCK` 은 한 번에 읽는 상한이지 출력 상한이 아니다(출력은 기한 안에 생산된 만큼 메모리에 쌓인다). 리눅스에서만 검증했다. 성능 측정은 하지 않았다.
+
+
+## R11 정본 품질·성능 인수
+
+로컬 도구 해소기의 실제 호출은 Bash/Rust로 연결했다. 정본40경로의 기존mode 변화0,
+명시 build13자체검사·fmt·Cargo release298(85결과suite)+별도FD22·Clippy가 통과했다.
+Root 고정121API/45CLI·실제 run_bench 해소 구간4·독립 최종decode2와 source/policy 검토가 통과했다.
+전체 배포검사130/130도 한 번의 전체 실행에서 통과했다. Git-index561(Rust510+전달의존51)만
+공백 포함 새 경로로 복사한 offline build13·관련7등록대상/라이브러리/패키지 경로 검사도 통과했다.
+첫 정본/fresh Cargo는 검사 소유자 입력 BENCH_TOOL_PIN_PATH가 없어 NOT_RUN assertion으로 실패했다.
+원시를 보존하고 실제 배포 pin 경로를 명시해 같은 필요한 검사를 완료했으며 제품 코드는 바꾸지 않았다.
+
+실제 inherited-pipe 경계에서 원본은120초 TimeoutExpired/exit1/빈stdout, 최초 후보는124.01467초 성공이었다.
+자식 종료 뒤 deadline 없는 reader join을 단일 스레드 nonblocking poll/소유FD 정리로 교정했다.
+첫 수정의 실제120.04067초 실패는 원본의 예외와 일치했다. 추가 소스검토의 연속 drain 문제는
+각stream당 최대65536bytes 한 번 읽고 deadline을 재확인하는 방식으로 교정했다.
+이 최종 차이는 같은 조용한 inherited-pipe 조건에 영향을 주지 않아120초 관측을 조건부 재사용했고,
+독립 source검토와 최종decode2 실제 대조로 확인했다. 최종bin의 새120초 측정이라고 하지 않는다.
+등록7개 capture 회귀는 실제 프로세스/정리/전체출력/지속출력과 bounded-read 조건을 검사한다.
+지속출력 검사 하나만으로 이전 drain 결함을 반드시 구별한다는 주장이나 mutation 증명은 하지 않는다.
+
+C10의 예산/teardown/endpoint/serve 불변식은 유지하고, 설치 Rust CLI의 일치/부재3/드리프트0과
+image-inspect-only 동작검증으로 이전 Python source-text 증거를 대체했다. registry/binding/간선과
+Rust 제거 tripwire를 연결했고 전체 정책·배포 검사가 통과했다. 원본3 수용/변이4 거부와 별도 source검토는
+각각의 근거이며 모든 가능한 회귀의 형식적 보장으로 확대하지 않는다.
+
+사전11교차round: pure53×200은 Python571.483491ns/Rust335.587264ns=1.702936배,
+실제load_pin6은7253.333333ns/4386.666667ns=1.653495배다.
+실제 Bash CLI6의 round평균 중앙값은34.595252ms/16.618566ms=2.081723배다.
+명시 engine 대역4는39.172149ms/22.390039ms=1.749535배, engine 없는2는24.784297ms/4.727691ms=5.242368배다.
+개별 matching1.609571/drift1.530936/absence1.605611/version오류6.991523/selftest4.199842/platform1.489978배다.
+모든 전체반환·출력·종료·파일을 대조했고 warm 검증과 timed 반환/해제를 포함했다. 대역 프로세스 비용도
+포함했으며 실제Docker/image조회 속도·LLM/서빙·프로필·통계 일반화의 성과가 아니다.
+
+Native는 같은 세션의75+10+5=90턴, reported1368.628초/wrapper1380.944초, 권한거부0이다.
+관측 모델은claude-sonnet-5-5/high요청·실제effort미보고다. 정수/불린 pin경로(fd) API는 명시 미지원이며
+생산 CLI 경로는 문자열이다. 텍스트 환경은 UTF-8에서 확인했고 모든 locale의 동등성을 주장하지 않는다.
+기존 Python 원문과 후속 inline glue는 남아 있다. 연결 원장은16/128모듈이며 줄커버리지/Python0이 아니다.
+전체 S1~S7·하네스·6프로필·실제single4/multi2 LongE2E는 계속 미완료다.

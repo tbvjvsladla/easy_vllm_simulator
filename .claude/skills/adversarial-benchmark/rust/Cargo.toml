@@ -128,6 +128,18 @@ path = "src/bin/dataset_prep_api.rs"
 name = "dataset_prep_bench"
 path = "src/bin/dataset_prep_bench.rs"
 
+[[bin]]
+name = "resolve_bench_tool"
+path = "src/bin/resolve_bench_tool.rs"
+
+[[bin]]
+name = "resolve_bench_tool_api"
+path = "src/bin/resolve_bench_tool_api.rs"
+
+[[bin]]
+name = "resolve_bench_tool_bench"
+path = "src/bin/resolve_bench_tool_bench.rs"
+
 [[test]]
 name = "oracle_cases"
 path = "checks/oracle_cases.rs"
@@ -225,7 +237,7 @@ ring = "=0.17.14"
 # Safe wrappers of TIOCGWINSZ on stdout only (what shutil.get_terminal_size asks via os.get_terminal_size), of
 # fstat on stdout (the buffer size and presence of the interpreter's sys.stdout) and of getuid/getgid (the user a
 # preprocessing container runs as).
-rustix = { version = "1", default-features = false, features = ["std", "termios", "fs", "process"] }
+rustix = { version = "1", default-features = false, features = ["std", "termios", "fs", "process", "event", "time"] }
 
 # The checks open a pseudo-terminal pair of their own to observe the width query.
 [dev-dependencies]
@@ -327,3 +339,31 @@ path = "checks/lite_metrics_files.rs"
 name = "lite_metrics_descriptors"
 path = "checks/lite_metrics_descriptors.rs"
 harness = false
+
+[[test]]
+name = "bench_tool_pure_cases"
+path = "checks/bench_tool_pure_cases.rs"
+
+[[test]]
+name = "bench_tool_io_cases"
+path = "checks/bench_tool_io_cases.rs"
+
+[[test]]
+name = "bench_tool_cli_cases"
+path = "checks/bench_tool_cli_cases.rs"
+
+[[test]]
+name = "bench_tool_api_transport"
+path = "checks/bench_tool_api_transport.rs"
+
+[[test]]
+name = "bench_tool_bench_harness"
+path = "checks/bench_tool_bench_harness.rs"
+
+[[test]]
+name = "bench_tool_row_shapes"
+path = "checks/bench_tool_row_shapes.rs"
+
+[[test]]
+name = "bench_tool_width_cases"
+path = "checks/bench_tool_width_cases.rs"

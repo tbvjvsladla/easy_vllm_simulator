@@ -1,0 +1,2074 @@
+[
+ {
+  "id": "000-help",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--help"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "usage: resolve_bench_tool.py [-h] [--tool TOOL] [--tool-version TOOL_VERSION]\n                             [--pin PIN] [--platform PLATFORM] [--json]\n                             [--self-test]\n\n측정 도구 컨테이너 핀 해소(digest 단일 권위)\n\noptions:\n  -h, --help            show this help message and exit\n  --tool TOOL\n  --tool-version TOOL_VERSION\n                        쓸 버전(미지정 시 기록의 default_version = 마지막 스테이징분). 최신 해소는\n                        스테이징 평면의 resolve_guidellm.py 가 한다.\n  --pin PIN\n  --platform PLATFORM   예 linux/arm64 — 출력 주석용. 판정을 좁히지 않는다(위 accepted_digests\n                        주석)\n  --json\n  --self-test\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": ""
+ },
+ {
+  "id": "001-unknown",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--unknown-original"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "usage: resolve_bench_tool.py [-h] [--tool TOOL] [--tool-version TOOL_VERSION]\n                             [--pin PIN] [--platform PLATFORM] [--json]\n                             [--self-test]\nresolve_bench_tool.py: error: unrecognized arguments: --unknown-original\n"
+ },
+ {
+  "id": "002-selftest",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--self-test"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "  [PASS] P1 이미지 부재 → RC_ABSENT(자동 pull ✗)\n  [PASS] P2 인덱스 digest 일치 → OK·기록일치\n  [PASS] P3 플랫폼(arm64) digest 일치 → OK\n  [PASS] P4 다른 플랫폼(amd64) digest 도 기록 안이면 일치(아키텍처는 docker 가 강제한다)\n  [PASS] P5 ★기록 밖 digest 도 **막지 않는다** — 관측을 그대로 싣고 불일치를 표시한다(버전 갱신이 하네스 수정을 부르지 않는다)\n  [PASS] P6 RepoDigests 가 비면 관측 digest 는 없음(로컬 빌드 등) — 그 사실만 남는다\n  [PASS] P6b 기록에 digest 가 아예 없으면 대조 자체가 성립하지 않는다(None)\n  [PASS] P7 불량 핀 거부(도구)\n  [PASS] P7 불량 핀 거부(비었다)\n  [PASS] P7 불량 핀 거부(sha256:)\n  [PASS] P8 배포 기록이 스키마를 만족한다(default_version 항목)\n  [PASS] P9 스테이징하지 않은 버전 요청은 fail-loud\n[resolve_bench_tool --self-test] OK — P1~P9 전부 통과\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": ""
+ },
+ {
+  "id": "003-default-pin",
+  "owner": "resolve_bench_tool",
+  "argv": [],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImdoY3IuaW8vdmxsbS1wcm9qZWN0L2d1aWRlbGxtOnYwLjcuMyIsICItLWZvcm1hdCIsICJ7e2pzb24gLlJlcG9EaWdlc3RzfX0iXQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] NOTE ghcr.io/vllm-project/guidellm:v0.7.3 의 로컬 digest(sha256:a)가 기록(sha256:e3ad2371bfa8e42f2c3d1251b62d0d9c9706c27ae2143c8c048eb5fc6aebb558)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.py --record 를 쓴다.\n"
+ },
+ {
+  "id": "004-pin-missing-arg",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "usage: resolve_bench_tool.py [-h] [--tool TOOL] [--tool-version TOOL_VERSION]\n                             [--pin PIN] [--platform PLATFORM] [--json]\n                             [--self-test]\nresolve_bench_tool.py: error: argument --pin: expected one argument\n"
+ },
+ {
+  "id": "005-matching-index",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": \"sha256:a\",\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": true,\n  \"platform_note\": null,\n  \"status\": \"resolved\"\n}\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"x@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": ""
+ },
+ {
+  "id": "006-matching-platform",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": \"sha256:b\",\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": true,\n  \"platform_note\": null,\n  \"status\": \"resolved\"\n}\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"x@sha256:b\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": ""
+ },
+ {
+  "id": "007-sorted-match",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": \"sha256:b\",\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": true,\n  \"platform_note\": null,\n  \"status\": \"resolved\"\n}\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"x@sha256:c\",\"x@sha256:b\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": ""
+ },
+ {
+  "id": "008-drift",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": \"sha256:z\",\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": false,\n  \"platform_note\": null,\n  \"status\": \"resolved\"\n}\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"x@sha256:z\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(sha256:z)가 기록(sha256:a)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.py --record 를 쓴다.\n"
+ },
+ {
+  "id": "009-tag-only",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": null,\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": false,\n  \"platform_note\": null,\n  \"status\": \"resolved\"\n}\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"tag-only\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(None)가 기록(sha256:a)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.py --record 를 쓴다.\n"
+ },
+ {
+  "id": "010-empty-list",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": null,\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": false,\n  \"platform_note\": null,\n  \"status\": \"resolved\"\n}\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(None)가 기록(sha256:a)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.py --record 를 쓴다.\n"
+ },
+ {
+  "id": "011-null",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": null,\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": null,\n  \"platform_note\": null,\n  \"status\": \"absent\"\n}\n",
+  "exit_code": 3,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "null",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ABSENT fixture/image:0.7.3 가 이 노드에 없다. 자동 pull 하지 않는다(airgap-safe 불변식). 사전 스테이징:\n  docker pull fixture/image:0.7.3\n"
+ },
+ {
+  "id": "012-object",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": null,\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": null,\n  \"platform_note\": null,\n  \"status\": \"absent\"\n}\n",
+  "exit_code": 3,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "{}",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ABSENT fixture/image:0.7.3 가 이 노드에 없다. 자동 pull 하지 않는다(airgap-safe 불변식). 사전 스테이징:\n  docker pull fixture/image:0.7.3\n"
+ },
+ {
+  "id": "013-empty-stdout",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": null,\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": null,\n  \"platform_note\": null,\n  \"status\": \"absent\"\n}\n",
+  "exit_code": 3,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ABSENT fixture/image:0.7.3 가 이 노드에 없다. 자동 pull 하지 않는다(airgap-safe 불변식). 사전 스테이징:\n  docker pull fixture/image:0.7.3\n"
+ },
+ {
+  "id": "014-bad-json",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": null,\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": null,\n  \"platform_note\": null,\n  \"status\": \"absent\"\n}\n",
+  "exit_code": 3,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "{bad",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ABSENT fixture/image:0.7.3 가 이 노드에 없다. 자동 pull 하지 않는다(airgap-safe 불변식). 사전 스테이징:\n  docker pull fixture/image:0.7.3\n"
+ },
+ {
+  "id": "015-inspect-absent",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": null,\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": null,\n  \"platform_note\": null,\n  \"status\": \"absent\"\n}\n",
+  "exit_code": 3,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "17"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ABSENT fixture/image:0.7.3 가 이 노드에 없다. 자동 pull 하지 않는다(airgap-safe 불변식). 사전 스테이징:\n  docker pull fixture/image:0.7.3\n"
+ },
+ {
+  "id": "016-wrong-item",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "",
+  "exit_code": 1,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[null]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr_pretrace": "",
+  "stderr_last_line": "TypeError: argument of type 'NoneType' is not iterable"
+ },
+ {
+  "id": "017-numeric-item",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "",
+  "exit_code": 1,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[3]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr_pretrace": "",
+  "stderr_last_line": "TypeError: argument of type 'int' is not iterable"
+ },
+ {
+  "id": "018-diagnostic-ignored",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": \"sha256:a\",\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": true,\n  \"platform_note\": null,\n  \"status\": \"resolved\"\n}\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "fixture docker stderr\n",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": ""
+ },
+ {
+  "id": "019-plain-matching",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": ""
+ },
+ {
+  "id": "020-plain-drift",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"x@sha256:z\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(sha256:z)가 기록(sha256:a)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.py --record 를 쓴다.\n"
+ },
+ {
+  "id": "021-plain-absent",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "",
+  "exit_code": 3,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "1"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ABSENT fixture/image:0.7.3 가 이 노드에 없다. 자동 pull 하지 않는다(airgap-safe 불변식). 사전 스테이징:\n  docker pull fixture/image:0.7.3\n"
+ },
+ {
+  "id": "022-platform-note",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json",
+   "--platform",
+   "linux/arm64"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": \"sha256:c\",\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": true,\n  \"platform_note\": \"linux/arm64\",\n  \"status\": \"resolved\"\n}\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"x@sha256:c\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": ""
+ },
+ {
+  "id": "023-second-version",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json",
+   "--tool-version",
+   "0.8.0"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC44LjAiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.8.0\",\n  \"version_source\": \"original-second\",\n  \"image_ref\": \"fixture/image:0.8.0\",\n  \"recorded_digest\": \"sha256:d\",\n  \"observed_digest\": \"sha256:d\",\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": true,\n  \"platform_note\": null,\n  \"status\": \"resolved\"\n}\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"x@sha256:d\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": ""
+ },
+ {
+  "id": "024-missing-version",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json",
+   "--tool-version",
+   "missing"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ERROR 기록에 guidellm 버전 'missing' 이 없다(있는 것: ['0.7.3', '0.8.0']) — 버전을 스테이징하라\n"
+ },
+ {
+  "id": "025-empty-version",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json",
+   "--tool-version",
+   ""
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": \"sha256:a\",\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": true,\n  \"platform_note\": null,\n  \"status\": \"resolved\"\n}\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": ""
+ },
+ {
+  "id": "026-missing-tool",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json",
+   "--tool",
+   "missing"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ERROR 기록에 도구 'missing' 이 없다(있는 것: ['guidellm'])\n"
+ },
+ {
+  "id": "027-doc-null",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "bnVsbA=="
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "bnVsbA=="
+   }
+  },
+  "stdout": "",
+  "exit_code": 1,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr_pretrace": "",
+  "stderr_last_line": "AttributeError: 'NoneType' object has no attribute 'get'"
+ },
+ {
+  "id": "028-doc-list",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "W10="
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "W10="
+   }
+  },
+  "stdout": "",
+  "exit_code": 1,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr_pretrace": "",
+  "stderr_last_line": "AttributeError: 'list' object has no attribute 'get'"
+ },
+ {
+  "id": "029-doc-empty",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "e30="
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "e30="
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ERROR 기록에 도구 'guidellm' 이 없다(있는 것: 없음)\n"
+ },
+ {
+  "id": "030-doc-tools-list",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IFtdfQ=="
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IFtdfQ=="
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ERROR 기록에 도구 'guidellm' 이 없다(있는 것: 없음)\n"
+ },
+ {
+  "id": "031-doc-entry-null",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiBudWxsfX0="
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiBudWxsfX0="
+   }
+  },
+  "stdout": "",
+  "exit_code": 1,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr_pretrace": "",
+  "stderr_last_line": "AttributeError: 'NoneType' object has no attribute 'get'"
+ },
+ {
+  "id": "032-doc-no-versions",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiB7fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiB7fX19"
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ERROR 기록 guidellm.versions 가 비었다 — 스테이징한 버전이 없다(resolve_guidellm.py --record 로 먼저 해소·스테이징하라)\n"
+ },
+ {
+  "id": "033-doc-empty-versions",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiB7InZlcnNpb25zIjoge319fX0="
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiB7InZlcnNpb25zIjoge319fX0="
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ERROR 기록 guidellm.versions 가 비었다 — 스테이징한 버전이 없다(resolve_guidellm.py --record 로 먼저 해소·스테이징하라)\n"
+ },
+ {
+  "id": "034-row-empty-image",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogIiAiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogIiAiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ERROR 기록 guidellm.0.7.3.image_ref 가 비었다\n"
+ },
+ {
+  "id": "035-row-null-image",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogbnVsbCwgImluZGV4X2RpZ2VzdCI6ICJzaGEyNTY6YSIsICJ2ZXJzaW9uX3NvdXJjZSI6ICJvcmlnaW5hbC1maXh0dXJlIiwgInBsYXRmb3JtX2RpZ2VzdHMiOiB7ImFybSI6ICJzaGEyNTY6YiIsICJ4ODYiOiAic2hhMjU2OmMifX0sICIwLjguMCI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC44LjAiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpkIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLXNlY29uZCJ9fX19fQ=="
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogbnVsbCwgImluZGV4X2RpZ2VzdCI6ICJzaGEyNTY6YSIsICJ2ZXJzaW9uX3NvdXJjZSI6ICJvcmlnaW5hbC1maXh0dXJlIiwgInBsYXRmb3JtX2RpZ2VzdHMiOiB7ImFybSI6ICJzaGEyNTY6YiIsICJ4ODYiOiAic2hhMjU2OmMifX0sICIwLjguMCI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC44LjAiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpkIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLXNlY29uZCJ9fX19fQ=="
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ERROR 기록 guidellm.0.7.3.image_ref 가 비었다\n"
+ },
+ {
+  "id": "036-row-bad-index",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogMTIzLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtZml4dHVyZSIsICJwbGF0Zm9ybV9kaWdlc3RzIjogeyJhcm0iOiAic2hhMjU2OmIiLCAieDg2IjogInNoYTI1NjpjIn19LCAiMC44LjAiOiB7ImltYWdlX3JlZiI6ICJmaXh0dXJlL2ltYWdlOjAuOC4wIiwgImluZGV4X2RpZ2VzdCI6ICJzaGEyNTY6ZCIsICJ2ZXJzaW9uX3NvdXJjZSI6ICJvcmlnaW5hbC1zZWNvbmQifX19fX0="
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogMTIzLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtZml4dHVyZSIsICJwbGF0Zm9ybV9kaWdlc3RzIjogeyJhcm0iOiAic2hhMjU2OmIiLCAieDg2IjogInNoYTI1NjpjIn19LCAiMC44LjAiOiB7ImltYWdlX3JlZiI6ICJmaXh0dXJlL2ltYWdlOjAuOC4wIiwgImluZGV4X2RpZ2VzdCI6ICJzaGEyNTY6ZCIsICJ2ZXJzaW9uX3NvdXJjZSI6ICJvcmlnaW5hbC1zZWNvbmQifX19fX0="
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ERROR 기록 guidellm.0.7.3.index_digest 가 sha256: 로 시작하지 않는다(123)\n"
+ },
+ {
+  "id": "037-row-no-index",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogbnVsbCwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogbnVsbCwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": null,\n  \"observed_digest\": \"sha256:a\",\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": false,\n  \"platform_note\": null,\n  \"status\": \"resolved\"\n}\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] NOTE fixture/image:0.7.3 의 로컬 digest(sha256:a)가 기록(None)과 다르다. 막지 않는다 — 실제로 돈 digest 를 결과·리포트에 적는다(측정 provenance). 기록을 갱신하려면 resolve_guidellm.py --record 를 쓴다.\n"
+ },
+ {
+  "id": "038-row-empty-platforms",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHt9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHt9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"original-fixture\",\n  \"image_ref\": \"fixture/image:0.7.3\",\n  \"recorded_digest\": \"sha256:a\",\n  \"observed_digest\": \"sha256:a\",\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": true,\n  \"platform_note\": null,\n  \"status\": \"resolved\"\n}\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": ""
+ },
+ {
+  "id": "039-bad-pin-json",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "e2JhZA=="
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "e2JhZA=="
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ERROR 기록 파일을 읽을 수 없다(@ROOT@/pin.json): Expecting property name enclosed in double quotes: line 1 column 2 (char 1)\n"
+ },
+ {
+  "id": "040-invalid-pin-utf8",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "/w=="
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "/w=="
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ERROR 기록 파일을 읽을 수 없다(@ROOT@/pin.json): 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte\n"
+ },
+ {
+  "id": "041-missing-pin-file",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ERROR 기록 파일을 읽을 수 없다(@ROOT@/pin.json): [Errno 2] No such file or directory: '@ROOT@/pin.json'\n"
+ },
+ {
+  "id": "042-pin-directory",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "directory"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "directory"
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ERROR 기록 파일을 읽을 수 없다(@ROOT@/pin.json): [Errno 21] Is a directory: '@ROOT@/pin.json'\n"
+ },
+ {
+  "id": "043-empty-tool-name",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json",
+   "--tool",
+   ""
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "",
+  "exit_code": 2,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"fixture/image@sha256:a\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": "[resolve_bench_tool] ERROR 기록에 도구 '' 이 없다(있는 것: ['guidellm'])\n"
+ },
+ {
+  "id": "044-repeated-options-last-wins",
+  "owner": "resolve_bench_tool",
+  "argv": [
+   "--pin",
+   "@ROOT@/pin.json",
+   "--json",
+   "--tool-version",
+   "missing",
+   "--tool-version",
+   "0.8.0"
+  ],
+  "before": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "after": {
+   ".fixture-bin": {
+    "kind": "directory"
+   },
+   ".fixture-bin/docker": {
+    "kind": "file",
+    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+   },
+   "docker_calls.jsonl": {
+    "kind": "file",
+    "bytes_base64": "WyJpbWFnZSIsICJpbnNwZWN0IiwgImZpeHR1cmUvaW1hZ2U6MC44LjAiLCAiLS1mb3JtYXQiLCAie3tqc29uIC5SZXBvRGlnZXN0c319Il0K"
+   },
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJrZXB0IiwgInRvb2xzIjogeyJndWlkZWxsbSI6IHsiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwgInZlcnNpb25zIjogeyIwLjcuMyI6IHsiaW1hZ2VfcmVmIjogImZpeHR1cmUvaW1hZ2U6MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjphIiwgInZlcnNpb25fc291cmNlIjogIm9yaWdpbmFsLWZpeHR1cmUiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsiYXJtIjogInNoYTI1NjpiIiwgIng4NiI6ICJzaGEyNTY6YyJ9fSwgIjAuOC4wIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2OmQiLCAidmVyc2lvbl9zb3VyY2UiOiAib3JpZ2luYWwtc2Vjb25kIn19fX19"
+   }
+  },
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"version\": \"0.8.0\",\n  \"version_source\": \"original-second\",\n  \"image_ref\": \"fixture/image:0.8.0\",\n  \"recorded_digest\": \"sha256:d\",\n  \"observed_digest\": \"sha256:d\",\n  \"digest_source\": \"measured(docker image inspect .RepoDigests)\",\n  \"matches_record\": true,\n  \"platform_note\": null,\n  \"status\": \"resolved\"\n}\n",
+  "exit_code": 0,
+  "environment": {
+   "BENCH_TOOL_FIXTURE_STDOUT": "[\"x@sha256:d\"]",
+   "BENCH_TOOL_FIXTURE_STDERR": "",
+   "BENCH_TOOL_FIXTURE_RC": "0"
+  },
+  "fixture_path": ".fixture-bin",
+  "stderr": ""
+ }
+]

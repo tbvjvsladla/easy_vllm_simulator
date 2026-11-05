@@ -1,0 +1,13 @@
+  [PASS] P1 이미지 부재 → RC_ABSENT(자동 pull ✗)
+  [PASS] P2 인덱스 digest 일치 → OK·기록일치
+  [PASS] P3 플랫폼(arm64) digest 일치 → OK
+  [PASS] P4 다른 플랫폼(amd64) digest 도 기록 안이면 일치(아키텍처는 docker 가 강제한다)
+  [PASS] P5 ★기록 밖 digest 도 **막지 않는다** — 관측을 그대로 싣고 불일치를 표시한다(버전 갱신이 하네스 수정을 부르지 않는다)
+  [PASS] P6 RepoDigests 가 비면 관측 digest 는 없음(로컬 빌드 등) — 그 사실만 남는다
+  [PASS] P6b 기록에 digest 가 아예 없으면 대조 자체가 성립하지 않는다(None)
+  [PASS] P7 불량 핀 거부(도구)
+  [PASS] P7 불량 핀 거부(비었다)
+  [PASS] P7 불량 핀 거부(sha256:)
+  [PASS] P8 배포 기록이 스키마를 만족한다(default_version 항목)
+  [PASS] P9 스테이징하지 않은 버전 요청은 fail-loud
+[resolve_bench_tool --self-test] OK — P1~P9 전부 통과

@@ -839,6 +839,72 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C8():
 
 
 
+def _assert_bench_tool_resolution(resolver_argv):
+    """Execute the image resolver: absence refuses; digest drift remains provenance.
+
+    The explicit PATH fixture records every Docker argument. It never contacts a daemon,
+    registry, or network. Replacing image-inspect with an implicit pull fails this check.
+    """
+    with tempfile.TemporaryDirectory(prefix="bench-tool-policy-") as raw:
+        work = Path(raw)
+        fake_bin = work / "bin"
+        fake_bin.mkdir()
+        docker = fake_bin / "docker"
+        docker.write_text(
+            '#!/bin/sh\n'
+            'printf "%s\\n" "$@" >> "$BENCH_TOOL_PROBE_LOG"\n'
+            'printf "%s\\n" "$BENCH_TOOL_PROBE_REPLY"\n'
+            'exit "$BENCH_TOOL_PROBE_RC"\n', encoding="utf-8")
+        docker.chmod(0o755)
+        pin = work / "pin.json"
+        pin.write_text(json.dumps({"tools": {"fixture": {
+            "default_version": "1", "versions": {"1": {
+                "image_ref": "fixture/tool:1", "index_digest": "sha256:recorded",
+                "platform_digests": {"linux/arm64": "sha256:platform"},
+                "version_source": "policy fixture"}}}}}), encoding="utf-8")
+        log = work / "docker-argv"
+        expected_argv = ["image", "inspect", "fixture/tool:1", "--format",
+                         "{{json .RepoDigests}}"]
+        cases = (
+            ("platform-match", 0, '["fixture/tool@sha256:platform"]',
+             0, "resolved", "sha256:platform", True, ""),
+            ("absent", 17, 'null', 3, "absent", None, None, "ABSENT"),
+            ("drift", 0, '["fixture/tool@sha256:drift"]',
+             0, "resolved", "sha256:drift", False, "NOTE"),
+        )
+        for name, engine_rc, reply, rc, status, observed, matches, diagnostic in cases:
+            if log.exists():
+                log.unlink()
+            env = dict(os.environ, PATH=str(fake_bin) + os.pathsep + os.environ.get("PATH", ""),
+                       BENCH_TOOL_PROBE_LOG=str(log), BENCH_TOOL_PROBE_REPLY=reply,
+                       BENCH_TOOL_PROBE_RC=str(engine_rc), PYTHONDONTWRITEBYTECODE="1")
+            # Verify the installed launcher default, independently of operator overrides.
+            env.pop("RESOLVE_BENCH_TOOL_BIN", None)
+            proc = subprocess.run(
+                list(resolver_argv) + ["--pin", str(pin), "--tool", "fixture",
+                                       "--platform", "linux/amd64", "--json"],
+                cwd=REPO_ROOT, env=env, capture_output=True, text=True, timeout=30)
+            _require(proc.returncode == rc,
+                     f"bench tool {name}: expected rc={rc}, got {proc.returncode}: {proc.stderr!r}")
+            try:
+                value = json.loads(proc.stdout)
+            except ValueError as exc:
+                raise PredicateFailure(f"bench tool {name}: invalid JSON output {proc.stdout!r}") from exc
+            _require(value.get("matches_record") is matches,
+                     f"bench tool {name}: matches_record must retain its boolean/null type")
+            _require(value == {
+                "tool": "fixture", "version": "1", "version_source": "policy fixture",
+                "image_ref": "fixture/tool:1", "recorded_digest": "sha256:recorded",
+                "observed_digest": observed,
+                "digest_source": "measured(docker image inspect .RepoDigests)",
+                "matches_record": matches, "platform_note": "linux/amd64", "status": status,
+            }, f"bench tool {name}: actual digest provenance differs: {value!r}")
+            _require((diagnostic in proc.stderr if diagnostic else not proc.stderr),
+                     f"bench tool {name}: missing or unexpected diagnostic {proc.stderr!r}")
+            _require(log.exists() and log.read_text(encoding="utf-8").splitlines() == expected_argv,
+                     f"bench tool {name}: only one local image-inspect is permitted; no implicit pull")
+
+
 def predicate_HOST_SAFETY_LAYERED_DEFENSE_C10():
     """C10: the full-mode measurement tool is a separate container under a teardown contract.
 
@@ -897,24 +963,12 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C10():
              'a teardown trap must remove the measurement container on every exit path -- ownership '
              'is defined by cleanup, not by who started it')
 
-    # The tool image is resolved from the tracked pin and never pulled implicitly.
-    _require('resolve_bench_tool.py' in src,
-             'the measurement image must be resolved through the digest pin resolver')
-    resolver = _read(".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py")
-    _require("docker" in resolver and '"pull"' not in resolver and "'pull'" not in resolver,
-             'the resolver must never pull -- absence is fail-closed pre-staging, not a silent fetch')
-    _require("RC_ABSENT = 3" in resolver and "RC_OK = 0" in resolver,
-             'absence must stay its own fail-closed exit code, not one generic failure')
-    # 2026-09-05 (plan_26090516 3-8 / G-C3): the digest DRIFT gate was demoted to provenance --
-    # pinning one tool version made every version bump a harness edit, which contradicts the
-    # standing decision that the bench tool defaults to the latest release. Absence is still
-    # fail-closed (staging is a human act); a digest that differs from the record is RECORDED.
-    # This assertion is the tripwire against the gate creeping back in.
-    _require("RC_DRIFT" not in resolver,
-             'the digest drift gate must stay demoted to provenance -- record what ran, do not '
-             'refuse to run because a version moved')
-    _require("matches_record" in resolver,
-             'the resolver must still report whether the local image matches the recorded digest')
+    # Verify the installed Rust CLI and the actual engine boundary. A platform digest
+    # matches across platform annotations; absence is exit 3, while drift is recorded at exit 0.
+    resolver = ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.sh"
+    _require('bash "$SDIR/resolve_bench_tool.sh"' in src,
+             'the measurement image must be resolved through the installed digest resolver')
+    _assert_bench_tool_resolution(["bash", str(REPO_ROOT / resolver)])
 
     # The serve container is not started or stopped by the benchmark skill (the invariant's object
     # is the inference server; the measurement container is the documented exception).

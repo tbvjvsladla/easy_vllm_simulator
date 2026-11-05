@@ -1033,8 +1033,8 @@ def verify() -> dict:
         # 측정 도구 핀 해소기 (plan_26090415 §3.5 · CP3 · 2026-09-04). 순수 비교 함수 자체검사이며
         #   docker·네트워크 불요다. P8 이 **배포되는 실제 핀**을 스키마로 검사하므로 픽스처만 보고
         #   초록이 되지 않는다(픽스처가 실물보다 좁다 — 하루에 네 번 겪은 계열).
-        _run("benchmark_bench_tool_pin_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py", "--self-test"], {0}),
+        _run("benchmark_bench_tool_pin_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.sh", "--self-test"], {0}),
         # GuideLLM 산출물 파서 (CP4). 실측 산출물 픽스처를 함께 검사하므로 합성 픽스처만 보고
         #   초록이 되지 않는다.
         _run("benchmark_parse_guidellm_selftest", ["bash",

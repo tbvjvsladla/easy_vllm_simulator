@@ -288,24 +288,13 @@
           ]
         },
         {
-          "path": ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py",
-          "supports": [
-            "HOST_SAFETY_LAYERED_DEFENSE.C10"
-          ],
-          "assertion_ids": [
-            "RC_ABSENT",
-            "RC_OK",
-            "classify",
-            "accepted_digests"
-          ]
-        },
-        {
           "path": ".claude/policies/predicates/claim_predicates.py",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C10"
           ],
           "assertion_ids": [
-            "predicate_HOST_SAFETY_LAYERED_DEFENSE_C10"
+            "predicate_HOST_SAFETY_LAYERED_DEFENSE_C10",
+            "_assert_bench_tool_resolution"
           ]
         }
       ],

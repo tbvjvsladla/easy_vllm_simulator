@@ -310,7 +310,7 @@ enum Finished {
 }
 
 /// `os.fsencode(argument)` for one element of a command line.
-fn exec_argument(value: &PyValue) -> Result<OsString, Failure> {
+pub(crate) fn exec_argument(value: &PyValue) -> Result<OsString, Failure> {
     match value.peel() {
         PyValue::Str(text) => pyfs::os_string(text).map_err(pyfs::FsFailure::into_failure),
         other => Err(Failure::new(
@@ -323,7 +323,7 @@ fn exec_argument(value: &PyValue) -> Result<OsString, Failure> {
     }
 }
 
-fn spawn_failure(error: &std::io::Error, program: &OsString) -> Failure {
+pub(crate) fn spawn_failure(error: &std::io::Error, program: &OsString) -> Failure {
     let name =
         PyStr::from_surrogateescape(std::os::unix::ffi::OsStrExt::as_bytes(program.as_os_str()));
     Failure::new(

@@ -28,12 +28,6 @@
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.py",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
       "callee": "adversarial-benchmark/scripts/run_bench.sh",
       "phase": "verification_plane",
       "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
@@ -256,9 +250,9 @@
     },
     {
       "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.py",
+      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.sh",
       "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+      "reason": "C10 실제 설치 Rust CLI와 명시 image-inspect 대역의 일치/부재/드리프트 동작 검증"
     },
     {
       "caller": ".claude/policies/predicates/claim_predicates.py",
@@ -595,12 +589,6 @@
       "callee": "upstream-version-watch/scripts/sync_branches.sh",
       "phase": "verification_plane",
       "reason": "산문 근거(provenance plan)"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
-      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.py",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
@@ -1090,7 +1078,7 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.py",
+      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
@@ -1705,6 +1693,24 @@
       "callee": "adversarial-benchmark/scripts/dataset_prep.sh",
       "phase": "verification_plane",
       "reason": "데이터셋 최빈길이·BOS·salt 행 선택의 실제 Rust 자체검사를 실행한다(R10)"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "adversarial-benchmark/rust/src",
+      "phase": "verification_plane",
+      "reason": "Rust 벤치 도구 해소기의 제거 tripwire 경로와 양성/음성 Git-discovery fixture; 실제 운영 호출이 아니다(R11)"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "adversarial-benchmark/rust/src/bench_tool_pin.rs",
+      "phase": "verification_plane",
+      "reason": "Rust 벤치 도구 해소기의 제거 tripwire 경로와 양성/음성 Git-discovery fixture; 실제 운영 호출이 아니다(R11)"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "adversarial-benchmark/rust/src/unrelated.rs",
+      "phase": "verification_plane",
+      "reason": "Rust 벤치 도구 해소기의 제거 tripwire 경로와 양성/음성 Git-discovery fixture; 실제 운영 호출이 아니다(R11)"
     }
   ]
 }

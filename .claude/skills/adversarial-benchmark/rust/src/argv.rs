@@ -242,6 +242,46 @@ pub const LITE_METRICS: Spec = Spec {
     layouts: crate::help_layouts_lite_metrics::LAYOUTS,
 };
 
+/// Indices of the `resolve_bench_tool.py` actions.
+pub mod bench_tool_args {
+    pub const TOOL: usize = 1;
+    pub const TOOL_VERSION: usize = 2;
+    pub const PIN: usize = 3;
+    pub const PLATFORM: usize = 4;
+    pub const JSON: usize = 5;
+    pub const SELF_TEST: usize = 6;
+}
+
+/// The original `resolve_bench_tool.py` parser: `--tool`, `--tool-version`, `--pin`, `--platform`, `--json`,
+/// `--self-test`, all optional.
+pub const BENCH_TOOL: Spec = Spec {
+    prog: "resolve_bench_tool.py",
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            ..PLAIN
+        },
+        text_option("--tool", false),
+        text_option("--tool-version", false),
+        text_option("--pin", false),
+        text_option("--platform", false),
+        flag("--json"),
+        flag("--self-test"),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--tool", bench_tool_args::TOOL),
+        ("--tool-version", bench_tool_args::TOOL_VERSION),
+        ("--pin", bench_tool_args::PIN),
+        ("--platform", bench_tool_args::PLATFORM),
+        ("--json", bench_tool_args::JSON),
+        ("--self-test", bench_tool_args::SELF_TEST),
+    ],
+    layouts: crate::help_layouts_resolve_bench_tool::LAYOUTS,
+};
+
 /// Indices of the `classify_cell.py` actions.
 pub mod classify_args {
     pub const SERVE_RC: usize = 1;

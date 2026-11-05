@@ -25,8 +25,8 @@ use crate::terminal;
 const COMMANDS: [&str; 3] = ["prepare", "slice", "synthetic-sidecar"];
 
 /// `sys.stdout` / `sys.stderr` as the command sees them.
-struct StreamsConsole<'a, 'b> {
-    io: &'a mut Streams<'b>,
+pub(crate) struct StreamsConsole<'a, 'b> {
+    pub(crate) io: &'a mut Streams<'b>,
 }
 
 fn print_failure(failure: &crate::cli::PrintFailure) -> Failure {
@@ -78,7 +78,7 @@ pub fn run(args: &[PyStr], io: &mut Streams<'_>) -> i32 {
 }
 
 /// `SystemExit(n)` as a process status: an integer is the status, anything else prints and exits 1.
-fn exit_status(failure: &Failure) -> i32 {
+pub(crate) fn exit_status(failure: &Failure) -> i32 {
     failure
         .message
         .to_utf8()
