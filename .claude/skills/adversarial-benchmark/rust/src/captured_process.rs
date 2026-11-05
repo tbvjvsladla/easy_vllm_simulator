@@ -66,6 +66,43 @@ impl Pipe {
     }
 }
 
+/// The child's standard input while `input` is being written: non-blocking, so one thread serves it and both output
+/// streams against a single deadline.
+struct InputPipe {
+    fd: OwnedFd,
+    pending: Vec<u8>,
+    written: usize,
+}
+
+impl InputPipe {
+    fn new(fd: OwnedFd, bytes: &[u8]) -> Result<InputPipe, Failure> {
+        let flags = fcntl_getfl(&fd).map_err(pipe_failure)?;
+        fcntl_setfl(&fd, flags | OFlags::NONBLOCK).map_err(pipe_failure)?;
+        Ok(InputPipe {
+            fd,
+            pending: bytes.to_vec(),
+            written: 0,
+        })
+    }
+
+    /// One bounded write (at most `PIPE_BUF` bytes, so a full pipe never blocks): `true` when the input is finished
+    /// and the pipe is to be closed. A child that closed its input early (`EPIPE`) ends the input silently, as
+    /// `Popen.communicate` ignores `BrokenPipeError` of the input.
+    fn write_once(&mut self) -> Result<bool, Failure> {
+        let end = (self.written + PIPE_ATOMIC_WRITE).min(self.pending.len());
+        match rustix::io::write(&self.fd, &self.pending[self.written..end]) {
+            Ok(count) => self.written += count,
+            Err(Errno::INTR | Errno::AGAIN) => {}
+            Err(Errno::PIPE) => return Ok(true),
+            Err(error) => return Err(pipe_failure(error)),
+        }
+        Ok(self.written >= self.pending.len())
+    }
+}
+
+/// `select.PIPE_BUF` on Linux: the most that one write to a pipe takes atomically.
+const PIPE_ATOMIC_WRITE: usize = 4096;
+
 pub(crate) fn pipe_failure(error: Errno) -> Failure {
     let io = std::io::Error::from(error);
     Failure::new(
@@ -107,6 +144,9 @@ pub struct ChildSettings {
     pub current_dir: Option<std::path::PathBuf>,
     pub env_remove: Vec<OsString>,
     pub env_set: Vec<(OsString, OsString)>,
+    /// `subprocess.run(..., input=...)`: bytes written to the child's standard input, which is then closed. `None`
+    /// leaves the child sharing this process's input.
+    pub input: Option<Vec<u8>>,
 }
 
 /// [`run_captured_within`] with the child's working directory and environment settings.
@@ -117,10 +157,36 @@ pub fn run_captured_in(
     limit_text: &str,
     settings: &ChildSettings,
 ) -> Result<Captured, Failure> {
+    run_child(command, shown, Some((limit, limit_text)), settings)
+}
+
+/// `subprocess.run(command, capture_output=True)` with **no** time limit (`timeout=None`): the same single
+/// communication loop (input, both output streams) and the same cleanup, but the loop waits for the child as long as
+/// it takes and the final wait for the exit status blocks instead of polling. For callers whose original has no
+/// timeout; every bounded caller keeps [`run_captured_within`] / [`run_captured_in`].
+pub fn run_captured_unbounded(
+    command: &[OsString],
+    shown: &[PyValue],
+    settings: &ChildSettings,
+) -> Result<Captured, Failure> {
+    run_child(command, shown, None, settings)
+}
+
+/// The shared body: `limit` is the duration and the text of its `str()`, or `None` for no limit.
+fn run_child(
+    command: &[OsString],
+    shown: &[PyValue],
+    limit: Option<(Duration, &str)>,
+    settings: &ChildSettings,
+) -> Result<Captured, Failure> {
     let mut builder = Command::new(&command[0]);
     builder
         .args(&command[1..])
-        .stdin(Stdio::inherit())
+        .stdin(if settings.input.is_some() {
+            Stdio::piped()
+        } else {
+            Stdio::inherit()
+        })
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
     if let Some(directory) = &settings.current_dir {
@@ -135,14 +201,15 @@ pub fn run_captured_in(
     let mut child = builder
         .spawn()
         .map_err(|error| spawn_failure(&error, &command[0]))?;
-    let deadline = Instant::now() + limit;
-    let outcome = capture_until(&mut child, deadline, &command[0]);
+    let deadline = limit.map(|(duration, _)| Instant::now() + duration);
+    let outcome = capture_until(&mut child, deadline, &command[0], settings.input.as_deref());
     match outcome {
         Ok(Some(captured)) => Ok(captured),
         Ok(None) => {
             let _ = child.kill();
             let _ = child.wait();
             let cause = PyValue::List(shown.to_vec()).repr();
+            let limit_text = limit.map_or("", |(_, text)| text);
             Err(Failure::new(
                 "TimeoutExpired",
                 &format!("Command '{cause}' timed out after {limit_text} seconds"),
@@ -156,38 +223,69 @@ pub fn run_captured_in(
     }
 }
 
-/// Collects both streams to end of file and then the exit status, all before `deadline`; `None` = deadline passed.
+/// One communication loop, as `Popen.communicate` runs it: the pending input is written, both output streams are
+/// read, all against one `deadline`, until the input is written and both streams are at end of file; then the exit
+/// status. The input is served for as long as it is pending, **including after the child closed both outputs**
+/// (a child may close its outputs and still read its input to the end). `None` as the result = the deadline passed;
+/// `deadline: None` = no limit (the poll waits for readiness and the final wait blocks).
 fn capture_until(
     child: &mut Child,
-    deadline: Instant,
+    deadline: Option<Instant>,
     program: &OsString,
+    input: Option<&[u8]>,
 ) -> Result<Option<Captured>, Failure> {
-    use std::os::unix::process::ExitStatusExt;
     let take = |fd: Option<OwnedFd>| fd.expect("both streams are piped");
     let mut stdout = Pipe::new(take(child.stdout.take().map(OwnedFd::from)))?;
     let mut stderr = Pipe::new(take(child.stderr.take().map(OwnedFd::from)))?;
-    while stdout.open || stderr.open {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        if remaining.is_zero() {
-            return Ok(None);
+    let mut stdin = match (input, child.stdin.take()) {
+        (Some(bytes), Some(pipe)) if !bytes.is_empty() => {
+            Some(InputPipe::new(OwnedFd::from(pipe), bytes)?)
         }
-        let wait = Timespec {
-            tv_sec: remaining.as_secs().try_into().unwrap_or(i64::MAX),
-            tv_nsec: remaining.subsec_nanos().into(),
+        // an empty input (or none) closes the child's input at once, as `communicate` does
+        _ => None,
+    };
+    while stdout.open || stderr.open || stdin.is_some() {
+        let wait = match deadline {
+            Some(deadline) => {
+                let remaining = deadline.saturating_duration_since(Instant::now());
+                if remaining.is_zero() {
+                    return Ok(None);
+                }
+                Some(Timespec {
+                    tv_sec: remaining.as_secs().try_into().unwrap_or(i64::MAX),
+                    tv_nsec: remaining.subsec_nanos().into(),
+                })
+            }
+            None => None,
         };
-        let mut watched: Vec<PollFd<'_>> = Vec::with_capacity(2);
+        let mut watched: Vec<PollFd<'_>> = Vec::with_capacity(3);
         for pipe in [&stdout, &stderr] {
             if pipe.open {
                 watched.push(PollFd::new(&pipe.fd, PollFlags::IN));
             }
         }
-        match poll(&mut watched, Some(&wait)) {
+        if let Some(pipe) = &stdin {
+            watched.push(PollFd::new(&pipe.fd, PollFlags::OUT));
+        }
+        match poll(&mut watched, wait.as_ref()) {
             Ok(_) | Err(Errno::INTR) => {}
             Err(error) => return Err(pipe_failure(error)),
+        }
+        if let Some(pipe) = &mut stdin {
+            if pipe.write_once()? {
+                stdin = None;
+            }
         }
         stdout.read_once()?;
         stderr.read_once()?;
     }
+    let Some(deadline) = deadline else {
+        // no limit: every pipe is finished, so the child's end is one blocking wait away
+        let status = child
+            .wait()
+            .map_err(|error| spawn_failure(&error, program))?;
+        return Ok(Some(captured(status, stdout, stderr)));
+    };
     let mut delay = 0.0005_f64;
     let status = loop {
         match child.try_wait() {
@@ -204,7 +302,13 @@ fn capture_until(
         delay = (delay * 2.0).min(0.05).min(remaining.as_secs_f64());
         std::thread::sleep(Duration::from_secs_f64(delay));
     };
-    Ok(Some(Captured {
+    Ok(Some(captured(status, stdout, stderr)))
+}
+
+/// The finished child: exit code, or the negated signal number (`subprocess`'s `returncode`).
+fn captured(status: std::process::ExitStatus, stdout: Pipe, stderr: Pipe) -> Captured {
+    use std::os::unix::process::ExitStatusExt;
+    Captured {
         status: status
             .code()
             .map(i64::from)
@@ -212,7 +316,7 @@ fn capture_until(
             .unwrap_or(-1),
         stdout: stdout.bytes,
         stderr: stderr.bytes,
-    }))
+    }
 }
 
 /// A captured stream as `text=True` yields it: strict UTF-8, universal newlines.
@@ -400,5 +504,139 @@ mod tests {
         assert_eq!(pipe.bytes.len(), 1_000_000);
         assert!(calls >= 1_000_000 / READ_BLOCK, "{calls} calls");
         let _ = child.wait();
+    }
+
+    /// More than any pipe holds (the default is 64 KiB), and not a repeating block, so a lost or reordered chunk shows.
+    fn large_input() -> Vec<u8> {
+        (0..1_048_576_u32).map(|n| (n % 251) as u8).collect()
+    }
+
+    fn settings_with(input: Vec<u8>) -> ChildSettings {
+        ChildSettings {
+            input: Some(input),
+            ..ChildSettings::default()
+        }
+    }
+
+    /// The regression of the first R14 build: a child closes both of its outputs and then reads its input to the end.
+    /// Once the outputs are at end of file the loop must keep serving the pending input; a loop that only runs while an
+    /// output is open stops after the first pipe-full and the child waits for the rest until the deadline.
+    #[test]
+    fn input_is_still_served_after_the_child_closed_both_outputs() {
+        let folder = scratch("input-after-outputs");
+        let script = r#"exec >&- 2>&-; cat > "$1/received.bin""#;
+        let (command, shown) = shell(script, &folder);
+        let input = large_input();
+        let started = Instant::now();
+        let done = run_captured_in(
+            &command,
+            &shown,
+            Duration::from_secs(10),
+            "10",
+            &settings_with(input.clone()),
+        )
+        .expect("completes before the limit");
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "took {:?}",
+            started.elapsed()
+        );
+        assert_eq!(done.status, 0);
+        assert!(done.stdout.is_empty() && done.stderr.is_empty());
+        let received = std::fs::read(folder.join("received.bin")).expect("received input");
+        assert_eq!(received.len(), input.len(), "every byte reached the child");
+        assert!(received == input, "bytes arrived intact and in order");
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    /// The same child with a limit it cannot meet is still ended at the limit (the input service is under the one
+    /// deadline): a child that closes its outputs and never reads is killed and reaped.
+    #[test]
+    fn an_input_nobody_reads_is_bounded_by_the_deadline_after_the_outputs_closed() {
+        let folder = scratch("input-unread");
+        let script = r#"exec >&- 2>&-; echo $$ > "$1/child.pid"; exec sleep 4"#;
+        let (command, shown) = shell(script, &folder);
+        let started = Instant::now();
+        let outcome = run_captured_in(
+            &command,
+            &shown,
+            Duration::from_millis(300),
+            "0.3",
+            &settings_with(large_input()),
+        );
+        timed_out(outcome, "0.3");
+        assert!(started.elapsed() < Duration::from_millis(2500));
+        assert!(gone(recorded_pid(&folder, "child.pid")));
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    /// Unchanged semantics around the input: an empty input is an immediate end of file, a child that closes its input
+    /// at once ends the input silently (no error from the broken pipe), and a child that echoes its input back
+    /// while it is being written (output and input interleave in the one loop) returns it whole.
+    #[test]
+    fn empty_input_early_close_and_echo_keep_their_semantics() {
+        let folder = scratch("input-forms");
+        let generous = Duration::from_secs(30);
+        let (command, shown) = shell(r#"cat > "$1/received.bin""#, &folder);
+        let done = run_captured_in(&command, &shown, generous, "30", &settings_with(Vec::new()))
+            .expect("completes");
+        assert_eq!(done.status, 0);
+        assert_eq!(
+            std::fs::read(folder.join("received.bin")).expect("file"),
+            b""
+        );
+
+        let (command, shown) = shell("exec <&-; printf done", &folder);
+        let done = run_captured_in(
+            &command,
+            &shown,
+            generous,
+            "30",
+            &settings_with(large_input()),
+        )
+        .expect("a closed input is not an error");
+        assert_eq!((done.status, done.stdout.as_slice()), (0, &b"done"[..]));
+
+        let (command, shown) = shell("cat", &folder);
+        let input = large_input();
+        let done = run_captured_in(
+            &command,
+            &shown,
+            generous,
+            "30",
+            &settings_with(input.clone()),
+        )
+        .expect("completes");
+        assert_eq!(done.status, 0);
+        assert!(done.stdout == input, "the echo is whole");
+        let _ = std::fs::remove_dir_all(&folder);
+    }
+
+    /// The no-limit path (the original's call without `timeout`): the same loop serves input and outputs and the
+    /// final wait blocks. The child closes its outputs, reads everything, keeps running for a while and ends with a
+    /// status; nothing here depends on a limit.
+    #[test]
+    fn the_unbounded_capture_serves_input_and_waits_for_the_child() {
+        let folder = scratch("unbounded");
+        let script = r#"exec >&- 2>&-; cat > "$1/received.bin"; sleep 0.4; exit 5"#;
+        let (command, shown) = shell(script, &folder);
+        let input = large_input();
+        let started = Instant::now();
+        let done = run_captured_unbounded(&command, &shown, &settings_with(input.clone()))
+            .expect("completes");
+        assert_eq!(done.status, 5);
+        assert!(
+            started.elapsed() >= Duration::from_millis(400),
+            "the wait was not cut short"
+        );
+        let received = std::fs::read(folder.join("received.bin")).expect("received input");
+        assert!(received == input, "every byte arrived intact");
+
+        let (command, shown) = shell("cat; printf err >&2; exit 2", &folder);
+        let done = run_captured_unbounded(&command, &shown, &settings_with(input.clone()))
+            .expect("completes");
+        assert_eq!((done.status, done.stderr.as_slice()), (2, &b"err"[..]));
+        assert!(done.stdout == input);
+        let _ = std::fs::remove_dir_all(&folder);
     }
 }

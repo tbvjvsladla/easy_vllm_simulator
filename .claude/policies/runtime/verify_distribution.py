@@ -1093,8 +1093,8 @@ def verify() -> dict:
         #   격리 시험: D1 연결거부 → exit 6 · 서버 실패 응답 → exit 7 · α(플래그 없음)는 리포트·인증서 0 · β 통과 → lite 등급
         #   인증서(benchmark_mode lite · not_applicable · lite_verdict pass · 리포트와 같은 stem) · 발행기는 판정 부재·불통과 raw 거부.
         #   sweep 게이트의 실행 층(lite 불통과 → GuideLLM 레벨 0)은 위 selftest_sweep_repeats G★ 가 친다.
-        _run("benchmark_lite_gate_conformance", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/conformance_full_superset_lite.py"], {0}),
+        _run("benchmark_lite_gate_conformance", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/conformance_full_superset_lite.sh"], {0}),
         _run("benchmark_lite_gate_selftest", [sys.executable,
              ".claude/skills/adversarial-benchmark/scripts/selftest_lite_gate.py"], {0}),
         # Broad Search 이중 게이트의 **집행**: --confirm-risk 없이는 셀이 돌지 않는다(exit 5).

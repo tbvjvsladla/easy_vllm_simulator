@@ -528,7 +528,7 @@ def main() -> int:
                cp.returncode == want and [c for c in sb.calls() if "level=" in c] == []
                and not list(gd.glob("level_*")) and not (gd / "sweep_index.json").exists()
                and "lite gate failed" in trunc_g, (cp.returncode, sb.calls(), cp.stderr[-400:]))
-        _conf = subprocess.run([sys.executable, str(REPO / AB / "scripts/conformance_full_superset_lite.py")],
+        _conf = subprocess.run(["bash", str(REPO / AB / "scripts/conformance_full_superset_lite.sh")],
                                capture_output=True, text=True, timeout=120)
         ck("G conformance(게이트 포함 단언 포함) 초록", _conf.returncode == 0, _conf.stdout[-600:])
 

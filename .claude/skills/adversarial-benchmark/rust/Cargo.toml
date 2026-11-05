@@ -164,6 +164,18 @@ path = "src/bin/resolve_guidellm_api.rs"
 name = "resolve_guidellm_bench"
 path = "src/bin/resolve_guidellm_bench.rs"
 
+[[bin]]
+name = "conformance_full_superset_lite"
+path = "src/bin/conformance_full_superset_lite.rs"
+
+[[bin]]
+name = "conformance_full_superset_lite_api"
+path = "src/bin/conformance_full_superset_lite_api.rs"
+
+[[bin]]
+name = "conformance_full_superset_lite_bench"
+path = "src/bin/conformance_full_superset_lite_bench.rs"
+
 [[test]]
 name = "oracle_cases"
 path = "checks/oracle_cases.rs"
@@ -459,3 +471,23 @@ path = "checks/resolve_topology_reader_cases.rs"
 [[test]]
 name = "resolve_topology_bench_harness"
 path = "checks/resolve_topology_bench_harness.rs"
+
+[[test]]
+name = "conformance_helper_cases"
+path = "checks/conformance_helper_cases.rs"
+
+[[test]]
+name = "conformance_api_transport"
+path = "checks/conformance_api_transport.rs"
+
+[[test]]
+name = "conformance_cli_cases"
+path = "checks/conformance_cli_cases.rs"
+
+[[test]]
+name = "conformance_bench_harness"
+path = "checks/conformance_bench_harness.rs"
+
+[[test]]
+name = "conformance_import_cache"
+path = "checks/conformance_import_cache.rs"

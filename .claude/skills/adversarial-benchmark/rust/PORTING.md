@@ -1524,3 +1524,171 @@ included) were checked. The failed initial batched-CWD warm preparation was reta
 The local fixture/process cost is not real policy, LLM, network, serving or profile speed; review the remaining S7 owner
 cost explicitly after that dependency's port. The source connection ledger is not line coverage or Python-zero proof.
 The remaining S1-S7, harness, six-profile and actual Long E2E work is still incomplete.
+
+## R14 `full ⊇ lite` 검증기(`conformance_full_superset_lite`) 이행 — 후보 기록 (정본 적용 전)
+
+**상태: COMPLETE — 이번 후보와 아래 자체검사 범위에 한한다.** 성능(정본 계측)·실제 호스트 통합(Bash 런처 2·`build_rust.sh` 16번째 검사·배포 검사 131·`selftest_sweep_repeats` 호출부·간선·SKILL)·정본 적용·
+독립 SAME2 재생·전체 S1~S7·하네스·6프로필·실제 single4/multi2 Long E2E 는 이 기록의 주장이 아니다(Root 소관·미완료). 원본(현재 248줄 `conformance_full_superset_lite.py`, R8/R9 이후 설치된 Rust 소유자를 검사하는 판)은
+실행하지 않았다(동결 참조만 읽음). 원본 831→184줄 시절의 정적 골든·링크된 라이브러리 호출로 되돌리지 않았고, 실제 `bash` 런처와 그 뒤 실행파일을 매번 자식 프로세스로 부른다.
+
+### 산출물과 책임
+| 경로 | 책임 |
+|---|---|
+| `src/conformance.rs` | 컨텍스트(`Context`: 스크립트 디렉터리 `SDIR` · env `CONFORMANCE_SCRIPTS_DIR` 우선, 없으면 `<skill>/rust/target/release/<bin>` 설치 배치에서 도출, 그 밖의 위치는 컨텍스트 없음) · `Raised`(전송이 보고하는 class·message + `repr()` — `except Exception as exc … repr(exc)` 의 근거) · `read`(UTF-8 `replace`·보편 개행·비파일 `None`) · `read_optional_strict`(엄격 UTF-8 + `OSError`만 빈 문자열) · `emit`(`_emit`) · 점검이 의존하는 Python 의미(`py_equals`·`subscript`·`dict_get`·`find_position`=문자 위치·`splitlines`·`rstrip`·`sets_key_from_built`) |
+| `src/conformance_native.rs` | `native_value`(실제 `bash bench_reporting_api.sh evaluate-jsonl`, stdin 한 줄, 600자 꼬리 RuntimeError) · `native_lite_certificate_gates`(실제 `publish_benchmark_record.sh` 3회: beta 거부 · gamma 거부 · 양성 대조) · `LiteMetrics`(원본 `lite_metrics_native.py` **어댑터를 실행하지 않고** 같은 프로토콜로 `lite_metrics_api.sh constants/evaluate-jsonl` 을 직접 호출: 같은 요청 모양·`json-values-v1` 검사·`_raise` 의 builtin 예외 매핑·`KeyError` 리터럴) |
+| `src/conformance_checks.rs` | 원본 `main` 의 점검 41개를 같은 순서·같은 문자열로. 단계별 `try/except Exception` 경계(게이트·렌더 단계, 판정기 적재·D1 단계)와 그 밖의 전파를 보존 |
+| `src/conformance_cli.rs` · `src/bin/conformance_full_superset_lite.rs` | CLI: **인자를 읽지 않는다**(`--help` 포함, 새 플래그·selftest 없음). 종료 0/1, 미처리 예외는 `Traceback…`+`Class: message` 마지막 줄·종료 1. 컨텍스트 없음 = 종료 2(이 포팅 고유) |
+| `src/conformance_api.rs` · `src/bin/conformance_full_superset_lite_api.rs` | `evaluate-jsonl`(연산 `read`·`_emit`·`native_value`·`native_lite_certificate_gates`·`main`) · `constants`(LITE_METRIC_KEYS·CERT_LITE_FIELDS) · `native-help`. 출력하는 연산(`_emit`·`main`)은 **예외로 끝나도** 그때까지 찍은 `stdout` 필드를 싣는다. 이웃 `Signature`/`PyValue` 전송 재사용, 임의 exec 없음 |
+| `src/bin/conformance_full_superset_lite_bench.rs` | 범용 계측기 `ROWS.jsonl ROUNDS ITERATIONS [ID...]`(R13 과 같은 출력 `{cases, iterations, rounds_ns}`). 행 준비·기대값 파싱은 타이머 밖, 전체 호출(바인딩·읽기·자식 프로세스·출력 생성·반환·해제)은 안. 워밍 호출이 `expected_json`(값)·`expected_stdout`(출력 전체)을 검증하고, 예외·불일치는 타이밍 없이 종료 1 |
+| `src/captured_process.rs`(공유, 최소 변경) | `ChildSettings.input`(`subprocess.run(input=…)`): stdin 을 비차단 파이프로 **하나의 통신 루프 안에서** 출력 두 스트림과 함께 `PIPE_BUF` 단위로 쓰고 닫는다(자식이 일찍 닫으면 EPIPE 는 조용히 종료). 루프는 **대기 중 입력이 있는 동안 계속**된다(출력이 둘 다 EOF 가 된 뒤에도 — 아래 교정). 기한 없는 호출용 `run_captured_unbounded`(같은 루프·마지막 종료 대기는 블로킹 `wait`, 폴링·지연·분리 스레드 없음). 기존 유한 호출자(120초/60초)는 그대로. `resolve_topology_selftest.rs` 의 리터럴 1곳에 `input: None` 추가 |
+| `checks/conformance_*.rs` · `checks/data/conformance/` | 등록 검사 4파일(+공용 헬퍼)과 동결 데이터(헬퍼 24 · 전송 10 · 정상 출력 41줄) |
+
+공유 소스 변경: `captured_process.rs`(입력·무기한 경로) · `resolve_topology_selftest.rs`(리터럴 1필드) · `lib.rs` · `Cargo.toml`(bin 3 · test 4). 새 의존성 없음(`Cargo.lock` 불변).
+
+### 보존한 외부 계약과 특이 동작
+- **D1 hostdead 버그를 그대로 둔다.** 점검이 사전(dict) 상세를 들고 실패하면 원본 `_emit` 은 `"  — " + detail` 에서 `TypeError: can only concatenate str (not "dict") to str` 로 끝나며, 그 전에 찍은 줄은 stdout 에 남고 요약 줄은 없다(종료 1). 자동 pretty-format 으로 고치지 않았다. 문자열이 아닌 truthy 상세는 일반적으로 같은 오류(`int`·`list` …).
+- `_emit` 은 행을 읽는 즉시 찍는다: 짧은 행 `ValueError("not enough values to unpack (expected 3, got N)")`, 긴 행 `"too many values to unpack (expected 3)"`, 앞선 줄은 출력된 채. `good` 은 파이썬 진리값, `name` 은 `str()`(`None` → `None`), `detail` 이 falsy 면 무시.
+- `native_value`: `bash <SDIR>/bench_reporting_api.sh evaluate-jsonl` · 요청 `json.dumps({"id":"conformance","operation":…,"arguments":…})+"\n"` · 120초 · 종료코드≠0 또는 stderr 비어 있지 않음 → `RuntimeError("native reporting call failed: " + stderr[-600:])` · 엄격 UTF-8·보편 개행(stdout 먼저) · JSON 오류·`.get` AttributeError·`RuntimeError("native reporting returned no text: %r")` 를 원본 순서대로.
+- 점검 결과의 `repr(exc)`: 구조화된 오류 인자를 가진 종류는 원본 repr 그대로(`UnicodeDecodeError('utf-8', b'…', start, end, 'reason')` · `TimeoutExpired([...], 120)` · `FileNotFoundError(2, 'No such file or directory')`).
+- 점검의 위치 표기 `gate@N level@M` 은 **문자 위치**(UTF-8 바이트 아님)다 — 한글이 앞서므로 둘이 다르다(동결 late-gate 의 `71824`/`30912` 와 같은 방식으로 계산).
+- 정규식 `"KEY":\s*_built\.get`(`\s` = `str.isspace`: Rust `White_Space` + U+001C–001F)는 손으로 구현했고 단위 검사로 고정. 원본이 먼저 시도하는 더 긴 정규식은 이것의 부분집합이라 결과가 같다.
+- 선택 읽기(`campaign_init.py`·`recipe.py`·분류기 Rust 소스 3종)는 엄격 UTF-8 이고 `OSError` 만 빈 문자열이다. 디코딩 오류는 전파(원본: 보고서가 한 줄도 출력되기 전에 `UnicodeDecodeError`, 종료 1).
+- `read` 의 `name` 이 절대경로면 `os.path.join` 처럼 `SDIR` 를 무시하고, 문자열이 아니면 `join() argument must be str…` TypeError 다.
+
+### 환경과 의존 폐포 (실행 시)
+`CONFORMANCE_SCRIPTS_DIR`(스크립트 디렉터리; 점검은 그 옆의 `fixtures/`·`rust/src/`·이웃 스킬 두 파일도 읽는다) · `bash` · 스크립트 디렉터리의 런처 3종(`bench_reporting_api.sh`·`publish_benchmark_record.sh`·`lite_metrics_api.sh`)과 그 뒤 설치된 릴리스 실행파일 3종
+(런처 자체의 `BENCH_REPORTING_API_BIN`·`PUBLISH_BENCHMARK_RECORD_BIN`·`LITE_METRICS_API_BIN` 재정의는 자식에게 그대로 전달된다). 설치 배치 밖의 실행파일에 env 도 없으면 종료 2. 자동 빌드·설치·Python 대체 경로 없음.
+`LiteMetrics` 호출은 원본 어댑터처럼 **시간 제한이 없다**(발명한 상한 없음 — 아래 교정). 원본 `lite_metrics_native.py` 는 **존재 점검(정적)** 만 한다 — 실행하지 않는다. Python 은 이 검증기의 런타임에 필요 없다(점검 대상 소스가 Python 일 뿐).
+
+### 실행한 검사 (managed toolchain `rustc 1.99.1` · 후보 크레이트 · `--offline --locked` · 외부 target · 로그는 작업자의 별도 실행 로그 폴더)
+| 항목 | 상태 | 근거 |
+|---|---|---|
+| `cargo fmt -- --check` | PASS | exit 0 |
+| `cargo build --release --bins` | PASS | exit 0 · 3 bin 안정 |
+| `cargo clippy --all-targets -- -D warnings` | PASS | exit 0 |
+| `cargo test --release --no-fail-fast`(전체, 최종 실행) | PASS | 112 대상 · **433 통과 · 0 실패** — 새 점검 포함: lib 단위 15(`conformance` 10 · `conformance_native` 5) · bench bin 단위 4 · 등록 검사 33 |
+| 등록 검사 `conformance_helper_cases` | PASS 9 | 동결 헬퍼 24(`_emit` 14 · `read` 10) · 전송 10 · 디코딩 8 · 절대경로·권한·엄격 읽기·`main` 조기 종료·시작 불가 런처 |
+| 등록 검사 `conformance_api_transport` | PASS 9 | 동결 34 의 봉투 · 예외 시 stdout 접두 보존 · 바인딩 TypeError 5종 · JSON 형식 · constants/help/usage · 실제 런처 사본 설치 |
+| 등록 검사 `conformance_cli_cases` | PASS 10 | 정상 41/41 바이트 동일 · 무시 인자 4종 · 누락 소스 · 늦은 게이트 · 항상 발행 · 깨진 프로토콜 · D1 hostdead(TypeError) · 컨텍스트 없음 종료 2 · 설치 배치 도출 · 디코딩 불가 소스 |
+| 등록 검사 `conformance_bench_harness` | PASS 5 | 검증된 워밍 뒤 타이밍 · 전체 검증기 계측(실제 자식 프로세스) · 기대 불일치/예외 거부 · 사용법 |
+| 동결 원본 재생(`logs/frozen_replay_final.log`) | PASS | CLI 7/7(stdout 바이트·종료·마지막 stderr 줄) · API 34/34(값·예외 class/message·stdout) · 불일치 0 |
+| 원본 문자열 상수 대조(비공개 프로브) | PASS | 150 상수 중 12 불일치 = 전부 `%` 서식 템플릿(Rust 서식으로 재표현) |
+공유 모듈(`captured_process`) 영향 검사: `bench_tool_*`·`resolve_topology_*`·R11 포획 단위 전부 위 전체 수트에 포함되어 통과.
+
+### 실패·수정 이력과 알려진 간헐 실패 (사실대로)
+- 내 새 검사 1건이 실제 FAIL: 복사한 실행파일의 `ETXTBSY`("Text file busy" — 다른 스레드가 fork 한 자식이 쓰기 핸들을 exec 전까지 들고 있음). **내 검사를 고쳤다**: 같은 파일의 하드링크로 배치(쓰기 핸들 없음)하고 실행은 유한 재시도(20ms×100). 연속 24회 재실행 0 실패.
+- **기존 R13 검사 `checks/resolve_topology_cli_cases.rs` 의 2개**(`the_abbreviated_and_repeated_options_follow_argparse` · `an_executable_in_the_installed_layout_finds_its_sources_without_environment`)는 같은 `ETXTBSY` 로 **간헐 실패**한다
+  (이 호스트에서 단독 12회 중 5회 실패, 같은 오류로 확인; 병렬 테스트 스레드가 실행파일을 복사하는 동안 다른 스레드가 fork). R14 변경과 무관한 기존 결함이며 이 후보는 **그 파일을 수정하지 않았다**(Root 소관). R13 검사까지 도달한 전체 수트 3회 중 앞선 2회에서 이 R13 검사가 실패했고(그중 1회는 위의 내 ETXTBSY 검사도), 수정 후 최종 실행은 0 실패였다 — 즉 R13 검사는 여전히 간헐적이다.
+  권고 수정(검사만, 제품 불변): 복사 대신 하드링크 또는 위와 같은 ETXTBSY 유한 재시도.
+
+### 남은 한계 (미검증·미모델 — 보편 동등성을 주장하지 않는다)
+- 지원 범위: 배포 UTF-8 텍스트·문자열 경로. 모든 Python 객체·모든 locale 을 모델링하지 않는다(`_emit` 인자는 JSON 값: 리스트/튜플/문자열/dict 의 풀이만, 그 밖은 `TypeError`).
+- `KeyError` 리터럴은 인용 문자열·정수·`None`/`True`/`False` 만 해석한다(그 밖의 리터럴은 메시지 자체를 인자로 — 원본은 `ast.literal_eval` 전체).
+- (정정) 이전 기록의 "8 KiB 를 넘는 파일의 `UnicodeDecodeError` 위치는 다를 수 있다"는 **근거 없는 한계였고 삭제한다.** `open(path, encoding="utf-8").read()` 는 파일 전체를 한 번에 디코드하므로
+  위치는 파일 전체 기준이다(CPython 으로 20 000·100 000 바이트에서 확인) — R13 의 줄 단위 읽기 규약과 혼동했다. 등록 검사 `strict_read_errors_report_whole_file_positions_for_large_files`.
+- (정정) 이전 기록의 "lite 호출은 1년을 한도로 둔다"는 **발명한 상한이었고 삭제했다** — 아래 교정.
+- 호스트 임시 디렉터리 이름 규칙은 `tempfile` 과 같은 접두·8자 형태이나 난수원은 다르다(관찰 계약 아님).
+- 성능은 측정하지 않았다(Root 의 사전 고정 계측 소관). 계측기는 예외·불일치 시 타이밍을 내지 않는다.
+- Python 소스 스택 프레임 비재현. Root 소유 미연결: 런처 2·`build_rust.sh`·배포 검사·호출부·간선·SKILL.
+
+### R14 교정 — 입력은 출력이 닫힌 뒤에도 서비스한다 · 기한 없는 경로 · 검사 설정 (후보 · 정본 적용 전)
+
+**실제 FAIL(Root 원본 우선 관측, 첫 빌드):** 전체 `native_value` API 가 자식(stdout·stderr 를 닫은 뒤 stdin 을 EOF 까지 읽음)을 부를 때, 원본은 262 226 바이트 요청을 모두 전달하고(0.0042초) `JSONDecodeError(Expecting value: line 1 column 1 (char 0))` 로 끝났으나
+첫 Rust 빌드는 65 536 바이트(파이프 용량)만 전달하고 Root 의 외부 3초 가드에 SIGTERM(종료 −15)로 끝났다. 이 기록은 Root 의 원시 결과를 바꾸지 않는다.
+
+**원인(소스):** `captured_process::capture_until` 의 통신 루프 조건이 `while stdout.open || stderr.open` 이라 대기 중 stdin 을 계산에서 뺐다. 출력 두 스트림이 EOF 가 되면 루프를 떠나 자식 종료를 기다렸고, stdin 은 열린 채 더는 쓰이지 않았다.
+**수정:** 루프 조건이 대기 중 입력을 포함한다(`|| stdin.is_some()`). 같은 한 번의 `poll`·같은 기한·같은 `PIPE_BUF` 단위(공정성)·입력 완료 시 닫기·빈 입력(즉시 닫음)·일찍 닫은 자식의 EPIPE(조용히 종료)·`None` 일 때 상속 stdin 은 그대로다.
+제품 기한(120초/60초)을 줄이거나 지연·특정 사례 분기를 두지 않았다. 마지막 종료 대기(유한 경로)는 기존 폴링 그대로.
+
+**기한 없는 경로(Root 검토 반영):** 원본 `LiteMetrics` 호출은 `timeout` 이 없다. 365일 상한을 삭제하고 `run_captured_unbounded` 를 두었다 — 한 통신 루프(입력+두 출력)가 기한 없이 `poll` 하고, 모든 파이프가 끝난 뒤의 종료 대기는 블로킹 `child.wait()` 다(폴링 루프·분리 판독 스레드·1년 대기 없음).
+유한 공개 함수와 호출자(`run_captured_within`/`run_captured_in`, 120초/60초)는 같은 본문(`run_child`)을 `Some(한도)` 로 쓰며 동작이 같다. R13 `_run(None)` API 지원 범위는 넓히지 않았다.
+
+**등록 회귀(짧은 한도·실제 `/bin/sh` 자식):** `captured_process::tests` 4개 추가 — ① `input_is_still_served_after_the_child_closed_both_outputs`(자식이 두 출력을 닫고 1 MiB 비반복 입력을 EOF 까지 읽음 → 전체 바이트·순서·종료 0, 10초 한도 안에서 5초 미만) ② 같은 자식이 읽지 않으면 짧은 한도(0.3초)에서 TimeoutExpired·kill·reap ③ 빈 입력·일찍 닫음·에코(입출력 교차) ④ 무기한 경로(출력 닫고 읽은 뒤 0.4초 더 살다 종료 5 — 대기가 끊기지 않음, 에코 포함).
+API 수준: `native_value_delivers_a_large_request_to_a_child_that_closed_its_outputs`(Root 시나리오와 같은 모양: 262 144 자 payload → 자식이 받은 바이트가 요청 전체와 같고 `JSONDecodeError`) · `the_lite_metrics_call_without_a_limit_writes_waits_and_answers`(40만 자 요청·느린 답·한도 없음).
+**판별력:** 루프 조건을 옛 `while stdout.open || stderr.open` 으로 되돌린 변형은 ①이 FAIL(`TimeoutExpired … after 10 seconds`, 로그 `s2_mutant_retaining_loop`), 수정본은 PASS(`s2_unit`). 변형은 검사 후 원복했다(원본 사본은 후보 밖). API 수준 검사는 변형에서 120초(제품 한도) 후에야 실패하므로 변형 실행은 단위 검사로만 했다.
+
+**Bench:** 이제 모든 행이 `expected_json` 과 `expected_stdout` 을 **둘 다** 가져야 하고(없거나 문자열이 아니면 준비 단계에서 거부), 워밍 호출이 전체 값과 전체 출력(출력 없는 연산은 `""`)을 모두 대조한 뒤에야 타이밍한다. 타이머 안의 범위(바인딩·호출·자식·출력 생성·반환·해제)는 불변.
+
+**R13 검사 설정 변경(Root 승인 · `checks/resolve_topology_cli_cases.rs` 만 · 제품 불변):** 원인은 진짜 시험 설정 경합이다 — `std::fs::copy` 로 만든 실행파일을 곧바로 실행할 때, 병렬 시험의 다른 스레드가 fork 한 자식이 exec 전까지 쓰기 핸들을 상속해 쥐고 있으면 `ETXTBSY`.
+변경: `isolated_cli` 와 설치 배치 검사가 복사 대신 `place_executable`(하드링크 — 쓰기로 연 파일이 없음, 다른 파일시스템이면 복사)을 쓰고, 그 두 실행만 `output_after_busy` 로 감싼다(**시작이 ETXTBSY 일 때만** 20ms×100 유한 재시도; 다른 OS 오류는 즉시 실패, 시작된 프로그램은 종료 상태와 관계없이 다시 실행하지 않음). 기대 문구·종료값·4개 사례 수 불변. 이전 간헐 실패 이력(단독 12회 중 5회, 전체 수트 3회 중 2회)은 위 기록에 보존했다.
+확인: 변경 후 단독 8회 8 PASS(`s2_r13_setup_confirm`).
+
+### R14 교정 후 실행한 검사 (managed `rustc 1.99.1` · offline · locked · 외부 target)
+`fmt -- --check` PASS · `clippy --all-targets -- -D warnings` PASS · `build --release --bins` PASS(3 bin 안정) · `cargo test --release --no-fail-fast` **112 대상 · 441 통과 · 0 실패**(`s2_test_full`; 새 등록 검사 37 = 12+9+10+6, bench bin 단위 4, `captured_process` 단위 10)
+· 동결 원본 재생 CLI 7/7 · API 34/34 불일치 0(`frozen_replay_stdin_fix.log`). Root 의 stdin 실제 사례 재생과 독립 검토는 Root 소관(이 후보가 대신 주장하지 않는다).
+
+### R14 교정 3 — `SystemExit` 은 `Exception` 이 아니다 (후보 · 정본 적용 전)
+
+**실제 FAIL(Root 원본 우선·`r14-system-exit-reference`):** 선언된 lite 프로토콜 더블이 유효한 constants 뒤에 `kind: exception, type: SystemExit, message: declared-protocol-exit` 를 돌려주면,
+`lite_metrics_native._raise` 가 `SystemExit` 를 명시적으로 허용하고 원본 `main` 의 `except Exception` 은 이를 잡지 않으므로 원본은 **종료 1·stdout 비어 있음·stderr `declared-protocol-exit\n`** 이다.
+직전 후보(v2)는 모든 `Raised` 를 점검 상세로 접어 종료 1·stdout 2725 바이트·stderr 비어 있음·36/37 FAIL 이었다. 이 원시 결과는 그대로 보존된다.
+
+**수정(소유 클래스·가드·CLI 분기만):**
+- `Raised::is_system_exit()` — 잡히지 않는 클래스의 이름을 가진 단일 판정.
+- `conformance_checks::caught_as_exception()` — 원본의 두 `except Exception` 경계(게이트·렌더 단계 / 판정기 적재·D1 단계)가 이 한 도우미를 쓴다. 보통 예외는 기존대로 점검 상세(`repr`), `SystemExit` 는 `Err` 로 `main` 밖으로 전파되어 **보고서가 한 줄도 출력되지 않는다**.
+  모듈 적재(`import`)의 `except (RuntimeError, ValueError, KeyError, TypeError)` 는 원래 `SystemExit` 를 포함하지 않아 그대로 전파.
+- CLI: `SystemExit` 는 traceback 이 아니다 — 문자열 사유 + 개행을 stderr 에, 종료 1. **사유는 문자열이다**: `"0"`·`"7"`·`""` 도 숫자 상태가 아니라 문자열 사유(빈 문자열은 빈 줄)이며 다른 프로그램의 숫자 파싱 `exit_status` 를 쓰지 않는다.
+- API: `main` 은 라이브러리에서 프로세스를 끝내지 않고 `{kind: exception, type: SystemExit, message, stdout}` 봉투(그때까지 찍은 stdout 접두 포함)를 낸다.
+변경하지 않음: 보통 예외의 점검 처리(ImportError·JSONDecodeError 등) · 부분 stdout · D1 TypeError · 정상 41 · 동결 기준.
+
+**등록 회귀:** `conformance_cli_cases::a_reported_system_exit_ends_the_checker_with_its_string_reason`(선언 더블 형태 그대로: 유효 constants → SystemExit 레코드; 사유 `declared-protocol-exit`·`0`·`7`·`""` 각각 종료 1·stdout 비어 있음·stderr = 사유+개행) ·
+`a_reported_ordinary_exception_is_still_a_failed_check`(같은 더블의 `ValueError` 는 보고서·`FAIL E 판정기 적재·픽스처 판정  — ValueError('…')`·stderr 비어 있음) ·
+`conformance_api_transport::a_reported_system_exit_is_an_exception_envelope_not_a_process_exit`(API 프로세스는 0 으로 끝나고 봉투가 `SystemExit`/`0`/stdout `""`).
+**검사:** `fmt --check` PASS · `clippy --all-targets -D warnings` PASS · `build --release --bins` PASS · 대상 4개 등록 파일과 lib `conformance*` PASS(CLI 12 · helper 12 · bench 6 · API 단위 15 lib) · 동결 CLI 7/7 재생 불일치 0 ·
+Root 의 SystemExit 사례를 선언 더블(`LITE_METRICS_API_BIN`)로 재생: 종료 1·stdout 비어 있음·stderr `declared-protocol-exit\n` 일치(Root 의 정식 재생이 따른다). 전체 Cargo 는 다시 돌리지 않았다(이전 441/0 은 이번에 바뀐 대상을 제외하고 유효, Root 전체 검증이 뒤따른다).
+**한계:** 프로토콜 `message` 는 문자열 범위다 — 비문자열 `message` 의 `SystemExit(int)` 종료 상태 의미는 모델링하지 않는다. 기록상 8200 바이트 엄격 읽기는 Root 가 실제 PASS 확인(`r14-large-strict-reference`), 소스 동작 불변.
+
+### R14 교정 4 — 음성 대조 검사의 설치 배치 가정 (검사만 · 제품 동작 불변)
+
+**실제 FAIL(Root 정본 설치 Cargo · 새 사본 Cargo, 제품 실패 아님):** `without_a_scripts_directory_nothing_is_checked` 가 `CONFORMANCE_SCRIPTS_DIR` 를 지운 채 `CARGO_BIN_EXE_conformance_full_superset_lite` 를 실행하고 종료 2 를 기대했으나 0 을 받았다.
+`CARGO_BIN_EXE` 가 `…/rust/target/release` 안에 있으면(설치 배치) 실행파일의 설치 배치가 스크립트 디렉터리를 올바르게 공급하기 때문이다. R13 에서 이미 교정한 것과 같은 이식성 가정이며 런타임 결함이 아니다
+(후보의 외부 cargo-target 에는 그 배치가 없어 가려져 있었다). 기대 종료 2·정확한 진단·무출력은 그대로이고 기대값을 0 으로 바꾸지 않았다.
+
+**수정(`checks/conformance_cli_cases.rs` 의 검사 1개만):** 대상 실행파일을 스크래치 트리의 `rust` 조상이 없는 자리에 하드링크(다른 파일시스템이면 복사)로 두고(`rust` 조상이 있으면 `NOT_RUN`), 환경에서 `CONFORMANCE_SCRIPTS_DIR` 를 지운 채 그 격리본을 실행한다.
+설치 배치 양성 검사 `a_copy_of_the_binary_inside_an_installation_finds_its_scripts` 는 그대로(새 대응 검사 없음). 런타임·Core·CLI·API·bench·환경·게이트 무변경.
+**검증:** 후보(외부 cargo-target) `conformance_cli_cases` 12 PASS(`s4_cli`) · 설치 유사 배치(cargo target-dir 를 `…/adversarial-benchmark/rust/target` 로 둔 비공개 빌드 — `CARGO_BIN_EXE` 의 `rust/target/release` 조상 존재, 정확히 이 검사가 실패하던 조건) 에서도 12 PASS(`s4_cli_sim_installed`) ·
+fmt PASS · clippy `-D warnings` PASS. 전체 Cargo 는 다시 돌리지 않았다. 제품 릴리스 3 bin 은 v3 hold 와 바이트 동일(sha256 불변).
+
+### R14 교정 5 — 같은 프로세스·같은 컨텍스트의 반복 `main()` 은 메트릭 모듈을 다시 import 하지 않는다 (후보 · 정본 적용 전)
+
+**실제 불일치(Root 원본 우선·`r14-import-cache-reference`):** 원본은 한 프로세스에서 `main()` 을 두 번 불러도 `import lite_metrics_native` 가 `sys.modules` 로 한 번만 실행되어 실제 메트릭 소유자의 `constants` 를 **1회** 얻는다.
+v4 는 JSONL 로 `main` 을 두 번 부르면 `constants` 를 **2회** 얻었다(전체 값·stdout 은 41/41 로 같고 추가 자식 프로세스·부수효과만 달랐다). 이 원시 결과는 그대로 보존된다.
+
+**수정(상태 소유와 import 경로만):** `Context` 가 `ModuleCache`(원본의 `sys.modules` 에 해당)를 `Arc` 로 든다 — 같은 컨텍스트와 그 복제는 한 상태를 공유하고, 따로 만든 컨텍스트는 빈 상태로 시작한다.
+`LiteMetrics::load(&ModuleCache)` 는 **성공한** import 의 `LiteBindings`(상수)만 보관한다. 실패한 import 는 기억하지 않는다(파이썬은 import 에 실패한 모듈을 `sys.modules` 에서 지우므로 다음 import 가 다시 실행된다). 락은 import 동안 잡는다(import 락과 같은 취지).
+`main` 은 `load(context.modules())` 를 쓰고, 기존 `import()`(캐시 없음)는 그대로 둔다.
+**캐시하지 않는 것:** 오류 · 메트릭 연산 결과 · 파일 내용 · 점검 전체 · 출력 · 부수효과. 매 `build`/`judge_lite`/`read_lite_verdict`/`_load_json` 은 매번 실제 소유자를 호출하고, 보고서·발행·소스 읽기도 매번 실행된다.
+벤치·페이로드·경로·ID 별 분기, 결과 조회, 워밍업 분기 없음(계측기의 컨텍스트는 프로세스당 한 번 만들어지므로 같은 의미가 자연히 적용). 단일 CLI `main` 은 여전히 콜드 import 로 `constants` 를 1회 묻는다. 오류·`Exception`/`SystemExit` 가드·stdout·데이터 트리·`None` 기한·stdin 공정성 무변경, 새 의존성 없음.
+**범위:** 파이썬은 모듈 이름으로 캐시하므로 한 프로세스에서 서로 다른 스크립트 디렉터리가 같은 모듈을 공유한다 — 이 포팅은 컨텍스트 단위이며 그 일반 동일성은 모델링하지 않는다.
+
+**등록 검사(`checks/conformance_import_cache.rs`, 4):** 실제 설치 소유자 바이너리에 위임하는 **세는 래퍼**(모든 호출의 첫 인자를 기록하고 위임, 결정 모의 없음).
+① 같은 프로세스에서 `main` 2회 → 두 전체 값(0)·전체 stdout(41/41) 일치, `constants` 1회, `evaluate-jsonl` 호출 수는 단일 `main` 의 정확히 2배(연산이 매번 소유자로 감) ·
+② 첫 `constants` 가 실패하는 래퍼로 `main` 3회 → 첫 `main` 은 상태 1·`FAIL E 판정기 적재·픽스처 판정  — ImportError('lite metrics native transport failed (3): constants unavailable')`, 둘째는 다시 import 하고 41/41, 셋째는 캐시 사용; `constants` 총 2회, `evaluate-jsonl` 은 통과한 두 `main` 몫 ·
+③ 단일 CLI `main` → `constants` 1회, 전체 stdout 동일 · ④ 복제는 캐시 공유·별도 컨텍스트는 아님.
+**판별력:** `main` 이 캐시 없는 `import()` 를 부르게 되돌린 변형은 ①②가 FAIL(`constants` 2·3회, 로그 `s5_mutant_uncached`), 수정본은 PASS(`s5_cache`). 변형은 검사 후 원복했다(원본 사본은 후보 밖).
+**검사:** `fmt --check` · `clippy --all-targets -D warnings` · `build --release --bins` PASS · lib `conformance*` 15 · bench bin 4 · API 10 · bench 하네스 6 · CLI 12(교정 4 포함 그대로) · helper 12 · import cache 4 PASS(`s5_targets2`) · 동결 CLI 7/7 + SystemExit 사례 재생 불일치 0(`frozen_replay_import_cache.log`).
+공유 모듈(`captured_process`)은 이번에 바뀌지 않았다 — 공유 회귀 재실행 없음. 전체 Cargo·반복 루프·원본 재실행 없음. 계측 계약·ID·경계·Root 동결 파일 무변경.
+
+
+### R14 외부 수용·배포·성능 범위
+
+검사기 자체의 현행 248줄을 이행했다(초기 원형 184줄과 구분). 기본 실행 41개 검사·실제 reporting/publication/lite-metrics 런처 경계를 유지하며 원본 Python 파일은 참조로 남긴다. D1 dict-detail의 부분 출력 뒤 TypeError, reporting 프로토콜 전체 파싱, 명시된 SystemExit 문자열 사유의 비-traceback 종료와 성공 import 상태도 보존한다. 성공 LiteBindings만 같은 Context/클론에서 재사용하며 실패 import·측정·파일·판정·보고서·출력은 캐시하지 않는다. 벤치 관측기의 ‘캐시 없음’은 기대 결과를 생산 연산에 주거나 결과를 재사용하지 않는다는 뜻이며 이 생산 import 상태는 존재한다.
+
+외부 품질은 적용 조건이 유지되는 결과를 결합했다: 현재 Cargo 사례 448(변경 무관 385 재사용 + 관련 63), 별도 FD 사례 22, fmt·Clippy·명시 release 기동 검사 16, 실제 설치 런처 API 34/CLI 7 및 설치/부재 5. 첫 전체 Cargo의 설치위치 음성검사 전제 오류는 그대로 기록하고 같은 exit 2 기준을 설치 구조 밖 실행파일에서 검사하도록 고쳤다. 새 공백 경로에는 Git index 소스 647개(이 패키지 573개와 필요한 의존 자산 74개)만 전달해 offline build와 관련 178개 현재 사례·파일 일치를 확인했다. 전체 배포 검사 131개는 한 번 통과했다. 이후 성공 import 캐시 교정은 첫 cold CLI의 호출·값을 바꾸지 않았고 영향 검사·새 소스 기동을 갱신했다. 물리적인 다른 PC·서브·다른 CPU 아키텍처에서 실행한 결과는 아니다.
+
+배포용 산출물은 Cargo 검사를 끝낸 뒤 명시 build를 다시 수행한 기본 feature의 실행파일이다. Cargo test가 dev-dependency feature를 합쳐 같은 이름의 실행파일을 재링크할 수 있으므로 검사 빌드의 hash를 배포 빌드의 hash로 주장하지 않는다.
+
+동일 고정 입력의 11 교차 round 결과(현재 aarch64 Linux GNU, CPython 3.12.3, 관리 Rust 1.99.1):
+
+| 경계 | Python | Rust | Python/Rust |
+|---|---:|---:|---:|
+| 출력 함수 11개 × 1000, 실제 출력 생성·메모리 capture·반환 | 1.309618 μs | 0.734948 μs | 1.781918 |
+| 실제 파일 읽기 10개 × 100, bind/read/decode/전체 반환 | 5.170680 μs | 2.598836 μs | 1.989614 |
+| 정상 전체 검사기 1개 × 1, 실제 자식 프로세스·IO·전체 출력 | 71.294693 ms | 81.548518 ms | 0.874261 |
+| 실제 Bash CLI 3개, round 평균의 중앙값 | 73.540385 ms | 52.894029 ms | 1.390334 |
+
+전체 검사 함수는 여전히 Rust가 약 14.4% 느리다. 이를 다른 경계의 향상으로 대체하거나 모든 Rust 연산·LLM·서빙의 개선으로 표시하지 않는다. 후속 대표 Rust 시간 평가에서 이 잔여를 유지한다. 처음 측정한 더 느린 결과와 import 호출 1대2 차이·교정 기록도 보존했다.
+
+최초 함수 66/CLI 72 원시를 보존한 뒤, Python의 silent read에만 잘못 들어갔던 stdout capture 관측 비용을 교정했다. 같은 10개·100회·11 round의 read 22개만 새로 측정하고 유효한 함수 44/CLI 72, 총 116개 기록을 재사용했다. 최종 분모는 함수 66/CLI 72다. read 비율 변화 전부를 capture 제거의 인과효과로 주장하지 않는다. 전체 값·stdout 비교는 warm에서 강제되고 timed 구간은 예외를 거부한다. 매 timed 반환값까지 전부 대조했다고 주장하지 않는다. aftertree 범위는 해당 격리 root의 type/파일 bytes/symlink target이며 전역 파일시스템이나 모든 metadata의 증명이 아니다.
+
+범위는 현행 배포의 UTF-8 문자열 경로와 message:string 예외 프로토콜이다. 서로 다른 Context의 Python 전역 module-name identity, 모든 Python 객체·예외 생성 인자/속성·소스 traceback frame의 보편 동등성은 주장하지 않는다. KeyError의 풍부한 literal 객체 복원도 현재 문자열 키 소유자 경로 밖 한계다. 정적 배선 검사는 후속 소유자 이행 시 실제 Rust 소유 경로에 맞춰 갱신해야 한다. 전체 프로젝트의 Python 잔존 0이나 S1–S7·하네스·6프로필·실제 Long E2E 완료가 아니다.

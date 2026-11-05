@@ -137,8 +137,34 @@ fn isolated_cli(scratch: &Scratch, folder: &str) -> std::path::PathBuf {
         "NOT_RUN: the scratch location must not lie inside a `rust` folder"
     );
     let copy = directory.join("resolve_topology");
-    std::fs::copy(CLI, &copy).expect("copy keeps the executable mode");
+    place_executable(&copy);
     copy
+}
+
+/// Places the binary under test at `to` so that it can be executed at once. A hard link opens no file for writing,
+/// so no concurrent fork in another test thread can inherit a write handle of it (a forked child holds inherited
+/// handles until its `exec`, and executing a file that any process holds open for writing fails with `ETXTBSY`:
+/// the intermittent failure of a plain `std::fs::copy` followed by an immediate run). Where the scratch space is on
+/// another file system a link is impossible and the binary is copied; [`output_after_busy`] covers that case.
+fn place_executable(to: &std::path::Path) {
+    if std::fs::hard_link(CLI, to).is_err() {
+        std::fs::copy(CLI, to).expect("copy keeps the executable mode");
+    }
+}
+
+/// `Command::output`, retrying only a *start* that failed with `ETXTBSY` (bounded: 100 tries 20 ms apart). Any other
+/// start error is a failure at once, and a program that started is never run again, whatever its exit status.
+fn output_after_busy(command: &mut Command) -> Output {
+    const EXECUTABLE_FILE_BUSY: i32 = 26;
+    for _ in 0..100 {
+        match command.output() {
+            Err(error) if error.raw_os_error() == Some(EXECUTABLE_FILE_BUSY) => {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            other => return other.expect("run"),
+        }
+    }
+    panic!("the executable stayed busy for two seconds");
 }
 
 #[test]
@@ -148,16 +174,16 @@ fn the_abbreviated_and_repeated_options_follow_argparse() {
     // environment names no source, so the run ends with the configuration error of this port (what the original read
     // from its own file location), as an uncaught exception.
     let isolated = isolated_cli(&scratch, "isolated");
-    let output = Command::new(&isolated)
-        .arg("--self")
-        .current_dir(&scratch.root)
-        .env_remove("RESOLVE_TOPOLOGY_REPO_ROOT")
-        .env_remove("RESOLVE_TOPOLOGY_SCRIPTS_DIR")
-        .env_remove("RESOLVE_TOPOLOGY_RUNTIME_DIR")
-        .env_remove("RESOLVE_TOPOLOGY_BIN")
-        .env_remove("RESOLVE_TOPOLOGY_API_BIN")
-        .output()
-        .expect("run");
+    let output = output_after_busy(
+        Command::new(&isolated)
+            .arg("--self")
+            .current_dir(&scratch.root)
+            .env_remove("RESOLVE_TOPOLOGY_REPO_ROOT")
+            .env_remove("RESOLVE_TOPOLOGY_SCRIPTS_DIR")
+            .env_remove("RESOLVE_TOPOLOGY_RUNTIME_DIR")
+            .env_remove("RESOLVE_TOPOLOGY_BIN")
+            .env_remove("RESOLVE_TOPOLOGY_API_BIN"),
+    );
     let shown = String::from_utf8_lossy(&output.stderr).into_owned();
     assert_eq!(output.status.code(), Some(1), "{shown}");
     assert!(
@@ -189,17 +215,17 @@ fn an_executable_in_the_installed_layout_finds_its_sources_without_environment()
     std::fs::create_dir_all(skill.join("scripts")).expect("scripts");
     let release = skill.join("rust/target/release");
     std::fs::create_dir_all(&release).expect("release");
-    std::fs::copy(CLI, release.join("resolve_topology")).expect("copy");
-    let output = Command::new(release.join("resolve_topology"))
-        .arg("--self-test")
-        .current_dir(&scratch.root)
-        .env_remove("RESOLVE_TOPOLOGY_REPO_ROOT")
-        .env_remove("RESOLVE_TOPOLOGY_SCRIPTS_DIR")
-        .env_remove("RESOLVE_TOPOLOGY_RUNTIME_DIR")
-        .env_remove("RESOLVE_TOPOLOGY_BIN")
-        .env("RESOLVE_TOPOLOGY_PYTHON", python())
-        .output()
-        .expect("run");
+    place_executable(&release.join("resolve_topology"));
+    let output = output_after_busy(
+        Command::new(release.join("resolve_topology"))
+            .arg("--self-test")
+            .current_dir(&scratch.root)
+            .env_remove("RESOLVE_TOPOLOGY_REPO_ROOT")
+            .env_remove("RESOLVE_TOPOLOGY_SCRIPTS_DIR")
+            .env_remove("RESOLVE_TOPOLOGY_RUNTIME_DIR")
+            .env_remove("RESOLVE_TOPOLOGY_BIN")
+            .env("RESOLVE_TOPOLOGY_PYTHON", python()),
+    );
     let shown = String::from_utf8_lossy(&output.stderr).into_owned();
     let last = shown
         .trim_end()

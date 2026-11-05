@@ -754,6 +754,7 @@ fn build_caller_checkout(
             OsString::from("PYTHONDONTWRITEBYTECODE"),
             OsString::from("1"),
         )],
+        input: None,
     };
     Ok(CallerCheckout {
         root,
