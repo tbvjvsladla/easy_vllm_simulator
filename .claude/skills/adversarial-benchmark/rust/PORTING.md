@@ -1692,3 +1692,95 @@ v4 는 JSONL 로 `main` 을 두 번 부르면 `constants` 를 **2회** 얻었다
 최초 함수 66/CLI 72 원시를 보존한 뒤, Python의 silent read에만 잘못 들어갔던 stdout capture 관측 비용을 교정했다. 같은 10개·100회·11 round의 read 22개만 새로 측정하고 유효한 함수 44/CLI 72, 총 116개 기록을 재사용했다. 최종 분모는 함수 66/CLI 72다. read 비율 변화 전부를 capture 제거의 인과효과로 주장하지 않는다. 전체 값·stdout 비교는 warm에서 강제되고 timed 구간은 예외를 거부한다. 매 timed 반환값까지 전부 대조했다고 주장하지 않는다. aftertree 범위는 해당 격리 root의 type/파일 bytes/symlink target이며 전역 파일시스템이나 모든 metadata의 증명이 아니다.
 
 범위는 현행 배포의 UTF-8 문자열 경로와 message:string 예외 프로토콜이다. 서로 다른 Context의 Python 전역 module-name identity, 모든 Python 객체·예외 생성 인자/속성·소스 traceback frame의 보편 동등성은 주장하지 않는다. KeyError의 풍부한 literal 객체 복원도 현재 문자열 키 소유자 경로 밖 한계다. 정적 배선 검사는 후속 소유자 이행 시 실제 Rust 소유 경로에 맞춰 갱신해야 한다. 전체 프로젝트의 Python 잔존 0이나 S1–S7·하네스·6프로필·실제 Long E2E 완료가 아니다.
+
+
+## R15 프리셋·탐색 검증기 이행 — 후보 기록 (정본 적용 전)
+
+상태: 이 변환 단위의 후보 구현과 아래 자체검사 COMPLETE. 정본 연결·고정 8사례 재수행·독립 검증·성능·배포 검사는 이 후보의 범위 밖이며 NOT_RUN이다. 전체 과업(S1–S7·하네스·6프로필·실제 Long E2E)의 완료가 아니다.
+
+범위는 현행 검증 프로그램 진입점 3개(`selftest_bench_preset.py` 292줄 · `selftest_broad_search_cell_args.py` 236줄 · `selftest_broad_search_precheck.py` 362줄)다. 원본 Python 파일은 대조 기준으로 남는다.
+
+| 원본 | Rust | 비고 |
+|---|---|---|
+| `selftest_bench_preset.py` `run()` | 기존 `bench_preset_selftest::run_self_test` (R6) | **다시 이행하지 않았다.** 정상 stdout 4777바이트가 원본과 같다. 교정 1건: 스위트를 끝내는 `PresetError`는 원본이 `bench_preset.PresetError`로 보이므로 그 한 줄만 모듈 한정(`uncaught_line`) |
+| `selftest_broad_search_cell_args.py` `main`·`_build`·`_init`·`_cell`·`_state` | `broad_search_cell_args_selftest` (`main`·`build_checkout`·`init_sweep`·`run_cell`·`run_cases`) | N1~N6, 배포 `broad_search.sh`와 선언된 복사 목록 33개 |
+| `selftest_broad_search_precheck.py` `main`·`_build_fixture`·`_lockset`·`_record` | `broad_search_precheck_selftest` | A~M, 복사 목록 33개(원본과 같은 순서) |
+| 두 프로그램이 공유하는 `tempfile`·`subprocess`·`shutil`·`shutil.which`·`json` 사용 | `verify_fixture` | 격리 저장소·임시 디렉터리·자식 프로세스·검사 보고 |
+| 두 `__main__` | `broad_search_selftest_cli::{run_cell_args, run_precheck}`, bin `selftest_broad_search_cell_args`·`selftest_broad_search_precheck` | 명령줄 인자는 원본처럼 읽지 않는다 |
+
+**보존한 계약.** 실제 배포 `broad_search.sh`와 그 의존 파일을 격리 git 저장소에 같은 상대경로로 **바이트 그대로 복사해** 실행한다(재구현 없음). 부하 스크립트(`sweep_bench.sh`·`judge_bench.sh`)는 cell_args에서 argv만 기록하고 환경이 정한 종료 코드로 끝나는 stub이며 측정 산출물을 만들지 않는다. precheck에는 복사하지 않는다. `curl`은 PATH 앞단 shim(cell_args 200 · precheck 000)이다. 분류기·반복 축·프리셋·보고 체인은 복사한 실제 Rust 실행파일과 Bash 런처로 실행하고, 캠페인 소유자·템플릿 검증기는 명시된 외부 Python 의존으로 복사해 호출한다(소유자 정책을 복제하지 않았다).
+- 출력: 검사 줄 `  PASS …`/`  FAIL …`은 stdout, 요약은 cell_args가 stdout · precheck가 stderr. 종료 0/1. 실패 상세는 자식 stderr의 **마지막 400/300/600 문자**(바이트가 아니라 문자).
+- `git` 부재는 이름 있는 실패 한 줄(stderr, 종료 1)이며 아무것도 만들지 않는다. 격리 저장소 `git init`은 자식이 stdout/stderr를 공유하는 `check=True`·60초 호출이고, 실패는 `subprocess.CalledProcessError`(종료 코드 또는 `died with <Signals.…>`), 초과는 `subprocess.TimeoutExpired`다. git이 이미 쓴 출력은 그대로 남는다.
+- `init` 거부는 `SystemExit(문자열)`: 자식 stderr 전체와 개행을 stderr에 쓰고 종료 1(트레이스백 없음).
+- 복사할 배포 파일이 없으면 `FileNotFoundError`(원본 경로)로 끝난다. 잠금 템플릿이 없거나 깨져도(`json.decoder.JSONDecodeError`) skip·성공으로 접지 않는다.
+- `has_yaml`: 실제 인터프리터에 `import yaml`을 묻는다. 있으면 gmu 불일치 기재를, 없으면 '대조 불가' 기재를 검사한다. 인터프리터가 PATH에 없으면 `python3`를 그대로 기동해 그 실패(`FileNotFoundError`)가 올라온다(원본은 실행 중인 인터프리터로 대체했으나 이 이식에는 그런 인터프리터가 없다).
+- 정리: 정상 경로는 디렉터리 삭제 실패를 `OSError`로 올리고, 오류 경로는 `Drop`이 최선으로 지운다(파이썬의 권한 복구 재시도는 이식하지 않았다).
+- 환경: 자식은 부모 환경을 그대로 상속한다(`PATH` 앞단 shim만 추가). 부모의 `*_BIN`·`*_REPO_ROOT` override를 몰래 끄지 않는다. 검사는 환경을 비우고 `PATH`·`TMPDIR`·저장소만 지정한다.
+
+**이 이식의 것(원본에 없다).**
+- 저장소 위치: 원본은 자기 파일 위치에서 저장소를 구했다. 이 이식은 명시 환경 `BENCH_VERIFY_REPO_ROOT`가 우선이고 없으면 실행파일의 설치 배치(`…/adversarial-benchmark/rust/target/release/<이름>`)에서만 읽는다. 브랜치·에이전트 카드·토폴로지로 추정하지 않는다. 둘 다 없으면 이름 있는 한 줄과 **종료 2**이며 아무것도 만들지 않는다(`git` 확인이 먼저다).
+- 임시 루트는 Linux GNU의 `tempfile` 후보 순서(`TMPDIR`·`TEMP`·`TMP`의 비어 있지 않은 값, 고정 시스템 루트 `/tmp`·`/var/tmp`·`/usr/tmp`, 마지막으로 현재 디렉터리)에서 쓸 수 있는 첫 곳이다(R15 교정 2에서 정정 — 아래). 디렉터리 이름의 8자 접미는 `ring`의 시스템 난수를 균등하게 거부 표본한 것이다.
+- 신호 이름표는 Linux 1~31이다. 실시간 신호는 `died with unknown signal N.`이다.
+
+**등록 검사(`checks/broad_search_selftest_cases.rs`, 16 + 라이브러리 단위 11).** 모든 시나리오가 실제 바이너리를 실행한다: 배포 파일 두 통과 실행(검사 줄 14/27개·요약·빈 stderr·임시 디렉터리 제거), 인자 무시, **변이** 3(cell의 `--authority` 거부 제거 → N4만 FAIL 13/1, precheck의 거부 분기 제거 → 분류 검사 2개 FAIL 25/2, 판정 분기 둘 제거 → A~D FAIL), `git` 부재 2, 알 수 없는 저장소 2(미설정·빈 값), 설치 배치로만 저장소를 아는 실행, 출력하고 실패하는 git·신호로 죽는 git, 파일 누락 2, `init` 거부 2, 깨진·없는 템플릿, PyYAML 탐지 두 갈래. 실패 시나리오마다 임시 디렉터리 제거를 확인한다. 라이브러리 단위는 문자 단위 자르기·템플릿 id 부여·`dict` 갱신 오류·멤버십·키 제거·임시 디렉터리·`copy2` 오류 귀속·`exists`·`unlink`·신호 이름이다. 프리셋은 `checks/preset_selftest.rs`에 변이 대조 1건을 더했다(교정 전 표기에서 FAIL, 교정 후 PASS를 확인).
+**검사 결과(관리 Rust 1.99.1, offline·locked):** `fmt --check` · `clippy --all-targets -D warnings` · `build --release --bins` PASS · 전체 `cargo test` 116 결과 블록 475 PASS/0 FAIL/1 ignored(기존 GuideLLM CA 외부 통제 환경이 없을 때 건너뛰는 검사) · 이후 영향 범위 재실행 라이브러리 144 · 신규 16 · package_paths 2 · preset_selftest 4 PASS. 정상 실행의 stdout은 원본 고정 출력과 바이트가 같고(15줄 · 28줄 · 프리셋 4777바이트, 각각 요약 줄 포함) stderr는 비며 종료 0이다. 고정 실패 사례 중 변이 2 · git 부재 2 · 프리셋 변이 1도 원본 기대와 일치했다(임시 루트 이름만 정규화).
+**NOT_RUN:** 독립 검증자의 별도 원본 2사례 · 정본 설치(래퍼·build 18기동·배포검사) · 성능 비교 · 물리적으로 다른 노드·아키텍처 · 기존 CA 외부 통제 검사.
+
+### R15 교정 2 — 임시 루트 후보 순서 (후보 · 정본 적용 전)
+
+**초판(v1)의 결함.** v1은 `TMPDIR`·`TEMP`·`TMP` 다음에 `std::env::temp_dir()`를 "플랫폼 기본 루트"로 넣었다. 그 함수는 **사용할 수 없는 `TMPDIR`를 그대로 돌려주므로**, 존재하지 않는 중첩 경로의 `TMPDIR`와 미설정 `TEMP`/`TMP`에서 고정 시스템 루트에 닿지 못하고 현재 디렉터리가 선택되었다. 원본은 `/tmp`를 고른다. 초판 기록의 "고정 시스템 루트 둘은 기본 루트가 쓸 수 없는 호스트에서만 차이" 한계 서술은 동등성이 아니었으므로 **철회**한다. 실제 결함 증거(원본 `r15-tempdir-reference`, v1 후보 `r15-tempdir-candidate`)와 v1 소스·실행파일 보관본은 그대로 보존한다.
+
+**수정.** 후보 목록을 `temporary_candidates`(환경 조회를 인자로 받는 순수 함수)가 만들고, `first_usable_temporary_root`가 `.`이 아닌 후보를 절대 경로로 바꿔 프로브 파일을 만들고 지울 수 있는 첫 곳을 고른다. 고정 시스템 루트는 `SYSTEM_TEMPORARY_ROOTS`(`/tmp`·`/var/tmp`·`/usr/tmp`)이며 정당한 OS 상수다. 프로세스 전역 환경은 바꾸지 않는다. 모두 쓸 수 없으면 `FileNotFoundError: [Errno 2] No usable temporary directory found in [후보 목록]`이다. 범위는 Linux GNU이며 다른 OS의 후보는 이식하지 않았다.
+
+**등록 검사.** `broad_search_selftest_cases`의 `an_unusable_temporary_directory_variable_falls_through_to_the_system_root_before_the_working_directory`: 실제 두 바이너리를 존재하지 않는 중첩 `TMPDIR`·미설정 `TEMP`/`TMP`로 기동하고, 종료 17로 실패하는 가짜 `git`이 보고한 저장소 경로의 부모가 `/tmp`이며 이름이 `bs-cellargs.`/`bs-precheck.`로 시작하고, 종료 뒤 그 디렉터리가 없고 작업 디렉터리가 비어 있음을 확인한다. **v1 소스에서 FAIL**(부모가 작업 디렉터리, 원시 로그 `v2-regression-on-v1`)하고 교정 후 PASS(`v2-regression-fixed`)했다. 라이브러리 단위 2개는 후보 순서(빈 값 건너뜀·고정 루트·현재 디렉터리 또는 `.`)와 쓸 수 없는 후보 건너뛰기·오류 목록을 환경 변경 없이 확인한다.
+
+**유지되는 한계(이번에 바꾸지 않았다).** 실시간 신호는 `died with unknown signal N.`이며 신호 이름표는 Linux 1~31이다. 인터프리터가 PATH에 없으면 `has_yaml` 탐지는 `python3`를 그대로 기동해 `FileNotFoundError`가 된다. 오류 경로의 임시 디렉터리 정리는 최선(`Drop`)이며 파이썬의 권한 복구 재시도는 없다.
+
+
+## R15 controller integration and measured whole programs
+
+The actual standalone entries are `selftest_bench_preset.sh`, `selftest_broad_search_cell_args.sh`, and
+`selftest_broad_search_precheck.sh`. The first reuses the existing full preset suite; the two new programs copy and
+exercise the deployed Broad Search shell script. Distribution checks and the two policy call edges use the new
+launchers. The build runs 18 startup checks. The originals remain reference programs.
+
+The controller compared the eight frozen CLI cases, an additional original-first unusable-TMPDIR case, and nine
+copied-installation cases. The unusable-TMPDIR regression failed on v1 and passed on v2. The preset observation first
+bypassed the preexisting owner-adapter binding; using the actual preset launcher corrected that observation without
+changing its expected result. Independent validation compared two separately frozen failures once each; the first
+comparator retained the native frame placeholder, then reprojected the saved streams under the existing source-frame
+rule. Qualified exception messages, their multiline payload, pretrace child diagnostics and partial stdout remain
+compared. Valid explicit-TMPDIR results were reused across the v2 candidate-selection-only production delta.
+
+Canonical validation passed fmt, 36 affected release checks (13 fixture units, 17 program cases, four preset checks,
+two package-path checks), Clippy, and the default product build followed by 18 startup checks. The current logical
+479 passing Cargo cases comprise 443 unchanged cases from the preceding unit plus these 36; this is not a new
+single full 479-case invocation. The author's earlier full run passed 476 cases, with one preexisting CA-control
+case ignored. That ignored case is not counted as passed. The separately exercised 22 descriptor scenarios are
+reused because their shared process-capture source is unchanged.
+
+Fresh Git-index-only installation passed with 683 files (580 Rust-package files plus 103 declared dependency files),
+without copying build targets, credentials or caches. It reused the node-managed toolchain cache explicitly, built
+offline, ran the 18 startup checks and 36 affected release checks, then restored default-feature product binaries.
+The whole distribution suite passed 131/131 in one invocation (250.618041 seconds). This is a fresh local-path
+installation, not a physical second-PC or subnode run.
+
+Timing used three actual whole programs, one warm pair and five alternating measured pairs (36 CLI records). Fixture
+preparation by the observer was outside the timer; the programs' private fixtures, Git initialization, actual owner
+processes, IO, report output and cleanup were inside. Every stdout/stderr/exit matched the frozen original and the
+observed private source closure stayed unchanged. No artificial pure fragment was timed.
+
+| Whole CLI | Python median seconds | Rust median seconds | Python/Rust |
+| --- | ---: | ---: | ---: |
+| preset verifier | 4.675954906 | 3.873460354 | 1.207177686 |
+| cell-args verifier | 1.818915417 | 1.840113415 | 0.988480059 |
+| provenance-precheck verifier | 6.346408067 | 6.348014563 | 0.999746929 |
+
+The median of each side's three-program round means was 4.273165523 versus 4.033247599 seconds (1.059485047).
+This aggregate is not the mean of the three speedup ratios. Both Broad Search boundaries show no measured speedup;
+the small differences do not establish statistical significance. They remain in the final Rust-time review together
+with the preceding timing limits. No LLM, GPU, serving, six-profile evaluation, or whole-project completion follows
+from this unit. Python campaign owners and embedded production snippets remain explicit later-stage dependencies.
+
+Evidence directories: `r15-canonical-checks/`, `r15-packaging/`, `r15-distribution/`, `r15-benchmark-results/`,
+`r15-tempdir-correction/`, `r15-installed-candidate/`, and the independent `candidate-v1/validation-delta/`.

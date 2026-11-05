@@ -41,7 +41,7 @@ BENCH_PRESET_BIN="$CRATE/target/release/bench_preset" \
   BENCH_PRESET_REPO_ROOT="$REPO" \
   BENCH_PRESET_SKILL_DIR="$SDIR/.." \
   REPEAT_AXIS_CAMPAIGN_ADAPTER="$SDIR/repeat_axis_owner_query.py" \
-  bash "$SDIR/bench_preset.sh" --self-test
+  BENCH_VERIFY_REPO_ROOT="$REPO" bash "$SDIR/selftest_bench_preset.sh"
 LITE_METRICS_API_BIN="$CRATE/target/release/lite_metrics_api" \
   LITE_METRICS_FIXTURE="$SDIR/../fixtures/lite_raw_d1_connection_refused.json" \
   bash "$SDIR/lite_metrics_api.sh" self-test
@@ -66,3 +66,7 @@ RESOLVE_TOPOLOGY_BIN="$CRATE/target/release/resolve_topology"   RESOLVE_TOPOLOGY
 CONFORMANCE_BIN="$CRATE/target/release/conformance_full_superset_lite" \
   CONFORMANCE_SCRIPTS_DIR="$SDIR" \
   bash "$SDIR/conformance_full_superset_lite.sh"
+
+SELFTEST_BROAD_CELL_BIN="$CRATE/target/release/selftest_broad_search_cell_args" BENCH_VERIFY_REPO_ROOT="$REPO" bash "$SDIR/selftest_broad_search_cell_args.sh"
+
+SELFTEST_BROAD_PRECHECK_BIN="$CRATE/target/release/selftest_broad_search_precheck" BENCH_VERIFY_REPO_ROOT="$REPO" bash "$SDIR/selftest_broad_search_precheck.sh"

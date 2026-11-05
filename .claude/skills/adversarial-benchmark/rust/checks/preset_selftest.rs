@@ -68,6 +68,59 @@ fn unbound_skill_directory_fails_by_name() {
     );
 }
 
+/// The suite reaches the preset program as the module `bench_preset`, so a `PresetError` that ends it (a deployed
+/// preset that breaks the contract) is shown as `bench_preset.PresetError`, with the whole multi-line message, and the
+/// run fails without printing a check or the closing line.
+#[test]
+fn an_uncaught_preset_error_is_shown_with_the_module_of_the_original() {
+    let repo = real_repo();
+    let root = scratch("selftest-bad-preset");
+    copy_dir(
+        &repo.join(SKILL_REL).join("config"),
+        &root.join(SKILL_REL).join("config"),
+    );
+    let preset = root
+        .join(SKILL_REL)
+        .join("config/guide-llm/default_preset.yaml");
+    let text = std::fs::read_to_string(&preset).expect("NOT_RUN: preset");
+    // Drop the `warmups` knob: its key line and the lines indented under it.
+    let mut kept = Vec::new();
+    let mut inside = false;
+    for line in text.lines() {
+        if line == "  warmups:" {
+            inside = true;
+            continue;
+        }
+        if inside && line.starts_with("    ") {
+            continue;
+        }
+        inside = false;
+        kept.push(line);
+    }
+    assert!(
+        kept.len() + 2 < text.lines().count(),
+        "the knob block was removed"
+    );
+    std::fs::write(&preset, kept.join("\n") + "\n").expect("write");
+
+    let out = self_test(&root);
+    assert_eq!(out.status.code(), Some(1));
+    assert!(out.stdout.is_empty(), "no check ran");
+    let stderr = String::from_utf8(out.stderr).expect("UTF-8");
+    assert!(
+        stderr.starts_with(
+            "Traceback (most recent call last):\n  (native: Python stack frames are not reproduced)\nbench_preset.PresetError: 프리셋 "
+        ),
+        "{stderr}"
+    );
+    assert!(
+        stderr.ends_with(
+            "default_preset.yaml 계약 위반 1건:\n  - knobs 키 계약 위반(누락 ['warmups'] · 미지 [])\n"
+        ),
+        "{stderr}"
+    );
+}
+
 fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
     std::fs::create_dir_all(to).unwrap();
     for entry in std::fs::read_dir(from).unwrap() {

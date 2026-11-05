@@ -18,6 +18,9 @@ pub mod bench_tool_api;
 pub mod bench_tool_cli;
 pub mod bench_tool_pin;
 mod bench_tool_selftest;
+mod broad_search_cell_args_selftest;
+mod broad_search_precheck_selftest;
+pub mod broad_search_selftest_cli;
 pub mod captured_process;
 pub mod classify_cell;
 pub mod classify_cell_api_cli;
@@ -118,6 +121,7 @@ pub mod utc;
 pub mod verdict;
 pub mod verdict_cli;
 mod verdict_selftest;
+mod verify_fixture;
 
 mod repeat_floor {
     include!(concat!(env!("OUT_DIR"), "/full_repeats_min.rs"));

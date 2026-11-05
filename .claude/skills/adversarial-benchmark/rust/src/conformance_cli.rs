@@ -51,11 +51,12 @@ pub fn run_with(_args: &[PyStr], context: Option<&Context>, io: &mut Streams<'_>
 }
 
 /// `Class: message` as the interpreter prints the last traceback line (library classes carry their module).
-fn traceback_line(raised: &Raised) -> PyStr {
+pub(crate) fn traceback_line(raised: &Raised) -> PyStr {
     let failure = raised.failure();
     let class = match failure.class {
         "JSONDecodeError" => "json.decoder.JSONDecodeError",
         "TimeoutExpired" => "subprocess.TimeoutExpired",
+        "CalledProcessError" => "subprocess.CalledProcessError",
         other => other,
     };
     let mut text = PyStr::new(class);

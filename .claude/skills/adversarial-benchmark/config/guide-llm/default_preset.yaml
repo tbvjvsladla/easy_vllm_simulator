@@ -3,7 +3,7 @@
 #
 # 편집 규칙 · knob 읽는 법(owner/options/grade) · 해소 순서 · serving_cap · 사용자 프리셋 만드는 법은
 # 같은 폴더의 README.md 가 정본이다. 이 파일에는 knob 별 사정(왜 이 선택지인가)만 적는다.
-# 키를 늘리거나 지우면 selftest_bench_preset.py(리뷰)와 bench_preset.py(기동)가 둘 다 막는다.
+# 키를 늘리거나 지우면 selftest_bench_preset.sh(리뷰)와 bench_preset.sh(기동)가 둘 다 막는다.
 
 schema_version: 1
 bench: full-bench

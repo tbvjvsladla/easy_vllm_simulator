@@ -278,6 +278,18 @@ fn to_path(text: &PyStr) -> PathBuf {
     ))
 }
 
+/// The last line of the traceback of an exception that ends the suite. The suite reaches the preset program as the
+/// module `bench_preset` (the original imports it, whether run standalone or through `--self-test`), so a
+/// `PresetError` that escapes it is shown with that module name; every other class is shown as it is.
+fn uncaught_line(failure: &Failure) -> PyStr {
+    if failure.class != bench_preset::PRESET_ERROR {
+        return failure.line();
+    }
+    let mut line = PyStr::new("bench_preset.");
+    line.push_py(&failure.line());
+    line
+}
+
 /// Runs the suite against the installation the runtime names.
 pub fn run_self_test(runtime: &Runtime) -> SelfTestReport {
     let mut suite = Suite {
@@ -291,7 +303,7 @@ pub fn run_self_test(runtime: &Runtime) -> SelfTestReport {
                 stdout: suite.out,
                 stderr: format!(
                     "{TRACEBACK_HEADER}{}\n",
-                    failure.line().to_utf8().unwrap_or_default()
+                    uncaught_line(&failure).to_utf8().unwrap_or_default()
                 ),
                 exit_code: 1,
             }

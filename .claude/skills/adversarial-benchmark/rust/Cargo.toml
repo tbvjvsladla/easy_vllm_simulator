@@ -176,6 +176,14 @@ path = "src/bin/conformance_full_superset_lite_api.rs"
 name = "conformance_full_superset_lite_bench"
 path = "src/bin/conformance_full_superset_lite_bench.rs"
 
+[[bin]]
+name = "selftest_broad_search_cell_args"
+path = "src/bin/selftest_broad_search_cell_args.rs"
+
+[[bin]]
+name = "selftest_broad_search_precheck"
+path = "src/bin/selftest_broad_search_precheck.rs"
+
 [[test]]
 name = "oracle_cases"
 path = "checks/oracle_cases.rs"
@@ -491,3 +499,7 @@ path = "checks/conformance_bench_harness.rs"
 [[test]]
 name = "conformance_import_cache"
 path = "checks/conformance_import_cache.rs"
+
+[[test]]
+name = "broad_search_selftest_cases"
+path = "checks/broad_search_selftest_cases.rs"

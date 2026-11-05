@@ -1146,13 +1146,13 @@ def verify() -> dict:
         #   통과, 불일치 기재, 캠페인 밖 not_applicable 표시를 음성대조와 함께 친다. 부하 스크립트는
         #   사본에 없고 curl 은 shim 이라 서빙·docker·GPU 불요다(위 confirm_gate 는 exit 5 로 precheck
         #   앞에서 멈추므로 lockset 없이도 계약이 유지된다).
-        _run("benchmark_broad_search_provenance_precheck", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_precheck.py"], {0}),
+        _run("benchmark_broad_search_provenance_precheck", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_precheck.sh"], {0}),
         # cell 인자 선검사·루브릭 권한 승계의 **집행** (2026-10-01 · plan_26100113 H6 · F3·F4). 측정기의 측정 전 거부(rc 2)가
         #   셀 기록(void)으로 굳어 예산을 먹던 경로와, 판정 호출이 상태 파일 권한 대신 explore 로 접히던 침묵 폴백이 돌아오지
         #   않는지 친다. 부하 스크립트는 argv 만 기록하는 stub 이다 — 서빙·docker·GPU 불요.
-        _run("benchmark_broad_search_cell_args", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_cell_args.py"], {0}),
+        _run("benchmark_broad_search_cell_args", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_cell_args.sh"], {0}),
         # 벤치 6종 토폴로지 해소의 **집행** (2026-09-14 · plan_26091407 §9 ⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고
         #   브랜치로 추론하지 않는다"). 호출자 없는 자체검사는 L1(산문)이다(위 선례). 무엇을 지키나: `--topology` 미지정 시 6종이
         #   브랜치 이름으로 고르고 unknown 을 조용히 single 로 접던 관용구가 돌아오지 않는지(S0 · abbrev-ref 0)와, 해소가 카드(unsigned)
