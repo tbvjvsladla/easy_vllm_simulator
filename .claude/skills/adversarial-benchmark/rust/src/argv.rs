@@ -282,6 +282,46 @@ pub const BENCH_TOOL: Spec = Spec {
     layouts: crate::help_layouts_resolve_bench_tool::LAYOUTS,
 };
 
+/// Indices of the `resolve_guidellm.py` actions.
+pub mod resolve_guidellm_args {
+    pub const VERSION: usize = 1;
+    pub const REPO: usize = 2;
+    pub const RECORD: usize = 3;
+    pub const RECORD_PATH: usize = 4;
+    pub const JSON: usize = 5;
+    pub const SELF_TEST: usize = 6;
+}
+
+/// The original `resolve_guidellm.py` parser: `--version`, `--repo`, `--record`, `--record-path`, `--json`,
+/// `--self-test`, all optional (an option may be abbreviated to any unambiguous prefix, as in argparse).
+pub const RESOLVE_GUIDELLM: Spec = Spec {
+    prog: "resolve_guidellm.py",
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            ..PLAIN
+        },
+        text_option("--version", false),
+        text_option("--repo", false),
+        flag("--record"),
+        text_option("--record-path", false),
+        flag("--json"),
+        flag("--self-test"),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--version", resolve_guidellm_args::VERSION),
+        ("--repo", resolve_guidellm_args::REPO),
+        ("--record", resolve_guidellm_args::RECORD),
+        ("--record-path", resolve_guidellm_args::RECORD_PATH),
+        ("--json", resolve_guidellm_args::JSON),
+        ("--self-test", resolve_guidellm_args::SELF_TEST),
+    ],
+    layouts: crate::help_layouts_resolve_guidellm::LAYOUTS,
+};
+
 /// Indices of the `classify_cell.py` actions.
 pub mod classify_args {
     pub const SERVE_RC: usize = 1;

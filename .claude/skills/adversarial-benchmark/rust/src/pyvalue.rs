@@ -272,6 +272,41 @@ impl PyDict {
         self.get(key).is_some()
     }
 
+    /// The value under a string key, for in-place change.
+    pub fn get_mut(&mut self, key: &str) -> Option<&mut PyValue> {
+        let at = self
+            .entries
+            .iter()
+            .enumerate()
+            .position(|(at, (existing, _))| existing.equals(key) && !self.is_other(at))?;
+        Some(&mut self.entries[at].1)
+    }
+
+    /// `dict.setdefault(key, default)` for a key of either kind: the stored value (kept when the key is present, even if
+    /// it is `None`), else `default` stored and returned.
+    pub fn setdefault_key(&mut self, key: DictKey, default: PyValue) -> &mut PyValue {
+        let present = match &key {
+            DictKey::Str(text) => self
+                .entries
+                .iter()
+                .enumerate()
+                .position(|(at, (existing, _))| existing == text && !self.is_other(at)),
+            DictKey::Other(other) => self
+                .others
+                .iter()
+                .find(|(_, existing)| existing.identity == other.identity)
+                .map(|(at, _)| *at),
+        };
+        let at = match present {
+            Some(at) => at,
+            None => {
+                self.insert_key(key, default);
+                self.entries.len() - 1
+            }
+        };
+        &mut self.entries[at].1
+    }
+
     pub fn len(&self) -> usize {
         self.entries.len()
     }
@@ -833,7 +868,7 @@ pub fn bytes_repr(bytes: &[u8]) -> String {
 
 /// What `json.dumps` writes for a dict key: strings as they are, `None`/`bool`/`int`/`float` as their JSON spelling,
 /// anything else is the `TypeError` Python raises.
-fn json_key(key: &NonStringKey) -> Result<PyStr, DumpError> {
+pub(crate) fn json_key(key: &NonStringKey) -> Result<PyStr, DumpError> {
     let repr = key.repr.as_str();
     let spelled = match repr {
         "None" => "null".to_string(),

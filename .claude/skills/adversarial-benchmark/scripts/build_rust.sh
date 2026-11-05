@@ -58,3 +58,6 @@ DATASET_PREP_BIN="$CRATE/target/release/dataset_prep" \
   bash "$SDIR/dataset_prep.sh" --self-test
 RESOLVE_BENCH_TOOL_BIN="$CRATE/target/release/resolve_bench_tool" \
   bash "$SDIR/resolve_bench_tool.sh" --self-test
+RESOLVE_GUIDELLM_BIN="$CRATE/target/release/resolve_guidellm" \
+  GUIDELLM_RECORD_PATH="$SDIR/../bench_tool_pin.json" \
+  bash "$SDIR/resolve_guidellm.sh" --self-test

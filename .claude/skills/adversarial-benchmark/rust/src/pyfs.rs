@@ -241,6 +241,23 @@ pub fn write_text(path: &PyStr, text: &PyStr) -> Result<(), Failure> {
     })
 }
 
+/// [`strict_utf8`] appended to `out` without a buffer of its own. On failure `out` is left as it was and the error is the
+/// one [`strict_utf8`] reports.
+pub fn strict_utf8_into(text: &PyStr, out: &mut Vec<u8>) -> Result<(), EncodeFailure> {
+    let mark = out.len();
+    let mut buffer = [0_u8; 4];
+    for &point in text.code_points() {
+        match char::from_u32(point) {
+            Some(character) => out.extend_from_slice(character.encode_utf8(&mut buffer).as_bytes()),
+            None => {
+                out.truncate(mark);
+                return Err(strict_utf8(text).expect_err("a surrogate was found"));
+            }
+        }
+    }
+    Ok(())
+}
+
 /// `text.encode("utf-8")`: any surrogate is a `UnicodeEncodeError`.
 pub fn strict_utf8(text: &PyStr) -> Result<Vec<u8>, EncodeFailure> {
     let points = text.code_points();
@@ -304,8 +321,28 @@ pub fn load_json_or_none(path: &PyStr) -> Result<Option<PyValue>, Failure> {
 
 /// `Path.read_bytes()`.
 pub fn read_bytes(path: &PyStr) -> Result<Vec<u8>, Failure> {
+    use std::io::Read;
     let os = os_string(path).map_err(FsFailure::into_failure)?;
-    std::fs::read(Path::new(&os)).map_err(|error| os_failure(error, path).into_failure())
+    // open, then read until the end: the same errors at the same steps as `std::fs::read`, but without the size query
+    // (`statx`, `lseek`) it makes first. A record file is a few hundred bytes, so the first block takes it whole and the
+    // next read sees the end; a larger file grows the buffer.
+    let mut file = std::fs::File::open(Path::new(&os))
+        .map_err(|error| os_failure(error, path).into_failure())?;
+    let mut bytes = vec![0_u8; 4096];
+    let mut filled = 0;
+    loop {
+        if filled == bytes.len() {
+            bytes.resize(filled * 2, 0);
+        }
+        match file.read(&mut bytes[filled..]) {
+            Ok(0) => break,
+            Ok(count) => filled += count,
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => {}
+            Err(error) => return Err(os_failure(error, path).into_failure()),
+        }
+    }
+    bytes.truncate(filled);
+    Ok(bytes)
 }
 
 /// The bytes of a file handed over in blocks, for a reader that folds them (a digest) and does not need them all at

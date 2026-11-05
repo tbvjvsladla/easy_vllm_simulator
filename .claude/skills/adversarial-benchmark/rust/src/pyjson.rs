@@ -92,7 +92,12 @@ pub(crate) fn translate_newlines(points: Vec<u32>) -> PyStr {
 /// The message names the offending bytes the way `UnicodeDecodeError` does: one byte as `byte 0xXX in position
 /// P`, a longer invalid or truncated sequence as `bytes in position P-Q`.
 pub fn decode_file_text(bytes: &[u8]) -> Result<PyStr, LoadError> {
-    decode_utf8_strict(bytes).map(|text| translate_newlines(text.code_points().to_vec()))
+    let text = decode_utf8_strict(bytes)?;
+    // without a carriage return there is nothing to translate (and nothing to copy)
+    if !bytes.contains(&b'\r') {
+        return Ok(text);
+    }
+    Ok(translate_newlines(text.code_points().to_vec()))
 }
 
 /// `bytes.decode("utf-8")`: strict, with no newline translation (what `open()` adds on top of it).

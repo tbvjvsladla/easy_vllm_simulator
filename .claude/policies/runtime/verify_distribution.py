@@ -1035,6 +1035,10 @@ def verify() -> dict:
         #   초록이 되지 않는다(픽스처가 실물보다 좁다 — 하루에 네 번 겪은 계열).
         _run("benchmark_bench_tool_pin_selftest", ["bash",
              ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.sh", "--self-test"], {0}),
+        # Staging version resolver: source T1-T9 includes the shipped record and an injected
+        # release response, with no live GitHub request or implicit Docker pull.
+        _run("benchmark_guidellm_version_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/resolve_guidellm.sh", "--self-test"], {0}),
         # GuideLLM 산출물 파서 (CP4). 실측 산출물 픽스처를 함께 검사하므로 합성 픽스처만 보고
         #   초록이 되지 않는다.
         _run("benchmark_parse_guidellm_selftest", ["bash",

@@ -1,0 +1,14 @@
+  [PASS] T1 태그 v0.7.3 → 0.7.3
+  [PASS] T2 v 없는 태그도 읽는다
+  [PASS] T3 형태가 아니면 거부('')
+  [PASS] T3 형태가 아니면 거부(None)
+  [PASS] T3 형태가 아니면 거부('release-candidate')
+  [PASS] T3 형태가 아니면 거부('v')
+  [PASS] T3 형태가 아니면 거부('latest')
+  [PASS] T4 이미지 참조 조립
+  [PASS] T5 최신 릴리즈 해소 → 버전·이미지·출처
+  [PASS] T6 선언 override 는 출처가 declared 다
+  [PASS] T7 기록 병합이 옛 버전을 지우지 않는다
+  [PASS] T8 새 기본 버전과 digest 가 기록된다
+  [PASS] T9 배포 기록이 versions/default_version 형태다
+[resolve_guidellm --self-test] OK — T1~T9 전부 통과

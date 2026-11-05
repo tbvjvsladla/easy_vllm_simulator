@@ -83,7 +83,7 @@ static NAN_KEYS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::ne
 
 /// A value used as a dict key: strings stay strings; the other hashable JSON values are keys told apart by
 /// equality (`1`, `1.0` and `True` are one key). Lists and dicts are unhashable.
-fn dict_key(value: &PyValue) -> Result<DictKey, Failure> {
+pub(crate) fn dict_key(value: &PyValue) -> Result<DictKey, Failure> {
     ensure_hashable(value)?;
     let (identity, repr) = match value.peel() {
         PyValue::Str(text) => return Ok(DictKey::Str(text.clone())),

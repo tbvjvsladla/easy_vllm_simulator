@@ -22,7 +22,7 @@ use crate::cli::os_error_text;
 use crate::guidellm::Failure;
 use crate::pyfs::{os_error_class, os_string};
 use crate::pystr::{EncodeFailure, PyStr};
-use crate::pyvalue::PyValue;
+use crate::pyvalue::{json_key, NonStringKey, PyValue};
 use std::fs::File;
 use std::io::{BufWriter, Write};
 use std::path::Path;
@@ -35,6 +35,12 @@ type Res<T> = Result<T, Failure>;
 /// Receives the chunks of a document in order. A failure ends the dump; chunks already accepted stay accepted.
 pub trait ChunkSink {
     fn write(&mut self, chunk: &PyStr) -> Res<()>;
+
+    /// The same as [`ChunkSink::write`] for a chunk that is plain ASCII, so that a sink can take the text as it is. A
+    /// sink that does not care keeps this default (the chunk, as text, through `write`).
+    fn write_ascii(&mut self, chunk: &str) -> Res<()> {
+        self.write(&PyStr::new(chunk))
+    }
 }
 
 /// `RecursionError("maximum recursion depth exceeded")`.
@@ -87,8 +93,22 @@ impl Encoder<'_> {
         self.sink.write(piece)
     }
 
+    /// A chunk that is plain ASCII (punctuation, indentation, `null`, numbers): handed over as borrowed text, with no
+    /// code-point string built for it.
+    fn ascii(&mut self, piece: &str) -> Res<()> {
+        self.sink.write_ascii(piece)
+    }
+
     fn newline_indent(&self, level: usize) -> String {
         format!("\n{}", self.indent.repeat(level))
+    }
+
+    /// One scalar as a chunk of its own.
+    fn scalar(&mut self, scalar: &PyValue, frame: usize) -> Res<()> {
+        match scalar_piece(scalar, frame)? {
+            Piece::Ascii(piece) => self.ascii(&piece),
+            Piece::Text(piece) => self.chunk(&piece),
+        }
     }
 
     /// `_iterencode(o, level)` for the outermost value.
@@ -102,10 +122,7 @@ impl Encoder<'_> {
                 enter(frame)?;
                 self.dict(value, level, frame)
             }
-            scalar => {
-                let piece = scalar_chunk(scalar, frame)?;
-                self.chunk(&piece)
-            }
+            scalar => self.scalar(scalar, frame),
         }
     }
 
@@ -114,26 +131,30 @@ impl Encoder<'_> {
             unreachable!("caller checked the kind")
         };
         if map.is_empty() {
-            return self.chunk(&text("{}"));
+            return self.ascii("{}");
         }
-        self.chunk(&text("{"))?;
+        self.ascii("{")?;
         let level = level + 1;
         let newline = self.newline_indent(level);
-        let separator = text(&format!(",{newline}"));
-        self.chunk(&text(&newline))?;
-        for (position, (key, item)) in map.iter().enumerate() {
+        let separator = format!(",{newline}");
+        self.ascii(&newline)?;
+        for (position, (other, key, item)) in map.keyed_entries().enumerate() {
             if position > 0 {
-                self.chunk(&separator)?;
+                self.ascii(&separator)?;
             }
             let mut encoded_key = PyStr::default();
-            key.write_json(&mut encoded_key, false);
+            match other {
+                // `None`, booleans and numbers are keys as their JSON spelling (`null`, `true`, `1.5`), quoted.
+                Some(other) => key_text(other)?.write_json(&mut encoded_key, false),
+                None => key.write_json(&mut encoded_key, false),
+            }
             self.chunk(&encoded_key)?;
-            self.chunk(&text(": "))?;
+            self.ascii(": ")?;
             self.item(item, level, frame)?;
         }
         let closing = self.newline_indent(level - 1);
-        self.chunk(&text(&closing))?;
-        self.chunk(&text("}"))
+        self.ascii(&closing)?;
+        self.ascii("}")
     }
 
     /// A dict value: scalars are chunks of their own, containers are generators one frame deeper.
@@ -147,16 +168,13 @@ impl Encoder<'_> {
                 let child = child_frame(frame)?;
                 self.dict(item, level, child)
             }
-            scalar => {
-                let piece = scalar_chunk(scalar, frame)?;
-                self.chunk(&piece)
-            }
+            scalar => self.scalar(scalar, frame),
         }
     }
 
     fn list(&mut self, items: &[PyValue], level: usize, frame: usize) -> Res<()> {
         if items.is_empty() {
-            return self.chunk(&text("[]"));
+            return self.ascii("[]");
         }
         let level = level + 1;
         let newline = self.newline_indent(level);
@@ -168,33 +186,63 @@ impl Encoder<'_> {
             }
             match item.peel() {
                 PyValue::List(inner) | PyValue::Tuple(inner) => {
-                    self.chunk(&text(&lead))?;
+                    self.ascii(&lead)?;
                     let child = child_frame(frame)?;
                     self.list(inner, level, child)?;
                 }
                 PyValue::Dict(_) => {
-                    self.chunk(&text(&lead))?;
+                    self.ascii(&lead)?;
                     let child = child_frame(frame)?;
                     self.dict(item, level, child)?;
                 }
                 scalar => {
                     // a scalar item shares its chunk with the separator in front of it
-                    let mut piece = text(&lead);
-                    piece.push_py(&scalar_chunk(scalar, frame)?);
-                    self.chunk(&piece)?;
+                    match scalar_piece(scalar, frame)? {
+                        Piece::Ascii(piece) => {
+                            let mut joined = String::with_capacity(lead.len() + piece.len());
+                            joined.push_str(&lead);
+                            joined.push_str(&piece);
+                            self.ascii(&joined)?;
+                        }
+                        Piece::Text(piece) => {
+                            let mut joined = text(&lead);
+                            joined.push_py(&piece);
+                            self.chunk(&joined)?;
+                        }
+                    }
                 }
             }
         }
         let closing = self.newline_indent(level - 1);
-        self.chunk(&text(&closing))?;
-        self.chunk(&text("]"))
+        self.ascii(&closing)?;
+        self.ascii("]")
     }
+}
+
+/// What the encoder writes for a scalar: plain ASCII (borrowed when it is a fixed word), or text that may hold any
+/// character (a string, escaped as the encoder does).
+enum Piece {
+    Ascii(std::borrow::Cow<'static, str>),
+    Text(PyStr),
+}
+
+/// What `json.dump` writes for a dict key that is not a string.
+fn key_text(key: &NonStringKey) -> Res<PyStr> {
+    json_key(key).map_err(|error| {
+        let rendered = error.to_string();
+        Failure::new(
+            error.python_type(),
+            rendered
+                .strip_prefix(&format!("{}: ", error.python_type()))
+                .unwrap_or(&rendered),
+        )
+    })
 }
 
 /// The chunk of a scalar (`_encoder(str)`, `null`, `true`, `false`, `int.__repr__`, `float.__repr__`), or the
 /// failure of a value JSON cannot carry. `frame` is the frame of the container writing it: a float goes through the
 /// encoder's Python helper `floatstr`, one frame deeper, while strings and integers are built-in calls.
-fn scalar_chunk(value: &PyValue, frame: usize) -> Res<PyStr> {
+fn scalar_piece(value: &PyValue, frame: usize) -> Res<Piece> {
     if matches!(value, PyValue::Float(_)) {
         enter(frame + 1)?;
     }
@@ -202,11 +250,14 @@ fn scalar_chunk(value: &PyValue, frame: usize) -> Res<PyStr> {
         PyValue::Str(string) => {
             let mut out = PyStr::default();
             string.write_json(&mut out, false);
-            Ok(out)
+            Ok(Piece::Text(out))
         }
-        PyValue::None | PyValue::Bool(_) | PyValue::Int(_) | PyValue::Float(_) => value
+        PyValue::None => Ok(Piece::Ascii("null".into())),
+        PyValue::Bool(true) => Ok(Piece::Ascii("true".into())),
+        PyValue::Bool(false) => Ok(Piece::Ascii("false".into())),
+        PyValue::Int(_) | PyValue::Float(_) => value
             .dumps_ascii()
-            .map(|rendered| text(&rendered))
+            .map(|rendered| Piece::Ascii(rendered.into()))
             .map_err(|error| {
                 let rendered = error.to_string();
                 Failure::new(
@@ -269,12 +320,15 @@ pub fn write_text_once(file: &mut File, text: &PyStr) -> Res<()> {
 /// file does, whether or not the dump failed.
 pub struct FileSink {
     writer: BufWriter<File>,
+    /// The bytes of the chunk being written, reused so that a chunk costs no allocation of its own.
+    scratch: Vec<u8>,
 }
 
 impl FileSink {
     pub fn new(file: File) -> FileSink {
         FileSink {
             writer: BufWriter::with_capacity(8192, file),
+            scratch: Vec::new(),
         }
     }
 
@@ -285,9 +339,17 @@ impl FileSink {
 
 impl ChunkSink for FileSink {
     fn write(&mut self, chunk: &PyStr) -> Res<()> {
-        let bytes = crate::pyfs::strict_utf8(chunk).map_err(|failure| encode_failure(&failure))?;
+        self.scratch.clear();
+        crate::pyfs::strict_utf8_into(chunk, &mut self.scratch)
+            .map_err(|failure| encode_failure(&failure))?;
         self.writer
-            .write_all(&bytes)
+            .write_all(&self.scratch)
+            .map_err(|error| write_failure(&error))
+    }
+
+    fn write_ascii(&mut self, chunk: &str) -> Res<()> {
+        self.writer
+            .write_all(chunk.as_bytes())
             .map_err(|error| write_failure(&error))
     }
 }

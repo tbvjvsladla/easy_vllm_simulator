@@ -1,0 +1,650 @@
+[
+ {
+  "id": "000-help",
+  "argv": [
+   "--help"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "usage: resolve_guidellm.py [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\n\nGuideLLM 버전 해소(기본 = 최신 릴리즈 · 선언 override)\n\noptions:\n  -h, --help            show this help message and exit\n  --version VERSION     이 버전을 쓴다(네트워크 조회 ✗)\n  --repo REPO\n  --record              해소 결과를 bench_tool_pin.json 에 병합\n  --record-path RECORD_PATH\n  --json\n  --self-test\n",
+  "stderr": ""
+ },
+ {
+  "id": "001-short-help",
+  "argv": [
+   "-h"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "usage: resolve_guidellm.py [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\n\nGuideLLM 버전 해소(기본 = 최신 릴리즈 · 선언 override)\n\noptions:\n  -h, --help            show this help message and exit\n  --version VERSION     이 버전을 쓴다(네트워크 조회 ✗)\n  --repo REPO\n  --record              해소 결과를 bench_tool_pin.json 에 병합\n  --record-path RECORD_PATH\n  --json\n  --self-test\n",
+  "stderr": ""
+ },
+ {
+  "id": "002-selftest",
+  "argv": [
+   "--self-test"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "  [PASS] T1 태그 v0.7.3 → 0.7.3\n  [PASS] T2 v 없는 태그도 읽는다\n  [PASS] T3 형태가 아니면 거부('')\n  [PASS] T3 형태가 아니면 거부(None)\n  [PASS] T3 형태가 아니면 거부('release-candidate')\n  [PASS] T3 형태가 아니면 거부('v')\n  [PASS] T3 형태가 아니면 거부('latest')\n  [PASS] T4 이미지 참조 조립\n  [PASS] T5 최신 릴리즈 해소 → 버전·이미지·출처\n  [PASS] T6 선언 override 는 출처가 declared 다\n  [PASS] T7 기록 병합이 옛 버전을 지우지 않는다\n  [PASS] T8 새 기본 버전과 digest 가 기록된다\n  [PASS] T9 배포 기록이 versions/default_version 형태다\n[resolve_guidellm --self-test] OK — T1~T9 전부 통과\n",
+  "stderr": ""
+ },
+ {
+  "id": "003-bad-option",
+  "argv": [
+   "--unknown"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: resolve_guidellm.py [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.py: error: unrecognized arguments: --unknown\n"
+ },
+ {
+  "id": "004-missing-version-value",
+  "argv": [
+   "--version"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: resolve_guidellm.py [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.py: error: argument --version: expected one argument\n"
+ },
+ {
+  "id": "005-unknown-positional",
+  "argv": [
+   "unexpected"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: resolve_guidellm.py [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.py: error: unrecognized arguments: unexpected\n"
+ },
+ {
+  "id": "006-missing-record-value",
+  "argv": [
+   "--version",
+   "1",
+   "--record-path"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: resolve_guidellm.py [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.py: error: argument --record-path: expected one argument\n"
+ },
+ {
+  "id": "007-no-digest-option",
+  "argv": [
+   "--version",
+   "1",
+   "--digest",
+   "sha256:x"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: resolve_guidellm.py [-h] [--version VERSION] [--repo REPO] [--record]\n                           [--record-path RECORD_PATH] [--json] [--self-test]\nresolve_guidellm.py: error: unrecognized arguments: --digest sha256:x\n"
+ },
+ {
+  "id": "008-declared-0",
+  "argv": [
+   "--version=0.7.3",
+   "--json"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"vllm-project/guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/vllm-project/guidellm:v0.7.3\",\n  \"pull_command\": \"docker pull ghcr.io/vllm-project/guidellm:v0.7.3\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "009-declared-1",
+  "argv": [
+   "--version=v0.7.3",
+   "--json"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"vllm-project/guidellm\",\n  \"version\": \"v0.7.3\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/vllm-project/guidellm:vv0.7.3\",\n  \"pull_command\": \"docker pull ghcr.io/vllm-project/guidellm:vv0.7.3\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "010-declared-2",
+  "argv": [
+   "--version=latest",
+   "--json"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"vllm-project/guidellm\",\n  \"version\": \"latest\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/vllm-project/guidellm:vlatest\",\n  \"pull_command\": \"docker pull ghcr.io/vllm-project/guidellm:vlatest\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "011-declared-3",
+  "argv": [
+   "--version=not-a-version",
+   "--json"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"vllm-project/guidellm\",\n  \"version\": \"not-a-version\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/vllm-project/guidellm:vnot-a-version\",\n  \"pull_command\": \"docker pull ghcr.io/vllm-project/guidellm:vnot-a-version\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "012-declared-4",
+  "argv": [
+   "--version=1",
+   "--json"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"vllm-project/guidellm\",\n  \"version\": \"1\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/vllm-project/guidellm:v1\",\n  \"pull_command\": \"docker pull ghcr.io/vllm-project/guidellm:v1\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "013-declared-5",
+  "argv": [
+   "--version=-1",
+   "--json"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"vllm-project/guidellm\",\n  \"version\": \"-1\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/vllm-project/guidellm:v-1\",\n  \"pull_command\": \"docker pull ghcr.io/vllm-project/guidellm:v-1\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "014-declared-6",
+  "argv": [
+   "--version= ",
+   "--json"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"vllm-project/guidellm\",\n  \"version\": \" \",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/vllm-project/guidellm:v \",\n  \"pull_command\": \"docker pull ghcr.io/vllm-project/guidellm:v \"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "015-declared-7",
+  "argv": [
+   "--version=한글.β",
+   "--json"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"vllm-project/guidellm\",\n  \"version\": \"한글.β\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/vllm-project/guidellm:v한글.β\",\n  \"pull_command\": \"docker pull ghcr.io/vllm-project/guidellm:v한글.β\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "016-declared-8",
+  "argv": [
+   "--version=0.9.1-rc.2",
+   "--json"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"vllm-project/guidellm\",\n  \"version\": \"0.9.1-rc.2\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/vllm-project/guidellm:v0.9.1-rc.2\",\n  \"pull_command\": \"docker pull ghcr.io/vllm-project/guidellm:v0.9.1-rc.2\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "017-plain",
+  "argv": [
+   "--version",
+   "0.7.3"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "guidellm 0.7.3 (declared(--version))\n  image: ghcr.io/vllm-project/guidellm:v0.7.3\n  docker pull ghcr.io/vllm-project/guidellm:v0.7.3\n",
+  "stderr": ""
+ },
+ {
+  "id": "018-custom-repo",
+  "argv": [
+   "--version",
+   "1.2.3",
+   "--repo",
+   "fixture/repository",
+   "--json"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"fixture/repository\",\n  \"version\": \"1.2.3\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/fixture/repository:v1.2.3\",\n  \"pull_command\": \"docker pull ghcr.io/fixture/repository:v1.2.3\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "019-empty-repo",
+  "argv": [
+   "--version",
+   "1.2.3",
+   "--repo",
+   "",
+   "--json"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"\",\n  \"version\": \"1.2.3\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/:v1.2.3\",\n  \"pull_command\": \"docker pull ghcr.io/:v1.2.3\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "020-repeat-version",
+  "argv": [
+   "--version",
+   "1",
+   "--version",
+   "2",
+   "--json",
+   "--json"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"vllm-project/guidellm\",\n  \"version\": \"2\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/vllm-project/guidellm:v2\",\n  \"pull_command\": \"docker pull ghcr.io/vllm-project/guidellm:v2\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "021-record-normal",
+  "argv": [
+   "--version",
+   "0.9.1",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJub3RlcyI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Im90aGVyIjogeyJ1bnRvdWNoZWQiOiB0cnVlfSwgImd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZ2hjci5pby9vcmlnaW5hbDp2MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvbGQiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsibGludXgvYXJtNjQiOiAic2hhMjU2OnBsYXRmb3JtIn0sICJleHRyYSI6ICJrZXB0In19fX19"
+   }
+  },
+  "after": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgIm5vdGVzIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgIm90aGVyIjogewogICAgICAidW50b3VjaGVkIjogdHJ1ZQogICAgfSwKICAgICJndWlkZWxsbSI6IHsKICAgICAgImRlZmF1bHRfdmVyc2lvbiI6ICIwLjkuMSIsCiAgICAgICJ2ZXJzaW9ucyI6IHsKICAgICAgICAiMC43LjMiOiB7CiAgICAgICAgICAiaW1hZ2VfcmVmIjogImdoY3IuaW8vb3JpZ2luYWw6djAuNy4zIiwKICAgICAgICAgICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9sZCIsCiAgICAgICAgICAicGxhdGZvcm1fZGlnZXN0cyI6IHsKICAgICAgICAgICAgImxpbnV4L2FybTY0IjogInNoYTI1NjpwbGF0Zm9ybSIKICAgICAgICAgIH0sCiAgICAgICAgICAiZXh0cmEiOiAia2VwdCIKICAgICAgICB9LAogICAgICAgICIwLjkuMSI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZ2hjci5pby92bGxtLXByb2plY3QvZ3VpZGVsbG06djAuOS4xIiwKICAgICAgICAgICJ2ZXJzaW9uX3NvdXJjZSI6ICJkZWNsYXJlZCgtLXZlcnNpb24pIgogICAgICAgIH0KICAgICAgfQogICAgfQogIH0KfQo="
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"vllm-project/guidellm\",\n  \"version\": \"0.9.1\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/vllm-project/guidellm:v0.9.1\",\n  \"pull_command\": \"docker pull ghcr.io/vllm-project/guidellm:v0.9.1\",\n  \"record_path\": \"@ROOT@/pin.json\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "022-record-empty-object",
+  "argv": [
+   "--version",
+   "0.9.1",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "e30="
+   }
+  },
+  "after": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJ0b29scyI6IHsKICAgICJndWlkZWxsbSI6IHsKICAgICAgInZlcnNpb25zIjogewogICAgICAgICIwLjkuMSI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZ2hjci5pby92bGxtLXByb2plY3QvZ3VpZGVsbG06djAuOS4xIiwKICAgICAgICAgICJ2ZXJzaW9uX3NvdXJjZSI6ICJkZWNsYXJlZCgtLXZlcnNpb24pIgogICAgICAgIH0KICAgICAgfSwKICAgICAgImRlZmF1bHRfdmVyc2lvbiI6ICIwLjkuMSIKICAgIH0KICB9Cn0K"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"vllm-project/guidellm\",\n  \"version\": \"0.9.1\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/vllm-project/guidellm:v0.9.1\",\n  \"pull_command\": \"docker pull ghcr.io/vllm-project/guidellm:v0.9.1\",\n  \"record_path\": \"@ROOT@/pin.json\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "023-record-null",
+  "argv": [
+   "--version",
+   "0.9.1",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "bnVsbA=="
+   }
+  },
+  "after": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "bnVsbA=="
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "AttributeError: 'NoneType' object has no attribute 'setdefault'"
+ },
+ {
+  "id": "024-record-array",
+  "argv": [
+   "--version",
+   "0.9.1",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "W10="
+   }
+  },
+  "after": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "W10="
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "AttributeError: 'list' object has no attribute 'setdefault'"
+ },
+ {
+  "id": "025-record-tools-null",
+  "argv": [
+   "--version",
+   "0.9.1",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IG51bGx9"
+   }
+  },
+  "after": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IG51bGx9"
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "AttributeError: 'NoneType' object has no attribute 'setdefault'"
+ },
+ {
+  "id": "026-record-entry-null",
+  "argv": [
+   "--version",
+   "0.9.1",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiBudWxsfX0="
+   }
+  },
+  "after": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiBudWxsfX0="
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "AttributeError: 'NoneType' object has no attribute 'setdefault'"
+ },
+ {
+  "id": "027-record-versions-null",
+  "argv": [
+   "--version",
+   "0.9.1",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiB7InZlcnNpb25zIjogbnVsbH19fQ=="
+   }
+  },
+  "after": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiB7InZlcnNpb25zIjogbnVsbH19fQ=="
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "AttributeError: 'NoneType' object has no attribute 'setdefault'"
+ },
+ {
+  "id": "028-record-row-null",
+  "argv": [
+   "--version",
+   "0.9.1",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiB7InZlcnNpb25zIjogeyIwLjkuMSI6IG51bGx9fX19"
+   }
+  },
+  "after": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiB7InZlcnNpb25zIjogeyIwLjkuMSI6IG51bGx9fX19"
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "TypeError: 'NoneType' object does not support item assignment"
+ },
+ {
+  "id": "029-record-existing-version",
+  "argv": [
+   "--version",
+   "0.7.3",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJub3RlcyI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Im90aGVyIjogeyJ1bnRvdWNoZWQiOiB0cnVlfSwgImd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZ2hjci5pby9vcmlnaW5hbDp2MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvbGQiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsibGludXgvYXJtNjQiOiAic2hhMjU2OnBsYXRmb3JtIn0sICJleHRyYSI6ICJrZXB0In19fX19"
+   }
+  },
+  "after": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgIm5vdGVzIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgIm90aGVyIjogewogICAgICAidW50b3VjaGVkIjogdHJ1ZQogICAgfSwKICAgICJndWlkZWxsbSI6IHsKICAgICAgImRlZmF1bHRfdmVyc2lvbiI6ICIwLjcuMyIsCiAgICAgICJ2ZXJzaW9ucyI6IHsKICAgICAgICAiMC43LjMiOiB7CiAgICAgICAgICAiaW1hZ2VfcmVmIjogImdoY3IuaW8vdmxsbS1wcm9qZWN0L2d1aWRlbGxtOnYwLjcuMyIsCiAgICAgICAgICAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvbGQiLAogICAgICAgICAgInBsYXRmb3JtX2RpZ2VzdHMiOiB7CiAgICAgICAgICAgICJsaW51eC9hcm02NCI6ICJzaGEyNTY6cGxhdGZvcm0iCiAgICAgICAgICB9LAogICAgICAgICAgImV4dHJhIjogImtlcHQiLAogICAgICAgICAgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkKC0tdmVyc2lvbikiCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgfQp9Cg=="
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"vllm-project/guidellm\",\n  \"version\": \"0.7.3\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/vllm-project/guidellm:v0.7.3\",\n  \"pull_command\": \"docker pull ghcr.io/vllm-project/guidellm:v0.7.3\",\n  \"record_path\": \"@ROOT@/pin.json\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "030-record-unicode-preserved",
+  "argv": [
+   "--version",
+   "0.9.1",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJub3RlcyI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Im90aGVyIjogeyJ1bnRvdWNoZWQiOiB0cnVlfSwgImd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZ2hjci5pby9vcmlnaW5hbDp2MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvbGQiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsibGludXgvYXJtNjQiOiAic2hhMjU2OnBsYXRmb3JtIn0sICJleHRyYSI6ICJrZXB0In19fX0sICJ1bmljb2RlIjogIlx1ZDU1Y1x1YWUwMCJ9"
+   }
+  },
+  "after": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgIm5vdGVzIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgIm90aGVyIjogewogICAgICAidW50b3VjaGVkIjogdHJ1ZQogICAgfSwKICAgICJndWlkZWxsbSI6IHsKICAgICAgImRlZmF1bHRfdmVyc2lvbiI6ICIwLjkuMSIsCiAgICAgICJ2ZXJzaW9ucyI6IHsKICAgICAgICAiMC43LjMiOiB7CiAgICAgICAgICAiaW1hZ2VfcmVmIjogImdoY3IuaW8vb3JpZ2luYWw6djAuNy4zIiwKICAgICAgICAgICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9sZCIsCiAgICAgICAgICAicGxhdGZvcm1fZGlnZXN0cyI6IHsKICAgICAgICAgICAgImxpbnV4L2FybTY0IjogInNoYTI1NjpwbGF0Zm9ybSIKICAgICAgICAgIH0sCiAgICAgICAgICAiZXh0cmEiOiAia2VwdCIKICAgICAgICB9LAogICAgICAgICIwLjkuMSI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZ2hjci5pby92bGxtLXByb2plY3QvZ3VpZGVsbG06djAuOS4xIiwKICAgICAgICAgICJ2ZXJzaW9uX3NvdXJjZSI6ICJkZWNsYXJlZCgtLXZlcnNpb24pIgogICAgICAgIH0KICAgICAgfQogICAgfQogIH0sCiAgInVuaWNvZGUiOiAi7ZWc6riAIgp9Cg=="
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"tool\": \"guidellm\",\n  \"repo\": \"vllm-project/guidellm\",\n  \"version\": \"0.9.1\",\n  \"version_source\": \"declared(--version)\",\n  \"published_utc\": null,\n  \"image_ref\": \"ghcr.io/vllm-project/guidellm:v0.9.1\",\n  \"pull_command\": \"docker pull ghcr.io/vllm-project/guidellm:v0.9.1\",\n  \"record_path\": \"@ROOT@/pin.json\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "031-record-surrogate-preserved",
+  "argv": [
+   "--version",
+   "0.9.1",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJub3RlcyI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Im90aGVyIjogeyJ1bnRvdWNoZWQiOiB0cnVlfSwgImd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZ2hjci5pby9vcmlnaW5hbDp2MC43LjMiLCAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvbGQiLCAicGxhdGZvcm1fZGlnZXN0cyI6IHsibGludXgvYXJtNjQiOiAic2hhMjU2OnBsYXRmb3JtIn0sICJleHRyYSI6ICJrZXB0In19fX0sICJ1bmljb2RlIjogIlx1ZDgwMCJ9"
+   }
+  },
+  "after": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgIm5vdGVzIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgIm90aGVyIjogewogICAgICAidW50b3VjaGVkIjogdHJ1ZQogICAgfSwKICAgICJndWlkZWxsbSI6IHsKICAgICAgImRlZmF1bHRfdmVyc2lvbiI6ICIwLjkuMSIsCiAgICAgICJ2ZXJzaW9ucyI6IHsKICAgICAgICAiMC43LjMiOiB7CiAgICAgICAgICAiaW1hZ2VfcmVmIjogImdoY3IuaW8vb3JpZ2luYWw6djAuNy4zIiwKICAgICAgICAgICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9sZCIsCiAgICAgICAgICAicGxhdGZvcm1fZGlnZXN0cyI6IHsKICAgICAgICAgICAgImxpbnV4L2FybTY0IjogInNoYTI1NjpwbGF0Zm9ybSIKICAgICAgICAgIH0sCiAgICAgICAgICAiZXh0cmEiOiAia2VwdCIKICAgICAgICB9LAogICAgICAgICIwLjkuMSI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZ2hjci5pby92bGxtLXByb2plY3QvZ3VpZGVsbG06djAuOS4xIiwKICAgICAgICAgICJ2ZXJzaW9uX3NvdXJjZSI6ICJkZWNsYXJlZCgtLXZlcnNpb24pIgogICAgICAgIH0KICAgICAgfQogICAgfQogIH0sCiAgInVuaWNvZGUiOiA="
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "UnicodeEncodeError: 'utf-8' codec can't encode character '\\ud800' in position 1: surrogates not allowed"
+ },
+ {
+  "id": "032-record-missing",
+  "argv": [
+   "--version",
+   "0.9.1",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "FileNotFoundError: [Errno 2] No such file or directory: '@ROOT@/pin.json'"
+ },
+ {
+  "id": "033-record-directory",
+  "argv": [
+   "--version",
+   "0.9.1",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   "pin.json": {
+    "kind": "directory"
+   }
+  },
+  "after": {
+   "pin.json": {
+    "kind": "directory"
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "IsADirectoryError: [Errno 21] Is a directory: '@ROOT@/pin.json'"
+ },
+ {
+  "id": "034-record-malformed",
+  "argv": [
+   "--version",
+   "0.9.1",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6"
+   }
+  },
+  "after": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ0b29scyI6"
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "json.decoder.JSONDecodeError: Expecting value: line 1 column 10 (char 9)"
+ },
+ {
+  "id": "035-record-bad-utf8",
+  "argv": [
+   "--version",
+   "0.9.1",
+   "--record",
+   "--record-path",
+   "@ROOT@/pin.json",
+   "--json"
+  ],
+  "before": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ4Ijoi/yJ9"
+   }
+  },
+  "after": {
+   "pin.json": {
+    "kind": "file",
+    "bytes_base64": "eyJ4Ijoi/yJ9"
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 6: invalid start byte"
+ }
+]

@@ -1219,3 +1219,187 @@ Native는 같은 세션의75+10+5=90턴, reported1368.628초/wrapper1380.944초,
 생산 CLI 경로는 문자열이다. 텍스트 환경은 UTF-8에서 확인했고 모든 locale의 동등성을 주장하지 않는다.
 기존 Python 원문과 후속 inline glue는 남아 있다. 연결 원장은16/128모듈이며 줄커버리지/Python0이 아니다.
 전체 S1~S7·하네스·6프로필·실제single4/multi2 LongE2E는 계속 미완료다.
+
+
+## R12 GuideLLM 스테이징 해소기(`resolve_guidellm`) 이행 — 후보 기록 (정본 적용 전)
+
+**상태: COMPLETE — 이번 후보와 자체검사 범위에 한한다.** 성능·실제 호스트 통합(런처/`build_rust.sh`/Terraform)·정본 적용·독립 대조·전체 S1~S7·하네스·6프로필·실제 Long E2E 는
+이 기록의 주장이 아니다(Root 소관·미완료). 원본 `resolve_guidellm.py`(219줄)와 `bench_tool_pin.json` 은 실행하지 않았다(동결 참조만 읽음).
+
+### 산출물과 책임 (이름: 기존 `guidellm.rs` 는 결과 *파서*라 이 모듈은 `guidellm_release`)
+| 경로 | 책임 |
+|---|---|
+| `src/guidellm_release.rs` | `version_from_tag`·`image_ref`·`resolution`·`fetch_latest`(전송 trait)·`merge_record`·요청 구성·실패 분류. 정규식 `^\d+(?:\.\d+){1,3}[-.a-zA-Z0-9]*$` 은 유니코드 숫자 `\d` 포함 선형 시간 판정기 |
+| `src/guidellm_release_http.rs` | 운영 HTTPS 전송: `ureq =3.5.0`(rustls+ring · platform-verifier · gzip/charset/json/cookie 없음). 원문 바이트·본문 상한 없음·정체성 인코딩·`https_proxy`/`no_proxy`(urllib 규칙)·작업별 20초 |
+| `src/json_bytes.rs` | `json.loads(bytes)`: `detect_encoding` + `surrogatepass`(utf-8·utf-8-sig·utf-16·utf-32 BOM/비BOM) + CPython 오류문 |
+| `src/guidellm_release_cli.rs` · `_selftest.rs` | 원본 argparse 표면(약어 포함)·종료코드 0/2/3(+미처리 예외 1)·T1~T9 |
+| `src/guidellm_release_api.rs` | `resolve_guidellm_api evaluate-jsonl/constants/native-help`; API 전용 주입 전송 `fetch_fixture`(`response_hex` 또는 `failure{type,message}`); 고정 없으면 `RuntimeError`(API 는 네트워크에 닿지 않는다) |
+| `src/bin/resolve_guidellm{,_api,_bench}.rs` | 원본 CLI · API 전송 · 범용 전체 호출 계측기(행 파일·라운드·반복·id) |
+| `src/help_layouts_resolve_guidellm.rs` | 폭 1..700 usage/help(argparse 3.12.3 출력, 폭 129 이상 상수) — 원본을 실행하지 않고 **같은 파서 정의를 재생**해 생성, 기본 폭에서 동결 원본 출력과 대조 |
+
+공유 소스 변경(최소): `argv.rs`(RESOLVE_GUIDELLM 표 추가) · `pyvalue.rs`(`PyDict::get_mut`·`setdefault_key`·`json_key` crate 가시성) · `bench_tool_pin.rs`(`dict_key` crate 가시성) ·
+`json_stream.rs`(문자열이 아닌 dict 키를 `json.dump` 처럼 `null`/`true`/숫자로 적는다 — 이전엔 repr 문자 그대로였던 잠재 결함) · `lib.rs` · `Cargo.toml/lock`.
+
+### 보존한 외부 계약·특이 동작
+선언 `--version` 은 검증하지 않음(`--version=` 빈 값은 최신 분기) · 최신은 실제 릴리즈 태그에서만(옛 버전 fallback 없음) · `published_utc` 는 상류 값(벽시계 없음) · `--record-path`(빈 문자열 포함)가 환경 `GUIDELLM_RECORD_PATH` 보다 우선,
+환경이 없으면 크레이트 상위 `bench_tool_pin.json`(소스에 개발자 경로 리터럴 없음) · `--record` 는 기존 버전/미지 필드/digest/플랫폼을 보존하고 새 버전을 기본으로(키가 `null`/불린/숫자여도 `json.dump` 철자) ·
+`open("w")` 절단 → 청크 단위 부분 dump → 실패 시 그 접두부만 남음(하드링크 같은 inode 가 따라옴) · 예외 순서(`setdefault` 연쇄 → `res["version"]` → 행 채움) ·
+HTTP: 원본이 `ValueError` 로 잡는 `JSONDecodeError`/`UnicodeDecodeError` → 종료 2, `URLError`/`HTTPError`/`TimeoutError`/`OSError` → 종료 3 + 원문 UNRESOLVED 문구, 그 밖은 traceback 표지 + `Class: message` 종료 1 ·
+요청: `GET https://api.github.com/repos/<repo>/releases/latest`, `Accept: application/vnd.github+json`, `User-Agent: adversarial-benchmark`(+`Accept-Encoding: identity`) · `http.client` 사전검증(제어문자 `InvalidURL`·비ASCII `UnicodeEncodeError` 는 연결 전)·`Request` 의 마지막 `#` 조각 분리.
+
+### 명령·결과 (모두 managed toolchain pin 1.99.1 aarch64 · 후보 크레이트 · 외부 target(작업 영역의 `cargo-target`) · 로그는 작업 영역 `logs/`)
+| 항목 | 명령 | 결과 |
+|---|---|---|
+| 의존성 fetch(기능 요청과 별도 계수) | `cargo info ureq@3.5.0`(인덱스 갱신+크레이트 1건) · `cargo fetch`(공개 crate 59건, 프로젝트 관리 CARGO_HOME 만) | PASS · `logs/cargo-info-ureq.log` `logs/cargo-fetch-01.log` · 이후 전부 `--offline --locked` |
+| lock 변경 | ureq 선언 시 신규 crate(ring 단일 · aws-lc/openssl 링크 없음 · `cargo tree` Linux 트리 `logs/cargo-tree-01.log`) · dev-dep `rustls`(ring+std) 간선 1줄을 `cargo metadata --offline` 으로 기록(신규 crate 0) | PASS · 첫 `--locked` 실패(간선 미기록) 후 offline 갱신 · `logs/cargo-metadata-lock-edge-01.err` |
+| fmt | `cargo fmt` 적용 후 `cargo fmt -- --check` | PASS (`fmt-apply-01/02`, `fmt-check-01`) |
+| 빌드 | `cargo build --release` (3 bin 포함) | PASS (`build-final-01`) · sha256 `logs/release-binaries-sha256.txt` |
+| Clippy | `cargo clippy --release --all-targets -- -D warnings` (lint 억제 없음) | PASS (`clippy-02`) |
+| 전체 테스트 | `cargo test --release --no-fail-fast` | PASS exit 0 · 95 결과 블록 · 334 테스트 통과·0 실패 (`test-full-01`; 서식 적용 뒤 신규 9대상 재실행 PASS `test-05`) |
+| 동결 TLS6 비공개 확인 | `check_tls_r12_private.py`(Root 비공개 helper 읽기 전용 import) | PASS 6/6: exit/stdout/stderr/전체 트리/GET·경로·Accept·User-Agent·Host (`logs/tls-private-01.log` · 작업 영역 `evidence-tls-01/results.json`) · 원격 요청 0 |
+| 런처 초안 | 임시 노드 트리에서 selftest·선언·바이너리 없음(exit 2)·API constants | PASS · `drafts/scripts/` |
+
+### 동결 기준 ↔ 등록 검사 (모두 `checks/`, `autotests=false`)
+| 동결 기준 | 검사 | 수 |
+|---|---|---|
+| 1 pure API 48(값36·예외12, arguments_after) | `guidellm_release_pure_cases` · 이진 경유 `guidellm_release_api_transport` | 48 |
+| 2 merge IO 19(값11·예외8, 전/후 전체 트리) | `guidellm_release_io_cases`(+하드링크 inode 추적) | 19 |
+| 3 원본 실제 CLI 36(exit 0×20·1×11·2×5) | `guidellm_release_cli_cases`(+selftest golden·record-path 우선/빈값·약어·빈 `--version`→최신 분기를 닫힌 루프백 프록시로 확인) | 36 |
+| 4 주입 fetch 30(값18·예외12) | `guidellm_release_fetch_cases`(요청 url/method/headers/timeout20 + 본문 종료 1회 프로브: 값·JSON 실패·디코드 실패·읽기 실패) · 이진 경유 `guidellm_release_api_transport` | 30 |
+| 5 실제 TLS CLI 6 | 비공개: 위 TLS6 / 배포용: `guidellm_release_tls_cases`(실행 시점 임시 CA·rustls 서버·CONNECT 터널·child env 전용 신뢰: 정상·UTF-16 BOM·11MiB 본문·404·미신뢰 인증서=소거 불가 실패) | 6 / 4 |
+| 계측 계약 | `guidellm_release_bench_harness`(전체 기대값 warm 1회·오류/진단 거부·네트워크 거부·merge 실파일) | 4 |
+| 단위 | `json_bytes`(5)·`guidellm_release`(3)·`guidellm_release_http`(1)·계측기(3) | 12 |
+
+### 실패·수정 이력
+`--locked` 첫 실행이 dev-dep 간선 미기록으로 실패(lock 만 offline 갱신, 코드 변경 없음). 그 밖의 실행 검사 실패는 없었다. 수정된 설계 결함은 없다 — 대신 `json_stream` 의 비문자열 키 철자는 IO 기준 039(`null` 버전 키)를 맞추기 위한 공유 소스 확장이다.
+
+### 남은 경계 (미검증·미모델 — 보편 동등성을 주장하지 않는다)
+1. **연결/TLS 오류 문구**는 OpenSSL 과 rustls 가 달라 `URLError: <urlopen error ...>` 의 상세 텍스트가 같지 않다(클래스·종료 3·UNRESOLVED 문구는 같다). `NOT_RUN`: 원본과 같은 문구 대조.
+2. **타임아웃 모델**: 20초는 읽기·쓰기·연결 설정 각각(전체 20초 아님). 연결 설정 한도는 TCP+프록시 협상+TLS 핸드셰이크 합계에 걸리고(원본은 연산별), 단계 분류(`URLError` 대 `TimeoutError`)는 근사. 실제 20초 초과 시나리오 `NOT_RUN`.
+3. **응답 reason phrase**는 표준 문구(`canonical_reason`), 비표준 상태 코드의 서버 문구는 재현 못 함. **리다이렉트**는 최대 10회 후 마지막 3xx 를 `HTTPError`(원본의 무한 루프 문구 아님). `no_proxy` 는 최초 호스트 기준, 프록시 스킴은 `http://` 만 검증, `https_proxy` 가 잘못된 URL 이면 `URLError`. `ALL_PROXY`/`HTTP_PROXY` 는 읽지 않는다(urllib 도 https 에는 읽지 않음).
+4. **신뢰 저장소**: `SSL_CERT_FILE`/`SSL_CERT_DIR` 둘 중 하나라도 있으면 그 위치만(OpenSSL 은 다른 쪽 기본값을 유지) — 지원은 Linux 만 검증. 중간 끊김(`IncompleteRead`)은 `OSError` 로 보고(원본은 비-`OSError` 예외) — 단위로 `NOT_RUN`.
+5. `http::Uri` 가 거부하는 요청 대상 문자(`<`,`>`,`"` 등)는 원본이 그대로 보내는 경우와 다를 수 있음. 경로 인자는 문자열만 지원(정수 fd API 미지원), 텍스트 환경은 UTF-8 에서만 확인.
+6. 실제 상류(api.github.com) 요청은 0건이며 `NOT_RUN`; 주입 opener 30건과 로컬 TLS 는 실제 상류 성공의 증명이 아니다. 성능 측정은 하지 않았다(Root 공식 측정, 타이밍 JSON 없음).
+7. 연결되지 않은 부분(Root 소관): `scripts/resolve_guidellm.py` 호출부 교체·런처 2종 설치·`build_rust.sh` 14번째 자체검사·SKILL.md/기록 안내·registry/edges/Terraform 결합. 초안과 목록은 작업 영역의 `HANDOFF.md`.
+
+
+## R12 교정 — 잘린 본문의 `IncompleteRead`와 CA 소스 독립 선택 (후보 · 정본 적용 전)
+
+두 건은 서로 다른 성격이라 따로 적는다. 앞선 R12 절의 "경계 4"(둘 중 하나라도 있으면 그 위치만 신뢰)와 "ureq `platform-verifier` 기능" 서술은 아래로 **대체**된다. 이전 기록과 증거는 지우지 않았다.
+
+### 1. 실제 실행 FAIL(원본 우선) — 선언 길이보다 짧은 응답 본문
+- **관측(Root, 원본 실제 CLI·루프백 TLS)**: `Content-Length` 38 에 21바이트만 보낸 응답 → 원본 종료 1·빈 stdout·마지막 예외 정확히 `http.client.IncompleteRead: IncompleteRead(21 bytes read, 17 more expected)`, 기록 파일 불변. 앞선 후보는 종료 3·`OSError` UNRESOLVED(분류가 달랐다).
+- **원인**: ureq 가 연결 조기 종료를 `UnexpectedEof` 로 알려 주는데 `read_failure` 가 일반 `OSError` 로 옮겼다.
+- **수정**: `ResponseBody`(`guidellm_release_http.rs`)가 받은 바이트 수와 선언 길이(`Content-Length`)를 세다가 `UnexpectedEof` 를 `IncompleteRead{partial, expected}`(`guidellm_release.rs`)로 바꾼다. `read_failure` 는 이 형만 `IncompleteRead` 예외(클래스 이름 `IncompleteRead`, 메시지 `IncompleteRead(N bytes read, M more expected)`; 길이 선언이 없으면 `IncompleteRead(N bytes read)`)로 되돌리고, `main` 은 이를 `OSError`/`ValueError` 로 잡지 않으므로 traceback 종료 1·`http.client.IncompleteRead:` 접두(CLI `traceback_line`)·기록 쓰기 없음이다. 주입된 읽기 오류(`TimedOut`→`TimeoutError`, 그 밖→`OSError`)와 응답 RAII 정리는 그대로다.
+- **청크 본문**: 같은 메커니즘이 청크 중단도 `IncompleteRead(N bytes read)` 로 만든다. `http.client` 는 *완결된 청크*의 바이트만 세지만 여기서는 받은 바이트를 센다(청크가 하나씩 완결되는 경우와 같고, 청크 중간 끊김에서는 다를 수 있음). 원본으로 관측한 것이 아니라 CPython `_read_chunked` 소스에서 특성화한 것이다.
+- **검증**: Root 비공개 truncated 픽스처(읽기 전용 import)를 교정 후보에 통과: 종료 1·빈 stdout·traceback·마지막 줄이 Root 가 기록한 원본 줄과 동일·기록 불변·요청 1건(`logs/truncated-private-01.log`, 작업 영역 `evidence-truncated-01/result.json`). 동결 TLS6 도 교정 이진으로 다시 6/6 PASS(`logs/tls-private-02.log`). 등록 검사 `guidellm_release_tls_cases`: 선언 길이 미달(21/38, `--record` 기록 불변)·청크 중단 신규 2건 포함 6건 통과.
+
+### 2. 소스 발견(SOURCE-FINDING) — 부분 CA 재정의가 상대편 기본값을 지웠다
+- **관측(Root, 실제 Python `ssl.get_default_verify_paths`)**: `SSL_CERT_FILE` 만 주면 디렉터리는, `SSL_CERT_DIR` 만 주면 파일은 플랫폼 기본값을 유지한다. 후보(`rustls-native-certs` 의 "하나라도 있으면 그 위치만")는 상대편 기본값을 버려 다른 PC 의 기존 HTTPS 를 깰 수 있었다.
+- **수정**: ureq 의 `platform-verifier` 기능을 걷어내고(락에서 `rustls-platform-verifier`·jni·windows 계열 등이 빠짐) `RootCerts::new_with_certs` 에 우리가 고른 루트를 넘긴다. 선택은 `select_trust_sources`: **파일 쪽** = `SSL_CERT_FILE` 이 있으면 그 값(빈 값 = 없음), 없으면 플랫폼 기본 파일; **디렉터리 쪽** = `SSL_CERT_DIR`(`:` 목록, 빈 항목 무시, 빈 값 = 없음)이 있으면 그것, 없으면 플랫폼 기본 디렉터리들. 둘 다 재정의하면 그 둘만, 둘 다 없으면 호스트 저장소. 읽기는 `rustls_native_certs::load_certs_from_paths`(주어진 경로의 PEM 만) — 읽을 수 없는 위치는 아무것도 더하지 않는다(OpenSSL 처럼, 잘못된 재정의는 신뢰 없음으로 실패하지 폴백하지 않음). 프로세스 환경·전역 신뢰를 바꾸지 않고, 검증을 끄지 않으며, WebPKI 번들로 넓히지 않고, 외부 프로그램을 실행하지 않는다.
+- **환경 주입**: `HttpEnvironment`(프록시·`no_proxy`·`SSL_CERT_FILE`/`DIR` 값·`PlatformTrust`)을 값으로 받는 `HttpsTransport::with_environment`. 운영 CLI 는 `HttpsTransport::from_process()`(프로세스 환경 + 호스트 기본 위치 발견). 플랫폼 기본값은 재정의가 없는 쪽만 발견한다(재정의가 그 쪽을 대체하므로 답이 환경에 의존하지 않는다).
+- **의존성**: 락에서 crate 가 *줄었다*(신규 0, 직접 의존 간선 2: `rustls-native-certs 0.8`(default-features 끔)·`openssl-probe 0.2`, 둘 다 이미 트리에 있던 전이 의존). `cargo metadata --offline` 로만 갱신(`logs/cargo-metadata-lock-edge-02.*`, 이전 락 사본 `Cargo.lock.before-trust-sources`).
+- **플랫폼 기본값의 한계(정확히)**: Linux GNU 만 지원. 기본 위치는 `openssl-probe` 가 아는 배포판 경로(Debian/Ubuntu `/etc/ssl/certs`·`ca-certificates.crt`, RHEL/Fedora `/etc/pki/...`, SUSE, Alpine, Arch 등)이며 특정 OpenSSL 빌드에 컴파일된 경로가 아니다(이 호스트의 `/usr/lib/ssl` 은 그쪽을 가리키는 링크). 그 밖 위치에 저장소를 둔 호스트는 `SSL_CERT_FILE`/`SSL_CERT_DIR` 로 지정해야 한다. 디렉터리는 비재귀(해시 이름 불필요, 안의 모든 파일을 PEM 으로 읽음), 같은 인증서가 두 곳에 있으면 한 루트로 센다.
+- **등록 검사 `guidellm_release_trust_sources`(4)**: 선택 단위(기본/파일만/디렉터리만/둘 다/빈 값/둘 다 빈 값), 읽기 경계(없는 위치는 0 기여·중복 인증서), 그리고 **실제 TLS 핸드셰이크 16판정**: 임시 CA 둘(진짜 서버 CA·다른 CA)과 주입한 "플랫폼 기본" 임시 파일/폴더로 위 각 경우가 신뢰 성립/거부로 갈린다(예: 파일만 재정의 + 기본 디렉터리=진짜 CA → 성공; 디렉터리만 재정의 + 기본 파일=진짜 CA → 성공; 양쪽 재정의가 다른 CA → 호스트 기본이 진짜여도 거부; 빈 파일 재정의는 기본 파일을 되살리지 않음). 기존 양성 TLS(정상·UTF-16 BOM·11MiB·404)와 미신뢰 인증서 거부 검사는 그대로 유지된다. 변형(옛 동작으로 되돌린) 시험은 하지 않았다 — 판정이 갈리도록 구성되었음을 구조로 확인했을 뿐이다.
+- **검사 선행조건**: TLS 검사 둘(`guidellm_release_tls_cases`·`guidellm_release_trust_sources`)은 임시 CA 생성에 **`openssl` 실행파일**이 필요하다(없으면 `NOT_RUN` 패닉). 운영 코드는 Rust TLS 로 `openssl` 링크·실행·Python 폴백이 없다. Root 가 이 선행조건을 Terraform 배포 참조에 흡수한다. 이 교정은 호스트 패키지 관리자/전역 설치를 쓰지 않았다.
+
+### 명령·결과 (managed toolchain pin 1.99.1 · offline · locked · 외부 target)
+| 항목 | 결과 |
+|---|---|
+| `cargo fmt -- --check` | PASS (`fmt-check-02`) |
+| `cargo build --release` | PASS (`build-corr-final`) · 이진 sha256 `logs/release-binaries-sha256-corr.txt` |
+| `cargo clippy --release --all-targets -- -D warnings` | PASS (`clippy-03`) |
+| 직접 영향 회귀(`--lib --bins` + pure·io·fetch·cli·api_transport·bench_harness·tls·trust_sources·package_paths) | PASS: 158 통과·0 실패(`test-corr-04`; lib 111) |
+| 신규/수정 검사의 첫 실행 | `trust_sources` 의 파일+디렉터리 합산 단위가 FAIL(같은 인증서를 두 곳에 둔 *검사* 가정이 틀림: 로더가 중복을 한 루트로 센다) → 검사만 수정(서로 다른 CA 사용), 제품 코드 변경 없음 (`test-corr-01`→`-03`) |
+| 전체 스위트 | 재실행하지 않음(Root 전체 정본 검사 소관). 영향 없는 검사의 이전 유효 결과(전체 334 통과 · 정본 외부 97/42 · 설치 7 · 독립 2)는 변경되지 않은 경로에 한해 유효 |
+
+### 남은 한계
+앞선 절의 경계 1~7 중 4번의 신뢰 저장소 서술만 위 2번으로 바뀌었다(나머지 유지). 추가: 청크 `IncompleteRead` 바이트 수는 근사, 플랫폼 기본 위치는 `openssl-probe` 의 목록 범위, macOS/Windows 미검증(미지원), 소스 선택 검사는 옛 동작에 대한 변형 시험이 없다.
+
+
+## R12 교정 2 — CA 디렉터리는 해시 색인이다 (후보 · 정본 적용 전)
+
+교정 1 의 *디렉터리 읽기*만 이 절이 대체한다(독립 파일/디렉터리 선택·빈 값 의미·`IncompleteRead` 는 그대로). 이전 기록은 지우지 않는다.
+
+### 새 실제 실행 FAIL — 신뢰 범위 확대
+- **관측(Root, 원본 대비)**: `SSL_CERT_FILE` 이 명시적 빈 파일, `SSL_CERT_DIR` 에 서버 CA PEM 이 `arbitrary-name.pem` **하나뿐**(해시 항목 없음) → 원본은 인증서 검증 실패로 종료 3·빈 stdout, 교정 1 후보는 그 파일을 신뢰해 종료 0·JSON 출력. 비공개 증거: Root 의 `r12-ca-unhashed-directory-review/`.
+- **추가 원본 대조(원본만, 후보 실행 전)**: 같은 인증서가 OpenSSL subject-hash 이름 `6a449899.0` 이면 종료 0, 문법상 유효한 **틀린** 해시 `00000000.0` 이면 종료 3(`r12-ca-hashed-directory-original/`).
+- **원인**: 교정 1 이 `rustls_native_certs::load_certs_from_paths(file, dir)` 로 디렉터리 안의 **모든 파일**을 PEM 으로 읽었다. 이는 CA *파일*(번들) 의미이고, OpenSSL 디렉터리는 `<hash>.<n>` 이름으로 색인되는 저장소다 — 검색은 발급자 이름 해시로 그 이름의 파일만 연다.
+
+### 교정
+- 새 모듈 `src/openssl_ca_directory.rs`: ① `hashed_entry_index` — 항목 이름은 소문자 16진 8자리 + `.` + 10진수(대문자 해시·`.r0`(CRL)·색인 없음·`.pem` 등은 아님); ② `subject_name_hash` — OpenSSL `X509_subject_name_hash`: DER 인증서에서 subject 를 읽어 속성값을 UTF-8 로(Printable/IA5/Visible/UTF8 은 그대로, T61 은 Latin-1, BMP/Universal 은 UTF-16BE/UTF-32BE 에서) 바꾸고 바깥 공백 제거·안쪽 공백열을 한 칸으로·ASCII 소문자화, 각 RDN 을 DER set(다중 값은 인코딩 순 정렬)으로 다시 써서 바깥 sequence 없이 이은 바이트의 SHA-1(ring `SHA1_FOR_LEGACY_USE_ONLY` — 파일 이름 색인용일 뿐 보안 판정이 아님) 앞 4바이트를 리틀엔디언 u32 로; ③ `load_directory_roots` — 디렉터리를 비재귀로 한 번 읽고 이름이 색인 항목인 파일(심볼릭 링크 따라감: `openssl rehash` 방식)만 PEM 으로 읽어 **인증서의 subject 해시가 이름의 해시와 같은 것만** 신뢰 닻으로 삼는다. 틀린 해시·임의 이름·읽을 수 없는 항목은 아무것도 더하지 않는다.
+- `load_trust_roots`(`guidellm_release_http.rs`): **파일**은 그대로 PEM 번들(이름 무관·안의 모든 인증서), **디렉터리**는 위 규칙. 번들 이름이 평범해도 파일 쪽은 유효하고, 같은 파일을 디렉터리 항목으로만 두면 신뢰되지 않는다. 선택(`select_trust_sources`)·빈 값·부분 기본값 의미는 변경 없음.
+- 의존성 변경 없음(ring SHA-1 은 기존 직접 의존, DER 는 작은 자체 순회 — 새 crate·fetch 0). 프로세스 환경 변경·재귀 탐색·외부 OpenSSL/Python 호출·검증 비활성·번들 루트 폴백 없음.
+
+### 검증
+| 항목 | 결과 |
+|---|---|
+| 해시 호환(등록 `the_subject_hash_is_openssl_compatible_over_many_name_shapes`) | 실행 시점에 `openssl req`로 만든 자체서명 인증서 11 형태(평범/대소문자/바깥·안쪽 공백/다중 RDN·주 상태·지역/한글·악센트(UTF-8)/반복 CN/다중값 RDN `CN+OU`/긴 값/DC 사슬/탭) 모두 `openssl x509 -hash -noout` 와 일치 — 골든 해시 하드코딩 없음 |
+| 실제 TLS 대조(등록 `directory_scope_follows_openssl_hashing`; 같은 생산 로드·HTTPS 경계, `SSL_CERT_FILE=""`) | 거부: 임의 이름 · `00000000.0` · 대문자 해시 · `<hash>.r0` · 색인 없음 · 같은 파일을 디렉터리 항목으로만. 수락: `<hash>.0` · `<hash>.7` · 틀린 항목 사이의 올바른 항목 · rehash 식 심볼릭 링크. 별개로 임의 이름의 CA *파일*(`SSL_CERT_FILE`, 디렉터리 쪽 빈 값)은 수락 |
+| 기존 16판정 조합 + 선택 단위 + 읽기 경계 | 디렉터리를 `openssl x509 -hash` 로 올바르게 해시한 항목으로 다시 만들어 유지(기대값을 낮추지 않음). 읽기 경계 단위에 "임의 이름만 있는 디렉터리 = 0 루트" 추가. 이전 버전 시험 파일은 보존: 작업 영역 `drafts/guidellm_release_trust_sources.before-hashed-directories.rs.txt` |
+| Root 가 기록한 외부 통제 3종에 생산 로더 적용(`--ignored`, 경로는 환경변수) | `unhashed` 0 루트 · `wrong-hash(00000000.0)` 0 루트 · `matching-hash(6a449899.0)` 1 루트이며 `openssl x509 -hash` 가 `6a449899` — 서버 키가 통제에 없어 이 항목의 TLS 판정 자체는 Root 가 최종 재대조 |
+| 단위 | `openssl_ca_directory` 3(항목 이름·정규형·깨진 입력) |
+| fmt / build / Clippy | PASS(`fmt-check-04`, `build-dir-final2`, `clippy-05`). 첫 Clippy 가 `manual_is_multiple_of` 2건으로 FAIL → 코드만 수정, 억제 없음 (`clippy-04`→`-05`) |
+| 직접 영향 회귀(`--lib --bins` + pure·io·fetch·cli·api_transport·bench_harness·tls(6)·trust_sources(6)·package_paths) | PASS 163·0 실패 (`test-dir-05`) |
+| 이전 교정 유지 확인 | 잘린 본문 비공개 증인(`truncated-private-02`: 종료 1·원본과 같은 마지막 줄·기록 불변)과 동결 TLS6(`tls-private-03`: 6/6) 교정 최종 이진에서 재통과 |
+| 이진 | `logs/release-binaries-sha256-dir2.txt`(최종). `…-dir.txt` 는 Clippy 수정 직전 빌드, `…-corr.txt` 는 교정 1 빌드 |
+
+### 남은 한계
+옛 동작에 대한 변형 시험은 하지 않았다(구성상 갈림). 해시 호환은 위 이름 형태에 대해서만 확인했고 OpenSSL 이 쓰는 다른 문자열 형식(예: 비표준 태그)은 `None`(=그 항목 불신)으로 처리한다 — 항상 불신 쪽이라 신뢰를 넓히지 않는다. 디렉터리 항목은 인증서를 이름 해시와 맞춰 확인하지만 OpenSSL 의 `.r<n>`(CRL) 은 읽지 않는다(해지 검사 범위 밖, 원본과 같은 인증서 신뢰 집합). Linux GNU 만 지원, 이 검사들은 `openssl` 실행파일(Root 가 배포 참조에 흡수)을 요구하고 운영 코드는 요구하지 않는다.
+
+
+## R12 성능 교정 — 레코드 읽기·쓰기 경로의 사용자 공간 비용 (후보 · 정본 적용 전)
+
+### 관측된 원인 (가설이 아니라 측정; 개인 프로파일 파일은 작업 영역 `perf/`·`logs/perf-*`)
+Root 공식 측정: 실제 warmed 읽기+다시쓰기 11건 Python 39.58µs / Rust 50.59µs = 0.78배(순수 1.11배·Bash CLI 8.31배는 유지). 호출 하나를 분해했다.
+- 시스템 호출: 이전 8개(openat×2·read×2·write·close×2·statx 1) — `std::fs::read` 의 `statx` 크기 질의 포함. 절단 후 다시쓰기(ext4 truncate+write)의 커널 비용은 호출당 약 12µs 로 Python 과 같은 **작업**(문서 계약: 절단→청크 쓰기→닫기)이라 줄이지 않았다.
+- 사용자 시간 호출당 약 11.8µs(`perf stat user_time`): 성분 측정(핫 루프, 256B 레코드) — 읽기 ≈1.9µs(시스템 호출 포함) · 줄바꿈 변환 복사 ≈0.4µs · `loads` ≈1.3–1.9µs · **JSON 덤프 ≈4.7–6.0µs**(청크마다 코드포인트 문자열 `PyStr` 할당 + `strict_utf8` 의 `Vec`/`String` 할당; 이 문서에서 청크 60개 안팎).
+- 가설 확인: json_stream 의 구두점마다 `PyStr` 할당과 `FileSink` 청크마다 `Vec` 할당이 실제로 덤프 비용의 대부분이었다. `perf record` 는 이 VM 에서 권한이 없어(`cpu-clock` 불가) 샘플링 대신 성분별 시간과 `user_time`/`system_time`, `strace -c` 로 측정했다.
+
+### 변경 (일반 코드 · 의미 불변)
+1. `json_stream.rs`: `ChunkSink` 에 `write_ascii(&str)`(기본 구현 = 기존 `write(&PyStr::new(..))`)를 더하고, 인코더가 구두점·들여쓰기·`null/true/false`/수·`{}`/`[]` 를 **빌린 ASCII 청크**로 넘긴다. 청크 경계는 그대로(스칼라 리스트 항목은 앞 구분자와 한 청크, 키/`: `/값은 각각의 청크, 실수는 프레임 +1 검사 유지). 문자열·키처럼 비ASCII/서러게이트가 가능한 청크는 기존 텍스트 경로다. `FileSink`: ASCII 는 바이트 그대로 `BufWriter` 에, 텍스트 청크는 싱크별 **재사용 scratch 버퍼**에 엄격 UTF-8 로 인코딩(`pyfs::strict_utf8_into`)한 뒤 쓴다 — 실패 시 scratch 를 버리고 기존 `strict_utf8` 와 같은 `EncodeFailure`(위치·문자) 를 낸다. 버퍼(8192)·플러시·닫기·오류 사상은 불변이라 "닫기 오류가 덤프 오류보다 우선" 등 R9 의 우선순위와 부분 쓰기(앞 청크까지만 파일에 남음)가 같다. 전체 문서를 미리 인코딩하지 않고, 원자 교체·캐시·결과 하드코딩이 없다.
+2. `pyfs::read_bytes`: `File::open` 후 4 KiB 블록 읽기 루프(끝까지, 필요하면 두 배 성장) — `std::fs::read`/`read_to_end` 의 `statx`(+`lseek`) 크기 질의를 없앤다(오류는 같은 단계·같은 문구: 열기/읽기 실패를 `os_failure` 로 같게 사상, `EINTR` 재시도). 첫 시도로 `read_to_end` 를 써 봤으나 `statx`+`lseek` 가 추가되어 폐기하고 단순 루프로 바꿨다(`logs/perf-strace-c-02/03.txt`).
+3. `pyjson::decode_file_text`: 캐리지 리턴이 없으면 줄바꿈 변환용 코드포인트 복사를 건너뛴다(있으면 기존 변환).
+
+### 효과 (진단 측정, 공식 재측정이 아님·같은 11개 IO 입력의 새 사본·`iterations=1` 300라운드·교차 5회)
+호출당 중앙값 이전 25.28µs → 이후 20.19µs(−20%), `user_time` 11.8 → 9.0µs, `system_time` 11.8 → 11.6µs(시스템 호출 8 → 7). 이것은 이 호스트에서의 진단값이고 공식 11라운드 값을 대신하지 않는다 — 남은 비용은 대부분 시스템 호출(열기·읽기·절단·쓰기·닫기)이며 사용자 공간 잔여는 `loads`(코드포인트 문자열 할당)와 읽기 래퍼다. 공식 배율 개선은 Root 의 재측정으로만 확인한다.
+
+### 등록 회귀 `guidellm_release_write_path`(8) + 기존 검사
+`write_ascii` 가 없는 싱크(기본 구현)와 있는 싱크의 **청크 열이 같음**(구조가 풍부한 문서: 중첩·빈 컨테이너·`null/true/false`·정수·큰 정수·실수·한글/악센트·이스케이프·문자열이 아닌 키 3종) · 파일 덤프가 `dumps_pretty()+"\n"` 과 **바이트 동일** · 8 KiB 버퍼보다 큰 문서와 10만 자 문자열 · 서러게이트 청크에서 멈춘 부분 파일(앞 청크까지 정확히, 오류 문구) · `/dev/full` 에서 작은 문서는 덤프 성공+닫기 `ENOSPC`, 큰 문서는 덤프 중 실패, 인코딩 실패 우선 · `strict_utf8_into` 가 `strict_utf8` 와 같음/실패 시 버퍼 불변 · 0·1·4095·4096·4097·8191·8192·8193·12288·10만 바이트 파일 읽기와 없는 파일/디렉터리/NUL 경로의 오류 문구 · 캐리지 리턴 변환 유무와 UTF-8 오류문. 변경 전 소스로 같은 신규 검사를 돌려 보지는 않았다(새 API 가 있음) — 대신 불변이어야 하는 행동은 기존 등록 검사(R9 보고·IO 19·합성 부분 덤프·하드링크·R9 닫기 우선순위)가 그대로 통과함으로 확인했다.
+
+### 명령·결과 (offline · locked · 외부 target)
+`cargo fmt -- --check` PASS(`fmt-check-05`) · `cargo build --release` PASS(`build-perf-final`) · `cargo clippy --release --all-targets -- -D warnings` PASS(`clippy-06`) · **전체** `cargo test --release --no-fail-fast`(공유 경로라 전체 실행) PASS 97 블록·353 통과·0 실패(`test-perf-full-01`; 이전 345 + 신규 8) · 이진 sha256 `logs/release-binaries-sha256-perf.txt`. 수정 전 소스 사본: 작업 영역 `perf/*.before-perf.rs.txt`.
+
+### 범위와 한계
+순수 호출·CLI 경로의 코드는 바꾸지 않았다(순수는 이 변경의 영향 밖). 커널 쪽 truncate/쓰기 비용과 `loads` 의 문자열 모델은 건드리지 않았다(의미 보존·재설계 범위 밖). 개선 폭은 진단값이며 Python 대비 배율이 1.0 을 넘는지는 Root 공식 재측정이 판정한다. `perf record` 불가로 함수별 샘플링 프로파일은 없다.
+
+
+## R12 installed runtime acceptance (Root)
+
+The final installed library/CLI/API passed 97 fixed API and 42 CLI observations (six actual loopback HTTPS cases),
+14 build self-tests, fmt, release Cargo (353 passed in 97 result blocks, plus 22 descriptor scenarios; one opt-in
+private CA-path replay ignored), and Clippy. The current full distribution invocation passed 131/131. A relocated
+Git-index-only copy of 592 files (538 Rust package, 54 source dependencies) built offline with the explicitly reused
+node-managed toolchain/cache, passed the same 14 self-tests and the nine registered resolver targets, library and
+package-path checks. It copied no build output/cache/authentication; this is not a claim about a different physical PC.
+The final shared-writer delta has two actual independent checks: the same 2758-byte hardlink prefix / UnicodeEncodeError
+position 6, and the prior report writer's full-disk plus surrogate scenario (1110-byte Markdown, empty stdout, exit 1,
+OSError 28 from close takes priority). Source review found no new confirmed defect within that scope.
+
+The final official comparison used all fresh timing records (44 function records and 144 CLI records, zero reused
+measurements), eleven alternating rounds of the same fixed inputs. Median Python/Rust: complete pure calls
+345.568194/296.319444 ns = 1.166201547x; actual post-one-warm file read+rewrite 40484.272727/45322.181818 ns =
+0.893255159x; six real Bash CLI paths, median round mean 35.611760/4.644756667 ms = 7.667088409x. Record-writing
+CLI group (two cases) = 7.050252788x, no-record group (four) = 7.765017928x. The small whole-file I/O is still slower
+than Python (about 12 percent): keep it as a measured limitation for final Rust-time assessment, not an assertion that
+every operation got faster. No first-creation, upstream HTTP speed, LLM, serving or six-profile performance is claimed.
+The pre-optimization slower result and the diagnostic A/B measurements remain separate.
+
+The original null-version record is not idempotent between its first and second call: a string key "null" read from
+JSON and the next call's None key coexist and are both emitted as "null". The first performance observer incorrectly
+expected the first-call file after a warm plus a timed second call. Its failed evidence was retained; the original
+saved second-call trees were frozen before the candidate comparison, with no case deletion or original re-execution.
+All case IDs, iterations, eleven rounds and timed function boundaries stayed fixed. The final comparison used that
+corrected second-call postcondition and checked whole output trees. Prior observer corrections and functional TLS/CA
+failures are history, not erased PASS results. The retained Python source is a reference, not a runtime fallback;
+this unit does not complete the remaining migration, harness, profile evaluation or Long E2E work.

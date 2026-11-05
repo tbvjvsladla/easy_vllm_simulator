@@ -1711,6 +1711,12 @@
       "callee": "adversarial-benchmark/rust/src/unrelated.rs",
       "phase": "verification_plane",
       "reason": "Rust 벤치 도구 해소기의 제거 tripwire 경로와 양성/음성 Git-discovery fixture; 실제 운영 호출이 아니다(R11)"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/resolve_guidellm.sh",
+      "phase": "verification_plane",
+      "reason": "배포되는 Rust 스테이징 버전 해소기의 T1~T9 및 실제 default record 구조를 명시 자체검사로 실행한다(R12)"
     }
   ]
 }

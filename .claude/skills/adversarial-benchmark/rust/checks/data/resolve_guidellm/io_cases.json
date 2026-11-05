@@ -1,0 +1,589 @@
+[
+  {
+    "id": "025-merge-digest-25",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "digest": null,
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgImV4dHJhIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgImd1aWRlbGxtIjogewogICAgICAiZGVmYXVsdF92ZXJzaW9uIjogIjAuOC4wIiwKICAgICAgInZlcnNpb25zIjogewogICAgICAgICIwLjcuMyI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsCiAgICAgICAgICAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvcmlnaW5hbCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgb3JpZ2luYWwiLAogICAgICAgICAgImV4dHJhIjogewogICAgICAgICAgICAia2VwdCI6IHRydWUKICAgICAgICAgIH0KICAgICAgICB9LAogICAgICAgICIwLjguMCI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgZnV0dXJlIGZpeHR1cmUiLAogICAgICAgICAgInB1Ymxpc2hlZF91dGMiOiAiMjAyNi0xMC0wMVQwMDowMDowMFoiCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgfQp9Cg=="
+      }
+    },
+    "expected": {
+      "kind": "value",
+      "value": "@ROOT@/record.json"
+    }
+  },
+  {
+    "id": "026-merge-digest-26",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "digest": "sha256:new",
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgImV4dHJhIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgImd1aWRlbGxtIjogewogICAgICAiZGVmYXVsdF92ZXJzaW9uIjogIjAuOC4wIiwKICAgICAgInZlcnNpb25zIjogewogICAgICAgICIwLjcuMyI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsCiAgICAgICAgICAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvcmlnaW5hbCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgb3JpZ2luYWwiLAogICAgICAgICAgImV4dHJhIjogewogICAgICAgICAgICAia2VwdCI6IHRydWUKICAgICAgICAgIH0KICAgICAgICB9LAogICAgICAgICIwLjguMCI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgZnV0dXJlIGZpeHR1cmUiLAogICAgICAgICAgInB1Ymxpc2hlZF91dGMiOiAiMjAyNi0xMC0wMVQwMDowMDowMFoiLAogICAgICAgICAgImluZGV4X2RpZ2VzdCI6ICJzaGEyNTY6bmV3IiwKICAgICAgICAgICJkaWdlc3Rfc291cmNlIjogIm1lYXN1cmVkKGRvY2tlciBpbWFnZSBpbnNwZWN0IC5SZXBvRGlnZXN0cykiCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgfQp9Cg=="
+      }
+    },
+    "expected": {
+      "kind": "value",
+      "value": "@ROOT@/record.json"
+    }
+  },
+  {
+    "id": "027-merge-digest-27",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "digest": "",
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgImV4dHJhIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgImd1aWRlbGxtIjogewogICAgICAiZGVmYXVsdF92ZXJzaW9uIjogIjAuOC4wIiwKICAgICAgInZlcnNpb25zIjogewogICAgICAgICIwLjcuMyI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsCiAgICAgICAgICAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvcmlnaW5hbCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgb3JpZ2luYWwiLAogICAgICAgICAgImV4dHJhIjogewogICAgICAgICAgICAia2VwdCI6IHRydWUKICAgICAgICAgIH0KICAgICAgICB9LAogICAgICAgICIwLjguMCI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgZnV0dXJlIGZpeHR1cmUiLAogICAgICAgICAgInB1Ymxpc2hlZF91dGMiOiAiMjAyNi0xMC0wMVQwMDowMDowMFoiCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgfQp9Cg=="
+      }
+    },
+    "expected": {
+      "kind": "value",
+      "value": "@ROOT@/record.json"
+    }
+  },
+  {
+    "id": "028-merge-digest-28",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "digest": false,
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgImV4dHJhIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgImd1aWRlbGxtIjogewogICAgICAiZGVmYXVsdF92ZXJzaW9uIjogIjAuOC4wIiwKICAgICAgInZlcnNpb25zIjogewogICAgICAgICIwLjcuMyI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsCiAgICAgICAgICAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvcmlnaW5hbCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgb3JpZ2luYWwiLAogICAgICAgICAgImV4dHJhIjogewogICAgICAgICAgICAia2VwdCI6IHRydWUKICAgICAgICAgIH0KICAgICAgICB9LAogICAgICAgICIwLjguMCI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgZnV0dXJlIGZpeHR1cmUiLAogICAgICAgICAgInB1Ymxpc2hlZF91dGMiOiAiMjAyNi0xMC0wMVQwMDowMDowMFoiCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgfQp9Cg=="
+      }
+    },
+    "expected": {
+      "kind": "value",
+      "value": "@ROOT@/record.json"
+    }
+  },
+  {
+    "id": "029-merge-digest-29",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "digest": {},
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgImV4dHJhIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgImd1aWRlbGxtIjogewogICAgICAiZGVmYXVsdF92ZXJzaW9uIjogIjAuOC4wIiwKICAgICAgInZlcnNpb25zIjogewogICAgICAgICIwLjcuMyI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsCiAgICAgICAgICAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvcmlnaW5hbCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgb3JpZ2luYWwiLAogICAgICAgICAgImV4dHJhIjogewogICAgICAgICAgICAia2VwdCI6IHRydWUKICAgICAgICAgIH0KICAgICAgICB9LAogICAgICAgICIwLjguMCI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgZnV0dXJlIGZpeHR1cmUiLAogICAgICAgICAgInB1Ymxpc2hlZF91dGMiOiAiMjAyNi0xMC0wMVQwMDowMDowMFoiCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgfQp9Cg=="
+      }
+    },
+    "expected": {
+      "kind": "value",
+      "value": "@ROOT@/record.json"
+    }
+  },
+  {
+    "id": "030-merge-digest-30",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "digest": [
+        "a"
+      ],
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgImV4dHJhIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgImd1aWRlbGxtIjogewogICAgICAiZGVmYXVsdF92ZXJzaW9uIjogIjAuOC4wIiwKICAgICAgInZlcnNpb25zIjogewogICAgICAgICIwLjcuMyI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsCiAgICAgICAgICAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvcmlnaW5hbCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgb3JpZ2luYWwiLAogICAgICAgICAgImV4dHJhIjogewogICAgICAgICAgICAia2VwdCI6IHRydWUKICAgICAgICAgIH0KICAgICAgICB9LAogICAgICAgICIwLjguMCI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgZnV0dXJlIGZpeHR1cmUiLAogICAgICAgICAgInB1Ymxpc2hlZF91dGMiOiAiMjAyNi0xMC0wMVQwMDowMDowMFoiLAogICAgICAgICAgImluZGV4X2RpZ2VzdCI6IFsKICAgICAgICAgICAgImEiCiAgICAgICAgICBdLAogICAgICAgICAgImRpZ2VzdF9zb3VyY2UiOiAibWVhc3VyZWQoZG9ja2VyIGltYWdlIGluc3BlY3QgLlJlcG9EaWdlc3RzKSIKICAgICAgICB9CiAgICAgIH0KICAgIH0KICB9Cn0K"
+      }
+    },
+    "expected": {
+      "kind": "value",
+      "value": "@ROOT@/record.json"
+    }
+  },
+  {
+    "id": "031-merge-digest-31",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "digest": {
+        "nested": 1
+      },
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgImV4dHJhIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgImd1aWRlbGxtIjogewogICAgICAiZGVmYXVsdF92ZXJzaW9uIjogIjAuOC4wIiwKICAgICAgInZlcnNpb25zIjogewogICAgICAgICIwLjcuMyI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsCiAgICAgICAgICAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvcmlnaW5hbCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgb3JpZ2luYWwiLAogICAgICAgICAgImV4dHJhIjogewogICAgICAgICAgICAia2VwdCI6IHRydWUKICAgICAgICAgIH0KICAgICAgICB9LAogICAgICAgICIwLjguMCI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgZnV0dXJlIGZpeHR1cmUiLAogICAgICAgICAgInB1Ymxpc2hlZF91dGMiOiAiMjAyNi0xMC0wMVQwMDowMDowMFoiLAogICAgICAgICAgImluZGV4X2RpZ2VzdCI6IHsKICAgICAgICAgICAgIm5lc3RlZCI6IDEKICAgICAgICAgIH0sCiAgICAgICAgICAiZGlnZXN0X3NvdXJjZSI6ICJtZWFzdXJlZChkb2NrZXIgaW1hZ2UgaW5zcGVjdCAuUmVwb0RpZ2VzdHMpIgogICAgICAgIH0KICAgICAgfQogICAgfQogIH0KfQo="
+      }
+    },
+    "expected": {
+      "kind": "value",
+      "value": "@ROOT@/record.json"
+    }
+  },
+  {
+    "id": "032-merge-doc-null",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "bnVsbA=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "bnVsbA=="
+      }
+    },
+    "expected": {
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'NoneType' object has no attribute 'setdefault'"
+    }
+  },
+  {
+    "id": "033-merge-doc-list",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "W10="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "W10="
+      }
+    },
+    "expected": {
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'list' object has no attribute 'setdefault'"
+    }
+  },
+  {
+    "id": "034-merge-doc-empty",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "e30="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "ewogICJ0b29scyI6IHsKICAgICJndWlkZWxsbSI6IHsKICAgICAgInZlcnNpb25zIjogewogICAgICAgICIwLjguMCI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgZnV0dXJlIGZpeHR1cmUiLAogICAgICAgICAgInB1Ymxpc2hlZF91dGMiOiAiMjAyNi0xMC0wMVQwMDowMDowMFoiCiAgICAgICAgfQogICAgICB9LAogICAgICAiZGVmYXVsdF92ZXJzaW9uIjogIjAuOC4wIgogICAgfQogIH0KfQo="
+      }
+    },
+    "expected": {
+      "kind": "value",
+      "value": "@ROOT@/record.json"
+    }
+  },
+  {
+    "id": "035-merge-doc-tools-list",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJ0b29scyI6IFtdfQ=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJ0b29scyI6IFtdfQ=="
+      }
+    },
+    "expected": {
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'list' object has no attribute 'setdefault'"
+    }
+  },
+  {
+    "id": "036-merge-doc-entry-null",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiBudWxsfX0="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiBudWxsfX0="
+      }
+    },
+    "expected": {
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'NoneType' object has no attribute 'setdefault'"
+    }
+  },
+  {
+    "id": "037-merge-doc-versions-list",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiB7InZlcnNpb25zIjogW119fX0="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJ0b29scyI6IHsiZ3VpZGVsbG0iOiB7InZlcnNpb25zIjogW119fX0="
+      }
+    },
+    "expected": {
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'list' object has no attribute 'setdefault'"
+    }
+  },
+  {
+    "id": "038-merge-res-same-version",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.7.3",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgImV4dHJhIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgImd1aWRlbGxtIjogewogICAgICAiZGVmYXVsdF92ZXJzaW9uIjogIjAuNy4zIiwKICAgICAgInZlcnNpb25zIjogewogICAgICAgICIwLjcuMyI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsCiAgICAgICAgICAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvcmlnaW5hbCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgZnV0dXJlIGZpeHR1cmUiLAogICAgICAgICAgImV4dHJhIjogewogICAgICAgICAgICAia2VwdCI6IHRydWUKICAgICAgICAgIH0sCiAgICAgICAgICAicHVibGlzaGVkX3V0YyI6ICIyMDI2LTEwLTAxVDAwOjAwOjAwWiIKICAgICAgICB9CiAgICAgIH0KICAgIH0KICB9Cn0K"
+      }
+    },
+    "expected": {
+      "kind": "value",
+      "value": "@ROOT@/record.json"
+    }
+  },
+  {
+    "id": "039-merge-res-null-version",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": null,
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgImV4dHJhIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgImd1aWRlbGxtIjogewogICAgICAiZGVmYXVsdF92ZXJzaW9uIjogbnVsbCwKICAgICAgInZlcnNpb25zIjogewogICAgICAgICIwLjcuMyI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsCiAgICAgICAgICAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvcmlnaW5hbCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgb3JpZ2luYWwiLAogICAgICAgICAgImV4dHJhIjogewogICAgICAgICAgICAia2VwdCI6IHRydWUKICAgICAgICAgIH0KICAgICAgICB9LAogICAgICAgICJudWxsIjogewogICAgICAgICAgImltYWdlX3JlZiI6ICJmaXh0dXJlL2ltYWdlOjAuOC4wIiwKICAgICAgICAgICJ2ZXJzaW9uX3NvdXJjZSI6ICJkZWNsYXJlZCBmdXR1cmUgZml4dHVyZSIsCiAgICAgICAgICAicHVibGlzaGVkX3V0YyI6ICIyMDI2LTEwLTAxVDAwOjAwOjAwWiIKICAgICAgICB9CiAgICAgIH0KICAgIH0KICB9Cn0K"
+      }
+    },
+    "expected": {
+      "kind": "value",
+      "value": "@ROOT@/record.json"
+    }
+  },
+  {
+    "id": "040-merge-res-published-empty",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": ""
+      },
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgImV4dHJhIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgImd1aWRlbGxtIjogewogICAgICAiZGVmYXVsdF92ZXJzaW9uIjogIjAuOC4wIiwKICAgICAgInZlcnNpb25zIjogewogICAgICAgICIwLjcuMyI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsCiAgICAgICAgICAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvcmlnaW5hbCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgb3JpZ2luYWwiLAogICAgICAgICAgImV4dHJhIjogewogICAgICAgICAgICAia2VwdCI6IHRydWUKICAgICAgICAgIH0KICAgICAgICB9LAogICAgICAgICIwLjguMCI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjguMCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgZnV0dXJlIGZpeHR1cmUiCiAgICAgICAgfQogICAgICB9CiAgICB9CiAgfQp9Cg=="
+      }
+    },
+    "expected": {
+      "kind": "value",
+      "value": "@ROOT@/record.json"
+    }
+  },
+  {
+    "id": "041-merge-res-missing-version",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "image_ref": "i",
+        "version_source": "s"
+      },
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "expected": {
+      "kind": "exception",
+      "type": "KeyError",
+      "message": "'version'"
+    }
+  },
+  {
+    "id": "042-merge-res-unhashable-version",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": [],
+        "image_ref": "fixture/image:0.8.0",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "expected": {
+      "kind": "exception",
+      "type": "TypeError",
+      "message": "unhashable type: 'list'"
+    }
+  },
+  {
+    "id": "043-merge-res-unicode-value",
+    "owner": "resolve_guidellm",
+    "operation": "merge_record",
+    "arguments": {
+      "res": {
+        "version": "0.8.0",
+        "image_ref": "before\ud800after",
+        "version_source": "declared future fixture",
+        "published_utc": "2026-10-01T00:00:00Z"
+      },
+      "path": "@ROOT@/record.json"
+    },
+    "before": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "eyJzY2hlbWFfdmVyc2lvbiI6IDIsICJleHRyYSI6ICJwcmVzZXJ2ZWQiLCAidG9vbHMiOiB7Imd1aWRlbGxtIjogeyJkZWZhdWx0X3ZlcnNpb24iOiAiMC43LjMiLCAidmVyc2lvbnMiOiB7IjAuNy4zIjogeyJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsICJpbmRleF9kaWdlc3QiOiAic2hhMjU2Om9yaWdpbmFsIiwgInZlcnNpb25fc291cmNlIjogImRlY2xhcmVkIG9yaWdpbmFsIiwgImV4dHJhIjogeyJrZXB0IjogdHJ1ZX19fX19fQ=="
+      }
+    },
+    "after": {
+      "record.json": {
+        "kind": "file",
+        "bytes_base64": "ewogICJzY2hlbWFfdmVyc2lvbiI6IDIsCiAgImV4dHJhIjogInByZXNlcnZlZCIsCiAgInRvb2xzIjogewogICAgImd1aWRlbGxtIjogewogICAgICAiZGVmYXVsdF92ZXJzaW9uIjogIjAuOC4wIiwKICAgICAgInZlcnNpb25zIjogewogICAgICAgICIwLjcuMyI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiAiZml4dHVyZS9pbWFnZTowLjcuMyIsCiAgICAgICAgICAiaW5kZXhfZGlnZXN0IjogInNoYTI1NjpvcmlnaW5hbCIsCiAgICAgICAgICAidmVyc2lvbl9zb3VyY2UiOiAiZGVjbGFyZWQgb3JpZ2luYWwiLAogICAgICAgICAgImV4dHJhIjogewogICAgICAgICAgICAia2VwdCI6IHRydWUKICAgICAgICAgIH0KICAgICAgICB9LAogICAgICAgICIwLjguMCI6IHsKICAgICAgICAgICJpbWFnZV9yZWYiOiA="
+      }
+    },
+    "expected": {
+      "kind": "exception",
+      "type": "UnicodeEncodeError",
+      "message": "'utf-8' codec can't encode character '\\ud800' in position 7: surrogates not allowed"
+    }
+  }
+]

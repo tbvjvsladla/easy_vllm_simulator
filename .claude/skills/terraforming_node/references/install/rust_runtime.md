@@ -48,6 +48,18 @@ native 자체검사를 수행한다. Cargo.lock의 공개 의존성을 첫 빌�
 모든 생성물은 owner의 ignored `rust/target/`에 두고, 실행 런처는 컴파일 결과를 직접 기동한다.
 일반 기동이 설치/다운로드/컴파일을 수행하거나 Python으로 대체하지 않는다.
 
+HTTP/TLS를 쓰는 Rust 업무 의존성도 같은 Cargo.lock과 노드별 관리 cache에 포함한다.
+첫 공개 의존성 fetch와 업무 중 upstream 조회는 별개 실행으로 기록한다. main의 cache나 인증을
+새 PC·sub에 복사하지 않으며, 명시 첫 빌드에서 필요한 의존성을 준비한 뒤 offline 빌드를 확인한다.
+TLS는 그 노드의 신뢰 저장소와 해당 프로세스에 선언된 CA/proxy 환경을 사용한다. 임시 검증 CA는
+검사 자식 환경에만 전달하고 전역 trust나 TLS 검증을 바꾸지 않는다. 단위 self-test의 주입 응답은
+실제 HTTPS 기동 증거가 아니므로 업무의 실제 HTTP 경로를 별도로 확인한 범위를 testlog에 남긴다.
+
+배포 소스의 HTTPS 회귀 검사는 실행 시 임시 CA를 만드는 `openssl` 실행파일과 loopback 소켓을 사용한다.
+새 PC·sub에서 이 검사를 수행하기 전에 `openssl version`을 확인한다. 결손이면 기존 호스트 전제조건
+request 절차로 필요한 도구를 준비하고 실제 검사를 회수한다. Rust 업무 실행파일의 운영 TLS는 Rust로
+동작하며 OpenSSL 개발 라이브러리나 Python 실행을 런타임 대체로 요구하지 않는다.
+
 tool_plane이 런타임 스킬 0종인 ray-worker sub는 이 업무 패키지 빌드가 적용되지 않는다.
 도구체인 install/check는 그 노드에도 적용한다. 실제 전달 대상에 owner 패키지가 있어야 하는데
 없거나 lockfile/빌드/기동 검사가 실패하면 해당 하네스 배포 완료로 기록하지 않는다.

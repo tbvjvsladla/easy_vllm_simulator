@@ -140,6 +140,18 @@ path = "src/bin/resolve_bench_tool_api.rs"
 name = "resolve_bench_tool_bench"
 path = "src/bin/resolve_bench_tool_bench.rs"
 
+[[bin]]
+name = "resolve_guidellm"
+path = "src/bin/resolve_guidellm.rs"
+
+[[bin]]
+name = "resolve_guidellm_api"
+path = "src/bin/resolve_guidellm_api.rs"
+
+[[bin]]
+name = "resolve_guidellm_bench"
+path = "src/bin/resolve_guidellm_bench.rs"
+
 [[test]]
 name = "oracle_cases"
 path = "checks/oracle_cases.rs"
@@ -228,6 +240,42 @@ path = "checks/dataset_api_transport.rs"
 name = "dataset_bench_harness"
 path = "checks/dataset_bench_harness.rs"
 
+[[test]]
+name = "guidellm_release_tls_cases"
+path = "checks/guidellm_release_tls_cases.rs"
+
+[[test]]
+name = "guidellm_release_trust_sources"
+path = "checks/guidellm_release_trust_sources.rs"
+
+[[test]]
+name = "guidellm_release_write_path"
+path = "checks/guidellm_release_write_path.rs"
+
+[[test]]
+name = "guidellm_release_pure_cases"
+path = "checks/guidellm_release_pure_cases.rs"
+
+[[test]]
+name = "guidellm_release_io_cases"
+path = "checks/guidellm_release_io_cases.rs"
+
+[[test]]
+name = "guidellm_release_fetch_cases"
+path = "checks/guidellm_release_fetch_cases.rs"
+
+[[test]]
+name = "guidellm_release_cli_cases"
+path = "checks/guidellm_release_cli_cases.rs"
+
+[[test]]
+name = "guidellm_release_bench_harness"
+path = "checks/guidellm_release_bench_harness.rs"
+
+[[test]]
+name = "guidellm_release_api_transport"
+path = "checks/guidellm_release_api_transport.rs"
+
 [dependencies]
 num-bigint = "0.4"
 num-traits = "0.2"
@@ -238,10 +286,22 @@ ring = "=0.17.14"
 # fstat on stdout (the buffer size and presence of the interpreter's sys.stdout) and of getuid/getgid (the user a
 # preprocessing container runs as).
 rustix = { version = "1", default-features = false, features = ["std", "termios", "fs", "process", "event", "time"] }
+# HTTPS client of the GuideLLM release lookup (the original's `urllib.request.urlopen`): a small synchronous client,
+# pinned exactly. Rustls with `ring` (already built by the managed C/asm bootstrap). No gzip/charset/JSON/cookie
+# features: the body is read as raw bytes and decoded by this crate's Python-compatible JSON decoder. Trust is not the
+# client's built-in choice: the CA file and directories are selected like OpenSSL does (two independent sources, see
+# `guidellm_release_http`) and loaded with `rustls-native-certs` (PEM files from given paths only) and `openssl-probe`
+# (the known default locations of the host); both were already in the tree as transitive dependencies.
+ureq = { version = "=3.5.0", default-features = false, features = ["rustls"] }
+rustls-native-certs = { version = "0.8", default-features = false }
+openssl-probe = "0.2"
 
 # The checks open a pseudo-terminal pair of their own to observe the width query.
 [dev-dependencies]
 rustix = { version = "1", default-features = false, features = ["std", "termios", "pty", "fs"] }
+# The server side of the live HTTPS regression (`checks/guidellm_release_tls_cases.rs`): the same rustls the client
+# already links, with `ring`; no new crate enters the lock.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 
 [build-dependencies]
 serde_json = "1"
