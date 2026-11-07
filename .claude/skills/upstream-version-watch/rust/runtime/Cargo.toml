@@ -70,6 +70,15 @@ name = "resolve_torch_pin"
 path = "src/bin/resolve_torch_pin.rs"
 
 # The unchanged public command line of `validate_runtime_patch.py`: binds a runtime patch to the current model inputs (stamp / verify).
+# The normal command of `resolve_ngc_tag.py` and the normal JSON-lines program of its five functions.
+[[bin]]
+name = "resolve_ngc_tag"
+path = "src/bin/resolve_ngc_tag.rs"
+
+[[bin]]
+name = "upstream_ngc_api"
+path = "src/bin/upstream_ngc_api.rs"
+
 [[bin]]
 name = "validate_runtime_patch"
 path = "src/bin/validate_runtime_patch.rs"
@@ -166,3 +175,7 @@ path = "checks/toml_program_checks.rs"
 [[test]]
 name = "runtime_patch_checks"
 path = "checks/runtime_patch_checks.rs"
+
+[[test]]
+name = "ngc_checks"
+path = "checks/ngc_checks.rs"
