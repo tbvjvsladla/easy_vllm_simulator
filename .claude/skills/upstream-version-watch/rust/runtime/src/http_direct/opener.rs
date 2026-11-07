@@ -71,12 +71,18 @@ pub fn fetch_body_with_headers(
 }
 
 /// The opener loop for `request` over `exchange`: the body of the final 2xx response.
-pub fn drive(exchange: &dyn Exchange, mut request: RequestUrl) -> Fetched<Vec<u8>> {
+pub fn drive(exchange: &dyn Exchange, request: RequestUrl) -> Fetched<Vec<u8>> {
+    open_response(exchange, request)?.read_body()
+}
+
+/// The opener loop for `request` over `exchange` up to the final 2xx response, whose body is NOT read yet (a caller that reads it in blocks, as
+/// `urlretrieve` does, takes it from here).
+pub fn open_response(exchange: &dyn Exchange, mut request: RequestUrl) -> Fetched<HttpResponse> {
     let mut visited: Option<Visited> = None;
     loop {
         let mut response = exchange.open(&request)?;
         if (200..300).contains(&response.status) {
-            return response.read_body();
+            return Ok(response);
         }
         if REDIRECT_CODES.contains(&response.status) {
             if let Some(next) = follow_redirect(exchange, &request, &mut response, &mut visited)? {

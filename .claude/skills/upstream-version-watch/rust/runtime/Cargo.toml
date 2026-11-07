@@ -93,6 +93,16 @@ path = "src/bin/resolve_wheel.rs"
 name = "upstream_wheel_api"
 path = "src/bin/upstream_wheel_api.rs"
 
+# The unchanged public command line of `regen_requirements.py`: wheel or installed METADATA to requirements.txt (native ZIP/header/temp-dir/urlretrieve).
+[[bin]]
+name = "regen_requirements"
+path = "src/bin/regen_requirements.rs"
+
+# The normal JSON-lines program of the five public functions of `regen_requirements.py` (`regen_api`, schema `regen_requirements-api/1`).
+[[bin]]
+name = "upstream_requirements_api"
+path = "src/bin/upstream_requirements_api.rs"
+
 # The two entry points that run the same library over an owned root and record the original collector's control record: checks only,
 # built with `--features fixture`.
 [[bin]]
@@ -124,6 +134,8 @@ fixture = []
 inherits = "release"
 
 [dependencies]
+miniz_oxide = { version = "=0.9.1", default-features = false, features = ["with-alloc"] }
+crc32fast = { version = "=1.5.3", default-features = false }
 # Python-compatible typed data, text, JSON and YAML semantics shared with the other owner packages (path dependency, read-only).
 agent-runtime-support = { path = "../../../../rust/runtime-support" }
 # The recipe owner's public generic pieces (argparse model, stdout buffering, JSON-lines requests, benchmark harness), read-only.
@@ -194,3 +206,8 @@ path = "checks/ngc_checks.rs"
 [[test]]
 name = "wheel_checks"
 path = "checks/wheel_checks.rs"
+
+# The focused checks of `regen_requirements`: saved-case subset through the real programs, typed service, process protocol.
+[[test]]
+name = "regen_checks"
+path = "checks/regen_checks.rs"

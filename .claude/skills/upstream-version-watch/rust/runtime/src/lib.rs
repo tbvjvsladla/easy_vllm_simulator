@@ -63,3 +63,16 @@ pub mod wheel_fetch;
 pub mod wheel_json;
 pub mod wheel_main;
 pub mod wheel_traceback;
+// R39 `regen_requirements.py`
+pub mod installed_dist;
+pub mod mail_headers;
+pub mod py_errors;
+pub mod regen_api;
+pub mod regen_cli;
+pub mod regen_flow;
+pub mod regen_main;
+pub mod regen_traceback;
+pub mod requirements_rules;
+pub mod tempdir;
+pub mod urlretrieve;
+pub mod zip_archive;

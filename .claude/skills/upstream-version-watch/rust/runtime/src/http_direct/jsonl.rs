@@ -71,6 +71,11 @@ fn error_value(value: &ErrorValue) -> PyValue {
         ErrorValue::Exception(error) => {
             PyValue::List(vec![PyValue::str("exception"), exception_value(error)])
         }
+        ErrorValue::HttpMessage(items) => super::failure::http_message_dto(items),
+        ErrorValue::Tuple(members) => PyValue::List(vec![
+            PyValue::str("tuple"),
+            PyValue::List(members.iter().map(error_value).collect()),
+        ]),
     }
 }
 

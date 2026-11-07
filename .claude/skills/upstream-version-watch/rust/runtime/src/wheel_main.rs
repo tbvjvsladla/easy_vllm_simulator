@@ -304,7 +304,7 @@ pub fn script_file(argv0: Option<&PyStr>) -> PyStr {
 }
 
 /// The position and characters of the first non-ASCII run in `text` as `UnicodeEncodeError('ascii', ...)` words them.
-fn ascii_encode_error(text: &PyStr) -> Option<PyStr> {
+pub(crate) fn ascii_encode_error(text: &PyStr) -> Option<PyStr> {
     let points = text.code_points();
     let start = points.iter().position(|point| *point > 127)?;
     let end = start

@@ -123,6 +123,68 @@ impl HttpResponse {
     }
 
     /// `HTTPResponse._safe_read(amt)`: exactly `amt` bytes or an `IncompleteRead` that carries what arrived.
+    /// `HTTPResponse.read(amt)`: at most `amount` bytes of the body. With a declared length the request is clipped to what is left and a body that
+    /// ends early simply ends (the caller, not this read, notices the shortfall); a chunked body that ends inside a chunk is `IncompleteRead`.
+    pub fn read_amount(&mut self, amount: usize) -> Fetched<Vec<u8>> {
+        if !self.open {
+            return Ok(Vec::new());
+        }
+        let mut wanted = BigInt::from(amount);
+        if self.chunked {
+            return self.read_chunked_amount(wanted);
+        }
+        if let Some(length) = &self.length {
+            if wanted > *length {
+                wanted = length.clone();
+            }
+        }
+        let data = self.reader.read(read_size(&wanted)?)?;
+        if data.is_empty() && !wanted.is_zero() {
+            self.open = false;
+        } else if let Some(length) = self.length.as_mut() {
+            *length -= BigInt::from(data.len());
+            if length.is_zero() {
+                self.open = false;
+            }
+        }
+        Ok(data)
+    }
+
+    /// `_read_chunked(amt)`: chunk by chunk until `amount` bytes or the last chunk; a failure inside is re-raised as `IncompleteRead` of what was read.
+    fn read_chunked_amount(&mut self, mut wanted: BigInt) -> Fetched<Vec<u8>> {
+        let mut value = Vec::new();
+        loop {
+            let left = match self.get_chunk_left() {
+                Ok(left) => left,
+                Err(FetchFailure::Raised(error)) if error.is_class("IncompleteRead") => {
+                    return Err(incomplete_read(value, None).caused_by(*error).into());
+                }
+                Err(other) => return Err(other),
+            };
+            let Some(left) = left else {
+                return Ok(value);
+            };
+            let take = if wanted <= left {
+                wanted.clone()
+            } else {
+                left.clone()
+            };
+            match self.safe_read(&take) {
+                Ok(part) => value.extend(part),
+                Err(FetchFailure::Raised(error)) if error.is_class("IncompleteRead") => {
+                    return Err(incomplete_read(value, None).caused_by(*error).into());
+                }
+                Err(other) => return Err(other),
+            }
+            if wanted <= left {
+                self.chunk_left = ChunkLeft::Remaining(left - wanted);
+                return Ok(value);
+            }
+            wanted -= left;
+            self.chunk_left = ChunkLeft::Remaining(BigInt::zero());
+        }
+    }
+
     fn safe_read(&mut self, amount: &BigInt) -> Fetched<Vec<u8>> {
         let step_limit = BigInt::from(MIN_READ_BUF_SIZE);
         let mut current_size = amount.clone().min(step_limit);

@@ -31,12 +31,35 @@ pub enum Link {
 pub enum ErrorValue {
     Plain(PyValue),
     Exception(Box<PyException>),
+    /// An `http.client.HTTPMessage`: the ordered raw header items (duplicates and spelling kept), as the public value
+    /// `["http_message", {type, module, raw_items}]`.
+    HttpMessage(Vec<(String, String)>),
+    /// A tuple of public values (`ContentTooShortError.content` is `(path, HTTPMessage)`).
+    Tuple(Vec<ErrorValue>),
 }
 
 impl From<PyValue> for ErrorValue {
     fn from(value: PyValue) -> ErrorValue {
         ErrorValue::Plain(value)
     }
+}
+
+/// The public value of an `http.client.HTTPMessage`: `["http_message", {type, module, raw_items}]`, `raw_items` being the ordered
+/// `[name, value]` pairs as received.
+pub fn http_message_dto(raw_items: &[(String, String)]) -> PyValue {
+    let mut node = agent_runtime_support::pyvalue::PyDict::new();
+    node.set("type", PyValue::str("HTTPMessage"));
+    node.set("module", PyValue::str(HTTP_CLIENT_MODULE));
+    node.set(
+        "raw_items",
+        PyValue::List(
+            raw_items
+                .iter()
+                .map(|(name, value)| PyValue::List(vec![PyValue::str(name), PyValue::str(value)]))
+                .collect(),
+        ),
+    );
+    PyValue::List(vec![PyValue::str("http_message"), PyValue::Dict(node)])
 }
 
 /// An exception of the original, with what the selected contract captures of it.

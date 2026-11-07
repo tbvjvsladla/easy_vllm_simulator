@@ -34,6 +34,9 @@ pub enum Underline {
     None,
     /// `^` under the first occurrence of this text in the line.
     Span(&'static str),
+    /// `^` under the first occurrence of this text even when it is the whole statement (the interpreter shows such carets for some frames,
+    /// for example the `urllib.request.Request` constructor's).
+    Always(&'static str),
     /// A subscript: `~` under the first `value_width` characters of the text and `^` under the rest (the brackets).
     Subscript {
         text: &'static str,
@@ -52,7 +55,7 @@ pub struct Frame {
     pub underline: Underline,
 }
 
-const fn script(
+pub(crate) const fn script(
     line: u32,
     function: &'static str,
     text: &'static str,
@@ -67,7 +70,7 @@ const fn script(
     }
 }
 
-const fn stdlib(
+pub(crate) const fn stdlib(
     file: &'static str,
     line: u32,
     function: &'static str,
@@ -83,7 +86,7 @@ const fn stdlib(
     }
 }
 
-const REQUEST: &str = "urllib/request.py";
+pub(crate) const REQUEST: &str = "urllib/request.py";
 const CLIENT: &str = "http/client.py";
 const SSL: &str = "ssl.py";
 const JSON_INIT: &str = "json/__init__.py";
@@ -198,14 +201,14 @@ pub const MAIN_PRINT_NO_CUDA: Frame = script(
 
 // ---- urllib / http.client / ssl (all read from the saved raw tracebacks) ----
 
-const URLOPEN: Frame = stdlib(
+pub(crate) const URLOPEN: Frame = stdlib(
     REQUEST,
     215,
     "urlopen",
     "    return opener.open(url, data, timeout)",
     Underline::Span("opener.open(url, data, timeout)"),
 );
-const OPENER_OPEN: Frame = stdlib(
+pub(crate) const OPENER_OPEN: Frame = stdlib(
     REQUEST,
     515,
     "open",
@@ -219,21 +222,21 @@ const OPENER_OPEN_RESPONSE: Frame = stdlib(
     "        response = meth(req, response)",
     Underline::Span("meth(req, response)"),
 );
-const OPENER_OPEN_UNDERSCORE: Frame = stdlib(
+pub(crate) const OPENER_OPEN_UNDERSCORE: Frame = stdlib(
     REQUEST,
     532,
     "_open",
     "        result = self._call_chain(self.handle_open, protocol, protocol +",
     Underline::Span("self._call_chain(self.handle_open, protocol, protocol +"),
 );
-const CALL_CHAIN: Frame = stdlib(
+pub(crate) const CALL_CHAIN: Frame = stdlib(
     REQUEST,
     492,
     "_call_chain",
     "            result = func(*args)",
     Underline::Span("func(*args)"),
 );
-const HTTPS_OPEN: Frame = stdlib(
+pub(crate) const HTTPS_OPEN: Frame = stdlib(
     REQUEST,
     1392,
     "https_open",
@@ -247,7 +250,7 @@ const DO_OPEN_REQUEST: Frame = stdlib(
     "                h.request(req.get_method(), req.selector, req.data, headers,",
     Underline::None,
 );
-const DO_OPEN_RAISE: Frame = stdlib(
+pub(crate) const DO_OPEN_RAISE: Frame = stdlib(
     REQUEST,
     1347,
     "do_open",
@@ -468,7 +471,7 @@ fn urlopen_frames(error: &PyException) -> Option<Vec<Frame>> {
 }
 
 /// The frames of the first traceback of a `URLError` raised while a certificate failure was being handled, innermost first.
-fn handshake_frames() -> Vec<Frame> {
+pub(crate) fn handshake_frames() -> Vec<Frame> {
     vec![
         SSL_HANDSHAKE,
         SSL_CREATE,
@@ -537,7 +540,7 @@ fn width_of(text: &str) -> usize {
 fn caret_line(frame: &Frame, stripped: &str, indent: usize) -> Option<String> {
     let (needle, value_width) = match frame.underline {
         Underline::None => return None,
-        Underline::Span(needle) => (needle, None),
+        Underline::Span(needle) | Underline::Always(needle) => (needle, None),
         Underline::Subscript { text, value_width } => (text, Some(value_width)),
     };
     let start = frame
@@ -545,7 +548,10 @@ fn caret_line(frame: &Frame, stripped: &str, indent: usize) -> Option<String> {
         .find(needle)
         .expect("the needle is in the source line");
     let end = start + needle.len();
-    if value_width.is_none() && end - start == stripped.len() {
+    if value_width.is_none()
+        && !matches!(frame.underline, Underline::Always(_))
+        && end - start == stripped.len()
+    {
         return None;
     }
     let mut line = String::from("    ");
@@ -599,7 +605,7 @@ pub fn exception_block(error: &PyException) -> PyStr {
     block
 }
 
-fn traceback(frames: &[Frame], script: &PyStr, block: &PyStr, out: &mut PyStr) {
+pub(crate) fn traceback(frames: &[Frame], script: &PyStr, block: &PyStr, out: &mut PyStr) {
     out.push_str("Traceback (most recent call last):\n");
     for frame in frames.iter().rev() {
         frame_lines(frame, script, out);

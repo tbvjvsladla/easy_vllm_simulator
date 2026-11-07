@@ -36,9 +36,10 @@ pub const MODULE: &str = "resolve_wheel";
 pub const API_TEMPLATE: &str = "https://api.github.com/repos/vllm-project/vllm/releases/tags/v{v}";
 
 /// The attributes an exception row lists, in the order the original's observer reads them.
-const ATTRIBUTE_ORDER: [&str; 24] = [
+const ATTRIBUTE_ORDER: [&str; 26] = [
     "name",
     "obj",
+    "path",
     "errno",
     "strerror",
     "filename",
@@ -61,6 +62,7 @@ const ATTRIBUTE_ORDER: [&str; 24] = [
     "verify_code",
     "verify_message",
     "library",
+    "content",
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -115,6 +117,16 @@ fn error_value(value: &ErrorValue, from_none: bool) -> PyValue {
         ErrorValue::Exception(error) => PyValue::List(vec![
             PyValue::str("exception"),
             PyValue::Dict(exception_row(error, from_none)),
+        ]),
+        ErrorValue::HttpMessage(items) => crate::http_direct::failure::http_message_dto(items),
+        ErrorValue::Tuple(members) => PyValue::List(vec![
+            PyValue::str("tuple"),
+            PyValue::List(
+                members
+                    .iter()
+                    .map(|member| error_value(member, from_none))
+                    .collect(),
+            ),
         ]),
     }
 }

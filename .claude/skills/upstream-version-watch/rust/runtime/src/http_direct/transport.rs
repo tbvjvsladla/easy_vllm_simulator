@@ -59,14 +59,19 @@ fn build_chain() -> Arc<BoxedChain> {
 
 /// The `Config` of a direct fetch: no proxy (not even the one `ureq` would read from its own environment variables), no HTTP-status
 /// handling, and the original's 20 s per connect, read and write.
-fn direct_config() -> Config {
+/// The transport configuration for a per-operation socket `timeout` (`None`: blocking sockets with no timeout at all).
+fn direct_config_with(timeout: Option<std::time::Duration>) -> Config {
     Config::builder()
         .proxy(None)
         .http_status_as_error(false)
-        .timeout_connect(Some(ORIGINAL_SOCKET_TIMEOUT))
-        .timeout_per_read(Some(ORIGINAL_SOCKET_TIMEOUT))
-        .timeout_per_write(Some(ORIGINAL_SOCKET_TIMEOUT))
+        .timeout_connect(timeout)
+        .timeout_per_read(timeout)
+        .timeout_per_write(timeout)
         .build()
+}
+
+fn direct_config() -> Config {
+    direct_config_with(Some(ORIGINAL_SOCKET_TIMEOUT))
 }
 
 fn connect_failure(error: &Error) -> TransportFailure {
@@ -95,6 +100,16 @@ impl UreqDialer {
             chain: build_chain(),
             resolver: DefaultResolver::default(),
             config: direct_config(),
+        }
+    }
+
+    /// A dialer whose sockets never time out: for callers that, like `urllib.request.urlretrieve`, pass no timeout to `urlopen` (the default
+    /// `new()` keeps the 20-second timeout of the callers that do).
+    pub fn unbounded() -> UreqDialer {
+        UreqDialer {
+            chain: build_chain(),
+            resolver: DefaultResolver::default(),
+            config: direct_config_with(None),
         }
     }
 

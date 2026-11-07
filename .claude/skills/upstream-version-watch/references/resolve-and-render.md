@@ -44,8 +44,10 @@ python3 scripts/resolve_ngc_tag.py <torch_prefix> --start <ngc_probe_start>   # 
 # ③ wheel URL (GitHub Release 자산 실재 검증, 404 방지)
 python3 scripts/resolve_wheel.py "$V" --arch "$ARCH"          # cuda 미지정 시 자동
 # ④ requirements 재생성 — wheel METADATA(Requires-Dist) 기준 (권위 소스, requirements/*.txt 아님)
-python3 scripts/regen_requirements.py --from-wheel-url <wheel URL> -o requirements.txt   # 빌드 전(호스트)
+bash scripts/regen_requirements.sh --from-wheel-url <wheel URL> -o requirements.txt   # 빌드 전(호스트)
 # (컨테이너 내부 정합: python3 scripts/regen_requirements.py --use-installed -o requirements.txt)
+# 일반 컨테이너/venv의 설치 검색은 기존 Python 진입점을 사용한다.
+# Rust --use-installed는 선언된 PYTHONPATH와 CPython 3.12의 격리 검색 프로필 범위다.
 # ⑤ no-download NAS 체크 (스모크 전): 모델 부재면 비0+중단·보고. --topology 필수(산출물 통로 output/<topology>/)
 python3 scripts/check_smoke_model.py <config_name> --topology <single|multi> --repo .
 # ⑥ 실패 분류 (빌드/스모크 실패 시): requirements-fixable(0)/source-build-class(1)/unknown(2)
@@ -133,7 +135,7 @@ risk-memo에 새로 도입하지 않는다. 불명·미매칭은 **"확인 필�
 # ① 컨테이너 정본(트랙별 Dockerfile + compose + requirements)
 python3 scripts/render_dockerfile.py --template <Dockerfile[.source-build].template> --manifest … --resolved resolved.json -o output/<t>/Dockerfile[.source-build]
 python3 scripts/render_dockerfile.py --template docker-compose.template.yaml          --manifest … --resolved resolved.json -o output/<t>/docker-compose.yaml
-python3 scripts/regen_requirements.py --from-wheel-url <…> -o output/<t>/requirements.txt
+bash scripts/regen_requirements.sh --from-wheel-url <…> -o output/<t>/requirements.txt
 # ② (multi 전용) 러너 스크립트 통로 materialize
 python3 scripts/render_dockerfile.py --materialize-configs --topology <t>
 # ③ serve-time env 통로 materialize (필수 — 누락 시 compose 가 /mnt/models 기본 마운트 → 모델 못 찾음. testlog_26062422 결함#2)
