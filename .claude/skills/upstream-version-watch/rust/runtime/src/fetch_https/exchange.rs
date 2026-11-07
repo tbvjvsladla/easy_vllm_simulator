@@ -12,7 +12,9 @@ use super::proxy_route::{self, Route};
 use super::{tls_session, tunnel, FetchEnvironment};
 use crate::http_direct::failure::{out_of_scope, url_error, FetchFailure, Fetched};
 use crate::http_direct::opener::Exchange;
-use crate::http_direct::request::{check_request_line, get_request_bytes, SurrogateCarrier};
+use crate::http_direct::request::{
+    check_request_line, get_request_bytes_with, RequestHeaders, SurrogateCarrier,
+};
 use crate::http_direct::response::HttpResponse;
 use crate::http_direct::url::{HttpTarget, RequestUrl, HTTPS_DEFAULT_PORT};
 use crate::http_direct::wire::{BufferedReader, Dial, Wire};
@@ -22,6 +24,8 @@ pub struct HttpsExchange<'a> {
     dialer: &'a dyn Dial,
     /// Which stand-in characters of the URL text are lone surrogates of a Python text (empty for genuine Unicode text).
     carrier: &'a SurrogateCarrier,
+    /// The headers of the `Request` (the default `urlopen(url)` headers when empty).
+    headers: &'a RequestHeaders,
 }
 
 impl<'a> HttpsExchange<'a> {
@@ -29,11 +33,13 @@ impl<'a> HttpsExchange<'a> {
         environment: &'a FetchEnvironment,
         dialer: &'a dyn Dial,
         carrier: &'a SurrogateCarrier,
+        headers: &'a RequestHeaders,
     ) -> HttpsExchange<'a> {
         HttpsExchange {
             environment,
             dialer,
             carrier,
+            headers,
         }
     }
 
@@ -78,7 +84,7 @@ impl Exchange for HttpsExchange<'_> {
         let route = proxy_route::choose(&self.environment.proxies)?;
         let wire = self.connect(&target, &route)?;
         let mut reader = BufferedReader::new(wire);
-        reader.send_all(&get_request_bytes(&target))?;
+        reader.send_all(&get_request_bytes_with(&target, self.headers))?;
         HttpResponse::begin(reader)
     }
 

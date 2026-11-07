@@ -13,13 +13,140 @@ use agent_runtime_support::pyvalue::PyValue;
 /// `urllib.request.OpenerDirector.addheaders`: `User-agent: Python-urllib/<major>.<minor>` of the pinned interpreter.
 pub const USER_AGENT: &str = "Python-urllib/3.12";
 
-/// The request head of a `GET` to `target`.
-pub fn get_request_bytes(target: &HttpTarget) -> Vec<u8> {
-    format!(
-        "GET {} HTTP/1.1\r\nAccept-Encoding: identity\r\nHost: {}\r\nUser-Agent: {USER_AGENT}\r\nConnection: close\r\n\r\n",
-        target.selector, target.host_header
-    )
-    .into_bytes()
+/// The headers a caller passes to `urllib.request.Request(url, headers=...)`, in the order given.
+///
+/// `Request.add_header` stores each name as `name.capitalize()`, so a later entry of the same capitalized name replaces the value and keeps the
+/// position of the first. `do_open` then sends `Host` (the unredirected header), the default `User-agent` unless the caller supplied one, the
+/// caller's headers, and `Connection: close` (in place of the caller's own `Connection`, at its position); `http.client` title-cases every name
+/// and adds `Accept-Encoding: identity` first unless the caller named `Accept-Encoding`.
+///
+/// Scope: names are ASCII tokens and values are ASCII without line breaks, as `putheader` accepts them; anything else is refused by name.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RequestHeaders {
+    /// `(name.capitalize(), value)` in the order of first insertion.
+    entries: Vec<(String, String)>,
+}
+
+fn is_header_token(name: &str) -> bool {
+    !name.is_empty()
+        && name.bytes().all(|byte| {
+            byte.is_ascii_graphic()
+                && !matches!(
+                    byte,
+                    b':' | b'('
+                        | b')'
+                        | b'<'
+                        | b'>'
+                        | b'@'
+                        | b','
+                        | b';'
+                        | b'\\'
+                        | b'"'
+                        | b'/'
+                        | b'['
+                        | b']'
+                        | b'?'
+                        | b'='
+                        | b'{'
+                        | b'}'
+                )
+        })
+}
+
+fn is_header_value(value: &str) -> bool {
+    value
+        .bytes()
+        .all(|byte| byte == b'\t' || (0x20..0x7F).contains(&byte))
+}
+
+/// `str.capitalize()` of an ASCII name.
+fn capitalize(name: &str) -> String {
+    let mut letters = name.chars();
+    match letters.next() {
+        Some(first) => {
+            first.to_ascii_uppercase().to_string() + &letters.as_str().to_ascii_lowercase()
+        }
+        None => String::new(),
+    }
+}
+
+/// `str.title()` of an ASCII name: a letter after a non-letter is upper-case, every other letter lower-case.
+fn title(name: &str) -> String {
+    let mut previous_is_letter = false;
+    name.chars()
+        .map(|ch| {
+            let shown = if previous_is_letter {
+                ch.to_ascii_lowercase()
+            } else {
+                ch.to_ascii_uppercase()
+            };
+            previous_is_letter = ch.is_ascii_alphabetic();
+            shown
+        })
+        .collect()
+}
+
+impl RequestHeaders {
+    /// `Request(url, headers=dict(entries))`; `Err` names the first entry outside the supported scope.
+    pub fn new(entries: &[(&str, &str)]) -> Result<RequestHeaders, String> {
+        let mut stored: Vec<(String, String)> = Vec::new();
+        for (name, value) in entries {
+            if !is_header_token(name) {
+                return Err(format!("header name {name:?} is not an ASCII token"));
+            }
+            if !is_header_value(value) {
+                return Err(format!(
+                    "the value of header {name:?} is not ASCII text without line breaks"
+                ));
+            }
+            let key = capitalize(name);
+            match stored.iter_mut().find(|(known, _)| *known == key) {
+                Some((_, held)) => *held = (*value).to_string(),
+                None => stored.push((key, (*value).to_string())),
+            }
+        }
+        Ok(RequestHeaders { entries: stored })
+    }
+
+    fn has(&self, capitalized: &str) -> bool {
+        self.entries.iter().any(|(name, _)| name == capitalized)
+    }
+
+    /// The `(name, value)` lines `http.client` writes after the request line, in order, with `Accept-Encoding` first when it is added.
+    fn wire_lines(&self, host_header: &str) -> Vec<(String, String)> {
+        let mut lines: Vec<(String, String)> = vec![("Host".to_string(), host_header.to_string())];
+        if !self.has("User-agent") {
+            lines.push(("User-agent".to_string(), USER_AGENT.to_string()));
+        }
+        for (name, value) in &self.entries {
+            if !lines.iter().any(|(known, _)| known == name) {
+                lines.push((name.clone(), value.clone()));
+            }
+        }
+        match lines.iter_mut().find(|(name, _)| name == "Connection") {
+            Some((_, value)) => *value = "close".to_string(),
+            None => lines.push(("Connection".to_string(), "close".to_string())),
+        }
+        let skips_accept_encoding = lines
+            .iter()
+            .any(|(name, _)| name.eq_ignore_ascii_case("accept-encoding"));
+        let mut shown: Vec<(String, String)> = Vec::new();
+        if !skips_accept_encoding {
+            shown.push(("Accept-Encoding".to_string(), "identity".to_string()));
+        }
+        shown.extend(lines.into_iter().map(|(name, value)| (title(&name), value)));
+        shown
+    }
+}
+
+/// The request head of a `GET` to `target` with the caller's `headers`: one write, no body.
+pub fn get_request_bytes_with(target: &HttpTarget, headers: &RequestHeaders) -> Vec<u8> {
+    let mut head = format!("GET {} HTTP/1.1\r\n", target.selector);
+    for (name, value) in headers.wire_lines(&target.host_header) {
+        head.push_str(&format!("{name}: {value}\r\n"));
+    }
+    head.push_str("\r\n");
+    head.into_bytes()
 }
 
 /// Lone surrogates of a Python text (a command-line argument decoded with `surrogateescape`) carried through the `String`-based URL code.
@@ -129,9 +256,62 @@ mod tests {
             selector: "/x".to_string(),
         };
         assert_eq!(
-            get_request_bytes(&target),
+            get_request_bytes_with(&target, &RequestHeaders::default()),
             b"GET /x HTTP/1.1\r\nAccept-Encoding: identity\r\nHost: 127.0.0.1:8080\r\nUser-Agent: Python-urllib/3.12\r\nConnection: close\r\n\r\n"
         );
+    }
+
+    fn target() -> HttpTarget {
+        HttpTarget {
+            host_header: "api.github.com".to_string(),
+            connect_host: "api.github.com".to_string(),
+            port: 443,
+            selector: "/repos/x".to_string(),
+        }
+    }
+
+    #[test]
+    fn caller_headers_follow_host_in_the_order_given_and_replace_the_default_user_agent() {
+        let headers = RequestHeaders::new(&[
+            ("Accept", "application/vnd.github+json"),
+            ("User-Agent", "upstream-version-watch"),
+        ])
+        .unwrap();
+        assert_eq!(
+            get_request_bytes_with(&target(), &headers),
+            b"GET /repos/x HTTP/1.1\r\nAccept-Encoding: identity\r\nHost: api.github.com\r\nAccept: application/vnd.github+json\r\nUser-Agent: upstream-version-watch\r\nConnection: close\r\n\r\n"
+        );
+    }
+
+    #[test]
+    fn a_caller_without_a_user_agent_keeps_the_default_one_before_its_own_headers() {
+        let headers = RequestHeaders::new(&[("accept", "a/b")]).unwrap();
+        assert_eq!(
+            get_request_bytes_with(&target(), &headers),
+            b"GET /repos/x HTTP/1.1\r\nAccept-Encoding: identity\r\nHost: api.github.com\r\nUser-Agent: Python-urllib/3.12\r\nAccept: a/b\r\nConnection: close\r\n\r\n"
+        );
+    }
+
+    #[test]
+    fn names_are_capitalized_then_title_cased_and_repeats_keep_the_first_position() {
+        let headers = RequestHeaders::new(&[
+            ("X-aBc-dEf", "1"),
+            ("accept-encoding", "gzip"),
+            ("x-ABC-def", "2"),
+            ("Connection", "keep-alive"),
+        ])
+        .unwrap();
+        assert_eq!(
+            get_request_bytes_with(&target(), &headers),
+            b"GET /repos/x HTTP/1.1\r\nHost: api.github.com\r\nUser-Agent: Python-urllib/3.12\r\nX-Abc-Def: 2\r\nAccept-Encoding: gzip\r\nConnection: close\r\n\r\n"
+        );
+    }
+
+    #[test]
+    fn unsupported_header_text_is_refused_by_name() {
+        assert!(RequestHeaders::new(&[("Bad Name", "x")]).is_err());
+        assert!(RequestHeaders::new(&[("X", "a\r\nb")]).is_err());
+        assert!(RequestHeaders::new(&[("X", "\u{e9}")]).is_err());
     }
 }
 

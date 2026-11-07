@@ -83,6 +83,16 @@ path = "src/bin/upstream_ngc_api.rs"
 name = "validate_runtime_patch"
 path = "src/bin/validate_runtime_patch.rs"
 
+# The unchanged public command line of `resolve_wheel.py`: raw-byte release fetch (real TLS/CONNECT), wheel selection, JSON report.
+[[bin]]
+name = "resolve_wheel"
+path = "src/bin/resolve_wheel.rs"
+
+# The normal JSON-lines program of `fetch_json` and `main` of `resolve_wheel.py` (`wheel_api`).
+[[bin]]
+name = "upstream_wheel_api"
+path = "src/bin/upstream_wheel_api.rs"
+
 # The two entry points that run the same library over an owned root and record the original collector's control record: checks only,
 # built with `--features fixture`.
 [[bin]]
@@ -179,3 +189,8 @@ path = "checks/runtime_patch_checks.rs"
 [[test]]
 name = "ngc_checks"
 path = "checks/ngc_checks.rs"
+
+# The owned-peer checks of `resolve_wheel`: the raw-byte fetch seam, the file handler and a subset of the saved CLI cases through the normal program.
+[[test]]
+name = "wheel_checks"
+path = "checks/wheel_checks.rs"

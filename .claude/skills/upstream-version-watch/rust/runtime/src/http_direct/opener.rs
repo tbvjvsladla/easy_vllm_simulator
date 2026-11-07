@@ -10,9 +10,11 @@
 //! The connection layer is the [`Exchange`] the caller supplies (plain TCP here, TLS in `crate::fetch_https`); everything above it, the
 //! status handling and the redirect rules, is this module's single implementation.
 
-use super::failure::{http_error, out_of_scope, Fetched};
+use super::failure::{http_error, out_of_scope, FetchFailure, Fetched};
 use super::proxy_scope::ProxyEnvironment;
-use super::request::get_request_bytes;
+use super::request::{
+    check_request_line, get_request_bytes_with, RequestHeaders, SurrogateCarrier,
+};
 use super::response::HttpResponse;
 use super::url::{
     quote_latin1_keeping_punctuation, urljoin, urlparse, urlunparse, HttpTarget, RequestUrl,
@@ -41,6 +43,16 @@ pub trait Exchange {
 
 /// `urlopen(url, timeout=20).read()` over plain TCP: the body of the final 2xx response.
 pub fn fetch_body(dial: &dyn Dial, proxies: &ProxyEnvironment, url: &str) -> Fetched<Vec<u8>> {
+    fetch_body_with_headers(dial, proxies, url, &RequestHeaders::default())
+}
+
+/// [`fetch_body`] for a `Request` the caller built with `headers`.
+pub fn fetch_body_with_headers(
+    dial: &dyn Dial,
+    proxies: &ProxyEnvironment,
+    url: &str,
+    headers: &RequestHeaders,
+) -> Fetched<Vec<u8>> {
     let request = RequestUrl::parse(url)?;
     if proxies.has_http_proxy() {
         return Err(out_of_scope(
@@ -48,7 +60,14 @@ pub fn fetch_body(dial: &dyn Dial, proxies: &ProxyEnvironment, url: &str) -> Fet
             "an http proxy variable is set; urllib would route through it and this component only connects directly",
         ));
     }
-    drive(&PlainHttp { dial }, request)
+    drive(
+        &PlainHttp {
+            dial,
+            headers,
+            carrier: None,
+        },
+        request,
+    )
 }
 
 /// The opener loop for `request` over `exchange`: the body of the final 2xx response.
@@ -76,8 +95,11 @@ pub fn drive(exchange: &dyn Exchange, mut request: RequestUrl) -> Fetched<Vec<u8
 }
 
 /// `AbstractHTTPHandler.do_open` for a plain `http` request over a direct connection.
-struct PlainHttp<'a> {
-    dial: &'a dyn Dial,
+pub(crate) struct PlainHttp<'a> {
+    pub(crate) dial: &'a dyn Dial,
+    pub(crate) headers: &'a RequestHeaders,
+    /// When present, the request line is checked as `putrequest` checks it before any connection exists (the HTTPS exchange always does).
+    pub(crate) carrier: Option<&'a SurrogateCarrier>,
 }
 
 impl Exchange for PlainHttp<'_> {
@@ -91,10 +113,14 @@ impl Exchange for PlainHttp<'_> {
                 ),
             ));
         }
+        if let Some(carrier) = self.carrier {
+            check_request_line(&request.selector, carrier)
+                .map_err(|error| FetchFailure::from(*error))?;
+        }
         let target = HttpTarget::of(request)?;
         let wire = self.dial.dial(&target.connect_host, target.port)?;
         let mut reader = BufferedReader::new(wire);
-        reader.send_all(&get_request_bytes(&target))?;
+        reader.send_all(&get_request_bytes_with(&target, self.headers))?;
         HttpResponse::begin(reader)
     }
 

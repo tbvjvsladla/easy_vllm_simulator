@@ -33,7 +33,7 @@ mod proxy_route;
 mod tls_session;
 mod tunnel;
 
-use crate::http_direct::request::SurrogateCarrier;
+use crate::http_direct::request::{RequestHeaders, SurrogateCarrier};
 use crate::http_direct::url::RequestUrl;
 use crate::http_direct::{decode_text, opener, Dial, FetchFailure, ProxyEnvironment, UreqDialer};
 use recipe_runtime::tls_trust;
@@ -81,6 +81,25 @@ pub fn fetch_https_text_of(
     fetch_with_carrier(&carried, &carrier, environment, dialer)
 }
 
+/// The raw body of the final 2xx response for a URL written as Python text and a `Request` built with `headers`: no decoding is applied, so the
+/// caller decides what the bytes are (`json.load` reads them as bytes).
+pub fn fetch_https_body_of(
+    url: &agent_runtime_support::pystr::PyStr,
+    headers: &RequestHeaders,
+    environment: &FetchEnvironment,
+    dialer: &dyn Dial,
+) -> Result<Vec<u8>, FetchFailure> {
+    let Some((carried, carrier)) = SurrogateCarrier::carry(url.code_points()) else {
+        return Err(crate::http_direct::failure::out_of_scope(
+            "url_text",
+            "the URL holds more lone surrogates than there are unused private-use characters to carry them",
+        ));
+    };
+    let request = RequestUrl::parse(&carried)?;
+    let exchange = exchange::HttpsExchange::new(environment, dialer, &carrier, headers);
+    opener::drive(&exchange, request)
+}
+
 /// [`fetch_https_text`] with the environment and the dialer of the plain TCP connections chosen by the caller.
 pub fn fetch_https_text_with(
     url: &str,
@@ -90,6 +109,16 @@ pub fn fetch_https_text_with(
     fetch_with_carrier(url, &SurrogateCarrier::none(), environment, dialer)
 }
 
+/// The `https` exchange of a `Request` built with `headers`, for the callers that drive the opener loop themselves (scheme dispatch).
+pub(crate) fn exchange_with<'a>(
+    environment: &'a FetchEnvironment,
+    dialer: &'a dyn Dial,
+    carrier: &'a SurrogateCarrier,
+    headers: &'a RequestHeaders,
+) -> exchange::HttpsExchange<'a> {
+    exchange::HttpsExchange::new(environment, dialer, carrier, headers)
+}
+
 fn fetch_with_carrier(
     url: &str,
     carrier: &SurrogateCarrier,
@@ -97,6 +126,7 @@ fn fetch_with_carrier(
     dialer: &dyn Dial,
 ) -> Result<String, FetchFailure> {
     let request = RequestUrl::parse(url)?;
-    let exchange = exchange::HttpsExchange::new(environment, dialer, carrier);
+    let headers = RequestHeaders::default();
+    let exchange = exchange::HttpsExchange::new(environment, dialer, carrier, &headers);
     decode_text(opener::drive(&exchange, request)?)
 }
