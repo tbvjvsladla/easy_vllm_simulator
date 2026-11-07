@@ -212,44 +212,26 @@ def dtype_bpw(dtype: "str | None") -> "tuple[float, str | None]":
 
 
 if __name__ == "__main__":
-    import argparse
-    import json
-
-    parser = argparse.ArgumentParser(
-        description="quant 바이트 테이블 해소(벤더링) — quant/dtype → bpw."
-    )
-    parser.add_argument(
-        "--quant",
-        default=None,
-        help="vLLM quantization 플래그(none/fp8/awq/...). 미지정 시 serve_bpw 반환.",
-    )
-    parser.add_argument(
-        "--serve-bpw",
-        type=float,
-        default=2.0,
-        help="native dtype bytes-per-weight (none/null quant 주입용, 기본 2.0).",
-    )
-    parser.add_argument(
-        "--dtype",
-        default=None,
-        help="dtype 문자열(bfloat16/float16/float32/...) → bpw 해소.",
-    )
-    parser.add_argument("--json", action="store_true", help="JSON 출력.")
-    args = parser.parse_args()
-
-    out: dict = {}
-    if args.dtype is not None:
-        bpw, warn = dtype_bpw(args.dtype)
-        out["dtype"] = args.dtype
-        out["dtype_bpw"] = bpw
-        out["dtype_warning"] = warn
-    if args.quant is not None or args.dtype is None:
-        out["quant"] = args.quant
-        out["serve_bpw"] = args.serve_bpw
-        out["vllm_quant_bpw"] = vllm_quant_bpw(args.quant, args.serve_bpw)
-
-    if args.json:
-        print(json.dumps(out, ensure_ascii=False, indent=2))
+    # Explicit native startup only; imported functions and dependency profile stay unchanged.
+    import os as _native_os
+    import sys as _native_sys
+    from pathlib import Path as _NativePath
+    _native_script = _NativePath(__file__).resolve()
+    _native_root_value = _native_os.environ.get("EASY_VLLM_RECIPE_RUNTIME_ROOT")
+    if _native_root_value is None:
+        _native_runtime_root = _native_script.parent.parent / "rust/runtime"
+    elif not _native_root_value:
+        print("[quant_table] ERROR explicit upstream runtime root is empty", file=_native_sys.stderr)
+        raise SystemExit(2)
     else:
-        for k, v in out.items():
-            print(f"{k}: {v}")
+        _native_runtime_root = _NativePath(_native_root_value)
+    _native_binary = _native_runtime_root / "target/release/quant_table"
+    if not _native_binary.is_file() or not _native_os.access(_native_binary, _native_os.X_OK):
+        print("[quant_table] ERROR normal Rust ELF missing/non-executable: " + str(_native_binary), file=_native_sys.stderr)
+        raise SystemExit(2)
+    with _native_binary.open("rb") as _native_file:
+        _native_magic = _native_file.read(4)
+    if _native_magic != b"\x7fELF":
+        print("[quant_table] ERROR normal Rust ELF invalid: " + str(_native_binary), file=_native_sys.stderr)
+        raise SystemExit(2)
+    _native_os.execv(str(_native_binary), [str(_native_script), *_native_sys.argv[1:]])
