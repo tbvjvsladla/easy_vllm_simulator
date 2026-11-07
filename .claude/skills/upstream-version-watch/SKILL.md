@@ -27,7 +27,7 @@ description: >-
 - **State transitions** — Flag(전제) → 스모크 PASS 로 이미지의 `runtime-ready` 근거를 만든다. `evidence-complete`/`promotion-ready` 판정은 `.claude/policies/runtime/completion_gate.py` 소유(이 문서가 자체 판정 ✗).
 - **HITL/safety boundaries** — 핀 변경·빌드·push 는 workflow S1–S4 HITL 게이트 · 스모크 모델 자동 다운로드 ✗ · 무증거 NGC/repo 오버라이드 ✗ · 추측 단정 ✗("확인 필요").
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
-- **Deterministic commands** — `scripts/resolve_torch_pin.py` · `resolve_ngc_tag.py` · `resolve_wheel.py` · `regen_requirements.sh`(호스트 wheel) · `regen_requirements.py`(일반 installed 호환) · `resolve_build_track.py` · **`judge_version_delta.py`** · `render_dockerfile.py`(+ 공개 `env_tier(key)`) · **`slave_forward.py`**(멀티 slave 전달 집합 · compose 참조 파생 단일 소유 — 스모크·hint 공용) · `check_smoke_model.py` · `classify_failure.py` · `sync_to_sub.sh` · `multinode_serve_smoke.sh` · **`single_serve_up.sh`** · **`single_serve_down.sh`** · `container_inventory.sh`.
+- **Deterministic commands** — `scripts/resolve_torch_pin.py` · `resolve_ngc_tag.py` · `resolve_wheel.py` · `regen_requirements.sh`(호스트 wheel) · `regen_requirements.py`(일반 installed 호환) · `resolve_build_track.py` · **`judge_version_delta.py`** · `render_dockerfile.py`(+ 공개 `env_tier(key)`) · **`slave_forward.py`**(멀티 slave 전달 집합 · compose 참조 파생 단일 소유 — 스모크·hint 공용) · `check_smoke_model.py` · `classify_failure.sh` · `sync_to_sub.sh` · `multinode_serve_smoke.sh` · **`single_serve_up.sh`** · **`single_serve_down.sh`** · `container_inventory.sh`.
 - **Handoff contract** — 입력 ← `terraforming_node`(Flag·HW) · escalation ← `vllm-recipe-explorer` §5.5 / `adversarial-benchmark` §7 · 출력 → rebuild 이미지로 `vllm-recipe-explorer` 전략수립 재개.
 - **Owns (state)** — `resolved.json` · `image-identity` · `build-track` · `sub-delivery` · **`build-patch(pre/post)`** · **`fork-pin`**(포크 좌표·arch-wall 변종) · **`build-ledger`**(이미지 자기서술 · 멀티 serve 시점 attestation v2·serve proof)
 - **3+1+1 소유 경계**(`plan_26081514` Q3/Step 4 · owner 표 정본 = `.claude/rules/workflow.md` §3+1+1): **빌드 시점에 성립하는 것**이 이 스킬 소유다 — `build_patches_src/`(pre · 컴파일 **전** 소스 수정) · `build_patches/`(post · 컴파일 **후** native 의존) · 포크 핀(`VLLM_REPO`/`VLLM_REF`)·변종 `IMAGE_TAG`. **serve 시점에 성립하는 것**(트리플렛 3 + 런타임 패치 `<model>_patch.py`)은 `vllm-recipe-explorer` 소유이며 이 스킬이 저작하지 않는다. **발견 ≠ 소유** — explorer 가 §5.5 로 발견해 넘긴 것을 이 스킬이 **소유·처방**한다(수신점 = 아래 §escalation 수신).
@@ -43,7 +43,7 @@ description: >-
 3.5. **HITL 게이트 ①.5** — 3축 verdict 를 **렌더 전** 사람이 확인: ⓐ `axis_A` 가 정말 ∅ 인지 ⓑ `axis_B.silent_revert_risk` 처리 계획 ⓒ `unknown[]` 이 비었는지. **`UNDETERMINED` 면 렌더 진입 금지.** 출구① 상속을 쓸 때만 **게이트 ①.6**(원장 한 줄을 **사람이 손으로** 추가) — 3출구 계약 = `references/source-build.md` §3.1.
 4. **render 시퀀스** — template → (multi)`--materialize-configs` → `--materialize-env`. **단일 호출 아님**(누락 시 serve 잠복 실패). HITL 게이트 ②.
 5. **(multi) sync to sub** — `sync_to_sub.sh` dry-run → `--apply`. Band2-only 전달 경계 = `references/multinode-build.md`.
-6. **smoke** — NAS 체크(⑤) → 빌드 → 실서빙 스모크(단일 `docker compose`, 멀티 `multinode_serve_smoke.sh`). 실패면 ⑥`classify_failure.py` 로 분기 → §Failure routing. HITL 게이트 ③.
+6. **smoke** — NAS 체크(⑤) → 빌드 → 실서빙 스모크(단일 `docker compose`, 멀티 `multinode_serve_smoke.sh`). 실패면 ⑥`classify_failure.sh` 로 분기 → §Failure routing. HITL 게이트 ③.
 7. **escalation 수신 판정**(있을 때만) — 아래 §escalation 3출구.
 8. **종결** — 커밋·문서·전파(workflow S4). hint 태그 제안은 셀 단위다(아래 §hint). HITL 게이트 ④.
 
@@ -51,7 +51,7 @@ description: >-
 
 | 실패 신호 | 라우팅 대상 (정확 경로) |
 |---|---|
-| 빌드/스모크 실패 — class 판정이 먼저 필요 | `.claude/skills/upstream-version-watch/scripts/classify_failure.py` |
+| 빌드/스모크 실패 — class 판정이 먼저 필요 | `.claude/skills/upstream-version-watch/scripts/classify_failure.sh` |
 | `requirements-fixable` · `unknown`(Model-C 참조-그라운디드) | `.claude/skills/upstream-version-watch/references/failure-recovery.md` |
 | `source-build-class`(torch 2.11+ ABI 벽) · 빌드-바깥 native dep · 패치 래더 | `.claude/skills/upstream-version-watch/references/source-build.md` |
 | 2노드 Ray 서빙 실패(OOM/NCCL-RDMA/join timeout) · 서브만 빌드 실패 | `.claude/skills/upstream-version-watch/references/multinode-build.md` |
@@ -182,7 +182,8 @@ hint 태그의 로컬 오브젝트 부재면 그 원격의 fetch 명령을 안�
 - `scripts/judge_version_delta.py` — 2.5 버전 델타 3축 영향판정(D0 수집 · D1 닫힌열거 평면 · D2 이식 스코프 교차 + 침묵-되돌림 프로브). `--self-test`/`--check-fixture` 회귀. **C축(D3·D4)은 미구현**(`NOT_IMPLEMENTED` · 전역 verdict 에서 제외).
 - `scripts/render_dockerfile.py` — 렌더 시퀀스(template · `--materialize-configs` · `--materialize-env`) + source-build 가드 3출구(상속/시도-빌드/발견 — `references/source-build.md` §3.1).
 - `scripts/check_smoke_model.py` — ⑤ no-download NAS 모델 실재 체크.
-- `scripts/classify_failure.py` + `failure_patterns.yaml` — ⑥ 실패 결정론 분류(미지→Model-C).
+- `scripts/classify_failure.sh` + `failure_patterns.yaml` — ⑥ 실패 결정론 분류(미지→Model-C). Rust 실행 파일로 저장소 registry의 빌드/스모크 로그를 분류한다.
+- `scripts/classify_failure.py` — 기존 Python import 및 일반 정규식 호환 진입점. Rust 경로는 검증한 정규식·입력 범위에서 사용한다.
 - `scripts/sync_to_sub.sh` — 멀티노드 [전달](dry-run 기본/`--apply`, 체크섬, 빌딩블럭 제외).
 - `scripts/multinode_serve_smoke.sh` — 2노드 Ray 서빙+multi-smoke 오케스트레이션. **teardown(`--down`)은 멀티 전용**이다(경로가 `output/multi/` 고정 · SSH 슬레이브 전제).
   - 스모크 합격 기준은 **생성 실재**다(2026-08-22 · W-10): `content` 비었고 `reasoning` 만 있으면

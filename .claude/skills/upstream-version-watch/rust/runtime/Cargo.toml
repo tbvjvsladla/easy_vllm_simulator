@@ -103,6 +103,16 @@ path = "src/bin/regen_requirements.rs"
 name = "upstream_requirements_api"
 path = "src/bin/upstream_requirements_api.rs"
 
+# The unchanged public command line of `classify_failure.py`: registry read, Python-compatible regular-expression search, JSON report.
+[[bin]]
+name = "classify_failure"
+path = "src/bin/classify_failure.rs"
+
+# The normal JSON-lines program of `load_patterns` and `matched_lines` of `classify_failure.py` (`classify_api`, schema `classify_failure-api/1`).
+[[bin]]
+name = "upstream_classify_api"
+path = "src/bin/upstream_classify_api.rs"
+
 # The two entry points that run the same library over an owned root and record the original collector's control record: checks only,
 # built with `--features fixture`.
 [[bin]]
@@ -134,6 +144,7 @@ fixture = []
 inherits = "release"
 
 [dependencies]
+fancy-regex = { version = "=0.19.2", default-features = false, features = ["std", "unicode", "perf"] }
 miniz_oxide = { version = "=0.9.1", default-features = false, features = ["with-alloc"] }
 crc32fast = { version = "=1.5.3", default-features = false }
 # Python-compatible typed data, text, JSON and YAML semantics shared with the other owner packages (path dependency, read-only).
@@ -211,3 +222,8 @@ path = "checks/wheel_checks.rs"
 [[test]]
 name = "regen_checks"
 path = "checks/regen_checks.rs"
+
+# The focused checks of `classify_failure`: saved-case subset through the real programs, typed service, own fixtures.
+[[test]]
+name = "classify_checks"
+path = "checks/classify_checks.rs"

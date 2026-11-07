@@ -36,7 +36,7 @@ pub const MODULE: &str = "resolve_wheel";
 pub const API_TEMPLATE: &str = "https://api.github.com/repos/vllm-project/vllm/releases/tags/v{v}";
 
 /// The attributes an exception row lists, in the order the original's observer reads them.
-const ATTRIBUTE_ORDER: [&str; 26] = [
+const ATTRIBUTE_ORDER: [&str; 27] = [
     "name",
     "obj",
     "path",
@@ -56,6 +56,7 @@ const ATTRIBUTE_ORDER: [&str; 26] = [
     "end",
     "msg",
     "doc",
+    "pattern",
     "pos",
     "lineno",
     "colno",
@@ -186,6 +187,11 @@ fn constructor_of(error: &PyException) -> Option<PyValue> {
                 "fields",
                 fields(&["encoding", "object", "start", "end", "reason"])?,
             ),
+        ])),
+        "error" if error.module == "re" => Some(dict_of(vec![
+            ("kind", kind),
+            ("module", PyValue::str("re")),
+            ("fields", fields(&["msg", "pattern", "pos"])?),
         ])),
         "JSONDecodeError" => Some(dict_of(vec![
             ("kind", kind),

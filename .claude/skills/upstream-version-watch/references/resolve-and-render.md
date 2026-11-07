@@ -51,7 +51,7 @@ bash scripts/regen_requirements.sh --from-wheel-url <wheel URL> -o requirements.
 # ⑤ no-download NAS 체크 (스모크 전): 모델 부재면 비0+중단·보고. --topology 필수(산출물 통로 output/<topology>/)
 python3 scripts/check_smoke_model.py <config_name> --topology <single|multi> --repo .
 # ⑥ 실패 분류 (빌드/스모크 실패 시): requirements-fixable(0)/source-build-class(1)/unknown(2)
-docker logs <c> 2>&1 | python3 scripts/classify_failure.py
+docker logs <c> 2>&1 | bash scripts/classify_failure.sh
 # ⑦ 빌드 트랙 제안 (proposer): torch핀 휴리스틱(2.10→wheel/2.11+→source) + SM arch(manifest scan)
 python3 scripts/resolve_build_track.py --torch-pin <torch_pin> --topology <single|multi>   # build_track.decision·source_build.torch_cuda_arch(← manifest compute_capability · --sm-arch 가 우선) → resolved.json
 ```

@@ -76,3 +76,12 @@ pub mod requirements_rules;
 pub mod tempdir;
 pub mod urlretrieve;
 pub mod zip_archive;
+// R40 `classify_failure.py`
+pub mod classify_api;
+pub mod classify_cli;
+pub mod classify_main;
+pub mod classify_source;
+pub mod classify_traceback;
+pub mod py_regex_engine;
+pub mod py_regex_parse;
+pub mod unicode_escape;
