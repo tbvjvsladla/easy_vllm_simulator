@@ -1638,7 +1638,7 @@ deliver_build() {  # $1=topology $2=dry(0/1)
             [ -f "${src%/}/$bk" ] || missing_bk=1
         done
         if [ "$missing_bk" = "1" ] \
-           && printf '%s\n' "$dry_out" | grep -qE '^\*deleting +(Dockerfile|docker-compose\.yaml|build_patches/)'; then
+           && grep -qE '^\*deleting +(Dockerfile|docker-compose\.yaml|build_patches/)' <<<"$dry_out"; then
             echo "[sync] STOP(브랜치 불일치): 정본 체크아웃에 output/$1 빌드킷이 없는데 서브에는 있다." >&2
             echo "[sync]   → 이 삭제는 정리가 아니라 **잘못된 브랜치에서의 배달**이다. ALLOW_DELETE 로 뚫지 마라." >&2
             echo "[sync]   → output/$1 빌드킷을 추적하는 브랜치로 체크아웃한 뒤 재실행하라(현재: $(git -C "$CANONICAL_SRC" rev-parse --abbrev-ref HEAD 2>/dev/null))." >&2
@@ -1762,7 +1762,7 @@ report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 
             case "$_f" in output/*/.env) [ -n "$(printf '%s\n' "$canon" | grep -x "$_f" || true)" ] || continue ;; esac
             _dir="${_f%/*}"; [ "$_dir" = "$_f" ] && _dir="."
             if printf '%s' "${_f##*/}" | grep -qE "^${_kit_re}$" \
-               && ! printf '%s\n' "$canon" | grep -qE "^${_dir}/${_kit_re}$"; then
+               && ! grep -qE "^${_dir}/${_kit_re}$" <<<"$canon"; then
                 continue   # dormant 평면의 서브 자율 저작분
             fi
             _keep="${_keep}${_f}\n"
@@ -2165,11 +2165,11 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
             #   스킬마다 SKILL.md 를, recipe-explorer 가 있으면 그 엔진(recipe.py)을 본다.
             local _sk
             for _sk in $(printf '%s' "$_tp" | tr -c '[:alnum:]-' ' '); do
-                printf '%s\n' "$rels" | grep -qxF ".claude/skills/$_sk/SKILL.md" \
+                grep -qxF ".claude/skills/$_sk/SKILL.md" <<<"$rels" \
                     || { echo "  ❌ 배달 표면에 tool_plane 스킬 대표(.claude/skills/$_sk/SKILL.md)가 없다" >&2; fail=1; }
             done
             case ",$(printf '%s' "$_tp" | tr -c '[:alnum:]-' ','),"  in *,vllm-recipe-explorer,*)
-                printf '%s\n' "$rels" | grep -qxF '.claude/skills/vllm-recipe-explorer/recipe.py' \
+                grep -qxF '.claude/skills/vllm-recipe-explorer/recipe.py' <<<"$rels" \
                     || { echo "  ❌ 배달 표면에 런타임블럭 대표(.claude/skills/vllm-recipe-explorer/recipe.py)가 없다" >&2; fail=1; } ;;
             esac
         fi
