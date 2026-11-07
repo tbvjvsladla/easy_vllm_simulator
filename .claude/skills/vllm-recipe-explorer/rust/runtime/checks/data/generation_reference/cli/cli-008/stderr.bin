@@ -1,0 +1,23 @@
+Traceback (most recent call last):
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py", line 566, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py", line 548, in main
+    parsed = _load_json(args.parsed)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py", line 492, in _load_json
+    return json.load(f)
+           ^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 353, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ^^^^^^^^^^^^^^^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 2 column 1 (char 2)

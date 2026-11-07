@@ -1,0 +1,19 @@
+{
+  "id": "api-111",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "expected str, bytes or os.PathLike object, not NoneType",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "timestamp": "fixed",
+      "selection_timestamp": "selected",
+      "model_id": "\ud55c\uae00/Model",
+      "actual_vram_gb": 3,
+      "extra": "kept"
+    },
+    null
+  ],
+  "kwargs_after": {}
+}

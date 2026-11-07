@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "@REFERENCE@/source/parse_model_config.py", line 1159, in <module>
+    raise SystemExit(_main())
+                     ^^^^^^^
+  File "@REFERENCE@/source/parse_model_config.py", line 1135, in _main
+    result = parse(args.path, nas_host_root=args.nas_root)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "@REFERENCE@/source/parse_model_config.py", line 605, in parse
+    text_config = config.get("text_config")
+                  ^^^^^^^^^^
+AttributeError: 'list' object has no attribute 'get'

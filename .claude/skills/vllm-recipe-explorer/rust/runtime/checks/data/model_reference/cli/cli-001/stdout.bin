@@ -1,0 +1,13 @@
+usage: parse_model_config.py [-h] [--self-test] [--nas-root NAS_ROOT] [--json]
+                             [path]
+
+config.json 결정론 파서 (vllm-recipe-explorer)
+
+positional arguments:
+  path                 모델 경로 (/app/models/<Org>/<Name> 또는 호스트 경로)
+
+options:
+  -h, --help           show this help message and exit
+  --self-test          하이브리드 KV·MXFP4 헤더/교차검증 회귀(모델/하드웨어/네트워크 불요)
+  --nas-root NAS_ROOT  /app/models 매핑 호스트 NAS 루트 (기본 /mnt/models)
+  --json               JSON 으로 출력

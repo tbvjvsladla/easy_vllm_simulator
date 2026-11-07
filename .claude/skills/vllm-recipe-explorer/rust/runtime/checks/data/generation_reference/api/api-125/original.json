@@ -1,0 +1,10 @@
+{
+  "id": "api-125",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "build_record() missing 8 required positional arguments: 'model_id', 'quantization', 'max_model_len', 'gpu_memory_utilization', 'vram_budget_gb', 'estimated_vram_gb', 'tensor_parallel_size', and 'safety_margin_threshold'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [],
+  "kwargs_after": {}
+}

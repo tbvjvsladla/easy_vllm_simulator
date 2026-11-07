@@ -1,0 +1,3902 @@
+{
+  "state": "ORIGINAL182_API_CAPTURED_ONCE",
+  "top_level_original_calls": 182,
+  "rows": [
+    {
+      "id": "api-000",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          null,
+          false,
+          null,
+          []
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        null,
+        4
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-001",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          null,
+          false,
+          null,
+          []
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        [],
+        4
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-002",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          null,
+          false,
+          null,
+          []
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "full_attention",
+        4
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-003",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          4,
+          false,
+          {
+            "full_attention": 4
+          },
+          []
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        [
+          "full_attention",
+          "full_attention",
+          "full_attention",
+          "full_attention"
+        ],
+        4
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-004",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          2,
+          true,
+          {
+            "linear_attention": 2,
+            "full_attention": 2
+          },
+          []
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        [
+          "linear_attention",
+          "full_attention",
+          "linear_attention",
+          "full_attention"
+        ],
+        4,
+        2
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-005",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          null,
+          false,
+          {
+            "linear_attention": 2
+          },
+          [
+            "layer_types \uc5d0 KV \ubcf4\uc720\uce35\uc774 0 \uac1c \u2192 \uce35\uc218 \uc778\uc9c0 \ud3ec\uae30, \uc804\uce35 \ud3f4\ubc31(\uacfc\uc18c\ucd94\uc815 \ubc29\uc9c0)"
+          ]
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        [
+          "linear_attention",
+          "linear_attention"
+        ],
+        2
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-006",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          3,
+          false,
+          {
+            "sliding_attention": 1,
+            "None": 1,
+            "True": 1
+          },
+          [
+            "layer_types \uc5d0 \ubbf8\uc9c0 \ud0c0\uc785 None, True, sliding_attention \u2192 KV \ubcf4\uc720\ub85c \uacc4\uc0b0(\ubcf4\uc218\uc801\u00b7\uacfc\ub300\ucd94\uc815). KV-\ubb34\ubcf4\uc720\uac00 \ub9de\ub2e4\uba74 parse_model_config._KV_FREE_LAYER_TYPES \uc5d0 \uadfc\uac70\uc640 \ud568\uaed8 \ub4f1\uc7ac\ud558\ub77c"
+          ]
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        [
+          "sliding_attention",
+          null,
+          true
+        ],
+        3,
+        1
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-007",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          null,
+          false,
+          {
+            "full_attention": 1
+          },
+          [
+            "layer_types \uae38\uc774(1) != num_hidden_layers(2) \u2192 \uce35\uc218 \uc778\uc9c0 \ud3ec\uae30, \uc804\uce35 \ud3f4\ubc31(\ubcf4\uc218\uc801)"
+          ]
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        [
+          "full_attention"
+        ],
+        2
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-008",
+      "kind": "exception",
+      "type": "ValueError",
+      "message": "invalid literal for int() with base 10: 'bad'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        [
+          "full_attention"
+        ],
+        "bad"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-009",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          1,
+          false,
+          {
+            "full_attention": 1
+          },
+          []
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        [
+          "full_attention"
+        ],
+        true
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-010",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          1,
+          false,
+          {
+            "full_attention": 1
+          },
+          []
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        [
+          "full_attention"
+        ],
+        1,
+        "bad"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-011",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          1,
+          false,
+          {
+            "full_attention": 1
+          },
+          []
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        [
+          "full_attention"
+        ],
+        1,
+        0
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-012",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          1,
+          false,
+          {
+            "full_attention": 1
+          },
+          []
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        [
+          "full_attention"
+        ],
+        1,
+        0.2
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-013",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          2,
+          false,
+          {
+            "['nested']": 1,
+            "{}": 1
+          },
+          [
+            "layer_types \uc5d0 \ubbf8\uc9c0 \ud0c0\uc785 ['nested'], {} \u2192 KV \ubcf4\uc720\ub85c \uacc4\uc0b0(\ubcf4\uc218\uc801\u00b7\uacfc\ub300\ucd94\uc815). KV-\ubb34\ubcf4\uc720\uac00 \ub9de\ub2e4\uba74 parse_model_config._KV_FREE_LAYER_TYPES \uc5d0 \uadfc\uac70\uc640 \ud568\uaed8 \ub4f1\uc7ac\ud558\ub77c"
+          ]
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        [
+          [
+            "nested"
+          ],
+          {}
+        ],
+        2
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-014",
+      "kind": "value",
+      "value": "/fixture/nas/Org/Name",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "/app/models/Org/Name",
+        "/fixture/nas"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-015",
+      "kind": "value",
+      "value": "/fixture/nas/",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "/app/models",
+        "/fixture/nas"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-016",
+      "kind": "value",
+      "value": "/app/models-other/X",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "/app/models-other/X",
+        "/fixture/nas"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-017",
+      "kind": "value",
+      "value": "/fixture/nas/Org/Name",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "/app/quant/Org/Name",
+        "/fixture/nas",
+        "/app/quant/"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-018",
+      "kind": "value",
+      "value": "\ud55c\uae00/'model",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "\ud55c\uae00/'model",
+        "/nas"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-019",
+      "kind": "value",
+      "value": "",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "",
+        "/nas"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-020",
+      "kind": "value",
+      "value": "/nas/",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "/",
+        "/nas",
+        "/"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-021",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'NoneType' object has no attribute 'startswith'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        null,
+        "/nas"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-022",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'int' object has no attribute 'startswith'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        3,
+        "/nas"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-023",
+      "kind": "value",
+      "value": "Org/Name",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "/Org/Name///"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-024",
+      "kind": "value",
+      "value": "Name",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "Name"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-025",
+      "kind": "value",
+      "value": "/",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "/"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-026",
+      "kind": "value",
+      "value": "",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        ""
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-027",
+      "kind": "value",
+      "value": "\ud55c\uae00/Na'me",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "\ud55c\uae00/Na'me"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-028",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'NoneType' object has no attribute 'rstrip'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        null
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-029",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'int' object has no attribute 'rstrip'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        3
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-030",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/empty.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-031",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/short.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-032",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/badjson.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-033",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/badutf8.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-034",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/null.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-035",
+      "kind": "value",
+      "value": [],
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/array.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-036",
+      "kind": "value",
+      "value": true,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/boolean.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-037",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/exceeds_file.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-038",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/over_bound.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-039",
+      "kind": "value",
+      "value": {
+        "w": {
+          "dtype": "U8",
+          "shape": [
+            1
+          ],
+          "data_offsets": [
+            0,
+            1
+          ]
+        }
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/duplicate.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-040",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/missing"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-041",
+      "kind": "value",
+      "value": {
+        "weight": {
+          "dtype": "BF16",
+          "shape": [
+            4,
+            8
+          ],
+          "data_offsets": [
+            0,
+            64
+          ]
+        }
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal/model.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-042",
+      "kind": "exception",
+      "type": "error",
+      "message": "unpack requires a buffer of 8 bytes",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/empty.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-043",
+      "kind": "exception",
+      "type": "error",
+      "message": "unpack requires a buffer of 8 bytes",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/short.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-044",
+      "kind": "exception",
+      "type": "JSONDecodeError",
+      "message": "Expecting property name enclosed in double quotes: line 2 column 1 (char 3)",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/badjson.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-045",
+      "kind": "exception",
+      "type": "UnicodeDecodeError",
+      "message": "'utf-8' codec can't decode byte 0xff in position 1: invalid start byte",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/badutf8.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-046",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/null.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-047",
+      "kind": "value",
+      "value": [],
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/array.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-048",
+      "kind": "value",
+      "value": true,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/boolean.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-049",
+      "kind": "value",
+      "value": {},
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/exceeds_file.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-050",
+      "kind": "value",
+      "value": {
+        "w": {
+          "dtype": "U8",
+          "shape": [
+            1
+          ],
+          "data_offsets": [
+            0,
+            1
+          ]
+        }
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/duplicate.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-051",
+      "kind": "exception",
+      "type": "FileNotFoundError",
+      "message": "[Errno 2] No such file or directory: '@REFERENCE@/input/headers/missing'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/missing"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-052",
+      "kind": "value",
+      "value": {
+        "weight": {
+          "dtype": "BF16",
+          "shape": [
+            4,
+            8
+          ],
+          "data_offsets": [
+            0,
+            64
+          ]
+        }
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal/model.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-053",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          null,
+          null
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/empty.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-054",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          null,
+          null
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/short.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-055",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          null,
+          null
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/badjson.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-056",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          null,
+          null
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/badutf8.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-057",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          null,
+          null
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/null.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-058",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          null,
+          null
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/array.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-059",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'bool' object has no attribute 'items'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/boolean.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-060",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          null,
+          null
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/headers/exceeds_file.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-061",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          "BF16",
+          2.0
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal/model.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-062",
+      "kind": "value",
+      "value": {
+        "__tuple__": [
+          "U8",
+          1.0
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/mixed/model.safetensors"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-063",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/empty",
+        [
+          "initial",
+          "weight \ud30c\uc77c(*.safetensors/*.bin/index.json)\uc744 \ucc3e\uc9c0 \ubabb\ud568 \u2192 native_weight_bytes=None"
+        ]
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-064",
+      "kind": "value",
+      "value": 135,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal",
+        [
+          "initial"
+        ]
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-065",
+      "kind": "value",
+      "value": 135,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index",
+        [
+          "initial",
+          "index metadata.total_size=0.00 GiB \uac00 \uc2e4\uc81c \uc0e4\ub4dc \ud569 0.00 GiB \uc758 30.34\ubc30 \u2014 \ubc1c\ud589\uc790\uac00 \ub2e4\ub978 dtype \uae30\uc900\uc73c\ub85c \uc801\uc740 \uac12\uc774\ub2e4. \uc2e4\uc81c \ud30c\uc77c \ud06c\uae30\ub97c \ucc44\ud0dd\ud55c\ub2e4."
+        ]
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-066",
+      "kind": "value",
+      "value": 135,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/missing-shard",
+        [
+          "initial",
+          "index weight_map \ucc38\uc870 \uc0e4\ub4dc 1\uac1c \ubd80\uc7ac(\uc608: absent.safetensors) \u2192 \uae00\ub86d \ud3f4\ubc31"
+        ]
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-067",
+      "kind": "value",
+      "value": 135,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/bad-index",
+        [
+          "initial",
+          "model.safetensors.index.json \uc77d\uae30 \uc2e4\ud328 \u2192 \ud30c\uc77c \ud06c\uae30 \ud569\uc73c\ub85c \ud3f4\ubc31"
+        ]
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-068",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'list' object has no attribute 'get'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index-list",
+        [
+          "initial"
+        ]
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-069",
+      "kind": "exception",
+      "type": "TypeError",
+      "message": "join() argument must be str, bytes, or os.PathLike object, not 'int'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index-bad-values",
+        [
+          "initial"
+        ]
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-070",
+      "kind": "value",
+      "value": 31,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/bin",
+        [
+          "initial"
+        ]
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-071",
+      "kind": "value",
+      "value": 8,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/offload",
+        "ple_mmap",
+        []
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-072",
+      "kind": "value",
+      "value": 10,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/engram",
+        "engram_file",
+        []
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-073",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal",
+        "ple_mmap",
+        [
+          "index.json \ubd80\uc7ac \u2192 mmap \uc624\ud504\ub85c\ub4dc \ubc14\uc774\ud2b8 \uc0b0\ucd9c \ubd88\uac00(\ubcf4\uc815 \u2717)"
+        ]
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-074",
+      "kind": "value",
+      "value": 0,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index",
+        "ple_mmap",
+        []
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-075",
+      "kind": "value",
+      "value": 0,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/missing-shard",
+        "ple_mmap",
+        []
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-076",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/bad-index",
+        "ple_mmap",
+        [
+          "index.json \uc77d\uae30 \uc2e4\ud328 \u2192 mmap \uc624\ud504\ub85c\ub4dc \uc0b0\ucd9c \ubd88\uac00: Expecting property name enclosed in double quotes: line 2 column 2 (char 3)"
+        ]
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-077",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'list' object has no attribute 'get'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index-list",
+        "ple_mmap",
+        []
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-078",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal",
+        "unknown",
+        [
+          "mmap \uae30\uad6c 'unknown' \uc774 \ub2eb\ud78c \ubaa9\ub85d\uc5d0 \uc5c6\ub2e4 \u2192 \ubcf4\uc815 0(\ucd94\uce21 \u2717)"
+        ]
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-079",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/empty"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-080",
+      "kind": "value",
+      "value": "@REFERENCE@/input/Org-Normal/model.safetensors",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-081",
+      "kind": "value",
+      "value": "@REFERENCE@/input/index/model.safetensors",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-082",
+      "kind": "value",
+      "value": "@REFERENCE@/input/missing-shard/model.safetensors",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/missing-shard"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-083",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/empty"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-084",
+      "kind": "value",
+      "value": 32,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-085",
+      "kind": "value",
+      "value": 32,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-086",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/missing-shard"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-087",
+      "kind": "value",
+      "value": 32,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/bad-index"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-088",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'list' object has no attribute 'get'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index-list"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-089",
+      "kind": "value",
+      "value": 2,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/boolshape"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-090",
+      "kind": "value",
+      "value": null,
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/negative-shape"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-091",
+      "kind": "exception",
+      "type": "ValueError",
+      "message": "MXFP4_HEADER_LAYOUT_UNSUPPORTED: \uc815\ubcf8 safetensors \uc0e4\ub4dc \ubd80\uc7ac",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/empty"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-092",
+      "kind": "value",
+      "value": {
+        "format": "mxfp4-blocks16-u8-scales-u8",
+        "num_shards": 1,
+        "tensor_count": 3,
+        "logical_params": 66,
+        "unpacked_params": 2,
+        "packed_storage_numel": 32,
+        "scale_metadata_numel": 2,
+        "storage_numel": 36,
+        "payload_bytes": 38,
+        "file_bytes": 269,
+        "packed_tensor_count": 1,
+        "packed_expert_tensor_count": 1
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/mxfp4"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-093",
+      "kind": "exception",
+      "type": "ValueError",
+      "message": "MXFP4_HEADER_LAYOUT_UNSUPPORTED: \uc9c0\uc6d0\ud558\ub294 blocks/scales \uc30d \ubd80\uc7ac",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/bad-mxfp4"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-094",
+      "kind": "exception",
+      "type": "ValueError",
+      "message": "MXFP4_HEADER_LAYOUT_UNSUPPORTED: w: shape \ubd80\uc815\ud569",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/boolshape"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-095",
+      "kind": "exception",
+      "type": "ValueError",
+      "message": "MXFP4_HEADER_LAYOUT_UNSUPPORTED: w: shape \ubd80\uc815\ud569",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/negative-shape"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-096",
+      "kind": "exception",
+      "type": "ValueError",
+      "message": "MXFP4_HEADER_LAYOUT_UNSUPPORTED: model.safetensors: payload \uc911\ubcf5/\ube48 \uad6c\uac04",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/bad-offsets"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-097",
+      "kind": "exception",
+      "type": "ValueError",
+      "message": "MXFP4_HEADER_LAYOUT_UNSUPPORTED: absent.safetensors: \ud5e4\ub354 \uc77d\uae30 \uc2e4\ud328: [Errno 2] No such file or directory: '@REFERENCE@/input/missing-shard/absent.safetensors'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/missing-shard"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-098",
+      "kind": "exception",
+      "type": "ValueError",
+      "message": "MXFP4_HEADER_LAYOUT_UNSUPPORTED: index \uc77d\uae30 \uc2e4\ud328: Expecting property name enclosed in double quotes: line 2 column 2 (char 3)",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/bad-index"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-099",
+      "kind": "exception",
+      "type": "ValueError",
+      "message": "MXFP4_HEADER_LAYOUT_UNSUPPORTED: index \uc77d\uae30 \uc2e4\ud328: 'list' object has no attribute 'get'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index-list"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-100",
+      "kind": "exception",
+      "type": "ValueError",
+      "message": "MXFP4_HEADER_LAYOUT_UNSUPPORTED: index \ud150\uc11c/\uc0e4\ub4dc \uc774\ub984 \ubd80\uc815\ud569",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index-bad-values"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-101",
+      "kind": "exception",
+      "type": "FileNotFoundError",
+      "message": "config.json \uc5c6\uc74c: @REFERENCE@/input/empty/config.json. \ud3d0\uc1c4\ub9dd \u2014 \ub2e4\uc6b4\ub85c\ub4dc \uae08\uc9c0. \uc911\ub2e8\u00b7\ubcf4\uace0.",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/empty"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-102",
+      "kind": "value",
+      "value": {
+        "model_path_container": "@REFERENCE@/input/Org-Normal",
+        "model_path_host": "@REFERENCE@/input/Org-Normal",
+        "model_id": "input/Org-Normal",
+        "model_type": "dense",
+        "architectures": [
+          "ExampleForCausalLM"
+        ],
+        "is_moe": false,
+        "native_dtype": "bfloat16",
+        "serve_bpw": 2.0,
+        "disk_dtype": "BF16",
+        "disk_bpw": 2.0,
+        "prequantized": false,
+        "quant_method_native": null,
+        "num_hidden_layers": 4,
+        "num_full_attention_layers": null,
+        "is_hybrid": false,
+        "layer_type_counts": null,
+        "full_attention_interval": null,
+        "num_attention_heads": 4,
+        "num_key_value_heads": 4,
+        "head_dim": 4,
+        "hidden_size": 16,
+        "vocab_size": 32,
+        "max_position_embeddings": 4096,
+        "num_experts": null,
+        "num_experts_per_tok": null,
+        "native_weight_bytes": 135,
+        "num_params": 32,
+        "weight_basis": "safetensors_numel_sum(exact)",
+        "warnings": [
+          "num_key_value_heads \ub204\ub77d \u2192 num_attention_heads \uc0ac\uc6a9 (MHA \uac00\uc815)",
+          "head_dim \ub204\ub77d \u2192 hidden_size // num_attention_heads \uc0ac\uc6a9"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-103",
+      "kind": "value",
+      "value": {
+        "model_path_container": "@REFERENCE@/input/minimal",
+        "model_path_host": "@REFERENCE@/input/minimal",
+        "model_id": "input/minimal",
+        "model_type": null,
+        "architectures": null,
+        "is_moe": false,
+        "native_dtype": "bfloat16",
+        "serve_bpw": 2.0,
+        "disk_dtype": null,
+        "disk_bpw": 2.0,
+        "prequantized": false,
+        "quant_method_native": null,
+        "num_hidden_layers": null,
+        "num_full_attention_layers": null,
+        "is_hybrid": false,
+        "layer_type_counts": null,
+        "full_attention_interval": null,
+        "num_attention_heads": null,
+        "num_key_value_heads": null,
+        "head_dim": null,
+        "hidden_size": null,
+        "vocab_size": null,
+        "max_position_embeddings": null,
+        "num_experts": null,
+        "num_experts_per_tok": null,
+        "native_weight_bytes": null,
+        "num_params": null,
+        "weight_basis": null,
+        "warnings": [
+          "hidden_size \ub204\ub77d (\ud544\uc218)",
+          "num_hidden_layers \ub204\ub77d (\ud544\uc218)",
+          "num_attention_heads \ub204\ub77d (\ud544\uc218)",
+          "head_dim \ub204\ub77d + hidden_size/num_attention_heads \ubd80\uc871 \u2192 \uc0b0\ucd9c \ubd88\uac00",
+          "vocab_size \ub204\ub77d",
+          "max_position_embeddings \ub204\ub77d",
+          "torch_dtype/dtype \ub204\ub77d \u2192 'bfloat16' \uae30\ubcf8 \uac00\uc815",
+          "weight \ud30c\uc77c(*.safetensors/*.bin/index.json)\uc744 \ucc3e\uc9c0 \ubabb\ud568 \u2192 native_weight_bytes=None",
+          "safetensors \ud5e4\ub354\uc5d0\uc11c disk dtype \uc2e4\uce21 \uc2e4\ud328 \u2192 disk_bpw=serve_bpw \ud3f4\ubc31",
+          "native_weight_bytes \ubd80\uc7ac \u2192 num_params=None (estimate \ub2e8\uacc4 \uc5d0\ub7ec\ud45c\uc2dc)"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/minimal"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-104",
+      "kind": "value",
+      "value": {
+        "model_path_container": "@REFERENCE@/input/hybrid",
+        "model_path_host": "@REFERENCE@/input/hybrid",
+        "model_id": "input/hybrid",
+        "model_type": "dense",
+        "architectures": [
+          "ExampleForCausalLM"
+        ],
+        "is_moe": false,
+        "native_dtype": "bfloat16",
+        "serve_bpw": 2.0,
+        "disk_dtype": "BF16",
+        "disk_bpw": 2.0,
+        "prequantized": false,
+        "quant_method_native": null,
+        "num_hidden_layers": 4,
+        "num_full_attention_layers": 2,
+        "is_hybrid": true,
+        "layer_type_counts": {
+          "linear_attention": 2,
+          "full_attention": 2
+        },
+        "full_attention_interval": 2,
+        "num_attention_heads": 4,
+        "num_key_value_heads": 4,
+        "head_dim": 4,
+        "hidden_size": 16,
+        "vocab_size": 32,
+        "max_position_embeddings": 4096,
+        "num_experts": null,
+        "num_experts_per_tok": null,
+        "native_weight_bytes": 135,
+        "num_params": 32,
+        "weight_basis": "safetensors_numel_sum(exact)",
+        "warnings": [
+          "num_key_value_heads \ub204\ub77d \u2192 num_attention_heads \uc0ac\uc6a9 (MHA \uac00\uc815)",
+          "head_dim \ub204\ub77d \u2192 hidden_size // num_attention_heads \uc0ac\uc6a9"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/hybrid"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-105",
+      "kind": "value",
+      "value": {
+        "model_path_container": "@REFERENCE@/input/nested",
+        "model_path_host": "@REFERENCE@/input/nested",
+        "model_id": "input/nested",
+        "model_type": "nested-moe",
+        "architectures": [
+          "ExampleForCausalLM"
+        ],
+        "is_moe": true,
+        "native_dtype": "fp16",
+        "serve_bpw": 2.0,
+        "disk_dtype": null,
+        "disk_bpw": 2.0,
+        "prequantized": false,
+        "quant_method_native": null,
+        "num_hidden_layers": 4,
+        "num_full_attention_layers": 2,
+        "is_hybrid": true,
+        "layer_type_counts": {
+          "linear_attention": 2,
+          "full_attention": 2
+        },
+        "full_attention_interval": 2,
+        "num_attention_heads": 4,
+        "num_key_value_heads": 4,
+        "head_dim": 6,
+        "hidden_size": 24,
+        "vocab_size": 32,
+        "max_position_embeddings": 4096,
+        "num_experts": 3,
+        "num_experts_per_tok": null,
+        "native_weight_bytes": null,
+        "num_params": null,
+        "weight_basis": null,
+        "warnings": [
+          "num_key_value_heads \ub204\ub77d \u2192 num_attention_heads \uc0ac\uc6a9 (MHA \uac00\uc815)",
+          "weight \ud30c\uc77c(*.safetensors/*.bin/index.json)\uc744 \ucc3e\uc9c0 \ubabb\ud568 \u2192 native_weight_bytes=None",
+          "safetensors \ud5e4\ub354\uc5d0\uc11c disk dtype \uc2e4\uce21 \uc2e4\ud328 \u2192 disk_bpw=serve_bpw \ud3f4\ubc31",
+          "native_weight_bytes \ubd80\uc7ac \u2192 num_params=None (estimate \ub2e8\uacc4 \uc5d0\ub7ec\ud45c\uc2dc)"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/nested"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-106",
+      "kind": "value",
+      "value": {
+        "model_path_container": "@REFERENCE@/input/mla",
+        "model_path_host": "@REFERENCE@/input/mla",
+        "model_id": "input/mla",
+        "model_type": "dense",
+        "architectures": [
+          "ExampleForCausalLM"
+        ],
+        "is_moe": false,
+        "native_dtype": "bfloat16",
+        "serve_bpw": 2.0,
+        "disk_dtype": "BF16",
+        "disk_bpw": 2.0,
+        "prequantized": false,
+        "quant_method_native": null,
+        "num_hidden_layers": 4,
+        "num_full_attention_layers": null,
+        "is_hybrid": false,
+        "layer_type_counts": null,
+        "full_attention_interval": null,
+        "num_attention_heads": 4,
+        "num_key_value_heads": 4,
+        "head_dim": 6,
+        "hidden_size": 16,
+        "vocab_size": 32,
+        "max_position_embeddings": 4096,
+        "num_experts": null,
+        "num_experts_per_tok": null,
+        "native_weight_bytes": 135,
+        "num_params": 32,
+        "weight_basis": "safetensors_numel_sum(exact)",
+        "warnings": [
+          "num_key_value_heads \ub204\ub77d \u2192 num_attention_heads \uc0ac\uc6a9 (MHA \uac00\uc815)",
+          "MLA \uac10\uc9c0(qk_nope=4, qk_rope=2, kv_lora_rank=8) \u2192 head_dim=6 \uc0ac\uc6a9. KV_cache \uacf5\uc2dd\uc740 MLA \uc555\ucd95 KV \ubbf8\ubc18\uc601 \u2192 \uacfc\ub300\ucd94\uc815(\ubcf4\uc218\uc801\u00b7OOM \uc548\uc804)"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/mla"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-107",
+      "kind": "value",
+      "value": {
+        "model_path_container": "@REFERENCE@/input/mla-partial",
+        "model_path_host": "@REFERENCE@/input/mla-partial",
+        "model_id": "input/mla-partial",
+        "model_type": "dense",
+        "architectures": [
+          "ExampleForCausalLM"
+        ],
+        "is_moe": false,
+        "native_dtype": "bfloat16",
+        "serve_bpw": 2.0,
+        "disk_dtype": "BF16",
+        "disk_bpw": 2.0,
+        "prequantized": false,
+        "quant_method_native": null,
+        "num_hidden_layers": 4,
+        "num_full_attention_layers": null,
+        "is_hybrid": false,
+        "layer_type_counts": null,
+        "full_attention_interval": null,
+        "num_attention_heads": 4,
+        "num_key_value_heads": 4,
+        "head_dim": 4,
+        "hidden_size": 16,
+        "vocab_size": 32,
+        "max_position_embeddings": 4096,
+        "num_experts": null,
+        "num_experts_per_tok": null,
+        "native_weight_bytes": 135,
+        "num_params": 32,
+        "weight_basis": "safetensors_numel_sum(exact)",
+        "warnings": [
+          "num_key_value_heads \ub204\ub77d \u2192 num_attention_heads \uc0ac\uc6a9 (MHA \uac00\uc815)",
+          "head_dim \ub204\ub77d + MLA \uc2e0\ud638(kv_lora_rank=8) \uac10\uc9c0\uc9c0\ub9cc qk_nope/qk_rope_head_dim \ubd88\uc644\uc804 \u2192 hidden_size // num_attention_heads =4 \ud3f4\ubc31(\uadfc\uac70 \uc57d\ud568, KV_cache \uacfc\ub300/\uc624\ucd94\uc815 \uac00\ub2a5)"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/mla-partial"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-108",
+      "kind": "value",
+      "value": {
+        "model_path_container": "@REFERENCE@/input/unknown-quant",
+        "model_path_host": "@REFERENCE@/input/unknown-quant",
+        "model_id": "input/unknown-quant",
+        "model_type": "dense",
+        "architectures": [
+          "ExampleForCausalLM"
+        ],
+        "is_moe": false,
+        "native_dtype": "bfloat16",
+        "serve_bpw": 2.0,
+        "disk_dtype": "BF16",
+        "disk_bpw": 2.0,
+        "prequantized": true,
+        "quant_method_native": "unknown",
+        "num_hidden_layers": 4,
+        "num_full_attention_layers": null,
+        "is_hybrid": false,
+        "layer_type_counts": null,
+        "full_attention_interval": null,
+        "num_attention_heads": 4,
+        "num_key_value_heads": 4,
+        "head_dim": 4,
+        "hidden_size": 16,
+        "vocab_size": 32,
+        "max_position_embeddings": 4096,
+        "num_experts": null,
+        "num_experts_per_tok": null,
+        "native_weight_bytes": 135,
+        "num_params": 68,
+        "weight_basis": "disk_total/disk_bpw(prequant_unknown_method)",
+        "warnings": [
+          "num_key_value_heads \ub204\ub77d \u2192 num_attention_heads \uc0ac\uc6a9 (MHA \uac00\uc815)",
+          "head_dim \ub204\ub77d \u2192 hidden_size // num_attention_heads \uc0ac\uc6a9",
+          "unknown quant_method 'unknown' (\ud14c\uc774\ube14 \ubbf8\ub4f1\ub85d) \u2192 vllm_quant_bpw \uc0b0\ucd9c \ubd88\uac00, \ud3f4\ubc31 \ud544\uc694 \u2192 disk_bpw(2.0) \uc2e4\uce21\uc73c\ub85c num_params \ud3f4\ubc31(best-effort)"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/unknown-quant"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-109",
+      "kind": "value",
+      "value": {
+        "model_path_container": "@REFERENCE@/input/prequant",
+        "model_path_host": "@REFERENCE@/input/prequant",
+        "model_id": "input/prequant",
+        "model_type": "dense",
+        "architectures": [
+          "ExampleForCausalLM"
+        ],
+        "is_moe": false,
+        "native_dtype": "bfloat16",
+        "serve_bpw": 2.0,
+        "disk_dtype": "BF16",
+        "disk_bpw": 2.0,
+        "prequantized": true,
+        "quant_method_native": "fp8",
+        "num_hidden_layers": 4,
+        "num_full_attention_layers": null,
+        "is_hybrid": false,
+        "layer_type_counts": null,
+        "full_attention_interval": null,
+        "num_attention_heads": 4,
+        "num_key_value_heads": 4,
+        "head_dim": 4,
+        "hidden_size": 16,
+        "vocab_size": 32,
+        "max_position_embeddings": 4096,
+        "num_experts": null,
+        "num_experts_per_tok": null,
+        "native_weight_bytes": 135,
+        "num_params": 135,
+        "weight_basis": "disk_total_prequant",
+        "warnings": [
+          "num_key_value_heads \ub204\ub77d \u2192 num_attention_heads \uc0ac\uc6a9 (MHA \uac00\uc815)",
+          "head_dim \ub204\ub77d \u2192 hidden_size // num_attention_heads \uc0ac\uc6a9"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/prequant"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-110",
+      "kind": "value",
+      "value": {
+        "model_path_container": "@REFERENCE@/input/mixed",
+        "model_path_host": "@REFERENCE@/input/mixed",
+        "model_id": "input/mixed",
+        "model_type": "dense",
+        "architectures": [
+          "ExampleForCausalLM"
+        ],
+        "is_moe": false,
+        "native_dtype": "bfloat16",
+        "serve_bpw": 2.0,
+        "disk_dtype": "U8",
+        "disk_bpw": 1.0,
+        "prequantized": true,
+        "quant_method_native": "fp8",
+        "num_hidden_layers": 4,
+        "num_full_attention_layers": null,
+        "is_hybrid": false,
+        "layer_type_counts": null,
+        "full_attention_interval": null,
+        "num_attention_heads": 4,
+        "num_key_value_heads": 4,
+        "head_dim": 4,
+        "hidden_size": 16,
+        "vocab_size": 32,
+        "max_position_embeddings": 4096,
+        "num_experts": null,
+        "num_experts_per_tok": null,
+        "native_weight_bytes": 205,
+        "num_params": 205,
+        "weight_basis": "disk_total_prequant",
+        "warnings": [
+          "num_key_value_heads \ub204\ub77d \u2192 num_attention_heads \uc0ac\uc6a9 (MHA \uac00\uc815)",
+          "head_dim \ub204\ub77d \u2192 hidden_size // num_attention_heads \uc0ac\uc6a9",
+          "disk_dtype(U8, bpw=1.0) != native_dtype(bfloat16, bpw=2.0) \u2014 \uc800\uc7a5 \uc815\ubc00\ub3c4 \u2260 config dtype. num_params \ub294 \ud5e4\ub354 numel \ud569(\uc815\ud655) \uc6b0\uc120, \ubd88\uac00 \uc2dc \ubcf4\uc218\uc801 bpw \ud3f4\ubc31"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/mixed"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-111",
+      "kind": "value",
+      "value": {
+        "model_path_container": "@REFERENCE@/input/mxfp4",
+        "model_path_host": "@REFERENCE@/input/mxfp4",
+        "model_id": "input/mxfp4",
+        "model_type": "dense",
+        "architectures": [
+          "ExampleForCausalLM"
+        ],
+        "is_moe": false,
+        "native_dtype": "bfloat16",
+        "serve_bpw": 2.0,
+        "disk_dtype": "U8",
+        "disk_bpw": 1.0,
+        "prequantized": true,
+        "quant_method_native": "mxfp4",
+        "num_hidden_layers": 4,
+        "num_full_attention_layers": null,
+        "is_hybrid": false,
+        "layer_type_counts": null,
+        "full_attention_interval": null,
+        "num_attention_heads": 4,
+        "num_key_value_heads": 4,
+        "head_dim": 4,
+        "hidden_size": 16,
+        "vocab_size": 32,
+        "max_position_embeddings": 4096,
+        "num_experts": null,
+        "num_experts_per_tok": null,
+        "native_weight_bytes": 269,
+        "num_params": 66,
+        "weight_basis": "safetensors_mxfp4_logical_numel(exact)",
+        "parameter_count": {
+          "format": "mxfp4-blocks16-u8-scales-u8",
+          "num_shards": 1,
+          "tensor_count": 3,
+          "logical_params": 66,
+          "unpacked_params": 2,
+          "packed_storage_numel": 32,
+          "scale_metadata_numel": 2,
+          "storage_numel": 36,
+          "payload_bytes": 38,
+          "file_bytes": 269,
+          "packed_tensor_count": 1,
+          "packed_expert_tensor_count": 1
+        },
+        "warnings": [
+          "num_key_value_heads \ub204\ub77d \u2192 num_attention_heads \uc0ac\uc6a9 (MHA \uac00\uc815)",
+          "head_dim \ub204\ub77d \u2192 hidden_size // num_attention_heads \uc0ac\uc6a9",
+          "disk_dtype(U8, bpw=1.0) != native_dtype(bfloat16, bpw=2.0) \u2014 \uc800\uc7a5 \uc815\ubc00\ub3c4 \u2260 config dtype. num_params \ub294 MXFP4 blocks/scales \ub17c\ub9ac \uc6d0\uc18c \uac80\uc99d\uac12(\ubbf8\uc9c0\uc6d0 \uad6c\uc870\ub294 \uc911\ub2e8)"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/mxfp4"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-112",
+      "kind": "exception",
+      "type": "ValueError",
+      "message": "MXFP4_HEADER_LAYOUT_UNSUPPORTED: \uc9c0\uc6d0\ud558\ub294 blocks/scales \uc30d \ubd80\uc7ac",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/bad-mxfp4"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-113",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'list' object has no attribute 'get'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/config-list"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-114",
+      "kind": "exception",
+      "type": "JSONDecodeError",
+      "message": "Expecting property name enclosed in double quotes: line 2 column 2 (char 3)",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/config-invalid"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-115",
+      "kind": "exception",
+      "type": "UnicodeDecodeError",
+      "message": "'utf-8' codec can't decode byte 0xff in position 6: invalid start byte",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/config-utf8"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-116",
+      "kind": "value",
+      "value": {
+        "model_path_container": "@REFERENCE@/input/zero-heads",
+        "model_path_host": "@REFERENCE@/input/zero-heads",
+        "model_id": "input/zero-heads",
+        "model_type": "dense",
+        "architectures": [
+          "ExampleForCausalLM"
+        ],
+        "is_moe": false,
+        "native_dtype": "bfloat16",
+        "serve_bpw": 2.0,
+        "disk_dtype": "BF16",
+        "disk_bpw": 2.0,
+        "prequantized": false,
+        "quant_method_native": null,
+        "num_hidden_layers": 4,
+        "num_full_attention_layers": null,
+        "is_hybrid": false,
+        "layer_type_counts": null,
+        "full_attention_interval": null,
+        "num_attention_heads": 0,
+        "num_key_value_heads": 0,
+        "head_dim": null,
+        "hidden_size": 16,
+        "vocab_size": 32,
+        "max_position_embeddings": 4096,
+        "num_experts": null,
+        "num_experts_per_tok": null,
+        "native_weight_bytes": 135,
+        "num_params": 32,
+        "weight_basis": "safetensors_numel_sum(exact)",
+        "warnings": [
+          "num_key_value_heads \ub204\ub77d \u2192 num_attention_heads \uc0ac\uc6a9 (MHA \uac00\uc815)",
+          "head_dim \ub204\ub77d + hidden_size/num_attention_heads \ubd80\uc871 \u2192 \uc0b0\ucd9c \ubd88\uac00"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/zero-heads"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-117",
+      "kind": "value",
+      "value": {
+        "model_path_container": "@REFERENCE@/input/index",
+        "model_path_host": "@REFERENCE@/input/index",
+        "model_id": "input/index",
+        "model_type": "dense",
+        "architectures": [
+          "ExampleForCausalLM"
+        ],
+        "is_moe": false,
+        "native_dtype": "bfloat16",
+        "serve_bpw": 2.0,
+        "disk_dtype": "BF16",
+        "disk_bpw": 2.0,
+        "prequantized": false,
+        "quant_method_native": null,
+        "num_hidden_layers": 4,
+        "num_full_attention_layers": null,
+        "is_hybrid": false,
+        "layer_type_counts": null,
+        "full_attention_interval": null,
+        "num_attention_heads": 4,
+        "num_key_value_heads": 4,
+        "head_dim": 4,
+        "hidden_size": 16,
+        "vocab_size": 32,
+        "max_position_embeddings": 4096,
+        "num_experts": null,
+        "num_experts_per_tok": null,
+        "native_weight_bytes": 135,
+        "num_params": 32,
+        "weight_basis": "safetensors_numel_sum(exact)",
+        "warnings": [
+          "num_key_value_heads \ub204\ub77d \u2192 num_attention_heads \uc0ac\uc6a9 (MHA \uac00\uc815)",
+          "head_dim \ub204\ub77d \u2192 hidden_size // num_attention_heads \uc0ac\uc6a9",
+          "index metadata.total_size=0.00 GiB \uac00 \uc2e4\uc81c \uc0e4\ub4dc \ud569 0.00 GiB \uc758 30.34\ubc30 \u2014 \ubc1c\ud589\uc790\uac00 \ub2e4\ub978 dtype \uae30\uc900\uc73c\ub85c \uc801\uc740 \uac12\uc774\ub2e4. \uc2e4\uc81c \ud30c\uc77c \ud06c\uae30\ub97c \ucc44\ud0dd\ud55c\ub2e4."
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-118",
+      "kind": "exception",
+      "type": "FileNotFoundError",
+      "message": "\ubaa8\ub378 \ub514\ub809\ud1a0\ub9ac \uc5c6\uc74c: @REFERENCE@/input/absent (\ucee8\ud14c\uc774\ub108 \uacbd\ub85c @REFERENCE@/input/absent). \ud3d0\uc1c4\ub9dd \u2014 \ubaa8\ub378 \uc790\uccb4 \ub2e4\uc6b4\ub85c\ub4dc \uae08\uc9c0. NAS\uc5d0 \uc0ac\uc804 \ubc30\uce58 \ud6c4 \uc7ac\uc2dc\ub3c4.",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/absent"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-119",
+      "kind": "value",
+      "value": {
+        "model_path_container": "/fixture-container/Org-Normal",
+        "model_path_host": "@REFERENCE@/input/Org-Normal",
+        "model_id": "fixture-container/Org-Normal",
+        "model_type": "dense",
+        "architectures": [
+          "ExampleForCausalLM"
+        ],
+        "is_moe": false,
+        "native_dtype": "bfloat16",
+        "serve_bpw": 2.0,
+        "disk_dtype": "BF16",
+        "disk_bpw": 2.0,
+        "prequantized": false,
+        "quant_method_native": null,
+        "num_hidden_layers": 4,
+        "num_full_attention_layers": null,
+        "is_hybrid": false,
+        "layer_type_counts": null,
+        "full_attention_interval": null,
+        "num_attention_heads": 4,
+        "num_key_value_heads": 4,
+        "head_dim": 4,
+        "hidden_size": 16,
+        "vocab_size": 32,
+        "max_position_embeddings": 4096,
+        "num_experts": null,
+        "num_experts_per_tok": null,
+        "native_weight_bytes": 135,
+        "num_params": 32,
+        "weight_basis": "safetensors_numel_sum(exact)",
+        "warnings": [
+          "num_key_value_heads \ub204\ub77d \u2192 num_attention_heads \uc0ac\uc6a9 (MHA \uac00\uc815)",
+          "head_dim \ub204\ub77d \u2192 hidden_size // num_attention_heads \uc0ac\uc6a9"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "/fixture-container/Org-Normal",
+        "@REFERENCE@/input",
+        "/fixture-container"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-120",
+      "kind": "value",
+      "value": [],
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/empty"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-121",
+      "kind": "value",
+      "value": [
+        "@REFERENCE@/input/Org-Normal/model.safetensors"
+      ],
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-122",
+      "kind": "value",
+      "value": [
+        "@REFERENCE@/input/index/model.safetensors"
+      ],
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-123",
+      "kind": "value",
+      "value": [
+        "@REFERENCE@/input/missing-shard/model.safetensors"
+      ],
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/missing-shard"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-124",
+      "kind": "value",
+      "value": [
+        "@REFERENCE@/input/bad-index/model.safetensors"
+      ],
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/bad-index"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-125",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'list' object has no attribute 'get'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index-list"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-126",
+      "kind": "exception",
+      "type": "TypeError",
+      "message": "join() argument must be str, bytes, or os.PathLike object, not 'int'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index-bad-values"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-127",
+      "kind": "value",
+      "value": {
+        "present": false
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/empty"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-128",
+      "kind": "value",
+      "value": {
+        "present": true,
+        "num_shards": 1,
+        "tensor_counts": {
+          "BF16": 1
+        },
+        "byte_gib": {
+          "BF16": 0.0
+        },
+        "total_gib": 0.0,
+        "expert_dtypes": {},
+        "nonexpert_dtypes": {
+          "BF16": 1
+        },
+        "precision_classes": [
+          "bf16/fp16"
+        ],
+        "is_mixed_precision": false,
+        "fourbit_experts": false
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-129",
+      "kind": "value",
+      "value": {
+        "present": true,
+        "num_shards": 1,
+        "tensor_counts": {
+          "U8": 1,
+          "F8_E8M0": 1,
+          "BF16": 1
+        },
+        "byte_gib": {
+          "U8": 0.0,
+          "F8_E8M0": 0.0,
+          "BF16": 0.0
+        },
+        "total_gib": 0.0,
+        "expert_dtypes": {
+          "U8": 1
+        },
+        "nonexpert_dtypes": {
+          "F8_E8M0": 1,
+          "BF16": 1
+        },
+        "precision_classes": [
+          "4bit(MXFP4-pack: int8+microscale)",
+          "bf16/fp16"
+        ],
+        "is_mixed_precision": true,
+        "fourbit_experts": true
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/mixed"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-130",
+      "kind": "value",
+      "value": {
+        "present": true,
+        "num_shards": 1,
+        "tensor_counts": {
+          "BF16": 1
+        },
+        "byte_gib": {
+          "BF16": 0.0
+        },
+        "total_gib": 0.0,
+        "expert_dtypes": {},
+        "nonexpert_dtypes": {
+          "BF16": 1
+        },
+        "precision_classes": [
+          "bf16/fp16"
+        ],
+        "is_mixed_precision": false,
+        "fourbit_experts": false
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/index"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-131",
+      "kind": "value",
+      "value": {
+        "present": true,
+        "num_shards": 1,
+        "tensor_counts": {
+          "BF16": 1
+        },
+        "byte_gib": {
+          "BF16": 0.0
+        },
+        "total_gib": 0.0,
+        "expert_dtypes": {},
+        "nonexpert_dtypes": {
+          "BF16": 1
+        },
+        "precision_classes": [
+          "bf16/fp16"
+        ],
+        "is_mixed_precision": false,
+        "fourbit_experts": false
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/missing-shard"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-132",
+      "kind": "value",
+      "value": "?",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        {}
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-133",
+      "kind": "value",
+      "value": "bf16",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        {
+          "torch_dtype": "bf16"
+        }
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-134",
+      "kind": "value",
+      "value": "?",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        {
+          "quantization_config": {}
+        }
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-135",
+      "kind": "value",
+      "value": "fp8/mix",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        {
+          "quantization_config": {
+            "quant_method": "fp8",
+            "fmt": "mix"
+          }
+        }
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-136",
+      "kind": "value",
+      "value": "gptq/int4",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        {
+          "quantization_config": {
+            "quant_algo": "gptq",
+            "weight_dtype": "int4"
+          }
+        }
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-137",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'list' object has no attribute 'get'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        []
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-138",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'NoneType' object has no attribute 'get'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        null
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-139",
+      "kind": "value",
+      "value": {
+        "table_row": null,
+        "keywords": []
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "",
+        "Org/Model"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-140",
+      "kind": "value",
+      "value": {
+        "table_row": "BF16",
+        "keywords": [
+          "BF16",
+          "FP8"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "| Model | BF16 |\n| Model-Base | FP8 |",
+        "Model"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-141",
+      "kind": "value",
+      "value": {
+        "table_row": "BF16",
+        "keywords": [
+          "BF16",
+          "FP8"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "| Model-Base | FP8 |\n| Model | BF16 |",
+        "Model"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-142",
+      "kind": "value",
+      "value": {
+        "table_row": null,
+        "keywords": [
+          "FP4",
+          "FP4 + FP8"
+        ],
+        "mixed_note": "FP4 + FP8 experts use FP4"
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "FP4 + FP8 experts use FP4\nreasoning",
+        "model"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-143",
+      "kind": "value",
+      "value": {
+        "table_row": null,
+        "keywords": [
+          "FP8\u00a0Mixed",
+          "MXFP4",
+          "NVFP4",
+          "gptq",
+          "int8"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "FP8\u00a0Mixed NVFP4 MXFP4 gptq int8",
+        "model"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-144",
+      "kind": "value",
+      "value": {
+        "table_row": "BF16",
+        "keywords": [
+          "BF16"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "| \ud55c\uae00 Model | BF16 |",
+        "\ud55c\uae00 Model"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-145",
+      "kind": "value",
+      "value": {
+        "table_row": null,
+        "keywords": [
+          "FP8"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "FP8\u0345Mixed",
+        "x"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-146",
+      "kind": "value",
+      "value": {
+        "table_row": null,
+        "keywords": [
+          "FP4+FP8",
+          "FP8",
+          "FP8 mixed"
+        ]
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "FP8 FP4+FP8 FP8 FP8 mixed",
+        "x"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-147",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'NoneType' object has no attribute 'splitlines'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        null,
+        "x"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-148",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'NoneType' object has no attribute 'split'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "FP8",
+        null
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-149",
+      "kind": "value",
+      "value": [],
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/empty"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-150",
+      "kind": "value",
+      "value": [],
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-151",
+      "kind": "value",
+      "value": [
+        {
+          "src": "inference/requirements.txt",
+          "spec": "TileLang>=0.1",
+          "pkg": "tilelang"
+        },
+        {
+          "src": "inference/requirements.txt",
+          "spec": "flash_attn[all]==2",
+          "pkg": "flash_attn"
+        },
+        {
+          "src": "inference/requirements.txt",
+          "spec": "pydantic",
+          "pkg": "pydantic"
+        },
+        {
+          "src": "inference/requirements.txt",
+          "spec": "invalid-\ufffd",
+          "pkg": "invalid-\ufffd"
+        },
+        {
+          "src": "requirements.txt",
+          "spec": "triton~=3",
+          "pkg": "triton"
+        },
+        {
+          "src": "requirements.txt",
+          "spec": "sgl-kernel",
+          "pkg": "sgl-kernel"
+        }
+      ],
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/mixed"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-152",
+      "kind": "value",
+      "value": {
+        "ok": false,
+        "reason": "repo_id \ubbf8\uc9c0\uc815"
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "",
+        0.3
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-153",
+      "kind": "value",
+      "value": {
+        "ok": false,
+        "reason": "repo_id \ubbf8\uc9c0\uc815"
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        null,
+        0.3
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-154",
+      "kind": "value",
+      "value": {
+        "ok": true,
+        "total": 100,
+        "parameters": {
+          "BF16": 75,
+          "F32": 25
+        }
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "ok",
+        0.3
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-155",
+      "kind": "value",
+      "value": {
+        "ok": true,
+        "total": 0,
+        "parameters": {}
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "zero",
+        0.3
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-156",
+      "kind": "value",
+      "value": {
+        "ok": false,
+        "reason": "\uc751\ub2f5\uc5d0 safetensors.total \ud544\ub4dc \uc5c6\uc74c(\ube44\uacf5\uac1c/\uac8c\uc774\ud2b8/\uad6c\ud615 \ud3ec\ub9f7 \uac00\ub2a5)"
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "missing",
+        0.3
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-157",
+      "kind": "value",
+      "value": {
+        "ok": false,
+        "reason": "\uc751\ub2f5 \ud30c\uc2f1 \uc2e4\ud328: Expecting property name enclosed in double quotes: line 2 column 1 (char 3)"
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "badjson",
+        0.3
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-158",
+      "kind": "value",
+      "value": {
+        "ok": false,
+        "reason": "\uc751\ub2f5 \ud30c\uc2f1 \uc2e4\ud328: 'utf-8' codec can't decode byte 0xff in position 6: invalid start byte"
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "badutf8",
+        0.3
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-159",
+      "kind": "value",
+      "value": {
+        "ok": false,
+        "reason": "HTTP 403(http://127.0.0.1:30067/forbidden)"
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "forbidden",
+        0.3
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-160",
+      "kind": "exception",
+      "type": "ValueError",
+      "message": "invalid literal for int() with base 10: 'bad'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "badtotal",
+        0.3
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-161",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'list' object has no attribute 'get'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "array",
+        0.3
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-162",
+      "kind": "value",
+      "value": {
+        "verdict": "OK",
+        "mode": "ephemeral-estimate",
+        "repo_id": "ok",
+        "external_total": 100,
+        "external_native_weight_bytes_est": 250.0,
+        "external_native_weight_gib_est": 0.0
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        null,
+        null,
+        "ok"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-163",
+      "kind": "value",
+      "value": {
+        "verdict": "OK",
+        "mode": "managed-doublecheck",
+        "repo_id": "ok",
+        "local_num_params": 100,
+        "external_total": 100,
+        "relative_diff": 0.0,
+        "note": "\ub85c\uceec \uc2e4\uce21(100) vs \uc678\ubd80(100) \uc624\ucc28 0.0% (\ud5c8\uc6a9\ubc94\uc704 \ub0b4)"
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        100,
+        null,
+        "ok"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-164",
+      "kind": "value",
+      "value": {
+        "verdict": "MISMATCH",
+        "mode": "managed-doublecheck",
+        "repo_id": "ok",
+        "local_num_params": 120,
+        "external_total": 100,
+        "relative_diff": 0.2,
+        "note": "\ub85c\uceec \uc2e4\uce21(120) vs \uc678\ubd80(100) \uc624\ucc28 20.0% \ud5c8\uc6a9\ubc94\uc704 \ucd08\uacfc \u2014 \ub85c\uceec \ud30c\uc77c \uc7ac\ud655\uc778 \ud544\uc694"
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        120,
+        null,
+        "ok"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-165",
+      "kind": "value",
+      "value": {
+        "verdict": "OK",
+        "mode": "managed-doublecheck",
+        "repo_id": "ok",
+        "local_num_params": 105,
+        "external_total": 100,
+        "relative_diff": 0.05,
+        "note": "\ub85c\uceec \uc2e4\uce21(105) vs \uc678\ubd80(100) \uc624\ucc28 5.0% (\ud5c8\uc6a9\ubc94\uc704 \ub0b4)"
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        105,
+        null,
+        "ok",
+        0.05
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-166",
+      "kind": "value",
+      "value": {
+        "verdict": "MISMATCH",
+        "mode": "managed-doublecheck",
+        "repo_id": "ok",
+        "local_num_params": 106,
+        "external_total": 100,
+        "relative_diff": 0.06,
+        "note": "\ub85c\uceec \uc2e4\uce21(106) vs \uc678\ubd80(100) \uc624\ucc28 6.0% \ud5c8\uc6a9\ubc94\uc704 \ucd08\uacfc \u2014 \ub85c\uceec \ud30c\uc77c \uc7ac\ud655\uc778 \ud544\uc694"
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        106,
+        null,
+        "ok",
+        0.05
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-167",
+      "kind": "value",
+      "value": {
+        "verdict": "MISMATCH",
+        "mode": "managed-doublecheck",
+        "repo_id": "zero",
+        "local_num_params": 1,
+        "external_total": 0,
+        "relative_diff": 1.0,
+        "note": "\ub85c\uceec \uc2e4\uce21(1) vs \uc678\ubd80(0) \uc624\ucc28 100.0% \ud5c8\uc6a9\ubc94\uc704 \ucd08\uacfc \u2014 \ub85c\uceec \ud30c\uc77c \uc7ac\ud655\uc778 \ud544\uc694"
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        1,
+        null,
+        "zero"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-168",
+      "kind": "value",
+      "value": {
+        "verdict": "UNAVAILABLE",
+        "reason": "repo_id \ubbf8\uc9c0\uc815",
+        "repo_id": null,
+        "local_num_params": null,
+        "external_total": null
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        null,
+        null,
+        null
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-169",
+      "kind": "value",
+      "value": {
+        "verdict": "UNAVAILABLE",
+        "reason": "\uc751\ub2f5\uc5d0 safetensors.total \ud544\ub4dc \uc5c6\uc74c(\ube44\uacf5\uac1c/\uac8c\uc774\ud2b8/\uad6c\ud615 \ud3ec\ub9f7 \uac00\ub2a5)",
+        "repo_id": "missing",
+        "local_num_params": 100,
+        "external_total": null
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        100,
+        null,
+        "missing"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-170",
+      "kind": "exception",
+      "type": "FileNotFoundError",
+      "message": "config.json \ubd80\uc7ac(\ub2e4\uc6b4\ub85c\ub4dc \uae08\uc9c0): @REFERENCE@/input/empty/config.json",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/empty"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-171",
+      "kind": "value",
+      "value": {
+        "model": "Org-Normal",
+        "model_dir": "@REFERENCE@/input/Org-Normal",
+        "sources_read": {
+          "config.json": true,
+          "README.md": false,
+          "inference_requirements": false,
+          "safetensors_headers": true
+        },
+        "dtype_scan": {
+          "present": true,
+          "num_shards": 1,
+          "tensor_counts": {
+            "BF16": 1
+          },
+          "byte_gib": {
+            "BF16": 0.0
+          },
+          "total_gib": 0.0,
+          "expert_dtypes": {},
+          "nonexpert_dtypes": {
+            "BF16": 1
+          },
+          "precision_classes": [
+            "bf16/fp16"
+          ],
+          "is_mixed_precision": false,
+          "fourbit_experts": false
+        },
+        "checks": [
+          {
+            "name": "precision",
+            "config": "bfloat16",
+            "dtype_evidence": [
+              "bf16/fp16"
+            ],
+            "card": [],
+            "verdict": "info",
+            "note": "config='bfloat16' \u00b7 \uc2e4\uce21=['bf16/fp16'] \u00b7 \uce74\ub4dc='[]'"
+          },
+          {
+            "name": "special_deps",
+            "verdict": "info",
+            "flagged": []
+          },
+          {
+            "name": "context",
+            "config_max_position_embeddings": 4096,
+            "card": null,
+            "verdict": "info"
+          },
+          {
+            "name": "arch",
+            "config": [
+              "ExampleForCausalLM"
+            ],
+            "model_type": "dense",
+            "card_keywords": [],
+            "verdict": "info"
+          },
+          {
+            "name": "reasoning",
+            "verdict": "info",
+            "is_reasoning": false
+          },
+          {
+            "name": "external_vram",
+            "verdict": "info",
+            "reason": "hf_repo_id \ubbf8\uc9c0\uc815 \u2014 \uc678\ubd80 \uc774\uc911\uac80\uc99d \uc2a4\ud0b5"
+          }
+        ],
+        "recommendations": [],
+        "verdict": "OK",
+        "n_mismatch": 0
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-172",
+      "kind": "value",
+      "value": {
+        "model": "mixed",
+        "model_dir": "@REFERENCE@/input/mixed",
+        "sources_read": {
+          "config.json": true,
+          "README.md": true,
+          "inference_requirements": true,
+          "safetensors_headers": true
+        },
+        "dtype_scan": {
+          "present": true,
+          "num_shards": 1,
+          "tensor_counts": {
+            "U8": 1,
+            "F8_E8M0": 1,
+            "BF16": 1
+          },
+          "byte_gib": {
+            "U8": 0.0,
+            "F8_E8M0": 0.0,
+            "BF16": 0.0
+          },
+          "total_gib": 0.0,
+          "expert_dtypes": {
+            "U8": 1
+          },
+          "nonexpert_dtypes": {
+            "F8_E8M0": 1,
+            "BF16": 1
+          },
+          "precision_classes": [
+            "4bit(MXFP4-pack: int8+microscale)",
+            "bf16/fp16"
+          ],
+          "is_mixed_precision": true,
+          "fourbit_experts": true
+        },
+        "checks": [
+          {
+            "name": "precision",
+            "config": "fp8",
+            "dtype_evidence": [
+              "4bit(MXFP4-pack: int8+microscale)",
+              "bf16/fp16"
+            ],
+            "card": "FP4 + FP8",
+            "verdict": "MISMATCH",
+            "note": "config quant='fp8'(coarse) \uac00 \uc2e4\uc81c \ud63c\ud569\uc815\ubc00\ub3c4\ub97c \uacfc\uc18c\ud45c\uae30. \uc2e4\uce21 dtype classes=['4bit(MXFP4-pack: int8+microscale)', 'bf16/fp16']; experts=4bit; \uce74\ub4dc='FP4 + FP8'"
+          },
+          {
+            "name": "special_deps",
+            "verdict": "WARN",
+            "flagged": [
+              {
+                "pkg": "tilelang",
+                "spec": "TileLang>=0.1",
+                "src": "inference/requirements.txt",
+                "why": "\ud0c0\uc77c \uae30\ubc18 \ucee4\ub110 DSL(DeepSeek inference \ucee4\ub110)"
+              },
+              {
+                "pkg": "flash_attn",
+                "spec": "flash_attn[all]==2",
+                "src": "inference/requirements.txt",
+                "why": "FlashAttention \ucee4\ub110"
+              },
+              {
+                "pkg": "triton",
+                "spec": "triton~=3",
+                "src": "requirements.txt",
+                "why": "Triton JIT \ucee4\ub110"
+              },
+              {
+                "pkg": "sgl-kernel",
+                "spec": "sgl-kernel",
+                "src": "requirements.txt",
+                "why": "SGLang \ucee4\ub110"
+              },
+              {
+                "pkg": "deepgemm",
+                "spec": "(README \uc5b8\uae09)",
+                "src": "README.md",
+                "why": "FP8 \ube14\ub85d GEMM / DeepSeek \ud76c\uc18c\uc5b4\ud150\uc158(DSA) \ucee4\ub110 \u2014 \ubbf8\uc124\uce58 \uc2dc SparseAttnIndexer RuntimeError"
+              }
+            ]
+          },
+          {
+            "name": "context",
+            "config_max_position_embeddings": 4096,
+            "card": "1M",
+            "verdict": "info"
+          },
+          {
+            "name": "arch",
+            "config": [
+              "ExampleForCausalLM"
+            ],
+            "model_type": "dense",
+            "card_keywords": [
+              "MoE",
+              "Sparse Attention"
+            ],
+            "verdict": "info"
+          },
+          {
+            "name": "reasoning",
+            "verdict": "info",
+            "is_reasoning": true
+          },
+          {
+            "name": "external_vram",
+            "verdict": "info",
+            "reason": "hf_repo_id \ubbf8\uc9c0\uc815 \u2014 \uc678\ubd80 \uc774\uc911\uac80\uc99d \uc2a4\ud0b5"
+          }
+        ],
+        "recommendations": [
+          "\uc815\ubc00\ub3c4 = \uc2e4\uce21 dtype\u00b7\uce74\ub4dc \uae30\uc900\uc73c\ub85c \ud655\uc815(config coarse \ub77c\ubca8 \uc2e0\ub8b0 \uae08\uc9c0). \uba54\ubaa8\ub9ac/\uc801\ud569\uc131 \uc7ac\uc0b0\uc815.",
+          "novel-arch special-dep \ubc1c\uacac \u2192 serving \uc804 **vLLM dry-init(\ubaa8\ub378 \ud074\ub798\uc2a4 import) + \ud574\ub2f9 op \uac00\uc6a9\uc131** \ud655\uc778(\uc608: DSA SparseAttnIndexer\u2192DeepGEMM). \ubd84\ub958(3+1+1 \ub530\ub984\uc815\ub9ac): **native lib/\ucee4\ub110 = \ube4c\ub4dc-\ubc14\uae65** \u2192 upstream-version-watch `build_patches/`(patch.py \u2717 \u2014 \ubabd\ud0a4\ud328\uce58\ub85c native \uc124\uce58 \ubd88\uac00) \u00b7 **Python \ucf54\ub4dc\ubd88\uc77c\uce58 = `<model>_patch.py`**. \ube4c\ub4dc-\ubc14\uae65\uc740 recipe-explorer \ubc1c\uacac\u00b7\ud578\ub4dc\uc624\ud504\ub9cc.",
+          "reasoning \ubaa8\ub378 \u2014 \uc2a4\ubaa8\ud06c max_tokens \ucda9\ubd84\ud788(finish_reason=stop) \u00b7 reasoning-parser \uac80\ud1a0."
+        ],
+        "verdict": "MISMATCH",
+        "n_mismatch": 1
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/mixed"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-173",
+      "kind": "value",
+      "value": {
+        "model": "mxfp4",
+        "model_dir": "@REFERENCE@/input/mxfp4",
+        "sources_read": {
+          "config.json": true,
+          "README.md": false,
+          "inference_requirements": false,
+          "safetensors_headers": true
+        },
+        "dtype_scan": {
+          "present": true,
+          "num_shards": 1,
+          "tensor_counts": {
+            "U8": 2,
+            "BF16": 1
+          },
+          "byte_gib": {
+            "U8": 0.0,
+            "BF16": 0.0
+          },
+          "total_gib": 0.0,
+          "expert_dtypes": {
+            "U8": 2
+          },
+          "nonexpert_dtypes": {
+            "BF16": 1
+          },
+          "precision_classes": [
+            "4bit(MXFP4-pack: int8+microscale)",
+            "bf16/fp16"
+          ],
+          "is_mixed_precision": true,
+          "fourbit_experts": true,
+          "mxfp4_layout": {
+            "format": "mxfp4-blocks16-u8-scales-u8",
+            "num_shards": 1,
+            "tensor_count": 3,
+            "logical_params": 66,
+            "unpacked_params": 2,
+            "packed_storage_numel": 32,
+            "scale_metadata_numel": 2,
+            "storage_numel": 36,
+            "payload_bytes": 38,
+            "file_bytes": 269,
+            "packed_tensor_count": 1,
+            "packed_expert_tensor_count": 1
+          }
+        },
+        "checks": [
+          {
+            "name": "precision",
+            "config": "mxfp4",
+            "dtype_evidence": [
+              "4bit(MXFP4-pack: int8+microscale)",
+              "bf16/fp16"
+            ],
+            "card": [],
+            "verdict": "info",
+            "note": "config='mxfp4' \u00b7 \uc2e4\uce21=['4bit(MXFP4-pack: int8+microscale)', 'bf16/fp16'] \u00b7 \uce74\ub4dc='[]'; \uac80\uc99d\ub41c MXFP4 packed weights + \ube44\ud328\ud0b9 \ubd80\ub3d9\uc18c\uc218 \ud150\uc11c(\uc124\uba85 \uac00\ub2a5\ud55c \ud63c\ud569 \uc800\uc7a5)"
+          },
+          {
+            "name": "special_deps",
+            "verdict": "info",
+            "flagged": []
+          },
+          {
+            "name": "context",
+            "config_max_position_embeddings": 4096,
+            "card": null,
+            "verdict": "info"
+          },
+          {
+            "name": "arch",
+            "config": [
+              "ExampleForCausalLM"
+            ],
+            "model_type": "dense",
+            "card_keywords": [],
+            "verdict": "info"
+          },
+          {
+            "name": "reasoning",
+            "verdict": "info",
+            "is_reasoning": false
+          },
+          {
+            "name": "external_vram",
+            "verdict": "info",
+            "reason": "hf_repo_id \ubbf8\uc9c0\uc815 \u2014 \uc678\ubd80 \uc774\uc911\uac80\uc99d \uc2a4\ud0b5"
+          }
+        ],
+        "recommendations": [],
+        "verdict": "OK",
+        "n_mismatch": 0
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/mxfp4"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-174",
+      "kind": "value",
+      "value": {
+        "model": "bad-mxfp4",
+        "model_dir": "@REFERENCE@/input/bad-mxfp4",
+        "sources_read": {
+          "config.json": true,
+          "README.md": false,
+          "inference_requirements": false,
+          "safetensors_headers": false
+        },
+        "dtype_scan": {
+          "present": false
+        },
+        "checks": [
+          {
+            "name": "mxfp4_layout",
+            "verdict": "MISMATCH",
+            "reason": "MXFP4_HEADER_LAYOUT_UNSUPPORTED: \uc9c0\uc6d0\ud558\ub294 blocks/scales \uc30d \ubd80\uc7ac"
+          },
+          {
+            "name": "precision",
+            "config": "mxfp4",
+            "dtype_evidence": [],
+            "card": [],
+            "verdict": "info",
+            "note": ""
+          },
+          {
+            "name": "special_deps",
+            "verdict": "info",
+            "flagged": []
+          },
+          {
+            "name": "context",
+            "config_max_position_embeddings": 4096,
+            "card": null,
+            "verdict": "info"
+          },
+          {
+            "name": "arch",
+            "config": [
+              "ExampleForCausalLM"
+            ],
+            "model_type": "dense",
+            "card_keywords": [],
+            "verdict": "info"
+          },
+          {
+            "name": "reasoning",
+            "verdict": "info",
+            "is_reasoning": false
+          },
+          {
+            "name": "external_vram",
+            "verdict": "info",
+            "reason": "hf_repo_id \ubbf8\uc9c0\uc815 \u2014 \uc678\ubd80 \uc774\uc911\uac80\uc99d \uc2a4\ud0b5"
+          }
+        ],
+        "recommendations": [],
+        "verdict": "MISMATCH",
+        "n_mismatch": 1
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/bad-mxfp4"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-175",
+      "kind": "exception",
+      "type": "JSONDecodeError",
+      "message": "Expecting property name enclosed in double quotes: line 2 column 2 (char 3)",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/config-invalid"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-176",
+      "kind": "exception",
+      "type": "AttributeError",
+      "message": "'list' object has no attribute 'get'",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/config-list"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-177",
+      "kind": "value",
+      "value": {
+        "model": "Org-Normal",
+        "model_dir": "@REFERENCE@/input/Org-Normal",
+        "sources_read": {
+          "config.json": true,
+          "README.md": false,
+          "inference_requirements": false,
+          "safetensors_headers": true
+        },
+        "dtype_scan": {
+          "present": true,
+          "num_shards": 1,
+          "tensor_counts": {
+            "BF16": 1
+          },
+          "byte_gib": {
+            "BF16": 0.0
+          },
+          "total_gib": 0.0,
+          "expert_dtypes": {},
+          "nonexpert_dtypes": {
+            "BF16": 1
+          },
+          "precision_classes": [
+            "bf16/fp16"
+          ],
+          "is_mixed_precision": false,
+          "fourbit_experts": false
+        },
+        "checks": [
+          {
+            "name": "precision",
+            "config": "bfloat16",
+            "dtype_evidence": [
+              "bf16/fp16"
+            ],
+            "card": [],
+            "verdict": "info",
+            "note": "config='bfloat16' \u00b7 \uc2e4\uce21=['bf16/fp16'] \u00b7 \uce74\ub4dc='[]'"
+          },
+          {
+            "name": "special_deps",
+            "verdict": "info",
+            "flagged": []
+          },
+          {
+            "name": "context",
+            "config_max_position_embeddings": 4096,
+            "card": null,
+            "verdict": "info"
+          },
+          {
+            "name": "arch",
+            "config": [
+              "ExampleForCausalLM"
+            ],
+            "model_type": "dense",
+            "card_keywords": [],
+            "verdict": "info"
+          },
+          {
+            "name": "reasoning",
+            "verdict": "info",
+            "is_reasoning": false
+          },
+          {
+            "name": "external_vram",
+            "verdict": "OK",
+            "mode": "managed-doublecheck",
+            "repo_id": "ok",
+            "local_num_params": 100,
+            "external_total": 100,
+            "relative_diff": 0.0,
+            "note": "\ub85c\uceec \uc2e4\uce21(100) vs \uc678\ubd80(100) \uc624\ucc28 0.0% (\ud5c8\uc6a9\ubc94\uc704 \ub0b4)"
+          }
+        ],
+        "recommendations": [],
+        "verdict": "OK",
+        "n_mismatch": 0
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal",
+        "ok",
+        100
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-178",
+      "kind": "value",
+      "value": {
+        "model": "Org-Normal",
+        "model_dir": "@REFERENCE@/input/Org-Normal",
+        "sources_read": {
+          "config.json": true,
+          "README.md": false,
+          "inference_requirements": false,
+          "safetensors_headers": true
+        },
+        "dtype_scan": {
+          "present": true,
+          "num_shards": 1,
+          "tensor_counts": {
+            "BF16": 1
+          },
+          "byte_gib": {
+            "BF16": 0.0
+          },
+          "total_gib": 0.0,
+          "expert_dtypes": {},
+          "nonexpert_dtypes": {
+            "BF16": 1
+          },
+          "precision_classes": [
+            "bf16/fp16"
+          ],
+          "is_mixed_precision": false,
+          "fourbit_experts": false
+        },
+        "checks": [
+          {
+            "name": "precision",
+            "config": "bfloat16",
+            "dtype_evidence": [
+              "bf16/fp16"
+            ],
+            "card": [],
+            "verdict": "info",
+            "note": "config='bfloat16' \u00b7 \uc2e4\uce21=['bf16/fp16'] \u00b7 \uce74\ub4dc='[]'"
+          },
+          {
+            "name": "special_deps",
+            "verdict": "info",
+            "flagged": []
+          },
+          {
+            "name": "context",
+            "config_max_position_embeddings": 4096,
+            "card": null,
+            "verdict": "info"
+          },
+          {
+            "name": "arch",
+            "config": [
+              "ExampleForCausalLM"
+            ],
+            "model_type": "dense",
+            "card_keywords": [],
+            "verdict": "info"
+          },
+          {
+            "name": "reasoning",
+            "verdict": "info",
+            "is_reasoning": false
+          },
+          {
+            "name": "external_vram",
+            "verdict": "MISMATCH",
+            "mode": "managed-doublecheck",
+            "repo_id": "ok",
+            "local_num_params": null,
+            "external_total": null,
+            "reason": "local_parse_failed",
+            "note": "parse failed"
+          }
+        ],
+        "recommendations": [
+          "\ub85c\uceec \ud30c\ub77c\ubbf8\ud130 \uad00\uce21 \uc2e4\ud328\ub97c \uba3c\uc800 \ud574\uc18c\ud55c\ub2e4(\uc678\ubd80 \uc0ac\uc804\ucd94\uc815\uc73c\ub85c \ub300\uccb4\ud558\uc9c0 \uc54a\uc74c)."
+        ],
+        "verdict": "MISMATCH",
+        "n_mismatch": 1
+      },
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/Org-Normal",
+        "ok",
+        null,
+        "parse failed"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-179",
+      "kind": "exception",
+      "type": "FileNotFoundError",
+      "message": "\ubaa8\ub378 \ub514\ub809\ud1a0\ub9ac \ubd80\uc7ac(\ub2e4\uc6b4\ub85c\ub4dc \uae08\uc9c0): @REFERENCE@/input/absent",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        "@REFERENCE@/input/absent"
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-180",
+      "kind": "value",
+      "value": "# \ubaa8\ub378\uce74\ub4dc \uad50\ucc28\uac80\uc99d: Org-Normal  \u2192 OK\n  sources: config.json, safetensors_headers\n  \u00b7 precision: config=bfloat16 | \uc2e4\uce21=['bf16/fp16'] | \uce74\ub4dc=[]\n       config='bfloat16' \u00b7 \uc2e4\uce21=['bf16/fp16'] \u00b7 \uce74\ub4dc='[]'\n  \u00b7 special-deps: \uc5c6\uc74c\n  \u00b7 context: config=4096 | \uce74\ub4dc=None\n  \u00b7 arch: ['ExampleForCausalLM'] / dense | \uce74\ub4dc=[]\n  \u00b7 reasoning: False\n  \u00b7 external_vram: hf_repo_id \ubbf8\uc9c0\uc815 \u2014 \uc678\ubd80 \uc774\uc911\uac80\uc99d \uc2a4\ud0b5",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        {
+          "model": "Org-Normal",
+          "model_dir": "@REFERENCE@/input/Org-Normal",
+          "sources_read": {
+            "config.json": true,
+            "README.md": false,
+            "inference_requirements": false,
+            "safetensors_headers": true
+          },
+          "dtype_scan": {
+            "present": true,
+            "num_shards": 1,
+            "tensor_counts": {
+              "BF16": 1
+            },
+            "byte_gib": {
+              "BF16": 0.0
+            },
+            "total_gib": 0.0,
+            "expert_dtypes": {},
+            "nonexpert_dtypes": {
+              "BF16": 1
+            },
+            "precision_classes": [
+              "bf16/fp16"
+            ],
+            "is_mixed_precision": false,
+            "fourbit_experts": false
+          },
+          "checks": [
+            {
+              "name": "precision",
+              "config": "bfloat16",
+              "dtype_evidence": [
+                "bf16/fp16"
+              ],
+              "card": [],
+              "verdict": "info",
+              "note": "config='bfloat16' \u00b7 \uc2e4\uce21=['bf16/fp16'] \u00b7 \uce74\ub4dc='[]'"
+            },
+            {
+              "name": "special_deps",
+              "verdict": "info",
+              "flagged": []
+            },
+            {
+              "name": "context",
+              "config_max_position_embeddings": 4096,
+              "card": null,
+              "verdict": "info"
+            },
+            {
+              "name": "arch",
+              "config": [
+                "ExampleForCausalLM"
+              ],
+              "model_type": "dense",
+              "card_keywords": [],
+              "verdict": "info"
+            },
+            {
+              "name": "reasoning",
+              "verdict": "info",
+              "is_reasoning": false
+            },
+            {
+              "name": "external_vram",
+              "verdict": "info",
+              "reason": "hf_repo_id \ubbf8\uc9c0\uc815 \u2014 \uc678\ubd80 \uc774\uc911\uac80\uc99d \uc2a4\ud0b5"
+            }
+          ],
+          "recommendations": [],
+          "verdict": "OK",
+          "n_mismatch": 0
+        }
+      ],
+      "kwargs_after": {}
+    },
+    {
+      "id": "api-181",
+      "kind": "value",
+      "value": "# \ubaa8\ub378\uce74\ub4dc \uad50\ucc28\uac80\uc99d: mixed  \u2192 MISMATCH\n  sources: config.json, README.md, inference_requirements, safetensors_headers\n  \ud83d\udd34 precision: config=fp8 | \uc2e4\uce21=['4bit(MXFP4-pack: int8+microscale)', 'bf16/fp16'] | \uce74\ub4dc=FP4 + FP8\n       config quant='fp8'(coarse) \uac00 \uc2e4\uc81c \ud63c\ud569\uc815\ubc00\ub3c4\ub97c \uacfc\uc18c\ud45c\uae30. \uc2e4\uce21 dtype classes=['4bit(MXFP4-pack: int8+microscale)', 'bf16/fp16']; experts=4bit; \uce74\ub4dc='FP4 + FP8'\n  \u26a0\ufe0f special-dep: tilelang (TileLang>=0.1, inference/requirements.txt) \u2014 \ud0c0\uc77c \uae30\ubc18 \ucee4\ub110 DSL(DeepSeek inference \ucee4\ub110)\n  \u26a0\ufe0f special-dep: flash_attn (flash_attn[all]==2, inference/requirements.txt) \u2014 FlashAttention \ucee4\ub110\n  \u26a0\ufe0f special-dep: triton (triton~=3, requirements.txt) \u2014 Triton JIT \ucee4\ub110\n  \u26a0\ufe0f special-dep: sgl-kernel (sgl-kernel, requirements.txt) \u2014 SGLang \ucee4\ub110\n  \u26a0\ufe0f special-dep: deepgemm ((README \uc5b8\uae09), README.md) \u2014 FP8 \ube14\ub85d GEMM / DeepSeek \ud76c\uc18c\uc5b4\ud150\uc158(DSA) \ucee4\ub110 \u2014 \ubbf8\uc124\uce58 \uc2dc SparseAttnIndexer RuntimeError\n  \u00b7 context: config=4096 | \uce74\ub4dc=1M\n  \u00b7 arch: ['ExampleForCausalLM'] / dense | \uce74\ub4dc=['MoE', 'Sparse Attention']\n  \u00b7 reasoning: True\n  \u00b7 external_vram: hf_repo_id \ubbf8\uc9c0\uc815 \u2014 \uc678\ubd80 \uc774\uc911\uac80\uc99d \uc2a4\ud0b5\n  \uad8c\uace0:\n   \u2192 \uc815\ubc00\ub3c4 = \uc2e4\uce21 dtype\u00b7\uce74\ub4dc \uae30\uc900\uc73c\ub85c \ud655\uc815(config coarse \ub77c\ubca8 \uc2e0\ub8b0 \uae08\uc9c0). \uba54\ubaa8\ub9ac/\uc801\ud569\uc131 \uc7ac\uc0b0\uc815.\n   \u2192 novel-arch special-dep \ubc1c\uacac \u2192 serving \uc804 **vLLM dry-init(\ubaa8\ub378 \ud074\ub798\uc2a4 import) + \ud574\ub2f9 op \uac00\uc6a9\uc131** \ud655\uc778(\uc608: DSA SparseAttnIndexer\u2192DeepGEMM). \ubd84\ub958(3+1+1 \ub530\ub984\uc815\ub9ac): **native lib/\ucee4\ub110 = \ube4c\ub4dc-\ubc14\uae65** \u2192 upstream-version-watch `build_patches/`(patch.py \u2717 \u2014 \ubabd\ud0a4\ud328\uce58\ub85c native \uc124\uce58 \ubd88\uac00) \u00b7 **Python \ucf54\ub4dc\ubd88\uc77c\uce58 = `<model>_patch.py`**. \ube4c\ub4dc-\ubc14\uae65\uc740 recipe-explorer \ubc1c\uacac\u00b7\ud578\ub4dc\uc624\ud504\ub9cc.\n   \u2192 reasoning \ubaa8\ub378 \u2014 \uc2a4\ubaa8\ud06c max_tokens \ucda9\ubd84\ud788(finish_reason=stop) \u00b7 reasoning-parser \uac80\ud1a0.",
+      "stdout": "",
+      "stderr": "",
+      "args_after": [
+        {
+          "model": "mixed",
+          "model_dir": "@REFERENCE@/input/mixed",
+          "sources_read": {
+            "config.json": true,
+            "README.md": true,
+            "inference_requirements": true,
+            "safetensors_headers": true
+          },
+          "dtype_scan": {
+            "present": true,
+            "num_shards": 1,
+            "tensor_counts": {
+              "U8": 1,
+              "F8_E8M0": 1,
+              "BF16": 1
+            },
+            "byte_gib": {
+              "U8": 0.0,
+              "F8_E8M0": 0.0,
+              "BF16": 0.0
+            },
+            "total_gib": 0.0,
+            "expert_dtypes": {
+              "U8": 1
+            },
+            "nonexpert_dtypes": {
+              "F8_E8M0": 1,
+              "BF16": 1
+            },
+            "precision_classes": [
+              "4bit(MXFP4-pack: int8+microscale)",
+              "bf16/fp16"
+            ],
+            "is_mixed_precision": true,
+            "fourbit_experts": true
+          },
+          "checks": [
+            {
+              "name": "precision",
+              "config": "fp8",
+              "dtype_evidence": [
+                "4bit(MXFP4-pack: int8+microscale)",
+                "bf16/fp16"
+              ],
+              "card": "FP4 + FP8",
+              "verdict": "MISMATCH",
+              "note": "config quant='fp8'(coarse) \uac00 \uc2e4\uc81c \ud63c\ud569\uc815\ubc00\ub3c4\ub97c \uacfc\uc18c\ud45c\uae30. \uc2e4\uce21 dtype classes=['4bit(MXFP4-pack: int8+microscale)', 'bf16/fp16']; experts=4bit; \uce74\ub4dc='FP4 + FP8'"
+            },
+            {
+              "name": "special_deps",
+              "verdict": "WARN",
+              "flagged": [
+                {
+                  "pkg": "tilelang",
+                  "spec": "TileLang>=0.1",
+                  "src": "inference/requirements.txt",
+                  "why": "\ud0c0\uc77c \uae30\ubc18 \ucee4\ub110 DSL(DeepSeek inference \ucee4\ub110)"
+                },
+                {
+                  "pkg": "flash_attn",
+                  "spec": "flash_attn[all]==2",
+                  "src": "inference/requirements.txt",
+                  "why": "FlashAttention \ucee4\ub110"
+                },
+                {
+                  "pkg": "triton",
+                  "spec": "triton~=3",
+                  "src": "requirements.txt",
+                  "why": "Triton JIT \ucee4\ub110"
+                },
+                {
+                  "pkg": "sgl-kernel",
+                  "spec": "sgl-kernel",
+                  "src": "requirements.txt",
+                  "why": "SGLang \ucee4\ub110"
+                },
+                {
+                  "pkg": "deepgemm",
+                  "spec": "(README \uc5b8\uae09)",
+                  "src": "README.md",
+                  "why": "FP8 \ube14\ub85d GEMM / DeepSeek \ud76c\uc18c\uc5b4\ud150\uc158(DSA) \ucee4\ub110 \u2014 \ubbf8\uc124\uce58 \uc2dc SparseAttnIndexer RuntimeError"
+                }
+              ]
+            },
+            {
+              "name": "context",
+              "config_max_position_embeddings": 4096,
+              "card": "1M",
+              "verdict": "info"
+            },
+            {
+              "name": "arch",
+              "config": [
+                "ExampleForCausalLM"
+              ],
+              "model_type": "dense",
+              "card_keywords": [
+                "MoE",
+                "Sparse Attention"
+              ],
+              "verdict": "info"
+            },
+            {
+              "name": "reasoning",
+              "verdict": "info",
+              "is_reasoning": true
+            },
+            {
+              "name": "external_vram",
+              "verdict": "info",
+              "reason": "hf_repo_id \ubbf8\uc9c0\uc815 \u2014 \uc678\ubd80 \uc774\uc911\uac80\uc99d \uc2a4\ud0b5"
+            }
+          ],
+          "recommendations": [
+            "\uc815\ubc00\ub3c4 = \uc2e4\uce21 dtype\u00b7\uce74\ub4dc \uae30\uc900\uc73c\ub85c \ud655\uc815(config coarse \ub77c\ubca8 \uc2e0\ub8b0 \uae08\uc9c0). \uba54\ubaa8\ub9ac/\uc801\ud569\uc131 \uc7ac\uc0b0\uc815.",
+            "novel-arch special-dep \ubc1c\uacac \u2192 serving \uc804 **vLLM dry-init(\ubaa8\ub378 \ud074\ub798\uc2a4 import) + \ud574\ub2f9 op \uac00\uc6a9\uc131** \ud655\uc778(\uc608: DSA SparseAttnIndexer\u2192DeepGEMM). \ubd84\ub958(3+1+1 \ub530\ub984\uc815\ub9ac): **native lib/\ucee4\ub110 = \ube4c\ub4dc-\ubc14\uae65** \u2192 upstream-version-watch `build_patches/`(patch.py \u2717 \u2014 \ubabd\ud0a4\ud328\uce58\ub85c native \uc124\uce58 \ubd88\uac00) \u00b7 **Python \ucf54\ub4dc\ubd88\uc77c\uce58 = `<model>_patch.py`**. \ube4c\ub4dc-\ubc14\uae65\uc740 recipe-explorer \ubc1c\uacac\u00b7\ud578\ub4dc\uc624\ud504\ub9cc.",
+            "reasoning \ubaa8\ub378 \u2014 \uc2a4\ubaa8\ud06c max_tokens \ucda9\ubd84\ud788(finish_reason=stop) \u00b7 reasoning-parser \uac80\ud1a0."
+          ],
+          "verdict": "MISMATCH",
+          "n_mismatch": 1
+        }
+      ],
+      "kwargs_after": {}
+    }
+  ]
+}

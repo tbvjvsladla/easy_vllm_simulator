@@ -1,0 +1,12 @@
+{
+  "id": "api-119",
+  "kind": "exception",
+  "type": "IsADirectoryError",
+  "message": "[Errno 21] Is a directory: '@CASE@/directory'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "@CASE@/directory"
+  ],
+  "kwargs_after": {}
+}

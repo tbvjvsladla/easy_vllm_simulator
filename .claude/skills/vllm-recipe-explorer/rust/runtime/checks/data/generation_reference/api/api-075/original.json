@@ -1,0 +1,12 @@
+{
+  "id": "api-075",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "'NoneType' object is not iterable",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    null
+  ],
+  "kwargs_after": {}
+}

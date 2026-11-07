@@ -1,0 +1,3886 @@
+[
+ {
+  "id": "api-000",
+  "kind": "value",
+  "value": null,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   null,
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-001",
+  "kind": "value",
+  "value": null,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {},
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-002",
+  "kind": "value",
+  "value": null,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   false,
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-003",
+  "kind": "value",
+  "value": null,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   [],
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-004",
+  "kind": "value",
+  "value": null,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   0,
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-005",
+  "kind": "value",
+  "value": null,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "x": null
+   },
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-006",
+  "kind": "value",
+  "value": 3.0,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "x": 3
+   },
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-007",
+  "kind": "value",
+  "value": 3.5,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "x": " 3.5 "
+   },
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-008",
+  "kind": "value",
+  "value": 1.0,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "x": true
+   },
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-009",
+  "kind": "value",
+  "value": 0.0,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "x": false
+   },
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-010",
+  "kind": "value",
+  "value": NaN,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "x": "nan"
+   },
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-011",
+  "kind": "value",
+  "value": Infinity,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "x": Infinity
+   },
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-012",
+  "kind": "exception",
+  "type": "ValueError",
+  "message": "could not convert string to float: 'bad'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "x": "bad"
+   },
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-013",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "float() argument must be a string or a real number, not 'list'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "x": []
+   },
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-014",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'int' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   1,
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-015",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'str' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   "profile",
+   "x"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-016",
+  "kind": "value",
+  "value": null,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "x": 1
+   },
+   "missing"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-017",
+  "kind": "value",
+  "value": null,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "x": 1
+   },
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-018",
+  "kind": "value",
+  "value": null,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "x": 1
+   },
+   3
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-019",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": 4,
+   "kv_fit_length": null,
+   "kv_cache_tokens": 4096,
+   "reason": "\ub300\ud45c \uae38\uc774 L \ubbf8\uc9c0\uc815(\uc190\ub808\ubc84 batch \uc774\uac70\ub098 batch \ubbf8\uc815) \u2014 \uc7ac\uac80\uc99d \ub300\uc0c1 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-020",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": 4,
+   "kv_fit_length": false,
+   "kv_cache_tokens": 4096,
+   "reason": "\ub300\ud45c \uae38\uc774 L \ubbf8\uc9c0\uc815(\uc190\ub808\ubc84 batch \uc774\uac70\ub098 batch \ubbf8\uc815) \u2014 \uc7ac\uac80\uc99d \ub300\uc0c1 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   false
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-021",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": 4,
+   "kv_fit_length": 0,
+   "kv_cache_tokens": 4096,
+   "reason": "\ub300\ud45c \uae38\uc774 L \ubbf8\uc9c0\uc815(\uc190\ub808\ubc84 batch \uc774\uac70\ub098 batch \ubbf8\uc815) \u2014 \uc7ac\uac80\uc99d \ub300\uc0c1 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   0
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-022",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": 4,
+   "kv_fit_length": "",
+   "kv_cache_tokens": 4096,
+   "reason": "\ub300\ud45c \uae38\uc774 L \ubbf8\uc9c0\uc815(\uc190\ub808\ubc84 batch \uc774\uac70\ub098 batch \ubbf8\uc815) \u2014 \uc7ac\uac80\uc99d \ub300\uc0c1 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   ""
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-023",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": 4,
+   "kv_fit_length": [],
+   "kv_cache_tokens": 4096,
+   "reason": "\ub300\ud45c \uae38\uc774 L \ubbf8\uc9c0\uc815(\uc190\ub808\ubc84 batch \uc774\uac70\ub098 batch \ubbf8\uc815) \u2014 \uc7ac\uac80\uc99d \ub300\uc0c1 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   []
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-024",
+  "kind": "value",
+  "value": {
+   "checked": true,
+   "exceeds": false,
+   "kv_fit": 4,
+   "batch": 4,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": 4096,
+   "reason": "batch 4 \u2264 KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-025",
+  "kind": "value",
+  "value": {
+   "checked": true,
+   "exceeds": true,
+   "kv_fit": 2,
+   "batch": 4,
+   "kv_fit_length": 2048,
+   "kv_cache_tokens": 4096,
+   "reason": "batch 4 > KV-fit 2 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 2048)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   2048
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-026",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": 0,
+   "batch": 4,
+   "kv_fit_length": 8192,
+   "kv_cache_tokens": 4096,
+   "reason": "KV-fit 0 \u2014 \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \uac00 \ub300\ud45c \uae38\uc774 8192 \ubcf4\ub2e4 \uc791\ub2e4(\ud310\uc815 \ubd88\uac00 \u00b7 \uc120\uc5b8\uc744 \ud655\uc778\ud558\ub77c)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   8192
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-027",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": -1366,
+   "batch": 4,
+   "kv_fit_length": -3,
+   "kv_cache_tokens": 4096,
+   "reason": "KV-fit 0 \u2014 \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \uac00 \ub300\ud45c \uae38\uc774 -3 \ubcf4\ub2e4 \uc791\ub2e4(\ud310\uc815 \ubd88\uac00 \u00b7 \uc120\uc5b8\uc744 \ud655\uc778\ud558\ub77c)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   -3
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-028",
+  "kind": "value",
+  "value": {
+   "checked": true,
+   "exceeds": false,
+   "kv_fit": 4096,
+   "batch": 4,
+   "kv_fit_length": true,
+   "kv_cache_tokens": 4096,
+   "reason": "batch 4 \u2264 KV-fit 4096 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   true
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-029",
+  "kind": "value",
+  "value": {
+   "checked": true,
+   "exceeds": false,
+   "kv_fit": 4,
+   "batch": 4,
+   "kv_fit_length": "1024",
+   "kv_cache_tokens": 4096,
+   "reason": "batch 4 \u2264 KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   "1024"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-030",
+  "kind": "exception",
+  "type": "ValueError",
+  "message": "invalid literal for int() with base 10: 'bad'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   "bad"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-031",
+  "kind": "exception",
+  "type": "ZeroDivisionError",
+  "message": "integer division or modulo by zero",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   0.5
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-032",
+  "kind": "exception",
+  "type": "ValueError",
+  "message": "cannot convert float NaN to integer",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   NaN
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-033",
+  "kind": "exception",
+  "type": "OverflowError",
+  "message": "cannot convert float infinity to integer",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   Infinity
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-034",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": 4,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": 4096,
+   "reason": "\ud074\ub7a8\ud504 \ubbf8\uc124\uc815(\uce21\uc815 \ud2b8\ub77c\uc774\uc5bc) \u2014 \uc5d4\uc9c4 \ud1a0\ud070\uc774 \ubc30\ud3ec KV \uac00 \uc544\ub2c8\ub2e4"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": null
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-035",
+  "kind": "value",
+  "value": {
+   "checked": true,
+   "exceeds": false,
+   "kv_fit": 4,
+   "batch": 4,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": 4096,
+   "reason": "batch 4 \u2264 KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 0
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-036",
+  "kind": "value",
+  "value": {
+   "checked": true,
+   "exceeds": false,
+   "kv_fit": 4,
+   "batch": 4,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": 4096,
+   "reason": "batch 4 \u2264 KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": false
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-037",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": null,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": 4096,
+   "reason": "batch \ubbf8\uc815 \u2014 \uc7ac\uac80\uc99d\ud560 \uac12\uc774 \uc5c6\ub2e4"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": null,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-038",
+  "kind": "value",
+  "value": {
+   "checked": true,
+   "exceeds": false,
+   "kv_fit": 4,
+   "batch": 0,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": 4096,
+   "reason": "batch 0 \u2264 KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 0,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-039",
+  "kind": "value",
+  "value": {
+   "checked": true,
+   "exceeds": false,
+   "kv_fit": 4,
+   "batch": false,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": 4096,
+   "reason": "batch 0 \u2264 KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": false,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-040",
+  "kind": "value",
+  "value": {
+   "checked": true,
+   "exceeds": false,
+   "kv_fit": 4,
+   "batch": 4,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": 4096,
+   "reason": "batch 4 \u2264 KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-041",
+  "kind": "value",
+  "value": {
+   "checked": true,
+   "exceeds": true,
+   "kv_fit": 4,
+   "batch": 5,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": 4096,
+   "reason": "batch 5 > KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 5,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-042",
+  "kind": "exception",
+  "type": "ValueError",
+  "message": "invalid literal for int() with base 10: 'bad'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": "bad",
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-043",
+  "kind": "exception",
+  "type": "ValueError",
+  "message": "cannot convert float NaN to integer",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": NaN,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-044",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": 4,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": null,
+   "reason": "\uc5d4\uc9c4 \ubcf4\uace0 kv_cache_tokens \ubbf8\uad00\uce21 \u2014 \uc7ac\uac80\uc99d \ubd88\uac00(\uc77c\uce58\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": null
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-045",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": 4,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": 0,
+   "reason": "\uc5d4\uc9c4 \ubcf4\uace0 kv_cache_tokens \ubbf8\uad00\uce21 \u2014 \uc7ac\uac80\uc99d \ubd88\uac00(\uc77c\uce58\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 0
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-046",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": 4,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": false,
+   "reason": "\uc5d4\uc9c4 \ubcf4\uace0 kv_cache_tokens \ubbf8\uad00\uce21 \u2014 \uc7ac\uac80\uc99d \ubd88\uac00(\uc77c\uce58\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": false
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-047",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": -1,
+   "batch": 4,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": -1,
+   "reason": "KV-fit 0 \u2014 \uc5d4\uc9c4 KV \ud1a0\ud070 -1 \uac00 \ub300\ud45c \uae38\uc774 1024 \ubcf4\ub2e4 \uc791\ub2e4(\ud310\uc815 \ubd88\uac00 \u00b7 \uc120\uc5b8\uc744 \ud655\uc778\ud558\ub77c)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": -1
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-048",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": 0,
+   "batch": 4,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": 1,
+   "reason": "KV-fit 0 \u2014 \uc5d4\uc9c4 KV \ud1a0\ud070 1 \uac00 \ub300\ud45c \uae38\uc774 1024 \ubcf4\ub2e4 \uc791\ub2e4(\ud310\uc815 \ubd88\uac00 \u00b7 \uc120\uc5b8\uc744 \ud655\uc778\ud558\ub77c)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 1
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-049",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": 0,
+   "batch": 4,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": 1023,
+   "reason": "KV-fit 0 \u2014 \uc5d4\uc9c4 KV \ud1a0\ud070 1023 \uac00 \ub300\ud45c \uae38\uc774 1024 \ubcf4\ub2e4 \uc791\ub2e4(\ud310\uc815 \ubd88\uac00 \u00b7 \uc120\uc5b8\uc744 \ud655\uc778\ud558\ub77c)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 1023
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-050",
+  "kind": "value",
+  "value": {
+   "checked": true,
+   "exceeds": true,
+   "kv_fit": 1,
+   "batch": 4,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": 1024,
+   "reason": "batch 4 > KV-fit 1 (= \uc5d4\uc9c4 KV \ud1a0\ud070 1024 \u00f7 L 1024)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 1024
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-051",
+  "kind": "value",
+  "value": {
+   "checked": true,
+   "exceeds": false,
+   "kv_fit": 4,
+   "batch": 4,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": "4096",
+   "reason": "batch 4 \u2264 KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": "4096"
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-052",
+  "kind": "exception",
+  "type": "ValueError",
+  "message": "invalid literal for int() with base 10: 'bad'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": "bad"
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-053",
+  "kind": "exception",
+  "type": "ValueError",
+  "message": "cannot convert float NaN to integer",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": NaN
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-054",
+  "kind": "value",
+  "value": {
+   "checked": true,
+   "exceeds": false,
+   "kv_fit": 1569275433846670190958947355801916604025588861116008628224,
+   "batch": 4,
+   "kv_fit_length": 1024,
+   "kv_cache_tokens": 1606938044258990275541962092341162602522202993782792835301376,
+   "reason": "batch 4 \u2264 KV-fit 1569275433846670190958947355801916604025588861116008628224 (= \uc5d4\uc9c4 KV \ud1a0\ud070 1606938044258990275541962092341162602522202993782792835301376 \u00f7 L 1024)"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 1606938044258990275541962092341162602522202993782792835301376
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-055",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": null,
+   "kv_fit_length": 0,
+   "kv_cache_tokens": 4096,
+   "reason": "\ub300\ud45c \uae38\uc774 L \ubbf8\uc9c0\uc815(\uc190\ub808\ubc84 batch \uc774\uac70\ub098 batch \ubbf8\uc815) \u2014 \uc7ac\uac80\uc99d \ub300\uc0c1 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": null
+   },
+   0
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-056",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": null,
+   "kv_fit_length": 0,
+   "kv_cache_tokens": 4096,
+   "reason": "\ub300\ud45c \uae38\uc774 L \ubbf8\uc9c0\uc815(\uc190\ub808\ubc84 batch \uc774\uac70\ub098 batch \ubbf8\uc815) \u2014 \uc7ac\uac80\uc99d \ub300\uc0c1 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": false
+   },
+   0
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-057",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": null,
+   "kv_fit_length": 0,
+   "kv_cache_tokens": 4096,
+   "reason": "\ub300\ud45c \uae38\uc774 L \ubbf8\uc9c0\uc815(\uc190\ub808\ubc84 batch \uc774\uac70\ub098 batch \ubbf8\uc815) \u2014 \uc7ac\uac80\uc99d \ub300\uc0c1 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": []
+   },
+   0
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-058",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'int' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": 1
+   },
+   0
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-059",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": 4,
+   "kv_fit_length": 0,
+   "kv_cache_tokens": null,
+   "reason": "\ub300\ud45c \uae38\uc774 L \ubbf8\uc9c0\uc815(\uc190\ub808\ubc84 batch \uc774\uac70\ub098 batch \ubbf8\uc815) \u2014 \uc7ac\uac80\uc99d \ub300\uc0c1 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": null,
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   0
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-060",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": 4,
+   "kv_fit_length": 0,
+   "kv_cache_tokens": null,
+   "reason": "\ub300\ud45c \uae38\uc774 L \ubbf8\uc9c0\uc815(\uc190\ub808\ubc84 batch \uc774\uac70\ub098 batch \ubbf8\uc815) \u2014 \uc7ac\uac80\uc99d \ub300\uc0c1 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": false,
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   0
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-061",
+  "kind": "value",
+  "value": {
+   "checked": false,
+   "exceeds": false,
+   "kv_fit": null,
+   "batch": 4,
+   "kv_fit_length": 0,
+   "kv_cache_tokens": null,
+   "reason": "\ub300\ud45c \uae38\uc774 L \ubbf8\uc9c0\uc815(\uc190\ub808\ubc84 batch \uc774\uac70\ub098 batch \ubbf8\uc815) \u2014 \uc7ac\uac80\uc99d \ub300\uc0c1 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": [],
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   0
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-062",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'int' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": 1,
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   0
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-063",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'NoneType' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   null,
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-064",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'list' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   [],
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-065",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'int' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   1,
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-066",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load \uc2e4\ud328\uc774\ub098 \uc54c\ub824\uc9c4 OOM \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d \u2192 Model-C(HITL). \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d = \ubbf8\uc9c0 \uc2e4\ud328\uc774\uc9c0 \ubd88\uac00 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {},
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-067",
+  "kind": "value",
+  "value": {
+   "failure_class": "none",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK\u00b7functional \ud1b5\uacfc \u2192 \uc218\ub834."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-068",
+  "kind": "value",
+  "value": {
+   "failure_class": "none",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK\u00b7functional \ud1b5\uacfc \u2192 \uc218\ub834. KV-fit \uc7ac\uac80\uc99d: batch 4 \u2264 KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024).",
+   "kv_fit_check": {
+    "checked": true,
+    "exceeds": false,
+    "kv_fit": 4,
+    "batch": 4,
+    "kv_fit_length": 1024,
+    "kv_cache_tokens": 4096,
+    "reason": "batch 4 \u2264 KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024)"
+   }
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-069",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "OOM \uc2dc\uadf8\ub2c8\ucc98 \ub9e4\uce6d('CUDA out of memory') \u2192 kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "error_excerpt": "before\nCUDA out of memory\nafter",
+    "vllm_profile": {
+     "kv_cache_gib": "bad"
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-070",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "OOM \uc2dc\uadf8\ub2c8\ucc98 \ub9e4\uce6d('No available memory for the cache blocks') \u2192 kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "error_excerpt": "before\nNo available memory for the cache blocks\nafter",
+    "vllm_profile": {
+     "kv_cache_gib": "bad"
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-071",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "OOM \uc2dc\uadf8\ub2c8\ucc98 \ub9e4\uce6d('ValueError: To serve at least one request') \u2192 kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "error_excerpt": "before\nValueError: To serve at least one request\nafter",
+    "vllm_profile": {
+     "kv_cache_gib": "bad"
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-072",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-073",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load \uc2e4\ud328\uc774\ub098 \uc54c\ub824\uc9c4 OOM \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d \u2192 Model-C(HITL). \uc5d4\uc9c4\uc774 **\uc608\uc678\ub97c \ub0a8\uae30\uace0** \uc2e4\ud328\ud588\ub2e4(\uc678\ubd80 \uc885\ub8cc \uc544\ub2d8) \u2014 \uba54\ubaa8\ub9ac \ucd95\uc774 \uc544\ub2d0 \uac00\ub2a5\uc131\uc774 \ub192\ub2e4. \ub85c\uadf8\uc758 traceback \uc744 \uc9c1\uc811 \uc77d\uc5b4\ub77c. \ucc38\uace0: KV 20.00 GiB \ub294 **\uc815\uc0c1 \ud560\ub2f9\ub41c \ub4a4** \uc2e4\ud328\ud588\ub2e4 \u2014 KV \ucd95\uc18c\ub294 \uc774 \uc2e4\ud328\uc640 \ubb34\uad00\ud560 \uc218 \uc788\ub2e4. \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d = \ubbf8\uc9c0 \uc2e4\ud328\uc774\uc9c0 \ubd88\uac00 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "Traceback (most recent call last)"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-074",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load \uc2e4\ud328\uc774\ub098 \uc54c\ub824\uc9c4 OOM \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d \u2192 Model-C(HITL). \uc5d4\uc9c4\uc774 **\uc608\uc678\ub97c \ub0a8\uae30\uace0** \uc2e4\ud328\ud588\ub2e4(\uc678\ubd80 \uc885\ub8cc \uc544\ub2d8) \u2014 \uba54\ubaa8\ub9ac \ucd95\uc774 \uc544\ub2d0 \uac00\ub2a5\uc131\uc774 \ub192\ub2e4. \ub85c\uadf8\uc758 traceback \uc744 \uc9c1\uc811 \uc77d\uc5b4\ub77c. \ucc38\uace0: KV 20.00 GiB \ub294 **\uc815\uc0c1 \ud560\ub2f9\ub41c \ub4a4** \uc2e4\ud328\ud588\ub2e4 \u2014 KV \ucd95\uc18c\ub294 \uc774 \uc2e4\ud328\uc640 \ubb34\uad00\ud560 \uc218 \uc788\ub2e4. \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d = \ubbf8\uc9c0 \uc2e4\ud328\uc774\uc9c0 \ubd88\uac00 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "ERROR SomeError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-075",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "xERROR SomeError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-076",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load \uc2e4\ud328\uc774\ub098 \uc54c\ub824\uc9c4 OOM \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d \u2192 Model-C(HITL). \uc5d4\uc9c4\uc774 **\uc608\uc678\ub97c \ub0a8\uae30\uace0** \uc2e4\ud328\ud588\ub2e4(\uc678\ubd80 \uc885\ub8cc \uc544\ub2d8) \u2014 \uba54\ubaa8\ub9ac \ucd95\uc774 \uc544\ub2d0 \uac00\ub2a5\uc131\uc774 \ub192\ub2e4. \ub85c\uadf8\uc758 traceback \uc744 \uc9c1\uc811 \uc77d\uc5b4\ub77c. \ucc38\uace0: KV 20.00 GiB \ub294 **\uc815\uc0c1 \ud560\ub2f9\ub41c \ub4a4** \uc2e4\ud328\ud588\ub2e4 \u2014 KV \ucd95\uc18c\ub294 \uc774 \uc2e4\ud328\uc640 \ubb34\uad00\ud560 \uc218 \uc788\ub2e4. \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d = \ubbf8\uc9c0 \uc2e4\ud328\uc774\uc9c0 \ubd88\uac00 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "ERROR\u0345 SomeError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-077",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load \uc2e4\ud328\uc774\ub098 \uc54c\ub824\uc9c4 OOM \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d \u2192 Model-C(HITL). \uc5d4\uc9c4\uc774 **\uc608\uc678\ub97c \ub0a8\uae30\uace0** \uc2e4\ud328\ud588\ub2e4(\uc678\ubd80 \uc885\ub8cc \uc544\ub2d8) \u2014 \uba54\ubaa8\ub9ac \ucd95\uc774 \uc544\ub2d0 \uac00\ub2a5\uc131\uc774 \ub192\ub2e4. \ub85c\uadf8\uc758 traceback \uc744 \uc9c1\uc811 \uc77d\uc5b4\ub77c. \ucc38\uace0: KV 20.00 GiB \ub294 **\uc815\uc0c1 \ud560\ub2f9\ub41c \ub4a4** \uc2e4\ud328\ud588\ub2e4 \u2014 KV \ucd95\uc18c\ub294 \uc774 \uc2e4\ud328\uc640 \ubb34\uad00\ud560 \uc218 \uc788\ub2e4. \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d = \ubbf8\uc9c0 \uc2e4\ud328\uc774\uc9c0 \ubd88\uac00 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "ERROR\u1c89 SomeError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-078",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "ERROR_ SomeError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-079",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "ERROR\nSomeError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-080",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load \uc2e4\ud328\uc774\ub098 \uc54c\ub824\uc9c4 OOM \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d \u2192 Model-C(HITL). \uc5d4\uc9c4\uc774 **\uc608\uc678\ub97c \ub0a8\uae30\uace0** \uc2e4\ud328\ud588\ub2e4(\uc678\ubd80 \uc885\ub8cc \uc544\ub2d8) \u2014 \uba54\ubaa8\ub9ac \ucd95\uc774 \uc544\ub2d0 \uac00\ub2a5\uc131\uc774 \ub192\ub2e4. \ub85c\uadf8\uc758 traceback \uc744 \uc9c1\uc811 \uc77d\uc5b4\ub77c. \ucc38\uace0: KV 20.00 GiB \ub294 **\uc815\uc0c1 \ud560\ub2f9\ub41c \ub4a4** \uc2e4\ud328\ud588\ub2e4 \u2014 KV \ucd95\uc18c\ub294 \uc774 \uc2e4\ud328\uc640 \ubb34\uad00\ud560 \uc218 \uc788\ub2e4. \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d = \ubbf8\uc9c0 \uc2e4\ud328\uc774\uc9c0 \ubd88\uac00 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "ERROR\rSomeError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-081",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load \uc2e4\ud328\uc774\ub098 \uc54c\ub824\uc9c4 OOM \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d \u2192 Model-C(HITL). \uc5d4\uc9c4\uc774 **\uc608\uc678\ub97c \ub0a8\uae30\uace0** \uc2e4\ud328\ud588\ub2e4(\uc678\ubd80 \uc885\ub8cc \uc544\ub2d8) \u2014 \uba54\ubaa8\ub9ac \ucd95\uc774 \uc544\ub2d0 \uac00\ub2a5\uc131\uc774 \ub192\ub2e4. \ub85c\uadf8\uc758 traceback \uc744 \uc9c1\uc811 \uc77d\uc5b4\ub77c. \ucc38\uace0: KV 20.00 GiB \ub294 **\uc815\uc0c1 \ud560\ub2f9\ub41c \ub4a4** \uc2e4\ud328\ud588\ub2e4 \u2014 KV \ucd95\uc18c\ub294 \uc774 \uc2e4\ud328\uc640 \ubb34\uad00\ud560 \uc218 \uc788\ub2e4. \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d = \ubbf8\uc9c0 \uc2e4\ud328\uc774\uc9c0 \ubd88\uac00 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "  CustomError: failed"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-082",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load \uc2e4\ud328\uc774\ub098 \uc54c\ub824\uc9c4 OOM \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d \u2192 Model-C(HITL). \uc5d4\uc9c4\uc774 **\uc608\uc678\ub97c \ub0a8\uae30\uace0** \uc2e4\ud328\ud588\ub2e4(\uc678\ubd80 \uc885\ub8cc \uc544\ub2d8) \u2014 \uba54\ubaa8\ub9ac \ucd95\uc774 \uc544\ub2d0 \uac00\ub2a5\uc131\uc774 \ub192\ub2e4. \ub85c\uadf8\uc758 traceback \uc744 \uc9c1\uc811 \uc77d\uc5b4\ub77c. \ucc38\uace0: KV 20.00 GiB \ub294 **\uc815\uc0c1 \ud560\ub2f9\ub41c \ub4a4** \uc2e4\ud328\ud588\ub2e4 \u2014 KV \ucd95\uc18c\ub294 \uc774 \uc2e4\ud328\uc640 \ubb34\uad00\ud560 \uc218 \uc788\ub2e4. \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d = \ubbf8\uc9c0 \uc2e4\ud328\uc774\uc9c0 \ubd88\uac00 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "\n  CustomException: failed"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-083",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load \uc2e4\ud328\uc774\ub098 \uc54c\ub824\uc9c4 OOM \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d \u2192 Model-C(HITL). \uc5d4\uc9c4\uc774 **\uc608\uc678\ub97c \ub0a8\uae30\uace0** \uc2e4\ud328\ud588\ub2e4(\uc678\ubd80 \uc885\ub8cc \uc544\ub2d8) \u2014 \uba54\ubaa8\ub9ac \ucd95\uc774 \uc544\ub2d0 \uac00\ub2a5\uc131\uc774 \ub192\ub2e4. \ub85c\uadf8\uc758 traceback \uc744 \uc9c1\uc811 \uc77d\uc5b4\ub77c. \ucc38\uace0: KV 20.00 GiB \ub294 **\uc815\uc0c1 \ud560\ub2f9\ub41c \ub4a4** \uc2e4\ud328\ud588\ub2e4 \u2014 KV \ucd95\uc18c\ub294 \uc774 \uc2e4\ud328\uc640 \ubb34\uad00\ud560 \uc218 \uc788\ub2e4. \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d = \ubbf8\uc9c0 \uc2e4\ud328\uc774\uc9c0 \ubd88\uac00 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "\n\t\u2003CustomError: failed"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-084",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load \uc2e4\ud328\uc774\ub098 \uc54c\ub824\uc9c4 OOM \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d \u2192 Model-C(HITL). \uc5d4\uc9c4\uc774 **\uc608\uc678\ub97c \ub0a8\uae30\uace0** \uc2e4\ud328\ud588\ub2e4(\uc678\ubd80 \uc885\ub8cc \uc544\ub2d8) \u2014 \uba54\ubaa8\ub9ac \ucd95\uc774 \uc544\ub2d0 \uac00\ub2a5\uc131\uc774 \ub192\ub2e4. \ub85c\uadf8\uc758 traceback \uc744 \uc9c1\uc811 \uc77d\uc5b4\ub77c. \ucc38\uace0: KV 20.00 GiB \ub294 **\uc815\uc0c1 \ud560\ub2f9\ub41c \ub4a4** \uc2e4\ud328\ud588\ub2e4 \u2014 KV \ucd95\uc18c\ub294 \uc774 \uc2e4\ud328\uc640 \ubb34\uad00\ud560 \uc218 \uc788\ub2e4. \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d = \ubbf8\uc9c0 \uc2e4\ud328\uc774\uc9c0 \ubd88\uac00 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "CompilationError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-085",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load \uc2e4\ud328\uc774\ub098 \uc54c\ub824\uc9c4 OOM \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d \u2192 Model-C(HITL). \uc5d4\uc9c4\uc774 **\uc608\uc678\ub97c \ub0a8\uae30\uace0** \uc2e4\ud328\ud588\ub2e4(\uc678\ubd80 \uc885\ub8cc \uc544\ub2d8) \u2014 \uba54\ubaa8\ub9ac \ucd95\uc774 \uc544\ub2d0 \uac00\ub2a5\uc131\uc774 \ub192\ub2e4. \ub85c\uadf8\uc758 traceback \uc744 \uc9c1\uc811 \uc77d\uc5b4\ub77c. \ucc38\uace0: KV 20.00 GiB \ub294 **\uc815\uc0c1 \ud560\ub2f9\ub41c \ub4a4** \uc2e4\ud328\ud588\ub2e4 \u2014 KV \ucd95\uc18c\ub294 \uc774 \uc2e4\ud328\uc640 \ubb34\uad00\ud560 \uc218 \uc788\ub2e4. \uc2dc\uadf8\ub2c8\ucc98 \ubbf8\ub9e4\uce6d = \ubbf8\uc9c0 \uc2e4\ud328\uc774\uc9c0 \ubd88\uac00 \uc544\ub2d8"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "Engine core initialization failed"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-086",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "myerror: failed"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-087",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "something else"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-088",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "expected string or bytes-like object, got 'bool'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": true
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-089",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "expected string or bytes-like object, got 'list'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": [
+     "CUDA out of memory"
+    ]
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-090",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "expected string or bytes-like object, got 'dict'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": {
+     "error": "x"
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-091",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": null
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-092",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": {}
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-093",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": false
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-094",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": []
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-095",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'int' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": 1
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-096",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4. [\uc900\ube44\ub300\uae30 \uc885\ub2e8=container_died(exited, 2s \uacbd\uacfc \u2014 \ud0c0\uc784\uc544\uc6c3 \uc18c\uc9c4 \uc544\ub2d8)]"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": {
+     "outcome": "container_died",
+     "container_state": "exited",
+     "waited_s": 2.5
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-097",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4. [\uc900\ube44\ub300\uae30 \uc885\ub2e8=container_died(None, 0s \uacbd\uacfc \u2014 \ud0c0\uc784\uc544\uc6c3 \uc18c\uc9c4 \uc544\ub2d8)]"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": {
+     "outcome": "container_died",
+     "container_state": null,
+     "waited_s": false
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-098",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4. [\uc900\ube44\ub300\uae30 \uc885\ub2e8=timeout(4s \uc804\ub7c9 \uc18c\uc9c4 \u2014 \ucee8\ud14c\uc774\ub108\ub294 \uc0b4\uc544 \uc788\uc5c8\ub2e4)]"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": {
+     "outcome": "timeout",
+     "waited_s": 3.5
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-099",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "must be real number, not str",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": {
+     "outcome": "timeout",
+     "waited_s": "bad"
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-100",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4. [\uc900\ube44\ub300\uae30 \uc885\ub2e8=timeout(nans \uc804\ub7c9 \uc18c\uc9c4 \u2014 \ucee8\ud14c\uc774\ub108\ub294 \uc0b4\uc544 \uc788\uc5c8\ub2e4)]"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": {
+     "outcome": "timeout",
+     "waited_s": NaN
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-101",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   0,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-102",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 80.0 GiB (38%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   80,
+   0,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-103",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 80.0 GiB (38%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   80,
+   null,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-104",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 -80.0 GiB (-38%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   80,
+   -1,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-105",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 -72.0 GiB (-42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   -80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-106",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 nan GiB (nan%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   NaN,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-107",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 nan GiB (nan%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   80,
+   NaN,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-108",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 inf GiB (0%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   Infinity,
+   1,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-109",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 inf GiB (0%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   1e+308,
+   1e+308,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-110",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). \uc0c1\uc8fc KV+\uac00\uc911\uce58 30.00 GiB / \uc548\uc804\uc608\uc0b0 72.0 GiB (42%). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   "80",
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-111",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_oom",
+   "adjust_target": "kv_cache_memory_bytes",
+   "note": "load \uc2e4\ud328 + OOM \uc608\uc678 \uc5c6\uc74c + vllm_profile.kv_cache_gib=20.00 GiB \uc874\uc7ac \u2192 \uc5d4\uc9c4\uc774 KV \ub97c \uc7a1\uc740 \ub4a4 **\uc678\ubd80\uc5d0\uc11c \uc885\ub8cc**\ub428(\ud638\uc2a4\ud2b8 \uc6cc\uce58\ub3c5 SIGKILL \uacc4\uc5f4). CUDA OOM \uc740 \uc608\uc678\ub97c \ub0a8\uae30\ubbc0\ub85c \uc774 \uc870\ud569\uc740 CUDA OOM \uc774 \uc544\ub2c8\ub2e4. kv_cache_memory_bytes \ucd95\uc18c \ud6c4 \uc7ac\uc2dc\ub3c4."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   null,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-112",
+  "kind": "exception",
+  "type": "ValueError",
+  "message": "could not convert string to float: 'bad'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   80,
+   "bad",
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-113",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK \uc774\ub098 functional \ud310\uc815 \ubd88\uac00 \u2192 Model-C(HITL)."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": null,
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-114",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK \uc774\ub098 functional \ud310\uc815 \ubd88\uac00 \u2192 Model-C(HITL)."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {},
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-115",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK \uc774\ub098 functional \ud310\uc815 \ubd88\uac00 \u2192 Model-C(HITL)."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": false,
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-116",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK \uc774\ub098 functional \ud310\uc815 \ubd88\uac00 \u2192 Model-C(HITL)."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": [],
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-117",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'int' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": 1,
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-118",
+  "kind": "value",
+  "value": {
+   "failure_class": "none",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK\u00b7functional \ud1b5\uacfc \u2192 \uc218\ub834."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-119",
+  "kind": "value",
+  "value": {
+   "failure_class": "functional",
+   "adjust_target": "attention_backend",
+   "note": "functional \uc2e4\ud328(\uc138\ubd80 \ubbf8\uc0c1) \u2192 attention_backend \ud3f4\ubc31 \ud6c4\ubcf4\ub85c \uc870\uc815."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": false
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-120",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK \uc774\ub098 functional \ud310\uc815 \ubd88\uac00 \u2192 Model-C(HITL)."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": 0
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-121",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK \uc774\ub098 functional \ud310\uc815 \ubd88\uac00 \u2192 Model-C(HITL)."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": 1
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-122",
+  "kind": "value",
+  "value": {
+   "failure_class": "unknown",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK \uc774\ub098 functional \ud310\uc815 \ubd88\uac00 \u2192 Model-C(HITL)."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": "true"
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-123",
+  "kind": "value",
+  "value": {
+   "failure_class": "functional",
+   "adjust_target": "attention_backend",
+   "note": "completion \uc2e4\ud328 \u2192 attention_backend \ud3f4\ubc31 \ud6c4\ubcf4\ub85c \uc870\uc815."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": false,
+     "completion_ok": false,
+     "tool_call_ok": false,
+     "reasoning_ok": false
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-124",
+  "kind": "value",
+  "value": {
+   "failure_class": "functional",
+   "adjust_target": "tool_call_parser",
+   "note": "tool_call \uc2e4\ud328 \u2192 tool_call_parser \ud3f4\ubc31 \ud6c4\ubcf4\ub85c \uc870\uc815."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": false,
+     "completion_ok": 0,
+     "tool_call_ok": false
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-125",
+  "kind": "value",
+  "value": {
+   "failure_class": "functional",
+   "adjust_target": "reasoning_parser",
+   "note": "reasoning \uc2e4\ud328 \u2192 reasoning_parser \ud3f4\ubc31 \ud6c4\ubcf4\ub85c \uc870\uc815."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": false,
+     "completion_ok": true,
+     "tool_call_ok": true,
+     "reasoning_ok": false
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-126",
+  "kind": "value",
+  "value": {
+   "failure_class": "none",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK\u00b7functional \ud1b5\uacfc \u2192 \uc218\ub834."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": null,
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-127",
+  "kind": "value",
+  "value": {
+   "failure_class": "none",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK\u00b7functional \ud1b5\uacfc \u2192 \uc218\ub834."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {},
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-128",
+  "kind": "value",
+  "value": {
+   "failure_class": "none",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK\u00b7functional \ud1b5\uacfc \u2192 \uc218\ub834."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": false,
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-129",
+  "kind": "value",
+  "value": {
+   "failure_class": "none",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK\u00b7functional \ud1b5\uacfc \u2192 \uc218\ub834."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": [],
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-130",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'int' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": 1,
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-131",
+  "kind": "value",
+  "value": {
+   "failure_class": "vram_infeasible",
+   "adjust_target": null,
+   "note": "weights+overhead=101.00GiB > ceiling=72.00GiB(budget*margin) \u2192 KV \uc870\uc815 \ubd88\uac00 \uad6c\uc870\uc801 \ucd08\uacfc(HITL)."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 100,
+     "non_kv_overhead_gib": 1
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-132",
+  "kind": "value",
+  "value": {
+   "failure_class": "none",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK\u00b7functional \ud1b5\uacfc \u2192 \uc218\ub834."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 72,
+     "non_kv_overhead_gib": 0
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-133",
+  "kind": "exception",
+  "type": "ValueError",
+  "message": "could not convert string to float: 'bad'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": "bad",
+     "non_kv_overhead_gib": null
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-134",
+  "kind": "value",
+  "value": {
+   "failure_class": "none",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK\u00b7functional \ud1b5\uacfc \u2192 \uc218\ub834."
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": NaN,
+     "non_kv_overhead_gib": 10
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-135",
+  "kind": "value",
+  "value": {
+   "failure_class": "none",
+   "adjust_target": "batch",
+   "note": "load OK\u00b7VRAM OK\u00b7functional \ud1b5\uacfc \u2014 \ub2e8 KV-fit \uc7ac\uac80\uc99d: batch 5 > KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024) \u2192 batch \ub97c KV-fit \uc73c\ub85c \ub0ae\ucdb0 \uc7ac\uac80\uc99d(\uc2e4\ud328 \uc544\ub2d8 \u00b7 \uc0b0\uc2dd \uc7ac\uc870\uc815).",
+   "kv_fit_check": {
+    "checked": true,
+    "exceeds": true,
+    "kv_fit": 4,
+    "batch": 5,
+    "kv_fit_length": 1024,
+    "kv_cache_tokens": 4096,
+    "reason": "batch 5 > KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024)"
+   },
+   "kv_fit": 4
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 5,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-136",
+  "kind": "value",
+  "value": {
+   "failure_class": "none",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK\u00b7functional \ud1b5\uacfc \u2192 \uc218\ub834. KV-fit \uc7ac\uac80\uc99d: batch 4 \u2264 KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024).",
+   "kv_fit_check": {
+    "checked": true,
+    "exceeds": false,
+    "kv_fit": 4,
+    "batch": 4,
+    "kv_fit_length": 1024,
+    "kv_cache_tokens": 4096,
+    "reason": "batch 4 \u2264 KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024)"
+   }
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-137",
+  "kind": "value",
+  "value": {
+   "failure_class": "none",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK\u00b7functional \ud1b5\uacfc \u2192 \uc218\ub834. KV-fit \uc7ac\uac80\uc99d: batch 0 \u2264 KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024).",
+   "kv_fit_check": {
+    "checked": true,
+    "exceeds": false,
+    "kv_fit": 4,
+    "batch": 0,
+    "kv_fit_length": 1024,
+    "kv_cache_tokens": 4096,
+    "reason": "batch 0 \u2264 KV-fit 4 (= \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \u00f7 L 1024)"
+   }
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 0,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   1024
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-138",
+  "kind": "value",
+  "value": {
+   "failure_class": "none",
+   "adjust_target": null,
+   "note": "load OK\u00b7VRAM OK\u00b7functional \ud1b5\uacfc \u2192 \uc218\ub834. KV-fit \uc7ac\uac80\uc99d: KV-fit 0 \u2014 \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \uac00 \ub300\ud45c \uae38\uc774 8192 \ubcf4\ub2e4 \uc791\ub2e4(\ud310\uc815 \ubd88\uac00 \u00b7 \uc120\uc5b8\uc744 \ud655\uc778\ud558\ub77c).",
+   "kv_fit_check": {
+    "checked": false,
+    "exceeds": false,
+    "kv_fit": 0,
+    "batch": 4,
+    "kv_fit_length": 8192,
+    "kv_cache_tokens": 4096,
+    "reason": "KV-fit 0 \u2014 \uc5d4\uc9c4 KV \ud1a0\ud070 4096 \uac00 \ub300\ud45c \uae38\uc774 8192 \ubcf4\ub2e4 \uc791\ub2e4(\ud310\uc815 \ubd88\uac00 \u00b7 \uc120\uc5b8\uc744 \ud655\uc778\ud558\ub77c)"
+   }
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   8192
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-139",
+  "kind": "exception",
+  "type": "ValueError",
+  "message": "invalid literal for int() with base 10: 'bad'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   "bad"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-140",
+  "kind": "exception",
+  "type": "ZeroDivisionError",
+  "message": "integer division or modulo by zero",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   "0"
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-141",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'NoneType' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   null,
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-142",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'list' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   [],
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-143",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'int' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   1,
+   80,
+   0.9,
+   null
+  ],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-144",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "classify() missing 3 required positional arguments: 'trial_result', 'budget_gib', and 'safety_margin'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [],
+  "kwargs_after": {}
+ },
+ {
+  "id": "api-145",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "kv_fit_check() got multiple values for argument 'typical_request_tokens'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs_after": {
+   "typical_request_tokens": 2048
+  }
+ },
+ {
+  "id": "api-146",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "_profile_gib() got an unexpected keyword argument 'unknown'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+   {}
+  ],
+  "kwargs_after": {
+   "unknown": 1
+  }
+ }
+]

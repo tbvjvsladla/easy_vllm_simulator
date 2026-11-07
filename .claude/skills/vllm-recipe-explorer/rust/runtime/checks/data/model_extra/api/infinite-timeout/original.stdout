@@ -1,0 +1,1 @@
+{"id": "infinite-timeout", "kind": "exception", "type": "OverflowError", "message": "timestamp out of range for platform time_t", "stdout": "", "stderr": "", "args_after": ["ok", Infinity], "kwargs_after": {}}

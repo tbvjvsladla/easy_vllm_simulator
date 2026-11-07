@@ -1,0 +1,6 @@
+{
+  "weight_map": {
+    "layer.engram.embed.weight": "model.safetensors",
+    "layer.engram.embed.scale": "model.safetensors"
+  }
+}

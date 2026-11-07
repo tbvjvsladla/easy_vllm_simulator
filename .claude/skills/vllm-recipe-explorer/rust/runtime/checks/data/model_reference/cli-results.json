@@ -1,0 +1,417 @@
+{
+  "state": "ORIGINAL23_CLI_CAPTURED_ONCE",
+  "top_level_original_calls": 23,
+  "rows": [
+    {
+      "id": "cli-000",
+      "owner": "parse_model_config",
+      "args": [],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/parse_model_config.py"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 2,
+      "stdout_bytes": 0,
+      "stderr_bytes": 188,
+      "wall_s": 0.022980230976827443
+    },
+    {
+      "id": "cli-001",
+      "owner": "parse_model_config",
+      "args": [
+        "--help"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/parse_model_config.py",
+        "--help"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 0,
+      "stdout_bytes": 587,
+      "stderr_bytes": 0,
+      "wall_s": 0.02319255191832781
+    },
+    {
+      "id": "cli-002",
+      "owner": "parse_model_config",
+      "args": [
+        "--self-test"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/parse_model_config.py",
+        "--self-test"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 0,
+      "stdout_bytes": 122,
+      "stderr_bytes": 0,
+      "wall_s": 0.0790090219816193
+    },
+    {
+      "id": "cli-003",
+      "owner": "parse_model_config",
+      "args": [
+        "@REFERENCE@/input/Org-Normal"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/parse_model_config.py",
+        "@REFERENCE@/input/Org-Normal"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 0,
+      "stdout_bytes": 1313,
+      "stderr_bytes": 0,
+      "wall_s": 0.021985518978908658
+    },
+    {
+      "id": "cli-004",
+      "owner": "parse_model_config",
+      "args": [
+        "@REFERENCE@/input/Org-Normal",
+        "--json"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/parse_model_config.py",
+        "@REFERENCE@/input/Org-Normal",
+        "--json"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 0,
+      "stdout_bytes": 1125,
+      "stderr_bytes": 0,
+      "wall_s": 0.021744892932474613
+    },
+    {
+      "id": "cli-005",
+      "owner": "parse_model_config",
+      "args": [
+        "@REFERENCE@/input/hybrid",
+        "--json"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/parse_model_config.py",
+        "@REFERENCE@/input/hybrid",
+        "--json"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 0,
+      "stdout_bytes": 1158,
+      "stderr_bytes": 0,
+      "wall_s": 0.021804205956868827
+    },
+    {
+      "id": "cli-006",
+      "owner": "parse_model_config",
+      "args": [
+        "@REFERENCE@/input/mxfp4",
+        "--json"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/parse_model_config.py",
+        "@REFERENCE@/input/mxfp4",
+        "--json"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 0,
+      "stdout_bytes": 1683,
+      "stderr_bytes": 0,
+      "wall_s": 0.021699308999814093
+    },
+    {
+      "id": "cli-007",
+      "owner": "parse_model_config",
+      "args": [
+        "@REFERENCE@/input/bad-mxfp4",
+        "--json"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/parse_model_config.py",
+        "@REFERENCE@/input/bad-mxfp4",
+        "--json"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 2,
+      "stdout_bytes": 0,
+      "stderr_bytes": 115,
+      "wall_s": 0.02176409400999546
+    },
+    {
+      "id": "cli-008",
+      "owner": "parse_model_config",
+      "args": [
+        "@REFERENCE@/input/config-invalid",
+        "--json"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/parse_model_config.py",
+        "@REFERENCE@/input/config-invalid",
+        "--json"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 2,
+      "stdout_bytes": 0,
+      "stderr_bytes": 120,
+      "wall_s": 0.02154262107796967
+    },
+    {
+      "id": "cli-009",
+      "owner": "parse_model_config",
+      "args": [
+        "@REFERENCE@/input/config-list",
+        "--json"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/parse_model_config.py",
+        "@REFERENCE@/input/config-list",
+        "--json"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 1,
+      "stdout_bytes": 0,
+      "stderr_bytes": 724,
+      "wall_s": 0.058072005049325526
+    },
+    {
+      "id": "cli-010",
+      "owner": "parse_model_config",
+      "args": [
+        "@REFERENCE@/input/absent"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/parse_model_config.py",
+        "@REFERENCE@/input/absent"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 2,
+      "stdout_bytes": 0,
+      "stderr_bytes": 329,
+      "wall_s": 0.022019968018867075
+    },
+    {
+      "id": "cli-011",
+      "owner": "parse_model_config",
+      "args": [
+        "/app/models/Org-Normal",
+        "--nas-root",
+        "@REFERENCE@/input",
+        "--json"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/parse_model_config.py",
+        "/app/models/Org-Normal",
+        "--nas-root",
+        "@REFERENCE@/input",
+        "--json"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 0,
+      "stdout_bytes": 1063,
+      "stderr_bytes": 0,
+      "wall_s": 0.02178958198055625
+    },
+    {
+      "id": "cli-012",
+      "owner": "parse_model_config",
+      "args": [
+        "--unknown"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/parse_model_config.py",
+        "--unknown"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 2,
+      "stdout_bytes": 0,
+      "stderr_bytes": 179,
+      "wall_s": 0.021555181010626256
+    },
+    {
+      "id": "cli-013",
+      "owner": "crosscheck_model_card",
+      "args": [],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/crosscheck_model_card.py"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 3,
+      "stdout_bytes": 0,
+      "stderr_bytes": 100,
+      "wall_s": 0.037055260967463255
+    },
+    {
+      "id": "cli-014",
+      "owner": "crosscheck_model_card",
+      "args": [
+        "--help"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/crosscheck_model_card.py",
+        "--help"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 0,
+      "stdout_bytes": 875,
+      "stderr_bytes": 0,
+      "wall_s": 0.038263589958660305
+    },
+    {
+      "id": "cli-015",
+      "owner": "crosscheck_model_card",
+      "args": [
+        "--ephemeral-estimate"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/crosscheck_model_card.py",
+        "--ephemeral-estimate"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 3,
+      "stdout_bytes": 0,
+      "stderr_bytes": 64,
+      "wall_s": 0.038044692017138004
+    },
+    {
+      "id": "cli-016",
+      "owner": "crosscheck_model_card",
+      "args": [
+        "@REFERENCE@/input/Org-Normal"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/crosscheck_model_card.py",
+        "@REFERENCE@/input/Org-Normal"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 0,
+      "stdout_bytes": 437,
+      "stderr_bytes": 0,
+      "wall_s": 0.03806760394945741
+    },
+    {
+      "id": "cli-017",
+      "owner": "crosscheck_model_card",
+      "args": [
+        "@REFERENCE@/input/Org-Normal",
+        "--json"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/crosscheck_model_card.py",
+        "@REFERENCE@/input/Org-Normal",
+        "--json"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 0,
+      "stdout_bytes": 1578,
+      "stderr_bytes": 0,
+      "wall_s": 0.050248204031959176
+    },
+    {
+      "id": "cli-018",
+      "owner": "crosscheck_model_card",
+      "args": [
+        "@REFERENCE@/input/mixed",
+        "--json"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/crosscheck_model_card.py",
+        "@REFERENCE@/input/mixed",
+        "--json"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 2,
+      "stdout_bytes": 3560,
+      "stderr_bytes": 0,
+      "wall_s": 0.05222541792318225
+    },
+    {
+      "id": "cli-019",
+      "owner": "crosscheck_model_card",
+      "args": [
+        "@REFERENCE@/input/mxfp4",
+        "--json"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/crosscheck_model_card.py",
+        "@REFERENCE@/input/mxfp4",
+        "--json"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 0,
+      "stdout_bytes": 2228,
+      "stderr_bytes": 0,
+      "wall_s": 0.037319918046705425
+    },
+    {
+      "id": "cli-020",
+      "owner": "crosscheck_model_card",
+      "args": [
+        "@REFERENCE@/input/bad-mxfp4",
+        "--json"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/crosscheck_model_card.py",
+        "@REFERENCE@/input/bad-mxfp4",
+        "--json"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 2,
+      "stdout_bytes": 1338,
+      "stderr_bytes": 0,
+      "wall_s": 0.03844669403042644
+    },
+    {
+      "id": "cli-021",
+      "owner": "crosscheck_model_card",
+      "args": [
+        "@REFERENCE@/input/absent"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/crosscheck_model_card.py",
+        "@REFERENCE@/input/absent"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 3,
+      "stdout_bytes": 0,
+      "stderr_bytes": 150,
+      "wall_s": 0.03885136893950403
+    },
+    {
+      "id": "cli-022",
+      "owner": "crosscheck_model_card",
+      "args": [
+        "--unknown"
+      ],
+      "argv": [
+        "/usr/bin/python3",
+        "@REFERENCE@/source/crosscheck_model_card.py",
+        "--unknown"
+      ],
+      "cwd": "@REFERENCE@/input",
+      "exit_code": 2,
+      "stdout_bytes": 0,
+      "stderr_bytes": 233,
+      "wall_s": 0.037693392019718885
+    }
+  ]
+}

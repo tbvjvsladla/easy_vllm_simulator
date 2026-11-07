@@ -1,0 +1,1 @@
+[parse_model_config] 중단: 모델 디렉토리 없음: @REFERENCE@/input/absent (컨테이너 경로 @REFERENCE@/input/absent). 폐쇄망 — 모델 자체 다운로드 금지. NAS에 사전 배치 후 재시도.

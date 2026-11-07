@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py", line 566, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py", line 552, in main
+    paths = generate(parsed, recipe, args.name, args.repo, args.port,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py", line 468, in generate
+    yaml_text = _build_yaml(parsed, recipe, served_model_name, port=port)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py", line 72, in _build_yaml
+    container_path = parsed.get("model_path_container")
+                     ^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'get'

@@ -1,0 +1,5 @@
+{
+  "weight_map": {
+    "layer.ple.ple_embedding.ngram_embedding.shard_1.weight": "model.safetensors"
+  }
+}

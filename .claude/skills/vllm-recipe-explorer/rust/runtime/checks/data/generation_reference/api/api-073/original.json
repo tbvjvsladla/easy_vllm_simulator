@@ -1,0 +1,31 @@
+{
+  "id": "api-073",
+  "kind": "value",
+  "value": {
+    "timestamp": "2026-11-06T01:02:03.456789",
+    "selection_timestamp": "2026-11-06T01:02:03.456789",
+    "extra": "kept",
+    "actual_vram_gb": null,
+    "serve_success": null,
+    "error_type": null,
+    "tokens_per_sec": null,
+    "batch": null,
+    "kv_cache_memory_bytes": null,
+    "attention_backend": null,
+    "tool_call_parser": null,
+    "reasoning_parser": null,
+    "converged": null,
+    "trial_count": null,
+    "correction_history": null
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "timestamp": "",
+      "selection_timestamp": 0,
+      "extra": "kept"
+    }
+  ],
+  "kwargs_after": {}
+}

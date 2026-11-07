@@ -1,0 +1,13 @@
+{
+  "id": "n2-original-call",
+  "argv": [
+    "/usr/bin/python3",
+    "-I",
+    "@CAPTURE_ROOT@/r29-review-boundaries/n2-original/node/.claude/skills/vllm-recipe-explorer/scripts/parse_vllm_log.py"
+  ],
+  "cwd": "@CAPTURE_ROOT@/r29-review-boundaries/n2-original",
+  "fd0_closed": true,
+  "exit_code": 1,
+  "state": "CHILD_RETURNED",
+  "wall_s": 0.054196103010326624
+}

@@ -1,0 +1,34 @@
+{
+  "id": "api-029",
+  "kind": "value",
+  "value": {
+    "quantization": null,
+    "max_model_len": null,
+    "batch": null,
+    "kv_cache_memory_bytes": null,
+    "kv_cache_quant": null,
+    "attention_backend": null,
+    "tool_call_parser": null,
+    "reasoning_parser": null,
+    "moe_backend": null,
+    "gdn_prefill_backend": null,
+    "max_num_batched_tokens": null,
+    "enforce_eager": null,
+    "language_model_only": null,
+    "serve_env": null,
+    "tensor_parallel_size": null,
+    "distributed_executor_backend": null,
+    "id": null,
+    "gpu_memory_utilization": 0.85,
+    "extra_note": "kept"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {}
+  ],
+  "kwargs_after": {
+    "gpu_memory_utilization": 0.85,
+    "extra_note": "kept"
+  }
+}

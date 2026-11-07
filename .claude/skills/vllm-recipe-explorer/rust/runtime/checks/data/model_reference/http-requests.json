@@ -1,0 +1,66 @@
+[
+  {
+    "path": "/ok",
+    "accept": "application/json"
+  },
+  {
+    "path": "/zero",
+    "accept": "application/json"
+  },
+  {
+    "path": "/missing",
+    "accept": "application/json"
+  },
+  {
+    "path": "/badjson",
+    "accept": "application/json"
+  },
+  {
+    "path": "/badutf8",
+    "accept": "application/json"
+  },
+  {
+    "path": "/forbidden",
+    "accept": "application/json"
+  },
+  {
+    "path": "/badtotal",
+    "accept": "application/json"
+  },
+  {
+    "path": "/array",
+    "accept": "application/json"
+  },
+  {
+    "path": "/ok",
+    "accept": "application/json"
+  },
+  {
+    "path": "/ok",
+    "accept": "application/json"
+  },
+  {
+    "path": "/ok",
+    "accept": "application/json"
+  },
+  {
+    "path": "/ok",
+    "accept": "application/json"
+  },
+  {
+    "path": "/ok",
+    "accept": "application/json"
+  },
+  {
+    "path": "/zero",
+    "accept": "application/json"
+  },
+  {
+    "path": "/missing",
+    "accept": "application/json"
+  },
+  {
+    "path": "/ok",
+    "accept": "application/json"
+  }
+]

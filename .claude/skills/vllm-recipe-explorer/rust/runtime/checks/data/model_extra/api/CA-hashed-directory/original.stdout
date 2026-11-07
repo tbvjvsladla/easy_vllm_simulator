@@ -1,0 +1,1 @@
+{"id": "CA-hashed-directory", "kind": "value", "value": {"ok": true, "total": 100, "parameters": {"BF16": 75, "F32": 25}}, "stdout": "", "stderr": "", "args_after": ["ok", 1.0], "kwargs_after": {}}

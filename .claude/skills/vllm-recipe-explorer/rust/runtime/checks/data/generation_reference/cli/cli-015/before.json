@@ -1,0 +1,62 @@
+[
+ {
+  "path": ".",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/.claude",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/.claude/skills",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/.claude/skills/vllm-recipe-explorer",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/.claude/skills/vllm-recipe-explorer/scripts",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/.claude/skills/vllm-recipe-explorer/scripts/feedback_log.py",
+  "mode": 436,
+  "kind": "file",
+  "source": "feedback_log.py"
+ },
+ {
+  "path": "node/.claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py",
+  "mode": 436,
+  "kind": "file",
+  "source": "gen_recipe_set.py"
+ },
+ {
+  "path": "node/.claude/skills/vllm-recipe-explorer/scripts/run_trial.py",
+  "mode": 436,
+  "kind": "file",
+  "base64": ""
+ },
+ {
+  "path": "parsed.json",
+  "mode": 436,
+  "kind": "file",
+  "base64": "eyJtb2RlbF9pZCI6ICJPcmcvTW9kZWwiLCAibW9kZWxfcGF0aF9jb250YWluZXIiOiAiL2FwcC9tb2RlbHMvT3JnL01vZGVsIiwgIm51bV9oaWRkZW5fbGF5ZXJzIjogNCwgImhpZGRlbl9zaXplIjogMTYsICJwcmVxdWFudGl6ZWQiOiBmYWxzZSwgInNlcnZlX2JwdyI6IDIuMH0="
+ },
+ {
+  "path": "recipe.json",
+  "mode": 436,
+  "kind": "file",
+  "base64": "eyJpZCI6ICJyMSIsICJxdWFudGl6YXRpb24iOiAiZnA4IiwgIm1heF9tb2RlbF9sZW4iOiA0MDk2LCAiZ3B1X21lbW9yeV91dGlsaXphdGlvbiI6IDAuOSwgInRlbnNvcl9wYXJhbGxlbF9zaXplIjogMX0="
+ }
+]

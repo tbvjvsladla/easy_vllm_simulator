@@ -1,0 +1,30 @@
+{
+  "id": "api-122",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "_build_yaml() got an unexpected keyword argument 'surprise'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "model_id": "Org/Model",
+      "model_path_container": "/app/models/Org/Model",
+      "num_hidden_layers": 4,
+      "hidden_size": 16,
+      "prequantized": false,
+      "serve_bpw": 2.0
+    },
+    {
+      "id": "r1",
+      "quantization": "fp8",
+      "max_model_len": 4096,
+      "gpu_memory_utilization": 0.9,
+      "tensor_parallel_size": 1
+    },
+    "s"
+  ],
+  "kwargs_after": {
+    "port": 80,
+    "surprise": 1
+  }
+}

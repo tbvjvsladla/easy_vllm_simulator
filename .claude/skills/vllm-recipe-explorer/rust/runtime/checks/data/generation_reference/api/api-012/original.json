@@ -1,0 +1,11 @@
+{
+  "id": "api-012",
+  "kind": "value",
+  "value": false,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "NAT\u0130VE"
+  ],
+  "kwargs_after": {}
+}

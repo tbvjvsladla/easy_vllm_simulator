@@ -1,0 +1,30 @@
+MIT License (Expat form) as it applies to `tomllib` (Taneli Hukkinen's `tomli`, shipped in CPython 3.12.3 as `Lib/tomllib/`)
+
+Opening headers of the four source files this port was derived from (`/usr/lib/python3.12/tomllib/__init__.py`, `_parser.py`, `_re.py`, `_types.py`);
+each file begins with exactly these three lines:
+
+    # SPDX-License-Identifier: MIT
+    # SPDX-FileCopyrightText: 2021 Taneli Hukkinen
+    # Licensed to PSF under a Contributor Agreement.
+
+The permission text of the MIT (Expat) license follows, copied verbatim from the local Debian copyright file `/usr/share/doc/python3-pip/copyright`
+(stanza `License: Expat`; its `Files:` stanza lists `src/pip/_vendor/tomli/*` with `Copyright: 2021, Taneli Hukkinen`; the stanza's `.` paragraph
+separators are shown as blank lines):
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

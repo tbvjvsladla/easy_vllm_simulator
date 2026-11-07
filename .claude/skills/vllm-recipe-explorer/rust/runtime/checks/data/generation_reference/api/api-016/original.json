@@ -1,0 +1,24 @@
+{
+  "id": "api-016",
+  "kind": "value",
+  "value": [
+    "# \u2500\u2500 VRAM \ubd84\ud574 (Phase 2 \uc808\ub300 KV \ud074\ub7a8\ud504 \uae30\uc900) \u2500\u2500",
+    "#   weights: 1.5 GiB",
+    "#   kv_cache: 0 GiB",
+    "#   total: 2 GiB",
+    "#   budget: 80 GiB",
+    "#   headroom: -1 GiB"
+  ],
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "weights_gib": 1.5,
+      "kv_gib": 0,
+      "total_gib": 2,
+      "budget_gib": 80,
+      "headroom_gib": -1
+    }
+  ],
+  "kwargs_after": {}
+}

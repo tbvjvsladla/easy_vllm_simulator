@@ -265,7 +265,7 @@ RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
 #   **정의된 적이 없었다**. 검증기 본문 주석은 "경로는 파일 상단 ROLE_CONTRACT 상수"라고
 #   적고 있었으니 배선만 빠진 것이다(만든 것과 도는 것은 다르다).
 ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.py"
-PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"
+PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh"
 PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
 
 # ── manifest 해소(서브 접속·work_dir = 항상 multi 통로 manifest. single 은 nodes:[] 라 서브 미정의) ──
@@ -748,7 +748,8 @@ validate_runtime_patches() {  # $1=topology; every patch must bind current patch
             [ -f "$PATCH_RESOLUTION" ] || { echo "[sync] FAIL(runtime patch): canonical resolution missing" >&2; return 1; }
             found=1
         fi
-        python3 "$PATCH_VALIDATOR" verify --patch "$patch" --topology "$topology" \
+        EASY_VLLM_UPSTREAM_RUNTIME_ROOT="${CANONICAL_SRC%/}/.claude/skills/upstream-version-watch/rust/runtime" \
+            /bin/bash "$PATCH_VALIDATOR" verify --patch "$patch" --topology "$topology" \
             --config-dir "$cdir" --env-dir "$edir" --resolution "$PATCH_RESOLUTION" || return 1
     done
     # Orphan sidecars are stale authority too: never deliver one without its exact patch.
@@ -1464,7 +1465,7 @@ prepare_transactional_source() {
     SRC="$TRANSACTIONAL_SRC/"
     RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
     ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.py"
-    PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"
+    PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh"
     PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
     REGEN_TOOL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py"
     echo "[sync] transactional source prepared (canonical tree remains read-only): $TRANSACTIONAL_SRC"

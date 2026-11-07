@@ -1,0 +1,36 @@
+{
+  "id": "api-023",
+  "kind": "value",
+  "value": "# Org/Model \uc11c\ube59 \uc124\uc815 (vllm-recipe-explorer \uc0dd\uc131)\n# \ub808\uc2dc\ud53c: quant=fp8 max_model_len=4096 gpu_mem_util=0.9\n# \ucd9c\ucc98(explorer \uac01\uc778): max-num-seqs \u2190 batch_source=declared \u00b7 gpu-memory-utilization \u2190 gmu_source=target\n# \u2500\u2500 VRAM \ubd84\ud574 (Phase 2 \uc808\ub300 KV \ud074\ub7a8\ud504 \uae30\uc900) \u2500\u2500\n#   weights: 2.0 GiB\n#   kv_cache: 1 GiB\nmodel: /app/models/Org/Model\nhost: 0.0.0.0\nport: 8080\n# gpu-memory-utilization = startup free-memory \uac8c\uc774\ud2b8(\uae30\ub3d9 \uc804 free \u2265 ceil(total\u00d7gmu) \u00b7 \ud1b5\ud569\uba54\ubaa8\ub9ac \u22640.90) + \ucd1d\ub7c9 cap \uc740 \uad00\uce21\ub41c \uc791\uc6a9(\ud55c \uc140 \uad00\uce21 \u00b7 \uc720\ud6a8\ub9e5\ub77d kv-clamp.md \u00a71 \u00b7 vLLM \uc18c\uc2a4\uc5d0\uc11c \uae30\uc804 \ubbf8\ud655\uc815); \uc2e4\uc81c KV\u00b7\uc774\uc2dd\uc131\uc740 kv-cache-memory-bytes \uc808\ub300 \ud074\ub7a8\ud504\uac00 \uc81c\uc5b4\ngpu-memory-utilization: 0.9\nmax-model-len: 4096\nmax-num-seqs: 2\nkv-cache-memory-bytes: 1048576\nkv-cache-dtype: fp8\nquantization: fp8\n",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "model_id": "Org/Model",
+      "model_path_container": "/app/models/Org/Model",
+      "num_hidden_layers": 4,
+      "hidden_size": 16,
+      "prequantized": false,
+      "serve_bpw": 2.0
+    },
+    {
+      "id": "r1",
+      "quantization": "fp8",
+      "max_model_len": 4096,
+      "gpu_memory_utilization": 0.9,
+      "tensor_parallel_size": 1,
+      "batch": 2,
+      "kv_cache_memory_bytes": 1048576,
+      "kv_cache_quant": "fp8",
+      "vram_breakdown": {
+        "weights_gib": 2.0,
+        "kv_gib": 1
+      },
+      "batch_source": "declared",
+      "gmu_source": "target"
+    },
+    "served",
+    8080
+  ],
+  "kwargs_after": {}
+}

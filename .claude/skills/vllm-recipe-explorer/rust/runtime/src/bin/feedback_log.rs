@@ -1,0 +1,24 @@
+use agent_runtime_support::pystr::PyStr;
+use recipe_runtime::anchor::process_skill_root;
+use recipe_runtime::cli::emit;
+use recipe_runtime::feedback::Clock;
+use recipe_runtime::generation_cli::feedback_main;
+use std::os::unix::ffi::OsStrExt;
+use std::process::ExitCode;
+
+fn main() -> ExitCode {
+    let args: Vec<PyStr> = std::env::args_os()
+        .skip(1)
+        .map(|arg| PyStr::from_surrogateescape(arg.as_bytes()))
+        .collect();
+    let columns =
+        recipe_runtime::cliparse::effective_columns(std::env::var("COLUMNS").ok().as_deref());
+    let skill_root = process_skill_root().unwrap_or_default();
+    let status = emit(&feedback_main(
+        &args,
+        Some(&columns),
+        &skill_root,
+        &Clock::Local,
+    ));
+    ExitCode::from(u8::try_from(status).unwrap_or(1))
+}

@@ -1,0 +1,11 @@
+{
+  "id": "api-004",
+  "kind": "value",
+  "value": true,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "null"
+  ],
+  "kwargs_after": {}
+}

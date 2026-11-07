@@ -1,0 +1,23 @@
+[
+ {
+  "path": ".",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "logs",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "logs/nested",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "logs/nested/feedback.jsonl",
+  "mode": 436,
+  "kind": "file",
+  "base64": ""
+ }
+]

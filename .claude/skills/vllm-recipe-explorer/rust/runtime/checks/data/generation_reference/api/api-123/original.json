@@ -1,0 +1,14 @@
+{
+  "id": "api-123",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "serve_env_pairs() got multiple values for argument 'value'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "X=y"
+  ],
+  "kwargs_after": {
+    "value": "duplicate"
+  }
+}

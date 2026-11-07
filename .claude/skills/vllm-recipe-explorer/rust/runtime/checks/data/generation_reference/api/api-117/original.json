@@ -1,0 +1,12 @@
+{
+  "id": "api-117",
+  "kind": "exception",
+  "type": "UnicodeDecodeError",
+  "message": "'utf-8' codec can't decode byte 0xff in position 0: invalid start byte",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "@CASE@/input.json"
+  ],
+  "kwargs_after": {}
+}

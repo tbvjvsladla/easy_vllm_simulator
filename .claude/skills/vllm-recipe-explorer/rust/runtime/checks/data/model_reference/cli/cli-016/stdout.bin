@@ -1,0 +1,9 @@
+# 모델카드 교차검증: Org-Normal  → OK
+  sources: config.json, safetensors_headers
+  · precision: config=bfloat16 | 실측=['bf16/fp16'] | 카드=[]
+       config='bfloat16' · 실측=['bf16/fp16'] · 카드='[]'
+  · special-deps: 없음
+  · context: config=4096 | 카드=None
+  · arch: ['ExampleForCausalLM'] / dense | 카드=[]
+  · reasoning: False
+  · external_vram: hf_repo_id 미지정 — 외부 이중검증 스킵

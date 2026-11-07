@@ -1,0 +1,35 @@
+{
+  "id": "api-024",
+  "kind": "value",
+  "value": "# Org/Model \uc11c\ube59 \uc124\uc815 (vllm-recipe-explorer \uc0dd\uc131)\n# \ub808\uc2dc\ud53c: quant=fp8 max_model_len=4096 gpu_mem_util=0.9\n# \u2500\u2500 \ud0c0\uac9f-GPU \uc774\uc2dd \ud074\ub7a8\ud504 (host\u2260target, gpu_model=GPU) \u2500\u2500\n# host-\uce21\uc815 weights/overhead \uc774\uc804\uac12. target\u2260host arch \uba74 target-margin \uc774 \ucfe0\uc158(\uc815\ub7c9\ubcf4\uc99d \uc544\ub2d8).\n# \uac00\ub2a5\ud558\uba74 \ud0c0\uac9f\uc5d0\uc11c \uc7ac\uce21\uc815(Phase-2)\uc744 \uad8c\uc7a5. per-token-KV\u00b7weights \ub294 GPU-\ubd88\ubcc0, overhead \ub294 \ub7f0\ud0c0\uc784 \uc131\uc9c8 \uc77c\ubd80 \ud3ec\ud568.\nmodel: /app/models/Org/Model\nhost: 0.0.0.0\nport: 8080\ngpu-memory-utilization: 0.9\nmax-model-len: 4096\nquantization: fp8\nmoe-backend: MARLIN\nmax-num-batched-tokens: 2048\nenforce-eager: true\nlanguage-model-only: true\n",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "model_id": "Org/Model",
+      "model_path_container": "/app/models/Org/Model",
+      "num_hidden_layers": 4,
+      "hidden_size": 16,
+      "prequantized": false,
+      "serve_bpw": 2.0
+    },
+    {
+      "id": "r1",
+      "quantization": "fp8",
+      "max_model_len": 4096,
+      "gpu_memory_utilization": 0.9,
+      "tensor_parallel_size": 1,
+      "target_gpu": {
+        "gpu_model": "GPU"
+      },
+      "moe_backend": "MARLIN",
+      "gdn_prefill_backend": "auto",
+      "max_num_batched_tokens": 2048,
+      "enforce_eager": true,
+      "language_model_only": true
+    },
+    "served",
+    8080
+  ],
+  "kwargs_after": {}
+}

@@ -1,0 +1,22 @@
+[
+ {
+  "path": ".",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/configs",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/configs/generated.sh",
+  "mode": 493,
+  "kind": "dir"
+ }
+]

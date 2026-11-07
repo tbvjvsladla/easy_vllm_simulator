@@ -1,0 +1,1861 @@
+[
+  {
+    "id": "api-000",
+    "owner": "parse_model_config",
+    "function": "resolve_kv_layers",
+    "args": [
+      null,
+      4
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-001",
+    "owner": "parse_model_config",
+    "function": "resolve_kv_layers",
+    "args": [
+      [],
+      4
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-002",
+    "owner": "parse_model_config",
+    "function": "resolve_kv_layers",
+    "args": [
+      "full_attention",
+      4
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-003",
+    "owner": "parse_model_config",
+    "function": "resolve_kv_layers",
+    "args": [
+      [
+        "full_attention",
+        "full_attention",
+        "full_attention",
+        "full_attention"
+      ],
+      4
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-004",
+    "owner": "parse_model_config",
+    "function": "resolve_kv_layers",
+    "args": [
+      [
+        "linear_attention",
+        "full_attention",
+        "linear_attention",
+        "full_attention"
+      ],
+      4,
+      2
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-005",
+    "owner": "parse_model_config",
+    "function": "resolve_kv_layers",
+    "args": [
+      [
+        "linear_attention",
+        "linear_attention"
+      ],
+      2
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-006",
+    "owner": "parse_model_config",
+    "function": "resolve_kv_layers",
+    "args": [
+      [
+        "sliding_attention",
+        null,
+        true
+      ],
+      3,
+      1
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-007",
+    "owner": "parse_model_config",
+    "function": "resolve_kv_layers",
+    "args": [
+      [
+        "full_attention"
+      ],
+      2
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-008",
+    "owner": "parse_model_config",
+    "function": "resolve_kv_layers",
+    "args": [
+      [
+        "full_attention"
+      ],
+      "bad"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-009",
+    "owner": "parse_model_config",
+    "function": "resolve_kv_layers",
+    "args": [
+      [
+        "full_attention"
+      ],
+      true
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-010",
+    "owner": "parse_model_config",
+    "function": "resolve_kv_layers",
+    "args": [
+      [
+        "full_attention"
+      ],
+      1,
+      "bad"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-011",
+    "owner": "parse_model_config",
+    "function": "resolve_kv_layers",
+    "args": [
+      [
+        "full_attention"
+      ],
+      1,
+      0
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-012",
+    "owner": "parse_model_config",
+    "function": "resolve_kv_layers",
+    "args": [
+      [
+        "full_attention"
+      ],
+      1,
+      0.2
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-013",
+    "owner": "parse_model_config",
+    "function": "resolve_kv_layers",
+    "args": [
+      [
+        [
+          "nested"
+        ],
+        {}
+      ],
+      2
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-014",
+    "owner": "parse_model_config",
+    "function": "_resolve_host_path",
+    "args": [
+      "/app/models/Org/Name",
+      "/fixture/nas"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-015",
+    "owner": "parse_model_config",
+    "function": "_resolve_host_path",
+    "args": [
+      "/app/models",
+      "/fixture/nas"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-016",
+    "owner": "parse_model_config",
+    "function": "_resolve_host_path",
+    "args": [
+      "/app/models-other/X",
+      "/fixture/nas"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-017",
+    "owner": "parse_model_config",
+    "function": "_resolve_host_path",
+    "args": [
+      "/app/quant/Org/Name",
+      "/fixture/nas",
+      "/app/quant/"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-018",
+    "owner": "parse_model_config",
+    "function": "_resolve_host_path",
+    "args": [
+      "\ud55c\uae00/'model",
+      "/nas"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-019",
+    "owner": "parse_model_config",
+    "function": "_resolve_host_path",
+    "args": [
+      "",
+      "/nas"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-020",
+    "owner": "parse_model_config",
+    "function": "_resolve_host_path",
+    "args": [
+      "/",
+      "/nas",
+      "/"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-021",
+    "owner": "parse_model_config",
+    "function": "_resolve_host_path",
+    "args": [
+      null,
+      "/nas"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-022",
+    "owner": "parse_model_config",
+    "function": "_resolve_host_path",
+    "args": [
+      3,
+      "/nas"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-023",
+    "owner": "parse_model_config",
+    "function": "_model_id_from_path",
+    "args": [
+      "/Org/Name///"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-024",
+    "owner": "parse_model_config",
+    "function": "_model_id_from_path",
+    "args": [
+      "Name"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-025",
+    "owner": "parse_model_config",
+    "function": "_model_id_from_path",
+    "args": [
+      "/"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-026",
+    "owner": "parse_model_config",
+    "function": "_model_id_from_path",
+    "args": [
+      ""
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-027",
+    "owner": "parse_model_config",
+    "function": "_model_id_from_path",
+    "args": [
+      "\ud55c\uae00/Na'me"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-028",
+    "owner": "parse_model_config",
+    "function": "_model_id_from_path",
+    "args": [
+      null
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-029",
+    "owner": "parse_model_config",
+    "function": "_model_id_from_path",
+    "args": [
+      3
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-030",
+    "owner": "parse_model_config",
+    "function": "_read_safetensors_header",
+    "args": [
+      "@REFERENCE@/input/headers/empty.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-031",
+    "owner": "parse_model_config",
+    "function": "_read_safetensors_header",
+    "args": [
+      "@REFERENCE@/input/headers/short.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-032",
+    "owner": "parse_model_config",
+    "function": "_read_safetensors_header",
+    "args": [
+      "@REFERENCE@/input/headers/badjson.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-033",
+    "owner": "parse_model_config",
+    "function": "_read_safetensors_header",
+    "args": [
+      "@REFERENCE@/input/headers/badutf8.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-034",
+    "owner": "parse_model_config",
+    "function": "_read_safetensors_header",
+    "args": [
+      "@REFERENCE@/input/headers/null.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-035",
+    "owner": "parse_model_config",
+    "function": "_read_safetensors_header",
+    "args": [
+      "@REFERENCE@/input/headers/array.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-036",
+    "owner": "parse_model_config",
+    "function": "_read_safetensors_header",
+    "args": [
+      "@REFERENCE@/input/headers/boolean.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-037",
+    "owner": "parse_model_config",
+    "function": "_read_safetensors_header",
+    "args": [
+      "@REFERENCE@/input/headers/exceeds_file.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-038",
+    "owner": "parse_model_config",
+    "function": "_read_safetensors_header",
+    "args": [
+      "@REFERENCE@/input/headers/over_bound.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-039",
+    "owner": "parse_model_config",
+    "function": "_read_safetensors_header",
+    "args": [
+      "@REFERENCE@/input/headers/duplicate.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-040",
+    "owner": "parse_model_config",
+    "function": "_read_safetensors_header",
+    "args": [
+      "@REFERENCE@/input/headers/missing"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-041",
+    "owner": "parse_model_config",
+    "function": "_read_safetensors_header",
+    "args": [
+      "@REFERENCE@/input/Org-Normal/model.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-042",
+    "owner": "crosscheck_model_card",
+    "function": "_read_st_header",
+    "args": [
+      "@REFERENCE@/input/headers/empty.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-043",
+    "owner": "crosscheck_model_card",
+    "function": "_read_st_header",
+    "args": [
+      "@REFERENCE@/input/headers/short.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-044",
+    "owner": "crosscheck_model_card",
+    "function": "_read_st_header",
+    "args": [
+      "@REFERENCE@/input/headers/badjson.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-045",
+    "owner": "crosscheck_model_card",
+    "function": "_read_st_header",
+    "args": [
+      "@REFERENCE@/input/headers/badutf8.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-046",
+    "owner": "crosscheck_model_card",
+    "function": "_read_st_header",
+    "args": [
+      "@REFERENCE@/input/headers/null.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-047",
+    "owner": "crosscheck_model_card",
+    "function": "_read_st_header",
+    "args": [
+      "@REFERENCE@/input/headers/array.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-048",
+    "owner": "crosscheck_model_card",
+    "function": "_read_st_header",
+    "args": [
+      "@REFERENCE@/input/headers/boolean.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-049",
+    "owner": "crosscheck_model_card",
+    "function": "_read_st_header",
+    "args": [
+      "@REFERENCE@/input/headers/exceeds_file.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-050",
+    "owner": "crosscheck_model_card",
+    "function": "_read_st_header",
+    "args": [
+      "@REFERENCE@/input/headers/duplicate.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-051",
+    "owner": "crosscheck_model_card",
+    "function": "_read_st_header",
+    "args": [
+      "@REFERENCE@/input/headers/missing"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-052",
+    "owner": "crosscheck_model_card",
+    "function": "_read_st_header",
+    "args": [
+      "@REFERENCE@/input/Org-Normal/model.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-053",
+    "owner": "parse_model_config",
+    "function": "_measure_disk_dtype",
+    "args": [
+      "@REFERENCE@/input/headers/empty.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-054",
+    "owner": "parse_model_config",
+    "function": "_measure_disk_dtype",
+    "args": [
+      "@REFERENCE@/input/headers/short.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-055",
+    "owner": "parse_model_config",
+    "function": "_measure_disk_dtype",
+    "args": [
+      "@REFERENCE@/input/headers/badjson.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-056",
+    "owner": "parse_model_config",
+    "function": "_measure_disk_dtype",
+    "args": [
+      "@REFERENCE@/input/headers/badutf8.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-057",
+    "owner": "parse_model_config",
+    "function": "_measure_disk_dtype",
+    "args": [
+      "@REFERENCE@/input/headers/null.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-058",
+    "owner": "parse_model_config",
+    "function": "_measure_disk_dtype",
+    "args": [
+      "@REFERENCE@/input/headers/array.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-059",
+    "owner": "parse_model_config",
+    "function": "_measure_disk_dtype",
+    "args": [
+      "@REFERENCE@/input/headers/boolean.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-060",
+    "owner": "parse_model_config",
+    "function": "_measure_disk_dtype",
+    "args": [
+      "@REFERENCE@/input/headers/exceeds_file.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-061",
+    "owner": "parse_model_config",
+    "function": "_measure_disk_dtype",
+    "args": [
+      "@REFERENCE@/input/Org-Normal/model.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-062",
+    "owner": "parse_model_config",
+    "function": "_measure_disk_dtype",
+    "args": [
+      "@REFERENCE@/input/mixed/model.safetensors"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-063",
+    "owner": "parse_model_config",
+    "function": "_native_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/empty",
+      [
+        "initial"
+      ]
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-064",
+    "owner": "parse_model_config",
+    "function": "_native_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/Org-Normal",
+      [
+        "initial"
+      ]
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-065",
+    "owner": "parse_model_config",
+    "function": "_native_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/index",
+      [
+        "initial"
+      ]
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-066",
+    "owner": "parse_model_config",
+    "function": "_native_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/missing-shard",
+      [
+        "initial"
+      ]
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-067",
+    "owner": "parse_model_config",
+    "function": "_native_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/bad-index",
+      [
+        "initial"
+      ]
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-068",
+    "owner": "parse_model_config",
+    "function": "_native_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/index-list",
+      [
+        "initial"
+      ]
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-069",
+    "owner": "parse_model_config",
+    "function": "_native_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/index-bad-values",
+      [
+        "initial"
+      ]
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-070",
+    "owner": "parse_model_config",
+    "function": "_native_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/bin",
+      [
+        "initial"
+      ]
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-071",
+    "owner": "parse_model_config",
+    "function": "offloadable_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/offload",
+      "ple_mmap",
+      []
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-072",
+    "owner": "parse_model_config",
+    "function": "offloadable_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/engram",
+      "engram_file",
+      []
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-073",
+    "owner": "parse_model_config",
+    "function": "offloadable_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/Org-Normal",
+      "ple_mmap",
+      []
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-074",
+    "owner": "parse_model_config",
+    "function": "offloadable_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/index",
+      "ple_mmap",
+      []
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-075",
+    "owner": "parse_model_config",
+    "function": "offloadable_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/missing-shard",
+      "ple_mmap",
+      []
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-076",
+    "owner": "parse_model_config",
+    "function": "offloadable_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/bad-index",
+      "ple_mmap",
+      []
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-077",
+    "owner": "parse_model_config",
+    "function": "offloadable_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/index-list",
+      "ple_mmap",
+      []
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-078",
+    "owner": "parse_model_config",
+    "function": "offloadable_weight_bytes",
+    "args": [
+      "@REFERENCE@/input/Org-Normal",
+      "unknown",
+      []
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-079",
+    "owner": "parse_model_config",
+    "function": "_largest_safetensors",
+    "args": [
+      "@REFERENCE@/input/empty"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-080",
+    "owner": "parse_model_config",
+    "function": "_largest_safetensors",
+    "args": [
+      "@REFERENCE@/input/Org-Normal"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-081",
+    "owner": "parse_model_config",
+    "function": "_largest_safetensors",
+    "args": [
+      "@REFERENCE@/input/index"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-082",
+    "owner": "parse_model_config",
+    "function": "_largest_safetensors",
+    "args": [
+      "@REFERENCE@/input/missing-shard"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-083",
+    "owner": "parse_model_config",
+    "function": "_count_params_from_headers",
+    "args": [
+      "@REFERENCE@/input/empty"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-084",
+    "owner": "parse_model_config",
+    "function": "_count_params_from_headers",
+    "args": [
+      "@REFERENCE@/input/Org-Normal"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-085",
+    "owner": "parse_model_config",
+    "function": "_count_params_from_headers",
+    "args": [
+      "@REFERENCE@/input/index"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-086",
+    "owner": "parse_model_config",
+    "function": "_count_params_from_headers",
+    "args": [
+      "@REFERENCE@/input/missing-shard"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-087",
+    "owner": "parse_model_config",
+    "function": "_count_params_from_headers",
+    "args": [
+      "@REFERENCE@/input/bad-index"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-088",
+    "owner": "parse_model_config",
+    "function": "_count_params_from_headers",
+    "args": [
+      "@REFERENCE@/input/index-list"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-089",
+    "owner": "parse_model_config",
+    "function": "_count_params_from_headers",
+    "args": [
+      "@REFERENCE@/input/boolshape"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-090",
+    "owner": "parse_model_config",
+    "function": "_count_params_from_headers",
+    "args": [
+      "@REFERENCE@/input/negative-shape"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-091",
+    "owner": "parse_model_config",
+    "function": "count_mxfp4_params",
+    "args": [
+      "@REFERENCE@/input/empty"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-092",
+    "owner": "parse_model_config",
+    "function": "count_mxfp4_params",
+    "args": [
+      "@REFERENCE@/input/mxfp4"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-093",
+    "owner": "parse_model_config",
+    "function": "count_mxfp4_params",
+    "args": [
+      "@REFERENCE@/input/bad-mxfp4"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-094",
+    "owner": "parse_model_config",
+    "function": "count_mxfp4_params",
+    "args": [
+      "@REFERENCE@/input/boolshape"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-095",
+    "owner": "parse_model_config",
+    "function": "count_mxfp4_params",
+    "args": [
+      "@REFERENCE@/input/negative-shape"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-096",
+    "owner": "parse_model_config",
+    "function": "count_mxfp4_params",
+    "args": [
+      "@REFERENCE@/input/bad-offsets"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-097",
+    "owner": "parse_model_config",
+    "function": "count_mxfp4_params",
+    "args": [
+      "@REFERENCE@/input/missing-shard"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-098",
+    "owner": "parse_model_config",
+    "function": "count_mxfp4_params",
+    "args": [
+      "@REFERENCE@/input/bad-index"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-099",
+    "owner": "parse_model_config",
+    "function": "count_mxfp4_params",
+    "args": [
+      "@REFERENCE@/input/index-list"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-100",
+    "owner": "parse_model_config",
+    "function": "count_mxfp4_params",
+    "args": [
+      "@REFERENCE@/input/index-bad-values"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-101",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/empty"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-102",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/Org-Normal"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-103",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/minimal"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-104",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/hybrid"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-105",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/nested"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-106",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/mla"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-107",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/mla-partial"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-108",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/unknown-quant"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-109",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/prequant"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-110",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/mixed"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-111",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/mxfp4"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-112",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/bad-mxfp4"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-113",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/config-list"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-114",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/config-invalid"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-115",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/config-utf8"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-116",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/zero-heads"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-117",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/index"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-118",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "@REFERENCE@/input/absent"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-119",
+    "owner": "parse_model_config",
+    "function": "parse",
+    "args": [
+      "/fixture-container/Org-Normal",
+      "@REFERENCE@/input",
+      "/fixture-container"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-120",
+    "owner": "crosscheck_model_card",
+    "function": "_canonical_shards",
+    "args": [
+      "@REFERENCE@/input/empty"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-121",
+    "owner": "crosscheck_model_card",
+    "function": "_canonical_shards",
+    "args": [
+      "@REFERENCE@/input/Org-Normal"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-122",
+    "owner": "crosscheck_model_card",
+    "function": "_canonical_shards",
+    "args": [
+      "@REFERENCE@/input/index"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-123",
+    "owner": "crosscheck_model_card",
+    "function": "_canonical_shards",
+    "args": [
+      "@REFERENCE@/input/missing-shard"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-124",
+    "owner": "crosscheck_model_card",
+    "function": "_canonical_shards",
+    "args": [
+      "@REFERENCE@/input/bad-index"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-125",
+    "owner": "crosscheck_model_card",
+    "function": "_canonical_shards",
+    "args": [
+      "@REFERENCE@/input/index-list"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-126",
+    "owner": "crosscheck_model_card",
+    "function": "_canonical_shards",
+    "args": [
+      "@REFERENCE@/input/index-bad-values"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-127",
+    "owner": "crosscheck_model_card",
+    "function": "scan_dtypes",
+    "args": [
+      "@REFERENCE@/input/empty"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-128",
+    "owner": "crosscheck_model_card",
+    "function": "scan_dtypes",
+    "args": [
+      "@REFERENCE@/input/Org-Normal"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-129",
+    "owner": "crosscheck_model_card",
+    "function": "scan_dtypes",
+    "args": [
+      "@REFERENCE@/input/mixed"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-130",
+    "owner": "crosscheck_model_card",
+    "function": "scan_dtypes",
+    "args": [
+      "@REFERENCE@/input/index"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-131",
+    "owner": "crosscheck_model_card",
+    "function": "scan_dtypes",
+    "args": [
+      "@REFERENCE@/input/missing-shard"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-132",
+    "owner": "crosscheck_model_card",
+    "function": "config_precision",
+    "args": [
+      {}
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-133",
+    "owner": "crosscheck_model_card",
+    "function": "config_precision",
+    "args": [
+      {
+        "torch_dtype": "bf16"
+      }
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-134",
+    "owner": "crosscheck_model_card",
+    "function": "config_precision",
+    "args": [
+      {
+        "quantization_config": {}
+      }
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-135",
+    "owner": "crosscheck_model_card",
+    "function": "config_precision",
+    "args": [
+      {
+        "quantization_config": {
+          "quant_method": "fp8",
+          "fmt": "mix"
+        }
+      }
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-136",
+    "owner": "crosscheck_model_card",
+    "function": "config_precision",
+    "args": [
+      {
+        "quantization_config": {
+          "quant_algo": "gptq",
+          "weight_dtype": "int4"
+        }
+      }
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-137",
+    "owner": "crosscheck_model_card",
+    "function": "config_precision",
+    "args": [
+      []
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-138",
+    "owner": "crosscheck_model_card",
+    "function": "config_precision",
+    "args": [
+      null
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-139",
+    "owner": "crosscheck_model_card",
+    "function": "card_precision",
+    "args": [
+      "",
+      "Org/Model"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-140",
+    "owner": "crosscheck_model_card",
+    "function": "card_precision",
+    "args": [
+      "| Model | BF16 |\n| Model-Base | FP8 |",
+      "Model"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-141",
+    "owner": "crosscheck_model_card",
+    "function": "card_precision",
+    "args": [
+      "| Model-Base | FP8 |\n| Model | BF16 |",
+      "Model"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-142",
+    "owner": "crosscheck_model_card",
+    "function": "card_precision",
+    "args": [
+      "FP4 + FP8 experts use FP4\nreasoning",
+      "model"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-143",
+    "owner": "crosscheck_model_card",
+    "function": "card_precision",
+    "args": [
+      "FP8\u00a0Mixed NVFP4 MXFP4 gptq int8",
+      "model"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-144",
+    "owner": "crosscheck_model_card",
+    "function": "card_precision",
+    "args": [
+      "| \ud55c\uae00 Model | BF16 |",
+      "\ud55c\uae00 Model"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-145",
+    "owner": "crosscheck_model_card",
+    "function": "card_precision",
+    "args": [
+      "FP8\u0345Mixed",
+      "x"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-146",
+    "owner": "crosscheck_model_card",
+    "function": "card_precision",
+    "args": [
+      "FP8 FP4+FP8 FP8 FP8 mixed",
+      "x"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-147",
+    "owner": "crosscheck_model_card",
+    "function": "card_precision",
+    "args": [
+      null,
+      "x"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-148",
+    "owner": "crosscheck_model_card",
+    "function": "card_precision",
+    "args": [
+      "FP8",
+      null
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-149",
+    "owner": "crosscheck_model_card",
+    "function": "read_inference_deps",
+    "args": [
+      "@REFERENCE@/input/empty"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-150",
+    "owner": "crosscheck_model_card",
+    "function": "read_inference_deps",
+    "args": [
+      "@REFERENCE@/input/Org-Normal"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-151",
+    "owner": "crosscheck_model_card",
+    "function": "read_inference_deps",
+    "args": [
+      "@REFERENCE@/input/mixed"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-152",
+    "owner": "crosscheck_model_card",
+    "function": "fetch_hf_safetensors_total",
+    "args": [
+      "",
+      0.3
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-153",
+    "owner": "crosscheck_model_card",
+    "function": "fetch_hf_safetensors_total",
+    "args": [
+      null,
+      0.3
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-154",
+    "owner": "crosscheck_model_card",
+    "function": "fetch_hf_safetensors_total",
+    "args": [
+      "ok",
+      0.3
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-155",
+    "owner": "crosscheck_model_card",
+    "function": "fetch_hf_safetensors_total",
+    "args": [
+      "zero",
+      0.3
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-156",
+    "owner": "crosscheck_model_card",
+    "function": "fetch_hf_safetensors_total",
+    "args": [
+      "missing",
+      0.3
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-157",
+    "owner": "crosscheck_model_card",
+    "function": "fetch_hf_safetensors_total",
+    "args": [
+      "badjson",
+      0.3
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-158",
+    "owner": "crosscheck_model_card",
+    "function": "fetch_hf_safetensors_total",
+    "args": [
+      "badutf8",
+      0.3
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-159",
+    "owner": "crosscheck_model_card",
+    "function": "fetch_hf_safetensors_total",
+    "args": [
+      "forbidden",
+      0.3
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-160",
+    "owner": "crosscheck_model_card",
+    "function": "fetch_hf_safetensors_total",
+    "args": [
+      "badtotal",
+      0.3
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-161",
+    "owner": "crosscheck_model_card",
+    "function": "fetch_hf_safetensors_total",
+    "args": [
+      "array",
+      0.3
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-162",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck_external_vram",
+    "args": [
+      null,
+      null,
+      "ok"
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-163",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck_external_vram",
+    "args": [
+      100,
+      null,
+      "ok"
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-164",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck_external_vram",
+    "args": [
+      120,
+      null,
+      "ok"
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-165",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck_external_vram",
+    "args": [
+      105,
+      null,
+      "ok",
+      0.05
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-166",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck_external_vram",
+    "args": [
+      106,
+      null,
+      "ok",
+      0.05
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-167",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck_external_vram",
+    "args": [
+      1,
+      null,
+      "zero"
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-168",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck_external_vram",
+    "args": [
+      null,
+      null,
+      null
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-169",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck_external_vram",
+    "args": [
+      100,
+      null,
+      "missing"
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-170",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck",
+    "args": [
+      "@REFERENCE@/input/empty"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-171",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck",
+    "args": [
+      "@REFERENCE@/input/Org-Normal"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-172",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck",
+    "args": [
+      "@REFERENCE@/input/mixed"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-173",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck",
+    "args": [
+      "@REFERENCE@/input/mxfp4"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-174",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck",
+    "args": [
+      "@REFERENCE@/input/bad-mxfp4"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-175",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck",
+    "args": [
+      "@REFERENCE@/input/config-invalid"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-176",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck",
+    "args": [
+      "@REFERENCE@/input/config-list"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-177",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck",
+    "args": [
+      "@REFERENCE@/input/Org-Normal",
+      "ok",
+      100
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-178",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck",
+    "args": [
+      "@REFERENCE@/input/Org-Normal",
+      "ok",
+      null,
+      "parse failed"
+    ],
+    "kwargs": {},
+    "context": {
+      "hf_api_base": "http://127.0.0.1:30067"
+    }
+  },
+  {
+    "id": "api-179",
+    "owner": "crosscheck_model_card",
+    "function": "crosscheck",
+    "args": [
+      "@REFERENCE@/input/absent"
+    ],
+    "kwargs": {}
+  },
+  {
+    "id": "api-180",
+    "owner": "crosscheck_model_card",
+    "function": "_human",
+    "args": [],
+    "kwargs": {},
+    "args_from_saved_case": "api-171"
+  },
+  {
+    "id": "api-181",
+    "owner": "crosscheck_model_card",
+    "function": "_human",
+    "args": [],
+    "kwargs": {},
+    "args_from_saved_case": "api-172"
+  }
+]

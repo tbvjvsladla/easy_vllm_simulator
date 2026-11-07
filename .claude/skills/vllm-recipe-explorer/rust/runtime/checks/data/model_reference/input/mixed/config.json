@@ -1,0 +1,15 @@
+{
+  "model_type": "dense",
+  "architectures": [
+    "ExampleForCausalLM"
+  ],
+  "hidden_size": 16,
+  "num_hidden_layers": 4,
+  "num_attention_heads": 4,
+  "vocab_size": 32,
+  "max_position_embeddings": 4096,
+  "torch_dtype": "bfloat16",
+  "quantization_config": {
+    "quant_method": "fp8"
+  }
+}

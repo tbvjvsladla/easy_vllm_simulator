@@ -1,0 +1,343 @@
+[
+{
+"id": "cli-000",
+"program": "quant_table",
+"args": [],
+"exit": 0,
+"stdout": "quant: None\nserve_bpw: 2.0\nvllm_quant_bpw: 2.0\n",
+"stderr": ""
+},
+{
+"id": "cli-001",
+"program": "quant_table",
+"args": [
+"--json"
+],
+"exit": 0,
+"stdout": "{\n  \"quant\": null,\n  \"serve_bpw\": 2.0,\n  \"vllm_quant_bpw\": 2.0\n}\n",
+"stderr": ""
+},
+{
+"id": "cli-002",
+"program": "quant_table",
+"args": [
+"--dtype",
+" BF16 ",
+"--json"
+],
+"exit": 0,
+"stdout": "{\n  \"dtype\": \" BF16 \",\n  \"dtype_bpw\": 2.0,\n  \"dtype_warning\": null\n}\n",
+"stderr": ""
+},
+{
+"id": "cli-003",
+"program": "quant_table",
+"args": [
+"--quant",
+"AWQ",
+"--serve-bpw",
+"1.5",
+"--json"
+],
+"exit": 0,
+"stdout": "{\n  \"quant\": \"AWQ\",\n  \"serve_bpw\": 1.5,\n  \"vllm_quant_bpw\": 0.5\n}\n",
+"stderr": ""
+},
+{
+"id": "cli-004",
+"program": "quant_table",
+"args": [
+"--quant",
+"unknown"
+],
+"exit": 1,
+"stdout": "",
+"stderr": "ValueError: unknown vLLM quantization flag: 'unknown' (known: ['awq', 'awq_marlin', 'bf16', 'bfloat16', 'bitblas', 'bitsandbytes', 'bnb', 'compressed-tensors', 'experts_int8', 'fbgemm_fp8', 'float16', 'fp16', 'fp8', 'gptq', 'gptq_bitblas', 'gptq_marlin', 'int4', 'int8', 'marlin', 'modelopt', 'modelopt_fp8', 'mxfp4', 'none', 'null', 'nvfp4', 'quark'])\n"
+},
+{
+"id": "cli-005",
+"program": "quant_table",
+"args": [
+"--serve-bpw",
+"bad"
+],
+"exit": 2,
+"stdout": "",
+"stderr": "usage: quant_table.py [-h] [--quant QUANT] [--serve-bpw SERVE_BPW]\n                      [--dtype DTYPE] [--json]\nquant_table.py: error: argument --serve-bpw: invalid float value: 'bad'\n"
+},
+{
+"id": "cli-006",
+"program": "quant_table",
+"args": [
+"--dtype",
+"unknown"
+],
+"exit": 0,
+"stdout": "dtype: unknown\ndtype_bpw: 2.0\ndtype_warning: unknown dtype 'unknown'; defaulting bpw=2.0\n",
+"stderr": ""
+},
+{
+"id": "cli-007",
+"program": "quant_table",
+"args": [
+"--quant",
+"null",
+"--serve-bpw",
+"nan",
+"--json"
+],
+"exit": 0,
+"stdout": "{\n  \"quant\": \"null\",\n  \"serve_bpw\": NaN,\n  \"vllm_quant_bpw\": NaN\n}\n",
+"stderr": ""
+},
+{
+"id": "cli-008",
+"program": "quant_table",
+"args": [
+"--help"
+],
+"exit": 0,
+"stdout": "usage: quant_table.py [-h] [--quant QUANT] [--serve-bpw SERVE_BPW]\n                      [--dtype DTYPE] [--json]\n\nquant \ubc14\uc774\ud2b8 \ud14c\uc774\ube14 \ud574\uc18c(\ubca4\ub354\ub9c1) \u2014 quant/dtype \u2192 bpw.\n\noptions:\n  -h, --help            show this help message and exit\n  --quant QUANT         vLLM quantization \ud50c\ub798\uadf8(none/fp8/awq/...). \ubbf8\uc9c0\uc815 \uc2dc\n                        serve_bpw \ubc18\ud658.\n  --serve-bpw SERVE_BPW\n                        native dtype bytes-per-weight (none/null quant \uc8fc\uc785\uc6a9, \uae30\ubcf8\n                        2.0).\n  --dtype DTYPE         dtype \ubb38\uc790\uc5f4(bfloat16/float16/float32/...) \u2192 bpw \ud574\uc18c.\n  --json                JSON \ucd9c\ub825.\n",
+"stderr": ""
+},
+{
+"id": "cli-009",
+"program": "estimate_vram",
+"args": [
+"--self-test"
+],
+"exit": 0,
+"stdout": "[estimate_vram --self-test] OK \u2014 E1~E8 \ud1b5\uacfc (\ud558\uc774\ube0c\ub9ac\ub4dc KV \uce35\uc218 \uc778\uc9c0 \u00b7 plan_26082223 \uacb0\ud568 A)\n",
+"stderr": ""
+},
+{
+"id": "cli-010",
+"program": "estimate_vram",
+"args": [
+"--parsed",
+"{INPUT}/parsed.json",
+"--max-model-len",
+"4096",
+"--gmu",
+".9",
+"--tp",
+"1",
+"--budget",
+"80",
+"--margin",
+".9"
+],
+"exit": 0,
+"stdout": "{\n  \"id\": null,\n  \"quantization\": null,\n  \"max_model_len\": 4096,\n  \"gpu_memory_utilization\": 0.9,\n  \"weight_gib\": 14.901161193847656,\n  \"kv_gib\": 0.5,\n  \"overhead_gib\": 1.5739351511001587,\n  \"estimated_total_gib\": 18.861218161053127,\n  \"headroom_gib\": 61.13878183894687,\n  \"gate_pass\": true,\n  \"kv_layers\": 32,\n  \"kv_layers_source\": \"num_hidden_layers\"\n}\n",
+"stderr": ""
+},
+{
+"id": "cli-011",
+"program": "estimate_vram",
+"args": [
+"--parsed",
+"{INPUT}/parsed.json",
+"--max-model-len",
+"4096",
+"--gmu",
+".9",
+"--tp",
+"1",
+"--budget",
+"80",
+"--margin",
+".9",
+"--quant",
+"awq"
+],
+"exit": 0,
+"stdout": "{\n  \"id\": null,\n  \"quantization\": \"awq\",\n  \"max_model_len\": 4096,\n  \"gpu_memory_utilization\": 0.9,\n  \"weight_gib\": 3.725290298461914,\n  \"kv_gib\": 0.5,\n  \"overhead_gib\": 1.5739351511001587,\n  \"estimated_total_gib\": 6.443583832846747,\n  \"headroom_gib\": 73.55641616715326,\n  \"gate_pass\": true,\n  \"warning\": \"offline_quant_on_non_prequantized_checkpoint\",\n  \"kv_layers\": 32,\n  \"kv_layers_source\": \"num_hidden_layers\"\n}\n",
+"stderr": ""
+},
+{
+"id": "cli-012",
+"program": "estimate_vram",
+"args": [
+"--parsed",
+"{INPUT}/parsed.json",
+"--max-model-len",
+"4096",
+"--gmu",
+".9",
+"--tp",
+"1",
+"--budget",
+"80",
+"--margin",
+".9",
+"--quant",
+"unknown"
+],
+"exit": 0,
+"stdout": "{\n  \"id\": null,\n  \"quantization\": \"unknown\",\n  \"max_model_len\": 4096,\n  \"gpu_memory_utilization\": 0.9,\n  \"weight_gib\": null,\n  \"kv_gib\": null,\n  \"overhead_gib\": null,\n  \"estimated_total_gib\": null,\n  \"headroom_gib\": null,\n  \"gate_pass\": false,\n  \"error\": \"unknown_quant_method\",\n  \"note\": \"quant \ud14c\uc774\ube14 \ubbf8\ub4f1\ub85d \u2260 vLLM \ubbf8\uc9c0\uc6d0 \u2014 vLLM \uc18c\uc2a4/HF \uce74\ub4dc\ub85c \uc678\ubd80 \ud655\uc778 \ud544\uc694(HITL surface)\"\n}\n",
+"stderr": ""
+},
+{
+"id": "cli-013",
+"program": "estimate_vram",
+"args": [
+"--parsed",
+"{INPUT}/parsed.json",
+"--max-model-len",
+"4096",
+"--gmu",
+".9",
+"--tp",
+"1",
+"--budget",
+"80",
+"--margin",
+".9",
+"--tp",
+"0"
+],
+"exit": 1,
+"stdout": "",
+"stderr": "ZeroDivisionError: float division by zero\n"
+},
+{
+"id": "cli-014",
+"program": "estimate_vram",
+"args": [],
+"exit": 2,
+"stdout": "",
+"stderr": "usage: estimate_vram.py [-h] [--parsed PARSED] [--self-test] [--quant QUANT]\n                        [--max-model-len MAX_MODEL_LEN] [--gmu GMU] [--tp TP]\n                        [--budget BUDGET] [--margin MARGIN]\n                        [--kv-bytes KV_BYTES] [--id ID]\nestimate_vram.py: error: --parsed, --max-model-len, --gmu, --tp, --budget, --margin \ub294 \ud544\uc218\ub2e4(--self-test \ub294 \uc608\uc678)\n"
+},
+{
+"id": "cli-015",
+"program": "estimate_vram",
+"args": [
+"--parsed",
+"{INPUT}/parsed.json",
+"--max-model-len",
+"4096",
+"--gmu",
+".9",
+"--tp",
+"1",
+"--budget",
+"80",
+"--margin",
+".9",
+"--max-model-len",
+"bad"
+],
+"exit": 2,
+"stdout": "",
+"stderr": "usage: estimate_vram.py [-h] [--parsed PARSED] [--self-test] [--quant QUANT]\n                        [--max-model-len MAX_MODEL_LEN] [--gmu GMU] [--tp TP]\n                        [--budget BUDGET] [--margin MARGIN]\n                        [--kv-bytes KV_BYTES] [--id ID]\nestimate_vram.py: error: argument --max-model-len: invalid int value: 'bad'\n"
+},
+{
+"id": "cli-016",
+"program": "estimate_vram",
+"args": [
+"--help"
+],
+"exit": 0,
+"stdout": "usage: estimate_vram.py [-h] [--parsed PARSED] [--self-test] [--quant QUANT]\n                        [--max-model-len MAX_MODEL_LEN] [--gmu GMU] [--tp TP]\n                        [--budget BUDGET] [--margin MARGIN]\n                        [--kv-bytes KV_BYTES] [--id ID]\n\n\uacb0\uc815\ub860 VRAM \ucd94\uc815\uae30 (vllm-recipe-explorer).\n\noptions:\n  -h, --help            show this help message and exit\n  --parsed PARSED       parse_model_config \ucd9c\ub825 JSON \uacbd\ub85c\n  --self-test           \ud558\uc774\ube0c\ub9ac\ub4dc KV \uce35\uc218 \uc778\uc9c0 \ud68c\uadc0(\ubaa8\ub378/\ud558\ub4dc\uc6e8\uc5b4 \ubd88\uc694)\n  --quant QUANT         \ud6c4\ubcf4 quantization \ud50c\ub798\uadf8(none/fp8/awq/...)\n  --max-model-len MAX_MODEL_LEN\n  --gmu GMU             gpu_memory_utilization (0~1)\n  --tp TP               tensor_parallel_size\n  --budget BUDGET       vram_budget_gib\n  --margin MARGIN       safety_margin (\ud558\ub4dc\uac8c\uc774\ud2b8 \uc784\uacc4)\n  --kv-bytes KV_BYTES   KV dtype \ubc14\uc774\ud2b8(\uae30\ubcf8 2=fp16)\n  --id ID               \ud6c4\ubcf4 id (\uc120\ud0dd)\n",
+"stderr": ""
+},
+{
+"id": "cli-017",
+"program": "rank_recipes",
+"args": [
+"--parsed",
+"{INPUT}/parsed.json",
+"--budget",
+"80",
+"--auto",
+"--json"
+],
+"exit": 0,
+"stdout": "{\n  \"ranked\": [\n    {\n      \"id\": \"r12\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 4096,\n      \"gpu_memory_utilization\": 0.95,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 0.5,\n      \"overhead_gib\": 1.5739351511001587,\n      \"estimated_total_gib\": 10.025806050551566,\n      \"headroom_gib\": 69.97419394944843,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r11\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 4096,\n      \"gpu_memory_utilization\": 0.9,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 0.5,\n      \"overhead_gib\": 1.5739351511001587,\n      \"estimated_total_gib\": 10.582795275582207,\n      \"headroom_gib\": 69.41720472441779,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r15\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 8192,\n      \"gpu_memory_utilization\": 0.95,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 1.0,\n      \"overhead_gib\": 1.7136335372924805,\n      \"estimated_total_gib\": 10.699172772859272,\n      \"headroom_gib\": 69.30082722714073,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r10\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 4096,\n      \"gpu_memory_utilization\": 0.85,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 0.5,\n      \"overhead_gib\": 1.5739351511001587,\n      \"estimated_total_gib\": 11.205312644734102,\n      \"headroom_gib\": 68.79468735526589,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r14\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 8192,\n      \"gpu_memory_utilization\": 0.9,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 1.0,\n      \"overhead_gib\": 1.7136335372924805,\n      \"estimated_total_gib\": 11.293571260240343,\n      \"headroom_gib\": 68.70642873975966,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r13\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 8192,\n      \"gpu_memory_utilization\": 0.85,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 1.0,\n      \"overhead_gib\": 1.7136335372924805,\n      \"estimated_total_gib\": 11.95789898143095,\n      \"headroom_gib\": 68.04210101856904,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r18\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 16384,\n      \"gpu_memory_utilization\": 0.95,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 2.0,\n      \"overhead_gib\": 1.993030309677124,\n      \"estimated_total_gib\": 12.045906217474688,\n      \"headroom_gib\": 67.95409378252532,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r17\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 16384,\n      \"gpu_memory_utilization\": 0.9,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 2.0,\n      \"overhead_gib\": 1.993030309677124,\n      \"estimated_total_gib\": 12.715123229556614,\n      \"headroom_gib\": 67.28487677044339,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r16\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 16384,\n      \"gpu_memory_utilization\": 0.85,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 2.0,\n      \"overhead_gib\": 1.993030309677124,\n      \"estimated_total_gib\": 13.46307165482465,\n      \"headroom_gib\": 66.53692834517535,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r3\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 4096,\n      \"gpu_memory_utilization\": 0.95,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 0.5,\n      \"overhead_gib\": 1.5739351511001587,\n      \"estimated_total_gib\": 17.868522468366123,\n      \"headroom_gib\": 62.13147753163388,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r6\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 8192,\n      \"gpu_memory_utilization\": 0.95,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 1.0,\n      \"overhead_gib\": 1.7136335372924805,\n      \"estimated_total_gib\": 18.541889190673828,\n      \"headroom_gib\": 61.45811080932617,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r2\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 4096,\n      \"gpu_memory_utilization\": 0.9,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 0.5,\n      \"overhead_gib\": 1.5739351511001587,\n      \"estimated_total_gib\": 18.861218161053127,\n      \"headroom_gib\": 61.13878183894687,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r5\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 8192,\n      \"gpu_memory_utilization\": 0.9,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 1.0,\n      \"overhead_gib\": 1.7136335372924805,\n      \"estimated_total_gib\": 19.571994145711262,\n      \"headroom_gib\": 60.42800585428874,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r9\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 16384,\n      \"gpu_memory_utilization\": 0.95,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 2.0,\n      \"overhead_gib\": 1.993030309677124,\n      \"estimated_total_gib\": 19.888622635289245,\n      \"headroom_gib\": 60.111377364710755,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r1\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 4096,\n      \"gpu_memory_utilization\": 0.85,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 0.5,\n      \"overhead_gib\": 1.5739351511001587,\n      \"estimated_total_gib\": 19.970701582291547,\n      \"headroom_gib\": 60.02929841770845,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r4\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 8192,\n      \"gpu_memory_utilization\": 0.85,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 1.0,\n      \"overhead_gib\": 1.7136335372924805,\n      \"estimated_total_gib\": 20.723287918988397,\n      \"headroom_gib\": 59.2767120810116,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r8\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 16384,\n      \"gpu_memory_utilization\": 0.9,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 2.0,\n      \"overhead_gib\": 1.993030309677124,\n      \"estimated_total_gib\": 20.993546115027534,\n      \"headroom_gib\": 59.006453884972466,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r7\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 16384,\n      \"gpu_memory_utilization\": 0.85,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 2.0,\n      \"overhead_gib\": 1.993030309677124,\n      \"estimated_total_gib\": 22.228460592382095,\n      \"headroom_gib\": 57.77153940761791,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    }\n  ],\n  \"failed\": [],\n  \"all\": [\n    {\n      \"id\": \"r1\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 4096,\n      \"gpu_memory_utilization\": 0.85,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 0.5,\n      \"overhead_gib\": 1.5739351511001587,\n      \"estimated_total_gib\": 19.970701582291547,\n      \"headroom_gib\": 60.02929841770845,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r2\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 4096,\n      \"gpu_memory_utilization\": 0.9,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 0.5,\n      \"overhead_gib\": 1.5739351511001587,\n      \"estimated_total_gib\": 18.861218161053127,\n      \"headroom_gib\": 61.13878183894687,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r3\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 4096,\n      \"gpu_memory_utilization\": 0.95,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 0.5,\n      \"overhead_gib\": 1.5739351511001587,\n      \"estimated_total_gib\": 17.868522468366123,\n      \"headroom_gib\": 62.13147753163388,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r4\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 8192,\n      \"gpu_memory_utilization\": 0.85,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 1.0,\n      \"overhead_gib\": 1.7136335372924805,\n      \"estimated_total_gib\": 20.723287918988397,\n      \"headroom_gib\": 59.2767120810116,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r5\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 8192,\n      \"gpu_memory_utilization\": 0.9,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 1.0,\n      \"overhead_gib\": 1.7136335372924805,\n      \"estimated_total_gib\": 19.571994145711262,\n      \"headroom_gib\": 60.42800585428874,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r6\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 8192,\n      \"gpu_memory_utilization\": 0.95,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 1.0,\n      \"overhead_gib\": 1.7136335372924805,\n      \"estimated_total_gib\": 18.541889190673828,\n      \"headroom_gib\": 61.45811080932617,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r7\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 16384,\n      \"gpu_memory_utilization\": 0.85,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 2.0,\n      \"overhead_gib\": 1.993030309677124,\n      \"estimated_total_gib\": 22.228460592382095,\n      \"headroom_gib\": 57.77153940761791,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r8\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 16384,\n      \"gpu_memory_utilization\": 0.9,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 2.0,\n      \"overhead_gib\": 1.993030309677124,\n      \"estimated_total_gib\": 20.993546115027534,\n      \"headroom_gib\": 59.006453884972466,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r9\",\n      \"quantization\": \"none\",\n      \"max_model_len\": 16384,\n      \"gpu_memory_utilization\": 0.95,\n      \"weight_gib\": 14.901161193847656,\n      \"kv_gib\": 2.0,\n      \"overhead_gib\": 1.993030309677124,\n      \"estimated_total_gib\": 19.888622635289245,\n      \"headroom_gib\": 60.111377364710755,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r10\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 4096,\n      \"gpu_memory_utilization\": 0.85,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 0.5,\n      \"overhead_gib\": 1.5739351511001587,\n      \"estimated_total_gib\": 11.205312644734102,\n      \"headroom_gib\": 68.79468735526589,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r11\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 4096,\n      \"gpu_memory_utilization\": 0.9,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 0.5,\n      \"overhead_gib\": 1.5739351511001587,\n      \"estimated_total_gib\": 10.582795275582207,\n      \"headroom_gib\": 69.41720472441779,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r12\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 4096,\n      \"gpu_memory_utilization\": 0.95,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 0.5,\n      \"overhead_gib\": 1.5739351511001587,\n      \"estimated_total_gib\": 10.025806050551566,\n      \"headroom_gib\": 69.97419394944843,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r13\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 8192,\n      \"gpu_memory_utilization\": 0.85,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 1.0,\n      \"overhead_gib\": 1.7136335372924805,\n      \"estimated_total_gib\": 11.95789898143095,\n      \"headroom_gib\": 68.04210101856904,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r14\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 8192,\n      \"gpu_memory_utilization\": 0.9,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 1.0,\n      \"overhead_gib\": 1.7136335372924805,\n      \"estimated_total_gib\": 11.293571260240343,\n      \"headroom_gib\": 68.70642873975966,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r15\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 8192,\n      \"gpu_memory_utilization\": 0.95,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 1.0,\n      \"overhead_gib\": 1.7136335372924805,\n      \"estimated_total_gib\": 10.699172772859272,\n      \"headroom_gib\": 69.30082722714073,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r16\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 16384,\n      \"gpu_memory_utilization\": 0.85,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 2.0,\n      \"overhead_gib\": 1.993030309677124,\n      \"estimated_total_gib\": 13.46307165482465,\n      \"headroom_gib\": 66.53692834517535,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r17\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 16384,\n      \"gpu_memory_utilization\": 0.9,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 2.0,\n      \"overhead_gib\": 1.993030309677124,\n      \"estimated_total_gib\": 12.715123229556614,\n      \"headroom_gib\": 67.28487677044339,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r18\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 16384,\n      \"gpu_memory_utilization\": 0.95,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 2.0,\n      \"overhead_gib\": 1.993030309677124,\n      \"estimated_total_gib\": 12.045906217474688,\n      \"headroom_gib\": 67.95409378252532,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    }\n  ]\n}\n",
+"stderr": ""
+},
+{
+"id": "cli-018",
+"program": "rank_recipes",
+"args": [
+"--parsed",
+"{INPUT}/parsed.json",
+"--budget",
+"80",
+"--auto"
+],
+"exit": 0,
+"stdout": "========================================================================\nvLLM Recipe Ranking \u2014 fixture-model\n========================================================================\nmodel_id     : fixture-model\nnum_params   : 8,000,000,000\nbudget (GiB) : 80.00   safety_margin: 0.90   hard-gate: 72.00 GiB\ntensor_parallel_size: 1\n------------------------------------------------------------------------\nid     quant               max_len   gmu     est_vram_gib   headroom_gib   verdict\n-----  ------------------  --------  ------  -------------  -------------  -------\nr12    fp8                 4096      0.95    10.03          69.97          PASS   \nr11    fp8                 4096      0.90    10.58          69.42          PASS   \nr15    fp8                 8192      0.95    10.70          69.30          PASS   \nr10    fp8                 4096      0.85    11.21          68.79          PASS   \nr14    fp8                 8192      0.90    11.29          68.71          PASS   \nr13    fp8                 8192      0.85    11.96          68.04          PASS   \nr18    fp8                 16384     0.95    12.05          67.95          PASS   \nr17    fp8                 16384     0.90    12.72          67.28          PASS   \nr16    fp8                 16384     0.85    13.46          66.54          PASS   \nr3     none                4096      0.95    17.87          62.13          PASS   \nr6     none                8192      0.95    18.54          61.46          PASS   \nr2     none                4096      0.90    18.86          61.14          PASS   \nr5     none                8192      0.90    19.57          60.43          PASS   \nr9     none                16384     0.95    19.89          60.11          PASS   \nr1     none                4096      0.85    19.97          60.03          PASS   \nr4     none                8192      0.85    20.72          59.28          PASS   \nr8     none                16384     0.90    20.99          59.01          PASS   \nr7     none                16384     0.85    22.23          57.77          PASS   \n------------------------------------------------------------------------\nPASS: 18 / 18 candidates\ntop recipe: r12 (quant=fp8, max_len=4096, gmu=0.95, headroom=69.97 GiB)\n========================================================================\n",
+"stderr": ""
+},
+{
+"id": "cli-019",
+"program": "rank_recipes",
+"args": [
+"--parsed",
+"{INPUT}/parsed.json",
+"--budget",
+"80",
+"--candidates",
+"{INPUT}/candidates.json",
+"--json"
+],
+"exit": 0,
+"stdout": "{\n  \"ranked\": [\n    {\n      \"id\": \"r1\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 4096,\n      \"gpu_memory_utilization\": 0.9,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 0.5,\n      \"overhead_gib\": 1.5739351511001587,\n      \"estimated_total_gib\": 10.582795275582207,\n      \"headroom_gib\": 69.41720472441779,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    }\n  ],\n  \"failed\": [\n    {\n      \"id\": \"r2\",\n      \"quantization\": \"unknown\",\n      \"max_model_len\": 8192,\n      \"gpu_memory_utilization\": 0.85,\n      \"weight_gib\": null,\n      \"kv_gib\": null,\n      \"overhead_gib\": null,\n      \"estimated_total_gib\": null,\n      \"headroom_gib\": null,\n      \"gate_pass\": false,\n      \"error\": \"unknown_quant_method\",\n      \"note\": \"quant \ud14c\uc774\ube14 \ubbf8\ub4f1\ub85d \u2260 vLLM \ubbf8\uc9c0\uc6d0 \u2014 vLLM \uc18c\uc2a4/HF \uce74\ub4dc\ub85c \uc678\ubd80 \ud655\uc778 \ud544\uc694(HITL surface)\"\n    }\n  ],\n  \"all\": [\n    {\n      \"id\": \"r1\",\n      \"quantization\": \"fp8\",\n      \"max_model_len\": 4096,\n      \"gpu_memory_utilization\": 0.9,\n      \"weight_gib\": 7.450580596923828,\n      \"kv_gib\": 0.5,\n      \"overhead_gib\": 1.5739351511001587,\n      \"estimated_total_gib\": 10.582795275582207,\n      \"headroom_gib\": 69.41720472441779,\n      \"gate_pass\": true,\n      \"kv_layers\": 32,\n      \"kv_layers_source\": \"num_hidden_layers\"\n    },\n    {\n      \"id\": \"r2\",\n      \"quantization\": \"unknown\",\n      \"max_model_len\": 8192,\n      \"gpu_memory_utilization\": 0.85,\n      \"weight_gib\": null,\n      \"kv_gib\": null,\n      \"overhead_gib\": null,\n      \"estimated_total_gib\": null,\n      \"headroom_gib\": null,\n      \"gate_pass\": false,\n      \"error\": \"unknown_quant_method\",\n      \"note\": \"quant \ud14c\uc774\ube14 \ubbf8\ub4f1\ub85d \u2260 vLLM \ubbf8\uc9c0\uc6d0 \u2014 vLLM \uc18c\uc2a4/HF \uce74\ub4dc\ub85c \uc678\ubd80 \ud655\uc778 \ud544\uc694(HITL surface)\"\n    }\n  ]\n}\n",
+"stderr": ""
+},
+{
+"id": "cli-020",
+"program": "rank_recipes",
+"args": [
+"--parsed",
+"{INPUT}/parsed.json",
+"--budget",
+"80",
+"--candidates",
+"{INPUT}/empty-candidates.json"
+],
+"exit": 0,
+"stdout": "========================================================================\nvLLM Recipe Ranking \u2014 fixture-model\n========================================================================\nmodel_id     : fixture-model\nnum_params   : 8,000,000,000\nbudget (GiB) : 80.00   safety_margin: 0.90   hard-gate: 72.00 GiB\ntensor_parallel_size: 1\n------------------------------------------------------------------------\nid     quant               max_len   gmu     est_vram_gib   headroom_gib   verdict\n-----  ------------------  --------  ------  -------------  -------------  -------\n------------------------------------------------------------------------\nPASS: 0 / 0 candidates\ntop recipe: (none passed the hard-gate \u2014 relax budget/margin or quantize)\n========================================================================\n",
+"stderr": ""
+},
+{
+"id": "cli-021",
+"program": "rank_recipes",
+"args": [
+"--parsed",
+"{INPUT}/parsed.json",
+"--budget",
+"80"
+],
+"exit": 2,
+"stdout": "",
+"stderr": "usage: rank_recipes.py [-h] --parsed PARSED (--candidates CANDIDATES | --auto)\n                       [--tp TP] --budget BUDGET [--margin MARGIN]\n                       [--kv-bytes KV_BYTES] [--json]\nrank_recipes.py: error: one of the arguments --candidates --auto is required\n"
+},
+{
+"id": "cli-022",
+"program": "rank_recipes",
+"args": [
+"--parsed",
+"{INPUT}/parsed.json",
+"--budget",
+"80",
+"--auto",
+"--candidates",
+"{INPUT}/candidates.json"
+],
+"exit": 2,
+"stdout": "",
+"stderr": "usage: rank_recipes.py [-h] --parsed PARSED (--candidates CANDIDATES | --auto)\n                       [--tp TP] --budget BUDGET [--margin MARGIN]\n                       [--kv-bytes KV_BYTES] [--json]\nrank_recipes.py: error: argument --candidates: not allowed with argument --auto\n"
+},
+{
+"id": "cli-023",
+"program": "rank_recipes",
+"args": [
+"--help"
+],
+"exit": 0,
+"stdout": "usage: rank_recipes.py [-h] --parsed PARSED (--candidates CANDIDATES | --auto)\n                       [--tp TP] --budget BUDGET [--margin MARGIN]\n                       [--kv-bytes KV_BYTES] [--json]\n\nRank vLLM serving recipes against a VRAM budget hard-gate.\n\noptions:\n  -h, --help            show this help message and exit\n  --parsed PARSED       parse_model_config.py \uc758 JSON \ucd9c\ub825 \ud30c\uc77c \uacbd\ub85c\n  --candidates CANDIDATES\n                        \ud6c4\ubcf4 \ub9ac\uc2a4\ud2b8 JSON \ud30c\uc77c (LLM \uc0dd\uc131 candidates.json)\n  --auto                \uacb0\uc815\ub860 \uae30\ubcf8 \uadf8\ub9ac\ub4dc(auto_candidates) \uc0ac\uc6a9\n  --tp TP               tensor_parallel_size\n  --budget BUDGET       VRAM \uc608\uc0b0 (GiB)\n  --margin MARGIN       \uc548\uc804\ub9c8\uc9c4 \ud558\ub4dc\uac8c\uc774\ud2b8 \uc784\uacc4 (\uae30\ubcf8 0.90)\n  --kv-bytes KV_BYTES   KV cache dtype \ubc14\uc774\ud2b8 (\uae30\ubcf8 2=fp16)\n  --json                \ub9ac\ud3ec\ud2b8 \ud45c \ub300\uc2e0 \ub7ad\ud0b9 \uacb0\uacfc JSON \ucd9c\ub825\n",
+"stderr": ""
+}
+]

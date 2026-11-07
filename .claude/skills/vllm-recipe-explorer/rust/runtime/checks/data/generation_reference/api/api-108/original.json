@@ -1,0 +1,19 @@
+{
+  "id": "api-108",
+  "kind": "exception",
+  "type": "PermissionError",
+  "message": "[Errno 13] Permission denied: '@CASE@/logs/nested/feedback.jsonl'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "timestamp": "fixed",
+      "selection_timestamp": "selected",
+      "model_id": "\ud55c\uae00/Model",
+      "actual_vram_gb": 3,
+      "extra": "kept"
+    },
+    "@CASE@/logs/nested/feedback.jsonl"
+  ],
+  "kwargs_after": {}
+}

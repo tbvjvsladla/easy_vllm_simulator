@@ -1,0 +1,17 @@
+usage: crosscheck_model_card.py [-h] [--hf-repo-id HF_REPO_ID]
+                                [--ephemeral-estimate] [--json]
+                                [path]
+
+HF 원본 모델카드(번들 README) 교차검증 — config 단독파싱 함정 차단(결정론).
+
+positional arguments:
+  path                  모델 디렉토리(호스트 경로 또는 /app/models/<Org>/<Name>) — managed
+                        모드.
+
+options:
+  -h, --help            show this help message and exit
+  --hf-repo-id HF_REPO_ID
+                        HF repo id(예 google/gemma-3-1b-it) — managed: 로컬 실측
+                        이중검증. --ephemeral-estimate 와 함께 쓰면 그게 곧 repo_id.
+  --ephemeral-estimate  로컬 디렉토리 없이(다운로드 전) --hf-repo-id 만으로 외부 파라미터 총계 사전추정.
+  --json                JSON 출력

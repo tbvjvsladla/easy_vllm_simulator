@@ -1,0 +1,12 @@
+[
+ {
+  "path": ".",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "directory",
+  "mode": 493,
+  "kind": "dir"
+ }
+]

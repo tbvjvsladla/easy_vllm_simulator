@@ -1,0 +1,12 @@
+{
+  "id": "zero-timeout",
+  "operation": "crosscheck_model_card.fetch_hf_safetensors_total",
+  "args": [
+    "ok",
+    0.0
+  ],
+  "kwargs": {},
+  "context": {
+    "hf_api_base": "@PLAIN@"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "id": "cli-001",
+  "kind": "CLI",
+  "exit_code": 2,
+  "stdout_bytes": 0,
+  "stderr_bytes": 511
+}

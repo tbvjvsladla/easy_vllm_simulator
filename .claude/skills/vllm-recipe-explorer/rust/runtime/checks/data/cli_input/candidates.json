@@ -1,0 +1,1 @@
+[{"id": "r1", "quantization": "fp8", "max_model_len": 4096, "gpu_memory_utilization": 0.9}, {"id": "r2", "quantization": "unknown", "max_model_len": 8192, "gpu_memory_utilization": 0.85}]

@@ -1,0 +1,26 @@
+{
+  "id": "api-093",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'NoneType' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "model_id": "Org/Model",
+      "model_path_container": "/app/models/Org/Model",
+      "num_hidden_layers": 4,
+      "hidden_size": 16,
+      "prequantized": false,
+      "serve_bpw": 2.0
+    },
+    null,
+    "generated",
+    "@CASE@/node",
+    8080,
+    "served"
+  ],
+  "kwargs_after": {
+    "image": "image:tag"
+  }
+}

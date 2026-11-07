@@ -1,0 +1,23 @@
+[
+ {
+  "path": ".",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/envs",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/envs/.env.generated",
+  "mode": 511,
+  "kind": "link",
+  "target": "../../env-target"
+ }
+]

@@ -179,6 +179,7 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/harness_permission_probe.py` | §2.5.2 | ✓ | 요청된 native 하네스 안에서 실행하는 업무 권한 관측; 자체 실행만으로 A2A 성공 선언 금지 |
 | `scripts/rust_bootstrap.sh` | §2.5.2 | ✓ | 노드 로컬 Rust 설치·status·C 컴파일/아카이브와 Rust 연결 offline build/run 검사·명시 실행; pin은 동봉된 `rust_toolchain.pin` |
 | `scripts/rust_toolchain.pin` | §2.5.2 | ✓ | Rust 버전·컴포넌트·지원 target 정본 |
+| `scripts/build_rust_packages.sh` | §2.5.2 | ✓ | 명시 install/check 후 배달된 공유 Q·recipe P·upstream U 소스의 locked release 빌드와 순수 정상 ELF 기동; 일반 평가에서 자동 실행하지 않는다 |
 | `scripts/selftest_rust_bootstrap.sh` | §2.5.2 | — | 네트워크 없는 설치/실패/재실행·환경 격리 계약 회귀 |
 | `scripts/selftest_bootstrap_permissions.py` | §2.5.2 | — | 카나리 증거·음성대조 회귀 |
 | `scripts/selftest_sub_hint_write_scopes.py` | §2.5.2 | — | 외부 hint 경로의 역할·대상·범위 검증 회귀 |

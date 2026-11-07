@@ -1,0 +1,122 @@
+{
+  "model": "mixed",
+  "model_dir": "@REFERENCE@/input/mixed",
+  "sources_read": {
+    "config.json": true,
+    "README.md": true,
+    "inference_requirements": true,
+    "safetensors_headers": true
+  },
+  "dtype_scan": {
+    "present": true,
+    "num_shards": 1,
+    "tensor_counts": {
+      "U8": 1,
+      "F8_E8M0": 1,
+      "BF16": 1
+    },
+    "byte_gib": {
+      "U8": 0.0,
+      "F8_E8M0": 0.0,
+      "BF16": 0.0
+    },
+    "total_gib": 0.0,
+    "expert_dtypes": {
+      "U8": 1
+    },
+    "nonexpert_dtypes": {
+      "F8_E8M0": 1,
+      "BF16": 1
+    },
+    "precision_classes": [
+      "4bit(MXFP4-pack: int8+microscale)",
+      "bf16/fp16"
+    ],
+    "is_mixed_precision": true,
+    "fourbit_experts": true
+  },
+  "checks": [
+    {
+      "name": "precision",
+      "config": "fp8",
+      "dtype_evidence": [
+        "4bit(MXFP4-pack: int8+microscale)",
+        "bf16/fp16"
+      ],
+      "card": "FP4 + FP8",
+      "verdict": "MISMATCH",
+      "note": "config quant='fp8'(coarse) 가 실제 혼합정밀도를 과소표기. 실측 dtype classes=['4bit(MXFP4-pack: int8+microscale)', 'bf16/fp16']; experts=4bit; 카드='FP4 + FP8'"
+    },
+    {
+      "name": "special_deps",
+      "verdict": "WARN",
+      "flagged": [
+        {
+          "pkg": "tilelang",
+          "spec": "TileLang>=0.1",
+          "src": "inference/requirements.txt",
+          "why": "타일 기반 커널 DSL(DeepSeek inference 커널)"
+        },
+        {
+          "pkg": "flash_attn",
+          "spec": "flash_attn[all]==2",
+          "src": "inference/requirements.txt",
+          "why": "FlashAttention 커널"
+        },
+        {
+          "pkg": "triton",
+          "spec": "triton~=3",
+          "src": "requirements.txt",
+          "why": "Triton JIT 커널"
+        },
+        {
+          "pkg": "sgl-kernel",
+          "spec": "sgl-kernel",
+          "src": "requirements.txt",
+          "why": "SGLang 커널"
+        },
+        {
+          "pkg": "deepgemm",
+          "spec": "(README 언급)",
+          "src": "README.md",
+          "why": "FP8 블록 GEMM / DeepSeek 희소어텐션(DSA) 커널 — 미설치 시 SparseAttnIndexer RuntimeError"
+        }
+      ]
+    },
+    {
+      "name": "context",
+      "config_max_position_embeddings": 4096,
+      "card": "1M",
+      "verdict": "info"
+    },
+    {
+      "name": "arch",
+      "config": [
+        "ExampleForCausalLM"
+      ],
+      "model_type": "dense",
+      "card_keywords": [
+        "MoE",
+        "Sparse Attention"
+      ],
+      "verdict": "info"
+    },
+    {
+      "name": "reasoning",
+      "verdict": "info",
+      "is_reasoning": true
+    },
+    {
+      "name": "external_vram",
+      "verdict": "info",
+      "reason": "hf_repo_id 미지정 — 외부 이중검증 스킵"
+    }
+  ],
+  "recommendations": [
+    "정밀도 = 실측 dtype·카드 기준으로 확정(config coarse 라벨 신뢰 금지). 메모리/적합성 재산정.",
+    "novel-arch special-dep 발견 → serving 전 **vLLM dry-init(모델 클래스 import) + 해당 op 가용성** 확인(예: DSA SparseAttnIndexer→DeepGEMM). 분류(3+1+1 따름정리): **native lib/커널 = 빌드-바깥** → upstream-version-watch `build_patches/`(patch.py ✗ — 몽키패치로 native 설치 불가) · **Python 코드불일치 = `<model>_patch.py`**. 빌드-바깥은 recipe-explorer 발견·핸드오프만.",
+    "reasoning 모델 — 스모크 max_tokens 충분히(finish_reason=stop) · reasoning-parser 검토."
+  ],
+  "verdict": "MISMATCH",
+  "n_mismatch": 1
+}

@@ -1,0 +1,21 @@
+{
+  "id": "review-N1",
+  "owner": "rope_scaling_translate",
+  "function": "translate",
+  "label": "NaN scalar in extendable tuple, no identity-dependent match",
+  "args": [
+    {
+      "max_position_embeddings": 8,
+      "rope_scaling": {
+        "rope_type": "default"
+      }
+    },
+    16
+  ],
+  "kwargs": {},
+  "context": {
+    "EXTENDABLE_ROPE_TYPES": [
+      NaN
+    ]
+  }
+}

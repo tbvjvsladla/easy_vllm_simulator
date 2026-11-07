@@ -1,0 +1,65 @@
+{
+  "id": "api-078",
+  "kind": "value",
+  "value": [
+    "@CASE@/node/configs/generated.yaml",
+    "@CASE@/node/configs/generated.sh",
+    "@CASE@/node/envs/.env.generated"
+  ],
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "model_id": "Org/Model",
+      "model_path_container": "/app/models/Org/Model",
+      "num_hidden_layers": 4,
+      "hidden_size": 16,
+      "prequantized": false,
+      "serve_bpw": 2.0
+    },
+    {
+      "id": "r1",
+      "quantization": "fp8",
+      "max_model_len": 4096,
+      "gpu_memory_utilization": 0.9,
+      "tensor_parallel_size": 2,
+      "batch": 4,
+      "kv_cache_memory_bytes": 1234,
+      "kv_cache_quant": " FP8 ",
+      "vram_breakdown": {
+        "weights_gib": 1.5,
+        "kv_gib": 0,
+        "total_gib": 2,
+        "budget_gib": 80
+      },
+      "batch_source": "declared",
+      "gmu_source": "target",
+      "target_gpu": {
+        "gpu_model": "fixture"
+      },
+      "distributed_executor_backend": " RAY ",
+      "moe_backend": "MARLIN",
+      "gdn_prefill_backend": "FLASHINFER",
+      "max_num_batched_tokens": 256,
+      "enforce_eager": true,
+      "language_model_only": true,
+      "attention_backend": "FLASH_ATTN",
+      "tool_call_parser": "hermes",
+      "reasoning_parser": "reasoner",
+      "serve_env": {
+        "Z": false,
+        "A": "one=two"
+      }
+    },
+    "generated",
+    "@CASE@/node",
+    8080,
+    "served"
+  ],
+  "kwargs_after": {
+    "image": "image:tag",
+    "topology": "multi",
+    "vllm_version": "0.1",
+    "build_dockerfile": "Dockerfile"
+  }
+}

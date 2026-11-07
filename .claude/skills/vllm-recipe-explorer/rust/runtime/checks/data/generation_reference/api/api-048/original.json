@@ -1,0 +1,13 @@
+{
+  "id": "api-048",
+  "kind": "exception",
+  "type": "AssertionError",
+  "message": "serve \ub178\ube0c \ud30c\ub9ac\ud2f0 \uc704\ubc18 \u2014 run_trial \uc774 \uc4f0\ub294\ub370 3\uc885 \uc138\ud2b8\uc5d0 \ub3c4\ub2ec\ud558\uc9c0 \uc54a\ub294 \ud544\ub4dc: unknown_field. \uac80\uc99d\ub41c \ub808\uc2dc\ud53c\uc640 \ubc30\ud3ec\ub41c \ub808\uc2dc\ud53c\uac00 \uac08\ub9b0\ub2e4. SERVE_KNOB_KEYS/_build_yaml \uc5d0 \ucd94\uac00\ud558\uac70\ub098 _PARITY_EXEMPT \uc5d0 \uadfc\uac70\uc640 \ud568\uaed8 \ub4f1\ub85d\ud558\ub77c.",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "candidate.get(\"unknown_field\")",
+    true
+  ],
+  "kwargs_after": {}
+}

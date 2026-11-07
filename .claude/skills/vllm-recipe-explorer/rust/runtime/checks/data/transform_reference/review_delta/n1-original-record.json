@@ -1,0 +1,73 @@
+{
+  "id": "review-N1",
+  "owner": "rope_scaling_translate",
+  "kind": "value",
+  "value": {
+    "target_len": 16,
+    "native_max_position_embeddings": 8,
+    "native_source": "max_position_embeddings",
+    "needed": true,
+    "hf_overrides": null,
+    "container_path": "rope_scaling",
+    "factor": null,
+    "unknowns": [],
+    "reasons": [
+      "\uc774\ubbf8 rope_type='default' \ub85c \uc120\uc5b8\ub3fc \uc788\ub2e4 \u2014 \uadf8 \uc704\uc5d0 YaRN \uc744 \uc5b9\uc73c\uba74 **\uc774\uc911 \uc801\uc6a9**\uc774\ub2e4. \ubaa8\ub378\uc774 \uc774\ubbf8 \ud655\uc7a5\ub41c \uac83\uc778\uc9c0 \uba3c\uc800 \ud655\uc778\ud558\ub77c."
+    ]
+  },
+  "trace": [],
+  "globals_before": {
+    "ROPE_CONTAINERS": [
+      [
+        "text_config",
+        "rope_parameters"
+      ],
+      [
+        "text_config",
+        "rope_scaling"
+      ],
+      [
+        "rope_parameters"
+      ],
+      [
+        "rope_scaling"
+      ]
+    ],
+    "EXTENDABLE_ROPE_TYPES": [
+      NaN
+    ]
+  },
+  "globals_after": {
+    "ROPE_CONTAINERS": [
+      [
+        "text_config",
+        "rope_parameters"
+      ],
+      [
+        "text_config",
+        "rope_scaling"
+      ],
+      [
+        "rope_parameters"
+      ],
+      [
+        "rope_scaling"
+      ]
+    ],
+    "EXTENDABLE_ROPE_TYPES": [
+      NaN
+    ]
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "max_position_embeddings": 8,
+      "rope_scaling": {
+        "rope_type": "default"
+      }
+    },
+    16
+  ],
+  "kwargs_after": {}
+}

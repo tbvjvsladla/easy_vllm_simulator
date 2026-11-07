@@ -1,0 +1,20 @@
+{
+  "id": "api-027",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'NoneType' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    null,
+    {
+      "id": "r1",
+      "quantization": "fp8",
+      "max_model_len": 4096,
+      "gpu_memory_utilization": 0.9,
+      "tensor_parallel_size": 1
+    },
+    "served"
+  ],
+  "kwargs_after": {}
+}

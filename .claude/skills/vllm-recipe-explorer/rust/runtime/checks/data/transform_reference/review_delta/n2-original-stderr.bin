@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "@CAPTURE_ROOT@/r29-review-boundaries/n2-original/node/.claude/skills/vllm-recipe-explorer/scripts/parse_vllm_log.py", line 213, in <module>
+    raise SystemExit(_main())
+                     ^^^^^^^
+  File "@CAPTURE_ROOT@/r29-review-boundaries/n2-original/node/.claude/skills/vllm-recipe-explorer/scripts/parse_vllm_log.py", line 205, in _main
+    text = sys.stdin.read()
+           ^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'read'

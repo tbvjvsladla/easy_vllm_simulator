@@ -1,0 +1,3131 @@
+[
+ {
+  "id": "api-000",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   null,
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-001",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   {},
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-002",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   false,
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-003",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   [],
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-004",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   0,
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-005",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   {
+    "x": null
+   },
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-006",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   {
+    "x": 3
+   },
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-007",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   {
+    "x": " 3.5 "
+   },
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-008",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   {
+    "x": true
+   },
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-009",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   {
+    "x": false
+   },
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-010",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   {
+    "x": "nan"
+   },
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-011",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   {
+    "x": Infinity
+   },
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-012",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   {
+    "x": "bad"
+   },
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-013",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   {
+    "x": []
+   },
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-014",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   1,
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-015",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   "profile",
+   "x"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-016",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   {
+    "x": 1
+   },
+   "missing"
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-017",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   {
+    "x": 1
+   },
+   null
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-018",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   {
+    "x": 1
+   },
+   3
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-019",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   null
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-020",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   false
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-021",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   0
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-022",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   ""
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-023",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   []
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-024",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-025",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   2048
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-026",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   8192
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-027",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   -3
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-028",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   true
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-029",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   "1024"
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-030",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   "bad"
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-031",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   0.5
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-032",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   NaN
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-033",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   Infinity
+  ],
+  "kwargs": {},
+  "label": "typical-input"
+ },
+ {
+  "id": "api-034",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": null
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "candidate-kv_cache_memory_bytes"
+ },
+ {
+  "id": "api-035",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 0
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "candidate-kv_cache_memory_bytes"
+ },
+ {
+  "id": "api-036",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": false
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "candidate-kv_cache_memory_bytes"
+ },
+ {
+  "id": "api-037",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": null,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "candidate-batch"
+ },
+ {
+  "id": "api-038",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 0,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "candidate-batch"
+ },
+ {
+  "id": "api-039",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": false,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "candidate-batch"
+ },
+ {
+  "id": "api-040",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "candidate-batch"
+ },
+ {
+  "id": "api-041",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 5,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "candidate-batch"
+ },
+ {
+  "id": "api-042",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": "bad",
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "candidate-batch"
+ },
+ {
+  "id": "api-043",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": NaN,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "candidate-batch"
+ },
+ {
+  "id": "api-044",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": null
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "cachetokens"
+ },
+ {
+  "id": "api-045",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 0
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "cachetokens"
+ },
+ {
+  "id": "api-046",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": false
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "cachetokens"
+ },
+ {
+  "id": "api-047",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": -1
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "cachetokens"
+ },
+ {
+  "id": "api-048",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 1
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "cachetokens"
+ },
+ {
+  "id": "api-049",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 1023
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "cachetokens"
+ },
+ {
+  "id": "api-050",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 1024
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "cachetokens"
+ },
+ {
+  "id": "api-051",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": "4096"
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "cachetokens"
+ },
+ {
+  "id": "api-052",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": "bad"
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "cachetokens"
+ },
+ {
+  "id": "api-053",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": NaN
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "cachetokens"
+ },
+ {
+  "id": "api-054",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 1606938044258990275541962092341162602522202993782792835301376
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {},
+  "label": "cachetokens"
+ },
+ {
+  "id": "api-055",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": null
+   },
+   0
+  ],
+  "kwargs": {},
+  "label": "out-construct-before-typical-guard"
+ },
+ {
+  "id": "api-056",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": false
+   },
+   0
+  ],
+  "kwargs": {},
+  "label": "out-construct-before-typical-guard"
+ },
+ {
+  "id": "api-057",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": []
+   },
+   0
+  ],
+  "kwargs": {},
+  "label": "out-construct-before-typical-guard"
+ },
+ {
+  "id": "api-058",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": 1
+   },
+   0
+  ],
+  "kwargs": {},
+  "label": "out-construct-before-typical-guard"
+ },
+ {
+  "id": "api-059",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": null,
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   0
+  ],
+  "kwargs": {},
+  "label": "out-construct-before-typical-guard"
+ },
+ {
+  "id": "api-060",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": false,
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   0
+  ],
+  "kwargs": {},
+  "label": "out-construct-before-typical-guard"
+ },
+ {
+  "id": "api-061",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": [],
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   0
+  ],
+  "kwargs": {},
+  "label": "out-construct-before-typical-guard"
+ },
+ {
+  "id": "api-062",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": 1,
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   0
+  ],
+  "kwargs": {},
+  "label": "out-construct-before-typical-guard"
+ },
+ {
+  "id": "api-063",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   null,
+   1024
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-064",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   [],
+   1024
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-065",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   1,
+   1024
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-066",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {},
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-067",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-068",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   1024
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-069",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "error_excerpt": "before\nCUDA out of memory\nafter",
+    "vllm_profile": {
+     "kv_cache_gib": "bad"
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "OOM-before-invalid-profile"
+ },
+ {
+  "id": "api-070",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "error_excerpt": "before\nNo available memory for the cache blocks\nafter",
+    "vllm_profile": {
+     "kv_cache_gib": "bad"
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "OOM-before-invalid-profile"
+ },
+ {
+  "id": "api-071",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "error_excerpt": "before\nValueError: To serve at least one request\nafter",
+    "vllm_profile": {
+     "kv_cache_gib": "bad"
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "OOM-before-invalid-profile"
+ },
+ {
+  "id": "api-072",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-073",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "Traceback (most recent call last)"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-074",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "ERROR SomeError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-075",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "xERROR SomeError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-076",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "ERROR\u0345 SomeError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-077",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "ERROR\u1c89 SomeError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-078",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "ERROR_ SomeError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-079",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "ERROR\nSomeError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-080",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "ERROR\rSomeError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-081",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "  CustomError: failed"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-082",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "\n  CustomException: failed"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-083",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "\n\t\u2003CustomError: failed"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-084",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "CompilationError"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-085",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "Engine core initialization failed"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-086",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "myerror: failed"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-087",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "something else"
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-088",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": true
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-089",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": [
+     "CUDA out of memory"
+    ]
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-090",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": {
+     "error": "x"
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "exception-vs-watchdog-regex"
+ },
+ {
+  "id": "api-091",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": null
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "wait-note-before-guard"
+ },
+ {
+  "id": "api-092",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": {}
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "wait-note-before-guard"
+ },
+ {
+  "id": "api-093",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": false
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "wait-note-before-guard"
+ },
+ {
+  "id": "api-094",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": []
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "wait-note-before-guard"
+ },
+ {
+  "id": "api-095",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": 1
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "wait-note-before-guard"
+ },
+ {
+  "id": "api-096",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": {
+     "outcome": "container_died",
+     "container_state": "exited",
+     "waited_s": 2.5
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "wait-note-before-guard"
+ },
+ {
+  "id": "api-097",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": {
+     "outcome": "container_died",
+     "container_state": null,
+     "waited_s": false
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "wait-note-before-guard"
+ },
+ {
+  "id": "api-098",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": {
+     "outcome": "timeout",
+     "waited_s": 3.5
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "wait-note-before-guard"
+ },
+ {
+  "id": "api-099",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": {
+     "outcome": "timeout",
+     "waited_s": "bad"
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "wait-note-before-guard"
+ },
+ {
+  "id": "api-100",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": "",
+    "health_wait": {
+     "outcome": "timeout",
+     "waited_s": NaN
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "wait-note-before-guard"
+ },
+ {
+  "id": "api-101",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   0,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "external-termination-safe-budget-branch"
+ },
+ {
+  "id": "api-102",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   80,
+   0,
+   null
+  ],
+  "kwargs": {},
+  "label": "external-termination-safe-budget-branch"
+ },
+ {
+  "id": "api-103",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   80,
+   null,
+   null
+  ],
+  "kwargs": {},
+  "label": "external-termination-safe-budget-branch"
+ },
+ {
+  "id": "api-104",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   80,
+   -1,
+   null
+  ],
+  "kwargs": {},
+  "label": "external-termination-safe-budget-branch"
+ },
+ {
+  "id": "api-105",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   -80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "external-termination-safe-budget-branch"
+ },
+ {
+  "id": "api-106",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   NaN,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "external-termination-safe-budget-branch"
+ },
+ {
+  "id": "api-107",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   80,
+   NaN,
+   null
+  ],
+  "kwargs": {},
+  "label": "external-termination-safe-budget-branch"
+ },
+ {
+  "id": "api-108",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   Infinity,
+   1,
+   null
+  ],
+  "kwargs": {},
+  "label": "external-termination-safe-budget-branch"
+ },
+ {
+  "id": "api-109",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   1e+308,
+   1e+308,
+   null
+  ],
+  "kwargs": {},
+  "label": "external-termination-safe-budget-branch"
+ },
+ {
+  "id": "api-110",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   "80",
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "external-termination-safe-budget-branch"
+ },
+ {
+  "id": "api-111",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   null,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "external-termination-safe-budget-branch"
+ },
+ {
+  "id": "api-112",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": false,
+    "vllm_profile": {
+     "kv_cache_gib": 20,
+     "weights_gib": 10
+    },
+    "error_excerpt": ""
+   },
+   80,
+   "bad",
+   null
+  ],
+  "kwargs": {},
+  "label": "external-termination-safe-budget-branch"
+ },
+ {
+  "id": "api-113",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": null,
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "strict-bool-and-soft-priority"
+ },
+ {
+  "id": "api-114",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {},
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "strict-bool-and-soft-priority"
+ },
+ {
+  "id": "api-115",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": false,
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "strict-bool-and-soft-priority"
+ },
+ {
+  "id": "api-116",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": [],
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "strict-bool-and-soft-priority"
+ },
+ {
+  "id": "api-117",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": 1,
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "strict-bool-and-soft-priority"
+ },
+ {
+  "id": "api-118",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "strict-bool-and-soft-priority"
+ },
+ {
+  "id": "api-119",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": false
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "strict-bool-and-soft-priority"
+ },
+ {
+  "id": "api-120",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": 0
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "strict-bool-and-soft-priority"
+ },
+ {
+  "id": "api-121",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": 1
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "strict-bool-and-soft-priority"
+ },
+ {
+  "id": "api-122",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": "true"
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "strict-bool-and-soft-priority"
+ },
+ {
+  "id": "api-123",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": false,
+     "completion_ok": false,
+     "tool_call_ok": false,
+     "reasoning_ok": false
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "strict-bool-and-soft-priority"
+ },
+ {
+  "id": "api-124",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": false,
+     "completion_ok": 0,
+     "tool_call_ok": false
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "strict-bool-and-soft-priority"
+ },
+ {
+  "id": "api-125",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": false,
+     "completion_ok": true,
+     "tool_call_ok": true,
+     "reasoning_ok": false
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "strict-bool-and-soft-priority"
+ },
+ {
+  "id": "api-126",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": null,
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "profile-order-and-ceiling"
+ },
+ {
+  "id": "api-127",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {},
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "profile-order-and-ceiling"
+ },
+ {
+  "id": "api-128",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": false,
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "profile-order-and-ceiling"
+ },
+ {
+  "id": "api-129",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": [],
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "profile-order-and-ceiling"
+ },
+ {
+  "id": "api-130",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": 1,
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "profile-order-and-ceiling"
+ },
+ {
+  "id": "api-131",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 100,
+     "non_kv_overhead_gib": 1
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "profile-order-and-ceiling"
+ },
+ {
+  "id": "api-132",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 72,
+     "non_kv_overhead_gib": 0
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "profile-order-and-ceiling"
+ },
+ {
+  "id": "api-133",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": "bad",
+     "non_kv_overhead_gib": null
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "profile-order-and-ceiling"
+ },
+ {
+  "id": "api-134",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": NaN,
+     "non_kv_overhead_gib": 10
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": "profile-order-and-ceiling"
+ },
+ {
+  "id": "api-135",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 5,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   1024
+  ],
+  "kwargs": {},
+  "label": "successful-classify-KV-refinement"
+ },
+ {
+  "id": "api-136",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   1024
+  ],
+  "kwargs": {},
+  "label": "successful-classify-KV-refinement"
+ },
+ {
+  "id": "api-137",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 0,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   1024
+  ],
+  "kwargs": {},
+  "label": "successful-classify-KV-refinement"
+ },
+ {
+  "id": "api-138",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   8192
+  ],
+  "kwargs": {},
+  "label": "successful-classify-KV-refinement"
+ },
+ {
+  "id": "api-139",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   "bad"
+  ],
+  "kwargs": {},
+  "label": "successful-classify-KV-refinement"
+ },
+ {
+  "id": "api-140",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   80,
+   0.9,
+   "0"
+  ],
+  "kwargs": {},
+  "label": "successful-classify-KV-refinement"
+ },
+ {
+  "id": "api-141",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   null,
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-142",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   [],
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-143",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [
+   1,
+   80,
+   0.9,
+   null
+  ],
+  "kwargs": {},
+  "label": ""
+ },
+ {
+  "id": "api-144",
+  "owner": "sim_classify",
+  "function": "classify",
+  "args": [],
+  "kwargs": {},
+  "label": "binding-missing"
+ },
+ {
+  "id": "api-145",
+  "owner": "sim_classify",
+  "function": "kv_fit_check",
+  "args": [
+   {
+    "load_ok": true,
+    "vllm_profile": {
+     "weights_gib": 10.0,
+     "non_kv_overhead_gib": 2.0,
+     "kv_cache_tokens": 4096
+    },
+    "functional": {
+     "passed": true
+    },
+    "candidate": {
+     "batch": 4,
+     "kv_cache_memory_bytes": 1024
+    }
+   },
+   1024
+  ],
+  "kwargs": {
+   "typical_request_tokens": 2048
+  },
+  "label": "binding-duplicate"
+ },
+ {
+  "id": "api-146",
+  "owner": "sim_classify",
+  "function": "_profile_gib",
+  "args": [
+   {}
+  ],
+  "kwargs": {
+   "unknown": 1
+  },
+  "label": "binding-unexpected-before-missing"
+ }
+]

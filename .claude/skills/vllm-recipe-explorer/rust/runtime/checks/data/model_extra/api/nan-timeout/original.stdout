@@ -1,0 +1,1 @@
+{"id": "nan-timeout", "kind": "value", "value": {"ok": false, "reason": "\uc751\ub2f5 \ud30c\uc2f1 \uc2e4\ud328: Invalid value NaN (not a number)"}, "stdout": "", "stderr": "", "args_after": ["ok", NaN], "kwargs_after": {}}

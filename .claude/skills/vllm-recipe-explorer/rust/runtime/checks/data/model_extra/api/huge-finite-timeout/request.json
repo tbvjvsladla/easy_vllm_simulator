@@ -1,0 +1,12 @@
+{
+  "id": "huge-finite-timeout",
+  "operation": "crosscheck_model_card.fetch_hf_safetensors_total",
+  "args": [
+    "ok",
+    1e+300
+  ],
+  "kwargs": {},
+  "context": {
+    "hf_api_base": "http://127.0.0.1:1"
+  }
+}

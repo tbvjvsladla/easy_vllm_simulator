@@ -1,0 +1,12 @@
+{
+  "id": "api-076",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "'int' object is not iterable",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    3
+  ],
+  "kwargs_after": {}
+}

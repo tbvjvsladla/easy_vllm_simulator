@@ -1,0 +1,10 @@
+{
+  "id": "api-124",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "serve_env_pairs() missing 1 required positional argument: 'value'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [],
+  "kwargs_after": {}
+}

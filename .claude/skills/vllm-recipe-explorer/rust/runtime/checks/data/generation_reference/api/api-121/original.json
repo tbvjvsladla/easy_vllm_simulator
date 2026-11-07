@@ -1,0 +1,16 @@
+{
+  "id": "api-121",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "_build_env() got an unexpected keyword argument 'unknown'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "n",
+    "s",
+    80
+  ],
+  "kwargs_after": {
+    "unknown": 1
+  }
+}

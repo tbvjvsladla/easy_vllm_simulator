@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py", line 566, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py", line 548, in main
+    parsed = _load_json(args.parsed)
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py", line 491, in _load_json
+    with open(path, "r", encoding="utf-8") as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: '@CASE@/parsed.json'

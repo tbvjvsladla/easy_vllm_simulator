@@ -1,0 +1,14 @@
+{
+  "id": "cli-020",
+  "kind": "CLI",
+  "exit_code": 0,
+  "stdout_bytes": 0,
+  "stderr_bytes": 127,
+  "dynamic_clock": {
+    "timestamp": "2026-11-06T07:33:51.086493",
+    "selection_timestamp": "2026-11-06T07:33:51.086493",
+    "began": "2026-11-06T07:33:51.073131",
+    "ended": "2026-11-06T07:33:51.089335",
+    "state": "VALID_REAL_CLOCK_WITHIN_INTERVAL"
+  }
+}

@@ -39,13 +39,19 @@ fmt와 Clippy도 실행하며, 자신의 임시 probe만 정리한다. 이 검�
 ```bash
 bash .claude/skills/adversarial-benchmark/scripts/build_rust.sh
 # build_rust.sh가 owner의 모든 native CLI 자체검사까지 수행한다.
+bash .claude/skills/terraforming_node/scripts/build_rust_packages.sh
+# 배달된 공유 Q library와 recipe P/upstream U 정상 release 실행파일을 빌드하고 순수 native CLI를 기동한다.
 ```
 
 owner의 build 진입점은 위 helper의 동일 관리 환경으로 `cargo build --release --locked`를 실행하고
 native 자체검사를 수행한다. Cargo.lock의 공개 의존성을 첫 빌드 때 내려받을 수 있어야 한다.
 캐시가 준비된 환경에서는 `build_rust.sh --offline`을 쓸 수 있으며, 캐시 결손은 실패로 반환한다.
 다른 관리 runtime 위치가 필요한 검증은 `--runtime-home DIR`로 명시한다.
-모든 생성물은 owner의 ignored `rust/target/`에 두고, 실행 런처는 컴파일 결과를 직접 기동한다.
+Q/P/U helper도 `--offline`·`--runtime-home DIR`을 받는다. 실제 manifest의 Cargo metadata에서
+required-features 없는 bin 목록을 파생하고 ELF·실행비트를 검사한다. 공유 Q는 P/U를 받는 평면에만
+소스로 동행하며 wiki-only ray-worker에는 배달되지 않는다. tool_plane에 있는 owner의 manifest나
+path dependency가 없으면 빌드·배달은 실패한다. B의 기존 helper/자체검사와 판정은 그대로다.
+모든 생성물은 각 package의 ignored `target/`에 두고, 실행 런처는 컴파일 결과를 직접 기동한다.
 일반 기동이 설치/다운로드/컴파일을 수행하거나 Python으로 대체하지 않는다.
 
 HTTP/TLS를 쓰는 Rust 업무 의존성도 같은 Cargo.lock과 노드별 관리 cache에 포함한다.
@@ -66,6 +72,12 @@ tool_plane이 런타임 스킬 0종인 ray-worker sub는 이 업무 패키지 �
 Rust/C probe 통과는 어플리케이션 이행 완료가 아니다.
 
 ## 서브와 다른 PC 배포
+
+새 PC는 해당 노드에서 명시 install → check → B build_rust.sh → Q/P/U build_rust_packages.sh
+순서로 준비한다. 등록 sub도 기존 공식 overlay/A2A 경로로 배달된 소스에 이 두 build를 직접 수행하고
+결과를 반환한다. 이미 검증된 byte동일 B 결과는 과업의 영향 판정에 따라 재사용한다. 각 helper의
+첫 공개 의존성 fetch는 별도 실제 실행으로 기록하고, 캐시 준비 뒤에는 `--offline`을 쓴다.
+컴파일 ELF·cache·toolchain·인증·사용자 shell 설정을 소스 배달에 복사하지 않는다.
 
 새 checkout에도 helper·pin·이 참조가 있어야 한다. `terraforming_node` 전체를 서브에 복제하지 않는다.
 기존 renderer의 support delivery가 helper·pin·이 참조와 generated CLAUDE 안내를 전달한다.

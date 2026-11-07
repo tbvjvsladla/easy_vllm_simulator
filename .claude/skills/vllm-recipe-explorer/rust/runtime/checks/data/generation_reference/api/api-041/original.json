@@ -1,0 +1,20 @@
+{
+  "id": "api-041",
+  "kind": "value",
+  "value": [
+    {
+      "__tuple__": [
+        "x\ny",
+        "escaped"
+      ]
+    }
+  ],
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    [
+      "x\ny=escaped"
+    ]
+  ],
+  "kwargs_after": {}
+}

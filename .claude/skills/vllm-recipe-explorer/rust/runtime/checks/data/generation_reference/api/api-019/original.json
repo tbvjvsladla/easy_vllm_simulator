@@ -1,0 +1,12 @@
+{
+  "id": "api-019",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'int' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    1
+  ],
+  "kwargs_after": {}
+}

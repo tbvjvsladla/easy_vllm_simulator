@@ -1,0 +1,2 @@
+# Raw saved fixtures include intentional CRLF/invalid JSON/UTF-8 bytes.
+/checks/data/** -text

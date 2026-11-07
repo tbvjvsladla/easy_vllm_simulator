@@ -1,0 +1,23 @@
+[
+ {
+  "path": ".",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/configs",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/envs",
+  "mode": 420,
+  "kind": "file",
+  "base64": "YmxvY2s="
+ }
+]

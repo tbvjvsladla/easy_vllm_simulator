@@ -1,0 +1,14 @@
+{
+  "id": "api-112",
+  "kind": "value",
+  "value": {
+    "a": 2,
+    "b": true
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "@CASE@/input.json"
+  ],
+  "kwargs_after": {}
+}

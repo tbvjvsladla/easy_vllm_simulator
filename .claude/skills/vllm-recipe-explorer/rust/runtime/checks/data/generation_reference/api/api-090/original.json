@@ -1,0 +1,32 @@
+{
+  "id": "api-090",
+  "kind": "exception",
+  "type": "UnicodeEncodeError",
+  "message": "'utf-8' codec can't encode character '\\udcff' in position 767: surrogates not allowed",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "model_id": "Org/Model",
+      "model_path_container": "/app/models/Org/Model",
+      "num_hidden_layers": 4,
+      "hidden_size": 16,
+      "prequantized": false,
+      "serve_bpw": 2.0
+    },
+    {
+      "id": "r1",
+      "quantization": "fp8",
+      "max_model_len": 4096,
+      "gpu_memory_utilization": 0.9,
+      "tensor_parallel_size": 1
+    },
+    "generated",
+    "@CASE@/node",
+    8080,
+    "served"
+  ],
+  "kwargs_after": {
+    "image": "bad\udcff"
+  }
+}

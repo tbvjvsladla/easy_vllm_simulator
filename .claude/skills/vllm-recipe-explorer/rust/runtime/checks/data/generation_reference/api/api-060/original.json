@@ -1,0 +1,14 @@
+{
+  "id": "api-060",
+  "kind": "exception",
+  "type": "AttributeError",
+  "message": "'bool' object has no attribute 'get'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "config",
+    "served",
+    false
+  ],
+  "kwargs_after": {}
+}

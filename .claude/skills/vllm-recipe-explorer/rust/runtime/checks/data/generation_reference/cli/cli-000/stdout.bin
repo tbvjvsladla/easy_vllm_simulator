@@ -1,0 +1,26 @@
+usage: gen_recipe_set.py [-h] --parsed PARSED --recipe RECIPE --name NAME
+                         --repo REPO --port PORT --served-model-name
+                         SERVED_MODEL_NAME [--image IMAGE]
+                         [--topology {single,multi}]
+                         [--vllm-version VLLM_VERSION]
+                         [--build-dockerfile BUILD_DOCKERFILE] [--force]
+
+DGX Spark 서빙용 3종 세트(.yaml+.sh+.env) 생성
+
+options:
+  -h, --help            show this help message and exit
+  --parsed PARSED       parse_model_config 결과 JSON 경로
+  --recipe RECIPE       선택된 레시피 후보 JSON 경로
+  --name NAME           3종 세트 base 이름
+  --repo REPO           레포 루트(configs/, envs/)
+  --port PORT           SERVING_PORT
+  --served-model-name SERVED_MODEL_NAME
+                        --served-model-name 값
+  --image IMAGE         컨테이너 이미지 태그 → env 의 IMAGE_TAG
+  --topology {single,multi}
+                        env 형태를 가른다. multi = master/slave 컨테이너 쌍 + 분산 키
+  --vllm-version VLLM_VERSION
+                        multi env 의 VLLM_VERSION(이미지 정체성)
+  --build-dockerfile BUILD_DOCKERFILE
+                        multi env 의 BUILD_DOCKERFILE
+  --force               기존 파일 덮어쓰기 허용

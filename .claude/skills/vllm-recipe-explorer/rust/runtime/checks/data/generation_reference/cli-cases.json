@@ -1,0 +1,569 @@
+[
+  {
+    "id": "cli-000",
+    "owner": "gen_recipe_set",
+    "label": "help",
+    "args": [
+      "--help"
+    ]
+  },
+  {
+    "id": "cli-001",
+    "owner": "gen_recipe_set",
+    "label": "missing-required",
+    "args": []
+  },
+  {
+    "id": "cli-002",
+    "owner": "gen_recipe_set",
+    "label": "invalid-port",
+    "args": [
+      "--parsed",
+      "@CASE@/parsed.json",
+      "--recipe",
+      "@CASE@/recipe.json",
+      "--name",
+      "generated",
+      "--repo",
+      "@CASE@/node",
+      "--port",
+      "bad",
+      "--served-model-name",
+      "served",
+      "--image",
+      "image:tag"
+    ]
+  },
+  {
+    "id": "cli-003",
+    "owner": "gen_recipe_set",
+    "label": "invalid-topology",
+    "args": [
+      "--parsed",
+      "@CASE@/parsed.json",
+      "--recipe",
+      "@CASE@/recipe.json",
+      "--name",
+      "generated",
+      "--repo",
+      "@CASE@/node",
+      "--port",
+      "8080",
+      "--served-model-name",
+      "served",
+      "--image",
+      "image:tag",
+      "--topology",
+      "other"
+    ]
+  },
+  {
+    "id": "cli-004",
+    "owner": "gen_recipe_set",
+    "label": "single",
+    "args": [
+      "--parsed",
+      "@CASE@/parsed.json",
+      "--recipe",
+      "@CASE@/recipe.json",
+      "--name",
+      "generated",
+      "--repo",
+      "@CASE@/node",
+      "--port",
+      "8080",
+      "--served-model-name",
+      "served",
+      "--image",
+      "image:tag"
+    ]
+  },
+  {
+    "id": "cli-005",
+    "owner": "gen_recipe_set",
+    "label": "multi-full",
+    "args": [
+      "--parsed",
+      "@CASE@/parsed.json",
+      "--recipe",
+      "@CASE@/recipe.json",
+      "--name",
+      "generated",
+      "--repo",
+      "@CASE@/node",
+      "--port",
+      "8080",
+      "--served-model-name",
+      "served",
+      "--image",
+      "image:tag",
+      "--topology",
+      "multi",
+      "--vllm-version",
+      "0.1",
+      "--build-dockerfile",
+      "Dockerfile"
+    ],
+    "recipe": {
+      "id": "r1",
+      "quantization": "fp8",
+      "max_model_len": 4096,
+      "gpu_memory_utilization": 0.9,
+      "tensor_parallel_size": 2,
+      "batch": 4,
+      "kv_cache_memory_bytes": 1234,
+      "kv_cache_quant": " FP8 ",
+      "vram_breakdown": {
+        "weights_gib": 1.5,
+        "kv_gib": 0,
+        "total_gib": 2,
+        "budget_gib": 80
+      },
+      "batch_source": "declared",
+      "gmu_source": "target",
+      "target_gpu": {
+        "gpu_model": "fixture"
+      },
+      "distributed_executor_backend": " RAY ",
+      "moe_backend": "MARLIN",
+      "gdn_prefill_backend": "FLASHINFER",
+      "max_num_batched_tokens": 256,
+      "enforce_eager": true,
+      "language_model_only": true,
+      "attention_backend": "FLASH_ATTN",
+      "tool_call_parser": "hermes",
+      "reasoning_parser": "reasoner",
+      "serve_env": {
+        "Z": false,
+        "A": "one=two"
+      }
+    }
+  },
+  {
+    "id": "cli-006",
+    "owner": "gen_recipe_set",
+    "label": "existing-guard",
+    "args": [
+      "--parsed",
+      "@CASE@/parsed.json",
+      "--recipe",
+      "@CASE@/recipe.json",
+      "--name",
+      "generated",
+      "--repo",
+      "@CASE@/node",
+      "--port",
+      "8080",
+      "--served-model-name",
+      "served",
+      "--image",
+      "image:tag"
+    ],
+    "setup": [
+      [
+        "file",
+        "node/configs/generated.yaml",
+        "old-generated.yaml",
+        416
+      ],
+      [
+        "file",
+        "node/configs/generated.sh",
+        "old-generated.sh",
+        416
+      ],
+      [
+        "file",
+        "node/envs/.env.generated",
+        "old-env",
+        384
+      ]
+    ]
+  },
+  {
+    "id": "cli-007",
+    "owner": "gen_recipe_set",
+    "label": "force-existing",
+    "args": [
+      "--parsed",
+      "@CASE@/parsed.json",
+      "--recipe",
+      "@CASE@/recipe.json",
+      "--name",
+      "generated",
+      "--repo",
+      "@CASE@/node",
+      "--port",
+      "8080",
+      "--served-model-name",
+      "served",
+      "--image",
+      "image:tag",
+      "--force"
+    ],
+    "setup": [
+      [
+        "file",
+        "node/configs/generated.yaml",
+        "old-generated.yaml",
+        416
+      ],
+      [
+        "file",
+        "node/configs/generated.sh",
+        "old-generated.sh",
+        416
+      ],
+      [
+        "file",
+        "node/envs/.env.generated",
+        "old-env",
+        384
+      ]
+    ]
+  },
+  {
+    "id": "cli-008",
+    "owner": "gen_recipe_set",
+    "label": "invalid-parsed-JSON",
+    "args": [
+      "--parsed",
+      "@CASE@/parsed.json",
+      "--recipe",
+      "@CASE@/recipe.json",
+      "--name",
+      "generated",
+      "--repo",
+      "@CASE@/node",
+      "--port",
+      "8080",
+      "--served-model-name",
+      "served",
+      "--image",
+      "image:tag"
+    ],
+    "parsed_bytes": "7b0d0a"
+  },
+  {
+    "id": "cli-009",
+    "owner": "gen_recipe_set",
+    "label": "parsed-None",
+    "args": [
+      "--parsed",
+      "@CASE@/parsed.json",
+      "--recipe",
+      "@CASE@/recipe.json",
+      "--name",
+      "generated",
+      "--repo",
+      "@CASE@/node",
+      "--port",
+      "8080",
+      "--served-model-name",
+      "served",
+      "--image",
+      "image:tag"
+    ],
+    "parsed": null
+  },
+  {
+    "id": "cli-010",
+    "owner": "gen_recipe_set",
+    "label": "missing-parsed",
+    "args": [
+      "--parsed",
+      "@CASE@/parsed.json",
+      "--recipe",
+      "@CASE@/recipe.json",
+      "--name",
+      "generated",
+      "--repo",
+      "@CASE@/node",
+      "--port",
+      "8080",
+      "--served-model-name",
+      "served",
+      "--image",
+      "image:tag"
+    ],
+    "missing_parsed": true
+  },
+  {
+    "id": "cli-011",
+    "owner": "gen_recipe_set",
+    "label": "partial-third-write",
+    "args": [
+      "--parsed",
+      "@CASE@/parsed.json",
+      "--recipe",
+      "@CASE@/recipe.json",
+      "--name",
+      "generated",
+      "--repo",
+      "@CASE@/node",
+      "--port",
+      "8080",
+      "--served-model-name",
+      "served",
+      "--image",
+      "bad\udcff"
+    ]
+  },
+  {
+    "id": "cli-012",
+    "owner": "gen_recipe_set",
+    "label": "check-parity-real",
+    "args": [
+      "--check-parity"
+    ],
+    "companion": "actual"
+  },
+  {
+    "id": "cli-013",
+    "owner": "gen_recipe_set",
+    "label": "check-parity-missing",
+    "args": [
+      "--check-parity"
+    ],
+    "companion": "missing"
+  },
+  {
+    "id": "cli-014",
+    "owner": "gen_recipe_set",
+    "label": "check-parity-gap",
+    "args": [
+      "--check-parity"
+    ],
+    "companion": "candidate.get(\"unknown_field\")"
+  },
+  {
+    "id": "cli-015",
+    "owner": "gen_recipe_set",
+    "label": "check-parity-takes-priority",
+    "args": [
+      "--nonsense",
+      "--check-parity",
+      "--port",
+      "bad"
+    ],
+    "companion": ""
+  },
+  {
+    "id": "cli-016",
+    "owner": "feedback_log",
+    "label": "help",
+    "args": [
+      "--help"
+    ]
+  },
+  {
+    "id": "cli-017",
+    "owner": "feedback_log",
+    "label": "missing-required",
+    "args": []
+  },
+  {
+    "id": "cli-018",
+    "owner": "feedback_log",
+    "label": "record-still-requires-estimates",
+    "args": [
+      "--record",
+      "{\"timestamp\": \"fixed\", \"selection_timestamp\": \"selected\", \"model_id\": \"\\ud55c\\uae00/Model\", \"actual_vram_gb\": 3, \"extra\": \"kept\"}"
+    ]
+  },
+  {
+    "id": "cli-019",
+    "owner": "feedback_log",
+    "label": "complete-record",
+    "args": [
+      "--model-id",
+      "Org/Model",
+      "--quantization",
+      "fp8",
+      "--max-model-len",
+      "4096",
+      "--gpu-memory-utilization",
+      "0.9",
+      "--vram-budget-gb",
+      "80",
+      "--estimated-vram-gb",
+      "22",
+      "--tensor-parallel-size",
+      "1",
+      "--safety-margin-threshold",
+      "0.9",
+      "--record",
+      "{\"timestamp\": \"fixed\", \"selection_timestamp\": \"selected\", \"model_id\": \"\\ud55c\\uae00/Model\", \"actual_vram_gb\": 3, \"extra\": \"kept\"}",
+      "--path",
+      "@CASE@/logs/feedback.jsonl"
+    ]
+  },
+  {
+    "id": "cli-020",
+    "owner": "feedback_log",
+    "label": "production-clock",
+    "args": [
+      "--model-id",
+      "Org/Model",
+      "--quantization",
+      "fp8",
+      "--max-model-len",
+      "4096",
+      "--gpu-memory-utilization",
+      "0.9",
+      "--vram-budget-gb",
+      "80",
+      "--estimated-vram-gb",
+      "22",
+      "--tensor-parallel-size",
+      "1",
+      "--safety-margin-threshold",
+      "0.9",
+      "--path",
+      "@CASE@/logs/feedback.jsonl"
+    ],
+    "clock_dynamic": true
+  },
+  {
+    "id": "cli-021",
+    "owner": "feedback_log",
+    "label": "invalid-record-JSON",
+    "args": [
+      "--model-id",
+      "Org/Model",
+      "--quantization",
+      "fp8",
+      "--max-model-len",
+      "4096",
+      "--gpu-memory-utilization",
+      "0.9",
+      "--vram-budget-gb",
+      "80",
+      "--estimated-vram-gb",
+      "22",
+      "--tensor-parallel-size",
+      "1",
+      "--safety-margin-threshold",
+      "0.9",
+      "--record",
+      "{",
+      "--path",
+      "@CASE@/logs/feedback.jsonl"
+    ]
+  },
+  {
+    "id": "cli-022",
+    "owner": "feedback_log",
+    "label": "record-pairs",
+    "args": [
+      "--model-id",
+      "Org/Model",
+      "--quantization",
+      "fp8",
+      "--max-model-len",
+      "4096",
+      "--gpu-memory-utilization",
+      "0.9",
+      "--vram-budget-gb",
+      "80",
+      "--estimated-vram-gb",
+      "22",
+      "--tensor-parallel-size",
+      "1",
+      "--safety-margin-threshold",
+      "0.9",
+      "--record",
+      "[[\"timestamp\",\"fixed\"],[\"selection_timestamp\",\"selected\"]]",
+      "--path",
+      "@CASE@/logs/feedback.jsonl"
+    ]
+  },
+  {
+    "id": "cli-023",
+    "owner": "feedback_log",
+    "label": "path-directory",
+    "args": [
+      "--model-id",
+      "Org/Model",
+      "--quantization",
+      "fp8",
+      "--max-model-len",
+      "4096",
+      "--gpu-memory-utilization",
+      "0.9",
+      "--vram-budget-gb",
+      "80",
+      "--estimated-vram-gb",
+      "22",
+      "--tensor-parallel-size",
+      "1",
+      "--safety-margin-threshold",
+      "0.9",
+      "--record",
+      "{\"timestamp\": \"fixed\", \"selection_timestamp\": \"selected\", \"model_id\": \"\\ud55c\\uae00/Model\", \"actual_vram_gb\": 3, \"extra\": \"kept\"}",
+      "--path",
+      "@CASE@/logs"
+    ],
+    "setup": [
+      [
+        "dir",
+        "logs",
+        493
+      ]
+    ]
+  },
+  {
+    "id": "cli-024",
+    "owner": "feedback_log",
+    "label": "invalid-record-scalar",
+    "args": [
+      "--model-id",
+      "Org/Model",
+      "--quantization",
+      "fp8",
+      "--max-model-len",
+      "4096",
+      "--gpu-memory-utilization",
+      "0.9",
+      "--vram-budget-gb",
+      "80",
+      "--estimated-vram-gb",
+      "22",
+      "--tensor-parallel-size",
+      "1",
+      "--safety-margin-threshold",
+      "0.9",
+      "--record",
+      "3",
+      "--path",
+      "@CASE@/logs/feedback.jsonl"
+    ]
+  },
+  {
+    "id": "cli-025",
+    "owner": "feedback_log",
+    "label": "invalid-integer",
+    "args": [
+      "--model-id",
+      "Org/Model",
+      "--quantization",
+      "fp8",
+      "--max-model-len",
+      "4096",
+      "--gpu-memory-utilization",
+      "0.9",
+      "--vram-budget-gb",
+      "80",
+      "--estimated-vram-gb",
+      "22",
+      "--tensor-parallel-size",
+      "1",
+      "--safety-margin-threshold",
+      "0.9",
+      "--max-model-len",
+      "x",
+      "--path",
+      "@CASE@/logs/feedback.jsonl"
+    ]
+  }
+]

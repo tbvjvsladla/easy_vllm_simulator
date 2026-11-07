@@ -1,0 +1,13 @@
+{
+  "id": "api-053",
+  "kind": "value",
+  "value": "#!/bin/bash\n# config \uc11c\ube59 \uc2a4\ud06c\ub9bd\ud2b8 (vllm-recipe-explorer \uc0dd\uc131, gpt-oss-20b-normal.sh \uad6c\uc870 \ub3d9\uc77c)\n# env \ud30c\uc77c\uc5d0\uc11c \uc8fc\uc785\ub41c \ubcc0\uc218: CONFIG_FILE, SERVING_MODEL_NAME, TIKTOKEN_ENABLED\n\n# TIKTOKEN \ud658\uacbd\ubcc0\uc218 \uc124\uc815\nif [ \"$TIKTOKEN_ENABLED\" = \"true\" ]; then\n    export TIKTOKEN_ENCODINGS_BASE=/encodings\n    export TIKTOKEN_RS_CACHE_DIR=/encodings\nfi\n\n# \ubaa8\ub378\uad6c\ub3d9 \ub7f0\ud0c0\uc784 \ud328\uce58 arming (configs/${CONFIG_FILE}_patch.py \uc874\uc7ac \uc2dc; \uba54\uc778 \uc800\uc791 arm_patch.sh)\nif [ -f /app/configs/arm_patch.sh ]; then source /app/configs/arm_patch.sh; fi\n\n# vllm serve \uc2e4\ud589\nvllm serve --config \"/app/configs/${CONFIG_FILE}.yaml\" \\\n    --served-model-name \"$SERVING_MODEL_NAME\"\n",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "config",
+    "served",
+    null
+  ],
+  "kwargs_after": {}
+}
