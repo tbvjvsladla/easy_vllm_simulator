@@ -145,6 +145,7 @@ CAMPAIGN_TOOLS = (
 # 하나 더 만드는 대신 정본 리더를 보낸다.
 SUB_CONTRACT_READERS = (
     "manifest_contract.py",            # Flag·topology 준비성 판정(lite_bench·run_bench 가 부른다)
+    "node_role_contract.py",           # 토폴로지 축(sub_mode·tool_plane·delivery_plane) 판정 — 서브가 자기 역할 계약을 로컬에서 검증한다(stdlib+yaml 만 import · 별도 의존 배달 불요)
 )
 # Both roles run this explicit local permission canary; its self-tests remain main-only.
 SUB_PERMISSION_PROBES = ("harness_permission_probe.py",)
@@ -1305,6 +1306,11 @@ def _self_test() -> int:
                     and _rust_help.returncode == 0
                     and os.path.isfile(os.path.join(_out, RUST_RUNTIME_REFERENCE))
                     and not os.path.exists(os.path.join(_out, ".claude/runtime/rust")))
+        # 배달된 역할 계약 리더가 **서브 렌더 트리 안에서 스스로 돈다**(stdlib+yaml 만 import — 별도 의존 배달 불요).
+        _nrc = os.path.join(_tn, "node_role_contract.py")
+        _nrc_run = subprocess.run([sys.executable, _nrc, "--self-test"],
+                                  capture_output=True, text=True, timeout=60)
+        _nrc_ok = os.path.isfile(_nrc) and _nrc_run.returncode == 0
         # 해소 자산은 싱글 서브에 가지 않는다 — 가면 서브가 스스로 해소할 이유가 없어진다(F4).
         _res = os.path.exists(os.path.join(
             _out, ".claude/skills/upstream-version-watch/assets/current-production-resolution.json"))
@@ -1318,11 +1324,11 @@ def _self_test() -> int:
         _sup_ok = _sup == _real
         # 색인·카탈로그·역할 마커는 어느 토폴로지에도 가지 않는다(엔진이 가는 single 에서도).
         _never = [r for r in HINT_NEVER_DELIVER if os.path.exists(os.path.join(_out, r))]
-        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok and _wrapper_ok and _rust_ok
+        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok and _wrapper_ok and _rust_ok and _nrc_ok
               and not _res and _sup_ok and not _never)
         print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} "
               f"refs={_ref} 캠페인도구={_tn_files} 해소자산누수={_res} 지원배달목록일치={_sup_ok} "
-              f"금지경로누수={_never or '없음'} Codex발견폐포={_wrapper_ok}")
+              f"금지경로누수={_never or '없음'} Codex발견폐포={_wrapper_ok} 역할계약리더자체검사={_nrc_ok}")
         ok &= _c
 
     # (4d) hint 엔진 의존 폐포 tripwire (2026-10-11 · plan_26101104 Step 3).

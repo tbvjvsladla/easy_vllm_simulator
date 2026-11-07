@@ -170,7 +170,7 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/selftest_campaign_lifecycle.py` | 캠페인 체인 | — | 수명 상태(보류·재개·포기·선점 · 서브 종결 전파 · 재배정) 자체검사 · 회귀 실행자 `verify_distribution.py` |
 | `scripts/campaign_template_validator.py` | 캠페인 체인 | ✓ | 선언·인스턴스 술어(P1~P3) |
 | `scripts/manifest_contract.py` | §0.5 · §1S · §2.7.10 | ✓ | Flag·`issued_by: main` readiness 리더 |
-| `scripts/node_role_contract.py` | §2.7.0 · §2.7.6 | — | 토폴로지 축 계약(sub_mode·rank·배달 평면·tool_plane·서브 자체 발행)의 단일 소유자 |
+| `scripts/node_role_contract.py` | §2.7.0 · §2.7.6 | ✓ | 토폴로지 축 계약(sub_mode·rank·배달 평면·tool_plane·서브 자체 발행)의 단일 소유자 |
 | `scripts/check_sub_hint_equip.py` | §2.5.1 | ✓(single) | single 서브 hint 발행 장착 판정·장착(`--clone`·`--write-push-authority`) · JSON 보고 · 비밀 미출력 · 사람 요청 템플릿 `templates/requests/sub_hint_push_equip.md` |
 | `scripts/scan_node.py` | §1.3–§1.5 · §2.7.10 | — | 스캔·게이트·3자일치·emit(서브 manifest 포함) |
 | `scripts/render_sub_env.py` | §2.3 | — | 서브 환경·Card·서브 manifest 렌더 |
