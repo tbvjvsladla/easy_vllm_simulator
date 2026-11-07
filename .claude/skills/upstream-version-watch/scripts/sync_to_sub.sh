@@ -2066,7 +2066,7 @@ verify_destination_retirement_consumers() {  # $1=topology — 활성 표면의 
     nsurf="$(printf '%s\n' "$canon" | grep -c . || true)"
     # 목록이 비면 "소비자 0" 이 아니라 **도출 실패**다 — 둘을 뭉개면 게이트가 조용히 통과한다.
     [ "${nsurf:-0}" -gt 0 ] || { echo "[sync] FAIL(retirement consumer): 정본 파일 0건($st) — 활성 표면 도출 실패" >&2; return 98; }
-    scan_py=$'# retirement_consumer_scan\nimport os,re,sys\nstale=sys.argv[1]\nowner=".claude/skills/upstream-version-watch/"+stale\nchars=set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./-")\nneedle=re.compile(r"(?<![A-Za-z0-9_.-])"+re.escape(stale)+r"(?![A-Za-z0-9_./-])")\nhits=[]\ndef scan(path):\n if os.path.islink(path): raise RuntimeError("active scanner refuses symlink: "+path)\n data=open(path,"rb").read().decode("utf-8","replace")\n for lineno,line in enumerate(data.splitlines(),1):\n  for match in needle.finditer(line):\n   lo,hi=match.start(),match.end()\n   while lo and line[lo-1] in chars: lo-=1\n   while hi<len(line) and line[hi] in chars: hi+=1\n   token=line[lo:hi]\n   while token.startswith("./"): token=token[2:]\n   if token!=owner: hits.append(f"{path}:{lineno}:{line}")\nsurfaces=[x for x in sys.stdin.read().splitlines() if x.strip()]\nif not surfaces: raise SystemExit("active surface list empty")\nn=0\nfor rel in surfaces:\n if os.path.isfile(rel):\n  n+=1\n  scan(rel)\nprint(n)\nprint("\\n".join(hits),end="")'
+    scan_py=$'# retirement_consumer_scan\nimport os,re,sys\nstale=sys.argv[1]\nowner=".claude/skills/upstream-version-watch/"+stale\nchars=set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./-")\nneedle=re.compile(r"(?<![A-Za-z0-9_.-])"+re.escape(stale)+r"(?![A-Za-z0-9_./-])")\nhits=[]\ndef scan(path):\n if os.path.islink(path): raise RuntimeError("active scanner refuses symlink: "+path)\n # Rust regression sources/data are observations, not active runtime consumers.\n if re.match(r"\\.claude/(skills/[^/]+/)?rust/[^/]+/checks/", path): return\n data=open(path,"rb").read().decode("utf-8","replace")\n for lineno,line in enumerate(data.splitlines(),1):\n  for match in needle.finditer(line):\n   lo,hi=match.start(),match.end()\n   while lo and line[lo-1] in chars: lo-=1\n   while hi<len(line) and line[hi] in chars: hi+=1\n   token=line[lo:hi]\n   while token.startswith("./"): token=token[2:]\n   if token!=owner: hits.append(f"{path}:{lineno}:{line}")\nsurfaces=[x for x in sys.stdin.read().splitlines() if x.strip()]\nif not surfaces: raise SystemExit("active surface list empty")\nn=0\nfor rel in surfaces:\n if os.path.isfile(rel):\n  n+=1\n  scan(rel)\nprint(n)\nprint("\\n".join(hits),end="")'
     printf -v scan_q '%q' "$scan_py"
     for stale in "${OVERLAY_RETIREMENT_STALE_PATHS[@]}"; do
         printf -v stale_q '%q' "$stale"
@@ -2083,7 +2083,7 @@ verify_destination_retirement_consumers() {  # $1=topology — 활성 표면의 
             printf '%s\n' "$hits" | sed 's/^/    /' >&2
             fail=1
         else
-            echo "  ✅ retirement consumer audit: $stale has no active sub consumer (활성 표면 ${scanned}/${nsurf} 파일 검사)"
+            echo "  ✅ retirement consumer audit: $stale has no active sub consumer (활성 표면 ${scanned}/${nsurf} 파일 분류; Rust checks 제외)"
         fi
     done
     return $fail
