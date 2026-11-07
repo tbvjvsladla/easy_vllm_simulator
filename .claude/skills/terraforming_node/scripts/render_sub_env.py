@@ -91,6 +91,20 @@ HINT_ENGINE_DEPENDENCIES = (
     ".claude/schemas/side-effect-authorization.schema.json",  # 동상
     ".claude/policies/runtime/doc_naming.py",   # REL_DOC_NAMING_WIKI(명명 SSOT · evidence_publisher 도 적재)
 )
+# adversarial-benchmark 가 가는 서브에 필요한 owner 자체검사 의존(닫힌 목록 · 2026-11-07 서브 실측 + 소스 대조).
+#   owner Rust 패키지의 native 자체검사는 **원래 정본 경로**의 두 읽기 전용 파일을 요구한다. 서브에 없으면
+#   build_rust.sh 가 그 지점에서 중단되고 뒤따르는 자체검사는 미실행으로 남는다(스킬을 주고 그 스킬의 의존을 안 주면
+#   그 스킬은 없는 것이다). tool_plane 에 adversarial-benchmark 가 있을 때만 간다 — 멀티 ray-worker 에는 가지 않는다.
+#   · topology_parity.py — resolve_topology.rs `PARITY_REL` 이 별도 프로세스로 부르는 4자일치 판정자. 닫힘: 표준 라이브러리 +
+#     PyYAML(manifest 다리에서만 지연 import)이며 `campaign_init.py` 를 파일 경로로 적재한다(이미 모든 서브에 배달되는 단일
+#     writer — 새 모듈 의존 없음).
+#   · node_blackbox/node_identity.sh — sweep_repeats_fixture.rs `COPIES` 가 샌드박스로 무조건 복사하는 읽기 전용 bash
+#     해소기. 오케스트레이터가 아니며 정체성을 재정의하지 않는다. 설치용 사본(`.claude/runtime/node_blackbox/node_identity.sh`)
+#     은 별개로 그대로 남는다(같은 바이트 · 다른 자리 — 이 정본 경로는 fixture 가 기대하는 자리다).
+SUB_BENCH_FOUNDATION_RUNTIME = (
+    ".claude/policies/runtime/topology_parity.py",
+    ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
+)
 # 서브로 **절대** 가지 않는 hint 평면 경로(닫힌 목록). 색인·카탈로그는 메인 단독 파생물이고(정책 C4 의 남은 몫),
 #   역할 마커는 각 체크아웃이 스스로 하는 선언이라 배달되면 선언이 아니라 복사가 된다(`.gitignore` 와 같은 근거).
 HINT_NEVER_DELIVER = (
@@ -413,6 +427,8 @@ def support_delivery(tool_plane) -> list:
             pathlib.Path(TOPOLOGY_RULES).read_text(encoding="utf-8")):
         out.append(".claude/policies/handoff_exception.topology.md")
     # 사서 참조 발췌(references.md)는 2026-10-19 부터 wiki-desk 런타임블럭이 통째로 싣는다 — 지원 배달분이 아니다.
+    if "adversarial-benchmark" in tool_plane:
+        out.extend(SUB_BENCH_FOUNDATION_RUNTIME)
     if "hint-publisher" in tool_plane:
         # 엔진 의존 + 장착 판정 도구(2026-10-11 · plan_26101104 Step 3). render_tree 의 (3.5) 와 같은 규칙.
         out.extend(f".claude/skills/terraforming_node/scripts/{t}" for t in SUB_HINT_EQUIP_TOOLS)
@@ -766,6 +782,17 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 with open(feedback_marker, "w", encoding="utf-8") as f:
                     f.write("Node-local generated recipe feedback; ignored by git.\n")
                 produced.append(feedback_rel)
+        # 3.4) adversarial-benchmark 가 부르는 owner 자체검사 의존(SUB_BENCH_FOUNDATION_RUNTIME) — 그 스킬이 가는 서브에만.
+        if "adversarial-benchmark" in names:
+            for rel in SUB_BENCH_FOUNDATION_RUNTIME:
+                src = os.path.join(REPO, rel)
+                if not os.path.isfile(src):
+                    raise SystemExit(f"[render] FAIL: 벤치 owner 자체검사 의존이 없다 — {rel}")
+                _tracked_or_die(rel, tracked_list)
+                dst = os.path.join(out_dir, rel)
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                shutil.copy2(src, dst)
+                produced.append(rel)
         # 3.5) hint 엔진 의존 + 장착 판정 도구 — 엔진이 가는 서브에만(2026-10-11 · plan_26101104 Step 3).
         #   색인·카탈로그·역할 마커(HINT_NEVER_DELIVER)는 여기서 만들지 않는다 — 아래 단언이 그것을 확인한다.
         if "hint-publisher" in names:
@@ -1295,7 +1322,7 @@ def _self_test() -> int:
         #   메인 전용 오케스트레이션(relay·sync·fetch·scan)은 여기 오지 않는다. 아래는 **양방향**:
         #   ① 있어야 할 2개가 있다 ② 그 밖의 terraforming 스크립트가 새지 않았다.
         _tn = os.path.join(_out, ".claude", "skills", "terraforming_node", "scripts")
-        _tn_files = sorted(os.listdir(_tn)) if os.path.isdir(_tn) else []
+        _tn_files = sorted(f for f in os.listdir(_tn) if os.path.isfile(os.path.join(_tn, f))) if os.path.isdir(_tn) else []
         _tn_want = sorted(CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES + SUB_RUST_BOOTSTRAP
                           + (SUB_HINT_EQUIP_TOOLS if "hint-publisher" in _want else ()))
         _tn_ok = _tn_files == _tn_want
@@ -1311,6 +1338,21 @@ def _self_test() -> int:
         _nrc_run = subprocess.run([sys.executable, _nrc, "--self-test"],
                                   capture_output=True, text=True, timeout=60)
         _nrc_ok = os.path.isfile(_nrc) and _nrc_run.returncode == 0
+        # 벤치 owner 자체검사 의존 2종 — **명시 닫힌 경로**를 소비자 원문의 리터럴과 대조한다(두 파생의 빈 집합 일치로
+        #   통과하지 못하게). 벤치를 받는 서브는 정본과 바이트 동일하게 받고, 못 받는 서브(멀티 ray-worker)는 받지 않는다.
+        _bench_need = {
+            ".claude/policies/runtime/topology_parity.py": ".claude/skills/adversarial-benchmark/rust/src/resolve_topology.rs",
+            ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh": ".claude/skills/adversarial-benchmark/rust/src/sweep_repeats_fixture.rs",
+        }
+        _bench_ok = set(_bench_need) == set(SUB_BENCH_FOUNDATION_RUNTIME)
+        for _rel, _consumer in _bench_need.items():
+            _cons_src = pathlib.Path(REPO, _consumer).read_text(encoding="utf-8")
+            _dst_f = pathlib.Path(_out, _rel)
+            if "adversarial-benchmark" in _want:
+                _bench_ok &= (_rel in _cons_src and _dst_f.is_file()
+                              and _dst_f.read_bytes() == pathlib.Path(REPO, _rel).read_bytes())
+            else:
+                _bench_ok &= not _dst_f.exists()
         # 해소 자산은 싱글 서브에 가지 않는다 — 가면 서브가 스스로 해소할 이유가 없어진다(F4).
         _res = os.path.exists(os.path.join(
             _out, ".claude/skills/upstream-version-watch/assets/current-production-resolution.json"))
@@ -1324,11 +1366,11 @@ def _self_test() -> int:
         _sup_ok = _sup == _real
         # 색인·카탈로그·역할 마커는 어느 토폴로지에도 가지 않는다(엔진이 가는 single 에서도).
         _never = [r for r in HINT_NEVER_DELIVER if os.path.exists(os.path.join(_out, r))]
-        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok and _wrapper_ok and _rust_ok and _nrc_ok
+        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok and _wrapper_ok and _rust_ok and _nrc_ok and _bench_ok
               and not _res and _sup_ok and not _never)
         print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} "
               f"refs={_ref} 캠페인도구={_tn_files} 해소자산누수={_res} 지원배달목록일치={_sup_ok} "
-              f"금지경로누수={_never or '없음'} Codex발견폐포={_wrapper_ok} 역할계약리더자체검사={_nrc_ok}")
+              f"금지경로누수={_never or '없음'} Codex발견폐포={_wrapper_ok} 역할계약리더자체검사={_nrc_ok} 벤치owner의존={_bench_ok}")
         ok &= _c
 
     # (4d) hint 엔진 의존 폐포 tripwire (2026-10-11 · plan_26101104 Step 3).

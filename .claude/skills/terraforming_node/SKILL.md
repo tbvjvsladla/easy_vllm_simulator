@@ -193,6 +193,8 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/node_blackbox/`(설치: `install_node_blackbox.sh` · `verify_node_blackbox.sh` · `purge_host_safety.sh` · `publish_install_request.py`) | §2.6 · §2.6.1 | ✓ | HITL sudo |
 | `.claude/skills/terraforming_node/scripts/host_safety/` | §2.6 | ✓ | 협역 워치독 정본 `mem_watchdog.sh` · 레거시 설치자(`install_host_safety.sh` — 정책 술어가 본문을 읽으므로 유지) |
 
+- 벤치 owner 의 build→native 자체검사가 원래 정본 경로에서 읽는 기초층 의존 2종(`topology_parity.py` · `node_blackbox/node_identity.sh`)은 닫힌 목록 `render_sub_env.py::SUB_BENCH_FOUNDATION_RUNTIME` 으로 adversarial-benchmark 가 가는 서브에만 배달된다. 오케스트레이터가 아니며 `.claude/runtime/node_blackbox/` 의 설치용 사본과는 다른 자리다.
+
 ## 5. 금지
 
 - 사용자 승인 없는 자동스캔 / 서브노드 무단 프로빙. 서브 조사는 A2A·문서 회수로 한다.
