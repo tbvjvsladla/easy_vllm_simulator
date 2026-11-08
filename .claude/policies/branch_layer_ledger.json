@@ -3920,6 +3920,137 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261109-single-to-multi-r47-common20-379cc82",
+      "utc": "2026-11-08T19:04:10Z",
+      "departure": "single-node",
+      "departure_commit": "379cc822396de5eb47541b992b48db0e2ef3c77a",
+      "approved_by": "user: 양 브랜치·Rust 노드 배포 계속 지시(원본 실제 발화 기록) · Root 위임 통합 검토 2026-11-08T18:56:36Z(새 사용자 응답 아님)",
+      "approved_utc": "2026-11-08T13:30:12Z",
+      "_reach": "single-node vs staged: 미리보기 20경로(수정 15·신규 5·삭제 0) = hold-v3 sha256 068ae91582ea… 의 같은 경로·상태",
+      "classification": [
+        {
+          "file": ".claude/rust/role-contract/src/topology.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 역할 정책 크레이트의 토폴로지 판정 — 양 토폴로지가 같은 라이브러리를 쓴다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/topology_cli.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 역할 정책 크레이트의 토폴로지 판정 — 양 토폴로지가 같은 라이브러리를 쓴다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 Rust 소스·셀프테스트·호출자 변경 — 측정 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/PORTING.md",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 Rust 소스·셀프테스트·호출자 변경 — 측정 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/campaign_read_cli.rs",
+          "verdict": "common_promote",
+          "reason": "campaign 읽기 전용 Rust 진입(campaign_read)과 공개 launcher — 활성/derive 조회는 양 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/campaign_read/original26.json",
+          "verdict": "common_promote",
+          "reason": "campaign 읽기 전용 Rust 진입(campaign_read)과 공개 launcher — 활성/derive 조회는 양 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/bin/campaign_read.rs",
+          "verdict": "common_promote",
+          "reason": "campaign 읽기 전용 Rust 진입(campaign_read)과 공개 launcher — 활성/derive 조회는 양 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/broad_search_cell_args_selftest.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 Rust 소스·셀프테스트·호출자 변경 — 측정 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/broad_search_precheck_selftest.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 Rust 소스·셀프테스트·호출자 변경 — 측정 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/broad_search_selftest_cli.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 Rust 소스·셀프테스트·호출자 변경 — 측정 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/campaign_read.rs",
+          "verdict": "common_promote",
+          "reason": "campaign 읽기 전용 Rust 진입(campaign_read)과 공개 launcher — 활성/derive 조회는 양 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/cli.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 Rust 소스·셀프테스트·호출자 변경 — 측정 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/lib.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 Rust 소스·셀프테스트·호출자 변경 — 측정 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/sweep_repeats_fixture.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 Rust 소스·셀프테스트·호출자 변경 — 측정 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 Rust 소스·셀프테스트·호출자 변경 — 측정 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "Rust 설치·공개 표면 문서 — 공통 절차 문서(특화층 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/rust_runtime.md",
+          "verdict": "common_promote",
+          "reason": "Rust 설치·공개 표면 문서 — 공통 절차 문서(특화층 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+          "verdict": "common_promote",
+          "reason": "campaign 읽기 전용 Rust 진입(campaign_read)과 공개 launcher — 활성/derive 조회는 양 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "서브 환경 렌더·문서 회수 호출자 변경 — 공통 스크립트",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/fetch_sub_docs.sh",
+          "verdict": "common_promote",
+          "reason": "서브 환경 렌더·문서 회수 호출자 변경 — 공통 스크립트",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
