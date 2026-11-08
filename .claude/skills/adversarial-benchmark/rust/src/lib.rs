@@ -16,6 +16,7 @@ pub mod bench_preset_cli;
 mod bench_preset_selftest;
 pub mod bench_reporting_api;
 mod bench_selftest;
+pub mod bench_shell;
 pub mod bench_tool_api;
 pub mod bench_tool_cli;
 pub mod bench_tool_pin;

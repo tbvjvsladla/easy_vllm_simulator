@@ -3217,6 +3217,14 @@ def predicate_TERRAFORM_FLAG_GATE_C2():
         script_dir.mkdir(parents=True)
         shutil.copy2(REPO_ROOT / ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
                      script_dir / "run_bench.sh")
+        # run_bench.sh hands its former inline Python programs to the native product through the launcher: the launcher is
+        # copied like run_bench.sh and bound to the REAL production binary with the launcher's own explicit override. A
+        # missing product fails this proof; the helper is never stubbed and its absence is never tolerated.
+        shutil.copy2(REPO_ROOT / ".claude/skills/adversarial-benchmark/scripts/bench_shell.sh",
+                     script_dir / "bench_shell.sh")
+        bench_shell_bin = REPO_ROOT / ".claude/skills/adversarial-benchmark/rust/target/release/bench_shell"
+        _require(bench_shell_bin.is_file() and os.access(bench_shell_bin, os.X_OK),
+                 f"the real run_bench.sh needs the node-local native bench_shell product: {bench_shell_bin}")
         (bench_root / "output/single/envs").mkdir(parents=True)
         (bench_root / "output/single/configs").mkdir(parents=True)
         (bench_root / "output/single/envs/.env.fixture").write_text(
@@ -3280,6 +3288,7 @@ def predicate_TERRAFORM_FLAG_GATE_C2():
         env["PATH"] = f"{fake_bin}:{env['PATH']}"
         env["VLLM_ARGV_CAPTURE"] = str(capture)
         env["VLLM_DOCKER_ROUTE_CAPTURE"] = str(route_capture)
+        env["BENCH_SHELL_BIN"] = str(bench_shell_bin)
         completed = subprocess.run(
             ["bash", str(script_dir / "run_bench.sh"), "fixture", "--topology", "single",
              # 2026-09-07: `--backend` 기본값이 제거됐다(유예 결함 ①). 픽스처도 명시한다 —

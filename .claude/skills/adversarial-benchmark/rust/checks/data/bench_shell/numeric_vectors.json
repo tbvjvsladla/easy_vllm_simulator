@@ -1,0 +1,149 @@
+{
+ "warm_fraction": [
+  {
+   "args": [
+    "2",
+    "10"
+   ],
+   "out": "0.2"
+  },
+  {
+   "args": [
+    "0",
+    "0"
+   ],
+   "out": "0.0"
+  },
+  {
+   "args": [
+    "1",
+    "32"
+   ],
+   "out": "0.0312"
+  },
+  {
+   "args": [
+    "1",
+    "6"
+   ],
+   "out": "0.1667"
+  },
+  {
+   "args": [
+    "999999999999999999999999",
+    "1000000000000000000000001"
+   ],
+   "out": "1.0"
+  },
+  {
+   "args": [
+    "3",
+    "1"
+   ],
+   "out": "3.0"
+  },
+  {
+   "args": [
+    "7",
+    "3"
+   ],
+   "out": "2.3333"
+  },
+  {
+   "args": [
+    "1",
+    "1180591620717411303424"
+   ],
+   "out": "0.0"
+  },
+  {
+   "args": [
+    "-1",
+    "1000000000000000000000000000000"
+   ],
+   "out": "-0.0"
+  },
+  {
+   "args": [
+    "5",
+    "-4"
+   ],
+   "out": "5.0"
+  },
+  {
+   "args": [
+    "10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "3000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+   ],
+   "out": "3.3333"
+  }
+ ],
+ "prefix_snapshot": [
+  {
+   "stdin": "vllm:prefix_cache_queries_total{model=\"a\"} 10\nvllm:prefix_cache_hits_total{model=\"a\"} 3\nvllm:request_success_total{model=\"a\"} 8\n",
+   "out": "10 3 8"
+  },
+  {
+   "stdin": "vllm:prefix_cache_queries_total{a=\"1\"} 0.1\nvllm:prefix_cache_queries_total{a=\"2\"} 0.2\nvllm:prefix_cache_queries_total{a=\"3\"} 0.3\nvllm:prefix_cache_hits_total{} 1e0\nvllm:request_success_total{} 2.5\n",
+   "out": "0 1 2"
+  },
+  {
+   "stdin": "vllm:prefix_cache_queries_total{x=\"\n\"} 5\nvllm:prefix_cache_hits_total{} 1\nvllm:request_success_total{} 2",
+   "out": "5 1 2"
+  },
+  {
+   "stdin": "vllm:prefix_cache_queries_total{} 1\r\nvllm:prefix_cache_hits_total{} 1\r\nvllm:request_success_total{} 1\r\n",
+   "out": ""
+  },
+  {
+   "stdin": "vllm:prefix_cache_queries_total{} 1e16\nvllm:prefix_cache_queries_total{} 1\nvllm:prefix_cache_queries_total{} -1e16\nvllm:prefix_cache_hits_total{} 1\nvllm:request_success_total{} 1\n",
+   "out": "1 1 1"
+  },
+  {
+   "stdin": "",
+   "out": ""
+  },
+  {
+   "stdin": "vllm:prefix_cache_hits_total{} 1\n",
+   "out": ""
+  }
+ ],
+ "prefix_record": [
+  {
+   "before": "10 3 8",
+   "after": "20 8 18",
+   "hit_rate_run": 0.5,
+   "requests_delta": 10
+  },
+  {
+   "before": "0 0 0",
+   "after": "0 0 0",
+   "hit_rate_run": null,
+   "requests_delta": 0
+  },
+  {
+   "before": "20 8 18",
+   "after": "10 3 8",
+   "hit_rate_run": null,
+   "requests_delta": -10
+  },
+  {
+   "before": "1 1 1",
+   "after": "3 2 1",
+   "hit_rate_run": 0.5,
+   "requests_delta": 0
+  },
+  {
+   "before": "0 0 0",
+   "after": "1000000000000000000000000 333333333333333333333333 1",
+   "hit_rate_run": 0.3333,
+   "requests_delta": 1
+  },
+  {
+   "before": "1 2 3",
+   "after": "4 5 6",
+   "hit_rate_run": 1.0,
+   "requests_delta": 3
+  }
+ ]
+}

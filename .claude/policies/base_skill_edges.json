@@ -1717,6 +1717,18 @@
       "callee": "adversarial-benchmark/scripts/resolve_guidellm.sh",
       "phase": "verification_plane",
       "reason": "배포되는 Rust 스테이징 버전 해소기의 T1~T9 및 실제 default record 구조를 명시 자체검사로 실행한다(R12)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "adversarial-benchmark/scripts/bench_shell.sh",
+      "phase": "verification_plane",
+      "reason": "TERRAFORM_FLAG_GATE.C2가 실제 run_bench.sh 사본의 Rust 전송 런처를 함께 복사해 동일 생산 경로를 검사한다(R45)."
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "adversarial-benchmark/rust/target/release/bench_shell",
+      "phase": "verification_plane",
+      "reason": "TERRAFORM_FLAG_GATE.C2가 해당 노드에서 빌드된 실제 bench_shell 실행파일을 사본 런처에 명시 결속한다. 부재는 검사 실패이며 대역·Python 대체가 아니다(R45)."
     }
   ]
 }

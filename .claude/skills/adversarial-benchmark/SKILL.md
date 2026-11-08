@@ -236,4 +236,4 @@ description: >-
 
 **기타**: `fixtures/`(verdict 단위검증 + full/Max 발행 결정론 체인 라이브-불요 검증) · `config.example.yaml`(입력 스키마).
 
-데이터셋 전처리·행 선택·출처 사이드카는 설치된 `scripts/dataset_prep.sh`의 Rust CLI가 소유한다. `run_bench.sh`의 mapper/data 인자도 얇은 `dataset_prep_native.py` 전송으로 같은 Rust 소유자를 호출한다. 새 노드는 Terraform Rust 설치·검사 뒤 `scripts/build_rust.sh --offline`으로 노드에서 빌드한다.
+데이터셋 전처리·행 선택·출처 사이드카는 설치된 `scripts/dataset_prep.sh`의 Rust CLI가 소유한다. `run_bench.sh`의 mapper/data 인자는 `scripts/bench_shell.sh`가 같은 Rust 소유자를 직접 호출한다. 셀·측정 기록, JSON 값 읽기, 출력 경로의 검사·선점도 이 실행파일을 사용하며 해당 계산에는 Python이 필요하지 않다. 새 노드는 Terraform Rust 설치·검사 뒤 `scripts/build_rust.sh --offline`으로 노드에서 빌드한다.

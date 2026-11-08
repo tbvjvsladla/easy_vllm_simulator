@@ -16,7 +16,7 @@
 //! The programs run with a cleared environment that names only `PATH`, `TMPDIR`, the repository and (where a scenario
 //! says so) the interpreter of the owner bridge.
 
-use std::ffi::OsStr;
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
@@ -457,9 +457,49 @@ fn a_judge_whose_suppression_message_changed_fails_exactly_the_suppression_check
     scratch.assert_temporary_directory_removed();
 }
 
-#[test]
-fn a_lite_script_that_publishes_by_default_fails_the_default_path_checks_and_the_run_continues() {
-    let scratch = Scratch::new("lite-default");
+/// The first executable named `name` on the inherited `PATH`.
+fn program_on_path(name: &str) -> PathBuf {
+    std::env::split_paths(&std::env::var_os("PATH").unwrap_or_default())
+        .map(|directory| directory.join(name))
+        .find(|candidate| candidate.is_file())
+        .unwrap_or_else(|| panic!("NOT_RUN: no {name} on PATH"))
+}
+
+/// A test clock for the two `date` forms `lite_bench.sh` reads (`date -u +%FT%TZ` for the measurement time and
+/// `date -u +%Y%m%dT%H%M%SZ` for the output directory); every other `date` call goes to the real one. The returned
+/// `PATH` is the inherited one with the proxy directory in front, so the toolchain found there stays reachable. With
+/// `advancing` the second measurement-time request answers one second later, which is what a real clock does when the
+/// first two lite runs straddle a second boundary; otherwise every request answers the same instant.
+fn date_proxy_path(scratch: &Scratch, advancing: bool) -> OsString {
+    use std::os::unix::fs::PermissionsExt;
+    let directory = scratch.root.join("clock");
+    std::fs::create_dir_all(&directory).expect("proxy directory");
+    let counter = scratch.root.join("clock-requests");
+    let measured = if advancing {
+        format!(
+            "n=$(cat '{0}' 2>/dev/null || echo 0); n=$((n+1)); echo $n > '{0}'; if [ \"$n\" = 2 ]; then echo 2026-11-05T00:00:01Z; else echo 2026-11-05T00:00:00Z; fi",
+            counter.display()
+        )
+    } else {
+        "echo 2026-11-05T00:00:00Z".to_string()
+    };
+    let script = format!(
+        "#!/bin/bash\ncase \"$*\" in\n  '-u +%FT%TZ') {measured} ;;\n  '-u +%Y%m%dT%H%M%SZ') echo 20261105T000000Z ;;\n  *) exec '{}' \"$@\" ;;\nesac\n",
+        program_on_path("date").display()
+    );
+    let proxy = directory.join("date");
+    std::fs::write(&proxy, script).expect("proxy script");
+    std::fs::set_permissions(&proxy, std::fs::Permissions::from_mode(0o755)).expect("executable");
+    let mut parts = vec![directory];
+    parts.extend(std::env::split_paths(
+        &std::env::var_os("PATH").unwrap_or_default(),
+    ));
+    std::env::join_paths(parts).expect("PATH")
+}
+
+/// `selftest_lite_report` on a private tree whose `lite_bench.sh` publishes by default, run under the test clock.
+fn lite_default_publish(label: &str, advancing: bool) -> (Scratch, Run) {
+    let scratch = Scratch::new(label);
     let tree = private_tree(&scratch);
     mutate(
         &tree,
@@ -467,7 +507,22 @@ fn a_lite_script_that_publishes_by_default_fails_the_default_path_checks_and_the
         "PUBLISH_REPORT=0",
         "PUBLISH_REPORT=1",
     );
-    let outcome = run(LITE_REPORT, Some(&tree), &scratch, &[], &[]);
+    let path = date_proxy_path(&scratch, advancing);
+    let outcome = run(
+        LITE_REPORT,
+        Some(&tree),
+        &scratch,
+        &[("PATH", path.as_os_str())],
+        &[],
+    );
+    (scratch, outcome)
+}
+
+#[test]
+fn a_lite_script_that_publishes_by_default_fails_the_default_path_checks_and_the_run_continues() {
+    // The exact count holds for one measurement instant: L1 and L2 name their reports by it, and two reports of the same
+    // measurement are one report. The input clock is therefore stated here instead of read from the wall clock.
+    let (scratch, outcome) = lite_default_publish("lite-default", false);
     assert_eq!(outcome.status, Some(1), "{}", outcome.stdout);
     assert!(
         outcome
@@ -482,6 +537,25 @@ fn a_lite_script_that_publishes_by_default_fails_the_default_path_checks_and_the
     assert!(outcome.stdout.lines().any(|line| line.starts_with(
         "  [FAIL] L1 기본(플래그 없음) → exit 0 · 리포트 미발행 · 미발행을 이름으로 알린다 — (0, "
     )));
+    scratch.assert_temporary_directory_removed();
+}
+
+#[test]
+fn a_measurement_instant_that_advances_between_the_first_two_lite_runs_shows_the_second_report() {
+    // The same mutated tree under a clock whose second measurement request is one second later: L1 and L2 no longer
+    // describe one measurement, the second report exists, and ten checks fail instead of three. This is the documented
+    // reason the control above fixes its clock; it must stay visible.
+    let (scratch, outcome) = lite_default_publish("lite-advancing", true);
+    assert_eq!(outcome.status, Some(1), "{}", outcome.stdout);
+    assert!(
+        outcome
+            .stderr
+            .starts_with("[selftest_lite_report] FAIL 10 건:"),
+        "{}",
+        outcome.stderr
+    );
+    assert_eq!(outcome.failed(), 10);
+    assert_eq!(outcome.passed(), 18);
     scratch.assert_temporary_directory_removed();
 }
 

@@ -89,3 +89,5 @@ SELFTEST_SWEEP_META_BIN="$CRATE/target/release/selftest_sweep_meta" BENCH_VERIFY
 SELFTEST_SWEEP_REPEATS_BIN="$CRATE/target/release/selftest_sweep_repeats" BENCH_VERIFY_REPO_ROOT="$REPO" bash "$SDIR/selftest_sweep_repeats.sh"
 
 ASSEMBLE_SWEEP_META_BIN="$CRATE/target/release/assemble_sweep_meta" bash "$SDIR/assemble_sweep_meta.sh" --self-test
+
+BENCH_SHELL_BIN="$CRATE/target/release/bench_shell" bash "$SDIR/bench_shell.sh" --self-test

@@ -1,0 +1,269 @@
+{
+ "about": "Value-contract rows of the approved R19 domain (Root contract r45-approved-r19-value-contract.json). They are NOT frozen original output: the original source-interpolation bugs are intentionally not preserved here. The expected values are derived from the arithmetic (exact integer division, max(total,1), round half-even to 4 places, float repr), not taken from the program.",
+ "warm_fraction_values": [
+  {
+   "args": [
+    "01",
+    "11"
+   ],
+   "out": "0.0909"
+  },
+  {
+   "args": [
+    "1",
+    "011"
+   ],
+   "out": "0.0909"
+  },
+  {
+   "args": [
+    "-01",
+    "5"
+   ],
+   "out": "-0.2"
+  },
+  {
+   "args": [
+    "007",
+    "009"
+   ],
+   "out": "0.7778"
+  },
+  {
+   "args": [
+    "5",
+    "-010"
+   ],
+   "out": "5.0"
+  },
+  {
+   "args": [
+    "+5",
+    "10"
+   ],
+   "out": "0.5"
+  },
+  {
+   "args": [
+    "+0",
+    "+0"
+   ],
+   "out": "0.0"
+  },
+  {
+   "args": [
+    "-0",
+    "1"
+   ],
+   "out": "0.0"
+  },
+  {
+   "args": [
+    "+007",
+    "+9"
+   ],
+   "out": "0.7778"
+  },
+  {
+   "args": [
+    "0000000000000000000000000001",
+    "2"
+   ],
+   "out": "0.5"
+  },
+  {
+   "args": [
+    "1",
+    "0"
+   ],
+   "out": "1.0"
+  },
+  {
+   "args": [
+    "-1",
+    "0"
+   ],
+   "out": "-1.0"
+  },
+  {
+   "args": [
+    "3",
+    "-5"
+   ],
+   "out": "3.0"
+  }
+ ],
+ "warm_fraction_refused": [
+  {
+   "args": [
+    "x",
+    "1"
+   ]
+  },
+  {
+   "args": [
+    "1",
+    ""
+   ]
+  },
+  {
+   "args": [
+    "",
+    ""
+   ]
+  },
+  {
+   "args": [
+    "1.5",
+    "2"
+   ]
+  },
+  {
+   "args": [
+    "1",
+    "2 "
+   ]
+  },
+  {
+   "args": [
+    " 1",
+    "2"
+   ]
+  },
+  {
+   "args": [
+    "\t1",
+    "2"
+   ]
+  },
+  {
+   "args": [
+    "1\n",
+    "2"
+   ]
+  },
+  {
+   "args": [
+    "--1",
+    "2"
+   ]
+  },
+  {
+   "args": [
+    "++1",
+    "2"
+   ]
+  },
+  {
+   "args": [
+    "+-1",
+    "2"
+   ]
+  },
+  {
+   "args": [
+    "-",
+    "2"
+   ]
+  },
+  {
+   "args": [
+    "+",
+    "2"
+   ]
+  },
+  {
+   "args": [
+    "1+1",
+    "3"
+   ]
+  },
+  {
+   "args": [
+    "0x10",
+    "3"
+   ]
+  },
+  {
+   "args": [
+    "1e3",
+    "2"
+   ]
+  },
+  {
+   "args": [
+    "1_0",
+    "2"
+   ]
+  },
+  {
+   "args": [
+    "١٢",
+    "3"
+   ]
+  },
+  {
+   "args": [
+    "１",
+    "2"
+   ]
+  },
+  {
+   "args": [
+    "1",
+    "x"
+   ]
+  },
+  {
+   "args": [
+    "0o7",
+    "2"
+   ]
+  },
+  {
+   "args": [
+    "True",
+    "2"
+   ]
+  },
+  {
+   "args": [
+    "1",
+    "2",
+    "3"
+   ]
+  },
+  {
+   "args": [
+    "1"
+   ]
+  },
+  {
+   "args": []
+  }
+ ],
+ "refusal_stderr": "[bench_shell] ERROR warm-fraction 은 10진 정수 둘(WARMUPS TOTAL_REQ)만 계산한다\n",
+ "intentional_divergence_history": [
+  {
+   "input": "warm-fraction 01 11",
+   "original": "SyntaxError (leading zeros), exit 1",
+   "now": "value 0.0909, exit 0"
+  },
+  {
+   "input": "broad-measurement-ok <path with one apostrophe>",
+   "original": "SyntaxError (unterminated string literal), exit 1",
+   "now": "the literal file is read like measurement-ok"
+  },
+  {
+   "input": "broad-measurement-ok <path with backslash-n or a newline>",
+   "original": "source escapes reinterpreted the path (a different path was opened)",
+   "now": "the literal path"
+  },
+  {
+   "input": "warm-fraction with expressions, names, hex, float, spaces",
+   "original": "evaluated as Python source",
+   "now": "refused, status 2, nothing evaluated"
+  }
+ ],
+ "history_note": "The original 181 rows and the two supplemental originals remain the immutable saved raw; the changed outputs above are never counted as equivalence with them."
+}

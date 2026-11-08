@@ -137,42 +137,8 @@ REPO="$(git -C "$SDIR" rev-parse --show-toplevel 2>/dev/null || pwd)"
 # 명시 출력은 과거 sweep을 덮지 않는 새 direct child다. broad_search의 선검사와
 # 실제 측정 진입이 이 한 검증자를 쓴다. check는 읽기 전용, claim은 mkdir의 EEXIST로 경합을 거부한다.
 _selected_sweep_dir() {
-  python3 - "$REPO" "$TOPO" "$SWEEP_DIR_ARG" "$REASSEMBLE" "$1" <<'SWEEP_PATH_PY'
-import os, re, sys
-from pathlib import Path
-repo, topo, raw, reassemble, action = sys.argv[1:]
-def refuse(reason):
-    print('[sweep_bench] ERROR --sweep-dir: ' + reason, file=sys.stderr)
-    raise SystemExit(2)
-if topo not in ('single', 'multi') or not raw:
-    refuse('explicit topology single|multi and a nonempty path are required')
-repo = Path(repo).resolve()
-path = Path(raw)
-if '..' in path.parts:
-    refuse('parent traversal is not allowed')
-if not path.is_absolute():
-    path = repo / path
-parent = repo / 'output' / topo / 'benchlog'
-if path.parent != parent or not re.fullmatch(r'sweep_[A-Za-z0-9][A-Za-z0-9._-]*', path.name):
-    refuse('choose one sweep_* directory directly under output/<topology>/benchlog')
-for part in (repo / 'output', parent.parent, parent, path):
-    if part.is_symlink():
-        refuse('symlink paths are not allowed')
-if reassemble == '1':
-    if not path.is_dir():
-        refuse('reassembly requires an existing directory')
-elif os.path.lexists(path):
-    refuse('fresh measurement requires an absent directory; existing evidence is preserved')
-if action == 'claim' and reassemble != '1':
-    try:
-        parent.mkdir(parents=True, exist_ok=True)
-        if parent.resolve() != parent:
-            refuse('output parent changed to a symlink')
-        path.mkdir()  # atomic claim: never merge into an existing output
-    except OSError as exc:
-        refuse(f'cannot claim fresh output: {exc}')
-print(path)
-SWEEP_PATH_PY
+  bash "$SDIR/bench_shell.sh" sweep-path "$REPO" "$TOPO" "$SWEEP_DIR_ARG" "$REASSEMBLE" "$1"
+
 }
 if [ "$CHECK_SWEEP_DIR" = 1 ]; then
   # No preset, manifest, health, phase, filesystem write or measurement in this path.
@@ -315,9 +281,9 @@ if [ "$REASSEMBLE" != "1" ]; then
   #   전처리 캐시는 스윕 폴더 단위(모델 토크나이저가 같으면 재사용) · 런 번호는 레벨·반복을 가로질러 늘어난다.
   if [ "$DRYRUN" = "1" ]; then DATASET_SPEC="$(mktemp)"; else DATASET_SPEC="$SWEEPDIR/.dataset_spec.json"; fi
   DATASET_CACHE="$SWEEPDIR/.dataset_cache"
-  python3 -c "import json,sys;json.dump(json.load(open(sys.argv[1]))['dataset'],open(sys.argv[2],'w'),ensure_ascii=False)" \
+  bash "$SDIR/bench_shell.sh" extract-dataset \
     "$KNOB_RECORD" "$DATASET_SPEC" || { echo "[sweep_bench] ERROR 데이터셋 해소값을 꺼내지 못했다" >&2; exit 2; }
-  DATASET_KIND="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['dataset_kind'])" "$DATASET_SPEC")"
+  DATASET_KIND="$(bash "$SDIR/bench_shell.sh" dataset-kind "$DATASET_SPEC")"
   echo "[sweep_bench] 데이터셋 = $DATASET_KIND (프리셋 해소값 · 판정 불변 · 출처는 런별 사이드카 → meta)"
 fi
 DATASET_RUN_INDEX=0
@@ -343,13 +309,7 @@ if [ "$DRYRUN" = "1" ]; then
   for L in "${SORTED[@]}"; do
     echo "  level $L × run 1..$REPEATS → run_bench.sh $CONFIG --topology $TOPO --serve-plane $SERVE_PLANE${HOST_ENDPOINT:+ --host-endpoint $HOST_ENDPOINT} --concurrency $L --tool $TOOL${BENCH_BUDGET_MIB:+ --bench-budget-mib $BENCH_BUDGET_MIB} --out-dir $SWEEPDIR/level_$(printf '%02d' "$L")[/run_KK]"
   done
-  python3 -c 'import json,sys
-d=json.load(open(sys.argv[1]))
-print("[sweep_bench] DRY-RUN knob 해소(프리셋 %s · 상한 %s):" % (d.get("preset"), (d.get("serving_cap") or {}).get("source")))
-for k,v in d["knobs"].items():
-    print("  %-16s = %-18s source=%-8s grade=%s reason=%s%s" % (k, v.get("value"), v.get("source"), v.get("grade"), v.get("reason"),
-          (" · 제외 %s" % [f["value"] for f in v["filtered_out"]]) if v.get("filtered_out") else ""))
-print("  dataset          = %s" % json.dumps(d.get("dataset"), ensure_ascii=False))' "$KNOB_RECORD" || true
+  bash "$SDIR/bench_shell.sh" dry-knobs "$KNOB_RECORD" || true
   rm -f "$KNOB_RECORD" "${DATASET_SPEC:-}"
   echo "[sweep_bench] DRY-RUN 종료(실제 벤치·assemble 생략)"
   exit 0
@@ -382,17 +342,12 @@ if [ "$REASSEMBLE" = "1" ]; then
   # ★ 2026-09-14(리뷰 정정): 복원 대상은 **기존 index 의 levels[]** 로 한정한다. 스윕 디렉터리에는 이전 스윕이
   #   남긴 level_NN 이 있을 수 있고(이번 측정이 클램프·반복 중단으로 그 레벨에 닿지 않았다), 디스크 전체를 훑으면
   #   그 낡은 레벨(자기 runs[] 포함)이 측정시각을 승계한 이번 index 에 부활한다. index 가 측정의 권위다.
-  _PRIOR_LEVELS="$(python3 -c '
-import json, sys
-doc = json.load(open(sys.argv[1], encoding="utf-8"))
-print(" ".join(str(lv.get("level")) for lv in doc.get("levels") or []
-               if isinstance(lv, dict) and isinstance(lv.get("level"), int) and not isinstance(lv.get("level"), bool)))
-' "$SWEEPDIR/sweep_index.json")" || { echo "[sweep_bench] --reassemble-only: 기존 index 판독 실패 — 중단" >&2; exit 2; }
+  _PRIOR_LEVELS="$(bash "$SDIR/bench_shell.sh" prior-levels "$SWEEPDIR/sweep_index.json")" || { echo "[sweep_bench] --reassemble-only: 기존 index 판독 실패 — 중단" >&2; exit 2; }
   COMPLETED=()
   for _lv in $_PRIOR_LEVELS; do
     _d="$SWEEPDIR/level_$(printf '%02d' "$_lv")"
     _m="$_d/measured.json"; [ -s "$_m" ] || continue
-    python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get('measurement_ok') else 1)" "$_m" \
+    bash "$SDIR/bench_shell.sh" measurement-ok "$_m" \
       || continue
     COMPLETED+=("$_lv")
   done
@@ -462,13 +417,7 @@ LITE_LOG="$SWEEPDIR/lite_leg.log"
 LITE_RC=0
 bash "$SDIR/lite_bench.sh" "$CONFIG" --topology "$TOPO" "${LITE_PLANE_ARGS[@]}" --backend "$BACKEND" --out-dir "$SWEEPDIR" >"$LITE_LOG" 2>&1 \
   || LITE_RC=$?
-LITE_VERDICT="$(python3 -c 'import importlib.util as u,json,sys
-s=u.spec_from_file_location("lite_metrics", sys.argv[1]); m=u.module_from_spec(s); s.loader.exec_module(m)
-try:
-    raw=json.load(open(sys.argv[2]))
-except Exception:
-    raw=None
-print(m.read_lite_verdict(raw) or "")' "$SDIR/lite_metrics_native.py" "$LITE_RAW" 2>/dev/null || true)"
+LITE_VERDICT="$(bash "$SDIR/bench_shell.sh" read-lite-verdict "$LITE_RAW" 2>/dev/null || true)"
 if [ "$LITE_RC" = 0 ] && [ "$LITE_VERDICT" = "pass" ]; then
   echo "[sweep_bench] lite 게이트 통과(lite_verdict=pass) → $LITE_RAW"
 else
@@ -568,7 +517,7 @@ for L in "${SORTED[@]}"; do
       _PERR="$(mktemp)"
       "${PARSE_CMD[@]}" > "$RDIR/measured.json" 2>"$_PERR" || PARSE_RC=$?
       if [ "$PARSE_RC" = "0" ] \
-         && python3 -c "import json,sys; d=json.load(open(sys.argv[1])); sys.exit(0 if d.get('measurement_ok') else 1)" "$RDIR/measured.json"; then
+         && bash "$SDIR/bench_shell.sh" measurement-ok "$RDIR/measured.json"; then
         RUN_OK=1
       fi
     fi
@@ -670,14 +619,7 @@ SWEEPDIR="$SWEEPDIR" VLLM_VER="$VLLM_VER" COMPLETED="${COMPLETED[*]:-}" ILEN="$I
 _BM_ARGS=(--sweep-index "$SWEEPDIR/sweep_index.json" --events-from-repo "$REPO" --manifest "$MANIFEST" --write-bench-mode)
 [ -n "$XNODE_TOL" ] && _BM_ARGS+=(--cross-node-tolerance-s "$XNODE_TOL" --cross-node-tolerance-source "$XNODE_TOL_SRC")
 if _BM_OUT="$(bash "$SDIR/classify_cell.sh" "${_BM_ARGS[@]}")"; then
-  printf '%s' "$_BM_OUT" | python3 -c '
-import json, sys
-sys.path.insert(0, sys.argv[1])
-from classify_cell_native import events_scan_summary
-d = json.load(sys.stdin)
-print("[sweep_bench] bench_mode=%s · 사유 %s · 대조 %s · 기록 %s\n[sweep_bench]   출처: %s\n[sweep_bench]   %s" % (
-      d.get("bench_mode"), d.get("downgrade_reason"), d.get("downgrade_correlation"), d.get("record_path"),
-      d.get("bench_mode_source"), events_scan_summary(d.get("events_scan")) or "대조 노드 기록 없음"))' "$SDIR" || true
+  printf '%s' "$_BM_OUT" | bash "$SDIR/bench_shell.sh" bench-mode-log || true
 else
   echo "[sweep_bench] ⚠ bench_mode 판정 기록 실패(위 사유) — 리포트는 '미확정', full 인증서는 발행되지 않는다" >&2
 fi

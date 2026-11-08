@@ -188,11 +188,19 @@ pub fn main(context: &Context, console: &mut dyn Console) -> Result<i32, Raised>
             && classifier.contains("--lite-raw"),
         "",
     );
+    // The cell record is written by the native `bench_shell broad-cell`; the carried `lite_verdict` field is bound in
+    // that owner's source (the caller only has to reach it through the launcher).
+    let cell_writer = read_optional_strict(&crate::ospath::join_all(
+        &owner_sources,
+        &["bench_shell", "broad.rs"],
+    ))?;
     report.check(
         "E② broad_search 가 lite raw 를 분류기·셀 기록·writer 에 넘긴다",
         broad_search.contains("_CLS_ARGS+=(--lite-raw \"$LITE_RAW_CELL\")")
             && broad_search.contains("_WARGS+=(--lite-raw \"$LITE_RAW_CELL\")")
-            && broad_search.contains("\"lite_verdict\": cls.get(\"lite_verdict\")"),
+            && broad_search.contains("bash \"$SDIR/bench_shell.sh\" broad-cell")
+            && cell_writer
+                .contains("cell.set(\"lite_verdict\", get(&classification, \"lite_verdict\")?)"),
         "",
     );
     report.check(

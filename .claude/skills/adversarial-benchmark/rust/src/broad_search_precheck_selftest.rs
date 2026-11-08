@@ -51,7 +51,7 @@ use std::path::{Path, PathBuf};
 pub const PROGRAM: &str = "selftest_broad_search_precheck";
 
 /// The deployed files the checkout needs, at their repository-relative paths.
-pub(crate) const COPIES: [&str; 33] = [
+pub(crate) const COPIES: [&str; 35] = [
     ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell_api.sh",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell_native.py",
@@ -64,6 +64,8 @@ pub(crate) const COPIES: [&str; 33] = [
     ".claude/skills/adversarial-benchmark/rust/target/release/roofline",
     ".claude/skills/adversarial-benchmark/rust/target/release/verdict_rule",
     ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
+    ".claude/skills/adversarial-benchmark/scripts/bench_shell.sh",
+    ".claude/skills/adversarial-benchmark/rust/target/release/bench_shell",
     ".claude/skills/adversarial-benchmark/scripts/sweep_stop.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/sweep_stop",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell.py",

@@ -129,11 +129,8 @@ for L in "${LV[@]}"; do
   fi
   # 선-기록: 결과를 다음 레벨 시도 전 기록
   STATUS=$([ "$SMOKE_EXIT" = "0" ] && echo safe || echo unsafe)
-  L="$L" ML="$L" SE="$SMOKE_EXIT" ST="$STATUS" python3 - <<'PY' > "$LDIR/result.json"
-import json, os
-print(json.dumps({"max_model_len": int(os.environ["ML"]), "serve_smoke_exit": int(os.environ["SE"]),
-                  "status": os.environ["ST"]}, ensure_ascii=False))
-PY
+  L="$L" ML="$L" SE="$SMOKE_EXIT" ST="$STATUS" bash "$SDIR/bench_shell.sh" max-level > "$LDIR/result.json"
+
   if [ "$SMOKE_EXIT" = "0" ]; then
     SAFE_CEIL="$L"; SAFE_LEVELS+=("$L"); echo "[max_envelope] max-model-len=$L ✓ 안전(누적 상한=$SAFE_CEIL)"
   else
@@ -144,42 +141,8 @@ done
 
 # ── max_index.json 조립 + meta(sweep_bench 와 동형 grep) ───────────────────────
 CONFIG="$CONFIG" TOPO="$TOPO" CFGYAML="$MAXDIR/original_config.yaml" EF="$EF" MANIFEST="$MANIFEST" \
-MAXDIR="$MAXDIR" SAFE_CEIL="${SAFE_CEIL:-}" SAFE_LEVELS="${SAFE_LEVELS[*]:-}" ORIG_LEN="${ORIG_LEN:-}" SDIR="$SDIR" python3 - <<'PY'
-import json, os, re, datetime, sys
-sys.path.insert(0, os.environ["SDIR"]); from doc_naming_native import gpu_key as _gpu_key
-def read(p):
-    try:
-        with open(p, encoding="utf-8", errors="replace") as f: return f.read()
-    except OSError: return ""
-def gy(t,k):
-    m=re.search(r"(?m)^\s*%s\s*:\s*([^\n#]+)"%re.escape(k),t); return m.group(1).strip().strip('"').strip("'") if m else None
-cfg=os.environ["CONFIG"]; topo=os.environ["TOPO"]; maxdir=os.environ["MAXDIR"]
-mft=read(os.environ["MANIFEST"]); cfgt=read(os.environ["CFGYAML"])
-gpu=gy(mft,"gpu_model") or "NA"; gkey=_gpu_key(gpu)   # 정규화 규칙은 doc_naming 한 곳
-m=re.search(r"vLLM[\s]*([0-9]+\.[0-9]+\.[0-9]+)",cfgt); vllm=os.environ.get("EASY_VLLM_VERSION") or (m.group(1) if m else "NA")
-tp=gy(cfgt,"tensor-parallel-size") or "1"
-levels=[]
-for L in sorted(int(x) for x in os.environ.get("SAFE_LEVELS","").split() if x.strip()):
-    try:
-        with open(os.path.join(maxdir,"level_%d"%L,"result.json"),encoding="utf-8") as f: r=json.load(f)
-    except (OSError,ValueError): r={"max_model_len":L,"status":"safe"}
-    levels.append(r)
-# unsafe(중단) 레벨도 truncation.log 에서 수집(있으면 마지막 시도가 unsafe)
-trunc=[l.strip() for l in read(os.path.join(maxdir,"truncation.log")).splitlines() if "unsafe" in l or "skip" in l or "미구현" in l]
-idx={"config":cfg,"topology":topo,"axis":"max-model-len",
-     "generated_utc":datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-     "safe_ceiling_max_model_len": int(os.environ["SAFE_CEIL"]) if os.environ.get("SAFE_CEIL") else None,
-     "original_max_model_len": int(os.environ["ORIG_LEN"]) if os.environ.get("ORIG_LEN") else None,
-     "meta":{"model":cfg,"gpu_model":gpu,"gpu_key":gkey,"vllm_version":vllm,"topology":topo,
-             "tensor_parallel_size":tp,"driver_version":gy(mft,"driver_version") or "NA",
-             "quantization":gy(cfgt,"quantization") or "NA","moe_backend":gy(cfgt,"moe-backend") or "NA",
-             "image_tag":"NA"},
-     "safe_levels":levels,"truncated":trunc}
-outp=os.path.join(maxdir,"max_index.json")
-with open(outp,"w",encoding="utf-8") as f: json.dump(idx,f,ensure_ascii=False,indent=2)
-print("[max_envelope] max_index.json → %s (안전상한 max-model-len=%s · 안전레벨 %d · 절삭 %d)"
-      %(outp, idx["safe_ceiling_max_model_len"], len(levels), len(trunc)))
-PY
+MAXDIR="$MAXDIR" SAFE_CEIL="${SAFE_CEIL:-}" SAFE_LEVELS="${SAFE_LEVELS[*]:-}" ORIG_LEN="${ORIG_LEN:-}" SDIR="$SDIR" bash "$SDIR/bench_shell.sh" max-index
+
 
 echo "[max_envelope] DONE — 안전상한 max-model-len=${SAFE_CEIL:-없음}. MAX_INDEX=$MAXDIR/max_index.json"
 echo "[max_envelope] 다음: bash \"$SDIR/render_max_report.sh\" --max-index $MAXDIR/max_index.json  (→ docs/benchmark/max_envelope_*.md)"

@@ -141,7 +141,7 @@ fn copy_files(from: &Path, to: &Path) {
     }
 }
 
-/// A private installation: the scripts and fixtures of the installed skill, the three classifier sources the
+/// A private installation: the scripts and fixtures of the installed skill, the classifier and cell-writer sources the
 /// checker reads and the two files of the neighbouring skills, in the layout `<root>/.claude/skills/...`.
 /// Returns the scripts directory.
 pub fn install_copy(tree: &Tree) -> PathBuf {
@@ -162,6 +162,11 @@ pub fn install_copy(tree: &Tree) -> PathBuf {
         std::fs::copy(&source, skill.join("rust/src").join(name))
             .unwrap_or_else(|e| panic!("NOT_RUN: {}: {e}", source.display()));
     }
+    // The record writer of the broad cell (the native replacement of the shell's inline program) is bound by E②.
+    let writer = live_skill.join("rust/src/bench_shell/broad.rs");
+    std::fs::create_dir_all(skill.join("rust/src/bench_shell")).expect("directory");
+    std::fs::copy(&writer, skill.join("rust/src/bench_shell/broad.rs"))
+        .unwrap_or_else(|e| panic!("NOT_RUN: {}: {e}", writer.display()));
     for relative in [
         "terraforming_node/scripts/campaign_init.py",
         "vllm-recipe-explorer/recipe.py",

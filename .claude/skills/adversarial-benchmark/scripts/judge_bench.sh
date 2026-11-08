@@ -141,20 +141,8 @@ fi
 #   tp 가 meta 에 없으면 **여기서 1 로 채우지 않는다** — 그 기본값의 단일 소유자는 roofline.py 이며
 #   manifest 의 nodes×gpus 에서 파생한다. 여기서 1 을 적으면 멀티 스윕에서 조용히 틀린 tp 로
 #   루프라인을 세우게 된다(같은 개념이 두 곳에 손으로 적힌 값 = 매직넘버 결함 칸).
-read -r MODEL_PATH TP < <(python3 - "$INDEX" <<'PY'
-import json, sys
-meta = (json.load(open(sys.argv[1], encoding="utf-8")).get("meta") or {})
-# sweep meta 의 키는 `tensor_parallel_size` 다. 종전에 `tp` 를 읽어 **항상 미승계**였고,
-# single 에서는 roofline 이 manifest 로 1 을 파생해 우연히 맞았지만 multi 에서는 틀린 상한을
-# 세운다(2026-09-04 실측 발견 — 값이 없어도 조용히 도는 형태라 로그로는 안 보인다).
-tp = meta.get("tensor_parallel_size", meta.get("tp"))
-try:
-    tp = int(tp)
-except (TypeError, ValueError):
-    tp = None
-print(meta.get("model_path") or "NA",
-      tp if isinstance(tp, int) and not isinstance(tp, bool) and tp > 0 else "-")
-PY
+read -r MODEL_PATH TP < <(bash "$SDIR/bench_shell.sh" judge-model-tp "$INDEX"
+
 )
 if [ "$MODEL_PATH" = "NA" ]; then
   echo "[judge_bench] ERROR sweep_index.meta.model_path 가 NA — 루프라인 입력이 성립하지 않는다" >&2; exit 2
@@ -210,14 +198,8 @@ mv -f "$ROOF_TMP" "$ROOF"
 mv -f "$OUT_TMP" "$OUT"
 trap - EXIT
 echo "[judge_bench] DONE — ROOFLINE=$ROOF VERDICT=$OUT"
-python3 - "$OUT" <<'PY'
-import json, sys
-doc = json.load(open(sys.argv[1], encoding="utf-8"))
-rub = doc.get("rubric") or {}
-print("[judge_bench] verdict=%s authority=%s source=%s floor=%s reason_code=%s"
-      % (doc.get("verdict"), rub.get("authority"), rub.get("source"), rub.get("floor"),
-         doc.get("reason_code")))
-PY
+bash "$SDIR/bench_shell.sh" judge-log "$OUT"
+
 
 # ── 인증서 자동 발행 (2026-09-08 · plan_26090813 §4.4 · 사용자 결정 D18) ─────────────────
 # 왜 여기인가: `publish_benchmark_record.py` 는 저장소 안 **호출자가 0** 이었다. 발행기가 있는데
@@ -227,8 +209,8 @@ PY
 # **명시 권한(explicit)의 PASS 만** 자동이다. 탐색(explore)은 사용자가 목표를 안 준 상태의 측정이라
 # "검증된 한계" 를 주장할 근거가 없다 — 리포트와 sweep map 으로 남긴다. 권한 모델의 정본은
 # adversarial-benchmark SKILL.md §2 이며 여기서 두 번째 답을 만들지 않는다.
-_V="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1],encoding='utf-8')).get('verdict') or '')" "$OUT")"
-_A="$(python3 -c "import json,sys;print(((json.load(open(sys.argv[1],encoding='utf-8')).get('rubric') or {}).get('authority')) or '')" "$OUT")"
+_V="$(bash "$SDIR/bench_shell.sh" verdict "$OUT")"
+_A="$(bash "$SDIR/bench_shell.sh" authority "$OUT")"
 if [ "$NO_PUBLISH" = 1 ]; then
   # 억제도 결과다 — 로그에 남겨야 "왜 인증서가 없지?" 가 조용한 누락과 구분된다.
   echo "[judge_bench] 인증서 발행 억제 — verdict=$_V authority=$_A (--no-publish${OUTDIR:+ · --out-dir=$OUTDIR 는 정본 판정 자리가 아니다})"

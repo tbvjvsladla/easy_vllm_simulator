@@ -293,6 +293,12 @@ fn encode_failure(failure: &EncodeFailure) -> Failure {
     Failure::new("UnicodeEncodeError", &failure.message())
 }
 
+/// The exception of an operating-system error on an already open stream (no path in the message):
+/// `[Errno 21] Is a directory`, never the host library's `(os error 21)` wording.
+pub(crate) fn stream_failure(error: &std::io::Error) -> Failure {
+    write_failure(error)
+}
+
 fn write_failure(error: &std::io::Error) -> Failure {
     let detail = error.to_string();
     let message = detail

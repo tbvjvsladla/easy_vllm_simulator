@@ -233,7 +233,7 @@ fn level_file(sweep_dir: &PyStr, level: &BigInt, name: &PyStr) -> PyStr {
 }
 
 /// `str.isdigit()`.
-fn is_digit_text(value: &PyStr) -> bool {
+pub(crate) fn is_digit_text(value: &PyStr) -> bool {
     !value.is_empty()
         && value.code_points().iter().all(|&point| {
             crate::pystr::is_decimal_digit(point)
@@ -1299,6 +1299,16 @@ fn split_words(value: &PyStr) -> Vec<PyStr> {
 /// one, and a chunk that holds a lone surrogate cannot be encoded: the chunks before it have been written when the
 /// error ends the run, the chunk itself and everything after it have not.
 fn write_index(path: &PyStr, index: &PyValue) -> Result<(), Failure> {
+    write_pretty_document(path, index, false)
+}
+
+/// [`write_index`] for any document, with the `f.write("\n")` some producers add inside the same `with` block (it
+/// follows only a dump that completed).
+pub(crate) fn write_pretty_document(
+    path: &PyStr,
+    index: &PyValue,
+    final_newline: bool,
+) -> Result<(), Failure> {
     use std::io::Write;
     let os = crate::pyfs::os_string(path).map_err(crate::pyfs::FsFailure::into_failure)?;
     let mut file = std::fs::OpenOptions::new()
@@ -1320,7 +1330,12 @@ fn write_index(path: &PyStr, index: &PyValue) -> Result<(), Failure> {
         )
     };
     match crate::pyfs::strict_utf8(&dumped) {
-        Ok(bytes) => file.write_all(&bytes).map_err(write_failure),
+        Ok(mut bytes) => {
+            if final_newline {
+                bytes.push(b'\n');
+            }
+            file.write_all(&bytes).map_err(write_failure)
+        }
         Err(_) => {
             let (kept, failing) = split_at_failing_chunk(index, &dumped);
             let prefix = crate::pyfs::strict_utf8(&kept)

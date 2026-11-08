@@ -43,7 +43,7 @@ pub const PROGRAM: &str = "selftest_broad_search_cell_args";
 /// The deployed files the checkout needs, at their repository-relative paths. `broad_search.sh` and what `init` and
 /// `cell` call after it: the cell classifier and the parser/verdict chain, the repeat axis and the measurement
 /// preset (init takes the repeat count default from the preset), and the campaign owner.
-pub(crate) const COPIES: [&str; 33] = [
+pub(crate) const COPIES: [&str; 35] = [
     ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell_api.sh",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell_native.py",
@@ -56,6 +56,8 @@ pub(crate) const COPIES: [&str; 33] = [
     ".claude/skills/adversarial-benchmark/rust/target/release/roofline",
     ".claude/skills/adversarial-benchmark/rust/target/release/verdict_rule",
     ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
+    ".claude/skills/adversarial-benchmark/scripts/bench_shell.sh",
+    ".claude/skills/adversarial-benchmark/rust/target/release/bench_shell",
     ".claude/skills/adversarial-benchmark/scripts/sweep_stop.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/sweep_stop",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell.py",

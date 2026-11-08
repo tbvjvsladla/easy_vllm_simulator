@@ -280,43 +280,8 @@ init)
   MAX_CELLS="$MAX_CELLS" WALL="$WALL" FAILLIMIT="$FAILLIMIT" \
   DECLARED_BY="$DECLARED_BY" BASIS="$BASIS" NOW="$NOW" TOPO="$TOPO" \
   REP_N="$REP_N" REP_SRC="$REP_SRC" \
-  python3 - "$STATE" <<'PY'
-import json, os, sys
-cells = [c.strip() for c in os.environ["CELLS"].split(",") if c.strip()]
-if not cells:
-    sys.stderr.write("[broad_search] ERROR --cells 가 비었다\n"); raise SystemExit(2)
-def _pos(name):
-    raw = os.environ[name]
-    if not raw.isdigit() or int(raw) <= 0:
-        sys.stderr.write("[broad_search] ERROR %s 는 양의 정수여야 한다(받은 값: %r)\n" % (name, raw))
-        raise SystemExit(2)
-    return int(raw)
-state = {
-    "schema_version": 1,
-    "sweep_id": os.environ["SWEEP_ID"],
-    "topology": os.environ["TOPO"],
-    "control_variable": os.environ["CTRL"],
-    "rubric_authority": os.environ["AUTHORITY"],
-    "started_utc": os.environ["NOW"],
-    "declared_budget": {
-        "max_cells": _pos("MAX_CELLS"),
-        "wall_clock_budget_s": _pos("WALL"),
-        "consecutive_failure_limit": _pos("FAILLIMIT"),
-        # 반복 수 — 값역·하한은 repeat_axis 가 이미 판정했다. 출처를 값 옆에 둔다.
-        "repeats": _pos("REP_N"),
-        "repeats_source": os.environ["REP_SRC"],
-        "declared_by": os.environ["DECLARED_BY"],
-        "basis": os.environ["BASIS"],
-    },
-    "cells_planned": len(cells),
-    "cells_remaining": cells,
-    "cells": [],
-}
-with open(sys.argv[1], "w", encoding="utf-8") as f:
-    json.dump(state, f, ensure_ascii=False, indent=2)
-print("[broad_search] init — sweep=%s cells=%d 예산=%s"
-      % (state["sweep_id"], len(cells), json.dumps(state["declared_budget"], ensure_ascii=False)))
-PY
+  bash "$SDIR/bench_shell.sh" broad-init "$STATE"
+
   ;;
 
 status)
@@ -510,14 +475,7 @@ PY
   CELL_PROV="$(python3 "$_CI_PC" "${_PC_ARGS[@]}")"
   _PCRC=$?
   set -e
-  _PC_STATUS="$(printf '%s' "$CELL_PROV" | python3 -c "
-import json, sys
-try:
-    d = json.loads(sys.stdin.read())
-except ValueError:
-    d = None
-print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str) else '')
-" 2>/dev/null || true)"
+  _PC_STATUS="$(printf '%s' "$CELL_PROV" | bash "$SDIR/bench_shell.sh" provenance-status 2>/dev/null || true)"
   if [ "$_PCRC" = "2" ] && [ "$_PC_STATUS" = "refused" ]; then
     echo "[broad_search] ERROR 셀 출처 precheck 거부(위 사유 참조) — 셀 '$CELL_KEY' 의 lockset.json 이 없거나" >&2
     echo "[broad_search]   provenance(explorer-phase2|hand-authored) 표시가 없다/목록 밖이다. 셀 materialize 는 explorer 소관이다" >&2
@@ -542,7 +500,7 @@ print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str
   if [ "$REASSEMBLE" = "1" ]; then
     # 판정은 **기존 산출물**이 한다: 판정점 measured.json 의 measurement_ok 가 유일한 근거다.
     SWEEPDIR_PRE="$SWEEPDIR"
-    if python3 -c "import json,sys;d=json.load(open('$SWEEPDIR_PRE/level_01/measured.json'));sys.exit(0 if d.get('measurement_ok') else 1)" 2>/dev/null; then
+    if bash "$SDIR/bench_shell.sh" broad-measurement-ok "$SWEEPDIR_PRE/level_01/measured.json" 2>/dev/null; then
       MEASURE_RC=0
     else
       MEASURE_RC=1
@@ -616,171 +574,15 @@ print(d.get('status') if isinstance(d, dict) and isinstance(d.get('status'), str
   CLS="$CLS" ENDED="$ENDED" STARTED="$STARTED" SERVE_FAILED_REASON="$SERVE_FAILED_REASON" \
   NEXT_INTENT="$NEXT_INTENT" THERMAL_UNCAL="${_UNCAL:-}" ACK_UNCAL="$ACK_UNCAL" \
   CELL_PROV="${CELL_PROV:-}" SDIR="$SDIR" \
-  python3 - "$STATE" <<'PY'
-import json, os, sys
-state_path = sys.argv[1]
-with open(state_path, encoding="utf-8") as f:
-    state = json.load(f)
-cls = json.loads(os.environ["CLS"])
-sweepdir = os.environ["SWEEPDIR"]
+  bash "$SDIR/bench_shell.sh" broad-cell "$STATE"
 
-def _load(name):
-    try:
-        with open(os.path.join(sweepdir, name), encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, ValueError):
-        return None
-
-index = _load("sweep_index.json") or {}
-verdict = _load("verdict.json") or {}
-# ★ 2026-09-29(plan_26092923_58_27 라이브 L3 발견): 측정이 성립하지 않은 셀은 이 스윕이 index·판정점·verdict 를 **쓰지 않았다** —
-#   스윕 디렉터리에 남은 것은 이전 스윕의 산출물이다. 종전에는 반복 축만 그 규칙을 지켰고 동시성 벡터·좌표·오류 분할·verdict 서술은
-#   그대로 옮겨, lite ② 로 GuideLLM 에 들어가지도 않은 셀이 09-03 스윕의 46.56 t/s 를 들고 cell.status 에 measurement_ok 로 올라갔다
-#   (실측인 척). 측정 불성립 셀에는 이 셋을 싣지 않는다 — 값이 비는 것이 이전 값을 들고 있는 것보다 정직하다.
-index_carried = cls.get("cell_outcome") == "measured"
-if not index_carried:
-    index, verdict = {}, {}
-
-
-def _bench_mode_fields():
-    """판정 기록(classify_cell 사이드카) → 셀 기록 필드. 부재·판독 실패·낡음은 null + 그 사유다(추측 ✗)."""
-    keys = ("bench_mode", "bench_mode_source", "downgrade_reason", "downgrade_reason_source", "downgrade_correlation")
-    if cls.get("cell_outcome") != "measured":
-        return dict({k: None for k in keys}, bench_mode_source=(
-            "not_applicable(cell_outcome=%s — 측정이 성립하지 않은 셀에는 bench_mode 가 없다)" % cls.get("cell_outcome")))
-    sys.path.insert(0, os.environ["SDIR"])
-    import classify_cell_native as _cc
-    record, status = _cc.read_bench_mode_record(os.path.join(sweepdir, "sweep_index.json"), index)
-    if record is None:
-        return dict({k: None for k in keys}, bench_mode_source="not_evaluated(판정 기록 %s)" % status)
-    return {k: record.get(k) for k in keys}
-# ★ 2026-09-06: 오류 분할(도구 경계 대 서버)이 판정점 measured.json 에는 있는데 **셀 기록으로
-#   올라오지 않았다**. 그러면 지도에는 깨끗한 `measured` 셀만 보이고, 요청의 일부가 클라이언트
-#   파서에 버려졌다는 사실이 사라진다. 실측(a0): 24건 중 3건이 harmony 토큰 경계에서 errored.
-#   parse_guidellm 이 "가르되 삼키지 않는다"로 고쳐졌는데 **마지막 홉에서 다시 삼켜졌다** —
-#   바로 위 moe_backend_mismatch 주석이 적은 것과 같은 계열의 결함이다(계산은 해 놓고 버린다).
-judged = (_load(os.path.join("level_01", "measured.json")) or {}) if index_carried else {}
-meta = index.get("meta") or {}
-# 동시성 축은 **벡터 전부**를 싣는다(한 점으로 접으면 승자가 뒤집힌다는 실측이 있다).
-vector = {str(l.get("level")): ((l.get("measured") or {}).get("decode_tps"))
-          for l in (index.get("levels") or [])}
-cell = {
-    "cell_key": os.environ["CELL_KEY"],
-    "sweep_dir": os.path.relpath(sweepdir, os.environ["REPO"]) if index_carried else None,
-    "sweep_generated_utc": index.get("generated_utc") if index_carried else None,
-    "config": os.environ["CONFIG"],
-    "started_utc": os.environ["STARTED"],
-    "ended_utc": os.environ["ENDED"],
-    "cell_outcome": cls["cell_outcome"],
-    "void_reason": cls.get("void_reason"),
-    "void_reason_source": cls.get("void_reason_source"),
-    "note": cls.get("note"),
-    "kill_events": cls.get("kill_events"),
-    "sweep_artifacts_carried": (True if index_carried else
-                                "false(cell_outcome=%s — 이 셀은 index·판정점·verdict 를 쓰지 않았다 · 디렉터리의 것은 이전 스윕)"
-                                % cls.get("cell_outcome")),
-    # lite 게이트 판정(2026-09-29 · plan_26092923_58_27) — 분류기가 이번 셀 raw 에서 읽은 값을 그대로 옮긴다(판정 ✗).
-    #   ② server_failed 는 실사용 불가 신호이고 캠페인 셀이면 writer 가 cap 차감·재발동 제안을 적는다.
-    "lite_verdict": cls.get("lite_verdict"),
-    "lite_verdict_source": cls.get("lite_verdict_source"),
-    "lite_raw_status": cls.get("lite_raw_status"),
-    # ★ sweep meta 의 키 이름을 그대로 쓴다. 종전에 `tp`·`vllm` 을 읽어 **지도의 두 칸이 항상
-    #   null** 이었다(2026-09-04 첫 지도에서 발견). 좌표가 비면 그 셀은 재현 불가이고, 조용히
-    #   비어 있으므로 로그로는 보이지 않는다 — 같은 계열 결함이 judge_bench 에도 있었다.
-    "coordinates": {k: meta.get(k) for k in
-                    ("quantization", "max_model_len", "kv_cache_dtype", "tensor_parallel_size",
-                     "image_tag", "image_digest", "moe_backend", "attention_backend",
-                     "gpu_memory_utilization", "max_num_seqs")},
-    "concurrency_vector": vector or None,
-    # 반복 축(2026-09-14 · plan_26091407 §4.4). 요약은 sweep_bench 가 raw runs[] 에서 낸 것이고(레벨별 완주·
-    #   재현 밴드·스윕이 멈춘 자리), bench_mode·강등 사유는 분류기의 **판정 기록**(sweep_bench 종료부가 부른
-    #   classify_cell 의 bench_mode.json)을 그대로 옮긴 값이다 — 여기서 다시 판정하지 않는다(판정 기록은 하나다 ·
-    #   인증서 발행기도 같은 기록을 읽는다). 측정이 성립하지 않은 셀의 index 는 이전 스윕의 것일 수 있어 싣지 않는다.
-    "repetition": (index.get("repetition") if cls.get("cell_outcome") == "measured" else None),
-    **_bench_mode_fields(),
-    # 용량 축은 속도와 **합치지 않고 나란히** 둔다.
-    "capacity": {"kv_cache_memory_bytes": meta.get("kv_cache_memory_bytes"),
-                 "max_model_len": meta.get("max_model_len")},
-    "measurement": {"bench_tool": meta.get("bench_tool"),
-                    "bench_tool_version": meta.get("bench_tool_version"),
-                    "bench_tool_version_source": meta.get("bench_tool_version_source"),
-                    "vllm_version": meta.get("vllm_version"),
-                    "gpu_model": meta.get("gpu_model"),
-                    # 커널 축은 요청과 실효가 갈릴 수 있으므로 **출처·불일치·후보**까지 싣는다.
-                    "attention_backend_source": meta.get("attention_backend_source"),
-                    "attention_backend_declared": meta.get("attention_backend_declared"),
-                    "attention_backend_mismatch": meta.get("attention_backend_mismatch"),
-                    "attention_backend_candidates": meta.get("attention_backend_candidates"),
-                    # ★ 2026-09-05: MoE 도 같은 세 필드를 싣는다. 바로 위 주석이 "출처·불일치까지
-                    #   싣는다"고 적어 두었는데 **어텐션에만 적용돼 있었다** — sweep_bench 는
-                    #   `moe_backend_mismatch` 를 정확히 계산해 놓고(YES(measured=marlin
-                    #   declared=triton)) broad_search 가 그것을 버렸다. 캠페인 1 실측:
-                    #   moe-backend 를 triton·flashinfer_trtllm·cutlass 로 선언한 셀 3개가 전부
-                    #   marlin 으로 돌았는데 지도에는 그 사실이 없었다. 좌표는 실측값이라 거짓은
-                    #   아니었지만, "축을 옮겼는데 안 옮겨졌다"는 **가장 중요한 결과**가 사라졌다.
-                    "moe_backend_source": meta.get("moe_backend_source"),
-                    "moe_backend_declared": meta.get("moe_backend_declared"),
-                    "moe_backend_mismatch": meta.get("moe_backend_mismatch"),
-                    # 오류 분할(판정점 기준). 전체 오류율과 서버 오류율을 **나란히** 둔다 —
-                    # 판정은 서버 쪽으로 하되 버려진 요청 수를 읽는 사람에게서 감추지 않는다.
-                    "error_rate": judged.get("error_rate"),
-                    "server_error_rate": judged.get("server_error_rate"),
-                    "tool_boundary_errors": judged.get("tool_boundary_errors"),
-                    "server_errors": judged.get("server_errors"),
-                    "error_split_source": judged.get("error_split_source"),
-                    "completed_requests": judged.get("completed"),
-                    "num_prompts": judged.get("num_prompts")},
-    # 사유 코드는 **있을 때만** 덧붙인다(2026-09-14 · plan_26091407 §4.1). 없으면 이 줄이 삼킨다 —
-    #   SPEC_ACCEPT_LEN_MISSING(spec 선언 ∧ accept_len 결손)과 다른 NEEDS_RUBRIC(사다리 후보 없음·물리
-    #   초과)이 지도에서 똑같이 "NEEDS_RUBRIC · source=None · floor=None" 으로 보인다. 코드의 소유는
-    #   verdict_rule.py 이고 여기서는 인용만 한다(없는 판정의 서술 모양은 종전 그대로).
-    "verdict_narrative": (("%s · authority=%s · source=%s · floor=%s%s"
-                           % (verdict.get("verdict"),
-                              (verdict.get("rubric") or {}).get("authority"),
-                              (verdict.get("rubric") or {}).get("source"),
-                              (verdict.get("rubric") or {}).get("floor"),
-                              (" · reason_code=%s" % verdict["reason_code"])
-                              if verdict.get("reason_code") else ""))
-                          if verdict else None),
-    "axis_citation": os.environ["CITATION"],
-    # 여정 한 줄 — "다음에 무엇을 할 참인가". 지도(선언)가 영토(실측)와 갈라진 지점을 남기는
-    # 유일한 자리이며, 이 체인에서 **복원 불가능한 유일한 정보**다.
-    "next_intent": os.environ.get("NEXT_INTENT") or None,
-    # 열 임계 미교정 사실을 **셀마다** 남긴다(2026-09-07 · 유예 결함 ③). 표시만 하고 아무도
-    # 읽지 않으면 그 표시는 없는 것과 같다 — 이 필드가 그 표시의 소비자이자 기록이다.
-    "thermal_uncalibrated": ([x for x in (os.environ.get("THERMAL_UNCAL") or "").split(",") if x]
-                             or None),
-    "thermal_uncalibrated_ack": os.environ.get("ACK_UNCAL") == "1",
-    # 셀 출처 precheck 판정(2026-09-14 · plan_26091407 §4.0). 통과·대상 아님·미평가를 **셀마다**
-    # 남긴다 — 캠페인 밖 호출에서 precheck 가 적용되지 않았다는 사실이 stderr 와 함께 사라지면
-    # 그것이 조용한 우회다. 판정 JSON 이 파손이면 파손이라고 적는다(없는 판정을 통과로 접지 않는다).
-    "cell_provenance": None,
-}
-try:
-    cell["cell_provenance"] = json.loads(os.environ.get("CELL_PROV") or "null")
-except ValueError:
-    cell["cell_provenance"] = {"status": "unreadable", "raw": os.environ.get("CELL_PROV")}
-_sf = os.environ.get("SERVE_FAILED_REASON") or ""
-if _sf:
-    # 사유는 **인용**이다 — 로그의 실제 문장을 옮긴다. 요약·추측 ✗.
-    cell["serve_failed_reason"] = _sf
-    cell["note"] = "%s / %s" % (cell.get("note") or "", _sf)
-# 같은 셀 키가 이미 있으면 **교체**한다(재조립). 덧붙이면 지도에 같은 좌표가 두 번 나온다.
-state["cells"] = [c for c in (state.get("cells") or []) if c.get("cell_key") != cell["cell_key"]]
-state["cells"].append(cell)
-state["cells_remaining"] = [c for c in (state.get("cells_remaining") or [])
-                            if c != cell["cell_key"]]
-with open(state_path, "w", encoding="utf-8") as f:
-    json.dump(state, f, ensure_ascii=False, indent=2)
-print("[broad_search] cell %s → %s" % (cell["cell_key"], cell["cell_outcome"]))
-PY
   # ── 채우는 손(2026-09-07 · plan_26090715 §4.1). 이 트랜잭션이 sweep 레코드를 쓴 **바로 그
   #    자리**에서 cell.status 와 여정 줄도 쓴다. 두 자리를 다른 시점에 쓰면 갈라지고, 갈라진 것이
   #    캠페인 ⑦ 의 b1~b6 이다(sweep=serve_failed 인데 cell.status=pending · P1 이 그것을 잡는다).
   #    포맷 소유는 campaign_init 하나이고 여기는 호출부다. ACTIVE=_bootstrap 이면 no-op 이다.
   _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
   if [ -f "$_CI" ]; then
-    _OUTCOME="$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));c=[x for x in d.get('cells') or [] if x.get('cell_key')==sys.argv[2]];print((c[-1].get('cell_outcome') if c else '') or '')" "$STATE" "$CELL_KEY")"
+    _OUTCOME="$(bash "$SDIR/bench_shell.sh" cell-outcome "$STATE" "$CELL_KEY")"
     if [ -n "$_OUTCOME" ]; then
       # ★ 2026-09-08(plan_26090813 D19): 측정값을 **호출부가 나르지 않는다**. sweep 기록을 방금
       #   쓴 그 파일을 writer 가 직접 읽는다 — 종전에는 이 호출부가 --measurement-decode-tps 를
@@ -794,15 +596,11 @@ PY
       #   워치독 사살이었고 그 사실은 같은 순간 원장에 이미 있었다. 산문은 지우지 않고
       #   `serve_failed_reason`(주장)으로 남으며, 사유 칸(판정)은 이벤트가 가져간다.
       # 사유 칸은 관측 출처만 받는다 — 이벤트 대조(events(…)) 또는 lite raw 판정(lite_raw(…) · 2026-09-29).
-      _EV_REASON="$(printf '%s' "$CLS" | python3 -c "
-import json,sys
-d=json.load(sys.stdin); src=d.get('void_reason_source') or ''
-print(d.get('void_reason') or '' if src.startswith(('events(', 'lite_raw(')) else '')
-" 2>/dev/null || true)"
-      _LITE_FRESH="$(printf '%s' "$CLS" | python3 -c "import json,sys;print(json.load(sys.stdin).get('lite_raw_status') or '')" 2>/dev/null || true)"
+      _EV_REASON="$(printf '%s' "$CLS" | bash "$SDIR/bench_shell.sh" event-reason 2>/dev/null || true)"
+      _LITE_FRESH="$(printf '%s' "$CLS" | bash "$SDIR/bench_shell.sh" lite-raw-status 2>/dev/null || true)"
       [ "$_LITE_FRESH" = "fresh" ] && _WARGS+=(--lite-raw "$LITE_RAW_CELL")
       if [ -n "$_EV_REASON" ]; then
-        _EV_SRC="$(printf '%s' "$CLS" | python3 -c "import json,sys;print(json.load(sys.stdin).get('void_reason_source') or '')" 2>/dev/null || true)"
+        _EV_SRC="$(printf '%s' "$CLS" | bash "$SDIR/bench_shell.sh" void-reason-source 2>/dev/null || true)"
         _WARGS+=(--void-reason "$_EV_REASON" --void-reason-source "$_EV_SRC")
         if [ -n "$SERVE_FAILED_REASON" ]; then
           echo "[broad_search] ⓘ 사유 칸은 이벤트 대조 결과($_EV_REASON)가 가져간다 — 호출자가 넘긴" >&2
@@ -820,7 +618,7 @@ print(d.get('void_reason') or '' if src.startswith(('events(', 'lite_raw(')) els
       _CS="$(python3 "$_CI" --derive cell-status --cell "$CELL_KEY" 2>/dev/null || true)"
       _NODE=""
       if [ -n "$_CS" ] && [ -f "$_CS" ]; then
-        _NODE="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('node_id') or '')" "$_CS" 2>/dev/null || true)"
+        _NODE="$(bash "$SDIR/bench_shell.sh" node-id "$_CS" 2>/dev/null || true)"
       fi
       if [ -z "$_NODE" ]; then
         # ★ 2026-09-11(plan_26091108 R10): 여기가 **조용히 건너뛰어지던 자리**다. 셀 키 어휘가
@@ -858,7 +656,7 @@ print(d.get('void_reason') or '' if src.startswith(('events(', 'lite_raw(')) els
             #   종전의 `docs/logs/*/events` 전수 glob 은 발견 규칙의 두 번째 사본이었고 다른 노드의 사살까지 넘겼다.
             while IFS= read -r evf; do
               [ -n "$evf" ] && [ -f "$evf" ] && _ESC+=(--events "$evf")
-            done < <(printf '%s' "$CLS" | python3 -c "import json,sys;print('\n'.join(json.load(sys.stdin).get('events_scanned') or []))" 2>/dev/null || true)
+            done < <(printf '%s' "$CLS" | bash "$SDIR/bench_shell.sh" events-scanned 2>/dev/null || true)
             python3 "$_CI" "${_ESC[@]}" >/dev/null \
               || echo "[broad_search] ⚠ escalation 후보 기록 실패 — 종결 HITL 이 이 셀을 못 본다" >&2
             ;;

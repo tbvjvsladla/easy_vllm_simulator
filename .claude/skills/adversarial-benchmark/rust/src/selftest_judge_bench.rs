@@ -37,8 +37,13 @@ use std::path::{Path, PathBuf};
 /// The program's name in its messages.
 pub const PROGRAM: &str = "selftest_judge_bench";
 
-const COPIED_SCRIPTS: [&str; 3] = ["judge_bench.sh", "roofline.sh", "verdict_rule.sh"];
-const COPIED_BINARIES: [&str; 2] = ["roofline", "verdict_rule"];
+const COPIED_SCRIPTS: [&str; 4] = [
+    "judge_bench.sh",
+    "bench_shell.sh",
+    "roofline.sh",
+    "verdict_rule.sh",
+];
+const COPIED_BINARIES: [&str; 3] = ["bench_shell", "roofline", "verdict_rule"];
 const RELEASE_DIRECTORY: &str = ".claude/skills/adversarial-benchmark/rust/target/release";
 /// The publisher the sandbox replaces with a stub.
 const PUBLISHER: &str = "publish_benchmark_record.py";

@@ -90,6 +90,7 @@ case "$BACKEND" in
 esac
 
 REPO="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -z "$TOPO" ]; then
   # ★ 2026-09-14(⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고 브랜치로 추론하지 않는다"): 종전 관용구는
   #   브랜치 이름에서 토폴로지를 골랐고 알 수 없는 이름은 조용히 single 로 떨어졌다. 해소는 공용 해소기가 한다 —
@@ -295,7 +296,7 @@ fi
 
 # 명명 입력(config_name·config_yaml·env_file·manifest)은 경량 리포트가 모델·GPU·버전 축을 **파생**하는 자리다
 #   (sweep_bench 조립부와 같은 규칙 · render_report.lite_identity). 값을 여기서 미리 해석하지 않고 경로만 남긴다.
-BERR_TAIL="$(tail -c 4000 "$BLOG" 2>/dev/null | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')"
+BERR_TAIL="$(tail -c 4000 "$BLOG" 2>/dev/null | bash "$SDIR/bench_shell.sh" json-escape-stdin)"
 cat > "$RAW" <<JSON
 {"topology":"$TOPO","serve_plane":"$SERVE_PLANE","host_endpoint":"$BASE_URL","burst_n":$BURST_N,
  "config_name":"$CONFIG","measured_utc":"$MEASURED_UTC","backend":"$BACKEND","endpoint":"$LITE_ENDPOINT",
@@ -311,7 +312,7 @@ LM="$REPO/.claude/skills/adversarial-benchmark/scripts/lite_metrics.sh"
 bash "$LM" --raw-json "$RAW" --judge || { echo "[lite_bench] 판정기 실패 — raw 에 판정이 없다(호출부는 불통과로 읽는다)" >&2; exit 6; }
 echo ""
 # 종료코드는 raw 의 판정에서 **파생**한다(두 자리가 갈라질 수 없다 — 같은 값을 읽는다).
-LITE_VERDICT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("lite_verdict",""))' "$RAW" 2>/dev/null || true)"
+LITE_VERDICT="$(bash "$SDIR/bench_shell.sh" lite-verdict "$RAW" 2>/dev/null || true)"
 case "$LITE_VERDICT" in
   pass) LITE_RC=0 ;;
   server_failed) LITE_RC=7 ;;

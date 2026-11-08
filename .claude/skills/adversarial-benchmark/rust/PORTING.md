@@ -2669,3 +2669,19 @@ inline/interop work, the other stages, six main/sub profiles and actual single/m
 **하네스 변경(기대값 아님).** 기본 설정 케이스가 실제로 Native를 타도록 `run`/`command`가 어댑터 env를 제거하고 기본 위치만 준다. `an_unreachable_owner…` 시험은 이제 검토된 소유자가 어댑터 없이 네이티브로 답하므로 *다른 바이트* 소유자로 같은 단언(어댑터 미설정 시 `CampaignOwnerAdapterError`)을 유지한다. `resolve_topology_selftest.rs`의 격리 env 목록에 `REPEAT_AXIS_PYTHON`·`REPEAT_AXIS_COMPAT_ADAPTER`·`REPEAT_AXIS_ROUTE_OBSERVER`를 더했다.
 
 **한계(주장하지 않음).** (1) 네이티브는 검토된 파일의 import 시점 계산 중 실패할 수 있는 위치 계산만 재현한다(PyYAML 부재 같은 환경 실패는 Python 경로의 몫이며 Root 라우팅 결정 3이 정의). (2) `camp_id`가 컨테이너면 비어 있음만 관찰한다. (3) `IndexError`의 `args`는 `Plain`(타입된 int 아님) — 이 와이어에서는 관찰되지 않는다. (4) `topology_parity_api.rs`의 B 전용 모듈 위치 계산은 R43 API ABI 보존을 위해 건드리지 않았다(중복 한 곳이 남음). (5) 공개 제품 핸들러와 맨 어댑터 계층은 같다고 단언하지 않는다(어댑터가 응답 없이 끝나는 S15형은 제품에서 `CampaignOwnerAdapterError`, 맨 어댑터는 종료 코드 7). (6) 성능은 측정하지 않았다. 잔여 S1 인라인/상호운용, 다른 단계, 여섯 main/sub 프로파일과 실제 단일/멀티 Long E2E는 INCOMPLETE다.
+
+## R45 — R19 `bench_shell`(셸 인라인 파이썬 37지점)을 현재 정본 위로 최소 재기반, 승인된 값 의미 적용
+
+상태: 이 범위의 자체검사 결과는 `W/result.json` 에 있다. Root 공개 통합·독립 c11·정본 채택·Main/Sub 전달·성능은 미실시이며 이 절은 그 어느 것도 주장하지 않는다.
+
+**계보(관측).** 현재 정본(598453b)에는 `bench_shell`, R20 `report_unicode`, R21 `stdin_newline` 이 없다(git 이력에도 없음). 분리된 후속 계보(r19-source-v3 · r21-source-v1 · r35-source-v2)에는 있다. 세 계보의 `bench_shell` 14파일과 `json_stream.rs` 는 바이트 동일하고 `pyjson.rs`/`render_report.rs` 만 다르다(R20/R21 공유 수정). 이 후보는 v3 의 14파일만 가져오며 R20/R21 공유 수정과 옛 831 복사는 쓰지 않았다. R21 에서는 **시험 전용** 고정 시계(`checks/bench_verifier_cases.rs`)만 옮겼다: `date -u +%FT%TZ`/`%Y%m%dT%H%M%SZ` 두 형태만 대리하고, 고정 시계 FAIL 3/PASS 25 와 1초 전진 시계 FAIL 10/PASS 18 을 각각 단언한다. 제품 시계·명명 규칙은 그대로다.
+
+**범위.** 새 `[[bin]] bench_shell`(일반 bin 52→53), `src/bench_shell.rs`+`src/bench_shell/*.rs`(7), 검사 3(`bench_shell_original_cases`·`bench_shell_edges`·`bench_shell_wiring`), 동결 자료 2 + 새 값 계약 자료 1, 등록 목록 병합(CHILD_OVERRIDES 13→14 등 현재 R43/R44 항목 보존), 필요한 픽스처 의존 목록과 `json_stream`/`assemble_sweep_meta` 보조. 호출부·런처·`build_rust.sh`·SKILL 은 Root 소유다.
+
+**값 계약(사용자 승인, Root 확정).** `warm-fraction`: 정확히 두 인자, 각각 ASCII `[+-]?[0-9]+`(선행 0은 10진, 선택적 `+` 허용, 임의 정밀도). 계산은 기존 그대로(정수 정확 나눗셈, `max(total,1)`, `round(…,4)`, float repr, `OverflowError`). 그 밖의 입력(빈 값·공백·유니코드 숫자·16진·부동소수·지수·밑줄·이름·식·부호 중복·인자 개수 불일치)은 stdout 비어 있고 stderr 정확히 `[bench_shell] ERROR warm-fraction 은 10진 정수 둘(WARMUPS TOTAL_REQ)만 계산한다`, 종료 2, 평가·파이썬 폴백 없음. 기존 호출부의 Bash `TOTAL_REQ` 산술은 별개 경계이며 이 도우미가 정규화한다고 주장하지 않는다. `broad-measurement-ok PATH`: PATH 는 리터럴 argv 이고 기존 `measurement_ok` 와 같은 loader·JSON·형·진리값·오류 경로를 그대로 쓴다(소스 리터럴 분류와 SyntaxError 흉내 제거). NUL 은 실제 CLI argv 로 불가능하므로 라이브러리 문맥의 loader 오류만 시험한다.
+
+**의도된 변경(이력, 동치 아님).** `WARMUPS=01`: 원본 SyntaxError → 값. 정당한 작은따옴표/개행 경로: 원본 SyntaxError → 리터럴 파일 읽기. 백슬래시 이스케이프: 원본이 다른 경로로 재해석 → 리터럴 경로. 선언 문법 밖의 임의 파이썬 소스: 평가 대신 거부. 저장된 원본 181행과 보충 원본 2건·원시 기록은 불변이며, 이 변경된 출력은 어떤 차분 PASS 로도 세지 않는다. 적용 가능한 181행은 모두 기대값 그대로 재생된다(warm/measurement 연산을 건너뛰지 않음). 새 값 계약 행은 `checks/data/bench_shell/value_contract.json` 에 따로 있다(후보 출력이 아니라 산술에서 유도한 기대값).
+
+**호출 지점 37.** 현재 여섯 스크립트의 heredoc 인식 grep 은 39곳이다. 컨테이너 안 `lite_bench.sh` 의 `docker exec … python3 -c` 와 열 소유자를 import 하는 `broad_search.sh` 의 열 프로브 2곳을 제외하면 37 = 인라인 36 + 기존 Rust 소유자 interop 1(`run_bench.sh` 데이터 인자)이다. 카탈로그의 `original_line` 앵커는 물리 줄이 아닐 수 있어 연산 순서로 대응한다.
+
+**한계.** 성능은 측정하지 않았다. 기존 호출부의 Bash 산술, 백엔드 개수 플래그, 임의 파이썬 소스 동치는 이 범위가 아니다. 가드된 환경에서는 `/tmp` 쓰기가 막혀 `broad_search_selftest_cases` 의 `/tmp` 대체 경로 시험 1건을 실행하지 못했다(그 시험 파일은 f42 이후 변경 없음).

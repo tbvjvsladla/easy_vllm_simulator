@@ -66,7 +66,8 @@ const EVIDENCE_PUBLISHER: &str = ".claude/policies/runtime/evidence_publisher.py
 const GATE_STUB: &str = ".claude/skills/terraforming_node/scripts/manifest_contract.py";
 
 /// Scripts copied as text (read as UTF-8, written back) in the original's order.
-const COPIED_SCRIPTS: [&str; 30] = [
+const COPIED_SCRIPTS: [&str; 31] = [
+    "bench_shell.sh",
     "render_report.sh",
     "render_sweep_map.sh",
     "render_max_report.sh",
@@ -102,7 +103,8 @@ const COPIED_SCRIPTS: [&str; 30] = [
 /// Release binaries copied byte for byte (with their permission bits): the two repeat-axis binaries first, then the
 /// rest, as the original's order. `classify_cell` / `classify_cell_api` need their private sibling helper
 /// `node_identity_resolve` in the same directory (the native node-identity lookup), so it is copied with them.
-const COPIED_BINARIES: [&str; 10] = [
+const COPIED_BINARIES: [&str; 11] = [
+    "bench_shell",
     "repeat_axis",
     "repeat_axis_api",
     "lite_metrics",

@@ -171,6 +171,7 @@ fn private_tree(scratch: &Scratch) -> PathBuf {
         ".claude/skills/adversarial-benchmark/rust/src/classify_cell_cli.rs",
         ".claude/skills/adversarial-benchmark/rust/src/argv.rs",
         ".claude/skills/adversarial-benchmark/rust/src/assemble_sweep_meta.rs",
+        ".claude/skills/adversarial-benchmark/rust/src/bench_shell/broad.rs",
         ".claude/skills/vllm-recipe-explorer/recipe.py",
     ] {
         if source.join(relative).is_file() {
@@ -184,6 +185,24 @@ fn private_tree(scratch: &Scratch) -> PathBuf {
         }
     }
     target
+}
+
+/// Puts a forwarding script in place of the native program of a private tree (the program itself moves to `home`,
+/// outside the tree, because the verifier copies the tree's files one by one and the script must find the program
+/// from wherever it is copied), so a test can watch or alter what the deployed callers get from it without touching
+/// the program's source. `body` runs with `$real` naming the program.
+fn interpose_bench_shell(tree: &Path, home: &Path, body: &str) {
+    use std::os::unix::fs::PermissionsExt;
+    let program = tree.join(RELEASE).join("bench_shell");
+    let real = home.join("bench_shell.real");
+    std::fs::copy(&program, &real).expect("keep the native program outside the tree");
+    std::fs::write(
+        &program,
+        format!("#!/bin/bash\nreal='{}'\n{body}\n", real.display()),
+    )
+    .expect("write the forwarding script");
+    std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o755))
+        .expect("make it executable");
 }
 
 /// Replaces `from` with `to` in a file of a private tree; the replacement must change something.
@@ -509,11 +528,11 @@ fn a_missing_deployed_script_is_the_copys_file_not_found_before_any_check_and_le
 fn a_changed_deployed_log_line_fails_only_the_check_that_reads_it() {
     let scratch = Scratch::new("log-line");
     let tree = private_tree(&scratch);
-    mutate(
+    // The line is printed by the native program the script calls; the deployed log line changes on its way out.
+    interpose_bench_shell(
         &tree,
-        SWEEP_SCRIPT,
-        "[sweep_bench] bench_mode=%s ·",
-        "[sweep_bench] mode=%s ·",
+        &scratch.root,
+        "set -o pipefail\n\"$real\" \"$@\" | sed -e 's/^\\[sweep_bench\\] bench_mode=/[sweep_bench] mode=/'",
     );
     let result = run(&Setup::on(&tree), &scratch);
     assert_eq!(result.status, Some(1), "{}", result.stdout);
@@ -828,8 +847,8 @@ fn the_fresh_directory_claim_race_runs_both_calls_at_once_and_exactly_one_claim_
     let scratch = Scratch::new("race");
     let tree = private_tree(&scratch);
     let log = scratch.root.join("claims.log");
-    // The deployed sweep script records when each call starts, and its path program when it reaches the claim (both in
-    // wall-clock seconds); this changes nothing they decide.
+    // The deployed sweep script records when each call starts, and the native path program (through a forwarding script)
+    // when it reaches the claim (both in wall-clock seconds); this changes nothing they decide.
     mutate(
         &tree,
         SWEEP_SCRIPT,
@@ -839,14 +858,12 @@ fn the_fresh_directory_claim_race_runs_both_calls_at_once_and_exactly_one_claim_
             log.display()
         ),
     );
-    mutate(
+    interpose_bench_shell(
         &tree,
-        SWEEP_SCRIPT,
-        "repo, topo, raw, reassemble, action = sys.argv[1:]",
+        &scratch.root,
         &format!(
-            "repo, topo, raw, reassemble, action = sys.argv[1:]\n\
-             import time as _t\n\
-             open({log:?}, 'a').write('claim %s %.6f\\n' % (raw, _t.time()))"
+            "if [ \"$1\" = sweep-path ] && [ \"$6\" = claim ]; then printf 'claim %s %s\\n' \"$4\" \"$EPOCHREALTIME\" >> '{}'; fi\nexec \"$real\" \"$@\"",
+            log.display()
         ),
     );
     let result = run(&Setup::on(&tree), &scratch);

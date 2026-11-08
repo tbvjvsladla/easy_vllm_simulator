@@ -21,6 +21,10 @@ name = "assemble_sweep_meta"
 path = "src/bin/assemble_sweep_meta.rs"
 
 [[bin]]
+name = "bench_shell"
+path = "src/bin/bench_shell.rs"
+
+[[bin]]
 name = "parse_bench"
 path = "src/bin/parse_bench.rs"
 
@@ -573,3 +577,15 @@ path = "checks/topology_parity_native.rs"
 [[test]]
 name = "topology_parity_api_native"
 path = "checks/topology_parity_api_native.rs"
+
+[[test]]
+name = "bench_shell_original_cases"
+path = "checks/bench_shell_original_cases.rs"
+
+[[test]]
+name = "bench_shell_edges"
+path = "checks/bench_shell_edges.rs"
+
+[[test]]
+name = "bench_shell_wiring"
+path = "checks/bench_shell_wiring.rs"

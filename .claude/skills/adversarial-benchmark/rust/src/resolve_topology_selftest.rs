@@ -63,7 +63,8 @@ const RESOLVER_SCRIPTS: [&str; 3] = [
 ];
 /// The scripts of the tools the callers reach after the resolver (repeat axis, measurement presets), copied byte for
 /// byte from the repository root's scripts directory.
-const DEPENDENCY_SCRIPTS: [&str; 8] = [
+const DEPENDENCY_SCRIPTS: [&str; 9] = [
+    "bench_shell.sh",
     "repeat_axis.py",
     "bench_preset.py",
     "repeat_axis.sh",
@@ -75,7 +76,8 @@ const DEPENDENCY_SCRIPTS: [&str; 8] = [
 ];
 /// The deployed native programs of the other tools the callers run (taken from the runtime directory), and the private
 ///  helper the resolver runs by default (the isolated checkout's resolver finds it beside itself).
-const RUNTIME_PROGRAMS: [&str; 5] = [
+const RUNTIME_PROGRAMS: [&str; 6] = [
+    "bench_shell",
     "repeat_axis",
     "repeat_axis_api",
     "bench_preset",
@@ -83,7 +85,8 @@ const RUNTIME_PROGRAMS: [&str; 5] = [
     crate::resolve_topology::HELPER_NAME,
 ];
 /// Settings of the environment a test run may carry that would substitute a copied probe's own deployed files.
-const CHILD_OVERRIDES: [&str; 13] = [
+const CHILD_OVERRIDES: [&str; 14] = [
+    "BENCH_SHELL_BIN",
     "RESOLVE_TOPOLOGY_BIN",
     "RESOLVE_TOPOLOGY_API_BIN",
     "REPEAT_AXIS_BIN",

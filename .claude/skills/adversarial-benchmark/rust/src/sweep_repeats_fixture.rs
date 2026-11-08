@@ -41,7 +41,7 @@ pub const LEVEL_REASON: [&str; 2] = ["--knob-reason", "levels=serving_concurrenc
 /// The deployed files the sandbox copies, in the original's order (`COPIES`). `classify_cell` / `classify_cell_api` ask the
 /// private native helper `node_identity_resolve` for the node identity (one normal sibling in the same release directory), so
 /// the helper is copied with them: a mirrored caller without its helper fails loud, by design.
-const COPIES: [&str; 70] = [
+const COPIES: [&str; 73] = [
     ".claude/skills/adversarial-benchmark/scripts/render_report.sh",
     ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.sh",
     ".claude/skills/adversarial-benchmark/scripts/render_max_report.sh",
@@ -69,7 +69,10 @@ const COPIES: [&str; 70] = [
     ".claude/skills/adversarial-benchmark/rust/target/release/verdict_rule",
     ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
     ".claude/skills/adversarial-benchmark/scripts/assemble_sweep_meta.sh",
+    ".claude/skills/adversarial-benchmark/scripts/bench_shell.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/assemble_sweep_meta",
+    ".claude/skills/adversarial-benchmark/rust/target/release/bench_shell",
+    ".claude/skills/adversarial-benchmark/rust/src/bench_shell/broad.rs",
     ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py",
     ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.sh",
     ".claude/skills/adversarial-benchmark/scripts/parse_guidellm_native.py",
