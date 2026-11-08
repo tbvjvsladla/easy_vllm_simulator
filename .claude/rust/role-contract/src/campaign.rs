@@ -29,47 +29,69 @@ pub const MODULE_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PurgeGateRefusal(pub PyStr);
 
-/// `str(PurePosixPath(text))`: repeated slashes collapse (exactly two leading slashes stay), `.` components go, `..` stays.
-pub fn normalize(path: &[u8]) -> Vec<u8> {
+/// `str(PurePosixPath(text))` over any code unit (bytes of an OS path, or the code points of a Python `str`): repeated slashes
+/// collapse (exactly two leading slashes stay), `.` components go, `..` stays. One rule for both so that path *text* can keep
+/// lone surrogates and NUL until it reaches the file system.
+fn normalize_units<U: Copy + PartialEq>(path: &[U], slash: U, dot: U) -> Vec<U> {
     if path.is_empty() {
-        return b".".to_vec();
+        return vec![dot];
     }
-    let leading = path.iter().take_while(|b| **b == b'/').count();
+    let leading = path.iter().take_while(|unit| **unit == slash).count();
     let mut out = Vec::new();
     match leading {
         0 => {}
-        2 => out.extend_from_slice(b"//"),
-        _ => out.push(b'/'),
+        2 => out.extend([slash, slash]),
+        _ => out.push(slash),
     }
-    let parts: Vec<&[u8]> = path
-        .split(|b| *b == b'/')
-        .filter(|part| !part.is_empty() && *part != b".")
-        .collect();
-    for (index, part) in parts.iter().enumerate() {
+    let parts = path
+        .split(|unit| *unit == slash)
+        .filter(|part| !part.is_empty() && !(part.len() == 1 && part[0] == dot));
+    for (index, part) in parts.enumerate() {
         if index > 0 {
-            out.push(b'/');
+            out.push(slash);
         }
         out.extend_from_slice(part);
     }
     if out.is_empty() {
-        out.push(b'.');
+        out.push(dot);
     }
     out
 }
 
-/// `Path(base) / part`.
-pub fn join(base: &[u8], part: &[u8]) -> Vec<u8> {
-    if part.first() == Some(&b'/') {
-        return normalize(part);
+/// `Path(base) / part` over any code unit (an absolute `part` replaces `base`).
+fn join_units<U: Copy + PartialEq>(base: &[U], part: &[U], slash: U, dot: U) -> Vec<U> {
+    if part.first() == Some(&slash) {
+        return normalize_units(part, slash, dot);
     }
-    let mut text = normalize(base);
-    if text == b"." {
+    let mut text = normalize_units(base, slash, dot);
+    if text.len() == 1 && text[0] == dot {
         text.clear();
     } else {
-        text.push(b'/');
+        text.push(slash);
     }
     text.extend_from_slice(part);
-    normalize(&text)
+    normalize_units(&text, slash, dot)
+}
+
+/// `str(PurePosixPath(text))` for an OS path.
+pub fn normalize(path: &[u8]) -> Vec<u8> {
+    normalize_units(path, b'/', b'.')
+}
+
+/// `Path(base) / part` for OS paths.
+pub fn join(base: &[u8], part: &[u8]) -> Vec<u8> {
+    join_units(base, part, b'/', b'.')
+}
+
+/// `str(Path(base) / part)` for Python text, kept as code points (lone surrogates and NUL are legal path text; only the file
+/// system rejects them).
+pub fn join_text(base: &PyStr, part: &PyStr) -> PyStr {
+    PyStr::from_code_points(join_units(
+        base.code_points(),
+        part.code_points(),
+        u32::from(b'/'),
+        u32::from(b'.'),
+    ))
 }
 
 fn os_path(bytes: &[u8]) -> &Path {
@@ -371,4 +393,84 @@ pub fn decode(bytes: &[u8]) -> Result<PyStr, String> {
         Err(error) => utf8_error_text(bytes, &error),
         Ok(_) => String::new(),
     })
+}
+
+// ── the loaded module's own location, and the typed `derive_path("root", camp_id=...)` the repeat callers ask ──────────────
+
+/// Where a loaded `campaign_init.py` believes it lives: `REPO_ROOT = Path(__file__).resolve().parents[4]` and the path it was
+/// loaded from. The module-global root (not a caller's checkout) is what `active_campaign_id()` and `derive_path` use when
+/// they are called without a `repo_root`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct OwnedModuleSite {
+    pub root: Vec<u8>,
+    pub file: Vec<u8>,
+}
+
+impl OwnedModuleSite {
+    pub fn as_site(&self) -> ModuleSite<'_> {
+        ModuleSite {
+            root: &self.root,
+            file: &self.file,
+        }
+    }
+}
+
+/// The import-time computation of the module: `Path(module).resolve().parents[4]`. A symlink is followed (so the root may
+/// belong to another checkout), a symlink loop or an unreadable link is the exception `resolve` raises, and a resolved path
+/// with fewer than five components is `IndexError(4)` (its text is `4`).
+pub fn module_site(module: &[u8]) -> Result<OwnedModuleSite, Crash> {
+    let resolved = crate::topology::resolve_checked(module)?;
+    let parts: Vec<&[u8]> = resolved
+        .split(|byte| *byte == b'/')
+        .filter(|part| !part.is_empty())
+        .collect();
+    if parts.len() < 5 {
+        return Err(Crash::new(
+            "IndexError",
+            &PyStr::new("4"),
+            Where::Campaign {
+                module: module.to_vec(),
+                frames: Vec::new(),
+            },
+        ));
+    }
+    let mut root = Vec::new();
+    for part in &parts[..parts.len() - 5] {
+        root.push(b'/');
+        root.extend_from_slice(part);
+    }
+    if root.is_empty() {
+        root.push(b'/');
+    }
+    Ok(OwnedModuleSite {
+        root,
+        file: module.to_vec(),
+    })
+}
+
+/// `str(derive_path("root", camp_id=camp_id))` as the repeat callers use it, with any JSON value as `camp_id`: a falsy value
+/// means the active campaign (`camp_id or active_campaign_id()`), a text is a path component (an absolute one replaces the
+/// campaigns directory, `..` stays lexical), any other truthy type is the `TypeError` of `Path / value`. The result stays
+/// path *text* - nothing is encoded for the file system here.
+pub fn derive_root_path(camp_id: &PyValue, site: ModuleSite<'_>) -> Result<PyStr, Crash> {
+    let camp = if camp_id.is_truthy() {
+        camp_id.clone()
+    } else {
+        PyValue::Str(active_campaign_id(None, site.root, site.file)?)
+    };
+    let PyValue::Str(name) = camp.peel() else {
+        return Err(Crash::new(
+            "TypeError",
+            &PyStr::new(&format!(
+                "unsupported operand type(s) for /: 'PosixPath' and '{}'",
+                camp.type_name()
+            )),
+            Where::Campaign {
+                module: site.file.to_vec(),
+                frames: Vec::new(),
+            },
+        ));
+    };
+    let campaigns = crate::pyprofile::fs_decode(&campaigns_dir(None, site.root));
+    Ok(join_text(&campaigns, name))
 }

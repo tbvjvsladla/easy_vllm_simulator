@@ -222,7 +222,10 @@ fn run(
     let mut child = command(bin, columns, argv)
         .current_dir(cwd)
         .env("REPEAT_AXIS_REPO_ROOT", repo)
-        .env("REPEAT_AXIS_CAMPAIGN_ADAPTER", adapter())
+        // the DEFAULT public configuration: no user-set adapter or interpreter, only the wrapper's default location
+        .env_remove("REPEAT_AXIS_CAMPAIGN_ADAPTER")
+        .env_remove("REPEAT_AXIS_PYTHON")
+        .env("REPEAT_AXIS_COMPAT_ADAPTER", adapter())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -643,10 +646,12 @@ fn self_test_fails_when_the_owner_source_is_missing() {
 #[test]
 fn an_unreachable_owner_is_a_named_failure_and_never_the_original_script() {
     let root = owner_root("noadapter");
+    // A different program (the reviewed owner would now answer natively without any adapter): it exists but, with no
+    // adapter configured anywhere, it cannot be asked.
+    std::fs::write(root.0.join(OWNER_REL), b"# a different program\n").unwrap();
     let argv: Vec<String> = ["resolve", "--preset-default", "3", "--preset-source", "p"]
         .map(String::from)
         .to_vec();
-    // The adapter is not configured: the owner exists but cannot be asked.
     let mut command = command(CLI, None, &argv);
     let output = command
         .current_dir(&root.0)
@@ -721,4 +726,380 @@ fn a_missing_repository_root_is_a_named_refusal_only_where_it_is_needed() {
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr)
         .contains("RepeatAxisConfigurationError: the repository root is not configured"));
+}
+
+// ── R44: default routing of the campaign owner (own synthetic fixtures; not Root's recorded matrices) ─────────────────────
+
+mod r44_routes {
+    use super::{adapter, command, owner_root, Scratch, CLI, OWNER_REL};
+    use std::path::Path;
+    use std::process::Command;
+    use sweep_stop::pystr::PyStr;
+    use sweep_stop::pyvalue::{PyDict, PyValue};
+    use sweep_stop::repeat_owner::{CampaignOwner, ConfiguredCampaignOwner, PythonCampaignOwner};
+
+    fn argv() -> Vec<String> {
+        ["resolve", "--preset-default", "3", "--preset-source", "p"]
+            .map(String::from)
+            .to_vec()
+    }
+
+    /// One CLI run in the default public configuration (only the wrapper's default adapter location) with a route observer;
+    /// `configure` may add user intent.
+    fn observed(
+        root: &Path,
+        configure: impl FnOnce(&mut Command),
+    ) -> (std::process::Output, Vec<String>) {
+        let observer = root.join("route.jsonl");
+        let _ = std::fs::remove_file(&observer);
+        let mut cmd = command(CLI, None, &argv());
+        cmd.current_dir(root)
+            .env("REPEAT_AXIS_REPO_ROOT", root)
+            .env_remove("REPEAT_AXIS_CAMPAIGN_ADAPTER")
+            .env_remove("REPEAT_AXIS_PYTHON")
+            .env("REPEAT_AXIS_COMPAT_ADAPTER", adapter())
+            .env("REPEAT_AXIS_ROUTE_OBSERVER", &observer);
+        configure(&mut cmd);
+        let output = cmd.output().unwrap();
+        let lines = std::fs::read_to_string(&observer)
+            .unwrap_or_default()
+            .lines()
+            .map(String::from)
+            .collect();
+        (output, lines)
+    }
+
+    #[test]
+    fn the_default_run_of_the_reviewed_owner_is_native_and_answers_what_the_adapter_answers() {
+        let root = owner_root("r44_native");
+        let (native, native_lines) = observed(&root.0, |_| {});
+        assert_eq!(
+            native.status.code(),
+            Some(0),
+            "{}",
+            String::from_utf8_lossy(&native.stderr)
+        );
+        assert_eq!(
+            native_lines.len(),
+            1,
+            "one open, one line: {native_lines:?}"
+        );
+        let line = &native_lines[0];
+        assert!(
+            line.contains("\"route\": \"NativeCurrentSource\"")
+                && line.contains("\"python_child\": false")
+                && line.contains("\"child_pid\": null")
+                && line.contains("\"opened\": true"),
+            "{line}"
+        );
+        // user intent: the explicit adapter runs the same file through Python and answers byte for byte the same
+        let (explicit, explicit_lines) = observed(&root.0, |cmd| {
+            cmd.env("REPEAT_AXIS_CAMPAIGN_ADAPTER", adapter());
+        });
+        assert!(
+            explicit_lines[0].contains("\"route\": \"LegacyExplicit\"")
+                && !explicit_lines[0].contains("\"child_pid\": null"),
+            "{explicit_lines:?}"
+        );
+        assert_eq!(native.stdout, explicit.stdout);
+        // an explicit interpreter ALONE is explicit intent too (the default adapter location runs under it)
+        let (python_only, python_lines) = observed(&root.0, |cmd| {
+            cmd.env("REPEAT_AXIS_PYTHON", "python3");
+        });
+        assert!(
+            python_lines[0].contains("\"route\": \"LegacyExplicit\""),
+            "{python_lines:?}"
+        );
+        assert_eq!(native.stdout, python_only.stdout);
+    }
+
+    #[test]
+    fn an_empty_explicit_interpreter_keeps_its_existing_failure() {
+        let root = owner_root("r44_emptypy");
+        let (output, lines) = observed(&root.0, |cmd| {
+            cmd.env("REPEAT_AXIS_PYTHON", "");
+        });
+        assert_eq!(output.status.code(), Some(1));
+        assert!(String::from_utf8_lossy(&output.stderr)
+            .contains("CampaignOwnerAdapterError: cannot start the campaign owner adapter"));
+        assert!(
+            lines[0].contains("\"route\": \"LegacyExplicit\"")
+                && lines[0].contains("\"opened\": false"),
+            "{lines:?}"
+        );
+    }
+
+    #[test]
+    fn a_different_or_unreadable_owner_runs_the_default_compat_adapter_and_bytes_decide() {
+        let canonical = std::fs::read(super::real_repo().join(OWNER_REL)).unwrap();
+        let mut variants: Vec<(&str, Vec<u8>)> = Vec::new();
+        let mut commented = canonical.clone();
+        commented.extend_from_slice(b"\n# one more byte of comment\n");
+        variants.push(("comment", commented));
+        let text = String::from_utf8(canonical.clone()).unwrap();
+        variants.push((
+            "bootstrap",
+            text.replace("BOOTSTRAP = \"_bootstrap\"", "BOOTSTRAP = \"_boot2\"")
+                .into_bytes(),
+        ));
+        let reference = {
+            let root = owner_root("r44_ref");
+            observed(&root.0, |_| {}).0.stdout
+        };
+        for (tag, bytes) in variants {
+            let root = owner_root(&format!("r44_variant_{tag}"));
+            std::fs::write(root.0.join(OWNER_REL), bytes).unwrap();
+            let (output, lines) = observed(&root.0, |_| {});
+            assert_eq!(
+                output.status.code(),
+                Some(0),
+                "{tag}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(
+                lines[0].contains("\"route\": \"LegacySourceVariant\"")
+                    && lines[0].contains("\"python_child\": true")
+                    && !lines[0].contains("\"child_pid\": null"),
+                "{tag}: {lines:?}"
+            );
+            if tag == "comment" {
+                assert_eq!(
+                    output.stdout, reference,
+                    "same apparent semantics, now answered by Python"
+                );
+            }
+        }
+        // unreadable (mode 000, uid != 0): stat succeeds, the bytes cannot be read => identity unknown => legacy compat
+        if !is_root() {
+            use std::os::unix::fs::PermissionsExt;
+            let root = owner_root("r44_unreadable");
+            let owner = root.0.join(OWNER_REL);
+            std::fs::set_permissions(&owner, std::fs::Permissions::from_mode(0o000)).unwrap();
+            let (output, lines) = observed(&root.0, |_| {});
+            assert!(
+                lines[0].contains("\"route\": \"LegacySourceVariant\"")
+                    && lines[0].contains("cannot be read"),
+                "{lines:?}"
+            );
+            assert_eq!(
+                output.status.code(),
+                Some(1),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert!(
+                String::from_utf8_lossy(&output.stderr).contains("PermissionError"),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+
+    fn is_root() -> bool {
+        // uid 0 reads mode-000 files; the check needs a real permission failure
+        std::fs::read_to_string("/proc/self/status")
+            .unwrap()
+            .lines()
+            .any(|l| l.starts_with("Uid:") && l.split_whitespace().nth(1) == Some("0"))
+    }
+
+    #[test]
+    fn an_absent_owner_is_decided_by_the_old_file_check_and_opens_no_program() {
+        let empty = Scratch::new("r44_absent");
+        let (output, lines) = observed(&empty.0, |_| {});
+        assert_eq!(output.status.code(), Some(0));
+        assert!(
+            lines.len() == 1
+                && lines[0].contains("\"route\": \"Absent\"")
+                && lines[0].contains("\"opened\": false")
+                && lines[0].contains("\"python_child\": false"),
+            "{lines:?}"
+        );
+        // a directory at the owner path, and a non-directory parent: not regular files => absent as before
+        let dir = Scratch::new("r44_dirowner");
+        std::fs::create_dir_all(dir.0.join(OWNER_REL)).unwrap();
+        let (_, lines) = observed(&dir.0, |_| {});
+        assert!(lines[0].contains("\"route\": \"Absent\""), "{lines:?}");
+        let blocked = Scratch::new("r44_notdir");
+        std::fs::write(blocked.0.join(".claude"), b"a file").unwrap();
+        let (output, lines) = observed(&blocked.0, |_| {});
+        assert_eq!(output.status.code(), Some(0));
+        assert!(lines[0].contains("\"route\": \"Absent\""), "{lines:?}");
+    }
+
+    #[test]
+    fn a_requested_route_record_that_cannot_be_written_is_a_control_failure_not_a_route() {
+        let root = owner_root("r44_observer_fail");
+        std::fs::create_dir_all(root.0.join("route.jsonl")).unwrap();
+        let mut cmd = command(CLI, None, &argv());
+        let output = cmd
+            .current_dir(&root.0)
+            .env("REPEAT_AXIS_REPO_ROOT", &root.0)
+            .env_remove("REPEAT_AXIS_CAMPAIGN_ADAPTER")
+            .env_remove("REPEAT_AXIS_PYTHON")
+            .env("REPEAT_AXIS_ROUTE_OBSERVER", root.0.join("route.jsonl"))
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        assert!(String::from_utf8_lossy(&output.stderr).contains("CampaignRouteObserverError"));
+    }
+
+    // ---- Native against the live adapter, on own fixtures: every answer and every failure must be equal -----------------
+
+    fn native_owner() -> ConfiguredCampaignOwner {
+        ConfiguredCampaignOwner::new(None, PythonCampaignOwner::new("python3", None))
+    }
+
+    fn adapter_owner() -> PythonCampaignOwner {
+        PythonCampaignOwner::new("python3", Some(adapter().into_os_string()))
+    }
+
+    fn show(value: &PyValue) -> String {
+        match value.peel() {
+            PyValue::Str(text) => format!("s{:?}", text.code_points()),
+            PyValue::List(items) => {
+                format!("[{}]", items.iter().map(show).collect::<Vec<_>>().join(","))
+            }
+            other => format!("<{}>", other.type_name()),
+        }
+    }
+
+    fn camp_ids() -> Vec<PyValue> {
+        let text = |points: &[u32]| PyValue::Str(PyStr::from_code_points(points.to_vec()));
+        let mut dict = PyDict::new();
+        dict.set("k", PyValue::int(1));
+        vec![
+            PyValue::int(5),
+            PyValue::int(0),
+            PyValue::Bool(true),
+            PyValue::Bool(false),
+            PyValue::Float(1.5),
+            PyValue::Float(0.0),
+            text(&[]),
+            PyValue::List(Vec::new()),
+            PyValue::List(vec![PyValue::int(1)]),
+            PyValue::Dict(PyDict::new()),
+            PyValue::Dict(dict),
+            PyValue::None,
+            text(&[0x63, 0x61, 0x6d, 0x70, 0x2d, 0x78]),
+            text(&[0x2e, 0x2e, 0x2f, 0x78]),
+            text(&[0x2f, 0x61, 0x62, 0x73, 0x2f, 0x74]),
+            text(&[0x2f, 0x2f, 0x61]),
+            text(&[0xCA0, 0xD504]),
+            text(&[0x61, 0, 0x62]),
+            text(&[0xDCFF]),
+            text(&[0xD800]),
+        ]
+    }
+
+    /// Everything one session can be asked, rendered comparably.
+    fn observe(owner: &dyn CampaignOwner, repo: &Path) -> Vec<String> {
+        let repo =
+            PyStr::from_surrogateescape(std::os::unix::ffi::OsStrExt::as_bytes(repo.as_os_str()));
+        let mut seen = Vec::new();
+        let mut session = match owner.open(&repo) {
+            Ok(Some(session)) => session,
+            Ok(None) => return vec!["absent".into()],
+            Err(failure) => {
+                return vec![format!(
+                    "open-failed {} {:?}",
+                    failure.class,
+                    failure.message.code_points()
+                )]
+            }
+        };
+        let note = |r: Result<PyValue, sweep_stop::guidellm::Failure>| match r {
+            Ok(value) => format!("ok {}", show(&value)),
+            Err(failure) => format!("err {} {:?}", failure.class, failure.message.code_points()),
+        };
+        seen.push(note(session.active_campaign_id()));
+        seen.push(note(session.bootstrap_id()));
+        seen.push(note(session.reserved_ids()));
+        for id in camp_ids() {
+            seen.push(note(session.derive_root_path(&id).map(PyValue::Str)));
+        }
+        seen
+    }
+
+    fn fixture(tag: &str, active: Option<&[u8]>, dirs: &[&str]) -> Scratch {
+        let root = owner_root(tag);
+        for dir in dirs {
+            std::fs::create_dir_all(root.0.join("campaigns").join(dir)).unwrap();
+        }
+        if let Some(bytes) = active {
+            std::fs::create_dir_all(root.0.join("campaigns")).unwrap();
+            std::fs::write(root.0.join("campaigns/ACTIVE"), bytes).unwrap();
+        }
+        root
+    }
+
+    #[test]
+    fn native_and_the_live_adapter_answer_every_question_and_failure_alike() {
+        use std::os::unix::fs::PermissionsExt;
+        let mut fixtures: Vec<(&str, Scratch)> = vec![
+            ("plain", fixture("r44d_plain", None, &[])),
+            (
+                "active_valid",
+                fixture("r44d_valid", Some(b"camp-x\n"), &["camp-x"]),
+            ),
+            (
+                "active_bootstrap",
+                fixture("r44d_boot", Some(b"_bootstrap"), &["_bootstrap"]),
+            ),
+            (
+                "active_missing_dir",
+                fixture("r44d_gone", Some(b"gone\n"), &[]),
+            ),
+            ("active_empty", fixture("r44d_empty", Some(b""), &[])),
+            (
+                "active_whitespace_crlf",
+                fixture("r44d_crlf", Some(b"  camp-x \r\n"), &["camp-x"]),
+            ),
+            (
+                "active_invalid_utf8",
+                fixture("r44d_utf8", Some(&[0xff, 0xfe, 0x0a]), &[]),
+            ),
+            (
+                "active_dir_named_by_pointer_with_slash",
+                fixture("r44d_slash", Some(b"a/b\n"), &["a/b"]),
+            ),
+        ];
+        let unreadable = fixture("r44d_mode0", Some(b"camp-x\n"), &["camp-x"]);
+        if !is_root() {
+            std::fs::set_permissions(
+                unreadable.0.join("campaigns/ACTIVE"),
+                std::fs::Permissions::from_mode(0o000),
+            )
+            .unwrap();
+            fixtures.push(("active_mode000", unreadable));
+        }
+        // the module's root is where the owner path resolves: a repo reached through a symlink, and an owner linked into
+        // another checkout whose ACTIVE pointer differs from the caller's
+        let real = fixture("r44d_real", Some(b"camp-x\n"), &["camp-x"]);
+        let link = Scratch::new("r44d_linkparent");
+        let alias = link.0.join("alias");
+        std::os::unix::fs::symlink(&real.0, &alias).unwrap();
+        let other = fixture("r44d_other", Some(b"camp-target\n"), &["camp-target"]);
+        let caller = fixture("r44d_caller", Some(b"camp-caller\n"), &["camp-caller"]);
+        std::fs::remove_file(caller.0.join(OWNER_REL)).unwrap();
+        std::os::unix::fs::symlink(other.0.join(OWNER_REL), caller.0.join(OWNER_REL)).unwrap();
+        let mut compared = 0;
+        let mut check = |label: &str, repo: &Path| {
+            // the Native route needs the reviewed bytes: through a link they are the linked file's, which is the same file
+            let native = observe(&native_owner(), repo);
+            let legacy = observe(&adapter_owner(), repo);
+            assert_eq!(native, legacy, "{label}");
+            assert!(
+                native.len() > 3 || native[0].starts_with("open-failed"),
+                "{label}: {native:?}"
+            );
+            compared += 1;
+        };
+        for (label, scratch) in &fixtures {
+            check(label, &scratch.0);
+        }
+        check("repo_symlink", &alias);
+        check("owner_symlink_to_other_root", &caller.0);
+        assert_eq!(compared, fixtures.len() + 2);
+    }
 }

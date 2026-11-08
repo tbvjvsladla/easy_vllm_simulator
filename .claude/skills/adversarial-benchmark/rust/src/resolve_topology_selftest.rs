@@ -83,7 +83,7 @@ const RUNTIME_PROGRAMS: [&str; 5] = [
     crate::resolve_topology::HELPER_NAME,
 ];
 /// Settings of the environment a test run may carry that would substitute a copied probe's own deployed files.
-const CHILD_OVERRIDES: [&str; 10] = [
+const CHILD_OVERRIDES: [&str; 13] = [
     "RESOLVE_TOPOLOGY_BIN",
     "RESOLVE_TOPOLOGY_API_BIN",
     "REPEAT_AXIS_BIN",
@@ -92,6 +92,9 @@ const CHILD_OVERRIDES: [&str; 10] = [
     "BENCH_PRESET_API_BIN",
     "REPEAT_AXIS_REPO_ROOT",
     "REPEAT_AXIS_CAMPAIGN_ADAPTER",
+    "REPEAT_AXIS_PYTHON",
+    "REPEAT_AXIS_COMPAT_ADAPTER",
+    "REPEAT_AXIS_ROUTE_OBSERVER",
     "BENCH_PRESET_REPO_ROOT",
     "BENCH_PRESET_SKILL_DIR",
 ];

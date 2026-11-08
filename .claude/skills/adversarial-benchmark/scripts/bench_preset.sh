@@ -11,5 +11,11 @@ if [ ! -f "$BINARY" ] || [ ! -x "$BINARY" ]; then
 fi
 export BENCH_PRESET_REPO_ROOT="${BENCH_PRESET_REPO_ROOT:-$REPO}"
 export BENCH_PRESET_SKILL_DIR="${BENCH_PRESET_SKILL_DIR:-$SDIR/..}"
-export REPEAT_AXIS_CAMPAIGN_ADAPTER="${REPEAT_AXIS_CAMPAIGN_ADAPTER:-$SDIR/repeat_axis_owner_query.py}"
+# A caller-selected adapter is explicit legacy intent; empty keeps the old default meaning.
+if [[ -n "${REPEAT_AXIS_CAMPAIGN_ADAPTER:-}" ]]; then
+  export REPEAT_AXIS_CAMPAIGN_ADAPTER
+else
+  unset REPEAT_AXIS_CAMPAIGN_ADAPTER
+fi
+export REPEAT_AXIS_COMPAT_ADAPTER="${REPEAT_AXIS_COMPAT_ADAPTER:-$SDIR/repeat_axis_owner_query.py}"
 exec "$BINARY" "$@"

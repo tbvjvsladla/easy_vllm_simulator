@@ -24,7 +24,7 @@ use crate::repeat_axis::{
     STOP_KIND_CLAMP, STOP_KIND_REPEAT_BREAK,
 };
 use crate::repeat_fs::{aggregate_level, record_run, AggregateRequest, RunBoundary};
-use crate::repeat_owner::{resolve_repeats, PythonCampaignOwner, RepoRoot, ResolveRequest};
+use crate::repeat_owner::{resolve_repeats, CampaignOwner, RepoRoot, ResolveRequest};
 use crate::FULL_REPEATS_MIN;
 use num_bigint::BigInt;
 
@@ -173,7 +173,7 @@ fn into_exit(result: Result<(), Failure>, mut recorder: Recorder) -> SelfTestRep
 }
 
 /// Runs the self-test against the repository root's schema and owner.
-pub fn run_self_test(repo_root: &RepoRoot, owner: &PythonCampaignOwner) -> SelfTestReport {
+pub fn run_self_test(repo_root: &RepoRoot, owner: &dyn CampaignOwner) -> SelfTestReport {
     let mut recorder = Recorder::default();
     let result = scenarios(&mut recorder, repo_root, owner);
     into_exit(result, recorder)
@@ -192,7 +192,7 @@ fn refused<T>(outcome: Result<T, Failure>) -> Result<bool, Failure> {
 fn scenarios(
     rec: &mut Recorder,
     repo_root: &RepoRoot,
-    owner: &PythonCampaignOwner,
+    owner: &dyn CampaignOwner,
 ) -> Result<(), Failure> {
     let repo = repo_root.get()?.clone();
 
@@ -290,7 +290,7 @@ fn resolution_through_owner(
     rec: &mut Recorder,
     temp: &TempRoot,
     repo: &PyStr,
-    owner: &PythonCampaignOwner,
+    owner: &dyn CampaignOwner,
 ) -> Result<(), Failure> {
     let root = temp.text();
     let root_ref = RepoRoot::given(root.clone());

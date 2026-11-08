@@ -574,3 +574,221 @@ fn encode_and_os_crashes_carry_their_typed_constructor_details() {
     assert_eq!(abspath(b"a/../b"), bytes(&cwd.join("b")));
     assert_eq!(abspath(b"/x//y/./z/.."), b"/x/y");
 }
+
+// ---- R44: the module's own location and the typed `derive_path("root", camp_id=...)` the repeat callers ask ----------------
+
+mod owner_queries {
+    use agent_runtime_support::pystr::PyStr;
+    use agent_runtime_support::pyvalue::{PyDict, PyValue};
+    use role_contract::campaign::{derive_root_path, module_site, ModuleSite};
+    use std::path::PathBuf;
+
+    fn site() -> (Vec<u8>, Vec<u8>) {
+        (
+            b"/mod/root".to_vec(),
+            b"/mod/root/.claude/s/t/campaign_init.py".to_vec(),
+        )
+    }
+
+    fn derive(camp: &PyValue) -> Result<String, (String, String)> {
+        let (root, file) = site();
+        derive_root_path(
+            camp,
+            ModuleSite {
+                root: &root,
+                file: &file,
+            },
+        )
+        .map(|path| path.to_utf8().expect("text"))
+        .map_err(|crash| {
+            (
+                crash.class.to_string(),
+                crash.message.to_utf8().expect("text"),
+            )
+        })
+    }
+
+    fn text(code_points: &[u32]) -> PyValue {
+        PyValue::Str(PyStr::from_code_points(code_points.to_vec()))
+    }
+
+    fn scratch(label: &str) -> PathBuf {
+        let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
+            .join("r44_owner")
+            .join(format!("{}_{label}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(&root).expect("scratch");
+        root
+    }
+
+    #[test]
+    fn the_module_root_is_the_resolved_file_fifth_parent() {
+        // exactly five components: the root is "/" ; deeper: the prefix
+        assert_eq!(
+            module_site(b"/a/b/c/d/e").expect("site").root,
+            b"/".to_vec()
+        );
+        assert_eq!(
+            module_site(b"/r/a/b/c/d/e").expect("site").root,
+            b"/r".to_vec()
+        );
+        let site = module_site(b"/x/y/.//z/../q/w/e/r").expect("site");
+        assert_eq!(
+            site.file,
+            b"/x/y/.//z/../q/w/e/r".to_vec(),
+            "the file is the path as given"
+        );
+    }
+
+    #[test]
+    fn a_shallow_path_is_index_error_4_and_a_symlink_loop_is_the_resolve_runtime_error() {
+        for shallow in [&b"/a"[..], b"/a/b/c", b"/a/b/c/d"] {
+            let crash = module_site(shallow).expect_err("shallow");
+            assert_eq!(
+                (crash.class, crash.message.to_utf8().as_deref()),
+                ("IndexError", Some("4"))
+            );
+        }
+        let dir = scratch("loop");
+        let (a, b) = (dir.join("a"), dir.join("b"));
+        std::os::unix::fs::symlink(&b, &a).expect("link");
+        std::os::unix::fs::symlink(&a, &b).expect("link");
+        let crash =
+            module_site(std::os::unix::ffi::OsStrExt::as_bytes(a.as_os_str())).expect_err("loop");
+        assert_eq!(crash.class, "RuntimeError");
+        assert!(crash
+            .message
+            .to_utf8()
+            .expect("text")
+            .starts_with("Symlink loop from "));
+    }
+
+    #[test]
+    fn a_symlinked_module_belongs_to_the_root_it_resolves_to() {
+        let dir = scratch("link");
+        let real = dir.join("other/.claude/skills/terraforming_node/scripts");
+        std::fs::create_dir_all(&real).expect("dirs");
+        std::fs::write(real.join("campaign_init.py"), b"#").expect("file");
+        let caller = dir.join("caller/.claude/skills/terraforming_node/scripts");
+        std::fs::create_dir_all(&caller).expect("dirs");
+        std::os::unix::fs::symlink(
+            real.join("campaign_init.py"),
+            caller.join("campaign_init.py"),
+        )
+        .expect("link");
+        let via_link = caller.join("campaign_init.py");
+        let site = module_site(std::os::unix::ffi::OsStrExt::as_bytes(via_link.as_os_str()))
+            .expect("site");
+        let want = std::fs::canonicalize(dir.join("other")).expect("canonical");
+        assert_eq!(
+            site.root,
+            std::os::unix::ffi::OsStrExt::as_bytes(want.as_os_str()).to_vec()
+        );
+    }
+
+    #[test]
+    fn a_truthy_value_that_is_not_text_is_the_type_error_of_the_path_division() {
+        let message =
+            |kind: &str| format!("unsupported operand type(s) for /: 'PosixPath' and '{kind}'");
+        let mut dict = PyDict::new();
+        dict.set("k", PyValue::None);
+        assert_eq!(
+            derive(&PyValue::Int(5.into())),
+            Err(("TypeError".into(), message("int")))
+        );
+        assert_eq!(
+            derive(&PyValue::Bool(true)),
+            Err(("TypeError".into(), message("bool")))
+        );
+        assert_eq!(
+            derive(&PyValue::Float(1.5)),
+            Err(("TypeError".into(), message("float")))
+        );
+        assert_eq!(
+            derive(&PyValue::List(vec![PyValue::None])),
+            Err(("TypeError".into(), message("list")))
+        );
+        assert_eq!(
+            derive(&PyValue::Dict(dict)),
+            Err(("TypeError".into(), message("dict")))
+        );
+    }
+
+    #[test]
+    fn a_falsy_value_means_the_active_campaign_of_the_module_root() {
+        // /mod/root does not exist: no ACTIVE pointer, the reserved bootstrap id
+        let want = Ok("/mod/root/campaigns/_bootstrap".to_string());
+        for falsy in [
+            PyValue::None,
+            PyValue::Int(0.into()),
+            PyValue::Bool(false),
+            PyValue::Float(0.0),
+            PyValue::Str(PyStr::new("")),
+            PyValue::List(Vec::new()),
+            PyValue::Dict(PyDict::new()),
+        ] {
+            assert_eq!(derive(&falsy), want);
+        }
+    }
+
+    #[test]
+    fn path_text_keeps_unicode_nul_and_surrogates_and_follows_pathlib_joining() {
+        let case = |camp: PyValue| derive(&camp);
+        assert_eq!(
+            case(text(&[0x63, 0x61, 0x6d, 0x70, 0x2d, 0x78])),
+            Ok("/mod/root/campaigns/camp-x".into())
+        );
+        assert_eq!(
+            case(text(&[0x2e, 0x2e, 0x2f, 0x78])),
+            Ok("/mod/root/campaigns/../x".into()),
+            "'..' stays lexical"
+        );
+        assert_eq!(
+            case(text(&[0x2f, 0x61, 0x62, 0x73])),
+            Ok("/abs".into()),
+            "an absolute id replaces the base"
+        );
+        assert_eq!(
+            case(text(&[0x2f, 0x2f, 0x61])),
+            Ok("//a".into()),
+            "exactly two leading slashes stay"
+        );
+        assert_eq!(
+            case(text(&[0x61, 0x2f, 0x2f, 0x2e, 0x2f, 0x62])),
+            Ok("/mod/root/campaigns/a/b".into())
+        );
+        assert_eq!(
+            case(text(&[0xCA0, 0xD504])),
+            Ok("/mod/root/campaigns/\u{ca0}\u{d504}".into())
+        );
+        assert_eq!(
+            case(text(&[0x61, 0, 0x62])),
+            Ok("/mod/root/campaigns/a\u{0}b".into()),
+            "NUL is path text"
+        );
+        let lone = |unit: u32| {
+            let (root, file) = site();
+            derive_root_path(
+                &text(&[unit]),
+                ModuleSite {
+                    root: &root,
+                    file: &file,
+                },
+            )
+            .expect("a lone surrogate is path text")
+            .code_points()
+            .to_vec()
+        };
+        let tail = |unit: u32| {
+            let mut points: Vec<u32> = "/mod/root/campaigns/".chars().map(u32::from).collect();
+            points.push(unit);
+            points
+        };
+        assert_eq!(lone(0xDCFF), tail(0xDCFF));
+        assert_eq!(
+            lone(0xD800),
+            tail(0xD800),
+            "a high surrogate is not encoded for the file system"
+        );
+    }
+}

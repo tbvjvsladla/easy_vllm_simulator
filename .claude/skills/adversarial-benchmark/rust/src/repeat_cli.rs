@@ -19,7 +19,7 @@ use crate::pystr::{is_decimal_digit, PyStr};
 use crate::pyvalue::PyValue;
 use crate::repeat_axis::REPEAT_KIND_WARM;
 use crate::repeat_fs::{aggregate_level, record_run, AggregateRequest, RunBoundary};
-use crate::repeat_owner::{resolve_repeats, PythonCampaignOwner, RepoRoot, ResolveRequest};
+use crate::repeat_owner::{resolve_repeats, ConfiguredCampaignOwner, RepoRoot, ResolveRequest};
 use crate::repeat_selftest::run_self_test;
 use crate::terminal;
 use num_bigint::BigInt;
@@ -28,14 +28,14 @@ use num_bigint::BigInt;
 #[derive(Clone, Debug)]
 pub struct Runtime {
     pub repo_root: RepoRoot,
-    pub owner: PythonCampaignOwner,
+    pub owner: ConfiguredCampaignOwner,
 }
 
 impl Runtime {
     pub fn from_environment() -> Self {
         Runtime {
             repo_root: RepoRoot::from_environment(),
-            owner: PythonCampaignOwner::from_environment(),
+            owner: ConfiguredCampaignOwner::from_environment(),
         }
     }
 }

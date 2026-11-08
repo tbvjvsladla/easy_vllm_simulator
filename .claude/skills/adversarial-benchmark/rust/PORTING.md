@@ -2651,3 +2651,21 @@ model-serving, whole-Long-E2E or statistical-significance claim. Earlier open Ru
 This appendix was added after that saved-artifact audit's protected interval ended. It is a documentation-only change;
 subsequent source-package checks and the final default product restore have their own execution records. Remaining S1
 inline/interop work, the other stages, six main/sub profiles and actual single/multi Long E2E are INCOMPLETE.
+
+## R44 — 캠페인 조회의 기본 경로를 프로세스 안의 T 읽기면으로 (repeat_axis · bench_preset)
+
+상태: 이 범위의 자체검사 PASS(아래). Root 정상 입력·독립 c11·표준 190·Main/Sub·성능·R44 original15/saved26의 Root 판정은 미실시이며, 이 문서는 그 어느 것도 주장하지 않는다.
+
+**범위.** `repeat_axis`·`bench_preset`이 `campaign_init`에 닿는 유일한 이음매 `CampaignOwner`(`repeat_owner.rs`)에서, 설정이 없고 소유자 파일이 검토된 바이트와 같으면 매 `open()`마다 Python 어댑터를 띄우고 357 KB 모듈을 컴파일하던 경로 대신 `role-contract`(T)의 읽기면이 같은 프로세스에서 답한다. 읽기 규칙·상수는 T에만 있다(`campaign.rs`: `module_site`, `derive_root_path`, `active_campaign_id`, `BOOTSTRAP`, `RESERVED_IDS`, 경로 텍스트 합성). B는 경로 선택·설정·`Failure`/프로토콜 변환만 한다. writer·relay·ACTIVE 쓰기·purge·state는 이식하지 않았다.
+
+**경로 선택(열 때마다).** 1) 옛 `pyfs::is_file`이 먼저다 — 없음·비정규·ENOENT/ENOTDIR/EBADF/ELOOP/NUL/인코딩 불가는 `Absent`(프로그램을 묻지 않음), `stat`의 PermissionError는 그대로 전파. 2) `REPEAT_AXIS_CAMPAIGN_ADAPTER`(비어 있지 않음) 또는 `REPEAT_AXIS_PYTHON`(빈 값 포함 설정만 돼도) = `LegacyExplicit`: 옛 어댑터가 어떤 소스든 실행, 오류도 그대로. 3) 설정 없음 + 바이트 동일(`source_identity`, 기존 `include_bytes!`) = `NativeCurrentSource`: Python/Bash 자식 없음, 네이티브 오류·미지원 값에서 폴백 없음. 4) 다르거나 읽을 수 없음 = `LegacySourceVariant`: 기본 호환 어댑터(`REPEAT_AXIS_COMPAT_ADAPTER`, 래퍼가 export). 위치가 없으면 기존 `CampaignOwnerAdapterError`. `PythonCampaignOwner::new`는 명시 레거시 생성자로 그대로다.
+
+**모듈 전역 루트.** 네이티브 세션의 루트는 호출자의 repo 루트가 아니라 `resolve(owner).parents[4]`다(심볼릭 링크는 따라가고, 루프는 `RuntimeError`, 5개 미만 성분은 `IndexError('4')`). `camp_id`는 형·진리값·텍스트만 관찰된다: 거짓값은 활성 캠페인, 텍스트는 코드포인트 위 lexical 경로 합성(절대 경로가 대체, `..` 유지, NUL·lone surrogate는 성공하는 경로 텍스트로 FS 인코딩 전까지 보존), 그 밖의 참 값은 `unsupported operand type(s) for /: 'PosixPath' and '<type>'`.
+
+**경로별 증거(제품 안, 업무 출력 밖).** `REPEAT_AXIS_ROUTE_OBSERVER=<파일>`이 설정되면 열 때마다 JSON 한 줄이 덧붙는다: `route`·`reason`·`pid`·`owner_path`·`python_child`·`child_pid`·`opened`·`failure`. 열지 않으면 줄이 없다(BenchPreset 조기 반환은 기록 0). 요청한 기록을 쓰지 못하면 `CampaignRouteObserverError`로 열기가 실패한다(경로를 지어내지 않음). 임시 전송 `r44_owner_query_probe`는 출하 트리 밖(`W/probe`)이며 출하 52개에 들지 않는다.
+
+**검사(자체 합성 픽스처 · Root 기록 행렬 재생 아님).** T: `topology_checks owner_queries` 6(모듈 루트·얕은 경로·루프·링크·형 TypeError·거짓값·경로 텍스트·surrogate)과 전체 T 20. B: `repeat_axis_cases::r44_routes` 6 — 기본 실행이 `NativeCurrentSource`이고 명시 어댑터(`LegacyExplicit`)와 stdout 바이트가 같음, `REPEAT_AXIS_PYTHON` 단독, 빈 인터프리터의 기존 실패, 주석·BOOTSTRAP 변형과 읽을 수 없는 소유자의 `LegacySourceVariant`, Absent 3형, 기록 실패, 그리고 실제 어댑터와의 차분(ACTIVE 8형·읽기 불가·링크 2형 × typed `camp_id` 20종, 모든 답·오류가 같음). 보존 oracle(owner82·FS42·preset67·variant60·API·selftest)은 하네스 환경만 기본 경로(어댑터 env 제거, 기본 위치만 지정)로 바꿔 기대 파일 수정 없이 통과했다. 소스가 다른 owner stub은 `LegacySourceVariant`로만 센다(네이티브 증거 아님). 저장소 조회가 필요한 일부 검사는 `W/tree`에 원본 모듈·스키마가 없어 읽기 전용 A를 `REPEAT_AXIS_REPO_ROOT`/`BENCH_PRESET_REPO_ROOT`로 가리켜 실행했다(첫 실행 6건 실패 원문 보존).
+
+**하네스 변경(기대값 아님).** 기본 설정 케이스가 실제로 Native를 타도록 `run`/`command`가 어댑터 env를 제거하고 기본 위치만 준다. `an_unreachable_owner…` 시험은 이제 검토된 소유자가 어댑터 없이 네이티브로 답하므로 *다른 바이트* 소유자로 같은 단언(어댑터 미설정 시 `CampaignOwnerAdapterError`)을 유지한다. `resolve_topology_selftest.rs`의 격리 env 목록에 `REPEAT_AXIS_PYTHON`·`REPEAT_AXIS_COMPAT_ADAPTER`·`REPEAT_AXIS_ROUTE_OBSERVER`를 더했다.
+
+**한계(주장하지 않음).** (1) 네이티브는 검토된 파일의 import 시점 계산 중 실패할 수 있는 위치 계산만 재현한다(PyYAML 부재 같은 환경 실패는 Python 경로의 몫이며 Root 라우팅 결정 3이 정의). (2) `camp_id`가 컨테이너면 비어 있음만 관찰한다. (3) `IndexError`의 `args`는 `Plain`(타입된 int 아님) — 이 와이어에서는 관찰되지 않는다. (4) `topology_parity_api.rs`의 B 전용 모듈 위치 계산은 R43 API ABI 보존을 위해 건드리지 않았다(중복 한 곳이 남음). (5) 공개 제품 핸들러와 맨 어댑터 계층은 같다고 단언하지 않는다(어댑터가 응답 없이 끝나는 S15형은 제품에서 `CampaignOwnerAdapterError`, 맨 어댑터는 종료 코드 7). (6) 성능은 측정하지 않았다. 잔여 S1 인라인/상호운용, 다른 단계, 여섯 main/sub 프로파일과 실제 단일/멀티 Long E2E는 INCOMPLETE다.

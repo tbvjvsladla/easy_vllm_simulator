@@ -7,7 +7,7 @@
 //! Where the original found its own files (`SKILL_DIR`, `REPO_ROOT`) this program is given them by
 //! `BENCH_PRESET_SKILL_DIR` and `BENCH_PRESET_REPO_ROOT` (see [`Runtime`]); a command that needs one without it fails
 //! by name. The campaign owner is the Python `campaign_init.py`, reached through the repeat axis's query adapter
-//! (`REPEAT_AXIS_CAMPAIGN_ADAPTER`, `REPEAT_AXIS_PYTHON`).
+//! (`REPEAT_AXIS_CAMPAIGN_ADAPTER`, `REPEAT_AXIS_PYTHON`; default routing in `repeat_owner`).
 //!
 //! Exit status: 0 success, 2 for a refusal (`PresetError` or an argument error), 1 for a failed self-test or an
 //! exception the original does not handle (a traceback marker and the final `Class: message` line).
@@ -27,7 +27,7 @@ use crate::guidellm::Failure;
 use crate::pyfs;
 use crate::pystr::{is_decimal_digit, PyStr};
 use crate::pyvalue::{PyDict, PyValue};
-use crate::repeat_owner::{PythonCampaignOwner, RepoRoot};
+use crate::repeat_owner::{ConfiguredCampaignOwner, RepoRoot};
 use crate::repeat_text::cat;
 use crate::terminal;
 
@@ -36,7 +36,7 @@ use crate::terminal;
 pub struct Runtime {
     pub skill_dir: SkillDir,
     pub repo_root: RepoRoot,
-    pub owner: PythonCampaignOwner,
+    pub owner: ConfiguredCampaignOwner,
 }
 
 impl Runtime {
@@ -44,7 +44,7 @@ impl Runtime {
         Runtime {
             skill_dir: SkillDir::from_environment(),
             repo_root: repo_root_from_environment(),
-            owner: PythonCampaignOwner::from_environment(),
+            owner: ConfiguredCampaignOwner::from_environment(),
         }
     }
 }

@@ -99,7 +99,10 @@ pub fn command(bin: &str, repo: &Path) -> Command {
         .env_remove("REPEAT_AXIS_REPO_ROOT")
         .env("BENCH_PRESET_REPO_ROOT", repo)
         .env("BENCH_PRESET_SKILL_DIR", repo.join(SKILL_REL))
-        .env("REPEAT_AXIS_CAMPAIGN_ADAPTER", adapter())
+        // the DEFAULT public configuration: only the wrapper's default adapter location, no user-set adapter or interpreter
+        .env_remove("REPEAT_AXIS_CAMPAIGN_ADAPTER")
+        .env_remove("REPEAT_AXIS_PYTHON")
+        .env("REPEAT_AXIS_COMPAT_ADAPTER", adapter())
         .env("PYTHONDONTWRITEBYTECODE", "1")
         .env("COLUMNS", "80")
         .stdin(Stdio::piped())

@@ -20,7 +20,7 @@ use crate::pysort::py_eq;
 use crate::pystr::PyStr;
 use crate::pyvalue::{PyDict, PyValue};
 use crate::repeat_axis::{CAMPAIGN_INIT_REL, SCHEMA_REL};
-use crate::repeat_owner::{PythonCampaignOwner, RepoRoot};
+use crate::repeat_owner::{ConfiguredCampaignOwner, RepoRoot};
 use crate::FULL_REPEATS_MIN;
 use ring::digest::{digest, SHA256};
 use std::path::{Path, PathBuf};
@@ -642,7 +642,7 @@ fn scenarios(suite: &mut Suite, runtime: &Runtime) -> Result<(), Failure> {
     let camps = root_path.join("campaigns");
     std::fs::create_dir(&camps).map_err(|error| Failure::new("OSError", &error.to_string()))?;
     let repo_root = RepoRoot::given(root.clone());
-    let owner: &PythonCampaignOwner = &runtime.owner;
+    let owner: &ConfiguredCampaignOwner = &runtime.owner;
 
     let set_campaign = |budgets: Option<PyValue>| -> Result<(), Failure> {
         let Some(budgets) = budgets else {

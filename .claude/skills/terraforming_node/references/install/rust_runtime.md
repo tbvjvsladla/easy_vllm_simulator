@@ -73,6 +73,16 @@ Python 환경의 `python3`이며 필요한 경우 `RESOLVE_TOPOLOGY_COMPAT_PYTHO
 `RESOLVE_TOPOLOGY_PYTHON`을 비어 있지 않게 지정하면 기존 명시 Python 호출을 선택하므로,
 새 PC의 기본 Rust 기동을 위해 이 값을 자동으로 `python3`으로 채우지 않는다.
 
+반복 수와 프리셋의 캠페인 조회도 같은 B 빌드의 `repeat_axis`·`repeat_axis_api`·`bench_preset`·
+`bench_preset_api` 실행파일을 사용한다. 네 shell 진입점은 기본 adapter 위치를
+`REPEAT_AXIS_COMPAT_ADAPTER`로 전달하며, 검토된 정본 `campaign_init.py`의 조회는 공유 T에서
+Rust 프로세스 안에 수행한다. 다른 소스나 읽을 수 없는 소스는 그 노드의 기존 Python과
+`repeat_axis_owner_query.py`를 사용하는 호환 경로로 처리한다. 이 adapter 소스도 공식 배달에 포함한다.
+새 PC의 기본 Rust 기동을 위해 `REPEAT_AXIS_CAMPAIGN_ADAPTER`나 `REPEAT_AXIS_PYTHON`을 자동으로
+채우지 않는다. 사용자가 지정한 비어 있지 않은 adapter 또는 값이 지정된 Python 변수는 명시적
+호환 경로를 선택한다. Python 변수의 빈 값도 지정으로 보며 기존 기동 실패를 반환한다.
+Rust 기본 경로의 오류가 발생하면 Python으로 재시도하지 않는다. 임시 검증 probe는 배포하지 않는다.
+
 역할 정책 T는 Q에만 의존하며, B와 U가 같은 정책 라이브러리를 사용한다. U 빌드는
 `node_role_contract`와 `upstream_role_api`를 포함한 일반 실행파일을 Cargo metadata에서 파생한다.
 메인의 직접 런처는 다음과 같다.
