@@ -1,0 +1,34 @@
+{
+  "id": "api-039",
+  "kind": "value",
+  "value": [
+    {
+      "__tuple__": [
+        "A",
+        "None"
+      ]
+    },
+    {
+      "__tuple__": [
+        "B",
+        "True"
+      ]
+    },
+    {
+      "__tuple__": [
+        "Z",
+        "x"
+      ]
+    }
+  ],
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "Z": "x",
+      "A": null,
+      "B": true
+    }
+  ],
+  "kwargs_after": {}
+}

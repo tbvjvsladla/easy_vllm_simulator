@@ -1,0 +1,19 @@
+{
+  "id": "api-105",
+  "kind": "exception",
+  "type": "UnicodeEncodeError",
+  "message": "'utf-8' codec can't encode character '\\udcff' in position 116: surrogates not allowed",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "timestamp": "fixed",
+      "selection_timestamp": "selected",
+      "model_id": "\ud55c\uae00/Model",
+      "actual_vram_gb": 3,
+      "extra": "bad\udcff"
+    },
+    "@CASE@/logs/nested/feedback.jsonl"
+  ],
+  "kwargs_after": {}
+}

@@ -1,0 +1,18 @@
+{
+  "id": "api-042",
+  "kind": "value",
+  "value": [
+    {
+      "__tuple__": [
+        "3",
+        ""
+      ]
+    }
+  ],
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    3
+  ],
+  "kwargs_after": {}
+}

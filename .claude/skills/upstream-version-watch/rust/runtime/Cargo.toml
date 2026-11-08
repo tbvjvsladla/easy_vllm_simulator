@@ -1,0 +1,246 @@
+[package]
+name = "upstream-runtime"
+version = "0.1.0"
+edition = "2021"
+description = "Rust port of resolve_build_track.py and check_spec_layout.py of the upstream-version-watch skill: the build-track proposal, the torch CUDA arch mapping, the manifest loader (PyYAML or the flat parser) and the command line"
+publish = false
+# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
+autotests = false
+
+[lib]
+name = "upstream_runtime"
+path = "src/lib.rs"
+
+[[bin]]
+name = "resolve_build_track"
+path = "src/bin/resolve_build_track.rs"
+
+[[bin]]
+name = "upstream_api"
+path = "src/bin/upstream_api.rs"
+
+[[bin]]
+name = "upstream_bench"
+path = "src/bin/upstream_bench.rs"
+
+[[bin]]
+name = "check_spec_layout"
+path = "src/bin/check_spec_layout.rs"
+
+[[bin]]
+name = "upstream_layout_api"
+path = "src/bin/upstream_layout_api.rs"
+
+[[bin]]
+name = "upstream_layout_bench"
+path = "src/bin/upstream_layout_bench.rs"
+
+# The ported `resolve_torch_pin.norm_prefix` / `pick_bound` (stage A): the JSON-lines service and the frozen timing.
+[[bin]]
+name = "upstream_version_api"
+path = "src/bin/upstream_version_api.rs"
+
+[[bin]]
+name = "upstream_version_bench"
+path = "src/bin/upstream_version_bench.rs"
+
+# The normal JSON-lines program of the direct-HTTP plain-str URL component (`http_direct`).
+[[bin]]
+name = "upstream_http_direct_api"
+path = "src/bin/upstream_http_direct_api.rs"
+
+# The normal JSON-lines program of the HTTPS plain-str URL fetch (`fetch_https`).
+[[bin]]
+name = "upstream_https_api"
+path = "src/bin/upstream_https_api.rs"
+
+# The normal JSON-lines program of the Requirement constructor projection (`requirement`).
+[[bin]]
+name = "upstream_requirement_api"
+path = "src/bin/upstream_requirement_api.rs"
+
+# The normal JSON-lines program of the default `tomllib.loads(text)` parser (`tomllib`).
+[[bin]]
+name = "upstream_toml_api"
+path = "src/bin/upstream_toml_api.rs"
+
+# The unchanged public command line of `resolve_torch_pin.py`: real TLS/CONNECT fetch, tomllib, Requirement, entropy-seeded hashing.
+[[bin]]
+name = "resolve_torch_pin"
+path = "src/bin/resolve_torch_pin.rs"
+
+# The unchanged public command line of `validate_runtime_patch.py`: binds a runtime patch to the current model inputs (stamp / verify).
+# The normal command of `resolve_ngc_tag.py` and the normal JSON-lines program of its five functions.
+[[bin]]
+name = "resolve_ngc_tag"
+path = "src/bin/resolve_ngc_tag.rs"
+
+[[bin]]
+name = "upstream_ngc_api"
+path = "src/bin/upstream_ngc_api.rs"
+
+[[bin]]
+name = "validate_runtime_patch"
+path = "src/bin/validate_runtime_patch.rs"
+
+# The unchanged public command line of `resolve_wheel.py`: raw-byte release fetch (real TLS/CONNECT), wheel selection, JSON report.
+[[bin]]
+name = "resolve_wheel"
+path = "src/bin/resolve_wheel.rs"
+
+# The normal JSON-lines program of `fetch_json` and `main` of `resolve_wheel.py` (`wheel_api`).
+[[bin]]
+name = "upstream_wheel_api"
+path = "src/bin/upstream_wheel_api.rs"
+
+# The unchanged public command line of `regen_requirements.py`: wheel or installed METADATA to requirements.txt (native ZIP/header/temp-dir/urlretrieve).
+[[bin]]
+name = "regen_requirements"
+path = "src/bin/regen_requirements.rs"
+
+# The normal JSON-lines program of the five public functions of `regen_requirements.py` (`regen_api`, schema `regen_requirements-api/1`).
+[[bin]]
+name = "upstream_requirements_api"
+path = "src/bin/upstream_requirements_api.rs"
+
+# The unchanged public command line of `classify_failure.py`: registry read, Python-compatible regular-expression search, JSON report.
+[[bin]]
+name = "classify_failure"
+path = "src/bin/classify_failure.rs"
+
+# The normal JSON-lines program of `load_patterns` and `matched_lines` of `classify_failure.py` (`classify_api`, schema `classify_failure-api/1`).
+[[bin]]
+name = "upstream_classify_api"
+path = "src/bin/upstream_classify_api.rs"
+
+# The unchanged public command line of `node_role_contract.py`: the topology-axis node contract (evaluate, --self-test) over the `role-contract` library.
+[[bin]]
+name = "node_role_contract"
+path = "src/bin/node_role_contract.rs"
+
+# The normal JSON-lines program of the ten public functions of `node_role_contract.py` (`role_api`, schema `node_role_contract-api/1`).
+[[bin]]
+name = "upstream_role_api"
+path = "src/bin/upstream_role_api.rs"
+
+# The two entry points that run the same library over an owned root and record the original collector's control record: checks only,
+# built with `--features fixture`.
+[[bin]]
+name = "upstream_fixture_api"
+path = "src/bin/upstream_fixture_api.rs"
+required-features = ["fixture"]
+
+[[bin]]
+name = "upstream_fixture_cli"
+path = "src/bin/upstream_fixture_cli.rs"
+required-features = ["fixture"]
+
+[[bin]]
+name = "upstream_layout_fixture_api"
+path = "src/bin/upstream_layout_fixture_api.rs"
+required-features = ["fixture"]
+
+[[bin]]
+name = "upstream_layout_fixture_cli"
+path = "src/bin/upstream_layout_fixture_cli.rs"
+required-features = ["fixture"]
+
+[features]
+# The controlled programs of the checks. No production build enables it.
+fixture = []
+
+# The fixture-feature checks build under this profile (artifacts in `fixture/`, never in `release/`).
+[profile.fixture]
+inherits = "release"
+
+[dependencies]
+fancy-regex = { version = "=0.19.2", default-features = false, features = ["std", "unicode", "perf"] }
+miniz_oxide = { version = "=0.9.1", default-features = false, features = ["with-alloc"] }
+crc32fast = { version = "=1.5.3", default-features = false }
+# The node-role policy library (pure; depends only on the common package below).
+role-contract = { path = "../../../../rust/role-contract" }
+# Python-compatible typed data, text, JSON and YAML semantics shared with the other owner packages (path dependency, read-only).
+agent-runtime-support = { path = "../../../../rust/runtime-support" }
+# The recipe owner's public generic pieces (argparse model, stdout buffering, JSON-lines requests, benchmark harness), read-only.
+recipe-runtime = { path = "../../../vllm-recipe-explorer/rust/runtime" }
+# Already in the dependency graph at the locked versions.
+num-bigint = "0.4"
+num-traits = "0.2"
+# The HTTP client transport the direct-HTTP component drives as a raw byte pipe (exactly the pin and features the recipe package already uses).
+ureq = { version = "=3.5.0", default-features = false, features = ["rustls"] }
+# The TLS client session of the HTTPS fetch component (handshake over the connected byte pipe, certificate errors told apart by their type); the same
+# version and features the recipe package pins, already in the dependency graph at the locked version.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+# SHA-256 of the files the runtime patch is bound to; the same exact pin and already-locked version the recipe package declares.
+ring = "=0.17.14"
+
+[[test]]
+name = "upstream_checks"
+path = "checks/upstream_checks.rs"
+required-features = ["fixture"]
+
+[[test]]
+name = "layout_checks"
+path = "checks/layout_checks.rs"
+required-features = ["fixture"]
+
+[[test]]
+name = "version_checks"
+path = "checks/version_checks.rs"
+
+[[test]]
+name = "pyhash_checks"
+path = "checks/pyhash_checks.rs"
+
+[[test]]
+name = "http_direct_checks"
+path = "checks/http_direct_checks.rs"
+
+[[test]]
+name = "https_checks"
+path = "checks/https_checks.rs"
+
+[[test]]
+name = "requirement_checks"
+path = "checks/requirement_checks.rs"
+
+[[test]]
+name = "requirement_program_checks"
+path = "checks/requirement_program_checks.rs"
+
+[[test]]
+name = "toml_checks"
+path = "checks/toml_checks.rs"
+
+[[test]]
+name = "toml_program_checks"
+path = "checks/toml_program_checks.rs"
+
+# The native checks of `validate_runtime_patch`: fresh-input regressions and the replay of the saved captures against the built executable.
+[[test]]
+name = "runtime_patch_checks"
+path = "checks/runtime_patch_checks.rs"
+
+[[test]]
+name = "ngc_checks"
+path = "checks/ngc_checks.rs"
+
+# The owned-peer checks of `resolve_wheel`: the raw-byte fetch seam, the file handler and a subset of the saved CLI cases through the normal program.
+[[test]]
+name = "wheel_checks"
+path = "checks/wheel_checks.rs"
+
+# The focused checks of `regen_requirements`: saved-case subset through the real programs, typed service, process protocol.
+[[test]]
+name = "regen_checks"
+path = "checks/regen_checks.rs"
+
+# The focused checks of `classify_failure`: saved-case subset through the real programs, typed service, own fixtures.
+[[test]]
+name = "classify_checks"
+path = "checks/classify_checks.rs"
+
+# The focused checks of `node_role_contract`: saved-case subset through the real programs and the typed service.
+[[test]]
+name = "role_checks"
+path = "checks/role_checks.rs"

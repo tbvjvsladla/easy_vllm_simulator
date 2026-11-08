@@ -1,0 +1,2 @@
+KV cache 3 x 4.5 GiB of 8 GiB
+non_torch a 7.25 GiB

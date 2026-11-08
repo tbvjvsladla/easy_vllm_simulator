@@ -1,0 +1,6 @@
+gpu_model: NVIDIA GB10
+gpus_per_node: 2
+topology: single
+nodes:
+  - role: main
+  - role: sub

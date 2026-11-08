@@ -1,0 +1,2 @@
+{'kv_cache_memory_bytes': 21474836480}
+kv cache memory bytes = 1,073,741,824

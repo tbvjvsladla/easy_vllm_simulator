@@ -39,6 +39,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tomllib
 
 # docs.md 가 규정하는 발행 문서 5종(서브 docs 스켈레톤 계약 — self-test 가 강제).
 #   benchmark = full-런 계측 vault(서브도 adversarial-benchmark 런타임블럭 실행 → report/인증서 발행 가능, plan_26071510).
@@ -90,6 +91,20 @@ HINT_ENGINE_DEPENDENCIES = (
     ".claude/schemas/completion-manifest.schema.json",  # 동상
     ".claude/schemas/side-effect-authorization.schema.json",  # 동상
     ".claude/policies/runtime/doc_naming.py",   # REL_DOC_NAMING_WIKI(명명 SSOT · evidence_publisher 도 적재)
+)
+# adversarial-benchmark 가 가는 서브에 필요한 owner 자체검사 의존(닫힌 목록 · 2026-11-07 서브 실측 + 소스 대조).
+#   owner Rust 패키지의 native 자체검사는 **원래 정본 경로**의 두 읽기 전용 파일을 요구한다. 서브에 없으면
+#   build_rust.sh 가 그 지점에서 중단되고 뒤따르는 자체검사는 미실행으로 남는다(스킬을 주고 그 스킬의 의존을 안 주면
+#   그 스킬은 없는 것이다). tool_plane 에 adversarial-benchmark 가 있을 때만 간다 — 멀티 ray-worker 에는 가지 않는다.
+#   · topology_parity.py — resolve_topology.rs `PARITY_REL` 이 별도 프로세스로 부르는 4자일치 판정자. 닫힘: 표준 라이브러리 +
+#     PyYAML(manifest 다리에서만 지연 import)이며 `campaign_init.py` 를 파일 경로로 적재한다(이미 모든 서브에 배달되는 단일
+#     writer — 새 모듈 의존 없음).
+#   · node_blackbox/node_identity.sh — sweep_repeats_fixture.rs `COPIES` 가 샌드박스로 무조건 복사하는 읽기 전용 bash
+#     해소기. 오케스트레이터가 아니며 정체성을 재정의하지 않는다. 설치용 사본(`.claude/runtime/node_blackbox/node_identity.sh`)
+#     은 별개로 그대로 남는다(같은 바이트 · 다른 자리 — 이 정본 경로는 fixture 가 기대하는 자리다).
+SUB_BENCH_FOUNDATION_RUNTIME = (
+    ".claude/policies/runtime/topology_parity.py",
+    ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
 )
 # 서브로 **절대** 가지 않는 hint 평면 경로(닫힌 목록). 색인·카탈로그는 메인 단독 파생물이고(정책 C4 의 남은 몫),
 #   역할 마커는 각 체크아웃이 스스로 하는 선언이라 배달되면 선언이 아니라 복사가 된다(`.gitignore` 와 같은 근거).
@@ -145,9 +160,24 @@ CAMPAIGN_TOOLS = (
 # 하나 더 만드는 대신 정본 리더를 보낸다.
 SUB_CONTRACT_READERS = (
     "manifest_contract.py",            # Flag·topology 준비성 판정(lite_bench·run_bench 가 부른다)
+    "node_role_contract.py",           # 토폴로지 축(sub_mode·tool_plane·delivery_plane) 판정 — 서브가 자기 역할 계약을 로컬에서 검증한다(stdlib+yaml 만 import · 별도 의존 배달 불요)
 )
 # Both roles run this explicit local permission canary; its self-tests remain main-only.
 SUB_PERMISSION_PROBES = ("harness_permission_probe.py",)
+SUB_RUST_BOOTSTRAP = ("rust_bootstrap.sh", "rust_toolchain.pin", "build_rust_packages.sh")
+# B has a direct rust/Cargo.toml; P/U have rust/runtime/Cargo.toml.
+RUST_OWNER_MANIFESTS = {
+    "adversarial-benchmark": ".claude/skills/adversarial-benchmark/rust/Cargo.toml",
+    "vllm-recipe-explorer": ".claude/skills/vllm-recipe-explorer/rust/runtime/Cargo.toml",
+    "upstream-version-watch": ".claude/skills/upstream-version-watch/rust/runtime/Cargo.toml",
+}
+SHARED_RUST_SUPPORT = ".claude/rust/runtime-support"
+SHARED_RUST_CONSUMERS = tuple(RUST_OWNER_MANIFESTS)
+ROLE_RUST_SUPPORT = ".claude/rust/role-contract"
+ROLE_RUST_CONSUMERS = ("adversarial-benchmark", "upstream-version-watch")
+SHARED_RUST_LIBRARIES = ((SHARED_RUST_SUPPORT, SHARED_RUST_CONSUMERS),
+                         (ROLE_RUST_SUPPORT, ROLE_RUST_CONSUMERS))
+RUST_RUNTIME_REFERENCE = ".claude/skills/terraforming_node/references/install/rust_runtime.md"
 
 RUNTIME_BLOCK_EXCLUDES = {
     "upstream-version-watch": (
@@ -404,11 +434,14 @@ def support_delivery(tool_plane) -> list:
     """런타임블럭 밖에 싣는 **지원 배달분**(스킬로 실행하지 않되 잔재도 아니다) — render_tree 와 같은 규칙:
     캠페인 도구 + 계약 리더는 모든 서브에, 사서 참조 발췌는 recipe 스킬이 가는 서브에만."""
     out = [f".claude/skills/terraforming_node/scripts/{t}" for t in
-           CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES]
+           CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES + SUB_RUST_BOOTSTRAP]
+    out.append(RUST_RUNTIME_REFERENCE)
     if (os.path.isfile(TOPOLOGY_RULES) and "handoff_exception.topology.md" in
             pathlib.Path(TOPOLOGY_RULES).read_text(encoding="utf-8")):
         out.append(".claude/policies/handoff_exception.topology.md")
     # 사서 참조 발췌(references.md)는 2026-10-19 부터 wiki-desk 런타임블럭이 통째로 싣는다 — 지원 배달분이 아니다.
+    if "adversarial-benchmark" in tool_plane:
+        out.extend(SUB_BENCH_FOUNDATION_RUNTIME)
     if "hint-publisher" in tool_plane:
         # 엔진 의존 + 장착 판정 도구(2026-10-11 · plan_26101104 Step 3). render_tree 의 (3.5) 와 같은 규칙.
         out.extend(f".claude/skills/terraforming_node/scripts/{t}" for t in SUB_HINT_EQUIP_TOOLS)
@@ -762,6 +795,27 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 with open(feedback_marker, "w", encoding="utf-8") as f:
                     f.write("Node-local generated recipe feedback; ignored by git.\n")
                 produced.append(feedback_rel)
+        # Shared libraries follow every delivered consumer, including B without P/U.
+        # Copy all required libraries before checking their transitive Cargo paths.
+        for support, consumers in SHARED_RUST_LIBRARIES:
+            if any(name in names for name in consumers):
+                count = _copy_tracked(os.path.join(REPO, support),
+                                      os.path.join(out_dir, support),
+                                      tracked_list=tracked_list)
+                produced.append(f"{support}/ ({count} tracked files)")
+        if any(name in names for name in SHARED_RUST_CONSUMERS):
+            _assert_rust_path_closure(out_dir, names)
+        # 3.4) adversarial-benchmark 가 부르는 owner 자체검사 의존(SUB_BENCH_FOUNDATION_RUNTIME) — 그 스킬이 가는 서브에만.
+        if "adversarial-benchmark" in names:
+            for rel in SUB_BENCH_FOUNDATION_RUNTIME:
+                src = os.path.join(REPO, rel)
+                if not os.path.isfile(src):
+                    raise SystemExit(f"[render] FAIL: 벤치 owner 자체검사 의존이 없다 — {rel}")
+                _tracked_or_die(rel, tracked_list)
+                dst = os.path.join(out_dir, rel)
+                os.makedirs(os.path.dirname(dst), exist_ok=True)
+                shutil.copy2(src, dst)
+                produced.append(rel)
         # 3.5) hint 엔진 의존 + 장착 판정 도구 — 엔진이 가는 서브에만(2026-10-11 · plan_26101104 Step 3).
         #   색인·카탈로그·역할 마커(HINT_NEVER_DELIVER)는 여기서 만들지 않는다 — 아래 단언이 그것을 확인한다.
         if "hint-publisher" in names:
@@ -830,7 +884,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     _ci_src = os.path.join(REPO, ".claude", "skills", "terraforming_node", "scripts")
     _ci_dst = os.path.join(claude, "skills", "terraforming_node", "scripts")
     os.makedirs(_ci_dst, exist_ok=True)
-    for _tool in CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES:
+    for _tool in CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES + SUB_RUST_BOOTSTRAP:
         _abs = os.path.join(_ci_src, _tool)
         if not os.path.isfile(_abs):
             raise SystemExit(
@@ -838,6 +892,13 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 "   뼈대만 보내고 채우는 손을 안 보내면 phases/sub가 실행자 0이 된다.")
         shutil.copy2(_abs, os.path.join(_ci_dst, _tool))
         produced.append(f".claude/skills/terraforming_node/scripts/{_tool}")
+
+    _rust_ref = os.path.join(REPO, RUST_RUNTIME_REFERENCE)
+    _tracked_or_die(RUST_RUNTIME_REFERENCE, tracked_list)
+    _rust_ref_dst = os.path.join(out_dir, RUST_RUNTIME_REFERENCE)
+    os.makedirs(os.path.dirname(_rust_ref_dst), exist_ok=True)
+    shutil.copy2(_rust_ref, _rust_ref_dst)
+    produced.append(RUST_RUNTIME_REFERENCE)
 
     # ★ 2026-09-07(plan_26090715 §5 ⑤ · 유예 결함 ⑤): `campaigns/README.md` 도 함께 보낸다.
     #   뼈대 파일은 도착하는데 **읽는 법**이 안 도착했다 — README 가 Agent 읽기 순서(0번
@@ -977,6 +1038,29 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
     produced.append(f"docs/*/example.md ({len(DOC_TYPES)} skeletons)")
 
     return {"out_dir": out_dir, "produced": produced, "hint_write_scopes": scopes}
+
+
+def _assert_rust_path_closure(out_dir: str, names: list) -> None:
+    """Manifest-derived local path closure; never ships caches or guesses missing source."""
+    root = pathlib.Path(out_dir).resolve()
+    pending = [root / manifest for name, manifest in RUST_OWNER_MANIFESTS.items()
+               if name in names]
+    seen = set()
+    while pending:
+        manifest = pending.pop().resolve()
+        if not manifest.is_relative_to(root) or not manifest.is_file():
+            raise SystemExit(f"[render] FAIL: Rust path dependency missing/outside delivery: {manifest}")
+        if manifest in seen:
+            continue
+        seen.add(manifest)
+        with manifest.open("rb") as stream:
+            data = tomllib.load(stream)
+        tables = [data, *data.get("target", {}).values()]
+        for table in tables:
+            for kind in ("dependencies", "build-dependencies", "dev-dependencies"):
+                for dependency in table.get(kind, {}).values():
+                    if isinstance(dependency, dict) and "path" in dependency:
+                        pending.append(manifest.parent / dependency["path"] / "Cargo.toml")
 
 
 def _copy_tracked(src_skill: str, dst: str, tracked_list: list | None = None,
@@ -1269,6 +1353,10 @@ def _self_test() -> int:
         _ref = os.path.exists(os.path.join(_out, ".claude/skills/wiki-desk/reference/references.md"))
         # references.md 는 wiki-desk 런타임블럭에 실린다(2026-10-19) — 사서가 가는 서브에는 늘 있다.
         _ref_ok = _ref == ("wiki-desk" in _want)
+        _shared_rust_ok = all(
+            os.path.isfile(os.path.join(_out, support, "Cargo.toml")) == any(
+                name in _want for name in consumers)
+            for support, consumers in SHARED_RUST_LIBRARIES)
         _wrappers = {os.path.basename(os.path.dirname(p)) for p in
                      glob.glob(os.path.join(_out, ".agents", "skills", "*", "SKILL.md"))}
         _wrapper_ok = _wrappers == _want
@@ -1284,10 +1372,37 @@ def _self_test() -> int:
         #   메인 전용 오케스트레이션(relay·sync·fetch·scan)은 여기 오지 않는다. 아래는 **양방향**:
         #   ① 있어야 할 2개가 있다 ② 그 밖의 terraforming 스크립트가 새지 않았다.
         _tn = os.path.join(_out, ".claude", "skills", "terraforming_node", "scripts")
-        _tn_files = sorted(os.listdir(_tn)) if os.path.isdir(_tn) else []
-        _tn_want = sorted(CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES
+        _tn_files = sorted(f for f in os.listdir(_tn) if os.path.isfile(os.path.join(_tn, f))) if os.path.isdir(_tn) else []
+        _tn_want = sorted(CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES + SUB_RUST_BOOTSTRAP
                           + (SUB_HINT_EQUIP_TOOLS if "hint-publisher" in _want else ()))
         _tn_ok = _tn_files == _tn_want
+        _rust_helper = os.path.join(_tn, "rust_bootstrap.sh")
+        _rust_help = subprocess.run(["bash", _rust_helper, "--help"],
+                                    capture_output=True, text=True, timeout=20)
+        _rust_ok = (os.access(_rust_helper, os.X_OK)
+                    and _rust_help.returncode == 0
+                    and os.path.isfile(os.path.join(_out, RUST_RUNTIME_REFERENCE))
+                    and not os.path.exists(os.path.join(_out, ".claude/runtime/rust")))
+        # 배달된 역할 계약 리더가 **서브 렌더 트리 안에서 스스로 돈다**(stdlib+yaml 만 import — 별도 의존 배달 불요).
+        _nrc = os.path.join(_tn, "node_role_contract.py")
+        _nrc_run = subprocess.run([sys.executable, _nrc, "--self-test"],
+                                  capture_output=True, text=True, timeout=60)
+        _nrc_ok = os.path.isfile(_nrc) and _nrc_run.returncode == 0
+        # 벤치 owner 자체검사 의존 2종 — **명시 닫힌 경로**를 소비자 원문의 리터럴과 대조한다(두 파생의 빈 집합 일치로
+        #   통과하지 못하게). 벤치를 받는 서브는 정본과 바이트 동일하게 받고, 못 받는 서브(멀티 ray-worker)는 받지 않는다.
+        _bench_need = {
+            ".claude/policies/runtime/topology_parity.py": ".claude/skills/adversarial-benchmark/rust/src/resolve_topology.rs",
+            ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh": ".claude/skills/adversarial-benchmark/rust/src/sweep_repeats_fixture.rs",
+        }
+        _bench_ok = set(_bench_need) == set(SUB_BENCH_FOUNDATION_RUNTIME)
+        for _rel, _consumer in _bench_need.items():
+            _cons_src = pathlib.Path(REPO, _consumer).read_text(encoding="utf-8")
+            _dst_f = pathlib.Path(_out, _rel)
+            if "adversarial-benchmark" in _want:
+                _bench_ok &= (_rel in _cons_src and _dst_f.is_file()
+                              and _dst_f.read_bytes() == pathlib.Path(REPO, _rel).read_bytes())
+            else:
+                _bench_ok &= not _dst_f.exists()
         # 해소 자산은 싱글 서브에 가지 않는다 — 가면 서브가 스스로 해소할 이유가 없어진다(F4).
         _res = os.path.exists(os.path.join(
             _out, ".claude/skills/upstream-version-watch/assets/current-production-resolution.json"))
@@ -1301,12 +1416,13 @@ def _self_test() -> int:
         _sup_ok = _sup == _real
         # 색인·카탈로그·역할 마커는 어느 토폴로지에도 가지 않는다(엔진이 가는 single 에서도).
         _never = [r for r in HINT_NEVER_DELIVER if os.path.exists(os.path.join(_out, r))]
-        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok and _wrapper_ok
+        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok and _wrapper_ok and _rust_ok and _nrc_ok and _bench_ok
               and not _res and _sup_ok and not _never)
         print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} "
               f"refs={_ref} 캠페인도구={_tn_files} 해소자산누수={_res} 지원배달목록일치={_sup_ok} "
-              f"금지경로누수={_never or '없음'} Codex발견폐포={_wrapper_ok}")
-        ok &= _c
+              f"금지경로누수={_never or '없음'} Codex발견폐포={_wrapper_ok} 역할계약리더자체검사={_nrc_ok} 벤치owner의존={_bench_ok}")
+        ok &= _c and _shared_rust_ok
+        print(f"  [{'PASS' if _shared_rust_ok else 'FAIL'}] shared Q/role conditional delivery/path closure {_topo}")
 
     # (4d) hint 엔진 의존 폐포 tripwire (2026-10-11 · plan_26101104 Step 3).
     #   결함의 형태(선례 둘): 스킬은 배달됐는데 그 스킬이 부르는 파일이 안 가서 서브에서 구조적으로 불가였다.

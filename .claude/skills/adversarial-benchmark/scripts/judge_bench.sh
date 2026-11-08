@@ -52,7 +52,7 @@ set -euo pipefail
 if [ "${1:-}" = "--self-test" ]; then
   # 자체검사 본문은 별도 파일이다(파이썬 단언이 셸 heredoc 보다 읽기 쉽다). 검사 대상은 이 파일의
   # **바이트 사본**이므로 여기 적힌 코드가 그대로 시험된다.
-  exec python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/selftest_judge_bench.py"
+  exec bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/selftest_judge_bench.sh"
 fi
 
 CONFIG="${1:?config_name 필요}"; shift || true
@@ -102,7 +102,7 @@ if [ -z "$TOPO" ]; then
   # ★ 2026-09-14(⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고 브랜치로 추론하지 않는다"): 종전 관용구는
   #   브랜치 이름에서 토폴로지를 골랐고 알 수 없는 이름은 조용히 single 로 떨어졌다. 해소는 공용 해소기가 한다 —
   #   카드 노드(unsigned capability Card)는 카드↔자기 manifest, 메인은 4자일치 술어(topology_parity), 둘 다 아니면 fail-loud.
-  _TOPO_RC=0; TOPO="$(python3 "$SDIR/resolve_topology.py" --repo "$REPO")" || _TOPO_RC=$?
+  _TOPO_RC=0; TOPO="$(bash "$SDIR/resolve_topology.sh" --repo "$REPO")" || _TOPO_RC=$?
   if [ "$_TOPO_RC" != 0 ]; then
     echo "[judge_bench] ERROR 토폴로지를 정하지 못했다(위 사유) — --topology single|multi 로 명시하라(브랜치 이름으로 고르지 않는다)" >&2
     exit 2
@@ -141,20 +141,8 @@ fi
 #   tp 가 meta 에 없으면 **여기서 1 로 채우지 않는다** — 그 기본값의 단일 소유자는 roofline.py 이며
 #   manifest 의 nodes×gpus 에서 파생한다. 여기서 1 을 적으면 멀티 스윕에서 조용히 틀린 tp 로
 #   루프라인을 세우게 된다(같은 개념이 두 곳에 손으로 적힌 값 = 매직넘버 결함 칸).
-read -r MODEL_PATH TP < <(python3 - "$INDEX" <<'PY'
-import json, sys
-meta = (json.load(open(sys.argv[1], encoding="utf-8")).get("meta") or {})
-# sweep meta 의 키는 `tensor_parallel_size` 다. 종전에 `tp` 를 읽어 **항상 미승계**였고,
-# single 에서는 roofline 이 manifest 로 1 을 파생해 우연히 맞았지만 multi 에서는 틀린 상한을
-# 세운다(2026-09-04 실측 발견 — 값이 없어도 조용히 도는 형태라 로그로는 안 보인다).
-tp = meta.get("tensor_parallel_size", meta.get("tp"))
-try:
-    tp = int(tp)
-except (TypeError, ValueError):
-    tp = None
-print(meta.get("model_path") or "NA",
-      tp if isinstance(tp, int) and not isinstance(tp, bool) and tp > 0 else "-")
-PY
+read -r MODEL_PATH TP < <(bash "$SDIR/bench_shell.sh" judge-model-tp "$INDEX"
+
 )
 if [ "$MODEL_PATH" = "NA" ]; then
   echo "[judge_bench] ERROR sweep_index.meta.model_path 가 NA — 루프라인 입력이 성립하지 않는다" >&2; exit 2
@@ -162,49 +150,11 @@ fi
 
 # spec 축 승계(위 헤더 ★). 한 줄 = US(\x1f) 구분 4필드: spec_declared · accept_len(없으면 -) · 출처 · 근거.
 #   구분자를 탭이 아니라 US 로 두는 이유: 탭은 IFS 공백류라 빈 필드가 접혀 뒤 필드가 밀린다.
-#   유효성 술어는 roofline.accept_len_state 를 **import** 한다(복제 ✗). 사람 명시값의 유효성은 여기서
+#   native spec-row가 roofline.accept_len_state를 직접 사용한다(복제 ✗). 사람 명시값의 유효성은 여기서
 #   판정하지 않고 roofline 이 exit 2 로 거부한다(값역의 단일 소유자).
 #   파싱이 실패하면(측정 JSON 손상 등) 빈 줄로 흘리지 않고 멈춘다 — 빈 값이 absent 로 접히면 결손이 위장된다.
-_SPEC_ROW="$(
-  SDIR="$SDIR" AL_HUMAN="${AL:-}" LEVEL_REL="$LEVEL_REL" python3 - "$INDEX" "$MEASURED" <<'PY'
-import json, os, sys
-sys.path.insert(0, os.environ["SDIR"])
-from roofline import (ACCEPT_LEN_ABSENT, ACCEPT_LEN_DECLARED, ACCEPT_LEN_DECLARED_ABSENT,
-                      ACCEPT_LEN_MEASURED, accept_len_state)
-from verdict_rule import SPEC_DECLARED
-
-meta = (json.load(open(sys.argv[1], encoding="utf-8")).get("meta") or {})
-declared = meta.get("spec_declared")
-# 값역 밖·부재는 unknown 이다 — 모르는 선언을 off 로 접으면 결손이 "정상 1.0" 으로 위장한다.
-declared = declared if declared in SPEC_DECLARED else "unknown"
-rel = os.environ["LEVEL_REL"]
-human = os.environ.get("AL_HUMAN") or ""
-md = json.load(open(sys.argv[2], encoding="utf-8"))
-raw = md.get("accept_len") if isinstance(md, dict) else None
-state, val = accept_len_state(raw)
-# 파서 쪽 `spec_axis_source` 는 **다른 층의 어휘**다(parse_guidellm: 승계원 부재 선언 ≠ roofline
-#   declared-absent — roofline.py 어휘 주석). 출처로 옮기지 않고 층 이름을 붙여 근거에만 싣는다.
-axis_src = md.get("spec_axis_source") if isinstance(md, dict) else None
-axis_note = " · measured.spec_axis_source=%s" % axis_src if axis_src else ""
-if human:
-    # 사람 명시가 이긴다(declared). 그러나 덮은 실측을 **지우지 않는다** — 명시값은 expected_achievable
-    #   (합격선)에도 곱해지므로, 실측과 다른 명시는 흔적 없이 문턱을 옮긴다(측정 > 선언 · 기재만 · 게이트 ✗).
-    ev = "argv(--accept-len)"
-    if state == "valid":
-        ev += " · shadowed measured=%r(%s)" % (val, rel)
-    row = (declared, human, ACCEPT_LEN_DECLARED, ev)
-elif state == "valid":
-    row = (declared, repr(val), ACCEPT_LEN_MEASURED, rel + axis_note)
-elif declared == "off":
-    # 선언의 출처도 싣는다 — 재조립·소급으로 **현재 파일에서** 뽑은 off 는 retro 표지를 달고 온다.
-    row = (declared, "-", ACCEPT_LEN_DECLARED_ABSENT,
-           "sweep_index.meta.spec_declared=off(%s) · %s accept_len=%r"
-           % (meta.get("spec_declared_source"), rel, raw))
-else:
-    row = (declared, "-", ACCEPT_LEN_ABSENT, "%s accept_len=%r(%s)%s" % (rel, raw, state, axis_note))
-print("\x1f".join(str(x).replace("\x1f", " ") for x in row))
-PY
-)" || { echo "[judge_bench] ERROR spec 축 승계 입력 해석 실패($INDEX · $MEASURED) — 판정하지 않는다" >&2; exit 2; }
+_SPEC_ROW="$(bash "$SDIR/verdict_rule.sh" spec-row --index "$INDEX" --measured "$MEASURED" \
+  --human-value "${AL:-}" --level-rel "$LEVEL_REL")" || { echo "[judge_bench] ERROR spec 축 승계 입력 해석 실패($INDEX · $MEASURED) — 판정하지 않는다" >&2; exit 2; }
 IFS=$'\x1f' read -r SPEC_DECLARED AL_VALUE AL_SOURCE AL_EVIDENCE <<< "$_SPEC_ROW"
 NAS_ROOT="$(sed -n 's/^[[:space:]]*nas_model_path:[[:space:]]*"\{0,1\}\([^"#]*\)"\{0,1\}.*/\1/p' \
              "$MANIFEST" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')"
@@ -212,7 +162,7 @@ NAS_ROOT="$(sed -n 's/^[[:space:]]*nas_model_path:[[:space:]]*"\{0,1\}\([^"#]*\)
 QUANT_ROOT="$(sed -n 's/^[[:space:]]*quant_model_path:[[:space:]]*"\{0,1\}\([^"#]*\)"\{0,1\}.*/\1/p' \
              "$MANIFEST" 2>/dev/null | head -1 | sed 's/[[:space:]]*$//')"
 
-ROOF_CMD=(python3 "$SDIR/roofline.py" --model-path "$MODEL_PATH" --json)
+ROOF_CMD=(bash "$SDIR/roofline.sh" --model-path "$MODEL_PATH" --json)
 [ "$TP" != "-" ] && ROOF_CMD+=(--tp "$TP")
 [ -f "$MANIFEST" ] && ROOF_CMD+=(--manifest "$MANIFEST")
 [ -n "$NAS_ROOT" ] && ROOF_CMD+=(--nas-root "$NAS_ROOT")
@@ -228,7 +178,7 @@ ROOF_CMD+=(--accept-len-source "$AL_SOURCE" --accept-len-evidence "$AL_EVIDENCE"
 ROOF_TMP="$ROOF.partial.$$"
 OUT_TMP="$OUT.partial.$$"
 
-VERDICT_CMD=(python3 "$SDIR/verdict_rule.py" --measured "$MEASURED" --roofline "$ROOF_TMP"
+VERDICT_CMD=(bash "$SDIR/verdict_rule.sh" --measured "$MEASURED" --roofline "$ROOF_TMP"
              --authority "$AUTHORITY" --spec-declared "$SPEC_DECLARED"
              "${PASS_ARGS[@]+"${PASS_ARGS[@]}"}")
 [ "$SPEC" = 1 ] && VERDICT_CMD+=(--spec-supported)
@@ -248,14 +198,8 @@ mv -f "$ROOF_TMP" "$ROOF"
 mv -f "$OUT_TMP" "$OUT"
 trap - EXIT
 echo "[judge_bench] DONE — ROOFLINE=$ROOF VERDICT=$OUT"
-python3 - "$OUT" <<'PY'
-import json, sys
-doc = json.load(open(sys.argv[1], encoding="utf-8"))
-rub = doc.get("rubric") or {}
-print("[judge_bench] verdict=%s authority=%s source=%s floor=%s reason_code=%s"
-      % (doc.get("verdict"), rub.get("authority"), rub.get("source"), rub.get("floor"),
-         doc.get("reason_code")))
-PY
+bash "$SDIR/bench_shell.sh" judge-log "$OUT"
+
 
 # ── 인증서 자동 발행 (2026-09-08 · plan_26090813 §4.4 · 사용자 결정 D18) ─────────────────
 # 왜 여기인가: `publish_benchmark_record.py` 는 저장소 안 **호출자가 0** 이었다. 발행기가 있는데
@@ -265,14 +209,14 @@ PY
 # **명시 권한(explicit)의 PASS 만** 자동이다. 탐색(explore)은 사용자가 목표를 안 준 상태의 측정이라
 # "검증된 한계" 를 주장할 근거가 없다 — 리포트와 sweep map 으로 남긴다. 권한 모델의 정본은
 # adversarial-benchmark SKILL.md §2 이며 여기서 두 번째 답을 만들지 않는다.
-_V="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1],encoding='utf-8')).get('verdict') or '')" "$OUT")"
-_A="$(python3 -c "import json,sys;print(((json.load(open(sys.argv[1],encoding='utf-8')).get('rubric') or {}).get('authority')) or '')" "$OUT")"
+_V="$(bash "$SDIR/bench_shell.sh" verdict "$OUT")"
+_A="$(bash "$SDIR/bench_shell.sh" authority "$OUT")"
 if [ "$NO_PUBLISH" = 1 ]; then
   # 억제도 결과다 — 로그에 남겨야 "왜 인증서가 없지?" 가 조용한 누락과 구분된다.
   echo "[judge_bench] 인증서 발행 억제 — verdict=$_V authority=$_A (--no-publish${OUTDIR:+ · --out-dir=$OUTDIR 는 정본 판정 자리가 아니다})"
 elif [ "$_V" = "PASS" ] && [ "$_A" = "explicit" ]; then
   echo "[judge_bench] 인증서 자동 발행 — verdict=PASS · authority=explicit"
-  python3 "$SDIR/publish_benchmark_record.py" --sweep-index "$INDEX" --verdict-json "$OUT" \
+  bash "$SDIR/publish_benchmark_record.sh" --sweep-index "$INDEX" --verdict-json "$OUT" \
     || echo "[judge_bench] ⚠ 인증서 발행 실패 — 판정은 남았고 인증서만 없다(위 사유 참조)" >&2
 else
   # 음성정직: "발행 안 함" 은 결손이 아니라 판정 결과다. 그 사실이 로그에 남아야 나중에

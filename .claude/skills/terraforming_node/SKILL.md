@@ -50,7 +50,7 @@ when_to_use: >-
 3. **모델 획득 모드 인터뷰**(§0.5.7) → **0차 init-plan 발행 + 자기-HITL 승인**(§0.5.8).
 4. **스캔**(single=§1S · multi=§1.1 5-전제조건 인터뷰 → §1.2 사용자 승인 → §1.3 스캔 → §1.4 성능 게이트).
 5. **게이트 + 3자-일치 단언**(§1.5) → 통과 시에만 **manifest + Flag 기입**(§1.6 / §1S, HITL).
-6. **하네스 실행환경(main 및 등록된 sub)** — 역할별 업무 권한 → 렌더 → 공식 전달 → discovery·실제 권한 카나리(§2.3–§2.5.2). sudo 작업은 개정마다 생기는 것이 아니라 실제 호스트 전제조건 결손 때만 수행지시서로 발행한다. single의 등록된 A2A 서브도 이 단계에 포함하고 빌드킷 배달은 계속 dormant다. 카나리 미통과 시 해당 하네스 배포 done 선언 ✗.
+6. **하네스 실행환경(main 및 등록된 sub)** — 역할별 업무 권한 → 렌더 → 공식 전달 → 노드별 Rust 설치·offline 빌드/기동 검사 → discovery·실제 권한 카나리(§2.3–§2.5.2). Rust는 `references/install/rust_runtime.md`의 배포 helper로 준비한다. sudo 작업은 개정마다 생기는 것이 아니라 실제 호스트 전제조건 결손 때만 수행지시서로 발행한다. single의 등록된 A2A 서브도 이 단계에 포함하고 빌드킷 배달은 계속 dormant다. Rust 기동 검사·카나리 미통과 시 해당 하네스 배포 done 선언 ✗.
 7. **호스트 안전체계 세션 최종 Y/N**(§2.6) — Flag 발급 **이후**의 독립 선택조항.
 
 
@@ -63,6 +63,7 @@ when_to_use: >-
 | 서브 환경 렌더 실패(미치환 placeholder·필수 필드 누락) | `.claude/skills/terraforming_node/scripts/render_sub_env.py` · `references/install/sub_agent_env.md` |
 | 서브 위임/카나리의 provider 실행문법이 필요 | `.claude/skills/terraforming_node/references/orchestration/agent-control-adapter.md` |
 | 하네스 전환·공통 Codex 권한·설정 로딩·실행 실패 | `references/install/harness_environment.md` · `templates/requests/codex_linux_sandbox.md` |
+| Rust가 없는 신규 PC·Rust pin 변경·main/sub 컴파일/기동 준비 | `references/install/rust_runtime.md` |
 | Flag 미발급이라 런타임 스킬이 info-only 로 떨어짐 | `.claude/skills/terraforming_node/scripts/manifest_contract.py` |
 | 서브에 무엇을 해도 되는지 모호(저작/스캔/정비) · 평면 A/B 혼동 · 서브 git 교착 | §2.7 → `references/orchestration/control_planes.md` |
 | "고쳤는데 안 갔다" / "안 고쳤는데 갔다"(커밋 vs 인덱스 vs 파일시스템) | §2.7.4 → `references/orchestration/control_planes.md` |
@@ -95,6 +96,9 @@ when_to_use: >-
 → `references/install/sub_agent_env.md` — ### 2.1 스킬 분류학 · ### 2.2 구축 아티팩트 · ### 2.3 렌더-온-메인 → 전달(인가 체인) · ### 2.4 A2A-개념 협업 계약 · ### 2.5 완료 게이트 — model-less 카나리 라운드트립 · ### 2.5.1 hint 발행 장착(single 서브 한정 · 클론·역할 선언·토큰 존재 확인 · 2026-10-11). **카나리 미통과 = done ✗.**
 
 ### 2.5.2 하네스별 실행환경·업무 권한 동등성
+
+Rust 설치·노드별 검증·새 프로세스 실행은 `references/install/rust_runtime.md`가 소유한다.
+각 노드의 프로젝트 관리 환경을 준비하며 HW 재스캔이나 별도 ready flag를 만들지 않는다.
 → `references/install/harness_environment.md`. Codex는 main/sub 모두 `default_permissions = ":danger-full-access"`와 `approval_policy = "never"`를 설치하며 역할별 named 프로필을 생성하지 않는다. 정체성·업무 소유는 manifest·SSH·노드 제어 계약으로 검증한다. 공통 업무·소유·승인을 provider별 실행 계약에 연결한다. 테라포밍이 설정·조건부 환경 복구 request·검증을 소유하며, 호스트 정책 설치는 **사람이 sudo로 수행**한다. 에이전트는 설치 요청을 발행하고 회수 증거를 판정한다. HW Flag와 독립된 하네스 검증이며 별도 비공식 ready flag를 발급하지 않는다.
 
 ### 블랙박스 — `references/blackbox/`
@@ -166,13 +170,18 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/selftest_campaign_lifecycle.py` | 캠페인 체인 | — | 수명 상태(보류·재개·포기·선점 · 서브 종결 전파 · 재배정) 자체검사 · 회귀 실행자 `verify_distribution.py` |
 | `scripts/campaign_template_validator.py` | 캠페인 체인 | ✓ | 선언·인스턴스 술어(P1~P3) |
 | `scripts/manifest_contract.py` | §0.5 · §1S · §2.7.10 | ✓ | Flag·`issued_by: main` readiness 리더 |
-| `scripts/node_role_contract.py` | §2.7.0 · §2.7.6 | — | 토폴로지 축 계약(sub_mode·rank·배달 평면·tool_plane·서브 자체 발행)의 단일 소유자 |
+| `scripts/node_role_contract.py` | §2.7.0 · §2.7.6 | ✓ | 최초 Rust 빌드 전 bootstrap·기존 Python import 호환 진입점; native 역할 정책은 공유 `.claude/rust/role-contract` 라이브러리 |
+| `scripts/node_role_contract.sh` | §2.7.0 · §2.7.6 | — | 설치·빌드 후 일반 Rust 역할 CLI 직접 기동; U 배달 서브의 직접 실행 경로는 `references/install/rust_runtime.md` |
 | `scripts/check_sub_hint_equip.py` | §2.5.1 | ✓(single) | single 서브 hint 발행 장착 판정·장착(`--clone`·`--write-push-authority`) · JSON 보고 · 비밀 미출력 · 사람 요청 템플릿 `templates/requests/sub_hint_push_equip.md` |
 | `scripts/scan_node.py` | §1.3–§1.5 · §2.7.10 | — | 스캔·게이트·3자일치·emit(서브 manifest 포함) |
 | `scripts/render_sub_env.py` | §2.3 | — | 서브 환경·Card·서브 manifest 렌더 |
 | `scripts/staleness_gate.py` | spine 1 · §0.5 | — | 조건부 preflight 트리거 |
 | `scripts/bootstrap_canary.py` | §2.5 | — | model-less 카나리 실행자 |
 | `scripts/harness_permission_probe.py` | §2.5.2 | ✓ | 요청된 native 하네스 안에서 실행하는 업무 권한 관측; 자체 실행만으로 A2A 성공 선언 금지 |
+| `scripts/rust_bootstrap.sh` | §2.5.2 | ✓ | 노드 로컬 Rust 설치·status·C 컴파일/아카이브와 Rust 연결 offline build/run 검사·명시 실행; pin은 동봉된 `rust_toolchain.pin` |
+| `scripts/rust_toolchain.pin` | §2.5.2 | ✓ | Rust 버전·컴포넌트·지원 target 정본 |
+| `scripts/build_rust_packages.sh` | §2.5.2 | ✓ | 명시 install/check 후 배달된 공유 Q·역할 정책 T·recipe P·upstream U 소스의 locked release 빌드와 순수 정상 ELF 기동; 일반 평가에서 자동 실행하지 않는다 |
+| `scripts/selftest_rust_bootstrap.sh` | §2.5.2 | — | 네트워크 없는 설치/실패/재실행·환경 격리 계약 회귀 |
 | `scripts/selftest_bootstrap_permissions.py` | §2.5.2 | — | 카나리 증거·음성대조 회귀 |
 | `scripts/selftest_sub_hint_write_scopes.py` | §2.5.2 | — | 외부 hint 경로의 역할·대상·범위 검증 회귀 |
 | `scripts/selftest_claude_native_events.py` | §2.5.2 | — | opt-in native 도구 실행 기록과 기존 Claude 호출 호환 회귀 |
@@ -185,6 +194,8 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/node_blackbox/`(런타임: `blackbox_session.py` · `budget_renew_loop.sh` · `blackbox_eta.py` · `regen_envelope.py` · `blackbox_thermal.py` · `mem_watchdog_eta.sh` · `thermal_watchdog.sh` · `agent_guard.py`) | §2.6 | ✓ | `references/blackbox/host_safety.md` |
 | `scripts/node_blackbox/`(설치: `install_node_blackbox.sh` · `verify_node_blackbox.sh` · `purge_host_safety.sh` · `publish_install_request.py`) | §2.6 · §2.6.1 | ✓ | HITL sudo |
 | `.claude/skills/terraforming_node/scripts/host_safety/` | §2.6 | ✓ | 협역 워치독 정본 `mem_watchdog.sh` · 레거시 설치자(`install_host_safety.sh` — 정책 술어가 본문을 읽으므로 유지) |
+
+- 벤치 owner 의 build→native 자체검사가 원래 정본 경로에서 읽는 기초층 의존 2종(`topology_parity.py` · `node_blackbox/node_identity.sh`)은 닫힌 목록 `render_sub_env.py::SUB_BENCH_FOUNDATION_RUNTIME` 으로 adversarial-benchmark 가 가는 서브에만 배달된다. 오케스트레이터가 아니며 `.claude/runtime/node_blackbox/` 의 설치용 사본과는 다른 자리다.
 
 ## 5. 금지
 

@@ -43,12 +43,12 @@ def _require(condition: object, message: str) -> None:
 
 
 def _walk_governing_files(root: Path, pattern: str):
-    """Yield files governed by ``root``, excluding nested harness worktrees."""
+    """Yield harness sources, excluding nested worktrees and node-local installed tools."""
     claude_dir = root / ".claude"
     for dirpath, dirnames, filenames in os.walk(claude_dir):
         if Path(dirpath) == claude_dir:
-            # This is the harness isolation container, not a governed subtree.
-            dirnames[:] = [name for name in dirnames if name != "worktrees"]
+            # Runtime toolchains are generated/ignored host packages, not shipped harness code.
+            dirnames[:] = [name for name in dirnames if name not in {"worktrees", "runtime"}]
         for name in filenames:
             if fnmatch.fnmatch(name, pattern):
                 yield Path(dirpath) / name
@@ -129,11 +129,15 @@ def _test_nested_worktree_isolation() -> None:
             (nested / "stale.py").write_text("assert False\n", encoding="utf-8")
             (nested / "stale.bak").write_text("stale\n", encoding="utf-8")
             (nested / "stale.md").write_text("tracked_index\n", encoding="utf-8")
+            generated = root / ".claude/runtime/rust/lib"
+            generated.mkdir(parents=True)
+            (generated / "debugger.py").write_text("assert False\n", encoding="utf-8")
+            (generated / "Cargo.toml.orig").write_text("third-party Cargo metadata\n", encoding="utf-8")
             _test_no_production_asserts(root)
             _test_no_backup_artifacts(root)
             _test_no_retired_hash_mechanism_prose(root)
             _require(not verify_distribution._shipped_python_paths(root),
-                     "distribution scan included nested worktree Python")
+                     "distribution scan included nested worktree or installed runtime Python")
 
             current_python = root / ".claude/current.py"
             current_python.write_text("assert False\n", encoding="utf-8")
@@ -156,6 +160,17 @@ def _test_nested_worktree_isolation() -> None:
             else:
                 raise RuntimeSelftestFailure("backup scan did not catch current-tree violation")
             current_backup.unlink()
+
+            policy_backup = root / ".claude/policies/runtime/current.orig"
+            policy_backup.parent.mkdir(parents=True, exist_ok=True)
+            policy_backup.write_text("canonical violation\n", encoding="utf-8")
+            try:
+                _test_no_backup_artifacts(root)
+            except RuntimeSelftestFailure:
+                pass
+            else:
+                raise RuntimeSelftestFailure("backup scan omitted canonical policies/runtime")
+            policy_backup.unlink()
 
             current_prose = root / ".claude/current.md"
             current_prose.write_text("tracked_index\n", encoding="utf-8")
@@ -635,13 +650,21 @@ def _test_certificate_waiver_by_authority() -> None:
     dup = _bench_report_with_verdict_table("PASS", "explore").replace("| 루브릭 권한 | explore |",
                                                                       "| 루브릭 권한 | explore |\n| verdict | REFUTE |")
     _require(gate.bench_report_verdict_table(dup)[1].startswith("unparseable"), "duplicate verdict row not rejected")
-    # U4 writer 앵커 — 판정 절의 writer(render_report.py)가 파서가 읽는 머리·행 문구를 그대로 쓰는가.
-    writer = (REPO_ROOT / ".claude/skills/adversarial-benchmark/scripts/render_report.py")
-    if writer.is_file():
-        src = writer.read_text(encoding="utf-8")
-        for anchor in (gate.BENCH_REPORT_VERDICT_SECTION_PREFIX, '"| verdict | **%s** |"', '"| 루브릭 권한 | %s |"'):
-            _require(anchor in src, f"render_report.py no longer writes the verdict-table anchor {anchor!r} "
-                                    f"(completion_gate.bench_report_verdict_table 와 계약이 갈라졌다)")
+    # U4: feed the installed writer's actual output to its consumer; no reference-source inspection.
+    writer_api = REPO_ROOT / ".claude/skills/adversarial-benchmark/scripts/bench_reporting_api.sh"
+    payload = {"id": "writer-contract", "operation": "render_report.build_md", "arguments": {
+        "index": {"meta": {}, "levels": []},
+        "verdict": {"verdict": "PASS", "rubric": {"authority": "explore"}}, "roofline": None}}
+    actual_writer = subprocess.run(["bash", str(writer_api), "evaluate-jsonl"],
+                                   input=json.dumps(payload) + "\n", capture_output=True, text=True, timeout=120)
+    _require(actual_writer.returncode == 0 and not actual_writer.stderr,
+             f"native render_report writer failed: {actual_writer.stderr[-600:]!r}")
+    written = json.loads(actual_writer.stdout)
+    _require(written.get("kind") == "value" and isinstance(written.get("value"), str),
+             f"native writer returned no report: {written!r}")
+    real_table, real_state = gate.bench_report_verdict_table(written["value"])
+    _require(real_state == "parsed" and real_table == {"verdict": "PASS", "rubric_authority": "explore"},
+             f"native report and verdict-table reader disagree: {real_state} {real_table!r}")
 
     def verify(verdict, rubric, report_text, certificate=None) -> dict:
         with tempfile.TemporaryDirectory(prefix="certificate-waiver-selftest.") as td:
@@ -737,11 +760,11 @@ def _test_certificate_waiver_by_authority() -> None:
 
 _HINT_SCRIPTS_REL = ".claude/skills/hint-publisher/scripts"
 _HINT_CLI_REL = f"{_HINT_SCRIPTS_REL}/hint.py"
-# 배포 배치 사본에 **함께** 놓아야 하는 추적 파일(wave 1 요청): 어휘표는 이름 파생의 닫힌 목록이고, sweep_bench.sh 는
+# 배포 배치 사본에 **함께** 놓아야 하는 추적 파일(wave 1 요청): 어휘표는 이름 파생의 닫힌 목록이고, assemble_sweep_meta.rs 는
 #   naming 자체검사가 교차 대조하는 producer 리터럴 앵커다(인증서 model 키 규칙). 빠지면 사본이 실물보다 좁아진다.
 _HINT_VOCAB_REL = "hints/vocab.json"
-_SWEEP_BENCH_REL = ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh"
-_RENDER_REPORT_REL = ".claude/skills/adversarial-benchmark/scripts/render_report.py"
+_SWEEP_META_PRODUCER_REL = ".claude/skills/adversarial-benchmark/rust/src/assemble_sweep_meta.rs"
+_RENDER_REPORT_REL = ".claude/skills/adversarial-benchmark/scripts/render_report.sh"
 # 픽스처 셀과 기대 이름 — 이름은 **도구가 파생**한다(D8 · 발행자 입력 ✗). 아래 값은 파생 결과를 대조하는 앵커이지 입력이 아니다.
 _HINT_FX_CAMPAIGN = "c1"
 _HINT_FX_CELL = "c1-a"
@@ -936,7 +959,7 @@ def _hint_cli_fixture(td: Path, hint, *, legacy: bool) -> dict:
     shutil.copy2(real / _HINT_CLI_REL, dst / "hint.py")
     shutil.copytree(real / _HINT_SCRIPTS_REL / "hintlib", dst / "hintlib",
                     ignore=shutil.ignore_patterns("__pycache__"))
-    for rel in (_HINT_VOCAB_REL, _SWEEP_BENCH_REL):
+    for rel in (_HINT_VOCAB_REL, _SWEEP_META_PRODUCER_REL):
         (repo / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(real / rel, repo / rel)
     old = hint._fx_legacy_remote(td, repo, fx["bare"]) if legacy else {}
@@ -1407,7 +1430,7 @@ def _render_lite_report(raw_json: Path) -> str:
     렌더러가 만든다 — 손으로 쓴 리포트로 초록이면 렌더러와 발행기 사이의 계약(측정 구성 표 · lite 지표 표 · `mode: lite` ·
     `생성일` 조인 키 · 측정 환경 표)이 갈라져도 모른다(픽스처가 실물보다 좁다). 값은 합성이며 GPU·docker·서빙에 닿지 않는다."""
     env = {k: v for k, v in os.environ.items() if k != "EASY_VLLM_VERSION"}
-    proc = subprocess.run([sys.executable, "-B", str(CLAUDE_DIR.parent / _RENDER_REPORT_REL), "--lite-only",
+    proc = subprocess.run(["bash", str(CLAUDE_DIR.parent / _RENDER_REPORT_REL), "--lite-only",
                            "--lite-raw-json", str(raw_json), "--stdout"],
                           capture_output=True, text=True, timeout=120, env=env)
     _require(proc.returncode == 0 and proc.stdout.strip(),
@@ -1459,8 +1482,8 @@ def _hint_fx_lite_cell(repo: Path, fx: dict, *, with_report_pointer: bool) -> No
     # lite 등급 인증서 — **배포되는 발행기**(publish_benchmark_record.py --lite-raw-json)가 같은 raw 로 쓴다(손 인증서 ✗).
     #   hint 자격 = lite 통과(2026-09-29 plan_26092923 · 게이트 HINT_MAP_REQUIRES_LITE_PASS_CERTIFICATE).
     env = {k: v for k, v in os.environ.items() if k != "EASY_VLLM_VERSION"}
-    proc = subprocess.run([sys.executable, "-B", str(CLAUDE_DIR.parent / _RENDER_REPORT_REL).replace(
-                               "render_report.py", "publish_benchmark_record.py"),
+    proc = subprocess.run(["bash", str(CLAUDE_DIR.parent / _RENDER_REPORT_REL).replace(
+                               "render_report.sh", "publish_benchmark_record.sh"),
                            "--lite-raw-json", str(raw), "--stdout"], capture_output=True, text=True, timeout=120, env=env)
     _require(proc.returncode == 0 and "benchmark_mode: lite" in proc.stdout,
              f"publish_benchmark_record --lite-raw-json failed on the lite fixture: rc={proc.returncode} "
@@ -2118,6 +2141,11 @@ def _test_no_backup_artifacts(root: Path | None = None) -> None:
         rel_dir = os.path.relpath(dirpath, root)
         if rel_dir == ".":
             dirnames[:] = [d for d in dirnames if d not in _BACKUP_SCAN_PRUNE_TOP]
+        elif Path(rel_dir) == Path(".claude"):
+            # Cargo registry's Cargo.toml.orig is installed third-party metadata,
+            # like the generated toolchain Python files excluded by source scans.
+            # Only this node-local root is pruned; policies/runtime stays governed.
+            dirnames[:] = [d for d in dirnames if d != "runtime"]
         elif Path(rel_dir) == _WORKTREE_ISOLATION_REL:
             dirnames[:] = []
         for name in filenames:
@@ -2208,6 +2236,99 @@ def _tracked_blob_digests(root: Path) -> set[str]:
     return digests
 
 
+def _digest_identity_literals(text: str, rel: str) -> set[str]:
+    """Integrity assertions in tracked data, keeping algorithm test results in their own role.
+
+    A read-only operation on a generated `@ROOT@` fixture may return the same digest as a tracked blob
+    (notably SHA256 of an empty input). Its scalar golden result tests an algorithm; it does not assert the
+    integrity of that blob. Only that result is outside this check. Other fields in the very same row, including
+    digest metadata, are still checked. The rule uses the Rust fixture role and observation shape, no path or
+    digest allowlist. Malformed or unrecognised data keeps the original literal scan.
+    """
+    raw = set(_HEX_CONST_RE.findall(text))
+    if not rel.endswith(".json") or "/rust/checks/data/" not in "/" + rel:
+        return raw
+    duplicate_keys = False
+    numeric_tokens: list[str] = []
+
+    def pairs(items):
+        nonlocal duplicate_keys
+        if len({key for key, _ in items}) != len(items):
+            duplicate_keys = True
+        return dict(items)
+
+    def number(token, convert):
+        numeric_tokens.append(token)
+        return convert(token)
+
+    try:
+        document = json.loads(text, object_pairs_hook=pairs,
+                              parse_int=lambda token: number(token, int),
+                              parse_float=lambda token: number(token, float))
+    except ValueError:
+        return raw
+    if duplicate_keys or not isinstance(document, list):
+        return raw
+
+    def strings(value):
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, dict):
+            for key, child in value.items():
+                yield str(key)
+                yield from strings(child)
+        elif isinstance(value, list):
+            for child in value:
+                yield from strings(child)
+
+    # Keep numeric spelling too: parsing a long number as int/float must not erase a literal the raw scan saw.
+    material = list(numeric_tokens)
+    for row in document:
+        if isinstance(row, dict):
+            args, before, expected = row.get("arguments"), row.get("before"), row.get("expected")
+            ephemeral = isinstance(args, dict) and any(
+                isinstance(value, str) and (value == "@ROOT@" or value.startswith("@ROOT@/"))
+                for value in args.values())
+            readonly = isinstance(before, dict) and (row.get("after") == "same" or row.get("after") == before)
+            oracle = (isinstance(row.get("operation"), str) and bool(row["operation"]) and ephemeral and readonly
+                      and isinstance(expected, dict) and expected.get("kind") == "value"
+                      and isinstance(expected.get("value"), str) and _HEX_CONST_RE.fullmatch(expected["value"]))
+            if oracle:
+                row = dict(row, expected={key: value for key, value in expected.items() if key != "value"})
+        material.extend(strings(row))
+    return {digest for value in material for digest in _HEX_CONST_RE.findall(value)}
+
+
+def _test_digest_data_roles() -> None:
+    """A scalar algorithm oracle is allowed; the same digest in integrity metadata is still detected."""
+    digest = hashlib.sha256(b"").hexdigest()
+    rel = "package/rust/checks/data/observations.json"
+    row = {"id": "empty", "operation": "directory_digest", "arguments": {"d": "@ROOT@"},
+           "before": {}, "after": "same", "expected": {"kind": "value", "value": digest}}
+    check = lambda data, path=rel: digest in _digest_identity_literals(json.dumps(data), path)
+    _require(not check([row]), "algorithm golden result was classified as tracked-file integrity metadata")
+    _require(check([dict(row, content_sha256=digest)]), "same-row integrity metadata escaped through an oracle")
+    _require(check([row, {"content_sha256": digest}]), "neighbouring integrity metadata escaped through an oracle")
+    _require(check([dict(row, expected={**row["expected"], "content_sha256": digest})]),
+             "extra expected metadata escaped through an oracle")
+    _require(check([row], ".claude/policies/integrity.json"), "ordinary data acquired the Rust fixture role")
+    _require(check([row], "package/notrust/checks/data/observations.json"),
+             "partial directory name acquired the Rust fixture role")
+    _require(check([dict(row, arguments={"d": ".claude/tracked.py"})]), "tracked input acquired a generated-root role")
+    _require(check([dict(row, after={"new": {"kind": "file"}})]), "writing operation acquired a read-only role")
+    _require(check({"expected": {"kind": "value", "value": digest}}), "ordinary expected metadata escaped")
+    duplicate = '"content_sha256":' + json.dumps(digest) + ',"content_sha256":"later-value"'
+    _require(digest in _digest_identity_literals('[{"metadata":{' + duplicate + '}}]', rel),
+             "earlier duplicate-key metadata was lost while parsing JSON")
+    duplicate_expected = json.dumps([dict(row, expected={**row["expected"], "content_sha256": digest})])
+    duplicate_expected = duplicate_expected.replace('"content_sha256": ' + json.dumps(digest), duplicate)
+    _require(digest in _digest_identity_literals(duplicate_expected, rel),
+             "earlier duplicate-key metadata in expected escaped through an oracle")
+    numeric = "1" * 40
+    _require(numeric in _digest_identity_literals('[{"metadata":' + numeric + '}]', rel),
+             "numeric literal was lost while parsing JSON")
+
+
 def _test_no_tracked_digest_rewrite(root: Path | None = None) -> None:
     """tripwire ② — **파생 술어**(allowlist 없음): git 이 이미 든 바이트의 해시를 추적 데이터가
     다시 적으면 FAIL.
@@ -2239,6 +2360,8 @@ def _test_no_tracked_digest_rewrite(root: Path | None = None) -> None:
         except (UnicodeDecodeError, OSError):
             continue
         hits = sorted({m for m in _HEX_CONST_RE.findall(text) if m.lower() in digests})
+        if hits:
+            hits = sorted({m for m in _digest_identity_literals(text, rel) if m.lower() in digests})
         if hits:
             offenders.append(f"{rel}:{len(hits)} (e.g. {hits[0]})")
     _require(not offenders,
@@ -3117,6 +3240,7 @@ def run_tripwires(root: Path | None = None) -> int:
         return 0
     try:
         _test_no_backup_artifacts(root)
+        _test_digest_data_roles()
         _test_no_tracked_digest_rewrite(root)
         _test_no_retired_hash_mechanism_prose(root)
         _test_no_duplicate_certificates(root)      # ④ plan_26090410 P4 — 사본 정리 뒤 배선
@@ -3176,6 +3300,7 @@ def main(argv: list[str] | None = None) -> int:
     # 여기서도 같은 SKIPPED 한 줄로 눈에 보이게 한다(침묵 no-op 금지).
     _announce_non_canonical(REPO_ROOT, "runtime_selftest")
     _test_no_backup_artifacts()
+    _test_digest_data_roles()
     _test_no_tracked_digest_rewrite()
     _test_no_retired_hash_mechanism_prose()
     _test_no_duplicate_certificates()

@@ -45,8 +45,22 @@ from pathlib import Path
 SDIR = Path(__file__).resolve().parent
 REPO = Path(__file__).resolve().parents[4]
 AB = ".claude/skills/adversarial-benchmark/scripts"
-COPIES = ("lite_bench.sh", "lite_metrics.py", "render_report.py", "classify_cell.py", "doc_naming.py", "repeat_axis.py",
-          "publish_benchmark_record.py")
+COPIES = ('render_report.sh',
+    'render_sweep_map.sh',
+    'render_max_report.sh',
+    'publish_benchmark_record.sh',
+    'bench_doc_naming.sh',
+    'bench_reporting_api.sh',
+    'reporting_native.py',
+    'doc_naming_native.py',
+    'render_report_native.py',
+    'render_sweep_map_native.py',
+    'render_max_report_native.py',
+    'publish_benchmark_record_native.py',
+    "lite_bench.sh", "lite_metrics.py", "render_report.py", "classify_cell.py", "doc_naming.py", "repeat_axis.py",
+          "repeat_axis.sh", "repeat_axis_api.sh", "repeat_axis_native.py", "repeat_axis_owner_query.py",
+          "publish_benchmark_record.py", "lite_metrics.sh", "lite_metrics_api.sh", "lite_metrics_native.py",
+          "classify_cell.sh", "classify_cell_api.sh", "classify_cell_native.py", "classify_cell_role_query.py")
 SHIM_SENTINEL = "selftest-lite-report-shim"
 CFG = "fx-lite"
 MEASURED_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
@@ -110,6 +124,15 @@ class Sandbox:
         self.shimdir = tmp / "shimdata"
         for name in COPIES:
             _write(self.root / AB / name, (SDIR / name).read_text(encoding="utf-8"))
+        native_rel = ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis"
+        native_dst = self.root / native_rel
+        native_dst.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(REPO / native_rel, native_dst)
+        native_api_rel = ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis_api"
+        shutil.copy2(REPO / native_api_rel, self.root / native_api_rel)
+        for native_name in ("lite_metrics", "lite_metrics_api", "classify_cell", "classify_cell_api", "render_report", "publish_benchmark_record", "bench_reporting_api"):
+            rel = ".claude/skills/adversarial-benchmark/rust/target/release/" + native_name
+            shutil.copy2(REPO / rel, self.root / rel)
         _write(self.root / ".claude/skills/terraforming_node/scripts/manifest_contract.py",
                MC_STUB.replace("@SENTINEL@", SHIM_SENTINEL), 0o755)
         _write(self.bindir / "docker", DOCKER_SHIM.replace("@SENTINEL@", SHIM_SENTINEL), 0o755)
@@ -141,7 +164,7 @@ class Sandbox:
                          "--backend", "openai", *extra])
 
     def render(self, *argv):
-        return self.run([sys.executable, str(self.root / AB / "render_report.py"), *argv])
+        return self.run(["bash", str(self.root / AB / "render_report.sh"), *argv])
 
     def reports(self) -> list:
         d = self.root / "docs" / "benchmark"
@@ -172,9 +195,9 @@ def main() -> int:
         print("[selftest_lite_report] FAIL git 이 없다 — 격리 저장소를 만들 수 없다(부재를 통과로 접지 않는다)", file=sys.stderr)
         return 1
     rbs = _load("_lite_rbs", REPO / ".claude/skills/hint-publisher/scripts/render_bench_section.py")
-    rr = _load("_lite_render_report", SDIR / "render_report.py")
-    cc = _load("_lite_classify_cell", SDIR / "classify_cell.py")
-    dn = _load("_lite_doc_naming", SDIR / "doc_naming.py")
+    rr = _load("_lite_render_report", SDIR / "render_report_native.py")
+    cc = _load("_lite_classify_cell", SDIR / "classify_cell_native.py")
+    dn = _load("_lite_doc_naming", SDIR / "doc_naming_native.py")
     ep = _load("_lite_evidence_publisher", REPO / ".claude/policies/runtime/evidence_publisher.py")
 
     with tempfile.TemporaryDirectory(prefix="lite-report-selftest.") as td:
@@ -320,7 +343,7 @@ def main() -> int:
                 rec_path.unlink(missing_ok=True)
             else:
                 _write(rec_path, json.dumps(dict(record, sweep_index_generated_utc=idx["generated_utc"])))
-            cp = subprocess.run([sys.executable, str(SDIR / "render_report.py"), "--sweep-index", str(t / "sweep_index.json"),
+            cp = subprocess.run(["bash", str(SDIR / "render_report.sh"), "--sweep-index", str(t / "sweep_index.json"),
                                  "--verdict-json", str(t / "verdict.json"), "--stdout"],
                                 capture_output=True, text=True, timeout=60)
             return cp, (rbs.parse_measurement_config(cp.stdout) if cp.returncode == 0 else None)

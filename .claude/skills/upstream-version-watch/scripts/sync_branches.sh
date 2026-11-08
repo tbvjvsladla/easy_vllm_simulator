@@ -51,6 +51,7 @@ ALLOWLIST=(
     .codex
     .claude/rules
     .claude/skills
+    .claude/rust
     .claude/schemas
     .claude/policies
     # 추적 git 훅(2026-09-03 추가). `core.hooksPath` 설정은 `.git/config` 라 브랜치마다 갈리지
@@ -116,6 +117,7 @@ MIRROR_DIRS=(
     .codex
     .claude/rules
     .claude/skills
+    .claude/rust
     .claude/schemas
     .claude/policies
     .claude/hooks

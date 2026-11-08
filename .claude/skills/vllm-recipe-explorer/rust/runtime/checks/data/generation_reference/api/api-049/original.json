@@ -1,0 +1,15 @@
+{
+  "id": "api-049",
+  "kind": "value",
+  "value": [
+    "a",
+    "z"
+  ],
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "candidate.get(\"z\") candidate.get(\"a\")",
+    false
+  ],
+  "kwargs_after": {}
+}

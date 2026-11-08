@@ -1,0 +1,2 @@
+parity FAIL — run_trial 이 candidate 에서 읽지만 3종 세트에 도달하지 않는 필드: unknown_field
+  → SERVE_KNOB_KEYS/_build_yaml 에 추가하거나, serve 노브가 아니면 candidate 를 읽지 말고 opts 로 받아라(평면 분리). 면제 등록은 마지막 수단이다.

@@ -10,7 +10,7 @@
 격리 방식 — 부하 도구는 **shim** 이다(테스트 평면의 외부 의존 차단 · 정당한 모킹):
   · `run_bench.sh`·`lite_bench.sh` 는 사본이 아니라 shim 이다. GPU·docker·서빙에 닿지 않고, 레벨 run 산출물로
     **실측 GuideLLM 산출물 픽스처**(`fixtures/guidellm_benchmarks_sample.json`)를 복제해 TPOT 중앙값·미완결 수만
-    바꿔 쓴다 — 파서(`parse_guidellm.py`)는 실물 그대로 돈다(픽스처가 실물보다 좁지 않게).
+    바꿔 쓴다 — 파서(native `parse_guidellm.sh`)는 실물 그대로 돈다(픽스처가 실물보다 좁지 않게).
     shim 산출물은 `guidellm_version=0.0.0+selftest-shim` 로 **스스로 가짜임을 밝힌다**(실측인 척 ✗).
   · `curl` 은 PATH 앞단 shim 이 200 을 낸다(broad_search 의 health 프로브). 임시 저장소 밖에는 아무것도 쓰지 않는다.
   · 실패주입은 shim 계획(`SHIM_PLAN`)이 정한다: run 의 measurement_ok=false(미완결 요청) · run_bench 비0 ·
@@ -80,12 +80,52 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[4]
 AB = ".claude/skills/adversarial-benchmark"
 TN = ".claude/skills/terraforming_node/scripts"
-COPIES = (
-    f"{AB}/scripts/sweep_bench.sh", f"{AB}/scripts/repeat_axis.py", f"{AB}/scripts/parse_guidellm.py",
-    f"{AB}/scripts/parse_bench.py", f"{AB}/scripts/doc_naming.py", f"{AB}/scripts/lite_metrics.py",
+COPIES = ('.claude/skills/adversarial-benchmark/scripts/render_report.sh',
+    '.claude/skills/adversarial-benchmark/scripts/render_sweep_map.sh',
+    '.claude/skills/adversarial-benchmark/scripts/render_max_report.sh',
+    '.claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.sh',
+    '.claude/skills/adversarial-benchmark/scripts/bench_doc_naming.sh',
+    '.claude/skills/adversarial-benchmark/scripts/bench_reporting_api.sh',
+    '.claude/skills/adversarial-benchmark/scripts/reporting_native.py',
+    '.claude/skills/adversarial-benchmark/scripts/doc_naming_native.py',
+    '.claude/skills/adversarial-benchmark/scripts/render_report_native.py',
+    '.claude/skills/adversarial-benchmark/scripts/render_sweep_map_native.py',
+    '.claude/skills/adversarial-benchmark/scripts/render_max_report_native.py',
+    '.claude/skills/adversarial-benchmark/scripts/publish_benchmark_record_native.py',
+    '.claude/skills/adversarial-benchmark/rust/target/release/render_report',
+    '.claude/skills/adversarial-benchmark/rust/target/release/render_sweep_map',
+    '.claude/skills/adversarial-benchmark/rust/target/release/publish_benchmark_record',
+    '.claude/skills/adversarial-benchmark/rust/target/release/bench_reporting_api',
+
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh",
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell_api.sh",
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell_native.py",
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell_role_query.py",
+    ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell",
+    ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell_api",
+    ".claude/skills/adversarial-benchmark/rust/target/release/roofline",
+    ".claude/skills/adversarial-benchmark/rust/target/release/verdict_rule",
+    f"{AB}/scripts/sweep_bench.sh", f"{AB}/scripts/repeat_axis.py", f"{AB}/scripts/parse_guidellm.sh", f"{AB}/scripts/parse_guidellm_native.py",
+    f"{AB}/rust/target/release/parse_guidellm",
+    ".claude/skills/adversarial-benchmark/scripts/bench_preset.sh",
+    ".claude/skills/adversarial-benchmark/scripts/bench_preset_api.sh",
+    ".claude/skills/adversarial-benchmark/rust/target/release/bench_preset",
+    ".claude/skills/adversarial-benchmark/rust/target/release/bench_preset_api",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis.sh",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_api.sh",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_native.py",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_owner_query.py",
+    ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis",
+    ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis_api",
+    f"{AB}/scripts/parse_bench.sh", f"{AB}/rust/target/release/parse_bench", f"{AB}/scripts/doc_naming.py", f"{AB}/scripts/lite_metrics.py",
+    ".claude/skills/adversarial-benchmark/scripts/lite_metrics.sh",
+    ".claude/skills/adversarial-benchmark/scripts/lite_metrics_api.sh",
+    ".claude/skills/adversarial-benchmark/scripts/lite_metrics_native.py",
+    ".claude/skills/adversarial-benchmark/rust/target/release/lite_metrics",
+    ".claude/skills/adversarial-benchmark/rust/target/release/lite_metrics_api",
     f"{AB}/scripts/classify_cell.py", f"{AB}/scripts/render_report.py", f"{AB}/scripts/render_sweep_map.py",
-    f"{AB}/scripts/sweep_stop.py", f"{AB}/scripts/broad_search.sh", f"{AB}/scripts/judge_bench.sh",
-    f"{AB}/scripts/roofline.py", f"{AB}/scripts/verdict_rule.py", f"{AB}/scripts/publish_benchmark_record.py",
+    f"{AB}/scripts/sweep_stop.sh", f"{AB}/rust/target/release/sweep_stop", f"{AB}/scripts/broad_search.sh", f"{AB}/scripts/judge_bench.sh",
+    f"{AB}/scripts/roofline.sh", f"{AB}/scripts/verdict_rule.sh", f"{AB}/scripts/publish_benchmark_record.py",
     f"{AB}/fixtures/guidellm_benchmarks_sample.json",
     # 측정 형상 프리셋(plan_26101011) — 배포되는 바인딩·기본 프리셋·해소기를 그대로 쓴다(픽스처가 실물보다 좁지 않게).
     f"{AB}/scripts/bench_preset.py", f"{AB}/config/bench_bindings.yaml", f"{AB}/config/guide-llm/default_preset.yaml",
@@ -329,7 +369,7 @@ def main() -> int:
                 evf = Path(td) / ("events_%s.jsonl" % cfg)
                 evf.write_text("".join(json.dumps(e) + "\n" for e in events), encoding="utf-8")
                 args += ["--events", str(evf)]
-            cp_ = sb.py("classify_cell.py", *args)
+            cp_ = sb.run(["bash", str(sb.sdir / "classify_cell.sh"), *args])
             try:
                 return json.loads(cp_.stdout), cp_
             except ValueError:
@@ -354,12 +394,12 @@ def main() -> int:
                                                        "tolerance": 0.1}}), encoding="utf-8")
 
         def report(cfg, *extra):
-            return sb.py("render_report.py", "--sweep-index", str(sb.sweep_dir(cfg) / "sweep_index.json"),
-                         "--verdict-json", str(verdict_pass), "--stdout", *extra)
+            return sb.run(["bash", str(sb.sdir / "render_report.sh"), "--sweep-index", str(sb.sweep_dir(cfg) / "sweep_index.json"),
+                         "--verdict-json", str(verdict_pass), "--stdout", *extra])
 
         def publish(cfg):
-            return sb.py("publish_benchmark_record.py", "--sweep-index", str(sb.sweep_dir(cfg) / "sweep_index.json"),
-                         "--verdict-json", str(verdict_pass), "--stdout")
+            return sb.run(["bash", str(sb.sdir / "publish_benchmark_record.sh"), "--sweep-index", str(sb.sweep_dir(cfg) / "sweep_index.json"),
+                         "--verdict-json", str(verdict_pass), "--stdout"])
         cp = report("cfg-n")
         md = cp.stdout
         ck("N4 리포트 반복 절 — 완주/요청 3/3 · measured(n=3) · bench_mode full",
@@ -488,7 +528,7 @@ def main() -> int:
                cp.returncode == want and [c for c in sb.calls() if "level=" in c] == []
                and not list(gd.glob("level_*")) and not (gd / "sweep_index.json").exists()
                and "lite gate failed" in trunc_g, (cp.returncode, sb.calls(), cp.stderr[-400:]))
-        _conf = subprocess.run([sys.executable, str(REPO / AB / "scripts/conformance_full_superset_lite.py")],
+        _conf = subprocess.run(["bash", str(REPO / AB / "scripts/conformance_full_superset_lite.sh")],
                                capture_output=True, text=True, timeout=120)
         ck("G conformance(게이트 포함 단언 포함) 초록", _conf.returncode == 0, _conf.stdout[-600:])
 

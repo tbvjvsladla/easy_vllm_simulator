@@ -20,7 +20,7 @@
   미응답 = 측정 중 서버 사망 · 결과 파일이 실패 요청·빈 출력 · `Initial test run failed` 가 연결 오류 없이 난 경우) → exit 7 · upstream·
   explorer 재발동 **제안**(2026-09-29 `plan_26092923_58_27` 배선: 셀 기록 사유 `lite_server_failed` · 캠페인 셀 cap 차감 1 · `reentry: proposed` · explorer cap = `--cap` − 차감 · 실행은 사람 승인). 종료코드는 raw 판정에서 **파생**한다(단일 권위). native 평면은 서버 로그를 `--engine-log` 로 선언한다
   (**필수** — 없으면 `lite_bench`·`sweep_bench` 모두 exit 2 · 2026-09-29 전에는 조용히 ① 이었고 native full 스윕이 GuideLLM 에 못 들어갔다). β(`--publish-report`)의 raw 는 `--out-dir` 미지정 시 `benchlog/lite_publish/<config>_<UTC>/` 에 따로 둔다(α 가 덮지 않는다). 행동은 진입 경로가 정한다 — **α 자동 핸드오프 = 기록·보고만**(리포트·인증서 ✗ · 재빌드 ✗) ·
-  **β lite-only 셀** `--publish-report` = 리포트(판정과 무관) + pass 일 때만 **lite 등급 인증서**(`publish_benchmark_record.py --lite-raw-json`) ·
+  **β lite-only 셀** `--publish-report` = 리포트(판정과 무관) + pass 일 때만 **lite 등급 인증서**(`publish_benchmark_record.sh --lite-raw-json`) ·
   **γ 강등 셀** = sweep 경로가 index.lite 의 판정 pass 에서 lite 등급 인증서. lite 등급 인증서는 hint 발행 자격의 근거이고(completion_gate
   `HINT_MAP_REQUIRES_LITE_PASS_CERTIFICATE`) 성능 완료의 근거가 아니다(`CERTIFICATE_GRADE_NOT_FULL`).
 - **엔진 로그 머리·꼬리 캡처 · 수락 길이(2026-10-06 · hint factcheck F1/F2/F5)**: `lite_engine_<config>.log` 는 꼬리(`tail -800`)라
@@ -36,7 +36,7 @@
   **정량 threshold 금지**(커뮤니티 자료 신뢰성은 가변). 결정론 게이트화 ✗.
 - **측정 사양**: `lite_bench.sh <config>` — cold(무-warmup 단일요청→cold TTFT 별도 1줄) + warm burst(**N=3**·conc=1·warmup 1 제외,
   `config bench.lite_burst_n`/`--burst-n` 조정) 2회 `vllm bench serve`. **5종 메트릭**: gen tokens/sec(warm, =1000/median_tpot) ·
-  cold-start TTFT · GPU VRAM 점유(GiB+%) · KV cache 점유(GiB+%) · 시스템 RAM(GiB+%). 산정·표 렌더 = 결정론 `lite_metrics.py`.
+  cold-start TTFT · GPU VRAM 점유(GiB+%) · KV cache 점유(GiB+%) · 시스템 RAM(GiB+%). 산정·표 렌더 = 결정론 `lite_metrics.sh`.
   통합메모리(GB10)는 nvidia-smi 메모리 N/A → **serve-log VRAM 분해 폴백**, 그도 없으면 값 없이 "N/A(source)" 음성정직
   (대체값 날조 ✗). engine-log KV 라인 부재 시 fail-soft null.
 - **출력**: **single = 채팅 5행 표**(메트릭|값 · 용량은 GiB+% 병기 · cold TTFT 별도 행). **multi = 병합 표 1개** —
@@ -48,7 +48,7 @@
   용처 매뉴얼은 생략(recipe-explorer 소관).
 - **경량 리포트 발행(`--publish-report` · 2026-09-14 · `plan_26091407` §4.5 · 사용자 결정 Q4·Q10)**: lite 만 잰 셀도 hint 를
   낸다. 그 hint(`hint_map_only`)가 바인딩할 문서를 `lite_bench.sh <config> … --publish-report` 의 종결부가
-  `render_report.py --lite-only --lite-raw-json <raw>` 로 발행한다 — `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`
+  `render_report.sh --lite-only --lite-raw-json <raw>` 로 발행한다 — `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`
   (full 리포트와 **같은 접두사·같은 명명 SSOT** · publisher 정규식·work-manifest 스키마 무변경). 본문 = 헤더 `mode: lite` ·
   **측정 구성 표**(`bench_mode=lite` · `bench_mode_kind=declared-lite`(기록 모양은 `classify_cell.declared_lite_record`) · 도구
   `vllm-bench-serve` · 반복 1 · `downgrade_reason` 없음) · lite 지표 5종 표(lite_metrics 표 그대로) · 환경 스냅샷. 판정·루프라인·
@@ -59,7 +59,7 @@
     ② `sweep_bench.sh` 가 이 스크립트를 lite 레그로 부른다 — 레그가 리포트를 내면 같은 시간대·같은 조합의 full 리포트가
     `_MM_SS` 로 밀려 인증서와 stem 이 갈라지고 `publish-benchmark` 가 `…_STEM_MISMATCH` 로 거부한다(full ⊇ lite 이므로 full
     리포트가 lite 표를 이미 품는다). ③ 발행 실패(명명 키 불성립·충돌)는 요청한 호출에서만 **exit 5** 이고 raw·warm·cold·엔진
-    로그는 남는다(재측정 없이 `render_report.py --lite-only` 로 재렌더).
+    로그는 남는다(재측정 없이 `render_report.sh --lite-only` 로 재렌더).
   - ⚠ 같은 모델·GPU·버전의 **full 스윕과 같은 시간대(KST 시)** 에 `--publish-report` 를 돌리면 ②와 같은 이름 밀림이 생긴다.
     lite-only 로 선언한 셀에서만 쓰고, 같은 조합의 full 셀과 같은 KST 시에 두지 않는다. 가드는 아직 없다 — 이름 밀림은
     lite 고유 결함이 아니라 `doc_naming` 이 report·인증서를 **종류별로 따로** 스캔하는 구조의 결함이다(같은 시간대 full 스윕
@@ -166,7 +166,7 @@
 
   - ⚠ 정상 E2E(판정점 반복 완주 · 사살 없음 — 포화 경계에서 스윕이 멈추는 클램프 포함)는 강등 경로를 밟지 않는다 —
     그 경로는 `scripts/selftest_sweep_repeats.py` 실패주입이 지킨다.
-- **사람용 report(항상)** — `render_report.py --sweep-index <sweep_index.json> --verdict-json <verdict> [--roofline-json]`
+- **사람용 report(항상)** — `render_report.sh --sweep-index <sweep_index.json> --verdict-json <verdict> [--roofline-json]`
   → `docs/benchmark/bench_report_<YYMMDDHH>_<model>_<gpu>_<vllm>.md`. **PASS/FAIL 무관 발행**("왜 느렸나"도 사람이 봐야).
   **inform-only**(verdict 를 *표시만* — 판정권한 ✗·verdict_rule 독점) · 결정론 렌더(LLM 표·숫자 저작 ✗) · N/A fail-soft.
   bench_mode 판정 기록의 부재·판독 실패·다른 측정의 기록은 **발행을 막지 않고** "미확정 — 사유" 로 적는다(명시
@@ -178,7 +178,7 @@
   재분류는 바인딩된 리포트의 이 표가 `downgraded-lite` 와 같은 사유를 말할 때만 열린다 — 선언만으로는 열리지 않는다).
   표의 `*_source` 칸에는 블랙박스 events 파일 경로가 들어갈 수 있다 — 리포트는 비배포 docs 평면이라 그대로 두고, hint
   발행기는 이 칸을 배포 페이로드로 옮기지 않는다.
-- **기계용 인증서(PASS시만)** — `publish_benchmark_record.py --sweep-index … --verdict-json …`
+- **기계용 인증서(PASS시만)** — `publish_benchmark_record.sh --sweep-index … --verdict-json …`
   → `docs/benchmark/benchmark_<YYMMDDHH>_<model>_<gpu>_<vllm>.yaml`. **flat 계약**(중첩 ✗ — 소비자 stdlib 독해) +
   **carry-forward 재검증 헤더**(강한키=model/gpu/vllm/quant/topology/tp 정확일치 + 소프트지문=driver/cuda/image/max-len/
   kv-bytes/gmu/moe 불일치 시 stale). verdict≠PASS 면 **미발행**(report 만). 반복 축 산출물(`repetition.requested`

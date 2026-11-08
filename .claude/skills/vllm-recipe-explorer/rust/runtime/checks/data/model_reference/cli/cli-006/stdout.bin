@@ -1,0 +1,51 @@
+{
+  "model_path_container": "@REFERENCE@/input/mxfp4",
+  "model_path_host": "@REFERENCE@/input/mxfp4",
+  "model_id": "input/mxfp4",
+  "model_type": "dense",
+  "architectures": [
+    "ExampleForCausalLM"
+  ],
+  "is_moe": false,
+  "native_dtype": "bfloat16",
+  "serve_bpw": 2.0,
+  "disk_dtype": "U8",
+  "disk_bpw": 1.0,
+  "prequantized": true,
+  "quant_method_native": "mxfp4",
+  "num_hidden_layers": 4,
+  "num_full_attention_layers": null,
+  "is_hybrid": false,
+  "layer_type_counts": null,
+  "full_attention_interval": null,
+  "num_attention_heads": 4,
+  "num_key_value_heads": 4,
+  "head_dim": 4,
+  "hidden_size": 16,
+  "vocab_size": 32,
+  "max_position_embeddings": 4096,
+  "num_experts": null,
+  "num_experts_per_tok": null,
+  "native_weight_bytes": 269,
+  "num_params": 66,
+  "weight_basis": "safetensors_mxfp4_logical_numel(exact)",
+  "parameter_count": {
+    "format": "mxfp4-blocks16-u8-scales-u8",
+    "num_shards": 1,
+    "tensor_count": 3,
+    "logical_params": 66,
+    "unpacked_params": 2,
+    "packed_storage_numel": 32,
+    "scale_metadata_numel": 2,
+    "storage_numel": 36,
+    "payload_bytes": 38,
+    "file_bytes": 269,
+    "packed_tensor_count": 1,
+    "packed_expert_tensor_count": 1
+  },
+  "warnings": [
+    "num_key_value_heads 누락 → num_attention_heads 사용 (MHA 가정)",
+    "head_dim 누락 → hidden_size // num_attention_heads 사용",
+    "disk_dtype(U8, bpw=1.0) != native_dtype(bfloat16, bpw=2.0) — 저장 정밀도 ≠ config dtype. num_params 는 MXFP4 blocks/scales 논리 원소 검증값(미지원 구조는 중단)"
+  ]
+}

@@ -1,0 +1,2 @@
+# This fixture exercises CRLF bytes consumed by the original parser.
+odd-crlf.txt binary

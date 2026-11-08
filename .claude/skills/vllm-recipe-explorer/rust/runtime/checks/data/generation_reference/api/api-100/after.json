@@ -1,0 +1,23 @@
+[
+ {
+  "path": ".",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "logs",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "logs/nested",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "logs/nested/feedback.jsonl",
+  "mode": 416,
+  "kind": "file",
+  "base64": "cHJlZml4eyJ0aW1lc3RhbXAiOiAiZml4ZWQiLCAic2VsZWN0aW9uX3RpbWVzdGFtcCI6ICJzZWxlY3RlZCIsICJtb2RlbF9pZCI6ICLtlZzquIAvTW9kZWwiLCAiYWN0dWFsX3ZyYW1fZ2IiOiAzLCAiZXh0cmEiOiAia2VwdCIsICJzZXJ2ZV9zdWNjZXNzIjogbnVsbCwgImVycm9yX3R5cGUiOiBudWxsLCAidG9rZW5zX3Blcl9zZWMiOiBudWxsLCAiYmF0Y2giOiBudWxsLCAia3ZfY2FjaGVfbWVtb3J5X2J5dGVzIjogbnVsbCwgImF0dGVudGlvbl9iYWNrZW5kIjogbnVsbCwgInRvb2xfY2FsbF9wYXJzZXIiOiBudWxsLCAicmVhc29uaW5nX3BhcnNlciI6IG51bGwsICJjb252ZXJnZWQiOiBudWxsLCAidHJpYWxfY291bnQiOiBudWxsLCAiY29ycmVjdGlvbl9oaXN0b3J5IjogbnVsbH0K"
+ }
+]

@@ -1,0 +1,11 @@
+{
+ "id": "unbounded-reader-ssize",
+ "operation": "crosscheck_model_card._read_st_header",
+ "args": [
+  "@EXTRA@/header-size/oversize.safetensors"
+ ],
+ "kwargs": {},
+ "context": {
+  "hf_api_base": "http://127.0.0.1:1"
+ }
+}

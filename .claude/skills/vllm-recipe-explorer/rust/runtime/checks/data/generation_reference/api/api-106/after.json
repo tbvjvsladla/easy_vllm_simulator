@@ -1,0 +1,13 @@
+[
+ {
+  "path": ".",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "logs",
+  "mode": 420,
+  "kind": "file",
+  "base64": "YmxvY2s="
+ }
+]

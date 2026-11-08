@@ -1,0 +1,1 @@
+{"id": "CA-untrusted", "kind": "value", "value": {"ok": false, "reason": "\ub124\ud2b8\uc6cc\ud06c \uc624\ub958: <urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1000)>(@TLS@/ok)"}, "stdout": "", "stderr": "", "args_after": ["ok", 1.0], "kwargs_after": {}}

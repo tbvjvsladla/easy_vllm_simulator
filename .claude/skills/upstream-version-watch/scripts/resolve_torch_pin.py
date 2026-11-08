@@ -100,4 +100,26 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # Explicit native startup only; imported functions and dependency profile stay unchanged.
+    import os as _native_os
+    import sys as _native_sys
+    from pathlib import Path as _NativePath
+    _native_script = _NativePath(__file__).resolve()
+    _native_root_value = _native_os.environ.get("EASY_VLLM_UPSTREAM_RUNTIME_ROOT")
+    if _native_root_value is None:
+        _native_runtime_root = _native_script.parent.parent / "rust/runtime"
+    elif not _native_root_value:
+        print("[resolve_torch_pin] ERROR explicit upstream runtime root is empty", file=_native_sys.stderr)
+        raise SystemExit(2)
+    else:
+        _native_runtime_root = _NativePath(_native_root_value)
+    _native_binary = _native_runtime_root / "target/release/resolve_torch_pin"
+    if not _native_binary.is_file() or not _native_os.access(_native_binary, _native_os.X_OK):
+        print("[resolve_torch_pin] ERROR normal Rust ELF missing/non-executable: " + str(_native_binary), file=_native_sys.stderr)
+        raise SystemExit(2)
+    with _native_binary.open("rb") as _native_file:
+        _native_magic = _native_file.read(4)
+    if _native_magic != b"\x7fELF":
+        print("[resolve_torch_pin] ERROR normal Rust ELF invalid: " + str(_native_binary), file=_native_sys.stderr)
+        raise SystemExit(2)
+    _native_os.execv(str(_native_binary), [str(_native_script), *_native_sys.argv[1:]])

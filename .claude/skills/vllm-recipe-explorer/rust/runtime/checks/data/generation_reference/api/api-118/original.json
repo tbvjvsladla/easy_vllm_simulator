@@ -1,0 +1,12 @@
+{
+  "id": "api-118",
+  "kind": "exception",
+  "type": "FileNotFoundError",
+  "message": "[Errno 2] No such file or directory: '@CASE@/missing.json'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "@CASE@/missing.json"
+  ],
+  "kwargs_after": {}
+}

@@ -179,7 +179,7 @@ ENTRY_BETA, ENTRY_GAMMA = "beta_lite_only_cell", "gamma_demoted_lite"
 
 def _load_lite_metrics():
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import lite_metrics
+    import lite_metrics_native as lite_metrics
     return lite_metrics
 
 
@@ -283,7 +283,7 @@ def _gamma_lite_certificate(index, sweep_index_path, a):
     if not (isinstance(requested, int) and not isinstance(requested, bool)):
         return None
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    import classify_cell
+    import classify_cell_native as classify_cell
     record, _status = classify_cell.read_bench_mode_record(sweep_index_path, index)
     if record is None or classify_cell.bench_mode_kind(record) != "downgraded-lite":
         return None
@@ -379,7 +379,7 @@ def _full_definition_unmet(index, sweep_index_path):
         return None        # 반복 축 이전 산출물 — 판정 근거 없음(종전대로)
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     try:
-        import classify_cell
+        import classify_cell_native as classify_cell
     except ImportError as exc:
         sys.stderr.write("[publish_record] ERROR classify_cell 적재 실패(bench_mode 판정 기록 판독 불가): %s\n" % exc)
         sys.exit(2)

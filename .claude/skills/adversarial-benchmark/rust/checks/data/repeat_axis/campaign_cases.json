@@ -1,0 +1,1687 @@
+[
+  {
+    "id": "000-owner-absent-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {},
+    "directories": [],
+    "owner_present": false,
+    "expected": {
+      "kind": "value",
+      "value": [
+        null,
+        null,
+        "\ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.py \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "001-owner-absent-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {},
+    "directories": [],
+    "owner_present": false,
+    "expected": {
+      "kind": "value",
+      "value": [
+        3,
+        "defaulted(preset frozen-preset \uae30\ubcf8 3 \u00b7 \ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.py \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "002-owner-absent-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {},
+    "directories": [],
+    "owner_present": false,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "003-active-absent-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {},
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        null,
+        null,
+        "\ud65c\uc131 \ucea0\ud398\uc778 \uc5c6\uc74c(_bootstrap)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "004-active-absent-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {},
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        3,
+        "defaulted(preset frozen-preset \uae30\ubcf8 3 \u00b7 \ud65c\uc131 \ucea0\ud398\uc778 \uc5c6\uc74c(_bootstrap))"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "005-active-absent-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {},
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "006-active-empty-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "IAo="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        null,
+        null,
+        "\ud65c\uc131 \ucea0\ud398\uc778 \uc5c6\uc74c(_bootstrap)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "007-active-empty-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "IAo="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        3,
+        "defaulted(preset frozen-preset \uae30\ubcf8 3 \u00b7 \ud65c\uc131 \ucea0\ud398\uc778 \uc5c6\uc74c(_bootstrap))"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "008-active-empty-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "IAo="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "009-active-missing-instance-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Z2hvc3QK"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        null,
+        null,
+        "\ud65c\uc131 \ucea0\ud398\uc778 \uc5c6\uc74c(_bootstrap)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "010-active-missing-instance-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Z2hvc3QK"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        3,
+        "defaulted(preset frozen-preset \uae30\ubcf8 3 \u00b7 \ud65c\uc131 \ucea0\ud398\uc778 \uc5c6\uc74c(_bootstrap))"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "011-active-missing-instance-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Z2hvc3QK"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "012-bootstrap-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "X2Jvb3RzdHJhcAo="
+    },
+    "directories": [
+      "campaigns/_bootstrap"
+    ],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        null,
+        null,
+        "\ud65c\uc131 \ucea0\ud398\uc778 \uc5c6\uc74c(_bootstrap)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "013-bootstrap-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "X2Jvb3RzdHJhcAo="
+    },
+    "directories": [
+      "campaigns/_bootstrap"
+    ],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        3,
+        "defaulted(preset frozen-preset \uae30\ubcf8 3 \u00b7 \ud65c\uc131 \ucea0\ud398\uc778 \uc5c6\uc74c(_bootstrap))"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "014-bootstrap-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "X2Jvb3RzdHJhcAo="
+    },
+    "directories": [
+      "campaigns/_bootstrap"
+    ],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "015-template-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "X3RlbXBsYXRlCg=="
+    },
+    "directories": [
+      "campaigns/_template"
+    ],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "--campaign-id '_template' \ub294 \uc608\uc57d id \ub2e4 \u2014 \uc120\uc5b8\uc774 \uc544\ub2c8\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "016-template-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "X3RlbXBsYXRlCg=="
+    },
+    "directories": [
+      "campaigns/_template"
+    ],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "--campaign-id '_template' \ub294 \uc608\uc57d id \ub2e4 \u2014 \uc120\uc5b8\uc774 \uc544\ub2c8\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "017-template-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "X3RlbXBsYXRlCg=="
+    },
+    "directories": [
+      "campaigns/_template"
+    ],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "018-valid-three-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogM319"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        "camp-a",
+        {
+          "repeats": 3
+        },
+        ""
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "019-valid-three-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogM319"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        3,
+        "declared(campaigns/camp-a/campaign.yaml budgets.repeats)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "020-valid-three-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogM319"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "021-valid-five-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogNSwgImJlbmNoX3BpbnMiOiB7IngiOiAxfX19"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        "camp-a",
+        {
+          "repeats": 5,
+          "bench_pins": {
+            "x": 1
+          }
+        },
+        ""
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "022-valid-five-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogNSwgImJlbmNoX3BpbnMiOiB7IngiOiAxfX19"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        5,
+        "declared(campaigns/camp-a/campaign.yaml budgets.repeats)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "023-valid-five-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogNSwgImJlbmNoX3BpbnMiOiB7IngiOiAxfX19"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "024-default-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "e30="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        "camp-a",
+        {},
+        ""
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "025-default-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "e30="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        3,
+        "defaulted(preset frozen-preset \uae30\ubcf8 3 \u00b7 campaigns/camp-a/campaign.yaml budgets.repeats \ubbf8\uc120\uc5b8)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "026-default-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "e30="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "027-empty-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjoge319"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        "camp-a",
+        {},
+        ""
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "028-empty-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjoge319"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        3,
+        "defaulted(preset frozen-preset \uae30\ubcf8 3 \u00b7 campaigns/camp-a/campaign.yaml budgets.repeats \ubbf8\uc120\uc5b8)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "029-empty-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjoge319"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "030-budgets-null-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogbnVsbH0="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml budgets \uac00 \uac1d\uccb4\uac00 \uc544\ub2c8\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "031-budgets-null-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogbnVsbH0="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml budgets \uac00 \uac1d\uccb4\uac00 \uc544\ub2c8\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "032-budgets-null-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogbnVsbH0="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "033-budgets-list-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogW119"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml budgets \uac00 \uac1d\uccb4\uac00 \uc544\ub2c8\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "034-budgets-list-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogW119"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml budgets \uac00 \uac1d\uccb4\uac00 \uc544\ub2c8\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "035-budgets-list-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogW119"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "036-low-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogMn19"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        "camp-a",
+        {
+          "repeats": 2
+        },
+        ""
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "037-low-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogMn19"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml budgets.repeats=2 \ub294 full \uc815\uc758(\ubc18\ubcf5 \u22653) \uc704\ubc18\uc774\ub2e4 \u2014 \ubc18\ubcf5 \uc218\ub97c \ub0ae\ucdb0 full \uc744 \uc120\uc5b8\ud558\uc9c0 \uc54a\ub294\ub2e4. \ubc18\ubcf5\uc774 \uc131\ub9bd\ud558\uc9c0 \uc54a\uc73c\uba74 \uc120\uc5b8\uc774 \uc544\ub2c8\ub77c \uae30\uacc4 \uc774\ubca4\ud2b8(run \uc2e4\ud328\u00b7\ube14\ub799\ubc15\uc2a4 kill)\uac00 \uc140\uc744 lite \ub85c \uac15\ub4f1\ud55c\ub2e4(classify_cell). lite \ub9cc \uc7ac\ub824\uba74 lite_bench.sh \ub97c \uc4f0\ub77c."
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "038-low-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogMn19"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "039-bool-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogdHJ1ZX19"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        "camp-a",
+        {
+          "repeats": true
+        },
+        ""
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "040-bool-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogdHJ1ZX19"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml budgets.repeats=True \ub294 \uc815\uc218\uac00 \uc544\ub2c8\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "041-bool-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogdHJ1ZX19"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "042-string-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogIiA1ICJ9fQ=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        "camp-a",
+        {
+          "repeats": " 5 "
+        },
+        ""
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "043-string-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogIiA1ICJ9fQ=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        5,
+        "declared(campaigns/camp-a/campaign.yaml budgets.repeats)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "044-string-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogIiA1ICJ9fQ=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "045-float-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogMy4wfX0="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        "camp-a",
+        {
+          "repeats": 3.0
+        },
+        ""
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "046-float-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogMy4wfX0="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml budgets.repeats=3.0 \ub294 \uc815\uc218\uac00 \uc544\ub2c8\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "047-float-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogMy4wfX0="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "048-null-repeats-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogbnVsbH19"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        "camp-a",
+        {
+          "repeats": null
+        },
+        ""
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "049-null-repeats-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogbnVsbH19"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml budgets.repeats=None \ub294 \uc815\uc218\uac00 \uc544\ub2c8\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "050-null-repeats-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjogeyJyZXBlYXRzIjogbnVsbH19"
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "051-list-doc-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "W10="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml \uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4(\ubd80\uc7ac\u00b7\ud30c\uc190) \u2014 \uc77d\uc9c0 \ubabb\ud55c \uc120\uc5b8\uc744 '\ubbf8\uc120\uc5b8' \uc73c\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "052-list-doc-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "W10="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml \uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4(\ubd80\uc7ac\u00b7\ud30c\uc190) \u2014 \uc77d\uc9c0 \ubabb\ud55c \uc120\uc5b8\uc744 '\ubbf8\uc120\uc5b8' \uc73c\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "053-list-doc-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "W10="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "054-null-doc-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "bnVsbA=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml \uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4(\ubd80\uc7ac\u00b7\ud30c\uc190) \u2014 \uc77d\uc9c0 \ubabb\ud55c \uc120\uc5b8\uc744 '\ubbf8\uc120\uc5b8' \uc73c\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "055-null-doc-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "bnVsbA=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml \uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4(\ubd80\uc7ac\u00b7\ud30c\uc190) \u2014 \uc77d\uc9c0 \ubabb\ud55c \uc120\uc5b8\uc744 '\ubbf8\uc120\uc5b8' \uc73c\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "056-null-doc-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "bnVsbA=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "057-malformed-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "e2JhZA=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml \uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4(\ubd80\uc7ac\u00b7\ud30c\uc190) \u2014 \uc77d\uc9c0 \ubabb\ud55c \uc120\uc5b8\uc744 '\ubbf8\uc120\uc5b8' \uc73c\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "058-malformed-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "e2JhZA=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml \uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4(\ubd80\uc7ac\u00b7\ud30c\uc190) \u2014 \uc77d\uc9c0 \ubabb\ud55c \uc120\uc5b8\uc744 '\ubbf8\uc120\uc5b8' \uc73c\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "059-malformed-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "e2JhZA=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "060-utf8-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "/w=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml \uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4(\ubd80\uc7ac\u00b7\ud30c\uc190) \u2014 \uc77d\uc9c0 \ubabb\ud55c \uc120\uc5b8\uc744 '\ubbf8\uc120\uc5b8' \uc73c\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "061-utf8-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "/w=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml \uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4(\ubd80\uc7ac\u00b7\ud30c\uc190) \u2014 \uc77d\uc9c0 \ubabb\ud55c \uc120\uc5b8\uc744 '\ubbf8\uc120\uc5b8' \uc73c\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "062-utf8-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "/w=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "063-yaml-is-not-json-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "YnVkZ2V0czoKICByZXBlYXRzOiA0Cg=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml \uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4(\ubd80\uc7ac\u00b7\ud30c\uc190) \u2014 \uc77d\uc9c0 \ubabb\ud55c \uc120\uc5b8\uc744 '\ubbf8\uc120\uc5b8' \uc73c\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "064-yaml-is-not-json-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "YnVkZ2V0czoKICByZXBlYXRzOiA0Cg=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml \uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4(\ubd80\uc7ac\u00b7\ud30c\uc190) \u2014 \uc77d\uc9c0 \ubabb\ud55c \uc120\uc5b8\uc744 '\ubbf8\uc120\uc5b8' \uc73c\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "065-yaml-is-not-json-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "YnVkZ2V0czoKICByZXBlYXRzOiA0Cg=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "066-missing-declaration-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {},
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg=="
+    },
+    "directories": [
+      "campaigns/camp-a"
+    ],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml \uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4(\ubd80\uc7ac\u00b7\ud30c\uc190) \u2014 \uc77d\uc9c0 \ubabb\ud55c \uc120\uc5b8\uc744 '\ubbf8\uc120\uc5b8' \uc73c\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "067-missing-declaration-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg=="
+    },
+    "directories": [
+      "campaigns/camp-a"
+    ],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/camp-a/campaign.yaml \uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4(\ubd80\uc7ac\u00b7\ud30c\uc190) \u2014 \uc77d\uc9c0 \ubabb\ud55c \uc120\uc5b8\uc744 '\ubbf8\uc120\uc5b8' \uc73c\ub85c \uc811\uc9c0 \uc54a\ub294\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "068-missing-declaration-argv-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": "4",
+      "argv_source": "frozen-source"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg=="
+    },
+    "directories": [
+      "campaigns/camp-a"
+    ],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        4,
+        "declared(argv --repeats \u00b7 frozen-source)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "069-explicit-_bootstrap-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {
+      "campaign_id": "_bootstrap"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjV9fQ==",
+      "campaigns/camp-b/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjd9fQ=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        null,
+        null,
+        "\ud65c\uc131 \ucea0\ud398\uc778 \uc5c6\uc74c(_bootstrap)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "070-explicit-_bootstrap-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset",
+      "campaign_id": "_bootstrap"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjV9fQ==",
+      "campaigns/camp-b/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjd9fQ=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        3,
+        "defaulted(preset frozen-preset \uae30\ubcf8 3 \u00b7 \ud65c\uc131 \ucea0\ud398\uc778 \uc5c6\uc74c(_bootstrap))"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "071-explicit-_template-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {
+      "campaign_id": "_template"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjV9fQ==",
+      "campaigns/camp-b/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjd9fQ=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "--campaign-id '_template' \ub294 \uc608\uc57d id \ub2e4 \u2014 \uc120\uc5b8\uc774 \uc544\ub2c8\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "072-explicit-_template-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset",
+      "campaign_id": "_template"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjV9fQ==",
+      "campaigns/camp-b/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjd9fQ=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "--campaign-id '_template' \ub294 \uc608\uc57d id \ub2e4 \u2014 \uc120\uc5b8\uc774 \uc544\ub2c8\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "073-explicit-missing-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {
+      "campaign_id": "missing"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjV9fQ==",
+      "campaigns/camp-b/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjd9fQ=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/missing \uc778\uc2a4\ud134\uc2a4\uac00 \uc5c6\ub2e4 \u2014 \ubc18\ubcf5 \uc218\ub97c \ubb3c\uc744 \uc120\uc5b8\uc774 \uc5c6\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "074-explicit-missing-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset",
+      "campaign_id": "missing"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjV9fQ==",
+      "campaigns/camp-b/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjd9fQ=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "campaigns/missing \uc778\uc2a4\ud134\uc2a4\uac00 \uc5c6\ub2e4 \u2014 \ubc18\ubcf5 \uc218\ub97c \ubb3c\uc744 \uc120\uc5b8\uc774 \uc5c6\ub2e4"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "075-explicit-camp-b-load_campaign_budgets",
+    "operation": "load_campaign_budgets",
+    "arguments": {
+      "campaign_id": "camp-b"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjV9fQ==",
+      "campaigns/camp-b/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjd9fQ=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        "camp-b",
+        {
+          "repeats": 7
+        },
+        ""
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "076-explicit-camp-b-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": "frozen-preset",
+      "campaign_id": "camp-b"
+    },
+    "files": {
+      "campaigns/ACTIVE": "Y2FtcC1hCg==",
+      "campaigns/camp-a/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjV9fQ==",
+      "campaigns/camp-b/campaign.yaml": "eyJidWRnZXRzIjp7InJlcGVhdHMiOjd9fQ=="
+    },
+    "directories": [],
+    "owner_present": true,
+    "expected": {
+      "kind": "value",
+      "value": [
+        7,
+        "declared(campaigns/camp-b/campaign.yaml budgets.repeats)"
+      ]
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "077-missing-owner-input-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_source": "unbound"
+    },
+    "files": {},
+    "directories": [],
+    "owner_present": false,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "--repeats-source \ub294 --repeats \uc640 \ud568\uaed8\ub9cc \uc4f4\ub2e4(\uac12 \uc5c6\ub294 \ucd9c\ucc98\ub294 \uac70\uc9d3 \ud45c\uc2dc\ub2e4)"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "078-missing-owner-input-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {},
+    "files": {},
+    "directories": [],
+    "owner_present": false,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "\ubc18\ubcf5 \uc218 \uc120\uc5b8\uc774 \uc5c6\uace0(\ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.py \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4) \ud504\ub9ac\uc14b \uae30\ubcf8\uac12\ub3c4 \ubc1b\uc9c0 \ubabb\ud588\ub2e4 \u2014 \uae30\ubcf8\uac12\uc758 \uc790\ub9ac\ub294 \ud504\ub9ac\uc14b \ud558\ub098\ub2e4(bench_preset.py \uac00 \ub118\uae34\ub2e4 \u00b7 \ucf54\ub4dc \uc548 \uc22b\uc790\ub85c \uba54\uc6b0\uc9c0 \uc54a\ub294\ub2e4)"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "079-missing-owner-input-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 2,
+      "preset_source": "bad"
+    },
+    "files": {},
+    "directories": [],
+    "owner_present": false,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "preset bad knobs.repeats.default=2 \ub294 full \uc815\uc758(\ubc18\ubcf5 \u22653) \uc704\ubc18\uc774\ub2e4 \u2014 \ubc18\ubcf5 \uc218\ub97c \ub0ae\ucdb0 full \uc744 \uc120\uc5b8\ud558\uc9c0 \uc54a\ub294\ub2e4. \ubc18\ubcf5\uc774 \uc131\ub9bd\ud558\uc9c0 \uc54a\uc73c\uba74 \uc120\uc5b8\uc774 \uc544\ub2c8\ub77c \uae30\uacc4 \uc774\ubca4\ud2b8(run \uc2e4\ud328\u00b7\ube14\ub799\ubc15\uc2a4 kill)\uac00 \uc140\uc744 lite \ub85c \uac15\ub4f1\ud55c\ub2e4(classify_cell). lite \ub9cc \uc7ac\ub824\uba74 lite_bench.sh \ub97c \uc4f0\ub77c."
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "080-missing-owner-input-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "preset_default": 3,
+      "preset_source": ""
+    },
+    "files": {},
+    "directories": [],
+    "owner_present": false,
+    "expected": {
+      "kind": "exception",
+      "type": "RepeatAxisError",
+      "message": "\ubc18\ubcf5 \uc218 \uc120\uc5b8\uc774 \uc5c6\uace0(\ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.py \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4) \ud504\ub9ac\uc14b \uae30\ubcf8\uac12\ub3c4 \ubc1b\uc9c0 \ubabb\ud588\ub2e4 \u2014 \uae30\ubcf8\uac12\uc758 \uc790\ub9ac\ub294 \ud504\ub9ac\uc14b \ud558\ub098\ub2e4(bench_preset.py \uac00 \ub118\uae34\ub2e4 \u00b7 \ucf54\ub4dc \uc548 \uc22b\uc790\ub85c \uba54\uc6b0\uc9c0 \uc54a\ub294\ub2e4)"
+    },
+    "original_tree_unchanged": true
+  },
+  {
+    "id": "081-missing-owner-input-resolve_repeats",
+    "operation": "resolve_repeats",
+    "arguments": {
+      "argv_value": " ",
+      "preset_default": 3,
+      "preset_source": "frozen-preset"
+    },
+    "files": {},
+    "directories": [],
+    "owner_present": false,
+    "expected": {
+      "kind": "value",
+      "value": [
+        3,
+        "defaulted(preset frozen-preset \uae30\ubcf8 3 \u00b7 \ucea0\ud398\uc778 \ud574\uc18c\uc790 \ubd80\uc7ac: .claude/skills/terraforming_node/scripts/campaign_init.py \u2014 \uc120\uc5b8\uc744 \uc77d\uc9c0 \ubabb\ud588\ub2e4)"
+      ]
+    },
+    "original_tree_unchanged": true
+  }
+]

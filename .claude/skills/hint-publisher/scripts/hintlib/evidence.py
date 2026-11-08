@@ -8616,10 +8616,12 @@ def _selftest_fix2(ck, td: Path, ev: CellEvidence) -> None:
        spm["main"]["last_utc"] == "2026-01-02T03:30:00Z" and spm["main"]["shadowed_local_copies"] == []
        and not any("2027-01-01" in str(x.get("utc")) for x in tl_m)
        and sum(1 for x in tl_m if x.get("utc") == "2025-12-01T00:00:00Z") <= 1)
+    _cc_native = subprocess.run(
+        ["bash", str(core.SKILL_DIR.parent / "adversarial-benchmark/scripts/classify_cell_api.sh"), "constants"],
+        capture_output=True, text=True, check=True)
+    _cc_bindings = json.loads(_cc_native.stdout)
     ck("F8 미러 자리 = classify_cell.EVENTS_RECOVERED_PARTS(벤치 판정이 스캔하는 자리 · 교차검증)",
-       "EVENTS_RECOVERED_PARTS = (\"sync_staging\", \"sub_docs\", \"logs\")" in (
-           core.SKILL_DIR.parent / "adversarial-benchmark/scripts/classify_cell.py").read_text(encoding="utf-8")
-       and REL_EVENTS_RECOVERED_ROOT == "sync_staging/sub_docs/logs")
+       tuple(_cc_bindings["EVENTS_RECOVERED_PARTS"]) == tuple(REL_EVENTS_RECOVERED_ROOT.split("/")))
     ev8b = dataclasses.replace(ev8, declaration={"nodes": [{"node_id": "main"}, {"node_id": "ghost"}]})
     ck("★G8 음성대조: 선언 노드인데 원장 없음 = 범위 None(없음으로 단언 ✗)",
        {x["node"]: x for x in event_ledger_spans(r, ev8b)}["ghost"]["last_utc"] is None)

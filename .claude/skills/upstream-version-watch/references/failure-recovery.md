@@ -1,7 +1,7 @@
 # 실패 복구 playbook — 분류 → 행동 (조건부 reference)
 
 > spine step 6(스모크 실패 분기)의 **행동 상세**. 진입은 언제나 결정론 분류기
-> `scripts/classify_failure.py` + `failure_patterns.yaml` 이고, 이 문서는 그 class 별 처방이다.
+> `scripts/classify_failure.sh` + `failure_patterns.yaml` 이고, 이 문서는 그 class 별 처방이다.
 > 절차-홈은 `.claude/rules/workflow.md` S3(HITL 게이트 포함) — 여기는 스킬-홈 관점의 세부.
 
 ## 1. requirements-fixable (exit 0)

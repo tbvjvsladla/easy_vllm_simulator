@@ -14,6 +14,8 @@
 .serena/
 .unlazy/
 .ouroboros/
+# Cargo build output is generated on each node.
+target/
 # Claude/Hermes control runtime overlay — maintainer-local only; never distribute or sync.
 /.hermes-claude-control/
 .codex/*
@@ -45,6 +47,7 @@ CLAUDE.local.md
 .claude/*
 !.claude/rules/
 !.claude/skills/
+!.claude/rust/
 !.claude/schemas/
 !.claude/policies/
 # 추적 git 훅(core.hooksPath = .claude/hooks). 훅은 배포 대상 빌딩블럭이다 — `.git/hooks` 는

@@ -1,0 +1,11 @@
+[
+  {"name": "value_in_first_chunk_bad_byte_later", "parts": [{"ascii": "MemAvailable: 2048 kB\n"}, {"repeat": "a", "count": 9000}, {"hex": "e9"}]},
+  {"name": "bad_byte_in_second_chunk", "parts": [{"repeat": "a", "count": 8192}, {"ascii": "bc"}, {"hex": "e9"}]},
+  {"name": "crlf_split_at_chunk_edge", "parts": [{"repeat": "a", "count": 8191}, {"hex": "0d"}, {"ascii": "\nMemAvailable: 4096 kB\n"}]},
+  {"name": "lone_cr_split_at_chunk_edge", "parts": [{"repeat": "a", "count": 8191}, {"hex": "0d"}, {"ascii": "MemAvailable: 5120 kB\n"}]},
+  {"name": "lone_cr_lines", "parts": [{"ascii": "Other: 1\rMemAvailable: 8192 kB\r"}]},
+  {"name": "no_trailing_newline", "parts": [{"ascii": "MemAvailable: 1024 kB"}]},
+  {"name": "long_line_then_value", "parts": [{"ascii": "Pad: "}, {"repeat": "x", "count": 20000}, {"ascii": "\nMemAvailable: 3072 kB\n"}]},
+  {"name": "bad_byte_after_value_in_first_chunk", "parts": [{"ascii": "MemAvailable: 2048 kB\n"}, {"hex": "ff"}]},
+  {"name": "value_line_spans_chunks", "parts": [{"repeat": "a", "count": 8180}, {"ascii": "\nMemAvailable: 7168 kB\n"}]}
+]

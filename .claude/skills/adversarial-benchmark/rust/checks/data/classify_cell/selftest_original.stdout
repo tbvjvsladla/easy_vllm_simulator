@@ -1,0 +1,84 @@
+  [PASS] K1 구간 밖 이벤트는 제외
+  [PASS] K2 dry-run 은 사인 후보가 아니다
+  [PASS] K3 손상 줄이 분류를 죽이지 않는다
+  [PASS] C1 서빙 실패 → serve_failed
+  [PASS] ★C7 서빙 실패 + 집행된 사살 → 분류는 serve_failed, 사인은 이벤트에서 온다
+  [PASS] ★C8 서빙 실패 + 대조 실패 → 사인 없음이되 **대조했음**이 남는다(추측 ✗)
+  [PASS] ★C9 음성대조: 트립만으로 서빙 실패를 사살이라 단정하지 않는다(집행만 사인이다)
+  [PASS] C2 측정 실패 + 집행된 사살 → measurement_void(사인 명시)
+  [PASS] C3 측정 실패 + 대조 실패 → unknown(추측 ✗ · 대조했음이 남는다)
+  [PASS] C4 정상 → measured
+  [PASS] L1 ② server_failed raw(구간 안) → void_reason lite_server_failed · 출처 lite_raw
+  [PASS] L2 ① measurement_path_failed → void_reason lite_measurement_path_failed
+  [PASS] L3 집행된 사살이 있으면 사살이 사인이다(lite 는 다음 순위)
+  [PASS] L4 셀 시작 전 raw(이전 스윕 잔재)는 읽지 않는다 → unknown · status stale
+  [PASS] L5 어휘 밖 판정은 옮기지 않는다(소유자 규칙 None) → unknown
+  [PASS] L6 raw 부재 = absent(판정 없음)
+  [PASS] L7 측정 성공(rc 0)이면 lite 가 분류를 바꾸지 않는다
+  [PASS] C5 측정 성공인데 사살이 있었다 → 분류 유지·기록 노출
+  [PASS] C6 트립만 있고 집행이 없으면 사인으로 단정하지 않는다
+  [PASS] D1 레벨 전부 반복 3 완주 → full · 사유 null · 대조 대상 없음(not_applicable)
+  [PASS] ★D-T1 bench_tool=vllm-bench-serve × 반복 3 → bench_mode null(full ✗) · 사유에 도구 명시
+  [PASS] D-T2 bench_tool=guidellm × 반복 3 → full
+  [PASS] ★D2 실패주입: 판정점 run 2 무너짐 ∧ 끊긴 창 안 집행 사살 → lite · blackbox_kill · matched
+  [PASS] ★D3 음성대조: 같은 창에 트립만 → blackbox_kill 로 단정 ✗ · run_failed · miss · 트립 사인 불충분 기재
+  [PASS] ★D4 음성대조: 사살 시각이 창 밖(불일치 · tolerance 0) → run_failed · miss
+  [PASS] D4b 허용오차는 **명시**로만 넓어진다(--tolerance-s 200 이면 같은 사살이 창에 든다)
+  [PASS] ★D5 dry-run 사살 기록은 사인이 아니다 → run_failed
+  [PASS] ★D6 음성대조: 분산만 크다(10/30/50) → full · 강등 사유 ✗(밴드는 기재일 뿐)
+  [PASS] D7 스윕이 멈추지 않았는데 같은 시간대 사살 → full(멈춘 자리가 없으면 반복을 끊지 않았다 · C5 와 동형)
+  [PASS] D8 runs[] 없는 산출물(반복 축 이전) → 판정하지 않는다(null · not_evaluated)
+  [PASS] D9 요청 5 · 판정점 run 5 에서 끊김 → 완주 4 ≥ 3 이라 full(중단은 출처에 기재)
+  [PASS] ★D10 비대칭 교정: 경계 레벨 2 의 run 2 실패(판정점 3) → full(적응 상한 클램프 · 경계 첫 run 실패 D13 과 같은 판정)
+  [PASS] ★D10b 같은 경계 창(레벨 2 run 1 시작~run 2 끝) 안 집행 사살 → lite · blackbox_kill(판정점 반복이 섰어도)
+  [PASS] D11 요청 자체가 정의 미만(끊김 없음) → 판정 불가(강등 사유 발명 ✗)
+  [PASS] D12 판독 규칙: 선언된 lite-only 와 강등된 lite 는 사유·출처로 갈린다
+  [PASS] D12b 선언 lite 기록 빌더(단계 ⑤ lite 통로가 쓴다) → declared-lite · 사유 null · 대조 not_applicable
+  [PASS] ★D12c 음성대조: 출처 설명 없는 선언 lite 기록은 만들지 않는다
+  [PASS] D13 경계 레벨 2 첫 run 실패(클램프) · 사살 없음 → full · 대조는 miss 로 남는다
+  [PASS] ★D14 클램프 레벨 첫 run 창 안 집행 사살 → lite · blackbox_kill(가장 흔한 실사살 형태 · 절삭으로 삼키지 않는다)
+  [PASS] ★D15 음성대조: 같은 클램프 창에 트립 단독 → full 유지(사인 불충분)
+  [PASS] D16 이벤트 파일 0(블랙박스 미설치) → 판정은 runs 로 full · 대조는 not_scanned(보지 못했음이 구조로 남는다)
+  [PASS] D16b 판정점 끊김 ∧ 이벤트 파일 0 → run_failed · not_scanned
+  [PASS] D17 클램프 경계 사실 판독 불가 → 창 대조 unavailable(이름으로 남긴다 · 사살을 발명하지 않는다)
+  [PASS] ★D18 경계가 아닌 레벨이 정의 미만(스윕은 멈추지 않았다) → 판정 불가
+  [PASS] ★D19 판정점 레벨 부재(verdict_point_level 없음) → 판정 불가(1 을 가정하지 않는다)
+  [PASS] E1 기록 부재 → (None, absent)
+  [PASS] E2 CLI bench-mode 모드 → 기록이 index 측정시각에 묶여 쓰인다 · tolerance 0 이면 창 밖 사살은 run_failed
+  [PASS] ★E3 CLI 가 --tolerance-s 를 판정에 **전달**한다(같은 사살이 창에 든다 → blackbox_kill)
+  [PASS] ★E4 다른 측정의 기록 → (None, stale)
+  [PASS] ★E5 반쯤 쓰인 기록 → (None, unreadable) · full/lite 로 접지 않는다
+  [PASS] ★E6 두 모드를 섞으면 exit 2 · --write-bench-mode 는 --sweep-index 없이 exit 2
+  [PASS] K-mirror 회수 미러 자리 = fetch_sub_docs.sh DEST 기본값 · 미러 = 서브 docs/ 사본(교차검증 · 한쪽만 바뀌면 원격 events 를 조용히 못 본다)
+  [PASS] N1 single 계획 = 측정 노드 하나(meta.measured_node) · 다른 노드 제외 규칙이 기록된다
+  [PASS] N2 single 셀 종결 계획 = 이 노드(소유자 node_identity.sh --resolve)
+  [PASS] ★N3 음성대조: single 에 measured_node=cluster · 경로 탈출 이름 → 계획 불성립(추측 ✗)
+  [PASS] F00 노드 정체성 해소기(node_identity.sh)가 코드 옆에 있다(없으면 이 노드를 정하지 못해 전 사례가 not_scanned 로 접힌다)
+  [PASS] N4 multi 계획 = manifest nodes[].role 전부 · self=이 노드(해소기)
+  [PASS] ★N5 음성대조: multi 에 역할 슬러그 중복(sub 2대) → 계획 불성립(node_role_contract 위반) · 이 노드(main)는 남긴다
+  [PASS] ★N6 음성대조: multi 인데 measured_node=main → 계획 불성립(쌍이 측정 정체성)
+  [PASS] ★F1 실패주입 multi: 서브 사살이 클램프 창 안(회수 미러에 있다) → lite · blackbox_kill · matched · node=sub
+  [PASS] ★F2 실패주입 multi: 서브 events 미회수 → full 이되 대조는 not_scanned(조용한 miss ✗) · sub=not_scanned 기재
+  [PASS] ★F3 회수가 이르다(미러 최신 이벤트 < 창 끝) → not_scanned · sub=not_covered(낡은 미러의 부재를 miss 로 읽지 않는다)
+  [PASS] ★F4 미러가 창을 덮지만 노드 간 허용오차 미선언 → unavailable · sub=skew_undeclared(미스를 결론내지 않는다)
+  [PASS] F5 허용오차를 출처와 함께 선언 → miss(대조 대상 노드 전부 봤다) · 출처 declared(…) 기록
+  [PASS] ★F6 음성대조: 출처 없는 노드 간 허용오차 → exit 2(매직넘버 ✗)
+  [PASS] F7 선언된 노드 간 허용오차가 원격 창만 넓힌다(창 끝+10s 사살 → tol 15 이면 matched)
+  [PASS] F8 multi: 사고 회수로 메인 docs/logs/sub 에 둔 서브 기록도 같은 노드의 기록으로 대조 → blackbox_kill
+  [PASS] ★F9 실패주입 multi · manifest self_role 없음 ∧ 이 노드(main) 창 안 사살 → 계획은 소유자 규칙(유일한 role: main)으로 서고 lite · blackbox_kill · matched
+  [PASS] ★F10a 계약 위반 manifest(역할 중복) · 이 노드 events 없음 → 계획 불성립 기록 · not_scanned · (미정) 노드 기재(miss ✗)
+  [PASS] ★F10b 계약 위반 · 이 노드 기록은 있고 사살 없음 → main=miss 여도 (미정) 때문에 not_scanned(미스를 결론내지 않는다)
+  [PASS] ★F10c 실패주입 계약 위반 manifest ∧ 이 노드 창 안 사살 → lite · blackbox_kill(같은 호스트·같은 시계 기록은 버리지 않는다)
+  [PASS] ★F11 집계 순서: main=not_scanned(events 0) ∧ sub(원격)=matched → matched · blackbox_kill · 원격 매치의 허용오차 미선언이 출처에 드러난다
+  [PASS] ★G1 음성대조 single: 다른 노드(docs/logs/sub)의 창 안 사살은 대조 제외 → full · miss · 대조 노드는 main 하나
+  [PASS] G2 single: 측정 노드 자신의 창 안 사살 → lite · blackbox_kill
+  [PASS] G3 single 서브에서 잰 스윕(measured_node=sub) → 자기 docs/logs/sub 가 로컬 대조 대상 → blackbox_kill (대조 노드는 sub 하나 · manifest self_role=main 이 아니라 측정 기록이 정한다)
+  [PASS] ★G4 셀 종결 single: 다른 노드 사살은 사인이 아니다 → void_reason null · correlation-miss(대조 노드 main)
+  [PASS] ★G5 음성대조: 셀 종결 모드의 --events-from-repo 에 --topology 없음 → exit 2(모든 노드 대조 ✗)
+  [PASS] G6 셀 종결 multi: 서브 사살(메인 docs/logs/sub 사고 회수본) → serve_failed 사인 = 이벤트
+  [PASS] ★G7 셀 종결 multi: 서브 미회수 → 사인 null · 출처 not-scanned(보지 못했음이 남는다)
+  [PASS] ★G8 음성대조: bench-mode 에 --topology → exit 2(측정 기록 meta 가 토폴로지를 말한다)
+  [PASS] G9 meta·manifest 없는 옛 index → 노드 계획 불성립을 기록 · not_scanned(추측으로 모든 노드를 보지 않는다)
+  [PASS] ★G9b meta 없는 옛 index · manifest 있는 저장소 ∧ 이 노드 창 안 사살 → 계획 불성립이어도 이 노드 기록은 대조 → blackbox_kill (다른 노드 docs/logs/sub 는 보지 않는다)
+  [PASS] ★G10 실패주입 셀 종결 single · manifest self_role 없음 ∧ 이 노드 구간 안 사살 → 사인 = 이벤트(계획 불성립 ✗)
+[classify_cell --self-test] OK — K1~K3 · C1~C9 · L1~L7(lite 판정 운반) · D1~D19(bench_mode 확정 · 실패주입 · 음성대조) · E1~E6 · K-mirror · N1~N6 · F00 · F1~F11 · G1~G10(대조 대상 노드 · 이 노드 해소 · 계획 불성립 시 이 노드 기록) 전부 통과

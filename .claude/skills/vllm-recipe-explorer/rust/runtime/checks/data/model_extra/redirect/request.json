@@ -1,0 +1,12 @@
+{
+ "id": "HTTP-to-HTTPS",
+ "operation": "crosscheck_model_card.fetch_hf_safetensors_total",
+ "args": [
+  "check",
+  3.0
+ ],
+ "kwargs": {},
+ "context": {
+  "hf_api_base": "@PLAIN@"
+ }
+}

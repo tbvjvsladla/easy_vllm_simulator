@@ -1,0 +1,1180 @@
+[
+ {
+  "id": "01-load-current-offset",
+  "purpose": "valid JSON after 8 garbage bytes: read starts at the shared current offset, ends at EOF, fd closed",
+  "files": {
+   "a.json": "GARBAGE\n{\"completed\": 1, \"x\": [1, 2]}\n"
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "a.json",
+    "access": "r",
+    "offset": 8,
+    "dup": "B"
+   }
+  ],
+  "calls": [
+   {
+    "op": "_load_json",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [
+   "B"
+  ],
+  "observe_closed": [
+   "A",
+   "B"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": {
+       "completed": 1,
+       "x": [
+        1,
+        2
+       ]
+      }
+     }
+    ],
+    "offsets": {
+     "B": 38
+    },
+    "open_after": {
+     "A": false,
+     "B": true
+    },
+    "stdio_open_after": {}
+   }
+  }
+ },
+ {
+  "id": "02-load-offset-zero",
+  "purpose": "same file from offset 0: garbage first line is not JSON",
+  "files": {
+   "a.json": "GARBAGE\n{\"completed\": 1, \"x\": [1, 2]}\n"
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "a.json",
+    "access": "r",
+    "offset": 0,
+    "dup": "B"
+   }
+  ],
+  "calls": [
+   {
+    "op": "_load_json",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [
+   "B"
+  ],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": null
+     }
+    ],
+    "offsets": {
+     "B": 38
+    },
+    "open_after": {
+     "A": false
+    },
+    "stdio_open_after": {}
+   }
+  }
+ },
+ {
+  "id": "03-load-at-eof",
+  "purpose": "offset at EOF reads nothing",
+  "files": {
+   "a.json": "GARBAGE\n{\"completed\": 1, \"x\": [1, 2]}\n"
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "a.json",
+    "access": "r",
+    "offset": 38,
+    "dup": "B"
+   }
+  ],
+  "calls": [
+   {
+    "op": "_load_json",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [
+   "B"
+  ],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": null
+     }
+    ],
+    "offsets": {
+     "B": 38
+    },
+    "open_after": {
+     "A": false
+    },
+    "stdio_open_after": {}
+   }
+  }
+ },
+ {
+  "id": "04-load-malformed",
+  "purpose": "malformed JSON is fail-soft and still closes",
+  "files": {
+   "a.json": "{bad"
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "a.json",
+    "access": "r",
+    "offset": 0,
+    "dup": "B"
+   }
+  ],
+  "calls": [
+   {
+    "op": "_load_json",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [
+   "B"
+  ],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": null
+     }
+    ],
+    "offsets": {
+     "B": 4
+    },
+    "open_after": {
+     "A": false
+    },
+    "stdio_open_after": {}
+   }
+  }
+ },
+ {
+  "id": "05-load-empty",
+  "purpose": "empty file",
+  "files": {
+   "a.json": ""
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "a.json",
+    "access": "r",
+    "offset": 0,
+    "dup": "B"
+   }
+  ],
+  "calls": [
+   {
+    "op": "_load_json",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [
+   "B"
+  ],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": null
+     }
+    ],
+    "offsets": {
+     "B": 0
+    },
+    "open_after": {
+     "A": false
+    },
+    "stdio_open_after": {}
+   }
+  }
+ },
+ {
+  "id": "06-load-invalid-utf8",
+  "purpose": "strict UTF-8 on a JSON read: invalid byte is fail-soft",
+  "files": {
+   "a.json": {
+    "hex": "ff7b2261223a20317d"
+   }
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "a.json",
+    "access": "r",
+    "offset": 0,
+    "dup": "B"
+   }
+  ],
+  "calls": [
+   {
+    "op": "_load_json",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [
+   "B"
+  ],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": null
+     }
+    ],
+    "offsets": {
+     "B": 9
+    },
+    "open_after": {
+     "A": false
+    },
+    "stdio_open_after": {}
+   }
+  }
+ },
+ {
+  "id": "07-load-write-only",
+  "purpose": "a write-only descriptor cannot be read: fail-soft, still closed",
+  "files": {
+   "a.json": "{\"a\": 1}"
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "a.json",
+    "access": "w",
+    "offset": 0,
+    "dup": "B"
+   }
+  ],
+  "calls": [
+   {
+    "op": "_load_json",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": null
+     }
+    ],
+    "offsets": {},
+    "open_after": {
+     "A": false
+    },
+    "stdio_open_after": {}
+   }
+  }
+ },
+ {
+  "id": "08-load-repeat-and-reuse",
+  "purpose": "second call on the same number fails (closed); a newly opened file takes the freed number",
+  "files": {
+   "a.json": "{\"a\": 1}",
+   "b.json": "{\"b\": 2}"
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "a.json",
+    "access": "r",
+    "offset": 0,
+    "dup": null
+   }
+  ],
+  "calls": [
+   {
+    "op": "_load_json",
+    "path": {
+     "sym": "A"
+    }
+   },
+   {
+    "op": "_load_json",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": {
+   "file": "b.json",
+   "same_as": "A"
+  },
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": {
+       "a": 1
+      }
+     },
+     {
+      "kind": "value",
+      "value": null
+     }
+    ],
+    "offsets": {},
+    "open_after": {
+     "A": false
+    },
+    "stdio_open_after": {},
+    "reuse_same_number": true
+   }
+  }
+ },
+ {
+  "id": "09-load-dangling-number",
+  "purpose": "a number that was closed before the call",
+  "files": {
+   "a.json": "{\"a\": 1}"
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "a.json",
+    "access": "r",
+    "offset": 0,
+    "dup": null,
+    "close_now": true
+   }
+  ],
+  "calls": [
+   {
+    "op": "_load_json",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": null
+     }
+    ],
+    "offsets": {},
+    "open_after": {
+     "A": false
+    },
+    "stdio_open_after": {}
+   }
+  }
+ },
+ {
+  "id": "10-parse-nonzero-offset",
+  "purpose": "engine log from after its first line: only the later figures; offset to EOF; closed",
+  "files": {
+   "e.txt": "INFO Available KV cache memory: 20.5 GiB\nINFO Model weights take 12.5 GiB\nnon-torch memory: 1.25 GiB\n"
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "e.txt",
+    "access": "r",
+    "offset": 41,
+    "dup": "B"
+   }
+  ],
+  "calls": [
+   {
+    "op": "parse_engine_log",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [
+   "B"
+  ],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": {
+       "kv_gib": null,
+       "kv_tokens": null,
+       "weights_gib": 12.5,
+       "nontorch_gib": 1.25,
+       "reserved_total_gib": 13.75
+      }
+     }
+    ],
+    "offsets": {
+     "B": 101
+    },
+    "open_after": {
+     "A": false
+    },
+    "stdio_open_after": {}
+   }
+  }
+ },
+ {
+  "id": "11-parse-offset-zero",
+  "purpose": "engine log from offset 0",
+  "files": {
+   "e.txt": "INFO Available KV cache memory: 20.5 GiB\nINFO Model weights take 12.5 GiB\nnon-torch memory: 1.25 GiB\n"
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "e.txt",
+    "access": "r",
+    "offset": 0,
+    "dup": "B"
+   }
+  ],
+  "calls": [
+   {
+    "op": "parse_engine_log",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [
+   "B"
+  ],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": {
+       "kv_gib": 20.5,
+       "kv_tokens": null,
+       "weights_gib": 12.5,
+       "nontorch_gib": 1.25,
+       "reserved_total_gib": 34.25
+      }
+     }
+    ],
+    "offsets": {
+     "B": 101
+    },
+    "open_after": {
+     "A": false
+    },
+    "stdio_open_after": {}
+   }
+  }
+ },
+ {
+  "id": "12-parse-crlf-invalid-utf8",
+  "purpose": "replacement decoding and universal newlines through a descriptor",
+  "files": {
+   "e.txt": {
+    "hex": "4b562063616368652069732031320d4769420d0a4d6f64656c20776569676874732074616b652033204769420d0aff"
+   }
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "e.txt",
+    "access": "r",
+    "offset": 0,
+    "dup": "B"
+   }
+  ],
+  "calls": [
+   {
+    "op": "parse_engine_log",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [
+   "B"
+  ],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": {
+       "kv_gib": 12.0,
+       "kv_tokens": null,
+       "weights_gib": 3.0,
+       "nontorch_gib": null,
+       "reserved_total_gib": 15.0
+      }
+     }
+    ],
+    "offsets": {
+     "B": 47
+    },
+    "open_after": {
+     "A": false
+    },
+    "stdio_open_after": {}
+   }
+  }
+ },
+ {
+  "id": "13-parse-write-only",
+  "purpose": "a write-only descriptor: OSError is fail-soft (empty figures), closed",
+  "files": {
+   "e.txt": "INFO Available KV cache memory: 20.5 GiB\nINFO Model weights take 12.5 GiB\nnon-torch memory: 1.25 GiB\n"
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "e.txt",
+    "access": "w",
+    "offset": 0,
+    "dup": "B"
+   }
+  ],
+  "calls": [
+   {
+    "op": "parse_engine_log",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": {
+       "kv_gib": null,
+       "kv_tokens": null,
+       "weights_gib": null,
+       "nontorch_gib": null,
+       "reserved_total_gib": null
+      }
+     }
+    ],
+    "offsets": {},
+    "open_after": {
+     "A": false
+    },
+    "stdio_open_after": {}
+   }
+  }
+ },
+ {
+  "id": "14-parse-dangling-number",
+  "purpose": "closed-before number",
+  "files": {
+   "e.txt": "INFO Available KV cache memory: 20.5 GiB\nINFO Model weights take 12.5 GiB\nnon-torch memory: 1.25 GiB\n"
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "e.txt",
+    "access": "r",
+    "offset": 0,
+    "dup": null,
+    "close_now": true
+   }
+  ],
+  "calls": [
+   {
+    "op": "parse_engine_log",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": {
+       "kv_gib": null,
+       "kv_tokens": null,
+       "weights_gib": null,
+       "nontorch_gib": null,
+       "reserved_total_gib": null
+      }
+     }
+    ],
+    "offsets": {},
+    "open_after": {
+     "A": false
+    },
+    "stdio_open_after": {}
+   }
+  }
+ },
+ {
+  "id": "15-parse-repeat-and-reuse",
+  "purpose": "second parse on the same number is empty; the freed number is reused",
+  "files": {
+   "e.txt": "INFO Available KV cache memory: 20.5 GiB\nINFO Model weights take 12.5 GiB\nnon-torch memory: 1.25 GiB\n",
+   "b.txt": "x"
+  },
+  "opens": [
+   {
+    "sym": "A",
+    "file": "e.txt",
+    "access": "r",
+    "offset": 0,
+    "dup": null
+   }
+  ],
+  "calls": [
+   {
+    "op": "parse_engine_log",
+    "path": {
+     "sym": "A"
+    }
+   },
+   {
+    "op": "parse_engine_log",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": {
+   "file": "b.txt",
+   "same_as": "A"
+  },
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": {
+       "kv_gib": 20.5,
+       "kv_tokens": null,
+       "weights_gib": 12.5,
+       "nontorch_gib": 1.25,
+       "reserved_total_gib": 34.25
+      }
+     },
+     {
+      "kind": "value",
+      "value": {
+       "kv_gib": null,
+       "kv_tokens": null,
+       "weights_gib": null,
+       "nontorch_gib": null,
+       "reserved_total_gib": null
+      }
+     }
+    ],
+    "offsets": {},
+    "open_after": {
+     "A": false
+    },
+    "stdio_open_after": {},
+    "reuse_same_number": true
+   }
+  }
+ },
+ {
+  "id": "16-falsey-paths-leave-stdio",
+  "purpose": "0 and False are falsey: early return, nothing is opened or closed",
+  "files": {},
+  "opens": [],
+  "calls": [
+   {
+    "op": "_load_json",
+    "path": 0
+   },
+   {
+    "op": "_load_json",
+    "path": false
+   },
+   {
+    "op": "parse_engine_log",
+    "path": 0
+   },
+   {
+    "op": "parse_engine_log",
+    "path": false
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [],
+  "observe_closed": [],
+  "observe_stdio": [
+   0,
+   1,
+   2
+  ],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": null
+     },
+     {
+      "kind": "value",
+      "value": null
+     },
+     {
+      "kind": "value",
+      "value": {
+       "kv_gib": null,
+       "kv_tokens": null,
+       "weights_gib": null,
+       "nontorch_gib": null,
+       "reserved_total_gib": null
+      }
+     },
+     {
+      "kind": "value",
+      "value": {
+       "kv_gib": null,
+       "kv_tokens": null,
+       "weights_gib": null,
+       "nontorch_gib": null,
+       "reserved_total_gib": null
+      }
+     }
+    ],
+    "offsets": {},
+    "open_after": {},
+    "stdio_open_after": {
+     "0": true,
+     "1": true,
+     "2": true
+    }
+   }
+  }
+ },
+ {
+  "id": "17-load-stdout-rdwr",
+  "purpose": "integer 1 reads the shared description of the child's stdout (a read-write file at offset 2) and closes fd 1",
+  "files": {},
+  "opens": [],
+  "calls": [
+   {
+    "op": "_load_json",
+    "path": 1
+   }
+  ],
+  "stdout": {
+   "file": "out.json",
+   "content": "ab{\"k\": 5}\n",
+   "access": "rw",
+   "offset": 2
+  },
+  "observe_offsets": [],
+  "observe_closed": [],
+  "observe_stdio": [
+   1
+  ],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": {
+       "k": 5
+      }
+     }
+    ],
+    "offsets": {},
+    "open_after": {},
+    "stdio_open_after": {
+     "1": false
+    }
+   },
+   "stdout_offset_after": 11,
+   "stdout_file_bytes_after": "YWJ7ImsiOiA1fQo="
+  }
+ },
+ {
+  "id": "18-load-stdout-true",
+  "purpose": "True is the same descriptor 1",
+  "files": {},
+  "opens": [],
+  "calls": [
+   {
+    "op": "_load_json",
+    "path": true
+   }
+  ],
+  "stdout": {
+   "file": "out.json",
+   "content": "ab{\"k\": 5}\n",
+   "access": "rw",
+   "offset": 2
+  },
+  "observe_offsets": [],
+  "observe_closed": [],
+  "observe_stdio": [
+   1
+  ],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": {
+       "k": 5
+      }
+     }
+    ],
+    "offsets": {},
+    "open_after": {},
+    "stdio_open_after": {
+     "1": false
+    }
+   },
+   "stdout_offset_after": 11,
+   "stdout_file_bytes_after": "YWJ7ImsiOiA1fQo="
+  }
+ },
+ {
+  "id": "19-load-stdout-write-only",
+  "purpose": "stdout opened write-only: not readable, fail-soft, closed",
+  "files": {},
+  "opens": [],
+  "calls": [
+   {
+    "op": "_load_json",
+    "path": 1
+   }
+  ],
+  "stdout": {
+   "file": "out.json",
+   "content": "keep",
+   "access": "w",
+   "offset": 0
+  },
+  "observe_offsets": [],
+  "observe_closed": [],
+  "observe_stdio": [
+   1
+  ],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": null
+     }
+    ],
+    "offsets": {},
+    "open_after": {},
+    "stdio_open_after": {
+     "1": false
+    }
+   },
+   "stdout_offset_after": 0,
+   "stdout_file_bytes_after": "a2VlcA=="
+  }
+ },
+ {
+  "id": "20-parse-stdout-rdwr",
+  "purpose": "engine log read from the stdout description at a nonzero offset",
+  "files": {},
+  "opens": [],
+  "calls": [
+   {
+    "op": "parse_engine_log",
+    "path": 1
+   }
+  ],
+  "stdout": {
+   "file": "out.txt",
+   "content": "INFO Available KV cache memory: 20.5 GiB\nINFO Model weights take 12.5 GiB\nnon-torch memory: 1.25 GiB\n",
+   "access": "rw",
+   "offset": 41
+  },
+  "observe_offsets": [],
+  "observe_closed": [],
+  "observe_stdio": [
+   1
+  ],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": {
+       "kv_gib": null,
+       "kv_tokens": null,
+       "weights_gib": 12.5,
+       "nontorch_gib": 1.25,
+       "reserved_total_gib": 13.75
+      }
+     }
+    ],
+    "offsets": {},
+    "open_after": {},
+    "stdio_open_after": {
+     "1": false
+    }
+   },
+   "stdout_offset_after": 101,
+   "stdout_file_bytes_after": "SU5GTyBBdmFpbGFibGUgS1YgY2FjaGUgbWVtb3J5OiAyMC41IEdpQgpJTkZPIE1vZGVsIHdlaWdodHMgdGFrZSAxMi41IEdpQgpub24tdG9yY2ggbWVtb3J5OiAxLjI1IEdpQgo="
+  }
+ },
+ {
+  "id": "21-load-directory-fd",
+  "purpose": "a directory descriptor: open() raises IsADirectoryError before it owns the number, so it stays open",
+  "files": {},
+  "opens": [
+   {
+    "sym": "A",
+    "file": ".",
+    "access": "r",
+    "offset": 0,
+    "dup": null
+   }
+  ],
+  "calls": [
+   {
+    "op": "_load_json",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": null
+     }
+    ],
+    "offsets": {},
+    "open_after": {
+     "A": true
+    },
+    "stdio_open_after": {}
+   }
+  }
+ },
+ {
+  "id": "22-parse-directory-fd",
+  "purpose": "same for parse_engine_log (OSError is fail-soft, number not closed)",
+  "files": {},
+  "opens": [
+   {
+    "sym": "A",
+    "file": ".",
+    "access": "r",
+    "offset": 0,
+    "dup": null
+   }
+  ],
+  "calls": [
+   {
+    "op": "parse_engine_log",
+    "path": {
+     "sym": "A"
+    }
+   }
+  ],
+  "stdout": null,
+  "observe_offsets": [],
+  "observe_closed": [
+   "A"
+  ],
+  "observe_stdio": [],
+  "reuse": null,
+  "expected": {
+   "exit": 0,
+   "result": {
+    "results": [
+     {
+      "kind": "value",
+      "value": {
+       "kv_gib": null,
+       "kv_tokens": null,
+       "weights_gib": null,
+       "nontorch_gib": null,
+       "reserved_total_gib": null
+      }
+     }
+    ],
+    "offsets": {},
+    "open_after": {
+     "A": true
+    },
+    "stdio_open_after": {}
+   }
+  }
+ }
+]

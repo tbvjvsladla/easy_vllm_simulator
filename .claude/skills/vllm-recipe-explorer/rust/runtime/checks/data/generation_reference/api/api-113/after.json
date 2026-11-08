@@ -1,0 +1,13 @@
+[
+ {
+  "path": ".",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "input.json",
+  "mode": 420,
+  "kind": "file",
+  "base64": "WzEsbnVsbF0="
+ }
+]

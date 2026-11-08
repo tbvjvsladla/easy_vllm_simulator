@@ -1,0 +1,12 @@
+{
+  "id": "api-045",
+  "kind": "value",
+  "value": [],
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "candidate.get(\"moe_backend\")",
+    false
+  ],
+  "kwargs_after": {}
+}

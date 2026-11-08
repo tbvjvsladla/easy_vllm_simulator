@@ -1,0 +1,24 @@
+usage: quant_table.py [-h]
+                      [--quant QUANT]
+                      [--serve-bpw SERVE_BPW]
+                      [--dtype DTYPE]
+                      [--json]
+
+quant 바이트 테이블 해소(벤더링) — quant/dtype →
+bpw.
+
+options:
+  -h, --help      show this help
+                  message and exit
+  --quant QUANT   vLLM quantization 플래
+                  그(none/fp8/awq/...).
+                  미지정 시 serve_bpw 반환.
+  --serve-bpw SERVE_BPW
+                  native dtype bytes-
+                  per-weight
+                  (none/null quant
+                  주입용, 기본 2.0).
+  --dtype DTYPE   dtype 문자열(bfloat16/f
+                  loat16/float32/...)
+                  → bpw 해소.
+  --json          JSON 출력.

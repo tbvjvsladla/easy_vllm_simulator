@@ -1,0 +1,28 @@
+{
+  "id": "api-025",
+  "kind": "exception",
+  "type": "ValueError",
+  "message": "invalid literal for int() with base 10: 'bad'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "model_id": "Org/Model",
+      "model_path_container": "/app/models/Org/Model",
+      "num_hidden_layers": 4,
+      "hidden_size": 16,
+      "prequantized": false,
+      "serve_bpw": 2.0
+    },
+    {
+      "id": "r1",
+      "quantization": "fp8",
+      "max_model_len": 4096,
+      "gpu_memory_utilization": 0.9,
+      "tensor_parallel_size": "bad"
+    },
+    "served",
+    8080
+  ],
+  "kwargs_after": {}
+}

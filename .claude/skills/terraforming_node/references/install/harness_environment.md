@@ -36,6 +36,10 @@ Codex의 OS 파일 차단으로 역할 경계를 증명한다고 주장하지 �
 
 ## 설치와 검증 순서
 
+Rust 신규/변경 환경은 [Rust 실행환경](rust_runtime.md)을 함께 적용한다. main/sub마다 배포 helper의
+`install` → `check`와 해당 tool_plane의 Rust 업무 패키지 build/native 검사를 수행한 뒤 아래 카나리로 넘어간다.
+이미 같은 pin/환경에서 유효한 검사를 마쳤다면 관련 변경 없이 반복하지 않는다.
+
 1. manifest의 대상, 역할, 기존 승인·배정·진행 아티팩트를 복구하고 실행 provider/model을 명시한다.
 2. 메인은 프로젝트 정본, 서브는 renderer와 공식 `sync_to_sub.sh`로 설정·지침·발견 wrapper·rules를 전달한다.
    single 외부 hint clone의 실제 clone/git-dir/common-dir 관측과 기존 승인은 `--hint-write-scopes`로

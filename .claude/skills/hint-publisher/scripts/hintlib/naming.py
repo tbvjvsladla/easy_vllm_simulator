@@ -166,14 +166,13 @@ _AXIS_EVIDENCE = {
     "graph": "서빙 yaml enforce-eager(eager|graph 로 변환해 넘긴다)",
 }
 
-# ★ 교차검증 앵커 — 인증서 model 키의 정본은 producer(`sweep_bench.sh`)의 코드 토큰이다(주석 ✗ · 리팩터를 따라간다).
+# ★ 교차검증 앵커 — 인증서 model 키의 정본은 producer(`assemble_sweep_meta.rs`)의 코드 토큰이다(주석 ✗ · 리팩터를 따라간다).
 #   derive_slug 의 model_path 규칙은 그 **거울**이라, 정본이 바뀌면 여기 사본이 조용히 틀린 말을 한다.
 #   자체검사가 producer 파일을 열어 리터럴 실재를 붙잡는다(campaign_template_validator `_DERIVED_NODE_PRODUCER` 선례 ·
 #   workflow.md §결정론 규율 "단일 소유가 불가능하면 교차검증이 차선이다").
 _SLUG_PRODUCER = (
-    ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
-    ('_mbase = os.path.basename(_mpath.rstrip("/")).strip()',
-     'model_key, model_source = _mbase.lower(), "derived(model_path basename · lowercased)"'),
+    ".claude/skills/adversarial-benchmark/rust/src/assemble_sweep_meta.rs",
+    ("let model_base = crate::ospath::basename(&PyStr::new(model_path.trim_end_matches('/')))\n        .strip()", 'let (model_key, model_source) = if !model_base.is_empty() {', 'pystr_of(&crate::pylower::python_lower(&model_base)),\n            "derived(model_path basename · lowercased)"'),
 )
 
 
@@ -1303,7 +1302,7 @@ def _tag2_facts() -> dict:
 
 def selftest() -> list[str]:
     """실패 메시지 목록(빈 목록 = 통과). 라이브 태그·브랜치·캠페인에 의존하지 않는다(픽스처 · 임시 디렉터리).
-    추적 파일 두 개(`hints/vocab.json` · producer `sweep_bench.sh`)는 이 체크아웃의 배포물로서 읽는다."""
+    추적 파일 두 개(`hints/vocab.json` · producer `assemble_sweep_meta.rs`)는 이 체크아웃의 배포물로서 읽는다."""
     bad: list[str] = []
 
     def ck(name: str, cond: bool) -> None:
@@ -1570,10 +1569,10 @@ def selftest() -> list[str]:
         ptext = prod.read_text(encoding="utf-8")
     except OSError:
         ptext = ""
-    ck("★producer(sweep_bench.sh) 에 인증서 model 키 규칙 리터럴이 실재한다(거울 갈라짐 방지)",
+    ck("★producer(assemble_sweep_meta.rs) 에 인증서 model 키 규칙 리터럴이 실재한다(거울 갈라짐 방지)",
        all(lit in ptext for lit in _SLUG_PRODUCER[1]))
 
-    def sweep_rule(p: str) -> str:   # 위 리터럴 두 줄의 파이썬 거울: basename(rstrip('/')).strip().lower()
+    def sweep_rule(p: str) -> str:   # 위 Rust producer 리터럴의 파이썬 거울: basename(rstrip('/')).strip().lower()
         return os.path.basename(p.rstrip("/")).strip().lower()
 
     def old_rule(p: str) -> str:     # 옛 hint_tag.derive_slug(model_path) 규칙의 거울(2026-08-20 R1 · 파일은 퇴역)

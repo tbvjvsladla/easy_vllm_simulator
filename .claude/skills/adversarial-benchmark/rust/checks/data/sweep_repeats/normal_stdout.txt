@@ -1,0 +1,76 @@
+  [PASS] 사본의 부하 도구는 shim 이다(실제 run_bench/lite_bench 가 아니다)
+  [PASS] N1 rc=0 · 레벨 2 × 반복 3 = shim 6 호출 + lite 1 호출
+  [PASS] N1 run 1 은 level_NN/ 에, run 2·3 은 level_NN/run_KK/ 에
+  [PASS] N1 runs[] 3 · 완주 3 · 밴드 (1000/24−1000/26)/mean×100 · measured(n=3) · warm-rerun
+  [PASS] N1 대표 run 필드 그대로 — decode_tps=1000/25=40.0(평균 ✗) · accept_len 2.0(lite warm 승계) · 대표 run 1
+  [PASS] N1 index.repetition — 요청 3 · 출처=캠페인 선언 · 레벨별 완주 min 3 · 중단 없음 · runs 6
+  [PASS] N2 judge_bench 가 대표 run 의 accept_len 을 승계한다(accept_len_source=measured · 근거 level_01)
+  [PASS] N3 정규 경로 — sweep_bench 종료부가 판정 기록을 쓴다(bench_mode=full · 사유 null · index 측정시각에 묶임)
+  [PASS] N3 sweep_bench 로그에 판정이 보인다(부르기만 하고 판정하지 않는다)
+  [PASS] N4 리포트 반복 절 — 완주/요청 3/3 · measured(n=3) · bench_mode full
+  [PASS] N4 hint 파서(render_bench_section.parse_report)가 스윕 표·절삭 블록을 그대로 읽는다(형식 계약 불변)
+  [PASS] N5 인증서 1건 — decode_tps_conc1=대표 run 40.0 · measured_utc 1줄=index 측정시각 · runs 미포함
+  [PASS] N8★ 다른 측정의 판정 기록(stale) → 리포트 rc 0 · '미확정 — stale(' · 인증서 미발행
+  [PASS] N8★ 반쯤 쓰인 판정 기록 → 관례 자리는 rc 0 · '미확정 — unreadable(' / 명시 경로는 exit 2
+  [PASS] N6 재조립 — shim 미호출 · 요청 3·출처 승계(선언 5 를 다시 읽지 않는다) · 완주 min 3 · 측정시각 승계
+  [PASS] N6 재조립도 판정 기록을 다시 쓴다(같은 측정시각에 묶인 full)
+  [PASS] A3★ --reassemble-only 에 --repeats → exit 2(측정하지 않은 반복 수를 조용히 버리지 않는다)
+  [PASS] N7★ --repeats 4 뒤 기본 3 재스윕 → run_04 제거 · runs[] 3 · 요청 3
+  [PASS] P1★ sweep_index.bench_knobs = 프리셋 이름 · levels Agent 선택+근거 코드 · 반복 수 캠페인 선언 · 기본값 출처 preset
+  [PASS] P2★ escalate 값(input_len 32768)을 Agent 가 고름 → 부하 전 exit 2 · lite·레벨 shim 미호출
+  [PASS] P3★ 근거 코드 없는 Agent 선택(input_len 2048) → 부하 전 exit 2
+  [PASS] R1★ 판정점에서 끊긴 재스윕 뒤 재조립 → levels [1] 유지(디스크의 옛 level_02 부활 ✗) · 판정 기록 lite 유지
+  [PASS] G★ lite 게이트 mpf({'verdict': 'measurement_path_failed', 'rc': 6}) → exit 6 · GuideLLM 레벨 호출 0 · level_* 0 · index 0 · 절삭 로그 기재
+  [PASS] G★ lite 게이트 srv({'verdict': 'server_failed', 'rc': 7}) → exit 7 · GuideLLM 레벨 호출 0 · level_* 0 · index 0 · 절삭 로그 기재
+  [PASS] G★ lite 게이트 abs({'verdict': 'absent', 'rc': 0}) → exit 6 · GuideLLM 레벨 호출 0 · level_* 0 · index 0 · 절삭 로그 기재
+  [PASS] G★ lite 게이트 unk({'verdict': 'pass', 'rc': 9}) → exit 6 · GuideLLM 레벨 호출 0 · level_* 0 · index 0 · 절삭 로그 기재
+  [PASS] G★ lite 게이트 voc({'verdict': 'ok', 'rc': 0}) → exit 6 · GuideLLM 레벨 호출 0 · level_* 0 · index 0 · 절삭 로그 기재
+  [PASS] G conformance(게이트 포함 단언 포함) 초록
+  [PASS] F1★ 대표 run 은 섰으므로 rc=0 · run 2 에서 멈춘다(shim 2 호출 · level 2 미측정)
+  [PASS] F1★ 즉시 신호 — truncation.log · index.repetition.stop(repeat-break · level 1 run 2) · runs[] 2 · 완주 1 · 밴드 없음
+  [PASS] F1★ 판정 기록(정규 경로) → lite · run_failed · 사살 대조 not_scanned(블랙박스 events 0)
+  [PASS] F2★ 끊긴 창 안 집행 사살(시각 일치) → lite · blackbox_kill · matched
+  [PASS] F2★ 음성대조: 같은 시각 트립 단독 → blackbox_kill ✗ · run_failed · miss
+  [PASS] F2★ 음성대조: 사살 시각 불일치(창 밖) → run_failed
+  [PASS] F3★ 강등 셀(판정 기록 lite)에는 PASS 여도 full 인증서를 내지 않고 lite 등급 인증서(γ)를 낸다
+  [PASS] F3★ 리포트에 멈춘 자리·실패 run·강등 사유가 이름으로 남는다
+  [PASS] R★ 강등 행(lite · run_failed)도 대조 not_scanned 이면 '⚠ 대조 불가' 표지 · 노드 요약은 한 번만
+  [PASS] F4★ 경계 레벨 2 run 2 실패(판정점 3 · 레벨2 1) → full(적응 상한 클램프) · 인증서 발행
+  [PASS] F5★ 클램프 레벨 2 첫 run 사살 → stop.kind=clamp · 판정 기록 lite · blackbox_kill · 인증서 미발행
+  [PASS] F6★ 같은 자리 트립 단독 → full 유지(사인 불충분 · 대조 miss)
+  [PASS] R★ 음성대조: 대조 miss(이 노드 기록을 봤다) 행에는 '대조 불가' 표지가 없다 · 노드 요약은 한 번
+  [PASS] F7 경계 레벨 2 첫 run 실패(rc) · events 0 → full · 대조 not_scanned(F4 와 같은 판정)
+  [PASS] R★ full 행 · 대조 not_scanned → '⚠ 대조 불가' 표지 · 노드 요약은 한 번만(분류기 출처와 겹쳐 두 번 찍지 않는다)
+  [PASS] F8★ 경계 사실 기록 실패 → runs[] 없는 레벨 [1] · 판정 기록 null(not_evaluated) · full 인증서 미발행
+  [PASS] V1★ 밴드 > 60% 인데도 full · 사유 null(분산은 강등 사유가 아니다 · 기재만)
+  [PASS] A1★ --repeats 2 → exit 2 · lite·레벨 shim 미호출(부하 전 거부)
+  [PASS] A2★ 캠페인 선언 budgets.repeats=2 → exit 2 · 미호출(기본값 대체 ✗)
+  [PASS] A4★ 출처 없는 노드 간 허용오차 · 정수 아닌 값 → exit 2 · 부하 도구 미호출
+  [PASS] B1 init → declared_budget.repeats=3 · 출처=상태 파일의 캠페인 선언
+  [PASS] B6★ 허용오차 짝 불일치(측정 · --serve-failed)·비정수 → 셀 진입 전 exit 2 · 부하 도구 미호출 · 셀 기록 0
+  [PASS] B1 cell 이 노드 간 허용오차 선언(값·출처)을 sweep_bench 에 넘긴다(판정 기록 events_scan 에 실린다 · 판정은 불변)
+  [PASS] B1 cell 이 스윕 선언의 반복 수를 sweep_bench 에 넘긴다(출처에 sweep state 경유가 남는다)
+  [PASS] B2 셀 기록 bench_mode=full(판정 기록 그대로 · 대조 필드 포함) · repetition(요청 3·완주 3)
+  [PASS] B2 정지 평가가 반복 소비를 기재한다(runs_attempted 3 · 선언 불일치 없음)
+  [PASS] O1 명시 경로 check/dry-run은 출력 디렉터리를 만들지 않고 이전 측정을 보존
+  [PASS] O2 broad→sweep→judge는 새 경로만 사용하고 기존 원시 바이트·mtime을 보존
+  [PASS] O2 공식 sweep 셀 기록은 새 repo-relative 경로와 실제 generated_utc를 운반
+  [PASS] O3 기존 명시 경로는 부하·stop sidecar·셀 기록 전 거부하고 모든 원시를 보존
+  [PASS] O4 경로 escape 거부 · 부하 없음
+  [PASS] O4 경로 nested 거부 · 부하 없음
+  [PASS] O4 경로 parent-traversal 거부 · 부하 없음
+  [PASS] O4 재조립도 symlink 출력은 거부
+  [PASS] O5 명시 경로 재조립은 부하0·측정시각 승계·기존 다른 경로 불변
+  [PASS] O6 같은 새 경로 경합은 mkdir로 하나만 획득 · 다른 호출 rc2 · 기존 경로 보존
+  [PASS] B3★ shim 이 run 2 에 사살 이벤트를 남기고 죽는다 → 셀 기록 lite · blackbox_kill(events 출처)
+  [PASS] B8★ lite ② 셀 → measurement_void · 사유 lite_server_failed(lite_raw 출처) · lite_verdict 기록 · GuideLLM 레벨 0
+  [PASS] B8★ 측정 불성립 셀은 디렉터리에 남은 이전 스윕의 벡터·오류 분할·verdict 를 싣지 않는다(실측인 척 ✗)
+  [PASS] B4★ declared_budget.repeats 없는 상태 파일 → 셀 진입 exit 2 · 부하 도구 미호출
+  [PASS] B5★ 같은 상태 파일의 status(rc 0|3)·map(rc 0) 은 막히지 않는다 — 반복 수 None · 출처 absent · 지도에 경고
+  [PASS] B7★ --serve-failed single · self_role 없는 manifest ∧ 이 노드 구간 안 사살 → 사인 = 이벤트 · 대조 노드[main=matched]
+  [PASS] M1★ multi 스윕 직후(서브 미회수) → full ∧ not_scanned · meta.measured_node=cluster · 계획 = manifest 노드 전부(self_role 없이 이 노드 main)
+  [PASS] M1★ 회수 미러가 창을 덮고 허용오차 미선언 → full ∧ unavailable · sub=skew_undeclared(창 끝+10s 사살을 넓혀 잡지 않는다)
+  [PASS] M1★ --reassemble-only 에 선언된 허용오차 15s·출처 → 판정 기록에 실린다 · 창 끝+10s 서브 사살 → lite · blackbox_kill
+  [PASS] M2★ broad_search multi --serve-failed 가 선언된 허용오차를 셀 종결 분류에 넘긴다(구간 시작 10s 전 서브 사살 → 사인 = 이벤트)
+  [PASS] M2★ 음성대조: 같은 사실에 허용오차 선언 없음 → 사인 null · not-scanned(창을 넓히지 않는다 · 낡은 미러는 not_covered)
+[selftest_sweep_repeats] PASS — N1~N8 · P1~P3 · R1 · G(lite 게이트 5) · F1~F8 · V1 · A1~A4 · B1~B8 · O1~O6 · M1~M2 · R★(실패주입·음성대조 포함)

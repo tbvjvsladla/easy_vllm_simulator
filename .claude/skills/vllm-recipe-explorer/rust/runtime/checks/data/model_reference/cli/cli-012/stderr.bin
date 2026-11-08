@@ -1,0 +1,3 @@
+usage: parse_model_config.py [-h] [--self-test] [--nas-root NAS_ROOT] [--json]
+                             [path]
+parse_model_config.py: error: unrecognized arguments: --unknown

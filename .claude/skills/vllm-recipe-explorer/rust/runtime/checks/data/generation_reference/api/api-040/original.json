@@ -1,0 +1,34 @@
+{
+  "id": "api-040",
+  "kind": "value",
+  "value": [
+    {
+      "__tuple__": [
+        "A",
+        "x=y "
+      ]
+    },
+    {
+      "__tuple__": [
+        "B",
+        ""
+      ]
+    },
+    {
+      "__tuple__": [
+        "5",
+        ""
+      ]
+    }
+  ],
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    [
+      " A=x=y ",
+      "B",
+      5
+    ]
+  ],
+  "kwargs_after": {}
+}

@@ -1,0 +1,8 @@
+  [PASS] T1 BOS 를 세는 토크나이저(1025 최빈) → 목표 1025 · 5 행
+  [PASS] T2 최빈 1024 → 꼬리 조각(1022) 제외
+  [PASS] T3 목표가 input_len 에서 크게 벗어나면 빈 목록(호출부 fail-closed)
+  [PASS] T4 데이터·매퍼 인자는 JSON 객체(쉼표 분할 회피)
+  [PASS] T5 salt 부재 = 종전 거동(런 0 = 행 0..9)
+  [PASS] T6 같은 salt 의 런끼리 겹치지 않고 재현된다
+  [PASS] T7 다른 salt(다른 스윕)는 다른 행에서 시작한다(prefix cache 재적중 회피)
+[dataset_prep] self-test PASS — T1~T7

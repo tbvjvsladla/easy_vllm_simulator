@@ -1,0 +1,7 @@
+[runner] KV_CACHE_DTYPE=DECOY_A
+[runner] QUANTIZATION=DECOY_B
+INFO 08-23 12:20:30 [flashinfer.py:1] FlashInfer resolved backend, kv_cache_dtype=torch.float8_e4m3fn, arch=sm121
+INFO 08-23 12:20:10 [core.py:99] Initializing a V1 LLM engine (v0.27.1.dev0+g4bdc8a788.d20260814) with config: model='/app/models/Qwen/Qwen3.8/Qwen3.8-27B', speculative_config=SpeculativeConfig(method='mtp', num_spec_tokens=3), dtype=torch.bfloat16, max_seq_len=1000000, tensor_parallel_size=1, quantization=None, quantization_config=None, enforce_eager=False, kv_cache_dtype=auto, device_config=cuda, seed=None
+[runner] KV_CACHE_DTYPE=DECOY_A
+[runner] QUANTIZATION=DECOY_B
+INFO 08-23 12:20:30 [flashinfer.py:1] FlashInfer resolved backend, kv_cache_dtype=torch.float8_e4m3fn, arch=sm121

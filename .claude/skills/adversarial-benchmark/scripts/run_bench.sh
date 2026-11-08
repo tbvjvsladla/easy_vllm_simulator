@@ -90,7 +90,8 @@ case "$TOOL" in
     : "${ILEN:=1024}" "${OLEN:=256}" "${NPROMPTS:=16}" "${WARMUPS:=2}"
     # 실제 데이터셋 입력은 full-bench(guidellm) 전용이다 — 조용히 random 으로 재지 않는다(plan_26101614 D4).
     if [ -n "$DATASET_SPEC" ]; then
-      _DK="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['dataset_kind'])" "$DATASET_SPEC" 2>/dev/null)" \
+      SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+      _DK="$(bash "$SDIR/bench_shell.sh" dataset-kind "$DATASET_SPEC" 2>/dev/null)" \
         || { echo "[run_bench] ERROR --dataset-spec 을 읽지 못했다: $DATASET_SPEC" >&2; exit 2; }
       if [ "$_DK" != "synthetic" ]; then
         echo "[run_bench] ERROR --tool vllm 은 데이터셋 knob 을 받지 않는다(dataset_kind=$_DK) — full-bench(--tool guidellm) 전용" >&2
@@ -135,7 +136,7 @@ if [ -z "$TOPO" ]; then
   #   브랜치 이름에서 토폴로지를 골랐고 알 수 없는 이름은 조용히 single 로 떨어졌다. 해소는 공용 해소기가 한다 —
   #   카드 노드(unsigned capability Card)는 카드↔자기 manifest, 메인은 4자일치 술어(topology_parity), 둘 다 아니면 fail-loud.
   #   아래 Flag 게이트와 같은 평면이다: manifest 가 없으면(3) 미테라포밍 info-only, 정하지 못하면 fail-closed — 둘 다 exit 4.
-  _TOPO_RC=0; TOPO="$(python3 "$SDIR/resolve_topology.py" --repo "$REPO")" || _TOPO_RC=$?
+  _TOPO_RC=0; TOPO="$(bash "$SDIR/resolve_topology.sh" --repo "$REPO")" || _TOPO_RC=$?
   if [ "$_TOPO_RC" = 3 ]; then
     echo "[run_bench] 토폴로지 사실(manifest) 부재 — 미테라포밍 info-only. terraforming_node 로 HW스캔·검증 먼저." >&2
     exit 4
@@ -281,25 +282,18 @@ bench_with_guidellm(){
   # `[ ... ] && x=(...)` 로 쓰면 조건이 거짓일 때 AND-리스트가 1 을 돌려주고 `set -e` 가 스크립트를
   # 죽인다 — 버전 미선언(정상 경로)에서 벤치가 통째로 사라지는 형태다. if 로 쓴다.
   if [ -n "${TOOL_VERSION:-}" ]; then VERARG=(--tool-version "$TOOL_VERSION"); fi
-  PINJSON="$(python3 "$SDIR/resolve_bench_tool.py" --tool guidellm "${VERARG[@]}" --json 2>/dev/null)"; PRC=$?
+  PINJSON="$(bash "$SDIR/resolve_bench_tool.sh" --tool guidellm "${VERARG[@]}" --json 2>/dev/null)"; PRC=$?
   if [ "$PRC" != "0" ]; then
-    python3 "$SDIR/resolve_bench_tool.py" --tool guidellm "${VERARG[@]}" >/dev/null  # 사유는 stderr 로
+    bash "$SDIR/resolve_bench_tool.sh" --tool guidellm "${VERARG[@]}" >/dev/null  # 사유는 stderr 로
     echo "[run_bench] 측정 도구 해소 실패(rc=$PRC) — 실행하지 않는다" >&2
     return "$PRC"
   fi
-  IMAGE="$(printf '%s' "$PINJSON" | python3 -c "import json,sys;print(json.load(sys.stdin)['image_ref'])")"
+  IMAGE="$(printf '%s' "$PINJSON" | bash "$SDIR/bench_shell.sh" image-ref)"
   # ★ 런별 기록(2026-09-05 · 축 A): 무엇으로 쟀는지를 산출물에 남긴다. digest 게이트를 걷어낸
   #   대신 **실제로 돈 이미지의 digest** 가 vault 에 남아 리포트·인증서가 그것을 인용한다.
   BENCH_TOOL_JSON="$OUTDIR/bench_tool_${CONFIG}.json"
   printf '%s' "$PINJSON" | GL_ENDPOINT="$ENDPOINT" GL_BACKEND_SOURCE="$BACKEND_SOURCE" \
-    GL_OUT="$BENCH_TOOL_JSON" python3 -c '
-import json, os, sys
-doc = json.load(sys.stdin)
-doc["endpoint"] = os.environ["GL_ENDPOINT"]        # 측정 조건 지문(요청 포맷이 TPOT 을 바꾼다)
-doc["backend_source"] = os.environ.get("GL_BACKEND_SOURCE") or "unknown"  # 그 포맷이 어떻게 정해졌나
-with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
-    json.dump(doc, f, ensure_ascii=False, indent=2); f.write("\n")
-' 
+    GL_OUT="$BENCH_TOOL_JSON" bash "$SDIR/bench_shell.sh" tool-sidecar
 
   # 토크나이저는 **호스트 경로**가 필요하다. serve 컨테이너 안의 /app/models/... 를 manifest 의
   # nas_model_path 로 되돌린다. 되돌리지 못하면 추측하지 않고 멈춘다.
@@ -343,7 +337,7 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
   # 총 요청을 warmup 만큼 늘려 **집계 대상 수를 보존**한다(근사이며, 실제 집계 수는 산출물이 밝힌다).
   local TOTAL_REQ WARM_FRAC
   TOTAL_REQ=$(( NPROMPTS + WARMUPS ))
-  WARM_FRAC="$(python3 -c "print(round($WARMUPS/max($TOTAL_REQ,1), 4))")"
+  WARM_FRAC="$(bash "$SDIR/bench_shell.sh" warm-fraction "$WARMUPS" "$TOTAL_REQ")"
 
   # ── 벤치 진입 예산 게이트(2026-09-11 신설 · plan_26091108 R3) ─────────────────────────
   #   ★ 종전에는 **끊겨 있었다**: 이 컨테이너는 `--memory ${BENCH_BUDGET_MIB}m` 하드 제한을
@@ -373,7 +367,7 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
       _NDIR="$REPO/docs/logs/$_NID"
       _BSTAT="$(python3 "$_SESSION_PY" --node-dir "$_NDIR" budget-status --now "$(date -u +%FT%TZ)" 2>/dev/null)"; _BRC=$?
       if [ "$_BRC" = "0" ]; then
-        _FLOOR="$(printf '%s' "$_BSTAT" | python3 -c "import json,sys;print(json.load(sys.stdin)['floor_mib'])" 2>/dev/null)"
+        _FLOOR="$(printf '%s' "$_BSTAT" | bash "$SDIR/bench_shell.sh" floor-mib 2>/dev/null)"
         if [ -n "$_FLOOR" ]; then
           if ! python3 "$_PREFLIGHT" --floor-mib "$_FLOOR" --bench-budget-mib "$BENCH_BUDGET_MIB"; then
             echo "[run_bench] STOP(벤치 예산 게이트): 이 몫으로 벤치를 띄우면 서빙이 사정거리에 든다." >&2
@@ -401,28 +395,25 @@ with open(os.environ["GL_OUT"], "w", encoding="utf-8") as f:
   #   출처 사이드카 dataset_<config>.json 은 synthetic 도 쓴다(신규 발행분 출처 항상 기록 · U10).
   local DKIND DATA_ARG
   local DATA_EXTRA=()
-  DKIND="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['dataset_kind'])" "$DATASET_SPEC")" \
+  DKIND="$(bash "$SDIR/bench_shell.sh" dataset-kind "$DATASET_SPEC")" \
     || { echo "[run_bench] ERROR --dataset-spec 을 읽지 못했다: $DATASET_SPEC" >&2; return 2; }
   if [ "$DKIND" = "synthetic" ]; then
     DATA_ARG="kind=synthetic_text,prompt_tokens=$ILEN,output_tokens=$OLEN"
-    python3 "$SDIR/dataset_prep.py" synthetic-sidecar --input-len "$ILEN" --output-len "$OLEN" \
+    bash "$SDIR/dataset_prep.sh" synthetic-sidecar --input-len "$ILEN" --output-len "$OLEN" \
       --sidecar "$OUTDIR/dataset_${CONFIG}.json" || return 2
   else
     [ -n "$DATASET_CACHE" ] && [ -n "$DATASET_RUN_INDEX" ] || {
       echo "[run_bench] ERROR 실제 데이터셋(dataset_kind=$DKIND)에는 --dataset-cache 와 --dataset-run-index 가 필수다(sweep_bench 가 넘긴다)" >&2
       return 2; }
-    python3 "$SDIR/dataset_prep.py" prepare --spec "$DATASET_SPEC" --tokstage "$TOKSTAGE" --cache "$DATASET_CACHE" \
+    bash "$SDIR/dataset_prep.sh" prepare --spec "$DATASET_SPEC" --tokstage "$TOKSTAGE" --cache "$DATASET_CACHE" \
       --image "$IMAGE" --budget-mib "$BENCH_BUDGET_MIB" --input-len "$ILEN" --output-len "$OLEN" \
       || { echo "[run_bench] 데이터셋 전처리 실패 — 측정하지 않는다(합성으로 대체 ✗)" >&2; return 4; }
-    python3 "$SDIR/dataset_prep.py" slice --spec "$DATASET_SPEC" --cache "$DATASET_CACHE" \
+    bash "$SDIR/dataset_prep.sh" slice --spec "$DATASET_SPEC" --cache "$DATASET_CACHE" \
       --run-index "$DATASET_RUN_INDEX" --sweep-salt "$DATASET_SWEEP_SALT" --count "$TOTAL_REQ" --input-len "$ILEN" --output-len "$OLEN" \
       --out "$ABS_OUTDIR/dataset_rows.jsonl" --sidecar "$OUTDIR/dataset_${CONFIG}.json" \
       --tokenizer-label "$MODEL_PATH" || return 4   # 컨테이너 경로(/app/models/…) — 호스트 운영자 경로는 배포물 PII 다
-    DATA_ARG="$(python3 -c "import sys; sys.path.insert(0,sys.argv[1]); import dataset_prep as d
-print(d.data_arg('json_file', '/out/dataset_rows.jsonl'))" "$SDIR")"
-    DATA_EXTRA=(--data-column-mapper "$(python3 -c "
-import json,sys; sys.path.insert(0,sys.argv[2]); import dataset_prep as d
-print(d.column_mapper_arg(json.load(open(sys.argv[1])), with_counts=True))" "$DATASET_SPEC" "$SDIR")")
+    DATA_ARG="$(bash "$SDIR/bench_shell.sh" data-arg json_file /out/dataset_rows.jsonl)"
+    DATA_EXTRA=(--data-column-mapper "$(bash "$SDIR/bench_shell.sh" column-mapper "$DATASET_SPEC")")
   fi
 
   local GLNAME="guidellm-bench-${CONFIG}-c${CONC}"
@@ -464,14 +455,7 @@ print(d.column_mapper_arg(json.load(open(sys.argv[1])), with_counts=True))" "$DA
 BENCH_SINCE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 PCJSON="$OUTDIR/prefix_cache_${CONFIG}.json"
 _pc_snapshot() {   # stdout: "<queries> <hits> <requests>" · 수집 실패 = 빈 출력(호출부가 unobserved 로 기재)
-  curl -s -m 5 "$BASE_URL/metrics" 2>/dev/null | python3 -c '
-import re,sys
-t=sys.stdin.read()
-def g(k):
-    v=re.findall(r"^vllm:%s\{[^}]*\} ([0-9.eE+-]+)$" % k, t, re.M)
-    return sum(float(x) for x in v) if v else None
-q,h,r=g("prefix_cache_queries_total"),g("prefix_cache_hits_total"),g("request_success_total")
-print("" if None in (q,h,r) else "%d %d %d" % (q,h,r))' 2>/dev/null
+  curl -s -m 5 "$BASE_URL/metrics" 2>/dev/null | bash "$SDIR/bench_shell.sh" prefix-snapshot 2>/dev/null
 }
 PC_BEFORE="$(_pc_snapshot)"
 
@@ -484,21 +468,8 @@ esac
 [ "$BENCH_TOOL_RC" = "0" ] || exit "$BENCH_TOOL_RC"
 
 PC_AFTER="$(_pc_snapshot)"
-python3 - "$PCJSON" "$CONFIG" "$PC_BEFORE" "$PC_AFTER" "$BENCH_SINCE" <<'PCPY'
-import json,sys
-out,cfg,b,a,since=sys.argv[1:]
-d={"schema_version":1,"config":cfg,"window_start_utc":since,
-   "source":"vllm /metrics prefix_cache_queries_total·prefix_cache_hits_total·request_success_total 실행 전후 차분(서버 전체 카운터)"}
-if b and a:
-    qb,hb,rb=map(int,b.split()); qa,ha,ra=map(int,a.split())
-    dq,dh,dr=qa-qb,ha-hb,ra-rb
-    d.update(provenance="measured",queries_delta=dq,hits_delta=dh,requests_delta=dr,
-             hit_rate_run=(round(dh/dq,4) if dq>0 else None))
-else:
-    d.update(provenance="unobserved",reason="/metrics 수집 실패(전 또는 후) — 값을 추정하지 않는다")
-json.dump(d,open(out,"w"),ensure_ascii=False,indent=2)
-print("[run_bench] prefix cache(실행 차분): %s" % ({k:d.get(k) for k in ("provenance","hit_rate_run","requests_delta")}))
-PCPY
+bash "$SDIR/bench_shell.sh" prefix-record "$PCJSON" "$CONFIG" "$PC_BEFORE" "$PC_AFTER" "$BENCH_SINCE"
+
 
 if [ "$SERVE_PLANE" = "docker" ]; then
   docker logs --since "$BENCH_SINCE" "$CTR" > "$ELOG" 2>&1 || true

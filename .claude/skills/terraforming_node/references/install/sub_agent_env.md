@@ -39,6 +39,12 @@
 - **런타임블럭**(서브 복제 ✓): a2a-agent 서브 = 런타임 3종(`vllm-recipe-explorer`·`adversarial-benchmark`·`upstream-version-watch`) **+ `hint-publisher`**(2026-10-11 · 자기 셀 hint 자체 발행 · §2.5.1) · ray-worker 서브 = 0종(정본 `node_role_contract.TOOL_PLANE_BY_SUB_MODE`). 서브가 **동일 결정론 엔진**을 자기 모델에 자율 실행 → 자율=실행 주체, 방법=결정론(헌법 "확률론 추론 금지" 보존).
 
 ### 2.2 구축 아티팩트 (서브 워크스페이스 레이아웃 · 행 수는 아래 표가 정본)
+
+Rust 실행환경 지원분은 `scripts/rust_bootstrap.sh`·`scripts/rust_toolchain.pin`과
+`references/install/rust_runtime.md`다. renderer가 두 topology에 전달하고, 서브는 자기 노드에서
+기존 승인/A2A 경로로 install → check와 자기 tool_plane의 Rust 업무 패키지 build/native 검사를 실행한다.
+메인의 컴파일 결과/개인 Cargo 환경은 배달하지 않는다.
+
 | 경로(서브 루트) | 내용 | 전달타입 |
 |---|---|---|
 | `CLAUDE.md` | 페르소나(Karpathy B1–B4, **노드정체성 bake**, 자율 triplet 저작 + 자기교정) | 렌더(gitignored) |

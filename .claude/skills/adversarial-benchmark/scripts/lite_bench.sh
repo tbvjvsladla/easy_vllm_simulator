@@ -90,12 +90,13 @@ case "$BACKEND" in
 esac
 
 REPO="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -z "$TOPO" ]; then
   # ★ 2026-09-14(⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고 브랜치로 추론하지 않는다"): 종전 관용구는
   #   브랜치 이름에서 토폴로지를 골랐고 알 수 없는 이름은 조용히 single 로 떨어졌다. 해소는 공용 해소기가 한다 —
   #   카드 노드(unsigned capability Card)는 카드↔자기 manifest, 메인은 4자일치 술어(topology_parity), 둘 다 아니면 fail-loud.
   #   아래 Flag 게이트와 같은 평면이다: manifest 가 없으면(3) 미테라포밍 info-only, 정하지 못하면 fail-closed — 둘 다 exit 4.
-  _TOPO_RC=0; TOPO="$(python3 "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/resolve_topology.py" --repo "$REPO")" || _TOPO_RC=$?
+  _TOPO_RC=0; TOPO="$(bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/resolve_topology.sh" --repo "$REPO")" || _TOPO_RC=$?
   if [ "$_TOPO_RC" = 3 ]; then
     echo "[lite_bench] 토폴로지 사실(manifest) 부재 — 미테라포밍 info-only. terraforming_node 로 HW스캔·검증 먼저." >&2
     exit 4
@@ -295,7 +296,7 @@ fi
 
 # 명명 입력(config_name·config_yaml·env_file·manifest)은 경량 리포트가 모델·GPU·버전 축을 **파생**하는 자리다
 #   (sweep_bench 조립부와 같은 규칙 · render_report.lite_identity). 값을 여기서 미리 해석하지 않고 경로만 남긴다.
-BERR_TAIL="$(tail -c 4000 "$BLOG" 2>/dev/null | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))')"
+BERR_TAIL="$(tail -c 4000 "$BLOG" 2>/dev/null | bash "$SDIR/bench_shell.sh" json-escape-stdin)"
 cat > "$RAW" <<JSON
 {"topology":"$TOPO","serve_plane":"$SERVE_PLANE","host_endpoint":"$BASE_URL","burst_n":$BURST_N,
  "config_name":"$CONFIG","measured_utc":"$MEASURED_UTC","backend":"$BACKEND","endpoint":"$LITE_ENDPOINT",
@@ -307,11 +308,11 @@ cat > "$RAW" <<JSON
 JSON
 
 echo "[lite_bench] 표 렌더 + lite 판정:"
-LM="$REPO/.claude/skills/adversarial-benchmark/scripts/lite_metrics.py"
-python3 "$LM" --raw-json "$RAW" --judge || { echo "[lite_bench] 판정기 실패 — raw 에 판정이 없다(호출부는 불통과로 읽는다)" >&2; exit 6; }
+LM="$REPO/.claude/skills/adversarial-benchmark/scripts/lite_metrics.sh"
+bash "$LM" --raw-json "$RAW" --judge || { echo "[lite_bench] 판정기 실패 — raw 에 판정이 없다(호출부는 불통과로 읽는다)" >&2; exit 6; }
 echo ""
 # 종료코드는 raw 의 판정에서 **파생**한다(두 자리가 갈라질 수 없다 — 같은 값을 읽는다).
-LITE_VERDICT="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("lite_verdict",""))' "$RAW" 2>/dev/null || true)"
+LITE_VERDICT="$(bash "$SDIR/bench_shell.sh" lite-verdict "$RAW" 2>/dev/null || true)"
 case "$LITE_VERDICT" in
   pass) LITE_RC=0 ;;
   server_failed) LITE_RC=7 ;;
@@ -319,18 +320,18 @@ case "$LITE_VERDICT" in
 esac
 if [ "$PUBLISH_REPORT" = "1" ]; then
   # 리포트는 판정과 무관하게 발행한다("왜 실패했나"도 사람이 본다 — full report 와 같은 규율). 인증서는 pass 만.
-  if REPORT_PATH="$(python3 "$REPO/.claude/skills/adversarial-benchmark/scripts/render_report.py" --lite-only --lite-raw-json "$RAW")"; then
+  if REPORT_PATH="$(bash "$REPO/.claude/skills/adversarial-benchmark/scripts/render_report.sh" --lite-only --lite-raw-json "$RAW")"; then
     echo "[lite_bench] 경량 리포트 발행 → $REPORT_PATH (mode: lite · lite_verdict=$LITE_VERDICT)"
   else
     echo "[lite_bench] ⚠ 경량 리포트 발행 실패(위 사유) — 측정 산출물은 남았다: RAW=$RAW" >&2
-    echo "[lite_bench]   원인을 고친 뒤 재측정 없이 다시 렌더할 수 있다: render_report.py --lite-only --lite-raw-json $RAW" >&2
+    echo "[lite_bench]   원인을 고친 뒤 재측정 없이 다시 렌더할 수 있다: bash \"$REPO/.claude/skills/adversarial-benchmark/scripts/render_report.sh\" --lite-only --lite-raw-json $RAW" >&2
     exit 5
   fi
   if [ "$LITE_RC" = 0 ]; then
-    if CERT_PATH="$(python3 "$REPO/.claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.py" --lite-raw-json "$RAW")"; then
+    if CERT_PATH="$(bash "$REPO/.claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.sh" --lite-raw-json "$RAW")"; then
       echo "[lite_bench] lite 등급 인증서 발행 → $CERT_PATH (bench_mode: lite · verdict: not_applicable · hint 발행 자격)"
     else
-      echo "[lite_bench] ⚠ lite 인증서 발행 실패(위 사유) — 재측정 없이: publish_benchmark_record.py --lite-raw-json $RAW" >&2
+      echo "[lite_bench] ⚠ lite 인증서 발행 실패(위 사유) — 재측정 없이: bash \"$REPO/.claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.sh\" --lite-raw-json $RAW" >&2
       exit 5
     fi
   else

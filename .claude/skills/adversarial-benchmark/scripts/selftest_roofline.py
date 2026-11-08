@@ -3,9 +3,11 @@ import json
 from pathlib import Path
 import struct
 import tempfile
+import subprocess
 import unittest
 
-import roofline
+REPO = Path(__file__).resolve().parents[4]
+ROOFLINE = REPO / ".claude/skills/adversarial-benchmark/scripts/roofline.sh"
 
 
 class ActiveTrafficAggregation(unittest.TestCase):
@@ -41,8 +43,14 @@ class ActiveTrafficAggregation(unittest.TestCase):
                 data = json.dumps(header).encode()
                 (root / name).write_bytes(struct.pack("<Q", len(data)) + data)
             (root / "model.safetensors.index.json").write_text(json.dumps({"weight_map": weight_map}))
-            kinds = {}
-            result = roofline._active_bytes_moe(str(root), 8, 2, kinds)
+            # Keep the original synthetic headers and assertions; the deployed native owner computes them.
+            process = subprocess.run(
+                ["bash", str(ROOFLINE), "aggregate-moe", "--model-dir", str(root),
+                 "--num-experts", "8", "--experts-per-token", "2"],
+                capture_output=True, text=True, check=True, timeout=30,
+            )
+            report = json.loads(process.stdout)
+            result, kinds = tuple(report["result"]), report["kinds"]
         return result, kinds
 
     def test_sparse_tables_leave_dense_and_routed_traffic_unchanged(self):

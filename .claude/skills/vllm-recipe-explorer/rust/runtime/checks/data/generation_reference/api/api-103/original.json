@@ -1,0 +1,13 @@
+{
+  "id": "api-103",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "'NoneType' object is not iterable",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    null,
+    "@CASE@/logs/nested/feedback.jsonl"
+  ],
+  "kwargs_after": {}
+}

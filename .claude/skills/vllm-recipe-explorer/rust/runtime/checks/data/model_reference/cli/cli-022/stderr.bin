@@ -1,0 +1,4 @@
+usage: crosscheck_model_card.py [-h] [--hf-repo-id HF_REPO_ID]
+                                [--ephemeral-estimate] [--json]
+                                [path]
+crosscheck_model_card.py: error: unrecognized arguments: --unknown

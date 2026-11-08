@@ -1,0 +1,19 @@
+{
+  "id": "api-106",
+  "kind": "exception",
+  "type": "NotADirectoryError",
+  "message": "[Errno 20] Not a directory: '@CASE@/logs/nested'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "timestamp": "fixed",
+      "selection_timestamp": "selected",
+      "model_id": "\ud55c\uae00/Model",
+      "actual_vram_gb": 3,
+      "extra": "kept"
+    },
+    "@CASE@/logs/nested/feedback.jsonl"
+  ],
+  "kwargs_after": {}
+}

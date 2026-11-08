@@ -34,7 +34,7 @@ import sys
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CLASSIFY = os.path.normpath(os.path.join(
-    _HERE, "..", "..", "adversarial-benchmark", "scripts", "classify_cell.py"))
+    _HERE, "..", "..", "adversarial-benchmark", "scripts", "classify_cell_native.py"))
 
 
 def _load_classifier():

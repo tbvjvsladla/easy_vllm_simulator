@@ -1,0 +1,591 @@
+[package]
+name = "sweep-stop"
+version = "0.1.0"
+edition = "2021"
+description = "Broad Search stop-condition evaluator: Rust port of adversarial-benchmark/scripts/sweep_stop.py"
+publish = false
+build = "build.rs"
+# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
+autotests = false
+
+[lib]
+name = "sweep_stop"
+path = "src/lib.rs"
+
+[[bin]]
+name = "sweep_stop"
+path = "src/bin/sweep_stop.rs"
+
+[[bin]]
+name = "assemble_sweep_meta"
+path = "src/bin/assemble_sweep_meta.rs"
+
+[[bin]]
+name = "bench_shell"
+path = "src/bin/bench_shell.rs"
+
+[[bin]]
+name = "parse_bench"
+path = "src/bin/parse_bench.rs"
+
+[[bin]]
+name = "parse_guidellm"
+path = "src/bin/parse_guidellm.rs"
+
+[[bin]]
+name = "parse_guidellm_bench"
+path = "src/bin/parse_guidellm_bench.rs"
+
+[[bin]]
+name = "roofline"
+path = "src/bin/roofline.rs"
+
+[[bin]]
+name = "verdict_rule"
+path = "src/bin/verdict_rule.rs"
+
+[[bin]]
+name = "repeat_axis"
+path = "src/bin/repeat_axis.rs"
+
+[[bin]]
+name = "repeat_axis_api"
+path = "src/bin/repeat_axis_api.rs"
+
+[[bin]]
+name = "repeat_axis_bench"
+path = "src/bin/repeat_axis_bench.rs"
+
+[[bin]]
+name = "sweep_stop_bench"
+path = "src/bin/sweep_stop_bench.rs"
+
+[[bin]]
+name = "lite_metrics"
+path = "src/bin/lite_metrics.rs"
+
+[[bin]]
+name = "lite_metrics_api"
+path = "src/bin/lite_metrics_api.rs"
+
+[[bin]]
+name = "lite_metrics_bench"
+path = "src/bin/lite_metrics_bench.rs"
+
+[[bin]]
+name = "bench_preset"
+path = "src/bin/bench_preset.rs"
+
+[[bin]]
+name = "bench_preset_api"
+path = "src/bin/bench_preset_api.rs"
+
+[[bin]]
+name = "bench_preset_bench"
+path = "src/bin/bench_preset_bench.rs"
+
+[[bin]]
+name = "classify_cell"
+path = "src/bin/classify_cell.rs"
+
+[[bin]]
+name = "classify_cell_api"
+path = "src/bin/classify_cell_api.rs"
+
+[[bin]]
+name = "classify_cell_bench"
+path = "src/bin/classify_cell_bench.rs"
+
+# Private normal helper of the classifier's node-identity lookup (spawned by Owners::resolve_self_node).
+[[bin]]
+name = "node_identity_resolve"
+path = "src/bin/node_identity_resolve.rs"
+
+[[bin]]
+name = "render_report"
+path = "src/bin/render_report.rs"
+
+[[bin]]
+name = "render_sweep_map"
+path = "src/bin/render_sweep_map.rs"
+
+[[bin]]
+name = "render_max_report"
+path = "src/bin/render_max_report.rs"
+
+[[bin]]
+name = "publish_benchmark_record"
+path = "src/bin/publish_benchmark_record.rs"
+
+[[bin]]
+name = "bench_doc_naming"
+path = "src/bin/bench_doc_naming.rs"
+
+[[bin]]
+name = "bench_reporting_api"
+path = "src/bin/bench_reporting_api.rs"
+
+[[bin]]
+name = "bench_reporting_bench"
+path = "src/bin/bench_reporting_bench.rs"
+
+[[bin]]
+name = "dataset_prep"
+path = "src/bin/dataset_prep.rs"
+
+[[bin]]
+name = "dataset_prep_api"
+path = "src/bin/dataset_prep_api.rs"
+
+[[bin]]
+name = "dataset_prep_bench"
+path = "src/bin/dataset_prep_bench.rs"
+
+[[bin]]
+name = "resolve_bench_tool"
+path = "src/bin/resolve_bench_tool.rs"
+
+[[bin]]
+name = "resolve_bench_tool_api"
+path = "src/bin/resolve_bench_tool_api.rs"
+
+[[bin]]
+name = "resolve_bench_tool_bench"
+path = "src/bin/resolve_bench_tool_bench.rs"
+
+# Private normal helper of the topology resolution (spawned by resolve_topology::resolve by default).
+[[bin]]
+name = "topology_parity"
+path = "src/bin/topology_parity.rs"
+
+[[bin]]
+name = "topology_parity_api"
+path = "src/bin/topology_parity_api.rs"
+
+[[bin]]
+name = "resolve_topology"
+path = "src/bin/resolve_topology.rs"
+
+[[bin]]
+name = "resolve_topology_api"
+path = "src/bin/resolve_topology_api.rs"
+
+[[bin]]
+name = "resolve_topology_bench"
+path = "src/bin/resolve_topology_bench.rs"
+
+[[bin]]
+name = "resolve_guidellm"
+path = "src/bin/resolve_guidellm.rs"
+
+[[bin]]
+name = "resolve_guidellm_api"
+path = "src/bin/resolve_guidellm_api.rs"
+
+[[bin]]
+name = "resolve_guidellm_bench"
+path = "src/bin/resolve_guidellm_bench.rs"
+
+[[bin]]
+name = "conformance_full_superset_lite"
+path = "src/bin/conformance_full_superset_lite.rs"
+
+[[bin]]
+name = "conformance_full_superset_lite_api"
+path = "src/bin/conformance_full_superset_lite_api.rs"
+
+[[bin]]
+name = "conformance_full_superset_lite_bench"
+path = "src/bin/conformance_full_superset_lite_bench.rs"
+
+[[bin]]
+name = "selftest_broad_search_cell_args"
+path = "src/bin/selftest_broad_search_cell_args.rs"
+
+[[bin]]
+name = "selftest_broad_search_precheck"
+path = "src/bin/selftest_broad_search_precheck.rs"
+
+[[bin]]
+name = "selftest_judge_bench"
+path = "src/bin/selftest_judge_bench.rs"
+
+[[bin]]
+name = "selftest_lite_report"
+path = "src/bin/selftest_lite_report.rs"
+
+[[bin]]
+name = "selftest_lite_gate"
+path = "src/bin/selftest_lite_gate.rs"
+
+[[bin]]
+name = "selftest_sweep_meta"
+path = "src/bin/selftest_sweep_meta.rs"
+
+[[bin]]
+name = "selftest_sweep_repeats"
+path = "src/bin/selftest_sweep_repeats.rs"
+
+[[test]]
+name = "oracle_cases"
+path = "checks/oracle_cases.rs"
+
+[[test]]
+name = "python_semantics"
+path = "checks/python_semantics.rs"
+
+[[test]]
+name = "review_regressions"
+path = "checks/review_regressions.rs"
+
+[[test]]
+name = "terminal_width"
+path = "checks/terminal_width.rs"
+
+[[test]]
+name = "cli_contract"
+path = "checks/cli_contract.rs"
+
+[[test]]
+name = "parse_bench_cases"
+path = "checks/parse_bench_cases.rs"
+
+[[test]]
+name = "parse_bench_width"
+path = "checks/parse_bench_width.rs"
+
+[[test]]
+name = "parse_bench_numbers"
+path = "checks/parse_bench_numbers.rs"
+
+[[test]]
+name = "stdout_boundary"
+path = "checks/stdout_boundary.rs"
+
+[[test]]
+name = "roofline_verdict_api"
+path = "checks/roofline_verdict_api.rs"
+
+[[test]]
+name = "roofline_verdict_cli"
+path = "checks/roofline_verdict_cli.rs"
+
+[[test]]
+name = "roofline_verdict_layouts"
+path = "checks/roofline_verdict_layouts.rs"
+
+[[test]]
+name = "roofline_verdict_streams"
+path = "checks/roofline_verdict_streams.rs"
+
+[[test]]
+name = "package_paths"
+path = "checks/package_paths.rs"
+
+[[test]]
+name = "yaml_reader"
+path = "checks/yaml_reader.rs"
+
+[[test]]
+name = "dataset_pure_cases"
+path = "checks/dataset_pure_cases.rs"
+
+[[test]]
+name = "dataset_io_cases"
+path = "checks/dataset_io_cases.rs"
+
+[[test]]
+name = "dataset_cli_cases"
+path = "checks/dataset_cli_cases.rs"
+
+[[test]]
+name = "dataset_random_vectors"
+path = "checks/dataset_random_vectors.rs"
+
+[[test]]
+name = "dataset_terminal_cases"
+path = "checks/dataset_terminal_cases.rs"
+
+[[test]]
+name = "dataset_api_transport"
+path = "checks/dataset_api_transport.rs"
+
+[[test]]
+name = "dataset_bench_harness"
+path = "checks/dataset_bench_harness.rs"
+
+[[test]]
+name = "guidellm_release_tls_cases"
+path = "checks/guidellm_release_tls_cases.rs"
+
+[[test]]
+name = "guidellm_release_trust_sources"
+path = "checks/guidellm_release_trust_sources.rs"
+
+[[test]]
+name = "guidellm_release_write_path"
+path = "checks/guidellm_release_write_path.rs"
+
+[[test]]
+name = "guidellm_release_pure_cases"
+path = "checks/guidellm_release_pure_cases.rs"
+
+[[test]]
+name = "guidellm_release_io_cases"
+path = "checks/guidellm_release_io_cases.rs"
+
+[[test]]
+name = "guidellm_release_fetch_cases"
+path = "checks/guidellm_release_fetch_cases.rs"
+
+[[test]]
+name = "guidellm_release_cli_cases"
+path = "checks/guidellm_release_cli_cases.rs"
+
+[[test]]
+name = "guidellm_release_bench_harness"
+path = "checks/guidellm_release_bench_harness.rs"
+
+[[test]]
+name = "guidellm_release_api_transport"
+path = "checks/guidellm_release_api_transport.rs"
+
+[dependencies]
+num-bigint = "0.4"
+num-traits = "0.2"
+# The node-role policy library and the common Python-compatible package under it (local path dependencies, no external
+# crate): `classify_cell` reads the multi-node participation contract through `role_bridge`, not through a Python owner.
+role-contract = { path = "../../../rust/role-contract" }
+agent-runtime-support = { path = "../../../rust/runtime-support" }
+# SHA-256 of the dataset source (`hashlib.sha256` of the original): the `ring` digest `Context` (its own aarch64/x86_64
+# assembly with run-time CPU feature dispatch), pinned exactly. Replaced the first plan, `sha2` =0.10.9 (kept in PORTING.md).
+ring = "=0.17.14"
+# Safe wrappers of TIOCGWINSZ on stdout only (what shutil.get_terminal_size asks via os.get_terminal_size), of
+# fstat on stdout (the buffer size and presence of the interpreter's sys.stdout) and of getuid/getgid (the user a
+# preprocessing container runs as).
+rustix = { version = "1", default-features = false, features = ["std", "termios", "fs", "process", "event", "time"] }
+# HTTPS client of the GuideLLM release lookup (the original's `urllib.request.urlopen`): a small synchronous client,
+# pinned exactly. Rustls with `ring` (already built by the managed C/asm bootstrap). No gzip/charset/JSON/cookie
+# features: the body is read as raw bytes and decoded by this crate's Python-compatible JSON decoder. Trust is not the
+# client's built-in choice: the CA file and directories are selected like OpenSSL does (two independent sources, see
+# `guidellm_release_http`) and loaded with `rustls-native-certs` (PEM files from given paths only) and `openssl-probe`
+# (the known default locations of the host); both were already in the tree as transitive dependencies.
+ureq = { version = "=3.5.0", default-features = false, features = ["rustls"] }
+rustls-native-certs = { version = "0.8", default-features = false }
+openssl-probe = "0.2"
+
+# The checks open a pseudo-terminal pair of their own to observe the width query.
+[dev-dependencies]
+rustix = { version = "1", default-features = false, features = ["std", "termios", "pty", "fs"] }
+# The server side of the live HTTPS regression (`checks/guidellm_release_tls_cases.rs`): the same rustls the client
+# already links, with `ring`; no new crate enters the lock.
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+
+[build-dependencies]
+serde_json = "1"
+
+[[test]]
+name = "reporting_api_cases"
+path = "checks/reporting_api_cases.rs"
+
+[[test]]
+name = "reporting_io_cases"
+path = "checks/reporting_io_cases.rs"
+
+[[test]]
+name = "reporting_cli_cases"
+path = "checks/reporting_cli_cases.rs"
+
+[[test]]
+name = "reporting_stream_cases"
+path = "checks/reporting_stream_cases.rs"
+
+[[test]]
+name = "classify_cell_cases"
+path = "checks/classify_cell_cases.rs"
+
+[[test]]
+name = "classify_cell_bench"
+path = "checks/classify_cell_bench.rs"
+
+[[test]]
+name = "classify_cell_files"
+path = "checks/classify_cell_files.rs"
+
+[[test]]
+name = "yaml_depth"
+path = "checks/yaml_depth.rs"
+
+[[test]]
+name = "key_encoding"
+path = "checks/key_encoding.rs"
+
+[[test]]
+name = "key_range"
+path = "checks/key_range.rs"
+
+[[test]]
+name = "guidellm_cases"
+path = "checks/guidellm_cases.rs"
+
+[[test]]
+name = "repeat_axis_cases"
+path = "checks/repeat_axis_cases.rs"
+
+[[test]]
+name = "sort_schedule"
+path = "checks/sort_schedule.rs"
+
+[[test]]
+name = "pty_inheritance"
+path = "checks/pty_inheritance.rs"
+
+[[test]]
+name = "preset_api_cases"
+path = "checks/preset_api_cases.rs"
+
+[[test]]
+name = "preset_resolution_cases"
+path = "checks/preset_resolution_cases.rs"
+
+[[test]]
+name = "preset_cli_cases"
+path = "checks/preset_cli_cases.rs"
+
+[[test]]
+name = "preset_selftest"
+path = "checks/preset_selftest.rs"
+
+[[test]]
+name = "preset_hash"
+path = "checks/preset_hash.rs"
+
+[[test]]
+name = "preset_nan_identity"
+path = "checks/preset_nan_identity.rs"
+
+[[test]]
+name = "lite_metrics_cases"
+path = "checks/lite_metrics_cases.rs"
+
+[[test]]
+name = "lite_metrics_files"
+path = "checks/lite_metrics_files.rs"
+
+# Re-executes itself as an isolated child per scenario (closing fd 1 must not reach a libtest runner).
+[[test]]
+name = "lite_metrics_descriptors"
+path = "checks/lite_metrics_descriptors.rs"
+harness = false
+
+[[test]]
+name = "bench_tool_pure_cases"
+path = "checks/bench_tool_pure_cases.rs"
+
+[[test]]
+name = "bench_tool_io_cases"
+path = "checks/bench_tool_io_cases.rs"
+
+[[test]]
+name = "bench_tool_cli_cases"
+path = "checks/bench_tool_cli_cases.rs"
+
+[[test]]
+name = "bench_tool_api_transport"
+path = "checks/bench_tool_api_transport.rs"
+
+[[test]]
+name = "bench_tool_bench_harness"
+path = "checks/bench_tool_bench_harness.rs"
+
+[[test]]
+name = "bench_tool_row_shapes"
+path = "checks/bench_tool_row_shapes.rs"
+
+[[test]]
+name = "bench_tool_width_cases"
+path = "checks/bench_tool_width_cases.rs"
+
+[[test]]
+name = "resolve_topology_api_cases"
+path = "checks/resolve_topology_api_cases.rs"
+
+[[test]]
+name = "resolve_topology_cli_cases"
+path = "checks/resolve_topology_cli_cases.rs"
+
+[[test]]
+name = "resolve_topology_selftest_controls"
+path = "checks/resolve_topology_selftest_controls.rs"
+
+[[test]]
+name = "resolve_topology_reader_cases"
+path = "checks/resolve_topology_reader_cases.rs"
+
+[[test]]
+name = "resolve_topology_bench_harness"
+path = "checks/resolve_topology_bench_harness.rs"
+
+[[test]]
+name = "conformance_helper_cases"
+path = "checks/conformance_helper_cases.rs"
+
+[[test]]
+name = "conformance_api_transport"
+path = "checks/conformance_api_transport.rs"
+
+[[test]]
+name = "conformance_cli_cases"
+path = "checks/conformance_cli_cases.rs"
+
+[[test]]
+name = "conformance_bench_harness"
+path = "checks/conformance_bench_harness.rs"
+
+[[test]]
+name = "conformance_import_cache"
+path = "checks/conformance_import_cache.rs"
+
+[[test]]
+name = "broad_search_selftest_cases"
+path = "checks/broad_search_selftest_cases.rs"
+
+[[test]]
+name = "bench_verifier_cases"
+path = "checks/bench_verifier_cases.rs"
+
+[[test]]
+name = "sweep_repeats_cases"
+path = "checks/sweep_repeats_cases.rs"
+
+[[test]]
+name = "sweep_meta_cases"
+path = "checks/sweep_meta_cases.rs"
+
+[[test]]
+name = "pylower_cases"
+path = "checks/pylower_cases.rs"
+
+[[test]]
+name = "node_identity_native"
+path = "checks/node_identity_native.rs"
+
+[[test]]
+name = "topology_parity_native"
+path = "checks/topology_parity_native.rs"
+
+[[test]]
+name = "topology_parity_api_native"
+path = "checks/topology_parity_api_native.rs"
+
+[[test]]
+name = "bench_shell_original_cases"
+path = "checks/bench_shell_original_cases.rs"
+
+[[test]]
+name = "bench_shell_edges"
+path = "checks/bench_shell_edges.rs"
+
+[[test]]
+name = "bench_shell_wiring"
+path = "checks/bench_shell_wiring.rs"

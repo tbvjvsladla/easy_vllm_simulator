@@ -1,0 +1,1 @@
+GENERATION THROUGHPUT: 40.0 tokens/s

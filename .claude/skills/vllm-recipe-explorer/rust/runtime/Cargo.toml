@@ -1,0 +1,300 @@
+[package]
+name = "recipe-runtime"
+version = "0.1.0"
+edition = "2021"
+description = "Deterministic recipe numerics of the vllm-recipe-explorer skill: quant bytes table, VRAM estimate, ranking; Rust port of quant_table.py, estimate_vram.py and rank_recipes.py"
+publish = false
+# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
+autotests = false
+
+[lib]
+name = "recipe_runtime"
+path = "src/lib.rs"
+
+[[bin]]
+name = "quant_table"
+path = "src/bin/quant_table.rs"
+
+[[bin]]
+name = "estimate_vram"
+path = "src/bin/estimate_vram.rs"
+
+[[bin]]
+name = "rank_recipes"
+path = "src/bin/rank_recipes.rs"
+
+[[bin]]
+name = "recipe_numeric_api"
+path = "src/bin/recipe_numeric_api.rs"
+
+[[bin]]
+name = "recipe_numeric_bench"
+path = "src/bin/recipe_numeric_bench.rs"
+
+[[bin]]
+name = "parse_model_config"
+path = "src/bin/parse_model_config.rs"
+
+[[bin]]
+name = "crosscheck_model_card"
+path = "src/bin/crosscheck_model_card.rs"
+
+[[bin]]
+name = "recipe_model_api"
+path = "src/bin/recipe_model_api.rs"
+
+[[bin]]
+name = "recipe_model_bench"
+path = "src/bin/recipe_model_bench.rs"
+
+[[bin]]
+name = "gen_recipe_set"
+path = "src/bin/gen_recipe_set.rs"
+
+[[bin]]
+name = "feedback_log"
+path = "src/bin/feedback_log.rs"
+
+[[bin]]
+name = "recipe_generation_api"
+path = "src/bin/recipe_generation_api.rs"
+
+[[bin]]
+name = "recipe_generation_bench"
+path = "src/bin/recipe_generation_bench.rs"
+
+[[bin]]
+name = "sim_classify"
+path = "src/bin/sim_classify.rs"
+
+[[bin]]
+name = "recipe_classifier_api"
+path = "src/bin/recipe_classifier_api.rs"
+
+[[bin]]
+name = "recipe_classifier_bench"
+path = "src/bin/recipe_classifier_bench.rs"
+
+[[bin]]
+name = "preload_ram_gate"
+path = "src/bin/preload_ram_gate.rs"
+
+[[bin]]
+name = "recipe_memory_api"
+path = "src/bin/recipe_memory_api.rs"
+
+[[bin]]
+name = "recipe_memory_bench"
+path = "src/bin/recipe_memory_bench.rs"
+
+[[bin]]
+name = "escalation_predicate"
+path = "src/bin/escalation_predicate.rs"
+
+[[bin]]
+name = "recipe_escalation_api"
+path = "src/bin/recipe_escalation_api.rs"
+
+[[bin]]
+name = "recipe_escalation_bench"
+path = "src/bin/recipe_escalation_bench.rs"
+
+[[bin]]
+name = "rope_scaling_translate"
+path = "src/bin/rope_scaling_translate.rs"
+
+[[bin]]
+name = "parse_vllm_log"
+path = "src/bin/parse_vllm_log.rs"
+
+[[bin]]
+name = "recipe_transform_api"
+path = "src/bin/recipe_transform_api.rs"
+
+[[bin]]
+name = "recipe_transform_bench"
+path = "src/bin/recipe_transform_bench.rs"
+
+# The two entry points that run the same library over an owned root and record the original collector's control record: checks only,
+# built with `--features fixture`.
+[[bin]]
+name = "recipe_transform_fixture_api"
+path = "src/bin/recipe_transform_fixture_api.rs"
+required-features = ["fixture"]
+
+[[bin]]
+name = "recipe_transform_fixture"
+path = "src/bin/recipe_transform_fixture.rs"
+required-features = ["fixture"]
+
+[[bin]]
+name = "recipe_simlog_api"
+path = "src/bin/recipe_simlog_api.rs"
+
+[[bin]]
+name = "recipe_simlog_bench"
+path = "src/bin/recipe_simlog_bench.rs"
+
+[[bin]]
+name = "functional_smoke"
+path = "src/bin/functional_smoke.rs"
+
+[[bin]]
+name = "recipe_functional_api"
+path = "src/bin/recipe_functional_api.rs"
+
+[[bin]]
+name = "recipe_functional_bench"
+path = "src/bin/recipe_functional_bench.rs"
+
+# The two entry points that run the same library over an owned root and an owned peer and record the original collector's control record:
+# checks only, built with `--features fixture`.
+[[bin]]
+name = "recipe_functional_fixture_api"
+path = "src/bin/recipe_functional_fixture_api.rs"
+required-features = ["fixture"]
+
+[[bin]]
+name = "recipe_functional_fixture_cli"
+path = "src/bin/recipe_functional_fixture_cli.rs"
+required-features = ["fixture"]
+
+# The entry point that runs the same library over an owned root and records the original collector's control record: checks only,
+# built with `--features fixture`.
+[[bin]]
+name = "recipe_simlog_fixture_api"
+path = "src/bin/recipe_simlog_fixture_api.rs"
+required-features = ["fixture"]
+
+# The two entry points that run the same library over an owned root: checks only, built with `--features fixture`.
+[[bin]]
+name = "recipe_escalation_fixture_api"
+path = "src/bin/recipe_escalation_fixture_api.rs"
+required-features = ["fixture"]
+
+[[bin]]
+name = "escalation_predicate_fixture"
+path = "src/bin/escalation_predicate_fixture.rs"
+required-features = ["fixture"]
+
+# The two entry points that run the same library over a controlled machine: checks only, built with `--features fixture`.
+[[bin]]
+name = "recipe_memory_fixture_api"
+path = "src/bin/recipe_memory_fixture_api.rs"
+required-features = ["fixture"]
+
+[[bin]]
+name = "preload_ram_gate_fixture"
+path = "src/bin/preload_ram_gate_fixture.rs"
+required-features = ["fixture"]
+
+# The cleanup_docker owner: the original command line, the JSON-lines service and the frozen benchmark.
+[[bin]]
+name = "cleanup_docker"
+path = "src/bin/cleanup_docker.rs"
+
+[[bin]]
+name = "recipe_cleanup_api"
+path = "src/bin/recipe_cleanup_api.rs"
+
+[[bin]]
+name = "recipe_cleanup_bench"
+path = "src/bin/recipe_cleanup_bench.rs"
+
+# The two entry points that run the same library over an owned root: checks only, built with `--features fixture`.
+[[bin]]
+name = "recipe_cleanup_fixture_api"
+path = "src/bin/recipe_cleanup_fixture_api.rs"
+required-features = ["fixture"]
+
+[[bin]]
+name = "recipe_cleanup_fixture_cli"
+path = "src/bin/recipe_cleanup_fixture_cli.rs"
+required-features = ["fixture"]
+
+[features]
+# Provider injection for the RAM-gate checks. No production build enables it; the default build has no controlled machine.
+fixture = []
+
+# The fixture-feature checks build under this profile (artifacts in `fixture/`, never in `release/`).
+[profile.fixture]
+inherits = "release"
+
+[dependencies]
+# Python-compatible typed data and text semantics shared with the other owner packages (path dependency).
+agent-runtime-support = { path = "../../../../rust/runtime-support" }
+# The same locked versions the common package uses; needed directly for the arbitrary-precision integers of the formulas.
+num-bigint = "0.4"
+num-traits = "0.2"
+# The one network call of the model scripts (Hugging Face model metadata over HTTP/HTTPS): the same small synchronous client the
+# benchmark owner already pins, with the same features, and the two helpers that pick the host's CA certificates (both were
+# already in the dependency tree of that client). No model is ever downloaded.
+ureq = { version = "=3.5.0", default-features = false, features = ["rustls"] }
+rustls-native-certs = { version = "0.8", default-features = false }
+openssl-probe = "0.2"
+# The trusted authorities are chosen the way OpenSSL chooses them (hashed directories): the subject hash is a SHA-1 of the
+# canonical name, with the digest the benchmark owner already pins; the certificate errors are told apart by their rustls type.
+ring = "=0.17.14"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
+
+[[test]]
+name = "recipe_reference_cases"
+path = "checks/recipe_reference_cases.rs"
+
+[[test]]
+name = "recipe_formulas"
+path = "checks/recipe_formulas.rs"
+
+[[test]]
+name = "recipe_v2_cases"
+path = "checks/recipe_v2_cases.rs"
+
+[[test]]
+name = "recipe_tty_cases"
+path = "checks/recipe_tty_cases.rs"
+
+[[test]]
+name = "recipe_binding_cases"
+path = "checks/recipe_binding_cases.rs"
+
+[[test]]
+name = "model_checks"
+path = "checks/model_checks.rs"
+
+[[test]]
+name = "generation_checks"
+path = "checks/generation_checks.rs"
+
+[[test]]
+name = "classifier_checks"
+path = "checks/classifier_checks.rs"
+
+[[test]]
+name = "memory_checks"
+path = "checks/memory_checks.rs"
+required-features = ["fixture"]
+
+[[test]]
+name = "escalation_checks"
+path = "checks/escalation_checks.rs"
+required-features = ["fixture"]
+
+[[test]]
+name = "transform_checks"
+path = "checks/transform_checks.rs"
+required-features = ["fixture"]
+
+[[test]]
+name = "simlog_checks"
+path = "checks/simlog_checks.rs"
+required-features = ["fixture"]
+
+[[test]]
+name = "functional_checks"
+path = "checks/functional_checks.rs"
+required-features = ["fixture"]
+
+[[test]]
+name = "cleanup_checks"
+path = "checks/cleanup_checks.rs"
+required-features = ["fixture"]

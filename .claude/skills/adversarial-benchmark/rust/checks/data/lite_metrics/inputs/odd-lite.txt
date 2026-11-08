@@ -1,0 +1,2 @@
+INFO Available KV cache memory: 20.5 GiB
+INFO Model weights take 12.5 GiB

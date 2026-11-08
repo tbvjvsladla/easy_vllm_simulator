@@ -1,0 +1,11 @@
+{
+  "id": "api-006",
+  "kind": "value",
+  "value": true,
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "bf16"
+  ],
+  "kwargs_after": {}
+}

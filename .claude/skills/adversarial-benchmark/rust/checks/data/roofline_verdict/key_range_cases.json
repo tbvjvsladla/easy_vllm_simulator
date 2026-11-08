@@ -1,0 +1,178 @@
+{
+ "files": {
+  "model/config.json": "7b2268696464656e5f73697a65223a2036342c20226e756d5f68696464656e5f6c6179657273223a20327d",
+  "model/model.safetensors": "9a000000000000007b226d6f64656c2e612e776569676874223a207b226474797065223a20225538222c20227368617065223a205b3130305d2c2022646174615f6f666673657473223a205b302c203130305d7d2c20226d6f64656c2e622e776569676874223a207b226474797065223a20225538222c20227368617065223a205b3230305d2c2022646174615f6f666673657473223a205b302c203230305d7d7d"
+ },
+ "manifests": {
+  "origin-nan-shared-class.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {.nan: 1, .nan: 2}\n",
+  "origin-nan-fresh-explicit.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {? !!float nan : 1, ? !!float nan : 2}\n",
+  "origin-nan-same-alias.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {? &x !!float nan : 1, ? *x : 2}\n",
+  "origin-nan-class-plus-fresh.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {? .nan : 1, ? !!float nan : 2}\n",
+  "root-nan-v2.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {.nan: 1, .nan: 2}\n",
+  "independent-large-float.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {1.0e+40: 1, 2.0e+40: 2}\n",
+  "range-neg-huge-floats.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {-1.0e+40: 1, -2.0e+40: 2}\n",
+  "range-huge-float-and-int-distinct.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {1.0e+40: 1, 10000000000000000000000000000000000000000: 2}\n",
+  "range-huge-float-equals-its-exact-int.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {10000000000000000303786028427003666890752: 1, 1.0e+40: 2}\n",
+  "range-bool-int-float-one-key.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {true: 1, 1: 2, 1.0: 3}\n",
+  "range-float-max-and-neighbour.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {1.7976931348623157e+308: 1, 1.0e+308: 2, 1.7976931348623157e+308: 3}\n",
+  "range-zero-forms.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {0: 1, -0.0: 2, false: 3, 0.0: 4}\n",
+  "range-class-nan-signs.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {.nan: 1, -.nan: 2, +.NaN: 3, .n_an: 4}\n",
+  "range-explicit-nan-two-nodes.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {!!float nan: 1, !!float nan: 2, !!float -nan: 3}\n",
+  "range-alias-of-explicit-nan.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {? &x !!float nan : 1, ? *x : 2, ? *x : 3}\n",
+  "range-class-nan-and-alias.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {? &x .nan : 1, ? *x : 2, .nan: 3}\n",
+  "range-inf-keys.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {.inf: 1, -.inf: 2, .inf: 3}\n",
+  "range-merge-reuses-nan-key-nodes.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {? &k !!float nan : 1}\n",
+  "range-merge-nan.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\nbase: &b {? &k !!float nan : 1, a: 1}\ninterconnect:\n  bandwidth_gbps:\n    <<: *b\n    ? *k\n    : 2\n",
+  "range-explicit-class-nan-signs.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {!!float -.nan: 1, .nan: 2, !!float +.NAN: 3, !!float .n_an: 4}\n",
+  "range-class-nan-and-explicit-nan.yaml": "gpu_model: GB10\ngpus_per_node: 1\ntopology: single\ninterconnect:\n  bandwidth_gbps: {.nan: 1, !!float nan: 2, !!float nan: 3, .NaN: 4}\n"
+ },
+ "cases": [
+  {
+   "id": "origin-nan-shared-class",
+   "manifest": "origin-nan-shared-class.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"NaN\": 2\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "origin-nan-fresh-explicit",
+   "manifest": "origin-nan-fresh-explicit.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"NaN\": 1,\n    \"NaN\": 2\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "origin-nan-same-alias",
+   "manifest": "origin-nan-same-alias.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"NaN\": 2\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "origin-nan-class-plus-fresh",
+   "manifest": "origin-nan-class-plus-fresh.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"NaN\": 1,\n    \"NaN\": 2\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "root-nan-v2",
+   "manifest": "root-nan-v2.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"NaN\": 2\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "independent-large-float",
+   "manifest": "independent-large-float.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"1e+40\": 1,\n    \"2e+40\": 2\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-neg-huge-floats",
+   "manifest": "range-neg-huge-floats.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"-1e+40\": 1,\n    \"-2e+40\": 2\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-huge-float-and-int-distinct",
+   "manifest": "range-huge-float-and-int-distinct.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"1e+40\": 1,\n    \"10000000000000000000000000000000000000000\": 2\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-huge-float-equals-its-exact-int",
+   "manifest": "range-huge-float-equals-its-exact-int.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"10000000000000000303786028427003666890752\": 2\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-bool-int-float-one-key",
+   "manifest": "range-bool-int-float-one-key.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"true\": 3\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-float-max-and-neighbour",
+   "manifest": "range-float-max-and-neighbour.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"1.7976931348623157e+308\": 3,\n    \"1e+308\": 2\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-zero-forms",
+   "manifest": "range-zero-forms.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"0\": 4\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-class-nan-signs",
+   "manifest": "range-class-nan-signs.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"NaN\": 1,\n    \"-.nan\": 2,\n    \"+.NaN\": 3,\n    \".n_an\": 4\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-explicit-nan-two-nodes",
+   "manifest": "range-explicit-nan-two-nodes.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"NaN\": 1,\n    \"NaN\": 2,\n    \"NaN\": 3\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-alias-of-explicit-nan",
+   "manifest": "range-alias-of-explicit-nan.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"NaN\": 3\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-class-nan-and-alias",
+   "manifest": "range-class-nan-and-alias.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"NaN\": 3\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-inf-keys",
+   "manifest": "range-inf-keys.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"Infinity\": 3,\n    \"-Infinity\": 2\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-merge-reuses-nan-key-nodes",
+   "manifest": "range-merge-reuses-nan-key-nodes.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"NaN\": 1\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-merge-nan",
+   "manifest": "range-merge-nan.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"NaN\": 2,\n    \"a\": 1\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-explicit-class-nan-signs",
+   "manifest": "range-explicit-class-nan-signs.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"NaN\": 4\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "range-class-nan-and-explicit-nan",
+   "manifest": "range-class-nan-and-explicit-nan.yaml",
+   "exit": 0,
+   "stdout": "{\n  \"model_path\": \"{MODEL}\",\n  \"is_moe\": false,\n  \"tp\": 1,\n  \"tp_source\": \"explicit(--tp)\",\n  \"gpu_model\": \"GB10\",\n  \"bandwidth_gbps\": 273.0,\n  \"bandwidth_source\": \"override\",\n  \"interconnect_gbps\": {\n    \"NaN\": 4,\n    \"NaN\": 2,\n    \"NaN\": 3\n  },\n  \"active_bytes\": 300,\n  \"active_gib\": 0.0,\n  \"ple_excluded_bytes\": 0,\n  \"ple_excluded_gib\": 0.0,\n  \"engram_excluded_bytes\": 0,\n  \"engram_excluded_gib\": 0.0,\n  \"sparse_lookup_excluded_bytes\": 0,\n  \"sparse_lookup_excluded_source\": \"not-applicable:dense total-weight accounting\",\n  \"per_node_read_gib\": 0.0,\n  \"t_weight_ms\": 0.0,\n  \"t_comm_ms\": 0.0,\n  \"comm_bound\": false,\n  \"accept_len\": 1.0,\n  \"accept_len_source\": \"absent\",\n  \"accept_len_evidence\": null,\n  \"R_fp\": 910000000.0,\n  \"R_token\": 910000000.0,\n  \"realistic_fraction\": 0.35,\n  \"expected_achievable\": 318500000.0,\n  \"notes\": [\n    \"dense \ubaa8\ub378 \u2014 active = \uc804 \uac00\uc911\uce58\"\n  ],\n  \"caveat\": \"R \uc740 \uc758\uc2ec \uc784\uacc4(\ub099\uad00\uc801 \ucc9c\uc7a5). \uce21\uc815 M\u00b7\uc678\ubd80 \ub808\ud37c\ub7f0\uc2a4 E \uac00 \uc9c4\uc2e4. spec on \uc774\uba74 R_token \uacfc, off \uba74 R_fp \uc640 \ube44\uad50.\"\n}\n",
+   "stderr": ""
+  }
+ ]
+}

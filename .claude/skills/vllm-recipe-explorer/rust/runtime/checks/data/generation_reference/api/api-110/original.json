@@ -1,0 +1,18 @@
+{
+  "id": "api-110",
+  "kind": "value",
+  "value": "relative/feedback.jsonl",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "timestamp": "fixed",
+      "selection_timestamp": "selected",
+      "model_id": "\ud55c\uae00/Model",
+      "actual_vram_gb": 3,
+      "extra": "kept"
+    },
+    "relative/feedback.jsonl"
+  ],
+  "kwargs_after": {}
+}

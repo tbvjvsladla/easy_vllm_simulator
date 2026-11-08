@@ -1,0 +1,26 @@
+usage: feedback_log.py [-h] [--path PATH] --model-id MODEL_ID --quantization
+                       QUANTIZATION --max-model-len MAX_MODEL_LEN
+                       --gpu-memory-utilization GPU_MEMORY_UTILIZATION
+                       --vram-budget-gb VRAM_BUDGET_GB --estimated-vram-gb
+                       ESTIMATED_VRAM_GB --tensor-parallel-size
+                       TENSOR_PARALLEL_SIZE --safety-margin-threshold
+                       SAFETY_MARGIN_THRESHOLD
+                       [--selection-timestamp SELECTION_TIMESTAMP]
+                       [--record RECORD]
+
+vllm-recipe-explorer 되먹임 로그(JSONL) append.
+
+options:
+  -h, --help            show this help message and exit
+  --path PATH           JSONL 로그 경로(기본=feedback/recipe_feedback.jsonl)
+  --model-id MODEL_ID
+  --quantization QUANTIZATION
+  --max-model-len MAX_MODEL_LEN
+  --gpu-memory-utilization GPU_MEMORY_UTILIZATION
+  --vram-budget-gb VRAM_BUDGET_GB
+  --estimated-vram-gb ESTIMATED_VRAM_GB
+  --tensor-parallel-size TENSOR_PARALLEL_SIZE
+  --safety-margin-threshold SAFETY_MARGIN_THRESHOLD
+  --selection-timestamp SELECTION_TIMESTAMP
+                        미지정 시 now()
+  --record RECORD       완성 record JSON 문자열(주면 개별 인자 대신 이 record 를 append)

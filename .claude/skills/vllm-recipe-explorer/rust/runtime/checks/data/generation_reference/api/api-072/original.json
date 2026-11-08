@@ -1,0 +1,30 @@
+{
+  "id": "api-072",
+  "kind": "value",
+  "value": {
+    "timestamp": "provided",
+    "selection_timestamp": "kept",
+    "actual_vram_gb": 3,
+    "serve_success": null,
+    "error_type": null,
+    "tokens_per_sec": null,
+    "batch": null,
+    "kv_cache_memory_bytes": null,
+    "attention_backend": null,
+    "tool_call_parser": null,
+    "reasoning_parser": null,
+    "converged": null,
+    "trial_count": null,
+    "correction_history": null
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "timestamp": "provided",
+      "selection_timestamp": "kept",
+      "actual_vram_gb": 3
+    }
+  ],
+  "kwargs_after": {}
+}

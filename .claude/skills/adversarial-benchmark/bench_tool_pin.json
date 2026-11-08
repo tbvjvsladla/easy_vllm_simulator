@@ -11,8 +11,8 @@
     "  Q1 git 이 이 바이트를 blob 으로 드는가? 아니오(상류 레지스트리의 이미지다).",
     "  Q2 추적 입력만으로 결정론적으로 재생성되는가? 아니오(우리가 빌드하지 않는다).",
     "  둘 다 아니오 → 맹점층이므로 digest 는 중복이 아니라 유일한 증거다. 다만 **증거이지 관문이 아니다**.",
-    "쓰는 법: 스테이징 = `resolve_guidellm.py --record`(네트워크·최신 해소) →",
-    "  실행 = `resolve_bench_tool.py [--tool-version X]`(네트워크 ✗ · 로컬 확인만 · 자동 pull ✗).",
+    "쓰는 법: 스테이징 = `resolve_guidellm.sh --record`(네트워크·최신 해소) →",
+    "  실행 = `resolve_bench_tool.sh [--tool-version X]`(네트워크 ✗ · 로컬 확인만 · 자동 pull ✗).",
     "이미지 부재는 여전히 fail-closed 다 — 조용한 pull 은 airgap-safe 불변식을 깬다(§U4)."
   ],
   "tools": {

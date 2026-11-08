@@ -1,0 +1,8 @@
+{
+  "metadata": {
+    "total_size": 4096
+  },
+  "weight_map": {
+    "weight": "model.safetensors"
+  }
+}

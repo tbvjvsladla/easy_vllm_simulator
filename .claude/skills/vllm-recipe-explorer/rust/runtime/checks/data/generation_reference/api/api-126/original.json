@@ -1,0 +1,20 @@
+{
+  "id": "api-126",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "_normalize() got an unexpected keyword argument 'extra'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "timestamp": "fixed",
+      "selection_timestamp": "selected",
+      "model_id": "\ud55c\uae00/Model",
+      "actual_vram_gb": 3,
+      "extra": "kept"
+    }
+  ],
+  "kwargs_after": {
+    "extra": 1
+  }
+}

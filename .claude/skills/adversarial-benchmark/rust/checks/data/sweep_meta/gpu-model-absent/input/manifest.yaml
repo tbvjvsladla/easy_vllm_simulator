@@ -1,0 +1,2 @@
+gpus_per_node: 1
+topology: single

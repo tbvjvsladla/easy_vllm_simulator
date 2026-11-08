@@ -1,0 +1,12 @@
+{
+  "id": "infinite-timeout",
+  "operation": "crosscheck_model_card.fetch_hf_safetensors_total",
+  "args": [
+    "ok",
+    Infinity
+  ],
+  "kwargs": {},
+  "context": {
+    "hf_api_base": "@PLAIN@"
+  }
+}

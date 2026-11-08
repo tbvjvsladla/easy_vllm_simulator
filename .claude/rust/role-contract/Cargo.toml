@@ -1,0 +1,27 @@
+[package]
+name = "role-contract"
+version = "0.1.0"
+edition = "2021"
+description = "Rust port of node_role_contract.py: the topology-axis node contract (sub_mode, rank, identity authority, delivery and tool planes) as a pure policy library over Python-compatible values"
+publish = false
+autotests = false
+
+[lib]
+name = "role_contract"
+path = "src/lib.rs"
+
+[dependencies]
+# Python-compatible typed data, text, YAML and argument-binding semantics shared with the other owner packages (path dependency, read-only).
+agent-runtime-support = { path = "../runtime-support" }
+
+[[test]]
+name = "role_contract_checks"
+path = "checks/role_contract_checks.rs"
+
+[[test]]
+name = "identity_checks"
+path = "checks/identity_checks.rs"
+
+[[test]]
+name = "topology_checks"
+path = "checks/topology_checks.rs"

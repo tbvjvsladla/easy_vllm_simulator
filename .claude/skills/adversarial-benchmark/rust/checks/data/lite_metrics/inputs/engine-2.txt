@@ -1,0 +1,2 @@
+non-default args: {'kv_cache_memory_bytes': 21474836480}
+GPU KV cache size: 154,192 tokens

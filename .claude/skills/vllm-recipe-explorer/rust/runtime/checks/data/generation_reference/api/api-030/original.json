@@ -1,0 +1,40 @@
+{
+  "id": "api-030",
+  "kind": "value",
+  "value": {
+    "quantization": "fp8",
+    "max_model_len": 4096,
+    "batch": null,
+    "kv_cache_memory_bytes": null,
+    "kv_cache_quant": null,
+    "attention_backend": null,
+    "tool_call_parser": null,
+    "reasoning_parser": null,
+    "moe_backend": null,
+    "gdn_prefill_backend": null,
+    "max_num_batched_tokens": null,
+    "enforce_eager": null,
+    "language_model_only": null,
+    "serve_env": null,
+    "tensor_parallel_size": 1,
+    "distributed_executor_backend": null,
+    "id": "r1",
+    "gpu_memory_utilization": 0.85,
+    "extra_note": "kept"
+  },
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "id": "r1",
+      "quantization": "fp8",
+      "max_model_len": 4096,
+      "gpu_memory_utilization": 0.9,
+      "tensor_parallel_size": 1
+    }
+  ],
+  "kwargs_after": {
+    "gpu_memory_utilization": 0.85,
+    "extra_note": "kept"
+  }
+}

@@ -1,0 +1,2 @@
+GPU KV cache memory: ... GiB
+Model loading took 1.005 GiB

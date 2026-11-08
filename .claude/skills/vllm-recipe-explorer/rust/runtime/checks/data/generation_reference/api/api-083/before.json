@@ -1,0 +1,40 @@
+[
+ {
+  "path": ".",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/configs",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/configs/generated.sh",
+  "mode": 416,
+  "kind": "file",
+  "base64": "b2xkLWdlbmVyYXRlZC5zaA=="
+ },
+ {
+  "path": "node/configs/generated.yaml",
+  "mode": 416,
+  "kind": "file",
+  "base64": "b2xkLWdlbmVyYXRlZC55YW1s"
+ },
+ {
+  "path": "node/envs",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/envs/.env.generated",
+  "mode": 384,
+  "kind": "file",
+  "base64": "b2xkLWVudg=="
+ }
+]

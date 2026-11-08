@@ -1,0 +1,22 @@
+{
+ "env": {
+  "CFGYAML": "{ROOT}/cfg.yaml",
+  "COMPLETED": "1",
+  "CONFIG": "x",
+  "EF": "{ROOT}/.env.x",
+  "ILEN": "1024",
+  "IMAGE_TAG_ACTUAL": "NA",
+  "KNOB_RECORD": "{ROOT}/bench_knobs.fixture.json",
+  "LITE_RAW": "",
+  "MANIFEST": "{ROOT}/manifest.yaml",
+  "REASSEMBLE": "0",
+  "SWEEPDIR": "{ROOT}/sweep_x",
+  "TOPO": "single",
+  "VLLM_VER": ""
+ },
+ "status": 1,
+ "stdout": "",
+ "stderr": "[sweep_bench] bench_knobs 기록을 읽지 못했다([Errno 2] No such file or directory: '{ROOT}/bench_knobs.fixture.json') — 해소 기록 없는 index 를 내지 않는다\n",
+ "index": null,
+ "fresh_clock": true
+}

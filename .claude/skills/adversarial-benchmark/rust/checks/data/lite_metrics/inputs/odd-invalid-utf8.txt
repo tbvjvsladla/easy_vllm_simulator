@@ -1,0 +1,2 @@
+ÿþ KV cache 5.5 GiB Ã
+Model weights take 2 GiB

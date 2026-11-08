@@ -45,7 +45,7 @@ import yaml
 SDIR = Path(__file__).resolve().parent
 SKILL_DIR = SDIR.parent
 sys.path.insert(0, str(SDIR))
-import repeat_axis as _ra  # noqa: E402
+import repeat_axis_native as _ra  # noqa: E402
 
 BINDINGS_REL = "config/bench_bindings.yaml"
 FULL_BENCH = "full-bench"

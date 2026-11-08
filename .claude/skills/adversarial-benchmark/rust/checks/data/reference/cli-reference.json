@@ -1,0 +1,32 @@
+[
+  {
+    "case": "continue-empty",
+    "exit_code": 0,
+    "stdout": "{\n  \"schema_version\": 1,\n  \"stop\": false,\n  \"stopped_by\": [],\n  \"sweep_status\": \"incomplete\",\n  \"cells_planned\": 6,\n  \"cells_attempted\": 0,\n  \"cells_remaining\": [\n    \"next\"\n  ],\n  \"consecutive_failures\": 0,\n  \"elapsed_s\": 1800,\n  \"declared_budget\": {\n    \"max_cells\": 6,\n    \"wall_clock_budget_s\": 3600,\n    \"consecutive_failure_limit\": 3,\n    \"repeats\": 3\n  },\n  \"budget_declared_by\": \"external-reference\",\n  \"budget_basis\": \"compatibility capture; no actual serving\",\n  \"budget_repeats_source\": \"declared(reference fixture)\",\n  \"runs_attempted\": 0,\n  \"repeats_mismatch\": [],\n  \"repeats_unrecorded\": [],\n  \"evaluated_utc\": \"2026-09-04T09:30:00Z\"\n}\n",
+    "stderr": ""
+  },
+  {
+    "case": "outcomes-",
+    "exit_code": 0,
+    "stdout": "{\n  \"schema_version\": 1,\n  \"stop\": false,\n  \"stopped_by\": [],\n  \"sweep_status\": \"incomplete\",\n  \"cells_planned\": 6,\n  \"cells_attempted\": 0,\n  \"cells_remaining\": [\n    \"next\"\n  ],\n  \"consecutive_failures\": 0,\n  \"elapsed_s\": 1800,\n  \"declared_budget\": {\n    \"max_cells\": 6,\n    \"wall_clock_budget_s\": 3600,\n    \"consecutive_failure_limit\": 3,\n    \"repeats\": 3\n  },\n  \"budget_declared_by\": \"external-reference\",\n  \"budget_basis\": \"compatibility capture; no actual serving\",\n  \"budget_repeats_source\": \"declared(reference fixture)\",\n  \"runs_attempted\": 0,\n  \"repeats_mismatch\": [],\n  \"repeats_unrecorded\": [],\n  \"evaluated_utc\": \"2026-09-04T09:30:00Z\"\n}\n",
+    "stderr": ""
+  },
+  {
+    "case": "outcomes-measured",
+    "exit_code": 0,
+    "stdout": "{\n  \"schema_version\": 1,\n  \"stop\": false,\n  \"stopped_by\": [],\n  \"sweep_status\": \"incomplete\",\n  \"cells_planned\": 6,\n  \"cells_attempted\": 1,\n  \"cells_remaining\": [\n    \"next\"\n  ],\n  \"consecutive_failures\": 0,\n  \"elapsed_s\": 1800,\n  \"declared_budget\": {\n    \"max_cells\": 6,\n    \"wall_clock_budget_s\": 3600,\n    \"consecutive_failure_limit\": 3,\n    \"repeats\": 3\n  },\n  \"budget_declared_by\": \"external-reference\",\n  \"budget_basis\": \"compatibility capture; no actual serving\",\n  \"budget_repeats_source\": \"declared(reference fixture)\",\n  \"runs_attempted\": 0,\n  \"repeats_mismatch\": [],\n  \"repeats_unrecorded\": [\n    \"c0\"\n  ],\n  \"evaluated_utc\": \"2026-09-04T09:30:00Z\"\n}\n",
+    "stderr": ""
+  },
+  {
+    "case": "all-four-stop-reasons",
+    "exit_code": 3,
+    "stdout": "{\n  \"schema_version\": 1,\n  \"stop\": true,\n  \"stopped_by\": [\n    \"cells_exhausted\",\n    \"cell_budget_exhausted\",\n    \"wall_clock_exhausted\",\n    \"consecutive_failures\"\n  ],\n  \"sweep_status\": \"complete\",\n  \"cells_planned\": 6,\n  \"cells_attempted\": 6,\n  \"cells_remaining\": [],\n  \"consecutive_failures\": 6,\n  \"elapsed_s\": 3600,\n  \"declared_budget\": {\n    \"max_cells\": 6,\n    \"wall_clock_budget_s\": 3600,\n    \"consecutive_failure_limit\": 3,\n    \"repeats\": 3\n  },\n  \"budget_declared_by\": \"external-reference\",\n  \"budget_basis\": \"compatibility capture; no actual serving\",\n  \"budget_repeats_source\": \"declared(reference fixture)\",\n  \"runs_attempted\": 0,\n  \"repeats_mismatch\": [],\n  \"repeats_unrecorded\": [],\n  \"evaluated_utc\": \"2026-09-04T10:00:00Z\"\n}\n",
+    "stderr": ""
+  },
+  {
+    "case": "existing-self-test",
+    "exit_code": 0,
+    "stdout": "  [PASS] S1 진행 중이면 stop=False\n  [PASS] S2 남은 셀 0 → stop·complete\n  [PASS] S3 연속 실패 3(분류 혼합) → stop\n  [PASS] S4 성공이 끼면 연속 카운터 리셋\n  [PASS] S5 셀 수 예산 소진 → stop\n  [PASS] S6 벽시계 경계값 포함 → stop\n  [PASS] S7 동시 성립 4가지를 모두 싣는다\n  [PASS] S8 declared_budget 부재 → 거부\n  [PASS] S9 max_cells 미선언 → 거부\n  [PASS] S9 wall_clock_budget_s 미선언 → 거부\n  [PASS] S9 consecutive_failure_limit 미선언 → 거부\n  [PASS] S10 한도 0 → 거부\n  [PASS] S11 declared_by 공백 → 거부\n  [PASS] S12 basis 부재 → 거부\n  [PASS] S12b not_measured 는 연속 실패를 끊지도 늘리지도 않는다(2연속 유지)\n  [PASS] S13 미지의 cell_outcome → 거부(실패로 접지 않는다)\n  [PASS] S14 measured 는 verdict 와 무관하게 실패가 아니다\n  [PASS] S15 시작이 미래 → 거부\n  [PASS] S16 산출물이 예산과 승인 출처를 싣는다(반복 수·그 출처 포함)\n  [PASS] S17 ★declared_budget.repeats 미선언(신설 전 상태) → 판정은 한다(읽기 경로) · 3 으로 메우지 않고 None · 출처 absent · 대조 안 함(None) · 정지 술어 불변\n  [PASS] S18 ★repeats=2(full 정의 위반) → 거부\n  [PASS] S18b repeats 비정수 → 거부\n  [PASS] S19 셀이 요청한 반복 ≠ 선언 → repeats_mismatch 기재 · 정지 조건은 불변(기재를 게이트로 격상 ✗)\n  [PASS] S20 runs_attempted 는 반복 기록의 합 · 측정 셀인데 기록이 없으면 이름으로 남긴다(부재 ≠ 0회)\n[sweep_stop --self-test] OK — S1~S20 전부 통과\n",
+    "stderr": ""
+  }
+]

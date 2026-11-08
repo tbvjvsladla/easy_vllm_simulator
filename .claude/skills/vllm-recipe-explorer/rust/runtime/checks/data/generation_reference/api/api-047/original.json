@@ -1,0 +1,14 @@
+{
+  "id": "api-047",
+  "kind": "value",
+  "value": [
+    "unknown_field"
+  ],
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    "candidate.get(\"unknown_field\")",
+    false
+  ],
+  "kwargs_after": {}
+}

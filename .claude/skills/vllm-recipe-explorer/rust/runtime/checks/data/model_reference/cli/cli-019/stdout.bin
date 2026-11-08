@@ -1,0 +1,95 @@
+{
+  "model": "mxfp4",
+  "model_dir": "@REFERENCE@/input/mxfp4",
+  "sources_read": {
+    "config.json": true,
+    "README.md": false,
+    "inference_requirements": false,
+    "safetensors_headers": true
+  },
+  "dtype_scan": {
+    "present": true,
+    "num_shards": 1,
+    "tensor_counts": {
+      "U8": 2,
+      "BF16": 1
+    },
+    "byte_gib": {
+      "U8": 0.0,
+      "BF16": 0.0
+    },
+    "total_gib": 0.0,
+    "expert_dtypes": {
+      "U8": 2
+    },
+    "nonexpert_dtypes": {
+      "BF16": 1
+    },
+    "precision_classes": [
+      "4bit(MXFP4-pack: int8+microscale)",
+      "bf16/fp16"
+    ],
+    "is_mixed_precision": true,
+    "fourbit_experts": true,
+    "mxfp4_layout": {
+      "format": "mxfp4-blocks16-u8-scales-u8",
+      "num_shards": 1,
+      "tensor_count": 3,
+      "logical_params": 66,
+      "unpacked_params": 2,
+      "packed_storage_numel": 32,
+      "scale_metadata_numel": 2,
+      "storage_numel": 36,
+      "payload_bytes": 38,
+      "file_bytes": 269,
+      "packed_tensor_count": 1,
+      "packed_expert_tensor_count": 1
+    }
+  },
+  "checks": [
+    {
+      "name": "precision",
+      "config": "mxfp4",
+      "dtype_evidence": [
+        "4bit(MXFP4-pack: int8+microscale)",
+        "bf16/fp16"
+      ],
+      "card": [],
+      "verdict": "info",
+      "note": "config='mxfp4' · 실측=['4bit(MXFP4-pack: int8+microscale)', 'bf16/fp16'] · 카드='[]'; 검증된 MXFP4 packed weights + 비패킹 부동소수 텐서(설명 가능한 혼합 저장)"
+    },
+    {
+      "name": "special_deps",
+      "verdict": "info",
+      "flagged": []
+    },
+    {
+      "name": "context",
+      "config_max_position_embeddings": 4096,
+      "card": null,
+      "verdict": "info"
+    },
+    {
+      "name": "arch",
+      "config": [
+        "ExampleForCausalLM"
+      ],
+      "model_type": "dense",
+      "card_keywords": [],
+      "verdict": "info"
+    },
+    {
+      "name": "reasoning",
+      "verdict": "info",
+      "is_reasoning": false
+    },
+    {
+      "name": "external_vram",
+      "verdict": "info",
+      "reason": "hf_repo_id 미지정 — 외부 이중검증 스킵"
+    }
+  ],
+  "recommendations": [],
+  "verdict": "OK",
+  "n_mismatch": 0
+}

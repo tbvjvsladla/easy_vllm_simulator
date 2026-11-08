@@ -1831,10 +1831,18 @@ def selftest() -> list[str]:
     own = _own_checkout()
     with tempfile.TemporaryDirectory(prefix="hint_lineage_selftest_") as td:
         repo = Path(td).resolve()
-        for rel_path in (core.REL_DOC_NAMING_WIKI, core.REL_DOC_NAMING_TS, core.REL_DOC_NAMING_BENCH):
+        # The runtime naming shim now re-exports native benchmark naming. Its scratch checkout needs the
+        # same bridge and built owner as production; retained grammar parsing still belongs to this lineage module.
+        ab = ".claude/skills/adversarial-benchmark/"
+        naming_runtime = (ab + "scripts/doc_naming_native.py", ab + "scripts/reporting_native.py",
+                          ab + "scripts/bench_reporting_api.sh", ab + "rust/target/release/bench_reporting_api")
+        for rel_path in (core.REL_DOC_NAMING_WIKI, core.REL_DOC_NAMING_TS, core.REL_DOC_NAMING_BENCH,
+                         *naming_runtime):
             dst = repo / rel_path
+            src = own / rel_path
             dst.parent.mkdir(parents=True, exist_ok=True)
-            dst.write_bytes((own / rel_path).read_bytes())
+            dst.write_bytes(src.read_bytes())
+            dst.chmod(src.stat().st_mode & 0o777)
 
         def w(rel_path: str, text: str) -> None:
             p = repo / rel_path

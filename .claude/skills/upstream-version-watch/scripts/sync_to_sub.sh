@@ -265,7 +265,7 @@ RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
 #   **정의된 적이 없었다**. 검증기 본문 주석은 "경로는 파일 상단 ROLE_CONTRACT 상수"라고
 #   적고 있었으니 배선만 빠진 것이다(만든 것과 도는 것은 다르다).
 ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.py"
-PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"
+PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh"
 PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
 
 # ── manifest 해소(서브 접속·work_dir = 항상 multi 통로 manifest. single 은 nodes:[] 라 서브 미정의) ──
@@ -748,7 +748,8 @@ validate_runtime_patches() {  # $1=topology; every patch must bind current patch
             [ -f "$PATCH_RESOLUTION" ] || { echo "[sync] FAIL(runtime patch): canonical resolution missing" >&2; return 1; }
             found=1
         fi
-        python3 "$PATCH_VALIDATOR" verify --patch "$patch" --topology "$topology" \
+        EASY_VLLM_UPSTREAM_RUNTIME_ROOT="${CANONICAL_SRC%/}/.claude/skills/upstream-version-watch/rust/runtime" \
+            /bin/bash "$PATCH_VALIDATOR" verify --patch "$patch" --topology "$topology" \
             --config-dir "$cdir" --env-dir "$edir" --resolution "$PATCH_RESOLUTION" || return 1
     done
     # Orphan sidecars are stale authority too: never deliver one without its exact patch.
@@ -1464,7 +1465,7 @@ prepare_transactional_source() {
     SRC="$TRANSACTIONAL_SRC/"
     RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
     ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.py"
-    PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"
+    PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh"
     PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
     REGEN_TOOL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py"
     echo "[sync] transactional source prepared (canonical tree remains read-only): $TRANSACTIONAL_SRC"
@@ -1637,7 +1638,7 @@ deliver_build() {  # $1=topology $2=dry(0/1)
             [ -f "${src%/}/$bk" ] || missing_bk=1
         done
         if [ "$missing_bk" = "1" ] \
-           && printf '%s\n' "$dry_out" | grep -qE '^\*deleting +(Dockerfile|docker-compose\.yaml|build_patches/)'; then
+           && grep -qE '^\*deleting +(Dockerfile|docker-compose\.yaml|build_patches/)' <<<"$dry_out"; then
             echo "[sync] STOP(브랜치 불일치): 정본 체크아웃에 output/$1 빌드킷이 없는데 서브에는 있다." >&2
             echo "[sync]   → 이 삭제는 정리가 아니라 **잘못된 브랜치에서의 배달**이다. ALLOW_DELETE 로 뚫지 마라." >&2
             echo "[sync]   → output/$1 빌드킷을 추적하는 브랜치로 체크아웃한 뒤 재실행하라(현재: $(git -C "$CANONICAL_SRC" rev-parse --abbrev-ref HEAD 2>/dev/null))." >&2
@@ -1761,7 +1762,7 @@ report_overlay_convergence() {   # $1=topology → 항상 0(정보 리포트 · 
             case "$_f" in output/*/.env) [ -n "$(printf '%s\n' "$canon" | grep -x "$_f" || true)" ] || continue ;; esac
             _dir="${_f%/*}"; [ "$_dir" = "$_f" ] && _dir="."
             if printf '%s' "${_f##*/}" | grep -qE "^${_kit_re}$" \
-               && ! printf '%s\n' "$canon" | grep -qE "^${_dir}/${_kit_re}$"; then
+               && ! grep -qE "^${_dir}/${_kit_re}$" <<<"$canon"; then
                 continue   # dormant 평면의 서브 자율 저작분
             fi
             _keep="${_keep}${_f}\n"
@@ -2065,7 +2066,7 @@ verify_destination_retirement_consumers() {  # $1=topology — 활성 표면의 
     nsurf="$(printf '%s\n' "$canon" | grep -c . || true)"
     # 목록이 비면 "소비자 0" 이 아니라 **도출 실패**다 — 둘을 뭉개면 게이트가 조용히 통과한다.
     [ "${nsurf:-0}" -gt 0 ] || { echo "[sync] FAIL(retirement consumer): 정본 파일 0건($st) — 활성 표면 도출 실패" >&2; return 98; }
-    scan_py=$'# retirement_consumer_scan\nimport os,re,sys\nstale=sys.argv[1]\nowner=".claude/skills/upstream-version-watch/"+stale\nchars=set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./-")\nneedle=re.compile(r"(?<![A-Za-z0-9_.-])"+re.escape(stale)+r"(?![A-Za-z0-9_./-])")\nhits=[]\ndef scan(path):\n if os.path.islink(path): raise RuntimeError("active scanner refuses symlink: "+path)\n data=open(path,"rb").read().decode("utf-8","replace")\n for lineno,line in enumerate(data.splitlines(),1):\n  for match in needle.finditer(line):\n   lo,hi=match.start(),match.end()\n   while lo and line[lo-1] in chars: lo-=1\n   while hi<len(line) and line[hi] in chars: hi+=1\n   token=line[lo:hi]\n   while token.startswith("./"): token=token[2:]\n   if token!=owner: hits.append(f"{path}:{lineno}:{line}")\nsurfaces=[x for x in sys.stdin.read().splitlines() if x.strip()]\nif not surfaces: raise SystemExit("active surface list empty")\nn=0\nfor rel in surfaces:\n if os.path.isfile(rel):\n  n+=1\n  scan(rel)\nprint(n)\nprint("\\n".join(hits),end="")'
+    scan_py=$'# retirement_consumer_scan\nimport os,re,sys\nstale=sys.argv[1]\nowner=".claude/skills/upstream-version-watch/"+stale\nchars=set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./-")\nneedle=re.compile(r"(?<![A-Za-z0-9_.-])"+re.escape(stale)+r"(?![A-Za-z0-9_./-])")\nhits=[]\ndef scan(path):\n if os.path.islink(path): raise RuntimeError("active scanner refuses symlink: "+path)\n # Rust regression sources/data are observations, not active runtime consumers.\n if re.match(r"\\.claude/(skills/[^/]+/)?rust/[^/]+/checks/", path): return\n data=open(path,"rb").read().decode("utf-8","replace")\n for lineno,line in enumerate(data.splitlines(),1):\n  for match in needle.finditer(line):\n   lo,hi=match.start(),match.end()\n   while lo and line[lo-1] in chars: lo-=1\n   while hi<len(line) and line[hi] in chars: hi+=1\n   token=line[lo:hi]\n   while token.startswith("./"): token=token[2:]\n   if token!=owner: hits.append(f"{path}:{lineno}:{line}")\nsurfaces=[x for x in sys.stdin.read().splitlines() if x.strip()]\nif not surfaces: raise SystemExit("active surface list empty")\nn=0\nfor rel in surfaces:\n if os.path.isfile(rel):\n  n+=1\n  scan(rel)\nprint(n)\nprint("\\n".join(hits),end="")'
     printf -v scan_q '%q' "$scan_py"
     for stale in "${OVERLAY_RETIREMENT_STALE_PATHS[@]}"; do
         printf -v stale_q '%q' "$stale"
@@ -2082,7 +2083,7 @@ verify_destination_retirement_consumers() {  # $1=topology — 활성 표면의 
             printf '%s\n' "$hits" | sed 's/^/    /' >&2
             fail=1
         else
-            echo "  ✅ retirement consumer audit: $stale has no active sub consumer (활성 표면 ${scanned}/${nsurf} 파일 검사)"
+            echo "  ✅ retirement consumer audit: $stale has no active sub consumer (활성 표면 ${scanned}/${nsurf} 파일 분류; Rust checks 제외)"
         fi
     done
     return $fail
@@ -2164,11 +2165,11 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
             #   스킬마다 SKILL.md 를, recipe-explorer 가 있으면 그 엔진(recipe.py)을 본다.
             local _sk
             for _sk in $(printf '%s' "$_tp" | tr -c '[:alnum:]-' ' '); do
-                printf '%s\n' "$rels" | grep -qxF ".claude/skills/$_sk/SKILL.md" \
+                grep -qxF ".claude/skills/$_sk/SKILL.md" <<<"$rels" \
                     || { echo "  ❌ 배달 표면에 tool_plane 스킬 대표(.claude/skills/$_sk/SKILL.md)가 없다" >&2; fail=1; }
             done
             case ",$(printf '%s' "$_tp" | tr -c '[:alnum:]-' ','),"  in *,vllm-recipe-explorer,*)
-                printf '%s\n' "$rels" | grep -qxF '.claude/skills/vllm-recipe-explorer/recipe.py' \
+                grep -qxF '.claude/skills/vllm-recipe-explorer/recipe.py' <<<"$rels" \
                     || { echo "  ❌ 배달 표면에 런타임블럭 대표(.claude/skills/vllm-recipe-explorer/recipe.py)가 없다" >&2; fail=1; } ;;
             esac
         fi

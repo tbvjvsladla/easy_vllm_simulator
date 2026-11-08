@@ -1,0 +1,1 @@
+{"generated_utc": "2026-01-01T00:00:00Z", "meta": {"model": "old", "image_tag": "easy-vllm:4.5.6", "image_tag_source": "measured(docker inspect)", "image_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "image_digest_source": "measured(docker inspect)"}, "input_len": 4096}

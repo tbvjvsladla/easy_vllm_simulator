@@ -1,0 +1,22 @@
+{
+ "env": {
+  "CFGYAML": "{ROOT}/cfg.yaml",
+  "COMPLETED": "1",
+  "CONFIG": "x",
+  "EF": "{ROOT}/.env.x",
+  "ILEN": "bad",
+  "IMAGE_TAG_ACTUAL": "NA",
+  "KNOB_RECORD": "{ROOT}/bench_knobs.fixture.json",
+  "LITE_RAW": "",
+  "MANIFEST": "{ROOT}/manifest.yaml",
+  "REASSEMBLE": "0",
+  "SWEEPDIR": "{ROOT}/sweep_x",
+  "TOPO": "single",
+  "VLLM_VER": ""
+ },
+ "status": 1,
+ "stdout": "",
+ "stderr": "Traceback (most recent call last):\nValueError: invalid literal for int() with base 10: 'bad'\n",
+ "index": null,
+ "fresh_clock": true
+}

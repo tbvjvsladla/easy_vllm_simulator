@@ -183,7 +183,7 @@ def _load_owner_module(rel_path: str, module_name: str, error_code: str, purpose
 
 def _classify_cell_module():
     """강등 어휘·판독 규칙의 소유자 `adversarial-benchmark/scripts/classify_cell.py`."""
-    return _load_owner_module(".claude/skills/adversarial-benchmark/scripts/classify_cell.py",
+    return _load_owner_module(".claude/skills/adversarial-benchmark/scripts/classify_cell_native.py",
                               "_evidence_publisher_classify_cell", "DOWNGRADE_REASON_VOCABULARY_UNAVAILABLE",
                               "the downgrade vocabulary", ("DOWNGRADE_REASONS", "BENCH_MODE_LITE", "bench_mode_kind"))
 

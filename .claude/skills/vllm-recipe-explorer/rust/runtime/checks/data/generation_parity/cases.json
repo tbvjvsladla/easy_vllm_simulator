@@ -1,0 +1,86 @@
+[
+ {
+  "id": "i1-quote",
+  "note": "I1: the key's own text between single quotes (independent keyword-quote evidence: 'q'uote')",
+  "request": "{\"id\": \"i1-quote\", \"operation\": \"feedback_log._normalize\", \"args\": [{}], \"kwargs\": {\"q'uote\": 1}}",
+  "expected": "{\"id\": \"i1-quote\", \"kind\": \"exception\", \"type\": \"TypeError\", \"message\": \"_normalize() got an unexpected keyword argument 'q'uote'\", \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [{}], \"kwargs_after\": {\"q'uote\": 1}}"
+ },
+ {
+  "id": "i1-newline",
+  "note": "I1: the key's own text between single quotes (independent keyword-quote evidence: 'q'uote')",
+  "request": "{\"id\": \"i1-newline\", \"operation\": \"feedback_log._normalize\", \"args\": [{}], \"kwargs\": {\"a\\nb\": 1}}",
+  "expected": "{\"id\": \"i1-newline\", \"kind\": \"exception\", \"type\": \"TypeError\", \"message\": \"_normalize() got an unexpected keyword argument 'a\\nb'\", \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [{}], \"kwargs_after\": {\"a\\nb\": 1}}"
+ },
+ {
+  "id": "i1-unicode",
+  "note": "I1: the key's own text between single quotes (independent keyword-quote evidence: 'q'uote')",
+  "request": "{\"id\": \"i1-unicode\", \"operation\": \"feedback_log._normalize\", \"args\": [{}], \"kwargs\": {\"\ud55c\uae00\": 1}}",
+  "expected": "{\"id\": \"i1-unicode\", \"kind\": \"exception\", \"type\": \"TypeError\", \"message\": \"_normalize() got an unexpected keyword argument '\\ud55c\\uae00'\", \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [{}], \"kwargs_after\": {\"\\ud55c\\uae00\": 1}}"
+ },
+ {
+  "id": "i1-surrogate",
+  "note": "I1: the key's own text between single quotes (independent keyword-quote evidence: 'q'uote')",
+  "request": "{\"id\": \"i1-surrogate\", \"operation\": \"feedback_log._normalize\", \"args\": [{}], \"kwargs\": {\"\\udcff\": 1}}",
+  "expected": "{\"id\": \"i1-surrogate\", \"kind\": \"exception\", \"type\": \"TypeError\", \"message\": \"_normalize() got an unexpected keyword argument '\\udcff'\", \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [{}], \"kwargs_after\": {\"\\udcff\": 1}}"
+ },
+ {
+  "id": "i1-backslash",
+  "note": "I1: the key's own text between single quotes (independent keyword-quote evidence: 'q'uote')",
+  "request": "{\"id\": \"i1-backslash\", \"operation\": \"feedback_log._normalize\", \"args\": [{}], \"kwargs\": {\"back\\\\slash\": 1}}",
+  "expected": "{\"id\": \"i1-backslash\", \"kind\": \"exception\", \"type\": \"TypeError\", \"message\": \"_normalize() got an unexpected keyword argument 'back\\\\slash'\", \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [{}], \"kwargs_after\": {\"back\\\\slash\": 1}}"
+ },
+ {
+  "id": "i2-nan",
+  "note": "I2: json.loads returns its one NaN object, so both pairs are one key and the later value wins (independent nan-key primitive: one NaN key, value 2)",
+  "request": "{\"id\": \"i2-nan\", \"operation\": \"feedback_log._normalize\", \"args\": [[[NaN, 1], [NaN, 2], [\"timestamp\", \"provided\"], [\"selection_timestamp\", \"kept\"]]], \"kwargs\": {}}",
+  "expected": "{\"id\": \"i2-nan\", \"kind\": \"value\", \"value\": {\"NaN\": 2, \"timestamp\": \"provided\", \"selection_timestamp\": \"kept\", \"actual_vram_gb\": null, \"serve_success\": null, \"error_type\": null, \"tokens_per_sec\": null, \"batch\": null, \"kv_cache_memory_bytes\": null, \"attention_backend\": null, \"tool_call_parser\": null, \"reasoning_parser\": null, \"converged\": null, \"trial_count\": null, \"correction_history\": null}, \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [[[NaN, 1], [NaN, 2], [\"timestamp\", \"provided\"], [\"selection_timestamp\", \"kept\"]]], \"kwargs_after\": {}}"
+ },
+ {
+  "id": "i3-int-key",
+  "note": "I3: a typed root: the integer key keeps its repr and its place",
+  "request": "{\"id\": \"i3-int-key\", \"operation\": \"feedback_log._normalize\", \"args\": [[[1, \"x\"], [\"timestamp\", \"fixed\"], [\"selection_timestamp\", \"selected\"]]], \"kwargs\": {}, \"result_format\": \"dict-items\"}",
+  "expected": "{\"id\": \"i3-int-key\", \"kind\": \"value\", \"result_format\": \"dict-items\", \"value\": [[{\"kind\": \"scalar\", \"repr\": \"1\"}, \"x\"], [{\"kind\": \"str\", \"value\": \"timestamp\"}, \"fixed\"], [{\"kind\": \"str\", \"value\": \"selection_timestamp\"}, \"selected\"], [{\"kind\": \"str\", \"value\": \"actual_vram_gb\"}, null], [{\"kind\": \"str\", \"value\": \"serve_success\"}, null], [{\"kind\": \"str\", \"value\": \"error_type\"}, null], [{\"kind\": \"str\", \"value\": \"tokens_per_sec\"}, null], [{\"kind\": \"str\", \"value\": \"batch\"}, null], [{\"kind\": \"str\", \"value\": \"kv_cache_memory_bytes\"}, null], [{\"kind\": \"str\", \"value\": \"attention_backend\"}, null], [{\"kind\": \"str\", \"value\": \"tool_call_parser\"}, null], [{\"kind\": \"str\", \"value\": \"reasoning_parser\"}, null], [{\"kind\": \"str\", \"value\": \"converged\"}, null], [{\"kind\": \"str\", \"value\": \"trial_count\"}, null], [{\"kind\": \"str\", \"value\": \"correction_history\"}, null]], \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [[[1, \"x\"], [\"timestamp\", \"fixed\"], [\"selection_timestamp\", \"selected\"]]], \"kwargs_after\": {}}"
+ },
+ {
+  "id": "i3-default-shape",
+  "note": "the default request keeps the existing object shape",
+  "request": "{\"id\": \"i3-default-shape\", \"operation\": \"feedback_log._normalize\", \"args\": [[[1, \"x\"], [\"timestamp\", \"fixed\"], [\"selection_timestamp\", \"selected\"]]], \"kwargs\": {}}",
+  "expected": "{\"id\": \"i3-default-shape\", \"kind\": \"value\", \"value\": {\"1\": \"x\", \"timestamp\": \"fixed\", \"selection_timestamp\": \"selected\", \"actual_vram_gb\": null, \"serve_success\": null, \"error_type\": null, \"tokens_per_sec\": null, \"batch\": null, \"kv_cache_memory_bytes\": null, \"attention_backend\": null, \"tool_call_parser\": null, \"reasoning_parser\": null, \"converged\": null, \"trial_count\": null, \"correction_history\": null}, \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [[[1, \"x\"], [\"timestamp\", \"fixed\"], [\"selection_timestamp\", \"selected\"]]], \"kwargs_after\": {}}"
+ },
+ {
+  "id": "i3-collisions",
+  "note": "I3: 1, True and 1.0 are one key (the first key's repr, the last value), the NaN is one key, '1' and 1 are two keys; order is the dict's",
+  "request": "{\"id\": \"i3-collisions\", \"operation\": \"feedback_log._normalize\", \"args\": [[[1, \"a\"], [true, \"b\"], [1.0, \"c\"], [NaN, \"d\"], [NaN, \"e\"], [\"1\", \"s\"], [null, \"n\"], [1.5, \"f\"], [Infinity, \"i\"], [\"timestamp\", \"t\"], [\"selection_timestamp\", \"u\"]]], \"kwargs\": {}, \"result_format\": \"dict-items\"}",
+  "expected": "{\"id\": \"i3-collisions\", \"kind\": \"value\", \"result_format\": \"dict-items\", \"value\": [[{\"kind\": \"scalar\", \"repr\": \"1\"}, \"c\"], [{\"kind\": \"scalar\", \"repr\": \"nan\"}, \"e\"], [{\"kind\": \"str\", \"value\": \"1\"}, \"s\"], [{\"kind\": \"scalar\", \"repr\": \"None\"}, \"n\"], [{\"kind\": \"scalar\", \"repr\": \"1.5\"}, \"f\"], [{\"kind\": \"scalar\", \"repr\": \"inf\"}, \"i\"], [{\"kind\": \"str\", \"value\": \"timestamp\"}, \"t\"], [{\"kind\": \"str\", \"value\": \"selection_timestamp\"}, \"u\"], [{\"kind\": \"str\", \"value\": \"actual_vram_gb\"}, null], [{\"kind\": \"str\", \"value\": \"serve_success\"}, null], [{\"kind\": \"str\", \"value\": \"error_type\"}, null], [{\"kind\": \"str\", \"value\": \"tokens_per_sec\"}, null], [{\"kind\": \"str\", \"value\": \"batch\"}, null], [{\"kind\": \"str\", \"value\": \"kv_cache_memory_bytes\"}, null], [{\"kind\": \"str\", \"value\": \"attention_backend\"}, null], [{\"kind\": \"str\", \"value\": \"tool_call_parser\"}, null], [{\"kind\": \"str\", \"value\": \"reasoning_parser\"}, null], [{\"kind\": \"str\", \"value\": \"converged\"}, null], [{\"kind\": \"str\", \"value\": \"trial_count\"}, null], [{\"kind\": \"str\", \"value\": \"correction_history\"}, null]], \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [[[1, \"a\"], [true, \"b\"], [1.0, \"c\"], [NaN, \"d\"], [NaN, \"e\"], [\"1\", \"s\"], [null, \"n\"], [1.5, \"f\"], [Infinity, \"i\"], [\"timestamp\", \"t\"], [\"selection_timestamp\", \"u\"]]], \"kwargs_after\": {}}"
+ },
+ {
+  "id": "i3-user-dict-named-like-metadata",
+  "note": "I3: user keys named like metadata stay string keys; nested values keep the existing encoding",
+  "request": "{\"id\": \"i3-user-dict-named-like-metadata\", \"operation\": \"feedback_log._normalize\", \"args\": [{\"__tuple__\": 1, \"kind\": \"x\", \"repr\": \"y\", \"__dict__\": {\"__tuple__\": [1]}, \"timestamp\": \"t\", \"selection_timestamp\": \"s\"}], \"kwargs\": {}, \"result_format\": \"dict-items\"}",
+  "expected": "{\"id\": \"i3-user-dict-named-like-metadata\", \"kind\": \"value\", \"result_format\": \"dict-items\", \"value\": [[{\"kind\": \"str\", \"value\": \"__tuple__\"}, 1], [{\"kind\": \"str\", \"value\": \"kind\"}, \"x\"], [{\"kind\": \"str\", \"value\": \"repr\"}, \"y\"], [{\"kind\": \"str\", \"value\": \"__dict__\"}, {\"__tuple__\": [1]}], [{\"kind\": \"str\", \"value\": \"timestamp\"}, \"t\"], [{\"kind\": \"str\", \"value\": \"selection_timestamp\"}, \"s\"], [{\"kind\": \"str\", \"value\": \"actual_vram_gb\"}, null], [{\"kind\": \"str\", \"value\": \"serve_success\"}, null], [{\"kind\": \"str\", \"value\": \"error_type\"}, null], [{\"kind\": \"str\", \"value\": \"tokens_per_sec\"}, null], [{\"kind\": \"str\", \"value\": \"batch\"}, null], [{\"kind\": \"str\", \"value\": \"kv_cache_memory_bytes\"}, null], [{\"kind\": \"str\", \"value\": \"attention_backend\"}, null], [{\"kind\": \"str\", \"value\": \"tool_call_parser\"}, null], [{\"kind\": \"str\", \"value\": \"reasoning_parser\"}, null], [{\"kind\": \"str\", \"value\": \"converged\"}, null], [{\"kind\": \"str\", \"value\": \"trial_count\"}, null], [{\"kind\": \"str\", \"value\": \"correction_history\"}, null]], \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [{\"__tuple__\": 1, \"kind\": \"x\", \"repr\": \"y\", \"__dict__\": {\"__tuple__\": [1]}, \"timestamp\": \"t\", \"selection_timestamp\": \"s\"}], \"kwargs_after\": {}}"
+ },
+ {
+  "id": "i3-extra-data-never-collides",
+  "note": "result_format inside kwargs is the caller's data, not the transport's request member",
+  "request": "{\"id\": \"i3-extra-data-never-collides\", \"operation\": \"feedback_log._normalize\", \"args\": [{}], \"kwargs\": {\"result_format\": \"dict-items\"}}",
+  "expected": "{\"id\": \"i3-extra-data-never-collides\", \"kind\": \"exception\", \"type\": \"TypeError\", \"message\": \"_normalize() got an unexpected keyword argument 'result_format'\", \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [{}], \"kwargs_after\": {\"result_format\": \"dict-items\"}}"
+ },
+ {
+  "id": "rf-other-operation",
+  "note": "only _normalize supports the format",
+  "request": "{\"id\": \"rf-other-operation\", \"operation\": \"gen_recipe_set._is_native_or_none\", \"args\": [null], \"kwargs\": {}, \"result_format\": \"dict-items\"}",
+  "expected": "{\"id\": \"rf-other-operation\", \"kind\": \"exception\", \"type\": \"RequestError\", \"message\": \"result_format \\\"dict-items\\\" is supported only by feedback_log._normalize\", \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [], \"kwargs_after\": {}}"
+ },
+ {
+  "id": "rf-unknown-format",
+  "note": "an unknown format is refused",
+  "request": "{\"id\": \"rf-unknown-format\", \"operation\": \"feedback_log._normalize\", \"args\": [{}], \"kwargs\": {}, \"result_format\": \"items\"}",
+  "expected": "{\"id\": \"rf-unknown-format\", \"kind\": \"exception\", \"type\": \"RequestError\", \"message\": \"result_format must be the string \\\"dict-items\\\"\", \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [], \"kwargs_after\": {}}"
+ },
+ {
+  "id": "rf-exception-keeps-shape",
+  "note": "an exception reply has no result_format member",
+  "request": "{\"id\": \"rf-exception-keeps-shape\", \"operation\": \"feedback_log._normalize\", \"args\": [3], \"kwargs\": {}, \"result_format\": \"dict-items\"}",
+  "expected": "{\"id\": \"rf-exception-keeps-shape\", \"kind\": \"exception\", \"type\": \"TypeError\", \"message\": \"'int' object is not iterable\", \"stdout\": \"\", \"stderr\": \"\", \"args_after\": [3], \"kwargs_after\": {}}"
+ }
+]

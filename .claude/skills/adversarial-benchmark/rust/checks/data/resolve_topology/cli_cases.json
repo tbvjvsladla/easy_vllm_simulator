@@ -1,0 +1,1711 @@
+[
+ {
+  "id": "000-no-manifests",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 3,
+  "stdout": "",
+  "stderr": "[resolve_topology] 미테라포밍 — output/*/manifest.yaml 이 한 장도 없다(토폴로지 사실 부재 · 존재는 policy:TERRAFORM_FLAG_GATE 의 몫). terraforming_node 로 manifest 를 채우거나 --topology 를 명시하라\n"
+ },
+ {
+  "id": "001-no-owner",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   "output": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   }
+  },
+  "after": {
+   "output": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   }
+  },
+  "exit_code": 5,
+  "stdout": "",
+  "stderr": "[resolve_topology] 해소 불가 — 4자일치 판정자(.claude/policies/runtime/topology_parity.py)가 없다 — manifest는 있지만 어느 통로가 이 노드의 사실인지 확인할 수 없다\n"
+ },
+ {
+  "id": "002-pass-single",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogMH0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogMH0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "single\n",
+  "stderr": "[resolve_topology] topology=single ← topology_parity(4자일치 PASS · 판정 다리 manifest,checkout,strategy,role · manifest=output/single/manifest.yaml)\n"
+ },
+ {
+  "id": "003-pass-multi",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjZkNzU2Yzc0NjkyMjJjMjAyMjZjNjU2NzczMjIzYTIwN2IyMjZkNjE2ZTY5NjY2NTczNzQyMjNhMjA3YjIyNzM3NDYxNzQ3NTczMjIzYTIwMjI2ZjZiMjIyYzIwMjI3MDYxNzQ2ODIyM2EyMDIyNmY3NTc0NzA3NTc0MmY3MzY5NmU2NzZjNjUyZjZkNjE2ZTY5NjY2NTczNzQyZTc5NjE2ZDZjMjI3ZDdkMmMyMDIyNmM2NTY3NzM1ZjZhNzU2NDY3NjU2NDIyM2EyMDViMjI2ZDYxNmU2OTY2NjU3Mzc0MjIyYzIwMjI2MzY4NjU2MzZiNmY3NTc0MjIyYzIwMjI3Mzc0NzI2MTc0NjU2Nzc5MjIyYzIwMjI3MjZmNmM2NTIyNWQ3ZCIsICJzdGRlcnJfaGV4IjogIiIsICJyYyI6IDV9"
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjZkNzU2Yzc0NjkyMjJjMjAyMjZjNjU2NzczMjIzYTIwN2IyMjZkNjE2ZTY5NjY2NTczNzQyMjNhMjA3YjIyNzM3NDYxNzQ3NTczMjIzYTIwMjI2ZjZiMjIyYzIwMjI3MDYxNzQ2ODIyM2EyMDIyNmY3NTc0NzA3NTc0MmY3MzY5NmU2NzZjNjUyZjZkNjE2ZTY5NjY2NTczNzQyZTc5NjE2ZDZjMjI3ZDdkMmMyMDIyNmM2NTY3NzM1ZjZhNzU2NDY3NjU2NDIyM2EyMDViMjI2ZDYxNmU2OTY2NjU3Mzc0MjIyYzIwMjI2MzY4NjU2MzZiNmY3NTc0MjIyYzIwMjI3Mzc0NzI2MTc0NjU2Nzc5MjIyYzIwMjI3MjZmNmM2NTIyNWQ3ZCIsICJzdGRlcnJfaGV4IjogIiIsICJyYyI6IDV9"
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "multi\n",
+  "stderr": "[resolve_topology] topology=multi ← topology_parity(4자일치 PASS · 판정 다리 manifest,checkout,strategy,role · manifest=output/single/manifest.yaml)\n"
+ },
+ {
+  "id": "004-owner-rc1",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiNmY3NzZlNjU3MjIwNjY2MTY5NmM2NTY0IiwgInJjIjogMX0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiNmY3NzZlNjU3MjIwNjY2MTY5NmM2NTY0IiwgInJjIjogMX0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 5,
+  "stdout": "",
+  "stderr": "[resolve_topology] 해소 불가 — 4자일치 판정자가 판정하지 못했다(rc=1): owner failed\n"
+ },
+ {
+  "id": "005-not-object",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjViNWQiLCAic3RkZXJyX2hleCI6ICIiLCAicmMiOiAwfQ=="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjViNWQiLCAic3RkZXJyX2hleCI6ICIiLCAicmMiOiAwfQ=="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 5,
+  "stdout": "",
+  "stderr": "[resolve_topology] 해소 불가 — 4자일치 판정자가 판정하지 못했다(rc=0): []\n"
+ },
+ {
+  "id": "006-owner-null",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjZlNzU2YzZjIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogMH0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjZlNzU2YzZjIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogMH0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 5,
+  "stdout": "",
+  "stderr": "[resolve_topology] 해소 불가 — 4자일치 판정자가 판정하지 못했다(rc=0): null\n"
+ },
+ {
+  "id": "007-red",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNDY0MTQ5NGMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDJjMjAyMjcyNjU2MTczNmY2ZTczMjIzYTIwNWIyMjZmNmU2NTIyMmMyMDIyNzQ3NzZmMjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogNX0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNDY0MTQ5NGMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDJjMjAyMjcyNjU2MTczNmY2ZTczMjIzYTIwNWIyMjZmNmU2NTIyMmMyMDIyNzQ3NzZmMjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogNX0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 5,
+  "stdout": "",
+  "stderr": "[resolve_topology] 해소 불가 — 4자일치 RED — one / two (자동 교정하지 않는다 · 체크아웃 전환인지 선언 수정인지는 사람이 정한다 · 급하면 --topology 명시)\n"
+ },
+ {
+  "id": "008-red-no-reasons",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNDY0MTQ5NGMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogMH0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNDY0MTQ5NGMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogMH0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 5,
+  "stdout": "",
+  "stderr": "[resolve_topology] 해소 불가 — 4자일치 RED — 사유 없음 (자동 교정하지 않는다 · 체크아웃 전환인지 선언 수정인지는 사람이 정한다 · 급하면 --topology 명시)\n"
+ },
+ {
+  "id": "009-red-string-reasons",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNDY0MTQ5NGMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDJjMjAyMjcyNjU2MTczNmY2ZTczMjIzYTIwMjI2MTYyMjI3ZCIsICJzdGRlcnJfaGV4IjogIiIsICJyYyI6IDB9"
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNDY0MTQ5NGMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDJjMjAyMjcyNjU2MTczNmY2ZTczMjIzYTIwMjI2MTYyMjI3ZCIsICJzdGRlcnJfaGV4IjogIiIsICJyYyI6IDB9"
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 5,
+  "stdout": "",
+  "stderr": "[resolve_topology] 해소 불가 — 4자일치 RED — a / b (자동 교정하지 않는다 · 체크아웃 전환인지 선언 수정인지는 사람이 정한다 · 급하면 --topology 명시)\n"
+ },
+ {
+  "id": "010-red-bad-reasons",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNDY0MTQ5NGMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDJjMjAyMjcyNjU2MTczNmY2ZTczMjIzYTIwNWIzMTVkN2QiLCAic3RkZXJyX2hleCI6ICIiLCAicmMiOiAwfQ=="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNDY0MTQ5NGMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDJjMjAyMjcyNjU2MTczNmY2ZTczMjIzYTIwNWIzMTVkN2QiLCAic3RkZXJyX2hleCI6ICIiLCAicmMiOiAwfQ=="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "TypeError: sequence item 0: expected str instance, int found"
+ },
+ {
+  "id": "011-topology-empty",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogMH0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogMH0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 5,
+  "stdout": "",
+  "stderr": "[resolve_topology] 해소 불가 — 4자일치 RED — 사유 없음 (자동 교정하지 않는다 · 체크아웃 전환인지 선언 수정인지는 사람이 정한다 · 급하면 --topology 명시)\n"
+ },
+ {
+  "id": "012-topology-true",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjA3NDcyNzU2NTJjMjAyMjZjNjU2NzczMjIzYTIwN2IyMjZkNjE2ZTY5NjY2NTczNzQyMjNhMjA3YjIyNzM3NDYxNzQ3NTczMjIzYTIwMjI2ZjZiMjIyYzIwMjI3MDYxNzQ2ODIyM2EyMDIyNmY3NTc0NzA3NTc0MmY3MzY5NmU2NzZjNjUyZjZkNjE2ZTY5NjY2NTczNzQyZTc5NjE2ZDZjMjI3ZDdkMmMyMDIyNmM2NTY3NzM1ZjZhNzU2NDY3NjU2NDIyM2EyMDViMjI2ZDYxNmU2OTY2NjU3Mzc0MjIyYzIwMjI2MzY4NjU2MzZiNmY3NTc0MjIyYzIwMjI3Mzc0NzI2MTc0NjU2Nzc5MjIyYzIwMjI3MjZmNmM2NTIyNWQ3ZCIsICJzdGRlcnJfaGV4IjogIiIsICJyYyI6IDB9"
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjA3NDcyNzU2NTJjMjAyMjZjNjU2NzczMjIzYTIwN2IyMjZkNjE2ZTY5NjY2NTczNzQyMjNhMjA3YjIyNzM3NDYxNzQ3NTczMjIzYTIwMjI2ZjZiMjIyYzIwMjI3MDYxNzQ2ODIyM2EyMDIyNmY3NTc0NzA3NTc0MmY3MzY5NmU2NzZjNjUyZjZkNjE2ZTY5NjY2NTczNzQyZTc5NjE2ZDZjMjI3ZDdkMmMyMDIyNmM2NTY3NzM1ZjZhNzU2NDY3NjU2NDIyM2EyMDViMjI2ZDYxNmU2OTY2NjU3Mzc0MjIyYzIwMjI2MzY4NjU2MzZiNmY3NTc0MjIyYzIwMjI3Mzc0NzI2MTc0NjU2Nzc5MjIyYzIwMjI3MjZmNmM2NTIyNWQ3ZCIsICJzdGRlcnJfaGV4IjogIiIsICJyYyI6IDB9"
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "True\n",
+  "stderr": "[resolve_topology] topology=True ← topology_parity(4자일치 PASS · 판정 다리 manifest,checkout,strategy,role · manifest=output/single/manifest.yaml)\n"
+ },
+ {
+  "id": "013-manifest-missing",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjdkMmMyMDIyNmM2NTY3NzM1ZjZhNzU2NDY3NjU2NDIyM2EyMDViMjI2ZDYxNmU2OTY2NjU3Mzc0MjIyYzIwMjI2MzY4NjU2MzZiNmY3NTc0MjIyYzIwMjI3Mzc0NzI2MTc0NjU2Nzc5MjIyYzIwMjI3MjZmNmM2NTIyNWQ3ZCIsICJzdGRlcnJfaGV4IjogIiIsICJyYyI6IDB9"
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjdkMmMyMDIyNmM2NTY3NzM1ZjZhNzU2NDY3NjU2NDIyM2EyMDViMjI2ZDYxNmU2OTY2NjU3Mzc0MjIyYzIwMjI2MzY4NjU2MzZiNmY3NTc0MjIyYzIwMjI3Mzc0NzI2MTc0NjU2Nzc5MjIyYzIwMjI3MjZmNmM2NTIyNWQ3ZCIsICJzdGRlcnJfaGV4IjogIiIsICJyYyI6IDB9"
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 3,
+  "stdout": "",
+  "stderr": "[resolve_topology] 미테라포밍 — 체크아웃 통로 output/single 의 manifest 다리가 None 다 — 브랜치 필터만으로는 토폴로지를 고르지 않는다(사실 권위 부재). terraforming_node 로 채우거나 --topology 를 명시하라\n"
+ },
+ {
+  "id": "014-manifest-stale",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjczNzQ2MTZjNjUyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogMH0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjczNzQ2MTZjNjUyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogMH0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 3,
+  "stdout": "",
+  "stderr": "[resolve_topology] 미테라포밍 — 체크아웃 통로 output/single 의 manifest 다리가 'stale' 다 — 브랜치 필터만으로는 토폴로지를 고르지 않는다(사실 권위 부재). terraforming_node 로 채우거나 --topology 를 명시하라\n"
+ },
+ {
+  "id": "015-manifest-list",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDViMzE1ZDdkMmMyMDIyNmM2NTY3NzM1ZjZhNzU2NDY3NjU2NDIyM2EyMDViMjI2ZDYxNmU2OTY2NjU3Mzc0MjIyYzIwMjI2MzY4NjU2MzZiNmY3NTc0MjIyYzIwMjI3Mzc0NzI2MTc0NjU2Nzc5MjIyYzIwMjI3MjZmNmM2NTIyNWQ3ZCIsICJzdGRlcnJfaGV4IjogIiIsICJyYyI6IDB9"
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDViMzE1ZDdkMmMyMDIyNmM2NTY3NzM1ZjZhNzU2NDY3NjU2NDIyM2EyMDViMjI2ZDYxNmU2OTY2NjU3Mzc0MjIyYzIwMjI2MzY4NjU2MzZiNmY3NTc0MjIyYzIwMjI3Mzc0NzI2MTc0NjU2Nzc5MjIyYzIwMjI3MjZmNmM2NTIyNWQ3ZCIsICJzdGRlcnJfaGV4IjogIiIsICJyYyI6IDB9"
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "AttributeError: 'list' object has no attribute 'get'"
+ },
+ {
+  "id": "016-legs-list",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA1YjMxNWQyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogMH0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA1YjMxNWQyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogMH0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "AttributeError: 'list' object has no attribute 'get'"
+ },
+ {
+  "id": "017-judged-string",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwMjI2MTYyMjI3ZCIsICJzdGRlcnJfaGV4IjogIiIsICJyYyI6IDB9"
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwMjI2MTYyMjI3ZCIsICJzdGRlcnJfaGV4IjogIiIsICJyYyI6IDB9"
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "single\n",
+  "stderr": "[resolve_topology] topology=single ← topology_parity(4자일치 PASS · 판정 다리 a,b · manifest=output/single/manifest.yaml)\n"
+ },
+ {
+  "id": "018-judged-bad-list",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIzMTVkN2QiLCAic3RkZXJyX2hleCI6ICIiLCAicmMiOiAwfQ=="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIzMTVkN2QiLCAic3RkZXJyX2hleCI6ICIiLCAicmMiOiAwfQ=="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "TypeError: sequence item 0: expected str instance, int found"
+ },
+ {
+  "id": "019-owner-error-tail",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjZlNzU2YzZjIiwgInN0ZGVycl9oZXgiOiAiZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljMGEiLCAicmMiOiAyfQ=="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjZlNzU2YzZjIiwgInN0ZGVycl9oZXgiOiAiZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljZWQ5NTljMGEiLCAicmMiOiAyfQ=="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 5,
+  "stdout": "",
+  "stderr": "[resolve_topology] 해소 불가 — 4자일치 판정자가 판정하지 못했다(rc=2): 한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한한\n"
+ },
+ {
+  "id": "020-bad-json",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogMH0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiIiwgInN0ZGVycl9oZXgiOiAiIiwgInJjIjogMH0="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 5,
+  "stdout": "",
+  "stderr": "[resolve_topology] 해소 불가 — 4자일치 판정자가 판정하지 못했다(rc=0): {\n"
+ },
+ {
+  "id": "021-invalid-stdout",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjViZmY1ZCIsICJzdGRlcnJfaGV4IjogIiIsICJyYyI6IDE3fQ=="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjViZmY1ZCIsICJzdGRlcnJfaGV4IjogIiIsICJyYyI6IDE3fQ=="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 1: invalid start byte"
+ },
+ {
+  "id": "022-invalid-stderr",
+  "group": "resolve",
+  "argv": [
+   "--repo",
+   "@ROOT@"
+  ],
+  "before": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiZmUiLCAicmMiOiAwfQ=="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "after": {
+   ".claude": {
+    "kind": "directory"
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "owner-calls.json": {
+    "kind": "file",
+    "bytes_base64": "eyJhcmd2IjogWyJldmFsdWF0ZSIsICItLXJlcG8iLCAiQFJPT1RAIiwgIi0tZm9ybWF0IiwgImpzb24iXSwgImV4YWN0X2FyZ3YiOiB0cnVlfQ=="
+   },
+   "owner-response.json": {
+    "kind": "file",
+    "bytes_base64": "eyJzdGRvdXRfaGV4IjogIjdiMjI3NjY1NzI2NDY5NjM3NDIyM2EyMDIyNTA0MTUzNTMyMjJjMjAyMjc0NmY3MDZmNmM2ZjY3NzkyMjNhMjAyMjczNjk2ZTY3NmM2NTIyMmMyMDIyNmM2NTY3NzMyMjNhMjA3YjIyNmQ2MTZlNjk2NjY1NzM3NDIyM2EyMDdiMjI3Mzc0NjE3NDc1NzMyMjNhMjAyMjZmNmIyMjJjMjAyMjcwNjE3NDY4MjIzYTIwMjI2Zjc1NzQ3MDc1NzQyZjczNjk2ZTY3NmM2NTJmNmQ2MTZlNjk2NjY1NzM3NDJlNzk2MTZkNmMyMjdkN2QyYzIwMjI2YzY1Njc3MzVmNmE3NTY0Njc2NTY0MjIzYTIwNWIyMjZkNjE2ZTY5NjY2NTczNzQyMjJjMjAyMjYzNjg2NTYzNmI2Zjc1NzQyMjJjMjAyMjczNzQ3MjYxNzQ2NTY3NzkyMjJjMjAyMjcyNmY2YzY1MjI1ZDdkIiwgInN0ZGVycl9oZXgiOiAiZmUiLCAicmMiOiAwfQ=="
+   },
+   ".claude/policies": {
+    "kind": "directory"
+   },
+   "output/single": {
+    "kind": "directory"
+   },
+   ".claude/policies/runtime": {
+    "kind": "directory"
+   },
+   "output/single/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
+   },
+   ".claude/policies/runtime/topology_parity.py": {
+    "kind": "file",
+    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
+   }
+  },
+  "exit_code": 1,
+  "stdout": "",
+  "stderr_pretrace": "",
+  "stderr_last_line": "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xfe in position 0: invalid start byte"
+ },
+ {
+  "id": "no-args",
+  "group": "cli",
+  "argv": [],
+  "before": {},
+  "after": {},
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[resolve_topology] ERROR --repo 가 필요하다\n"
+ },
+ {
+  "id": "help",
+  "group": "cli",
+  "argv": [
+   "--help"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "usage: resolve_topology.py [-h] [--repo REPO] [--self-test]\n\n벤치 스크립트 공용 토폴로지 해소기(브랜치 이름 추론 ✗)\n\noptions:\n  -h, --help   show this help message and exit\n  --repo REPO\n  --self-test\n",
+  "stderr": ""
+ },
+ {
+  "id": "short-help",
+  "group": "cli",
+  "argv": [
+   "-h"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout": "usage: resolve_topology.py [-h] [--repo REPO] [--self-test]\n\n벤치 스크립트 공용 토폴로지 해소기(브랜치 이름 추론 ✗)\n\noptions:\n  -h, --help   show this help message and exit\n  --repo REPO\n  --self-test\n",
+  "stderr": ""
+ },
+ {
+  "id": "unknown",
+  "group": "cli",
+  "argv": [
+   "--unknown"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: resolve_topology.py [-h] [--repo REPO] [--self-test]\nresolve_topology.py: error: unrecognized arguments: --unknown\n"
+ },
+ {
+  "id": "missing-repo",
+  "group": "cli",
+  "argv": [
+   "--repo"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: resolve_topology.py [-h] [--repo REPO] [--self-test]\nresolve_topology.py: error: argument --repo: expected one argument\n"
+ },
+ {
+  "id": "positional",
+  "group": "cli",
+  "argv": [
+   "x"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: resolve_topology.py [-h] [--repo REPO] [--self-test]\nresolve_topology.py: error: unrecognized arguments: x\n"
+ },
+ {
+  "id": "empty-repo",
+  "group": "cli",
+  "argv": [
+   "--repo",
+   ""
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[resolve_topology] ERROR --repo 가 필요하다\n"
+ },
+ {
+  "id": "abbrev-empty",
+  "group": "cli",
+  "argv": [
+   "--rep",
+   ""
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[resolve_topology] ERROR --repo 가 필요하다\n"
+ },
+ {
+  "id": "extra-after-repo",
+  "group": "cli",
+  "argv": [
+   "--repo",
+   "/nonexistent",
+   "x"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: resolve_topology.py [-h] [--repo REPO] [--self-test]\nresolve_topology.py: error: unrecognized arguments: x\n"
+ },
+ {
+  "id": "selftest",
+  "group": "cli",
+  "argv": [
+   "--self-test"
+  ],
+  "before": {},
+  "after": {},
+  "exit_code": 0,
+  "stdout_file": "selftest_original.stdout",
+  "stderr": ""
+ }
+]

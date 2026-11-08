@@ -1,0 +1,20 @@
+[
+  {
+    "actor": "original",
+    "scheme": "http",
+    "path": "/check",
+    "accept": "application/json"
+  },
+  {
+    "actor": "original",
+    "scheme": "https",
+    "path": "/check",
+    "accept": "application/json"
+  },
+  {
+    "actor": "candidate",
+    "scheme": "http",
+    "path": "/check",
+    "accept": "application/json"
+  }
+]

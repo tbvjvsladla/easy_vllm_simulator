@@ -1,0 +1,4 @@
+# Saved source fixtures, not node-local candidate/parse outputs.
+!/checks/data/cli_input/candidates.json
+!/checks/data/cli_input/parsed.json
+!/checks/data/cr_input/parsed.json

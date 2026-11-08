@@ -1,0 +1,25 @@
+{
+  "id": "api-102",
+  "kind": "value",
+  "value": "@CASE@/logs/nested/feedback.jsonl",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    [
+      [
+        "model_id",
+        "M"
+      ],
+      [
+        "timestamp",
+        "fixed"
+      ],
+      [
+        "timestamp",
+        "last"
+      ]
+    ],
+    "@CASE@/logs/nested/feedback.jsonl"
+  ],
+  "kwargs_after": {}
+}

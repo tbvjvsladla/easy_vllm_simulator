@@ -1,0 +1,575 @@
+[
+ {
+  "id": "normal",
+  "argv": [
+   "--serve-rc",
+   "0",
+   "--measure-rc",
+   "0",
+   "--started-utc",
+   "2026-09-04T10:00:00Z",
+   "--ended-utc",
+   "2026-09-04T10:30:00Z"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"cell_outcome\": \"measured\",\n  \"void_reason\": null,\n  \"void_reason_source\": null,\n  \"kill_events\": [],\n  \"note\": \"\uce21\uc815 \uc131\ub9bd.\",\n  \"lite_verdict\": null,\n  \"lite_verdict_source\": null,\n  \"lite_raw_status\": \"absent\",\n  \"events_scanned\": [],\n  \"tolerance_s\": 0,\n  \"downgrade_correlation\": \"not_scanned\",\n  \"events_scan\": {\n    \"plan\": {\n      \"source\": \"explicit(\ud638\ucd9c\uc790\uac00 \ub300\uc0c1 events \ub97c \uc120\uc5b8\ud588\ub2e4 \u2014 \ub178\ub4dc \uacc4\ud68d \uc5c6\uc74c)\"\n    },\n    \"nodes\": [],\n    \"cross_node_tolerance_s\": null,\n    \"cross_node_tolerance_source\": null\n  }\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "not-measured",
+  "argv": [
+   "--serve-rc",
+   "0",
+   "--measure-rc",
+   "absent",
+   "--started-utc",
+   "2026-09-04T10:00:00Z",
+   "--ended-utc",
+   "2026-09-04T10:30:00Z"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"cell_outcome\": \"not_measured\",\n  \"void_reason\": null,\n  \"void_reason_source\": null,\n  \"kill_events\": [],\n  \"note\": \"\uc11c\ube59\uc740 \uc131\ub9bd\ud588\uc73c\ub098 \uce21\uc815 \ub2e8\uacc4\uc5d0 \ub4e4\uc5b4\uac00\uc9c0 \uc54a\uc558\ub2e4(rc \ubd80\uc7ac) \u2014 \uc131\uacf5\uc73c\ub85c \uc9d1\uacc4\ud558\uc9c0 \uc54a\ub294\ub2e4.\",\n  \"lite_verdict\": null,\n  \"lite_verdict_source\": null,\n  \"lite_raw_status\": \"absent\",\n  \"events_scanned\": [],\n  \"tolerance_s\": 0,\n  \"downgrade_correlation\": \"not_scanned\",\n  \"events_scan\": {\n    \"plan\": {\n      \"source\": \"explicit(\ud638\ucd9c\uc790\uac00 \ub300\uc0c1 events \ub97c \uc120\uc5b8\ud588\ub2e4 \u2014 \ub178\ub4dc \uacc4\ud68d \uc5c6\uc74c)\"\n    },\n    \"nodes\": [],\n    \"cross_node_tolerance_s\": null,\n    \"cross_node_tolerance_source\": null\n  }\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "failed-kill",
+  "argv": [
+   "--serve-rc",
+   "3",
+   "--measure-rc",
+   "4",
+   "--started-utc",
+   "2026-09-04T10:00:00Z",
+   "--ended-utc",
+   "2026-09-04T10:30:00Z",
+   "--events",
+   "events.jsonl"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"cell_outcome\": \"serve_failed\",\n  \"void_reason\": \"watchdog_kill_ack\",\n  \"void_reason_source\": \"events(events.jsonl)\",\n  \"kill_events\": [\n    {\n      \"ts\": \"2026-09-04T10:05:00Z\",\n      \"kind\": \"watchdog_kill_ack\",\n      \"source\": \"mem_watchdog_eta\",\n      \"mode\": \"armed\",\n      \"targets\": \"original-fixture\",\n      \"node\": \"explicit\"\n    }\n  ],\n  \"note\": \"\uc11c\ube59\uc774 \uc131\ub9bd\ud558\uc9c0 \uc54a\uc558\ub2e4(rc=3). \uad6c\uac04 \uc548\uc5d0\uc11c watchdog_kill_ack \uac00 2026-09-04T10:05:00Z \uc5d0 **\uc9d1\ud589**\ub410\ub2e4 \u2014 \uc774 \uc8fd\uc74c\uc740 \ubaa8\ub378\u00b7\ube4c\ub4dc \ud3c9\uba74\uc758 \uad6c\ub3d9\ubd88\uac00\uac00 \uc544\ub2c8\ub77c \ud638\uc2a4\ud2b8 \ud3c9\uba74\uc758 \uc0ac\uc0b4\uc774\ub2e4.\",\n  \"lite_verdict\": null,\n  \"lite_verdict_source\": null,\n  \"lite_raw_status\": \"absent\",\n  \"events_scanned\": [\n    \"events.jsonl\"\n  ],\n  \"tolerance_s\": 0,\n  \"downgrade_correlation\": \"matched\",\n  \"events_scan\": {\n    \"plan\": {\n      \"source\": \"explicit(\ud638\ucd9c\uc790\uac00 \ub300\uc0c1 events \ub97c \uc120\uc5b8\ud588\ub2e4 \u2014 \ub178\ub4dc \uacc4\ud68d \uc5c6\uc74c)\"\n    },\n    \"nodes\": [\n      {\n        \"node\": \"explicit\",\n        \"remote\": false,\n        \"files\": [\n          \"events.jsonl\"\n        ],\n        \"tolerance_s\": 0,\n        \"tolerance_source\": \"same-node-clock(--tolerance-s)\",\n        \"status\": \"matched\"\n      }\n    ],\n    \"cross_node_tolerance_s\": null,\n    \"cross_node_tolerance_source\": null\n  }\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "measure-kill",
+  "argv": [
+   "--serve-rc",
+   "0",
+   "--measure-rc",
+   "4",
+   "--started-utc",
+   "2026-09-04T10:00:00Z",
+   "--ended-utc",
+   "2026-09-04T10:30:00Z",
+   "--events",
+   "events.jsonl"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"cell_outcome\": \"measurement_void\",\n  \"void_reason\": \"watchdog_kill_ack\",\n  \"void_reason_source\": \"events(events.jsonl)\",\n  \"kill_events\": [\n    {\n      \"ts\": \"2026-09-04T10:05:00Z\",\n      \"kind\": \"watchdog_kill_ack\",\n      \"source\": \"mem_watchdog_eta\",\n      \"mode\": \"armed\",\n      \"targets\": \"original-fixture\",\n      \"node\": \"explicit\"\n    }\n  ],\n  \"note\": \"\uc11c\ube59\uc740 \uc131\ub9bd\ud588\uc73c\ub098 watchdog_kill_ack \uac00 2026-09-04T10:05:00Z \uc5d0 \uc9d1\ud589\ub418\uc5b4 \uce21\uc815\uc774 \ud30c\uad34\ub410\ub2e4.\",\n  \"lite_verdict\": null,\n  \"lite_verdict_source\": null,\n  \"lite_raw_status\": \"absent\",\n  \"events_scanned\": [\n    \"events.jsonl\"\n  ],\n  \"tolerance_s\": 0,\n  \"downgrade_correlation\": \"matched\",\n  \"events_scan\": {\n    \"plan\": {\n      \"source\": \"explicit(\ud638\ucd9c\uc790\uac00 \ub300\uc0c1 events \ub97c \uc120\uc5b8\ud588\ub2e4 \u2014 \ub178\ub4dc \uacc4\ud68d \uc5c6\uc74c)\"\n    },\n    \"nodes\": [\n      {\n        \"node\": \"explicit\",\n        \"remote\": false,\n        \"files\": [\n          \"events.jsonl\"\n        ],\n        \"tolerance_s\": 0,\n        \"tolerance_source\": \"same-node-clock(--tolerance-s)\",\n        \"status\": \"matched\"\n      }\n    ],\n    \"cross_node_tolerance_s\": null,\n    \"cross_node_tolerance_source\": null\n  }\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "bad-date",
+  "argv": [
+   "--serve-rc",
+   "0",
+   "--measure-rc",
+   "0",
+   "--started-utc",
+   "bad",
+   "--ended-utc",
+   "2026-09-04T10:30:00Z"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[classify_cell] ERROR --started-utc \ub97c \uc2dc\uac01\uc73c\ub85c \uc77d\uc744 \uc218 \uc5c6\ub2e4('bad'): Invalid isoformat string: 'bad'\n"
+ },
+ {
+  "id": "reversed",
+  "argv": [
+   "--serve-rc",
+   "0",
+   "--measure-rc",
+   "0",
+   "--started-utc",
+   "2026-09-05T10:00:00Z",
+   "--ended-utc",
+   "2026-09-04T10:30:00Z"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"cell_outcome\": \"measured\",\n  \"void_reason\": null,\n  \"void_reason_source\": null,\n  \"kill_events\": [],\n  \"note\": \"\uce21\uc815 \uc131\ub9bd.\",\n  \"lite_verdict\": null,\n  \"lite_verdict_source\": null,\n  \"lite_raw_status\": \"absent\",\n  \"events_scanned\": [],\n  \"tolerance_s\": 0,\n  \"downgrade_correlation\": \"not_scanned\",\n  \"events_scan\": {\n    \"plan\": {\n      \"source\": \"explicit(\ud638\ucd9c\uc790\uac00 \ub300\uc0c1 events \ub97c \uc120\uc5b8\ud588\ub2e4 \u2014 \ub178\ub4dc \uacc4\ud68d \uc5c6\uc74c)\"\n    },\n    \"nodes\": [],\n    \"cross_node_tolerance_s\": null,\n    \"cross_node_tolerance_source\": null\n  }\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "offset",
+  "argv": [
+   "--serve-rc",
+   "0",
+   "--measure-rc",
+   "0",
+   "--started-utc",
+   "2026-09-04T19:00:00+09:00",
+   "--ended-utc",
+   "2026-09-04T10:30:00Z"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"cell_outcome\": \"measured\",\n  \"void_reason\": null,\n  \"void_reason_source\": null,\n  \"kill_events\": [],\n  \"note\": \"\uce21\uc815 \uc131\ub9bd.\",\n  \"lite_verdict\": null,\n  \"lite_verdict_source\": null,\n  \"lite_raw_status\": \"absent\",\n  \"events_scanned\": [],\n  \"tolerance_s\": 0,\n  \"downgrade_correlation\": \"not_scanned\",\n  \"events_scan\": {\n    \"plan\": {\n      \"source\": \"explicit(\ud638\ucd9c\uc790\uac00 \ub300\uc0c1 events \ub97c \uc120\uc5b8\ud588\ub2e4 \u2014 \ub178\ub4dc \uacc4\ud68d \uc5c6\uc74c)\"\n    },\n    \"nodes\": [],\n    \"cross_node_tolerance_s\": null,\n    \"cross_node_tolerance_source\": null\n  }\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "fraction",
+  "argv": [
+   "--serve-rc",
+   "0",
+   "--measure-rc",
+   "0",
+   "--started-utc",
+   "2026-09-04T10:00:00.123456Z",
+   "--ended-utc",
+   "2026-09-04T10:30:00Z"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"cell_outcome\": \"measured\",\n  \"void_reason\": null,\n  \"void_reason_source\": null,\n  \"kill_events\": [],\n  \"note\": \"\uce21\uc815 \uc131\ub9bd.\",\n  \"lite_verdict\": null,\n  \"lite_verdict_source\": null,\n  \"lite_raw_status\": \"absent\",\n  \"events_scanned\": [],\n  \"tolerance_s\": 0,\n  \"downgrade_correlation\": \"not_scanned\",\n  \"events_scan\": {\n    \"plan\": {\n      \"source\": \"explicit(\ud638\ucd9c\uc790\uac00 \ub300\uc0c1 events \ub97c \uc120\uc5b8\ud588\ub2e4 \u2014 \ub178\ub4dc \uacc4\ud68d \uc5c6\uc74c)\"\n    },\n    \"nodes\": [],\n    \"cross_node_tolerance_s\": null,\n    \"cross_node_tolerance_source\": null\n  }\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "cross-missing-source",
+  "argv": [
+   "--serve-rc",
+   "0",
+   "--measure-rc",
+   "0",
+   "--started-utc",
+   "2026-09-04T10:00:00Z",
+   "--ended-utc",
+   "2026-09-04T10:30:00Z",
+   "--cross-node-tolerance-s",
+   "1"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[classify_cell] ERROR --cross-node-tolerance-s \uc640 --cross-node-tolerance-source \ub294 \ud568\uaed8 \uc900\ub2e4 \u2014 \ub178\ub4dc\ub97c \ub118\ub294 \ud5c8\uc6a9\uc624\ucc28\ub294 \ucd9c\ucc98 \uc5c6\ub294 \uc22b\uc790\ub85c \ub450\uc9c0 \uc54a\ub294\ub2e4\n"
+ },
+ {
+  "id": "cross-negative",
+  "argv": [
+   "--serve-rc",
+   "0",
+   "--measure-rc",
+   "0",
+   "--started-utc",
+   "2026-09-04T10:00:00Z",
+   "--ended-utc",
+   "2026-09-04T10:30:00Z",
+   "--cross-node-tolerance-s",
+   "-1",
+   "--cross-node-tolerance-source",
+   "fixture"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[classify_cell] ERROR --cross-node-tolerance-s \ub294 0 \uc774\uc0c1\uc774\ub2e4\n"
+ },
+ {
+  "id": "events-missing",
+  "argv": [
+   "--serve-rc",
+   "0",
+   "--measure-rc",
+   "0",
+   "--started-utc",
+   "2026-09-04T10:00:00Z",
+   "--ended-utc",
+   "2026-09-04T10:30:00Z",
+   "--events",
+   "absent.jsonl"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"cell_outcome\": \"measured\",\n  \"void_reason\": null,\n  \"void_reason_source\": null,\n  \"kill_events\": [],\n  \"note\": \"\uce21\uc815 \uc131\ub9bd.\",\n  \"lite_verdict\": null,\n  \"lite_verdict_source\": null,\n  \"lite_raw_status\": \"absent\",\n  \"events_scanned\": [],\n  \"tolerance_s\": 0,\n  \"downgrade_correlation\": \"not_scanned\",\n  \"events_scan\": {\n    \"plan\": {\n      \"source\": \"explicit(\ud638\ucd9c\uc790\uac00 \ub300\uc0c1 events \ub97c \uc120\uc5b8\ud588\ub2e4 \u2014 \ub178\ub4dc \uacc4\ud68d \uc5c6\uc74c)\"\n    },\n    \"nodes\": [\n      {\n        \"node\": \"explicit\",\n        \"remote\": false,\n        \"files\": [],\n        \"tolerance_s\": 0,\n        \"tolerance_source\": \"same-node-clock(--tolerance-s)\",\n        \"status\": \"not_scanned\",\n        \"detail\": \"\ube14\ub799\ubc15\uc2a4 events \ud30c\uc77c 0\"\n      }\n    ],\n    \"cross_node_tolerance_s\": null,\n    \"cross_node_tolerance_source\": null\n  }\n}\n",
+  "stderr": "[classify_cell] WARN events \ud310\ub3c5 \uc2e4\ud328(absent.jsonl): [Errno 2] No such file or directory: 'absent.jsonl'\n"
+ },
+ {
+  "id": "measure-missing",
+  "argv": [
+   "--serve-rc",
+   "0",
+   "--started-utc",
+   "2026-09-04T10:00:00Z",
+   "--ended-utc",
+   "2026-09-04T10:30:00Z"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[classify_cell] ERROR --measure-rc \ubbf8\uc9c0\uc815 \u2014 \ubd80\uc7ac\ub294 `absent` \ub85c **\uba85\uc2dc**\ud558\ub77c(\ube60\ub728\ub9bc\uacfc \ubd80\uc7ac\ub97c \uad6c\ubd84\ud55c\ub2e4)\n"
+ },
+ {
+  "id": "required",
+  "argv": [],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[classify_cell] ERROR --measure-rc \ubbf8\uc9c0\uc815 \u2014 \ubd80\uc7ac\ub294 `absent` \ub85c **\uba85\uc2dc**\ud558\ub77c(\ube60\ub728\ub9bc\uacfc \ubd80\uc7ac\ub97c \uad6c\ubd84\ud55c\ub2e4)\n"
+ },
+ {
+  "id": "help",
+  "argv": [
+   "--help"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "usage: classify_cell.py [-h] [--serve-rc SERVE_RC] [--measure-rc MEASURE_RC]\n                        [--started-utc STARTED_UTC] [--ended-utc ENDED_UTC]\n                        [--events EVENTS]\n                        [--events-from-repo EVENTS_FROM_REPO]\n                        [--topology {single,multi}] [--manifest MANIFEST]\n                        [--tolerance-s TOLERANCE_S]\n                        [--cross-node-tolerance-s CROSS_NODE_TOLERANCE_S]\n                        [--cross-node-tolerance-source CROSS_NODE_TOLERANCE_SOURCE]\n                        [--sweep-index SWEEP_INDEX] [--write-bench-mode]\n                        [--lite-raw LITE_RAW] [--json] [--self-test]\n\n\uad11\uc758\uc758 \ud0d0\uc0c9 \uc140 \uc885\uacb0 3\ubd84\ub958 \u00b7 full bench bench_mode \ud655\uc815(\uacb0\uc815\ub860)\n\noptions:\n  -h, --help            show this help message and exit\n  --serve-rc SERVE_RC\n  --measure-rc MEASURE_RC\n                        \uce21\uc815 \uc885\ub8cc\ucf54\ub4dc. **\uce21\uc815\ud558\uc9c0 \uc54a\uc558\uc73c\uba74 `absent`** \ub97c \ub118\uaca8\ub77c(0 \uacfc \ub2e4\ub978 \uc0ac\uc2e4\uc774\ub2e4).\n  --started-utc STARTED_UTC\n  --ended-utc ENDED_UTC\n  --events EVENTS       \ub178\ub4dc \ube14\ub799\ubc15\uc2a4 events JSONL(\ubc18\ubcf5 \uac00\ub2a5) \u2014 \ud638\ucd9c\uc790\uac00 \uc120\uc5b8\ud55c \uac19\uc740 \uc2dc\uacc4 \ubb36\uc74c(\ub178\ub4dc \uacc4\ud68d\n                        \ubc16)\n  --events-from-repo EVENTS_FROM_REPO\n                        \uc800\uc7a5\uc18c\uc5d0\uc11c **\ub300\uc870 \ub300\uc0c1 \ub178\ub4dc**\uc758 events \ub97c \ucc3e\ub294\ub2e4(\uc774 \ub178\ub4dc\n                        docs/logs/<node>/events \u00b7 \ub2e4\ub978 \ub178\ub4dc\n                        sync_staging/sub_docs/logs/<node>/events). \ub178\ub4dc \uacc4\ud68d:\n                        bench-mode = sweep_index meta(topology \u00b7\n                        measured_node) \u00b7 \uc140 \uc885\uacb0 \ubaa8\ub4dc = --topology(\ud544\uc218) + manifest \u00b7\n                        \uc774 \ub178\ub4dc = node_identity.sh --resolve\n  --topology {single,multi}\n                        \uc140 \uc885\uacb0 \ubaa8\ub4dc\uc5d0\uc11c --events-from-repo \uc758 \ub178\ub4dc \uacc4\ud68d \ud1a0\ud3f4\ub85c\uc9c0(bench-mode \ub294\n                        sweep_index meta \uac00 \ub9d0\ud55c\ub2e4)\n  --manifest MANIFEST   \ub178\ub4dc \uacc4\ud68d\uc774 \uc77d\uc744 manifest(\uc0dd\ub7b5 \uc2dc\n                        <repo>/output/<topology>/manifest.yaml)\n  --tolerance-s TOLERANCE_S\n                        \uac19\uc740 \ub178\ub4dc \uc2dc\uac01 \ub300\uc870 \ud5c8\uc6a9\uc624\ucc28(\uae30\ubcf8 0 \u2014 \uac19\uc740 \ud638\uc2a4\ud2b8 \uac19\uc740 \uc2dc\uacc4\ub77c \uc2a4\ud050\uac00 \uc5c6\ub2e4)\n  --cross-node-tolerance-s CROSS_NODE_TOLERANCE_S\n                        \ub2e4\ub978 \ub178\ub4dc events \uc758 \uc2dc\uac01 \ub300\uc870 \ud5c8\uc6a9\uc624\ucc28(\ucd08 \u00b7 \uc120\uc5b8\uc73c\ub85c\ub9cc \u00b7 --cross-node-\n                        tolerance-source \ud544\uc218). \ubbf8\uc120\uc5b8\uc774\uba74 \uc6d0\uaca9 \ucc3d\uc744 \ub113\ud788\uc9c0 \uc54a\uace0 \ubbf8\uc2a4\ub97c \uacb0\ub860\ub0b4\uc9c0\n                        \uc54a\ub294\ub2e4(unavailable)\n  --cross-node-tolerance-source CROSS_NODE_TOLERANCE_SOURCE\n                        --cross-node-tolerance-s \uc758 \ucd9c\ucc98(\uc608: \ub450 \ub178\ub4dc \uc2dc\uacc4 \ub3d9\uae30 \uc624\ucc28 \uc2e4\uce21\n                        \uba85\ub839\u00b7\uc2dc\uac01)\n  --sweep-index SWEEP_INDEX\n                        bench-mode \ubaa8\ub4dc: sweep_bench \uc0b0\ucd9c sweep_index.json \uc758\n                        bench_mode(full|lite)\u00b7downgrade_reason \uc744 \ud655\uc815\ud55c\ub2e4(\uc140 \uc885\uacb0 \uc778\uc790\uc640\n                        \ud568\uaed8 \uc4f0\uc9c0 \uc54a\ub294\ub2e4)\n  --write-bench-mode    bench_mode \ud310\uc815 \uae30\ub85d\uc744 sweep_index \uc606 `bench_mode.json` \uc5d0\n                        \uc6d0\uc790\uc801\uc73c\ub85c \uc4f4\ub2e4(\uc790\ub9ac \uc774\ub984\uc758 \uc18c\uc720\ub294 \uc774 \ud30c\uc77c \u00b7 --sweep-index \ud544\uc694)\n  --lite-raw LITE_RAW   \uc140 \uc885\uacb0 \ubaa8\ub4dc: \uc774\ubc88 \uc140 \uc2a4\uc715\uc758 lite raw(lite_raw_<config>.json) \u2014\n                        \uce21\uc815 \uc2e4\ud328 \uc0ac\uc720\ub97c lite \ud310\uc815\uc73c\ub85c \uc62e\uae34\ub2e4(\uad6c\uac04 \ubc16 raw \ub294 \uc77d\uc9c0 \uc54a\ub294\ub2e4)\n  --json\n  --self-test\n",
+  "stderr": ""
+ },
+ {
+  "id": "unknown",
+  "argv": [
+   "--unknown"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "usage: classify_cell.py [-h] [--serve-rc SERVE_RC] [--measure-rc MEASURE_RC]\n                        [--started-utc STARTED_UTC] [--ended-utc ENDED_UTC]\n                        [--events EVENTS]\n                        [--events-from-repo EVENTS_FROM_REPO]\n                        [--topology {single,multi}] [--manifest MANIFEST]\n                        [--tolerance-s TOLERANCE_S]\n                        [--cross-node-tolerance-s CROSS_NODE_TOLERANCE_S]\n                        [--cross-node-tolerance-source CROSS_NODE_TOLERANCE_SOURCE]\n                        [--sweep-index SWEEP_INDEX] [--write-bench-mode]\n                        [--lite-raw LITE_RAW] [--json] [--self-test]\nclassify_cell.py: error: unrecognized arguments: --unknown\n"
+ },
+ {
+  "id": "index-missing",
+  "argv": [
+   "--sweep-index",
+   "missing.json"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[classify_cell] ERROR sweep-index \ud310\ub3c5 \uc2e4\ud328(missing.json): [Errno 2] No such file or directory: 'missing.json'\n"
+ },
+ {
+  "id": "write-no-index",
+  "argv": [
+   "--write-bench-mode"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQiLCAic291cmNlIjogIm1lbV93YXRjaGRvZ19ldGEiLCAidGFyZ2V0cyI6ICJvcmlnaW5hbC1maXh0dXJlIn0K"
+   }
+  },
+  "exit_code": 2,
+  "stdout": "",
+  "stderr": "[classify_cell] ERROR --write-bench-mode \ub294 --sweep-index \uac00 \ud544\uc694\ud558\ub2e4\n"
+ },
+ {
+  "id": "bench-full",
+  "argv": [
+   "--sweep-index",
+   "sweep_index.json"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQifQo="
+   },
+   "sweep_index.json": {
+    "kind": "file",
+    "bytes_base64": "eyJsZXZlbHMiOiBbeyJsZXZlbCI6IDEsICJtZWFzdXJlZCI6IHsicnVucyI6IFt7InJ1biI6IDEsICJtZWFzdXJlbWVudF9vayI6IHRydWUsICJzdGFydGVkX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjAxOjAwWiIsICJlbmRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowMTozMFoiLCAiZ2VuX3RwcyI6IDQxfSwgeyJydW4iOiAyLCAibWVhc3VyZW1lbnRfb2siOiB0cnVlLCAic3RhcnRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowMjowMFoiLCAiZW5kZWRfdXRjIjogIjIwMjYtMDktMDRUMTA6MDI6MzBaIiwgImdlbl90cHMiOiA0Mn0sIHsicnVuIjogMywgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwgInN0YXJ0ZWRfdXRjIjogIjIwMjYtMDktMDRUMTA6MDM6MDBaIiwgImVuZGVkX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjAzOjMwWiIsICJnZW5fdHBzIjogNDN9XX19XSwgInZlcmRpY3RfcG9pbnRfbGV2ZWwiOiAxLCAicmVwZXRpdGlvbiI6IHsicmVxdWVzdGVkIjogMywgInJlcXVlc3RlZF9zb3VyY2UiOiAiZGVjbGFyZWQob3JpZ2luYWwtZml4dHVyZSkiLCAia2luZCI6ICJ3YXJtLXJlcnVuIn0sICJnZW5lcmF0ZWRfdXRjIjogIjIwMjYtMDktMDRUMTE6MDA6MDBaIn0K"
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQifQo="
+   },
+   "sweep_index.json": {
+    "kind": "file",
+    "bytes_base64": "eyJsZXZlbHMiOiBbeyJsZXZlbCI6IDEsICJtZWFzdXJlZCI6IHsicnVucyI6IFt7InJ1biI6IDEsICJtZWFzdXJlbWVudF9vayI6IHRydWUsICJzdGFydGVkX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjAxOjAwWiIsICJlbmRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowMTozMFoiLCAiZ2VuX3RwcyI6IDQxfSwgeyJydW4iOiAyLCAibWVhc3VyZW1lbnRfb2siOiB0cnVlLCAic3RhcnRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowMjowMFoiLCAiZW5kZWRfdXRjIjogIjIwMjYtMDktMDRUMTA6MDI6MzBaIiwgImdlbl90cHMiOiA0Mn0sIHsicnVuIjogMywgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwgInN0YXJ0ZWRfdXRjIjogIjIwMjYtMDktMDRUMTA6MDM6MDBaIiwgImVuZGVkX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjAzOjMwWiIsICJnZW5fdHBzIjogNDN9XX19XSwgInZlcmRpY3RfcG9pbnRfbGV2ZWwiOiAxLCAicmVwZXRpdGlvbiI6IHsicmVxdWVzdGVkIjogMywgInJlcXVlc3RlZF9zb3VyY2UiOiAiZGVjbGFyZWQob3JpZ2luYWwtZml4dHVyZSkiLCAia2luZCI6ICJ3YXJtLXJlcnVuIn0sICJnZW5lcmF0ZWRfdXRjIjogIjIwMjYtMDktMDRUMTE6MDA6MDBaIn0K"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"bench_mode\": \"full\",\n  \"bench_mode_source\": \"runs[] \uc9d1\uacc4(\ud310\uc815\uc810 level 1 \uc644\uc8fc 3 \u2265 full \uc815\uc758 3)\",\n  \"downgrade_reason\": null,\n  \"downgrade_reason_source\": null,\n  \"downgrade_correlation\": \"not_applicable\",\n  \"events_scan\": {\n    \"plan\": {\n      \"source\": \"explicit(\ud638\ucd9c\uc790\uac00 \ub300\uc0c1 events \ub97c \uc120\uc5b8\ud588\ub2e4 \u2014 \ub178\ub4dc \uacc4\ud68d \uc5c6\uc74c)\"\n    },\n    \"nodes\": null,\n    \"cross_node_tolerance_s\": null,\n    \"cross_node_tolerance_source\": null\n  },\n  \"repetition\": {\n    \"requested\": 3,\n    \"requested_source\": \"declared(original-fixture)\",\n    \"kind\": \"warm-rerun\",\n    \"full_min\": 3,\n    \"completed_by_level\": {\n      \"1\": 3\n    },\n    \"completed_min\": 3,\n    \"short_levels\": [],\n    \"runs_attempted\": 3,\n    \"band_pct_by_level\": {\n      \"1\": null\n    },\n    \"band_metric\": \"decode_tps\",\n    \"band_formula\": \"(max-min)/mean*100\",\n    \"stop\": null,\n    \"clamp_run\": null,\n    \"unrecorded_levels\": [],\n    \"_note\": \"raw \uc694\uc57d\uacfc \uc989\uc2dc \uc2e0\ud638\ub2e4 \u2014 bench_mode(full|lite)\u00b7downgrade_reason \ud655\uc815\uc740 classify_cell.py(post-hoc)\"\n  },\n  \"repetition_kill_events\": [],\n  \"schema_version\": 1,\n  \"kind\": \"bench_mode_record\",\n  \"generated_by\": \"classify_cell.py\",\n  \"sweep_index\": \"sweep_index.json\",\n  \"sweep_index_generated_utc\": \"2026-09-04T11:00:00Z\",\n  \"events_scanned\": [],\n  \"tolerance_s\": 0\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "bench-clamp-write",
+  "argv": [
+   "--sweep-index",
+   "sweep_index.json",
+   "--events",
+   "events.jsonl",
+   "--write-bench-mode"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQifQo="
+   },
+   "sweep_index.json": {
+    "kind": "file",
+    "bytes_base64": "eyJsZXZlbHMiOiBbeyJsZXZlbCI6IDEsICJtZWFzdXJlZCI6IHsicnVucyI6IFt7InJ1biI6IDEsICJtZWFzdXJlbWVudF9vayI6IHRydWUsICJzdGFydGVkX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjAxOjAwWiIsICJlbmRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowMTozMFoiLCAiZ2VuX3RwcyI6IDQxfSwgeyJydW4iOiAyLCAibWVhc3VyZW1lbnRfb2siOiB0cnVlLCAic3RhcnRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowMjowMFoiLCAiZW5kZWRfdXRjIjogIjIwMjYtMDktMDRUMTA6MDI6MzBaIiwgImdlbl90cHMiOiA0Mn0sIHsicnVuIjogMywgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwgInN0YXJ0ZWRfdXRjIjogIjIwMjYtMDktMDRUMTA6MDM6MDBaIiwgImVuZGVkX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjAzOjMwWiIsICJnZW5fdHBzIjogNDN9XX19XSwgInZlcmRpY3RfcG9pbnRfbGV2ZWwiOiAxLCAicmVwZXRpdGlvbiI6IHsicmVxdWVzdGVkIjogMywgInJlcXVlc3RlZF9zb3VyY2UiOiAiZGVjbGFyZWQob3JpZ2luYWwtZml4dHVyZSkiLCAia2luZCI6ICJ3YXJtLXJlcnVuIiwgImNsYW1wX3J1biI6IHsibGV2ZWwiOiAyLCAicnVuIjogMSwgIm1lYXN1cmVtZW50X29rIjogZmFsc2UsICJzdGFydGVkX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjA0OjAwWiIsICJlbmRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowNjowMFoiLCAiZGV0YWlsIjogIm9yaWdpbmFsLWZpeHR1cmUgY2xhbXAifX0sICJnZW5lcmF0ZWRfdXRjIjogIjIwMjYtMDktMDRUMTE6MDA6MDBaIn0K"
+   }
+  },
+  "after": {
+   "bench_mode.json": {
+    "kind": "file",
+    "bytes_base64": "ewogICJiZW5jaF9tb2RlIjogImxpdGUiLAogICJiZW5jaF9tb2RlX3NvdXJjZSI6ICJydW5zW10g7KeR6rOEKO2MkOygleygkCBsZXZlbCAxIOyZhOyjvCAzIOKJpSBmdWxsIOygleydmCAzKSDCtyBsZXZlbCAyIOyyqyBydW4g7JeQ7IScIOyggeydkSDsg4HtlZwg7YG0656o7ZSEIMK3IOupiOy2mCDsnpDrpqwg7LC9IOyViOyXkCDsp5HtlonrkJwg7IKs7IK0IOKAlCBraWxsIOydtOuypO2KuOuKlCDroIjrsqjCt3J1biDsiJzrsojqs7wg66y06rSA7ZWcIOqwleuTsSDtirjrpqzqsbAiLAogICJkb3duZ3JhZGVfcmVhc29uIjogImJsYWNrYm94X2tpbGwiLAogICJkb3duZ3JhZGVfcmVhc29uX3NvdXJjZSI6ICJldmVudHMoZXZlbnRzLmpzb25sKSDCtyB3YXRjaGRvZ19raWxsX2FjayBAIDIwMjYtMDktMDRUMTA6MDU6MDBaIOKIiCBbMjAyNi0wOS0wNFQxMDowMzowMFosIDIwMjYtMDktMDRUMTA6MDY6MDBaXSB0b2w9MHMgwrcgc3RvcFtjbGFtcCDCtyBsZXZlbD0yIMK3IHJ1bj0xXShydW5fYmVuY2ggcmM9Tm9uZSDCtyBwYXJzZSByYz1Ob25lIMK3IG1lYXN1cmVtZW50X29rPWZhbHNlKOugiOuyqCDssqsgcnVuIOKAlCDsoIHsnZEg7IOB7ZWcIO2BtOueqO2UhCkpIiwKICAiZG93bmdyYWRlX2NvcnJlbGF0aW9uIjogIm1hdGNoZWQiLAogICJldmVudHNfc2NhbiI6IHsKICAgICJwbGFuIjogewogICAgICAic291cmNlIjogImV4cGxpY2l0KO2YuOy2nOyekOqwgCDrjIDsg4EgZXZlbnRzIOulvCDshKDslrjtlojri6Qg4oCUIOuFuOuTnCDqs4Ttmo0g7JeG7J2MKSIKICAgIH0sCiAgICAibm9kZXMiOiBbCiAgICAgIHsKICAgICAgICAibm9kZSI6ICJleHBsaWNpdCIsCiAgICAgICAgInJlbW90ZSI6IGZhbHNlLAogICAgICAgICJmaWxlcyI6IFsKICAgICAgICAgICJldmVudHMuanNvbmwiCiAgICAgICAgXSwKICAgICAgICAidG9sZXJhbmNlX3MiOiAwLAogICAgICAgICJ0b2xlcmFuY2Vfc291cmNlIjogInNhbWUtbm9kZS1jbG9jaygtLXRvbGVyYW5jZS1zKSIsCiAgICAgICAgInN0YXR1cyI6ICJtYXRjaGVkIgogICAgICB9CiAgICBdLAogICAgImNyb3NzX25vZGVfdG9sZXJhbmNlX3MiOiBudWxsLAogICAgImNyb3NzX25vZGVfdG9sZXJhbmNlX3NvdXJjZSI6IG51bGwKICB9LAogICJyZXBldGl0aW9uIjogewogICAgInJlcXVlc3RlZCI6IDMsCiAgICAicmVxdWVzdGVkX3NvdXJjZSI6ICJkZWNsYXJlZChvcmlnaW5hbC1maXh0dXJlKSIsCiAgICAia2luZCI6ICJ3YXJtLXJlcnVuIiwKICAgICJmdWxsX21pbiI6IDMsCiAgICAiY29tcGxldGVkX2J5X2xldmVsIjogewogICAgICAiMSI6IDMKICAgIH0sCiAgICAiY29tcGxldGVkX21pbiI6IDMsCiAgICAic2hvcnRfbGV2ZWxzIjogW10sCiAgICAicnVuc19hdHRlbXB0ZWQiOiA0LAogICAgImJhbmRfcGN0X2J5X2xldmVsIjogewogICAgICAiMSI6IG51bGwKICAgIH0sCiAgICAiYmFuZF9tZXRyaWMiOiAiZGVjb2RlX3RwcyIsCiAgICAiYmFuZF9mb3JtdWxhIjogIihtYXgtbWluKS9tZWFuKjEwMCIsCiAgICAic3RvcCI6IHsKICAgICAgImtpbmQiOiAiY2xhbXAiLAogICAgICAibGV2ZWwiOiAyLAogICAgICAicnVuIjogMSwKICAgICAgInNpZ25hbCI6ICJydW5fZmFpbGVkIiwKICAgICAgImRldGFpbCI6ICJydW5fYmVuY2ggcmM9Tm9uZSDCtyBwYXJzZSByYz1Ob25lIMK3IG1lYXN1cmVtZW50X29rPWZhbHNlKOugiOuyqCDssqsgcnVuIOKAlCDsoIHsnZEg7IOB7ZWcIO2BtOueqO2UhCkiLAogICAgICAid2luZG93X3N0YXJ0X3V0YyI6ICIyMDI2LTA5LTA0VDEwOjAzOjAwWiIsCiAgICAgICJ3aW5kb3dfZW5kX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjA2OjAwWiIsCiAgICAgICJ3aW5kb3dfcnVsZSI6ICLsp4HsoIQgcnVuKOyVhOuemCDsuKHsoJUg66CI67Ko7J2YIOuniOyngOuniSBydW4pIOyLnOyekSB+IO2BtOueqO2UhCBydW4g64GdKOyCrOyduCDtmZXsoJXsnYAgY2xhc3NpZnlfY2VsbCkiCiAgICB9LAogICAgImNsYW1wX3J1biI6IHsKICAgICAgImxldmVsIjogMiwKICAgICAgInJ1biI6IDEsCiAgICAgICJtZWFzdXJlbWVudF9vayI6IGZhbHNlLAogICAgICAic3RhcnRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowNDowMFoiLAogICAgICAiZW5kZWRfdXRjIjogIjIwMjYtMDktMDRUMTA6MDY6MDBaIiwKICAgICAgImRldGFpbCI6ICJvcmlnaW5hbC1maXh0dXJlIGNsYW1wIgogICAgfSwKICAgICJ1bnJlY29yZGVkX2xldmVscyI6IFtdLAogICAgIl9ub3RlIjogInJhdyDsmpTslb3qs7wg7KaJ7IucIOyLoO2YuOuLpCDigJQgYmVuY2hfbW9kZShmdWxsfGxpdGUpwrdkb3duZ3JhZGVfcmVhc29uIO2ZleygleydgCBjbGFzc2lmeV9jZWxsLnB5KHBvc3QtaG9jKSIKICB9LAogICJyZXBldGl0aW9uX2tpbGxfZXZlbnRzIjogWwogICAgewogICAgICAidHMiOiAiMjAyNi0wOS0wNFQxMDowNTowMFoiLAogICAgICAia2luZCI6ICJ3YXRjaGRvZ19raWxsX2FjayIsCiAgICAgICJzb3VyY2UiOiBudWxsLAogICAgICAibW9kZSI6ICJhcm1lZCIsCiAgICAgICJ0YXJnZXRzIjogbnVsbCwKICAgICAgIm5vZGUiOiAiZXhwbGljaXQiCiAgICB9CiAgXSwKICAic2NoZW1hX3ZlcnNpb24iOiAxLAogICJraW5kIjogImJlbmNoX21vZGVfcmVjb3JkIiwKICAiZ2VuZXJhdGVkX2J5IjogImNsYXNzaWZ5X2NlbGwucHkiLAogICJzd2VlcF9pbmRleCI6ICJzd2VlcF9pbmRleC5qc29uIiwKICAic3dlZXBfaW5kZXhfZ2VuZXJhdGVkX3V0YyI6ICIyMDI2LTA5LTA0VDExOjAwOjAwWiIsCiAgImV2ZW50c19zY2FubmVkIjogWwogICAgImV2ZW50cy5qc29ubCIKICBdLAogICJ0b2xlcmFuY2VfcyI6IDAKfQo="
+   },
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQifQo="
+   },
+   "sweep_index.json": {
+    "kind": "file",
+    "bytes_base64": "eyJsZXZlbHMiOiBbeyJsZXZlbCI6IDEsICJtZWFzdXJlZCI6IHsicnVucyI6IFt7InJ1biI6IDEsICJtZWFzdXJlbWVudF9vayI6IHRydWUsICJzdGFydGVkX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjAxOjAwWiIsICJlbmRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowMTozMFoiLCAiZ2VuX3RwcyI6IDQxfSwgeyJydW4iOiAyLCAibWVhc3VyZW1lbnRfb2siOiB0cnVlLCAic3RhcnRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowMjowMFoiLCAiZW5kZWRfdXRjIjogIjIwMjYtMDktMDRUMTA6MDI6MzBaIiwgImdlbl90cHMiOiA0Mn0sIHsicnVuIjogMywgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwgInN0YXJ0ZWRfdXRjIjogIjIwMjYtMDktMDRUMTA6MDM6MDBaIiwgImVuZGVkX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjAzOjMwWiIsICJnZW5fdHBzIjogNDN9XX19XSwgInZlcmRpY3RfcG9pbnRfbGV2ZWwiOiAxLCAicmVwZXRpdGlvbiI6IHsicmVxdWVzdGVkIjogMywgInJlcXVlc3RlZF9zb3VyY2UiOiAiZGVjbGFyZWQob3JpZ2luYWwtZml4dHVyZSkiLCAia2luZCI6ICJ3YXJtLXJlcnVuIiwgImNsYW1wX3J1biI6IHsibGV2ZWwiOiAyLCAicnVuIjogMSwgIm1lYXN1cmVtZW50X29rIjogZmFsc2UsICJzdGFydGVkX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjA0OjAwWiIsICJlbmRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowNjowMFoiLCAiZGV0YWlsIjogIm9yaWdpbmFsLWZpeHR1cmUgY2xhbXAifX0sICJnZW5lcmF0ZWRfdXRjIjogIjIwMjYtMDktMDRUMTE6MDA6MDBaIn0K"
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"bench_mode\": \"lite\",\n  \"bench_mode_source\": \"runs[] \uc9d1\uacc4(\ud310\uc815\uc810 level 1 \uc644\uc8fc 3 \u2265 full \uc815\uc758 3) \u00b7 level 2 \uccab run \uc5d0\uc11c \uc801\uc751 \uc0c1\ud55c \ud074\ub7a8\ud504 \u00b7 \uba48\ucd98 \uc790\ub9ac \ucc3d \uc548\uc5d0 \uc9d1\ud589\ub41c \uc0ac\uc0b4 \u2014 kill \uc774\ubca4\ud2b8\ub294 \ub808\ubca8\u00b7run \uc21c\ubc88\uacfc \ubb34\uad00\ud55c \uac15\ub4f1 \ud2b8\ub9ac\uac70\",\n  \"downgrade_reason\": \"blackbox_kill\",\n  \"downgrade_reason_source\": \"events(events.jsonl) \u00b7 watchdog_kill_ack @ 2026-09-04T10:05:00Z \u2208 [2026-09-04T10:03:00Z, 2026-09-04T10:06:00Z] tol=0s \u00b7 stop[clamp \u00b7 level=2 \u00b7 run=1](run_bench rc=None \u00b7 parse rc=None \u00b7 measurement_ok=false(\ub808\ubca8 \uccab run \u2014 \uc801\uc751 \uc0c1\ud55c \ud074\ub7a8\ud504))\",\n  \"downgrade_correlation\": \"matched\",\n  \"events_scan\": {\n    \"plan\": {\n      \"source\": \"explicit(\ud638\ucd9c\uc790\uac00 \ub300\uc0c1 events \ub97c \uc120\uc5b8\ud588\ub2e4 \u2014 \ub178\ub4dc \uacc4\ud68d \uc5c6\uc74c)\"\n    },\n    \"nodes\": [\n      {\n        \"node\": \"explicit\",\n        \"remote\": false,\n        \"files\": [\n          \"events.jsonl\"\n        ],\n        \"tolerance_s\": 0,\n        \"tolerance_source\": \"same-node-clock(--tolerance-s)\",\n        \"status\": \"matched\"\n      }\n    ],\n    \"cross_node_tolerance_s\": null,\n    \"cross_node_tolerance_source\": null\n  },\n  \"repetition\": {\n    \"requested\": 3,\n    \"requested_source\": \"declared(original-fixture)\",\n    \"kind\": \"warm-rerun\",\n    \"full_min\": 3,\n    \"completed_by_level\": {\n      \"1\": 3\n    },\n    \"completed_min\": 3,\n    \"short_levels\": [],\n    \"runs_attempted\": 4,\n    \"band_pct_by_level\": {\n      \"1\": null\n    },\n    \"band_metric\": \"decode_tps\",\n    \"band_formula\": \"(max-min)/mean*100\",\n    \"stop\": {\n      \"kind\": \"clamp\",\n      \"level\": 2,\n      \"run\": 1,\n      \"signal\": \"run_failed\",\n      \"detail\": \"run_bench rc=None \u00b7 parse rc=None \u00b7 measurement_ok=false(\ub808\ubca8 \uccab run \u2014 \uc801\uc751 \uc0c1\ud55c \ud074\ub7a8\ud504)\",\n      \"window_start_utc\": \"2026-09-04T10:03:00Z\",\n      \"window_end_utc\": \"2026-09-04T10:06:00Z\",\n      \"window_rule\": \"\uc9c1\uc804 run(\uc544\ub798 \uce21\uc815 \ub808\ubca8\uc758 \ub9c8\uc9c0\ub9c9 run) \uc2dc\uc791 ~ \ud074\ub7a8\ud504 run \ub05d(\uc0ac\uc778 \ud655\uc815\uc740 classify_cell)\"\n    },\n    \"clamp_run\": {\n      \"level\": 2,\n      \"run\": 1,\n      \"measurement_ok\": false,\n      \"started_utc\": \"2026-09-04T10:04:00Z\",\n      \"ended_utc\": \"2026-09-04T10:06:00Z\",\n      \"detail\": \"original-fixture clamp\"\n    },\n    \"unrecorded_levels\": [],\n    \"_note\": \"raw \uc694\uc57d\uacfc \uc989\uc2dc \uc2e0\ud638\ub2e4 \u2014 bench_mode(full|lite)\u00b7downgrade_reason \ud655\uc815\uc740 classify_cell.py(post-hoc)\"\n  },\n  \"repetition_kill_events\": [\n    {\n      \"ts\": \"2026-09-04T10:05:00Z\",\n      \"kind\": \"watchdog_kill_ack\",\n      \"source\": null,\n      \"mode\": \"armed\",\n      \"targets\": null,\n      \"node\": \"explicit\"\n    }\n  ],\n  \"schema_version\": 1,\n  \"kind\": \"bench_mode_record\",\n  \"generated_by\": \"classify_cell.py\",\n  \"sweep_index\": \"sweep_index.json\",\n  \"sweep_index_generated_utc\": \"2026-09-04T11:00:00Z\",\n  \"events_scanned\": [\n    \"events.jsonl\"\n  ],\n  \"tolerance_s\": 0,\n  \"record_path\": \"@ROOT@/bench_mode.json\"\n}\n",
+  "stderr": ""
+ },
+ {
+  "id": "bench-multi",
+  "argv": [
+   "--sweep-index",
+   "sweep_index.json",
+   "--events-from-repo",
+   "@ROOT@",
+   "--cross-node-tolerance-s",
+   "1",
+   "--cross-node-tolerance-source",
+   "original-fixture"
+  ],
+  "before": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQifQo="
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "output/multi": {
+    "kind": "directory"
+   },
+   "output/multi/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBtdWx0aQpncHVzX3Blcl9ub2RlOiAxCm5vZGVzOgogIC0gcm9sZTogbWFpbgogICAgaG9zdDogMTkyLjAuMi4xMAogIC0gcm9sZTogc3ViCiAgICBob3N0OiAxOTIuMC4yLjExCg=="
+   },
+   "sweep_index.json": {
+    "kind": "file",
+    "bytes_base64": "eyJsZXZlbHMiOiBbeyJsZXZlbCI6IDEsICJtZWFzdXJlZCI6IHsicnVucyI6IFt7InJ1biI6IDEsICJtZWFzdXJlbWVudF9vayI6IHRydWUsICJzdGFydGVkX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjAxOjAwWiIsICJlbmRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowMTozMFoiLCAiZ2VuX3RwcyI6IDQxfSwgeyJydW4iOiAyLCAibWVhc3VyZW1lbnRfb2siOiB0cnVlLCAic3RhcnRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowMjowMFoiLCAiZW5kZWRfdXRjIjogIjIwMjYtMDktMDRUMTA6MDI6MzBaIiwgImdlbl90cHMiOiA0Mn0sIHsicnVuIjogMywgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwgInN0YXJ0ZWRfdXRjIjogIjIwMjYtMDktMDRUMTA6MDM6MDBaIiwgImVuZGVkX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjAzOjMwWiIsICJnZW5fdHBzIjogNDN9XX19XSwgInZlcmRpY3RfcG9pbnRfbGV2ZWwiOiAxLCAicmVwZXRpdGlvbiI6IHsicmVxdWVzdGVkIjogMywgInJlcXVlc3RlZF9zb3VyY2UiOiAiZGVjbGFyZWQob3JpZ2luYWwtZml4dHVyZSkiLCAia2luZCI6ICJ3YXJtLXJlcnVuIn0sICJtZXRhIjogeyJ0b3BvbG9neSI6ICJtdWx0aSIsICJtZWFzdXJlZF9ub2RlIjogImNsdXN0ZXIifSwgImdlbmVyYXRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMTowMDowMFoifQo="
+   }
+  },
+  "after": {
+   "events.jsonl": {
+    "kind": "file",
+    "bytes_base64": "eyJ0cyI6ICIyMDI2LTA5LTA0VDEwOjA1OjAwWiIsICJraW5kIjogIndhdGNoZG9nX2tpbGxfYWNrIiwgIm1vZGUiOiAiYXJtZWQifQo="
+   },
+   "output": {
+    "kind": "directory"
+   },
+   "output/multi": {
+    "kind": "directory"
+   },
+   "output/multi/manifest.yaml": {
+    "kind": "file",
+    "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBtdWx0aQpncHVzX3Blcl9ub2RlOiAxCm5vZGVzOgogIC0gcm9sZTogbWFpbgogICAgaG9zdDogMTkyLjAuMi4xMAogIC0gcm9sZTogc3ViCiAgICBob3N0OiAxOTIuMC4yLjExCg=="
+   },
+   "sweep_index.json": {
+    "kind": "file",
+    "bytes_base64": "eyJsZXZlbHMiOiBbeyJsZXZlbCI6IDEsICJtZWFzdXJlZCI6IHsicnVucyI6IFt7InJ1biI6IDEsICJtZWFzdXJlbWVudF9vayI6IHRydWUsICJzdGFydGVkX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjAxOjAwWiIsICJlbmRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowMTozMFoiLCAiZ2VuX3RwcyI6IDQxfSwgeyJydW4iOiAyLCAibWVhc3VyZW1lbnRfb2siOiB0cnVlLCAic3RhcnRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMDowMjowMFoiLCAiZW5kZWRfdXRjIjogIjIwMjYtMDktMDRUMTA6MDI6MzBaIiwgImdlbl90cHMiOiA0Mn0sIHsicnVuIjogMywgIm1lYXN1cmVtZW50X29rIjogdHJ1ZSwgInN0YXJ0ZWRfdXRjIjogIjIwMjYtMDktMDRUMTA6MDM6MDBaIiwgImVuZGVkX3V0YyI6ICIyMDI2LTA5LTA0VDEwOjAzOjMwWiIsICJnZW5fdHBzIjogNDN9XX19XSwgInZlcmRpY3RfcG9pbnRfbGV2ZWwiOiAxLCAicmVwZXRpdGlvbiI6IHsicmVxdWVzdGVkIjogMywgInJlcXVlc3RlZF9zb3VyY2UiOiAiZGVjbGFyZWQob3JpZ2luYWwtZml4dHVyZSkiLCAia2luZCI6ICJ3YXJtLXJlcnVuIn0sICJtZXRhIjogeyJ0b3BvbG9neSI6ICJtdWx0aSIsICJtZWFzdXJlZF9ub2RlIjogImNsdXN0ZXIifSwgImdlbmVyYXRlZF91dGMiOiAiMjAyNi0wOS0wNFQxMTowMDowMFoifQo="
+   }
+  },
+  "exit_code": 0,
+  "stdout": "{\n  \"bench_mode\": \"full\",\n  \"bench_mode_source\": \"runs[] \uc9d1\uacc4(\ud310\uc815\uc810 level 1 \uc644\uc8fc 3 \u2265 full \uc815\uc758 3)\",\n  \"downgrade_reason\": null,\n  \"downgrade_reason_source\": null,\n  \"downgrade_correlation\": \"not_applicable\",\n  \"events_scan\": {\n    \"plan\": {\n      \"topology\": \"multi\",\n      \"nodes\": [\n        \"main\",\n        \"sub\"\n      ],\n      \"self_node\": \"main\",\n      \"self_node_source\": \"node_identity.sh --resolve(self_role \u2192 \uc720\uc77c\ud55c role: main)\",\n      \"source\": \"multi: \uc11c\ube59 \ucc38\uc5ec \ub178\ub4dc \uc804\ubd80 \u2014 manifest nodes[].role(main,sub) \u00b7 node_role_contract \uc704\ubc18 0\",\n      \"undeterminable\": null,\n      \"excluded_rule\": null,\n      \"manifest\": \"@ROOT@/output/multi/manifest.yaml\"\n    },\n    \"nodes\": null,\n    \"cross_node_tolerance_s\": 1,\n    \"cross_node_tolerance_source\": \"original-fixture\"\n  },\n  \"repetition\": {\n    \"requested\": 3,\n    \"requested_source\": \"declared(original-fixture)\",\n    \"kind\": \"warm-rerun\",\n    \"full_min\": 3,\n    \"completed_by_level\": {\n      \"1\": 3\n    },\n    \"completed_min\": 3,\n    \"short_levels\": [],\n    \"runs_attempted\": 3,\n    \"band_pct_by_level\": {\n      \"1\": null\n    },\n    \"band_metric\": \"decode_tps\",\n    \"band_formula\": \"(max-min)/mean*100\",\n    \"stop\": null,\n    \"clamp_run\": null,\n    \"unrecorded_levels\": [],\n    \"_note\": \"raw \uc694\uc57d\uacfc \uc989\uc2dc \uc2e0\ud638\ub2e4 \u2014 bench_mode(full|lite)\u00b7downgrade_reason \ud655\uc815\uc740 classify_cell.py(post-hoc)\"\n  },\n  \"repetition_kill_events\": [],\n  \"schema_version\": 1,\n  \"kind\": \"bench_mode_record\",\n  \"generated_by\": \"classify_cell.py\",\n  \"sweep_index\": \"sweep_index.json\",\n  \"sweep_index_generated_utc\": \"2026-09-04T11:00:00Z\",\n  \"events_scanned\": [],\n  \"tolerance_s\": 0\n}\n",
+  "stderr": ""
+ }
+]

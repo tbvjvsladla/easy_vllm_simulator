@@ -7,11 +7,11 @@ full-bench(현재 구현체 GuideLLM `v0.7.3`)의 측정 형상을 정하는 프
 - `<이름>.yaml` — 사용자 프리셋. **git 이 추적하지 않는다**(`.gitignore`). 노드마다 자기 프리셋을 직접 만든다.
 
 스크립트에는 측정 형상 기본값이 없다. `sweep_bench.sh --preset <이름>` 이 프리셋을 고르고(미지정 = `default_preset`),
-`scripts/bench_preset.py` 가 검증·해소하고, 결과를 `sweep_index.json` 의 `bench_knobs` 에 기록한다.
+`scripts/bench_preset.sh` 가 검증·해소하고, 결과를 `sweep_index.json` 의 `bench_knobs` 에 기록한다.
 
 ## 1. 편집 규칙
 
-- 값만 바꾼다. 키를 늘리거나 지우면 계약 변경이다. `selftest_bench_preset.py`(리뷰 시점)와 `bench_preset.py`(기동 시점)가
+- 값만 바꾼다. 키를 늘리거나 지우면 계약 변경이다. `bench_preset.sh --self-test`(리뷰 시점)와 `bench_preset.sh`(기동 시점)가
   둘 다 거부한다.
 - 모든 프리셋이 모든 knob 을 선언한다. 사용자 프리셋은 `default_preset.yaml` 을 복사해서 값만 바꾸는 것이 출발점이다.
 - 다른 도구의 블록이나 꺼 둔 블록을 실제 키로 남기면 미지 키로 기동이 거부된다.
@@ -192,7 +192,7 @@ cp .claude/skills/adversarial-benchmark/config/guide-llm/default_preset.yaml out
 
 ```bash
 S=.claude/skills/adversarial-benchmark/scripts
-python3 $S/bench_preset.py validate --preset cnn_preset          # 모양 검사 → OK 여야 한다
+bash $S/bench_preset.sh validate --preset cnn_preset          # 모양 검사 → OK 여야 한다
 bash $S/sweep_bench.sh <config> --topology <single|multi> --tool guidellm --preset cnn_preset --dry-run   # 명령만 확인
 bash $S/sweep_bench.sh <config> --topology <single|multi> --tool guidellm --preset cnn_preset \
      --backend <openai|openai-chat> --knob-reason backend=<근거> \

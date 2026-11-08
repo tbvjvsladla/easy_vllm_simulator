@@ -1,0 +1,854 @@
+[
+ {
+  "id": "000-normal",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "response_hex": "7b227461675f6e616d65223a2276302e392e31222c227075626c69736865645f6174223a22323032362d30382d33305431323a30303a30305a222c226578747261223a747275657d"
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "tag_name": "v0.9.1",
+    "published_at": "2026-08-30T12:00:00Z",
+    "extra": true
+   }
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "001-null",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "response_hex": "6e756c6c"
+  },
+  "expected": {
+   "kind": "value",
+   "value": null
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "002-array",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "response_hex": "5b5d"
+  },
+  "expected": {
+   "kind": "value",
+   "value": []
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "003-tag-missing",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "response_hex": "7b7d"
+  },
+  "expected": {
+   "kind": "value",
+   "value": {}
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "004-unicode",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "response_hex": "7b227461675f6e616d65223a22ed959ceab880222c227075626c69736865645f6174223a6e756c6c7d"
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "tag_name": "한글",
+    "published_at": null
+   }
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "005-duplicate-tag",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "response_hex": "7b227461675f6e616d65223a226f6c64222c227461675f6e616d65223a2276312e322e33227d"
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "tag_name": "v1.2.3"
+   }
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "006-malformed",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "response_hex": "7b227461675f6e616d65223a"
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "JSONDecodeError",
+   "message": "Expecting value: line 1 column 13 (char 12)"
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "007-empty",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "response_hex": ""
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "JSONDecodeError",
+   "message": "Expecting value: line 1 column 1 (char 0)"
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "008-bad-utf8",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "response_hex": "7b2278223a22ff227d"
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "UnicodeDecodeError",
+   "message": "'utf-8' codec can't decode byte 0xff in position 6: invalid start byte"
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "009-utf8-bom",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "response_hex": "efbbbf7b227461675f6e616d65223a2276312e322e33227d"
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "tag_name": "v1.2.3"
+   }
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "010-utf16",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "response_hex": "fffe7b0022007400610067005f006e0061006d00650022003a002200760031002e0032002e00330022007d00"
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "tag_name": "v1.2.3"
+   }
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "011-nan",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "response_hex": "7b227461675f6e616d65223a4e614e7d"
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "tag_name": NaN
+   }
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "012-url-error",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "failure": {
+    "type": "URLError",
+    "message": "<urlopen error fixture unavailable>"
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "URLError",
+   "message": "<urlopen error fixture unavailable>"
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": []
+ },
+ {
+  "id": "013-timeout",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "failure": {
+    "type": "TimeoutError",
+    "message": "fixture timed out"
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "TimeoutError",
+   "message": "fixture timed out"
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": []
+ },
+ {
+  "id": "014-os-error",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "vllm-project/guidellm"
+  },
+  "fetch_fixture": {
+   "failure": {
+    "type": "OSError",
+    "message": "[Errno 5] fixture I/O error"
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "OSError",
+   "message": "[Errno 5] fixture I/O error"
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/vllm-project/guidellm/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": []
+ },
+ {
+  "id": "015-normal",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "response_hex": "7b227461675f6e616d65223a2276302e392e31222c227075626c69736865645f6174223a22323032362d30382d33305431323a30303a30305a222c226578747261223a747275657d"
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "tag_name": "v0.9.1",
+    "published_at": "2026-08-30T12:00:00Z",
+    "extra": true
+   }
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "016-null",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "response_hex": "6e756c6c"
+  },
+  "expected": {
+   "kind": "value",
+   "value": null
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "017-array",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "response_hex": "5b5d"
+  },
+  "expected": {
+   "kind": "value",
+   "value": []
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "018-tag-missing",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "response_hex": "7b7d"
+  },
+  "expected": {
+   "kind": "value",
+   "value": {}
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "019-unicode",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "response_hex": "7b227461675f6e616d65223a22ed959ceab880222c227075626c69736865645f6174223a6e756c6c7d"
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "tag_name": "한글",
+    "published_at": null
+   }
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "020-duplicate-tag",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "response_hex": "7b227461675f6e616d65223a226f6c64222c227461675f6e616d65223a2276312e322e33227d"
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "tag_name": "v1.2.3"
+   }
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "021-malformed",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "response_hex": "7b227461675f6e616d65223a"
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "JSONDecodeError",
+   "message": "Expecting value: line 1 column 13 (char 12)"
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "022-empty",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "response_hex": ""
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "JSONDecodeError",
+   "message": "Expecting value: line 1 column 1 (char 0)"
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "023-bad-utf8",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "response_hex": "7b2278223a22ff227d"
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "UnicodeDecodeError",
+   "message": "'utf-8' codec can't decode byte 0xff in position 6: invalid start byte"
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "024-utf8-bom",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "response_hex": "efbbbf7b227461675f6e616d65223a2276312e322e33227d"
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "tag_name": "v1.2.3"
+   }
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "025-utf16",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "response_hex": "fffe7b0022007400610067005f006e0061006d00650022003a002200760031002e0032002e00330022007d00"
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "tag_name": "v1.2.3"
+   }
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "026-nan",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "response_hex": "7b227461675f6e616d65223a4e614e7d"
+  },
+  "expected": {
+   "kind": "value",
+   "value": {
+    "tag_name": NaN
+   }
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": [
+   "enter",
+   "exit"
+  ]
+ },
+ {
+  "id": "027-url-error",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "failure": {
+    "type": "URLError",
+    "message": "<urlopen error fixture unavailable>"
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "URLError",
+   "message": "<urlopen error fixture unavailable>"
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": []
+ },
+ {
+  "id": "028-timeout",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "failure": {
+    "type": "TimeoutError",
+    "message": "fixture timed out"
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "TimeoutError",
+   "message": "fixture timed out"
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": []
+ },
+ {
+  "id": "029-os-error",
+  "operation": "fetch_latest",
+  "arguments": {
+   "repo": "fixture/other"
+  },
+  "fetch_fixture": {
+   "failure": {
+    "type": "OSError",
+    "message": "[Errno 5] fixture I/O error"
+   }
+  },
+  "expected": {
+   "kind": "exception",
+   "type": "OSError",
+   "message": "[Errno 5] fixture I/O error"
+  },
+  "expected_request": {
+   "url": "https://api.github.com/repos/fixture/other/releases/latest",
+   "method": "GET",
+   "headers": {
+    "accept": "application/vnd.github+json",
+    "user-agent": "adversarial-benchmark"
+   },
+   "timeout": 20
+  },
+  "resource_events": []
+ }
+]

@@ -1,0 +1,29 @@
+[
+ {
+  "path": ".",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/configs",
+  "mode": 509,
+  "kind": "dir"
+ },
+ {
+  "path": "node/configs/generated.yaml",
+  "mode": 511,
+  "kind": "link",
+  "target": "../../yaml-target"
+ },
+ {
+  "path": "yaml-target",
+  "mode": 384,
+  "kind": "file",
+  "base64": "b2xkLXRhcmdldA=="
+ }
+]

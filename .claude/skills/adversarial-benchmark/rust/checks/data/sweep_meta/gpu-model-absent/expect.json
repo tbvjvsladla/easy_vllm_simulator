@@ -1,0 +1,22 @@
+{
+ "env": {
+  "CFGYAML": "{ROOT}/cfg.yaml",
+  "COMPLETED": "1",
+  "CONFIG": "x",
+  "EF": "{ROOT}/.env.x",
+  "ILEN": "1024",
+  "IMAGE_TAG_ACTUAL": "NA",
+  "KNOB_RECORD": "{ROOT}/bench_knobs.fixture.json",
+  "LITE_RAW": "",
+  "MANIFEST": "{ROOT}/manifest.yaml",
+  "REASSEMBLE": "0",
+  "SWEEPDIR": "{ROOT}/sweep_x",
+  "TOPO": "single",
+  "VLLM_VER": ""
+ },
+ "status": 2,
+ "stdout": "",
+ "stderr": "[sweep_bench] FAIL: manifest({ROOT}/manifest.yaml) 에 gpu_model 이 없다 — 인증서 강한 키 gpu 를 NA 로 발행하지 않는다. terraforming_node 스캔(서브면 scan_node.py --emit-sub-manifest)으로 채워라.\n",
+ "index": null,
+ "fresh_clock": true
+}

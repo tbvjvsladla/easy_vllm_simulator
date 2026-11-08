@@ -1,0 +1,51 @@
+{
+ "source": "independent v2 review tls-intermediate/result.json (saved Python ssl/urllib primitive answers; original modules 0)",
+ "python_default_context": {
+  "verify_flags": 32768,
+  "partial_chain": false
+ },
+ "rows": [
+  {
+   "id": "intermediate-file",
+   "args": [
+    "check",
+    3.0
+   ],
+   "primitive": {
+    "partial_chain": false,
+    "verify_flags": 32768,
+    "ok": false,
+    "type": "URLError",
+    "message": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get issuer certificate (_ssl.c:1000)>",
+    "reason_type": "SSLCertVerificationError",
+    "verify_code": 2
+   },
+   "held_v2_native": {
+    "ok": true,
+    "total": 7,
+    "parameters": {}
+   }
+  },
+  {
+   "id": "intermediate-hashed-dir",
+   "args": [
+    "check",
+    3.0
+   ],
+   "primitive": {
+    "partial_chain": false,
+    "verify_flags": 32768,
+    "ok": false,
+    "type": "URLError",
+    "message": "<urlopen error [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get issuer certificate (_ssl.c:1000)>",
+    "reason_type": "SSLCertVerificationError",
+    "verify_code": 2
+   },
+   "held_v2_native": {
+    "ok": true,
+    "total": 7,
+    "parameters": {}
+   }
+  }
+ ]
+}

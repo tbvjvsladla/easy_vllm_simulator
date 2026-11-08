@@ -1,0 +1,3 @@
+Model weights take 0.1 GiB
+non-torch 0.2 GiB
+Available KV cache memory: 0.3 GiB

@@ -1,0 +1,325 @@
+{
+ "files": {
+  "ref-literal-true.json": "{\"decode_tps\": {\"\\u0000yaml-key:num:1\\u0000True\": 5}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "ref-roofline.json": "{}",
+  "ref-same-canonical-two-strings.json": "{\"decode_tps\": {\"\\u0000yaml-key:num:1\\u0000True\": 5, \"\\u0000yaml-key:num:1\\u00001\": 6}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "ref-literal-unicode.json": "{\"decode_tps\": {\"\\u0000yaml-key:num:1\\u0000\\ud55c\\uae00\": 7}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "ref-ordinary-nul-negative.json": "{\"decode_tps\": {\"\\u0000yaml_key:num:1\\u0000True\": 8}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "ref-nested-literals.json": "{\"decode_tps\": {\"outer\": [{\"\\u0000yaml-key:num:1\\u0000True\": 2, \"\\u0000yaml-key:num:1\\u00001\": 3}]}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "ref-prefix-without-separator.json": "{\"decode_tps\": {\"\\u0000yaml-key:plain\": 9}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "ref-yaml-literal.yaml": "a: {\"\\0yaml-key:num:1\\0True\": 5}\n",
+  "ref-yaml-non-string-equivalence.yaml": "a: {true: first, 1: second, 1.0: last}\n",
+  "ref-yaml-literal-with-nonstring.yaml": "a: {true: first, \"\\0yaml-key:num:1\\0True\": second}\n",
+  "ref-yaml-insertion-order.yaml": "a: {true: first, \"\\0yaml-key:num:1\\0True\": second, 1: last}\n",
+  "probe-measured.json": "{\"decode_tps\": {\"\\u0000yaml-key:num:1\\u0000True\": 5}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "probe-roofline.json": "{}",
+  "ind-reserved-prefix-measured.json": "{\"decode_tps\": {\"\\u0000yaml-key:num:1\\u0000True\": 5}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "ind-reserved-prefix-roofline.json": "{}",
+  "ind-negative-control-negative-control-measured.json": "{\"decode_tps\": {\"\\u0000yaml_key:num:1\\u0000True\": 5}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "ind-negative-control-roofline.json": "{}",
+  "x-none-lookalike.json": "{\"decode_tps\": {\"\\u0000yaml-key:none\\u0000None\": 5}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "x-roofline.json": "{}",
+  "x-marker-alone.json": "{\"decode_tps\": {\"\\u0000yaml-key:\": 1}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "x-two-reprs-one-canonical.json": "{\"decode_tps\": {\"\\u0000yaml-key:num:1\\u0000True\": 5, \"\\u0000yaml-key:num:1\\u0000False\": 6}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "x-float-lookalikes.json": "{\"decode_tps\": {\"\\u0000yaml-key:float:1.5\\u0000a\": 1, \"\\u0000yaml-key:float:1.5\\u0000b\": 2}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "x-surrogate-prefix.json": "{\"decode_tps\": {\"\\ud800\\u0000yaml-key:num:1\\u0000True\": 5}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "x-nested.json": "{\"decode_tps\": {\"outer\": [{\"\\u0000yaml-key:num:1\\u0000True\": 5}, {\"\\u0000yaml-key:num:1\\u00001\": 6}], \"x\": {\"\\u0000yaml-key:num:1\\u0000True\": 7}}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "x-date-lookalike.json": "{\"decode_tps\": {\"\\u0000yaml-key:other:x\\u0000datetime.date(2026, 1, 1)\": 1}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "x-true-and-string.json": "{\"decode_tps\": {\"True\": 1, \"true\": 2, \"\\u0000yaml-key:num:1\\u0000True\": 3}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "x-inf-lookalike.json": "{\"decode_tps\": {\"\\u0000yaml-key:float:inf\\u0000inf\": 1}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}",
+  "x-plain-unicode.json": "{\"decode_tps\": {\"\\ud55c\\uae00\": 1, \"\\ud83d\\ude00\": 2}, \"measurement_ok\": true, \"completed\": 1, \"failed\": 0}"
+ },
+ "cases": [
+  {
+   "id": "literal-true",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/ref-literal-true.json",
+    "--roofline",
+    "{DIR}/ref-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\\\\x00yaml-key:num:1\\\\x00True': 5}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\\u0000yaml-key:num:1\\u0000True\": 5\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "same-canonical-two-strings",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/ref-same-canonical-two-strings.json",
+    "--roofline",
+    "{DIR}/ref-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\\\\x00yaml-key:num:1\\\\x00True': 5, '\\\\x00yaml-key:num:1\\\\x001': 6}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\\u0000yaml-key:num:1\\u0000True\": 5,\n    \"\\u0000yaml-key:num:1\\u00001\": 6\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "literal-unicode",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/ref-literal-unicode.json",
+    "--roofline",
+    "{DIR}/ref-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\\\\x00yaml-key:num:1\\\\x00\ud55c\uae00': 7}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\\u0000yaml-key:num:1\\u0000\ud55c\uae00\": 7\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "ordinary-nul-negative",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/ref-ordinary-nul-negative.json",
+    "--roofline",
+    "{DIR}/ref-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\\\\x00yaml_key:num:1\\\\x00True': 8}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\\u0000yaml_key:num:1\\u0000True\": 8\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "nested-literals",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/ref-nested-literals.json",
+    "--roofline",
+    "{DIR}/ref-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'outer': [{'\\\\x00yaml-key:num:1\\\\x00True': 2, '\\\\x00yaml-key:num:1\\\\x001': 3}]}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"outer\": [\n      {\n        \"\\u0000yaml-key:num:1\\u0000True\": 2,\n        \"\\u0000yaml-key:num:1\\u00001\": 3\n      }\n    ]\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "prefix-without-separator",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/ref-prefix-without-separator.json",
+    "--roofline",
+    "{DIR}/ref-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\\\\x00yaml-key:plain': 9}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\\u0000yaml-key:plain\": 9\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "yaml-literal",
+   "tool": "roofline",
+   "argv": [
+    "yaml-load",
+    "{DIR}/ref-yaml-literal.yaml"
+   ],
+   "exit": 0,
+   "stdout": "{'a': {'\\x00yaml-key:num:1\\x00True': 5}}\n",
+   "stderr": ""
+  },
+  {
+   "id": "yaml-non-string-equivalence",
+   "tool": "roofline",
+   "argv": [
+    "yaml-load",
+    "{DIR}/ref-yaml-non-string-equivalence.yaml"
+   ],
+   "exit": 0,
+   "stdout": "{'a': {True: 'last'}}\n",
+   "stderr": ""
+  },
+  {
+   "id": "yaml-literal-with-nonstring",
+   "tool": "roofline",
+   "argv": [
+    "yaml-load",
+    "{DIR}/ref-yaml-literal-with-nonstring.yaml"
+   ],
+   "exit": 0,
+   "stdout": "{'a': {True: 'first', '\\x00yaml-key:num:1\\x00True': 'second'}}\n",
+   "stderr": ""
+  },
+  {
+   "id": "yaml-insertion-order",
+   "tool": "roofline",
+   "argv": [
+    "yaml-load",
+    "{DIR}/ref-yaml-insertion-order.yaml"
+   ],
+   "exit": 0,
+   "stdout": "{'a': {True: 'last', '\\x00yaml-key:num:1\\x00True': 'second'}}\n",
+   "stderr": ""
+  },
+  {
+   "id": "k1-probe",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/probe-measured.json",
+    "--roofline",
+    "{DIR}/probe-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\\\\x00yaml-key:num:1\\\\x00True': 5}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\\u0000yaml-key:num:1\\u0000True\": 5\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "independent-reserved-prefix",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/ind-reserved-prefix-measured.json",
+    "--roofline",
+    "{DIR}/ind-reserved-prefix-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\\\\x00yaml-key:num:1\\\\x00True': 5}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\\u0000yaml-key:num:1\\u0000True\": 5\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "independent-negative-control",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/ind-negative-control-negative-control-measured.json",
+    "--roofline",
+    "{DIR}/ind-negative-control-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\\\\x00yaml_key:num:1\\\\x00True': 5}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\\u0000yaml_key:num:1\\u0000True\": 5\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "extra-none-lookalike",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/x-none-lookalike.json",
+    "--roofline",
+    "{DIR}/x-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\\\\x00yaml-key:none\\\\x00None': 5}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\\u0000yaml-key:none\\u0000None\": 5\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "extra-marker-alone",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/x-marker-alone.json",
+    "--roofline",
+    "{DIR}/x-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\\\\x00yaml-key:': 1}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\\u0000yaml-key:\": 1\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "extra-two-reprs-one-canonical",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/x-two-reprs-one-canonical.json",
+    "--roofline",
+    "{DIR}/x-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\\\\x00yaml-key:num:1\\\\x00True': 5, '\\\\x00yaml-key:num:1\\\\x00False': 6}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\\u0000yaml-key:num:1\\u0000True\": 5,\n    \"\\u0000yaml-key:num:1\\u0000False\": 6\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "extra-float-lookalikes",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/x-float-lookalikes.json",
+    "--roofline",
+    "{DIR}/x-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\\\\x00yaml-key:float:1.5\\\\x00a': 1, '\\\\x00yaml-key:float:1.5\\\\x00b': 2}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\\u0000yaml-key:float:1.5\\u0000a\": 1,\n    \"\\u0000yaml-key:float:1.5\\u0000b\": 2\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "extra-surrogate-prefix",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/x-surrogate-prefix.json",
+    "--roofline",
+    "{DIR}/x-roofline.json"
+   ],
+   "exit": 1,
+   "stdout": "",
+   "stderr": "[traceback] UnicodeEncodeError: 'utf-8' codec can't encode character '\\ud800' in position 222: surrogates not allowed"
+  },
+  {
+   "id": "extra-nested",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/x-nested.json",
+    "--roofline",
+    "{DIR}/x-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'outer': [{'\\\\x00yaml-key:num:1\\\\x00True': 5}, {'\\\\x00yaml-key:num:1\\\\x001': 6}], 'x': {'\\\\x00yaml-key:num:1\\\\x00True': 7}}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"outer\": [\n      {\n        \"\\u0000yaml-key:num:1\\u0000True\": 5\n      },\n      {\n        \"\\u0000yaml-key:num:1\\u00001\": 6\n      }\n    ],\n    \"x\": {\n      \"\\u0000yaml-key:num:1\\u0000True\": 7\n    }\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "extra-date-lookalike",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/x-date-lookalike.json",
+    "--roofline",
+    "{DIR}/x-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\\\\x00yaml-key:other:x\\\\x00datetime.date(2026, 1, 1)': 1}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\\u0000yaml-key:other:x\\u0000datetime.date(2026, 1, 1)\": 1\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "extra-true-and-string",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/x-true-and-string.json",
+    "--roofline",
+    "{DIR}/x-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'True': 1, 'true': 2, '\\\\x00yaml-key:num:1\\\\x00True': 3}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"True\": 1,\n    \"true\": 2,\n    \"\\u0000yaml-key:num:1\\u0000True\": 3\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "extra-inf-lookalike",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/x-inf-lookalike.json",
+    "--roofline",
+    "{DIR}/x-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\\\\x00yaml-key:float:inf\\\\x00inf': 1}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\\u0000yaml-key:float:inf\\u0000inf\": 1\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  },
+  {
+   "id": "extra-plain-unicode",
+   "tool": "verdict_rule",
+   "argv": [
+    "--measured",
+    "{DIR}/x-plain-unicode.json",
+    "--roofline",
+    "{DIR}/x-roofline.json"
+   ],
+   "exit": 0,
+   "stdout": "{\n  \"verdict\": \"INVALID\",\n  \"failure_axis\": null,\n  \"structural_or_strategy\": null,\n  \"reason\": \"\uce21\uc815 \uc2e4\ud328(completed=1 failed=0 decode_tps={'\ud55c\uae00': 1, '\ud83d\ude00': 2}) \u2014 \uc7ac\uce21\uc815 \ud544\uc694\",\n  \"measured_decode_tps\": {\n    \"\ud55c\uae00\": 1,\n    \"\ud83d\ude00\": 2\n  },\n  \"rubric\": null,\n  \"reason_code\": null,\n  \"e_search\": \"no\"\n}\n",
+   "stderr": ""
+  }
+ ]
+}

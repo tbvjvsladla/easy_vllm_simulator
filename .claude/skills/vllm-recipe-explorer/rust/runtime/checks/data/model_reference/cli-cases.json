@@ -1,0 +1,172 @@
+[
+  {
+    "id": "cli-000",
+    "owner": "parse_model_config",
+    "args": []
+  },
+  {
+    "id": "cli-001",
+    "owner": "parse_model_config",
+    "args": [
+      "--help"
+    ]
+  },
+  {
+    "id": "cli-002",
+    "owner": "parse_model_config",
+    "args": [
+      "--self-test"
+    ]
+  },
+  {
+    "id": "cli-003",
+    "owner": "parse_model_config",
+    "args": [
+      "@REFERENCE@/input/Org-Normal"
+    ]
+  },
+  {
+    "id": "cli-004",
+    "owner": "parse_model_config",
+    "args": [
+      "@REFERENCE@/input/Org-Normal",
+      "--json"
+    ]
+  },
+  {
+    "id": "cli-005",
+    "owner": "parse_model_config",
+    "args": [
+      "@REFERENCE@/input/hybrid",
+      "--json"
+    ]
+  },
+  {
+    "id": "cli-006",
+    "owner": "parse_model_config",
+    "args": [
+      "@REFERENCE@/input/mxfp4",
+      "--json"
+    ]
+  },
+  {
+    "id": "cli-007",
+    "owner": "parse_model_config",
+    "args": [
+      "@REFERENCE@/input/bad-mxfp4",
+      "--json"
+    ]
+  },
+  {
+    "id": "cli-008",
+    "owner": "parse_model_config",
+    "args": [
+      "@REFERENCE@/input/config-invalid",
+      "--json"
+    ]
+  },
+  {
+    "id": "cli-009",
+    "owner": "parse_model_config",
+    "args": [
+      "@REFERENCE@/input/config-list",
+      "--json"
+    ]
+  },
+  {
+    "id": "cli-010",
+    "owner": "parse_model_config",
+    "args": [
+      "@REFERENCE@/input/absent"
+    ]
+  },
+  {
+    "id": "cli-011",
+    "owner": "parse_model_config",
+    "args": [
+      "/app/models/Org-Normal",
+      "--nas-root",
+      "@REFERENCE@/input",
+      "--json"
+    ]
+  },
+  {
+    "id": "cli-012",
+    "owner": "parse_model_config",
+    "args": [
+      "--unknown"
+    ]
+  },
+  {
+    "id": "cli-013",
+    "owner": "crosscheck_model_card",
+    "args": []
+  },
+  {
+    "id": "cli-014",
+    "owner": "crosscheck_model_card",
+    "args": [
+      "--help"
+    ]
+  },
+  {
+    "id": "cli-015",
+    "owner": "crosscheck_model_card",
+    "args": [
+      "--ephemeral-estimate"
+    ]
+  },
+  {
+    "id": "cli-016",
+    "owner": "crosscheck_model_card",
+    "args": [
+      "@REFERENCE@/input/Org-Normal"
+    ]
+  },
+  {
+    "id": "cli-017",
+    "owner": "crosscheck_model_card",
+    "args": [
+      "@REFERENCE@/input/Org-Normal",
+      "--json"
+    ]
+  },
+  {
+    "id": "cli-018",
+    "owner": "crosscheck_model_card",
+    "args": [
+      "@REFERENCE@/input/mixed",
+      "--json"
+    ]
+  },
+  {
+    "id": "cli-019",
+    "owner": "crosscheck_model_card",
+    "args": [
+      "@REFERENCE@/input/mxfp4",
+      "--json"
+    ]
+  },
+  {
+    "id": "cli-020",
+    "owner": "crosscheck_model_card",
+    "args": [
+      "@REFERENCE@/input/bad-mxfp4",
+      "--json"
+    ]
+  },
+  {
+    "id": "cli-021",
+    "owner": "crosscheck_model_card",
+    "args": [
+      "@REFERENCE@/input/absent"
+    ]
+  },
+  {
+    "id": "cli-022",
+    "owner": "crosscheck_model_card",
+    "args": [
+      "--unknown"
+    ]
+  }
+]

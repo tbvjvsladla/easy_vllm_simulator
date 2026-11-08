@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py", line 566, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py", line 552, in main
+    paths = generate(parsed, recipe, args.name, args.repo, args.port,
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py", line 479, in generate
+    f.write(env_text)
+UnicodeEncodeError: 'utf-8' codec can't encode character '\udcff' in position 767: surrogates not allowed

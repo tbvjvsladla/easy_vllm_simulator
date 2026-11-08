@@ -1,0 +1,92 @@
+//! `upstream-runtime`: `resolve_build_track.py` of the upstream-version-watch skill as one native package: the build-track proposal, the torch CUDA
+//! arch mapping, the manifest loader (PyYAML 6.0.3 semantics, or the flat mini parser where the original's `import yaml` raises `ImportError`),
+//! the command line and the typed value DTO. Python-compatible values, errors, YAML and text semantics come from the common
+//! `agent-runtime-support` package; the argparse model, stdout buffering and benchmark harness are the recipe package's public generic pieces.
+
+pub mod api;
+pub mod bench;
+pub mod business;
+pub mod cli;
+pub mod dto;
+pub mod dto_decode;
+pub mod events;
+pub mod fetch_https;
+#[cfg(feature = "fixture")]
+pub mod fixture;
+pub mod host;
+pub mod http_direct;
+pub mod jsonl_program;
+pub mod layout_api;
+pub mod layout_bench;
+pub mod layout_cli;
+pub mod layout_events;
+pub mod layout_files;
+#[cfg(feature = "fixture")]
+pub mod layout_fixture;
+pub mod layout_main;
+pub mod layout_rules;
+pub mod layout_sites;
+pub mod layout_traceback;
+pub mod live;
+pub mod main_cmd;
+pub mod manifest;
+pub mod ngc_api;
+pub mod ngc_cli;
+pub mod ngc_inspect;
+pub mod ngc_main;
+pub mod ngc_tag;
+pub mod ngc_traceback;
+mod pep440;
+pub mod pyhash;
+pub mod pytext;
+pub mod requirement;
+pub mod runtime_patch;
+pub mod runtime_patch_args;
+pub mod runtime_patch_cli;
+pub mod runtime_patch_path;
+pub mod runtime_patch_traceback;
+pub mod textfile;
+pub mod thrown;
+pub mod tomllib;
+pub mod torch_cli;
+pub mod torch_main;
+pub mod torch_pin;
+pub mod torch_traceback;
+mod unicode_class;
+mod unicode_decimal;
+pub mod version_api;
+pub mod version_bench;
+pub mod wheel_api;
+pub mod wheel_asset;
+pub mod wheel_cli;
+pub mod wheel_fetch;
+pub mod wheel_json;
+pub mod wheel_main;
+pub mod wheel_traceback;
+// R39 `regen_requirements.py`
+pub mod installed_dist;
+pub mod mail_headers;
+pub mod py_errors;
+pub mod regen_api;
+pub mod regen_cli;
+pub mod regen_flow;
+pub mod regen_main;
+pub mod regen_traceback;
+pub mod requirements_rules;
+pub mod tempdir;
+pub mod urlretrieve;
+pub mod zip_archive;
+// R40 `classify_failure.py`
+pub mod classify_api;
+pub mod classify_cli;
+pub mod classify_main;
+pub mod classify_source;
+pub mod classify_traceback;
+pub mod py_regex_engine;
+pub mod py_regex_parse;
+pub mod unicode_escape;
+// R41 `node_role_contract.py`
+pub mod role_api;
+pub mod role_cli;
+pub mod role_errors;
+pub mod role_main;

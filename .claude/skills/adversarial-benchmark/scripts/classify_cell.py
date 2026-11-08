@@ -545,7 +545,7 @@ def read_cell_lite(raw_path, started):
         return {"lite_verdict": None, "lite_verdict_source": "lite_raw(%s) 판독 실패" % raw_path, "lite_raw_status": "unreadable"}
     import importlib.util as _iu
     _spec = _iu.spec_from_file_location("lite_metrics", os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                                                      "lite_metrics.py"))
+                                                                      "lite_metrics_native.py"))
     _lm = _iu.module_from_spec(_spec)
     _spec.loader.exec_module(_lm)
     try:
@@ -690,7 +690,7 @@ def classify_bench_mode(index, event_lines, events_scanned, tolerance_s=0, node_
     """
     try:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-        import repeat_axis as _ra
+        import repeat_axis_native as _ra
     except ImportError as exc:   # 배선 결함 — 부재를 full/lite 로 접지 않는다
         return _bench_mode_record(None, "undeterminable(repeat_axis 적재 실패: %s)" % exc)
     if not isinstance(index, dict) or not isinstance(index.get("levels"), list) or not index["levels"]:
@@ -766,7 +766,7 @@ def classify_bench_mode(index, event_lines, events_scanned, tolerance_s=0, node_
     _tool = ((index.get("meta") or {}).get("bench_tool") if isinstance(index.get("meta"), dict) else None)
     if established and _tool not in (None, "", "NA"):
         try:
-            from parse_guidellm import BENCH_TOOL as _full_tool
+            from parse_guidellm_native import BENCH_TOOL as _full_tool
         except ImportError as exc:   # 배선 결함 — 부재를 full 로 접지 않는다
             return _bench_mode_record(None, "undeterminable(parse_guidellm 적재 실패: %s)" % exc, repetition=summ)
         if _tool != _full_tool:

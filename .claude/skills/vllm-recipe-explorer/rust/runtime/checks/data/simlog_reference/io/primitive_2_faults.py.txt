@@ -1,0 +1,74 @@
+"""Controlled stdlib IO primitive 2: failing raw writes/close under a with block, with the exception chains. No owner logic, no json/yaml."""
+import io, json, sys
+
+class Raw(io.RawIOBase):
+    def __init__(self, plan):
+        self.plan = plan
+        self.attempts = 0
+        self.calls = []
+        self.close_calls = 0
+    def writable(self):
+        return True
+    def write(self, data):
+        index = self.attempts
+        self.attempts += 1
+        action = self.plan.get(index, self.plan.get('always'))
+        if action == 'fail':
+            raise OSError(5, 'Input/output error')
+        size = len(data)
+        if isinstance(action, int):
+            size = min(size, action)
+        self.calls.append(size)
+        return size
+    def close(self):
+        self.close_calls += 1
+        if self.plan.get('close') == 'fail':
+            raise OSError(5, 'close failed')
+        super().close()
+
+def chain(error):
+    rows = []
+    current = error
+    seen = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        cause, context = current.__cause__, current.__context__
+        relation = 'cause' if cause is not None else 'context' if context is not None and not current.__suppress_context__ else None
+        rows.append([type(current).__name__, str(current), relation])
+        current = cause if relation == 'cause' else context if relation == 'context' else None
+    return rows
+
+def scenario(name, bufsize, chunks, plan):
+    raw = Raw(plan)
+    buf = io.BufferedWriter(raw, buffer_size=bufsize)
+    text = io.TextIOWrapper(buf, encoding='utf-8')
+    steps, result = [], None
+    try:
+        with text:
+            for index, chunk in enumerate(chunks):
+                try:
+                    text.write(chunk)
+                    steps.append([index, 'ok', list(raw.calls), raw.attempts])
+                except BaseException as error:
+                    steps.append([index, type(error).__name__, str(error), list(raw.calls), raw.attempts])
+                    raise
+    except BaseException as error:
+        result = chain(error)
+    return dict(name=name, buffer_size=bufsize, chunk_bytes=[len(c.encode('utf-8', 'surrogatepass')) for c in chunks], plan={str(k): v for k, v in plan.items()},
+                steps=steps, result=result, raw_calls=list(raw.calls), raw_attempts=raw.attempts, close_calls=raw.close_calls)
+
+BAD = 'c\ud800'
+out = [
+    scenario('F1 large prefix fails before a later surrogate chunk', 4096, ['a' * 6000, 'b' * 6000, BAD], {0: 'fail'}),
+    scenario('F1b same, raw fails on the second raw write', 4096, ['a' * 6000, 'b' * 6000, BAD], {1: 'fail'}),
+    scenario('F2 body surrogate then close flush fails once', 4096, ['a' * 100, 'b' + '\ud800'], {0: 'fail'}),
+    scenario('F3 body surrogate then every raw write fails', 4096, ['a' * 100, 'b' + '\ud800'], {'always': 'fail'}),
+    scenario('F4 close flush fails alone', 4096, ['a' * 100], {0: 'fail'}),
+    scenario('F4b close flush fails always', 4096, ['a' * 100], {'always': 'fail'}),
+    scenario('F5 body surrogate then raw close fails', 4096, ['a' * 100, 'b' + '\ud800'], {'close': 'fail'}),
+    scenario('F5b close fails alone', 4096, ['a' * 100], {'close': 'fail'}),
+    scenario('F6 partial raw writes on a large chunk', 4096, ['a' * 6000], {0: 1000}),
+    scenario('F7 small chunks, failure at the second raw write', 4096, ['k' * 3000] * 5, {1: 'fail'}),
+    scenario('F8 flush and close both fail then raw close fails', 4096, ['a' * 100, 'b' + '\ud800'], {'always': 'fail', 'close': 'fail'}),
+]
+print(json.dumps(out))

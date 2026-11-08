@@ -1,0 +1,11 @@
+{
+ "value_in_first_chunk_bad_byte_later": 2,
+ "bad_byte_in_second_chunk": "UnicodeDecodeError: 'ascii' codec can't decode byte 0xe9 in position 2: ordinal not in range(128)",
+ "crlf_split_at_chunk_edge": 4,
+ "lone_cr_split_at_chunk_edge": 5,
+ "lone_cr_lines": 8,
+ "no_trailing_newline": 1,
+ "long_line_then_value": 3,
+ "bad_byte_after_value_in_first_chunk": "UnicodeDecodeError: 'ascii' codec can't decode byte 0xff in position 22: ordinal not in range(128)",
+ "value_line_spans_chunks": 7
+}

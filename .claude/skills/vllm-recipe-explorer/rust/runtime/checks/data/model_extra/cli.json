@@ -1,0 +1,60 @@
+[
+ {
+  "id": "parse-bare-double-dash",
+  "owner": "parse_model_config",
+  "args": [
+   "--json",
+   "--",
+   "@REFERENCE@/input/Org-Normal"
+  ],
+  "exit_code": 0
+ },
+ {
+  "id": "crosscheck-bare-double-dash",
+  "owner": "crosscheck_model_card",
+  "args": [
+   "--json",
+   "--",
+   "@REFERENCE@/input/Org-Normal"
+  ],
+  "exit_code": 0
+ },
+ {
+  "id": "parse-missing-option-value",
+  "owner": "parse_model_config",
+  "args": [
+   "--nas-root",
+   "--"
+  ],
+  "exit_code": 2
+ },
+ {
+  "id": "selftest-existing-private-directory",
+  "owner": "parse_model_config",
+  "args": [
+   "--self-test"
+  ],
+  "exit_code": 0
+ },
+ {
+  "id": "nonUTF8-nas-root",
+  "owner": "parse_model_config",
+  "args": [
+   "/app/models/Org-Normal",
+   "--nas-root",
+   "@RATIO@/nas-<FF>",
+   "--json"
+  ],
+  "exit_code": 0
+ },
+ {
+  "id": "nonUTF8-nas-root-equals",
+  "owner": "parse_model_config",
+  "args": [
+   "/app/models/Org-Normal",
+   "--nas-root=@RATIO@/nas-<FF>",
+   "--json"
+  ],
+  "exit_code": 0
+ }
+]

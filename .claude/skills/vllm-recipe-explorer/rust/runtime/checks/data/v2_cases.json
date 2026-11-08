@@ -1,0 +1,393 @@
+{
+"boundary_api": [
+{
+"id": "fmt-i32",
+"operation": "rank_recipes._fmt_num",
+"args": [
+1,
+2147483648
+],
+"kwargs": {},
+"expected": {
+"kind": "exception",
+"type": "OverflowError",
+"message": "Python int too large to convert to C int",
+"stdout": "",
+"stderr": ""
+}
+},
+{
+"id": "fmt-ssize",
+"operation": "rank_recipes._fmt_num",
+"args": [
+1,
+9223372036854775808
+],
+"kwargs": {},
+"expected": {
+"kind": "exception",
+"type": "OverflowError",
+"message": "Python int too large to convert to C int",
+"stdout": "",
+"stderr": ""
+}
+},
+{
+"id": "fmt-negative-ssize",
+"operation": "rank_recipes._fmt_num",
+"args": [
+1,
+-9223372036854775809
+],
+"kwargs": {},
+"expected": {
+"kind": "exception",
+"type": "OverflowError",
+"message": "Python int too large to convert to C int",
+"stdout": "",
+"stderr": ""
+}
+},
+{
+"id": "repeat-large",
+"operation": "rank_recipes.render_report",
+"args": [
+{},
+{},
+"x",
+1267650600228229401496703205376,
+1
+],
+"kwargs": {},
+"expected": {
+"kind": "exception",
+"type": "OverflowError",
+"message": "cannot fit 'int' into an index-sized integer",
+"stdout": "",
+"stderr": ""
+}
+},
+{
+"id": "repeat-empty",
+"operation": "rank_recipes.render_report",
+"args": [
+{},
+{},
+"",
+1267650600228229401496703205376,
+1
+],
+"kwargs": {},
+"expected": {
+"kind": "exception",
+"type": "OverflowError",
+"message": "cannot fit 'int' into an index-sized integer",
+"stdout": "",
+"stderr": ""
+}
+},
+{
+"id": "repeat-list-negative",
+"operation": "rank_recipes.render_report",
+"args": [
+{},
+{},
+[],
+-1267650600228229401496703205376,
+1
+],
+"kwargs": {},
+"expected": {
+"kind": "exception",
+"type": "OverflowError",
+"message": "cannot fit 'int' into an index-sized integer",
+"stdout": "",
+"stderr": ""
+}
+}
+],
+"boundary_cli": [
+{
+"id": "bare-double-dash",
+"program": "quant_table",
+"args": [
+"--"
+],
+"exit": 2,
+"stdout": "",
+"stderr": "usage: quant_table.py [-h] [--quant QUANT] [--serve-bpw SERVE_BPW]\n                      [--dtype DTYPE] [--json]\nquant_table.py: error: unrecognized arguments: --\n"
+},
+{
+"id": "malformed-file",
+"program": "estimate_vram",
+"args": [
+"--parsed",
+"{BINPUT}/bad.json",
+"--max-model-len",
+"4096",
+"--gmu",
+".9",
+"--tp",
+"1",
+"--budget",
+"80",
+"--margin",
+".9"
+],
+"exit": 1,
+"stdout": "",
+"stderr": "json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 2 column 2 (char 3)\n"
+},
+{
+"id": "undecodable-file",
+"program": "estimate_vram",
+"args": [
+"--parsed",
+"{BINPUT}/bad_utf8.json",
+"--max-model-len",
+"4096",
+"--gmu",
+".9",
+"--tp",
+"1",
+"--budget",
+"80",
+"--margin",
+".9"
+],
+"exit": 1,
+"stdout": "",
+"stderr": "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 13: invalid start byte\n"
+},
+{
+"id": "directory-file",
+"program": "estimate_vram",
+"args": [
+"--parsed",
+"{BINPUT}",
+"--max-model-len",
+"4096",
+"--gmu",
+".9",
+"--tp",
+"1",
+"--budget",
+"80",
+"--margin",
+".9"
+],
+"exit": 1,
+"stdout": "",
+"stderr": "IsADirectoryError: [Errno 21] Is a directory: '{BINPUT}'\n"
+}
+],
+"order": [
+{
+"id": "rank-nan-headroom",
+"operation": "rank_recipes.rank",
+"args": [
+{
+"serve_bpw": Infinity,
+"num_params": 1,
+"num_hidden_layers": 1,
+"num_key_value_heads": 1,
+"head_dim": 1,
+"prequantized": false
+},
+[
+{
+"id": "first",
+"quantization": "none",
+"max_model_len": 1,
+"gpu_memory_utilization": 1
+},
+{
+"id": "second",
+"quantization": "none",
+"max_model_len": 2,
+"gpu_memory_utilization": 1
+}
+],
+1,
+Infinity,
+0.9
+],
+"kwargs": {},
+"expected": {
+"kind": "value",
+"value": {
+"ranked": [
+{
+"id": "first",
+"quantization": "none",
+"max_model_len": 1,
+"gpu_memory_utilization": 1.0,
+"weight_gib": Infinity,
+"kv_gib": 3.725290298461914e-09,
+"overhead_gib": 0.8382244231179357,
+"estimated_total_gib": Infinity,
+"headroom_gib": NaN,
+"gate_pass": true,
+"kv_layers": 1,
+"kv_layers_source": "num_hidden_layers"
+},
+{
+"id": "second",
+"quantization": "none",
+"max_model_len": 2,
+"gpu_memory_utilization": 1.0,
+"weight_gib": Infinity,
+"kv_gib": 7.450580596923828e-09,
+"overhead_gib": 0.8382585290819407,
+"estimated_total_gib": Infinity,
+"headroom_gib": NaN,
+"gate_pass": true,
+"kv_layers": 1,
+"kv_layers_source": "num_hidden_layers"
+}
+],
+"failed": [],
+"all": [
+{
+"id": "first",
+"quantization": "none",
+"max_model_len": 1,
+"gpu_memory_utilization": 1.0,
+"weight_gib": Infinity,
+"kv_gib": 3.725290298461914e-09,
+"overhead_gib": 0.8382244231179357,
+"estimated_total_gib": Infinity,
+"headroom_gib": NaN,
+"gate_pass": true,
+"kv_layers": 1,
+"kv_layers_source": "num_hidden_layers"
+},
+{
+"id": "second",
+"quantization": "none",
+"max_model_len": 2,
+"gpu_memory_utilization": 1.0,
+"weight_gib": Infinity,
+"kv_gib": 7.450580596923828e-09,
+"overhead_gib": 0.8382585290819407,
+"estimated_total_gib": Infinity,
+"headroom_gib": NaN,
+"gate_pass": true,
+"kv_layers": 1,
+"kv_layers_source": "num_hidden_layers"
+}
+]
+},
+"stdout": "",
+"stderr": ""
+}
+},
+{
+"id": "max-len-errororder",
+"operation": "estimate_vram.max_feasible_max_len",
+"args": [
+{
+"num_params": "bad-params",
+"max_position_embeddings": "bad-cap"
+},
+1.0,
+0.9,
+1,
+null,
+2
+],
+"kwargs": {
+"weights_bytes": 0
+},
+"expected": {
+"kind": "exception",
+"type": "ValueError",
+"message": "invalid literal for int() with base 10: 'bad-params'",
+"stdout": "",
+"stderr": ""
+}
+},
+{
+"id": "batch-errororder",
+"operation": "estimate_vram.max_feasible_batch",
+"args": [
+{
+"num_params": "bad-params"
+},
+1.0,
+0.9,
+"bad-max-len",
+null,
+2
+],
+"kwargs": {
+"weights_bytes": 0
+},
+"expected": {
+"kind": "exception",
+"type": "ValueError",
+"message": "invalid literal for int() with base 10: 'bad-params'",
+"stdout": "",
+"stderr": ""
+}
+}
+],
+"io": [
+{
+"id": "quant-full",
+"program": "quant_table",
+"args": [
+"--json"
+],
+"exit": 120,
+"stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nOSError: [Errno 28] No space left on device\n"
+},
+{
+"id": "estimate-full",
+"program": "estimate_vram",
+"args": [
+"--parsed",
+"{INPUT}/parsed.json",
+"--max-model-len",
+"4096",
+"--gmu",
+".9",
+"--tp",
+"1",
+"--budget",
+"80",
+"--margin",
+".9"
+],
+"exit": 120,
+"stderr": "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\nOSError: [Errno 28] No space left on device\n"
+},
+{
+"id": "rank-full",
+"program": "rank_recipes",
+"args": [
+"--parsed",
+"{INPUT}/parsed.json",
+"--auto",
+"--budget",
+"80",
+"--json"
+],
+"exit": 1,
+"stderr": "OSError: [Errno 28] No space left on device\n"
+}
+],
+"cr": {
+"program": "rank_recipes",
+"args": [
+"--parsed",
+"{CRINPUT}/parsed.json",
+"--auto",
+"--budget",
+"80"
+],
+"exit": 0,
+"stdout": "========================================================================\nvLLM Recipe Ranking \u2014 x\ry\r\nz\n========================================================================\nmodel_id     : x\ry\r\nz\nnum_params   : 8,000,000,000\nbudget (GiB) : 80.00   safety_margin: 0.90   hard-gate: 72.00 GiB\ntensor_parallel_size: 1\nwarnings:\n  - warn\rvalue\r\nend\n------------------------------------------------------------------------\nid     quant               max_len   gmu     est_vram_gib   headroom_gib   verdict\n-----  ------------------  --------  ------  -------------  -------------  -------\nr12    fp8                 4096      0.95    10.03          69.97          PASS   \nr11    fp8                 4096      0.90    10.58          69.42          PASS   \nr15    fp8                 8192      0.95    10.70          69.30          PASS   \nr10    fp8                 4096      0.85    11.21          68.79          PASS   \nr14    fp8                 8192      0.90    11.29          68.71          PASS   \nr13    fp8                 8192      0.85    11.96          68.04          PASS   \nr18    fp8                 16384     0.95    12.05          67.95          PASS   \nr17    fp8                 16384     0.90    12.72          67.28          PASS   \nr16    fp8                 16384     0.85    13.46          66.54          PASS   \nr3     none                4096      0.95    17.87          62.13          PASS   \nr6     none                8192      0.95    18.54          61.46          PASS   \nr2     none                4096      0.90    18.86          61.14          PASS   \nr5     none                8192      0.90    19.57          60.43          PASS   \nr9     none                16384     0.95    19.89          60.11          PASS   \nr1     none                4096      0.85    19.97          60.03          PASS   \nr4     none                8192      0.85    20.72          59.28          PASS   \nr8     none                16384     0.90    20.99          59.01          PASS   \nr7     none                16384     0.85    22.23          57.77          PASS   \n------------------------------------------------------------------------\nPASS: 18 / 18 candidates\ntop recipe: r12 (quant=fp8, max_len=4096, gmu=0.95, headroom=69.97 GiB)\n========================================================================\n",
+"stderr": ""
+}
+}

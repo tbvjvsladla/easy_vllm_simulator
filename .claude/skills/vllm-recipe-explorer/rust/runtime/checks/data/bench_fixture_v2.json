@@ -1,0 +1,187 @@
+[
+  {
+    "metric": "quant_table.vllm_quant_bpw",
+    "operation": "quant_table.vllm_quant_bpw",
+    "args": [
+      "GPTQ_MARLIN",
+      2.0
+    ],
+    "kwargs": {},
+    "expected": 0.5,
+    "expected_source_id": "021"
+  },
+  {
+    "metric": "estimate_vram.estimate",
+    "operation": "estimate_vram.estimate",
+    "args": [
+      {
+        "num_hidden_layers": 64,
+        "num_key_value_heads": 4,
+        "head_dim": 256,
+        "max_position_embeddings": 131072,
+        "num_params": 27000000000,
+        "prequantized": false,
+        "serve_bpw": 2.0,
+        "num_full_attention_layers": 16
+      },
+      {
+        "id": "r1",
+        "quantization": "fp8",
+        "max_model_len": 32768,
+        "gpu_memory_utilization": 0.9
+      },
+      1,
+      80.0,
+      0.9
+    ],
+    "kwargs": {},
+    "expected": {
+      "id": "r1",
+      "quantization": "fp8",
+      "max_model_len": 32768,
+      "gpu_memory_utilization": 0.9,
+      "weight_gib": 25.14570951461792,
+      "kv_gib": 2.0,
+      "overhead_gib": 3.9674341678619385,
+      "estimated_total_gib": 34.570159647199844,
+      "headroom_gib": 45.429840352800156,
+      "gate_pass": true,
+      "kv_layers": 16,
+      "kv_layers_source": "num_full_attention_layers"
+    },
+    "expected_source_id": "115"
+  },
+  {
+    "metric": "rank_recipes.rank",
+    "operation": "rank_recipes.rank",
+    "args": [
+      {
+        "num_hidden_layers": 32,
+        "num_key_value_heads": 8,
+        "head_dim": 128,
+        "max_position_embeddings": 131072,
+        "num_params": 8000000000,
+        "prequantized": false,
+        "serve_bpw": 2.0
+      },
+      [
+        {
+          "id": "r1",
+          "quantization": "fp8",
+          "max_model_len": 32768,
+          "gpu_memory_utilization": 0.9
+        },
+        {
+          "id": "r2",
+          "quantization": "none",
+          "max_model_len": 32768,
+          "gpu_memory_utilization": 0.9
+        },
+        {
+          "id": "r3",
+          "quantization": "awq",
+          "max_model_len": 32768,
+          "gpu_memory_utilization": 0.9
+        }
+      ],
+      1,
+      80.0,
+      0.9
+    ],
+    "kwargs": {},
+    "expected": {
+      "ranked": [
+        {
+          "id": "r3",
+          "quantization": "awq",
+          "max_model_len": 32768,
+          "gpu_memory_utilization": 0.9,
+          "weight_gib": 3.725290298461914,
+          "kv_gib": 4.0,
+          "overhead_gib": 2.551823854446411,
+          "estimated_total_gib": 11.419015725453695,
+          "headroom_gib": 68.58098427454631,
+          "gate_pass": true,
+          "warning": "offline_quant_on_non_prequantized_checkpoint",
+          "kv_layers": 32,
+          "kv_layers_source": "num_hidden_layers"
+        },
+        {
+          "id": "r1",
+          "quantization": "fp8",
+          "max_model_len": 32768,
+          "gpu_memory_utilization": 0.9,
+          "weight_gib": 7.450580596923828,
+          "kv_gib": 4.0,
+          "overhead_gib": 2.551823854446411,
+          "estimated_total_gib": 15.558227168189154,
+          "headroom_gib": 64.44177283181085,
+          "gate_pass": true,
+          "kv_layers": 32,
+          "kv_layers_source": "num_hidden_layers"
+        },
+        {
+          "id": "r2",
+          "quantization": "none",
+          "max_model_len": 32768,
+          "gpu_memory_utilization": 0.9,
+          "weight_gib": 14.901161193847656,
+          "kv_gib": 4.0,
+          "overhead_gib": 2.551823854446411,
+          "estimated_total_gib": 23.836650053660076,
+          "headroom_gib": 56.16334994633992,
+          "gate_pass": true,
+          "kv_layers": 32,
+          "kv_layers_source": "num_hidden_layers"
+        }
+      ],
+      "failed": [],
+      "all": [
+        {
+          "id": "r1",
+          "quantization": "fp8",
+          "max_model_len": 32768,
+          "gpu_memory_utilization": 0.9,
+          "weight_gib": 7.450580596923828,
+          "kv_gib": 4.0,
+          "overhead_gib": 2.551823854446411,
+          "estimated_total_gib": 15.558227168189154,
+          "headroom_gib": 64.44177283181085,
+          "gate_pass": true,
+          "kv_layers": 32,
+          "kv_layers_source": "num_hidden_layers"
+        },
+        {
+          "id": "r2",
+          "quantization": "none",
+          "max_model_len": 32768,
+          "gpu_memory_utilization": 0.9,
+          "weight_gib": 14.901161193847656,
+          "kv_gib": 4.0,
+          "overhead_gib": 2.551823854446411,
+          "estimated_total_gib": 23.836650053660076,
+          "headroom_gib": 56.16334994633992,
+          "gate_pass": true,
+          "kv_layers": 32,
+          "kv_layers_source": "num_hidden_layers"
+        },
+        {
+          "id": "r3",
+          "quantization": "awq",
+          "max_model_len": 32768,
+          "gpu_memory_utilization": 0.9,
+          "weight_gib": 3.725290298461914,
+          "kv_gib": 4.0,
+          "overhead_gib": 2.551823854446411,
+          "estimated_total_gib": 11.419015725453695,
+          "headroom_gib": 68.58098427454631,
+          "gate_pass": true,
+          "warning": "offline_quant_on_non_prequantized_checkpoint",
+          "kv_layers": 32,
+          "kv_layers_source": "num_hidden_layers"
+        }
+      ]
+    },
+    "expected_source_id": "240"
+  }
+]

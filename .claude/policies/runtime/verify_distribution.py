@@ -261,10 +261,10 @@ def _terraform_flag_issued() -> bool:
 
 
 def _shipped_python_paths(root: Path = REPO) -> list[Path]:
-    """Return Python files shipped by this checkout, excluding nested harness worktrees."""
-    worktree_root = root / ".claude/worktrees"
+    """Return shipped Python sources, excluding nested worktrees and generated toolchains."""
+    excluded = (root / ".claude/worktrees", root / ".claude/runtime")
     return sorted(path for path in (root / ".claude").rglob("*.py")
-                  if worktree_root not in path.parents)
+                  if not any(directory in path.parents for directory in excluded))
 
 
 def _gitless_hint_match_checks() -> list[dict]:
@@ -873,6 +873,8 @@ def verify() -> dict:
              ".claude/skills/terraforming_node/scripts/bootstrap_canary.py", "--self-test"], {0}),
         _run("terraform_bootstrap_permissions_selftest", [sys.executable, "-B",
              ".claude/skills/terraforming_node/scripts/selftest_bootstrap_permissions.py"], {0}),
+        _run("terraform_rust_bootstrap_selftest", ["bash",
+             ".claude/skills/terraforming_node/scripts/selftest_rust_bootstrap.sh"], {0}),
         _run("terraform_sub_hint_write_scopes_selftest", [sys.executable, "-B",
              ".claude/skills/terraforming_node/scripts/selftest_sub_hint_write_scopes.py"], {0}),
         # single 서브 hint 발행 장착 판정·장착(plan_26101104 Step 3 · 2026-10-11). 호출자 없는 자체검사는 L1(산문)이다.
@@ -942,8 +944,8 @@ def verify() -> dict:
                        ".claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py",
                        "--check-parity"], {0}))
     checks += [
-        _run("benchmark_verdict_fixture", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py", "--measured",
+        _run("benchmark_verdict_fixture", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/verdict_rule.sh", "--measured",
              ".claude/skills/adversarial-benchmark/fixtures/measured_pass.json", "--roofline",
              ".claude/skills/adversarial-benchmark/fixtures/roofline_sample.json"], {0}),
         # 공허 PASS 게이트의 **집행** (plan_26082219 B2 · 2026-08-22 배선).
@@ -952,8 +954,8 @@ def verify() -> dict:
         #   L1(산문)** 이다 — 2026-08-16 실측(`gen_recipe_set --check-parity` tripwire 가 호출자 0 개라
         #   실제 위반이 커밋과 이 검증기를 그대로 통과했다)이 그 실증이다. 여기서 매 검증마다 돌린다.
         #   순수 결정론 단위검사(픽스처 파일·네트워크·서빙 불요)라 미테라포밍 레포에서도 안전하다.
-        _run("benchmark_verdict_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py", "--self-test"], {0}),
+        _run("benchmark_verdict_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/verdict_rule.sh", "--self-test"], {0}),
         # recipe-explorer 결정론 자체검사의 **집행** (plan_26082223 §4 · 2026-08-23 배선).
         #   같은 이유다 — 호출자 없는 자체검사는 L2 가 아니라 L1(산문)이다. 셋 다 순수
         #   결정론 단위검사(모델·NAS·docker·GPU 불요)라 미테라포밍 레포에서도 안전하다.
@@ -991,14 +993,18 @@ def verify() -> dict:
         #   사람에게 **"양자화 없음"**으로 읽히므로, PASS 였다면 거짓 계약이 인증서로 배포됐다.
         #   이 검사는 sweep_bench.sh 의 조립 heredoc 을 **그대로 뽑아 실행**하므로(파서 복제 없음)
         #   배포되는 코드 자체를 친다. 순수 정적 픽스처 — 서빙·docker·모델 불요.
-        _run("benchmark_sweep_meta_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_meta.py"], {0}),
+        _run("benchmark_sweep_meta_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_meta.sh"], {0}),
         # Broad Search 정지 조건 평가기의 **집행** (plan_26090415 §4.7 · CP1 · 2026-09-04).
         #   같은 이유다 — 호출자 없는 자체검사는 L2 가 아니라 L1(산문)이다. 이 평가기는 예산을
         #   선언 없이 판정하지 않는 fail-closed 이고(§4.8), 그 거부 경로가 살아 있는지는 음성
         #   사례 6건이 지킨다. 순수 결정론(파일·시계·서빙 불요 — 시각은 주입만 받는다).
-        _run("benchmark_sweep_stop_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/sweep_stop.py", "--self-test"], {0}),
+        _run("benchmark_sweep_stop_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/sweep_stop.sh", "--self-test"], {0}),
+        _run("benchmark_parse_bench_native_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/parse_bench.sh", "self-test"], {0}),
+        _run("benchmark_roofline_native_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/roofline.sh", "self-test"], {0}),
         # 루브릭 권한 통로의 fail-closed (plan_26090415 §1.2 · CP2 · 2026-09-04).
         #   `--authority` 를 넘기는 실행 코드가 0건이었던 것이 explore 인증서 0건의 원인이다.
         #   통로를 만들었으니 그 통로가 **권한을 발명하지 않는지**를 여기서 집행한다 —
@@ -1027,19 +1033,27 @@ def verify() -> dict:
         # 측정 도구 핀 해소기 (plan_26090415 §3.5 · CP3 · 2026-09-04). 순수 비교 함수 자체검사이며
         #   docker·네트워크 불요다. P8 이 **배포되는 실제 핀**을 스키마로 검사하므로 픽스처만 보고
         #   초록이 되지 않는다(픽스처가 실물보다 좁다 — 하루에 네 번 겪은 계열).
-        _run("benchmark_bench_tool_pin_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py", "--self-test"], {0}),
+        _run("benchmark_bench_tool_pin_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.sh", "--self-test"], {0}),
+        # Staging version resolver: source T1-T9 includes the shipped record and an injected
+        # release response, with no live GitHub request or implicit Docker pull.
+        _run("benchmark_guidellm_version_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/resolve_guidellm.sh", "--self-test"], {0}),
         # GuideLLM 산출물 파서 (CP4). 실측 산출물 픽스처를 함께 검사하므로 합성 픽스처만 보고
         #   초록이 되지 않는다.
-        _run("benchmark_parse_guidellm_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.py", "--self-test"], {0}),
+        _run("benchmark_parse_guidellm_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.sh", "--self-test"], {0}),
         # 광의의 탐색 결정론 3종 (CP6). 셀 종결 분류·지도 렌더러가 각각 음성 사례를 갖는다.
         #   특히 render_sweep_map 의 R8~R10 은 **순위 금지**를 산문이 아니라 결정론으로 지킨다 —
         #   산문으로만 적으면 다음 편집이 조용히 정렬 한 줄을 넣는다.
-        _run("benchmark_classify_cell_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/classify_cell.py", "--self-test"], {0}),
-        _run("benchmark_sweep_map_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.py", "--self-test"], {0}),
+        _run("benchmark_classify_cell_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh", "--self-test"], {0}),
+        _run("benchmark_sweep_map_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.sh", "--self-test"], {0}),
+        _run("benchmark_naming_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/bench_doc_naming.sh"], {0}),
+        _run("benchmark_dataset_prep_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/dataset_prep.sh", "--self-test"], {0}),
         # full bench 반복 축의 **집행** (plan_26091407 §4.4 · §7 O4 · 2026-09-14 배선). 호출자 없는 자체검사는
         #   L1(산문)이다(위 선례). 무엇을 지키나: full 정의(`lite ∪ GuideLLM × 반복 ≥3`)와 강등 트리거(판정점 run 실패 ·
         #   스윕이 멈춘 자리의 블랙박스 kill 만 · 분산 ✗ · 포화 경계 클램프 ✗)는 sweep_bench 레벨 루프 → repeat_axis 집계 →
@@ -1051,18 +1065,18 @@ def verify() -> dict:
         #   판정 불가·인증서 미발행) · 분산만 큼 → full · 반복 <3 선언 → 부하 전 exit 2 · 판정 기록 결손 → 리포트는
         #   발행·인증서는 미발행 · 재조립 레벨 부활 ✗ · repeats 미선언 상태 파일 → 셀 진입 거부(status·map 은 통과).
         #   E2E 정상 경로는 강등 경로를 밟지 않으므로 이것이 그 경로의 상시 증거다 — GPU·docker·NAS 불요.
-        _run("benchmark_repeat_axis_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py", "--self-test"], {0}),
-        _run("benchmark_sweep_repeats_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_repeats.py"], {0}),
+        _run("benchmark_repeat_axis_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/repeat_axis.sh", "--self-test"], {0}),
+        _run("benchmark_sweep_repeats_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_repeats.sh"], {0}),
         # full-bench knob 프리셋 계약의 **리뷰 시점 집행자**(plan_26101011 · 2026-10-10). 호출자 없는 자체검사는 L1(산문)이다.
         #   무엇을 지키나: "값만 조정, 키 추가·삭제는 계약 변경" · "등급 = 누가 선택지를 여나(auto/confirm/escalate)" ·
         #   기본값의 자리는 프리셋 하나. 스키마 고정(닫힌 키 표 스냅샷) · 로더 거부(미지/누락 키 · 꺼 둔 다른 도구 블록 ·
         #   열거 밖 기본값 · 미정의 근거 코드 · user knob 비기본 ≠ escalate · repeats < full 하한) · 해소 거부(근거 코드 부재 ·
         #   승인 없는 confirm · Agent 의 escalate · 핀 충돌 · 서빙 상한 위반 · 필수값 부재). 실행 시점 집행자는 sweep_bench 가
         #   부하 전에 부르는 bench_preset.py resolve 이고 그 배선은 위 selftest_sweep_repeats P1~P3 가 친다.
-        _run("benchmark_bench_preset_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/selftest_bench_preset.py"], {0}),
+        _run("benchmark_bench_preset_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/bench_preset.sh", "--self-test"], {0}),
         # lite hint 통로의 **리포트 평면** (plan_26091407 §4.5 · §7 O5 · 2026-09-14 배선). 호출자 없는 자체검사는 L1(산문)이다.
         #   무엇을 지키나: lite 만 잰 셀도 hint 를 내려면 바인딩할 문서가 있어야 하는데 lite_bench 는 문서를 내지 않았다
         #   (audit_26091323 §1.2 A2). 배포되는 lite_bench.sh 사본을 격리 저장소에서 shim(docker·curl·nvidia-smi)으로 돌려
@@ -1072,17 +1086,17 @@ def verify() -> dict:
         #   명명 키는 sweep_bench 조립 heredoc 실행과 교차검증 · full 리포트 측정 구성 표(full/강등/기록 부재).
         #   발행 끝단(격리 원격 publish→저작→continue→원격 SHA→카탈로그)은 runtime_selftest `_test_hint_map_only_publication`
         #   이 지킨다(2026-09-22 신 CLI 전 경로 · 그 경량 리포트도 배포되는 render_report 가 쓴다).
-        _run("benchmark_lite_report_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/selftest_lite_report.py"], {0}),
+        _run("benchmark_lite_report_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/selftest_lite_report.sh"], {0}),
         # lite ⊂ full — lite 판정이 full 의 **진입 게이트**다(plan_26092923 · 2026-09-29). 촉발은 D1(측정 0건인데 rc 0).
         #   계약 검사: 게이트 종료가 GuideLLM 레벨 호출보다 앞 · 판정 어휘/종료코드 · D1 연결거부 픽스처 → ① (정적+판정기).
         #   격리 시험: D1 연결거부 → exit 6 · 서버 실패 응답 → exit 7 · α(플래그 없음)는 리포트·인증서 0 · β 통과 → lite 등급
         #   인증서(benchmark_mode lite · not_applicable · lite_verdict pass · 리포트와 같은 stem) · 발행기는 판정 부재·불통과 raw 거부.
         #   sweep 게이트의 실행 층(lite 불통과 → GuideLLM 레벨 0)은 위 selftest_sweep_repeats G★ 가 친다.
-        _run("benchmark_lite_gate_conformance", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/conformance_full_superset_lite.py"], {0}),
-        _run("benchmark_lite_gate_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/selftest_lite_gate.py"], {0}),
+        _run("benchmark_lite_gate_conformance", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/conformance_full_superset_lite.sh"], {0}),
+        _run("benchmark_lite_gate_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/selftest_lite_gate.sh"], {0}),
         # Broad Search 이중 게이트의 **집행**: --confirm-risk 없이는 셀이 돌지 않는다(exit 5).
         # single 컨테이너 관리 진입점의 **인자 평면** fail-closed (plan_26090419 P1 · 2026-09-04).
         #   기동 경로는 예산선언·워치독 무장을 품고 있어 잘못 불리면 무보호 로드가 된다. 여기서는
@@ -1132,21 +1146,21 @@ def verify() -> dict:
         #   통과, 불일치 기재, 캠페인 밖 not_applicable 표시를 음성대조와 함께 친다. 부하 스크립트는
         #   사본에 없고 curl 은 shim 이라 서빙·docker·GPU 불요다(위 confirm_gate 는 exit 5 로 precheck
         #   앞에서 멈추므로 lockset 없이도 계약이 유지된다).
-        _run("benchmark_broad_search_provenance_precheck", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_precheck.py"], {0}),
+        _run("benchmark_broad_search_provenance_precheck", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_precheck.sh"], {0}),
         # cell 인자 선검사·루브릭 권한 승계의 **집행** (2026-10-01 · plan_26100113 H6 · F3·F4). 측정기의 측정 전 거부(rc 2)가
         #   셀 기록(void)으로 굳어 예산을 먹던 경로와, 판정 호출이 상태 파일 권한 대신 explore 로 접히던 침묵 폴백이 돌아오지
         #   않는지 친다. 부하 스크립트는 argv 만 기록하는 stub 이다 — 서빙·docker·GPU 불요.
-        _run("benchmark_broad_search_cell_args", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_cell_args.py"], {0}),
+        _run("benchmark_broad_search_cell_args", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_cell_args.sh"], {0}),
         # 벤치 6종 토폴로지 해소의 **집행** (2026-09-14 · plan_26091407 §9 ⑧ 분석 발견 T8 · 헌법 "토폴로지는 manifest 에서 읽고
         #   브랜치로 추론하지 않는다"). 호출자 없는 자체검사는 L1(산문)이다(위 선례). 무엇을 지키나: `--topology` 미지정 시 6종이
         #   브랜치 이름으로 고르고 unknown 을 조용히 single 로 접던 관용구가 돌아오지 않는지(S0 · abbrev-ref 0)와, 해소가 카드(unsigned)
         #   노드 = 카드↔자기 manifest · 메인 = 4자일치 술어로만 서는지. 배포되는 6종의 바이트 사본을 임시 git 저장소에서 돌려
         #   음성대조(운영 브랜치가 아닌 이름 → 해소 불가 · 통로 manifest 부재 → 미테라포밍 · 명시 > 파생 · confirm-risk 게이트가
-        #   해소보다 앞선다)를 함께 친다. 카드 검증기는 테스트 평면 스텁이다(서명 자체는 A2A 술어가 지킨다) — docker·GPU 불요.
-        _run("benchmark_resolve_topology_selftest", [sys.executable,
-             ".claude/skills/adversarial-benchmark/scripts/resolve_topology.py", "--self-test"], {0}),
+        #   해소보다 앞선다)를 함께 친다. topology_parity는 실제 소유자를 호출하고 Flag 게이트만 argv기록 스텁이다 — docker·GPU 불요.
+        _run("benchmark_resolve_topology_selftest", ["bash",
+             ".claude/skills/adversarial-benchmark/scripts/resolve_topology.sh", "--self-test"], {0}),
         # gmu 두 역할 분리 · max-num-seqs 산식 · lockset 기계 각인의 **집행** (plan_26091407 §4.2·§4.3 · §7 O3 ·
         #   2026-09-14 배선). 호출자 없는 자체검사는 L1(산문)이다(위 선례). 함수 층(역할 분리·derive_batch 3경우·
         #   sim_classify adjust_target=batch·클램프 경계)과 CLI 층(배포되는 recipe.py 바이트 사본을 임시 저장소에서

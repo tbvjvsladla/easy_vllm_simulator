@@ -4,6 +4,12 @@
   "edges": [
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/selftest_rust_bootstrap.sh",
+      "phase": "verification_plane",
+      "reason": "Rust 신규 노드 설치·실패·재실행·명시 실행의 offline 계약 회귀를 실행한다(RUST-BOOT)"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
       "callee": "terraforming_node/scripts/selftest_harness_switch.py",
       "phase": "verification_plane",
       "reason": "하네스 전환 배포 검증 — 실제 relay·canary builder와 provider 결과·세션·원장 통합 픽스처를 실행한다(plan_26102623)"
@@ -19,12 +25,6 @@
       "callee": "{name}/SKILL.md",
       "phase": "verification_plane",
       "reason": "Codex 발견 폐포 — EXPECTED_SKILLS의 닫힌 public skill 집합에서 각 wrapper의 canonical SKILL.md 실재를 검증한다(plan_26102623)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
-      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.py",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
@@ -250,9 +250,9 @@
     },
     {
       "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.py",
+      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.sh",
       "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+      "reason": "C10 실제 설치 Rust CLI와 명시 image-inspect 대역의 일치/부재/드리프트 동작 검증"
     },
     {
       "caller": ".claude/policies/predicates/claim_predicates.py",
@@ -592,12 +592,6 @@
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.py",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
       "callee": "adversarial-benchmark/scripts/run_bench.sh",
       "phase": "verification_plane",
       "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
@@ -910,7 +904,7 @@
     },
     {
       "caller": ".claude/policies/runtime/evidence_publisher.py",
-      "callee": "adversarial-benchmark/scripts/classify_cell.py",
+      "callee": "adversarial-benchmark/scripts/classify_cell_native.py",
       "phase": "runtime_operational",
       "reason": "강등 어휘(DOWNGRADE_REASONS·bench_mode)의 단일 소유자에서 늦게 적재 — 적재 실패는 fail-closed"
     },
@@ -958,15 +952,15 @@
     },
     {
       "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "adversarial-benchmark/scripts/render_report.py",
+      "callee": "adversarial-benchmark/scripts/render_report.sh",
       "phase": "verification_plane",
       "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
     },
     {
       "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "adversarial-benchmark/scripts/sweep_bench.sh",
+      "callee": "adversarial-benchmark/rust/src/assemble_sweep_meta.rs",
       "phase": "verification_plane",
-      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+      "reason": "self-test 배포 사본이 실제 Rust index producer의 model 키 규칙 앵커를 읽도록 소유 소스를 복사한다"
     },
     {
       "caller": ".claude/policies/runtime/runtime_selftest.py",
@@ -1048,13 +1042,13 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/classify_cell.py",
+      "callee": "adversarial-benchmark/scripts/classify_cell.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/conformance_full_superset_lite.py",
+      "callee": "adversarial-benchmark/scripts/conformance_full_superset_lite.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
@@ -1066,31 +1060,31 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/parse_guidellm.py",
+      "callee": "adversarial-benchmark/scripts/parse_guidellm.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/render_sweep_map.py",
+      "callee": "adversarial-benchmark/scripts/render_sweep_map.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/repeat_axis.py",
+      "callee": "adversarial-benchmark/scripts/repeat_axis.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.py",
+      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/resolve_topology.py",
+      "callee": "adversarial-benchmark/scripts/resolve_topology.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
@@ -1102,55 +1096,67 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/selftest_broad_search_precheck.py",
+      "callee": "adversarial-benchmark/scripts/selftest_broad_search_precheck.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/selftest_bench_preset.py",
+      "callee": "adversarial-benchmark/scripts/bench_preset.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/selftest_broad_search_cell_args.py",
+      "callee": "adversarial-benchmark/scripts/selftest_broad_search_cell_args.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/selftest_lite_gate.py",
+      "callee": "adversarial-benchmark/scripts/selftest_lite_gate.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/selftest_lite_report.py",
+      "callee": "adversarial-benchmark/scripts/selftest_lite_report.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/selftest_sweep_meta.py",
+      "callee": "adversarial-benchmark/scripts/selftest_sweep_meta.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/selftest_sweep_repeats.py",
+      "callee": "adversarial-benchmark/scripts/selftest_sweep_repeats.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/sweep_stop.py",
+      "callee": "adversarial-benchmark/scripts/sweep_stop.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/verdict_rule.py",
+      "callee": "adversarial-benchmark/scripts/parse_bench.sh",
+      "phase": "verification_plane",
+      "reason": "Rust 측정 파서의 native 기동·변환·오류/경고 자체검사를 실행한다(R2)"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/roofline.sh",
+      "phase": "verification_plane",
+      "reason": "Rust 루프라인의 native 기동·샤드 집계·출처 계약을 자체검사한다(R3)"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/verdict_rule.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
@@ -1612,7 +1618,7 @@
     },
     {
       "caller": ".claude/policies/runtime/doc_naming.py",
-      "callee": "adversarial-benchmark/scripts/doc_naming.py",
+      "callee": "adversarial-benchmark/scripts/doc_naming_native.py",
       "phase": "runtime_operational",
       "reason": "벤치 명명 SSOT 재수출 — 정본 모듈 객체를 그대로 다시 내보낸다(사본 ✗ · plan_26090410 P0.5b)"
     },
@@ -1669,6 +1675,60 @@
       "callee": "hint-publisher/scripts",
       "phase": "verification_plane",
       "reason": "이미지 Git 출처 회귀를 private hintlib.selftest_image_git_release 모듈로 실행하는 작업 디렉터리 — 공개 CLI 폐포를 보존하며 측정 digest·노드 소유·SHA/tag·격리·정리의 양·음성 대조를 호출한다(plan_26102904)"
+    },
+    {
+      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "callee": "adversarial-benchmark/scripts/bench_reporting_api.sh",
+      "phase": "verification_plane",
+      "reason": "실제 native report 출력과 verdict-table 소비 파서 계약을 대조한다"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/bench_doc_naming.sh",
+      "phase": "verification_plane",
+      "reason": "Rust 벤치 명명 소유자의 실제 자체검사를 수행한다"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/dataset_prep.sh",
+      "phase": "verification_plane",
+      "reason": "데이터셋 최빈길이·BOS·salt 행 선택의 실제 Rust 자체검사를 실행한다(R10)"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "adversarial-benchmark/rust/src",
+      "phase": "verification_plane",
+      "reason": "Rust 벤치 도구 해소기의 제거 tripwire 경로와 양성/음성 Git-discovery fixture; 실제 운영 호출이 아니다(R11)"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "adversarial-benchmark/rust/src/bench_tool_pin.rs",
+      "phase": "verification_plane",
+      "reason": "Rust 벤치 도구 해소기의 제거 tripwire 경로와 양성/음성 Git-discovery fixture; 실제 운영 호출이 아니다(R11)"
+    },
+    {
+      "caller": ".claude/policies/runtime/antipattern_scan.py",
+      "callee": "adversarial-benchmark/rust/src/unrelated.rs",
+      "phase": "verification_plane",
+      "reason": "Rust 벤치 도구 해소기의 제거 tripwire 경로와 양성/음성 Git-discovery fixture; 실제 운영 호출이 아니다(R11)"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "adversarial-benchmark/scripts/resolve_guidellm.sh",
+      "phase": "verification_plane",
+      "reason": "배포되는 Rust 스테이징 버전 해소기의 T1~T9 및 실제 default record 구조를 명시 자체검사로 실행한다(R12)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "adversarial-benchmark/scripts/bench_shell.sh",
+      "phase": "verification_plane",
+      "reason": "TERRAFORM_FLAG_GATE.C2가 실제 run_bench.sh 사본의 Rust 전송 런처를 함께 복사해 동일 생산 경로를 검사한다(R45)."
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "adversarial-benchmark/rust/target/release/bench_shell",
+      "phase": "verification_plane",
+      "reason": "TERRAFORM_FLAG_GATE.C2가 해당 노드에서 빌드된 실제 bench_shell 실행파일을 사본 런처에 명시 결속한다. 부재는 검사 실패이며 대역·Python 대체가 아니다(R45)."
     }
   ]
 }

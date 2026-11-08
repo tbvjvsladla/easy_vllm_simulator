@@ -1,0 +1,20 @@
+[package]
+name = "agent-runtime-support"
+version = "0.1.0"
+edition = "2021"
+description = "Python-compatible typed data and text semantics shared by the owner Rust packages (str, JSON, YAML, numbers, ordering); no orchestration, process, network or credentials"
+publish = false
+# `tests/` is a scratch name in this repository; integration checks, if any, live in `checks/`.
+autotests = false
+
+[lib]
+name = "agent_runtime_support"
+path = "src/lib.rs"
+
+[[test]]
+name = "pycall_cases"
+path = "checks/pycall_cases.rs"
+
+[dependencies]
+num-bigint = "0.4"
+num-traits = "0.2"

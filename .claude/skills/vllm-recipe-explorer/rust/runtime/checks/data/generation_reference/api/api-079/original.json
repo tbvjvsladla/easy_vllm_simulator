@@ -1,0 +1,36 @@
+{
+  "id": "api-079",
+  "kind": "value",
+  "value": [
+    "@CASE@/node/configs/generated.yaml",
+    "@CASE@/node/configs/generated.sh",
+    "@CASE@/node/envs/.env.generated"
+  ],
+  "stdout": "",
+  "stderr": "[gen_recipe_set] WARN: image \ubbf8\uc9c0\uc815 \u2192 env \uc5d0 IMAGE_TAG \ub97c \uc4f0\uc9c0 \ubabb\ud588\ub2e4. compose \uac00 \ub0a1\uc740 \uae30\ubcf8 \uc774\ubbf8\uc9c0\ub85c \ud3f4\ubc31\ud558\ubbc0\ub85c \uc11c\ube59 \uc804\uc5d0 \uc9c1\uc811 \ucc44\uc6cc\ub77c.\n[gen_recipe_set] WARN: topology=multi \uc778\ub370 build_dockerfile \ubbf8\uc9c0\uc815.\n[gen_recipe_set] WARN: topology=multi \uc778\ub370 vllm_version \ubbf8\uc9c0\uc815 \u2014 \uc774\ubbf8\uc9c0 \uc815\uccb4\uc131 \ubcc0\uc218\ub2e4(\ud2c0\ub9ac\uba74 \ub2e4\ub978 \ubc84\uc804\uc744 \uce21\uc815\ud558\uace0\ub3c4 \ubaa8\ub978\ub2e4).\n",
+  "args_after": [
+    {
+      "model_id": "Org/Model",
+      "model_path_container": "/app/models/Org/Model",
+      "num_hidden_layers": 4,
+      "hidden_size": 16,
+      "prequantized": false,
+      "serve_bpw": 2.0
+    },
+    {
+      "id": "r1",
+      "quantization": "fp8",
+      "max_model_len": 4096,
+      "gpu_memory_utilization": 0.9,
+      "tensor_parallel_size": 1
+    },
+    "generated",
+    "@CASE@/node",
+    8080,
+    "served"
+  ],
+  "kwargs_after": {
+    "image": null,
+    "topology": "multi"
+  }
+}

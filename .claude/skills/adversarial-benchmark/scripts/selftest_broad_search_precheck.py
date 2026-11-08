@@ -45,21 +45,43 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[4]
 COPIES = (
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh",
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell_api.sh",
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell_native.py",
+    ".claude/skills/adversarial-benchmark/scripts/classify_cell_role_query.py",
+    ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell",
+    ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell_api",
+    ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.sh",
+    ".claude/skills/adversarial-benchmark/scripts/parse_guidellm_native.py",
+    ".claude/skills/adversarial-benchmark/rust/target/release/parse_guidellm",
+    ".claude/skills/adversarial-benchmark/rust/target/release/roofline",
+    ".claude/skills/adversarial-benchmark/rust/target/release/verdict_rule",
     ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
-    ".claude/skills/adversarial-benchmark/scripts/sweep_stop.py",
+    ".claude/skills/adversarial-benchmark/scripts/sweep_stop.sh",
+    ".claude/skills/adversarial-benchmark/rust/target/release/sweep_stop",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell.py",
     ".claude/skills/terraforming_node/scripts/campaign_init.py",
     ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
     # 반복 축 소유자(2026-09-14 · plan_26091407 §4.4) — init 이 declared_budget.repeats 를 여기서 파생하고
     # 정지 평가기·분류기가 full 정의 하한을 여기서 읽는다. 사본에 없으면 init 이 스윕을 열지 않는다(fail-closed).
     ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis.sh",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_api.sh",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_native.py",
+    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_owner_query.py",
+    ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis",
+    ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis_api",
     # 측정 형상 프리셋(plan_26101011) — init 이 반복 수 기본값을 프리셋에서 받는다(bench_preset.py default).
     ".claude/skills/adversarial-benchmark/scripts/bench_preset.py",
+    ".claude/skills/adversarial-benchmark/scripts/bench_preset.sh",
+    ".claude/skills/adversarial-benchmark/scripts/bench_preset_api.sh",
+    ".claude/skills/adversarial-benchmark/rust/target/release/bench_preset",
+    ".claude/skills/adversarial-benchmark/rust/target/release/bench_preset_api",
     ".claude/skills/adversarial-benchmark/config/bench_bindings.yaml",
     ".claude/skills/adversarial-benchmark/config/guide-llm/default_preset.yaml",
     # 루브릭 권한 값역의 단일 소유자(2026-10-01 · plan_26100113 D1) — cell 은 상태 파일 권한을 이 목록으로 검사한다.
-    ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py",
-    ".claude/skills/adversarial-benchmark/scripts/roofline.py",   # verdict_rule 의 import 의존
+    ".claude/skills/adversarial-benchmark/scripts/verdict_rule.sh",
+    ".claude/skills/adversarial-benchmark/scripts/roofline.sh",   # 판정 체인의 native owner 진입점
 )
 # 부하를 거는 스크립트는 사본에 **두지 않는다** — 경로가 잘못 열려도 실행할 대상이 없다.
 NEVER_COPY = (
@@ -117,7 +139,7 @@ def _lockset(root: Path, doc: dict | None) -> None:
 
 def _bs(root: Path, env: dict, *args: str) -> subprocess.CompletedProcess:
     return subprocess.run(
-        ["bash", str(root / COPIES[0]), *args], cwd=str(root), env=env,
+        ["bash", str(root / ".claude/skills/adversarial-benchmark/scripts/broad_search.sh"), *args], cwd=str(root), env=env,
         capture_output=True, text=True, timeout=120)
 
 
@@ -254,7 +276,8 @@ def main() -> int:
         # J — 판정자 부재. 부하 경로에서 hand-authored 로 두어, precheck 가 사라지면 curl 까지 가게 한다
         #     (음성대조가 실제로 "판정자 부재 → 통과" 변이를 잡으려면 통과 조건이 갖춰져 있어야 한다).
         _lockset(root, {"id": CELL, "provenance": "hand-authored"})
-        ci_copy = root / COPIES[3]
+        # 복사목록에 native 실행파일이 추가돼도 동일한 판정자 결손을 주입한다.
+        ci_copy = root / ".claude/skills/terraforming_node/scripts/campaign_init.py"
         ci_bytes = ci_copy.read_bytes()
         marker.unlink(missing_ok=True)
         ci_copy.unlink()
@@ -271,7 +294,7 @@ def main() -> int:
 
         # K — 검증기 부재. 판정자는 돌지만 판정하지 못한다(rc 1 · stdout 비어 있음). 출처 표시 문제로
         #     안내하면 운영자는 lockset 에 거짓 라벨을 덮어쓴다 — 분류가 달라야 한다.
-        val_copy = root / COPIES[4]
+        val_copy = root / ".claude/skills/terraforming_node/scripts/campaign_template_validator.py"
         val_bytes = val_copy.read_bytes()
         marker.unlink(missing_ok=True)
         val_copy.unlink()

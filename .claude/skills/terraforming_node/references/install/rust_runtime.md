@@ -1,0 +1,174 @@
+# Rust 설치·빌드·기동 — §2.5.2
+
+새 Linux PC와 기존 노드의 Rust pin 변경·도구 결손을 이 절차로 처리한다. HW Flag와 독립된 하네스 실행환경이다.
+main 및 등록된 sub가 각자 실행하며, topology별 서브 역할·기존 승인·캠페인·native 권한을 보존한다.
+버전·컴포넌트·지원 target의 정본은 `scripts/rust_toolchain.pin`이다.
+
+## 현재 노드 준비
+
+프로젝트 루트에서 실행한다. `--runtime-home DIR`은 필요한 경우에만 지정한다.
+
+```bash
+bash .claude/skills/terraforming_node/scripts/rust_bootstrap.sh status
+bash .claude/skills/terraforming_node/scripts/rust_bootstrap.sh install
+bash .claude/skills/terraforming_node/scripts/rust_bootstrap.sh check
+bash .claude/skills/terraforming_node/scripts/rust_bootstrap.sh exec -- cargo --version
+```
+
+`status`는 설치된 도구를 읽어 missing/partial/stale/foreign/ready와 원인을 반환한다.
+도구 부재는 exit 3이며 검사 단계의 정상 안내다. 설치·복구는 명시 `install`만 수행한다.
+`install`은 공식 rustup을 HTTPS로 내려받아 버전 pin, minimal 프로필, rustfmt·Clippy를 준비한다.
+이미 유효한 설치면 다시 내려받지 않는다. 버전 변경·중단된 설치는 같은 노드의 rustup으로 복구한다.
+
+기본 설치 위치는 프로젝트 `.claude/runtime/rust/`다. helper는 이 아래의 CARGO_HOME·RUSTUP_HOME과 pin을
+자식 프로세스에 전달하고 `RUSTUP_AUTO_INSTALL=0`으로 암묵 toolchain 설치를 막는다.
+`HOME`·셸 프로필·전역 Rust 기본값·기존 인증은 수정하지 않는다. 새 shell에서 PATH를 수동 설정하거나
+`source`하지 않아도 helper의 절대경로와 `exec -- <명령>`을 사용하면 같은 환경이 선택된다.
+`exec`가 실행하는 사용자 명령 자체의 네트워크 사용은 그 명령의 계약을 따른다.
+
+`check`는 버전 목록뿐 아니라 임시 C 소스를 `cc`로 컴파일하고 `ar`로 정적 아카이브를 만든 뒤,
+외부 Cargo 의존성 없는 Rust 프로젝트를 그 아카이브와 offline 연결해 native 함수를 호출한다.
+fmt와 Clippy도 실행하며, 자신의 임시 probe만 정리한다. 이 검사를 통과하지 않은 노드를 Rust 준비 완료로
+기록하지 않는다. 별도 ready flag를 만들지 않는다. 실패 시 실제 원인·명령·종료를 testlog에 기록한다.
+
+## 업무 실행파일 빌드·기동
+
+도구체인 검증 뒤에는 **그 노드에 배달된 Rust 업무 패키지**를 빌드한다. main과
+`adversarial-benchmark`를 받는 a2a-agent sub는 다음을 수행한다.
+
+```bash
+bash .claude/skills/adversarial-benchmark/scripts/build_rust.sh
+# build_rust.sh가 owner의 모든 native CLI 자체검사까지 수행한다.
+bash .claude/skills/terraforming_node/scripts/build_rust_packages.sh
+# 배달된 공유 Q/T library와 recipe P/upstream U 정상 release 실행파일을 빌드하고 순수 native CLI를 기동한다.
+```
+
+owner의 build 진입점은 위 helper의 동일 관리 환경으로 `cargo build --release --locked`를 실행하고
+native 자체검사를 수행한다. Cargo.lock의 공개 의존성을 첫 빌드 때 내려받을 수 있어야 한다.
+캐시가 준비된 환경에서는 `build_rust.sh --offline`을 쓸 수 있으며, 캐시 결손은 실패로 반환한다.
+다른 관리 runtime 위치가 필요한 검증은 `--runtime-home DIR`로 명시한다.
+Q/T/P/U helper도 `--offline`·`--runtime-home DIR`을 받는다. 실제 manifest의 Cargo metadata에서
+required-features 없는 bin 목록을 파생하고 ELF·실행비트를 검사한다. 공유 Q는 B/P/U를 받는 평면에, 역할 정책 T(`.claude/rust/role-contract`)는 B/U를 받는
+평면에 소스로 동행한다. B만 배달돼도 Q/T가 필요하다. wiki-only ray-worker에는 이 업무
+라이브러리를 배달하지 않는다. tool_plane에 있는 owner의 manifest나
+path dependency가 없으면 빌드·배달은 실패한다. B helper의 자체검사 단계는 유지한다.
+모든 생성물은 각 package의 ignored `target/`에 두고, 실행 런처는 컴파일 결과를 직접 기동한다.
+일반 기동이 설치/다운로드/컴파일을 수행하거나 Python으로 대체하지 않는다.
+
+기존 `target/`이 있는 노드에 소스를 시각 보존 복사·오버레이한 경우에는 Cargo가 오래된 산출물을
+최신으로 볼 수 있다. 새 모듈이 소스에 있는데 빌드가 모듈 부재로 실패하는 등 실제 소스와 빌드 결과가
+어긋나면 첫 오류와 파일 시각을 보존하고, 영향 package의 release 산출물만 정리한 뒤 명시 빌드를 한다.
+예를 들어 B의 `sweep-stop` 캐시를 정리하는 명령은 다음과 같다.
+
+```bash
+bash .claude/skills/terraforming_node/scripts/rust_bootstrap.sh exec -- \
+  cargo clean -p sweep-stop --release \
+  --manifest-path .claude/skills/adversarial-benchmark/rust/Cargo.toml \
+  --target-dir .claude/skills/adversarial-benchmark/rust/target
+bash .claude/skills/adversarial-benchmark/scripts/build_rust.sh --offline
+```
+
+새 checkout이나 시각 문제가 없는 빌드에는 이 정리가 필요하지 않다. 다른 owner는 해당 package·manifest·
+target 경로를 사용한다. 소스·lockfile·노드의 의존성 cache나 전역 Rust 설정을 지우지 않는다. 재빌드 뒤에도
+실패하면 그 원인을 반환하며, 일반 기동에서 자동 정리·재시도·Python 대체를 하지 않는다.
+
+B의 노드 식별자 호출에 필요한 `node_identity_resolve`도 같은 `build_rust.sh`가 정상 실행파일로 함께
+빌드한다. 새 PC와 sub에는 helper의 소스를 B 및 Q/T와 함께 전달하고 각 노드에서 컴파일한다.
+helper 부재 오류는 이 명시 빌드 경로로 복구한다. 기존 `node_identity.sh`는 installer의 source 및
+다른 소비자를 위한 호환 경로로 유지한다.
+
+토폴로지 해소도 같은 B 빌드에서 `topology_parity`·`topology_parity_api`를 일반 실행파일로 함께 만든다.
+`resolve_topology.sh`·`resolve_topology_api.sh`의 기본 호출은 이 노드에서 빌드한 Rust helper를 사용한다.
+helper가 없으면 명시 빌드 필요 오류로 반환하며, 일반 기동이 설치·컴파일·Python 대체를 시작하지 않는다.
+
+T의 source identity는 기존 정본 `.claude/policies/runtime/topology_parity.py`와
+`.claude/skills/terraforming_node/scripts/campaign_init.py`를 컴파일 문맥으로 읽는다. 이 두 파일도
+기존 공식 source overlay에 동행해야 하며, 별도 호환 사본이나 메인 ELF를 배달하지 않는다.
+검토된 source와 동일한 경로는 Rust로 판정한다. 다른 source-version을 실제 원본으로 호출하는
+호환 경로는 선택된 Python과 그 원본의 PyYAML 의존성이 필요하다. 호환 인터프리터는 기존 노드
+Python 환경의 `python3`이며 필요한 경우 `RESOLVE_TOPOLOGY_COMPAT_PYTHON`으로 명시한다.
+`RESOLVE_TOPOLOGY_PYTHON`을 비어 있지 않게 지정하면 기존 명시 Python 호출을 선택하므로,
+새 PC의 기본 Rust 기동을 위해 이 값을 자동으로 `python3`으로 채우지 않는다.
+
+반복 수와 프리셋의 캠페인 조회도 같은 B 빌드의 `repeat_axis`·`repeat_axis_api`·`bench_preset`·
+`bench_preset_api` 실행파일을 사용한다. 네 shell 진입점은 기본 adapter 위치를
+`REPEAT_AXIS_COMPAT_ADAPTER`로 전달하며, 검토된 정본 `campaign_init.py`의 조회는 공유 T에서
+Rust 프로세스 안에 수행한다. 다른 소스나 읽을 수 없는 소스는 그 노드의 기존 Python과
+`repeat_axis_owner_query.py`를 사용하는 호환 경로로 처리한다. 이 adapter 소스도 공식 배달에 포함한다.
+새 PC의 기본 Rust 기동을 위해 `REPEAT_AXIS_CAMPAIGN_ADAPTER`나 `REPEAT_AXIS_PYTHON`을 자동으로
+채우지 않는다. 사용자가 지정한 비어 있지 않은 adapter 또는 값이 지정된 Python 변수는 명시적
+호환 경로를 선택한다. Python 변수의 빈 값도 지정으로 보며 기존 기동 실패를 반환한다.
+Rust 기본 경로의 오류가 발생하면 Python으로 재시도하지 않는다. 임시 검증 probe는 배포하지 않는다.
+
+역할 정책 T는 Q에만 의존하며, B와 U가 같은 정책 라이브러리를 사용한다. U 빌드는
+`node_role_contract`와 `upstream_role_api`를 포함한 일반 실행파일을 Cargo metadata에서 파생한다.
+메인의 직접 런처는 다음과 같다.
+
+```bash
+bash .claude/skills/terraforming_node/scripts/node_role_contract.sh --help
+```
+
+U를 배달받은 서브는 전체 terraforming 스킬을 받지 않아도 자기 노드에서 빌드한 실행파일을 기동한다.
+
+```bash
+.claude/skills/upstream-version-watch/rust/runtime/target/release/node_role_contract --help
+```
+
+이 직접 기동은 설치·빌드·Python 역할 판정으로 대체하지 않는다. 최초 install/check/build가
+native 역할 실행파일을 선행 요구하지 않도록 기존 Python bootstrap/import 경로는 유지한다.
+Rust 역할 판정과 bootstrap 호환 경로의 적용 범위는 해당 과업의 검증 결과에서 구분한다.
+
+HTTP/TLS를 쓰는 Rust 업무 의존성도 같은 Cargo.lock과 노드별 관리 cache에 포함한다.
+첫 공개 의존성 fetch와 업무 중 upstream 조회는 별개 실행으로 기록한다. main의 cache나 인증을
+새 PC·sub에 복사하지 않으며, 명시 첫 빌드에서 필요한 의존성을 준비한 뒤 offline 빌드를 확인한다.
+TLS는 그 노드의 신뢰 저장소와 해당 프로세스에 선언된 CA/proxy 환경을 사용한다. 임시 검증 CA는
+검사 자식 환경에만 전달하고 전역 trust나 TLS 검증을 바꾸지 않는다. 단위 self-test의 주입 응답은
+실제 HTTPS 기동 증거가 아니므로 업무의 실제 HTTP 경로를 별도로 확인한 범위를 testlog에 남긴다.
+
+배포 소스의 HTTPS 회귀 검사는 실행 시 임시 CA를 만드는 `openssl` 실행파일과 loopback 소켓을 사용한다.
+새 PC·sub에서 이 검사를 수행하기 전에 `openssl version`을 확인한다. 결손이면 기존 호스트 전제조건
+request 절차로 필요한 도구를 준비하고 실제 검사를 회수한다. Rust 업무 실행파일의 운영 TLS는 Rust로
+동작하며 OpenSSL 개발 라이브러리나 Python 실행을 런타임 대체로 요구하지 않는다.
+
+tool_plane이 런타임 스킬 0종인 ray-worker sub는 이 업무 패키지 빌드가 적용되지 않는다.
+도구체인 install/check는 그 노드에도 적용한다. 실제 전달 대상에 owner 패키지가 있어야 하는데
+없거나 lockfile/빌드/기동 검사가 실패하면 해당 하네스 배포 완료로 기록하지 않는다.
+Rust/C probe 통과는 어플리케이션 이행 완료가 아니다.
+
+## 서브와 다른 PC 배포
+
+새 PC는 해당 노드에서 명시 install → check → B build_rust.sh → Q/T/P/U build_rust_packages.sh
+순서로 준비한다. 등록 sub도 기존 공식 overlay/A2A 경로로 배달된 소스에 이 두 build를 직접 수행하고
+결과를 반환한다. 이미 검증된 byte동일 B 결과는 과업의 영향 판정에 따라 재사용한다. 각 helper의
+첫 공개 의존성 fetch는 별도 실제 실행으로 기록하고, 캐시 준비 뒤에는 `--offline`을 쓴다.
+컴파일 ELF·cache·toolchain·인증·사용자 shell 설정을 소스 배달에 복사하지 않는다.
+
+새 checkout에도 helper·pin·이 참조가 있어야 한다. `terraforming_node` 전체를 서브에 복제하지 않는다.
+기존 renderer의 support delivery가 helper·pin·이 참조와 generated CLAUDE 안내를 전달한다.
+컴파일 결과·메인 runtime home·개인 `.cargo`/`.rustup`·인증은 배달하지 않는다.
+두 topology의 서브 모두 자기 노드에서 위 install → check를 수행하고,
+자기 tool_plane에 배달된 Rust 업무 패키지의 build → native 검사를 이어 수행한다.
+
+메인 워커는 기존 인가·dry-run → apply 오버레이로 자산을 배달하고 기존 A2A 경로로 서브에 설치/검증을
+지시한다. 실제 명령·pin·host·빌드/실행 결과는 서브 testlog로 발행하고 문서기반으로 회수한다.
+메인 설치 성공이나 렌더 fixture 성공을 실제 서브 설치 성공으로 대신하지 않는다.
+기존 HW Flag가 FRESH여도 신규 Rust 실행환경은 이 절차를 거친 뒤 하네스 배포 완료를 판단한다.
+
+## 지원 환경과 실패
+
+지원은 Linux GNU의 aarch64와 x86_64다. Rust 실행뿐 아니라 C 컴파일러·링커(`cc`)와 정적 아카이브 도구(`ar`)가 필요하다.
+해시 같은 native C/어셈블리 의존성도 각 노드에서 빌드하므로 컴파일러의 존재만으로 준비 완료로 보지 않는다.
+컴파일러/링커/아카이브/curl 등의 전제가 없으면 원인과 설치할 도구(build-essential·binutils 등)를 반환하며 sudo나 패키지 관리자를 자동 실행하지 않는다.
+운영자 권한 작업이 필요하면 기존 request 절차로 전제·명령·성공판정·회수물을 전달한다.
+다른 OS/아키텍처·musl은 이 helper의 지원 범위 밖이며 실제 판정을 보존한다.
+
+exit 2는 사용법/pin, 3은 설치 필요, 4는 플랫폼/호스트 전제, 5는 다운로드, 6은 설치, 7은 probe 실패다.
+실패한 설치 위치는 지우지 않고 다음 명시 install에서 복구한다.
+egress가 없는 노드는 운영자가 준비한 `--rustup-init-file <실행파일>`과 pin 배포 파일/허용 미러가 필요하다.
+이 옵션은 installer 다운로드만 생략하며 toolchain까지 완전한 offline 번들을 제공하는 기능이 아니다.
+기존 `RUSTUP_DIST_SERVER`/`RUSTUP_UPDATE_ROOT`와 proxy 환경을 상속하며 자격증명을 출력하지 않는다.
+
+공식 계약: [rustup 설치 위치](https://rust-lang.github.io/rustup/installation/index.html),
+[설치 옵션](https://rust-lang.github.io/rustup/installation/other.html),
+[프로필/컴포넌트](https://rust-lang.github.io/rustup/concepts/profiles.html),
+[암묵 설치 환경변수](https://rust-lang.github.io/rustup/environment-variables.html).

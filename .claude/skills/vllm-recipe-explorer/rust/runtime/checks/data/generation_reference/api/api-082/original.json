@@ -1,0 +1,32 @@
+{
+  "id": "api-082",
+  "kind": "exception",
+  "type": "FileExistsError",
+  "message": "\uc774\ubbf8 \uc874\uc7ac\ud558\ub294 \ud30c\uc77c(\ub36e\uc5b4\uc4f0\ub824\uba74 --force): @CASE@/node/configs/generated.yaml, @CASE@/node/configs/generated.sh, @CASE@/node/envs/.env.generated",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "model_id": "Org/Model",
+      "model_path_container": "/app/models/Org/Model",
+      "num_hidden_layers": 4,
+      "hidden_size": 16,
+      "prequantized": false,
+      "serve_bpw": 2.0
+    },
+    {
+      "id": "r1",
+      "quantization": "fp8",
+      "max_model_len": 4096,
+      "gpu_memory_utilization": 0.9,
+      "tensor_parallel_size": 1
+    },
+    "generated",
+    "@CASE@/node",
+    8080,
+    "served"
+  ],
+  "kwargs_after": {
+    "image": "image:tag"
+  }
+}

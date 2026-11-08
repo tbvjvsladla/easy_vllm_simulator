@@ -1,0 +1,1 @@
+{"id": "unbounded-reader-ssize", "kind": "exception", "type": "OverflowError", "message": "cannot fit 'int' into an index-sized integer", "stdout": "", "stderr": "", "args_after": ["@EXTRA@/header-size/oversize.safetensors"], "kwargs_after": {}}

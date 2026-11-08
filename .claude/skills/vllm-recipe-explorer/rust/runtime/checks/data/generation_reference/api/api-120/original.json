@@ -1,0 +1,10 @@
+{
+  "id": "api-120",
+  "kind": "exception",
+  "type": "TypeError",
+  "message": "_build_env() missing 3 required positional arguments: 'name', 'served_model_name', and 'port'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [],
+  "kwargs_after": {}
+}

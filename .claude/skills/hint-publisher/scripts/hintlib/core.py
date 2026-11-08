@@ -58,7 +58,7 @@ REL_DOC_NAMING_WIKI = ".claude/policies/runtime/doc_naming.py"   # 파이썬 shi
 REL_DOC_NAMING_TS = ".claude/skills/wiki-desk/src/doc_naming.ts"  # 산문 명명 정본 — shim 이 subprocess 로 부른다
 REL_DOC_NAMING_BENCH = ".claude/skills/adversarial-benchmark/scripts/doc_naming.py"
 # GuideLLM benchmarks.json 판독 정본(완료 수 = request_totals.successful · 발행 자격 ② 가 같은 규칙으로 읽는다 — 2026-10-10 · M2 결함 A)
-REL_PARSE_GUIDELLM = ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.py"
+REL_PARSE_GUIDELLM = ".claude/skills/adversarial-benchmark/scripts/parse_guidellm_native.py"
 
 HINT_BRANCH_REF = "refs/heads/hint"
 HINT_TAG_PREFIX = "hint/"

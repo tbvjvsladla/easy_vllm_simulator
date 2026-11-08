@@ -49,7 +49,8 @@ REMOVED_SHAPES = (
      "pattern": r"^GRADES\s*=|MAX_ATTEMPTS_BEFORE_HITL|ESCALATION_FACTOR|GRADE_MAX_TURNS",
      "why": "턴 예산 등급표 — 예산은 선언이다(G-A2)"},
     {"id": "G-C3-bench-drift-gate",
-     "path_re": r"^\.claude/skills/adversarial-benchmark/scripts/resolve_bench_tool\.py$",
+     "path_re": r"^\.claude/skills/adversarial-benchmark/scripts/resolve_bench_tool\.(py|sh)$"
+                r"|^\.claude/skills/adversarial-benchmark/rust/src/(bin/)?(bench_tool|resolve_bench_tool)[^/]*\.rs$",
      "pattern": r"RC_DRIFT",
      "why": "벤치 도구 digest 드리프트 게이트 — digest 는 provenance 다(G-C3)"},
     {"id": "G-B1-overhead-default",
@@ -102,7 +103,7 @@ def harness_files(root="."):
     if out.returncode != 0:
         raise SystemExit("[antipattern_scan] FAIL: git ls-files 실패 — %s" % out.stderr.strip()[:200])
     return [p for p in out.stdout.splitlines()
-            if p.endswith((".py", ".sh")) or p.endswith("/pre-commit")]
+            if p.endswith((".py", ".sh", ".rs")) or p.endswith("/pre-commit")]
 
 
 def disposition(hit):
@@ -201,7 +202,7 @@ def staged_files(root="."):
                          capture_output=True, text=True)
     if out.returncode != 0:
         return []
-    return [p for p in out.stdout.splitlines() if p.endswith((".py", ".sh"))]
+    return [p for p in out.stdout.splitlines() if p.endswith((".py", ".sh", ".rs"))]
 
 
 EXEMPT_RE = re.compile(r"antipattern-ok:\s*([A-Za-z0-9-]+)\s*[—:-]\s*(\S.*)")
@@ -379,6 +380,21 @@ def _self_test():
         open(os.path.join(d, rel4), "w").write('GRADES = {"a": 1}\n')
         check("T5 무관 경로의 같은 문자열은 잡지 않는다", tripwire(d, [rel4]) == [])
 
+        # The migrated resolver remains in the removal guard, including Git discovery.
+        rust_rel = ".claude/skills/adversarial-benchmark/rust/src/bench_tool_pin.rs"
+        os.makedirs(os.path.join(d, os.path.dirname(rust_rel)))
+        open(os.path.join(d, rust_rel), "w").write("pub const RC_DRIFT: i32 = 4;\n")
+        check("T13 Rust resolver drift gate revival is rejected",
+              [x["shape"] for x in tripwire(d, [rust_rel])] == ["G-C3-bench-drift-gate"])
+        other_rs = ".claude/skills/adversarial-benchmark/rust/src/unrelated.rs"
+        open(os.path.join(d, other_rs), "w").write("pub const RC_DRIFT: i32 = 4;\n")
+        check("T14 unrelated Rust path is outside the resolver guard", tripwire(d, [other_rs]) == [])
+        subprocess.run(["git", "init", "-q", d], check=True, capture_output=True)
+        subprocess.run(["git", "-C", d, "add", "--", rust_rel, other_rs], check=True,
+                       capture_output=True)
+        check("T15 Git discovery includes the staged Rust resolver",
+              rust_rel in staged_files(d) and rust_rel in harness_files(d))
+
         # 인벤토리: 모든 행에 처분이 붙는다(미기재 0).
         hits = inventory(d, [rel3, rel4])
         check("T6 인벤토리 모든 행에 disposition 이 있다",
@@ -406,7 +422,7 @@ def _self_test():
     _live_surf = public_surface_violations(repo)
     check("T12 저장소 현재 상태가 공개 표면 tripwire 를 통과한다", _live_surf == [], _live_surf[:3])
 
-    print("[antipattern_scan --self-test] %s" % ("OK — T1~T12 전부 통과" if not failures
+    print("[antipattern_scan --self-test] %s" % ("OK — T1~T15 전부 통과" if not failures
                                                  else "FAIL %s" % failures))
     return 0 if not failures else 1
 

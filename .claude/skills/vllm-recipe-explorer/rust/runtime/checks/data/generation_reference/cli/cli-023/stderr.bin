@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/feedback_log.py", line 161, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/feedback_log.py", line 155, in main
+    written = append(record, args.path)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/feedback_log.py", line 114, in append
+    with open(path, "a", encoding="utf-8") as fh:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+IsADirectoryError: [Errno 21] Is a directory: '@CASE@/logs'

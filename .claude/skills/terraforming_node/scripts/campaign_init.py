@@ -1191,7 +1191,7 @@ REENTRY_ROUTES = {"explorer": "vllm-recipe-explorer(서빙전략 재수립)",
 def _read_lite_raw(raw_path: str) -> "tuple[str | None, str | None, str]":
     """lite raw → (판정|None, measured_utc|None, 출처). 판정 읽기 규칙은 소유자에게 묻는다(복제 ✗)."""
     import importlib.util
-    mod_path = (Path(__file__).resolve().parents[2] / "adversarial-benchmark" / "scripts" / "lite_metrics.py")
+    mod_path = (Path(__file__).resolve().parents[2] / "adversarial-benchmark" / "scripts" / "lite_metrics_native.py")
     raw = _read_json(Path(raw_path))
     if not isinstance(raw, dict):
         raise WriterRefusal(f"--lite-raw 를 JSON 객체로 읽을 수 없다: {raw_path}")
@@ -2986,6 +2986,23 @@ def _self_node_id() -> str:
     return "sub"
 
 
+def _sub_local_topology(root: Path) -> "str | None":
+    """정책(4자일치 술어)의 브랜치 사상이 답하지 못하는 체크아웃의 토폴로지: manifest 권위, 그다음 서브 로컬 토큰 브랜치.
+    술어가 없는 노드와 서브 체크아웃이 같이 쓴다(아래 `checkout_topology`)."""
+    found = _manifest_topology(root)
+    if found:
+        return found
+    # manifest 가 두 통로에 다 있으면(서브는 과거 multi 워커로도 프로비저닝됐다) 서브 로컬 git 의 브랜치를 본다.
+    # 그 브랜치 이름은 sync_to_sub 가 만든 `single`/`multi` — **토폴로지 토큰 자체**라 이름표 사상이 아니다.
+    import subprocess
+    try:
+        br = subprocess.run(["git", "-C", str(root), "symbolic-ref", "--quiet", "--short", "HEAD"],
+                            capture_output=True, text=True, timeout=10).stdout.strip()
+    except (OSError, subprocess.TimeoutExpired):
+        br = ""
+    return br if br in ("single", "multi") else None
+
+
 def checkout_topology() -> "str | None":
     if _CHECKOUT_TOPOLOGY_FN is not None:
         return _CHECKOUT_TOPOLOGY_FN()
@@ -2996,18 +3013,14 @@ def checkout_topology() -> "str | None":
         # ★ 2026-10-17 라이브(plan_26101719 S9 · 서브 첫 위임): 서브 렌더 트리에는 기초층(`.claude/policies/`)이
         #   배달되지 않는다 — 그래서 4자일치 술어가 없고, 픽스처는 이 차이를 보지 못했다. 술어가 없는 노드에서는
         #   토폴로지 사실의 권위인 manifest 를 읽는다(브랜치 이름표를 다시 적지 않는다 — 서브 브랜치는 이름도 다르다).
-        found = _manifest_topology(root)
-        if found:
-            return found
-        # manifest 가 두 통로에 다 있으면(서브는 과거 multi 워커로도 프로비저닝됐다) 서브 로컬 git 의 브랜치를 본다.
-        # 그 브랜치 이름은 sync_to_sub 가 만든 `single`/`multi` — **토폴로지 토큰 자체**라 이름표 사상이 아니다.
-        import subprocess
-        try:
-            br = subprocess.run(["git", "-C", str(root), "symbolic-ref", "--quiet", "--short", "HEAD"],
-                                capture_output=True, text=True, timeout=10).stdout.strip()
-        except (OSError, subprocess.TimeoutExpired):
-            br = ""
-        return br if br in ("single", "multi") else None
+        return _sub_local_topology(root)
+    # ★ 2026-11-08 라이브(승인된 Q1 물리 E2E · 서브 `--init --from-slice`): 이제 서브에도 술어가 배달돼 이 자리에 온다. 그런데
+    #   술어의 `BRANCH_TO_TOPOLOGY` 는 메인의 `single-node`/`multi-node` 만 안다 — 서브 로컬 브랜치 `single`/`multi`(토큰)는
+    #   `None` 이 되어 `--init` 이 거부됐다. 서브 체크아웃임이 manifest `self_role: sub` 로 증명되면(`checkout_is_sub`) 술어가
+    #   없을 때와 같은 manifest·토큰 순서로 답한다. 메인은 그대로 4자일치 사상만 쓴다 — 메인의 알 수 없는 브랜치
+    #   (`single` 포함)는 계속 `None` 이며, 사상표에 별칭을 더하지 않는다.
+    if checkout_is_sub():
+        return _sub_local_topology(root)
     branch = tp._git(root, "symbolic-ref", "--quiet", "--short", "HEAD") \
         or tp._git(root, "rev-parse", "--abbrev-ref", "HEAD")
     return tp.BRANCH_TO_TOPOLOGY.get(branch or "")
@@ -4454,10 +4467,13 @@ def _selftest() -> int:
         #    분류기가 내는 값을 writer 가 모르면 셀 기록이 통째로 사라진다. 실제로 그랬다.
         _cc = REPO_ROOT.parent if False else None
         _cc_path = (Path(__file__).resolve().parents[2] / "adversarial-benchmark" / "scripts"
-                    / "classify_cell.py")
+                    / "classify_cell_native.py")
         if _cc_path.is_file():
-            _src = _cc_path.read_text(encoding="utf-8")
-            _vocab = set(re.findall(r'^OUTCOME_[A-Z_]+\s*=\s*"([a-z_]+)"', _src, re.M))
+            import importlib.util as _cc_iu
+            _cc_spec = _cc_iu.spec_from_file_location("_campaign_classify_native", _cc_path)
+            _cc_mod = _cc_iu.module_from_spec(_cc_spec)
+            _cc_spec.loader.exec_module(_cc_mod)
+            _vocab = {getattr(_cc_mod, name) for name in vars(_cc_mod) if name.startswith("OUTCOME_")}
             ck("★분류기 어휘가 writer 어휘의 부분집합이다(갈라지면 셀 기록이 사라진다)",
                bool(_vocab) and _vocab <= set(CELL_OUTCOMES))
         else:

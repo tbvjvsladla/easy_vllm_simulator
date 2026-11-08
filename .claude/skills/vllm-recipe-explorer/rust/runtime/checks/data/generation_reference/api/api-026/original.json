@@ -1,0 +1,27 @@
+{
+  "id": "api-026",
+  "kind": "value",
+  "value": "# Org/Model \uc11c\ube59 \uc124\uc815 (vllm-recipe-explorer \uc0dd\uc131)\n# \ub808\uc2dc\ud53c: quant=fp8 max_model_len=4096 gpu_mem_util=0.9\nmodel: /app/models/Org/Model\nhost: 0.0.0.0\nport: 8080\ngpu-memory-utilization: 0.9\nmax-model-len: 4096\nquantization: fp8\n",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "model_id": "Org/Model",
+      "model_path_container": "/app/models/Org/Model",
+      "num_hidden_layers": 4,
+      "hidden_size": 16,
+      "prequantized": false,
+      "serve_bpw": 2.0
+    },
+    {
+      "id": "r1",
+      "quantization": "fp8",
+      "max_model_len": 4096,
+      "gpu_memory_utilization": 0.9,
+      "tensor_parallel_size": -2
+    },
+    "served",
+    8080
+  ],
+  "kwargs_after": {}
+}

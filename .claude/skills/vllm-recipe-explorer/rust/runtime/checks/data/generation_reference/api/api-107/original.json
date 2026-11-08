@@ -1,0 +1,19 @@
+{
+  "id": "api-107",
+  "kind": "exception",
+  "type": "IsADirectoryError",
+  "message": "[Errno 21] Is a directory: '@CASE@/logs/nested/feedback.jsonl'",
+  "stdout": "",
+  "stderr": "",
+  "args_after": [
+    {
+      "timestamp": "fixed",
+      "selection_timestamp": "selected",
+      "model_id": "\ud55c\uae00/Model",
+      "actual_vram_gb": 3,
+      "extra": "kept"
+    },
+    "@CASE@/logs/nested/feedback.jsonl"
+  ],
+  "kwargs_after": {}
+}

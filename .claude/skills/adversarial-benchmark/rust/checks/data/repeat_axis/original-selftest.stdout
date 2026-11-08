@@ -1,0 +1,44 @@
+  [PASS] A1 ★교차검증 campaign.schema.json budgets.repeats.minimum == FULL_REPEATS_MIN
+  [PASS] B1 역채점: 11.759/11.971/11.301 → 5.74% (audit_26091323 §2.3 원장)
+  [PASS] B2 완주 1회 → 밴드 없음(0 으로 적지 않는다)
+  [PASS] B3 결측·NaN 은 n 에서 빠진다
+  [PASS] P1 ★반복 수 '2' 거부(full 정의 위반·비정수)
+  [PASS] P1 ★반복 수 1 거부(full 정의 위반·비정수)
+  [PASS] P1 ★반복 수 'abc' 거부(full 정의 위반·비정수)
+  [PASS] P1 ★반복 수 True 거부(full 정의 위반·비정수)
+  [PASS] P1 ★반복 수 2.5 거부(full 정의 위반·비정수)
+  [PASS] P1 ★반복 수 '' 거부(full 정의 위반·비정수)
+  [PASS] P2 3·'5' 수용
+  [PASS] R1 ACTIVE 부재 → 프리셋 3 · defaulted(preset · _bootstrap)
+  [PASS] R2 선언 budgets.repeats 없음 → 3 · defaulted(미선언)
+  [PASS] R3 선언 5 → 5 · declared(campaign.yaml)
+  [PASS] R4 argv 가 선언을 이긴다 · 출처에 argv
+  [PASS] R5 ★선언 2(검증기가 막았어야 할 값) → 거부(기본값 대체 ✗)
+  [PASS] R6 ★선언 파손 → 거부('미선언' 으로 접지 않는다)
+  [PASS] R7 --campaign-id 가 ACTIVE 보다 우선(상태 파일의 캠페인)
+  [PASS] R8 ★값 없는 --repeats-source 거부
+  [PASS] R9 해소자 부재 → 프리셋 3 · 출처에 부재를 이름으로 남긴다(fail-loud 대체)
+  [PASS] R10 ★선언 없음 ∧ 프리셋 기본값 미전달 → 거부(코드 안 숫자로 메우지 않는다)
+  [PASS] R11 ★프리셋 기본값 2(full 정의 미만) → 거부
+  [PASS] G1 대표 run 필드 그대로(decode_tps 30.0 · accept_len 2.0 · 평균으로 바꾸지 않는다)
+  [PASS] G2 runs[] 3 · 완주 3 · 밴드 (31−29)/30×100 = 6.6667 · measured(n=3)
+  [PASS] G3 재집계는 멱등(runs[] 가 중첩되지 않는다)
+  [PASS] G4 요약: 완주 min 3 · 멈춘 자리 없음 · runs 3
+  [PASS] G5 ★run 3 실패 → 완주 2 · 밴드는 완주분만(n=2) · 멈춘 자리 repeat-break run 3
+  [PASS] G6 시각 대조 창 = 직전 run 시작 ~ 끊긴 run 끝
+  [PASS] G7 ★run_bench rc=3(측정 파일 없음) → measurement_ok=false 로 기록 · 지표 None
+  [PASS] G8 runs[] 없는 레벨(반복 축 이전 산출물) → unrecorded · 완주 min None(추측 ✗)
+  [PASS] G9 ★cold-restart 는 선언 슬롯만 — 집계 거부
+  [PASS] H1 클램프(레벨 2 첫 run 실패) → stop.kind=clamp · 창 = 아래 레벨 마지막 run 시작 ~ 클램프 run 끝 · runs_attempted 에 클램프 run 1 포함
+  [PASS] H2 클램프 경계 사실 판독 불가 → 창 None(대조 불가를 분류기가 이름으로 남긴다 · 추측 ✗)
+  [PASS] H3 판정점 3 · 경계 없음 → 반복 조건 성립
+  [PASS] H3b 출처 문구가 마크다운 인라인 링크 모양(`](`)이 아니다
+  [PASS] H4 ★비대칭 교정: 경계 레벨 2 의 run 2 실패(판정점 3) → 성립(적응 상한 클램프 · 첫 run 실패와 같은 판정)
+  [PASS] H5 경계 레벨 2 의 첫 run 실패(판정점 3) → 성립(H4 와 같은 판정)
+  [PASS] H6 ★판정점 run 2 실패 → 불성립(False · 기계 이벤트)
+  [PASS] H7 판정점 요청 5 · run 5 실패(완주 4) → 성립(정의 충족 · 상위 레벨 미측정 기재)
+  [PASS] H8 ★끊김 없이 판정점 2 → 판정 불가(요청 자체가 정의 미만 · 사유 발명 ✗)
+  [PASS] H9 ★경계가 아닌 레벨 2 가 정의 미만(스윕은 멈추지 않았다) → 판정 불가(규칙 밖 산출물)
+  [PASS] H10 runs[] 부재 → 판정 불가(not_evaluated)
+  [PASS] H11 ★판정점 레벨 부재(verdict_point_level 없음) → 판정 불가(1 을 가정하지 않는다)
+[repeat_axis --self-test] OK — A1(schema 교차검증) · B1~B3 · P1~P2 · R1~R11 · G1~G9 · H1~H11 전부 통과
