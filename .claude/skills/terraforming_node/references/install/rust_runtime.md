@@ -55,6 +55,23 @@ path dependency가 없으면 빌드·배달은 실패한다. B helper의 자체�
 모든 생성물은 각 package의 ignored `target/`에 두고, 실행 런처는 컴파일 결과를 직접 기동한다.
 일반 기동이 설치/다운로드/컴파일을 수행하거나 Python으로 대체하지 않는다.
 
+기존 `target/`이 있는 노드에 소스를 시각 보존 복사·오버레이한 경우에는 Cargo가 오래된 산출물을
+최신으로 볼 수 있다. 새 모듈이 소스에 있는데 빌드가 모듈 부재로 실패하는 등 실제 소스와 빌드 결과가
+어긋나면 첫 오류와 파일 시각을 보존하고, 영향 package의 release 산출물만 정리한 뒤 명시 빌드를 한다.
+예를 들어 B의 `sweep-stop` 캐시를 정리하는 명령은 다음과 같다.
+
+```bash
+bash .claude/skills/terraforming_node/scripts/rust_bootstrap.sh exec -- \
+  cargo clean -p sweep-stop --release \
+  --manifest-path .claude/skills/adversarial-benchmark/rust/Cargo.toml \
+  --target-dir .claude/skills/adversarial-benchmark/rust/target
+bash .claude/skills/adversarial-benchmark/scripts/build_rust.sh --offline
+```
+
+새 checkout이나 시각 문제가 없는 빌드에는 이 정리가 필요하지 않다. 다른 owner는 해당 package·manifest·
+target 경로를 사용한다. 소스·lockfile·노드의 의존성 cache나 전역 Rust 설정을 지우지 않는다. 재빌드 뒤에도
+실패하면 그 원인을 반환하며, 일반 기동에서 자동 정리·재시도·Python 대체를 하지 않는다.
+
 B의 노드 식별자 호출에 필요한 `node_identity_resolve`도 같은 `build_rust.sh`가 정상 실행파일로 함께
 빌드한다. 새 PC와 sub에는 helper의 소스를 B 및 Q/T와 함께 전달하고 각 노드에서 컴파일한다.
 helper 부재 오류는 이 명시 빌드 경로로 복구한다. 기존 `node_identity.sh`는 installer의 source 및
