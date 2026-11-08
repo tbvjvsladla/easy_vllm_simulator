@@ -36,7 +36,7 @@ pub const MODULE: &str = "resolve_wheel";
 pub const API_TEMPLATE: &str = "https://api.github.com/repos/vllm-project/vllm/releases/tags/v{v}";
 
 /// The attributes an exception row lists, in the order the original's observer reads them.
-const ATTRIBUTE_ORDER: [&str; 27] = [
+const ATTRIBUTE_ORDER: [&str; 34] = [
     "name",
     "obj",
     "path",
@@ -45,6 +45,8 @@ const ATTRIBUTE_ORDER: [&str; 27] = [
     "filename",
     "filename2",
     "code",
+    "message",
+    "field",
     "url",
     "reason",
     "line",
@@ -64,6 +66,11 @@ const ATTRIBUTE_ORDER: [&str; 27] = [
     "verify_message",
     "library",
     "content",
+    "context",
+    "context_mark",
+    "problem",
+    "problem_mark",
+    "note",
 ];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -120,6 +127,7 @@ fn error_value(value: &ErrorValue, from_none: bool) -> PyValue {
             PyValue::Dict(exception_row(error, from_none)),
         ]),
         ErrorValue::HttpMessage(items) => crate::http_direct::failure::http_message_dto(items),
+        ErrorValue::YamlMark(mark) => crate::http_direct::failure::yaml_mark_dto(mark),
         ErrorValue::Tuple(members) => PyValue::List(vec![
             PyValue::str("tuple"),
             PyValue::List(
@@ -193,6 +201,21 @@ fn constructor_of(error: &PyException) -> Option<PyValue> {
             ("module", PyValue::str("re")),
             ("fields", fields(&["msg", "pattern", "pos"])?),
         ])),
+        "ContractViolation" => Some(dict_of(vec![
+            ("kind", kind),
+            ("module", PyValue::str(error.module)),
+            ("fields", fields(&["code", "message", "field"])?),
+        ])),
+        "ScannerError" | "ParserError" | "ComposerError" | "ConstructorError" => {
+            Some(dict_of(vec![
+                ("kind", kind),
+                ("module", PyValue::str(error.module)),
+                (
+                    "fields",
+                    fields(&["context", "context_mark", "problem", "problem_mark", "note"])?,
+                ),
+            ]))
+        }
         "JSONDecodeError" => Some(dict_of(vec![
             ("kind", kind),
             ("fields", fields(&["msg", "doc", "pos"])?),

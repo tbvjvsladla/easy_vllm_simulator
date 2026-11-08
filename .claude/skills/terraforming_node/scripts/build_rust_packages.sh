@@ -1,5 +1,5 @@
 #!/bin/bash
-# Explicit node-local Q/P/U source build. No install, fetch fallback or evaluator hook.
+# Explicit node-local Q/T/P/U source build. No install, fetch fallback or evaluator hook.
 set -euo pipefail
 SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$SDIR/../../../.." && pwd)"
@@ -14,14 +14,23 @@ while [ "$#" -gt 0 ]; do
       runtime_args+=(--runtime-home "$2"); shift 2 ;;
     --help|-h)
       echo 'Usage: build_rust_packages.sh [--offline] [--runtime-home DIR]'
-      echo 'After explicit Terraform install/check: build delivered Q/P/U normal release targets and smoke native CLIs.'
+      echo 'After explicit Terraform install/check: build delivered Q/T/P/U normal release targets and smoke native CLIs.'
       exit 0 ;;
     *) printf 'Unknown argument: %s\n' "$1" >&2; exit 2 ;;
   esac
 done
 q="$REPO/.claude/rust/runtime-support"
+t="$REPO/.claude/rust/role-contract"
 p="$REPO/.claude/skills/vllm-recipe-explorer/rust/runtime"
 u="$REPO/.claude/skills/upstream-version-watch/rust/runtime"
+# Every role consumer must carry its library and Q path dependency.
+for consumer in "$REPO/.claude/skills/adversarial-benchmark/rust" "$u"; do
+  if [ -f "$consumer/Cargo.toml" ]; then
+    [ -f "$t/Cargo.toml" ] && [ -f "$q/Cargo.toml" ] || {
+      echo "Delivered role-contract/Q path dependency missing: $consumer" >&2; exit 2;
+    }
+  fi
+done
 for skill in vllm-recipe-explorer upstream-version-watch; do
   if [ -d "$REPO/.claude/skills/$skill" ]; then
     [ -f "$REPO/.claude/skills/$skill/rust/runtime/Cargo.toml" ] && [ -f "$q/Cargo.toml" ] || {
@@ -32,7 +41,7 @@ done
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/rust-packages.XXXXXX")"
 trap 'rm -f -- "$tmp/metadata.json"; rmdir -- "$tmp"' EXIT
 applicable=0
-for crate in "$q" "$p" "$u"; do
+for crate in "$q" "$t" "$p" "$u"; do
   [ -f "$crate/Cargo.toml" ] || continue
   applicable=$((applicable+1))
   [ -f "$crate/Cargo.lock" ] || { echo "Missing lock: $crate" >&2; exit 2; }
@@ -41,7 +50,7 @@ for crate in "$q" "$p" "$u"; do
     --no-deps --format-version 1 --locked --manifest-path "$crate/Cargo.toml" \
     "${cargo_args[@]}" > "$tmp/metadata.json"
   target_args=(--lib --bins)
-  [ "$crate" != "$q" ] || target_args=(--lib)
+  if [ "$crate" = "$q" ] || [ "$crate" = "$t" ]; then target_args=(--lib); fi
   env -u EASY_VLLM_SOURCE_ROOT bash "$BOOTSTRAP" exec "${runtime_args[@]}" -- cargo build \
     --release --locked "${target_args[@]}" --manifest-path "$crate/Cargo.toml" \
     --target-dir "$crate/target" "${cargo_args[@]}"
@@ -66,13 +75,14 @@ print(json.dumps(dict(package=package['name'],normal_bins=bins,normal_bin_count=
 PY
 done
 if [ "$applicable" -eq 0 ]; then
-  echo '[build_rust_packages] NOT_APPLICABLE: no Q/P/U packages delivered to this plane'
+  echo '[build_rust_packages] NOT_APPLICABLE: no Q/T/P/U packages delivered to this plane'
   exit 0
 fi
 if [ -f "$p/Cargo.toml" ]; then
   env -i PATH= LC_ALL=C.UTF-8 COLUMNS=80 "$p/target/release/quant_table" --dtype float16 --json
 fi
 if [ -f "$u/Cargo.toml" ]; then
+  env -i PATH= LC_ALL=C.UTF-8 COLUMNS=80 "$u/target/release/node_role_contract" --help
   env -i PATH= LC_ALL=C.UTF-8 COLUMNS=80 "$u/target/release/validate_runtime_patch" -h
   set +e
   env -i PATH= LC_ALL=C.UTF-8 COLUMNS=80 "$u/target/release/validate_runtime_patch"
@@ -80,4 +90,4 @@ if [ -f "$u/Cargo.toml" ]; then
   set -e
   [ "$status" -eq 2 ] || { echo "validate_runtime_patch missing-args smoke: expected2, actual$status" >&2; exit 1; }
 fi
-echo '[build_rust_packages] PASS: delivered normal Q/P/U build and applicable native startup smokes'
+echo '[build_rust_packages] PASS: delivered normal Q/T/P/U build and applicable native startup smokes'

@@ -21,8 +21,9 @@
 //!   `_newest_event_ts` use it; `None` is `null`. A value of any other type where the original expects a `datetime`
 //!   raises the `TypeError` Python's arithmetic raises.
 //! * **owners** (`OPEN_S3`): operations that ask `node_identity.sh` or `node_role_contract` need
-//!   `CLASSIFY_CELL_SCRIPTS_DIR` (or the installed layout, or `EASY_VLLM_SOURCE_ROOT`) and, for the role contract,
-//!   `CLASSIFY_CELL_ROLE_ADAPTER`; a missing configuration is the named `ClassifyCellConfigurationError`.
+//!   `CLASSIFY_CELL_SCRIPTS_DIR` (or the installed layout, or `EASY_VLLM_SOURCE_ROOT`); the role contract is the
+//!   native `role-contract` library (the owner file is only looked up, `isfile`); a missing configuration is the named
+//!   `ClassifyCellConfigurationError`.
 //! * `constants` - the module constants as one JSON object, read from this crate.
 //! * `self-test` - the original's own checks, run for real against the installed owners.
 //! * `native-help` - this list.

@@ -275,7 +275,7 @@ mod tests {
 
     #[test]
     fn the_timed_call_reports_an_error_as_not_clean() {
-        let owners = Owners::new(None, "python3", None);
+        let owners = Owners::new(None);
         let mut broken = row();
         broken.operation = "no_such_operation".to_string();
         assert!(!call(&owners, &broken));

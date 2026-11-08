@@ -22,6 +22,14 @@ while [ "$#" -gt 0 ]; do
     *) printf '[build_rust] ERROR 알 수 없는 인자: %s\n' "$1" >&2; exit 2 ;;
   esac
 done
+# B reads the node-role contract through the local path dependencies `role-contract` and the common package under it: both must
+# sit beside this skill before any build or self-check starts.
+for dependency in rust/runtime-support rust/role-contract; do
+  if [ ! -f "$REPO/.claude/$dependency/Cargo.toml" ]; then
+    printf '[build_rust] ERROR 경로 의존성 부재: %s — adversarial-benchmark 는 role-contract 와 그 아래 runtime-support 를 함께 필요로 한다\n' "$REPO/.claude/$dependency" >&2
+    exit 2
+  fi
+done
 bash "$BOOTSTRAP" exec "${runtime_args[@]}" -- cargo build --release --locked \
   --manifest-path "$CRATE/Cargo.toml" --target-dir "$CRATE/target" "${cargo_args[@]}"
 SWEEP_STOP_BIN="$CRATE/target/release/sweep_stop" bash "$SDIR/sweep_stop.sh" --self-test
@@ -48,7 +56,6 @@ LITE_METRICS_API_BIN="$CRATE/target/release/lite_metrics_api" \
 CLASSIFY_CELL_BIN="$CRATE/target/release/classify_cell" \
   CLASSIFY_CELL_API_BIN="$CRATE/target/release/classify_cell_api" \
   CLASSIFY_CELL_SCRIPTS_DIR="$SDIR" \
-  CLASSIFY_CELL_ROLE_ADAPTER="$SDIR/classify_cell_role_query.py" \
   bash "$SDIR/classify_cell.sh" --self-test
 RENDER_SWEEP_MAP_BIN="$CRATE/target/release/render_sweep_map" \
   bash "$SDIR/render_sweep_map.sh" --self-test

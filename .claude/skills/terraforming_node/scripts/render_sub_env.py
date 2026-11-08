@@ -165,8 +165,18 @@ SUB_CONTRACT_READERS = (
 # Both roles run this explicit local permission canary; its self-tests remain main-only.
 SUB_PERMISSION_PROBES = ("harness_permission_probe.py",)
 SUB_RUST_BOOTSTRAP = ("rust_bootstrap.sh", "rust_toolchain.pin", "build_rust_packages.sh")
+# B has a direct rust/Cargo.toml; P/U have rust/runtime/Cargo.toml.
+RUST_OWNER_MANIFESTS = {
+    "adversarial-benchmark": ".claude/skills/adversarial-benchmark/rust/Cargo.toml",
+    "vllm-recipe-explorer": ".claude/skills/vllm-recipe-explorer/rust/runtime/Cargo.toml",
+    "upstream-version-watch": ".claude/skills/upstream-version-watch/rust/runtime/Cargo.toml",
+}
 SHARED_RUST_SUPPORT = ".claude/rust/runtime-support"
-SHARED_RUST_CONSUMERS = ("vllm-recipe-explorer", "upstream-version-watch")
+SHARED_RUST_CONSUMERS = tuple(RUST_OWNER_MANIFESTS)
+ROLE_RUST_SUPPORT = ".claude/rust/role-contract"
+ROLE_RUST_CONSUMERS = ("adversarial-benchmark", "upstream-version-watch")
+SHARED_RUST_LIBRARIES = ((SHARED_RUST_SUPPORT, SHARED_RUST_CONSUMERS),
+                         (ROLE_RUST_SUPPORT, ROLE_RUST_CONSUMERS))
 RUST_RUNTIME_REFERENCE = ".claude/skills/terraforming_node/references/install/rust_runtime.md"
 
 RUNTIME_BLOCK_EXCLUDES = {
@@ -785,14 +795,16 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 with open(feedback_marker, "w", encoding="utf-8") as f:
                     f.write("Node-local generated recipe feedback; ignored by git.\n")
                 produced.append(feedback_rel)
-        # Q is shared source, outside skill directories. Its consumers determine delivery;
-        # the same index authority applies. A wiki-only Ray worker never receives it.
+        # Shared libraries follow every delivered consumer, including B without P/U.
+        # Copy all required libraries before checking their transitive Cargo paths.
+        for support, consumers in SHARED_RUST_LIBRARIES:
+            if any(name in names for name in consumers):
+                count = _copy_tracked(os.path.join(REPO, support),
+                                      os.path.join(out_dir, support),
+                                      tracked_list=tracked_list)
+                produced.append(f"{support}/ ({count} tracked files)")
         if any(name in names for name in SHARED_RUST_CONSUMERS):
-            count = _copy_tracked(os.path.join(REPO, SHARED_RUST_SUPPORT),
-                                  os.path.join(out_dir, SHARED_RUST_SUPPORT),
-                                  tracked_list=tracked_list)
             _assert_rust_path_closure(out_dir, names)
-            produced.append(f"{SHARED_RUST_SUPPORT}/ ({count} tracked files)")
         # 3.4) adversarial-benchmark 가 부르는 owner 자체검사 의존(SUB_BENCH_FOUNDATION_RUNTIME) — 그 스킬이 가는 서브에만.
         if "adversarial-benchmark" in names:
             for rel in SUB_BENCH_FOUNDATION_RUNTIME:
@@ -1031,8 +1043,8 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
 def _assert_rust_path_closure(out_dir: str, names: list) -> None:
     """Manifest-derived local path closure; never ships caches or guesses missing source."""
     root = pathlib.Path(out_dir).resolve()
-    pending = [root / ".claude" / "skills" / name / "rust/runtime/Cargo.toml"
-               for name in SHARED_RUST_CONSUMERS if name in names]
+    pending = [root / manifest for name, manifest in RUST_OWNER_MANIFESTS.items()
+               if name in names]
     seen = set()
     while pending:
         manifest = pending.pop().resolve()
@@ -1341,8 +1353,10 @@ def _self_test() -> int:
         _ref = os.path.exists(os.path.join(_out, ".claude/skills/wiki-desk/reference/references.md"))
         # references.md 는 wiki-desk 런타임블럭에 실린다(2026-10-19) — 사서가 가는 서브에는 늘 있다.
         _ref_ok = _ref == ("wiki-desk" in _want)
-        _q_ok = os.path.isfile(os.path.join(_out, SHARED_RUST_SUPPORT, "Cargo.toml")) == any(
-            name in _want for name in SHARED_RUST_CONSUMERS)
+        _shared_rust_ok = all(
+            os.path.isfile(os.path.join(_out, support, "Cargo.toml")) == any(
+                name in _want for name in consumers)
+            for support, consumers in SHARED_RUST_LIBRARIES)
         _wrappers = {os.path.basename(os.path.dirname(p)) for p in
                      glob.glob(os.path.join(_out, ".agents", "skills", "*", "SKILL.md"))}
         _wrapper_ok = _wrappers == _want
@@ -1407,8 +1421,8 @@ def _self_test() -> int:
         print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} "
               f"refs={_ref} 캠페인도구={_tn_files} 해소자산누수={_res} 지원배달목록일치={_sup_ok} "
               f"금지경로누수={_never or '없음'} Codex발견폐포={_wrapper_ok} 역할계약리더자체검사={_nrc_ok} 벤치owner의존={_bench_ok}")
-        ok &= _c and _q_ok
-        print(f"  [{'PASS' if _q_ok else 'FAIL'}] shared Q conditional delivery/path closure {_topo}")
+        ok &= _c and _shared_rust_ok
+        print(f"  [{'PASS' if _shared_rust_ok else 'FAIL'}] shared Q/role conditional delivery/path closure {_topo}")
 
     # (4d) hint 엔진 의존 폐포 tripwire (2026-10-11 · plan_26101104 Step 3).
     #   결함의 형태(선례 둘): 스킬은 배달됐는데 그 스킬이 부르는 파일이 안 가서 서브에서 구조적으로 불가였다.

@@ -7,7 +7,7 @@
 //! breadth-first walk meets. [`Builder`] keeps that order (it is observable through *which* error comes first)
 //! and assembles the finished values afterwards.
 
-use super::frames::{frame, nested};
+use super::frames::{frame, nested, occurrence, set_raise};
 use super::parser::{Ev, Event, Parser};
 use super::{marked, plain, Failure, Mark, Parsed};
 use crate::pynumber::{float_from_str, int_from_str};
@@ -55,41 +55,51 @@ fn tag(name: &str) -> String {
 }
 
 fn composer_error(
+    raise_line: u32,
     context: Option<&str>,
     context_mark: Option<&Mark>,
     problem: String,
     mark: &Mark,
 ) -> Failure {
+    set_raise(raise_line);
     marked("ComposerError", context, context_mark, problem, Some(mark))
 }
 
 pub(crate) fn get_single_node(parser: &mut Parser<'_>) -> Parsed<Composed> {
     let _frame = frame("get_single_node")?;
     let mut nodes: Vec<Node> = Vec::new();
+    occurrence(0);
     parser.get_event()?;
     let mut root = None;
+    occurrence(0);
     if !parser.check_event(|e| matches!(e, Ev::StreamEnd))? {
         root = Some(compose_document(parser, &mut nodes)?);
     }
+    occurrence(1);
     if !parser.check_event(|e| matches!(e, Ev::StreamEnd))? {
+        occurrence(1);
         let event = parser.get_event()?;
         let document = root.map(|id| nodes[id].start.clone());
         return Err(composer_error(
+            41,
             Some("expected a single document in the stream"),
             document.as_ref(),
             "but found another document".to_string(),
             &event.start,
         ));
     }
+    occurrence(2);
     parser.get_event()?;
     Ok(Composed { nodes, root })
 }
 
 fn compose_document(parser: &mut Parser<'_>, nodes: &mut Vec<Node>) -> Parsed<usize> {
     let _frame = frame("compose_document")?;
+    occurrence(0);
     parser.get_event()?;
     let mut anchors: HashMap<String, usize> = HashMap::new();
     let node = compose_node(parser, nodes, &mut anchors)?;
+    occurrence(1);
     parser.get_event()?;
     Ok(node)
 }
@@ -100,6 +110,7 @@ fn compose_node(
     anchors: &mut HashMap<String, usize>,
 ) -> Parsed<usize> {
     let _frame = frame("compose_node")?;
+    occurrence(0);
     if parser.check_event(|e| matches!(e, Ev::Alias { .. }))? {
         let event = parser.get_event()?;
         let Ev::Alias { anchor } = event.ev else {
@@ -107,6 +118,7 @@ fn compose_node(
         };
         return anchors.get(&anchor).copied().ok_or_else(|| {
             composer_error(
+                68,
                 None,
                 None,
                 format!("found undefined alias {}", PyStr::new(&anchor).repr()),
@@ -124,6 +136,7 @@ fn compose_node(
     if let Some(name) = &anchor {
         if let Some(&first) = anchors.get(name) {
             return Err(composer_error(
+                75,
                 Some(&format!(
                     "found duplicate anchor {}; first occurrence",
                     PyStr::new(name).repr()
@@ -215,6 +228,7 @@ fn compose_collection(
     } else {
         "compose_mapping_node"
     })?;
+    occurrence(0);
     let start_event: Event = parser.get_event()?;
     let explicit = match &start_event.ev {
         Ev::SequenceStart { tag, .. } | Ev::MappingStart { tag, .. } => tag.clone(),
@@ -250,13 +264,16 @@ fn compose_collection(
         }
     } else {
         while !parser.check_event(|e| matches!(e, Ev::MappingEnd))? {
+            occurrence(0);
             let key = compose_node(parser, nodes, anchors)?;
+            occurrence(1);
             let value = compose_node(parser, nodes, anchors)?;
             if let NodeKind::Mapping(pairs) = &mut nodes[id].kind {
                 pairs.push((key, value));
             }
         }
     }
+    occurrence(1);
     parser.get_event()?;
     Ok(id)
 }

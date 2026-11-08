@@ -5,7 +5,7 @@
 //! end decides when a decoding error is raised (and what byte position it names, relative to the chunk being
 //! decoded), so the same chunking is reproduced.
 
-use super::frames::{frame, nested};
+use super::frames::{capture, frame, nested, PySite};
 use super::{plain, Failure, Mark, Observer, Parsed, ReadEvent};
 use crate::pystr::PyStr;
 use std::rc::Rc;
@@ -64,6 +64,12 @@ impl<'a> TextStream<'a> {
             }
             Err(error) => {
                 let (start, length, reason) = crate::pyjson::utf8_error_parts(&input, &error);
+                // the exception comes out of `codecs.IncrementalDecoder.decode` (line 322 of the frozen module), called by the reader's `update_raw`
+                capture(Some(PySite {
+                    file: "<frozen codecs>",
+                    function: "decode",
+                    line: 322,
+                }));
                 return Err(Failure::Decode {
                     object: input,
                     start,
@@ -314,6 +320,7 @@ impl<'a> Reader<'a> {
         nested(&["get_mark", "__init__"])?;
         Ok(Mark {
             name: self.name.clone(),
+            index: self.index,
             line: self.line,
             column: self.column,
         })

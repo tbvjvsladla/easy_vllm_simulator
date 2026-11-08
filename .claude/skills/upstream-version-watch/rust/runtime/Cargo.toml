@@ -113,6 +113,16 @@ path = "src/bin/classify_failure.rs"
 name = "upstream_classify_api"
 path = "src/bin/upstream_classify_api.rs"
 
+# The unchanged public command line of `node_role_contract.py`: the topology-axis node contract (evaluate, --self-test) over the `role-contract` library.
+[[bin]]
+name = "node_role_contract"
+path = "src/bin/node_role_contract.rs"
+
+# The normal JSON-lines program of the ten public functions of `node_role_contract.py` (`role_api`, schema `node_role_contract-api/1`).
+[[bin]]
+name = "upstream_role_api"
+path = "src/bin/upstream_role_api.rs"
+
 # The two entry points that run the same library over an owned root and record the original collector's control record: checks only,
 # built with `--features fixture`.
 [[bin]]
@@ -147,6 +157,8 @@ inherits = "release"
 fancy-regex = { version = "=0.19.2", default-features = false, features = ["std", "unicode", "perf"] }
 miniz_oxide = { version = "=0.9.1", default-features = false, features = ["with-alloc"] }
 crc32fast = { version = "=1.5.3", default-features = false }
+# The node-role policy library (pure; depends only on the common package below).
+role-contract = { path = "../../../../rust/role-contract" }
 # Python-compatible typed data, text, JSON and YAML semantics shared with the other owner packages (path dependency, read-only).
 agent-runtime-support = { path = "../../../../rust/runtime-support" }
 # The recipe owner's public generic pieces (argparse model, stdout buffering, JSON-lines requests, benchmark harness), read-only.
@@ -227,3 +239,8 @@ path = "checks/regen_checks.rs"
 [[test]]
 name = "classify_checks"
 path = "checks/classify_checks.rs"
+
+# The focused checks of `node_role_contract`: saved-case subset through the real programs and the typed service.
+[[test]]
+name = "role_checks"
+path = "checks/role_checks.rs"

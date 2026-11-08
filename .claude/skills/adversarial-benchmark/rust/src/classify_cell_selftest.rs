@@ -6,8 +6,8 @@
 //! transcript. The check names printed are the original's (`classify_cell_selftest_names`, extracted from the original
 //! program), so the transcript reads the same.
 //!
-//! The node scenarios ask the installed owners (`node_identity.sh`, and `node_role_contract.py` through the query
-//! adapter) exactly where the original did; an unconfigured owner location is an error that ends the run, never a
+//! The node scenarios ask the installed owners (`node_identity.sh`, and the node-role contract through the native
+//! `role-contract` library after the owner-file lookup) exactly where the original did; an unconfigured owner location is an error that ends the run, never a
 //! silently shorter run. `K-mirror` reads the installed `fetch_sub_docs.sh`; the original skips that one check with a
 //! `[SKIP]` line when the script is absent, because it is main-only and a sub node's delivered tree does not carry it.
 //! That behaviour is kept (and printed), so a skipped `K-mirror` in a *main* checkout means the scripts directory is

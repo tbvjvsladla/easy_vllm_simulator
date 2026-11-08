@@ -9,5 +9,4 @@ if [ ! -f "$BINARY" ] || [ ! -x "$BINARY" ]; then
   exit 2
 fi
 export CLASSIFY_CELL_SCRIPTS_DIR="${CLASSIFY_CELL_SCRIPTS_DIR:-$SDIR}"
-export CLASSIFY_CELL_ROLE_ADAPTER="${CLASSIFY_CELL_ROLE_ADAPTER:-$SDIR/classify_cell_role_query.py}"
 exec "$BINARY" "$@"

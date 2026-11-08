@@ -38,10 +38,12 @@ mod frames;
 mod parser;
 mod reader;
 mod scanner;
+mod sites;
 
 use crate::pystr::PyStr;
 use crate::pyvalue::PyValue;
 pub use dump::{safe_dump_pieces, safe_dump_text, Piece};
+pub use frames::PySite;
 use std::rc::Rc;
 
 /// An exception `safe_load` raised: its Python class name and `str(exception)`, and for the two classes whose constructor
@@ -51,6 +53,18 @@ pub struct YamlError {
     pub class: &'static str,
     pub message: PyStr,
     pub detail: YamlDetail,
+}
+
+impl YamlError {
+    /// The Python traceback of the original this failure mirrors (outermost first, from `yaml.safe_load` down), as source-mapping data; `None`
+    /// when the failure arose where the port has no mapped chain (the scanner, the constructor, a late reader chunk). Never a native stack.
+    pub fn frames(&self) -> Option<&[PySite]> {
+        match &self.detail {
+            YamlDetail::Marked(detail) => detail.frames.as_deref().map(Vec::as_slice),
+            YamlDetail::Decode { frames, .. } => frames.as_deref().map(Vec::as_slice),
+            _ => None,
+        }
+    }
 }
 
 /// The constructor fields of `yaml.reader.ReaderError` and of the `UnicodeDecodeError` of the text file underneath.
@@ -73,7 +87,37 @@ pub enum YamlDetail {
         start: usize,
         end: usize,
         reason: &'static str,
+        /// The mapped traceback of the failure (see [`YamlError::frames`]).
+        frames: Option<Box<Vec<PySite>>>,
     },
+    /// The constructor state of a `yaml.error.MarkedYAMLError` subclass (`ScannerError`, `ParserError`, `ComposerError`, `ConstructorError`):
+    /// `MarkedYAMLError(context, context_mark, problem, problem_mark, note)`. The marks are the six-field `yaml.error.Mark` objects.
+    Marked(Box<MarkedDetail>),
+}
+
+/// The state of `MarkedYAMLError(context, context_mark, problem, problem_mark, note)`; the marks are the six-field `yaml.error.Mark` objects.
+#[derive(Debug, Clone, PartialEq)]
+pub struct MarkedDetail {
+    pub context: Option<PyStr>,
+    pub context_mark: Option<Mark6>,
+    pub problem: Option<PyStr>,
+    pub problem_mark: Option<Mark6>,
+    pub note: Option<PyStr>,
+    /// The mapped traceback of the failure (see [`YamlError::frames`]).
+    pub frames: Option<Box<Vec<PySite>>>,
+}
+
+/// `yaml.error.Mark(name, index, line, column, buffer, pointer)` as the loader of a text FILE builds it: `index` counts the characters the
+/// reader consumed, `line` and `column` are zero-based, and `buffer`/`pointer` are `None` (a file stream keeps no snippet; only a `str`
+/// source passes its buffer, and this port's marks of a `str` source carry no snippet either).
+#[derive(Debug, Clone, PartialEq)]
+pub struct Mark6 {
+    pub name: PyStr,
+    pub index: usize,
+    pub line: usize,
+    pub column: usize,
+    pub buffer: Option<PyStr>,
+    pub pointer: Option<usize>,
 }
 
 /// One pull of the reader on the open text file, in order: `read(4096)`, then what it returned or the exception it raised.
@@ -88,6 +132,7 @@ pub enum ReadEvent {
 #[derive(Clone, Debug)]
 pub(crate) struct Mark {
     pub name: Rc<PyStr>,
+    pub index: usize,
     pub line: usize,
     pub column: usize,
 }
@@ -104,6 +149,17 @@ impl Mark {
         out
     }
 
+    fn to_public(&self) -> Mark6 {
+        Mark6 {
+            name: (*self.name).clone(),
+            index: self.index,
+            line: self.line,
+            column: self.column,
+            buffer: None,
+            pointer: None,
+        }
+    }
+
     fn same_place(&self, other: &Mark) -> bool {
         *self.name == *other.name && self.line == other.line && self.column == other.column
     }
@@ -116,9 +172,9 @@ pub(crate) enum Failure {
     Marked {
         class: &'static str,
         context: Option<String>,
-        context_mark: Option<Mark>,
+        context_mark: Option<Box<Mark>>,
         problem: Option<String>,
-        problem_mark: Option<Mark>,
+        problem_mark: Option<Box<Mark>>,
     },
     /// `ReaderError` for a character YAML does not allow.
     Reader {
@@ -151,12 +207,13 @@ pub(crate) fn marked(
     if let Err(error) = frames::nested(&["__init__"]) {
         return error;
     }
+    frames::capture(None);
     Failure::Marked {
         class,
         context: context.map(str::to_string),
-        context_mark: context_mark.cloned(),
+        context_mark: context_mark.cloned().map(Box::new),
         problem: Some(problem.into()),
-        problem_mark: problem_mark.cloned(),
+        problem_mark: problem_mark.cloned().map(Box::new),
     }
 }
 
@@ -171,11 +228,14 @@ impl Failure {
     /// `type(exception).__name__` and `str(exception)`.
     pub(crate) fn into_error(self) -> YamlError {
         match self {
-            Failure::Plain { class, message } => YamlError {
-                class,
-                message,
-                detail: YamlDetail::None,
-            },
+            Failure::Plain { class, message } => {
+                let _ = frames::take_captured();
+                YamlError {
+                    class,
+                    message,
+                    detail: YamlDetail::None,
+                }
+            }
             Failure::Decode {
                 object,
                 start,
@@ -196,6 +256,7 @@ impl Failure {
                         start,
                         end,
                         reason,
+                        frames: frames::take_captured().map(Box::new),
                     },
                 }
             }
@@ -258,7 +319,14 @@ impl Failure {
                 YamlError {
                     class,
                     message,
-                    detail: YamlDetail::None,
+                    detail: YamlDetail::Marked(Box::new(MarkedDetail {
+                        context: context.as_deref().map(PyStr::new),
+                        context_mark: context_mark.as_deref().map(Mark::to_public),
+                        problem: problem.as_deref().map(PyStr::new),
+                        problem_mark: problem_mark.as_deref().map(Mark::to_public),
+                        note: None,
+                        frames: frames::take_captured().map(Box::new),
+                    })),
                 }
             }
         }
@@ -350,11 +418,16 @@ fn load(source: Source<'_>, observer: Option<Observer>) -> Parsed<PyValue> {
         Source::Text(_) => PyStr::new(TEXT_SOURCE_NAME),
     });
     // `Loader.__init__` builds the reader (`Reader.__init__` -> `determine_encoding`) and then the scanner
+    frames::hint("SafeLoader", None);
     let loader = frames::frame("__init__")?;
     let reader = {
+        // `Reader.__init__` is the first of the six base initialisers `SafeLoader.__init__` calls; it reaches `determine_encoding` at its
+        // second call site (the file-stream branch)
+        frames::hint("Reader", Some(0));
         let _init = frames::frame("__init__")?;
         match &source {
             Source::File { bytes, .. } => {
+                frames::occurrence(1);
                 let _determine = frames::frame("determine_encoding")?;
                 reader::Reader::new(name, bytes, observer)?
             }
@@ -362,6 +435,7 @@ fn load(source: Source<'_>, observer: Option<Observer>) -> Parsed<PyValue> {
         }
     };
     let scanner = {
+        frames::hint("Scanner", Some(1));
         let _init = frames::frame("__init__")?;
         scanner::Scanner::new(reader)?
     };
@@ -518,33 +592,213 @@ mod tests {
             "'utf-8' codec can't decode byte 0xff in position 1: invalid start byte"
         );
         assert_eq!(
-            error.detail,
+            bare(&error),
             YamlDetail::Decode {
                 encoding: "utf-8",
                 object: b"a\xff\n".to_vec(),
                 start: 1,
                 end: 2,
                 reason: "invalid start byte",
+                frames: None,
             }
         );
         // an incomplete sequence at the end of the file: the incremental decoder keeps the bytes until the end is known and then fails on
         // what it holds (positions are relative to that buffer, not to the file)
         let error = safe_load(b"ab\xe2\x82", &name).unwrap_err();
         assert_eq!(
-            error.detail,
+            bare(&error),
             YamlDetail::Decode {
                 encoding: "utf-8",
                 object: b"\xe2\x82".to_vec(),
                 start: 0,
                 end: 2,
                 reason: "unexpected end of data",
+                frames: None,
             }
         );
-        // the other errors carry no constructor fields
-        assert_eq!(
+        // the marked errors carry the state of `MarkedYAMLError(...)`, asserted in `marked_errors_expose_their_constructor_state_with_six_field_marks`
+        assert!(matches!(
             safe_load(b"a: [\n", &name).unwrap_err().detail,
-            YamlDetail::None
+            YamlDetail::Marked(_)
+        ));
+    }
+
+    /// The constructor state of an error without its mapped traceback (the traceback is asserted on its own).
+    fn bare(error: &YamlError) -> YamlDetail {
+        match error.detail.clone() {
+            YamlDetail::Decode {
+                encoding,
+                object,
+                start,
+                end,
+                reason,
+                ..
+            } => YamlDetail::Decode {
+                encoding,
+                object,
+                start,
+                end,
+                reason,
+                frames: None,
+            },
+            YamlDetail::Marked(mut detail) => {
+                detail.frames = None;
+                YamlDetail::Marked(detail)
+            }
+            other => other,
+        }
+    }
+
+    fn mark(name: &str, index: usize, line: usize, column: usize) -> Mark6 {
+        Mark6 {
+            name: PyStr::new(name),
+            index,
+            line,
+            column,
+            buffer: None,
+            pointer: None,
+        }
+    }
+
+    fn chain(error: &YamlError) -> Vec<(&'static str, u32, &'static str)> {
+        error
+            .frames()
+            .expect("a mapped traceback")
+            .iter()
+            .map(|site| (site.file, site.line, site.function))
+            .collect()
+    }
+
+    #[test]
+    fn a_parser_error_carries_the_source_mapped_traceback_of_the_frames_the_port_opened() {
+        // `nodes: [` + newline: the flow sequence has no content; every entry is (file, line executing, function) of PyYAML 6.0.1, outermost first
+        let error = safe_load(b"nodes: [\n", &PyStr::new("m.yaml")).unwrap_err();
+        assert_eq!(
+            chain(&error),
+            vec![
+                ("yaml/__init__.py", 125, "safe_load"),
+                ("yaml/__init__.py", 81, "load"),
+                ("yaml/constructor.py", 49, "get_single_data"),
+                ("yaml/composer.py", 36, "get_single_node"),
+                ("yaml/composer.py", 55, "compose_document"),
+                ("yaml/composer.py", 84, "compose_node"),
+                ("yaml/composer.py", 133, "compose_mapping_node"),
+                ("yaml/composer.py", 82, "compose_node"),
+                ("yaml/composer.py", 110, "compose_sequence_node"),
+                ("yaml/parser.py", 98, "check_event"),
+                ("yaml/parser.py", 474, "parse_flow_sequence_first_entry"),
+                ("yaml/parser.py", 495, "parse_flow_sequence_entry"),
+                ("yaml/parser.py", 268, "parse_flow_node"),
+                ("yaml/parser.py", 369, "parse_node"),
+            ]
         );
+    }
+
+    #[test]
+    fn a_decoding_error_of_the_first_chunk_is_traced_through_the_loader_and_the_reader() {
+        let error = safe_load(b"\xff", &PyStr::new("m.yaml")).unwrap_err();
+        assert_eq!(error.class, "UnicodeDecodeError");
+        assert_eq!(
+            chain(&error),
+            vec![
+                ("yaml/__init__.py", 125, "safe_load"),
+                ("yaml/__init__.py", 79, "load"),
+                ("yaml/loader.py", 34, "__init__"),
+                ("yaml/reader.py", 85, "__init__"),
+                ("yaml/reader.py", 124, "determine_encoding"),
+                ("yaml/reader.py", 178, "update_raw"),
+                ("<frozen codecs>", 322, "decode"),
+            ]
+        );
+    }
+
+    #[test]
+    fn every_parser_raise_site_maps_to_its_own_function_and_unmapped_domains_say_so() {
+        let name = PyStr::new("m.yaml");
+        // (document, the function whose raise it is, the raise line): the last frame is that function at that line
+        let cases: [(&[u8], &str, u32); 6] = [
+            (b"a: 1\n- b\n", "parse_block_mapping_key", 438),
+            (b"- a\nb: 1\n", "parse_block_sequence_entry", 392),
+            (b"{a: 1 b: 2}\n", "parse_flow_mapping_key", 549),
+            (b"[{a: 1} b]\n", "parse_flow_sequence_entry", 483),
+            (b"%YAML 1.1\n%YAML 1.1\n--- a\n", "process_directives", 224),
+            (b"!x!y a\n", "parse_node", 305),
+        ];
+        for (document, function, line) in cases {
+            let error = safe_load(document, &name).unwrap_err();
+            assert_eq!(error.class, "ParserError", "{document:?}");
+            let last = chain(&error).pop().unwrap();
+            assert_eq!((last.2, last.1), (function, line), "{document:?}");
+        }
+        // a scanner or constructor error has no mapped chain: never a guess
+        assert!(safe_load(b"a: @\n", &name).unwrap_err().frames().is_none());
+        assert!(safe_load(b"a: !foo 1\n", &name)
+            .unwrap_err()
+            .frames()
+            .is_none());
+    }
+
+    #[test]
+    fn marked_errors_expose_their_constructor_state_with_six_field_marks() {
+        let name = PyStr::new("m.yaml");
+        // ParserError: context, both marks (the reader's character index, zero-based line and column), no note, buffer and pointer None for a file
+        let error = safe_load(b"nodes: [\n", &name).unwrap_err();
+        assert_eq!(error.class, "ParserError");
+        assert_eq!(
+            bare(&error),
+            YamlDetail::Marked(Box::new(MarkedDetail {
+                context: Some(PyStr::new("while parsing a flow node")),
+                context_mark: Some(mark("m.yaml", 9, 1, 0)),
+                problem: Some(PyStr::new(
+                    "expected the node content, but found '<stream end>'"
+                )),
+                problem_mark: Some(mark("m.yaml", 9, 1, 0)),
+                note: None,
+                frames: None,
+            }))
+        );
+        // the text of the error is unchanged by the extra data
+        assert_eq!(
+            error.message.to_utf8().unwrap(),
+            "while parsing a flow node\nexpected the node content, but found '<stream end>'\n  in \"m.yaml\", line 2, column 1"
+        );
+        // ScannerError: a context but no context mark
+        let error = safe_load(b"a: @\n", &name).unwrap_err();
+        assert_eq!(error.class, "ScannerError");
+        assert_eq!(
+            bare(&error),
+            YamlDetail::Marked(Box::new(MarkedDetail {
+                context: Some(PyStr::new("while scanning for the next token")),
+                context_mark: None,
+                problem: Some(PyStr::new(
+                    "found character '@' that cannot start any token"
+                )),
+                problem_mark: Some(mark("m.yaml", 3, 0, 3)),
+                note: None,
+                frames: None,
+            }))
+        );
+        // ComposerError and ConstructorError: no context
+        let error = safe_load(b"a: *x\n", &name).unwrap_err();
+        assert_eq!(error.class, "ComposerError");
+        let YamlDetail::Marked(detail) = error.detail else {
+            panic!("marked detail")
+        };
+        let MarkedDetail {
+            context,
+            problem,
+            problem_mark,
+            ..
+        } = *detail;
+        assert_eq!(context, None);
+        assert_eq!(problem, Some(PyStr::new("found undefined alias 'x'")));
+        assert_eq!(problem_mark, Some(mark("m.yaml", 3, 0, 3)));
+        let error = safe_load(b"a: !foo 1\n", &name).unwrap_err();
+        assert_eq!(error.class, "ConstructorError");
+        assert!(matches!(
+            error.detail,
+            YamlDetail::Marked(ref detail) if matches!(detail.problem_mark, Some(Mark6 { line: 0, .. }))
+        ));
     }
 
     #[test]

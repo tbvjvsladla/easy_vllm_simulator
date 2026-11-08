@@ -4,9 +4,14 @@
 //! transcript. Data lives in `checks/data/classify_cell` (`@REF@` in a row is the staged reference tree, `@ROOT@` the
 //! staged case directory).
 //!
-//! The rows that ask the not-yet-ported owners (`node_identity.sh`, `node_role_contract.py`) need the installed owners:
-//! `CLASSIFY_CELL_SCRIPTS_DIR` (the scripts directory the original found from its own file) and
-//! `CLASSIFY_CELL_ROLE_ADAPTER`. A missing variable fails the check (`NOT_RUN`), it never skips a row.
+//! The rows that ask the owners (`node_identity.sh` run for real, the node-role contract through the native
+//! `role-contract` library after the owner-file lookup) need the installed owners: `CLASSIFY_CELL_SCRIPTS_DIR` (the
+//! scripts directory the original found from its own file). A missing variable fails the check (`NOT_RUN`), it never
+//! skips a row.
+//!
+//! Row selection (checks only, for a narrow delta run): `CLASSIFY_CELL_ONLY_ROWS` (comma-separated owner/pure row ids)
+//! and `CLASSIFY_CELL_ONLY_CLI` (comma-separated command-line case ids) restrict the replay to those ids; unset means
+//! every row, as before. A restricted run says so in the assertion text and never skips a named row.
 //!
 //! A traceback is compared by what precedes it and its final `Class: message` line (frames are not reproduced).
 
@@ -17,7 +22,7 @@ use common::{command, data_path, load_json_file, same};
 use std::path::{Path, PathBuf};
 use sweep_stop::classify_cell::Diagnostics;
 use sweep_stop::classify_cell_api_cli::evaluate_operation;
-use sweep_stop::classify_cell_owner::{Owners, ROLE_ADAPTER_ENV, SCRIPTS_DIR_ENV};
+use sweep_stop::classify_cell_owner::{Owners, SCRIPTS_DIR_ENV};
 use sweep_stop::pyjson::loads;
 use sweep_stop::pyvalue::{PyDict, PyValue};
 
@@ -73,13 +78,23 @@ fn replace_bytes(haystack: &[u8], needle: &[u8], with: &[u8]) -> Vec<u8> {
 
 /// The installed owner configuration; absent variables fail the check.
 fn installed_owners() -> Owners {
-    for name in [SCRIPTS_DIR_ENV, ROLE_ADAPTER_ENV] {
-        assert!(
-            std::env::var_os(name).is_some_and(|value| !value.is_empty()),
-            "NOT_RUN: {name} is not set; the owner rows need the installed owners (no row is skipped)"
-        );
-    }
+    assert!(
+        std::env::var_os(SCRIPTS_DIR_ENV).is_some_and(|value| !value.is_empty()),
+        "NOT_RUN: {SCRIPTS_DIR_ENV} is not set; the owner rows need the installed owners (no row is skipped)"
+    );
     Owners::from_environment()
+}
+
+/// The ids a restricted run replays (`None`: every row).
+fn only(variable: &str) -> Option<Vec<String>> {
+    std::env::var(variable)
+        .ok()
+        .filter(|ids| !ids.is_empty())
+        .map(|ids| {
+            ids.split(',')
+                .map(|id| id.trim().to_string())
+                .collect::<Vec<String>>()
+        })
 }
 
 fn scratch(label: &str) -> PathBuf {
@@ -180,6 +195,9 @@ fn evaluate_rows(
             panic!("row is not an object")
         };
         let (id, operation) = (text(get(&row, "id")), text(get(&row, "operation")));
+        if only("CLASSIFY_CELL_ONLY_ROWS").is_some_and(|ids| !ids.contains(&id)) {
+            continue;
+        }
         let PyValue::Dict(arguments) = get(&row, "arguments").clone() else {
             panic!("arguments are not an object")
         };
@@ -230,7 +248,7 @@ fn evaluate_rows(
 /// `events_scan_summary`): complete values and the exceptions of the original, nothing from the owners.
 #[test]
 fn pure_rows_equal_the_original() {
-    let owners = Owners::new(None, "python3", None);
+    let owners = Owners::new(None);
     let results = evaluate_rows("classify_cell/pure_api.jsonl", &owners, None);
     assert_eq!(results.len(), 121, "the frozen contract has 121 pure rows");
     let failed: Vec<String> = results
@@ -274,7 +292,12 @@ fn owner_rows_and_records_equal_the_original() {
         &owners,
         Some(&reference_text),
     );
-    assert_eq!(results.len(), 45, "the frozen contract has 45 owner rows");
+    let restricted = only("CLASSIFY_CELL_ONLY_ROWS");
+    assert_eq!(
+        results.len(),
+        restricted.as_ref().map_or(45, Vec::len),
+        "the frozen contract has 45 owner rows (a restricted run: exactly the named ones)"
+    );
     let mut failed: Vec<String> = results
         .iter()
         .filter(|(_, _, passed)| !passed)
@@ -285,7 +308,8 @@ fn owner_rows_and_records_equal_the_original() {
         tree_before,
         "the planning and scanning rows must not change the repository tree"
     );
-    for record in records {
+    // the durable-record trees belong to the record-writing rows: a restricted run of other rows leaves them untouched
+    for record in records.iter().filter(|_| restricted.is_none()) {
         let PyValue::Dict(record) = record else {
             panic!()
         };
@@ -342,6 +366,8 @@ fn cli_cases_equal_the_original() {
         other => panic!("cases are not a list: {}", other.type_name()),
     };
     assert_eq!(cases.len(), 20, "the frozen contract has 17 + 3 CLI cases");
+    let restricted = only("CLASSIFY_CELL_ONLY_CLI");
+    let mut replayed = 0usize;
     let bin = env!("CARGO_BIN_EXE_classify_cell");
     let mut mismatches = Vec::new();
     for case in &cases {
@@ -349,6 +375,10 @@ fn cli_cases_equal_the_original() {
             panic!("case")
         };
         let id = text(get(case, "id"));
+        if restricted.as_ref().is_some_and(|ids| !ids.contains(&id)) {
+            continue;
+        }
+        replayed += 1;
         let root = scratch(&format!("cli_{id}"));
         let root_text = root.to_str().expect("UTF-8 path").to_string();
         let PyValue::Dict(before) = get(case, "before") else {
@@ -391,6 +421,11 @@ fn cli_cases_equal_the_original() {
             }
         }
     }
+    assert_eq!(
+        replayed,
+        restricted.as_ref().map_or(20, Vec::len),
+        "every named case is replayed"
+    );
     assert!(mismatches.is_empty(), "{}", mismatches.join("\n"));
 }
 
@@ -429,8 +464,8 @@ fn self_test_transcript_equals_the_original() {
 /// Two valid multi-node manifests whose unused metadata (an integer key too large for a float; a self-referencing
 /// anchor) once made the provisional role-owner transport refuse them, while the original returns a valid plan
 /// (originals recorded by the root's review, `role_transport_cases.json`). The third row is a 5000-digit decimal VALUE:
-/// the owner's YAML parser refuses it under the interpreter's inherited limit, and so does the plan - the adapter must
-/// not change that process-wide setting. The real owner and the query adapter run.
+/// the owner's YAML parser refuses it under the interpreter's fixed integer-string limit (4300 digits), and so does the
+/// plan. The native role library runs for real.
 #[test]
 fn valid_manifests_with_unread_metadata_equal_the_original() {
     let owners = installed_owners();

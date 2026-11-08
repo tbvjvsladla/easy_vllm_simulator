@@ -3,19 +3,28 @@
 //! the `glob.glob` expansion of `[`/`*` in repository and node names, universal newlines and `errors="replace"` on event
 //! files, the original's report text for a missing, failing or misbehaving owner) and recorded here as literals.
 //!
-//! The owner-boundary checks use throwaway resolver scripts and query adapters written into a scratch tree: they prove
-//! how the program relays what an owner printed, returned or raised - the owners' own rules are not exercised here.
+//! The owner-boundary checks use throwaway resolver scripts and, for the node-role contract, a CHECK-ONLY native role
+//! source (`Owners::with_role_source`) that hands the classifier crafted typed values or raised exceptions: they prove how
+//! the program relays what an owner printed, returned or raised - the owners' own rules are not exercised there. The rows
+//! that DO exercise the role library (the unused 617-digit key and cycle, the 5000-digit value, a violation) run it for
+//! real. No Python runs anywhere in this file.
 
+use agent_runtime_support::pyvalue::{
+    DictKey as QKey, NonStringKey as QNonStringKey, Opaque as QOpaque, PyDict as QDict,
+    PyValue as Q, Typed,
+};
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use sweep_stop::classify_cell::{
     bench_mode_record_path, events_node_plan, read_bench_mode_record, scan_node_events,
     write_bench_mode_record, Diagnostics,
 };
-use sweep_stop::classify_cell_owner::{Owners, ADAPTER_ERROR, CONFIGURATION_ERROR};
+use sweep_stop::classify_cell_owner::{Owners, BRIDGE_ERROR, CONFIGURATION_ERROR};
 use sweep_stop::pyjson::loads;
 use sweep_stop::pystr::PyStr;
 use sweep_stop::pyvalue::PyValue;
+use sweep_stop::role_bridge::{RoleFailure, RoleSource};
 
 fn scratch(label: &str) -> PathBuf {
     let dir = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
@@ -382,12 +391,8 @@ impl Layout {
         )
     }
 
-    fn owners(&self, adapter: Option<&Path>) -> Owners {
-        Owners::new(
-            Some(self.scripts()),
-            "python3",
-            adapter.map(|path| path.as_os_str().to_owned()),
-        )
+    fn owners(&self) -> Owners {
+        Owners::new(Some(self.scripts()))
     }
 
     fn resolver(&self, body: &str) {
@@ -420,14 +425,14 @@ fn resolve(owners: &Owners, repo: &Path) -> (Option<String>, String) {
 #[test]
 fn a_missing_resolver_is_reported_with_the_originals_text_and_never_guessed() {
     let layout = Layout::new("no_resolver");
-    let (node, source) = resolve(&layout.owners(None), &layout.root);
+    let (node, source) = resolve(&layout.owners(), &layout.root);
     assert_eq!(node, None);
     assert_eq!(
         source,
         "node_identity.sh 부재(terraforming_node/scripts/node_blackbox · .claude/runtime/node_blackbox)"
     );
     let repo_missing = layout
-        .owners(None)
+        .owners()
         .resolve_self_node(&PyValue::None)
         .expect("resolve");
     assert_eq!(repo_missing.1.to_utf8().expect("text"), "repo 미지정");
@@ -437,7 +442,7 @@ fn a_missing_resolver_is_reported_with_the_originals_text_and_never_guessed() {
 fn the_resolvers_answer_failure_and_runtime_copy_are_relayed_as_the_original_does() {
     let layout = Layout::new("resolver");
     layout.resolver("#!/bin/bash\necho '  main  '\n");
-    let (node, source) = resolve(&layout.owners(None), &layout.root);
+    let (node, source) = resolve(&layout.owners(), &layout.root);
     assert_eq!(
         (node.as_deref(), source.as_str()),
         (
@@ -450,26 +455,26 @@ fn the_resolvers_answer_failure_and_runtime_copy_are_relayed_as_the_original_doe
     layout.resolver(
         "#!/bin/bash\necho '  boom one  ' >&2\necho 'two' >&2\necho 'three' >&2\nexit 3\n",
     );
-    let (node, source) = resolve(&layout.owners(None), &layout.root);
+    let (node, source) = resolve(&layout.owners(), &layout.root);
     assert_eq!(
         (node, source.as_str()),
         (None, "node_identity.sh --resolve rc=3 — boom one / two")
     );
     layout.resolver("#!/bin/bash\necho 'boom one' >&2\necho >&2\necho 'two' >&2\nexit 3\n");
-    let (node, source) = resolve(&layout.owners(None), &layout.root);
+    let (node, source) = resolve(&layout.owners(), &layout.root);
     assert_eq!(
         (node, source.as_str()),
         (None, "node_identity.sh --resolve rc=3 — boom one")
     );
     layout.resolver("#!/bin/bash\nexit 4\n");
-    let (node, source) = resolve(&layout.owners(None), &layout.root);
+    let (node, source) = resolve(&layout.owners(), &layout.root);
     assert_eq!(
         (node, source.as_str()),
         (None, "node_identity.sh --resolve rc=4")
     );
 
     layout.resolver("#!/bin/bash\necho '../x'\n");
-    let (node, source) = resolve(&layout.owners(None), &layout.root);
+    let (node, source) = resolve(&layout.owners(), &layout.root);
     assert_eq!(
         (node, source.as_str()),
         (None, "node_identity.sh --resolve rc=0"),
@@ -484,7 +489,7 @@ fn the_resolvers_answer_failure_and_runtime_copy_are_relayed_as_the_original_doe
     )
     .expect("remove");
     layout.runtime_resolver("#!/bin/bash\necho sub\n");
-    let (node, _) = resolve(&layout.owners(None), &layout.root);
+    let (node, _) = resolve(&layout.owners(), &layout.root);
     assert_eq!(node.as_deref(), Some("sub"));
 }
 
@@ -492,7 +497,7 @@ fn the_resolvers_answer_failure_and_runtime_copy_are_relayed_as_the_original_doe
 fn a_resolver_that_does_not_answer_in_time_is_a_reported_failure_naming_the_command() {
     let layout = Layout::new("timeout");
     layout.resolver("#!/bin/bash\nsleep 30\n");
-    let (node, source) = resolve(&layout.owners(None).with_timeout_seconds(1), &layout.root);
+    let (node, source) = resolve(&layout.owners().with_timeout_seconds(1), &layout.root);
     assert_eq!(node, None);
     let resolver = layout
         .root
@@ -507,7 +512,7 @@ fn a_resolver_that_does_not_answer_in_time_is_a_reported_failure_naming_the_comm
 
 #[test]
 fn an_unconfigured_scripts_directory_is_a_named_error_not_an_absent_owner() {
-    let owners = Owners::new(None, "python3", None);
+    let owners = Owners::new(None);
     let failure = owners
         .resolve_self_node(&s("/anywhere"))
         .expect_err("needs the scripts directory");
@@ -524,35 +529,101 @@ fn an_unconfigured_scripts_directory_is_a_named_error_not_an_absent_owner() {
     assert_eq!(failure.class, CONFIGURATION_ERROR);
 }
 
-/// The query adapter under test (the program root applies as `classify_cell_role_query.py`), and a stand-in owner module
-/// whose `load_yaml` / `evaluate_manifest` bodies the test writes: it returns crafted Python objects (the owner's own
-/// parsing and rules are not exercised here, only how the program reads what an owner returns or raises).
-const ADAPTER_SOURCE: &str = include_str!("data/classify_cell/classify_cell_role_query.py");
-
-fn install_owner(layout: &Layout, load_yaml: &str, evaluate: &str) -> PathBuf {
-    let adapter = layout.root.join("classify_cell_role_query.py");
-    std::fs::write(&adapter, ADAPTER_SOURCE).expect("adapter");
-    let indent = |body: &str| {
-        body.lines()
-            .map(|line| format!("    {line}\n"))
-            .collect::<String>()
-    };
-    let module = format!(
-        "def load_yaml(path):\n{}\n\ndef evaluate_manifest(doc, topology):\n{}\n",
-        indent(load_yaml),
-        indent(evaluate)
-    );
-    put(
-        &layout.root,
-        ".claude/skills/terraforming_node/scripts/node_role_contract.py",
-        module.as_bytes(),
-    );
-    adapter
+/// A CHECK-ONLY role source: what the stand-in owners of the original's checks returned or raised, as typed values of the
+/// role library's own value family (Q). It holds no rule; the test writes the answers.
+struct StandIn {
+    load: Result<Q, RoleFailure>,
+    evaluate: Result<Q, RoleFailure>,
 }
 
+impl std::fmt::Debug for StandIn {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("StandIn")
+    }
+}
+
+impl RoleSource for StandIn {
+    fn load_yaml(&self, _path: &sweep_stop::pystr::PyStr) -> Result<Q, RoleFailure> {
+        self.load.clone()
+    }
+
+    fn evaluate_manifest(&self, _document: &Q, _topology: &str) -> Result<Q, RoleFailure> {
+        self.evaluate.clone()
+    }
+}
+
+fn qs(text: &str) -> Q {
+    Q::str(text)
+}
+
+fn qi(number: i64) -> Q {
+    Q::int(number)
+}
+
+fn qd(pairs: Vec<(&str, Q)>) -> Q {
+    let mut dict = QDict::new();
+    for (key, value) in pairs {
+        dict.set(key, value);
+    }
+    Q::Dict(dict)
+}
+
+fn ql(items: Vec<Q>) -> Q {
+    Q::List(items)
+}
+
+fn qt(items: Vec<Q>) -> Q {
+    Q::Tuple(items)
+}
+
+/// The inner reference of a self-containing value, as the YAML loader writes it (`[...]` / `{...}`).
+fn marker(type_name: &'static str, repr: &str) -> Q {
+    Q::Opaque(QOpaque {
+        type_name,
+        repr: repr.to_string(),
+        truthy: true,
+        typed: Typed::Plain,
+        identity: None,
+    })
+}
+
+fn other_key(dict: &mut QDict, identity: &str, repr: &str, key: Q, value: Q) {
+    dict.insert_key(
+        QKey::Other(QNonStringKey {
+            identity: identity.to_string(),
+            repr: repr.to_string(),
+            value: Some(Box::new(key)),
+        }),
+        value,
+    );
+}
+
+fn raising(class: &'static str, message: &str) -> Result<Q, RoleFailure> {
+    Err(RoleFailure::new(class, message))
+}
+
+/// `{'nodes': [{'role': r}, ...]}`
+fn nodes_of(roles: Vec<Q>) -> Q {
+    qd(vec![(
+        "nodes",
+        ql(roles
+            .into_iter()
+            .map(|role| qd(vec![("role", role)]))
+            .collect()),
+    )])
+}
+
+fn nodes() -> Q {
+    nodes_of(vec![qs("main"), qs("sub")])
+}
+
+fn clean() -> Q {
+    qd(vec![("violations", ql(vec![]))])
+}
+
+/// The presence of the owner FILE is all the program looks up; its content is never read or run.
+const OWNER_FILE: &str = ".claude/skills/terraforming_node/scripts/node_role_contract.py";
 const MANIFEST: &str = "self_role: main\ntopology: multi\nnodes:\n  - role: main\n  - role: sub\n";
-const NODES: &str = "{'nodes': [{'role': 'main'}, {'role': 'sub'}]}";
-const CLEAN: &str = "{'violations': []}";
 
 fn multi_plan(
     owners: &Owners,
@@ -582,52 +653,58 @@ fn owned_layout(label: &str) -> (Layout, PathBuf) {
     let layout = Layout::new(label);
     layout.resolver("#!/bin/bash\necho main\n");
     put(&layout.root, "manifest.yaml", MANIFEST.as_bytes());
+    put(&layout.root, OWNER_FILE, b"# the file is only looked up\n");
     let manifest = layout.root.join("manifest.yaml");
     (layout, manifest)
 }
 
+/// The plan for a multi manifest when the role source answers `load` and `evaluate`.
 fn plan_with(
     label: &str,
-    load_yaml: &str,
-    evaluate: &str,
+    load: Result<Q, RoleFailure>,
+    evaluate: Result<Q, RoleFailure>,
 ) -> Result<PyValue, sweep_stop::guidellm::Failure> {
     let (layout, manifest) = owned_layout(label);
-    let adapter = install_owner(&layout, load_yaml, evaluate);
-    multi_plan(&layout.owners(Some(&adapter)), &layout.root, &manifest)
+    let owners = layout
+        .owners()
+        .with_role_source(Arc::new(StandIn { load, evaluate }));
+    multi_plan(&owners, &layout.root, &manifest)
 }
 
+/// RETIRED ROW `a_role_contract_owner_that_exists_but_cannot_be_queried_is_an_error_never_a_fallback`: it pinned the
+/// failure of the removed Python transport (an owner present but no query adapter configured, the named
+/// `RoleContractAdapterError`). That transport no longer exists, so the condition cannot arise. Its intent - an owner that
+/// exists is NEVER answered by a fallback and never needs Python - is carried by this row: an owner file whose content
+/// is not Python at all is answered natively by the `role-contract` library, no adapter is configured anywhere, the
+/// bridge starts no process, and the owner-absent report is still the original's.
 #[test]
-fn a_role_contract_owner_that_exists_but_cannot_be_queried_is_an_error_never_a_fallback() {
-    let layout = Layout::new("adapterless");
-    layout.resolver("#!/bin/bash\necho main\n");
-    put(
-        &layout.root,
-        ".claude/skills/terraforming_node/scripts/node_role_contract.py",
-        b"# owner\n",
+fn a_present_owner_file_is_answered_natively_with_no_adapter_and_no_python_path() {
+    let (layout, manifest) = owned_layout("native");
+    // no role source installed: the production library answers
+    let plan = multi_plan(&layout.owners(), &layout.root, &manifest).expect("plan");
+    assert_eq!(field(&plan, "nodes"), "['main', 'sub']");
+    assert_eq!(field(&plan, "undeterminable"), "None");
+    assert_eq!(
+        field(&plan, "source"),
+        "multi: 서빙 참여 노드 전부 — manifest nodes[].role(main,sub) · node_role_contract 위반 0"
     );
-    put(&layout.root, "manifest.yaml", MANIFEST.as_bytes());
-    let failure = multi_plan(
-        &layout.owners(None),
-        &layout.root,
-        &layout.root.join("manifest.yaml"),
-    )
-    .expect_err("no adapter configured");
-    assert_eq!(failure.class, ADAPTER_ERROR);
-    assert!(failure
-        .message
-        .to_utf8()
-        .expect("text")
-        .contains("does not fall back"));
-    // No owner file at all is the original's "owner absent" report, not an error.
+    // structural: no adapter/interpreter selection and no process start exist in the role path
+    let owner_source = include_str!("../src/classify_cell_owner.rs");
+    let bridge_source = include_str!("../src/role_bridge.rs");
+    for forbidden in ["ROLE_ADAPTER", "PYTHON_ENV", "RoleSession", "ADAPTER_ERROR"] {
+        assert!(!owner_source.contains(forbidden), "{forbidden}");
+    }
+    assert!(
+        !bridge_source.contains("Command"),
+        "the bridge starts no process"
+    );
+    assert!(!bridge_source.to_lowercase().contains("python3"));
+    // the owner-absent report is the original's, not an error
     let bare = Layout::new("ownerless");
     bare.resolver("#!/bin/bash\necho main\n");
     put(&bare.root, "manifest.yaml", MANIFEST.as_bytes());
-    let plan = multi_plan(
-        &bare.owners(None),
-        &bare.root,
-        &bare.root.join("manifest.yaml"),
-    )
-    .expect("plan");
+    let plan =
+        multi_plan(&bare.owners(), &bare.root, &bare.root.join("manifest.yaml")).expect("plan");
     assert_eq!(
         field(&plan, "undeterminable"),
         "node_role_contract 부재 — multi 참여 노드를 판정할 소유자가 없다"
@@ -639,58 +716,85 @@ fn a_role_contract_owner_that_exists_but_cannot_be_queried_is_an_error_never_a_f
     );
 }
 
+/// `_node_role_contract` of the API returns whether the owner file exists, nothing more.
+#[test]
+fn the_role_contract_operation_answers_whether_the_owner_file_exists() {
+    let (layout, _) = owned_layout("opbool");
+    let bare = Layout::new("opbool_absent");
+    let ask = |owners: &Owners| {
+        let mut diagnostics = Diagnostics::default();
+        sweep_stop::classify_cell_api_cli::evaluate_operation(
+            "_node_role_contract",
+            &sweep_stop::pyvalue::PyDict::new(),
+            owners,
+            &mut diagnostics,
+        )
+        .expect("answers")
+    };
+    assert_eq!(ask(&layout.owners()).repr(), "True");
+    assert_eq!(ask(&bare.owners()).repr(), "False");
+    assert!(layout
+        .owners()
+        .open_role_contract()
+        .expect("config")
+        .is_some());
+    assert!(bare
+        .owners()
+        .open_role_contract()
+        .expect("config")
+        .is_none());
+}
+
+/// STAND-IN ROWS of the original's owner checks (every expectation unchanged), re-expressed through the check-only native
+/// role source with typed values: each `plan_with(label, load, evaluate)` below is the row of the same label that used a
+/// Python stand-in owner returning/raising the same object. The one row that needs a Python top level is
+/// `an_owner_whose_top_level_raises_is_read_as_no_owner` (NOT_RUN, D1).
 #[test]
 fn owner_answers_and_exceptions_become_the_originals_plan_reports() {
-    let ok = plan_with("ok", &format!("return {NODES}"), &format!("return {CLEAN}")).expect("plan");
+    // row `ok`
+    let ok = plan_with("ok", Ok(nodes()), Ok(clean())).expect("plan");
     assert_eq!(field(&ok, "nodes"), "['main', 'sub']");
     assert_eq!(field(&ok, "undeterminable"), "None");
     assert_eq!(field(&ok, "self_node"), "main");
 
-    // The owner's top level raised: the original read that as "no owner".
-    let (layout, manifest) = owned_layout("badtop");
-    let adapter = install_owner(&layout, "return {}", "return {}");
-    let owner = layout
-        .root
-        .join(".claude/skills/terraforming_node/scripts/node_role_contract.py");
-    std::fs::write(&owner, "raise ImportError('x')\n").expect("owner");
-    let plan = multi_plan(&layout.owners(Some(&adapter)), &layout.root, &manifest).expect("plan");
-    assert_eq!(
-        field(&plan, "undeterminable"),
-        "node_role_contract 부재 — multi 참여 노드를 판정할 소유자가 없다"
-    );
-
-    // load_yaml raised: the plan says so with the exception text.
+    // row `yamlraise`: load_yaml raised: the plan says so with the exception text.
     let (layout, manifest) = owned_layout("yamlraise");
-    let adapter = install_owner(
-        &layout,
-        "raise ValueError('bad yaml')",
-        &format!("return {CLEAN}"),
-    );
-    let plan = multi_plan(&layout.owners(Some(&adapter)), &layout.root, &manifest).expect("plan");
+    let owners = layout.owners().with_role_source(Arc::new(StandIn {
+        load: raising("ValueError", "bad yaml"),
+        evaluate: Ok(clean()),
+    }));
+    let plan = multi_plan(&owners, &layout.root, &manifest).expect("plan");
     assert_eq!(
         field(&plan, "undeterminable"),
         format!("manifest 판독 실패({}): bad yaml", manifest.display())
     );
 
-    // A document that is not an object.
-    let plan = plan_with("notdict", "return []", &format!("return {CLEAN}")).expect("plan");
+    // row `notdict`: a document that is not an object.
+    let plan = plan_with("notdict", Ok(ql(vec![])), Ok(clean())).expect("plan");
     assert!(field(&plan, "undeterminable").starts_with("manifest 가 객체가 아니다("));
 
-    // Violations: their codes, joined (a violation without a code is `?`).
+    // row `violations`: their codes, joined (a violation without a code is `?`).
     let plan = plan_with(
         "violations",
-        &format!("return {NODES}"),
-        "return {'violations': [{'code': 'V1'}, {}]}",
+        Ok(nodes()),
+        Ok(qd(vec![(
+            "violations",
+            ql(vec![qd(vec![("code", qs("V1"))]), qd(vec![])]),
+        )])),
     )
     .expect("plan");
     assert_eq!(
         field(&plan, "undeterminable"),
         "node_role_contract 위반: V1; ?"
     );
+    // row `badcode`: a non-str code
     let failure = plan_with(
         "badcode",
-        &format!("return {NODES}"),
-        "return {'violations': [{'code': 5}]}",
+        Ok(nodes()),
+        Ok(qd(vec![(
+            "violations",
+            ql(vec![qd(vec![("code", qi(5))])]),
+        )])),
     )
     .expect_err("a non-str code");
     assert_eq!(
@@ -703,10 +807,11 @@ fn owner_answers_and_exceptions_become_the_originals_plan_reports() {
             "sequence item 0: expected str instance, int found"
         )
     );
+    // row `badviolation`: a non-dict violation
     let failure = plan_with(
         "badviolation",
-        &format!("return {NODES}"),
-        "return {'violations': [5]}",
+        Ok(nodes()),
+        Ok(qd(vec![("violations", ql(vec![qi(5)]))])),
     )
     .expect_err("a non-dict violation");
     assert_eq!(
@@ -714,45 +819,39 @@ fn owner_answers_and_exceptions_become_the_originals_plan_reports() {
         "'int' object has no attribute 'get'"
     );
 
-    // A duplicate role, an unusable role, this node not among the roles.
-    let twice = "{'nodes': [{'role': 'a'}, {'role': 'a'}]}";
-    let plan = plan_with(
-        "twice",
-        &format!("return {twice}"),
-        &format!("return {CLEAN}"),
-    )
-    .expect("plan");
+    // rows `twice`, `others`, `absent`: a duplicate role, an unusable role, this node not among the roles.
+    let plan = plan_with("twice", Ok(nodes_of(vec![qs("a"), qs("a")])), Ok(clean())).expect("plan");
     assert_eq!(
         field(&plan, "undeterminable"),
         "manifest nodes[].role 로 참여 노드를 정할 수 없다(['a', 'a'] — node_id = role 슬러그 · 비었거나 중복)"
     );
-    let others = "{'nodes': [{'role': 'a'}, {'role': 'b'}, 'skipped', {'name': 'no role'}]}";
-    let plan = plan_with(
-        "others",
-        &format!("return {others}"),
-        &format!("return {CLEAN}"),
-    )
-    .expect("plan");
+    let others = qd(vec![(
+        "nodes",
+        ql(vec![
+            qd(vec![("role", qs("a"))]),
+            qd(vec![("role", qs("b"))]),
+            qs("skipped"),
+            qd(vec![("name", qs("no role"))]),
+        ]),
+    )]);
+    let plan = plan_with("others", Ok(others), Ok(clean())).expect("plan");
     assert_eq!(
         field(&plan, "undeterminable"),
         "manifest nodes[].role 로 참여 노드를 정할 수 없다(['a', 'b', None] — node_id = role 슬러그 · 비었거나 중복)"
     );
-    let plan = plan_with(
-        "absent",
-        "return {'nodes': [{'role': 'a'}, {'role': 'b'}]}",
-        &format!("return {CLEAN}"),
-    )
-    .expect("plan");
+    let plan =
+        plan_with("absent", Ok(nodes_of(vec![qs("a"), qs("b")])), Ok(clean())).expect("plan");
     assert_eq!(
         field(&plan, "undeterminable"),
         "이 노드('main' ← node_identity.sh --resolve(self_role → 유일한 role: main))가 manifest nodes[].role(a,b)에 없다 — 어느 노드의 events 가 이 저장소의 것인지 모른다"
     );
 
-    // Unhashable roles are the original's `TypeError` from `set(roles)`; a tuple role is judged by its content.
+    // rows `listrole`, `tuplelist`, `tuplerole`: unhashable roles are the original's `TypeError` from `set(roles)`; a tuple
+    // role is judged by its content.
     let failure = plan_with(
         "listrole",
-        "return {'nodes': [{'role': ['main']}]}",
-        &format!("return {CLEAN}"),
+        Ok(nodes_of(vec![ql(vec![qs("main")])])),
+        Ok(clean()),
     )
     .expect_err("unhashable");
     assert_eq!(
@@ -764,8 +863,8 @@ fn owner_answers_and_exceptions_become_the_originals_plan_reports() {
     );
     let failure = plan_with(
         "tuplelist",
-        "return {'nodes': [{'role': ('a', ['b'])}]}",
-        &format!("return {CLEAN}"),
+        Ok(nodes_of(vec![qt(vec![qs("a"), ql(vec![qs("b")])])])),
+        Ok(clean()),
     )
     .expect_err("unhashable");
     assert_eq!(
@@ -774,8 +873,8 @@ fn owner_answers_and_exceptions_become_the_originals_plan_reports() {
     );
     let plan = plan_with(
         "tuplerole",
-        "return {'nodes': [{'role': ('a', 'b')}]}",
-        &format!("return {CLEAN}"),
+        Ok(nodes_of(vec![qt(vec![qs("a"), qs("b")])])),
+        Ok(clean()),
     )
     .expect("plan");
     assert_eq!(
@@ -783,13 +882,9 @@ fn owner_answers_and_exceptions_become_the_originals_plan_reports() {
         "manifest nodes[].role 로 참여 노드를 정할 수 없다([('a', 'b')] — node_id = role 슬러그 · 비었거나 중복)"
     );
 
-    // An exception of evaluate_manifest is not caught by the original: it propagates with its class and text.
-    let failure = plan_with(
-        "evalraise",
-        &format!("return {NODES}"),
-        "raise KeyError('x')",
-    )
-    .expect_err("propagates");
+    // row `evalraise`: an exception of evaluate_manifest is not caught by the original: it propagates with its class and text.
+    let failure =
+        plan_with("evalraise", Ok(nodes()), raising("KeyError", "'x'")).expect_err("propagates");
     assert_eq!(
         (
             failure.class,
@@ -797,57 +892,125 @@ fn owner_answers_and_exceptions_become_the_originals_plan_reports() {
         ),
         ("KeyError", "'x'")
     );
-    // So does a result that has no `.get`.
-    let failure =
-        plan_with("evalnotdict", &format!("return {NODES}"), "return 5").expect_err("propagates");
+    // row `evalnotdict`: so does a result that has no `.get`.
+    let failure = plan_with("evalnotdict", Ok(nodes()), Ok(qi(5))).expect_err("propagates");
     assert_eq!(
         failure.message.to_utf8().expect("text"),
         "'int' object has no attribute 'get'"
     );
 }
 
-/// Two valid manifests the first transport refused because of metadata the classifier never reads (found by the root's
-/// review; the original returns a valid multi plan for both): an unused integer key too large for a float, and an unused
-/// self-referencing anchor. The document stays with the owner and only what the classifier touches is fetched.
+/// NOT_RUN row `badtop` of the original's owner check (D1 of `PORTING.md`): an owner file whose top level raises on import
+/// was read as "no owner" by the original, which executed the file. The native owner never executes the file (the
+/// `role-contract` library is the single definition of the policy; the file is only looked up), so this one case cannot be
+/// observed. It is not waived: it stays listed here as an ignored row with its expectation.
+#[test]
+#[ignore = "NOT_RUN D1: an owner file whose top level raises is not executed natively; expectation: undeterminable == 'node_role_contract 부재 — multi 참여 노드를 판정할 소유자가 없다'"]
+fn an_owner_whose_top_level_raises_is_read_as_no_owner() {
+    panic!("NOT_RUN D1: unrepresentable by a native owner; see PORTING.md");
+}
+
+/// Two valid manifests the first transport refused because of metadata the classifier never reads (the original returns a
+/// valid multi plan for both): an unused integer key too large for a float, and an unused self-referencing anchor. The
+/// document stays one shared value and only what the classifier touches is converted. Through the check-only seam with typed
+/// values (rows `bigkey`, `cycle`) and, for the same condition, through the REAL role library on YAML text.
 #[test]
 fn metadata_the_classifier_never_reads_cannot_change_a_valid_plan() {
-    let nodes = "{'nodes': [{'role': 'main'}, {'role': 'sub'}], 'unused': LOOP}";
-    let big_key = format!("return {{**{NODES}, 2 ** 2048: 'unused', 1.0: 'a', True: 'b', float('nan'): 'c', 2 ** 70: 'd', float(2 ** 70): 'e'}}");
-    let looped = format!("loop = []\nloop.append(loop)\nmapping = {{'x': loop}}\nmapping['self'] = mapping\nreturn {{**{NODES}, 'unused': loop, 'also': mapping}}");
-    let _ = nodes;
-    for (label, load_yaml) in [("bigkey", big_key), ("cycle", looped)] {
-        let plan = plan_with(
-            label,
-            &load_yaml,
-            &format!("return {{**{CLEAN}, 'meta': 2 ** 4096}}"),
-        )
-        .expect(label);
+    let big_two_2048 = Q::int(num_bigint::BigInt::from(1u8) << 2048);
+    let big_meta = Q::int(num_bigint::BigInt::from(1u8) << 4096);
+    // row `bigkey`
+    let mut with_keys = QDict::new();
+    for (key, value) in match nodes() {
+        Q::Dict(dict) => dict.iter().cloned().collect::<Vec<_>>(),
+        _ => unreachable!(),
+    } {
+        with_keys.insert(key, value);
+    }
+    other_key(
+        &mut with_keys,
+        "int:2048",
+        "<2**2048>",
+        big_two_2048,
+        qs("unused"),
+    );
+    other_key(&mut with_keys, "float:1.0", "1.0", Q::Float(1.0), qs("a"));
+    other_key(
+        &mut with_keys,
+        "float:nan",
+        "nan",
+        Q::Float(f64::NAN),
+        qs("c"),
+    );
+    other_key(
+        &mut with_keys,
+        "int:2**70",
+        "1180591620717411303424",
+        Q::int(1i128 << 70),
+        qs("d"),
+    );
+    // row `cycle`: the inner references of a self-containing list and mapping
+    let looped = qd(vec![
+        (
+            "nodes",
+            match nodes() {
+                Q::Dict(d) => d.get("nodes").cloned().expect("nodes"),
+                _ => unreachable!(),
+            },
+        ),
+        ("unused", ql(vec![marker("list", "[...]")])),
+        (
+            "also",
+            qd(vec![
+                ("x", ql(vec![marker("list", "[...]")])),
+                ("self", marker("dict", "{...}")),
+            ]),
+        ),
+    ]);
+    let meta_result = qd(vec![("violations", ql(vec![])), ("meta", big_meta)]);
+    for (label, load) in [("bigkey", Q::Dict(with_keys)), ("cycle", looped)] {
+        let plan = plan_with(label, Ok(load), Ok(meta_result.clone())).expect(label);
         assert_eq!(field(&plan, "nodes"), "['main', 'sub']", "{label}");
         assert_eq!(field(&plan, "undeterminable"), "None", "{label}");
         assert_eq!(field(&plan, "self_node"), "main", "{label}");
     }
-    // A self-referencing value that IS read still fails - as a failure of the channel, not as a plan.
-    let failure = plan_with(
-        "readcycle",
-        "role = ['x']\nrole.append(role)\nreturn {'nodes': [{'role': (role,)}]}",
-        &format!("return {CLEAN}"),
-    )
-    .expect_err("a tuple role that contains itself cannot be materialised");
-    assert!(
-        failure.class == ADAPTER_ERROR || failure.class == "TypeError",
+    // a self-referencing value that IS read fails on demand - as a failure of the bridge, not as a plan (row `readcycle`)
+    let cyclic_role = qt(vec![ql(vec![qs("x"), marker("list", "[...]")])]);
+    let failure = plan_with("readcycle", Ok(nodes_of(vec![cyclic_role])), Ok(clean()))
+        .expect_err("a tuple role that contains itself cannot be materialised");
+    assert_eq!(
+        failure.class,
+        BRIDGE_ERROR,
         "{}",
         failure.line().to_utf8().expect("text")
     );
+
+    // the REAL library on YAML text: a 617-digit unused key and an unused cycle are never read
+    for (label, extra) in [
+        ("realkey", format!("{}: unused\n", "9".repeat(617))),
+        ("realcycle", "unused: &loop [*loop]\n".to_string()),
+    ] {
+        let (layout, manifest) = owned_layout(label);
+        std::fs::write(
+            &manifest,
+            format!("topology: multi\nnodes:\n  - role: main\n  - role: sub\n{extra}"),
+        )
+        .expect("manifest");
+        let plan = multi_plan(&layout.owners(), &layout.root, &manifest).expect(label);
+        assert_eq!(field(&plan, "nodes"), "['main', 'sub']", "{label}");
+        assert_eq!(field(&plan, "undeterminable"), "None", "{label}");
+    }
 }
 
-/// Integers cross the adapter's wire in hexadecimal, so a value far beyond the decimal digit limit is carried exactly
-/// without the adapter touching the interpreter's limit (the owner runs under the inherited one).
+/// Integers the classifier reads cross exactly (BigInt, no float rounding), and the fixed 4300-digit limit of the owner's
+/// YAML loader is reproduced by the real library for a 5000-digit VALUE.
 #[test]
-fn a_huge_integer_the_classifier_reads_crosses_the_wire_exactly_and_the_limit_stays_inherited() {
+fn a_huge_integer_the_classifier_reads_is_exact_and_the_digit_limit_is_the_owners() {
+    // row `hugecode`
+    let huge = Q::int(num_bigint::BigInt::from(1u8) << 20000);
     let failure = plan_with(
         "hugecode",
-        &format!("return {NODES}"),
-        "return {'violations': [{'code': 2 ** 20000}]}",
+        Ok(nodes()),
+        Ok(qd(vec![("violations", ql(vec![qd(vec![("code", huge)])]))])),
     )
     .expect_err("an integer code is not a string");
     assert_eq!(
@@ -860,15 +1023,53 @@ fn a_huge_integer_the_classifier_reads_crosses_the_wire_exactly_and_the_limit_st
             "sequence item 0: expected str instance, int found"
         )
     );
-    // The adapter must not widen the limit for the owner: the owner's own decimal conversion still refuses.
+    // row `ownerlimit`: a code that is the text of the limit (the stand-in printed `sys.get_int_max_str_digits()`)
     let plan = plan_with(
         "ownerlimit",
-        &format!("return {NODES}"),
-        "import sys\nreturn {'violations': [{'code': str(sys.get_int_max_str_digits())}]}",
+        Ok(nodes()),
+        Ok(qd(vec![(
+            "violations",
+            ql(vec![qd(vec![("code", qs("4300"))])]),
+        )])),
     )
     .expect("plan");
     assert_eq!(
         field(&plan, "undeterminable"),
         "node_role_contract 위반: 4300"
+    );
+    // the real library: a 5000-digit decimal VALUE is refused at the owner's fixed limit
+    let (layout, manifest) = owned_layout("realdigits");
+    std::fs::write(
+        &manifest,
+        format!(
+            "topology: multi\nnodes:\n  - role: main\n  - role: sub\nbig: {}\n",
+            "9".repeat(5000)
+        ),
+    )
+    .expect("manifest");
+    let plan = multi_plan(&layout.owners(), &layout.root, &manifest).expect("plan");
+    assert_eq!(
+        field(&plan, "undeterminable"),
+        format!(
+            "manifest 판독 실패({}): Exceeds the limit (4300 digits) for integer string conversion: value has 5000 digits; use sys.set_int_max_str_digits() to increase the limit",
+            manifest.display()
+        )
+    );
+}
+
+/// A violation produced by the REAL library (no stand-in): the manifest declares `a2a-agent` for the sub of a multi
+/// topology, which the owner's rule `SUB_MODE_TOPOLOGY_CONFLICT` refuses.
+#[test]
+fn a_violation_of_the_real_role_library_is_reported_with_its_code() {
+    let (layout, manifest) = owned_layout("realviolation");
+    std::fs::write(
+        &manifest,
+        "topology: multi\nnodes:\n  - role: main\n  - role: sub\n    sub_mode: a2a-agent\n",
+    )
+    .expect("manifest");
+    let plan = multi_plan(&layout.owners(), &layout.root, &manifest).expect("plan");
+    assert_eq!(
+        field(&plan, "undeterminable"),
+        "node_role_contract 위반: SUB_MODE_TOPOLOGY_CONFLICT"
     );
 }

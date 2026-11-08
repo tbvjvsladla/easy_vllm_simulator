@@ -85,3 +85,8 @@ pub mod classify_traceback;
 pub mod py_regex_engine;
 pub mod py_regex_parse;
 pub mod unicode_escape;
+// R41 `node_role_contract.py`
+pub mod role_api;
+pub mod role_cli;
+pub mod role_errors;
+pub mod role_main;

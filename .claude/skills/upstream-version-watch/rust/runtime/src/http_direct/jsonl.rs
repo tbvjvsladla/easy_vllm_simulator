@@ -72,6 +72,7 @@ fn error_value(value: &ErrorValue) -> PyValue {
             PyValue::List(vec![PyValue::str("exception"), exception_value(error)])
         }
         ErrorValue::HttpMessage(items) => super::failure::http_message_dto(items),
+        ErrorValue::YamlMark(mark) => super::failure::yaml_mark_dto(mark),
         ErrorValue::Tuple(members) => PyValue::List(vec![
             PyValue::str("tuple"),
             PyValue::List(members.iter().map(error_value).collect()),

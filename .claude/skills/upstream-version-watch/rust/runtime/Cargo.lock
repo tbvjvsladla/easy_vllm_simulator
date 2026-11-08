@@ -274,6 +274,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "role-contract"
+version = "0.1.0"
+dependencies = [
+ "agent-runtime-support",
+]
+
+[[package]]
 name = "rustls"
 version = "0.23.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -382,6 +389,7 @@ dependencies = [
  "num-traits",
  "recipe-runtime",
  "ring",
+ "role-contract",
  "rustls",
  "ureq",
 ]

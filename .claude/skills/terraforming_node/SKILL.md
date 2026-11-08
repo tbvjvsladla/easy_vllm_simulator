@@ -170,7 +170,8 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/selftest_campaign_lifecycle.py` | 캠페인 체인 | — | 수명 상태(보류·재개·포기·선점 · 서브 종결 전파 · 재배정) 자체검사 · 회귀 실행자 `verify_distribution.py` |
 | `scripts/campaign_template_validator.py` | 캠페인 체인 | ✓ | 선언·인스턴스 술어(P1~P3) |
 | `scripts/manifest_contract.py` | §0.5 · §1S · §2.7.10 | ✓ | Flag·`issued_by: main` readiness 리더 |
-| `scripts/node_role_contract.py` | §2.7.0 · §2.7.6 | ✓ | 토폴로지 축 계약(sub_mode·rank·배달 평면·tool_plane·서브 자체 발행)의 단일 소유자 |
+| `scripts/node_role_contract.py` | §2.7.0 · §2.7.6 | ✓ | 최초 Rust 빌드 전 bootstrap·기존 Python import 호환 진입점; native 역할 정책은 공유 `.claude/rust/role-contract` 라이브러리 |
+| `scripts/node_role_contract.sh` | §2.7.0 · §2.7.6 | — | 설치·빌드 후 일반 Rust 역할 CLI 직접 기동; U 배달 서브의 직접 실행 경로는 `references/install/rust_runtime.md` |
 | `scripts/check_sub_hint_equip.py` | §2.5.1 | ✓(single) | single 서브 hint 발행 장착 판정·장착(`--clone`·`--write-push-authority`) · JSON 보고 · 비밀 미출력 · 사람 요청 템플릿 `templates/requests/sub_hint_push_equip.md` |
 | `scripts/scan_node.py` | §1.3–§1.5 · §2.7.10 | — | 스캔·게이트·3자일치·emit(서브 manifest 포함) |
 | `scripts/render_sub_env.py` | §2.3 | — | 서브 환경·Card·서브 manifest 렌더 |
@@ -179,7 +180,7 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/harness_permission_probe.py` | §2.5.2 | ✓ | 요청된 native 하네스 안에서 실행하는 업무 권한 관측; 자체 실행만으로 A2A 성공 선언 금지 |
 | `scripts/rust_bootstrap.sh` | §2.5.2 | ✓ | 노드 로컬 Rust 설치·status·C 컴파일/아카이브와 Rust 연결 offline build/run 검사·명시 실행; pin은 동봉된 `rust_toolchain.pin` |
 | `scripts/rust_toolchain.pin` | §2.5.2 | ✓ | Rust 버전·컴포넌트·지원 target 정본 |
-| `scripts/build_rust_packages.sh` | §2.5.2 | ✓ | 명시 install/check 후 배달된 공유 Q·recipe P·upstream U 소스의 locked release 빌드와 순수 정상 ELF 기동; 일반 평가에서 자동 실행하지 않는다 |
+| `scripts/build_rust_packages.sh` | §2.5.2 | ✓ | 명시 install/check 후 배달된 공유 Q·역할 정책 T·recipe P·upstream U 소스의 locked release 빌드와 순수 정상 ELF 기동; 일반 평가에서 자동 실행하지 않는다 |
 | `scripts/selftest_rust_bootstrap.sh` | §2.5.2 | — | 네트워크 없는 설치/실패/재실행·환경 격리 계약 회귀 |
 | `scripts/selftest_bootstrap_permissions.py` | §2.5.2 | — | 카나리 증거·음성대조 회귀 |
 | `scripts/selftest_sub_hint_write_scopes.py` | §2.5.2 | — | 외부 hint 경로의 역할·대상·범위 검증 회귀 |

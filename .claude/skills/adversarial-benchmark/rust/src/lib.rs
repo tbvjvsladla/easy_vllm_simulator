@@ -115,6 +115,7 @@ pub mod resolve_topology;
 pub mod resolve_topology_api;
 pub mod resolve_topology_cli;
 pub mod resolve_topology_selftest;
+pub mod role_bridge;
 pub mod roofline;
 pub mod roofline_cli;
 mod roofline_selftest;

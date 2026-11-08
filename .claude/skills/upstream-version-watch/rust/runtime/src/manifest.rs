@@ -109,7 +109,8 @@ fn module_of(class: &str) -> &'static str {
 
 fn yaml_thrown(error: YamlError) -> Box<Thrown> {
     let ctor = match error.detail {
-        YamlDetail::None => None,
+        // the marked-error constructor state is public data of the generic parser; this loader reports the class and text only
+        YamlDetail::None | YamlDetail::Marked(_) => None,
         YamlDetail::Reader {
             name,
             position,
@@ -129,6 +130,7 @@ fn yaml_thrown(error: YamlError) -> Box<Thrown> {
             start,
             end,
             reason,
+            ..
         } => Some(Ctor::Decode {
             encoding: encoding.to_string(),
             object,

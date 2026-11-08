@@ -36,12 +36,45 @@ pub enum ErrorValue {
     HttpMessage(Vec<(String, String)>),
     /// A tuple of public values (`ContentTooShortError.content` is `(path, HTTPMessage)`).
     Tuple(Vec<ErrorValue>),
+    /// A `yaml.error.Mark` (the six public fields: name, index, line, column, buffer, pointer), as the public value
+    /// `["yaml_mark", {module, type, fields, extra_attributes}]`.
+    YamlMark(Box<agent_runtime_support::pyyaml::Mark6>),
 }
 
 impl From<PyValue> for ErrorValue {
     fn from(value: PyValue) -> ErrorValue {
         ErrorValue::Plain(value)
     }
+}
+
+/// The public value of a `yaml.error.Mark`: `["yaml_mark", {module: "yaml.error", type: "Mark", fields: {name, index, line, column, buffer, pointer},
+/// extra_attributes: {}}]`; `buffer` and `pointer` are `None` for a mark of a file stream.
+pub fn yaml_mark_dto(mark: &agent_runtime_support::pyyaml::Mark6) -> PyValue {
+    use agent_runtime_support::pyvalue::PyDict;
+    let none = || PyValue::List(vec![PyValue::str("none")]);
+    let int =
+        |value: usize| PyValue::List(vec![PyValue::str("int"), PyValue::str(&value.to_string())]);
+    let mut fields = PyDict::new();
+    fields.set(
+        "name",
+        PyValue::List(vec![PyValue::str("str"), PyValue::Str(mark.name.clone())]),
+    );
+    fields.set("index", int(mark.index));
+    fields.set("line", int(mark.line));
+    fields.set("column", int(mark.column));
+    fields.set(
+        "buffer",
+        mark.buffer.as_ref().map_or_else(none, |b| {
+            PyValue::List(vec![PyValue::str("str"), PyValue::Str(b.clone())])
+        }),
+    );
+    fields.set("pointer", mark.pointer.map_or_else(none, int));
+    let mut node = PyDict::new();
+    node.set("module", PyValue::str("yaml.error"));
+    node.set("type", PyValue::str("Mark"));
+    node.set("fields", PyValue::Dict(fields));
+    node.set("extra_attributes", PyValue::Dict(PyDict::new()));
+    PyValue::List(vec![PyValue::str("yaml_mark"), PyValue::Dict(node)])
 }
 
 /// The public value of an `http.client.HTTPMessage`: `["http_message", {type, module, raw_items}]`, `raw_items` being the ordered

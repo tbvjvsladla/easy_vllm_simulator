@@ -1,6 +1,6 @@
 //! `yaml/parser.py` and `yaml/events.py`: tokens to events with the original's state machine.
 
-use super::frames::{frame, nested};
+use super::frames::{frame, nested, occurrence, set_raise};
 use super::scanner::{DirectiveValue, Scanner, K};
 use super::{marked, Mark, Parsed};
 use crate::pystr::PyStr;
@@ -82,11 +82,13 @@ pub(crate) struct Parser<'a> {
 }
 
 fn parser_error(
+    raise_line: u32,
     context: Option<&str>,
     context_mark: Option<&Mark>,
     problem: impl Into<String>,
     mark: &Mark,
 ) -> super::Failure {
+    set_raise(raise_line);
     marked("ParserError", context, context_mark, problem, Some(mark))
 }
 
@@ -228,6 +230,7 @@ impl<'a> Parser<'a> {
                 // the original peeks once for the message and once more for the mark
                 let again = self.scanner.peek_token()?;
                 return Err(parser_error(
+                    171,
                     None,
                     None,
                     format!(
@@ -298,6 +301,7 @@ impl<'a> Parser<'a> {
             if name == "YAML" {
                 if yaml_version.is_some() {
                     return Err(parser_error(
+                        224,
                         None,
                         None,
                         "found duplicate YAML directive",
@@ -307,6 +311,7 @@ impl<'a> Parser<'a> {
                 if let DirectiveValue::Yaml(major, minor) = token.directive {
                     if major != 1 {
                         return Err(parser_error(
+                            228,
                             None,
                             None,
                             "found incompatible YAML document (version 1.* is required)",
@@ -319,6 +324,7 @@ impl<'a> Parser<'a> {
                 if let DirectiveValue::Tag(handle, prefix) = token.directive {
                     if self.tag_handles.contains_key(&handle) {
                         return Err(parser_error(
+                            235,
                             None,
                             None,
                             format!("duplicate tag handle {}", repr(&handle)),
@@ -396,6 +402,7 @@ impl<'a> Parser<'a> {
             Some((Some(handle), suffix)) => {
                 let Some(prefix) = self.tag_handles.get(&handle) else {
                     return Err(parser_error(
+                        305,
                         Some("while parsing a node"),
                         start.as_ref(),
                         format!("found undefined tag handle {}", repr(&handle)),
@@ -523,6 +530,7 @@ impl<'a> Parser<'a> {
         let node = if block { "block" } else { "flow" };
         let token = self.scanner.peek_token()?;
         Err(parser_error(
+            369,
             Some(&format!("while parsing a {node} node")),
             Some(&start_mark),
             format!(
@@ -547,6 +555,7 @@ impl<'a> Parser<'a> {
         if !self.scanner.check_token(&[K::BlockEnd])? {
             let token = self.scanner.peek_token()?;
             return Err(parser_error(
+                392,
                 Some("while parsing a block collection"),
                 self.marks.last(),
                 format!("expected <block end>, but found {}", repr(token.kind.id())),
@@ -600,6 +609,7 @@ impl<'a> Parser<'a> {
         if !self.scanner.check_token(&[K::BlockEnd])? {
             let token = self.scanner.peek_token()?;
             return Err(parser_error(
+                438,
                 Some("while parsing a block mapping"),
                 self.marks.last(),
                 format!("expected <block end>, but found {}", repr(token.kind.id())),
@@ -641,6 +651,7 @@ impl<'a> Parser<'a> {
                 } else {
                     let token = self.scanner.peek_token()?;
                     return Err(parser_error(
+                        483,
                         Some("while parsing a flow sequence"),
                         self.marks.last(),
                         format!("expected ',' or ']', but got {}", repr(token.kind.id())),
@@ -729,6 +740,7 @@ impl<'a> Parser<'a> {
                 } else {
                     let token = self.scanner.peek_token()?;
                     return Err(parser_error(
+                        549,
                         Some("while parsing a flow mapping"),
                         self.marks.last(),
                         format!("expected ',' or '}}', but got {}", repr(token.kind.id())),
@@ -743,12 +755,14 @@ impl<'a> Parser<'a> {
                     .check_token(&[K::Value, K::FlowEntry, K::FlowMappingEnd])?
                 {
                     self.states.push(State::FlowMappingValue);
+                    occurrence(0);
                     return self.parse_flow_node();
                 }
                 self.state = Some(State::FlowMappingValue);
                 return process_empty_scalar(&token.end);
             } else if !self.scanner.check_token(&[K::FlowMappingEnd])? {
                 self.states.push(State::FlowMappingEmptyValue);
+                occurrence(1);
                 return self.parse_flow_node();
             }
         }

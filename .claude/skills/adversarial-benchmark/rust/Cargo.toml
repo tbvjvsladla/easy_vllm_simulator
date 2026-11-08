@@ -335,6 +335,10 @@ path = "checks/guidellm_release_api_transport.rs"
 [dependencies]
 num-bigint = "0.4"
 num-traits = "0.2"
+# The node-role policy library and the common Python-compatible package under it (local path dependencies, no external
+# crate): `classify_cell` reads the multi-node participation contract through `role_bridge`, not through a Python owner.
+role-contract = { path = "../../../rust/role-contract" }
+agent-runtime-support = { path = "../../../rust/runtime-support" }
 # SHA-256 of the dataset source (`hashlib.sha256` of the original): the `ring` digest `Context` (its own aarch64/x86_64
 # assembly with run-time CPU feature dispatch), pinned exactly. Replaced the first plan, `sha2` =0.10.9 (kept in PORTING.md).
 ring = "=0.17.14"
