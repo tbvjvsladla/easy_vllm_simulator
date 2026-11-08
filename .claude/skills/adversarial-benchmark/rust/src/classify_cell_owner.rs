@@ -2,8 +2,10 @@
 //! (the original found it from `__file__`), the node-identity resolver `node_identity.sh`, and the multi-node
 //! participation contract `node_role_contract.py`.
 //!
-//! **No rule of either owner is copied here.** [`Owners::resolve_self_node`] runs the real `node_identity.sh
-//! --resolve --repo REPO` with the original's timeout and reports its own failure text. The participation contract is
+//! **No rule of either owner is copied here.** [`Owners::resolve_self_node`] asks the native resolver of the
+//! `role-contract` library (`role_contract::identity`) through the private helper program `node_identity_resolve`
+//! (one child process, so the original's 60 s deadline, kill and reap stay real) and reports its failure text exactly as
+//! the original reported `node_identity.sh --resolve --repo REPO`'s. No Bash, Python, grep or sed runs. The participation contract is
 //! the single native definition of the policy, the `role-contract` library (see [`crate::role_bridge`]): the owner
 //! FILE is only looked up (`isfile`), never read or executed, and [`Owners::open_role_contract`] returns a
 //! [`NativeRole`] whose `load_yaml` and `evaluate_manifest` are that library's. The documents stay in the library's own
@@ -13,7 +15,9 @@
 //! metadata the classifier never reads (a huge integer key, a self-referencing anchor) cannot change a plan, exactly as
 //! in the original. No Python runs and nothing falls back to a Python classifier.
 //!
-//! A check can install a stand-in role source ([`Owners::with_role_source`]); production code never does.
+//! A check can install a stand-in role source ([`Owners::with_role_source`]), a stand-in resolver command
+//! ([`Owners::with_stand_in_resolver_for_checks`]) or a helper path ([`Owners::with_identity_helper`]); production code
+//! never does.
 
 use crate::cli::os_error_text;
 use crate::guidellm::Failure;
@@ -25,6 +29,7 @@ use std::ffi::OsString;
 use std::io::Read;
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::os::unix::process::ExitStatusExt;
+use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -52,6 +57,17 @@ pub struct Owners {
     scripts_dir: Option<PyStr>,
     timeout_seconds: u64,
     role_source: Option<Arc<dyn RoleSource>>,
+    resolver: ResolverRun,
+}
+
+/// How the resolver is run. Production is always [`ResolverRun::Helper`]; the other two are check-only seams.
+#[derive(Clone, Debug)]
+enum ResolverRun {
+    /// The private native helper next to this program, or at an explicit path (checks).
+    Helper(Option<PathBuf>),
+    /// CHECK-ONLY: run the owner path itself as `bash OWNER --resolve --repo REPO`, so a check can model any resolver
+    /// behavior (exit codes, stderr lines, slowness) with a throwaway script. Never silently chosen.
+    StandIn,
 }
 
 impl Owners {
@@ -61,6 +77,7 @@ impl Owners {
             scripts_dir,
             timeout_seconds: RESOLVER_TIMEOUT_SECONDS,
             role_source: None,
+            resolver: ResolverRun::Helper(None),
         }
     }
 
@@ -86,6 +103,19 @@ impl Owners {
     /// or the exceptions they raised. Production code (`from_environment`) never calls it.
     pub fn with_role_source(mut self, source: Arc<dyn RoleSource>) -> Self {
         self.role_source = Some(source);
+        self
+    }
+
+    /// CHECK-ONLY seam: runs the owner path as a Bash stand-in (`bash OWNER --resolve --repo REPO`) instead of the native
+    /// helper. The stand-in's text is whatever the check wrote; the native resolver is covered by its own checks.
+    pub fn with_stand_in_resolver_for_checks(mut self) -> Self {
+        self.resolver = ResolverRun::StandIn;
+        self
+    }
+
+    /// CHECK-ONLY seam: the native helper program at `path` (a test binary is not next to the helper).
+    pub fn with_identity_helper(mut self, path: PathBuf) -> Self {
+        self.resolver = ResolverRun::Helper(Some(path));
         self
     }
 
@@ -179,6 +209,7 @@ impl Owners {
                 ),
             )
         })?;
+        // The logical command of the original: the text of a timeout names it.
         let command = [
             PyStr::new("bash"),
             resolver.clone(),
@@ -186,8 +217,42 @@ impl Owners {
             PyStr::new("--repo"),
             repo.clone(),
         ];
-        let ran = match run_captured(&command, Duration::from_secs(self.timeout_seconds))? {
+        let actual: Vec<PyStr> = match &self.resolver {
+            ResolverRun::StandIn => command.to_vec(),
+            ResolverRun::Helper(explicit) => {
+                let helper = explicit
+                    .clone()
+                    .or_else(installed_helper)
+                    .filter(|path| path.is_file());
+                let Some(helper) = helper else {
+                    return Err(Failure::new(
+                        CONFIGURATION_ERROR,
+                        &format!(
+                            "the native node-identity helper `{HELPER_NAME}` is not installed next to this program; build the package's normal binaries (it stands in for the original's `node_identity.sh --resolve`, nothing else is tried)"
+                        ),
+                    ));
+                };
+                vec![
+                    PyStr::from_surrogateescape(helper.as_os_str().as_bytes()),
+                    PyStr::new("--repo"),
+                    repo.clone(),
+                    PyStr::new("--source-owner"),
+                    resolver.clone(),
+                ]
+            }
+        };
+        let ran = match run_captured(&actual, Duration::from_secs(self.timeout_seconds))? {
             Ran::Finished(ran) => ran,
+            Ran::SpawnFailed(error) if matches!(self.resolver, ResolverRun::Helper(_)) => {
+                let mut why = PyStr::new(&format!(
+                    "the native node-identity helper `{HELPER_NAME}` could not be started: "
+                ));
+                why.push_py(&error);
+                return Err(Failure::new(
+                    CONFIGURATION_ERROR,
+                    &why.to_utf8().unwrap_or_default(),
+                ));
+            }
             Ran::SpawnFailed(error) => {
                 let mut why = PyStr::new("node_identity.sh 실행 실패: ");
                 why.push_py(&error);
@@ -248,6 +313,24 @@ impl Owners {
         };
         Ok(Some(NativeRole::new(source)))
     }
+}
+
+/// File name of the private helper program that answers the node-identity lookup.
+pub const HELPER_NAME: &str = "node_identity_resolve";
+
+/// The helper next to the running program (`.../target/<profile>/node_identity_resolve`; a test or bench binary under
+/// `deps/` finds it one level up).
+fn installed_helper() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?;
+    let near = dir.join(HELPER_NAME);
+    if near.is_file() {
+        return Some(near);
+    }
+    if dir.file_name().is_some_and(|name| name == "deps") {
+        return Some(dir.parent()?.join(HELPER_NAME));
+    }
+    Some(near)
 }
 
 /// The installed layout of a native build: `.../adversarial-benchmark/rust/target/<profile>/<program>` finds

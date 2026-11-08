@@ -17,3 +17,7 @@ agent-runtime-support = { path = "../runtime-support" }
 [[test]]
 name = "role_contract_checks"
 path = "checks/role_contract_checks.rs"
+
+[[test]]
+name = "identity_checks"
+path = "checks/identity_checks.rs"

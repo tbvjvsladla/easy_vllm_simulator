@@ -100,14 +100,16 @@ const COPIED_SCRIPTS: [&str; 30] = [
 ];
 
 /// Release binaries copied byte for byte (with their permission bits): the two repeat-axis binaries first, then the
-/// rest, as the original's order.
-const COPIED_BINARIES: [&str; 9] = [
+/// rest, as the original's order. `classify_cell` / `classify_cell_api` need their private sibling helper
+/// `node_identity_resolve` in the same directory (the native node-identity lookup), so it is copied with them.
+const COPIED_BINARIES: [&str; 10] = [
     "repeat_axis",
     "repeat_axis_api",
     "lite_metrics",
     "lite_metrics_api",
     "classify_cell",
     "classify_cell_api",
+    "node_identity_resolve",
     "render_report",
     "publish_benchmark_record",
     "bench_reporting_api",
@@ -1125,7 +1127,7 @@ fn full_report_cases(
 
 #[cfg(test)]
 mod tests {
-    use super::measured_utc_shape;
+    use super::{measured_utc_shape, COPIED_BINARIES};
 
     #[test]
     fn the_measurement_time_shape_accepts_unicode_decimal_digits_and_one_trailing_newline() {
@@ -1138,5 +1140,21 @@ mod tests {
         assert!(!measured_utc_shape("2026-11-05T09:01:07Z\n\n"));
         assert!(!measured_utc_shape("2026-11-05 09:01:07Z"));
         assert!(!measured_utc_shape("2026-11-05T09:01:07z"));
+    }
+
+    #[test]
+    fn the_classifier_binaries_are_copied_with_their_private_node_identity_helper() {
+        // dependency closure: whenever a classifier binary is mirrored, its sibling helper is mirrored too
+        let helper = crate::classify_cell_owner::HELPER_NAME;
+        for caller in ["classify_cell", "classify_cell_api"] {
+            assert!(COPIED_BINARIES.contains(&caller), "{caller}");
+        }
+        assert_eq!(
+            COPIED_BINARIES
+                .iter()
+                .filter(|name| **name == helper)
+                .count(),
+            1
+        );
     }
 }

@@ -18,6 +18,7 @@
 
 use agent_runtime_support::pystr::PyStr;
 use agent_runtime_support::pyvalue::{PyDict, PyValue};
+pub mod identity;
 pub mod load;
 pub mod self_test;
 

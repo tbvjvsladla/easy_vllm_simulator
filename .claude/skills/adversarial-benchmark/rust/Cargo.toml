@@ -92,6 +92,11 @@ path = "src/bin/classify_cell_api.rs"
 name = "classify_cell_bench"
 path = "src/bin/classify_cell_bench.rs"
 
+# Private normal helper of the classifier's node-identity lookup (spawned by Owners::resolve_self_node).
+[[bin]]
+name = "node_identity_resolve"
+path = "src/bin/node_identity_resolve.rs"
+
 [[bin]]
 name = "render_report"
 path = "src/bin/render_report.rs"
@@ -547,3 +552,7 @@ path = "checks/sweep_meta_cases.rs"
 [[test]]
 name = "pylower_cases"
 path = "checks/pylower_cases.rs"
+
+[[test]]
+name = "node_identity_native"
+path = "checks/node_identity_native.rs"

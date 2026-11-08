@@ -38,8 +38,10 @@ pub const KNOB_REASONS: [&str; 4] = [
 ];
 pub const LEVEL_REASON: [&str; 2] = ["--knob-reason", "levels=serving_concurrency"];
 
-/// The deployed files the sandbox copies, in the original's order (`COPIES`).
-const COPIES: [&str; 69] = [
+/// The deployed files the sandbox copies, in the original's order (`COPIES`). `classify_cell` / `classify_cell_api` ask the
+/// private native helper `node_identity_resolve` for the node identity (one normal sibling in the same release directory), so
+/// the helper is copied with them: a mirrored caller without its helper fails loud, by design.
+const COPIES: [&str; 70] = [
     ".claude/skills/adversarial-benchmark/scripts/render_report.sh",
     ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.sh",
     ".claude/skills/adversarial-benchmark/scripts/render_max_report.sh",
@@ -62,6 +64,7 @@ const COPIES: [&str; 69] = [
     ".claude/skills/adversarial-benchmark/scripts/classify_cell_role_query.py",
     ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell",
     ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell_api",
+    ".claude/skills/adversarial-benchmark/rust/target/release/node_identity_resolve",
     ".claude/skills/adversarial-benchmark/rust/target/release/roofline",
     ".claude/skills/adversarial-benchmark/rust/target/release/verdict_rule",
     ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
@@ -476,5 +479,54 @@ impl Sandbox {
     /// `Sandbox.load(path)`: the parsed JSON file, or `None` when it cannot be read or parsed.
     pub fn load(path: &Path) -> Option<PyValue> {
         load_json(path).ok()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::COPIES;
+    use crate::classify_cell_owner::HELPER_NAME;
+    use crate::verify_fixture::IsolatedCheckout;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn the_sandbox_copies_the_private_node_identity_helper_beside_the_classifier_binaries() {
+        let release = |name: &str| {
+            COPIES
+                .iter()
+                .find(|path| path.ends_with(&format!("/rust/target/release/{name}")))
+                .copied()
+        };
+        let helper = release(HELPER_NAME).expect("the helper is in the copy list");
+        let dir_of = |path: &str| path.rsplit_once('/').map(|(dir, _)| dir.to_string());
+        for caller in ["classify_cell", "classify_cell_api"] {
+            let caller = release(caller).expect("the classifier binary is in the copy list");
+            assert_eq!(
+                dir_of(caller),
+                dir_of(helper),
+                "same normal sibling placement"
+            );
+        }
+        // presence and permission bits of the copy (a synthetic helper stands in for the real binary)
+        let repo = std::env::temp_dir().join(format!("closure-source-{}", std::process::id()));
+        let source = repo.join(helper);
+        std::fs::create_dir_all(source.parent().expect("parent")).expect("source dir");
+        std::fs::write(&source, b"\x7fELF synthetic helper").expect("write");
+        std::fs::set_permissions(&source, std::fs::Permissions::from_mode(0o755)).expect("mode");
+        let checkout = IsolatedCheckout::create("closure.").expect("checkout");
+        checkout.copy_from(&repo, &[helper]).expect("copy");
+        let copied = checkout.root().join(helper);
+        assert_eq!(
+            std::fs::read(&copied).expect("read"),
+            b"\x7fELF synthetic helper"
+        );
+        let mode = std::fs::metadata(&copied)
+            .expect("metadata")
+            .permissions()
+            .mode()
+            & 0o7777;
+        assert_eq!(mode, 0o755);
+        checkout.close().expect("close");
+        std::fs::remove_dir_all(&repo).expect("cleanup");
     }
 }

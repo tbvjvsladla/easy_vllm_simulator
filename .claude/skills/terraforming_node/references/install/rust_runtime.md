@@ -55,6 +55,11 @@ path dependency가 없으면 빌드·배달은 실패한다. B helper의 자체�
 모든 생성물은 각 package의 ignored `target/`에 두고, 실행 런처는 컴파일 결과를 직접 기동한다.
 일반 기동이 설치/다운로드/컴파일을 수행하거나 Python으로 대체하지 않는다.
 
+B의 노드 식별자 호출에 필요한 `node_identity_resolve`도 같은 `build_rust.sh`가 정상 실행파일로 함께
+빌드한다. 새 PC와 sub에는 helper의 소스를 B 및 Q/T와 함께 전달하고 각 노드에서 컴파일한다.
+helper 부재 오류는 이 명시 빌드 경로로 복구한다. 기존 `node_identity.sh`는 installer의 source 및
+다른 소비자를 위한 호환 경로로 유지한다.
+
 역할 정책 T는 Q에만 의존하며, B와 U가 같은 정책 라이브러리를 사용한다. U 빌드는
 `node_role_contract`와 `upstream_role_api`를 포함한 일반 실행파일을 Cargo metadata에서 파생한다.
 메인의 직접 런처는 다음과 같다.

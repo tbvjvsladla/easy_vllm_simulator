@@ -391,8 +391,11 @@ impl Layout {
         )
     }
 
+    /// The stand-in resolver seam: the throwaway Bash scripts below model any resolver behavior (exit codes, stderr,
+    /// slowness) through the same pipes, deadline and decoding as production. The native resolver has its own checks
+    /// (`node_identity_native`).
     fn owners(&self) -> Owners {
-        Owners::new(Some(self.scripts()))
+        Owners::new(Some(self.scripts())).with_stand_in_resolver_for_checks()
     }
 
     fn resolver(&self, body: &str) {
