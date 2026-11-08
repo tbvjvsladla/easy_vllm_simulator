@@ -3237,6 +3237,689 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261109-single-to-multi-common-rust-f81e3cb",
+      "utc": "2026-11-08T18:10:00Z",
+      "departure": "single-node",
+      "departure_commit": "f81e3cb3ac67f80877766632aae48752c97ab5b1",
+      "approved_by": "user: 양 브랜치·Rust 노드 배포 계속 지시(원본 실제 발화 기록) · Root 위임 실행 검토 2026-11-08T17:45:06Z(새 사용자 응답 아님)",
+      "approved_utc": "2026-11-08T13:30:12Z",
+      "_reach": "single-node vs staged 트리: 추가 2015·수정 64(자기 스크립트 1 포함)·삭제 0 · 개별 분류는 수정 64 + .claude/rust 48, 나머지 추가 1967-48 은 allowlist 공통층 추가",
+      "classification": [
+        {
+          "file": ".claude/policies/base_skill_edges.json",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/claim_bindings.json",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/predicates/claim_predicates.py",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/registry.yaml",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/antipattern_scan.py",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/doc_naming.py",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/evidence_publisher.py",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/runtime_selftest.py",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/verify_distribution.py",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/bench_tool_pin.json",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/config/bench_bindings.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/config/guide-llm/README.md",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/config/guide-llm/default_preset.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/references/lite-and-publication.md",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/references/max-envelope.md",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/references/rubric-and-lenses.md",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/bench_preset.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/classify_cell.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/conformance_full_superset_lite.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/judge_bench.sh",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/lite_bench.sh",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/max_envelope.sh",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/render_report.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/resolve_topology.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_bench_preset.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_cell_args.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_precheck.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_judge_bench.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_lite_gate.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_lite_report.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_roofline.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_meta.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_repeats.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬의 Rust 이식·스크립트·설정 — 측정·판정 도구는 양 토폴로지가 같은 판본을 쓴다(single-node f81e3cb 정본)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/core.py",
+          "verdict": "common_promote",
+          "reason": "hint 발행 라이브러리 — 배포 레이어 엔진은 브랜치 동일",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/evidence.py",
+          "verdict": "common_promote",
+          "reason": "hint 발행 라이브러리 — 배포 레이어 엔진은 브랜치 동일",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/lineage.py",
+          "verdict": "common_promote",
+          "reason": "hint 발행 라이브러리 — 배포 레이어 엔진은 브랜치 동일",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/naming.py",
+          "verdict": "common_promote",
+          "reason": "hint 발행 라이브러리 — 배포 레이어 엔진은 브랜치 동일",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬의 공통 절차·스크립트 — 노드 설치·캠페인 writer 는 양 토폴로지가 읽는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/harness_environment.md",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬의 공통 절차·스크립트 — 노드 설치·캠페인 writer 는 양 토폴로지가 읽는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/sub_agent_env.md",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬의 공통 절차·스크립트 — 노드 설치·캠페인 writer 는 양 토폴로지가 읽는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬의 공통 절차·스크립트 — 노드 설치·캠페인 writer 는 양 토폴로지가 읽는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬의 공통 절차·스크립트 — 노드 설치·캠페인 writer 는 양 토폴로지가 읽는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬의 공통 절차·스크립트 — 노드 설치·캠페인 writer 는 양 토폴로지가 읽는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/CLAUDE.template.md",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬의 공통 절차·스크립트 — 노드 설치·캠페인 writer 는 양 토폴로지가 읽는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/sub_node/gitignore.template",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬의 공통 절차·스크립트 — 노드 설치·캠페인 writer 는 양 토폴로지가 읽는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "상류 버전 추적 스킬(해소·sync 스크립트·문서)의 Rust 이식 갱신 — 빌드 해소기는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/references/failure-recovery.md",
+          "verdict": "common_promote",
+          "reason": "상류 버전 추적 스킬(해소·sync 스크립트·문서)의 Rust 이식 갱신 — 빌드 해소기는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/references/resolve-and-render.md",
+          "verdict": "common_promote",
+          "reason": "상류 버전 추적 스킬(해소·sync 스크립트·문서)의 Rust 이식 갱신 — 빌드 해소기는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py",
+          "verdict": "common_promote",
+          "reason": "상류 버전 추적 스킬(해소·sync 스크립트·문서)의 Rust 이식 갱신 — 빌드 해소기는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/resolve_torch_pin.py",
+          "verdict": "common_promote",
+          "reason": "상류 버전 추적 스킬(해소·sync 스크립트·문서)의 Rust 이식 갱신 — 빌드 해소기는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/resolve_wheel.py",
+          "verdict": "common_promote",
+          "reason": "상류 버전 추적 스킬(해소·sync 스크립트·문서)의 Rust 이식 갱신 — 빌드 해소기는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+          "verdict": "common_promote",
+          "reason": "상류 버전 추적 스킬(해소·sync 스크립트·문서)의 Rust 이식 갱신 — 빌드 해소기는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "verdict": "common_promote",
+          "reason": "상류 버전 추적 스킬(해소·sync 스크립트·문서)의 Rust 이식 갱신 — 빌드 해소기는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py",
+          "verdict": "common_promote",
+          "reason": "상류 버전 추적 스킬(해소·sync 스크립트·문서)의 Rust 이식 갱신 — 빌드 해소기는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/escalation_predicate.py",
+          "verdict": "common_promote",
+          "reason": "레시피 탐색 스킬의 Rust 연동 갱신 — 서빙전략 도구는 양 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py",
+          "verdict": "common_promote",
+          "reason": "레시피 탐색 스킬의 Rust 연동 갱신 — 서빙전략 도구는 양 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/quant_table.py",
+          "verdict": "common_promote",
+          "reason": "레시피 탐색 스킬의 Rust 연동 갱신 — 서빙전략 도구는 양 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/rank_recipes.py",
+          "verdict": "common_promote",
+          "reason": "레시피 탐색 스킬의 Rust 연동 갱신 — 서빙전략 도구는 양 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".gitignore",
+          "verdict": "common_promote",
+          "reason": "Cargo target/ 무시와 !.claude/rust/ — 노드별 빌드 산출물이 추적에 들어오지 않게 하는 공통 규칙",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/Cargo.lock",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/checks/identity_checks.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/checks/role_contract_checks.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/checks/topology_checks.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/campaign.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/identity.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/identity_scan.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/lib.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/load.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/pyprofile.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/self_test.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/source_identity.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/topology.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/topology_cli.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/topology_doc.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/Cargo.lock",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/README.md",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/checks/pycall_cases.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/notices/CPython-3.12.3-LICENSE.txt",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/notices/NOTICE.md",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/notices/PyYAML-6.0.3-LICENSE.txt",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/notices/Unicode-License-V3.txt",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/failure.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/lib.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pycall.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pydyn.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyformat.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyjson.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pylower.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pynumber.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyops.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pysort.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pystr.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyvalue.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyyaml/compose.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyyaml/dump.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyyaml/frames.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyyaml/mod.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyyaml/parser.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyyaml/reader.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyyaml/scanner.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyyaml/sites.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/unicode_alnum_table.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/unicode_lower_table.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/unicode_tables.rs",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/tools/gen_yaml_sites.py",
+          "verdict": "common_promote",
+          "reason": "공통 Rust 크레이트(role-contract·runtime-support) 소스 폐포 — 양 토폴로지의 노드 자체 빌드 입력. ELF·캐시·인증은 포함하지 않는다",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
