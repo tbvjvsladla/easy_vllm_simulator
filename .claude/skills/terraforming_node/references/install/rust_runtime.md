@@ -100,6 +100,23 @@ Rust 프로세스 안에 수행한다. 다른 소스나 읽을 수 없는 소스
 호환 경로를 선택한다. Python 변수의 빈 값도 지정으로 보며 기존 기동 실패를 반환한다.
 Rust 기본 경로의 오류가 발생하면 Python으로 재시도하지 않는다. 임시 검증 probe는 배포하지 않는다.
 
+`campaign_init.py`의 읽기 전용 두 형태(`--active`, `--derive KIND [--cell|--sweep|--context|--campaign-id VALUE]...`)는
+같은 B 빌드의 `campaign_read` 실행파일이 처리하며, 호출부(`broad_search.sh`·`fetch_sub_docs.sh`의 네 지점)는
+`terraforming_node/scripts/campaign_init.sh` 런처를 부른다. 런처는 실행파일이 없거나 실행 불가면 어떤 경로
+선택보다 먼저 종료 상태 2와 빌드 안내를 반환하며(명시 Python 지정이 있어도 Python을 시작하지 않는다),
+`CAMPAIGN_READ_COMPAT_OWNER`로 옆의 `campaign_init.py`를, 비어 있지 않은 `CAMPAIGN_READ_PYTHON`만 명시 의도로
+전달한다. 정확한 ASCII 문법이 아닌 호출·명시 인터프리터·다른/읽을 수 없는/없는 소스·모델링되지 않은 텍스트
+프로필은 실제 `campaign_init.py`를 `exec`로 실행하는 호환 경로(`CAMPAIGN_READ_COMPAT_PYTHON`, 기본 `python3`)이며
+이 경로는 업무 처리 이후의 대체가 아니다. 네이티브 처리가 시작된 뒤의 거절·미처리 예외(전체 traceback)·인코딩 실패·
+쓰기 실패는 Python으로 재시도하지 않는다. `CAMPAIGN_READ_ROUTE_OBSERVER=<파일>`은 실행마다 경로·결과·PID를 JSON 한 줄로
+업무 출력 밖에 남긴다. 다른 `campaign_init.py` 호출(writer 전부)은 변하지 않는다.
+
+호출부의 가용성 확인: `CAMPAIGN_READ_VALIDATE_ONLY=1`은 런처의 조건부 환경 변수로, 같은 ELF·실행 비트 검사 뒤에
+네이티브·Python 업무 없이 0을 반환한다(값 1일 때만 · 다른 값과 모든 인자 형태는 종전 경로). 호출부 둘(`broad_search.sh`의
+`cell` 분기, `fetch_sub_docs.sh`)은 첫 캠페인 읽기·부작용(서빙·측정·서브 접속) 전에 이것을 한 번, stderr 를 버리지
+않고 호출하며 실패 상태를 그대로 전파한다. 런타임이 있으면 이후 업무 오류·대체 처리는 종전과 같다. 이는 가용성 확인이며
+건강 증명이 아니고, 실행파일 경로를 호출부에 복제하지 않는다.
+
 역할 정책 T는 Q에만 의존하며, B와 U가 같은 정책 라이브러리를 사용한다. U 빌드는
 `node_role_contract`와 `upstream_role_api`를 포함한 일반 실행파일을 Cargo metadata에서 파생한다.
 메인의 직접 런처는 다음과 같다.

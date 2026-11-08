@@ -85,6 +85,57 @@ impl Frame {
             frame(b"<frozen codecs>", 322, "decode", "", ""),
         ]
     }
+    /// `Path.is_file()` whose `stat` fails with an error `pathlib` does not swallow (the 3.12 frames of `is_file` and `stat`).
+    pub fn pathlib_is_file() -> Vec<Frame> {
+        Self::pathlib_stat_failure(
+            894,
+            "is_file",
+            "return S_ISREG(self.stat().st_mode)",
+            "self.stat()",
+        )
+    }
+    /// `Path.is_dir()` whose `stat` fails the same way.
+    pub fn pathlib_is_dir() -> Vec<Frame> {
+        Self::pathlib_stat_failure(
+            877,
+            "is_dir",
+            "return S_ISDIR(self.stat().st_mode)",
+            "self.stat()",
+        )
+    }
+    fn pathlib_stat_failure(
+        line: u32,
+        function: &'static str,
+        code: &'static str,
+        expr: &'static str,
+    ) -> Vec<Frame> {
+        vec![
+            frame(
+                b"/usr/lib/python3.12/pathlib.py",
+                line,
+                function,
+                code,
+                expr,
+            ),
+            frame(
+                b"/usr/lib/python3.12/pathlib.py",
+                842,
+                "stat",
+                "return os.stat(self, follow_symlinks=follow_symlinks)",
+                "os.stat(self, follow_symlinks=follow_symlinks)",
+            ),
+        ]
+    }
+    /// `Path(...).parents[index]` past the last parent: the `__getitem__` frame that raises `IndexError(idx)`.
+    pub fn pathlib_parents_index() -> Vec<Frame> {
+        vec![frame(
+            b"/usr/lib/python3.12/pathlib.py",
+            281,
+            "__getitem__",
+            "raise IndexError(idx)",
+            "",
+        )]
+    }
     fn subprocess_stderr() -> Vec<Frame> {
         vec![
             frame(

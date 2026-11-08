@@ -168,6 +168,7 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 |---|---|---|---|
 | `scripts/campaign_init.py` | 캠페인 체인 | ✓ | 캠페인 상태의 **유일한 writer**. 사람 승인 인자 필수 동사만 적는다: `--revise` · `--reentry-decide` · `--hint-approve` · 수명 전이(`--init --suspend-current` · `--suspend` · `--resume-campaign` · `--abandon` · `--answer-query` · `--dispose` · `--sub-unconverged-accept`) · 배정 변경(`--assign-set`). 나머지는 `--help` |
 | `scripts/selftest_campaign_lifecycle.py` | 캠페인 체인 | — | 수명 상태(보류·재개·포기·선점 · 서브 종결 전파 · 재배정) 자체검사 · 회귀 실행자 `verify_distribution.py` |
+| `scripts/campaign_init.sh` | 캠페인 체인 | ✓ | `--active`·`--derive KIND [--cell\|--sweep\|--context\|--campaign-id VALUE]` 읽기 전용 두 형태만 공유 B 의 `campaign_read` 실행파일(노드에서 빌드)로 처리하는 런처 · 실행파일 부재/실행 불가는 어떤 경로 선택보다 먼저 exit 2 + 빌드 안내(명시 Python 지정이 있어도 Python 을 시작하지 않는다) · `CAMPAIGN_READ_VALIDATE_ONLY=1` 은 가용성 확인(값 1만 · 건강 증명 아님) · 다른 형태·명시 인터프리터·다른/읽을 수 없는 소스·미모델링 텍스트 프로필은 실제 `campaign_init.py` 로 가는 명시 호환 경로이며 업무 처리 전에만 정해진다 · 배달되는 것은 이 런처뿐이고 B 산출물은 B 를 받아 자체 빌드한 노드에만 있다(ray-worker 는 런타임 업무 0·호출자 없음) · 모든 쓰기 동사는 `campaign_init.py` 직접 호출 |
 | `scripts/campaign_template_validator.py` | 캠페인 체인 | ✓ | 선언·인스턴스 술어(P1~P3) |
 | `scripts/manifest_contract.py` | §0.5 · §1S · §2.7.10 | ✓ | Flag·`issued_by: main` readiness 리더 |
 | `scripts/node_role_contract.py` | §2.7.0 · §2.7.6 | ✓ | 최초 Rust 빌드 전 bootstrap·기존 Python import 호환 진입점; native 역할 정책은 공유 `.claude/rust/role-contract` 라이브러리 |

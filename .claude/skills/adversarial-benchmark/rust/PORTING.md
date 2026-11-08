@@ -2685,3 +2685,21 @@ inline/interop work, the other stages, six main/sub profiles and actual single/m
 **호출 지점 37.** 현재 여섯 스크립트의 heredoc 인식 grep 은 39곳이다. 컨테이너 안 `lite_bench.sh` 의 `docker exec … python3 -c` 와 열 소유자를 import 하는 `broad_search.sh` 의 열 프로브 2곳을 제외하면 37 = 인라인 36 + 기존 Rust 소유자 interop 1(`run_bench.sh` 데이터 인자)이다. 카탈로그의 `original_line` 앵커는 물리 줄이 아닐 수 있어 연산 순서로 대응한다.
 
 **한계.** 성능은 측정하지 않았다. 기존 호출부의 Bash 산술, 백엔드 개수 플래그, 임의 파이썬 소스 동치는 이 범위가 아니다. 가드된 환경에서는 `/tmp` 쓰기가 막혀 `broad_search_selftest_cases` 의 `/tmp` 대체 경로 시험 1건을 실행하지 못했다(그 시험 파일은 f42 이후 변경 없음).
+
+## R47 — `campaign_init.py --active` / `--derive` 읽기 두 형태를 공개 CLI `campaign_read`로 (T 프레임 지원 최소 확장)
+
+상태: 이 범위의 자체검사 결과는 `W/result.json` 에 있다. Root 공개 통합·독립 c11·정본 채택·Main/Sub 전달·성능은 미실시이며 이 절은 그 어느 것도 주장하지 않는다.
+
+**범위.** 새 `[[bin]] campaign_read`(일반 bin 53→54), `src/campaign_read.rs`, `src/bin/campaign_read.rs`, 검사 1(`checks/campaign_read_cli.rs`)과 동결 자료 `checks/data/campaign_read/original26.json`, `Streams::print_encoded`(인코딩된 한 줄 print) 1개, T의 `Frame::pathlib_is_file/is_dir/parents_index` 상수 3개와 `push_frame` 공개(본문 불변), 런처 `terraforming_node/scripts/campaign_init.sh`, 호출부 4곳(`broad_search.sh` `--active`·`--derive cell-status`, `fetch_sub_docs.sh` `--active` 2), 격리 복사 목록 3개와 서브 배달 목록(`CAMPAIGN_TOOLS`)에 런처 추가. `campaign_init.py`(R46 바이트)는 건드리지 않았고 writer·argparse 대체는 없다.
+
+**원본 → Rust.** `main`의 `--active`/`--derive` 분기 → `campaign_read::run`(문법 `parse_exact`, 경로 `choose_route`, 업무 `business`); `active_campaign_id`/`derive_path`/모듈 전역 루트 → 기존 T(`role_contract::campaign`)를 그대로 호출(새 규칙 없음); `print(...)` → `Streams::print_encoded`(CPython print·flush 모델, 프로필 코덱으로 한 줄 전체를 먼저 인코딩); `except (PurgeGateRefusal, WriterRefusal)` → `[campaign_init] FAIL <메시지>` + 상태 1; 처리되지 않는 예외 → Python 3.12.3 traceback 전체(소유자 프레임 표는 검토된 소유자 바이트에 단위검사로 묶임, stdlib 프레임은 `/usr/lib/python3.12/pathlib.py` 본문에 묶임) + 상태 1. 실측 원본 26(전 흐름 raw)이 정답이며 새 Rust 출력에서 기대값을 만들지 않았다. P07 의 `main` 프레임은 5122 한 줄 + 호출부터 줄 끝까지의 캐럿(5123 줄 없음), P08 은 import 시점 32행(`~`+`^`)과 pathlib 281 뿐, P10/P11 은 894/877+842 프레임이다.
+
+**경로(업무 처리 전에만 결정, 관찰 한 줄).** `LegacyExplicit`(비어 있지 않은 `CAMPAIGN_READ_PYTHON`) · `LegacyShape`(정확한 ASCII 문법 밖) · `LegacySourceVariant`(소유자 부재·읽기 불가·다른 바이트) · `LegacyProfile`(모델링되지 않은 텍스트 프로필) — 모두 실제 `campaign_init.py` 를 `exec`(같은 PID, 자식·캡처 없음)로 실행하는 **명시된 호환 경로**이며 기본 배포의 가림막이 아니다. 네이티브 처리가 시작된 뒤의 거절·크래시·인코딩 실패·쓰기 실패는 Python 으로 재시도하지 않는다. 실행파일 부재·실행 불가는 런처가 경로 선택보다 먼저 상태 2 + 빌드 안내(명시 Python 지정이 있어도 Python 시작 없음). 관찰 파일에 쓸 수 없으면 제어 실패(상태 2)이며 업무 출력은 없다. 소유자 import 가 `IndexError` 외로 실패하는 경우는 프레임을 재현할 수 없어 제어 실패(상태 2)로 구분한다(검토된 바이트가 읽히면 도달하지 않는다).
+
+**동결 자료.** `original26.json` 은 실제 원본 CLI 26 의 첫 종료 raw 바이트에서 비공개 픽스처 루트만 `<ROOT>` 로 바꾼 리터럴 hex 와 리터럴 픽스처 표다(추적 digest 없음). 이후 Root 의 정식 후보 바인딩은 별도의 불변 산출물로 같은 원본 픽스처·소유자 경로를 쓰므로 traceback 의 경로가 그대로 비교된다.
+
+**검사.** `campaign_read_cli` 11: 네이티브 프로세스 24(원본 26 중 P08·P09 제외, 출력·상태·읽기 전용 FS 바이트 동일 + 관찰 한 줄 + PID), P08 함수 수준 import traceback(원본 raw), P09 선언 레거시 경로, 경로 표(명시·빈 명시·형태·변종·부재·읽기 불가·프로필, 기록 스텁 인터프리터 — 원본 프로그램이 아님: argv·cwd·stdin·환경·PID 전달), 제어 실패, 문법 표 24, 쓰기 실패 모델(상태 120·재시도 없음), 소유자·stdlib 프레임 표의 소스 결속, 런처. 영향받은 T `topology_checks` 20, B 격리 복사 단위 1, fmt, 범위 clippy `-D warnings`, 일반 릴리스 빌드(bin 54, Cargo metadata 파생) 후 실제 릴리스 ELF 를 런처로 부른 자체검사 24.
+
+**한계(주장하지 않음).** (1) P08 의 프로세스 수준 실행은 Root 가 할당하는 5개 미만 성분의 소유 파일이 필요해 함수 수준만 확인했다. (2) 복사본 격리 자체검사(`broad_search_*`, `sweep_repeats`)는 C 안에 릴리스 ELF 가 없어 실행하지 않았다(목록만 갱신, 컴파일됨). (3) `print` 가 `derive` 에서 인코딩에 실패하거나 즉시 쓰기에 실패하는 traceback 의 프레임 모양은 원본 raw 가 없고 3.12 의 캐럿 규칙에서 추론한 것이다. (4) 호출부는 stderr 를 버리므로 런처 안내(상태 2)가 가려지고 기존 `|| echo` 대체값이 쓰일 수 있다 — Root 의 호출부 정책 결정 항목. 성능은 측정하지 않았다.
+
+**호출부 가용성 확인(v2).** 런처에 조건부 환경 변수 `CAMPAIGN_READ_VALIDATE_ONLY=1`(값 1만, 같은 ELF·실행 비트 검사 뒤 업무 없이 0)을 두고 `broad_search.sh cell`(첫 서빙·측정·캠페인 읽기 전)과 `fetch_sub_docs.sh`(서브 접속 전)가 한 번 호출한다. stderr 를 버리지 않고 실패 상태를 전파하며, 가용성 확인일 뿐 건강 증명이 아니다. 새 argv·Rust 의미 변경 없음. 검사: `campaign_read_cli` 14(신규 3: validate-only 부재·비실행·유효, `fetch_sub_docs.sh` 원격 접근 전 중단, `broad_search.sh` 정적 순서 — 이 스크립트는 내부에서 Git 을 호출해 동적 실행은 하지 않았다).

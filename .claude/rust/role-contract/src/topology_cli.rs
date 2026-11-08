@@ -273,7 +273,9 @@ fn encode_stderr(out: &PyStr, profile: &TextProfile) -> Vec<u8> {
 
 // ── traceback ───────────────────────────────────────────────────────────────────
 
-fn push_frame(out: &mut PyStr, frame: &Frame) {
+/// One traceback frame as Python 3.12 prints it: the `File` line, the stripped source line and, when the marked expression is
+/// only part of that line, the caret line. (Exposed unchanged for other Python-compatible command lines.)
+pub fn push_frame(out: &mut PyStr, frame: &Frame) {
     out.push_py(&PyStr::new("  File \""));
     out.push_py(&text(&frame.file));
     out.push_py(&PyStr::new(&format!(

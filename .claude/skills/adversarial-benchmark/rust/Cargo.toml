@@ -44,6 +44,11 @@ path = "src/bin/roofline.rs"
 name = "verdict_rule"
 path = "src/bin/verdict_rule.rs"
 
+# Public read-only `campaign_init.py --active|--derive` (launcher: terraforming_node/scripts/campaign_init.sh).
+[[bin]]
+name = "campaign_read"
+path = "src/bin/campaign_read.rs"
+
 [[bin]]
 name = "repeat_axis"
 path = "src/bin/repeat_axis.rs"
@@ -581,6 +586,10 @@ path = "checks/topology_parity_api_native.rs"
 [[test]]
 name = "bench_shell_original_cases"
 path = "checks/bench_shell_original_cases.rs"
+
+[[test]]
+name = "campaign_read_cli"
+path = "checks/campaign_read_cli.rs"
 
 [[test]]
 name = "bench_shell_edges"
