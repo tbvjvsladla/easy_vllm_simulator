@@ -375,6 +375,17 @@ PY
     fi
     echo "[broad_search] 루브릭 권한 = $CELL_AUTHORITY (← 상태 파일 rubric_authority · init 선언)"
   fi
+  # 캠페인 읽기 런타임(Rust campaign_read)은 첫 캠페인 읽기·부작용 전에 한 번 확인한다. 호출부는 stderr 를 버리므로(아래
+  # `--active`·`--derive`) 실행파일 부재 안내가 가려지고 대체값이 쓰일 수 있었다 — 여기서 안내를 보이고 상태를 전파한다.
+  # 가용성 확인일 뿐 건강 증명이 아니며, 런타임이 있으면 이후 오류·대체 처리는 종전과 같다.
+  _CIV="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+  if [ -f "$_CIV" ]; then
+    CAMPAIGN_READ_VALIDATE_ONLY=1 bash "${_CIV%.py}.sh" || {
+      _CIV_RC=$?
+      echo "[broad_search] ERROR 캠페인 읽기 런타임을 쓸 수 없다 — 서빙·측정·기록 어느 것도 시작하지 않는다(위 안내로 빌드한 뒤 다시)." >&2
+      exit "$_CIV_RC"
+    }
+  fi
   _resolve_topo
 
   SWEEPDIR="$REPO/output/$TOPO/benchlog/sweep_${CONFIG}"
@@ -464,7 +475,7 @@ PY
   _PC_CAMP="$(_state_campaign "$STATE")"
   if [ -n "$_PC_CAMP" ]; then
     _PC_ARGS+=(--campaign-id "$_PC_CAMP")
-    _PC_ACTIVE="$(python3 "$_CI_PC" --active 2>/dev/null || echo '?')"
+    _PC_ACTIVE="$(bash "${_CI_PC%.py}.sh" --active 2>/dev/null || echo '?')"
     if [ "$_PC_ACTIVE" != "$_PC_CAMP" ]; then
       echo "[broad_search] ⚠ 상태 파일은 campaigns/$_PC_CAMP 인데 활성 캠페인은 '$_PC_ACTIVE' 다 —" >&2
       echo "[broad_search]   셀 출처는 상태 파일의 캠페인($_PC_CAMP)으로 판정한다(포인터 유실이 게이트를 열지 않는다)." >&2
@@ -615,7 +626,7 @@ PY
         || echo "[broad_search] ⚠ campaigns writer 실패 — cell.status/여정이 기록되지 않았다(위 사유 참조)" >&2
       # bench phase 진행표 + 관측면 갱신(2026-09-08 · plan_26090813 §4.2). 노드는 셀 상태에서
       # 되읽는다 — writer 가 배정에서 파생해 방금 적은 값이고, 여기서 두 번째 파생을 만들지 않는다.
-      _CS="$(python3 "$_CI" --derive cell-status --cell "$CELL_KEY" 2>/dev/null || true)"
+      _CS="$(bash "${_CI%.py}.sh" --derive cell-status --cell "$CELL_KEY" 2>/dev/null || true)"
       _NODE=""
       if [ -n "$_CS" ] && [ -f "$_CS" ]; then
         _NODE="$(bash "$SDIR/bench_shell.sh" node-id "$_CS" 2>/dev/null || true)"

@@ -150,6 +150,7 @@ SUB_HINT_EQUIP_TOOLS = (
 # 메인 전용 오케스트레이션(relay·sync·fetch)은 여기 오지 않는다 — 배달 방향이 뒤집힌다.
 CAMPAIGN_TOOLS = (
     "campaign_init.py",                # 단일 writer + 읽는 눈 + 파생 개설(--from-slice)
+    "campaign_init.sh",                # --active/--derive 읽기 런처(Rust campaign_read · 서브 노드에서 빌드) — broad_search·fetch 호출부가 부른다
     "campaign_template_validator.py",  # 선언·인스턴스 술어(P1~P3). 스키마 엔진은 메인 소관
 )
 # 서브가 받는 런타임 스킬이 **부르는** 계약 리더. 오케스트레이션이 아니라 자기 manifest 를 읽는

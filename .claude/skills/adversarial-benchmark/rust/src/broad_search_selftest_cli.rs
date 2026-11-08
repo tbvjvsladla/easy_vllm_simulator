@@ -22,10 +22,10 @@ use crate::verify_fixture::resolve_repo_root;
 use std::path::Path;
 
 /// The deployed files `selftest_broad_search_cell_args` copies into its checkout, as repository-relative paths.
-pub const CELL_ARGS_DEPLOYED_FILES: [&str; 35] = cell_args::COPIES;
+pub const CELL_ARGS_DEPLOYED_FILES: [&str; 37] = cell_args::COPIES;
 
 /// The deployed files `selftest_broad_search_precheck` copies into its checkout, as repository-relative paths.
-pub const PRECHECK_DEPLOYED_FILES: [&str; 35] = precheck::COPIES;
+pub const PRECHECK_DEPLOYED_FILES: [&str; 37] = precheck::COPIES;
 
 type Verifier = fn(Option<&Path>, &mut dyn Console) -> Result<i32, Raised>;
 

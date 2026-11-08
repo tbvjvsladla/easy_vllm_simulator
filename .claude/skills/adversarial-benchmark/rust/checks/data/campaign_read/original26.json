@@ -1,0 +1,1399 @@
+{
+ "provenance": "Frozen first-exit raw bytes of the ACTUAL original CLI26 capture (outer pid span 3403751..3403855) with only the private fixture root replaced by <ROOT>; fixtures are the literal control table",
+ "other_root": {
+  "dirs": [
+   [
+    "campaigns",
+    "755"
+   ],
+   [
+    "campaigns/camp-target",
+    "755"
+   ]
+  ],
+  "files": [
+   [
+    "campaigns/ACTIVE",
+    "63616d702d7461726765740a",
+    "644"
+   ]
+  ]
+ },
+ "p09_append_hex": "23",
+ "vectors": [
+  {
+   "id": "N01",
+   "klass": "native-success",
+   "args": [
+    "--active"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [],
+   "files": [],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "5f626f6f7473747261700a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "N02",
+   "klass": "native-success",
+   "args": [
+    "--active"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [
+    [
+     "campaigns",
+     "755"
+    ],
+    [
+     "campaigns/camp-x",
+     "755"
+    ]
+   ],
+   "files": [
+    [
+     "campaigns/ACTIVE",
+     "63616d702d780a",
+     "644"
+    ]
+   ],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "63616d702d780a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "N03",
+   "klass": "native-success",
+   "args": [
+    "--active"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [
+    [
+     "campaigns",
+     "755"
+    ],
+    [
+     "campaigns/camp-x",
+     "755"
+    ]
+   ],
+   "files": [
+    [
+     "campaigns/ACTIVE",
+     "202063616d702d78200d0a",
+     "644"
+    ]
+   ],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "63616d702d780a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "N04",
+   "klass": "native-success",
+   "args": [
+    "--active"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [
+    [
+     "campaigns",
+     "755"
+    ],
+    [
+     "campaigns/\ucea0\ud504",
+     "755"
+    ]
+   ],
+   "files": [
+    [
+     "campaigns/ACTIVE",
+     "ecbaa0ed9484",
+     "644"
+    ]
+   ],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "ecbaa0ed94840a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "N05",
+   "klass": "native-success",
+   "args": [
+    "--active"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "symlink_other",
+   "dirs": [
+    [
+     "campaigns",
+     "755"
+    ],
+    [
+     "campaigns/camp-caller",
+     "755"
+    ]
+   ],
+   "files": [
+    [
+     "campaigns/ACTIVE",
+     "63616d702d63616c6c65720a",
+     "644"
+    ]
+   ],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "63616d702d7461726765740a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "N06",
+   "klass": "native-success",
+   "args": [
+    "--derive",
+    "root"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [],
+   "files": [],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "3c524f4f543e2f63616d706169676e732f5f626f6f7473747261700a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "N07",
+   "klass": "native-success",
+   "args": [
+    "--derive",
+    "root"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [
+    [
+     "campaigns",
+     "755"
+    ],
+    [
+     "campaigns/camp-x",
+     "755"
+    ]
+   ],
+   "files": [
+    [
+     "campaigns/ACTIVE",
+     "63616d702d780a",
+     "644"
+    ]
+   ],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "3c524f4f543e2f63616d706169676e732f63616d702d780a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "N08",
+   "klass": "native-success",
+   "args": [
+    "--derive",
+    "config",
+    "--cell",
+    "c1",
+    "--campaign-id",
+    "camp-y"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [],
+   "files": [],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "3c524f4f543e2f63616d706169676e732f63616d702d792f63656c6c732f63312f636f6e6669672e79616d6c0a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "N09",
+   "klass": "native-success",
+   "args": [
+    "--derive",
+    "cell-status",
+    "--cell",
+    "cellA"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [
+    [
+     "campaigns",
+     "755"
+    ],
+    [
+     "campaigns/camp-x",
+     "755"
+    ]
+   ],
+   "files": [
+    [
+     "campaigns/ACTIVE",
+     "63616d702d780a",
+     "644"
+    ]
+   ],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "3c524f4f543e2f63616d706169676e732f63616d702d782f63656c6c732f63656c6c412f63656c6c2e7374617475732e6a736f6e0a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "N10",
+   "klass": "native-success",
+   "args": [
+    "--derive",
+    "relay",
+    "--campaign-id",
+    "camp-y"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [],
+   "files": [],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "3c524f4f543e2f63616d706169676e732f63616d702d792f72656c61790a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "N11",
+   "klass": "native-success",
+   "args": [
+    "--derive",
+    "phases",
+    "--campaign-id",
+    "camp-y"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [],
+   "files": [],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "3c524f4f543e2f63616d706169676e732f63616d702d792f7068617365730a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "N12",
+   "klass": "native-success",
+   "args": [
+    "--derive",
+    "root",
+    "--campaign-id",
+    ".."
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [],
+   "files": [],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "3c524f4f543e2f63616d706169676e732f2e2e0a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "N13",
+   "klass": "native-success",
+   "args": [
+    "--derive",
+    "root",
+    "--campaign-id",
+    "."
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [],
+   "files": [],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "3c524f4f543e2f63616d706169676e730a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "N14",
+   "klass": "native-success",
+   "args": [
+    "--derive",
+    "root",
+    "--cell",
+    "c1",
+    "--campaign-id",
+    "camp-y"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [],
+   "files": [],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "3c524f4f543e2f63616d706169676e732f63616d702d790a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "N15",
+   "klass": "native-success",
+   "args": [
+    "--derive",
+    "root",
+    "--campaign-id",
+    "camp-y"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [
+    [
+     "campaigns",
+     "755"
+    ]
+   ],
+   "files": [
+    [
+     "campaigns/ACTIVE",
+     "fffe0a",
+     "644"
+    ]
+   ],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "3c524f4f543e2f63616d706169676e732f63616d702d790a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "P01",
+   "klass": "native-error",
+   "args": [
+    "--active"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONIOENCODING",
+     "ascii"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [
+    [
+     "campaigns",
+     "755"
+    ],
+    [
+     "campaigns/\ucea0\ud504",
+     "755"
+    ]
+   ],
+   "files": [
+    [
+     "campaigns/ACTIVE",
+     "ecbaa0ed9484",
+     "644"
+    ]
+   ],
+   "opaque": [],
+   "exit": "1",
+   "stdout_hex": "",
+   "stderr_hex": "54726163656261636b20286d6f737420726563656e742063616c6c206c617374293a0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e6520353438352c20696e203c6d6f64756c653e0a202020207379732e65786974286d61696e2829290a202020202020202020202020205e5e5e5e5e5e0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e6520353132302c20696e206d61696e0a202020207072696e74286163746976655f63616d706169676e5f69642829293b2072657475726e20300a202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a556e69636f6465456e636f64654572726f723a202761736369692720636f6465632063616e277420656e636f6465206368617261637465727320696e20706f736974696f6e20302d313a206f7264696e616c206e6f7420696e2072616e676528313238290a"
+  },
+  {
+   "id": "P02",
+   "klass": "native-error",
+   "args": [
+    "--active"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [
+    [
+     "campaigns",
+     "755"
+    ]
+   ],
+   "files": [
+    [
+     "campaigns/ACTIVE",
+     "fffe0a",
+     "644"
+    ]
+   ],
+   "opaque": [],
+   "exit": "1",
+   "stdout_hex": "",
+   "stderr_hex": "54726163656261636b20286d6f737420726563656e742063616c6c206c617374293a0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e6520353438352c20696e203c6d6f64756c653e0a202020207379732e65786974286d61696e2829290a202020202020202020202020205e5e5e5e5e5e0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e6520353132302c20696e206d61696e0a202020207072696e74286163746976655f63616d706169676e5f69642829293b2072657475726e20300a202020202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e65203131332c20696e206163746976655f63616d706169676e5f69640a202020206e616d65203d20706f696e7465722e726561645f7465787428656e636f64696e673d227574662d3822292e737472697028290a20202020202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a202046696c6520222f7573722f6c69622f707974686f6e332e31322f706174686c69622e7079222c206c696e6520313033302c20696e20726561645f746578740a2020202072657475726e20662e7265616428290a20202020202020202020205e5e5e5e5e5e5e5e0a202046696c6520223c66726f7a656e20636f646563733e222c206c696e65203332322c20696e206465636f64650a556e69636f64654465636f64654572726f723a20277574662d382720636f6465632063616e2774206465636f64652062797465203078666620696e20706f736974696f6e20303a20696e76616c696420737461727420627974650a"
+  },
+  {
+   "id": "P03",
+   "klass": "native-error",
+   "args": [
+    "--active"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [
+    [
+     "campaigns",
+     "755"
+    ]
+   ],
+   "files": [
+    [
+     "campaigns/ACTIVE",
+     "63616d702d780a",
+     "644"
+    ]
+   ],
+   "opaque": [
+    [
+     "campaigns/ACTIVE",
+     "0"
+    ]
+   ],
+   "exit": "1",
+   "stdout_hex": "",
+   "stderr_hex": "54726163656261636b20286d6f737420726563656e742063616c6c206c617374293a0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e6520353438352c20696e203c6d6f64756c653e0a202020207379732e65786974286d61696e2829290a202020202020202020202020205e5e5e5e5e5e0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e6520353132302c20696e206d61696e0a202020207072696e74286163746976655f63616d706169676e5f69642829293b2072657475726e20300a202020202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e65203131332c20696e206163746976655f63616d706169676e5f69640a202020206e616d65203d20706f696e7465722e726561645f7465787428656e636f64696e673d227574662d3822292e737472697028290a20202020202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a202046696c6520222f7573722f6c69622f707974686f6e332e31322f706174686c69622e7079222c206c696e6520313032392c20696e20726561645f746578740a20202020776974682073656c662e6f70656e286d6f64653d2772272c20656e636f64696e673d656e636f64696e672c206572726f72733d6572726f72732920617320663a0a2020202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a202046696c6520222f7573722f6c69622f707974686f6e332e31322f706174686c69622e7079222c206c696e6520313031352c20696e206f70656e0a2020202072657475726e20696f2e6f70656e2873656c662c206d6f64652c20627566666572696e672c20656e636f64696e672c206572726f72732c206e65776c696e65290a20202020202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a5065726d697373696f6e4572726f723a205b4572726e6f2031335d205065726d697373696f6e2064656e6965643a20273c524f4f543e2f63616d706169676e732f414354495645270a"
+  },
+  {
+   "id": "P04",
+   "klass": "native-error",
+   "args": [
+    "--derive",
+    "config"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [],
+   "files": [],
+   "opaque": [],
+   "exit": "1",
+   "stdout_hex": "",
+   "stderr_hex": "5b63616d706169676e5f696e69745d204641494c202d2d64657269766520636f6e66696720eb8a94202d2d63656c6c20ec9db420ed9584ec9a94ed9598eb8ba428ec858020ec9786eb8a9420ec858020ec9e85eba0a5ec9d8020ec9786eb8ba4290a"
+  },
+  {
+   "id": "P05",
+   "klass": "native-error",
+   "args": [
+    "--derive",
+    "sweep"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [],
+   "files": [],
+   "opaque": [],
+   "exit": "1",
+   "stdout_hex": "",
+   "stderr_hex": "5b63616d706169676e5f696e69745d204641494c202d2d64657269766520737765657020ec9d80202d2d737765657020ec9db420ed9584ec9a94ed9598eb8ba40a"
+  },
+  {
+   "id": "P06",
+   "klass": "native-error",
+   "args": [
+    "--derive",
+    "bogus",
+    "--campaign-id",
+    "camp-y"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [],
+   "files": [],
+   "opaque": [],
+   "exit": "1",
+   "stdout_hex": "",
+   "stderr_hex": "5b63616d706169676e5f696e69745d204641494c20ec958c20ec889820ec9786eb8a9420ed8c8cec839d20eca285eba5983a2027626f677573270a"
+  },
+  {
+   "id": "P07",
+   "klass": "native-error",
+   "args": [
+    "--derive",
+    "root"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [
+    [
+     "campaigns",
+     "755"
+    ]
+   ],
+   "files": [
+    [
+     "campaigns/ACTIVE",
+     "fffe0a",
+     "644"
+    ]
+   ],
+   "opaque": [],
+   "exit": "1",
+   "stdout_hex": "",
+   "stderr_hex": "54726163656261636b20286d6f737420726563656e742063616c6c206c617374293a0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e6520353438352c20696e203c6d6f64756c653e0a202020207379732e65786974286d61696e2829290a202020202020202020202020205e5e5e5e5e5e0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e6520353132322c20696e206d61696e0a202020207072696e74286465726976655f7061746828612e6465726976652c2063656c6c3d612e63656c6c2c2073776565703d612e73776565702c20636f6e746578743d612e636f6e746578742c0a202020202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e65203132332c20696e206465726976655f706174680a2020202063616d70203d2063616d705f6964206f72206163746976655f63616d706169676e5f6964287265706f5f726f6f74290a202020202020202020202020202020202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e65203131332c20696e206163746976655f63616d706169676e5f69640a202020206e616d65203d20706f696e7465722e726561645f7465787428656e636f64696e673d227574662d3822292e737472697028290a20202020202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a202046696c6520222f7573722f6c69622f707974686f6e332e31322f706174686c69622e7079222c206c696e6520313033302c20696e20726561645f746578740a2020202072657475726e20662e7265616428290a20202020202020202020205e5e5e5e5e5e5e5e0a202046696c6520223c66726f7a656e20636f646563733e222c206c696e65203332322c20696e206465636f64650a556e69636f64654465636f64654572726f723a20277574662d382720636f6465632063616e2774206465636f64652062797465203078666620696e20706f736974696f6e20303a20696e76616c696420737461727420627974650a"
+  },
+  {
+   "id": "P08",
+   "klass": "native-error",
+   "args": [
+    "--active"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "symlink_shallow",
+   "dirs": [],
+   "files": [],
+   "opaque": [],
+   "exit": "1",
+   "stdout_hex": "",
+   "stderr_hex": "54726163656261636b20286d6f737420726563656e742063616c6c206c617374293a0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e652033322c20696e203c6d6f64756c653e0a202020205245504f5f524f4f54203d2050617468285f5f66696c655f5f292e7265736f6c766528292e706172656e74735b345d0a202020202020202020202020202020207e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e7e5e5e5e0a202046696c6520222f7573722f6c69622f707974686f6e332e31322f706174686c69622e7079222c206c696e65203238312c20696e205f5f6765746974656d5f5f0a20202020726169736520496e6465784572726f7228696478290a496e6465784572726f723a20340a"
+  },
+  {
+   "id": "P09",
+   "klass": "declared-legacy",
+   "args": [
+    "--active"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "variant",
+   "dirs": [],
+   "files": [],
+   "opaque": [],
+   "exit": "0",
+   "stdout_hex": "5f626f6f7473747261700a",
+   "stderr_hex": ""
+  },
+  {
+   "id": "P10",
+   "klass": "native-error",
+   "args": [
+    "--active"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [
+    [
+     "campaigns",
+     "755"
+    ]
+   ],
+   "files": [
+    [
+     "campaigns/ACTIVE",
+     "63616d702d780a",
+     "644"
+    ]
+   ],
+   "opaque": [
+    [
+     "campaigns",
+     "0"
+    ]
+   ],
+   "exit": "1",
+   "stdout_hex": "",
+   "stderr_hex": "54726163656261636b20286d6f737420726563656e742063616c6c206c617374293a0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e6520353438352c20696e203c6d6f64756c653e0a202020207379732e65786974286d61696e2829290a202020202020202020202020205e5e5e5e5e5e0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e6520353132302c20696e206d61696e0a202020207072696e74286163746976655f63616d706169676e5f69642829293b2072657475726e20300a202020202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e65203131322c20696e206163746976655f63616d706169676e5f69640a20202020696620706f696e7465722e69735f66696c6528293a0a202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a202046696c6520222f7573722f6c69622f707974686f6e332e31322f706174686c69622e7079222c206c696e65203839342c20696e2069735f66696c650a2020202072657475726e20535f49535245472873656c662e7374617428292e73745f6d6f6465290a202020202020202020202020202020202020205e5e5e5e5e5e5e5e5e5e5e0a202046696c6520222f7573722f6c69622f707974686f6e332e31322f706174686c69622e7079222c206c696e65203834322c20696e20737461740a2020202072657475726e206f732e737461742873656c662c20666f6c6c6f775f73796d6c696e6b733d666f6c6c6f775f73796d6c696e6b73290a20202020202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a5065726d697373696f6e4572726f723a205b4572726e6f2031335d205065726d697373696f6e2064656e6965643a20273c524f4f543e2f63616d706169676e732f414354495645270a"
+  },
+  {
+   "id": "P11",
+   "klass": "native-error",
+   "args": [
+    "--active"
+   ],
+   "env": [
+    [
+     "PATH",
+     "/usr/bin:/bin"
+    ],
+    [
+     "LC_ALL",
+     "C.UTF-8"
+    ],
+    [
+     "LANG",
+     "C.UTF-8"
+    ],
+    [
+     "TZ",
+     "UTC"
+    ],
+    [
+     "PYTHONHASHSEED",
+     "0"
+    ],
+    [
+     "PYTHONUTF8",
+     "0"
+    ],
+    [
+     "PYTHONDONTWRITEBYTECODE",
+     "1"
+    ]
+   ],
+   "owner": "copy",
+   "dirs": [
+    [
+     "campaigns",
+     "755"
+    ],
+    [
+     "campaigns/a",
+     "755"
+    ]
+   ],
+   "files": [
+    [
+     "campaigns/ACTIVE",
+     "612f620a",
+     "644"
+    ]
+   ],
+   "opaque": [
+    [
+     "campaigns/a",
+     "0"
+    ]
+   ],
+   "exit": "1",
+   "stdout_hex": "",
+   "stderr_hex": "54726163656261636b20286d6f737420726563656e742063616c6c206c617374293a0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e6520353438352c20696e203c6d6f64756c653e0a202020207379732e65786974286d61696e2829290a202020202020202020202020205e5e5e5e5e5e0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e6520353132302c20696e206d61696e0a202020207072696e74286163746976655f63616d706169676e5f69642829293b2072657475726e20300a202020202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a202046696c6520223c524f4f543e2f2e636c617564652f736b696c6c732f7465727261666f726d696e675f6e6f64652f736372697074732f63616d706169676e5f696e69742e7079222c206c696e65203131342c20696e206163746976655f63616d706169676e5f69640a202020206966206e616d6520616e64202862617365202f206e616d65292e69735f64697228293a0a202020202020202020202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a202046696c6520222f7573722f6c69622f707974686f6e332e31322f706174686c69622e7079222c206c696e65203837372c20696e2069735f6469720a2020202072657475726e20535f49534449522873656c662e7374617428292e73745f6d6f6465290a202020202020202020202020202020202020205e5e5e5e5e5e5e5e5e5e5e0a202046696c6520222f7573722f6c69622f707974686f6e332e31322f706174686c69622e7079222c206c696e65203834322c20696e20737461740a2020202072657475726e206f732e737461742873656c662c20666f6c6c6f775f73796d6c696e6b733d666f6c6c6f775f73796d6c696e6b73290a20202020202020202020205e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e5e0a5065726d697373696f6e4572726f723a205b4572726e6f2031335d205065726d697373696f6e2064656e6965643a20273c524f4f543e2f63616d706169676e732f612f62270a"
+  }
+ ]
+}

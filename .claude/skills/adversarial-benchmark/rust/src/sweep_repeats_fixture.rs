@@ -41,7 +41,7 @@ pub const LEVEL_REASON: [&str; 2] = ["--knob-reason", "levels=serving_concurrenc
 /// The deployed files the sandbox copies, in the original's order (`COPIES`). `classify_cell` / `classify_cell_api` ask the
 /// private native helper `node_identity_resolve` for the node identity (one normal sibling in the same release directory), so
 /// the helper is copied with them: a mirrored caller without its helper fails loud, by design.
-const COPIES: [&str; 73] = [
+const COPIES: [&str; 75] = [
     ".claude/skills/adversarial-benchmark/scripts/render_report.sh",
     ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.sh",
     ".claude/skills/adversarial-benchmark/scripts/render_max_report.sh",
@@ -111,6 +111,8 @@ const COPIES: [&str; 73] = [
     ".claude/skills/adversarial-benchmark/config/bench_bindings.yaml",
     ".claude/skills/adversarial-benchmark/config/guide-llm/default_preset.yaml",
     ".claude/skills/terraforming_node/scripts/campaign_init.py",
+    ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+    ".claude/skills/adversarial-benchmark/rust/target/release/campaign_read",
     ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
     ".claude/skills/terraforming_node/scripts/node_role_contract.py",
     ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",

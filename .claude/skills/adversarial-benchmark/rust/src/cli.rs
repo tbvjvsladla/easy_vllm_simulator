@@ -80,6 +80,16 @@ impl<'a> Streams<'a> {
             .map_err(PrintFailure::Write)
     }
 
+    /// `print(text)` for a text the stream's codec already encoded: the encoded text, then a newline, as two writes.
+    pub(crate) fn print_encoded(&mut self, encoded: &[u8]) -> Result<(), PrintFailure> {
+        self.model
+            .write(self.stdout, encoded)
+            .map_err(PrintFailure::Write)?;
+        self.model
+            .write(self.stdout, b"\n")
+            .map_err(PrintFailure::Write)
+    }
+
     /// One `print` of a text whose last character is the newline `print` would add.
     pub(crate) fn print_body(&mut self, text: &PyStr) -> Result<(), PrintFailure> {
         let mut points = text.code_points().to_vec();

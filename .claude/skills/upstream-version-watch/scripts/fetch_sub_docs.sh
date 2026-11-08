@@ -20,6 +20,17 @@ set -euo pipefail
 
 SRC="${SRC:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)/}"
 
+# 캠페인 읽기 런타임(Rust campaign_read)은 서브 접속·회수 전에 한 번 확인한다(아래 `--active` 호출은 stderr 를 버린다).
+# 가용성 확인일 뿐 건강 증명이 아니며, 런타임이 있으면 이후 오류·대체 처리는 종전과 같다.
+_CIV="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_init.py"
+if [ -f "$_CIV" ]; then
+    CAMPAIGN_READ_VALIDATE_ONLY=1 bash "${_CIV%.py}.sh" || {
+        _CIV_RC=$?
+        echo "[fetch] ERROR 캠페인 읽기 런타임을 쓸 수 없다 — 서브 접속·회수를 시작하지 않는다(위 안내로 빌드한 뒤 다시)." >&2
+        exit "$_CIV_RC"
+    }
+fi
+
 # ── SUB_HOST/SUB_WORK_DIR 해소: 환경변수 우선, 없으면 manifest nodes[] (role: sub) ──
 # 2026-09-03(P3 · plan_26090317): 옛 주석은 "서브 접속정보는 **항상** multi 통로 manifest 에 있다
 #   (single manifest 는 nodes:[] — 서브 미정의)" 였다. 그 전제가 §2.7.0(single+sub = A2A 에이전트)
@@ -150,7 +161,7 @@ echo "[fetch] 미러 완료 — $DEST ($n 파일)."
 _CI="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_init.py"
 _NOW="$(date -u +%FT%TZ)"
 if [ -f "$_CI" ]; then
-    _CAMP="$(python3 "$_CI" --active 2>/dev/null || echo _bootstrap)"
+    _CAMP="$(bash "${_CI%.py}.sh" --active 2>/dev/null || echo _bootstrap)"
     if python3 "$_CI" --campaign-id "$_CAMP" --import-sub "$DEST" --utc "$_NOW"; then
         echo "[fetch] 캠페인 편입 완료 — 서브 진행표·셀·증거가 메인 인스턴스에 앉았다."
     else
@@ -159,7 +170,7 @@ if [ -f "$_CI" ]; then
     # 합격 술어(P4 동시 착수 타임라인 · P5 서브 자기저작 · P6 셀 출처 표시)는 **회수 뒤**에 물어야 답이 있다.
     # 판정만 하고 차단하지 않는다 — 진행을 막는 자리와 판정하는 자리는 분리돼 있다(plan §9 R3).
     _CV="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_template_validator.py"
-    _CAMP="$(python3 "$_CI" --active 2>/dev/null || echo _bootstrap)"
+    _CAMP="$(bash "${_CI%.py}.sh" --active 2>/dev/null || echo _bootstrap)"
     if [ -f "$_CV" ] && [ "$_CAMP" != "_bootstrap" ]; then
         echo "[fetch] 합격 술어(P4·P5·P6) 판정 — 차단하지 않는다(관측 결과만 남긴다):"
         python3 "$_CV" --acceptance "${SRC%/}/campaigns/$_CAMP" || true

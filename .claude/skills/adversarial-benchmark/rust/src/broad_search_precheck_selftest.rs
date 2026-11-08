@@ -51,7 +51,7 @@ use std::path::{Path, PathBuf};
 pub const PROGRAM: &str = "selftest_broad_search_precheck";
 
 /// The deployed files the checkout needs, at their repository-relative paths.
-pub(crate) const COPIES: [&str; 35] = [
+pub(crate) const COPIES: [&str; 37] = [
     ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell_api.sh",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell_native.py",
@@ -70,6 +70,8 @@ pub(crate) const COPIES: [&str; 35] = [
     ".claude/skills/adversarial-benchmark/rust/target/release/sweep_stop",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell.py",
     ".claude/skills/terraforming_node/scripts/campaign_init.py",
+    ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+    ".claude/skills/adversarial-benchmark/rust/target/release/campaign_read",
     ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
     // 반복 축 소유자(2026-09-14 · plan_26091407 §4.4) — init 이 declared_budget.repeats 를 여기서 파생하고
     // 정지 평가기·분류기가 full 정의 하한을 여기서 읽는다. 사본에 없으면 init 이 스윕을 열지 않는다(fail-closed).
