@@ -209,7 +209,20 @@ fn an_explicit_interpreter_wins_and_a_falsy_one_means_the_context_default() {
         "{}",
         value_of(&answers)
     );
-    // no environment value at all: `python3` found on PATH
+    // `python3` named explicitly in the environment is an explicit interpreter (found on PATH): the stand-in owner runs
+    let answers = evaluate(
+        &scratch,
+        &[resolve_row(&scratch, "")],
+        &[("RESOLVE_TOPOLOGY_PYTHON", Some("python3"))],
+    );
+    assert!(
+        value_of(&answers).starts_with("[0, \"single\""),
+        "{}",
+        value_of(&answers)
+    );
+    // no environment value at all, falsy `python`: the DEFAULT is the native helper. The scratch checkout's owner is a stand-in
+    // program (not the reviewed topology_parity.py), so the project policy applies: the source-version compatibility route runs
+    // the checkout's own original program under the configured default interpreter (python3), and the answer is the stand-in's
     let answers = evaluate(
         &scratch,
         &[resolve_row(&scratch, "")],
@@ -217,6 +230,25 @@ fn an_explicit_interpreter_wins_and_a_falsy_one_means_the_context_default() {
     );
     assert!(
         value_of(&answers).starts_with("[0, \"single\""),
+        "{}",
+        value_of(&answers)
+    );
+    // an explicit compatibility interpreter that cannot start: the helper names it and the resolver cannot judge (no fallback)
+    let answers = evaluate(
+        &scratch,
+        &[resolve_row(&scratch, "")],
+        &[
+            ("RESOLVE_TOPOLOGY_PYTHON", None),
+            ("RESOLVE_TOPOLOGY_COMPAT_PYTHON", Some(default_missing)),
+        ],
+    );
+    assert!(
+        value_of(&answers).starts_with("[5, null"),
+        "{}",
+        value_of(&answers)
+    );
+    assert!(
+        value_of(&answers).contains("the compatibility child did not complete (FileNotFoundError"),
         "{}",
         value_of(&answers)
     );

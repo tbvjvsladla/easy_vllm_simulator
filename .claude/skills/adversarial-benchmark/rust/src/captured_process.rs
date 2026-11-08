@@ -147,6 +147,17 @@ pub struct ChildSettings {
     /// `subprocess.run(..., input=...)`: bytes written to the child's standard input, which is then closed. `None`
     /// leaves the child sharing this process's input.
     pub input: Option<Vec<u8>>,
+    /// Run the child as the leader of its own process group and, at the deadline or on a failure, kill the whole group (the
+    /// child's descendants included) instead of the child alone. For a child that starts a program of its own.
+    pub own_process_group: bool,
+    /// Receives the child's PID right after it started (observation only: a caller that must report the actual PID of a
+    /// child that is later killed at the deadline reads it here).
+    pub pid_sink: Option<std::sync::Arc<std::sync::atomic::AtomicU32>>,
+    /// Give the child `/dev/null` as standard input instead of sharing this process's input.
+    pub null_stdin: bool,
+    /// Start the child as a member of this EXISTING process group (the group of a supervisor the caller keeps and reaps) and
+    /// kill that whole group at the deadline or on a failure. Takes the place of `own_process_group` when set.
+    pub join_process_group: Option<i32>,
 }
 
 /// [`run_captured_within`] with the child's working directory and environment settings.
@@ -184,6 +195,8 @@ fn run_child(
         .args(&command[1..])
         .stdin(if settings.input.is_some() {
             Stdio::piped()
+        } else if settings.null_stdin {
+            Stdio::null()
         } else {
             Stdio::inherit()
         })
@@ -198,15 +211,32 @@ fn run_child(
     for (name, value) in &settings.env_set {
         builder.env(name, value);
     }
+    if let Some(group) = settings.join_process_group {
+        std::os::unix::process::CommandExt::process_group(&mut builder, group);
+    } else if settings.own_process_group {
+        std::os::unix::process::CommandExt::process_group(&mut builder, 0);
+    }
     let mut child = builder
         .spawn()
         .map_err(|error| spawn_failure(&error, &command[0]))?;
+    if let Some(sink) = &settings.pid_sink {
+        sink.store(child.id(), std::sync::atomic::Ordering::SeqCst);
+    }
+    let kill = |child: &mut Child| {
+        let group = settings
+            .join_process_group
+            .or(settings.own_process_group.then_some(child.id() as i32));
+        if let Some(group) = group.and_then(rustix::process::Pid::from_raw) {
+            let _ = rustix::process::kill_process_group(group, rustix::process::Signal::KILL);
+        }
+        let _ = child.kill();
+    };
     let deadline = limit.map(|(duration, _)| Instant::now() + duration);
     let outcome = capture_until(&mut child, deadline, &command[0], settings.input.as_deref());
     match outcome {
         Ok(Some(captured)) => Ok(captured),
         Ok(None) => {
-            let _ = child.kill();
+            kill(&mut child);
             let _ = child.wait();
             let cause = PyValue::List(shown.to_vec()).repr();
             let limit_text = limit.map_or("", |(_, text)| text);
@@ -216,7 +246,7 @@ fn run_child(
             ))
         }
         Err(failure) => {
-            let _ = child.kill();
+            kill(&mut child);
             let _ = child.wait();
             Err(failure)
         }

@@ -149,6 +149,15 @@ path = "src/bin/resolve_bench_tool_api.rs"
 name = "resolve_bench_tool_bench"
 path = "src/bin/resolve_bench_tool_bench.rs"
 
+# Private normal helper of the topology resolution (spawned by resolve_topology::resolve by default).
+[[bin]]
+name = "topology_parity"
+path = "src/bin/topology_parity.rs"
+
+[[bin]]
+name = "topology_parity_api"
+path = "src/bin/topology_parity_api.rs"
+
 [[bin]]
 name = "resolve_topology"
 path = "src/bin/resolve_topology.rs"
@@ -556,3 +565,11 @@ path = "checks/pylower_cases.rs"
 [[test]]
 name = "node_identity_native"
 path = "checks/node_identity_native.rs"
+
+[[test]]
+name = "topology_parity_native"
+path = "checks/topology_parity_native.rs"
+
+[[test]]
+name = "topology_parity_api_native"
+path = "checks/topology_parity_api_native.rs"

@@ -73,12 +73,14 @@ const DEPENDENCY_SCRIPTS: [&str; 8] = [
     "bench_preset.sh",
     "bench_preset_api.sh",
 ];
-/// The deployed native programs of the other tools the callers run (taken from the runtime directory).
-const RUNTIME_PROGRAMS: [&str; 4] = [
+/// The deployed native programs of the other tools the callers run (taken from the runtime directory), and the private
+///  helper the resolver runs by default (the isolated checkout's resolver finds it beside itself).
+const RUNTIME_PROGRAMS: [&str; 5] = [
     "repeat_axis",
     "repeat_axis_api",
     "bench_preset",
     "bench_preset_api",
+    crate::resolve_topology::HELPER_NAME,
 ];
 /// Settings of the environment a test run may carry that would substitute a copied probe's own deployed files.
 const CHILD_OVERRIDES: [&str; 10] = [
@@ -755,6 +757,10 @@ fn build_caller_checkout(
             OsString::from("1"),
         )],
         input: None,
+        own_process_group: false,
+        pid_sink: None,
+        null_stdin: false,
+        join_process_group: None,
     };
     Ok(CallerCheckout {
         root,

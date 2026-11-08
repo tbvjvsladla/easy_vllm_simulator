@@ -60,6 +60,19 @@ B의 노드 식별자 호출에 필요한 `node_identity_resolve`도 같은 `bui
 helper 부재 오류는 이 명시 빌드 경로로 복구한다. 기존 `node_identity.sh`는 installer의 source 및
 다른 소비자를 위한 호환 경로로 유지한다.
 
+토폴로지 해소도 같은 B 빌드에서 `topology_parity`·`topology_parity_api`를 일반 실행파일로 함께 만든다.
+`resolve_topology.sh`·`resolve_topology_api.sh`의 기본 호출은 이 노드에서 빌드한 Rust helper를 사용한다.
+helper가 없으면 명시 빌드 필요 오류로 반환하며, 일반 기동이 설치·컴파일·Python 대체를 시작하지 않는다.
+
+T의 source identity는 기존 정본 `.claude/policies/runtime/topology_parity.py`와
+`.claude/skills/terraforming_node/scripts/campaign_init.py`를 컴파일 문맥으로 읽는다. 이 두 파일도
+기존 공식 source overlay에 동행해야 하며, 별도 호환 사본이나 메인 ELF를 배달하지 않는다.
+검토된 source와 동일한 경로는 Rust로 판정한다. 다른 source-version을 실제 원본으로 호출하는
+호환 경로는 선택된 Python과 그 원본의 PyYAML 의존성이 필요하다. 호환 인터프리터는 기존 노드
+Python 환경의 `python3`이며 필요한 경우 `RESOLVE_TOPOLOGY_COMPAT_PYTHON`으로 명시한다.
+`RESOLVE_TOPOLOGY_PYTHON`을 비어 있지 않게 지정하면 기존 명시 Python 호출을 선택하므로,
+새 PC의 기본 Rust 기동을 위해 이 값을 자동으로 `python3`으로 채우지 않는다.
+
 역할 정책 T는 Q에만 의존하며, B와 U가 같은 정책 라이브러리를 사용한다. U 빌드는
 `node_role_contract`와 `upstream_role_api`를 포함한 일반 실행파일을 Cargo metadata에서 파생한다.
 메인의 직접 런처는 다음과 같다.

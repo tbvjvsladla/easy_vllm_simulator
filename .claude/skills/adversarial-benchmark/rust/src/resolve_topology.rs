@@ -2,10 +2,16 @@
 //!
 //! A benchmark script that is started without `--topology` asks this module which topology the checkout has. The
 //! answer is never inferred here: the manifest is the authority of the topology facts, the branch only selects the
-//! manifest channel, and the four-way parity predicate (`topology_parity.py`, a Python process of the checkout - the
-//! policy owner) judges whether branch, declared header, manifest and campaign agree. This module reads the manifests
-//! that exist, runs that owner once and interprets its verdict; it reproduces none of the owner's rules and has no
-//! silent default.
+//! manifest channel, and the four-way parity predicate (`topology_parity.py`, the policy owner) judges whether branch,
+//! declared header, manifest and campaign agree. This module reads the manifests that exist, runs the predicate once and
+//! interprets its verdict; it reproduces none of the owner's rules and has no silent default.
+//!
+//! **Which program runs the predicate.** By default the private native sibling `topology_parity` (the `role-contract`
+//! library behind a normal helper binary, run as one child with the same 60 s limit, capture and kill as before). The
+//! original's Python owner runs only on an *explicit* request: a truthy `python` argument, a context built with an
+//! interpreter ([`ResolveContext::new`]) or a non-empty [`PYTHON_ENV`]. `python3` named explicitly is such a value; `None`
+//! and `""` are the default (the original's `python or sys.executable`). A missing helper is a named configuration error,
+//! never a fallback to Python.
 //!
 //! The four functions of the original keep their names and meaning:
 //!
@@ -21,9 +27,7 @@
 //! integer). Which interpreter runs the owner when the caller names none is context ([`ResolveContext`]), not a
 //! global: the command line default is `python3`, as the original's callers used.
 
-use crate::captured_process::{
-    captured_text, run_captured_in, run_captured_within, Captured, ChildSettings,
-};
+use crate::captured_process::{captured_text, run_captured_in, Captured, ChildSettings};
 use crate::dataset_commands::exec_argument;
 use crate::dataset_prep::{LineDecoder, TEXT_READ_CHUNK};
 use crate::guidellm::Failure;
@@ -35,6 +39,8 @@ use crate::pyvalue::{float_repr, PyDict, PyValue};
 use num_traits::ToPrimitive;
 use std::ffi::OsString;
 use std::io::Read;
+use std::os::unix::ffi::OsStrExt;
+use std::path::PathBuf;
 use std::time::Duration;
 
 /// Resolved.
@@ -62,19 +68,59 @@ pub const UNSUPPORTED_INPUT: &str = "UnsupportedInput";
 
 // ── context ─────────────────────────────────────────────────────────────────────
 
-/// What a resolution needs besides its arguments: the interpreter that runs the parity owner when the caller names
-/// none (the original used `sys.executable`; a native program has no interpreter of its own).
+/// What a resolution needs besides its arguments: which program judges when the caller names no interpreter. Either the
+/// native default ([`ResolveContext::native`]) or an explicit interpreter of the original's Python owner
+/// ([`ResolveContext::new`]).
 #[derive(Clone, Debug)]
 pub struct ResolveContext {
     default_python: PyStr,
+    native: bool,
+    helper: Option<PathBuf>,
+    compat_python: Option<PyStr>,
+    /// The resolver's outer limit of the helper run, in milliseconds ([`RUN_TIMEOUT_SECONDS`]).
+    outer_ms: u64,
+    /// The inner (compat Python) deadline the helper is told, in milliseconds: strictly below the outer limit.
+    inner_ms: u64,
 }
 
+/// The inner deadline of the compat child the resolver hands the helper: strictly below the 60 s outer limit, so the helper's own
+/// cleanup (group kill, watchdog reap) runs before the resolver ever has to kill the helper.
+pub const COMPAT_INNER_DEADLINE_MS: u64 = 50_000;
+
+/// Exception class of a configuration failure of this module (the native helper is not installed).
+pub const CONFIGURATION_ERROR: &str = "ResolveTopologyConfigurationError";
+/// File name of the private native helper that runs the parity predicate.
+pub const HELPER_NAME: &str = "topology_parity";
+
 impl ResolveContext {
+    /// An explicit interpreter for the Python owner (what the original's `python or sys.executable` named): the legacy
+    /// route, visibly separate from the native default.
     pub fn new(default_python: PyStr) -> Self {
-        ResolveContext { default_python }
+        ResolveContext {
+            default_python,
+            native: false,
+            helper: None,
+            compat_python: None,
+            outer_ms: u64::from(RUN_TIMEOUT_SECONDS) * 1000,
+            inner_ms: COMPAT_INNER_DEADLINE_MS,
+        }
     }
 
-    /// [`PYTHON_ENV`] (an empty value counts as unset), else [`DEFAULT_PYTHON`].
+    /// The native default: callers that name no interpreter run the sibling `topology_parity` helper.
+    pub fn native() -> Self {
+        ResolveContext {
+            default_python: PyStr::new(DEFAULT_PYTHON),
+            native: true,
+            helper: None,
+            compat_python: compat_python_from_environment()
+                .or_else(|| Some(PyStr::new(DEFAULT_COMPAT_PYTHON))),
+            outer_ms: u64::from(RUN_TIMEOUT_SECONDS) * 1000,
+            inner_ms: COMPAT_INNER_DEADLINE_MS,
+        }
+    }
+
+    /// [`PYTHON_ENV`] when it is a non-empty value (an explicit interpreter), else the native default. `python3` named in
+    /// the variable is an explicit interpreter, not a sentinel.
     pub fn from_environment() -> Self {
         let named = std::env::var_os(PYTHON_ENV)
             .filter(|value| !value.is_empty())
@@ -83,12 +129,86 @@ impl ResolveContext {
                     value.as_os_str(),
                 ))
             });
-        ResolveContext::new(named.unwrap_or_else(|| PyStr::new(DEFAULT_PYTHON)))
+        match named {
+            Some(python) => ResolveContext::new(python),
+            None => ResolveContext::native(),
+        }
     }
 
+    /// The explicitly configured interpreter of the source-version compatibility route: a checkout whose owner or campaign
+    /// module is not the reviewed source is judged by its own original program under this interpreter. Without one such a
+    /// checkout is a concrete unmet condition, never the current-source answer.
+    /// The private strict-native mode (an explicit choice, not the public default): a checkout whose sources are not the
+    /// reviewed ones is a concrete unmet condition instead of running the original program.
+    pub fn with_strict_native(mut self) -> Self {
+        self.compat_python = None;
+        self
+    }
+
+    pub fn with_compat_python(mut self, python: PyStr) -> Self {
+        self.compat_python = Some(python);
+        self
+    }
+
+    /// CHECK-ONLY seam: short outer (resolver) and inner (compat child) limits in milliseconds, so a composed test does not
+    /// wait 60 s. Production never calls this.
+    pub fn with_limits_for_check(mut self, outer_ms: u64, inner_ms: u64) -> Self {
+        self.outer_ms = outer_ms;
+        self.inner_ms = inner_ms;
+        self
+    }
+
+    /// CHECK-ONLY seam: the native helper program at `path` (a test binary is not next to the helper).
+    pub fn with_native_helper(mut self, path: PathBuf) -> Self {
+        self.helper = Some(path);
+        self
+    }
+
+    /// The interpreter of an explicit context; for a native context the legacy text [`DEFAULT_PYTHON`] (only meaningful if
+    /// a caller turns this context into an explicit one).
     pub fn default_python(&self) -> &PyStr {
         &self.default_python
     }
+
+    /// Whether callers that name no interpreter run the native helper.
+    pub fn is_native(&self) -> bool {
+        self.native
+    }
+
+    fn helper_path(&self) -> Option<PathBuf> {
+        self.helper
+            .clone()
+            .or_else(installed_helper)
+            .filter(|path| path.is_file())
+    }
+}
+
+/// Environment variable naming the explicit interpreter of the source-version compatibility route (empty = not configured).
+pub const COMPAT_PYTHON_ENV: &str = "RESOLVE_TOPOLOGY_COMPAT_PYTHON";
+/// The project policy interpreter of the source-version compatibility route when nothing else is configured (an existing
+/// provisioned `python3`; an explicit configuration or `RESOLVE_TOPOLOGY_COMPAT_PYTHON` overrides it). It is a configured
+/// value, never a mode sentinel.
+pub const DEFAULT_COMPAT_PYTHON: &str = "python3";
+
+fn compat_python_from_environment() -> Option<PyStr> {
+    std::env::var_os(COMPAT_PYTHON_ENV)
+        .filter(|value| !value.is_empty())
+        .map(|value| PyStr::from_surrogateescape(OsStrExt::as_bytes(value.as_os_str())))
+}
+
+/// The helper next to the running program (`.../target/<profile>/topology_parity`; a test or bench binary under `deps/`
+/// finds it one level up). No other place is searched.
+fn installed_helper() -> Option<PathBuf> {
+    let exe = std::env::current_exe().ok()?;
+    let dir = exe.parent()?;
+    let near = dir.join(HELPER_NAME);
+    if near.is_file() {
+        return Some(near);
+    }
+    if dir.file_name().is_some_and(|name| name == "deps") {
+        return Some(dir.parent()?.join(HELPER_NAME));
+    }
+    Some(near)
 }
 
 // ── _manifests ──────────────────────────────────────────────────────────────────
@@ -266,6 +386,14 @@ impl RunLimit {
         Ok(RunLimit { span, text })
     }
 
+    /// A limit of whole milliseconds (the text is `str(float)` of the seconds, as the original shows a float timeout).
+    pub fn millis(count: u64) -> RunLimit {
+        RunLimit {
+            span: Duration::from_millis(count),
+            text: float_repr(count as f64 / 1000.0),
+        }
+    }
+
     pub fn span(&self) -> Duration {
         self.span
     }
@@ -360,8 +488,29 @@ pub fn run(argv: &PyValue, timeout: &PyValue) -> Result<RunOutput, Failure> {
 }
 
 fn run_limited(argv: &PyValue, limit: &RunLimit) -> Result<RunOutput, Failure> {
+    run_limited_in(argv, limit, false)
+}
+
+/// [`run_limited`] with the child optionally in a process group of its own (the whole group is killed at the deadline).
+fn run_limited_in(
+    argv: &PyValue,
+    limit: &RunLimit,
+    own_process_group: bool,
+) -> Result<RunOutput, Failure> {
     let line = command_line(argv)?;
-    match run_captured_within(&line.words, &line.shown, limit.span(), limit.text()).map(decode) {
+    let settings = ChildSettings {
+        own_process_group,
+        ..ChildSettings::default()
+    };
+    match run_captured_in(
+        &line.words,
+        &line.shown,
+        limit.span(),
+        limit.text(),
+        &settings,
+    )
+    .map(decode)
+    {
         Ok(decoded) => decoded,
         Err(failure) if is_caught_by_run(&failure) => Ok(RunOutput::not_run(failure.message)),
         Err(failure) => Err(failure),
@@ -436,10 +585,14 @@ pub fn resolve(
     python: &PyValue,
     context: &ResolveContext,
 ) -> Result<Resolution, Failure> {
-    let interpreter = if python.is_truthy() {
-        python.peel().clone()
+    // The original: `python = python or sys.executable`. A truthy argument is explicit; otherwise the context decides
+    // (explicit interpreter, or the native default).
+    let explicit: Option<PyValue> = if python.is_truthy() {
+        Some(python.peel().clone())
+    } else if !context.is_native() {
+        Some(PyValue::Str(context.default_python().clone()))
     } else {
-        PyValue::Str(context.default_python().clone())
+        None
     };
     let repo = ospath::abspath(&ospath::fspath(repo)?)?;
     if manifests_of(&repo).is_empty() {
@@ -458,16 +611,60 @@ pub fn resolve(
                 .done(),
         ));
     }
-    let argv = PyValue::List(vec![
-        interpreter,
-        PyValue::Str(parity),
-        PyValue::str("evaluate"),
-        PyValue::str("--repo"),
-        PyValue::Str(repo),
-        PyValue::str("--format"),
-        PyValue::str("json"),
-    ]);
-    let owner = run_limited(&argv, &RunLimit::seconds(RUN_TIMEOUT_SECONDS))?;
+    let is_native_run = explicit.is_none();
+    let argv = match explicit {
+        Some(interpreter) => PyValue::List(vec![
+            interpreter,
+            PyValue::Str(parity),
+            PyValue::str("evaluate"),
+            PyValue::str("--repo"),
+            PyValue::Str(repo),
+            PyValue::str("--format"),
+            PyValue::str("json"),
+        ]),
+        None => {
+            let Some(helper) = context.helper_path() else {
+                return Err(Failure::new(
+                    CONFIGURATION_ERROR,
+                    &format!(
+                        "the native topology helper `{HELPER_NAME}` is not installed next to this program; build the package's normal binaries (it stands in for the Python owner `topology_parity.py`; nothing else is tried - name an interpreter explicitly to run the Python owner)"
+                    ),
+                ));
+            };
+            let mut words = vec![
+                PyValue::Str(PyStr::from_surrogateescape(helper.as_os_str().as_bytes())),
+                PyValue::str("--source-owner"),
+                PyValue::Str(parity.clone()),
+                PyValue::str("--compat-owner"),
+                PyValue::Str(parity),
+            ];
+            if let Some(python) = &context.compat_python {
+                words.push(PyValue::str("--compat-python"));
+                words.push(PyValue::Str(python.clone()));
+                words.push(PyValue::str("--compat-deadline-ms"));
+                words.push(PyValue::str(&context.inner_ms.to_string()));
+            }
+            words.extend([
+                PyValue::str("evaluate"),
+                PyValue::str("--repo"),
+                PyValue::Str(repo),
+                PyValue::str("--format"),
+                PyValue::str("json"),
+            ]);
+            PyValue::List(words)
+        }
+    };
+    // the native helper may start the original program itself (source-version compatibility): it runs as the leader of its own
+    // process group so that the deadline kills the group, not the helper alone
+    let owner = run_limited_in(
+        &argv,
+        &if context.outer_ms == u64::from(RUN_TIMEOUT_SECONDS) * 1000 {
+            RunLimit::seconds(RUN_TIMEOUT_SECONDS)
+        } else {
+            RunLimit::millis(context.outer_ms)
+        },
+        is_native_run,
+    )?;
     let verdict = owner_verdict(&owner.stdout)?;
     let code = owner.code;
     let usable = matches!(code, Some(0 | 5));

@@ -18,9 +18,16 @@
 
 use agent_runtime_support::pystr::PyStr;
 use agent_runtime_support::pyvalue::{PyDict, PyValue};
+pub mod campaign;
 pub mod identity;
 pub mod load;
+pub mod pyprofile;
 pub mod self_test;
+pub mod source_identity;
+pub mod topology;
+pub mod topology_cli;
+#[rustfmt::skip]
+pub mod topology_doc;
 
 pub const EXIT_OK: i32 = 0;
 pub const EXIT_USAGE: i32 = 2;

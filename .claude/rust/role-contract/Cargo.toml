@@ -21,3 +21,7 @@ path = "checks/role_contract_checks.rs"
 [[test]]
 name = "identity_checks"
 path = "checks/identity_checks.rs"
+
+[[test]]
+name = "topology_checks"
+path = "checks/topology_checks.rs"

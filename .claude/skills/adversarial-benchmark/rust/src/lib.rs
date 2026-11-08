@@ -132,6 +132,8 @@ mod sweep_repeats_broad;
 mod sweep_repeats_clock;
 mod sweep_repeats_fixture;
 pub mod terminal;
+pub mod topology_parity_api;
+pub mod topology_parity_run;
 mod unicode_alnum_table;
 mod unicode_digit_tables;
 mod unicode_lower_table;
