@@ -1,0 +1,2204 @@
+{
+ "schema": "r50-p23-saved-golden-data/1",
+ "note": "decoded from the CLOSED saved P23 summary + inputs (read-only); data for own tests, not an oracle replay",
+ "rows": [
+  {
+   "id": "S50K01",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "_run",
+   "flag": true,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "nvcc",
+    "--version"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": "",
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K02",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "_run",
+   "flag": true,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NVCC_RC1"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "nvcc",
+    "--version"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": "",
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K03",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "_run",
+   "flag": true,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NVCC_OK"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "nvcc",
+    "--version"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": "",
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K04",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "_run",
+   "flag": true,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_TIMEOUT"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "sleeper"
+   ],
+   "kwargs": {
+    "timeout": 1
+   },
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": "",
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K05",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "_run",
+   "flag": true,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_GARBAGE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "nvcc",
+    "--version"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": "",
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K06",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "scan_cuda_version",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_GB10"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": "132",
+   "fake_invocations": [
+    {
+     "name": "nvcc",
+     "dir": "SC_GB10",
+     "argv": [
+      "nvcc",
+      "--version"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K07",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "scan_cuda_version",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NVCC_NOMATCH"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": null,
+   "fake_invocations": [
+    {
+     "name": "nvcc",
+     "dir": "SC_NVCC_NOMATCH",
+     "argv": [
+      "nvcc",
+      "--version"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K08",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "scan_gpus_per_node",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_GB10"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": 1,
+   "fake_invocations": [
+    {
+     "name": "nvidia-smi",
+     "dir": "SC_GB10",
+     "argv": [
+      "nvidia-smi",
+      "-L"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K09",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "scan_gpus_per_node",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NVSMI_EMPTY"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": null,
+   "fake_invocations": [
+    {
+     "name": "nvidia-smi",
+     "dir": "SC_NVSMI_EMPTY",
+     "argv": [
+      "nvidia-smi",
+      "-L"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K10",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "scan_gpu_model",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_GB10"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": "NVIDIA GB10",
+   "fake_invocations": [
+    {
+     "name": "nvidia-smi",
+     "dir": "SC_GB10",
+     "argv": [
+      "nvidia-smi",
+      "--query-gpu=name",
+      "--format=csv,noheader"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K11",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "scan_driver_version",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_GB10"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": "580.95.05",
+   "fake_invocations": [
+    {
+     "name": "nvidia-smi",
+     "dir": "SC_GB10",
+     "argv": [
+      "nvidia-smi",
+      "--query-gpu=driver_version",
+      "--format=csv,noheader"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K12",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "scan_gpu_memory",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_GB10"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "gpu_memory_model": "unified",
+    "gpu_vram_mib": null,
+    "compute_capability": "12.1"
+   },
+   "fake_invocations": [
+    {
+     "name": "nvidia-smi",
+     "dir": "SC_GB10",
+     "argv": [
+      "nvidia-smi",
+      "--query-gpu=memory.total,compute_cap",
+      "--format=csv,noheader,nounits"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K13",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "scan_gpu_memory",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_DISCRETE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "gpu_memory_model": "discrete",
+    "gpu_vram_mib": 32768,
+    "compute_capability": "12.0"
+   },
+   "fake_invocations": [
+    {
+     "name": "nvidia-smi",
+     "dir": "SC_DISCRETE",
+     "argv": [
+      "nvidia-smi",
+      "--query-gpu=memory.total,compute_cap",
+      "--format=csv,noheader,nounits"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K14",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "scan_roce_v2_gids",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_ROCE_TABLE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": [
+    {
+     "hca": "rocep1s0f1",
+     "port": "1",
+     "gid_index": 3,
+     "ipv4": "203.0.113.10",
+     "iface": "enp1s0f1np1"
+    },
+    {
+     "hca": "roceP2p1s0f1",
+     "port": "1",
+     "gid_index": 3,
+     "ipv4": "203.0.113.20",
+     "iface": "enP2p1s0f1np1"
+    }
+   ],
+   "fake_invocations": [
+    {
+     "name": "show_gids",
+     "dir": "SC_ROCE_TABLE",
+     "argv": [
+      "show_gids"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K15",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "scan_roce_v2_gids",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": [],
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K16",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "detect_interconnect",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "type": "generic-ethernet",
+    "hca_devices": [],
+    "gid_index": null,
+    "socket_iface": null,
+    "mtu": null,
+    "bandwidth_gbps": null,
+    "platform_preset": null,
+    "_sysfs_hcas": [
+     "roceP2p1s0f0",
+     "roceP2p1s0f1",
+     "rocep1s0f0",
+     "rocep1s0f1"
+    ],
+    "_roce_v2_gids": []
+   },
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K17",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "detect_interconnect",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_ROCE_TWO_HCAS"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "type": "RoCE v2",
+    "hca_devices": [
+     "rocep1s0f1",
+     "roceP2p1s0f1"
+    ],
+    "gid_index": 3,
+    "socket_iface": "enp1s0f1np1",
+    "mtu": 9000,
+    "bandwidth_gbps": null,
+    "platform_preset": null,
+    "_sysfs_hcas": [
+     "roceP2p1s0f0",
+     "roceP2p1s0f1",
+     "rocep1s0f0",
+     "rocep1s0f1"
+    ],
+    "_roce_v2_gids": [
+     {
+      "hca": "rocep1s0f1",
+      "port": "1",
+      "gid_index": 3,
+      "ipv4": "203.0.113.10",
+      "iface": "enp1s0f1np1"
+     },
+     {
+      "hca": "roceP2p1s0f1",
+      "port": "1",
+      "gid_index": 3,
+      "ipv4": "203.0.113.20",
+      "iface": "enP2p1s0f1np1"
+     }
+    ]
+   },
+   "fake_invocations": [
+    {
+     "name": "show_gids",
+     "dir": "SC_ROCE_TWO_HCAS",
+     "argv": [
+      "show_gids"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K18",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "detect_interconnect",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_ROCE_MIXED_IDX"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "type": "RoCE v2",
+    "hca_devices": [
+     "rocep1s0f1",
+     "roceP2p1s0f1"
+    ],
+    "gid_index": [
+     3,
+     5
+    ],
+    "socket_iface": "enp1s0f1np1",
+    "mtu": 9000,
+    "bandwidth_gbps": null,
+    "platform_preset": null,
+    "_sysfs_hcas": [
+     "roceP2p1s0f0",
+     "roceP2p1s0f1",
+     "rocep1s0f0",
+     "rocep1s0f1"
+    ],
+    "_roce_v2_gids": [
+     {
+      "hca": "rocep1s0f1",
+      "port": "1",
+      "gid_index": 3,
+      "ipv4": "203.0.113.10",
+      "iface": "enp1s0f1np1"
+     },
+     {
+      "hca": "roceP2p1s0f1",
+      "port": "1",
+      "gid_index": 5,
+      "ipv4": "203.0.113.20",
+      "iface": "enP2p1s0f1np1"
+     }
+    ]
+   },
+   "fake_invocations": [
+    {
+     "name": "show_gids",
+     "dir": "SC_ROCE_MIXED_IDX",
+     "argv": [
+      "show_gids"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K19",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "detect_interconnect",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_ROCE_BAD_IDX"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "type": "RoCE v2",
+    "hca_devices": [
+     "rocep1s0f1",
+     "roceP2p1s0f1"
+    ],
+    "gid_index": "invalid",
+    "socket_iface": "enp1s0f1np1",
+    "mtu": 9000,
+    "bandwidth_gbps": null,
+    "platform_preset": null,
+    "_sysfs_hcas": [
+     "roceP2p1s0f0",
+     "roceP2p1s0f1",
+     "rocep1s0f0",
+     "rocep1s0f1"
+    ],
+    "_roce_v2_gids": [
+     {
+      "hca": "rocep1s0f1",
+      "port": "1",
+      "gid_index": 3,
+      "ipv4": "203.0.113.10",
+      "iface": "enp1s0f1np1"
+     },
+     {
+      "hca": "roceP2p1s0f1",
+      "port": "1",
+      "gid_index": 3,
+      "ipv4": "203.0.113.20",
+      "iface": "enP2p1s0f1np1"
+     },
+     {
+      "hca": "rocep1s0f1",
+      "port": "1",
+      "gid_index": "x",
+      "ipv4": "203.0.113.30",
+      "iface": "enp1s0f1np1"
+     }
+    ]
+   },
+   "fake_invocations": [
+    {
+     "name": "show_gids",
+     "dir": "SC_ROCE_BAD_IDX",
+     "argv": [
+      "show_gids"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K20",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "collect_local_hw",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_GB10"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "cpu_arch": "aarch64",
+    "gpu_model": "NVIDIA GB10",
+    "gpus_per_node": 1,
+    "cuda": "13.2",
+    "driver": "580.95.05"
+   },
+   "fake_invocations": [
+    {
+     "name": "nvcc",
+     "dir": "SC_GB10",
+     "argv": [
+      "nvcc",
+      "--version"
+     ],
+     "stdin_hex": ""
+    },
+    {
+     "name": "nvidia-smi",
+     "dir": "SC_GB10",
+     "argv": [
+      "nvidia-smi",
+      "--query-gpu=name",
+      "--format=csv,noheader"
+     ],
+     "stdin_hex": ""
+    },
+    {
+     "name": "nvidia-smi",
+     "dir": "SC_GB10",
+     "argv": [
+      "nvidia-smi",
+      "-L"
+     ],
+     "stdin_hex": ""
+    },
+    {
+     "name": "nvidia-smi",
+     "dir": "SC_GB10",
+     "argv": [
+      "nvidia-smi",
+      "--query-gpu=driver_version",
+      "--format=csv,noheader"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K21",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "git_branch",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_GIT_SINGLE_NODE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": "single-node",
+   "fake_invocations": [
+    {
+     "name": "git",
+     "dir": "SC_GIT_SINGLE_NODE",
+     "argv": [
+      "git",
+      "rev-parse",
+      "--abbrev-ref",
+      "HEAD"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K22",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "git_branch",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_GIT_DETACHED"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": "HEAD",
+   "fake_invocations": [
+    {
+     "name": "git",
+     "dir": "SC_GIT_DETACHED",
+     "argv": [
+      "git",
+      "rev-parse",
+      "--abbrev-ref",
+      "HEAD"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K23",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "git_branch",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": null,
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K24",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "_iface_ipv4",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_IP_OK"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "enp1s0f1np1"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": "203.0.113.10",
+   "fake_invocations": [
+    {
+     "name": "ip",
+     "dir": "SC_IP_OK",
+     "argv": [
+      "ip",
+      "-o",
+      "-4",
+      "addr",
+      "show",
+      "enp1s0f1np1"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K25",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "_iface_ipv4",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_IP_RC1"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "enp1s0f1np1"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": null,
+   "fake_invocations": [
+    {
+     "name": "ip",
+     "dir": "SC_IP_RC1",
+     "argv": [
+      "ip",
+      "-o",
+      "-4",
+      "addr",
+      "show",
+      "enp1s0f1np1"
+     ],
+     "stdin_hex": ""
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K26",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "_iface_ipv4",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    null
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": null,
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K27",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "collect_peer_hw",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_SSH_HW_OK"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "user@203.0.113.11"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "cpu_arch": "aarch64",
+    "gpu_model": "NVIDIA GB10",
+    "gpus_per_node": 1,
+    "cuda": "13.2",
+    "driver": "580.95.05",
+    "gpu_memory_model": "unified",
+    "gpu_vram_mib": null,
+    "compute_capability": "12.1"
+   },
+   "fake_invocations": [
+    {
+     "name": "ssh",
+     "dir": "SC_SSH_HW_OK",
+     "argv": [
+      "ssh",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=8",
+      "user@203.0.113.11",
+      "bash",
+      "-ls"
+     ],
+     "stdin_hex": "7072696e74662027415243483d25735c6e2720222428756e616d65202d6d29223b207072696e74662027475055533d25735c6e27202224286e76696469612d736d69202d4c20323e2f6465762f6e756c6c207c2067726570202d6320275e475055202729223b207072696e746620274d4f44454c3d25735c6e27202224286e76696469612d736d69202d2d71756572792d6770753d6e616d65202d2d666f726d61743d6373762c6e6f68656164657220323e2f6465762f6e756c6c207c2068656164202d3129223b207072696e746620274452495645523d25735c6e27202224286e76696469612d736d69202d2d71756572792d6770753d6472697665725f76657273696f6e202d2d666f726d61743d6373762c6e6f68656164657220323e2f6465762f6e756c6c207c2068656164202d3129223b207072696e74662027435544413d25735c6e27202224286e766363202d2d76657273696f6e20323e2f6465762f6e756c6c207c2067726570202d6f45202772656c65617365205b302d395d2b5c2e5b302d395d2b27207c2067726570202d6f4520275b302d395d2b5c2e5b302d395d2b2729223b207072696e746620274750554d454d3d25735c6e27202224286e76696469612d736d69202d2d71756572792d6770753d6d656d6f72792e746f74616c2c636f6d707574655f636170202d2d666f726d61743d6373762c6e6f6865616465722c6e6f756e69747320323e2f6465762f6e756c6c207c2068656164202d312922"
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K28",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "collect_peer_hw",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_SSH_HOSTKEY"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "user@203.0.113.11"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {},
+   "fake_invocations": [
+    {
+     "name": "ssh",
+     "dir": "SC_SSH_HOSTKEY",
+     "argv": [
+      "ssh",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=8",
+      "user@203.0.113.11",
+      "bash",
+      "-ls"
+     ],
+     "stdin_hex": "7072696e74662027415243483d25735c6e2720222428756e616d65202d6d29223b207072696e74662027475055533d25735c6e27202224286e76696469612d736d69202d4c20323e2f6465762f6e756c6c207c2067726570202d6320275e475055202729223b207072696e746620274d4f44454c3d25735c6e27202224286e76696469612d736d69202d2d71756572792d6770753d6e616d65202d2d666f726d61743d6373762c6e6f68656164657220323e2f6465762f6e756c6c207c2068656164202d3129223b207072696e746620274452495645523d25735c6e27202224286e76696469612d736d69202d2d71756572792d6770753d6472697665725f76657273696f6e202d2d666f726d61743d6373762c6e6f68656164657220323e2f6465762f6e756c6c207c2068656164202d3129223b207072696e74662027435544413d25735c6e27202224286e766363202d2d76657273696f6e20323e2f6465762f6e756c6c207c2067726570202d6f45202772656c65617365205b302d395d2b5c2e5b302d395d2b27207c2067726570202d6f4520275b302d395d2b5c2e5b302d395d2b2729223b207072696e746620274750554d454d3d25735c6e27202224286e76696469612d736d69202d2d71756572792d6770753d6d656d6f72792e746f74616c2c636f6d707574655f636170202d2d666f726d61743d6373762c6e6f6865616465722c6e6f756e69747320323e2f6465762f6e756c6c207c2068656164202d312922"
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K29",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "collect_peer_hw",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_SSH_PERM"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "user@203.0.113.11"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {},
+   "fake_invocations": [
+    {
+     "name": "ssh",
+     "dir": "SC_SSH_PERM",
+     "argv": [
+      "ssh",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=8",
+      "user@203.0.113.11",
+      "bash",
+      "-ls"
+     ],
+     "stdin_hex": "7072696e74662027415243483d25735c6e2720222428756e616d65202d6d29223b207072696e74662027475055533d25735c6e27202224286e76696469612d736d69202d4c20323e2f6465762f6e756c6c207c2067726570202d6320275e475055202729223b207072696e746620274d4f44454c3d25735c6e27202224286e76696469612d736d69202d2d71756572792d6770753d6e616d65202d2d666f726d61743d6373762c6e6f68656164657220323e2f6465762f6e756c6c207c2068656164202d3129223b207072696e746620274452495645523d25735c6e27202224286e76696469612d736d69202d2d71756572792d6770753d6472697665725f76657273696f6e202d2d666f726d61743d6373762c6e6f68656164657220323e2f6465762f6e756c6c207c2068656164202d3129223b207072696e74662027435544413d25735c6e27202224286e766363202d2d76657273696f6e20323e2f6465762f6e756c6c207c2067726570202d6f45202772656c65617365205b302d395d2b5c2e5b302d395d2b27207c2067726570202d6f4520275b302d395d2b5c2e5b302d395d2b2729223b207072696e746620274750554d454d3d25735c6e27202224286e76696469612d736d69202d2d71756572792d6770753d6d656d6f72792e746f74616c2c636f6d707574655f636170202d2d666f726d61743d6373762c6e6f6865616465722c6e6f756e69747320323e2f6465762f6e756c6c207c2068656164202d312922"
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K30",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "collect_peer_hw",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_SSH_127"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "user@203.0.113.11"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {},
+   "fake_invocations": [
+    {
+     "name": "ssh",
+     "dir": "SC_SSH_127",
+     "argv": [
+      "ssh",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=8",
+      "user@203.0.113.11",
+      "bash",
+      "-ls"
+     ],
+     "stdin_hex": "7072696e74662027415243483d25735c6e2720222428756e616d65202d6d29223b207072696e74662027475055533d25735c6e27202224286e76696469612d736d69202d4c20323e2f6465762f6e756c6c207c2067726570202d6320275e475055202729223b207072696e746620274d4f44454c3d25735c6e27202224286e76696469612d736d69202d2d71756572792d6770753d6e616d65202d2d666f726d61743d6373762c6e6f68656164657220323e2f6465762f6e756c6c207c2068656164202d3129223b207072696e746620274452495645523d25735c6e27202224286e76696469612d736d69202d2d71756572792d6770753d6472697665725f76657273696f6e202d2d666f726d61743d6373762c6e6f68656164657220323e2f6465762f6e756c6c207c2068656164202d3129223b207072696e74662027435544413d25735c6e27202224286e766363202d2d76657273696f6e20323e2f6465762f6e756c6c207c2067726570202d6f45202772656c65617365205b302d395d2b5c2e5b302d395d2b27207c2067726570202d6f4520275b302d395d2b5c2e5b302d395d2b2729223b207072696e746620274750554d454d3d25735c6e27202224286e76696469612d736d69202d2d71756572792d6770753d6d656d6f72792e746f74616c2c636f6d707574655f636170202d2d666f726d61743d6373762c6e6f6865616465722c6e6f756e69747320323e2f6465762f6e756c6c207c2068656164202d312922"
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K31",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "collect_peer_hw",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "user@203.0.113.11"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {},
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K32",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "collect_peer_model_env",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_SSH_MODELENV_OK"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "user@203.0.113.11",
+    "/nas/models",
+    "/h/token.env"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "nas_reachable": true,
+    "hf_token_present": false,
+    "probed": true,
+    "source": "measured:peer-ssh"
+   },
+   "fake_invocations": [
+    {
+     "name": "ssh",
+     "dir": "SC_SSH_MODELENV_OK",
+     "argv": [
+      "ssh",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=8",
+      "user@203.0.113.11",
+      "bash",
+      "-ls"
+     ],
+     "stdin_hex": "5b202d64202f6e61732f6d6f64656c73205d202626206563686f204e41533d31207c7c206563686f204e41533d300a5b202d66202f682f746f6b656e2e656e76205d202626206563686f20544f4b3d31207c7c206563686f20544f4b3d300a"
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K33",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "collect_peer_model_env",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_SSH_HOSTKEY"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "user@203.0.113.11",
+    "/nas/models",
+    null
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "nas_reachable": null,
+    "hf_token_present": null,
+    "probed": false
+   },
+   "fake_invocations": [
+    {
+     "name": "ssh",
+     "dir": "SC_SSH_HOSTKEY",
+     "argv": [
+      "ssh",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=8",
+      "user@203.0.113.11",
+      "bash",
+      "-ls"
+     ],
+     "stdin_hex": "5b202d64202f6e61732f6d6f64656c73205d202626206563686f204e41533d31207c7c206563686f204e41533d300a"
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K34",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "collect_peer_model_env",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "user@203.0.113.11",
+    null,
+    null
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "nas_reachable": null,
+    "hf_token_present": null,
+    "probed": false
+   },
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K35",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "collect_peer_egress",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_SSH_EGRESS_OK"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "user@203.0.113.11"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "egress": "online",
+    "hf_reachable": true,
+    "gateway_reachable": true
+   },
+   "fake_invocations": [
+    {
+     "name": "ssh",
+     "dir": "SC_SSH_EGRESS_OK",
+     "argv": [
+      "ssh",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=8",
+      "user@203.0.113.11",
+      "bash",
+      "-ls"
+     ],
+     "stdin_hex": "286375726c202d7353202d6f202f6465762f6e756c6c202d772027257b687474705f636f64657d27202d2d6d61782d74696d6520352068747470733a2f2f68756767696e67666163652e636f20323e2f6465762f6e756c6c207c7c206563686f20303030293b206563686f3b202874696d656f757420352062617368202d6320273c2f6465762f7463702f382e382e382e382f3434332720323e2f6465762f6e756c6c202626206563686f204f4b207c7c206563686f204641494c29"
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K36",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "collect_peer_egress",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_SSH_EGRESS_FAIL"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "user@203.0.113.11"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "egress": "restricted",
+    "hf_reachable": false,
+    "gateway_reachable": false
+   },
+   "fake_invocations": [
+    {
+     "name": "ssh",
+     "dir": "SC_SSH_EGRESS_FAIL",
+     "argv": [
+      "ssh",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=8",
+      "user@203.0.113.11",
+      "bash",
+      "-ls"
+     ],
+     "stdin_hex": "286375726c202d7353202d6f202f6465762f6e756c6c202d772027257b687474705f636f64657d27202d2d6d61782d74696d6520352068747470733a2f2f68756767696e67666163652e636f20323e2f6465762f6e756c6c207c7c206563686f20303030293b206563686f3b202874696d656f757420352062617368202d6320273c2f6465762f7463702f382e382e382e382f3434332720323e2f6465762f6e756c6c202626206563686f204f4b207c7c206563686f204641494c29"
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50K37",
+   "kind": "api",
+   "plane": "fake-external",
+   "operation": "collect_peer_egress",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_SSH_HOSTKEY"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "user@203.0.113.11"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "egress": "restricted",
+    "hf_reachable": false,
+    "gateway_reachable": false
+   },
+   "fake_invocations": [
+    {
+     "name": "ssh",
+     "dir": "SC_SSH_HOSTKEY",
+     "argv": [
+      "ssh",
+      "-o",
+      "BatchMode=yes",
+      "-o",
+      "ConnectTimeout=8",
+      "user@203.0.113.11",
+      "bash",
+      "-ls"
+     ],
+     "stdin_hex": "286375726c202d7353202d6f202f6465762f6e756c6c202d772027257b687474705f636f64657d27202d2d6d61782d74696d6520352068747470733a2f2f68756767696e67666163652e636f20323e2f6465762f6e756c6c207c7c206563686f20303030293b206563686f3b202874696d656f757420352062617368202d6320273c2f6465762f7463702f382e382e382e382f3434332720323e2f6465762f6e756c6c202626206563686f204f4b207c7c206563686f204641494c29"
+    }
+   ],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50L01",
+   "kind": "api",
+   "plane": "loopback-net",
+   "operation": "peer_reachable",
+   "flag": true,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "127.0.0.1",
+    "<FX:closed_port>",
+    2
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": false,
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50L02",
+   "kind": "api",
+   "plane": "loopback-net",
+   "operation": "peer_reachable",
+   "flag": true,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "127.0.0.1",
+    "<FX:listener_port>",
+    2
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": true,
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50L04",
+   "kind": "api",
+   "plane": "loopback-net",
+   "operation": "scan_egress",
+   "flag": true,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "127.0.0.1:9",
+    "127.0.0.1",
+    "<FX:closed_port>",
+    2
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "egress": "restricted",
+    "hf_reachable": false,
+    "gateway_reachable": false
+   },
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50L05",
+   "kind": "api",
+   "plane": "loopback-net",
+   "operation": "scan_egress",
+   "flag": true,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "127.0.0.1:9",
+    "127.0.0.1",
+    "<FX:listener_port>",
+    2
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": {
+    "egress": "restricted",
+    "hf_reachable": false,
+    "gateway_reachable": true
+   },
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50L06",
+   "kind": "api",
+   "plane": "loopback-net",
+   "operation": "_resolves_to_loopback",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    "127.0.0.1"
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": "127.0.0.1",
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50L07",
+   "kind": "api",
+   "plane": "loopback-net",
+   "operation": "_resolves_to_loopback",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "status": "RETURNED",
+   "args": [
+    ""
+   ],
+   "kwargs": {},
+   "setup": {
+    "cwd": "case",
+    "env": {}
+   },
+   "return": null,
+   "fake_invocations": [],
+   "args_after_equal": true
+  },
+  {
+   "id": "S50C01",
+   "kind": "cli",
+   "plane": "pure",
+   "operation": "main",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "COLUMNS",
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "columns_env": "80"
+  },
+  {
+   "id": "S50C02",
+   "kind": "cli",
+   "plane": "pure",
+   "operation": "main",
+   "flag": false,
+   "first_exit": 0,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "COLUMNS",
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "columns_env": "40"
+  },
+  {
+   "id": "S50C03",
+   "kind": "cli",
+   "plane": "pure",
+   "operation": "main",
+   "flag": false,
+   "first_exit": 2,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "COLUMNS",
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "columns_env": "80"
+  },
+  {
+   "id": "S50C04",
+   "kind": "cli",
+   "plane": "pure",
+   "operation": "main",
+   "flag": false,
+   "first_exit": 2,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "COLUMNS",
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "columns_env": "80"
+  },
+  {
+   "id": "S50C05",
+   "kind": "cli",
+   "plane": "pure",
+   "operation": "main",
+   "flag": false,
+   "first_exit": 2,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "COLUMNS",
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "columns_env": "80"
+  },
+  {
+   "id": "S50C06",
+   "kind": "cli",
+   "plane": "pure",
+   "operation": "main",
+   "flag": false,
+   "first_exit": 3,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "COLUMNS",
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "columns_env": "80"
+  },
+  {
+   "id": "S50C07",
+   "kind": "cli",
+   "plane": "fake-external",
+   "operation": "main",
+   "flag": false,
+   "first_exit": 2,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "COLUMNS",
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "columns_env": "80"
+  },
+  {
+   "id": "S50C08",
+   "kind": "cli",
+   "plane": "host-observed",
+   "operation": "main",
+   "flag": false,
+   "first_exit": 2,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "COLUMNS",
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "columns_env": "80"
+  },
+  {
+   "id": "S50C09",
+   "kind": "cli",
+   "plane": "host-observed",
+   "operation": "main",
+   "flag": true,
+   "first_exit": 2,
+   "env_path_dirs": [
+    "SC_GB10"
+   ],
+   "env_keys": [
+    "COLUMNS",
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "columns_env": "80"
+  },
+  {
+   "id": "S50C10",
+   "kind": "cli",
+   "plane": "host-observed",
+   "operation": "main",
+   "flag": false,
+   "first_exit": 2,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "COLUMNS",
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "columns_env": "80"
+  },
+  {
+   "id": "S50C11",
+   "kind": "cli",
+   "plane": "host-observed",
+   "operation": "main",
+   "flag": false,
+   "first_exit": 2,
+   "env_path_dirs": [
+    "SC_ROCE_TWO_HCAS+SC_GB10"
+   ],
+   "env_keys": [
+    "COLUMNS",
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "columns_env": "80"
+  },
+  {
+   "id": "S50C12",
+   "kind": "cli",
+   "plane": "host-observed",
+   "operation": "main",
+   "flag": false,
+   "first_exit": 2,
+   "env_path_dirs": [
+    "SC_NONE"
+   ],
+   "env_keys": [
+    "COLUMNS",
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "columns_env": "80"
+  },
+  {
+   "id": "S50C13",
+   "kind": "cli",
+   "plane": "host-observed",
+   "operation": "main",
+   "flag": true,
+   "first_exit": 2,
+   "env_path_dirs": [
+    "SC_ROCE_TWO_HCAS+SC_GB10+SC_SSH_HW_OK"
+   ],
+   "env_keys": [
+    "COLUMNS",
+    "FX_RECORD_FILE",
+    "LANG",
+    "LC_ALL",
+    "PATH",
+    "PYTHONDONTWRITEBYTECODE",
+    "PYTHONHASHSEED",
+    "TZ"
+   ],
+   "columns_env": "80"
+  }
+ ]
+}

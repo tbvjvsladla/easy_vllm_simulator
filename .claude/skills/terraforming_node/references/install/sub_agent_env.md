@@ -44,6 +44,7 @@ Rust 실행환경 지원분은 `scripts/rust_bootstrap.sh`·`scripts/rust_toolch
 `references/install/rust_runtime.md`다. renderer가 두 topology에 전달하고, 서브는 자기 노드에서
 기존 승인/A2A 경로로 install → check와 자기 tool_plane의 Rust 업무 패키지 build/native 검사를 실행한다.
 메인의 컴파일 결과/개인 Cargo 환경은 배달하지 않는다.
+벤치 owner 를 받는 서브는 `build_rust.sh` 의 마지막 자체검사가 부르는 `scan_node.sh` 도 함께 받는다(`render_sub_env.py::SUB_BENCH_FOUNDATION_RUNTIME` 닫힌 목록). wiki-only ray-worker 는 Rust 업무 패키지·그 자체검사를 받지 않으며(0), 권한 카나리는 배달된 검토 원본 리더로 돈다.
 
 | 경로(서브 루트) | 내용 | 전달타입 |
 |---|---|---|

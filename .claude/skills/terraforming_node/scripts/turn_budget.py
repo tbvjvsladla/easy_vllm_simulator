@@ -1,48 +1,151 @@
 #!/usr/bin/env python3
-"""turn_budget.py — 턴 예산의 **선언 검증기**(값의 소유자가 아니다).
+"""turn_budget.py — 턴 예산의 **선언 검증기**(값의 소유자가 아니다). 얇은 import 어댑터.
 
-2026-09-05 개정(`plan_26090516` ③ 3-1 · `audit_26090515` G-A2). 이 파일은 grade 표
-(S·L0~L4 의 max_turns/timeout 6쌍)를 갖고 있었고 그 표가 **모델 과적합의 정면 사례**로 지목됐다.
-표는 스스로 *"cold-start prior 이며 원장 `max_turns_used` 의 p90 으로 교정한다"* 고 적었지만
-**교정하는 코드도 부르는 사람도 없었다(소비자 0)**. 그 사이 값은 실측 없이 정본 행세를 했고,
-호출부는 과업의 크기 대신 표의 라벨을 골랐다 — 판단이 값으로 고정된 자리다(3원칙 ③ 위반).
+검증·판정·메시지·상한 읽기는 모두 Rust(`adversarial-benchmark/rust` 의 `turn_budget` 실행파일; 순수 업무는 공유 T
+`role-contract::turn_budget`)가 한다. 이 파일은 **기존 Python importer**(relay·bootstrap_canary·selftest_harness_switch)가
+`schema_cap`·`schema_max_turns`·`declare`·`REPO`·`REQUEST_SCHEMA` 를 같은 이름·서명으로 계속 부르게 하는 임시 어댑터이며
+업무 로직이 없다: 지원되는 값의 타입 전달(marshalling)·정확한 예외 클래스 재구성·서명·어휘적(lexical) 출처 사실만 가진다.
 
-지금 규약: **예산은 부르는 쪽이 선언한다.** 기본값을 여기서 만들지 않는다.
-전송 계약(요청 스키마)이 상한을 갖고, 원장이 이력을 갖고, 판단은 에이전트·사람이 한다.
+규약(원본 유지): 요청 스키마가 상한의 **단일 권위**이고 **호출마다 다시 읽는다**(상수·캐시 ✗). 기본 REPO 는 이 파일 경로
+(`os.path.abspath(__file__)`, 심볼릭 링크 해소 ✗)에서 네 단계 위다. 예산은 부르는 쪽이 선언한다(기본값 ✗).
 
-보존한 규율 두 문장 — 이제 값이 아니라 **문장**으로만 남는다(강제하는 코드는 없다):
-  ① **scope ⊥ budget** — `max_turns` 는 비용 노브이지 hang 노브가 아니다. 매달림은
-     `timeout_seconds` + 진행로그 + post-verify 로 따로 잡는다. 그래서 둘을 **함께** 선언한다.
-  ② 호출 소진은 checkpoint를 보존한 새 attempt에서 이어진다. 다음 예산은 남은 과업,
-     실제 호출 관측과 제안을 근거로 정하며, 같은 값이나 작은 값도 상황에 따라 가능하다.
+경로:
+  · CLI(`python3 turn_budget.py ...`) → `turn_budget.sh` 로 exec(같은 argv·환경·PID; 이 파일 경로를 출처로 전달).
+  · API(import) → 같은 실행파일의 비공개 브리지(`TURN_BUDGET_BRIDGE`, 타입 태그 JSON, 정수는 16진 전송).
+Rust 실행파일이 없으면 상태 2 와 빌드 안내로 **눈에 띄게** 실패한다(Python 대체 경로 없음 · 업무가 시작된 뒤 재시도 없음).
+
+남은 잔여(숨기지 않는다): ① 이 어댑터가 전달하지 않는 값(정확한 str·int·bool·float·None·bytes·list·tuple·문자열 키 dict·
+`os.PathLike` 밖의 객체, int 경로=파일 디스크립터)은 업무 전에 `NotImplementedError` 로 거절한다. ② in-process 예외의
+traceback 바이트(원본 소스 프레임)는 재현하지 않는다(U2 · 열림).
 """
 from __future__ import annotations
 
-import argparse
+import argparse  # noqa: F401 — the original's public import-time dependency (part of its module facts); the adapter does not use it
 import json
 import os
+import subprocess
 import sys
 
 # 요청 스키마가 상한의 **단일 권위**다 — 여기 숫자를 다시 적지 않는다(두 자리가 갈라진다).
 REPO = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".."))
 REQUEST_SCHEMA = os.path.join(REPO, ".claude", "schemas", "agent-control-request.schema.json")
 
+_LAUNCHER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "turn_budget.sh")
+_PROTOCOL = "turn-budget-bridge/1"
+_DEFAULT_SCHEMA = REQUEST_SCHEMA  # 원본의 `path=REQUEST_SCHEMA` 는 정의 시점에 묶인다 — declare 의 기본 스키마도 같다
+_EXCEPTIONS = {
+    "SystemExit": SystemExit, "FileNotFoundError": FileNotFoundError, "PermissionError": PermissionError,
+    "IsADirectoryError": IsADirectoryError, "NotADirectoryError": NotADirectoryError, "OSError": OSError,
+    "UnicodeDecodeError": UnicodeDecodeError, "UnicodeEncodeError": UnicodeEncodeError,
+    "ValueError": ValueError, "TypeError": TypeError, "AttributeError": AttributeError, "KeyError": KeyError,
+    "RecursionError": RecursionError, "StopIteration": StopIteration, "JSONDecodeError": json.JSONDecodeError,
+}
+
+
+# ── typed marshalling (no decision is taken here) ──────────────────────────────────────────
+
+def _unsupported(what):
+    raise NotImplementedError("turn_budget bridge does not carry %s (the original's behaviour is not reproduced)" % what)
+
+
+def _wire(value, _open=()):
+    kind = type(value)
+    if value is None:
+        return {"t": "none"}
+    if kind is bool:
+        return {"t": "bool", "v": value}
+    if kind is int:
+        return {"t": "int", "hex": ("-" if value < 0 else "+") + format(abs(value), "x")}
+    if kind is float:
+        return {"t": "float", "repr": repr(value)}
+    if kind is str:
+        return {"t": "str", "v": value}
+    if kind is bytes:
+        return {"t": "bytes", "hex": value.hex()}
+    if kind in (list, tuple, dict):
+        if id(value) in _open:
+            _unsupported("a self-referencing container")
+        inner = _open + (id(value),)
+        if kind is dict:
+            if any(type(key) is not str for key in value):
+                _unsupported("a dict with non-str keys")
+            return {"t": "dict", "v": [[_wire(key), _wire(item, inner)] for key, item in value.items()]}
+        return {"t": "list" if kind is list else "tuple", "v": [_wire(item, inner) for item in value]}
+    _unsupported("a value of type %s" % kind.__name__)
+
+
+def _wire_path(path):
+    kind = type(path)
+    if kind is not str and kind is not bytes and path is not None and hasattr(kind, "__fspath__"):
+        fspath = os.fspath(path)
+        return {"t": "pathlike", "fspath": _wire(fspath), "text": _wire(format(path, ""))}
+    return _wire(path)
+
+
+def _unwire(item):
+    tag = item["t"]
+    if tag == "none":
+        return None
+    if tag == "bool":
+        return item["v"]
+    if tag == "int":
+        return int(item["hex"], 16)
+    if tag == "float":
+        return float(item["repr"])
+    if tag == "str":
+        return item["v"]
+    if tag == "bytes":
+        return bytes.fromhex(item["hex"])
+    if tag == "list":
+        return [_unwire(x) for x in item["v"]]
+    if tag == "tuple":
+        return tuple(_unwire(x) for x in item["v"])
+    if tag == "dict":
+        return {_unwire(key): _unwire(value) for key, value in item["v"]}
+    raise RuntimeError("turn_budget bridge answered an unknown wire type %r" % tag)
+
+
+def _rebuild(exc):
+    cls = _EXCEPTIONS.get(exc["cls"])
+    if cls is None:
+        raise RuntimeError("turn_budget bridge reported an unknown exception class %r" % exc["cls"])
+    error = cls(*[_unwire(x) for x in exc["ctor"]], **{k: _unwire(v) for k, v in exc["ctor_kwargs"].items()})
+    if exc["context"] is not None:
+        error.__context__ = _rebuild(exc["context"])
+    error.__suppress_context__ = exc["suppress_context"]
+    return error
+
+
+def _ask(request):
+    """One request to the private bridge; the answer record (never an exception of the original)."""
+    env = dict(os.environ, TURN_BUDGET_BRIDGE="1", TURN_BUDGET_OWNER_PATH=os.path.abspath(__file__))
+    request["protocol"] = _PROTOCOL
+    process = subprocess.run(["/bin/bash", _LAUNCHER], input=json.dumps(request, ensure_ascii=True).encode("ascii"),
+                             capture_output=True, env=env)
+    if process.returncode != 0:
+        raise RuntimeError("[turn_budget] native bridge failed (status %d): %s"
+                           % (process.returncode, process.stderr.decode("utf-8", "replace").rstrip()))
+    answer = json.loads(process.stdout.decode("ascii"))
+    if answer.get("protocol") != _PROTOCOL:
+        raise RuntimeError("[turn_budget] native bridge speaks another protocol; rebuild it")
+    return answer
+
+
+def _finish(answer):
+    status = answer["status"]
+    if status == "raised":
+        raise _rebuild(answer["exc"])
+    if status == "unsupported":
+        _unsupported(answer["reason"])
+    return _unwire(answer["value"])
+
+
+# ── the original API (same names, signatures, constants) ───────────────────────────────────────
 
 def schema_cap(field: str, path: str = REQUEST_SCHEMA) -> int:
-    """agent-control 요청 스키마에서 그 필드의 상한을 읽는다. 못 읽으면 fail-loud.
-
-    2026-09-03 실측(P4): 옛 등급표의 증액 계수가 104 를 냈고 요청 스키마가
-    `$.max_turns: 104 above maximum 100` 으로 **정상 차단**했다. 가드는 제 일을 했지만
-    증액하는 쪽이 상한을 몰라 **attempt 하나가 통째로 낭비됐다**. 상한을 상수로 복제하면
-    스키마와 갈라지므로 **읽는다**.
-    """
-    with open(path, encoding="utf-8") as f:
-        doc = json.load(f)
-    node = (doc.get("properties") or {}).get(field) or {}
-    cap = node.get("maximum")
-    if not isinstance(cap, int) or cap < 1:
-        raise SystemExit(f"[turn-budget] FAIL: 요청 스키마에서 {field} 상한을 읽지 못했다 — {path}")
-    return cap
+    """agent-control 요청 스키마에서 그 필드의 상한을 읽는다. 못 읽으면 fail-loud(Rust 가 호출마다 읽는다)."""
+    request = {"op": "schema_cap", "field": _wire(field), "path": _wire_path(path)}
+    return _finish(_ask(request))
 
 
 def schema_max_turns(path: str = REQUEST_SCHEMA) -> int:
@@ -51,128 +154,38 @@ def schema_max_turns(path: str = REQUEST_SCHEMA) -> int:
 
 def declare(max_turns, timeout_seconds, *, source: str, caps: dict = None,
             unit: str = "native_turns", max_dispatches: int | None = None) -> dict:
-    """**선언된** 예산을 검증해 그대로 돌려준다. 값을 만들지 않는다 — 없으면 fail-loud.
+    """**선언된** 예산을 검증해 그대로 돌려준다. 값을 만들지 않는다 — 없으면 fail-loud. (`max_dispatches` 는 원본처럼 무시한다.)"""
+    request = {"op": "declare", "max_turns": _wire(max_turns), "timeout_seconds": _wire(timeout_seconds),
+               "source": _wire(source), "caps": _wire(caps), "unit": _wire(unit),
+               "default_schema": _wire_path(_DEFAULT_SCHEMA)}
+    return _finish(_ask(request))
 
-    `source` 는 선택이 아니다: 결정론 규율(§출처 표시)은 값 옆에 그 값이 어디서 왔는지를
-    요구한다. 옛 표는 이 자리에 `grade-table:...` 을 적어 출처가 있는 것처럼 보였지만
-    그 출처가 가리키는 곳에는 측정이 없었다. 이제 선언한 쪽이 자기 근거를 적는다.
-    """
-    caps = caps or {"max_turns": schema_cap("max_turns"),
-                    "timeout_seconds": schema_cap("timeout_seconds")}
-    if unit not in ("native_turns", "wall_time"):
-        raise SystemExit(f"[turn-budget] FAIL: unsupported budget unit {unit!r}")
-    if unit == "wall_time":
-        if max_turns is not None:
-            raise SystemExit("[turn-budget] FAIL: wall_time provider cannot enforce native max_turns")
-    vals = {"timeout_seconds": timeout_seconds}
-    if unit == "native_turns":
-        vals["max_turns"] = max_turns
-    for k, v in vals.items():
-        if v is None:
-            raise SystemExit(
-                f"[turn-budget] FAIL: {k} 가 선언되지 않았다 — 기본값을 만들지 않는다(등급표 폐기).\n"
-                "  → 예산은 과업의 크기를 아는 쪽이 정한다. `--max-turns`/`--timeout-seconds` 로 선언하라.\n"
-                "  → 규율: scope ⊥ budget(매달림은 timeout 이 잡는다) · checkpoint부터 재개.")
-        if not isinstance(v, int) or isinstance(v, bool) or v < 1:
-            raise SystemExit(f"[turn-budget] FAIL: {k}={v!r} 은 1 이상의 정수가 아니다.")
-        if v > caps[k]:
-            raise SystemExit(
-                f"[turn-budget] FAIL: {k}={v} 가 전송 상한 {caps[k]} 을 넘는다(요청 스키마).\n"
-                "  → 상한에서 모자란다면 예산 문제가 아니라 **과업을 더 작게 쪼개라는 신호**다"
-                "(scope ⊥ budget).")
-    if not (isinstance(source, str) and source.strip()):
-        raise SystemExit("[turn-budget] FAIL: 예산 출처(source)가 비어 있다 — 값 옆에 출처를 적는다.")
-    result = {"max_turns": max_turns, "timeout_seconds": timeout_seconds, "source": source.strip()}
-    if unit == "wall_time":
-        # Legacy callers may supply max_dispatches; cumulative dispatch limits are
-        # not a native budget and are deliberately not emitted.
-        result.update(budget_unit=unit)
-    return result
+
+def _module_facts() -> str:
+    """The key names of this module's namespace, as a fact for the self-test's tripwire (Rust owns the list and the verdict)."""
+    return "\n".join(globals())
 
 
 def _self_test() -> int:
-    ok = True
-
-    def chk(cond, label):
-        nonlocal ok
-        print("  [%s] %s" % ("PASS" if cond else "FAIL", label))
-        ok = ok and bool(cond)
-
-    # ★ tripwire: 등급표가 되살아나면 여기서 잡는다(2026-09-05 삭제 · G-A2).
-    revived = [n for n in ("GRADES", "GRADE_ORDER", "MIN_TURNS", "ESCALATION_FACTOR",  # antipattern-ok: G-A2-grade-table — tripwire 목록 자신(어휘를 적어야 검사가 성립한다)
-                           "MAX_ATTEMPTS_BEFORE_HITL", "budget", "escalate")  # antipattern-ok: G-A2-grade-table — 동상
-               if n in globals()]
-    chk(revived == [], f"등급표·증액계수·정지한계가 되살아나지 않았다(발견 {revived})")
-
-    caps = {"max_turns": schema_cap("max_turns"), "timeout_seconds": schema_cap("timeout_seconds")}
-    chk(caps == {"max_turns": 100, "timeout_seconds": 3600},
-        f"상한을 요청 스키마에서 읽는다(상수 복제 ✗) → {caps}")
-
-    d = declare(24, 1800, source="선언: 빌드 1회 + 스모크 — 원장 attempt 3 의 실측 turns=19")
-    chk(d["max_turns"] == 24 and d["timeout_seconds"] == 1800,
-        "선언한 값이 그대로 나온다(재계산·보정 ✗)")
-    chk("원장" in d["source"], "값 옆에 출처가 남는다")
-
-    for bad, label in ((None, "미선언"), (0, "0"), (-1, "음수"), (True, "bool"), ("10", "문자열")):
-        try:
-            declare(bad, 600, source="s")
-            chk(False, f"{label} max_turns → fail-loud")
-        except SystemExit:
-            chk(True, f"{label} max_turns → fail-loud")
-    try:
-        declare(10, None, source="s")
-        chk(False, "timeout 미선언 → fail-loud")
-    except SystemExit as e:
-        chk("scope ⊥ budget" in str(e), "timeout 미선언 → fail-loud(두 규율을 함께 말한다)")
-    try:
-        declare(caps["max_turns"] + 1, 600, source="s")
-        chk(False, "상한 초과 → fail-loud")
-    except SystemExit as e:
-        chk("쪼개라" in str(e), "상한 초과는 증액이 아니라 **과업 분할**을 지시한다")
-    try:
-        declare(10, 600, source="   ")
-        chk(False, "출처 없는 선언 → fail-loud")
-    except SystemExit:
-        chk(True, "출처 없는 선언 → fail-loud(출처 표시 규율)")
-
-    wall = declare(None, 90, source="per-invocation", unit="wall_time")
-    chk(wall["budget_unit"] == "wall_time" and "max_dispatches" not in wall,
-        "Codex wall-time declaration requires no cumulative dispatch count")
-    legacy = declare(None, 90, source="historical caller", unit="wall_time", max_dispatches=3)
-    chk("max_dispatches" not in legacy, "new budgets do not emit a legacy dispatch count")
-    for kwargs in ({"max_turns": None, "timeout_seconds": None},
-                   {"max_turns": 2, "timeout_seconds": 90}):
-        try:
-            declare(source="negative", unit="wall_time", **kwargs)
-            chk(False, "Codex missing timeout or native turn cap rejected")
-        except SystemExit:
-            chk(True, "Codex missing timeout or native turn cap rejected")
-
-    print("self-test: %s" % ("PASS" if ok else "FAIL"))
-    return 0 if ok else 2
+    # a closed standard descriptor leaves `sys.stdout` as None: there is nothing to flush (a real stream's flush error still propagates)
+    if sys.stdout is not None:
+        sys.stdout.flush()
+    return subprocess.call(["/bin/bash", _LAUNCHER, "--self-test"],
+                           env=dict(os.environ, TURN_BUDGET_OWNER_PATH=os.path.abspath(__file__),
+                                    TURN_BUDGET_MODULE_NAMES=_module_facts()))
 
 
 def main() -> int:
-    ap = argparse.ArgumentParser(description="턴 예산 선언 검증기(값의 소유자 ✗ — 부르는 쪽이 선언한다)")
-    ap.add_argument("--max-turns", type=int, default=None)
-    ap.add_argument("--timeout-seconds", type=int, default=None)
-    ap.add_argument("--source", default=None, help="이 예산을 그렇게 정한 근거(필수)")
-    ap.add_argument("--caps", action="store_true", help="요청 스키마가 가진 상한을 출력한다")
-    ap.add_argument("--self-test", action="store_true")
-    a = ap.parse_args()
-    if a.self_test:
-        return _self_test()
-    if a.caps:
-        json.dump({"max_turns": schema_cap("max_turns"),
-                   "timeout_seconds": schema_cap("timeout_seconds"),
-                   "source": f"request-schema:{os.path.relpath(REQUEST_SCHEMA, REPO)}"},
-                  sys.stdout, ensure_ascii=False, indent=2)
-        sys.stdout.write("\n")
-        return 0
-    json.dump(declare(a.max_turns, a.timeout_seconds, source=a.source or ""),
-              sys.stdout, ensure_ascii=False, indent=2)
-    sys.stdout.write("\n")
-    return 0
+    """CLI: the launcher replaces this process (same argv, environment and PID); it only returns on a failed exec."""
+    env = {k: v for k, v in os.environ.items() if k != "TURN_BUDGET_BRIDGE"}
+    env["TURN_BUDGET_OWNER_PATH"] = os.path.abspath(__file__)
+    env["TURN_BUDGET_MODULE_NAMES"] = _module_facts()
+    # an absent stream (closed fd 1/2: `sys.stdout`/`sys.stderr` is None) is skipped; a present stream's flush error is not swallowed
+    for stream in (sys.stdout, sys.stderr):
+        if stream is not None:
+            stream.flush()
+    os.execve("/bin/bash", ["bash", _LAUNCHER, *sys.argv[1:]], env)
+    return 1
 
 
 if __name__ == "__main__":

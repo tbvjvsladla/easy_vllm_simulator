@@ -95,6 +95,11 @@ case "$1" in
   *) exit 0 ;;
 esac
 '''
+MC_LAUNCHER_STUB = (
+    "#!/bin/bash\n"
+    '[ "${MANIFEST_CONTRACT_VALIDATE_ONLY:-}" = 1 ] && exit 0\n'
+    'exec python3 "$(dirname "${BASH_SOURCE[0]}")/manifest_contract.py" "$@"\n'
+)
 MC_STUB = '''#!/usr/bin/env python3
 # @SENTINEL@ — 테라포밍 Flag 게이트 stub(이 시험의 대상이 아니다 · 실 게이트는 benchmark_info_only_gate 가 지킨다).
 import sys
@@ -135,6 +140,7 @@ class Sandbox:
             shutil.copy2(REPO / rel, self.root / rel)
         _write(self.root / ".claude/skills/terraforming_node/scripts/manifest_contract.py",
                MC_STUB.replace("@SENTINEL@", SHIM_SENTINEL), 0o755)
+        _write(self.root / ".claude/skills/terraforming_node/scripts/manifest_contract.sh", MC_LAUNCHER_STUB, 0o755)
         _write(self.bindir / "docker", DOCKER_SHIM.replace("@SENTINEL@", SHIM_SENTINEL), 0o755)
         _write(self.bindir / "curl", "#!/bin/sh\nprintf 200\n", 0o755)
         _write(self.bindir / "nvidia-smi", "#!/bin/sh\necho '[N/A], [N/A]'\n", 0o755)

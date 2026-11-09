@@ -21,11 +21,18 @@ use agent_runtime_support::pyvalue::{PyDict, PyValue};
 pub mod campaign;
 pub mod identity;
 pub mod load;
+pub mod manifest_gate;
+pub mod manifest_gate_cli;
 pub mod pyprofile;
+pub mod scan_node;
+pub mod scan_node_files;
+pub mod scan_node_manifest;
+pub mod scan_node_probe;
 pub mod self_test;
 pub mod source_identity;
 pub mod topology;
 pub mod topology_cli;
+pub mod turn_budget;
 #[rustfmt::skip]
 pub mod topology_doc;
 

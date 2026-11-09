@@ -1075,7 +1075,22 @@ render_topology() {
     if [ -n "$HINT_WRITE_SCOPES" ]; then
         hint_scope_args=(--hint-write-scopes "$HINT_WRITE_SCOPES")
     fi
-    python3 "$RENDER" --topology "$1" --tracked-list "$_tracked_list" "${hint_scope_args[@]}" >/dev/null || {
+    # 소스-온리 스냅샷은 의도적으로 빌드 산출물(무시되는 ELF·cargo 캐시)을 담지 않는다 — 복사도 빌드도 하지 않는다. 그런데 스테이징된
+    #   render_sub_env.py 는 manifest_contract.py(얇은 import 어댑터)를 import 하고, 그 어댑터는 **자기 트리의**
+    #   adversarial-benchmark/rust/target/release/manifest_contract 를 기본값으로 연다 → 스냅샷엔 없어 render 가 status 2 로 죽었다
+    #   (2026-11-09 공식 기본 dry-run exit 9 · 호출자가 MANIFEST_CONTRACT_BIN 을 손으로 export 해야 통과 = 문서화되지 않은 전제).
+    #   처방은 실행 경계의 바인딩이다: 이 노드(정본 트리)가 이미 빌드한 **같은 ELF** 의 경로를 **이 render 자식 프로세스에만** 준다.
+    #   · 호출자가 MANIFEST_CONTRACT_BIN 을 정했으면(빈 값 포함 — 설정됨) 손대지 않는다: 덮어쓰지도, 실패 뒤 대체하지도 않는다
+    #     (빈 값의 의미는 소비자의 것이다 — 기본 경로로 읽혀 같은 소리로 실패한다 · 숨기지 않는다).
+    #   · 서브로 가는 것은 스테이징 트리의 파일뿐이다 — 이 경로는 자식 환경에만 있고 페이로드에 실리지 않는다. ELF 는 복사하지 않는다.
+    #   · 정본에 ELF 가 없거나 실행 불가면 소비자가 기존 그대로 exit 2 안내 → render 실패(9)로 크게 실패한다(여기서 빌드·대체 ✗).
+    #   (render_dockerfile.py 의 위 호출 3종은 이 모듈을 import 하는 경로 --canonical-kind/--template 를 타지 않으므로 바인딩 대상이 아니다.)
+    local mc_env=() mc_root
+    if [ -z "${MANIFEST_CONTRACT_BIN+x}" ]; then
+        mc_root="$(CDPATH='' cd "$CANONICAL_SRC" && pwd)" || { rm -f "$_tracked_list"; return 9; }
+        mc_env=("MANIFEST_CONTRACT_BIN=$mc_root/.claude/skills/adversarial-benchmark/rust/target/release/manifest_contract")
+    fi
+    env "${mc_env[@]}" python3 "$RENDER" --topology "$1" --tracked-list "$_tracked_list" "${hint_scope_args[@]}" >/dev/null || {
         rm -f "$_tracked_list"; return 9; }
     rm -f "$_tracked_list"
     if [ "$1" != "multi" ] && [ -d "$output_dir/envs" ] \

@@ -24,6 +24,12 @@ pub const REVIEWED_CAMPAIGN: &[u8] = include_bytes!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/../../skills/terraforming_node/scripts/campaign_init.py"
 ));
+/// Bytes of the reviewed ORIGINAL `manifest_contract.py` (e84fa13c...), kept unchanged as the sibling compat owner
+/// (`.claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py`): `manifest_contract.py` itself is now the thin import adapter.
+pub const REVIEWED_MANIFEST_CONTRACT: &[u8] = include_bytes!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../../skills/terraforming_node/scripts/manifest_contract_compat_owner.py"
+));
 /// The owner path relative to a checkout.
 pub const OWNER_REL: &str = ".claude/policies/runtime/topology_parity.py";
 

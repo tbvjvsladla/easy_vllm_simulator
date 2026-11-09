@@ -120,6 +120,9 @@ impl<'a> TextStream<'a> {
     }
 }
 
+/// Identity tokens of the `Mark` objects (provenance only: no behaviour depends on their values, only on their equality).
+static MARK_ORIGINS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+
 pub(crate) struct Reader<'a> {
     pub name: Rc<PyStr>,
     stream: TextStream<'a>,
@@ -318,11 +321,13 @@ impl<'a> Reader<'a> {
     /// `get_mark()`: the call, and the `Mark.__init__` it makes.
     pub fn mark(&self) -> Parsed<Mark> {
         nested(&["get_mark", "__init__"])?;
+        // `get_mark()` builds a NEW `yaml.error.Mark` object every time: a fresh origin
         Ok(Mark {
             name: self.name.clone(),
             index: self.index,
             line: self.line,
             column: self.column,
+            origin: MARK_ORIGINS.fetch_add(1, std::sync::atomic::Ordering::Relaxed),
         })
     }
 }

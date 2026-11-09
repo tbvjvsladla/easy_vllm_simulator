@@ -215,6 +215,9 @@ def _self_test():
             #   게이트까지 **실제로 흘러가는지**를 본다. 스텁은 미발급(3)을 돌려 두 스크립트가 exit 4 에서 멈추게 한다.
             write(os.path.join(root, ".claude", "skills", "terraforming_node", "scripts", "manifest_contract.py"),
                   "import sys\nopen(%r, 'a').write(' '.join(sys.argv[1:]) + '\\n')\nsys.exit(3)\n" % marker)
+            write(os.path.join(root, ".claude", "skills", "terraforming_node", "scripts", "manifest_contract.sh"),
+                  "#!/bin/bash\n[ \"${MANIFEST_CONTRACT_VALIDATE_ONLY:-}\" = 1 ] && exit 0\n"
+                  "exec python3 \"$(dirname \"${BASH_SOURCE[0]}\")/manifest_contract.py\" \"$@\"\n", 0o755)
             env = dict(os.environ, PYTHONDONTWRITEBYTECODE="1")
             # The byte-copy probes execute their own deployed files, independent of parent test overrides.
             for key in ("RESOLVE_TOPOLOGY_BIN", "RESOLVE_TOPOLOGY_API_BIN", "REPEAT_AXIS_BIN",

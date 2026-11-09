@@ -15,6 +15,10 @@ path = "src/lib.rs"
 agent-runtime-support = { path = "../runtime-support" }
 
 [[test]]
+name = "scan_node_probe_checks"
+path = "checks/scan_node_probe_checks.rs"
+
+[[test]]
 name = "role_contract_checks"
 path = "checks/role_contract_checks.rs"
 
@@ -25,3 +29,7 @@ path = "checks/identity_checks.rs"
 [[test]]
 name = "topology_checks"
 path = "checks/topology_checks.rs"
+
+[[test]]
+name = "manifest_gate_checks"
+path = "checks/manifest_gate_checks.rs"

@@ -121,7 +121,7 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/scan_node.py",
+          "path": ".claude/rust/role-contract/src/scan_node_manifest.rs",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C3"
           ],
@@ -303,7 +303,7 @@
       "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
-        "state": "current",
+        "state": "due",
         "last_reviewed_at": "2026-07-25",
         "next_review_due": "2026-10-23",
         "reviewer": "maintainer",
@@ -399,7 +399,7 @@
       "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
-        "state": "current",
+        "state": "due",
         "last_reviewed_at": "2026-07-25",
         "next_review_due": "2026-10-23",
         "reviewer": "maintainer",
@@ -475,7 +475,7 @@
       "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
-        "state": "current",
+        "state": "due",
         "last_reviewed_at": "2026-07-25",
         "next_review_due": "2026-10-23",
         "reviewer": "maintainer",
@@ -704,7 +704,7 @@
       "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
-        "state": "current",
+        "state": "due",
         "last_reviewed_at": "2026-07-25",
         "next_review_due": "2026-10-23",
         "reviewer": "maintainer",
@@ -797,7 +797,7 @@
       "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
-        "state": "current",
+        "state": "due",
         "last_reviewed_at": "2026-07-25",
         "next_review_due": "2026-10-23",
         "reviewer": "maintainer",
@@ -849,7 +849,17 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
+          "path": ".claude/rust/role-contract/src/manifest_gate.rs",
+          "supports": [
+            "MODEL_ACQUISITION_TERNARY_GATE.C1"
+          ],
+          "assertion_ids": [
+            "VALID_MODES",
+            "effective_model_source"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
           "supports": [
             "MODEL_ACQUISITION_TERNARY_GATE.C1"
           ],
@@ -928,7 +938,7 @@
       "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
-        "state": "current",
+        "state": "due",
         "last_reviewed_at": "2026-07-25",
         "next_review_due": "2026-10-23",
         "reviewer": "maintainer",
@@ -1020,7 +1030,7 @@
       "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
-        "state": "current",
+        "state": "due",
         "last_reviewed_at": "2026-07-25",
         "next_review_due": "2026-10-23",
         "reviewer": "maintainer",
@@ -1138,7 +1148,7 @@
       "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
-        "state": "current",
+        "state": "due",
         "last_reviewed_at": "2026-07-25",
         "next_review_due": "2026-10-23",
         "reviewer": "maintainer",
@@ -1228,7 +1238,7 @@
       "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
-        "state": "current",
+        "state": "due",
         "last_reviewed_at": "2026-07-25",
         "next_review_due": "2026-10-23",
         "reviewer": "maintainer",
@@ -1316,7 +1326,7 @@
       "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
-        "state": "current",
+        "state": "due",
         "last_reviewed_at": "2026-07-25",
         "next_review_due": "2026-10-23",
         "reviewer": "maintainer",
@@ -1352,7 +1362,18 @@
       ],
       "evidence": [
         {
-          "path": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
+          "path": ".claude/rust/role-contract/src/manifest_gate.rs",
+          "supports": [
+            "TERRAFORM_FLAG_GATE.C1",
+            "TERRAFORM_FLAG_GATE.C3"
+          ],
+          "assertion_ids": [
+            "evaluate_contract",
+            "resolve_topology"
+          ]
+        },
+        {
+          "path": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
           "supports": [
             "TERRAFORM_FLAG_GATE.C1",
             "TERRAFORM_FLAG_GATE.C3"
@@ -1444,7 +1465,7 @@
       "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
-        "state": "current",
+        "state": "due",
         "last_reviewed_at": "2026-07-25",
         "next_review_due": "2026-10-23",
         "reviewer": "maintainer",
@@ -1480,49 +1501,87 @@
       ],
       "evidence": [
         {
-          "path": ".claude/skills/terraforming_node/scripts/scan_node.py",
-          "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C1"],
-          "assertion_ids": ["collect_peer_hw", "_peer_ssh_diag"]
+          "path": ".claude/skills/terraforming_node/scripts/scan_node_original.py",
+          "supports": [
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1"
+          ],
+          "assertion_ids": [
+            "collect_peer_hw",
+            "_peer_ssh_diag"
+          ]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
-          "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C1"],
-          "assertion_ids": ["predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1"]
+          "supports": [
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1"
+          ],
+          "assertion_ids": [
+            "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1"
+          ]
         },
         {
           "path": ".claude/policies/runtime/completion_gate.py",
-          "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C2"],
-          "assertion_ids": ["cmd_authorize"]
+          "supports": [
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2"
+          ],
+          "assertion_ids": [
+            "cmd_authorize"
+          ]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
-          "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C2"],
-          "assertion_ids": ["predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2"]
+          "supports": [
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2"
+          ],
+          "assertion_ids": [
+            "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2"
+          ]
         },
         {
           "path": ".claude/policies/runtime/completion_gate.py",
-          "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"],
-          "assertion_ids": ["cmd_authorize"]
+          "supports": [
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"
+          ],
+          "assertion_ids": [
+            "cmd_authorize"
+          ]
         },
         {
           "path": ".claude/skills/terraforming_node/scripts/agent_control.py",
-          "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"],
-          "assertion_ids": ["_request_contract_violations", "cmd_invoke"]
+          "supports": [
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"
+          ],
+          "assertion_ids": [
+            "_request_contract_violations",
+            "cmd_invoke"
+          ]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
-          "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"],
-          "assertion_ids": ["predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3"]
+          "supports": [
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"
+          ],
+          "assertion_ids": [
+            "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3"
+          ]
         },
         {
           "path": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
-          "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C4"],
-          "assertion_ids": ["render_tree"]
+          "supports": [
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4"
+          ],
+          "assertion_ids": [
+            "render_tree"
+          ]
         },
         {
           "path": ".claude/policies/predicates/claim_predicates.py",
-          "supports": ["A2A_IDENTITY_PROOF_FAIL_CLOSED.C4"],
-          "assertion_ids": ["predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4"]
+          "supports": [
+            "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4"
+          ],
+          "assertion_ids": [
+            "predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4"
+          ]
         }
       ],
       "remove_when": "Removable only if the A2A trust model is redesigned around a different credential scheme, documented in a superseding plan and re-verified by a live key-present / key-absent A2A delegation test on heterogeneous and homogeneous hardware.",
@@ -1530,7 +1589,7 @@
       "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
-        "state": "current",
+        "state": "due",
         "last_reviewed_at": "2026-07-25",
         "next_review_due": "2026-10-23",
         "reviewer": "maintainer",
@@ -1656,7 +1715,7 @@
       "last_reproduced": "2026-09-03",
       "status": "candidate",
       "review": {
-        "state": "current",
+        "state": "due",
         "last_reviewed_at": "2026-07-25",
         "next_review_due": "2026-10-23",
         "reviewer": "maintainer",

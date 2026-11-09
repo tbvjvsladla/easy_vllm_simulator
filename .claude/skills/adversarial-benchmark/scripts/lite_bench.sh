@@ -109,7 +109,17 @@ fi
 # Terraform readiness is manifest/Flag/topology-based. SSH authenticates a provisioned
 # endpoint; unsigned Agent Card metadata is not an execution credential.
 MC="$REPO/.claude/skills/terraforming_node/scripts/manifest_contract.py"
-if [ ! -f "$MC" ] || ! python3 "$MC" --topology "$TOPO" --repo "$REPO" --require-flag >/dev/null 2>&1; then
+# Flag 게이트 런타임(Rust manifest_contract)은 게이트 판정 전에 한 번 확인한다. 게이트 호출은 stdout/stderr 와 상태를 버리고
+# 비0 을 모두 info-only 4 로 읽으므로(아래), 실행파일 부재가 "Flag 미발급"으로 가려지지 않게 여기서 안내를 보이고 상태를
+# 전파한다. 가용성 확인일 뿐 건강 증명이 아니며, 런타임이 있으면 이후 판정·종료는 종전과 같다(owner 부재는 종전대로 4).
+if [ -f "$MC" ]; then
+  MANIFEST_CONTRACT_VALIDATE_ONLY=1 bash "${MC%.py}.sh" || {
+    _MC_RC=$?
+    echo "[lite_bench] ERROR 테라포밍-완수 Flag 게이트 런타임(manifest_contract)을 쓸 수 없다 — Flag 미발급이 아니다(위 안내로 빌드한 뒤 다시)." >&2
+    exit "$_MC_RC"
+  }
+fi
+if [ ! -f "$MC" ] || ! bash "${MC%.py}.sh" --topology "$TOPO" --repo "$REPO" --require-flag >/dev/null 2>&1; then
   echo "[lite_bench] 테라포밍-완수 Flag 또는 topology 준비성 미확인 — info-only(fail-closed)." >&2
   exit 4
 fi

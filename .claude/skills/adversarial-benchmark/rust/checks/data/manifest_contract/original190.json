@@ -1,0 +1,5075 @@
+{
+"schema": "r48-manifest-contract-golden/1",
+"provenance": "literal copy of the ONE actual ORIGINAL190 capture (T/r48-original190-actual-summary/result.json, Python 3.12.3 / PyYAML 6.0.1); only the private fixture root and owner clone path are replaced by <FIXROOT>/<OWNER>; bytes are latin-1 code points",
+"base_profile_env": {
+"LANG": "C.UTF-8",
+"LC_ALL": "C.UTF-8"
+},
+"rows": [
+{
+"id": "T01",
+"group": "TOPO",
+"repo_group": "single",
+"case_dir": "cases/T01",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "T01",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "T02",
+"group": "TOPO",
+"repo_group": "multi",
+"case_dir": "cases/T02",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "T02",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=multi \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=2 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "T03",
+"group": "TOPO",
+"repo_group": "single",
+"case_dir": "cases/T03",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "T03",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 6,
+"stdout": "",
+"stderr": "\u00ec\u009a\u0094\u00ec\u00b2\u00ad topology='multi' \u00ec\u009d\u00b4 \u00ec\u00b2\u00b4\u00ed\u0081\u00ac\u00ec\u0095\u0084\u00ec\u009b\u0083 \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00ea\u00b0\u0080 \u00ea\u00b3\u00a0\u00eb\u00a5\u00b4\u00eb\u008a\u0094 \u00ed\u0086\u00b5\u00eb\u00a1\u009c 'single' \u00ec\u0099\u0080 \u00eb\u008b\u00a4\u00eb\u00a5\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00eb\u00a5\u00bc \u00eb\u00b0\u0094\u00ea\u00be\u00b8\u00ea\u00b1\u00b0\u00eb\u0082\u0098 \u00ec\u009a\u0094\u00ec\u00b2\u00ad\u00ec\u009d\u0084 \u00eb\u00b0\u0094\u00ea\u00bf\u0094\u00eb\u009d\u00bc(\u00ec\u009e\u0090\u00eb\u008f\u0099 \u00ea\u00b5\u0090\u00ec\u00a0\u0095\u00ed\u0095\u0098\u00ec\u00a7\u0080 \u00ec\u0095\u008a\u00eb\u008a\u0094\u00eb\u008b\u00a4). \u00ec\u00a0\u0095\u00eb\u00b3\u00b8 \u00ec\u0088\u00a0\u00ec\u0096\u00b4: topology_parity.py\n"
+},
+{
+"id": "T04",
+"group": "TOPO",
+"repo_group": "single",
+"case_dir": "cases/T04",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": null,
+"run": true,
+"exit": 6,
+"stdout": "{\"flag\": false, \"reason\": \"\u00ec\u009a\u0094\u00ec\u00b2\u00ad topology='multi' \u00ec\u009d\u00b4 \u00ec\u00b2\u00b4\u00ed\u0081\u00ac\u00ec\u0095\u0084\u00ec\u009b\u0083 \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00ea\u00b0\u0080 \u00ea\u00b3\u00a0\u00eb\u00a5\u00b4\u00eb\u008a\u0094 \u00ed\u0086\u00b5\u00eb\u00a1\u009c 'single' \u00ec\u0099\u0080 \u00eb\u008b\u00a4\u00eb\u00a5\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00eb\u00a5\u00bc \u00eb\u00b0\u0094\u00ea\u00be\u00b8\u00ea\u00b1\u00b0\u00eb\u0082\u0098 \u00ec\u009a\u0094\u00ec\u00b2\u00ad\u00ec\u009d\u0084 \u00eb\u00b0\u0094\u00ea\u00bf\u0094\u00eb\u009d\u00bc(\u00ec\u009e\u0090\u00eb\u008f\u0099 \u00ea\u00b5\u0090\u00ec\u00a0\u0095\u00ed\u0095\u0098\u00ec\u00a7\u0080 \u00ec\u0095\u008a\u00eb\u008a\u0094\u00eb\u008b\u00a4). \u00ec\u00a0\u0095\u00eb\u00b3\u00b8 \u00ec\u0088\u00a0\u00ec\u0096\u00b4: topology_parity.py\", \"topology\": \"multi\", \"redirect\": \"HW\u00ec\u008a\u00a4\u00ec\u00ba\u0094\u00ec\u009d\u00b4 \u00eb\u008d\u009c \u00eb\u0090\u0098\u00ec\u0096\u00b4(Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ed\u0096\u0089) HW \u00ec\u008a\u00a4\u00ed\u008e\u0099(GPU\u00c2\u00b7OS)\u00ec\u009d\u0084 \u00ec\u0095\u008c\u00ea\u00b8\u00b0 \u00ec\u0096\u00b4\u00eb\u00a0\u00a4\u00ec\u009b\u008c, \u00eb\u00aa\u00a8\u00eb\u008d\u00b8\u00ec\u009d\u0098 \u00ec\u00a0\u0095\u00ed\u0099\u0095\u00ed\u0095\u009c \u00ec\u0084\u009c\u00eb\u00b9\u0099\u00ec\u00a0\u0084\u00eb\u009e\u00b5\u00ec\u009d\u0084 \u00ec\u0084\u00b8\u00ec\u009a\u00b0\u00ea\u00b8\u00b0 \u00ec\u0096\u00b4\u00eb\u00a0\u00b5\u00ec\u008a\u00b5\u00eb\u008b\u0088\u00eb\u008b\u00a4. terraforming_node \u00eb\u00a1\u009c \u00e2\u0091\u00a0 HW\u00ec\u008a\u00a4\u00ec\u00ba\u0094 + \u00e2\u0091\u00a1 \u00eb\u00aa\u00a8\u00eb\u008d\u00b8 \u00eb\u008b\u00a4\u00ec\u009a\u00b4\u00eb\u00a1\u009c\u00eb\u0093\u009c \u00ec\u00a0\u0084\u00eb\u009e\u00b5(\u00ea\u00b4\u0080\u00eb\u00a6\u00ac NAS \u00ea\u00b2\u00bd\u00eb\u00a1\u009c? \u00ec\u00bb\u00a8\u00ed\u0085\u008c\u00ec\u009d\u00b4\u00eb\u0084\u0088 \u00ec\u009e\u0084\u00ec\u008b\u009c \u00eb\u008b\u00a4\u00ec\u009a\u00b4\u00eb\u00a1\u009c\u00eb\u0093\u009c(\u00ec\u00bb\u00a8\u00ed\u0085\u008c\u00ec\u009d\u00b4\u00eb\u0084\u0088 down \u00ec\u008b\u009c \u00ec\u0082\u00ad\u00ec\u00a0\u009c)? \u00ed\u008a\u00b9\u00ec\u00a0\u0095 \u00ea\u00b2\u00bd\u00eb\u00a1\u009c \u00ec\u00a0\u0080\u00ec\u009e\u00a5\u00c2\u00b7\u00eb\u00a7\u0088\u00ec\u009a\u00b4\u00ed\u008a\u00b8?)\u00ec\u009d\u0084 \u00eb\u00a8\u00bc\u00ec\u00a0\u0080 \u00ec\u00a0\u0095\u00ed\u0095\u00a9\u00ec\u008b\u009c\u00eb\u008b\u00a4.\"}\n",
+"stderr": ""
+},
+{
+"id": "T05",
+"group": "TOPO",
+"repo_group": "multi",
+"case_dir": "cases/T05",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "T05",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 6,
+"stdout": "",
+"stderr": "\u00ec\u009a\u0094\u00ec\u00b2\u00ad topology='single' \u00ec\u009d\u00b4 \u00ec\u00b2\u00b4\u00ed\u0081\u00ac\u00ec\u0095\u0084\u00ec\u009b\u0083 \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00ea\u00b0\u0080 \u00ea\u00b3\u00a0\u00eb\u00a5\u00b4\u00eb\u008a\u0094 \u00ed\u0086\u00b5\u00eb\u00a1\u009c 'multi' \u00ec\u0099\u0080 \u00eb\u008b\u00a4\u00eb\u00a5\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00eb\u00a5\u00bc \u00eb\u00b0\u0094\u00ea\u00be\u00b8\u00ea\u00b1\u00b0\u00eb\u0082\u0098 \u00ec\u009a\u0094\u00ec\u00b2\u00ad\u00ec\u009d\u0084 \u00eb\u00b0\u0094\u00ea\u00bf\u0094\u00eb\u009d\u00bc(\u00ec\u009e\u0090\u00eb\u008f\u0099 \u00ea\u00b5\u0090\u00ec\u00a0\u0095\u00ed\u0095\u0098\u00ec\u00a7\u0080 \u00ec\u0095\u008a\u00eb\u008a\u0094\u00eb\u008b\u00a4). \u00ec\u00a0\u0095\u00eb\u00b3\u00b8 \u00ec\u0088\u00a0\u00ec\u0096\u00b4: topology_parity.py\n"
+},
+{
+"id": "T06",
+"group": "TOPO",
+"repo_group": "multi",
+"case_dir": "cases/T06",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": null,
+"run": true,
+"exit": 6,
+"stdout": "{\"flag\": false, \"reason\": \"\u00ec\u009a\u0094\u00ec\u00b2\u00ad topology='single' \u00ec\u009d\u00b4 \u00ec\u00b2\u00b4\u00ed\u0081\u00ac\u00ec\u0095\u0084\u00ec\u009b\u0083 \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00ea\u00b0\u0080 \u00ea\u00b3\u00a0\u00eb\u00a5\u00b4\u00eb\u008a\u0094 \u00ed\u0086\u00b5\u00eb\u00a1\u009c 'multi' \u00ec\u0099\u0080 \u00eb\u008b\u00a4\u00eb\u00a5\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00eb\u00a5\u00bc \u00eb\u00b0\u0094\u00ea\u00be\u00b8\u00ea\u00b1\u00b0\u00eb\u0082\u0098 \u00ec\u009a\u0094\u00ec\u00b2\u00ad\u00ec\u009d\u0084 \u00eb\u00b0\u0094\u00ea\u00bf\u0094\u00eb\u009d\u00bc(\u00ec\u009e\u0090\u00eb\u008f\u0099 \u00ea\u00b5\u0090\u00ec\u00a0\u0095\u00ed\u0095\u0098\u00ec\u00a7\u0080 \u00ec\u0095\u008a\u00eb\u008a\u0094\u00eb\u008b\u00a4). \u00ec\u00a0\u0095\u00eb\u00b3\u00b8 \u00ec\u0088\u00a0\u00ec\u0096\u00b4: topology_parity.py\", \"topology\": \"single\", \"redirect\": \"HW\u00ec\u008a\u00a4\u00ec\u00ba\u0094\u00ec\u009d\u00b4 \u00eb\u008d\u009c \u00eb\u0090\u0098\u00ec\u0096\u00b4(Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ed\u0096\u0089) HW \u00ec\u008a\u00a4\u00ed\u008e\u0099(GPU\u00c2\u00b7OS)\u00ec\u009d\u0084 \u00ec\u0095\u008c\u00ea\u00b8\u00b0 \u00ec\u0096\u00b4\u00eb\u00a0\u00a4\u00ec\u009b\u008c, \u00eb\u00aa\u00a8\u00eb\u008d\u00b8\u00ec\u009d\u0098 \u00ec\u00a0\u0095\u00ed\u0099\u0095\u00ed\u0095\u009c \u00ec\u0084\u009c\u00eb\u00b9\u0099\u00ec\u00a0\u0084\u00eb\u009e\u00b5\u00ec\u009d\u0084 \u00ec\u0084\u00b8\u00ec\u009a\u00b0\u00ea\u00b8\u00b0 \u00ec\u0096\u00b4\u00eb\u00a0\u00b5\u00ec\u008a\u00b5\u00eb\u008b\u0088\u00eb\u008b\u00a4. terraforming_node \u00eb\u00a1\u009c \u00e2\u0091\u00a0 HW\u00ec\u008a\u00a4\u00ec\u00ba\u0094 + \u00e2\u0091\u00a1 \u00eb\u00aa\u00a8\u00eb\u008d\u00b8 \u00eb\u008b\u00a4\u00ec\u009a\u00b4\u00eb\u00a1\u009c\u00eb\u0093\u009c \u00ec\u00a0\u0084\u00eb\u009e\u00b5(\u00ea\u00b4\u0080\u00eb\u00a6\u00ac NAS \u00ea\u00b2\u00bd\u00eb\u00a1\u009c? \u00ec\u00bb\u00a8\u00ed\u0085\u008c\u00ec\u009d\u00b4\u00eb\u0084\u0088 \u00ec\u009e\u0084\u00ec\u008b\u009c \u00eb\u008b\u00a4\u00ec\u009a\u00b4\u00eb\u00a1\u009c\u00eb\u0093\u009c(\u00ec\u00bb\u00a8\u00ed\u0085\u008c\u00ec\u009d\u00b4\u00eb\u0084\u0088 down \u00ec\u008b\u009c \u00ec\u0082\u00ad\u00ec\u00a0\u009c)? \u00ed\u008a\u00b9\u00ec\u00a0\u0095 \u00ea\u00b2\u00bd\u00eb\u00a1\u009c \u00ec\u00a0\u0080\u00ec\u009e\u00a5\u00c2\u00b7\u00eb\u00a7\u0088\u00ec\u009a\u00b4\u00ed\u008a\u00b8?)\u00ec\u009d\u0084 \u00eb\u00a8\u00bc\u00ec\u00a0\u0080 \u00ec\u00a0\u0095\u00ed\u0095\u00a9\u00ec\u008b\u009c\u00eb\u008b\u00a4.\"}\n",
+"stderr": ""
+},
+{
+"id": "T07",
+"group": "TOPO",
+"repo_group": "single",
+"case_dir": "cases/T07",
+"args": [
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "T07",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "T08",
+"group": "TOPO",
+"repo_group": "multi",
+"case_dir": "cases/T08",
+"args": [
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "T08",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=multi \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=2 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "T09",
+"group": "TOPO",
+"repo_group": "other",
+"case_dir": "cases/T09",
+"args": [
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "topology \u00eb\u00b6\u0088\u00eb\u00aa\u0085 \u00e2\u0080\u0094 --topology \u00eb\u00aa\u0085\u00ec\u008b\u009c \u00ed\u0095\u0084\u00ec\u009a\u0094(git \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00ea\u00b0\u0080 single-node/multi-node \u00ec\u0095\u0084\u00eb\u008b\u0098)\n"
+},
+{
+"id": "T10",
+"group": "TOPO",
+"repo_group": "other",
+"case_dir": "cases/T10",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "T10",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "T11",
+"group": "TOPO",
+"repo_group": "other",
+"case_dir": "cases/T11",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "T11",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=multi \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=2 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "T12",
+"group": "TOPO",
+"repo_group": "detached",
+"case_dir": "cases/T12",
+"args": [
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "topology \u00eb\u00b6\u0088\u00eb\u00aa\u0085 \u00e2\u0080\u0094 --topology \u00eb\u00aa\u0085\u00ec\u008b\u009c \u00ed\u0095\u0084\u00ec\u009a\u0094(git \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00ea\u00b0\u0080 single-node/multi-node \u00ec\u0095\u0084\u00eb\u008b\u0098)\n"
+},
+{
+"id": "T13",
+"group": "TOPO",
+"repo_group": "detached",
+"case_dir": "cases/T13",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "T13",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "T14",
+"group": "TOPO",
+"repo_group": "unborn",
+"case_dir": "cases/T14",
+"args": [
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "topology \u00eb\u00b6\u0088\u00eb\u00aa\u0085 \u00e2\u0080\u0094 --topology \u00eb\u00aa\u0085\u00ec\u008b\u009c \u00ed\u0095\u0084\u00ec\u009a\u0094(git \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00ea\u00b0\u0080 single-node/multi-node \u00ec\u0095\u0084\u00eb\u008b\u0098)\n"
+},
+{
+"id": "T15",
+"group": "TOPO",
+"repo_group": "unborn",
+"case_dir": "cases/T15",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "T15",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "T16",
+"group": "TOPO",
+"repo_group": "nogit",
+"case_dir": "cases/T16",
+"args": [
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "topology \u00eb\u00b6\u0088\u00eb\u00aa\u0085 \u00e2\u0080\u0094 --topology \u00eb\u00aa\u0085\u00ec\u008b\u009c \u00ed\u0095\u0084\u00ec\u009a\u0094(git \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00ea\u00b0\u0080 single-node/multi-node \u00ec\u0095\u0084\u00eb\u008b\u0098)\n"
+},
+{
+"id": "T17",
+"group": "TOPO",
+"repo_group": "nogit",
+"case_dir": "cases/T17",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "T17",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "T18",
+"group": "TOPO",
+"repo_group": "single",
+"case_dir": "cases/T18",
+"args": [
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {
+"PATH": "<NOGIT_BIN>"
+},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "T18",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "topology \u00eb\u00b6\u0088\u00eb\u00aa\u0085 \u00e2\u0080\u0094 --topology \u00eb\u00aa\u0085\u00ec\u008b\u009c \u00ed\u0095\u0084\u00ec\u009a\u0094(git \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00ea\u00b0\u0080 single-node/multi-node \u00ec\u0095\u0084\u00eb\u008b\u0098)\n"
+},
+{
+"id": "T19",
+"group": "TOPO",
+"repo_group": "single",
+"case_dir": "cases/T19",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {
+"PATH": "<NOGIT_BIN>"
+},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "T19",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=multi \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=2 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "IO01",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO01",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "dir",
+"path": "output/single",
+"mode": "755"
+}
+],
+"route": null,
+"run": true,
+"exit": 3,
+"stdout": "",
+"stderr": "manifest \u00eb\u00b6\u0080\u00ec\u009e\u00ac: <FIXROOT>/single/cases/IO01/output/single/manifest.yaml (\u00ed\u0085\u008c\u00eb\u009d\u00bc\u00ed\u008f\u00ac\u00eb\u00b0\u008d \u00eb\u00af\u00b8\u00ec\u0099\u0084 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "IO02",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO02",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": null,
+"run": true,
+"exit": 3,
+"stdout": "{\"flag\": false, \"reason\": \"manifest \u00eb\u00b6\u0080\u00ec\u009e\u00ac: <FIXROOT>/single/cases/IO02/output/single/manifest.yaml (\u00ed\u0085\u008c\u00eb\u009d\u00bc\u00ed\u008f\u00ac\u00eb\u00b0\u008d \u00eb\u00af\u00b8\u00ec\u0099\u0084 \u00e2\u0080\u0094 info-only)\", \"topology\": \"single\", \"redirect\": \"HW\u00ec\u008a\u00a4\u00ec\u00ba\u0094\u00ec\u009d\u00b4 \u00eb\u008d\u009c \u00eb\u0090\u0098\u00ec\u0096\u00b4(Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ed\u0096\u0089) HW \u00ec\u008a\u00a4\u00ed\u008e\u0099(GPU\u00c2\u00b7OS)\u00ec\u009d\u0084 \u00ec\u0095\u008c\u00ea\u00b8\u00b0 \u00ec\u0096\u00b4\u00eb\u00a0\u00a4\u00ec\u009b\u008c, \u00eb\u00aa\u00a8\u00eb\u008d\u00b8\u00ec\u009d\u0098 \u00ec\u00a0\u0095\u00ed\u0099\u0095\u00ed\u0095\u009c \u00ec\u0084\u009c\u00eb\u00b9\u0099\u00ec\u00a0\u0084\u00eb\u009e\u00b5\u00ec\u009d\u0084 \u00ec\u0084\u00b8\u00ec\u009a\u00b0\u00ea\u00b8\u00b0 \u00ec\u0096\u00b4\u00eb\u00a0\u00b5\u00ec\u008a\u00b5\u00eb\u008b\u0088\u00eb\u008b\u00a4. terraforming_node \u00eb\u00a1\u009c \u00e2\u0091\u00a0 HW\u00ec\u008a\u00a4\u00ec\u00ba\u0094 + \u00e2\u0091\u00a1 \u00eb\u00aa\u00a8\u00eb\u008d\u00b8 \u00eb\u008b\u00a4\u00ec\u009a\u00b4\u00eb\u00a1\u009c\u00eb\u0093\u009c \u00ec\u00a0\u0084\u00eb\u009e\u00b5(\u00ea\u00b4\u0080\u00eb\u00a6\u00ac NAS \u00ea\u00b2\u00bd\u00eb\u00a1\u009c? \u00ec\u00bb\u00a8\u00ed\u0085\u008c\u00ec\u009d\u00b4\u00eb\u0084\u0088 \u00ec\u009e\u0084\u00ec\u008b\u009c \u00eb\u008b\u00a4\u00ec\u009a\u00b4\u00eb\u00a1\u009c\u00eb\u0093\u009c(\u00ec\u00bb\u00a8\u00ed\u0085\u008c\u00ec\u009d\u00b4\u00eb\u0084\u0088 down \u00ec\u008b\u009c \u00ec\u0082\u00ad\u00ec\u00a0\u009c)? \u00ed\u008a\u00b9\u00ec\u00a0\u0095 \u00ea\u00b2\u00bd\u00eb\u00a1\u009c \u00ec\u00a0\u0080\u00ec\u009e\u00a5\u00c2\u00b7\u00eb\u00a7\u0088\u00ec\u009a\u00b4\u00ed\u008a\u00b8?)\u00ec\u009d\u0084 \u00eb\u00a8\u00bc\u00ec\u00a0\u0080 \u00ec\u00a0\u0095\u00ed\u0095\u00a9\u00ec\u008b\u009c\u00eb\u008b\u00a4.\"}\n",
+"stderr": ""
+},
+{
+"id": "IO03",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO03",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "dir",
+"path": "output/single/manifest.yaml",
+"mode": "755"
+}
+],
+"route": null,
+"run": true,
+"exit": 3,
+"stdout": "",
+"stderr": "manifest \u00eb\u00b6\u0080\u00ec\u009e\u00ac: <FIXROOT>/single/cases/IO03/output/single/manifest.yaml (\u00ed\u0085\u008c\u00eb\u009d\u00bc\u00ed\u008f\u00ac\u00eb\u00b0\u008d \u00eb\u00af\u00b8\u00ec\u0099\u0084 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "IO04",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO04",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "symlink",
+"path": "output/single/manifest.yaml",
+"target": "missing.yaml"
+}
+],
+"route": null,
+"run": true,
+"exit": 3,
+"stdout": "",
+"stderr": "manifest \u00eb\u00b6\u0080\u00ec\u009e\u00ac: <FIXROOT>/single/cases/IO04/output/single/manifest.yaml (\u00ed\u0085\u008c\u00eb\u009d\u00bc\u00ed\u008f\u00ac\u00eb\u00b0\u008d \u00eb\u00af\u00b8\u00ec\u0099\u0084 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "IO05",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO05",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/real.yaml",
+"data": "IO05",
+"mode": "644"
+},
+{
+"op": "symlink",
+"path": "output/single/manifest.yaml",
+"target": "real.yaml"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "IO06",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO06",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "IO06",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "IO07",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO07",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "IO07",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "IO08",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO08",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "IO08",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "manifest \u00ed\u008c\u008c\u00ec\u008b\u00b1 \u00ec\u008b\u00a4\u00ed\u008c\u00a8: while parsing a flow mapping\n  in \"<FIXROOT>/single/cases/IO08/output/single/manifest.yaml\", line 1, column 15\nexpected ',' or '}', but got ':'\n  in \"<FIXROOT>/single/cases/IO08/output/single/manifest.yaml\", line 2, column 9\n"
+},
+{
+"id": "IO09",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO09",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "IO09",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "manifest \u00ed\u008c\u008c\u00ec\u008b\u00b1 \u00ec\u008b\u00a4\u00ed\u008c\u00a8: could not determine a constructor for the tag 'tag:yaml.org,2002:python/object/apply:os.system'\n  in \"<FIXROOT>/single/cases/IO09/output/single/manifest.yaml\", line 2, column 4\n"
+},
+{
+"id": "IO10",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO10",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "IO10",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "manifest \u00ed\u008c\u008c\u00ec\u008b\u00b1 \u00ec\u008b\u00a4\u00ed\u008c\u00a8: while scanning for the next token\nfound character '\\t' that cannot start any token\n  in \"<FIXROOT>/single/cases/IO10/output/single/manifest.yaml\", line 3, column 1\n"
+},
+{
+"id": "IO11",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO11",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "IO11",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "manifest \u00ed\u008c\u008c\u00ec\u008b\u00b1 \u00ec\u008b\u00a4\u00ed\u008c\u00a8: 'utf-8' codec can't decode byte 0xff in position 23: invalid start byte\n"
+},
+{
+"id": "IO12",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO12",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "IO12",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "IO13",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO13",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "IO13",
+"mode": "644"
+},
+{
+"op": "opaque",
+"path": "output/single/manifest.yaml",
+"mode": "000"
+}
+],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "manifest \u00ed\u008c\u008c\u00ec\u008b\u00b1 \u00ec\u008b\u00a4\u00ed\u008c\u00a8: [Errno 13] Permission denied: '<FIXROOT>/single/cases/IO13/output/single/manifest.yaml'\n"
+},
+{
+"id": "IO14",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO14",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "IO14",
+"mode": "644"
+},
+{
+"op": "opaque",
+"path": "output/single",
+"mode": "000"
+}
+],
+"route": null,
+"run": true,
+"exit": 3,
+"stdout": "",
+"stderr": "manifest \u00eb\u00b6\u0080\u00ec\u009e\u00ac: <FIXROOT>/single/cases/IO14/output/single/manifest.yaml (\u00ed\u0085\u008c\u00eb\u009d\u00bc\u00ed\u008f\u00ac\u00eb\u00b0\u008d \u00eb\u00af\u00b8\u00ec\u0099\u0084 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "IO15",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/IO15",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "IO15",
+"mode": "644"
+},
+{
+"op": "opaque",
+"path": "output",
+"mode": "000"
+}
+],
+"route": null,
+"run": true,
+"exit": 3,
+"stdout": "",
+"stderr": "manifest \u00eb\u00b6\u0080\u00ec\u009e\u00ac: <FIXROOT>/single/cases/IO15/output/single/manifest.yaml (\u00ed\u0085\u008c\u00eb\u009d\u00bc\u00ed\u008f\u00ac\u00eb\u00b0\u008d \u00eb\u00af\u00b8\u00ec\u0099\u0084 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "YT01",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT01",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT01",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 132, in evaluate_contract\n    \"topology\": man.get(\"topology\"),\n                ^^^^^^^\nAttributeError: 'list' object has no attribute 'get'\n"
+},
+{
+"id": "YT02",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT02",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT02",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 132, in evaluate_contract\n    \"topology\": man.get(\"topology\"),\n                ^^^^^^^\nAttributeError: 'str' object has no attribute 'get'\n"
+},
+{
+"id": "YT03",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT03",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT03",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 132, in evaluate_contract\n    \"topology\": man.get(\"topology\"),\n                ^^^^^^^\nAttributeError: 'int' object has no attribute 'get'\n"
+},
+{
+"id": "YT04",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT04",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT04",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 132, in evaluate_contract\n    \"topology\": man.get(\"topology\"),\n                ^^^^^^^\nAttributeError: 'bool' object has no attribute 'get'\n"
+},
+{
+"id": "YT05",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT05",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT05",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "YT06",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT06",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT06",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "YT07",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT07",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT07",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "YT08",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT08",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT08",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "YT09",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT09",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT09",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 149, in evaluate_contract\n    if terra.get(\"complete\") is not True:\n       ^^^^^^^^^\nAttributeError: 'str' object has no attribute 'get'\n"
+},
+{
+"id": "YT10",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT10",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT10",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 149, in evaluate_contract\n    if terra.get(\"complete\") is not True:\n       ^^^^^^^^^\nAttributeError: 'list' object has no attribute 'get'\n"
+},
+{
+"id": "YT11",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT11",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT11",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "YT12",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT12",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT12",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "YT13",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT13",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT13",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 6,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: manifest \u00ec\u0084\u00a0\u00ec\u0096\u00b8 topology='multi' \u00ea\u00b3\u00bc \u00ec\u009a\u0094\u00ec\u00b2\u00ad topology='single' \u00ec\u009d\u00b4 \u00eb\u008b\u00a4\u00eb\u00a5\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 manifest \u00ea\u00b0\u0080 \u00ea\u00b6\u008c\u00ec\u009c\u0084\u00eb\u008b\u00a4\n"
+},
+{
+"id": "YT14",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT14",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT14",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "YT15",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT15",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT15",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "YT16",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT16",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT16",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 326, in _iterencode_list\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 285, in _iterencode_list\n    raise ValueError(\"Circular reference detected\")\nValueError: Circular reference detected\n"
+},
+{
+"id": "YT17",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT17",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT17",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "YT18",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT18",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT18",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 326, in _iterencode_list\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 439, in _iterencode\n    o = _default(o)\n        ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 180, in default\n    raise TypeError(f'Object of type {o.__class__.__name__} '\nTypeError: Object of type date is not JSON serializable\n"
+},
+{
+"id": "YT19",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT19",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT19",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 326, in _iterencode_list\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 439, in _iterencode\n    o = _default(o)\n        ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 180, in default\n    raise TypeError(f'Object of type {o.__class__.__name__} '\nTypeError: Object of type datetime is not JSON serializable\n"
+},
+{
+"id": "YT20",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT20",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT20",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 326, in _iterencode_list\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 439, in _iterencode\n    o = _default(o)\n        ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 180, in default\n    raise TypeError(f'Object of type {o.__class__.__name__} '\nTypeError: Object of type bytes is not JSON serializable\n"
+},
+{
+"id": "YT21",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT21",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT21",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 326, in _iterencode_list\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 439, in _iterencode\n    o = _default(o)\n        ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 180, in default\n    raise TypeError(f'Object of type {o.__class__.__name__} '\nTypeError: Object of type set is not JSON serializable\n"
+},
+{
+"id": "YT22",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT22",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT22",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [\n    {\n      \"role\": \"main\",\n      \"o\": [\n        [\n          \"a\",\n          1\n        ]\n      ]\n    }\n  ],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {\n    \"main\": \"managed\"\n  },\n  \"manifest_path\": \"<FIXROOT>/single/cases/YT22/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "YT23",
+"group": "MANIFEST_IO",
+"repo_group": "multi",
+"case_dir": "cases/YT23",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "YT23",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 142, in evaluate_contract\n    res[\"manifest_tp\"] = manifest_tp(man, topology)\n                         ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 121, in manifest_tp\n    return max(1, len(nodes)) * gpus\n                  ^^^^^^^^^^\nTypeError: object of type 'int' has no len()\n"
+},
+{
+"id": "YT24",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT24",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT24",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 191, in evaluate_contract\n    for idx, node in enumerate(res[\"nodes\"]):\n                     ^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: 'int' object is not iterable\n"
+},
+{
+"id": "YT25",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT25",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT25",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "YT26",
+"group": "MANIFEST_IO",
+"repo_group": "multi",
+"case_dir": "cases/YT26",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "YT26",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=multi \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=3 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "YT27",
+"group": "MANIFEST_IO",
+"repo_group": "multi",
+"case_dir": "cases/YT27",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "YT27",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=multi \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=4 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "YT28",
+"group": "MANIFEST_IO",
+"repo_group": "single",
+"case_dir": "cases/YT28",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "YT28",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": [\n    \"a\",\n    \"b\"\n  ],\n  \"quant_model_path\": 7,\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {},\n  \"manifest_path\": \"<FIXROOT>/single/cases/YT28/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "G01",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G01",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G01",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G02",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G02",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G02",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {},\n  \"manifest_path\": \"<FIXROOT>/single/cases/G02/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "G03",
+"group": "GATE",
+"repo_group": "multi",
+"case_dir": "cases/G03",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "G03",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=multi \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=2 \u00c2\u00b7 model_source=ephemeral\n",
+"stderr": ""
+},
+{
+"id": "G04",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G04",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G04",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G05",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G05",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G05",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "G06",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G06",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G06",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "G07",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G07",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G07",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "G08",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G08",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G08",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "G09",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G09",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G09",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.branch_verified != true (\u00c2\u00a71.5 3\u00ec\u009e\u0090\u00ec\u009d\u00bc\u00ec\u00b9\u0098 \u00eb\u00af\u00b8\u00ed\u0086\u00b5\u00ea\u00b3\u00bc \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "G10",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G10",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G10",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.branch_verified != true (\u00c2\u00a71.5 3\u00ec\u009e\u0090\u00ec\u009d\u00bc\u00ec\u00b9\u0098 \u00eb\u00af\u00b8\u00ed\u0086\u00b5\u00ea\u00b3\u00bc \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "G11",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G11",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G11",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.branch_verified != true (\u00c2\u00a71.5 3\u00ec\u009e\u0090\u00ec\u009d\u00bc\u00ec\u00b9\u0098 \u00eb\u00af\u00b8\u00ed\u0086\u00b5\u00ea\u00b3\u00bc \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "G12",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G12",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G12",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.branch_verified != true (\u00c2\u00a71.5 3\u00ec\u009e\u0090\u00ec\u009d\u00bc\u00ec\u00b9\u0098 \u00eb\u00af\u00b8\u00ed\u0086\u00b5\u00ea\u00b3\u00bc \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "G13",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G13",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G13",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: self_role=sub \u00ec\u009d\u00b4\u00ec\u00a7\u0080\u00eb\u00a7\u008c terraforming.issued_by != 'main' \u00e2\u0080\u0094 \u00eb\u00a9\u0094\u00ec\u009d\u00b8\u00ec\u009d\u00b4 \u00eb\u00b0\u009c\u00ea\u00b8\u0089\u00ed\u0095\u009c \u00ec\u0084\u009c\u00eb\u00b8\u008c manifest\u00ea\u00b0\u0080 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u00af\u0080\u00eb\u00a1\u009c readiness\u00eb\u00a5\u00bc \u00ec\u009d\u00b8\u00ec\u00a0\u0095\u00ed\u0095\u0098\u00ec\u00a7\u0080 \u00ec\u0095\u008a\u00eb\u008a\u0094\u00eb\u008b\u00a4\n"
+},
+{
+"id": "G14",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G14",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G14",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: self_role=sub \u00ec\u009d\u00b4\u00ec\u00a7\u0080\u00eb\u00a7\u008c terraforming.issued_by != 'main' \u00e2\u0080\u0094 \u00eb\u00a9\u0094\u00ec\u009d\u00b8\u00ec\u009d\u00b4 \u00eb\u00b0\u009c\u00ea\u00b8\u0089\u00ed\u0095\u009c \u00ec\u0084\u009c\u00eb\u00b8\u008c manifest\u00ea\u00b0\u0080 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u00af\u0080\u00eb\u00a1\u009c readiness\u00eb\u00a5\u00bc \u00ec\u009d\u00b8\u00ec\u00a0\u0095\u00ed\u0095\u0098\u00ec\u00a7\u0080 \u00ec\u0095\u008a\u00eb\u008a\u0094\u00eb\u008b\u00a4\n"
+},
+{
+"id": "G15",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G15",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G15",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: self_role=sub \u00ec\u009d\u00b4\u00ec\u00a7\u0080\u00eb\u00a7\u008c terraforming.issued_by != 'main' \u00e2\u0080\u0094 \u00eb\u00a9\u0094\u00ec\u009d\u00b8\u00ec\u009d\u00b4 \u00eb\u00b0\u009c\u00ea\u00b8\u0089\u00ed\u0095\u009c \u00ec\u0084\u009c\u00eb\u00b8\u008c manifest\u00ea\u00b0\u0080 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u00af\u0080\u00eb\u00a1\u009c readiness\u00eb\u00a5\u00bc \u00ec\u009d\u00b8\u00ec\u00a0\u0095\u00ed\u0095\u0098\u00ec\u00a7\u0080 \u00ec\u0095\u008a\u00eb\u008a\u0094\u00eb\u008b\u00a4\n"
+},
+{
+"id": "G16",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G16",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G16",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G17",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G17",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G17",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 \u00ed\u0095\u0084\u00ec\u0088\u0098 HW\u00ed\u0095\u0084\u00eb\u0093\u009c \u00eb\u0088\u0084\u00eb\u009d\u00bd: topology\n"
+},
+{
+"id": "G18",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G18",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G18",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 \u00ed\u0095\u0084\u00ec\u0088\u0098 HW\u00ed\u0095\u0084\u00eb\u0093\u009c \u00eb\u0088\u0084\u00eb\u009d\u00bd: topology\n"
+},
+{
+"id": "G19",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G19",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G19",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 \u00ed\u0095\u0084\u00ec\u0088\u0098 HW\u00ed\u0095\u0084\u00eb\u0093\u009c \u00eb\u0088\u0084\u00eb\u009d\u00bd: gpus_per_node\n"
+},
+{
+"id": "G20",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G20",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G20",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 \u00ed\u0095\u0084\u00ec\u0088\u0098 HW\u00ed\u0095\u0084\u00eb\u0093\u009c \u00eb\u0088\u0084\u00eb\u009d\u00bd: gpus_per_node\n"
+},
+{
+"id": "G21",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G21",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G21",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 \u00ed\u0095\u0084\u00ec\u0088\u0098 HW\u00ed\u0095\u0084\u00eb\u0093\u009c \u00eb\u0088\u0084\u00eb\u009d\u00bd: gpus_per_node\n"
+},
+{
+"id": "G22",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G22",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G22",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 gpus_per_node \u00eb\u00b6\u0080\u00ec\u009e\u00ac/\u00eb\u00b9\u0084\u00ec\u00a0\u0095\u00ec\u0088\u0098('0') \u00e2\u0080\u0094 TP \u00eb\u008a\u0094 HW \u00ec\u0082\u00ac\u00ec\u008b\u00a4\u00ec\u009d\u00b4\u00ec\u00a7\u0080 \u00ea\u00b8\u00b0\u00eb\u00b3\u00b8\u00ea\u00b0\u0092\u00ec\u009d\u00b4 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u008b\u00a4\n"
+},
+{
+"id": "G23",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G23",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G23",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 gpus_per_node \u00eb\u00b6\u0080\u00ec\u009e\u00ac/\u00eb\u00b9\u0084\u00ec\u00a0\u0095\u00ec\u0088\u0098('abc') \u00e2\u0080\u0094 TP \u00eb\u008a\u0094 HW \u00ec\u0082\u00ac\u00ec\u008b\u00a4\u00ec\u009d\u00b4\u00ec\u00a7\u0080 \u00ea\u00b8\u00b0\u00eb\u00b3\u00b8\u00ea\u00b0\u0092\u00ec\u009d\u00b4 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u008b\u00a4\n"
+},
+{
+"id": "G24",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G24",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G24",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=2 \u00c2\u00b7 manifest_tp=2 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G25",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G25",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G25",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=2.9 \u00c2\u00b7 manifest_tp=2 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G26",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G26",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G26",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=True \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G27",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G27",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G27",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 gpus_per_node \u00eb\u00b6\u0080\u00ec\u009e\u00ac/\u00eb\u00b9\u0084\u00ec\u00a0\u0095\u00ec\u0088\u0098(-1) \u00e2\u0080\u0094 TP \u00eb\u008a\u0094 HW \u00ec\u0082\u00ac\u00ec\u008b\u00a4\u00ec\u009d\u00b4\u00ec\u00a7\u0080 \u00ea\u00b8\u00b0\u00eb\u00b3\u00b8\u00ea\u00b0\u0092\u00ec\u009d\u00b4 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u008b\u00a4\n"
+},
+{
+"id": "G28",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G28",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G28",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 gpus_per_node \u00eb\u00b6\u0080\u00ec\u009e\u00ac/\u00eb\u00b9\u0084\u00ec\u00a0\u0095\u00ec\u0088\u0098([1]) \u00e2\u0080\u0094 TP \u00eb\u008a\u0094 HW \u00ec\u0082\u00ac\u00ec\u008b\u00a4\u00ec\u009d\u00b4\u00ec\u00a7\u0080 \u00ea\u00b8\u00b0\u00eb\u00b3\u00b8\u00ea\u00b0\u0092\u00ec\u009d\u00b4 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u008b\u00a4\n"
+},
+{
+"id": "G29",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G29",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G29",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 \u00ed\u0095\u0084\u00ec\u0088\u0098 HW\u00ed\u0095\u0084\u00eb\u0093\u009c \u00eb\u0088\u0084\u00eb\u009d\u00bd: gpus_per_node\n"
+},
+{
+"id": "G30",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G30",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G30",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 \u00ed\u0095\u0084\u00ec\u0088\u0098 HW\u00ed\u0095\u0084\u00eb\u0093\u009c \u00eb\u0088\u0084\u00eb\u009d\u00bd: gpus_per_node\n"
+},
+{
+"id": "G31",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G31",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G31",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 142, in evaluate_contract\n    res[\"manifest_tp\"] = manifest_tp(man, topology)\n                         ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 112, in manifest_tp\n    gpus = int(raw)\n           ^^^^^^^^\nOverflowError: cannot convert float infinity to integer\n"
+},
+{
+"id": "G32",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G32",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G32",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 gpus_per_node \u00eb\u00b6\u0080\u00ec\u009e\u00ac/\u00eb\u00b9\u0084\u00ec\u00a0\u0095\u00ec\u0088\u0098(nan) \u00e2\u0080\u0094 TP \u00eb\u008a\u0094 HW \u00ec\u0082\u00ac\u00ec\u008b\u00a4\u00ec\u009d\u00b4\u00ec\u00a7\u0080 \u00ea\u00b8\u00b0\u00eb\u00b3\u00b8\u00ea\u00b0\u0092\u00ec\u009d\u00b4 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u008b\u00a4\n"
+},
+{
+"id": "G33",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G33",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G33",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=100000000000000000000 \u00c2\u00b7 manifest_tp=100000000000000000000 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G34",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G34",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G34",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1.0 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G35",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G35",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G35",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=  3  \u00c2\u00b7 manifest_tp=3 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G36",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G36",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G36",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1_0 \u00c2\u00b7 manifest_tp=10 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G37",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G37",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G37",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 gpus_per_node \u00eb\u00b6\u0080\u00ec\u009e\u00ac/\u00eb\u00b9\u0084\u00ec\u00a0\u0095\u00ec\u0088\u0098('0x10') \u00e2\u0080\u0094 TP \u00eb\u008a\u0094 HW \u00ec\u0082\u00ac\u00ec\u008b\u00a4\u00ec\u009d\u00b4\u00ec\u00a7\u0080 \u00ea\u00b8\u00b0\u00eb\u00b3\u00b8\u00ea\u00b0\u0092\u00ec\u009d\u00b4 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u008b\u00a4\n"
+},
+{
+"id": "G38",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G38",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G38",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=\u00d9\u00a1\u00d9\u00a2 \u00c2\u00b7 manifest_tp=12 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G39",
+"group": "GATE",
+"repo_group": "multi",
+"case_dir": "cases/G39",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "G39",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=multi \u00c2\u00b7 gpus_per_node=2 \u00c2\u00b7 manifest_tp=4 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G40",
+"group": "GATE",
+"repo_group": "multi",
+"case_dir": "cases/G40",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "G40",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=multi \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=None \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G41",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G41",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G41",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G42",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G42",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G42",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 6,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: manifest \u00ec\u0084\u00a0\u00ec\u0096\u00b8 topology='multi' \u00ea\u00b3\u00bc \u00ec\u009a\u0094\u00ec\u00b2\u00ad topology='single' \u00ec\u009d\u00b4 \u00eb\u008b\u00a4\u00eb\u00a5\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 manifest \u00ea\u00b0\u0080 \u00ea\u00b6\u008c\u00ec\u009c\u0084\u00eb\u008b\u00a4\n"
+},
+{
+"id": "G43",
+"group": "GATE",
+"repo_group": "multi",
+"case_dir": "cases/G43",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "G43",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 6,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: manifest \u00ec\u0084\u00a0\u00ec\u0096\u00b8 topology='single' \u00ea\u00b3\u00bc \u00ec\u009a\u0094\u00ec\u00b2\u00ad topology='multi' \u00ec\u009d\u00b4 \u00eb\u008b\u00a4\u00eb\u00a5\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 manifest \u00ea\u00b0\u0080 \u00ea\u00b6\u008c\u00ec\u009c\u0084\u00eb\u008b\u00a4\n"
+},
+{
+"id": "G44",
+"group": "GATE",
+"repo_group": "other",
+"case_dir": "cases/G44",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G44",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 6,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: manifest \u00ec\u0084\u00a0\u00ec\u0096\u00b8 topology='multi' \u00ea\u00b3\u00bc \u00ec\u009a\u0094\u00ec\u00b2\u00ad topology='single' \u00ec\u009d\u00b4 \u00eb\u008b\u00a4\u00eb\u00a5\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 manifest \u00ea\u00b0\u0080 \u00ea\u00b6\u008c\u00ec\u009c\u0084\u00eb\u008b\u00a4\n"
+},
+{
+"id": "G45",
+"group": "GATE",
+"repo_group": "other",
+"case_dir": "cases/G45",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G45",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 6,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: manifest \u00ec\u0084\u00a0\u00ec\u0096\u00b8 topology='triple' \u00ea\u00b3\u00bc \u00ec\u009a\u0094\u00ec\u00b2\u00ad topology='single' \u00ec\u009d\u00b4 \u00eb\u008b\u00a4\u00eb\u00a5\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 manifest \u00ea\u00b0\u0080 \u00ea\u00b6\u008c\u00ec\u009c\u0084\u00eb\u008b\u00a4\n"
+},
+{
+"id": "G46",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G46",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G46",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 6,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: manifest \u00ec\u0084\u00a0\u00ec\u0096\u00b8 topology='multi' \u00ea\u00b3\u00bc \u00ec\u009a\u0094\u00ec\u00b2\u00ad topology='single' \u00ec\u009d\u00b4 \u00eb\u008b\u00a4\u00eb\u00a5\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 manifest \u00ea\u00b0\u0080 \u00ea\u00b6\u008c\u00ec\u009c\u0084\u00eb\u008b\u00a4\n"
+},
+{
+"id": "G47",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G47",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G47",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: model_source \u00eb\u00af\u00b8\u00ec\u0084\u00a4\u00ec\u00a0\u0095/\u00ec\u0098\u00a4\u00eb\u00a5\u0098: None (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 managed|ephemeral|custom)\n"
+},
+{
+"id": "G48",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G48",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G48",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: model_source \u00eb\u00af\u00b8\u00ec\u0084\u00a4\u00ec\u00a0\u0095/\u00ec\u0098\u00a4\u00eb\u00a5\u0098: 'nas' (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 managed|ephemeral|custom)\n"
+},
+{
+"id": "G49",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G49",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G49",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: model_source \u00eb\u00af\u00b8\u00ec\u0084\u00a4\u00ec\u00a0\u0095/\u00ec\u0098\u00a4\u00eb\u00a5\u0098: None (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 managed|ephemeral|custom)\n"
+},
+{
+"id": "G50",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G50",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G50",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: model_source \u00eb\u00af\u00b8\u00ec\u0084\u00a4\u00ec\u00a0\u0095/\u00ec\u0098\u00a4\u00eb\u00a5\u0098: 1 (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 managed|ephemeral|custom)\n"
+},
+{
+"id": "G51",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G51",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G51",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: model_source \u00eb\u00af\u00b8\u00ec\u0084\u00a4\u00ec\u00a0\u0095/\u00ec\u0098\u00a4\u00eb\u00a5\u0098: True (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 managed|ephemeral|custom)\n"
+},
+{
+"id": "G52",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G52",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G52",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: model_source \u00eb\u00af\u00b8\u00ec\u0084\u00a4\u00ec\u00a0\u0095/\u00ec\u0098\u00a4\u00eb\u00a5\u0098: ['managed'] (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 managed|ephemeral|custom)\n"
+},
+{
+"id": "G53",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G53",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G53",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=ephemeral\n",
+"stderr": ""
+},
+{
+"id": "G54",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G54",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G54",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=custom\n",
+"stderr": ""
+},
+{
+"id": "G55",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G55",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G55",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G56",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G56",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G56",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [\n    {\n      \"role\": \"main\"\n    },\n    {\n      \"role\": \"sub\",\n      \"model_source\": \"ephemeral\"\n    }\n  ],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {\n    \"main\": \"managed\",\n    \"sub\": \"ephemeral\"\n  },\n  \"manifest_path\": \"<FIXROOT>/single/cases/G56/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "G57",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G57",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G57",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: per-node model_source \u00ec\u0098\u00a4\u00eb\u00a5\u0098: nodes[1](sub).model_source='nas-bogus' (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 managed|ephemeral|custom)\n"
+},
+{
+"id": "G58",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G58",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G58",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: per-node model_source \u00ec\u0098\u00a4\u00eb\u00a5\u0098: nodes[0](main).model_source=123; nodes[1](sub).model_source='bad' (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 managed|ephemeral|custom)\n"
+},
+{
+"id": "G59",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G59",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G59",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "G60",
+"group": "GATE",
+"repo_group": "multi",
+"case_dir": "cases/G60",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "G60",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"multi\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [\n    {\n      \"role\": \"main\"\n    },\n    {\n      \"role\": \"sub\",\n      \"model_source\": \"managed\"\n    }\n  ],\n  \"model_source\": \"ephemeral\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 2,\n  \"node_warnings\": [\n    \"nodes[1](sub).model_source override \u00eb\u008a\u0094 single-node sub-control \u00ed\u0095\u009c\u00ec\u00a0\u0095 \u00e2\u0080\u0094 multi \u00eb\u008a\u0094 \u00eb\u00ac\u00b4\u00ec\u008b\u009c(\u00eb\u008b\u00a8\u00ec\u009d\u00bc \u00ec\u00a0\u0095\u00ec\u00b1\u0085)\"\n  ],\n  \"effective_model_source\": {\n    \"main\": \"ephemeral\",\n    \"sub\": \"managed\"\n  },\n  \"manifest_path\": \"<FIXROOT>/multi/cases/G60/output/multi/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "G61",
+"group": "GATE",
+"repo_group": "multi",
+"case_dir": "cases/G61",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "G61",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: per-node model_source \u00ec\u0098\u00a4\u00eb\u00a5\u0098: nodes[1](sub).model_source='bogus' (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 managed|ephemeral|custom)\n"
+},
+{
+"id": "G62",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G62",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G62",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [\n    {\n      \"model_source\": \"managed\"\n    },\n    {\n      \"role\": \"sub\"\n    },\n    7\n  ],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {\n    \"node0\": \"managed\",\n    \"sub\": \"managed\"\n  },\n  \"manifest_path\": \"<FIXROOT>/single/cases/G62/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "G63",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G63",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G63",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [\n    {\n      \"role\": \"sub\",\n      \"model_source\": \"managed\"\n    },\n    {\n      \"role\": \"sub\",\n      \"model_source\": \"custom\"\n    }\n  ],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {\n    \"sub\": \"custom\"\n  },\n  \"manifest_path\": \"<FIXROOT>/single/cases/G63/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "G64",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G64",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G64",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [\n    {\n      \"role\": \"main\",\n      \"work_dir\": \"/fixture/proj\"\n    },\n    {\n      \"role\": \"sub\",\n      \"work_dir\": \"/fixture/proj\"\n    }\n  ],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"/fixture/proj/tk\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [\n    \"tiktoken_host_path='/fixture/proj/tk' \u00ea\u00b0\u0080 \u00eb\u0085\u00b8\u00eb\u0093\u009c \u00ec\u009e\u0091\u00ec\u0097\u0085\u00ea\u00b2\u00bd\u00eb\u00a1\u009c(/fixture/proj) \u00ec\u0095\u0088\u00ec\u009d\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 \u00ec\u0082\u00ac\u00ec\u00a0\u0084\u00ec\u00a0\u0081\u00ec\u009e\u00ac \u00ec\u009e\u0090\u00ec\u0082\u00b0\u00ec\u009d\u0080 \u00eb\u0085\u00b8\u00eb\u0093\u009c-\u00eb\u00a1\u009c\u00ec\u00bb\u00ac\u00ec\u0097\u0090 \u00eb\u0091\u0090\u00eb\u00a9\u00b4 \u00eb\u008b\u00a4\u00eb\u00a5\u00b8 \u00eb\u0085\u00b8\u00eb\u0093\u009c\u00ea\u00b0\u0080 \u00ec\u0096\u00bb\u00ec\u009d\u0084 \u00ec\u0088\u0098 \u00ec\u0097\u0086\u00eb\u008b\u00a4(\u00ec\u0084\u009c\u00eb\u00b8\u008c\u00eb\u008a\u0094 curl/wget/hf deny). \u00ea\u00b3\u00b5\u00ec\u009c\u00a0 \u00ec\u008a\u00a4\u00ed\u0086\u00a0\u00eb\u00a6\u00ac\u00ec\u00a7\u0080(nas_model_path \u00ec\u0099\u0080 \u00ea\u00b0\u0099\u00ec\u009d\u0080 \u00eb\u00a7\u0088\u00ec\u009a\u00b4\u00ed\u008a\u00b8)\u00eb\u00a1\u009c \u00ec\u0098\u00ae\u00ea\u00b8\u00b0\u00ea\u00b3\u00a0 \u00ec\u009d\u00b4 \u00ed\u008f\u00ac\u00ec\u009d\u00b8\u00ed\u0084\u00b0\u00eb\u00a5\u00bc \u00ea\u00b7\u00b8\u00eb\u00a6\u00ac\u00eb\u00a1\u009c \u00eb\u008f\u008c\u00eb\u00a0\u00a4\u00eb\u009d\u00bc.\"\n  ],\n  \"effective_model_source\": {\n    \"main\": \"managed\",\n    \"sub\": \"managed\"\n  },\n  \"manifest_path\": \"<FIXROOT>/single/cases/G64/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "G65",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G65",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G65",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [\n    {\n      \"role\": \"main\",\n      \"work_dir\": \"/fixture/proj\"\n    },\n    {\n      \"role\": \"sub\",\n      \"work_dir\": \"/fixture/proj\"\n    }\n  ],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"/fixture/proj\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [\n    \"tiktoken_host_path='/fixture/proj' \u00ea\u00b0\u0080 \u00eb\u0085\u00b8\u00eb\u0093\u009c \u00ec\u009e\u0091\u00ec\u0097\u0085\u00ea\u00b2\u00bd\u00eb\u00a1\u009c(/fixture/proj) \u00ec\u0095\u0088\u00ec\u009d\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 \u00ec\u0082\u00ac\u00ec\u00a0\u0084\u00ec\u00a0\u0081\u00ec\u009e\u00ac \u00ec\u009e\u0090\u00ec\u0082\u00b0\u00ec\u009d\u0080 \u00eb\u0085\u00b8\u00eb\u0093\u009c-\u00eb\u00a1\u009c\u00ec\u00bb\u00ac\u00ec\u0097\u0090 \u00eb\u0091\u0090\u00eb\u00a9\u00b4 \u00eb\u008b\u00a4\u00eb\u00a5\u00b8 \u00eb\u0085\u00b8\u00eb\u0093\u009c\u00ea\u00b0\u0080 \u00ec\u0096\u00bb\u00ec\u009d\u0084 \u00ec\u0088\u0098 \u00ec\u0097\u0086\u00eb\u008b\u00a4(\u00ec\u0084\u009c\u00eb\u00b8\u008c\u00eb\u008a\u0094 curl/wget/hf deny). \u00ea\u00b3\u00b5\u00ec\u009c\u00a0 \u00ec\u008a\u00a4\u00ed\u0086\u00a0\u00eb\u00a6\u00ac\u00ec\u00a7\u0080(nas_model_path \u00ec\u0099\u0080 \u00ea\u00b0\u0099\u00ec\u009d\u0080 \u00eb\u00a7\u0088\u00ec\u009a\u00b4\u00ed\u008a\u00b8)\u00eb\u00a1\u009c \u00ec\u0098\u00ae\u00ea\u00b8\u00b0\u00ea\u00b3\u00a0 \u00ec\u009d\u00b4 \u00ed\u008f\u00ac\u00ec\u009d\u00b8\u00ed\u0084\u00b0\u00eb\u00a5\u00bc \u00ea\u00b7\u00b8\u00eb\u00a6\u00ac\u00eb\u00a1\u009c \u00eb\u008f\u008c\u00eb\u00a0\u00a4\u00eb\u009d\u00bc.\"\n  ],\n  \"effective_model_source\": {\n    \"main\": \"managed\",\n    \"sub\": \"managed\"\n  },\n  \"manifest_path\": \"<FIXROOT>/single/cases/G65/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "G66",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G66",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G66",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [\n    {\n      \"role\": \"main\",\n      \"work_dir\": \"/fixture/proj/\"\n    },\n    {\n      \"role\": \"sub\"\n    }\n  ],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"/fixture/proj/tk\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [\n    \"tiktoken_host_path='/fixture/proj/tk' \u00ea\u00b0\u0080 \u00eb\u0085\u00b8\u00eb\u0093\u009c \u00ec\u009e\u0091\u00ec\u0097\u0085\u00ea\u00b2\u00bd\u00eb\u00a1\u009c(/fixture/proj/) \u00ec\u0095\u0088\u00ec\u009d\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 \u00ec\u0082\u00ac\u00ec\u00a0\u0084\u00ec\u00a0\u0081\u00ec\u009e\u00ac \u00ec\u009e\u0090\u00ec\u0082\u00b0\u00ec\u009d\u0080 \u00eb\u0085\u00b8\u00eb\u0093\u009c-\u00eb\u00a1\u009c\u00ec\u00bb\u00ac\u00ec\u0097\u0090 \u00eb\u0091\u0090\u00eb\u00a9\u00b4 \u00eb\u008b\u00a4\u00eb\u00a5\u00b8 \u00eb\u0085\u00b8\u00eb\u0093\u009c\u00ea\u00b0\u0080 \u00ec\u0096\u00bb\u00ec\u009d\u0084 \u00ec\u0088\u0098 \u00ec\u0097\u0086\u00eb\u008b\u00a4(\u00ec\u0084\u009c\u00eb\u00b8\u008c\u00eb\u008a\u0094 curl/wget/hf deny). \u00ea\u00b3\u00b5\u00ec\u009c\u00a0 \u00ec\u008a\u00a4\u00ed\u0086\u00a0\u00eb\u00a6\u00ac\u00ec\u00a7\u0080(nas_model_path \u00ec\u0099\u0080 \u00ea\u00b0\u0099\u00ec\u009d\u0080 \u00eb\u00a7\u0088\u00ec\u009a\u00b4\u00ed\u008a\u00b8)\u00eb\u00a1\u009c \u00ec\u0098\u00ae\u00ea\u00b8\u00b0\u00ea\u00b3\u00a0 \u00ec\u009d\u00b4 \u00ed\u008f\u00ac\u00ec\u009d\u00b8\u00ed\u0084\u00b0\u00eb\u00a5\u00bc \u00ea\u00b7\u00b8\u00eb\u00a6\u00ac\u00eb\u00a1\u009c \u00eb\u008f\u008c\u00eb\u00a0\u00a4\u00eb\u009d\u00bc.\"\n  ],\n  \"effective_model_source\": {\n    \"main\": \"managed\",\n    \"sub\": \"managed\"\n  },\n  \"manifest_path\": \"<FIXROOT>/single/cases/G66/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "G67",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G67",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G67",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [\n    {\n      \"role\": \"main\",\n      \"work_dir\": \"/fixture/proj\"\n    },\n    {\n      \"role\": \"sub\",\n      \"work_dir\": \"/fixture/proj\"\n    }\n  ],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"/mnt/shared/tk\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {\n    \"main\": \"managed\",\n    \"sub\": \"managed\"\n  },\n  \"manifest_path\": \"<FIXROOT>/single/cases/G67/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "G68",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G68",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G68",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [\n    {\n      \"role\": \"main\",\n      \"work_dir\": \"/fixture/proj\"\n    }\n  ],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"/fixture/proj/tk\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {\n    \"main\": \"managed\"\n  },\n  \"manifest_path\": \"<FIXROOT>/single/cases/G68/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "G69",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G69",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G69",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [\n    {\n      \"role\": \"main\"\n    },\n    {\n      \"role\": \"sub\"\n    }\n  ],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"/fixture/proj/tk\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {\n    \"main\": \"managed\",\n    \"sub\": \"managed\"\n  },\n  \"manifest_path\": \"<FIXROOT>/single/cases/G69/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "G70",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G70",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G70",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 228, in evaluate_contract\n    _owner = next((w for w in _local_of if w and (tik == w or tik.startswith(w.rstrip(\"/\") + \"/\"))), None)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 228, in <genexpr>\n    _owner = next((w for w in _local_of if w and (tik == w or tik.startswith(w.rstrip(\"/\") + \"/\"))), None)\n                                                                             ^^^^^^^^\nAttributeError: 'int' object has no attribute 'rstrip'\n"
+},
+{
+"id": "G71",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G71",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G71",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 228, in evaluate_contract\n    _owner = next((w for w in _local_of if w and (tik == w or tik.startswith(w.rstrip(\"/\") + \"/\"))), None)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 228, in <genexpr>\n    _owner = next((w for w in _local_of if w and (tik == w or tik.startswith(w.rstrip(\"/\") + \"/\"))), None)\n                                                              ^^^^^^^^^^^^^^\nAttributeError: 'int' object has no attribute 'startswith'\n"
+},
+{
+"id": "G72",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G72",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G72",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 228, in evaluate_contract\n    _owner = next((w for w in _local_of if w and (tik == w or tik.startswith(w.rstrip(\"/\") + \"/\"))), None)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 228, in <genexpr>\n    _owner = next((w for w in _local_of if w and (tik == w or tik.startswith(w.rstrip(\"/\") + \"/\"))), None)\n                                                              ^^^^^^^^^^^^^^\nAttributeError: 'list' object has no attribute 'startswith'\n"
+},
+{
+"id": "G73",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G73",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G73",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": null,\n  \"custom_model_paths\": {\n    \"a\": \"/x\"\n  },\n  \"quant_model_path\": \"/q\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {},\n  \"manifest_path\": \"<FIXROOT>/single/cases/G73/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "G74",
+"group": "GATE",
+"repo_group": "single",
+"case_dir": "cases/G74",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "G74",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {},\n  \"manifest_path\": \"<FIXROOT>/single/cases/G74/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "OJ01",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/OJ01",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "OJ01",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "{\n  \"flag\": false,\n  \"reason\": \"terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\",\n  \"exit_code\": 4,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"manifest_path\": \"<FIXROOT>/single/cases/OJ01/output/single/manifest.yaml\",\n  \"redirect\": \"HW\u00ec\u008a\u00a4\u00ec\u00ba\u0094\u00ec\u009d\u00b4 \u00eb\u008d\u009c \u00eb\u0090\u0098\u00ec\u0096\u00b4(Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ed\u0096\u0089) HW \u00ec\u008a\u00a4\u00ed\u008e\u0099(GPU\u00c2\u00b7OS)\u00ec\u009d\u0084 \u00ec\u0095\u008c\u00ea\u00b8\u00b0 \u00ec\u0096\u00b4\u00eb\u00a0\u00a4\u00ec\u009b\u008c, \u00eb\u00aa\u00a8\u00eb\u008d\u00b8\u00ec\u009d\u0098 \u00ec\u00a0\u0095\u00ed\u0099\u0095\u00ed\u0095\u009c \u00ec\u0084\u009c\u00eb\u00b9\u0099\u00ec\u00a0\u0084\u00eb\u009e\u00b5\u00ec\u009d\u0084 \u00ec\u0084\u00b8\u00ec\u009a\u00b0\u00ea\u00b8\u00b0 \u00ec\u0096\u00b4\u00eb\u00a0\u00b5\u00ec\u008a\u00b5\u00eb\u008b\u0088\u00eb\u008b\u00a4. terraforming_node \u00eb\u00a1\u009c \u00e2\u0091\u00a0 HW\u00ec\u008a\u00a4\u00ec\u00ba\u0094 + \u00e2\u0091\u00a1 \u00eb\u00aa\u00a8\u00eb\u008d\u00b8 \u00eb\u008b\u00a4\u00ec\u009a\u00b4\u00eb\u00a1\u009c\u00eb\u0093\u009c \u00ec\u00a0\u0084\u00eb\u009e\u00b5(\u00ea\u00b4\u0080\u00eb\u00a6\u00ac NAS \u00ea\u00b2\u00bd\u00eb\u00a1\u009c? \u00ec\u00bb\u00a8\u00ed\u0085\u008c\u00ec\u009d\u00b4\u00eb\u0084\u0088 \u00ec\u009e\u0084\u00ec\u008b\u009c \u00eb\u008b\u00a4\u00ec\u009a\u00b4\u00eb\u00a1\u009c\u00eb\u0093\u009c(\u00ec\u00bb\u00a8\u00ed\u0085\u008c\u00ec\u009d\u00b4\u00eb\u0084\u0088 down \u00ec\u008b\u009c \u00ec\u0082\u00ad\u00ec\u00a0\u009c)? \u00ed\u008a\u00b9\u00ec\u00a0\u0095 \u00ea\u00b2\u00bd\u00eb\u00a1\u009c \u00ec\u00a0\u0080\u00ec\u009e\u00a5\u00c2\u00b7\u00eb\u00a7\u0088\u00ec\u009a\u00b4\u00ed\u008a\u00b8?)\u00ec\u009d\u0084 \u00eb\u00a8\u00bc\u00ec\u00a0\u0080 \u00ec\u00a0\u0095\u00ed\u0095\u00a9\u00ec\u008b\u009c\u00eb\u008b\u00a4.\"\n}\n",
+"stderr": ""
+},
+{
+"id": "OJ02",
+"group": "OUTPUT",
+"repo_group": "multi",
+"case_dir": "cases/OJ02",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "OJ02",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"multi\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": null,\n  \"node_warnings\": [],\n  \"effective_model_source\": {},\n  \"manifest_path\": \"<FIXROOT>/multi/cases/OJ02/output/multi/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "OJ03",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/OJ03",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "OJ03",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {\n    \"zeta\": \"/z\",\n    \"alpha\": \"/a\",\n    \"\u00ed\u0095\u009c\u00ea\u00b8\u0080\": \"/k\"\n  },\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {},\n  \"manifest_path\": \"<FIXROOT>/single/cases/OJ03/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "OJ04",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/OJ04",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json",
+"--require-flag"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "OJ04",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {},\n  \"manifest_path\": \"<FIXROOT>/single/cases/OJ04/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "OJ05",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/OJ05",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json",
+"--require-flag"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "OJ05",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "{\n  \"flag\": false,\n  \"reason\": \"terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\",\n  \"exit_code\": 4,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"manifest_path\": \"<FIXROOT>/single/cases/OJ05/output/single/manifest.yaml\",\n  \"redirect\": \"HW\u00ec\u008a\u00a4\u00ec\u00ba\u0094\u00ec\u009d\u00b4 \u00eb\u008d\u009c \u00eb\u0090\u0098\u00ec\u0096\u00b4(Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ed\u0096\u0089) HW \u00ec\u008a\u00a4\u00ed\u008e\u0099(GPU\u00c2\u00b7OS)\u00ec\u009d\u0084 \u00ec\u0095\u008c\u00ea\u00b8\u00b0 \u00ec\u0096\u00b4\u00eb\u00a0\u00a4\u00ec\u009b\u008c, \u00eb\u00aa\u00a8\u00eb\u008d\u00b8\u00ec\u009d\u0098 \u00ec\u00a0\u0095\u00ed\u0099\u0095\u00ed\u0095\u009c \u00ec\u0084\u009c\u00eb\u00b9\u0099\u00ec\u00a0\u0084\u00eb\u009e\u00b5\u00ec\u009d\u0084 \u00ec\u0084\u00b8\u00ec\u009a\u00b0\u00ea\u00b8\u00b0 \u00ec\u0096\u00b4\u00eb\u00a0\u00b5\u00ec\u008a\u00b5\u00eb\u008b\u0088\u00eb\u008b\u00a4. terraforming_node \u00eb\u00a1\u009c \u00e2\u0091\u00a0 HW\u00ec\u008a\u00a4\u00ec\u00ba\u0094 + \u00e2\u0091\u00a1 \u00eb\u00aa\u00a8\u00eb\u008d\u00b8 \u00eb\u008b\u00a4\u00ec\u009a\u00b4\u00eb\u00a1\u009c\u00eb\u0093\u009c \u00ec\u00a0\u0084\u00eb\u009e\u00b5(\u00ea\u00b4\u0080\u00eb\u00a6\u00ac NAS \u00ea\u00b2\u00bd\u00eb\u00a1\u009c? \u00ec\u00bb\u00a8\u00ed\u0085\u008c\u00ec\u009d\u00b4\u00eb\u0084\u0088 \u00ec\u009e\u0084\u00ec\u008b\u009c \u00eb\u008b\u00a4\u00ec\u009a\u00b4\u00eb\u00a1\u009c\u00eb\u0093\u009c(\u00ec\u00bb\u00a8\u00ed\u0085\u008c\u00ec\u009d\u00b4\u00eb\u0084\u0088 down \u00ec\u008b\u009c \u00ec\u0082\u00ad\u00ec\u00a0\u009c)? \u00ed\u008a\u00b9\u00ec\u00a0\u0095 \u00ea\u00b2\u00bd\u00eb\u00a1\u009c \u00ec\u00a0\u0080\u00ec\u009e\u00a5\u00c2\u00b7\u00eb\u00a7\u0088\u00ec\u009a\u00b4\u00ed\u008a\u00b8?)\u00ec\u009d\u0084 \u00eb\u00a8\u00bc\u00ec\u00a0\u0080 \u00ec\u00a0\u0095\u00ed\u0095\u00a9\u00ec\u008b\u009c\u00eb\u008b\u00a4.\"\n}\n",
+"stderr": ""
+},
+{
+"id": "OJ06",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/OJ06",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "OJ06",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=True \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=custom\n",
+"stderr": ""
+},
+{
+"id": "QVa",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/QVa",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "QVa",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "QVb",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/QVb",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--require-flag"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "QVb",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "QNa",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/QNa",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "QNa",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "QNb",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/QNb",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--require-flag"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "QNb",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "QMa",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/QMa",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "QMa",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 \u00ed\u0095\u0084\u00ec\u0088\u0098 HW\u00ed\u0095\u0084\u00eb\u0093\u009c \u00eb\u0088\u0084\u00eb\u009d\u00bd: gpus_per_node\n"
+},
+{
+"id": "QMb",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/QMb",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--require-flag"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "QMb",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 \u00ed\u0095\u0084\u00ec\u0088\u0098 HW\u00ed\u0095\u0084\u00eb\u0093\u009c \u00eb\u0088\u0084\u00eb\u009d\u00bd: gpus_per_node\n"
+},
+{
+"id": "QXa",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/QXa",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "QXa",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 6,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: manifest \u00ec\u0084\u00a0\u00ec\u0096\u00b8 topology='multi' \u00ea\u00b3\u00bc \u00ec\u009a\u0094\u00ec\u00b2\u00ad topology='single' \u00ec\u009d\u00b4 \u00eb\u008b\u00a4\u00eb\u00a5\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 manifest \u00ea\u00b0\u0080 \u00ea\u00b6\u008c\u00ec\u009c\u0084\u00eb\u008b\u00a4\n"
+},
+{
+"id": "QXb",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/QXb",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--require-flag"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "QXb",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 6,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: manifest \u00ec\u0084\u00a0\u00ec\u0096\u00b8 topology='multi' \u00ea\u00b3\u00bc \u00ec\u009a\u0094\u00ec\u00b2\u00ad topology='single' \u00ec\u009d\u00b4 \u00eb\u008b\u00a4\u00eb\u00a5\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 manifest \u00ea\u00b0\u0080 \u00ea\u00b6\u008c\u00ec\u009c\u0084\u00eb\u008b\u00a4\n"
+},
+{
+"id": "QYa",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/QYa",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "QYa",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "manifest \u00ed\u008c\u008c\u00ec\u008b\u00b1 \u00ec\u008b\u00a4\u00ed\u008c\u00a8: while parsing a flow mapping\n  in \"<FIXROOT>/single/cases/QYa/output/single/manifest.yaml\", line 1, column 15\nexpected ',' or '}', but got '<stream end>'\n  in \"<FIXROOT>/single/cases/QYa/output/single/manifest.yaml\", line 2, column 1\n"
+},
+{
+"id": "QYb",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/QYb",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--require-flag"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "QYb",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "manifest \u00ed\u008c\u008c\u00ec\u008b\u00b1 \u00ec\u008b\u00a4\u00ed\u008c\u00a8: while parsing a flow mapping\n  in \"<FIXROOT>/single/cases/QYb/output/single/manifest.yaml\", line 1, column 15\nexpected ',' or '}', but got '<stream end>'\n  in \"<FIXROOT>/single/cases/QYb/output/single/manifest.yaml\", line 2, column 1\n"
+},
+{
+"id": "QAa",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/QAa",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": null,
+"run": true,
+"exit": 3,
+"stdout": "",
+"stderr": "manifest \u00eb\u00b6\u0080\u00ec\u009e\u00ac: <FIXROOT>/single/cases/QAa/output/single/manifest.yaml (\u00ed\u0085\u008c\u00eb\u009d\u00bc\u00ed\u008f\u00ac\u00eb\u00b0\u008d \u00eb\u00af\u00b8\u00ec\u0099\u0084 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "QAb",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/QAb",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--require-flag"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": null,
+"run": true,
+"exit": 3,
+"stdout": "",
+"stderr": "manifest \u00eb\u00b6\u0080\u00ec\u009e\u00ac: <FIXROOT>/single/cases/QAb/output/single/manifest.yaml (\u00ed\u0085\u008c\u00eb\u009d\u00bc\u00ed\u008f\u00ac\u00eb\u00b0\u008d \u00eb\u00af\u00b8\u00ec\u0099\u0084 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "P01",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/P01",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<REL>"
+],
+"cwd": "group",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "P01",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "P02",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/P02",
+"args": [
+"--topology",
+"single",
+"--repo",
+"./<REL>"
+],
+"cwd": "group",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "P02",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "P03",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/P03",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>/"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "P03",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "P04",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/P04",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>/sub/..",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "dir",
+"path": "sub",
+"mode": "755"
+},
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "P04",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {},\n  \"manifest_path\": \"<FIXROOT>/single/cases/P04/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "P05",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/P05",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>/missing"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": null,
+"run": true,
+"exit": 3,
+"stdout": "",
+"stderr": "manifest \u00eb\u00b6\u0080\u00ec\u009e\u00ac: <FIXROOT>/single/cases/P05/missing/output/single/manifest.yaml (\u00ed\u0085\u008c\u00eb\u009d\u00bc\u00ed\u008f\u00ac\u00eb\u00b0\u008d \u00eb\u00af\u00b8\u00ec\u0099\u0084 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "P06",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/P06",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>/afile"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "afile",
+"data": "P06",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 3,
+"stdout": "",
+"stderr": "manifest \u00eb\u00b6\u0080\u00ec\u009e\u00ac: <FIXROOT>/single/cases/P06/afile/output/single/manifest.yaml (\u00ed\u0085\u008c\u00eb\u009d\u00bc\u00ed\u008f\u00ac\u00eb\u00b0\u008d \u00eb\u00af\u00b8\u00ec\u0099\u0084 \u00e2\u0080\u0094 info-only)\n"
+},
+{
+"id": "P07",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/P07-\ucea0\ud504",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "P07",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "P08",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/P08 with space",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "P08",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {},\n  \"manifest_path\": \"<FIXROOT>/single/cases/P08 with space/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "P10",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/P10",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "symlink_group",
+"path": "cases/P10",
+"target": "<FIXROOT>/multi/cases/P10-target"
+}
+],
+"route": null,
+"run": true,
+"exit": 6,
+"stdout": "{\"flag\": false, \"reason\": \"\u00ec\u009a\u0094\u00ec\u00b2\u00ad topology='single' \u00ec\u009d\u00b4 \u00ec\u00b2\u00b4\u00ed\u0081\u00ac\u00ec\u0095\u0084\u00ec\u009b\u0083 \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00ea\u00b0\u0080 \u00ea\u00b3\u00a0\u00eb\u00a5\u00b4\u00eb\u008a\u0094 \u00ed\u0086\u00b5\u00eb\u00a1\u009c 'multi' \u00ec\u0099\u0080 \u00eb\u008b\u00a4\u00eb\u00a5\u00b4\u00eb\u008b\u00a4 \u00e2\u0080\u0094 \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00eb\u00a5\u00bc \u00eb\u00b0\u0094\u00ea\u00be\u00b8\u00ea\u00b1\u00b0\u00eb\u0082\u0098 \u00ec\u009a\u0094\u00ec\u00b2\u00ad\u00ec\u009d\u0084 \u00eb\u00b0\u0094\u00ea\u00bf\u0094\u00eb\u009d\u00bc(\u00ec\u009e\u0090\u00eb\u008f\u0099 \u00ea\u00b5\u0090\u00ec\u00a0\u0095\u00ed\u0095\u0098\u00ec\u00a7\u0080 \u00ec\u0095\u008a\u00eb\u008a\u0094\u00eb\u008b\u00a4). \u00ec\u00a0\u0095\u00eb\u00b3\u00b8 \u00ec\u0088\u00a0\u00ec\u0096\u00b4: topology_parity.py\", \"topology\": \"single\", \"redirect\": \"HW\u00ec\u008a\u00a4\u00ec\u00ba\u0094\u00ec\u009d\u00b4 \u00eb\u008d\u009c \u00eb\u0090\u0098\u00ec\u0096\u00b4(Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ed\u0096\u0089) HW \u00ec\u008a\u00a4\u00ed\u008e\u0099(GPU\u00c2\u00b7OS)\u00ec\u009d\u0084 \u00ec\u0095\u008c\u00ea\u00b8\u00b0 \u00ec\u0096\u00b4\u00eb\u00a0\u00a4\u00ec\u009b\u008c, \u00eb\u00aa\u00a8\u00eb\u008d\u00b8\u00ec\u009d\u0098 \u00ec\u00a0\u0095\u00ed\u0099\u0095\u00ed\u0095\u009c \u00ec\u0084\u009c\u00eb\u00b9\u0099\u00ec\u00a0\u0084\u00eb\u009e\u00b5\u00ec\u009d\u0084 \u00ec\u0084\u00b8\u00ec\u009a\u00b0\u00ea\u00b8\u00b0 \u00ec\u0096\u00b4\u00eb\u00a0\u00b5\u00ec\u008a\u00b5\u00eb\u008b\u0088\u00eb\u008b\u00a4. terraforming_node \u00eb\u00a1\u009c \u00e2\u0091\u00a0 HW\u00ec\u008a\u00a4\u00ec\u00ba\u0094 + \u00e2\u0091\u00a1 \u00eb\u00aa\u00a8\u00eb\u008d\u00b8 \u00eb\u008b\u00a4\u00ec\u009a\u00b4\u00eb\u00a1\u009c\u00eb\u0093\u009c \u00ec\u00a0\u0084\u00eb\u009e\u00b5(\u00ea\u00b4\u0080\u00eb\u00a6\u00ac NAS \u00ea\u00b2\u00bd\u00eb\u00a1\u009c? \u00ec\u00bb\u00a8\u00ed\u0085\u008c\u00ec\u009d\u00b4\u00eb\u0084\u0088 \u00ec\u009e\u0084\u00ec\u008b\u009c \u00eb\u008b\u00a4\u00ec\u009a\u00b4\u00eb\u00a1\u009c\u00eb\u0093\u009c(\u00ec\u00bb\u00a8\u00ed\u0085\u008c\u00ec\u009d\u00b4\u00eb\u0084\u0088 down \u00ec\u008b\u009c \u00ec\u0082\u00ad\u00ec\u00a0\u009c)? \u00ed\u008a\u00b9\u00ec\u00a0\u0095 \u00ea\u00b2\u00bd\u00eb\u00a1\u009c \u00ec\u00a0\u0080\u00ec\u009e\u00a5\u00c2\u00b7\u00eb\u00a7\u0088\u00ec\u009a\u00b4\u00ed\u008a\u00b8?)\u00ec\u009d\u0084 \u00eb\u00a8\u00bc\u00ec\u00a0\u0080 \u00ec\u00a0\u0095\u00ed\u0095\u00a9\u00ec\u008b\u009c\u00eb\u008b\u00a4.\"}\n",
+"stderr": ""
+},
+{
+"id": "P10T",
+"group": "SUPPORT",
+"repo_group": "multi",
+"case_dir": "cases/P10-target",
+"args": [],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/multi/manifest.yaml",
+"data": "P10T",
+"mode": "644"
+}
+],
+"route": null,
+"run": false
+},
+{
+"id": "P11",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/P11",
+"args": [
+"--topology",
+"multi",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "symlink_group",
+"path": "cases/P11",
+"target": "<FIXROOT>/multi/cases/P10-target"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=multi \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=2 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "P12",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/P12",
+"args": [
+"--topology",
+"single",
+"--repo",
+""
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "P12",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "P13",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/P13",
+"args": [
+"--topology",
+"single"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "P13",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "E01",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/E01",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {
+"PYTHONIOENCODING": "ascii"
+},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "E01",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 453, in main\n    print(\"Flag valid \\xb7 topology=%s \\xb7 gpus_per_node=%s \\xb7 manifest_tp=%s \\xb7 model_source=%s\"\nUnicodeEncodeError: 'ascii' codec can't encode character '\\xb7' in position 11: ordinal not in range(128)\n"
+},
+{
+"id": "E02",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/E02",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {
+"PYTHONIOENCODING": "ascii"
+},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "E02",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 4,
+"stdout": "",
+"stderr": "Flag \\ubbf8\\ubc1c\\uae09: terraforming.complete != true (Flag \\ubbf8\\ubc1c\\uae09 \\u2014 info-only)\n"
+},
+{
+"id": "E03",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/E03",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {
+"PYTHONIOENCODING": "ascii"
+},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "E03",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\nUnicodeEncodeError: 'ascii' codec can't encode characters in position 74-75: ordinal not in range(128)\n"
+},
+{
+"id": "E04",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/E04",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {
+"PYTHONIOENCODING": "latin-1"
+},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "E04",
+"mode": "644"
+}
+],
+"route": "LegacyProfile",
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00b7 topology=single \u00b7 gpus_per_node=1 \u00b7 manifest_tp=1 \u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "E05",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/E05",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {
+"LC_ALL": "C",
+"LANG": "C"
+},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "E05",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "E06",
+"group": "OUTPUT",
+"repo_group": "single",
+"case_dir": "cases/E06",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {
+"PYTHONUTF8": "1"
+},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "E06",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "S01",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S01",
+"args": [
+"--help"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": "LegacyShape",
+"run": true,
+"exit": 0,
+"stdout": "usage: manifest_contract.py [-h] [--topology {single,multi}] [--repo REPO]\n                            [--require-flag] [--json] [--self-test]\n\n\u00ed\u0085\u008c\u00eb\u009d\u00bc\u00ed\u008f\u00ac\u00eb\u00b0\u008d-\u00ec\u0099\u0084\u00ec\u0088\u0098 Flag \u00ea\u00b2\u008c\u00ec\u009d\u00b4\u00ed\u008a\u00b8 \u00ea\u00b2\u00b0\u00ec\u00a0\u0095\u00eb\u00a1\u00a0 \u00eb\u00a6\u00ac\u00eb\u008d\u0094\n\noptions:\n  -h, --help            show this help message and exit\n  --topology {single,multi}\n                        \u00eb\u00af\u00b8\u00ec\u00a7\u0080\u00ec\u00a0\u0095 \u00ec\u008b\u009c git \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00ea\u00b0\u0080 \u00ed\u0086\u00b5\u00eb\u00a1\u009c \u00ec\u0084\u00a0\u00ed\u0083\u009d\n  --repo REPO           \u00eb\u00a0\u0088\u00ed\u008f\u00ac \u00eb\u00a3\u00a8\u00ed\u008a\u00b8(\u00ea\u00b8\u00b0\u00eb\u00b3\u00b8 .)\n  --require-flag        Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00ec\u008b\u009c \u00eb\u00b9\u00840\u00ec\u00a2\u0085\u00eb\u00a3\u008c(\u00ec\u009e\u0091\u00ec\u0097\u0085 \u00ec\u008a\u00a4\u00ed\u0081\u00ac\u00eb\u00a6\u00bd\u00ed\u008a\u00b8 \u00ea\u00b2\u008c\u00ec\u009d\u00b4\u00ed\u008a\u00b8\u00ec\u009a\u00a9)\n  --json                \u00ea\u00b3\u0084\u00ec\u0095\u00bd JSON \u00ec\u009d\u0084 stdout \u00ec\u009c\u00bc\u00eb\u00a1\u009c\n  --self-test           \u00ea\u00b2\u008c\u00ec\u009d\u00b4\u00ed\u008a\u00b8/ TP \u00ed\u009a\u008c\u00ea\u00b7\u0080(\u00ed\u0095\u0098\u00eb\u0093\u009c\u00ec\u009b\u00a8\u00ec\u0096\u00b4 \u00eb\u00b6\u0088\u00ec\u009a\u0094)\n",
+"stderr": ""
+},
+{
+"id": "S02",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S02",
+"args": [
+"-h"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": "LegacyShape",
+"run": true,
+"exit": 0,
+"stdout": "usage: manifest_contract.py [-h] [--topology {single,multi}] [--repo REPO]\n                            [--require-flag] [--json] [--self-test]\n\n\u00ed\u0085\u008c\u00eb\u009d\u00bc\u00ed\u008f\u00ac\u00eb\u00b0\u008d-\u00ec\u0099\u0084\u00ec\u0088\u0098 Flag \u00ea\u00b2\u008c\u00ec\u009d\u00b4\u00ed\u008a\u00b8 \u00ea\u00b2\u00b0\u00ec\u00a0\u0095\u00eb\u00a1\u00a0 \u00eb\u00a6\u00ac\u00eb\u008d\u0094\n\noptions:\n  -h, --help            show this help message and exit\n  --topology {single,multi}\n                        \u00eb\u00af\u00b8\u00ec\u00a7\u0080\u00ec\u00a0\u0095 \u00ec\u008b\u009c git \u00eb\u00b8\u008c\u00eb\u009e\u009c\u00ec\u00b9\u0098\u00ea\u00b0\u0080 \u00ed\u0086\u00b5\u00eb\u00a1\u009c \u00ec\u0084\u00a0\u00ed\u0083\u009d\n  --repo REPO           \u00eb\u00a0\u0088\u00ed\u008f\u00ac \u00eb\u00a3\u00a8\u00ed\u008a\u00b8(\u00ea\u00b8\u00b0\u00eb\u00b3\u00b8 .)\n  --require-flag        Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00ec\u008b\u009c \u00eb\u00b9\u00840\u00ec\u00a2\u0085\u00eb\u00a3\u008c(\u00ec\u009e\u0091\u00ec\u0097\u0085 \u00ec\u008a\u00a4\u00ed\u0081\u00ac\u00eb\u00a6\u00bd\u00ed\u008a\u00b8 \u00ea\u00b2\u008c\u00ec\u009d\u00b4\u00ed\u008a\u00b8\u00ec\u009a\u00a9)\n  --json                \u00ea\u00b3\u0084\u00ec\u0095\u00bd JSON \u00ec\u009d\u0084 stdout \u00ec\u009c\u00bc\u00eb\u00a1\u009c\n  --self-test           \u00ea\u00b2\u008c\u00ec\u009d\u00b4\u00ed\u008a\u00b8/ TP \u00ed\u009a\u008c\u00ea\u00b7\u0080(\u00ed\u0095\u0098\u00eb\u0093\u009c\u00ec\u009b\u00a8\u00ec\u0096\u00b4 \u00eb\u00b6\u0088\u00ec\u009a\u0094)\n",
+"stderr": ""
+},
+{
+"id": "S03",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S03",
+"args": [
+"--self-test"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": "LegacyShape",
+"run": true,
+"exit": 0,
+"stdout": "PASS valid-single \u00e2\u0080\u0094 Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\nPASS valid-sub-issued-by-main \u00e2\u0080\u0094 Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\nPASS sub-issued-by-missing-rejected \u00e2\u0080\u0094 self_role=sub \u00ec\u009d\u00b4\u00ec\u00a7\u0080\u00eb\u00a7\u008c terraforming.issued_by != 'main' \u00e2\u0080\u0094 \u00eb\u00a9\u0094\u00ec\u009d\u00b8\u00ec\u009d\u00b4 \u00eb\u00b0\u009c\u00ea\u00b8\u0089\u00ed\u0095\u009c \u00ec\u0084\u009c\u00eb\u00b8\u008c manifest\u00ea\u00b0\u0080 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u00af\u0080\u00eb\u00a1\u009c readiness\u00eb\u00a5\u00bc \u00ec\u009d\u00b8\u00ec\u00a0\u0095\u00ed\u0095\u0098\u00ec\u00a7\u0080 \u00ec\u0095\u008a\u00eb\u008a\u0094\u00eb\u008b\u00a4\nPASS sub-issued-by-sub-rejected \u00e2\u0080\u0094 self_role=sub \u00ec\u009d\u00b4\u00ec\u00a7\u0080\u00eb\u00a7\u008c terraforming.issued_by != 'main' \u00e2\u0080\u0094 \u00eb\u00a9\u0094\u00ec\u009d\u00b8\u00ec\u009d\u00b4 \u00eb\u00b0\u009c\u00ea\u00b8\u0089\u00ed\u0095\u009c \u00ec\u0084\u009c\u00eb\u00b8\u008c manifest\u00ea\u00b0\u0080 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u00af\u0080\u00eb\u00a1\u009c readiness\u00eb\u00a5\u00bc \u00ec\u009d\u00b8\u00ec\u00a0\u0095\u00ed\u0095\u0098\u00ec\u00a7\u0080 \u00ec\u0095\u008a\u00eb\u008a\u0094\u00eb\u008b\u00a4\nPASS sub-issued-by-unknown-rejected \u00e2\u0080\u0094 self_role=sub \u00ec\u009d\u00b4\u00ec\u00a7\u0080\u00eb\u00a7\u008c terraforming.issued_by != 'main' \u00e2\u0080\u0094 \u00eb\u00a9\u0094\u00ec\u009d\u00b8\u00ec\u009d\u00b4 \u00eb\u00b0\u009c\u00ea\u00b8\u0089\u00ed\u0095\u009c \u00ec\u0084\u009c\u00eb\u00b8\u008c manifest\u00ea\u00b0\u0080 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u00af\u0080\u00eb\u00a1\u009c readiness\u00eb\u00a5\u00bc \u00ec\u009d\u00b8\u00ec\u00a0\u0095\u00ed\u0095\u0098\u00ec\u00a7\u0080 \u00ec\u0095\u008a\u00eb\u008a\u0094\u00eb\u008b\u00a4\nPASS valid-multi \u00e2\u0080\u0094 Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\nPASS no-flag-complete-false \u00e2\u0080\u0094 terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\nPASS no-flag-missing-block \u00e2\u0080\u0094 terraforming.complete != true (Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089 \u00e2\u0080\u0094 info-only)\nPASS no-flag-branch-unverified \u00e2\u0080\u0094 terraforming.branch_verified != true (\u00c2\u00a71.5 3\u00ec\u009e\u0090\u00ec\u009d\u00bc\u00ec\u00b9\u0098 \u00eb\u00af\u00b8\u00ed\u0086\u00b5\u00ea\u00b3\u00bc \u00e2\u0080\u0094 info-only)\nPASS flag-but-missing-gpus \u00e2\u0080\u0094 Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 \u00ed\u0095\u0084\u00ec\u0088\u0098 HW\u00ed\u0095\u0084\u00eb\u0093\u009c \u00eb\u0088\u0084\u00eb\u009d\u00bd: gpus_per_node\nPASS flag-but-bad-model-source \u00e2\u0080\u0094 model_source \u00eb\u00af\u00b8\u00ec\u0084\u00a4\u00ec\u00a0\u0095/\u00ec\u0098\u00a4\u00eb\u00a5\u0098: 'nas' (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 managed|ephemeral|custom)\nPASS flag-but-gpus-not-int(B4) \u00e2\u0080\u0094 Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 gpus_per_node \u00eb\u00b6\u0080\u00ec\u009e\u00ac/\u00eb\u00b9\u0084\u00ec\u00a0\u0095\u00ec\u0088\u0098('abc') \u00e2\u0080\u0094 TP \u00eb\u008a\u0094 HW \u00ec\u0082\u00ac\u00ec\u008b\u00a4\u00ec\u009d\u00b4\u00ec\u00a7\u0080 \u00ea\u00b8\u00b0\u00eb\u00b3\u00b8\u00ea\u00b0\u0092\u00ec\u009d\u00b4 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u008b\u00a4\nPASS flag-but-gpus-zero(B4) \u00e2\u0080\u0094 Flag true \u00ec\u009d\u00b4\u00eb\u0082\u0098 \u00ed\u0095\u0084\u00ec\u0088\u0098 HW\u00ed\u0095\u0084\u00eb\u0093\u009c \u00eb\u0088\u0084\u00eb\u009d\u00bd: gpus_per_node\nPASS valid-override(single sub-control) \u00e2\u0080\u0094 Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\nPASS bad-override(invalid per-node model_source) \u00e2\u0080\u0094 per-node model_source \u00ec\u0098\u00a4\u00eb\u00a5\u0098: nodes[1](sub).model_source='nas-bogus' (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 managed|ephemeral|custom)\nPASS \u00ec\u0082\u00ac\u00ec\u00a0\u0084\u00ec\u00a0\u0081\u00ec\u009e\u00ac \u00ec\u009e\u0090\u00ec\u0082\u00b0 \u00eb\u0085\u00b8\u00eb\u0093\u009c-\u00eb\u00a1\u009c\u00ec\u00bb\u00ac \u00e2\u0086\u0092 WARN \u00e2\u0080\u0094 Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\nPASS \u00ea\u00b3\u00b5\u00ec\u009c\u00a0 \u00ec\u008a\u00a4\u00ed\u0086\u00a0\u00eb\u00a6\u00ac\u00ec\u00a7\u0080 \u00e2\u0086\u0092 \u00eb\u00ac\u00b4\u00ea\u00b2\u00bd\u00ea\u00b3\u00a0(\u00eb\u008c\u0080\u00ec\u00a1\u00b0\u00ea\u00b5\u00b0) \u00e2\u0080\u0094 Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\nPASS \u00ec\u0084\u009c\u00eb\u00b8\u008c \u00ec\u0097\u0086\u00eb\u008a\u0094 \u00eb\u008b\u00a8\u00ec\u009d\u00bc\u00eb\u0085\u00b8\u00eb\u0093\u009c \u00e2\u0086\u0092 \u00eb\u00ac\u00b4\u00ea\u00b2\u00bd\u00ea\u00b3\u00a0(\u00eb\u00a1\u009c\u00ec\u00bb\u00ac\u00ec\u009d\u00b4 \u00ec\u00a0\u0095\u00ec\u0083\u0081) \u00e2\u0080\u0094 Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\nPASS multi-override(WARN, \u00eb\u00ac\u00b4\u00ec\u008b\u009c \u00eb\u008c\u0080\u00ec\u0083\u0081) \u00e2\u0080\u0094 Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\nPASS tp-single-empty \u00e2\u0080\u0094 tp=4 (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 4)\nPASS tp-single-with-sub(\u00ce\u00b41-1) \u00e2\u0080\u0094 tp=1 (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 1)\nPASS tp-single-with-sub-4gpu \u00e2\u0080\u0094 tp=4 (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 4)\nPASS tp-multi-2x1 \u00e2\u0080\u0094 tp=2 (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 2)\nPASS tp-multi-2x2 \u00e2\u0080\u0094 tp=4 (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 4)\nPASS tp-empty-multi-none \u00e2\u0080\u0094 tp=None (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 None)\nPASS tp-missing-gpus-raises(B4) \u00e2\u0080\u0094 ValueError: gpus_per_node \u00eb\u00b6\u0080\u00ec\u009e\u00ac/\u00eb\u00b9\u0084\u00ec\u00a0\u0095\u00ec\u0088\u0098(None) \u00e2\u0080\u0094 TP \u00eb\u008a\u0094 HW \u00ec\u0082\u00ac\u00ec\u008b\u00a4\u00ec\u009d\u00b4\u00ec\u00a7\u0080 \u00ea\u00b8\u00b0\u00eb\u00b3\u00b8\u00ea\u00b0\u0092\u00ec\u009d\u00b4 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u008b\u00a4\nPASS tp-str-gpus-raises(B4) \u00e2\u0080\u0094 ValueError: gpus_per_node \u00eb\u00b6\u0080\u00ec\u009e\u00ac/\u00eb\u00b9\u0084\u00ec\u00a0\u0095\u00ec\u0088\u0098('two') \u00e2\u0080\u0094 TP \u00eb\u008a\u0094 HW \u00ec\u0082\u00ac\u00ec\u008b\u00a4\u00ec\u009d\u00b4\u00ec\u00a7\u0080 \u00ea\u00b8\u00b0\u00eb\u00b3\u00b8\u00ea\u00b0\u0092\u00ec\u009d\u00b4 \u00ec\u0095\u0084\u00eb\u008b\u0088\u00eb\u008b\u00a4\n\n27/27 self-test \u00ed\u0086\u00b5\u00ea\u00b3\u00bc\n",
+"stderr": ""
+},
+{
+"id": "S04",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S04",
+"args": [
+"--topology=single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "S04",
+"mode": "644"
+}
+],
+"route": "LegacyShape",
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "S05",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S05",
+"args": [
+"--topo",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "S05",
+"mode": "644"
+}
+],
+"route": "LegacyShape",
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "S06",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S06",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--req"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "S06",
+"mode": "644"
+}
+],
+"route": "LegacyShape",
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "S07",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S07",
+"args": [
+"--topology",
+"bad",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": "LegacyShape",
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "usage: manifest_contract.py [-h] [--topology {single,multi}] [--repo REPO]\n                            [--require-flag] [--json] [--self-test]\nmanifest_contract.py: error: argument --topology: invalid choice: 'bad' (choose from 'single', 'multi')\n"
+},
+{
+"id": "S08",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S08",
+"args": [
+"--topology"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": "LegacyShape",
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "usage: manifest_contract.py [-h] [--topology {single,multi}] [--repo REPO]\n                            [--require-flag] [--json] [--self-test]\nmanifest_contract.py: error: argument --topology: expected one argument\n"
+},
+{
+"id": "S09",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S09",
+"args": [
+"--repo"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": "LegacyShape",
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "usage: manifest_contract.py [-h] [--topology {single,multi}] [--repo REPO]\n                            [--require-flag] [--json] [--self-test]\nmanifest_contract.py: error: argument --repo: expected one argument\n"
+},
+{
+"id": "S10",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S10",
+"args": [
+"--topology",
+"single",
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "S10",
+"mode": "644"
+}
+],
+"route": "LegacyShape",
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "S11",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S11",
+"args": [
+"--topology",
+"multi",
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "S11",
+"mode": "644"
+}
+],
+"route": "LegacyShape",
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "S12",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S12",
+"args": [
+"--bogus"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": "LegacyShape",
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "usage: manifest_contract.py [-h] [--topology {single,multi}] [--repo REPO]\n                            [--require-flag] [--json] [--self-test]\nmanifest_contract.py: error: unrecognized arguments: --bogus\n"
+},
+{
+"id": "S13",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S13",
+"args": [
+"extra",
+"--topology",
+"single"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": "LegacyShape",
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "usage: manifest_contract.py [-h] [--topology {single,multi}] [--repo REPO]\n                            [--require-flag] [--json] [--self-test]\nmanifest_contract.py: error: unrecognized arguments: extra\n"
+},
+{
+"id": "S14",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S14",
+"args": [
+"--repo",
+"-x",
+"--topology",
+"single"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [],
+"route": "LegacyShape",
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "usage: manifest_contract.py [-h] [--topology {single,multi}] [--repo REPO]\n                            [--require-flag] [--json] [--self-test]\nmanifest_contract.py: error: argument --repo: expected one argument\n"
+},
+{
+"id": "S15",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S15",
+"args": [
+"--topology",
+"single",
+"--repo=<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "S15",
+"mode": "644"
+}
+],
+"route": "LegacyShape",
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "S16",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S16",
+"args": [
+"--json",
+"--json",
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "S16",
+"mode": "644"
+}
+],
+"route": "LegacyShape",
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {},\n  \"manifest_path\": \"<FIXROOT>/single/cases/S16/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "S17",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/S17",
+"args": [
+"--json",
+"--require-flag",
+"--repo",
+"<CASE>",
+"--topology",
+"single"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "S17",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {},\n  \"manifest_path\": \"<FIXROOT>/single/cases/S17/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "V01",
+"group": "ROUTES",
+"repo_group": "single",
+"case_dir": "cases/V01",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "V01",
+"mode": "644"
+}
+],
+"route": "LegacySourceVariant",
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+}
+]
+}

@@ -649,6 +649,10 @@ struct Shape {
     frames: std::cell::RefCell<Vec<Met>>,
     /// assembled shared nodes
     memo: std::cell::RefCell<HashMap<usize, Vec<Memo>>>,
+    /// the container depth the next assembled node sits at (a document root is 0; a list/dict/set child is its parent + 1, the key and
+    /// the value of an `!!omap`/`!!pairs` entry are + 2 because the entry is a tuple), and the depth of every open node
+    depth_now: std::cell::Cell<usize>,
+    depth_of: std::cell::RefCell<HashMap<usize, usize>>,
 }
 
 /// Which nodes of a cycle a value was built around. A node's value depends only on which of the nodes it can reach are
@@ -666,6 +670,9 @@ struct Met {
 struct Memo {
     value: PyValue,
     met: Met,
+    /// for every marker of the value: how far below its target the value was built (the marker's `cycle_up` is relative, so the
+    /// value is reusable only where the same relation holds)
+    relations: Vec<(usize, usize)>,
 }
 
 fn constructor_error(
@@ -1438,27 +1445,17 @@ impl Builder {
             return value.clone();
         }
         let shape = &self.shape;
+        let depth = shape.depth_now.get();
         if shape.open.borrow().contains(&id) {
             if let Some(top) = shape.frames.borrow_mut().last_mut() {
                 top.markers.insert(id);
             }
-            let (type_name, repr) = match built {
-                Built::Dict(_) => ("dict", "{...}"),
-                Built::Set(_) => ("set", "set(...)"),
-                _ => ("list", "[...]"),
-            };
-            return PyValue::Opaque(Opaque {
-                type_name,
-                repr: repr.to_string(),
-                truthy: true,
-                typed: Typed::Plain,
-                identity: None,
-            });
+            return self.marker(built, id, depth);
         }
         let shared = shape.refs[id] >= 2;
         let cyclic = shape.cyclic[shape.component[id]];
         if shared {
-            if let Some((value, met)) = self.remembered(id) {
+            if let Some((value, met)) = self.remembered(id, depth) {
                 if let Some(top) = shape.frames.borrow_mut().last_mut() {
                     top.markers.extend(met.markers);
                     top.expanded.extend(met.expanded);
@@ -1467,18 +1464,28 @@ impl Builder {
             }
         }
         shape.path.borrow_mut().push(id);
+        shape.depth_of.borrow_mut().insert(id, depth);
         shape.open.borrow_mut().insert(id);
         shape.frames.borrow_mut().push(Met::default());
         let value = match built {
             Built::Value(_) => unreachable!(),
-            Built::List(children) => {
-                PyValue::List(children.iter().map(|&child| self.assemble(child)).collect())
-            }
+            Built::List(children) => PyValue::List(
+                children
+                    .iter()
+                    .map(|&child| {
+                        shape.depth_now.set(depth + 1);
+                        self.assemble(child)
+                    })
+                    .collect(),
+            ),
             Built::Pairs(pairs) => PyValue::List(
                 pairs
                     .iter()
                     .map(|&(key, value)| {
-                        PyValue::Tuple(vec![self.assemble(key), self.assemble(value)])
+                        shape.depth_now.set(depth + 2);
+                        let key = self.assemble(key);
+                        shape.depth_now.set(depth + 2);
+                        PyValue::Tuple(vec![key, self.assemble(value)])
                     })
                     .collect(),
             ),
@@ -1487,6 +1494,7 @@ impl Builder {
                 let mut members: Vec<PyValue> = Vec::new();
                 let mut seen: Vec<String> = Vec::new();
                 for &key in keys {
+                    shape.depth_now.set(depth + 1);
                     let member = self.assemble(key);
                     // a set holds one of the values Python's `==` and `hash` treat as one (`1`, `1.0` and `True`): the first stays
                     let identity = match dict_key(&member, self.nan_origin(key)) {
@@ -1514,7 +1522,9 @@ impl Builder {
             Built::Dict(pairs) => {
                 let mut map = PyDict::new();
                 for &(key, value) in pairs {
+                    shape.depth_now.set(depth + 1);
                     let key_value = self.assemble(key);
+                    shape.depth_now.set(depth + 1);
                     let value = self.assemble(value);
                     map.insert_key(dict_key(&key_value, self.nan_origin(key)), value);
                 }
@@ -1522,7 +1532,24 @@ impl Builder {
             }
         };
         shape.path.borrow_mut().pop();
+        self.finish(id, depth, value, shared, cyclic)
+    }
+
+    /// What follows the assembly of a node's children (frames, memo): kept out of `assemble` so a deeply nested document does not pay
+    /// for these locals on every level of its recursion.
+    #[inline(never)]
+    fn finish(
+        &self,
+        id: usize,
+        depth: usize,
+        value: PyValue,
+        shared: bool,
+        cyclic: bool,
+    ) -> PyValue {
+        let shape = &self.shape;
         shape.open.borrow_mut().remove(&id);
+        let relations = self.marker_relations(id, depth);
+        shape.depth_of.borrow_mut().remove(&id);
         let mut met = shape.frames.borrow_mut().pop().expect("frame of this node");
         // a marker for the node itself is inside the value, not a circumstance of it
         met.markers.remove(&id);
@@ -1538,6 +1565,7 @@ impl Builder {
             shape.memo.borrow_mut().entry(id).or_default().push(Memo {
                 value: value.clone(),
                 met,
+                relations,
             });
             value
         } else {
@@ -1545,15 +1573,62 @@ impl Builder {
         }
     }
 
+    /// The marker for an open node that recurs at `depth`: its kind and how many container levels up the node sits. (Kept out of `assemble`
+    /// so the recursion of a deeply nested document does not pay for it in stack.)
+    #[inline(never)]
+    fn marker(&self, built: &Built, id: usize, depth: usize) -> PyValue {
+        let (type_name, repr) = match built {
+            Built::Dict(_) => ("dict", "{...}"),
+            Built::Set(_) => ("set", "set(...)"),
+            _ => ("list", "[...]"),
+        };
+        PyValue::Opaque(Opaque {
+            type_name,
+            repr: repr.to_string(),
+            truthy: true,
+            typed: Typed::Cycle(depth - self.shape.depth_of.borrow()[&id]),
+            identity: None,
+        })
+    }
+
+    /// For every marker of the node just assembled: how far below its target the node sits (see [`Memo::relations`]).
+    #[inline(never)]
+    fn marker_relations(&self, id: usize, depth: usize) -> Vec<(usize, usize)> {
+        let shape = &self.shape;
+        let depths = shape.depth_of.borrow();
+        let mut markers: Vec<usize> = shape
+            .frames
+            .borrow()
+            .last()
+            .map(|top| {
+                top.markers
+                    .iter()
+                    .copied()
+                    .filter(|node| *node != id)
+                    .collect()
+            })
+            .unwrap_or_default();
+        markers.sort_unstable();
+        markers
+            .into_iter()
+            .map(|node| (node, depth - depths[&node]))
+            .collect()
+    }
+
     /// The value remembered for a shared node, if it was built around the same open nodes as the present ones.
-    fn remembered(&self, id: usize) -> Option<(PyValue, Met)> {
+    fn remembered(&self, id: usize, depth: usize) -> Option<(PyValue, Met)> {
         let shape = &self.shape;
         let memo = shape.memo.borrow();
         let open = shape.open.borrow();
+        let depths = shape.depth_of.borrow();
         memo.get(&id)?
             .iter()
             .find(|entry| {
                 entry.met.markers.iter().all(|node| open.contains(node))
+                    && entry
+                        .relations
+                        .iter()
+                        .all(|(node, far)| depth - depths[node] == *far)
                     && !shape
                         .path
                         .borrow()
@@ -1583,7 +1658,7 @@ fn timedelta_args(seconds: i64) -> String {
 /// A dict key made of a YAML value. A string is a string key; every other hashable value is a non-string key whose
 /// identity is equal exactly when Python's keys are: `1`, `1.0` and `True` are one key, whatever the size of the integral
 /// float (exact integer value); a NaN is equal only to the same object (`nan_origin`: see [`Builder::nan_origin`]).
-fn dict_key(value: &PyValue, nan_origin: usize) -> DictKey {
+pub fn dict_key(value: &PyValue, nan_origin: usize) -> DictKey {
     let other = |identity: String| {
         DictKey::Other(NonStringKey {
             identity,

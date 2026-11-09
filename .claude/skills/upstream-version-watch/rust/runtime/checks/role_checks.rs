@@ -438,3 +438,73 @@ fn a_yaml_failure_without_a_mapped_traceback_is_a_named_boundary_not_empty_frame
     );
     std::fs::remove_dir_all(dir).unwrap();
 }
+
+/// R48 Q added `MarkedDetail::shared_marks` (are `context_mark` and `problem_mark` one Python object?). The R33 error DTO profile encodes marks
+/// as VALUES, so the new fact must not change any existing graph: two marked errors that differ ONLY in `shared_marks` give the same outcome,
+/// and the real loader's marked errors keep their defined graph (class, five args/attributes, both marks) as before.
+#[test]
+fn the_new_shared_marks_fact_does_not_change_the_defined_yaml_error_graph() {
+    use agent_runtime_support::pystr::PyStr;
+    use agent_runtime_support::pyyaml::{Mark6, MarkedDetail, YamlDetail, YamlError};
+    use role_contract::load::LoadFailure;
+    use upstream_runtime::role_errors::{load_failure, Raised};
+    let mark = |index: usize| Mark6 {
+        name: PyStr::new("m.yaml"),
+        index,
+        line: 0,
+        column: index,
+        buffer: None,
+        pointer: None,
+    };
+    let make = |shared: bool| {
+        LoadFailure::Yaml(Box::new(YamlError {
+            class: "ParserError",
+            message: PyStr::new("while parsing\nproblem\n"),
+            detail: YamlDetail::Marked(Box::new(MarkedDetail {
+                context: Some(PyStr::new("while parsing")),
+                context_mark: Some(mark(1)),
+                problem: Some(PyStr::new("problem")),
+                problem_mark: Some(mark(1)),
+                note: None,
+                shared_marks: shared,
+                frames: None,
+            })),
+        }))
+    };
+    let show = |raised: Raised| match raised {
+        Raised::Exception {
+            error,
+            from_none,
+            frames,
+        } => format!(
+            "exception {} {} {:?} {:?} {:?} {}",
+            error.class,
+            error.module,
+            error.args.len(),
+            error.attributes.len(),
+            frames.is_some(),
+            from_none
+        ),
+        Raised::OutOfScope { boundary, detail } => format!("out_of_scope {boundary} {detail}"),
+    };
+    assert_eq!(
+        show(load_failure(make(true))),
+        show(load_failure(make(false)))
+    );
+    // the real loader, through the service: a marked error with equal marks is still the same boundary/graph it was
+    let dir = scratch("marked");
+    let path = dir.join("flow.yaml");
+    std::fs::write(&path, "a: [1, 2\n").unwrap();
+    let globals = dump(&upstream_runtime::role_api::canonical_globals());
+    let request = format!(
+        r#"{{"schema":"node_role_contract-api/1","id":"u","operation":"node_role_contract.load_yaml","args_dto":["list",[["str","{}"]]],"kwargs_dto":["dict",[]],"globals":{globals}}}"#,
+        path.to_string_lossy()
+    );
+    let record = run_service(&[request]).remove(0);
+    let kind = member(&record, "kind").cloned();
+    assert!(
+        matches!(&kind, Some(PyValue::Str(k)) if k.equals("exception") || k.equals("out_of_scope")),
+        "the loader's marked error is a defined exception graph or a named boundary, never a panic or an empty record: {kind:?}"
+    );
+    std::fs::remove_dir_all(dir).unwrap();
+}

@@ -1,7 +1,9 @@
 #!/bin/bash
 # Explicit node-local Q/T/P/U source build. No install, fetch fallback or evaluator hook.
 set -euo pipefail
-SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SELF="${BASH_SOURCE[0]}"
+case "$SELF" in */*) SDIR_RAW="${SELF%/*}"; [ -n "$SDIR_RAW" ] || SDIR_RAW=/ ;; *) SDIR_RAW=. ;; esac
+SDIR="$(cd "$SDIR_RAW" && pwd)"
 REPO="$(cd "$SDIR/../../../.." && pwd)"
 BOOTSTRAP="$SDIR/rust_bootstrap.sh"
 runtime_args=()
@@ -37,6 +39,10 @@ for skill in vllm-recipe-explorer upstream-version-watch; do
       echo "Delivered Rust package/path dependency missing for $skill" >&2; exit 2;
     }
   fi
+done
+# mktemp (임시 metadata 디렉터리)와 python3 (아래 cargo metadata 판독 heredoc)는 이 helper 가 실제로 쓰는 호스트 도구다 — 없으면 원인을 말하고 멈춘다.
+for tool in mktemp python3; do
+  command -v "$tool" >/dev/null 2>&1 || { printf '[build_rust_packages] ERROR 필요한 도구가 PATH 에 없다: %s (cargo metadata 판독/임시 디렉터리에 사용)\n' "$tool" >&2; exit 4; }
 done
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/rust-packages.XXXXXX")"
 trap 'rm -f -- "$tmp/metadata.json"; rmdir -- "$tmp"' EXIT

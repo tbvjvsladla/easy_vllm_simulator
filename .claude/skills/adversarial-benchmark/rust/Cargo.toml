@@ -44,10 +44,20 @@ path = "src/bin/roofline.rs"
 name = "verdict_rule"
 path = "src/bin/verdict_rule.rs"
 
+# Public `turn_budget.py` command line and its private importer bridge (launcher: terraforming_node/scripts/turn_budget.sh).
+[[bin]]
+name = "turn_budget"
+path = "src/bin/turn_budget.rs"
+
 # Public read-only `campaign_init.py --active|--derive` (launcher: terraforming_node/scripts/campaign_init.sh).
 [[bin]]
 name = "campaign_read"
 path = "src/bin/campaign_read.rs"
+
+# Public `manifest_contract.py --topology --repo [--require-flag] [--json]` (launcher: terraforming_node/scripts/manifest_contract.sh).
+[[bin]]
+name = "manifest_contract"
+path = "src/bin/manifest_contract.rs"
 
 [[bin]]
 name = "repeat_axis"
@@ -203,6 +213,11 @@ path = "src/bin/conformance_full_superset_lite_api.rs"
 name = "conformance_full_superset_lite_bench"
 path = "src/bin/conformance_full_superset_lite_bench.rs"
 
+# `scan_node.py` P1: the private typed bridge of the Python adapter (the scanner command line is not part of this phase).
+[[bin]]
+name = "scan_node"
+path = "src/bin/scan_node.rs"
+
 [[bin]]
 name = "selftest_broad_search_cell_args"
 path = "src/bin/selftest_broad_search_cell_args.rs"
@@ -230,6 +245,34 @@ path = "src/bin/selftest_sweep_meta.rs"
 [[bin]]
 name = "selftest_sweep_repeats"
 path = "src/bin/selftest_sweep_repeats.rs"
+
+[[test]]
+name = "scan_node_p1_original_cases"
+path = "checks/scan_node_p1_original_cases.rs"
+
+[[test]]
+name = "scan_node_p2_api_cases"
+path = "checks/scan_node_p2_api_cases.rs"
+
+[[test]]
+name = "scan_node_adapter_p2_cases"
+path = "checks/scan_node_adapter_p2_cases.rs"
+
+[[test]]
+name = "scan_node_review_fix_cases"
+path = "checks/scan_node_review_fix_cases.rs"
+
+[[test]]
+name = "scan_node_residual_cases"
+path = "checks/scan_node_residual_cases.rs"
+
+[[test]]
+name = "scan_node_boundary_cases"
+path = "checks/scan_node_boundary_cases.rs"
+
+[[test]]
+name = "scan_node_identity_cases"
+path = "checks/scan_node_identity_cases.rs"
 
 [[test]]
 name = "oracle_cases"
@@ -368,7 +411,7 @@ ring = "=0.17.14"
 # Safe wrappers of TIOCGWINSZ on stdout only (what shutil.get_terminal_size asks via os.get_terminal_size), of
 # fstat on stdout (the buffer size and presence of the interpreter's sys.stdout) and of getuid/getgid (the user a
 # preprocessing container runs as).
-rustix = { version = "1", default-features = false, features = ["std", "termios", "fs", "process", "event", "time"] }
+rustix = { version = "1", default-features = false, features = ["std", "termios", "fs", "process", "event", "time", "system"] }
 # HTTPS client of the GuideLLM release lookup (the original's `urllib.request.urlopen`): a small synchronous client,
 # pinned exactly. Rustls with `ring` (already built by the managed C/asm bootstrap). No gzip/charset/JSON/cookie
 # features: the body is read as raw bytes and decoded by this crate's Python-compatible JSON decoder. Trust is not the
@@ -592,9 +635,33 @@ name = "campaign_read_cli"
 path = "checks/campaign_read_cli.rs"
 
 [[test]]
+name = "manifest_contract_cli"
+path = "checks/manifest_contract_cli.rs"
+
+[[test]]
+name = "manifest_contract_api_cases"
+path = "checks/manifest_contract_api_cases.rs"
+
+[[test]]
+name = "manifest_contract_shell"
+path = "checks/manifest_contract_shell.rs"
+
+[[test]]
 name = "bench_shell_edges"
 path = "checks/bench_shell_edges.rs"
 
 [[test]]
 name = "bench_shell_wiring"
 path = "checks/bench_shell_wiring.rs"
+
+[[test]]
+name = "turn_budget_stream_fixes"
+path = "checks/turn_budget_stream_fixes.rs"
+
+[[test]]
+name = "turn_budget_public_stdio"
+path = "checks/turn_budget_public_stdio.rs"
+
+[[test]]
+name = "turn_budget_original_cases"
+path = "checks/turn_budget_original_cases.rs"

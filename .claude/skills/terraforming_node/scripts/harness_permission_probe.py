@@ -138,10 +138,72 @@ def _hint_root(workspace: Path):
     return None
 
 
-def _build_files(workspace: Path, topology: str):
-    """Inspect the declared compose input; unresolved interpolation is not proof."""
+# Integrity authority of the delivered reviewed original (workflow.md git 단일 권위, 2문항 판정표) - decided per NODE by where this helper's bytes live:
+#   * a git on THIS node holds the helper as a stage-0 blob (Q1 = yes, e.g. the tracked Main checkout): git is the ONLY authority. The bytes read here must equal
+#     the blob git holds; NO digest is consulted, so no second integrity authority is created and a change that git carries (staged/committed) is git's call.
+#   * no git holds it (a git-less overlay node: wiki-only ray-worker, a2a-agent sub - Q1 = no, and not regenerable from tracked inputs there - Q2 = no): the
+#     blind-spot layer, where a digest is the only evidence. BOOTSTRAP_READER_SHA256 is then a CLOSED ORIGINAL-SEMANTIC-PROFILE tripwire (it pins WHICH reviewed
+#     semantic profile, e84fa13c…, the permission canary reads manifests with), not an integrity digest that restates a tracked file.
+# Consequence (stated, not hidden): on a git-tracked node the semantic-profile pin is NOT enforced - a deliberately staged/committed change of the helper passes.
+# Enforcing the pin there as well would restate a tracked object's digest in a second place, which the single-authority rule forbids; that is a policy question
+# for the user, not something this probe decides.
+BOOTSTRAP_READER_SHA256 = "e84fa13c1f37ce4e2635113627219a9ab44b1b6b1eeed246f4e7f80e8b19f651"
+
+
+def _blob_id(data: bytes, hex_len: int) -> str:
+    """Git object id of `data` as a blob (no filters), SHA-1 or SHA-256 object format by the id length git printed."""
+    algo = hashlib.sha256 if hex_len == 64 else hashlib.sha1
+    return algo(b"blob %d\0" % len(data) + data).hexdigest()
+
+
+def _git_held_blob(path: Path):
+    """The stage-0 blob id a git on this node holds for `path`, or None when no git holds it (no git binary, not in a work tree, untracked, ignored, conflicted)."""
+    rc, out = _command(["git", "ls-files", "-s", "-z", "--", path.name], path.parent)
+    if rc != 0:
+        return None
+    for entry in out.split("\0"):
+        meta, _, name = entry.partition("\t")
+        fields = meta.split()
+        if name == path.name and len(fields) == 3 and fields[2] == "0" and fields[0] in ("100644", "100755") and re.fullmatch(r"[0-9a-f]{40}|[0-9a-f]{64}", fields[1]):
+            return fields[1]
+    return None
+
+
+def _reader_authority(path: Path, data: bytes) -> str:
+    """Verify the ONE read of the helper against the node's integrity authority; returns "git" or "semantic-profile-pin", else raises (never `unobserved`)."""
+    held = _git_held_blob(path)
+    if held is not None:
+        if _blob_id(data, len(held)) != held:
+            raise RuntimeError("[harness_permission_probe] bootstrap manifest reader differs from the blob this node's git holds (git is the integrity authority here): %s" % path)
+        return "git"
+    if hashlib.sha256(data).hexdigest() != BOOTSTRAP_READER_SHA256:
+        raise RuntimeError("[harness_permission_probe] bootstrap manifest reader is not the reviewed original and no git on this node holds it (semantic-profile pin differs): %s" % path)
+    return "semantic-profile-pin"
+
+
+def _contract_reader():
+    """Bootstrap permission-metadata reader: the delivered EXACT reviewed original (`manifest_contract_compat_owner.py`), selected by this probe's role and purpose.
+    This probe runs on every sub plane, including a wiki-only ray-worker that builds no B and receives no main ELF, so its reader is Python BY DESIGN: it is a
+    permission/metadata reader, not a business Rust claim, and there is no try-Rust-then-Python fallback (the Rust-backed adapter is never imported here).
+    The helper is read ONCE; the very bytes that pass `_reader_authority` are the bytes compiled and executed (no second read window). A missing, unreadable or
+    unauthorised helper is a clear failure of the probe itself; `observe` calls this first, before any observation side effect, so it can never be masked as `unobserved`."""
+    import types
+    path = Path(__file__).resolve().with_name("manifest_contract_compat_owner.py")
     try:
-        import manifest_contract as mc
+        data = path.read_bytes()
+    except OSError as error:
+        raise RuntimeError("[harness_permission_probe] bootstrap manifest reader is missing or unreadable: %s (%s)" % (path, error)) from error
+    _reader_authority(path, data)
+    module = types.ModuleType("manifest_contract_compat_owner")
+    module.__file__ = str(path)
+    exec(compile(data, str(path), "exec"), module.__dict__)
+    return module
+
+
+def _build_files(workspace: Path, topology: str, reader=None):
+    """Inspect the declared compose input; unresolved interpolation is not proof. `reader` is the module `observe` loaded once (direct callers get a fresh one)."""
+    mc = reader if reader is not None else _contract_reader()
+    try:
         compose_path = workspace / "output" / topology / "docker-compose.yaml"
         compose = mc._load_manifest(compose_path)
         # Multi build inputs select Dockerfiles through Compose interpolation.
@@ -172,10 +234,10 @@ def _build_files(workspace: Path, topology: str):
         return None
 
 
-def _model_asset_read(workspace: Path, topology: str, role: str):
+def _model_asset_read(workspace: Path, topology: str, role: str, reader=None):
     """Canonical loader, path access only. Never read or print weight/config bytes."""
+    mc = reader if reader is not None else _contract_reader()
     try:
-        import manifest_contract as mc
         man = mc._load_manifest(workspace / "output" / topology / "manifest.yaml")
         node = next((n for n in man.get("nodes", []) if n.get("role") == role), {})
         mode = mc.effective_model_source(node, man.get("model_source")) if topology == "single" else man.get("model_source")
@@ -203,6 +265,9 @@ def _model_asset_read(workspace: Path, topology: str, role: str):
 
 def observe(workspace: Path, topology: str, role: str, nonce: str) -> dict:
     workspace = workspace.resolve()
+    # The bootstrap reader is loaded and authorised ONCE, first: a missing/tampered helper stops the probe before the scratch dir, the protected-file write-opens
+    # or any Git metadata marker exists - those side effects must never precede (or be mistaken for) a reader failure.
+    reader = _contract_reader()
     checks = []
 
     def add(name, outcome, *, axis="functional", **extra):
@@ -244,12 +309,12 @@ def observe(workspace: Path, topology: str, role: str, nonce: str) -> dict:
     # restrictions must be observed on that tool surface, not inferred from Python.
     for rel in protected_files(role):
         add("protected:" + rel, axis="os_enforcement", **_write_open(workspace / rel))
-    build_files = _build_files(workspace, topology)
+    build_files = _build_files(workspace, topology, reader)
     add("buildkit_declaration", "allowed" if build_files else "unobserved")
     for name in build_files or BUILD_FILES:
         add("buildkit:" + name, axis="os_enforcement",
             **_write_open(workspace / "output" / topology / name))
-    model_read = _model_asset_read(workspace, topology, role)
+    model_read = _model_asset_read(workspace, topology, role, reader)
     add("model_asset_read", **model_read)
     rc, out = _command(["docker", "version", "--format", "{{json .Server.Version}}"], workspace)
     try:

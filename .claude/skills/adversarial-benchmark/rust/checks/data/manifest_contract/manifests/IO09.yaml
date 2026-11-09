@@ -1,0 +1,2 @@
+topology: single
+x: !!python/object/apply:os.system ["true"]

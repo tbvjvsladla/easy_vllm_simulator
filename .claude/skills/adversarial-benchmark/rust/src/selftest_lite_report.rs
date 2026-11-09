@@ -64,6 +64,9 @@ const RELEASE_DIRECTORY: &str = ".claude/skills/adversarial-benchmark/rust/targe
 const HINT_READER: &str = ".claude/skills/hint-publisher/scripts/render_bench_section.py";
 const EVIDENCE_PUBLISHER: &str = ".claude/policies/runtime/evidence_publisher.py";
 const GATE_STUB: &str = ".claude/skills/terraforming_node/scripts/manifest_contract.py";
+const GATE_LAUNCHER_STUB: &str = ".claude/skills/terraforming_node/scripts/manifest_contract.sh";
+/// Test-plane launcher beside the gate stub: the availability check passes, every other call runs the stub.
+const GATE_LAUNCHER_TEXT: &str = "#!/bin/bash\n[ \"${MANIFEST_CONTRACT_VALIDATE_ONLY:-}\" = 1 ] && exit 0\nexec python3 \"$(dirname \"${BASH_SOURCE[0]}\")/manifest_contract.py\" \"$@\"\n";
 
 /// Scripts copied as text (read as UTF-8, written back) in the original's order.
 const COPIED_SCRIPTS: [&str; 31] = [
@@ -212,6 +215,8 @@ impl Sandbox {
             &GATE_STUB_TEXT.replace("@SENTINEL@", SHIM_SENTINEL),
         )?;
         chmod(&root.join(GATE_STUB), 0o755)?;
+        write_str(&root.join(GATE_LAUNCHER_STUB), GATE_LAUNCHER_TEXT)?;
+        chmod(&root.join(GATE_LAUNCHER_STUB), 0o755)?;
         let shim = |name: &str, body: &str| -> Result<(), Raised> {
             write_str(&bin_dir.join(name), body)?;
             chmod(&bin_dir.join(name), 0o755)

@@ -102,9 +102,13 @@ HINT_ENGINE_DEPENDENCIES = (
 #   · node_blackbox/node_identity.sh — sweep_repeats_fixture.rs `COPIES` 가 샌드박스로 무조건 복사하는 읽기 전용 bash
 #     해소기. 오케스트레이터가 아니며 정체성을 재정의하지 않는다. 설치용 사본(`.claude/runtime/node_blackbox/node_identity.sh`)
 #     은 별개로 그대로 남는다(같은 바이트 · 다른 자리 — 이 정본 경로는 fixture 가 기대하는 자리다).
+#   · scan_node.sh — build_rust.sh 의 마지막 자체검사(`scan_node.sh --p1-self-check`, R50 P1)가 부르는 읽기 전용 런처. 서브에 없으면 B 빌드가
+#     끝난 뒤 이 호출에서 127 로 중단된다(위 11-07 과 같은 모양의 결손). ELF 만 기동하며 scan_node.py/scan_node_original.py(메인 전용 스캐너)는
+#     요구하지 않는다. 멀티 ray-worker(런타임 스킬 0종)에는 이 목록 전체가 가지 않는다 — Rust 업무 패키지는 자체검사 때문에도 배달하지 않는다.
 SUB_BENCH_FOUNDATION_RUNTIME = (
     ".claude/policies/runtime/topology_parity.py",
     ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
+    ".claude/skills/terraforming_node/scripts/scan_node.sh",
 )
 # 서브로 **절대** 가지 않는 hint 평면 경로(닫힌 목록). 색인·카탈로그는 메인 단독 파생물이고(정책 C4 의 남은 몫),
 #   역할 마커는 각 체크아웃이 스스로 하는 선언이라 배달되면 선언이 아니라 복사가 된다(`.gitignore` 와 같은 근거).
@@ -160,7 +164,9 @@ CAMPAIGN_TOOLS = (
 # 안 주면 그 스킬은 없는 것이다(위 캠페인 도구와 같은 결함 모양). 계약 사본(recipe.py 자체 리더)을
 # 하나 더 만드는 대신 정본 리더를 보낸다.
 SUB_CONTRACT_READERS = (
-    "manifest_contract.py",            # Flag·topology 준비성 판정(lite_bench·run_bench 가 부른다)
+    "manifest_contract.py",            # Flag·topology 준비성 판정 — 이제 얇은 IMPORT 어댑터(프로세스 내 importer 가 같은 이름으로 import · 판정은 Rust 브리지)
+    "manifest_contract_compat_owner.py",  # 검토된 원본 바이트 그대로(사전 분류된 레거시 경로 전용 · 어댑터가 import 하지 않는 한 업무 ✗) — 어댑터와 함께 배달된다
+    "manifest_contract.sh",            # 같은 판정의 명령줄 런처(Rust manifest_contract · 서브 노드에서 빌드) — lite_bench·run_bench 의 Flag 게이트 호출부가 부른다 · 프로세스 내 import 사용자는 .py 를 그대로 import
     "node_role_contract.py",           # 토폴로지 축(sub_mode·tool_plane·delivery_plane) 판정 — 서브가 자기 역할 계약을 로컬에서 검증한다(stdlib+yaml 만 import · 별도 의존 배달 불요)
 )
 # Both roles run this explicit local permission canary; its self-tests remain main-only.
@@ -1374,8 +1380,11 @@ def _self_test() -> int:
         #   ① 있어야 할 2개가 있다 ② 그 밖의 terraforming 스크립트가 새지 않았다.
         _tn = os.path.join(_out, ".claude", "skills", "terraforming_node", "scripts")
         _tn_files = sorted(f for f in os.listdir(_tn) if os.path.isfile(os.path.join(_tn, f))) if os.path.isdir(_tn) else []
+        # EXPLICIT expectation: the one foundation file that sits directly in this directory is written out here (R48 v7 F2), not derived from the
+        #   implementation list the assertion is checking.
         _tn_want = sorted(CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES + SUB_RUST_BOOTSTRAP
-                          + (SUB_HINT_EQUIP_TOOLS if "hint-publisher" in _want else ()))
+                          + (SUB_HINT_EQUIP_TOOLS if "hint-publisher" in _want else ())
+                          + (("scan_node.sh",) if "adversarial-benchmark" in _want else ()))
         _tn_ok = _tn_files == _tn_want
         _rust_helper = os.path.join(_tn, "rust_bootstrap.sh")
         _rust_help = subprocess.run(["bash", _rust_helper, "--help"],
@@ -1389,11 +1398,12 @@ def _self_test() -> int:
         _nrc_run = subprocess.run([sys.executable, _nrc, "--self-test"],
                                   capture_output=True, text=True, timeout=60)
         _nrc_ok = os.path.isfile(_nrc) and _nrc_run.returncode == 0
-        # 벤치 owner 자체검사 의존 2종 — **명시 닫힌 경로**를 소비자 원문의 리터럴과 대조한다(두 파생의 빈 집합 일치로
+        # 벤치 owner 자체검사 의존 3종 — **명시 닫힌 경로**를 소비자 원문의 리터럴과 대조한다(두 파생의 빈 집합 일치로
         #   통과하지 못하게). 벤치를 받는 서브는 정본과 바이트 동일하게 받고, 못 받는 서브(멀티 ray-worker)는 받지 않는다.
         _bench_need = {
             ".claude/policies/runtime/topology_parity.py": ".claude/skills/adversarial-benchmark/rust/src/resolve_topology.rs",
             ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh": ".claude/skills/adversarial-benchmark/rust/src/sweep_repeats_fixture.rs",
+            ".claude/skills/terraforming_node/scripts/scan_node.sh": ".claude/skills/adversarial-benchmark/scripts/build_rust.sh",
         }
         _bench_ok = set(_bench_need) == set(SUB_BENCH_FOUNDATION_RUNTIME)
         for _rel, _consumer in _bench_need.items():
@@ -1404,6 +1414,17 @@ def _self_test() -> int:
                               and _dst_f.read_bytes() == pathlib.Path(REPO, _rel).read_bytes())
             else:
                 _bench_ok &= not _dst_f.exists()
+        # 권한 카나리의 부트스트랩 리더(R48 v8 B-D3) — 소비자 원문의 **리터럴**과 대조한다. 위 `_tn_want` 는 SUB_CONTRACT_READERS 에서 파생하므로 그 목록에서
+        #   리더를 빼도 `_tn_ok` 는 그대로 통과한다(배달 목록과 기대가 같은 원천). 여기서는 (a) 배달된 프로브가 sibling 으로 읽는 이름을 프로브 원문에서 확인하고
+        #   (b) 그 이름의 파일이 두 평면(ray wiki-only · single agent) 모두에 정본과 바이트 동일하게 배달됐는지 본다 — 이름은 아래에 손으로 적는다(파생 ✗).
+        _probe_name, _reader_name = "harness_permission_probe.py", "manifest_contract_compat_owner.py"
+        _probe_dst = pathlib.Path(_tn, _probe_name)
+        _reader_dst = pathlib.Path(_tn, _reader_name)
+        _probe_src_text = _probe_dst.read_text(encoding="utf-8") if _probe_dst.is_file() else ""
+        _probe_ok = (f'with_name("{_reader_name}")' in _probe_src_text
+                     and _reader_dst.is_file()
+                     and _reader_dst.read_bytes() == pathlib.Path(REPO, ".claude/skills/terraforming_node/scripts", _reader_name).read_bytes()
+                     and _probe_dst.read_bytes() == pathlib.Path(REPO, ".claude/skills/terraforming_node/scripts", _probe_name).read_bytes())
         # 해소 자산은 싱글 서브에 가지 않는다 — 가면 서브가 스스로 해소할 이유가 없어진다(F4).
         _res = os.path.exists(os.path.join(
             _out, ".claude/skills/upstream-version-watch/assets/current-production-resolution.json"))
@@ -1417,11 +1438,11 @@ def _self_test() -> int:
         _sup_ok = _sup == _real
         # 색인·카탈로그·역할 마커는 어느 토폴로지에도 가지 않는다(엔진이 가는 single 에서도).
         _never = [r for r in HINT_NEVER_DELIVER if os.path.exists(os.path.join(_out, r))]
-        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok and _wrapper_ok and _rust_ok and _nrc_ok and _bench_ok
+        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok and _wrapper_ok and _rust_ok and _nrc_ok and _bench_ok and _probe_ok
               and not _res and _sup_ok and not _never)
         print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} "
               f"refs={_ref} 캠페인도구={_tn_files} 해소자산누수={_res} 지원배달목록일치={_sup_ok} "
-              f"금지경로누수={_never or '없음'} Codex발견폐포={_wrapper_ok} 역할계약리더자체검사={_nrc_ok} 벤치owner의존={_bench_ok}")
+              f"금지경로누수={_never or '없음'} Codex발견폐포={_wrapper_ok} 역할계약리더자체검사={_nrc_ok} 벤치owner의존={_bench_ok} 프로브리더의존={_probe_ok}")
         ok &= _c and _shared_rust_ok
         print(f"  [{'PASS' if _shared_rust_ok else 'FAIL'}] shared Q/role conditional delivery/path closure {_topo}")
 

@@ -3,7 +3,7 @@
   "bindings": {
     "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1": [
       {
-        "path": ".claude/skills/terraforming_node/scripts/scan_node.py",
+        "path": ".claude/skills/terraforming_node/scripts/scan_node_original.py",
         "assertion_ids": ["collect_peer_hw", "_peer_ssh_diag"]
       },
       {
@@ -368,7 +368,7 @@
     ],
     "HOST_SAFETY_LAYERED_DEFENSE.C3": [
       {
-        "path": ".claude/skills/terraforming_node/scripts/scan_node.py",
+        "path": ".claude/rust/role-contract/src/scan_node_manifest.rs",
         "assertion_ids": [
           "emit_manifest_block"
         ]
@@ -636,7 +636,14 @@
     ],
     "MODEL_ACQUISITION_TERNARY_GATE.C1": [
       {
-        "path": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
+        "path": ".claude/rust/role-contract/src/manifest_gate.rs",
+        "assertion_ids": [
+          "VALID_MODES",
+          "effective_model_source"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
         "assertion_ids": [
           "VALID_MODES",
           "effective_model_source"
@@ -940,7 +947,14 @@
     ],
     "TERRAFORM_FLAG_GATE.C1": [
       {
-        "path": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
+        "path": ".claude/rust/role-contract/src/manifest_gate.rs",
+        "assertion_ids": [
+          "evaluate_contract",
+          "resolve_topology"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
         "assertion_ids": [
           "evaluate_contract",
           "resolve_topology"
@@ -989,7 +1003,14 @@
         ]
       },
       {
-        "path": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
+        "path": ".claude/rust/role-contract/src/manifest_gate.rs",
+        "assertion_ids": [
+          "evaluate_contract",
+          "resolve_topology"
+        ]
+      },
+      {
+        "path": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
         "assertion_ids": [
           "evaluate_contract",
           "resolve_topology"

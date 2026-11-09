@@ -1154,8 +1154,26 @@ def _typescript_assertion_ids(path: Path) -> set | None:
     return set(_TS_DECL_RE.findall(text))
 
 
+# Rust(manifest_contract 포팅 · R48 B3): 최상위(들여쓰기 없는) 선언만 — const·static·fn·struct·enum·trait(pub·pub(crate) 여부 무관).
+# 블록 주석·줄 주석 안의 이름은 근거가 아니다(줄 시작 고정이라 `//` 줄은 애초에 안 맞는다). 들여쓴 impl 메서드·`mod tests` 안의
+# 함수는 근거로 세지 않는다. 약점: 여러 줄 raw 문자열 안에서 줄 첫 칸에 선언처럼 쓴 텍스트는 구분하지 못한다(그런 파일은 근거로 쓰지 않는다).
+_RS_DECL_RE = re.compile(
+    r"^(?:pub(?:\([a-z]+\))?[ \t]+)?(?:const|static|fn|struct|enum|trait)[ \t]+([A-Za-z_][A-Za-z0-9_]*)",
+    re.MULTILINE)
+
+
+def _rust_assertion_ids(path: Path) -> set | None:
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError):
+        return None
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.DOTALL)
+    return set(_RS_DECL_RE.findall(text))
+
+
 _ASSERTION_EXTRACTORS = {
     ".py": _python_assertion_ids,
+    ".rs": _rust_assertion_ids,
     ".ts": _typescript_assertion_ids,
     ".sh": _shell_assertion_ids,
     ".yaml": _yaml_assertion_ids,

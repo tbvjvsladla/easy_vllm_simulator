@@ -1,0 +1,316 @@
+{
+ "schema": "r50-p23-saved-cli-golden/1",
+ "note": "decoded from the CLOSED saved P23 raw (read-only); host facts, the fixture roots and the node name are replaced by tokens (<CASE>, <FIXTURES>, <NODE>, <USER>); data for own tests, not an oracle replay",
+ "rows": [
+  {
+   "id": "S50C01",
+   "plane": "pure",
+   "first_exit": 0,
+   "columns": "80",
+   "args": [
+    "-h"
+   ],
+   "path_dirs": [
+    "SC_NONE"
+   ],
+   "env": {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "Asia/Seoul",
+    "COLUMNS": "80"
+   },
+   "flag": null,
+   "stdout": "usage: scan_node.py [-h] [--topology {single,multi,auto}] [--peer-ip PEER_IP]\n                    [--peer-port PEER_PORT] [--peer-ssh PEER_SSH]\n                    [--compose COMPOSE] [--env-interconnect ENV_INTERCONNECT]\n                    [--bandwidth-gbps BANDWIDTH_GBPS]\n                    [--per-port-gbps PER_PORT_GBPS]\n                    [--per-port-floor PER_PORT_FLOOR] [--bw-floor BW_FLOOR]\n                    [--emit-manifest] [--manifest MANIFEST] [--check-egress]\n                    [--sub-work-dir SUB_WORK_DIR]\n                    [--model-source {managed,ephemeral,custom}]\n                    [--emit-sub-manifest PATH] [--self-test]\n\nterraforming_node결정론 스캔 코어 (사실만)\n\noptions:\n  -h, --help            show this help message and exit\n  --topology {single,multi,auto}\n                        선언 토폴로지(인터뷰 결정). auto=스캔으로 추정(보고만, 게이트는 single/multi\n                        명시 시)\n  --peer-ip PEER_IP     multi: 서브노드 IP(도달성 체크). 예: 203.0.113.11\n  --peer-port PEER_PORT\n                        도달성 체크 포트(기본 22=SSH)\n  --peer-ssh PEER_SSH   서브 SSH 타겟(user@host) — 서브 HW 실측. multi 는 동질성 하드\n                        단언(D2/D3), single 은 관측 단언(GPU≥1)으로 hw_verified 를 낸다.\n                        미지정 시 동질성 미검증 → nodes[sub].hw_verified 미발급 → 서브 위임 키\n                        미발급(fail-closed).\n  --compose COMPOSE     교차검증할 docker-compose 경로\n  --env-interconnect ENV_INTERCONNECT\n                        교차검증할 envs/.env.interconnect 경로(S6 env-split 제2 소스).\n                        기본 = --compose 와 같은 디렉터리의 envs/.env.interconnect\n  --bandwidth-gbps BANDWIDTH_GBPS\n                        cross-node ib_write_bw 합산 실측(Gb/s). 성능게이트 입력. 미지정 시\n                        perf pending.\n  --per-port-gbps PER_PORT_GBPS\n                        ib_write_bw 포트당 실측(Gb/s) — SKILL §1.4 합격선의 나머지 절반. 미지정\n                        시 포트당 조건은 미평가(음성정직 표기).\n  --per-port-floor PER_PORT_FLOOR\n                        포트당 합격선(기본 100.0 — 200Gbps RoCE 플랫폼 파생). --bw-floor 와\n                        함께 재설정한다.\n  --bw-floor BW_FLOOR   성능게이트 합산 합격선(Gb/s). 기본 180(=200Gbps 풀대역폭의 ~90%, devlog\n                        218 기준).\n  --emit-manifest       검증 통과 시 manifest topology+interconnect 블록을 stdout 끝에\n                        출력. --topology single|multi 명시 필수(auto면 fail-closed 거부\n                        — plan_26063009_44_23 D3)\n  --manifest MANIFEST   manifest 실값 경로(기본=브랜치 파생\n                        output/<topology>/manifest.yaml). plan_26062315\n  --check-egress        외부 egress 스캔(축 B — plan_26070809_46_57 §4.2). 로컬(메인)\n                        HF/게이트웨이 도달성 프로브 + (--peer-ssh 동반 시) 서브 egress 실측 +\n                        manifest model_source 기반 모델 제반환경 판정.\n  --sub-work-dir SUB_WORK_DIR\n                        multi: 서브 프로젝트 절대경로 → emit nodes[sub].work_dir. 미지정 시\n                        emit 이 __REQUIRED__ 센티넬을 남긴다(추측 금지).\n  --model-source {managed,ephemeral,custom}\n                        모델 제반환경 판정용 override(기본=manifest model_source 읽음).\n  --emit-sub-manifest PATH\n                        single + --peer-ssh: 메인이 실측한 서브 HW 로 **서브 manifest** 를\n                        PATH 에 발행(plan_26090516 §7.3). 게이트 ok ∧ 서브 관측 통과 ∧\n                        model_source 확정일 때만. render_sub_env --sub-manifest 가\n                        소비한다.\n  --self-test           결정론 회귀(게이트+emit_gate+emit-block YAML, 하드웨어 불요 — 라이브 검증\n                        고정, #4)\n",
+   "stderr": ""
+  },
+  {
+   "id": "S50C02",
+   "plane": "pure",
+   "first_exit": 0,
+   "columns": "40",
+   "args": [
+    "--help"
+   ],
+   "path_dirs": [
+    "SC_NONE"
+   ],
+   "env": {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "Asia/Seoul",
+    "COLUMNS": "40"
+   },
+   "flag": null,
+   "stdout": "usage: scan_node.py [-h]\n                    [--topology {single,multi,auto}]\n                    [--peer-ip PEER_IP]\n                    [--peer-port PEER_PORT]\n                    [--peer-ssh PEER_SSH]\n                    [--compose COMPOSE]\n                    [--env-interconnect ENV_INTERCONNECT]\n                    [--bandwidth-gbps BANDWIDTH_GBPS]\n                    [--per-port-gbps PER_PORT_GBPS]\n                    [--per-port-floor PER_PORT_FLOOR]\n                    [--bw-floor BW_FLOOR]\n                    [--emit-manifest]\n                    [--manifest MANIFEST]\n                    [--check-egress]\n                    [--sub-work-dir SUB_WORK_DIR]\n                    [--model-source {managed,ephemeral,custom}]\n                    [--emit-sub-manifest PATH]\n                    [--self-test]\n\nterraforming_node결정론 스캔 코어 (사실만)\n\noptions:\n  -h, --help      show this help\n                  message and exit\n  --topology {single,multi,auto}\n                  선언 토폴로지(인터뷰 결정).\n                  auto=스캔으로 추정(보고만,\n                  게이트는 single/multi 명시\n                  시)\n  --peer-ip PEER_IP\n                  multi: 서브노드 IP(도달성\n                  체크). 예: 203.0.113.11\n  --peer-port PEER_PORT\n                  도달성 체크 포트(기본 22=SSH)\n  --peer-ssh PEER_SSH\n                  서브 SSH 타겟(user@host)\n                  — 서브 HW 실측. multi 는\n                  동질성 하드 단언(D2/D3),\n                  single 은 관측\n                  단언(GPU≥1)으로\n                  hw_verified 를 낸다.\n                  미지정 시 동질성 미검증 → node\n                  s[sub].hw_verified\n                  미발급 → 서브 위임 키\n                  미발급(fail-closed).\n  --compose COMPOSE\n                  교차검증할 docker-compose\n                  경로\n  --env-interconnect ENV_INTERCONNECT\n                  교차검증할 envs/.env.inte\n                  rconnect 경로(S6 env-\n                  split 제2 소스). 기본 =\n                  --compose 와 같은 디렉터리의\n                  envs/.env.interconne\n                  ct\n  --bandwidth-gbps BANDWIDTH_GBPS\n                  cross-node\n                  ib_write_bw 합산\n                  실측(Gb/s). 성능게이트 입력.\n                  미지정 시 perf pending.\n  --per-port-gbps PER_PORT_GBPS\n                  ib_write_bw 포트당\n                  실측(Gb/s) — SKILL\n                  §1.4 합격선의 나머지 절반.\n                  미지정 시 포트당 조건은\n                  미평가(음성정직 표기).\n  --per-port-floor PER_PORT_FLOOR\n                  포트당 합격선(기본 100.0 —\n                  200Gbps RoCE 플랫폼\n                  파생). --bw-floor 와 함께\n                  재설정한다.\n  --bw-floor BW_FLOOR\n                  성능게이트 합산 합격선(Gb/s).\n                  기본 180(=200Gbps\n                  풀대역폭의 ~90%, devlog\n                  218 기준).\n  --emit-manifest\n                  검증 통과 시 manifest top\n                  ology+interconnect\n                  블록을 stdout 끝에 출력.\n                  --topology\n                  single|multi 명시\n                  필수(auto면 fail-closed\n                  거부 —\n                  plan_26063009_44_23\n                  D3)\n  --manifest MANIFEST\n                  manifest 실값\n                  경로(기본=브랜치 파생 output/\n                  <topology>/manifest.\n                  yaml). plan_26062315\n  --check-egress  외부 egress 스캔(축 B —\n                  plan_26070809_46_57\n                  §4.2). 로컬(메인)\n                  HF/게이트웨이 도달성 프로브 +\n                  (--peer-ssh 동반 시) 서브\n                  egress 실측 + manifest\n                  model_source 기반 모델\n                  제반환경 판정.\n  --sub-work-dir SUB_WORK_DIR\n                  multi: 서브 프로젝트 절대경로\n                  → emit\n                  nodes[sub].work_dir.\n                  미지정 시 emit 이\n                  __REQUIRED__ 센티넬을\n                  남긴다(추측 금지).\n  --model-source {managed,ephemeral,custom}\n                  모델 제반환경 판정용\n                  override(기본=manifest\n                  model_source 읽음).\n  --emit-sub-manifest PATH\n                  single + --peer-ssh:\n                  메인이 실측한 서브 HW 로 **서브\n                  manifest** 를 PATH 에\n                  발행(plan_26090516\n                  §7.3). 게이트 ok ∧ 서브\n                  관측 통과 ∧ model_source\n                  확정일 때만.\n                  render_sub_env\n                  --sub-manifest 가\n                  소비한다.\n  --self-test     결정론 회귀(게이트+emit_gate\n                  +emit-block YAML,\n                  하드웨어 불요 — 라이브 검증 고정,\n                  #4)\n",
+   "stderr": ""
+  },
+  {
+   "id": "S50C03",
+   "plane": "pure",
+   "first_exit": 2,
+   "columns": "80",
+   "args": [
+    "--topology",
+    "bogus"
+   ],
+   "path_dirs": [
+    "SC_NONE"
+   ],
+   "env": {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "Asia/Seoul",
+    "COLUMNS": "80"
+   },
+   "flag": null,
+   "stdout": "",
+   "stderr": "usage: scan_node.py [-h] [--topology {single,multi,auto}] [--peer-ip PEER_IP]\n                    [--peer-port PEER_PORT] [--peer-ssh PEER_SSH]\n                    [--compose COMPOSE] [--env-interconnect ENV_INTERCONNECT]\n                    [--bandwidth-gbps BANDWIDTH_GBPS]\n                    [--per-port-gbps PER_PORT_GBPS]\n                    [--per-port-floor PER_PORT_FLOOR] [--bw-floor BW_FLOOR]\n                    [--emit-manifest] [--manifest MANIFEST] [--check-egress]\n                    [--sub-work-dir SUB_WORK_DIR]\n                    [--model-source {managed,ephemeral,custom}]\n                    [--emit-sub-manifest PATH] [--self-test]\nscan_node.py: error: argument --topology: invalid choice: 'bogus' (choose from 'single', 'multi', 'auto')\n"
+  },
+  {
+   "id": "S50C04",
+   "plane": "pure",
+   "first_exit": 2,
+   "columns": "80",
+   "args": [
+    "--peer-port",
+    "x"
+   ],
+   "path_dirs": [
+    "SC_NONE"
+   ],
+   "env": {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "Asia/Seoul",
+    "COLUMNS": "80"
+   },
+   "flag": null,
+   "stdout": "",
+   "stderr": "usage: scan_node.py [-h] [--topology {single,multi,auto}] [--peer-ip PEER_IP]\n                    [--peer-port PEER_PORT] [--peer-ssh PEER_SSH]\n                    [--compose COMPOSE] [--env-interconnect ENV_INTERCONNECT]\n                    [--bandwidth-gbps BANDWIDTH_GBPS]\n                    [--per-port-gbps PER_PORT_GBPS]\n                    [--per-port-floor PER_PORT_FLOOR] [--bw-floor BW_FLOOR]\n                    [--emit-manifest] [--manifest MANIFEST] [--check-egress]\n                    [--sub-work-dir SUB_WORK_DIR]\n                    [--model-source {managed,ephemeral,custom}]\n                    [--emit-sub-manifest PATH] [--self-test]\nscan_node.py: error: argument --peer-port: invalid int value: 'x'\n"
+  },
+  {
+   "id": "S50C05",
+   "plane": "pure",
+   "first_exit": 2,
+   "columns": "80",
+   "args": [
+    "--bogus"
+   ],
+   "path_dirs": [
+    "SC_NONE"
+   ],
+   "env": {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "Asia/Seoul",
+    "COLUMNS": "80"
+   },
+   "flag": null,
+   "stdout": "",
+   "stderr": "usage: scan_node.py [-h] [--topology {single,multi,auto}] [--peer-ip PEER_IP]\n                    [--peer-port PEER_PORT] [--peer-ssh PEER_SSH]\n                    [--compose COMPOSE] [--env-interconnect ENV_INTERCONNECT]\n                    [--bandwidth-gbps BANDWIDTH_GBPS]\n                    [--per-port-gbps PER_PORT_GBPS]\n                    [--per-port-floor PER_PORT_FLOOR] [--bw-floor BW_FLOOR]\n                    [--emit-manifest] [--manifest MANIFEST] [--check-egress]\n                    [--sub-work-dir SUB_WORK_DIR]\n                    [--model-source {managed,ephemeral,custom}]\n                    [--emit-sub-manifest PATH] [--self-test]\nscan_node.py: error: unrecognized arguments: --bogus\n"
+  },
+  {
+   "id": "S50C06",
+   "plane": "pure",
+   "first_exit": 3,
+   "columns": "80",
+   "args": [
+    "--emit-manifest"
+   ],
+   "path_dirs": [
+    "SC_NONE"
+   ],
+   "env": {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "Asia/Seoul",
+    "COLUMNS": "80"
+   },
+   "flag": null,
+   "stdout": "",
+   "stderr": "[scan] FAIL: --emit-manifest 에는 --topology single|multi 명시 필요 — 토폴로지는 terraforming_node 진입의 인터뷰로 선언한다(브랜치/스캔 추론으로 manifest 기입 금지).\n"
+  },
+  {
+   "id": "S50C07",
+   "plane": "fake-external",
+   "first_exit": 2,
+   "columns": "80",
+   "args": [
+    "--topology",
+    "single",
+    "--emit-sub-manifest",
+    "<CASE>/out/sub.yaml"
+   ],
+   "path_dirs": [
+    "SC_NONE"
+   ],
+   "env": {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "Asia/Seoul",
+    "COLUMNS": "80"
+   },
+   "flag": null,
+   "stdout": "",
+   "stderr": "[scan] FAIL: --emit-sub-manifest 는 명시 topology와 --peer-ssh가 함께 있어야 한다(서브 실측이 전제).\n"
+  },
+  {
+   "id": "S50C08",
+   "plane": "host-observed",
+   "first_exit": 2,
+   "columns": "80",
+   "args": [
+    "--topology",
+    "single",
+    "--manifest",
+    "<CASE>/absent-manifest.yaml"
+   ],
+   "path_dirs": [
+    "SC_NONE"
+   ],
+   "env": {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "Asia/Seoul",
+    "COLUMNS": "80"
+   },
+   "flag": null,
+   "stdout_tokenized": "{\n  \"cpu_arch\": \"aarch64\",\n  \"cuda_version\": null,\n  \"gpus_per_node\": null,\n  \"gpu_model\": null,\n  \"driver_version\": null,\n  \"gpu_memory_model\": null,\n  \"gpu_vram_mib\": null,\n  \"compute_capability\": null,\n  \"interconnect\": {\n    \"type\": \"generic-ethernet\",\n    \"hca_devices\": [],\n    \"gid_index\": null,\n    \"socket_iface\": null,\n    \"mtu\": null,\n    \"bandwidth_gbps\": null,\n    \"platform_preset\": null\n  },\n  \"scan_detail\": {\n    \"_sysfs_hcas\": [\n      \"roceP2p1s0f0\",\n      \"roceP2p1s0f1\",\n      \"rocep1s0f0\",\n      \"rocep1s0f1\"\n    ],\n    \"_roce_v2_gids\": []\n  },\n  \"cross_validation\": {\n    \"checked\": false,\n    \"reason\": \"NCCL env 부재(compose+env.interconnect 둘 다): compose=output/multi/docker-compose.yaml env=output/multi/envs/.env.interconnect\"\n  },\n  \"topology_declared\": \"single\",\n  \"interconnect_present\": false,\n  \"nodes\": [\n    {\n      \"role\": \"main\",\n      \"node_id\": \"main\",\n      \"host\": \"<NODE>\",\n      \"hostname\": \"<NODE>\",\n      \"ssh_user\": \"<USER>\",\n      \"work_dir\": \"<CASE>\"\n    }\n  ],\n  \"consistency_assertion\": {\n    \"git_branch\": null,\n    \"branch_implies\": null,\n    \"manifest_path\": \"<CASE>/absent-manifest.yaml\",\n    \"manifest_topology\": null,\n    \"declared\": \"single\",\n    \"scan_interconnect_present\": false,\n    \"egress_self\": null,\n    \"egress_peer\": null,\n    \"consistent\": false,\n    \"mismatches\": [\n      \"git branch(None) 로 토폴로지를 해소하지 못했다 — 3자-일치(branch↔manifest↔scan)를 판정할 수 없다(fail-closed)\"\n    ],\n    \"warnings\": [],\n    \"per_port_evaluated\": false,\n    \"per_port_gbps\": null,\n    \"per_port_floor\": 100.0,\n    \"bandwidth_source\": \"unmeasured\"\n  },\n  \"gate\": {\n    \"branch\": \"alpha\",\n    \"status\": \"blocked\",\n    \"mismatches\": [\n      \"git branch(None) 로 토폴로지를 해소하지 못했다 — 3자-일치(branch↔manifest↔scan)를 판정할 수 없다(fail-closed)\"\n    ],\n    \"note\": \"일관성 단언 실패 → blocked\"\n  }\n}\n",
+   "stderr_tokenized": ""
+  },
+  {
+   "id": "S50C09",
+   "plane": "host-observed",
+   "first_exit": 2,
+   "columns": "80",
+   "args": [
+    "--topology",
+    "single",
+    "--emit-manifest",
+    "--manifest",
+    "<CASE>/absent-manifest.yaml"
+   ],
+   "path_dirs": [
+    "SC_GB10"
+   ],
+   "env": {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "Asia/Seoul",
+    "COLUMNS": "80"
+   },
+   "flag": "single + emit: git is not on the declared PATH profile (ENV_SC_GB10), so git_branch() is None and evaluate_gate adds the fail-closed branch mismatch (L803-811): the proposal's 'complete block + clock' intent is unreachable; the row still runs exactly as proposed and the original decides",
+   "stdout_tokenized": "{\n  \"cpu_arch\": \"aarch64\",\n  \"cuda_version\": \"132\",\n  \"gpus_per_node\": 1,\n  \"gpu_model\": \"NVIDIA GB10\",\n  \"driver_version\": \"580.95.05\",\n  \"gpu_memory_model\": \"unified\",\n  \"gpu_vram_mib\": null,\n  \"compute_capability\": \"12.1\",\n  \"interconnect\": {\n    \"type\": \"generic-ethernet\",\n    \"hca_devices\": [],\n    \"gid_index\": null,\n    \"socket_iface\": null,\n    \"mtu\": null,\n    \"bandwidth_gbps\": null,\n    \"platform_preset\": null\n  },\n  \"scan_detail\": {\n    \"_sysfs_hcas\": [\n      \"roceP2p1s0f0\",\n      \"roceP2p1s0f1\",\n      \"rocep1s0f0\",\n      \"rocep1s0f1\"\n    ],\n    \"_roce_v2_gids\": []\n  },\n  \"cross_validation\": {\n    \"checked\": false,\n    \"reason\": \"NCCL env 부재(compose+env.interconnect 둘 다): compose=output/multi/docker-compose.yaml env=output/multi/envs/.env.interconnect\"\n  },\n  \"topology_declared\": \"single\",\n  \"interconnect_present\": false,\n  \"nodes\": [\n    {\n      \"role\": \"main\",\n      \"node_id\": \"main\",\n      \"host\": \"<NODE>\",\n      \"hostname\": \"<NODE>\",\n      \"ssh_user\": \"<USER>\",\n      \"work_dir\": \"<CASE>\"\n    }\n  ],\n  \"consistency_assertion\": {\n    \"git_branch\": null,\n    \"branch_implies\": null,\n    \"manifest_path\": \"<CASE>/absent-manifest.yaml\",\n    \"manifest_topology\": null,\n    \"declared\": \"single\",\n    \"scan_interconnect_present\": false,\n    \"egress_self\": null,\n    \"egress_peer\": null,\n    \"consistent\": false,\n    \"mismatches\": [\n      \"git branch(None) 로 토폴로지를 해소하지 못했다 — 3자-일치(branch↔manifest↔scan)를 판정할 수 없다(fail-closed)\"\n    ],\n    \"warnings\": [],\n    \"per_port_evaluated\": false,\n    \"per_port_gbps\": null,\n    \"per_port_floor\": 100.0,\n    \"bandwidth_source\": \"unmeasured\"\n  },\n  \"gate\": {\n    \"branch\": \"alpha\",\n    \"status\": \"blocked\",\n    \"mismatches\": [\n      \"git branch(None) 로 토폴로지를 해소하지 못했다 — 3자-일치(branch↔manifest↔scan)를 판정할 수 없다(fail-closed)\"\n    ],\n    \"note\": \"일관성 단언 실패 → blocked\"\n  }\n}\n",
+   "stderr_tokenized": ""
+  },
+  {
+   "id": "S50C10",
+   "plane": "host-observed",
+   "first_exit": 2,
+   "columns": "80",
+   "args": [
+    "--topology",
+    "single",
+    "--emit-manifest",
+    "--manifest",
+    "<CASE>/absent-manifest.yaml"
+   ],
+   "path_dirs": [
+    "SC_NONE"
+   ],
+   "env": {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "Asia/Seoul",
+    "COLUMNS": "80"
+   },
+   "flag": null,
+   "stdout_tokenized": "{\n  \"cpu_arch\": \"aarch64\",\n  \"cuda_version\": null,\n  \"gpus_per_node\": null,\n  \"gpu_model\": null,\n  \"driver_version\": null,\n  \"gpu_memory_model\": null,\n  \"gpu_vram_mib\": null,\n  \"compute_capability\": null,\n  \"interconnect\": {\n    \"type\": \"generic-ethernet\",\n    \"hca_devices\": [],\n    \"gid_index\": null,\n    \"socket_iface\": null,\n    \"mtu\": null,\n    \"bandwidth_gbps\": null,\n    \"platform_preset\": null\n  },\n  \"scan_detail\": {\n    \"_sysfs_hcas\": [\n      \"roceP2p1s0f0\",\n      \"roceP2p1s0f1\",\n      \"rocep1s0f0\",\n      \"rocep1s0f1\"\n    ],\n    \"_roce_v2_gids\": []\n  },\n  \"cross_validation\": {\n    \"checked\": false,\n    \"reason\": \"NCCL env 부재(compose+env.interconnect 둘 다): compose=output/multi/docker-compose.yaml env=output/multi/envs/.env.interconnect\"\n  },\n  \"topology_declared\": \"single\",\n  \"interconnect_present\": false,\n  \"nodes\": [\n    {\n      \"role\": \"main\",\n      \"node_id\": \"main\",\n      \"host\": \"<NODE>\",\n      \"hostname\": \"<NODE>\",\n      \"ssh_user\": \"<USER>\",\n      \"work_dir\": \"<CASE>\"\n    }\n  ],\n  \"consistency_assertion\": {\n    \"git_branch\": null,\n    \"branch_implies\": null,\n    \"manifest_path\": \"<CASE>/absent-manifest.yaml\",\n    \"manifest_topology\": null,\n    \"declared\": \"single\",\n    \"scan_interconnect_present\": false,\n    \"egress_self\": null,\n    \"egress_peer\": null,\n    \"consistent\": false,\n    \"mismatches\": [\n      \"git branch(None) 로 토폴로지를 해소하지 못했다 — 3자-일치(branch↔manifest↔scan)를 판정할 수 없다(fail-closed)\"\n    ],\n    \"warnings\": [],\n    \"per_port_evaluated\": false,\n    \"per_port_gbps\": null,\n    \"per_port_floor\": 100.0,\n    \"bandwidth_source\": \"unmeasured\"\n  },\n  \"gate\": {\n    \"branch\": \"alpha\",\n    \"status\": \"blocked\",\n    \"mismatches\": [\n      \"git branch(None) 로 토폴로지를 해소하지 못했다 — 3자-일치(branch↔manifest↔scan)를 판정할 수 없다(fail-closed)\"\n    ],\n    \"note\": \"일관성 단언 실패 → blocked\"\n  }\n}\n",
+   "stderr_tokenized": ""
+  },
+  {
+   "id": "S50C11",
+   "plane": "host-observed",
+   "first_exit": 2,
+   "columns": "80",
+   "args": [
+    "--topology",
+    "multi",
+    "--manifest",
+    "<CASE>/absent-manifest.yaml"
+   ],
+   "path_dirs": [
+    "SC_ROCE_TWO_HCAS+SC_GB10"
+   ],
+   "env": {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "Asia/Seoul",
+    "COLUMNS": "80"
+   },
+   "flag": null,
+   "stdout_tokenized": "{\n  \"cpu_arch\": \"aarch64\",\n  \"cuda_version\": \"132\",\n  \"gpus_per_node\": 1,\n  \"gpu_model\": \"NVIDIA GB10\",\n  \"driver_version\": \"580.95.05\",\n  \"gpu_memory_model\": \"unified\",\n  \"gpu_vram_mib\": null,\n  \"compute_capability\": \"12.1\",\n  \"interconnect\": {\n    \"type\": \"RoCE v2\",\n    \"hca_devices\": [\n      \"rocep1s0f1\",\n      \"roceP2p1s0f1\"\n    ],\n    \"gid_index\": 3,\n    \"socket_iface\": \"enp1s0f1np1\",\n    \"mtu\": 9000,\n    \"bandwidth_gbps\": null,\n    \"platform_preset\": null\n  },\n  \"scan_detail\": {\n    \"_sysfs_hcas\": [\n      \"roceP2p1s0f0\",\n      \"roceP2p1s0f1\",\n      \"rocep1s0f0\",\n      \"rocep1s0f1\"\n    ],\n    \"_roce_v2_gids\": [\n      {\n        \"hca\": \"rocep1s0f1\",\n        \"port\": \"1\",\n        \"gid_index\": 3,\n        \"ipv4\": \"203.0.113.10\",\n        \"iface\": \"enp1s0f1np1\"\n      },\n      {\n        \"hca\": \"roceP2p1s0f1\",\n        \"port\": \"1\",\n        \"gid_index\": 3,\n        \"ipv4\": \"203.0.113.20\",\n        \"iface\": \"enP2p1s0f1np1\"\n      }\n    ]\n  },\n  \"cross_validation\": {\n    \"checked\": false,\n    \"reason\": \"NCCL env 부재(compose+env.interconnect 둘 다): compose=output/multi/docker-compose.yaml env=output/multi/envs/.env.interconnect\"\n  },\n  \"topology_declared\": \"multi\",\n  \"interconnect_present\": true,\n  \"consistency_assertion\": {\n    \"git_branch\": null,\n    \"branch_implies\": null,\n    \"manifest_path\": \"<CASE>/absent-manifest.yaml\",\n    \"manifest_topology\": null,\n    \"declared\": \"multi\",\n    \"scan_interconnect_present\": true,\n    \"egress_self\": null,\n    \"egress_peer\": null,\n    \"consistent\": false,\n    \"mismatches\": [\n      \"git branch(None) 로 토폴로지를 해소하지 못했다 — 3자-일치(branch↔manifest↔scan)를 판정할 수 없다(fail-closed)\"\n    ],\n    \"warnings\": [],\n    \"per_port_evaluated\": false,\n    \"per_port_gbps\": null,\n    \"per_port_floor\": 100.0,\n    \"bandwidth_source\": \"unmeasured\"\n  },\n  \"gate\": {\n    \"branch\": \"gamma\",\n    \"status\": \"blocked\",\n    \"reasons\": [\n      \"peer-ip 미지정(도달성 미검증)\",\n      \"git branch(None) 로 토폴로지를 해소하지 못했다 — 3자-일치(branch↔manifest↔scan)를 판정할 수 없다(fail-closed)\"\n    ],\n    \"note\": \"멀티-ready manifest 미생성. 구조/일관성 확보 후 재실행.\"\n  }\n}\n",
+   "stderr_tokenized": ""
+  },
+  {
+   "id": "S50C12",
+   "plane": "host-observed",
+   "first_exit": 2,
+   "columns": "80",
+   "args": [
+    "--topology",
+    "single",
+    "--manifest",
+    "<CASE>/manifest-mode000.yaml"
+   ],
+   "path_dirs": [
+    "SC_NONE"
+   ],
+   "env": {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "Asia/Seoul",
+    "COLUMNS": "80"
+   },
+   "flag": null,
+   "stdout_tokenized": "{\n  \"cpu_arch\": \"aarch64\",\n  \"cuda_version\": null,\n  \"gpus_per_node\": null,\n  \"gpu_model\": null,\n  \"driver_version\": null,\n  \"gpu_memory_model\": null,\n  \"gpu_vram_mib\": null,\n  \"compute_capability\": null,\n  \"interconnect\": {\n    \"type\": \"generic-ethernet\",\n    \"hca_devices\": [],\n    \"gid_index\": null,\n    \"socket_iface\": null,\n    \"mtu\": null,\n    \"bandwidth_gbps\": null,\n    \"platform_preset\": null\n  },\n  \"scan_detail\": {\n    \"_sysfs_hcas\": [\n      \"roceP2p1s0f0\",\n      \"roceP2p1s0f1\",\n      \"rocep1s0f0\",\n      \"rocep1s0f1\"\n    ],\n    \"_roce_v2_gids\": []\n  },\n  \"cross_validation\": {\n    \"checked\": false,\n    \"reason\": \"NCCL env 부재(compose+env.interconnect 둘 다): compose=output/multi/docker-compose.yaml env=output/multi/envs/.env.interconnect\"\n  },\n  \"topology_declared\": \"single\",\n  \"interconnect_present\": false,\n  \"nodes\": [\n    {\n      \"role\": \"main\",\n      \"node_id\": \"main\",\n      \"host\": \"<NODE>\",\n      \"hostname\": \"<NODE>\",\n      \"ssh_user\": \"<USER>\",\n      \"work_dir\": \"<CASE>\"\n    }\n  ],\n  \"consistency_assertion\": {\n    \"git_branch\": null,\n    \"branch_implies\": null,\n    \"manifest_path\": \"<CASE>/manifest-mode000.yaml\",\n    \"manifest_topology\": null,\n    \"declared\": \"single\",\n    \"scan_interconnect_present\": false,\n    \"egress_self\": null,\n    \"egress_peer\": null,\n    \"consistent\": false,\n    \"mismatches\": [\n      \"git branch(None) 로 토폴로지를 해소하지 못했다 — 3자-일치(branch↔manifest↔scan)를 판정할 수 없다(fail-closed)\",\n      \"manifest 판독 불가(부재 아님): <CASE>/manifest-mode000.yaml: [Errno 13] Permission denied: '<CASE>/manifest-mode000.yaml'\"\n    ],\n    \"warnings\": [],\n    \"per_port_evaluated\": false,\n    \"per_port_gbps\": null,\n    \"per_port_floor\": 100.0,\n    \"bandwidth_source\": \"unmeasured\"\n  },\n  \"gate\": {\n    \"branch\": \"alpha\",\n    \"status\": \"blocked\",\n    \"mismatches\": [\n      \"git branch(None) 로 토폴로지를 해소하지 못했다 — 3자-일치(branch↔manifest↔scan)를 판정할 수 없다(fail-closed)\",\n      \"manifest 판독 불가(부재 아님): <CASE>/manifest-mode000.yaml: [Errno 13] Permission denied: '<CASE>/manifest-mode000.yaml'\"\n    ],\n    \"note\": \"일관성 단언 실패 → blocked\"\n  }\n}\n",
+   "stderr_tokenized": "[scan] FAIL(F10): manifest 가 존재하나 판독 불가 — <CASE>/manifest-mode000.yaml: [Errno 13] Permission denied: '<CASE>/manifest-mode000.yaml'\n[scan]        판독 불가를 '부재' 로 접으면 3자일치 게이트가 통째로 skip 된다(무증거 통과).\n"
+  },
+  {
+   "id": "S50C13",
+   "plane": "host-observed",
+   "first_exit": 2,
+   "columns": "80",
+   "args": [
+    "--topology",
+    "multi",
+    "--peer-ip",
+    "127.0.0.1",
+    "--peer-port",
+    "52082",
+    "--peer-ssh",
+    "user@203.0.113.11",
+    "--sub-work-dir",
+    "/ws",
+    "--bandwidth-gbps",
+    "380.0",
+    "--per-port-gbps",
+    "190.0",
+    "--manifest",
+    "<CASE>/absent-manifest.yaml"
+   ],
+   "path_dirs": [
+    "SC_ROCE_TWO_HCAS+SC_GB10+SC_SSH_HW_OK"
+   ],
+   "env": {
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "Asia/Seoul",
+    "COLUMNS": "80"
+   },
+   "flag": "multi-ready needs a resolved git branch (same L803-811 mismatch), and ENV_SC_MULTI_READY declares no git scenario: the 'multi-ready' hypothesis is unreachable by the declared fixtures; the row runs exactly as proposed",
+   "stdout_tokenized": "{\n  \"cpu_arch\": \"aarch64\",\n  \"cuda_version\": \"132\",\n  \"gpus_per_node\": 1,\n  \"gpu_model\": \"NVIDIA GB10\",\n  \"driver_version\": \"580.95.05\",\n  \"gpu_memory_model\": \"unified\",\n  \"gpu_vram_mib\": null,\n  \"compute_capability\": \"12.1\",\n  \"interconnect\": {\n    \"type\": \"RoCE v2\",\n    \"hca_devices\": [\n      \"rocep1s0f1\",\n      \"roceP2p1s0f1\"\n    ],\n    \"gid_index\": 3,\n    \"socket_iface\": \"enp1s0f1np1\",\n    \"mtu\": 9000,\n    \"bandwidth_gbps\": 380.0,\n    \"platform_preset\": null\n  },\n  \"scan_detail\": {\n    \"_sysfs_hcas\": [\n      \"roceP2p1s0f0\",\n      \"roceP2p1s0f1\",\n      \"rocep1s0f0\",\n      \"rocep1s0f1\"\n    ],\n    \"_roce_v2_gids\": [\n      {\n        \"hca\": \"rocep1s0f1\",\n        \"port\": \"1\",\n        \"gid_index\": 3,\n        \"ipv4\": \"203.0.113.10\",\n        \"iface\": \"enp1s0f1np1\"\n      },\n      {\n        \"hca\": \"roceP2p1s0f1\",\n        \"port\": \"1\",\n        \"gid_index\": 3,\n        \"ipv4\": \"203.0.113.20\",\n        \"iface\": \"enP2p1s0f1np1\"\n      }\n    ]\n  },\n  \"cross_validation\": {\n    \"checked\": false,\n    \"reason\": \"NCCL env 부재(compose+env.interconnect 둘 다): compose=output/multi/docker-compose.yaml env=output/multi/envs/.env.interconnect\"\n  },\n  \"topology_declared\": \"multi\",\n  \"interconnect_present\": true,\n  \"nodes\": [\n    {\n      \"role\": \"main\",\n      \"node_id\": \"main\",\n      \"host\": \"203.0.113.10\",\n      \"hostname\": \"<NODE>\",\n      \"ssh_user\": \"<USER>\",\n      \"work_dir\": \"<CASE>\",\n      \"host_source\": \"interconnect-iface:enp1s0f1np1\"\n    },\n    {\n      \"role\": \"sub\",\n      \"node_id\": \"sub\",\n      \"host\": \"127.0.0.1\",\n      \"ssh_user\": \"user\",\n      \"hostname\": \"203.0.113.11\",\n      \"work_dir\": \"/ws\"\n    }\n  ],\n  \"peer_check\": {\n    \"ip\": \"127.0.0.1\",\n    \"port\": 52082,\n    \"reachable\": true\n  },\n  \"consistency_assertion\": {\n    \"git_branch\": null,\n    \"branch_implies\": null,\n    \"manifest_path\": \"<CASE>/absent-manifest.yaml\",\n    \"manifest_topology\": null,\n    \"declared\": \"multi\",\n    \"scan_interconnect_present\": true,\n    \"egress_self\": null,\n    \"egress_peer\": null,\n    \"consistent\": false,\n    \"mismatches\": [\n      \"git branch(None) 로 토폴로지를 해소하지 못했다 — 3자-일치(branch↔manifest↔scan)를 판정할 수 없다(fail-closed)\"\n    ],\n    \"warnings\": [],\n    \"per_port_evaluated\": true,\n    \"per_port_gbps\": 190.0,\n    \"per_port_floor\": 100.0,\n    \"bandwidth_source\": \"injected:--bandwidth-gbps\"\n  },\n  \"gate\": {\n    \"branch\": \"gamma\",\n    \"status\": \"blocked\",\n    \"reasons\": [\n      \"git branch(None) 로 토폴로지를 해소하지 못했다 — 3자-일치(branch↔manifest↔scan)를 판정할 수 없다(fail-closed)\"\n    ],\n    \"note\": \"멀티-ready manifest 미생성. 구조/일관성 확보 후 재실행.\"\n  },\n  \"homogeneity\": {\n    \"local\": {\n      \"cpu_arch\": \"aarch64\",\n      \"gpu_model\": \"NVIDIA GB10\",\n      \"gpus_per_node\": 1,\n      \"cuda\": \"13.2\",\n      \"driver\": \"580.95.05\"\n    },\n    \"peer\": {\n      \"cpu_arch\": \"aarch64\",\n      \"gpu_model\": \"NVIDIA GB10\",\n      \"gpus_per_node\": 1,\n      \"cuda\": \"13.2\",\n      \"driver\": \"580.95.05\",\n      \"gpu_memory_model\": \"unified\",\n      \"gpu_vram_mib\": null,\n      \"compute_capability\": \"12.1\"\n    },\n    \"verified\": true,\n    \"blocks\": [],\n    \"warns\": [],\n    \"detail\": {\n      \"cpu_arch\": {\n        \"main\": \"aarch64\",\n        \"sub\": \"aarch64\",\n        \"match\": true\n      },\n      \"gpu_model\": {\n        \"main\": \"NVIDIA GB10\",\n        \"sub\": \"NVIDIA GB10\",\n        \"match\": true\n      },\n      \"gpus_per_node\": {\n        \"main\": 1,\n        \"sub\": 1,\n        \"match\": true\n      },\n      \"cuda\": {\n        \"main\": \"13.2\",\n        \"sub\": \"13.2\",\n        \"major_match\": true\n      },\n      \"driver\": {\n        \"main\": \"580.95.05\",\n        \"sub\": \"580.95.05\",\n        \"major_match\": true\n      }\n    },\n    \"verified_rule\": \"multi:homogeneity-hard\"\n  }\n}\n",
+   "stderr_tokenized": ""
+  }
+ ]
+}

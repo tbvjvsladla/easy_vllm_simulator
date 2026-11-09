@@ -1,0 +1,258 @@
+{
+"schema": "r48-manifest-contract-golden/1",
+"provenance": "literal copy of the ONE actual ORIGINAL extra9 capture (T/r48-extra9-actual-summary/result.json, Python 3.12.3 / PyYAML 6.0.1); only the private fixture root and owner clone path are replaced by <FIXROOT>/<OWNER>; bytes are latin-1 code points; manifests are the exact Root fixture bytes",
+"base_profile_env": {
+"LANG": "C.UTF-8",
+"LC_ALL": "C.UTF-8"
+},
+"rows": [
+{
+"id": "Y01",
+"group": "EXTRA9",
+"repo_group": "single",
+"case_dir": "cases/Y01",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "Y01",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 377, in _iterencode_dict\n    raise TypeError(f'keys must be str, int, float, bool or None, '\nTypeError: keys must be str, int, float, bool or None, not date\n"
+},
+{
+"id": "Y02",
+"group": "EXTRA9",
+"repo_group": "single",
+"case_dir": "cases/Y02",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "Y02",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 314, in _iterencode_list\n    yield buf + _intstr(value)\n                ^^^^^^^^^^^^^^\nValueError: Exceeds the limit (4300 digits) for integer string conversion; use sys.set_int_max_str_digits() to increase the limit\n"
+},
+{
+"id": "Y03",
+"group": "EXTRA9",
+"repo_group": "single",
+"case_dir": "cases/Y03",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "Y03",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 228, in evaluate_contract\n    _owner = next((w for w in _local_of if w and (tik == w or tik.startswith(w.rstrip(\"/\") + \"/\"))), None)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 228, in <genexpr>\n    _owner = next((w for w in _local_of if w and (tik == w or tik.startswith(w.rstrip(\"/\") + \"/\"))), None)\n                                                                             ^^^^^^^^^^^^^\nTypeError: a bytes-like object is required, not 'str'\n"
+},
+{
+"id": "Y04",
+"group": "EXTRA9",
+"repo_group": "single",
+"case_dir": "cases/Y04",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "Y04",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 228, in evaluate_contract\n    _owner = next((w for w in _local_of if w and (tik == w or tik.startswith(w.rstrip(\"/\") + \"/\"))), None)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 228, in <genexpr>\n    _owner = next((w for w in _local_of if w and (tik == w or tik.startswith(w.rstrip(\"/\") + \"/\"))), None)\n                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: startswith first arg must be bytes or a tuple of bytes, not str\n"
+},
+{
+"id": "Y05",
+"group": "EXTRA9",
+"repo_group": "single",
+"case_dir": "cases/Y05",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "Y05",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "Y06",
+"group": "EXTRA9",
+"repo_group": "single",
+"case_dir": "cases/Y06",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "Y06",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 326, in _iterencode_list\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 439, in _iterencode\n    o = _default(o)\n        ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 180, in default\n    raise TypeError(f'Object of type {o.__class__.__name__} '\nTypeError: Object of type bytes is not JSON serializable\n"
+},
+{
+"id": "Y07",
+"group": "EXTRA9",
+"repo_group": "single",
+"case_dir": "cases/Y07",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "Y07",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [\n    {\n      \"role\": NaN\n    },\n    {\n      \"role\": NaN,\n      \"model_source\": \"custom\"\n    },\n    {\n      \"role\": NaN\n    },\n    {\n      \"role\": NaN,\n      \"model_source\": \"ephemeral\"\n    },\n    {\n      \"role\": NaN\n    }\n  ],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {\n    \"NaN\": \"custom\",\n    \"NaN\": \"ephemeral\",\n    \"NaN\": \"managed\"\n  },\n  \"manifest_path\": \"<FIXROOT>/single/cases/Y07/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "Y08",
+"group": "EXTRA9",
+"repo_group": "single",
+"case_dir": "cases/Y08",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "Y08",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "Y09",
+"group": "EXTRA9",
+"repo_group": "single",
+"case_dir": "cases/Y09",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "Y09",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 326, in _iterencode_list\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 395, in _iterencode_dict\n    yield _intstr(value)\n          ^^^^^^^^^^^^^^\nValueError: Exceeds the limit (4300 digits) for integer string conversion; use sys.set_int_max_str_digits() to increase the limit\n"
+}
+]
+}

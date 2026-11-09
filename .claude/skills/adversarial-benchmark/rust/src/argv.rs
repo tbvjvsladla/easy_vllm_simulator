@@ -350,6 +350,43 @@ pub const RESOLVE_TOPOLOGY: Spec = Spec {
     layouts: crate::help_layouts_resolve_topology::LAYOUTS,
 };
 
+/// Indices of the `turn_budget.py` actions.
+pub mod turn_budget_args {
+    pub const MAX_TURNS: usize = 1;
+    pub const TIMEOUT_SECONDS: usize = 2;
+    pub const SOURCE: usize = 3;
+    pub const CAPS: usize = 4;
+    pub const SELF_TEST: usize = 5;
+}
+
+/// The original `turn_budget.py` parser (`main()`): `--max-turns` and `--timeout-seconds` as `type=int`, `--source`, `--caps`
+/// and `--self-test`; every option is optional and may be abbreviated to an unambiguous prefix.
+pub const TURN_BUDGET: Spec = Spec {
+    prog: "turn_budget.py",
+    actions: &[
+        ActionDef {
+            name: "-h/--help",
+            kind: Kind::Help,
+            ..PLAIN
+        },
+        number("--max-turns", Conversion::Int),
+        number("--timeout-seconds", Conversion::Int),
+        text_option("--source", false),
+        flag("--caps"),
+        flag("--self-test"),
+    ],
+    options: &[
+        ("-h", HELP_ACTION),
+        ("--help", HELP_ACTION),
+        ("--max-turns", turn_budget_args::MAX_TURNS),
+        ("--timeout-seconds", turn_budget_args::TIMEOUT_SECONDS),
+        ("--source", turn_budget_args::SOURCE),
+        ("--caps", turn_budget_args::CAPS),
+        ("--self-test", turn_budget_args::SELF_TEST),
+    ],
+    layouts: crate::help_layouts_turn_budget::LAYOUTS,
+};
+
 /// Indices of the `classify_cell.py` actions.
 pub mod classify_args {
     pub const SERVE_RC: usize = 1;

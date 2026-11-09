@@ -754,6 +754,11 @@ fn build_caller_checkout(
         ),
         None,
     )?;
+    write_file(
+        &root.join(".claude/skills/terraforming_node/scripts/manifest_contract.sh"),
+        "#!/bin/bash\n[ \"${MANIFEST_CONTRACT_VALIDATE_ONLY:-}\" = 1 ] && exit 0\nexec python3 \"$(dirname \"${BASH_SOURCE[0]}\")/manifest_contract.py\" \"$@\"\n",
+        Some(0o755),
+    )?;
     // The probes execute their own deployed files, whatever the environment of this run substitutes.
     let settings = ChildSettings {
         current_dir: Some(root.clone()),

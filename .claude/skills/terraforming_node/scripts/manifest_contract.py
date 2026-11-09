@@ -21,7 +21,7 @@ CLI:
   python3 .../manifest_contract.py --topology "$T" --repo "$REPO" --require-flag || {
       echo "Flag 미발급 — 테라포밍 먼저(info-only)"; exit 4; }
 """
-import argparse
+import argparse  # noqa: F401 — the original's public import-time dependency (its module name is part of the module facts); the adapter itself does not use it
 import json
 import os
 import subprocess
@@ -40,34 +40,300 @@ EXIT_TOPOLOGY_MISMATCH = 6
 
 VALID_MODES = ("managed", "ephemeral", "custom")
 
+# --- 호출자용 정본 redirect 템플릿 (Flag 미발급 시 페르소나가 출력) ---
+REDIRECT_TEMPLATE = (
+    "HW스캔이 덜 되어(Flag 미발행) HW 스펙(GPU·OS)을 알기 어려워, 모델의 정확한 서빙전략을 "
+    "세우기 어렵습니다. terraforming_node 로 ① HW스캔 + ② 모델 다운로드 전략(관리 NAS 경로? "
+    "컨테이너 임시 다운로드(컨테이너 down 시 삭제)? 특정 경로 저장·마운트?)을 먼저 정합시다."
+)
 
-def _git_branch(repo):
-    try:
-        out = subprocess.run(
-            ["git", "-C", repo, "rev-parse", "--abbrev-ref", "HEAD"],
-            capture_output=True, text=True,
-        )
-        if out.returncode == 0:
-            return out.stdout.strip()
-    except Exception:
-        pass
-    return None
+# ── 이 파일은 얇은 IMPORT 어댑터다 ─────────────────────────────────────────────────────────────────
+# 판정(Flag·reason·exit code·TP·경고·역할 키·topology 비교·git 브랜치·main 인자 분류)은 모두 Rust(`manifest_contract` 실행파일의
+# 비공개 브리지 · 순수 업무는 role-contract)가 한다. 이 파일은 호출자의 ORIGINAL 객체를 타입 그래프로 전달하고(별칭·순환·NaN 키·
+# YAML 전용 타입 보존), 돌려받은 결과 계획을 **기계적으로** 조립하며, 기록된 예외를 같은 클래스·인자로 다시 일으킨다.
+# 원본 바이트는 옆의 manifest_contract_compat_owner.py 에 그대로 있다: `-h`·`--self-test`·약어·사용 오류 같은 사전 분류된 레거시
+# 경로와 업무 없는 이름(`_git_branch`·`branch_topology_conflict`·`_self_test`)만 그 파일로 간다(네이티브 실패 뒤 Python 재시도 없음).
+# 잔여: U2(in-process traceback 프레임은 이 어댑터의 것) · U3(아래 타입 집합 밖은 업무 전에 NotImplementedError).
+def _build():
+    """Creates the nine functions of the original API together with every implementation helper, so that the helpers live in the CLOSURE of
+    the returned functions and not in the module namespace (the module then carries exactly the names, imports and constants of the original). Nothing is
+    intercepted: the module has no `__getattr__`/`__dir__`, the functions are ordinary module-level function objects, and this builder is deleted after it ran."""
+    _HERE = os.path.dirname(os.path.abspath(__file__))
+    _LAUNCHER = os.path.join(_HERE, "manifest_contract.sh")
+    _DEFAULT_BIN = _HERE + "/../../adversarial-benchmark/rust/target/release/manifest_contract"
+    _COMPAT_OWNER = os.path.join(_HERE, "manifest_contract_compat_owner.py")
+    _PROTOCOL = "manifest-contract-bridge/1"
+    _compat_module = None
 
 
-def resolve_topology(repo, explicit):
-    """topology = --topology 우선 · 없으면 git 브랜치가 *통로*를 선택(single-node→single / multi-node→multi)."""
-    if explicit:
-        return explicit
-    branch = _git_branch(repo)
-    if branch == "single-node":
-        return "single"
-    if branch == "multi-node":
-        return "multi"
-    return None  # 불명 — 호출자가 --topology 명시해야
+    def _unsupported(what):
+        raise NotImplementedError("manifest_contract bridge does not carry %s (the original's behaviour is not reproduced here)" % what)
 
 
-def branch_topology_conflict(repo, explicit):
-    """명시된 topology 가 **체크아웃 브랜치가 고르는 통로**와 어긋나면 사유를, 아니면 None.
+    def _hex_text(text):
+        return text.encode("utf-8", "surrogatepass").hex()
+
+
+    class _Wire:
+        """Python object -> typed graph wire (traversal-order ids; a repeated container is a ref: sharing and cycles stay visible)."""
+
+        def __init__(self):
+            self.ids = {}
+            self.keep = []
+            self.nans = {}
+
+        def _new(self, value):
+            self.keep.append(value)
+            self.ids[id(value)] = len(self.ids) + 1
+            return self.ids[id(value)]
+
+        def __call__(self, value):
+            kind = type(value)
+            if value is None:
+                return {"t": "none"}
+            if kind is bool:
+                return {"t": "bool", "v": value}
+            if kind is int:
+                return {"t": "int", "sign": "-" if value < 0 else "+", "hex": format(abs(value), "x")}
+            if kind is float:
+                wire = {"t": "float", "repr": repr(value)}
+                if value != value:
+                    if id(value) not in self.nans:
+                        self.keep.append(value)
+                        self.nans[id(value)] = len(self.nans) + 1
+                    wire["nan_id"] = self.nans[id(value)]
+                return wire
+            if kind is str:
+                return {"t": "str", "utf8_surrogatepass_hex": _hex_text(value), "codepoints": len(value)}
+            if kind is bytes:
+                return {"t": "bytes", "hex": value.hex()}
+            import datetime
+            if kind is datetime.datetime:
+                return {"t": "datetime", "iso": value.isoformat()}
+            if kind is datetime.date:
+                return {"t": "date", "iso": value.isoformat()}
+            if kind in (list, tuple, dict, set):
+                if id(value) in self.ids:
+                    return {"t": "ref", "id": self.ids[id(value)]}
+                ident = self._new(value)
+                if kind is dict:
+                    return {"t": "dict", "id": ident, "pairs": [[self(key), self(item)] for key, item in list(value.items())]}
+                if kind is set:
+                    return {"t": "set", "id": ident, "members": [self(member) for member in value]}
+                return {"t": "list" if kind is list else "tuple", "id": ident, "v": [self(item) for item in value]}
+            _unsupported("a value of type %s" % kind.__name__)
+
+
+    def _path_wire(wire, path):
+        """A path argument: str, or an os.PathLike whose fspath is str (bytes and file descriptors are not carried)."""
+        kind = type(path)
+        if kind is not str and kind is not bytes and path is not None and hasattr(kind, "__fspath__"):
+            path = os.fspath(path)
+        if type(path) is not str:
+            _unsupported("a path of type %s" % type(path).__name__)
+        return wire(path)
+
+
+    class _Unwire:
+        """typed graph wire -> Python objects (a ref resolves to the object registered under that id: sharing and cycles are real)."""
+
+        def __init__(self):
+            self.objects = {}
+            self.nans = {}
+
+        def __call__(self, wire):
+            tag = wire["t"]
+            if tag == "none":
+                return None
+            if tag == "bool":
+                return wire["v"]
+            if tag == "int":
+                value = int(wire["hex"], 16)
+                return -value if wire["sign"] == "-" else value
+            if tag == "float":
+                if "nan_id" in wire:
+                    return self.nans.setdefault(wire["nan_id"], float("nan"))
+                return float(wire["repr"])
+            if tag == "str":
+                return bytes.fromhex(wire["utf8_surrogatepass_hex"]).decode("utf-8", "surrogatepass")
+            if tag == "bytes":
+                return bytes.fromhex(wire["hex"])
+            if tag == "date":
+                import datetime
+                return datetime.date.fromisoformat(wire["iso"])
+            if tag == "datetime":
+                import datetime
+                return datetime.datetime.fromisoformat(wire["iso"])
+            if tag == "ref":
+                return self.objects[wire["id"]]
+            if tag == "list":
+                out = self.objects[wire["id"]] = []
+                out.extend(self(item) for item in wire["v"])
+                return out
+            if tag == "dict":
+                out = self.objects[wire["id"]] = {}
+                for key, item in wire["pairs"]:
+                    out[self(key)] = self(item)
+                return out
+            if tag == "set":
+                out = self.objects[wire["id"]] = set()
+                for member in wire["members"]:
+                    out.add(self(member))
+                return out
+            if tag == "tuple":
+                out = tuple(self(item) for item in wire["v"])
+                self.objects[wire["id"]] = out
+                return out
+            raise RuntimeError("manifest_contract bridge answered an unknown wire type %r" % tag)
+
+
+    def _ask(op, wires):
+        """One request to the private bridge: the answer record (an exception of the original is DATA in it, never a transport failure).
+
+    The request travels in a private temporary file (mode 0600, removed right after the answer): the bridge gets NO descriptor of the
+    request and its standard descriptors 0-2 stay the CALLER's, which is what the original's `git` subprocess inherited (the original ran
+    with the interpreter's `close_fds`, so it inherited nothing else either). The environment is the caller's plus the two private
+    bridge variables; the caller's own value (or unset state) of exactly the plumbing variables this call mutates, and of the others the
+    launcher knows, travels as `MANIFEST_CONTRACT_CALLER_<name>` so the native `git` child gets the caller's environment back. Only
+    those plumbing names are read; no other variable of the caller is copied anywhere.
+
+    The child is the node-local executable itself when it is present and executable (selected PER CALL from the caller's current
+    `MANIFEST_CONTRACT_BIN` as captured in the SAME environment snapshot the child receives, so a concurrent change of `os.environ` cannot split the selection from the carriers; unset or empty = the default beside the skill, a relative value is relative to the working directory): no intermediate shell
+    starts, which is what the launcher's bridge branch did (`exec "$BIN" "$@"` with nothing added). The launcher stays the single place of the
+    guidance: it is used when the executable is missing or not executable, and when starting the executable itself fails in the operating system
+    (`OSError` naming the executable: the executable never ran, so no business ran either). A native process that ran and failed is never retried."""
+        import tempfile
+        data = json.dumps({"v": 1, "op": op, "args": wires}, ensure_ascii=True).encode("ascii")
+        env = dict(os.environ)
+        env["MANIFEST_CONTRACT_CALLER_ENV"] = "1"
+        for suffix in ("BRIDGE", "BRIDGE_REQUEST", "COMPAT_OWNER", "PUBLIC_ARGV0", "PYTHON", "VALIDATE_ONLY"):
+            carrier = "MANIFEST_CONTRACT_CALLER_" + suffix
+            if "MANIFEST_CONTRACT_" + suffix in os.environ:
+                env[carrier] = os.environ["MANIFEST_CONTRACT_" + suffix]
+            else:
+                env.pop(carrier, None)
+        handle, request_path = tempfile.mkstemp(prefix="manifest-contract-request-", suffix=".json")
+        try:
+            with os.fdopen(handle, "wb") as sink:
+                sink.write(data)
+            env["MANIFEST_CONTRACT_BRIDGE"] = "1"
+            env["MANIFEST_CONTRACT_BRIDGE_REQUEST"] = request_path
+            native = env.get("MANIFEST_CONTRACT_BIN") or _DEFAULT_BIN
+            if os.path.isfile(native) and os.access(native, os.X_OK):
+                try:
+                    process = subprocess.Popen([native], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+                except OSError as failure:
+                    if failure.filename != native:
+                        raise
+                    process = subprocess.Popen(["/bin/bash", _LAUNCHER], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+            else:
+                process = subprocess.Popen(["/bin/bash", _LAUNCHER], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+            stdout, stderr = process.communicate()
+        finally:
+            try:
+                os.unlink(request_path)
+            except OSError:
+                pass
+        if process.returncode != 0:
+            raise RuntimeError("[manifest_contract] native bridge failed (status %d): %s"
+                               % (process.returncode, stderr.decode("utf-8", "replace").rstrip()))
+        answer = json.loads(stdout.decode("ascii"))
+        if answer.get("protocol") != _PROTOCOL:
+            raise RuntimeError("[manifest_contract] native bridge speaks another protocol; rebuild it")
+        return answer["answer"]
+
+
+    def _walk(path, args):
+        """The ORIGINAL object an AttributeError names: arguments[i], then keys/indices of it."""
+        obj = None
+        for step in path:
+            if "arg" in step:
+                obj = args[step["arg"]]
+            elif "key" in step:
+                obj = obj.get(step["key"])
+            else:
+                obj = obj[step["index"]]
+        return obj
+
+
+    _CLASSES = {name: getattr(__import__("builtins"), name) for name in (
+        "AttributeError", "TypeError", "ValueError", "RecursionError", "OverflowError", "KeyError", "OSError")}
+    _YAML_MODULES = {"ComposerError": "composer", "ConstructorError": "constructor", "ParserError": "parser",
+                     "ScannerError": "scanner", "ReaderError": "reader"}
+
+
+    def _mark(yaml, item, unwire):
+        if item is None:
+            return None
+        return yaml.error.Mark(unwire(item["name"]), item["index"], item["line"], item["column"],
+                               None if item["buffer"] is None else unwire(item["buffer"]), item["pointer"])
+
+
+    def _finish(answer, args=()):
+        """The value of a `returned` answer is read by the caller; here: raise what the bridge recorded, or stop on `unsupported`."""
+        status = answer["status"]
+        if status == "unsupported":
+            raise NotImplementedError("manifest_contract bridge: %s (%s); no Python fallback" % (answer["boundary"], answer["detail"]))
+        if status != "raised":
+            return answer
+        unwire = _Unwire()
+        kind = answer["kind"]
+        if kind == "os":
+            raise OSError(answer["errno"], unwire(answer["strerror"]), unwire(answer["filename"]))
+        if kind == "decode":
+            raise UnicodeDecodeError(answer["encoding"], bytes.fromhex(answer["object"]), answer["start"], answer["end"], answer["reason"])
+        if kind in ("yaml_marked", "yaml_reader"):
+            import yaml
+            import importlib
+            module = importlib.import_module("yaml." + _YAML_MODULES[answer["cls"]])
+            cls = getattr(module, answer["cls"])
+            if kind == "yaml_reader":
+                raise cls(unwire(answer["source_name"]), answer["position"], answer["character"], answer["encoding"], answer["reason"])
+            text = lambda item: None if item is None else unwire(item)
+            context_mark = _mark(yaml, answer["context_mark"], unwire)
+            # PyYAML passed ONE Mark object for both when `context_mark is problem_mark` (decided by the parser's provenance, not by equal positions)
+            problem_mark = context_mark if answer["marks_shared"] else _mark(yaml, answer["problem_mark"], unwire)
+            # PyYAML's own raise sites pass exactly the positional arguments of the original construction: four for every composer/constructor/parser/scanner error
+            # (no site passes `note`), five only when a note is really supplied; the bridge says which (`args_arity`), so `exception.args` has the original length
+            parts = (text(answer["context"]), context_mark, text(answer["problem"]), problem_mark, text(answer["note"]))
+            raise cls(*parts[:answer["args_arity"]])
+        cls = _CLASSES.get(answer["cls"])
+        if cls is None:
+            raise RuntimeError("manifest_contract bridge reported an unknown exception class %r" % answer["cls"])
+        message = unwire(answer["message"])
+        if cls is AttributeError and answer["name"] is not None:
+            raise AttributeError(message, name=answer["name"], obj=None if answer["obj"] is None else _walk(answer["obj"], args))
+        raise cls(message)
+
+
+    def _compat():
+        """The reviewed original, loaded on demand for the explicit legacy routes only."""
+        nonlocal _compat_module
+        if _compat_module is None:
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("manifest_contract_compat_owner", _COMPAT_OWNER)
+            _compat_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(_compat_module)
+        return _compat_module
+
+
+    # ── the original API (same names, signatures, constants) ──────────────────────────────────────
+
+    def _git_branch(repo):
+        return _compat()._git_branch(repo)
+
+
+    def resolve_topology(repo, explicit):
+        """topology = --topology 우선 · 없으면 git 브랜치가 *통로*를 선택(single-node→single / multi-node→multi)."""
+        wire = _Wire()
+        answer = _finish(_ask("resolve_topology", [_path_wire(wire, repo), wire(explicit)]), (repo, explicit))
+        if answer["which"] == "explicit":
+            return explicit
+        return _Unwire()(answer["value"])
+
+
+    def branch_topology_conflict(repo, explicit):
+        """명시된 topology 가 **체크아웃 브랜치가 고르는 통로**와 어긋나면 사유를, 아니면 None.
 
     ★ 발화 조건은 **브랜치가 알려진 토폴로지로 해소될 때만**이다. 비-git 트리(배포 클론 스모크가
       쓰는 임시 디렉터리)·detached HEAD 에서는 종전 동작을 그대로 둔다 — 거기서 새로 죽으면
@@ -77,26 +343,20 @@ def branch_topology_conflict(repo, explicit):
     "브랜치가 맞다" 고 말하지 않는다 — **둘이 어긋났다는 사실**만 말하고 어느 쪽을 고칠지는
     사람이 정한다(자동 교정 금지).
     """
-    if not explicit:
-        return None
-    derived = resolve_topology(repo, None)
-    if derived is None or derived == explicit:
-        return None
-    return ("요청 topology=%r 이 체크아웃 브랜치가 고르는 통로 %r 와 다르다 — 브랜치를 바꾸거나 "
-            "요청을 바꿔라(자동 교정하지 않는다). 정본 술어: topology_parity.py"
-            % (explicit, derived))
+        return _compat().branch_topology_conflict(repo, explicit)
 
 
-def effective_model_source(node, top_level_ms):
-    """per-node model_source 해소 규칙(결정론 — plan_26070809_46_57 §4.4):
+    def effective_model_source(node, top_level_ms):
+        """per-node model_source 해소 규칙(결정론 — plan_26070809_46_57 §4.4):
     node.model_source(있으면) > top-level model_source > None(오류, 호출자 판단)."""
-    if isinstance(node, dict) and node.get("model_source"):
-        return node["model_source"]
-    return top_level_ms
+        # the decision is the Rust owner's (`effective_model_source_which`); this assembles the caller's own value
+        wire = _Wire()
+        answer = _finish(_ask("effective_model_source", [wire(node), wire(top_level_ms)]), (node, top_level_ms))
+        return node["model_source"] if answer["which"] == "node_model_source" else top_level_ms
 
 
-def manifest_tp(man, topology):
-    """manifest 파생 TP (roofline.py:196-209 패턴). config override·최종폴백 1 은 호출자 책임.
+    def manifest_tp(man, topology):
+        """manifest 파생 TP (roofline.py:196-209 패턴). config override·최종폴백 1 은 호출자 책임.
 
     **topology=single → 노드 배수 1 고정**(TP = gpus_per_node): single 의 nodes[role=sub] 는
     sub-control 피어이지 텐서 워커가 아니다. 이 배수를 안 걷으면 서브가 등록된 single manifest 가
@@ -107,356 +367,119 @@ def manifest_tp(man, topology):
     **gpus_per_node 부재·비정수·1 미만 → ValueError**(2026-09-05 · audit_26090515 B4). 종전 `or 1` 은
     HW 사실을 기본값으로 대체하는 침묵 폴백이었다 — 계약의 소유자가 그 폴백을 갖고 있으면 하류 4사이트가
     같은 것을 복제한다. 호출자(evaluate_contract)는 예외를 잡아 EXIT_MISSING_FIELD 로 돌린다."""
-    raw = man.get("gpus_per_node")
-    try:
-        gpus = int(raw)
-    except (TypeError, ValueError):
-        gpus = None
-    if gpus is None or gpus < 1:
-        raise ValueError("gpus_per_node 부재/비정수(%r) — TP 는 HW 사실이지 기본값이 아니다" % (raw,))
-    if (topology or "").startswith("single"):
-        return gpus
-    nodes = man.get("nodes") or []
-    if nodes:
-        return max(1, len(nodes)) * gpus
-    return None
+        # the decision is the Rust owner's (`manifest_tp_answer`)
+        wire = _Wire()
+        answer = _finish(_ask("manifest_tp", [wire(man), wire(topology)]), (man, topology))
+        return _Unwire()(answer["value"])
 
 
-def evaluate_contract(man, topology):
-    """순수 게이트 함수(파일 IO 없음 — --self-test 가 이걸 친다).
+    def evaluate_contract(man, topology):
+        """순수 게이트 함수(파일 IO 없음 — --self-test 가 이걸 친다).
     returns dict: {flag, reason, topology, gpus_per_node, nodes, manifest_tp, model_source,
                    nas_model_path, custom_model_paths, quant_model_path, tiktoken_host_path, exit_code}.
     """
-    res = {
-        "flag": False, "reason": "", "exit_code": EXIT_NO_FLAG,
-        "topology": man.get("topology"),
-        "gpus_per_node": man.get("gpus_per_node"),
-        "nodes": man.get("nodes") or [],
-        "model_source": man.get("model_source"),
-        "nas_model_path": man.get("nas_model_path"),
-        "custom_model_paths": man.get("custom_model_paths") or {},
-        "quant_model_path": man.get("quant_model_path") or "",
-        "tiktoken_host_path": man.get("tiktoken_host_path") or "",
-    }
-    try:
-        res["manifest_tp"] = manifest_tp(man, topology)
-        tp_error = None
-    except ValueError as e:  # 부재/비정수 — 아래 필수 HW필드 검사가 EXIT_MISSING_FIELD 로 돌린다(침묵 1 ✗)
-        res["manifest_tp"] = None
-        tp_error = str(e)
-
-    terra = man.get("terraforming") or {}
-    if terra.get("complete") is not True:
-        res["reason"] = "terraforming.complete != true (Flag 미발급 — info-only)"
-        res["exit_code"] = EXIT_NO_FLAG
-        return res
-    if terra.get("branch_verified") is not True:
-        res["reason"] = "terraforming.branch_verified != true (§1.5 3자일치 미통과 — info-only)"
-        res["exit_code"] = EXIT_NO_FLAG
-        return res
-    if man.get("self_role") == "sub" and terra.get("issued_by") != "main":
-        res["reason"] = ("self_role=sub 이지만 terraforming.issued_by != 'main' — "
-                         "메인이 발급한 서브 manifest가 아니므로 readiness를 인정하지 않는다")
-        res["exit_code"] = EXIT_NO_FLAG
+        # the decision is the Rust owner's (`evaluate_contract_plan`); the result dict is assembled mechanically from the caller's own objects
+        wire = _Wire()
+        answer = _finish(_ask("evaluate_contract", [wire(man), wire(topology)]), (man, topology))
+        unwire = _Unwire()
+        res = {}
+        for entry in answer["plan"]:
+            if entry["from"] == "input":
+                res[entry["key"]] = man.get(entry["name"])
+            elif entry["from"] == "value":
+                res[entry["key"]] = unwire(entry["v"])
+            else:
+                nodes, top = res["nodes"], res["model_source"]
+                mapped = {}
+                for item in entry["entries"]:
+                    node = nodes[item["node"]]
+                    role = node.get("role") if item["role"] == "node_role" else item["role"]["text"]
+                    mapped[role] = node["model_source"] if item["value"] == "node_model_source" else top
+                res[entry["key"]] = mapped
         return res
 
-    # 필수 HW사실 (보수적: Flag 켜졌어도 핵심 필드 없으면 거부)
-    missing = [k for k in ("topology", "gpus_per_node") if not man.get(k)]
-    if missing:
-        res["reason"] = "Flag true 이나 필수 HW필드 누락: %s" % ", ".join(missing)
-        res["exit_code"] = EXIT_MISSING_FIELD
-        return res
-    if man.get("topology") != topology:
-        # manifest 가 토폴로지 사실의 권위다. 인자가 그와 다르면 호출부가 **다른 통로의 사실로**
-        # 판정하려는 것이고, 그 조합이 2026-09-11 사고의 형태다(멀티 캠페인을 싱글 통로에서 실행).
-        res["reason"] = ("manifest 선언 topology=%r 과 요청 topology=%r 이 다르다 — manifest 가 권위다"
-                         % (man.get("topology"), topology))
-        res["exit_code"] = EXIT_TOPOLOGY_MISMATCH
-        return res
-    if tp_error:  # 존재하되 비정수/0 — `not man.get()` 은 못 잡는다
-        res["reason"] = "Flag true 이나 %s" % tp_error
-        res["exit_code"] = EXIT_MISSING_FIELD
-        return res
 
-    ms = man.get("model_source")
-    if ms not in VALID_MODES:
-        res["reason"] = "model_source 미설정/오류: %r (기대 %s)" % (ms, "|".join(VALID_MODES))
-        res["exit_code"] = EXIT_MISSING_FIELD
-        return res
-
-    # per-node model_source override 검증 (single-node sub-control 한정 — plan_26070809_46_57 §4.4).
-    # 해소규칙: node.model_source(있으면) > top-level ms. 멀티는 override 있어도 무시 대상(단일 정책)이라 WARN.
-    node_warnings = []
-    bad_node_sources = []
-    for idx, node in enumerate(res["nodes"]):
-        if not isinstance(node, dict):
-            continue
-        node_ms = node.get("model_source")
-        if node_ms is None:
-            continue
-        if node_ms not in VALID_MODES:
-            bad_node_sources.append(
-                "nodes[%d](%s).model_source=%r" % (idx, node.get("role", "?"), node_ms))
-        elif topology == "multi":
-            node_warnings.append(
-                "nodes[%d](%s).model_source override 는 single-node sub-control 한정 — "
-                "multi 는 무시(단일 정책)" % (idx, node.get("role", "?")))
-    if bad_node_sources:
-        res["reason"] = "per-node model_source 오류: %s (기대 %s)" % (
-            "; ".join(bad_node_sources), "|".join(VALID_MODES))
-        res["exit_code"] = EXIT_MISSING_FIELD
-        return res
-    # ── 사전적재 자산이 노드-로컬이면 다중노드에서 구조적으로 도달 불가 (2026-09-03 신설) ──
-    #
-    # 실증: 서브가 gpt-oss-20b serve 를 완주하지 못했다. KV 도 메모리도 아니고
-    # `openai_harmony.HarmonyError: invalid tiktoken vocab file` 이었다. gpt-oss 계열은
-    # `reasoning_parser=openai_gptoss` 가 harmony 인코딩(o200k tiktoken vocab)을 **무조건** 로드하는데,
-    # 그 자산은 자동 생성되는 캐시가 아니라 **사전적재가 필요한 입력**이고, 서브는 curl/wget/hf 가
-    # 전부 deny 라 스스로 얻을 수 없다. 메인에만 노드-로컬로 두면 서브는 **영원히** 얻지 못한다.
-    #
-    # 규정의 분류 오류였다: `sync_to_sub` 의 BAND2_EXCLUDED_TOP 이 `cache`(JIT 캐시 — 자동 생성이라
-    # 전파가 무의미)와 `tiktoken_cache`(사전적재 입력 — 획득 경로가 필요)를 **한 이름으로 묶어**
-    # 둘 다 "노드-로컬 캐시" 로 불렀다. 앞의 것은 전파 제외가 옳고, 뒤의 것은 전파도 다운로드도
-    # 막히면 막다른 길이 된다. 처방은 전파 경로 신설이 아니라 **공유 스토리지 + manifest 포인터**다
-    # (2026-09-03 사용자 결정 — NAS 배치). 그러면 전파 자체가 불필요해진다.
-    #
-    # 이 술어는 그 결정이 다음 노드에서 조용히 되돌아가는 것을 막는다. **차단이 아니라 경고**다 —
-    # 서브가 없는 순수 단일노드에서는 노드-로컬 경로가 정상이기 때문이다.
-    tik = res.get("tiktoken_host_path") or ""
-    if tik and len(res["nodes"]) > 1:
-        _local_of = [n.get("work_dir") or "" for n in res["nodes"] if isinstance(n, dict)]
-        _owner = next((w for w in _local_of if w and (tik == w or tik.startswith(w.rstrip("/") + "/"))), None)
-        if _owner:
-            node_warnings.append(
-                "tiktoken_host_path=%r 가 노드 작업경로(%s) 안이다 — 사전적재 자산은 노드-로컬에 두면 "
-                "다른 노드가 얻을 수 없다(서브는 curl/wget/hf deny). 공유 스토리지(nas_model_path 와 같은 "
-                "마운트)로 옮기고 이 포인터를 그리로 돌려라." % (tik, _owner))
-
-    res["node_warnings"] = node_warnings
-    res["effective_model_source"] = {
-        (node.get("role") or "node%d" % i): effective_model_source(node, ms)
-        for i, node in enumerate(res["nodes"]) if isinstance(node, dict)
-    }
-
-    res["flag"] = True
-    res["reason"] = "Flag valid (complete + branch_verified + HW사실 + model_source)"
-    res["exit_code"] = EXIT_OK
-    return res
+    def _load_manifest(path):
+        import yaml
+        wire = _Wire()
+        answer = _finish(_ask("load_manifest", [_path_wire(wire, path)]), (path,))
+        return _Unwire()(answer["value"])
 
 
-def _load_manifest(path):
-    import yaml
-    with open(path, "r", encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+    def _self_test():
+        return _compat()._self_test()
 
 
-# --- 호출자용 정본 redirect 템플릿 (Flag 미발급 시 페르소나가 출력) ---
-REDIRECT_TEMPLATE = (
-    "HW스캔이 덜 되어(Flag 미발행) HW 스펙(GPU·OS)을 알기 어려워, 모델의 정확한 서빙전략을 "
-    "세우기 어렵습니다. terraforming_node 로 ① HW스캔 + ② 모델 다운로드 전략(관리 NAS 경로? "
-    "컨테이너 임시 다운로드(컨테이너 down 시 삭제)? 특정 경로 저장·마운트?)을 먼저 정합시다."
-)
+    def main(argv=None):
+        args = sys.argv[1:] if argv is None else argv
+        if type(args) is not list or any(type(item) is not str for item in args):
+            _unsupported("an argv that is not a list of str")
+        which = _finish(_ask("classify_main", [_Wire()(args)]), (args,))["which"]
+        if which == "legacy":
+            # decided BEFORE any business: the reviewed original answers (usage text, -h, --self-test, abbreviations, usage errors)
+            return _compat().main(argv)
+        answer = _finish(_ask("main", [_Wire()(args)]), (args,))
+        unwire = _Unwire()
+        if answer["stdout"] is not None:
+            print(unwire(answer["stdout"]))
+        if answer["stderr"] is not None:
+            sys.stderr.write(unwire(answer["stderr"]))
+        return answer["rc"]
+
+    exports = (_git_branch, resolve_topology, branch_topology_conflict, effective_model_source, manifest_tp, evaluate_contract, _load_manifest, _self_test, main)
+    for function in exports:
+        # the functions are created inside the builder; once it is deleted their export name IS their plain name (qualname is a plain mechanical attribute here)
+        function.__qualname__ = function.__name__
+    return exports
 
 
-def _self_test():
-    cases = []
-
-    def chk(name, man, topology, expect_flag, expect_exit):
-        r = evaluate_contract(man, topology)
-        ok = (r["flag"] == expect_flag) and (r["exit_code"] == expect_exit)
-        cases.append((name, ok, r["reason"], r.get("manifest_tp")))
-        return ok
-
-    base_ok = {
-        "topology": "single", "gpus_per_node": 1, "model_source": "managed",
-        "nas_model_path": "/mnt/models", "nodes": [],
-        "terraforming": {"complete": True, "branch_verified": True},
-    }
-    chk("valid-single", dict(base_ok), "single", True, EXIT_OK)
-    sub_ok = {**base_ok, "self_role": "sub",
-              "terraforming": {"complete": True, "branch_verified": True, "issued_by": "main"}}
-    chk("valid-sub-issued-by-main", sub_ok, "single", True, EXIT_OK)
-    for label, issued in (("missing", None), ("sub", "sub"), ("unknown", "unknown")):
-        terra = {"complete": True, "branch_verified": True}
-        if issued is not None:
-            terra["issued_by"] = issued
-        chk("sub-issued-by-%s-rejected" % label,
-            {**base_ok, "self_role": "sub", "terraforming": terra},
-            "single", False, EXIT_NO_FLAG)
-
-    multi_ok = {
-        "topology": "multi", "gpus_per_node": 1, "model_source": "ephemeral",
-        "nodes": [{"role": "main"}, {"role": "sub"}],
-        "terraforming": {"complete": True, "branch_verified": True},
-    }
-    chk("valid-multi", multi_ok, "multi", True, EXIT_OK)
-
-    chk("no-flag-complete-false",
-        {**base_ok, "terraforming": {"complete": False, "branch_verified": True}},
-        "single", False, EXIT_NO_FLAG)
-    chk("no-flag-missing-block",
-        {k: v for k, v in base_ok.items() if k != "terraforming"},
-        "single", False, EXIT_NO_FLAG)
-    chk("no-flag-branch-unverified",
-        {**base_ok, "terraforming": {"complete": True, "branch_verified": False}},
-        "single", False, EXIT_NO_FLAG)
-    chk("flag-but-missing-gpus",
-        {**base_ok, "gpus_per_node": None},
-        "single", False, EXIT_MISSING_FIELD)
-    chk("flag-but-bad-model-source",
-        {**base_ok, "model_source": "nas"},
-        "single", False, EXIT_MISSING_FIELD)
-    chk("flag-but-gpus-not-int(B4)",
-        {**base_ok, "gpus_per_node": "abc"},
-        "single", False, EXIT_MISSING_FIELD)
-    chk("flag-but-gpus-zero(B4)",
-        {**base_ok, "gpus_per_node": 0},
-        "single", False, EXIT_MISSING_FIELD)
-
-    # per-node model_source override 회귀(plan_26070809_46_57 §4.4 — valid-override · bad-override).
-    single_sub_control = {
-        "topology": "single", "gpus_per_node": 1, "model_source": "managed",
-        "nas_model_path": "/mnt/models",
-        "nodes": [{"role": "main"}, {"role": "sub", "model_source": "ephemeral"}],
-        "terraforming": {"complete": True, "branch_verified": True},
-    }
-    r = evaluate_contract(single_sub_control, "single")
-    ok = (r["flag"] is True and r.get("effective_model_source", {}).get("sub") == "ephemeral"
-          and r.get("effective_model_source", {}).get("main") == "managed")
-    cases.append(("valid-override(single sub-control)", ok, r["reason"], r.get("manifest_tp")))
-
-    bad_override = {
-        "topology": "single", "gpus_per_node": 1, "model_source": "managed",
-        "nas_model_path": "/mnt/models",
-        "nodes": [{"role": "main"}, {"role": "sub", "model_source": "nas-bogus"}],
-        "terraforming": {"complete": True, "branch_verified": True},
-    }
-    r = evaluate_contract(bad_override, "single")
-    ok = (r["flag"] is False and r["exit_code"] == EXIT_MISSING_FIELD)
-    cases.append(("bad-override(invalid per-node model_source)", ok, r["reason"], r.get("manifest_tp")))
-
-    # 사전적재 자산 경로 술어(2026-09-03): 노드-로컬 → WARN · 공유 → 무경고 · 단일노드 → 무경고
-    _base_nodes = [{"role": "main", "work_dir": "/home/u/proj"}, {"role": "sub", "work_dir": "/home/u/proj"}]
-    _tik_local = {"topology": "single", "model_source": "managed", "nas_model_path": "/mnt/models",
-                  "gpus_per_node": 1, "tiktoken_host_path": "/home/u/proj/tiktoken_cache",
-                  "nodes": _base_nodes,
-                  "terraforming": {"complete": True, "branch_verified": True}}
-    r = evaluate_contract(_tik_local, "single")
-    cases.append(("사전적재 자산 노드-로컬 → WARN",
-                  any("tiktoken_host_path" in w for w in r.get("node_warnings", [])),
-                  r["reason"], None))
-    _tik_shared = dict(_tik_local, tiktoken_host_path="/mnt/models/OpenAI/harmony_tokenizer")
-    r = evaluate_contract(_tik_shared, "single")
-    cases.append(("공유 스토리지 → 무경고(대조군)",
-                  not any("tiktoken_host_path" in w for w in r.get("node_warnings", [])),
-                  r["reason"], None))
-    _tik_solo = dict(_tik_local, nodes=[{"role": "main", "work_dir": "/home/u/proj"}])
-    r = evaluate_contract(_tik_solo, "single")
-    cases.append(("서브 없는 단일노드 → 무경고(로컬이 정상)",
-                  not any("tiktoken_host_path" in w for w in r.get("node_warnings", [])),
-                  r["reason"], None))
-
-    multi_override_warn = {
-        "topology": "multi", "gpus_per_node": 1, "model_source": "ephemeral",
-        "nodes": [{"role": "main"}, {"role": "sub", "model_source": "managed"}],
-        "terraforming": {"complete": True, "branch_verified": True},
-    }
-    r = evaluate_contract(multi_override_warn, "multi")
-    ok = (r["flag"] is True and len(r.get("node_warnings", [])) >= 1)
-    cases.append(("multi-override(WARN, 무시 대상)", ok, r["reason"], r.get("manifest_tp")))
-
-    # TP 파생 회귀 (roofline 패턴)
-    # δ1-1 회귀: single 은 nodes 가 **차 있어도** 노드 배수를 걷지 않는다. sub-control 확장으로
-    # 서브가 등록된 single manifest 가 1-GPU 노드에 TP=2 를 요구하던 실버그 — 아래 두 single-with-sub
-    # 케이스가 정확히 그 구멍이며, 종전 케이스는 nodes:[] 만 봐서 이를 통과시켰다.
-    tp_cases = [
-        ("tp-single-empty", {"gpus_per_node": 4, "nodes": []}, "single", 4),
-        ("tp-single-with-sub(δ1-1)", {"gpus_per_node": 1,
-                                      "nodes": [{"role": "main"}, {"role": "sub"}]}, "single", 1),
-        ("tp-single-with-sub-4gpu", {"gpus_per_node": 4,
-                                     "nodes": [{"role": "main"}, {"role": "sub"}]}, "single", 4),
-        ("tp-multi-2x1", {"gpus_per_node": 1, "nodes": [1, 2]}, "multi", 2),
-        ("tp-multi-2x2", {"gpus_per_node": 2, "nodes": [1, 2]}, "multi", 4),
-        ("tp-empty-multi-none", {"gpus_per_node": 1, "nodes": []}, "multi", None),
-    ]
-    for name, man, topo, expect in tp_cases:
-        got = manifest_tp(man, topo)
-        cases.append((name, got == expect, "tp=%r (기대 %r)" % (got, expect), got))
-    # B4 음성대조: gpus_per_node 부재/비정수는 1 로 떨어지지 않고 ValueError 로 멈춘다
-    for name, man in (("tp-missing-gpus-raises(B4)", {"nodes": []}),
-                      ("tp-str-gpus-raises(B4)", {"gpus_per_node": "two", "nodes": []})):
-        try:
-            got = manifest_tp(man, "single")
-            cases.append((name, False, "예외 없이 tp=%r 반환(침묵 폴백 생존)" % (got,), got))
-        except ValueError as e:
-            cases.append((name, True, "ValueError: %s" % e, None))
-
-    passed = sum(1 for _, ok, _, _ in cases if ok)
-    for name, ok, reason, tp in cases:
-        print("%s %s — %s" % ("PASS" if ok else "FAIL", name, reason))
-    print("\n%d/%d self-test 통과" % (passed, len(cases)))
-    return 0 if passed == len(cases) else 1
-
-
-def main(argv=None):
-    ap = argparse.ArgumentParser(description="테라포밍-완수 Flag 게이트 결정론 리더")
-    ap.add_argument("--topology", choices=["single", "multi"], help="미지정 시 git 브랜치가 통로 선택")
-    ap.add_argument("--repo", default=".", help="레포 루트(기본 .)")
-    ap.add_argument("--require-flag", action="store_true",
-                    help="Flag 미발급 시 비0종료(작업 스크립트 게이트용)")
-    ap.add_argument("--json", action="store_true", help="계약 JSON 을 stdout 으로")
-    ap.add_argument("--self-test", action="store_true", help="게이트/ TP 회귀(하드웨어 불요)")
-    args = ap.parse_args(argv)
-
-    if args.self_test:
-        return _self_test()
-
-    repo = os.path.abspath(args.repo)
-    conflict = branch_topology_conflict(repo, args.topology)
-    if conflict:
-        if args.json:
-            print(json.dumps({"flag": False, "reason": conflict, "topology": args.topology,
-                              "redirect": REDIRECT_TEMPLATE}, ensure_ascii=False))
-        else:
-            print(conflict, file=sys.stderr)
-        return EXIT_TOPOLOGY_MISMATCH
-    topology = resolve_topology(repo, args.topology)
-    if not topology:
-        print("topology 불명 — --topology 명시 필요(git 브랜치가 single-node/multi-node 아님)", file=sys.stderr)
-        return EXIT_USAGE
-
-    mpath = os.path.join(repo, "output", topology, "manifest.yaml")
-    if not os.path.isfile(mpath):
-        msg = "manifest 부재: %s (테라포밍 미완 — info-only)" % mpath
-        if args.json:
-            print(json.dumps({"flag": False, "reason": msg, "topology": topology,
-                              "redirect": REDIRECT_TEMPLATE}, ensure_ascii=False))
-        else:
-            print(msg, file=sys.stderr)
-        return EXIT_NO_MANIFEST  # manifest 부재 = flag invalid (require-flag 무관 항상 비0; 조회는 --json 출력으로)
-
-    try:
-        man = _load_manifest(mpath)
-    except Exception as e:  # noqa
-        print("manifest 파싱 실패: %s" % e, file=sys.stderr)
-        return EXIT_USAGE
-
-    res = evaluate_contract(man, topology)
-    res["manifest_path"] = mpath
-    if not res["flag"]:
-        res["redirect"] = REDIRECT_TEMPLATE
-
-    if args.json:
-        print(json.dumps(res, ensure_ascii=False, indent=2))
-    else:
-        if res["flag"]:
-            print("Flag valid · topology=%s · gpus_per_node=%s · manifest_tp=%s · model_source=%s"
-                  % (res["topology"], res["gpus_per_node"], res["manifest_tp"], res["model_source"]))
-        else:
-            print("Flag 미발급: %s" % res["reason"], file=sys.stderr)
-
-    return res["exit_code"] if args.require_flag else (EXIT_OK if res["flag"] else res["exit_code"])
-
+_exports = _build()
+_git_branch = _exports[0]
+resolve_topology = _exports[1]
+branch_topology_conflict = _exports[2]
+effective_model_source = _exports[3]
+manifest_tp = _exports[4]
+evaluate_contract = _exports[5]
+_load_manifest = _exports[6]
+_self_test = _exports[7]
+main = _exports[8]
+del _exports, _build
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Flush what the interpreter holds before the image is replaced; a closed standard descriptor leaves `sys.stdout`/`sys.stderr` as None,
+    # which has nothing to flush (an absent stream is skipped, a real flush error still raises as before).
+    for _stream in (sys.stdout, sys.stderr):
+        if _stream is not None:
+            _stream.flush()
+    # PUBLIC ENTRY PLUMBING ONLY (no decision, no business). When the node-local executable is present the interpreter replaces itself with it DIRECTLY and does
+    # not start a shell: a shell started in a working directory that no longer exists (the caller removed it after this interpreter started) writes its own
+    # `shell-init`/`chdir` getcwd complaints to stderr before the executable runs - bytes the original program (python started directly) never had. The environment
+    # handed over is exactly the one `manifest_contract.sh` builds (same carriers, same defaults, same unsets); anything else - the executable missing or not
+    # executable, `MANIFEST_CONTRACT_VALIDATE_ONLY=1`, a failing exec - continues to the launcher below, which stays the single place of the guidance (status 2) and of the
+    # availability answer. `manifest_contract.sh` itself is unchanged (it remains bash -> Rust for its own callers).
+    _here = os.path.dirname(os.path.abspath(__file__))
+    _bin = os.environ.get("MANIFEST_CONTRACT_BIN") or _here + "/../../adversarial-benchmark/rust/target/release/manifest_contract"
+    if os.path.isfile(_bin) and os.access(_bin, os.X_OK):
+        _env = dict(os.environ)
+        try:
+            if "MANIFEST_CONTRACT_BRIDGE" in _env:
+                os.execve(_bin, [_bin, *sys.argv[1:]], _env)
+            elif _env.get("MANIFEST_CONTRACT_VALIDATE_ONLY") != "1":
+                _env["MANIFEST_CONTRACT_CALLER_ENV"] = "1"
+                for _suffix in ("BRIDGE_REQUEST", "COMPAT_OWNER", "PUBLIC_ARGV0", "PYTHON", "VALIDATE_ONLY"):
+                    if "MANIFEST_CONTRACT_" + _suffix in os.environ:
+                        _env["MANIFEST_CONTRACT_CALLER_" + _suffix] = os.environ["MANIFEST_CONTRACT_" + _suffix]
+                    else:
+                        _env.pop("MANIFEST_CONTRACT_CALLER_" + _suffix, None)
+                _env.pop("MANIFEST_CONTRACT_CALLER_BRIDGE", None)
+                _env.pop("MANIFEST_CONTRACT_VALIDATE_ONLY", None)
+                if not _env.get("MANIFEST_CONTRACT_COMPAT_OWNER"):
+                    _env["MANIFEST_CONTRACT_COMPAT_OWNER"] = _here + "/manifest_contract_compat_owner.py"
+                if not _env.get("MANIFEST_CONTRACT_PUBLIC_ARGV0"):
+                    _env["MANIFEST_CONTRACT_PUBLIC_ARGV0"] = _here + "/manifest_contract.py"
+                if not _env.get("MANIFEST_CONTRACT_PYTHON"):
+                    _env.pop("MANIFEST_CONTRACT_PYTHON", None)
+                os.execve(_bin, [_bin, *sys.argv[1:]], _env)
+        except OSError:
+            pass
+    os.execve("/bin/bash", ["bash", _here + "/manifest_contract.sh", *sys.argv[1:]], dict(os.environ))
