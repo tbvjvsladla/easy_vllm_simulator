@@ -3227,6 +3227,81 @@ def _test_router_bindings_predicate() -> None:
         _require(any("④" in x and "2.6" in x for x in v), f"removed bound literal must be RED: {v}")
 
 
+def _test_operating_date_observed() -> None:
+    """The reference date of an audit is OBSERVED by the caller per run, never fixed (user directive 2026-11-09). Behavioural, not a text mirror: the
+    same caller must follow an injected clock across dates and UTC day boundaries independent of the host timezone, the driver's argv and its recorded
+    fields must come from the same captured record, explicit input stays strict, and the observed date must drive the validator's exact state rule.
+    Dates below are test DATA (fixture instants), not operating pins."""
+    import datetime as dt
+    import time
+    import harness_verify
+    utc = dt.timezone.utc
+
+    def at(text: str) -> dt.datetime:
+        return dt.datetime.fromisoformat(text).astimezone(utc)
+
+    saved_tz = os.environ.get("TZ")
+    try:
+        for tz in ("UTC", "Asia/Seoul", "America/Los_Angeles"):
+            os.environ["TZ"] = tz
+            time.tzset()
+            for instant, expected in (("2026-01-02T03:04:05+00:00", "2026-01-02"), ("2031-07-04T23:30:00+00:00", "2031-07-04"),
+                                      ("2031-07-04T23:59:59.999999+00:00", "2031-07-04"), ("2031-07-05T00:00:00+00:00", "2031-07-05")):
+                rec = harness_verify.observe_as_of(None, at(instant))
+                _require(rec["as_of"] == expected and rec["as_of_source"] == "observed-utc-clock" and rec["observed_utc"] == at(instant).isoformat()
+                         and rec["repro_as_of"] == expected,
+                         f"the observed UTC date must follow the instant under TZ={tz}: {instant} -> {rec}")
+            before = time.strftime("%Y-%m-%d", time.gmtime())
+            live = harness_verify.observe_as_of()["as_of"]
+            after = time.strftime("%Y-%m-%d", time.gmtime())
+            _require(live in (before, after), f"the default must be the live UTC date under TZ={tz}: {live} not in {(before, after)}")
+    finally:
+        if saved_tz is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = saved_tz
+        time.tzset()
+    for naive_or_local in (dt.datetime(2031, 7, 4, 1, 2, 3), dt.datetime.fromisoformat("2031-07-04T10:00:00+09:00")):
+        try:
+            harness_verify.observe_as_of(None, naive_or_local)
+            raise RuntimeSelftestFailure(f"an injected instant that is not timezone-aware UTC must be refused: {naive_or_local!r}")
+        except ValueError:
+            pass
+    explicit = harness_verify.observe_as_of("2031-02-03")
+    _require(explicit == {"as_of": "2031-02-03", "as_of_source": "explicit-caller-input", "observed_utc": None, "repro_as_of": "2031-02-03"},
+             f"explicit caller input must be recorded as such: {explicit}")
+    for bad in ("", "2031-13-01", "20310203", "2031-2-3", "2031-02-30", "not-a-date"):
+        try:
+            harness_verify.observe_as_of(bad)
+            raise RuntimeSelftestFailure(f"malformed explicit as_of must be refused (no fallback, no guess): {bad!r}")
+        except ValueError:
+            pass
+    # the driver: argv and recorded fields come from the SAME captured record, and the record follows the clock
+    real_run, calls = verify_distribution._run, []
+    verify_distribution._run = lambda name, argv, expected, **kw: (calls.append(list(argv)) or {"name": name, "ok": True, "rc": 0})
+    try:
+        for instant, expected in (("2031-07-04T23:59:59+00:00", "2031-07-04"), ("2033-02-03T00:00:01+00:00", "2033-02-03")):
+            record = verify_distribution._observe_policy_as_of(None, at(instant))
+            check = verify_distribution._policy_registry_check(Path("policy_registry.py"), record)
+            _require(calls[-1][calls[-1].index("--as-of") + 1] == expected and check["as_of"] == expected
+                     and check["as_of_source"] == "observed-utc-clock" and check["observed_utc"] == at(instant).isoformat()
+                     and check["repro_as_of"] == expected,
+                     f"the driver must audit against the observed date it recorded: {instant} -> {calls[-1]} {check}")
+        record = verify_distribution._observe_policy_as_of("2031-02-03")
+        verify_distribution._policy_registry_check(Path("policy_registry.py"), record)
+        _require(calls[-1][calls[-1].index("--as-of") + 1] == "2031-02-03", "explicit caller input must reach the validator unchanged")
+    finally:
+        verify_distribution._run = real_run
+    # observation -> validator: a policy with a fixed (data) due date flips its exact expected state as the OBSERVED date crosses it
+    policy = [{"policy_id": "SYNTHETIC", "review": {"state": "current", "next_review_due": "2031-01-01"}}]
+    states = {}
+    for instant in ("2030-12-31T23:59:59+00:00", "2031-01-01T00:00:00+00:00", "2031-01-31T23:59:59+00:00", "2031-02-01T00:00:00+00:00"):
+        as_of = dt.date.fromisoformat(harness_verify.observe_as_of(None, at(instant))["as_of"])
+        states[instant[:10]] = [v.message.split("requires review.state=")[1].split(" exactly")[0] for v in policy_registry.as_of_state_violations(policy, as_of)]
+    _require(states == {"2030-12-31": [], "2031-01-01": ["'due'"], "2031-01-31": ["'due'"], "2031-02-01": ["'overdue'"]},
+             f"the strict current/due/overdue rule must follow the observed date unchanged: {states}")
+
+
 def run_tripwires(root: Path | None = None) -> int:
     """병목(pre-commit·authorize)에서 도는 축약 진입점. 1초 예산.
 
@@ -3294,6 +3369,7 @@ def main(argv: list[str] | None = None) -> int:
     _test_watchdog_target_predicate_parity()
     _test_base_skill_edges_predicate()
     _test_router_bindings_predicate()
+    _test_operating_date_observed()
     # tripwire 6종은 축약 진입점과 **같은 함수**를 돈다 — 두 벌로 갈라지면 갈라진 쪽이 조용히
     # 늦는다(선례 3건). 전체 실행에서도 반드시 검사한다.
     # 비-정본 저장소에서 그 단언들이 no-op 이 되는 것은 `run_tripwires` 와 **같은 정상 경로**이며,

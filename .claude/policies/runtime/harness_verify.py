@@ -4,20 +4,25 @@
 
 The gap this closes: no tracked runner or test contract previously invoked
 `policy_registry.py verify --as-of` as part of a full correction-cycle --
-only the CLI's own docstring mentioned it, never a caller. This script sequentially runs (1) the policy registry audit with an EXPLICIT --as-of,
+only the CLI's own docstring mentioned it, never a caller. This script sequentially runs (1) the policy registry audit with an EXPLICIT --as-of (this caller observes the live UTC date once per run unless the operator passes one),
 (2) the constitution-owned runtime regression probe, and (3) the production predicate suite.
 It exits 0 only if ALL stages pass. Later stages never start after an earlier failure.
 completion outright, fail-closed.
 
 stdlib-only (argparse/datetime/subprocess/sys) -- no PyYAML, no jsonschema, no requests.
 
+Reference date (user directive 2026-11-09: no fixed operating dates): the pure validator `policy_registry.py` keeps its explicit `--as-of`
+and reads no clock. THIS caller supplies it: by default `observe_as_of()` observes the actual UTC date ONCE per run, and the run prints the
+as_of with its source, the observed UTC instant and the exact input that reproduces the criteria. `--as-of YYYY-MM-DD` is the explicit
+caller input for a deterministic reproduction (recorded as such); there is no environment override and no default date.
+
 Usage:
-    python3 .claude/policies/runtime/harness_verify.py --as-of YYYY-MM-DD
+    python3 .claude/policies/runtime/harness_verify.py [--as-of YYYY-MM-DD]
         [--registry PATH] [--schema PATH] [--claim-bindings PATH] [--repo-root PATH]
 
 Exit codes:
     0  both stages passed.
-    2  usage error (missing/malformed --as-of), OR the policy audit itself exited 2
+    2  usage error (malformed --as-of), OR the policy audit itself exited 2
        (schema/load-tier violation -- verbatim propagation of policy_registry.py's own exit code).
     1  the policy audit exited 1 (lifecycle-tier violation -- verbatim propagation).
     3  stage 1 passed but stage 2 (the production predicate suite) failed.
@@ -27,6 +32,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import os
+import re
 import site
 import subprocess
 import sys
@@ -38,6 +44,24 @@ POLICY_REGISTRY = Path(__file__).resolve().parent / "policy_registry.py"
 RUNTIME_SELFTEST = Path(__file__).resolve().parent / "runtime_selftest.py"
 PREDICATES_DIR = REPO_ROOT / ".claude" / "policies" / "predicates"
 CLAIM_PREDICATES = PREDICATES_DIR / "claim_predicates.py"
+
+
+def observe_as_of(explicit: str | None = None, now_utc: datetime.datetime | None = None) -> dict:
+    """The CALLER-side reference date of a policy audit, observed once and recorded (mechanical plumbing, no policy logic).
+
+    explicit (strict YYYY-MM-DD) -> that date, source `explicit-caller-input` (deterministic reproduction).
+    otherwise -> the UTC date of one clock observation, source `observed-utc-clock` (`now_utc` exists so tests can inject the instant; it must be
+    timezone-aware UTC). The UTC date never depends on the host's local timezone. Malformed input raises ValueError (no fallback, no guess)."""
+    if explicit is not None:
+        if not isinstance(explicit, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", explicit):
+            raise ValueError(f"--as-of {explicit!r} is not a YYYY-MM-DD date")
+        datetime.date.fromisoformat(explicit)
+        return {"as_of": explicit, "as_of_source": "explicit-caller-input", "observed_utc": None, "repro_as_of": explicit}
+    observed = datetime.datetime.now(datetime.timezone.utc) if now_utc is None else now_utc
+    if observed.tzinfo is None or observed.utcoffset() != datetime.timedelta(0):
+        raise ValueError(f"observed instant {observed!r} is not timezone-aware UTC")
+    as_of = observed.date().isoformat()
+    return {"as_of": as_of, "as_of_source": "observed-utc-clock", "observed_utc": observed.isoformat(), "repro_as_of": as_of}
 
 
 def _child_python() -> list[str]:
@@ -71,9 +95,9 @@ def _child_env() -> dict[str, str]:
 
 def _parse_args(argv: list) -> argparse.Namespace:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--as-of", required=True,
-                     help="YYYY-MM-DD, required, no wall-clock default -- passed straight "
-                          "through to policy_registry.py verify")
+    ap.add_argument("--as-of", default=None,
+                     help="YYYY-MM-DD explicit caller input for a deterministic reproduction; default = the live UTC date observed once "
+                          "per run and recorded -- passed straight through to policy_registry.py verify (the validator itself reads no clock)")
 
     ap.add_argument("--registry", default=None, help="passthrough to policy_registry.py verify --registry")
     ap.add_argument("--schema", default=None, help="passthrough to policy_registry.py verify --schema")
@@ -83,8 +107,8 @@ def _parse_args(argv: list) -> argparse.Namespace:
     return ap.parse_args(argv)
 
 
-def run_policy_audit(args: argparse.Namespace) -> int:
-    cmd = [*_child_python(), str(POLICY_REGISTRY), "verify", "--as-of", args.as_of]
+def run_policy_audit(args: argparse.Namespace, as_of: str) -> int:
+    cmd = [*_child_python(), str(POLICY_REGISTRY), "verify", "--as-of", as_of]
     if args.registry:
         cmd += ["--registry", args.registry]
     if args.schema:
@@ -118,14 +142,16 @@ def main(argv: list | None = None) -> int:
     args = _parse_args(sys.argv[1:] if argv is None else argv)
 
     try:
-        datetime.date.fromisoformat(args.as_of)
+        reference = observe_as_of(args.as_of)
     except (ValueError, TypeError):
         print(f"[harness_verify] usage error: --as-of {args.as_of!r} is not a valid ISO-8601 date",
               file=sys.stderr)
         return 2
 
-    print(f"[harness_verify] stage 1/3: policy_registry.py verify --as-of {args.as_of}")
-    audit_exit = run_policy_audit(args)
+    print(f"[harness_verify] reference date: as_of={reference['as_of']} source={reference['as_of_source']} "
+          f"observed_utc={reference['observed_utc']} repro: --as-of {reference['repro_as_of']}")
+    print(f"[harness_verify] stage 1/3: policy_registry.py verify --as-of {reference['as_of']}")
+    audit_exit = run_policy_audit(args, reference["as_of"])
     if audit_exit != 0:
         print(f"[harness_verify] BLOCKED: policy audit exited {audit_exit} -- correction-cycle "
               "completion refused before runtime/predicate probes run.", file=sys.stderr)

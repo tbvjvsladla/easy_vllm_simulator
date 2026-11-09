@@ -419,7 +419,30 @@ def _codex_discovery_selftest() -> dict:
                     "error": f"{type(exc).__name__}:{exc}"}
 
 
-def verify() -> dict:
+def _clock_owner():
+    """`harness_verify.observe_as_of` is the single owner of the caller-side reference-date observation (loaded by path, so `python -I` works)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("harness_verify", Path(__file__).with_name("harness_verify.py"))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def _observe_policy_as_of(explicit: str | None = None, now_utc=None) -> dict:
+    return _clock_owner().observe_as_of(explicit, now_utc)
+
+
+def _policy_registry_check(policy_runner: Path, record: dict) -> dict:
+    """The `policy_registry_verify` check for one captured reference-date record (argv and recorded fields come from the SAME record)."""
+    check = _run("policy_registry_verify", [sys.executable, str(policy_runner),
+                 "verify", "--as-of", record["as_of"], "--repo-root", str(REPO)], {0})
+    check.update(as_of=record["as_of"], as_of_source=record["as_of_source"], observed_utc=record["observed_utc"],
+                 repro_as_of=record["repro_as_of"])
+    return check
+
+
+def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
+    policy_as_of_record = _observe_policy_as_of(policy_as_of, now_utc)   # ONE observation per run, before any check
     checks: list[dict] = []
     checks += _codex_discovery_checks(REPO)
     checks.append(_codex_discovery_selftest())
@@ -1187,18 +1210,12 @@ def verify() -> dict:
 
     policy_runner = REPO / ".claude/policies/runtime/policy_registry.py"
     if policy_runner.is_file():
-        # Pinned, never wall-clock (this project injects dates; it never reads the host clock).
-        # It is therefore a tripwire, not a magic number: a policy whose added_at/last_reviewed_at
-        # is newer than this date fails closed here until the date is deliberately moved forward.
-        # Moved 2026-07-27 -> 2026-09-03 when GIT_SINGLE_AUTHORITY was registered (plan_26090222).
-        # Moved 2026-09-03 -> 2026-09-06 when ROOT_SURFACE_REGISTRY was registered (plan_26090616).
-        # ★ `--as-of` 는 **벽시계가 아니라 핀**이다(헌법: 시각은 주입만). 그래서 정책이 추가될
-        #   때마다 사람이 함께 민다 — 그 편집이 리뷰를 강제하는 것이 이 하드코딩의 정당 근거다
-        #   (§4종 안티패턴 판정표 '하드코딩·정당' = tripwire). 밀지 않으면 새 정책이 "미래 날짜"로
-        #   읽혀 하네스가 RED 로 남는다. 2026-09-11 실측: 핀 2026-09-06 이
-        #   LIBRARY_GROUNDING_FAIL_CLOSED(2026-09-08 등재)를 미래로 읽어 위반 3건이 서 있었다.
-        checks.append(_run("policy_registry_verify", [sys.executable, str(policy_runner),
-                           "verify", "--as-of", "2026-09-12", "--repo-root", str(REPO)], {0}))
+        # The pure validator (`policy_registry.py verify`) keeps an explicit `--as-of` and reads no clock. THIS driver is its caller and supplies the
+        # reference date: the live UTC date observed ONCE at the start of the run (`_observe_policy_as_of`), or the explicit `--policy-as-of` caller
+        # input for a deterministic reproduction. No fixed operating date lives in this file (user directive 2026-11-09: a hand-moved pin was a
+        # harness defect). The result records as_of, its source, the observed instant and the reproducing input, so a verdict can be re-run
+        # exactly. The strict current/due/overdue rule is the validator's and is unchanged.
+        checks.append(_policy_registry_check(policy_runner, policy_as_of_record))
     else:
         checks.append({"name": "policy_registry_verify", "ok": False,
                        "error": "missing .claude/policies/runtime/policy_registry.py"})
@@ -1233,7 +1250,7 @@ def verify() -> dict:
         checks.append({"name": "production_claim_predicates", "ok": False,
                        "error": "missing .claude/policies/predicates"})
 
-    return {"schema_version": 1, "repo": str(REPO),
+    return {"schema_version": 1, "repo": str(REPO), "policy_as_of": policy_as_of_record,
             "verdict": "PASS" if all(c.get("ok") for c in checks) else "FAIL",
             "checks": checks}
 
@@ -1241,8 +1258,15 @@ def verify() -> dict:
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--json-out")
+    ap.add_argument("--policy-as-of", default=None, metavar="YYYY-MM-DD",
+                    help="explicit caller input for a deterministic reproduction of the policy audit's reference date "
+                         "(default: the live UTC date observed once per run; recorded in the result either way)")
     args = ap.parse_args(argv)
-    result = verify()
+    try:
+        result = verify(args.policy_as_of)
+    except ValueError as exc:
+        print(f"[verify_distribution] usage error: {exc}", file=sys.stderr)
+        return 2
     text = json.dumps(result, ensure_ascii=False, indent=2)
     print(text)
     if args.json_out:
