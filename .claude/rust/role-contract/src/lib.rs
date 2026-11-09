@@ -27,6 +27,7 @@ pub mod pyprofile;
 pub mod scan_node;
 pub mod scan_node_files;
 pub mod scan_node_manifest;
+pub mod scan_node_probe;
 pub mod self_test;
 pub mod source_identity;
 pub mod topology;

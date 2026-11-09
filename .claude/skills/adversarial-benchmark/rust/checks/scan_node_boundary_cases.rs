@@ -103,20 +103,42 @@ fn binary() -> &'static str {
     env!("CARGO_BIN_EXE_scan_node")
 }
 
+/// FIRST FAILURE KEPT (2026-11-09, own proposal run): this check used to be `executable_is_the_bridge_only` and asserted that a start
+/// without `SCAN_NODE_BRIDGE` is a control failure (status 3, "serves the P1 bridge ... only"). That was the P1 contract. P3 makes the scanner
+/// command line itself native, so a start without the bridge is now the REQUIRED public behaviour; the control-failure contract moves
+/// to the two named boundaries (`--self-test`, the PyYAML tail of `--emit-sub-manifest`) and to the bridge's own protocol errors.
 #[test]
-fn executable_is_the_bridge_only() {
-    let output = Command::new(binary())
-        .env_remove("SCAN_NODE_BRIDGE")
-        .output()
-        .expect("spawn");
+fn executable_without_the_bridge_is_the_native_scanner_command_line() {
+    let run = |args: &[&str]| {
+        Command::new(binary())
+            .env_clear()
+            .env("PATH", "/nonexistent")
+            .env("COLUMNS", "80")
+            .env("LC_ALL", "C.UTF-8")
+            .args(args)
+            .output()
+            .expect("spawn")
+    };
+    let help = run(&["-h"]);
+    assert_eq!(help.status.code(), Some(0));
+    assert!(String::from_utf8_lossy(&help.stdout).starts_with("usage: scan_node.py [-h]"));
+    assert!(help.stderr.is_empty());
+    let bad = run(&["--bogus"]);
+    assert_eq!(bad.status.code(), Some(2), "argparse's own usage error");
+    assert!(bad.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&bad.stderr)
+        .ends_with("scan_node.py: error: unrecognized arguments: --bogus\n"));
+    let boundary = run(&["--self-test"]);
+    assert_eq!(boundary.status.code(), Some(3), "the original's own regression harness is a visible boundary, never silently run or retried");
+    assert!(boundary.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&boundary.stderr)
+        .contains("--self-test is the original's own regression harness"));
+    let gate = run(&["--emit-manifest"]);
     assert_eq!(
-        output.status.code(),
+        gate.status.code(),
         Some(3),
-        "a start without the bridge is a visible control failure"
+        "the interview gate of the original, before any probe"
     );
-    assert!(String::from_utf8_lossy(&output.stderr)
-        .contains("serves the P1 bridge of the Python adapter only"));
-    assert!(output.stdout.is_empty());
 }
 
 #[test]

@@ -18,6 +18,7 @@
 //! reason for a shape the port does not carry (reported before any answer is built; nothing is guessed). A transport problem is an
 //! error of the process, never a Python outcome.
 
+use crate::scan_node_host::StdHost;
 use agent_runtime_support::pyjson::loads_text;
 use agent_runtime_support::pystr::PyStr as Text;
 use agent_runtime_support::pyvalue::{PyDict, PyValue};
@@ -25,6 +26,7 @@ use num_bigint::{BigInt, Sign};
 use role_contract::scan_node::{self as scan, Failure, GateArgs, Raised, Res};
 use role_contract::scan_node_files::{self as files, Files};
 use role_contract::scan_node_manifest::{self as manifest, Clock};
+use role_contract::scan_node_probe as probe;
 use std::collections::HashMap;
 use std::ffi::OsString;
 use std::io::Write;
@@ -348,6 +350,7 @@ fn serve_request(
     request: &PyValue,
     files: &dyn Files,
     clock: &dyn Clock,
+    host: &StdHost,
 ) -> Result<PyValue, String> {
     let PyValue::Dict(request) = request.peel() else {
         return Err("the request is not an object".into());
@@ -465,6 +468,64 @@ fn serve_request(
             graph,
             files::parse_nccl_lines(files, &p.get("path")?, &p.get("sep")?).map(PyValue::Dict),
         ),
+        // ── P2: the probes and the SSH/network collection (real effects through `host`; see `scan_node_host`) ──
+        "_run" => finish(graph, probe::run(host, &p.get("cmd")?, &p.get("timeout")?)),
+        "scan_cpu_arch" => finish(graph, ok(probe::scan_cpu_arch(host))),
+        "scan_cuda_version" => finish(graph, ok(probe::scan_cuda_version(host))),
+        "scan_gpus_per_node" => finish(graph, ok(probe::scan_gpus_per_node(host))),
+        "scan_gpu_model" => finish(graph, ok(probe::scan_gpu_model(host))),
+        "scan_driver_version" => finish(graph, ok(probe::scan_driver_version(host))),
+        "scan_gpu_memory" => finish(graph, probe::scan_gpu_memory(host)),
+        "scan_infiniband_hcas" => finish(graph, ok(probe::scan_infiniband_hcas(host))),
+        "scan_roce_v2_gids" => finish(graph, probe::scan_roce_v2_gids(host)),
+        "_read_iface_mtu" => finish(graph, probe::read_iface_mtu_value(host, &p.get("iface")?)),
+        "detect_interconnect" => finish(graph, probe::detect_interconnect(host)),
+        "collect_local_hw" => finish(graph, ok(probe::collect_local_hw(host))),
+        "git_branch" => finish(graph, ok(probe::git_branch(host))),
+        "_iface_ipv4" => finish(graph, probe::iface_ipv4(host, &p.get("iface")?)),
+        "collect_peer_hw" => finish(
+            graph,
+            probe::collect_peer_hw(host, &p.get("ssh_target")?, &p.get("ssh_opts")?),
+        ),
+        "collect_peer_model_env" => finish(
+            graph,
+            probe::collect_peer_model_env(
+                host,
+                &p.get("ssh_target")?,
+                &p.get("nas_path")?,
+                &p.get("hf_token_env_file")?,
+                &p.get("ssh_opts")?,
+            ),
+        ),
+        "collect_peer_egress" => finish(
+            graph,
+            probe::collect_peer_egress(
+                host,
+                &p.get("ssh_target")?,
+                &p.get("hf_host")?,
+                &p.get("gw_host")?,
+                &p.get("gw_port")?,
+                &p.get("timeout")?,
+                &p.get("ssh_opts")?,
+            ),
+        ),
+        "peer_reachable" => finish(
+            graph,
+            probe::peer_reachable(host, &p.get("ip")?, &p.get("port")?, &p.get("timeout")?),
+        ),
+        "scan_egress" => finish(
+            graph,
+            probe::scan_egress(
+                host,
+                &p.get("hf_host")?,
+                &p.get("gw_host")?,
+                &p.get("gw_port")?,
+                &p.get("timeout")?,
+            ),
+        ),
+        "_resolves_to_loopback" => {
+            finish(graph, probe::resolves_to_loopback(host, &p.get("name")?))
+        }
         other => Err(format!("unknown operation {other:?}")),
     }
 }
@@ -536,6 +597,51 @@ pub fn serve(
     files: &dyn Files,
     clock: &dyn Clock,
 ) -> Result<String, String> {
+    serve_with_host(input, env, files, clock, &StdHost::collecting())
+}
+
+/// The effects a probe had outside its answer, handed to the importer (which owns the Python process they belong to): the
+/// `print(..., file=sys.stderr)` texts, in order, and the `PEER_SSH_LAST_ERROR[what] = cause` assignments, in order. Empty effects add nothing.
+fn attach_effects(mut answer: PyValue, host: &StdHost) -> PyValue {
+    let (lines, errors) = (host.take_stderr_lines(), host.take_peer_errors());
+    if lines.is_empty() && errors.is_empty() {
+        return answer;
+    }
+    let mut effects = PyDict::new();
+    effects.set(
+        "stderr",
+        PyValue::List(lines.into_iter().map(|line| encode_text(&line)).collect()),
+    );
+    effects.set(
+        "peer_errors",
+        PyValue::List(
+            errors
+                .into_iter()
+                .map(|(what, cause)| {
+                    PyValue::List(vec![encode_text(&Text::new(&what)), encode_text(&cause)])
+                })
+                .collect(),
+        ),
+    );
+    if let PyValue::Dict(dict) = &mut answer {
+        dict.set("effects", PyValue::Dict(effects));
+    }
+    answer
+}
+
+fn encode_text(text: &Text) -> PyValue {
+    let mut dict = tagged("str");
+    dict.set("v", PyValue::Str(text.clone()));
+    PyValue::Dict(dict)
+}
+
+pub fn serve_with_host(
+    input: &[u8],
+    env: &Environment,
+    files: &dyn Files,
+    clock: &dyn Clock,
+    host: &StdHost,
+) -> Result<String, String> {
     let text = Text::from_surrogateescape(input);
     let request = loads_text(&text).map_err(|error| format!("the request is not JSON: {error}"))?;
     let shape = match request.peel() {
@@ -544,7 +650,7 @@ pub fn serve(
     };
     let owner = env.owner.as_deref();
     observe_event(env, "start", "NativeBridge", owner, shape.as_deref(), None)?;
-    let answer = serve_request(&request, files, clock)?;
+    let answer = attach_effects(serve_request(&request, files, clock, host)?, host);
     observe_event(
         env,
         "end",

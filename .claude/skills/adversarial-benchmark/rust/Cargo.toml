@@ -251,6 +251,22 @@ name = "scan_node_p1_original_cases"
 path = "checks/scan_node_p1_original_cases.rs"
 
 [[test]]
+name = "scan_node_p2_api_cases"
+path = "checks/scan_node_p2_api_cases.rs"
+
+[[test]]
+name = "scan_node_adapter_p2_cases"
+path = "checks/scan_node_adapter_p2_cases.rs"
+
+[[test]]
+name = "scan_node_review_fix_cases"
+path = "checks/scan_node_review_fix_cases.rs"
+
+[[test]]
+name = "scan_node_residual_cases"
+path = "checks/scan_node_residual_cases.rs"
+
+[[test]]
 name = "scan_node_boundary_cases"
 path = "checks/scan_node_boundary_cases.rs"
 
@@ -395,7 +411,7 @@ ring = "=0.17.14"
 # Safe wrappers of TIOCGWINSZ on stdout only (what shutil.get_terminal_size asks via os.get_terminal_size), of
 # fstat on stdout (the buffer size and presence of the interpreter's sys.stdout) and of getuid/getgid (the user a
 # preprocessing container runs as).
-rustix = { version = "1", default-features = false, features = ["std", "termios", "fs", "process", "event", "time"] }
+rustix = { version = "1", default-features = false, features = ["std", "termios", "fs", "process", "event", "time", "system"] }
 # HTTPS client of the GuideLLM release lookup (the original's `urllib.request.urlopen`): a small synchronous client,
 # pinned exactly. Rustls with `ring` (already built by the managed C/asm bootstrap). No gzip/charset/JSON/cookie
 # features: the body is read as raw bytes and decoded by this crate's Python-compatible JSON decoder. Trust is not the

@@ -1,8 +1,9 @@
 #!/bin/bash
 # `scan_node.py` P1 bridge through the node-local Rust executable (B build, `scan_node`). Installation and build are explicit
 # operations; a missing or non-executable file is an explicit error (status 2 + build guidance) before anything else happens. There
-# is no Python route for P1 and no silent start of another program. The scanner command line, probes and network collection are
-# other phases: they keep their own explicit compat route in scan_node.py, never through this launcher.
+# is no Python route and no silent start of another program. P1 helpers, the probe API calls (P2, `SCAN_NODE_BRIDGE`) and the scanner
+# command line (P3) all go through this launcher (the importer adapter scan_node.py starts it); only `--self-test` (the original's own
+# regression harness) keeps its explicit compat route in scan_node.py.
 set -euo pipefail
 # Logical directory (no symbolic link is resolved): the owner identity is the lexical path of this script's Python sibling.
 # Self-contained: builtins only (no `dirname` is looked up in the caller's business PATH, which is never modified).
@@ -26,6 +27,22 @@ fi
 # VALIDATE_ONLY must not turn a bridge call into an empty answer, so the bridge always reaches the Rust program.
 if [ "${SCAN_NODE_VALIDATE_ONLY:-}" = 1 ] && [ -z "${SCAN_NODE_BRIDGE:-}" ]; then
   exit 0
+fi
+# Before this launcher changes anything it records the CALLER's value of each plumbing variable it (or the adapter) adds, hides or removes:
+# the native probes hand those values back to the commands they start, so a probe child sees exactly what the original's child saw
+# (a user's own value, unset and empty included) and never the plumbing. A missing carrier = the caller had the variable unset. The
+# adapter records them the same way before it starts this launcher; the flag keeps the first record.
+if [ -z "${SCAN_NODE_CALLER_ENV+x}" ]; then
+  export SCAN_NODE_CALLER_ENV=1
+  for suffix in BRIDGE OWNER_PATH VALIDATE_ONLY; do
+    plumbing="SCAN_NODE_$suffix"
+    carrier="SCAN_NODE_CALLER_$suffix"
+    if [ -n "${!plumbing+x}" ]; then
+      export "$carrier=${!plumbing}"
+    else
+      unset "$carrier"
+    fi
+  done
 fi
 unset SCAN_NODE_VALIDATE_ONLY
 # `__file__` of the program this one stands for: exported by the Python adapter when it started this launcher, otherwise the sibling

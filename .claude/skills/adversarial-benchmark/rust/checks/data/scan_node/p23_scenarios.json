@@ -1,0 +1,623 @@
+{
+ "schema": "r50p23-fake-scenarios-data/1",
+ "note": "DATA copied from the CLOSED saved scenario table (read-only): the declared outputs of the synthetic fake commands; own checks turn them into OWN fake executables (nothing of Root control code or the saved wrappers is executed)",
+ "match_rule": "first entry whose match equals argv[1:] ('*' as a whole list = any argv, '*' as an element = any one argument); unmatched => rc 97 + stderr 'FAKE: no scenario entry' and unmatched=true in the record",
+ "dirs": {
+  "SC_NONE": {
+   "scenarios": [
+    "SC_NONE"
+   ],
+   "commands": {}
+  },
+  "SC_NVCC_RC1": {
+   "scenarios": [
+    "SC_NVCC_RC1"
+   ],
+   "commands": {
+    "nvcc": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 1,
+      "stdout": "x"
+     }
+    ]
+   }
+  },
+  "SC_NVCC_OK": {
+   "scenarios": [
+    "SC_NVCC_OK"
+   ],
+   "commands": {
+    "nvcc": [
+     {
+      "match": [
+       "--version"
+      ],
+      "rc": 0,
+      "stdout": "nvcc: NVIDIA (R) Cuda compiler driver\nCuda compilation tools, release 13.2, V13.2.51\n"
+     }
+    ]
+   }
+  },
+  "SC_TIMEOUT": {
+   "scenarios": [
+    "SC_TIMEOUT"
+   ],
+   "commands": {
+    "sleeper": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "late",
+      "sleep_s": 5
+     }
+    ]
+   }
+  },
+  "SC_GARBAGE": {
+   "scenarios": [
+    "SC_GARBAGE"
+   ],
+   "commands": {
+    "nvcc": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout_hex": "ff fe 80 81"
+     }
+    ]
+   }
+  },
+  "SC_GB10": {
+   "scenarios": [
+    "SC_GB10"
+   ],
+   "commands": {
+    "nvcc": [
+     {
+      "match": [
+       "--version"
+      ],
+      "rc": 0,
+      "stdout": "nvcc: NVIDIA (R) Cuda compiler driver\nCuda compilation tools, release 13.2, V13.2.51\n"
+     }
+    ],
+    "nvidia-smi": [
+     {
+      "match": [
+       "-L"
+      ],
+      "rc": 0,
+      "stdout": "GPU 0: NVIDIA GB10 (UUID: GPU-synthetic-0)\n"
+     },
+     {
+      "match": [
+       "--query-gpu=name",
+       "--format=csv,noheader"
+      ],
+      "rc": 0,
+      "stdout": "NVIDIA GB10\n"
+     },
+     {
+      "match": [
+       "--query-gpu=driver_version",
+       "--format=csv,noheader"
+      ],
+      "rc": 0,
+      "stdout": "580.95.05\n"
+     },
+     {
+      "match": [
+       "--query-gpu=memory.total,compute_cap",
+       "--format=csv,noheader,nounits"
+      ],
+      "rc": 0,
+      "stdout": "[N/A], 12.1\n"
+     }
+    ]
+   }
+  },
+  "SC_NVCC_NOMATCH": {
+   "scenarios": [
+    "SC_NVCC_NOMATCH"
+   ],
+   "commands": {
+    "nvcc": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "nvcc: unknown build\n"
+     }
+    ]
+   }
+  },
+  "SC_NVSMI_EMPTY": {
+   "scenarios": [
+    "SC_NVSMI_EMPTY"
+   ],
+   "commands": {
+    "nvidia-smi": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout": ""
+     }
+    ]
+   }
+  },
+  "SC_DISCRETE": {
+   "scenarios": [
+    "SC_DISCRETE"
+   ],
+   "commands": {
+    "nvcc": [
+     {
+      "match": [
+       "--version"
+      ],
+      "rc": 0,
+      "stdout": "nvcc: NVIDIA (R) Cuda compiler driver\nCuda compilation tools, release 12.9, V12.9.51\n"
+     }
+    ],
+    "nvidia-smi": [
+     {
+      "match": [
+       "-L"
+      ],
+      "rc": 0,
+      "stdout": "GPU 0: NVIDIA GeForce RTX 5090 (UUID: GPU-synthetic-0)\n"
+     },
+     {
+      "match": [
+       "--query-gpu=name",
+       "--format=csv,noheader"
+      ],
+      "rc": 0,
+      "stdout": "NVIDIA GeForce RTX 5090\n"
+     },
+     {
+      "match": [
+       "--query-gpu=driver_version",
+       "--format=csv,noheader"
+      ],
+      "rc": 0,
+      "stdout": "575.57.08\n"
+     },
+     {
+      "match": [
+       "--query-gpu=memory.total,compute_cap",
+       "--format=csv,noheader,nounits"
+      ],
+      "rc": 0,
+      "stdout": "32768, 12.0\n"
+     }
+    ]
+   }
+  },
+  "SC_ROCE_TABLE": {
+   "scenarios": [
+    "SC_ROCE_TABLE"
+   ],
+   "commands": {
+    "show_gids": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "DEV\tPORT\tINDEX\tGID\t\t\t\t\tIPv4\t\tVER\tDEV\n---\t----\t-----\t---\t\t\t\t\t------------\t\t---\t---\nrocep1s0f1\t1\t0\tfe80:0000:0000:0000:0000:0000:0000:0001\t\t\tv1\tenp1s0f1np1\nrocep1s0f1\t1\t3\t0000:0000:0000:0000:0000:ffff:cb00:710a\t203.0.113.10\tv2\tenp1s0f1np1\nroceP2p1s0f1\t1\t3\t0000:0000:0000:0000:0000:ffff:cb00:710b\t203.0.113.20\tv2\tenP2p1s0f1np1\nrocep1s0f1\t1\t1\tfe80::1\t\t\t\t\t\tv2\tenp1s0f1np1\n"
+     }
+    ]
+   }
+  },
+  "SC_ROCE_TWO_HCAS": {
+   "scenarios": [
+    "SC_ROCE_TWO_HCAS"
+   ],
+   "commands": {
+    "show_gids": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "DEV\tPORT\tINDEX\tGID\t\t\t\t\tIPv4\t\tVER\tDEV\n---\t----\t-----\t---\t\t\t\t\t------------\t\t---\t---\nrocep1s0f1\t1\t0\tfe80:0000:0000:0000:0000:0000:0000:0001\t\t\tv1\tenp1s0f1np1\nrocep1s0f1\t1\t3\t0000:0000:0000:0000:0000:ffff:cb00:710a\t203.0.113.10\tv2\tenp1s0f1np1\nroceP2p1s0f1\t1\t3\t0000:0000:0000:0000:0000:ffff:cb00:710b\t203.0.113.20\tv2\tenP2p1s0f1np1\nrocep1s0f1\t1\t1\tfe80::1\t\t\t\t\t\tv2\tenp1s0f1np1\n"
+     }
+    ],
+    "ip": [
+     {
+      "match": [
+       "-o",
+       "-4",
+       "addr",
+       "show",
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "2: enp1s0f1np1    inet 203.0.113.10/24 brd 203.0.113.255 scope global enp1s0f1np1\\       valid_lft forever\n"
+     }
+    ]
+   }
+  },
+  "SC_ROCE_MIXED_IDX": {
+   "scenarios": [
+    "SC_ROCE_MIXED_IDX"
+   ],
+   "commands": {
+    "show_gids": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "DEV\tPORT\tINDEX\tGID\t\t\t\t\tIPv4\t\tVER\tDEV\n---\t----\t-----\t---\t\t\t\t\t------------\t\t---\t---\nrocep1s0f1\t1\t0\tfe80:0000:0000:0000:0000:0000:0000:0001\t\t\tv1\tenp1s0f1np1\nrocep1s0f1\t1\t3\t0000:0000:0000:0000:0000:ffff:cb00:710a\t203.0.113.10\tv2\tenp1s0f1np1\nroceP2p1s0f1\t1\t5\t0000:0000:0000:0000:0000:ffff:cb00:710b\t203.0.113.20\tv2\tenP2p1s0f1np1\nrocep1s0f1\t1\t1\tfe80::1\t\t\t\t\t\tv2\tenp1s0f1np1\n"
+     }
+    ]
+   }
+  },
+  "SC_ROCE_BAD_IDX": {
+   "scenarios": [
+    "SC_ROCE_BAD_IDX"
+   ],
+   "commands": {
+    "show_gids": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "DEV\tPORT\tINDEX\tGID\t\t\t\t\tIPv4\t\tVER\tDEV\n---\t----\t-----\t---\t\t\t\t\t------------\t\t---\t---\nrocep1s0f1\t1\t0\tfe80:0000:0000:0000:0000:0000:0000:0001\t\t\tv1\tenp1s0f1np1\nrocep1s0f1\t1\t3\t0000:0000:0000:0000:0000:ffff:cb00:710a\t203.0.113.10\tv2\tenp1s0f1np1\nroceP2p1s0f1\t1\t3\t0000:0000:0000:0000:0000:ffff:cb00:710b\t203.0.113.20\tv2\tenP2p1s0f1np1\nrocep1s0f1\t1\t1\tfe80::1\t\t\t\t\t\tv2\tenp1s0f1np1\nrocep1s0f1\t1\tx\t0000:0000:0000:0000:0000:ffff:cb00:710c\t203.0.113.30\tv2\tenp1s0f1np1\n"
+     }
+    ]
+   }
+  },
+  "SC_GIT_SINGLE_NODE": {
+   "scenarios": [
+    "SC_GIT_SINGLE_NODE"
+   ],
+   "commands": {
+    "git": [
+     {
+      "match": [
+       "rev-parse",
+       "--abbrev-ref",
+       "HEAD"
+      ],
+      "rc": 0,
+      "stdout": "single-node\n"
+     }
+    ]
+   }
+  },
+  "SC_GIT_DETACHED": {
+   "scenarios": [
+    "SC_GIT_DETACHED"
+   ],
+   "commands": {
+    "git": [
+     {
+      "match": [
+       "rev-parse",
+       "--abbrev-ref",
+       "HEAD"
+      ],
+      "rc": 0,
+      "stdout": "HEAD\n"
+     }
+    ]
+   }
+  },
+  "SC_IP_OK": {
+   "scenarios": [
+    "SC_IP_OK"
+   ],
+   "commands": {
+    "ip": [
+     {
+      "match": [
+       "-o",
+       "-4",
+       "addr",
+       "show",
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "2: enp1s0f1np1    inet 203.0.113.10/24 brd 203.0.113.255 scope global enp1s0f1np1\\       valid_lft forever\n"
+     }
+    ]
+   }
+  },
+  "SC_IP_RC1": {
+   "scenarios": [
+    "SC_IP_RC1"
+   ],
+   "commands": {
+    "ip": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 1,
+      "stdout": ""
+     }
+    ]
+   }
+  },
+  "SC_SSH_HW_OK": {
+   "scenarios": [
+    "SC_SSH_HW_OK"
+   ],
+   "commands": {
+    "ssh": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "ARCH=aarch64\nGPUS=1\nMODEL=NVIDIA GB10\nDRIVER=580.95.05\nCUDA=13.2\nGPUMEM=[N/A], 12.1\n"
+     }
+    ]
+   }
+  },
+  "SC_SSH_HOSTKEY": {
+   "scenarios": [
+    "SC_SSH_HOSTKEY"
+   ],
+   "commands": {
+    "ssh": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 255,
+      "stderr": "Host key verification failed.\n"
+     }
+    ]
+   }
+  },
+  "SC_SSH_PERM": {
+   "scenarios": [
+    "SC_SSH_PERM"
+   ],
+   "commands": {
+    "ssh": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 255,
+      "stderr": "user@203.0.113.11: Permission denied (publickey).\n"
+     }
+    ]
+   }
+  },
+  "SC_SSH_127": {
+   "scenarios": [
+    "SC_SSH_127"
+   ],
+   "commands": {
+    "ssh": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 127,
+      "stderr": "bash: nvidia-smi: command not found\n"
+     }
+    ]
+   }
+  },
+  "SC_SSH_MODELENV_OK": {
+   "scenarios": [
+    "SC_SSH_MODELENV_OK"
+   ],
+   "commands": {
+    "ssh": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "NAS=1\nTOK=0\n"
+     }
+    ]
+   }
+  },
+  "SC_SSH_EGRESS_OK": {
+   "scenarios": [
+    "SC_SSH_EGRESS_OK"
+   ],
+   "commands": {
+    "ssh": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "200\nOK\n"
+     }
+    ]
+   }
+  },
+  "SC_SSH_EGRESS_FAIL": {
+   "scenarios": [
+    "SC_SSH_EGRESS_FAIL"
+   ],
+   "commands": {
+    "ssh": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "000\nFAIL\n"
+     }
+    ]
+   }
+  },
+  "SC_ROCE_TWO_HCAS+SC_GB10": {
+   "scenarios": [
+    "SC_ROCE_TWO_HCAS",
+    "SC_GB10"
+   ],
+   "commands": {
+    "show_gids": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "DEV\tPORT\tINDEX\tGID\t\t\t\t\tIPv4\t\tVER\tDEV\n---\t----\t-----\t---\t\t\t\t\t------------\t\t---\t---\nrocep1s0f1\t1\t0\tfe80:0000:0000:0000:0000:0000:0000:0001\t\t\tv1\tenp1s0f1np1\nrocep1s0f1\t1\t3\t0000:0000:0000:0000:0000:ffff:cb00:710a\t203.0.113.10\tv2\tenp1s0f1np1\nroceP2p1s0f1\t1\t3\t0000:0000:0000:0000:0000:ffff:cb00:710b\t203.0.113.20\tv2\tenP2p1s0f1np1\nrocep1s0f1\t1\t1\tfe80::1\t\t\t\t\t\tv2\tenp1s0f1np1\n"
+     }
+    ],
+    "ip": [
+     {
+      "match": [
+       "-o",
+       "-4",
+       "addr",
+       "show",
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "2: enp1s0f1np1    inet 203.0.113.10/24 brd 203.0.113.255 scope global enp1s0f1np1\\       valid_lft forever\n"
+     }
+    ],
+    "nvcc": [
+     {
+      "match": [
+       "--version"
+      ],
+      "rc": 0,
+      "stdout": "nvcc: NVIDIA (R) Cuda compiler driver\nCuda compilation tools, release 13.2, V13.2.51\n"
+     }
+    ],
+    "nvidia-smi": [
+     {
+      "match": [
+       "-L"
+      ],
+      "rc": 0,
+      "stdout": "GPU 0: NVIDIA GB10 (UUID: GPU-synthetic-0)\n"
+     },
+     {
+      "match": [
+       "--query-gpu=name",
+       "--format=csv,noheader"
+      ],
+      "rc": 0,
+      "stdout": "NVIDIA GB10\n"
+     },
+     {
+      "match": [
+       "--query-gpu=driver_version",
+       "--format=csv,noheader"
+      ],
+      "rc": 0,
+      "stdout": "580.95.05\n"
+     },
+     {
+      "match": [
+       "--query-gpu=memory.total,compute_cap",
+       "--format=csv,noheader,nounits"
+      ],
+      "rc": 0,
+      "stdout": "[N/A], 12.1\n"
+     }
+    ]
+   }
+  },
+  "SC_ROCE_TWO_HCAS+SC_GB10+SC_SSH_HW_OK": {
+   "scenarios": [
+    "SC_ROCE_TWO_HCAS",
+    "SC_GB10",
+    "SC_SSH_HW_OK"
+   ],
+   "commands": {
+    "show_gids": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "DEV\tPORT\tINDEX\tGID\t\t\t\t\tIPv4\t\tVER\tDEV\n---\t----\t-----\t---\t\t\t\t\t------------\t\t---\t---\nrocep1s0f1\t1\t0\tfe80:0000:0000:0000:0000:0000:0000:0001\t\t\tv1\tenp1s0f1np1\nrocep1s0f1\t1\t3\t0000:0000:0000:0000:0000:ffff:cb00:710a\t203.0.113.10\tv2\tenp1s0f1np1\nroceP2p1s0f1\t1\t3\t0000:0000:0000:0000:0000:ffff:cb00:710b\t203.0.113.20\tv2\tenP2p1s0f1np1\nrocep1s0f1\t1\t1\tfe80::1\t\t\t\t\t\tv2\tenp1s0f1np1\n"
+     }
+    ],
+    "ip": [
+     {
+      "match": [
+       "-o",
+       "-4",
+       "addr",
+       "show",
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "2: enp1s0f1np1    inet 203.0.113.10/24 brd 203.0.113.255 scope global enp1s0f1np1\\       valid_lft forever\n"
+     }
+    ],
+    "nvcc": [
+     {
+      "match": [
+       "--version"
+      ],
+      "rc": 0,
+      "stdout": "nvcc: NVIDIA (R) Cuda compiler driver\nCuda compilation tools, release 13.2, V13.2.51\n"
+     }
+    ],
+    "nvidia-smi": [
+     {
+      "match": [
+       "-L"
+      ],
+      "rc": 0,
+      "stdout": "GPU 0: NVIDIA GB10 (UUID: GPU-synthetic-0)\n"
+     },
+     {
+      "match": [
+       "--query-gpu=name",
+       "--format=csv,noheader"
+      ],
+      "rc": 0,
+      "stdout": "NVIDIA GB10\n"
+     },
+     {
+      "match": [
+       "--query-gpu=driver_version",
+       "--format=csv,noheader"
+      ],
+      "rc": 0,
+      "stdout": "580.95.05\n"
+     },
+     {
+      "match": [
+       "--query-gpu=memory.total,compute_cap",
+       "--format=csv,noheader,nounits"
+      ],
+      "rc": 0,
+      "stdout": "[N/A], 12.1\n"
+     }
+    ],
+    "ssh": [
+     {
+      "match": [
+       "*"
+      ],
+      "rc": 0,
+      "stdout": "ARCH=aarch64\nGPUS=1\nMODEL=NVIDIA GB10\nDRIVER=580.95.05\nCUDA=13.2\nGPUMEM=[N/A], 12.1\n"
+     }
+    ]
+   }
+  }
+ }
+}

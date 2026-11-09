@@ -351,7 +351,7 @@ pub fn yaml_str(value: &PyValue) -> PyStr {
 }
 
 /// `str.isdigit()` of the characters `int()` accepts: only decimal digits are modelled.
-fn digits_only(value: &PyStr) -> Res<bool> {
+pub(crate) fn digits_only(value: &PyStr) -> Res<bool> {
     let mut all_decimal = true;
     for &point in value.code_points() {
         if decimal_digit_value(point).is_none() {
@@ -367,7 +367,7 @@ fn digits_only(value: &PyStr) -> Res<bool> {
 }
 
 /// `re.fullmatch(r"\d+\.\d+", text)` (Unicode decimal digits).
-fn is_dotted_digits(text: &PyStr) -> bool {
+pub(crate) fn is_dotted_digits(text: &PyStr) -> bool {
     let points = text.code_points();
     let Some(dot) = points.iter().position(|&point| point == u32::from(b'.')) else {
         return false;
