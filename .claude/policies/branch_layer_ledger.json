@@ -6180,6 +6180,53 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261109-single-to-multi-h15-exact6-f92322e",
+      "utc": "2026-11-09T13:38:54Z",
+      "departure": "single-node",
+      "departure_commit": "f92322e73d41adb42abcb697a61e555c41bda28f",
+      "approved_by": "user: 양 브랜치·Rust 노드 배포 계속 지시(원본 실제 발화 기록 · 시각 역사적) · Root 위임 구체 GO 2026-11-09T13:31:42Z(새 사용자 응답 아님)",
+      "approved_utc": "2026-11-08T13:30:12Z",
+      "_reach": "single-node f92322e vs M 1a0b0a4: 공식 전체 투영 = Root expected_delta 정확 일치(M6/A0/D0, 경로·새 해시·Git 모드) · 실제 전체 verify_distribution 133/133 PASS(live UTC 기본) · own 115 ELF 직전 인벤토리와 해시 동일(재빌드 없음)",
+      "classification": [
+        {
+          "file": ".claude/policies/runtime/harness_verify.py",
+          "verdict": "common_promote",
+          "reason": "harness 검증 구동기의 H14 live-UTC 기본값 정합 — 공통 검증 runtime",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/runtime_selftest.py",
+          "verdict": "common_promote",
+          "reason": "runtime 자체검사에서 정적 날짜 핀 시험 정리 — 공통 검증 runtime(Git 모드 100755 동일 · M 물리 0775 유지)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/verify_distribution.py",
+          "verdict": "common_promote",
+          "reason": "전체 배포 검사의 정책 as-of 를 기본 live UTC 로(--policy-as-of 는 재현용 명시 입력) + 새 foreign-workdir 가드 검사 — 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/artifacts.py",
+          "verdict": "common_promote",
+          "reason": "hint 산출 자체검사 fixture 의 manifest_contract 런처 폐포 보강 — 공통 배포 레이어",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/evidence.py",
+          "verdict": "common_promote",
+          "reason": "hint 증거 자체검사 정리(fixture 폐포·날짜 핀) — 공통 배포 레이어",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "verdict": "common_promote",
+          "reason": "새 Sub work_dir 가드(기존 비어 있지 않은 비git 경로 거부) — 공통 배달 스크립트(G1/H15)",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
