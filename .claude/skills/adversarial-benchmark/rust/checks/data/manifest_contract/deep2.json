@@ -1,0 +1,66 @@
+{
+"schema": "r48-manifest-contract-golden/1",
+"provenance": "literal copy of the ONE actual ORIGINAL deep2 capture (T/r48-deep2-actual-summary/result.json, business PIDs 737261 and 737263, inputs v2 sha 8d93db3a..., Python 3.12.3 / PyYAML 6.0.3 (the earlier 6.0.1 labels are UNVERIFIED, c11 diffed the core modules byte-identical); only the owner clone path is replaced by <OWNER>; bytes are latin-1 code points; the manifests are the exact Root fixture bytes",
+"base_profile_env": {
+"LANG": "C.UTF-8",
+"LC_ALL": "C.UTF-8"
+},
+"rows": [
+{
+"id": "R48K06",
+"group": "DEEP2",
+"repo_group": "single",
+"case_dir": "cases/R48K06",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "R48K06",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  [Previous line repeated 991 more times]\n  File \"/usr/lib/python3.12/json/encoder.py\", line 398, in _iterencode_dict\n    yield _floatstr(value)\n          ^^^^^^^^^^^^^^^^\nRecursionError: maximum recursion depth exceeded\n"
+},
+{
+"id": "R48K07",
+"group": "DEEP2",
+"repo_group": "single",
+"case_dir": "cases/R48K07",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "R48K07",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  [Previous line repeated 991 more times]\n  File \"/usr/lib/python3.12/json/encoder.py\", line 403, in _iterencode_dict\n    chunks = _iterencode_dict(value, _current_indent_level)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nRecursionError: maximum recursion depth exceeded\n"
+}
+]
+}

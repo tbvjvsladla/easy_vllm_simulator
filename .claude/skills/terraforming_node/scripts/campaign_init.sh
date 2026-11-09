@@ -3,7 +3,10 @@
 # are explicit operations; a missing executable is an explicit error, never a silent Python start. Every other operation of
 # campaign_init (the writers) keeps calling campaign_init.py directly.
 set -euo pipefail
-SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Self-contained: builtins only (no `dirname` is looked up in the caller's business PATH, which is never modified).
+SELF="${BASH_SOURCE[0]}"
+case "$SELF" in */*) SDIR_RAW="${SELF%/*}"; [ -n "$SDIR_RAW" ] || SDIR_RAW=/ ;; *) SDIR_RAW=. ;; esac
+SDIR="$(cd "$SDIR_RAW" && pwd)"
 BIN="${CAMPAIGN_READ_BIN:-$SDIR/../../adversarial-benchmark/rust/target/release/campaign_read}"
 if [ ! -f "$BIN" ] || [ ! -x "$BIN" ]; then
   printf '[campaign_init] ERROR Rust 실행파일이 없다/실행 불가: %s\n' "$BIN" >&2

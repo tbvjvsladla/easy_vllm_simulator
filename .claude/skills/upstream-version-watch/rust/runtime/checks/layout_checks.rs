@@ -2974,6 +2974,33 @@ mod owned_dto_cases {
                 "cyclic marker refused",
                 opaque("list", "[...]", Typed::Plain),
             ),
+            // R48 Q: the reader's marker of a self-containing value is `Typed::Cycle`; it must give the SAME refusal as the cyclic `Plain` repr
+            (
+                "reader cycle marker (list) refused",
+                opaque("list", "[...]", Typed::Cycle(1)),
+            ),
+            (
+                "reader cycle marker (dict) refused",
+                opaque("dict", "{...}", Typed::Cycle(2)),
+            ),
+            (
+                "reader cycle marker (set) refused",
+                opaque("set", "set(...)", Typed::Cycle(1)),
+            ),
+            (
+                "first refusal in member order: undeclared before a reader cycle marker",
+                PyValue::List(vec![
+                    opaque("object", "<x>", Typed::Plain),
+                    opaque("list", "[...]", Typed::Cycle(1)),
+                ]),
+            ),
+            (
+                "first refusal in member order: reader cycle marker before an undeclared type",
+                PyValue::List(vec![
+                    opaque("list", "[...]", Typed::Cycle(1)),
+                    opaque("object", "<x>", Typed::Plain),
+                ]),
+            ),
             (
                 "undeclared type refused",
                 opaque("object", "<x>", Typed::Plain),
@@ -3030,6 +3057,56 @@ mod owned_dto_cases {
         }
     }
 
+    /// Through the ACTUAL loader (`safe_load_objects`, no Original cohort replay): a document whose anchor contains itself loads with the R48 Q
+    /// cycle marker, and the DTO refuses it with the exact R33 wording (borrowed and owned encoders alike), also inside a container.
+    #[test]
+    fn a_self_containing_yaml_alias_loaded_by_the_actual_loader_gets_the_cyclic_refusal() {
+        use agent_runtime_support::pyyaml::safe_load_objects;
+        for (document, marker_kind) in [("&a [*a]\n", "list"), ("&a {k: *a}\n", "dict")] {
+            let value = safe_load_objects(document.as_bytes(), &PyStr::new("cycle.yaml"))
+                .unwrap_or_else(|e| {
+                    panic!(
+                        "{document:?} did not load: {}",
+                        e.message.to_utf8().unwrap_or_default()
+                    )
+                });
+            fn first_cycle(value: &PyValue) -> Option<&'static str> {
+                match value.peel() {
+                    PyValue::Opaque(o) if o.cycle_up().is_some() => Some(o.type_name),
+                    PyValue::List(items) | PyValue::Tuple(items) => {
+                        items.iter().find_map(first_cycle)
+                    }
+                    PyValue::Dict(map) => map.iter().find_map(|(_, v)| first_cycle(v)),
+                    _ => None,
+                }
+            }
+            assert_eq!(
+                first_cycle(&value),
+                Some(marker_kind),
+                "{document:?}: the loader must hand over the reader's cycle marker"
+            );
+            assert_eq!(
+                encode(&value).unwrap_err(),
+                "cyclic value outside R33 DTO profile",
+                "{document:?} borrowed"
+            );
+            assert_eq!(
+                encode_owned(value.clone()).unwrap_err(),
+                "cyclic value outside R33 DTO profile",
+                "{document:?} owned"
+            );
+            let wrapped = PyValue::List(vec![text("ok"), value]);
+            assert_eq!(
+                encode(&wrapped).unwrap_err(),
+                "cyclic value outside R33 DTO profile",
+                "{document:?} inside a list"
+            );
+        }
+        // a plain alias (not self-containing) is its value and stays inside the profile
+        let plain = safe_load_objects(b"a: &x [1, 2]\nb: *x\n", &PyStr::new("alias.yaml")).unwrap();
+        assert!(encode(&plain).is_ok());
+    }
+
     #[test]
     fn the_owned_dto_has_the_declared_tags_text_and_refusals() {
         let value = PyValue::Tuple(vec![
@@ -3055,6 +3132,30 @@ mod owned_dto_cases {
         );
         assert_eq!(
             encode_owned(opaque("list", "[...]", Typed::Plain)).unwrap_err(),
+            "cyclic value outside R33 DTO profile"
+        );
+        for (kind, marker) in [("list", "[...]"), ("dict", "{...}"), ("set", "set(...)")] {
+            assert_eq!(
+                encode_owned(opaque(kind, marker, Typed::Cycle(1))).unwrap_err(),
+                "cyclic value outside R33 DTO profile",
+                "{kind}"
+            );
+        }
+        // member order is kept: the FIRST refusal wins, whichever kind of refusal it is
+        assert_eq!(
+            encode_owned(PyValue::List(vec![
+                opaque("object", "<x>", Typed::Plain),
+                opaque("list", "[...]", Typed::Cycle(1)),
+            ]))
+            .unwrap_err(),
+            "undeclared DTO type"
+        );
+        assert_eq!(
+            encode_owned(PyValue::List(vec![
+                opaque("list", "[...]", Typed::Cycle(1)),
+                opaque("object", "<x>", Typed::Plain),
+            ]))
+            .unwrap_err(),
             "cyclic value outside R33 DTO profile"
         );
         let empty = encode_owned(PyValue::List(vec![])).unwrap();

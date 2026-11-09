@@ -50,7 +50,7 @@ when_to_use: >-
 3. **모델 획득 모드 인터뷰**(§0.5.7) → **0차 init-plan 발행 + 자기-HITL 승인**(§0.5.8).
 4. **스캔**(single=§1S · multi=§1.1 5-전제조건 인터뷰 → §1.2 사용자 승인 → §1.3 스캔 → §1.4 성능 게이트).
 5. **게이트 + 3자-일치 단언**(§1.5) → 통과 시에만 **manifest + Flag 기입**(§1.6 / §1S, HITL).
-6. **하네스 실행환경(main 및 등록된 sub)** — 역할별 업무 권한 → 렌더 → 공식 전달 → 노드별 Rust 설치·offline 빌드/기동 검사 → discovery·실제 권한 카나리(§2.3–§2.5.2). Rust는 `references/install/rust_runtime.md`의 배포 helper로 준비한다. sudo 작업은 개정마다 생기는 것이 아니라 실제 호스트 전제조건 결손 때만 수행지시서로 발행한다. single의 등록된 A2A 서브도 이 단계에 포함하고 빌드킷 배달은 계속 dormant다. Rust 기동 검사·카나리 미통과 시 해당 하네스 배포 done 선언 ✗.
+6. **하네스 실행환경(main 및 등록된 sub)** — 역할별 업무 권한 → 렌더 → 공식 전달 → 노드별 Rust 설치·offline 빌드/기동 검사 → discovery·실제 권한 카나리(§2.3–§2.5.2). Rust는 `references/install/rust_runtime.md`의 배포 helper로 준비한다. **순서 의존**: 메인 자신의 Rust install → check → 정상 빌드(`build_rust.sh`·`build_rust_packages.sh`)는 `scan_node.py --emit-sub-manifest`·`render_sub_env.py --sub-manifest|--self-test`·카나리 `discovery|permissions`·`relay.py` 보다 **선행**한다(이들이 `manifest_contract`·`turn_budget` Rust 리더/브리지를 부른다). 새 클론의 진입(위 1–5: staleness·인터뷰·스캔·게이트·manifest+Flag)과 `rust_bootstrap.sh install|check` 는 어떤 ELF 도 요구하지 않는다 — Flag 가 없어도 온보딩에 들어갈 수 있고 검증기에 막히지 않는다. 표: `references/install/rust_runtime.md` §명령 순서와 ELF 의존. sudo 작업은 개정마다 생기는 것이 아니라 실제 호스트 전제조건 결손 때만 수행지시서로 발행한다. single의 등록된 A2A 서브도 이 단계에 포함하고 빌드킷 배달은 계속 dormant다. Rust 기동 검사·카나리 미통과 시 해당 하네스 배포 done 선언 ✗.
 7. **호스트 안전체계 세션 최종 Y/N**(§2.6) — Flag 발급 **이후**의 독립 선택조항.
 
 
@@ -170,11 +170,15 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/selftest_campaign_lifecycle.py` | 캠페인 체인 | — | 수명 상태(보류·재개·포기·선점 · 서브 종결 전파 · 재배정) 자체검사 · 회귀 실행자 `verify_distribution.py` |
 | `scripts/campaign_init.sh` | 캠페인 체인 | ✓ | `--active`·`--derive KIND [--cell\|--sweep\|--context\|--campaign-id VALUE]` 읽기 전용 두 형태만 공유 B 의 `campaign_read` 실행파일(노드에서 빌드)로 처리하는 런처 · 실행파일 부재/실행 불가는 어떤 경로 선택보다 먼저 exit 2 + 빌드 안내(명시 Python 지정이 있어도 Python 을 시작하지 않는다) · `CAMPAIGN_READ_VALIDATE_ONLY=1` 은 가용성 확인(값 1만 · 건강 증명 아님) · 다른 형태·명시 인터프리터·다른/읽을 수 없는 소스·미모델링 텍스트 프로필은 실제 `campaign_init.py` 로 가는 명시 호환 경로이며 업무 처리 전에만 정해진다 · 배달되는 것은 이 런처뿐이고 B 산출물은 B 를 받아 자체 빌드한 노드에만 있다(ray-worker 는 런타임 업무 0·호출자 없음) · 모든 쓰기 동사는 `campaign_init.py` 직접 호출 |
 | `scripts/campaign_template_validator.py` | 캠페인 체인 | ✓ | 선언·인스턴스 술어(P1~P3) |
-| `scripts/manifest_contract.py` | §0.5 · §1S · §2.7.10 | ✓ | Flag·`issued_by: main` readiness 리더 |
+| `scripts/manifest_contract.py` | §0.5 · §1S · §2.7.10 | ✓ | Flag·`issued_by: main` readiness 리더 — **얇은 import 어댑터**: 기존 in-process importer(`render_sub_env`·`scan_node`·`render_dockerfile`·`harness_permission_probe`·`publish_install_request`·claim predicates·hint evidence)가 같은 이름·서명·상수(`VALID_MODES` 리터럴 · 원본 `__doc__`)로 import 하며, 판정은 `manifest_contract` 실행파일의 비공개 브리지(`MANIFEST_CONTRACT_BRIDGE`)가 한다(타입 전달·결과 계획 조립·정확한 예외 재구성만 · `_load_manifest` 는 원본처럼 호출 시점에 `import yaml`). U2(in-process traceback 프레임)·U3(지원 타입 집합 밖)은 열림 |
+| `scripts/manifest_contract_compat_owner.py` | §2.7.10 | ✓ | 검토된 **원본 바이트(e84fa13c…)** 그대로 — 어댑터 `main` 이 **업무 전에 분류한** 레거시 형태(`-h`·`--self-test`·약어·사용 오류)와 CLI 의 명시 레거시 경로(공개 이름으로 실행)만 쓴다. 보존일 뿐 Python-free 주장이 아니다 |
+| `scripts/manifest_contract.sh` | §0.5 · §1S · §2.7.10 | ✓ | `manifest_contract.py --topology T --repo R [--require-flag] [--json]` 게이트 판정을 공유 B 의 `manifest_contract` 실행파일(노드에서 빌드)로 처리하는 런처 · 독립 호출은 Bash → Rust(공개 `manifest_contract.py` CLI 는 `__main__` 이 같은 PID 로 Rust 에 **직접 exec** 하고 이 런처는 부재 안내·가용성 확인·exec 실패 경로의 단일 자리다) · 실행파일 부재/실행 불가는 어떤 경로 선택보다 먼저 exit 2 + 빌드 안내(Flag 미발급 4·manifest 부재 3 과 구별 · 명시 Python 지정이 있어도 Python 을 시작하지 않는다) · `MANIFEST_CONTRACT_VALIDATE_ONLY=1` 은 가용성 확인(값 1만 · 건강 증명 아님) · 정확한 문법(`--topology single\|multi`·`--repo VALUE`·`--require-flag`·`--json` 분리 토큰·임의 순서·각 1회) 밖의 형태(`-h`·`--self-test`·약어·`--x=y`·중복)·명시 인터프리터·다른/읽을 수 없는 소스·미모델링 텍스트 프로필은 실제 `manifest_contract.py` 로 가는 명시 호환 경로이며 업무 처리 전에만 정해진다 · 프로세스 안 import 사용자(render_sub_env·scan_node·harness_permission_probe·publish_install_request·render_dockerfile·hintlib·claim_predicates)와 `verify_distribution` 호출은 `.py` 를 그대로 쓴다(이관 전) — 그 호출(`manifest_contract.py` CLI)은 Python → Rust 직접 exec 이다 |
 | `scripts/node_role_contract.py` | §2.7.0 · §2.7.6 | ✓ | 최초 Rust 빌드 전 bootstrap·기존 Python import 호환 진입점; native 역할 정책은 공유 `.claude/rust/role-contract` 라이브러리 |
 | `scripts/node_role_contract.sh` | §2.7.0 · §2.7.6 | — | 설치·빌드 후 일반 Rust 역할 CLI 직접 기동; U 배달 서브의 직접 실행 경로는 `references/install/rust_runtime.md` |
 | `scripts/check_sub_hint_equip.py` | §2.5.1 | ✓(single) | single 서브 hint 발행 장착 판정·장착(`--clone`·`--write-push-authority`) · JSON 보고 · 비밀 미출력 · 사람 요청 템플릿 `templates/requests/sub_hint_push_equip.md` |
-| `scripts/scan_node.py` | §1.3–§1.5 · §2.7.10 | — | 스캔·게이트·3자일치·emit(서브 manifest 포함) |
+| `scripts/scan_node.py` | §1.3–§1.5 · §2.7.10 | — | 스캔·게이트·3자일치·emit(서브 manifest 포함). **P1 네이티브화 단계의 얇은 import 어댑터(전체 스캐너 아님 · Python-free 아님)**: 순수 판정·manifest 조립·파일 판독 16개 공개 이름과 헬퍼 4개(`valid_host`·`evaluate_gate`·`emit_gate`·`emission_blockers`·`emit_manifest_block`·`build_sub_manifest`·`cross_validate`·`read_manifest_field`·`read_manifest_topology` 등)은 같은 이름·서명으로 남고 비공개 브리지로 Rust 를 부른다(업무 로직 ✗ · 타입 전달·호출자 객체 참조의 기계적 조립·정확한 예외 재구성·export 배관만). 그 밖의 이름·CLI·`main`·자기시험은 업무 전에 **명시적 compat 경로**로 정확한 원본 소유자 `scan_node_original.py` 를 실행해 이름공간에 배관한다 |
+| `scripts/scan_node_original.py` | §1.3–§1.5 | — | 원본 소유자(바이트 동일 · sha256 `2d9e8a86…`). P1 밖 하드웨어 프로브·SSH/네트워크 수집·argparse `main`·`_self_test` 의 compat 대상이며 P1 네이티브의 증거가 아니다 |
+| `scripts/scan_node.sh` | §1.3–§1.5 | ✓(벤치 owner 가 가는 서브 한정 — `build_rust.sh` 의 P1 자체검사 런처) | `scan_node` Rust 실행파일 런처(P1 브리지 + 네이티브 자기 검사 `--p1-self-check` · 실행파일 없음/ELF 아님 = 상태 2 + 빌드 안내 · Python 경로 없음 · `SCAN_NODE_VALIDATE_ONLY=1` 은 가용성 확인일 뿐 · `SCAN_NODE_OWNER_PATH`=어댑터의 어휘적 출처) |
 | `scripts/render_sub_env.py` | §2.3 | — | 서브 환경·Card·서브 manifest 렌더 |
 | `scripts/staleness_gate.py` | spine 1 · §0.5 | — | 조건부 preflight 트리거 |
 | `scripts/bootstrap_canary.py` | §2.5 | — | model-less 카나리 실행자 |
@@ -187,7 +191,8 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/selftest_sub_hint_write_scopes.py` | §2.5.2 | — | 외부 hint 경로의 역할·대상·범위 검증 회귀 |
 | `scripts/selftest_claude_native_events.py` | §2.5.2 | — | opt-in native 도구 실행 기록과 기존 Claude 호출 호환 회귀 |
 | `scripts/relay.py` | §2.7.7a · §2.7.11 | — | 턴제 릴레이·감독 스텝·러너 사다리 |
-| `scripts/turn_budget.py` | §2.7.7a | — | 하네스별 native-turn·wall-time 예산 선언 검증기 |
+| `scripts/turn_budget.py` | §2.7.7a | — | 하네스별 native-turn·wall-time 예산 선언 검증기. **얇은 import 어댑터**: CLI 는 `turn_budget.sh` 로 exec, `schema_cap`·`schema_max_turns`·`declare`·`REPO`·`REQUEST_SCHEMA` 는 기존 importer(relay·bootstrap_canary·selftest_harness_switch)용으로 같은 이름·서명을 유지하며 비공개 브리지로 Rust 를 부른다(업무 로직 ✗ · 타입 전달·정확한 예외 재구성·어휘적 출처만) |
+| `scripts/turn_budget.sh` | §2.7.7a | — | `turn_budget` Rust 실행파일 런처(실행파일 없음/실행 불가 = 상태 2 + 빌드 안내 · Python 경로 없음 · `TURN_BUDGET_VALIDATE_ONLY=1` 은 가용성 확인일 뿐 업무 통과가 아니다 · `TURN_BUDGET_OWNER_PATH`=기본 스키마의 어휘적 출처) |
 | `scripts/agent_control.py` · `scripts/providers/` | §2.7.7 | — | provider-neutral 전송 orchestrator · native 실행 구문은 각 provider adapter만 발행 · v1 native-turn / v2 wall-time 계약 |
 | `scripts/selftest_harness_switch.py` | §2.7.7 | — | 하네스 전환·예산·세션 결속·중복 실행·원장 경쟁 음성대조 |
 | `scripts/library_access.py` | §2.7.8 | — | 서브 서고 접근점 발급·회수(키·강제명령·manifest library 블록 · HITL) |
@@ -196,7 +201,7 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/node_blackbox/`(설치: `install_node_blackbox.sh` · `verify_node_blackbox.sh` · `purge_host_safety.sh` · `publish_install_request.py`) | §2.6 · §2.6.1 | ✓ | HITL sudo |
 | `.claude/skills/terraforming_node/scripts/host_safety/` | §2.6 | ✓ | 협역 워치독 정본 `mem_watchdog.sh` · 레거시 설치자(`install_host_safety.sh` — 정책 술어가 본문을 읽으므로 유지) |
 
-- 벤치 owner 의 build→native 자체검사가 원래 정본 경로에서 읽는 기초층 의존 2종(`topology_parity.py` · `node_blackbox/node_identity.sh`)은 닫힌 목록 `render_sub_env.py::SUB_BENCH_FOUNDATION_RUNTIME` 으로 adversarial-benchmark 가 가는 서브에만 배달된다. 오케스트레이터가 아니며 `.claude/runtime/node_blackbox/` 의 설치용 사본과는 다른 자리다.
+- 벤치 owner 의 build→native 자체검사가 원래 정본 경로에서 읽는 기초층 의존 3종(`topology_parity.py` · `node_blackbox/node_identity.sh` · `scan_node.sh`)은 닫힌 목록 `render_sub_env.py::SUB_BENCH_FOUNDATION_RUNTIME` 으로 adversarial-benchmark 가 가는 서브에만 배달된다. 오케스트레이터가 아니며 `.claude/runtime/node_blackbox/` 의 설치용 사본과는 다른 자리다.
 
 ## 5. 금지
 

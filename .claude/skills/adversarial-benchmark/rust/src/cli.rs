@@ -90,6 +90,11 @@ impl<'a> Streams<'a> {
             .map_err(PrintFailure::Write)
     }
 
+    /// `sys.stdout.write(text)` for a text the stream's codec already encoded: one write, no newline added.
+    pub(crate) fn write_encoded(&mut self, encoded: &[u8]) -> Result<(), OutputFailure> {
+        self.model.write(self.stdout, encoded)
+    }
+
     /// One `print` of a text whose last character is the newline `print` would add.
     pub(crate) fn print_body(&mut self, text: &PyStr) -> Result<(), PrintFailure> {
         let mut points = text.code_points().to_vec();
@@ -140,16 +145,33 @@ impl<'a> Streams<'a> {
 
     /// Interpreter exit: flush what is still buffered. A failure replaces the status with 120, as CPython does.
     pub(crate) fn finish(&mut self, status: i32) -> i32 {
+        self.finish_with_codec(status, "utf-8")
+    }
+
+    /// [`Streams::finish`] for a stdout whose codec is not UTF-8: the notice names the codec the text layer really has
+    /// (`encoding='ascii'` under `PYTHONIOENCODING=ascii`).
+    pub(crate) fn finish_with_codec(&mut self, status: i32, codec: &str) -> i32 {
         match self.model.flush(self.stdout) {
             Ok(()) => status,
             Err(failure) => {
                 let text = format!(
-                    "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='utf-8'>\n{failure}\n"
+                    "Exception ignored in: <_io.TextIOWrapper name='<stdout>' mode='w' encoding='{codec}'>\n{failure}\n"
                 );
                 write_stderr(self, &PyStr::new(&text));
                 EXIT_FLUSH_FAILED
             }
         }
+    }
+
+    /// Descriptor 1 is not open: `sys.stdout` is `None`.
+    pub(crate) fn stdout_is_absent(&self) -> bool {
+        self.model.is_absent()
+    }
+
+    /// What the interpreter does before it prints the traceback of an UNHANDLED exception (`PyErr_PrintEx` flushes `sys.stdout` and `sys.stderr` first):
+    /// the pending stdout bytes are written, and a failure of that flush is discarded (what stays in the buffer fails again at exit).
+    pub(crate) fn flush_before_traceback(&mut self) {
+        let _ = self.model.flush(self.stdout);
     }
 }
 

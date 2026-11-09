@@ -24,6 +24,7 @@ Runner: stdlib `unittest` (matches every other tests/harness/test_*.py in this p
 from __future__ import annotations
 
 import ast
+import re
 import unittest
 from pathlib import Path
 
@@ -39,7 +40,8 @@ class TestHostSafetyLayeredDefenseCompanion(unittest.TestCase):
     (`host_safety.installed:false`) that is INDEPENDENT of the completion Flag."""
 
     def test_scan_node_documents_host_safety_flag_independence(self):
-        src = _read(".claude/skills/terraforming_node/scripts/scan_node.py")
+        # emit_manifest_block (where this text lives) is P1: its source is the Rust T module
+        src = _read(".claude/rust/role-contract/src/scan_node_manifest.rs")
         self.assertIn("host_safety.installed", src)
         self.assertIn("Flag 와 독립", src)
 
@@ -109,18 +111,35 @@ class TestModelAcquisitionTernaryGateCompanion(unittest.TestCase):
     """MODEL_ACQUISITION_TERNARY_GATE.C1/C2/C4."""
 
     def test_manifest_contract_enforces_ternary_model_source(self):
-        src = _read(".claude/skills/terraforming_node/scripts/manifest_contract.py")
-        tree = ast.parse(src)
-        valid_modes = None
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign) and any(
-                isinstance(t, ast.Name) and t.id == "VALID_MODES" for t in node.targets
-            ):
-                if isinstance(node.value, ast.Tuple):
-                    valid_modes = tuple(
-                        elt.value for elt in node.value.elts if isinstance(elt, ast.Constant)
-                    )
-        self.assertEqual(valid_modes, ("managed", "ephemeral", "custom"))
+        # The enforcing owner of the three modes is the Rust gate (`manifest_gate.rs` VALID_MODES, the const `mode_valid` reads); the
+        # import adapter's literal tuple and the compat owner's (the exact reviewed original that answers the legacy shapes) must name the
+        # SAME three modes in the same order. A tuple that merely exists in the adapter proves nothing about enforcement, so the three
+        # are compared here and any drift between them fails.
+        def literal_tuple(path):
+            tree = ast.parse(_read(path))
+            found = None
+            for node in tree.body:
+                if isinstance(node, ast.Assign) and any(
+                    isinstance(t, ast.Name) and t.id == "VALID_MODES" for t in node.targets
+                ):
+                    self.assertIsInstance(node.value, ast.Tuple, path)
+                    found = tuple(elt.value for elt in node.value.elts if isinstance(elt, ast.Constant))
+            return found
+
+        scripts = ".claude/skills/terraforming_node/scripts/"
+        adapter = literal_tuple(scripts + "manifest_contract.py")
+        compat = literal_tuple(scripts + "manifest_contract_compat_owner.py")
+        rust = re.search(
+            r"^pub const VALID_MODES: \[&str; (\d+)\] = \[([^\]]*)\];",
+            _read(".claude/rust/role-contract/src/manifest_gate.rs"),
+            re.MULTILINE,
+        )
+        self.assertIsNotNone(rust, "manifest_gate.rs must declare `pub const VALID_MODES: [&str; N] = [...]`")
+        rust_modes = tuple(re.findall(r'"([^"]*)"', rust.group(2)))
+        self.assertEqual(int(rust.group(1)), len(rust_modes))
+        self.assertEqual(rust_modes, ("managed", "ephemeral", "custom"))
+        self.assertEqual(adapter, rust_modes)
+        self.assertEqual(compat, rust_modes)
 
     def test_check_smoke_model_has_no_download_machinery(self):
         # A model-presence check that never itself fetches weights is exactly the structural

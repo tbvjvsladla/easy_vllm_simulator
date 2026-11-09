@@ -14,6 +14,28 @@ const MAX_INT_DIGITS: usize = 4300;
 /// original CLI: a verdict whose deepest container is the 995th level prints, the 996th raises `RecursionError`.
 const PRETTY_MAX_DEPTH: usize = 995;
 
+/// A value the encoder cannot serialize (bytes or an opaque object) is entered through a generator frame of its own
+/// (`_iterencode`, one frame below its container) and reaches `default(o)` by a CALL from that frame, one frame deeper still. With
+/// `level` containers around it that call is frame `level + 7` and the interpreter stops at frame 1000, so such a leaf fails with
+/// `RecursionError` one container sooner than a container does (at 994 enclosing containers, where a container still fits). The
+/// 994-container bytes leaf is captured raw (R48K05); the same count for an opaque leaf follows from the identical frame structure.
+fn leaf_default_too_deep(level: usize) -> bool {
+    level + 1 >= PRETTY_MAX_DEPTH
+}
+
+/// A float is spelled by the Python function `floatstr`, called from the generator frame of its container (`yield _floatstr(value)`): with
+/// `level` containers around it that call is frame `level + 6`, so it fails with `RecursionError` when the container is the 995th (the
+/// generator of a container that still fits is frame 1000, its `floatstr` call frame 1001). Captured raw: R48K06 (995 containers).
+fn float_too_deep(level: usize) -> bool {
+    level >= PRETTY_MAX_DEPTH
+}
+
+/// A value of a cyclic container is a CHILD GENERATOR created by a call from its container's frame; that call is what the frame limit stops
+/// before the child could run its circular check (`markerid in markers`). Same bound as a container child (captured raw: R48K07).
+fn cycle_marker_too_deep(level: usize) -> bool {
+    level + 1 > PRETTY_MAX_DEPTH
+}
+
 /// Why a value could not be rendered as JSON; each case is an exception Python raises while printing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DumpError {
@@ -152,6 +174,9 @@ pub enum Typed {
     Date(String),
     DateTime(String),
     Set(Vec<PyValue>),
+    /// The marker the YAML reader puts where a container contains itself: how many container levels above the marker the container it stands
+    /// for sits (`1` = the marker's own parent: `&a [*a]`). Not part of equality.
+    Cycle(usize),
 }
 
 /// A value of a type that only YAML produces; it has a type name, a `repr` and a truth value, and cannot be dumped.
@@ -165,6 +190,16 @@ pub struct Opaque {
     /// (`datetime.date`, `datetime.datetime`: an aware one is its UTC instant). `None` for a type that has no such identity here.
     /// Not part of this struct's own equality.
     pub identity: Option<String>,
+}
+
+impl Opaque {
+    /// For a cycle marker: how many container levels above it the container it stands for sits.
+    pub fn cycle_up(&self) -> Option<usize> {
+        match self.typed {
+            Typed::Cycle(up) => Some(up),
+            _ => None,
+        }
+    }
 }
 
 impl PartialEq for Opaque {
@@ -582,12 +617,18 @@ impl PyValue {
                 }
                 out.push_str(&digits);
             }
+            PyValue::Float(_) if matches!(layout, Layout::Pretty { level, .. } if float_too_deep(level)) => {
+                return Err(DumpError::TooDeep)
+            }
             PyValue::Float(number) => out.push_str(&float_json(*number)),
             PyValue::Str(text) => text.write_json(out, ascii),
             PyValue::List(items) => {
                 write_sequence(out, layout, ('[', ']'), items.len(), |out, index, inner| {
                     items[index].write_json(out, inner, ascii)
                 })?
+            }
+            PyValue::Bytes(_) if matches!(layout, Layout::Pretty { level, .. } if leaf_default_too_deep(level)) => {
+                return Err(DumpError::TooDeep)
             }
             PyValue::Bytes(_) => return Err(DumpError::NotSerializable("bytes")),
             PyValue::Tuple(items) => {
@@ -597,7 +638,17 @@ impl PyValue {
             }
             PyValue::Shared(inner) => inner.write_json(out, layout, ascii)?,
             PyValue::Opaque(opaque) if opaque.repr == "[...]" || opaque.repr == "{...}" => {
-                return Err(DumpError::Circular)
+                return Err(
+                    if matches!(layout, Layout::Pretty { level, .. } if cycle_marker_too_deep(level))
+                    {
+                        DumpError::TooDeep
+                    } else {
+                        DumpError::Circular
+                    },
+                )
+            }
+            PyValue::Opaque(_) if matches!(layout, Layout::Pretty { level, .. } if leaf_default_too_deep(level)) => {
+                return Err(DumpError::TooDeep)
             }
             PyValue::Opaque(opaque) => {
                 return Err(DumpError::NotSerializable(
@@ -618,6 +669,14 @@ impl PyValue {
                     entries.len(),
                     |out, index, inner| {
                         let (other, key, value) = entries[index];
+                        // A float KEY is spelled by `floatstr` in the dict's own generator frame (`key = _floatstr(key)`), at the same frame
+                        // depth as a float value of that dict: in the deepest container that still fits (the 995th) that call is the frame
+                        // beyond the limit (captured raw: R48K08).
+                        if matches!(other, Some(other) if key_is_float(other))
+                            && matches!(inner, Layout::Pretty { level, .. } if float_too_deep(level))
+                        {
+                            return Err(DumpError::TooDeep);
+                        }
                         match other {
                             Some(other) => json_key(other)?.write_json(out, ascii),
                             None => key.write_json(out, ascii),
@@ -696,9 +755,19 @@ impl<E> ChunkWriter<'_, E> {
         match value.peel() {
             PyValue::List(items) | PyValue::Tuple(items) => self.list(items, level),
             PyValue::Dict(map) => self.dict(map, level),
+            PyValue::Bytes(_) if leaf_default_too_deep(level) => {
+                Err(StreamError::Dump(DumpError::TooDeep))
+            }
             PyValue::Bytes(_) => Err(StreamError::Dump(DumpError::NotSerializable("bytes"))),
             PyValue::Opaque(opaque) if opaque.repr == "[...]" || opaque.repr == "{...}" => {
-                Err(StreamError::Dump(DumpError::Circular))
+                Err(StreamError::Dump(if cycle_marker_too_deep(level) {
+                    DumpError::TooDeep
+                } else {
+                    DumpError::Circular
+                }))
+            }
+            PyValue::Opaque(_) if leaf_default_too_deep(level) => {
+                Err(StreamError::Dump(DumpError::TooDeep))
             }
             PyValue::Opaque(opaque) => Err(StreamError::Dump(DumpError::NotSerializable(
                 opaque
@@ -731,6 +800,9 @@ impl<E> ChunkWriter<'_, E> {
             if index > 0 {
                 buffer = separator.clone();
             }
+            if matches!(value.peel(), PyValue::Float(_)) && float_too_deep(level + 1) {
+                return Err(StreamError::Dump(DumpError::TooDeep));
+            }
             match Self::scalar(value)? {
                 Some(text) => {
                     let mut chunk = PyStr::new(&buffer);
@@ -760,7 +832,12 @@ impl<E> ChunkWriter<'_, E> {
         self.emit_str(&newline_indent)?;
         for (index, (other, key, value)) in map.keyed_entries().enumerate() {
             let key_text = match other {
-                Some(other) => json_key(other).map_err(StreamError::Dump)?,
+                Some(other) => {
+                    if key_is_float(other) && float_too_deep(level + 1) {
+                        return Err(StreamError::Dump(DumpError::TooDeep));
+                    }
+                    json_key(other).map_err(StreamError::Dump)?
+                }
                 None => key.clone(),
             };
             if index > 0 {
@@ -770,6 +847,9 @@ impl<E> ChunkWriter<'_, E> {
             key_text.write_json(&mut quoted, false);
             self.emit(&quoted)?;
             self.emit_str(": ")?;
+            if matches!(value.peel(), PyValue::Float(_)) && float_too_deep(level + 1) {
+                return Err(StreamError::Dump(DumpError::TooDeep));
+            }
             match Self::scalar(value)? {
                 Some(text) => self.emit(&text)?,
                 None => self.container(value, inner)?,
@@ -1104,6 +1184,21 @@ pub fn bytes_repr(bytes: &[u8]) -> String {
     }
     out.push(quote);
     out
+}
+
+/// Whether the encoder spells this key with `floatstr` (`isinstance(key, float)`, line 364 of the pure-Python encoder): the key the reader kept is a
+/// float or, where a reader kept none, its `repr` is the spelling of a float (`1.5`, `1e+16`, `inf`, `-inf`, `nan`; an int, bool or `None` repr
+/// never has a `.`, an exponent or those names).
+pub fn key_is_float(key: &NonStringKey) -> bool {
+    match key.value.as_deref().map(PyValue::peel) {
+        Some(PyValue::Float(_)) => true,
+        Some(_) => false,
+        None => {
+            let repr = key.repr.as_str();
+            matches!(repr, "inf" | "-inf" | "nan")
+                || (repr.parse::<f64>().is_ok() && repr.contains(['.', 'e', 'E']))
+        }
+    }
 }
 
 /// What `json.dumps` writes for a dict key: strings as they are, `None`/`bool`/`int`/`float` as their JSON spelling,
@@ -1659,5 +1754,83 @@ mod tests {
                 assert_eq!(*entry.2, PyValue::int(2));
             }
         }
+    }
+
+    /// `depth` nested dicts; the innermost dict holds one float KEY (a reader-less key: only its `repr`) and a string value.
+    fn nested_with_float_key(depth: usize) -> PyValue {
+        let mut inner = PyDict::new();
+        inner.insert_key(
+            DictKey::Other(NonStringKey {
+                identity: "num:1.5".to_string(),
+                repr: "1.5".to_string(),
+                value: None,
+            }),
+            PyValue::str("v"),
+        );
+        let mut value = PyValue::Dict(inner);
+        for _ in 1..depth {
+            let mut outer = PyDict::new();
+            outer.set("k", value);
+            value = PyValue::Dict(outer);
+        }
+        value
+    }
+
+    fn on_big_stack<R: Send + 'static>(body: impl FnOnce() -> R + Send + 'static) -> R {
+        std::thread::Builder::new()
+            .stack_size(256 << 20)
+            .spawn(body)
+            .expect("thread")
+            .join()
+            .expect("body")
+    }
+
+    #[test]
+    fn float_key_depth_matches_the_captured_r48k08_bound() {
+        // Source-derived neighbour of the captured raw row (R48K08: a float KEY in the 995th container fails): 995 containers fail
+        // in the whole-text pretty dump and in the chunk stream, one container fewer (994) still prints. A float key is told apart from
+        // an int/bool/None key by its spelling, so an int key of the same depth keeps printing.
+        on_big_stack(|| {
+            assert_eq!(
+                nested_with_float_key(995).dumps_indented(2).err(),
+                Some(DumpError::TooDeep)
+            );
+            assert!(nested_with_float_key(994).dumps_indented(2).is_ok());
+            let mut chunks = 0usize;
+            let stream =
+                nested_with_float_key(995).json_dump_chunks(2, &mut |_| -> Result<(), ()> {
+                    chunks += 1;
+                    Ok(())
+                });
+            assert!(matches!(stream, Err(StreamError::Dump(DumpError::TooDeep))));
+            assert!(nested_with_float_key(994)
+                .json_dump_chunks(2, &mut |_| -> Result<(), ()> { Ok(()) })
+                .is_ok());
+        });
+    }
+
+    #[test]
+    fn key_is_float_by_reader_value_or_spelling() {
+        let key = |repr: &str, value: Option<PyValue>| NonStringKey {
+            identity: repr.to_string(),
+            repr: repr.to_string(),
+            value: value.map(Box::new),
+        };
+        for repr in ["1.5", "1e+16", "inf", "-inf", "nan", "-0.0"] {
+            assert!(key_is_float(&key(repr, None)), "{repr}");
+        }
+        for repr in [
+            "1",
+            "-3",
+            "True",
+            "False",
+            "None",
+            "datetime.date(2026, 1, 1)",
+            "b'1.5'",
+        ] {
+            assert!(!key_is_float(&key(repr, None)), "{repr}");
+        }
+        assert!(key_is_float(&key("2.0", Some(PyValue::Float(2.0)))));
+        assert!(!key_is_float(&key("2", Some(PyValue::int(2)))));
     }
 }

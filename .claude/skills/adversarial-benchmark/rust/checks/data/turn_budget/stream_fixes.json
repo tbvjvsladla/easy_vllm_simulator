@@ -1,0 +1,36 @@
+{
+ "schema": "r49-v5-measured-stream-golden/1",
+ "provenance": "derived by a pure path-token substitution from the SAVED accepted Original raw (never replayed): the owner layout root of the original is the token $LAYOUT",
+ "rows": {
+  "R49C38": {
+   "argv": [
+    "--caps"
+   ],
+   "stdout": "CLOSED before exec (descriptor 1 not open in the process at start)",
+   "first_exit": 1,
+   "stderr_text": "Traceback (most recent call last):\n  File \"$LAYOUT/.claude/skills/terraforming_node/scripts/turn_budget.py\", line 179, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"$LAYOUT/.claude/skills/terraforming_node/scripts/turn_budget.py\", line 166, in main\n    json.dump({\"max_turns\": schema_cap(\"max_turns\"),\n  File \"/usr/lib/python3.12/json/__init__.py\", line 180, in dump\n    fp.write(chunk)\n    ^^^^^^^^\nAttributeError: 'NoneType' object has no attribute 'write'\n",
+   "stderr_bytes_original": 652,
+   "raw_sha256": "eadff2a4c3f979c1688567fbac04b55dc2d123598a4e63d0640f593c1c5149e9"
+  },
+  "R49C16": {
+   "argv": [
+    "--self-test"
+   ],
+   "layout": "no schema file (LAY_NOSCHEMA)",
+   "stdout_stderr": "ONE merged pipe",
+   "first_exit": 1,
+   "merged_text": "  [PASS] 등급표·증액계수·정지한계가 되살아나지 않았다(발견 [])\nTraceback (most recent call last):\n  File \"$LAYOUT/.claude/skills/terraforming_node/scripts/turn_budget.py\", line 179, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"$LAYOUT/.claude/skills/terraforming_node/scripts/turn_budget.py\", line 164, in main\n    return _self_test()\n           ^^^^^^^^^^^^\n  File \"$LAYOUT/.claude/skills/terraforming_node/scripts/turn_budget.py\", line 107, in _self_test\n    caps = {\"max_turns\": schema_cap(\"max_turns\"), \"timeout_seconds\": schema_cap(\"timeout_seconds\")}\n                         ^^^^^^^^^^^^^^^^^^^^^^^\n  File \"$LAYOUT/.claude/skills/terraforming_node/scripts/turn_budget.py\", line 39, in schema_cap\n    with open(path, encoding=\"utf-8\") as f:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nFileNotFoundError: [Errno 2] No such file or directory: '$LAYOUT/.claude/schemas/agent-control-request.schema.json'\n",
+   "merged_bytes_original": 1406,
+   "raw_sha256": "068ce6ac7ea1ab39dbaec512ee659a0fdf76c12535fe140255cb04ecae0ea969"
+  }
+ },
+ "env_profile_of_the_originals": {
+  "PATH": "/usr/bin:/bin",
+  "LC_ALL": "C.UTF-8",
+  "LANG": "C.UTF-8",
+  "TZ": "UTC",
+  "PYTHONHASHSEED": "0",
+  "PYTHONDONTWRITEBYTECODE": "1",
+  "COLUMNS": "80"
+ }
+}

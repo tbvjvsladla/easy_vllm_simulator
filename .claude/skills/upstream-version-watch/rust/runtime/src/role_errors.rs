@@ -142,6 +142,10 @@ fn yaml_failure(error: YamlError) -> Raised {
                 problem_mark,
                 note,
                 frames: _,
+                // R48 Q fact: whether `context_mark` and `problem_mark` are the SAME Python object (equal `origin`). The R33 error DTO profile
+                // encodes every mark as a VALUE (`ErrorValue::YamlMark`), never as an object identity, so this fact is deliberately outside the
+                // profile: it is named here (not hidden by a wildcard) and does not change the exception graph, args or attributes below.
+                shared_marks: _,
             } = *detail;
             let Some(module) = yaml_module(class) else {
                 return Raised::OutOfScope {

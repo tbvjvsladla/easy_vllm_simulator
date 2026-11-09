@@ -100,9 +100,9 @@
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "terraforming_node/scripts/manifest_contract.py",
+      "callee": "terraforming_node/scripts/manifest_contract_compat_owner.py",
       "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — R48 B3: 집행 근거를 어댑터 토큰이 아니라 레거시 모양을 답하는 검토된 원본 compat owner 로 옮겼다"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
@@ -136,7 +136,7 @@
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "terraforming_node/scripts/scan_node.py",
+      "callee": "terraforming_node/scripts/scan_node_original.py",
       "phase": "verification_plane",
       "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
     },
@@ -334,6 +334,12 @@
     },
     {
       "caller": ".claude/policies/predicates/claim_predicates.py",
+      "callee": "terraforming_node/scripts/manifest_contract_compat_owner.py",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — compat owner 의 VALID_MODES 리터럴을 AST 로 읽어 Rust const·어댑터 튜플과 대조(R48 B3)"
+    },
+    {
+      "caller": ".claude/policies/predicates/claim_predicates.py",
       "callee": "terraforming_node/scripts/node_blackbox/install_node_blackbox.sh",
       "phase": "verification_plane",
       "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
@@ -358,9 +364,9 @@
     },
     {
       "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/scripts/scan_node.py",
+      "callee": "terraforming_node/scripts/scan_node_original.py",
       "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+      "reason": "claim 술어 — 미포팅(P2/P3/CLI) 스캐너 문구는 정확한 원본 소유자의 텍스트를 읽어 판정(P1 문구는 T Rust 소스)"
     },
     {
       "caller": ".claude/policies/predicates/claim_predicates.py",
@@ -544,15 +550,9 @@
     },
     {
       "caller": ".claude/policies/predicates/companion_predicate.py",
-      "callee": "terraforming_node/scripts/manifest_contract.py",
+      "callee": "terraforming_node/scripts",
       "phase": "verification_plane",
-      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
-    },
-    {
-      "caller": ".claude/policies/predicates/companion_predicate.py",
-      "callee": "terraforming_node/scripts/scan_node.py",
-      "phase": "verification_plane",
-      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
+      "reason": "동반 술어 — 스킬 스크립트의 VALID_MODES 리터럴(어댑터·compat owner)을 AST 로 읽어 Rust const 와 삼중 교차검사(R48 B3)"
     },
     {
       "caller": ".claude/policies/predicates/companion_predicate.py",
@@ -664,9 +664,9 @@
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "terraforming_node/scripts/manifest_contract.py",
+      "callee": "terraforming_node/scripts/manifest_contract_compat_owner.py",
       "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — R48 B3: 검토된 원본 compat owner 가 근거"
     },
     {
       "caller": ".claude/policies/registry.yaml",
@@ -700,7 +700,7 @@
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "terraforming_node/scripts/scan_node.py",
+      "callee": "terraforming_node/scripts/scan_node_original.py",
       "phase": "verification_plane",
       "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
     },
@@ -1312,9 +1312,15 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/scan_node.py",
+      "callee": "terraforming_node/scripts/scan_node_original.py",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "배포 무결성 러너 — 정확한 원본 소유자의 레거시 --self-test 실행(P1 네이티브의 증거가 아니다)"
+    },
+    {
+      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "callee": "terraforming_node/scripts/scan_node.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — scan_node P1 네이티브 자체검사(--p1-self-check) 실행"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",

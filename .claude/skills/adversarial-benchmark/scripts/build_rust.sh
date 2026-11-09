@@ -1,7 +1,9 @@
 #!/bin/bash
 # Explicit node-local application build; normal evaluation never installs or builds.
 set -euo pipefail
-SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SELF="${BASH_SOURCE[0]}"
+case "$SELF" in */*) SDIR_RAW="${SELF%/*}"; [ -n "$SDIR_RAW" ] || SDIR_RAW=/ ;; *) SDIR_RAW=. ;; esac
+SDIR="$(cd "$SDIR_RAW" && pwd)"
 REPO="$(cd "$SDIR/../../../.." && pwd)"
 CRATE="$SDIR/../rust"
 BOOTSTRAP="$REPO/.claude/skills/terraforming_node/scripts/rust_bootstrap.sh"
@@ -30,7 +32,9 @@ for dependency in rust/runtime-support rust/role-contract; do
     exit 2
   fi
 done
-bash "$BOOTSTRAP" exec "${runtime_args[@]}" -- cargo build --release --locked \
+# production build: an inherited EASY_VLLM_SOURCE_ROOT (a prototype override that build.rs reads the campaign schema from) must not pull a foreign tree into
+# this node's build; the Q/T/P/U helper clears it the same way. Prototype builds select it by running cargo explicitly.
+env -u EASY_VLLM_SOURCE_ROOT bash "$BOOTSTRAP" exec "${runtime_args[@]}" -- cargo build --release --locked \
   --manifest-path "$CRATE/Cargo.toml" --target-dir "$CRATE/target" "${cargo_args[@]}"
 SWEEP_STOP_BIN="$CRATE/target/release/sweep_stop" bash "$SDIR/sweep_stop.sh" --self-test
 PARSE_BENCH_BIN="$CRATE/target/release/parse_bench" bash "$SDIR/parse_bench.sh" self-test
@@ -91,3 +95,11 @@ SELFTEST_SWEEP_REPEATS_BIN="$CRATE/target/release/selftest_sweep_repeats" BENCH_
 ASSEMBLE_SWEEP_META_BIN="$CRATE/target/release/assemble_sweep_meta" bash "$SDIR/assemble_sweep_meta.sh" --self-test
 
 BENCH_SHELL_BIN="$CRATE/target/release/bench_shell" bash "$SDIR/bench_shell.sh" --self-test
+
+# scan_node P1 (the private bridge of the Python adapter): the native self-check of the 16 P1 names against the embedded saved-raw rows.
+# It checks the Rust P1 only; the legacy `scan_node_original.py --self-test` runs the original Python and is no evidence for it.
+SCAN_NODE_BIN="$CRATE/target/release/scan_node" bash "$REPO/.claude/skills/terraforming_node/scripts/scan_node.sh" --p1-self-check
+
+# R48 O2: minimal NATIVE startup probes of the manifest_contract / turn_budget bridges (scan_node's own check is the line above). Which probes ran is printed;
+# this build does NOT start all 57 native bins (see native_health_probes.sh header for the exact set).
+/bin/bash "$SDIR/native_health_probes.sh" "$CRATE"

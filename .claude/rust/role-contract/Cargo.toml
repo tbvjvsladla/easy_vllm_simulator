@@ -25,3 +25,7 @@ path = "checks/identity_checks.rs"
 [[test]]
 name = "topology_checks"
 path = "checks/topology_checks.rs"
+
+[[test]]
+name = "manifest_gate_checks"
+path = "checks/manifest_gate_checks.rs"

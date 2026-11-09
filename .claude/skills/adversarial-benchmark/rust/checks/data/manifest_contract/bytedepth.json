@@ -1,0 +1,38 @@
+{
+"schema": "r48-manifest-contract-golden/1",
+"provenance": "literal copy of the ONE actual ORIGINAL byte-depth capture (T/r48-byte-depth-actual-summary/result.json, business PID 559901, inputs sha 9fabaff1..., Python 3.12.3 / PyYAML 6.0.1); only the owner clone path is replaced by <OWNER>; bytes are latin-1 code points; the manifest is the exact Root fixture bytes",
+"base_profile_env": {
+"LANG": "C.UTF-8",
+"LC_ALL": "C.UTF-8"
+},
+"rows": [
+{
+"id": "R48K05",
+"group": "BYTEDEPTH",
+"repo_group": "single",
+"case_dir": "cases/R48K05",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "R48K05",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  [Previous line repeated 991 more times]\n  File \"/usr/lib/python3.12/json/encoder.py\", line 439, in _iterencode\n    o = _default(o)\n        ^^^^^^^^^^^\nRecursionError: maximum recursion depth exceeded\n"
+}
+]
+}

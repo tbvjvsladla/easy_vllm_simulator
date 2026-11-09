@@ -42,6 +42,7 @@ mod sites;
 
 use crate::pystr::PyStr;
 use crate::pyvalue::PyValue;
+pub use compose::dict_key;
 pub use dump::{safe_dump_pieces, safe_dump_text, Piece};
 pub use frames::PySite;
 use std::rc::Rc;
@@ -103,6 +104,8 @@ pub struct MarkedDetail {
     pub problem: Option<PyStr>,
     pub problem_mark: Option<Mark6>,
     pub note: Option<PyStr>,
+    /// `context_mark is problem_mark`: PyYAML passed ONE `Mark` object for both (decided from the marks' provenance, not their values).
+    pub shared_marks: bool,
     /// The mapped traceback of the failure (see [`YamlError::frames`]).
     pub frames: Option<Box<Vec<PySite>>>,
 }
@@ -135,6 +138,10 @@ pub(crate) struct Mark {
     pub index: usize,
     pub line: usize,
     pub column: usize,
+    /// Which Python `Mark` OBJECT this stands for. The reader creates a new object on every `get_mark()` (a new origin here) and the
+    /// scanner, parser and composer then pass that object around by reference (a clone keeps the origin). Two marks of an error are the
+    /// same Python object exactly when their origins are equal; equal positions of two different objects are not.
+    pub origin: u64,
 }
 
 impl Mark {
@@ -316,10 +323,12 @@ impl Failure {
                     }
                     message.push_py(line);
                 }
+                let shared_marks = matches!((&context_mark, &problem_mark), (Some(a), Some(b)) if a.origin == b.origin);
                 YamlError {
                     class,
                     message,
                     detail: YamlDetail::Marked(Box::new(MarkedDetail {
+                        shared_marks,
                         context: context.as_deref().map(PyStr::new),
                         context_mark: context_mark.as_deref().map(Mark::to_public),
                         problem: problem.as_deref().map(PyStr::new),
@@ -338,6 +347,13 @@ impl Failure {
 pub fn safe_load(bytes: &[u8], name: &PyStr) -> Result<PyValue, YamlError> {
     frames::reset(frames::LIMIT, false);
     load(Source::File { bytes, name }, None).map_err(Failure::into_error)
+}
+
+/// [`safe_load`] for a caller that keys dictionaries or tests membership with the loaded values (Python's `dict` and `in` ask
+/// "the same object?" before "equal?", which decides `nan`): NaNs are objects, as for a `str` source.
+pub fn safe_load_objects(bytes: &[u8], name: &PyStr) -> Result<PyValue, YamlError> {
+    frames::reset(frames::LIMIT, false);
+    load_with(Source::File { bytes, name }, None, true).map_err(Failure::into_error)
 }
 
 /// [`safe_load`] that also reports every pull of the reader on the file (what a program that opened the file itself and
@@ -411,6 +427,14 @@ pub fn probe(bytes: &[u8], name: &PyStr) -> Probe {
 }
 
 fn load(source: Source<'_>, observer: Option<Observer>) -> Parsed<PyValue> {
+    // a `str` source is read by programs that test membership: its NaNs are objects (`pyvalue::nan_object`)
+    let nan_objects = matches!(source, Source::Text(_));
+    load_with(source, observer, nan_objects)
+}
+
+/// [`load`] with the NaN-object choice made by the caller: with `nan_objects`, `.nan` is the one shared object of
+/// `SafeConstructor.nan_value`, any other NaN is an object of its node and an alias reuses it (see `pyvalue::nan_object`).
+fn load_with(source: Source<'_>, observer: Option<Observer>, nan_objects: bool) -> Parsed<PyValue> {
     let _safe_load = frames::frame("safe_load")?;
     let _load = frames::frame("load")?;
     let name = Rc::new(match &source {
@@ -444,8 +468,7 @@ fn load(source: Source<'_>, observer: Option<Observer>) -> Parsed<PyValue> {
     frames::forget_trace();
     let _get_single_data = frames::frame("get_single_data")?;
     let composed = compose::get_single_node(&mut parser)?;
-    // a `str` source is read by programs that test membership: its NaNs are objects (`pyvalue::nan_object`)
-    compose::construct_document(composed, matches!(source, Source::Text(_)))
+    compose::construct_document(composed, nan_objects)
 }
 
 #[cfg(test)]
@@ -509,6 +532,72 @@ mod tests {
         };
         assert_eq!(map.get("n").unwrap().repr(), "[[...], [...]]");
         assert!(map.get("cyc").unwrap().dumps_pretty().is_err());
+    }
+
+    /// How far up the container a cycle marker stands for sits (`Opaque.cycle_up`), counted in container levels (an `!!omap` entry is a
+    /// tuple, so its key and value sit two levels below the list).
+    fn marker_up(value: &PyValue) -> Option<usize> {
+        match value.peel() {
+            PyValue::Opaque(opaque) => opaque.cycle_up(),
+            _ => None,
+        }
+    }
+
+    fn only_item(value: &PyValue) -> &PyValue {
+        match value.peel() {
+            PyValue::List(items) | PyValue::Tuple(items) => &items[0],
+            PyValue::Dict(map) => map.iter().next().map(|(_, v)| v).unwrap(),
+            other => panic!("not a container: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn a_cycle_marker_knows_how_many_container_levels_up_its_target_is() {
+        // `&a [*a]`: the marker's parent is the list itself
+        let value = load_text("a: &a [*a]\n").unwrap();
+        let PyValue::Dict(map) = &value else {
+            panic!("dict")
+        };
+        assert_eq!(marker_up(only_item(map.get("a").unwrap())), Some(1));
+        // a dictionary that contains itself
+        let value = load_text("d: &d {k: *d}\n").unwrap();
+        let PyValue::Dict(map) = &value else {
+            panic!("dict")
+        };
+        assert_eq!(marker_up(only_item(map.get("d").unwrap())), Some(1));
+        // two levels: `&x [[*x]]`
+        let value = load_text("x: &x [[*x]]\n").unwrap();
+        let PyValue::Dict(map) = &value else {
+            panic!("dict")
+        };
+        assert_eq!(
+            marker_up(only_item(only_item(map.get("x").unwrap()))),
+            Some(2)
+        );
+        // an `!!omap` entry is a tuple: key and value sit two levels below the list
+        let value = load_text("o: &o !!omap [{k: *o}]\n").unwrap();
+        let PyValue::Dict(map) = &value else {
+            panic!("dict")
+        };
+        let entry = only_item(map.get("o").unwrap());
+        let PyValue::Tuple(parts) = entry.peel() else {
+            panic!("an omap entry is a tuple")
+        };
+        assert_eq!(marker_up(&parts[1]), Some(2));
+    }
+
+    #[test]
+    fn a_shared_node_with_a_marker_to_an_outer_container_is_rebuilt_where_the_distance_differs() {
+        // t = [s, [s]] and s = [t]: `s` sits at depth 1 and at depth 2 of `t`, so its marker is 2 levels up in the first place and 3 in the second
+        let value = load_text("t: &t [&s [*t], [*s]]\n").unwrap();
+        let PyValue::Dict(map) = &value else {
+            panic!("dict")
+        };
+        let PyValue::List(items) = map.get("t").unwrap().peel() else {
+            panic!("list")
+        };
+        assert_eq!(marker_up(only_item(&items[0])), Some(2));
+        assert_eq!(marker_up(only_item(only_item(&items[1]))), Some(3));
     }
 
     #[test]
@@ -754,6 +843,7 @@ mod tests {
                 )),
                 problem_mark: Some(mark("m.yaml", 9, 1, 0)),
                 note: None,
+                shared_marks: true,
                 frames: None,
             }))
         );
@@ -775,6 +865,7 @@ mod tests {
                 )),
                 problem_mark: Some(mark("m.yaml", 3, 0, 3)),
                 note: None,
+                shared_marks: false,
                 frames: None,
             }))
         );
@@ -1011,5 +1102,57 @@ mod tests {
                 "'c'".to_string()
             )]
         );
+    }
+
+    fn list_v(value: &PyValue) -> Vec<PyValue> {
+        match value.peel() {
+            PyValue::Dict(map) => match map.get("v").map(PyValue::peel) {
+                Some(PyValue::List(items)) => items.clone(),
+                other => panic!("a list under v, got {other:?}"),
+            },
+            other => panic!("a mapping, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn the_objects_loader_gives_nan_identity_and_safe_load_keeps_plain_floats() {
+        use crate::pyvalue::same_nan_object;
+        let (bytes, name) = (
+            "v: [.nan, .nan, &n !!float nan, *n, !!float nan]\n".as_bytes(),
+            PyStr::new("m.yaml"),
+        );
+        let plain = list_v(&safe_load(bytes, &name).unwrap());
+        assert!(
+            plain.iter().all(|item| !same_nan_object(item, item)),
+            "safe_load: no object identity"
+        );
+        let objects = list_v(&safe_load_objects(bytes, &name).unwrap());
+        // `.nan` is one shared object, an anchor and its alias are one object, a separate `!!float nan` is another
+        assert!(same_nan_object(&objects[0], &objects[1]));
+        assert!(same_nan_object(&objects[2], &objects[3]));
+        assert!(!same_nan_object(&objects[0], &objects[2]));
+        assert!(!same_nan_object(&objects[2], &objects[4]));
+        assert!(!same_nan_object(&objects[0], &objects[4]));
+    }
+
+    #[test]
+    fn the_objects_loader_answers_like_safe_load_everywhere_but_nan_identity() {
+        let name = PyStr::new("m.yaml");
+        for doc in [
+            "a: 1\nb: [x, 2.5, null, 2001-12-14]\nc: !!binary aGVsbG8=\n",
+            "a: [1, 2\n",
+            "a: !!python/object/apply:os.system [x]\n",
+            "a:\n\t- b\n",
+            "v: [.nan, !!float nan, .inf]\n",
+        ] {
+            match (
+                safe_load(doc.as_bytes(), &name),
+                safe_load_objects(doc.as_bytes(), &name),
+            ) {
+                (Ok(plain), Ok(objects)) => assert_eq!(plain.repr(), objects.repr(), "{doc:?}"),
+                (Err(plain), Err(objects)) => assert_eq!(plain, objects, "{doc:?}"),
+                (plain, objects) => panic!("{doc:?}: {plain:?} vs {objects:?}"),
+            }
+        }
     }
 }

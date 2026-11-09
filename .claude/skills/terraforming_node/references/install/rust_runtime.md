@@ -38,13 +38,13 @@ fmt와 Clippy도 실행하며, 자신의 임시 probe만 정리한다. 이 검�
 
 ```bash
 bash .claude/skills/adversarial-benchmark/scripts/build_rust.sh
-# build_rust.sh가 owner의 모든 native CLI 자체검사까지 수행한다.
+# build_rust.sh는 owner 자체검사 일부(57개 중 30개 실행파일 기동)와 native_health_probes.sh(manifest_contract 비공개 브리지 manifest_tp 2건 · 메인 평면의 turn_budget --self-test)를 수행한다. 전수 기동이 아니다.
 bash .claude/skills/terraforming_node/scripts/build_rust_packages.sh
 # 배달된 공유 Q/T library와 recipe P/upstream U 정상 release 실행파일을 빌드하고 순수 native CLI를 기동한다.
 ```
 
-owner의 build 진입점은 위 helper의 동일 관리 환경으로 `cargo build --release --locked`를 실행하고
-native 자체검사를 수행한다. Cargo.lock의 공개 의존성을 첫 빌드 때 내려받을 수 있어야 한다.
+owner의 build 진입점은 위 helper의 동일 관리 환경으로(상속된 `EASY_VLLM_SOURCE_ROOT` 는 비운다 — 프로토타입 빌드는 cargo 를 명시 실행한다) `cargo build --release --locked`를 실행하고
+위 자체검사와 native 건강 probe 를 수행한다. 어느 probe 가 실제로 돌았는지는 출력(`[native_probe] RAN/SKIPPED/NOT claimed`)에 남는다. Cargo.lock의 공개 의존성을 첫 빌드 때 내려받을 수 있어야 한다.
 캐시가 준비된 환경에서는 `build_rust.sh --offline`을 쓸 수 있으며, 캐시 결손은 실패로 반환한다.
 다른 관리 runtime 위치가 필요한 검증은 `--runtime-home DIR`로 명시한다.
 Q/T/P/U helper도 `--offline`·`--runtime-home DIR`을 받는다. 실제 manifest의 Cargo metadata에서
@@ -111,6 +111,28 @@ Rust 기본 경로의 오류가 발생하면 Python으로 재시도하지 않는
 쓰기 실패는 Python으로 재시도하지 않는다. `CAMPAIGN_READ_ROUTE_OBSERVER=<파일>`은 실행마다 경로·결과·PID를 JSON 한 줄로
 업무 출력 밖에 남긴다. 다른 `campaign_init.py` 호출(writer 전부)은 변하지 않는다.
 
+`manifest_contract.py`의 명령줄 게이트 판정(`--topology single|multi`·`--repo VALUE`·`--require-flag`·`--json`, 분리 토큰·임의 순서·각 1회)은
+같은 B 빌드의 `manifest_contract` 실행파일이 처리하며, 호출부(`run_bench.sh`·`lite_bench.sh`의 Flag 게이트 두 지점)는
+`terraforming_node/scripts/manifest_contract.sh` 런처를 부른다. 두 호출부는 게이트 판정 전에 `MANIFEST_CONTRACT_VALIDATE_ONLY=1`로
+가용성을 한 번 확인하고, 런타임이 없으면 런처의 안내를 보이며 종료 상태 2를 전파한다(게이트 호출은 출력과 상태를 버리고 비0을
+모두 info-only 4로 읽으므로 부재가 "Flag 미발급"으로 가려지지 않게 한다). 런처는 `MANIFEST_CONTRACT_COMPAT_OWNER`로 옆의
+`manifest_contract.py`를, 비어 있지 않은 `MANIFEST_CONTRACT_PYTHON`만 명시 의도로 전달하고 `MANIFEST_CONTRACT_COMPAT_PYTHON`(기본
+`python3`)이 다른 호환 경로의 인터프리터다. 경로 선택(`LegacyExplicit`·`LegacyShape`·`LegacySourceVariant`·`LegacyProfile`·
+`NativeCurrentSource`)은 업무 처리 전에만 정해지고 `MANIFEST_CONTRACT_ROUTE_OBSERVER=<파일>`이 실행마다 한 줄을 남긴다. 네이티브
+처리가 시작된 뒤에는 Python으로 재시도하지 않는다 — 거절·미처리 예외 traceback·인코딩/쓰기 실패는 네이티브가 답하고, 캡처된 원본이 없는
+형태는 숨은 대체 없이 `[manifest_contract] ERROR unsupported shape …` 종료 상태 2로 드러낸다. 프로세스 안에서 `manifest_contract.py`를
+import하는 사용자(`render_sub_env`·`scan_node`·`render_dockerfile`·`harness_permission_probe`·`publish_install_request`·claim predicates·hint evidence)는
+이제 **얇은 import 어댑터**를 import 한다: 판정은 같은 `manifest_contract` 실행파일의 비공개 브리지(`MANIFEST_CONTRACT_BRIDGE`, 타입 그래프 JSON)가 하고,
+어댑터는 타입 전달·결과 계획의 기계적 조립·예외 재구성만 한다(`_load_manifest` 는 원본처럼 호출 시점에 `import yaml`). 그러므로 이 Rust 빌드(+ `manifest_contract.sh` 와
+`manifest_contract_compat_owner.py`)는 **노드의 import 사용자에게도 필수 의존**이며 HW 스캔·Flag 와 무관하다(Flag 가 없어도 import 가 브리지를 부른다). 실행파일이 없으면
+어댑터는 상태 2 의 빌드 안내와 함께 눈에 띄게 실패한다(Python 대체 경로 없음). 검토된 원본은 `manifest_contract_compat_owner.py` 에 바이트 그대로 있고(`REVIEWED_MANIFEST_CONTRACT`
+가 이 파일에 묶인다) 사전 분류된 레거시 경로(CLI 의 `-h`·`--self-test`·약어·사용 오류, 어댑터 `main` 의 같은 형태)만 쓴다. `verify_distribution` 의 호출은 어댑터 파일 경로를 CLI 로 쓴다.
+**공개 진입 사슬(2026-11-09 v8)**: `python3 manifest_contract.py …` 는 `__main__` 이 **같은 PID 로 Rust 실행파일에 직접 exec** 한다(Python → Rust · 셸 비경유 — 호출자가 cwd 를 지운 뒤에도 셸의 `shell-init`/`chdir` getcwd 경고 바이트가 stderr 에 끼지 않는다). 환경은 `manifest_contract.sh` 가 만드는 것과 같다(운반 변수 · 기본값 · unset 규칙). 실행파일 부재/실행 불가(상태 2 + 빌드 안내)·`MANIFEST_CONTRACT_VALIDATE_ONLY=1` 가용성 확인·직접 exec 실패는 **런처가 단일 자리로 답한다**(exec 실패 자체의 안내는 없다 — 셸의 `cannot execute` 상태 126/127 그대로). 독립 `manifest_contract.sh` 호출은 Bash → Rust 이고, 프로세스 안 import 어댑터의 비공개 브리지는 절대 경로 `/bin/bash` 로 런처를 시작한다. 노드에서 빌드한 ELF 를 복사해 배포하지 않는다.
+
+`turn_budget.py`(턴 예산 선언 검증기)의 업무는 같은 B 빌드의 `turn_budget` 실행파일(순수 업무는 공유 T `role-contract::turn_budget`)이 처리한다. 공개 CLI 는 `terraforming_node/scripts/turn_budget.sh` 런처(또는 그것을 exec 하는 `turn_budget.py`)이고, 기존 Python importer 세 곳(`relay`·`bootstrap_canary`·`selftest_harness_switch`)은 같은 이름·서명의 얇은 어댑터 `turn_budget.py` 를 import 하며 어댑터는 비공개 브리지(`TURN_BUDGET_BRIDGE`, 타입 태그 JSON · 정수 16진 전송)로 같은 실행파일을 부른다. 실행파일이 없거나 실행 불가면 런처가 상태 2 와 빌드 안내로 **먼저** 실패하며 Python 대체 경로는 없다(검증된 원본 소스의 사본을 숨은 대체로 실행하지 않는다). 소유자 경로 미설정·모델링되지 않은 텍스트 프로필은 업무 전에 보이는 제어 실패(상태 2)이고 `TURN_BUDGET_ROUTE_OBSERVER=<파일>` 이 실행마다 경로·PID 를 JSON 한 줄로 남긴다. 기본 스키마는 `TURN_BUDGET_OWNER_PATH`(어댑터가 `os.path.abspath(__file__)` 로 내보냄)의 어휘적 위 네 단계이며 호출마다 다시 읽는다. 어댑터가 전달하지 않는 값 모양(정확한 기본 타입·문자열 키 dict·`os.PathLike` 밖의 객체, int 경로)은 업무 전에 `NotImplementedError` 로 거절한다. in-process 예외의 traceback 바이트(U2)는 재현하지 않으며, 세 importer 를 포팅하기 전까지 어댑터는 잔여 Python 이다.
+
+`scan_node.py` 의 **P1 단계**(순수 판정·manifest 조립·파일 판독 공개 16개 이름과 도달 가능한 헬퍼 4개)는 같은 B 빌드의 `scan_node` 실행파일(순수 업무는 공유 T `role-contract::scan_node`·`scan_node_manifest`·`scan_node_files`)이 처리한다. 실행파일은 **비공개 브리지**(`SCAN_NODE_BRIDGE`, 타입 태그 JSON · 정수 16진 전송 · 호출자 객체의 공유 동일성 plan: 요청의 번호 붙은 객체(`id`/`ref`)와 응답의 `argref`)와 자기 검사 `--p1-self-check` 만 가진다(브리지 환경도 자기 검사 인자도 없는 시작은 상태 3 의 보이는 제어 실패). 기존 Python importer(현재 `claim_predicates` 가 `emit_manifest_block`·`read_manifest_field`·`evaluate_gate`·`emit_gate` 를 부른다)는 같은 이름·서명의 얇은 어댑터 `scan_node.py` 를 import 하고, 어댑터는 `terraforming_node/scripts/scan_node.sh` 런처로 같은 실행파일을 부른다. 어댑터는 호출자의 실제 객체를 번호 붙여 보내고 응답 plan 의 `argref` 를 그 실제 객체로 되돌려 조립할 뿐이다(반환값이 입력 객체인 관계 · NaN 동일성 · `AttributeError.name/obj` 가 호출자 객체를 가리키는 관계가 원본과 같다). 업무 선택은 Rust 에만 있다. 런처는 실행파일이 없거나 실행 불가·ELF 가 아니면 상태 2 와 빌드 안내로 **먼저** 실패하며 P1 의 Python 대체 경로는 없다. 실행파일 복사·일반 시작 중 암묵 빌드는 없다. 두 경계는 명시 인자다: 파일은 실제 OS(errno·메시지 그대로 `ManifestUnreadable` 의 `OSError` 원인으로), 시계는 시스템 로컬 시간대의 `%Y%m%d%H`(`localtime_r`; `datetime.now()` 와 같은 원천). `SCAN_NODE_ROUTE_OBSERVER=<파일>` 은 브리지 호출마다 `start`(업무 전)·`end`(결과) 두 줄(실제 pid·ppid·선언된 소유자 경로·route·shape·outcome)을, compat 경로는 같은 형식으로 `CompatOriginalLoad`(이름공간 배관)·`CompatOriginalCli` 를 남긴다. **P1 만의 이행이다 — 전체 스캐너도 Python-free 도 아니다.** P1 밖(하드웨어 프로브·SSH·네트워크 수집·argparse `main`·`_self_test`)은 정확한 원본 소유자 `scan_node_original.py` 로 가는 명시적 compat 경로다: 어댑터를 올릴 때 그 소유자를 모듈 이름 `scan_node` 로 실행해(프레임의 파일은 원본 그대로) 공개·비공개 이름을 이 모듈에 배관하므로 `from scan_node import *` 를 포함한 보통의 export 가 원본과 같고, `ManifestUnreadable` 은 공개 클래스 하나다(compat 전역에도 같은 클래스). 원본 소유자 안의 P1 함수는 원본 Python 그대로 돈다 — compat 의 전체 CLI·`--self-test` 는 P1 네이티브의 증거가 아니다. 네이티브 호출이 실패하면 Python 으로 재시도하지 않는다. **검사**: 네이티브 P1 은 `scan_node.sh --p1-self-check`(내장된 저장 raw 107 행 · `build_rust.sh` 가 빌드 뒤 실행 · `verify_distribution` 의 `terraform_scan_p1_native_selfcheck`)가 확인하고, `verify_distribution` 의 `terraform_scan_selftest_legacy` 는 원본 소유자의 레거시 자기시험일 뿐이다. 정책 문구 바인딩은 P1 문구는 T Rust 소스(`scan_node_manifest.rs`), 미포팅 문구는 `scan_node_original.py` 를 읽는다. 어댑터가 전달하지 않는 값(정확한 기본 타입·문자열 키 dict 밖의 객체, `os.PathLike`, int 경로=fd, 자기 참조)은 업무 전에 `NotImplementedError` 로 거절한다. 잔여: in-process 예외의 traceback 프레임(U2 · 열림 · 위조하지 않음) · 딕셔너리 키 문자열의 객체 동일성.
+
 호출부의 가용성 확인: `CAMPAIGN_READ_VALIDATE_ONLY=1`은 런처의 조건부 환경 변수로, 같은 ELF·실행 비트 검사 뒤에
 네이티브·Python 업무 없이 0을 반환한다(값 1일 때만 · 다른 값과 모든 인자 형태는 종전 경로). 호출부 둘(`broad_search.sh`의
 `cell` 분기, `fetch_sub_docs.sh`)은 첫 캠페인 읽기·부작용(서빙·측정·서브 접속) 전에 이것을 한 번, stderr 를 버리지
@@ -151,6 +173,24 @@ tool_plane이 런타임 스킬 0종인 ray-worker sub는 이 업무 패키지 �
 도구체인 install/check는 그 노드에도 적용한다. 실제 전달 대상에 owner 패키지가 있어야 하는데
 없거나 lockfile/빌드/기동 검사가 실패하면 해당 하네스 배포 완료로 기록하지 않는다.
 Rust/C probe 통과는 어플리케이션 이행 완료가 아니다.
+
+## 명령 순서와 ELF 의존 (새 클론)
+
+Rust 설치(`rust_bootstrap.sh install|check`)는 어떤 검증기·Flag·ELF 에도 의존하지 않는다 — 순환이 없다. 호스트에는 `/bin/bash` 와 이 helper 가 직접 부르는 외부 명령이 있어야 한다: coreutils(`uname`·`head`·`tr`·`cat`·`env`·`realpath`·`mktemp`·`mkdir`·`rm`·`chmod`) · `grep` · `sed` · `awk`, 그리고 install 의 `curl`·`sha256sum`, check/설치 링크의 `cc`·`ar`(`ldd` 는 있을 때만 musl 판별에 쓴다). 최소 호스트라는 주장이 아니라 **실제 선행조건 목록**이며, 쓰기 직전의 가드가 부족한 도구를 이름으로 알리고 rc 4 로 멈춘다(호스트 전수 스캔은 하지 않는다). 스크립트 위치는 `dirname` 없이 bash 내장(`BASH_SOURCE`·`cd`·`pwd`)으로 해소하며 `/` 직하 절대경로도 처리한다 — 이 규약은 `rust_bootstrap.sh`·`build_rust.sh`·`build_rust_packages.sh`·`native_health_probes.sh` 와 네 launcher(`scan_node.sh`·`turn_budget.sh`·`campaign_init.sh`·`manifest_contract.sh`)에만 적용된다(기존 다른 스크립트는 그대로 `dirname` 을 쓴다). 표의 "ELF 필요" 명령은 해당 노드에서 정상 빌드를 마친 뒤에만 쓴다. 없으면 상태 2 의 빌드 안내(또는 어댑터의 `RuntimeError`)로 눈에 띄게 실패하며 Python 대체는 없다.
+
+| 단계 | 명령 | Rust ELF |
+|---|---|---|
+| 진입 | `staleness_gate.py` · `scan_node.py --topology single\|multi [--emit-manifest]` · `node_role_contract.py` · `topology_parity.py` | 불필요(Python / 원본 소유자) |
+| 설치 | `rust_bootstrap.sh install → check` | 불필요 |
+| 빌드 | `build_rust.sh`(B) → `build_rust_packages.sh`(Q/T 라이브러리 · P · U) | 산출 |
+| 서브 manifest·렌더 | `scan_node.py --emit-sub-manifest` · `render_sub_env.py --sub-manifest\|--self-test` · `render_dockerfile.py` · `publish_install_request.py` | **manifest_contract**(메인) |
+| 카나리·위임 | `bootstrap_canary.py --phase discovery\|permissions` · `relay.py` | **turn_budget**(메인) |
+| 벤치 Flag 게이트 | `run_bench.sh` · `lite_bench.sh` (`manifest_contract.sh`) | **manifest_contract**(그 노드) |
+| 정책·배포 검사 | `claim_predicates.py`(모듈 적재는 ELF 없이 되나 술어 실행은 필요) · `verify_distribution.py` 의 render/turn_budget/relay/canary/scan P1 자체검사 | **manifest_contract · turn_budget · scan_node** |
+| pre-commit 훅 | `.claude/hooks/pre-commit` → `runtime_selftest.py --tripwires-only` (`evidence_publisher` → `doc_naming` → 벤치 `doc_naming_native` → `reporting_native` 가 **import 시** B 의 `bench_reporting_api` ELF 를 요구한다 · 2026-11-09 정적·실행 관측) | **bench_reporting_api**(B 정상 빌드) — 훅 배선(onboarding 0.5.9)은 그 노드의 정상 빌드 뒤에 한다. 미빌드 노드에서 훅을 켠 채 커밋이 거부되는 것은 정상 차단이며 `--no-verify` 로 우회하지 않는다 |
+| 서브 권한 카나리 | `harness_permission_probe.py` | 불필요 — 부트스트랩 권한 메타데이터 리더는 **Python 이 설계**다(배달된 검토 원본 `manifest_contract_compat_owner.py`; 업무 Rust 주장이 아니며 Native→Python 대체가 아니다. 프로브는 `observe` 맨 처음에 이 파일을 **한 번만** 읽고 그 바이트를 그대로 실행한다 — 권한 관측 부수효과 전에 실패하며 `unobserved` 로 가려지지 않는다. **무결성 권위는 노드별로 하나**다: 그 노드의 git 이 이 파일을 stage-0 blob 으로 들고 있으면(예: 추적되는 Main) git 이 유일한 권위라 읽은 바이트가 그 blob 과 같아야 하고 digest 는 보지 않는다; 어떤 git 도 들고 있지 않은 오버레이 노드(wiki-only ray-worker·a2a-agent 서브, 맹점층)에서만 `BOOTSTRAP_READER_SHA256` 닫힌 원본-의미 프로필 tripwire 가 쓰인다. 따라서 git 이 들고 있는 노드에서는 의미 프로필 핀이 강제되지 않는다 — 거기에도 강제하려면 추적물 digest 를 두 번째 자리에 적는 것이라 단일 권위 규칙과 충돌하므로 사용자 기준이 필요하다) |
+
+wiki-only ray-worker(`tool_plane`=wiki-desk)는 B/Q/T/P/U 를 받지 않는다: 도구체인 install/check 와 "불필요" 열의 명령만 쓰며 메인 ELF 를 복사하지 않는다. 서브의 권한 카나리 리더가 없거나 바이트가 다르면 probe 는 `unobserved` 로 가리지 않고 분명한 오류로 멈춘다.
 
 ## 서브와 다른 PC 배포
 

@@ -1,0 +1,10 @@
+terraforming:
+  complete: true
+  branch_verified: true
+topology: single
+gpus_per_node: 1
+model_source: managed
+nodes: []
+custom_model_paths: {a: /x}
+quant_model_path: /q
+tiktoken_host_path: ""

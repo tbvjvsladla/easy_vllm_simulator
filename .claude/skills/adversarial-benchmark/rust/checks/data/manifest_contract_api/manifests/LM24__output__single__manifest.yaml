@@ -1,0 +1,12 @@
+terraforming:
+  complete: true
+  branch_verified: true
+topology: single
+gpus_per_node: 1
+model_source: managed
+nodes: []
+nan1: .nan
+nan2: .nan
+nan3: &n !!float nan
+nan4: *n
+nan5: !!float nan

@@ -8,7 +8,7 @@
 use crate::{FrameRoot, SourceFrame, OWNER_FILE};
 use agent_runtime_support::pystr::PyStr;
 use agent_runtime_support::pyvalue::PyValue;
-use agent_runtime_support::pyyaml::{safe_load, YamlError};
+use agent_runtime_support::pyyaml::{safe_load, safe_load_objects, YamlError};
 
 #[derive(Debug)]
 pub enum LoadFailure {
@@ -68,6 +68,18 @@ impl LoadFailure {
 
 /// `load_yaml(path)`.
 pub fn load_yaml(path: &PyValue) -> Result<PyValue, LoadFailure> {
+    load_with(path, safe_load)
+}
+
+/// `load_yaml(path)` for a caller that keys dictionaries or tests membership with the loaded values: NaNs are Python objects
+/// (one shared `.nan`, one object per other NaN node, an alias reuses it).
+pub fn load_yaml_objects(path: &PyValue) -> Result<PyValue, LoadFailure> {
+    load_with(path, safe_load_objects)
+}
+
+type Loader = fn(&[u8], &PyStr) -> Result<PyValue, YamlError>;
+
+fn load_with(path: &PyValue, loader: Loader) -> Result<PyValue, LoadFailure> {
     let name = match path.peel() {
         PyValue::Str(text) => text.clone(),
         PyValue::Bool(_) | PyValue::Int(_) => {
@@ -110,5 +122,5 @@ pub fn load_yaml(path: &PyValue) -> Result<PyValue, LoadFailure> {
         use std::io::Read;
         file.read_to_end(&mut content).map_err(failed)?;
     }
-    safe_load(&content, &name).map_err(|error| LoadFailure::Yaml(Box::new(error)))
+    loader(&content, &name).map_err(|error| LoadFailure::Yaml(Box::new(error)))
 }

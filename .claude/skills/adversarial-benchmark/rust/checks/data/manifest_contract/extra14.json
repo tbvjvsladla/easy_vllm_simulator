@@ -1,0 +1,393 @@
+{
+"schema": "r48-manifest-contract-golden/1",
+"provenance": "literal copy of the ONE actual ORIGINAL extra14 capture (T/r48-extra14-actual-summary/result.json, Python 3.12.3 / PyYAML 6.0.1); only the private fixture root and owner clone path are replaced by <FIXROOT>/<OWNER>; bytes are latin-1 code points",
+"base_profile_env": {
+"LANG": "C.UTF-8",
+"LC_ALL": "C.UTF-8"
+},
+"rows": [
+{
+"id": "X01",
+"group": "EXTRA",
+"repo_group": "single",
+"case_dir": "cases/X01",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "X01",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [\n    {\n      \"role\": 1\n    },\n    {\n      \"role\": true,\n      \"model_source\": \"custom\"\n    },\n    {\n      \"role\": 2.5\n    },\n    {\n      \"role\": \"1\"\n    }\n  ],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {\n    \"1\": \"custom\",\n    \"2.5\": \"managed\",\n    \"1\": \"managed\"\n  },\n  \"manifest_path\": \"<FIXROOT>/single/cases/X01/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "X02",
+"group": "EXTRA",
+"repo_group": "single",
+"case_dir": "cases/X02",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "X02",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "{\n  \"flag\": true,\n  \"reason\": \"Flag valid (complete + branch_verified + HW\u00ec\u0082\u00ac\u00ec\u008b\u00a4 + model_source)\",\n  \"exit_code\": 0,\n  \"topology\": \"single\",\n  \"gpus_per_node\": 1,\n  \"nodes\": [\n    {\n      \"role\": null\n    },\n    {\n      \"role\": false\n    },\n    {\n      \"role\": 0\n    },\n    {\n      \"role\": \"\"\n    },\n    7,\n    {\n      \"role\": true\n    }\n  ],\n  \"model_source\": \"managed\",\n  \"nas_model_path\": \"/fixture/models\",\n  \"custom_model_paths\": {},\n  \"quant_model_path\": \"\",\n  \"tiktoken_host_path\": \"\",\n  \"manifest_tp\": 1,\n  \"node_warnings\": [],\n  \"effective_model_source\": {\n    \"node0\": \"managed\",\n    \"node1\": \"managed\",\n    \"node2\": \"managed\",\n    \"node3\": \"managed\",\n    \"true\": \"managed\"\n  },\n  \"manifest_path\": \"<FIXROOT>/single/cases/X02/output/single/manifest.yaml\"\n}\n",
+"stderr": ""
+},
+{
+"id": "X03",
+"group": "EXTRA",
+"repo_group": "single",
+"case_dir": "cases/X03",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "X03",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 237, in evaluate_contract\n    (node.get(\"role\") or \"node%d\" % i): effective_model_source(node, ms)\n     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: unhashable type: 'list'\n"
+},
+{
+"id": "X04",
+"group": "EXTRA",
+"repo_group": "single",
+"case_dir": "cases/X04",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "X04",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 444, in main\n    res = evaluate_contract(man, topology)\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<OWNER>\", line 237, in evaluate_contract\n    (node.get(\"role\") or \"node%d\" % i): effective_model_source(node, ms)\n     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: unhashable type: 'dict'\n"
+},
+{
+"id": "X05",
+"group": "EXTRA",
+"repo_group": "single",
+"case_dir": "cases/X05",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "X05",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 0,
+"stdout": "Flag valid \u00c2\u00b7 topology=single \u00c2\u00b7 gpus_per_node=1 \u00c2\u00b7 manifest_tp=1 \u00c2\u00b7 model_source=managed\n",
+"stderr": ""
+},
+{
+"id": "X06",
+"group": "EXTRA",
+"repo_group": "single",
+"case_dir": "cases/X06",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "X06",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 326, in _iterencode_list\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 439, in _iterencode\n    o = _default(o)\n        ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 180, in default\n    raise TypeError(f'Object of type {o.__class__.__name__} '\nTypeError: Object of type date is not JSON serializable\n"
+},
+{
+"id": "X07",
+"group": "EXTRA",
+"repo_group": "single",
+"case_dir": "cases/X07",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "X07",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: per-node model_source \u00ec\u0098\u00a4\u00eb\u00a5\u0098: nodes[0](2026-11-08).model_source='bad' (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 managed|ephemeral|custom)\n"
+},
+{
+"id": "X08",
+"group": "EXTRA",
+"repo_group": "single",
+"case_dir": "cases/X08",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "X08",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: per-node model_source \u00ec\u0098\u00a4\u00eb\u00a5\u0098: nodes[0](2026-11-08 12:30:00).model_source='bad' (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 managed|ephemeral|custom)\n"
+},
+{
+"id": "X09",
+"group": "EXTRA",
+"repo_group": "single",
+"case_dir": "cases/X09",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "X09",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 5,
+"stdout": "",
+"stderr": "Flag \u00eb\u00af\u00b8\u00eb\u00b0\u009c\u00ea\u00b8\u0089: per-node model_source \u00ec\u0098\u00a4\u00eb\u00a5\u0098: nodes[0](2026-11-08 12:30:00+00:00).model_source='bad' (\u00ea\u00b8\u00b0\u00eb\u008c\u0080 managed|ephemeral|custom)\n"
+},
+{
+"id": "X10",
+"group": "EXTRA",
+"repo_group": "single",
+"case_dir": "cases/X10",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "X10",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 341, in _iterencode_dict\n    raise ValueError(\"Circular reference detected\")\nValueError: Circular reference detected\n"
+},
+{
+"id": "X11",
+"group": "EXTRA",
+"repo_group": "single",
+"case_dir": "cases/X11",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "X11",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 454, in main\n    % (res[\"topology\"], res[\"gpus_per_node\"], res[\"manifest_tp\"], res[\"model_source\"]))\n                        ~~~^^^^^^^^^^^^^^^^^\nValueError: Exceeds the limit (4300 digits) for integer string conversion; use sys.set_int_max_str_digits() to increase the limit\n"
+},
+{
+"id": "X12",
+"group": "EXTRA",
+"repo_group": "single",
+"case_dir": "cases/X12",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "X12",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 395, in _iterencode_dict\n    yield _intstr(value)\n          ^^^^^^^^^^^^^^\nValueError: Exceeds the limit (4300 digits) for integer string conversion; use sys.set_int_max_str_digits() to increase the limit\n"
+},
+{
+"id": "X13",
+"group": "EXTRA",
+"repo_group": "single",
+"case_dir": "cases/X13",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "X13",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "manifest \u00ed\u008c\u008c\u00ec\u008b\u00b1 \u00ec\u008b\u00a4\u00ed\u008c\u00a8: 'utf-8' codec can't decode byte 0xff in position 8: invalid start byte\n"
+},
+{
+"id": "X14",
+"group": "EXTRA",
+"repo_group": "single",
+"case_dir": "cases/X14",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "X14",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "manifest \u00ed\u008c\u008c\u00ec\u008b\u00b1 \u00ec\u008b\u00a4\u00ed\u008c\u00a8: 'utf-8' codec can't decode byte 0xff in position 812: invalid start byte\n"
+}
+]
+}

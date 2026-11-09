@@ -1,0 +1,10 @@
+x-common: &common
+  image: img
+  restart: "no"
+services:
+  a:
+    <<: *common
+    build:
+      dockerfile: "$DF"
+  b:
+    <<: *common

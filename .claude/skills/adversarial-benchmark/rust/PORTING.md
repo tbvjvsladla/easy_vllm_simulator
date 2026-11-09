@@ -2703,3 +2703,266 @@ inline/interop work, the other stages, six main/sub profiles and actual single/m
 **한계(주장하지 않음).** (1) P08 의 프로세스 수준 실행은 Root 가 할당하는 5개 미만 성분의 소유 파일이 필요해 함수 수준만 확인했다. (2) 복사본 격리 자체검사(`broad_search_*`, `sweep_repeats`)는 C 안에 릴리스 ELF 가 없어 실행하지 않았다(목록만 갱신, 컴파일됨). (3) `print` 가 `derive` 에서 인코딩에 실패하거나 즉시 쓰기에 실패하는 traceback 의 프레임 모양은 원본 raw 가 없고 3.12 의 캐럿 규칙에서 추론한 것이다. (4) 호출부는 stderr 를 버리므로 런처 안내(상태 2)가 가려지고 기존 `|| echo` 대체값이 쓰일 수 있다 — Root 의 호출부 정책 결정 항목. 성능은 측정하지 않았다.
 
 **호출부 가용성 확인(v2).** 런처에 조건부 환경 변수 `CAMPAIGN_READ_VALIDATE_ONLY=1`(값 1만, 같은 ELF·실행 비트 검사 뒤 업무 없이 0)을 두고 `broad_search.sh cell`(첫 서빙·측정·캠페인 읽기 전)과 `fetch_sub_docs.sh`(서브 접속 전)가 한 번 호출한다. stderr 를 버리지 않고 실패 상태를 전파하며, 가용성 확인일 뿐 건강 증명이 아니다. 새 argv·Rust 의미 변경 없음. 검사: `campaign_read_cli` 14(신규 3: validate-only 부재·비실행·유효, `fetch_sub_docs.sh` 원격 접근 전 중단, `broad_search.sh` 정적 순서 — 이 스크립트는 내부에서 Git 을 호출해 동적 실행은 하지 않았다).
+
+## R48 — `manifest_contract` 명령줄 게이트 (소스 초안 · 빌드·테스트 미실행)
+
+**범위.** T(`role-contract`)에 `manifest_gate.rs`(순수 `evaluate_contract`/`manifest_tp`/`effective_model_source`/`resolve_topology`/
+`branch_topology_conflict`, 주입 가능한 `BranchProbe`)와 `manifest_gate_cli.rs`(정확한 문법·`main` 흐름·출력·JSON/인쇄 실패 traceback·`GitBranch`),
+`source_identity::REVIEWED_MANIFEST_CONTRACT`; B에 새 `[[bin]] manifest_contract`(일반 bin 54→55, 개수는 Cargo metadata에서 동적으로 센다),
+`src/manifest_contract.rs`, `src/bin/manifest_contract.rs`, 검사 `checks/manifest_contract_cli.rs`와 동결 자료 `checks/data/manifest_contract/`;
+런처 `terraforming_node/scripts/manifest_contract.sh`; 호출부 2곳(`run_bench.sh`·`lite_bench.sh`). `manifest_contract.py`(원본 바이트)는
+건드리지 않았고 프로세스 안 import 사용자 전부와 `verify_distribution` 호출은 Python으로 남는다.
+
+**환경 이름(Rust·런처·검사가 같은 집합).** `MANIFEST_CONTRACT_COMPAT_OWNER`·`MANIFEST_CONTRACT_ROUTE_OBSERVER`·`MANIFEST_CONTRACT_PYTHON`·
+`MANIFEST_CONTRACT_COMPAT_PYTHON`·`MANIFEST_CONTRACT_BIN`·`MANIFEST_CONTRACT_VALIDATE_ONLY`.
+
+**문법 결정.** `--repo` 값이 빈 문자열이면 `argparse`가 받으므로 네이티브가 처리한다(기본 `.`). `-`로 시작하는 값·`--topology` 선택지 밖의 값·약어·`--x=y`·
+중복·`-h`·`--self-test`는 업무 전에 `LegacyShape`다.
+
+**캡처 기준.** 실제 원본 190건(Python 3.12.3 · PyYAML 6.0.1, `T/r48-original190-actual-capture`)의 stdout/stderr 바이트가 오라클이다. 계획서가 가정한
+PyYAML 6.0.3은 틀렸다 — 포트(`agent_runtime_support::pyyaml`)가 6.0.1 원본 바이트와 같은지는 동결 자료가 증명해야 하며 이 초안은 증명하지 않았다.
+
+**명시적 미해결(INCOMPLETE).** 빌드·`cargo test`·clippy 미실행. 캡처가 없는 형태는 추측 대신 드러낸다: ① 진실한 비문자열 `role`의 `effective_model_source` 키(`Unsupported`,
+종료 2), ② 스스로를 포함하는 dict·JSON이 쓸 수 없는 키·4300자리 초과 정수·재귀 한계 초과의 JSON traceback(`Unsupported`), ③ `bytes` `work_dir`/`tiktoken_host_path`의
+예외 문구(CPython 문서 기준 구현, 미검증), ④ 날짜/시각 `role`의 `%s`(repr 사용, 미검증), ⑤ 8 KiB 청크 경계를 넘는 잘못된 UTF-8 위치.
+
+### R48 정제 — 컴파일 전 결정 K1·K4·K5 (소스 정제 · 빌드·테스트 미실행)
+
+**K1 — `TERRAFORM_FLAG_GATE.C2` 호출부 단언의 배선 적응.** 사용자 기준·권위의 변경이 아니라 호출부 명령이 런처로 옮겨 간 데 따른 리터럴 갱신이다.
+`claim_predicates.py`의 두 지점은 하나의 도우미 `_require_flag_gate_caller`로 모였고 요구하는 것은 (a) `run_bench.sh`가 정확한 새 명령
+`bash "${MC%.py}.sh" --topology "$TOPO" --repo "$REPO" --require-flag`를 담는다 — 인자열은 같은 단언이 인-프로세스 기준 구현으로 실행한
+`manifest_contract.main(["--topology", "single", "--repo", tmp, "--require-flag"])`와 같다, (b) 런처 가용성 확인
+`MANIFEST_CONTRACT_VALIDATE_ONLY=1 bash "${MC%.py}.sh"`가 게이트 호출보다 앞선다, (c) 게이트 호출 바로 뒤에 `exit 4`(무효 Flag 정지)가 있다,
+(d) 게이트가 작업 환경 파일(`EF=`) 적재보다 앞선다. 이전 시나리오·기대 종료 코드는 그대로이며 임의의 `bash`로 완화하거나 단언을 지우지 않았다.
+인-프로세스 `manifest_contract.main` 호출은 검증/기준 평면(S7 열림)의 Python 원본이며 이 단언은 네이티브 명령줄을 증명하지 않는다 — 네이티브는 원본/네이티브
+코퍼스와 새 셸 테스트가 증명한다. 쉘 문법 대응: `$MC`는 `.../manifest_contract.py` 경로이고 `${MC%.py}`는 그 접미사 `.py`를 떼어 같은 폴더의 런처
+`manifest_contract.sh`를 가리킨다.
+
+**K4 — 업무 전 프로필 경로(R47식) 유지.** `TextProfile::from_environment`가 모델링하는 것만 `NativeCurrentSource`다: `LC_ALL`/`LC_CTYPE`/`LANG`이 UTF-8
+문자셋이거나 `C`/`POSIX`(UTF-8 모드·로캘 강제 포함), `PYTHONUTF8`은 0/1, `PYTHONIOENCODING`은 `utf-8`·`ascii`(핸들러 `strict`/`surrogateescape`/
+`backslashreplace`). 그 밖 — 예컨대 E04의 `PYTHONIOENCODING=latin-1`, UTF-8도 C도 아닌 로캘 문자셋, 알 수 없는 핸들러, 잘못된 `PYTHONUTF8` — 은 계획된
+`LegacyProfile`이며 현 모델이 의미 전부를 모델링하지 않으므로 경로 명세를 조용히 바꾸지 않았다. 빈 `--repo ""`(P12)는 원본 cwd 의미로 유효하므로
+네이티브가 처리한다: 이는 소스 네이티브 커버리지 확대(내부)이지 외부 동작 변경이 아니다(원본은 `os.path.abspath("")` = cwd). 등호형·중복·약어 플래그는
+선언대로 `LegacyShape`이다.
+
+**K5 — 원본 소스에서 읽히는 의미 격차를 구현(미설계 `Unsupported` 제거).**
+- `role` 키(소유자 236-239행 사전 컴프리헨션): 거짓 값(`None`/`""`/`0`/`false`/빈 컨테이너)은 `node<i>`(i는 모든 노드를 센다); 문자열은 그대로;
+  `int`/`float`/`bool`은 Python 키 동치(`1`·`1.0`·`True`는 하나, 첫 키 객체·위치 유지, 마지막 값)로 `PyDict::insert_key`와 YAML이 쓰던 `dict_key`
+  (공개로 노출)에 위임; 날짜/타임스탬프/바이트는 유효한 키(게이트는 성공, `json.dumps`만 `TypeError: keys must be str, int, float, bool or None, not date`);
+  진실 값인 list/dict/set는 `TypeError: unhashable type: 'list'` 등 — 3.12는 컴프리헨션을 인라인하므로 `<dictcomp>` 프레임 없이 `evaluate_contract`
+  237행 한 프레임이며 강조 구간은 미확정(전체 행·캐럿 없음으로 가정, 캡처 X03/X04가 확정).
+- `%s` 서식: `str(date)`=ISO 날짜, `str(datetime)`=공백 구분 `isoformat`(`py_str`); 나머지는 `repr`. 메시지의 role·work_dir·플레인 줄에 적용.
+- JSON 실패 traceback: 사전 키 거부(`encoder.py` 377행)와 사전 순환(341행)을 3.12 인코더 소스에서 읽어 구현 — 둘 다 **원본 캡처 전 미검증**.
+  4300자리를 넘는 정수의 `%s`/JSON은 계속 명시 `Unsupported`(종료 2, 숨은 대체 없음)이며 이는 최종 대체가 아니라 열린 INCOMPLETE다.
+- 여전히 열림: 8 KiB 청크 경계 뒤의 잘못된 UTF-8 위치, 4300자리 정수 문구·프레임, `bytes` `work_dir`/`tiktoken_host_path`의 예외 문구, 깊은 재귀.
+  리터럴 근거는 `extra-original-proposal`(X01–X14, 데이터만)이 후속 캡처로 제공한다.
+
+### R48 빌드·검사 결과 (비공식 사본 · 원본 190 + 추가 14 동결 raw로 교정)
+
+**상태: INCOMPLETE** — 컴파일·clippy·단위/골든/셸 검사는 통과했으나 아래 "열림" 항목과 C2 전체 시나리오(샌드박스 `/tmp` 쓰기 제약), 196 코호트·배포·성능은 NOT_RUN이다.
+
+**원본 raw로 바로잡은 가정(프레임 투영 없이 실제 바이트에서).**
+- X03/X04 `TypeError: unhashable type` 프레임의 강조 구간은 키-값 문장에서 첫 글자(여는 괄호)를 뺀 전체(67자)다 → `EFFECTIVE_KEY.expr`.
+- 날짜 `role`은 `nodes` 목록에서 **값**으로 먼저 출력되므로 `--json`은 `Object of type date is not JSON serializable`(캡처 X06)로 실패한다 — 키 거부(377행)는 이 경로에서 도달하지 않는다. 키 거부(`custom_model_paths`의 날짜 키)와 리스트 안 큰 정수(314행) 프레임은 **캡처가 없어 미검증**이다.
+- 사전 순환(X10)은 프레임 432·406·406·341, 큰 정수 JSON(X12)은 432·395(`yield _intstr(value)`, 강조 `_intstr(value)`), 큰 정수 평문(X11)은 454행 `~~~^^^…`이며 메시지는 `Exceeds the limit (4300 digits) for integer string conversion; use sys.set_int_max_str_digits() to increase the limit`(자리수 문구 없음).
+- UTF-8 위치(X13/X14): 8 KiB 청크 상대 위치이며 청크 경계에 걸친 글자의 앞 바이트가 다음 디코드 입력에 이어져 위치에 포함된다 — 포트가 이미 그렇게 읽는다(수정 없이 일치).
+- `date`/`datetime` `%s`와 순환 사전의 가정은 캡처와 일치했다.
+
+**검사 범위.** T `manifest_gate_checks`(12) · B `manifest_contract_cli`(8: 문법·경로·소유자 프레임 소스 결속·원본 190 골든 재생·추가 14 골든 재생·구조 검사) ·
+B `manifest_contract_shell`(5: 런처 부재/비실행 exit 2가 어떤 레거시보다 먼저·`VALIDATE_ONLY` 가용성만(옵저버·시작 없음)·소유자 export와 빈 인터프리터 해제·
+호출부 안내 전파·네이티브 Flag 미발급 4/발급 시 게이트 통과 후 환경 파일 부재 2/소유자 부재 분기 4). 골든은 비공개 경로 접두(`<FIXROOT>`/`<OWNER>`)만 치환한 리터럴
+바이트이며 기대값·지원 범위를 편집해 실패를 숨기지 않았다. 테스트는 정본 Python 소유자를 실행하지 않는다(동일 바이트 소유자는 네이티브로 라우팅).
+
+**K1 시나리오 적응(Root 승인 범위).** C2의 hermetic `run_bench.sh` 시나리오는 게이트 *답*을 가짜 python3로 대신했으므로, 같은 자리에 게이트 런처 대역
+(`manifest_contract.sh`: 가용성·게이트 모두 성공)을 둔다. 실제 런처·네이티브 게이트는 셸 검사와 원본/네이티브 코퍼스가 증명한다.
+
+**열림.** `bytes` `work_dir`/`tiktoken_host_path` 예외 문구(캡처 없음) · 키 거부(377)/리스트 큰 정수(314) 프레임 · C2 시나리오의 `vllm bench serve` 이후 구간(샌드박스가
+`/tmp` 쓰기를 막음 — 게이트 통과까지만 확인) · 196/추가 14 네이티브 코호트 · 배포·성능.
+
+### R48 부록 — 추가 9 원본(Y01~Y09) 통합 · 이전 주장 철회
+
+**철회.** 앞 절들의 "4300자리 정수 `role` 키는 사실상 도달 불가" 및 `bytes` `work_dir`/`tiktoken_host_path`가 열림이라는 서술 중 앞의 것은 소스가 뒷받침하는 제외가 아니었다.
+실제 캡처 Y08(평문 exit 0)·Y09(`--json` ValueError exit 1)가 둘 다 도달함을 보였다. 이 부록이 앞 절을 대체한다(이전 결과 파일은 고치지 않았다).
+
+**실제 raw로 확정된 것(원본 Python 3.12.3 / PyYAML 6.0.1, 한 번 실행).**
+- Y01 `custom_model_paths`의 날짜 키: 프레임 432·406(res)·377(`_iterencode_dict`, `raise TypeError(f'keys must be …` 첫 줄, 캐럿 없음), `keys must be str, int, float, bool or None, not date` — 소스에서 읽은 프레임과 일치.
+- Y02 리스트 안 큰 정수: 432·406·314(`yield buf + _intstr(value)`, 캐럿 `_intstr(value)`) — 일치. Y09 노드 안 큰 정수: 432·406·326·395 — 일치(역할은 JSON 키가 아니라 `nodes` 값으로 먼저 실패).
+- Y03/Y04 bytes: `a bytes-like object is required, not 'str'`(genexpr 캐럿 `w.rstrip("/")`) / `startswith first arg must be bytes or a tuple of bytes, not str`(캐럿 `tik.startswith(w.rstrip("/") + "/")`) — 일치. Y05 같은 bytes는 평문 exit 0, Y06은 `Object of type bytes is not JSON serializable` — 일치. 이로써 `bytes` 한계의 "열림"이 닫혔다.
+- Y07 NaN 역할: `effective_model_source`는 **키 3개**(`.nan` 공유 객체 → custom, 앵커+별칭 → ephemeral, 별개 `!!float nan` → managed)다. 표준 숫자 `nan` 동치가 아니라 Python 객체 동일성이다.
+
+**소스 변경(실제 raw에서 연역된 유일한 격차).** 파일 로더는 NaN 객체를 만들지 않아(`.nan`·별칭이 모두 같은 맨 실수) 역할 키가 5개가 된다. 그래서 (1) 공통 패키지에
+`pyyaml::safe_load_objects`(NaN 객체 선택만 다른 같은 로더)를, (2) T에 `load::load_yaml_objects`를 추가하고 `manifest_gate_cli`가 그것을 쓰며, (3) 게이트의 역할 키 정체성
+(`nan_origin`)은 객체의 할당 주소다. 다른 소비자의 `safe_load`/`load_yaml`은 바뀌지 않았다. **빌드·테스트는 이 호출에서 실행하지 않았다.**
+
+### R48 부록 2 — extra9 소스 통합의 빌드·검사 결과
+
+**범위 충족(비공식 사본 · 사적).** 원본 213 형상(190+14+9)에 대한 `manifest_contract` CLI/라이브러리 소스: 잠금·오프라인 컴파일, `cargo fmt --check`(Q/T/B 모두 0),
+`clippy --all-targets -D warnings`(Q/T/B 모두 0), 단위·골든·셸 검사 통과. 전체 작업·196+14+9 네이티브·배포·성능·남은 Python 임포터·S3~S7은 **열림/NOT_RUN**이다.
+
+**명령(환경 먼저).** `TC=<관리 1.99.1 bin>` 을 PATH 맨 앞에, `RUSTUP_AUTO_INSTALL=0 CARGO_NET_OFFLINE=true CARGO_BUILD_JOBS=2 CARGO_HOME=<B>/cargo-home CARGO_TARGET_DIR=<B>/cargo-target`.
+각 매니페스트에서 `cargo fmt --check` · `cargo clippy --offline --locked --all-targets -- -D warnings` · Q `cargo test --offline --locked`(86 = lib 80 + pycall 6; 두 개는 신규
+`safe_load_objects` 검사) · T `cargo test --offline --locked`(65: lib 1 · identity 21 · manifest_gate 13 · role_contract 10 · topology 20) · B
+`cargo test --offline --locked --test manifest_contract_cli --test manifest_contract_shell`(14 = 9 + 5) · 다른 두 소비자 `cargo check --offline --locked --all-targets`(0/0) ·
+B `cargo build --offline --locked --release --bins`(0). 대상 수는 `cargo metadata`에서 읽었다: B lib 1 · bin **55** · test 85 · build script 1, Q lib 1 · test 1, T lib 1 · test 4, 기능 없음.
+
+**골든.** `original190.json` = 네이티브 172 + 레거시 경로 단언 18, `extra14.json` = 네이티브 14, `extra9.json` = 네이티브 9. 기대 바이트는 문자 그대로(경로 접두 `<FIXROOT>`/`<OWNER>`만 치환)이며
+이번 창에서 쓰지 않았다. 네이티브 성공 또는 치명 1 형상에 대한 `Unsupported` 종료 2는 없다. Y07의 NaN 객체 동일성 3키(custom/ephemeral/managed)는 라이브러리 재생과, **새 ELF를 자체
+임시 픽스처 사본 9개에 돌려** 첫 종료·stdout·stderr 바이트가 골든과 같음으로 관찰했다.
+
+**재사용(재실행 안 함).** `load_yaml`은 같은 `safe_load`를 그대로 쓰고(함수 포인터 간접화) T 전체와 B 라이브러리 컴파일이 통과했으므로 `campaign_read_cli`·`bench_shell_*`·
+classify_cell 계열은 이전 통과를 재사용한다. C2 독립 리뷰 PASS, L1~L10·R/P/S 자체 시험, render_sub_env 23, antipattern T1~T15, 간선 검사는 이전 소스에서 유효하며 이번 변경과
+접점이 없다. 닫힌 R43/R44/R45/R47 코호트와 원본 213 실제 코호트는 재실행하지 않았다.
+
+**ELF.** 새 `manifest_contract` release sha256 `67d2a3b95bb90b49984507d1af637b49d2926ab2a794af140c127e66b97cca63`(이 소스의 현재 산출물). 이전 `91c29104…`는 extra9 이전 소스의 옛 증명용이며 현재가 아니다.
+
+### R48 부록 3 — gap3 원본(R48K01~K03) 반영: 소스 수정(빌드·검사 미실행)
+
+**원본 raw로 확정된 것(Python 3.12.3 / PyYAML 6.0.1, 한 번 실행; K01은 의도한 분기에 닿지 않았다).**
+- R48K01: 흐름 매핑 안의 4335자리 정수 키는 YAML 스캐너의 단순 키 한계(1024자, `scanner.py:279-293`)에 걸려 키가 사라지고 `:`만 남아 **exit 2 파서 오류**(`while parsing a flow mapping … expected ',' or '}', but got ':'`)다. 이 관찰이 원본 계약이며 K01 소스 가설(JSON ValueError)은 불일치로 남긴다(수정·재생·추측 프레임 없음). 네이티브 로더(공통 `pyyaml` 포트)는 같은 한계를 이미 구현하므로(`scanner.rs` `1024`) 로더 수정은 없고, 골든 재생이 증명한다.
+- R48K02: 깊이 1003의 지연 앵커 사슬은 YAML 단계에서 실패하지 않고 JSON에서 `RecursionError: maximum recursion depth exceeded`로 끝난다. 프레임: 432 · `_iterencode_dict` 406 ×(3 출력 + `[Previous line repeated 991 more times]`) · 마지막 403 `chunks = _iterencode_dict(value, _current_indent_level)`(캐럿 호출식). 규칙: 인코더는 모듈·`main`·`dumps`·`encode`·`_iterencode`의 5 프레임 아래에 컨테이너당 1 프레임을 쌓고 한계 1000에서 다음 컨테이너 생성이 실패한다 → 컨테이너 995개까지 허용(공통 포트의 `PRETTY_MAX_DEPTH`와 같은 값).
+- R48K03: 삭제된 cwd에서 상대 `--repo`는 `os.getcwd()`가 실패한다: 프레임 `<module>` 462 · `main` 414(`repo = os.path.abspath(args.repo)`, 캐럿 호출식) · `File "<frozen posixpath>", line 420, in abspath`(**소스 줄·캐럿 없음**), `FileNotFoundError: [Errno 2] No such file or directory`. 실제 `/usr/lib/python3.12/posixpath.py` 프레임은 출력되지 않는다.
+
+**소스 수정(`manifest_gate_cli.rs`, 사건·경로·고정 출력 표 없음).**
+1. `render_traceback`이 `traceback.StackSummary.format`처럼 같은 (파일·줄·함수)의 연속 프레임을 3개까지 출력하고 이어서 `[Previous line repeated N more time(s)]`를 쓴다.
+2. 재귀 한계: 경로 위 첫 컨테이너 깊이 995에서 `Found::TooDeep(자식 종류)`를 찾고, 조상 컨테이너마다 `yield from chunks` 프레임 + 실패 컨테이너의 자식 생성 줄(부모/자식 종류별 401/403/405, 321/323/325)을 쓴다. 사전-in-사전은 캡처로 확정(K02), 나머지 조합은 인코더 소스에서 읽었고 **캡처 전 미검증**이다.
+3. 삭제된 cwd: 상대 경로일 때만 `current_dir()` 실패를 `os.path.abspath`의 `OSError`(errno별 하위 클래스: ENOENT→FileNotFoundError, EPERM/EACCES→PermissionError, 그 외 OSError)로 올리고 `<frozen posixpath>` 프레임으로 끝낸다 — 더 이상 `unwrap_or_default()`로 삼키지 않는다. 절대 경로는 cwd를 묻지 않는다.
+4. 키 위치의 4300자리 초과 정수: 덤퍼는 정수 키를 자릿수 그대로 쓰므로(성공으로 보임) 성공 경로에서도 인코더 순서의 첫 실패가 정수 키인지 확인하고 `_iterencode_dict` 373 `key = _intstr(key)`(캐럿 `_intstr(key)`) 프레임으로 `ValueError`를 낸다. **이 줄은 소스에서 읽은 설계이며 실제 raw(R48K04)가 올 때까지 구현 완료로 주장하지 않는다.**
+5. F2 낡은 주석(순환 사전·키 거부가 "캡처 전 미검증")을 고쳤다 — X10(순환)과 Y01(키 거부)은 캡처됐고 골든이 재생한다.
+
+**데이터·검사(소스만; 실행은 다음 빌드 창).** `checks/data/manifest_contract/gap3.json`(3행, 실제 raw 문자 그대로 · `<FIXROOT>`/`<OWNER>`만 치환 · K03는 `deleted_cwd`) + 정확한 Root 픽스처 3개; 재생 하네스가 K03에서 자체 임시 디렉터리를 만들고 지운 뒤 실행한다. 신규 테스트: `gap3_golden_rows_replay_natively`, 반복 프레임 축약 단위, 리스트 사슬 재귀 한계(소스 유도), 명시 블록 키의 4300자리 정수 키(소스 유도).
+
+**영향 지도.** 닫힌 Native219 증거는 ELF 67d2…·소스 홀드 44af…에 묶인 증거로 그대로 유효하다(재실행하지 않는다). 새 ELF에서 행동이 접하는 곳만 다시 증명한다: ① 모든 크래시 출력이 지나는 `render_traceback`(213 골든 어디에도 3개 초과 연속 동일 프레임은 없다 → 바이트 불변이어야 함), ② JSON 실패 행(YT16~21·X06·X10·X12·Y01·Y02·Y06·Y09: 새 `find_failure` 분기가 같은 결과를 내야 함), ③ 성공 JSON 경로의 정수 키 확인(키가 큰 정수가 아니면 불변), ④ 상대 `--repo` 행(cwd가 있으면 불변). 공통 포트(Q)와 T의 게이트/로더는 바뀌지 않았으므로 Q·T 단위 시험의 이전 통과는 재사용하고, T는 컴파일만 영향 받는다. 필요한 새 검사: `manifest_contract_cli`(골든 190+14+9+3 재생 + 구조 시험) · `manifest_contract_shell`(링크만 다시) · clippy/fmt.
+
+**열림.** R48K04(진짜 키 분기)는 raw 전까지 미구현 주장 없음, 프로세스 안 Python 임포터·S3~S7·배포·성능·196+14+9+3 네이티브 재결합은 열림.
+
+### R48 부록 4 — R48K04 실제 raw 반영(키 위치의 4300자리 정수)
+
+실제 raw(PID 442711, exit 1, stdout 0; 독립 감사 PASS)의 프레임은 owner 462/450 · `json/__init__.py` 238 · `encoder.py` 202/432/406 · **373 `key = _intstr(key)`(캐럿 `_intstr(key)`)**,
+`ValueError: Exceeds the limit (4300 digits) …`였다. 소스에서 설계해 둔 키 분기(조상 `yield from chunks` 프레임 1개 뒤 373)와 **바이트까지 같다** — 코드 변경 없음, 부록 3의 "미검증" 표기가 해소됐다
+(남은 미검증: 재귀 한계에서 사전-in-사전이 아닌 컨테이너 조합). `key4.json` 골든 1행 + 정확한 Root 픽스처 `R48K04.yaml`을 추가했고 이전 골든(190·14·9·gap3)은 바이트 불변이다.
+영향 지도 정정: 부록 3은 T에서 `manifest_gate_cli.rs`만 바뀐 것처럼 적었으나 `manifest_gate.rs`도 바뀌었다(머리 주석만, 동작 불변). 따라서 "T 게이트/식별/위상/역할 단위 시험의 이전 통과 재사용"은
+**경로 의미 한정**(동작이 같은 경로의 이전 통과만)이며 시험은 실행한 것으로 세지 않는다 — 새 빌드 창에서 T 전체 컴파일·`manifest_gate_checks`·`manifest_contract_cli`(골든 190+14+9+3+1)를 다시 증명한다. Q는 바뀌지 않았다.
+
+
+## R49 — `turn_budget.py` 를 공개 CLI `turn_budget` + 비공개 브리지로 (T 순수 모듈 · 얇은 Python 어댑터)
+
+상태: **소스 작성만 했다.** Cargo 빌드·테스트·clippy 와 실제 실행은 미실시(`rustfmt` 구문·서식 검사만 통과). 이 절은 통합·독립 검증·정본 채택·Main/Sub 전달·성능 어느 것도 주장하지 않는다. 원본 139 raw 는 닫힌 참조이며 재수행하지 않았다.
+
+**범위.** T: `.claude/rust/role-contract/src/turn_budget.rs`(순수 업무: `schema_cap`·`declare`·`--caps` 문서·자체검사·프레임 표) + `lib.rs` 한 줄. B: 새 `[[bin]] turn_budget`(일반 bin +1), `src/turn_budget_cli.rs`(문법·경로·`json.dump` 청크 출력·traceback·종료 상태), `src/turn_budget_bridge.rs`(import 브리지), `src/bin/turn_budget.rs`, 생성 자료 `src/help_layouts_turn_budget.rs`, `argv.rs` 의 `TURN_BUDGET` Spec, `cli.rs` 의 `Streams::write_encoded`(미리 인코딩된 한 번의 `write`), 검사 1(`checks/turn_budget_original_cases.rs`)과 동결 자료 `checks/data/turn_budget/original139.json`. 런처 `terraforming_node/scripts/turn_budget.sh`, 어댑터 `turn_budget.py`.
+
+**원본 → Rust.** `schema_cap`/`declare`/`_self_test`/`--caps` → `role_contract::turn_budget`(Python 값 의미를 `PyValue` 로 보존: `caps or {...}` 진리값, bool 은 int, `v > caps[k]` 의 TypeError/KeyError, 검증 순서 unit→timeout→max_turns→source, 호출마다 스키마 재독·캐시 ✗). `main`(argparse) → `turn_budget_cli::run`. 소유자 경로는 런처/어댑터가 `TURN_BUDGET_OWNER_PATH` 로 내보내며 REPO 는 그 어휘적 위 네 단계(심볼릭 링크 해소 ✗; relay 의 `--repo-root` 는 기본 스키마와 무관).
+
+**경로.** 소유자 경로 미설정·모델링되지 않은 텍스트 프로필은 업무 전에 상태 2 의 **보이는 제어 실패**다(Python 경로 없음). stdout 코덱이 help 를 쓰지 못하면 그것은 원본의 `UnicodeEncodeError`(argparse 프레임 · 첫 종료 1)이며, exit-120 안내는 실제 코덱 이름(`encoding='ascii'` 등)을 쓴다(`Streams::finish_with_codec`; 다른 호출자의 `finish` 는 그대로). `TURN_BUDGET_ROUTE_OBSERVER=<파일>` 이 CLI 와 비공개 브리지 모두 실행마다 `start`(업무 전)·`end`(결과) 두 줄을 남긴다(실제 Rust pid·ppid·선언된 소유자 경로·route·shape·outcome; 브리지의 `raised:<클래스>` 는 전송 종료 0 이 실어 나른 예외이고 import 측이 관측하는 것은 어댑터가 일으키는 예외다). 업무 시작 뒤 Python 재시도 없음. 실행파일 없음은 런처가 상태 2 로 먼저 실패한다.
+
+**브리지 `turn-budget-bridge/1`.** `TURN_BUDGET_BRIDGE` 환경이 정해진 같은 실행파일(공개 인자 추가 ✗). 요청·응답은 타입 태그 JSON(정수=부호+16진 → 4300 자리 제한 없음, bool 을 int 보다 먼저, `pathlike`=`fspath`+`str()`). 응답은 `returned`/`raised`(`cls`·`ctor`·`ctor_kwargs`·`context`·`suppress_context`·진단용 `message`)/`unsupported`.
+
+**프레임.** CLI 전체 traceback 은 관측 프레임(C07·C09~C12·C15)으로 고정했고, 관측 밖의 stdlib 줄(`json/__init__.py` 335, `json/decoder.py` 340·353)과 `_self_test` 의 후반 print 위치는 3.12.3 소스 줄에서 **도출**했다(관측 아님 · 이 표기를 유지한다). 자체검사의 `revived` 목록은 모듈 이름 **사실**에서 Rust 가 블랙리스트·순서·라벨로 판정한다: import 측 `_self_test()`/`main()` 은 자기 모듈 전역 이름만 `TURN_BUDGET_MODULE_NAMES` 로 전달하고, 독립 실행은 이 프로그램 자신의 공개 이름(`STANDALONE_GLOBALS`)을 쓴다(Python 실행을 흉내 내지 않는다).
+
+**검사(작성만).** `turn_budget_original_cases` 4: 명령줄 39 중 별도 파이프와 stdout=/dev/full(120) 행을 네이티브 프로세스로 바이트 비교, API 100 중 Python 서명 오류 3행을 뺀 97행을 브리지로(분류·`str()`·값), 소유자 신원 없는 실행의 보이는 실패, 어댑터의 등급표·업무 조각 부재. 병합 파이프(C16)·PTY(C17)·닫힌 fd(C38)는 동결 바이트만 싣고 설정은 이후 단계다. 예외 `args`/속성은 Python 어댑터가 `ctor` 로 재구성하므로 Rust 검사가 단언하지 않는다.
+
+**잔여(숨기지 않음).** (1) 세 importer(`relay`·`bootstrap_canary`·`selftest_harness_switch`)와 어댑터는 Python 으로 남는다. (2) U2: in-process 예외의 traceback 바이트(원본 소스 프레임)는 재현하지 않는다 — 열림. (3) U3: 어댑터는 정확한 기본 타입·문자열 키 dict·`os.PathLike` 만 전달하고 그 밖은 업무 전에 `NotImplementedError` 로 거절하며(int 경로=fd 포함), 사용자 정의 `__bool__`/`__eq__` 객체의 원본 동작은 재현하지 않는다. (4) 이 변경은 `help_layouts` 생성기(`gen_help_layouts_turn_budget.py`, 저장소 밖 · COLUMNS 1~700 재생)로 만든 데이터이며 COLUMNS 80·40·PTY 80 의 저장 raw 와 대조했다. (5) 컴파일되지 않았으므로 타입 오류가 남아 있을 수 있다. 개수: C49(B54)+1 = 55; 통합 뒤 개수는 cargo metadata 로 도출한다(고정값 ✗).
+
+**계약 보정(후속).** (R5) 자체검사 tripwire 는 위처럼 모듈 이름 사실로 판정. (R6) ASCII 등 stdout 코덱의 `--help` 는 원본의 `UnicodeEncodeError` + argparse 프레임(`parse_args`→`parse_known_args`→`_parse_known_args`→`consume_optional`→`take_action`→`_HelpAction.__call__`→`print_help`→`_print_message`)이며 이 프레임 줄은 호스트 argparse 3.12 소스에서 **도출**했다(동결 139 에 이 행이 없다 → 데이터 전용 제안 행 R49C40). 코덱이 틀린 exit-120 안내 헤더는 관측 없이 도출한 상태다. (R7) `json.dump` 값 오류는 이 CLI 의 실제 형태에서 도달 불가다: `--caps` 문서는 `json.load` 가 읽은(4300 자리 이하 정수 — `str()` 도 같은 한도라 출력 가능 — 또는 bool) 두 값과 고정 문자열이고, `declare` 결과는 argparse `int()`(같은 4300 자리 한도)/None 과 문자열이며 모두 깊이 1 이라 `ValueError`·`RecursionError` 가 날 수 없다. 브리지는 정수를 16진으로만 실어 십진 한도를 만들지 않고, 원본 f-string 한도는 도달 가능한 곳에서 그대로 발생한다. (경로 관측) CLI 는 직접 ELF, API 100 은 import 측 Python + 도달 시 Rust 자식(Python 서명 오류 D57–D59 는 Rust 호출 없음)이며 실제 개수는 실행에서 센다.
+
+
+## R48 + R49 — 합친 소스 에포크 (A379 기준 · 빌드·테스트 미실행)
+
+상태: **소스 병합만 했다.** Cargo 빌드·테스트·clippy 와 실제 Native 실행은 미실시(`rustfmt` 서식·구문 검사만). 두 변경(R48 `manifest_contract` 게이트 · R49 `turn_budget` CLI+브리지)은 A379 를 공통 기준으로 한 세 갈래 병합이며, 겹치는 파일(`role-contract/src/lib.rs`·B `Cargo.toml`·B `src/lib.rs`·`SKILL.md`·`rust_runtime.md`·이 문서)은 양쪽 변경을 모두 보존했고 R49 만 바꾼 파일(`argv.rs`·`cli.rs`·`antipattern_scan.py`·`turn_budget.py`)은 R48 쪽이 A379 와 같아 R49 바이트를 그대로 썼다. 새 R49 파일은 동결 바이트 그대로다.
+
+**개수.** 일반 bin = A379 54 + `manifest_contract` + `turn_budget` = **56** 로 기대하며(Cargo.toml 파싱으로 확인한 정적 수), 고정값으로 쓰지 않고 빌드 창에서 `cargo metadata` 로 도출한다. 테스트 타깃 B 86 · T 4(`manifest_gate_checks` 포함).
+
+**K05(G4-F1).** 직렬화할 수 없는 잎(바이트·불투명)은 컨테이너보다 한 프레임 깊다 — 994 겹 컨테이너 아래의 바이트 잎은 `_default(o)` 호출(line 439)에서 RecursionError(실제 raw R48K05 로 확정 · golden `bytedepth.json`), 993 은 TypeError, 995 는 컨테이너 자식 생성 줄(소스 도출·raw 없음). 게이트 문서의 "모든 형태가 raw 로 덮였다" 표현은 **유한한 관측 분기(원본 218)** 와 알려진 한계로 고쳤다. 알려진 한계: 가장 깊은 수준의 float 잎(`floatstr` 프레임)과 995 겹의 순환 불투명 값은 모델링하지 않았다.
+
+**C40(R6).** 실제 R49C40(`--help` · `PYTHONIOENCODING=ascii`)이 도착했다: 프레임 1908/1941/2162/2102/2017/1156/2648/2654 와 소유자 162/179, `UnicodeEncodeError: 'ascii' codec can't encode character '\ud134' in position 173`. 도출했던 프레임 표와 위치(저장된 COLUMNS 80 배치의 첫 비ASCII 문자 위치 173)가 일치한다. 도출 때 쓴 자체 검사의 문구("characters in position")는 실제와 달라 **복수형 → 단수형 문자 표기**로 고쳤고, golden `turn_budget/c40.json`+검사를 추가했다(실행 전). 이 한 분기만 관측이며 다른 코덱·폭 전부가 아니다. C16/C17/C38(병합 파이프·PTY·닫힌 fd)은 여전히 동결 바이트만 있고 설정은 이후 단계다.
+
+**잔여.** U2(in-process 예외의 traceback 바이트) · U3(지원하지 않는 Python 객체) · 세 importer 는 Python 어댑터 · `verify_distribution` 의 `turn_budget.py --self-test` 는 빌드된 런타임을 요구한다 · 비용·성능·배포·S3 전체는 열림.
+
+## R48 — in-process API (S1–S6) 와 deep2 (K06·K07) — 소스 + 자체 검사 (실제 빌드·테스트 실행됨)
+
+**상태: 부분 완료(INCOMPLETE).** 구현·자체 검사는 아래이며, Root 소유 미래 실행(candidate API87 · 공개 CLI 7 · R49 candidate140 · 쌍 캡처)과 U2/U3는 열려 있다.
+
+**구조.** T `manifest_gate.rs`: topology/explicit 이 임의 값(`evaluate_contract_value`·`manifest_tp` 가 `&PyValue`), 예외에 `name`/`obj` 경로(`Step`), `manifest_gate_api.rs`(결과 **계획** · `manifest_tp_answer`·`effective_model_source_which`·`resolve_topology_answer`·`load_manifest_answer`). Q: YAML 순환은 `Typed::Cycle(up)` 마커(조상까지 컨테이너 단계 수; `!!omap` 항목은 튜플이라 +2)이고 공유 노드 재사용은 상대 거리가 같을 때만. B: `manifest_contract` 실행파일에 비공개 브리지 모드(`MANIFEST_CONTRACT_BRIDGE`, 새 bin 없음 · 56 유지) + `typed_wire.rs`(관측기와 같은 타입 그래프 wire: 별칭·순환은 `ref`). Python: `manifest_contract.py` 는 얇은 import 어댑터(원본 `__doc__`·서명·상수; `VALID_MODES` 리터럴; `_load_manifest` 는 호출 시점 `import yaml`), 원본 바이트(e84fa13c…)는 `manifest_contract_compat_owner.py` 에 그대로(사전 분류된 레거시 경로 전용 · `REVIEWED_MANIFEST_CONTRACT` 가 이 파일에 묶임 · CLI 레거시 경로는 공개 이름으로 실행해 usage 가 같다).
+
+**점검(출처).** 87행 golden(`checks/data/manifest_contract_api/api87.json` = 수락된 raw 의 literal 복사)을 브리지에 통과시켜 raw 와 비교(81 값/예외 · 4 main 분류 · 2 정적). 정적 어댑터 검사(`ast` 만)와 합성 입력 smoke 는 B48 `api-impl-checks/`. 해석기 PyYAML 은 **실제 6.0.3**(이전 6.0.1 표기는 UNVERIFIED; c11 이 핵심 순수 Python 모듈 16개가 6.0.1/6.0.3 바이트 동일(`__init__` 버전 줄만 다름)임을 대조 → 프레임 지도는 반박되지 않음). 옛 raw·golden·provenance 는 다시 쓰지 않았다.
+
+**deep2.** 실제 R48K06(995 겹 아래 float 값 → 컨테이너 자신의 `floatstr` 호출, 줄 398)과 R48K07(995 겹의 순환 dict → 자식 generator 생성 호출, 줄 403, circular 검사 이전)이 측정되었다: Q 덤퍼가 float·순환 마커에도 프레임 한도를 적용하고 T 가 float 행(398/317)을 갖는다. 알려진 한계(raw 없음): float dict KEY(364) · set 안의 float · list 안의 float 은 소스 도출만(317).
+
+**열림(숨기지 않음).** U2(in-process traceback 프레임은 어댑터의 것) · U3(지원 타입 집합 밖 인자는 업무 전 `NotImplementedError`) · set 멤버 순서는 정규화 안 함 · `Mark` 객체 동일성(PyYAML 이 context/problem mark 에 같은 객체를 쓰는 경우)은 실측 87행 밖이라 보존 안 함 · 모듈 사실: 원본의 `argparse` 이름은 어댑터에 없고 비공개 구현 이름이 더 있다(기록, 가림 ✗).
+
+
+## R48 — v4 소스 리뷰 교정 B1~B5 + K08 (소스 + 자체 검사 · 비공식)
+
+**B1 git 자식 환경.** 어댑터·런처가 바꾸는 배관 변수만 호출자의 원래 값으로 되돌린다. 기록 대상은 정확히 여섯 이름(`MANIFEST_CONTRACT_{BRIDGE,BRIDGE_REQUEST,COMPAT_OWNER,PUBLIC_ARGV0,PYTHON,VALIDATE_ONLY}`)이고, 값(또는 미설정)은 `MANIFEST_CONTRACT_CALLER_<이름>` 운반 변수 + 표지 `MANIFEST_CONTRACT_CALLER_ENV` 로 건너간다. 네이티브 `ChildEnv`(role-contract `manifest_gate_cli`)가 `git` 프로브와 레거시 인터프리터 exec 에 같은 계획을 적용한다: 표지가 없으면 프로세스 환경이 곧 호출자의 것이므로 아무것도 바꾸지 않는다. 호출자의 다른 변수(자격 증명 포함)는 읽지도 복사하지도 직렬화하지도 않는다. 예약 이름 한계: 호출자가 `MANIFEST_CONTRACT_CALLER_*` 를 이미 갖고 있으면 그 값은 보존되지 않는다(런처의 비공개 프로토콜 이름).
+
+**B2 VALIDATE_ONLY.** 비공개 브리지(`MANIFEST_CONTRACT_BRIDGE` 설정)에서는 런처가 가용성 검사(ELF·실행 비트)만 하고 곧바로 exec 한다 — `MANIFEST_CONTRACT_VALIDATE_ONLY=1` 의 `exit 0` 은 CLI 가용성 검사일 뿐 브리지의 일이 아니다. 호출자의 값은 `git` 자식에게 그대로 간다. CLI 동작은 불변(자체 검사: VALIDATE_ONLY=1 이면 여전히 exit 0, stdout·stderr 빔). 폴백 없음.
+
+**요청 fd 누수.** 요청은 mode 0600 개인 임시 파일(`MANIFEST_CONTRACT_BRIDGE_REQUEST`)로 건너가고 답 직후 삭제된다. 브리지 프로세스에 요청용 추가 descriptor 가 없으므로 `git` 자식은 호출자의 0~2 외에 아무것도 상속하지 않는다(원본은 `close_fds` 였다). 호출자의 stdin 은 RPC 로 대체되지 않는다. 임시 파일에는 호출자가 넘긴 객체의 직렬화가 잠시 남는다(mode 0600, TMPDIR 아래, 답 직후 `unlink`).
+
+**닫힌 fd 0 (열림).** 호출자의 fd 0 이 닫혀 있으면 Rust 런타임이 main 전에 0~2 를 `/dev/null` 로 다시 연다. 가짜 git 이 보는 fd 0 은 원본 대조(호출자 직접 실행)가 "닫힘"인 반면 이 경로는 `/dev/null` 이다(자체 검사 `closed_fd0_observed_in_git_child`). 진짜 `git` 은 자기 시작 시 닫힌 표준 descriptor 를 `/dev/null` 로 정리하므로 관측 차이는 `git` 이름의 비-git 실행파일에서만 보인다. 동등을 주장하지 않는다.
+
+**B3 정책 바인딩.** `MODEL_ACQUISITION_TERNARY_GATE.C1`, `TERRAFORM_FLAG_GATE.C1/C3` 의 집행 근거를 어댑터 토큰에서 실제 집행자로 옮겼다: `manifest_gate.rs`(`VALID_MODES`·`effective_model_source`·`evaluate_contract`·`resolve_topology`)와 레거시 모양을 답하는 정확한 compat owner. 이를 가능하게 하려고 `policy_registry.py` 의 어설션 id 추출기에 `.rs`(최상위 선언만) 를 더했다. 세 튜플 연결: Rust `VALID_MODES` const(텍스트에서 파싱) · 어댑터 리터럴 · compat e84 튜플이 같은 세 모드·같은 순서여야 하며 `companion_predicate` 시험과 `predicate_MODEL_ACQUISITION_TERNARY_GATE_C1` 이 비교한다(Rust const 순서를 바꾼 사본에서 시험이 실패함을 확인: `logs/b3-negative-control.txt`).
+
+**B4 모듈 사실.** 네 함수의 `__doc__` 은 원본 문자열 그대로이고(주석으로 위임 사실을 옮김) 비공개 추가 이름은 열일곱 개다: `_CLASSES _COMPAT_OWNER _HERE _LAUNCHER _PROTOCOL _Unwire _Wire _YAML_MODULES _ask _compat _compat_module _finish _hex_text _mark _path_wire _unsupported _walk`(원본 비공개 3개 `_git_branch _load_manifest _self_test` 는 유지). 모듈 수준에 새 비공개 이름을 더하지 않는다.
+
+**B5 compat 원본 신원 범위(문서).** import 어댑터는 compat owner 의 신원을 검사하지 않는다 — 신원(검토된 바이트 대조)은 CLI 의 사전 분류(`LegacySourceVariant`)가 단독으로 가진다. 어댑터가 읽는 compat owner 는 런처 옆 파일이라는 위치뿐이며, 그 파일이 바뀌면 어댑터의 레거시 경로(`_git_branch`·`branch_topology_conflict`·`_self_test`·사전 분류된 `main`)가 그 바이트로 답한다. 사전 업무 신원 검사를 더한다면: 레거시 경로 호출 직전에 한 번, 바이트 해시가 검토본과 다르면 업무 없이 `NotImplementedError`(Python 재시도·CLI 소스변종 경로 변경·승인 게이트 없음). 이 소스는 그 검사를 더하지 않았다(범위 밖 · 열림).
+
+**K08.** 실제 원본 raw(R48K08: 995 겹 안쪽 dict 의 float KEY → 인코더 줄 364 `key = _floatstr(key)`, 406×3 + 반복 991, `RecursionError`, stdout 0)를 반영했다. Q: `key_is_float`(reader 가 보관한 값이 float, 값이 없으면 repr 이 float 철자) + `write_json` 의 dict 항목과 청크 작성기 `dict()` 가 키를 값과 같은 깊이 경계(`float_too_deep`)로 센다. T: `find_failure` 의 dict 팔이 `FloatKeyTooDeep` 을 내고 프레임 형식기가 `FLOAT_KEY_IN_DICT`(줄 364)로 끝낸다 — 픽스처 id·답 표 없음. 골든 `key8.json` + `manifests/R48K08.yaml`(저장된 raw 와 Root 픽스처 바이트만; 신규 Rust 출력 불사용). CLI 골든은 221(220+1). 리스트 부모의 float 317 은 소스 파생 그대로이고 set 안의 float 는 도달 불가이다.
+
+**`__main__` 플러시.** 닫힌 표준 descriptor 로 `sys.stdout`/`sys.stderr` 가 `None` 이면 어댑터의 `__main__` 이 exec 전에 `AttributeError` 로 죽던 것을, 없는 스트림만 건너뛰고 실제 flush 오류는 그대로 올리도록 고쳤다(Python → Bash → ELF 전달은 무조건).
+
+**열림.** U2 · U3 · set 멤버 순서 · 닫힌 fd 0 · compat 신원(B5) · Root 캡처(후보 87 외).
+
+## R50 — `scan_node.py` P1(순수 판정·manifest 조립·파일 판독 16개 공개 이름): T 순수 모듈 + B 파일·시계 경계 + 비공개 브리지 + 얇은 Python 어댑터
+
+상태: **P1 소스 구현 + 자체 검사(managed Rust 1.99.1 · 오프라인 · 자기 cache/target).** **전체 스캐너가 아니다 · Python-free 가 아니다.** 하드웨어 프로브·SSH/네트워크 수집·argparse `main`·`_self_test`(P2/P3/CLI)는 이 단계에서 포팅하지 않았고 명시적 compat 경로로 정확한 원본 소유자(`scan_node_original.py`, 바이트 동일, sha256 `2d9e8a86…`)가 처리한다. 이 절은 통합·독립 검증·정본 채택·Main/Sub 전달·성능을 주장하지 않는다. Root 의 어댑터 107 신규 캡처는 이 절의 범위 밖이다.
+
+**범위.** T: `.claude/rust/role-contract/src/scan_node.rs`(순수 판정 11개 + `Raised`/`Failure` 타입과 Python 동적 연산 보조), `scan_node_manifest.rs`(`build_sub_manifest`·`emit_manifest_block` + `Clock` 경계), `scan_node_files.rs`(`cross_validate`·`read_manifest_field`·`read_manifest_topology` + `Files` 경계·UTF-8 strict·universal newline) + `lib.rs` 세 줄. B: 새 `[[bin]] scan_node`(일반 bin +1 → **cargo metadata 로 도출한 개수 55**), `src/scan_node_boundary.rs`(`StdFiles`·`LocalClock`·`FixedClock`), `src/scan_node_bridge.rs`(비공개 브리지 `scan-node-bridge/1` + 경로 관측), `src/bin/scan_node.rs`, 검사 2(`checks/scan_node_p1_original_cases.rs`·`checks/scan_node_boundary_cases.rs`)와 동결 자료 `checks/data/scan_node/p1_golden.json`. 런처 `terraforming_node/scripts/scan_node.sh`, 어댑터 `scan_node.py`, compat 소유자 `scan_node_original.py`. 새 의존성 없음(T 는 Q 의 `pydyn`·`pyops`·`pysort`·`pynumber`·`pystr` 를 재사용; B 의 `extern "C"` 는 glibc `time`·`tzset`·`localtime_r` 뿐).
+
+**원본 → Rust.** 공개 이름 16개와 도달 가능한 헬퍼(`_parse_nccl_lines`·`_read_manifest_line`·정규식 4종의 술어화) → `role_contract::scan_node{,_manifest,_files}`. 값 의미는 `PyValue` 로 보존한다: `a or b` 가 피연산자를 돌려줌, `is False` 동일성, `in` 닫힌 튜플의 동등, `bool` 이 `int`, dict 삽입 순서, f-string `str()`, `isinstance`, 그리고 원본이 가드하지 않은 모양의 `AttributeError`/`KeyError`/`TypeError`. 두 경계는 인자다: 파일은 `Files`(실제 OS 의 errno·메시지가 `ManifestUnreadable` 의 `OSError` 원인으로), 시계는 `Clock`(`%Y%m%d%H`, `localtime_r` 가 `datetime.now()` 와 같은 원천 · `scanned_at` 이 거짓이거나 `emit_manifest_block` 일 때만 읽음). 순수 함수는 어느 쪽도 보지 않는다.
+
+**시계 계약.** 원본의 역사적 절대 시각은 새 Native 오라클이 아니다. 형식(`%Y%m%d%H` 10자리)·필드·입도·실제 로컬 시간대·각 호출의 기록된 before/after 브래킷 안의 값이 계약이다. 자체 검사는 시계 행마다 **그 행의 저장된 브래킷의 로컬 시각**을 리터럴(`FixedClock{hour, provenance}`)로 주입하고 현재 시각인 척하지 않으며, `LocalClock` 은 `date` 와 네 시간대(Asia/Seoul·UTC·America/New_York·Pacific/Kiritimati)로 따로 대조한다. 원본 시계 monkeypatch 없음·정규화 없음.
+
+**compat 경로.** 어댑터가 정의하지 않는 이름·CLI·`main` 은 업무 전에 PEP 562 `__getattr__`/`main()` 으로 `scan_node_original.py` 를 불러 그대로 실행하며 `SCAN_NODE_ROUTE_OBSERVER` 에 `CompatOriginalAttribute`/`CompatOriginalCli` 가 `start`·`end`(SystemExit 포함)로 남는다. 네이티브 실패 뒤 Python 재시도는 없다(실행파일 부재 = 런처 상태 2). 원본 소유자 안의 P1 함수는 원본 Python 그대로 돈다 — compat 의 전체 CLI·`--self-test` 는 P1 네이티브의 증거가 아니다. compat 의 `ManifestUnreadable` 은 원본 모듈의 클래스다(어댑터의 것과 다른 객체).
+
+**브리지 `scan-node-bridge/1`.** `SCAN_NODE_BRIDGE` 환경이 정해진 같은 실행파일(공개 인자 ✗; 환경 없는 시작은 상태 3). 요청 `{protocol, op, params}`(어댑터가 서명으로 묶은 모든 매개변수 · 기본값 포함), 응답 `returned`/`raised`(`cls`·`ctor`·`cause`)/`unsupported`. 값은 타입 태그 JSON(정수=부호+16진, NaN·inf 는 repr).
+
+**원본 107 → Rust.** `B50/p1-107-map.json`(행별: 원본 케이스 → 공개 이름 → 브리지 op → Rust 함수 → plane → 원본 결과 → 동결 자료 → 자체 검사). 동결 자료는 승인된 Original107 의 **저장 raw** 에서 형식 변환만으로 도출했다(원본 호출·재캡처 없음; 도출기 `B50/tools/derive_p1_golden.py`, 저장소 밖). 고정 경로는 `$R50_FIXTURES` 토큰으로, 파일 행의 바이트는 컨트롤 제안의 파일 자료로 소유 fixture 에 깔고 mode 000·디렉터리 행도 재현한다. 107 = 순수 88 + 시계 4 + 파일 15; 반환 105 + 예외 2(둘 다 `ManifestUnreadable` + `OSError` 원인).
+
+**자체 검사(실제 실행).** `scan_node_p1_original_cases` 3(107 행 전수 · 계획 개수 단언 · 하네스가 기대 변경을 잡는 음성 대조), `scan_node_boundary_cases` 6(로컬 시계 대 `date` 4개 시간대 · 파일 결함 errno/메시지 · 실행파일은 브리지 전용 · 한 요청의 응답과 `start`/`end` 관측 · 프로토콜 오류는 제어 실패), 어댑터 107 행 왕복(Python 어댑터 + 실제 실행파일; 시계 행은 실제 시계로 `scanned_at` 만 가림)과 compat 경로·부재 실행파일 확인(저장소 밖 도구), P1 문자열 리터럴 490 개의 Rust 소스 포함 확인(6 개는 Rust 이스케이프·`%d`→`{index}` 표기 차이뿐), `antipattern_scan --tripwire`/`--self-test` 통과. fmt·check·release build·clippy `-D warnings` 는 T·B 양쪽 통과.
+
+**잔여(숨기지 않음).** (1) **반환값과 입력 객체의 동일성(aliasing)·NaN 동일성**은 재현하지 않는다 — 동결 자료의 `identity` 가 8 행을 표시한다(값은 같고 객체는 새것). (2) U2: in-process 예외의 traceback 바이트와 `AttributeError.name/obj` 는 재현하지 않는다. (3) 어댑터는 정확한 `str`·`int`·`bool`·`float`·`None`·`bytes`·`list`·`tuple`·문자열 키 `dict` 만 전달하고 그 밖(`os.PathLike`·int 경로=fd·자기 참조)은 업무 전에 `NotImplementedError`. (4) 107 행이 닿지 않는 분기(IPv6 scope `valid_host` · 유니코드 숫자의 `isdigit`/`\d` · `dict()` 의 비정상 모양 · 8192 바이트를 넘는 파일의 UTF-8 오류 · 열린 뒤 읽기 중 OS 오류 · 거대 정수의 `str()` 한도)는 **열림**이다: 원본 소스에서 옮겼고 문자열 리터럴 포함은 확인했으나 저장 raw 의 근거가 없다(일부는 `Unsupported` 로 업무 전에 거절). (5) `claim_predicates`·`companion_predicate`·`claim_bindings.json`·`registry.yaml`·`verify_distribution --self-test` 가 읽는 `scan_node.py` **소스 텍스트** 바인딩(`host_safety.installed`·`Flag 와 독립`·`BatchMode=yes`·`hf_token_env_file` 싱크 AST·emit 가드 문자열)은 어댑터 교체로 어긋난다 — P1 에 있던 문구는 Rust 로, P2/P3/CLI 에 있던 문구는 `scan_node_original.py` 로 재바인딩해야 한다(통합 단계 항목). (6) 전체 B 스위트 `cargo test --no-fail-fast` 는 573 통과 · 116 실패이며 모두 이 변경과 무관한 옛 소유자 검사의 환경 의존(NOT_RUN 51 · crate-local `target/release` ELF 요구 36+ · PTY 8 · `/dev/full` 7 등)이다. 순수 기준선과의 대조는 하지 않았다.
+
+### R50 P1 계약 보정 — 공유 동일성 plan · `AttributeError.name/obj` · 공개 `ManifestUnreadable` 하나 · export 배관 · 네이티브 자기 검사 · 정책 문구 재결속
+
+위 R50 절의 잔여 (1)(이름: 반환값/입력 동일성·NaN 동일성)·(2)의 `AttributeError.name/obj`·`ManifestUnreadable` 공개/compat 분리·`from scan_node import *` 차이는 **측정된 107 계약 안의 결함**이라 보정했다(선언된 예외로 두지 않는다). U2 traceback 프레임은 열림이다 — 위조하지 않는다.
+
+**8행 분류(저장 raw 의 그래프 ref).** 6행 — `S50N01·N02·N03·N05·N06·N07`(`cross_validate`): 반환의 `checks[0]["scanned"]` 가 호출자 인자 `ic["hca_devices"]` 와 **같은 list 객체**(raw `ref` → 인자 그래프, 경로 `ic → hca_devices`). 2행 — `S50B08`(`emission_blockers`)·`S50E17`(`evaluate_gate`): 인자에 NaN 객체(raw `nan_id` 1)가 있으나 반환에는 그 NaN 도 어떤 호출자 객체도 없다(반환은 새 list/dict 들; 반환→인자 ref 0). 반환 내부 공유 ref 는 107 행 전체에서 0. 동결 자료의 행별 `identity`(`returned_argrefs` 경로·`arg_nan_identity`)와 기대 반환의 `argref` 경로는 저장 raw 에서 도출한다(도출기 `B50/tools/derive_p1_golden.py`; v1 은 `derive_p1_golden.v1.py`).
+
+**공유 동일성 plan(`scan-node-bridge/1`).** 어댑터는 호출자 인자의 **번호 붙은 객체**(`None`/`bool` 을 뺀 모든 객체: 컨테이너·NaN·문자열·정수·실수·바이트)를 전위 순회 순서로 `"id"` 와 함께 보내고 반복 방문은 `{"t":"ref","id":n}` 로 보낸다. Rust 는 그것을 공유 값(`PyValue::Shared`)으로 해독하므로 업무 함수가 인자를 그대로 넘기면(`cross_validate` 의 `scanned`, `evaluate_gate` 의 `per_port_gbps`, `build_sub_manifest` 의 `custom_model_paths`·`scanned_at` 등) 같은 객체가 돌아가고, 응답은 그것을 `{"t":"argref","id":n}` 로 적는다. 어댑터는 `argref` 를 **호출자의 실제 객체**로 조립할 뿐이다(복사 ✗ · 선택 ✗). 새로 만든 값은 새로 만든다. 순환·비문자열 dict 키는 업무 전에 `NotImplementedError`(키 문자열의 객체 동일성은 전달하지 않는다 — 잔여).
+
+**`AttributeError`.** T 의 `Raised` 가 `ctor_kwargs`(`name`·`obj`)를 갖고(`Raised::attribute`), 실패한 읽기의 대상 객체를 값(공유 값 그대로)으로 싣는다 — 호출자 객체이면 `argref` 로 되돌아가 `exc.obj is <호출자 객체>`. 어댑터는 `AttributeError(msg, name=…, obj=…)` 로 재구성한다. 저장 raw 에는 이 예외가 없다 → 기대는 같은 객체에 같은 읽기를 CPython 이 일으키는 `AttributeError`(args·name·obj 동일성)이며 Rust 출력을 오라클로 쓰지 않는다.
+
+**공개 `ManifestUnreadable` 하나·export 배관.** 어댑터는 모듈을 올릴 때 정확한 원본 소유자를 모듈 이름 `scan_node` 로 실행해(스택 프레임 파일은 원본 그대로) 그 이름을 이 모듈에 배관한다(어댑터가 정의한 P1 이름은 그대로 네이티브). 그 결과 `from scan_node import *` 의 export 집합(실측 56 = 56)·함수 서명·`__module__`·`__qualname__`·정규식 상수·`__doc__` 가 원본과 같다. 공개 `ManifestUnreadable` 은 어댑터의 클래스 하나이며 docstring 은 원본의 것이고 compat 전역(`ManifestUnreadable`)에도 같은 클래스를 꽂는다(원본 소스 불변). 어댑터 고유 이름은 `_sn_`/`_SN_`/`_Sn` 접두 19개뿐이다. 이름공간의 `__file__`/`__spec__` 같은 던더는 어댑터의 것이다(원본 107 import probe 의 `module_file` 이 소유자 경로이기 때문).
+
+**시계 검사(별도 보존).** 이전의 마스킹 검사(`adapter_roundtrip.masked-v1.py`·로그)는 더 좁은 증거로 **그대로 보존**한다. 현행 검사는 원문 출력을 보존하고(`logs/adapter_clock_qualified.raw.json`), 원본 소스가 정의한 형식(`%Y%m%d%H` 10자리)·시간 입도·프로세스 로컬 시간대(Asia/Seoul·UTC·America/New_York·Pacific/Kiritimati)와 **각 네이티브 호출의 실제 before/after 브래킷**으로 판정한다. 과거의 절대 시각을 오라클로 쓰지 않고 관측 시각을 채우지 않으며 원본 시계를 패치하지 않는다. Rust 쪽 단위 검사의 시계는 B→T 경계에서 주입한 리터럴(`FixedClock`)이다.
+
+**네이티브 자기 검사.** `scan_node --p1-self-check`(`scan_node.sh --p1-self-check`)는 내장된 저장 raw 107 행(순수 88·시계 4·파일 15)을 브리지로 돌려 값·예외·`argref` plan 을 대조한다. 레거시 `scan_node_original.py --self-test` 의 증거가 아니며 P2/P3/CLI 를 보지 않는다. `build_rust.sh` 가 빌드 뒤 실행하고 `verify_distribution` 은 레거시(`terraform_scan_selftest_legacy`, 원본 소유자 직접)와 네이티브(`terraform_scan_p1_native_selfcheck`)를 따로 둔다.
+
+**정책 문구 재결속.** 문구가 P1 에 있던 것(`host_safety.installed`·`Flag 와 독립` = `emit_manifest_block`)은 T Rust `scan_node_manifest.rs` 를, 미포팅(P2/P3/CLI)에 있던 것(emit 가드 문자열·`BatchMode=yes`·`host-key 미등록/불일치`·`키 인증 거부`·`hf_token_env_file` 싱크 AST·`collect_peer_hw`·`_peer_ssh_diag`)은 정확한 `scan_node_original.py` 를 읽는다. 토큰 파일 내용 비열람 불변식은 원본 텍스트(`open(hf_token_env_file`·`read_text` 부재, 원격 존재검사)에 더해 P1 Rust T 소스(`std::fs`/`File::open`/`read_to_string` 부재, `hf_token_env_file` 은 따옴표 친 manifest 키로만, 파일 판독부는 토큰 포인터를 아예 모름)로도 판정한다. `claim_bindings.json`·`registry.yaml`·`base_skill_edges.json`·`companion_predicate.py` 를 같이 맞췄고 어떤 tripwire 도 약화·삭제하지 않았다.
+
+**잔여(숨기지 않음).** (1) U2 traceback 프레임(원본 소스 줄)은 재현하지 않는다 — 열림. (2) 키 문자열의 객체 동일성. (3) 어댑터가 전달하지 않는 값(`PathLike`·int 경로=fd·순환·비문자열 키)은 `NotImplementedError`. (4) 107 행이 닿지 않는 분기는 열림(위 R50 절 (4)). (5) compat 쪽 원본 함수(미포팅 P2/P3/CLI)는 원본 Python 그대로이고 그 안의 P1 호출도 원본 Python 이다. (6) 정책 레지스트리 `verify` 는 새 파일이 **미추적**이라 `EVIDENCE_UNTRACKED` 2건(`scan_node_manifest.rs`·`scan_node_original.py`)을 내며 추적(커밋)되면 해소된다. P2/P3/CLI 전체는 미포팅이다.
+
+## R48 — API v5 실측 차이 3종의 소스 교정 제안 (LM10~13 · RT09 · MF01) — 제안, 통합 전
+
+실제 후보 첫 캡처(`r48-api87-held-actual-*`: 87행 중 81 전 필드 동일)의 불일치 6행에 대한 소스 제안이다. 닫힌 Original 은 재생하지 않았고 불일치 면제·수용 주장은 없다.
+
+- **LM10~13 인자 길이.** 실제 Original 의 YAML 표식 예외는 `args` 길이 4(어댑터는 `note=None` 을 덧붙여 5). 설치된 PyYAML 6.0.3 의 composer/constructor/parser/scanner `raise` 지점은 전부 위치 인자 정확히 4개이며 `note` 를 넘기는 곳이 없다(AST 전수: composer 3 · constructor 30 · parser 10 · scanner 31 = 74개). 브리지 답이 `args_arity`(4, note 가 실제로 있으면 5)를 실어 어댑터가 `cls(*parts[:arity])` 로 원본과 같은 길이로 만든다. 속성(`context`/`problem`/`note`/마크)은 종전 그대로. **repr 의 `<yaml.error.Mark object at 0x…>` 주소는 프로세스마다 다른 본질적 비결정이다 — 열림**(주소를 꾸미거나 정규화하거나 필드를 빼지 않았다; 자체 검사는 두 신규 프로세스의 어댑터 주소가 서로 다름을 기록한다). `args` 의미 교정과 repr 비결정은 별개 항목이다.
+- **RT09 호출자 PATH.** 브리지 시작은 호출자의 업무 PATH 에 의존하지 않는다: 어댑터는 절대 경로 `/bin/bash` 로 런처를 시작하고(이미 `__main__` 이 쓰던 경계), 런처는 외부 프로그램 없이(`dirname` 대신 `${BASH_SOURCE[0]%/*}` + 빌트인 `cd`/`pwd`) 자립한다. 호출자 PATH 는 바꾸지 않으며 `git` 자식은 그대로 받는다 — 그래서 PATH 에 git 이 없으면 Rust 프로브가 원본처럼 `None` 을 돌려준다. B1(배관 복원·unset 대 빈 값) · 0600 임시 요청 파일 · stdin FD · 지연 import 는 불변.
+- **MF01 모듈 이름공간.** 열일곱 개 구현 도우미(`_Wire`·`_Unwire`·`_ask`·`_finish`·… 이전 B4 문단의 목록)는 `_build()` 의 **클로저 안**으로 옮겼다. 아홉 개 공개 함수는 그 빌더가 만든 보통의 모듈 수준 함수 객체이고 이름 대입 뒤 빌더는 `del` 된다. 모듈 이름공간은 원본 25개와 같다. 기계적 메타데이터는 하나뿐이다: 빌더 안에서 만들어진 함수의 `__qualname__` 을 평범한 이름으로 설정(빌더가 지워진 뒤의 수출 이름). `__getattr__`/`__dir__`/globals 조작/관찰 가로채기 없음. 정적 소비자가 `FunctionDef` 로 어댑터의 함수를 찾는다면 이제 이름 대입으로 보인다(발견된 소비자 없음). **이 문단이 이전 B4 의 "비공개 추가 이름 17개가 모듈 수준" 서술을 대체한다.**
+- **열림.** U2(in-process traceback 프레임) · U3(지원 타입 밖 인자) · repr 주소 비결정 · set 멤버 순서 · 예약 `MANIFEST_CONTRACT_CALLER_*` 이름 · 닫힌 caller fd0(`/dev/null` 로 재개방) · Root 캡처는 이 제안의 범위 밖.
+
+## R48 v8 — 공개 `manifest_contract.py` CLI 는 Python → Rust 직접 exec, D1/D2 정책 정합
+
+- **공개 진입.** v7 까지 `manifest_contract.py` 의 `__main__` 은 항상 `/bin/bash manifest_contract.sh` 를 거쳤다. 호출자가 인터프리터 시작 뒤 cwd 를 지우면(원본은 파이썬 직접 시작) 셸이 `shell-init`/`chdir` getcwd 경고 두 줄을 stderr 에 먼저 쓴다. v8 은 실행파일이 있을 때 같은 PID 로 Rust 에 직접 exec 하고(`manifest_contract.sh` 가 만드는 환경과 같다: 운반 변수·기본값·unset 규칙), 부재·실행 불가·`VALIDATE_ONLY=1`·exec 실패는 런처로 넘긴다(런처 불변). 파이썬은 업무 판정·대체·프레임 위조를 하지 않는다. 설계·검증 원본: B50 `v8-mc-public-entry-and-cli-control-proposal/public-entry`(c264); 어댑터의 공개 이름 25개·함수 9개·B1~B4 불변.
+- **D1** `base_skill_edges.json`: v4 B3 가 정책 증거를 `manifest_contract_compat_owner.py` 로 옮긴 뒤 원장이 갱신되지 않았다 — 3행 재지정 + `claim_predicates.py → compat owner` 1행 추가(다른 간선 불변).
+- **D2** `checks/data/scan_node/p1_golden.json`: `provenance.owner_sha256`(추적 파일 `scan_node_original.py` 의 digest 재기재)만 삭제 — 107행 골든·원시 맹점층 참조(inputs/summary digest)는 보존. 이 파일은 `include_str!` 로 박히므로 B scan_node 산출물은 새 소스에서 다시 빌드해야 한다(옛 ELF 를 새 소스의 증거로 쓰지 않는다).

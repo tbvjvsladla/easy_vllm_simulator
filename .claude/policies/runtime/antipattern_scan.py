@@ -45,7 +45,9 @@ REMOVED_SHAPES = (
      "pattern": r'request\[["\']model["\']\]\s*!=\s*["\']sonnet["\']|REQUESTED_MODEL_NOT_SONNET',
      "why": "모델 게이트 — 모델은 요청의 선언이고 실행 모델은 기록한다(G-A1)"},
     {"id": "G-A2-grade-table",
-     "path_re": r"^\.claude/skills/terraforming_node/scripts/(turn_budget|relay|bootstrap_canary)\.py$",
+     "path_re": r"^\.claude/skills/terraforming_node/scripts/(turn_budget|relay|bootstrap_canary)\.py$"
+                r"|^\.claude/rust/role-contract/src/turn_budget\.rs$"
+                r"|^\.claude/skills/adversarial-benchmark/rust/src/(bin/)?turn_budget[^/]*\.rs$",
      "pattern": r"^GRADES\s*=|MAX_ATTEMPTS_BEFORE_HITL|ESCALATION_FACTOR|GRADE_MAX_TURNS",
      "why": "턴 예산 등급표 — 예산은 선언이다(G-A2)"},
     {"id": "G-C3-bench-drift-gate",

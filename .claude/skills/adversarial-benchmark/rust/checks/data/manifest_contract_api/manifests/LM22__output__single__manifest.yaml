@@ -1,0 +1,8 @@
+terraforming:
+  complete: true
+  branch_verified: true
+topology: single
+gpus_per_node: 1
+model_source: managed
+nodes: []
+loop: &a [*a]

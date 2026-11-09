@@ -1,0 +1,94 @@
+{
+"schema": "r48-manifest-contract-golden/1",
+"provenance": "literal copy of the ONE actual ORIGINAL gap3 capture (T/r48-gap3-actual-summary/result.json, inputs sha a5c9d939..., Python 3.12.3 / PyYAML 6.0.1); only the private fixture root and owner clone path are replaced by <FIXROOT>/<OWNER>; bytes are latin-1 code points; manifests are the exact Root fixture bytes; deleted_cwd marks the row whose cwd the original helper removed (the replay removes its own scratch directory); R48K01 keeps the observed parser error",
+"base_profile_env": {
+"LANG": "C.UTF-8",
+"LC_ALL": "C.UTF-8"
+},
+"rows": [
+{
+"id": "R48K01",
+"group": "GAP3",
+"repo_group": "single",
+"case_dir": "cases/R48K01",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "R48K01",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 2,
+"stdout": "",
+"stderr": "manifest \u00ed\u008c\u008c\u00ec\u008b\u00b1 \u00ec\u008b\u00a4\u00ed\u008c\u00a8: while parsing a flow mapping\n  in \"<FIXROOT>/single/cases/R48K01/output/single/manifest.yaml\", line 9, column 21\nexpected ',' or '}', but got ':'\n  in \"<FIXROOT>/single/cases/R48K01/output/single/manifest.yaml\", line 9, column 3624\n"
+},
+{
+"id": "R48K02",
+"group": "GAP3",
+"repo_group": "single",
+"case_dir": "cases/R48K02",
+"args": [
+"--topology",
+"single",
+"--repo",
+"<CASE>",
+"--json"
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "R48K02",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 450, in main\n    print(json.dumps(res, ensure_ascii=False, indent=2))\n          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/__init__.py\", line 238, in dumps\n    **kw).encode(obj)\n          ^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 202, in encode\n    chunks = list(chunks)\n             ^^^^^^^^^^^^\n  File \"/usr/lib/python3.12/json/encoder.py\", line 432, in _iterencode\n    yield from _iterencode_dict(o, _current_indent_level)\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  File \"/usr/lib/python3.12/json/encoder.py\", line 406, in _iterencode_dict\n    yield from chunks\n  [Previous line repeated 991 more times]\n  File \"/usr/lib/python3.12/json/encoder.py\", line 403, in _iterencode_dict\n    chunks = _iterencode_dict(value, _current_indent_level)\n             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nRecursionError: maximum recursion depth exceeded\n"
+},
+{
+"id": "R48K03",
+"group": "GAP3",
+"repo_group": "single",
+"case_dir": "cases/R48K03",
+"args": [
+"--topology",
+"single",
+"--repo",
+"."
+],
+"cwd": "case",
+"env_extra": {},
+"place": [
+{
+"op": "file",
+"path": "output/single/manifest.yaml",
+"data": "R48K03",
+"mode": "644"
+}
+],
+"route": null,
+"run": true,
+"exit": 1,
+"stdout": "",
+"stderr": "Traceback (most recent call last):\n  File \"<OWNER>\", line 462, in <module>\n    sys.exit(main())\n             ^^^^^^\n  File \"<OWNER>\", line 414, in main\n    repo = os.path.abspath(args.repo)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"<frozen posixpath>\", line 420, in abspath\nFileNotFoundError: [Errno 2] No such file or directory\n",
+"deleted_cwd": true
+}
+]
+}

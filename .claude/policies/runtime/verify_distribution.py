@@ -838,8 +838,12 @@ def verify() -> dict:
              cwd=REPO / ".claude/skills/hint-publisher/scripts"),
         _run("hint_bench_section_selftest", [sys.executable,
              ".claude/skills/hint-publisher/scripts/render_bench_section.py", "--selftest"], {0}),
-        _run("terraform_scan_selftest", [sys.executable,
-             ".claude/skills/terraforming_node/scripts/scan_node.py", "--self-test"], {0}),
+        # 2026-11-09(R50 P1): scan_node.py is now the P1 thin adapter. The LEGACY self-test below runs the exact original owner's own
+        #   Python (it proves the legacy scanner only, NOT the Rust P1); the native P1 has its own check right after it.
+        _run("terraform_scan_selftest_legacy", [sys.executable,
+             ".claude/skills/terraforming_node/scripts/scan_node_original.py", "--self-test"], {0}),
+        _run("terraform_scan_p1_native_selfcheck", ["bash",
+             ".claude/skills/terraforming_node/scripts/scan_node.sh", "--p1-self-check"], {0}),
         _run("terraform_render_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/render_sub_env.py", "--self-test"], {0}),
         # 2026-09-03(S3 · plan_26090317 P1): SKILL.md §3 이 "회귀 고정 6종" 을 선언하는데 실행자는 위 2종

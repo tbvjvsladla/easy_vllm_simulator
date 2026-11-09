@@ -63,6 +63,9 @@ pub fn encode(value: &PyValue) -> Result<PyValue, String> {
                     PyValue::List(encoded.into_iter().map(|(_, one)| one).collect()),
                 )
             }
+            // The reader's marker of a value that contains itself (`&a [*a]`): an alias is its value, a self-containing value is outside the
+            // R33 profile, so it gets the very refusal a cyclic `Typed::Plain` repr gets (the marker's repr is `[...]`, `{...}` or `set(...)`).
+            Typed::Cycle(_) => return Err(refusal("cyclic value outside R33 DTO profile")),
             Typed::Plain => {
                 return Err(refusal(
                     if opaque.repr == "[...]" || opaque.repr == "{...}" || opaque.repr == "set(...)"

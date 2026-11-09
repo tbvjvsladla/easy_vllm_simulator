@@ -14,7 +14,9 @@
 #   설치·다운로드·전역 toolchain 폴백이 없다 — 미설치면 exit 3 으로 `install` 을 안내하고 멈춘다. sudo·패키지매니저 ✗.
 set -u
 
-SDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SELF="${BASH_SOURCE[0]}"
+case "$SELF" in */*) SDIR_RAW="${SELF%/*}"; [ -n "$SDIR_RAW" ] || SDIR_RAW=/ ;; *) SDIR_RAW=. ;; esac
+SDIR="$(cd "$SDIR_RAW" && pwd)"
 REPO="$(cd "$SDIR/../../../.." && pwd)"
 PIN_FILE="$SDIR/rust_toolchain.pin"
 TAG="[rust_bootstrap]"
@@ -24,6 +26,14 @@ printf -v SELF 'bash %q' "$SDIR/rust_bootstrap.sh"
 #   4 미지원 플랫폼 또는 선행조건(curl·cc·ar·sha256sum) 부재 · 5 다운로드/검증 실패 · 6 설치 실패 · 7 check probe 실패
 die() { local rc="$1"; shift; printf '%s ERROR rc=%s: %s\n' "$TAG" "$rc" "$*" >&2; exit "$rc"; }
 note() { printf '%s %s\n' "$TAG" "$*"; }
+
+# 선행 도구를 쓰기 전에 실제로 확인한다(호스트 전수 스캔 ✗ — 이 helper 가 직접 부르는 외부 명령만). 부족하면 어떤 도구인지 이름으로 알리고 rc 4 로 멈춘다.
+# awk·mktemp·cc·ar·curl·sha256sum 은 쓰는 지점 직전의 기존 가드가 맡고, 여기서는 그 앞(pin 읽기·경로 해소)에서 이미 쓰는 도구를 본다.
+require_tools() {
+  local t miss=""
+  for t in "$@"; do command -v "$t" >/dev/null 2>&1 || miss="$miss $t"; done
+  [ -z "$miss" ] || die 4 "필요한 외부 명령이 PATH 에 없다:${miss} — 호스트 운영자가 coreutils·grep·sed 를 준비한 뒤 다시 실행하라(이 helper 는 sudo·패키지매니저를 쓰지 않는다)."
+}
 
 usage() {
   cat <<EOF
@@ -70,12 +80,17 @@ detect_platform() {
     *) die 4 "미지원 CPU 아키텍처: $os/$arch — 지원은 aarch64·x86_64 GNU 뿐이다(references/install/rust_runtime.md §지원 범위)." ;;
   esac
   case ",$PIN_TRIPLES," in *",$TRIPLE,"*) ;; *) die 4 "pin 의 지원 목록($PIN_TRIPLES)에 $TRIPLE 이 없다." ;; esac
+  # awk 는 pin 버전 비교(compute_state · install · check 의 rustc 버전 확인)와 rustup-init 체크섬 읽기에 실제로 쓰인다.
+  command -v awk >/dev/null 2>&1 || die 4 "awk 가 PATH 에 없다 — rustc/rustup 버전·체크섬 판독에 필요하다. 호스트 운영자가 awk(gawk 또는 mawk) 를 준비한 뒤 다시 실행하라(이 helper 는 패키지 매니저를 쓰지 않는다)."
   if command -v ldd >/dev/null 2>&1 && ldd --version 2>&1 | grep -qi musl; then
     die 4 "musl libc 호스트다 — GNU(glibc) toolchain 만 지원한다. musl 은 별도 절차가 필요하며 이 helper 의 범위 밖이다."
   fi
 }
 
 require_native_tools() {
+  # mktemp 는 install 의 다운로드 디렉터리와 check 의 probe 디렉터리를 만드는 데 실제로 쓰인다.
+  command -v mktemp >/dev/null 2>&1 \
+    || die 4 "mktemp(coreutils)가 PATH 에 없다 — 설치 다운로드/check probe 임시 디렉터리에 필요하다."
   command -v cc >/dev/null 2>&1 \
     || die 4 "C 컴파일러/링커(cc)가 PATH 에 없다 — rustc 가 링크에 쓴다. 이 helper 는 sudo·패키지매니저를 쓰지 않는다: 호스트 운영자가 build-essential(또는 gcc) 을 설치한 뒤 다시 실행하라."
   command -v ar >/dev/null 2>&1 \
@@ -326,6 +341,11 @@ esac
 [ -z "$OPT_INIT_FILE" ] || [ "$CMD" = install ] || die 2 "--rustup-init-file 은 install 에서만 쓴다."
 [ "$CMD" = exec ] || [ "${#REST[@]}" -eq 0 ] || die 2 "'--' 뒤 명령은 exec 에서만 쓴다."
 
+require_tools uname sed head tr realpath env cat grep
+case "$CMD" in
+  install) require_tools mkdir rm chmod ;;
+  check)   require_tools mkdir rm ;;
+esac
 load_pin
 resolve_home
 case "$CMD" in

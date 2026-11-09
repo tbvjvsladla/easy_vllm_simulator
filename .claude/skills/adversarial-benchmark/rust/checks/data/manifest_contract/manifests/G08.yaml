@@ -1,0 +1,8 @@
+terraforming:
+  complete: 1
+  branch_verified: true
+topology: single
+gpus_per_node: 1
+model_source: managed
+nas_model_path: /fixture/models
+nodes: []

@@ -83,6 +83,24 @@ class PredicateFailure(RuntimeError):
     """A material clause requirement failed closed."""
 
 
+# R48 wiring: run_bench.sh's Flag gate runs through the node-local launcher (the Rust `manifest_contract`, availability checked
+# first). The in-process Python reference `manifest_contract.main(...)` executed by the scenarios below stays the Python original
+# (verification/reference plane, S7 open); the native command line is proven by the original/native corpus and the shell tests,
+# not by this predicate. The property kept: the gate command carries exactly the argv of the reference, the availability check
+# precedes it, an invalid Flag stops with exit 4 before the workload env is loaded.
+_FLAG_GATE_LAUNCHER_COMMAND = 'bash "${MC%.py}.sh" --topology "$TOPO" --repo "$REPO" --require-flag'
+_FLAG_GATE_AVAILABILITY_COMMAND = 'MANIFEST_CONTRACT_VALIDATE_ONLY=1 bash "${MC%.py}.sh"'
+
+
+def _require_flag_gate_caller(run_bench_src: str, what: str) -> None:
+    _require(_FLAG_GATE_LAUNCHER_COMMAND in run_bench_src, 'run_bench.sh must invoke the Flag gate through the launcher with exactly ' + what)
+    gate = run_bench_src.index(_FLAG_GATE_LAUNCHER_COMMAND)
+    _require(_FLAG_GATE_AVAILABILITY_COMMAND in run_bench_src and run_bench_src.index(_FLAG_GATE_AVAILABILITY_COMMAND) < gate,
+             'the launcher availability check must precede the Flag gate call')
+    _require('exit 4' in run_bench_src[gate:gate + 400], 'an invalid Flag must stop the script with exit 4 right at the gate')
+    _require(gate < run_bench_src.index('EF="$REPO/output/$TOPO/envs/.env.$CONFIG"'), 'the Flag gate must run before the workload env is loaded')
+
+
 def _require(condition, message: object) -> None:
     if not condition:
         raise PredicateFailure(str(message))
@@ -336,6 +354,12 @@ def _approval_order_problems(src: str) -> list:
 preload_ram_gate = _import(".claude/skills/vllm-recipe-explorer/scripts", "preload_ram_gate")
 manifest_contract = _import(".claude/skills/terraforming_node/scripts", "manifest_contract")
 scan_node = _import(".claude/skills/terraforming_node/scripts", "scan_node")
+# scan_node.py is now the P1 thin adapter (native Rust for the 16 P1 names); the text of the UNPORTED parts (probes, SSH, argparse main,
+# the CLI emit gate) lives in the exact original owner, and the text of the P1 parts lives in the T Rust sources.
+_SCAN_NODE_LEGACY = ".claude/skills/terraforming_node/scripts/scan_node_original.py"
+_SCAN_NODE_P1_MANIFEST_RS = ".claude/rust/role-contract/src/scan_node_manifest.rs"
+_SCAN_NODE_P1_T_SOURCES = (".claude/rust/role-contract/src/scan_node.rs", _SCAN_NODE_P1_MANIFEST_RS,
+                           ".claude/rust/role-contract/src/scan_node_files.rs")
 render_sub_env = _import(".claude/skills/terraforming_node/scripts", "render_sub_env")
 classify_failure = _import(".claude/skills/upstream-version-watch/scripts", "classify_failure")
 resolve_ngc_tag = _import(".claude/skills/upstream-version-watch/scripts", "resolve_ngc_tag")
@@ -525,7 +549,7 @@ def predicate_HOST_SAFETY_LAYERED_DEFENSE_C3():
     """C3: host-safety install status is independent of the completion Flag; manifest
     host_safety.installed:false is a neutral record; opt-out gets exactly one chat-only warning
     line on unified-memory serve only, with no serve-script/log banner code."""
-    scan_src = _read(".claude/skills/terraforming_node/scripts/scan_node.py")
+    scan_src = _read(_SCAN_NODE_P1_MANIFEST_RS)   # emit_manifest_block is P1: its text is the Rust T source
     result = {
         "topology_declared": "single", "cpu_arch": "aarch64", "cuda_version": "132",
         "gpus_per_node": 1,
@@ -2202,6 +2226,19 @@ def predicate_MODEL_ACQUISITION_TERNARY_GATE_C1():
     storage/deletion/mount semantics; per-node override resolves node-value-if-present else the
     cluster default; the runtime mount plane is read-only regardless of mode."""
     _require(manifest_contract.VALID_MODES == ('managed', 'ephemeral', 'custom'), 'predicate requirement failed at original line 1069')
+    # The enforcing owner of the modes is the Rust gate: its const, the adapter's public tuple and the compat owner's tuple (the exact
+    # reviewed original that answers the legacy shapes) must be the same three modes in the same order -- the adapter tuple alone is
+    # a token, not enforcement.
+    _rust_modes = re.search(r"^pub const VALID_MODES: \[&str; (\d+)\] = \[([^\]]*)\];",
+                            _read('.claude/rust/role-contract/src/manifest_gate.rs'), re.MULTILINE)
+    _require(_rust_modes is not None, 'manifest_gate.rs must declare VALID_MODES')
+    _require(tuple(re.findall(r'"([^"]*)"', _rust_modes.group(2))) == manifest_contract.VALID_MODES,
+             'Rust VALID_MODES differs from the adapter tuple')
+    _compat_modes = None
+    for _node in ast.parse(_read('.claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py')).body:
+        if isinstance(_node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'VALID_MODES' for t in _node.targets):
+            _compat_modes = tuple(elt.value for elt in _node.value.elts)
+    _require(_compat_modes == manifest_contract.VALID_MODES, 'compat owner VALID_MODES differs from the adapter tuple')
     _require(manifest_contract.effective_model_source({'model_source': 'ephemeral'}, 'managed') == 'ephemeral', 'predicate requirement failed at original line 1070')
     _require(manifest_contract.effective_model_source({}, 'managed') == 'managed', 'predicate requirement failed at original line 1071')
     _require(manifest_contract.effective_model_source(None, 'custom') == 'custom', 'predicate requirement failed at original line 1072')
@@ -2324,7 +2361,7 @@ def predicate_MODEL_ACQUISITION_TERNARY_GATE_C4():
     # `hf_token_env_file` variable as an argument must be an existence check (bool()/os.path.isfile())
     # -- never open()/read_text()/Path(...).open() or any content-reading call. A regression that
     # added a content read of the token file would be caught here even if it never printed anything.
-    sn_src = _read(".claude/skills/terraforming_node/scripts/scan_node.py")
+    sn_src = _read(_SCAN_NODE_LEGACY)   # the unported scanner text (collect_peer_model_env, main) is the exact original owner
     tree = ast.parse(sn_src)
     call_names = []
     for node in ast.walk(tree):
@@ -2347,6 +2384,16 @@ def predicate_MODEL_ACQUISITION_TERNARY_GATE_C4():
              'the remote existence probe must never read the token file content')
     _require('[ -f ' in _peer_src, 'the remote probe must be an existence test, not a content read')
     _require('open(hf_token_env_file' not in sn_src and 'read_text' not in sn_src, "the raw token file's content must never be read")
+    # The P1 parts (now Rust) never read the token file either: the pure/file T sources reach files only through the `Files` boundary, never
+    # through std::fs, and `hf_token_env_file` appears there only as a quoted manifest key, never as a path handed to a read.
+    _p1_rust = {rel: _read(rel) for rel in _SCAN_NODE_P1_T_SOURCES}
+    _require(all(needle not in text for text in _p1_rust.values() for needle in ("std::fs", "File::open", "read_to_string")),
+             "the P1 Rust T sources must read files only through the Files boundary")
+    _require(all(m.group(0).startswith('"') and m.group(0).endswith('"') for text in _p1_rust.values()
+                 for m in re.finditer(r'.hf_token_env_file.', text)),
+             "hf_token_env_file may appear in the P1 Rust T sources only as a quoted manifest key")
+    _require("hf_token" not in _p1_rust[".claude/rust/role-contract/src/scan_node_files.rs"],
+             "the P1 file reader must not know the token pointer at all")
 
 
 def predicate_MODEL_ACQUISITION_TERNARY_GATE_C5():
@@ -3068,7 +3115,7 @@ def predicate_TERRAFORM_FLAG_GATE_C1():
     consumer validates an already-written attestation against, is exercised the same way -- complete,
     branch_verified, a wholly-absent terraforming block, missing HW fields, and an invalid
     model_source are each flipped alone off the same passing baseline."""
-    scan_src = _read(".claude/skills/terraforming_node/scripts/scan_node.py")
+    scan_src = _read(_SCAN_NODE_LEGACY)   # main() (the CLI emit gate) is unported: the exact original owner
     _require('if args.emit_manifest and result["gate"]["status"] == "ok" and args.topology in ("single", "multi"):' in scan_src, "the Flag-attestation emit call must be gated on gate.status=='ok' AND a CONFIRMED (non-auto) topology -- a regression loosening this condition would let emit_manifest_block stamp complete:true/branch_verified:true on a blocked or speculative gate")
 
     # --- Layer A: single-topology matrix (baseline + 3 independent flips) ---
@@ -3205,7 +3252,7 @@ def predicate_TERRAFORM_FLAG_GATE_C2():
         _require(rc == manifest_contract.EXIT_NO_MANIFEST, 'manifest_contract.py --require-flag must be non-zero against a Flag-absent repo')
 
     run_bench_src = _read(".claude/skills/adversarial-benchmark/scripts/run_bench.sh")
-    _require('python3 "$MC" --topology "$TOPO" --repo "$REPO" --require-flag' in run_bench_src, 'run_bench.sh must invoke the exact command just executed above, verbatim')
+    _require_flag_gate_caller(run_bench_src, 'the argv executed in-process above (reference), not a lookalike')
     _require('테라포밍-완수 Flag 미발급 — info-only' in run_bench_src, 'run_bench.sh must fall back to an info-only refusal, never a fabricated deliverable')
     # Execute the production script itself against hermetic fake curl/docker/vllm commands.  The
     # fake docker executes the real inner `bash -c` payload, while fake vllm records only argv it
@@ -3237,6 +3284,12 @@ def predicate_TERRAFORM_FLAG_GATE_C2():
         contract = bench_root / ".claude/skills/terraforming_node/scripts/manifest_contract.py"
         contract.parent.mkdir(parents=True)
         contract.write_text("# hermetic gate fixture; fake python3 returns success\n", encoding="utf-8")
+        # R48: the Flag gate is called through the launcher beside the owner file. This scenario fakes the gate ANSWER (as the fake
+        # python3 above did for the former direct call), so its launcher stand-in answers success; the real launcher and the
+        # native gate are proven by the shell checks (manifest_contract_shell) and the original/native corpus, not here.
+        (contract.parent / "manifest_contract.sh").write_text(
+            '#!/bin/bash\n# hermetic gate fixture launcher: availability check and gate both succeed\nexit 0\n', encoding="utf-8")
+        (contract.parent / "manifest_contract.sh").chmod(0o755)
 
         fake_bin = bench_root / "fake-bin"
         fake_bin.mkdir()
@@ -3258,13 +3311,22 @@ def predicate_TERRAFORM_FLAG_GATE_C2():
             "record = {'argv': args, 'docker_route': os.environ.get('VLLM_FAKE_DOCKER_ROUTE')}\n"
             "with pathlib.Path(os.environ['VLLM_ARGV_CAPTURE']).open('a') as fh:\n"
             "    fh.write(json.dumps(record) + '\\n')\n"
-            "out = pathlib.Path(args[args.index('--result-dir') + 1]) / args[args.index('--result-filename') + 1]\n"
+            "# The argv above is captured as it was received. Only the file IO target is mapped: the fake container's /tmp\n"
+            "# is an owned directory of the hermetic root, never the host's /tmp.\n"
+            "def container_file(path):\n"
+            "    root = pathlib.Path(os.environ['FAKE_CONTAINER_TMP'])\n"
+            "    return root / pathlib.PurePosixPath(path).relative_to('/tmp')\n"
+            "out = container_file(pathlib.PurePosixPath(args[args.index('--result-dir') + 1]) / args[args.index('--result-filename') + 1])\n"
+            "out.parent.mkdir(parents=True, exist_ok=True)\n"
             "out.write_text('{}')\n", encoding="utf-8")
         fake_docker = fake_bin / "docker"
         fake_docker.write_text(
             f"#!{sys.executable}\n"
             "import json, os, pathlib, secrets, subprocess, sys\n"
             "args = sys.argv[1:]\n"
+            "def container_file(path):\n"
+            "    root = pathlib.Path(os.environ['FAKE_CONTAINER_TMP'])\n"
+            "    return root / pathlib.PurePosixPath(path).relative_to('/tmp')\n"
             "if args[0] == 'ps':\n"
             "    print('fixture-container-id')\n"
             "elif args[0] == 'logs':\n"
@@ -3276,9 +3338,17 @@ def predicate_TERRAFORM_FLAG_GATE_C2():
             "        fh.write(json.dumps(route) + '\\n')\n"
             "    child_env = os.environ.copy()\n"
             "    child_env['VLLM_FAKE_DOCKER_ROUTE'] = nonce\n"
-            "    subprocess.run(['/bin/bash', '-c', args[4]], check=True, env=child_env)\n"
+            "    tail = args[4].startswith('tail -5 /tmp/')\n"
+            "    if tail:\n"
+            "        # the error-tail read of a failed bench reads the fake container's file, not the host's\n"
+            "        name = args[4].split()[2]\n"
+            "        target = container_file(name)\n"
+            "        if target.is_file():\n"
+            "            sys.stdout.write(''.join(target.read_text().splitlines(True)[-5:]))\n"
+            "    else:\n"
+            "        subprocess.run(['/bin/bash', '-c', args[4]], check=True, env=child_env)\n"
             "elif args[0] == 'exec' and args[2] == 'cat':\n"
-            "    sys.stdout.write(pathlib.Path(args[3]).read_text())\n"
+            "    sys.stdout.write(container_file(args[3]).read_text())\n"
             "else:\n"
             "    raise SystemExit('unexpected docker argv: ' + repr(args))\n", encoding="utf-8")
         for fake in (fake_python, fake_curl, fake_vllm, fake_docker):
@@ -3289,6 +3359,9 @@ def predicate_TERRAFORM_FLAG_GATE_C2():
         env["VLLM_ARGV_CAPTURE"] = str(capture)
         env["VLLM_DOCKER_ROUTE_CAPTURE"] = str(route_capture)
         env["BENCH_SHELL_BIN"] = str(bench_shell_bin)
+        container_tmp = bench_root / "container-tmp"
+        container_tmp.mkdir()
+        env["FAKE_CONTAINER_TMP"] = str(container_tmp)
         completed = subprocess.run(
             ["bash", str(script_dir / "run_bench.sh"), "fixture", "--topology", "single",
              # 2026-09-07: `--backend` 기본값이 제거됐다(유예 결함 ①). 픽스처도 명시한다 —
@@ -3306,6 +3379,9 @@ def predicate_TERRAFORM_FLAG_GATE_C2():
         _require(bench_argv[:2] == ['bench', 'serve'], bench_argv)
         temp_positions = [i for i, arg in enumerate(bench_argv) if arg == "--temperature"]
         _require(len(temp_positions) == 1 and bench_argv[temp_positions[0] + 1] == '0', f'the actually executed vllm bench serve argv must contain exactly one greedy temperature pin; argv={bench_argv!r}')
+        # The production argv is unchanged (container paths /tmp and ab_bench_fixture.json); the fake container's file lives in the owned root.
+        _require(bench_argv[bench_argv.index('--result-dir') + 1] == '/tmp' and bench_argv[bench_argv.index('--result-filename') + 1] == 'ab_bench_fixture.json', f'run_bench.sh must still name the container /tmp result path; argv={bench_argv!r}')
+        _require((container_tmp / 'ab_bench_fixture.json').read_text(encoding="utf-8") == '{}', 'the fake container result must be written into the owned container-tmp, not the host /tmp')
 
     # upstream: same documented backstop entrypoint, executed for real in a fresh hermetic
     # Flag-absent repo (upstream has no single script gate of its own -- SKILL.md documents this
@@ -3399,7 +3475,7 @@ def predicate_TERRAFORM_FLAG_GATE_C3():
         _require(emitted['flag'] is False and emitted['redirect'] == manifest_contract.REDIRECT_TEMPLATE, 'the real --json CLI path must emit the exact production REDIRECT_TEMPLATE constant, not a re-typed lookalike string')
 
     run_bench_src = _read(".claude/skills/adversarial-benchmark/scripts/run_bench.sh")
-    _require('python3 "$MC" --topology "$TOPO" --repo "$REPO" --require-flag' in run_bench_src, 'run_bench.sh must invoke the exact same manifest_contract.py --require-flag command executed as layer 1b above -- not a lookalike/rewritten invocation')
+    _require_flag_gate_caller(run_bench_src, 'the --require-flag argv executed as layer 1b above (reference), not a lookalike/rewritten invocation')
 
     # the fragment actually emitted at runtime above must be verbatim, in the constitution's own
     # committed wording -- so no alternate/looser phrasing exists for a generic verbal command to
@@ -3480,7 +3556,7 @@ def predicate_TERRAFORM_FLAG_GATE_C4():
 
 def predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1():
     """Terraforming distinguishes SSH host/client key failure from mere reachability."""
-    scan = _read(".claude/skills/terraforming_node/scripts/scan_node.py")
+    scan = _read(_SCAN_NODE_LEGACY)   # collect_peer_hw/_peer_ssh_diag are unported (P2/P3): the exact original owner
     _require("BatchMode=yes" in scan and "host-key 미등록/불일치" in scan
              and "키 인증 거부" in scan,
              "terraforming must fail closed on SSH host/client key authentication failures")
