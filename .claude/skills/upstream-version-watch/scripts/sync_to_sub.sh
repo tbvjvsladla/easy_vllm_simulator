@@ -612,7 +612,12 @@ effective_band2_exclusions() { # $1=topology; shared rsync/inventory/prune scope
 }
 
 band2_post_files() { # $1=topology; admitted POST/PRE direct inputs only, no recursion
-    local slot name
+    local slot name excluded
+    # 2026-11-09 (first real multi2 B0 apply, exit 2): a slot the transport filter excludes delivers NOTHING — an empty/absent slot is excluded whole by
+    #   `effective_band2_exclusions`, so its index-owned `.gitkeep` scaffold never reaches the sub, yet this list (the verification and residue-inventory
+    #   scope) still named `build_patches/.gitkeep` and the checksum loop failed on a file nobody delivers. The slot scope now follows the SAME owner as
+    #   the rsync filter; a slot with real payload is unchanged (every file of it, scaffold included, is delivered and still verified strictly).
+    effective_band2_exclusions "$1"
     for slot in "${BAND2_PATCH_DIRS[@]}"; do
         if [ "$slot" = "build_patches_src" ]; then
             script_modules_active "$1" || continue
@@ -620,6 +625,8 @@ band2_post_files() { # $1=topology; admitted POST/PRE direct inputs only, no rec
             continue
         fi
         [ -d "${SRC%/}/output/$1/$slot" ] || continue
+        excluded=0; for name in "${EFFECTIVE_BAND2_EXCLUDED_TOP[@]}"; do [ "$name" = "$slot" ] && excluded=1; done
+        [ "$excluded" = "0" ] || continue
         find "${SRC%/}/output/$1/$slot" -mindepth 1 -maxdepth 1 -type f -printf "$slot/%f\n"
     done
     return 0
