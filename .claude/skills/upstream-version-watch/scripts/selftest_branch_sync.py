@@ -25,6 +25,12 @@
       카탈로그를 막지 않고 `object: absent-local` 행(brief '—' · 합성 ✗)으로 실린다 — 대상 브랜치 카탈로그에 그 행이 있는지까지
       본다. 기본 모드(플래그 없음)의 옛 계약(rc 4 + 조회한 원격의 fetch 안내 · HintError.render)도 따로 친다.
 
+  S9  B0 첫 배달의 빌드킷 체크섬 범위 -- 비어 있는 빌드패치 슬롯(`build_patches/`)은 rsync 필터가 통째로 제외하므로 서브에 가지 않는
+      색인 소유 `.gitkeep` 스캐폴드를 검증 목록(band2_post_files)이 요구하면 첫 실제 B0 가 체크섬 불일치로 죽는다(2026-11-09 실측,
+      exit 2). 실제 필터·실제 rsync(ssh 대역은 로컬 셸)·실제 체크섬 루프로 ⓐ 빈 슬롯은 통과하고 스캐폴드를 서브에 만들지 않으며
+      ⓑ payload 가 있는 슬롯의 실제 배달 파일은 계속 엄격히 대조되고(변조 = 적색) ⓒ 최상위 빌드킷 파일의 변조도 적색이며
+      ⓓ 수정을 걷어낸 변이 사본은 ⓐ 에서 적색이 된다.
+
 원격·서브·실 원장은 건드리지 않는다: 원격은 임시 bare 저장소, ssh 는 호출되면 흔적을 남기는 shim, 시각은 픽스처 상수다.
 `assert` 는 쓰지 않는다(`-O` 에서 사라진다 -- runtime_selftest 가 전수 금지).
 """
@@ -733,6 +739,83 @@ def test_branch_sync_delete_respects_excludes() -> None:
                    not ledger_alive and orphan_gone, (r.returncode, ledger_alive, out[-400:]))
 
 
+def _extract_shell(text: str, names: tuple[str, ...], arrays: tuple[str, ...]) -> str:
+    """배포되는 sync_to_sub.sh 의 **바이트 그대로** 함수·배열 정의만 뽑는다(대역 재작성 ✗)."""
+    parts: list[str] = []
+    for line in text.splitlines():
+        if any(line.startswith(prefix) for prefix in arrays):
+            parts.append(line)
+    for name in names:
+        match = re.search(rf"(?ms)^{re.escape(name)}\(\) \{{.*?^\}}\n", text)
+        if match is None:
+            raise RuntimeError(f"sync_to_sub.sh 에 함수 {name} 가 없다(검사 앵커 상실)")
+        parts.append(match.group(0))
+    return "\n".join(parts) + "\n"
+
+
+def _scaffold_case(sb: Sandbox, text: str, label: str, src_files: dict[str, bytes],
+                   sub_after_rsync=None) -> tuple[int, str, Path]:
+    """실제 필터(`_band2_filters`)·실제 rsync(ssh = 로컬 셸 대역)로 배달한 뒤 **실제 체크섬 루프**(verify_checksums (1) 구간)를 돈다."""
+    root = sb.root / f"s9_{label}"
+    src, sub = root / "src", root / "sub"
+    for rel, data in src_files.items():
+        (src / "output/multi" / rel).parent.mkdir(parents=True, exist_ok=True)
+        (src / "output/multi" / rel).write_bytes(data)
+    (sub / "output/multi").mkdir(parents=True)
+    shim = root / "ssh"
+    shim.write_text('#!/bin/bash\nwhile [ $# -gt 0 ]; do case "$1" in -o|-p|-i|-l) shift 2 ;; -*) shift ;; *) break ;; esac; done\nshift\nexec /bin/sh -c "$*"\n',
+                    encoding="utf-8")
+    shim.chmod(0o755)
+    start = text.index('    local -a build_files=("${BAND2_TOP[@]}")')
+    end = text.index("    fi\n    # (2) 오버레이", start)
+    loop = text[start:end]
+    defs = _extract_shell(text, ("effective_band2_exclusions", "script_modules_active", "script_module_files", "band2_post_files", "_band2_filters"),
+                          ("BAND2_TOP=(", "BAND2_PATCH_DIRS=(", "declare -A BAND2_PATCH_DIR_PAYLOAD=(", "BAND2_EXCLUDED_TOP=(", "BAND2_CONFIGS=(",
+                           "BAND2_ENVS=(", "BAND2_RUNTIME_PATCH_STEMS=(", "SOURCE_PORT_DIR=", "SOURCE_PORT_PAYLOAD="))
+    hook = "" if sub_after_rsync is None else sub_after_rsync(sub)
+    (root / "runner.sh").write_text(
+        "set -euo pipefail\n" + defs + f"SRC='{src}/'; SUB_HOST=u@mock; SUB_WORK_DIR='{sub}'; TARGETS=(multi)\n"
+        f"SSH_ARGV=('{shim}'); printf -v SSH_RSH '%q ' \"${{SSH_ARGV[@]}}\"; SSH_RSH=\"${{SSH_RSH% }}\"\n"
+        'ssh_run() { "${SSH_ARGV[@]}" "$@"; }\n'
+        '_band2_filters multi\n'
+        'rsync -az --delete "${FILT[@]}" -e "$SSH_RSH" "${SRC%/}/output/multi/" "$SUB_HOST:$SUB_WORK_DIR/output/multi/"\n'
+        + hook +
+        "verify_buildkit() {\n    local fail=0 L R f\n" + loop + "    return $fail\n}\n# the real caller runs verify_checksums inside an `||` list (set -e is off there): same context here\nverify_buildkit multi || exit 1\n", encoding="utf-8")
+    proc = sb.run(["bash", str(root / "runner.sh")], root)
+    return proc.returncode, proc.stdout + proc.stderr, sub
+
+
+def test_b0_build_slot_scaffold_checksum_scope() -> None:
+    print("[S9] B0 빌드킷 체크섬 범위 ↔ rsync 필터(빈 빌드패치 슬롯의 스캐폴드)", file=sys.stderr)
+    text = (REAL / SYNC_TO_SUB).read_text(encoding="utf-8")
+    kit = {"Dockerfile": b"FROM base\n", "requirements.txt": b"x==1\n", ".gitkeep": b""}
+    with tempfile.TemporaryDirectory() as td:
+        sb = Sandbox(Path(td).resolve())
+        # ⓐ 빈 슬롯: 스캐폴드(.gitkeep)만 있다 — 필터가 슬롯을 통째로 제외하므로 검증도 요구하지 않고, 서브에 스캐폴드를 만들지도 않는다
+        rc, out, sub = _scaffold_case(sb, text, "empty_slot", {**kit, "build_patches/.gitkeep": b""})
+        ck("S9 ⓐ 빈 빌드패치 슬롯 = 체크섬 통과(실제 B0 의 exit 2 재현 금지)", rc == 0 and "❌" not in out, out[-300:])
+        ck("S9 ⓐ 배달된 최상위 빌드킷은 계속 대조된다", "✅ output/multi/Dockerfile" in out and "✅ output/multi/requirements.txt" in out, out[-300:])
+        ck("S9 ⓐ 스캐폴드를 패키지로 지어내지 않는다(서브에 build_patches 없음 · 검증 목록에도 없음)",
+           not (sub / "output/multi/build_patches").exists() and "build_patches" not in out, out[-300:])
+        # ⓑ payload 슬롯: 실제 배달 파일 전부(스캐폴드 포함)가 엄격히 대조된다
+        slot = {**kit, "build_patches/.gitkeep": b"", "build_patches/10-real.sh": b"#!/bin/bash\necho real\n"}
+        rc, out, sub = _scaffold_case(sb, text, "payload_ok", slot)
+        ck("S9 ⓑ payload 슬롯 = 통과 · 실제 파일과 스캐폴드가 모두 대조·배달됨", rc == 0 and "✅ output/multi/build_patches/10-real.sh" in out
+           and "✅ output/multi/build_patches/.gitkeep" in out and (sub / "output/multi/build_patches/10-real.sh").is_file(), out[-300:])
+        rc, out, _ = _scaffold_case(sb, text, "payload_corrupt", slot,
+                                    lambda sub: f"echo corrupted >> '{sub}/output/multi/build_patches/10-real.sh'\n")
+        ck("S9 ⓑ 배달된 실제 payload 가 변조되면 적색", rc != 0 and "❌ output/multi/build_patches/10-real.sh" in out, out[-300:])
+        # ⓒ 최상위 빌드킷 파일
+        rc, out, _ = _scaffold_case(sb, text, "top_corrupt", {**kit, "build_patches/.gitkeep": b""},
+                                    lambda sub: f"echo x >> '{sub}/output/multi/Dockerfile'\n")
+        ck("S9 ⓒ 최상위 빌드킷 파일 변조 = 적색", rc != 0 and "❌ output/multi/Dockerfile" in out, out[-300:])
+        # ⓓ 음성대조: 수정(필터와 같은 소유자를 따르는 슬롯 범위)을 걷어낸 변이는 ⓐ 에서 적색이어야 한다
+        mutated = re.sub(r'        excluded=0; for name in .*?\n        \[ "\$excluded" = "0" \] \|\| continue\n', "", text, count=1, flags=re.S)
+        ck("S9 ⓓ 변이 사본이 실제로 수정을 걷어냈다(앵커 확인)", mutated != text)
+        rc, out, _ = _scaffold_case(sb, mutated, "mutated_empty_slot", {**kit, "build_patches/.gitkeep": b""})
+        ck("S9 ⓓ 수정을 걷어낸 변이 = 빈 슬롯에서 적색(옛 결함 재현 · 이 검사의 검출력)", rc != 0 and "❌ output/multi/build_patches/.gitkeep" in out, out[-300:])
+
+
 def main() -> int:
     for rel in (SYNC_TO_SUB, SYNC_BRANCHES, LAYER_LEDGER, CLOSING, PARITY, RENDER, GATE, CATALOG, HINTLIB_DIR,
                 *CATALOG_COMPANIONS):
@@ -740,7 +823,7 @@ def main() -> int:
             print(f"[selftest_branch_sync] FAIL: 검사 대상이 없다: {rel}", file=sys.stderr)
             return 1
     for test in (test_sync_to_sub_guard, test_render_guard, test_closing_sequence,
-                 test_branch_sync_delete_respects_excludes):
+                 test_branch_sync_delete_respects_excludes, test_b0_build_slot_scaffold_checksum_scope):
         try:
             test()
         except Exception as exc:  # noqa: BLE001 -- 픽스처 구성 실패도 FAIL 로 센다(침묵 통과 ✗)
