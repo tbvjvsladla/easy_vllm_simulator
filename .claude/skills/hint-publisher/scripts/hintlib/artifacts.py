@@ -6772,11 +6772,9 @@ def selftest() -> list[str]:
         rev_m = _git_rev_before(_ctx(repo, ev), core.REL_RENDER_DOCKERFILE, "2026-01-01T19:30:00Z")
         ck("R-b 픽스처: 측정 전 렌더러 커밋이 있다", rev_m is not None)
         man_p = out / "manifest.yaml"
-        # manifest 가 생기면 발췌 치환표(evidence.output_manifest)가 소유 YAML 로더를 부른다 — 실물을 격리 저장소에 복사한다.
+        # manifest 가 생기면 발췌 치환표(evidence.output_manifest)가 소유 YAML 로더를 부른다 — 어댑터 실물과 그 실행 파일(Rust owner)을 격리 저장소에 복사한다.
         from . import evidence as _ev_mc
-        mc_dst = repo / _ev_mc.REL_MANIFEST_CONTRACT
-        mc_dst.parent.mkdir(parents=True, exist_ok=True)
-        mc_dst.write_bytes((own / _ev_mc.REL_MANIFEST_CONTRACT).read_bytes())
+        _ev_mc.selftest_stage_manifest_contract(own, repo)
         man_p.write_text("topology: multi\ninterconnect:\n  hca_devices: rocep1s0f1\n  gid_index: 3\n"
                          "  socket_iface: enpfixture0\n  platform_preset: dgx-spark-gb10\n  nccl_transport: rdma\n",
                          encoding="utf-8")

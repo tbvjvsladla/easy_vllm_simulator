@@ -54,6 +54,13 @@ from . import core
 
 # ── 교차 스킬 소유 모듈(경로 · 부재 = 죽는다) ───────────────────────────────────────────────────────────────
 REL_MANIFEST_CONTRACT = ".claude/skills/terraforming_node/scripts/manifest_contract.py"
+# `manifest_contract.py` is a thin adapter over the built Rust owner: a scratch checkout that must LOAD YAML through it needs the files the adapter
+# reaches next to it and the built executable at the adapter's default location (the same triple `manifest_contract.py` itself names).
+REL_MANIFEST_CONTRACT_RUNTIME = (
+    REL_MANIFEST_CONTRACT[:-len(".py")] + ".sh",
+    REL_MANIFEST_CONTRACT[:-len(".py")] + "_compat_owner.py",
+    ".claude/skills/adversarial-benchmark/rust/target/release/manifest_contract",
+)
 REL_CHECK_SMOKE_MODEL = ".claude/skills/upstream-version-watch/scripts/check_smoke_model.py"
 # 두-레이아웃(2026-07-31 · 옛 hint_tag._cgate): ① 정본 `.claude/policies/runtime/completion_gate.py`
 #   ② hintlib 옆 동거 사본(`scripts/completion_gate.py`). 옛 로더는 ②를 `import completion_gate` 로 찾아서 sys.path 에
@@ -8201,8 +8208,7 @@ def _selftest_v7(ck, repo: Path, td: Path, ev: CellEvidence, fx: dict, dk) -> No
     import shutil as _shc
     with tempfile.TemporaryDirectory(prefix="hint-f25-") as t25:
         r25 = Path(t25)
-        (r25 / REL_MANIFEST_CONTRACT).parent.mkdir(parents=True)
-        _shc.copyfile(core.SKILL_DIR.parents[2] / REL_MANIFEST_CONTRACT, r25 / REL_MANIFEST_CONTRACT)
+        selftest_stage_manifest_contract(core.SKILL_DIR.parents[2], r25)
         cd25 = r25 / "campaigns/camp-fx/cells/other-name"
         cd25.mkdir(parents=True)
         (cd25 / "config.yaml").write_text(f"serving:\n  config_name: {ev.cell}\n", encoding="utf-8")
@@ -9049,6 +9055,16 @@ def _selftest_runtime_epochs(ck, repo: Path) -> None:
        and conflict["runtime_source_checkout"] is None and "상충" in conflict["runtime_source_checkout_source"])
     ev.pointers = [{"kind": "simlog", "path": index_rel, "cell_id": "other", "node_id": "sub"}]
     ck("FC2/3 another cell's pointer is not searched", not _runtime_observations(repo, ev))
+
+
+def selftest_stage_manifest_contract(own: Path, scratch: Path) -> None:
+    """Copies the REAL owner adapter, its runtime files and the built executable (bytes and mode) into a scratch checkout, so a fixture that loads
+    YAML through `_owner_yaml` runs the production loader instead of a narrower stand-in. A missing source file raises (nothing is skipped)."""
+    for rel_path in (REL_MANIFEST_CONTRACT, *REL_MANIFEST_CONTRACT_RUNTIME):
+        source, dest = own / rel_path, scratch / rel_path
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(source.read_bytes())
+        dest.chmod(source.stat().st_mode & 0o777)
 
 
 def selftest() -> list[str]:

@@ -1029,6 +1029,36 @@ sub_dirty() { sub_run "git status --porcelain"; }
 sub_commit() { sub_run "git -c user.name='$GIT_NAME' -c user.email='$GIT_EMAIL' commit -q -m \"$1\""; }
 sub_branch_current() { sub_run "git rev-parse --abbrev-ref HEAD"; }
 
+# 2026-11-09 (Q2 provision readiness G1): an EXISTING sub work_dir without `.git` that still holds anything is foreign data of unknown ownership. B0 would
+# `git init` + `git add -A` it into the first commit, so it is refused here (apply path: before R2/provision/B0/transfer; read-only probe, no mutation).
+# One remote probe, builtins only, the path passed single-quote-escaped: prints ABSENT | EMPTY | UNREADABLE | `NONEMPTY <count> <first<=5 names>`; hidden entries
+# (`.x`, `..x`), dangling symlinks and a `.git` that is a file/link all count. A transport failure is NOT "empty" (rc is propagated).
+sub_workdir_state() {
+    local q="${SUB_WORK_DIR//\'/\'\\\'\'}"
+    ssh_run "$SUB_HOST" "d='$q'; if [ ! -d \"\$d\" ]; then echo ABSENT; elif [ ! -r \"\$d\" ] || [ ! -x \"\$d\" ]; then echo UNREADABLE; else n=0; names=; for e in \"\$d\"/* \"\$d\"/.[!.]* \"\$d\"/..?*; do if [ -e \"\$e\" ] || [ -L \"\$e\" ]; then n=\$((n+1)); [ \$n -le 5 ] && names=\"\$names \${e##*/}\"; fi; done; if [ \$n -eq 0 ]; then echo EMPTY; else echo \"NONEMPTY \$n\$names\"; fi; fi"
+}
+# rc 0 = proceed (absent: the R2/--provision gate decides; empty: allowed) · 5 = foreign content, owner review needed · 3 = state unreadable (never assumed empty).
+sub_assert_existing_workdir_not_foreign() {
+    local out rc=0 line state
+    out="$(sub_workdir_state)" || rc=$?
+    line="${out%%$'\n'*}"; state="${line%% *}"
+    if [ "$rc" != "0" ]; then
+        echo "[sync] STOP(R3_WORKDIR_STATE_UNREADABLE): cannot read the state of $SUB_HOST:$SUB_WORK_DIR (rc=$rc) — an unknown state is never assumed empty." >&2
+        return 3
+    fi
+    case "$state" in
+        ABSENT|EMPTY) return 0 ;;
+        NONEMPTY)
+            echo "[sync] STOP(R3_NONEMPTY_NONGIT_WORKDIR): $SUB_HOST:$SUB_WORK_DIR exists, has no .git and is not empty (${line#NONEMPTY }) — refused BEFORE any provision, git init, git add or transfer." >&2
+            echo "       existing content of unknown ownership is never absorbed into a bootstrap commit; nothing was deleted, moved, backed up or changed." >&2
+            echo "       owner review needed: decide (outside this script) what the directory is — use another work_dir, or have the owner empty it, or give it a real git history; then rerun." >&2
+            return 5 ;;
+        *)
+            echo "[sync] STOP(R3_WORKDIR_STATE_UNREADABLE): $SUB_HOST:$SUB_WORK_DIR state '${line:-<empty>}' — not provably empty, refused before any mutation." >&2
+            return 3 ;;
+    esac
+}
+
 render_topology() {
     normalize_canonical_runner_modes || return 9
     local output_dir="${SRC%/}/output/$1"
@@ -2305,6 +2335,9 @@ if [ "$MODE" = "dryrun" ]; then
     echo "[sync] DRY-RUN  $SRC → $SUB_HOST:$DEST"
     echo "  서브 git: $([ $HAS_GIT = 1 ] && echo '존재(증분 싱크)' \
         || echo "부재 → B0 멱등 self-bootstrap(git init + multi·single 브랜치 + 초기 커밋$([ -n "$BOOTSTRAP_POPULATE" ] && echo ' + multi 초기 배달' || echo '; multi 는 base 로 남김'))")"
+    if [ "$HAS_GIT" = "0" ]; then
+        sub_assert_existing_workdir_not_foreign || echo "  ⚠ 위 STOP — --apply 는 기존 비어 있지 않은 non-git 작업경로를 거부한다(미리보기는 계속, 변경 없음)."
+    fi
     echo "  타겟 브랜치: ${TARGETS[*]}   single 확장: $([ $SINGLE_ACTIVE = 1 ] \
         && echo "활성(delivery_plane=active · source=${SINGLE_PLANE_SOURCE})" \
         || echo "dormant(delivery_plane=dormant · source=${SINGLE_PLANE_SOURCE} → 빌드킷 배달 skip)")"
@@ -2407,6 +2440,11 @@ if ssh_run "$SUB_HOST" "[ -d '$SUB_WORK_DIR' ]" 2>/dev/null; then
         echo "       근본 교정은 최신 install_node_blackbox.sh 재설치다 — 조상 소유권을 위임 사용자로 정렬한다." >&2
         exit 6
     fi
+fi
+
+# R3 (2026-11-09): existing work_dir without .git must be EMPTY (or absent: R2 below decides). Foreign content is refused before R2/provision/B0/transfer.
+if [ "$HAS_GIT" = "0" ]; then
+    sub_assert_existing_workdir_not_foreign || exit $?
 fi
 
 # R2 HITL 게이트: 서브 work_dir 부재 시 자동신설 금지(--provision 필요).
