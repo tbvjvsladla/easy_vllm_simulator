@@ -60,6 +60,7 @@ def _build():
     intercepted: the module has no `__getattr__`/`__dir__`, the functions are ordinary module-level function objects, and this builder is deleted after it ran."""
     _HERE = os.path.dirname(os.path.abspath(__file__))
     _LAUNCHER = os.path.join(_HERE, "manifest_contract.sh")
+    _DEFAULT_BIN = _HERE + "/../../adversarial-benchmark/rust/target/release/manifest_contract"
     _COMPAT_OWNER = os.path.join(_HERE, "manifest_contract_compat_owner.py")
     _PROTOCOL = "manifest-contract-bridge/1"
     _compat_module = None
@@ -194,7 +195,13 @@ def _build():
     with the interpreter's `close_fds`, so it inherited nothing else either). The environment is the caller's plus the two private
     bridge variables; the caller's own value (or unset state) of exactly the plumbing variables this call mutates, and of the others the
     launcher knows, travels as `MANIFEST_CONTRACT_CALLER_<name>` so the native `git` child gets the caller's environment back. Only
-    those plumbing names are read; no other variable of the caller is copied anywhere."""
+    those plumbing names are read; no other variable of the caller is copied anywhere.
+
+    The child is the node-local executable itself when it is present and executable (selected PER CALL from the caller's current
+    `MANIFEST_CONTRACT_BIN` as captured in the SAME environment snapshot the child receives, so a concurrent change of `os.environ` cannot split the selection from the carriers; unset or empty = the default beside the skill, a relative value is relative to the working directory): no intermediate shell
+    starts, which is what the launcher's bridge branch did (`exec "$BIN" "$@"` with nothing added). The launcher stays the single place of the
+    guidance: it is used when the executable is missing or not executable, and when starting the executable itself fails in the operating system
+    (`OSError` naming the executable: the executable never ran, so no business ran either). A native process that ran and failed is never retried."""
         import tempfile
         data = json.dumps({"v": 1, "op": op, "args": wires}, ensure_ascii=True).encode("ascii")
         env = dict(os.environ)
@@ -211,7 +218,16 @@ def _build():
                 sink.write(data)
             env["MANIFEST_CONTRACT_BRIDGE"] = "1"
             env["MANIFEST_CONTRACT_BRIDGE_REQUEST"] = request_path
-            process = subprocess.Popen(["/bin/bash", _LAUNCHER], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+            native = env.get("MANIFEST_CONTRACT_BIN") or _DEFAULT_BIN
+            if os.path.isfile(native) and os.access(native, os.X_OK):
+                try:
+                    process = subprocess.Popen([native], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+                except OSError as failure:
+                    if failure.filename != native:
+                        raise
+                    process = subprocess.Popen(["/bin/bash", _LAUNCHER], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
+            else:
+                process = subprocess.Popen(["/bin/bash", _LAUNCHER], stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=env)
             stdout, stderr = process.communicate()
         finally:
             try:
