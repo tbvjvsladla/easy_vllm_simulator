@@ -545,6 +545,13 @@ def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
                                     ('begin_remote_transaction "${BOOTSTRAP_POPULATE:-${TARGETS[0]}}" 1',
                                      "sub_run_mk")),
         ]
+        # 2026-11-09 (Q2 provision readiness G1): an existing non-empty work_dir WITHOUT .git is refused before the R2/provision gate, the rollback
+        #   transaction, mkdir, B0 `git init`/`git add -A` and any transfer (the unwritable exit 6 stays first). The order is the invariant; the
+        #   probe's hidden-entry patterns and the diagnostic code are what make it fail closed for `.x`, `..x` and a `.git` that is not a directory.
+        foreign_guard_order = _ordered_between_detail(sub_text, "sub_assert_existing_workdir_not_foreign || exit $?", "if [ $HAS_GIT = 0 ]; then",
+                                                      ('PROVISION" != "1"', 'begin_remote_transaction "${BOOTSTRAP_POPULATE:-${TARGETS[0]}}" 1', "sub_run_mk"))
+        foreign_guard_tokens = ('\\"\\$d\\"/.[!.]* \\"\\$d\\"/..?*', "R3_NONEMPTY_NONGIT_WORKDIR", "R3_WORKDIR_STATE_UNREADABLE",
+                                "sub_assert_existing_workdir_not_foreign || echo")
         checks += [
             {"name": "sub_exact_relocation_tombstones", "ok": sub_actual == SUB_TOMBSTONES,
              "actual": sorted(sub_actual), "expected": sorted(SUB_TOMBSTONES)},
@@ -665,6 +672,10 @@ def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
             {"name": "sub_transaction_precedes_remote_mutation",
              "ok": tx_before_mutation[0]["ok"] and tx_before_mutation[1]["ok"],
              "order_detail": tx_before_mutation},
+            {"name": "sub_foreign_workdir_guard_before_provision",
+             "ok": foreign_guard_order["ok"] and all(token in sub_text for token in foreign_guard_tokens),
+             "order_detail": foreign_guard_order,
+             "missing_tokens": [token for token in foreign_guard_tokens if token not in sub_text]},
             {"name": "sub_deletion_inventory_and_brake_fail_closed",
              "ok": all(token in sub_text for token in (
                  "deletion inventory dry-run failed", "deletion brake dry-run failed before apply",
