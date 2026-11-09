@@ -6227,6 +6227,29 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261109-single-to-multi-h16-exact2-a6769be",
+      "utc": "2026-11-09T14:13:07Z",
+      "departure": "single-node",
+      "departure_commit": "a6769be889a4ada4207877d15e357797754d7d77",
+      "approved_by": "user: 양 브랜치·Rust 노드 배포 계속 지시(원본 실제 발화 기록 · 시각 역사적) · Root 위임 구체 GO 2026-11-09T14:10:54Z(새 사용자 응답 아님)",
+      "approved_utc": "2026-11-08T13:30:12Z",
+      "_reach": "single-node a6769be vs M 4c9ce81: 공식 전체 투영 = Root 핀 정확 일치(M2/A0/D0, 경로·새 바이트/sha256·Git 모드) · bash -n 0 · selftest_branch_sync 1회 PASS(78 ok, S9 포함) · H15 실제 전체 133 은 영향받지 않는 입력의 증거로 재사용(새 전체 133 주장 없음)",
+      "classification": [
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/selftest_branch_sync.py",
+          "verdict": "common_promote",
+          "reason": "실제 filter·rsync·checksum 루프의 S9 시험 추가(옛 H15·변이는 실패, 실제 payload·파일 변조는 적색) — 공통 선택검사(H16)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "verdict": "common_promote",
+          "reason": "B0 체크섬 검증 목록을 배달과 같은 effective_band2_exclusions 소유자로 정합(빈 build_patches 슬롯 scaffold 불일치 수선) — 공통 배달 스크립트(H16)",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
