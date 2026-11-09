@@ -4051,6 +4051,2135 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261109-single-to-multi-final-common-h12-3d907d2",
+      "utc": "2026-11-09T11:58:51Z",
+      "departure": "single-node",
+      "departure_commit": "3d907d24ebf5cf9a2c823c706875a9ce4e11be4f",
+      "approved_by": "user: 양 브랜치·Rust 노드 배포 계속 지시(원본 실제 발화 기록 · 시각 역사적) · Root 위임 GO 2026-11-09T11:46:37Z(새 사용자 응답 아님)",
+      "approved_utc": "2026-11-08T13:30:12Z",
+      "_reach": "single-node 3d907d2 vs staged: exact353 pins(수정 46·추가 307·삭제 0) digest d55dd12a2d8bc878beba8b5c31c133b48ab2bd097ad511741ce190a1d518b32f (c11 independent preview review)",
+      "classification": [
+        {
+          "file": ".claude/policies/base_skill_edges.json",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/claim_bindings.json",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/predicates/claim_predicates.py",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/predicates/companion_predicate.py",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/registry.yaml",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/antipattern_scan.py",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/policy_registry.py",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/verify_distribution.py",
+          "verdict": "common_promote",
+          "reason": "정책 레지스트리·술어·runtime 검사 — 공통 헌법 집행기",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/checks/manifest_gate_checks.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/checks/scan_node_probe_checks.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/lib.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/load.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/manifest_gate.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/manifest_gate_api.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/manifest_gate_cli.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/scan_node.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/scan_node_files.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/scan_node_manifest.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/scan_node_probe.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/source_identity.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/role-contract/src/turn_budget.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyvalue.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyyaml/compose.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyyaml/mod.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/src/pyyaml/reader.rs",
+          "verdict": "common_promote",
+          "reason": "공유 Q/T 크레이트(role-contract·runtime-support)의 H12 변경 — 양 토폴로지 노드 자체 빌드 입력",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/PORTING.md",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/bytedepth.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/deep2.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/extra14.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/extra9.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/gap3.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/key4.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/key8.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/E01.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/E02.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/E03.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/E04.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/E05.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/E06.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G01.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G02.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G03.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G04.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G05.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G06.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G07.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G08.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G09.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G10.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G11.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G12.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G13.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G14.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G15.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G16.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G17.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G18.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G19.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G20.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G21.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G22.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G23.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G24.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G25.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G26.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G27.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G28.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G29.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G30.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G31.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G32.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G33.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G34.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G35.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G36.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G37.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G38.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G39.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G40.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G41.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G42.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G43.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G44.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G45.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G46.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G47.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G48.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G49.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G50.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G51.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G52.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G53.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G54.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G55.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G56.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G57.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G58.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G59.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G60.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G61.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G62.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G63.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G64.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G65.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G66.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G67.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G68.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G69.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G70.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G71.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G72.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G73.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/G74.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/IO05.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/IO06.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/IO07.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/IO08.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/IO09.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/IO10.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/IO11.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/IO12.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/IO13.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/IO14.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/IO15.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/OJ01.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/OJ02.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/OJ03.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/OJ04.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/OJ05.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/OJ06.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/P01.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/P02.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/P03.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/P04.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/P06.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/P07.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/P08.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/P10T.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/P12.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/P13.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/QMa.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/QMb.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/QNa.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/QNb.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/QVa.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/QVb.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/QXa.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/QXb.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/QYa.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/QYb.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/R48K01.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/R48K02.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/R48K03.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/R48K04.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/R48K05.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/R48K06.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/R48K07.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/R48K08.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/S04.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/S05.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/S06.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/S10.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/S11.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/S15.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/S16.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/S17.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/T01.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/T02.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/T03.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/T05.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/T07.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/T08.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/T10.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/T11.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/T13.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/T15.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/T17.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/T18.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/T19.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/V01.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/X01.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/X02.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/X03.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/X04.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/X05.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/X06.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/X07.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/X08.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/X09.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/X10.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/X11.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/X12.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/X13.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/X14.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/Y01.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/Y02.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/Y03.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/Y04.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/Y05.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/Y06.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/Y07.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/Y08.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/Y09.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT01.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT02.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT03.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT04.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT05.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT06.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT07.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT08.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT09.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT10.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT11.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT12.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT13.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT14.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT15.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT16.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT17.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT18.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT19.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT20.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT21.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT22.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT23.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT24.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT25.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT26.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT27.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/manifests/YT28.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract/original190.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/api87.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM01__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM02__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM03__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM04__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM05__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM06__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM07__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM08__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM09__docker-compose.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM10__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM11__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM12__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM13__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM14__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM15__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM16__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM17__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM19__real.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM20__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM21__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM22__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM23__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM24__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM25__output__single__매니페스트.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM26__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM27__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM28__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/LM29__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/MN01__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/MN02__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/MN03__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/MN04__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/MN05__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/MN06__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/MN07__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/MN08__output__single__manifest.yaml",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/MN09__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/RT01__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/RT02__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/RT03__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/RT04__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/RT05__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/RT06__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/RT07__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/RT08__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/RT09__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/RT10__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/manifest_contract_api/manifests/RT11__placeholder.txt",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/scan_node/p1_golden.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/scan_node/p23_cli_golden.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/scan_node/p23_golden.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/scan_node/p23_scenarios.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/turn_budget/c40.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/turn_budget/original139.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/turn_budget/stream_fixes.json",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/manifest_contract_api_cases.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/manifest_contract_cli.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/manifest_contract_shell.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/scan_node_adapter_p2_cases.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/scan_node_boundary_cases.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/scan_node_identity_cases.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/scan_node_p1_original_cases.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/scan_node_p2_api_cases.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/scan_node_residual_cases.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/scan_node_review_fix_cases.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/turn_budget_original_cases.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/turn_budget_public_stdio.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/turn_budget_stream_fixes.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 Rust 소스의 검사·fixture 데이터 — 공통 소스 제어 자산(scratch 승격 아님)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/notices/NOTICE.md",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/argv.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/bin/manifest_contract.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/bin/scan_node.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/bin/turn_budget.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/cli.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/help_layouts_scan_node.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/help_layouts_turn_budget.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/lib.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/manifest_contract.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/manifest_contract_bridge.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/resolve_topology_selftest.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/scan_node_boundary.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/scan_node_bridge.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/scan_node_cli.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/scan_node_host.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/scan_node_selfcheck.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/selftest_lite_report.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/startup_descriptors.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/turn_budget_bridge.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/turn_budget_cli.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/typed_wire.rs",
+          "verdict": "common_promote",
+          "reason": "벤치 B 패키지 Rust 소스(manifest_contract·scan_node·turn_budget 신규 bin 포함) — 측정·게이트 도구는 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/build_rust.sh",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 스크립트·문서·설정 — 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/lite_bench.sh",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 스크립트·문서·설정 — 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/native_health_probes.sh",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 스크립트·문서·설정 — 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/resolve_topology.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 스크립트·문서·설정 — 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 스크립트·문서·설정 — 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_lite_report.py",
+          "verdict": "common_promote",
+          "reason": "벤치 스킬 스크립트·문서·설정 — 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/SKILL.md",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/onboarding.md",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/rust_runtime.md",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/references/install/sub_agent_env.md",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/build_rust_packages.sh",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/harness_permission_probe.py",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/rust_bootstrap.sh",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/scan_node.py",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/scan_node.sh",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/scan_node_original.py",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/turn_budget.py",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/turn_budget.sh",
+          "verdict": "common_promote",
+          "reason": "테라포밍 스킬 공통 절차·스크립트·참조(Rust 설치/기동 순서 포함) — 특화층 아님",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/checks/layout_checks.rs",
+          "verdict": "common_promote",
+          "reason": "상류 버전 추적 스킬 U 패키지 소스·스크립트 — 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/checks/role_checks.rs",
+          "verdict": "common_promote",
+          "reason": "상류 버전 추적 스킬 U 패키지 소스·스크립트 — 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/src/dto.rs",
+          "verdict": "common_promote",
+          "reason": "상류 버전 추적 스킬 U 패키지 소스·스크립트 — 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/src/role_errors.rs",
+          "verdict": "common_promote",
+          "reason": "상류 버전 추적 스킬 U 패키지 소스·스크립트 — 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "verdict": "common_promote",
+          "reason": "상류 버전 추적 스킬 U 패키지 소스·스크립트 — 공통",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
