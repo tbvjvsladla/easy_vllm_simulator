@@ -261,10 +261,27 @@ def _terraform_flag_issued() -> bool:
 
 
 def _shipped_python_paths(root: Path = REPO) -> list[Path]:
-    """Return shipped Python sources, excluding nested worktrees and generated toolchains."""
+    """Return shipped Python sources, excluding nested worktrees, generated toolchains and Git-ignored paths.
+
+    Git-ignored build output (e.g. cargo `target/tmp` test residue) is not a distribution target. If git cannot
+    answer (missing binary, non-repository, unexpected exit), every candidate is kept - the stricter side, so the
+    check still surfaces instead of silently shrinking its scope.
+    """
     excluded = (root / ".claude/worktrees", root / ".claude/runtime")
-    return sorted(path for path in (root / ".claude").rglob("*.py")
-                  if not any(directory in path.parents for directory in excluded))
+    candidates = sorted(path for path in (root / ".claude").rglob("*.py")
+                        if not any(directory in path.parents for directory in excluded))
+    if not candidates:
+        return candidates
+    stdin = b"".join(str(path.relative_to(root)).encode("utf-8", "surrogateescape") + b"\0" for path in candidates)
+    try:
+        proc = subprocess.run(["git", "-C", str(root), "check-ignore", "-z", "--stdin"],
+                              input=stdin, capture_output=True)
+    except OSError:
+        return candidates
+    if proc.returncode not in (0, 1):
+        return candidates
+    ignored = {item.decode("utf-8", "surrogateescape") for item in proc.stdout.split(b"\0") if item}
+    return [path for path in candidates if str(path.relative_to(root)) not in ignored]
 
 
 def _gitless_hint_match_checks() -> list[dict]:
