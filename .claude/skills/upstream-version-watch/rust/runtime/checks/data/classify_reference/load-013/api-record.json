@@ -1,0 +1,161 @@
+{
+  "kind": "exception",
+  "exception": {
+    "type": "UnicodeDecodeError",
+    "module": "builtins",
+    "message": "'unicodeescape' codec can't decode bytes in position 0-2: truncated \\xXX escape",
+    "args": [
+      [
+        "str",
+        "unicodeescape"
+      ],
+      [
+        "bytes",
+        "5c7830"
+      ],
+      [
+        "int",
+        "0"
+      ],
+      [
+        "int",
+        "3"
+      ],
+      [
+        "str",
+        "truncated \\xXX escape"
+      ]
+    ],
+    "suppress_context": false,
+    "relation": null,
+    "attributes": {
+      "reason": [
+        "str",
+        "truncated \\xXX escape"
+      ],
+      "encoding": [
+        "str",
+        "unicodeescape"
+      ],
+      "object": [
+        "bytes",
+        "5c7830"
+      ],
+      "start": [
+        "int",
+        "0"
+      ],
+      "end": [
+        "int",
+        "3"
+      ]
+    },
+    "frames": [
+      {
+        "file": "/saved/r40/controls/api_one_call.py",
+        "line": 10,
+        "function": "invoke_observed"
+      },
+      {
+        "file": "/saved/r40/load-013/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py",
+        "line": 30,
+        "function": "load_patterns"
+      }
+    ],
+    "constructor": {
+      "kind": "UnicodeDecodeError",
+      "fields": {
+        "encoding": [
+          "str",
+          "unicodeescape"
+        ],
+        "object": [
+          "bytes",
+          "5c7830"
+        ],
+        "start": [
+          "int",
+          "0"
+        ],
+        "end": [
+          "int",
+          "3"
+        ],
+        "reason": [
+          "str",
+          "truncated \\xXX escape"
+        ]
+      }
+    }
+  },
+  "id": "load-013",
+  "owner_pid": 4095073,
+  "phase": "direct_call_attempt",
+  "owner_call_attempted": true,
+  "input_before": {
+    "args": [
+      "list",
+      [
+        [
+          "str",
+          "/saved/r40/load-013/business/patterns.yaml"
+        ]
+      ]
+    ],
+    "kwargs": [
+      "dict",
+      []
+    ]
+  },
+  "args_after": [
+    "list",
+    [
+      [
+        "str",
+        "/saved/r40/load-013/business/patterns.yaml"
+      ]
+    ]
+  ],
+  "kwargs_after": [
+    "dict",
+    []
+  ],
+  "input_nodes": [
+    {
+      "path": [
+        {
+          "kind": "args"
+        }
+      ],
+      "type": "list"
+    },
+    {
+      "path": [
+        {
+          "kind": "args"
+        },
+        {
+          "kind": "list_item",
+          "index": 0
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        }
+      ],
+      "type": "dict"
+    }
+  ],
+  "globals_after": {
+    "PATTERNS_FILE": [
+      "str",
+      "/saved/r40/load-013/business/node/.claude/skills/upstream-version-watch/scripts/../failure_patterns.yaml"
+    ]
+  },
+  "business_streams": "actual child FD stdout/stderr; no redirection",
+  "collector_errors": []
+}

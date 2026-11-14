@@ -1,0 +1,188 @@
+{
+  "kind": "exception",
+  "exception": {
+    "type": "error",
+    "module": "re",
+    "message": "unterminated character set at position 0",
+    "args": [
+      [
+        "str",
+        "unterminated character set at position 0"
+      ]
+    ],
+    "suppress_context": false,
+    "relation": null,
+    "attributes": {
+      "msg": [
+        "str",
+        "unterminated character set"
+      ],
+      "pattern": [
+        "str",
+        "["
+      ],
+      "pos": [
+        "int",
+        "0"
+      ],
+      "lineno": [
+        "int",
+        "1"
+      ],
+      "colno": [
+        "int",
+        "1"
+      ]
+    },
+    "frames": [
+      {
+        "file": "/saved/r40/controls/api_one_call.py",
+        "line": 10,
+        "function": "invoke_observed"
+      },
+      {
+        "file": "/saved/r40/matched-021/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py",
+        "line": 51,
+        "function": "matched_lines"
+      },
+      {
+        "file": "/usr/lib/python3.12/re/__init__.py",
+        "line": 224,
+        "function": "finditer"
+      },
+      {
+        "file": "/usr/lib/python3.12/re/__init__.py",
+        "line": 307,
+        "function": "_compile"
+      },
+      {
+        "file": "/usr/lib/python3.12/re/_compiler.py",
+        "line": 745,
+        "function": "compile"
+      },
+      {
+        "file": "/usr/lib/python3.12/re/_parser.py",
+        "line": 979,
+        "function": "parse"
+      },
+      {
+        "file": "/usr/lib/python3.12/re/_parser.py",
+        "line": 460,
+        "function": "_parse_sub"
+      },
+      {
+        "file": "/usr/lib/python3.12/re/_parser.py",
+        "line": 568,
+        "function": "_parse"
+      }
+    ],
+    "constructor": {
+      "kind": "error",
+      "module": "re",
+      "fields": {
+        "msg": [
+          "str",
+          "unterminated character set"
+        ],
+        "pattern": [
+          "str",
+          "["
+        ],
+        "pos": [
+          "int",
+          "0"
+        ]
+      }
+    }
+  },
+  "id": "matched-021",
+  "owner_pid": 4095210,
+  "phase": "direct_call_attempt",
+  "owner_call_attempted": true,
+  "input_before": {
+    "args": [
+      "list",
+      [
+        [
+          "str",
+          "text"
+        ],
+        [
+          "str",
+          "["
+        ]
+      ]
+    ],
+    "kwargs": [
+      "dict",
+      []
+    ]
+  },
+  "args_after": [
+    "list",
+    [
+      [
+        "str",
+        "text"
+      ],
+      [
+        "str",
+        "["
+      ]
+    ]
+  ],
+  "kwargs_after": [
+    "dict",
+    []
+  ],
+  "input_nodes": [
+    {
+      "path": [
+        {
+          "kind": "args"
+        }
+      ],
+      "type": "list"
+    },
+    {
+      "path": [
+        {
+          "kind": "args"
+        },
+        {
+          "kind": "list_item",
+          "index": 0
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "args"
+        },
+        {
+          "kind": "list_item",
+          "index": 1
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        }
+      ],
+      "type": "dict"
+    }
+  ],
+  "globals_after": {
+    "PATTERNS_FILE": [
+      "str",
+      "/saved/r40/matched-021/business/node/.claude/skills/upstream-version-watch/scripts/../failure_patterns.yaml"
+    ]
+  },
+  "business_streams": "actual child FD stdout/stderr; no redirection",
+  "collector_errors": []
+}

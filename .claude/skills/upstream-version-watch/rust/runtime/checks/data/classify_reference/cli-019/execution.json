@@ -1,0 +1,48 @@
+{
+  "id": "cli-019",
+  "kind": "CLI",
+  "pid": 4095301,
+  "exit_code": 1,
+  "spawned": true,
+  "control_valid": false,
+  "errors": [],
+  "stdin": {
+    "kind": "OWNED_REGULAR_FILE_FD",
+    "file": {
+      "path": "/saved/r40/cli-019/stdin.bin",
+      "sha256": "omitted-by-c05",
+      "mode": 384
+    },
+    "parent_fd": 5,
+    "bytes": 0,
+    "child_fd0": "passed by Popen; no kernel stdin-read audit claim"
+  },
+  "umask": "0022",
+  "argv": [
+    "/usr/bin/python3",
+    "-P",
+    "-s",
+    "-S",
+    "-B",
+    "-X",
+    "int_max_str_digits=4300",
+    "/saved/r40/cli-019/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py",
+    "--log",
+    "/saved/r40/cli-019/business/log.txt",
+    "--patterns",
+    "/saved/r40/cli-019/business/pattern-dir"
+  ],
+  "env": {
+    "PATH": "",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "UTC",
+    "COLUMNS": "80",
+    "PYTHONHASHSEED": "0"
+  },
+  "cwd": "/saved/r40/cli-019/business",
+  "outer_timeout_seconds": 35,
+  "wall_seconds": 0.061214793007820845,
+  "phase": "FIRST_KNOWN_OWNER_EXIT",
+  "exit_observed": true
+}

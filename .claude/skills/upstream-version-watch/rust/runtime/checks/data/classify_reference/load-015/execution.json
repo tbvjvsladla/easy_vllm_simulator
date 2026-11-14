@@ -1,0 +1,40 @@
+{
+  "id": "load-015",
+  "kind": "API",
+  "pid": 4095075,
+  "exit_code": 0,
+  "spawned": true,
+  "control_valid": false,
+  "errors": [],
+  "stdin": "DEVNULL",
+  "umask": "0022",
+  "argv": [
+    "/usr/bin/python3",
+    "-P",
+    "-s",
+    "-S",
+    "-B",
+    "-X",
+    "int_max_str_digits=4300",
+    "/saved/r40/controls/api_one_call.py",
+    "--manifest",
+    "/saved/r40/preflight-inputs.json",
+    "--review",
+    "/saved/r40-input-preflight/result.json",
+    "--case",
+    "load-015"
+  ],
+  "env": {
+    "PATH": "",
+    "LANG": "C.UTF-8",
+    "LC_ALL": "C.UTF-8",
+    "TZ": "UTC",
+    "COLUMNS": "80",
+    "PYTHONHASHSEED": "0"
+  },
+  "cwd": "/saved/r40/load-015/business",
+  "outer_timeout_seconds": 35,
+  "wall_seconds": 0.1987597499974072,
+  "phase": "FIRST_KNOWN_OWNER_EXIT",
+  "exit_observed": true
+}

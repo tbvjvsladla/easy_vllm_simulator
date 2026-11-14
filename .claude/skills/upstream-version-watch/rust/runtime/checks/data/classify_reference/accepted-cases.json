@@ -1,0 +1,1896 @@
+{
+  "state": "ROOT_ADOPTED_R40_LITERAL66_INPUT_DESIGN_PENDING_COLLECTOR_AND_GATE",
+  "owner_sha256": "omitted-by-c05",
+  "counts": {
+    "load": 20,
+    "matched": 24,
+    "cli": 22
+  },
+  "total66": 66,
+  "API44": 44,
+  "standaloneCLI22": 22,
+  "profile": {
+    "interpreter": "/usr/bin/python3",
+    "flags": [
+      "-P",
+      "-s",
+      "-S",
+      "-B",
+      "-X",
+      "int_max_str_digits=4300"
+    ],
+    "environment": {
+      "PATH": "",
+      "LANG": "C.UTF-8",
+      "LC_ALL": "C.UTF-8",
+      "TZ": "UTC",
+      "COLUMNS": "80",
+      "PYTHONHASHSEED": "0"
+    },
+    "HOME": "OMITTED",
+    "stdin": "literal stdin tape or DEVNULL, declared per case",
+    "umask": "0022",
+    "warning_filters": "no ambient overrides; preserve actual warnings/raw",
+    "platform": "current Linux/CPython3.12.3 finite profile; pin actual metadata before first capture",
+    "outer_timeout": "control-only deadline e.g.35s; no adversarial exponential/hanging/race cases; no synthesized business timeout",
+    "network": "NONE; no Docker/API/registry/process required by owner"
+  },
+  "common_fixture": {
+    "owner_relative": ".claude/skills/upstream-version-watch/scripts/classify_failure.py",
+    "default_registry_relative": ".claude/skills/upstream-version-watch/failure_patterns.yaml",
+    "copy_exact_pinned_registry_if_default": true,
+    "source_and_registry": "copied owned immutable case tree, original relative default semantics retained"
+  },
+  "cases": [
+    {
+      "id": "load-001",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@PATTERNS_FILE@"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "@PATTERNS_FILE@",
+          "kind": "copy_exact_pinned_registry",
+          "source": "<repo>/.claude/skills/upstream-version-watch/failure_patterns.yaml",
+          "sha256": "omitted-by-c05",
+          "mode": 420
+        }
+      ],
+      "reason": "exact current production registry, not Parent YAML parse",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-002",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "",
+          "mode": 420
+        }
+      ],
+      "reason": "empty registry",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-003",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "7061747465726e733a0a23206c69746572616c20656d7074790a",
+          "mode": 420
+        }
+      ],
+      "reason": "header/comments only",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-004",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "20202d207369676e61747572653a20224641494c220a20202020636c6173733a20726571756972656d656e74732d66697861626c650a202020206e6f74653a20226c69746572616c206e6f7465220a",
+          "mode": 420
+        }
+      ],
+      "reason": "one normal block",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-005",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "2d207369676e61747572653a202241220a636c6173733a20726571756972656d656e74732d66697861626c650a2d207369676e61747572653a202242220a636c6173733a20736f757263652d6275696c642d636c6173730a",
+          "mode": 420
+        }
+      ],
+      "reason": "two blocks preserve order and append",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-006",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "636c6173733a2069676e6f7265640a6e6f74653a202269676e6f726564220a2d207369676e61747572653a202241220a636c6173733a20726571756972656d656e74732d66697861626c650a",
+          "mode": 420
+        }
+      ],
+      "reason": "orphan class/note before first signature",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-007",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "2d207369676e61747572653a202241220a636c6173733a2066697273740a636c6173733a207365636f6e640a6e6f74653a20226669727374220a6e6f74653a20227365636f6e64220a",
+          "mode": 420
+        }
+      ],
+      "reason": "duplicate class and note last assignment",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-008",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "2d207369676e61747572653a202241220a2d207369676e61747572653a202242220a636c6173733a206172626974726172790a",
+          "mode": 420
+        }
+      ],
+      "reason": "first record without class, retained as data",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-009",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "2d207369676e61747572653a202241220a636c6173733a2061726269747261727920747261696c696e6720746578740a6e6f74653a20226c656674205c22696e6e65725c22207269676874220a",
+          "mode": 420
+        }
+      ],
+      "reason": "class token stops at whitespace; note greedy",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-010",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "2d207369676e61747572653a2022ed959ceab880c3a9220a636c6173733a206172626974726172790a6e6f74653a2022ec9b90ebacb8206e6f7465220a",
+          "mode": 420
+        }
+      ],
+      "reason": "non-ASCII signature .encode/decode unicode_escape behavior",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-011",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "2d207369676e61747572653a20225c75303034315c6e42220a636c6173733a206172626974726172790a",
+          "mode": 420
+        }
+      ],
+      "reason": "known unicode and newline escapes",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-012",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "2d207369676e61747572653a20225c71220a636c6173733a206172626974726172790a",
+          "mode": 420
+        }
+      ],
+      "reason": "unknown escape warning retained",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-013",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "2d207369676e61747572653a20225c7830220a636c6173733a206172626974726172790a",
+          "mode": 420
+        }
+      ],
+      "reason": "truncated hex unicode_escape error",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-014",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "2d207369676e61747572653a20225c7564383030220a636c6173733a206172626974726172790a",
+          "mode": 420
+        }
+      ],
+      "reason": "lone-surrogate result codec retention",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-015",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "efbbbf2d207369676e61747572653a202241220a636c6173733a206172626974726172790a",
+          "mode": 420
+        }
+      ],
+      "reason": "UTF8 BOM affects first line matching",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-016",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "2d207369676e61747572653a202241220a636c6173733a206172626974726172790aff",
+          "mode": 420
+        }
+      ],
+      "reason": "invalid UTF8 after valid text, actual TextIO error phase",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-017",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "missing path",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-018",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "@ROOT@/patterns.yaml"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "dir",
+          "mode": 493
+        }
+      ],
+      "reason": "directory path",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-019",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        [
+          [
+            "none"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "None path type, actual open binder",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "load-020",
+      "group": "load",
+      "kind": "API",
+      "function": "load_patterns",
+      "args_dto": [
+        "list",
+        []
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "missing required argument actual owner binder",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:21-41"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-001",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "  prefix FAIL suffix  "
+          ],
+          [
+            "str",
+            "FAIL"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "single original line",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-002",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "A FAIL\nA FAIL\nB FAIL\n"
+          ],
+          [
+            "str",
+            "FAIL"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "dedup equal complete lines",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-003",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            " \t \n"
+          ],
+          [
+            "str",
+            "[ \\t]+"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "whitespace-only matching line",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-004",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "pre alpha\nbeta post\n"
+          ],
+          [
+            "str",
+            "alpha\\nbeta"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "multiline span extends line boundaries",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-005",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "alpha\n"
+          ],
+          [
+            "str",
+            "$"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "end anchor before trailing newline",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-006",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "alpha\nbeta"
+          ],
+          [
+            "str",
+            ""
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "empty regex zero width",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-007",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "ababa"
+          ],
+          [
+            "str",
+            "(?=aba)"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "lookahead zero width",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-008",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "prefixAB tail"
+          ],
+          [
+            "str",
+            "(?<=prefix)AB"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "fixed lookbehind",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-009",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "abab then ab"
+          ],
+          [
+            "str",
+            "(?P<pair>ab)(?P=pair)"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "named backreference",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-010",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "한글 ١٢३ tail"
+          ],
+          [
+            "str",
+            "\\w+\\s+\\d+"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "Unicode word and Nd",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-011",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "İıſK"
+          ],
+          [
+            "str",
+            "(?i)[a-z]+"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "inline ignorecase Unicode equivalents",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-012",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "a\nb"
+          ],
+          [
+            "str",
+            "a.b"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "dot excludes newline",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-013",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "a\nb"
+          ],
+          [
+            "str",
+            "(?s)a.b"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "inline DOTALL includes newline",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-014",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "ababa xxx"
+          ],
+          [
+            "str",
+            "ab|a.*"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "ordered alternation and greedy repeat",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-015",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "x\ny"
+          ],
+          [
+            "str",
+            "x|y"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "max_lines"
+            ],
+            [
+              "int",
+              "0"
+            ]
+          ]
+        ]
+      ],
+      "files": [],
+      "reason": "max_lines0 source check occurs after first candidate",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-016",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "x\ny"
+          ],
+          [
+            "str",
+            "x|y"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "max_lines"
+            ],
+            [
+              "int",
+              "-1"
+            ]
+          ]
+        ]
+      ],
+      "files": [],
+      "reason": "max_lines negative",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-017",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "x"
+          ],
+          [
+            "str",
+            "x"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "max_chars"
+            ],
+            [
+              "int",
+              "0"
+            ]
+          ]
+        ]
+      ],
+      "files": [],
+      "reason": "max_chars0",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-018",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "한글x"
+          ],
+          [
+            "str",
+            "x"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "max_chars"
+            ],
+            [
+              "int",
+              "-1"
+            ]
+          ]
+        ]
+      ],
+      "files": [],
+      "reason": "max_chars negative Unicode slice",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-019",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "x\ny"
+          ],
+          [
+            "str",
+            "x|y"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "max_lines"
+            ],
+            [
+              "bool",
+              true
+            ]
+          ],
+          [
+            [
+              "str",
+              "max_chars"
+            ],
+            [
+              "float",
+              "1.0"
+            ]
+          ]
+        ]
+      ],
+      "files": [],
+      "reason": "bool max_lines plus float slicing TypeError",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-020",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "none"
+          ],
+          [
+            "str",
+            "x"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "text None",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-021",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "text"
+          ],
+          [
+            "str",
+            "["
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "invalid regex keeps re.error constructor/attrs",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-022",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "str",
+            "text"
+          ],
+          [
+            "bytes",
+            "78"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "bytes pattern vs str",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-023",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        [
+          [
+            "bytes",
+            "780a"
+          ],
+          [
+            "bytes",
+            "78"
+          ]
+        ]
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "both bytes reaches generic join error",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "matched-024",
+      "group": "matched",
+      "kind": "API",
+      "function": "matched_lines",
+      "args_dto": [
+        "list",
+        []
+      ],
+      "kwargs_dto": [
+        "dict",
+        []
+      ],
+      "files": [],
+      "reason": "actual missing-args binder",
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:44-62"
+      ],
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1
+    },
+    {
+      "id": "cli-001",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [
+        "--help"
+      ],
+      "stdin_hex": "",
+      "files": [],
+      "reason": "genuine help",
+      "default_registry": false,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-002",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [
+        "--not-an-option"
+      ],
+      "stdin_hex": "",
+      "files": [],
+      "reason": "argparse unknown option",
+      "default_registry": false,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-003",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [],
+      "stdin_hex": "",
+      "files": [],
+      "reason": "default registry empty stdin",
+      "default_registry": true,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-004",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [],
+      "stdin_hex": "4d6f64756c654e6f74466f756e644572726f723a204e6f206d6f64756c65206e616d6564202775766c6f6f70270a",
+      "files": [],
+      "reason": "current registry literal signature-family observation",
+      "default_registry": true,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-005",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [],
+      "stdin_hex": "4e6f206d6f64756c65206e616d65642027746f7263682e5f6f70617175655f62617365270a",
+      "files": [],
+      "reason": "current registry literal signature-family observation",
+      "default_registry": true,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-006",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [],
+      "stdin_hex": "6c69626375646172742e736f2e31323a2063616e6e6f74206f70656e20736861726564206f626a6563742066696c650a",
+      "files": [],
+      "reason": "current registry literal signature-family observation",
+      "default_registry": true,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-007",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [],
+      "stdin_hex": "7261793a20636f6d6d616e64206e6f7420666f756e640a",
+      "files": [],
+      "reason": "current registry literal signature-family observation",
+      "default_registry": true,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-008",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [],
+      "stdin_hex": "275f496e636c75646564526f7574657227206f626a65637420686173206e6f20617474726962757465202770617468270a",
+      "files": [],
+      "reason": "current registry literal signature-family observation",
+      "default_registry": true,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-009",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [],
+      "stdin_hex": "63616e2774206f70656e2066696c6520272f6f776e65642f746f6f6c732f7573655f6578697374696e675f746f7263682e7079270a",
+      "files": [],
+      "reason": "current registry literal signature-family observation",
+      "default_registry": true,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-010",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [],
+      "stdin_hex": "72656769737465725f6f70617175655f74797065282920676f7420616e20756e6578706563746564206b6579776f726420617267756d656e742027686f697374270a",
+      "files": [],
+      "reason": "current registry literal signature-family observation",
+      "default_registry": true,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-011",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [],
+      "stdin_hex": "2f6f776e65642f766c6c6d2f5f432e736f3a20756e646566696e65642073796d626f6c3a2053594d424f4c0a",
+      "files": [],
+      "reason": "current registry literal signature-family observation",
+      "default_registry": true,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-012",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [],
+      "stdin_hex": "666f726569676e2e736f3a20756e646566696e65642073796d626f6c3a2053594d424f4c0a",
+      "files": [],
+      "reason": "current registry literal signature-family observation",
+      "default_registry": true,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-013",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [],
+      "stdin_hex": "4d6f64756c654e6f74466f756e644572726f723a204e6f206d6f64756c65206e616d6564202775766c6f6f70270a666f726569676e2e736f3a20756e646566696e65642073796d626f6c3a2053594d424f4c0a",
+      "files": [],
+      "reason": "first registry match wins despite later signal",
+      "default_registry": true,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-014",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [
+        "--log",
+        "@ROOT@/log.bin"
+      ],
+      "stdin_hex": "",
+      "files": [
+        {
+          "path": "log.bin",
+          "kind": "file",
+          "hex": "ff20707265666978204d6f64756c654e6f74466f756e644572726f723a204e6f206d6f64756c65206e616d6564202775766c6f6f70270a",
+          "mode": 420
+        }
+      ],
+      "reason": "log file replacement decoding unlike strict patterns",
+      "default_registry": true,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-015",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [
+        "--patterns",
+        "@ROOT@/patterns.yaml"
+      ],
+      "stdin_hex": "6f6e650aeba788eca780eba7890a",
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "",
+          "mode": 420
+        }
+      ],
+      "reason": "custom empty registry last nonempty line Unicode",
+      "default_registry": false,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-016",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [
+        "--patterns",
+        "@ROOT@/patterns.yaml"
+      ],
+      "stdin_hex": "4641494c",
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "2d207369676e61747572653a20224641494c220a",
+          "mode": 420
+        }
+      ],
+      "reason": "matched pattern lacks class => unhandled exception",
+      "default_registry": false,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-017",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [
+        "--patterns",
+        "@ROOT@/patterns.yaml"
+      ],
+      "stdin_hex": "74657874",
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "2d207369676e61747572653a20225b220a636c6173733a206172626974726172790a",
+          "mode": 420
+        }
+      ],
+      "reason": "invalid pattern is public uncaught regex error",
+      "default_registry": false,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-018",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [
+        "--log",
+        "@ROOT@/absent-log",
+        "--patterns",
+        "@ROOT@/absent-patterns"
+      ],
+      "stdin_hex": "",
+      "files": [],
+      "reason": "log open before patterns open error priority",
+      "default_registry": false,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-019",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [
+        "--log",
+        "@ROOT@/log.txt",
+        "--patterns",
+        "@ROOT@/pattern-dir"
+      ],
+      "stdin_hex": "",
+      "files": [
+        {
+          "path": "log.txt",
+          "kind": "file",
+          "hex": "74657874",
+          "mode": 420
+        },
+        {
+          "path": "pattern-dir",
+          "kind": "dir",
+          "mode": 493
+        }
+      ],
+      "reason": "patterns directory after valid log",
+      "default_registry": false,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    },
+    {
+      "id": "cli-020",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [
+        "--log",
+        "@ROOT@/unicode-log.txt",
+        "--patterns",
+        "@ROOT@/patterns.yaml"
+      ],
+      "stdin_hex": "",
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "",
+          "mode": 420
+        },
+        {
+          "path": "unicode-log.txt",
+          "kind": "file",
+          "hex": "ed959ceab880",
+          "mode": 420
+        }
+      ],
+      "reason": "ASCII stdout failure from UTF8 log-file input; avoid earlier ASCII stdin decode failure",
+      "default_registry": false,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ],
+      "child_env_override": {
+        "PYTHONIOENCODING": "ascii:strict"
+      }
+    },
+    {
+      "id": "cli-021",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [],
+      "stdin_hex": "4d6f64756c654e6f74466f756e644572726f723a204e6f206d6f64756c65206e616d6564202775766c6f6f7027",
+      "files": [],
+      "reason": "closed stdout keeps real interpreter final exit",
+      "default_registry": true,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ],
+      "stdout": {
+        "kind": "owned_pipe_reader_closed_before_spawn"
+      }
+    },
+    {
+      "id": "cli-022",
+      "group": "cli",
+      "kind": "CLI",
+      "argv": [
+        "--patterns",
+        "@ROOT@/patterns.yaml"
+      ],
+      "stdin_hex": "4641494c0a",
+      "files": [
+        {
+          "path": "patterns.yaml",
+          "kind": "file",
+          "hex": "2d207369676e61747572653a20224641494c220a636c6173733a206f746865722d636c6173730a",
+          "mode": 420
+        }
+      ],
+      "reason": "missing note and arbitrary class exact status",
+      "default_registry": false,
+      "expected": "OBSERVE_ONLY",
+      "logical_dispatches": 1,
+      "source_refs": [
+        ".claude/skills/upstream-version-watch/scripts/classify_failure.py:65-91"
+      ]
+    }
+  ],
+  "expected_business_values": "NONE_COMPUTED; every case OBSERVE_ONLY",
+  "DAG": "none; disjoint literal input cohorts; no output is used as later input",
+  "actual_prepare": 0,
+  "actual_owner_calls": 0,
+  "root_adjustments": [
+    {
+      "case": "cli-020",
+      "change": "move authored UTF8 stdin bytes to declared UTF8 --log file; keep ASCII:strict env, so source reaches output instead of failing stdin decode",
+      "actor_calls": 0
+    }
+  ],
+  "proposal_sha256": "omitted-by-c05"
+}

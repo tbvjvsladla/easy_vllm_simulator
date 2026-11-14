@@ -10,7 +10,8 @@
 //!   saved records (value DTO, or the exception's public members; interpreter frames are auxiliary and not compared; `input_ref` is non-null exactly
 //!   where the saved record has a return alias).
 //!
-//! The saved reference is read through `R40_CLASSIFY_REFERENCE`; the pinned registry is read from `R40_CLASSIFY_REGISTRY`. Nothing here runs Python, the
+//! The saved reference is read from the committed `checks/data/classify_reference` (override: `R40_CLASSIFY_REFERENCE`); the pinned registry from the
+//! tracked `failure_patterns.yaml` (override: `R40_CLASSIFY_REGISTRY`). Nothing here runs Python, the
 //! original or the network. Production code holds no case id, saved value or lookup.
 
 use agent_runtime_support::pyjson::loads;
@@ -21,17 +22,17 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 fn reference() -> PathBuf {
-    PathBuf::from(
-        std::env::var("R40_CLASSIFY_REFERENCE")
-            .expect("R40_CLASSIFY_REFERENCE must name the saved capture directory"),
-    )
+    match std::env::var("R40_CLASSIFY_REFERENCE") {
+        Ok(path) => PathBuf::from(path),
+        Err(_) => Path::new(env!("CARGO_MANIFEST_DIR")).join("checks/data/classify_reference"),
+    }
 }
 
 fn registry() -> PathBuf {
-    PathBuf::from(
-        std::env::var("R40_CLASSIFY_REGISTRY")
-            .expect("R40_CLASSIFY_REGISTRY must name the pinned failure_patterns.yaml"),
-    )
+    match std::env::var("R40_CLASSIFY_REGISTRY") {
+        Ok(path) => PathBuf::from(path),
+        Err(_) => Path::new(env!("CARGO_MANIFEST_DIR")).join("../../failure_patterns.yaml"),
+    }
 }
 
 fn load(path: &Path) -> PyValue {

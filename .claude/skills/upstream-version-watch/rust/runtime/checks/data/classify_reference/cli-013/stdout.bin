@@ -1,0 +1,6 @@
+{
+  "class": "requirements-fixable",
+  "matched_signature": "ModuleNotFoundError: No module named '([^']+)'",
+  "note": "누락 라이브러리 → requirements.txt 추가 후 재빌드. 예: uvloop(=fastapi[standard] 누락).",
+  "evidence": "ModuleNotFoundError: No module named 'uvloop'"
+}

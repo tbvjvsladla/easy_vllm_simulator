@@ -1,0 +1,166 @@
+{
+  "kind": "exception",
+  "exception": {
+    "type": "UnicodeDecodeError",
+    "module": "builtins",
+    "message": "'utf-8' codec can't decode byte 0xff in position 34: invalid start byte",
+    "args": [
+      [
+        "str",
+        "utf-8"
+      ],
+      [
+        "bytes",
+        "2d207369676e61747572653a202241220a636c6173733a206172626974726172790aff"
+      ],
+      [
+        "int",
+        "34"
+      ],
+      [
+        "int",
+        "35"
+      ],
+      [
+        "str",
+        "invalid start byte"
+      ]
+    ],
+    "suppress_context": false,
+    "relation": null,
+    "attributes": {
+      "reason": [
+        "str",
+        "invalid start byte"
+      ],
+      "encoding": [
+        "str",
+        "utf-8"
+      ],
+      "object": [
+        "bytes",
+        "2d207369676e61747572653a202241220a636c6173733a206172626974726172790aff"
+      ],
+      "start": [
+        "int",
+        "34"
+      ],
+      "end": [
+        "int",
+        "35"
+      ]
+    },
+    "frames": [
+      {
+        "file": "/saved/r40/controls/api_one_call.py",
+        "line": 10,
+        "function": "invoke_observed"
+      },
+      {
+        "file": "/saved/r40/load-016/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py",
+        "line": 25,
+        "function": "load_patterns"
+      },
+      {
+        "file": "<frozen codecs>",
+        "line": 322,
+        "function": "decode"
+      }
+    ],
+    "constructor": {
+      "kind": "UnicodeDecodeError",
+      "fields": {
+        "encoding": [
+          "str",
+          "utf-8"
+        ],
+        "object": [
+          "bytes",
+          "2d207369676e61747572653a202241220a636c6173733a206172626974726172790aff"
+        ],
+        "start": [
+          "int",
+          "34"
+        ],
+        "end": [
+          "int",
+          "35"
+        ],
+        "reason": [
+          "str",
+          "invalid start byte"
+        ]
+      }
+    }
+  },
+  "id": "load-016",
+  "owner_pid": 4095076,
+  "phase": "direct_call_attempt",
+  "owner_call_attempted": true,
+  "input_before": {
+    "args": [
+      "list",
+      [
+        [
+          "str",
+          "/saved/r40/load-016/business/patterns.yaml"
+        ]
+      ]
+    ],
+    "kwargs": [
+      "dict",
+      []
+    ]
+  },
+  "args_after": [
+    "list",
+    [
+      [
+        "str",
+        "/saved/r40/load-016/business/patterns.yaml"
+      ]
+    ]
+  ],
+  "kwargs_after": [
+    "dict",
+    []
+  ],
+  "input_nodes": [
+    {
+      "path": [
+        {
+          "kind": "args"
+        }
+      ],
+      "type": "list"
+    },
+    {
+      "path": [
+        {
+          "kind": "args"
+        },
+        {
+          "kind": "list_item",
+          "index": 0
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        }
+      ],
+      "type": "dict"
+    }
+  ],
+  "globals_after": {
+    "PATTERNS_FILE": [
+      "str",
+      "/saved/r40/load-016/business/node/.claude/skills/upstream-version-watch/scripts/../failure_patterns.yaml"
+    ]
+  },
+  "business_streams": "actual child FD stdout/stderr; no redirection",
+  "collector_errors": []
+}

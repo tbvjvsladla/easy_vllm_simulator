@@ -1,0 +1,6 @@
+usage: classify_failure.py [-h] [--log LOG] [--patterns PATTERNS]
+
+options:
+  -h, --help           show this help message and exit
+  --log LOG            로그 파일(미지정 시 stdin)
+  --patterns PATTERNS
