@@ -63,7 +63,7 @@ PARITY="$REPO/.claude/policies/runtime/topology_parity.py"
 LEDGER="$REPO/.claude/skills/upstream-version-watch/scripts/layer_ledger.py"
 SYNC="$REPO/.claude/skills/upstream-version-watch/scripts/sync_branches.sh"
 SUBSYNC="$REPO/.claude/skills/upstream-version-watch/scripts/sync_to_sub.sh"
-PUSHER="$REPO/.claude/skills/upstream-version-watch/scripts/push_branches.py"
+PUSHER="$REPO/.claude/skills/upstream-version-watch/scripts/push_branches.sh"
 # 카탈로그 파생기 = hint-publisher 단일 진입 `hint.py catalog derive`(2026-09-22 · plan_26092119 §4.9 — 옛 파생기 퇴역).
 # 종료코드·행 표지 상수는 `hintlib/catalog.py` 가 소유한다(파일 경로 단독 적재 가능 계약 · 코드맵 H5).
 CATALOG="$REPO/.claude/skills/hint-publisher/scripts/hint.py"
@@ -359,7 +359,7 @@ fi
 
 if [ "$DO_PUSH" = "1" ] && [ -f "$PUSHER" ]; then
     echo "[closing] ⑦ 원격 반영 — 두 운영 브랜치"
-    python3 "$PUSHER" --repo "$REPO" --remote "$REMOTE" --branch "$CUR" --branch "$OTHER" || exit 5
+    "$PUSHER" --repo "$REPO" --remote "$REMOTE" --branch "$CUR" --branch "$OTHER" || exit 5
 else
     echo "[closing] ⑦ push 건너뜀(--no-push)"
 fi

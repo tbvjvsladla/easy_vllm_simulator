@@ -144,6 +144,11 @@ path = "src/bin/render_native_triplet.rs"
 name = "render_dockerfile"
 path = "src/bin/render_dockerfile.rs"
 
+# The branch-push part of `push_branches.py` (token-free remotes only; https remotes fail loud, self-test stays in Python).
+[[bin]]
+name = "push_branches"
+path = "src/bin/push_branches.rs"
+
 [[bin]]
 name = "upstream_role_api"
 path = "src/bin/upstream_role_api.rs"
