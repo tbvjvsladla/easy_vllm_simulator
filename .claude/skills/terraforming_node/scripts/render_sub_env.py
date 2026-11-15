@@ -184,6 +184,12 @@ ROLE_RUST_SUPPORT = ".claude/rust/role-contract"
 ROLE_RUST_CONSUMERS = ("adversarial-benchmark", "upstream-version-watch")
 # parity 도구(소스·data/ 골든·cases/)는 Rust 소비자가 가는 서브에 함께 간다 — Sub 에서 `parity compare --stage all` 을 돌리기 위함.
 PARITY_RUST_TOOL = ".claude/rust/parity"
+# 2026-11-15 사용자 결정(c2j 재개): multi ray-worker 에도 Rust 업무 패키지(B·P·U 소유 크레이트와 그 진입점 런처)·Q·T·parity 를 배달한다
+#   — Sub 에서 `parity compare --stage all`(골든 대조) 과 Rust 빌드를 돌리기 위해서다. 이전 근거("Rust 업무 패키지는 자체검사 때문에도
+#   배달하지 않는다")는 이 결정으로 대체된다. 단 **스킬이 가는 것이 아니다**: tool_plane 이 지목하지 않은 스킬은 `rust/`·`scripts/` 만
+#   간다(SKILL.md·references·assets 없음 · `.agents/skills` 발견 래퍼 없음) — 그래서 multi 에이전트는 그 스킬을 '쓰는' 권한·발견 경로를
+#   얻지 않고, 배달분 보호 deny(ray-worker 페르소나)는 그대로다. 판정은 tool_plane 이 소유하며 여기서 두 번째 답을 만들지 않는다.
+RUST_ONLY_PREFIXES = ("rust/", "scripts/")
 SHARED_RUST_LIBRARIES = ((SHARED_RUST_SUPPORT, SHARED_RUST_CONSUMERS),
                          (ROLE_RUST_SUPPORT, ROLE_RUST_CONSUMERS),
                          (PARITY_RUST_TOOL, SHARED_RUST_CONSUMERS))
@@ -809,16 +815,23 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 with open(feedback_marker, "w", encoding="utf-8") as f:
                     f.write("Node-local generated recipe feedback; ignored by git.\n")
                 produced.append(feedback_rel)
+        # 2026-11-15 사용자 결정: tool_plane 이 안 지목한 Rust 소유 스킬(multi)은 rust/·scripts/ 만 싣는다(RUST_ONLY_PREFIXES 주석).
+        for name in RUST_OWNER_MANIFESTS:
+            if name in names:
+                continue
+            rb = RUNTIME_BLOCK_PATHS[name]
+            n = _copy_tracked(rb, os.path.join(claude, "skills", name), tracked_list=tracked_list,
+                              excludes=RUNTIME_BLOCK_EXCLUDES.get(name), only=RUST_ONLY_PREFIXES)
+            produced.append(f".claude/skills/{name}/ (Rust 전용 · {n} tracked files · 스킬 아님)")
         # Shared libraries follow every delivered consumer, including B without P/U.
         # Copy all required libraries before checking their transitive Cargo paths.
         for support, consumers in SHARED_RUST_LIBRARIES:
-            if any(name in names for name in consumers):
+            if True:   # 모든 Rust 소유 스킬이 (전체 또는 Rust 전용으로) 가므로 공유 라이브러리·parity 는 항상 간다
                 count = _copy_tracked(os.path.join(REPO, support),
                                       os.path.join(out_dir, support),
                                       tracked_list=tracked_list)
                 produced.append(f"{support}/ ({count} tracked files)")
-        if any(name in names for name in SHARED_RUST_CONSUMERS):
-            _assert_rust_path_closure(out_dir, names)
+        _assert_rust_path_closure(out_dir, names)
         # 3.4) adversarial-benchmark 가 부르는 owner 자체검사 의존(SUB_BENCH_FOUNDATION_RUNTIME) — 그 스킬이 가는 서브에만.
         if "adversarial-benchmark" in names:
             for rel in SUB_BENCH_FOUNDATION_RUNTIME:
@@ -1057,8 +1070,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
 def _assert_rust_path_closure(out_dir: str, names: list) -> None:
     """Manifest-derived local path closure; never ships caches or guesses missing source."""
     root = pathlib.Path(out_dir).resolve()
-    pending = [root / manifest for name, manifest in RUST_OWNER_MANIFESTS.items()
-               if name in names]
+    pending = [root / manifest for name, manifest in RUST_OWNER_MANIFESTS.items()]
     seen = set()
     while pending:
         manifest = pending.pop().resolve()
@@ -1078,7 +1090,7 @@ def _assert_rust_path_closure(out_dir: str, names: list) -> None:
 
 
 def _copy_tracked(src_skill: str, dst: str, tracked_list: list | None = None,
-                  excludes: tuple | None = None) -> int:
+                  excludes: tuple | None = None, only: tuple | None = None) -> int:
     """런타임블럭을 서브 스테이징으로 복제한다 — **git-tracked 만**이 계약이다.
 
     2026-09-03(S10/㉓/F3 · plan_26090317 P1) 재작성. 이전 판본은 `git ls-files` 의 returncode 를
@@ -1122,6 +1134,8 @@ def _copy_tracked(src_skill: str, dst: str, tracked_list: list | None = None,
         sub_rel = os.path.relpath(srcf, src_skill)
         if sub_rel in ex:
             continue                       # 메인 전용 오케스트레이션(위 RUNTIME_BLOCK_EXCLUDES)
+        if only is not None and not any(sub_rel.startswith(pre) for pre in only):
+            continue                       # Rust 전용 배달(RUST_ONLY_PREFIXES) — 스킬 문서·자산은 가지 않는다
         destf = os.path.join(dst, sub_rel)
         os.makedirs(os.path.dirname(destf), exist_ok=True)
         shutil.copy2(srcf, destf)          # ㉟: 모드 보존
@@ -1363,13 +1377,25 @@ def _self_test() -> int:
         _out = os.path.join(tmp, f"tp_{_topo}")
         render_tree(_ph, _out, copy_runtime_block=True)
         _got = {os.path.basename(x) for x in glob.glob(os.path.join(_out, ".claude", "skills", "*"))
-                if os.path.isdir(x)}
+                if os.path.isdir(x) and os.path.isfile(os.path.join(x, "SKILL.md"))}
+        # 2026-11-15 사용자 결정: tool_plane 이 안 지목한 Rust 소유 스킬은 rust/·scripts/ 만 간다 — SKILL.md·발견 래퍼·references/assets 는 ✗, 지목된 스킬은 전체.
+        _ronly_ok = True
+        for _rn in RUST_OWNER_MANIFESTS:
+            _rd = os.path.join(_out, ".claude", "skills", _rn)
+            _has_rust = os.path.isfile(os.path.join(_out, RUST_OWNER_MANIFESTS[_rn]))
+            _full = os.path.isfile(os.path.join(_rd, "SKILL.md"))
+            _extra = [d for d in ("references", "assets") if os.path.exists(os.path.join(_rd, d))]
+            _wr = os.path.exists(os.path.join(_out, ".agents", "skills", _rn))
+            if not _has_rust or _full != (_rn in _want) or (not _full and (_extra or _wr)):
+                _ronly_ok = False
+        _parity_ok = (os.path.isfile(os.path.join(_out, PARITY_RUST_TOOL, "Cargo.toml"))
+                      and os.path.isdir(os.path.join(_out, PARITY_RUST_TOOL, "data"))
+                      and os.path.isfile(os.path.join(_out, PARITY_RUST_TOOL, "cases", "s1.json")))
         _ref = os.path.exists(os.path.join(_out, ".claude/skills/wiki-desk/reference/references.md"))
         # references.md 는 wiki-desk 런타임블럭에 실린다(2026-10-19) — 사서가 가는 서브에는 늘 있다.
         _ref_ok = _ref == ("wiki-desk" in _want)
         _shared_rust_ok = all(
-            os.path.isfile(os.path.join(_out, support, "Cargo.toml")) == any(
-                name in _want for name in consumers)
+            os.path.isfile(os.path.join(_out, support, "Cargo.toml"))
             for support, consumers in SHARED_RUST_LIBRARIES)
         _wrappers = {os.path.basename(os.path.dirname(p)) for p in
                      glob.glob(os.path.join(_out, ".agents", "skills", "*", "SKILL.md"))}
@@ -1445,7 +1471,7 @@ def _self_test() -> int:
         _sup_ok = _sup == _real
         # 색인·카탈로그·역할 마커는 어느 토폴로지에도 가지 않는다(엔진이 가는 single 에서도).
         _never = [r for r in HINT_NEVER_DELIVER if os.path.exists(os.path.join(_out, r))]
-        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok and _wrapper_ok and _rust_ok and _nrc_ok and _bench_ok and _probe_ok
+        _c = ((_got - {"terraforming_node"}) == _want and _ref_ok and _tn_ok and _wrapper_ok and _rust_ok and _nrc_ok and _bench_ok and _probe_ok and _ronly_ok and _parity_ok
               and not _res and _sup_ok and not _never)
         print(f"  [{'PASS' if _c else 'FAIL'}] tool_plane 게이팅 {_topo}({_label}): 배달={sorted(_got)} "
               f"refs={_ref} 캠페인도구={_tn_files} 해소자산누수={_res} 지원배달목록일치={_sup_ok} "
