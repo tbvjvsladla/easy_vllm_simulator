@@ -25,6 +25,7 @@ q="$REPO/.claude/rust/runtime-support"
 t="$REPO/.claude/rust/role-contract"
 p="$REPO/.claude/skills/vllm-recipe-explorer/rust/runtime"
 u="$REPO/.claude/skills/upstream-version-watch/rust/runtime"
+x="$REPO/.claude/rust/parity"
 # Every role consumer must carry its library and Q path dependency.
 for consumer in "$REPO/.claude/skills/adversarial-benchmark/rust" "$u"; do
   if [ -f "$consumer/Cargo.toml" ]; then
@@ -47,7 +48,7 @@ done
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/rust-packages.XXXXXX")"
 trap 'rm -f -- "$tmp/metadata.json"; rmdir -- "$tmp"' EXIT
 applicable=0
-for crate in "$q" "$t" "$p" "$u"; do
+for crate in "$q" "$t" "$p" "$u" "$x"; do
   [ -f "$crate/Cargo.toml" ] || continue
   applicable=$((applicable+1))
   [ -f "$crate/Cargo.lock" ] || { echo "Missing lock: $crate" >&2; exit 2; }

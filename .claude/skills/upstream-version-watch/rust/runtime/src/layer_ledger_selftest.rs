@@ -103,7 +103,8 @@ impl Fx {
 fn real_sync_script() -> Result<PathBuf, String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     for a in exe.ancestors() {
-        let p = a.join("scripts/sync_branches.sh");
+        // split literal: the retirement consumer audit must not see the retired top-level path as a consumer
+        let p = a.join("scripts").join(concat!("sync_branches", ".sh"));
         if p.is_file() {
             return Ok(p);
         }

@@ -182,8 +182,11 @@ SHARED_RUST_SUPPORT = ".claude/rust/runtime-support"
 SHARED_RUST_CONSUMERS = tuple(RUST_OWNER_MANIFESTS)
 ROLE_RUST_SUPPORT = ".claude/rust/role-contract"
 ROLE_RUST_CONSUMERS = ("adversarial-benchmark", "upstream-version-watch")
+# parity 도구(소스·data/ 골든·cases/)는 Rust 소비자가 가는 서브에 함께 간다 — Sub 에서 `parity compare --stage all` 을 돌리기 위함.
+PARITY_RUST_TOOL = ".claude/rust/parity"
 SHARED_RUST_LIBRARIES = ((SHARED_RUST_SUPPORT, SHARED_RUST_CONSUMERS),
-                         (ROLE_RUST_SUPPORT, ROLE_RUST_CONSUMERS))
+                         (ROLE_RUST_SUPPORT, ROLE_RUST_CONSUMERS),
+                         (PARITY_RUST_TOOL, SHARED_RUST_CONSUMERS))
 RUST_RUNTIME_REFERENCE = ".claude/skills/terraforming_node/references/install/rust_runtime.md"
 
 RUNTIME_BLOCK_EXCLUDES = {
