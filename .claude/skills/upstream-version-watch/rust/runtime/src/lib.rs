@@ -33,6 +33,7 @@ pub mod layout_traceback;
 pub mod live;
 pub mod main_cmd;
 pub mod native_triplet;
+pub mod render_dockerfile;
 pub mod manifest;
 pub mod ngc_api;
 pub mod ngc_cli;

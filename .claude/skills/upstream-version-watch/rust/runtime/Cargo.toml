@@ -139,6 +139,11 @@ path = "src/bin/check_smoke_model.rs"
 name = "render_native_triplet"
 path = "src/bin/render_native_triplet.rs"
 
+# The env-file / materialize / env_tier part of `render_dockerfile.py` (unit A); the template render and `--self-test` stay in Python.
+[[bin]]
+name = "render_dockerfile"
+path = "src/bin/render_dockerfile.rs"
+
 [[bin]]
 name = "upstream_role_api"
 path = "src/bin/upstream_role_api.rs"

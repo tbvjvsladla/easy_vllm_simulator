@@ -1093,12 +1093,12 @@ render_topology() {
         install -m 0644 "$build_assets"/model_inputs/configs/* "$output_dir/configs/" || return 9
         install -m 0644 "$build_assets"/model_inputs/envs/.env.* "$output_dir/envs/" || return 9
     fi
-    python3 "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.py" \
+    "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.sh" \
         --materialize-configs --repo "${SRC%/}" --topology "$1" >/dev/null || return 9
     if [ "$1" = "multi" ]; then
-        python3 "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.py" \
+        "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.sh" \
             --nccl-envfile --manifest "$output_dir/manifest.yaml" --out "$output_dir/envs/.env.interconnect" >/dev/null || return 9
-        python3 "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.py" \
+        "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.sh" \
             --cluster-envfile --manifest "$output_dir/manifest.yaml" --out "$output_dir/envs/.env.cluster" >/dev/null || return 9
     fi
     # 2026-09-03(S10/F3 · plan_26090317 P1): 트랜잭션 소스는 `checkout-index --prefix` 트리라 `.git` 이
