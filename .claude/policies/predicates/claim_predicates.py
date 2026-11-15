@@ -1128,7 +1128,7 @@ def predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1():
     mn = _read(".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh")
     _require('val(){ grep -E "^$1=" "$EF" | head -1 | cut -d= -f2-; }' in mn, 'image-identity vars must be extracted from the SAME model env file ($EF) master build/up loads')
     _require('IMG=$(val IMAGE_TAG)' in mn, 'the master-side IMG must still be read from the same model env file ($EF)')
-    _require('SF="$SDIR/slave_forward.py"' in mn, 'the smoke must bind the single-owner forward derivation (slave_forward.py) next to itself')
+    _require('SF="$SDIR/slave_forward.sh"' in mn, 'the smoke must bind the single-owner forward derivation (slave_forward launcher) next to itself')
     _require('COMPOSE_MULTI="output/multi/docker-compose.yaml"' in mn and '--compose "$COMPOSE_MULTI"' in mn and '--cell-env "$EF"' in mn,
              'the forward set must be derived from the SAME compose and the SAME model env file the smoke runs with')
     assign = next((ln for ln in mn.splitlines() if ln.startswith("SLAVE_IMGVARS=")), "")

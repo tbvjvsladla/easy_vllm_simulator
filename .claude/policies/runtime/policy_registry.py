@@ -1630,7 +1630,7 @@ def _smoke_forwards_image_identity(smoke: str) -> bool:
     group, and that derivation is fed the SAME model env file ($EF) the master builds/serves with. The retired
     hand-list idiom (`$(val <NAME>)` + `<NAME>=$` on the SLAVE_IMGVARS line) does NOT satisfy it (2026-09-21)."""
     imgvars_line = next((ln for ln in smoke.splitlines() if ln.strip().startswith("SLAVE_IMGVARS=")), "")
-    return ('SF="$SDIR/slave_forward.py"' in smoke and '--cell-env "$EF"' in smoke
+    return ('SF="$SDIR/slave_forward.sh"' in smoke and '--cell-env "$EF"' in smoke
             and '"$SF" prefix --group image_identity' in imgvars_line)
 
 
@@ -2325,8 +2325,8 @@ def _self_test_selector_wiring() -> None:
     checkout's slave_forward.py / render_dockerfile.py / multi compose template in a temp root (the real
     files are only read)."""
     import tempfile
-    wired = ('SF="$SDIR/slave_forward.py"\nSFA=(--cell-env "$EF" --compose "$COMPOSE_MULTI")\n'
-             'SLAVE_IMGVARS="$(python3 "$SF" prefix --group image_identity,cluster "${SFA[@]}")"\n')
+    wired = ('SF="$SDIR/slave_forward.sh"\nSFA=(--cell-env "$EF" --compose "$COMPOSE_MULTI")\n'
+             'SLAVE_IMGVARS="$("$SF" prefix --group image_identity,cluster "${SFA[@]}")"\n')
     retired = ('IMG=$(val IMAGE_TAG); SMPORT=$(val SM12X_PORT)\n'
                'SLAVE_IMGVARS="${IMG:+IMAGE_TAG=$IMG }${SMPORT:+SM12X_PORT=$SMPORT }"\n')
     if not _smoke_forwards_image_identity(wired):

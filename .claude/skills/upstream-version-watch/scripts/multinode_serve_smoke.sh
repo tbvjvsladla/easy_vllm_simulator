@@ -138,7 +138,7 @@ MODEL=$(val SERVING_MODEL_NAME); SLAVE_IP=$(val SLAVE_HOST_IP)
 #   CONFIG_FILE 은 영구 제외 — slave Band2-only(plan_2026062811_2 · policy:MODEL_TRIPLET_NO_SUB_PROPAGATION).
 #   ⚠ 파생이 목록 실패를 줄여도 **결과 대조는 계속한다**(2026-09-05 "리스트를 늘리는 대신 결과를 대조한다") —
 #     빌드 후 이미지 안 대조와 serve 시점 attestation v2 가 남은 갈림을 잡는다.
-SF="$SDIR/slave_forward.py"
+SF="$SDIR/slave_forward.sh"
 [ -f "$SF" ] || { echo "[mn] FAIL: $SF 없음 — slave 전달 집합의 정본 부재(손목록으로 되돌리지 않는다)"; exit 3; }
 PENV_FILE="output/multi/.env"
 # 결함#2b 배선의 부재는 **소리 낸다**(audit_26090115: `--materialize-env` 를 빠뜨리면 옛 스모크는 MOUNTVARS="" 로 조용히
@@ -149,10 +149,10 @@ SFA=(--cell-env "$EF" --project-env "$PENV_FILE" --compose "$COMPOSE_MULTI" --cl
 IMG=$(val IMAGE_TAG); BDF=$(val BUILD_DOCKERFILE)
 # 이미지 정체성 + 클러스터 랑데부(RAY_PORT·SLAVE_CONTAINER_NAME 등 Band2 키의 셀 덮어쓰기)를 한 prefix 로 — 옛
 #   `SLAVE_IMGVARS="$SLAVE_IMGVARS $SLAVE_CLUSTERVARS"` 합성과 같은 구성이다(build·up·down 세 호출부가 쓴다).
-SLAVE_IMGVARS="$(python3 "$SF" prefix --group image_identity,cluster "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(image_identity,cluster) 파생 실패 — 위 사유를 고쳐라"; exit 3; }
-SLAVE_BUILDVARS="$(python3 "$SF" prefix --group build_tuning "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(build_tuning) 파생 실패"; exit 3; }
-MOUNTVARS="$(python3 "$SF" prefix --group mount "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(mount) 파생 실패"; exit 3; }
-PLEVARS="$(python3 "$SF" prefix --group serve_env "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(serve_env) 파생 실패"; exit 3; }
+SLAVE_IMGVARS="$("$SF" prefix --group image_identity,cluster "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(image_identity,cluster) 파생 실패 — 위 사유를 고쳐라"; exit 3; }
+SLAVE_BUILDVARS="$("$SF" prefix --group build_tuning "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(build_tuning) 파생 실패"; exit 3; }
+MOUNTVARS="$("$SF" prefix --group mount "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(mount) 파생 실패"; exit 3; }
+PLEVARS="$("$SF" prefix --group serve_env "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(serve_env) 파생 실패"; exit 3; }
 BJOBS=$(val BUILD_JOBS)                 # 로컬 표시용(빌드 병렬도 안내) — 전달은 위 SLAVE_BUILDVARS 가 한다
 SLVC=$(val SLAVE_CONTAINER_NAME)        # slave 워치독 필터·로그 회수·갱신 루프가 쓰는 실제 이름
 
@@ -350,11 +350,11 @@ _attest_capture_node() {   # $1=main|sub $2=컨테이너 $3=캡처 디렉터리 
 }
 _attest_write() {   # $1=phase(build|serve) $2=캡처 디렉터리(serve 만) — 실패해도 진행은 막지 않는다
   mkdir -p "$ATTEST_DIR" 2>/dev/null || { echo "[mn] ⚠ $ATTEST_DIR 생성 실패 — attestation 미기록"; return 0; }
-  if python3 - "$ATTEST_JSON" "$CONFIG" "$IMG" "$1" "${2:-}" "$ATTEST_ROWS" "$SF" "$MAIN_NODE_ID" "$SUB_NODE_ID" <<'PY'
+  local _nonid
+  _nonid="$("$SF" non-identity)" || { echo "[mn] ⚠ slave_forward non-identity 실패 — attestation 미기록"; return 0; }
+  if SF_NON_IDENTITY="$_nonid" python3 - "$ATTEST_JSON" "$CONFIG" "$IMG" "$1" "${2:-}" "$ATTEST_ROWS" "$SF" "$MAIN_NODE_ID" "$SUB_NODE_ID" <<'PY'
 import hashlib, json, os, re, sys
 out, config, image, phase, cap, rows_path, sf, main_id, sub_id = sys.argv[1:10]
-sys.path.insert(0, os.path.dirname(sf))
-import slave_forward
 def read(p):
     try:
         with open(p, encoding="utf-8") as fh:
@@ -373,7 +373,7 @@ if phase == "build":
     doc["provenance"] = "measured(docker run in each node image · 이번 실행 --build 대조)"
 else:
     doc["provenance"] = "measured(docker exec in each running container · host nvidia-smi)"
-    exempt = sorted(slave_forward.NON_IDENTITY_BUILD_ARGS)
+    exempt = sorted(x for x in os.environ.get("SF_NON_IDENTITY", "").split() if x)
     nodes = {}
     for role, node_id in (("main", main_id), ("sub", sub_id)):
         raw = read(os.path.join(cap, role + ".ledger.json"))
@@ -498,7 +498,7 @@ if [ -n "$_tag_ver" ]; then
     # VLLM_REF 가 셀 env 에 없으면 compose 기본값이 쓰인다 — 그 값을 **compose 에서 읽는다**. 옛 하드 폴백
     #   "0.27.1" 은 compose 기본값이 v0.29.0rc6 로 바뀐 뒤에도 남아 대조를 거짓으로 만들었다(코드맵 K10 · 매직넘버 결함).
     *) _bld_ver="$(val VLLM_REF)"; _bld_ver="${_bld_ver#v}"; _src="VLLM_REF"
-       [ -n "$_bld_ver" ] || { _bld_ver="$(python3 "$SF" default --compose "$COMPOSE_MULTI" --key VLLM_REF 2>/dev/null)"; _bld_ver="${_bld_ver#v}"; _src="compose 기본값(slave_forward default)"; } ;;
+       [ -n "$_bld_ver" ] || { _bld_ver="$("$SF" default --compose "$COMPOSE_MULTI" --key VLLM_REF 2>/dev/null)"; _bld_ver="${_bld_ver#v}"; _src="compose 기본값(slave_forward default)"; } ;;
   esac
   if [ -z "$_bld_ver" ]; then
     echo "[mn] FAIL(버전 판정 불가): 태그 버전 '$_tag_ver' 에 대응하는 빌드 버전을 읽지 못했다($_src)." >&2

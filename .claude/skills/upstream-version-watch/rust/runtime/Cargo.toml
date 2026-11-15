@@ -154,6 +154,11 @@ path = "src/bin/push_branches.rs"
 name = "judge_version_delta"
 path = "src/bin/judge_version_delta.rs"
 
+# The `prefix`, `json`, `default` subcommands of `slave_forward.py` (+ new `non-identity`); `--self-test` stays in Python.
+[[bin]]
+name = "slave_forward"
+path = "src/bin/slave_forward.rs"
+
 [[bin]]
 name = "upstream_role_api"
 path = "src/bin/upstream_role_api.rs"
