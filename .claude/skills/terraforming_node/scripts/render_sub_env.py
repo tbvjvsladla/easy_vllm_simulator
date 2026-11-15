@@ -202,7 +202,7 @@ RUST_ONLY_PREFIXES = ("rust/", "scripts/")
 RUST_ONLY_INPUTS = {
     "adversarial-benchmark": ("config/", "fixtures/", "bench_tool_pin.json"),   # build_rust.sh 자체검사가 읽는 fixtures/·bench_tool_pin.json 포함(2026-11-16 렌더 트리 실측)   # bench_bindings.yaml + 가리키는 도구 폴더 config/guide-llm/(프리셋) — 2026-11-16 렌더 트리 parity 실측
     "upstream-version-watch": ("failure_patterns.yaml",),
-    "vllm-recipe-explorer": (),
+    "vllm-recipe-explorer": ("recipe.py",),   # B 의 conformance 검사(conformance_checks.rs `skill_source("vllm-recipe-explorer/recipe.py")`)가 원문을 읽는다
 }
 SHARED_RUST_LIBRARIES = ((SHARED_RUST_SUPPORT, SHARED_RUST_CONSUMERS),
                          (ROLE_RUST_SUPPORT, ROLE_RUST_CONSUMERS),
@@ -1493,6 +1493,11 @@ def _self_test() -> int:
             _refs += [_bscr / m for m in re.findall(r'\$SDIR/([A-Za-z0-9_-]+\.(?:sh|py))', _txt)]
             _called_missing += [f"{_sf.name}→{r.relative_to(_out)}" for r in _refs if not r.exists()]
         _called_missing = [x for x in _called_missing if x not in _tolerated_absent]
+        # B 의 Rust 소스가 `skill_source("<스킬>/<경로>")` 로 읽는 타 스킬 원문도 같다.
+        for _rs in sorted(pathlib.Path(_bskill, "rust", "src").glob("*.rs")):
+            for _m in re.findall(r'skill_source\("([^"]+)"\)', _rs.read_text(encoding="utf-8", errors="replace")):
+                if not pathlib.Path(_out, ".claude", "skills", _m).exists():
+                    _called_missing.append(f"{_rs.name}→skills/{_m}")
         _bench_ok &= not _called_missing
         if _called_missing:
             print(f"  [FAIL-detail] 배달된 B 스크립트가 부르는데 렌더 트리에 없는 파일: {_called_missing[:10]}")
