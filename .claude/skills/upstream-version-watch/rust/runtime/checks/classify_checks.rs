@@ -87,6 +87,22 @@ fn accepted_case(id: &str) -> PyValue {
 }
 
 /// Builds `business/` of a case: the carrier script, the pinned registry beside it, and the case's own files; returns (business, carrier).
+// A sibling test thread forking while our copy's write fd is open makes exec fail with ETXTBSY (the fd lives in that
+// forked child until its exec). Retry only that error, briefly; any other spawn error still fails at once.
+fn spawn_retrying_etxtbsy(command: &mut Command) -> std::process::Child {
+    let mut attempt = 0;
+    loop {
+        match command.spawn() {
+            Ok(c) => return c,
+            Err(e) if e.raw_os_error() == Some(26) && attempt < 50 => {
+                attempt += 1;
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            Err(e) => panic!("spawn: {e}"),
+        }
+    }
+}
+
 fn build_business(root: &Path, case: &PyValue, executable: &str) -> (PathBuf, PathBuf) {
     let business = root.join("business");
     let scripts = business.join("node/.claude/skills/upstream-version-watch/scripts");
@@ -164,12 +180,11 @@ fn selected_saved_cli_cases_through_the_normal_program() {
                 command.env(k.to_utf8().unwrap(), text_of(v));
             }
         }
-        let mut child = command
+        command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
+            .stderr(Stdio::piped());
+        let mut child = spawn_retrying_etxtbsy(&mut command);
         child.stdin.take().unwrap().write_all(&stdin_bytes).unwrap();
         let output = child.wait_with_output().unwrap();
         let saved_root = saved_business(id);

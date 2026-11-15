@@ -82,7 +82,16 @@ fn run_in(
     } else {
         command.stdout(Stdio::piped());
     }
-    let child = command.spawn().unwrap();
+    // a freshly copied executable can be 'busy' (ETXTBSY) while another test thread forks; retry only that error
+    let child = (0..50)
+        .find_map(|_| match command.spawn() {
+            Err(error) if error.raw_os_error() == Some(26) => {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+                None
+            }
+            other => Some(other.unwrap()),
+        })
+        .expect("the program started");
     drop(launch);
     let pid = child.id();
     let output = child.wait_with_output().unwrap();
