@@ -4746,6 +4746,91 @@ fn op_slice_update(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     Ok(0)
 }
 
+// ── --escalation-add ─────────────────────────────────────────────────────────────────────────
+
+/// Predicate ① of the escalation: asked of the explorer's native `escalation_predicate` (an explicit path in
+/// `CAMPAIGN_ESCALATION_BIN` wins), never judged here.
+fn judge_escalation(ctx: &Ctx, symptoms: &[String], events: &[String], window: Option<(&str, &str)>) -> R<PyDict> {
+    let owner = ctx.root.join(".claude/skills/vllm-recipe-explorer/scripts/escalation_predicate.py");
+    if !owner.is_file() {
+        let mut d = PyDict::new();
+        d.set("predicate_1", PyValue::None);
+        d.set("model_plane_standing", PyValue::List(Vec::new()));
+        d.set("model_plane_refuted", PyValue::List(Vec::new()));
+        d.set("host_plane_ignored", PyValue::List(Vec::new()));
+        d.set("unknown_symptoms", str_list(symptoms.to_vec()));
+        d.set("evidence_source", py("none"));
+        d.set(
+            "reasons",
+            str_list(vec![format!(
+                "술어 ① 판정기가 없다({}) — 판정 불가를 false 로 적지 않는다. vllm-recipe-explorer 배달을 확인하라.",
+                owner.display()
+            )]),
+        );
+        return Ok(d);
+    }
+    let bin = std::env::var_os("CAMPAIGN_ESCALATION_BIN")
+        .filter(|v| !v.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or_else(|| ctx.root.join(".claude/skills/vllm-recipe-explorer/rust/runtime/target/release/escalation_predicate"));
+    let mut command = std::process::Command::new(&bin);
+    for s in symptoms {
+        command.arg("--symptom").arg(s);
+    }
+    if let (false, Some((start, end))) = (events.is_empty(), window) {
+        for e in events {
+            command.arg("--events").arg(e);
+        }
+        command.arg("--started-utc").arg(start).arg("--ended-utc").arg(end);
+    }
+    command.arg("--json").stdin(std::process::Stdio::null());
+    let output = command
+        .output()
+        .map_err(|e| Stop::Refuse(format!("술어 ① 네이티브 판정기를 시작할 수 없다({}): {e}", bin.display())))?;
+    if !matches!(output.status.code(), Some(0 | 1)) {
+        return refuse(format!(
+            "술어 ① 판정기가 판정하지 못했다(rc={}): {}",
+            output.status.code().unwrap_or(-1),
+            tail_chars(&String::from_utf8_lossy(&output.stderr), 200)
+        ));
+    }
+    let doc = pyjson::loads(&String::from_utf8_lossy(&output.stdout))
+        .map_err(|e| Stop::Refuse(format!("술어 ① 판정기 출력을 읽지 못했다: {e}")))?;
+    dict_of(&doc).cloned().ok_or_else(|| Stop::Refuse("술어 ① 판정기 출력이 객체가 아니다".to_string()))
+}
+
+fn op_escalation_add(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let Some((base, camp)) = writer_prelude(ctx, args, io)? else { return Ok(0) };
+    let (Some(cell), Some(utc)) = (
+        args.get("--cell").filter(|s| !s.is_empty()),
+        args.get("--utc").filter(|s| !s.is_empty()),
+    ) else {
+        return refuse("--escalation-add 는 --cell 과 --utc 가 필요하다");
+    };
+    let symptoms: Vec<String> = args.all("--symptom").to_vec();
+    let events: Vec<String> = args.all("--events").to_vec();
+    let window = match (args.get("--window-start-utc").filter(|s| !s.is_empty()), args.get("--window-end-utc").filter(|s| !s.is_empty())) {
+        (Some(a), Some(b)) => Some((a, b)),
+        _ => None,
+    };
+    let verdict = judge_escalation(ctx, &symptoms, &events, window)?;
+    let mut entry = PyDict::new();
+    entry.set("utc", py(utc));
+    entry.set("cell_id", py(cell));
+    entry.set("node_id", args.get("--node").map(py).unwrap_or(PyValue::None));
+    entry.set("symptoms", str_list(symptoms));
+    for key in ["predicate_1", "model_plane_standing", "model_plane_refuted", "host_plane_ignored", "unknown_symptoms", "evidence_source", "reasons"] {
+        entry.set(key, verdict.get(key).cloned().unwrap_or(PyValue::None));
+    }
+    entry.set("source", py("campaign_init --escalation-add"));
+    let line = sorted_value(&PyValue::Dict(entry)).dumps_unicode().map_err(|e| Stop::Refuse(e.to_string()))?.to_utf8().unwrap_or_default();
+    let path = base.join("escalation_candidates.jsonl");
+    let mut file = std::fs::OpenOptions::new().create(true).append(true).open(&path).map_err(|e| Stop::Refuse(e.to_string()))?;
+    file.write_all((line + "\n").as_bytes()).map_err(|e| Stop::Refuse(e.to_string()))?;
+    wrote_line(io, &camp, &[ctx.rel(&path)]);
+    Ok(0)
+}
+
 // ── purge gate ───────────────────────────────────────────────────────────────────────────────
 
 /// `purge_gate_reasons(previous_id)`: why the previous instance may not be removed (empty = the gate is open). A closed
@@ -5486,7 +5571,8 @@ fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 // ── dispatch ─────────────────────────────────────────────────────────────────────────────────
 
 /// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 31] = [
+const NATIVE_OPS: [&str; 32] = [
+    "--escalation-add",
     "--slice-update",
     "--assign-set",
     "--ground",
@@ -5525,6 +5611,7 @@ fn allowed_options(op: &str) -> &'static [&'static str] {
     match op {
         "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
         "--verify-purge-gate" => &["--verify-purge-gate"],
+        "--escalation-add" => &["--escalation-add", "--cell", "--utc", "--node", "--symptom", "--events", "--window-start-utc", "--window-end-utc", "--campaign-id"],
         "--slice-update" => &["--slice-update", "--utc", "--apply"],
         "--assign-set" => &["--assign-set", "--assign-cells", "--assign-reason", "--assign-evidence", "--assign-approved-by", "--utc", "--campaign-id"],
         "--ground" => &["--ground", "--utc", "--terms", "--no-warm-start", "--campaign-id"],
@@ -5621,6 +5708,7 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     let result = match op {
         "--assigned-cells" => op_assigned_cells(ctx, &args, io),
         "--verify-purge-gate" => op_verify_purge_gate(ctx, &args, io),
+        "--escalation-add" => op_escalation_add(ctx, &args, io),
         "--slice-update" => op_slice_update(ctx, &args, io),
         "--assign-set" => op_assign_set(ctx, &args, io),
         "--ground" => op_ground(ctx, &args, io),

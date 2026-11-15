@@ -514,3 +514,17 @@ fn slice_update_accepts_only_a_main_derived_sub_declaration() {
     assert_eq!(status, Some(1));
     assert!(err.contains("--slice-update 는 --utc 가 필요하다"), "{err}");
 }
+
+#[test]
+fn escalation_add_without_the_explorer_owner_records_an_undetermined_candidate() {
+    let root = scratch("escalation");
+    active(&root);
+    let (status, out, err) = call(&root, &["--escalation-add", "--cell", "c1", "--utc", "U", "--symptom", "config_arch_unsupported"]);
+    assert_eq!(status, Some(0), "{err}");
+    assert_eq!(out, "[campaign_init] wrote(camp-a): campaigns/camp-a/escalation_candidates.jsonl\n");
+    let line = std::fs::read_to_string(root.join("campaigns/camp-a/escalation_candidates.jsonl")).unwrap();
+    assert!(line.contains("\"predicate_1\": null") && line.contains("술어 ① 판정기가 없다("), "{line}");
+    let (status, _, err) = call(&root, &["--escalation-add", "--utc", "U"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("--escalation-add 는 --cell 과 --utc 가 필요하다"));
+}
