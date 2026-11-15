@@ -2270,12 +2270,19 @@ fn add_evidence(ctx: &Ctx, base: &Path, camp: &str, args: &Args) -> R<PathBuf> {
         }
     }
     let declaration = read_declaration(&base);
+    let declared_nodes: Vec<&PyDict> = list_of(declaration.get("nodes").unwrap_or(&PyValue::None)).into_iter().flatten().filter_map(dict_of).collect();
+    let declared = declared_nodes.len();
     if get_text(&declaration, "self_role").as_deref() == Some("sub") {
-        return Err(Stop::Fallback);
+        if node.is_none() && declared == 1 {
+            node = declared_nodes[0].get("node_id").and_then(text_of);
+        }
+        let node_value = node.as_deref().map(py).unwrap_or(PyValue::None);
+        sub_evidence_binding(&base, &node_value, &cell_id.as_deref().map(py).unwrap_or(PyValue::None))?;
+        let local = sub_evidence_path(&py(kind), &py(path_rel), &ctx.root.join("docs"))?;
+        if !local.is_file() && !(kind == "simlog" && local.is_dir()) {
+            return refuse(format!("서브 증거는 실재 정규파일 또는 simlog 디렉터리여야 한다: {path_rel}"));
+        }
     }
-    let declared = list_of(declaration.get("nodes").unwrap_or(&PyValue::None))
-        .map(|l| l.iter().filter(|n| dict_of(n).is_some()).count())
-        .unwrap_or(0);
     if !ctx.root.join(path_rel).exists() {
         return refuse(format!(
             "증거가 실재하지 않는다: {path_rel} (증거는 docs 평면에서 태어나고 여기엔 포인터만 둔다)"
@@ -2416,7 +2423,8 @@ fn op_evidence_relocate(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     if path_to.starts_with('/') || path_to.split('/').any(|p| p == "..") {
         return refuse(format!("새 경로는 저장소 상대여야 한다: {}", py_repr(path_to)));
     }
-    if ctx.root.join(path_from).exists() {
+    let correct = args.has("--correct-reference");
+    if ctx.root.join(path_from).exists() && !correct {
         return refuse(format!("옛 경로가 아직 실재한다({path_from}) — 개명이 아니다(증거를 옮기지 않는다)"));
     }
     if !ctx.root.join(path_to).exists() {
@@ -2435,15 +2443,45 @@ fn op_evidence_relocate(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     if pointers.iter().any(|p| pointer_matches(p, kind, path_to)) {
         return refuse(format!("(kind={}, path={}) 포인터가 이미 있다 — 중복 ✗", py_repr(kind), py_repr(path_to)));
     }
-    if get_text(&read_declaration(&base), "self_role").as_deref() == Some("sub") {
-        return Err(Stop::Fallback);
-    }
+    let is_sub = get_text(&read_declaration(&base), "self_role").as_deref() == Some("sub");
     let mut ptr = dict_of(&pointers[hits[0]]).expect("matched").clone();
     let mut history = list_or_empty(ptr.get("relocated"));
     let mut h = PyDict::new();
     h.set("from", py(path_from));
     h.set("reason", py(reason.trim()));
     h.set("utc", py(utc));
+    if correct {
+        let (node, cell) = (args.get("--node").filter(|s| !s.is_empty()), args.get("--cell").filter(|s| !s.is_empty()));
+        let (true, true, Some(node), Some(cell)) = (kind == "relay_summary", is_sub, node, cell) else {
+            return refuse("--correct-reference 는 sub relay_summary 정정이며 --node --cell이 필요하다");
+        };
+        sub_evidence_binding(&base, &py(node), &py(cell))?;
+        if get_text(&ptr, "node_id").as_deref() != Some(node) || get_text(&ptr, "cell_id").as_deref() != Some(cell) {
+            return refuse("정정할 포인터의 node/cell 귀속이 --node/--cell과 다르다");
+        }
+        let source = ctx.root.join(path_from);
+        let relay_dir = std::fs::canonicalize(base.join("relay")).ok();
+        let source_ok = !path_from.starts_with('/')
+            && !path_from.split('/').any(|p| p == "..")
+            && source.is_file()
+            && !source.is_symlink()
+            && source.parent().and_then(|p| std::fs::canonicalize(p).ok()) == relay_dir
+            && relay_dir.is_some();
+        if !source_ok {
+            return refuse("정정 원본은 이 캠페인의 보존할 relay 정규파일이어야 한다");
+        }
+        let target = sub_evidence_path(&py(kind), &py(path_to), &ctx.root.join("docs"))?;
+        if !path_to.starts_with("docs/testlog/") || !target.is_file() || target.extension().map(|e| e != "md").unwrap_or(true) {
+            return refuse("정정 목적지는 실제 docs/testlog Markdown 요약 정규파일이어야 한다");
+        }
+        h.set("mode", py("reference-correction"));
+        h.set("source_preserved", PyValue::Bool(true));
+        h.set("node_id", py(node));
+        h.set("cell_id", py(cell));
+    } else if is_sub {
+        sub_evidence_binding(&base, &ptr.get("node_id").cloned().unwrap_or(PyValue::None), &ptr.get("cell_id").cloned().unwrap_or(PyValue::None))?;
+        sub_evidence_path(&py(kind), &py(path_to), &ctx.root.join("docs"))?;
+    }
     history.push(PyValue::Dict(h));
     ptr.set("relocated", PyValue::List(history));
     ptr.set("path", py(path_to));
@@ -6587,7 +6625,7 @@ fn allowed_options(op: &str) -> &'static [&'static str] {
         "--hint-approve" => &["--hint-approve", "--node", "--cells", "--approved-by", "--source", "--utc", "--campaign-id"],
         "--evidence-add" => &["--evidence-add", "--kind", "--path", "--cell", "--node", "--unfreeze", "--campaign-id"],
         "--evidence-untag" => &["--evidence-untag", "--kind", "--path", "--cell", "--untag-reason", "--utc", "--unfreeze", "--campaign-id"],
-        "--evidence-relocate" => &["--evidence-relocate", "--kind", "--path", "--to", "--relocate-reason", "--utc", "--unfreeze", "--campaign-id"],
+        "--evidence-relocate" => &["--evidence-relocate", "--kind", "--path", "--to", "--relocate-reason", "--utc", "--unfreeze", "--campaign-id", "--node", "--cell", "--correct-reference"],
         "--evidence-prune-stubs" => &["--evidence-prune-stubs", "--unfreeze", "--campaign-id"],
         "--freeze-evidence" => &["--freeze-evidence", "--utc", "--campaign-id"],
         "--revise" => &["--revise", "--revise-set", "--revise-reason", "--revise-evidence", "--revise-approved-by", "--utc", "--campaign-id"],

@@ -597,3 +597,20 @@ fn resume_refuses_a_campaign_that_is_not_suspended() {
     assert_eq!(status, Some(1));
     assert!(err.contains("camp-a 은 active 다 — 재개는 보류 캠페인에만 한다"), "{err}");
 }
+
+#[test]
+fn a_sub_instance_takes_docs_evidence_only_for_its_own_node_and_cell() {
+    let root = scratch("subevidence");
+    put(&root, "campaigns/ACTIVE", "camp-s\n");
+    put(&root, "campaigns/camp-s/campaign.yaml", "{\"id\": \"camp-s\", \"self_role\": \"sub\", \"nodes\": [{\"node_id\": \"sub\", \"role\": \"sub\"}], \"assignments\": {\"sub\": [{\"cell\": \"s1\"}]}}");
+    put(&root, "docs/testlog/t.md", "x");
+    let add = |path: &str, cell: &str| call(&root, &["--evidence-add", "--kind", "testlog", "--path", path, "--cell", cell]);
+    let (status, _, err) = add("docs/testlog/t.md", "s1");
+    assert_eq!(status, Some(0), "{err}");
+    let (status, _, err) = add("docs/testlog/t.md", "zz");
+    assert_eq!(status, Some(1));
+    assert!(err.contains("서브 증거 셀이 이 노드 배정과 다르다: node='sub', cell='zz'"), "{err}");
+    let (status, _, err) = add("campaigns/camp-s/campaign.yaml", "s1");
+    assert_eq!(status, Some(1));
+    assert!(err.contains("서브 evidence claim은 docs 아래의 유효 kind/상대경로여야 한다"), "{err}");
+}
