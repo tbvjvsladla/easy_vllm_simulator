@@ -15039,6 +15039,41 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261115-single-to-multi-c50-2nd-a2646b9",
+      "utc": "2026-11-15T11:51:37Z",
+      "departure": "single-node",
+      "departure_commit": "a2646b9141230c3abce114e3d029f62b2ce948f3",
+      "approved_by": "user: None · 서명 plan docs/plan/plan_26111518_Rust_이식_2차동기화_multi서브배달_승인.md 와 work-manifest camp261115_rust_repack_sync2(authorize 허가)",
+      "approved_utc": "None",
+      "_reach": "캠페인 rust-repack-261115 c50 2차 동기화: sync_branches --apply 4경로(출발 a2646b91 · 동기 지점 1565f5fb). verify_distribution 1회 PASS. 참고: 정본 build_rust_packages.sh 가 bin 전용 parity 에 --lib 를 줘 'no library targets' 로 끝난다(정본 결함 · 다른 4패키지는 빌드 성공).",
+      "classification": [
+        {
+          "file": ".claude/skills/terraforming_node/scripts/build_rust_packages.sh",
+          "verdict": "common_promote",
+          "reason": "sync_branches allowlist 공통층 경로 — 2차 단일→멀티 동기화",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "sync_branches allowlist 공통층 경로 — 2차 단일→멀티 동기화",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/rust/runtime/src/layer_ledger_selftest.rs",
+          "verdict": "common_promote",
+          "reason": "sync_branches allowlist 공통층 경로 — 2차 단일→멀티 동기화",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+          "verdict": "common_promote",
+          "reason": "sync_branches allowlist 공통층 경로 — 2차 단일→멀티 동기화",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
