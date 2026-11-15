@@ -212,7 +212,7 @@ _campaign_phase() {  # $1=state(running|done|failed) $2=rc
     _a+=(--started-utc "$_CAMPAIGN_STARTED" --ended-utc "$_now" --proof-predicate "lite_bench exit=$2 (0=lite pass)")
     if [ "$1" = done ]; then _a+=(--proof-ok --proof-source "lite_bench: $RAW#lite_verdict"); fi
   fi
-  python3 "$_CI" "${_a[@]}" >&2 \
+  bash "${_CI%.py}.sh" "${_a[@]}" >&2 \
     || echo "[lite_bench] ⚠ 캠페인 셀 '$CAMPAIGN_CELL' bench phase=$1 기록 실패(위 사유) — 진행표가 낡는다" >&2
 }
 _campaign_exit() {
@@ -221,7 +221,7 @@ _campaign_exit() {
     _campaign_phase failed "$rc"
     # ② 서버 응답 실패는 셀 상태 writer 가 raw 를 읽어 cap 차감·재발동 제안을 적는다(멱등 · 키 = raw measured_utc).
     if [ "$rc" = 7 ] && [ -s "$RAW" ]; then
-      python3 "$_CI" --cell-set "$CAMPAIGN_CELL" --outcome measurement_void --lite-raw "$RAW" \
+      bash "${_CI%.py}.sh" --cell-set "$CAMPAIGN_CELL" --outcome measurement_void --lite-raw "$RAW" \
         --utc "$(date -u +%FT%TZ)" >&2 \
         || echo "[lite_bench] ⚠ 셀 상태(lite ② 차감) 기록 실패 — 수동: campaign_init.py --cell-set $CAMPAIGN_CELL --outcome measurement_void --lite-raw $RAW" >&2
     fi

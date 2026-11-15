@@ -246,7 +246,7 @@ init)
     if [ ! -f "$_CI" ]; then
       echo "[broad_search] ERROR --node 파생을 요청했는데 campaign_init 이 없다: $_CI" >&2; exit 2
     fi
-    CELLS="$(python3 "$_CI" --assigned-cells "$NODE")" || {
+    CELLS="$(bash "${_CI%.py}.sh" --assigned-cells "$NODE")" || {
       echo "[broad_search] ERROR assignments[$NODE] 에서 셀을 파생하지 못했다(위 사유 참조)" >&2; exit 2; }
     echo "[broad_search] cells ← assignments[$NODE] = $CELLS"
   elif [ -n "$CELLS" ] && [ -n "${NODE:-}" ]; then
@@ -480,7 +480,7 @@ MSG
     fi
   fi
   set +e
-  CELL_PROV="$(python3 "$_CI_PC" "${_PC_ARGS[@]}")"
+  CELL_PROV="$(bash "${_CI_PC%.py}.sh" "${_PC_ARGS[@]}")"
   _PCRC=$?
   set -e
   _PC_STATUS="$(printf '%s' "$CELL_PROV" | bash "$SDIR/bench_shell.sh" provenance-status 2>/dev/null || true)"
@@ -619,7 +619,7 @@ MSG
                  --void-reason-source "broad_search cell(엔진 로그 인용 · 이벤트 대조 실패)")
       fi
       # writer 실패는 삼키지 않는다 — 상태가 안 적혔다는 사실 자체가 다음 재개의 함정이다.
-      python3 "$_CI" "${_WARGS[@]}" \
+      bash "${_CI%.py}.sh" "${_WARGS[@]}" \
         || echo "[broad_search] ⚠ campaigns writer 실패 — cell.status/여정이 기록되지 않았다(위 사유 참조)" >&2
       # bench phase 진행표 + 관측면 갱신(2026-09-08 · plan_26090813 §4.2). 노드는 셀 상태에서
       # 되읽는다 — writer 가 배정에서 파생해 방금 적은 값이고, 여기서 두 번째 파생을 만들지 않는다.
@@ -643,13 +643,13 @@ MSG
         # `set -e` 아래에서 `[ … ] && x` 는 마지막 문장일 때 스크립트를 죽인다 — if 로 적는다.
         _BOK=(); _BSTATE="failed"
         if [ "$_OUTCOME" = "measured" ]; then _BOK=(--proof-ok); _BSTATE="done"; fi
-        python3 "$_CI" --phase-set bench --node "$_NODE" --cell "$CELL_KEY" \
+        bash "${_CI%.py}.sh" --phase-set bench --node "$_NODE" --cell "$CELL_KEY" \
           --state "$_BSTATE" \
           --proof-predicate "sweep 레코드 실재 + cell_outcome=$_OUTCOME" "${_BOK[@]}" \
           --proof-source "broad_search cell: $STATE#cells[cell_key=$CELL_KEY]" \
           --started-utc "$STARTED" --ended-utc "$ENDED" --authored-by "$_NODE" \
           || echo "[broad_search] ⚠ bench 진행표 기록 실패" >&2
-        python3 "$_CI" --write-brief --node "$_NODE" --utc "$ENDED" \
+        bash "${_CI%.py}.sh" --write-brief --node "$_NODE" --utc "$ENDED" \
           || echo "[broad_search] ⚠ campaign_brief 갱신 실패 — 감독자가 읽을 관측면이 낡았다" >&2
         # ── escalation 후보(2026-09-11 · plan_26091108 R6) ────────────────────────────────
         #   반증된 셀은 후보 원장에 **한 줄** 남는다. 발동하지 않는다 — 빌드 평면 재전략은
@@ -665,7 +665,7 @@ MSG
             while IFS= read -r evf; do
               [ -n "$evf" ] && [ -f "$evf" ] && _ESC+=(--events "$evf")
             done < <(printf '%s' "$CLS" | bash "$SDIR/bench_shell.sh" events-scanned 2>/dev/null || true)
-            python3 "$_CI" "${_ESC[@]}" >/dev/null \
+            bash "${_CI%.py}.sh" "${_ESC[@]}" >/dev/null \
               || echo "[broad_search] ⚠ escalation 후보 기록 실패 — 종결 HITL 이 이 셀을 못 본다" >&2
             ;;
         esac

@@ -1266,7 +1266,7 @@ def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
         checks += [
             _order_check("single_up_grounding_before_any_state", ssu_text,
                          'echo "$TAG 1/7 통로·전제      : DONE', 'echo "$TAG 3/7 예산 선언       : DONE"',
-                         ('python3 "$_CI" --grounding-check', 'check_smoke_model.sh" "$CONFIG"',
+                         ('bash "${_CI%.py}.sh" --grounding-check', 'check_smoke_model.sh" "$CONFIG"',
                           'python3 "$SESSION_PY" "${DECL_ARGS[@]}"')),
             _order_check("single_up_engine_log_saved_before_rollback", ssu_text,
                          'echo "$TAG 7/7 health 대기     : FAIL — 컨테이너가 종료됐다"', "rollback; exit 5",

@@ -384,7 +384,7 @@ _campaign_phase() {  # $1=state(running|done|failed) $2=rc
     _a+=(--started-utc "$_CAMPAIGN_STARTED" --ended-utc "$_now" --proof-predicate "sweep_bench exit=$2 (0=스윕 완주)")
     if [ "$1" = done ]; then _a+=(--proof-ok --proof-source "sweep_bench: $SWEEPDIR/sweep_index.json"); fi
   fi
-  python3 "$_CI" "${_a[@]}" >&2 \
+  bash "${_CI%.py}.sh" "${_a[@]}" >&2 \
     || echo "[sweep_bench] ⚠ 캠페인 셀 '$CAMPAIGN_CELL' bench phase=$1 기록 실패(위 사유) — 진행표가 낡는다" >&2
 }
 _campaign_exit() {

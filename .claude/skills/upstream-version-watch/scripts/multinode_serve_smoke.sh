@@ -279,7 +279,7 @@ _campaign_phase() {   # $1=phase $2=state $3=proof_ok(1|0) $4=predicate $5=sourc
   fi
   local _ok=()
   [ "$3" = "1" ] && _ok=(--proof-ok)
-  python3 "$_CI" --phase-set "$1" --node "$MAIN_NODE_ID" --state "$2" --cell "$CONFIG" \
+  bash "${_CI%.py}.sh" --phase-set "$1" --node "$MAIN_NODE_ID" --state "$2" --cell "$CONFIG" \
     --proof-predicate "$4" "${_ok[@]}" --proof-source "$5" \
     --started-utc "$6" --ended-utc "$(date -u +%FT%TZ)" --authored-by "$MAIN_NODE_ID" \
     || echo "[mn] ⚠ campaigns writer 실패 — $1 진행표($MAIN_NODE_ID)가 기록되지 않았다" >&2

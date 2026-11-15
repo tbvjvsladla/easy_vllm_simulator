@@ -164,7 +164,7 @@ _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
 if [ "$DRY" = 1 ]; then
   echo "$TAG (dry-run) 그라운딩 백스톱은 실기동에만 건다 — 예행은 막지 않는다"
 elif [ -f "$_CI" ]; then
-  if ! python3 "$_CI" --grounding-check; then
+  if ! bash "${_CI%.py}.sh" --grounding-check; then
     echo "$TAG STOP: 그라운딩 기록 없이 서빙에 진입하지 않는다(policy:LIBRARY_GROUNDING_FAIL_CLOSED)." >&2
     echo "$TAG   → python3 $_CI --ground --utc <UTC> 로 사서에게 먼저 물어라." >&2
     echo "$TAG   → 사서가 못 찾으면 그 사실이 기록에 남고 그대로 통과한다(공백은 차단이 아니다)." >&2
@@ -349,12 +349,12 @@ while [ "$_waited" -lt "$READY_MAX" ]; do
     #      끝난 뒤 메인 손으로 나타났다. 부재는 이제 소리낸다 — 배선 결함과 정상 no-op 은 다르다.
     _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
     if [ -f "$_CI" ]; then
-      python3 "$_CI" --phase-set serve --node "$NODE_ID" --state done --cell "$CONFIG" \
+      bash "${_CI%.py}.sh" --phase-set serve --node "$NODE_ID" --state done --cell "$CONFIG" \
         --proof-predicate "health 200" --proof-ok \
         --proof-source "single_serve_up.sh: curl http://localhost:$PORT/health = 200 (container=$CNAME · session=$SESSION_ID)" \
         --started-utc "$_SERVE_T0" --ended-utc "$(NOW_ISO)" --authored-by "$NODE_ID" \
         || echo "$TAG ⚠ campaigns writer 실패 — serve 진행표가 기록되지 않았다" >&2
-      python3 "$_CI" --write-brief --node "$NODE_ID" --utc "$(NOW_ISO)" \
+      bash "${_CI%.py}.sh" --write-brief --node "$NODE_ID" --utc "$(NOW_ISO)" \
         || echo "$TAG ⚠ campaign_brief 갱신 실패 — 감독자가 읽을 관측면이 낡았다" >&2
     else
       echo "$TAG ⚠ campaigns writer 부재($_CI) — serve 진행표를 아무도 적지 않았다." >&2
