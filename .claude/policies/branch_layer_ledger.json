@@ -15184,6 +15184,23 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261116-single-to-multi-final-b1f3563",
+      "utc": "2026-11-15T20:45:00Z",
+      "departure": "single-node",
+      "departure_commit": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+      "approved_by": "user: AhnSangHun · plan docs/plan/plan_26111605_Rust_이식_종결_정리후_동기화배달_승인.md 서명(approved_at_utc 2026-11-15T20:30:00Z) · work-manifest final261116_sync_push",
+      "approved_utc": "2026-11-15T20:30:00Z",
+      "_reach": "Rust 이식 종결 뒤 헌장 항목(CLAUDE.md 1경로) 단일→멀티 공통층 동기화. sync_branches --apply 1경로 · verify_distribution 통과 뒤 커밋.",
+      "classification": [
+        {
+          "file": "CLAUDE.md",
+          "verdict": "common_promote",
+          "reason": "sync_branches allowlist 공통층 경로 — 유닛 테스트·결정론 로직 새 구현은 되도록 Rust 헌장 항목(b1f3563e)",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
