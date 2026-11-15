@@ -335,14 +335,7 @@ gate_stdout="$("${gate_cmd[@]}")" && gate_exit=0 || gate_exit=$?
 
 gate_allowed="false"
 if [ -n "$gate_stdout" ]; then
-    gate_allowed="$(printf '%s' "$gate_stdout" | python3 -c '
-import json, sys
-try:
-    obj = json.load(sys.stdin)
-    print("true" if obj.get("allowed") is True else "false")
-except Exception:
-    print("false")
-' 2>/dev/null)"
+    gate_allowed="$(printf '%s' "$gate_stdout" | "$SCRIPT_DIR/inline_json.sh" allowed 2>/dev/null)"
     [ "$gate_allowed" = "true" ] || gate_allowed="false"
 fi
 
@@ -355,22 +348,7 @@ if [ "$gate_exit" -ne 0 ] || [ "$gate_allowed" != "true" ]; then
         exit 1
     fi
     # completion_gate.py 자체를 실행/파싱하지 못한 경우(예: 크래시) — 결정론 wrapper 로 대체.
-    python3 -c '
-import json, sys
-gate_mode, manifest_path, exit_code = sys.argv[1], sys.argv[2], sys.argv[3]
-mode = gate_mode if gate_mode in ("experimental", "promotion") else None
-obj = {
-    "schema_version": 1, "mode": mode, "action": "sync_branches", "task_class": None,
-    "authorization_state": None, "allowed": False,
-    "reason_codes": ["SYNC_BRANCHES_GATE_OUTPUT_UNREADABLE"],
-    "messages": {
-        "SYNC_BRANCHES_GATE_OUTPUT_UNREADABLE":
-            "completion_gate.py authorize (exit=" + exit_code + ") did not produce parseable JSON stdout",
-    },
-    "identity": None, "exit_code": 2,
-}
-print(json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2))
-' "$GATE_MODE" "$RESOLVED_MANIFEST" "$gate_exit"
+    "$SCRIPT_DIR/inline_json.sh" gate-unreadable-branches "$GATE_MODE" "$RESOLVED_MANIFEST" "$gate_exit"
     exit 2
 fi
 
@@ -480,17 +458,7 @@ if git cat-file -e "$SRC_BRANCH:$_LEDGER_REL" 2>/dev/null; then
     _DIV_JSON="$(python3 "$_LEDGER" divergence --repo "$REPO_ROOT" --branch "$DST_BRANCH" \
                      --counterpart "$SRC_BRANCH" --ledger-ref "$SRC_BRANCH" 2>"$_DIV_ERR")" || _DIV_RC=$?
     _DIV_STDERR="$(head -c 4000 "$_DIV_ERR")"; rm -f "$_DIV_ERR"
-    _DIV_SUMMARY="$(printf '%s' "$_DIV_JSON" | python3 -c '
-import json, sys
-try:
-    d = json.load(sys.stdin) or {}
-except Exception:
-    print("unreadable\t-\t-\t-")
-    raise SystemExit(0)
-sp = d.get("sync_point") or {}
-print("\t".join([d.get("status") or "unknown", d.get("basis") or "-", (d.get("base") or "-")[:12],
-                 sp.get("status") or "-", str(len(d.get("absorbed") or []))]))
-' 2>/dev/null || printf 'unreadable\t-\t-\t-\t0')"
+    _DIV_SUMMARY="$(printf '%s' "$_DIV_JSON" | "$SCRIPT_DIR/inline_json.sh" divergence-summary 2>/dev/null || printf 'unreadable\t-\t-\t-\t0')"
     IFS=$'\t' read -r _DIV_STATUS _DIV_BASIS _DIV_BASE _DIV_SP _DIV_ABSORBED <<< "$_DIV_SUMMARY"
     case "$_DIV_STATUS" in
         diverged)

@@ -118,6 +118,7 @@ fi
 
 # Gate location is immutable and derived from this script, never from caller-controlled SRC.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+IJ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/inline_json.sh"   # JSON 소형 판독기(Rust ELF 런처) — 인라인 python3 대체
 GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.py"
 
 # ── 배달 통로 ↔ 체크아웃 특화층 가드 (2026-09-14 · ⑧-pre D2 S6 · policy:BRANCH_CONSTITUTION_LAYERING C5 "delivery entry") ──
@@ -154,18 +155,7 @@ assert_delivery_topology() {
         return 1
     fi
     verdict_json="$(python3 "$PARITY_SCRIPT" evaluate --repo "$GUARD_SRC" --expect "$BRANCH" --format json)" || rc=$?
-    summary="$(printf '%s' "$verdict_json" | python3 -c '
-import json, sys
-try:
-    d = json.load(sys.stdin)
-except Exception:
-    raise SystemExit(1)
-# 빈 칸은 "-" 로 채운다 -- 탭은 IFS 공백이라 빈 필드가 접히면 뒤 칸이 앞으로 밀린다.
-print("\t".join([d.get("verdict") or "-", d.get("topology") or "-", ",".join(d.get("reason_codes") or []) or "-",
-                 ",".join(d.get("legs_judged") or []) + "(" + str(d.get("legs_checked")) + "/4)"]))
-for r in d.get("reasons") or []:
-    print(r)
-' 2>/dev/null)" || summary=""
+    summary="$(printf '%s' "$verdict_json" | "$IJ" parity-summary 2>/dev/null)" || summary=""
     if [ -z "$summary" ]; then
         echo "[sync] STOP(TOPOLOGY_DELIVERY_UNJUDGED): 4자일치 술어의 판정을 읽지 못했다(rc=$rc) — 판정 없이 배달하지 않는다." >&2
         return 1
@@ -209,13 +199,7 @@ if gate_stdout="$("${gate_cmd[@]}")"; then gate_exit=0; else gate_exit=$?; fi
 
 gate_allowed="false"
 if [ -n "$gate_stdout" ]; then
-    gate_allowed="$(printf '%s' "$gate_stdout" | python3 -c '
-import json, sys
-try:
-    print("true" if json.load(sys.stdin).get("allowed") is True else "false")
-except Exception:
-    print("false")
-' 2>/dev/null || printf false)"
+    gate_allowed="$(printf '%s' "$gate_stdout" | "$IJ" allowed 2>/dev/null || printf false)"
 fi
 if [ "$gate_exit" -ne 0 ] || [ "$gate_allowed" != "true" ]; then
     if [ -n "$gate_stdout" ]; then
@@ -223,15 +207,7 @@ if [ "$gate_exit" -ne 0 ] || [ "$gate_allowed" != "true" ]; then
         [ "$gate_exit" -eq 0 ] && exit 1
         exit "$gate_exit"
     fi
-    python3 -c '
-import json
-print(json.dumps({
- "schema_version":1,"mode":None,"action":"sync_to_sub","task_class":None,
- "authorization_state":None,"allowed":False,
- "reason_codes":["SYNC_TO_SUB_GATE_OUTPUT_UNREADABLE"],
- "messages":{"SYNC_TO_SUB_GATE_OUTPUT_UNREADABLE":"completion gate produced no parseable JSON"},
- "identity":None,"exit_code":2}, ensure_ascii=False, sort_keys=True, indent=2))
-'
+    "$IJ" gate-unreadable-sub
     exit 2
 fi
 
@@ -345,8 +321,7 @@ SINGLE_PLANE_SOURCE="fail-closed:unevaluated"      # 판정 출처(*_source 표�
     # 출처는 판정기가 소유한다 — 여기서 사유를 손저작하지 않는다(sub-mode:a2a-agent · no-sub-registered …).
     SINGLE_PLANE_SOURCE="$(python3 "$contract" evaluate --manifest "$manifest" --topology single \
                                   --field delivery_plane --format json 2>/dev/null \
-                           | python3 -c 'import json,sys; print((json.load(sys.stdin).get("delivery_plane") or {}).get("source") or "unknown")' \
-                           2>/dev/null || echo unknown)"
+                           | "$IJ" delivery-source 2>/dev/null || echo unknown)"
     [ "$plane" = "active" ]
 }
 
@@ -439,13 +414,7 @@ PA_TOPOLOGY=""; PA_NODE_ID=""; PA_SSH_HOST=""; PA_WORK_DIR=""; PA_PLANES=""
 if [ -n "$RESOLVED_MANIFEST" ]; then
     # Gate owns scope validation and returns the scope from the exact manifest bytes it read.
     # Do not reread the caller path here: that would permit an authorization/transport TOCTOU.
-    pa_fields="$(printf '%s' "$gate_stdout" | python3 -c '
-import json, sys
-try:
- d=json.load(sys.stdin); pa=d.get("propagation_scope") or {}
- if pa: print("\t".join([pa["status"],pa["topology"],pa["node_id"],pa["ssh_host"],pa["work_dir"],",".join(pa["planes"])]))
-except (ValueError, KeyError, TypeError): pass
-')"
+    pa_fields="$(printf '%s' "$gate_stdout" | "$IJ" propagation-fields)"
     if [ -n "$pa_fields" ]; then
         IFS=$'\t' read -r PA_STATUS PA_TOPOLOGY PA_NODE_ID PA_SSH_HOST PA_WORK_DIR PA_PLANES <<< "$pa_fields"
         [ "$PA_STATUS" = "approved" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_STATUS): status must be approved" >&2; exit 4; }
@@ -915,7 +884,7 @@ sub_run()  { ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && $1"; }
 # ELF 는 gitignored(target/) 라 스테이징·인벤토리·체크섬 표면에 없다(서브 git 에도 들지 않는다).
 # 부재·아키 불일치·ELF 매직 불일치는 fail-closed 다 — Python 폴백 ✗(우회가 아니라 경로를 고친다).
 SUB_ELF_REL=".claude/skills/upstream-version-watch/rust/runtime/target/release"
-SUB_ELF_NAMES=(sub_runner regen_build_patches_src)
+SUB_ELF_NAMES=(sub_runner regen_build_patches_src inline_json)
 sub_runner_run() { # $1..=sub_runner argv → 서브에서 실행(stdout 전달 · 실패는 그대로 비-0)
     local q a args=""
     for a in "$@"; do printf -v q '%q' "$a"; args="$args $q"; done

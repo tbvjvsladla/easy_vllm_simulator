@@ -64,27 +64,7 @@ fi
 #   두 자리). 활성 캠페인이 없거나(_bootstrap) 값이 0(뼈대 미기입)이면 아무것도 내지 않는다 — 그러면
 #   아래의 '선언되지 않았다' fail-loud 가 그대로 선다(기본값을 만들지 않는다).
 _campaign_budget() {   # $1 = budgets 키 → 활성 캠페인 선언의 양의 정수만 stdout
-  python3 - "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)" "$1" <<'PY'
-import json, os, sys
-repo, key = sys.argv[1], sys.argv[2]
-try:
-    with open(os.path.join(repo, "campaigns", "ACTIVE"), encoding="utf-8") as fh:
-        camp = fh.read().strip()
-except OSError:
-    sys.exit(0)
-if not camp or camp == "_bootstrap":
-    sys.exit(0)
-path = os.path.join(repo, "campaigns", camp, "campaign.yaml")
-try:
-    with open(path, encoding="utf-8") as fh:
-        val = (json.load(fh).get("budgets") or {}).get(key)
-except (OSError, ValueError) as exc:
-    print(f"[mn] ⚠ 활성 캠페인 선언을 읽지 못했다({path}: {exc}) — 선언값 없이 진행(아래 게이트가 판정)",
-          file=sys.stderr)
-    sys.exit(0)
-if isinstance(val, int) and not isinstance(val, bool) and val > 0:
-    print(val)
-PY
+  "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/inline_json.sh" campaign-budget "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)" "$1"
 }
 
 READY_MAX="${READY_MAX:-}"
@@ -1220,19 +1200,7 @@ if [ "$READY" = "1" ]; then
   printf '{"model":"%s","messages":[{"role":"user","content":"2+2= ? \xec\x88\xab\xec\x9e\x90\xeb\xa7\x8c \xeb\x8b\xb5\xed\x95\x98\xec\x84\xb8\xec\x9a\x94."}],"max_tokens":256}' "$MODEL" > /tmp/mn_req.json
   curl -s -m 120 "http://localhost:$PORT/v1/chat/completions" -H "Content-Type: application/json" -d @/tmp/mn_req.json -o /tmp/mn_resp.json
   # 한 파서가 세 값을 함께 낸다(두 벌로 나누면 판정과 표시가 갈린다 — 그것이 이번 결함의 형태다).
-  read -r CH_VERDICT CH_CLEN CH_RLEN CH_FR <<<"$(python3 -c "
-import json
-try:
-    d = json.load(open('/tmp/mn_resp.json'))
-    c = d['choices'][0]
-    m = c.get('message') or {}
-    content = (m.get('content') or '').strip()
-    reasoning = (m.get('reasoning') or m.get('reasoning_content') or '').strip()
-    v = 'content' if content else ('reasoning-only' if reasoning else 'empty')
-    print(v, len(content), len(reasoning), c.get('finish_reason'))
-except Exception:
-    print('unparsable 0 0 none')
-" 2>/dev/null)"
+  read -r CH_VERDICT CH_CLEN CH_RLEN CH_FR <<<"$("$SDIR/inline_json.sh" chat-verdict /tmp/mn_resp.json 2>/dev/null)"
   CH_VERDICT="${CH_VERDICT:-unparsable}"
   echo "[mn] smoke(chat): verdict=$CH_VERDICT content_len=${CH_CLEN:-?} reasoning_len=${CH_RLEN:-?} finish_reason=${CH_FR:-?}"
 
@@ -1245,14 +1213,7 @@ except Exception:
       echo "[mn] ⚠ chat content 가 비었다(reasoning_len=$CH_RLEN · fr=$CH_FR) — 생성 실재를 /v1/completions 로 확증한다."
       printf '{"model":"%s","prompt":"2+2=","max_tokens":32}' "$MODEL" > /tmp/mn_req_compl.json
       curl -s -m 120 "http://localhost:$PORT/v1/completions" -H "Content-Type: application/json" -d @/tmp/mn_req_compl.json -o /tmp/mn_resp_compl.json
-      CO_LEN=$(python3 -c "
-import json
-try:
-    d = json.load(open('/tmp/mn_resp_compl.json'))
-    print(len((d['choices'][0].get('text') or '').strip()))
-except Exception:
-    print(0)
-" 2>/dev/null)
+      CO_LEN=$("$SDIR/inline_json.sh" completions-len /tmp/mn_resp_compl.json 2>/dev/null)
       if [ "${CO_LEN:-0}" -gt 0 ]; then
         echo "[mn] SMOKE PASS — evidence=v1.completions (text_len=$CO_LEN · chat.reasoning_len=$CH_RLEN)"
         echo "[mn]   ⚠ 그러나 chat content 는 비어 있다(fr=$CH_FR). reasoning 파서가 활성인데 사고 블록이"

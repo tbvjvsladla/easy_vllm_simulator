@@ -175,6 +175,11 @@ name = "native_multinode_serve"
 path = "src/bin/native_multinode_serve.rs"
 
 # The sub-node helpers of `sync_to_sub.sh` (prune-empty-dirs, validate-names, retirement-scan; std only, delivered to the sub by the main node).
+# The small JSON readers of the entry-point shells (gate allowed, summaries, field extraction, smoke response verdicts, campaign budget, open sessions) that used to be inline `python3 -c`.
+[[bin]]
+name = "inline_json"
+path = "src/bin/inline_json.rs"
+
 [[bin]]
 name = "sub_runner"
 path = "src/bin/sub_runner.rs"
