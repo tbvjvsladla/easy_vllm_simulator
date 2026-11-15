@@ -121,7 +121,7 @@ fn cell_set_records_gap_and_journey() {
 fn shapes_with_other_files_stay_with_the_owner() {
     let root = scratch("fallback");
     active(&root);
-    let (status, out, err) = call(&root, &["--evidence-add", "--kind", "plan", "--path", "x.md"]);
+    let (status, out, err) = call(&root, &["--escalation-add", "--cell", "c1", "--utc", "U"]);
     assert_eq!((status, out.as_str(), err.as_str()), (None, "", ""));
     let (status, ..) = call(&root, &["--phase-set", "publish", "--node", "main", "--state", "done"]);
     assert_eq!(status, None);
@@ -283,7 +283,7 @@ fn evidence_add_attributes_once_and_refuses_a_rewrite() {
     assert_eq!(add("c1").0, Some(0), "the same attribution is idempotent");
     let (status, _, err) = add("c2");
     assert_eq!(status, Some(1));
-    assert!(err.contains("이 포인터의 cell_id 는 'c1' 다 — 'c2' 로 바꾸려면"));
+    assert!(err.contains("이 포인터의 cell_id 는 이미 'c1' 다 — 'c2' 로 바꾸려면"), "{err}");
 }
 
 #[test]
@@ -294,10 +294,10 @@ fn freeze_blocks_additions_until_unfreeze() {
     assert_eq!(call(&root, &["--freeze-evidence", "--utc", "T"]).0, Some(1), "no pointer file yet");
     put(&root, "campaigns/camp-a/evidence_pointers.json", "{\"pointers\": []}");
     assert_eq!(call(&root, &["--freeze-evidence", "--utc", "T"]).0, Some(0));
-    let (status, _, err) = call(&root, &["--evidence-add", "--kind", "plan", "--path", "docs/testlog/t.md"]);
+    let (status, _, err) = call(&root, &["--evidence-add", "--kind", "plan", "--path", "docs/testlog/t.md", "--node", "main"]);
     assert_eq!(status, Some(1));
-    assert!(err.contains("이 스냅샷은 T 에 동결됐다"));
-    assert_eq!(call(&root, &["--evidence-add", "--kind", "plan", "--path", "docs/testlog/t.md", "--unfreeze"]).0, Some(0));
+    assert!(err.contains("이 스냅샷은 T 에 동결됐다"), "{err}");
+    assert_eq!(call(&root, &["--evidence-add", "--kind", "plan", "--path", "docs/testlog/t.md", "--node", "main", "--unfreeze"]).0, Some(0));
 }
 
 #[test]
