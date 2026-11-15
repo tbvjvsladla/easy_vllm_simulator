@@ -363,11 +363,11 @@ pub fn run(arguments: &[BStr], io: &mut Streams<'_>, world: &World<'_>) -> i32 {
         }
     };
     if matches.flag(args::SELF_TEST) {
-        write_stderr(
-            io,
-            &BStr::new("[scan_node] ERROR --self-test is the original's own regression harness and is not native in this phase (scan_node.py runs it through the exact original owner)\n"),
-        );
-        return io.finish(EXIT_BOUNDARY);
+        let (text, status) = role_contract::scan_node_selftest::run(world.host, world.files, world.clock);
+        if let Err(failure) = io.write_plain(&b(&PyStr::new(&text))) {
+            return crate::cli::print_failed(io, &failure, "");
+        }
+        return io.finish(status);
     }
     let finished = {
         let host: &(dyn Host + Sync) = world.host;
