@@ -105,6 +105,11 @@ HINT_ENGINE_DEPENDENCIES = (
 #   · scan_node.sh — build_rust.sh 의 마지막 자체검사(`scan_node.sh --p1-self-check`, R50 P1)가 부르는 읽기 전용 런처. 서브에 없으면 B 빌드가
 #     끝난 뒤 이 호출에서 127 로 중단된다(위 11-07 과 같은 모양의 결손). ELF 만 기동하며 scan_node.py/scan_node_original.py(메인 전용 스캐너)는
 #     요구하지 않는다. 멀티 ray-worker(런타임 스킬 0종)에는 이 목록 전체가 가지 않는다 — Rust 업무 패키지는 자체검사 때문에도 배달하지 않는다.
+# role-contract 크레이트가 컴파일 시점에 `include_bytes!` 로 읽는 정본 입력(source_identity.rs REVIEWED_OWNER). Rust 패키지가 가는 **모든** 서브(multi 포함)에
+#   있어야 컴파일된다 — 2026-11-15 c51 실측: multi 렌더에 빠져 role-contract 빌드가 종료 101 로 막혔다. (campaign_init.py·manifest_contract_compat_owner.py 는 캠페인 도구·계약 리더로 이미 간다.)
+SUB_RUST_BUILD_INPUTS = (
+    ".claude/policies/runtime/topology_parity.py",
+)
 SUB_BENCH_FOUNDATION_RUNTIME = (
     ".claude/policies/runtime/topology_parity.py",
     ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
@@ -456,12 +461,13 @@ def support_delivery(tool_plane) -> list:
     out = [f".claude/skills/terraforming_node/scripts/{t}" for t in
            CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES + SUB_RUST_BOOTSTRAP]
     out.append(RUST_RUNTIME_REFERENCE)
+    out.extend(SUB_RUST_BUILD_INPUTS)
     if (os.path.isfile(TOPOLOGY_RULES) and "handoff_exception.topology.md" in
             pathlib.Path(TOPOLOGY_RULES).read_text(encoding="utf-8")):
         out.append(".claude/policies/handoff_exception.topology.md")
     # 사서 참조 발췌(references.md)는 2026-10-19 부터 wiki-desk 런타임블럭이 통째로 싣는다 — 지원 배달분이 아니다.
     if "adversarial-benchmark" in tool_plane:
-        out.extend(SUB_BENCH_FOUNDATION_RUNTIME)
+        out.extend(r for r in SUB_BENCH_FOUNDATION_RUNTIME if r not in out)
     if "hint-publisher" in tool_plane:
         # 엔진 의존 + 장착 판정 도구(2026-10-11 · plan_26101104 Step 3). render_tree 의 (3.5) 와 같은 규칙.
         out.extend(f".claude/skills/terraforming_node/scripts/{t}" for t in SUB_HINT_EQUIP_TOOLS)
@@ -832,6 +838,15 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                                       tracked_list=tracked_list)
                 produced.append(f"{support}/ ({count} tracked files)")
         _assert_rust_path_closure(out_dir, names)
+        for rel in SUB_RUST_BUILD_INPUTS:
+            src = os.path.join(REPO, rel)
+            if not os.path.isfile(src):
+                raise SystemExit(f"[render] FAIL: Rust 빌드 입력이 없다 — {rel}")
+            _tracked_or_die(rel, tracked_list)
+            dst = os.path.join(out_dir, rel)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(src, dst)
+            produced.append(rel)
         # 3.4) adversarial-benchmark 가 부르는 owner 자체검사 의존(SUB_BENCH_FOUNDATION_RUNTIME) — 그 스킬이 가는 서브에만.
         if "adversarial-benchmark" in names:
             for rel in SUB_BENCH_FOUNDATION_RUNTIME:
@@ -1446,7 +1461,11 @@ def _self_test() -> int:
                 _bench_ok &= (_rel in _cons_src and _dst_f.is_file()
                               and _dst_f.read_bytes() == pathlib.Path(REPO, _rel).read_bytes())
             else:
-                _bench_ok &= not _dst_f.exists()
+                # topology_parity.py 는 Rust 빌드 입력(SUB_RUST_BUILD_INPUTS)이라 벤치가 없는 서브에도 간다(정본 바이트 동일) — 나머지 둘은 안 간다.
+                if _rel in SUB_RUST_BUILD_INPUTS:
+                    _bench_ok &= _dst_f.is_file() and _dst_f.read_bytes() == pathlib.Path(REPO, _rel).read_bytes()
+                else:
+                    _bench_ok &= not _dst_f.exists()
         # 권한 카나리의 부트스트랩 리더(R48 v8 B-D3) — 소비자 원문의 **리터럴**과 대조한다. 위 `_tn_want` 는 SUB_CONTRACT_READERS 에서 파생하므로 그 목록에서
         #   리더를 빼도 `_tn_ok` 는 그대로 통과한다(배달 목록과 기대가 같은 원천). 여기서는 (a) 배달된 프로브가 sibling 으로 읽는 이름을 프로브 원문에서 확인하고
         #   (b) 그 이름의 파일이 두 평면(ray wiki-only · single agent) 모두에 정본과 바이트 동일하게 배달됐는지 본다 — 이름은 아래에 손으로 적는다(파생 ✗).
