@@ -368,7 +368,7 @@ bench_with_guidellm(){
   else
   local _BB_DIR="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox"
   local _SESSION_PY="$_BB_DIR/blackbox_session.py"
-  local _PREFLIGHT="$REPO/.claude/skills/upstream-version-watch/scripts/budget_preflight.py"
+  local _PREFLIGHT="$REPO/.claude/skills/upstream-version-watch/scripts/budget_preflight.sh"
   if [ -f "$_BB_DIR/node_identity.sh" ] && [ -f "$_SESSION_PY" ] && [ -f "$_PREFLIGHT" ]; then
     # shellcheck source=/dev/null
     . "$_BB_DIR/node_identity.sh"
@@ -379,7 +379,7 @@ bench_with_guidellm(){
       if [ "$_BRC" = "0" ]; then
         _FLOOR="$(printf '%s' "$_BSTAT" | bash "$SDIR/bench_shell.sh" floor-mib 2>/dev/null)"
         if [ -n "$_FLOOR" ]; then
-          if ! python3 "$_PREFLIGHT" --floor-mib "$_FLOOR" --bench-budget-mib "$BENCH_BUDGET_MIB"; then
+          if ! "$_PREFLIGHT" --floor-mib "$_FLOOR" --bench-budget-mib "$BENCH_BUDGET_MIB"; then
             echo "[run_bench] STOP(벤치 예산 게이트): 이 몫으로 벤치를 띄우면 서빙이 사정거리에 든다." >&2
             echo "[run_bench]   벤치를 **시작하지 않았다**. --bench-budget-mib 를 위 상한 이하로 낮추거나" >&2
             echo "[run_bench]   KV 절대클램프를 낮춰 바닥을 올려라(그래야 둘 다 산다)." >&2

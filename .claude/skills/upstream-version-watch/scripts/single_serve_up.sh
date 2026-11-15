@@ -194,7 +194,7 @@ _save_serve_logs() {   # $1=사유 태그
 }
 
 # ── 2/7 모델 + 로드-전 RAM 게이트 + 예산 입력 파생 ──────────────────────────────────
-GATE_OUT="$(python3 "$SDIR/check_smoke_model.py" "$CONFIG" --topology single --emit-gate-params 2>&1)"
+GATE_OUT="$("$SDIR/check_smoke_model.sh" "$CONFIG" --topology single --emit-gate-params 2>&1)"
 GATE_RC=$?
 printf '%s\n' "$GATE_OUT" | sed "s/^/$TAG     /"
 if [ "$GATE_RC" != "0" ]; then
@@ -255,7 +255,7 @@ DECL_ARGS+=(--overhead-mib "$OVERHEAD_MIB")
 #     서빙 yaml 의 gpu-memory-utilization 으로 예상 vLLM 몫·잔차를 기재만 받는다(arm 산식·종료코드 불변 · 게이트 ✗ ·
 #     yaml 에 수치가 없으면 기재 행 없음 · 실패 경로 신설 ✗). 추출 규칙은 budget_preflight.py 가 단일 소유한다.
 #     경로는 위 존재 검사(`CFGYAML`)의 값을 그대로 쓴다 — 같은 경로를 두 번 손으로 적지 않는다(파일 부재는 거기서 이미 멈춘다).
-PF_OUT="$(python3 "$SDIR/budget_preflight.py" --json --declared-gmu-yaml "$CFGYAML" \
+PF_OUT="$("$SDIR/budget_preflight.sh" --json --declared-gmu-yaml "$CFGYAML" \
           --mem-total-mib "$MEM_TOTAL_MIB" \
           --weights-mib "$WEIGHTS_MIB" --kv-mib "$KV_MIB" --overhead-mib "$OVERHEAD_MIB" 2>&1)"
 PF_RC=$?
@@ -263,18 +263,7 @@ if [ "$PF_RC" != "0" ] && [ "$PF_RC" != "4" ]; then
   echo "$TAG 3/7 예산 선판정     : FAIL — 선판정을 수행하지 못했다(rc=$PF_RC) — $PF_OUT" >&2
   exit 2
 fi
-printf '%s' "$PF_OUT" | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
-print('floor=%sMiB arm_ceiling=%sMiB (가드 최소 %sMiB)'
-      % (d['floor_mib'], d['arm_ceiling_mib'], d['decl_min_ceiling_mib']))
-for r in d.get('reasons') or []: print('  · %s' % r)
-r = d.get('declared_gmu_row')
-print('declared-gmu 기재(게이트 ✗): ' + ('서빙 yaml 에 gpu-memory-utilization 수치 없음 — 기재 행 없음' if r is None else
-      'gmu=%s 예상 vLLM 몫=%sMiB 잔차(몫−weights−kv)=%sMiB provenance=%s status=%s 전제=%s'
-      % (r.get('gmu'), r.get('expected_vllm_share_mib'), r.get('residual_mib'), r.get('provenance'), r.get('status'),
-         str(r.get('premise') or '').split(' — ', 1)[0])))
-" 2>/dev/null | sed "s/^/$TAG     /"
+printf '%s' "$PF_OUT" | "$SDIR/budget_preflight.sh" --render summary 2>/dev/null | sed "s/^/$TAG     /"
 if [ "$PF_RC" = "4" ]; then
   echo "$TAG 3/7 예산 선판정     : STOP — 워치독이 이 선언을 거부한다. 로드는 **0초도 시작하지 않았다**." >&2
   exit 4

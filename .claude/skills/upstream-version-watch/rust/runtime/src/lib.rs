@@ -5,6 +5,7 @@
 
 pub mod api;
 pub mod bench;
+pub mod budget_preflight;
 pub mod business;
 pub mod cli;
 pub mod dto;
@@ -13,6 +14,8 @@ pub mod events;
 pub mod fetch_https;
 #[cfg(feature = "fixture")]
 pub mod fixture;
+pub mod gate_cli;
+pub mod smoke_model;
 pub mod host;
 pub mod http_direct;
 pub mod jsonl_program;

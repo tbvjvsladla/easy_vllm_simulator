@@ -207,7 +207,7 @@ echo "[mn] config=$CONFIG master=$MC port=$PORT model=$MODEL sub=$SUB_HOST sub_w
 #     쥐고 있으므로 RAM 게이트가 **거의 항상** 거부한다 — 즉 "내리기 위해 먼저 내려야 하는" 교착이
 #     된다. 게이트가 겨눌 주체는 로드이지 회수가 아니다(workflow.md 막힘 3분류: 정상 차단 아님).
 if [ "$BUILD_ONLY" != "1" ] && [ "$DOWN" != "1" ]; then
-NAS_OUT=$(python3 "$SDIR/check_smoke_model.py" "$CONFIG" --repo "$REPO" --topology multi --emit-gate-params 2>&1); NAS_RC=$?
+NAS_OUT=$("$SDIR/check_smoke_model.sh" "$CONFIG" --repo "$REPO" --topology multi --emit-gate-params 2>&1); NAS_RC=$?
 printf '%s\n' "$NAS_OUT"
 case "$NAS_RC" in
   0) : ;;
@@ -976,7 +976,7 @@ if [ "$BUDGET" = "1" ]; then
   #   계층이라 target_gmu 와의 대조는 여기서 하지 않는다 — 대조는 campaign_init --cell-set 이 기재한다.
   #   ★ 2026-09-14(⑧ 분석 발견 T3): yaml → gmu 추출 규칙은 budget_preflight.py(`--declared-gmu-yaml`)가 단일 소유한다 —
   #     이 셸에 있던 추출 함수를 싱글 기동에 옮겨 적으면 같은 규칙이 두 셸에 손으로 적히므로 경로 한 줄만 넘긴다.
-  _PF="$(python3 "$SDIR/budget_preflight.py" --json --declared-gmu-yaml "output/multi/configs/${CONFIG}.yaml" \
+  _PF="$("$SDIR/budget_preflight.sh" --json --declared-gmu-yaml "output/multi/configs/${CONFIG}.yaml" \
           --mem-total-mib "$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)" \
           --weights-mib "$WEIGHTS_MIB" --kv-mib "$KV_MIB" --overhead-mib "$OVERHEAD_MIB" 2>&1)"
   _PF_RC=$?
@@ -985,7 +985,8 @@ if [ "$BUDGET" = "1" ]; then
     disarm_armed_watchdogs
     exit 4
   fi
-  _pf(){ printf '%s' "$_PF" | python3 -c "import json,sys;print(json.load(sys.stdin).get(sys.argv[1]))" "$1" 2>/dev/null; }
+  # JSON 보고서의 정수 필드 하나(키 앞 따옴표로 bench_floor_mib 등과 구분) — 없으면 None(옛 동작)
+  _pf(){ local v; v="$(printf '%s' "$_PF" | sed -n "s/.*\"$1\": \\(-\\{0,1\\}[0-9][0-9]*\\).*/\\1/p" | head -1)"; printf '%s\n' "${v:-None}"; }
   _PRED_FLOOR="$(_pf floor_mib)"; _PRED_CEIL="$(_pf arm_ceiling_mib)"
   _OH_MAX="$(_pf overhead_max_mib)"; _WD_MIN_CEIL="$(_pf decl_min_ceiling_mib)"
   _MEMTOT_MAIN=$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)
@@ -993,20 +994,10 @@ if [ "$BUDGET" = "1" ]; then
     echo "[mn] FAIL: 선판정 산출을 읽지 못했다 — $_PF" >&2; disarm_armed_watchdogs; exit 4;;
   esac
   echo "[mn] 예산 선판정: 예상 바닥=${_PRED_FLOOR}MiB → arm 상한=${_PRED_CEIL}MiB (가드 최소 ${_WD_MIN_CEIL}MiB)"
-  echo "[mn] declared-gmu 기재(게이트 ✗): $(printf '%s' "$_PF" | python3 -c "
-import json,sys
-r=json.load(sys.stdin).get('declared_gmu_row')
-print('서빙 yaml 에 gpu-memory-utilization 수치 없음 — 기재 행 없음' if r is None else
-      'gmu=%s 예상 vLLM 몫=%sMiB 잔차(몫−weights−kv)=%sMiB provenance=%s status=%s 전제=%s'
-      % (r.get('gmu'), r.get('expected_vllm_share_mib'), r.get('residual_mib'), r.get('provenance'), r.get('status'),
-         str(r.get('premise') or '').split(' — ', 1)[0]))
-" 2>/dev/null || echo '기재 행을 읽지 못했다(판정 무관)')"
+  echo "[mn] declared-gmu 기재(게이트 ✗): $(printf '%s' "$_PF" | "$SDIR/budget_preflight.sh" --render gmu 2>/dev/null || echo '기재 행을 읽지 못했다(판정 무관)')"
   if [ "$_PF_RC" = "4" ]; then
     echo "[mn] STOP(예산 게이트): 워치독이 이 선언을 **거부**한다 — 로드는 0초도 시작하지 않았다."
-    printf '%s' "$_PF" | python3 -c "
-import json,sys
-for r in (json.load(sys.stdin).get('reasons') or []): print('     · %s' % r)
-" 2>/dev/null || true
+    printf '%s' "$_PF" | "$SDIR/budget_preflight.sh" --render reasons 2>/dev/null || true
     # 숫자를 그대로 남긴다 — 경계가 23 MiB 로 얇았다는 사실(2026-08-14)이 판정 재료였고,
     # 그건 "얼마나 모자랐나"가 데이터에 있어야만 다음 사람이 다시 알 수 있다.
     budget_block_event preflight_ceiling arm_ceiling_below_min \
