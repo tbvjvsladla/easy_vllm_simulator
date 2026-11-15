@@ -200,7 +200,7 @@ RUST_ONLY_PREFIXES = ("rust/", "scripts/")
 # 진입점이 가면 그 입력도 간다(2026-11-15 사용자 결정): Rust 전용으로 가는 스킬의 `scripts/` 진입점이 읽는 데이터 파일(닫힌 목록 · 스킬 상대경로).
 #   parity 사례 S1-04(bench_preset → config/bench_bindings.yaml)·S2-03(classify_failure → failure_patterns.yaml) 실측. 새 입력은 렌더 트리 parity 로 발견한다.
 RUST_ONLY_INPUTS = {
-    "adversarial-benchmark": ("config/bench_bindings.yaml",),
+    "adversarial-benchmark": ("config/",),   # bench_bindings.yaml + 가리키는 도구 폴더 config/guide-llm/(프리셋) — 2026-11-16 렌더 트리 parity 실측
     "upstream-version-watch": ("failure_patterns.yaml",),
     "vllm-recipe-explorer": (),
 }
@@ -1416,7 +1416,12 @@ def _self_test() -> int:
             # 진입점이 가면 그 입력도 간다: 닫힌 입력 목록이 (전체든 Rust 전용이든) 정본과 바이트 동일하게 모든 렌더 트리에 있다.
             for _inp in RUST_ONLY_INPUTS[_rn]:
                 _ip = pathlib.Path(_rd, _inp)
-                if not (_ip.is_file() and _ip.read_bytes() == pathlib.Path(REPO, ".claude", "skills", _rn, _inp).read_bytes()):
+                _src_ip = pathlib.Path(REPO, ".claude", "skills", _rn, _inp)
+                if _inp.endswith("/"):   # 폴더 입력: 렌더 트리에 비어 있지 않게 있고, 있는 파일은 모두 정본과 바이트 동일
+                    _fs = [f for f in _ip.rglob("*") if f.is_file()] if _ip.is_dir() else []
+                    if not _fs or any(f.read_bytes() != (_src_ip / f.relative_to(_ip)).read_bytes() for f in _fs):
+                        _ronly_ok = False
+                elif not (_ip.is_file() and _ip.read_bytes() == _src_ip.read_bytes()):
                     _ronly_ok = False
         _parity_ok = (os.path.isfile(os.path.join(_out, PARITY_RUST_TOOL, "Cargo.toml"))
                       and os.path.isdir(os.path.join(_out, PARITY_RUST_TOOL, "data"))
