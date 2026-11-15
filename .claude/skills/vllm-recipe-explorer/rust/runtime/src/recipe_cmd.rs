@@ -516,6 +516,39 @@ fn generate_spec() -> Spec {
     }
 }
 
+fn simulate_spec() -> Spec {
+    let opt = |flags: &'static [&'static str], dest: &'static str, kind: Kind, help: Option<&'static str>, required: bool| Opt {
+        flags,
+        dest,
+        kind,
+        help,
+        required,
+        group: None,
+    };
+    const CONFIG_HELP: &str = "입력 config.yaml 경로. **필수다 — 루트 기본값은 2026-09-06 에 제거했다**(plan_26090616): 기본값이 `config.yaml` 이었기 때문에 캠페인이 셀마다 만든 변형이 저장소 루트에 쌓였고 21개가 공개 원격까지 추적 누출됐다. 자리는 `campaign_init.py --derive config --cell <cell-id>` 로 파생하라.";
+    Spec {
+        prog: "recipe.py simulate",
+        description: "",
+        options: vec![
+            opt(&["-h", "--help"], "help", Kind::Help, None, false),
+            opt(&["--config"], "config", Kind::Text, Some(CONFIG_HELP), true),
+            opt(&["--candidate"], "candidate", Kind::Text, Some("lock-set 후보 JSON 경로"), true),
+            opt(&["--dry-run"], "dry_run", Kind::Flag, Some("docker 없이 mock_profile 로 배선 검증"), false),
+            opt(&["--mock-profile"], "mock_profile", Kind::Text, Some("dry-run 시 사용할 vllm_profile+functional JSON 경로"), false),
+            opt(&["--run-id"], "run_id", Kind::Text, Some("simlog run_id(미지정 시 <YYYYMMDDHH>_1_<topic> 자동)"), false),
+            opt(&["--topic"], "topic", Kind::Text, Some("run_id 자동생성 시 주제(미지정 시 model_id)"), false),
+            opt(&["--cap"], "cap", Kind::Int, Some("reconciliation_cap(기본 3)"), false),
+            opt(&["--image"], "image", Kind::Text, Some("run_trial docker 이미지"), false),
+            opt(&["--timeout"], "timeout", Kind::Int, Some("/health 폴링 타임아웃(초)"), false),
+            opt(&["--overhead-mib"], "overhead_mib", Kind::Int, Some("예산 선언 overhead(MiB). 미지정 시 config.budget_overhead_mib → run_trial 기본값 순. 실측값이 있으면 넘긴다"), false),
+            opt(&["--force"], "force", Kind::Flag, Some("수렴 시 3종 세트 덮어쓰기 허용"), false),
+            opt(&["--lockset-out"], "lockset_out", Kind::Text, Some("수렴 시 기계 각인한 lockset(provenance=explorer-phase2 · batch_source·gmu_source·kv_source · trial_provenance)을 쓸 경로. 캠페인 셀이면 `campaign_init.py --derive lockset --cell <id>` 로 파생한 셀 lockset(보통 --candidate 와 같은 파일)을 준다. 다른 기존 파일은 --force 로만 덮어쓴다. 미지정이면: --candidate 가 캠페인 셀 lockset(campaigns/<id>/cells/<cell>/lockset.json)이면 그 파일에 쓰고, 그 밖이면 run_summary.json 의 lockset 칸에만 남는다(plan_26091407 §4.2)"), false),
+        ],
+        group_required: false,
+        positional: None,
+    }
+}
+
 /// `_find_recipe(snapshot, recipe_id)`: the candidate and its bucket (ranked → failed → all).
 fn find_recipe(snapshot: &PyValue, recipe_id: &PyStr) -> Res<Option<(PyValue, String)>> {
     let result = get(snapshot, "result")?;
@@ -752,11 +785,13 @@ pub fn recipe_main(args: &[PyStr], columns: Option<&str>, skill_root: &PyStr) ->
     match command.as_deref() {
         Some("estimate") | Some("generate") => {}
         Some("simulate") => {
-            streams.eprint(
-                &Message::new()
-                    .lit("[recipe] 미이식: `simulate` 는 아직 Rust 로 옮기지 않았다(recipe.py 가 원본 · run_trial·lockset writer 선행 이식 대기).")
-                    .done(),
-            );
+            let values = match exited(parse_arguments(&simulate_spec(), &args[1..], columns)) {
+                Ok(values) => values,
+                Err(run) => return run,
+            };
+            let _ = values;
+            // The trial loop (cmd_simulate: roles, batch plan, run_trial_session loop, lockset stamping) is still owned by recipe.py.
+            streams.eprint(&PyStr::new("[recipe] simulate 본문(트라이얼 루프)은 아직 Rust 로 옮기지 않았다 — 인자 해석까지만 한다(recipe.py 가 원본)."));
             return streams.finish(2);
         }
         Some("-h") | Some("--help") => {

@@ -1,5 +1,5 @@
 #!/bin/bash
-# recipe.py estimate and generate (Rust). simulate is not ported (status 2). Direct normal ELF startup; no install/build/download or Python business fallback.
+# recipe.py estimate and generate (Rust). simulate parses its arguments (--help works) but the trial loop is not ported (status 2). Direct normal ELF startup; no install/build/download or Python business fallback.
 set -euo pipefail
 SCRIPT_PATH=${BASH_SOURCE[0]}
 case "$SCRIPT_PATH" in */*) SCRIPT_DIR=${SCRIPT_PATH%/*}; [ -n "$SCRIPT_DIR" ] || SCRIPT_DIR=/ ;; *) SCRIPT_DIR=. ;; esac
