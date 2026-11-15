@@ -321,16 +321,13 @@ MSG
   fi
   # ── 열 임계 미교정 게이트(유예 결함 ③). 무부하 호출은 열을 만들지 않으므로 대상이 아니다.
   if [ "$NO_LOAD" != 1 ]; then
-    _UNCAL="$(REPO="$REPO" python3 - <<'PY' 2>/dev/null || true
-import importlib.util, os, sys
-_p = os.path.join(os.environ["REPO"], ".claude", "skills", "terraforming_node", "scripts",
-                  "node_blackbox", "blackbox_thermal.py")
-if os.path.isfile(_p):
-    _s = importlib.util.spec_from_file_location("_bt", _p)
-    _m = importlib.util.module_from_spec(_s); _s.loader.exec_module(_m)
-    print(",".join(getattr(_m, "UNCALIBRATED", ()) or ()))
-PY
-)"
+    # Python 을 띄우지 않는다: blackbox_thermal.py 의 PARAM_PROVENANCE 사전에서 값이 `external_report:` 로
+    #   시작하는 키만 정렬해 뽑는다(UNCALIBRATED 의 정의와 같다 · 파일 부재 = 빈 값).
+    _BT="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py"
+    _UNCAL=""
+    if [ -f "$_BT" ]; then
+      _UNCAL="$(awk '/^PARAM_PROVENANCE = \{/{f=1;next} f&&/^\}/{f=0} f&&/^[[:space:]]*"[^"]+":[[:space:]]*"external_report:/{k=$1;gsub(/[":]/,"",k);print k}' "$_BT" 2>/dev/null | LC_ALL=C sort | paste -sd, - || true)"
+    fi
     if [ -n "$_UNCAL" ] && [ "$ACK_UNCAL" != 1 ]; then
       echo "[broad_search] ⚠ 셀 실행 거부 — SoC 열 임계가 **미교정**이다(UNCALIBRATED: $_UNCAL)." >&2
       echo "  이 값들은 외부 보고에서 역산한 것이고 이 하드웨어에서 교정된 적이 없다." >&2
