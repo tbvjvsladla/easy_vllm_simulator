@@ -17,6 +17,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
+pub mod up;
+
 pub const EXIT_OK: i32 = 0;
 pub const EXIT_USAGE: i32 = 2;
 pub const EXIT_FAIL: i32 = 3;
@@ -1436,7 +1438,7 @@ pub struct Runners {
     pub sub: Box<dyn Runner>,
 }
 impl Runners {
-    fn get(&self, n: &str) -> &dyn Runner {
+    pub(crate) fn get(&self, n: &str) -> &dyn Runner {
         if n == "main" {
             self.main.as_ref()
         } else {
@@ -1925,7 +1927,13 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
             say(&plan(&ctx, &here).join("\n"));
             return Ok(EXIT_OK);
         }
-        serve_not_ported()
+        let (r, rs) = (
+            Runners { main: Box::new(Local::new(&ctx.main.root, "main")), sub: Box::new(Ssh::new(&ctx.sub_host, &ctx.sub.root, "sub")?) },
+            Runners { main: Box::new(Local::new(&ctx.main.short, "main")), sub: Box::new(Ssh::new(&ctx.sub_host, &ctx.sub.short, "sub")?) },
+        );
+        let log = |m: &str| say(m);
+        let mut ns = up::NativeServe::new(&ctx, &r, &rs, &up::real_http, &RealClock, &log, here.clone());
+        Ok(ns.up(&utc(RealClock.now())))
     })();
     match res {
         Ok(s) => s,
@@ -1938,10 +1946,4 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
             EXIT_FAIL
         }
     }
-}
-
-/// `up --apply` is part B of the port; this program refuses it without touching anything.
-fn serve_not_ported() -> R<i32> {
-    say_err("native_multinode_serve: `up --apply` 흐름은 이식 전이다(c2f-b) — 원본 native_multinode_serve.py 를 쓴다. 아무것도 건드리지 않았다.");
-    Ok(EXIT_USAGE)
 }
