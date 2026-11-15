@@ -167,7 +167,18 @@ impl Args {
                     values.insert(name, vec![String::new()]);
                     at += 1;
                 }
-                Kind::Optional => return None,
+                Kind::Optional => {
+                    match argv.get(at + 1).filter(|v| !v.starts_with('-')) {
+                        Some(v) => {
+                            values.insert(name, vec![v.clone()]);
+                            at += 2;
+                        }
+                        None => {
+                            values.insert(name, vec!["*".to_string()]);
+                            at += 1;
+                        }
+                    }
+                }
                 Kind::Value | Kind::Append => {
                     let value = argv.get(at + 1)?;
                     if value.starts_with('-') && value != "-" {
@@ -3187,6 +3198,369 @@ fn op_emit_slice(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     Ok(0)
 }
 
+// ── lifecycle reads and echoes ───────────────────────────────────────────────────────────────
+
+fn lifecycle_event(kind: &str, utc: &str, extra: Vec<(&str, PyValue)>) -> PyValue {
+    let mut e = PyDict::new();
+    e.set("utc", py(utc));
+    e.set("kind", py(kind));
+    e.set("lifecycle_v", PyValue::int(LIFECYCLE_V));
+    e.set("source", py("campaign_init"));
+    for (k, v) in extra {
+        e.set(k, v);
+    }
+    PyValue::Dict(e)
+}
+
+fn transition_refuse<T>(text: impl Into<String>) -> R<T> {
+    refuse(text)
+}
+
+fn require_transition_pair(utc: Option<&str>, approved_by: Option<&str>, what: &str) -> R<()> {
+    require_transition(utc.filter(|s| !s.is_empty()), approved_by.filter(|s| !s.is_empty()), what)
+}
+
+fn last_ref(f: &Fold) -> PyValue {
+    f.last_transition_event
+        .as_ref()
+        .and_then(dict_of)
+        .and_then(|d| d.get("ref").cloned())
+        .unwrap_or(PyValue::None)
+}
+
+fn print_messages(io: &mut Sinks<'_>, mode: &str, messages: &[String]) {
+    for m in messages {
+        io.say(&format!("[campaign_init] {mode} {m}"));
+    }
+}
+
+fn op_answer_query(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let camp = args.get("--answer-query").unwrap_or_default().to_string();
+    let mode = if args.has("--apply") { "APPLIED" } else { "DRY-RUN" };
+    require_transition_pair(args.get("--utc"), args.get("--approved-by"), "--answer-query")?;
+    if args.get("--query-decision") != Some("keep") {
+        return transition_refuse("--answer-query 는 keep 만 받는다 — 재개는 --resume-campaign, 포기는 --abandon");
+    }
+    let base = ctx.campaigns().join(&camp);
+    let f = fold_lifecycle(ctx, &base, None);
+    if f.state != "suspended" && f.state != "resume_pending" {
+        return transition_refuse(format!("{camp} 은 {} 다 — 답할 보류 질의가 없다", f.state));
+    }
+    if f.answered {
+        print_messages(
+            io,
+            mode,
+            &[format!("no-op — {camp} 의 마지막 전이({})는 이미 답했다(멱등)", shown(Some(&last_ref(&f))))],
+        );
+        return Ok(0);
+    }
+    if args.has("--apply") {
+        let trigger = dict_of(&f.pending_query)
+            .and_then(|d| d.get("trigger"))
+            .filter(|v| v.is_truthy())
+            .cloned()
+            .unwrap_or_else(|| py("explicit"));
+        append_journey(
+            &base,
+            &lifecycle_event(
+                "campaign_query_answered",
+                args.get("--utc").unwrap_or_default(),
+                vec![
+                    ("decision", py("keep")),
+                    ("approved_by", args.get("--approved-by").map(py).unwrap_or(PyValue::None)),
+                    ("trigger", trigger),
+                    ("answers", last_ref(&f)),
+                ],
+            ),
+        )?;
+    }
+    print_messages(io, mode, &[format!("answered keep {camp}")]);
+    Ok(0)
+}
+
+fn op_sub_echo(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let camp = args.get("--sub-echo").unwrap_or_default().to_string();
+    let mode = if args.has("--apply") { "APPLIED" } else { "DRY-RUN" };
+    let (Some(node), Some(control)) = (
+        args.get("--node").filter(|s| !s.is_empty()),
+        args.get("--control").filter(|s| !s.is_empty()),
+    ) else {
+        return transition_refuse("--sub-echo 는 --node 와 --control 이 필요하다");
+    };
+    let Some(utc) = args.get("--utc").filter(|u| !u.is_empty()) else {
+        return transition_refuse("--sub-echo 는 --utc 가 필요하다");
+    };
+    let base = ctx.campaigns().join(&camp);
+    let f = fold_lifecycle(ctx, &base, None);
+    if control == "reslice" {
+        match f.reslice_pending.iter().find(|(n, _)| n == node) {
+            None => {
+                let pending = PyValue::Dict({
+                    let mut d = PyDict::new();
+                    for (n, v) in &f.reslice_pending {
+                        d.set(n, v.clone());
+                    }
+                    d
+                });
+                return transition_refuse(format!("{node} 에 미수렴 재배정이 없다({})", pending.repr()));
+            }
+            Some(_) => {
+                // `--rev` is not an option of the owner parser: the rev is always None
+                let want = f.reslice_pending.iter().find(|(n, _)| n == node).map(|(_, v)| shown(Some(v))).unwrap_or_default();
+                return transition_refuse(format!("reslice echo 의 rev None 가 최신 재배정 rev {want} 보다 낡았다"));
+            }
+        }
+    } else if !f.sub_nodes.iter().filter_map(text_of).any(|n| n == node) {
+        return transition_refuse(format!(
+            "{node} 는 {camp} 의 마지막 전이가 지목한 서브가 아니다({})",
+            PyValue::List(f.sub_nodes.clone()).repr()
+        ));
+    }
+    if args.has("--apply") {
+        append_journey(
+            &base,
+            &lifecycle_event(
+                "sub_control_echo",
+                utc,
+                vec![("node", py(node)), ("control", py(control))],
+            ),
+        )?;
+    }
+    print_messages(io, mode, &[format!("sub echo {camp}@{node}:{control}")]);
+    Ok(0)
+}
+
+fn op_sub_unconverged_accept(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let camp = args.get("--sub-unconverged-accept").unwrap_or_default().to_string();
+    let mode = if args.has("--apply") { "APPLIED" } else { "DRY-RUN" };
+    let Some(node) = args.get("--node").filter(|s| !s.is_empty()) else {
+        return transition_refuse("--sub-unconverged-accept 는 --node 가 필요하다");
+    };
+    require_transition_pair(args.get("--utc"), args.get("--approved-by"), "--sub-unconverged-accept")?;
+    let base = ctx.campaigns().join(&camp);
+    if !is_dir(&base) {
+        return transition_refuse(format!("인스턴스가 없다: campaigns/{camp}"));
+    }
+    let f = fold_lifecycle(ctx, &base, None);
+    if f.state != "closed" {
+        return transition_refuse(format!(
+            "{camp} 은 {} 다 — 수용은 종결된 캠페인의 서브 미수렴에만 한다(보류·재개 미수렴은 차단이 아니다)",
+            f.state
+        ));
+    }
+    if !f.sub_nodes.iter().filter_map(text_of).any(|n| n == node) {
+        return transition_refuse(format!(
+            "{node} 는 {camp} 의 종결이 지목한 서브가 아니다({})",
+            PyValue::List(f.sub_nodes.clone()).repr()
+        ));
+    }
+    if f.sub_echoed.iter().any(|n| n == node) {
+        print_messages(io, mode, &[format!("no-op — {camp}@{node} 는 이미 수렴했다(멱등)")]);
+        return Ok(0);
+    }
+    if args.has("--apply") {
+        let control = if f.close_reason.as_deref() == Some("abandoned") { "abandon" } else { "close" };
+        append_journey(
+            &base,
+            &lifecycle_event(
+                "sub_control_accepted",
+                args.get("--utc").unwrap_or_default(),
+                vec![
+                    ("node", py(node)),
+                    ("approved_by", args.get("--approved-by").map(py).unwrap_or(PyValue::None)),
+                    ("control", py(control)),
+                ],
+            ),
+        )?;
+    }
+    print_messages(io, mode, &[format!("accepted sub-unconverged {camp}@{node}")]);
+    Ok(0)
+}
+
+fn fold_value(ctx: &Ctx, base: &Path, f: &Fold) -> PyValue {
+    let mut d = PyDict::new();
+    d.set("campaign_id", py(&f.campaign_id));
+    d.set("state", py(&f.state));
+    d.set("close_reason", f.close_reason.as_deref().map(py).unwrap_or(PyValue::None));
+    d.set("parent", f.parent.clone());
+    d.set("topology", f.topology.as_deref().map(py).unwrap_or(PyValue::None));
+    d.set("suspended_pins", f.suspended_pins.clone());
+    d.set("released_resources", PyValue::List(f.released_resources.clone()));
+    d.set("interrupted_cells", str_list(f.interrupted_cells.clone()));
+    d.set("last_transition_event", f.last_transition_event.clone().unwrap_or(PyValue::None));
+    d.set("answered", PyValue::Bool(f.answered));
+    d.set("pending_query", f.pending_query.clone());
+    d.set("sub_convergence", f.sub_convergence.as_deref().map(py).unwrap_or(PyValue::None));
+    d.set("sub_nodes", PyValue::List(f.sub_nodes.clone()));
+    d.set("sub_echoed", str_list(f.sub_echoed.clone()));
+    d.set("handoff_pointers", PyValue::List(f.handoff_pointers.clone()));
+    d.set("parked_devlog", f.parked_devlog.clone());
+    d.set("open_pending", f.open_pending.clone());
+    d.set("sub_accepted", str_list(f.sub_accepted.clone()));
+    let mut r = PyDict::new();
+    for (n, v) in &f.reslice_pending {
+        r.set(n, v.clone());
+    }
+    d.set("reslice_pending", PyValue::Dict(r));
+    d.set("unknown_events", PyValue::List(f.unknown_events.clone()));
+    d.set("source", py(&format!("{} fold", ctx.rel(&base.join(JOURNEY_NAME)))));
+    PyValue::Dict(d)
+}
+
+fn op_lifecycle(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let which = args.get("--lifecycle").unwrap_or("*");
+    let value = if which == "*" {
+        let table = lifecycle_table(ctx);
+        let mut campaigns = PyDict::new();
+        for (name, f) in &table {
+            campaigns.set(name, fold_value(ctx, &ctx.campaigns().join(name), f));
+        }
+        let mut d = PyDict::new();
+        d.set("line", py(&lifecycle_line(ctx, &table)));
+        d.set("campaigns", PyValue::Dict(campaigns));
+        PyValue::Dict(d)
+    } else {
+        let base = ctx.campaigns().join(which);
+        fold_value(ctx, &base, &fold_lifecycle(ctx, &base, None))
+    };
+    io.say(&dump(&value, 2)?);
+    Ok(0)
+}
+
+// ── --residue-scan ───────────────────────────────────────────────────────────────────────────
+
+/// `fnmatch.fnmatch(name, pattern)` on POSIX (case-sensitive): `*`, `?`, `[seq]`, `[!seq]`.
+fn fnmatch(name: &str, pattern: &str) -> bool {
+    fn go(n: &[char], p: &[char]) -> bool {
+        match p.first() {
+            None => n.is_empty(),
+            Some('*') => (0..=n.len()).any(|k| go(&n[k..], &p[1..])),
+            Some('?') => !n.is_empty() && go(&n[1..], &p[1..]),
+            Some('[') => {
+                let mut i = 1;
+                if p.get(i) == Some(&'!') {
+                    i += 1;
+                }
+                if p.get(i) == Some(&']') {
+                    i += 1;
+                }
+                while i < p.len() && p[i] != ']' {
+                    i += 1;
+                }
+                if i >= p.len() {
+                    return !n.is_empty() && n[0] == '[' && go(&n[1..], &p[1..]);
+                }
+                if n.is_empty() {
+                    return false;
+                }
+                let (negate, body) = match p[1] {
+                    '!' => (true, &p[2..i]),
+                    _ => (false, &p[1..i]),
+                };
+                let mut hit = false;
+                let mut k = 0;
+                while k < body.len() {
+                    if k + 2 < body.len() && body[k + 1] == '-' {
+                        hit |= body[k] <= n[0] && n[0] <= body[k + 2];
+                        k += 3;
+                    } else {
+                        hit |= body[k] == n[0];
+                        k += 1;
+                    }
+                }
+                hit != negate && go(&n[1..], &p[i + 1..])
+            }
+            Some(c) => !n.is_empty() && n[0] == *c && go(&n[1..], &p[1..]),
+        }
+    }
+    let (n, p): (Vec<char>, Vec<char>) = (name.chars().collect(), pattern.chars().collect());
+    go(&n, &p)
+}
+
+fn residue_scan(ctx: &Ctx) -> PyDict {
+    let registry = read_json(&ctx.root.join(".claude/policies/root_registry.json"));
+    let registry = registry.as_ref().and_then(dict_of).cloned().unwrap_or_default();
+    let declared: Vec<String> = list_or_empty(registry.get("entries"))
+        .iter()
+        .filter_map(dict_of)
+        .filter_map(|e| get_text(e, "name"))
+        .collect();
+    let tombs: Vec<String> = list_or_empty(registry.get("tombstones"))
+        .iter()
+        .filter_map(dict_of)
+        .filter_map(|t| get_text(t, "name"))
+        .filter(|n| !n.is_empty())
+        .collect();
+    let (mut workspace, mut leak, mut unclassified, mut volatile) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
+    let mut children: Vec<String> = std::fs::read_dir(&ctx.root)
+        .map(|r| r.filter_map(Result::ok).map(|e| e.file_name().to_string_lossy().into_owned()).collect())
+        .unwrap_or_default();
+    children.sort();
+    for name in children {
+        if declared.contains(&name) {
+            workspace.push(name);
+        } else if tombs.iter().any(|pat| fnmatch(&name, pat)) {
+            leak.push(name);
+        } else {
+            unclassified.push(name);
+        }
+    }
+    let mut camps: Vec<String> = std::fs::read_dir(ctx.campaigns())
+        .map(|r| {
+            r.filter_map(Result::ok)
+                .filter(|e| e.path().is_dir())
+                .map(|e| e.file_name().to_string_lossy().into_owned())
+                .collect()
+        })
+        .unwrap_or_default();
+    camps.sort();
+    for name in camps {
+        if name != "_template" {
+            volatile.push(format!("campaigns/{name}"));
+        }
+    }
+    let mut out = PyDict::new();
+    out.set("workspace", str_list(workspace));
+    out.set("evidence", PyValue::List(Vec::new()));
+    out.set("volatile", str_list(volatile));
+    out.set("leak", str_list(leak));
+    out.set("unclassified", str_list(unclassified));
+    out
+}
+
+fn op_residue_scan(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let out = residue_scan(ctx);
+    io.say(&dump(&PyValue::Dict(out.clone()), 2)?);
+    match args.get("--utc").filter(|u| !u.is_empty()) {
+        Some(utc) => {
+            let camp = args.get("--campaign-id").filter(|c| !c.is_empty()).map(str::to_string).unwrap_or_else(|| ctx.active_id());
+            let base = ctx.campaigns().join(&camp);
+            if camp == BOOTSTRAP || !is_dir(&base) {
+                io.warn("[campaign_init] residue → (활성 캠페인 없음 — 미기재)");
+            } else {
+                let path = base.join("residue.json");
+                let mut doc = PyDict::new();
+                if let Some(old) = read_json(&path).as_ref().and_then(dict_of) {
+                    for (k, v) in old.iter() {
+                        if k.to_utf8().map(|s| s.starts_with('_')).unwrap_or(false) {
+                            doc.insert(k.clone(), v.clone());
+                        }
+                    }
+                }
+                doc.set("schema_version", PyValue::int(1));
+                doc.set("scanned_utc", py(utc));
+                for (k, v) in out.iter() {
+                    doc.insert(k.clone(), v.clone());
+                }
+                write_json(&path, &PyValue::Dict(doc))?;
+                io.warn(&format!("[campaign_init] residue → {}", ctx.rel(&path)));
+            }
+        }
+        None => io.warn("[campaign_init] --utc 가 없어 residue.json 에 남기지 않았다(시각은 주입만 받는다 — 벽시계 금지)"),
+    }
+    Ok(0)
+}
+
 // ── purge gate ───────────────────────────────────────────────────────────────────────────────
 
 /// `purge_gate_reasons(previous_id)`: why the previous instance may not be removed (empty = the gate is open). A closed
@@ -3885,7 +4259,12 @@ fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 // ── dispatch ─────────────────────────────────────────────────────────────────────────────────
 
 /// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 20] = [
+const NATIVE_OPS: [&str; 25] = [
+    "--answer-query",
+    "--sub-echo",
+    "--sub-unconverged-accept",
+    "--lifecycle",
+    "--residue-scan",
     "--emit-slice",
     "--resume-brief",
     "--hint-approve",
@@ -3913,6 +4292,11 @@ fn allowed_options(op: &str) -> &'static [&'static str] {
     match op {
         "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
         "--verify-purge-gate" => &["--verify-purge-gate"],
+        "--answer-query" => &["--answer-query", "--query-decision", "--utc", "--approved-by", "--apply"],
+        "--sub-echo" => &["--sub-echo", "--node", "--control", "--utc", "--apply"],
+        "--sub-unconverged-accept" => &["--sub-unconverged-accept", "--node", "--utc", "--approved-by", "--apply"],
+        "--lifecycle" => &["--lifecycle"],
+        "--residue-scan" => &["--residue-scan", "--utc", "--campaign-id"],
         "--emit-slice" => &["--emit-slice", "--utc", "--out", "--campaign-id"],
         "--resume-brief" => &["--resume-brief", "--campaign-id"],
         "--hint-approve" => &["--hint-approve", "--node", "--cells", "--approved-by", "--source", "--utc", "--campaign-id"],
@@ -3978,7 +4362,12 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     if args.names().any(|n| !allowed_options(op).contains(n)) {
         return Outcome::Fallback;
     }
-    for (option, allowed) in [("--decision", &["approve", "decline"][..]), ("--route", &["explorer", "upstream"][..])] {
+    for (option, allowed) in [
+        ("--decision", &["approve", "decline"][..]),
+        ("--route", &["explorer", "upstream"][..]),
+        ("--query-decision", &["keep"][..]),
+        ("--control", &["suspend", "resume", "close", "abandon", "reslice"][..]),
+    ] {
         if let Some(value) = args.get(option) {
             if !allowed.contains(&value) {
                 return Outcome::Fallback;
@@ -3993,6 +4382,11 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     let result = match op {
         "--assigned-cells" => op_assigned_cells(ctx, &args, io),
         "--verify-purge-gate" => op_verify_purge_gate(ctx, &args, io),
+        "--answer-query" => op_answer_query(ctx, &args, io),
+        "--sub-echo" => op_sub_echo(ctx, &args, io),
+        "--sub-unconverged-accept" => op_sub_unconverged_accept(ctx, &args, io),
+        "--lifecycle" => op_lifecycle(ctx, &args, io),
+        "--residue-scan" => op_residue_scan(ctx, &args, io),
         "--emit-slice" => op_emit_slice(ctx, &args, io),
         "--resume-brief" => op_resume_brief(ctx, &args, io),
         "--hint-approve" => op_hint_approve(ctx, &args, io),

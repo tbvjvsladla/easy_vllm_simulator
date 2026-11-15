@@ -361,3 +361,39 @@ fn emit_slice_cuts_one_node_and_names_the_deriver() {
     assert_eq!(status, Some(1));
     assert!(err.contains("nodes[] 에 'zz' 가 없다"));
 }
+
+#[test]
+fn answer_query_is_idempotent_and_needs_a_suspended_campaign() {
+    let root = scratch("answer");
+    active(&root);
+    put(&root, "campaigns/camp-p/journey.jsonl", "{\"kind\": \"campaign_suspended\", \"utc\": \"U\"}\n");
+    let ask = |extra: &[&str]| {
+        let mut v = vec!["--answer-query", "camp-p", "--query-decision", "keep", "--utc", "T", "--approved-by", "a"];
+        v.extend_from_slice(extra);
+        call(&root, &v)
+    };
+    assert_eq!(ask(&[]).1, "[campaign_init] DRY-RUN answered keep camp-p\n");
+    assert_eq!(ask(&["--apply"]).1, "[campaign_init] APPLIED answered keep camp-p\n");
+    assert_eq!(
+        ask(&["--apply"]).1,
+        "[campaign_init] APPLIED no-op — camp-p 의 마지막 전이(0:campaign_suspended)는 이미 답했다(멱등)\n"
+    );
+    let (status, _, err) = call(&root, &["--answer-query", "camp-a", "--query-decision", "keep", "--utc", "T", "--approved-by", "a"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("camp-a 은 active 다 — 답할 보류 질의가 없다"), "{err}");
+}
+
+#[test]
+fn lifecycle_prints_the_fold_and_residue_scan_classifies_root_entries() {
+    let root = scratch("life");
+    active(&root);
+    let (status, out, _) = call(&root, &["--lifecycle", "camp-a"]);
+    assert_eq!(status, Some(0));
+    assert!(out.contains("\"state\": \"active\"") && out.contains("\"source\": \"campaigns/camp-a/journey.jsonl fold\""), "{out}");
+    put(&root, ".claude/policies/root_registry.json", "{\"entries\": [{\"name\": \"campaigns\"}], \"tombstones\": [{\"name\": \"old_*\"}]}");
+    put(&root, "old_x", "");
+    put(&root, "stray", "");
+    let (_, out, err) = call(&root, &["--residue-scan"]);
+    assert!(out.contains("\"leak\": [\n    \"old_x\"\n  ]") && out.contains("\"unclassified\": ["), "{out}");
+    assert!(err.contains("--utc 가 없어 residue.json 에 남기지 않았다"));
+}
