@@ -440,3 +440,19 @@ fn backfill_repairs_a_missing_measurement_from_the_sweep_record() {
     let cell = std::fs::read_to_string(root.join("campaigns/camp-a/cells/c1/cell.status.json")).unwrap();
     assert!(cell.contains("backfill:campaigns/camp-a/sweeps/s.json#cells[cell_key=c1].concurrency_vector.1") && cell.contains("\"cell_outcome\": \"measured\""), "{cell}");
 }
+
+#[test]
+fn init_from_a_derived_slice_keeps_the_slice_declaration_and_its_parent() {
+    let root = scratch("fromslice");
+    std::process::Command::new("git").args(["init", "-q", "-b", "single"]).arg(&root).status().unwrap();
+    put(&root, "slice.json", "{\"id\": \"camp-s\", \"plan_ref\": \"docs/plan/m.md\", \"self_role\": \"sub\", \"_lifecycle_parent\": \"camp-p\", \"_note\": 1, \"control_variables\": {\"topology\": \"single\"}}");
+    let slice = root.join("slice.json");
+    let args = ["--init", "camp-s", "--plan-ref", "ignored", "--target-topology", "single", "--from-slice", slice.to_str().unwrap(), "--apply", "--utc", "U", "--approved-by", "a"];
+    let (status, out, err) = call(&root, &args);
+    assert_eq!(status, Some(0), "{err}");
+    assert!(out.ends_with("init=['campaigns/camp-s'] parent=camp-p\n"), "{out}");
+    let decl = std::fs::read_to_string(root.join("campaigns/camp-s/campaign.yaml")).unwrap();
+    assert!(decl.contains("\"plan_ref\": \"docs/plan/m.md\"") && !decl.contains("_note"), "{decl}");
+    let journey = std::fs::read_to_string(root.join("campaigns/camp-s/journey.jsonl")).unwrap();
+    assert!(journey.contains("\"parent\": \"camp-p\""), "{journey}");
+}

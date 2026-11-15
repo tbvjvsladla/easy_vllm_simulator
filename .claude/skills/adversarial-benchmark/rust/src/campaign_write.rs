@@ -4306,6 +4306,25 @@ fn without_notes(doc: &PyValue) -> PyDict {
     out
 }
 
+/// `_load_slice(source)`: one main-derived declaration from a file or from standard input (`-`).
+fn load_slice(source: &str) -> R<PyDict> {
+    let value = if source == "-" {
+        let mut bytes = Vec::new();
+        let _ = std::io::Read::read_to_end(&mut std::io::stdin(), &mut bytes);
+        let text = String::from_utf8_lossy(&bytes).into_owned();
+        match pyjson::loads(&text) {
+            Ok(v) => Some(v),
+            Err(e) => return refuse(format!("stdin 파생 선언 JSON을 읽지 못했다: {e}")),
+        }
+    } else {
+        read_json(Path::new(source))
+    };
+    match value.as_ref().and_then(dict_of) {
+        Some(d) => Ok(d.clone()),
+        None => refuse(format!("파생 선언을 읽지 못했다: {source}")),
+    }
+}
+
 fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     let new_id = args.get("--init").unwrap_or_default().to_string();
     let apply = args.has("--apply");
@@ -4316,7 +4335,7 @@ fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     };
     // Shapes with a suspension, a lineage, a slice, a purge or a disposition are the owner's.
     let unmodelled = [
-        "--suspend-current", "--derived-from", "--preempt", "--release", "--dispose", "--from-slice",
+        "--suspend-current", "--derived-from", "--preempt", "--release", "--dispose",
     ];
     if unmodelled.iter().any(|o| args.has(o)) {
         return Err(Stop::Fallback);
@@ -4350,9 +4369,16 @@ fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
             "활성 캠페인 {cur} 이 있다 — 처분 없이 덮어쓰는 --init 은 거부한다(옛 허점: ACTIVE 만 바뀌고 {cur} 이 이름 없는 잔재가 된다). 셋 중 하나를 고른다: ① `--suspend-current [--derived-from {cur}]` 로 보류+개설 ② `--close {cur}`(완주) ③ `--abandon {cur}`(포기) — 정상 차단"
         ));
     }
-    let need = table
-        .iter()
-        .any(|(c, f)| *c != cur && (f.state == "suspended" || f.state == "resume_pending") && !f.answered);
+    let slice: Option<PyDict> = match args.get("--from-slice") {
+        Some(source) => Some(load_slice(source)?),
+        None => None,
+    };
+    let sub_slice = slice.as_ref().filter(|d| get_text(d, "self_role").as_deref() == Some("sub"));
+    let derived_from: PyValue = sub_slice.and_then(|d| d.get("_lifecycle_parent").cloned()).unwrap_or(PyValue::None);
+    let need = sub_slice.is_none()
+        && table
+            .iter()
+            .any(|(c, f)| *c != cur && (f.state == "suspended" || f.state == "resume_pending") && !f.answered);
     if need {
         return Err(Stop::Fallback);
     }
@@ -4427,8 +4453,22 @@ fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
         let decl = read_json(&dest.join("campaign.yaml"))
             .ok_or_else(|| Stop::Refuse("campaign.yaml 을 읽지 못했다".to_string()))?;
         let mut doc = without_notes(&decl);
+        if let Some(sd) = &slice {
+            if get_text(sd, "id").as_deref() != Some(new_id.as_str()) {
+                return refuse(format!(
+                    "파생 선언의 id({})와 개설 이름({})이 다르다 — 이름이 곧 증거 연결이다",
+                    sd.get("id").map(PyValue::repr).unwrap_or_else(|| "None".to_string()),
+                    py_repr(&new_id)
+                ));
+            }
+            doc = without_notes(&PyValue::Dict(sd.clone()));
+        }
         doc.set("id", py(&new_id));
-        doc.set("plan_ref", py(plan_ref));
+        if slice.is_none() {
+            doc.set("plan_ref", py(plan_ref));
+        } else if !doc.contains_key("plan_ref") {
+            doc.set("plan_ref", PyValue::None);
+        }
         write_json_ordered(&dest.join("campaign.yaml"), &PyValue::Dict(doc))?;
         let ep_path = dest.join("evidence_pointers.json");
         let ep = read_json(&ep_path).ok_or_else(|| Stop::Refuse("evidence_pointers.json 을 읽지 못했다".to_string()))?;
@@ -4457,15 +4497,16 @@ fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
             event.set("kind", py("campaign_opened"));
             event.set("lifecycle_v", PyValue::int(LIFECYCLE_V));
             event.set("source", py("campaign_init"));
-            event.set("parent", PyValue::None);
+            event.set("parent", derived_from.clone());
             event.set("topology", py(&target));
             event.set("approved_by", approved_by.map(py).unwrap_or(PyValue::None));
             event.set("plan_ref", py(plan_ref));
             append_journey(&dest, &PyValue::Dict(event))?;
         }
     }
+    let parent_note = if derived_from.is_truthy() { format!(" parent={}", shown(Some(&derived_from))) } else { String::new() };
     io.say(&format!(
-        "[campaign_init] {mode} purge={} init=['campaigns/{new_id}']",
+        "[campaign_init] {mode} purge={} init=['campaigns/{new_id}']{parent_note}",
         py_list_repr(&removed)
     ));
     if !swept.is_empty() {
