@@ -503,22 +503,22 @@ fn write_raw(raw: &Path, id: &str, o: &Outcome) {
 }
 
 // ---------------------------------------------------------------- CLI
-struct Args { mode: String, stage: String, cases: Vec<String>, repo: PathBuf, raw: PathBuf, force: bool }
+struct Args { mode: String, stage: String, cases: Vec<String>, repo: PathBuf, raw: PathBuf, force: bool, na_list: Option<PathBuf> }
 
 fn parse_args() -> Result<Args, String> {
     let v: Vec<String> = std::env::args().skip(1).collect();
     let tool = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repo = tool.parent().and_then(|p| p.parent()).and_then(|p| p.parent()).map(PathBuf::from).unwrap_or_default();
-    let mut a = Args { mode: String::new(), stage: "all".into(), cases: vec![], repo, raw: tool.join("raw"), force: false };
+    let mut a = Args { mode: String::new(), stage: "all".into(), cases: vec![], repo, raw: tool.join("raw"), force: false, na_list: None };
     let mut i = 0;
     while i < v.len() {
         match v[i].as_str() {
             "--self-check" => a.mode = "self-check".into(),
             "capture" | "orig" | "compare" => a.mode = v[i].clone(),
             "--force" => a.force = true,
-            f @ ("--stage" | "--case" | "--repo" | "--raw-dir") => {
+            f @ ("--stage" | "--case" | "--repo" | "--raw-dir" | "--na-list") => {
                 i += 1; let val = v.get(i).ok_or(format!("{f} needs a value"))?.clone();
-                match f { "--stage" => a.stage = val, "--case" => a.cases.push(val), "--repo" => a.repo = PathBuf::from(val), _ => a.raw = PathBuf::from(val) }
+                match f { "--stage" => a.stage = val, "--case" => a.cases.push(val), "--repo" => a.repo = PathBuf::from(val), "--na-list" => a.na_list = Some(PathBuf::from(val)), _ => a.raw = PathBuf::from(val) }
             }
             x => return Err(format!("unknown argument {x}")),
         }
@@ -527,6 +527,20 @@ fn parse_args() -> Result<Args, String> {
     if a.mode.is_empty() { return Err("mode required: capture|orig|compare|--self-check".into()); }
     if a.stage != "all" && !STAGES.contains(&a.stage.as_str()) { return Err(format!("bad stage {}", a.stage)); }
     Ok(a)
+}
+
+/// `--na-list FILE`: lines `<case-id> <entry path>`; `#` comments and blank lines ignored; duplicate ids are an error.
+fn parse_na_list(p: &Path) -> Result<BTreeMap<String, String>, String> {
+    let t = fs::read_to_string(p).map_err(|e| format!("na-list {}: {e}", p.display()))?;
+    let mut m = BTreeMap::new();
+    for (i, l) in t.lines().enumerate() {
+        let l = l.trim(); if l.is_empty() || l.starts_with('#') { continue; }
+        let mut it = l.split_whitespace();
+        let (id, e) = (it.next().unwrap_or(""), it.next().ok_or(format!("na-list line {}: need `<case-id> <entry>`", i + 1))?);
+        if it.next().is_some() { return Err(format!("na-list line {}: extra fields", i + 1)); }
+        if m.insert(id.to_string(), e.to_string()).is_some() { return Err(format!("na-list line {}: duplicate id {id}", i + 1)); }
+    }
+    Ok(m)
 }
 
 fn real_main() -> Result<i32, String> {
@@ -540,8 +554,18 @@ fn real_main() -> Result<i32, String> {
     if !a.cases.is_empty() { cases.retain(|c| a.cases.contains(&c.id)); }
     if cases.is_empty() { return Err("no cases selected (golden capture of cases is c03's job)".into()); }
     if a.mode == "compare" && Command::new("strace").arg("-V").stdout(Stdio::null()).stderr(Stdio::null()).status().is_err() { return Err("strace is not available".into()); }
-    let mut bad = 0; let mut py = 0;
+    let na = match &a.na_list { Some(p) => { if a.mode != "compare" { return Err("--na-list applies to compare only".into()); } Some(parse_na_list(p)?) } None => None };
+    let mut bad = 0; let mut py = 0; let mut na_n = 0usize;
     for c in &cases {
+        if let Some(map) = &na {
+            if let Some(entry) = map.get(&c.id) {
+                // Case the Sub is not designed to receive: not run, only counted. Stale = listed entry differs from the case or exists in the tree.
+                if *entry != c.entry { bad += 1; println!("STALE {} na-list entry {} != case entry {}", c.id, entry, c.entry); }
+                else if a.repo.join(entry).exists() { bad += 1; println!("STALE {} entry present in tree ({})", c.id, entry); }
+                else { na_n += 1; }
+                continue;
+            }
+        }
         match a.mode.as_str() {
             "capture" => {
                 if tool.join("data").join(&c.id).exists() && !a.force { return Err(format!("golden for {} exists (use --force)", c.id)); }
@@ -567,7 +591,11 @@ fn real_main() -> Result<i32, String> {
     match a.mode.as_str() {
         "capture" => println!("PARITY-CAPTURE-OK cases={n}"),
         "orig" => if bad == 0 { println!("PARITY-ORIG-PASS cases={n}") } else { println!("orig: {bad}/{n} cases mismatch") },
-        _ => if bad == 0 && py == 0 { println!("PARITY-{}-PASS python_exec=0", a.stage.to_uppercase()) } else { println!("compare: {bad}/{n} cases mismatch python_exec={py}") },
+        _ => if bad == 0 && py == 0 {
+            if na.is_some() { println!("na={na_n}"); }
+            println!("PARITY-{}-PASS python_exec=0", a.stage.to_uppercase())
+        } else if na.is_some() { println!("compare: {bad}/{n} cases mismatch na={na_n} python_exec={py}") }
+        else { println!("compare: {bad}/{n} cases mismatch python_exec={py}") },
     }
     Ok(if bad == 0 { 0 } else { 1 })
 }
@@ -681,6 +709,19 @@ fn self_check() -> Result<i32, String> {
     }
     ck("e2e-real-repo-untouched", !repo.join("o.txt").exists() && !repo.join("seen.txt").exists());
     let _ = fs::remove_dir_all(&repo);
+    {
+        let d = scratch("nalist", "self"); let _ = fs::create_dir_all(&d);
+        let f = d.join("na.txt");
+        let _ = fs::write(&f, "# c\nA-1 bin/x\n\nA-2 bin/y\n");
+        let m = parse_na_list(&f);
+        ck("na-parse", m.as_ref().map_or(false, |m| m.len() == 2 && m.get("A-1").map(String::as_str) == Some("bin/x")));
+        let _ = fs::write(&f, "A-1 bin/x\nA-1 bin/z\n");
+        ck("na-dup-rejected", parse_na_list(&f).is_err());
+        let _ = fs::write(&f, "A-1\n");
+        ck("na-missing-entry-rejected", parse_na_list(&f).is_err());
+        ck("na-missing-file-rejected", parse_na_list(&d.join("none.txt")).is_err());
+        let _ = fs::remove_dir_all(&d);
+    }
     if fails.is_empty() { println!("PARITY-SELFCHECK-OK"); Ok(0) } else { for f in &fails { println!("SELFCHECK-FAIL {f}"); } Ok(1) }
 }
 

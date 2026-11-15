@@ -161,6 +161,7 @@ CAMPAIGN_TOOLS = (
     "campaign_init.py",                # 단일 writer + 읽는 눈 + 파생 개설(--from-slice)
     "campaign_init.sh",                # --active/--derive 읽기 런처(Rust campaign_read · 서브 노드에서 빌드) — broad_search·fetch 호출부가 부른다
     "campaign_template_validator.py",  # 선언·인스턴스 술어(P1~P3). 스키마 엔진은 메인 소관
+    "campaign_template_validator.sh",  # 같은 술어의 Rust 런처 — .py 가 가는 서브에는 런처도 간다(2026-11-15 c51 g-sync A류 누락)
 )
 # 서브가 받는 런타임 스킬이 **부르는** 계약 리더. 오케스트레이션이 아니라 자기 manifest 를 읽는
 # 판정기다. 2026-09-29(plan_26092919 P2) 실측: 싱글 서브의 `lite_bench.sh`·`run_bench.sh` 가
@@ -172,6 +173,7 @@ SUB_CONTRACT_READERS = (
     "manifest_contract.py",            # Flag·topology 준비성 판정 — 이제 얇은 IMPORT 어댑터(프로세스 내 importer 가 같은 이름으로 import · 판정은 Rust 브리지)
     "manifest_contract_compat_owner.py",  # 검토된 원본 바이트 그대로(사전 분류된 레거시 경로 전용 · 어댑터가 import 하지 않는 한 업무 ✗) — 어댑터와 함께 배달된다
     "manifest_contract.sh",            # 같은 판정의 명령줄 런처(Rust manifest_contract · 서브 노드에서 빌드) — lite_bench·run_bench 의 Flag 게이트 호출부가 부른다 · 프로세스 내 import 사용자는 .py 를 그대로 import
+    "node_role_contract.sh",           # 같은 판정의 Rust 런처 — .py 가 가는 서브에는 런처도 간다(2026-11-15 c51 g-sync A류 누락)
     "node_role_contract.py",           # 토폴로지 축(sub_mode·tool_plane·delivery_plane) 판정 — 서브가 자기 역할 계약을 로컬에서 검증한다(stdlib+yaml 만 import · 별도 의존 배달 불요)
 )
 # Both roles run this explicit local permission canary; its self-tests remain main-only.
@@ -195,6 +197,13 @@ PARITY_RUST_TOOL = ".claude/rust/parity"
 #   간다(SKILL.md·references·assets 없음 · `.agents/skills` 발견 래퍼 없음) — 그래서 multi 에이전트는 그 스킬을 '쓰는' 권한·발견 경로를
 #   얻지 않고, 배달분 보호 deny(ray-worker 페르소나)는 그대로다. 판정은 tool_plane 이 소유하며 여기서 두 번째 답을 만들지 않는다.
 RUST_ONLY_PREFIXES = ("rust/", "scripts/")
+# 진입점이 가면 그 입력도 간다(2026-11-15 사용자 결정): Rust 전용으로 가는 스킬의 `scripts/` 진입점이 읽는 데이터 파일(닫힌 목록 · 스킬 상대경로).
+#   parity 사례 S1-04(bench_preset → config/bench_bindings.yaml)·S2-03(classify_failure → failure_patterns.yaml) 실측. 새 입력은 렌더 트리 parity 로 발견한다.
+RUST_ONLY_INPUTS = {
+    "adversarial-benchmark": ("config/bench_bindings.yaml",),
+    "upstream-version-watch": ("failure_patterns.yaml",),
+    "vllm-recipe-explorer": (),
+}
 SHARED_RUST_LIBRARIES = ((SHARED_RUST_SUPPORT, SHARED_RUST_CONSUMERS),
                          (ROLE_RUST_SUPPORT, ROLE_RUST_CONSUMERS),
                          (PARITY_RUST_TOOL, SHARED_RUST_CONSUMERS))
@@ -827,7 +836,8 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 continue
             rb = RUNTIME_BLOCK_PATHS[name]
             n = _copy_tracked(rb, os.path.join(claude, "skills", name), tracked_list=tracked_list,
-                              excludes=RUNTIME_BLOCK_EXCLUDES.get(name), only=RUST_ONLY_PREFIXES)
+                              excludes=RUNTIME_BLOCK_EXCLUDES.get(name),
+                              only=RUST_ONLY_PREFIXES + RUST_ONLY_INPUTS.get(name, ()))
             produced.append(f".claude/skills/{name}/ (Rust 전용 · {n} tracked files · 스킬 아님)")
         # Shared libraries follow every delivered consumer, including B without P/U.
         # Copy all required libraries before checking their transitive Cargo paths.
@@ -1403,6 +1413,11 @@ def _self_test() -> int:
             _wr = os.path.exists(os.path.join(_out, ".agents", "skills", _rn))
             if not _has_rust or _full != (_rn in _want) or (not _full and (_extra or _wr)):
                 _ronly_ok = False
+            # 진입점이 가면 그 입력도 간다: 닫힌 입력 목록이 (전체든 Rust 전용이든) 정본과 바이트 동일하게 모든 렌더 트리에 있다.
+            for _inp in RUST_ONLY_INPUTS[_rn]:
+                _ip = pathlib.Path(_rd, _inp)
+                if not (_ip.is_file() and _ip.read_bytes() == pathlib.Path(REPO, ".claude", "skills", _rn, _inp).read_bytes()):
+                    _ronly_ok = False
         _parity_ok = (os.path.isfile(os.path.join(_out, PARITY_RUST_TOOL, "Cargo.toml"))
                       and os.path.isdir(os.path.join(_out, PARITY_RUST_TOOL, "data"))
                       and os.path.isfile(os.path.join(_out, PARITY_RUST_TOOL, "cases", "s1.json")))
