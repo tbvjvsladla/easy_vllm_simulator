@@ -28,13 +28,28 @@ fn flag_gate_precedes_config_load() {
 }
 
 #[test]
-fn unported_subcommands_stop_with_status_two() {
+fn no_subcommand_stops_with_the_unported_message() {
     let (base, root) = bare_skill_root();
-    for name in ["simulate"] {
+    for name in ["simulate", "estimate", "generate"] {
         let run = recipe_main(&args(&[name]), Some("80"), &root);
         assert_eq!(run.status, 2);
-        assert!(run.stderr.to_utf8().unwrap().contains("미이식"));
+        assert!(!run.stderr.to_utf8().unwrap().contains("미이식"), "{name}");
     }
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// Reference: `python3 recipe.py simulate` / `simulate --config x.yaml` (COLUMNS=80) end with this error line and exit 2.
+#[test]
+fn simulate_argument_errors_match_the_original() {
+    let (base, root) = bare_skill_root();
+    let run = recipe_main(&args(&["simulate"]), Some("80"), &root);
+    assert_eq!(run.status, 2);
+    let err = run.stderr.to_utf8().unwrap();
+    assert!(err.contains("recipe.py simulate: error: the following arguments are required: --config, --candidate"), "{err}");
+    let run = recipe_main(&args(&["simulate", "--config", "x.yaml"]), Some("80"), &root);
+    assert_eq!(run.status, 2);
+    let err = run.stderr.to_utf8().unwrap();
+    assert!(err.contains("recipe.py simulate: error: the following arguments are required: --candidate"), "{err}");
     let _ = std::fs::remove_dir_all(base);
 }
 
