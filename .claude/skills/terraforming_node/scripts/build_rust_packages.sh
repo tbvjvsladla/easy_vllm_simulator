@@ -58,6 +58,8 @@ for crate in "$q" "$t" "$p" "$u" "$x"; do
     "${cargo_args[@]}" > "$tmp/metadata.json"
   target_args=(--lib --bins)
   if [ "$crate" = "$q" ] || [ "$crate" = "$t" ]; then target_args=(--lib); fi
+  # bin 전용 패키지(parity)는 lib 대상이 없다 — `--lib` 를 요구하면 "no library targets" 로 101.
+  if [ "$crate" = "$x" ]; then target_args=(--bins); fi
   env -u EASY_VLLM_SOURCE_ROOT bash "$BOOTSTRAP" exec "${runtime_args[@]}" -- cargo build \
     --release --locked "${target_args[@]}" --manifest-path "$crate/Cargo.toml" \
     --target-dir "$crate/target" "${cargo_args[@]}"
