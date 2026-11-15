@@ -59,6 +59,11 @@ path = "src/bin/campaign_read.rs"
 name = "campaign_init"
 path = "src/bin/campaign_init.rs"
 
+# Public `campaign_template_validator.py --acceptance` (launcher: terraforming_node/scripts/campaign_template_validator.sh).
+[[bin]]
+name = "campaign_template_validator"
+path = "src/bin/campaign_template_validator.rs"
+
 # Public `manifest_contract.py --topology --repo [--require-flag] [--json]` (launcher: terraforming_node/scripts/manifest_contract.sh).
 [[bin]]
 name = "manifest_contract"
@@ -642,6 +647,10 @@ path = "checks/campaign_read_cli.rs"
 [[test]]
 name = "campaign_write_cases"
 path = "checks/campaign_write_cases.rs"
+
+[[test]]
+name = "campaign_validator_cases"
+path = "checks/campaign_validator_cases.rs"
 
 [[test]]
 name = "manifest_contract_cli"

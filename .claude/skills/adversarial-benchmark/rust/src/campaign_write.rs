@@ -85,11 +85,11 @@ pub struct Sinks<'a> {
 }
 
 impl Sinks<'_> {
-    fn say(&mut self, text: &str) {
+    pub fn say(&mut self, text: &str) {
         let _ = writeln!(self.out, "{text}");
     }
 
-    fn warn(&mut self, text: &str) {
+    pub fn warn(&mut self, text: &str) {
         let _ = writeln!(self.err, "{text}");
     }
 }
@@ -208,7 +208,7 @@ fn py(text: &str) -> PyValue {
     PyValue::Str(PyStr::new(text))
 }
 
-fn py_repr(text: &str) -> String {
+pub(crate) fn py_repr(text: &str) -> String {
     PyStr::new(text).repr()
 }
 
@@ -218,28 +218,28 @@ fn py_list_repr(items: &[String]) -> String {
     format!("[{}]", inner.join(", "))
 }
 
-fn dict_of(value: &PyValue) -> Option<&PyDict> {
+pub(crate) fn dict_of(value: &PyValue) -> Option<&PyDict> {
     match value.peel() {
         PyValue::Dict(dict) => Some(dict),
         _ => None,
     }
 }
 
-fn list_of(value: &PyValue) -> Option<&Vec<PyValue>> {
+pub(crate) fn list_of(value: &PyValue) -> Option<&Vec<PyValue>> {
     match value.peel() {
         PyValue::List(items) => Some(items),
         _ => None,
     }
 }
 
-fn text_of(value: &PyValue) -> Option<String> {
+pub(crate) fn text_of(value: &PyValue) -> Option<String> {
     match value.peel() {
         PyValue::Str(text) => text.to_utf8(),
         _ => None,
     }
 }
 
-fn get_text(dict: &PyDict, key: &str) -> Option<String> {
+pub(crate) fn get_text(dict: &PyDict, key: &str) -> Option<String> {
     dict.get(key).and_then(text_of)
 }
 
@@ -546,7 +546,7 @@ pub fn read_journey(base: &Path) -> Vec<PyValue> {
 // ── declaration helpers (the validator's assignment functions) ───────────────────────────────
 
 /// `assignments_of(doc)`: entries of the `assignments` object in declaration order.
-fn assignments_of(doc: &PyDict) -> Vec<(String, PyValue)> {
+pub(crate) fn assignments_of(doc: &PyDict) -> Vec<(String, PyValue)> {
     match get_dict(doc, "assignments") {
         Some(map) => map
             .iter()
@@ -610,7 +610,7 @@ fn node_of_cell(base: &Path, cell: &str) -> Option<String> {
 }
 
 /// `lockset_observable(decl, node)`.
-fn lockset_observable(decl: &PyDict, node: Option<&str>) -> bool {
+pub(crate) fn lockset_observable(decl: &PyDict, node: Option<&str>) -> bool {
     if get_text(decl, "self_role").as_deref() == Some("sub") {
         return true;
     }
@@ -624,7 +624,7 @@ fn lockset_observable(decl: &PyDict, node: Option<&str>) -> bool {
 }
 
 /// `lockset_provenance_reason(path)`.
-fn lockset_provenance_reason(ctx: &Ctx, path: &Path) -> Option<String> {
+pub(crate) fn lockset_provenance_reason(ctx: &Ctx, path: &Path) -> Option<String> {
     const ALLOWED: &str = "('explorer-phase2', 'hand-authored')";
     if !path.is_file() {
         return Some(format!(
@@ -1149,7 +1149,7 @@ fn write_phase(
     Ok(path)
 }
 
-fn tuple_repr(items: &[&str]) -> String {
+pub(crate) fn tuple_repr(items: &[&str]) -> String {
     let inner: Vec<String> = items.iter().map(|s| py_repr(s)).collect();
     if inner.len() == 1 {
         format!("({},)", inner[0])
