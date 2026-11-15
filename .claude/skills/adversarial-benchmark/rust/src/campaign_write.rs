@@ -2656,6 +2656,412 @@ fn op_hint_approve(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     Ok(0)
 }
 
+// ── --resume-brief ───────────────────────────────────────────────────────────────────────────
+
+fn shown(value: Option<&PyValue>) -> String {
+    value.map(|v| v.display_text().to_utf8().unwrap_or_default()).unwrap_or_else(|| "None".to_string())
+}
+
+/// `_short(text, limit)`: one line, cut to `limit` characters.
+fn short(value: Option<&PyValue>, limit: usize) -> String {
+    let text = match value {
+        Some(v) if v.is_truthy() => v.display_text().to_utf8().unwrap_or_default(),
+        _ => String::new(),
+    };
+    let joined = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    if joined.chars().count() <= limit {
+        joined
+    } else {
+        let cut: String = joined.chars().take(limit - 1).collect();
+        format!("{cut}…")
+    }
+}
+
+fn lifecycle_table(ctx: &Ctx) -> Vec<(String, Fold)> {
+    let active = ctx.active_id();
+    list_instances(ctx)
+        .iter()
+        .map(|p| {
+            (
+                p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
+                fold_lifecycle(ctx, p, Some(&active)),
+            )
+        })
+        .collect()
+}
+
+fn pending_query_field(f: &Fold, key: &str) -> String {
+    shown(dict_of(&f.pending_query).and_then(|d| d.get(key)).or(None))
+}
+
+/// `lifecycle_line(table)`: the first line of the brief.
+fn lifecycle_line(ctx: &Ctx, table: &[(String, Fold)]) -> String {
+    let active = ctx.active_id();
+    let susp: Vec<String> = table
+        .iter()
+        .filter(|(_, f)| f.state == "suspended" || f.state == "resume_pending")
+        .map(|(c, f)| match f.parent.is_truthy() {
+            true => format!("{c}⊂{}", shown(Some(&f.parent))),
+            false => c.clone(),
+        })
+        .collect();
+    let pend: Vec<String> = table
+        .iter()
+        .filter(|(_, f)| f.state == "resume_pending" && !f.answered)
+        .map(|(c, f)| {
+            format!(
+                "{c}←{} 종결({}): 재개?",
+                pending_query_field(f, "child"),
+                pending_query_field(f, "child_reason")
+            )
+        })
+        .collect();
+    let table_names: Vec<&str> = table.iter().map(|(c, _)| c.as_str()).collect();
+    let opening: Vec<String> = table
+        .iter()
+        .filter(|(_, f)| f.state == "suspended" && f.open_pending.is_truthy())
+        .filter(|(_, f)| {
+            let id = dict_of(&f.open_pending).and_then(|d| get_text(d, "id"));
+            !id.map(|i| table_names.contains(&i.as_str())).unwrap_or(false)
+        })
+        .map(|(_, f)| {
+            let d = dict_of(&f.open_pending);
+            format!("{}@{}", shown(d.and_then(|d| d.get("id"))), shown(d.and_then(|d| d.get("topology"))))
+        })
+        .collect();
+    let unconv: Vec<String> = table
+        .iter()
+        .filter(|(_, f)| f.sub_convergence.as_deref() == Some("unconverged"))
+        .map(|(c, f)| {
+            let mut missing: Vec<String> =
+                f.sub_nodes.iter().filter_map(text_of).filter(|n| !f.sub_echoed.contains(n)).collect();
+            missing.sort();
+            missing.dedup();
+            format!("{c}@{}", missing.join(","))
+        })
+        .collect();
+    let reslice: Vec<String> = table
+        .iter()
+        .filter(|(_, f)| !f.reslice_pending.is_empty() && f.state != "closed")
+        .map(|(c, f)| {
+            let mut names: Vec<String> = f.reslice_pending.iter().map(|(n, _)| n.clone()).collect();
+            names.sort();
+            format!("{c}@{}", names.join(","))
+        })
+        .collect();
+    let odd: Vec<String> = table
+        .iter()
+        .filter(|(_, f)| f.state == "orphan" || f.state == "unknown")
+        .map(|(c, f)| format!("{c}={}", f.state))
+        .collect();
+    let mut parts = vec![
+        format!("ACTIVE={active}"),
+        format!("보류 {}{}", susp.len(), if susp.is_empty() { String::new() } else { format!("({})", susp.join(", ")) }),
+        format!("미결 질의 {}{}", pend.len(), if pend.is_empty() { String::new() } else { format!("({})", pend.join("; ")) }),
+    ];
+    if !opening.is_empty() {
+        parts.push(format!("개설 대기 {}", opening.join(", ")));
+    }
+    if !unconv.is_empty() {
+        parts.push(format!("서브 미수렴 {}", unconv.join(", ")));
+    }
+    if !reslice.is_empty() {
+        parts.push(format!("재배정 미수렴 {}", reslice.join(", ")));
+    }
+    if !odd.is_empty() {
+        parts.push(format!("정리 대상 {}", odd.join(", ")));
+    }
+    format!("상태: {}", parts.join(" · "))
+}
+
+fn resume_brief(ctx: &Ctx, camp_id: Option<&str>) -> String {
+    let camp = camp_id.filter(|c| !c.is_empty()).map(str::to_string).unwrap_or_else(|| ctx.active_id());
+    let base = ctx.campaigns().join(&camp);
+    let mut l: Vec<String> = Vec::new();
+    let table = lifecycle_table(ctx);
+    l.push(lifecycle_line(ctx, &table));
+    l.push(format!("# resume-brief · campaigns/{camp}"));
+    let life: Vec<&(String, Fold)> = table.iter().filter(|(_, f)| f.state != "closed").collect();
+    if !life.is_empty() {
+        l.push(String::new());
+        l.push("## 0. 캠페인 수명 (journey fold · 질의 규칙: 계기 a=파생 자식 종결 · d=무관 개설뿐)".to_string());
+        for (c, f) in &life {
+            let mut bits = vec![f.state.clone()];
+            if f.parent.is_truthy() {
+                bits.push(format!("parent={}", shown(Some(&f.parent))));
+            }
+            if !f.interrupted_cells.is_empty() {
+                bits.push(format!("interrupted={}", f.interrupted_cells.join(",")));
+            }
+            if let Some(conv) = &f.sub_convergence {
+                bits.push(format!("서브 {conv}"));
+            }
+            if f.state == "suspended" || f.state == "resume_pending" {
+                bits.push(if f.answered { "답함" } else { "미답" }.to_string());
+            }
+            l.push(format!("- `{c}` — {}", bits.join(" · ")));
+        }
+        if life.iter().any(|(_, f)| f.state == "resume_pending" && !f.answered) {
+            l.push("- 미결 질의는 **사람이 있는 세션에서 한 번** 묻는다(무인 리볼빙은 이 줄만 보이고 묻지 않는다 · D6). 답: `--resume-campaign` · `--answer-query <id> --decision keep` · `--abandon`".to_string());
+        }
+    }
+    if camp == BOOTSTRAP {
+        l.push(String::new());
+        l.push("활성 캠페인이 **없다**(ACTIVE=_bootstrap). 여기는 캠페인 밖 릴레이 대기실이며 진행 상태를".to_string());
+        l.push("들지 않는다 — campaigns writer 는 no-op 이고, 재개할 캠페인도 없다.".to_string());
+        return l.join("\n") + "\n";
+    }
+    if !is_dir(&base) {
+        l.push(String::new());
+        l.push(format!("인스턴스 디렉터리가 없다: campaigns/{camp}"));
+        return l.join("\n") + "\n";
+    }
+    let doc = read_declaration(&base);
+    let revs: Vec<PyValue> = doc.get("revisions").and_then(list_of).cloned().unwrap_or_default();
+    let cur: PyDict = revs
+        .last()
+        .and_then(dict_of)
+        .and_then(|r| r.get("values").filter(|v| v.is_truthy()))
+        .and_then(dict_of)
+        .cloned()
+        .or_else(|| doc.get("control_variables").filter(|v| v.is_truthy()).and_then(dict_of).cloned())
+        .unwrap_or_default();
+    l.push(String::new());
+    l.push("## 1. layer-1 선언 (통제변인)".to_string());
+    if !cur.is_empty() {
+        let mut keys: Vec<&(PyStr, PyValue)> = cur.iter().collect();
+        keys.sort_by(|a, b| a.0.code_points().cmp(b.0.code_points()));
+        for (k, v) in keys {
+            l.push(format!("- {}: {}", k.to_utf8().unwrap_or_default(), shown(Some(v))));
+        }
+    } else {
+        l.push("- (선언 없음 — 결손)".to_string());
+    }
+    let tail = if revs.len() > 1 {
+        format!(" · 최신 사유: {}", shown(revs.last().and_then(dict_of).and_then(|r| r.get("reason"))))
+    } else {
+        String::new()
+    };
+    l.push(format!("- 개정 수: {}{tail}", revs.len().saturating_sub(1)));
+    l.push(format!("- plan_ref: {}", shown(doc.get("plan_ref"))));
+
+    let mut plan: Vec<(Option<String>, String, Option<String>)> = Vec::new();
+    for (node, _) in assignments_of(&doc) {
+        for cell in assigned_cells(&doc, Some(&node)) {
+            let mode = cell_mode(&doc, &node, &cell);
+            plan.push((Some(node.clone()), cell, Some(mode)));
+        }
+    }
+    let cells_dir = base.join("cells");
+    let mut found: Vec<String> = std::fs::read_dir(&cells_dir)
+        .map(|r| {
+            r.filter_map(Result::ok)
+                .filter(|e| e.path().is_dir())
+                .map(|e| e.file_name().to_string_lossy().into_owned())
+                .filter(|n| n != "_cell")
+                .collect()
+        })
+        .unwrap_or_default();
+    found.sort();
+    let known: Vec<String> = plan.iter().map(|(_, c, _)| c.clone()).collect();
+    let mut listed = plan.clone();
+    for c in found {
+        if !known.contains(&c) {
+            listed.push((None, c, None));
+        }
+    }
+    l.push(String::new());
+    l.push("## 2. 셀 진행표 (노드별 배정 순 — **다른 노드의 리스트는 동시에 돈다**)".to_string());
+    let mut pending: Vec<String> = Vec::new();
+    let mut refuted: Vec<(String, Option<PyValue>, Option<PyValue>)> = Vec::new();
+    let mut reentry_pending: Vec<(String, Option<PyValue>, Option<PyValue>)> = Vec::new();
+    for (node_of, cell, mode) in &listed {
+        let st = read_json(&cells_dir.join(cell).join("cell.status.json"));
+        let st = st.as_ref().and_then(dict_of).cloned().unwrap_or_default();
+        let outcome_value = st.get("cell_outcome").filter(|v| v.is_truthy()).cloned();
+        let outcome = match &outcome_value {
+            Some(v) => v.display_text().to_utf8().unwrap_or_default(),
+            None if cells_dir.join(cell).is_dir() => "(상태파일 없음)".to_string(),
+            None => "(미개설)".to_string(),
+        };
+        let tps = get_dict(&st, "measurement").and_then(|m| m.get("decode_tps_conc1")).filter(|v| !matches!(v.peel(), PyValue::None));
+        let mut extra: Vec<String> = Vec::new();
+        if let Some(t) = tps {
+            extra.push(format!("decode {} t/s", shown(Some(t))));
+        }
+        if truthy(st.get("void_reason")) {
+            extra.push(format!("void: {}", short(st.get("void_reason"), 110)));
+        }
+        let rc = get_dict(&st, "reconciliation").cloned().unwrap_or_default();
+        let re = get_dict(&st, "reentry").cloned().unwrap_or_default();
+        if truthy(rc.get("spent")) {
+            let status = match re.get("status") {
+                Some(v) if v.is_truthy() => shown(Some(v)),
+                _ => "기록 없음".to_string(),
+            };
+            extra.push(format!("lite ② · cap 차감 {} · 재발동 {status}", shown(rc.get("spent"))));
+        }
+        if get_text(&re, "status").as_deref() == Some("proposed") {
+            reentry_pending.push((cell.clone(), rc.get("spent").cloned(), re.get("proposed_utc").cloned()));
+        }
+        let tag = match node_of {
+            Some(n) => format!("[{n} · {}]", mode.clone().unwrap_or_default()),
+            None => "[미배정]".to_string(),
+        };
+        let suffix = if extra.is_empty() { String::new() } else { format!("  ({})", extra.join(" · ")) };
+        l.push(format!("- `{cell}` {tag} — {outcome}{suffix}"));
+        if CELL_OUTCOMES_PENDING.contains(&outcome.as_str()) || outcome == "(상태파일 없음)" || outcome == "(미개설)" {
+            pending.push(cell.clone());
+        }
+        if ["serve_failed", "build_failed", "void", "measurement_void"].contains(&outcome.as_str()) {
+            refuted.push((cell.clone(), st.get("axis_citation").cloned(), st.get("void_reason").cloned()));
+        }
+    }
+    if listed.is_empty() {
+        l.push("- (배정된 셀 없음)".to_string());
+    }
+    if !reentry_pending.is_empty() {
+        l.push(String::new());
+        l.push("### 재발동 대기(사람 승인) — lite ② 실사용 불가".to_string());
+        let routes: Vec<&str> = REENTRY_ROUTES.iter().map(|(_, v)| *v).collect();
+        for (cell, spent, when) in &reentry_pending {
+            let when_text = match when {
+                Some(w) if w.is_truthy() => shown(Some(w)),
+                _ => "시각 미상".to_string(),
+            };
+            l.push(format!(
+                "- `{cell}` — cap 차감 누계 {} · 제안 {when_text} · 경로: {} · 결정은 `--reentry-decide` 로 기록(자동 실행 ✗)",
+                shown(spent.as_ref()),
+                routes.join(" / ")
+            ));
+        }
+    }
+
+    l.push(String::new());
+    l.push("## 3. 노드별 phase 진행표".to_string());
+    let phases_dir = base.join("phases");
+    let mut nodes: Vec<String> = list_of(doc.get("nodes").unwrap_or(&PyValue::None))
+        .into_iter()
+        .flatten()
+        .filter_map(dict_of)
+        .filter_map(|n| get_text(n, "node_id"))
+        .filter(|id| !id.contains(FILL))
+        .collect();
+    let mut seen: Vec<String> = std::fs::read_dir(&phases_dir)
+        .map(|r| {
+            r.filter_map(Result::ok)
+                .filter(|e| e.path().is_dir())
+                .map(|e| e.file_name().to_string_lossy().into_owned())
+                .filter(|n| n != "_node")
+                .collect()
+        })
+        .unwrap_or_default();
+    seen.sort();
+    for n in seen {
+        if !nodes.contains(&n) {
+            nodes.push(n);
+        }
+    }
+    if nodes.is_empty() {
+        nodes.push("(선언 노드 없음)".to_string());
+    }
+    for node in &nodes {
+        let mut row: Vec<String> = Vec::new();
+        for ph in PHASE_NAMES {
+            let st = read_json(&phases_dir.join(node).join(format!("{ph}.status.json")));
+            match st.as_ref().and_then(dict_of) {
+                None => row.push(format!("{ph}=—")),
+                Some(st) => {
+                    let ok = get_dict(st, "proof").map(|p| truthy(p.get("ok"))).unwrap_or(false);
+                    row.push(format!("{ph}={}{}", shown(st.get("state")), if ok { "✓" } else { "·" }));
+                }
+            }
+        }
+        let missing = if phases_dir.join(node).is_dir() { "" } else { "  ⚠ phases/ 디렉터리 없음" };
+        l.push(format!("- {node}: {}{missing}", row.join(" ")));
+    }
+
+    let jour = read_journey(&base);
+    l.push(String::new());
+    l.push("## 4. 여정 (마지막 3줄)".to_string());
+    for e in jour.iter().rev().take(3).rev() {
+        let d = dict_of(e).cloned().unwrap_or_default();
+        let axis = if truthy(d.get("axis_citation")) {
+            format!("   (축: {})", short(d.get("axis_citation"), 90))
+        } else {
+            String::new()
+        };
+        l.push(format!(
+            "- [{}] {} → {}{axis}",
+            shown(d.get("utc")),
+            shown(d.get("cell_id")),
+            short(d.get("next_intent"), 160)
+        ));
+    }
+    if jour.is_empty() {
+        l.push("- (여정 줄 없음 — **결손**. 이 체인에서 유일하게 복원 불가능한 정보다)".to_string());
+    }
+
+    l.push(String::new());
+    l.push("## 5. 다음에 할 일".to_string());
+    let last_intent = jour.last().and_then(dict_of).and_then(|d| d.get("next_intent")).filter(|v| v.is_truthy());
+    let more = if pending.len() > 1 { format!("   · 이후 {}건", pending.len() - 1) } else { String::new() };
+    l.push(format!(
+        "- 다음 pending 셀: {}{more}",
+        pending.first().cloned().unwrap_or_else(|| "없음(전 셀 종결)".to_string())
+    ));
+    l.push(format!(
+        "- 마지막 여정이 지목한 다음 의도: {}",
+        last_intent.map(|v| shown(Some(v))).unwrap_or_else(|| "(없음)".to_string())
+    ));
+    l.push(String::new());
+    l.push("## 6. 반증된 축 — **재시도 금지**".to_string());
+    if refuted.is_empty() {
+        l.push("- (없음)".to_string());
+    }
+    for (cell, cite, why) in &refuted {
+        let why_text = match why {
+            Some(w) if w.is_truthy() => short(Some(w), 160),
+            _ => "(사유 미기재)".to_string(),
+        };
+        let cite_text = match cite {
+            Some(c) if c.is_truthy() => format!("   [축: {}]", short(Some(c), 110)),
+            _ => String::new(),
+        };
+        l.push(format!("- `{cell}`: {why_text}{cite_text}"));
+    }
+    let ep = read_json(&base.join("evidence_pointers.json"));
+    let ep_dict = ep.as_ref().and_then(dict_of);
+    let ptrs: Vec<PyValue> = ep_dict.and_then(|d| d.get("pointers")).and_then(list_of).cloned().unwrap_or_default();
+    let mut kinds: Vec<String> = ptrs
+        .iter()
+        .filter_map(dict_of)
+        .map(|p| shown(p.get("kind")))
+        .collect();
+    kinds.sort();
+    kinds.dedup();
+    l.push(String::new());
+    l.push("## 7. 증거".to_string());
+    l.push(format!(
+        "- 포인터 {}건 · 종류 {}",
+        ptrs.len(),
+        if kinds.is_empty() { "없음".to_string() } else { py_list_repr(&kinds) }
+    ));
+    l.push(format!(
+        "- relay_summary: {}",
+        if kinds.iter().any(|k| k == "relay_summary") { "있음" } else { "**없음(purge 선행조건 미충족)**" }
+    ));
+    if let Some(frozen) = ep_dict.and_then(|d| d.get("frozen_utc")).filter(|v| v.is_truthy()) {
+        l.push(format!("- 스냅샷 동결: {} (이후 --evidence-add 는 거부된다)", shown(Some(frozen))));
+    }
+    l.join("\n") + "\n"
+}
+
+fn op_resume_brief(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let _ = io.out.write_all(resume_brief(ctx, args.get("--campaign-id")).as_bytes());
+    Ok(0)
+}
+
 // ── purge gate ───────────────────────────────────────────────────────────────────────────────
 
 /// `purge_gate_reasons(previous_id)`: why the previous instance may not be removed (empty = the gate is open). A closed
@@ -3354,7 +3760,8 @@ fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 // ── dispatch ─────────────────────────────────────────────────────────────────────────────────
 
 /// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 18] = [
+const NATIVE_OPS: [&str; 19] = [
+    "--resume-brief",
     "--hint-approve",
     "--evidence-add",
     "--evidence-untag",
@@ -3380,6 +3787,7 @@ fn allowed_options(op: &str) -> &'static [&'static str] {
     match op {
         "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
         "--verify-purge-gate" => &["--verify-purge-gate"],
+        "--resume-brief" => &["--resume-brief", "--campaign-id"],
         "--hint-approve" => &["--hint-approve", "--node", "--cells", "--approved-by", "--source", "--utc", "--campaign-id"],
         "--evidence-add" => &["--evidence-add", "--kind", "--path", "--cell", "--node", "--unfreeze", "--campaign-id"],
         "--evidence-untag" => &["--evidence-untag", "--kind", "--path", "--cell", "--untag-reason", "--utc", "--unfreeze", "--campaign-id"],
@@ -3458,6 +3866,7 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     let result = match op {
         "--assigned-cells" => op_assigned_cells(ctx, &args, io),
         "--verify-purge-gate" => op_verify_purge_gate(ctx, &args, io),
+        "--resume-brief" => op_resume_brief(ctx, &args, io),
         "--hint-approve" => op_hint_approve(ctx, &args, io),
         "--evidence-add" => op_evidence_add(ctx, &args, io),
         "--evidence-untag" => op_evidence_untag(ctx, &args, io),

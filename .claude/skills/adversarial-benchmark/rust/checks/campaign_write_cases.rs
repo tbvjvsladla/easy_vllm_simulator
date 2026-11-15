@@ -327,3 +327,24 @@ fn hint_approve_records_one_event_and_keeps_an_old_approval() {
     assert_eq!(status, Some(1));
     assert!(err.contains("assignments['main'] 에 없다"));
 }
+
+#[test]
+fn resume_brief_reads_only_the_instance() {
+    let root = scratch("brief");
+    active(&root);
+    put(&root, "campaigns/camp-a/cells/c1/cell.status.json", "{\"cell_outcome\": \"serve_failed\", \"void_reason\": \"why\"}");
+    let (status, out, _) = call(&root, &["--resume-brief"]);
+    assert_eq!(status, Some(0));
+    assert!(out.starts_with("상태: ACTIVE=camp-a · 보류 0 · 미결 질의 0\n# resume-brief · campaigns/camp-a\n"), "{out}");
+    assert!(out.contains("- `c1` [main · AUTO] — serve_failed  (void: why)"), "{out}");
+    assert!(out.contains("## 6. 반증된 축 — **재시도 금지**\n- `c1`: why"), "{out}");
+    assert!(out.contains("- 다음 pending 셀: 없음(전 셀 종결)") || out.contains("- 다음 pending 셀: s1"), "{out}");
+}
+
+#[test]
+fn resume_brief_outside_a_campaign_says_so() {
+    let root = scratch("brief-boot");
+    let (status, out, _) = call(&root, &["--resume-brief"]);
+    assert_eq!(status, Some(0));
+    assert!(out.ends_with("들지 않는다 — campaigns writer 는 no-op 이고, 재개할 캠페인도 없다.\n"), "{out}");
+}
