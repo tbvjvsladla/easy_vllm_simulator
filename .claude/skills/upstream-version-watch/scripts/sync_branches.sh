@@ -304,7 +304,30 @@ if ! REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null)"; 
     echo "[sync-branches] FAIL: 스크립트 위치($SCRIPT_DIR)에서 git 레포를 찾을 수 없습니다." >&2
     exit 3
 fi
-IJ="$SCRIPT_DIR/inline_json.sh"   # JSON 소형 판독기(Rust ELF 런처) — 스크립트 자신의 폴더(정본 체크아웃) 기준. 대상 저장소 쪽 사본은 보지 않는다
+# JSON 소형 판독기(Rust ELF 런처) 찾기 — 대상 루트 결정(위, 스크립트 위치)은 건드리지 않는다. 런처+바이너리 쌍을
+#   ① 스크립트 옆 → ② 같은 저장소의 주 작업 트리(정본 체크아웃)의 같은 경로 순으로 찾고, ③ 둘 다 없으면 fail-closed(Python 폴백 없음).
+_ij_usable() {  # $1 = 후보 scripts 폴더
+    [ -f "$1/inline_json.sh" ] || return 1
+    local _rt="${EASY_VLLM_UPSTREAM_RUNTIME_ROOT-$1/../rust/runtime}"
+    [ -f "$_rt/target/release/inline_json" ] && [ -x "$_rt/target/release/inline_json" ]
+}
+IJ=""
+if _ij_usable "$SCRIPT_DIR"; then
+    IJ="$SCRIPT_DIR/inline_json.sh"
+else
+    _IJ_COMMON="$(git -C "$SCRIPT_DIR" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+    if [ -n "$_IJ_COMMON" ]; then
+        _IJ_MAIN="$(dirname -- "$_IJ_COMMON")"
+        _IJ_ALT="$_IJ_MAIN/${SCRIPT_DIR#"$REPO_ROOT"/}"
+        if [ -d "$_IJ_ALT" ] && _ij_usable "$_IJ_ALT"; then
+            IJ="$_IJ_ALT/inline_json.sh"
+        fi
+    fi
+fi
+if [ -z "$IJ" ]; then
+    echo "[sync-branches] FAIL: inline_json 런처/바이너리를 스크립트 옆($SCRIPT_DIR)에서도, 주 작업 트리에서도 찾을 수 없습니다. Python 폴백은 없습니다 — 정본 체크아웃에서 runtime 크레이트를 release 빌드하세요." >&2
+    exit 3
+fi
 
 # ── manifest 경로는 호출 시점 CWD 기준으로 지금(어떤 cd 도 하기 전) 단 한 번, 결정론적으로 해소한다 ──
 RESOLVED_MANIFEST=""

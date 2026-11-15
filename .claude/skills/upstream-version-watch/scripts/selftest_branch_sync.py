@@ -749,6 +749,47 @@ def test_branch_sync_delete_respects_excludes() -> None:
                    not ledger_alive and orphan_gone, (r.returncode, ledger_alive, out[-400:]))
 
 
+def test_inline_json_locator() -> None:
+    """보조 런처(inline_json)는 ① 스크립트 옆 → ② 주 작업 트리 → ③ fail-closed. 대상 루트는 바뀌지 않는다."""
+    with tempfile.TemporaryDirectory(prefix="ij_locator_") as t:
+        root = Path(t)
+        sb = Sandbox(root)
+        env = {k: v for k, v in sb.env.items() if k != "EASY_VLLM_UPSTREAM_RUNTIME_ROOT"}
+        main = root / "main"
+        (main / UVW).mkdir(parents=True)
+        sb.git(main, "init", "-q", "-b", "single-node")
+        shutil.copy2(REAL / SYNC_BRANCHES, main / SYNC_BRANCHES)
+        sb.git(main, "add", "-A")
+        sb.git(main, "commit", "-qm", "base")
+        wt = root / "wt"
+        sb.git(main, "worktree", "add", "-q", "-b", "other", str(wt))
+        marker = root / "ij_called"
+
+        def argv(repo: Path) -> list[str]:
+            return ["bash", str(repo / SYNC_BRANCHES), "--from", "single-node", "--mode", "experimental"]
+
+        def go(repo: Path) -> subprocess.CompletedProcess:
+            return subprocess.run(argv(repo), capture_output=True, text=True, cwd=str(repo), env=env, timeout=120)
+
+        r = go(wt)   # 어디에도 런처 없음
+        ck("IJ③ 둘 다 없으면 fail-closed(종료 3 · 설명 메시지 · Python 폴백 없음)",
+           r.returncode == 3 and "inline_json" in r.stderr, (r.returncode, r.stderr[-300:]))
+
+        # 주 작업 트리에만 런처+ELF 를 둔다(추적 밖 산출물)
+        (main / UVW / "inline_json.sh").write_text(f'#!/bin/bash\necho "$@" >> "{marker}"\nexit 0\n', encoding="utf-8")
+        (main / UVW / "inline_json.sh").chmod(0o755)
+        elf = main / ".claude/skills/upstream-version-watch/rust/runtime/target/release/inline_json"
+        elf.parent.mkdir(parents=True)
+        elf.write_bytes(b"\x7fELF")
+        elf.chmod(0o755)
+        r = go(wt)
+        used = marker.is_file()
+        ck("IJ② 런처 없는 작업 트리 사본은 주 작업 트리의 런처를 쓴다",
+           used and "FAIL: inline_json" not in r.stderr, (r.returncode, r.stderr[-300:], used))
+        ck("IJ② 대상 루트는 스크립트 위치(작업 트리) 그대로 — 주 작업 트리로 바뀌지 않는다",
+           "FAIL: --from 과 대상이 같은 브랜치" not in r.stderr, r.stderr[-300:])
+
+
 def _extract_shell(text: str, names: tuple[str, ...], arrays: tuple[str, ...]) -> str:
     """배포되는 sync_to_sub.sh 의 **바이트 그대로** 함수·배열 정의만 뽑는다(대역 재작성 ✗)."""
     parts: list[str] = []
@@ -833,7 +874,7 @@ def main() -> int:
             print(f"[selftest_branch_sync] FAIL: 검사 대상이 없다: {rel}", file=sys.stderr)
             return 1
     for test in (test_sync_to_sub_guard, test_render_guard, test_closing_sequence,
-                 test_branch_sync_delete_respects_excludes, test_b0_build_slot_scaffold_checksum_scope):
+                 test_branch_sync_delete_respects_excludes, test_inline_json_locator, test_b0_build_slot_scaffold_checksum_scope):
         try:
             test()
         except Exception as exc:  # noqa: BLE001 -- 픽스처 구성 실패도 FAIL 로 센다(침묵 통과 ✗)
