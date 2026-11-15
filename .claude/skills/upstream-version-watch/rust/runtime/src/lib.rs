@@ -35,6 +35,7 @@ pub mod main_cmd;
 pub mod judge_delta;
 pub mod native_triplet;
 pub mod render_dockerfile;
+pub mod render_template;
 pub mod manifest;
 pub mod ngc_api;
 pub mod ngc_cli;

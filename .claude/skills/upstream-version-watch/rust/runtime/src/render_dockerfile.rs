@@ -2,8 +2,8 @@
 //! (`--materialize-configs`, `--materialize-env`) and the env-key tier judgement (`env_tier`, exposed here as the new `--env-tier KEY`;
 //! the original has no such command line option — it is an in-process function for `slave_forward`).
 //!
-//! Not ported (exit status 2 with a message, the caller keeps using `render_dockerfile.py` for them): `--self-test`, `--canonical-kind`,
-//! `--template`/`--resolved` (the Dockerfile / compose template render with the source-build guard and the Flag gate).
+//! Unit B (`--canonical-kind`, `--template`/`--resolved`: the template render with the source-build guard, the build-ledger stanza and the
+//! Flag gate) lives in `render_template`. Not ported (exit status 2 with a message, the caller keeps using `render_dockerfile.py`): `--self-test`.
 //! An exception the original leaves uncaught (a Python traceback, status 1) is reported as `<Class>: <message>` on stderr with status 1;
 //! the traceback frames are not reproduced.
 
@@ -97,7 +97,7 @@ pub enum V {
 }
 
 impl V {
-    fn from_py(value: &PyValue) -> V {
+    pub(crate) fn from_py(value: &PyValue) -> V {
         match value.peel() {
             PyValue::None => V::None,
             PyValue::Bool(b) => V::Bool(*b),
@@ -114,7 +114,7 @@ impl V {
         }
     }
 
-    fn truthy(&self) -> bool {
+    pub(crate) fn truthy(&self) -> bool {
         match self {
             V::None => false,
             V::Bool(b) => *b,
@@ -127,7 +127,7 @@ impl V {
     }
 
     /// Python `str(value)`.
-    fn py_str(&self) -> String {
+    pub(crate) fn py_str(&self) -> String {
         match self {
             V::None => "None".into(),
             V::Bool(true) => "True".into(),
@@ -140,14 +140,14 @@ impl V {
         }
     }
 
-    fn py_repr(&self) -> String {
+    pub(crate) fn py_repr(&self) -> String {
         match self {
             V::Str(s) => py_repr_str(s),
             other => other.py_str(),
         }
     }
 
-    fn get(&self, key: &str) -> Option<&V> {
+    pub(crate) fn get(&self, key: &str) -> Option<&V> {
         match self {
             V::Dict(d) => d.iter().find(|(k, _)| k == key).map(|(_, v)| v),
             _ => None,
@@ -155,7 +155,7 @@ impl V {
     }
 }
 
-fn py_repr_str(s: &str) -> String {
+pub(crate) fn py_repr_str(s: &str) -> String {
     let quote = if s.contains('\'') && !s.contains('"') { '"' } else { '\'' };
     let mut out = String::new();
     out.push(quote);
@@ -186,11 +186,11 @@ pub struct Raised {
     pub message: String,
 }
 
-fn value_error<T>(message: String) -> Result<T, Raised> {
+pub(crate) fn value_error<T>(message: String) -> Result<T, Raised> {
     Err(Raised { class: "ValueError", message })
 }
 
-fn key_error<T>(message: String) -> Result<T, Raised> {
+pub(crate) fn key_error<T>(message: String) -> Result<T, Raised> {
     // `str(KeyError(msg))` is `repr(msg)`
     Err(Raised { class: "KeyError", message: py_repr_str(&message) })
 }
@@ -307,7 +307,7 @@ pub fn build_nccl_env(manifest: &V) -> Result<Env, Raised> {
     Ok(env)
 }
 
-fn type_name(v: &V) -> &'static str {
+pub(crate) fn type_name(v: &V) -> &'static str {
     match v {
         V::None => "NoneType",
         V::Bool(_) => "bool",
@@ -496,7 +496,7 @@ pub fn env_tier(key: &str) -> Result<(&'static str, Option<String>), Raised> {
     Ok(("unknown", None))
 }
 
-fn json_string(text: &str) -> String {
+pub(crate) fn json_string(text: &str) -> String {
     let mut out = String::from("\"");
     for c in text.chars() {
         match c {
@@ -520,7 +520,7 @@ fn json_string(text: &str) -> String {
 
 // ── materializers ──────────────────────────────────────────────────────────────────────────────────
 
-fn os_error(prefix: &str, error: &std::io::Error, path: &Path) -> Raised {
+pub(crate) fn os_error(prefix: &str, error: &std::io::Error, path: &Path) -> Raised {
     let (class, errno) = match error.kind() {
         std::io::ErrorKind::NotFound => ("FileNotFoundError", 2),
         std::io::ErrorKind::PermissionDenied => ("PermissionError", 13),
@@ -528,7 +528,7 @@ fn os_error(prefix: &str, error: &std::io::Error, path: &Path) -> Raised {
         _ => ("OSError", error.raw_os_error().unwrap_or(5)),
     };
     let _ = prefix;
-    Raised { class, message: format!("[Errno {errno}] {error}: {}", py_repr_str(&path.to_string_lossy())) }
+    Raised { class, message: format!("[Errno {errno}] {}: {}", error.to_string().split(" (os error").next().unwrap_or_default(), py_repr_str(&path.to_string_lossy())) }
 }
 
 fn materialize_configs(skill_root: &Path, repo: &Path, topology: &str) -> Result<Vec<PathBuf>, Raised> {
@@ -640,7 +640,12 @@ pub fn spec() -> Spec {
     }
 }
 
-fn report(raised: Raised) -> i32 {
+pub(crate) fn report(raised: Raised) -> i32 {
+    if raised.class == "SystemExit" {
+        // `raise SystemExit("text")`: the text alone on stderr, status 1
+        gate_cli::write_err(&format!("{}\n", raised.message));
+        return 1;
+    }
     gate_cli::write_err(&format!("{}: {}\n", raised.class, raised.message));
     1
 }
@@ -720,8 +725,8 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
             gate_cli::write_err(&format!("[render] materialize env → {}\n", env_path.display()));
             return Ok(0);
         }
-        if gate_cli::text(&values, "canonical_kind").is_some() || gate_cli::text(&values, "template").is_some() {
-            return Ok(not_ported("--canonical-kind/--template"));
+        if let Some(status) = crate::render_template::run_render(&values, &scripts, &manifest_path, gate_cli::flag(&values, "allow_unvalidated"))? {
+            return Ok(status);
         }
         Ok(not_ported("the default self-test"))
     })();
@@ -733,7 +738,7 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
 
 fn not_ported(what: &str) -> i32 {
     gate_cli::write_err(&format!(
-        "[render] NOT PORTED: {what} is not in the Rust render_dockerfile yet (unit B) — run render_dockerfile.py for it\n"
+        "[render] NOT PORTED: {what} is not in the Rust render_dockerfile yet — run render_dockerfile.py for it\n"
     ));
     2
 }

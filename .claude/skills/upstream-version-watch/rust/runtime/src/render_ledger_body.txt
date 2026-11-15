@@ -1,0 +1,156 @@
+import hashlib, json, os, platform, re, subprocess
+from importlib import metadata
+ROOT = os.environ.get("EASY_VLLM_LEDGER_ROOT") or "/opt/easy-vllm"
+D = os.path.join(ROOT, "ledger.d")
+ARGS = __EASY_VLLM_LEDGER_ARGS__
+DOCKERFILE = __EASY_VLLM_LEDGER_DOCKERFILE__
+PATCH_DIRS = {"pre": "/tmp/build_patches_src", "post": "/tmp/build_patches"}
+SLOTS = (("pre", "build_patch_pre"), ("post", "build_patch_post"))
+VLLM_SRC = "/workspace/vllm-src"
+SKIP_TOKEN = re.compile(r"(\] skip —|— skip\b|— skip\()")
+TRIGGER = re.compile(r"^#\s*model-trigger\s*:\s*(.+?)\s*$", re.M)
+STATUS = re.compile(r"^(applied|skipped)\t(.*)$")
+errors = {}
+def _read(path):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            return fh.read()
+    except OSError:
+        return None
+def _sha256(path):
+    try:
+        with open(path, "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except OSError:
+        return None
+def _run(key, *cmd):
+    try:
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        errors[key] = type(exc).__name__
+        return None
+    if proc.returncode != 0:
+        errors[key] = "rc=%d %s" % (proc.returncode, (proc.stderr or "").strip()[-200:])
+        return None
+    return proc.stdout
+def _dist(name):
+    try:
+        return metadata.version(name)
+    except metadata.PackageNotFoundError:
+        errors["dist:" + name] = "not-installed"
+        return None
+def _status(path):
+    text = _read(path)
+    if text is None:
+        return None, None
+    lines = text.splitlines()
+    line = lines[0] if lines else ""
+    m = STATUS.match(line)
+    if m:
+        return (m.group(1), m.group(2).strip() or None), None
+    return None, "형식 밖 상태 줄: %r" % line[:120]
+def _listing():
+    return sorted(os.listdir(D)) if os.path.isdir(D) else []
+def _patch_rows(phase):
+    rows = []
+    head = phase + "."
+    for entry in _listing():
+        if not (entry.startswith(head) and entry.endswith(".rc")):
+            continue
+        name = entry[len(head):-len(".rc")]
+        base = os.path.join(D, head + name)
+        rc = (_read(base + ".rc") or "").strip()
+        row = {"phase": phase, "file": name,
+               "exit_code": int(rc) if rc.lstrip("-").isdigit() else None,
+               "script_sha256": (_read(base + ".sha256") or "").strip() or None,
+               "log_tail_sha256": _sha256(base + ".log")}
+        status, err = _status(base + ".status")
+        if err:
+            row["status_file_error"] = err
+        if status:
+            row.update(result=status[0], reason=status[1], result_source="status-file")
+        else:
+            log = _read(base + ".log") or ""
+            hit = next((ln.strip() for ln in log.splitlines() if SKIP_TOKEN.search(ln)), None)
+            if hit:
+                row.update(result="skipped", reason=hit, result_source="log-token")
+            else:
+                row.update(result="applied", reason=None, result_source="exit-code")
+        m = TRIGGER.search(_read(os.path.join(PATCH_DIRS[phase], name)) or "")
+        row["declared_model_trigger"] = m.group(1) if m else None
+        rows.append(row)
+    return rows
+def _inline_rows():
+    rows = []
+    for entry in _listing():
+        if not (entry.startswith("inline.") and entry.endswith(".status")):
+            continue
+        status, err = _status(os.path.join(D, entry))
+        row = {"phase": "inline", "file": entry[len("inline."):-len(".status")], "exit_code": None,
+               "script_sha256": None, "log_tail_sha256": None, "declared_model_trigger": None}
+        if status:
+            row.update(result=status[0], reason=status[1], result_source="status-file")
+        else:
+            row.update(result="unobserved", reason=err, result_source="none")
+        rows.append(row)
+    return rows
+base = {"source": {}}
+for field, env_name in (("ngc_pytorch_version", "NVIDIA_PYTORCH_VERSION"),
+                        ("pytorch_build_version", "PYTORCH_BUILD_VERSION")):
+    if env_name in ARGS:
+        base[field] = None
+        base["source"][field] = "shadowed-by-ARG:" + env_name
+    else:
+        base[field] = os.environ.get(env_name) or None
+        base["source"][field] = "base-image ENV " + env_name
+cuda_text = _read("/usr/local/cuda/version.json")
+base["cuda_version"] = None
+if cuda_text:
+    try:
+        base["cuda_version"] = (json.loads(cuda_text).get("cuda") or {}).get("version")
+    except ValueError:
+        errors["cuda_version_json"] = "unparsable"
+else:
+    errors["cuda_version_json"] = "absent"
+base["source"]["cuda_version"] = "/usr/local/cuda/version.json"
+vllm = {"git_sha": None, "describe": None, "dist_version": _dist("vllm"), "direct_url": None}
+if os.path.isdir(os.path.join(VLLM_SRC, ".git")):
+    out = _run("vllm_git_sha", "git", "-C", VLLM_SRC, "rev-parse", "HEAD")
+    vllm["git_sha"] = out.strip() if out else None
+    out = _run("vllm_describe", "git", "-C", VLLM_SRC, "describe", "--tags", "--match", "v*")
+    vllm["describe"] = out.strip() if out else None
+try:
+    direct = metadata.distribution("vllm").read_text("direct_url.json")
+    vllm["direct_url"] = json.loads(direct) if direct else None
+except (metadata.PackageNotFoundError, ValueError):
+    pass
+inventory = {}
+for phase, slot in SLOTS:
+    text = _read(os.path.join(D, phase + ".inventory"))
+    if text is not None:
+        inventory[slot] = sorted(x for x in text.splitlines() if x)
+os.makedirs(ROOT, exist_ok=True)
+freeze = _run("pip_freeze", "python3", "-m", "pip", "freeze", "--all")
+if freeze is not None:
+    with open(os.path.join(ROOT, "pip-freeze.txt"), "w", encoding="utf-8") as fh:
+        fh.write(freeze)
+patches = _patch_rows("pre") + _patch_rows("post") + _inline_rows()
+ledger = {
+    "schema_version": 1, "kind": "easy_vllm_build_ledger",
+    "provenance": "measured(build-time, in-image)",
+    "dockerfile": DOCKERFILE,
+    "track": "source-build" if DOCKERFILE.startswith("Dockerfile.source-build") else "wheel",
+    "build_args": {k: os.environ.get(k) for k in ARGS},
+    "base": base, "vllm": vllm, "torch": {"dist_version": _dist("torch")},
+    "cpu_arch": platform.machine(),
+    "slots_supported": sorted(inventory), "context_inventory": inventory,
+    "patches": patches,
+    "requirements_sha256": _sha256("/tmp/requirements.txt"),
+    "pip_freeze_sha256": hashlib.sha256(freeze.encode("utf-8")).hexdigest() if freeze is not None else None,
+    "errors": errors,
+}
+path = os.path.join(ROOT, "build_ledger.json")
+with open(path, "w", encoding="utf-8") as fh:
+    json.dump(ledger, fh, ensure_ascii=False, indent=1, sort_keys=True)
+    fh.write("\n")
+print("[build-ledger] %s — patches=%d slots=%s errors=%s" % (path, len(patches), sorted(inventory), sorted(errors)))
