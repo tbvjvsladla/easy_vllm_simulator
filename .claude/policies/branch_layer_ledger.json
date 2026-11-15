@@ -15091,6 +15091,29 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261115-single-to-multi-c50-4th-f857616",
+      "utc": "2026-11-15T12:28:50Z",
+      "departure": "single-node",
+      "departure_commit": "f857616a0f8192b4161f8903e605b4eafab38637",
+      "approved_by": "user: None · 상시 승인 plan docs/plan/plan_26111522_Rust_이식_캠페인_상시_동기화배달_승인.md 와 work-manifest camp261115_rust_repack_standing(authorize 허가)",
+      "approved_utc": "None",
+      "_reach": "캠페인 rust-repack-261115 c50 4차 동기화: sync_branches --apply 2경로(출발 f857616a · 동기화 커밋 aeef1c42). verify_distribution 1회 PASS · build_rust_packages.sh rc 0(parity 결함 해소).",
+      "classification": [
+        {
+          "file": ".claude/skills/terraforming_node/scripts/build_rust_packages.sh",
+          "verdict": "common_promote",
+          "reason": "sync_branches allowlist 공통층 경로 — 4차 단일→멀티 동기화(c2j 수리)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "sync_branches allowlist 공통층 경로 — 4차 단일→멀티 동기화(c2j 수리)",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
