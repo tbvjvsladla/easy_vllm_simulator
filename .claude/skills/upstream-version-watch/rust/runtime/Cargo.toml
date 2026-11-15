@@ -134,6 +134,11 @@ path = "src/bin/regen_build_patches_src.rs"
 name = "check_smoke_model"
 path = "src/bin/check_smoke_model.rs"
 
+# The unchanged public command line of `render_native_triplet.py`: the deterministic Docker→native triplet render (dry run, `--apply`, `--check`, `--self-test`).
+[[bin]]
+name = "render_native_triplet"
+path = "src/bin/render_native_triplet.rs"
+
 [[bin]]
 name = "upstream_role_api"
 path = "src/bin/upstream_role_api.rs"
