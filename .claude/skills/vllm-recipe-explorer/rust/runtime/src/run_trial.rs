@@ -1,7 +1,7 @@
 //! The pure part of `scripts/run_trial.py` (single-trial runner): the `vllm serve` argument list, the `docker run -d` command, the
 //! emit audit, the `docker inspect` state parser, the host-floor gmu cap, the mock/dry-run result and the health poll with its
 //! container-liveness check. The session part (a real docker run: memory watchdog, budget declaration, functional smoke, log
-//! capture) is NOT ported here; the command line stops with status 2 on that path (see `run_trial_cli`).
+//! capture) lives in `run_trial_session`.
 
 use crate::pyexpr::{float_of, get, int_of, is_none, Res};
 use agent_runtime_support::failure::Failure;

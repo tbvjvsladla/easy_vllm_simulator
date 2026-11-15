@@ -1,5 +1,5 @@
 //! The command line of `scripts/run_trial.py` (`_main`): `--self-test` and the docker-free paths (`--dry-run`, `--mock-profile`)
-//! are ported; the real docker session (watchdog, budget declaration, smoke, log capture) is not, and stops with status 2.
+//! are ported; the real docker session lives in `run_trial_session` (its two Python-owned neighbours stop it with status 2).
 //! Program name in usage and help is the original `.py` name.
 
 use crate::cli::{dumps, load_json, println_text, Run};
@@ -106,11 +106,7 @@ pub fn run_trial_main(args: &[PyStr], columns: Option<&str>) -> Run {
     let dry_run = values.contains_key("dry_run");
     let mock_path = text_of(&values, "mock_profile").filter(|p| !p.is_empty());
     if !dry_run && mock_path.is_none() {
-        return single(
-            2,
-            PyStr::default(),
-            PyStr::new("[run_trial] 미이식: 실서빙 경로(docker 세션 · 워치독 · 예산 선언 · 스모크)는 아직 Rust 로 옮기지 않았다(run_trial.py 가 원본 · 세션부 이식 대기). --dry-run/--mock-profile 만 동작한다.\n"),
-        );
+        return real_main(&values, &candidate_path.unwrap(), &simlog_dir.unwrap());
     }
     match mock_main(&values, &candidate_path.unwrap(), &simlog_dir.unwrap(), mock_path) {
         Ok(run) => run,
@@ -159,4 +155,66 @@ fn mock_main(
     let result = mock_result(&candidate, trial_number, profile, functional, &log_path, provenance)?;
     let text = println_text(dumps(&result)?);
     Ok(single(0, text, PyStr::default()))
+}
+
+fn int_opt(values: &std::collections::BTreeMap<&'static str, Value>, dest: &str) -> Option<i64> {
+    match values.get(dest) {
+        Some(Value::Int(n)) => n.to_string().parse().ok(),
+        _ => None,
+    }
+}
+
+fn float_opt(values: &std::collections::BTreeMap<&'static str, Value>, dest: &str) -> Option<f64> {
+    match values.get(dest) {
+        Some(Value::Float(f)) => Some(*f),
+        _ => None,
+    }
+}
+
+/// The real docker session: the grounding/budget gates first (they stop before the candidate is even read, as the original's
+/// backstop does), then the session, then the same JSON print as the original.
+fn real_main(
+    values: &std::collections::BTreeMap<&'static str, Value>,
+    candidate_path: &PyStr,
+    simlog_dir: &PyStr,
+) -> Run {
+    use crate::run_trial_session::{pre_session_gates, repo_root, run_session, SessionError, SessionOpts};
+    let opts = SessionOpts {
+        image: text_of(values, "image"),
+        timeout: float_opt(values, "timeout"),
+        port: int_opt(values, "port"),
+        smoke_timeout: float_opt(values, "smoke_timeout"),
+        served_model_name: text_of(values, "served_model_name"),
+        container_name: text_of(values, "container_name").filter(|c| !c.is_empty()),
+        nas_mount: text_of(values, "nas_mount").filter(|c| !c.is_empty()),
+        tiktoken_host_path: text_of(values, "tiktoken_host_path").filter(|c| !c.is_empty()),
+        manifest: text_of(values, "manifest"),
+        budget_node_dir: text_of(values, "budget_node_dir"),
+        model_host_path: text_of(values, "model_host_path"),
+        tp: int_opt(values, "tp").filter(|t| *t != 0),
+        overhead_mib: int_opt(values, "overhead_mib").filter(|t| *t != 0),
+        no_budget: values.contains_key("no_budget"),
+        ..SessionOpts::default()
+    };
+    if let Err(stop) = pre_session_gates(&repo_root(), &opts) {
+        return match stop {
+            SessionError::Stop { status, text } => single(status, PyStr::default(), PyStr::new(&text)),
+            SessionError::Failure(f) => uncaught(&f),
+        };
+    }
+    let outcome = (|| -> Result<Run, SessionError> {
+        let candidate = load_json(candidate_path)?;
+        if let Ok(bytes) = simlog_dir.to_surrogateescape_bytes() {
+            use std::os::unix::ffi::OsStringExt;
+            let _ = std::fs::create_dir_all(std::ffi::OsString::from_vec(bytes));
+        }
+        let trial_number = int_opt(values, "trial_number").unwrap_or(1);
+        let result = run_session(&candidate, simlog_dir, trial_number, &opts)?;
+        Ok(single(0, println_text(dumps(&result)?), PyStr::default()))
+    })();
+    match outcome {
+        Ok(run) => run,
+        Err(SessionError::Stop { status, text }) => single(status, PyStr::default(), PyStr::new(&text)),
+        Err(SessionError::Failure(f)) => uncaught(&f),
+    }
 }

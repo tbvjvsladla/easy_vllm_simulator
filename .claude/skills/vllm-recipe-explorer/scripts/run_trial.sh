@@ -1,5 +1,5 @@
 #!/bin/bash
-# run_trial.py: --self-test and --dry-run/--mock-profile (Rust). The real docker session path is not ported (status 2). Direct normal ELF startup; no install/build/download or Python business fallback.
+# run_trial.py: --self-test, --dry-run/--mock-profile and the real docker session (Rust; the session stops with status 2 before docker when an active campaign needs the grounding backstop or the budget declaration is not --no-budget — both owners are still Python). Direct normal ELF startup; no install/build/download or Python business fallback.
 set -euo pipefail
 SCRIPT_PATH=${BASH_SOURCE[0]}
 case "$SCRIPT_PATH" in */*) SCRIPT_DIR=${SCRIPT_PATH%/*}; [ -n "$SCRIPT_DIR" ] || SCRIPT_DIR=/ ;; *) SCRIPT_DIR=. ;; esac

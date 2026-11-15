@@ -67,6 +67,7 @@ pub mod recipe_set;
 pub mod rope_translate;
 pub mod run_trial;
 pub mod run_trial_cli;
+pub mod run_trial_session;
 pub mod simlog;
 pub mod simlog_api;
 pub mod simlog_bench;
