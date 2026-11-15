@@ -15074,6 +15074,23 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261115-single-to-multi-c50-3rd-58956cc",
+      "utc": "2026-11-15T12:07:32Z",
+      "departure": "single-node",
+      "departure_commit": "58956cc6e6fdf01cf5df02ed2b20f23a18d6aa4c",
+      "approved_by": "user: None · 서명 plan docs/plan/plan_26111521_Rust_이식_3차동기화_양서브_parity배달_승인.md 와 work-manifest camp261115_rust_repack_sync3(authorize 허가)",
+      "approved_utc": "None",
+      "_reach": "캠페인 rust-repack-261115 c50 3차 동기화: sync_branches --apply 1경로(출발 58956cc6 · 동기 지점 94cc72bd). verify_distribution 1회 PASS. build_rust_packages.sh 는 정본의 parity --lib 결함으로 끝에서 rc 101(2차와 동일 · 나머지 패키지 빌드 성공).",
+      "classification": [
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "sync_branches allowlist 공통층 경로 — 3차 단일→멀티 동기화(양 서브 parity 배달 설계)",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
