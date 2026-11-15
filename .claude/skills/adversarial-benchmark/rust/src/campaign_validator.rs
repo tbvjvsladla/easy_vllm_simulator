@@ -1239,3 +1239,83 @@ pub fn hint_target_reasons(doc: &PyDict) -> Vec<String> {
     }
     problems
 }
+
+// ── --selftest ───────────────────────────────────────────────────────────────────────────────
+
+/// `campaign_template_validator --selftest` of the native program: the verdicts of P1-P6, the declaration checks and the
+/// schema engine on a scratch checkout. Exit 0 and a final `PASS` mean every check held.
+pub fn selftest(io: &mut Sinks<'_>) -> i32 {
+    let mut ok = true;
+    let mut check = |io: &mut Sinks<'_>, label: &str, cond: bool| {
+        let _ = writeln!(io.out, "{}{label}", if cond { "  PASS " } else { "  FAIL " });
+        ok &= cond;
+    };
+    let root = std::env::temp_dir().join(format!("campaign-validator-selftest-{}-{:?}", std::process::id(), std::thread::current().id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let put = |rel: &str, text: &str| {
+        let path = root.join(rel);
+        if let Some(parent) = path.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+        let _ = std::fs::write(path, text);
+    };
+    let ctx = Ctx { root: root.clone() };
+    let decl = "{\"id\": \"c\", \"nodes\": [{\"node_id\": \"main\", \"role\": \"main\"}, {\"node_id\": \"sub\", \"role\": \"sub\"}], \"assignments\": {\"main\": [{\"cell\": \"c1\"}], \"sub\": [{\"cell\": \"s1\"}]}}";
+    put("campaigns/c/campaign.yaml", decl);
+    let inst = root.join("campaigns/c");
+
+    check(io, "P3: 선언된 노드의 진행표가 없으면 사유로 센다", predicate_p3(&inst).len() == 2);
+    put("campaigns/c/phases/main/bench.status.json", "{\"first_started_utc\": \"2026-01-01T01:00:00Z\"}");
+    put("campaigns/c/phases/sub/bench.status.json", "{\"authored_by\": \"main\", \"ended_utc\": \"T\"}");
+    check(io, "★P3 진행표가 있으면 통과", predicate_p3(&inst).is_empty());
+    check(io, "★P5 메인이 서브 진행표를 적었으면 적색", predicate_p5(&inst, &[]).iter().any(|p| p.contains("메인이 서브의 진행표를 적었다")));
+    check(io, "P4 서브 빌드 원장이 없으면 적색", predicate_p4(&inst).iter().any(|p| p.contains("빌드 context 원장이 없다")));
+    put("campaigns/c/relay/l.json", "{\"campaign_node\": \"sub\", \"campaign_context_kind\": \"build\", \"attempts\": [{\"started_utc\": \"2026-01-01T02:00:00Z\"}]}");
+    check(io, "★P4 서브 지시서가 메인 첫 착수보다 늦으면 적색", predicate_p4(&inst).iter().any(|p| p.contains("보다 늦다")));
+    put("campaigns/c/relay/l.json", "{\"campaign_node\": \"sub\", \"campaign_context_kind\": \"build\", \"attempts\": [{\"started_utc\": \"2026-01-01T00:30:00Z\"}]}");
+    check(io, "P4 서브 지시서가 먼저 나갔으면 통과", predicate_p4(&inst).is_empty());
+    let (problems, notes) = p6_observations(&ctx, &inst);
+    check(io, "P6 관측 가능한 셀의 lockset 부재는 적색, 서브 셀은 관측 대상 밖 기재", problems.len() == 1 && notes.len() == 1);
+    put("campaigns/c/cells/c1/lockset.json", "{\"provenance\": \"hand-authored\", \"gmu_source\": \"odd\"}");
+    let (problems, notes) = p6_observations(&ctx, &inst);
+    check(io, "★P6 손작성 표시는 통과, 노브 출처 어휘 밖 값은 적색이 아니라 기재", problems.is_empty() && notes.iter().any(|n| n.contains("gmu_source")));
+
+    put("campaigns/c/sweeps/s.json", "{\"cells\": [{\"cell_key\": \"c1\", \"cell_outcome\": \"measured\"}]}");
+    check(io, "P1 sweep 은 measured 인데 cell.status 가 없으면 적색", predicate_p1(&ctx, &inst).iter().any(|p| p.contains("cell.status.json 이 없다")));
+    put("campaigns/c/cells/c1/cell.status.json", "{\"cell_outcome\": \"pending\"}");
+    check(io, "★P1 sweep 과 cell.status 가 갈라지면 적색", predicate_p1(&ctx, &inst).iter().any(|p| p.contains("불일치")));
+    put("campaigns/c/evidence_pointers.json", "{\"pointers\": [{\"kind\": \"certificate\", \"path\": \"x\"}]}");
+    check(io, "★P2 노드 태그 없는 벤치 증거는 다노드 캠페인에서 적색(공허 통과 ✗)", predicate_p2(&inst).iter().any(|p| p.contains("노드 태그 없는 벤치 증거")));
+
+    let approval = |utc: &str, source: &str| {
+        let mut d = crate::pyvalue::PyDict::new();
+        d.set("approved_by", py("사람"));
+        d.set("approved_utc", py(utc));
+        d.set("source", py(source));
+        PyValue::Dict(d)
+    };
+    check(io, "hint 승인: 완결된 승인은 통과", hint_approval_reason(&approval("2026-01-01T00:00:00Z", "declaration-popup")).is_none());
+    check(io, "★hint 승인: 주입 시각 모양이 아니면 거부", hint_approval_reason(&approval("T", "declaration-popup")).is_some());
+    check(io, "★hint 승인: 출처 어휘 밖이면 거부", hint_approval_reason(&approval("2026-01-01T00:00:00Z", "zz")).is_some());
+    check(io, "★hint 승인: 반쪽 승인(approval 없음)은 승인이 아니다", hint_approval_reason(&PyValue::None).is_some());
+
+    let schema = agent_runtime_support::pyjson::loads("{\"type\": \"object\", \"required\": [\"a\"], \"properties\": {\"a\": {\"type\": \"integer\", \"minimum\": 1}}, \"additionalProperties\": false}").unwrap();
+    let verdict = |doc: &str| {
+        let d = agent_runtime_support::pyjson::loads(doc).unwrap();
+        agent_runtime_support::schema::validate_against_schema(&d, &schema).unwrap().into_iter().map(|(c, _)| c).collect::<Vec<_>>()
+    };
+    check(io, "스키마 엔진: 적합한 문서는 위반 0", verdict("{\"a\": 2}").is_empty());
+    check(io, "★스키마 엔진: 필수 키 부재·모르는 키·최소값 위반을 코드로 가른다", verdict("{\"b\": 1}") == ["SCHEMA_MISSING_REQUIRED_KEY:a", "SCHEMA_UNKNOWN_PROPERTY:b"] && verdict("{\"a\": 0}") == ["SCHEMA_MINIMUM_VIOLATION:a"]);
+    check(io, "★스키마 엔진: bool 은 integer 가 아니다", verdict("{\"a\": true}") == ["SCHEMA_TYPE_MISMATCH:a"]);
+
+    check(io, "뼈대가 없는 체크아웃은 뼈대 결손으로 적색", validate_template(&ctx).iter().any(|p| p.contains("뼈대 결손: campaigns/_template/campaign.schema.json")));
+    check(io, "★선언 부재는 위반 목록(예외 아님)", matches!(validate_campaign(&ctx, &root.join("none/campaign.yaml"), true), Ok(v) if v.len() == 1));
+
+    let _ = std::fs::remove_dir_all(&root);
+    let _ = writeln!(io.out, "[campaign_template_validator] {}", if ok { "PASS" } else { "FAIL" });
+    if ok {
+        0
+    } else {
+        1
+    }
+}

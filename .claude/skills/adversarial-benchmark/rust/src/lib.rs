@@ -30,6 +30,7 @@ pub mod campaign_read;
 pub mod campaign_init_help;
 pub mod campaign_validator;
 pub mod campaign_write;
+mod campaign_write_selftest;
 pub mod captured_process;
 pub mod classify_cell;
 pub mod classify_cell_api_cli;

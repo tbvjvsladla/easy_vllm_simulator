@@ -123,7 +123,7 @@ fn cell_set_records_gap_and_journey() {
 fn shapes_with_other_files_stay_with_the_owner() {
     let root = scratch("fallback");
     active(&root);
-    let (status, out, err) = call(&root, &["--selftest"]);
+    let (status, out, err) = call(&root, &["--assigned", "main"]);
     assert_eq!((status, out.as_str(), err.as_str()), (None, "", ""));
     assert!(!root.join("campaigns/camp-a/cells").exists());
 }
@@ -613,4 +613,12 @@ fn a_sub_instance_takes_docs_evidence_only_for_its_own_node_and_cell() {
     let (status, _, err) = add("campaigns/camp-s/campaign.yaml", "s1");
     assert_eq!(status, Some(1));
     assert!(err.contains("서브 evidence claim은 docs 아래의 유효 kind/상대경로여야 한다"), "{err}");
+}
+
+#[test]
+fn the_native_selftest_holds() {
+    let root = scratch("selftest");
+    let (status, out, err) = call(&root, &["--selftest"]);
+    assert_eq!(status, Some(0), "{out}\n{err}");
+    assert!(out.ends_with("[campaign_init] PASS\n") && !out.contains("  FAIL "), "{out}");
 }

@@ -41,6 +41,11 @@ fn main() -> ExitCode {
     let args: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
     let owner = std::env::var_os(OWNER_ENV).filter(|v| !v.is_empty());
     let explicit = std::env::var_os("CAMPAIGN_VALIDATOR_PYTHON").filter(|v| !v.is_empty());
+    if explicit.is_none() && args.len() == 1 && args[0] == "--selftest" {
+        let (mut out, mut err) = (stdout().lock(), stderr().lock());
+        let status = sweep_stop::campaign_validator::selftest(&mut Sinks { out: &mut out, err: &mut err });
+        return ExitCode::from(u8::try_from(status).unwrap_or(1));
+    }
     if explicit.is_none() {
         if let (Some(owner), Some(request)) = (owner.as_ref(), parse(&args)) {
             if let Ok(site) = role_contract::campaign::module_site(owner.as_bytes()) {

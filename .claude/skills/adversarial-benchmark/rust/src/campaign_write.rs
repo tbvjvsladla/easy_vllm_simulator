@@ -6674,6 +6674,9 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     if let Some(outcome) = help(argv, io) {
         return outcome;
     }
+    if argv == ["--selftest"] {
+        return Outcome::Done(crate::campaign_write_selftest::selftest(io));
+    }
     let Some(args) = Args::parse(argv) else {
         return Outcome::Fallback;
     };

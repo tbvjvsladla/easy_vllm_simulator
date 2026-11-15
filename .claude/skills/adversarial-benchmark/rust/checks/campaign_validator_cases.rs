@@ -94,3 +94,12 @@ fn a_campaign_without_the_schema_engine_names_what_is_missing() {
     assert_eq!(status, 1);
     assert!(String::from_utf8(err).unwrap().contains("FAIL 스키마 엔진이 없다: .claude/policies/runtime/completion_gate.py"));
 }
+
+#[test]
+fn the_native_selftest_holds() {
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    let status = sweep_stop::campaign_validator::selftest(&mut Sinks { out: &mut out, err: &mut err });
+    let out = String::from_utf8(out).unwrap();
+    assert_eq!(status, 0, "{out}");
+    assert!(out.ends_with("[campaign_template_validator] PASS\n") && !out.contains("  FAIL "), "{out}");
+}
