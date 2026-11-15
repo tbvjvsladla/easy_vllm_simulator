@@ -212,6 +212,7 @@ RUNTIME_BLOCK_EXCLUDES = {
         "scripts/closing_sequence.sh",
         "scripts/layer_ledger.py",
         "scripts/push_branches.py",
+        "scripts/push_branches.sh",        # push_branches Rust 런처(c27) — 동상, 메인 전용
     ),
 }
 # 특화헌법(2026-09-12 · plan_26091210 A7 · policy BRANCH_CONSTITUTION_LAYERING). **명시 등록이 필요하다** —
