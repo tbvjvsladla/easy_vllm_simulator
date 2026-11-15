@@ -1,0 +1,13 @@
+usage: turn_budget.py [-h] [--max-turns MAX_TURNS]
+                      [--timeout-seconds TIMEOUT_SECONDS] [--source SOURCE]
+                      [--caps] [--self-test]
+
+턴 예산 선언 검증기(값의 소유자 ✗ — 부르는 쪽이 선언한다)
+
+options:
+  -h, --help            show this help message and exit
+  --max-turns MAX_TURNS
+  --timeout-seconds TIMEOUT_SECONDS
+  --source SOURCE       이 예산을 그렇게 정한 근거(필수)
+  --caps                요청 스키마가 가진 상한을 출력한다
+  --self-test

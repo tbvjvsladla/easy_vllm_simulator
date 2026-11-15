@@ -1,0 +1,6 @@
+{
+  "class": "source-build-class",
+  "matched_signature": "undefined symbol: .*",
+  "note": "폴백(같은 줄에 vllm 문맥 없음 — 위 vLLM-스코프 미매칭). 비-vLLM lib 의 undefined symbol 이면 build_patches 평면 재분류 + 해당 repo 확인 — 소스빌드-불가 단정 금지. evidence 라인의 .so 경로로 발원 lib(예 DeepGEMM/flashinfer 등 build_patches 설치물)를 먼저 식별할 것.",
+  "evidence": "OSError: /usr/lib/libother.so: undefined symbol: some_fn"
+}

@@ -1,0 +1,1 @@
+{"case":{"id":"S3-03-selftest","stage":"s3","entry":".claude/skills/terraforming_node/scripts/turn_budget.sh","orig":".claude/rust/parity/cases/shims/turn_budget.py","args":["--self-test"]},"orig_commit":"a6769be","tool":"parity 0.1.0","provenance":"measured","repo_root":"<REPO>","tmp_root":"/tmp/parity-o-S3-03-selftest-1802045-1794701940749060175"}

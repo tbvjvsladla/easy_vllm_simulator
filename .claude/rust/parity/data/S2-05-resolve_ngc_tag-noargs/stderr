@@ -1,0 +1,4 @@
+usage: resolve_ngc_tag.py [-h] [--arch ARCH] [--start START] [--months MONTHS]
+                          [--candidates CANDIDATES]
+                          torch_pin
+resolve_ngc_tag.py: error: the following arguments are required: torch_pin

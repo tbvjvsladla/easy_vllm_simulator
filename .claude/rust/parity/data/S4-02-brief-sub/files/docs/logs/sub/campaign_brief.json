@@ -1,0 +1,50 @@
+{
+ "authored_by": "sub",
+ "campaign_id": "camp-a",
+ "cells": [
+  {
+   "axis_citation": null,
+   "cell_id": "c1",
+   "cell_outcome": null,
+   "decode_tps_conc1": null,
+   "measurement_gap": null,
+   "mode": "AUTO",
+   "void_reason": null
+  },
+  {
+   "axis_citation": null,
+   "cell_id": "c2",
+   "cell_outcome": null,
+   "decode_tps_conc1": null,
+   "measurement_gap": null,
+   "mode": "AUTO",
+   "void_reason": null
+  }
+ ],
+ "evidence_pointer_count": 0,
+ "evidence_pointers": [],
+ "generated_utc": "2026-11-15T02:00:00Z",
+ "journey_tail": [],
+ "last_utc": null,
+ "lifecycle": {
+  "close_reason": null,
+  "interrupted_cells": [],
+  "last_transition_event": null,
+  "parent": null,
+  "state": "active"
+ },
+ "node_id": "sub",
+ "pending_cells": [
+  "c1",
+  "c2"
+ ],
+ "phases": {
+  "bench": null,
+  "build": null,
+  "publish": null,
+  "serve": null
+ },
+ "plan_ref": "docs/plan/p.md",
+ "schema_version": 1,
+ "self_role": null
+}

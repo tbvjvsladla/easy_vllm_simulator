@@ -1,0 +1,8 @@
+[spec-layout] STOP: 체크포인트의 spec 가중치가 **plain MTP 구조가 아니다**.
+  DSpark 전용 부품 검출: ['main_proj']
+  stock 의 MTP 모듈에는 이 부품들을 담을 슬롯이 없다 → 로드 중 KeyError 로 죽는다.
+  (num_nextn_predict_layers=1 이므로 stock 이 보는 블록은 mtp.0 인데,
+   하필 그 블록이 DSpark 전용 텐서를 가장 많이 가진 블록이다.)
+  → `method: mtp` 는 이 체크포인트에 **구조적으로 부적용**이다. `method: dspark`
+     (또는 그 경로를 여는 이미지 변종)로 가라. 근거: testlog_26081419 §2.4·§2.5.
+  이 판정은 로드 13분이 아니라 index.json 키 스캔으로 나왔다.

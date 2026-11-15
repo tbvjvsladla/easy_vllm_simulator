@@ -1,0 +1,22 @@
+{
+ "_state_enum": [
+  "pending",
+  "running",
+  "done",
+  "failed"
+ ],
+ "authored_by": null,
+ "cell_id": null,
+ "ended_utc": "2026-11-15T01:00:00Z",
+ "first_started_utc": null,
+ "node_id": "main",
+ "phase": "serve",
+ "proof": {
+  "ok": true,
+  "predicate": null,
+  "source": "fixture"
+ },
+ "schema_version": 1,
+ "started_utc": null,
+ "state": "done"
+}

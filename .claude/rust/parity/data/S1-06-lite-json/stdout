@@ -1,0 +1,23 @@
+{
+  "topology": "single",
+  "gen_tps": null,
+  "gen_src": null,
+  "cold_ttft_ms": null,
+  "kv_gib": null,
+  "engine": {
+    "kv_gib": null,
+    "kv_tokens": null,
+    "nontorch_gib": null,
+    "reserved_total_gib": null,
+    "weights_gib": null
+  },
+  "accept_len": null,
+  "accept_len_src": null,
+  "capacity": {
+    "main": {
+      "gpu": "N/A (통합메모리 nvidia-smi 미보고 · serve-log 분해 없음)",
+      "ram": "73.5 GiB (60%)"
+    }
+  },
+  "table": "| 메트릭 | 값 |\n|---|---|\n| gen tokens/sec (warm) | N/A |\n| cold-start TTFT | N/A |\n| GPU VRAM 점유 | N/A (통합메모리 nvidia-smi 미보고 · serve-log 분해 없음) |\n| KV cache 점유 | N/A (serve 로그 KV 라인 부재 — fail-soft) |\n| 시스템 RAM 점유 | 73.5 GiB (60%) |"
+}

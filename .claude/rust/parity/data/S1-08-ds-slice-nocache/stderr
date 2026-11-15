@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "<REPO>/.claude/skills/adversarial-benchmark/scripts/dataset_prep.py", line 286, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "<REPO>/.claude/skills/adversarial-benchmark/scripts/dataset_prep.py", line 282, in main
+    return {"prepare": cmd_prepare, "slice": cmd_slice, "synthetic-sidecar": cmd_synthetic_sidecar}[a.cmd](a)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<REPO>/.claude/skills/adversarial-benchmark/scripts/dataset_prep.py", line 149, in cmd_slice
+    meta = json.loads((cache / PREP_META).read_text(encoding="utf-8"))
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/pathlib.py", line 1029, in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/pathlib.py", line 1015, in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'cache/prepared_meta.json'

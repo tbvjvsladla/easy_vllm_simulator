@@ -1,0 +1,47 @@
+usage: verdict_rule.py [-h] [--measured MEASURED] [--roofline ROOFLINE]
+                       [--reference-tps REFERENCE_TPS]
+                       [--target-tps TARGET_TPS]
+                       [--authority {weak,explicit,explore}]
+                       [--tolerance TOLERANCE] [--spec-supported]
+                       [--spec-declared {on,off,unknown}]
+                       [--e-search {hit,empty,no}]
+                       [--node-vram-gib NODE_VRAM_GIB]
+                       [--balance-tol BALANCE_TOL] [--self-test] [--json]
+
+결정론 PASS/REFUTE 게이트
+
+options:
+  -h, --help            show this help message and exit
+  --measured MEASURED   parse_bench.py JSON
+  --roofline ROOFLINE   roofline.py JSON
+  --reference-tps REFERENCE_TPS
+                        E: 외부 현실-달성치(검증기 (b) 외부검색 산물). 유한 양수만 — 0/음수/NaN 은
+                        exit 2
+  --target-tps TARGET_TPS
+                        c: 사용자 선언 목표(백스톱). 유한 양수만 — 0/NULL 로 '게이트 미설정'을 표현하지 말
+                        것(그건 --authority explore 다)
+  --authority {weak,explicit,explore}
+                        루브릭 정본 권한(SKILL.md §2). weak(기본)=E>c>expected ·
+                        explicit=c>E>expected · explore=E>expected(c 칸
+                        부재·--target-tps 금지). explicit/explore 는 **사용자 HITL
+                        트리거** 시에만 — 에이전트 자기선언 금지. E 는 어느 쪽이든
+                        rubric.reference_E 로 보존.
+  --tolerance TOLERANCE
+                        PASS 허용오차(기본 15%, 0≤tol<1)
+  --spec-supported      모델이 speculative(MTP) 지원 — off 면 강제함수
+  --spec-declared {on,off,unknown}
+                        서빙 선언의 spec 축(sweep_index.meta.spec_declared 승계).
+                        off=R_fp(결손 아님) · on=R_token(accept_len 실측/명시 필수 —
+                        결손이면 NEEDS_RUBRIC+SPEC_ACCEPT_LEN_MISSING) ·
+                        unknown(기본 · 지문 없는 과거 sweep)=종전 measured.spec_on 보존
+  --e-search {hit,empty,no}
+                        외부검색(E) 상태: hit=시도·발견 / empty=시도·빈손 / no=미시도(기본). 출력에
+                        기록(판정 불변)
+  --node-vram-gib NODE_VRAM_GIB
+                        멀티노드 노드별 measured VRAM used(GiB), 쉼표구분(예: 60.1,66.8).
+                        밸런스 축(plan_26070809_47_07 §4.8) — 미지정 시 비활성(기존 decode-
+                        tps 판정 완전 보존).
+  --balance-tol BALANCE_TOL
+                        노드간 VRAM 밸런스 허용편차(기본 0.10=10%)
+  --self-test           결정론 자체검사(T1~T23) — 파일 입력 불요. 0=전부 통과 · 1=실패 나열
+  --json

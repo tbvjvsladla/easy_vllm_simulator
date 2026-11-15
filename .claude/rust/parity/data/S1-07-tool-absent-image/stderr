@@ -1,0 +1,2 @@
+[resolve_bench_tool] ABSENT localhost/parity-fixture-absent-image:0.0.1 가 이 노드에 없다. 자동 pull 하지 않는다(airgap-safe 불변식). 사전 스테이징:
+  docker pull localhost/parity-fixture-absent-image:0.0.1

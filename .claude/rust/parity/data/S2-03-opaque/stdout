@@ -1,0 +1,6 @@
+{
+  "class": "source-build-class",
+  "matched_signature": "No module named 'torch\\._opaque_base'",
+  "note": "NGC torch 가 vLLM wheel 기대보다 이른/다른 빌드(torch 2.11 alpha). 소스빌드 필요.",
+  "evidence": "ImportError: No module named 'torch._opaque_base'"
+}

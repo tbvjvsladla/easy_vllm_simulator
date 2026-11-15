@@ -1,0 +1,13 @@
+usage: bench_preset.py [-h] [--self-test] {validate,default,resolve} ...
+
+full-bench knob 프리셋 로더·해소기
+
+positional arguments:
+  {validate,default,resolve}
+    validate            프리셋 스키마 검증
+    default             knob 하나의 프리셋 기본값 → 'VALUE<US>PRESET' (검증 통과 뒤)
+    resolve             knob 해소 → KEY<US>VALUE 줄 + 기록 JSON
+
+options:
+  -h, --help            show this help message and exit
+  --self-test

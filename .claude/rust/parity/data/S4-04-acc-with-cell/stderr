@@ -1,0 +1,3 @@
+[campaign_template_validator] FAIL (2)
+  - P6 c1: lockset 부재: campaigns/camp-a/cells/c1/lockset.json — 셀 출처(provenance)를 말할 자리가 없다(셀 materialize 는 explorer 소관 · 손작성이면 provenance=hand-authored 로 표시)
+  - P6 c2: lockset 부재: campaigns/camp-a/cells/c2/lockset.json — 셀 출처(provenance)를 말할 자리가 없다(셀 materialize 는 explorer 소관 · 손작성이면 provenance=hand-authored 로 표시)

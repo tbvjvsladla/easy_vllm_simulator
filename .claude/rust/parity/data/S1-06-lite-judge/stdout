@@ -1,0 +1,13 @@
+| 메트릭 | 값 |
+|---|---|
+| gen tokens/sec (warm) | N/A |
+| cold-start TTFT | N/A |
+| GPU VRAM 점유 | N/A (통합메모리 nvidia-smi 미보고 · serve-log 분해 없음) |
+| KV cache 점유 | N/A (serve 로그 KV 라인 부재 — fail-soft) |
+| 시스템 RAM 점유 | 73.5 GiB (60%) |
+
+lite_verdict: measurement_path_failed (exit 6)
+  - cold: completed=0 ≠ 요청 1
+  - warm: completed=0 ≠ 요청 3
+  - 측정 뒤 health — 호스트 평면 200 · 클라이언트 평면 unreachable
+  - 서버는 살아 있는데 클라이언트가 도는 평면에서 닿지 않는다 — 측정 경로 불성립(하네스)

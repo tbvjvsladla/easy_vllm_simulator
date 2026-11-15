@@ -1,0 +1,7 @@
+| 메트릭 | 값 |
+|---|---|
+| gen tokens/sec (warm) | N/A |
+| cold-start TTFT | N/A |
+| GPU VRAM 점유 | N/A (통합메모리 nvidia-smi 미보고 · serve-log 분해 없음) |
+| KV cache 점유 | N/A (serve 로그 KV 라인 부재 — fail-soft) |
+| 시스템 RAM 점유 | 73.5 GiB (60%) |

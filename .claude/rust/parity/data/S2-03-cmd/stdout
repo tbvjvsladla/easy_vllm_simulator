@@ -1,0 +1,6 @@
+{
+  "class": "requirements-fixable",
+  "matched_signature": "([A-Za-z0-9_-]+): command not found",
+  "note": "누락 실행파일/패키지 → requirements.txt 추가 후 재빌드. 예: ray(멀티노드 분산 필수, wheel METADATA 미포함)→ray==2.48.0 추가(testlog_260607_8).",
+  "evidence": "bash: ninja: command not found"
+}

@@ -1,0 +1,14 @@
+{
+  "id": "dense-none-tp1",
+  "quantization": "none",
+  "max_model_len": 8192,
+  "gpu_memory_utilization": 0.85,
+  "weight_gib": 13.0385160446167,
+  "kv_gib": 0.0625,
+  "overhead_gib": 1.6391277313232422,
+  "estimated_total_gib": 17.34134561875287,
+  "headroom_gib": 78.65865438124713,
+  "gate_pass": true,
+  "kv_layers": 8,
+  "kv_layers_source": "num_hidden_layers"
+}

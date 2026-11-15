@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "id": "camp-b",
+  "plan_ref": "docs/plan/p.md",
+  "declared_utc": "<<FILL>>",
+  "nodes": [
+    {
+      "node_id": "<<FILL>>",
+      "role": "main",
+      "topology": "<<FILL>>",
+      "hw": "<<FILL>>"
+    }
+  ],
+  "matrix": {
+    "versions": [
+      "<<FILL>>"
+    ],
+    "models": [
+      "<<FILL>>"
+    ]
+  },
+  "assignments": {
+    "<<FILL>>": [
+      {
+        "cell": "<<FILL>>",
+        "mode": "AUTO"
+      }
+    ]
+  },
+  "budgets": {
+    "smoke_budget_overhead_mib": 0,
+    "ready_max_seconds": 0,
+    "repeats": 3
+  },
+  "control_variables": {
+    "model": "<<FILL>>",
+    "vllm_version": "<<FILL>>",
+    "topology": "single",
+    "target_gpu": "<<FILL>>"
+  },
+  "revisions": [],
+  "hint_targets": [],
+  "topology_sections": {
+    "single": {},
+    "multi": {}
+  }
+}

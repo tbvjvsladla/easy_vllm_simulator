@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "<REPO>/.claude/rust/parity/cases/shims/rank_recipes.py", line 18, in <module>
+    exec(compile(_SRC, _PATH, "exec"), {"__name__": "__main__", "__file__": _PATH})
+  File "<REPO>/.claude/skills/vllm-recipe-explorer/scripts/rank_recipes.py", line 249, in <module>
+    # Explicit native startup only; imported functions and dependency profile stay unchanged.
+             ^^^^^^^
+  File "<REPO>/.claude/skills/vllm-recipe-explorer/scripts/rank_recipes.py", line 226, in _main
+    with open(args.parsed, "r", encoding="utf-8") as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'absent.json'

@@ -1,0 +1,14 @@
+usage: resolve_ngc_tag.py [-h] [--arch ARCH] [--start START] [--months MONTHS]
+                          [--candidates CANDIDATES]
+                          torch_pin
+
+positional arguments:
+  torch_pin             예: 2.11.0
+
+options:
+  -h, --help            show this help message and exit
+  --arch ARCH           arm64 | amd64 (기본: 이 호스트 = arm64)
+  --start START         YY.MM (가장 최신 후보). newest→oldest 프로빙
+  --months MONTHS       --start 부터 거슬러 프로빙할 개월수
+  --candidates CANDIDATES
+                        명시 태그 목록(쉼표, newest-first)

@@ -1,0 +1,24 @@
+{
+  "delivery_plane": {
+    "source": "fail-closed:unevaluated",
+    "value": "dormant"
+  },
+  "identity_authority": null,
+  "manifest_path": "m.yaml",
+  "notes": [],
+  "rank": null,
+  "sub_mode": null,
+  "sub_present": false,
+  "tool_plane": {
+    "source": "fail-closed:unevaluated",
+    "value": []
+  },
+  "topology": null,
+  "violations": [
+    {
+      "code": "TOPOLOGY_UNKNOWN",
+      "field": "topology",
+      "message": "topology=None 는 선언 어휘 ['single', 'multi'] 밖이다 — 토폴로지는 인터뷰로만 확정된다(브랜치 추론 ✗ · SKILL.md §0.5.3)."
+    }
+  ]
+}

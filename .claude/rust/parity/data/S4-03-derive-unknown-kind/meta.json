@@ -1,0 +1,1 @@
+{"case":{"id":"S4-03-derive-unknown-kind","stage":"s4","entry":".claude/rust/parity/cases/shims/campaign_init.py","orig":".claude/rust/parity/cases/shims/campaign_init.py","args":["--derive","nosuchkind"]},"orig_commit":"a6769be","tool":"parity 0.1.0","provenance":"measured","repo_root":"<REPO>","tmp_root":"/tmp/parity-o-S4-03-derive-unknown-kind-1802045-1794701943153992034"}

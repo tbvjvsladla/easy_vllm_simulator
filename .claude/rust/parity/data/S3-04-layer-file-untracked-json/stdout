@@ -1,0 +1,51 @@
+{
+  "legs": {
+    "branch": {
+      "raw": "multi-node",
+      "source": "git symbolic-ref --short HEAD (fallback: rev-parse --abbrev-ref)",
+      "status": "ok",
+      "value": "multi"
+    },
+    "campaign": {
+      "detail": "campaign_init.py 를 적재하지 못했다 -- ACTIVE 해소 규약의 단일 권위가 없으면 이 다리는 판정하지 않는다",
+      "source": "campaigns/<ACTIVE>/campaign.yaml",
+      "status": "absent",
+      "value": null
+    },
+    "layer": {
+      "count": 0,
+      "files": [],
+      "source": "git ls-files -- *.topology.md (본문 자기선언)",
+      "status": "red",
+      "value": null
+    },
+    "manifest": {
+      "branch_verified": false,
+      "path": "output/multi/manifest.yaml",
+      "source": "output/<t>/manifest.yaml",
+      "status": "ok",
+      "terraforming_complete": true,
+      "value": "multi"
+    }
+  },
+  "legs_checked": 3,
+  "legs_judged": [
+    "branch",
+    "layer",
+    "manifest"
+  ],
+  "policy": "BRANCH_CONSTITUTION_LAYERING.C5",
+  "predicate": "topology_parity",
+  "reason_codes": [
+    "LAYER_ABSENT",
+    "EXPECT_MISMATCH"
+  ],
+  "reasons": [
+    "LAYER_ABSENT: 특화헌법 파일이 0개다 -- 추적 트리에 `*.topology.md` 가 하나도 없으면 이 체크아웃은 어느 토폴로지의 헌법을 읽고 있는지 스스로 말하지 못한다",
+    "EXPECT_MISMATCH: 호출부는 'single' 를 기대하는데 체크아웃 통로는 'multi' 다"
+  ],
+  "remediation": "자동 교정하지 않는다 -- 체크아웃 전환인지 선언 수정인지는 사람이 정한다. 고친 뒤 이 술어를 다시 돌려라.",
+  "schema_version": 1,
+  "topology": "multi",
+  "verdict": "RED"
+}

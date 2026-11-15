@@ -1,0 +1,1 @@
+[campaign_init] DRY-RUN purge=[] init=['campaigns/camp-b']

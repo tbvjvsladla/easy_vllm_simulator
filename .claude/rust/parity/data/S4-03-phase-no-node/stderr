@@ -1,0 +1,1 @@
+[campaign_init] FAIL --phase-set 은 --node(또는 배정된 --cell)와 --state 가 필요하다

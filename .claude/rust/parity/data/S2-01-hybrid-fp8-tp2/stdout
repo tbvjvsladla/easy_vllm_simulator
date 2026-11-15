@@ -1,0 +1,14 @@
+{
+  "id": "hybrid-fp8-tp2",
+  "quantization": "fp8",
+  "max_model_len": 8192,
+  "gpu_memory_utilization": 0.7,
+  "weight_gib": 27.939677238464355,
+  "kv_gib": 0.015625,
+  "overhead_gib": 3.3527612686157227,
+  "estimated_total_gib": 24.768892696925572,
+  "headroom_gib": 71.23110730307442,
+  "gate_pass": true,
+  "kv_layers": 2,
+  "kv_layers_source": "num_full_attention_layers"
+}

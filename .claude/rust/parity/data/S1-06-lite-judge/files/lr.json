@@ -1,0 +1,35 @@
+{
+ "_provenance": "fixture — D1 모양. 값·문구는 2026-09-29 plan_26092923 라이브 음성(곁 컨테이너 = 서버 포트가 없는 클라이언트 평면)의 실측 발췌다: vllm bench serve 는 연결 거부에도 **rc 0** 과 결과 파일(completed 0 · failed N)을 남긴다 — D1 이 rc 0 이었던 이유. 호스트 평면 health 200 · 클라이언트 평면 미도달.",
+ "topology": "single",
+ "serve_plane": "docker",
+ "burst_n": 3,
+ "bench_cold_json": "lite_cold_d1_connection_refused.json",
+ "bench_warm_json": "lite_warm_d1_connection_refused.json",
+ "bench_cold_rc": 0,
+ "bench_warm_rc": 0,
+ "bench_stderr_tail": "/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/serve.py:902: UserWarning: All requests failed. This is likely due to a misconfiguration on the benchmark arguments.\nFailed requests during benchmark run detected (capping to 10):\n    raise OSError(err, f'Connect call failed {address}')\nConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 8000)\naiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost:8000 ssl:default [Connect call failed ('127.0.0.1', 8000)]\nFailed requests during benchmark run detected (capping to 10):\n    raise OSError(err, f'Connect call failed {address}')\nConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 8000)\naiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost:8000 ssl:default [Connect call failed ('127.0.0.1', 8000)]\n    raise OSError(err, f'Connect call failed {address}')\nConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 8000)\naiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost:8000 ssl:default [Connect call failed ('127.0.0.1', 8000)]\n/usr/local/lib/python3.12/dist-packages/vllm/benchmarks/serve.py:902: UserWarning: All requests failed. This is likely due to a misconfiguration on the benchmark arguments.\n    raise OSError(err, f'Connect call failed {address}')\nConnectionRefusedError: [Errno 111] Connect call failed ('127.0.0.1', 8000)\naiohttp.client_exceptions.ClientConnectorError: Cannot connect to host localhost:8000 ssl:default [Connect call failed ('127.0.0.1', 8000)]\n",
+ "host_health_after": "200",
+ "client_plane_health": "unreachable",
+ "engine_log": "engine.log",
+ "nodes": [
+  {
+   "role": "main",
+   "ram_total_kib": 127598768,
+   "ram_avail_kib": 50512344
+  }
+ ],
+ "measured_utc": "2026-09-29T01:02:03Z",
+ "config_name": "fixture-cfg",
+ "config_yaml": "cfg.yaml",
+ "env_file": "env.txt",
+ "manifest": "manifest.yaml",
+ "lite_verdict": "measurement_path_failed",
+ "lite_exit": 6,
+ "lite_verdict_reasons": [
+  "cold: completed=0 ≠ 요청 1",
+  "warm: completed=0 ≠ 요청 3",
+  "측정 뒤 health — 호스트 평면 200 · 클라이언트 평면 unreachable",
+  "서버는 살아 있는데 클라이언트가 도는 평면에서 닿지 않는다 — 측정 경로 불성립(하네스)"
+ ],
+ "lite_verdict_source": "lite_metrics.judge_lite(raw)"
+}

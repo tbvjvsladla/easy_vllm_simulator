@@ -1,0 +1,17 @@
+{
+  "flag": true,
+  "reason": "Flag valid (complete + branch_verified + HW사실 + model_source)",
+  "exit_code": 0,
+  "topology": "single",
+  "gpus_per_node": 1,
+  "nodes": [],
+  "model_source": "managed",
+  "nas_model_path": "/fixture/models",
+  "custom_model_paths": {},
+  "quant_model_path": "",
+  "tiktoken_host_path": "",
+  "manifest_tp": 1,
+  "node_warnings": [],
+  "effective_model_source": {},
+  "manifest_path": "/tmp/parity-o-S3-02-single-flag-ok-1802045-1794701940434489160/output/single/manifest.yaml"
+}

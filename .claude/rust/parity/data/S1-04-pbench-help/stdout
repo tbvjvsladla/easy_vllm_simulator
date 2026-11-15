@@ -1,0 +1,12 @@
+usage: parse_bench.py [-h] --bench-json BENCH_JSON [--engine-log ENGINE_LOG]
+                      [--json]
+
+vllm bench serve 결과 + engine-log 파싱 → 측정 M
+
+options:
+  -h, --help            show this help message and exit
+  --bench-json BENCH_JSON
+                        vllm bench serve --save-result JSON 경로
+  --engine-log ENGINE_LOG
+                        docker logs 캡처 파일(교차검증, 선택)
+  --json

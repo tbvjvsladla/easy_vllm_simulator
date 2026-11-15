@@ -1,0 +1,1 @@
+[campaign_init] FAIL state 는 ('pending', 'running', 'done', 'failed') 중 하나여야 한다: 'nonsense'

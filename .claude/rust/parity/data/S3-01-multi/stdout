@@ -1,0 +1,29 @@
+{
+  "delivery_plane": {
+    "source": "sub-mode:ray-worker",
+    "value": "active"
+  },
+  "identity_authority": {
+    "source": "constitution-invariant-A",
+    "value": "manifest-rank-and-role"
+  },
+  "manifest_path": "m.yaml",
+  "notes": [],
+  "rank": {
+    "source": "manifest-nodes-index",
+    "value": 1
+  },
+  "sub_mode": {
+    "source": "derived-from-topology",
+    "value": "ray-worker"
+  },
+  "sub_present": true,
+  "tool_plane": {
+    "source": "sub-mode:ray-worker",
+    "value": [
+      "wiki-desk"
+    ]
+  },
+  "topology": "multi",
+  "violations": []
+}

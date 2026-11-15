@@ -1,0 +1,9 @@
+{
+  "tool": "guidellm",
+  "repo": "vllm-project/guidellm",
+  "version": "not a version",
+  "version_source": "declared(--version)",
+  "published_utc": null,
+  "image_ref": "ghcr.io/vllm-project/guidellm:vnot a version",
+  "pull_command": "docker pull ghcr.io/vllm-project/guidellm:vnot a version"
+}

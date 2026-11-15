@@ -1,0 +1,17 @@
+  [PASS] 등급표·증액계수·정지한계가 되살아나지 않았다(발견 [])
+  [PASS] 상한을 요청 스키마에서 읽는다(상수 복제 ✗) → {'max_turns': 100, 'timeout_seconds': 3600}
+  [PASS] 선언한 값이 그대로 나온다(재계산·보정 ✗)
+  [PASS] 값 옆에 출처가 남는다
+  [PASS] 미선언 max_turns → fail-loud
+  [PASS] 0 max_turns → fail-loud
+  [PASS] 음수 max_turns → fail-loud
+  [PASS] bool max_turns → fail-loud
+  [PASS] 문자열 max_turns → fail-loud
+  [PASS] timeout 미선언 → fail-loud(두 규율을 함께 말한다)
+  [PASS] 상한 초과는 증액이 아니라 **과업 분할**을 지시한다
+  [PASS] 출처 없는 선언 → fail-loud(출처 표시 규율)
+  [PASS] Codex wall-time declaration requires no cumulative dispatch count
+  [PASS] new budgets do not emit a legacy dispatch count
+  [PASS] Codex missing timeout or native turn cap rejected
+  [PASS] Codex missing timeout or native turn cap rejected
+self-test: PASS

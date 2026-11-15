@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "stop": false,
+  "stopped_by": [],
+  "sweep_status": "incomplete",
+  "cells_planned": 6,
+  "cells_attempted": 1,
+  "cells_remaining": [
+    "c2",
+    "c3"
+  ],
+  "consecutive_failures": 0,
+  "elapsed_s": 1800,
+  "declared_budget": {
+    "max_cells": 6,
+    "wall_clock_budget_s": 3600,
+    "consecutive_failure_limit": 3,
+    "repeats": 3
+  },
+  "budget_declared_by": "hitl:fixture",
+  "budget_basis": "fixture basis",
+  "budget_repeats_source": "declared(fixture)",
+  "runs_attempted": 0,
+  "repeats_mismatch": [],
+  "repeats_unrecorded": [
+    "c1"
+  ],
+  "evaluated_utc": "2026-09-04T09:30:00Z"
+}

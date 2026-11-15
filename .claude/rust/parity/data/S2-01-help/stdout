@@ -1,0 +1,19 @@
+usage: estimate_vram.py [-h] [--parsed PARSED] [--self-test] [--quant QUANT]
+                        [--max-model-len MAX_MODEL_LEN] [--gmu GMU] [--tp TP]
+                        [--budget BUDGET] [--margin MARGIN]
+                        [--kv-bytes KV_BYTES] [--id ID]
+
+결정론 VRAM 추정기 (vllm-recipe-explorer).
+
+options:
+  -h, --help            show this help message and exit
+  --parsed PARSED       parse_model_config 출력 JSON 경로
+  --self-test           하이브리드 KV 층수 인지 회귀(모델/하드웨어 불요)
+  --quant QUANT         후보 quantization 플래그(none/fp8/awq/...)
+  --max-model-len MAX_MODEL_LEN
+  --gmu GMU             gpu_memory_utilization (0~1)
+  --tp TP               tensor_parallel_size
+  --budget BUDGET       vram_budget_gib
+  --margin MARGIN       safety_margin (하드게이트 임계)
+  --kv-bytes KV_BYTES   KV dtype 바이트(기본 2=fp16)
+  --id ID               후보 id (선택)

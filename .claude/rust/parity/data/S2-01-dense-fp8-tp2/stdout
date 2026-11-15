@@ -1,0 +1,14 @@
+{
+  "id": "dense-fp8-tp2",
+  "quantization": "fp8",
+  "max_model_len": 8192,
+  "gpu_memory_utilization": 0.7,
+  "weight_gib": 6.51925802230835,
+  "kv_gib": 0.0625,
+  "overhead_gib": 1.6391277313232422,
+  "estimated_total_gib": 7.087509632110597,
+  "headroom_gib": 88.9124903678894,
+  "gate_pass": true,
+  "kv_layers": 8,
+  "kv_layers_source": "num_hidden_layers"
+}

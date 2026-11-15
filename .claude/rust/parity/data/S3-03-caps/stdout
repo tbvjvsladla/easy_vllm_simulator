@@ -1,0 +1,5 @@
+{
+  "max_turns": 100,
+  "timeout_seconds": 3600,
+  "source": "request-schema:.claude/schemas/agent-control-request.schema.json"
+}

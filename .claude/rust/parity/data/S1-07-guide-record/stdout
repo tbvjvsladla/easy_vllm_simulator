@@ -1,0 +1,10 @@
+{
+  "tool": "guidellm",
+  "repo": "vllm-project/guidellm",
+  "version": "0.7.3",
+  "version_source": "declared(--version)",
+  "published_utc": null,
+  "image_ref": "ghcr.io/vllm-project/guidellm:v0.7.3",
+  "pull_command": "docker pull ghcr.io/vllm-project/guidellm:v0.7.3",
+  "record_path": "pin.json"
+}

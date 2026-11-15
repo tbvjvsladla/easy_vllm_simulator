@@ -1,0 +1,51 @@
+{
+ "_cell_outcome_enum": [
+  "pending",
+  "measured",
+  "serve_failed",
+  "build_failed",
+  "void",
+  "measurement_void",
+  "not_measured"
+ ],
+ "cell_id": "c1",
+ "cell_outcome": "serve_failed",
+ "grounding": {
+  "gap": {
+   "reason": "그라운딩 기록이 없다(C1 미수행)",
+   "status": "absent"
+  },
+  "source": null,
+  "status": "absent"
+ },
+ "image": {
+  "digest": null,
+  "gap": "이미지 digest 가 도착하지 않았다 — --sweep-state 도 --image-digest 도 없다. 셀 간 비교는 같은 digest 안에서만 성립하므로, 이 셀은 다른 셀과 나란히 놓을 수 없다(결손 기재).",
+  "source": null,
+  "tag": null
+ },
+ "measurement": {
+  "decode_tps_conc1": null,
+  "measurement_ok": false,
+  "source": null
+ },
+ "model": "M",
+ "node_id": "main",
+ "provenance": {
+  "compare_gaps": [],
+  "compared": [],
+  "lockset": null,
+  "lockset_gap": "lockset 부재: /tmp/parity-o-S4-02-cell-serve-failed-1802045-1794701942880739318/campaigns/camp-a/cells/c1/lockset.json — 셀 출처(provenance)를 말할 자리가 없다(셀 materialize 는 explorer 소관 · 손작성이면 provenance=hand-authored 로 표시)",
+  "lockset_source": null,
+  "lockset_stamp": null,
+  "lockset_trial_provenance": null,
+  "observability": "observed",
+  "observability_reason": null,
+  "pending_knobs": []
+ },
+ "provenance_mismatch": [],
+ "schema_version": 1,
+ "version": "0.30.0",
+ "void_reason": null,
+ "void_reason_source": null
+}

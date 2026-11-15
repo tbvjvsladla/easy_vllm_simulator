@@ -1,0 +1,1 @@
+[resolve_topology] 미테라포밍 — output/*/manifest.yaml 이 한 장도 없다(토폴로지 사실 부재 · 존재는 policy:TERRAFORM_FLAG_GATE 의 몫). terraforming_node 로 manifest 를 채우거나 --topology 를 명시하라

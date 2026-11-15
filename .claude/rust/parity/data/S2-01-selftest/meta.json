@@ -1,0 +1,1 @@
+{"case":{"id":"S2-01-selftest","stage":"s2","entry":".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.sh","orig":".claude/rust/parity/cases/shims/estimate_vram.py","args":["--self-test"]},"orig_commit":"a6769be","tool":"parity 0.1.0","provenance":"measured","repo_root":"<REPO>","tmp_root":"/tmp/parity-o-S2-01-selftest-1802045-1794701938570253946"}

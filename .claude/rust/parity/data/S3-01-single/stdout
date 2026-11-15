@@ -1,0 +1,33 @@
+{
+  "delivery_plane": {
+    "source": "sub-mode:a2a-agent",
+    "value": "dormant"
+  },
+  "identity_authority": {
+    "source": "constitution-invariant-A",
+    "value": "ssh-endpoint-auth-and-manifest-role"
+  },
+  "manifest_path": "m.yaml",
+  "notes": [],
+  "rank": {
+    "source": "not-applicable:single-a2a-agent",
+    "value": null
+  },
+  "sub_mode": {
+    "source": "derived-from-topology",
+    "value": "a2a-agent"
+  },
+  "sub_present": true,
+  "tool_plane": {
+    "source": "sub-mode:a2a-agent",
+    "value": [
+      "vllm-recipe-explorer",
+      "adversarial-benchmark",
+      "upstream-version-watch",
+      "hint-publisher",
+      "wiki-desk"
+    ]
+  },
+  "topology": "single",
+  "violations": []
+}

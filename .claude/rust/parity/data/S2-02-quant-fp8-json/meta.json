@@ -1,0 +1,1 @@
+{"case":{"id":"S2-02-quant-fp8-json","stage":"s2","entry":".claude/skills/vllm-recipe-explorer/scripts/quant_table.sh","orig":".claude/rust/parity/cases/shims/quant_table.py","args":["--quant","fp8","--json"]},"orig_commit":"a6769be","tool":"parity 0.1.0","provenance":"measured","repo_root":"<REPO>","tmp_root":"/tmp/parity-o-S2-02-quant-fp8-json-1802045-1794701938860262719"}

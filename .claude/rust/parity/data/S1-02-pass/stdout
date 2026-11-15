@@ -1,0 +1,63 @@
+{
+  "verdict": "PASS",
+  "failure_axis": "meet",
+  "reason_code": null,
+  "structural_or_strategy": null,
+  "measured_decode_tps": 48.0,
+  "measured_spec_on": false,
+  "measured_accept_len": null,
+  "rubric": {
+    "tolerance": 0.15,
+    "R_fp": 50.0,
+    "R_token": 50.0,
+    "expected_achievable": null,
+    "reference_E": 50.0,
+    "target_c": null,
+    "authority": "weak",
+    "authority_note": "weak(기본): 외부 레퍼런스(E)가 정본",
+    "loop_until_done": true,
+    "candidates": [
+      {
+        "source": "E(external_reference)",
+        "state": "valid",
+        "value": 50.0
+      },
+      {
+        "source": "c(user_target)",
+        "state": "unset"
+      },
+      {
+        "source": "expected_achievable(roofline×MBU)",
+        "state": "unset"
+      }
+    ],
+    "spec_axis": {
+      "declared": "unknown",
+      "accept_len": 1.0,
+      "accept_len_source": "absent",
+      "accept_len_evidence": null,
+      "measured_spec_on": false,
+      "limit": "R_fp",
+      "basis": "spec 선언 지문 부재(unknown) — 종전 규율(measured.spec_on) 보존",
+      "missing": false,
+      "mismatch": null
+    },
+    "physical": {
+      "limit_source": "R_fp(spec off)",
+      "limit_tps": 50.0,
+      "exceeds": false,
+      "required_bandwidth_gbps": null
+    },
+    "primary": 50.0,
+    "source": "E(external_reference)",
+    "floor": 42.5,
+    "ratio_M_over_primary": 0.96
+  },
+  "e_search": "no",
+  "reasons": [
+    "M(48.0) ≥ 50.0×(1−0.15)=42.50 [E(external_reference)] → 충족"
+  ],
+  "refuted_claims": [],
+  "diagnosis_hint": [],
+  "note": "게이트=결정론(이 규칙). LLM Devil's Advocate 는 E 외부검색·정성 진단·재탐색힌트만 보탠다(최종 structural/strategy = LLM+HITL)."
+}

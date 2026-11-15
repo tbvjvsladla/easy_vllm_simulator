@@ -1,0 +1,27 @@
+{
+  "dataset_kind": "parquet_file",
+  "dataset_source": "custom",
+  "dataset_id": null,
+  "dataset_path": "d.parquet",
+  "dataset_revision": null,
+  "source_sha256": null,
+  "column_map": {
+    "text_column": "text"
+  },
+  "preprocess_strategy": "concatenate",
+  "seed": 7,
+  "input_len": 1024,
+  "output_len": 128,
+  "run_index": 0,
+  "rows_used": 3,
+  "rows_available": 8,
+  "rows_prepared": 8,
+  "selection": "contiguous(rows 0..2 · 다른 런과 겹치지 않음)",
+  "prompt_tokens_count_target": 1024,
+  "sweep_salt": null,
+  "sweep_offset": 0,
+  "duplicate_sampling": false,
+  "tokenizer": "fixture-tok",
+  "tokenizer_digest": "fixture-digest",
+  "provenance": "measured(run_bench 가 이 런에 넘긴 행 · dataset_prep slice)"
+}

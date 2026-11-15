@@ -1,0 +1,9 @@
+usage: resolve_wheel.py [-h] [--arch ARCH] [--cuda CUDA] vllm_version
+
+positional arguments:
+  vllm_version  예: 0.21.0
+
+options:
+  -h, --help    show this help message and exit
+  --arch ARCH   uname -m 값 (aarch64 | x86_64 · 기본: 이 호스트)
+  --cuda CUDA   예 129. 미지정 시 자산에서 최고 cuXXX 자동
