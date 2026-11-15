@@ -3,7 +3,7 @@
 //! the original has no such command line option — it is an in-process function for `slave_forward`).
 //!
 //! Unit B (`--canonical-kind`, `--template`/`--resolved`: the template render with the source-build guard, the build-ledger stanza and the
-//! Flag gate) lives in `render_template`. Not ported (exit status 2 with a message, the caller keeps using `render_dockerfile.py`): `--self-test`.
+//! Flag gate) lives in `render_template`. `--self-test` is `render_template::selftest`.
 //! An exception the original leaves uncaught (a Python traceback, status 1) is reported as `<Class>: <message>` on stderr with status 1;
 //! the traceback frames are not reproduced.
 
@@ -734,12 +734,4 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
         Ok(status) => status,
         Err(raised) => report(raised),
     }
-}
-
-#[allow(dead_code)]
-fn not_ported(what: &str) -> i32 {
-    gate_cli::write_err(&format!(
-        "[render] NOT PORTED: {what} is not in the Rust render_dockerfile yet — run render_dockerfile.py for it\n"
-    ));
-    2
 }

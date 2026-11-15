@@ -242,7 +242,10 @@ a7() {
     fi
     if [ -z "$r" ] || [ ! -f "$r" ]; then fail "A7 렌더러: render_dockerfile.py 부재"; return; fi
     if [ ! -x "$r" ]; then fail "A7 렌더러: $r 실행권한 없음(chmod +x 필요)"; return; fi
-    out="$(python3 "$r" --self-test 2>&1)"; rc=$?
+    # 자체검사는 Rust 런처(render_dockerfile.sh → ELF)가 돈다 — Python 을 띄우지 않는다. 런처가 없으면 fail-loud.
+    local launcher="${r%.py}.sh"
+    if [ ! -x "$launcher" ]; then fail "A7 렌더러: 런처 $launcher 부재/실행권한 없음"; return; fi
+    out="$("$launcher" --self-test 2>&1)"; rc=$?
     if [ "$rc" -ne 0 ]; then
         fail "A7 렌더러: $r --self-test 실패(rc=$rc): $(echo "$out" | head -1)"; return
     fi

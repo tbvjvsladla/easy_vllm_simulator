@@ -3,12 +3,27 @@
 //! Port boundary: the Python tool loads `hintlib.tag.git_push_authenticated` (hint-publisher, Python) for the credential path. That path is not
 //! reproducible without Python, so this port pushes only to remotes that need no token (ssh, scp-like, local path) with the same scope options
 //! as the Python fallback (`--no-follow-tags --no-recurse-submodules`, `GIT_TERMINAL_PROMPT=0`). A remote whose DECLARED url is http(s) fails
-//! loud per branch with code `HTTPS_NEEDS_HINTLIB` (no silent degrade). `--self-test` is `push_branches_selftest` (Rust-owned contract; hintlib cross-checks stay Python).
+//! loud per branch with code `HTTPS_NEEDS_HINTLIB` (no silent degrade). `--self-test` is `push_branches_selftest` (Rust-owned contract; hintlib scope-args read as text from tag.py; HintError mutation control N/A).
 
 use std::process::{Command, Stdio};
 
 const OPERATIONAL: [&str; 2] = ["single-node", "multi-node"];
-const SCOPE_ARGS: [&str; 2] = ["--no-follow-tags", "--no-recurse-submodules"];
+pub(crate) const SCOPE_ARGS: [&str; 2] = ["--no-follow-tags", "--no-recurse-submodules"];
+
+/// One token-free `git push` with the given scope options; the self-test passes an emptied list to prove its tag-leak control is not vacuous.
+pub(crate) fn push_local(repo: &str, remote: &str, refspec: &str, dry: bool, scope: &[&str]) -> Result<(i32, String), String> {
+    let mut a = vec!["-C".to_string(), repo.to_string(), "push".into()];
+    a.extend(scope.iter().map(|s| s.to_string()));
+    if dry {
+        a.push("--dry-run".into());
+    }
+    a.push(remote.to_string());
+    a.push(refspec.to_string());
+    match Command::new("git").args(&a).env("GIT_TERMINAL_PROMPT", "0").output() {
+        Ok(o) => Ok((o.status.code().unwrap_or(1), tail(&String::from_utf8_lossy(&o.stderr), 400))),
+        Err(e) => Err(format!("{e}")),
+    }
+}
 
 fn json_str(s: &str) -> String {
     let mut o = String::from("\"");
@@ -104,21 +119,9 @@ pub fn run(args: &[String]) -> i32 {
                 "https remote: authenticated push is owned by hintlib (Python); use push_branches.py".to_string(),
             )
         } else {
-            let mut a = vec!["-C".to_string(), repo.clone(), "push".into()];
-            a.extend(SCOPE_ARGS.iter().map(|s| s.to_string()));
-            if dry {
-                a.push("--dry-run".into());
-            }
-            a.push(remote.clone());
-            a.push(refspec.clone());
-            match Command::new("git").args(&a).env("GIT_TERMINAL_PROMPT", "0").output() {
-                Ok(o) => (
-                    o.status.code().unwrap_or(1),
-                    None,
-                    "git push (rust-native; token-free remote)".to_string(),
-                    tail(&String::from_utf8_lossy(&o.stderr), 400),
-                ),
-                Err(e) => (1, None, "git push (rust-native) → spawn failure".into(), format!("{e}")),
+            match push_local(&repo, &remote, &refspec, dry, &SCOPE_ARGS) {
+                Ok((rc, err)) => (rc, None, "git push (rust-native; token-free remote)".to_string(), err),
+                Err(e) => (1, None, "git push (rust-native) → spawn failure".into(), e),
             }
         };
         if !err.is_empty() && rc != 0 {

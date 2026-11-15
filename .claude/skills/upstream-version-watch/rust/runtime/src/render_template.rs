@@ -1,5 +1,5 @@
 //! `render_dockerfile.py`, unit B: the template render (`--template`/`--resolved`, `--canonical-kind`/`--topology`) with the source-build key
-//! guard, the build-ledger stanza, the Flag gate and the COPY-context directories. `--self-test` stays in Python (exit status 2, see
+//! guard, the build-ledger stanza, the Flag gate and the COPY-context directories. `--self-test` is `render_selftest` (see
 //! `render_dockerfile::run`).
 //!
 //! The ledger body (`_LEDGER_PY` of the original) is not run here: it is the byte-for-byte text of the original literal

@@ -76,8 +76,31 @@ fn field_of(doc: &str, branch: &str, key: &str) -> Option<String> {
     Some(line.split_once(':')?.1.trim().trim_end_matches(',').to_string())
 }
 
+/// The hintlib module is Python and is never loaded here; its `PUSH_SCOPE_ARGS = (...)` literal is read as text (one anchor, else fail).
+fn hintlib_scope_args() -> Result<Vec<String>, String> {
+    const REL: &str = ".claude/skills/hint-publisher/scripts/hintlib/tag.py";
+    let mut roots: Vec<PathBuf> = Vec::new();
+    if let Ok(exe) = std::env::current_exe() {
+        roots.extend(exe.ancestors().map(Path::to_path_buf));
+    }
+    if let Ok(cwd) = std::env::current_dir() {
+        roots.extend(cwd.ancestors().map(Path::to_path_buf));
+    }
+    let path = roots.iter().map(|r| r.join(REL)).find(|p| p.is_file()).ok_or_else(|| format!("실물 hintlib 이 없다: {REL}"))?;
+    let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
+    let anchors: Vec<&str> = text.lines().filter(|l| l.starts_with("PUSH_SCOPE_ARGS = (")).collect();
+    if anchors.len() != 1 {
+        return Err(format!("PUSH_SCOPE_ARGS 앵커 {}건(1건이어야 한다)", anchors.len()));
+    }
+    let inner = anchors[0].trim_start_matches("PUSH_SCOPE_ARGS = (").split(')').next().unwrap_or("");
+    Ok(inner.split(',').map(|x| x.trim().trim_matches(|c| c == '"' || c == '\'')).filter(|x| !x.is_empty()).map(String::from).collect())
+}
+
 fn scenario(fx: &mut Fx) -> Result<(), String> {
     let root = fx.root.clone();
+    let scope = hintlib_scope_args();
+    let want: Vec<String> = crate::push_branches::SCOPE_ARGS.iter().map(|s| s.to_string()).collect();
+    fx.ck("폴백 범위 옵션 == hintlib.tag.PUSH_SCOPE_ARGS(교차 대조 · tag.py 텍스트 파싱)", scope.as_ref().map(|s| *s == want).unwrap_or(false), &format!("{scope:?}"));
     let gcfg = root.join("gitconfig");
     fs::write(&gcfg, "[user]\n\tname = selftest\n\temail = t@t\n[commit]\n\tgpgsign = false\n[tag]\n\tgpgSign = false\n[core]\n\thooksPath = /dev/null\n").map_err(|e| e.to_string())?;
     fx.env = vec![
@@ -154,6 +177,14 @@ fn scenario(fx: &mut Fx) -> Result<(), String> {
     fx.ck("★H7 로컬(비-https) 원격 · 토큰 없음 → 두 브랜치 모두 push 성공 · rc=0", rc == 0 && both, &format!("{rc} {out}"));
     let r = fx.refs(&local_remote, "refs/tags");
     fx.ck("C: 태그 딸림 없음", r.is_empty(), &format!("{r:?}"));
+
+    // Mutation control (replaces the Python source-copy mutation): the same push with the scope options emptied MUST leak the rollback tag
+    // under push.followTags=true — proving the "no tag carried" checks above are not vacuous.
+    let mutated = fx.bare("mutated.git")?;
+    let (mrc, _) = crate::push_branches::push_local(&repo.to_string_lossy(), &mutated.to_string_lossy(), "refs/heads/multi-node:refs/heads/multi-node", false, &[])?;
+    let leaked = fx.refs(&mutated, "refs/tags");
+    fx.ck("★변이 음성대조: 범위 옵션을 비우면 followTags 로 롤백 태그가 새어 나간다(결함 재현)", mrc == 0 && leaked == ["refs/tags/last-good-fixture"], &format!("{mrc} {leaked:?}"));
+    eprintln!("  N/A  HintError 처리 절 변이 대조(사유코드 분류): hintlib 경로는 Python 소유 — https 선언 원격은 Rust 에서 HTTPS_NEEDS_HINTLIB 로 두 브랜치 모두 fail-loud(위 ★S5)로 가름한다");
     Ok(())
 }
 
