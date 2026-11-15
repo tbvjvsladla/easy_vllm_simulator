@@ -270,7 +270,9 @@ a8() {
     if ! git ls-files -z | tar --null -cf - --files-from - 2>/dev/null | tar -xf - -C "$tmp" 2>/dev/null; then
         rm -rf "$tmp"; fail "A8 info-only Flag 게이트: fresh-clone 트리 구성 실패"; return
     fi
-    ( cd "$tmp" && timeout 60 python3 .claude/skills/vllm-recipe-explorer/recipe.py estimate --auto --config campaigns/_bootstrap/cells/freshclone-probe/config.yaml >/dev/null 2>&1 ); rc1=$?
+    # Rust 런처(recipe.sh): fresh-clone 트리에는 target/ 이 없으므로 이 체크아웃의 빌드 산출을 가리키되, 소유 스킬 루트(feedback·repo 해소)는 임시 트리다.
+    cp "$ROOT/.claude/skills/vllm-recipe-explorer/scripts/recipe.sh" "$tmp/.claude/skills/vllm-recipe-explorer/scripts/recipe.sh" 2>/dev/null
+    ( cd "$tmp" && EASY_VLLM_RECIPE_RUNTIME_ROOT="$ROOT/.claude/skills/vllm-recipe-explorer/rust/runtime" timeout 60 bash .claude/skills/vllm-recipe-explorer/scripts/recipe.sh estimate --auto --config campaigns/_bootstrap/cells/freshclone-probe/config.yaml >/dev/null 2>&1 ); rc1=$?
     ( cd "$tmp" && timeout 60 bash .claude/skills/adversarial-benchmark/scripts/run_bench.sh freshclone-probe >/dev/null 2>&1 ); rc2=$?
     rm -rf "$tmp"
     if [ "$rc1" -eq 4 ] && [ "$rc2" -eq 4 ]; then

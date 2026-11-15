@@ -62,6 +62,7 @@ pub mod operations;
 pub mod pyexpr;
 pub mod quant_table;
 pub mod rank_recipes;
+pub mod recipe_cmd;
 pub mod recipe_set;
 pub mod rope_translate;
 pub mod simlog;

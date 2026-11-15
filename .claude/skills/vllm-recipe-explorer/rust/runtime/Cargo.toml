@@ -23,6 +23,11 @@ path = "src/bin/estimate_vram.rs"
 name = "rank_recipes"
 path = "src/bin/rank_recipes.rs"
 
+# The orchestrator command line recipe.py: only `estimate` is ported (generate/simulate stop with status 2).
+[[bin]]
+name = "recipe"
+path = "src/bin/recipe.rs"
+
 [[bin]]
 name = "recipe_numeric_api"
 path = "src/bin/recipe_numeric_api.rs"
@@ -256,6 +261,10 @@ path = "checks/recipe_tty_cases.rs"
 [[test]]
 name = "recipe_binding_cases"
 path = "checks/recipe_binding_cases.rs"
+
+[[test]]
+name = "recipe_cmd_cases"
+path = "checks/recipe_cmd_cases.rs"
 
 [[test]]
 name = "model_checks"
