@@ -149,6 +149,11 @@ path = "src/bin/render_dockerfile.rs"
 name = "push_branches"
 path = "src/bin/push_branches.rs"
 
+# The replay, local-clone and `--write-resolved` parts of `judge_version_delta.py` (compare-API fallback, `--emit-fixture`, `--self-test` stay in Python).
+[[bin]]
+name = "judge_version_delta"
+path = "src/bin/judge_version_delta.rs"
+
 [[bin]]
 name = "upstream_role_api"
 path = "src/bin/upstream_role_api.rs"
