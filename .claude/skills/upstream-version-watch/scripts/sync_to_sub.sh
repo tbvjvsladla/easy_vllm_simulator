@@ -311,7 +311,7 @@ SINGLE_PLANE_SOURCE="fail-closed:unevaluated"      # 판정 출처(*_source 표�
         return 1
     fi
     # stderr 는 캡처하지 않는다 — 위반 메시지([node-role] VIOLATION …)가 사람 화면에 그대로 떠야 한다.
-    plane="$(python3 "$contract" evaluate --manifest "$manifest" --topology single \
+    plane="$("$contract" evaluate --manifest "$manifest" --topology single \
                      --field delivery_plane --format value)" || rc=$?
     if [ "$rc" -ne 0 ]; then
         SINGLE_PLANE_SOURCE="fail-closed:contract-exit-$rc"
@@ -319,7 +319,7 @@ SINGLE_PLANE_SOURCE="fail-closed:unevaluated"      # 판정 출처(*_source 표�
         return 1
     fi
     # 출처는 판정기가 소유한다 — 여기서 사유를 손저작하지 않는다(sub-mode:a2a-agent · no-sub-registered …).
-    SINGLE_PLANE_SOURCE="$(python3 "$contract" evaluate --manifest "$manifest" --topology single \
+    SINGLE_PLANE_SOURCE="$("$contract" evaluate --manifest "$manifest" --topology single \
                                   --field delivery_plane --format json 2>/dev/null \
                            | "$IJ" delivery-source 2>/dev/null || echo unknown)"
     [ "$plane" = "active" ]
@@ -1367,6 +1367,12 @@ prepare_transactional_source() {
         done
     done
     SRC="$TRANSACTIONAL_SRC/"
+    # 트랜잭션 사본은 git index 만 담아 gitignored Rust ELF 가 없다 — 사본의 런처(render_dockerfile·node_role_contract·
+    #   validate_runtime_patch·regen_build_patches_src)가 정본 트리의 같은 ELF 를 쓰게 실행 경계에 바인딩한다.
+    #   호출자가 정했으면(빈 값 포함) 손대지 않는다. ELF 는 복사하지 않고 Python 폴백도 없다(부재면 런처가 exit 2).
+    if [ "${EASY_VLLM_UPSTREAM_RUNTIME_ROOT+set}" != set ]; then
+        export EASY_VLLM_UPSTREAM_RUNTIME_ROOT="${CANONICAL_SRC%/}/.claude/skills/upstream-version-watch/rust/runtime"
+    fi
     RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
     ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.sh"
     PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh"
