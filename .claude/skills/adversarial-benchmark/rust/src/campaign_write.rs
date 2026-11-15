@@ -1870,8 +1870,26 @@ fn allowed_options(op: &str) -> &'static [&'static str] {
     }
 }
 
+/// `ap.print_help()` for the no-argument run (status 2) and for `-h`/`--help` (status 0), at the width the help was captured
+/// for; any other terminal width is the owner's.
+fn help(argv: &[String], io: &mut Sinks<'_>) -> Option<Outcome> {
+    let status = match argv {
+        [] => 2,
+        [flag] if flag == "-h" || flag == "--help" => 0,
+        _ => return None,
+    };
+    if crate::terminal::columns() != crate::campaign_init_help::COLUMNS {
+        return Some(Outcome::Fallback);
+    }
+    let _ = io.out.write_all(crate::campaign_init_help::HELP.as_bytes());
+    Some(Outcome::Done(status))
+}
+
 /// Answer the vector natively when it is a modelled shape.
 pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
+    if let Some(outcome) = help(argv, io) {
+        return outcome;
+    }
     let Some(args) = Args::parse(argv) else {
         return Outcome::Fallback;
     };
