@@ -1,0 +1,2 @@
+[topology_parity] BRANCH_UNKNOWN: 브랜치 'feature-x' 에서 토폴로지 통로를 고를 수 없다 -- `single-node`/`multi-node` 중 하나를 체크아웃하거나 호출부가 --expect 를 명시해야 한다 (unknown 을 single 로 삼던 침묵 기본값은 폐지됐다)
+[topology_parity] LAYER_ABSENT: 특화헌법 파일이 0개다 -- 추적 트리에 `*.topology.md` 가 하나도 없으면 이 체크아웃은 어느 토폴로지의 헌법을 읽고 있는지 스스로 말하지 못한다

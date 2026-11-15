@@ -119,6 +119,71 @@ name = "node_role_contract"
 path = "src/bin/node_role_contract.rs"
 
 # The normal JSON-lines program of the ten public functions of `node_role_contract.py` (`role_api`, schema `node_role_contract-api/1`).
+# The unchanged public command line of `budget_preflight.py`: the serve-budget pre-judgement, its self-test and the caller-line renderer (`--render`).
+[[bin]]
+name = "budget_preflight"
+path = "src/bin/budget_preflight.rs"
+
+# The `verify` and `bundle` subcommands of `regen_build_patches_src.py` (payload sha256 check, script-modules inventory, deterministic tar.gz bundle).
+[[bin]]
+name = "regen_build_patches_src"
+path = "src/bin/regen_build_patches_src.rs"
+
+# The unchanged public command line of `check_smoke_model.py`: NAS presence, rope/spec-layout early checks, the pre-load RAM gate and the BUDGET_PARAMS emission.
+[[bin]]
+name = "check_smoke_model"
+path = "src/bin/check_smoke_model.rs"
+
+# The unchanged public command line of `render_native_triplet.py`: the deterministic Docker→native triplet render (dry run, `--apply`, `--check`, `--self-test`).
+[[bin]]
+name = "render_native_triplet"
+path = "src/bin/render_native_triplet.rs"
+
+# The env-file / materialize / env_tier part of `render_dockerfile.py` (unit A); the template render and `--self-test` stay in Python.
+[[bin]]
+name = "render_dockerfile"
+path = "src/bin/render_dockerfile.rs"
+
+# The branch-push part of `push_branches.py` (token-free remotes only; https remotes fail loud, self-test in Rust, hintlib cross-checks stay in Python).
+[[bin]]
+name = "push_branches"
+path = "src/bin/push_branches.rs"
+
+# The replay, local-clone and `--write-resolved` parts of `judge_version_delta.py` (compare-API fallback, `--emit-fixture` stay in Python; `--self-test` is ported).
+[[bin]]
+name = "judge_version_delta"
+path = "src/bin/judge_version_delta.rs"
+
+# The branch-layer ledger and sync-point judge of `layer_ledger.py` (+ four subcommands replacing the inline Python of `closing_sequence.sh`); `--self-test` stays in Python.
+[[bin]]
+name = "layer_ledger"
+path = "src/bin/layer_ledger.rs"
+
+# The `prefix`, `json`, `default` subcommands of `slave_forward.py` (+ new `non-identity`); `--self-test` is ported.
+[[bin]]
+name = "slave_forward"
+path = "src/bin/slave_forward.rs"
+
+# The `build` subcommand of `native_wheelhouse.py` (+ `build-dir`, the same build over a local directory root); `verify` is ported too; `--self-test` stays in Python.
+[[bin]]
+name = "native_wheelhouse"
+path = "src/bin/native_wheelhouse.rs"
+
+# `native_multinode_serve.py` in full: `up` (dry-run plan and `--apply`), `client`, `down` and `--self-test` (blackbox_session python3 calls and the launch-record PII substitution stay outside).
+[[bin]]
+name = "native_multinode_serve"
+path = "src/bin/native_multinode_serve.rs"
+
+# The sub-node helpers of `sync_to_sub.sh` (prune-empty-dirs, validate-names, retirement-scan; std only, delivered to the sub by the main node).
+# The small JSON readers of the entry-point shells (gate allowed, summaries, field extraction, smoke response verdicts, campaign budget, open sessions) that used to be inline `python3 -c`.
+[[bin]]
+name = "inline_json"
+path = "src/bin/inline_json.rs"
+
+[[bin]]
+name = "sub_runner"
+path = "src/bin/sub_runner.rs"
+
 [[bin]]
 name = "upstream_role_api"
 path = "src/bin/upstream_role_api.rs"
@@ -173,6 +238,8 @@ ureq = { version = "=3.5.0", default-features = false, features = ["rustls"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 # SHA-256 of the files the runtime patch is bound to; the same exact pin and already-locked version the recipe package declares.
 ring = "=0.17.14"
+# O_NOFOLLOW / O_DIRECTORY / O_NONBLOCK constants for the symlink-free directory walk of the snapshot subcommands (never hard-coded per architecture); already locked.
+libc = "0.2"
 
 [[test]]
 name = "upstream_checks"
@@ -244,3 +311,13 @@ path = "checks/classify_checks.rs"
 [[test]]
 name = "role_checks"
 path = "checks/role_checks.rs"
+
+# The focused checks of the `native_wheelhouse` build port: JSON layout, digests, path helpers and one synthetic tree through `build-dir`.
+[[test]]
+name = "wheelhouse_checks"
+path = "checks/wheelhouse_checks.rs"
+
+# The focused checks of the `native_multinode_serve` part-A port: owned-tree primitives, quoting, pure builders.
+[[test]]
+name = "native_multinode_checks"
+path = "checks/native_multinode_checks.rs"

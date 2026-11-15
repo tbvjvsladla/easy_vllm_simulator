@@ -1,0 +1,72 @@
+{
+  "kind": "exception",
+  "exception": {
+    "type": "TypeError",
+    "module": "builtins",
+    "message": "load_patterns() missing 1 required positional argument: 'path'",
+    "args": [
+      [
+        "str",
+        "load_patterns() missing 1 required positional argument: 'path'"
+      ]
+    ],
+    "suppress_context": false,
+    "relation": null,
+    "attributes": {},
+    "frames": [
+      {
+        "file": "/saved/r40/controls/api_one_call.py",
+        "line": 10,
+        "function": "invoke_observed"
+      }
+    ]
+  },
+  "id": "load-020",
+  "owner_pid": 4095107,
+  "phase": "direct_call_attempt",
+  "owner_call_attempted": true,
+  "input_before": {
+    "args": [
+      "list",
+      []
+    ],
+    "kwargs": [
+      "dict",
+      []
+    ]
+  },
+  "args_after": [
+    "list",
+    []
+  ],
+  "kwargs_after": [
+    "dict",
+    []
+  ],
+  "input_nodes": [
+    {
+      "path": [
+        {
+          "kind": "args"
+        }
+      ],
+      "type": "list"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        }
+      ],
+      "type": "dict"
+    }
+  ],
+  "globals_after": {
+    "PATTERNS_FILE": [
+      "str",
+      "/saved/r40/load-020/business/node/.claude/skills/upstream-version-watch/scripts/../failure_patterns.yaml"
+    ]
+  },
+  "business_streams": "actual child FD stdout/stderr; no redirection",
+  "collector_errors": []
+}

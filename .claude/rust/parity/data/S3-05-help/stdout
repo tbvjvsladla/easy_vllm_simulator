@@ -1,0 +1,60 @@
+usage: scan_node.py [-h] [--topology {single,multi,auto}] [--peer-ip PEER_IP]
+                    [--peer-port PEER_PORT] [--peer-ssh PEER_SSH]
+                    [--compose COMPOSE] [--env-interconnect ENV_INTERCONNECT]
+                    [--bandwidth-gbps BANDWIDTH_GBPS]
+                    [--per-port-gbps PER_PORT_GBPS]
+                    [--per-port-floor PER_PORT_FLOOR] [--bw-floor BW_FLOOR]
+                    [--emit-manifest] [--manifest MANIFEST] [--check-egress]
+                    [--sub-work-dir SUB_WORK_DIR]
+                    [--model-source {managed,ephemeral,custom}]
+                    [--emit-sub-manifest PATH] [--self-test]
+
+terraforming_node결정론 스캔 코어 (사실만)
+
+options:
+  -h, --help            show this help message and exit
+  --topology {single,multi,auto}
+                        선언 토폴로지(인터뷰 결정). auto=스캔으로 추정(보고만, 게이트는 single/multi
+                        명시 시)
+  --peer-ip PEER_IP     multi: 서브노드 IP(도달성 체크). 예: 203.0.113.11
+  --peer-port PEER_PORT
+                        도달성 체크 포트(기본 22=SSH)
+  --peer-ssh PEER_SSH   서브 SSH 타겟(user@host) — 서브 HW 실측. multi 는 동질성 하드
+                        단언(D2/D3), single 은 관측 단언(GPU≥1)으로 hw_verified 를 낸다.
+                        미지정 시 동질성 미검증 → nodes[sub].hw_verified 미발급 → 서브 위임 키
+                        미발급(fail-closed).
+  --compose COMPOSE     교차검증할 docker-compose 경로
+  --env-interconnect ENV_INTERCONNECT
+                        교차검증할 envs/.env.interconnect 경로(S6 env-split 제2 소스).
+                        기본 = --compose 와 같은 디렉터리의 envs/.env.interconnect
+  --bandwidth-gbps BANDWIDTH_GBPS
+                        cross-node ib_write_bw 합산 실측(Gb/s). 성능게이트 입력. 미지정 시
+                        perf pending.
+  --per-port-gbps PER_PORT_GBPS
+                        ib_write_bw 포트당 실측(Gb/s) — SKILL §1.4 합격선의 나머지 절반. 미지정
+                        시 포트당 조건은 미평가(음성정직 표기).
+  --per-port-floor PER_PORT_FLOOR
+                        포트당 합격선(기본 100.0 — 200Gbps RoCE 플랫폼 파생). --bw-floor 와
+                        함께 재설정한다.
+  --bw-floor BW_FLOOR   성능게이트 합산 합격선(Gb/s). 기본 180(=200Gbps 풀대역폭의 ~90%, devlog
+                        218 기준).
+  --emit-manifest       검증 통과 시 manifest topology+interconnect 블록을 stdout 끝에
+                        출력. --topology single|multi 명시 필수(auto면 fail-closed 거부
+                        — plan_26063009_44_23 D3)
+  --manifest MANIFEST   manifest 실값 경로(기본=브랜치 파생
+                        output/<topology>/manifest.yaml). plan_26062315
+  --check-egress        외부 egress 스캔(축 B — plan_26070809_46_57 §4.2). 로컬(메인)
+                        HF/게이트웨이 도달성 프로브 + (--peer-ssh 동반 시) 서브 egress 실측 +
+                        manifest model_source 기반 모델 제반환경 판정.
+  --sub-work-dir SUB_WORK_DIR
+                        multi: 서브 프로젝트 절대경로 → emit nodes[sub].work_dir. 미지정 시
+                        emit 이 __REQUIRED__ 센티넬을 남긴다(추측 금지).
+  --model-source {managed,ephemeral,custom}
+                        모델 제반환경 판정용 override(기본=manifest model_source 읽음).
+  --emit-sub-manifest PATH
+                        single + --peer-ssh: 메인이 실측한 서브 HW 로 **서브 manifest** 를
+                        PATH 에 발행(plan_26090516 §7.3). 게이트 ok ∧ 서브 관측 통과 ∧
+                        model_source 확정일 때만. render_sub_env --sub-manifest 가
+                        소비한다.
+  --self-test           결정론 회귀(게이트+emit_gate+emit-block YAML, 하드웨어 불요 — 라이브 검증
+                        고정, #4)

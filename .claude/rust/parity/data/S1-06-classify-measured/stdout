@@ -1,0 +1,21 @@
+{
+  "cell_outcome": "measured",
+  "void_reason": null,
+  "void_reason_source": null,
+  "kill_events": [],
+  "note": "측정 성립.",
+  "lite_verdict": null,
+  "lite_verdict_source": null,
+  "lite_raw_status": "absent",
+  "events_scanned": [],
+  "tolerance_s": 0,
+  "downgrade_correlation": "not_scanned",
+  "events_scan": {
+    "plan": {
+      "source": "explicit(호출자가 대상 events 를 선언했다 — 노드 계획 없음)"
+    },
+    "nodes": [],
+    "cross_node_tolerance_s": null,
+    "cross_node_tolerance_source": null
+  }
+}

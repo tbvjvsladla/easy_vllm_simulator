@@ -932,6 +932,11 @@ fn register_campaign_evidence(
         run.diagnostics.write(&message);
         return Ok(());
     }
+    if active_campaign_is_bootstrap(&root) {
+        // campaign_init.py --evidence-add is a no-op (rc 0, nothing on stdout) when ACTIVE resolves to `_bootstrap`;
+        // deciding that here avoids starting Python for a call that cannot write.
+        return Ok(());
+    }
     let Ok(relative) = ospath::relpath(certificate, &root) else {
         return Ok(());
     };
@@ -986,4 +991,23 @@ pub fn run_bench_doc_naming(_args: &[PyStr], io: &mut Streams<'_>) -> i32 {
         None => Ok(0),
     };
     runs_to_status(run, outcome, io)
+}
+
+/// True when campaign_init.active_campaign_id() would return `_bootstrap`: no readable ACTIVE pointer, an empty name, a
+/// name without an instance directory, or the explicit reserved id. An unreadable (non-UTF-8) pointer is not decided here.
+fn active_campaign_is_bootstrap(root: &PyStr) -> bool {
+    use std::os::unix::ffi::OsStringExt;
+    let campaigns = std::path::PathBuf::from(std::ffi::OsString::from_vec(
+        root.to_surrogateescape_bytes().unwrap_or_default(),
+    ))
+    .join("campaigns");
+    let pointer = campaigns.join("ACTIVE");
+    if !pointer.is_file() {
+        return true;
+    }
+    let Ok(text) = std::fs::read_to_string(&pointer) else {
+        return false;
+    };
+    let name = text.trim();
+    name.is_empty() || name == "_bootstrap" || !campaigns.join(name).is_dir()
 }

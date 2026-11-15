@@ -80,7 +80,7 @@ pub(crate) const COPIES: [&str; 37] = [
     ".claude/skills/adversarial-benchmark/scripts/roofline.sh",
     ".claude/skills/terraforming_node/scripts/campaign_init.py",
     ".claude/skills/terraforming_node/scripts/campaign_init.sh",
-    ".claude/skills/adversarial-benchmark/rust/target/release/campaign_read",
+    ".claude/skills/adversarial-benchmark/rust/target/release/campaign_init",
     ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
 ];
 

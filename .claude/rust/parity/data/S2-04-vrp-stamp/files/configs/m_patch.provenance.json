@@ -1,0 +1,11 @@
+{
+  "canonical_resolution_sha256": "0b29caaef1eaa52120b4babb09f5357649bdf6578b3e8849e126c12fabf5f4fc",
+  "model_inputs_sha256": {
+    "envs/.env.m": "91d6a3d55e9fea7911c537afae6607c77fa8bc0f3a76c375e104ac5a8cfa84db",
+    "m.yaml": "28d2d77624325917a6eacb13c60236ec15729ea2a6ea4d0f712aeaaf12ff57f1"
+  },
+  "model_stem": "m",
+  "patch_sha256": "ff8a8f7b74d317f72205f0feb5f08e45e296ff5cd82af9dc26f5b9c3fe74f2a0",
+  "schema_version": 1,
+  "topology": "single"
+}

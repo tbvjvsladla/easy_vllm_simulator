@@ -1,0 +1,7 @@
+{
+  "dataset_kind": "synthetic",
+  "input_len": 1024,
+  "output_len": 128,
+  "duplicate_sampling": null,
+  "provenance": "declared(GuideLLM synthetic_text · 원본 없음)"
+}

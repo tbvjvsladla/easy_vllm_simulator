@@ -1,0 +1,97 @@
+{
+  "_note": "Closed normalization list. The tool refuses ids it does not implement; a pattern outside this list is a mismatch. Adding an entry needs user approval. N11 (yaml Mark object address, exact literal only) added by c33 (user-approved closed-list pattern). N13 (JSON object key order) is limited to the entries named in applies_to. N14 (wheel member comparison) applies to .whl files only.",
+  "normalizations": [
+    {
+      "id": "N01",
+      "channels": [
+        "stdout",
+        "stderr",
+        "files"
+      ],
+      "replace": "<REPO>",
+      "reason": "repo absolute path prefix; each side substitutes its own root"
+    },
+    {
+      "id": "N02",
+      "channels": [
+        "stdout",
+        "stderr",
+        "files"
+      ],
+      "replace": "<TMP>",
+      "reason": "per-case scratch workspace root"
+    },
+    {
+      "id": "N03",
+      "channels": [
+        "stdout",
+        "stderr",
+        "files"
+      ],
+      "replace": "<TS>",
+      "reason": "ISO-8601 UTC timestamps and 10-digit epoch seconds"
+    },
+    {
+      "id": "N04",
+      "channels": [
+        "stderr"
+      ],
+      "replace": "<PID>",
+      "reason": "pid=NNN"
+    },
+    {
+      "id": "N06",
+      "channels": [
+        "stderr"
+      ],
+      "replace": "last error line",
+      "reason": "traceback reduced to its last non-empty line; exit code compared separately"
+    },
+    {
+      "id": "N08",
+      "channels": [
+        "files"
+      ],
+      "replace": "existence and content only",
+      "reason": "mtime and permission bits are not compared"
+    },
+    {
+      "id": "N09",
+      "channels": [
+        "files"
+      ],
+      "replace": "sorted by path",
+      "reason": "file list order"
+    },
+    {
+      "id": "N11",
+      "channels": [
+        "stdout",
+        "stderr",
+        "files"
+      ],
+      "replace": "<MARK@>",
+      "reason": "process-local address inside the literal <yaml.error.Mark object at 0x...>; the surrounding bytes stay strict"
+    },
+    {
+      "id": "N13",
+      "channels": [
+        "stdout",
+        "files"
+      ],
+      "applies_to": [
+        "lite_metrics"
+      ],
+      "replace": "JSON object members sorted by key (layout and value text kept)",
+      "reason": "lite_metrics --json emits keys in set-iteration order, which differs per process hash seed"
+    },
+    {
+      "id": "N14",
+      "channels": [
+        "files"
+      ],
+      "replace": "wheel (.whl) files compared by members: name, CRC-32, uncompressed size, attributes and date/time per central-directory entry; compressed bytes ignored",
+      "reason": "the Rust zip writer (miniz_oxide, raw DEFLATE level 1) and CPython zlib level 1 produce different compressed bytes for identical members; the user accepted a member-content comparison"
+    }
+  ]
+}

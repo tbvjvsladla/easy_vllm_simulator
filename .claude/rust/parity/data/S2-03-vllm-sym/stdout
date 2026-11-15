@@ -1,0 +1,6 @@
+{
+  "class": "source-build-class",
+  "matched_signature": "vllm[^\\n]*undefined symbol: \\S+",
+  "note": "vLLM-스코프(같은 줄에 vllm 문맥 — 예: vllm/_C.abi3.so ImportError): 컴파일된 _C 가 베이스 torch 의 C++ ABI 와 불일치. requirements 로 불가 — 소스빌드(NGC torch 에 맞춰 _C 컴파일) 필요.",
+  "evidence": "ImportError: /usr/local/lib/python3.12/dist-packages/vllm/_C.abi3.so: undefined symbol: _ZN3c10fooE"
+}

@@ -1,0 +1,5 @@
+{
+  "quant": "fp8",
+  "serve_bpw": 2.0,
+  "vllm_quant_bpw": 1.0
+}

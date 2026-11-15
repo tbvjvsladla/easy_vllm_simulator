@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/saved/r40/cli-020/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py", line 91, in <module>
+    main()
+  File "/saved/r40/cli-020/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py", line 83, in main
+    print(json.dumps({"class": "unknown",
+UnicodeEncodeError: 'ascii' codec can't encode characters in position 35-37: ordinal not in range(128)

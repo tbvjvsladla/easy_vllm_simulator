@@ -1,0 +1,27 @@
+{
+  "delivery_plane": {
+    "source": "fail-closed:unevaluated",
+    "value": "dormant"
+  },
+  "identity_authority": {
+    "source": "constitution-invariant-A",
+    "value": "ssh-endpoint-auth-and-manifest-role"
+  },
+  "manifest_path": "m.yaml",
+  "notes": [],
+  "rank": null,
+  "sub_mode": null,
+  "sub_present": true,
+  "tool_plane": {
+    "source": "fail-closed:unevaluated",
+    "value": []
+  },
+  "topology": "single",
+  "violations": [
+    {
+      "code": "SUB_MODE_TOPOLOGY_CONFLICT",
+      "field": "nodes[sub].sub_mode",
+      "message": "topology=single 는 sub_mode=a2a-agent 를 함의하는데 선언은 'ray-worker' 이다 — 불변식 A 위반(한 스킴의 role:sub 로 두 정체성을 덮지 않는다)."
+    }
+  ]
+}

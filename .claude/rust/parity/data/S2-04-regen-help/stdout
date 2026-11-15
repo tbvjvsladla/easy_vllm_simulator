@@ -1,0 +1,11 @@
+usage: regen_requirements.py [-h]
+                             (--from-wheel-url FROM_WHEEL_URL | --use-installed | --self-test)
+                             [-o OUT]
+
+options:
+  -h, --help            show this help message and exit
+  --from-wheel-url FROM_WHEEL_URL
+                        wheel URL (호스트, 빌드 전 1차 생성)
+  --use-installed       컨테이너 내부 정합 재생성
+  --self-test           오프라인 회귀 검사
+  -o OUT, --out OUT

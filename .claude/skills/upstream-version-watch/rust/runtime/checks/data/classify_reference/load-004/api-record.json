@@ -1,0 +1,114 @@
+{
+  "kind": "value",
+  "value": [
+    "list",
+    [
+      [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "signature"
+            ],
+            [
+              "str",
+              "FAIL"
+            ]
+          ],
+          [
+            [
+              "str",
+              "class"
+            ],
+            [
+              "str",
+              "requirements-fixable"
+            ]
+          ],
+          [
+            [
+              "str",
+              "note"
+            ],
+            [
+              "str",
+              "literal note"
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  "return_aliases": [],
+  "id": "load-004",
+  "owner_pid": 4094995,
+  "phase": "direct_call_attempt",
+  "owner_call_attempted": true,
+  "input_before": {
+    "args": [
+      "list",
+      [
+        [
+          "str",
+          "/saved/r40/load-004/business/patterns.yaml"
+        ]
+      ]
+    ],
+    "kwargs": [
+      "dict",
+      []
+    ]
+  },
+  "args_after": [
+    "list",
+    [
+      [
+        "str",
+        "/saved/r40/load-004/business/patterns.yaml"
+      ]
+    ]
+  ],
+  "kwargs_after": [
+    "dict",
+    []
+  ],
+  "input_nodes": [
+    {
+      "path": [
+        {
+          "kind": "args"
+        }
+      ],
+      "type": "list"
+    },
+    {
+      "path": [
+        {
+          "kind": "args"
+        },
+        {
+          "kind": "list_item",
+          "index": 0
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        }
+      ],
+      "type": "dict"
+    }
+  ],
+  "globals_after": {
+    "PATTERNS_FILE": [
+      "str",
+      "/saved/r40/load-004/business/node/.claude/skills/upstream-version-watch/scripts/../failure_patterns.yaml"
+    ]
+  },
+  "business_streams": "actual child FD stdout/stderr; no redirection",
+  "collector_errors": []
+}

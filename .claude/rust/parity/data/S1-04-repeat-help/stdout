@@ -1,0 +1,14 @@
+usage: repeat_axis.py [-h] [--self-test]
+                      {resolve,record-run,aggregate-level} ...
+
+full bench 반복 축(해소·집계·요약)
+
+positional arguments:
+  {resolve,record-run,aggregate-level}
+    resolve             반복 수 해소 → 'N<US>출처<US>종류' 한 줄
+    record-run          run 경계 사실 기록
+    aggregate-level     대표 run measured.json 에 runs[]·밴드를 덧붙인다
+
+options:
+  -h, --help            show this help message and exit
+  --self-test

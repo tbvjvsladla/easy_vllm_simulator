@@ -162,7 +162,7 @@ _CI="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_init.py"
 _NOW="$(date -u +%FT%TZ)"
 if [ -f "$_CI" ]; then
     _CAMP="$(bash "${_CI%.py}.sh" --active 2>/dev/null || echo _bootstrap)"
-    if python3 "$_CI" --campaign-id "$_CAMP" --import-sub "$DEST" --utc "$_NOW"; then
+    if bash "${_CI%.py}.sh" --campaign-id "$_CAMP" --import-sub "$DEST" --utc "$_NOW"; then
         echo "[fetch] 캠페인 편입 완료 — 서브 진행표·셀·증거가 메인 인스턴스에 앉았다."
     else
         echo "[fetch] ⚠ 캠페인 편입 실패 — 미러는 있고 진행표는 없다(위 사유 참조)." >&2

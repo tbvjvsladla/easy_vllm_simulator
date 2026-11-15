@@ -242,7 +242,10 @@ a7() {
     fi
     if [ -z "$r" ] || [ ! -f "$r" ]; then fail "A7 렌더러: render_dockerfile.py 부재"; return; fi
     if [ ! -x "$r" ]; then fail "A7 렌더러: $r 실행권한 없음(chmod +x 필요)"; return; fi
-    out="$(python3 "$r" --self-test 2>&1)"; rc=$?
+    # 자체검사는 Rust 런처(render_dockerfile.sh → ELF)가 돈다 — Python 을 띄우지 않는다. 런처가 없으면 fail-loud.
+    local launcher="${r%.py}.sh"
+    if [ ! -x "$launcher" ]; then fail "A7 렌더러: 런처 $launcher 부재/실행권한 없음"; return; fi
+    out="$("$launcher" --self-test 2>&1)"; rc=$?
     if [ "$rc" -ne 0 ]; then
         fail "A7 렌더러: $r --self-test 실패(rc=$rc): $(echo "$out" | head -1)"; return
     fi
@@ -270,7 +273,9 @@ a8() {
     if ! git ls-files -z | tar --null -cf - --files-from - 2>/dev/null | tar -xf - -C "$tmp" 2>/dev/null; then
         rm -rf "$tmp"; fail "A8 info-only Flag 게이트: fresh-clone 트리 구성 실패"; return
     fi
-    ( cd "$tmp" && timeout 60 python3 .claude/skills/vllm-recipe-explorer/recipe.py estimate --auto --config campaigns/_bootstrap/cells/freshclone-probe/config.yaml >/dev/null 2>&1 ); rc1=$?
+    # Rust 런처(recipe.sh): fresh-clone 트리에는 target/ 이 없으므로 이 체크아웃의 빌드 산출을 가리키되, 소유 스킬 루트(feedback·repo 해소)는 임시 트리다.
+    cp "$ROOT/.claude/skills/vllm-recipe-explorer/scripts/recipe.sh" "$tmp/.claude/skills/vllm-recipe-explorer/scripts/recipe.sh" 2>/dev/null
+    ( cd "$tmp" && EASY_VLLM_RECIPE_RUNTIME_ROOT="$ROOT/.claude/skills/vllm-recipe-explorer/rust/runtime" timeout 60 bash .claude/skills/vllm-recipe-explorer/scripts/recipe.sh estimate --auto --config campaigns/_bootstrap/cells/freshclone-probe/config.yaml >/dev/null 2>&1 ); rc1=$?
     ( cd "$tmp" && timeout 60 bash .claude/skills/adversarial-benchmark/scripts/run_bench.sh freshclone-probe >/dev/null 2>&1 ); rc2=$?
     rm -rf "$tmp"
     if [ "$rc1" -eq 4 ] && [ "$rc2" -eq 4 ]; then

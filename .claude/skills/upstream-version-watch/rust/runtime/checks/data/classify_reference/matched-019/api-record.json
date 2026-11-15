@@ -1,0 +1,209 @@
+{
+  "kind": "exception",
+  "exception": {
+    "type": "TypeError",
+    "module": "builtins",
+    "message": "slice indices must be integers or None or have an __index__ method",
+    "args": [
+      [
+        "str",
+        "slice indices must be integers or None or have an __index__ method"
+      ]
+    ],
+    "suppress_context": false,
+    "relation": null,
+    "attributes": {},
+    "frames": [
+      {
+        "file": "/saved/r40/controls/api_one_call.py",
+        "line": 10,
+        "function": "invoke_observed"
+      },
+      {
+        "file": "/saved/r40/matched-019/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py",
+        "line": 62,
+        "function": "matched_lines"
+      }
+    ]
+  },
+  "id": "matched-019",
+  "owner_pid": 4095208,
+  "phase": "direct_call_attempt",
+  "owner_call_attempted": true,
+  "input_before": {
+    "args": [
+      "list",
+      [
+        [
+          "str",
+          "x\ny"
+        ],
+        [
+          "str",
+          "x|y"
+        ]
+      ]
+    ],
+    "kwargs": [
+      "dict",
+      [
+        [
+          [
+            "str",
+            "max_lines"
+          ],
+          [
+            "bool",
+            true
+          ]
+        ],
+        [
+          [
+            "str",
+            "max_chars"
+          ],
+          [
+            "float",
+            "1.0"
+          ]
+        ]
+      ]
+    ]
+  },
+  "args_after": [
+    "list",
+    [
+      [
+        "str",
+        "x\ny"
+      ],
+      [
+        "str",
+        "x|y"
+      ]
+    ]
+  ],
+  "kwargs_after": [
+    "dict",
+    [
+      [
+        [
+          "str",
+          "max_lines"
+        ],
+        [
+          "bool",
+          true
+        ]
+      ],
+      [
+        [
+          "str",
+          "max_chars"
+        ],
+        [
+          "float",
+          "1.0"
+        ]
+      ]
+    ]
+  ],
+  "input_nodes": [
+    {
+      "path": [
+        {
+          "kind": "args"
+        }
+      ],
+      "type": "list"
+    },
+    {
+      "path": [
+        {
+          "kind": "args"
+        },
+        {
+          "kind": "list_item",
+          "index": 0
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "args"
+        },
+        {
+          "kind": "list_item",
+          "index": 1
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        }
+      ],
+      "type": "dict"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        },
+        {
+          "kind": "dict_key",
+          "index": 0
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        },
+        {
+          "kind": "dict_value",
+          "index": 0
+        }
+      ],
+      "type": "bool"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        },
+        {
+          "kind": "dict_key",
+          "index": 1
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        },
+        {
+          "kind": "dict_value",
+          "index": 1
+        }
+      ],
+      "type": "float"
+    }
+  ],
+  "globals_after": {
+    "PATTERNS_FILE": [
+      "str",
+      "/saved/r40/matched-019/business/node/.claude/skills/upstream-version-watch/scripts/../failure_patterns.yaml"
+    ]
+  },
+  "business_streams": "actual child FD stdout/stderr; no redirection",
+  "collector_errors": []
+}

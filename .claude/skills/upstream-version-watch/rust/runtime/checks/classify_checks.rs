@@ -10,7 +10,8 @@
 //!   saved records (value DTO, or the exception's public members; interpreter frames are auxiliary and not compared; `input_ref` is non-null exactly
 //!   where the saved record has a return alias).
 //!
-//! The saved reference is read through `R40_CLASSIFY_REFERENCE`; the pinned registry is read from `R40_CLASSIFY_REGISTRY`. Nothing here runs Python, the
+//! The saved reference is read from the committed `checks/data/classify_reference` (override: `R40_CLASSIFY_REFERENCE`); the pinned registry from the
+//! tracked `failure_patterns.yaml` (override: `R40_CLASSIFY_REGISTRY`). Nothing here runs Python, the
 //! original or the network. Production code holds no case id, saved value or lookup.
 
 use agent_runtime_support::pyjson::loads;
@@ -21,17 +22,17 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 fn reference() -> PathBuf {
-    PathBuf::from(
-        std::env::var("R40_CLASSIFY_REFERENCE")
-            .expect("R40_CLASSIFY_REFERENCE must name the saved capture directory"),
-    )
+    match std::env::var("R40_CLASSIFY_REFERENCE") {
+        Ok(path) => PathBuf::from(path),
+        Err(_) => Path::new(env!("CARGO_MANIFEST_DIR")).join("checks/data/classify_reference"),
+    }
 }
 
 fn registry() -> PathBuf {
-    PathBuf::from(
-        std::env::var("R40_CLASSIFY_REGISTRY")
-            .expect("R40_CLASSIFY_REGISTRY must name the pinned failure_patterns.yaml"),
-    )
+    match std::env::var("R40_CLASSIFY_REGISTRY") {
+        Ok(path) => PathBuf::from(path),
+        Err(_) => Path::new(env!("CARGO_MANIFEST_DIR")).join("../../failure_patterns.yaml"),
+    }
 }
 
 fn load(path: &Path) -> PyValue {
@@ -86,6 +87,22 @@ fn accepted_case(id: &str) -> PyValue {
 }
 
 /// Builds `business/` of a case: the carrier script, the pinned registry beside it, and the case's own files; returns (business, carrier).
+// A sibling test thread forking while our copy's write fd is open makes exec fail with ETXTBSY (the fd lives in that
+// forked child until its exec). Retry only that error, briefly; any other spawn error still fails at once.
+fn spawn_retrying_etxtbsy(command: &mut Command) -> std::process::Child {
+    let mut attempt = 0;
+    loop {
+        match command.spawn() {
+            Ok(c) => return c,
+            Err(e) if e.raw_os_error() == Some(26) && attempt < 50 => {
+                attempt += 1;
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            Err(e) => panic!("spawn: {e}"),
+        }
+    }
+}
+
 fn build_business(root: &Path, case: &PyValue, executable: &str) -> (PathBuf, PathBuf) {
     let business = root.join("business");
     let scripts = business.join("node/.claude/skills/upstream-version-watch/scripts");
@@ -163,12 +180,11 @@ fn selected_saved_cli_cases_through_the_normal_program() {
                 command.env(k.to_utf8().unwrap(), text_of(v));
             }
         }
-        let mut child = command
+        command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .unwrap();
+            .stderr(Stdio::piped());
+        let mut child = spawn_retrying_etxtbsy(&mut command);
         child.stdin.take().unwrap().write_all(&stdin_bytes).unwrap();
         let output = child.wait_with_output().unwrap();
         let saved_root = saved_business(id);

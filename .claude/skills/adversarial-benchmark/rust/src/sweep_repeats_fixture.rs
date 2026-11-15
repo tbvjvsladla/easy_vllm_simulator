@@ -112,7 +112,7 @@ const COPIES: [&str; 75] = [
     ".claude/skills/adversarial-benchmark/config/guide-llm/default_preset.yaml",
     ".claude/skills/terraforming_node/scripts/campaign_init.py",
     ".claude/skills/terraforming_node/scripts/campaign_init.sh",
-    ".claude/skills/adversarial-benchmark/rust/target/release/campaign_read",
+    ".claude/skills/adversarial-benchmark/rust/target/release/campaign_init",
     ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
     ".claude/skills/terraforming_node/scripts/node_role_contract.py",
     ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",

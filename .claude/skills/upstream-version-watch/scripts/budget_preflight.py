@@ -267,7 +267,7 @@ def _self_test():
            'if [ "$BUDGET" = "1" ]; then' in body
            and 'if [ "$BUDGET" = "1" ] && [ "$WATCHDOG" = "1" ]; then' not in body)
         ck("★R1 멀티: 선판정 호출부가 실재한다",
-           'budget_preflight.py" --json' in body)
+           'budget_preflight.sh" --json' in body)
         ck("★R1 멀티: 선언 생략 경로가 원장에 남는다(탈출구가 조용하면 구멍이다)",
            "--reason=--no-watchdog" in body)
     else:
@@ -275,7 +275,7 @@ def _self_test():
     if os.path.isfile(_sg):
         body = open(_sg, encoding="utf-8").read()
         ck("★R1 싱글: 선판정 호출부가 실재한다(종전에는 선판정이 아예 없었다 — 노드 비대칭)",
-           "budget_preflight.py" in body)
+           "budget_preflight.sh" in body)
     else:
         print("  [SKIP] R1 싱글 배선 앵커 — single_serve_up.sh 부재")
 
@@ -284,7 +284,7 @@ def _self_test():
     if os.path.isfile(_rb):
         body = open(_rb, encoding="utf-8").read()
         ck("★R3 벤치 진입 게이트의 호출부가 실재한다(종전 배선 0건)",
-           "--floor-mib" in body and "budget_preflight.py" in body)
+           "--floor-mib" in body and "budget_preflight.sh" in body)
         ck("★R3 벤치 도중 선언 만료를 막는다(만료되면 워치독이 옛 규칙으로 돌아간다)",
            "renew-budget" in body)
         ck("★R3 벤치 몫을 serve overhead 에 더하지 않는다(위상 오배정 금지)",
@@ -391,7 +391,7 @@ def _self_test():
             continue
         body = open(path, encoding="utf-8").read()
         ck("★기재 배선 앵커(%s): 선판정 호출부가 서빙 yaml 경로를 --declared-gmu-yaml 로 넘기고 기재 줄을 찍는다" % label,
-           all(token in body for token in tokens) and "declared_gmu_row" in body, [t for t in tokens if t not in body])
+           all(token in body for token in tokens) and ("declared_gmu_row" in body or "--render" in body), [t for t in tokens if t not in body])
         ck("★기재 음성대조(%s): 셸에 추출 규칙 사본이 없다(gpu-memory-utilization 을 grep 해 넘기지 않는다)" % label,
            "_yaml_declared_gmu" not in body and "gpu[-_]memory[-_]utilization" not in body)
 

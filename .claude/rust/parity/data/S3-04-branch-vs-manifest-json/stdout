@@ -1,0 +1,48 @@
+{
+  "legs": {
+    "branch": {
+      "raw": "single-node",
+      "source": "git symbolic-ref --short HEAD (fallback: rev-parse --abbrev-ref)",
+      "status": "ok",
+      "value": "single"
+    },
+    "campaign": {
+      "campaign_id": "_bootstrap",
+      "detail": "활성 캠페인이 없다(ACTIVE=_bootstrap) -- 캠페인 밖 평시 작업에서는 정상이다. 이번 판정은 이 다리를 빼고 이뤄졌다",
+      "source": "campaigns/<ACTIVE>/campaign.yaml",
+      "status": "not-applicable",
+      "value": null
+    },
+    "layer": {
+      "count": 0,
+      "files": [],
+      "source": "git ls-files -- *.topology.md (본문 자기선언)",
+      "status": "red",
+      "value": null
+    },
+    "manifest": {
+      "detail": "manifest 가 없다 -- 비추적 산출물이라 미테라포밍 클론·워크트리에는 없는 것이 정상이다. **존재**는 policy:TERRAFORM_FLAG_GATE 가 요구하고, 이 술어는 **일치**만 본다",
+      "path": "output/single/manifest.yaml",
+      "source": "output/<t>/manifest.yaml",
+      "status": "absent",
+      "value": null
+    }
+  },
+  "legs_checked": 2,
+  "legs_judged": [
+    "branch",
+    "layer"
+  ],
+  "policy": "BRANCH_CONSTITUTION_LAYERING.C5",
+  "predicate": "topology_parity",
+  "reason_codes": [
+    "LAYER_ABSENT"
+  ],
+  "reasons": [
+    "LAYER_ABSENT: 특화헌법 파일이 0개다 -- 추적 트리에 `*.topology.md` 가 하나도 없으면 이 체크아웃은 어느 토폴로지의 헌법을 읽고 있는지 스스로 말하지 못한다"
+  ],
+  "remediation": "자동 교정하지 않는다 -- 체크아웃 전환인지 선언 수정인지는 사람이 정한다. 고친 뒤 이 술어를 다시 돌려라.",
+  "schema_version": 1,
+  "topology": "single",
+  "verdict": "RED"
+}

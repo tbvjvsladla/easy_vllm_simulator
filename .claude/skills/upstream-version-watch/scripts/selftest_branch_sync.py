@@ -53,8 +53,12 @@ TN = ".claude/skills/terraforming_node/scripts"
 SYNC_TO_SUB = f"{UVW}/sync_to_sub.sh"
 SYNC_BRANCHES = f"{UVW}/sync_branches.sh"
 LAYER_LEDGER = f"{UVW}/layer_ledger.py"
+# closing_sequence.sh 는 원장을 Rust 런처로 부른다 — 사본 트리에는 ELF 가 없으므로 런처만 복사하고 실물 런타임 루트를 가리킨다.
+LAYER_LEDGER_SH = f"{UVW}/layer_ledger.sh"
+INLINE_JSON_SH = f"{UVW}/inline_json.sh"   # 진입점 셸의 JSON 소형 판독기 런처(옛 인라인 python3)
 CLOSING = f"{UVW}/closing_sequence.sh"
 PARITY = ".claude/policies/runtime/topology_parity.py"
+PARITY_SH = ".claude/policies/runtime/topology_parity.sh"   # 진입점 셸이 부르는 Rust 런처
 CAMPAIGN_INIT = f"{TN}/campaign_init.py"
 RENDER = f"{TN}/render_sub_env.py"
 GATE = ".claude/policies/runtime/completion_gate.py"
@@ -102,7 +106,10 @@ class Sandbox:
         self.env.update(GIT_CONFIG_GLOBAL=str(gcfg), GIT_CONFIG_NOSYSTEM="1", GIT_TERMINAL_PROMPT="0",
                         TMPDIR=str(self.tmp), SYNC_SSH_COMMAND=str(shim),
                         # 사본 트리에 __pycache__ 가 생기면 "부작용 0" 판정이 흐려진다 -- 바이트코드를 쓰지 않는다
-                        PYTHONDONTWRITEBYTECODE="1")
+                        PYTHONDONTWRITEBYTECODE="1",
+                        EASY_VLLM_UPSTREAM_RUNTIME_ROOT=str(REAL / UVW.replace("/scripts", "") / "rust" / "runtime"),
+                        # 사본 트리에는 ELF 가 없다 — topology_parity 런처가 실물 바이너리를 가리키게 한다
+                        TOPOLOGY_PARITY_BIN=str(REAL / ".claude/skills/adversarial-benchmark/rust/target/release/topology_parity"))
 
     def git(self, cwd: Path, *args: str) -> str:
         proc = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True,
@@ -150,7 +157,7 @@ def _checkout(sb: Sandbox, name: str, branch: str, header: str, topo: str,
     repo = sb.root / name
     repo.mkdir()
     sb.git(repo, "init", "-q", "-b", branch)
-    for rel in (SYNC_TO_SUB, PARITY, GATE, CAMPAIGN_INIT, *(f".claude/schemas/{s}" for s in SCHEMAS)):
+    for rel in (SYNC_TO_SUB, INLINE_JSON_SH, PARITY, PARITY_SH, GATE, CAMPAIGN_INIT, *(f".claude/schemas/{s}" for s in SCHEMAS)):
         _copy_real(repo, rel)
     _write(repo, TOPOLOGY_RULES, f"# 특화헌법 픽스처\n\n**topology: {header}** · layer: topology\n")
     # single-node 체크아웃도 옛 output/multi 빌드킷을 추적한다(다운그레이드 배달의 형태) -- 가드는 그 앞에서 멈춰야 한다.
@@ -273,6 +280,7 @@ def test_render_guard() -> None:
         # 4자일치 술어의 정본은 기초층 런타임이다(plan_26093022) — 렌더러가 스킬→기초층 방향으로 import 한다.
         (repo / PARITY).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REAL / PARITY, repo / PARITY)
+        shutil.copy2(REAL / PARITY_SH, repo / PARITY_SH)
         _write(repo, TOPOLOGY_RULES, "# 특화헌법 픽스처\n\n**topology: multi** · layer: topology\n")
         absent_manifest = str(sb.root / "no-such-manifest.yaml")
         before = _tree_snapshot(repo)
@@ -322,7 +330,7 @@ def _build_sequence_fixture(sb: Sandbox, *, target_only_change: bool = False, br
     hintlib = sorted(f"{HINTLIB_DIR}/{p.name}" for p in (REAL / HINTLIB_DIR).glob("*.py"))
     if not any(r.endswith("/catalog.py") for r in hintlib):
         raise RuntimeError(f"hintlib 사본 목록에 catalog.py 가 없다: {hintlib}")
-    for rel in {LAYER_LEDGER, SYNC_BRANCHES, CLOSING, PARITY, GATE, CATALOG, ".gitignore",
+    for rel in {LAYER_LEDGER, LAYER_LEDGER_SH, INLINE_JSON_SH, SYNC_BRANCHES, CLOSING, PARITY, PARITY_SH, GATE, CATALOG, ".gitignore",
                 *(f".claude/schemas/{s}" for s in SCHEMAS), *reps, *hintlib, *CATALOG_COMPANIONS}:
         _copy_real(repo, rel)
     _write(repo, "CLAUDE.md", "# 픽스처 헌법 v1\n")
@@ -666,7 +674,7 @@ def test_branch_sync_delete_respects_excludes() -> None:
             repo.mkdir()
             sb.git(repo, "init", "-q", "-b", "single-node")
             reps = _relocation_replacements()
-            for rel in {SYNC_BRANCHES, GATE, PARITY, LAYER_LEDGER, ".gitignore",
+            for rel in {SYNC_BRANCHES, INLINE_JSON_SH, GATE, PARITY, PARITY_SH, LAYER_LEDGER, ".gitignore",
                         *(f".claude/schemas/{s}" for s in SCHEMAS), *reps}:
                 _copy_real(repo, rel)
             _write(repo, "CLAUDE.md", "# 헌법 v1\n")
@@ -721,6 +729,8 @@ def test_branch_sync_delete_respects_excludes() -> None:
                 ck("변이 앵커(exclude 존중 줄) 1건", src.count(anchor) == 1, src.count(anchor))
                 mutant_script = repo / "docs/_evidence/sync_mutated.sh"   # gitignore 평면 — dirty 가드를 울리지 않고 레포 안에 둔다(스크립트가 자기 경로에서 레포를 찾는다)
                 mutant_script.write_text(src.replace(anchor, ""), encoding="utf-8")
+                (mutant_script.parent / "inline_json.sh").write_bytes((repo / INLINE_JSON_SH).read_bytes())   # 스크립트는 자기 폴더의 런처를 쓴다
+                (mutant_script.parent / "inline_json.sh").chmod(0o755)
                 script = mutant_script
 
             r = sb.run(["bash", str(script), "--from", "single-node", "--mode", "experimental",
@@ -737,6 +747,47 @@ def test_branch_sync_delete_respects_excludes() -> None:
             else:
                 ck("★S8 음성대조: exclude 존중을 걷어낸 변이는 원장을 지운다(이 검사가 결함을 잡는다)",
                    not ledger_alive and orphan_gone, (r.returncode, ledger_alive, out[-400:]))
+
+
+def test_inline_json_locator() -> None:
+    """보조 런처(inline_json)는 ① 스크립트 옆 → ② 주 작업 트리 → ③ fail-closed. 대상 루트는 바뀌지 않는다."""
+    with tempfile.TemporaryDirectory(prefix="ij_locator_") as t:
+        root = Path(t)
+        sb = Sandbox(root)
+        env = {k: v for k, v in sb.env.items() if k != "EASY_VLLM_UPSTREAM_RUNTIME_ROOT"}
+        main = root / "main"
+        (main / UVW).mkdir(parents=True)
+        sb.git(main, "init", "-q", "-b", "single-node")
+        shutil.copy2(REAL / SYNC_BRANCHES, main / SYNC_BRANCHES)
+        sb.git(main, "add", "-A")
+        sb.git(main, "commit", "-qm", "base")
+        wt = root / "wt"
+        sb.git(main, "worktree", "add", "-q", "-b", "other", str(wt))
+        marker = root / "ij_called"
+
+        def argv(repo: Path) -> list[str]:
+            return ["bash", str(repo / SYNC_BRANCHES), "--from", "single-node", "--mode", "experimental"]
+
+        def go(repo: Path) -> subprocess.CompletedProcess:
+            return subprocess.run(argv(repo), capture_output=True, text=True, cwd=str(repo), env=env, timeout=120)
+
+        r = go(wt)   # 어디에도 런처 없음
+        ck("IJ③ 둘 다 없으면 fail-closed(종료 3 · 설명 메시지 · Python 폴백 없음)",
+           r.returncode == 3 and "inline_json" in r.stderr, (r.returncode, r.stderr[-300:]))
+
+        # 주 작업 트리에만 런처+ELF 를 둔다(추적 밖 산출물)
+        (main / UVW / "inline_json.sh").write_text(f'#!/bin/bash\necho "$@" >> "{marker}"\nexit 0\n', encoding="utf-8")
+        (main / UVW / "inline_json.sh").chmod(0o755)
+        elf = main / ".claude/skills/upstream-version-watch/rust/runtime/target/release/inline_json"
+        elf.parent.mkdir(parents=True)
+        elf.write_bytes(b"\x7fELF")
+        elf.chmod(0o755)
+        r = go(wt)
+        used = marker.is_file()
+        ck("IJ② 런처 없는 작업 트리 사본은 주 작업 트리의 런처를 쓴다",
+           used and "FAIL: inline_json" not in r.stderr, (r.returncode, r.stderr[-300:], used))
+        ck("IJ② 대상 루트는 스크립트 위치(작업 트리) 그대로 — 주 작업 트리로 바뀌지 않는다",
+           "FAIL: --from 과 대상이 같은 브랜치" not in r.stderr, r.stderr[-300:])
 
 
 def _extract_shell(text: str, names: tuple[str, ...], arrays: tuple[str, ...]) -> str:
@@ -823,7 +874,7 @@ def main() -> int:
             print(f"[selftest_branch_sync] FAIL: 검사 대상이 없다: {rel}", file=sys.stderr)
             return 1
     for test in (test_sync_to_sub_guard, test_render_guard, test_closing_sequence,
-                 test_branch_sync_delete_respects_excludes, test_b0_build_slot_scaffold_checksum_scope):
+                 test_branch_sync_delete_respects_excludes, test_inline_json_locator, test_b0_build_slot_scaffold_checksum_scope):
         try:
             test()
         except Exception as exc:  # noqa: BLE001 -- 픽스처 구성 실패도 FAIL 로 센다(침묵 통과 ✗)

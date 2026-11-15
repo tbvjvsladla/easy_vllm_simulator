@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/saved/r40/cli-016/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py", line 91, in <module>
+    main()
+  File "/saved/r40/cli-016/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py", line 77, in main
+    out = {"class": p["class"], "matched_signature": p["signature"],
+                    ~^^^^^^^^^
+KeyError: 'class'

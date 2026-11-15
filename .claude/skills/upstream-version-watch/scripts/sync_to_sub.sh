@@ -118,6 +118,7 @@ fi
 
 # Gate location is immutable and derived from this script, never from caller-controlled SRC.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+IJ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/inline_json.sh"   # JSON 소형 판독기(Rust ELF 런처) — 인라인 python3 대체
 GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.py"
 
 # ── 배달 통로 ↔ 체크아웃 특화층 가드 (2026-09-14 · ⑧-pre D2 S6 · policy:BRANCH_CONSTITUTION_LAYERING C5 "delivery entry") ──
@@ -134,7 +135,7 @@ GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.py"
 # 막힘 3분류: **정상 차단**이다. 우회 인자·환경변수는 없다. 해소는 맞는 체크아웃에서 맞는 --branch 로 다시 도는 것뿐이다
 #   (종료 시퀀스 ⑥ 은 `topology_parity --format value` 로 이 값을 정하므로 늘 통과한다).
 TOPOLOGY_GUARD_EXIT=12
-PARITY_SCRIPT="$REPO_ROOT/.claude/policies/runtime/topology_parity.py"
+PARITY_SCRIPT="$REPO_ROOT/.claude/policies/runtime/topology_parity.sh"
 GUARD_SRC="${SRC:-$REPO_ROOT/}"
 GUARD_SRC="${GUARD_SRC%/}"
 # 안내는 **원인별**이다(2026-09-14 ⑧-pre D2 리뷰): 4자일치 RED 를 한 문장으로 뭉개면, --branch 는 맞는데 manifest·캠페인
@@ -153,19 +154,8 @@ assert_delivery_topology() {
         echo "[sync] STOP(TOPOLOGY_DELIVERY_UNJUDGED): 4자일치 술어가 없다($PARITY_SCRIPT) — 체크아웃과 --branch 의 일치를 판정할 소유자가 없으면 배달하지 않는다." >&2
         return 1
     fi
-    verdict_json="$(python3 "$PARITY_SCRIPT" evaluate --repo "$GUARD_SRC" --expect "$BRANCH" --format json)" || rc=$?
-    summary="$(printf '%s' "$verdict_json" | python3 -c '
-import json, sys
-try:
-    d = json.load(sys.stdin)
-except Exception:
-    raise SystemExit(1)
-# 빈 칸은 "-" 로 채운다 -- 탭은 IFS 공백이라 빈 필드가 접히면 뒤 칸이 앞으로 밀린다.
-print("\t".join([d.get("verdict") or "-", d.get("topology") or "-", ",".join(d.get("reason_codes") or []) or "-",
-                 ",".join(d.get("legs_judged") or []) + "(" + str(d.get("legs_checked")) + "/4)"]))
-for r in d.get("reasons") or []:
-    print(r)
-' 2>/dev/null)" || summary=""
+    verdict_json="$("$PARITY_SCRIPT" evaluate --repo "$GUARD_SRC" --expect "$BRANCH" --format json)" || rc=$?
+    summary="$(printf '%s' "$verdict_json" | "$IJ" parity-summary 2>/dev/null)" || summary=""
     if [ -z "$summary" ]; then
         echo "[sync] STOP(TOPOLOGY_DELIVERY_UNJUDGED): 4자일치 술어의 판정을 읽지 못했다(rc=$rc) — 판정 없이 배달하지 않는다." >&2
         return 1
@@ -209,13 +199,7 @@ if gate_stdout="$("${gate_cmd[@]}")"; then gate_exit=0; else gate_exit=$?; fi
 
 gate_allowed="false"
 if [ -n "$gate_stdout" ]; then
-    gate_allowed="$(printf '%s' "$gate_stdout" | python3 -c '
-import json, sys
-try:
-    print("true" if json.load(sys.stdin).get("allowed") is True else "false")
-except Exception:
-    print("false")
-' 2>/dev/null || printf false)"
+    gate_allowed="$(printf '%s' "$gate_stdout" | "$IJ" allowed 2>/dev/null || printf false)"
 fi
 if [ "$gate_exit" -ne 0 ] || [ "$gate_allowed" != "true" ]; then
     if [ -n "$gate_stdout" ]; then
@@ -223,15 +207,7 @@ if [ "$gate_exit" -ne 0 ] || [ "$gate_allowed" != "true" ]; then
         [ "$gate_exit" -eq 0 ] && exit 1
         exit "$gate_exit"
     fi
-    python3 -c '
-import json
-print(json.dumps({
- "schema_version":1,"mode":None,"action":"sync_to_sub","task_class":None,
- "authorization_state":None,"allowed":False,
- "reason_codes":["SYNC_TO_SUB_GATE_OUTPUT_UNREADABLE"],
- "messages":{"SYNC_TO_SUB_GATE_OUTPUT_UNREADABLE":"completion gate produced no parseable JSON"},
- "identity":None,"exit_code":2}, ensure_ascii=False, sort_keys=True, indent=2))
-'
+    "$IJ" gate-unreadable-sub
     exit 2
 fi
 
@@ -264,7 +240,7 @@ RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
 # 역할 계약 판정기 — 배달 표면 검증이 tool_plane 을 물을 때 쓴다. 2026-09-05: 이 상수가
 #   **정의된 적이 없었다**. 검증기 본문 주석은 "경로는 파일 상단 ROLE_CONTRACT 상수"라고
 #   적고 있었으니 배선만 빠진 것이다(만든 것과 도는 것은 다르다).
-ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.py"
+ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.sh"
 PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh"
 PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
 
@@ -311,7 +287,7 @@ _resolve_sub_node_id_from_manifest() {   # $1=topology
 #   밝힌다(침묵 폴백 ✗ — 헌법 §4종 안티패턴 판정표의 '결함' 칸).
 _single_extension_active() {
     local manifest="${SRC%/}/output/single/manifest.yaml"
-    local contract="${SRC%/}/.claude/skills/terraforming_node/scripts/node_role_contract.py"
+    local contract="${SRC%/}/.claude/skills/terraforming_node/scripts/node_role_contract.sh"
     local plane rc=0
     # 2026-09-03(P3 · plan_26090317): B0 는 서브 git 이 없으면 **무조건 multi 를 채웠다**. 그 설계는
 #   멀티 온보딩만 상정한 것인데, §2.7.0 이 허용하는 single+sub(A2A 에이전트) 구성에서는 그것이
@@ -345,8 +321,7 @@ SINGLE_PLANE_SOURCE="fail-closed:unevaluated"      # 판정 출처(*_source 표�
     # 출처는 판정기가 소유한다 — 여기서 사유를 손저작하지 않는다(sub-mode:a2a-agent · no-sub-registered …).
     SINGLE_PLANE_SOURCE="$(python3 "$contract" evaluate --manifest "$manifest" --topology single \
                                   --field delivery_plane --format json 2>/dev/null \
-                           | python3 -c 'import json,sys; print((json.load(sys.stdin).get("delivery_plane") or {}).get("source") or "unknown")' \
-                           2>/dev/null || echo unknown)"
+                           | "$IJ" delivery-source 2>/dev/null || echo unknown)"
     [ "$plane" = "active" ]
 }
 
@@ -439,13 +414,7 @@ PA_TOPOLOGY=""; PA_NODE_ID=""; PA_SSH_HOST=""; PA_WORK_DIR=""; PA_PLANES=""
 if [ -n "$RESOLVED_MANIFEST" ]; then
     # Gate owns scope validation and returns the scope from the exact manifest bytes it read.
     # Do not reread the caller path here: that would permit an authorization/transport TOCTOU.
-    pa_fields="$(printf '%s' "$gate_stdout" | python3 -c '
-import json, sys
-try:
- d=json.load(sys.stdin); pa=d.get("propagation_scope") or {}
- if pa: print("\t".join([pa["status"],pa["topology"],pa["node_id"],pa["ssh_host"],pa["work_dir"],",".join(pa["planes"])]))
-except (ValueError, KeyError, TypeError): pass
-')"
+    pa_fields="$(printf '%s' "$gate_stdout" | "$IJ" propagation-fields)"
     if [ -n "$pa_fields" ]; then
         IFS=$'\t' read -r PA_STATUS PA_TOPOLOGY PA_NODE_ID PA_SSH_HOST PA_WORK_DIR PA_PLANES <<< "$pa_fields"
         [ "$PA_STATUS" = "approved" ] || { echo "[sync] STOP(PROPAGATION_SCOPE_STATUS): status must be approved" >&2; exit 4; }
@@ -522,80 +491,21 @@ BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3 solar31-nv4-1m-tp2 solar032-nv4-safe
 script_modules_active() { # $1=topology; only explicit discriminator enters direct PRE delivery
     local man="${SRC%/}/output/$1/build_patches_src/PROVENANCE.json"
     [ -f "$man" ] && [ ! -L "$man" ] || return 1
-    python3 - "$man" <<'SCRIPT_MODULE_KIND'
-import json, sys
-with open(sys.argv[1]) as fh:
-    man = json.load(fh)
-raise SystemExit(0 if man.get("source_payload", {}).get("kind") == "script-modules" else 1)
-SCRIPT_MODULE_KIND
+    local root="${CANONICAL_SRC:-$SRC}"; root="${root%/}"
+    EASY_VLLM_UPSTREAM_RUNTIME_ROOT="$root/.claude/skills/upstream-version-watch/rust/runtime" \
+        "$root/.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh" modules-kind --manifest "$man"
 }
 
 script_module_files() { # selected snapshot already passed exact inventory validation
-    python3 - "${SRC%/}/output/$1/build_patches_src/PROVENANCE.json" <<'SCRIPT_MODULE_FILES'
-import json, sys
-with open(sys.argv[1]) as fh:
-    man = json.load(fh)
-for name in sorted(man["source_payload"]["modules_sha256"]):
-    print(name)
-print("PROVENANCE.json")
-SCRIPT_MODULE_FILES
+    local root="${CANONICAL_SRC:-$SRC}"; root="${root%/}"
+    EASY_VLLM_UPSTREAM_RUNTIME_ROOT="$root/.claude/skills/upstream-version-watch/rust/runtime" \
+        "$root/.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh" modules-files --manifest "${SRC%/}/output/$1/build_patches_src/PROVENANCE.json"
 }
 
 snapshot_script_modules() { # $1=topology; files-map/absent slots retain their existing path
-    python3 - "$CANONICAL_SRC" "$TRANSACTIONAL_SRC" "$1" <<'SCRIPT_MODULE_SNAPSHOT'
-import importlib.util, json, os, pathlib, shutil, stat, subprocess, sys
-canonical, snapshot, topology = sys.argv[1:]
-if topology not in ("single", "multi"):
-    raise SystemExit("[sync] FAIL(PRE modules): invalid topology")
-tool = pathlib.Path(snapshot) / ".claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py"
-spec = importlib.util.spec_from_file_location("sync_regen_modules", tool)
-regen = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(regen)
-relative = f"output/{topology}/build_patches_src"
-root = pathlib.Path(canonical) / relative
-try:
-    fd = regen.open_module_root(root)
-except FileNotFoundError:
-    raise SystemExit(0)
-try:
-    try:
-        inp = os.open("PROVENANCE.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
-    except FileNotFoundError:
-        raise SystemExit(0)
-    with os.fdopen(inp, "rb") as fh:
-        st = os.fstat(fh.fileno())
-        if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
-            raise SystemExit("[sync] FAIL(PRE modules): nonregular provenance")
-        man = json.load(fh)
-    kind = man.get("source_payload", {}).get("kind")
-    if kind in (None, "files-map"):
-        if "files" not in man:
-            raise SystemExit("[sync] FAIL(PRE modules): authored modules require an explicit script-modules discriminator")
-        raise SystemExit(0)  # existing index/provenance + files/ pipeline is authoritative
-    if kind != "script-modules":
-        raise SystemExit("[sync] FAIL(PRE modules): unknown source payload kind")
-    if "source" not in man or "files" in man:
-        raise SystemExit("[sync] FAIL(PRE modules): ambiguous/invalid provenance schema")
-    regen.verify_script_modules(root, man)
-    tracked = subprocess.check_output(["git", "-C", canonical, "ls-files", "-z", "--", relative])
-    if any(n and n != os.fsencode(relative + "/.gitkeep") for n in tracked.split(b"\0")):
-        raise SystemExit("[sync] FAIL(PRE modules): authored modules must remain untracked")
-    dest = pathlib.Path(snapshot) / relative
-    dest.mkdir(parents=True, exist_ok=True)
-    for name in sorted(set(regen.script_module_inventory(man)) | {"PROVENANCE.json"}):
-        inp = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
-        with os.fdopen(inp, "rb") as fh:
-            st = os.fstat(fh.fileno())
-            if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
-                raise SystemExit("[sync] FAIL(PRE modules): input changed type")
-            with (dest / name).open("xb") as out:
-                shutil.copyfileobj(fh, out)
-            os.chmod(dest / name, stat.S_IMODE(st.st_mode) & 0o777)
-    regen.verify_script_modules(dest, man)
-    print(f"[sync] script-modules snapshot: {relative}; no files/ derivation or bundle")
-finally:
-    os.close(fd)
-SCRIPT_MODULE_SNAPSHOT
+    local root="${CANONICAL_SRC:-$SRC}"; root="${root%/}"
+    EASY_VLLM_UPSTREAM_RUNTIME_ROOT="$root/.claude/skills/upstream-version-watch/rust/runtime" \
+        "$root/.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh" snapshot-modules --canonical "$CANONICAL_SRC" --snapshot "$TRANSACTIONAL_SRC" --topology "$1"
 }
 
 effective_band2_exclusions() { # $1=topology; shared rsync/inventory/prune scope
@@ -633,67 +543,9 @@ band2_post_files() { # $1=topology; admitted POST/PRE direct inputs only, no rec
 }
 
 snapshot_post_build_patches() { # $1=topology $2=post|arch-dockerfile|deps-dockerfile; closed regular-file exceptions
-    python3 - "$CANONICAL_SRC" "$TRANSACTIONAL_SRC" "$1" "${2:-post}" <<'POST_PATCH_SNAPSHOT'
-import os, pathlib, re, shutil, stat, subprocess, sys
-canonical, snapshot, topology, kind = sys.argv[1:]
-if topology not in ("single", "multi") or kind not in ("post", "arch-dockerfile", "deps-dockerfile"):
-    raise SystemExit("[sync] FAIL(post slot): invalid topology/input kind")
-leaf = {"post": "build_patches", "arch-dockerfile": "Dockerfile.source-build-sm12x",
-        "deps-dockerfile": "Dockerfile.source-build-deps2"}[kind]
-relative = f"output/{topology}/{leaf}"
-tracked = subprocess.check_output(["git", "-C", canonical, "ls-files", "-z", "--", relative])
-if any(n and n != os.fsencode(relative + "/.gitkeep") for n in tracked.split(b"\0")):
-    raise SystemExit("[sync] FAIL(build input): generated payload must remain untracked")
-# The index-owned scaffold may contain documentation; it is never generated payload.
-scaffold = pathlib.Path(snapshot) / relative / ".gitkeep"
-if kind == "post" and os.path.lexists(scaffold):
-    st = scaffold.lstat()
-    if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
-        raise SystemExit("[sync] FAIL(post slot): invalid index-owned .gitkeep scaffold")
-# Open every ancestor without following symlinks; no parent/slot escape or FIFO open.
-fd = os.open(canonical.rstrip("/"), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-try:
-    for part in (("output", topology, "build_patches") if kind == "post" else ("output", topology)):
-        try:
-            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
-        except FileNotFoundError:
-            print(f"[sync] info: optional post slot absent: {relative}")
-            raise SystemExit(0)
-        os.close(fd)
-        fd = child
-    if kind == "post":
-        names = sorted(n for n in os.listdir(fd) if n != ".gitkeep")  # index-owned scaffold, never filesystem payload
-    else:
-        try:
-            os.stat(leaf, dir_fd=fd, follow_symlinks=False)
-        except FileNotFoundError:
-            raise SystemExit(0)  # optional arch track not rendered
-        names = [leaf]
-    for name in names:
-        st = os.stat(name, dir_fd=fd, follow_symlinks=False)
-        if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
-            raise SystemExit(f"[sync] FAIL(post slot): nonregular/symlink/hardlink payload: {relative}/{name}")
-        if not re.fullmatch(r"[A-Za-z0-9_.-]+", name):
-            raise SystemExit(f"[sync] FAIL(post slot): unsafe filename: {name!r}")
-    if names:
-        dest = pathlib.Path(snapshot) / (relative if kind == "post" else f"output/{topology}")
-        dest.mkdir(parents=True, exist_ok=True)
-        for name in names:
-            inp = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
-            with os.fdopen(inp, "rb") as source:
-                before = os.fstat(source.fileno())
-                if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
-                    raise SystemExit("[sync] FAIL(post slot): payload changed type while copying")
-                with (dest / name).open("xb") as out:
-                    shutil.copyfileobj(source, out)
-                after = os.fstat(source.fileno())
-                if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (after.st_size, after.st_mtime_ns, after.st_ctime_ns):
-                    raise SystemExit("[sync] FAIL(post slot): payload changed while copying")
-                os.chmod(dest / name, stat.S_IMODE(before.st_mode) & 0o777)
-    print(f"[sync] info: untracked {kind} build-input snapshot: {relative} ({len(names)} regular files)")
-finally:
-    os.close(fd)
-POST_PATCH_SNAPSHOT
+    local root="${CANONICAL_SRC:-$SRC}"; root="${root%/}"
+    EASY_VLLM_UPSTREAM_RUNTIME_ROOT="$root/.claude/skills/upstream-version-watch/rust/runtime" \
+        "$root/.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh" snapshot-post --canonical "$CANONICAL_SRC" --snapshot "$TRANSACTIONAL_SRC" --topology "$1" --kind "${2:-post}"
 }
 
 _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = output/<t>/.
@@ -1026,6 +878,42 @@ OVERLAY_RETIREMENT_STALE_PATHS=(
 #   같은 값이 되면 그 위의 게이트는 전부 fail-open 이다(dirty 미보존 배달 · B0 오발동 · origin-0 거짓확증).
 #   처방: 원인을 살리고(stderr 유지) rc 를 전파하며, `[ -d ]` 는 rc 1(부재)만 부재로 읽는다.
 sub_run()  { ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && $1"; }
+
+# ── 서브 Rust 러너(sub_runner · regen_build_patches_src) — 서브에는 Python/cargo 를 요구하지 않는다 ──
+# 서브에서 도는 정비·검증 호출은 메인이 평면 B(이 스크립트) 안에서 rsync 로 배달한 ELF 로 한다.
+# ELF 는 gitignored(target/) 라 스테이징·인벤토리·체크섬 표면에 없다(서브 git 에도 들지 않는다).
+# 부재·아키 불일치·ELF 매직 불일치는 fail-closed 다 — Python 폴백 ✗(우회가 아니라 경로를 고친다).
+SUB_ELF_REL=".claude/skills/upstream-version-watch/rust/runtime/target/release"
+SUB_ELF_NAMES=(sub_runner regen_build_patches_src inline_json)
+sub_runner_run() { # $1..=sub_runner argv → 서브에서 실행(stdout 전달 · 실패는 그대로 비-0)
+    local q a args=""
+    for a in "$@"; do printf -v q '%q' "$a"; args="$args $q"; done
+    ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && '$SUB_ELF_REL/sub_runner'$args" </dev/null
+}
+deliver_sub_runner_elfs() { # $1=dry(0/1) → 0=ok, 9=fail-closed
+    local n src_dir="$REPO_ROOT/$SUB_ELF_REL" local_arch sub_arch magic
+    for n in "${SUB_ELF_NAMES[@]}"; do
+        [ -f "$src_dir/$n" ] && [ -x "$src_dir/$n" ] || {
+            echo "[sync] FAIL(sub-runner): 메인 ELF 부재/비실행: $src_dir/$n — 메인에서 upstream runtime 을 먼저 빌드한다(rust_bootstrap.sh exec -- cargo build --release --locked --manifest-path .claude/skills/upstream-version-watch/rust/runtime/Cargo.toml --target-dir .claude/skills/upstream-version-watch/rust/runtime/target)" >&2
+            return 9; }
+        magic=""; IFS= read -r -N 4 magic < "$src_dir/$n" || :
+        [ "$magic" = $'\177ELF' ] || { echo "[sync] FAIL(sub-runner): ELF 아님: $src_dir/$n" >&2; return 9; }
+    done
+    local_arch="$(uname -m)"
+    sub_arch="$(ssh_run "$SUB_HOST" "uname -m" </dev/null)" || { echo "[sync] FAIL(sub-runner): 서브 아키 조회 실패" >&2; return 9; }
+    [ "$local_arch" = "$sub_arch" ] || {
+        echo "[sync] FAIL(sub-runner): 아키 불일치 main=$local_arch sub=$sub_arch — 같은 아키 ELF 만 배달한다(폴백 ✗)" >&2; return 9; }
+    if [ "$1" = "1" ]; then
+        echo "    sub-runner ELF: ${SUB_ELF_NAMES[*]} → $SUB_HOST:${DEST}$SUB_ELF_REL/ (arch=$sub_arch · dry-run)"
+        return 0
+    fi
+    ssh_run "$SUB_HOST" "mkdir -p -- '${DEST}$SUB_ELF_REL'" </dev/null || { echo "[sync] FAIL(sub-runner): 서브 디렉터리 생성 실패" >&2; return 9; }
+    for n in "${SUB_ELF_NAMES[@]}"; do
+        rsync -a -e "$SSH_RSH" "$src_dir/$n" "$SUB_HOST:${DEST}$SUB_ELF_REL/$n" \
+            || { echo "[sync] FAIL(sub-runner): $n 전송 실패" >&2; return 9; }
+    done
+    echo "[sync] sub-runner ELF 배달: ${SUB_ELF_NAMES[*]} (arch=$sub_arch)" >&2
+}
 # 0=존재 · 1=부재(확정) · 2=판독불가(트랜스포트/권한) — 호출부는 2 를 fail-closed 로 다뤄야 한다.
 sub_has_git() {
     local rc=0
@@ -1093,12 +981,12 @@ render_topology() {
         install -m 0644 "$build_assets"/model_inputs/configs/* "$output_dir/configs/" || return 9
         install -m 0644 "$build_assets"/model_inputs/envs/.env.* "$output_dir/envs/" || return 9
     fi
-    python3 "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.py" \
+    "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.sh" \
         --materialize-configs --repo "${SRC%/}" --topology "$1" >/dev/null || return 9
     if [ "$1" = "multi" ]; then
-        python3 "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.py" \
+        "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.sh" \
             --nccl-envfile --manifest "$output_dir/manifest.yaml" --out "$output_dir/envs/.env.interconnect" >/dev/null || return 9
-        python3 "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.py" \
+        "${SRC%/}/.claude/skills/upstream-version-watch/scripts/render_dockerfile.sh" \
             --cluster-envfile --manifest "$output_dir/manifest.yaml" --out "$output_dir/envs/.env.cluster" >/dev/null || return 9
     fi
     # 2026-09-03(S10/F3 · plan_26090317 P1): 트랜잭션 소스는 `checkout-index --prefix` 트리라 `.git` 이
@@ -1199,29 +1087,7 @@ prune_remote_empty_dirs() { # $1=topology → 0=ok(제거분 로그), 9=실패
     effective_band2_exclusions "$1"
     skip="$(IFS=:; printf '%s' "${EFFECTIVE_BAND2_EXCLUDED_TOP[*]}")"
     post="$(IFS=:; printf '%s' "${BAND2_PATCH_DIRS[*]}")"
-    out="$(ssh_run "$SUB_HOST" "python3 -c 'import os,sys
-root,skip=sys.argv[1],set(x for x in sys.argv[2].split(\":\") if x)
-post=set(x for x in sys.argv[3].split(\":\") if x)
-if not os.path.isdir(root): raise SystemExit(0)
-removed=[]
-def excluded(base):
- # ★ 전송 범위 밖은 **통째로** 건너뛴다 — 최상위 디렉터리 자신뿐 아니라 그 **하위 전부**.
- #   topdown=False 라 dirs[:] prune 이 안 먹으므로 상대경로 첫 성분으로 판정한다.
- #   (2026-08-14 실측: 이 판정을 최상위 basename 으로만 했더니 cache/vllm/dummy_cache 를 지웠다 —
- #    rsync 가 건드리지 않는 영역을 파이프라인이 정비한 셈으로, 2026-08-01 사고와 동일한 형태의
- #    "검사 범위 ≠ 전송 범위" 위반이다.)
- rel=os.path.relpath(base,root)
- return rel!=\".\" and (rel.split(os.sep)[0] in skip or (os.sep in rel and rel.split(os.sep)[0] in post))
-# bottom-up: 안쪽을 지우면 바깥이 비므로 반복 없이 한 번에 수렴한다.
-for base,dirs,files in os.walk(root, topdown=False):
- if base==root or excluded(base): continue
- try:
-  if not os.listdir(base):
-   os.rmdir(base); removed.append(os.path.relpath(base,root))
- except OSError as e:
-  sys.stderr.write(\"prune-failed %s: %s\n\" % (base,e)); raise SystemExit(9)
-print(\"\n\".join(removed))
-' '$root' '$skip' '$post'")" || { echo "[sync] FAIL: 서브 빈 디렉터리 prune 실패($1) — 권한/경합 확인" >&2; return 9; }
+    out="$(sub_runner_run prune-empty-dirs "$root" "$skip" "$post")" || { echo "[sync] FAIL: 서브 빈 디렉터리 prune 실패($1) — 권한/경합 확인" >&2; return 9; }
     if [ -n "$out" ]; then
         echo "[sync] [$1] 배달 전제 복구: 빈 디렉터리 $(printf '%s\n' "$out" | grep -c .)건 제거(정보량 0 · 롤백 인벤토리가 담지 못하는 유일한 형태)" >&2
         printf '%s\n' "$out" | sed 's|^|    prune: output/'"$1"'/|' >&2
@@ -1242,21 +1108,7 @@ validate_remote_deletion_tree() { # $1=topology
     effective_band2_exclusions "$1"
     skip="$(IFS=:; printf '%s' "${EFFECTIVE_BAND2_EXCLUDED_TOP[*]}")"
     post="$(IFS=:; printf '%s' "${BAND2_PATCH_DIRS[*]}")"
-    bad="$(ssh_run "$SUB_HOST" "python3 -c 'import os,sys
-root,skip=sys.argv[1],set(x for x in sys.argv[2].split(\":\") if x)
-post=set(x for x in sys.argv[3].split(\":\") if x)
-if not os.path.isdir(root): raise SystemExit(0)
-hits=[]
-for base,dirs,files in os.walk(root):
- if base==root: dirs[:]=[d for d in dirs if d not in skip]
- elif os.path.relpath(base,root) in post: dirs[:]=[]
- for name in dirs+files:
-  if base==root and name in skip: continue
-  raw=os.fsencode(name)
-  if any(byte<=32 or byte==127 for byte in raw):
-   hits.append(os.path.relpath(os.path.join(base,name),root))
-print(\"\n\".join(hits))
-' '$root' '$skip' '$post'")" || { echo "[sync] FAIL: 서브 삭제 인벤토리 검사 실패($1)" >&2; return 9; }
+    bad="$(sub_runner_run validate-names "$root" "$skip" "$post")" || { echo "[sync] FAIL: 서브 삭제 인벤토리 검사 실패($1)" >&2; return 9; }
     if [ -n "$bad" ]; then
         echo "[sync] FAIL: 서브 경로에 공백/제어문자 — 경로 주입 방어로 fail-closed(대상 아래)." >&2
         printf '%s\n' "$bad" | sed 's|^|    bad-path: output/'"$1"'/|' >&2
@@ -1516,10 +1368,12 @@ prepare_transactional_source() {
     done
     SRC="$TRANSACTIONAL_SRC/"
     RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
-    ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.py"
+    ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.sh"
     PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh"
     PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
     REGEN_TOOL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py"
+    # 로컬 verify·bundle 은 Rust 런처로 간다. REGEN_TOOL(.py)은 서브 stdin 실행(unbundle 등)의 원본으로만 남는다.
+    REGEN_LOCAL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh"
     echo "[sync] transactional source prepared (canonical tree remains read-only): $TRANSACTIONAL_SRC"
     # 2026-09-03(P3 · plan_26090317): 이 루프가 **두 토폴로지 전부**를 무조건 물질화해, 이번 배달과
     #   무관한 통로의 파생 payload 부재가 배달 전체를 죽였다(싱글 배달이 multi 사유로 STOP).
@@ -1550,22 +1404,22 @@ materialize_source_port_payload() {  # $1=topology → 0=ok(또는 해당없음)
         return 9
     fi
     if script_modules_active "$t"; then
-        python3 "$REGEN_TOOL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" || return 9
+        "$REGEN_LOCAL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" || return 9
         echo "[sync] [$t] script-modules verified directly; files/ derive/bundle not applicable"
         return 0
     fi
     if [ ! -d "$payload" ]; then
         echo "[sync] FAIL(source-port/$t): 파생 payload 부재 — $payload" >&2
         echo "[sync]   → 정상 차단이다(우회 금지). 아래로 좌표에서 재파생한 뒤 재실행하라:" >&2
-        echo "[sync]     python3 .claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py derive \\" >&2
+        echo "[sync]     .claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh derive \\" >&2
         echo "[sync]       --root output/$t/$SOURCE_PORT_DIR --work <비추적 작업디렉터리>" >&2
         return 9
     fi
     # 인덱스의 PROVENANCE 로 파일시스템 payload 를 검증한다(권위/바이트 분리의 핵심).
-    if ! python3 "$REGEN_TOOL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" \
+    if ! "$REGEN_LOCAL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" \
             --provenance "$man" --files-root "$payload" >/dev/null; then
         echo "[sync] FAIL(source-port/$t): payload 가 인덱스 PROVENANCE 와 불일치 — 검증되지 않은 바이트는 배달하지 않는다." >&2
-        python3 "$REGEN_TOOL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" \
+        "$REGEN_LOCAL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" \
             --provenance "$man" --files-root "$payload" 2>&1 | sed 's/^/    /' >&2 || true
         return 9
     fi
@@ -1578,7 +1432,7 @@ materialize_source_port_payload() {  # $1=topology → 0=ok(또는 해당없음)
 build_source_port_bundle() {  # $1=topology $2=출력경로 → SOURCE_PORT_BUNDLE_SHA 설정
     local t="$1" out="$2"
     SOURCE_PORT_BUNDLE_SHA=""
-    SOURCE_PORT_BUNDLE_SHA="$(python3 "$REGEN_TOOL" bundle \
+    SOURCE_PORT_BUNDLE_SHA="$("$REGEN_LOCAL" bundle \
         --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" --out "$out" 2>/dev/null | tail -1)" || return 9
     [ -n "$SOURCE_PORT_BUNDLE_SHA" ] || { echo "[sync] FAIL(source-port/$t): 번들 해시 미획득" >&2; return 9; }
 }
@@ -1607,9 +1461,9 @@ deliver_source_port_payload() {  # $1=topology → 0=ok/해당없음
     fi
     rm -f "$local_bundle"
     # 해체·검증은 서브에서 수행한다 — 배달된 PROVENANCE.json(추적물)이 그쪽 판정 권위다.
-    if ! ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && python3 - unbundle \
+    if ! ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && '$SUB_ELF_REL/regen_build_patches_src' unbundle \
             --root 'output/$t/$SOURCE_PORT_DIR' --bundle '$remote_bundle' \
-            --expect-sha256 '$SOURCE_PORT_BUNDLE_SHA'" <"$REGEN_TOOL"; then
+            --expect-sha256 '$SOURCE_PORT_BUNDLE_SHA'" </dev/null; then
         rc=9
         echo "[sync] FAIL(source-port/$t): 서브 해체·검증 실패 — 기존 payload 는 보존된다(교체는 검증 뒤에만)." >&2
     fi
@@ -1622,12 +1476,12 @@ deliver_source_port_payload() {  # $1=topology → 0=ok/해당없음
 verify_source_port_payload() {  # $1=topology
     local t="$1"
     if script_modules_active "$t"; then
-        ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && python3 - verify --root 'output/$t/$SOURCE_PORT_DIR'" <"$REGEN_TOOL"
+        ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && '$SUB_ELF_REL/regen_build_patches_src' verify --root 'output/$t/$SOURCE_PORT_DIR'" </dev/null
         return $?
     fi
     source_port_active "$t" || return 0
-    if ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && python3 - verify \
-            --root 'output/$t/$SOURCE_PORT_DIR'" <"$REGEN_TOOL" | sed 's/^/  /'; then
+    if ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && '$SUB_ELF_REL/regen_build_patches_src' verify \
+            --root 'output/$t/$SOURCE_PORT_DIR'" </dev/null | sed 's/^/  /'; then
         echo "  ✅ output/$t/$SOURCE_PORT_DIR/$SOURCE_PORT_PAYLOAD (서브 무결성)"
         return 0
     fi
@@ -2111,18 +1965,16 @@ retire_runtime_block_residue() {   # $1=topology $2=dry(1|0) → 0=ok · 9=게�
 #   그 처방은 삭제(scoped --delete)이지 배달 차단이 아니다(deliver_overlay 헤더 주석이 이미 지목).
 #   `owner` 면제는 살아 있다 — `.claude/rules/workflow.md` 등 정본 산문이 정규 경로를 인용한다.
 verify_destination_retirement_consumers() {  # $1=topology — 활성 표면의 도출원(스테이징 트리)
-    local topology="$1" stale hits fail=0 scan_py scan_q stale_q st canon nsurf out scanned
+    local topology="$1" stale hits fail=0 stale_q st canon nsurf out scanned
     st="$(staging_dir "$topology")"
     [ -d "$st" ] || { echo "[sync] FAIL(retirement consumer): 스테이징 부재($st) — 활성 표면을 도출할 수 없다" >&2; return 98; }
     canon="$(cd "$st" && find . -type f -not -path '*/__pycache__/*' -not -name '*.pyc' -printf '%P\n' | LC_ALL=C sort)"
     nsurf="$(printf '%s\n' "$canon" | grep -c . || true)"
     # 목록이 비면 "소비자 0" 이 아니라 **도출 실패**다 — 둘을 뭉개면 게이트가 조용히 통과한다.
     [ "${nsurf:-0}" -gt 0 ] || { echo "[sync] FAIL(retirement consumer): 정본 파일 0건($st) — 활성 표면 도출 실패" >&2; return 98; }
-    scan_py=$'# retirement_consumer_scan\nimport os,re,sys\nstale=sys.argv[1]\nowner=".claude/skills/upstream-version-watch/"+stale\nchars=set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./-")\nneedle=re.compile(r"(?<![A-Za-z0-9_.-])"+re.escape(stale)+r"(?![A-Za-z0-9_./-])")\nhits=[]\ndef scan(path):\n if os.path.islink(path): raise RuntimeError("active scanner refuses symlink: "+path)\n # Rust regression sources/data are observations, not active runtime consumers.\n if re.match(r"\\.claude/(skills/[^/]+/)?rust/[^/]+/checks/", path): return\n data=open(path,"rb").read().decode("utf-8","replace")\n for lineno,line in enumerate(data.splitlines(),1):\n  for match in needle.finditer(line):\n   lo,hi=match.start(),match.end()\n   while lo and line[lo-1] in chars: lo-=1\n   while hi<len(line) and line[hi] in chars: hi+=1\n   token=line[lo:hi]\n   while token.startswith("./"): token=token[2:]\n   if token!=owner: hits.append(f"{path}:{lineno}:{line}")\nsurfaces=[x for x in sys.stdin.read().splitlines() if x.strip()]\nif not surfaces: raise SystemExit("active surface list empty")\nn=0\nfor rel in surfaces:\n if os.path.isfile(rel):\n  n+=1\n  scan(rel)\nprint(n)\nprint("\\n".join(hits),end="")'
-    printf -v scan_q '%q' "$scan_py"
     for stale in "${OVERLAY_RETIREMENT_STALE_PATHS[@]}"; do
         printf -v stale_q '%q' "$stale"
-        if out="$(printf '%s\n' "$canon" | sub_run "python3 -c $scan_q $stale_q")"; then
+        if out="$(printf '%s\n' "$canon" | sub_run "'$SUB_ELF_REL/sub_runner' retirement-scan $stale_q")"; then
             :
         else
             echo "[sync] FAIL(retirement consumer): scanner/transport failed for $stale" >&2
@@ -2201,7 +2053,7 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
         fail=1
         _tp="__UNRESOLVED__"
     else
-    _tp="$(python3 "$ROLE_CONTRACT" evaluate \
+    _tp="$("$ROLE_CONTRACT" evaluate \
              --manifest "${SRC%/}/output/$1/manifest.yaml" --topology "$1" \
              --field tool_plane --format value 2>/dev/null || echo '__UNRESOLVED__')"
     fi
@@ -2348,6 +2200,7 @@ if [ "$MODE" = "dryrun" ]; then
     echo "  타겟 브랜치: ${TARGETS[*]}   single 확장: $([ $SINGLE_ACTIVE = 1 ] \
         && echo "활성(delivery_plane=active · source=${SINGLE_PLANE_SOURCE})" \
         || echo "dormant(delivery_plane=dormant · source=${SINGLE_PLANE_SOURCE} → 빌드킷 배달 skip)")"
+    deliver_sub_runner_elfs 1 || echo "  ⚠ 위 FAIL — --apply 는 같은 사유로 트랜잭션 전에 중단한다(미리보기는 계속, 변경 없음)."
     if [ $HAS_GIT = 1 ]; then
         for t in "${TARGETS[@]}"; do
             # dry-run 은 HITL 미리보기다 — apply 가 실제로 할 일과 어긋나면 사람이 잘못된 판단을 한다.
@@ -2487,6 +2340,7 @@ if [ $HAS_GIT = 0 ]; then
     sub_run "git branch single"       # single = base(.gitignore) — dormant
     if [ -n "$BOOTSTRAP_POPULATE" ]; then
         sub_run "git checkout -q multi"
+        deliver_sub_runner_elfs 0 || { echo "[sync] FAIL: bootstrap 서브 러너 ELF 배달 실패 — commit 전 중단"; exit 2; }
         # multi 초기 Band2 배달.  Source gates above already passed before remote mutation.
         deliver_build multi 0
         deliver_source_port_payload multi || { echo "[sync] FAIL: bootstrap source-port payload 배달 실패 — commit 전 중단"; exit 2; }
@@ -2564,6 +2418,7 @@ for t in "${TARGETS[@]}"; do
         echo "[sync] [$t] 보존 완료(서브 로컬 git) — 배달 계속." >&2
     fi
     # (2) transaction before checkout — complete source preflight ran globally before mutation.
+    deliver_sub_runner_elfs 0 || { echo "[sync] FAIL: 서브 러너 ELF 배달 실패($t) — 트랜잭션 전 중단"; exit 9; }
     begin_remote_transaction "$t" 0 || { echo "[sync] FAIL: $t rollback transaction 생성 실패"; exit 9; }
     sub_run "git checkout -q $t" || { echo "[sync] FAIL: 서브 checkout $t 실패"; exit 8; }
     # (3) rsync(빌드 + 오버레이) — render/band/runner/delegation/runtime-patch

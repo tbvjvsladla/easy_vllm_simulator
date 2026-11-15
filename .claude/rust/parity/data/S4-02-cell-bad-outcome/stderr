@@ -1,0 +1,1 @@
+[campaign_init] FAIL cell_outcome 은 ('pending', 'measured', 'serve_failed', 'build_failed', 'void', 'measurement_void', 'not_measured') 중 하나여야 한다: 'nonsense'

@@ -1,0 +1,44 @@
+usage: roofline.py [-h] --model-path MODEL_PATH [--nas-root NAS_ROOT]
+                   [--quant-root QUANT_ROOT] [--manifest MANIFEST] [--tp TP]
+                   [--accept-len ACCEPT_LEN]
+                   [--accept-len-source {measured,declared,declared-absent,absent}]
+                   [--accept-len-evidence ACCEPT_LEN_EVIDENCE]
+                   [--bandwidth-gbps BANDWIDTH_GBPS]
+                   [--interconnect-gbps INTERCONNECT_GBPS]
+                   [--act-dtype-bytes ACT_DTYPE_BYTES]
+                   [--comm-latency-us-per-layer COMM_LATENCY_US_PER_LAYER]
+                   [--realistic-fraction REALISTIC_FRACTION] [--json]
+
+디코드 성능 의심 임계 루프라인 (spec-aware R_fp/R_token)
+
+options:
+  -h, --help            show this help message and exit
+  --model-path MODEL_PATH
+                        컨테이너 경로(/app/models/...) 또는 호스트 경로
+  --nas-root NAS_ROOT   /app/models 매핑 호스트 NAS 루트
+  --quant-root QUANT_ROOT
+                        /app/quant_models 매핑 호스트 루트(manifest.quant_model_path)
+  --manifest MANIFEST   manifest.yaml (gpu_model·interconnect·gpus_per_node)
+  --tp TP               tensor-parallel-size (미지정 시 manifest nodes×gpus 또는 1)
+  --accept-len ACCEPT_LEN
+                        mean acceptance length(speculative, ≥1). 값만 주면
+                        출처=declared(호출자 명시)
+  --accept-len-source {measured,declared,declared-absent,absent}
+                        accept_len 출처(measured|declared|declared-
+                        absent|absent). measured|declared 는 --accept-len 필수 ·
+                        declared-absent|absent 는 --accept-len 금지. 미지정: 값
+                        있음=declared · 없음=absent
+  --accept-len-evidence ACCEPT_LEN_EVIDENCE
+                        출처의 근거(예: level_01/measured.json ·
+                        sweep_index.meta.spec_declared=off) — 기재만
+  --bandwidth-gbps BANDWIDTH_GBPS
+                        노드당 peak 메모리 대역폭 GB/s override
+  --interconnect-gbps INTERCONNECT_GBPS
+                        노드간 대역폭 Gb/s(bits) override
+  --act-dtype-bytes ACT_DTYPE_BYTES
+                        활성 dtype 바이트(all-reduce 메시지, 기본 bf16=2)
+  --comm-latency-us-per-layer COMM_LATENCY_US_PER_LAYER
+                        레이어당 all-reduce 지연(µs). 기본 0=대역폭만(보수)
+  --realistic-fraction REALISTIC_FRACTION
+                        MBU 보정(batch=1 MoE 통상 0.25~0.4). expected=fraction×R
+  --json

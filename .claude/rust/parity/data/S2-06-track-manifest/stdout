@@ -1,0 +1,12 @@
+{
+  "build_track": {
+    "decision": "source-build",
+    "rationale": "torch 2.11 >= 2.11 → 하드 ABI 벽(_C 를 NGC torch 에 링크) → source-build 제안. 최종 변별자=(NGC 베이스/실-링크 torch)×vLLM source version, 스모크가 중재.",
+    "arbiter": "smoke"
+  },
+  "source_build": {
+    "torch_cuda_arch": "12.1",
+    "sm_arch_input": "12.1",
+    "sm_arch_source": "manifest[gpu_compute_capability]"
+  }
+}

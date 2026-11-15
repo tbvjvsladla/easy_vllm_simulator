@@ -1,0 +1,12 @@
+{
+  "tool": "guidellm",
+  "version": "0.7.3",
+  "version_source": "staged(plan_26090415 CP3 · 2026-09-04)",
+  "image_ref": "localhost/parity-fixture-absent-image:0.0.1",
+  "recorded_digest": "sha256:e3ad2371bfa8e42f2c3d1251b62d0d9c9706c27ae2143c8c048eb5fc6aebb558",
+  "observed_digest": null,
+  "digest_source": "measured(docker image inspect .RepoDigests)",
+  "matches_record": null,
+  "platform_note": "linux/arm64",
+  "status": "absent"
+}

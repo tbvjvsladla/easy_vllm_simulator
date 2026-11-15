@@ -1,0 +1,9 @@
+usage: sweep_stop.py [-h] [--state STATE] [--now-utc NOW_UTC] [--self-test]
+
+Broad Search 정지 조건 평가기(결정론)
+
+options:
+  -h, --help         show this help message and exit
+  --state STATE      스윕 상태 JSON 경로('-' = stdin)
+  --now-utc NOW_UTC  현재 시각(ISO-8601 UTC). 주입만 사용한다 — 벽시계 금지
+  --self-test        결정론 자체검사(S1~S20)

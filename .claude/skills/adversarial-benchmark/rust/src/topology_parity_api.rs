@@ -29,8 +29,10 @@
 //!
 //! **Routes.** The native answer is the original's only for the *reviewed* sources: the campaign module (and, when named, the
 //! owner) must be byte-identical to the canonical originals (`role_contract::source_identity`). For any other source the
-//! answer is `kind: "unmet_condition"` with `route: "LegacySourceVariant"` - the source-version compatibility route needs
-//! the approved generic original-function carrier, which this bridge does not contain and never imitates.
+//! answer is `kind: "unmet_condition"` with `route: "LegacySourceVariant"` - the source-version compatibility route is served
+//! by the approved generic original-function carrier (`scripts/topology_legacy_api.py`, found beside the native programs or named by
+//! `compat.bridge_script`) and answers `legacy_observation`; only when that carrier is not installed/named is it `unmet_condition`
+//! (never imitated).
 //!
 //! **Unmet answers execute nothing** (`executed: false` on every `unmet_condition` answer). Their `route` is
 //! `"LegacySourceVariant"` when the source calls for the compatibility route but it could not be served (the route the source

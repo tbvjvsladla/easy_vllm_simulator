@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "kind": "broad_search_sweep_map",
+  "sweep_id": null,
+  "sweep_status": "incomplete",
+  "stopped_by": [],
+  "cells_planned": 6,
+  "cells_attempted": 2,
+  "cells_remaining": [
+    "c3"
+  ],
+  "consecutive_failures": 1,
+  "elapsed_s": 1800,
+  "declared_budget": {
+    "max_cells": 6,
+    "wall_clock_budget_s": 3600,
+    "consecutive_failure_limit": 3,
+    "repeats": 3
+  },
+  "budget_declared_by": "hitl:fixture",
+  "budget_basis": "fixture basis",
+  "budget_repeats_source": "declared(fixture)",
+  "runs_attempted": 0,
+  "repeats_mismatch": [],
+  "repeats_unrecorded": [
+    "c1"
+  ],
+  "rubric_authority": null,
+  "control_variable": null,
+  "cells": [
+    {
+      "order": 1,
+      "cell_key": "c1",
+      "coordinates": null,
+      "cell_outcome": "measured",
+      "concurrency_vector": null,
+      "capacity": null,
+      "verdict_narrative": null,
+      "measurement": null,
+      "repetition": null,
+      "bench_mode": null,
+      "bench_mode_source": null,
+      "downgrade_reason": null,
+      "downgrade_reason_source": null,
+      "downgrade_correlation": null,
+      "void_reason": null,
+      "void_reason_source": null,
+      "failure_note": null,
+      "axis_citation": null,
+      "axis_citation_present": false
+    },
+    {
+      "order": 2,
+      "cell_key": "c2",
+      "coordinates": null,
+      "cell_outcome": "serve_failed",
+      "concurrency_vector": null,
+      "capacity": null,
+      "verdict_narrative": null,
+      "measurement": null,
+      "repetition": null,
+      "bench_mode": null,
+      "bench_mode_source": null,
+      "downgrade_reason": null,
+      "downgrade_reason_source": null,
+      "downgrade_correlation": null,
+      "void_reason": null,
+      "void_reason_source": null,
+      "failure_note": null,
+      "axis_citation": null,
+      "axis_citation_present": false
+    }
+  ],
+  "axis_citation_missing": [
+    "c1",
+    "c2"
+  ],
+  "ordering": "execution_order",
+  "ordering_note": "실행 순서다. 성능 순서가 아니며 이 문서는 순위를 만들지 않는다(§4.5)."
+}

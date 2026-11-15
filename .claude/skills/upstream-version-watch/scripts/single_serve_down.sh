@@ -176,19 +176,7 @@ if [ "$KEEP_SESSION" = "1" ]; then
   echo "$TAG 5/5 세션 stop      : SKIPPED — --keep-session 으로 명시 요청됨"
 else
   if [ -z "$SESSION_ID" ]; then
-    OPEN_IDS="$(python3 - "$NODE_DIR" <<'PY'
-import glob, json, os, sys
-node_dir = sys.argv[1]
-for path in sorted(glob.glob(os.path.join(node_dir, "sessions", "*.json"))):
-    try:
-        with open(path, encoding="utf-8") as fh:
-            doc = json.load(fh)
-    except (OSError, ValueError):
-        continue
-    if doc.get("stopped_utc") is None:
-        print(doc.get("session_id") or os.path.basename(path)[:-5])
-PY
-)"
+    OPEN_IDS="$("$SDIR/inline_json.sh" open-sessions "$NODE_DIR")"
     N_OPEN="$(printf '%s' "$OPEN_IDS" | grep -c . || true)"
     if [ "${N_OPEN:-0}" = "0" ]; then
       echo "$TAG 5/5 세션 stop      : SKIPPED — 열린 세션 없음($NODE_DIR/sessions)"

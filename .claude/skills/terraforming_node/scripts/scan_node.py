@@ -453,21 +453,9 @@ def _sn_selects_self_test(argv) -> bool:
 
 
 def main() -> int:
-    # CLI (P3): the scanner command line is NATIVE (the `scan_node` executable: the original's argparse interface and flow). The one exception is
-    # the original's own regression harness `--self-test` - selected by the exact name or by an unambiguous argparse abbreviation (`_sn_selects_self_test`) -
-    # which needs the original source: it stays on the exact original owner, decided BEFORE any Rust process exists (route
-    # `CompatOriginalCli`, no Rust retry, no handoff after Rust started). The native process inherits this process's standard streams; an in-process caller that redirects
+    # CLI (P3): the scanner command line is NATIVE (the `scan_node` executable: the original's argparse interface and flow). `--self-test` is native too (c31): `_sn_selects_self_test` stays defined but is no longer consulted. The native process inherits this process's standard streams; an in-process caller that redirects
     # `sys.stdout` therefore does not capture its output (a limit of this route, not of the public command line). (No docstring: the
     # original's `main` has none, and the function docs are the original's.)
-    if _sn_selects_self_test(_sn_sys.argv[1:]):
-        _sn_observe("start", "CompatOriginalCli", "main")
-        try:
-            status = _SN_LEGACY.main()
-        except SystemExit as stop:
-            _sn_observe("end", "CompatOriginalCli", "main", "exit:%s" % (stop.code,))
-            raise
-        _sn_observe("end", "CompatOriginalCli", "main", "exit:%s" % status)
-        return status
     _sn_observe("start", "NativeCli", "main")
     for stream in (_sn_sys.stdout, _sn_sys.stderr):
         if stream is not None:

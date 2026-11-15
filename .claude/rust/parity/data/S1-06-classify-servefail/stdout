@@ -1,0 +1,21 @@
+{
+  "cell_outcome": "serve_failed",
+  "void_reason": null,
+  "void_reason_source": "not-scanned(none)",
+  "kill_events": [],
+  "note": "서빙이 성립하지 않아 측정 단계에 도달하지 않았다(rc=1). 대조 대상 노드 중 구간을 보지 못한 노드가 있다 — 사인을 추측하지 않는다.",
+  "lite_verdict": null,
+  "lite_verdict_source": null,
+  "lite_raw_status": "absent",
+  "events_scanned": [],
+  "tolerance_s": 0,
+  "downgrade_correlation": "not_scanned",
+  "events_scan": {
+    "plan": {
+      "source": "explicit(호출자가 대상 events 를 선언했다 — 노드 계획 없음)"
+    },
+    "nodes": [],
+    "cross_node_tolerance_s": null,
+    "cross_node_tolerance_source": null
+  }
+}

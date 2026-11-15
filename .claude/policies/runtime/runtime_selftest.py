@@ -42,16 +42,37 @@ def _require(condition: object, message: str) -> None:
         raise RuntimeSelftestFailure(message)
 
 
+def _drop_git_ignored(root: Path, paths: list[Path]) -> list[Path]:
+    """Drop Git-ignored paths (cargo `target/tmp` test residue is not a harness source).
+
+    If git cannot answer (missing binary, non-repository, unexpected exit) every path is kept - the stricter side.
+    """
+    if not paths:
+        return paths
+    stdin = b"".join(os.fsencode(path.relative_to(root)) + b"\0" for path in paths)
+    try:
+        proc = subprocess.run(["git", "-C", str(root), "check-ignore", "-z", "--stdin"],
+                              input=stdin, capture_output=True)
+    except OSError:
+        return paths
+    if proc.returncode not in (0, 1):
+        return paths
+    ignored = {os.fsdecode(item) for item in proc.stdout.split(b"\0") if item}
+    return [path for path in paths if os.fsdecode(path.relative_to(root)) not in ignored]
+
+
 def _walk_governing_files(root: Path, pattern: str):
-    """Yield harness sources, excluding nested worktrees and node-local installed tools."""
+    """Yield harness sources, excluding nested worktrees, node-local installed tools and Git-ignored build output."""
     claude_dir = root / ".claude"
+    found: list[Path] = []
     for dirpath, dirnames, filenames in os.walk(claude_dir):
         if Path(dirpath) == claude_dir:
             # Runtime toolchains are generated/ignored host packages, not shipped harness code.
             dirnames[:] = [name for name in dirnames if name not in {"worktrees", "runtime"}]
         for name in filenames:
             if fnmatch.fnmatch(name, pattern):
-                yield Path(dirpath) / name
+                found.append(Path(dirpath) / name)
+    yield from _drop_git_ignored(root, found)
 
 
 def _test_no_production_asserts(root: Path | None = None) -> None:

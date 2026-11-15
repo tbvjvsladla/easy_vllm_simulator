@@ -1,0 +1,1 @@
+[sweep_stop] ERROR 상태를 읽을 수 없다: [Errno 2] No such file or directory: 'absent.json'

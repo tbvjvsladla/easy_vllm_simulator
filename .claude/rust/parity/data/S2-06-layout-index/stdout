@@ -1,0 +1,2 @@
+[spec-layout] provenance=measured src=model.safetensors.index.json 전체텐서=3 spec계열=3 인덱스=['block'] num_nextn_predict_layers=1
+[spec-layout] 부품집합=['eh_proj', 'enorm', 'main_proj']

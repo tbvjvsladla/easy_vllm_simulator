@@ -1,0 +1,77 @@
+{
+  "verdict": "REFUTE",
+  "failure_axis": "meet",
+  "reason_code": null,
+  "structural_or_strategy": "strategy",
+  "measured_decode_tps": 42.49999999,
+  "measured_spec_on": false,
+  "measured_accept_len": null,
+  "rubric": {
+    "tolerance": 0.15,
+    "R_fp": 50.0,
+    "R_token": 50.0,
+    "expected_achievable": null,
+    "reference_E": 50.0,
+    "target_c": null,
+    "authority": "weak",
+    "authority_note": "weak(기본): 외부 레퍼런스(E)가 정본",
+    "loop_until_done": true,
+    "candidates": [
+      {
+        "source": "E(external_reference)",
+        "state": "valid",
+        "value": 50.0
+      },
+      {
+        "source": "c(user_target)",
+        "state": "unset"
+      },
+      {
+        "source": "expected_achievable(roofline×MBU)",
+        "state": "unset"
+      }
+    ],
+    "spec_axis": {
+      "declared": "unknown",
+      "accept_len": 1.0,
+      "accept_len_source": "absent",
+      "accept_len_evidence": null,
+      "measured_spec_on": false,
+      "limit": "R_fp",
+      "basis": "spec 선언 지문 부재(unknown) — 종전 규율(measured.spec_on) 보존",
+      "missing": false,
+      "mismatch": null
+    },
+    "physical": {
+      "limit_source": "R_fp(spec off)",
+      "limit_tps": 50.0,
+      "exceeds": false,
+      "required_bandwidth_gbps": null
+    },
+    "primary": 50.0,
+    "source": "E(external_reference)",
+    "floor": 42.5,
+    "ratio_M_over_primary": 0.85
+  },
+  "e_search": "no",
+  "reasons": [
+    "M(42.49999999) < 50.0×(1−0.15)=42.50 [E(external_reference)] (ratio 0.85) → 기대 이하"
+  ],
+  "refuted_claims": [
+    {
+      "claim": "서빙이 충분히 빠르다(production/agent-ready)",
+      "reason": "단일스트림 디코드 42.49999999 t/s 가 루브릭 50.0 t/s(E(external_reference))의 0.85배 — floor 42.50 미달",
+      "evidence": {
+        "measured": 42.49999999,
+        "engine_cross": null,
+        "R_fp": 50.0,
+        "R_token": 50.0,
+        "expected": null
+      }
+    }
+  ],
+  "diagnosis_hint": [
+    "처방 후보: recipe serve-config 재탐색(백엔드·플래그·KV)."
+  ],
+  "note": "게이트=결정론(이 규칙). LLM Devil's Advocate 는 E 외부검색·정성 진단·재탐색힌트만 보탠다(최종 structural/strategy = LLM+HITL)."
+}

@@ -261,10 +261,27 @@ def _terraform_flag_issued() -> bool:
 
 
 def _shipped_python_paths(root: Path = REPO) -> list[Path]:
-    """Return shipped Python sources, excluding nested worktrees and generated toolchains."""
+    """Return shipped Python sources, excluding nested worktrees, generated toolchains and Git-ignored paths.
+
+    Git-ignored build output (e.g. cargo `target/tmp` test residue) is not a distribution target. If git cannot
+    answer (missing binary, non-repository, unexpected exit), every candidate is kept - the stricter side, so the
+    check still surfaces instead of silently shrinking its scope.
+    """
     excluded = (root / ".claude/worktrees", root / ".claude/runtime")
-    return sorted(path for path in (root / ".claude").rglob("*.py")
-                  if not any(directory in path.parents for directory in excluded))
+    candidates = sorted(path for path in (root / ".claude").rglob("*.py")
+                        if not any(directory in path.parents for directory in excluded))
+    if not candidates:
+        return candidates
+    stdin = b"".join(str(path.relative_to(root)).encode("utf-8", "surrogateescape") + b"\0" for path in candidates)
+    try:
+        proc = subprocess.run(["git", "-C", str(root), "check-ignore", "-z", "--stdin"],
+                              input=stdin, capture_output=True)
+    except OSError:
+        return candidates
+    if proc.returncode not in (0, 1):
+        return candidates
+    ignored = {item.decode("utf-8", "surrogateescape") for item in proc.stdout.split(b"\0") if item}
+    return [path for path in candidates if str(path.relative_to(root)) not in ignored]
 
 
 def _gitless_hint_match_checks() -> list[dict]:
@@ -619,10 +636,18 @@ def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
              #   따라간다). 불변인 것은 **두 자리에서 fail-closed 로 부른다**는 사실이므로 그것을 센다.
              "ok": (len(re.findall(r"verify_destination_retirement_consumers\s+\S+\s*\|\|",
                                    sub_text)) == 2
-                    and "retirement_consumer_scan" in sub_text
-                    and 'owner=".claude/skills/upstream-version-watch/"+stale' in sub_text
-                    and 'while lo and line[lo-1] in chars' in sub_text
-                    and "scanner/transport failed for $stale" in sub_text)},
+                    # 2026-11-15(c2j): 스캐너가 heredoc python → Rust `sub_runner retirement-scan` 으로 이동.
+                    #   불변은 같다 — 호출부는 fail-closed(전송·스캐너 실패=98) · 스캐너 소스는 owner 면제와
+                    #   토큰 경계 확장을 가진다. 앵커는 스캐너가 사는 자리를 따라간다.
+                    and "retirement-scan" in sub_text
+                    and "scanner/transport failed for $stale" in sub_text
+                    and (lambda r: ('let owner = format!(' in r
+                                    and "while lo > 0 && is_chars(cs[lo - 1])" in r
+                                    and "if token != owner" in r))(
+                        (REPO / ".claude/skills/upstream-version-watch/rust/runtime/src/bin/sub_runner.rs")
+                        .read_text(encoding="utf-8")
+                        if (REPO / ".claude/skills/upstream-version-watch/rust/runtime/src/bin/sub_runner.rs").is_file()
+                        else ""))},
             # ── 토폴로지-aware 은퇴 (2026-09-11 · plan_26091108 후속 · 서브 클린) ──────────
             #   오버레이는 가산이라 정본에서 사라진 것이 서브에 영구 잔존한다. 종전 비석은
             #   **평면 목록**이라 "single 엔 있어야 하고 multi 엔 없어야 한다" 를 적을 자리가
@@ -1012,14 +1037,15 @@ def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
         #   서는 계약이고, 갈라져도 라이브 캠페인 중반까지 안 보인다.
         #   ⚠ 플래그가 갈린다(`--selftest` 대 `--self-test`). 통일은 별건이며, 여기서는
         #   각자가 실제로 받는 철자를 쓴다 — 틀린 철자는 usage 로 죽어 위양성이 된다.
-        _run("campaign_init_selftest", [sys.executable,
-             ".claude/skills/terraforming_node/scripts/campaign_init.py", "--selftest"], {0}),
+        #   2026-11-15(이식 S4): 두 자체검사는 네이티브 런처가 돈다(원본 `.py` 의 자체검사는 `CAMPAIGN_READ_PYTHON`·`CAMPAIGN_VALIDATOR_PYTHON` 으로 명시해 부른다).
+        _run("campaign_init_selftest", ["bash",
+             ".claude/skills/terraforming_node/scripts/campaign_init.sh", "--selftest"], {0}),
         # 캠페인 수명 상태(2026-10-17 · plan_26101719) — 보류·재개·포기·선점의 단일 정문 · 재질의 계기 (a)(d) ·
         #   진행성 쓰기 가드 · 감독 hold. 이것이 깨지면 처분 없는 덮어쓰기 허점이 조용히 다시 열린다.
         _run("campaign_lifecycle_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/selftest_campaign_lifecycle.py"], {0}),
-        _run("campaign_template_validator_selftest", [sys.executable,
-             ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+        _run("campaign_template_validator_selftest", ["bash",
+             ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
              "--selftest"], {0}),
         _run("blackbox_session_selftest", [sys.executable,
              ".claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.py",
@@ -1241,7 +1267,7 @@ def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
         checks += [
             _order_check("single_up_grounding_before_any_state", ssu_text,
                          'echo "$TAG 1/7 통로·전제      : DONE', 'echo "$TAG 3/7 예산 선언       : DONE"',
-                         ('python3 "$_CI" --grounding-check', 'check_smoke_model.py" "$CONFIG"',
+                         ('bash "${_CI%.py}.sh" --grounding-check', 'check_smoke_model.sh" "$CONFIG"',
                           'python3 "$SESSION_PY" "${DECL_ARGS[@]}"')),
             _order_check("single_up_engine_log_saved_before_rollback", ssu_text,
                          'echo "$TAG 7/7 health 대기     : FAIL — 컨테이너가 종료됐다"', "rollback; exit 5",

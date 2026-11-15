@@ -98,6 +98,56 @@ fn call(rows: &[String]) -> Vec<PyValue> {
         .collect()
 }
 
+/// The API binary copied where no ancestor directory is named `rust`: the approved generic bridge is then genuinely not
+/// installed beside it, so the "bridge not installed" unmet condition is deterministic (not a function of the checkout layout).
+fn call_without_bridge(label: &str, rows: &[String]) -> Vec<PyValue> {
+    let dir = std::env::temp_dir().join(format!("topology_nobridge_{}_{label}", std::process::id()));
+    std::fs::create_dir_all(&dir).expect("dir");
+    let copy = dir.join("topology_parity_api_copy");
+    std::fs::copy(API, &copy).expect("copy api");
+    // A sibling test thread forking while our copy's write fd is open makes exec fail with ETXTBSY (the fd lives in that
+    // forked child until its exec). Retry only that error, briefly; any other spawn error still fails at once.
+    let mut attempt = 0;
+    let mut child = loop {
+        match Command::new(&copy)
+            .arg("evaluate-jsonl")
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .env("TMPDIR", env!("CARGO_TARGET_TMPDIR"))
+            .env("LC_ALL", "C.UTF-8")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+        {
+            Ok(c) => break c,
+            Err(e) if e.raw_os_error() == Some(26) && attempt < 50 => {
+                attempt += 1;
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            Err(e) => panic!("api: {e}"),
+        }
+    };
+    child
+        .stdin
+        .take()
+        .expect("stdin")
+        .write_all((rows.join("\n") + "\n").as_bytes())
+        .expect("write");
+    let out = child.wait_with_output().expect("output");
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(
+        out.stderr.is_empty(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    String::from_utf8(out.stdout)
+        .expect("UTF-8")
+        .lines()
+        .map(|line| loads(line).expect("answer JSON"))
+        .collect()
+}
+
 fn row(id: &str, operation: &str, arguments: &str) -> String {
     format!(r#"{{"id":"{id}","operation":"{operation}","arguments":{arguments}}}"#)
 }
@@ -435,7 +485,7 @@ fn a_different_campaign_module_is_a_concrete_unmet_condition_not_a_current_sourc
     );
     let module = module_of(&root);
     let repo = js(root.to_str().expect("UTF-8"));
-    let answers = call(&[
+    let answers = call_without_bridge("different_module", &[
         row(
             "a",
             "active_campaign_id",
@@ -913,7 +963,7 @@ fn n13_zero_execution_unmet_answers_never_claim_the_native_current_source_route(
     }
     // a source that calls for the compatibility route it cannot get keeps naming that route - and says nothing ran
     let (_r, module, repo) = changed_module("n13_legacy", b"raise SystemExit(7)\n");
-    let answers = call(&[format!(
+    let answers = call_without_bridge("n13_legacy", &[format!(
         r#"{{"id":"legacy","operation":"active_campaign_id","arguments":{{"module":{module},"repo_root":{repo}}}}}"#
     )]);
     assert_eq!(json(&field(&answers[0], "kind")), r#""unmet_condition""#);

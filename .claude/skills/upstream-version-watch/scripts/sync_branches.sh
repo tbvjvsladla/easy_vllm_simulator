@@ -304,6 +304,30 @@ if ! REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null)"; 
     echo "[sync-branches] FAIL: 스크립트 위치($SCRIPT_DIR)에서 git 레포를 찾을 수 없습니다." >&2
     exit 3
 fi
+# JSON 소형 판독기(Rust ELF 런처) 찾기 — 대상 루트 결정(위, 스크립트 위치)은 건드리지 않는다. 런처+바이너리 쌍을
+#   ① 스크립트 옆 → ② 같은 저장소의 주 작업 트리(정본 체크아웃)의 같은 경로 순으로 찾고, ③ 둘 다 없으면 fail-closed(Python 폴백 없음).
+_ij_usable() {  # $1 = 후보 scripts 폴더
+    [ -f "$1/inline_json.sh" ] || return 1
+    local _rt="${EASY_VLLM_UPSTREAM_RUNTIME_ROOT-$1/../rust/runtime}"
+    [ -f "$_rt/target/release/inline_json" ] && [ -x "$_rt/target/release/inline_json" ]
+}
+IJ=""
+if _ij_usable "$SCRIPT_DIR"; then
+    IJ="$SCRIPT_DIR/inline_json.sh"
+else
+    _IJ_COMMON="$(git -C "$SCRIPT_DIR" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+    if [ -n "$_IJ_COMMON" ]; then
+        _IJ_MAIN="$(dirname -- "$_IJ_COMMON")"
+        _IJ_ALT="$_IJ_MAIN/${SCRIPT_DIR#"$REPO_ROOT"/}"
+        if [ -d "$_IJ_ALT" ] && _ij_usable "$_IJ_ALT"; then
+            IJ="$_IJ_ALT/inline_json.sh"
+        fi
+    fi
+fi
+if [ -z "$IJ" ]; then
+    echo "[sync-branches] FAIL: inline_json 런처/바이너리를 스크립트 옆($SCRIPT_DIR)에서도, 주 작업 트리에서도 찾을 수 없습니다. Python 폴백은 없습니다 — 정본 체크아웃에서 runtime 크레이트를 release 빌드하세요." >&2
+    exit 3
+fi
 
 # ── manifest 경로는 호출 시점 CWD 기준으로 지금(어떤 cd 도 하기 전) 단 한 번, 결정론적으로 해소한다 ──
 RESOLVED_MANIFEST=""
@@ -335,14 +359,7 @@ gate_stdout="$("${gate_cmd[@]}")" && gate_exit=0 || gate_exit=$?
 
 gate_allowed="false"
 if [ -n "$gate_stdout" ]; then
-    gate_allowed="$(printf '%s' "$gate_stdout" | python3 -c '
-import json, sys
-try:
-    obj = json.load(sys.stdin)
-    print("true" if obj.get("allowed") is True else "false")
-except Exception:
-    print("false")
-' 2>/dev/null)"
+    gate_allowed="$(printf '%s' "$gate_stdout" | "$IJ" allowed 2>/dev/null)"
     [ "$gate_allowed" = "true" ] || gate_allowed="false"
 fi
 
@@ -355,22 +372,7 @@ if [ "$gate_exit" -ne 0 ] || [ "$gate_allowed" != "true" ]; then
         exit 1
     fi
     # completion_gate.py 자체를 실행/파싱하지 못한 경우(예: 크래시) — 결정론 wrapper 로 대체.
-    python3 -c '
-import json, sys
-gate_mode, manifest_path, exit_code = sys.argv[1], sys.argv[2], sys.argv[3]
-mode = gate_mode if gate_mode in ("experimental", "promotion") else None
-obj = {
-    "schema_version": 1, "mode": mode, "action": "sync_branches", "task_class": None,
-    "authorization_state": None, "allowed": False,
-    "reason_codes": ["SYNC_BRANCHES_GATE_OUTPUT_UNREADABLE"],
-    "messages": {
-        "SYNC_BRANCHES_GATE_OUTPUT_UNREADABLE":
-            "completion_gate.py authorize (exit=" + exit_code + ") did not produce parseable JSON stdout",
-    },
-    "identity": None, "exit_code": 2,
-}
-print(json.dumps(obj, ensure_ascii=False, sort_keys=True, indent=2))
-' "$GATE_MODE" "$RESOLVED_MANIFEST" "$gate_exit"
+    "$IJ" gate-unreadable-branches "$GATE_MODE" "$RESOLVED_MANIFEST" "$gate_exit"
     exit 2
 fi
 
@@ -480,17 +482,7 @@ if git cat-file -e "$SRC_BRANCH:$_LEDGER_REL" 2>/dev/null; then
     _DIV_JSON="$(python3 "$_LEDGER" divergence --repo "$REPO_ROOT" --branch "$DST_BRANCH" \
                      --counterpart "$SRC_BRANCH" --ledger-ref "$SRC_BRANCH" 2>"$_DIV_ERR")" || _DIV_RC=$?
     _DIV_STDERR="$(head -c 4000 "$_DIV_ERR")"; rm -f "$_DIV_ERR"
-    _DIV_SUMMARY="$(printf '%s' "$_DIV_JSON" | python3 -c '
-import json, sys
-try:
-    d = json.load(sys.stdin) or {}
-except Exception:
-    print("unreadable\t-\t-\t-")
-    raise SystemExit(0)
-sp = d.get("sync_point") or {}
-print("\t".join([d.get("status") or "unknown", d.get("basis") or "-", (d.get("base") or "-")[:12],
-                 sp.get("status") or "-", str(len(d.get("absorbed") or []))]))
-' 2>/dev/null || printf 'unreadable\t-\t-\t-\t0')"
+    _DIV_SUMMARY="$(printf '%s' "$_DIV_JSON" | "$IJ" divergence-summary 2>/dev/null || printf 'unreadable\t-\t-\t-\t0')"
     IFS=$'\t' read -r _DIV_STATUS _DIV_BASIS _DIV_BASE _DIV_SP _DIV_ABSORBED <<< "$_DIV_SUMMARY"
     case "$_DIV_STATUS" in
         diverged)

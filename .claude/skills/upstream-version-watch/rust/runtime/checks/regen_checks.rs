@@ -203,7 +203,16 @@ fn replay_cli_case(case: &str, scratch_root: &Path) -> Vec<String> {
         drop(reader);
         command.stdout(writer);
     }
-    let output = command.output().expect("the copied executable ran");
+    // a freshly copied executable can be 'busy' (ETXTBSY) while another test thread forks; retry only that error
+    let output = (0..50)
+        .find_map(|_| match command.output() {
+            Err(error) if error.raw_os_error() == Some(26) => {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+                None
+            }
+            other => Some(other.expect("the copied executable ran")),
+        })
+        .expect("the copied executable started");
     let mut differences = Vec::new();
     let saved_peer_port =
         member(&load(saved.join("peer-observed.json")), "port").map(|port| match port {

@@ -1,0 +1,119 @@
+{
+  "kind": "exception",
+  "exception": {
+    "type": "FileNotFoundError",
+    "module": "builtins",
+    "message": "[Errno 2] No such file or directory: '/saved/r40/load-017/business/patterns.yaml'",
+    "args": [
+      [
+        "int",
+        "2"
+      ],
+      [
+        "str",
+        "No such file or directory"
+      ]
+    ],
+    "suppress_context": false,
+    "relation": null,
+    "attributes": {
+      "errno": [
+        "int",
+        "2"
+      ],
+      "strerror": [
+        "str",
+        "No such file or directory"
+      ],
+      "filename": [
+        "str",
+        "/saved/r40/load-017/business/patterns.yaml"
+      ],
+      "filename2": [
+        "none"
+      ]
+    },
+    "frames": [
+      {
+        "file": "/saved/r40/controls/api_one_call.py",
+        "line": 10,
+        "function": "invoke_observed"
+      },
+      {
+        "file": "/saved/r40/load-017/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py",
+        "line": 24,
+        "function": "load_patterns"
+      }
+    ]
+  },
+  "id": "load-017",
+  "owner_pid": 4095091,
+  "phase": "direct_call_attempt",
+  "owner_call_attempted": true,
+  "input_before": {
+    "args": [
+      "list",
+      [
+        [
+          "str",
+          "/saved/r40/load-017/business/patterns.yaml"
+        ]
+      ]
+    ],
+    "kwargs": [
+      "dict",
+      []
+    ]
+  },
+  "args_after": [
+    "list",
+    [
+      [
+        "str",
+        "/saved/r40/load-017/business/patterns.yaml"
+      ]
+    ]
+  ],
+  "kwargs_after": [
+    "dict",
+    []
+  ],
+  "input_nodes": [
+    {
+      "path": [
+        {
+          "kind": "args"
+        }
+      ],
+      "type": "list"
+    },
+    {
+      "path": [
+        {
+          "kind": "args"
+        },
+        {
+          "kind": "list_item",
+          "index": 0
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        }
+      ],
+      "type": "dict"
+    }
+  ],
+  "globals_after": {
+    "PATTERNS_FILE": [
+      "str",
+      "/saved/r40/load-017/business/node/.claude/skills/upstream-version-watch/scripts/../failure_patterns.yaml"
+    ]
+  },
+  "business_streams": "actual child FD stdout/stderr; no redirection",
+  "collector_errors": []
+}

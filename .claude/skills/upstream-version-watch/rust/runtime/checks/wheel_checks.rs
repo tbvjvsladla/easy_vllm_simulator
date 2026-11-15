@@ -517,7 +517,16 @@ fn replay_saved_case(case: &str, scratch: &Path) -> Vec<String> {
         };
         command.env(name, value);
     }
-    let output = command.output().expect("the copied executable ran");
+    // a freshly copied executable can be 'busy' (ETXTBSY) while another test thread forks; retry only that error
+    let output = (0..50)
+        .find_map(|_| match command.output() {
+            Err(error) if error.raw_os_error() == Some(26) => {
+                std::thread::sleep(std::time::Duration::from_millis(20));
+                None
+            }
+            other => Some(other.expect("the copied executable ran")),
+        })
+        .expect("the copied executable started");
     let rebased = |bytes: &[u8]| {
         replace_bytes(
             bytes,

@@ -1,0 +1,36 @@
+usage: parse_guidellm.py [-h] [--benchmarks-json BENCHMARKS_JSON]
+                         [--engine-log ENGINE_LOG]
+                         [--benchmark-index BENCHMARK_INDEX]
+                         [--accept-len-src ACCEPT_LEN_SRC]
+                         [--spec-axis-absent]
+                         [--post-health-json POST_HEALTH_JSON]
+                         [--prefix-cache-json PREFIX_CACHE_JSON]
+                         [--max-error-rate MAX_ERROR_RATE] [--json]
+                         [--self-test]
+
+GuideLLM benchmarks.json → 측정 M(parse_bench 동일 계약)
+
+options:
+  -h, --help            show this help message and exit
+  --benchmarks-json BENCHMARKS_JSON
+                        guidellm run --output kind=json 산출물
+  --engine-log ENGINE_LOG
+                        docker logs 캡처(교차검증, 선택)
+  --benchmark-index BENCHMARK_INDEX
+  --accept-len-src ACCEPT_LEN_SRC
+                        같은 스윕 lite 레그의 `vllm bench serve` JSON — spec 수용길이를
+                        승계한다
+  --spec-axis-absent    spec 축 부재를 명시 선언한다(승계원이 없을 때. 그 사실이 출력에 남는다)
+  --post-health-json POST_HEALTH_JSON
+                        run_bench 가 벤치 직후 남긴 post_health_<cfg>.json.
+                        server_alive_at_bench_end=false 면 도구경계 면제가 무효화된다(유예 결함
+                        ②).
+  --prefix-cache-json PREFIX_CACHE_JSON
+                        run_bench 가 남긴 prefix_cache_<cfg>.json(실행 전후 /metrics
+                        차분). 출력 prefix_cache_run 에 그대로 싣는다 — 기록 전용 · 판정 규칙은 읽지
+                        않는다(2026-10-16 plan_26101622 F2).
+  --max-error-rate MAX_ERROR_RATE
+                        허용 오류율(기본 0.0 = 엄격). 0 이 아닌 값을 쓰려면 호출자가 근거를 갖고 넘겨야 한다
+                        — 실제 오류율은 산출물이 항상 error_rate 로 싣는다(삼키지 않는다).
+  --json
+  --self-test

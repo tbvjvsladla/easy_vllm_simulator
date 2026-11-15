@@ -1,0 +1,24 @@
+{
+  "delivery_plane": {
+    "source": "no-sub-registered",
+    "value": "dormant"
+  },
+  "identity_authority": {
+    "source": "constitution-invariant-A",
+    "value": "ssh-endpoint-auth-and-manifest-role"
+  },
+  "manifest_path": "m.yaml",
+  "notes": [],
+  "rank": {
+    "source": "not-applicable:no-sub-registered",
+    "value": null
+  },
+  "sub_mode": null,
+  "sub_present": false,
+  "tool_plane": {
+    "source": "no-sub-registered",
+    "value": []
+  },
+  "topology": "single",
+  "violations": []
+}

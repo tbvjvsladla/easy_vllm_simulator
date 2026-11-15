@@ -1,0 +1,5 @@
+{
+  "class": "unknown",
+  "note": "알려진 패턴 미매칭 → Model-C: LLM 이 {proposed_class, evidence} 제시 후 사람 승인.",
+  "evidence": "마지막"
+}

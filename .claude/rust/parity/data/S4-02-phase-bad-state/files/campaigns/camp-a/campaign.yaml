@@ -1,0 +1,45 @@
+{
+ "schema_version": 1,
+ "id": "camp-a",
+ "plan_ref": "docs/plan/p.md",
+ "declared_utc": "2026-11-15T00:00:00Z",
+ "nodes": [
+  {
+   "node_id": "main",
+   "role": "main",
+   "topology": "single",
+   "hw": "fixture"
+  }
+ ],
+ "matrix": {
+  "versions": [
+   "0.30.0"
+  ],
+  "models": [
+   "m"
+  ]
+ },
+ "assignments": {
+  "main": [
+   {
+    "cell": "c1",
+    "mode": "AUTO"
+   },
+   {
+    "cell": "c2",
+    "mode": "STAY"
+   }
+  ]
+ },
+ "budgets": {
+  "smoke_budget_overhead_mib": 1,
+  "ready_max_seconds": 1,
+  "repeats": 3
+ },
+ "control_variables": {
+  "model": "m",
+  "topology": "single"
+ },
+ "revisions": [],
+ "hint_targets": []
+}

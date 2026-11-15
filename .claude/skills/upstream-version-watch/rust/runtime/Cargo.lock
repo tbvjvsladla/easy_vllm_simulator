@@ -384,6 +384,7 @@ dependencies = [
  "agent-runtime-support",
  "crc32fast",
  "fancy-regex",
+ "libc",
  "miniz_oxide",
  "num-bigint",
  "num-traits",

@@ -1,0 +1,108 @@
+{
+  "kind": "value",
+  "value": [
+    "str",
+    "\u0130\u0131\u017f\u212a"
+  ],
+  "return_aliases": [
+    [
+      {
+        "kind": "args"
+      },
+      {
+        "kind": "list_item",
+        "index": 0
+      }
+    ]
+  ],
+  "id": "matched-011",
+  "owner_pid": 4095160,
+  "phase": "direct_call_attempt",
+  "owner_call_attempted": true,
+  "input_before": {
+    "args": [
+      "list",
+      [
+        [
+          "str",
+          "\u0130\u0131\u017f\u212a"
+        ],
+        [
+          "str",
+          "(?i)[a-z]+"
+        ]
+      ]
+    ],
+    "kwargs": [
+      "dict",
+      []
+    ]
+  },
+  "args_after": [
+    "list",
+    [
+      [
+        "str",
+        "\u0130\u0131\u017f\u212a"
+      ],
+      [
+        "str",
+        "(?i)[a-z]+"
+      ]
+    ]
+  ],
+  "kwargs_after": [
+    "dict",
+    []
+  ],
+  "input_nodes": [
+    {
+      "path": [
+        {
+          "kind": "args"
+        }
+      ],
+      "type": "list"
+    },
+    {
+      "path": [
+        {
+          "kind": "args"
+        },
+        {
+          "kind": "list_item",
+          "index": 0
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "args"
+        },
+        {
+          "kind": "list_item",
+          "index": 1
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        }
+      ],
+      "type": "dict"
+    }
+  ],
+  "globals_after": {
+    "PATTERNS_FILE": [
+      "str",
+      "/saved/r40/matched-011/business/node/.claude/skills/upstream-version-watch/scripts/../failure_patterns.yaml"
+    ]
+  },
+  "business_streams": "actual child FD stdout/stderr; no redirection",
+  "collector_errors": []
+}

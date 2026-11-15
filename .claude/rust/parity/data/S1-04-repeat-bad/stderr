@@ -1,0 +1,1 @@
+[repeat_axis] ERROR --repeats=2 는 full 정의(반복 ≥3) 위반이다 — 반복 수를 낮춰 full 을 선언하지 않는다. 반복이 성립하지 않으면 선언이 아니라 기계 이벤트(run 실패·블랙박스 kill)가 셀을 lite 로 강등한다(classify_cell). lite 만 재려면 lite_bench.sh 를 쓰라.

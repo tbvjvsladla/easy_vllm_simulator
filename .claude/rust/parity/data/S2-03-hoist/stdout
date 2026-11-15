@@ -1,0 +1,6 @@
+{
+  "class": "source-build-class",
+  "matched_signature": "register_opaque_type\\(\\) got an unexpected keyword argument 'hoist'",
+  "note": "torch 2.11 alpha private API 불일치. 조건부 HAS_OPAQUE_TYPE 패치로 import 는 우회되나, torch 2.11 alpha 구간 신호 → 후속 C++ ABI 월 동반. 소스빌드 영역.",
+  "evidence": "TypeError: register_opaque_type() got an unexpected keyword argument 'hoist'"
+}

@@ -1,0 +1,60 @@
+  [PASS] multi-ready(구조+성능): gate=multi-ready exit=0 consistent=True
+  [PASS] multi γ(성능 fail-closed): gate=gamma exit=2 consistent=True
+  [PASS] multi γ(peer 미도달): gate=gamma exit=2 consistent=True
+  [PASS] multi γ(no RoCE): gate=gamma exit=2 consistent=False
+  [PASS] multi pending-perf(미측정=fail-closed): gate=multi-ready-candidate exit=2 consistent=True
+  [PASS] multi 포트당 미달(합산은 통과): gate=gamma exit=2 consistent=True
+  [PASS] multi 포트당·합산 모두 통과: gate=multi-ready exit=0 consistent=True
+  [PASS] single α: gate=alpha exit=0 consistent=True
+  [PASS] single α + RoCE(경고 비blocking): gate=alpha exit=0 consistent=True
+  [PASS] single on multi-branch(혼재차단): gate=alpha exit=2 consistent=False
+  [PASS] manifest≠branch(혼재차단): gate=gamma exit=2 consistent=False
+  [PASS] ★declared≠manifest 직접모순(③): gate=alpha exit=2 consistent=False
+  [PASS] ★branch 미해소 → 3자일치 판정불가(③): gate=alpha exit=2 consistent=False
+  [PASS] emit+auto → 거부(fail-closed): emit_gate=3
+  [PASS] emit+single → 통과: emit_gate=0
+  [PASS] emit+multi → 통과: emit_gate=0
+  [PASS] no-emit+auto → 통과(보고만): emit_gate=0
+  [PASS] emit:single GPU-less(전필드 None): no-None=True nodes=True attest=True preset=True keys=True sentinel=True
+  [PASS] emit:multi RoCE(채워짐): no-None=True nodes=True attest=True preset=True keys=True sentinel=True
+  [PASS] emit:multi 서브 미상(센티넬 남김): no-None=True nodes=True attest=True preset=True keys=True sentinel=True
+  [PASS] homo:동질 pass: verified=True blocks=0 warns=0
+  [PASS] homo:arch 불일치 → block: verified=False blocks=1 warns=0
+  [PASS] homo:gpu_model 불일치 → block: verified=False blocks=1 warns=0
+  [PASS] homo:gpus_per_node 불일치 → block: verified=False blocks=1 warns=0
+  [PASS] homo:cuda minor drift → warn-pass: verified=True blocks=0 warns=1
+  [PASS] homo:cuda major 불일치 → block: verified=False blocks=1 warns=0
+  [PASS] homo:driver minor drift → warn-pass: verified=True blocks=0 warns=1
+  [PASS] homo:gpu_model 미상(None) → block(WARN-4): verified=False blocks=1 warns=0
+  [PASS] homo:peer 수집실패 → block: verified=False blocks=1 warns=0
+  [PASS] model_env:managed+NAS도달 → ok: ok=True
+  [PASS] model_env:managed+NAS미도달 → block: ok=False
+  [PASS] model_env:managed+NAS미측정(None) → ok(정보부족≠실패): ok=True
+  [PASS] model_env:ephemeral+egress-restricted+토큰부재 → block: ok=False
+  [PASS] model_env:ephemeral+egress-restricted+토큰존재 → ok: ok=True
+  [PASS] model_env:ephemeral+egress-online+토큰부재 → ok(온라인이라 무관): ok=True
+  [PASS] model_env:custom+egress-restricted+토큰부재 → block: ok=False
+  [PASS] gate-egress:egress-restricted+model-ok → pass(egress 는 attestation 뿐): gate=alpha exit=0
+  [PASS] gate-egress:model-env-missing → block(fail-closed): gate=alpha exit=2
+  [PASS] gate-egress:multi+model-env-missing → gamma block: gate=gamma exit=2
+  [PASS] cross-validate:compose-inline-only → checked+all_match
+  [PASS] cross-validate:env.interconnect-only → checked+all_match(침묵 no-op 아님)
+  [PASS] cross-validate:양쪽 부재 → checked:false + 명시 reason
+  [PASS] cross-validate:env 값 불일치 → all_match False
+  [PASS] iface 미지정 → None
+  [PASS] 없는 iface → None(예외 ✗)
+  [PASS] localhost → 루프백 탐지
+  [PASS] 빈 이름 → None
+  [PASS] 해소 불가 이름 → None(예외 ✗)
+  [PASS] sub-manifest: Flag 계약 통과(issued_by=main)
+  [PASS] sub-manifest: self_role=sub · topology=single
+  [PASS] sub-manifest: cuda 13.2→'132' · gpus int · driver 실측
+  [PASS] sub-manifest: 경로는 공유 NAS(메인 manifest) · egress 는 서브 실측 출처
+  [PASS] sub-manifest: 로스터 = 메인과 동일(main+sub)
+  [PASS] sub-manifest 음성대조: model_source 없음 → Flag 무효
+  [PASS] sub-manifest 음성대조: 서브 GPU 미관측 → Flag 무효(gpus 결손)
+  [PASS] GB10 '[N/A], 12.1' → unified · vram None · cc 12.1
+  [PASS] discrete '32607, 12.0' → discrete · 32607 MiB · cc 12.0
+  [PASS] nvidia-smi 부재(빈 줄) → 전부 None(추측 ✗)
+  [PASS] 판독 불가 값 → None(unified 로 접지 않는다)
+self-test: 59/59 PASS

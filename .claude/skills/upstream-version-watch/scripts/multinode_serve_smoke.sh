@@ -64,27 +64,7 @@ fi
 #   두 자리). 활성 캠페인이 없거나(_bootstrap) 값이 0(뼈대 미기입)이면 아무것도 내지 않는다 — 그러면
 #   아래의 '선언되지 않았다' fail-loud 가 그대로 선다(기본값을 만들지 않는다).
 _campaign_budget() {   # $1 = budgets 키 → 활성 캠페인 선언의 양의 정수만 stdout
-  python3 - "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)" "$1" <<'PY'
-import json, os, sys
-repo, key = sys.argv[1], sys.argv[2]
-try:
-    with open(os.path.join(repo, "campaigns", "ACTIVE"), encoding="utf-8") as fh:
-        camp = fh.read().strip()
-except OSError:
-    sys.exit(0)
-if not camp or camp == "_bootstrap":
-    sys.exit(0)
-path = os.path.join(repo, "campaigns", camp, "campaign.yaml")
-try:
-    with open(path, encoding="utf-8") as fh:
-        val = (json.load(fh).get("budgets") or {}).get(key)
-except (OSError, ValueError) as exc:
-    print(f"[mn] ⚠ 활성 캠페인 선언을 읽지 못했다({path}: {exc}) — 선언값 없이 진행(아래 게이트가 판정)",
-          file=sys.stderr)
-    sys.exit(0)
-if isinstance(val, int) and not isinstance(val, bool) and val > 0:
-    print(val)
-PY
+  "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/inline_json.sh" campaign-budget "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)" "$1"
 }
 
 READY_MAX="${READY_MAX:-}"
@@ -138,7 +118,7 @@ MODEL=$(val SERVING_MODEL_NAME); SLAVE_IP=$(val SLAVE_HOST_IP)
 #   CONFIG_FILE 은 영구 제외 — slave Band2-only(plan_2026062811_2 · policy:MODEL_TRIPLET_NO_SUB_PROPAGATION).
 #   ⚠ 파생이 목록 실패를 줄여도 **결과 대조는 계속한다**(2026-09-05 "리스트를 늘리는 대신 결과를 대조한다") —
 #     빌드 후 이미지 안 대조와 serve 시점 attestation v2 가 남은 갈림을 잡는다.
-SF="$SDIR/slave_forward.py"
+SF="$SDIR/slave_forward.sh"
 [ -f "$SF" ] || { echo "[mn] FAIL: $SF 없음 — slave 전달 집합의 정본 부재(손목록으로 되돌리지 않는다)"; exit 3; }
 PENV_FILE="output/multi/.env"
 # 결함#2b 배선의 부재는 **소리 낸다**(audit_26090115: `--materialize-env` 를 빠뜨리면 옛 스모크는 MOUNTVARS="" 로 조용히
@@ -149,10 +129,10 @@ SFA=(--cell-env "$EF" --project-env "$PENV_FILE" --compose "$COMPOSE_MULTI" --cl
 IMG=$(val IMAGE_TAG); BDF=$(val BUILD_DOCKERFILE)
 # 이미지 정체성 + 클러스터 랑데부(RAY_PORT·SLAVE_CONTAINER_NAME 등 Band2 키의 셀 덮어쓰기)를 한 prefix 로 — 옛
 #   `SLAVE_IMGVARS="$SLAVE_IMGVARS $SLAVE_CLUSTERVARS"` 합성과 같은 구성이다(build·up·down 세 호출부가 쓴다).
-SLAVE_IMGVARS="$(python3 "$SF" prefix --group image_identity,cluster "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(image_identity,cluster) 파생 실패 — 위 사유를 고쳐라"; exit 3; }
-SLAVE_BUILDVARS="$(python3 "$SF" prefix --group build_tuning "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(build_tuning) 파생 실패"; exit 3; }
-MOUNTVARS="$(python3 "$SF" prefix --group mount "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(mount) 파생 실패"; exit 3; }
-PLEVARS="$(python3 "$SF" prefix --group serve_env "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(serve_env) 파생 실패"; exit 3; }
+SLAVE_IMGVARS="$("$SF" prefix --group image_identity,cluster "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(image_identity,cluster) 파생 실패 — 위 사유를 고쳐라"; exit 3; }
+SLAVE_BUILDVARS="$("$SF" prefix --group build_tuning "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(build_tuning) 파생 실패"; exit 3; }
+MOUNTVARS="$("$SF" prefix --group mount "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(mount) 파생 실패"; exit 3; }
+PLEVARS="$("$SF" prefix --group serve_env "${SFA[@]}")" || { echo "[mn] FAIL: slave_forward(serve_env) 파생 실패"; exit 3; }
 BJOBS=$(val BUILD_JOBS)                 # 로컬 표시용(빌드 병렬도 안내) — 전달은 위 SLAVE_BUILDVARS 가 한다
 SLVC=$(val SLAVE_CONTAINER_NAME)        # slave 워치독 필터·로그 회수·갱신 루프가 쓰는 실제 이름
 
@@ -207,7 +187,7 @@ echo "[mn] config=$CONFIG master=$MC port=$PORT model=$MODEL sub=$SUB_HOST sub_w
 #     쥐고 있으므로 RAM 게이트가 **거의 항상** 거부한다 — 즉 "내리기 위해 먼저 내려야 하는" 교착이
 #     된다. 게이트가 겨눌 주체는 로드이지 회수가 아니다(workflow.md 막힘 3분류: 정상 차단 아님).
 if [ "$BUILD_ONLY" != "1" ] && [ "$DOWN" != "1" ]; then
-NAS_OUT=$(python3 "$SDIR/check_smoke_model.py" "$CONFIG" --repo "$REPO" --topology multi --emit-gate-params 2>&1); NAS_RC=$?
+NAS_OUT=$("$SDIR/check_smoke_model.sh" "$CONFIG" --repo "$REPO" --topology multi --emit-gate-params 2>&1); NAS_RC=$?
 printf '%s\n' "$NAS_OUT"
 case "$NAS_RC" in
   0) : ;;
@@ -299,7 +279,7 @@ _campaign_phase() {   # $1=phase $2=state $3=proof_ok(1|0) $4=predicate $5=sourc
   fi
   local _ok=()
   [ "$3" = "1" ] && _ok=(--proof-ok)
-  python3 "$_CI" --phase-set "$1" --node "$MAIN_NODE_ID" --state "$2" --cell "$CONFIG" \
+  bash "${_CI%.py}.sh" --phase-set "$1" --node "$MAIN_NODE_ID" --state "$2" --cell "$CONFIG" \
     --proof-predicate "$4" "${_ok[@]}" --proof-source "$5" \
     --started-utc "$6" --ended-utc "$(date -u +%FT%TZ)" --authored-by "$MAIN_NODE_ID" \
     || echo "[mn] ⚠ campaigns writer 실패 — $1 진행표($MAIN_NODE_ID)가 기록되지 않았다" >&2
@@ -350,11 +330,11 @@ _attest_capture_node() {   # $1=main|sub $2=컨테이너 $3=캡처 디렉터리 
 }
 _attest_write() {   # $1=phase(build|serve) $2=캡처 디렉터리(serve 만) — 실패해도 진행은 막지 않는다
   mkdir -p "$ATTEST_DIR" 2>/dev/null || { echo "[mn] ⚠ $ATTEST_DIR 생성 실패 — attestation 미기록"; return 0; }
-  if python3 - "$ATTEST_JSON" "$CONFIG" "$IMG" "$1" "${2:-}" "$ATTEST_ROWS" "$SF" "$MAIN_NODE_ID" "$SUB_NODE_ID" <<'PY'
+  local _nonid
+  _nonid="$("$SF" non-identity)" || { echo "[mn] ⚠ slave_forward non-identity 실패 — attestation 미기록"; return 0; }
+  if SF_NON_IDENTITY="$_nonid" python3 - "$ATTEST_JSON" "$CONFIG" "$IMG" "$1" "${2:-}" "$ATTEST_ROWS" "$SF" "$MAIN_NODE_ID" "$SUB_NODE_ID" <<'PY'
 import hashlib, json, os, re, sys
 out, config, image, phase, cap, rows_path, sf, main_id, sub_id = sys.argv[1:10]
-sys.path.insert(0, os.path.dirname(sf))
-import slave_forward
 def read(p):
     try:
         with open(p, encoding="utf-8") as fh:
@@ -373,7 +353,7 @@ if phase == "build":
     doc["provenance"] = "measured(docker run in each node image · 이번 실행 --build 대조)"
 else:
     doc["provenance"] = "measured(docker exec in each running container · host nvidia-smi)"
-    exempt = sorted(slave_forward.NON_IDENTITY_BUILD_ARGS)
+    exempt = sorted(x for x in os.environ.get("SF_NON_IDENTITY", "").split() if x)
     nodes = {}
     for role, node_id in (("main", main_id), ("sub", sub_id)):
         raw = read(os.path.join(cap, role + ".ledger.json"))
@@ -498,7 +478,7 @@ if [ -n "$_tag_ver" ]; then
     # VLLM_REF 가 셀 env 에 없으면 compose 기본값이 쓰인다 — 그 값을 **compose 에서 읽는다**. 옛 하드 폴백
     #   "0.27.1" 은 compose 기본값이 v0.29.0rc6 로 바뀐 뒤에도 남아 대조를 거짓으로 만들었다(코드맵 K10 · 매직넘버 결함).
     *) _bld_ver="$(val VLLM_REF)"; _bld_ver="${_bld_ver#v}"; _src="VLLM_REF"
-       [ -n "$_bld_ver" ] || { _bld_ver="$(python3 "$SF" default --compose "$COMPOSE_MULTI" --key VLLM_REF 2>/dev/null)"; _bld_ver="${_bld_ver#v}"; _src="compose 기본값(slave_forward default)"; } ;;
+       [ -n "$_bld_ver" ] || { _bld_ver="$("$SF" default --compose "$COMPOSE_MULTI" --key VLLM_REF 2>/dev/null)"; _bld_ver="${_bld_ver#v}"; _src="compose 기본값(slave_forward default)"; } ;;
   esac
   if [ -z "$_bld_ver" ]; then
     echo "[mn] FAIL(버전 판정 불가): 태그 버전 '$_tag_ver' 에 대응하는 빌드 버전을 읽지 못했다($_src)." >&2
@@ -542,9 +522,8 @@ echo "[mn] 빌드 트랙 정합: IMAGE_TAG=$_it ↔ BUILD_DOCKERFILE=$_bd"
 #   (2026-09-21) 기록기는 최상위 `_attest_add`/`_attest_write`(v2)로 올라갔다 — 이 분기는 행만 더한다.
 
 if [ "$_bd" = "Dockerfile" ]; then   # wheel 트랙에만 적용(source-build 는 베이스 torch 를 그대로 쓴다)
-  _want="$(python3 "$REPO/.claude/skills/upstream-version-watch/scripts/resolve_torch_pin.py" \
-             "$_tag_ver" 2>/dev/null | python3 -c \
-             'import sys,json;d=json.load(sys.stdin);print(d.get("torch_prefix") or "")' 2>/dev/null || echo "")"
+  _want="$("$REPO/.claude/skills/upstream-version-watch/scripts/resolve_torch_pin.sh" \
+             "$_tag_ver" 2>/dev/null | sed -n 's/^[[:space:]]*"torch_prefix":[[:space:]]*"\([^"]*\)".*/\1/p' | head -1 || echo "")"
   if [ -z "$_want" ]; then
     echo "[mn] ⚠ torch 기대 접두어 미해소(vLLM $_tag_ver) — ABI 검증 생략(판정 불가를 통과로 읽지 않되 차단도 않는다)."
   else
@@ -977,7 +956,7 @@ if [ "$BUDGET" = "1" ]; then
   #   계층이라 target_gmu 와의 대조는 여기서 하지 않는다 — 대조는 campaign_init --cell-set 이 기재한다.
   #   ★ 2026-09-14(⑧ 분석 발견 T3): yaml → gmu 추출 규칙은 budget_preflight.py(`--declared-gmu-yaml`)가 단일 소유한다 —
   #     이 셸에 있던 추출 함수를 싱글 기동에 옮겨 적으면 같은 규칙이 두 셸에 손으로 적히므로 경로 한 줄만 넘긴다.
-  _PF="$(python3 "$SDIR/budget_preflight.py" --json --declared-gmu-yaml "output/multi/configs/${CONFIG}.yaml" \
+  _PF="$("$SDIR/budget_preflight.sh" --json --declared-gmu-yaml "output/multi/configs/${CONFIG}.yaml" \
           --mem-total-mib "$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)" \
           --weights-mib "$WEIGHTS_MIB" --kv-mib "$KV_MIB" --overhead-mib "$OVERHEAD_MIB" 2>&1)"
   _PF_RC=$?
@@ -986,7 +965,8 @@ if [ "$BUDGET" = "1" ]; then
     disarm_armed_watchdogs
     exit 4
   fi
-  _pf(){ printf '%s' "$_PF" | python3 -c "import json,sys;print(json.load(sys.stdin).get(sys.argv[1]))" "$1" 2>/dev/null; }
+  # JSON 보고서의 정수 필드 하나(키 앞 따옴표로 bench_floor_mib 등과 구분) — 없으면 None(옛 동작)
+  _pf(){ local v; v="$(printf '%s' "$_PF" | sed -n "s/.*\"$1\": \\(-\\{0,1\\}[0-9][0-9]*\\).*/\\1/p" | head -1)"; printf '%s\n' "${v:-None}"; }
   _PRED_FLOOR="$(_pf floor_mib)"; _PRED_CEIL="$(_pf arm_ceiling_mib)"
   _OH_MAX="$(_pf overhead_max_mib)"; _WD_MIN_CEIL="$(_pf decl_min_ceiling_mib)"
   _MEMTOT_MAIN=$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)
@@ -994,20 +974,10 @@ if [ "$BUDGET" = "1" ]; then
     echo "[mn] FAIL: 선판정 산출을 읽지 못했다 — $_PF" >&2; disarm_armed_watchdogs; exit 4;;
   esac
   echo "[mn] 예산 선판정: 예상 바닥=${_PRED_FLOOR}MiB → arm 상한=${_PRED_CEIL}MiB (가드 최소 ${_WD_MIN_CEIL}MiB)"
-  echo "[mn] declared-gmu 기재(게이트 ✗): $(printf '%s' "$_PF" | python3 -c "
-import json,sys
-r=json.load(sys.stdin).get('declared_gmu_row')
-print('서빙 yaml 에 gpu-memory-utilization 수치 없음 — 기재 행 없음' if r is None else
-      'gmu=%s 예상 vLLM 몫=%sMiB 잔차(몫−weights−kv)=%sMiB provenance=%s status=%s 전제=%s'
-      % (r.get('gmu'), r.get('expected_vllm_share_mib'), r.get('residual_mib'), r.get('provenance'), r.get('status'),
-         str(r.get('premise') or '').split(' — ', 1)[0]))
-" 2>/dev/null || echo '기재 행을 읽지 못했다(판정 무관)')"
+  echo "[mn] declared-gmu 기재(게이트 ✗): $(printf '%s' "$_PF" | "$SDIR/budget_preflight.sh" --render gmu 2>/dev/null || echo '기재 행을 읽지 못했다(판정 무관)')"
   if [ "$_PF_RC" = "4" ]; then
     echo "[mn] STOP(예산 게이트): 워치독이 이 선언을 **거부**한다 — 로드는 0초도 시작하지 않았다."
-    printf '%s' "$_PF" | python3 -c "
-import json,sys
-for r in (json.load(sys.stdin).get('reasons') or []): print('     · %s' % r)
-" 2>/dev/null || true
+    printf '%s' "$_PF" | "$SDIR/budget_preflight.sh" --render reasons 2>/dev/null || true
     # 숫자를 그대로 남긴다 — 경계가 23 MiB 로 얇았다는 사실(2026-08-14)이 판정 재료였고,
     # 그건 "얼마나 모자랐나"가 데이터에 있어야만 다음 사람이 다시 알 수 있다.
     budget_block_event preflight_ceiling arm_ceiling_below_min \
@@ -1230,19 +1200,7 @@ if [ "$READY" = "1" ]; then
   printf '{"model":"%s","messages":[{"role":"user","content":"2+2= ? \xec\x88\xab\xec\x9e\x90\xeb\xa7\x8c \xeb\x8b\xb5\xed\x95\x98\xec\x84\xb8\xec\x9a\x94."}],"max_tokens":256}' "$MODEL" > /tmp/mn_req.json
   curl -s -m 120 "http://localhost:$PORT/v1/chat/completions" -H "Content-Type: application/json" -d @/tmp/mn_req.json -o /tmp/mn_resp.json
   # 한 파서가 세 값을 함께 낸다(두 벌로 나누면 판정과 표시가 갈린다 — 그것이 이번 결함의 형태다).
-  read -r CH_VERDICT CH_CLEN CH_RLEN CH_FR <<<"$(python3 -c "
-import json
-try:
-    d = json.load(open('/tmp/mn_resp.json'))
-    c = d['choices'][0]
-    m = c.get('message') or {}
-    content = (m.get('content') or '').strip()
-    reasoning = (m.get('reasoning') or m.get('reasoning_content') or '').strip()
-    v = 'content' if content else ('reasoning-only' if reasoning else 'empty')
-    print(v, len(content), len(reasoning), c.get('finish_reason'))
-except Exception:
-    print('unparsable 0 0 none')
-" 2>/dev/null)"
+  read -r CH_VERDICT CH_CLEN CH_RLEN CH_FR <<<"$("$SDIR/inline_json.sh" chat-verdict /tmp/mn_resp.json 2>/dev/null)"
   CH_VERDICT="${CH_VERDICT:-unparsable}"
   echo "[mn] smoke(chat): verdict=$CH_VERDICT content_len=${CH_CLEN:-?} reasoning_len=${CH_RLEN:-?} finish_reason=${CH_FR:-?}"
 
@@ -1255,14 +1213,7 @@ except Exception:
       echo "[mn] ⚠ chat content 가 비었다(reasoning_len=$CH_RLEN · fr=$CH_FR) — 생성 실재를 /v1/completions 로 확증한다."
       printf '{"model":"%s","prompt":"2+2=","max_tokens":32}' "$MODEL" > /tmp/mn_req_compl.json
       curl -s -m 120 "http://localhost:$PORT/v1/completions" -H "Content-Type: application/json" -d @/tmp/mn_req_compl.json -o /tmp/mn_resp_compl.json
-      CO_LEN=$(python3 -c "
-import json
-try:
-    d = json.load(open('/tmp/mn_resp_compl.json'))
-    print(len((d['choices'][0].get('text') or '').strip()))
-except Exception:
-    print(0)
-" 2>/dev/null)
+      CO_LEN=$("$SDIR/inline_json.sh" completions-len /tmp/mn_resp_compl.json 2>/dev/null)
       if [ "${CO_LEN:-0}" -gt 0 ]; then
         echo "[mn] SMOKE PASS — evidence=v1.completions (text_len=$CO_LEN · chat.reasoning_len=$CH_RLEN)"
         echo "[mn]   ⚠ 그러나 chat content 는 비어 있다(fr=$CH_FR). reasoning 파서가 활성인데 사고 블록이"

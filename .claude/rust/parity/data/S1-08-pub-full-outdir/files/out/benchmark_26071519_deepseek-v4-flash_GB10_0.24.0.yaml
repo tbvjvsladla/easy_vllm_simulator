@@ -1,0 +1,84 @@
+# ⚠ CARRY-FORWARD 재검증 필수 — 이건 '그때-그 환경' 한정 측정이다(지도≠정답). 소비 전 재확인하라.
+#   강한 일치 키(model/gpu/vllm/quant/topology/tp): 정확일치 실패 시 이 인증서 무효.
+#   model = 체크포인트에서 파생한 **모델 축**(소문자). 운영 조합명은 serving_config 축에 따로 산다.
+#   소프트 지문(driver/cuda/image/max-len/kv-bytes/gmu/moe): 불일치 시 stale — 재측정 권고.
+#   발행 = full 모드 verdict==PASS 시만(결정론 publish_benchmark_record.py · inform-record).
+schema_version: 1
+record_type: benchmark_certificate
+verdict: PASS
+
+# --- 강한 일치 키 (정확일치 필요) ---
+model: deepseek-v4-flash
+gpu_model: "NVIDIA GB10"
+vllm_version: 0.24.0
+quantization: N/A
+topology: multi
+tensor_parallel_size: 2
+
+# --- 운영 조합명(모델 축 아님 · 정본 필드) ---
+serving_config: N/A
+model_source: N/A
+
+# --- 소프트 지문 (불일치 시 stale 경고) ---
+driver_version: 580.159.03
+cuda_version: 132
+image_tag: "easy-vllm:0.24.0-cu132-aarch64-source-sm12x"
+image_digest: N/A
+max_model_len: 524288
+max_num_seqs: 16
+kv_cache_memory_bytes: 17179869184
+kv_cache_dtype: auto
+gpu_memory_utilization: 0.80
+moe_backend: humming
+enforce_eager: true
+bench_tool: N/A
+bench_tool_version: N/A
+bench_tool_version_source: N/A
+attention_backend: N/A
+attention_backend_source: N/A
+attention_backend_mismatch: N/A
+moe_backend_source: N/A
+moe_backend_mismatch: N/A
+ple_mode: N/A
+ple_mode_source: N/A
+dataset_kind: N/A
+dataset_source: N/A
+dataset_id: N/A
+dataset_revision: N/A
+dataset_source_sha256: N/A
+dataset_column_map: N/A
+dataset_preprocess_strategy: N/A
+dataset_seed: N/A
+dataset_duplicate_sampling: N/A
+dataset_tokenizer: N/A
+dataset_provenance: N/A
+ngc_base_tag: N/A
+
+# --- 검증 결과(인증서 본문) ---
+benchmark_mode: full
+decode_tps_conc1: 24.3
+rubric_authority: weak
+primary_source: E(external_reference)
+primary_tps: 25.0
+floor_tps: 21.25
+tolerance: 0.15
+ratio_M_over_primary: 0.972
+e_search: no
+spec_on: true
+accept_len: 1.85
+sweep_levels: 1,2,4,8
+sweep_truncated: "level 16 truncated: run_bench exit 3 (serve health-drop/게이트/bench 실패 — 상위 레벨 중단)"
+lite_included: false
+lite_gen_tps_warm: N/A
+lite_gen_src: N/A
+lite_cold_ttft_ms: N/A
+lite_kv_gib: N/A
+lite_gpu_occupancy: N/A
+lite_ram_occupancy: N/A
+lite_accept_len: N/A
+lite_accept_len_src: N/A
+measured_utc: "2026-07-15T10:30:00Z"
+measured_node: N/A
+measured_node_source: N/A
+server_alive_at_bench_end: N/A
+boundary_exemption: N/A

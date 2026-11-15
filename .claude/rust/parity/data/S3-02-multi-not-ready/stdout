@@ -1,0 +1,16 @@
+{
+  "flag": false,
+  "reason": "terraforming.complete != true (Flag 미발급 — info-only)",
+  "exit_code": 4,
+  "topology": "multi",
+  "gpus_per_node": 1,
+  "nodes": [],
+  "model_source": "managed",
+  "nas_model_path": "/fixture/models",
+  "custom_model_paths": {},
+  "quant_model_path": "",
+  "tiktoken_host_path": "",
+  "manifest_tp": null,
+  "manifest_path": "/tmp/parity-o-S3-02-multi-not-ready-378559-1794730701064578630/output/multi/manifest.yaml",
+  "redirect": "HW스캔이 덜 되어(Flag 미발행) HW 스펙(GPU·OS)을 알기 어려워, 모델의 정확한 서빙전략을 세우기 어렵습니다. terraforming_node 로 ① HW스캔 + ② 모델 다운로드 전략(관리 NAS 경로? 컨테이너 임시 다운로드(컨테이너 down 시 삭제)? 특정 경로 저장·마운트?)을 먼저 정합시다."
+}

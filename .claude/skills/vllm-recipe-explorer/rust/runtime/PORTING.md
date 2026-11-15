@@ -809,3 +809,8 @@ Both findings were confirmed by the independent source review of the held v1 sou
 * Checks: `events_cases` 16 (15 earlier with those two corrections, plus 1 new covering fourteen class/ancestry combinations at help and at a named-argument usage, the constructor rules, and the remaining malformed descriptors). Verification-only CPython parent (`W/dev/py_parent_check.py`): a real `type("OSError", (Exception,), {"__module__": "builtins"})` propagates, a real custom class deriving `OSError` named `OSError` is suppressed, a look-alike `UnicodeEncodeError` needs no constructor.
 * Limit: unchanged (the reflection is trusted to be the real MRO).
 
+
+## run_trial pure part (c2d-a, 2026-11-15)
+
+* **Ported:** `src/run_trial.rs` (serve args, docker command, emit audit, `docker inspect` parser, host-floor gmu cap, mock/dry-run result, health poll with liveness exit, `--self-test`) and `src/run_trial_cli.rs` (`--self-test`, `--dry-run`, `--mock-profile`); launcher `scripts/run_trial.sh`; checks `checks/run_trial_checks.rs` (docker command and audit text recorded from the original's own functions).
+* **Not ported (unconnected boundary):** the real docker session (`_start_memwatch`, budget declare/clear, `functional_smoke` call, log capture, `run_trial()` body, `drop_caches`) stops with status 2 and a named message; the `campaign_init.py --grounding-check` backstop and `blackbox_session.py` calls remain external Python and are left to the session-part cell. The original `.py` is kept.

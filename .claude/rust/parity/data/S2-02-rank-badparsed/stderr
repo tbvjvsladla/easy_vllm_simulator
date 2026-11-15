@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/tmp/parity-o-S2-02-rank-badparsed-378559-1794730689218579617/.claude/skills/vllm-recipe-explorer/scripts/rank_recipes.py", line 249, in <module>
+    sys.exit(_main())
+             ^^^^^^^
+  File "/tmp/parity-o-S2-02-rank-badparsed-378559-1794730689218579617/.claude/skills/vllm-recipe-explorer/scripts/rank_recipes.py", line 226, in _main
+    with open(args.parsed, "r", encoding="utf-8") as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'absent.json'

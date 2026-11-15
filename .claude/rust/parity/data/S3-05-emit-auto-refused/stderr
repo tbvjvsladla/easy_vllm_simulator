@@ -1,0 +1,1 @@
+[scan] FAIL: --emit-manifest 에는 --topology single|multi 명시 필요 — 토폴로지는 terraforming_node 진입의 인터뷰로 선언한다(브랜치/스캔 추론으로 manifest 기입 금지).

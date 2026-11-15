@@ -1,0 +1,124 @@
+{
+  "kind": "exception",
+  "exception": {
+    "type": "TypeError",
+    "module": "builtins",
+    "message": "cannot use a bytes pattern on a string-like object",
+    "args": [
+      [
+        "str",
+        "cannot use a bytes pattern on a string-like object"
+      ]
+    ],
+    "suppress_context": false,
+    "relation": null,
+    "attributes": {},
+    "frames": [
+      {
+        "file": "/saved/r40/controls/api_one_call.py",
+        "line": 10,
+        "function": "invoke_observed"
+      },
+      {
+        "file": "/saved/r40/matched-022/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py",
+        "line": 51,
+        "function": "matched_lines"
+      },
+      {
+        "file": "/usr/lib/python3.12/re/__init__.py",
+        "line": 224,
+        "function": "finditer"
+      }
+    ]
+  },
+  "id": "matched-022",
+  "owner_pid": 4095220,
+  "phase": "direct_call_attempt",
+  "owner_call_attempted": true,
+  "input_before": {
+    "args": [
+      "list",
+      [
+        [
+          "str",
+          "text"
+        ],
+        [
+          "bytes",
+          "78"
+        ]
+      ]
+    ],
+    "kwargs": [
+      "dict",
+      []
+    ]
+  },
+  "args_after": [
+    "list",
+    [
+      [
+        "str",
+        "text"
+      ],
+      [
+        "bytes",
+        "78"
+      ]
+    ]
+  ],
+  "kwargs_after": [
+    "dict",
+    []
+  ],
+  "input_nodes": [
+    {
+      "path": [
+        {
+          "kind": "args"
+        }
+      ],
+      "type": "list"
+    },
+    {
+      "path": [
+        {
+          "kind": "args"
+        },
+        {
+          "kind": "list_item",
+          "index": 0
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "args"
+        },
+        {
+          "kind": "list_item",
+          "index": 1
+        }
+      ],
+      "type": "bytes"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        }
+      ],
+      "type": "dict"
+    }
+  ],
+  "globals_after": {
+    "PATTERNS_FILE": [
+      "str",
+      "/saved/r40/matched-022/business/node/.claude/skills/upstream-version-watch/scripts/../failure_patterns.yaml"
+    ]
+  },
+  "business_streams": "actual child FD stdout/stderr; no redirection",
+  "collector_errors": []
+}

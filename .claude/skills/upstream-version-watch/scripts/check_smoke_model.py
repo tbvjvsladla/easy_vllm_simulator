@@ -314,10 +314,10 @@ def main():
 
         if not a.no_spec_layout_check:
             spec_script = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                       "check_spec_layout.py")
+                                       "check_spec_layout.sh")
             if os.path.isfile(spec_script):
                 import subprocess
-                r = subprocess.run([sys.executable, spec_script,
+                r = subprocess.run(["bash", spec_script,
                                     "--model-dir", host_path, "--config", cfg])
                 if r.returncode == 8:
                     print("[NAS-check] STOP: spec-decoder 레이아웃 불일치 — 위 사유 참조 "

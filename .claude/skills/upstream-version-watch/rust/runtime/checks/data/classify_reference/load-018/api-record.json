@@ -1,0 +1,119 @@
+{
+  "kind": "exception",
+  "exception": {
+    "type": "IsADirectoryError",
+    "module": "builtins",
+    "message": "[Errno 21] Is a directory: '/saved/r40/load-018/business/patterns.yaml'",
+    "args": [
+      [
+        "int",
+        "21"
+      ],
+      [
+        "str",
+        "Is a directory"
+      ]
+    ],
+    "suppress_context": false,
+    "relation": null,
+    "attributes": {
+      "errno": [
+        "int",
+        "21"
+      ],
+      "strerror": [
+        "str",
+        "Is a directory"
+      ],
+      "filename": [
+        "str",
+        "/saved/r40/load-018/business/patterns.yaml"
+      ],
+      "filename2": [
+        "none"
+      ]
+    },
+    "frames": [
+      {
+        "file": "/saved/r40/controls/api_one_call.py",
+        "line": 10,
+        "function": "invoke_observed"
+      },
+      {
+        "file": "/saved/r40/load-018/business/node/.claude/skills/upstream-version-watch/scripts/classify_failure.py",
+        "line": 24,
+        "function": "load_patterns"
+      }
+    ]
+  },
+  "id": "load-018",
+  "owner_pid": 4095092,
+  "phase": "direct_call_attempt",
+  "owner_call_attempted": true,
+  "input_before": {
+    "args": [
+      "list",
+      [
+        [
+          "str",
+          "/saved/r40/load-018/business/patterns.yaml"
+        ]
+      ]
+    ],
+    "kwargs": [
+      "dict",
+      []
+    ]
+  },
+  "args_after": [
+    "list",
+    [
+      [
+        "str",
+        "/saved/r40/load-018/business/patterns.yaml"
+      ]
+    ]
+  ],
+  "kwargs_after": [
+    "dict",
+    []
+  ],
+  "input_nodes": [
+    {
+      "path": [
+        {
+          "kind": "args"
+        }
+      ],
+      "type": "list"
+    },
+    {
+      "path": [
+        {
+          "kind": "args"
+        },
+        {
+          "kind": "list_item",
+          "index": 0
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        }
+      ],
+      "type": "dict"
+    }
+  ],
+  "globals_after": {
+    "PATTERNS_FILE": [
+      "str",
+      "/saved/r40/load-018/business/node/.claude/skills/upstream-version-watch/scripts/../failure_patterns.yaml"
+    ]
+  },
+  "business_streams": "actual child FD stdout/stderr; no redirection",
+  "collector_errors": []
+}

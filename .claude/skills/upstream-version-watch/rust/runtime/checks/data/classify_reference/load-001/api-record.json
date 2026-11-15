@@ -1,0 +1,394 @@
+{
+  "kind": "value",
+  "value": [
+    "list",
+    [
+      [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "signature"
+            ],
+            [
+              "str",
+              "ModuleNotFoundError: No module named '([^']+)'"
+            ]
+          ],
+          [
+            [
+              "str",
+              "class"
+            ],
+            [
+              "str",
+              "requirements-fixable"
+            ]
+          ],
+          [
+            [
+              "str",
+              "note"
+            ],
+            [
+              "str",
+              "\ub204\ub77d \ub77c\uc774\ube0c\ub7ec\ub9ac \u2192 requirements.txt \ucd94\uac00 \ud6c4 \uc7ac\ube4c\ub4dc. \uc608: uvloop(=fastapi[standard] \ub204\ub77d)."
+            ]
+          ]
+        ]
+      ],
+      [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "signature"
+            ],
+            [
+              "str",
+              "libcudart\\.so\\.\\d+: cannot open shared object file"
+            ]
+          ],
+          [
+            [
+              "str",
+              "class"
+            ],
+            [
+              "str",
+              "requirements-fixable"
+            ]
+          ],
+          [
+            [
+              "str",
+              "note"
+            ],
+            [
+              "str",
+              "CUDA \ub7f0\ud0c0\uc784 .so \ubd80\uc7ac \u2192 nvidia-cuda-runtime-cuN \ubcf4\ucda9 + LD_LIBRARY_PATH. (cu wheel \u2194 \ubca0\uc774\uc2a4 CUDA \uba54\uc774\uc800 \ucc28). cu12-on-cu13 forward-compat \ucde8\uc57d: aarch64\uc5d0\uc11c cu129 wheel\uc744 CUDA13.x \ubca0\uc774\uc2a4\uc5d0 \uc5b9\ub294 forward-compat \uc758\uc874\uc774 \uae68\uc9c8 \uc218 \uc788\uc74c(\uc2e0\ud638)."
+            ]
+          ]
+        ]
+      ],
+      [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "signature"
+            ],
+            [
+              "str",
+              "([A-Za-z0-9_-]+): command not found"
+            ]
+          ],
+          [
+            [
+              "str",
+              "class"
+            ],
+            [
+              "str",
+              "requirements-fixable"
+            ]
+          ],
+          [
+            [
+              "str",
+              "note"
+            ],
+            [
+              "str",
+              "\ub204\ub77d \uc2e4\ud589\ud30c\uc77c/\ud328\ud0a4\uc9c0 \u2192 requirements.txt \ucd94\uac00 \ud6c4 \uc7ac\ube4c\ub4dc. \uc608: ray(\uba40\ud2f0\ub178\ub4dc \ubd84\uc0b0 \ud544\uc218, wheel METADATA \ubbf8\ud3ec\ud568)\u2192ray==2.48.0 \ucd94\uac00(testlog_260607_8)."
+            ]
+          ]
+        ]
+      ],
+      [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "signature"
+            ],
+            [
+              "str",
+              "'_IncludedRouter' object has no attribute 'path'"
+            ]
+          ],
+          [
+            [
+              "str",
+              "class"
+            ],
+            [
+              "str",
+              "requirements-fixable"
+            ]
+          ],
+          [
+            [
+              "str",
+              "note"
+            ],
+            [
+              "str",
+              "fastapi>=0.137.0 \uc758 include_router \ub9ac\ud329\ud130(_IncludedRouter, .path \ubd80\uc7ac)\uac00 prometheus-fastapi-instrumentator \uc640 \ucda9\ub3cc \u2192 \ubaa8\ub4e0 \uc694\uccad(/health \ud3ec\ud568) 500 Internal Server Error (vLLM #45596). regen \uc774 \ucd5c\uc2e0 fastapi \ub97c \ud761\uc218\ud558\ub294 \uc2dc\uac04\ub4dc\ub9ac\ud504\ud2b8\ub85c \ubc1c\ud604(\ube4c\ub4dc\ub294 \ud1b5\uacfc\u00b7\uc11c\ube59 HTTP\uc5d0\uc11c \ubc1c\ud604) \u2192 requirements.txt \uc5d0 fastapi[standard]<0.137.0 \ud540. testlog 2026062220(gpt-oss-20b/0.18.0 wheel)."
+            ]
+          ]
+        ]
+      ],
+      [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "signature"
+            ],
+            [
+              "str",
+              "can't open file '[^']*use_existing_torch\\.py'"
+            ]
+          ],
+          [
+            [
+              "str",
+              "class"
+            ],
+            [
+              "str",
+              "requirements-fixable"
+            ]
+          ],
+          [
+            [
+              "str",
+              "note"
+            ],
+            [
+              "str",
+              "\uc0c1\ub958\uac00 \ube4c\ub4dc \ubcf4\uc870 \uc2a4\ud06c\ub9bd\ud2b8\ub97c \uc62e\uae40(0.31.0 #58572: \ub8e8\ud2b8 use_existing_torch.py \u2192 tools/). \ud15c\ud50c\ub9bf\uc774 \ub450 \uacbd\ub85c\ub97c \uc790\uae30\uc801\uc751\uc73c\ub85c \uace0\ub978\ub2e4 \u2014 \uc774 \uc2dc\uadf8\ub2c8\ucc98\uac00 \ub2e4\uc2dc \ub098\uc624\uba74 \ud15c\ud50c\ub9bf\uc774 \uc61b \ud310\ubcf8\uc774\uac70\ub098 \uc0c1\ub958\uac00 \ub610 \uc62e\uae34 \uac83. testlog_26101410(plan_26101410)."
+            ]
+          ]
+        ]
+      ],
+      [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "signature"
+            ],
+            [
+              "str",
+              "No module named 'torch\\._opaque_base'"
+            ]
+          ],
+          [
+            [
+              "str",
+              "class"
+            ],
+            [
+              "str",
+              "source-build-class"
+            ]
+          ],
+          [
+            [
+              "str",
+              "note"
+            ],
+            [
+              "str",
+              "NGC torch \uac00 vLLM wheel \uae30\ub300\ubcf4\ub2e4 \uc774\ub978/\ub2e4\ub978 \ube4c\ub4dc(torch 2.11 alpha). \uc18c\uc2a4\ube4c\ub4dc \ud544\uc694."
+            ]
+          ]
+        ]
+      ],
+      [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "signature"
+            ],
+            [
+              "str",
+              "register_opaque_type\\(\\) got an unexpected keyword argument 'hoist'"
+            ]
+          ],
+          [
+            [
+              "str",
+              "class"
+            ],
+            [
+              "str",
+              "source-build-class"
+            ]
+          ],
+          [
+            [
+              "str",
+              "note"
+            ],
+            [
+              "str",
+              "torch 2.11 alpha private API \ubd88\uc77c\uce58. \uc870\uac74\ubd80 HAS_OPAQUE_TYPE \ud328\uce58\ub85c import \ub294 \uc6b0\ud68c\ub418\ub098, torch 2.11 alpha \uad6c\uac04 \uc2e0\ud638 \u2192 \ud6c4\uc18d C++ ABI \uc6d4 \ub3d9\ubc18. \uc18c\uc2a4\ube4c\ub4dc \uc601\uc5ed."
+            ]
+          ]
+        ]
+      ],
+      [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "signature"
+            ],
+            [
+              "str",
+              "vllm[^\\n]*undefined symbol: \\S+"
+            ]
+          ],
+          [
+            [
+              "str",
+              "class"
+            ],
+            [
+              "str",
+              "source-build-class"
+            ]
+          ],
+          [
+            [
+              "str",
+              "note"
+            ],
+            [
+              "str",
+              "vLLM-\uc2a4\ucf54\ud504(\uac19\uc740 \uc904\uc5d0 vllm \ubb38\ub9e5 \u2014 \uc608: vllm/_C.abi3.so ImportError): \ucef4\ud30c\uc77c\ub41c _C \uac00 \ubca0\uc774\uc2a4 torch \uc758 C++ ABI \uc640 \ubd88\uc77c\uce58. requirements \ub85c \ubd88\uac00 \u2014 \uc18c\uc2a4\ube4c\ub4dc(NGC torch \uc5d0 \ub9de\ucdb0 _C \ucef4\ud30c\uc77c) \ud544\uc694."
+            ]
+          ]
+        ]
+      ],
+      [
+        "dict",
+        [
+          [
+            [
+              "str",
+              "signature"
+            ],
+            [
+              "str",
+              "undefined symbol: .*"
+            ]
+          ],
+          [
+            [
+              "str",
+              "class"
+            ],
+            [
+              "str",
+              "source-build-class"
+            ]
+          ],
+          [
+            [
+              "str",
+              "note"
+            ],
+            [
+              "str",
+              "\ud3f4\ubc31(\uac19\uc740 \uc904\uc5d0 vllm \ubb38\ub9e5 \uc5c6\uc74c \u2014 \uc704 vLLM-\uc2a4\ucf54\ud504 \ubbf8\ub9e4\uce6d). \ube44-vLLM lib \uc758 undefined symbol \uc774\uba74 build_patches \ud3c9\uba74 \uc7ac\ubd84\ub958 + \ud574\ub2f9 repo \ud655\uc778 \u2014 \uc18c\uc2a4\ube4c\ub4dc-\ubd88\uac00 \ub2e8\uc815 \uae08\uc9c0. evidence \ub77c\uc778\uc758 .so \uacbd\ub85c\ub85c \ubc1c\uc6d0 lib(\uc608 DeepGEMM/flashinfer \ub4f1 build_patches \uc124\uce58\ubb3c)\ub97c \uba3c\uc800 \uc2dd\ubcc4\ud560 \uac83."
+            ]
+          ]
+        ]
+      ]
+    ]
+  ],
+  "return_aliases": [],
+  "id": "load-001",
+  "owner_pid": 4094976,
+  "phase": "direct_call_attempt",
+  "owner_call_attempted": true,
+  "input_before": {
+    "args": [
+      "list",
+      [
+        [
+          "str",
+          "/saved/r40/load-001/business/node/.claude/skills/upstream-version-watch/failure_patterns.yaml"
+        ]
+      ]
+    ],
+    "kwargs": [
+      "dict",
+      []
+    ]
+  },
+  "args_after": [
+    "list",
+    [
+      [
+        "str",
+        "/saved/r40/load-001/business/node/.claude/skills/upstream-version-watch/failure_patterns.yaml"
+      ]
+    ]
+  ],
+  "kwargs_after": [
+    "dict",
+    []
+  ],
+  "input_nodes": [
+    {
+      "path": [
+        {
+          "kind": "args"
+        }
+      ],
+      "type": "list"
+    },
+    {
+      "path": [
+        {
+          "kind": "args"
+        },
+        {
+          "kind": "list_item",
+          "index": 0
+        }
+      ],
+      "type": "str"
+    },
+    {
+      "path": [
+        {
+          "kind": "kwargs"
+        }
+      ],
+      "type": "dict"
+    }
+  ],
+  "globals_after": {
+    "PATTERNS_FILE": [
+      "str",
+      "/saved/r40/load-001/business/node/.claude/skills/upstream-version-watch/scripts/../failure_patterns.yaml"
+    ]
+  },
+  "business_streams": "actual child FD stdout/stderr; no redirection",
+  "collector_errors": []
+}

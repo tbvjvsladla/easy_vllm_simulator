@@ -1,0 +1,12 @@
+{
+  "build_track": {
+    "decision": "wheel",
+    "rationale": "torch 2.10 < 2.11 → pre-built wheel 트랙 제안(--no-deps 설치). 스모크가 중재.",
+    "arbiter": "smoke"
+  },
+  "source_build": {
+    "torch_cuda_arch": "12.1a",
+    "sm_arch_input": "sm_121a",
+    "sm_arch_source": "--sm-arch"
+  }
+}
