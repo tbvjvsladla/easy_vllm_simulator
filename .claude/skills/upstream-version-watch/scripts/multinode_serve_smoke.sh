@@ -542,9 +542,8 @@ echo "[mn] 빌드 트랙 정합: IMAGE_TAG=$_it ↔ BUILD_DOCKERFILE=$_bd"
 #   (2026-09-21) 기록기는 최상위 `_attest_add`/`_attest_write`(v2)로 올라갔다 — 이 분기는 행만 더한다.
 
 if [ "$_bd" = "Dockerfile" ]; then   # wheel 트랙에만 적용(source-build 는 베이스 torch 를 그대로 쓴다)
-  _want="$(python3 "$REPO/.claude/skills/upstream-version-watch/scripts/resolve_torch_pin.py" \
-             "$_tag_ver" 2>/dev/null | python3 -c \
-             'import sys,json;d=json.load(sys.stdin);print(d.get("torch_prefix") or "")' 2>/dev/null || echo "")"
+  _want="$("$REPO/.claude/skills/upstream-version-watch/scripts/resolve_torch_pin.sh" \
+             "$_tag_ver" 2>/dev/null | sed -n 's/^[[:space:]]*"torch_prefix":[[:space:]]*"\([^"]*\)".*/\1/p' | head -1 || echo "")"
   if [ -z "$_want" ]; then
     echo "[mn] ⚠ torch 기대 접두어 미해소(vLLM $_tag_ver) — ABI 검증 생략(판정 불가를 통과로 읽지 않되 차단도 않는다)."
   else
