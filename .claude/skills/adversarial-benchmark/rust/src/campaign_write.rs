@@ -225,7 +225,7 @@ impl Args {
 
 // ── Python-shaped helpers ───────────────────────────────────────────────────────────────────
 
-fn py(text: &str) -> PyValue {
+pub(crate) fn py(text: &str) -> PyValue {
     PyValue::Str(PyStr::new(text))
 }
 
@@ -638,7 +638,8 @@ pub(crate) fn lockset_observable(decl: &PyDict, node: Option<&str>) -> bool {
         .into_iter()
         .flatten()
         .filter_map(dict_of)
-        .find(|n| get_text(n, "node_id").as_deref() == node && node.is_some())
+        .filter(|n| get_text(n, "node_id").as_deref() == node && node.is_some())
+        .last()
         .and_then(|n| get_text(n, "role"));
     role.as_deref() != Some("sub")
 }

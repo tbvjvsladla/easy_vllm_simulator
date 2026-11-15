@@ -61,3 +61,36 @@ fn sub_phase_written_by_the_main_is_red() {
     assert!(err.contains("P5 sub/a.status.json: authored_by='main' — 메인이 서브의 진행표를 적었다"));
     assert!(err.contains("P5 sub: phase 2건의 ended_utc 가 모두 T 로 같다"));
 }
+
+#[test]
+fn an_empty_checkout_has_no_template() {
+    let root = scratch("template");
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    let request = sweep_stop::campaign_validator::Request { campaign: None, instance: None, template: true, acceptance: None };
+    let status = sweep_stop::campaign_validator::run_request(
+        &Ctx { root: root.clone() },
+        &request,
+        &mut Sinks { out: &mut out, err: &mut err },
+    )
+    .unwrap();
+    let err = String::from_utf8(err).unwrap();
+    assert_eq!(status, 1);
+    assert!(err.contains("뼈대 결손: campaigns/_template/campaign.schema.json") && err.contains("뼈대 결손: campaigns/_template/sweeps/.gitkeep"), "{err}");
+}
+
+#[test]
+fn a_campaign_without_the_schema_engine_names_what_is_missing() {
+    let root = scratch("engine");
+    put(&root, "campaigns/c/campaign.yaml", "{\"id\": \"c\"}");
+    put(&root, "campaigns/_template/campaign.schema.json", "{}");
+    let (mut out, mut err) = (Vec::new(), Vec::new());
+    let request = sweep_stop::campaign_validator::Request {
+        campaign: Some(root.join("campaigns/c/campaign.yaml").to_string_lossy().into_owned()),
+        instance: None,
+        template: false,
+        acceptance: None,
+    };
+    let status = sweep_stop::campaign_validator::run_request(&Ctx { root }, &request, &mut Sinks { out: &mut out, err: &mut err }).unwrap();
+    assert_eq!(status, 1);
+    assert!(String::from_utf8(err).unwrap().contains("FAIL 스키마 엔진이 없다: .claude/policies/runtime/completion_gate.py"));
+}

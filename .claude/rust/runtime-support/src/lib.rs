@@ -15,6 +15,7 @@ pub mod pynumber;
 pub mod pyops;
 pub mod pysort;
 pub mod pystr;
+pub mod schema;
 pub mod pyvalue;
 pub mod pyyaml;
 mod unicode_alnum_table;

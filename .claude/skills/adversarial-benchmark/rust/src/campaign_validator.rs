@@ -7,7 +7,7 @@
 //! `FAIL (n)` with one `  - <problem>` line each on standard error (status 1).
 
 use crate::campaign_write::{
-    assigned_cells, assignments_of, dict_of, get_text, list_of, lockset_observable, lockset_provenance_reason, py_repr,
+    assigned_cells, assignments_of, dict_of, py, get_text, list_of, lockset_observable, lockset_provenance_reason, py_repr,
     read_declaration, text_of, tuple_repr, Ctx, Sinks, FILL,
 };
 use crate::pyjson;
@@ -495,6 +495,578 @@ pub fn instance_predicates(ctx: &Ctx, camp_dir: &Path) -> Vec<String> {
     out.extend(predicate_p2(camp_dir));
     out.extend(predicate_p3(camp_dir));
     out
+}
+
+// ── --campaign / --instance / --template ────────────────────────────────────────────────────
+
+/// A verdict the owner raises as `CampaignContractFailure` (printed as `FAIL <text>`, status 1) or an exception only the
+/// owner can render (a schema it cannot read): the caller hands the vector to the owner.
+pub enum Failure {
+    Contract(String),
+    Owner,
+}
+
+type V<T> = Result<T, Failure>;
+
+fn die<T>(text: impl Into<String>) -> V<T> {
+    Err(Failure::Contract(text.into()))
+}
+
+fn find_fill_paths(node: &PyValue, path: &str) -> Vec<String> {
+    let mut out = Vec::new();
+    match node.peel() {
+        PyValue::Dict(d) => {
+            for (k, v) in d.iter() {
+                let key = k.to_utf8().unwrap_or_default();
+                let here = if path.is_empty() { key.clone() } else { format!("{path}.{key}") };
+                if key.contains(FILL) {
+                    out.push(format!("{here} (키)"));
+                }
+                out.extend(find_fill_paths(v, &here));
+            }
+        }
+        PyValue::List(items) => {
+            for (i, v) in items.iter().enumerate() {
+                out.extend(find_fill_paths(v, &format!("{path}[{i}]")));
+            }
+        }
+        PyValue::Str(t) if t.to_utf8().map(|t| t.contains(FILL)).unwrap_or(false) => {
+            out.push(if path.is_empty() { "$".to_string() } else { path.to_string() });
+        }
+        _ => {}
+    }
+    out
+}
+
+fn fill_rows(text: &str) -> Vec<usize> {
+    text.lines().enumerate().filter(|(_, l)| l.contains(FILL)).map(|(i, _)| i + 1).collect()
+}
+
+fn strip_annotations(doc: &PyDict) -> PyDict {
+    let mut out = PyDict::new();
+    for (k, v) in doc.iter() {
+        if !k.to_utf8().map(|s| s.starts_with('_')).unwrap_or(false) {
+            out.insert(k.clone(), v.clone());
+        }
+    }
+    out
+}
+
+/// `scan_fill_file(path)`: where placeholders remain in one file.
+fn scan_fill_file(path: &Path) -> Vec<String> {
+    let text = match std::fs::read(path).map(String::from_utf8) {
+        Ok(Ok(t)) => t,
+        _ => return vec!["(읽기 실패: unreadable)".to_string()],
+    };
+    let rows = |t: &str| fill_rows(t).into_iter().map(|i| format!("{i}행")).collect::<Vec<_>>();
+    if path.extension().map(|e| e == "json").unwrap_or(false) {
+        return match pyjson::loads(&text) {
+            Err(_) => rows(&text),
+            Ok(doc) => {
+                let doc = match doc.peel() {
+                    PyValue::Dict(d) => PyValue::Dict(strip_annotations(d)),
+                    _ => doc,
+                };
+                find_fill_paths(&doc, "")
+            }
+        };
+    }
+    rows(&text)
+}
+
+fn contract_value(value: &PyValue) -> Option<agent_runtime_support::pyvalue::PyValue> {
+    let text = value.dumps_ascii().ok()?;
+    agent_runtime_support::pyjson::loads(&text).ok()
+}
+
+/// `_validate_schema(doc, schema, where)`: `where: ('code', 'message')` per violation, as the owner formats the tuple.
+fn validate_schema(ctx: &Ctx, doc: &PyValue, schema: &PyValue, where_: &str) -> V<Vec<String>> {
+    let engine = ctx.root.join(".claude/policies/runtime/completion_gate.py");
+    if !engine.is_file() {
+        return die(format!(
+            "스키마 엔진이 없다: {} — 이 트리에는 검증기만 있고 엔진이 오지 않았다. 선언 검증은 메인 단일 창구이며(서브는 --from-slice 로 받은 선언을 소비한다), 이 트리에서 물을 수 있는 것은 --instance 의 P1~P3 이다.",
+            ctx.rel(&engine)
+        ));
+    }
+    let (Some(d), Some(s)) = (contract_value(doc), contract_value(schema)) else { return Err(Failure::Owner) };
+    let violations = agent_runtime_support::schema::validate_against_schema(&d, &s).map_err(|_| Failure::Owner)?;
+    Ok(violations
+        .into_iter()
+        .map(|(code, message)| format!("{where_}: ({}, {})", py_repr(&code), py_repr(&message)))
+        .collect())
+}
+
+fn retired_hint_key_reasons(doc: &PyDict) -> Vec<String> {
+    let mut out = Vec::new();
+    if let Some(items) = doc.get("hint_targets").and_then(list_of) {
+        for (i, t) in items.iter().enumerate() {
+            if dict_of(t).map(|d| d.contains_key("arch")).unwrap_or(false) {
+                out.push(format!(
+                    "hint_targets[{i}].arch 는 폐기된 키다 — 태그 이름은 발행 도구가 전량 파생한다(2026-09-21 D8) — 손으로 적은 arch 는 '파생 가능한데 손으로 적은 값'이다. 키를 지우고 승인은 `campaign_init.py --hint-approve` 로 적는다"
+                ));
+            }
+        }
+    }
+    out
+}
+
+fn name_of(path: &Path) -> String {
+    path.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
+}
+
+/// `validate_campaign(campaign_path, strict_paths)`.
+pub fn validate_campaign(ctx: &Ctx, campaign_path: &Path, strict_paths: bool) -> V<Vec<String>> {
+    let name = name_of(campaign_path);
+    if !campaign_path.is_file() {
+        return Ok(vec![format!("campaign 선언 부재: {}", campaign_path.display())]);
+    }
+    let raw = std::fs::read(campaign_path).ok().and_then(|b| String::from_utf8(b).ok()).ok_or(Failure::Owner)?;
+    let doc = match pyjson::loads(&raw) {
+        Ok(d) => d,
+        Err(error) => {
+            let rows = fill_rows(&raw);
+            let mut out = vec![format!("{name}: JSON 파손 — {error}")];
+            if !rows.is_empty() {
+                let shown: Vec<String> = rows.iter().take(10).map(|r| r.to_string()).collect();
+                out.push(format!("{name}: 플레이스홀더 {FILL} 가 {}행에 남아 있다(행 [{}])", rows.len(), shown.join(", ")));
+            }
+            return Ok(out);
+        }
+    };
+    let Some(doc) = dict_of(&doc) else {
+        return Ok(vec![format!("{name}: 최상위가 객체가 아니다")]);
+    };
+    let doc = strip_annotations(doc);
+    let doc_value = PyValue::Dict(doc.clone());
+    let mut problems: Vec<String> = Vec::new();
+    let fills = find_fill_paths(&doc_value, "");
+    if !fills.is_empty() {
+        problems.push(format!(
+            "{name}: 플레이스홀더 {FILL} 가 {}곳에 남아 있다({})",
+            fills.len(),
+            fills.iter().take(8).cloned().collect::<Vec<_>>().join(", ")
+        ));
+    }
+    let schema_path = ctx.root.join("campaigns/_template/campaign.schema.json");
+    if !schema_path.is_file() {
+        return die(format!("campaign schema 부재: {}", schema_path.display()));
+    }
+    let schema_text = std::fs::read(&schema_path).ok().and_then(|b| String::from_utf8(b).ok()).ok_or(Failure::Owner)?;
+    let schema = match pyjson::loads(&schema_text) {
+        Ok(s) => s,
+        Err(error) => return die(format!("campaign schema 파손({}): {error}", schema_path.display())),
+    };
+    problems.extend(validate_schema(ctx, &doc_value, &schema, &name)?);
+    problems.extend(retired_hint_key_reasons(&doc));
+    if !problems.is_empty() {
+        return Ok(problems);
+    }
+    let camp_id = doc.get("id").cloned().unwrap_or(PyValue::None);
+    let id_text = text_of(&camp_id);
+    if matches!(id_text.as_deref(), Some("_template" | "_bootstrap")) {
+        problems.push(format!("예약 id 는 캠페인 이름이 될 수 없다: {} (예약: ('_template', '_bootstrap'))", camp_id.repr()));
+    }
+    let parent_name = campaign_path.parent().map(name_of).unwrap_or_default();
+    if let Some(id) = id_text.as_deref().filter(|i| !i.is_empty()) {
+        if parent_name != id && parent_name != "_template" {
+            problems.push(format!(
+                "선언 id({})와 디렉터리 이름({})이 다르다 — 이름이 곧 증거 연결이다",
+                py_repr(id),
+                py_repr(&parent_name)
+            ));
+        }
+    }
+    let nodes: Vec<PyValue> = list_of(doc.get("nodes").unwrap_or(&PyValue::None)).cloned().unwrap_or_default();
+    let node_ids: Vec<PyValue> = nodes.iter().map(|n| dict_of(n).and_then(|d| d.get("node_id").cloned()).unwrap_or(PyValue::None)).collect();
+    let mut unique: Vec<&PyValue> = Vec::new();
+    for id in &node_ids {
+        if !unique.contains(&id) {
+            unique.push(id);
+        }
+    }
+    if unique.len() != nodes.len() {
+        problems.push("nodes[].node_id 가 중복이다 — 노드 정체성이 갈리지 않는다".to_string());
+    }
+    let budgets = doc.get("budgets").and_then(dict_of).cloned().unwrap_or_default();
+    for key in ["smoke_budget_overhead_mib", "ready_max_seconds"] {
+        let ok = match budgets.get(key).map(PyValue::peel) {
+            Some(PyValue::Int(n)) => *n > 0.into(),
+            _ => false,
+        };
+        if !ok {
+            problems.push(format!("budgets.{key} 가 선언되지 않았다(0/기본값 금지 — 선언 없으면 무방비)"));
+        }
+    }
+    let cv = doc.get("control_variables").and_then(dict_of).cloned().unwrap_or_default();
+    for key in ["model", "vllm_version", "topology", "target_gpu"] {
+        let shown = cv.get(key).map(|v| v.display_text().to_utf8().unwrap_or_default()).unwrap_or_default();
+        if shown.trim().is_empty() {
+            problems.push(format!("control_variables.{key} 공란 — 서브가 저장소 기본값으로 되돌아간다(2026-09-05 실측)"));
+        }
+    }
+    problems.extend(hint_target_reasons(&doc));
+    let cells_dir = campaign_path.parent().map(|p| p.join("cells")).unwrap_or_default();
+    let assigns = assignments_of(&doc);
+    if assigns.is_empty() {
+        problems.push("assignments 가 비었다 — 배정이 없으면 어느 노드도 돌 것이 없다".to_string());
+    }
+    let mut owner: Vec<(String, String)> = Vec::new();
+    for (node, items) in &assigns {
+        if !node_ids.iter().any(|n| text_of(n).as_deref() == Some(node.as_str())) {
+            problems.push(format!("assignments 의 노드 {} 가 nodes[] 에 없다", py_repr(node)));
+        }
+        let items: Vec<PyValue> = list_of(items).cloned().unwrap_or_default();
+        for (i, item) in items.iter().enumerate() {
+            let Some(item) = dict_of(item) else { continue };
+            let mode = item.get("mode").cloned().unwrap_or_else(|| py("AUTO"));
+            if text_of(&mode).as_deref() == Some("STAY") && i != items.len() - 1 {
+                problems.push(format!(
+                    "assignments[{}][{i}] 의 mode=STAY 가 마지막이 아니다 — STAY 는 벤치 뒤에도 서빙을 유지하므로 뒤에 남은 {}개 셀이 영원히 돌지 않는다",
+                    py_repr(node),
+                    items.len() - 1 - i
+                ));
+            }
+            let Some(cell) = get_text(item, "cell").filter(|c| !c.is_empty()) else { continue };
+            if RESERVED_CELL_NAMES.contains(&cell.as_str()) {
+                problems.push(format!("assignments 에 틀 디렉터리 {} 가 들어 있다 — 틀은 실행 대상이 아니다", py_repr(&cell)));
+                continue;
+            }
+            if let Some((_, prev)) = owner.iter().find(|(c, _)| *c == cell) {
+                problems.push(format!(
+                    "셀 {} 이 노드 {} 와 {} 에 이중 배정됐다 — 셀의 수행 노드는 하나다(증거 태그가 갈린다)",
+                    py_repr(&cell),
+                    py_repr(prev),
+                    py_repr(node)
+                ));
+                continue;
+            }
+            owner.push((cell.clone(), node.clone()));
+            let cfg = cells_dir.join(&cell).join("config.yaml");
+            if !lockset_observable(&doc, Some(node)) {
+                continue;
+            }
+            if strict_paths && !cfg.is_file() {
+                problems.push(format!("배정된 셀 {} 입력이 없다: {}", py_repr(&cell), ctx.rel(&cfg)));
+                continue;
+            }
+            if !strict_paths {
+                continue;
+            }
+            for fname in ["config.yaml", "lockset.json"] {
+                let f = cells_dir.join(&cell).join(fname);
+                if !f.is_file() {
+                    continue;
+                }
+                let where_ = scan_fill_file(&f);
+                if !where_.is_empty() {
+                    problems.push(format!(
+                        "셀 {} 의 {fname} 에 {FILL} 가 {}곳 남아 있다({})",
+                        py_repr(&cell),
+                        where_.len(),
+                        where_.iter().take(5).cloned().collect::<Vec<_>>().join(", ")
+                    ));
+                }
+            }
+        }
+    }
+    Ok(problems)
+}
+
+fn json_children(dir: &Path, pattern_dirs: bool, file: &str) -> Vec<PathBuf> {
+    let Ok(read) = std::fs::read_dir(dir) else { return Vec::new() };
+    let mut out: Vec<PathBuf> = read
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .filter(|p| p.is_dir() == pattern_dirs)
+        .map(|p| p.join(file))
+        .filter(|p| p.exists())
+        .collect();
+    out.sort();
+    out
+}
+
+/// `validate_instance(camp_dir)`.
+pub fn validate_instance(ctx: &Ctx, camp_dir: &Path) -> V<Vec<String>> {
+    let mut problems = validate_campaign(ctx, &camp_dir.join("campaign.yaml"), true)?;
+    let ep = camp_dir.join("evidence_pointers.json");
+    if ep.is_file() {
+        let where_ = scan_fill_file(&ep);
+        if !where_.is_empty() {
+            problems.push(format!(
+                "evidence_pointers.json 에 {FILL} 가 {}곳 남아 있다({}) — 성장 배열은 빈 목록으로 출발한다",
+                where_.len(),
+                where_.iter().take(5).cloned().collect::<Vec<_>>().join(", ")
+            ));
+        }
+    }
+    let mut statuses: Vec<PathBuf> = Vec::new();
+    if let Ok(read) = std::fs::read_dir(camp_dir.join("phases")) {
+        for node_dir in read.filter_map(Result::ok).map(|e| e.path()).filter(|p| p.is_dir()) {
+            statuses.extend(sorted_json_files(&node_dir, ".status.json"));
+        }
+    }
+    statuses.sort();
+    for status in statuses {
+        let parent = status.parent().map(name_of).unwrap_or_default();
+        if RESERVED_CELL_NAMES.contains(&parent.as_str()) {
+            continue;
+        }
+        let fname = name_of(&status);
+        let parsed = std::fs::read(&status).ok().and_then(|b| String::from_utf8(b).ok()).map(|t| pyjson::loads(&t));
+        let doc = match parsed {
+            Some(Ok(d)) => d,
+            Some(Err(e)) => {
+                problems.push(format!("{fname}: 파손 — {e}"));
+                continue;
+            }
+            None => {
+                problems.push(format!("{fname}: 파손 — unreadable"));
+                continue;
+            }
+        };
+        let Some(doc) = dict_of(&doc) else { return Err(Failure::Owner) };
+        let proof = doc.get("proof").filter(|v| v.is_truthy()).and_then(dict_of).cloned().unwrap_or_default();
+        let source_blank = match proof.get("source").filter(|v| v.is_truthy()) {
+            Some(v) => v.display_text().to_utf8().unwrap_or_default().trim().is_empty(),
+            None => true,
+        };
+        let ok_true = matches!(proof.get("ok").map(PyValue::peel), Some(PyValue::Bool(true)));
+        if ok_true && source_blank {
+            problems.push(format!("{parent}/{fname}: proof.ok=true 인데 source 가 비었다 — 출처 없는 판정은 단언이 검증을 대체한 것이다"));
+        }
+        if get_text(doc, "state").as_deref() == Some("done") && !ok_true {
+            problems.push(format!("{parent}/{fname}: state=done 인데 proof.ok 가 참이 아니다"));
+        }
+    }
+    let mut cell_statuses: Vec<PathBuf> = json_children(&camp_dir.join("cells"), true, "cell.status.json");
+    cell_statuses.sort();
+    for cs in cell_statuses {
+        let parent = cs.parent().map(name_of).unwrap_or_default();
+        if RESERVED_CELL_NAMES.contains(&parent.as_str()) {
+            continue;
+        }
+        let parsed = std::fs::read(&cs).ok().and_then(|b| String::from_utf8(b).ok()).map(|t| pyjson::loads(&t));
+        let doc = match parsed {
+            Some(Ok(d)) => d,
+            Some(Err(e)) => {
+                problems.push(format!("cell.status.json: 파손 — {e}"));
+                continue;
+            }
+            None => {
+                problems.push("cell.status.json: 파손 — unreadable".to_string());
+                continue;
+            }
+        };
+        let Some(doc) = dict_of(&doc) else { return Err(Failure::Owner) };
+        let blank = match doc.get("void_reason_source").filter(|v| v.is_truthy()) {
+            Some(v) => v.display_text().to_utf8().unwrap_or_default().trim().is_empty(),
+            None => true,
+        };
+        if get_text(doc, "cell_outcome").as_deref() == Some("void") && blank {
+            problems.push(format!("{parent}: void 인데 void_reason_source 가 비었다"));
+        }
+    }
+    problems.extend(instance_predicates(ctx, camp_dir));
+    Ok(problems)
+}
+
+fn hint_schema_parity(schema_path: &Path) -> Vec<String> {
+    let parsed = std::fs::read(schema_path).ok().and_then(|b| String::from_utf8(b).ok()).map(|t| pyjson::loads(&t));
+    let doc = match parsed {
+        Some(Ok(d)) => d,
+        Some(Err(e)) => return vec![format!("뼈대 campaign.schema.json 파손: {e}")],
+        None => return vec!["뼈대 campaign.schema.json 파손: unreadable".to_string()],
+    };
+    let Some(top) = dict_of(&doc) else {
+        return vec![format!("뼈대 campaign.schema.json 파손: '{}' object has no attribute 'get'", doc.type_name())];
+    };
+    let defs = top.get("definitions").filter(|v| v.is_truthy()).and_then(dict_of).cloned().unwrap_or_default();
+    let target = defs.get("hint_target").filter(|v| v.is_truthy()).and_then(dict_of).cloned().unwrap_or_default();
+    let approval = defs.get("hint_approval").filter(|v| v.is_truthy()).and_then(dict_of).cloned().unwrap_or_default();
+    let mut problems = Vec::new();
+    let tprops = target.get("properties").filter(|v| v.is_truthy()).and_then(dict_of).cloned().unwrap_or_default();
+    if tprops.contains_key("arch") {
+        problems.push("뼈대 스키마 hint_target 에 폐기 키 'arch' 가 살아 있다".to_string());
+    }
+    if !matches!(target.get("additionalProperties").map(PyValue::peel), Some(PyValue::Bool(false))) {
+        problems.push("뼈대 스키마 hint_target 의 additionalProperties 가 false 가 아니다 — 폐기 키가 조용히 통과한다".to_string());
+    }
+    let min_items = tprops.get("cells").filter(|v| v.is_truthy()).and_then(dict_of).and_then(|c| c.get("minItems"));
+    if !matches!(min_items.map(PyValue::peel), Some(PyValue::Int(n)) if *n == 1.into()) {
+        problems.push("뼈대 스키마 hint_target.cells 의 minItems 가 1 이 아니다 — 빈 목록이 백지 승인이 된다".to_string());
+    }
+    let strings = |items: &[&str]| PyValue::List(items.iter().map(|s| py(s)).collect());
+    let required = approval.get("required").filter(|v| v.is_truthy()).cloned().unwrap_or_else(|| PyValue::List(Vec::new()));
+    if required != strings(&APPROVAL_FIELDS) {
+        problems.push(format!(
+            "뼈대 스키마 hint_approval.required={} 가 검증기 ['approved_by', 'approved_utc', 'source'] 와 다르다 — 안내 사본이 정본에서 갈라졌다",
+            approval.get("required").map(PyValue::repr).unwrap_or_else(|| "None".to_string())
+        ));
+    }
+    let enum_value = approval
+        .get("properties")
+        .filter(|v| v.is_truthy())
+        .and_then(dict_of)
+        .and_then(|p| p.get("source"))
+        .filter(|v| v.is_truthy())
+        .and_then(dict_of)
+        .and_then(|s| s.get("enum").cloned());
+    if enum_value.as_ref() != Some(&strings(&APPROVAL_SOURCES)) {
+        problems.push(format!(
+            "뼈대 스키마 hint_approval.source.enum={} 가 검증기 ['declaration-popup', 'publish-popup'] 와 다르다 — 안내 사본이 정본에서 갈라졌다",
+            enum_value.map(|v| v.repr()).unwrap_or_else(|| "None".to_string())
+        ));
+    }
+    problems
+}
+
+/// `validate_template()`.
+pub fn validate_template(ctx: &Ctx) -> Vec<String> {
+    let template = ctx.root.join("campaigns/_template");
+    let mut problems = Vec::new();
+    for rel in [
+        "campaign.schema.json", "campaign.yaml", "evidence_pointers.json", "residue.json", "cells/_cell/config.yaml",
+        "cells/_cell/lockset.json", "cells/_cell/cell.status.json", "phases/_node/build.status.json",
+        "phases/_node/serve.status.json", "phases/_node/bench.status.json", "phases/_node/publish.status.json",
+        "relay/.gitkeep", "sweeps/.gitkeep",
+    ] {
+        if !template.join(rel).exists() {
+            problems.push(format!("뼈대 결손: campaigns/_template/{rel}"));
+        }
+    }
+    let tpl = template.join("campaign.yaml");
+    if tpl.is_file() {
+        let text = std::fs::read(&tpl).ok().and_then(|b| String::from_utf8(b).ok()).unwrap_or_default();
+        if fill_rows(&text).is_empty() {
+            problems.push("뼈대 campaign.yaml 에 <<FILL>> 이 하나도 없다 — 빈칸이 곧 계약이다".to_string());
+        }
+    }
+    let lock_tpl = template.join("cells/_cell/lockset.json");
+    if lock_tpl.is_file() {
+        let parsed = std::fs::read(&lock_tpl).ok().and_then(|b| String::from_utf8(b).ok()).map(|t| pyjson::loads(&t));
+        match parsed {
+            Some(Err(e)) => problems.push(format!("뼈대 lockset.json 파손: {e}")),
+            None => problems.push("뼈대 lockset.json 파손: unreadable".to_string()),
+            Some(Ok(doc)) => {
+                let d = dict_of(&doc);
+                if d.and_then(|d| get_text(d, "provenance")).as_deref() != Some(FILL) {
+                    problems.push("뼈대 lockset.json 의 provenance 가 빈칸(<<FILL>>)이 아니다 — 출처는 셀마다 사람이나 explorer 가 말해야 하며 뼈대가 기본값을 줄 수 없다".to_string());
+                }
+                let missing: Vec<String> = KNOB_SOURCES.iter().map(|(k, _)| k.to_string()).filter(|k| !d.map(|d| d.contains_key(k)).unwrap_or(false)).collect();
+                if !missing.is_empty() {
+                    problems.push(format!("뼈대 lockset.json 에 노브 출처 칸이 없다: {}", py_list_repr_v(&missing)));
+                }
+                if let Some(d) = d {
+                    let mut expect: Vec<(String, Vec<&str>)> = vec![("_provenance_enum".to_string(), vec!["explorer-phase2", "hand-authored"])];
+                    for (k, v) in KNOB_SOURCES {
+                        expect.push((format!("_{k}_enum"), v.to_vec()));
+                    }
+                    for (key, allowed) in expect {
+                        let want = PyValue::List(allowed.iter().map(|s| py(s)).collect());
+                        if d.get(&key) != Some(&want) {
+                            problems.push(format!(
+                                "뼈대 lockset.json 의 {key}={} 가 검증기 어휘 {} 와 다르다 — 안내 사본이 정본에서 갈라졌다",
+                                d.get(&key).map(PyValue::repr).unwrap_or_else(|| "None".to_string()),
+                                want.repr()
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    problems.extend(hint_schema_parity(&template.join("campaign.schema.json")));
+    if tpl.is_file() {
+        let parsed = std::fs::read(&tpl).ok().and_then(|b| String::from_utf8(b).ok()).and_then(|t| pyjson::loads(&t).ok());
+        let empty_targets = parsed
+            .as_ref()
+            .and_then(dict_of)
+            .and_then(|d| d.get("hint_targets"))
+            .map(|v| matches!(v.peel(), PyValue::List(l) if l.is_empty()))
+            .unwrap_or(false);
+        if !empty_targets {
+            problems.push("뼈대 campaign.yaml 의 hint_targets 가 빈 목록이 아니다 — 예시 승인이 인스턴스로 복사되면 사람이 하지 않은 승인이 기록된다".to_string());
+        }
+    }
+    problems
+}
+
+fn py_list_repr_v(items: &[String]) -> String {
+    format!("[{}]", items.iter().map(|s| py_repr(s)).collect::<Vec<_>>().join(", "))
+}
+
+/// `instance_notes(camp_dir)`: the non-blocking observation lines.
+pub fn instance_notes(camp_dir: &Path) -> Vec<String> {
+    let decl = read_declaration(camp_dir);
+    let mut out = Vec::new();
+    if decl.is_empty() {
+        return out;
+    }
+    for (node, _) in assignments_of(&decl) {
+        let cells: Vec<String> = assigned_cells(&decl, Some(&node)).into_iter().filter(|c| !RESERVED_CELL_NAMES.contains(&c.as_str())).collect();
+        if !cells.is_empty() && !lockset_observable(&decl, Some(&node)) {
+            out.push(format!("ⓘ 서브 자율 저작 · 관측 대상 밖(셀 입력은 서브 인스턴스 소관) node={node}: {}", cells.join(", ")));
+        }
+    }
+    out
+}
+
+/// Which checks one command line asks for.
+pub struct Request {
+    pub campaign: Option<String>,
+    pub instance: Option<String>,
+    pub template: bool,
+    pub acceptance: Option<String>,
+}
+
+/// The whole of `main` after argument parsing: the owner's exit status, or `Err` for what only the owner can render.
+pub fn run_request(ctx: &Ctx, request: &Request, io: &mut Sinks<'_>) -> Result<i32, ()> {
+    let step = || -> V<(Vec<String>, Vec<String>)> {
+        let (mut problems, mut notes) = (Vec::new(), Vec::new());
+        if request.template || (request.campaign.is_none() && request.instance.is_none() && request.acceptance.is_none()) {
+            problems.extend(validate_template(ctx));
+        }
+        if let Some(c) = &request.campaign {
+            let path = PathBuf::from(c);
+            problems.extend(validate_campaign(ctx, &path, true)?);
+            notes.extend(instance_notes(path.parent().unwrap_or(Path::new(""))));
+        }
+        if let Some(i) = &request.instance {
+            let dir = PathBuf::from(i);
+            problems.extend(validate_instance(ctx, &dir)?);
+            notes.extend(instance_notes(&dir));
+        }
+        if let Some(a) = &request.acceptance {
+            let dir = PathBuf::from(a);
+            let briefs = discover_briefs(ctx, &dir);
+            problems.extend(predicate_p4(&dir));
+            problems.extend(predicate_p5(&dir, &briefs));
+            let (p6, n6) = p6_observations(ctx, &dir);
+            problems.extend(p6);
+            notes.extend(n6);
+        }
+        Ok((problems, notes))
+    };
+    let (problems, notes) = match step() {
+        Ok(pair) => pair,
+        Err(Failure::Contract(text)) => {
+            io.warn(&format!("[campaign_template_validator] FAIL {text}"));
+            return Ok(1);
+        }
+        Err(Failure::Owner) => return Err(()),
+    };
+    for n in &notes {
+        io.say(&format!("  {n}"));
+    }
+    if !problems.is_empty() {
+        io.warn(&format!("[campaign_template_validator] FAIL ({})", problems.len()));
+        for p in &problems {
+            io.warn(&format!("  - {p}"));
+        }
+        return Ok(1);
+    }
+    io.say("[campaign_template_validator] PASS");
+    Ok(0)
 }
 
 /// `--acceptance INSTANCE`: the owner's exit status.
