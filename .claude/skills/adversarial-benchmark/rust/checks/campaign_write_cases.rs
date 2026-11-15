@@ -500,3 +500,17 @@ fn assign_cells_modes_are_closed() {
     assert_eq!(status, Some(1));
     assert!(err.contains("--assign-cells 의 mode 는 ('AUTO', 'HITL', 'STAY') 중 하나다: 'c1:zz'"), "{err}");
 }
+
+#[test]
+fn slice_update_accepts_only_a_main_derived_sub_declaration() {
+    let root = scratch("sliceupdate");
+    active(&root);
+    put(&root, "slice.json", "{\"id\": \"camp-a\", \"self_role\": \"main\"}");
+    let slice = root.join("slice.json");
+    let (status, _, err) = call(&root, &["--slice-update", slice.to_str().unwrap(), "--utc", "U"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("--slice-update 는 메인 파생 선언(self_role=sub · authored_by=main-derived)만 받는다"), "{err}");
+    let (status, _, err) = call(&root, &["--slice-update", slice.to_str().unwrap()]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("--slice-update 는 --utc 가 필요하다"), "{err}");
+}

@@ -4357,11 +4357,15 @@ fn name_of_path(p: &Path) -> String {
 }
 
 /// `writer_assign_set`: the revision written to `campaign.yaml`.
-fn assign_set(ctx: &Ctx, base: &Path, node: &str, items: Vec<PyValue>, args: &Args) -> R<(PathBuf, PyDict)> {
-    let reason = args.get("--assign-reason").filter(|s| !s.is_empty());
-    let evidence = args.get("--assign-evidence").filter(|s| !s.is_empty());
-    let approved_by = args.get("--assign-approved-by").filter(|s| !s.is_empty());
-    let utc = args.get("--utc").filter(|s| !s.is_empty());
+fn assign_set(
+    ctx: &Ctx,
+    base: &Path,
+    node: &str,
+    items: Vec<PyValue>,
+    values: [Option<&str>; 4],
+    source: &str,
+) -> R<(PathBuf, PyDict)> {
+    let [reason, evidence, approved_by, utc] = values.map(|v| v.filter(|s| !s.is_empty()));
     for (need, val) in [("--assign-reason", reason), ("--assign-evidence", evidence), ("--assign-approved-by", approved_by), ("--utc", utc)] {
         if val.is_none() {
             return refuse(format!("{need} 는 필수다 — 사유·근거·승인자·시각 없는 배정 변경은 드리프트다"));
@@ -4485,7 +4489,6 @@ fn assign_set(ctx: &Ctx, base: &Path, node: &str, items: Vec<PyValue>, args: &Ar
         ));
     }
     let added: Vec<String> = new_cells.iter().filter(|c| !old_mode.iter().any(|(o, _)| *o == py(c))).cloned().collect();
-    let source = "campaign_init --assign-set";
     let mut rev = PyDict::new();
     rev.set("rev", PyValue::int(revs.len() as i64));
     rev.set("declared_utc", py(utc));
@@ -4537,13 +4540,209 @@ fn op_assign_set(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     };
     need_validator(ctx)?;
     let items = parse_assign_cells(spec)?;
-    let (path, rev) = assign_set(ctx, &base, &node, items, args)?;
+    let values = [args.get("--assign-reason"), args.get("--assign-evidence"), args.get("--assign-approved-by"), args.get("--utc")];
+    let (path, rev) = assign_set(ctx, &base, &node, items, values, "campaign_init --assign-set")?;
     if sub_nodes_of(ctx, &base).iter().filter_map(text_of).any(|n| Some(&n) == get_text(&rev, "node").as_ref()) {
         io.warn(&format!(
             "[campaign_init] 서브 재배정은 A2A 제어명령으로 전한다: relay.py --campaign-control reslice --campaign-id {camp} --node {node} … (echo 가 오기 전까지 '재배정 미수렴')"
         ));
     }
     wrote_line(io, &camp, &[ctx.rel(&path)]);
+    Ok(0)
+}
+
+// ── --slice-update ───────────────────────────────────────────────────────────────────────────
+
+/// Python `==` on JSON values: dicts compare without order, `1 == 1.0`.
+fn py_equal(a: &PyValue, b: &PyValue) -> bool {
+    match (a.peel(), b.peel()) {
+        (PyValue::Dict(x), PyValue::Dict(y)) => {
+            x.len() == y.len()
+                && x.iter().all(|(k, v)| y.get(&k.to_utf8().unwrap_or_default()).map(|w| py_equal(v, w)).unwrap_or(false))
+        }
+        (PyValue::List(x), PyValue::List(y)) => x.len() == y.len() && x.iter().zip(y).all(|(p, q)| py_equal(p, q)),
+        (PyValue::Int(x), PyValue::Float(y)) | (PyValue::Float(y), PyValue::Int(x)) => {
+            use num_traits::ToPrimitive;
+            x.to_f64() == Some(*y)
+        }
+        (PyValue::Bool(x), PyValue::Int(y)) | (PyValue::Int(y), PyValue::Bool(x)) => *y == i64::from(*x).into(),
+        (x, y) => x == y,
+    }
+}
+
+fn nonblank(value: Option<&PyValue>) -> bool {
+    value.and_then(text_of).map(|t| !t.trim().is_empty()).unwrap_or(false)
+}
+
+/// `_slice_revision_extension(decl, sd)`: the control revisions the main added after the sub's prefix.
+fn slice_revision_extension(decl: &PyDict, sd: &PyDict) -> R<Vec<PyValue>> {
+    for key in ["id", "plan_ref", "declared_utc", "control_variables", "derived_from"] {
+        let (a, b) = (decl.get(key).cloned().unwrap_or(PyValue::None), sd.get(key).cloned().unwrap_or(PyValue::None));
+        if !py_equal(&a, &b) {
+            return refuse(format!("slice-update control identity mismatch: {key}"));
+        }
+    }
+    let Some(control) = decl.get("control_variables").filter(|v| dict_of(v).is_some()).cloned() else {
+        return refuse("slice-update original control variables are missing");
+    };
+    if !nonblank(decl.get("derived_from")) {
+        return refuse("slice-update main origin is missing");
+    }
+    let local_value = decl.get("revisions").cloned().unwrap_or_else(|| PyValue::List(Vec::new()));
+    let incoming_value = sd.get("revisions").cloned().unwrap_or(PyValue::None);
+    let (Some(local), Some(incoming)) = (list_of(&local_value).cloned(), list_of(&incoming_value).cloned()) else {
+        return refuse("slice-update revision history is missing or malformed");
+    };
+    if local.is_empty() && incoming.is_empty() {
+        return Ok(Vec::new());
+    }
+    if !nonblank(decl.get("declared_utc")) || !nonblank(decl.get("plan_ref")) {
+        return refuse("slice-update original revision identity is incomplete");
+    }
+    let mut t0 = PyDict::new();
+    t0.set("rev", PyValue::int(0));
+    t0.set("declared_utc", decl.get("declared_utc").cloned().unwrap_or(PyValue::None));
+    t0.set("values", control.clone());
+    t0.set("reason", py("t0 선언"));
+    t0.set("evidence", decl.get("plan_ref").cloned().unwrap_or(PyValue::None));
+    t0.set("approved_by", py("t0"));
+    let t0 = PyValue::Dict(t0);
+    let validate = |history: &[PyValue]| -> R<()> {
+        if history.is_empty() {
+            return Ok(());
+        }
+        if !py_equal(&history[0], &t0) {
+            return refuse("slice-update t0 revision conflicts with original declaration");
+        }
+        let mut previous: PyDict = dict_of(&control).cloned().unwrap_or_default();
+        for (index, item) in history.iter().enumerate().skip(1) {
+            let bad = (|| {
+                let d = dict_of(item)?;
+                let want = ["rev", "declared_utc", "values", "reason", "evidence", "approved_by"];
+                if d.len() != want.len() || !want.iter().all(|k| d.contains_key(k)) {
+                    return Some(());
+                }
+                if !matches!(d.get("rev").map(PyValue::peel), Some(PyValue::Int(n)) if *n == (index as i64).into()) {
+                    return Some(());
+                }
+                let values = d.get("values").and_then(dict_of)?;
+                if !previous.iter().all(|(k, _)| values.contains_key(&k.to_utf8().unwrap_or_default())) {
+                    return Some(());
+                }
+                if ["declared_utc", "reason", "evidence", "approved_by"].iter().any(|k| !nonblank(d.get(k))) || get_text(d, "approved_by").as_deref() == Some("t0") {
+                    return Some(());
+                }
+                previous = values.clone();
+                None
+            })();
+            if bad.is_some() || dict_of(item).is_none() || dict_of(item).and_then(|d| d.get("values")).and_then(dict_of).is_none() {
+                return refuse("slice-update malformed or unapproved control revision");
+            }
+        }
+        Ok(())
+    };
+    validate(&local)?;
+    validate(&incoming)?;
+    if incoming.len() < local.len() || !incoming.iter().zip(&local).all(|(a, b)| py_equal(a, b)) {
+        return refuse("slice-update control history conflicts or downgrades the existing prefix");
+    }
+    Ok(incoming[local.len()..].to_vec())
+}
+
+fn op_slice_update(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let source = args.get("--slice-update").unwrap_or_default();
+    let mode = if args.has("--apply") { "APPLIED" } else { "DRY-RUN" };
+    let Some(utc) = args.get("--utc").filter(|u| !u.is_empty()) else {
+        return refuse("--slice-update 는 --utc 가 필요하다");
+    };
+    let sd = load_slice(source)?;
+    if get_text(&sd, "self_role").as_deref() != Some("sub") || get_text(&sd, "authored_by").as_deref() != Some("main-derived") {
+        return refuse("--slice-update 는 메인 파생 선언(self_role=sub · authored_by=main-derived)만 받는다");
+    }
+    let camp_value = sd.get("id").cloned().unwrap_or(PyValue::None);
+    let camp = camp_value.display_text().to_utf8().unwrap_or_default();
+    let base = ctx.campaigns().join(&camp);
+    need_validator(ctx)?;
+    let decl = read_declaration(&base);
+    if decl.is_empty() {
+        return refuse(format!("인스턴스가 없다: campaigns/{camp} — 먼저 메인 파생 선언으로 개설(--init --from-slice)"));
+    }
+    if get_text(&decl, "self_role").as_deref() != Some("sub") {
+        return refuse(format!("campaigns/{camp} 은 서브 자기 인스턴스가 아니다 — 메인 배정은 --assign-set 으로 바꾼다"));
+    }
+    let assign_keys: Vec<String> = match sd.get("assignments").filter(|v| v.is_truthy()).and_then(dict_of) {
+        Some(d) => d.iter().map(|(k, _)| k.to_utf8().unwrap_or_default()).collect(),
+        None => Vec::new(),
+    };
+    let own: Vec<PyValue> = list_of(decl.get("nodes").unwrap_or(&PyValue::None))
+        .into_iter()
+        .flatten()
+        .filter_map(dict_of)
+        .map(|n| n.get("node_id").cloned().unwrap_or(PyValue::None))
+        .collect();
+    if assign_keys.len() != 1 || !own.iter().any(|o| text_of(o).as_deref() == Some(assign_keys[0].as_str())) {
+        return refuse(format!(
+            "선언의 배정 노드 {} 가 이 인스턴스의 노드 {} 가 아니다(오배달 방지)",
+            py_list_repr(&assign_keys),
+            PyValue::List(own).repr()
+        ));
+    }
+    let node = assign_keys[0].clone();
+    let sd_nodes = sd.get("nodes").cloned().unwrap_or(PyValue::None);
+    let decl_nodes = decl.get("nodes").cloned().unwrap_or(PyValue::None);
+    let any_not_sub = list_of(&sd_nodes).into_iter().flatten().filter_map(dict_of).any(|n| get_text(n, "role").as_deref() != Some("sub"));
+    if !py_equal(&sd_nodes, &decl_nodes) || any_not_sub {
+        return refuse("slice-update node identity or role differs");
+    }
+    let extension = slice_revision_extension(&decl, &sd)?;
+    let meta = sd.get("_assignment_revision").filter(|v| v.is_truthy()).and_then(dict_of).cloned().unwrap_or_default();
+    guard_writer_ops(ctx, &base, &[("assign_set", true)])?;
+    let raw = get_dict(&sd, "assignments").and_then(|a| a.get(&node)).cloned().unwrap_or(PyValue::None);
+    let Some(items) = list_of(&raw).filter(|l| l.iter().all(|i| dict_of(i).is_some())).cloned() else {
+        return refuse("slice-update assignment list is malformed");
+    };
+    let current: Vec<PyValue> = assignments_of(&decl)
+        .into_iter()
+        .find(|(n, _)| *n == node)
+        .and_then(|(_, v)| list_of(&v).map(|l| l.iter().filter(|x| dict_of(x).is_some()).cloned().collect()))
+        .unwrap_or_default();
+    let changed = !py_equal(&PyValue::List(current), &PyValue::List(items.clone()));
+    if changed && ["reason", "evidence", "approved_by", "declared_utc"].iter().any(|k| !nonblank(meta.get(k))) {
+        return refuse("slice-update assignment change lacks main approval evidence");
+    }
+    let cells: Vec<PyValue> = items.iter().map(|i| dict_of(i).and_then(|d| d.get("cell").cloned()).unwrap_or(PyValue::None)).collect();
+    let cells_repr = PyValue::List(cells).repr();
+    if !args.has("--apply") {
+        print_messages(io, mode, &[format!("dry-run slice-update {camp}@{node} → {cells_repr}; control revisions +{}", extension.len())]);
+        return Ok(0);
+    }
+    let rev_text = if changed {
+        let approved = format!("main-a2a: {}", shown(meta.get("approved_by")));
+        let source_note = format!("campaign_init --slice-update (main rev {})", shown(meta.get("rev")));
+        let (_, rev) = assign_set(
+            ctx,
+            &base,
+            &node,
+            items,
+            [meta.get("reason").and_then(text_of).as_deref(), meta.get("evidence").and_then(text_of).as_deref(), Some(&approved), Some(utc)],
+            &source_note,
+        )?;
+        shown(rev.get("rev"))
+    } else {
+        "unchanged".to_string()
+    };
+    if !extension.is_empty() {
+        let mut current = read_declaration(&base);
+        let mut revisions = list_or_empty(current.get("revisions"));
+        revisions.extend(extension.iter().cloned());
+        current.set("revisions", PyValue::List(revisions));
+        write_json(&base.join("campaign.yaml"), &PyValue::Dict(current))?;
+    }
+    print_messages(
+        io,
+        mode,
+        &[format!("slice-update {camp}@{node} assignment rev {rev_text}; control revisions +{} → {cells_repr}", extension.len())],
+    );
     Ok(0)
 }
 
@@ -5287,7 +5486,8 @@ fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 // ── dispatch ─────────────────────────────────────────────────────────────────────────────────
 
 /// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 30] = [
+const NATIVE_OPS: [&str; 31] = [
+    "--slice-update",
     "--assign-set",
     "--ground",
     "--warm-start-library",
@@ -5325,6 +5525,7 @@ fn allowed_options(op: &str) -> &'static [&'static str] {
     match op {
         "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
         "--verify-purge-gate" => &["--verify-purge-gate"],
+        "--slice-update" => &["--slice-update", "--utc", "--apply"],
         "--assign-set" => &["--assign-set", "--assign-cells", "--assign-reason", "--assign-evidence", "--assign-approved-by", "--utc", "--campaign-id"],
         "--ground" => &["--ground", "--utc", "--terms", "--no-warm-start", "--campaign-id"],
         "--warm-start-library" => &["--warm-start-library"],
@@ -5420,6 +5621,7 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     let result = match op {
         "--assigned-cells" => op_assigned_cells(ctx, &args, io),
         "--verify-purge-gate" => op_verify_purge_gate(ctx, &args, io),
+        "--slice-update" => op_slice_update(ctx, &args, io),
         "--assign-set" => op_assign_set(ctx, &args, io),
         "--ground" => op_ground(ctx, &args, io),
         "--warm-start-library" => op_warm_start_library(ctx, io),
