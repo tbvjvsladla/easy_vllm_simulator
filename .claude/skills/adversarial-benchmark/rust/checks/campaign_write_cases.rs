@@ -18,6 +18,8 @@ fn scratch(name: &str) -> PathBuf {
         "{\"_note\": \"x\", \"campaign_id\": \"<<FILL>>\"}\n",
     )
     .unwrap();
+    std::fs::create_dir_all(dir.join(".claude/skills/terraforming_node/scripts")).unwrap();
+    std::fs::write(dir.join(".claude/skills/terraforming_node/scripts/campaign_template_validator.py"), "#").unwrap();
     dir
 }
 
@@ -229,7 +231,6 @@ fn closable(root: &Path) {
     );
     put(root, "campaigns/camp-a/phases/main/bench.status.json", "{}");
     put(root, "campaigns/camp-a/phases/sub/bench.status.json", "{}");
-    put(root, ".claude/skills/terraforming_node/scripts/campaign_template_validator.py", "#");
 }
 
 #[test]
@@ -396,4 +397,14 @@ fn lifecycle_prints_the_fold_and_residue_scan_classifies_root_entries() {
     let (_, out, err) = call(&root, &["--residue-scan"]);
     assert!(out.contains("\"leak\": [\n    \"old_x\"\n  ]") && out.contains("\"unclassified\": ["), "{out}");
     assert!(err.contains("--utc 가 없어 residue.json 에 남기지 않았다"));
+}
+
+#[test]
+fn a_missing_validator_refuses_an_assignment_question() {
+    let root = scratch("novalidator");
+    active(&root);
+    std::fs::remove_file(root.join(".claude/skills/terraforming_node/scripts/campaign_template_validator.py")).unwrap();
+    let (status, _, err) = call(&root, &["--assigned-cells", "main"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("검증기를 찾지 못했다: .claude/skills/terraforming_node/scripts/campaign_template_validator.py — 배정 규약의 소유자가 없다"), "{err}");
 }
