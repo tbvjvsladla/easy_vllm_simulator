@@ -202,6 +202,7 @@ RUNTIME_BLOCK_EXCLUDES = {
         "scripts/multinode_serve_smoke.sh",  # 동상
         "scripts/native_multinode_serve.py", # 메인이 양 노드에 쓰는 native 분산 lifecycle owner(서브 자기실행 ✗)
         "scripts/native_wheelhouse.sh",    # native_wheelhouse Rust 런처(c2h) — 메인 전용(서브에는 ELF 가 없다 · 서브는 put 된 .py 로 verify)
+        "scripts/native_multinode_serve.sh", # native_multinode_serve Rust 런처(c2i) — 메인 전용(서브 자기실행 ✗)
         # 종료 시퀀스 기구(sync_to_sub·sync_branches·closing_sequence·layer_ledger·push_branches)의 격리 픽스처 검사.
         #   그 대상 절반이 위에서 제외되므로 서브에서는 돌 수 없고, 도는 자리(verify_distribution)도 메인 전용이다.
         "scripts/selftest_branch_sync.py",
