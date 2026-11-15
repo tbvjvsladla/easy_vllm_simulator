@@ -193,8 +193,7 @@ impl Args {
         self.values.get(name).and_then(|v| v.last()).map(String::as_str)
     }
 
-    #[allow(dead_code)]
-    fn all(&self, name: &str) -> &[String] {
+        fn all(&self, name: &str) -> &[String] {
         self.values.get(name).map(Vec::as_slice).unwrap_or(&[])
     }
 
@@ -213,7 +212,6 @@ pub(crate) fn py_repr(text: &str) -> String {
     PyStr::new(text).repr()
 }
 
-#[allow(dead_code)]
 fn py_list_repr(items: &[String]) -> String {
     let inner: Vec<String> = items.iter().map(|s| py_repr(s)).collect();
     format!("[{}]", inner.join(", "))
@@ -727,7 +725,6 @@ fn declared_topology(base: &Path) -> Option<String> {
 }
 
 /// `_sub_nodes(base)`.
-#[allow(dead_code)]
 fn sub_nodes_of(ctx: &Ctx, base: &Path) -> Vec<PyValue> {
     if declared_topology(base).as_deref() != Some("single") {
         return Vec::new();
@@ -2162,6 +2159,194 @@ fn op_write_brief(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     Ok(0)
 }
 
+// ── purge gate ───────────────────────────────────────────────────────────────────────────────
+
+/// `purge_gate_reasons(previous_id)`: why the previous instance may not be removed (empty = the gate is open). A closed
+/// `abandoned` instance asks the owner's reduction gate: that shape is not modelled.
+fn purge_gate_reasons(ctx: &Ctx, previous_id: &str) -> R<Vec<String>> {
+    let prev = ctx.campaigns().join(previous_id);
+    if !is_dir(&prev) {
+        return Ok(Vec::new());
+    }
+    let life = fold_lifecycle(ctx, &prev, None);
+    match life.state.as_str() {
+        "suspended" | "resume_pending" => {
+            return Ok(vec![format!(
+                "{previous_id}: 보류 상태({})는 purge 할 수 없다 — 사람이 포기를 고르면 `--abandon {previous_id}` 로 종결 사유를 받은 뒤 지운다",
+                life.state
+            )])
+        }
+        "orphan" => {
+            return Ok(vec![format!(
+                "{previous_id}: 이름 없는 잔재(orphan · 수명 이벤트 없음 · ACTIVE 미지목)다 — 재개할 수 없고 `--abandon {previous_id}`(축소 게이트)로만 정리한다"
+            )])
+        }
+        "unknown" => {
+            return Ok(vec![format!(
+                "{previous_id}: journey 에 이 버전이 모르는 수명 이벤트가 있다 — 브랜치 공통층 동기화 후 다시"
+            )])
+        }
+        _ => {}
+    }
+    if life.state == "closed" && life.sub_convergence.as_deref() == Some("unconverged") {
+        let wanted: Vec<String> = life.sub_nodes.iter().filter_map(text_of).collect();
+        let mut missing: Vec<String> = wanted.into_iter().filter(|n| !life.sub_echoed.contains(n)).collect();
+        missing.sort();
+        missing.dedup();
+        let control = if life.close_reason.as_deref() == Some("abandoned") { "abandon" } else { "close" };
+        return Ok(vec![format!(
+            "{previous_id}: 서브 종결이 수렴하지 않았다({}) — `relay.py --campaign-control {control} --campaign-id {previous_id} --node <sub>` 로 전하고 echo 를 받거나, 서브 미도달이면 사람이 `--sub-unconverged-accept {previous_id} --node <sub> --approved-by <전사> --utc <T>` 로 수용한다",
+            missing.join(", ")
+        )]);
+    }
+    if life.state == "closed" && life.close_reason.as_deref() == Some("abandoned") {
+        return Err(Stop::Fallback);
+    }
+    let mut reasons: Vec<String> = Vec::new();
+    let pointers_path = prev.join("evidence_pointers.json");
+    let Some(doc) = read_json(&pointers_path) else {
+        reasons.push(format!(
+            "{previous_id}: evidence_pointers.json 이 없거나 파손 — 증거가 docs 평면에 도착했는지 물을 수단이 없다"
+        ));
+        return Ok(reasons);
+    };
+    let pointers = dict_of(&doc).and_then(|d| d.get("pointers")).and_then(list_of).filter(|l| !l.is_empty());
+    let Some(pointers) = pointers else {
+        reasons.push(format!(
+            "{previous_id}: 증거 포인터가 0건이다 — 캠페인을 돌고 증거가 하나도 없다는 기록은 그 자체가 결손이다(빈 목록으로 게이트를 통과시키지 않는다)"
+        ));
+        return Ok(reasons);
+    };
+    let mut kinds: Vec<String> = Vec::new();
+    for (i, ptr) in pointers.iter().enumerate() {
+        let Some(ptr) = dict_of(ptr) else {
+            reasons.push(format!("{previous_id}: pointers[{i}] 형태 위반"));
+            continue;
+        };
+        let shown = |key: &str| {
+            match ptr.get(key) {
+                Some(v) if v.is_truthy() => v.display_text().to_utf8().unwrap_or_default().trim().to_string(),
+                _ => String::new(),
+            }
+        };
+        let (rel, kind) = (shown("path"), shown("kind"));
+        if !kinds.contains(&kind) {
+            kinds.push(kind.clone());
+        }
+        if rel.is_empty() || rel.contains(FILL) {
+            reasons.push(format!("{previous_id}: pointers[{i}] 경로 미기재"));
+            continue;
+        }
+        if !ctx.root.join(&rel).exists() {
+            reasons.push(format!("{previous_id}: 증거가 실재하지 않는다 — {rel} (kind={kind})"));
+        }
+    }
+    let relay = prev.join("relay");
+    let has_ledger = std::fs::read_dir(&relay)
+        .map(|read| {
+            read.filter_map(Result::ok).any(|e| {
+                let name = e.file_name().to_string_lossy().into_owned();
+                name.ends_with(".json") && name != "pending_hitl.json"
+            })
+        })
+        .unwrap_or(false);
+    if has_ledger && !kinds.iter().any(|k| k == "relay_summary") {
+        reasons.push(format!(
+            "{previous_id}: relay_summary 포인터가 없다 — 원장 원문은 휘발이므로 요약 testlog 가 없으면 왕복이 통째로 사라진다"
+        ));
+    }
+    let validator = ctx.root.join(".claude/skills/terraforming_node/scripts/campaign_template_validator.py");
+    if !validator.is_file() {
+        reasons.push(format!(
+            "{previous_id}: 검증기(campaign_template_validator.py)를 찾지 못했다 — P1~P3 을 물을 수단이 없다"
+        ));
+    } else {
+        reasons.extend(
+            crate::campaign_validator::instance_predicates(ctx, &prev)
+                .into_iter()
+                .map(|r| format!("{previous_id}: {r}")),
+        );
+    }
+    Ok(reasons)
+}
+
+/// `do_purge(previous_id, apply)`: the removed path (empty when there was nothing to remove).
+fn do_purge(ctx: &Ctx, previous_id: &str, apply: bool) -> R<Vec<String>> {
+    let reasons = purge_gate_reasons(ctx, previous_id)?;
+    if !reasons.is_empty() {
+        return refuse(format!("purge 게이트가 닫혀 있다:\n  - {}", reasons.join("\n  - ")));
+    }
+    let prev = ctx.campaigns().join(previous_id);
+    if !is_dir(&prev) {
+        return Ok(Vec::new());
+    }
+    if apply {
+        std::fs::remove_dir_all(&prev).map_err(|e| Stop::Refuse(format!("{}: {e}", prev.display())))?;
+    }
+    Ok(vec![ctx.rel(&prev)])
+}
+
+fn op_verify_purge_gate(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let reasons = purge_gate_reasons(ctx, args.get("--verify-purge-gate").unwrap_or_default())?;
+    if !reasons.is_empty() {
+        io.warn("[campaign_init] purge 게이트 닫힘");
+        for reason in reasons {
+            io.warn(&format!("  - {reason}"));
+        }
+        return Ok(1);
+    }
+    io.say("[campaign_init] purge 게이트 열림");
+    Ok(0)
+}
+
+/// `_parent_on_close(base, reason, utc)`: a closed child puts a pending resume question on its suspended parent.
+fn parent_on_close(ctx: &Ctx, base: &Path, reason: &str, utc: &str) -> R<Option<String>> {
+    let fold = fold_lifecycle(ctx, base, Some(BOOTSTRAP));
+    let Some(parent) = text_of(&fold.parent).filter(|p| !p.is_empty()) else {
+        return Ok(None);
+    };
+    let pbase = ctx.campaigns().join(&parent);
+    if !is_dir(&pbase) {
+        return Ok(None);
+    }
+    if fold_lifecycle(ctx, &pbase, Some(BOOTSTRAP)).state != "suspended" {
+        return Ok(None);
+    }
+    let ep = read_json(&base.join("evidence_pointers.json"));
+    let pointers: Vec<PyValue> = ep
+        .as_ref()
+        .and_then(dict_of)
+        .and_then(|d| d.get("pointers"))
+        .and_then(list_of)
+        .into_iter()
+        .flatten()
+        .filter_map(dict_of)
+        .filter(|p| matches!(get_text(p, "kind").as_deref(), Some("testlog" | "bench_report" | "sweep_map" | "relay_summary")))
+        .filter_map(|p| p.get("path").filter(|v| v.is_truthy()).cloned())
+        .collect();
+    let mut event = PyDict::new();
+    event.set("utc", py(utc));
+    event.set("kind", py("campaign_resume_pending"));
+    event.set("lifecycle_v", PyValue::int(LIFECYCLE_V));
+    event.set("source", py("campaign_init"));
+    event.set("trigger", py("child_closed"));
+    event.set("child", py(&base.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()));
+    event.set("child_reason", py(reason));
+    event.set("pointers", PyValue::List(pointers));
+    append_journey(&pbase, &PyValue::Dict(event))?;
+    Ok(Some(parent))
+}
+
+fn sub_close_hint(camp_id: &str, subs: &[String], control: &str) -> String {
+    if subs.is_empty() {
+        return String::new();
+    }
+    format!(
+        " · 서브 종결은 A2A 제어명령으로 전한다: relay.py --campaign-control {control} --campaign-id {camp_id} --node {} … (echo 가 오기 전까지 '서브 미수렴' · purge 게이트가 이것을 묻는다)",
+        subs.join("|")
+    )
+}
+
 // ── --close and --init ───────────────────────────────────────────────────────────────────────
 
 fn op_close(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
@@ -2188,8 +2373,35 @@ fn op_close(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     if args.get("--utc").map(str::is_empty).unwrap_or(true) {
         return refuse("--close 는 --utc 가 필요하다(시각은 주입만 받는다 — 벽시계 금지)");
     }
-    // The purge gate reads the instance predicates of the validator: still the owner's.
-    Err(Stop::Fallback)
+    let utc = args.get("--utc").unwrap_or_default();
+    let reasons = purge_gate_reasons(ctx, camp_id)?;
+    if !reasons.is_empty() {
+        return refuse(format!("종결 선행조건(= purge 게이트)이 닫혀 있다:\n  - {}", reasons.join("\n  - ")));
+    }
+    let base = ctx.campaigns().join(camp_id);
+    let plain = format!("closed {camp_id} → ACTIVE=_bootstrap (인스턴스 보존: campaigns/{camp_id})");
+    if !args.has("--apply") {
+        io.say(&format!("[campaign_init] {mode} {plain}"));
+        return Ok(0);
+    }
+    let subs: Vec<String> = sub_nodes_of(ctx, &base).iter().filter_map(text_of).collect();
+    let mut event = PyDict::new();
+    event.set("utc", py(utc));
+    event.set("kind", py("campaign_closed"));
+    event.set("reason", py("completed"));
+    event.set("lifecycle_v", PyValue::int(LIFECYCLE_V));
+    event.set("source", py("campaign_init --close"));
+    event.set("sub_nodes", str_list(subs.clone()));
+    event.set("note", py("ACTIVE → _bootstrap (인스턴스 보존 · 다음 --init --purge-previous 가 지운다)"));
+    append_journey(&base, &PyValue::Dict(event))?;
+    write_text(&ctx.active_pointer(), &format!("{BOOTSTRAP}\n"))?;
+    let tail = sub_close_hint(camp_id, &subs, "close");
+    let message = match parent_on_close(ctx, &base, "completed", utc)? {
+        Some(parent) => format!("{plain} · 부모 {parent} 에 재개 미결(계기 a){tail}"),
+        None => format!("{plain}{tail}"),
+    };
+    io.say(&format!("[campaign_init] {mode} {message}"));
+    Ok(0)
 }
 
 fn require_transition(utc: Option<&str>, approved_by: Option<&str>, what: &str) -> R<()> {
@@ -2242,7 +2454,6 @@ fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     // Shapes with a suspension, a lineage, a slice, a purge or a disposition are the owner's.
     let unmodelled = [
         "--suspend-current", "--derived-from", "--preempt", "--release", "--dispose", "--from-slice",
-        "--purge-previous",
     ];
     if unmodelled.iter().any(|o| args.has(o)) {
         return Err(Stop::Fallback);
@@ -2270,7 +2481,8 @@ fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     }) {
         return Err(Stop::Fallback);
     }
-    if cur != BOOTSTRAP {
+    let purge_previous: Vec<String> = args.all("--purge-previous").to_vec();
+    if cur != BOOTSTRAP && !purge_previous.contains(&cur) {
         return refuse(format!(
             "활성 캠페인 {cur} 이 있다 — 처분 없이 덮어쓰는 --init 은 거부한다(옛 허점: ACTIVE 만 바뀌고 {cur} 이 이름 없는 잔재가 된다). 셋 중 하나를 고른다: ① `--suspend-current [--derived-from {cur}]` 로 보류+개설 ② `--close {cur}`(완주) ③ `--abandon {cur}`(포기) — 정상 차단"
         ));
@@ -2306,6 +2518,20 @@ fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
             py_repr(&target),
             here.as_deref().map(py_repr).unwrap_or_else(|| "None".to_string())
         ));
+    }
+    // purge: an abandoned previous instance is the owner's reduction gate; decide that before the first removal
+    for prev in &purge_previous {
+        let probe = ctx.campaigns().join(prev);
+        if is_dir(&probe) {
+            let life = fold_lifecycle(ctx, &probe, None);
+            if life.state == "closed" && life.close_reason.as_deref() == Some("abandoned") && life.sub_convergence.as_deref() != Some("unconverged") {
+                return Err(Stop::Fallback);
+            }
+        }
+    }
+    let mut removed: Vec<String> = Vec::new();
+    for prev in &purge_previous {
+        removed.extend(do_purge(ctx, prev, apply)?);
     }
     // sweep_bootstrap_relay
     let relay = ctx.campaigns().join(BOOTSTRAP).join("relay");
@@ -2376,7 +2602,8 @@ fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
         }
     }
     io.say(&format!(
-        "[campaign_init] {mode} purge=[] init=['campaigns/{new_id}']"
+        "[campaign_init] {mode} purge={} init=['campaigns/{new_id}']",
+        py_list_repr(&removed)
     ));
     if !swept.is_empty() {
         io.say(&format!("[campaign_init] {mode} _bootstrap/relay 정리 {}건", swept.len()));
@@ -2630,7 +2857,8 @@ fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 // ── dispatch ─────────────────────────────────────────────────────────────────────────────────
 
 /// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 10] = [
+const NATIVE_OPS: [&str; 11] = [
+    "--verify-purge-gate",
     "--reentry-decide",
     "--lockset-precheck",
     "--grounding-check",
@@ -2647,6 +2875,7 @@ const NATIVE_OPS: [&str; 10] = [
 fn allowed_options(op: &str) -> &'static [&'static str] {
     match op {
         "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
+        "--verify-purge-gate" => &["--verify-purge-gate"],
         "--reentry-decide" => &["--reentry-decide", "--campaign-id", "--decision", "--route", "--approved-by", "--utc"],
         "--lockset-precheck" => &["--lockset-precheck", "--cell", "--campaign-id"],
         "--grounding-check" => &["--grounding-check", "--campaign-id"],
@@ -2717,6 +2946,7 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     }
     let result = match op {
         "--assigned-cells" => op_assigned_cells(ctx, &args, io),
+        "--verify-purge-gate" => op_verify_purge_gate(ctx, &args, io),
         "--reentry-decide" => op_reentry_decide(ctx, &args, io),
         "--lockset-precheck" => op_lockset_precheck(ctx, &args, io),
         "--grounding-check" => op_grounding_check(ctx, &args, io),

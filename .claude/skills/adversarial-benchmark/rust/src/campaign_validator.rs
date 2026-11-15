@@ -268,6 +268,235 @@ fn p6_observations(ctx: &Ctx, camp_dir: &Path) -> (Vec<String>, Vec<String>) {
     (problems, notes)
 }
 
+// ── P1-P3: the instance predicates (the purge gate reads them) ──────────────────────────────
+
+const SWEEP_TO_CELL: [&str; 7] = [
+    "measured", "serve_failed", "build_failed", "void", "pending", "measurement_void", "not_measured",
+];
+
+/// `_sweep_cell_records(camp_dir)`: `cell key -> (outcome, source file)`; the record with the later `ended_utc` wins.
+fn sweep_cell_records(ctx: &Ctx, camp_dir: &Path) -> Vec<(String, (String, String))> {
+    let mut out: Vec<(String, (String, String))> = Vec::new();
+    let mut when: Vec<(String, String)> = Vec::new();
+    for sweep in sorted_json_files(&camp_dir.join("sweeps"), ".json") {
+        let Some(doc) = read_object(&sweep) else { continue };
+        let cells = doc.get("cells").filter(|v| v.is_truthy()).and_then(list_of);
+        for cell in cells.into_iter().flatten().filter_map(dict_of) {
+            let pick = |keys: &[&str]| {
+                keys.iter().find_map(|k| cell.get(k).filter(|v| v.is_truthy()).cloned())
+            };
+            let (Some(key), Some(outcome)) = (
+                pick(&["cell_key", "cell_id", "config"]).and_then(|v| text_of(&v)),
+                pick(&["cell_outcome", "outcome", "status"]).and_then(|v| text_of(&v)),
+            ) else {
+                continue;
+            };
+            let ended = get_text(cell, "ended_utc").unwrap_or_default();
+            let known = when.iter().find(|(k, _)| *k == key).map(|(_, w)| w.clone()).unwrap_or_default();
+            if out.iter().any(|(k, _)| *k == key) && ended < known {
+                continue;
+            }
+            let value = (outcome, ctx.rel(&sweep));
+            match out.iter_mut().find(|(k, _)| *k == key) {
+                Some(slot) => slot.1 = value,
+                None => out.push((key.clone(), value)),
+            }
+            match when.iter_mut().find(|(k, _)| *k == key) {
+                Some(slot) => slot.1 = ended,
+                None => when.push((key, ended)),
+            }
+        }
+    }
+    out
+}
+
+fn predicate_p1(ctx: &Ctx, camp_dir: &Path) -> Vec<String> {
+    let mut problems = Vec::new();
+    let mut sweeps = sweep_cell_records(ctx, camp_dir);
+    sweeps.sort_by(|a, b| a.0.cmp(&b.0));
+    for (key, (outcome, src)) in sweeps {
+        let status_path = camp_dir.join("cells").join(&key).join("cell.status.json");
+        if !SWEEP_TO_CELL.contains(&outcome.as_str()) {
+            continue;
+        }
+        if !status_path.is_file() {
+            problems.push(format!(
+                "P1 {key}: sweep 은 '{outcome}' 인데 cell.status.json 이 없다 (출처 {src}) — 돌았는데 상태를 아무도 적지 않았다"
+            ));
+            continue;
+        }
+        let parsed = std::fs::read(&status_path).ok().and_then(|b| String::from_utf8(b).ok()).map(|t| pyjson::loads(&t));
+        let doc = match parsed {
+            Some(Ok(doc)) => doc,
+            Some(Err(error)) => {
+                problems.push(format!("P1 {key}: cell.status.json 파손 — {error}"));
+                continue;
+            }
+            None => {
+                problems.push(format!("P1 {key}: cell.status.json 파손 — invalid utf-8"));
+                continue;
+            }
+        };
+        let have = dict_of(&doc).and_then(|d| d.get("cell_outcome").cloned()).unwrap_or(PyValue::None);
+        if text_of(&have).as_deref() != Some(outcome.as_str()) {
+            problems.push(format!(
+                "P1 {key}: sweep='{outcome}' vs cell.status='{}' 불일치 (출처 {src}) — 두 자리가 갈라지면 재개가 이미 돈 셀을 다시 돈다",
+                have.display_text().to_utf8().unwrap_or_default()
+            ));
+        }
+    }
+    problems
+}
+
+fn predicate_p2(camp_dir: &Path) -> Vec<String> {
+    let mut problems = Vec::new();
+    let ep = camp_dir.join("evidence_pointers.json");
+    if !ep.is_file() {
+        return problems;
+    }
+    let Some(doc) = read_object(&ep) else { return problems };
+    let nodes = declared_node_ids(camp_dir, None);
+    let multi = nodes.len() > 1;
+    let mut bench_nodes: Vec<(String, Vec<String>)> = Vec::new();
+    let mut bench_total = 0usize;
+    let pointers = doc.get("pointers").filter(|v| v.is_truthy()).and_then(list_of);
+    for ptr in pointers.into_iter().flatten().filter_map(dict_of) {
+        let kind = ptr.get("kind").map(|v| v.display_text().to_utf8().unwrap_or_default()).unwrap_or_else(|| "None".to_string());
+        if kind != "certificate" && kind != "bench_report" {
+            continue;
+        }
+        bench_total += 1;
+        let path_text = ptr.get("path").map(|v| v.display_text().to_utf8().unwrap_or_default()).unwrap_or_else(|| "None".to_string());
+        let add = |node: String, bench: &mut Vec<(String, Vec<String>)>| match bench.iter_mut().find(|(n, _)| *n == node) {
+            Some(slot) => slot.1.push(path_text.clone()),
+            None => bench.push((node, vec![path_text.clone()])),
+        };
+        match get_text(ptr, "node_id").filter(|n| !n.is_empty()) {
+            Some(node) => add(node, &mut bench_nodes),
+            None if multi => problems.push(format!(
+                "P2 노드 태그 없는 벤치 증거: {path_text} — {}노드 캠페인에서는 어느 노드가 잰 것인지 알 수 없다(`--evidence-add --node <id>` 누락)",
+                nodes.len()
+            )),
+            None if nodes.len() == 1 => add(nodes[0].clone(), &mut bench_nodes),
+            None => {}
+        }
+    }
+    if multi && bench_total > 0 && bench_nodes.is_empty() {
+        problems.push(format!(
+            "P2 벤치 증거 {bench_total}건이 **전부** 노드 태그가 없다 — 이 상태의 P2 는 아무 노드도 검사하지 않고 통과한다(공허 통과 금지 · 2026-09-08 재발 방지)"
+        ));
+    }
+    bench_nodes.sort_by(|a, b| a.0.cmp(&b.0));
+    for (node, paths) in bench_nodes {
+        let (candidates, kind) = if nodes.contains(&node) {
+            (vec![node.clone()], "declared")
+        } else if node == "cluster" {
+            (nodes.clone(), "derived")
+        } else {
+            (Vec::new(), "unknown")
+        };
+        if kind == "unknown" {
+            let declared = if nodes.is_empty() { "없음".to_string() } else { nodes.join(", ") };
+            problems.push(format!(
+                "P2 {node}: 벤치 증거 {}건의 노드 태그가 선언 노드({declared})에도 파생 측정축(cluster)에도 없다 — 어느 노드가 잰 것인지 해소할 수 없다(오타 또는 미선언 노드)",
+                paths.len()
+            ));
+            continue;
+        }
+        let mut seen: Vec<String> = Vec::new();
+        let mut reflected = false;
+        for cand in &candidates {
+            let status_path = camp_dir.join("phases").join(cand).join("bench.status.json");
+            if !status_path.is_file() {
+                continue;
+            }
+            let parsed = std::fs::read(&status_path).ok().and_then(|b| String::from_utf8(b).ok()).map(|t| pyjson::loads(&t));
+            let st = match parsed {
+                Some(Ok(PyValue::Dict(d))) => d,
+                Some(Ok(_)) => PyDict::new(),
+                Some(Err(error)) => {
+                    problems.push(format!("P2 {cand}: bench.status.json 파손 — {error}"));
+                    seen.push(cand.clone());
+                    continue;
+                }
+                None => {
+                    problems.push(format!("P2 {cand}: bench.status.json 파손 — invalid utf-8"));
+                    seen.push(cand.clone());
+                    continue;
+                }
+            };
+            let state = st.get("state").cloned().unwrap_or(PyValue::None);
+            let proof_ok = dict_of(&st.get("proof").cloned().unwrap_or(PyValue::None)).and_then(|p| p.get("ok").cloned()).unwrap_or(PyValue::None);
+            seen.push(format!("{cand}(state={} proof.ok={})", state.repr(), proof_ok.repr()));
+            if text_of(&state).as_deref() == Some("done") && matches!(proof_ok.peel(), PyValue::Bool(true)) {
+                reflected = true;
+                break;
+            }
+        }
+        if reflected {
+            continue;
+        }
+        if seen.is_empty() {
+            let where_ = if kind == "declared" {
+                format!("phases/{}/bench.status.json", candidates[0])
+            } else {
+                "선언 노드 어디에도 bench.status.json".to_string()
+            };
+            problems.push(format!(
+                "P2 {node}: 벤치 증거 {}건이 있는데 {where_} 이 없다 — 진행표가 증거보다 낡았다",
+                paths.len()
+            ));
+            continue;
+        }
+        problems.push(format!(
+            "P2 {node}: 벤치 증거가 도착했는데 bench phase 가 그것을 반영하지 않는다 — {} (진행표가 증거보다 낡았다)",
+            seen.join("; ")
+        ));
+    }
+    problems
+}
+
+fn predicate_p3(camp_dir: &Path) -> Vec<String> {
+    let mut problems = Vec::new();
+    let path = camp_dir.join("campaign.yaml");
+    if !path.is_file() {
+        return problems;
+    }
+    let Some(decl) = read_object(&path) else { return problems };
+    let nodes = decl.get("nodes").filter(|v| v.is_truthy()).and_then(list_of);
+    for node in nodes.into_iter().flatten().filter_map(dict_of) {
+        let Some(nid) = get_text(node, "node_id").filter(|n| !n.is_empty() && !n.contains(FILL)) else {
+            continue;
+        };
+        let no_items = assignments_of(&decl)
+            .into_iter()
+            .find(|(n, _)| *n == nid)
+            .map(|(_, items)| list_of(&items).map(|l| l.iter().filter(|x| dict_of(x).is_some()).count()).unwrap_or(0))
+            .unwrap_or(0)
+            == 0;
+        if get_text(node, "topology").as_deref() == Some("multi")
+            && get_text(node, "role").as_deref() == Some("sub")
+            && no_items
+        {
+            continue;
+        }
+        if !camp_dir.join("phases").join(&nid).is_dir() {
+            problems.push(format!(
+                "P3 {nid}: campaign.yaml 이 선언한 노드인데 phases/{nid}/ 가 없다 — '안 돌았다'와 '돌았는데 아무도 안 적었다'가 구분되지 않는다"
+            ));
+        }
+    }
+    problems
+}
+
+/// `instance_predicates(camp_dir)`: P1, P2, P3.
+pub fn instance_predicates(ctx: &Ctx, camp_dir: &Path) -> Vec<String> {
+    let mut out = predicate_p1(ctx, camp_dir);
+    out.extend(predicate_p2(camp_dir));
+    out.extend(predicate_p3(camp_dir));
+    out
+}
+
 /// `--acceptance INSTANCE`: the owner's exit status.
 pub fn acceptance(ctx: &Ctx, instance: &str, io: &mut Sinks<'_>) -> i32 {
     let camp_dir = PathBuf::from(instance);

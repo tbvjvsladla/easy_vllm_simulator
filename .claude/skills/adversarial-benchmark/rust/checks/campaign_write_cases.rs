@@ -218,3 +218,53 @@ fn reentry_decision_needs_a_proposal() {
     assert_eq!(status, Some(1));
     assert!(err.contains("셀 c1 에 대기 중인 재발동 제안이 없다(status=None)"));
 }
+
+fn closable(root: &Path) {
+    active(root);
+    put(root, "docs/testlog/t.md", "x");
+    put(
+        root,
+        "campaigns/camp-a/evidence_pointers.json",
+        "{\"pointers\": [{\"kind\": \"testlog\", \"path\": \"docs/testlog/t.md\"}]}",
+    );
+    put(root, "campaigns/camp-a/phases/main/bench.status.json", "{}");
+    put(root, "campaigns/camp-a/phases/sub/bench.status.json", "{}");
+    put(root, ".claude/skills/terraforming_node/scripts/campaign_template_validator.py", "#");
+}
+
+#[test]
+fn close_writes_the_event_and_points_active_at_bootstrap() {
+    let root = scratch("close");
+    closable(&root);
+    let (status, out, _) = call(&root, &["--close", "camp-a", "--utc", "T9", "--apply"]);
+    assert_eq!(status, Some(0));
+    assert_eq!(
+        out,
+        "[campaign_init] APPLIED closed camp-a → ACTIVE=_bootstrap (인스턴스 보존: campaigns/camp-a)\n"
+    );
+    assert_eq!(std::fs::read_to_string(root.join("campaigns/ACTIVE")).unwrap(), "_bootstrap\n");
+    let journey = std::fs::read_to_string(root.join("campaigns/camp-a/journey.jsonl")).unwrap();
+    assert!(journey.contains("\"kind\": \"campaign_closed\"") && journey.contains("\"reason\": \"completed\""));
+}
+
+#[test]
+fn close_is_refused_while_a_pointer_target_is_missing() {
+    let root = scratch("close-gate");
+    closable(&root);
+    std::fs::remove_file(root.join("docs/testlog/t.md")).unwrap();
+    let (status, _, err) = call(&root, &["--close", "camp-a", "--utc", "T9", "--apply"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("종결 선행조건(= purge 게이트)이 닫혀 있다:\n  - camp-a: 증거가 실재하지 않는다 — docs/testlog/t.md (kind=testlog)"));
+    assert_eq!(std::fs::read_to_string(root.join("campaigns/ACTIVE")).unwrap(), "camp-a\n");
+}
+
+#[test]
+fn verify_purge_gate_names_what_keeps_it_closed() {
+    let root = scratch("gate");
+    closable(&root);
+    assert_eq!(call(&root, &["--verify-purge-gate", "camp-a"]).1, "[campaign_init] purge 게이트 열림\n");
+    put(&root, "campaigns/camp-a/relay/l.json", "{}");
+    let (status, _, err) = call(&root, &["--verify-purge-gate", "camp-a"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("camp-a: relay_summary 포인터가 없다"));
+}
