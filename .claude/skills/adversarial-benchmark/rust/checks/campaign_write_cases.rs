@@ -456,3 +456,17 @@ fn init_from_a_derived_slice_keeps_the_slice_declaration_and_its_parent() {
     let journey = std::fs::read_to_string(root.join("campaigns/camp-s/journey.jsonl")).unwrap();
     assert!(journey.contains("\"parent\": \"camp-p\""), "{journey}");
 }
+
+#[test]
+fn grounding_without_the_library_tool_records_an_honest_gap() {
+    let root = scratch("ground");
+    active(&root);
+    put(&root, "campaigns/camp-a/campaign.yaml", "{\"id\": \"camp-a\", \"nodes\": [{\"node_id\": \"main\", \"role\": \"main\"}], \"assignments\": {\"main\": [{\"cell\": \"c1\"}]}, \"control_variables\": {\"topology\": \"single\", \"model\": \"M\"}}");
+    let (status, out, err) = call(&root, &["--ground", "--utc", "2026-11-15T01:00:00Z"]);
+    assert_eq!(status, Some(0), "{err}");
+    assert_eq!(out, "[campaign_init] wrote(camp-a): campaigns/camp-a/grounding/20261115T010000Z.json\n");
+    assert!(err.contains("입고 건너뜀 — 사서 도구 부재(.claude/skills/wiki-desk/src/cli.ts) · 판정=unresolved 참조=0건"), "{err}");
+    assert_eq!(call(&root, &["--grounding-check"]).0, Some(0));
+    let (_, out, _) = call(&root, &["--warm-start-library"]);
+    assert!(out.starts_with("[campaign_init] 입고 건너뜀"), "{out}");
+}

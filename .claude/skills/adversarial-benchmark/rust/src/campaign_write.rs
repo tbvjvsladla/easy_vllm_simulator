@@ -1099,8 +1099,7 @@ fn op_phase_set(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
         return refuse("--phase-set 은 --node(또는 배정된 --cell)와 --state 가 필요하다");
     };
     if phase == "publish" && state == "done" {
-        // The owner enters the library here (a process of the wiki tool): not modelled.
-        return Err(Stop::Fallback);
+        io.warn(&format!("[campaign_init] 서가 입고(C4) — {}", warm_start_library(ctx)?));
     }
     let path = write_phase(ctx, &base, args, &node, &phase, &state, cell.as_deref())?;
     io.say(&format!("[campaign_init] wrote({camp}): {}", ctx.rel(&path)));
@@ -4022,6 +4021,273 @@ impl PeelList for PyValue {
     }
 }
 
+// ── the library (wiki-desk): intake, query, grounding ───────────────────────────────────────
+
+const WIKI_CLI: &str = ".claude/skills/wiki-desk/src/cli.ts";
+const GROUNDING_TOP: usize = 6;
+
+struct WikiRun {
+    status: i32,
+    stdout: String,
+    stderr: String,
+}
+
+/// `_wiki(root, *args)`: the node-run wiki-desk command line (not Python).
+fn wiki(ctx: &Ctx, args: &[String]) -> R<WikiRun> {
+    let output = std::process::Command::new("node")
+        .arg(ctx.root.join(WIKI_CLI))
+        .args(args)
+        .arg("--root")
+        .arg(&ctx.root)
+        .current_dir(&ctx.root)
+        .stdin(std::process::Stdio::null())
+        .output()
+        .map_err(|e| Stop::Refuse(format!("node 를 시작할 수 없다: {e}")))?;
+    Ok(WikiRun {
+        status: output.status.code().unwrap_or(-1),
+        stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
+        stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
+    })
+}
+
+fn tail_chars(text: &str, n: usize) -> String {
+    let t = text.trim();
+    let count = t.chars().count();
+    t.chars().skip(count.saturating_sub(n)).collect()
+}
+
+/// `warm_start_library()`: the one-line outcome of the intake.
+fn warm_start_library(ctx: &Ctx) -> R<String> {
+    if !ctx.root.join(WIKI_CLI).is_file() {
+        return Ok(format!("입고 건너뜀 — 사서 도구 부재({WIKI_CLI})"));
+    }
+    let run = wiki(ctx, &["sync".to_string(), "--apply".to_string()])?;
+    if run.status != 0 && run.status != 4 {
+        return Ok(format!("입고 실패(rc={}): {}", run.status, tail_chars(&run.stderr, 200)));
+    }
+    let out = match pyjson::loads(&run.stdout) {
+        Ok(v) => v,
+        Err(_) => return Ok("입고 완료(출력 판독 불가)".to_string()),
+    };
+    let out = match out.peel() {
+        PyValue::Dict(d) => d.clone(),
+        _ => PyDict::new(),
+    };
+    if get_text(&out, "ingest_status").as_deref() == Some("not-yet-ingested") {
+        return Ok(format!(
+            "not-yet-ingested — 서고 미도달(stage={}) · 다음 입고가 따라잡는다",
+            shown(out.get("stage"))
+        ));
+    }
+    let n = |k: &str| list_or_empty(out.get(k)).len();
+    Ok(format!("입고 완료 — created={} updated={} archived={}", n("created"), n("updated"), n("archived")))
+}
+
+fn resolution(status: &str, reason: PyValue, extra: Vec<(&str, PyValue)>) -> PyDict {
+    let mut r = PyDict::new();
+    r.set("status", py(status));
+    r.set("librarian", py("wiki-desk"));
+    r.set("reason", reason);
+    for (k, v) in extra {
+        r.set(k, v);
+    }
+    let mut out = PyDict::new();
+    out.set("resolution", PyValue::Dict(r));
+    out.set("references", PyValue::List(Vec::new()));
+    out
+}
+
+/// `query_library(terms)`: the exported pointers, an honest gap or a refusal.
+fn query_library(ctx: &Ctx, terms: &[String]) -> R<PyDict> {
+    if !ctx.root.join(WIKI_CLI).is_file() {
+        return Ok(resolution("unresolved", py(&format!("사서 도구 부재({WIKI_CLI})")), vec![]));
+    }
+    let mut argv = vec!["query".to_string(), "--limit".to_string(), GROUNDING_TOP.to_string()];
+    for t in terms {
+        argv.push("--terms".to_string());
+        argv.push(t.clone());
+    }
+    let run = wiki(ctx, &argv)?;
+    if run.status == 126 {
+        return Ok(resolution("refused", py(&tail_chars(&run.stderr, 300)), vec![]));
+    }
+    let out = if run.status == 0 { pyjson::loads(&run.stdout).ok() } else { None };
+    let Some(out) = out else {
+        return Ok(resolution(
+            "unresolved",
+            py(&format!("사서 질의 실패(rc={}): {}", run.status, tail_chars(&run.stderr, 200))),
+            vec![],
+        ));
+    };
+    let out = dict_of(&out).cloned().unwrap_or_default();
+    let mut refs: Vec<PyValue> = Vec::new();
+    for (i, r) in list_or_empty(out.get("results")).iter().enumerate() {
+        let r = dict_of(r).cloned().unwrap_or_default();
+        let mut d = PyDict::new();
+        d.set("ref_id", py(&format!("R{}", i + 1)));
+        d.set("path", r.get("path").cloned().unwrap_or(PyValue::None));
+        d.set("score", r.get("score").cloned().unwrap_or(PyValue::None));
+        let spans: Vec<PyValue> = list_or_empty(r.get("spans"))
+            .iter()
+            .map(|sp| dict_of(sp).and_then(|d| d.get("ref").cloned()).unwrap_or(PyValue::None))
+            .collect();
+        d.set("spans", PyValue::List(spans));
+        refs.push(PyValue::Dict(d));
+    }
+    let resolved = !refs.is_empty();
+    let mut res = resolution(
+        if resolved { "resolved" } else { "unresolved" },
+        if resolved { PyValue::None } else { py("질의 결과 0건(정직한 공백)") },
+        vec![
+            ("unmatched_tokens", out.get("unmatched_tokens").cloned().unwrap_or(PyValue::None)),
+            ("stale", out.get("stale").cloned().unwrap_or(PyValue::None)),
+        ],
+    );
+    res.set("references", PyValue::List(refs));
+    Ok(res)
+}
+
+/// `_self_node_id()`: `main`, or the node id the main issued in the sub's manifest `library:` block.
+fn self_node_id(ctx: &Ctx) -> String {
+    if !ctx.checkout_is_sub() {
+        return "main".to_string();
+    }
+    for t in ["single", "multi"] {
+        let Some(text) = ctx.manifest_text(t) else { continue };
+        let lines: Vec<&str> = text.lines().collect();
+        for (i, line) in lines.iter().enumerate() {
+            if line.trim_end() != "library:" {
+                continue;
+            }
+            for next in &lines[i + 1..] {
+                if !(next.starts_with(' ') || next.starts_with('\t')) {
+                    break;
+                }
+                if let Some(rest) = next.trim_start().strip_prefix("node_id:") {
+                    let rest = rest.trim_start();
+                    let rest = rest.strip_prefix(['\'', '"']).unwrap_or(rest);
+                    let id: String = rest
+                        .chars()
+                        .enumerate()
+                        .take_while(|(k, c)| {
+                            if *k == 0 { c.is_ascii_lowercase() || c.is_ascii_digit() } else { c.is_ascii_lowercase() || c.is_ascii_digit() || *c == '_' || *c == '-' }
+                        })
+                        .map(|(_, c)| c)
+                        .collect();
+                    if !id.is_empty() {
+                        return id;
+                    }
+                }
+            }
+        }
+    }
+    "sub".to_string()
+}
+
+fn grounding_terms(decl: &PyDict) -> Vec<String> {
+    let cv = decl.get("control_variables").filter(|v| v.is_truthy()).and_then(dict_of).cloned().unwrap_or_default();
+    let mut keys: Vec<&(PyStr, PyValue)> = cv.iter().collect();
+    keys.sort_by(|a, b| a.0.code_points().cmp(b.0.code_points()));
+    let mut out = Vec::new();
+    for (k, v) in keys {
+        if k.to_utf8().map(|s| s.starts_with('_')).unwrap_or(false) {
+            continue;
+        }
+        if matches!(v.peel(), PyValue::Str(_) | PyValue::Int(_) | PyValue::Float(_)) {
+            let text = v.display_text().to_utf8().unwrap_or_default().trim().to_string();
+            if !text.is_empty() && !text.contains(FILL) && text.chars().count() <= 80 {
+                out.push(text);
+            }
+        }
+    }
+    out
+}
+
+fn op_warm_start_library(ctx: &Ctx, io: &mut Sinks<'_>) -> R<i32> {
+    io.say(&format!("[campaign_init] {}", warm_start_library(ctx)?));
+    Ok(0)
+}
+
+fn op_ground(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let Some((base, camp)) = writer_prelude(ctx, args, io)? else { return Ok(0) };
+    let Some(utc) = args.get("--utc").filter(|u| !u.is_empty()) else {
+        return refuse("--ground 는 --utc 가 필요하다(시각은 주입만 받는다)");
+    };
+    need_validator(ctx)?;
+    let decl = read_declaration(&base);
+    let topology_value = get_dict(&decl, "control_variables").and_then(|c| c.get("topology")).cloned().unwrap_or(PyValue::None);
+    let topology = match text_of(&topology_value).filter(|t| t == "single" || t == "multi") {
+        Some(t) => t,
+        None => {
+            return refuse(format!(
+                "--ground 는 활성 캠페인의 control_variables.topology 를 요구한다 — 현재 값 {}. 기본값으로 대체하지 않는다(그라운딩 기록에 거짓 사실이 실리면 fail-closed 백스톱이 무의미해진다). 선언을 먼저 고쳐라.",
+                topology_value.repr()
+            ))
+        }
+    };
+    let given: Vec<String> = args
+        .get("--terms")
+        .unwrap_or("")
+        .split(',')
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+        .collect();
+    let terms = if given.is_empty() { grounding_terms(&decl) } else { given };
+    let node_id = self_node_id(ctx);
+    if terms.is_empty() {
+        return refuse("통제변인에서 질의어를 파생하지 못했다 — 선언이 아직 빈칸이면 그라운딩은 선언을 채운 뒤에 한다(진입 백스톱이 그때까지 서빙을 막는다).");
+    }
+    let note = if args.has("--no-warm-start") { "입고 생략(호출부 지시)".to_string() } else { warm_start_library(ctx)? };
+    let exchange = format!("{camp}-{utc}");
+    let mut query = PyDict::new();
+    query.set("terms", str_list(terms.clone()));
+    let mut request = PyDict::new();
+    request.set("schema_version", PyValue::int(1));
+    request.set("kind", py("library.resolution.request"));
+    request.set("exchange_id", py(&exchange));
+    request.set("node_id", py(&node_id));
+    request.set("topology", py(&topology));
+    request.set("query", PyValue::Dict(query));
+    request.set("purpose", py("캠페인 착수 그라운딩 — 이 통제변인으로 참고할 내부 자료가 있는가"));
+    let export = query_library(ctx, &terms)?;
+    let status = get_dict(&export, "resolution").and_then(|r| r.get("status").cloned()).unwrap_or(PyValue::None);
+    let refs = list_or_empty(export.get("references"));
+    let cited: Vec<PyValue> = refs.iter().map(|r| dict_of(r).and_then(|d| d.get("ref_id").cloned()).unwrap_or(PyValue::None)).collect();
+    let gap = if text_of(&status).as_deref() == Some("resolved") {
+        PyValue::None
+    } else {
+        let mut g = PyDict::new();
+        g.set("status", status.clone());
+        g.set("asked_utc", py(utc));
+        g.set("reason", get_dict(&export, "resolution").and_then(|r| r.get("reason").cloned()).unwrap_or(PyValue::None));
+        PyValue::Dict(g)
+    };
+    let mut attestation = PyDict::new();
+    attestation.set("kind", py("library.resolution.attestation"));
+    attestation.set("exchange_id", py(&exchange));
+    attestation.set("node_id", py(&node_id));
+    attestation.set("status", status.clone());
+    attestation.set("cited_refs", PyValue::List(cited));
+    attestation.set("grounding_gap", gap);
+    let mut doc = PyDict::new();
+    doc.set("schema_version", PyValue::int(1));
+    doc.set("campaign_id", py(&camp));
+    doc.set("asked_utc", py(utc));
+    doc.set("library_intake", py(&note));
+    doc.set("request", PyValue::Dict(request));
+    doc.set("export", PyValue::Dict(export));
+    doc.set("attestation", PyValue::Dict(attestation));
+    let path = base.join("grounding").join(format!("{}.json", utc.replace(':', "").replace('-', "")));
+    write_json(&path, &PyValue::Dict(doc))?;
+    io.warn(&format!(
+        "[campaign_init] 그라운딩 · {note} · 판정={} 참조={}건",
+        shown(Some(&status)),
+        refs.len()
+    ));
+    wrote_line(io, &camp, &[ctx.rel(&path)]);
+    Ok(0)
+}
+
 // ── purge gate ───────────────────────────────────────────────────────────────────────────────
 
 /// `purge_gate_reasons(previous_id)`: why the previous instance may not be removed (empty = the gate is open). A closed
@@ -4762,7 +5028,9 @@ fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 // ── dispatch ─────────────────────────────────────────────────────────────────────────────────
 
 /// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 27] = [
+const NATIVE_OPS: [&str; 29] = [
+    "--ground",
+    "--warm-start-library",
     "--backfill-from-docs",
     "--import-sub",
     "--answer-query",
@@ -4797,6 +5065,8 @@ fn allowed_options(op: &str) -> &'static [&'static str] {
     match op {
         "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
         "--verify-purge-gate" => &["--verify-purge-gate"],
+        "--ground" => &["--ground", "--utc", "--terms", "--no-warm-start", "--campaign-id"],
+        "--warm-start-library" => &["--warm-start-library"],
         "--backfill-from-docs" => &["--backfill-from-docs", "--utc", "--campaign-id"],
         "--import-sub" => &["--import-sub", "--utc", "--unfreeze", "--campaign-id"],
         "--answer-query" => &["--answer-query", "--query-decision", "--utc", "--approved-by", "--apply"],
@@ -4889,6 +5159,8 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     let result = match op {
         "--assigned-cells" => op_assigned_cells(ctx, &args, io),
         "--verify-purge-gate" => op_verify_purge_gate(ctx, &args, io),
+        "--ground" => op_ground(ctx, &args, io),
+        "--warm-start-library" => op_warm_start_library(ctx, io),
         "--backfill-from-docs" => op_backfill(ctx, &args, io),
         "--import-sub" => op_import_sub(ctx, &args, io),
         "--answer-query" => op_answer_query(ctx, &args, io),
