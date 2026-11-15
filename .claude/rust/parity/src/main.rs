@@ -7,7 +7,7 @@ use std::process::{Command, Stdio};
 use std::io::Write;
 
 const ORIG_COMMIT: &str = "a6769be";
-const KNOWN_IDS: [&str; 8] = ["N01", "N02", "N03", "N04", "N06", "N08", "N09", "N13"];
+const KNOWN_IDS: [&str; 9] = ["N01", "N02", "N03", "N04", "N06", "N08", "N09", "N13", "N14"];
 const STAGES: [&str; 4] = ["s1", "s2", "s3", "s4"];
 
 // ---------------------------------------------------------------- JSON
@@ -248,6 +248,42 @@ fn sort_keys(t: &str) -> String {
     match val(b, 0) { Some((v, e)) if ws(e) == b.len() => format!("{}{}{}", &t[..start], v, &t[e..]), _ => t.to_string() }
 }
 
+/// N14: a `.whl` (zip) file is compared by its members, not by its compressed bytes: for every central-directory entry the name,
+/// CRC-32, uncompressed size, external attributes and DOS date/time, in archive order (the CRC and size pin the member content; the
+/// DEFLATE stream and the local-header layout are free). `None` when the bytes are not a zip with a readable central directory.
+fn zip_members(b: &[u8]) -> Option<String> {
+    let u16 = |o: usize| b.get(o..o + 2).map(|x| u16::from_le_bytes([x[0], x[1]]) as u64);
+    let u32 = |o: usize| b.get(o..o + 4).map(|x| u32::from_le_bytes([x[0], x[1], x[2], x[3]]) as u64);
+    let u64v = |o: usize| b.get(o..o + 8).map(|x| u64::from_le_bytes(x.try_into().unwrap()));
+    let eocd = (0..=b.len().checked_sub(22)?).rev().find(|&i| b[i..].starts_with(&[0x50, 0x4b, 0x05, 0x06]))?;
+    let (mut n, mut cd) = (u16(eocd + 10)?, u32(eocd + 16)?);
+    if n == 0xFFFF || cd == 0xFFFF_FFFF {
+        let loc = eocd.checked_sub(20)?;
+        if !b[loc..].starts_with(&[0x50, 0x4b, 0x06, 0x07]) { return None; }
+        let rec = u64v(loc + 8)? as usize;
+        if !b.get(rec..)?.starts_with(&[0x50, 0x4b, 0x06, 0x06]) { return None; }
+        n = u64v(rec + 32)?; cd = u64v(rec + 48)?;
+    }
+    let mut o = cd as usize; let mut out = String::new();
+    for _ in 0..n {
+        if u32(o)? != 0x02014b50 { return None; }
+        let (time, date, crc, mut usz) = (u16(o + 12)?, u16(o + 14)?, u32(o + 16)?, u32(o + 24)?);
+        let (nl, el, cl, attr) = (u16(o + 28)? as usize, u16(o + 30)? as usize, u16(o + 32)? as usize, u32(o + 38)?);
+        let name = String::from_utf8_lossy(b.get(o + 46..o + 46 + nl)?).into_owned();
+        if usz == 0xFFFF_FFFF {
+            let ex = b.get(o + 46 + nl..o + 46 + nl + el)?; let mut p = 0;
+            while p + 4 <= ex.len() {
+                let (id, sz) = (u16::from_le_bytes([ex[p], ex[p + 1]]), u16::from_le_bytes([ex[p + 2], ex[p + 3]]) as usize);
+                if id == 1 { usz = u64::from_le_bytes(ex.get(p + 4..p + 12)?.try_into().ok()?); break; }
+                p += 4 + sz;
+            }
+        }
+        out += &format!("{name}\t{crc:08x}\t{usz}\t{attr:08x}\t{date:04x}{time:04x}\n");
+        o += 46 + nl + el + cl;
+    }
+    Some(out)
+}
+
 // ---------------------------------------------------------------- execution
 struct Outcome { stdout: Vec<u8>, stderr: Vec<u8>, exit: i32, files: BTreeMap<String, Vec<u8>>, python_exec: usize, repo: String, tmp: String }
 
@@ -421,7 +457,7 @@ fn diff_outcomes(n: &Norm, g: &Outcome, a: &Outcome, n13: bool) -> Vec<String> {
     if g.exit != a.exit { m.push(format!("exit_code: golden={} actual={}", g.exit, a.exit)); }
     let gk: Vec<&String> = g.files.keys().collect(); let ak: Vec<&String> = a.files.keys().collect();
     if gk != ak { m.push(format!("files: path set golden={gk:?} actual={ak:?}")); }
-    else { for (k, gb) in &g.files { let (mut x, mut y) = (n.text(Ch::File, gb, &g.repo, &g.tmp), n.text(Ch::File, &a.files[k], &a.repo, &a.tmp)); if n13 && k.ends_with(".json") { x = sort_keys(&x); y = sort_keys(&y); } if x != y { m.push(format!("files/{k}: {}", first_diff(&x, &y))); } } }
+    else { for (k, gb) in &g.files { if n.on("N14") && k.ends_with(".whl") { if let (Some(x), Some(y)) = (zip_members(gb), zip_members(&a.files[k])) { if x != y { m.push(format!("files/{k}: {}", first_diff(&x, &y))); } continue; } } let (mut x, mut y) = (n.text(Ch::File, gb, &g.repo, &g.tmp), n.text(Ch::File, &a.files[k], &a.repo, &a.tmp)); if n13 && k.ends_with(".json") { x = sort_keys(&x); y = sort_keys(&y); } if x != y { m.push(format!("files/{k}: {}", first_diff(&x, &y))); } } }
     m
 }
 
@@ -551,6 +587,28 @@ fn self_check() -> Result<i32, String> {
         let a = Outcome { stdout: b"{\"a\": 2, \"b\": 1}".to_vec(), stderr: vec![], exit: 0, files: f2, python_exec: 0, repo: "/r".into(), tmp: "/t".into() };
         ck("N13-off-mismatch", !diff_outcomes(&n, &g, &a, false).is_empty());
         ck("N13-on-equal", diff_outcomes(&n, &g, &a, true).is_empty());
+    // N14: wheel members, not compressed bytes
+    {
+        fn mini_zip(crc: u32, payload: &[u8], usz: u32) -> Vec<u8> {
+            let mut z = Vec::new(); let name = b"a/x.py";
+            z.extend_from_slice(&[0x50, 0x4b, 3, 4]); z.extend_from_slice(&[20, 0, 0, 0, 8, 0, 0, 0, 33, 0]);
+            z.extend_from_slice(&crc.to_le_bytes()); z.extend_from_slice(&(payload.len() as u32).to_le_bytes()); z.extend_from_slice(&usz.to_le_bytes());
+            z.extend_from_slice(&(name.len() as u16).to_le_bytes()); z.extend_from_slice(&[0, 0]); z.extend_from_slice(name); z.extend_from_slice(payload);
+            let cd = z.len() as u32;
+            z.extend_from_slice(&[0x50, 0x4b, 1, 2, 20, 3, 20, 0, 0, 0, 8, 0, 0, 0, 33, 0]);
+            z.extend_from_slice(&crc.to_le_bytes()); z.extend_from_slice(&(payload.len() as u32).to_le_bytes()); z.extend_from_slice(&usz.to_le_bytes());
+            z.extend_from_slice(&(name.len() as u16).to_le_bytes()); z.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0, 0]);
+            z.extend_from_slice(&(0o100644u32 << 16).to_le_bytes()); z.extend_from_slice(&[0, 0, 0, 0]); z.extend_from_slice(name);
+            let cds = z.len() as u32 - cd;
+            z.extend_from_slice(&[0x50, 0x4b, 5, 6, 0, 0, 0, 0, 1, 0, 1, 0]); z.extend_from_slice(&cds.to_le_bytes()); z.extend_from_slice(&cd.to_le_bytes()); z.extend_from_slice(&[0, 0]);
+            z
+        }
+        let (a, b, c) = (mini_zip(7, b"AAAA", 10), mini_zip(7, b"BBBBBB", 10), mini_zip(8, b"AAAA", 10));
+        ck("N14-parse", zip_members(&a).map_or(false, |t| t.starts_with("a/x.py\t00000007\t10\t")));
+        ck("N14-compressed-bytes-free", a != b && zip_members(&a) == zip_members(&b));
+        ck("N14-crc-diff-kept", zip_members(&a) != zip_members(&c));
+        ck("N14-nonzip-none", zip_members(b"not a zip").is_none());
+    }
     }
     // end-to-end: synthetic case run through the same machinery inside a throwaway git repo (sandbox: working tree and a commit)
     let repo = scratch("repo", "self"); fs::create_dir_all(&repo).ok();

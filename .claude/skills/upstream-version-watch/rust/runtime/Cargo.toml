@@ -164,6 +164,11 @@ path = "src/bin/layer_ledger.rs"
 name = "slave_forward"
 path = "src/bin/slave_forward.rs"
 
+# The `build` subcommand of `native_wheelhouse.py` (+ `build-dir`, the same build over a local directory root); `verify` and `--self-test` stay in Python.
+[[bin]]
+name = "native_wheelhouse"
+path = "src/bin/native_wheelhouse.rs"
+
 [[bin]]
 name = "upstream_role_api"
 path = "src/bin/upstream_role_api.rs"
@@ -291,3 +296,8 @@ path = "checks/classify_checks.rs"
 [[test]]
 name = "role_checks"
 path = "checks/role_checks.rs"
+
+# The focused checks of the `native_wheelhouse` build port: JSON layout, digests, path helpers and one synthetic tree through `build-dir`.
+[[test]]
+name = "wheelhouse_checks"
+path = "checks/wheelhouse_checks.rs"

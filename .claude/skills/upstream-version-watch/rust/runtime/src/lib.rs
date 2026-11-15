@@ -103,3 +103,7 @@ pub mod role_main;
 pub mod layer_ledger;
 pub mod push_branches;
 pub mod slave_forward;
+pub mod wheelhouse_build;
+pub mod wheelhouse_cli;
+pub mod wheelhouse_source;
+pub mod wheelhouse_util;

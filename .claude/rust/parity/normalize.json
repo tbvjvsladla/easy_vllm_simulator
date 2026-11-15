@@ -1,5 +1,5 @@
 {
-  "_note": "Closed normalization list. The tool refuses ids it does not implement; a pattern outside this list is a mismatch. Adding an entry needs user approval. N11 (Mark literals) is deliberately absent until c33. N13 (JSON object key order) is limited to the entries named in applies_to.",
+  "_note": "Closed normalization list. The tool refuses ids it does not implement; a pattern outside this list is a mismatch. Adding an entry needs user approval. N11 (Mark literals) is deliberately absent until c33. N13 (JSON object key order) is limited to the entries named in applies_to. N14 (wheel member comparison) applies to .whl files only.",
   "normalizations": [
     {
       "id": "N01",
@@ -74,6 +74,14 @@
       ],
       "replace": "JSON object members sorted by key (layout and value text kept)",
       "reason": "lite_metrics --json emits keys in set-iteration order, which differs per process hash seed"
+    },
+    {
+      "id": "N14",
+      "channels": [
+        "files"
+      ],
+      "replace": "wheel (.whl) files compared by members: name, CRC-32, uncompressed size, attributes and date/time per central-directory entry; compressed bytes ignored",
+      "reason": "the Rust zip writer (miniz_oxide, raw DEFLATE level 1) and CPython zlib level 1 produce different compressed bytes for identical members; the user accepted a member-content comparison"
     }
   ]
 }
