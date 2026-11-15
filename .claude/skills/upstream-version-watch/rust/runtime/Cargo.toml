@@ -169,6 +169,11 @@ path = "src/bin/slave_forward.rs"
 name = "native_wheelhouse"
 path = "src/bin/native_wheelhouse.rs"
 
+# The dry-run `up` plan, `client` and `down` of `native_multinode_serve.py` (`up --apply` and `--self-test` stay in Python).
+[[bin]]
+name = "native_multinode_serve"
+path = "src/bin/native_multinode_serve.rs"
+
 [[bin]]
 name = "upstream_role_api"
 path = "src/bin/upstream_role_api.rs"
@@ -301,3 +306,8 @@ path = "checks/role_checks.rs"
 [[test]]
 name = "wheelhouse_checks"
 path = "checks/wheelhouse_checks.rs"
+
+# The focused checks of the `native_multinode_serve` part-A port: owned-tree primitives, quoting, pure builders.
+[[test]]
+name = "native_multinode_checks"
+path = "checks/native_multinode_checks.rs"

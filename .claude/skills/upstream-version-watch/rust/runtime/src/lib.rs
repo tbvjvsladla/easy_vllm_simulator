@@ -33,6 +33,7 @@ pub mod layout_traceback;
 pub mod live;
 pub mod main_cmd;
 pub mod judge_delta;
+pub mod native_multinode;
 pub mod native_triplet;
 pub mod render_dockerfile;
 pub mod render_template;

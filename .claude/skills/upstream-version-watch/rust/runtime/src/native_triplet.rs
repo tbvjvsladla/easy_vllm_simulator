@@ -151,7 +151,7 @@ fn yaml_scalar(text: &str, key: &str) -> Option<String> {
 // ── env file · compose references ───────────────────────────────────────────────────────────────────
 
 /// `slave_forward.read_env_first`: first match per key, first `=` splits, the raw value kept.
-fn read_env_first(path: &Path) -> BTreeMap<String, String> {
+pub(crate) fn read_env_first(path: &Path) -> BTreeMap<String, String> {
     let mut out = BTreeMap::new();
     let Some(bytes) = std::fs::read(path).ok() else { return out };
     for raw in splitlines(&String::from_utf8_lossy(&bytes)) {
@@ -390,7 +390,7 @@ fn read_manifest_field(base: &Path, field: &str) -> Option<String> {
 
 // ── rendering ───────────────────────────────────────────────────────────────────────────────────────
 
-fn triplet_rel(topology: &str, cell: &str) -> [(&'static str, String); 3] {
+pub(crate) fn triplet_rel(topology: &str, cell: &str) -> [(&'static str, String); 3] {
     [
         ("yaml", format!("output/{topology}/configs/{cell}.yaml")),
         ("sh", format!("output/{topology}/configs/{cell}.sh")),
