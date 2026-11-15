@@ -73,6 +73,7 @@ pub mod simlog_api;
 pub mod simlog_bench;
 #[cfg(feature = "fixture")]
 pub mod simlog_fixture;
+pub mod simulate_math;
 pub mod stdio;
 pub mod terminal;
 pub mod tls_trust;
