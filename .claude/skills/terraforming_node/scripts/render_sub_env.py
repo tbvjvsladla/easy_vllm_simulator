@@ -110,6 +110,14 @@ HINT_ENGINE_DEPENDENCIES = (
 SUB_RUST_BUILD_INPUTS = (
     ".claude/policies/runtime/topology_parity.py",
 )
+# B 의 build_rust.sh 자체검사(judge_bench·verifier 케이스)가 읽는 타 스킬 파일(닫힌 목록 · 2026-11-16 멀티 렌더 트리 build_rust.sh 실측): hint 판독기 render_bench_section.py
+#   (stdlib 만) + 증거 게시 의존 HINT_ENGINE_DEPENDENCIES(completion_gate·evidence_publisher·스키마·이름 SSOT shim). 스킬이 아니라 **파일**만 간다 — hint-publisher SKILL.md·발견 래퍼는 tool_plane 이 정한다.
+SUB_B_CHECK_INPUTS = (
+    ".claude/skills/hint-publisher/scripts/render_bench_section.py",
+)
+# 증거 게시 의존 중 `hints/` 평면(계약·어휘)은 **hint 엔진이 가는 서브에만** 간다 — policy HINT_TAG_ACTIVATION_GATE.C4(multi 에는 엔진·vocab 이 가지 않는다).
+#   B 자체검사는 hints/ 를 읽지 않는다(2026-11-16 멀티 렌더 트리에서 hints/ 없이 build_rust.sh 종료 0 확인). 그래서 B 서브에는 나머지(policies/runtime·schemas)만 간다 — 파생이므로 두 번째 목록이 없다.
+SUB_B_EVIDENCE_DEPS = tuple(r for r in HINT_ENGINE_DEPENDENCIES if not r.startswith("hints/"))
 SUB_BENCH_FOUNDATION_RUNTIME = (
     ".claude/policies/runtime/topology_parity.py",
     ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
@@ -200,9 +208,9 @@ RUST_ONLY_PREFIXES = ("rust/", "scripts/")
 # 진입점이 가면 그 입력도 간다(2026-11-15 사용자 결정): Rust 전용으로 가는 스킬의 `scripts/` 진입점이 읽는 데이터 파일(닫힌 목록 · 스킬 상대경로).
 #   parity 사례 S1-04(bench_preset → config/bench_bindings.yaml)·S2-03(classify_failure → failure_patterns.yaml) 실측. 새 입력은 렌더 트리 parity 로 발견한다.
 RUST_ONLY_INPUTS = {
-    "adversarial-benchmark": ("config/",),   # bench_bindings.yaml + 가리키는 도구 폴더 config/guide-llm/(프리셋) — 2026-11-16 렌더 트리 parity 실측
+    "adversarial-benchmark": ("config/", "fixtures/", "bench_tool_pin.json"),   # build_rust.sh 자체검사가 읽는 fixtures/·bench_tool_pin.json 포함(2026-11-16 렌더 트리 실측)   # bench_bindings.yaml + 가리키는 도구 폴더 config/guide-llm/(프리셋) — 2026-11-16 렌더 트리 parity 실측
     "upstream-version-watch": ("failure_patterns.yaml",),
-    "vllm-recipe-explorer": (),
+    "vllm-recipe-explorer": ("recipe.py",),   # B 의 conformance 검사(conformance_checks.rs `skill_source("vllm-recipe-explorer/recipe.py")`)가 원문을 읽는다
 }
 SHARED_RUST_LIBRARIES = ((SHARED_RUST_SUPPORT, SHARED_RUST_CONSUMERS),
                          (ROLE_RUST_SUPPORT, ROLE_RUST_CONSUMERS),
@@ -475,12 +483,12 @@ def support_delivery(tool_plane) -> list:
             pathlib.Path(TOPOLOGY_RULES).read_text(encoding="utf-8")):
         out.append(".claude/policies/handoff_exception.topology.md")
     # 사서 참조 발췌(references.md)는 2026-10-19 부터 wiki-desk 런타임블럭이 통째로 싣는다 — 지원 배달분이 아니다.
-    if "adversarial-benchmark" in tool_plane:
-        out.extend(r for r in SUB_BENCH_FOUNDATION_RUNTIME if r not in out)
+    out.extend(r for r in SUB_BENCH_FOUNDATION_RUNTIME if r not in out)
+    out.extend(r for r in SUB_B_EVIDENCE_DEPS if r not in out)   # B 자체검사 의존으로 모든 서브에 간다(hints/ 평면 제외)
     if "hint-publisher" in tool_plane:
-        # 엔진 의존 + 장착 판정 도구(2026-10-11 · plan_26101104 Step 3). render_tree 의 (3.5) 와 같은 규칙.
+        out.extend(r for r in HINT_ENGINE_DEPENDENCIES if r not in out)
+        # 장착 판정 도구(2026-10-11 · plan_26101104 Step 3). render_tree 의 (3.5) 와 같은 규칙.
         out.extend(f".claude/skills/terraforming_node/scripts/{t}" for t in SUB_HINT_EQUIP_TOOLS)
-        out.extend(HINT_ENGINE_DEPENDENCIES)
     return out
 
 
@@ -857,8 +865,9 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copy2(src, dst)
             produced.append(rel)
-        # 3.4) adversarial-benchmark 가 부르는 owner 자체검사 의존(SUB_BENCH_FOUNDATION_RUNTIME) — 그 스킬이 가는 서브에만.
-        if "adversarial-benchmark" in names:
+        # 3.4) adversarial-benchmark 의 owner 자체검사 의존(SUB_BENCH_FOUNDATION_RUNTIME) — B 가 (전체든 Rust 전용이든) 가는 모든 서브에 간다
+        #   (2026-11-16 사용자 결정 이후 B 의 rust/·scripts/ 는 multi 에도 가므로 build_rust.sh 가 부르는 scan_node.sh 등도 같이 간다).
+        if True:
             for rel in SUB_BENCH_FOUNDATION_RUNTIME:
                 src = os.path.join(REPO, rel)
                 if not os.path.isfile(src):
@@ -870,8 +879,19 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 produced.append(rel)
         # 3.5) hint 엔진 의존 + 장착 판정 도구 — 엔진이 가는 서브에만(2026-10-11 · plan_26101104 Step 3).
         #   색인·카탈로그·역할 마커(HINT_NEVER_DELIVER)는 여기서 만들지 않는다 — 아래 단언이 그것을 확인한다.
-        if "hint-publisher" in names:
+        for rel in SUB_B_CHECK_INPUTS:
+            src = os.path.join(REPO, rel)
+            if not os.path.isfile(src):
+                raise SystemExit(f"[render] FAIL: B 자체검사 입력이 없다 — {rel}")
+            _tracked_or_die(rel, tracked_list)
+            dst = os.path.join(out_dir, rel)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(src, dst)
+            produced.append(rel)
+        if True:   # 증거 게시 의존(hints/ 제외)은 B 자체검사가 읽으므로 모든 서브에 간다 · hints/ 와 장착 판정 도구는 hint-publisher 조건
             for rel in HINT_ENGINE_DEPENDENCIES:
+                if rel.startswith("hints/") and "hint-publisher" not in names:
+                    continue
                 src = os.path.join(REPO, rel)
                 if not os.path.isfile(src):
                     raise SystemExit(f"[render] FAIL: hint 엔진 의존이 없다 — {rel}\n"
@@ -882,7 +902,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                 shutil.copy2(src, dst)
                 produced.append(rel)
-            for tool in SUB_HINT_EQUIP_TOOLS:
+            for tool in (SUB_HINT_EQUIP_TOOLS if "hint-publisher" in names else ()):
                 src = os.path.join(HERE, tool)
                 if not os.path.isfile(src):
                     raise SystemExit(f"[render] FAIL: hint 장착 판정 도구가 없다 — {src}")
@@ -1452,7 +1472,7 @@ def _self_test() -> int:
         #   implementation list the assertion is checking.
         _tn_want = sorted(CAMPAIGN_TOOLS + SUB_CONTRACT_READERS + SUB_PERMISSION_PROBES + SUB_RUST_BOOTSTRAP
                           + (SUB_HINT_EQUIP_TOOLS if "hint-publisher" in _want else ())
-                          + (("scan_node.sh",) if "adversarial-benchmark" in _want else ()))
+                          + ("scan_node.sh",))
         _tn_ok = _tn_files == _tn_want
         _rust_helper = os.path.join(_tn, "rust_bootstrap.sh")
         _rust_help = subprocess.run(["bash", _rust_helper, "--help"],
@@ -1477,15 +1497,33 @@ def _self_test() -> int:
         for _rel, _consumer in _bench_need.items():
             _cons_src = pathlib.Path(REPO, _consumer).read_text(encoding="utf-8")
             _dst_f = pathlib.Path(_out, _rel)
-            if "adversarial-benchmark" in _want:
-                _bench_ok &= (_rel in _cons_src and _dst_f.is_file()
-                              and _dst_f.read_bytes() == pathlib.Path(REPO, _rel).read_bytes())
-            else:
-                # topology_parity.py 는 Rust 빌드 입력(SUB_RUST_BUILD_INPUTS)이라 벤치가 없는 서브에도 간다(정본 바이트 동일) — 나머지 둘은 안 간다.
-                if _rel in SUB_RUST_BUILD_INPUTS:
-                    _bench_ok &= _dst_f.is_file() and _dst_f.read_bytes() == pathlib.Path(REPO, _rel).read_bytes()
-                else:
-                    _bench_ok &= not _dst_f.exists()
+            # B 는 모든 토폴로지에 (전체 또는 Rust 전용으로) 가므로 3종 모두 정본과 바이트 동일하게 간다.
+            _bench_ok &= (_rel in _cons_src and _dst_f.is_file()
+                          and _dst_f.read_bytes() == pathlib.Path(REPO, _rel).read_bytes())
+        # 배달된 B 스크립트가 부르는 파일은 배달된다 — 스크립트 원문에서 `$REPO/<경로>`·`$SDIR/../<경로>`·`$SDIR/<이름>.sh|py` 리터럴을 파생해 렌더 트리에서 존재를 본다.
+        _bscr = pathlib.Path(_out, ".claude/skills/adversarial-benchmark/scripts")
+        _bskill = _bscr.parent
+        # 부재를 스크립트가 스스로 견디는 선택 입력(닫힌 목록 · 근거 = `[ -f ]` 가드, 부재 = 빈 값): broad_search.sh 의 blackbox_thermal.py(열 임계 미교정 게이트).
+        _tolerated_absent = {"broad_search.sh→.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py"}
+        _called_missing = []
+        for _sf in sorted(_bscr.glob("*.sh")):
+            _txt = _sf.read_text(encoding="utf-8", errors="replace")
+            _refs = [pathlib.Path(_out, m) for m in re.findall(r'\$REPO/(\.claude/[A-Za-z0-9_./-]+)', _txt)]
+            _refs += [_bskill / m for m in re.findall(r'\$SDIR/\.\./([A-Za-z0-9_-][A-Za-z0-9_./-]*\.[A-Za-z0-9]+)', _txt)]
+            _refs += [_bscr / m for m in re.findall(r'\$SDIR/([A-Za-z0-9_-]+\.(?:sh|py))', _txt)]
+            _called_missing += [f"{_sf.name}→{r.relative_to(_out)}" for r in _refs if not r.exists()]
+        _called_missing = [x for x in _called_missing if x not in _tolerated_absent]
+        # B 의 Rust 소스가 `skill_source("<스킬>/<경로>")` 로 읽는 타 스킬 원문도 같다.
+        for _rs in sorted(pathlib.Path(_bskill, "rust", "src").glob("*.rs")):
+            for _m in re.findall(r'skill_source\("([^"]+)"\)', _rs.read_text(encoding="utf-8", errors="replace")):
+                if not pathlib.Path(_out, ".claude", "skills", _m).exists():
+                    _called_missing.append(f"{_rs.name}→skills/{_m}")
+        for _rel in SUB_B_CHECK_INPUTS + SUB_B_EVIDENCE_DEPS:
+            _p = pathlib.Path(_out, _rel)
+            _bench_ok &= _p.is_file() and _p.read_bytes() == pathlib.Path(REPO, _rel).read_bytes()
+        _bench_ok &= not _called_missing
+        if _called_missing:
+            print(f"  [FAIL-detail] 배달된 B 스크립트가 부르는데 렌더 트리에 없는 파일: {_called_missing[:10]}")
         # 권한 카나리의 부트스트랩 리더(R48 v8 B-D3) — 소비자 원문의 **리터럴**과 대조한다. 위 `_tn_want` 는 SUB_CONTRACT_READERS 에서 파생하므로 그 목록에서
         #   리더를 빼도 `_tn_ok` 는 그대로 통과한다(배달 목록과 기대가 같은 원천). 여기서는 (a) 배달된 프로브가 sibling 으로 읽는 이름을 프로브 원문에서 확인하고
         #   (b) 그 이름의 파일이 두 평면(ray wiki-only · single agent) 모두에 정본과 바이트 동일하게 배달됐는지 본다 — 이름은 아래에 손으로 적는다(파생 ✗).

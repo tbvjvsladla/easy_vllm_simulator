@@ -529,6 +529,10 @@ fn parse_args() -> Result<Args, String> {
     Ok(a)
 }
 
+fn orphan_ids(map: &BTreeMap<String, String>, known: &[String]) -> Vec<String> {
+    map.keys().filter(|k| !known.iter().any(|x| x == *k)).cloned().collect()
+}
+
 /// `--na-list FILE`: lines `<case-id> <entry path>`; `#` comments and blank lines ignored; duplicate ids are an error.
 fn parse_na_list(p: &Path) -> Result<BTreeMap<String, String>, String> {
     let t = fs::read_to_string(p).map_err(|e| format!("na-list {}: {e}", p.display()))?;
@@ -556,6 +560,11 @@ fn real_main() -> Result<i32, String> {
     if a.mode == "compare" && Command::new("strace").arg("-V").stdout(Stdio::null()).stderr(Stdio::null()).status().is_err() { return Err("strace is not available".into()); }
     let na = match &a.na_list { Some(p) => { if a.mode != "compare" { return Err("--na-list applies to compare only".into()); } Some(parse_na_list(p)?) } None => None };
     let mut bad = 0; let mut py = 0; let mut na_n = 0usize;
+    if let Some(map) = &na {
+        // Orphan rows (id in no stage's cases) fail: a renamed/removed case must not leave a silent hole in the list.
+        let mut known = vec![]; for s in STAGES { known.extend(load_cases(&tool, s)?.into_iter().map(|c| c.id)); }
+        for id in orphan_ids(map, &known) { bad += 1; println!("ORPHAN {id} na-list row matches no case"); }
+    }
     for c in &cases {
         if let Some(map) = &na {
             if let Some(entry) = map.get(&c.id) {
@@ -721,6 +730,9 @@ fn self_check() -> Result<i32, String> {
         ck("na-missing-entry-rejected", parse_na_list(&f).is_err());
         ck("na-missing-file-rejected", parse_na_list(&d.join("none.txt")).is_err());
         let _ = fs::remove_dir_all(&d);
+        let mut om = BTreeMap::new(); om.insert("A-1".to_string(), "x".to_string()); om.insert("Z-9".to_string(), "y".to_string());
+        ck("na-orphan-detected", orphan_ids(&om, &["A-1".to_string(), "B-2".to_string()]) == vec!["Z-9".to_string()]);
+        ck("na-no-orphan-when-all-known", orphan_ids(&om, &["A-1".to_string(), "Z-9".to_string()]).is_empty());
     }
     if fails.is_empty() { println!("PARITY-SELFCHECK-OK"); Ok(0) } else { for f in &fails { println!("SELFCHECK-FAIL {f}"); } Ok(1) }
 }
