@@ -2,29 +2,25 @@
  {
   "id": "S2-01-help",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.sh",
-  "orig": ".claude/rust/parity/cases/shims/estimate_vram.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py",
   "args": [
    "--help"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-01-selftest",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.sh",
-  "orig": ".claude/rust/parity/cases/shims/estimate_vram.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py",
   "args": [
    "--self-test"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-01-dense-none-tp1",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.sh",
-  "orig": ".claude/rust/parity/cases/shims/estimate_vram.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py",
   "args": [
    "--parsed",
    "p.json",
@@ -43,17 +39,15 @@
    "--id",
    "dense-none-tp1"
   ],
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4",
   "setup": {
    "p.json": "{\n \"model_path_container\": \"m\",\n \"model_path_host\": \"m\",\n \"model_id\": \"m\",\n \"model_type\": null,\n \"architectures\": [\n  \"LlamaForCausalLM\"\n ],\n \"is_moe\": false,\n \"native_dtype\": \"bfloat16\",\n \"serve_bpw\": 2.0,\n \"disk_dtype\": null,\n \"disk_bpw\": 2.0,\n \"prequantized\": false,\n \"quant_method_native\": null,\n \"num_hidden_layers\": 8,\n \"num_full_attention_layers\": null,\n \"is_hybrid\": false,\n \"layer_type_counts\": null,\n \"full_attention_interval\": null,\n \"num_attention_heads\": 8,\n \"num_key_value_heads\": 4,\n \"head_dim\": 64,\n \"hidden_size\": 512,\n \"vocab_size\": 1000,\n \"max_position_embeddings\": 8192,\n \"num_experts\": null,\n \"num_experts_per_tok\": null,\n \"native_weight_bytes\": 14000000000,\n \"num_params\": 7000000000,\n \"weight_basis\": \"disk_total/disk_bpw\",\n \"warnings\": [\n  \"safetensors \\ud5e4\\ub354\\uc5d0\\uc11c disk dtype \\uc2e4\\uce21 \\uc2e4\\ud328 \\u2192 disk_bpw=serve_bpw \\ud3f4\\ubc31\"\n ]\n}"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S2-01-dense-none-tp2",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.sh",
-  "orig": ".claude/rust/parity/cases/shims/estimate_vram.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py",
   "args": [
    "--parsed",
    "p.json",
@@ -72,17 +66,15 @@
    "--id",
    "dense-none-tp2"
   ],
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4",
   "setup": {
    "p.json": "{\n \"model_path_container\": \"m\",\n \"model_path_host\": \"m\",\n \"model_id\": \"m\",\n \"model_type\": null,\n \"architectures\": [\n  \"LlamaForCausalLM\"\n ],\n \"is_moe\": false,\n \"native_dtype\": \"bfloat16\",\n \"serve_bpw\": 2.0,\n \"disk_dtype\": null,\n \"disk_bpw\": 2.0,\n \"prequantized\": false,\n \"quant_method_native\": null,\n \"num_hidden_layers\": 8,\n \"num_full_attention_layers\": null,\n \"is_hybrid\": false,\n \"layer_type_counts\": null,\n \"full_attention_interval\": null,\n \"num_attention_heads\": 8,\n \"num_key_value_heads\": 4,\n \"head_dim\": 64,\n \"hidden_size\": 512,\n \"vocab_size\": 1000,\n \"max_position_embeddings\": 8192,\n \"num_experts\": null,\n \"num_experts_per_tok\": null,\n \"native_weight_bytes\": 14000000000,\n \"num_params\": 7000000000,\n \"weight_basis\": \"disk_total/disk_bpw\",\n \"warnings\": [\n  \"safetensors \\ud5e4\\ub354\\uc5d0\\uc11c disk dtype \\uc2e4\\uce21 \\uc2e4\\ud328 \\u2192 disk_bpw=serve_bpw \\ud3f4\\ubc31\"\n ]\n}"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S2-01-dense-fp8-tp1",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.sh",
-  "orig": ".claude/rust/parity/cases/shims/estimate_vram.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py",
   "args": [
    "--parsed",
    "p.json",
@@ -101,17 +93,15 @@
    "--id",
    "dense-fp8-tp1"
   ],
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4",
   "setup": {
    "p.json": "{\n \"model_path_container\": \"m\",\n \"model_path_host\": \"m\",\n \"model_id\": \"m\",\n \"model_type\": null,\n \"architectures\": [\n  \"LlamaForCausalLM\"\n ],\n \"is_moe\": false,\n \"native_dtype\": \"bfloat16\",\n \"serve_bpw\": 2.0,\n \"disk_dtype\": null,\n \"disk_bpw\": 2.0,\n \"prequantized\": false,\n \"quant_method_native\": null,\n \"num_hidden_layers\": 8,\n \"num_full_attention_layers\": null,\n \"is_hybrid\": false,\n \"layer_type_counts\": null,\n \"full_attention_interval\": null,\n \"num_attention_heads\": 8,\n \"num_key_value_heads\": 4,\n \"head_dim\": 64,\n \"hidden_size\": 512,\n \"vocab_size\": 1000,\n \"max_position_embeddings\": 8192,\n \"num_experts\": null,\n \"num_experts_per_tok\": null,\n \"native_weight_bytes\": 14000000000,\n \"num_params\": 7000000000,\n \"weight_basis\": \"disk_total/disk_bpw\",\n \"warnings\": [\n  \"safetensors \\ud5e4\\ub354\\uc5d0\\uc11c disk dtype \\uc2e4\\uce21 \\uc2e4\\ud328 \\u2192 disk_bpw=serve_bpw \\ud3f4\\ubc31\"\n ]\n}"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S2-01-dense-fp8-tp2",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.sh",
-  "orig": ".claude/rust/parity/cases/shims/estimate_vram.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py",
   "args": [
    "--parsed",
    "p.json",
@@ -130,17 +120,15 @@
    "--id",
    "dense-fp8-tp2"
   ],
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4",
   "setup": {
    "p.json": "{\n \"model_path_container\": \"m\",\n \"model_path_host\": \"m\",\n \"model_id\": \"m\",\n \"model_type\": null,\n \"architectures\": [\n  \"LlamaForCausalLM\"\n ],\n \"is_moe\": false,\n \"native_dtype\": \"bfloat16\",\n \"serve_bpw\": 2.0,\n \"disk_dtype\": null,\n \"disk_bpw\": 2.0,\n \"prequantized\": false,\n \"quant_method_native\": null,\n \"num_hidden_layers\": 8,\n \"num_full_attention_layers\": null,\n \"is_hybrid\": false,\n \"layer_type_counts\": null,\n \"full_attention_interval\": null,\n \"num_attention_heads\": 8,\n \"num_key_value_heads\": 4,\n \"head_dim\": 64,\n \"hidden_size\": 512,\n \"vocab_size\": 1000,\n \"max_position_embeddings\": 8192,\n \"num_experts\": null,\n \"num_experts_per_tok\": null,\n \"native_weight_bytes\": 14000000000,\n \"num_params\": 7000000000,\n \"weight_basis\": \"disk_total/disk_bpw\",\n \"warnings\": [\n  \"safetensors \\ud5e4\\ub354\\uc5d0\\uc11c disk dtype \\uc2e4\\uce21 \\uc2e4\\ud328 \\u2192 disk_bpw=serve_bpw \\ud3f4\\ubc31\"\n ]\n}"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S2-01-hybrid-none-tp1",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.sh",
-  "orig": ".claude/rust/parity/cases/shims/estimate_vram.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py",
   "args": [
    "--parsed",
    "p.json",
@@ -159,17 +147,15 @@
    "--id",
    "hybrid-none-tp1"
   ],
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4",
   "setup": {
    "p.json": "{\n \"model_path_container\": \"m\",\n \"model_path_host\": \"m\",\n \"model_id\": \"m\",\n \"model_type\": null,\n \"architectures\": [\n  \"LlamaForCausalLM\"\n ],\n \"is_moe\": false,\n \"native_dtype\": \"bfloat16\",\n \"serve_bpw\": 2.0,\n \"disk_dtype\": null,\n \"disk_bpw\": 2.0,\n \"prequantized\": false,\n \"quant_method_native\": null,\n \"num_hidden_layers\": 8,\n \"num_full_attention_layers\": 2,\n \"is_hybrid\": true,\n \"layer_type_counts\": {\n  \"linear_attention\": 6,\n  \"full_attention\": 2\n },\n \"full_attention_interval\": 4,\n \"num_attention_heads\": 8,\n \"num_key_value_heads\": 4,\n \"head_dim\": 64,\n \"hidden_size\": 512,\n \"vocab_size\": 1000,\n \"max_position_embeddings\": 8192,\n \"num_experts\": null,\n \"num_experts_per_tok\": null,\n \"native_weight_bytes\": 60000000000,\n \"num_params\": 30000000000,\n \"weight_basis\": \"disk_total/disk_bpw\",\n \"warnings\": [\n  \"safetensors \\ud5e4\\ub354\\uc5d0\\uc11c disk dtype \\uc2e4\\uce21 \\uc2e4\\ud328 \\u2192 disk_bpw=serve_bpw \\ud3f4\\ubc31\"\n ]\n}"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S2-01-hybrid-none-tp2",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.sh",
-  "orig": ".claude/rust/parity/cases/shims/estimate_vram.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py",
   "args": [
    "--parsed",
    "p.json",
@@ -188,17 +174,15 @@
    "--id",
    "hybrid-none-tp2"
   ],
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4",
   "setup": {
    "p.json": "{\n \"model_path_container\": \"m\",\n \"model_path_host\": \"m\",\n \"model_id\": \"m\",\n \"model_type\": null,\n \"architectures\": [\n  \"LlamaForCausalLM\"\n ],\n \"is_moe\": false,\n \"native_dtype\": \"bfloat16\",\n \"serve_bpw\": 2.0,\n \"disk_dtype\": null,\n \"disk_bpw\": 2.0,\n \"prequantized\": false,\n \"quant_method_native\": null,\n \"num_hidden_layers\": 8,\n \"num_full_attention_layers\": 2,\n \"is_hybrid\": true,\n \"layer_type_counts\": {\n  \"linear_attention\": 6,\n  \"full_attention\": 2\n },\n \"full_attention_interval\": 4,\n \"num_attention_heads\": 8,\n \"num_key_value_heads\": 4,\n \"head_dim\": 64,\n \"hidden_size\": 512,\n \"vocab_size\": 1000,\n \"max_position_embeddings\": 8192,\n \"num_experts\": null,\n \"num_experts_per_tok\": null,\n \"native_weight_bytes\": 60000000000,\n \"num_params\": 30000000000,\n \"weight_basis\": \"disk_total/disk_bpw\",\n \"warnings\": [\n  \"safetensors \\ud5e4\\ub354\\uc5d0\\uc11c disk dtype \\uc2e4\\uce21 \\uc2e4\\ud328 \\u2192 disk_bpw=serve_bpw \\ud3f4\\ubc31\"\n ]\n}"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S2-01-hybrid-fp8-tp1",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.sh",
-  "orig": ".claude/rust/parity/cases/shims/estimate_vram.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py",
   "args": [
    "--parsed",
    "p.json",
@@ -217,17 +201,15 @@
    "--id",
    "hybrid-fp8-tp1"
   ],
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4",
   "setup": {
    "p.json": "{\n \"model_path_container\": \"m\",\n \"model_path_host\": \"m\",\n \"model_id\": \"m\",\n \"model_type\": null,\n \"architectures\": [\n  \"LlamaForCausalLM\"\n ],\n \"is_moe\": false,\n \"native_dtype\": \"bfloat16\",\n \"serve_bpw\": 2.0,\n \"disk_dtype\": null,\n \"disk_bpw\": 2.0,\n \"prequantized\": false,\n \"quant_method_native\": null,\n \"num_hidden_layers\": 8,\n \"num_full_attention_layers\": 2,\n \"is_hybrid\": true,\n \"layer_type_counts\": {\n  \"linear_attention\": 6,\n  \"full_attention\": 2\n },\n \"full_attention_interval\": 4,\n \"num_attention_heads\": 8,\n \"num_key_value_heads\": 4,\n \"head_dim\": 64,\n \"hidden_size\": 512,\n \"vocab_size\": 1000,\n \"max_position_embeddings\": 8192,\n \"num_experts\": null,\n \"num_experts_per_tok\": null,\n \"native_weight_bytes\": 60000000000,\n \"num_params\": 30000000000,\n \"weight_basis\": \"disk_total/disk_bpw\",\n \"warnings\": [\n  \"safetensors \\ud5e4\\ub354\\uc5d0\\uc11c disk dtype \\uc2e4\\uce21 \\uc2e4\\ud328 \\u2192 disk_bpw=serve_bpw \\ud3f4\\ubc31\"\n ]\n}"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S2-01-hybrid-fp8-tp2",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.sh",
-  "orig": ".claude/rust/parity/cases/shims/estimate_vram.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py",
   "args": [
    "--parsed",
    "p.json",
@@ -246,51 +228,43 @@
    "--id",
    "hybrid-fp8-tp2"
   ],
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4",
   "setup": {
    "p.json": "{\n \"model_path_container\": \"m\",\n \"model_path_host\": \"m\",\n \"model_id\": \"m\",\n \"model_type\": null,\n \"architectures\": [\n  \"LlamaForCausalLM\"\n ],\n \"is_moe\": false,\n \"native_dtype\": \"bfloat16\",\n \"serve_bpw\": 2.0,\n \"disk_dtype\": null,\n \"disk_bpw\": 2.0,\n \"prequantized\": false,\n \"quant_method_native\": null,\n \"num_hidden_layers\": 8,\n \"num_full_attention_layers\": 2,\n \"is_hybrid\": true,\n \"layer_type_counts\": {\n  \"linear_attention\": 6,\n  \"full_attention\": 2\n },\n \"full_attention_interval\": 4,\n \"num_attention_heads\": 8,\n \"num_key_value_heads\": 4,\n \"head_dim\": 64,\n \"hidden_size\": 512,\n \"vocab_size\": 1000,\n \"max_position_embeddings\": 8192,\n \"num_experts\": null,\n \"num_experts_per_tok\": null,\n \"native_weight_bytes\": 60000000000,\n \"num_params\": 30000000000,\n \"weight_basis\": \"disk_total/disk_bpw\",\n \"warnings\": [\n  \"safetensors \\ud5e4\\ub354\\uc5d0\\uc11c disk dtype \\uc2e4\\uce21 \\uc2e4\\ud328 \\u2192 disk_bpw=serve_bpw \\ud3f4\\ubc31\"\n ]\n}"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S2-02-quant-default",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/quant_table.sh",
-  "orig": ".claude/rust/parity/cases/shims/quant_table.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/quant_table.py",
   "args": [],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-02-quant-fp8-json",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/quant_table.sh",
-  "orig": ".claude/rust/parity/cases/shims/quant_table.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/quant_table.py",
   "args": [
    "--quant",
    "fp8",
    "--json"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-02-quant-dtype",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/quant_table.sh",
-  "orig": ".claude/rust/parity/cases/shims/quant_table.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/quant_table.py",
   "args": [
    "--dtype",
    "float16"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-02-rank-auto",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/rank_recipes.sh",
-  "orig": ".claude/rust/parity/cases/shims/rank_recipes.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/rank_recipes.py",
   "args": [
    "--parsed",
    "p.json",
@@ -300,17 +274,15 @@
    "--tp",
    "1"
   ],
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4",
   "setup": {
    "p.json": "{\n \"model_path_container\": \"m\",\n \"model_path_host\": \"m\",\n \"model_id\": \"m\",\n \"model_type\": null,\n \"architectures\": [\n  \"LlamaForCausalLM\"\n ],\n \"is_moe\": false,\n \"native_dtype\": \"bfloat16\",\n \"serve_bpw\": 2.0,\n \"disk_dtype\": null,\n \"disk_bpw\": 2.0,\n \"prequantized\": false,\n \"quant_method_native\": null,\n \"num_hidden_layers\": 8,\n \"num_full_attention_layers\": null,\n \"is_hybrid\": false,\n \"layer_type_counts\": null,\n \"full_attention_interval\": null,\n \"num_attention_heads\": 8,\n \"num_key_value_heads\": 4,\n \"head_dim\": 64,\n \"hidden_size\": 512,\n \"vocab_size\": 1000,\n \"max_position_embeddings\": 8192,\n \"num_experts\": null,\n \"num_experts_per_tok\": null,\n \"native_weight_bytes\": 14000000000,\n \"num_params\": 7000000000,\n \"weight_basis\": \"disk_total/disk_bpw\",\n \"warnings\": [\n  \"safetensors \\ud5e4\\ub354\\uc5d0\\uc11c disk dtype \\uc2e4\\uce21 \\uc2e4\\ud328 \\u2192 disk_bpw=serve_bpw \\ud3f4\\ubc31\"\n ]\n}"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S2-02-rank-cand-json",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/rank_recipes.sh",
-  "orig": ".claude/rust/parity/cases/shims/rank_recipes.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/rank_recipes.py",
   "args": [
    "--parsed",
    "p.json",
@@ -322,18 +294,16 @@
    "1",
    "--json"
   ],
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4",
   "setup": {
    "p.json": "{\n \"model_path_container\": \"m\",\n \"model_path_host\": \"m\",\n \"model_id\": \"m\",\n \"model_type\": null,\n \"architectures\": [\n  \"LlamaForCausalLM\"\n ],\n \"is_moe\": false,\n \"native_dtype\": \"bfloat16\",\n \"serve_bpw\": 2.0,\n \"disk_dtype\": null,\n \"disk_bpw\": 2.0,\n \"prequantized\": false,\n \"quant_method_native\": null,\n \"num_hidden_layers\": 8,\n \"num_full_attention_layers\": null,\n \"is_hybrid\": false,\n \"layer_type_counts\": null,\n \"full_attention_interval\": null,\n \"num_attention_heads\": 8,\n \"num_key_value_heads\": 4,\n \"head_dim\": 64,\n \"hidden_size\": 512,\n \"vocab_size\": 1000,\n \"max_position_embeddings\": 8192,\n \"num_experts\": null,\n \"num_experts_per_tok\": null,\n \"native_weight_bytes\": 14000000000,\n \"num_params\": 7000000000,\n \"weight_basis\": \"disk_total/disk_bpw\",\n \"warnings\": [\n  \"safetensors \\ud5e4\\ub354\\uc5d0\\uc11c disk dtype \\uc2e4\\uce21 \\uc2e4\\ud328 \\u2192 disk_bpw=serve_bpw \\ud3f4\\ubc31\"\n ]\n}",
    "c.json": "[{\"id\": \"c-none\", \"quant\": \"none\", \"tp\": 1, \"gpu_memory_utilization\": 0.85, \"max_model_len\": 8192}, {\"id\": \"c-fp8\", \"quant\": \"fp8\", \"tp\": 1, \"gpu_memory_utilization\": 0.85, \"max_model_len\": 8192}]"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S2-02-rank-badparsed",
   "entry": ".claude/skills/vllm-recipe-explorer/scripts/rank_recipes.sh",
-  "orig": ".claude/rust/parity/cases/shims/rank_recipes.py",
+  "orig": ".claude/skills/vllm-recipe-explorer/scripts/rank_recipes.py",
   "args": [
    "--parsed",
    "absent.json",
@@ -341,9 +311,7 @@
    "--budget",
    "96"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-03-help",
@@ -351,10 +319,7 @@
   "orig": ".claude/skills/upstream-version-watch/scripts/classify_failure.py",
   "args": [
    "--help"
-  ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  ]
  },
  {
   "id": "S2-03-modnf",
@@ -366,9 +331,6 @@
   ],
   "setup": {
    "b.log": "Traceback (most recent call last):\n  File \"x.py\", line 1\nModuleNotFoundError: No module named 'uvloop'\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -381,9 +343,6 @@
   ],
   "setup": {
    "b.log": "ImportError: libcudart.so.12: cannot open shared object file: No such file or directory\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -396,9 +355,6 @@
   ],
   "setup": {
    "b.log": "bash: ninja: command not found\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -411,9 +367,6 @@
   ],
   "setup": {
    "b.log": "ImportError: No module named 'torch._opaque_base'\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -426,9 +379,6 @@
   ],
   "setup": {
    "b.log": "TypeError: register_opaque_type() got an unexpected keyword argument 'hoist'\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -441,9 +391,6 @@
   ],
   "setup": {
    "b.log": "ImportError: /usr/local/lib/python3.12/dist-packages/vllm/_C.abi3.so: undefined symbol: _ZN3c10fooE\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -456,9 +403,6 @@
   ],
   "setup": {
    "b.log": "OSError: /usr/lib/libother.so: undefined symbol: some_fn\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -471,9 +415,6 @@
   ],
   "setup": {
    "b.log": "everything is fine\nbut then something else happened\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -482,10 +423,7 @@
   "orig": ".claude/skills/upstream-version-watch/scripts/regen_requirements.py",
   "args": [
    "--help"
-  ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  ]
  },
  {
   "id": "S2-04-regen-selftest",
@@ -493,19 +431,13 @@
   "orig": ".claude/skills/upstream-version-watch/scripts/regen_requirements.py",
   "args": [
    "--self-test"
-  ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  ]
  },
  {
   "id": "S2-04-regen-nomode",
   "entry": ".claude/skills/upstream-version-watch/scripts/regen_requirements.sh",
   "orig": ".claude/skills/upstream-version-watch/scripts/regen_requirements.py",
-  "args": [],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "args": []
  },
  {
   "id": "S2-04-regen-installed",
@@ -516,9 +448,6 @@
    "-o",
    "req.txt"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  },
   "outputs": [
    "req.txt"
   ]
@@ -526,7 +455,7 @@
  {
   "id": "S2-04-vrp-stamp",
   "entry": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh",
-  "orig": ".claude/rust/parity/cases/shims/validate_runtime_patch.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py",
   "args": [
    "stamp",
    "--patch",
@@ -540,14 +469,12 @@
    "--resolution",
    "res.json"
   ],
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4",
   "setup": {
    "configs/m_patch.py": "# runtime patch fixture\nPATCH = 1\n",
    "configs/m.yaml": "model: /app/models/M\n",
    "envs/.env.m": "A=1\n",
    "res.json": "{\"vllm\": \"0.30.0\", \"torch\": \"2.11.0\"}"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   },
   "outputs": [
    "configs/m_patch.provenance.json"
@@ -556,7 +483,7 @@
  {
   "id": "S2-04-vrp-verify-pass",
   "entry": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh",
-  "orig": ".claude/rust/parity/cases/shims/validate_runtime_patch.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py",
   "args": [
    "verify",
    "--patch",
@@ -570,21 +497,19 @@
    "--resolution",
    "res.json"
   ],
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4",
   "setup": {
    "configs/m_patch.py": "# runtime patch fixture\nPATCH = 1\n",
    "configs/m.yaml": "model: /app/models/M\n",
    "envs/.env.m": "A=1\n",
    "res.json": "{\"vllm\": \"0.30.0\", \"torch\": \"2.11.0\"}",
    "configs/m_patch.provenance.json": "{\n  \"canonical_resolution_sha256\": \"0b29caaef1eaa52120b4babb09f5357649bdf6578b3e8849e126c12fabf5f4fc\",\n  \"model_inputs_sha256\": {\n    \"envs/.env.m\": \"91d6a3d55e9fea7911c537afae6607c77fa8bc0f3a76c375e104ac5a8cfa84db\",\n    \"m.yaml\": \"28d2d77624325917a6eacb13c60236ec15729ea2a6ea4d0f712aeaaf12ff57f1\"\n  },\n  \"model_stem\": \"m\",\n  \"patch_sha256\": \"ff8a8f7b74d317f72205f0feb5f08e45e296ff5cd82af9dc26f5b9c3fe74f2a0\",\n  \"schema_version\": 1,\n  \"topology\": \"single\"\n}\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S2-04-vrp-verify-missing",
   "entry": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh",
-  "orig": ".claude/rust/parity/cases/shims/validate_runtime_patch.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py",
   "args": [
    "verify",
    "--patch",
@@ -598,20 +523,18 @@
    "--resolution",
    "res.json"
   ],
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4",
   "setup": {
    "configs/m_patch.py": "# runtime patch fixture\nPATCH = 1\n",
    "configs/m.yaml": "model: /app/models/M\n",
    "envs/.env.m": "A=1\n",
    "res.json": "{\"vllm\": \"0.30.0\", \"torch\": \"2.11.0\"}"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S2-04-vrp-verify-stale",
   "entry": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh",
-  "orig": ".claude/rust/parity/cases/shims/validate_runtime_patch.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py",
   "args": [
    "verify",
    "--patch",
@@ -625,147 +548,121 @@
    "--resolution",
    "res.json"
   ],
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4",
   "setup": {
    "configs/m_patch.py": "# runtime patch fixture\nPATCH = 1\n",
    "configs/m.yaml": "model: /app/models/M\n",
    "envs/.env.m": "A=2\n",
    "res.json": "{\"vllm\": \"0.30.0\", \"torch\": \"2.11.0\"}",
    "configs/m_patch.provenance.json": "{\n  \"canonical_resolution_sha256\": \"0b29caaef1eaa52120b4babb09f5357649bdf6578b3e8849e126c12fabf5f4fc\",\n  \"model_inputs_sha256\": {\n    \"envs/.env.m\": \"91d6a3d55e9fea7911c537afae6607c77fa8bc0f3a76c375e104ac5a8cfa84db\",\n    \"m.yaml\": \"28d2d77624325917a6eacb13c60236ec15729ea2a6ea4d0f712aeaaf12ff57f1\"\n  },\n  \"model_stem\": \"m\",\n  \"patch_sha256\": \"ff8a8f7b74d317f72205f0feb5f08e45e296ff5cd82af9dc26f5b9c3fe74f2a0\",\n  \"schema_version\": 1,\n  \"topology\": \"single\"\n}\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S2-05-resolve_ngc_tag-help",
   "entry": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.sh",
-  "orig": ".claude/rust/parity/cases/shims/resolve_ngc_tag.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py",
   "args": [
    "--help"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-05-resolve_ngc_tag-noargs",
   "entry": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.sh",
-  "orig": ".claude/rust/parity/cases/shims/resolve_ngc_tag.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py",
   "args": [],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-05-resolve_ngc_tag-help-after-pos",
   "entry": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.sh",
-  "orig": ".claude/rust/parity/cases/shims/resolve_ngc_tag.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py",
   "args": [
    "0.30.0",
    "--help"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-05-resolve_torch_pin-help",
   "entry": ".claude/skills/upstream-version-watch/scripts/resolve_torch_pin.sh",
-  "orig": ".claude/rust/parity/cases/shims/resolve_torch_pin.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/resolve_torch_pin.py",
   "args": [
    "--help"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-05-resolve_torch_pin-noargs",
   "entry": ".claude/skills/upstream-version-watch/scripts/resolve_torch_pin.sh",
-  "orig": ".claude/rust/parity/cases/shims/resolve_torch_pin.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/resolve_torch_pin.py",
   "args": [],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-05-resolve_torch_pin-help-after-pos",
   "entry": ".claude/skills/upstream-version-watch/scripts/resolve_torch_pin.sh",
-  "orig": ".claude/rust/parity/cases/shims/resolve_torch_pin.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/resolve_torch_pin.py",
   "args": [
    "0.30.0",
    "--help"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-05-resolve_wheel-help",
   "entry": ".claude/skills/upstream-version-watch/scripts/resolve_wheel.sh",
-  "orig": ".claude/rust/parity/cases/shims/resolve_wheel.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/resolve_wheel.py",
   "args": [
    "--help"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-05-resolve_wheel-noargs",
   "entry": ".claude/skills/upstream-version-watch/scripts/resolve_wheel.sh",
-  "orig": ".claude/rust/parity/cases/shims/resolve_wheel.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/resolve_wheel.py",
   "args": [],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-05-resolve_wheel-help-after-pos",
   "entry": ".claude/skills/upstream-version-watch/scripts/resolve_wheel.sh",
-  "orig": ".claude/rust/parity/cases/shims/resolve_wheel.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/resolve_wheel.py",
   "args": [
    "0.30.0",
    "--help"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-05-resolve_ngc_tag-months0",
   "entry": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.sh",
-  "orig": ".claude/rust/parity/cases/shims/resolve_ngc_tag.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py",
   "args": [
    "2.11.0",
    "--months",
    "0"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-05-resolve_torch_pin-bogus",
   "entry": ".claude/skills/upstream-version-watch/scripts/resolve_torch_pin.sh",
-  "orig": ".claude/rust/parity/cases/shims/resolve_torch_pin.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/resolve_torch_pin.py",
   "args": [
    "--bogus"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-05-resolve_wheel-bogus",
   "entry": ".claude/skills/upstream-version-watch/scripts/resolve_wheel.sh",
-  "orig": ".claude/rust/parity/cases/shims/resolve_wheel.py",
+  "orig": ".claude/skills/upstream-version-watch/scripts/resolve_wheel.py",
   "args": [
    "--bogus"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "da6a7299b82208b9b8b8d6773753c2f3833ac5e4"
  },
  {
   "id": "S2-06-track-wheel",
@@ -776,10 +673,7 @@
    "2.10.0",
    "--sm-arch",
    "sm_121a"
-  ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  ]
  },
  {
   "id": "S2-06-track-source",
@@ -790,10 +684,7 @@
    "2.11.0",
    "--sm-arch",
    "121a"
-  ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  ]
  },
  {
   "id": "S2-06-track-manifest",
@@ -807,19 +698,13 @@
   ],
   "setup": {
    "m.yaml": "topology: single\ngpu_compute_capability: \"12.1\"\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S2-06-track-noargs",
   "entry": ".claude/skills/upstream-version-watch/rust/runtime/target/release/resolve_build_track",
   "orig": ".claude/skills/upstream-version-watch/scripts/resolve_build_track.py",
-  "args": [],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "args": []
  },
  {
   "id": "S2-06-layout-nomethod",
@@ -831,9 +716,6 @@
   ],
   "setup": {
    "mdl/config.json": "{}"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -845,10 +727,7 @@
    "absent",
    "--method",
    "mtp"
-  ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  ]
  },
  {
   "id": "S2-06-layout-noindex",
@@ -863,9 +742,6 @@
   "setup": {
    "mdl/config.json": "{}",
    "t.yaml": "speculative-config: '{\"method\": \"mtp\"}'\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -881,9 +757,6 @@
   "setup": {
    "mdl/config.json": "{\"num_nextn_predict_layers\": 1}",
    "mdl/model.safetensors.index.json": "{\"weight_map\": {\"model.layers.3.mtp_block.eh_proj.weight\": \"s.safetensors\", \"model.layers.3.mtp_block.enorm.weight\": \"s.safetensors\", \"model.layers.3.mtp_block.main_proj.weight\": \"s.safetensors\"}}"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  }
 ]

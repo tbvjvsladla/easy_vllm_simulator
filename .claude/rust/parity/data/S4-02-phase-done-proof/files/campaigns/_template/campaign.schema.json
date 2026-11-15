@@ -1,0 +1,312 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://easy-vllm-simulator.local/schemas/campaign.schema.json",
+  "title": "campaign",
+  "description": "campaigns/<camp-id>/campaign.yaml (JSON text) 의 SHAPE 계약. 검증기는 campaign_template_validator.py 이며 completion_gate.validate_against_schema 와 같은 Draft-07 부분집합($ref/type/required/properties/additionalProperties/enum/const/minLength/minimum/minItems/items)만 쓴다 — pattern·oneOf 는 파이썬 수준 검사로 간다(플레이스홀더 잔존·참조 실재·STAY 위치·proof 충족). `_` 로 시작하는 최상위 키는 사람 안내문이며 검증기가 스키마 대조 전에 걷어낸다 — 안내문을 스키마에 등재하면 안내문 하나 늘 때마다 스키마가 바뀐다.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "id",
+    "plan_ref",
+    "nodes",
+    "matrix",
+    "assignments",
+    "budgets",
+    "control_variables",
+    "hint_targets",
+    "topology_sections"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "캠페인 식별자. 예약어 `_template`·`_bootstrap` 은 쓸 수 없다."
+    },
+    "plan_ref": {
+      "type": "string",
+      "minLength": 1,
+      "description": "이 캠페인을 승인한 plan 문서 경로. HITL 서명의 자리."
+    },
+    "declared_utc": {
+      "type": "string",
+      "minLength": 1
+    },
+    "nodes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/definitions/node"
+      }
+    },
+    "matrix": {
+      "$ref": "#/definitions/matrix"
+    },
+    "budgets": {
+      "$ref": "#/definitions/budgets"
+    },
+    "control_variables": {
+      "type": "object",
+      "description": "이 캠페인에서 고정되는 변수. 서브에 전달하는 표의 정본이며, 빠지면 서브가 저장소 기본값을 집어 엉뚱한 대상을 측정한다(2026-09-05 실측)."
+    },
+    "hint_targets": {
+      "type": "array",
+      "description": "hint 발행 **사전승인** 기록(2026-09-21 · plan_26092119 O6). 항목 하나 = 승인 사건 하나(노드 · 명시 셀 목록 · 사람 승인의 전사). **빈 목록으로 출발한다** — 완주와 발행은 분리돼 있고, 예시 항목을 두면 그 예시가 인스턴스로 복사돼 게이트를 닫는다. writer 는 `campaign_init.py --hint-approve` 이고 읽는 쪽은 hint 발행기 `continue`(승인 확인이 봉인보다 먼저)다. 한 셀의 승인은 하나다(두 항목에 같은 셀 ✗ — 검증기 python 수준 검사).",
+      "items": {
+        "$ref": "#/definitions/hint_target"
+      }
+    },
+    "topology_sections": {
+      "$ref": "#/definitions/topology_sections"
+    },
+    "revisions": {
+      "type": "array",
+      "description": "layer-1 append-only 개정 이력. revisions[0] = t0 원본(불변).",
+      "items": {
+        "type": "object"
+      }
+    },
+    "assignments": {
+      "type": "object",
+      "description": "노드별 셀 배정 = 배정의 단일 권위(2026-09-08 · plan_26090813 D11). 키 = node_id, 값 = 그 노드의 실행 순서. 서로 다른 노드의 리스트는 동시에 돈다 — 옛 평면 `order` 는 노드 분할을 표현하지 못해 병렬 캠페인이 순차로 돌았다.",
+      "additionalProperties": {
+        "type": "array",
+        "minItems": 1,
+        "items": {
+          "$ref": "#/definitions/assignment"
+        }
+      }
+    },
+    "self_role": {
+      "type": "string",
+      "enum": [
+        "main",
+        "sub"
+      ],
+      "description": "이 인스턴스를 소유한 노드의 역할. 파생 선언(--from-slice)으로 열린 서브 인스턴스에만 있으며, 회수된 브리핑이 서브 저작인지 메인의 사후 재저작인지를 P5 가 이 값으로 가른다."
+    },
+    "authored_by": {
+      "type": "string",
+      "minLength": 1,
+      "description": "이 선언을 저작한 주체. 파생 선언은 `main-derived` 다 — 배정은 메인 오케스트레이션이 정하고 실행은 서브가 자율로 한다(D12)."
+    },
+    "derived_from": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "파생의 출처 노드(보통 메인). 파생이 아니면 없다."
+    },
+    "derived_utc": {
+      "type": "string",
+      "minLength": 1,
+      "description": "파생 시각(주입). 서브 지시서 선발급 여부를 사람이 되짚는 자리."
+    }
+  },
+  "definitions": {
+    "node": {
+      "type": "object",
+      "required": [
+        "node_id",
+        "role",
+        "topology"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "node_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "main",
+            "sub"
+          ]
+        },
+        "topology": {
+          "type": "string",
+          "enum": [
+            "single",
+            "multi"
+          ]
+        },
+        "rank": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "multi 에서만 의미가 있다(Ray 워커 위치). single 의 sub 는 A2A 원격 에이전트라 rank 가 없다 — 불변식 A."
+        },
+        "hw": {
+          "type": "string",
+          "minLength": 1,
+          "description": "태그 arch 세그먼트의 <hw> 축(예 gb10)."
+        }
+      }
+    },
+    "matrix": {
+      "type": "object",
+      "required": [
+        "versions",
+        "models"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "versions": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "models": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "budgets": {
+      "type": "object",
+      "required": [
+        "smoke_budget_overhead_mib",
+        "ready_max_seconds"
+      ],
+      "additionalProperties": true,
+      "properties": {
+        "smoke_budget_overhead_mib": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "선언이 없으면 arm_ceiling 이 무한대가 되어 호스트가 무방비다 — 기본값 금지."
+        },
+        "ready_max_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "repeats": {
+          "type": "integer",
+          "minimum": 3,
+          "description": "full bench 정의의 반복 수(2026-09-14 · plan_26091407 §4.4). 분산·신뢰성의 최소조건이라 3 미만은 선언할 수 없다 — 반복 불성립은 선언을 낮추는 것이 아니라 기계 이벤트(run 실패·블랙박스 kill)가 셀을 lite 로 강등하는 경로다. 생략 = 프리셋 기본값(config/guide-llm/default_preset.yaml knobs.repeats.default · 2026-10-10 plan_26101011). 소비자: sweep_bench.sh(--repeats 미지정 시 repeat_axis.py resolve) · broad_search.sh init(declared_budget.repeats). 이 minimum 은 repeat_axis.FULL_REPEATS_MIN 과 자체검사가 교차검증한다."
+        },
+        "bench_pins": {
+          "type": "object",
+          "description": "full-bench 측정 형상 knob 의 사람 핀(2026-10-10 · plan_26101011). 캠페인 선언은 선언 확인 팝업을 거친 사람 승인 문서이므로 여기 적힌 값은 사람 핀이다 — 프리셋(config/guide-llm/<preset>.yaml)의 선택지 안에서 escalate 등급까지 연다. 해소 순서: CLI 사람 핀(--pin --pinned-by) > 이 필드 > Agent 선택 > 프리셋 기본값. 생략 가능. 키는 knob 이름(levels·input_len·output_len·num_prompts·warmups·backend·bench_budget_mib · 데이터셋 축 dataset_kind·dataset_source·dataset_id·dataset_path·dataset_revision·source_sha256·column_map·preprocess_strategy·seed — 2026-10-16 plan_26101614)이며 반복 수 핀은 두 번째 자리를 두지 않고 budgets.repeats 하나다. 소비자: sweep_bench.sh → bench_preset.py resolve(모양·선택지 검증 · 위반 = 측정 전 거부).",
+          "propertyNames": {
+            "enum": [
+              "levels",
+              "input_len",
+              "output_len",
+              "num_prompts",
+              "warmups",
+              "backend",
+              "bench_budget_mib",
+              "dataset_kind",
+              "dataset_source",
+              "dataset_id",
+              "dataset_path",
+              "dataset_revision",
+              "source_sha256",
+              "column_map",
+              "preprocess_strategy",
+              "seed"
+            ]
+          },
+          "additionalProperties": true
+        }
+      }
+    },
+    "hint_target": {
+      "type": "object",
+      "required": [
+        "node_id",
+        "cells",
+        "approval"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "node_id": {
+          "type": "string",
+          "minLength": 1,
+          "description": "승인 대상 수행 노드. 이름의 arch 축은 발행기가 manifest와 측정 노드에서 전량 파생한다."
+        },
+        "cells": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "사람이 발행을 사전승인한 셀의 명시 목록. 빈 목록=전 셀 해석은 백지 승인이라 폐기했다. assignments[node_id]의 부분집합이어야 한다."
+        },
+        "approval": {
+          "$ref": "#/definitions/hint_approval"
+        }
+      }
+    },
+    "hint_approval": {
+      "type": "object",
+      "required": [
+        "approved_by",
+        "approved_utc",
+        "source"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "approved_by": {
+          "type": "string",
+          "minLength": 1,
+          "description": "승인한 사람의 발화 전사."
+        },
+        "approved_utc": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "description": "주입한 승인 UTC 시각."
+        },
+        "source": {
+          "type": "string",
+          "enum": [
+            "declaration-popup",
+            "publish-popup"
+          ],
+          "description": "사람 승인을 받은 HITL 자리."
+        }
+      }
+    },
+    "topology_sections": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "토폴로지별 부가 선언(single/multi). multi 는 클러스터 env 형상 키를 여기서 선언한다."
+    },
+    "assignment": {
+      "type": "object",
+      "required": [
+        "cell"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "cell": {
+          "type": "string",
+          "minLength": 1,
+          "description": "cells/<cell>/ 이 실재해야 한다. 틀 디렉터리 `_cell` 은 실행 대상이 아니다."
+        },
+        "mode": {
+          "type": "string",
+          "enum": [
+            "AUTO",
+            "HITL",
+            "STAY"
+          ],
+          "description": "셀 종료 뒤의 전이. 생략 = AUTO. AUTO=정리 후 다음 셀 · HITL=정리 후 사람에게 묻고 대기 · STAY=벤치 후 서빙 유지(상주). STAY 는 리스트 마지막 항목에만 올 수 있다 — 뒤에 셀이 남으면 그 셀은 영원히 안 돈다(python 수준 검사)"
+        }
+      }
+    }
+  }
+}

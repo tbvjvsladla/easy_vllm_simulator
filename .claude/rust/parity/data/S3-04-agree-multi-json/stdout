@@ -7,9 +7,10 @@
       "value": "multi"
     },
     "campaign": {
-      "detail": "campaign_init.py 를 적재하지 못했다 -- ACTIVE 해소 규약의 단일 권위가 없으면 이 다리는 판정하지 않는다",
+      "campaign_id": "_bootstrap",
+      "detail": "활성 캠페인이 없다(ACTIVE=_bootstrap) -- 캠페인 밖 평시 작업에서는 정상이다. 이번 판정은 이 다리를 빼고 이뤄졌다",
       "source": "campaigns/<ACTIVE>/campaign.yaml",
-      "status": "absent",
+      "status": "not-applicable",
       "value": null
     },
     "layer": {

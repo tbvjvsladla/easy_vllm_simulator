@@ -35,7 +35,7 @@
   "compare_gaps": [],
   "compared": [],
   "lockset": null,
-  "lockset_gap": "lockset 부재: /tmp/parity-o-S4-02-cell-serve-failed-1802045-1794701942880739318/campaigns/camp-a/cells/c1/lockset.json — 셀 출처(provenance)를 말할 자리가 없다(셀 materialize 는 explorer 소관 · 손작성이면 provenance=hand-authored 로 표시)",
+  "lockset_gap": "lockset 부재: campaigns/camp-a/cells/c1/lockset.json — 셀 출처(provenance)를 말할 자리가 없다(셀 materialize 는 explorer 소관 · 손작성이면 provenance=hand-authored 로 표시)",
   "lockset_source": null,
   "lockset_stamp": null,
   "lockset_trial_provenance": null,

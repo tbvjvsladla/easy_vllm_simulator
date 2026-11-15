@@ -10,9 +10,6 @@
   ],
   "setup": {
    "m.yaml": "topology: single\nnodes:\n  - role: main\n  - role: sub\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -26,9 +23,6 @@
   ],
   "setup": {
    "m.yaml": "topology: multi\nnodes:\n  - role: main\n  - role: sub\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -46,9 +40,6 @@
   ],
   "setup": {
    "m.yaml": "topology: multi\nnodes:\n  - role: main\n  - role: sub\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -66,9 +57,6 @@
   ],
   "setup": {
    "m.yaml": "topology: single\nnodes:\n  - role: main\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -82,9 +70,6 @@
   ],
   "setup": {
    "m.yaml": "nodes:\n  - role: main\n  - role: sub\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -98,15 +83,12 @@
   ],
   "setup": {
    "m.yaml": "topology: single\nnodes:\n  - role: main\n  - role: sub\n    sub_mode: ray-worker\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S3-02-single-flag-ok",
   "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
-  "orig": ".claude/rust/parity/cases/shims/manifest_contract.py",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
   "args": [
    "--topology",
    "single",
@@ -115,17 +97,15 @@
    "--json",
    "--require-flag"
   ],
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a",
   "setup": {
    "output/single/manifest.yaml": "terraforming:\n  complete: true\n  branch_verified: true\ntopology: single\ngpus_per_node: 1\nmodel_source: managed\nnas_model_path: /fixture/models\nnodes: []\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S3-02-single-flag-absent",
   "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
-  "orig": ".claude/rust/parity/cases/shims/manifest_contract.py",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
   "args": [
    "--topology",
    "single",
@@ -134,14 +114,12 @@
    "--json",
    "--require-flag"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a"
  },
  {
   "id": "S3-02-single-not-ready",
   "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
-  "orig": ".claude/rust/parity/cases/shims/manifest_contract.py",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
   "args": [
    "--topology",
    "single",
@@ -150,17 +128,15 @@
    "--json",
    "--require-flag"
   ],
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a",
   "setup": {
    "output/single/manifest.yaml": "terraforming:\n  complete: false\n  branch_verified: false\ntopology: single\ngpus_per_node: 1\nmodel_source: managed\nnas_model_path: /fixture/models\nnodes: []\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S3-02-multi-flag-ok",
   "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
-  "orig": ".claude/rust/parity/cases/shims/manifest_contract.py",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
   "args": [
    "--topology",
    "multi",
@@ -169,17 +145,15 @@
    "--json",
    "--require-flag"
   ],
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a",
   "setup": {
    "output/multi/manifest.yaml": "terraforming:\n  complete: true\n  branch_verified: true\ntopology: multi\ngpus_per_node: 2\nmodel_source: managed\nnas_model_path: /fixture/models\nnodes: []\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S3-02-multi-flag-absent",
   "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
-  "orig": ".claude/rust/parity/cases/shims/manifest_contract.py",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
   "args": [
    "--topology",
    "multi",
@@ -188,14 +162,12 @@
    "--json",
    "--require-flag"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a"
  },
  {
   "id": "S3-02-multi-not-ready",
   "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
-  "orig": ".claude/rust/parity/cases/shims/manifest_contract.py",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
   "args": [
    "--topology",
    "multi",
@@ -204,39 +176,33 @@
    "--json",
    "--require-flag"
   ],
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a",
   "setup": {
    "output/multi/manifest.yaml": "terraforming:\n  complete: false\n  branch_verified: false\ntopology: multi\ngpus_per_node: 1\nmodel_source: managed\nnas_model_path: /fixture/models\nnodes: []\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S3-03-help",
   "entry": ".claude/skills/terraforming_node/scripts/turn_budget.sh",
-  "orig": ".claude/rust/parity/cases/shims/turn_budget.py",
+  "orig": ".claude/skills/terraforming_node/scripts/turn_budget.py",
   "args": [
    "--help"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a"
  },
  {
   "id": "S3-03-caps",
   "entry": ".claude/skills/terraforming_node/scripts/turn_budget.sh",
-  "orig": ".claude/rust/parity/cases/shims/turn_budget.py",
+  "orig": ".claude/skills/terraforming_node/scripts/turn_budget.py",
   "args": [
    "--caps"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a"
  },
  {
   "id": "S3-03-ok",
   "entry": ".claude/skills/terraforming_node/scripts/turn_budget.sh",
-  "orig": ".claude/rust/parity/cases/shims/turn_budget.py",
+  "orig": ".claude/skills/terraforming_node/scripts/turn_budget.py",
   "args": [
    "--max-turns",
    "20",
@@ -245,14 +211,12 @@
    "--source",
    "operator decision fixture"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a"
  },
  {
   "id": "S3-03-over-cap",
   "entry": ".claude/skills/terraforming_node/scripts/turn_budget.sh",
-  "orig": ".claude/rust/parity/cases/shims/turn_budget.py",
+  "orig": ".claude/skills/terraforming_node/scripts/turn_budget.py",
   "args": [
    "--max-turns",
    "100000",
@@ -261,34 +225,28 @@
    "--source",
    "x"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a"
  },
  {
   "id": "S3-03-no-source",
   "entry": ".claude/skills/terraforming_node/scripts/turn_budget.sh",
-  "orig": ".claude/rust/parity/cases/shims/turn_budget.py",
+  "orig": ".claude/skills/terraforming_node/scripts/turn_budget.py",
   "args": [
    "--max-turns",
    "20",
    "--timeout-seconds",
    "600"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a"
  },
  {
   "id": "S3-03-selftest",
   "entry": ".claude/skills/terraforming_node/scripts/turn_budget.sh",
-  "orig": ".claude/rust/parity/cases/shims/turn_budget.py",
+  "orig": ".claude/skills/terraforming_node/scripts/turn_budget.py",
   "args": [
    "--self-test"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a"
  },
  {
   "id": "S3-04-agree-single-json",
@@ -309,9 +267,6 @@
    ".git/refs/heads/.keep": "",
    ".git/config": "[core]\n\trepositoryformatversion = 0\n",
    "output/single/manifest.yaml": "topology: single\nterraforming:\n  complete: true\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -333,9 +288,6 @@
    ".git/refs/heads/.keep": "",
    ".git/config": "[core]\n\trepositoryformatversion = 0\n",
    "output/single/manifest.yaml": "topology: single\nterraforming:\n  complete: true\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -357,9 +309,6 @@
    ".git/refs/heads/.keep": "",
    ".git/config": "[core]\n\trepositoryformatversion = 0\n",
    "output/multi/manifest.yaml": "topology: multi\nterraforming:\n  complete: true\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -381,9 +330,6 @@
    ".git/refs/heads/.keep": "",
    ".git/config": "[core]\n\trepositoryformatversion = 0\n",
    "output/multi/manifest.yaml": "topology: multi\nterraforming:\n  complete: true\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -405,9 +351,6 @@
    ".git/refs/heads/.keep": "",
    ".git/config": "[core]\n\trepositoryformatversion = 0\n",
    "output/multi/manifest.yaml": "topology: multi\nterraforming:\n  complete: true\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -429,9 +372,6 @@
    ".git/refs/heads/.keep": "",
    ".git/config": "[core]\n\trepositoryformatversion = 0\n",
    "output/multi/manifest.yaml": "topology: multi\nterraforming:\n  complete: true\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -453,9 +393,6 @@
    ".git/refs/heads/.keep": "",
    ".git/config": "[core]\n\trepositoryformatversion = 0\n",
    "output/single/manifest.yaml": "topology: single\nterraforming:\n  complete: true\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -477,9 +414,6 @@
    ".git/refs/heads/.keep": "",
    ".git/config": "[core]\n\trepositoryformatversion = 0\n",
    "output/single/manifest.yaml": "topology: single\nterraforming:\n  complete: true\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -500,9 +434,6 @@
    ".git/objects/.keep": "",
    ".git/refs/heads/.keep": "",
    ".git/config": "[core]\n\trepositoryformatversion = 0\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -523,9 +454,6 @@
    ".git/objects/.keep": "",
    ".git/refs/heads/.keep": "",
    ".git/config": "[core]\n\trepositoryformatversion = 0\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -548,9 +476,6 @@
    ".git/config": "[core]\n\trepositoryformatversion = 0\n",
    "output/multi/manifest.yaml": "topology: multi\nterraforming:\n  complete: true\n",
    "TOPO.topology.md": "# t\n\n**topology: single** · layer: topology\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
@@ -573,80 +498,65 @@
    ".git/config": "[core]\n\trepositoryformatversion = 0\n",
    "output/multi/manifest.yaml": "topology: multi\nterraforming:\n  complete: true\n",
    "TOPO.topology.md": "# t\n\n**topology: single** · layer: topology\n"
-  },
-  "env": {
-   "PYTHONHASHSEED": "0"
   }
  },
  {
   "id": "S3-05-help",
   "entry": ".claude/skills/terraforming_node/scripts/scan_node.sh",
-  "orig": ".claude/skills/terraforming_node/scripts/scan_node_original.py",
+  "orig": ".claude/skills/terraforming_node/scripts/scan_node.py",
   "args": [
    "--help"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a"
  },
  {
   "id": "S3-05-emit-auto-refused",
   "entry": ".claude/skills/terraforming_node/scripts/scan_node.sh",
-  "orig": ".claude/skills/terraforming_node/scripts/scan_node_original.py",
+  "orig": ".claude/skills/terraforming_node/scripts/scan_node.py",
   "args": [
    "--topology",
    "auto",
    "--emit-manifest"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a"
  },
  {
   "id": "S3-05-bad-topology",
   "entry": ".claude/skills/terraforming_node/scripts/scan_node.sh",
-  "orig": ".claude/skills/terraforming_node/scripts/scan_node_original.py",
+  "orig": ".claude/skills/terraforming_node/scripts/scan_node.py",
   "args": [
    "--topology",
    "triple"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a"
  },
  {
   "id": "S3-05-bad-model-source",
   "entry": ".claude/skills/terraforming_node/scripts/scan_node.sh",
-  "orig": ".claude/skills/terraforming_node/scripts/scan_node_original.py",
+  "orig": ".claude/skills/terraforming_node/scripts/scan_node.py",
   "args": [
    "--model-source",
    "nowhere"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a"
  },
  {
   "id": "S3-05-sub-manifest-refused",
   "entry": ".claude/skills/terraforming_node/scripts/scan_node.sh",
-  "orig": ".claude/skills/terraforming_node/scripts/scan_node_original.py",
+  "orig": ".claude/skills/terraforming_node/scripts/scan_node.py",
   "args": [
    "--emit-sub-manifest",
    "sub.yaml"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a"
  },
  {
   "id": "S3-05-selftest",
   "entry": ".claude/skills/terraforming_node/scripts/scan_node.sh",
-  "orig": ".claude/skills/terraforming_node/scripts/scan_node_original.py",
+  "orig": ".claude/skills/terraforming_node/scripts/scan_node.py",
   "args": [
    "--self-test"
   ],
-  "env": {
-   "PYTHONHASHSEED": "0"
-  }
+  "orig_rev": "379cc822396de5eb47541b992b48db0e2ef3c77a"
  }
 ]
