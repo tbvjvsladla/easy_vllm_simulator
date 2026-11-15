@@ -17,7 +17,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 pub const PROGRAM: &str = "render_dockerfile.py";
-const RUNNER_SCRIPTS: [&str; 3] = ["serve_runner.sh", "debug-init.sh", "arm_patch.sh"];
+pub(crate) const RUNNER_SCRIPTS: [&str; 3] = ["serve_runner.sh", "debug-init.sh", "arm_patch.sh"];
 
 type Env = BTreeMap<String, String>;
 
@@ -55,7 +55,7 @@ fn nccl_transports() -> Vec<(&'static str, Env)> {
     ]
 }
 
-const IFACE_ENV_KEYS: [&str; 5] = [
+pub(crate) const IFACE_ENV_KEYS: [&str; 5] = [
     "NCCL_SOCKET_IFNAME",
     "GLOO_SOCKET_IFNAME",
     "TP_SOCKET_IFNAME",
@@ -531,7 +531,7 @@ pub(crate) fn os_error(prefix: &str, error: &std::io::Error, path: &Path) -> Rai
     Raised { class, message: format!("[Errno {errno}] {}: {}", error.to_string().split(" (os error").next().unwrap_or_default(), py_repr_str(&path.to_string_lossy())) }
 }
 
-fn materialize_configs(skill_root: &Path, repo: &Path, topology: &str) -> Result<Vec<PathBuf>, Raised> {
+pub(crate) fn materialize_configs(skill_root: &Path, repo: &Path, topology: &str) -> Result<Vec<PathBuf>, Raised> {
     let src_dir = skill_root.join("assets").join("configs");
     let dst_dir = repo.join("output").join(topology).join("configs");
     std::fs::create_dir_all(&dst_dir).map_err(|e| os_error("makedirs", &e, &dst_dir))?;
@@ -688,7 +688,7 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
             return Ok(0);
         }
         if gate_cli::flag(&values, "self_test") {
-            return Ok(not_ported("--self-test"));
+            return Ok(crate::render_template::selftest::self_test(&scripts));
         }
         if gate_cli::flag(&values, "nccl_envfile") {
             let text = render_nccl_envfile(&load_manifest(&manifest_path)?)?;
@@ -728,7 +728,7 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
         if let Some(status) = crate::render_template::run_render(&values, &scripts, &manifest_path, gate_cli::flag(&values, "allow_unvalidated"))? {
             return Ok(status);
         }
-        Ok(not_ported("the default self-test"))
+        Ok(crate::render_template::selftest::self_test(&scripts))
     })();
     match result {
         Ok(status) => status,
@@ -736,6 +736,7 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
     }
 }
 
+#[allow(dead_code)]
 fn not_ported(what: &str) -> i32 {
     gate_cli::write_err(&format!(
         "[render] NOT PORTED: {what} is not in the Rust render_dockerfile yet — run render_dockerfile.py for it\n"

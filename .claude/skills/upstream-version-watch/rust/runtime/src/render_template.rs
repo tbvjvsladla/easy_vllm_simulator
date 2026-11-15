@@ -31,6 +31,7 @@ const VALIDATED_SOURCE_BUILD_KEYS: [(&str, &str); 8] = [
 ];
 
 /// One hand-written entry of `INHERITED_SOURCE_BUILD_KEYS` (a human adds a line at gate G1.6; the ledger is empty on purpose).
+#[derive(Clone)]
 struct InheritEntry {
     key: (&'static str, &'static str),
     inherits: (&'static str, &'static str),
@@ -201,14 +202,14 @@ fn inherit_eligibility<'a>(ngc_tag: &str, vllm_version: &str, entry: &InheritEnt
     (checks.iter().all(|(_, ok, _)| *ok), checks, Some(att))
 }
 
-fn patch_guard(ngc_tag: &str, vllm: &str, resolved: &V, allow_unvalidated: bool) -> String {
+fn patch_guard_with(ledger: &[InheritEntry], ngc_tag: &str, vllm: &str, resolved: &V, allow_unvalidated: bool) -> String {
     let key = (ngc_tag, vllm);
     if VALIDATED_SOURCE_BUILD_KEYS.contains(&key) {
         return format!(
             "RUN echo \"[guard] source-build key ({ngc_tag} x vLLM {vllm}): validated patch set ((ngc_base x vllm_version) keyed) — proceeding.\""
         );
     }
-    if let Some(entry) = INHERITED_SOURCE_BUILD_KEYS.iter().find(|e| e.key == key) {
+    if let Some(entry) = ledger.iter().find(|e| e.key == key) {
         let (ok, checks, att) = inherit_eligibility(ngc_tag, vllm, entry, resolved);
         let base_s = format!("('{}', '{}')", entry.inherits.0, entry.inherits.1);
         if let (true, Some(att)) = (ok, att) {
@@ -278,6 +279,10 @@ fn compact_cuda(cuda: &str) -> String {
 
 /// `build_context`: the ordered placeholder map.
 fn build_context(manifest: &V, resolved: &V, allow_unvalidated: bool) -> Result<Vec<(&'static str, String)>, Raised> {
+    build_context_with(INHERITED_SOURCE_BUILD_KEYS, manifest, resolved, allow_unvalidated)
+}
+
+fn build_context_with(ledger: &[InheritEntry], manifest: &V, resolved: &V, allow_unvalidated: bool) -> Result<Vec<(&'static str, String)>, Raised> {
     if !matches!(resolved, V::Dict(_)) {
         return Err(Raised { class: "TypeError", message: "resolved is not a mapping".into() });
     }
@@ -333,7 +338,7 @@ fn build_context(manifest: &V, resolved: &V, allow_unvalidated: bool) -> Result<
         ("IMAGE_NAME", IMAGE_NAME.to_string()),
         ("IMAGE_TAG", image_tag),
         ("DOCKERFILE", dockerfile.to_string()),
-        ("SOURCE_BUILD_PATCH_GUARD", patch_guard(&ngc_tag, &vllm, resolved, allow_unvalidated)),
+        ("SOURCE_BUILD_PATCH_GUARD", patch_guard_with(ledger, &ngc_tag, &vllm, resolved, allow_unvalidated)),
         ("CUDA_VERSION", wheel_cuda),
         ("VLLM_MANYLINUX", wheel_manylinux),
     ])
@@ -420,6 +425,9 @@ fn substitute(text: &str, context: &[(&'static str, String)]) -> Result<String, 
     }
     Ok(text)
 }
+
+#[path = "render_selftest.rs"]
+pub(crate) mod selftest;
 
 // ── build ledger stanza ────────────────────────────────────────────────────────────────────────────
 
