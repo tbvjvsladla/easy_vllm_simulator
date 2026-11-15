@@ -1,13 +1,14 @@
 #!/bin/bash
-# Read-only `campaign_init.py --active` / `--derive KIND ...` through the node-local Rust executable. Installation and build
-# are explicit operations; a missing executable is an explicit error, never a silent Python start. Every other operation of
-# campaign_init (the writers) keeps calling campaign_init.py directly.
+# `campaign_init.py` through the node-local Rust executable: the read shapes (`--active`, `--derive KIND ...`) and the writer
+# shapes it models (`--init`, `--close`, `--phase-set`, `--cell-set`, `--write-brief`, `--assigned-cells`) are answered
+# natively; every other shape reaches the owner `campaign_init.py` through the explicit compatibility route. Installation
+# and build are explicit operations; a missing executable is an explicit error, never a silent Python start.
 set -euo pipefail
 # Self-contained: builtins only (no `dirname` is looked up in the caller's business PATH, which is never modified).
 SELF="${BASH_SOURCE[0]}"
 case "$SELF" in */*) SDIR_RAW="${SELF%/*}"; [ -n "$SDIR_RAW" ] || SDIR_RAW=/ ;; *) SDIR_RAW=. ;; esac
 SDIR="$(cd "$SDIR_RAW" && pwd)"
-BIN="${CAMPAIGN_READ_BIN:-$SDIR/../../adversarial-benchmark/rust/target/release/campaign_read}"
+BIN="${CAMPAIGN_READ_BIN:-$SDIR/../../adversarial-benchmark/rust/target/release/campaign_init}"
 if [ ! -f "$BIN" ] || [ ! -x "$BIN" ]; then
   printf '[campaign_init] ERROR Rust 실행파일이 없다/실행 불가: %s\n' "$BIN" >&2
   printf '[campaign_init] 먼저 Terraform Rust install/check 후 실행: bash %q\n' "$SDIR/../../adversarial-benchmark/scripts/build_rust.sh" >&2

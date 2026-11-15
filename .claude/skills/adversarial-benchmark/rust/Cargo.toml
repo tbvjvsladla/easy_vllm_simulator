@@ -54,6 +54,11 @@ path = "src/bin/turn_budget.rs"
 name = "campaign_read"
 path = "src/bin/campaign_read.rs"
 
+# Public `campaign_init.py` command line: read shapes via campaign_read, modelled writer shapes natively, the rest to the owner.
+[[bin]]
+name = "campaign_init"
+path = "src/bin/campaign_init.rs"
+
 # Public `manifest_contract.py --topology --repo [--require-flag] [--json]` (launcher: terraforming_node/scripts/manifest_contract.sh).
 [[bin]]
 name = "manifest_contract"
@@ -633,6 +638,10 @@ path = "checks/bench_shell_original_cases.rs"
 [[test]]
 name = "campaign_read_cli"
 path = "checks/campaign_read_cli.rs"
+
+[[test]]
+name = "campaign_write_cases"
+path = "checks/campaign_write_cases.rs"
 
 [[test]]
 name = "manifest_contract_cli"

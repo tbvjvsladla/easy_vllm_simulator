@@ -27,6 +27,7 @@ mod broad_search_cell_args_selftest;
 mod broad_search_precheck_selftest;
 pub mod broad_search_selftest_cli;
 pub mod campaign_read;
+pub mod campaign_write;
 pub mod captured_process;
 pub mod classify_cell;
 pub mod classify_cell_api_cli;
