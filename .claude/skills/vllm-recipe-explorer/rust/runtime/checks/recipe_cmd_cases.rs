@@ -30,11 +30,27 @@ fn flag_gate_precedes_config_load() {
 #[test]
 fn unported_subcommands_stop_with_status_two() {
     let (base, root) = bare_skill_root();
-    for name in ["generate", "simulate"] {
+    for name in ["simulate"] {
         let run = recipe_main(&args(&[name]), Some("80"), &root);
         assert_eq!(run.status, 2);
         assert!(run.stderr.to_utf8().unwrap().contains("미이식"));
     }
+    let _ = std::fs::remove_dir_all(base);
+}
+
+/// Reference: `python3 recipe.py generate` / `generate --config x.yaml` (COLUMNS=80) print the argparse usage plus this error
+/// line and exit 2; the Flag gate does not run before argument parsing.
+#[test]
+fn generate_argument_errors_match_the_original() {
+    let (base, root) = bare_skill_root();
+    let run = recipe_main(&args(&["generate"]), Some("80"), &root);
+    assert_eq!(run.status, 2);
+    let err = run.stderr.to_utf8().unwrap();
+    assert!(err.contains("recipe.py generate: error: the following arguments are required: --config, --recipe-id"), "{err}");
+    let run = recipe_main(&args(&["generate", "--config", "x.yaml"]), Some("80"), &root);
+    assert_eq!(run.status, 2);
+    let err = run.stderr.to_utf8().unwrap();
+    assert!(err.contains("recipe.py generate: error: the following arguments are required: --recipe-id"), "{err}");
     let _ = std::fs::remove_dir_all(base);
 }
 
