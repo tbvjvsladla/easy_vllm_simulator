@@ -110,6 +110,11 @@ HINT_ENGINE_DEPENDENCIES = (
 SUB_RUST_BUILD_INPUTS = (
     ".claude/policies/runtime/topology_parity.py",
 )
+# B 의 build_rust.sh 자체검사(judge_bench·verifier 케이스)가 읽는 타 스킬 파일(닫힌 목록 · 2026-11-16 멀티 렌더 트리 build_rust.sh 실측): hint 판독기 render_bench_section.py
+#   (stdlib 만) + 증거 게시 의존 HINT_ENGINE_DEPENDENCIES(completion_gate·evidence_publisher·스키마·이름 SSOT shim). 스킬이 아니라 **파일**만 간다 — hint-publisher SKILL.md·발견 래퍼는 tool_plane 이 정한다.
+SUB_B_CHECK_INPUTS = (
+    ".claude/skills/hint-publisher/scripts/render_bench_section.py",
+)
 SUB_BENCH_FOUNDATION_RUNTIME = (
     ".claude/policies/runtime/topology_parity.py",
     ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
@@ -476,10 +481,10 @@ def support_delivery(tool_plane) -> list:
         out.append(".claude/policies/handoff_exception.topology.md")
     # 사서 참조 발췌(references.md)는 2026-10-19 부터 wiki-desk 런타임블럭이 통째로 싣는다 — 지원 배달분이 아니다.
     out.extend(r for r in SUB_BENCH_FOUNDATION_RUNTIME if r not in out)
+    out.extend(r for r in HINT_ENGINE_DEPENDENCIES if r not in out)   # B 자체검사 의존으로 모든 서브에 간다(SUB_B_CHECK_INPUTS 주석)
     if "hint-publisher" in tool_plane:
-        # 엔진 의존 + 장착 판정 도구(2026-10-11 · plan_26101104 Step 3). render_tree 의 (3.5) 와 같은 규칙.
+        # 장착 판정 도구(2026-10-11 · plan_26101104 Step 3). render_tree 의 (3.5) 와 같은 규칙.
         out.extend(f".claude/skills/terraforming_node/scripts/{t}" for t in SUB_HINT_EQUIP_TOOLS)
-        out.extend(HINT_ENGINE_DEPENDENCIES)
     return out
 
 
@@ -870,7 +875,16 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 produced.append(rel)
         # 3.5) hint 엔진 의존 + 장착 판정 도구 — 엔진이 가는 서브에만(2026-10-11 · plan_26101104 Step 3).
         #   색인·카탈로그·역할 마커(HINT_NEVER_DELIVER)는 여기서 만들지 않는다 — 아래 단언이 그것을 확인한다.
-        if "hint-publisher" in names:
+        for rel in SUB_B_CHECK_INPUTS:
+            src = os.path.join(REPO, rel)
+            if not os.path.isfile(src):
+                raise SystemExit(f"[render] FAIL: B 자체검사 입력이 없다 — {rel}")
+            _tracked_or_die(rel, tracked_list)
+            dst = os.path.join(out_dir, rel)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(src, dst)
+            produced.append(rel)
+        if True:   # 증거 게시 의존은 B 자체검사가 읽으므로 모든 서브에 간다(장착 판정 도구만 hint-publisher 조건)
             for rel in HINT_ENGINE_DEPENDENCIES:
                 src = os.path.join(REPO, rel)
                 if not os.path.isfile(src):
@@ -882,7 +896,7 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
                 os.makedirs(os.path.dirname(dst), exist_ok=True)
                 shutil.copy2(src, dst)
                 produced.append(rel)
-            for tool in SUB_HINT_EQUIP_TOOLS:
+            for tool in (SUB_HINT_EQUIP_TOOLS if "hint-publisher" in names else ()):
                 src = os.path.join(HERE, tool)
                 if not os.path.isfile(src):
                     raise SystemExit(f"[render] FAIL: hint 장착 판정 도구가 없다 — {src}")
@@ -1498,6 +1512,9 @@ def _self_test() -> int:
             for _m in re.findall(r'skill_source\("([^"]+)"\)', _rs.read_text(encoding="utf-8", errors="replace")):
                 if not pathlib.Path(_out, ".claude", "skills", _m).exists():
                     _called_missing.append(f"{_rs.name}→skills/{_m}")
+        for _rel in SUB_B_CHECK_INPUTS + HINT_ENGINE_DEPENDENCIES:
+            _p = pathlib.Path(_out, _rel)
+            _bench_ok &= _p.is_file() and _p.read_bytes() == pathlib.Path(REPO, _rel).read_bytes()
         _bench_ok &= not _called_missing
         if _called_missing:
             print(f"  [FAIL-detail] 배달된 B 스크립트가 부르는데 렌더 트리에 없는 파일: {_called_missing[:10]}")
