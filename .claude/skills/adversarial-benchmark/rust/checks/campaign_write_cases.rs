@@ -123,7 +123,7 @@ fn cell_set_records_gap_and_journey() {
 fn shapes_with_other_files_stay_with_the_owner() {
     let root = scratch("fallback");
     active(&root);
-    let (status, out, err) = call(&root, &["--suspend", "camp-a", "--utc", "U", "--approved-by", "a"]);
+    let (status, out, err) = call(&root, &["--selftest"]);
     assert_eq!((status, out.as_str(), err.as_str()), (None, "", ""));
     assert!(!root.join("campaigns/camp-a/cells").exists());
 }
@@ -553,4 +553,47 @@ fn cell_materialize_derives_from_the_serving_yaml_and_stops_at_an_empty_axis() {
     let (status, _, err) = call(&root, &with);
     assert_eq!(status, Some(1));
     assert!(err.contains("에 이미 ['config.yaml', 'lockset.json', 'cell.status.json'] 가 있다"), "{err}");
+}
+
+#[test]
+fn suspension_needs_the_release_declaration_the_naming_ssot_and_a_cooperative_moment() {
+    let root = scratch("suspend");
+    active(&root);
+    let base = ["--suspend", "camp-a", "--utc", "U", "--approved-by", "a"];
+    let (status, _, err) = call(&root, &base);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("보류는 자원을 반납한다 — `--release <config>`(반복)"), "{err}");
+    let mut none = base.to_vec();
+    none.extend(["--release", "none"]);
+    let (status, _, err) = call(&root, &none);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("문서 명명 SSOT 를 적재하지 못했다: .claude/skills/wiki-desk/src/doc_naming.ts"), "{err}");
+    put(&root, "campaigns/camp-a/phases/main/bench.status.json", "{\"state\": \"running\", \"cell_id\": \"c1\"}");
+    let (status, _, err) = call(&root, &none);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("진행 중인 셀이 있다 — c1(main:bench)"), "{err}");
+}
+
+#[test]
+fn abandonment_asks_for_a_reason_and_a_summary_testlog() {
+    let root = scratch("abandon");
+    active(&root);
+    let (status, _, err) = call(&root, &["--abandon", "camp-a", "--utc", "U", "--approved-by", "a"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("--abandon 은 --reason 이 필요하다"), "{err}");
+    let (status, _, err) = call(&root, &["--abandon", "camp-a", "--utc", "U", "--approved-by", "a", "--reason", "r", "--release", "none"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("abandoned 축소 게이트가 닫혀 있다:\n  - 포기 요약 testlog 가 없다"), "{err}");
+    put(&root, "docs/testlog/t.md", "x");
+    let (status, out, err) = call(&root, &["--abandon", "camp-a", "--utc", "U", "--approved-by", "a", "--reason", "r", "--release", "none", "--summary-testlog", "docs/testlog/t.md"]);
+    assert_eq!((status, out.as_str()), (Some(0), "[campaign_init] DRY-RUN dry-run abandon camp-a\n"), "{err}");
+}
+
+#[test]
+fn resume_refuses_a_campaign_that_is_not_suspended() {
+    let root = scratch("resume");
+    active(&root);
+    let (status, _, err) = call(&root, &["--resume-campaign", "camp-a", "--utc", "U", "--approved-by", "a"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("camp-a 은 active 다 — 재개는 보류 캠페인에만 한다"), "{err}");
 }

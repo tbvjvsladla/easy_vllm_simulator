@@ -5143,7 +5143,15 @@ fn purge_gate_reasons(ctx: &Ctx, previous_id: &str) -> R<Vec<String>> {
         )]);
     }
     if life.state == "closed" && life.close_reason.as_deref() == Some("abandoned") {
-        return Err(Stop::Fallback);
+        let closed = read_journey(&prev)
+            .into_iter()
+            .rev()
+            .find(|e| dict_of(e).map(|d| get_text(d, "kind").as_deref() == Some("campaign_closed")).unwrap_or(false));
+        let summary = closed.as_ref().and_then(dict_of).and_then(|d| get_text(d, "summary_testlog"));
+        return Ok(abandoned_gate_reasons(ctx, previous_id, summary.as_deref())
+            .into_iter()
+            .map(|r| format!("{previous_id}: {r}"))
+            .collect());
     }
     let mut reasons: Vec<String> = Vec::new();
     let pointers_path = prev.join("evidence_pointers.json");
@@ -5405,6 +5413,603 @@ fn load_slice(source: &str) -> R<PyDict> {
     }
 }
 
+// ── lifecycle transitions: pins, resources, suspension, resumption, abandonment, opening ─────
+
+fn running_cells(base: &Path) -> Vec<(String, String, PyValue)> {
+    let mut out = Vec::new();
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(base.join("phases")).map(|r| r.filter_map(Result::ok).map(|e| e.path()).collect()).unwrap_or_default();
+    dirs.sort();
+    for ndir in dirs {
+        let name = name_of_path(&ndir);
+        if !ndir.is_dir() || name == "_node" {
+            continue;
+        }
+        for ph in PHASE_NAMES {
+            if let Some(st) = read_json(&ndir.join(format!("{ph}.status.json"))).as_ref().and_then(dict_of) {
+                if get_text(st, "state").as_deref() == Some("running") {
+                    out.push((name.clone(), ph.to_string(), st.get("cell_id").cloned().unwrap_or(PyValue::None)));
+                }
+            }
+        }
+    }
+    out
+}
+
+fn capture_pins(base: &Path) -> PyValue {
+    let decl = read_declaration(base);
+    let revs = list_or_empty(decl.get("revisions"));
+    let cur = revs
+        .last()
+        .and_then(dict_of)
+        .and_then(|r| r.get("values").filter(|v| v.is_truthy()))
+        .cloned()
+        .or_else(|| decl.get("control_variables").filter(|v| v.is_truthy()).cloned())
+        .unwrap_or_else(|| PyValue::Dict(PyDict::new()));
+    let cells = base.join("cells");
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(&cells).map(|r| r.filter_map(Result::ok).map(|e| e.path()).collect()).unwrap_or_default();
+    dirs.sort();
+    let mut images: Vec<PyValue> = Vec::new();
+    for cdir in dirs {
+        if let Some(st) = read_json(&cdir.join("cell.status.json")).as_ref().and_then(dict_of) {
+            if let Some(img) = get_dict(st, "image") {
+                if truthy(img.get("tag")) && truthy(img.get("digest")) {
+                    let mut e = PyDict::new();
+                    e.set("tag", img.get("tag").cloned().unwrap_or(PyValue::None));
+                    e.set("digest", img.get("digest").cloned().unwrap_or(PyValue::None));
+                    let e = PyValue::Dict(e);
+                    if !images.iter().any(|x| py_equal(x, &e)) {
+                        images.push(e);
+                    }
+                }
+            }
+        }
+    }
+    let mut d = PyDict::new();
+    d.set("topology", declared_topology(base).as_deref().map(py).unwrap_or(PyValue::None));
+    d.set("vllm_version", dict_of(&cur).and_then(|c| c.get("vllm_version").cloned()).unwrap_or(PyValue::None));
+    d.set("images", PyValue::List(images));
+    d.set("source", py("campaign.yaml(현행 개정) · cells/*/cell.status.json#image"));
+    PyValue::Dict(d)
+}
+
+/// `_image_digest(tag)`: `docker image inspect --format {{.Id}}`, `None` when it cannot answer.
+fn image_digest(tag: &str) -> Option<String> {
+    let out = std::process::Command::new("docker")
+        .args(["image", "inspect", "--format", "{{.Id}}", tag])
+        .stdin(std::process::Stdio::null())
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    Some(String::from_utf8_lossy(&out.stdout).trim().to_string()).filter(|s| !s.is_empty())
+}
+
+fn pin_drift(pins: &PyValue) -> Vec<String> {
+    let mut drift = Vec::new();
+    for img in dict_of(pins).map(|p| list_or_empty(p.get("images"))).unwrap_or_default() {
+        let Some(img) = dict_of(&img) else { continue };
+        let (tag, digest) = (shown(img.get("tag")), shown(img.get("digest")));
+        match image_digest(&tag) {
+            None => drift.push(format!("이미지 {tag}: 현재 digest 를 확인할 수 없다(로컬 부재 또는 docker 불가) — 보류 당시 {digest}")),
+            Some(now) if now != digest => drift.push(format!("이미지 {tag}: 보류 당시 {digest} → 현재 {now}")),
+            Some(_) => {}
+        }
+    }
+    drift
+}
+
+fn release_resources(ctx: &Ctx, topology: Option<&str>, releases: &[String], apply: bool) -> R<Vec<PyValue>> {
+    if releases.is_empty() {
+        return transition_refuse("보류는 자원을 반납한다 — `--release <config>`(반복) 로 이 캠페인이 띄운 서빙을 지목하거나, 띄운 것이 없으면 `--release none` 으로 그 사실을 선언하라(정상 차단: 침묵 skip 은 고아 서빙을 남긴다)");
+    }
+    let one = |config: PyValue, status: &str, extra: Vec<(&str, PyValue)>| {
+        let mut d = PyDict::new();
+        d.set("config", config);
+        d.set("status", py(status));
+        for (k, v) in extra {
+            d.set(k, v);
+        }
+        PyValue::Dict(d)
+    };
+    if releases == ["none".to_string()] {
+        return Ok(vec![one(PyValue::None, "none-declared", vec![])]);
+    }
+    if releases.iter().any(|r| r == "none") {
+        return transition_refuse("`--release none` 은 다른 --release 와 함께 올 수 없다(의도 모순)");
+    }
+    let (script, extra): (&str, &[&str]) = match topology {
+        Some("single") => (".claude/skills/upstream-version-watch/scripts/single_serve_down.sh", &[]),
+        Some("multi") => (".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh", &["--down"]),
+        other => {
+            return transition_refuse(format!(
+                "캠페인 토폴로지가 선언되지 않았다({}) — 어느 teardown 진입점을 쓸지 고를 수 없다",
+                other.map(py_repr).unwrap_or_else(|| "None".to_string())
+            ))
+        }
+    };
+    let mut out = Vec::new();
+    for cfg in releases {
+        let script_path = ctx.root.join(script);
+        if !apply {
+            let mut cmd = vec![script_path.to_string_lossy().into_owned(), cfg.clone()];
+            cmd.extend(extra.iter().map(|e| e.to_string()));
+            out.push(one(py(cfg), "dry-run", vec![("command", py(&cmd.join(" ")))]));
+            continue;
+        }
+        let output = std::process::Command::new("bash")
+            .arg(&script_path)
+            .arg(cfg)
+            .args(extra)
+            .stdin(std::process::Stdio::null())
+            .output()
+            .map_err(|e| Stop::Refuse(format!("bash 를 시작할 수 없다: {e}")))?;
+        let rc = output.status.code().unwrap_or(-1);
+        if rc != 0 {
+            let both = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+            let tail600: String = {
+                let n = both.chars().count();
+                both.chars().skip(n.saturating_sub(600)).collect()
+            };
+            return transition_refuse(format!(
+                "teardown 실패(rc={rc}) — {cfg}. 전환은 fail-closed 다: ACTIVE 와 journey 는 바뀌지 않았다. 자원을 정리한 뒤 다시 전환하라(정상 차단 · 우회 ✗).\n  {}",
+                tail_chars(&tail600, 400)
+            ));
+        }
+        out.push(one(py(cfg), "released", vec![("script", py(script)), ("rc", PyValue::int(rc as i64))]));
+    }
+    Ok(out)
+}
+
+fn devlog_name(ctx: &Ctx, utc: &str, topic: &str) -> R<(PathBuf, String)> {
+    let ts = ctx.root.join(".claude/skills/wiki-desk/src/doc_naming.ts");
+    let ddir = ctx.root.join("docs").join("devlog");
+    let mut existing: Vec<String> = std::fs::read_dir(&ddir).map(|r| r.filter_map(Result::ok).map(|e| e.file_name().to_string_lossy().into_owned()).collect()).unwrap_or_default();
+    existing.sort();
+    if !ts.is_file() {
+        return transition_refuse(format!("문서 명명 SSOT 를 적재하지 못했다: {}", ctx.rel(&ts)));
+    }
+    let arg = PyValue::List(vec![py("devlog"), py(utc), py(topic), str_list(existing)])
+        .dumps_unicode()
+        .map_err(|e| Stop::Refuse(e.to_string()))?
+        .to_utf8()
+        .unwrap_or_default();
+    let output = std::process::Command::new("node")
+        .arg(&ts)
+        .arg("dated_doc_basename")
+        .arg(arg)
+        .stdin(std::process::Stdio::null())
+        .output()
+        .map_err(|e| Stop::Refuse(format!("node 를 시작할 수 없다: {e}")))?;
+    let out = pyjson::loads(&String::from_utf8_lossy(&output.stdout)).ok().and_then(|v| dict_of(&v).cloned()).unwrap_or_default();
+    if !truthy(out.get("ok")) {
+        let why = match out.get("message").filter(|v| v.is_truthy()) {
+            Some(m) => shown(Some(m)),
+            None => tail_chars(&String::from_utf8_lossy(&output.stderr), 200),
+        };
+        return transition_refuse(format!("문서 명명 SSOT 실패(rc={}): {why}", output.status.code().unwrap_or(-1)));
+    }
+    let name = shown(out.get("value"));
+    Ok((ddir.join(&name), name))
+}
+
+fn write_parked_devlog(ctx: &Ctx, camp: &str, event: &PyDict, apply: bool) -> R<Option<String>> {
+    let slug: String = camp.chars().map(|c| if c.is_ascii_alphanumeric() || c == '_' || c == '.' { c } else { '_' }).collect();
+    let utc = shown(event.get("utc"));
+    let (path, name) = devlog_name(ctx, &utc, &format!("PARKED_캠페인보류_{slug}"))?;
+    if !apply {
+        return Ok(Some(ctx.rel(&path)));
+    }
+    let released: Vec<String> = list_or_empty(event.get("released")).iter().filter_map(dict_of).map(|r| shown(r.get("config"))).collect();
+    let released = if released.is_empty() { "없음".to_string() } else { released.join(", ") };
+    let nxt = event.get("next").filter(|v| v.is_truthy()).and_then(dict_of).cloned().unwrap_or_default();
+    let join_or_none = |key: &str| {
+        let items: Vec<String> = list_or_empty(event.get(key)).iter().map(|v| shown(Some(v))).collect();
+        if items.is_empty() { "없음".to_string() } else { items.join(", ") }
+    };
+    let pins = event.get("pins").cloned().unwrap_or(PyValue::None).dumps_unicode().ok().and_then(|t| t.to_utf8()).unwrap_or_default();
+    let reason = match event.get("reason").filter(|v| v.is_truthy()) { Some(r) => shown(Some(r)), None => "(사유 미기재)".to_string() };
+    let preempted = match event.get("preempted_by").filter(|v| v.is_truthy()) { Some(p) => shown(Some(p)), None => "(없음 — 단독 보류)".to_string() };
+    let wait = if nxt.is_empty() { String::new() } else { format!(" · 개설 대기 {}@{}", shown(nxt.get("id")), shown(nxt.get("topology"))) };
+    let body = vec![
+        format!("# {}", name.strip_suffix(".md").unwrap_or(&name)),
+        String::new(),
+        format!("PARKED: 캠페인 `{camp}` 보류 — {reason}"),
+        String::new(),
+        format!("- 시각(UTC): {utc} · 승인: {}", shown(event.get("approved_by"))),
+        format!("- 선점한 캠페인: {preempted}{wait}"),
+        format!("- 내린 자원: {released}"),
+        format!("- 중단된 셀(재개 시 pending 으로 복귀): {}", join_or_none("interrupted_cells")),
+        format!("- 보류 당시 핀: `{pins}`"),
+        format!("- 서브(A2A 보류 대상): {}", join_or_none("sub_nodes")),
+        String::new(),
+        "## 재개".to_string(),
+        String::new(),
+        format!("- 재개는 `campaign_init.py --resume-campaign {camp} --approved-by <발화 전사> --utc <UTC> --apply`."),
+        "- 재개 게이트: 보류 당시 핀·이미지 digest 대조(어긋나면 `--accept-drift` 또는 abandoned) · 토폴로지는 체크아웃과 같아야 한다(drift ✗).".to_string(),
+        format!("- 권위는 `campaigns/{camp}/journey.jsonl` 이다 — 이 문서는 인스턴스가 사라졌을 때 사람이 재구성하기 위한 서사다."),
+        String::new(),
+    ];
+    write_text(&path, &body.join("\n"))?;
+    Ok(Some(ctx.rel(&path)))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn suspend_campaign(
+    ctx: &Ctx,
+    camp: &str,
+    utc: &str,
+    approved_by: &str,
+    reason: &str,
+    releases: &[String],
+    preempt: bool,
+    preempted_by: Option<&str>,
+    nxt: Option<PyValue>,
+    apply: bool,
+) -> R<(PyDict, Vec<String>)> {
+    let base = ctx.campaigns().join(camp);
+    if !is_dir(&base) {
+        return transition_refuse(format!("인스턴스가 없다: campaigns/{camp}"));
+    }
+    let f = fold_lifecycle(ctx, &base, None);
+    if f.state != "active" {
+        return transition_refuse(format!("{camp} 은 {} 다 — 보류는 active 캠페인에만 한다", f.state));
+    }
+    let run = running_cells(&base);
+    if !run.is_empty() && !preempt {
+        let list: Vec<String> = run.iter().map(|(n, p, c)| format!("{}({n}:{p})", shown(Some(c)))).collect();
+        return transition_refuse(format!(
+            "진행 중인 셀이 있다 — {}. 협조 전환이 기본이다: 셀을 끝낸 뒤 전환하거나, 사람이 강제를 고르면 `--preempt` 로 다시 부른다(측정 중단 · 서빙 내림 · 그 셀은 interrupted — 부분 측정값은 증거로 쓰지 않는다). 정상 차단이다",
+            list.join(", ")
+        ));
+    }
+    let released = release_resources(ctx, f.topology.as_deref(), releases, apply)?;
+    let mut interrupted: Vec<String> = run.iter().filter_map(|(_, _, c)| text_of(c).filter(|t| !t.is_empty())).collect();
+    interrupted.sort();
+    interrupted.dedup();
+    let mut event = match lifecycle_event(
+        "campaign_suspended",
+        utc,
+        vec![
+            ("approved_by", py(approved_by)),
+            ("reason", py(reason)),
+            ("preempted_by", preempted_by.map(py).unwrap_or(PyValue::None)),
+            ("preempt", PyValue::Bool(!run.is_empty() && preempt)),
+            ("released", PyValue::List(released.clone())),
+            ("pins", capture_pins(&base)),
+            ("interrupted_cells", str_list(interrupted)),
+            ("sub_nodes", PyValue::List(sub_nodes_of(ctx, &base))),
+            ("next", nxt.unwrap_or(PyValue::None)),
+        ],
+    ) {
+        PyValue::Dict(d) => d,
+        _ => PyDict::new(),
+    };
+    let parked = write_parked_devlog(ctx, camp, &event, apply)?;
+    event.set("parked_devlog", parked.as_deref().map(py).unwrap_or(PyValue::None));
+    let mut wrote = Vec::new();
+    if apply {
+        for (node, phase, cell) in &run {
+            let mut pairs: Vec<(&str, String)> = vec![
+                ("--proof-predicate", format!("preempted — {} 로 강제 전환", preempted_by.unwrap_or("단독 보류"))),
+                ("--proof-source", "campaign_init --preempt".to_string()),
+                ("--ended-utc", utc.to_string()),
+            ];
+            if let Some(c) = text_of(cell) {
+                pairs.push(("--cell", c));
+            }
+            write_phase(ctx, &base, &Args::synthetic(pairs), node, phase, "failed", text_of(cell).as_deref())?;
+            if cell.is_truthy() {
+                append_journey(
+                    &base,
+                    &lifecycle_event(
+                        "cell_interrupted",
+                        utc,
+                        vec![
+                            ("cell_id", cell.clone()),
+                            ("node", py(node)),
+                            ("phase", py(phase)),
+                            ("preempted_by", preempted_by.map(py).unwrap_or(PyValue::None)),
+                        ],
+                    ),
+                )?;
+            }
+        }
+        wrote.push(ctx.rel(&append_journey(&base, &PyValue::Dict(event.clone()))?));
+        if ctx.active_id() == camp {
+            write_text(&ctx.active_pointer(), &format!("{BOOTSTRAP}\n"))?;
+        }
+        if let Some(p) = parked {
+            wrote.push(p);
+        }
+    }
+    Ok((event, wrote))
+}
+
+fn op_suspend(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let camp = args.get("--suspend").unwrap_or_default().to_string();
+    let mode = if args.has("--apply") { "APPLIED" } else { "DRY-RUN" };
+    require_transition_pair(args.get("--utc"), args.get("--approved-by"), "--suspend")?;
+    let (event, wrote) = suspend_campaign(
+        ctx,
+        &camp,
+        args.get("--utc").unwrap_or_default(),
+        args.get("--approved-by").unwrap_or_default(),
+        args.get("--reason").filter(|r| !r.is_empty()).unwrap_or("단독 보류"),
+        args.all("--release"),
+        args.has("--preempt"),
+        None,
+        None,
+        args.has("--apply"),
+    )?;
+    io.say(&format!(
+        "[campaign_init] {mode} suspended {camp} · 내린 자원 {} · 중단 셀 {} · {}",
+        shown_repr(event.get("released")),
+        shown_repr(event.get("interrupted_cells")),
+        wrote.join(" ")
+    ));
+    Ok(0)
+}
+
+fn shown_repr(v: Option<&PyValue>) -> String {
+    v.map(PyValue::repr).unwrap_or_else(|| "None".to_string())
+}
+
+fn op_resume_campaign(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let camp = args.get("--resume-campaign").unwrap_or_default().to_string();
+    let apply = args.has("--apply");
+    let mode = if apply { "APPLIED" } else { "DRY-RUN" };
+    require_transition_pair(args.get("--utc"), args.get("--approved-by"), "--resume-campaign")?;
+    let (utc, approved_by) = (args.get("--utc").unwrap_or_default(), args.get("--approved-by").unwrap_or_default());
+    let base = ctx.campaigns().join(&camp);
+    if !is_dir(&base) {
+        return transition_refuse(format!("인스턴스가 없다: campaigns/{camp}"));
+    }
+    let f = fold_lifecycle(ctx, &base, None);
+    if f.state != "suspended" && f.state != "resume_pending" {
+        let tail = if f.state == "orphan" { " (orphan 은 재개할 수 없다 — `--abandon` 으로만 정리)" } else { "" };
+        return transition_refuse(format!("{camp} 은 {} 다 — 재개는 보류 캠페인에만 한다{tail}", f.state));
+    }
+    let here = ctx.checkout_topology();
+    let want = dict_of(&f.suspended_pins).and_then(|p| get_text(p, "topology")).filter(|t| !t.is_empty()).or_else(|| f.topology.clone());
+    if want != here {
+        return transition_refuse(format!(
+            "토폴로지 불일치 — {camp} 은 topology={} 인데 체크아웃은 {} 다. 이것은 drift 가 아니라 4자일치 불변식 위반이다(--accept-drift 로 넘길 수 없다). 미커밋 0 을 확인하고 해당 브랜치로 전환한 뒤 재개하라(오배달 방지)",
+            want.as_deref().map(py_repr).unwrap_or_else(|| "None".to_string()),
+            here.as_deref().map(py_repr).unwrap_or_else(|| "None".to_string())
+        ));
+    }
+    let cur = ctx.active_id();
+    if cur != BOOTSTRAP {
+        return transition_refuse(format!("활성 캠페인 {cur} 이 있다 — 먼저 그것을 보류하거나 종결하라(ACTIVE 슬롯은 하나다)"));
+    }
+    let drift = pin_drift(&f.suspended_pins);
+    if !drift.is_empty() && !args.has("--accept-drift") {
+        return transition_refuse(format!(
+            "보류 동안 환경이 바뀌었다:\n  - {}\n  → 사람이 수용하면 `--accept-drift`, 아니면 `--abandon`(정상 차단)",
+            drift.join("\n  - ")
+        ));
+    }
+    if !apply {
+        let note = if drift.is_empty() { String::new() } else { format!(" (drift 수용 {}건)", drift.len()) };
+        print_messages(io, mode, &[format!("dry-run resume {camp}{note}")]);
+        return Ok(0);
+    }
+    let pq = dict_of(&f.pending_query).cloned().unwrap_or_default();
+    for cell in &f.interrupted_cells {
+        let pairs: Vec<(&str, String)> = vec![
+            ("--outcome", "pending".to_string()),
+            ("--next-intent", format!("preempt 로 중단된 셀 — 재개({utc})에 처음부터 재실행")),
+            ("--utc", utc.to_string()),
+        ];
+        write_cell(ctx, &base, &Args::synthetic(pairs), cell, "pending")?;
+    }
+    let handoff = if truthy(pq.get("child")) {
+        let mut h = PyDict::new();
+        h.set("child", pq.get("child").cloned().unwrap_or(PyValue::None));
+        h.set("child_reason", pq.get("child_reason").cloned().unwrap_or(PyValue::None));
+        h.set("pointers", pq.get("pointers").cloned().unwrap_or(PyValue::None));
+        vec![PyValue::Dict(h)]
+    } else {
+        Vec::new()
+    };
+    let subs = sub_nodes_of(ctx, &base);
+    append_journey(
+        &base,
+        &lifecycle_event(
+            "campaign_resumed",
+            utc,
+            vec![
+                ("approved_by", py(approved_by)),
+                ("accepted_drift", str_list(drift)),
+                ("handoff_pointers", PyValue::List(handoff)),
+                ("requeued_cells", str_list(f.interrupted_cells.clone())),
+                ("sub_nodes", PyValue::List(subs.clone())),
+                ("answers", last_ref(&f)),
+            ],
+        ),
+    )?;
+    write_text(&ctx.active_pointer(), &format!("{camp}\n"))?;
+    let mut out = vec![format!("resumed {camp} → ACTIVE={camp}")];
+    if !subs.is_empty() {
+        out.push(format!("서브 재개는 A2A 제어명령으로 전한다: relay.py --campaign-control resume --campaign-id {camp} --node <sub> … (echo 가 오기 전까지 '서브 미수렴')"));
+    }
+    print_messages(io, mode, &out);
+    Ok(0)
+}
+
+/// `abandoned_gate_reasons(camp, summary_testlog)`.
+fn abandoned_gate_reasons(ctx: &Ctx, camp: &str, summary: Option<&str>) -> Vec<String> {
+    let base = ctx.campaigns().join(camp);
+    let mut reasons = Vec::new();
+    match summary.filter(|s| !s.is_empty()) {
+        None => reasons.push("포기 요약 testlog 가 없다 — `--summary-testlog <docs/testlog/...md>`(포기 사유·미완 셀 목록)".to_string()),
+        Some(s) if !ctx.root.join(s).is_file() => reasons.push(format!("포기 요약 testlog 가 실재하지 않는다: {s}")),
+        Some(_) => {}
+    }
+    let ep = read_json(&base.join("evidence_pointers.json"));
+    let ptrs: Vec<PyDict> = ep.as_ref().and_then(dict_of).map(|d| list_or_empty(d.get("pointers"))).unwrap_or_default().iter().filter_map(dict_of).cloned().collect();
+    let cells = base.join("cells");
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(&cells).map(|r| r.filter_map(Result::ok).map(|e| e.path()).collect()).unwrap_or_default();
+    dirs.sort();
+    for cdir in dirs {
+        let name = name_of_path(&cdir);
+        let measured = read_json(&cdir.join("cell.status.json")).as_ref().and_then(dict_of).map(|st| get_text(st, "cell_outcome").as_deref() == Some("measured")).unwrap_or(false);
+        if !measured {
+            continue;
+        }
+        let mine: Vec<&PyDict> = ptrs
+            .iter()
+            .filter(|p| get_text(p, "cell_id").as_deref() == Some(name.as_str()) && truthy(p.get("path")) && !shown(p.get("path")).contains(FILL))
+            .collect();
+        if mine.is_empty() {
+            reasons.push(format!("측정된 셀 {name} 의 증거 포인터가 없다 — 측정은 docs 평면에 도착해야 지울 수 있다"));
+        }
+        for p in mine {
+            let path = shown(p.get("path"));
+            if !ctx.root.join(&path).exists() {
+                reasons.push(format!("측정된 셀 {name} 의 증거가 실재하지 않는다: {path}"));
+            }
+        }
+    }
+    reasons
+}
+
+fn op_abandon(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let camp = args.get("--abandon").unwrap_or_default().to_string();
+    let apply = args.has("--apply");
+    let mode = if apply { "APPLIED" } else { "DRY-RUN" };
+    require_transition_pair(args.get("--utc"), args.get("--approved-by"), "--abandon")?;
+    let (utc, approved_by) = (args.get("--utc").unwrap_or_default(), args.get("--approved-by").unwrap_or_default());
+    let Some(reason) = args.get("--reason").filter(|r| !r.is_empty()) else {
+        return transition_refuse("--abandon 은 --reason 이 필요하다(사유 없는 포기는 종결이 아니라 증발이다)");
+    };
+    let base = ctx.campaigns().join(&camp);
+    if !is_dir(&base) {
+        return transition_refuse(format!("인스턴스가 없다: campaigns/{camp}"));
+    }
+    let f = fold_lifecycle(ctx, &base, None);
+    if f.state == "closed" || f.state == "unknown" {
+        let tail = if f.state == "unknown" { " (모르는 이벤트: 브랜치 공통층 동기화 필요)" } else { "" };
+        return transition_refuse(format!("{camp} 은 {} 다 — 포기할 수 없다{tail}", f.state));
+    }
+    let mut released: Vec<PyValue> = Vec::new();
+    if f.state == "active" {
+        if !running_cells(&base).is_empty() {
+            return transition_refuse("진행 중인 셀이 있다 — 셀을 끝내거나 먼저 `--suspend --preempt` 로 내린 뒤 포기하라");
+        }
+        released = release_resources(ctx, f.topology.as_deref(), args.all("--release"), apply)?;
+    }
+    let summary = args.get("--summary-testlog");
+    let reasons = abandoned_gate_reasons(ctx, &camp, summary);
+    if !reasons.is_empty() {
+        return transition_refuse(format!("abandoned 축소 게이트가 닫혀 있다:\n  - {}", reasons.join("\n  - ")));
+    }
+    if !apply {
+        print_messages(io, mode, &[format!("dry-run abandon {camp}")]);
+        return Ok(0);
+    }
+    let main_node = list_of(read_declaration(&base).get("nodes").unwrap_or(&PyValue::None))
+        .into_iter()
+        .flatten()
+        .filter_map(dict_of)
+        .find(|n| get_text(n, "role").as_deref() == Some("main") && !shown(n.get("node_id")).contains(FILL))
+        .and_then(|n| n.get("node_id").cloned());
+    let summary_text = summary.unwrap_or_default();
+    let mut pairs: Vec<(&str, String)> = vec![("--kind", "testlog".to_string()), ("--path", summary_text.to_string()), ("--unfreeze", String::new())];
+    if let Some(n) = main_node.as_ref().and_then(text_of) {
+        pairs.push(("--node", n));
+    }
+    add_evidence(ctx, &base, &camp, &Args::synthetic(pairs))?;
+    let subs = sub_nodes_of(ctx, &base);
+    append_journey(
+        &base,
+        &lifecycle_event(
+            "campaign_closed",
+            utc,
+            vec![
+                ("reason", py("abandoned")),
+                ("note", py(reason)),
+                ("approved_by", py(approved_by)),
+                ("summary_testlog", py(summary_text)),
+                ("released", PyValue::List(released)),
+                ("sub_nodes", PyValue::List(subs.clone())),
+                ("answers", last_ref(&f)),
+            ],
+        ),
+    )?;
+    if ctx.active_id() == camp {
+        write_text(&ctx.active_pointer(), &format!("{BOOTSTRAP}\n"))?;
+    }
+    let sub_names: Vec<String> = subs.iter().filter_map(text_of).collect();
+    let mut out = vec![format!("closed(abandoned) {camp}{}", sub_close_hint(&camp, &sub_names, "abandon"))];
+    if let Some(parent) = parent_on_close(ctx, &base, "abandoned", utc)? {
+        out.push(format!("부모 {parent} 에 재개 미결(계기 a)"));
+    }
+    print_messages(io, mode, &out);
+    Ok(0)
+}
+
+fn pending_dispositions(table: &[(String, Fold)], exclude: &[&str]) -> Vec<String> {
+    table
+        .iter()
+        .filter(|(c, f)| !exclude.contains(&c.as_str()) && (f.state == "suspended" || f.state == "resume_pending") && !f.answered)
+        .map(|(c, _)| c.clone())
+        .collect()
+}
+
+fn apply_dispositions(
+    ctx: &Ctx,
+    dispositions: &[(String, String)],
+    need: &[String],
+    utc: &str,
+    approved_by: &str,
+    table: &[(String, Fold)],
+    apply: bool,
+) -> R<Vec<String>> {
+    let missing: Vec<&String> = need.iter().filter(|c| !dispositions.iter().any(|(d, _)| d == *c)).collect();
+    if !missing.is_empty() {
+        return transition_refuse(format!(
+            "무관한 캠페인 개설(계기 d) — 답이 없는 보류 캠페인의 처분이 필요하다: {}. 선언 확인 팝업에서 묻고 `--dispose <id>=keep` 로 전사하라. 포기는 먼저 `--abandon <id>` 로 종결 사유를 받는다(정상 차단 — 묻지 않고 넘어가면 보류가 잊힌다)",
+            missing.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", ")
+        ));
+    }
+    let mut wrote = Vec::new();
+    for (camp, decision) in dispositions {
+        if decision != "keep" {
+            return transition_refuse(format!("--dispose 는 keep 만 받는다({}={}) — 포기는 `--abandon {camp}` 로 종결한다", camp, py_repr(decision)));
+        }
+        let found = table.iter().find(|(c, _)| c == camp).map(|(_, f)| f);
+        match found {
+            Some(f) if f.state == "suspended" || f.state == "resume_pending" => {
+                if apply {
+                    let path = append_journey(
+                        &ctx.campaigns().join(camp),
+                        &lifecycle_event(
+                            "campaign_query_answered",
+                            utc,
+                            vec![
+                                ("decision", py("keep")),
+                                ("trigger", py("unrelated_open")),
+                                ("answers", last_ref(f)),
+                                ("approved_by", py(approved_by)),
+                            ],
+                        ),
+                    )?;
+                    wrote.push(ctx.rel(&path));
+                }
+            }
+            other => {
+                return transition_refuse(format!(
+                    "--dispose 대상 {camp} 은 보류 상태가 아니다({})",
+                    other.map(|f| py_repr(&f.state)).unwrap_or_else(|| "None".to_string())
+                ))
+            }
+        }
+    }
+    Ok(wrote)
+}
+
 fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     let new_id = args.get("--init").unwrap_or_default().to_string();
     let apply = args.has("--apply");
@@ -5413,90 +6018,163 @@ fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
         io.warn("[campaign_init] FAIL --init 은 --plan-ref 가 필요하다(승인 없는 개설 ✗)");
         return Ok(2);
     };
-    // Shapes with a suspension, a lineage, a slice, a purge or a disposition are the owner's.
-    let unmodelled = [
-        "--suspend-current", "--derived-from", "--preempt", "--release", "--dispose",
-    ];
-    if unmodelled.iter().any(|o| args.has(o)) {
-        return Err(Stop::Fallback);
+    let mut dispositions: Vec<(String, String)> = Vec::new();
+    for kv in args.all("--dispose") {
+        match kv.split_once('=') {
+            Some((k, v)) if !k.is_empty() => match dispositions.iter_mut().find(|(n, _)| n == k.trim()) {
+                Some(slot) => slot.1 = v.trim().to_string(),
+                None => dispositions.push((k.trim().to_string(), v.trim().to_string())),
+            },
+            _ => return transition_refuse(format!("--dispose 는 CAMP=keep 형식이다: {}", py_repr(kv))),
+        }
     }
+    let messages = open_campaign(ctx, args, &new_id, plan_ref, dispositions)?;
+    print_messages(io, mode, &messages);
+    Ok(0)
+}
+
+fn open_campaign(ctx: &Ctx, args: &Args, new_id: &str, plan_ref: &str, dispositions: Vec<(String, String)>) -> R<Vec<String>> {
+    let apply = args.has("--apply");
     let utc = args.get("--utc");
-    let approved_by = args.get("--approved-by");
-    let cur = ctx.active_id();
-    let instances = list_instances(ctx);
-    let table: Vec<(String, Fold)> = {
-        let active = ctx.active_id();
-        instances
-            .iter()
-            .map(|p| {
-                (
-                    p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default(),
-                    fold_lifecycle(ctx, p, Some(&active)),
-                )
-            })
-            .collect()
-    };
-    let here = ctx.checkout_topology();
-    if table.iter().any(|(_, f)| {
-        f.state == "suspended"
-            && dict_of(&f.open_pending).and_then(|d| get_text(d, "id")).as_deref() == Some(new_id.as_str())
-    }) {
-        return Err(Stop::Fallback);
-    }
+    let mut approved_by: Option<String> = args.get("--approved-by").map(str::to_string);
+    let suspend_current = args.has("--suspend-current");
+    let preempt = args.has("--preempt");
+    let releases: Vec<String> = args.all("--release").to_vec();
     let purge_previous: Vec<String> = args.all("--purge-previous").to_vec();
-    if cur != BOOTSTRAP && !purge_previous.contains(&cur) {
-        return refuse(format!(
-            "활성 캠페인 {cur} 이 있다 — 처분 없이 덮어쓰는 --init 은 거부한다(옛 허점: ACTIVE 만 바뀌고 {cur} 이 이름 없는 잔재가 된다). 셋 중 하나를 고른다: ① `--suspend-current [--derived-from {cur}]` 로 보류+개설 ② `--close {cur}`(완주) ③ `--abandon {cur}`(포기) — 정상 차단"
-        ));
-    }
+    let mut derived_from: PyValue = args.get("--derived-from").filter(|d| !d.is_empty()).map(py).unwrap_or(PyValue::None);
+    let cur = ctx.active_id();
+    let table = lifecycle_table(ctx);
+    let here = ctx.checkout_topology();
+    let mut msgs: Vec<String> = Vec::new();
     let slice: Option<PyDict> = match args.get("--from-slice") {
         Some(source) => Some(load_slice(source)?),
         None => None,
     };
     let sub_slice = slice.as_ref().filter(|d| get_text(d, "self_role").as_deref() == Some("sub"));
-    let derived_from: PyValue = sub_slice.and_then(|d| d.get("_lifecycle_parent").cloned()).unwrap_or(PyValue::None);
-    let need = sub_slice.is_none()
-        && table
-            .iter()
-            .any(|(c, f)| *c != cur && (f.state == "suspended" || f.state == "resume_pending") && !f.answered);
-    if need {
-        return Err(Stop::Fallback);
+    if let Some(sd) = sub_slice {
+        if !derived_from.is_truthy() {
+            derived_from = sd.get("_lifecycle_parent").cloned().unwrap_or(PyValue::None);
+        }
     }
-    if utc.is_some() || approved_by.is_some() {
-        require_transition(utc, approved_by, "수명 전이(--init)")?;
+    let waiting = table.iter().find(|(_, f)| {
+        f.state == "suspended" && dict_of(&f.open_pending).and_then(|d| get_text(d, "id")).as_deref() == Some(new_id)
+    });
+    let mut target_arg: Option<String> = args.get("--target-topology").map(str::to_string);
+    let mut need: Vec<String> = Vec::new();
+    if let (Some((_, wf)), false) = (waiting, suspend_current) {
+        let pending = dict_of(&wf.open_pending).cloned().unwrap_or_default();
+        let want = pending.get("topology").cloned().unwrap_or(PyValue::None);
+        if cur != BOOTSTRAP {
+            return transition_refuse(format!("개설 대기 {new_id} 를 이어받으려면 ACTIVE 가 비어 있어야 한다(현재 {cur})"));
+        }
+        if text_of(&want) != here {
+            return transition_refuse(format!(
+                "{new_id} 는 topology={} 로 개설 대기 중인데 체크아웃은 {} 다 — 대상 브랜치로 전환한 뒤 같은 명령을 다시 쳐라(4자일치 · 오배달 방지)",
+                want.repr(),
+                here.as_deref().map(py_repr).unwrap_or_else(|| "None".to_string())
+            ));
+        }
+        if !derived_from.is_truthy() {
+            derived_from = pending.get("parent").cloned().unwrap_or(PyValue::None);
+        }
+        target_arg = text_of(&want);
+        if approved_by.as_deref().map(str::is_empty).unwrap_or(true) {
+            approved_by = pending.get("approved_by").and_then(text_of);
+        }
+        require_transition_pair(utc, approved_by.as_deref(), "개설 대기 이어받기(2단)")?;
+    } else {
+        if cur != BOOTSTRAP && !suspend_current && !purge_previous.contains(&cur) {
+            return transition_refuse(format!(
+                "활성 캠페인 {cur} 이 있다 — 처분 없이 덮어쓰는 --init 은 거부한다(옛 허점: ACTIVE 만 바뀌고 {cur} 이 이름 없는 잔재가 된다). 셋 중 하나를 고른다: ① `--suspend-current [--derived-from {cur}]` 로 보류+개설 ② `--close {cur}`(완주) ③ `--abandon {cur}`(포기) — 정상 차단"
+            ));
+        }
+        if suspend_current && cur == BOOTSTRAP {
+            return transition_refuse("--suspend-current 를 줬지만 활성 캠페인이 없다(ACTIVE=_bootstrap) — 플래그를 빼라(의도 모순)");
+        }
+        if derived_from.is_truthy() && sub_slice.is_none() {
+            let parent = text_of(&derived_from).unwrap_or_default();
+            let pf = table.iter().find(|(c, _)| *c == parent).map(|(_, f)| f);
+            let ok_states: &[&str] = if suspend_current && parent == cur { &["active"] } else { &["suspended", "resume_pending"] };
+            if !pf.map(|f| ok_states.contains(&f.state.as_str())).unwrap_or(false) {
+                return transition_refuse(format!(
+                    "--derived-from {} 은 {} 다 — 파생 부모는 지금 보류되는 활성 캠페인이거나 보류 중인 캠페인이어야 한다",
+                    shown(Some(&derived_from)),
+                    pf.map(|f| f.state.clone()).unwrap_or_else(|| "None".to_string())
+                ));
+            }
+        }
+        need = if derived_from.is_truthy() || sub_slice.is_some() { Vec::new() } else { pending_dispositions(&table, &[cur.as_str()]) };
+        if suspend_current || utc.is_some() || approved_by.is_some() || !need.is_empty() || !dispositions.is_empty() {
+            require_transition_pair(utc, approved_by.as_deref(), "수명 전이(--init)")?;
+        }
     }
-    let target = args.get("--target-topology").map(str::to_string).or_else(|| here.clone());
+    let target = target_arg.or_else(|| here.clone());
     let target = match target.as_deref() {
-        Some("single" | "multi") => target.expect("checked"),
+        Some("single" | "multi") => target.clone().expect("checked"),
         other => {
-            return refuse(format!(
+            return transition_refuse(format!(
                 "대상 토폴로지를 정할 수 없다({}) — `--target-topology single|multi`",
                 other.map(py_repr).unwrap_or_else(|| "None".to_string())
             ))
         }
     };
-    if table.iter().any(|(c, _)| *c == new_id) || ctx.campaigns().join(&new_id).exists() {
-        return refuse(format!("이미 있는 인스턴스다: campaigns/{new_id}"));
+    if table.iter().any(|(c, _)| c == new_id) || ctx.campaigns().join(new_id).exists() {
+        return transition_refuse(format!("이미 있는 인스턴스다: campaigns/{new_id}"));
     }
-    if RESERVED_IDS.contains(&new_id.as_str()) {
-        return refuse(format!("예약 id 로는 캠페인을 열 수 없다: {}", py_repr(&new_id)));
+    if RESERVED_IDS.contains(&new_id) {
+        return transition_refuse(format!("예약 id 로는 캠페인을 열 수 없다: {}", py_repr(new_id)));
     }
-    if Some(target.as_str()) != here.as_deref() {
-        return refuse(format!(
+    let (utc_text, approved_text) = (utc.unwrap_or_default().to_string(), approved_by.clone().unwrap_or_default());
+    if !need.is_empty() {
+        apply_dispositions(ctx, &dispositions, &need, &utc_text, &approved_text, &table, false)?;
+    }
+    let stage1_only = Some(target.as_str()) != here.as_deref();
+    if suspend_current {
+        let nxt = if stage1_only {
+            let mut n = PyDict::new();
+            n.set("id", py(new_id));
+            n.set("topology", py(&target));
+            n.set("plan_ref", py(plan_ref));
+            n.set("parent", derived_from.clone());
+            n.set("approved_by", approved_by.as_deref().map(py).unwrap_or(PyValue::None));
+            Some(PyValue::Dict(n))
+        } else {
+            None
+        };
+        let default_reason = format!("{new_id} 개설로 전환");
+        let (event, wrote) = suspend_campaign(
+            ctx,
+            &cur,
+            &utc_text,
+            &approved_text,
+            args.get("--reason").filter(|r| !r.is_empty()).unwrap_or(&default_reason),
+            &releases,
+            preempt,
+            Some(new_id),
+            nxt,
+            apply,
+        )?;
+        msgs.push(format!(
+            "suspended {cur} (내린 자원 {} · 중단 셀 {})",
+            list_or_empty(event.get("released")).len(),
+            list_or_empty(event.get("interrupted_cells")).len()
+        ));
+        msgs.extend(wrote);
+    } else if stage1_only {
+        return transition_refuse(format!(
             "대상 토폴로지 {} 가 체크아웃({})과 다르다 — 반대 토폴로지 캠페인을 이 브랜치에서 열 수 없다(4자일치). 보류할 활성 캠페인이 있으면 `--suspend-current` 로 1단을 남기고, 없으면 대상 브랜치에서 연다",
             py_repr(&target),
             here.as_deref().map(py_repr).unwrap_or_else(|| "None".to_string())
         ));
     }
-    // purge: an abandoned previous instance is the owner's reduction gate; decide that before the first removal
-    for prev in &purge_previous {
-        let probe = ctx.campaigns().join(prev);
-        if is_dir(&probe) {
-            let life = fold_lifecycle(ctx, &probe, None);
-            if life.state == "closed" && life.close_reason.as_deref() == Some("abandoned") && life.sub_convergence.as_deref() != Some("unconverged") {
-                return Err(Stop::Fallback);
-            }
-        }
+    if !need.is_empty() {
+        msgs.extend(apply_dispositions(ctx, &dispositions, &need, &utc_text, &approved_text, &table, apply)?);
+    }
+    if stage1_only {
+        msgs.push(format!(
+            "1단 완료 — {new_id} 개설 대기(topology={target}). 미커밋 0 확인 → {target}-node 체크아웃 → 같은 `--init {new_id} --plan-ref {plan_ref} --apply` 로 2단"
+        ));
+        return Ok(msgs);
     }
     let mut removed: Vec<String> = Vec::new();
     for prev in &purge_previous {
@@ -5527,23 +6205,23 @@ fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
         }
     }
     // scaffold
-    let dest = ctx.campaigns().join(&new_id);
+    let dest = ctx.campaigns().join(new_id);
     if apply {
         copy_tree(&ctx.template(), &dest)?;
         let decl = read_json(&dest.join("campaign.yaml"))
             .ok_or_else(|| Stop::Refuse("campaign.yaml 을 읽지 못했다".to_string()))?;
         let mut doc = without_notes(&decl);
         if let Some(sd) = &slice {
-            if get_text(sd, "id").as_deref() != Some(new_id.as_str()) {
+            if get_text(sd, "id").as_deref() != Some(new_id) {
                 return refuse(format!(
                     "파생 선언의 id({})와 개설 이름({})이 다르다 — 이름이 곧 증거 연결이다",
                     sd.get("id").map(PyValue::repr).unwrap_or_else(|| "None".to_string()),
-                    py_repr(&new_id)
+                    py_repr(new_id)
                 ));
             }
             doc = without_notes(&PyValue::Dict(sd.clone()));
         }
-        doc.set("id", py(&new_id));
+        doc.set("id", py(new_id));
         if slice.is_none() {
             doc.set("plan_ref", py(plan_ref));
         } else if !doc.contains_key("plan_ref") {
@@ -5553,13 +6231,12 @@ fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
         let ep_path = dest.join("evidence_pointers.json");
         let ep = read_json(&ep_path).ok_or_else(|| Stop::Refuse("evidence_pointers.json 을 읽지 못했다".to_string()))?;
         let mut ep = without_notes(&ep);
-        ep.set("campaign_id", py(&new_id));
+        ep.set("campaign_id", py(new_id));
         if !ep.contains_key("pointers") {
             ep.set("pointers", PyValue::List(Vec::new()));
         }
         write_json_ordered(&ep_path, &PyValue::Dict(ep))?;
         write_text(&ctx.active_pointer(), &format!("{new_id}\n"))?;
-        // topology and the opened event
         let mut doc = read_declaration(&dest);
         let mut cv = get_dict(&doc, "control_variables").cloned().unwrap_or_default();
         let unset = match cv.get("topology") {
@@ -5571,28 +6248,31 @@ fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
             doc.set("control_variables", PyValue::Dict(cv));
             write_json_ordered(&dest.join("campaign.yaml"), &PyValue::Dict(doc))?;
         }
-        if let Some(utc) = utc.filter(|u| !u.is_empty()) {
-            let mut event = PyDict::new();
-            event.set("utc", py(utc));
-            event.set("kind", py("campaign_opened"));
-            event.set("lifecycle_v", PyValue::int(LIFECYCLE_V));
-            event.set("source", py("campaign_init"));
-            event.set("parent", derived_from.clone());
-            event.set("topology", py(&target));
-            event.set("approved_by", approved_by.map(py).unwrap_or(PyValue::None));
-            event.set("plan_ref", py(plan_ref));
-            append_journey(&dest, &PyValue::Dict(event))?;
+        if !utc_text.is_empty() {
+            append_journey(
+                &dest,
+                &lifecycle_event(
+                    "campaign_opened",
+                    &utc_text,
+                    vec![
+                        ("parent", derived_from.clone()),
+                        ("topology", py(&target)),
+                        ("approved_by", approved_by.as_deref().map(py).unwrap_or(PyValue::None)),
+                        ("plan_ref", py(plan_ref)),
+                    ],
+                ),
+            )?;
         }
     }
     let parent_note = if derived_from.is_truthy() { format!(" parent={}", shown(Some(&derived_from))) } else { String::new() };
-    io.say(&format!(
-        "[campaign_init] {mode} purge={} init=['campaigns/{new_id}']{parent_note}",
-        py_list_repr(&removed)
-    ));
+    msgs.push(format!("purge={} init=['campaigns/{new_id}']{parent_note}", py_list_repr(&removed)));
     if !swept.is_empty() {
-        io.say(&format!("[campaign_init] {mode} _bootstrap/relay 정리 {}건", swept.len()));
+        msgs.push(format!("_bootstrap/relay 정리 {}건", swept.len()));
     }
-    Ok(0)
+    if suspend_current && cur != BOOTSTRAP && !sub_nodes_of(ctx, &ctx.campaigns().join(&cur)).is_empty() {
+        msgs.push(format!("서브 보류는 A2A 제어명령으로 전한다: relay.py --campaign-control suspend --campaign-id {cur} --node <sub> … (echo 가 오기 전까지 '서브 미수렴' · 메인은 진행)"));
+    }
+    Ok(msgs)
 }
 
 // ── --reentry-decide ─────────────────────────────────────────────────────────────────────────
@@ -5842,7 +6522,10 @@ fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 // ── dispatch ─────────────────────────────────────────────────────────────────────────────────
 
 /// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 33] = [
+const NATIVE_OPS: [&str; 36] = [
+    "--suspend",
+    "--resume-campaign",
+    "--abandon",
     "--cell-materialize",
     "--escalation-add",
     "--slice-update",
@@ -5883,6 +6566,9 @@ fn allowed_options(op: &str) -> &'static [&'static str] {
     match op {
         "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
         "--verify-purge-gate" => &["--verify-purge-gate"],
+        "--suspend" => &["--suspend", "--reason", "--release", "--preempt", "--utc", "--approved-by", "--apply"],
+        "--resume-campaign" => &["--resume-campaign", "--utc", "--approved-by", "--accept-drift", "--apply"],
+        "--abandon" => &["--abandon", "--utc", "--approved-by", "--reason", "--summary-testlog", "--release", "--apply"],
         "--cell-materialize" => &["--cell-materialize", "--set", "--utc", "--campaign-id"],
         "--escalation-add" => &["--escalation-add", "--cell", "--utc", "--node", "--symptom", "--events", "--window-start-utc", "--window-end-utc", "--campaign-id"],
         "--slice-update" => &["--slice-update", "--utc", "--apply"],
@@ -5981,6 +6667,9 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     let result = match op {
         "--assigned-cells" => op_assigned_cells(ctx, &args, io),
         "--verify-purge-gate" => op_verify_purge_gate(ctx, &args, io),
+        "--suspend" => op_suspend(ctx, &args, io),
+        "--resume-campaign" => op_resume_campaign(ctx, &args, io),
+        "--abandon" => op_abandon(ctx, &args, io),
         "--cell-materialize" => op_cell_materialize(ctx, &args, io),
         "--escalation-add" => op_escalation_add(ctx, &args, io),
         "--slice-update" => op_slice_update(ctx, &args, io),
