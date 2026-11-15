@@ -810,6 +810,9 @@ VLLM_PLE_MMAP_DIR=/app/ple_mmap/q
 ";
 
 fn fixture(root: &Path) -> PathBuf {
+    fixture_extra(root, "")
+}
+pub(crate) fn fixture_extra(root: &Path, manifest_extra: &str) -> PathBuf {
     let base = root.join("output").join("multi");
     let w = |rel: &str, text: &str| {
         let p = base.join(rel);
@@ -817,7 +820,7 @@ fn fixture(root: &Path) -> PathBuf {
         std::fs::write(p, text).unwrap();
     };
     w("docker-compose.yaml", FX_COMPOSE);
-    w("manifest.yaml", "quant_model_path: \"/fx/quant\"\nple_mmap_host_path: \"/fx/ple\"\n");
+    w("manifest.yaml", &format!("quant_model_path: \"/fx/quant\"\nple_mmap_host_path: \"/fx/ple\"\n{manifest_extra}"));
     w("configs/src.yaml", FX_YAML);
     w("configs/src.sh", "#!/bin/bash\nvllm serve --config /app/configs/${CONFIG_FILE}.yaml\n");
     w("envs/.env.src", FX_ENV);

@@ -18,6 +18,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
 pub mod up;
+mod self_test;
 
 pub const EXIT_OK: i32 = 0;
 pub const EXIT_USAGE: i32 = 2;
@@ -1869,8 +1870,7 @@ fn spec_for(op: &'static str) -> Spec {
 pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
     let first = args.first().and_then(PyStr::to_utf8).unwrap_or_default();
     if first == "--self-test" {
-        say_err("native_multinode_serve: --self-test 는 이식 전이다(원본 native_multinode_serve.py --self-test 를 쓴다)");
-        return EXIT_USAGE;
+        return self_test::self_test(&gate_cli::scripts_dir(script, "native_multinode_serve"));
     }
     let op: &'static str = match first.as_str() {
         "up" => "up",

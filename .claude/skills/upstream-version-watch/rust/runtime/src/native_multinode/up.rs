@@ -176,6 +176,7 @@ pub enum ServeExec {
 /// Observations of the health + smoke stage (the Python `obs` dict).
 #[derive(Clone, Default)]
 pub struct Obs {
+    pub present: bool,
     pub health_ok: bool,
     pub health_http: i64,
     pub ready_after_s: Option<i64>,
@@ -579,7 +580,8 @@ impl<'a> NativeServe<'a> {
 
     /// `doc_naming.simlog_dirname` through the TypeScript owner (`node doc_naming.ts simlog_dirname '<json args>'`) — no Python.
     fn simlog_dirname(&self, generated_utc: &str, topic: &str, existing: &[String]) -> R<String> {
-        let ts = self.c.repo.join(".claude/skills/wiki-desk/src/doc_naming.ts");
+        let src_root = self.here.ancestors().nth(4).map(Path::to_path_buf).unwrap_or_else(|| self.c.repo.clone());
+        let ts = src_root.join(".claude/skills/wiki-desk/src/doc_naming.ts");
         let mut ex: Vec<&String> = existing.iter().collect();
         ex.sort();
         let args = PyValue::List(vec![vs(generated_utc), vs(topic), PyValue::List(ex.iter().map(|s| vs(s)).collect())]);
@@ -637,7 +639,11 @@ impl<'a> NativeServe<'a> {
             }
         }
         self.state_write()?;
-        std::fs::create_dir(c.repo.join(&preserve_rel)).map_err(|e| Err::Serve(e.to_string()))?;
+        let pdir = c.repo.join(&preserve_rel);
+        if let Some(par) = pdir.parent() {
+            std::fs::create_dir_all(par).map_err(|e| Err::Serve(e.to_string()))?;
+        }
+        std::fs::create_dir(&pdir).map_err(|e| Err::Serve(e.to_string()))?;
         for name in ["main", "sub"] {
             self.r.get(name).run(&mkdirs_argv(c.node(name)), 30, true)?;
         }
@@ -863,7 +869,7 @@ impl<'a> NativeServe<'a> {
             self.clock.sleep(HEALTH_INTERVAL_S as f64);
         }
         let waited = (self.clock.mono() - t0).floor() as i64;
-        let mut obs = Obs { health_ok: ready, health_http: last, ready_after_s: ready.then_some(waited), window_s: c.ready_max_s, ..Obs::default() };
+        let mut obs = Obs { present: true, health_ok: ready, health_http: last, ready_after_s: ready.then_some(waited), window_s: c.ready_max_s, ..Obs::default() };
         if !ready {
             return Ok(obs);
         }
@@ -945,8 +951,10 @@ impl<'a> NativeServe<'a> {
             ("provenance", vs("measured(native_multinode_serve.py up · health GET + 추론 POST 관측)")),
         ]);
         if let PyValue::Dict(d) = &mut doc {
-            if !obs.health_ok && obs.health_http == 0 && !obs.inf_attempted && state_get(st, "native_install_rel").is_none() && false {
+            if !obs.present {
                 d.set("health", dict(vec![("ok", PyValue::Bool(false))]));
+                d.set("inference", dict(vec![("ok", PyValue::Bool(false))]));
+                d.set("endpoints", PyValue::Dict(PyDict::new()));
             }
             if truthy(state_get(st, "native_launch_error")) {
                 d.set("native_launch_error", state_get(st, "native_launch_error").cloned().unwrap_or(PyValue::None));
