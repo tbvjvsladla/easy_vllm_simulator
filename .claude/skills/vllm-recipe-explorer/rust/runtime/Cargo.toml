@@ -29,6 +29,10 @@ name = "recipe"
 path = "src/bin/recipe.rs"
 
 [[bin]]
+name = "run_trial"
+path = "src/bin/run_trial.rs"
+
+[[bin]]
 name = "recipe_numeric_api"
 path = "src/bin/recipe_numeric_api.rs"
 
@@ -307,3 +311,7 @@ required-features = ["fixture"]
 name = "cleanup_checks"
 path = "checks/cleanup_checks.rs"
 required-features = ["fixture"]
+
+[[test]]
+name = "run_trial_checks"
+path = "checks/run_trial_checks.rs"

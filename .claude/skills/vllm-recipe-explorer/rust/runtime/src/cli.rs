@@ -161,11 +161,11 @@ fn load_failure(error: LoadError) -> Failure {
 }
 
 /// `json.load(open(path, encoding="utf-8"))`.
-fn load_json(path: &PyStr) -> Res<PyValue> {
+pub(crate) fn load_json(path: &PyStr) -> Res<PyValue> {
     loads_text(&read_text(path)?).map_err(load_failure)
 }
 
-fn dumps(value: &PyValue) -> Res<PyStr> {
+pub(crate) fn dumps(value: &PyValue) -> Res<PyStr> {
     value.dumps_pretty().map_err(|error| {
         let text = error.to_string();
         let prefix = format!("{}: ", error.python_type());
@@ -176,7 +176,7 @@ fn dumps(value: &PyValue) -> Res<PyStr> {
     })
 }
 
-fn println_text(mut text: PyStr) -> PyStr {
+pub(crate) fn println_text(mut text: PyStr) -> PyStr {
     text.push_str("\n");
     text
 }

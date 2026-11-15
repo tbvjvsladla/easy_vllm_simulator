@@ -65,6 +65,8 @@ pub mod rank_recipes;
 pub mod recipe_cmd;
 pub mod recipe_set;
 pub mod rope_translate;
+pub mod run_trial;
+pub mod run_trial_cli;
 pub mod simlog;
 pub mod simlog_api;
 pub mod simlog_bench;
