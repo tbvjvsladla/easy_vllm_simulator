@@ -788,6 +788,7 @@ struct Roles {
     budget_source: String,
     deploy_gmu: f64,
     deploy_gmu_source: String,
+    deploy_gmu_declared: f64,
     gmu_source: &'static str,
     gpu_model: String,
 }
@@ -884,10 +885,13 @@ fn gpu_roles(streams: &mut Streams, cfg: &PyValue, tp: i64, root: &PyStr) -> Ste
         budget_source,
         deploy_gmu,
         deploy_gmu_source: deploy_src,
+        deploy_gmu_declared: declared_gmu,
         gmu_source,
         gpu_model,
     })
 }
+
+mod simulate_body;
 
 fn simulate_spec() -> Spec {
     let opt = |flags: &'static [&'static str], dest: &'static str, kind: Kind, help: Option<&'static str>, required: bool| Opt {
@@ -1184,52 +1188,6 @@ fn declared_axis_tp(cfg: &PyValue) -> (Option<i64>, &'static str, String) {
     }
 }
 
-/// The front of `cmd_simulate` that is ported: config, TP, the two gmu roles and the declared-TP note (all on stderr).
-fn simulate_front(streams: &mut Streams, config: &PyStr, root: &PyStr) -> Step<()> {
-    let cfg = load_config(config)?;
-    let target = truthy_get(&cfg, "target_model");
-    let target = if target.is_truthy() { target } else { empty_dict() };
-    if !truthy_get(&target, "path").is_truthy() {
-        return Err(die(1, "config.target_model.path 누락"));
-    }
-    if is_none(&truthy_get(&cfg, "vram_budget_gb")) {
-        return Err(die(1, "config.vram_budget_gb 누락"));
-    }
-    let tp = resolve_tp(&cfg, root)?;
-    guard_tp(tp, root)?;
-    let roles = gpu_roles(streams, &cfg, tp, root)?;
-    streams.eprint(&PyStr::new(&format!(
-        "[recipe] gmu 역할({} 흐름): deploy_gmu={:.3} ({}) · gate_margin={:.3} ({}) · budget=per_card_vram {:.2} GiB ({}) · gpu_model={} · TP={}(÷{}) · lockset gmu_source={}",
-        roles.flow, roles.deploy_gmu, roles.deploy_gmu_source, roles.gate_margin, roles.gate_margin_source,
-        roles.budget_gib, roles.budget_source, roles.gpu_model, tp, roles.tp_divisor, roles.gmu_source
-    )));
-    if roles.gmu_source != "target_gmu" {
-        streams.eprint(&PyStr::new(&format!(
-            "[recipe] ⚠ 배포 gmu 가 정본 칸(target_gpu.target_gmu)에서 오지 않았다 — {}. lockset gmu_source={} 로 각인한다.",
-            roles.deploy_gmu_source, roles.gmu_source
-        )));
-    }
-    if roles.deploy_gmu > roles.gate_margin + 1e-9 {
-        streams.eprint(&PyStr::new(&format!(
-            "[recipe] ⓘ deploy_gmu {:.3} > gate_margin {:.3} — 클램프 산식 천장(budget×deploy_gmu)이 검증 게이트 천장(budget×gate_margin)보다 높다. 게이트는 weights+overhead 만 본다(기재 · 차단 ✗).",
-            roles.deploy_gmu, roles.gate_margin
-        )));
-    }
-    let (dtp, dtp_state, dtp_src) = declared_axis_tp(&cfg);
-    match dtp {
-        Some(d) if d != tp => streams.eprint(&PyStr::new(&format!(
-            "[recipe] ⚠ declared_axes.tp={} ≠ 해소 TP={} — TP 의 권위는 manifest 다. 선언을 고쳐라(기재 · 차단 ✗).",
-            d, tp
-        ))),
-        None if dtp_state == "malformed" => streams.eprint(&PyStr::new(&format!(
-            "[recipe] ⚠ {} — 해소 TP={} 와 대조하지 못했다(기재 · 차단 ✗).",
-            dtp_src, tp
-        ))),
-        _ => {}
-    }
-    Ok(())
-}
-
 const TOP_USAGE: &str = "usage: recipe.py [-h] {estimate,generate,simulate} ...";
 
 /// `recipe.py ...`: `main(argv)`. `skill_root` is the deployed skill (the binary's anchor).
@@ -1248,21 +1206,41 @@ pub fn recipe_main(args: &[PyStr], columns: Option<&str>, skill_root: &PyStr) ->
             if let Err(d) = require_terraform_flag(&root) {
                 return stop(streams, d);
             }
-            let config = match values.get("config") {
-                Some(Value::Text(t)) => t.clone(),
-                _ => unreachable!("--config is required"),
+            let text = |d: &str| match values.get(d) {
+                Some(Value::Text(t)) => Some(t.clone()),
+                _ => None,
             };
-            if let Err(d) = simulate_front(&mut streams, &config, &root) {
-                if d.code == -1 {
+            let int = |d: &str| match values.get(d) {
+                Some(Value::Int(n)) => i64::try_from(n.clone()).ok(),
+                _ => None,
+            };
+            let args = simulate_body::Args {
+                config: text("config").expect("--config is required"),
+                candidate: text("candidate").expect("--candidate is required"),
+                dry_run: matches!(values.get("dry_run"), Some(Value::Flag)),
+                mock_profile: text("mock_profile"),
+                run_id: text("run_id").filter(|t| !t.is_empty()),
+                topic: text("topic").filter(|t| !t.is_empty()),
+                cap: int("cap").unwrap_or(3),
+                image: text("image").unwrap_or_else(|| s("vllm-src-022:clean")),
+                timeout: int("timeout").unwrap_or(900),
+                overhead_mib: int("overhead_mib"),
+                force: matches!(values.get("force"), Some(Value::Flag)),
+                lockset_out: text("lockset_out").filter(|t| !t.is_empty()),
+            };
+            return match simulate_body::cmd_simulate(&mut streams, &args, &root, skill_root) {
+                Ok(status) => streams.finish(status),
+                Err(simulate_body::Stop::Raw(status, text)) => {
+                    streams.stderr.push_str(&text);
+                    streams.finish(status)
+                }
+                Err(simulate_body::Stop::Die(d)) if d.code == -1 => {
                     streams.stderr.push_py(&d.text);
                     streams.stderr.push_str("\n");
-                    return streams.finish(1);
+                    streams.finish(1)
                 }
-                return stop(streams, d);
-            }
-            // The rest of cmd_simulate (lockset vocabulary, batch plan, trial loop, stamping) is still owned by recipe.py.
-            streams.eprint(&PyStr::new("[recipe] simulate 본문 나머지(배치계획·트라이얼 루프·lockset 각인)는 아직 Rust 로 옮기지 않았다 — 설정·gmu 역할까지만 한다(recipe.py 가 원본)."));
-            return streams.finish(2);
+                Err(simulate_body::Stop::Die(d)) => stop(streams, d),
+            };
         }
         Some("-h") | Some("--help") => {
             streams.print(&PyStr::new(TOP_USAGE));
