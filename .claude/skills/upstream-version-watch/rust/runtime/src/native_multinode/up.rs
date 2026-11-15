@@ -2,8 +2,7 @@
 //! helpers. Clock, HTTP and the runners are injected so the self-test can drive the same code with fakes.
 //!
 //! Python that remains by decision: `blackbox_session.py` (node session tool, the blackbox plane is out of this campaign's scope).
-//! Gap kept loud: the launch record's PII substitution/scan (`hintlib.pii`) has no Rust port yet, so the record is not written and the
-//! proof carries `native_launch_error` (the same failure surface the Python code uses when its scan fails).
+//! The launch record is sanitised by `pii` (the ported part of `hintlib.pii`); a failed substitution or scan still surfaces as `native_launch_error`.
 
 use super::*;
 use std::net::{TcpStream, ToSocketAddrs};
@@ -369,9 +368,15 @@ impl<'a> NativeServe<'a> {
         let now = self.clock.mono();
         self.launch.total_elapsed_s = Some(round1(now - self.launch.t0.unwrap_or(now)));
         let res: R<String> = (|| {
-            let _raw = native_launch_markdown(self.c, &self.launch, obs, status, stage, reason, &utc(self.clock.now()));
-            // hintlib.pii.substitution_table/substitute/scan_text has no Rust port: never write an unsanitised record.
-            serve("hintlib.pii 치환·스캔의 Rust 이식 전 — 기동 기록을 쓰지 않는다(치환 없는 배포 금지)")
+            let raw = native_launch_markdown(self.c, &self.launch, obs, status, stage, reason, &utc(self.clock.now()));
+            let table = pii::launch_substitution_table(self.c)?;
+            let text = pii::substitute(&raw, &table)?;
+            let terms = pii::load_pii_terms(&self.c.repo)?;
+            let hits = pii::scan_deploy(&text, terms.as_deref())?;
+            if !hits.is_empty() {
+                return serve(format!("치환 뒤에도 deploy 스캔 검출 {}건 — 기록을 쓰지 않는다", hits.len()));
+            }
+            self.preserve(NATIVE_LAUNCH_FILE, text.as_bytes(), true)
         })();
         match res {
             Ok(rel) => {

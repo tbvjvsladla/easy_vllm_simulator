@@ -3,8 +3,7 @@
 //! Ported: owned-tree primitives, the fixed remote program (run through `sh -c` instead of ssh), PID-reuse refusal, and the scenarios
 //! (normal up/down, start failure → auto down, health window exhausted, RAM gate failure, PID reuse at down, GPU residue, dry-run purity).
 //! NOT ported (remain in the Python original, need `hintlib`): the hint-publisher judgements (`_serve_proof_ok`, `_native_producer_evidence`,
-//! `artifacts._native_launch_path`) and the launch-record PII substitution checks — the Rust `up` records `native_launch_error` instead
-//! (see `up.rs`), and this test asserts exactly that gap so it cannot go silent.
+//! `artifacts._native_launch_path`). The launch-record substitution and scan are the Rust `pii` module and are checked here.
 
 use super::up::{real_http, NativeServe};
 use super::*;
@@ -401,10 +400,31 @@ pub fn self_test(here: &Path) -> i32 {
         "attestation 모양(unknown 리스트 · evidence_preserved · errors=[])",
         list_items(dpath(&att, &["nodes", "main", "unknown"])).is_empty() && matches!(dget(&att, "evidence_preserved"), Some(PyValue::Bool(true))) && list_items(dget(&att, "errors")).is_empty(),
     );
+    let lrel = jstr(&proof, &["native_launch_path"]);
+    let ltxt = std::fs::read_to_string(sc.repo.join(&lrel)).unwrap_or_default();
     ck(
-        "★기동 기록 공백이 침묵하지 않는다: native_launch_path=null + native_launch_error(hintlib.pii Rust 이식 전) · 서빙 판정 PASS 유지",
-        matches!(dget(&proof, "native_launch_path"), Some(PyValue::None)) && jstr(&proof, &["native_launch_error"]).contains("hintlib.pii") && jstr(&proof, &["status"]) == "PASS",
+        "★기동 기록: proof native_launch_path = native-launch.md · native_launch_error 없음 · 서빙 판정 PASS",
+        lrel.ends_with("native-launch.md") && !ltxt.is_empty() && dget(&proof, "native_launch_error").is_none() && jstr(&proof, &["status"]) == "PASS",
     );
+    ck(
+        "★치환본: 노드 IP·repo·run root 원값 0 · 표지 존재 · deploy 스캔 0",
+        !ltxt.contains("198.51.100.") && !ltxt.contains(&sc.repo.to_string_lossy().to_string()) && !ltxt.contains(&sc.ctx.main.root)
+            && ltxt.contains("<node:main>") && ltxt.contains(super::pii::PH_RUN_ROOT_BASE)
+            && super::pii::scan_deploy(&ltxt, None).map(|h| h.is_empty()).unwrap_or(false),
+    );
+    {
+        use super::pii::{scan_deploy, substitute, substitution_table};
+        let tbl = substitution_table(&sc.repo, Some(&load_yaml(&sc.repo.join("output/multi/manifest.yaml")).ok().expect("manifest"))).ok().expect("table");
+        let n = "10.1.2.3 and 10.1.2 §10.1.2 ok";
+        let m = format!("a@b.example /home/zz/q spark-abc1f 198.51.100.1:80 198.51.100.12 {n}");
+        let out = substitute(&m, &tbl).ok().expect("substitute");
+        ck(
+            "치환: 잔여 4종 가림 · 절번호 보존 · IPv4 경계(…100.12 는 노드로 오귀속 ✗) · 멱등",
+            out.starts_with("<redacted> <abs-path> <host> <node:main>:80 198.51.100.12 <priv-ip> and <priv-ip> §10.1.2 ok")
+                && substitute(&out, &tbl).ok().as_deref() == Some(out.as_str())
+                && scan_deploy("host 10.9.8.7 and /mnt/x", Some(&["tok".to_string()])).map(|h| h.len() == 2).unwrap_or(false),
+        );
+    }
 
     // ── start failure → auto down ──
     let s2 = scenario(&base, "startfail", &["start:vllm-serve"], true);

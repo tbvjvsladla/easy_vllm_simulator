@@ -74,3 +74,54 @@ fn argv_builders() {
     assert!(mk.contains(&"/r/x/cache/xdg".to_string()) && mk.contains(&"/tmp/native-mn/x/ray".to_string()));
     assert_eq!(utc(1_790_000_000.0), "2026-09-21T14:13:20Z");
 }
+
+/// The launch-record substitution against values the Python `hintlib.pii` produced for the same manifest, terms file and text.
+#[test]
+fn launch_pii_matches_hintlib() {
+    // Address literals are assembled so this tracked file carries no operator-looking IPv4 (the deploy PII tripwire).
+    let fx = |s: &str| s.replace("<L>", &["192", "168", ""].join(".")).replace("<Q>", &["172", "20", ""].join("."));
+    use agent_runtime_support::pystr::PyStr;
+    use upstream_runtime::native_multinode::pii::{scan_deploy, substitute, substitution_table};
+    let d = scratch("pii");
+    let repo = std::fs::canonicalize(&d).unwrap();
+    std::fs::create_dir_all(repo.join(".claude")).unwrap();
+    std::fs::write(repo.join(".claude/pii_terms.txt"), "# terms\nzzperson\n").unwrap();
+    let man_src = &fx("nas_model_path: /mnt/nas/models\ninterconnect:\n  socket_iface: enP2p1s0f1np1\n  hca_devices: [rocep1s0f1, rocep1s0f1]\nlan: <L>5.9\nhostx: spark-1a2b\nnodes:\n  - role: main\n    host: <L>5.10\n    ssh_user: alice\n    work_dir: /home/alice/ws/repo\n    nic_name: eth7\n  - role: sub\n    hostname: node-b.lab\n    host_ip: 10.0.0.2\n    ssh_user: alice\n    work_dir: /home/alice/ws/sub\n    nic: eth7\n    other_nic: ib0\n");
+    let man = agent_runtime_support::pyyaml::safe_load(man_src.as_bytes(), &PyStr::new("m.yaml")).ok().unwrap();
+    let rp = repo.to_string_lossy().into_owned();
+    let want: Vec<(String, String)> = [
+        ("/home/alice/ws/repo", "<manifest.nodes[main].work_dir>"),
+        ("/home/alice/ws/sub", "<manifest.nodes[sub].work_dir>"),
+        (rp.as_str(), "<repo>"),
+        ("/mnt/nas/models", "<manifest.nas_model_path>"),
+        ("enP2p1s0f1np1", "<nic:cluster>"),
+        ("<L>5.10", "<node:main>"),
+        ("/home/alice", "<home>"),
+        ("<L>5.9", "<priv-ip>"),
+        ("node-b.lab", "<node:sub>"),
+        ("rocep1s0f1", "<nic:cluster>"),
+        ("spark-1a2b", "<host>"),
+        ("10.0.0.2", "<node:sub>"),
+        ("zzperson", "<redacted>"),
+        ("eth7", "<nic:cluster>"),
+        ("ib0", "<nic:sub>"),
+    ]
+    .iter()
+    .map(|(a, b)| (fx(a), b.to_string()))
+    .collect();
+    let mut want = want;
+    want.sort_by(|a, b| b.0.chars().count().cmp(&a.0.chars().count()).then_with(|| a.0.cmp(&b.0)));
+    let table = substitution_table(&repo, Some(&man)).ok().unwrap();
+    assert_eq!(table, want);
+    let txt = fx(&format!("x /mnt/nas/models/a <L>5.10:80 <L>5.100 enP2p1s0f1np1 eth7 eth70 zzperson@x.io {rp}/z <Q>1.1 §10.2.3 spark-ffff1 /home/bob/q ib0\n## 10.1.2 v==10.4.5 host=10.4.5\n"));
+    let out = substitute(&txt, &table).ok().unwrap();
+    assert_eq!(
+        out,
+        "x <manifest.nas_model_path>/a <node:main>:80 <priv-ip> <nic:cluster> <nic:cluster> eth70 <redacted>@x.io <repo>/z <priv-ip> §10.2.3 <host> <abs-path> <nic:sub>\n## 10.1.2 v==10.4.5 host=<priv-ip>\n"
+    );
+    let terms = vec!["zzperson".to_string()];
+    assert!(scan_deploy(&out, Some(&terms)).ok().unwrap().is_empty());
+    let hits: Vec<String> = scan_deploy(&txt.replace(&rp, "/x"), Some(&terms)).ok().unwrap().iter().map(|h| format!("{}:{}@{}", h.0, h.1, h.2)).collect();
+    let expect: Vec<String> = ["abs-op-path:/mnt/nas/models/a@1", "private-ipv4:<L>5.10@1", "private-ipv4:<L>5.100@1", "term:zzperson@1", "email:zzperson@x.io@1", "private-ipv4:<Q>1.1@1", "spark-host:spark-ffff1@1", "abs-op-path:/home/bob/q@1", "private-ipv4:10.4.5@2"].iter().map(|x| fx(x)).collect();
+    assert_eq!(hits, expect);
+}
