@@ -196,6 +196,16 @@ impl Args {
         Some(Args { values })
     }
 
+    /// Arguments built by the program itself (an import re-enters the writers with the values of a brief).
+    fn synthetic(pairs: Vec<(&str, String)>) -> Args {
+        let mut values: BTreeMap<&'static str, Vec<String>> = BTreeMap::new();
+        for (name, value) in pairs {
+            let (known, _) = OPTIONS.iter().find(|(n, _)| *n == name).expect("a parser option");
+            values.insert(known, vec![value]);
+        }
+        Args { values }
+    }
+
     fn has(&self, name: &str) -> bool {
         self.values.contains_key(name)
     }
@@ -2234,12 +2244,19 @@ fn pointer_matches(ptr: &PyValue, kind: &str, path: &str) -> bool {
 
 fn op_evidence_add(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     let Some((base, camp)) = writer_prelude(ctx, args, io)? else { return Ok(0) };
-    let (Some(kind), Some(path_rel)) = (
-        args.get("--kind").filter(|s| !s.is_empty()),
-        args.get("--path").filter(|s| !s.is_empty()),
-    ) else {
+    if args.get("--kind").filter(|s| !s.is_empty()).is_none() || args.get("--path").filter(|s| !s.is_empty()).is_none() {
         return refuse("--evidence-add 는 --kind 와 --path 가 필요하다");
-    };
+    }
+    let ep = add_evidence(ctx, &base, &camp, args)?;
+    wrote_line(io, &camp, &[ctx.rel(&ep)]);
+    Ok(0)
+}
+
+/// `writer_add_evidence`: the pointer file it wrote (or left as it was).
+fn add_evidence(ctx: &Ctx, base: &Path, camp: &str, args: &Args) -> R<PathBuf> {
+    let base = base.to_path_buf();
+    let kind = args.get("--kind").unwrap_or_default();
+    let path_rel = args.get("--path").unwrap_or_default();
     let cell_id = args.get("--cell").map(str::to_string);
     if !EVIDENCE_KINDS.contains(&kind) {
         return refuse(format!("kind 는 {} 중 하나여야 한다: {}", tuple_repr(&EVIDENCE_KINDS), py_repr(kind)));
@@ -2312,8 +2329,7 @@ fn op_evidence_add(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
             doc.set("pointers", PyValue::List(pointers));
             write_json(&ep, &PyValue::Dict(doc))?;
         }
-        wrote_line(io, &camp, &[ctx.rel(&ep)]);
-        return Ok(0);
+        return Ok(ep);
     }
     let mut ptr = PyDict::new();
     ptr.set("kind", py(kind));
@@ -2323,11 +2339,10 @@ fn op_evidence_add(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     pointers.push(PyValue::Dict(ptr));
     doc.set("pointers", PyValue::List(pointers));
     if !doc.contains_key("campaign_id") {
-        doc.set("campaign_id", py(&camp));
+        doc.set("campaign_id", py(camp));
     }
     write_json(&ep, &PyValue::Dict(doc))?;
-    wrote_line(io, &camp, &[ctx.rel(&ep)]);
-    Ok(0)
+    Ok(ep)
 }
 
 fn op_evidence_untag(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
@@ -3581,6 +3596,432 @@ fn op_residue_scan(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     Ok(0)
 }
 
+// ── --backfill-from-docs and --import-sub ────────────────────────────────────────────────────
+
+fn number_text(value: &PyValue) -> String {
+    match value.peel() {
+        PyValue::Int(n) => PyValue::Float(i64::try_from(n.clone()).map(|v| v as f64).unwrap_or(0.0)).repr(),
+        other => other.repr(),
+    }
+}
+
+fn plain_number(value: Option<&PyValue>) -> Option<&PyValue> {
+    value.filter(|v| matches!(v.peel(), PyValue::Int(_) | PyValue::Float(_)))
+}
+
+fn sorted_files(dir: &Path, prefix: &str, suffix: &str) -> Vec<PathBuf> {
+    let Ok(read) = std::fs::read_dir(dir) else { return Vec::new() };
+    let mut out: Vec<PathBuf> = read
+        .filter_map(Result::ok)
+        .map(|e| e.path())
+        .filter(|p| p.file_name().map(|n| { let n = n.to_string_lossy(); n.starts_with(prefix) && n.ends_with(suffix) }).unwrap_or(false))
+        .collect();
+    out.sort();
+    out
+}
+
+fn op_backfill(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let Some((base, camp)) = writer_prelude(ctx, args, io)? else { return Ok(0) };
+    need_validator(ctx)?;
+    let utc = args.get("--utc").filter(|u| !u.is_empty()).map(str::to_string);
+    let decl = read_declaration(&base);
+    let mut sources = sorted_files(&base.join("sweeps"), "", ".json");
+    for dir in [ctx.root.join("docs").join("benchmark"), ctx.root.join("sync_staging").join("sub_docs").join("benchmark")] {
+        sources.extend(sorted_files(&dir, "sweep_map_", ".json"));
+    }
+    let mut records: Vec<(String, (PyValue, PyValue, String))> = Vec::new();
+    for src in sources {
+        let Some(doc) = read_json(&src) else { continue };
+        let Some(doc) = dict_of(&doc) else { continue };
+        for rec in list_or_empty(doc.get("cells")).iter().filter_map(dict_of) {
+            let key = get_text(rec, "cell_key");
+            let val = get_dict(rec, "concurrency_vector").and_then(|v| v.get("1"));
+            if let (Some(key), Some(val)) = (key, plain_number(val)) {
+                if !records.iter().any(|(k, _)| *k == key) {
+                    records.push((
+                        key,
+                        (val.clone(), rec.get("cell_outcome").cloned().unwrap_or(PyValue::None), ctx.rel(&src)),
+                    ));
+                }
+            }
+        }
+    }
+    let cells_dir = base.join("cells");
+    let mut names: Vec<String> = assigned_cells(&decl, None);
+    if let Ok(read) = std::fs::read_dir(&cells_dir) {
+        for e in read.filter_map(Result::ok).filter(|e| e.path().is_dir()) {
+            let n = e.file_name().to_string_lossy().into_owned();
+            if n != "_cell" && !names.contains(&n) {
+                names.push(n);
+            }
+        }
+    }
+    names.sort();
+    let (mut repaired, mut gaps): (Vec<String>, Vec<String>) = (Vec::new(), Vec::new());
+    for cell in names {
+        let st = read_json(&cells_dir.join(&cell).join("cell.status.json"));
+        let st = st.as_ref().and_then(dict_of).cloned().unwrap_or_default();
+        let meas = get_dict(&st, "measurement").cloned().unwrap_or_default();
+        let need_tps = meas.get("decode_tps_conc1").map(|v| matches!(v.peel(), PyValue::None)).unwrap_or(true);
+        let need_node = !truthy(st.get("node_id"));
+        if !(need_tps || need_node || st.is_empty()) {
+            continue;
+        }
+        let rec = records.iter().find(|(k, _)| *k == cell).map(|(_, r)| r);
+        if need_tps && rec.is_none() {
+            gaps.push(format!("{cell}: 측정값이 어느 자리에도 없다(스윕 기록·sweep map 전수 조회)"));
+            if !st.is_empty() && !need_node {
+                continue;
+            }
+        }
+        let outcome = match st.get("cell_outcome").filter(|v| v.is_truthy()).or(rec.map(|r| &r.1).filter(|v| v.is_truthy())) {
+            Some(v) => text_of(v).filter(|t| CELL_OUTCOMES.contains(&t.as_str())).unwrap_or_else(|| "pending".to_string()),
+            None => "pending".to_string(),
+        };
+        let mut pairs: Vec<(&str, String)> = vec![("--outcome", outcome.clone())];
+        if let Some(n) = st.get("node_id").and_then(text_of) {
+            pairs.push(("--node", n));
+        }
+        for (flag, key) in [("--version", "version"), ("--model", "model"), ("--void-reason", "void_reason"), ("--void-reason-source", "void_reason_source"), ("--axis-citation", "axis_citation")] {
+            if let Some(v) = st.get(key).and_then(text_of) {
+                pairs.push((flag, v));
+            }
+        }
+        if let (true, Some(r)) = (need_tps, rec) {
+            pairs.push(("--measurement-decode-tps", number_text(&r.0)));
+            pairs.push(("--measurement-source", format!("backfill:{}#cells[cell_key={cell}].concurrency_vector.1", r.2)));
+        }
+        if let Some(u) = &utc {
+            pairs.push(("--utc", u.clone()));
+        }
+        let (cpath, _) = write_cell(ctx, &base, &Args::synthetic(pairs), &cell, &outcome)?;
+        let after = read_json(&cpath);
+        if !after.as_ref().and_then(dict_of).map(|d| truthy(d.get("node_id"))).unwrap_or(false) {
+            gaps.push(format!("{cell}: 노드를 배정에서 파생하지 못했다(assignments 에 없는 셀)"));
+        }
+        repaired.push(ctx.rel(&cpath));
+    }
+    for g in &gaps {
+        io.warn(&format!("[campaign_init] ⚠ 남은 결손 — {g}"));
+    }
+    wrote_line(io, &camp, &repaired);
+    Ok(0)
+}
+
+const SUB_ID_OK: fn(&str) -> bool = |t| {
+    let mut c = t.chars();
+    matches!(c.next(), Some(f) if f.is_ascii_alphanumeric()) && c.all(|x| x.is_ascii_alphanumeric() || x == '_' || x == '.' || x == '-')
+};
+
+/// `_sub_evidence_binding(base, node, cell_id)`.
+fn sub_evidence_binding(base: &Path, node: &PyValue, cell_id: &PyValue) -> R<()> {
+    let decl = read_declaration(base);
+    let own: Vec<&PyDict> = list_of(decl.get("nodes").unwrap_or(&PyValue::None))
+        .into_iter()
+        .flatten()
+        .filter_map(dict_of)
+        .filter(|n| n.get("node_id") == Some(node))
+        .collect();
+    let node_text = text_of(node);
+    if !node_text.as_deref().map(SUB_ID_OK).unwrap_or(false) || own.len() != 1 || get_text(own[0], "role").as_deref() != Some("sub") {
+        return refuse(format!("서브 증거 node_id가 선언된 sub가 아니다: {}", node.repr()));
+    }
+    if !matches!(cell_id.peel(), PyValue::None) {
+        let cell_text = text_of(cell_id);
+        let ok = cell_text.as_deref().map(|c| SUB_ID_OK(c) && node_of_cell(base, c) == node_text).unwrap_or(false);
+        if !ok {
+            return refuse(format!("서브 증거 셀이 이 노드 배정과 다르다: node={}, cell={}", node.repr(), cell_id.repr()));
+        }
+    }
+    Ok(())
+}
+
+/// `Path.resolve()` (non-strict): absolute, symlinks of the part that exists followed, the rest kept.
+fn resolve_nonstrict(path: &Path) -> PathBuf {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        std::env::current_dir().map(|c| c.join(path)).unwrap_or_else(|_| path.to_path_buf())
+    };
+    let mut tail: Vec<std::ffi::OsString> = Vec::new();
+    let mut head = absolute.clone();
+    loop {
+        if let Ok(real) = std::fs::canonicalize(&head) {
+            return tail.iter().rev().fold(real, |acc, part| acc.join(part));
+        }
+        match (head.file_name().map(|n| n.to_os_string()), head.parent().map(Path::to_path_buf)) {
+            (Some(name), Some(parent)) => {
+                tail.push(name);
+                head = parent;
+            }
+            _ => return absolute,
+        }
+    }
+}
+
+/// `_sub_evidence_path(kind, path_rel, docs_root)`.
+fn sub_evidence_path(kind: &PyValue, path_rel: &PyValue, docs_root: &Path) -> R<PathBuf> {
+    let kind_text = text_of(kind).filter(|k| EVIDENCE_KINDS.contains(&k.as_str()));
+    let path = text_of(path_rel);
+    let parts_ok = path.as_deref().map(|p| {
+        let parts: Vec<&str> = p.split('/').filter(|x| !x.is_empty() && *x != ".").collect();
+        p.starts_with("docs/") && !parts.contains(&"..") && !p.starts_with('/') && parts.len() >= 3
+    });
+    let (Some(_), Some(path), Some(true)) = (kind_text, path, parts_ok) else {
+        return refuse(format!(
+            "서브 evidence claim은 docs 아래의 유효 kind/상대경로여야 한다: {}, {}",
+            kind.repr(),
+            path_rel.repr()
+        ));
+    };
+    no_fill(&[("path_rel", &path)])?;
+    let local = docs_root.join(path.strip_prefix("docs/").unwrap_or(&path));
+    let mut chain: Vec<&Path> = vec![local.as_path()];
+    chain.extend(local.ancestors().skip(1));
+    if docs_root.is_symlink() || chain.iter().any(|p| *p != docs_root && p.starts_with(docs_root) && p.is_symlink()) {
+        return refuse(format!("서브 evidence 경로에 symlink가 있다: {path}"));
+    }
+    if !resolve_nonstrict(&local).starts_with(resolve_nonstrict(docs_root)) {
+        return refuse(format!("서브 evidence 경로가 docs/mirror 밖으로 벗어난다: {path}"));
+    }
+    Ok(local)
+}
+
+fn journey_key(entry: &PyDict) -> String {
+    let mut d = PyDict::new();
+    for (k, v) in entry.iter() {
+        if !k.equals("imported_from") && !k.equals("imported_utc") {
+            d.insert(k.clone(), v.clone());
+        }
+    }
+    sorted_value(&PyValue::Dict(d)).dumps_unicode().ok().and_then(|t| t.to_utf8()).unwrap_or_default()
+}
+
+fn op_import_sub(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let Some((base, camp)) = writer_prelude(ctx, args, io)? else { return Ok(0) };
+    let Some(utc) = args.get("--utc").filter(|u| !u.is_empty()) else {
+        return refuse("--import-sub 는 --utc 가 필요하다(시각은 주입만 받는다)");
+    };
+    need_validator(ctx)?;
+    if get_text(&read_declaration(&base), "self_role").as_deref() == Some("sub") {
+        return Err(Stop::Fallback);
+    }
+    let mirror = PathBuf::from(args.get("--import-sub").unwrap_or_default());
+    let mut discovered: Vec<PathBuf> = Vec::new();
+    if let Ok(read) = std::fs::read_dir(mirror.join("logs")) {
+        for e in read.filter_map(Result::ok) {
+            let b = e.path().join("campaign_brief.json");
+            if b.is_file() {
+                discovered.push(b);
+            }
+        }
+    }
+    discovered.sort();
+    if discovered.is_empty() {
+        return refuse(format!(
+            "회수 미러에 브리핑이 없다: {}/logs/*/campaign_brief.json — 서브가 `campaign_init --write-brief` 를 돌지 않았거나 회수 범위가 docs/logs 를 뺐다.",
+            ctx.rel(&mirror)
+        ));
+    }
+    let name = base.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+    let mut briefs: Vec<(PathBuf, PyDict)> = Vec::new();
+    for bpath in &discovered {
+        let doc = read_json(bpath);
+        let Some(doc) = doc.as_ref().and_then(dict_of) else {
+            return refuse(format!("브리핑 파손: {}", ctx.rel(bpath)));
+        };
+        if get_text(doc, "campaign_id").as_deref() != Some(name.as_str()) {
+            continue;
+        }
+        if get_text(doc, "node_id").filter(|n| !n.is_empty()).is_none() {
+            return refuse(format!("브리핑에 node_id 가 없다: {}", ctx.rel(bpath)));
+        }
+        briefs.push((bpath.clone(), doc.clone()));
+    }
+    if briefs.is_empty() {
+        return refuse(format!("현재 캠페인({name})의 브리핑이 회수 미러에 없다 — 다른 캠페인의 역사로 현재 진행표를 만들지 않는다"));
+    }
+    let falsy_or = |v: Option<&PyValue>, default: PyValue| match v {
+        Some(x) if x.is_truthy() => x.clone(),
+        _ => default,
+    };
+    let mut claim_paths: Vec<((usize, usize), PathBuf)> = Vec::new();
+    for (bi, (bpath, doc)) in briefs.iter().enumerate() {
+        let node = doc.get("node_id").cloned().unwrap_or(PyValue::None);
+        sub_evidence_binding(&base, &node, &PyValue::None)?;
+        let phases = falsy_or(doc.get("phases"), PyValue::Dict(PyDict::new()));
+        let cells = falsy_or(doc.get("cells"), PyValue::List(Vec::new()));
+        let journey = falsy_or(doc.get("journey_tail"), PyValue::List(Vec::new()));
+        let (Some(phases), Some(cells), Some(journey)) = (dict_of(&phases), list_of(&cells), list_of(&journey)) else {
+            return refuse(format!("브리핑의 phases/cells/journey_tail 형식이 무효다: {}", ctx.rel(bpath)));
+        };
+        for (phase, st) in phases.iter() {
+            let phase = phase.to_utf8().unwrap_or_default();
+            let Some(st) = dict_of(st) else { continue };
+            if !PHASE_NAMES.contains(&phase.as_str()) {
+                continue;
+            }
+            let state = falsy_or(st.get("state"), py("pending"));
+            if !text_of(&state).map(|t| PHASE_STATES.contains(&t.as_str())).unwrap_or(false) {
+                return refuse(format!("브리핑 phase state가 무효다: {phase}={}", st.get("state").map(PyValue::repr).unwrap_or_else(|| "None".to_string())));
+            }
+            if let Some(src) = st.get("proof_source").and_then(text_of) {
+                no_fill(&[("source", &src)])?;
+            }
+        }
+        for cell in cells.iter().filter_map(dict_of) {
+            let known = text_of(&cell.get("cell_outcome").cloned().unwrap_or(PyValue::None)).map(|o| CELL_OUTCOMES.contains(&o.as_str())).unwrap_or(false);
+            if truthy(cell.get("cell_id")) && known {
+                sub_evidence_binding(&base, &node, cell.get("cell_id").expect("truthy"))?;
+            }
+        }
+        for entry in journey.iter() {
+            if let Some(d) = dict_of(entry) {
+                if !is_lifecycle(entry) {
+                    let who = d.get("node_id").cloned().unwrap_or(PyValue::None);
+                    if !matches!(who.peel(), PyValue::None) && who != node {
+                        return refuse("브리핑 journey의 node_id가 brief node와 다르다");
+                    }
+                    sub_evidence_binding(&base, &node, &d.get("cell_id").cloned().unwrap_or(PyValue::None))?;
+                }
+            }
+        }
+        let Some(claims) = doc.get("evidence_pointers").filter(|v| !matches!(v.peel(), PyValue::None)) else { continue };
+        let Some(claims) = list_of(claims) else {
+            return refuse(format!("브리핑 evidence_pointers 가 목록이 아니다: {}", ctx.rel(bpath)));
+        };
+        for (i, claim) in claims.iter().enumerate() {
+            let Some(claim) = dict_of(claim) else {
+                return refuse(format!("브리핑 evidence claim 이 객체가 아니다: {}", ctx.rel(bpath)));
+            };
+            let claim_node = claim.get("node_id").cloned().unwrap_or(PyValue::None);
+            if claim_node != node {
+                return refuse(format!("브리핑 evidence claim node_id({})가 brief node({})와 다르다", claim_node.repr(), node.repr()));
+            }
+            sub_evidence_binding(&base, &node, &claim.get("cell_id").cloned().unwrap_or(PyValue::None))?;
+            let local = sub_evidence_path(&claim.get("kind").cloned().unwrap_or(PyValue::None), &claim.get("path").cloned().unwrap_or(PyValue::None), &mirror)?;
+            if !local.starts_with(&ctx.root) {
+                return refuse(format!("회수 evidence mirror는 저장소 안이어야 한다: {}", ctx.rel(&mirror)));
+            }
+            claim_paths.push(((bi, i), local));
+        }
+    }
+    let (mut wrote, mut warnings): (Vec<String>, Vec<String>) = (Vec::new(), Vec::new());
+    for (bi, (bpath, doc)) in briefs.iter().enumerate() {
+        let node = get_text(doc, "node_id").unwrap_or_default();
+        let brel = ctx.rel(bpath);
+        for (phase, st) in get_dict(doc, "phases").cloned().unwrap_or_default().iter() {
+            let phase = phase.to_utf8().unwrap_or_default();
+            let Some(st) = dict_of(st) else { continue };
+            if !PHASE_NAMES.contains(&phase.as_str()) {
+                continue;
+            }
+            let state = text_of(&falsy_or(st.get("state"), py("pending"))).unwrap_or_default();
+            let mut pairs: Vec<(&str, String)> = vec![
+                ("--proof-predicate", format!("서브 회수(brief {})", shown(doc.get("generated_utc")))),
+                ("--proof-source", match st.get("proof_source").filter(|v| v.is_truthy()) {
+                    Some(v) => shown(Some(v)),
+                    None => format!("{brel}#phases.{phase}"),
+                }),
+                ("--authored-by", node.clone()),
+            ];
+            if truthy(st.get("proof_ok")) {
+                pairs.push(("--proof-ok", String::new()));
+            }
+            if let Some(v) = st.get("first_started_utc").filter(|v| v.is_truthy()).or(st.get("started_utc").filter(|v| v.is_truthy())) {
+                pairs.push(("--started-utc", shown(Some(v))));
+            }
+            if let Some(v) = st.get("ended_utc").filter(|v| v.is_truthy()) {
+                pairs.push(("--ended-utc", shown(Some(v))));
+            }
+            let path = write_phase(ctx, &base, &Args::synthetic(pairs), &node, &phase, &state, None)?;
+            wrote.push(ctx.rel(&path));
+        }
+        for cell in list_or_empty(doc.get("cells")).iter().filter_map(dict_of) {
+            let outcome = cell.get("cell_outcome").and_then(text_of).filter(|o| CELL_OUTCOMES.contains(&o.as_str()));
+            let (true, Some(outcome)) = (truthy(cell.get("cell_id")), outcome) else { continue };
+            let cid = shown(cell.get("cell_id"));
+            let mut pairs: Vec<(&str, String)> = vec![("--outcome", outcome.clone()), ("--node", node.clone()), ("--utc", utc.to_string())];
+            if let Some(t) = plain_number(cell.get("decode_tps_conc1")) {
+                pairs.push(("--measurement-decode-tps", number_text(t)));
+                pairs.push(("--measurement-source", format!("{brel}#cells[{cid}]")));
+            }
+            if let Some(v) = cell.get("void_reason").filter(|v| v.is_truthy()) {
+                pairs.push(("--void-reason", shown(Some(v))));
+                pairs.push(("--void-reason-source", format!("{brel}#cells[{cid}].void_reason")));
+            }
+            if let Some(v) = cell.get("axis_citation").and_then(text_of) {
+                pairs.push(("--axis-citation", v));
+            }
+            let (cpath, jpath) = write_cell(ctx, &base, &Args::synthetic(pairs), &cid, &outcome)?;
+            wrote.push(ctx.rel(&cpath));
+            if let Some(j) = jpath {
+                wrote.push(ctx.rel(&j));
+            }
+        }
+        let mut have: Vec<String> = read_journey(&base).iter().filter_map(dict_of).map(journey_key).collect();
+        for entry in list_or_empty(doc.get("journey_tail")).iter() {
+            if is_lifecycle(entry) {
+                continue;
+            }
+            let Some(d) = dict_of(entry) else { continue };
+            let key = journey_key(d);
+            if have.contains(&key) {
+                continue;
+            }
+            have.push(key);
+            let mut e = d.clone();
+            e.set("imported_from", py(&brel));
+            e.set("imported_utc", py(utc));
+            wrote.push(ctx.rel(&append_journey(&base, &PyValue::Dict(e))?));
+        }
+        let Some(claims) = doc.get("evidence_pointers").filter(|v| !matches!(v.peel(), PyValue::None)) else {
+            warnings.push(format!("브리핑에 scoped evidence_pointers 가 없다: {brel} — 진행표만 편입"));
+            continue;
+        };
+        for (i, claim) in claims.peel_list().iter().enumerate() {
+            let claim = dict_of(claim).expect("validated");
+            let kind = get_text(claim, "kind").unwrap_or_default();
+            let local = claim_paths.iter().find(|(k, _)| *k == (bi, i)).map(|(_, p)| p.clone()).expect("validated");
+            if !local.is_file() {
+                warnings.push(format!("증거 미등재 {} (brief가 선언했으나 미러에 없다)", ctx.rel(&local)));
+                continue;
+            }
+            let mut pairs: Vec<(&str, String)> = vec![
+                ("--kind", kind.clone()),
+                ("--path", local.strip_prefix(&ctx.root).map(|p| p.to_string_lossy().into_owned()).unwrap_or_default()),
+                ("--node", node.clone()),
+            ];
+            if let Some(c) = claim.get("cell_id").and_then(text_of) {
+                pairs.push(("--cell", c));
+            }
+            if args.has("--unfreeze") {
+                pairs.push(("--unfreeze", String::new()));
+            }
+            match add_evidence(ctx, &base, &camp, &Args::synthetic(pairs)) {
+                Ok(p) => wrote.push(ctx.rel(&p)),
+                Err(Stop::Refuse(why)) => warnings.push(format!("증거 미등재 {} (kind={kind}) — {why}", ctx.rel(&local))),
+                Err(Stop::Fallback) => return Err(Stop::Fallback),
+            }
+        }
+    }
+    for w in &warnings {
+        io.warn(&format!("[campaign_init] ⚠ {w}"));
+    }
+    wrote_line(io, &camp, &wrote);
+    Ok(0)
+}
+
+trait PeelList {
+    fn peel_list(&self) -> Vec<PyValue>;
+}
+
+impl PeelList for PyValue {
+    fn peel_list(&self) -> Vec<PyValue> {
+        list_of(self).cloned().unwrap_or_default()
+    }
+}
+
 // ── purge gate ───────────────────────────────────────────────────────────────────────────────
 
 /// `purge_gate_reasons(previous_id)`: why the previous instance may not be removed (empty = the gate is open). A closed
@@ -4280,7 +4721,9 @@ fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 // ── dispatch ─────────────────────────────────────────────────────────────────────────────────
 
 /// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 25] = [
+const NATIVE_OPS: [&str; 27] = [
+    "--backfill-from-docs",
+    "--import-sub",
     "--answer-query",
     "--sub-echo",
     "--sub-unconverged-accept",
@@ -4313,6 +4756,8 @@ fn allowed_options(op: &str) -> &'static [&'static str] {
     match op {
         "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
         "--verify-purge-gate" => &["--verify-purge-gate"],
+        "--backfill-from-docs" => &["--backfill-from-docs", "--utc", "--campaign-id"],
+        "--import-sub" => &["--import-sub", "--utc", "--unfreeze", "--campaign-id"],
         "--answer-query" => &["--answer-query", "--query-decision", "--utc", "--approved-by", "--apply"],
         "--sub-echo" => &["--sub-echo", "--node", "--control", "--utc", "--apply"],
         "--sub-unconverged-accept" => &["--sub-unconverged-accept", "--node", "--utc", "--approved-by", "--apply"],
@@ -4403,6 +4848,8 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     let result = match op {
         "--assigned-cells" => op_assigned_cells(ctx, &args, io),
         "--verify-purge-gate" => op_verify_purge_gate(ctx, &args, io),
+        "--backfill-from-docs" => op_backfill(ctx, &args, io),
+        "--import-sub" => op_import_sub(ctx, &args, io),
         "--answer-query" => op_answer_query(ctx, &args, io),
         "--sub-echo" => op_sub_echo(ctx, &args, io),
         "--sub-unconverged-accept" => op_sub_unconverged_accept(ctx, &args, io),

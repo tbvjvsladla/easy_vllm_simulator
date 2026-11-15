@@ -408,3 +408,35 @@ fn a_missing_validator_refuses_an_assignment_question() {
     assert_eq!(status, Some(1));
     assert!(err.contains("검증기를 찾지 못했다: .claude/skills/terraforming_node/scripts/campaign_template_validator.py — 배정 규약의 소유자가 없다"), "{err}");
 }
+
+#[test]
+fn import_sub_takes_progress_and_declared_evidence_from_the_mirror() {
+    let root = scratch("import");
+    active(&root);
+    put(&root, "mirror/testlog/t.md", "x");
+    put(
+        &root,
+        "mirror/logs/sub/campaign_brief.json",
+        "{\"campaign_id\": \"camp-a\", \"node_id\": \"sub\", \"generated_utc\": \"G\", \"phases\": {\"build\": {\"state\": \"done\", \"proof_ok\": true, \"proof_source\": \"x\"}}, \"cells\": [{\"cell_id\": \"s1\", \"cell_outcome\": \"measured\", \"decode_tps_conc1\": 12}], \"journey_tail\": [], \"evidence_pointers\": [{\"kind\": \"testlog\", \"path\": \"docs/testlog/t.md\", \"node_id\": \"sub\", \"cell_id\": \"s1\"}]}",
+    );
+    let mirror = root.join("mirror");
+    let (status, out, err) = call(&root, &["--import-sub", mirror.to_str().unwrap(), "--utc", "U"]);
+    assert_eq!(status, Some(0), "{err}");
+    assert!(out.contains("campaigns/camp-a/phases/sub/build.status.json") && out.contains("campaigns/camp-a/cells/s1/cell.status.json"), "{out}");
+    let phase = std::fs::read_to_string(root.join("campaigns/camp-a/phases/sub/build.status.json")).unwrap();
+    assert!(phase.contains("\"authored_by\": \"sub\"") && phase.contains("서브 회수(brief G)"), "{phase}");
+    let cell = std::fs::read_to_string(root.join("campaigns/camp-a/cells/s1/cell.status.json")).unwrap();
+    assert!(cell.contains("\"decode_tps_conc1\": 12.0"), "{cell}");
+}
+
+#[test]
+fn backfill_repairs_a_missing_measurement_from_the_sweep_record() {
+    let root = scratch("backfill");
+    active(&root);
+    put(&root, "campaigns/camp-a/sweeps/s.json", "{\"cells\": [{\"cell_key\": \"c1\", \"concurrency_vector\": {\"1\": 7.5}, \"cell_outcome\": \"measured\"}]}");
+    let (status, out, err) = call(&root, &["--backfill-from-docs", "--utc", "U"]);
+    assert_eq!(status, Some(0), "{err}");
+    assert!(out.contains("campaigns/camp-a/cells/c1/cell.status.json"), "{out}");
+    let cell = std::fs::read_to_string(root.join("campaigns/camp-a/cells/c1/cell.status.json")).unwrap();
+    assert!(cell.contains("backfill:campaigns/camp-a/sweeps/s.json#cells[cell_key=c1].concurrency_vector.1") && cell.contains("\"cell_outcome\": \"measured\""), "{cell}");
+}
