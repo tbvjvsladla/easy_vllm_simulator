@@ -82,7 +82,10 @@ fn launch_pii_matches_hintlib() {
     let fx = |s: &str| s.replace("<L>", &["192", "168", ""].join(".")).replace("<Q>", &["172", "20", ""].join("."));
     use agent_runtime_support::pystr::PyStr;
     use upstream_runtime::native_multinode::pii::{scan_deploy, substitute, substitution_table};
-    let d = scratch("pii");
+    // Fixed root: the repo path enters the substitution table, so it must not depend on TMPDIR or HOME.
+    let d = std::path::PathBuf::from("/tmp").join(format!("nm-pii-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    std::fs::create_dir_all(&d).unwrap();
     let repo = std::fs::canonicalize(&d).unwrap();
     std::fs::create_dir_all(repo.join(".claude")).unwrap();
     std::fs::write(repo.join(".claude/pii_terms.txt"), "# terms\nzzperson\n").unwrap();
