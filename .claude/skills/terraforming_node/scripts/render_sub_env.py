@@ -115,6 +115,9 @@ SUB_RUST_BUILD_INPUTS = (
 SUB_B_CHECK_INPUTS = (
     ".claude/skills/hint-publisher/scripts/render_bench_section.py",
 )
+# 증거 게시 의존 중 `hints/` 평면(계약·어휘)은 **hint 엔진이 가는 서브에만** 간다 — policy HINT_TAG_ACTIVATION_GATE.C4(multi 에는 엔진·vocab 이 가지 않는다).
+#   B 자체검사는 hints/ 를 읽지 않는다(2026-11-16 멀티 렌더 트리에서 hints/ 없이 build_rust.sh 종료 0 확인). 그래서 B 서브에는 나머지(policies/runtime·schemas)만 간다 — 파생이므로 두 번째 목록이 없다.
+SUB_B_EVIDENCE_DEPS = tuple(r for r in HINT_ENGINE_DEPENDENCIES if not r.startswith("hints/"))
 SUB_BENCH_FOUNDATION_RUNTIME = (
     ".claude/policies/runtime/topology_parity.py",
     ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
@@ -481,8 +484,9 @@ def support_delivery(tool_plane) -> list:
         out.append(".claude/policies/handoff_exception.topology.md")
     # 사서 참조 발췌(references.md)는 2026-10-19 부터 wiki-desk 런타임블럭이 통째로 싣는다 — 지원 배달분이 아니다.
     out.extend(r for r in SUB_BENCH_FOUNDATION_RUNTIME if r not in out)
-    out.extend(r for r in HINT_ENGINE_DEPENDENCIES if r not in out)   # B 자체검사 의존으로 모든 서브에 간다(SUB_B_CHECK_INPUTS 주석)
+    out.extend(r for r in SUB_B_EVIDENCE_DEPS if r not in out)   # B 자체검사 의존으로 모든 서브에 간다(hints/ 평면 제외)
     if "hint-publisher" in tool_plane:
+        out.extend(r for r in HINT_ENGINE_DEPENDENCIES if r not in out)
         # 장착 판정 도구(2026-10-11 · plan_26101104 Step 3). render_tree 의 (3.5) 와 같은 규칙.
         out.extend(f".claude/skills/terraforming_node/scripts/{t}" for t in SUB_HINT_EQUIP_TOOLS)
     return out
@@ -884,8 +888,10 @@ def render_tree(ph: dict, out_dir: str, copy_runtime_block: bool = True,
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copy2(src, dst)
             produced.append(rel)
-        if True:   # 증거 게시 의존은 B 자체검사가 읽으므로 모든 서브에 간다(장착 판정 도구만 hint-publisher 조건)
+        if True:   # 증거 게시 의존(hints/ 제외)은 B 자체검사가 읽으므로 모든 서브에 간다 · hints/ 와 장착 판정 도구는 hint-publisher 조건
             for rel in HINT_ENGINE_DEPENDENCIES:
+                if rel.startswith("hints/") and "hint-publisher" not in names:
+                    continue
                 src = os.path.join(REPO, rel)
                 if not os.path.isfile(src):
                     raise SystemExit(f"[render] FAIL: hint 엔진 의존이 없다 — {rel}\n"
@@ -1512,7 +1518,7 @@ def _self_test() -> int:
             for _m in re.findall(r'skill_source\("([^"]+)"\)', _rs.read_text(encoding="utf-8", errors="replace")):
                 if not pathlib.Path(_out, ".claude", "skills", _m).exists():
                     _called_missing.append(f"{_rs.name}→skills/{_m}")
-        for _rel in SUB_B_CHECK_INPUTS + HINT_ENGINE_DEPENDENCIES:
+        for _rel in SUB_B_CHECK_INPUTS + SUB_B_EVIDENCE_DEPS:
             _p = pathlib.Path(_out, _rel)
             _bench_ok &= _p.is_file() and _p.read_bytes() == pathlib.Path(REPO, _rel).read_bytes()
         _bench_ok &= not _called_missing
