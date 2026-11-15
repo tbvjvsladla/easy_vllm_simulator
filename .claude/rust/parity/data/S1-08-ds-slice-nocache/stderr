@@ -1,11 +1,11 @@
 Traceback (most recent call last):
-  File "/tmp/parity-o-S1-08-ds-slice-nocache-1906457-1794703871249172550/.claude/skills/adversarial-benchmark/scripts/dataset_prep.py", line 286, in <module>
+  File "/tmp/parity-o-S1-08-ds-slice-nocache-378559-1794730684787426140/.claude/skills/adversarial-benchmark/scripts/dataset_prep.py", line 286, in <module>
     sys.exit(main())
              ^^^^^^
-  File "/tmp/parity-o-S1-08-ds-slice-nocache-1906457-1794703871249172550/.claude/skills/adversarial-benchmark/scripts/dataset_prep.py", line 282, in main
+  File "/tmp/parity-o-S1-08-ds-slice-nocache-378559-1794730684787426140/.claude/skills/adversarial-benchmark/scripts/dataset_prep.py", line 282, in main
     return {"prepare": cmd_prepare, "slice": cmd_slice, "synthetic-sidecar": cmd_synthetic_sidecar}[a.cmd](a)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "/tmp/parity-o-S1-08-ds-slice-nocache-1906457-1794703871249172550/.claude/skills/adversarial-benchmark/scripts/dataset_prep.py", line 149, in cmd_slice
+  File "/tmp/parity-o-S1-08-ds-slice-nocache-378559-1794730684787426140/.claude/skills/adversarial-benchmark/scripts/dataset_prep.py", line 149, in cmd_slice
     meta = json.loads((cache / PREP_META).read_text(encoding="utf-8"))
                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
   File "/usr/lib/python3.12/pathlib.py", line 1029, in read_text

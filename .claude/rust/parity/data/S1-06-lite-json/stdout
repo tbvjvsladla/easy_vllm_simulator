@@ -5,11 +5,11 @@
   "cold_ttft_ms": null,
   "kv_gib": null,
   "engine": {
-    "kv_tokens": null,
-    "reserved_total_gib": null,
-    "kv_gib": null,
     "nontorch_gib": null,
-    "weights_gib": null
+    "reserved_total_gib": null,
+    "weights_gib": null,
+    "kv_tokens": null,
+    "kv_gib": null
   },
   "accept_len": null,
   "accept_len_src": null,

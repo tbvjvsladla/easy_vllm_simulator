@@ -356,6 +356,26 @@ fn collect(dir: &Path, base: &Path, out: &mut BTreeMap<String, Vec<u8>>) {
     }
 }
 
+/// Content of every file under the declared output paths (a file or a directory tree), keyed by path relative to `base`.
+fn snapshot(base: &Path, outputs: &[String]) -> BTreeMap<String, Vec<u8>> {
+    let mut m = BTreeMap::new();
+    for rel in outputs {
+        let p = base.join(rel);
+        if p.is_dir() { collect(&p, base, &mut m); } else if let Ok(b) = fs::read(&p) { m.insert(rel.clone(), b); }
+    }
+    m
+}
+
+/// The file channel = what the entry itself did: files that are new or whose content changed (their content), and files that
+/// existed before and are gone (`<path>` + DELETED_SUFFIX, empty content). Untouched pre-existing files are outside the channel.
+const DELETED_SUFFIX: &str = ".parity-deleted";
+fn file_delta(before: &BTreeMap<String, Vec<u8>>, after: &BTreeMap<String, Vec<u8>>) -> BTreeMap<String, Vec<u8>> {
+    let mut d = BTreeMap::new();
+    for (k, v) in after { if before.get(k) != Some(v) { d.insert(k.clone(), v.clone()); } }
+    for k in before.keys() { if !after.contains_key(k) { d.insert(format!("{k}{DELETED_SUFFIX}"), vec![]); } }
+    d
+}
+
 /// Throwaway copy of the repository. `rev` = Some(commit): `git archive` of that commit (originals; no build output, so
 /// a Rust call from an "original" fails loudly). None = the working tree (tracked + untracked, not ignored) with the
 /// ignored `target/` build-output directories symlinked in so launchers find their binaries.
@@ -396,6 +416,7 @@ fn run(case: &Case, program: &str, repo: &Path, strace: bool, interp_py: bool, r
         if let Some(d) = p.parent() { fs::create_dir_all(d).map_err(|e| e.to_string())?; }
         fs::write(&p, content).map_err(|e| e.to_string())?;
     }
+    let before = snapshot(&tmp, &case.outputs);
     let prog = if Path::new(program).is_absolute() { PathBuf::from(program) } else { tmp.join(program) };
     let log = tmp.parent().unwrap().join(format!("{}.strace", tmp.file_name().unwrap().to_string_lossy()));
     let mut cmd;
@@ -413,11 +434,7 @@ fn run(case: &Case, program: &str, repo: &Path, strace: bool, interp_py: bool, r
     let o = child.wait_with_output().map_err(|e| e.to_string())?;
     let python_exec = if strace { count_python_exec(&fs::read_to_string(&log).unwrap_or_default()) } else { 0 };
     if strace { let _ = fs::remove_file(&log); }
-    let mut files = BTreeMap::new();
-    for rel in &case.outputs {
-        let p = tmp.join(rel);
-        if p.is_dir() { collect(&p, &tmp, &mut files); } else if let Ok(b) = fs::read(&p) { files.insert(rel.clone(), b); }
-    }
+    let files = file_delta(&before, &snapshot(&tmp, &case.outputs));
     let tmps = tmp.to_string_lossy().into_owned();
     remove_sandbox(&tmp);
     Ok(Outcome { stdout: o.stdout, stderr: o.stderr, exit: o.status.code().unwrap_or(-1), files, python_exec, repo: tmps.clone(), tmp: tmps })
@@ -629,6 +646,18 @@ fn self_check() -> Result<i32, String> {
         ck("N14-crc-diff-kept", zip_members(&a) != zip_members(&c));
         ck("N14-nonzip-none", zip_members(b"not a zip").is_none());
     }
+    }
+    // file channel = before/after delta of the entry's own writes
+    {
+        let m = |v: &[(&str, &str)]| -> BTreeMap<String, Vec<u8>> { v.iter().map(|(k, c)| (k.to_string(), c.as_bytes().to_vec())).collect() };
+        let before = m(&[("d/keep", "k"), ("d/mod", "1"), ("d/gone", "g")]);
+        let after = m(&[("d/keep", "k"), ("d/mod", "2"), ("d/new", "n")]);
+        let d = file_delta(&before, &after);
+        ck("delta-new", d.get("d/new").map(|x| x.as_slice()) == Some(b"n".as_slice()));
+        ck("delta-modified", d.get("d/mod").map(|x| x.as_slice()) == Some(b"2".as_slice()));
+        ck("delta-deleted", d.get(&format!("d/gone{DELETED_SUFFIX}")).map_or(false, |x| x.is_empty()));
+        ck("delta-untouched-outside", !d.contains_key("d/keep") && d.len() == 3);
+        ck("delta-none", file_delta(&before, &before).is_empty());
     }
     // end-to-end: synthetic case run through the same machinery inside a throwaway git repo (sandbox: working tree and a commit)
     let repo = scratch("repo", "self"); fs::create_dir_all(&repo).ok();
