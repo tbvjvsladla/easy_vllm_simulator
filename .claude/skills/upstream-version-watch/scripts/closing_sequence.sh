@@ -59,7 +59,7 @@ while [ $# -gt 0 ]; do
 done
 
 REPO="$(cd -- "${REPO:-$SELF_DIR/../../../..}" >/dev/null 2>&1 && pwd -P)"
-PARITY="$REPO/.claude/policies/runtime/topology_parity.py"
+PARITY="$REPO/.claude/policies/runtime/topology_parity.sh"
 # 원장 호출은 Rust 런처(layer_ledger.sh)다. .py 는 sync_branches 의 판정기 동일성 대조·selftest 가 계속 쓰므로 남는다.
 LEDGER="$REPO/.claude/skills/upstream-version-watch/scripts/layer_ledger.sh"
 SYNC="$REPO/.claude/skills/upstream-version-watch/scripts/sync_branches.sh"
@@ -82,9 +82,9 @@ preflight() {
     local rc=0
     echo "[closing] ⓪ 전제 — 출발=$CUR · 반대=$OTHER"
 
-    if ! python3 "$PARITY" evaluate --repo "$REPO" >/dev/null 2>&1; then
+    if ! "$PARITY" evaluate --repo "$REPO" >/dev/null 2>&1; then
         echo "[closing] FAIL: 4자일치가 RED 다. 이 상태로는 무엇을 어느 층에 넣을지 판정할 수 없다." >&2
-        python3 "$PARITY" evaluate --repo "$REPO" 2>&1 | head -40 >&2 || true
+        "$PARITY" evaluate --repo "$REPO" 2>&1 | head -40 >&2 || true
         rc=3
     else
         echo "[closing]   4자일치 PASS"
@@ -263,7 +263,7 @@ cleanup; WT=""
 
 if [ "$DO_SUB" = "1" ] && [ -f "$SUBSYNC" ]; then
     echo "[closing] ⑥ 서브 전파 — 공통층 + 이 브랜치의 특화층을 오버레이로"
-    TOPO="$(python3 "$PARITY" evaluate --repo "$REPO" --format value 2>/dev/null || true)"
+    TOPO="$("$PARITY" evaluate --repo "$REPO" --format value 2>/dev/null || true)"
     if [ -n "$TOPO" ]; then
         bash "$SUBSYNC" --mode "$GATE_MODE" --manifest "$WORK_MANIFEST" --branch "$TOPO" --apply \
             || echo "[closing]   ⚠ 서브 전파 실패 — 기재하고 진행(서브는 다음 B1 이 수렴시킨다)" >&2

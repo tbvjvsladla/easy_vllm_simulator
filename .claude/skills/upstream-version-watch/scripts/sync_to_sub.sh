@@ -135,7 +135,7 @@ GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.py"
 # 막힘 3분류: **정상 차단**이다. 우회 인자·환경변수는 없다. 해소는 맞는 체크아웃에서 맞는 --branch 로 다시 도는 것뿐이다
 #   (종료 시퀀스 ⑥ 은 `topology_parity --format value` 로 이 값을 정하므로 늘 통과한다).
 TOPOLOGY_GUARD_EXIT=12
-PARITY_SCRIPT="$REPO_ROOT/.claude/policies/runtime/topology_parity.py"
+PARITY_SCRIPT="$REPO_ROOT/.claude/policies/runtime/topology_parity.sh"
 GUARD_SRC="${SRC:-$REPO_ROOT/}"
 GUARD_SRC="${GUARD_SRC%/}"
 # 안내는 **원인별**이다(2026-09-14 ⑧-pre D2 리뷰): 4자일치 RED 를 한 문장으로 뭉개면, --branch 는 맞는데 manifest·캠페인
@@ -154,7 +154,7 @@ assert_delivery_topology() {
         echo "[sync] STOP(TOPOLOGY_DELIVERY_UNJUDGED): 4자일치 술어가 없다($PARITY_SCRIPT) — 체크아웃과 --branch 의 일치를 판정할 소유자가 없으면 배달하지 않는다." >&2
         return 1
     fi
-    verdict_json="$(python3 "$PARITY_SCRIPT" evaluate --repo "$GUARD_SRC" --expect "$BRANCH" --format json)" || rc=$?
+    verdict_json="$("$PARITY_SCRIPT" evaluate --repo "$GUARD_SRC" --expect "$BRANCH" --format json)" || rc=$?
     summary="$(printf '%s' "$verdict_json" | "$IJ" parity-summary 2>/dev/null)" || summary=""
     if [ -z "$summary" ]; then
         echo "[sync] STOP(TOPOLOGY_DELIVERY_UNJUDGED): 4자일치 술어의 판정을 읽지 못했다(rc=$rc) — 판정 없이 배달하지 않는다." >&2
@@ -240,7 +240,7 @@ RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
 # 역할 계약 판정기 — 배달 표면 검증이 tool_plane 을 물을 때 쓴다. 2026-09-05: 이 상수가
 #   **정의된 적이 없었다**. 검증기 본문 주석은 "경로는 파일 상단 ROLE_CONTRACT 상수"라고
 #   적고 있었으니 배선만 빠진 것이다(만든 것과 도는 것은 다르다).
-ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.py"
+ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.sh"
 PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh"
 PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
 
@@ -287,7 +287,7 @@ _resolve_sub_node_id_from_manifest() {   # $1=topology
 #   밝힌다(침묵 폴백 ✗ — 헌법 §4종 안티패턴 판정표의 '결함' 칸).
 _single_extension_active() {
     local manifest="${SRC%/}/output/single/manifest.yaml"
-    local contract="${SRC%/}/.claude/skills/terraforming_node/scripts/node_role_contract.py"
+    local contract="${SRC%/}/.claude/skills/terraforming_node/scripts/node_role_contract.sh"
     local plane rc=0
     # 2026-09-03(P3 · plan_26090317): B0 는 서브 git 이 없으면 **무조건 multi 를 채웠다**. 그 설계는
 #   멀티 온보딩만 상정한 것인데, §2.7.0 이 허용하는 single+sub(A2A 에이전트) 구성에서는 그것이
@@ -1368,7 +1368,7 @@ prepare_transactional_source() {
     done
     SRC="$TRANSACTIONAL_SRC/"
     RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
-    ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.py"
+    ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.sh"
     PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh"
     PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
     REGEN_TOOL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py"
@@ -2053,7 +2053,7 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
         fail=1
         _tp="__UNRESOLVED__"
     else
-    _tp="$(python3 "$ROLE_CONTRACT" evaluate \
+    _tp="$("$ROLE_CONTRACT" evaluate \
              --manifest "${SRC%/}/output/$1/manifest.yaml" --topology "$1" \
              --field tool_plane --format value 2>/dev/null || echo '__UNRESOLVED__')"
     fi
