@@ -3062,6 +3062,131 @@ fn op_resume_brief(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     Ok(0)
 }
 
+// ── --emit-slice ─────────────────────────────────────────────────────────────────────────────
+
+fn op_emit_slice(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let node = args.get("--emit-slice").unwrap_or_default().to_string();
+    let Some(utc) = args.get("--utc").filter(|u| !u.is_empty()) else {
+        return refuse("--emit-slice 는 --utc 가 필요하다(시각은 주입만 받는다)");
+    };
+    let Some((base, _)) = writer_target(ctx, args.get("--campaign-id"))? else {
+        return refuse("활성 캠페인이 없다(_bootstrap) — 자를 선언이 없다");
+    };
+    let decl = read_declaration(&base);
+    if decl.is_empty() {
+        return refuse(format!("선언을 읽지 못했다: {}", ctx.rel(&base.join("campaign.yaml"))));
+    }
+    let all_nodes: Vec<&PyDict> = list_of(decl.get("nodes").unwrap_or(&PyValue::None))
+        .into_iter()
+        .flatten()
+        .filter_map(dict_of)
+        .collect();
+    let nodes: Vec<&PyDict> = all_nodes.iter().copied().filter(|n| get_text(n, "node_id").as_deref() == Some(node.as_str())).collect();
+    if nodes.is_empty() {
+        return refuse(format!("nodes[] 에 {} 가 없다 — 없는 노드에 배정을 자를 수 없다", py_repr(&node)));
+    }
+    let items: Vec<PyValue> = assignments_of(&decl)
+        .into_iter()
+        .find(|(n, _)| *n == node)
+        .and_then(|(_, v)| list_of(&v).map(|l| l.iter().filter(|x| dict_of(x).is_some()).cloned().collect()))
+        .unwrap_or_default();
+    if items.is_empty() {
+        return refuse(format!("assignments[{}] 가 비었다 — 보낼 배정이 없는 지시서는 지시서가 아니다", py_repr(&node)));
+    }
+    let mains: Vec<String> = all_nodes
+        .iter()
+        .filter(|n| get_text(n, "role").as_deref() == Some("main"))
+        .filter_map(|n| get_text(n, "node_id"))
+        .collect();
+    let own_targets: Vec<PyValue> = list_or_empty(decl.get("hint_targets"))
+        .into_iter()
+        .filter(|t| dict_of(t).map(|d| get_text(d, "node_id").as_deref() == Some(node.as_str())).unwrap_or(false))
+        .collect();
+    let mut carried: Vec<PyValue> = Vec::new();
+    if !own_targets.is_empty() && get_text(nodes[0], "role").as_deref() == Some("sub") {
+        let why = crate::campaign_validator::hint_target_reasons(&decl);
+        if !why.is_empty() {
+            return refuse(format!(
+                "메인 선언의 hint_targets 에 결함이 있다 — 결함 있는 승인을 운반하지 않는다:\n{}",
+                why.iter().map(|b| format!("  - {b}")).collect::<Vec<_>>().join("\n")
+            ));
+        }
+        // carrying an approval asks the role contract whether this topology publishes by itself
+        let contract = ctx.root.join(".claude/skills/terraforming_node/scripts/node_role_contract.py");
+        if !contract.is_file() {
+            return refuse(format!(
+                "계약기를 찾지 못했다: {} — 파생 선언은 메인에서만 자른다",
+                ctx.rel(&contract)
+            ));
+        }
+        let topology = nodes[0].get("topology").cloned().unwrap_or(PyValue::None);
+        let known = text_of(&topology).map(|t| ["single", "multi"].contains(&t.as_str())).unwrap_or(false);
+        if !known {
+            return refuse(format!(
+                "노드 topology {} 를 모른다 — 그 노드 몫 hint 승인을 운반할지 판정할 수 없다(어휘 ['single', 'multi'] · 추측 ✗)",
+                topology.repr()
+            ));
+        }
+        use agent_runtime_support::pyvalue::PyValue as ContractValue;
+        let topology_name = text_of(&topology).unwrap_or_default();
+        let verdict = role_contract::sub_self_publishes(&ContractValue::str(&topology_name), &ContractValue::None)
+            .map_err(|_| Stop::Fallback)?;
+        if matches!(verdict.value.peel(), ContractValue::Bool(true)) {
+            carried = own_targets.clone();
+        }
+    }
+    let truthy_or = |key: &str, default: PyValue| match decl.get(key) {
+        Some(v) if v.is_truthy() => v.clone(),
+        _ => default,
+    };
+    let revisions = truthy_or("revisions", PyValue::List(Vec::new()));
+    let assignment_revision = list_or_empty(decl.get("assignment_revisions"))
+        .iter()
+        .rev()
+        .filter_map(dict_of)
+        .find(|r| get_text(r, "node").as_deref() == Some(node.as_str()))
+        .map(|r| {
+            let mut d = PyDict::new();
+            for k in ["rev", "reason", "evidence", "approved_by", "declared_utc"] {
+                d.set(k, r.get(k).cloned().unwrap_or(PyValue::None));
+            }
+            PyValue::Dict(d)
+        })
+        .unwrap_or(PyValue::None);
+    let mut out = PyDict::new();
+    out.set("schema_version", PyValue::int(1));
+    out.set("id", decl.get("id").cloned().unwrap_or(PyValue::None));
+    out.set("plan_ref", decl.get("plan_ref").cloned().unwrap_or(PyValue::None));
+    out.set("declared_utc", decl.get("declared_utc").cloned().unwrap_or(PyValue::None));
+    out.set("nodes", PyValue::List(nodes.iter().map(|n| PyValue::Dict((*n).clone())).collect()));
+    out.set("matrix", decl.get("matrix").cloned().unwrap_or(PyValue::None));
+    let mut assignments = PyDict::new();
+    assignments.set(&node, PyValue::List(items));
+    out.set("assignments", PyValue::Dict(assignments));
+    out.set("budgets", decl.get("budgets").cloned().unwrap_or(PyValue::None));
+    out.set("control_variables", decl.get("control_variables").cloned().unwrap_or(PyValue::None));
+    out.set("revisions", revisions);
+    out.set("hint_targets", PyValue::List(carried));
+    out.set("topology_sections", truthy_or("topology_sections", PyValue::Dict(PyDict::new())));
+    out.set("self_role", nodes[0].get("role").cloned().unwrap_or(PyValue::None));
+    out.set("authored_by", py("main-derived"));
+    out.set("derived_from", mains.first().map(|m| py(m)).unwrap_or(PyValue::None));
+    out.set("derived_utc", py(utc));
+    out.set("_lifecycle_parent", fold_lifecycle(ctx, &base, None).parent);
+    out.set("_assignment_revision", assignment_revision);
+    let blob = dump(&PyValue::Dict(out), 2)? + "\n";
+    match args.get("--out") {
+        Some(path) => {
+            write_text(Path::new(path), &blob)?;
+            io.say(&format!("[campaign_init] slice({node}) → {path}"));
+        }
+        None => {
+            let _ = io.out.write_all(blob.as_bytes());
+        }
+    }
+    Ok(0)
+}
+
 // ── purge gate ───────────────────────────────────────────────────────────────────────────────
 
 /// `purge_gate_reasons(previous_id)`: why the previous instance may not be removed (empty = the gate is open). A closed
@@ -3760,7 +3885,8 @@ fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 // ── dispatch ─────────────────────────────────────────────────────────────────────────────────
 
 /// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 19] = [
+const NATIVE_OPS: [&str; 20] = [
+    "--emit-slice",
     "--resume-brief",
     "--hint-approve",
     "--evidence-add",
@@ -3787,6 +3913,7 @@ fn allowed_options(op: &str) -> &'static [&'static str] {
     match op {
         "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
         "--verify-purge-gate" => &["--verify-purge-gate"],
+        "--emit-slice" => &["--emit-slice", "--utc", "--out", "--campaign-id"],
         "--resume-brief" => &["--resume-brief", "--campaign-id"],
         "--hint-approve" => &["--hint-approve", "--node", "--cells", "--approved-by", "--source", "--utc", "--campaign-id"],
         "--evidence-add" => &["--evidence-add", "--kind", "--path", "--cell", "--node", "--unfreeze", "--campaign-id"],
@@ -3866,6 +3993,7 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     let result = match op {
         "--assigned-cells" => op_assigned_cells(ctx, &args, io),
         "--verify-purge-gate" => op_verify_purge_gate(ctx, &args, io),
+        "--emit-slice" => op_emit_slice(ctx, &args, io),
         "--resume-brief" => op_resume_brief(ctx, &args, io),
         "--hint-approve" => op_hint_approve(ctx, &args, io),
         "--evidence-add" => op_evidence_add(ctx, &args, io),

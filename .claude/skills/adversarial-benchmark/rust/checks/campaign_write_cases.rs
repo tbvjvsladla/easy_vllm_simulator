@@ -348,3 +348,16 @@ fn resume_brief_outside_a_campaign_says_so() {
     assert_eq!(status, Some(0));
     assert!(out.ends_with("들지 않는다 — campaigns writer 는 no-op 이고, 재개할 캠페인도 없다.\n"), "{out}");
 }
+
+#[test]
+fn emit_slice_cuts_one_node_and_names_the_deriver() {
+    let root = scratch("slice");
+    active(&root);
+    let (status, out, _) = call(&root, &["--emit-slice", "sub", "--utc", "T"]);
+    assert_eq!(status, Some(0));
+    assert!(out.contains("\"authored_by\": \"main-derived\"") && out.contains("\"derived_from\": \"main\""), "{out}");
+    assert!(out.contains("\"assignments\": {\n    \"sub\": [") && out.contains("\"hint_targets\": []"), "{out}");
+    let (status, _, err) = call(&root, &["--emit-slice", "zz", "--utc", "T"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("nodes[] 에 'zz' 가 없다"));
+}
