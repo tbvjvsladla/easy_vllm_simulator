@@ -131,7 +131,7 @@ fn lockset_vocab(root: &PyStr) -> Step<Vocab> {
     for line in knobs_text.lines() {
         if let Some(at) = line.find("\": (") {
             let key = line[..at].trim().trim_start_matches('"').to_string();
-            knobs.insert(key, quoted(&line[at..]));
+            knobs.insert(key, quoted(&line[at + 3..]));
         }
     }
     Ok(Vocab { provenance: quoted(&prov), knobs })
@@ -216,8 +216,7 @@ fn declared_axis(cfg: &PyValue, key: &str) -> Step<(Option<i64>, &'static str, S
         _ => Err(die_py(
             5,
             Message::new()
-                .lit(&format!("config.declared_axes.{}=", key))
-                .val(val)
+                .lit(&format!("config.declared_axes.{}={}", key, val.repr()))
                 .lit(" 는 양의 정수 또는 null 이어야 한다 — 모르면 null 로 '선언하지 않았다'를 적는다(campaigns/README.md §셀 값의 두 계층).")
                 .done(),
         )),
@@ -254,7 +253,7 @@ fn batch_plan(cand: &mut PyDict, cfg: &PyValue, vocab: &Vocab) -> Step<BatchPlan
             _ => true,
         };
         if bad {
-            return Err(die_py(5, Message::new().lit("lockset batch=").val(&lock_batch).lit(" 는 양의 정수 또는 null 이어야 한다 — 비워 두면(null) explorer 가 min(concurrency_requirement, KV_fit@L) 로 산출하고, 사람이 적은 수는 손레버로 보존된다(references/kv-clamp.md §3).").done()));
+            return Err(die_py(5, Message::new().lit(&format!("lockset batch={}", lock_batch.repr())).lit(" 는 양의 정수 또는 null 이어야 한다 — 비워 두면(null) explorer 가 min(concurrency_requirement, KV_fit@L) 로 산출하고, 사람이 적은 수는 손레버로 보존된다(references/kv-clamp.md §3).").done()));
         }
     }
     let (lock_src, src_anomaly) = vocab.input_source("batch_source", &cg(cand, "batch_source"));
@@ -812,7 +811,7 @@ pub fn cmd_simulate(streams: &mut Streams, a: &Args, root: &PyStr, skill_root: &
         let mut trial = run_trial(&cand, &run_dir, trial_number, &opts, root)?;
         let prov = cg(&trial, "provenance");
         if !matches!(str_of(&prov).as_deref(), Some("measured" | "mock" | "dry-run")) {
-            return Err(die_py(7, Message::new().lit("trial provenance 미표기/미지값(").val(&prov).lit(") — run_trial 계약 위반. 출처 미상 결과는 판정에 쓰지 않는다(plan_26081314 D1).").done()).into());
+            return Err(die_py(7, Message::new().lit(&format!("trial provenance 미표기/미지값({})", prov.repr())).lit(" — run_trial 계약 위반. 출처 미상 결과는 판정에 쓰지 않는다(plan_26081314 D1).").done()).into());
         }
         let mut prof = dict_of(&cg(&trial, "vllm_profile"));
         let has_profile = !is_none(&cg(&trial, "vllm_profile")) && matches!(cg(&trial, "vllm_profile").peel(), PyValue::Dict(_));
@@ -965,7 +964,7 @@ pub fn cmd_simulate(streams: &mut Streams, a: &Args, root: &PyStr, skill_root: &
                 der.set("kv_fit", PyValue::int(kvf));
                 der.set("verified", PyValue::None);
                 let prev_reason = derivation.as_ref().map_or(PyValue::None, |d| cg(d, "reason"));
-                der.set("reason", Message::new().lit(&format!("클램프 트라이얼 {} 의 엔진 보고 KV 토큰으로 KV-fit {} 재측정 → batch ", trial_number, kvf)).val(&batch_before).lit("에서 낮춤(위상 1: ").val(&prev_reason).lit(")").done().into_value());
+                der.set("reason", Message::new().lit(&format!("클램프 트라이얼 {} 의 엔진 보고 KV 토큰으로 KV-fit {} 재측정 → batch ", trial_number, kvf)).val(&batch_before).lit(" 에서 낮춤(위상 1: ").val(&prev_reason).lit(")").done().into_value());
                 derivation = Some(der);
                 append_record(&rec, &mut history)?;
                 if trial_number == cap {
