@@ -124,6 +124,11 @@ path = "src/bin/node_role_contract.rs"
 name = "budget_preflight"
 path = "src/bin/budget_preflight.rs"
 
+# The `verify` and `bundle` subcommands of `regen_build_patches_src.py` (payload sha256 check, script-modules inventory, deterministic tar.gz bundle).
+[[bin]]
+name = "regen_build_patches_src"
+path = "src/bin/regen_build_patches_src.rs"
+
 # The unchanged public command line of `check_smoke_model.py`: NAS presence, rope/spec-layout early checks, the pre-load RAM gate and the BUDGET_PARAMS emission.
 [[bin]]
 name = "check_smoke_model"

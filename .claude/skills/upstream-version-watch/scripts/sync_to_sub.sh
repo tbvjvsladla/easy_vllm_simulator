@@ -1520,6 +1520,8 @@ prepare_transactional_source() {
     PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh"
     PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
     REGEN_TOOL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py"
+    # 로컬 verify·bundle 은 Rust 런처로 간다. REGEN_TOOL(.py)은 서브 stdin 실행(unbundle 등)의 원본으로만 남는다.
+    REGEN_LOCAL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh"
     echo "[sync] transactional source prepared (canonical tree remains read-only): $TRANSACTIONAL_SRC"
     # 2026-09-03(P3 · plan_26090317): 이 루프가 **두 토폴로지 전부**를 무조건 물질화해, 이번 배달과
     #   무관한 통로의 파생 payload 부재가 배달 전체를 죽였다(싱글 배달이 multi 사유로 STOP).
@@ -1550,7 +1552,7 @@ materialize_source_port_payload() {  # $1=topology → 0=ok(또는 해당없음)
         return 9
     fi
     if script_modules_active "$t"; then
-        python3 "$REGEN_TOOL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" || return 9
+        "$REGEN_LOCAL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" || return 9
         echo "[sync] [$t] script-modules verified directly; files/ derive/bundle not applicable"
         return 0
     fi
@@ -1562,10 +1564,10 @@ materialize_source_port_payload() {  # $1=topology → 0=ok(또는 해당없음)
         return 9
     fi
     # 인덱스의 PROVENANCE 로 파일시스템 payload 를 검증한다(권위/바이트 분리의 핵심).
-    if ! python3 "$REGEN_TOOL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" \
+    if ! "$REGEN_LOCAL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" \
             --provenance "$man" --files-root "$payload" >/dev/null; then
         echo "[sync] FAIL(source-port/$t): payload 가 인덱스 PROVENANCE 와 불일치 — 검증되지 않은 바이트는 배달하지 않는다." >&2
-        python3 "$REGEN_TOOL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" \
+        "$REGEN_LOCAL" verify --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" \
             --provenance "$man" --files-root "$payload" 2>&1 | sed 's/^/    /' >&2 || true
         return 9
     fi
@@ -1578,7 +1580,7 @@ materialize_source_port_payload() {  # $1=topology → 0=ok(또는 해당없음)
 build_source_port_bundle() {  # $1=topology $2=출력경로 → SOURCE_PORT_BUNDLE_SHA 설정
     local t="$1" out="$2"
     SOURCE_PORT_BUNDLE_SHA=""
-    SOURCE_PORT_BUNDLE_SHA="$(python3 "$REGEN_TOOL" bundle \
+    SOURCE_PORT_BUNDLE_SHA="$("$REGEN_LOCAL" bundle \
         --root "${SRC%/}/output/$t/$SOURCE_PORT_DIR" --out "$out" 2>/dev/null | tail -1)" || return 9
     [ -n "$SOURCE_PORT_BUNDLE_SHA" ] || { echo "[sync] FAIL(source-port/$t): 번들 해시 미획득" >&2; return 9; }
 }

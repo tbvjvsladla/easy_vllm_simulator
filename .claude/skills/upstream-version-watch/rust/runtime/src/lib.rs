@@ -74,6 +74,7 @@ pub mod regen_api;
 pub mod regen_cli;
 pub mod regen_flow;
 pub mod regen_main;
+pub mod regen_patches_src;
 pub mod regen_traceback;
 pub mod requirements_rules;
 pub mod tempdir;
