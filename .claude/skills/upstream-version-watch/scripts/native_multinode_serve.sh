@@ -1,5 +1,5 @@
 #!/bin/bash
-# Direct normal ELF startup (dry-run up plan, client, down); up --apply and --self-test exit 2 -> original .py. Main only.
+# Direct normal ELF startup (up incl. --apply, client, down, --self-test); no hand-off to the original .py. Main only.
 set -euo pipefail
 SCRIPT_PATH=${BASH_SOURCE[0]}
 case "$SCRIPT_PATH" in */*) SCRIPT_DIR=${SCRIPT_PATH%/*}; [ -n "$SCRIPT_DIR" ] || SCRIPT_DIR=/ ;; *) SCRIPT_DIR=. ;; esac

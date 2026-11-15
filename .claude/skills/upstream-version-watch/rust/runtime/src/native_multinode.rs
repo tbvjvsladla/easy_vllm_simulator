@@ -1,8 +1,8 @@
 //! `native_multinode_serve.py` (part A of the port): constants and validation, the marker-owned tree primitives, the process primitives,
 //! the runners (local and SSH fixed-runner), `load_ctx`, the pure argv/env builders, the dry-run `plan`, `client` and `down`.
 //!
-//! Not in this part (status 2 with a notice, the original `.py` stays): the `up --apply` flow (`NativeServe`: gates, install, cluster start,
-//! health, proof, launch record), `--self-test`, and the remote fixed program run on the sub node (`REMOTE`/`BOOT` are sent byte for byte).
+//! `up --apply` (`NativeServe`) lives in the child module `up`, `--self-test` in `self_test`. The remote fixed program run on the sub node
+//! (`REMOTE`/`BOOT`) is still sent byte for byte and needs the sub's `python3`; `blackbox_session.py` calls stay Python by decision.
 //! Deviations on purpose: `check_smoke_model` / `budget_preflight` argv name their `.sh` launchers; the wheelhouse argv still spawns `python3`.
 
 use crate::gate_cli::{self, Values};
