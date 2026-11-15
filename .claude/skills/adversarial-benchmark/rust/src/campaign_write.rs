@@ -2516,6 +2516,146 @@ fn op_revise(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     Ok(0)
 }
 
+fn op_hint_approve(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    use crate::campaign_validator::{hint_approval_reason, hint_target_reasons, APPROVAL_DEFAULT_SOURCE};
+    let Some((base, camp)) = writer_prelude(ctx, args, io)? else { return Ok(0) };
+    let node = args.get("--node");
+    let approved_by = args.get("--approved-by");
+    let utc = args.get("--utc");
+    let source = args.get("--source").filter(|s| !s.is_empty()).unwrap_or(APPROVAL_DEFAULT_SOURCE);
+    for (need, val) in [("--node", node), ("--approved-by", approved_by), ("--utc", utc)] {
+        if val.map(|v| v.trim().is_empty()).unwrap_or(true) {
+            return refuse(format!(
+                "{need} 는 필수다 — node·cells·approved-by·utc 넷 중 하나라도 없으면 승인이 아니라 드리프트다(--revise 와 같은 규율)"
+            ));
+        }
+    }
+    let (node, approved_by, utc) = (node.expect("checked"), approved_by.expect("checked"), utc.expect("checked"));
+    let mut wanted: Vec<String> = Vec::new();
+    for c in args.get("--cells").unwrap_or("").split(',') {
+        let c = c.trim();
+        if !c.is_empty() && !wanted.iter().any(|w| w == c) {
+            wanted.push(c.to_string());
+        }
+    }
+    if wanted.is_empty() {
+        return refuse("--cells 는 필수다 — 승인할 셀을 명시 열거한다(빈 목록 = 전 셀 해석은 폐기 · 백지 승인 ✗)");
+    }
+    no_fill(&[("node", node), ("approved_by", approved_by), ("utc", utc), ("source", source), ("cells", &wanted.join(","))])?;
+    let mut approval = PyDict::new();
+    approval.set("approved_by", py(approved_by));
+    approval.set("approved_utc", py(utc));
+    approval.set("source", py(source));
+    let approval = PyValue::Dict(approval);
+    if let Some(why) = hint_approval_reason(&approval) {
+        return refuse(format!("승인이 완결되지 않았다 — {why}"));
+    }
+    let path = base.join("campaign.yaml");
+    let mut doc = load_pointer_doc(ctx, &path, "campaign.yaml 이 없거나 파손 — 승인을 적을 선언이 없다")?;
+    if get_text(&doc, "self_role").as_deref() == Some("sub") {
+        return refuse("self_role=sub 인스턴스다 — 발행 승인은 메인 선언에만 적는다. 서브 셀이면 메인에서 `--hint-approve --node <그 서브 노드>` 로 적고, 파생 선언(--emit-slice)이 그 노드 몫을 운반한다");
+    }
+    let declared = list_of(doc.get("nodes").unwrap_or(&PyValue::None))
+        .into_iter()
+        .flatten()
+        .filter_map(dict_of)
+        .any(|n| get_text(n, "node_id").as_deref() == Some(node));
+    if !declared {
+        return refuse(format!("nodes[] 에 {} 가 없다 — 선언되지 않은 노드의 셀은 승인할 수 없다", py_repr(node)));
+    }
+    let assigned = assigned_cells(&doc, Some(node));
+    let outside: Vec<String> = wanted.iter().filter(|c| !assigned.contains(c)).cloned().collect();
+    if !outside.is_empty() {
+        return refuse(format!(
+            "--cells 의 {} 는 assignments[{}] 에 없다(배정: {}) — 배정 SSOT 는 assignments 이고 hint_targets 는 파생이다(배정의 노드가 승인의 노드다)",
+            py_list_repr(&outside),
+            py_repr(node),
+            py_list_repr(&assigned)
+        ));
+    }
+    let before = hint_target_reasons(&doc);
+    if !before.is_empty() {
+        return refuse(format!(
+            "선언의 hint_targets 에 이미 결함이 있다 — 결함 위에 승인을 얹지 않는다. 먼저 고친다:\n{}",
+            before.iter().map(|b| format!("  - {b}")).collect::<Vec<_>>().join("\n")
+        ));
+    }
+    let mut targets = match doc.get("hint_targets").and_then(list_of) {
+        Some(t) => t.clone(),
+        None => Vec::new(),
+    };
+    let target_cells = |t: &PyValue| -> Vec<String> {
+        dict_of(t).and_then(|d| d.get("cells")).and_then(list_of).map(|l| l.iter().filter_map(text_of).collect()).unwrap_or_default()
+    };
+    let mut approved_at: Vec<(String, usize)> = Vec::new();
+    for (i, t) in targets.iter().enumerate() {
+        for c in target_cells(t) {
+            match approved_at.iter_mut().find(|(n, _)| *n == c) {
+                Some(slot) => slot.1 = i,
+                None => approved_at.push((c, i)),
+            }
+        }
+    }
+    let at = |c: &str| approved_at.iter().find(|(n, _)| n == c).map(|(_, i)| *i);
+    let same = targets.iter().position(|t| {
+        dict_of(t).map(|d| get_text(d, "node_id").as_deref() == Some(node) && d.get("approval") == Some(&approval)).unwrap_or(false)
+    });
+    let added: Vec<String> = wanted.iter().filter(|c| at(c).is_none()).cloned().collect();
+    let already: Vec<String> = wanted.iter().filter(|c| at(c).is_some() && at(c) == same).cloned().collect();
+    let kept: Vec<(String, usize)> = wanted.iter().filter_map(|c| at(c).filter(|i| Some(*i) != same).map(|i| (c.clone(), i))).collect();
+    let mut index = same;
+    let mut wrote: Vec<String> = Vec::new();
+    if !added.is_empty() {
+        match same {
+            Some(i) => {
+                let mut t = dict_of(&targets[i]).expect("same is an object").clone();
+                let mut cells = list_or_empty(t.get("cells"));
+                cells.extend(added.iter().map(|c| py(c)));
+                t.set("cells", PyValue::List(cells));
+                targets[i] = PyValue::Dict(t);
+            }
+            None => {
+                let mut t = PyDict::new();
+                t.set("node_id", py(node));
+                t.set("cells", str_list(added.clone()));
+                t.set("approval", approval.clone());
+                targets.push(PyValue::Dict(t));
+                index = Some(targets.len() - 1);
+            }
+        }
+        doc.set("hint_targets", PyValue::List(targets.clone()));
+        let after = hint_target_reasons(&doc);
+        if !after.is_empty() {
+            return refuse(format!(
+                "승인 기록이 검증기를 통과하지 못한다(writer↔검증기 갈라짐 — 쓰지 않았다):\n{}",
+                after.iter().map(|x| format!("  - {x}")).collect::<Vec<_>>().join("\n")
+            ));
+        }
+        write_json(&path, &PyValue::Dict(doc))?;
+        wrote.push(ctx.rel(&path));
+        io.warn(&format!(
+            "[campaign_init] hint 사전승인 hint_targets[{}] ← {}",
+            index.expect("set above"),
+            py_list_repr(&added)
+        ));
+    }
+    if !already.is_empty() {
+        io.warn(&format!("[campaign_init] 같은 승인으로 이미 적힌 셀(멱등): {}", py_list_repr(&already)));
+    }
+    for (cell, i) in kept {
+        let a = dict_of(&targets[i]).and_then(|d| get_dict(d, "approval")).cloned().unwrap_or_default();
+        let shown = |k: &str| a.get(k).map(|v| v.display_text().to_utf8().unwrap_or_default()).unwrap_or_else(|| "None".to_string());
+        io.warn(&format!(
+            "[campaign_init] ⓘ {} 은 이미 hint_targets[{i}] 가 승인했다({} · {}) — 옛 승인을 지킨다(귀속을 조용히 바꾸지 않는다)",
+            py_repr(&cell),
+            shown("source"),
+            shown("approved_utc")
+        ));
+    }
+    wrote_line(io, &camp, &wrote);
+    Ok(0)
+}
+
 // ── purge gate ───────────────────────────────────────────────────────────────────────────────
 
 /// `purge_gate_reasons(previous_id)`: why the previous instance may not be removed (empty = the gate is open). A closed
@@ -3214,7 +3354,8 @@ fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 // ── dispatch ─────────────────────────────────────────────────────────────────────────────────
 
 /// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 17] = [
+const NATIVE_OPS: [&str; 18] = [
+    "--hint-approve",
     "--evidence-add",
     "--evidence-untag",
     "--evidence-relocate",
@@ -3239,6 +3380,7 @@ fn allowed_options(op: &str) -> &'static [&'static str] {
     match op {
         "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
         "--verify-purge-gate" => &["--verify-purge-gate"],
+        "--hint-approve" => &["--hint-approve", "--node", "--cells", "--approved-by", "--source", "--utc", "--campaign-id"],
         "--evidence-add" => &["--evidence-add", "--kind", "--path", "--cell", "--node", "--unfreeze", "--campaign-id"],
         "--evidence-untag" => &["--evidence-untag", "--kind", "--path", "--cell", "--untag-reason", "--utc", "--unfreeze", "--campaign-id"],
         "--evidence-relocate" => &["--evidence-relocate", "--kind", "--path", "--to", "--relocate-reason", "--utc", "--unfreeze", "--campaign-id"],
@@ -3316,6 +3458,7 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     let result = match op {
         "--assigned-cells" => op_assigned_cells(ctx, &args, io),
         "--verify-purge-gate" => op_verify_purge_gate(ctx, &args, io),
+        "--hint-approve" => op_hint_approve(ctx, &args, io),
         "--evidence-add" => op_evidence_add(ctx, &args, io),
         "--evidence-untag" => op_evidence_untag(ctx, &args, io),
         "--evidence-relocate" => op_evidence_relocate(ctx, &args, io),

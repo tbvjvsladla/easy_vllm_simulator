@@ -518,3 +518,152 @@ pub fn acceptance(ctx: &Ctx, instance: &str, io: &mut Sinks<'_>) -> i32 {
     }
     1
 }
+
+// ── hint publication pre-approval (the shape of `hint_targets`) ─────────────────────────────
+
+const APPROVAL_FIELDS: [&str; 3] = ["approved_by", "approved_utc", "source"];
+const APPROVAL_SOURCES: [&str; 2] = ["declaration-popup", "publish-popup"];
+pub const APPROVAL_DEFAULT_SOURCE: &str = "declaration-popup";
+
+fn utc_shape(text: &str) -> bool {
+    let b = text.as_bytes();
+    b.len() == 20
+        && b.iter().enumerate().all(|(i, c)| match i {
+            4 | 7 => *c == b'-',
+            10 => *c == b'T',
+            13 | 16 => *c == b':',
+            19 => *c == b'Z',
+            _ => c.is_ascii_digit(),
+        })
+}
+
+/// `hint_approval_reason(approval)`: why one approval is incomplete (`None` = complete).
+pub fn hint_approval_reason(approval: &PyValue) -> Option<String> {
+    let Some(approval) = dict_of(approval) else {
+        return Some("approval 이 없다 — 사람 승인의 전사가 없는 항목은 사전승인이 아니다".to_string());
+    };
+    for field in APPROVAL_FIELDS {
+        match get_text(approval, field).filter(|v| !v.trim().is_empty()) {
+            None => return Some(format!("approval.{field} 가 비었다 — 반쪽 승인은 승인이 아니다")),
+            Some(v) if v.contains(FILL) => {
+                return Some(format!("approval.{field} 에 {FILL} 이 남아 있다 — 모르는 값을 그럴듯하게 채우지 않는다"))
+            }
+            Some(_) => {}
+        }
+    }
+    let utc = get_text(approval, "approved_utc").unwrap_or_default();
+    if !utc_shape(&utc) {
+        return Some(format!(
+            "approval.approved_utc {} 가 주입 시각 모양(YYYY-MM-DDTHH:MM:SSZ)이 아니다 — 발행 페이로드는 이 모양만 옮긴다",
+            py_repr(&utc)
+        ));
+    }
+    let source = get_text(approval, "source").unwrap_or_default();
+    if !APPROVAL_SOURCES.contains(&source.as_str()) {
+        return Some(format!(
+            "approval.source {} 가 목록 밖이다(허용 ['declaration-popup', 'publish-popup'])",
+            py_repr(&source)
+        ));
+    }
+    None
+}
+
+/// `hint_target_reasons(doc)`: the defects of `hint_targets` (empty = it holds).
+pub fn hint_target_reasons(doc: &PyDict) -> Vec<String> {
+    let mut problems: Vec<String> = Vec::new();
+    let targets_value = doc.get("hint_targets").cloned();
+    if let Some(items) = targets_value.as_ref().and_then(list_of) {
+        for (i, target) in items.iter().enumerate() {
+            if let Some(t) = dict_of(target) {
+                if t.contains_key("arch") {
+                    problems.push(format!(
+                        "hint_targets[{i}].arch 는 폐기된 키다 — 태그 이름은 발행 도구가 전량 파생한다(2026-09-21 D8) — 손으로 적은 arch 는 '파생 가능한데 손으로 적은 값'이다. 키를 지우고 승인은 `campaign_init.py --hint-approve` 로 적는다"
+                    ));
+                }
+            }
+        }
+    }
+    let Some(targets_value) = targets_value.filter(|v| !matches!(v.peel(), PyValue::None)) else {
+        return problems;
+    };
+    let Some(targets) = list_of(&targets_value) else {
+        problems.push("hint_targets 가 목록이 아니다".to_string());
+        return problems;
+    };
+    let nodes: Vec<&PyDict> = list_of(doc.get("nodes").filter(|v| v.is_truthy()).unwrap_or(&PyValue::None))
+        .into_iter()
+        .flatten()
+        .filter_map(dict_of)
+        .collect();
+    if !targets.is_empty() && get_text(doc, "self_role").as_deref() == Some("sub") {
+        let own_ids: Vec<PyValue> = nodes.iter().map(|n| n.get("node_id").cloned().unwrap_or(PyValue::None)).collect();
+        if nodes.len() != 1 || get_text(nodes[0], "role").as_deref() != Some("sub") {
+            problems.push("self_role=sub 인스턴스에 hint_targets 가 있는데 nodes[] 가 자기(role sub) 노드 하나가 아니다 — 파생 선언(emit_slice)은 그 서브 노드 하나만 싣는다".to_string());
+        } else if get_text(nodes[0], "topology").as_deref() != Some("single") {
+            problems.push(format!(
+                "self_role=sub 인스턴스에 hint_targets 가 있다 — topology {} 의 서브는 자체 발행하지 않는다(자체 발행 = ['single'] · 승인은 메인 선언에만)",
+                nodes[0].get("topology").map(PyValue::repr).unwrap_or_else(|| "None".to_string())
+            ));
+        }
+        for (i, target) in targets.iter().enumerate() {
+            if let Some(t) = dict_of(target) {
+                let nid = t.get("node_id").cloned().unwrap_or(PyValue::None);
+                if !own_ids.contains(&nid) {
+                    problems.push(format!(
+                        "self_role=sub 인스턴스의 hint_targets[{i}] 는 다른 노드({}) 몫이다 — 파생 선언은 그 노드 몫만 운반한다",
+                        nid.repr()
+                    ));
+                }
+            }
+        }
+    }
+    let node_ids: Vec<PyValue> = nodes.iter().map(|n| n.get("node_id").cloned().unwrap_or(PyValue::None)).collect();
+    let mut approved_at: Vec<(String, usize)> = Vec::new();
+    for (i, target) in targets.iter().enumerate() {
+        let Some(t) = dict_of(target) else {
+            problems.push(format!("hint_targets[{i}] 가 객체가 아니다"));
+            continue;
+        };
+        let nid = t.get("node_id").cloned().unwrap_or(PyValue::None);
+        if !node_ids.contains(&nid) {
+            problems.push(format!("hint_targets[{i}].node_id {} 가 nodes[] 에 없다", nid.repr()));
+            continue;
+        }
+        let cells = t.get("cells").and_then(list_of).filter(|c| !c.is_empty());
+        let cells: Vec<PyValue> = match cells {
+            Some(c) => c.clone(),
+            None => {
+                problems.push(format!(
+                    "hint_targets[{i}].cells 가 비었다 — 승인할 셀을 명시 열거한다(빈 목록 = 전 셀 해석은 폐기 · 백지 승인 ✗)"
+                ));
+                Vec::new()
+            }
+        };
+        let nid_text = text_of(&nid).unwrap_or_default();
+        let assigned_here = assigned_cells(doc, Some(&nid_text));
+        for c in &cells {
+            let Some(name) = text_of(c).filter(|n| !n.trim().is_empty() && !n.contains(FILL)) else {
+                problems.push(format!("hint_targets[{i}].cells 에 빈 셀 이름 {} 이 있다", c.repr()));
+                continue;
+            };
+            if !assigned_here.contains(&name) {
+                problems.push(format!(
+                    "hint_targets[{i}].cells 의 {} 이 assignments[{}] 에 없다 — 배정 SSOT 는 assignments 이고 hint_targets 는 파생이다",
+                    py_repr(&name),
+                    nid.repr()
+                ));
+            }
+            match approved_at.iter().find(|(n, _)| *n == name) {
+                Some((_, at)) => problems.push(format!(
+                    "hint_targets[{i}].cells 의 {} 은 이미 hint_targets[{at}] 가 승인했다 — 한 셀의 승인은 하나다(어느 전사가 그 셀의 승인인지 갈리지 않는다)",
+                    py_repr(&name)
+                )),
+                None => approved_at.push((name, i)),
+            }
+        }
+        if let Some(why) = hint_approval_reason(t.get("approval").unwrap_or(&PyValue::None)) {
+            problems.push(format!("hint_targets[{i}] {why}"));
+        }
+    }
+    problems
+}

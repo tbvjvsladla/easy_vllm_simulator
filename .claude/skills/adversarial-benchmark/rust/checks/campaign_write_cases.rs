@@ -309,3 +309,21 @@ fn revise_appends_a_revision_after_the_t0_original() {
     let text = std::fs::read_to_string(root.join("campaigns/camp-a/campaign.yaml")).unwrap();
     assert!(text.contains("\"reason\": \"t0 선언\"") && text.contains("\"rev\": 1") && text.contains("\"x\": \"2\""), "{text}");
 }
+
+#[test]
+fn hint_approve_records_one_event_and_keeps_an_old_approval() {
+    let root = scratch("hint");
+    active(&root);
+    let approve = |cells: &str, utc: &str| {
+        call(&root, &["--hint-approve", "--node", "main", "--cells", cells, "--approved-by", "사람", "--utc", utc])
+    };
+    let (status, out, err) = approve("c1", "2026-11-15T01:00:00Z");
+    assert_eq!((status, out.as_str()), (Some(0), "[campaign_init] wrote(camp-a): campaigns/camp-a/campaign.yaml\n"));
+    assert!(err.contains("hint 사전승인 hint_targets[0] ← ['c1']"), "{err}");
+    let (_, out, err) = approve("c1", "2026-11-16T01:00:00Z");
+    assert_eq!(out, "[campaign_init] wrote(camp-a): \n");
+    assert!(err.contains("'c1' 은 이미 hint_targets[0] 가 승인했다(declaration-popup · 2026-11-15T01:00:00Z)"), "{err}");
+    let (status, _, err) = call(&root, &["--hint-approve", "--node", "main", "--cells", "s1", "--approved-by", "a", "--utc", "2026-11-15T01:00:00Z"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("assignments['main'] 에 없다"));
+}
