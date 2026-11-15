@@ -154,6 +154,11 @@ path = "src/bin/push_branches.rs"
 name = "judge_version_delta"
 path = "src/bin/judge_version_delta.rs"
 
+# The branch-layer ledger and sync-point judge of `layer_ledger.py` (+ four subcommands replacing the inline Python of `closing_sequence.sh`); `--self-test` stays in Python.
+[[bin]]
+name = "layer_ledger"
+path = "src/bin/layer_ledger.rs"
+
 # The `prefix`, `json`, `default` subcommands of `slave_forward.py` (+ new `non-identity`); `--self-test` stays in Python.
 [[bin]]
 name = "slave_forward"

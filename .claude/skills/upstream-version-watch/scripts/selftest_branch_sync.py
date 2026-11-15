@@ -53,6 +53,8 @@ TN = ".claude/skills/terraforming_node/scripts"
 SYNC_TO_SUB = f"{UVW}/sync_to_sub.sh"
 SYNC_BRANCHES = f"{UVW}/sync_branches.sh"
 LAYER_LEDGER = f"{UVW}/layer_ledger.py"
+# closing_sequence.sh 는 원장을 Rust 런처로 부른다 — 사본 트리에는 ELF 가 없으므로 런처만 복사하고 실물 런타임 루트를 가리킨다.
+LAYER_LEDGER_SH = f"{UVW}/layer_ledger.sh"
 CLOSING = f"{UVW}/closing_sequence.sh"
 PARITY = ".claude/policies/runtime/topology_parity.py"
 CAMPAIGN_INIT = f"{TN}/campaign_init.py"
@@ -102,7 +104,8 @@ class Sandbox:
         self.env.update(GIT_CONFIG_GLOBAL=str(gcfg), GIT_CONFIG_NOSYSTEM="1", GIT_TERMINAL_PROMPT="0",
                         TMPDIR=str(self.tmp), SYNC_SSH_COMMAND=str(shim),
                         # 사본 트리에 __pycache__ 가 생기면 "부작용 0" 판정이 흐려진다 -- 바이트코드를 쓰지 않는다
-                        PYTHONDONTWRITEBYTECODE="1")
+                        PYTHONDONTWRITEBYTECODE="1",
+                        EASY_VLLM_UPSTREAM_RUNTIME_ROOT=str(REAL / UVW.replace("/scripts", "") / "rust" / "runtime"))
 
     def git(self, cwd: Path, *args: str) -> str:
         proc = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True,
@@ -322,7 +325,7 @@ def _build_sequence_fixture(sb: Sandbox, *, target_only_change: bool = False, br
     hintlib = sorted(f"{HINTLIB_DIR}/{p.name}" for p in (REAL / HINTLIB_DIR).glob("*.py"))
     if not any(r.endswith("/catalog.py") for r in hintlib):
         raise RuntimeError(f"hintlib 사본 목록에 catalog.py 가 없다: {hintlib}")
-    for rel in {LAYER_LEDGER, SYNC_BRANCHES, CLOSING, PARITY, GATE, CATALOG, ".gitignore",
+    for rel in {LAYER_LEDGER, LAYER_LEDGER_SH, SYNC_BRANCHES, CLOSING, PARITY, GATE, CATALOG, ".gitignore",
                 *(f".claude/schemas/{s}" for s in SCHEMAS), *reps, *hintlib, *CATALOG_COMPANIONS}:
         _copy_real(repo, rel)
     _write(repo, "CLAUDE.md", "# 픽스처 헌법 v1\n")

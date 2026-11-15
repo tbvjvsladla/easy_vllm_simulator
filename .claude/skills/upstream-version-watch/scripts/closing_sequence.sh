@@ -60,7 +60,8 @@ done
 
 REPO="$(cd -- "${REPO:-$SELF_DIR/../../../..}" >/dev/null 2>&1 && pwd -P)"
 PARITY="$REPO/.claude/policies/runtime/topology_parity.py"
-LEDGER="$REPO/.claude/skills/upstream-version-watch/scripts/layer_ledger.py"
+# 원장 호출은 Rust 런처(layer_ledger.sh)다. .py 는 sync_branches 의 판정기 동일성 대조·selftest 가 계속 쓰므로 남는다.
+LEDGER="$REPO/.claude/skills/upstream-version-watch/scripts/layer_ledger.sh"
 SYNC="$REPO/.claude/skills/upstream-version-watch/scripts/sync_branches.sh"
 SUBSYNC="$REPO/.claude/skills/upstream-version-watch/scripts/sync_to_sub.sh"
 PUSHER="$REPO/.claude/skills/upstream-version-watch/scripts/push_branches.sh"
@@ -104,7 +105,7 @@ preflight() {
     echo "[closing] ① 공통층 변경 열거"
     local sp
     # 상대와 반대 브랜치 원장을 함께 준다(⑧-pre D2 S1·S2) -- 출발 측 동기 지점은 **착지한 출발 커밋**이다.
-    sp="$(python3 "$LEDGER" sync-point --repo "$REPO" --branch "$CUR" --counterpart "$OTHER" \
+    sp="$("$LEDGER" sync-point --repo "$REPO" --branch "$CUR" --counterpart "$OTHER" \
               --ledger-ref "$OTHER" 2>/dev/null || echo '{}')"
     printf '%s\n' "$sp" | sed 's/^/  /'
     return $rc
@@ -113,56 +114,8 @@ preflight() {
 emit_skeleton() {
     # 분류표의 **빈칸**을 만든다. 판정(verdict)·근거(reason)는 비워 둔다 — 채우는 것은 Agent 의 일이고,
     # 여기서 기본값을 넣으면 그 기본값이 판정인 척하게 된다(침묵 폴백 금지).
-    python3 - "$REPO" "$CUR" "$LEDGER" "$OTHER" <<'PY'
-import importlib.util, json, subprocess, sys
-from pathlib import Path
-repo, cur, ledger, other = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4]
-
-# 공통층 pathspec 과 빈칸 자리표시자는 **원장 소유자**에게서 받는다(⑧-pre D2 S3·S4). 종전에는 여기서
-# `["docs/benchmark"]` 를 손으로 덧붙였고 자리표시자 철자도 따로 적었다 -- 그래서 docs/*/example.md 변경이
-# 빈칸에 안 보였고, 원장은 그 철자를 몰라 채우지 않은 분류표를 통과시켰다.
-_spec = importlib.util.spec_from_file_location("_closing_layer_ledger", ledger)
-L = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(L)
-
-def git(*a):
-    p = subprocess.run(["git", "-C", repo, *a], capture_output=True, text=True)
-    return p.stdout if p.returncode == 0 else ""
-
-sp = L.sync_point(Path(repo), cur, counterpart=other, ledger_refs=[other])
-base = sp.get("commit")
-spec = L.common_layer(Path(repo))
-# 도달범위는 "동기 지점 이후 내가 무엇을 바꿨나"가 아니라 **"이 동기화가 무엇을 바꾸나"**다.
-# 둘은 같지 않다 -- 부트스트랩(동기 지점 없음)에서 전자는 계산조차 불가능하고, 종전 구현은
-# `HEAD~1..HEAD` 로 물러서서 **마지막 커밋 한 건만** 열거했다(2026-09-12 실측: 실제 이동 20파일 중
-# 1건만 나왔다). 분류표가 이동분을 덜 보여 주면 ③ 사람 게이트는 보지 못한 것을 승인하게 되고,
-# 그러면 게이트가 이름만 남는다.
-#
-# 반대 브랜치와의 **트리 차이**는 두 경우 모두에서 정확히 이동분이다 -- 바뀌었다 되돌아온 파일을
-# 자동으로 빼고, 대상 브랜치만 움직인 파일(= 이 동기화가 되돌려 버릴 것)을 드러낸다. 동기 지점은
-# 여전히 조회해 `_reach` 에 적는다(사람이 "어디서부터인가"를 읽을 수 있어야 한다).
-# 빈칸은 **옮기는 것 전부**를 보인다(판정 pathspec 이 아니라 도달범위) -- 인증서처럼 충돌 검사 없이 덮는 경로를 빼면
-# 사람이 승인하는 표에서 보이지 않는 채 덮인다(⑧-pre D2 리뷰 교정).
-paths = spec["reach_pathspec"]
-files = [f for f in git("diff", "--name-only", "-z", other, "HEAD", "--", *paths).split("\0") if f]
-reach = (f"{other} vs HEAD 트리차이 · 동기 지점 {base[:12]}({sp.get('status')})" if base
-         else f"{other} vs HEAD 트리차이 (동기 지점 없음 — {sp.get('status')})")
-F = L.FILL_MARK
-
-print(json.dumps({
-    "entry_id": f"{F}: 예 sync-YYYYMMDDHHMM>",
-    "utc": f"{F}: 시각은 주입만 받는다>",
-    "departure": cur,
-    "departure_commit": f"{F}: 분류한 시점의 출발 브랜치 HEAD — 원장 파일은 동기화 제외라 ④ 커밋과 공통층이 같다>",
-    "approved_by": f"{F}: 사람>",
-    "approved_utc": f"{F}>",
-    "_reach": reach,
-    "classification": [
-        {"file": f, "verdict": "<common_promote|branch_only>", "reason": f"{F}>",
-         "provenance": "agent-judged"} for f in files
-    ],
-}, ensure_ascii=False, indent=2))
-PY
+    # 공통층 pathspec·자리표시자·빈칸 구성은 원장 소유자(`layer_ledger emit-skeleton`)가 낸다 — 도달범위 규칙 설명은 그쪽 소스·옛 인라인 판본의 이력에 있다.
+    "$LEDGER" emit-skeleton --repo "$REPO" --branch "$CUR" --counterpart "$OTHER"
 }
 
 if [ "$ACTION" = "preflight" ]; then
@@ -180,7 +133,7 @@ fi
 # 채우지 않은 분류표는 **어떤 부작용보다 먼저** 거부한다(⑧-pre D2 S4). 원장 ④ 도 같은 검사로 거부하지만,
 # 거기까지 가면 전제 확인·잔존 워크트리 검사를 이미 지난 뒤라 "승인된 표가 틀렸다" 가 늦게 드러난다.
 # 판정 규칙은 원장 소유자(`layer_ledger validate`) 하나다 -- 여기서 자리표시자 철자를 다시 적지 않는다.
-if ! python3 "$LEDGER" validate --entry-file "$ENTRY_FILE" >&2; then
+if ! "$LEDGER" validate --entry-file "$ENTRY_FILE" >&2; then
     echo "[closing] FAIL: 분류표가 원장 계약을 통과하지 못한다(빈 필드·자리표시자·판정 값역) — ③ 승인 전에 채워야 한다." >&2
     exit 2
 fi
@@ -197,10 +150,10 @@ cleanup() {
 trap cleanup EXIT
 
 echo "[closing] ④ 원장 — 분류표를 append 하고 출발 브랜치에 커밋한다"
-python3 "$LEDGER" append --repo "$REPO" --entry-file "$ENTRY_FILE" || exit 5
+"$LEDGER" append --repo "$REPO" --entry-file "$ENTRY_FILE" || exit 5
 git -C "$REPO" add .claude/policies/branch_layer_ledger.json
 if ! git -C "$REPO" diff --cached --quiet; then
-    ENTRY_ID="$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["entry_id"])' "$ENTRY_FILE")"
+    ENTRY_ID="$("$LEDGER" entry-id --entry-file "$ENTRY_FILE")"
     git -C "$REPO" commit -q -m "ledger($ENTRY_ID): 분류표 승인 기록 — 출발 $CUR"
     echo "[closing]   원장 커밋: $(git -C "$REPO" rev-parse --short HEAD)"
 else
@@ -225,26 +178,7 @@ git -C "$WT" checkout "$CUR" -- .claude/skills/upstream-version-watch/scripts/sy
 #     준비에서 발견했다.
 #     아래 카탈로그 중앙권위 마커와 **같은 처방**이다: 같은 노드의 같은 저장소라는 사실을 근거로
 #     이 시퀀스가 놓고, 쓰고 나면 지운다. 둘 다 비추적이라 ⑤의 커밋에 섞이지 않는다.
-EV_RELS="$(python3 - "$REPO" "$CALLER_CWD" "$WORK_MANIFEST" <<'PY'
-import json, os, sys
-repo = os.path.realpath(sys.argv[1])
-cwd, arg = sys.argv[2], sys.argv[3]
-man = os.path.realpath(arg if os.path.isabs(arg) else os.path.join(cwd, arg))
-if not os.path.isfile(man):
-    sys.exit(f"work-manifest 가 없다: {man}")
-
-def rel_under(path, what):
-    rel = os.path.relpath(path, repo)
-    if rel.startswith(".."):
-        sys.exit(f"{what} 가 저장소 밖이다(게이트가 해소하지 못한다): {path}")
-    return rel
-
-print(rel_under(man, "work-manifest"))
-plan = (json.load(open(man, encoding="utf-8")).get("execution_approval") or {}).get("plan_path")
-if plan:
-    print(rel_under(os.path.realpath(os.path.join(os.path.dirname(man), plan)), "plan"))
-PY
-)" || exit 5
+EV_RELS="$("$LEDGER" evidence-rels --repo "$REPO" --cwd "$CALLER_CWD" --manifest "$WORK_MANIFEST")" || exit 5
 
 STAGED_EVIDENCE=()
 MANIFEST_REL=""
@@ -270,13 +204,7 @@ if [ -f "$CATALOG" ] && [ -f "$REPO/hints/.central_authority" ]; then
     # 시각은 주입만 받는다 -- 분류표의 `utc` 가 이 동기화 사건의 주입된 시각이므로 그것을 KST 로
     # 옮겨 쓴다(벽시계 조회 ✗). `--repo` 는 **서브커맨드 앞**이다(뒤에 두면 argparse 가 잉여
     # 인자로 거부한다 -- 2026-09-12 실측: 이 호출은 인자 둘이 틀려 **한 번도 성공한 적이 없었다**).
-    _KST="$(python3 - "$ENTRY_FILE" <<'PY'
-import datetime, json, sys
-utc = json.load(open(sys.argv[1], encoding="utf-8"))["utc"]
-dt = datetime.datetime.strptime(utc, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=datetime.timezone.utc)
-print(dt.astimezone(datetime.timezone(datetime.timedelta(hours=9))).strftime("%Y-%m-%dT%H:%M:%S"))
-PY
-)" || _KST=""
+    _KST="$("$LEDGER" utc-to-kst --entry-file "$ENTRY_FILE")" || _KST=""
     if [ -z "$_KST" ]; then
         echo "[closing]   ⚠ 분류표 utc 를 KST 로 옮기지 못해 카탈로그 재파생을 건너뛴다 — 기재하고 진행" >&2
     else
@@ -341,7 +269,7 @@ else
     git -C "$WT" commit -q -m "sync: 공통층 $CUR→$OTHER (closing_sequence)"
     echo "[closing]   동기화 커밋: $(git -C "$WT" rev-parse --short HEAD)"
 fi
-python3 "$LEDGER" merge --repo "$REPO" --from-ref "$OTHER" >/dev/null 2>&1 || true
+"$LEDGER" merge --repo "$REPO" --from-ref "$OTHER" >/dev/null 2>&1 || true
 cleanup; WT=""
 
 if [ "$DO_SUB" = "1" ] && [ -f "$SUBSYNC" ]; then

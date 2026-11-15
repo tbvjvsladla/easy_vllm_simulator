@@ -211,6 +211,7 @@ RUNTIME_BLOCK_EXCLUDES = {
         #   multinode/clone 이 든 `.sh` 만 봐서 `.py` 두 개와 closing 이 분류를 피했다 — 후보 규칙도 넓힌다.
         "scripts/closing_sequence.sh",
         "scripts/layer_ledger.py",
+        "scripts/layer_ledger.sh",         # layer_ledger Rust 런처(c2a) — 동상, 메인 전용
         "scripts/push_branches.py",
         "scripts/push_branches.sh",        # push_branches Rust 런처(c27) — 동상, 메인 전용
     ),
