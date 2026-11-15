@@ -2292,8 +2292,11 @@ def predicate_MODEL_ACQUISITION_TERNARY_GATE_C2():
     for banned in ("urllib", "requests", "snapshot_download", "huggingface_hub", "wget", "curl",
                    "http.client", "socket", "httpx", "aiohttp", "os.system", "os.popen", "Popen"):
         _require(banned not in src, f'no download/shell mechanism {banned!r} may appear in check_smoke_model.py')
-    # subprocess 는 로컬 스펙스크립트(sys.executable) 실행 전용 — 다운로드 지시 명령 전달 금지.
-    _require('subprocess.run([sys.executable, spec_script' in src, 'the only subprocess call must run sys.executable on the local spec script, never a download command')
+    # subprocess 는 로컬 검사 스크립트 실행 전용 — 다운로드 지시 명령 전달 금지.
+    # 허용 호출은 정확히 둘: 로컬 rope 번역기(sys.executable) · 로컬 spec 레이아웃 Rust 런처(bash <spec_script>.sh).
+    _require(src.count('subprocess.run(') == 2, 'the only subprocess calls must be the local rope translator and the local spec-layout launcher, never a download command')
+    _require('subprocess.run([sys.executable, _tr,' in src, 'one subprocess call must run sys.executable on the local rope translator script')
+    _require('subprocess.run(["bash", spec_script,' in src and '"check_spec_layout.sh")' in src, 'one subprocess call must run bash on the local check_spec_layout.sh launcher, never a download command')
     _require('model_source' not in src, 'the serve-time model-presence gate must never branch on model_source -- selecting a mode (even complete+ephemeral) must not, by itself, be able to authorize anything at this gate')
     stop_idx = src.index('f"[NAS-check] STOP: 모델 부재')
     exit_idx = src.index("sys.exit(2)", stop_idx)
