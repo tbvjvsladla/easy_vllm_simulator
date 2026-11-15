@@ -2159,6 +2159,363 @@ fn op_write_brief(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     Ok(0)
 }
 
+// ── evidence pointers, revisions ────────────────────────────────────────────────────────────
+
+const EVIDENCE_KINDS: [&str; 8] = [
+    "certificate", "bench_report", "sweep_map", "plan", "testlog", "devlog", "simlog", "relay_summary",
+];
+
+/// The shared start of the writer operations that are not progress writes: the `_bootstrap` no-op and the lifecycle guard.
+fn writer_prelude(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<Option<(PathBuf, String)>> {
+    let Some(target) = writer_target(ctx, args.get("--campaign-id"))? else {
+        io.warn("[campaign_init] no-op — ACTIVE=_bootstrap (캠페인 밖에서는 상태를 쓰지 않는다)");
+        return Ok(None);
+    };
+    guard_writer_ops(ctx, &target.0, &[])?;
+    Ok(Some(target))
+}
+
+fn wrote_line(io: &mut Sinks<'_>, camp: &str, paths: &[String]) {
+    io.say(&format!("[campaign_init] wrote({camp}): {}", paths.join(" ")));
+}
+
+fn load_pointer_doc(ctx: &Ctx, ep: &Path, missing: &str) -> R<PyDict> {
+    let _ = ctx;
+    match read_json(ep) {
+        Some(v) => match v.peel() {
+            PyValue::Dict(d) => Ok(d.clone()),
+            _ => refuse(missing.to_string()),
+        },
+        None => refuse(missing.to_string()),
+    }
+}
+
+fn refuse_if_frozen(doc: &PyDict, message: impl FnOnce(&str) -> String, unfreeze: bool) -> R<()> {
+    if let Some(frozen) = doc.get("frozen_utc").filter(|v| v.is_truthy()) {
+        if !unfreeze {
+            return refuse(message(&frozen.display_text().to_utf8().unwrap_or_default()));
+        }
+    }
+    Ok(())
+}
+
+fn pointer_matches(ptr: &PyValue, kind: &str, path: &str) -> bool {
+    dict_of(ptr)
+        .map(|d| get_text(d, "path").as_deref() == Some(path) && get_text(d, "kind").as_deref() == Some(kind))
+        .unwrap_or(false)
+}
+
+fn op_evidence_add(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let Some((base, camp)) = writer_prelude(ctx, args, io)? else { return Ok(0) };
+    let (Some(kind), Some(path_rel)) = (
+        args.get("--kind").filter(|s| !s.is_empty()),
+        args.get("--path").filter(|s| !s.is_empty()),
+    ) else {
+        return refuse("--evidence-add 는 --kind 와 --path 가 필요하다");
+    };
+    let cell_id = args.get("--cell").map(str::to_string);
+    if !EVIDENCE_KINDS.contains(&kind) {
+        return refuse(format!("kind 는 {} 중 하나여야 한다: {}", tuple_repr(&EVIDENCE_KINDS), py_repr(kind)));
+    }
+    no_fill(&[("path_rel", path_rel)])?;
+    let mut node = args.get("--node").filter(|s| !s.is_empty()).map(str::to_string);
+    if node.is_none() {
+        if let Some(cell) = cell_id.as_deref().filter(|c| !c.is_empty()) {
+            node = node_of_cell(&base, cell);
+        }
+    }
+    let declaration = read_declaration(&base);
+    if get_text(&declaration, "self_role").as_deref() == Some("sub") {
+        return Err(Stop::Fallback);
+    }
+    let declared = list_of(declaration.get("nodes").unwrap_or(&PyValue::None))
+        .map(|l| l.iter().filter(|n| dict_of(n).is_some()).count())
+        .unwrap_or(0);
+    if !ctx.root.join(path_rel).exists() {
+        return refuse(format!(
+            "증거가 실재하지 않는다: {path_rel} (증거는 docs 평면에서 태어나고 여기엔 포인터만 둔다)"
+        ));
+    }
+    if declared > 1 && node.is_none() {
+        return refuse(format!(
+            "--node 가 필요하다 — 이 캠페인은 노드가 {declared}개다. 노드 태그 없는 증거는 '어느 노드가 낸 것인지 모르는 증거'이고, P2 는 그런 포인터를 검사하지 못해 공허하게 통과한다(2026-09-08 실측). 셀을 함께 주면(--cell) 배정에서 파생한다."
+        ));
+    }
+    let ep = base.join("evidence_pointers.json");
+    let existing = if ep.is_file() { read_json(&ep) } else { None };
+    let mut doc = match existing.as_ref().and_then(dict_of) {
+        Some(d) => d.clone(),
+        None => {
+            let mut d = PyDict::new();
+            d.set("schema_version", PyValue::int(1));
+            d.set("pointers", PyValue::List(Vec::new()));
+            d
+        }
+    };
+    refuse_if_frozen(
+        &doc,
+        |f| format!("이 스냅샷은 {f} 에 동결됐다 — 동결 이후에는 입력이 바뀌지 않는다(사람이 명시로 건 캠페인 전체 스냅샷이다).\n  → 정말 바꿔야 하면 사람이 --unfreeze 를 붙인다."),
+        args.has("--unfreeze"),
+    )?;
+    let mut pointers = list_or_empty(doc.get("pointers"));
+    if doc.get("pointers").and_then(list_of).is_none() {
+        pointers = Vec::new();
+    }
+    if let Some(at) = pointers.iter().position(|p| pointer_matches(p, kind, path_rel)) {
+        let mut ptr = dict_of(&pointers[at]).expect("matched").clone();
+        let mut changed = false;
+        for (key, val) in [("node_id", node.as_deref()), ("cell_id", cell_id.as_deref())] {
+            let Some(val) = val else { continue };
+            let have = ptr.get(key).cloned().unwrap_or(PyValue::None);
+            let empty = matches!(have.peel(), PyValue::None) || text_of(&have).as_deref() == Some("");
+            if empty {
+                ptr.set(key, py(val));
+                changed = true;
+            } else if text_of(&have).as_deref() != Some(val) {
+                return refuse(format!(
+                    "이 포인터의 {key} 는 이미 {} 다 — {} 로 바꾸려면 사람이 판단해야 한다(증거의 귀속을 조용히 바꾸지 않는다): {path_rel}",
+                    have.repr(),
+                    py_repr(val)
+                ));
+            }
+        }
+        if changed {
+            pointers[at] = PyValue::Dict(ptr);
+            doc.set("pointers", PyValue::List(pointers));
+            write_json(&ep, &PyValue::Dict(doc))?;
+        }
+        wrote_line(io, &camp, &[ctx.rel(&ep)]);
+        return Ok(0);
+    }
+    let mut ptr = PyDict::new();
+    ptr.set("kind", py(kind));
+    ptr.set("path", py(path_rel));
+    ptr.set("cell_id", cell_id.as_deref().map(py).unwrap_or(PyValue::None));
+    ptr.set("node_id", node.as_deref().map(py).unwrap_or(PyValue::None));
+    pointers.push(PyValue::Dict(ptr));
+    doc.set("pointers", PyValue::List(pointers));
+    if !doc.contains_key("campaign_id") {
+        doc.set("campaign_id", py(&camp));
+    }
+    write_json(&ep, &PyValue::Dict(doc))?;
+    wrote_line(io, &camp, &[ctx.rel(&ep)]);
+    Ok(0)
+}
+
+fn op_evidence_untag(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let Some((base, camp)) = writer_prelude(ctx, args, io)? else { return Ok(0) };
+    let (Some(kind), Some(path_rel), Some(cell)) = (
+        args.get("--kind").filter(|s| !s.is_empty()),
+        args.get("--path").filter(|s| !s.is_empty()),
+        args.get("--cell").filter(|s| !s.is_empty()),
+    ) else {
+        return refuse("--evidence-untag 는 --kind --path --cell 이 필요하다");
+    };
+    let reason = args.get("--untag-reason").filter(|r| !r.trim().is_empty());
+    let utc = args.get("--utc").filter(|u| !u.is_empty());
+    let (Some(reason), Some(utc)) = (reason, utc) else {
+        return refuse("--evidence-untag 는 --untag-reason 과 --utc 가 필요하다(사유 없는 귀속 해제는 드리프트다)");
+    };
+    let ep = base.join("evidence_pointers.json");
+    let mut doc = load_pointer_doc(ctx, &ep, &format!("증거 포인터 파일이 없다: {}", ctx.rel(&ep)))?;
+    refuse_if_frozen(&doc, |f| format!("이 스냅샷은 {f} 에 동결됐다 — 사람이 --unfreeze 를 붙여야 한다"), args.has("--unfreeze"))?;
+    let mut pointers = list_or_empty(doc.get("pointers"));
+    let hits: Vec<usize> = pointers.iter().enumerate().filter(|(_, p)| pointer_matches(p, kind, path_rel)).map(|(i, _)| i).collect();
+    if hits.len() != 1 {
+        return refuse(format!(
+            "(kind={}, path={}) 포인터가 정확히 1건이 아니다: {}건",
+            py_repr(kind),
+            py_repr(path_rel),
+            hits.len()
+        ));
+    }
+    let mut ptr = dict_of(&pointers[hits[0]]).expect("matched").clone();
+    let have = ptr.get("cell_id").cloned().unwrap_or(PyValue::None);
+    if text_of(&have).as_deref() != Some(cell) {
+        return refuse(format!(
+            "이 포인터의 cell_id 는 {} 다 — --cell {} 와 다르다(엉뚱한 해제 ✗)",
+            have.repr(),
+            py_repr(cell)
+        ));
+    }
+    let mut history = list_or_empty(ptr.get("untagged"));
+    let mut entry = PyDict::new();
+    entry.set("cell_id", py(cell));
+    entry.set("reason", py(reason.trim()));
+    entry.set("utc", py(utc));
+    history.push(PyValue::Dict(entry));
+    ptr.set("untagged", PyValue::List(history));
+    ptr.set("cell_id", PyValue::None);
+    pointers[hits[0]] = PyValue::Dict(ptr);
+    doc.set("pointers", PyValue::List(pointers));
+    write_json(&ep, &PyValue::Dict(doc))?;
+    wrote_line(io, &camp, &[ctx.rel(&ep)]);
+    Ok(0)
+}
+
+fn op_evidence_relocate(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let Some((base, camp)) = writer_prelude(ctx, args, io)? else { return Ok(0) };
+    let (Some(kind), Some(path_from), Some(path_to)) = (
+        args.get("--kind").filter(|s| !s.is_empty()),
+        args.get("--path").filter(|s| !s.is_empty()),
+        args.get("--to").filter(|s| !s.is_empty()),
+    ) else {
+        return refuse("--evidence-relocate 는 --kind --path --to 가 필요하다");
+    };
+    let reason = args.get("--relocate-reason").filter(|r| !r.trim().is_empty());
+    let utc = args.get("--utc").filter(|u| !u.is_empty());
+    let (Some(reason), Some(utc)) = (reason, utc) else {
+        return refuse("--evidence-relocate 는 --relocate-reason 과 --utc 가 필요하다");
+    };
+    let ep = base.join("evidence_pointers.json");
+    let mut doc = load_pointer_doc(ctx, &ep, &format!("증거 포인터 파일이 없다: {}", ctx.rel(&ep)))?;
+    refuse_if_frozen(&doc, |f| format!("이 스냅샷은 {f} 에 동결됐다 — 사람이 --unfreeze 를 붙여야 한다"), args.has("--unfreeze"))?;
+    if path_to.starts_with('/') || path_to.split('/').any(|p| p == "..") {
+        return refuse(format!("새 경로는 저장소 상대여야 한다: {}", py_repr(path_to)));
+    }
+    if ctx.root.join(path_from).exists() {
+        return refuse(format!("옛 경로가 아직 실재한다({path_from}) — 개명이 아니다(증거를 옮기지 않는다)"));
+    }
+    if !ctx.root.join(path_to).exists() {
+        return refuse(format!("새 경로가 실재하지 않는다: {path_to}"));
+    }
+    let mut pointers = list_or_empty(doc.get("pointers"));
+    let hits: Vec<usize> = pointers.iter().enumerate().filter(|(_, p)| pointer_matches(p, kind, path_from)).map(|(i, _)| i).collect();
+    if hits.len() != 1 {
+        return refuse(format!(
+            "(kind={}, path={}) 포인터가 정확히 1건이 아니다: {}건",
+            py_repr(kind),
+            py_repr(path_from),
+            hits.len()
+        ));
+    }
+    if pointers.iter().any(|p| pointer_matches(p, kind, path_to)) {
+        return refuse(format!("(kind={}, path={}) 포인터가 이미 있다 — 중복 ✗", py_repr(kind), py_repr(path_to)));
+    }
+    if get_text(&read_declaration(&base), "self_role").as_deref() == Some("sub") {
+        return Err(Stop::Fallback);
+    }
+    let mut ptr = dict_of(&pointers[hits[0]]).expect("matched").clone();
+    let mut history = list_or_empty(ptr.get("relocated"));
+    let mut h = PyDict::new();
+    h.set("from", py(path_from));
+    h.set("reason", py(reason.trim()));
+    h.set("utc", py(utc));
+    history.push(PyValue::Dict(h));
+    ptr.set("relocated", PyValue::List(history));
+    ptr.set("path", py(path_to));
+    pointers[hits[0]] = PyValue::Dict(ptr);
+    doc.set("pointers", PyValue::List(pointers));
+    write_json(&ep, &PyValue::Dict(doc))?;
+    wrote_line(io, &camp, &[ctx.rel(&ep)]);
+    Ok(0)
+}
+
+fn op_evidence_prune_stubs(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let Some((base, camp)) = writer_prelude(ctx, args, io)? else { return Ok(0) };
+    let ep = base.join("evidence_pointers.json");
+    let mut doc = load_pointer_doc(ctx, &ep, "evidence_pointers.json 이 없거나 파손")?;
+    refuse_if_frozen(&doc, |f| format!("이 스냅샷은 {f} 에 동결됐다 — 사람이 --unfreeze 를 붙인다"), args.has("--unfreeze"))?;
+    let (mut kept, mut dropped): (Vec<PyValue>, Vec<String>) = (Vec::new(), Vec::new());
+    for ptr in list_or_empty(doc.get("pointers")) {
+        let blob = ptr.dumps_unicode().map_err(|e| Stop::Refuse(e.to_string()))?.to_utf8().unwrap_or_default();
+        if blob.contains(FILL) {
+            dropped.push(blob);
+        } else {
+            kept.push(ptr);
+        }
+    }
+    doc.set("pointers", PyValue::List(kept));
+    if get_text(&doc, "campaign_id").as_deref() == Some(FILL) {
+        doc.set("campaign_id", py(&camp));
+    }
+    write_json(&ep, &PyValue::Dict(doc))?;
+    io.warn(&format!("[campaign_init] 스텁 포인터 {}건 제거:", dropped.len()));
+    for d in &dropped {
+        io.warn(&format!("  - {d}"));
+    }
+    wrote_line(io, &camp, &[ctx.rel(&ep)]);
+    Ok(0)
+}
+
+fn op_freeze_evidence(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let Some((base, camp)) = writer_prelude(ctx, args, io)? else { return Ok(0) };
+    let Some(utc) = args.get("--utc").filter(|u| !u.is_empty()) else {
+        return refuse("--freeze-evidence 는 --utc 가 필요하다(벽시계 금지)");
+    };
+    let ep = base.join("evidence_pointers.json");
+    let mut doc = load_pointer_doc(ctx, &ep, "evidence_pointers.json 이 없거나 파손 — 동결할 스냅샷이 없다")?;
+    doc.set("frozen_utc", py(utc));
+    write_json(&ep, &PyValue::Dict(doc))?;
+    wrote_line(io, &camp, &[ctx.rel(&ep)]);
+    Ok(0)
+}
+
+fn op_revise(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let Some((base, camp)) = writer_prelude(ctx, args, io)? else { return Ok(0) };
+    let mut values = PyDict::new();
+    for kv in args.all("--revise-set") {
+        let (k, v) = match kv.split_once('=') {
+            Some((k, v)) if !k.is_empty() => (k, v),
+            _ => return refuse(format!("--revise-set 은 K=V 형식이다: {}", py_repr(kv))),
+        };
+        values.set(k.trim(), py(v.trim()));
+    }
+    if values.is_empty() {
+        return refuse("--revise 는 --revise-set K=V 가 하나 이상 필요하다");
+    }
+    let reason = args.get("--revise-reason").filter(|s| !s.is_empty());
+    let evidence = args.get("--revise-evidence").filter(|s| !s.is_empty());
+    let approved = args.get("--revise-approved-by").filter(|s| !s.is_empty());
+    for (need, val) in [("--revise-reason", reason), ("--revise-evidence", evidence), ("--revise-approved-by", approved)] {
+        if val.is_none() {
+            return refuse(format!("{need} 는 필수다 — 사유·근거·승인자 없는 개정은 개정이 아니다"));
+        }
+    }
+    let path = base.join("campaign.yaml");
+    let mut doc = load_pointer_doc(ctx, &path, "campaign.yaml 이 없거나 파손")?;
+    let mut revs = list_or_empty(doc.get("revisions"));
+    if doc.get("revisions").and_then(list_of).is_none() {
+        revs = Vec::new();
+    }
+    if revs.is_empty() {
+        let base_vals = match doc.get("control_variables") {
+            Some(v) if v.is_truthy() => v.clone(),
+            _ => PyValue::Dict(PyDict::new()),
+        };
+        let mut r = PyDict::new();
+        r.set("rev", PyValue::int(0));
+        r.set("declared_utc", doc.get("declared_utc").cloned().unwrap_or(PyValue::None));
+        r.set("values", base_vals);
+        r.set("reason", py("t0 선언"));
+        r.set("evidence", doc.get("plan_ref").cloned().unwrap_or(PyValue::None));
+        r.set("approved_by", py("t0"));
+        revs.push(PyValue::Dict(r));
+    }
+    let mut merged = revs
+        .last()
+        .and_then(dict_of)
+        .and_then(|r| r.get("values").filter(|v| v.is_truthy()))
+        .and_then(dict_of)
+        .cloned()
+        .unwrap_or_default();
+    for (k, v) in values.iter() {
+        merged.insert(k.clone(), v.clone());
+    }
+    let mut r = PyDict::new();
+    r.set("rev", PyValue::int(revs.len() as i64));
+    r.set("declared_utc", args.get("--utc").map(py).unwrap_or(PyValue::None));
+    r.set("values", PyValue::Dict(merged));
+    r.set("reason", py(reason.expect("checked")));
+    r.set("evidence", py(evidence.expect("checked")));
+    r.set("approved_by", py(approved.expect("checked")));
+    revs.push(PyValue::Dict(r));
+    doc.set("revisions", PyValue::List(revs));
+    write_json(&path, &PyValue::Dict(doc))?;
+    wrote_line(io, &camp, &[ctx.rel(&path)]);
+    Ok(0)
+}
+
 // ── purge gate ───────────────────────────────────────────────────────────────────────────────
 
 /// `purge_gate_reasons(previous_id)`: why the previous instance may not be removed (empty = the gate is open). A closed
@@ -2857,7 +3214,13 @@ fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 // ── dispatch ─────────────────────────────────────────────────────────────────────────────────
 
 /// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 11] = [
+const NATIVE_OPS: [&str; 17] = [
+    "--evidence-add",
+    "--evidence-untag",
+    "--evidence-relocate",
+    "--evidence-prune-stubs",
+    "--freeze-evidence",
+    "--revise",
     "--verify-purge-gate",
     "--reentry-decide",
     "--lockset-precheck",
@@ -2876,6 +3239,12 @@ fn allowed_options(op: &str) -> &'static [&'static str] {
     match op {
         "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
         "--verify-purge-gate" => &["--verify-purge-gate"],
+        "--evidence-add" => &["--evidence-add", "--kind", "--path", "--cell", "--node", "--unfreeze", "--campaign-id"],
+        "--evidence-untag" => &["--evidence-untag", "--kind", "--path", "--cell", "--untag-reason", "--utc", "--unfreeze", "--campaign-id"],
+        "--evidence-relocate" => &["--evidence-relocate", "--kind", "--path", "--to", "--relocate-reason", "--utc", "--unfreeze", "--campaign-id"],
+        "--evidence-prune-stubs" => &["--evidence-prune-stubs", "--unfreeze", "--campaign-id"],
+        "--freeze-evidence" => &["--freeze-evidence", "--utc", "--campaign-id"],
+        "--revise" => &["--revise", "--revise-set", "--revise-reason", "--revise-evidence", "--revise-approved-by", "--utc", "--campaign-id"],
         "--reentry-decide" => &["--reentry-decide", "--campaign-id", "--decision", "--route", "--approved-by", "--utc"],
         "--lockset-precheck" => &["--lockset-precheck", "--cell", "--campaign-id"],
         "--grounding-check" => &["--grounding-check", "--campaign-id"],
@@ -2947,6 +3316,12 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     let result = match op {
         "--assigned-cells" => op_assigned_cells(ctx, &args, io),
         "--verify-purge-gate" => op_verify_purge_gate(ctx, &args, io),
+        "--evidence-add" => op_evidence_add(ctx, &args, io),
+        "--evidence-untag" => op_evidence_untag(ctx, &args, io),
+        "--evidence-relocate" => op_evidence_relocate(ctx, &args, io),
+        "--evidence-prune-stubs" => op_evidence_prune_stubs(ctx, &args, io),
+        "--freeze-evidence" => op_freeze_evidence(ctx, &args, io),
+        "--revise" => op_revise(ctx, &args, io),
         "--reentry-decide" => op_reentry_decide(ctx, &args, io),
         "--lockset-precheck" => op_lockset_precheck(ctx, &args, io),
         "--grounding-check" => op_grounding_check(ctx, &args, io),

@@ -268,3 +268,44 @@ fn verify_purge_gate_names_what_keeps_it_closed() {
     assert_eq!(status, Some(1));
     assert!(err.contains("camp-a: relay_summary 포인터가 없다"));
 }
+
+#[test]
+fn evidence_add_attributes_once_and_refuses_a_rewrite() {
+    let root = scratch("evidence");
+    active(&root);
+    put(&root, "docs/testlog/t.md", "x");
+    let add = |cell: &str| {
+        call(&root, &["--evidence-add", "--kind", "testlog", "--path", "docs/testlog/t.md", "--cell", cell, "--node", "main"])
+    };
+    let (status, out, _) = add("c1");
+    assert_eq!(status, Some(0));
+    assert_eq!(out, "[campaign_init] wrote(camp-a): campaigns/camp-a/evidence_pointers.json\n");
+    assert_eq!(add("c1").0, Some(0), "the same attribution is idempotent");
+    let (status, _, err) = add("c2");
+    assert_eq!(status, Some(1));
+    assert!(err.contains("이 포인터의 cell_id 는 'c1' 다 — 'c2' 로 바꾸려면"));
+}
+
+#[test]
+fn freeze_blocks_additions_until_unfreeze() {
+    let root = scratch("freeze");
+    active(&root);
+    put(&root, "docs/testlog/t.md", "x");
+    assert_eq!(call(&root, &["--freeze-evidence", "--utc", "T"]).0, Some(1), "no pointer file yet");
+    put(&root, "campaigns/camp-a/evidence_pointers.json", "{\"pointers\": []}");
+    assert_eq!(call(&root, &["--freeze-evidence", "--utc", "T"]).0, Some(0));
+    let (status, _, err) = call(&root, &["--evidence-add", "--kind", "plan", "--path", "docs/testlog/t.md"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("이 스냅샷은 T 에 동결됐다"));
+    assert_eq!(call(&root, &["--evidence-add", "--kind", "plan", "--path", "docs/testlog/t.md", "--unfreeze"]).0, Some(0));
+}
+
+#[test]
+fn revise_appends_a_revision_after_the_t0_original() {
+    let root = scratch("revise");
+    active(&root);
+    let args = ["--revise", "--revise-set", "x=2", "--revise-reason", "r", "--revise-evidence", "e", "--revise-approved-by", "a", "--utc", "U"];
+    assert_eq!(call(&root, &args).0, Some(0));
+    let text = std::fs::read_to_string(root.join("campaigns/camp-a/campaign.yaml")).unwrap();
+    assert!(text.contains("\"reason\": \"t0 선언\"") && text.contains("\"rev\": 1") && text.contains("\"x\": \"2\""), "{text}");
+}
