@@ -43,6 +43,7 @@ description: >-
 3.5. **HITL 게이트 ①.5** — 3축 verdict 를 **렌더 전** 사람이 확인: ⓐ `axis_A` 가 정말 ∅ 인지 ⓑ `axis_B.silent_revert_risk` 처리 계획 ⓒ `unknown[]` 이 비었는지. **`UNDETERMINED` 면 렌더 진입 금지.** 출구① 상속을 쓸 때만 **게이트 ①.6**(원장 한 줄을 **사람이 손으로** 추가) — 3출구 계약 = `references/source-build.md` §3.1.
 4. **render 시퀀스** — template → (multi)`--materialize-configs` → `--materialize-env`. **단일 호출 아님**(누락 시 serve 잠복 실패). HITL 게이트 ②.
 5. **(multi) sync to sub** — `sync_to_sub.sh` dry-run → `--apply`. Band2-only 전달 경계 = `references/multinode-build.md`.
+   - 서브 측 정비·검증(빈 디렉터리 prune·경로명 검증·은퇴 소비자 스캔·source-port unbundle/verify)은 Python 이 아니라 메인이 평면 B 안에서 rsync 로 배달하는 Rust ELF(`sub_runner`·`regen_build_patches_src`, `rust/runtime/target/release/`)로 돈다 — 서브는 python3·cargo 불요. 메인 ELF 부재·아키 불일치는 트랜잭션 전 fail-closed(폴백 ✗).
 6. **smoke** — NAS 체크(⑤) → 빌드 → 실서빙 스모크(단일 `docker compose`, 멀티 `multinode_serve_smoke.sh`). 실패면 ⑥`classify_failure.sh` 로 분기 → §Failure routing. HITL 게이트 ③.
 7. **escalation 수신 판정**(있을 때만) — 아래 §escalation 3출구.
 8. **종결** — 커밋·문서·전파(workflow S4). hint 태그 제안은 셀 단위다(아래 §hint). HITL 게이트 ④.

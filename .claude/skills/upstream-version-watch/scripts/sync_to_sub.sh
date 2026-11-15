@@ -909,6 +909,42 @@ OVERLAY_RETIREMENT_STALE_PATHS=(
 #   같은 값이 되면 그 위의 게이트는 전부 fail-open 이다(dirty 미보존 배달 · B0 오발동 · origin-0 거짓확증).
 #   처방: 원인을 살리고(stderr 유지) rc 를 전파하며, `[ -d ]` 는 rc 1(부재)만 부재로 읽는다.
 sub_run()  { ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && $1"; }
+
+# ── 서브 Rust 러너(sub_runner · regen_build_patches_src) — 서브에는 Python/cargo 를 요구하지 않는다 ──
+# 서브에서 도는 정비·검증 호출은 메인이 평면 B(이 스크립트) 안에서 rsync 로 배달한 ELF 로 한다.
+# ELF 는 gitignored(target/) 라 스테이징·인벤토리·체크섬 표면에 없다(서브 git 에도 들지 않는다).
+# 부재·아키 불일치·ELF 매직 불일치는 fail-closed 다 — Python 폴백 ✗(우회가 아니라 경로를 고친다).
+SUB_ELF_REL=".claude/skills/upstream-version-watch/rust/runtime/target/release"
+SUB_ELF_NAMES=(sub_runner regen_build_patches_src)
+sub_runner_run() { # $1..=sub_runner argv → 서브에서 실행(stdout 전달 · 실패는 그대로 비-0)
+    local q a args=""
+    for a in "$@"; do printf -v q '%q' "$a"; args="$args $q"; done
+    ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && '$SUB_ELF_REL/sub_runner'$args" </dev/null
+}
+deliver_sub_runner_elfs() { # $1=dry(0/1) → 0=ok, 9=fail-closed
+    local n src_dir="$REPO_ROOT/$SUB_ELF_REL" local_arch sub_arch magic
+    for n in "${SUB_ELF_NAMES[@]}"; do
+        [ -f "$src_dir/$n" ] && [ -x "$src_dir/$n" ] || {
+            echo "[sync] FAIL(sub-runner): 메인 ELF 부재/비실행: $src_dir/$n — 메인에서 upstream runtime 을 먼저 빌드한다(rust_bootstrap.sh exec -- cargo build --release --locked --manifest-path .claude/skills/upstream-version-watch/rust/runtime/Cargo.toml --target-dir .claude/skills/upstream-version-watch/rust/runtime/target)" >&2
+            return 9; }
+        magic=""; IFS= read -r -N 4 magic < "$src_dir/$n" || :
+        [ "$magic" = $'\177ELF' ] || { echo "[sync] FAIL(sub-runner): ELF 아님: $src_dir/$n" >&2; return 9; }
+    done
+    local_arch="$(uname -m)"
+    sub_arch="$(ssh_run "$SUB_HOST" "uname -m" </dev/null)" || { echo "[sync] FAIL(sub-runner): 서브 아키 조회 실패" >&2; return 9; }
+    [ "$local_arch" = "$sub_arch" ] || {
+        echo "[sync] FAIL(sub-runner): 아키 불일치 main=$local_arch sub=$sub_arch — 같은 아키 ELF 만 배달한다(폴백 ✗)" >&2; return 9; }
+    if [ "$1" = "1" ]; then
+        echo "    sub-runner ELF: ${SUB_ELF_NAMES[*]} → $SUB_HOST:${DEST}$SUB_ELF_REL/ (arch=$sub_arch · dry-run)"
+        return 0
+    fi
+    ssh_run "$SUB_HOST" "mkdir -p -- '${DEST}$SUB_ELF_REL'" </dev/null || { echo "[sync] FAIL(sub-runner): 서브 디렉터리 생성 실패" >&2; return 9; }
+    for n in "${SUB_ELF_NAMES[@]}"; do
+        rsync -a -e "$SSH_RSH" "$src_dir/$n" "$SUB_HOST:${DEST}$SUB_ELF_REL/$n" \
+            || { echo "[sync] FAIL(sub-runner): $n 전송 실패" >&2; return 9; }
+    done
+    echo "[sync] sub-runner ELF 배달: ${SUB_ELF_NAMES[*]} (arch=$sub_arch)" >&2
+}
 # 0=존재 · 1=부재(확정) · 2=판독불가(트랜스포트/권한) — 호출부는 2 를 fail-closed 로 다뤄야 한다.
 sub_has_git() {
     local rc=0
@@ -1082,29 +1118,7 @@ prune_remote_empty_dirs() { # $1=topology → 0=ok(제거분 로그), 9=실패
     effective_band2_exclusions "$1"
     skip="$(IFS=:; printf '%s' "${EFFECTIVE_BAND2_EXCLUDED_TOP[*]}")"
     post="$(IFS=:; printf '%s' "${BAND2_PATCH_DIRS[*]}")"
-    out="$(ssh_run "$SUB_HOST" "python3 -c 'import os,sys
-root,skip=sys.argv[1],set(x for x in sys.argv[2].split(\":\") if x)
-post=set(x for x in sys.argv[3].split(\":\") if x)
-if not os.path.isdir(root): raise SystemExit(0)
-removed=[]
-def excluded(base):
- # ★ 전송 범위 밖은 **통째로** 건너뛴다 — 최상위 디렉터리 자신뿐 아니라 그 **하위 전부**.
- #   topdown=False 라 dirs[:] prune 이 안 먹으므로 상대경로 첫 성분으로 판정한다.
- #   (2026-08-14 실측: 이 판정을 최상위 basename 으로만 했더니 cache/vllm/dummy_cache 를 지웠다 —
- #    rsync 가 건드리지 않는 영역을 파이프라인이 정비한 셈으로, 2026-08-01 사고와 동일한 형태의
- #    "검사 범위 ≠ 전송 범위" 위반이다.)
- rel=os.path.relpath(base,root)
- return rel!=\".\" and (rel.split(os.sep)[0] in skip or (os.sep in rel and rel.split(os.sep)[0] in post))
-# bottom-up: 안쪽을 지우면 바깥이 비므로 반복 없이 한 번에 수렴한다.
-for base,dirs,files in os.walk(root, topdown=False):
- if base==root or excluded(base): continue
- try:
-  if not os.listdir(base):
-   os.rmdir(base); removed.append(os.path.relpath(base,root))
- except OSError as e:
-  sys.stderr.write(\"prune-failed %s: %s\n\" % (base,e)); raise SystemExit(9)
-print(\"\n\".join(removed))
-' '$root' '$skip' '$post'")" || { echo "[sync] FAIL: 서브 빈 디렉터리 prune 실패($1) — 권한/경합 확인" >&2; return 9; }
+    out="$(sub_runner_run prune-empty-dirs "$root" "$skip" "$post")" || { echo "[sync] FAIL: 서브 빈 디렉터리 prune 실패($1) — 권한/경합 확인" >&2; return 9; }
     if [ -n "$out" ]; then
         echo "[sync] [$1] 배달 전제 복구: 빈 디렉터리 $(printf '%s\n' "$out" | grep -c .)건 제거(정보량 0 · 롤백 인벤토리가 담지 못하는 유일한 형태)" >&2
         printf '%s\n' "$out" | sed 's|^|    prune: output/'"$1"'/|' >&2
@@ -1125,21 +1139,7 @@ validate_remote_deletion_tree() { # $1=topology
     effective_band2_exclusions "$1"
     skip="$(IFS=:; printf '%s' "${EFFECTIVE_BAND2_EXCLUDED_TOP[*]}")"
     post="$(IFS=:; printf '%s' "${BAND2_PATCH_DIRS[*]}")"
-    bad="$(ssh_run "$SUB_HOST" "python3 -c 'import os,sys
-root,skip=sys.argv[1],set(x for x in sys.argv[2].split(\":\") if x)
-post=set(x for x in sys.argv[3].split(\":\") if x)
-if not os.path.isdir(root): raise SystemExit(0)
-hits=[]
-for base,dirs,files in os.walk(root):
- if base==root: dirs[:]=[d for d in dirs if d not in skip]
- elif os.path.relpath(base,root) in post: dirs[:]=[]
- for name in dirs+files:
-  if base==root and name in skip: continue
-  raw=os.fsencode(name)
-  if any(byte<=32 or byte==127 for byte in raw):
-   hits.append(os.path.relpath(os.path.join(base,name),root))
-print(\"\n\".join(hits))
-' '$root' '$skip' '$post'")" || { echo "[sync] FAIL: 서브 삭제 인벤토리 검사 실패($1)" >&2; return 9; }
+    bad="$(sub_runner_run validate-names "$root" "$skip" "$post")" || { echo "[sync] FAIL: 서브 삭제 인벤토리 검사 실패($1)" >&2; return 9; }
     if [ -n "$bad" ]; then
         echo "[sync] FAIL: 서브 경로에 공백/제어문자 — 경로 주입 방어로 fail-closed(대상 아래)." >&2
         printf '%s\n' "$bad" | sed 's|^|    bad-path: output/'"$1"'/|' >&2
@@ -1492,9 +1492,9 @@ deliver_source_port_payload() {  # $1=topology → 0=ok/해당없음
     fi
     rm -f "$local_bundle"
     # 해체·검증은 서브에서 수행한다 — 배달된 PROVENANCE.json(추적물)이 그쪽 판정 권위다.
-    if ! ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && python3 - unbundle \
+    if ! ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && '$SUB_ELF_REL/regen_build_patches_src' unbundle \
             --root 'output/$t/$SOURCE_PORT_DIR' --bundle '$remote_bundle' \
-            --expect-sha256 '$SOURCE_PORT_BUNDLE_SHA'" <"$REGEN_TOOL"; then
+            --expect-sha256 '$SOURCE_PORT_BUNDLE_SHA'" </dev/null; then
         rc=9
         echo "[sync] FAIL(source-port/$t): 서브 해체·검증 실패 — 기존 payload 는 보존된다(교체는 검증 뒤에만)." >&2
     fi
@@ -1507,12 +1507,12 @@ deliver_source_port_payload() {  # $1=topology → 0=ok/해당없음
 verify_source_port_payload() {  # $1=topology
     local t="$1"
     if script_modules_active "$t"; then
-        ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && python3 - verify --root 'output/$t/$SOURCE_PORT_DIR'" <"$REGEN_TOOL"
+        ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && '$SUB_ELF_REL/regen_build_patches_src' verify --root 'output/$t/$SOURCE_PORT_DIR'" </dev/null
         return $?
     fi
     source_port_active "$t" || return 0
-    if ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && python3 - verify \
-            --root 'output/$t/$SOURCE_PORT_DIR'" <"$REGEN_TOOL" | sed 's/^/  /'; then
+    if ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && '$SUB_ELF_REL/regen_build_patches_src' verify \
+            --root 'output/$t/$SOURCE_PORT_DIR'" </dev/null | sed 's/^/  /'; then
         echo "  ✅ output/$t/$SOURCE_PORT_DIR/$SOURCE_PORT_PAYLOAD (서브 무결성)"
         return 0
     fi
@@ -1996,18 +1996,16 @@ retire_runtime_block_residue() {   # $1=topology $2=dry(1|0) → 0=ok · 9=게�
 #   그 처방은 삭제(scoped --delete)이지 배달 차단이 아니다(deliver_overlay 헤더 주석이 이미 지목).
 #   `owner` 면제는 살아 있다 — `.claude/rules/workflow.md` 등 정본 산문이 정규 경로를 인용한다.
 verify_destination_retirement_consumers() {  # $1=topology — 활성 표면의 도출원(스테이징 트리)
-    local topology="$1" stale hits fail=0 scan_py scan_q stale_q st canon nsurf out scanned
+    local topology="$1" stale hits fail=0 stale_q st canon nsurf out scanned
     st="$(staging_dir "$topology")"
     [ -d "$st" ] || { echo "[sync] FAIL(retirement consumer): 스테이징 부재($st) — 활성 표면을 도출할 수 없다" >&2; return 98; }
     canon="$(cd "$st" && find . -type f -not -path '*/__pycache__/*' -not -name '*.pyc' -printf '%P\n' | LC_ALL=C sort)"
     nsurf="$(printf '%s\n' "$canon" | grep -c . || true)"
     # 목록이 비면 "소비자 0" 이 아니라 **도출 실패**다 — 둘을 뭉개면 게이트가 조용히 통과한다.
     [ "${nsurf:-0}" -gt 0 ] || { echo "[sync] FAIL(retirement consumer): 정본 파일 0건($st) — 활성 표면 도출 실패" >&2; return 98; }
-    scan_py=$'# retirement_consumer_scan\nimport os,re,sys\nstale=sys.argv[1]\nowner=".claude/skills/upstream-version-watch/"+stale\nchars=set("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_./-")\nneedle=re.compile(r"(?<![A-Za-z0-9_.-])"+re.escape(stale)+r"(?![A-Za-z0-9_./-])")\nhits=[]\ndef scan(path):\n if os.path.islink(path): raise RuntimeError("active scanner refuses symlink: "+path)\n # Rust regression sources/data are observations, not active runtime consumers.\n if re.match(r"\\.claude/(skills/[^/]+/)?rust/[^/]+/checks/", path): return\n data=open(path,"rb").read().decode("utf-8","replace")\n for lineno,line in enumerate(data.splitlines(),1):\n  for match in needle.finditer(line):\n   lo,hi=match.start(),match.end()\n   while lo and line[lo-1] in chars: lo-=1\n   while hi<len(line) and line[hi] in chars: hi+=1\n   token=line[lo:hi]\n   while token.startswith("./"): token=token[2:]\n   if token!=owner: hits.append(f"{path}:{lineno}:{line}")\nsurfaces=[x for x in sys.stdin.read().splitlines() if x.strip()]\nif not surfaces: raise SystemExit("active surface list empty")\nn=0\nfor rel in surfaces:\n if os.path.isfile(rel):\n  n+=1\n  scan(rel)\nprint(n)\nprint("\\n".join(hits),end="")'
-    printf -v scan_q '%q' "$scan_py"
     for stale in "${OVERLAY_RETIREMENT_STALE_PATHS[@]}"; do
         printf -v stale_q '%q' "$stale"
-        if out="$(printf '%s\n' "$canon" | sub_run "python3 -c $scan_q $stale_q")"; then
+        if out="$(printf '%s\n' "$canon" | sub_run "'$SUB_ELF_REL/sub_runner' retirement-scan $stale_q")"; then
             :
         else
             echo "[sync] FAIL(retirement consumer): scanner/transport failed for $stale" >&2
@@ -2233,6 +2231,7 @@ if [ "$MODE" = "dryrun" ]; then
     echo "  타겟 브랜치: ${TARGETS[*]}   single 확장: $([ $SINGLE_ACTIVE = 1 ] \
         && echo "활성(delivery_plane=active · source=${SINGLE_PLANE_SOURCE})" \
         || echo "dormant(delivery_plane=dormant · source=${SINGLE_PLANE_SOURCE} → 빌드킷 배달 skip)")"
+    deliver_sub_runner_elfs 1 || echo "  ⚠ 위 FAIL — --apply 는 같은 사유로 트랜잭션 전에 중단한다(미리보기는 계속, 변경 없음)."
     if [ $HAS_GIT = 1 ]; then
         for t in "${TARGETS[@]}"; do
             # dry-run 은 HITL 미리보기다 — apply 가 실제로 할 일과 어긋나면 사람이 잘못된 판단을 한다.
@@ -2372,6 +2371,7 @@ if [ $HAS_GIT = 0 ]; then
     sub_run "git branch single"       # single = base(.gitignore) — dormant
     if [ -n "$BOOTSTRAP_POPULATE" ]; then
         sub_run "git checkout -q multi"
+        deliver_sub_runner_elfs 0 || { echo "[sync] FAIL: bootstrap 서브 러너 ELF 배달 실패 — commit 전 중단"; exit 2; }
         # multi 초기 Band2 배달.  Source gates above already passed before remote mutation.
         deliver_build multi 0
         deliver_source_port_payload multi || { echo "[sync] FAIL: bootstrap source-port payload 배달 실패 — commit 전 중단"; exit 2; }
@@ -2449,6 +2449,7 @@ for t in "${TARGETS[@]}"; do
         echo "[sync] [$t] 보존 완료(서브 로컬 git) — 배달 계속." >&2
     fi
     # (2) transaction before checkout — complete source preflight ran globally before mutation.
+    deliver_sub_runner_elfs 0 || { echo "[sync] FAIL: 서브 러너 ELF 배달 실패($t) — 트랜잭션 전 중단"; exit 9; }
     begin_remote_transaction "$t" 0 || { echo "[sync] FAIL: $t rollback transaction 생성 실패"; exit 9; }
     sub_run "git checkout -q $t" || { echo "[sync] FAIL: 서브 checkout $t 실패"; exit 8; }
     # (3) rsync(빌드 + 오버레이) — render/band/runner/delegation/runtime-patch
