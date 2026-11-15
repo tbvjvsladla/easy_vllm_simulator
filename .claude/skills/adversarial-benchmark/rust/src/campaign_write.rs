@@ -4831,6 +4831,277 @@ fn op_escalation_add(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     Ok(0)
 }
 
+// ── --cell-materialize ───────────────────────────────────────────────────────────────────────
+
+const MATERIALIZE_SET_KEYS: [&str; 13] = [
+    "vram_budget_gb", "per_card_vram_gib", "ple_mode", "control_variable", "concurrency_requirement",
+    "typical_request_tokens", "tiktoken_host_path", "nas_host_root", "target_gmu", "variant",
+    "test_device_total_gib", "kv_cache_dtype_bytes", "port",
+];
+
+fn yaml_scalar(v: &PyValue) -> String {
+    match v.peel() {
+        PyValue::None => "null".to_string(),
+        PyValue::Bool(b) => if *b { "true" } else { "false" }.to_string(),
+        PyValue::Int(_) | PyValue::Float(_) => v.repr(),
+        _ => {
+            let t = v.display_text().to_utf8().unwrap_or_default();
+            let plain = !t.is_empty() && t.chars().all(|c| c.is_ascii_alphanumeric() || "_./+-".contains(c));
+            if plain && !["null", "true", "false", "yes", "no"].contains(&t.to_lowercase().as_str()) {
+                t
+            } else {
+                py(&t).dumps_unicode().ok().and_then(|x| x.to_utf8()).unwrap_or_default()
+            }
+        }
+    }
+}
+
+fn env_value(path: &Path, key: &str) -> Option<String> {
+    let text = std::fs::read(path).ok().and_then(|b| String::from_utf8(b).ok())?;
+    for line in text.lines() {
+        if let Some(rest) = line.trim_start().strip_prefix(key).and_then(|r| r.strip_prefix('=')) {
+            return Some(rest.trim().trim_matches('"').trim_matches('\'').to_string());
+        }
+    }
+    None
+}
+
+fn meminfo_gib() -> Option<f64> {
+    let text = std::fs::read_to_string("/proc/meminfo").ok()?;
+    let line = text.lines().find(|l| l.starts_with("MemTotal:"))?;
+    let kb: f64 = line["MemTotal:".len()..].trim().strip_suffix("kB")?.trim().parse().ok()?;
+    format!("{:.1}", kb / (1024.0 * 1024.0)).parse().ok()
+}
+
+/// `recipe._memory_model(man)`: `unified`/`discrete`/unknown from observed facts only, and the source sentence.
+fn memory_model(ctx: &Ctx, man: &PyDict) -> (Option<&'static str>, String) {
+    let strip = |k: &str| man.get(k).filter(|v| v.is_truthy()).map(|v| v.display_text().to_utf8().unwrap_or_default().trim().trim_matches('"').to_string()).unwrap_or_default();
+    match strip("gpu_memory_model").as_str() {
+        "unified" => return (Some("unified"), "manifest.gpu_memory_model".to_string()),
+        "discrete" => return (Some("discrete"), "manifest.gpu_memory_model".to_string()),
+        _ => {}
+    }
+    let gpu_model = strip("gpu_model");
+    let references = ctx.root.join(".claude/skills/wiki-desk/reference/references.md");
+    if !gpu_model.trim().is_empty() {
+        if let Some(text) = std::fs::read(&references).ok().and_then(|b| String::from_utf8(b).ok()) {
+            let key = gpu_model.trim().to_lowercase();
+            let header = text.lines().find(|l| {
+                let Some(rest) = l.strip_prefix("###") else { return false };
+                let mut chars = rest.chars();
+                matches!(chars.next(), Some(c) if c.is_whitespace()) && chars.as_str().to_lowercase().contains(&key)
+            });
+            if let Some(h) = header {
+                let unified = h.contains("통합메모리");
+                return (
+                    Some(if unified { "unified" } else { "discrete" }),
+                    format!("references.md §4 헤더(gpu_model={gpu_model})"),
+                );
+            }
+        }
+    }
+    (None, "미상(manifest gpu_memory_model 부재 · references.md 미등재)".to_string())
+}
+
+fn device_total_gib(ctx: &Ctx, mf: &PyDict) -> (Option<f64>, String) {
+    let owner = ctx.root.join(".claude/skills/vllm-recipe-explorer/recipe.py");
+    if !owner.is_file() {
+        return (None, format!("미상(판정 소유자 부재: {})", owner.display()));
+    }
+    let (mm, source) = memory_model(ctx, mf);
+    match mm {
+        Some("unified") => (meminfo_gib(), format!("measured /proc/meminfo MemTotal(통합메모리 ← {source})")),
+        Some("discrete") if truthy(mf.get("gpu_vram_mib")) => {
+            let mib = mf.get("gpu_vram_mib").and_then(as_number).unwrap_or(0.0);
+            (format!("{:.1}", mib / 1024.0).parse().ok(), format!("measured manifest gpu_vram_mib(discrete ← {source})"))
+        }
+        _ => (None, source),
+    }
+}
+
+fn load_yaml(path: &Path) -> R<Option<PyValue>> {
+    let Some(text) = std::fs::read(path).ok().and_then(|b| String::from_utf8(b).ok()) else {
+        return Err(Stop::Fallback);
+    };
+    match crate::pyyaml::safe_load_text(&PyStr::new(&text), 0) {
+        Ok(PyValue::None) => Ok(None),
+        Ok(v) => Ok(Some(v)),
+        Err(_) => Err(Stop::Fallback),
+    }
+}
+
+fn op_cell_materialize(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let cell = args.get("--cell-materialize").unwrap_or_default().to_string();
+    let Some((base, camp)) = writer_target(ctx, args.get("--campaign-id"))? else {
+        io.warn("[campaign_init] no-op — ACTIVE=_bootstrap (캠페인 밖에서는 상태를 쓰지 않는다)");
+        return Ok(0);
+    };
+    guard_writer_ops(ctx, &base, &[("cell_materialize", true)])?;
+    let mut sets: Vec<(String, String)> = Vec::new();
+    for kv in args.all("--set") {
+        let Some((k, v)) = kv.split_once('=') else {
+            return refuse(format!("--set 은 K=V 다: {}", py_repr(kv)));
+        };
+        match sets.iter_mut().find(|(n, _)| n == k.trim()) {
+            Some(slot) => slot.1 = v.to_string(),
+            None => sets.push((k.trim().to_string(), v.to_string())),
+        }
+    }
+    let Some(utc) = args.get("--utc").filter(|u| !u.is_empty()) else {
+        return refuse("--cell-materialize 는 --utc 가 필요하다(시각은 주입만)");
+    };
+    need_validator(ctx)?;
+    let Some(node) = node_of_cell(&base, &cell) else {
+        return refuse(format!("셀 {} 이 assignments 에 없다 — 배정되지 않은 셀은 만들지 않는다(이름이 곧 증거 연결)", py_repr(&cell)));
+    };
+    let mut bad: Vec<String> = sets.iter().map(|(k, _)| k.clone()).filter(|k| !MATERIALIZE_SET_KEYS.contains(&k.as_str())).collect();
+    bad.sort();
+    if !bad.is_empty() {
+        return refuse(format!("--set 닫힌 목록 밖 키 {} — 허용 {}", py_list_repr(&bad), py_list_repr(&MATERIALIZE_SET_KEYS.iter().map(|s| s.to_string()).collect::<Vec<_>>())));
+    }
+    let cdir = base.join("cells").join(&cell);
+    let names = ["config.yaml", "lockset.json", "cell.status.json"];
+    let have: Vec<String> = names.iter().filter(|n| cdir.join(n).exists()).map(|n| n.to_string()).collect();
+    if !have.is_empty() {
+        return refuse(format!("cells/{cell}/ 에 이미 {} 가 있다 — 덮어쓰지 않는다", py_list_repr(&have)));
+    }
+    let decl = read_declaration(&base);
+    let node_decl = list_of(decl.get("nodes").unwrap_or(&PyValue::None))
+        .into_iter()
+        .flatten()
+        .filter_map(dict_of)
+        .find(|n| get_text(n, "node_id").as_deref() == Some(node.as_str()))
+        .cloned()
+        .unwrap_or_default();
+    let topo_value = node_decl
+        .get("topology")
+        .filter(|v| v.is_truthy())
+        .cloned()
+        .or_else(|| get_dict(&decl, "control_variables").and_then(|c| c.get("topology").cloned()).filter(|v| v.is_truthy()))
+        .unwrap_or(PyValue::None);
+    let topo = match text_of(&topo_value).filter(|t| t == "single" || t == "multi") {
+        Some(t) => t,
+        None => return refuse(format!("노드 {} 의 topology 를 선언에서 해소하지 못했다: {}(추측 ✗)", py_repr(&node), topo_value.repr())),
+    };
+    let syaml = ctx.root.join("output").join(&topo).join("configs").join(format!("{cell}.yaml"));
+    if !syaml.is_file() {
+        return refuse(format!("서빙 yaml {} 부재 — 셀 id = config 이름이어야 한다", ctx.rel(&syaml)));
+    }
+    let sv_value = load_yaml(&syaml)?;
+    let sv: PyDict = match sv_value.as_ref() {
+        None => PyDict::new(),
+        Some(v) => dict_of(v).cloned().ok_or(Stop::Fallback)?,
+    };
+    let env = ctx.root.join("output").join(&topo).join("envs").join(format!(".env.{cell}"));
+    let mf_path = ctx.root.join("output").join(&topo).join("manifest.yaml");
+    let mf: PyDict = if mf_path.is_file() { load_yaml(&mf_path)?.as_ref().and_then(dict_of).cloned().unwrap_or_default() } else { PyDict::new() };
+    let kv_name = match sv.get("kv-cache-dtype") { Some(v) => v.display_text().to_utf8().unwrap_or_default(), None => "auto".to_string() };
+    let kv_bytes = match kv_name.as_str() {
+        "auto" | "bfloat16" | "float16" | "half" => Some(2),
+        "fp8" | "fp8_e4m3" | "fp8_e5m2" | "fp8_inc" | "fp8_ds_mla" => Some(1),
+        _ => None,
+    };
+    let get_or = |k: &str, d: PyValue| sv.get(k).cloned().unwrap_or(d);
+    let (dev, dev_src) = device_total_gib(ctx, &mf);
+    let env_variant = env_value(&env, "VARIANT").filter(|v| !v.is_empty());
+    let env_name = env_value(&env, "SERVING_MODEL_NAME").filter(|v| !v.is_empty());
+    let derived: Vec<(&str, PyValue, String)> = vec![
+        ("path", get_or("model", PyValue::None), format!("output/{topo}/configs/{cell}.yaml#model")),
+        ("context_len", get_or("max-model-len", PyValue::None), "서빙 yaml#max-model-len".to_string()),
+        ("kv_cache_dtype", get_or("kv-cache-dtype", py("auto")), "서빙 yaml#kv-cache-dtype(부재 = vLLM 기본 auto)".to_string()),
+        ("tp", get_or("tensor-parallel-size", PyValue::int(1)), "서빙 yaml#tensor-parallel-size(부재 = 1)".to_string()),
+        ("target_gmu", get_or("gpu-memory-utilization", PyValue::None), "서빙 yaml#gpu-memory-utilization(서빙된 값)".to_string()),
+        ("variant", py(env_variant.as_deref().unwrap_or("stock")), format!(".env.{cell}#VARIANT(부재 = stock)")),
+        (
+            "served_model_name",
+            env_name.as_deref().map(py).unwrap_or_else(|| sv.get("served-model-name").filter(|v| v.is_truthy()).cloned().unwrap_or(PyValue::None)),
+            format!(".env.{cell}#SERVING_MODEL_NAME"),
+        ),
+        ("config_name", py(&cell), "셀 id".to_string()),
+        ("gpu_model", mf.get("gpu_model").cloned().unwrap_or(PyValue::None), format!("output/{topo}/manifest.yaml#gpu_model")),
+        (
+            "nas_host_root",
+            if get_text(&mf, "model_source").as_deref() == Some("managed") { mf.get("nas_model_path").cloned().unwrap_or(PyValue::None) } else { PyValue::None },
+            format!("output/{topo}/manifest.yaml#nas_model_path(model_source=managed)"),
+        ),
+        ("test_device_total_gib", dev.map(PyValue::Float).unwrap_or(PyValue::None), dev_src),
+        (
+            "kv_cache_dtype_bytes",
+            kv_bytes.map(PyValue::int).unwrap_or(PyValue::None),
+            "서빙 yaml#kv-cache-dtype → 원소 바이트(auto = 모델 dtype bf16/fp16 전제)".to_string(),
+        ),
+        ("port", get_or("port", PyValue::int(8000)), "서빙 yaml#port(부재 = vLLM 기본 8000)".to_string()),
+    ];
+    let mut vals: Vec<(String, PyValue)> = Vec::new();
+    let mut src: Vec<(String, String)> = Vec::new();
+    let put_val = |k: &str, v: PyValue, why: String, vals: &mut Vec<(String, PyValue)>, src: &mut Vec<(String, String)>| {
+        match vals.iter_mut().find(|(n, _)| n == k) { Some(slot) => slot.1 = v, None => vals.push((k.to_string(), v)) }
+        match src.iter_mut().find(|(n, _)| n == k) { Some(slot) => slot.1 = why, None => src.push((k.to_string(), why)) }
+    };
+    for (k, v, why) in derived {
+        if !matches!(v.peel(), PyValue::None) {
+            put_val(k, v, why, &mut vals, &mut src);
+        }
+    }
+    for (k, raw) in &sets {
+        let v = if raw.trim().is_empty() {
+            PyValue::None
+        } else {
+            match crate::pyyaml::safe_load_text(&PyStr::new(raw), 0) { Ok(v) => v, Err(_) => return Err(Stop::Fallback) }
+        };
+        put_val(k, v, "--set(사람 선언)".to_string(), &mut vals, &mut src);
+    }
+    let template_text = std::fs::read(ctx.template().join("cells/_cell/config.yaml")).ok().and_then(|b| String::from_utf8(b).ok()).ok_or(Stop::Fallback)?;
+    let mut left: Vec<String> = Vec::new();
+    let mut text = String::new();
+    for line in template_text.split_inclusive('\n') {
+        let body = line.trim_start();
+        let lead = &line[..line.len() - body.len()];
+        let key_len = body.chars().take_while(|c| c.is_ascii_lowercase() || *c == '_').count();
+        let mut replaced = None;
+        if key_len > 0 && !lead.contains('\n') {
+            let after = &body[key_len..];
+            if let Some(rest) = after.strip_prefix(':') {
+                let rest_trim = rest.trim_start();
+                if let Some(tail) = rest_trim.strip_prefix(FILL) {
+                    let key = &body[..key_len];
+                    let gap = &rest[..rest.len() - rest_trim.len()];
+                    replaced = Some(match vals.iter().find(|(n, _)| n == key) {
+                        Some((_, v)) => format!("{lead}{key}:{gap}{}{tail}", yaml_scalar(v)),
+                        None => {
+                            left.push(key.to_string());
+                            line.to_string()
+                        }
+                    });
+                }
+            }
+        }
+        text.push_str(&replaced.unwrap_or_else(|| line.to_string()));
+    }
+    if !left.is_empty() {
+        return refuse(format!("채우지 못한 빈칸 {} — 파생할 수 없는 선언 축이다. `--set 키=값`(요구 없음 = `키=null`)으로 적는다", py_list_repr(&left)));
+    }
+    let mut sorted_src = src.clone();
+    sorted_src.sort_by(|a, b| a.0.cmp(&b.0));
+    let head = format!(
+        "# materialized: campaign_init --cell-materialize {cell} · {utc} · node {node}\n{}",
+        sorted_src.iter().map(|(k, why)| format!("#   {k}: {why}\n")).collect::<String>()
+    );
+    let mut lock = read_json(&ctx.template().join("cells/_cell/lockset.json")).as_ref().and_then(dict_of).cloned().ok_or(Stop::Fallback)?;
+    lock.set("id", py(&cell));
+    lock.set("provenance", py("hand-authored"));
+    lock.set("max_model_len", vals.iter().find(|(n, _)| n == "context_len").map(|(_, v)| v.clone()).unwrap_or(PyValue::None));
+    lock.set("quantization", sv.get("quantization").cloned().unwrap_or(PyValue::None));
+    let mut st = read_json(&ctx.template().join("cells/_cell/cell.status.json")).as_ref().and_then(dict_of).cloned().ok_or(Stop::Fallback)?;
+    st.set("cell_id", py(&cell));
+    st.set("node_id", py(&node));
+    write_text(&cdir.join("config.yaml"), &(head + &text))?;
+    write_json(&cdir.join("lockset.json"), &PyValue::Dict(lock))?;
+    write_json(&cdir.join("cell.status.json"), &PyValue::Dict(st))?;
+    wrote_line(io, &camp, &names.iter().map(|n| ctx.rel(&cdir.join(n))).collect::<Vec<_>>());
+    Ok(0)
+}
+
 // ── purge gate ───────────────────────────────────────────────────────────────────────────────
 
 /// `purge_gate_reasons(previous_id)`: why the previous instance may not be removed (empty = the gate is open). A closed
@@ -5571,7 +5842,8 @@ fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 // ── dispatch ─────────────────────────────────────────────────────────────────────────────────
 
 /// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 32] = [
+const NATIVE_OPS: [&str; 33] = [
+    "--cell-materialize",
     "--escalation-add",
     "--slice-update",
     "--assign-set",
@@ -5611,6 +5883,7 @@ fn allowed_options(op: &str) -> &'static [&'static str] {
     match op {
         "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
         "--verify-purge-gate" => &["--verify-purge-gate"],
+        "--cell-materialize" => &["--cell-materialize", "--set", "--utc", "--campaign-id"],
         "--escalation-add" => &["--escalation-add", "--cell", "--utc", "--node", "--symptom", "--events", "--window-start-utc", "--window-end-utc", "--campaign-id"],
         "--slice-update" => &["--slice-update", "--utc", "--apply"],
         "--assign-set" => &["--assign-set", "--assign-cells", "--assign-reason", "--assign-evidence", "--assign-approved-by", "--utc", "--campaign-id"],
@@ -5708,6 +5981,7 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     let result = match op {
         "--assigned-cells" => op_assigned_cells(ctx, &args, io),
         "--verify-purge-gate" => op_verify_purge_gate(ctx, &args, io),
+        "--cell-materialize" => op_cell_materialize(ctx, &args, io),
         "--escalation-add" => op_escalation_add(ctx, &args, io),
         "--slice-update" => op_slice_update(ctx, &args, io),
         "--assign-set" => op_assign_set(ctx, &args, io),

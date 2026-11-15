@@ -528,3 +528,29 @@ fn escalation_add_without_the_explorer_owner_records_an_undetermined_candidate()
     assert_eq!(status, Some(1));
     assert!(err.contains("--escalation-add 는 --cell 과 --utc 가 필요하다"));
 }
+
+#[test]
+fn cell_materialize_derives_from_the_serving_yaml_and_stops_at_an_empty_axis() {
+    let root = scratch("materialize");
+    std::process::Command::new("git").args(["init", "-q", "-b", "single"]).arg(&root).status().unwrap();
+    active(&root);
+    put(&root, "campaigns/camp-a/campaign.yaml", "{\"id\": \"camp-a\", \"nodes\": [{\"node_id\": \"main\", \"role\": \"main\", \"topology\": \"single\"}], \"assignments\": {\"main\": [{\"cell\": \"c1\"}]}}");
+    put(&root, "campaigns/_template/cells/_cell/config.yaml", "target_model:\n  path: <<FILL>>\nport: <<FILL>>\nvram_budget_gb: <<FILL>>\n");
+    put(&root, "campaigns/_template/cells/_cell/lockset.json", "{\"provenance\": \"<<FILL>>\"}");
+    put(&root, "campaigns/_template/cells/_cell/cell.status.json", "{\"cell_id\": \"<<FILL>>\"}");
+    put(&root, "output/single/configs/c1.yaml", "model: /models/x\nport: 8001\n");
+    let base = ["--cell-materialize", "c1", "--utc", "U"];
+    let (status, _, err) = call(&root, &base);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("채우지 못한 빈칸 ['vram_budget_gb']"), "{err}");
+    let mut with = base.to_vec();
+    with.extend(["--set", "vram_budget_gb=96"]);
+    let (status, out, err) = call(&root, &with);
+    assert_eq!(status, Some(0), "{err}");
+    assert!(out.ends_with("cells/c1/config.yaml campaigns/camp-a/cells/c1/lockset.json campaigns/camp-a/cells/c1/cell.status.json\n"), "{out}");
+    let config = std::fs::read_to_string(root.join("campaigns/camp-a/cells/c1/config.yaml")).unwrap();
+    assert!(config.contains("  path: /models/x\nport: 8001\nvram_budget_gb: 96\n"), "{config}");
+    let (status, _, err) = call(&root, &with);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("에 이미 ['config.yaml', 'lockset.json', 'cell.status.json'] 가 있다"), "{err}");
+}
