@@ -10,6 +10,7 @@
 //! `sort_keys=True`, `indent=1` (writer files) or insertion order, `indent=2` (declaration, pointers); journey lines are
 //! compact, key-sorted JSON. A refusal prints `[campaign_init] FAIL <message>` and exits with status 1.
 
+use crate::lite_metrics::read_lite_verdict;
 use crate::pyjson;
 use crate::pystr::PyStr;
 use crate::pyvalue::{PyDict, PyValue};
@@ -1195,10 +1196,6 @@ fn op_cell_set(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     let Some(outcome) = args.get("--outcome").filter(|s| !s.is_empty()) else {
         return refuse("--cell-set 은 --outcome 이 필요하다");
     };
-    // The sweep-record and lite-gate branches read other files; they stay with the owner for now.
-    if args.has("--sweep-state") || args.has("--lite-raw") {
-        return Err(Stop::Fallback);
-    }
     let (cpath, jpath) = write_cell(ctx, &base, args, &cell, outcome)?;
     let mut wrote = vec![ctx.rel(&cpath)];
     if let Some(j) = jpath {
@@ -1261,16 +1258,50 @@ fn write_cell(
             doc.set(key, PyValue::None);
         }
     }
+    let sweep_state = args.get("--sweep-state").filter(|s| !s.is_empty()).map(PathBuf::from);
+    let mut measurement_source = args.get("--measurement-source").map(str::to_string);
+    let mut decode_tps: Option<f64> = match args.get("--measurement-decode-tps") {
+        Some(tps) => Some(parse_python_float(tps)?),
+        None => None,
+    };
+    let mut gap: Option<String> = None;
+    if args.get("--measurement-decode-tps").is_none() {
+        if let Some(sweep) = &sweep_state {
+            match sweep_measurement(ctx, sweep, cell) {
+                (Some(value), why) => {
+                    decode_tps = Some(value);
+                    measurement_source = Some(why);
+                }
+                (None, why) => gap = Some(why),
+            }
+        }
+    }
+    let sweep_output = match &sweep_state {
+        Some(sweep) => sweep_output(ctx, base, sweep, cell, node.as_deref())?,
+        None => None,
+    };
+    if sweep_output.is_some() && outcome != "measured" {
+        return refuse("measured sweep 출력 경로와 셀 outcome이 모순이다");
+    }
     let mut meas = match doc.get("measurement").and_then(dict_of) {
         Some(d) => d.clone(),
         None => PyDict::new(),
     };
-    if let Some(tps) = args.get("--measurement-decode-tps") {
-        let number = parse_python_float(tps)?;
+    if sweep_state.is_some() {
+        for key in ["sweep_dir", "sweep_generated_utc", "sweep_config", "sweep_source"] {
+            remove_key(&mut meas, key);
+        }
+        if let Some(output) = &sweep_output {
+            for (k, v) in output.iter() {
+                meas.insert(k.clone(), v.clone());
+            }
+        }
+    }
+    if let Some(number) = decode_tps {
         meas.set("decode_tps_conc1", PyValue::Float(number));
         meas.set("measurement_ok", PyValue::Bool(true));
     }
-    if let Some(source) = args.get("--measurement-source") {
+    if let Some(source) = &measurement_source {
         meas.set("source", py(source));
     }
     for (key, default) in [
@@ -1285,7 +1316,9 @@ fn write_cell(
     if truthy(meas.get("measurement_ok")) && !truthy(meas.get("source")) {
         return refuse("측정값을 적으려면 --measurement-source 가 필요하다(출처 표시)");
     }
-    if outcome == "measured" && !truthy(meas.get("measurement_ok")) {
+    if let Some(why) = gap.filter(|g| !g.is_empty()) {
+        meas.set("gap", py(&why));
+    } else if outcome == "measured" && !truthy(meas.get("measurement_ok")) {
         meas.set(
             "gap",
             py("outcome=measured 인데 측정값이 도착하지 않았다 — --sweep-state 또는 --measurement-decode-tps 미제공(결손 기재)"),
@@ -1301,7 +1334,26 @@ fn write_cell(
         None => PyDict::new(),
     };
     let image_tag = args.get("--image-tag");
-    if let Some(digest) = args.get("--image-digest").filter(|s| !s.is_empty()) {
+    let image_digest = args.get("--image-digest").filter(|s| !s.is_empty());
+    let (derived, why) = match &sweep_state {
+        Some(sweep) => sweep_image(ctx, sweep, cell),
+        None => (None, String::new()),
+    };
+    if let (Some(d), Some(declared)) = (&derived, image_digest) {
+        if get_text(d, "digest").as_deref() != Some(declared) {
+            return refuse(format!(
+                "이미지 좌표가 모순이다 — 선언={declared} · sweep 파생={} ({}). 결손이 아니라 거짓이므로 기재하지 않는다. 어느 쪽이 이 셀을 실제로 돌린 이미지인지 먼저 가려라.",
+                get_text(d, "digest").unwrap_or_default(),
+                get_text(d, "source").unwrap_or_default()
+            ));
+        }
+    }
+    if let Some(d) = derived {
+        for (k, v) in d.iter() {
+            img.insert(k.clone(), v.clone());
+        }
+        remove_key(&mut img, "gap");
+    } else if let Some(digest) = image_digest {
         img.set("digest", py(digest));
         img.set("tag", image_tag.map(py).unwrap_or(PyValue::None));
         img.set("source", py("campaign_init --image-digest(선언)"));
@@ -1316,16 +1368,19 @@ fn write_cell(
                 img.set(key, default);
             }
         }
-        img.set(
-            "gap",
-            py("이미지 digest 가 도착하지 않았다 — --sweep-state 도 --image-digest 도 없다. 셀 간 비교는 같은 digest 안에서만 성립하므로, 이 셀은 다른 셀과 나란히 놓을 수 없다(결손 기재)."),
-        );
+        let gap_text = if why.is_empty() {
+            "이미지 digest 가 도착하지 않았다 — --sweep-state 도 --image-digest 도 없다. 셀 간 비교는 같은 digest 안에서만 성립하므로, 이 셀은 다른 셀과 나란히 놓을 수 없다(결손 기재).".to_string()
+        } else {
+            why
+        };
+        img.set("gap", py(&gap_text));
     }
     doc.set("image", PyValue::Dict(img));
 
     let prior = doc.get("provenance").and_then(dict_of).cloned().unwrap_or_default();
     let prior_mismatch = list_or_empty(doc.get("provenance_mismatch"));
-    let (provenance, mismatch) = cell_provenance(ctx, base, cell, node.as_deref(), &prior, prior_mismatch);
+    let (provenance, mismatch) =
+        cell_provenance(ctx, base, cell, node.as_deref(), sweep_state.as_deref(), &prior, prior_mismatch)?;
     doc.set("provenance", PyValue::Dict(provenance));
     doc.set("provenance_mismatch", PyValue::List(mismatch));
 
@@ -1355,6 +1410,11 @@ fn write_cell(
     doc.set("grounding", PyValue::Dict(grounding));
     doc.set("void_reason", void_reason.map(py).unwrap_or(PyValue::None));
     doc.set("void_reason_source", void_source.map(py).unwrap_or(PyValue::None));
+    let mut lite_verdict: Option<String> = None;
+    let lite_raw = args.get("--lite-raw").filter(|s| !s.is_empty());
+    if let Some(raw) = lite_raw {
+        lite_verdict = apply_lite_gate(ctx, &mut doc, raw, args.get("--utc"))?;
+    }
     let axis = args.get("--axis-citation");
     let intent = args.get("--next-intent");
     if let Some(a) = axis {
@@ -1375,6 +1435,9 @@ fn write_cell(
         entry.set("axis_citation", axis.map(py).unwrap_or(PyValue::None));
         entry.set("next_intent", intent.map(py).unwrap_or(PyValue::None));
         entry.set("source", py("campaign_init --cell-set"));
+        if lite_raw.is_some() {
+            entry.set("lite_verdict", lite_verdict.as_deref().map(py).unwrap_or(PyValue::None));
+        }
         journey = Some(append_journey(base, &PyValue::Dict(entry))?);
     }
     Ok((path, journey))
@@ -1408,9 +1471,10 @@ fn cell_provenance(
     base: &Path,
     cell: &str,
     node: Option<&str>,
+    sweep_state: Option<&Path>,
     prior: &PyDict,
     prior_mismatch: Vec<PyValue>,
-) -> (PyDict, Vec<PyValue>) {
+) -> R<(PyDict, Vec<PyValue>)> {
     let decl = read_declaration(base);
     let mut prov = PyDict::new();
     if !lockset_observable(&decl, node) {
@@ -1428,7 +1492,7 @@ fn cell_provenance(
         prov.set("compared", PyValue::List(Vec::new()));
         prov.set("compare_gaps", PyValue::List(Vec::new()));
         prov.set("pending_knobs", PyValue::List(Vec::new()));
-        return (prov, prior_mismatch);
+        return Ok((prov, prior_mismatch));
     }
     let lock = base.join("cells").join(cell).join("lockset.json");
     let ldoc = if lock.is_file() { read_json(&lock) } else { None };
@@ -1452,7 +1516,494 @@ fn cell_provenance(
     prov.set("compared", PyValue::List(list_or_empty(prior.get("compared"))));
     prov.set("compare_gaps", PyValue::List(list_or_empty(prior.get("compare_gaps"))));
     prov.set("pending_knobs", PyValue::List(Vec::new()));
-    (prov, prior_mismatch)
+    let Some(sweep) = sweep_state else {
+        return Ok((prov, prior_mismatch));
+    };
+    compare_with_sweep(ctx, base, cell, sweep, &ldoc, prov, prior_mismatch)
+}
+
+/// `lockset_provenance` text of a lockset field (`lockset_source` is the repository-relative path or null).
+fn prov_text(prov: &PyDict, key: &str) -> PyValue {
+    prov.get(key).cloned().unwrap_or(PyValue::None)
+}
+
+fn as_number(value: &PyValue) -> Option<f64> {
+    match value.peel() {
+        PyValue::Bool(_) => None,
+        PyValue::Int(n) => {
+            use num_traits::ToPrimitive;
+            n.to_f64()
+        }
+        PyValue::Float(f) => Some(*f),
+        PyValue::Str(text) => {
+            let text = text.to_utf8()?;
+            let trimmed = text.trim();
+            if trimmed.contains('_') {
+                return None;
+            }
+            trimmed.parse::<f64>().ok()
+        }
+        _ => None,
+    }
+}
+
+/// `_sweep_coordinate(sweep_path, cell, key, block)`: `(value, source or the reason it is absent)`.
+fn sweep_coordinate(ctx: &Ctx, sweep: &Path, cell: &str, key: &str, block: &str) -> (Option<PyValue>, String) {
+    let Some(doc) = read_json(sweep) else {
+        return (None, format!("sweep 기록을 읽지 못했다: {}", ctx.rel(sweep)));
+    };
+    let Some(doc) = dict_of(&doc) else {
+        return (None, format!("sweep 기록을 읽지 못했다: {}", ctx.rel(sweep)));
+    };
+    for rec in list_or_empty(doc.get("cells")).iter().filter_map(dict_of) {
+        if get_text(rec, "cell_key").as_deref() != Some(cell) {
+            continue;
+        }
+        let coord = get_dict(rec, block).cloned().unwrap_or_default();
+        let absent = match coord.get(key) {
+            None => true,
+            Some(v) => match v.peel() {
+                PyValue::None => true,
+                PyValue::Str(t) => t.equals("") || t.equals("NA"),
+                _ => false,
+            },
+        };
+        if absent {
+            return (
+                None,
+                format!(
+                    "sweep 레코드에 {block}.{key} 가 없다: {} cell_key={cell} (서빙 yaml 에 그 키가 없었거나 측정 평면이 싣지 않았다)",
+                    ctx.rel(sweep)
+                ),
+            );
+        }
+        return (
+            coord.get(key).cloned(),
+            format!("sweep:{}#cells[cell_key={cell}].{block}.{key}", ctx.rel(sweep)),
+        );
+    }
+    (None, format!("sweep 기록에 셀 {} 이 없다: {}", py_repr(cell), ctx.rel(sweep)))
+}
+
+/// `_declared_target_gmu(cfg_path)`: `(value, source or the reason it is absent)`.
+fn declared_target_gmu(ctx: &Ctx, cfg: &Path) -> R<(Option<f64>, String)> {
+    if !cfg.is_file() {
+        return Ok((None, format!("셀 config 부재: {}", ctx.rel(cfg))));
+    }
+    let loaded = std::fs::read(cfg)
+        .ok()
+        .and_then(|b| String::from_utf8(b).ok())
+        .map(|text| crate::pyyaml::safe_load_text(&PyStr::new(&text), 0));
+    let doc = match loaded {
+        Some(Ok(doc)) => doc,
+        // A YAML error message quotes the source line (a snippet of the text); that rendering is the owner's.
+        Some(Err(_)) | None => return Err(Stop::Fallback),
+    };
+    let value = dict_of(&doc)
+        .and_then(|d| get_dict(d, "target_gpu"))
+        .and_then(|t| t.get("target_gmu"))
+        .and_then(as_number);
+    Ok(match value {
+        Some(v) => (Some(v), format!("{}#target_gpu.target_gmu", ctx.rel(cfg))),
+        None => (
+            None,
+            format!("셀 config 에 target_gpu.target_gmu 가 수로 선언되지 않았다: {}", ctx.rel(cfg)),
+        ),
+    })
+}
+
+fn number_or_none(v: Option<f64>) -> PyValue {
+    v.map(PyValue::Float).unwrap_or(PyValue::None)
+}
+
+fn compare_with_sweep(
+    ctx: &Ctx,
+    base: &Path,
+    cell: &str,
+    sweep: &Path,
+    ldoc: &PyDict,
+    mut prov: PyDict,
+    prior_mismatch: Vec<PyValue>,
+) -> R<(PyDict, Vec<PyValue>)> {
+    let mut fresh: Vec<PyValue> = Vec::new();
+    let mut compared: Vec<String> = Vec::new();
+    let mut gaps: Vec<String> = Vec::new();
+    let lockset_prov = prov_text(&prov, "lockset");
+    let lockset_source = text_of(&prov_text(&prov, "lockset_source"));
+    let (declared, dsrc) = declared_target_gmu(ctx, &base.join("cells").join(cell).join("config.yaml"))?;
+    let (observed_raw, osrc) = sweep_coordinate(ctx, sweep, cell, "gpu_memory_utilization", "coordinates");
+    let observed = observed_raw.as_ref().and_then(as_number);
+    if declared.is_none() {
+        gaps.push(format!("gpu_memory_utilization 대조 불가 — {dsrc} (직전 기재 유지)"));
+    } else if observed.is_none() {
+        let why = match &observed_raw {
+            None => osrc.clone(),
+            Some(v) => format!("서빙 gmu 가 수가 아니다: {} ({osrc})", v.repr()),
+        };
+        gaps.push(format!("gpu_memory_utilization 대조 불가 — {why} (직전 기재 유지)"));
+    } else {
+        compared.push("gpu_memory_utilization".to_string());
+        if declared != observed {
+            let mut m = PyDict::new();
+            m.set("knob", py("gpu_memory_utilization"));
+            m.set("declared", number_or_none(declared));
+            m.set("declared_source", py(&dsrc));
+            m.set("observed", number_or_none(observed));
+            m.set("observed_source", py(&osrc));
+            m.set("lockset_provenance", lockset_prov.clone());
+            m.set("lockset_gmu_source", ldoc.get("gmu_source").cloned().unwrap_or(PyValue::None));
+            fresh.push(PyValue::Dict(m));
+        }
+    }
+    for (lkey, block, skey, src_key) in [
+        ("batch", "coordinates", "max_num_seqs", "batch_source"),
+        ("kv_cache_memory_bytes", "capacity", "kv_cache_memory_bytes", "kv_source"),
+    ] {
+        let declared_k = ldoc.get(lkey).and_then(as_number);
+        let (observed_raw_k, osrc_k) = sweep_coordinate(ctx, sweep, cell, skey, block);
+        let observed_k = observed_raw_k.as_ref().and_then(as_number);
+        let Some(observed_k) = observed_k else {
+            let why = match &observed_raw_k {
+                None => osrc_k.clone(),
+                Some(v) => format!("서빙 값이 수가 아니다: {} ({osrc_k})", v.repr()),
+            };
+            let tail = if declared_k.is_some() {
+                String::new()
+            } else {
+                format!(
+                    " · lockset {lkey} 도 수로 잠겨 있지 않다({})",
+                    lockset_source.clone().unwrap_or_else(|| "lockset 부재".to_string())
+                )
+            };
+            gaps.push(format!("{lkey} 대조 불가 — {why}{tail} (직전 기재 유지)"));
+            continue;
+        };
+        compared.push(lkey.to_string());
+        let source_key = format!("lockset_{src_key}");
+        match declared_k {
+            None => {
+                let mut m = PyDict::new();
+                m.set("knob", py(lkey));
+                m.set("declared", PyValue::None);
+                m.set("declared_state", py("undetermined"));
+                m.set(
+                    "declared_source",
+                    match &lockset_source {
+                        Some(src) => py(&format!("{src}#{lkey}")),
+                        None => py("lockset 부재"),
+                    },
+                );
+                m.set("observed", PyValue::Float(observed_k));
+                m.set("observed_source", py(&osrc_k));
+                m.set("lockset_provenance", lockset_prov.clone());
+                m.set(&source_key, ldoc.get(src_key).cloned().unwrap_or(PyValue::None));
+                fresh.push(PyValue::Dict(m));
+            }
+            Some(d) if d != observed_k => {
+                let mut m = PyDict::new();
+                m.set("knob", py(lkey));
+                m.set("declared", PyValue::Float(d));
+                m.set(
+                    "declared_source",
+                    py(&format!("{}#{lkey}", lockset_source.clone().unwrap_or_else(|| "None".to_string()))),
+                );
+                m.set("observed", PyValue::Float(observed_k));
+                m.set("observed_source", py(&osrc_k));
+                m.set("lockset_provenance", lockset_prov.clone());
+                m.set(&source_key, ldoc.get(src_key).cloned().unwrap_or(PyValue::None));
+                fresh.push(PyValue::Dict(m));
+            }
+            Some(_) => {}
+        }
+    }
+    if get_text(ldoc, "batch_source").as_deref() == Some("hand-lever") {
+        let der = get_dict(ldoc, "batch_derivation").cloned().unwrap_or_default();
+        let hand = ldoc.get("batch").and_then(as_number);
+        let would = der.get("derived_batch_would_be").and_then(as_number);
+        match (hand, would) {
+            (Some(hand), Some(would)) => {
+                compared.push("batch_hand_lever".to_string());
+                if hand != would {
+                    let src = lockset_source.clone().unwrap_or_else(|| "None".to_string());
+                    let mut m = PyDict::new();
+                    m.set("knob", py("batch_hand_lever"));
+                    m.set("declared", PyValue::Float(hand));
+                    m.set("declared_source", py(&format!("{src}#batch(batch_source=hand-lever)")));
+                    m.set("observed", PyValue::Float(would));
+                    m.set(
+                        "observed_source",
+                        py(&format!("{src}#batch_derivation.derived_batch_would_be")),
+                    );
+                    m.set(
+                        "observed_source_kind",
+                        der.get("derived_batch_source_would_be").cloned().unwrap_or(PyValue::None),
+                    );
+                    m.set("lockset_provenance", lockset_prov.clone());
+                    fresh.push(PyValue::Dict(m));
+                }
+            }
+            _ => gaps.push(
+                "batch_hand_lever 대조 불가 — lockset 손레버 batch 또는 explorer 재계산값(batch_derivation.derived_batch_would_be)이 수가 아니다 (직전 기재 유지)".to_string(),
+            ),
+        }
+    }
+    prov.set("compared", str_list(compared.clone()));
+    prov.set("compare_gaps", str_list(gaps));
+    let mut kept: Vec<PyValue> = prior_mismatch
+        .into_iter()
+        .filter(|m| match dict_of(m) {
+            Some(d) => !get_text(d, "knob").map(|k| compared.contains(&k)).unwrap_or(false),
+            None => false,
+        })
+        .collect();
+    kept.extend(fresh);
+    Ok((prov, kept))
+}
+
+/// `_sweep_measurement(sweep_path, cell)`.
+fn sweep_measurement(ctx: &Ctx, sweep: &Path, cell: &str) -> (Option<f64>, String) {
+    let doc = read_json(sweep);
+    let Some(doc) = doc.as_ref().and_then(dict_of) else {
+        return (None, format!("sweep 기록을 읽지 못했다: {}", ctx.rel(sweep)));
+    };
+    for rec in list_or_empty(doc.get("cells")).iter().filter_map(dict_of) {
+        if get_text(rec, "cell_key").as_deref() != Some(cell) {
+            continue;
+        }
+        let value = get_dict(rec, "concurrency_vector").and_then(|v| v.get("1"));
+        let number = match value.map(PyValue::peel) {
+            Some(PyValue::Int(_)) | Some(PyValue::Float(_)) => value.and_then(as_number),
+            _ => None,
+        };
+        if let Some(number) = number {
+            return (
+                Some(number),
+                format!("sweep:{}#cells[cell_key={cell}].concurrency_vector.1", ctx.rel(sweep)),
+            );
+        }
+        return (None, format!("sweep 레코드에 동시성 1 측정이 없다: {} cell_key={cell}", ctx.rel(sweep)));
+    }
+    (None, format!("sweep 기록에 셀 {} 이 없다: {}", py_repr(cell), ctx.rel(sweep)))
+}
+
+/// `_sweep_image(sweep_path, cell)`.
+fn sweep_image(ctx: &Ctx, sweep: &Path, cell: &str) -> (Option<PyDict>, String) {
+    let doc = read_json(sweep);
+    let Some(doc) = doc.as_ref().and_then(dict_of) else {
+        return (None, format!("sweep 기록을 읽지 못했다: {}", ctx.rel(sweep)));
+    };
+    for rec in list_or_empty(doc.get("cells")).iter().filter_map(dict_of) {
+        if get_text(rec, "cell_key").as_deref() != Some(cell) {
+            continue;
+        }
+        let coord = get_dict(rec, "coordinates").cloned().unwrap_or_default();
+        let digest = coord.get("image_digest").filter(|v| v.is_truthy());
+        let Some(digest) = digest else {
+            return (
+                None,
+                format!(
+                    "sweep 레코드에 image_digest 가 없다: {} cell_key={cell} (측정 평면이 그 좌표를 싣지 않았다)",
+                    ctx.rel(sweep)
+                ),
+            );
+        };
+        let tag = coord.get("image_tag").filter(|v| v.is_truthy());
+        let mut out = PyDict::new();
+        out.set("digest", py(&digest.display_text().to_utf8().unwrap_or_default()));
+        out.set(
+            "tag",
+            tag.map(|t| py(&t.display_text().to_utf8().unwrap_or_default())).unwrap_or(PyValue::None),
+        );
+        out.set(
+            "source",
+            py(&format!("sweep:{}#cells[cell_key={cell}].coordinates.image_digest", ctx.rel(sweep))),
+        );
+        return (Some(out), String::new());
+    }
+    (None, format!("sweep 기록에 셀 {} 이 없다: {}", py_repr(cell), ctx.rel(sweep)))
+}
+
+/// `_sweep_output(base, sweep_path, cell, node)`: the measured output path the producer carried.
+fn sweep_output(ctx: &Ctx, base: &Path, sweep: &Path, cell: &str, node: Option<&str>) -> R<Option<PyDict>> {
+    let state = read_json(sweep);
+    let records = state.as_ref().and_then(dict_of).map(|d| list_or_empty(d.get("cells"))).unwrap_or_default();
+    let hits: Vec<&PyDict> = records
+        .iter()
+        .filter_map(dict_of)
+        .filter(|r| get_text(r, "cell_key").as_deref() == Some(cell))
+        .collect();
+    if hits.is_empty() || hits.iter().all(|r| !r.contains_key("sweep_dir")) {
+        return Ok(None);
+    }
+    if hits.len() != 1 {
+        return refuse(format!("sweep 출력 경로의 셀 기록이 유일하지 않다: {cell}"));
+    }
+    let rec = hits[0];
+    let rel_value = rec.get("sweep_dir").filter(|v| !matches!(v.peel(), PyValue::None));
+    let stamp_value = rec.get("sweep_generated_utc").filter(|v| !matches!(v.peel(), PyValue::None));
+    if rel_value.is_none() && stamp_value.is_none() {
+        return Ok(None);
+    }
+    let rel = rel_value.and_then(text_of);
+    let stamp = stamp_value.and_then(text_of).filter(|s| !s.is_empty());
+    let (Some(rel), Some(stamp)) = (rel, stamp) else {
+        return refuse("sweep 출력 경로는 measured 셀의 실제 경로·generated_utc 짝이어야 한다");
+    };
+    if get_text(rec, "cell_outcome").as_deref() != Some("measured") {
+        return refuse("sweep 출력 경로는 measured 셀의 실제 경로·generated_utc 짝이어야 한다");
+    }
+    let decl = read_declaration(base);
+    let from_node = list_of(decl.get("nodes").unwrap_or(&PyValue::None))
+        .into_iter()
+        .flatten()
+        .filter_map(dict_of)
+        .find(|n| get_text(n, "node_id").as_deref() == node && node.is_some())
+        .and_then(|n| get_text(n, "topology"))
+        .filter(|t| !t.is_empty());
+    let topology = from_node.or_else(|| declared_topology(base));
+    let absolute = rel.starts_with('/');
+    let parts: Vec<&str> = rel.split('/').filter(|p| !p.is_empty() && *p != ".").collect();
+    let name_ok = |name: &str| {
+        let Some(rest) = name.strip_prefix("sweep_") else { return false };
+        let mut chars = rest.chars();
+        matches!(chars.next(), Some(c) if c.is_ascii_alphanumeric())
+            && chars.all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '_' || c == '-')
+    };
+    let topo_ok = matches!(topology.as_deref(), Some("single" | "multi"));
+    if !topo_ok
+        || absolute
+        || parts.contains(&"..")
+        || parts.len() != 4
+        || parts[0] != "output"
+        || Some(parts[1]) != topology.as_deref()
+        || parts[2] != "benchlog"
+        || !name_ok(parts[3])
+    {
+        return refuse(format!("sweep 출력 경로는 이 topology의 benchlog 아래여야 한다: {}", py_repr(&rel)));
+    }
+    let topology = topology.expect("checked");
+    let path = ctx.root.join(&rel);
+    let bench_root = ctx.root.join("output").join(&topology).join("benchlog");
+    let mut inside: Vec<&Path> = vec![path.as_path()];
+    inside.extend(path.ancestors().skip(1));
+    if inside.iter().any(|p| *p != ctx.root && p.starts_with(&ctx.root) && p.is_symlink()) {
+        return refuse(format!("sweep 출력 경로에 symlink가 있다: {rel}"));
+    }
+    let resolved = std::fs::canonicalize(&path).unwrap_or_else(|_| path.clone());
+    let resolved_root = std::fs::canonicalize(&bench_root).unwrap_or_else(|_| bench_root.clone());
+    if !resolved.starts_with(&resolved_root) {
+        return refuse(format!("sweep 출력 경로가 benchlog 밖이다: {rel}"));
+    }
+    let index_path = path.join("sweep_index.json");
+    if index_path.is_symlink() || !index_path.is_file() {
+        return refuse("sweep 출력 index는 실재 정규파일이어야 한다(symlink 불가)");
+    }
+    let index = read_json(&index_path);
+    let index = index.as_ref().and_then(dict_of);
+    let meta = index.and_then(|i| get_dict(i, "meta")).cloned().unwrap_or_default();
+    let config = rec.get("config").and_then(text_of).filter(|c| !c.is_empty());
+    let consistent = match (index, &config) {
+        (Some(index), Some(config)) => {
+            let declared = meta
+                .get("config_name")
+                .filter(|v| v.is_truthy())
+                .cloned()
+                .or_else(|| index.get("config").cloned())
+                .unwrap_or(PyValue::None);
+            text_of(&declared).as_deref() == Some(config.as_str())
+                && get_text(index, "generated_utc").as_deref() == Some(stamp.as_str())
+                && match meta.get("topology") {
+                    None => true,
+                    Some(v) => matches!(v.peel(), PyValue::None) || text_of(v).as_deref() == Some(topology.as_str()),
+                }
+        }
+        _ => false,
+    };
+    if !consistent {
+        return refuse("sweep 출력 index의 config/UTC가 공식 셀 기록과 일치하지 않는다");
+    }
+    let mut out = PyDict::new();
+    out.set("sweep_dir", py(&rel));
+    out.set("sweep_generated_utc", py(&stamp));
+    out.set("sweep_config", py(&config.expect("checked")));
+    out.set("sweep_source", py(&format!("sweep:{}#cells[cell_key={cell}].sweep_dir", ctx.rel(sweep))));
+    Ok(Some(out))
+}
+
+const REENTRY_ROUTES: [(&str, &str); 2] = [
+    ("explorer", "vllm-recipe-explorer(서빙전략 재수립)"),
+    ("upstream", "upstream-version-watch(재빌드)"),
+];
+
+/// `_read_lite_raw(raw_path)`: `(verdict, measured_utc, source)`.
+fn read_lite_raw(ctx: &Ctx, raw_path: &str) -> R<(Option<String>, PyValue, String)> {
+    let raw = read_json(Path::new(raw_path));
+    let Some(raw_value) = raw.filter(|v| dict_of(v).is_some()) else {
+        return refuse(format!("--lite-raw 를 JSON 객체로 읽을 수 없다: {raw_path}"));
+    };
+    let measured = dict_of(&raw_value).and_then(|d| d.get("measured_utc").cloned()).unwrap_or(PyValue::None);
+    let owner = ctx.root.join(".claude/skills/adversarial-benchmark/scripts/lite_metrics_native.py");
+    if !owner.is_file() {
+        return Ok((
+            None,
+            measured,
+            format!("not_evaluated(판정 읽기 소유자 부재: {})", owner.display()),
+        ));
+    }
+    let resolved = std::fs::canonicalize(raw_path).unwrap_or_else(|_| PathBuf::from(raw_path));
+    let verdict = read_lite_verdict(&raw_value).map(|v| v.label().to_string());
+    Ok((
+        verdict,
+        measured,
+        format!("lite_raw({}) · lite_metrics.read_lite_verdict", ctx.rel(&resolved)),
+    ))
+}
+
+/// `_apply_lite_gate(doc, lite_raw, utc)`: the lite verdict, with the charge and the re-entry proposal of a `server_failed`.
+fn apply_lite_gate(ctx: &Ctx, doc: &mut PyDict, raw: &str, utc: Option<&str>) -> R<Option<String>> {
+    let (verdict, measured, source) = read_lite_raw(ctx, raw)?;
+    let mut gate = PyDict::new();
+    gate.set("verdict", verdict.as_deref().map(py).unwrap_or(PyValue::None));
+    gate.set("measured_utc", measured.clone());
+    gate.set("source", py(&source));
+    doc.set("lite_gate", PyValue::Dict(gate));
+    if verdict.as_deref() != Some("server_failed") {
+        return Ok(verdict);
+    }
+    let rec = doc.get("reconciliation").and_then(dict_of).cloned().unwrap_or_default();
+    let mut charges: Vec<PyValue> = list_or_empty(rec.get("charges")).into_iter().filter(|c| dict_of(c).is_some()).collect();
+    let key = if measured.is_truthy() { measured.clone() } else { py(&source) };
+    let fresh = !charges.iter().any(|c| dict_of(c).and_then(|d| d.get("key")) == Some(&key));
+    if fresh {
+        let mut c = PyDict::new();
+        c.set("key", key.clone());
+        c.set("utc", utc.map(py).unwrap_or(PyValue::None));
+        c.set("reason", py("lite_verdict=server_failed(실사용 불가)"));
+        c.set("source", py(&source));
+        charges.push(PyValue::Dict(c));
+    }
+    let mut reconciliation = PyDict::new();
+    let spent = charges.len() as i64;
+    reconciliation.set("charges", PyValue::List(charges));
+    reconciliation.set("spent", PyValue::int(spent));
+    reconciliation.set(
+        "cap_owner",
+        py("vllm-recipe-explorer recipe.py --cap — 잔여 = cap − spent(cap 값은 여기에 적지 않는다)"),
+    );
+    doc.set("reconciliation", PyValue::Dict(reconciliation));
+    let prior = doc.get("reentry").and_then(dict_of).is_some();
+    if fresh || !prior {
+        let mut r = PyDict::new();
+        r.set("status", py("proposed"));
+        r.set("reason", py("lite_verdict=server_failed"));
+        r.set("charge_key", key);
+        r.set("proposed_utc", utc.map(py).unwrap_or(PyValue::None));
+        r.set("routes", str_list(REENTRY_ROUTES.iter().map(|(_, v)| v.to_string()).collect()));
+        r.set("decision", PyValue::None);
+        r.set("gate", py("사람 승인(대화 평면) → campaign_init --reentry-decide 로 기록 · 자동 실행 ✗"));
+        doc.set("reentry", PyValue::Dict(r));
+    }
+    Ok(verdict)
 }
 
 // ── --write-brief ────────────────────────────────────────────────────────────────────────────
@@ -1833,10 +2384,257 @@ fn op_init(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     Ok(0)
 }
 
+// ── --reentry-decide ─────────────────────────────────────────────────────────────────────────
+
+fn op_reentry_decide(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let cell = args.get("--reentry-decide").unwrap_or_default().to_string();
+    let Some((base, camp)) = writer_target(ctx, args.get("--campaign-id"))? else {
+        io.warn("[campaign_init] no-op — ACTIVE=_bootstrap (캠페인 밖에서는 상태를 쓰지 않는다)");
+        return Ok(0);
+    };
+    guard_writer_ops(ctx, &base, &[("reentry_decide", true)])?;
+    let decision = args.get("--decision");
+    let route = args.get("--route");
+    let approved_by = args.get("--approved-by").map(str::trim).filter(|s| !s.is_empty());
+    let utc = args.get("--utc").filter(|s| !s.is_empty());
+    let decision = match decision {
+        Some(d @ ("approve" | "decline")) => d,
+        other => {
+            return refuse(format!(
+                "--decision 은 approve|decline 이다: {}",
+                other.map(py_repr).unwrap_or_else(|| "None".to_string())
+            ))
+        }
+    };
+    let route_text = route.and_then(|r| REENTRY_ROUTES.iter().find(|(k, _)| *k == r).map(|(_, v)| *v));
+    if decision == "approve" && route_text.is_none() {
+        return refuse("승인에는 --route explorer|upstream 가 필요하다(누가 재발동하는가를 먼저 적는다)");
+    }
+    let (Some(approved_by), Some(utc)) = (approved_by, utc) else {
+        return refuse("--reentry-decide 는 --approved-by(사람 발화 전사)와 --utc 가 필요하다");
+    };
+    let path = base.join("cells").join(&cell).join("cell.status.json");
+    let existing = if path.is_file() { read_json(&path) } else { None };
+    let mut doc = existing.as_ref().and_then(dict_of).cloned();
+    let reentry = doc.as_ref().and_then(|d| get_dict(d, "reentry")).cloned();
+    let Some(mut reentry) = reentry.filter(|r| get_text(r, "status").as_deref() == Some("proposed")) else {
+        let status = doc
+            .as_ref()
+            .and_then(|d| get_dict(d, "reentry"))
+            .map(|r| r.get("status").map(PyValue::repr).unwrap_or_else(|| "None".to_string()))
+            .unwrap_or_else(|| "None".to_string());
+        return refuse(format!(
+            "셀 {cell} 에 대기 중인 재발동 제안이 없다(status={status}) — 제안은 lite ② 가 셀 상태에 실릴 때 생긴다(--cell-set --lite-raw)"
+        ));
+    };
+    let mut doc_dict = doc.take().expect("reentry came from the document");
+    let status = if decision == "approve" { "approved" } else { "declined" };
+    reentry.set("status", py(status));
+    let mut d = PyDict::new();
+    d.set("decision", py(decision));
+    d.set("route", route_text.map(py).unwrap_or(PyValue::None));
+    d.set("approved_by", py(approved_by));
+    d.set("utc", py(utc));
+    reentry.set("decision", PyValue::Dict(d));
+    doc_dict.set("reentry", PyValue::Dict(reentry));
+    write_json(&path, &PyValue::Dict(doc_dict.clone()))?;
+    let mut entry = PyDict::new();
+    entry.set("utc", py(utc));
+    entry.set("node_id", doc_dict.get("node_id").cloned().unwrap_or(PyValue::None));
+    entry.set("cell_id", py(&cell));
+    entry.set("outcome", doc_dict.get("cell_outcome").cloned().unwrap_or(PyValue::None));
+    entry.set("reentry", py(status));
+    entry.set("route", route_text.map(py).unwrap_or(PyValue::None));
+    entry.set("source", py("campaign_init --reentry-decide"));
+    let journey = append_journey(&base, &PyValue::Dict(entry))?;
+    io.say(&format!(
+        "[campaign_init] wrote({camp}): {} {}",
+        ctx.rel(&path),
+        ctx.rel(&journey)
+    ));
+    Ok(0)
+}
+
+// ── --lockset-precheck ───────────────────────────────────────────────────────────────────────
+
+fn op_lockset_precheck(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let Some(cell) = args.get("--cell").filter(|s| !s.is_empty()) else {
+        return refuse("--lockset-precheck 는 --cell 이 필요하다(셀 없는 출처는 없다)");
+    };
+    let camp_id = args.get("--campaign-id").filter(|s| !s.is_empty());
+    let camp = camp_id.map(str::to_string).unwrap_or_else(|| ctx.active_id());
+    let mut verdict = PyDict::new();
+    if camp == BOOTSTRAP {
+        let fact = if camp_id.is_none() {
+            ctx.active_pointer_fact()
+        } else {
+            "--campaign-id=_bootstrap".to_string()
+        };
+        verdict.set("status", py("not_applicable"));
+        verdict.set("campaign_id", py(BOOTSTRAP));
+        verdict.set("cell", py(cell));
+        verdict.set("lockset", PyValue::None);
+        verdict.set("provenance", PyValue::None);
+        verdict.set(
+            "reason",
+            py(&format!(
+                "{fact} → _bootstrap — 캠페인 셀 문맥이 없어 lockset 의 거처가 없다(writer no-op 과 같은 경계). 셀 출처 precheck 대상이 아니다"
+            )),
+        );
+        let line = PyValue::Dict(verdict).dumps_unicode().map_err(|e| Stop::Refuse(e.to_string()))?;
+        io.say(&line.to_utf8().unwrap_or_default());
+        io.warn(&format!(
+            "[campaign_init] ⓘ 셀 출처 precheck 대상 아님 — {fact} → _bootstrap — 캠페인 셀 문맥이 없어 lockset 의 거처가 없다(writer no-op 과 같은 경계). 셀 출처 precheck 대상이 아니다"
+        ));
+        return Ok(0);
+    }
+    let base = ctx.campaigns().join(&camp);
+    if !is_dir(&base) {
+        return refuse(format!("인스턴스가 없다: campaigns/{camp} — 출처를 물을 셀이 없다"));
+    }
+    let path = base.join("cells").join(cell).join("lockset.json");
+    let mut why = lockset_provenance_reason(ctx, &path);
+    let doc = if path.is_file() { read_json(&path) } else { None };
+    let prov = doc.as_ref().and_then(dict_of).and_then(|d| d.get("provenance")).filter(|v| text_of(v).is_some()).cloned();
+    if let Some(reason) = why.as_mut() {
+        if node_of_cell(&base, cell).is_none() {
+            reason.push_str(&format!(
+                " · 셀 키 {} 가 campaigns/{camp}/campaign.yaml 의 assignments 에도 없다(스윕 셀 키가 캠페인 셀 id 와 같은 이름인지 확인하라)",
+                py_repr(cell)
+            ));
+        }
+    }
+    verdict.set("status", py(if why.is_some() { "refused" } else { "passed" }));
+    verdict.set("campaign_id", py(&camp));
+    verdict.set("cell", py(cell));
+    verdict.set("lockset", py(&ctx.rel(&path)));
+    verdict.set("provenance", prov.unwrap_or(PyValue::None));
+    verdict.set("reason", why.as_deref().map(py).unwrap_or(PyValue::None));
+    let line = PyValue::Dict(verdict).dumps_unicode().map_err(|e| Stop::Refuse(e.to_string()))?;
+    io.say(&line.to_utf8().unwrap_or_default());
+    if let Some(reason) = why {
+        io.warn(&format!("[campaign_init] 셀 출처 precheck 거부 — {reason}"));
+        return Ok(2);
+    }
+    Ok(0)
+}
+
+// ── --grounding-check and --escalation-summary ───────────────────────────────────────────────
+
+/// `grounding_reasons(base)`: why the grounding does not hold (empty = it does).
+fn grounding_reasons(ctx: &Ctx, base: &Path) -> Vec<String> {
+    let Some((path, doc)) = latest_grounding(base) else {
+        return vec![format!(
+            "그라운딩 기록이 없다: {}/ — 캠페인 착수·셀 축 변경 시 통제변인 파생 질의로 사서를 부른 기록이 있어야 한다(policy:LIBRARY_GROUNDING_FAIL_CLOSED C1). `campaign_init.py --ground --utc <t>` 로 물어라.",
+            ctx.rel(&base.join("grounding"))
+        )];
+    };
+    let status = chain_dict(&doc, "export")
+        .and_then(|e| chain_dict(e, "resolution"))
+        .and_then(|r| r.get("status").cloned())
+        .unwrap_or(PyValue::None);
+    match text_of(&status).as_deref() {
+        Some("refused") => vec![format!(
+            "사서가 질의를 **거절**했다({}) — 공백과 거절은 다른 사실이고 거절은 차단이다(D5)",
+            ctx.rel(&path)
+        )],
+        Some("resolved" | "unresolved") => Vec::new(),
+        _ => vec![format!(
+            "그라운딩 기록의 판정이 알 수 없는 값이다({}): {}",
+            ctx.rel(&path),
+            status.repr()
+        )],
+    }
+}
+
+fn op_grounding_check(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let Some((base, _)) = writer_target(ctx, args.get("--campaign-id"))? else {
+        io.warn("[campaign_init] 그라운딩 검사 생략 — 활성 캠페인 없음(_bootstrap)");
+        return Ok(0);
+    };
+    let reasons = grounding_reasons(ctx, &base);
+    if !reasons.is_empty() {
+        io.warn("[campaign_init] 그라운딩 백스톱: 통과하지 못했다 (policy:LIBRARY_GROUNDING_FAIL_CLOSED C2)");
+        for reason in reasons {
+            io.warn(&format!("  - {reason}"));
+        }
+        return Ok(4);
+    }
+    io.say("[campaign_init] 그라운딩 백스톱 통과");
+    Ok(0)
+}
+
+fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let Some((base, _)) = writer_target(ctx, args.get("--campaign-id"))? else {
+        let mut d = PyDict::new();
+        d.set("campaign_id", PyValue::None);
+        d.set("total", PyValue::int(0));
+        d.set("hitl_required", PyValue::Bool(false));
+        d.set("_note", py("ACTIVE=_bootstrap — 캠페인 밖에는 후보가 없다"));
+        let line = PyValue::Dict(d).dumps_unicode().map_err(|e| Stop::Refuse(e.to_string()))?;
+        io.say(&line.to_utf8().unwrap_or_default());
+        return Ok(0);
+    };
+    let rows: Vec<PyValue> = match std::fs::read(base.join("escalation_candidates.jsonl")) {
+        Ok(bytes) => String::from_utf8_lossy(&bytes)
+            .lines()
+            .filter_map(|l| pyjson::loads(l.trim()).ok().filter(|v| !l.trim().is_empty() && dict_of(v).is_some()))
+            .collect(),
+        Err(_) => Vec::new(),
+    };
+    let flag = |r: &PyValue, key: &str, want: bool| {
+        dict_of(r).and_then(|d| d.get(key)).map(|v| matches!(v.peel(), PyValue::Bool(b) if *b == want)).unwrap_or(false)
+    };
+    let standing: Vec<&PyValue> = rows.iter().filter(|r| flag(r, "predicate_1", true)).collect();
+    let host: Vec<&PyValue> = rows
+        .iter()
+        .filter(|r| {
+            flag(r, "predicate_1", false)
+                && dict_of(r)
+                    .map(|d| truthy(d.get("host_plane_ignored")) || truthy(d.get("model_plane_refuted")))
+                    .unwrap_or(false)
+        })
+        .collect();
+    let cells = |items: &[&PyValue]| {
+        let mut out: Vec<String> = items
+            .iter()
+            .map(|r| {
+                dict_of(r)
+                    .and_then(|d| d.get("cell_id"))
+                    .map(|v| v.display_text().to_utf8().unwrap_or_default())
+                    .unwrap_or_else(|| "None".to_string())
+            })
+            .collect();
+        out.sort();
+        out.dedup();
+        out
+    };
+    let mut d = PyDict::new();
+    d.set("campaign_id", py(&base.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()));
+    d.set("total", PyValue::int(rows.len() as i64));
+    d.set("predicate_1_standing", PyValue::int(standing.len() as i64));
+    d.set("host_plane_only", PyValue::int(host.len() as i64));
+    d.set("cells_standing", str_list(cells(&standing)));
+    d.set("cells_host_plane", str_list(cells(&host)));
+    d.set("hitl_required", PyValue::Bool(!standing.is_empty()));
+    d.set("rows", PyValue::List(rows.clone()));
+    d.set(
+        "_note",
+        py("술어 ① 이 선 후보가 하나라도 있으면 캠페인 종결 시 사람에게 묻는다 — 빌드 평면 재전략(포크 핀·빌드 패치·이미지 재빌드)은 통제변인을 바꾸므로 캠페인 중간에 발동하지 않는다. ① 이 서지 않은 줄은 예산·호스트 평면의 일이며 그 처방은 R1~R3 의 게이트가 이미 갖고 있다."),
+    );
+    let text = PyValue::Dict(d).dumps_indented(2).map_err(|e| Stop::Refuse(e.to_string()))?;
+    io.say(&text.to_utf8().unwrap_or_default());
+    Ok(0)
+}
+
 // ── dispatch ─────────────────────────────────────────────────────────────────────────────────
 
 /// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 6] = [
+const NATIVE_OPS: [&str; 10] = [
+    "--reentry-decide",
+    "--lockset-precheck",
+    "--grounding-check",
+    "--escalation-summary",
     "--assigned-cells",
     "--write-brief",
     "--phase-set",
@@ -1849,6 +2647,10 @@ const NATIVE_OPS: [&str; 6] = [
 fn allowed_options(op: &str) -> &'static [&'static str] {
     match op {
         "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
+        "--reentry-decide" => &["--reentry-decide", "--campaign-id", "--decision", "--route", "--approved-by", "--utc"],
+        "--lockset-precheck" => &["--lockset-precheck", "--cell", "--campaign-id"],
+        "--grounding-check" => &["--grounding-check", "--campaign-id"],
+        "--escalation-summary" => &["--escalation-summary", "--campaign-id"],
         "--write-brief" => &["--write-brief", "--campaign-id", "--node", "--utc"],
         "--phase-set" => &[
             "--phase-set", "--campaign-id", "--node", "--cell", "--state", "--proof-predicate", "--proof-ok",
@@ -1901,6 +2703,13 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     if args.names().any(|n| !allowed_options(op).contains(n)) {
         return Outcome::Fallback;
     }
+    for (option, allowed) in [("--decision", &["approve", "decline"][..]), ("--route", &["explorer", "upstream"][..])] {
+        if let Some(value) = args.get(option) {
+            if !allowed.contains(&value) {
+                return Outcome::Fallback;
+            }
+        }
+    }
     if let Some(topology) = args.get("--target-topology") {
         if topology != "single" && topology != "multi" {
             return Outcome::Fallback;
@@ -1908,6 +2717,10 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     }
     let result = match op {
         "--assigned-cells" => op_assigned_cells(ctx, &args, io),
+        "--reentry-decide" => op_reentry_decide(ctx, &args, io),
+        "--lockset-precheck" => op_lockset_precheck(ctx, &args, io),
+        "--grounding-check" => op_grounding_check(ctx, &args, io),
+        "--escalation-summary" => op_escalation_summary(ctx, &args, io),
         "--write-brief" => op_write_brief(ctx, &args, io),
         "--phase-set" => op_phase_set(ctx, &args, io),
         "--cell-set" => op_cell_set(ctx, &args, io),

@@ -121,7 +121,7 @@ fn cell_set_records_gap_and_journey() {
 fn shapes_with_other_files_stay_with_the_owner() {
     let root = scratch("fallback");
     active(&root);
-    let (status, out, err) = call(&root, &["--cell-set", "c1", "--outcome", "pending", "--sweep-state", "x.json"]);
+    let (status, out, err) = call(&root, &["--evidence-add", "--kind", "plan", "--path", "x.md"]);
     assert_eq!((status, out.as_str(), err.as_str()), (None, "", ""));
     let (status, ..) = call(&root, &["--phase-set", "publish", "--node", "main", "--state", "done"]);
     assert_eq!(status, None);
@@ -156,4 +156,65 @@ fn assigned_cells_lists_in_declaration_order() {
     let (status, _, err) = call(&root, &["--assigned-cells", "zz"]);
     assert_eq!(status, Some(1));
     assert!(err.contains("assignments['zz'] 가 비었다"));
+}
+
+#[test]
+fn lockset_precheck_names_the_verdict_on_one_line() {
+    let root = scratch("precheck");
+    active(&root);
+    let (status, out, err) = call(&root, &["--lockset-precheck", "--cell", "c1"]);
+    assert_eq!(status, Some(2));
+    assert!(out.starts_with("{\"status\": \"refused\", \"campaign_id\": \"camp-a\", \"cell\": \"c1\""), "{out}");
+    assert!(err.starts_with("[campaign_init] 셀 출처 precheck 거부 — lockset 부재: campaigns/camp-a/cells/c1/lockset.json"));
+    put(&root, "campaigns/camp-a/cells/c1/lockset.json", "{\"provenance\": \"hand-authored\"}");
+    let (status, out, _) = call(&root, &["--lockset-precheck", "--cell", "c1"]);
+    assert_eq!(status, Some(0));
+    assert!(out.contains("\"status\": \"passed\"") && out.contains("\"provenance\": \"hand-authored\""), "{out}");
+}
+
+#[test]
+fn grounding_check_blocks_only_a_refusal() {
+    let root = scratch("grounding");
+    active(&root);
+    let (status, _, err) = call(&root, &["--grounding-check"]);
+    assert_eq!(status, Some(4));
+    assert!(err.contains("그라운딩 기록이 없다: campaigns/camp-a/grounding/"));
+    put(&root, "campaigns/camp-a/grounding/a.json", "{\"export\": {\"resolution\": {\"status\": \"unresolved\"}}}");
+    assert_eq!(call(&root, &["--grounding-check"]).0, Some(0));
+    put(&root, "campaigns/camp-a/grounding/b.json", "{\"export\": {\"resolution\": {\"status\": \"refused\"}}}");
+    assert_eq!(call(&root, &["--grounding-check"]).0, Some(4));
+}
+
+#[test]
+fn sweep_record_fills_measurement_and_image() {
+    let root = scratch("sweep");
+    active(&root);
+    put(
+        &root,
+        "sweep.json",
+        "{\"cells\": [{\"cell_key\": \"c1\", \"concurrency_vector\": {\"1\": 19.12}, \"coordinates\": {\"image_digest\": \"sha256:abc\", \"image_tag\": \"t\"}}]}",
+    );
+    let sweep = root.join("sweep.json");
+    let (status, ..) = call(&root, &["--cell-set", "c1", "--outcome", "measured", "--sweep-state", sweep.to_str().unwrap()]);
+    assert_eq!(status, Some(0));
+    let cell = std::fs::read_to_string(root.join("campaigns/camp-a/cells/c1/cell.status.json")).unwrap();
+    assert!(cell.contains("\"decode_tps_conc1\": 19.12") && cell.contains("\"digest\": \"sha256:abc\""), "{cell}");
+    let (status, _, err) = call(
+        &root,
+        &["--cell-set", "c1", "--outcome", "measured", "--sweep-state", sweep.to_str().unwrap(), "--image-digest", "sha256:other"],
+    );
+    assert_eq!(status, Some(1));
+    assert!(err.contains("이미지 좌표가 모순이다"));
+}
+
+#[test]
+fn reentry_decision_needs_a_proposal() {
+    let root = scratch("reentry");
+    active(&root);
+    let (status, _, err) = call(
+        &root,
+        &["--reentry-decide", "c1", "--decision", "decline", "--approved-by", "a", "--utc", "U"],
+    );
+    assert_eq!(status, Some(1));
+    assert!(err.contains("셀 c1 에 대기 중인 재발동 제안이 없다(status=None)"));
 }
