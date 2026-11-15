@@ -1320,6 +1320,9 @@ fn utc_to_kst(utc: &str) -> Result<String, String> {
     Ok(format!("{yy:04}-{mm:02}-{dd:02}T{:02}:{:02}:{:02}", rem / 3600, rem % 3600 / 60, rem % 60))
 }
 
+#[path = "layer_ledger_selftest.rs"]
+mod selftest;
+
 // ---------------------------------------------------------------- command line
 
 fn usage_err(msg: &str) -> i32 {
@@ -1342,8 +1345,7 @@ pub fn run(args: &[String]) -> i32 {
     while i < args.len() {
         match args[i].as_str() {
             "--self-test" => {
-                eprintln!("[layer_ledger] self-test not ported to Rust (use layer_ledger.py --self-test)");
-                return 2;
+                return selftest::self_test();
             }
             "-h" | "--help" => {
                 eprintln!("layer_ledger.py: see the Python docstring (common-layer · sync-point · divergence · validate · append · merge · emit-skeleton · entry-id · evidence-rels · utc-to-kst)");
