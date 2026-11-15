@@ -1,9 +1,9 @@
-//! `regen_build_patches_src.py` — the `verify` and `bundle` subcommands (the two the local callers run).
+//! `regen_build_patches_src.py` — every subcommand of the original plus the four that replace the inline Python of `sync_to_sub.sh`.
 //!
 //! `verify` checks a `build_patches_src` payload against `PROVENANCE.json` (the files-map kind: per-file sha256, missing / mismatch / extra;
 //! the `script-modules` kind: the exact authored inventory). `bundle` writes the deterministic `tar.gz` of a verified payload and prints its
-//! sha256. `derive`, `unbundle` and `snapshot-resolutions` are NOT ported here: `unbundle` runs on the sub node (the original is piped to the
-//! remote interpreter there), and `derive` / `snapshot-resolutions` clone upstream sources through git; they stay with the original script.
+//! sha256. `unbundle`, `derive` and `snapshot-resolutions` live in `regen_derive`; `modules-kind`, `modules-files`, `snapshot-modules` and
+//! `snapshot-post` (new — the former heredoc Python of `sync_to_sub.sh`) live in `regen_sync`.
 //!
 //! The bundle is deterministic by construction (sorted members, mtime 0, uid/gid 0, two normalised modes, gzip mtime 0). It is not byte-identical
 //! to the original's (another DEFLATE encoder); the caller only needs the same payload to give the same bytes, and the receiving side unpacks and
@@ -17,15 +17,15 @@ use std::io::Write;
 use std::os::unix::fs::{MetadataExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 
-const TAG: &str = "[regen-src]";
+pub(crate) const TAG: &str = "[regen-src]";
 
-struct Fail(String);
+pub(crate) struct Fail(pub(crate) String);
 
-fn log(msg: &str) {
+pub(crate) fn log(msg: &str) {
     println!("{TAG} {msg}");
 }
 
-fn fail<T>(msg: impl Into<String>) -> Result<T, Fail> {
+pub(crate) fn fail<T>(msg: impl Into<String>) -> Result<T, Fail> {
     Err(Fail(msg.into()))
 }
 
@@ -33,53 +33,63 @@ fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-fn sha256_bytes(data: &[u8]) -> String {
+pub(crate) fn sha256_bytes(data: &[u8]) -> String {
     hex(digest(&SHA256, data).as_ref())
 }
 
-struct Opts {
-    root: String,
-    provenance: Option<String>,
-    files_root: Option<String>,
-    quiet: bool,
-    out: Option<String>,
+pub(crate) struct Opts {
+    pub(crate) root: String,
+    pub(crate) provenance: Option<String>,
+    pub(crate) files_root: Option<String>,
+    pub(crate) quiet: bool,
+    pub(crate) out: Option<String>,
+    pub(crate) repo: Option<String>,
+    pub(crate) bundle: Option<String>,
+    pub(crate) expect_sha256: Option<String>,
+    pub(crate) work: Option<String>,
+    pub(crate) keep: bool,
+    pub(crate) manifest: Option<String>,
+    pub(crate) canonical: Option<String>,
+    pub(crate) snapshot: Option<String>,
+    pub(crate) topology: Option<String>,
+    pub(crate) kind: Option<String>,
 }
 
 fn usage_error(msg: &str) -> i32 {
-    eprintln!("usage: regen_build_patches_src.py [-h] [--repo REPO] {{verify,bundle}} --root ROOT [--provenance P] [--files-root F] ...");
+    eprintln!("usage: regen_build_patches_src.py [-h] [--repo REPO] {{verify,bundle,unbundle,derive,snapshot-resolutions,modules-kind,modules-files,snapshot-modules,snapshot-post}} ...");
     eprintln!("regen_build_patches_src.py: error: {msg}");
     2
 }
 
-fn dict_get<'a>(dict: &'a PyDict, key: &str) -> Option<&'a PyValue> {
+pub(crate) fn dict_get<'a>(dict: &'a PyDict, key: &str) -> Option<&'a PyValue> {
     dict.get(key).map(PyValue::peel)
 }
 
-fn as_dict(value: &PyValue) -> Option<&PyDict> {
+pub(crate) fn as_dict(value: &PyValue) -> Option<&PyDict> {
     match value.peel() {
         PyValue::Dict(d) => Some(d),
         _ => None,
     }
 }
 
-fn as_text(value: &PyValue) -> Option<String> {
+pub(crate) fn as_text(value: &PyValue) -> Option<String> {
     match value.peel() {
         PyValue::Str(s) => s.to_utf8(),
         _ => None,
     }
 }
 
-struct Provenance {
-    value: PyValue,
-    script_modules: bool,
+pub(crate) struct Provenance {
+    pub(crate) value: PyValue,
+    pub(crate) script_modules: bool,
 }
 
 impl Provenance {
-    fn dict(&self) -> &PyDict {
+    pub(crate) fn dict(&self) -> &PyDict {
         as_dict(&self.value).expect("checked object")
     }
 
-    fn files(&self) -> Vec<(String, String)> {
+    pub(crate) fn files(&self) -> Vec<(String, String)> {
         let mut out: Vec<(String, String)> = dict_get(self.dict(), "files")
             .and_then(as_dict)
             .map(|d| {
@@ -93,7 +103,7 @@ impl Provenance {
     }
 }
 
-fn load_provenance(root: &str, override_path: &Option<String>) -> Result<(Provenance, String), Fail> {
+pub(crate) fn load_provenance(root: &str, override_path: &Option<String>) -> Result<(Provenance, String), Fail> {
     let path = override_path.clone().unwrap_or_else(|| format!("{root}/PROVENANCE.json"));
     if !Path::new(&path).is_file() {
         return fail(format!("PROVENANCE.json 부재: {path} — 이식 변종이 아니면 이 도구를 부르지 않는다"));
@@ -157,7 +167,7 @@ fn is_helper(name: &str) -> bool {
     matches!(chars.next(), Some(c) if c.is_ascii_alphabetic() || c == '_') && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
-fn script_module_inventory(man: &PyDict) -> Result<Vec<(String, String)>, Fail> {
+pub(crate) fn script_module_inventory(man: &PyDict) -> Result<Vec<(String, String)>, Fail> {
     let payload = dict_get(man, "source_payload").and_then(as_dict);
     let modules = payload.and_then(|p| dict_get(p, "modules_sha256")).and_then(as_dict);
     let Some(modules) = modules.filter(|m| !m.is_empty()) else {
@@ -198,7 +208,7 @@ fn script_module_inventory(man: &PyDict) -> Result<Vec<(String, String)>, Fail> 
     Ok(out)
 }
 
-fn verify_script_modules(root: &str, prov: &Provenance, quiet: bool) -> Result<i32, Fail> {
+pub(crate) fn verify_script_modules(root: &str, prov: &Provenance, quiet: bool) -> Result<i32, Fail> {
     let modules = script_module_inventory(prov.dict())?;
     let mut actual: BTreeSet<String> = BTreeSet::new();
     let rd = std::fs::read_dir(root).map_err(|e| Fail(format!("{root}: {e}")))?;
@@ -245,7 +255,7 @@ fn verify_script_modules(root: &str, prov: &Provenance, quiet: bool) -> Result<i
     Ok(0)
 }
 
-fn walk(base: &Path, dir: &Path, out: &mut Vec<String>) {
+pub(crate) fn walk(base: &Path, dir: &Path, out: &mut Vec<String>) {
     let Ok(rd) = std::fs::read_dir(dir) else { return };
     for entry in rd.flatten() {
         let path = entry.path();
@@ -257,7 +267,7 @@ fn walk(base: &Path, dir: &Path, out: &mut Vec<String>) {
     }
 }
 
-fn verify(files_root: &str, files: &[(String, String)], quiet: bool) -> i32 {
+pub(crate) fn verify(files_root: &str, files: &[(String, String)], quiet: bool) -> i32 {
     if !Path::new(files_root).is_dir() {
         eprintln!("{TAG} FAIL: payload 디렉터리 부재: {files_root}");
         return 1;
@@ -381,10 +391,29 @@ fn gzip(data: &[u8]) -> Vec<u8> {
     out
 }
 
+const SUBCOMMANDS: [&str; 9] =
+    ["verify", "bundle", "unbundle", "derive", "snapshot-resolutions", "modules-kind", "modules-files", "snapshot-modules", "snapshot-post"];
+
 fn parse(args: &[String]) -> Result<(String, Opts), i32> {
     let mut it = args.iter();
-    let mut cmd = None;
-    let mut o = Opts { root: String::new(), provenance: None, files_root: None, quiet: false, out: None };
+    let mut cmd: Option<String> = None;
+    let mut o = Opts {
+        root: String::new(),
+        provenance: None,
+        files_root: None,
+        quiet: false,
+        out: None,
+        repo: None,
+        bundle: None,
+        expect_sha256: None,
+        work: None,
+        keep: false,
+        manifest: None,
+        canonical: None,
+        snapshot: None,
+        topology: None,
+        kind: None,
+    };
     let mut have_root = false;
     while let Some(arg) = it.next() {
         let (key, inline) = match arg.split_once('=') {
@@ -395,9 +424,7 @@ fn parse(args: &[String]) -> Result<(String, Opts), i32> {
             inline.clone().or_else(|| it.next().cloned()).ok_or_else(|| usage_error(&format!("argument {key}: expected one argument")))
         };
         match key.as_str() {
-            "--repo" => {
-                value()?;
-            }
+            "--repo" => o.repo = Some(value()?),
             "--root" => {
                 o.root = value()?;
                 have_root = true;
@@ -405,27 +432,46 @@ fn parse(args: &[String]) -> Result<(String, Opts), i32> {
             "--provenance" => o.provenance = Some(value()?),
             "--files-root" => o.files_root = Some(value()?),
             "--out" => o.out = Some(value()?),
+            "--bundle" => o.bundle = Some(value()?),
+            "--expect-sha256" => o.expect_sha256 = Some(value()?),
+            "--work" => o.work = Some(value()?),
+            "--manifest" => o.manifest = Some(value()?),
+            "--canonical" => o.canonical = Some(value()?),
+            "--snapshot" => o.snapshot = Some(value()?),
+            "--topology" => o.topology = Some(value()?),
+            "--kind" => o.kind = Some(value()?),
             "--quiet" => o.quiet = true,
-            "verify" | "bundle" if cmd.is_none() => cmd = Some(key.clone()),
-            "derive" | "unbundle" | "snapshot-resolutions" if cmd.is_none() => {
-                eprintln!("{TAG} FAIL: {key} 는 Rust 이식 범위 밖이다 — 원본 regen_build_patches_src.py 를 직접 쓴다(서브 stdin 실행·상류 clone)");
-                return Err(2);
-            }
+            "--keep" => o.keep = true,
+            k if cmd.is_none() && SUBCOMMANDS.contains(&k) => cmd = Some(k.to_string()),
             other => return Err(usage_error(&format!("unrecognized arguments: {other}"))),
         }
     }
     let Some(cmd) = cmd else { return Err(usage_error("the following arguments are required: cmd")) };
-    if !have_root {
-        return Err(usage_error("the following arguments are required: --root"));
-    }
-    if cmd == "bundle" && o.out.is_none() {
-        return Err(usage_error("the following arguments are required: --out"));
+    let required: &[(&str, bool)] = match cmd.as_str() {
+        "verify" => &[("--root", have_root)],
+        "bundle" => &[("--root", have_root), ("--out", o.out.is_some())],
+        "unbundle" => &[("--root", have_root), ("--bundle", o.bundle.is_some())],
+        "derive" | "snapshot-resolutions" => &[("--root", have_root), ("--work", o.work.is_some())],
+        "modules-kind" | "modules-files" => &[("--manifest", o.manifest.is_some())],
+        _ => &[("--canonical", o.canonical.is_some()), ("--snapshot", o.snapshot.is_some()), ("--topology", o.topology.is_some())],
+    };
+    for (name, present) in required {
+        if !present {
+            return Err(usage_error(&format!("the following arguments are required: {name}")));
+        }
     }
     Ok((cmd, o))
 }
 
 fn execute(cmd: &str, o: &Opts) -> Result<i32, Fail> {
+    match cmd {
+        "modules-kind" | "modules-files" | "snapshot-modules" | "snapshot-post" => return crate::regen_sync::run(cmd, o),
+        _ => {}
+    }
     let (prov, path) = load_provenance(&o.root, &o.provenance)?;
+    if matches!(cmd, "unbundle" | "derive" | "snapshot-resolutions") {
+        return crate::regen_derive::run_cmd(cmd, o, &prov, &path);
+    }
     if prov.script_modules {
         if cmd == "bundle" {
             return fail("bundle is not applicable to script-modules: authored modules are verified and delivered directly; no files/ derivation or bundle");

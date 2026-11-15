@@ -218,6 +218,8 @@ ureq = { version = "=3.5.0", default-features = false, features = ["rustls"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std"] }
 # SHA-256 of the files the runtime patch is bound to; the same exact pin and already-locked version the recipe package declares.
 ring = "=0.17.14"
+# O_NOFOLLOW / O_DIRECTORY / O_NONBLOCK constants for the symlink-free directory walk of the snapshot subcommands (never hard-coded per architecture); already locked.
+libc = "0.2"
 
 [[test]]
 name = "upstream_checks"

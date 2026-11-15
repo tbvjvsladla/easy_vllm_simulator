@@ -522,80 +522,21 @@ BAND2_RUNTIME_PATCH_STEMS=(exaone45-33b hy3 solar31-nv4-1m-tp2 solar032-nv4-safe
 script_modules_active() { # $1=topology; only explicit discriminator enters direct PRE delivery
     local man="${SRC%/}/output/$1/build_patches_src/PROVENANCE.json"
     [ -f "$man" ] && [ ! -L "$man" ] || return 1
-    python3 - "$man" <<'SCRIPT_MODULE_KIND'
-import json, sys
-with open(sys.argv[1]) as fh:
-    man = json.load(fh)
-raise SystemExit(0 if man.get("source_payload", {}).get("kind") == "script-modules" else 1)
-SCRIPT_MODULE_KIND
+    local root="${CANONICAL_SRC:-$SRC}"; root="${root%/}"
+    EASY_VLLM_UPSTREAM_RUNTIME_ROOT="$root/.claude/skills/upstream-version-watch/rust/runtime" \
+        "$root/.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh" modules-kind --manifest "$man"
 }
 
 script_module_files() { # selected snapshot already passed exact inventory validation
-    python3 - "${SRC%/}/output/$1/build_patches_src/PROVENANCE.json" <<'SCRIPT_MODULE_FILES'
-import json, sys
-with open(sys.argv[1]) as fh:
-    man = json.load(fh)
-for name in sorted(man["source_payload"]["modules_sha256"]):
-    print(name)
-print("PROVENANCE.json")
-SCRIPT_MODULE_FILES
+    local root="${CANONICAL_SRC:-$SRC}"; root="${root%/}"
+    EASY_VLLM_UPSTREAM_RUNTIME_ROOT="$root/.claude/skills/upstream-version-watch/rust/runtime" \
+        "$root/.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh" modules-files --manifest "${SRC%/}/output/$1/build_patches_src/PROVENANCE.json"
 }
 
 snapshot_script_modules() { # $1=topology; files-map/absent slots retain their existing path
-    python3 - "$CANONICAL_SRC" "$TRANSACTIONAL_SRC" "$1" <<'SCRIPT_MODULE_SNAPSHOT'
-import importlib.util, json, os, pathlib, shutil, stat, subprocess, sys
-canonical, snapshot, topology = sys.argv[1:]
-if topology not in ("single", "multi"):
-    raise SystemExit("[sync] FAIL(PRE modules): invalid topology")
-tool = pathlib.Path(snapshot) / ".claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py"
-spec = importlib.util.spec_from_file_location("sync_regen_modules", tool)
-regen = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(regen)
-relative = f"output/{topology}/build_patches_src"
-root = pathlib.Path(canonical) / relative
-try:
-    fd = regen.open_module_root(root)
-except FileNotFoundError:
-    raise SystemExit(0)
-try:
-    try:
-        inp = os.open("PROVENANCE.json", os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
-    except FileNotFoundError:
-        raise SystemExit(0)
-    with os.fdopen(inp, "rb") as fh:
-        st = os.fstat(fh.fileno())
-        if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
-            raise SystemExit("[sync] FAIL(PRE modules): nonregular provenance")
-        man = json.load(fh)
-    kind = man.get("source_payload", {}).get("kind")
-    if kind in (None, "files-map"):
-        if "files" not in man:
-            raise SystemExit("[sync] FAIL(PRE modules): authored modules require an explicit script-modules discriminator")
-        raise SystemExit(0)  # existing index/provenance + files/ pipeline is authoritative
-    if kind != "script-modules":
-        raise SystemExit("[sync] FAIL(PRE modules): unknown source payload kind")
-    if "source" not in man or "files" in man:
-        raise SystemExit("[sync] FAIL(PRE modules): ambiguous/invalid provenance schema")
-    regen.verify_script_modules(root, man)
-    tracked = subprocess.check_output(["git", "-C", canonical, "ls-files", "-z", "--", relative])
-    if any(n and n != os.fsencode(relative + "/.gitkeep") for n in tracked.split(b"\0")):
-        raise SystemExit("[sync] FAIL(PRE modules): authored modules must remain untracked")
-    dest = pathlib.Path(snapshot) / relative
-    dest.mkdir(parents=True, exist_ok=True)
-    for name in sorted(set(regen.script_module_inventory(man)) | {"PROVENANCE.json"}):
-        inp = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
-        with os.fdopen(inp, "rb") as fh:
-            st = os.fstat(fh.fileno())
-            if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
-                raise SystemExit("[sync] FAIL(PRE modules): input changed type")
-            with (dest / name).open("xb") as out:
-                shutil.copyfileobj(fh, out)
-            os.chmod(dest / name, stat.S_IMODE(st.st_mode) & 0o777)
-    regen.verify_script_modules(dest, man)
-    print(f"[sync] script-modules snapshot: {relative}; no files/ derivation or bundle")
-finally:
-    os.close(fd)
-SCRIPT_MODULE_SNAPSHOT
+    local root="${CANONICAL_SRC:-$SRC}"; root="${root%/}"
+    EASY_VLLM_UPSTREAM_RUNTIME_ROOT="$root/.claude/skills/upstream-version-watch/rust/runtime" \
+        "$root/.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh" snapshot-modules --canonical "$CANONICAL_SRC" --snapshot "$TRANSACTIONAL_SRC" --topology "$1"
 }
 
 effective_band2_exclusions() { # $1=topology; shared rsync/inventory/prune scope
@@ -633,67 +574,9 @@ band2_post_files() { # $1=topology; admitted POST/PRE direct inputs only, no rec
 }
 
 snapshot_post_build_patches() { # $1=topology $2=post|arch-dockerfile|deps-dockerfile; closed regular-file exceptions
-    python3 - "$CANONICAL_SRC" "$TRANSACTIONAL_SRC" "$1" "${2:-post}" <<'POST_PATCH_SNAPSHOT'
-import os, pathlib, re, shutil, stat, subprocess, sys
-canonical, snapshot, topology, kind = sys.argv[1:]
-if topology not in ("single", "multi") or kind not in ("post", "arch-dockerfile", "deps-dockerfile"):
-    raise SystemExit("[sync] FAIL(post slot): invalid topology/input kind")
-leaf = {"post": "build_patches", "arch-dockerfile": "Dockerfile.source-build-sm12x",
-        "deps-dockerfile": "Dockerfile.source-build-deps2"}[kind]
-relative = f"output/{topology}/{leaf}"
-tracked = subprocess.check_output(["git", "-C", canonical, "ls-files", "-z", "--", relative])
-if any(n and n != os.fsencode(relative + "/.gitkeep") for n in tracked.split(b"\0")):
-    raise SystemExit("[sync] FAIL(build input): generated payload must remain untracked")
-# The index-owned scaffold may contain documentation; it is never generated payload.
-scaffold = pathlib.Path(snapshot) / relative / ".gitkeep"
-if kind == "post" and os.path.lexists(scaffold):
-    st = scaffold.lstat()
-    if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
-        raise SystemExit("[sync] FAIL(post slot): invalid index-owned .gitkeep scaffold")
-# Open every ancestor without following symlinks; no parent/slot escape or FIFO open.
-fd = os.open(canonical.rstrip("/"), os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
-try:
-    for part in (("output", topology, "build_patches") if kind == "post" else ("output", topology)):
-        try:
-            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
-        except FileNotFoundError:
-            print(f"[sync] info: optional post slot absent: {relative}")
-            raise SystemExit(0)
-        os.close(fd)
-        fd = child
-    if kind == "post":
-        names = sorted(n for n in os.listdir(fd) if n != ".gitkeep")  # index-owned scaffold, never filesystem payload
-    else:
-        try:
-            os.stat(leaf, dir_fd=fd, follow_symlinks=False)
-        except FileNotFoundError:
-            raise SystemExit(0)  # optional arch track not rendered
-        names = [leaf]
-    for name in names:
-        st = os.stat(name, dir_fd=fd, follow_symlinks=False)
-        if not stat.S_ISREG(st.st_mode) or st.st_nlink != 1:
-            raise SystemExit(f"[sync] FAIL(post slot): nonregular/symlink/hardlink payload: {relative}/{name}")
-        if not re.fullmatch(r"[A-Za-z0-9_.-]+", name):
-            raise SystemExit(f"[sync] FAIL(post slot): unsafe filename: {name!r}")
-    if names:
-        dest = pathlib.Path(snapshot) / (relative if kind == "post" else f"output/{topology}")
-        dest.mkdir(parents=True, exist_ok=True)
-        for name in names:
-            inp = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=fd)
-            with os.fdopen(inp, "rb") as source:
-                before = os.fstat(source.fileno())
-                if not stat.S_ISREG(before.st_mode) or before.st_nlink != 1:
-                    raise SystemExit("[sync] FAIL(post slot): payload changed type while copying")
-                with (dest / name).open("xb") as out:
-                    shutil.copyfileobj(source, out)
-                after = os.fstat(source.fileno())
-                if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (after.st_size, after.st_mtime_ns, after.st_ctime_ns):
-                    raise SystemExit("[sync] FAIL(post slot): payload changed while copying")
-                os.chmod(dest / name, stat.S_IMODE(before.st_mode) & 0o777)
-    print(f"[sync] info: untracked {kind} build-input snapshot: {relative} ({len(names)} regular files)")
-finally:
-    os.close(fd)
-POST_PATCH_SNAPSHOT
+    local root="${CANONICAL_SRC:-$SRC}"; root="${root%/}"
+    EASY_VLLM_UPSTREAM_RUNTIME_ROOT="$root/.claude/skills/upstream-version-watch/rust/runtime" \
+        "$root/.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh" snapshot-post --canonical "$CANONICAL_SRC" --snapshot "$TRANSACTIONAL_SRC" --topology "$1" --kind "${2:-post}"
 }
 
 _band2_filters() {  # rsync include/exclude(첫매치우선). 소스 루트 = output/<t>/.
@@ -1559,7 +1442,7 @@ materialize_source_port_payload() {  # $1=topology → 0=ok(또는 해당없음)
     if [ ! -d "$payload" ]; then
         echo "[sync] FAIL(source-port/$t): 파생 payload 부재 — $payload" >&2
         echo "[sync]   → 정상 차단이다(우회 금지). 아래로 좌표에서 재파생한 뒤 재실행하라:" >&2
-        echo "[sync]     python3 .claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py derive \\" >&2
+        echo "[sync]     .claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh derive \\" >&2
         echo "[sync]       --root output/$t/$SOURCE_PORT_DIR --work <비추적 작업디렉터리>" >&2
         return 9
     fi

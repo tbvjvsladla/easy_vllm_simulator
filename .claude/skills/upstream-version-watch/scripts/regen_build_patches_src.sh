@@ -1,6 +1,7 @@
 #!/bin/bash
 # Direct normal ELF startup; no install/build/download or Python business fallback.
-# Ported subcommands: verify, bundle. derive / unbundle / snapshot-resolutions stay with regen_build_patches_src.py.
+# Subcommands: verify, bundle, unbundle, derive, snapshot-resolutions (the original's) and modules-kind, modules-files, snapshot-modules,
+# snapshot-post (replace the inline Python of sync_to_sub.sh). The original .py stays: it is piped to the sub node's interpreter there.
 set -euo pipefail
 SCRIPT_PATH=${BASH_SOURCE[0]}
 case "$SCRIPT_PATH" in */*) SCRIPT_DIR=${SCRIPT_PATH%/*}; [ -n "$SCRIPT_DIR" ] || SCRIPT_DIR=/ ;; *) SCRIPT_DIR=. ;; esac
