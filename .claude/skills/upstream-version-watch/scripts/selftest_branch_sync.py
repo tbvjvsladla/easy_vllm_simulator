@@ -58,6 +58,7 @@ LAYER_LEDGER_SH = f"{UVW}/layer_ledger.sh"
 INLINE_JSON_SH = f"{UVW}/inline_json.sh"   # 진입점 셸의 JSON 소형 판독기 런처(옛 인라인 python3)
 CLOSING = f"{UVW}/closing_sequence.sh"
 PARITY = ".claude/policies/runtime/topology_parity.py"
+PARITY_SH = ".claude/policies/runtime/topology_parity.sh"   # 진입점 셸이 부르는 Rust 런처
 CAMPAIGN_INIT = f"{TN}/campaign_init.py"
 RENDER = f"{TN}/render_sub_env.py"
 GATE = ".claude/policies/runtime/completion_gate.py"
@@ -106,7 +107,9 @@ class Sandbox:
                         TMPDIR=str(self.tmp), SYNC_SSH_COMMAND=str(shim),
                         # 사본 트리에 __pycache__ 가 생기면 "부작용 0" 판정이 흐려진다 -- 바이트코드를 쓰지 않는다
                         PYTHONDONTWRITEBYTECODE="1",
-                        EASY_VLLM_UPSTREAM_RUNTIME_ROOT=str(REAL / UVW.replace("/scripts", "") / "rust" / "runtime"))
+                        EASY_VLLM_UPSTREAM_RUNTIME_ROOT=str(REAL / UVW.replace("/scripts", "") / "rust" / "runtime"),
+                        # 사본 트리에는 ELF 가 없다 — topology_parity 런처가 실물 바이너리를 가리키게 한다
+                        TOPOLOGY_PARITY_BIN=str(REAL / ".claude/skills/adversarial-benchmark/rust/target/release/topology_parity"))
 
     def git(self, cwd: Path, *args: str) -> str:
         proc = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True, text=True,
@@ -154,7 +157,7 @@ def _checkout(sb: Sandbox, name: str, branch: str, header: str, topo: str,
     repo = sb.root / name
     repo.mkdir()
     sb.git(repo, "init", "-q", "-b", branch)
-    for rel in (SYNC_TO_SUB, INLINE_JSON_SH, PARITY, GATE, CAMPAIGN_INIT, *(f".claude/schemas/{s}" for s in SCHEMAS)):
+    for rel in (SYNC_TO_SUB, INLINE_JSON_SH, PARITY, PARITY_SH, GATE, CAMPAIGN_INIT, *(f".claude/schemas/{s}" for s in SCHEMAS)):
         _copy_real(repo, rel)
     _write(repo, TOPOLOGY_RULES, f"# 특화헌법 픽스처\n\n**topology: {header}** · layer: topology\n")
     # single-node 체크아웃도 옛 output/multi 빌드킷을 추적한다(다운그레이드 배달의 형태) -- 가드는 그 앞에서 멈춰야 한다.
@@ -277,6 +280,7 @@ def test_render_guard() -> None:
         # 4자일치 술어의 정본은 기초층 런타임이다(plan_26093022) — 렌더러가 스킬→기초층 방향으로 import 한다.
         (repo / PARITY).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(REAL / PARITY, repo / PARITY)
+        shutil.copy2(REAL / PARITY_SH, repo / PARITY_SH)
         _write(repo, TOPOLOGY_RULES, "# 특화헌법 픽스처\n\n**topology: multi** · layer: topology\n")
         absent_manifest = str(sb.root / "no-such-manifest.yaml")
         before = _tree_snapshot(repo)
@@ -326,7 +330,7 @@ def _build_sequence_fixture(sb: Sandbox, *, target_only_change: bool = False, br
     hintlib = sorted(f"{HINTLIB_DIR}/{p.name}" for p in (REAL / HINTLIB_DIR).glob("*.py"))
     if not any(r.endswith("/catalog.py") for r in hintlib):
         raise RuntimeError(f"hintlib 사본 목록에 catalog.py 가 없다: {hintlib}")
-    for rel in {LAYER_LEDGER, LAYER_LEDGER_SH, INLINE_JSON_SH, SYNC_BRANCHES, CLOSING, PARITY, GATE, CATALOG, ".gitignore",
+    for rel in {LAYER_LEDGER, LAYER_LEDGER_SH, INLINE_JSON_SH, SYNC_BRANCHES, CLOSING, PARITY, PARITY_SH, GATE, CATALOG, ".gitignore",
                 *(f".claude/schemas/{s}" for s in SCHEMAS), *reps, *hintlib, *CATALOG_COMPANIONS}:
         _copy_real(repo, rel)
     _write(repo, "CLAUDE.md", "# 픽스처 헌법 v1\n")
@@ -670,7 +674,7 @@ def test_branch_sync_delete_respects_excludes() -> None:
             repo.mkdir()
             sb.git(repo, "init", "-q", "-b", "single-node")
             reps = _relocation_replacements()
-            for rel in {SYNC_BRANCHES, INLINE_JSON_SH, GATE, PARITY, LAYER_LEDGER, ".gitignore",
+            for rel in {SYNC_BRANCHES, INLINE_JSON_SH, GATE, PARITY, PARITY_SH, LAYER_LEDGER, ".gitignore",
                         *(f".claude/schemas/{s}" for s in SCHEMAS), *reps}:
                 _copy_real(repo, rel)
             _write(repo, "CLAUDE.md", "# 헌법 v1\n")
