@@ -128,11 +128,9 @@ fn executable_without_the_bridge_is_the_native_scanner_command_line() {
     assert!(bad.stdout.is_empty());
     assert!(String::from_utf8_lossy(&bad.stderr)
         .ends_with("scan_node.py: error: unrecognized arguments: --bogus\n"));
-    let boundary = run(&["--self-test"]);
-    assert_eq!(boundary.status.code(), Some(3), "the original's own regression harness is a visible boundary, never silently run or retried");
-    assert!(boundary.stdout.is_empty());
-    assert!(String::from_utf8_lossy(&boundary.stderr)
-        .contains("--self-test is the original's own regression harness"));
+    let selftest = run(&["--self-test"]);
+    assert_eq!(selftest.status.code(), Some(0), "c31: --self-test is native; the original's 59 checks run in Rust");
+    assert!(String::from_utf8_lossy(&selftest.stdout).ends_with("self-test: 59/59 PASS\n"));
     let gate = run(&["--emit-manifest"]);
     assert_eq!(
         gate.status.code(),

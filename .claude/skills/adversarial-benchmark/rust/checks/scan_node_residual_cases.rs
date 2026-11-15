@@ -151,49 +151,21 @@ fn the_adapters_selection_of_the_self_test_equals_the_stdlib_argparse_rule() {
 }
 
 #[test]
-fn a_selected_abbreviation_goes_to_the_owner_before_rust_exists_and_every_other_shape_stays_native()
+fn every_self_test_abbreviation_and_every_other_shape_is_native_and_never_reaches_the_owner()
 {
     let scratch = Scratch::new("route");
     let elf = env!("CARGO_BIN_EXE_scan_node");
-    let owner_cases: [&[&str]; 9] = [
-        &["--self-test"],
-        &["--self-tes"],
-        &["--self-t"],
-        &["--self"],
-        &["--sel"],
-        &["--se"],
-        &["--self-test", "--bogus"],
-        &["--topology", "single", "--self-tes"],
-        &["--self=x"],
-    ];
-    for (n, argv) in owner_cases.iter().enumerate() {
-        let observer = scratch.root.join(format!("obs-owner-{n}"));
-        // SCAN_NODE_BIN names a path that does not exist: had any Rust been started, the launcher would end with status 2 and its build guidance
-        let missing = scratch.root.join("no-such-elf");
-        let (code, out, err) = python(
-            "route",
-            argv,
-            &[
-                ("SCAN_NODE_BIN", missing.to_string_lossy().into_owned()),
-                (
-                    "SCAN_NODE_ROUTE_OBSERVER",
-                    observer.to_string_lossy().into_owned(),
-                ),
-            ],
-        );
-        assert_eq!(code, 0, "{argv:?}: {err}");
-        assert!(
-            out.contains("ROUTE_RESULT {\"rc\": 77, \"trap_calls\": 1}"),
-            "{argv:?}: the trap owner was not called exactly once: {out}"
-        );
-        let seen = std::fs::read_to_string(&observer).unwrap_or_default();
-        assert!(
-            seen.contains("CompatOriginalCli") && !seen.contains("NativeCli"),
-            "{argv:?}: {seen}"
-        );
-        assert!(!err.contains("Rust"), "{argv:?}: {err}");
-    }
-    let native_cases: [(&[&str], i32); 8] = [
+    let native_cases: [(&[&str], i32); 17] = [
+        // c31: `--self-test` and its abbreviations are native now; no argv shape reaches the original owner (trap_calls stays 0)
+        (&["--self-test"], 0),
+        (&["--self-tes"], 0),
+        (&["--self-t"], 0),
+        (&["--self"], 0),
+        (&["--sel"], 0),
+        (&["--se"], 0),
+        (&["--self-test", "--bogus"], 2),
+        (&["--topology", "single", "--self-tes"], 0),
+        (&["--self=x"], 2),
         (&["--s"], 2),
         (&["--su"], 2),
         (&["--sub"], 2),
