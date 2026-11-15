@@ -530,11 +530,23 @@ fn run_cases(
     // `--campaign-cell` the run records the phase itself; the writer is a deployed copy, the node comes from the
     // assignments.
     let writer_directory = sandbox.root().join(WRITER_DIRECTORY);
-    for name in ["campaign_init.py", "campaign_template_validator.py"] {
+    for name in [
+        "campaign_init.py",
+        "campaign_template_validator.py",
+        "campaign_init.sh",
+        "campaign_template_validator.sh",
+    ] {
         copy2(
             &repo.join(WRITER_DIRECTORY).join(name),
             &writer_directory.join(name),
         )?;
+    }
+    for (variable, binary) in [
+        ("CAMPAIGN_READ_BIN", "campaign_init"),
+        ("CAMPAIGN_VALIDATOR_BIN", "campaign_template_validator"),
+    ] {
+        let built = repo.join(".claude/skills/adversarial-benchmark/rust/target/release").join(binary);
+        sandbox.set_env(variable, &built.to_string_lossy());
     }
     let campaign = sandbox.root().join("campaigns").join("camp-k9");
     std::fs::create_dir_all(campaign.join("cells"))
