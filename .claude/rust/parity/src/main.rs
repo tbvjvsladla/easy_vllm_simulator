@@ -7,7 +7,7 @@ use std::process::{Command, Stdio};
 use std::io::Write;
 
 const ORIG_COMMIT: &str = "a6769be";
-const KNOWN_IDS: [&str; 9] = ["N01", "N02", "N03", "N04", "N06", "N08", "N09", "N13", "N14"];
+const KNOWN_IDS: [&str; 10] = ["N01", "N02", "N03", "N04", "N06", "N08", "N09", "N11", "N13", "N14"];
 const STAGES: [&str; 4] = ["s1", "s2", "s3", "s4"];
 
 // ---------------------------------------------------------------- JSON
@@ -140,6 +140,7 @@ impl Norm {
         if self.on("N02") && !tmp.is_empty() { s = s.replace(tmp, "<TMP>"); }
         if self.on("N03") { s = scrub_ts(&s); }
         if self.on("N04") && ch == Ch::Stderr { s = scrub_pid(&s); }
+        if self.on("N11") { s = scrub_mark(&s); }
         if self.on("N06") && ch == Ch::Stderr { s = reduce_traceback(&s); }
         s
     }
@@ -163,6 +164,21 @@ fn scrub_ts(s: &str) -> String {
         o.push(c[i]); i += 1;
     }
     o
+}
+/// N11: `<yaml.error.Mark object at 0x[0-9a-f]+>` -> `<MARK@>`; only that exact literal, nothing around it changes.
+fn scrub_mark(s: &str) -> String {
+    const HEAD: &str = "<yaml.error.Mark object at 0x";
+    let mut o = String::new(); let mut rest = s;
+    while let Some(i) = rest.find(HEAD) {
+        let after = &rest[i + HEAD.len()..];
+        let n = after.bytes().take_while(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(b)).count();
+        if n > 0 && after.as_bytes().get(n) == Some(&b'>') {
+            o.push_str(&rest[..i]); o.push_str("<MARK@>"); rest = &after[n + 1..];
+        } else {
+            o.push_str(&rest[..i + 1]); rest = &rest[i + 1..];
+        }
+    }
+    o.push_str(rest); o
 }
 fn scrub_pid(s: &str) -> String {
     let c: Vec<char> = s.chars().collect();
@@ -551,6 +567,10 @@ fn self_check() -> Result<i32, String> {
     ck("N03-epoch", t(Ch::Stdout, "t=1763161313;") == "t=<TS>;" && t(Ch::Stdout, "n=12345678901") == "n=12345678901");
     ck("N04-stderr", t(Ch::Stderr, "pid=4242 x") == "pid=<PID> x");
     ck("N04-stdout-untouched", t(Ch::Stdout, "pid=4242 x") == "pid=4242 x");
+    ck("N11-addr", t(Ch::Stdout, "x <yaml.error.Mark object at 0x7f1a2b3c4d50> y") == t(Ch::Stdout, "x <yaml.error.Mark object at 0xdeadbeef> y"));
+    ck("N11-context-strict", t(Ch::Stdout, "x <yaml.error.Mark object at 0x1> y") != t(Ch::Stdout, "z <yaml.error.Mark object at 0x1> y"));
+    ck("N11-no-0x-untouched", t(Ch::Stdout, "<yaml.error.Mark object>") == "<yaml.error.Mark object>" && t(Ch::Stdout, "<yaml.error.Mark object at 0xZZ>") == "<yaml.error.Mark object at 0xZZ>");
+    ck("N11-off", { let off = Norm { ids: vec![], n13_entries: vec![] }; off.text(Ch::Stdout, b"<yaml.error.Mark object at 0x1>", "", "") != off.text(Ch::Stdout, b"<yaml.error.Mark object at 0x2>", "", "") });
     ck("N06", t(Ch::Stderr, "Traceback (most recent call last):\n  File \"/r/w/x.py\", line 3\n    boom()\nValueError: bad\n") == "ValueError: bad\n");
     ck("N06-plain-stderr-untouched", t(Ch::Stderr, "warn: x\n") == "warn: x\n");
     ck("closed-list", { let p = scratch("n", "self"); fs::create_dir_all(&p).ok(); let f = p.join("n.json"); fs::write(&f, "{\"normalizations\":[{\"id\":\"N99\"}]}").ok(); let r = Norm::load(&f).is_err(); let _ = fs::remove_dir_all(&p); r });

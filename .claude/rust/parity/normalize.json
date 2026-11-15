@@ -1,5 +1,5 @@
 {
-  "_note": "Closed normalization list. The tool refuses ids it does not implement; a pattern outside this list is a mismatch. Adding an entry needs user approval. N11 (Mark literals) is deliberately absent until c33. N13 (JSON object key order) is limited to the entries named in applies_to. N14 (wheel member comparison) applies to .whl files only.",
+  "_note": "Closed normalization list. The tool refuses ids it does not implement; a pattern outside this list is a mismatch. Adding an entry needs user approval. N11 (yaml Mark object address, exact literal only) added by c33 (user-approved closed-list pattern). N13 (JSON object key order) is limited to the entries named in applies_to. N14 (wheel member comparison) applies to .whl files only.",
   "normalizations": [
     {
       "id": "N01",
@@ -62,6 +62,16 @@
       ],
       "replace": "sorted by path",
       "reason": "file list order"
+    },
+    {
+      "id": "N11",
+      "channels": [
+        "stdout",
+        "stderr",
+        "files"
+      ],
+      "replace": "<MARK@>",
+      "reason": "process-local address inside the literal <yaml.error.Mark object at 0x...>; the surrounding bytes stay strict"
     },
     {
       "id": "N13",
