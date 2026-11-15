@@ -747,7 +747,7 @@ fn declared_topology(base: &Path) -> Option<String> {
 }
 
 /// `_sub_nodes(base)`.
-fn sub_nodes_of(ctx: &Ctx, base: &Path) -> Vec<PyValue> {
+pub(crate) fn sub_nodes_of(ctx: &Ctx, base: &Path) -> Vec<PyValue> {
     if declared_topology(base).as_deref() != Some("single") {
         return Vec::new();
     }
@@ -4289,6 +4289,264 @@ fn op_ground(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     Ok(0)
 }
 
+// ── --assign-set ─────────────────────────────────────────────────────────────────────────────
+
+/// `_parse_assign_cells(spec)`: `c1,c2:HITL,c3:STAY` as assignment items (an omitted mode is not written).
+fn parse_assign_cells(spec: &str) -> R<Vec<PyValue>> {
+    let mut out = Vec::new();
+    for tok in spec.split(',').map(str::trim).filter(|t| !t.is_empty()) {
+        let (cell, mode) = match tok.split_once(':') {
+            Some((c, m)) => (c, m),
+            None => (tok, ""),
+        };
+        let mut item = PyDict::new();
+        item.set("cell", py(cell.trim()));
+        if !mode.is_empty() {
+            if !["AUTO", "HITL", "STAY"].contains(&mode) {
+                return refuse(format!("--assign-cells 의 mode 는 ('AUTO', 'HITL', 'STAY') 중 하나다: {}", py_repr(tok)));
+            }
+            item.set("mode", py(mode));
+        }
+        out.push(PyValue::Dict(item));
+    }
+    Ok(out)
+}
+
+/// `_cell_lock_reason(base, cell)`: why the cell's assignment may no longer change (`None` = it is still pending).
+fn cell_lock_reason(base: &Path, cell: &str) -> Option<String> {
+    if let Some(st) = read_json(&base.join("cells").join(cell).join("cell.status.json")).as_ref().and_then(dict_of) {
+        if let Some(oc) = st.get("cell_outcome").filter(|v| v.is_truthy()) {
+            let shown_oc = oc.display_text().to_utf8().unwrap_or_default();
+            if !shown_oc.contains(FILL) && !CELL_OUTCOMES_PENDING.contains(&shown_oc.as_str()) {
+                return Some(format!("cell_outcome={shown_oc}"));
+            }
+        }
+        let meas = get_dict(st, "measurement").cloned().unwrap_or_default();
+        if meas.get("decode_tps_conc1").map(|v| !matches!(v.peel(), PyValue::None)).unwrap_or(false) {
+            return Some("측정값이 기록됐다".to_string());
+        }
+        if truthy(st.get("void_reason")) {
+            return Some("사유가 기록됐다".to_string());
+        }
+    }
+    let phases = base.join("phases");
+    let mut dirs: Vec<PathBuf> = std::fs::read_dir(&phases)
+        .map(|r| r.filter_map(Result::ok).map(|e| e.path()).collect())
+        .unwrap_or_default();
+    dirs.sort();
+    for ndir in dirs {
+        let name = name_of_path(&ndir);
+        if !ndir.is_dir() || name.starts_with('_') {
+            continue;
+        }
+        for ph in PHASE_NAMES {
+            let doc = read_json(&ndir.join(format!("{ph}.status.json")));
+            if let Some(d) = doc.as_ref().and_then(dict_of) {
+                let state = get_text(d, "state");
+                if get_text(d, "cell_id").as_deref() == Some(cell) && matches!(state.as_deref(), Some("running" | "done")) {
+                    return Some(format!("phase {name}:{ph}={}", state.unwrap_or_default()));
+                }
+            }
+        }
+    }
+    None
+}
+
+fn name_of_path(p: &Path) -> String {
+    p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default()
+}
+
+/// `writer_assign_set`: the revision written to `campaign.yaml`.
+fn assign_set(ctx: &Ctx, base: &Path, node: &str, items: Vec<PyValue>, args: &Args) -> R<(PathBuf, PyDict)> {
+    let reason = args.get("--assign-reason").filter(|s| !s.is_empty());
+    let evidence = args.get("--assign-evidence").filter(|s| !s.is_empty());
+    let approved_by = args.get("--assign-approved-by").filter(|s| !s.is_empty());
+    let utc = args.get("--utc").filter(|s| !s.is_empty());
+    for (need, val) in [("--assign-reason", reason), ("--assign-evidence", evidence), ("--assign-approved-by", approved_by), ("--utc", utc)] {
+        if val.is_none() {
+            return refuse(format!("{need} 는 필수다 — 사유·근거·승인자·시각 없는 배정 변경은 드리프트다"));
+        }
+    }
+    let (reason, evidence, approved_by, utc) = (reason.expect("c"), evidence.expect("c"), approved_by.expect("c"), utc.expect("c"));
+    let path = base.join("campaign.yaml");
+    let mut doc = read_declaration(base);
+    if doc.is_empty() {
+        return refuse("campaign.yaml 이 없거나 파손");
+    }
+    let node_ids: Vec<String> = list_of(doc.get("nodes").unwrap_or(&PyValue::None))
+        .into_iter()
+        .flatten()
+        .filter_map(dict_of)
+        .filter_map(|n| get_text(n, "node_id"))
+        .collect();
+    if !node_ids.iter().any(|n| n == node) {
+        return refuse(format!("nodes[] 에 {} 가 없다", py_repr(node)));
+    }
+    let old_items: Vec<PyValue> = assignments_of(&doc)
+        .into_iter()
+        .find(|(n, _)| n == node)
+        .and_then(|(_, v)| list_of(&v).map(|l| l.iter().filter(|x| dict_of(x).is_some()).cloned().collect()))
+        .unwrap_or_default();
+    let mode_of = |item: &PyValue| -> PyValue { dict_of(item).and_then(|d| d.get("mode").cloned()).unwrap_or_else(|| py("AUTO")) };
+    let cell_of = |item: &PyValue| -> PyValue { dict_of(item).and_then(|d| d.get("cell").cloned()).unwrap_or(PyValue::None) };
+    let old_mode: Vec<(PyValue, PyValue)> = old_items.iter().map(|i| (cell_of(i), mode_of(i))).collect();
+    let new_cells: Vec<String> = items.iter().filter_map(|i| text_of(&cell_of(i))).collect();
+    let mut seen: Vec<&String> = Vec::new();
+    for c in &new_cells {
+        if seen.contains(&c) {
+            return refuse(format!("--assign-cells 에 같은 셀이 두 번 있다: {}", py_list_repr(&new_cells)));
+        }
+        seen.push(c);
+    }
+    for cell in &new_cells {
+        if RESERVED_CELL_NAMES_W.contains(&cell.as_str()) || cell.is_empty() || cell.contains(FILL) {
+            return refuse(format!("셀 이름으로 쓸 수 없다: {}", py_repr(cell)));
+        }
+        let other = assignments_of(&doc).into_iter().map(|(n, _)| n).find(|n| n != node && assigned_cells(&doc, Some(n)).contains(cell));
+        if let Some(other) = other {
+            return refuse(format!(
+                "셀 {} 은 노드 {} 에 배정돼 있다 — 이동은 그 노드에서 먼저 빼고 넣는다(제거+추가 · pending 일 때만)",
+                py_repr(cell),
+                py_repr(&other)
+            ));
+        }
+    }
+    let new_cell_values: Vec<PyValue> = new_cells.iter().map(|c| py(c)).collect();
+    let removed: Vec<String> = old_mode.iter().filter(|(c, _)| !new_cell_values.contains(c)).filter_map(|(c, _)| text_of(c)).collect();
+    let changed: Vec<String> = items
+        .iter()
+        .filter(|i| old_mode.iter().any(|(c, m)| *c == cell_of(i) && *m != mode_of(i)))
+        .filter_map(|i| text_of(&cell_of(i)))
+        .collect();
+    let locked: Vec<String> = removed
+        .iter()
+        .chain(changed.iter())
+        .filter_map(|c| cell_lock_reason(base, c).map(|r| format!("{c}({r})")))
+        .collect();
+    if !locked.is_empty() {
+        return refuse(format!("pending 이 아닌 셀은 빼거나 mode 를 바꿀 수 없다(증거 연결 보존): {}", locked.join("; ")));
+    }
+    let mut approved: Vec<String> = Vec::new();
+    for c in &removed {
+        for t in list_or_empty(doc.get("hint_targets")).iter().filter_map(dict_of) {
+            let cells: Vec<String> = list_or_empty(t.get("cells")).iter().filter_map(text_of).collect();
+            if cells.contains(c) && truthy(t.get("approval")) {
+                approved.push(c.clone());
+            }
+        }
+    }
+    if !approved.is_empty() {
+        approved.sort();
+        approved.dedup();
+        return refuse(format!("hint 사전승인을 든 셀은 뺄 수 없다: {} — 승인을 먼저 다시 받는다(무인 재태깅 ✗)", py_list_repr(&approved)));
+    }
+    let mut revs = list_or_empty(doc.get("assignment_revisions"));
+    if doc.get("assignment_revisions").and_then(list_of).is_none() {
+        revs = Vec::new();
+    }
+    let current_assignments = {
+        let mut d = PyDict::new();
+        for (n, v) in assignments_of(&doc) {
+            d.set(&n, v);
+        }
+        d
+    };
+    if revs.is_empty() {
+        let mut t0 = PyDict::new();
+        t0.set("rev", PyValue::int(0));
+        t0.set("declared_utc", doc.get("declared_utc").cloned().unwrap_or(PyValue::None));
+        t0.set("assignments", PyValue::Dict(current_assignments.clone()));
+        t0.set("reason", py("t0 선언"));
+        t0.set("evidence", doc.get("plan_ref").cloned().unwrap_or(PyValue::None));
+        t0.set("approved_by", py("t0"));
+        revs.push(PyValue::Dict(t0));
+    }
+    let mut assigns = current_assignments.clone();
+    assigns.set(node, PyValue::List(items.clone()));
+    let mut trial = doc.clone();
+    trial.set("assignments", PyValue::Dict(assigns.clone()));
+    let tmp = base.join(".assign_trial.campaign.yaml");
+    write_json_ordered(&tmp, &PyValue::Dict(trial))?;
+    let verdict = (|| -> Result<Vec<String>, crate::campaign_validator::Failure> {
+        let before = crate::campaign_validator::validate_campaign(ctx, &path, false)?;
+        let after = crate::campaign_validator::validate_campaign(ctx, &tmp, false)?;
+        Ok(after
+            .into_iter()
+            .map(|x| x.replace(".assign_trial.campaign.yaml", "campaign.yaml"))
+            .filter(|w| !before.contains(w))
+            .collect())
+    })();
+    let _ = std::fs::remove_file(&tmp);
+    let why = verdict.map_err(|_| Stop::Fallback)?;
+    if !why.is_empty() {
+        return refuse(format!(
+            "배정 변경 뒤 선언이 계약을 깬다:\n{}",
+            why.iter().map(|w| format!("  - {w}")).collect::<Vec<_>>().join("\n")
+        ));
+    }
+    let added: Vec<String> = new_cells.iter().filter(|c| !old_mode.iter().any(|(o, _)| *o == py(c))).cloned().collect();
+    let source = "campaign_init --assign-set";
+    let mut rev = PyDict::new();
+    rev.set("rev", PyValue::int(revs.len() as i64));
+    rev.set("declared_utc", py(utc));
+    rev.set("node", py(node));
+    rev.set("assignments", PyValue::Dict(assigns.clone()));
+    rev.set("removed", str_list(removed.clone()));
+    rev.set("added", str_list(added.clone()));
+    rev.set("reason", py(reason));
+    rev.set("evidence", py(evidence));
+    rev.set("approved_by", py(approved_by));
+    rev.set("source", py(source));
+    let rev_number = revs.len() as i64;
+    revs.push(PyValue::Dict(rev.clone()));
+    doc.set("assignments", PyValue::Dict(assigns));
+    doc.set("assignment_revisions", PyValue::List(revs));
+    write_json_ordered(&path, &PyValue::Dict(doc))?;
+    let sub_target = sub_nodes_of(ctx, base).iter().filter_map(text_of).any(|n| n == node);
+    append_journey(
+        base,
+        &lifecycle_event(
+            "campaign_assignments_revised",
+            utc,
+            vec![
+                ("node", py(node)),
+                ("rev", PyValue::int(rev_number)),
+                ("cells", str_list(new_cells)),
+                ("removed", str_list(removed)),
+                ("added", str_list(added)),
+                ("approved_by", py(approved_by)),
+                ("source", py(source)),
+                ("sub_target", PyValue::Bool(sub_target)),
+            ],
+        ),
+    )?;
+    Ok((path, rev))
+}
+
+const RESERVED_CELL_NAMES_W: [&str; 2] = ["_cell", "_node"];
+
+fn op_assign_set(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let node = args.get("--assign-set").unwrap_or_default().to_string();
+    let Some((base, camp)) = writer_target(ctx, args.get("--campaign-id"))? else {
+        io.warn("[campaign_init] no-op — ACTIVE=_bootstrap (캠페인 밖에서는 상태를 쓰지 않는다)");
+        return Ok(0);
+    };
+    guard_writer_ops(ctx, &base, &[("assign_set", true)])?;
+    let Some(spec) = args.get("--assign-cells") else {
+        return refuse("--assign-set 은 --assign-cells 가 필요하다(빈 목록은 \"\" 로 명시)");
+    };
+    need_validator(ctx)?;
+    let items = parse_assign_cells(spec)?;
+    let (path, rev) = assign_set(ctx, &base, &node, items, args)?;
+    if sub_nodes_of(ctx, &base).iter().filter_map(text_of).any(|n| Some(&n) == get_text(&rev, "node").as_ref()) {
+        io.warn(&format!(
+            "[campaign_init] 서브 재배정은 A2A 제어명령으로 전한다: relay.py --campaign-control reslice --campaign-id {camp} --node {node} … (echo 가 오기 전까지 '재배정 미수렴')"
+        ));
+    }
+    wrote_line(io, &camp, &[ctx.rel(&path)]);
+    Ok(0)
+}
+
 // ── purge gate ───────────────────────────────────────────────────────────────────────────────
 
 /// `purge_gate_reasons(previous_id)`: why the previous instance may not be removed (empty = the gate is open). A closed
@@ -5029,7 +5287,8 @@ fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 // ── dispatch ─────────────────────────────────────────────────────────────────────────────────
 
 /// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 29] = [
+const NATIVE_OPS: [&str; 30] = [
+    "--assign-set",
     "--ground",
     "--warm-start-library",
     "--backfill-from-docs",
@@ -5066,6 +5325,7 @@ fn allowed_options(op: &str) -> &'static [&'static str] {
     match op {
         "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
         "--verify-purge-gate" => &["--verify-purge-gate"],
+        "--assign-set" => &["--assign-set", "--assign-cells", "--assign-reason", "--assign-evidence", "--assign-approved-by", "--utc", "--campaign-id"],
         "--ground" => &["--ground", "--utc", "--terms", "--no-warm-start", "--campaign-id"],
         "--warm-start-library" => &["--warm-start-library"],
         "--backfill-from-docs" => &["--backfill-from-docs", "--utc", "--campaign-id"],
@@ -5160,6 +5420,7 @@ pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
     let result = match op {
         "--assigned-cells" => op_assigned_cells(ctx, &args, io),
         "--verify-purge-gate" => op_verify_purge_gate(ctx, &args, io),
+        "--assign-set" => op_assign_set(ctx, &args, io),
         "--ground" => op_ground(ctx, &args, io),
         "--warm-start-library" => op_warm_start_library(ctx, io),
         "--backfill-from-docs" => op_backfill(ctx, &args, io),

@@ -468,3 +468,35 @@ fn grounding_without_the_library_tool_records_an_honest_gap() {
     let (_, out, _) = call(&root, &["--warm-start-library"]);
     assert!(out.starts_with("[campaign_init] 입고 건너뜀"), "{out}");
 }
+
+#[test]
+fn assign_set_refuses_a_cell_that_already_ran_and_a_cell_of_another_node() {
+    let root = scratch("assign");
+    active(&root);
+    put(&root, "campaigns/camp-a/cells/c1/cell.status.json", "{\"cell_outcome\": \"measured\"}");
+    let base = ["--assign-set", "main", "--assign-reason", "r", "--assign-evidence", "e", "--assign-approved-by", "a", "--utc", "U"];
+    let with = |cells: &'static str| {
+        let mut v = base.to_vec();
+        v.extend(["--assign-cells", cells]);
+        call(&root, &v)
+    };
+    let (status, _, err) = with("");
+    assert_eq!(status, Some(1));
+    assert!(err.contains("pending 이 아닌 셀은 빼거나 mode 를 바꿀 수 없다(증거 연결 보존): c1(cell_outcome=measured)"), "{err}");
+    let (status, _, err) = with("c1,s1");
+    assert_eq!(status, Some(1));
+    assert!(err.contains("셀 's1' 은 노드 'sub' 에 배정돼 있다"), "{err}");
+    let mut missing = vec!["--assign-set", "main", "--assign-cells", "c1"];
+    missing.extend(["--utc", "U"]);
+    let (_, _, err) = call(&root, &missing);
+    assert!(err.contains("--assign-reason 는 필수다"), "{err}");
+}
+
+#[test]
+fn assign_cells_modes_are_closed() {
+    let root = scratch("assign-mode");
+    active(&root);
+    let (status, _, err) = call(&root, &["--assign-set", "main", "--assign-cells", "c1:zz", "--assign-reason", "r", "--assign-evidence", "e", "--assign-approved-by", "a", "--utc", "U"]);
+    assert_eq!(status, Some(1));
+    assert!(err.contains("--assign-cells 의 mode 는 ('AUTO', 'HITL', 'STAY') 중 하나다: 'c1:zz'"), "{err}");
+}
