@@ -15114,6 +15114,47 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-261116-single-to-multi-c50-5th-573885e",
+      "utc": "2026-11-15T15:19:55Z",
+      "departure": "single-node",
+      "departure_commit": "573885ec04ff599b62406903f4ddc3eacac0d832",
+      "approved_by": "user: None · 상시 승인 plan docs/plan/plan_26111522_Rust_이식_캠페인_상시_동기화배달_승인.md 와 work-manifest camp261115_rust_repack_standing(authorize 허가)",
+      "approved_utc": "None",
+      "_reach": "캠페인 rust-repack-261115 c50 5차 동기화: sync_branches --apply 5경로(출발 573885ec · 동기화 커밋 6a63b476). verify_distribution 1회 PASS · build_rust_packages.sh rc 0.",
+      "classification": [
+        {
+          "file": ".claude/rust/parity/src/main.rs",
+          "verdict": "common_promote",
+          "reason": "sync_branches allowlist 공통층 경로 — 5차 단일→멀티 동기화(c2j 새 커밋: parity sub_na)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/sub_na/gen_na_list.py",
+          "verdict": "common_promote",
+          "reason": "sync_branches allowlist 공통층 경로 — 5차 단일→멀티 동기화(c2j 새 커밋: parity sub_na)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/sub_na/multi.txt",
+          "verdict": "common_promote",
+          "reason": "sync_branches allowlist 공통층 경로 — 5차 단일→멀티 동기화(c2j 새 커밋: parity sub_na)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/sub_na/single.txt",
+          "verdict": "common_promote",
+          "reason": "sync_branches allowlist 공통층 경로 — 5차 단일→멀티 동기화(c2j 새 커밋: parity sub_na)",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "sync_branches allowlist 공통층 경로 — 5차 단일→멀티 동기화(c2j 새 커밋: parity sub_na)",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
