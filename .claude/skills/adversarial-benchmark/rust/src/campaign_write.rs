@@ -1002,6 +1002,15 @@ fn writer_target(ctx: &Ctx, camp_id: Option<&str>) -> R<Option<(PathBuf, String)
     Ok(Some((base, camp)))
 }
 
+/// `validator()`: the owner loads the validator beside it; without that file nothing that asks for an assignment can answer.
+fn need_validator(ctx: &Ctx) -> R<()> {
+    let module = ctx.root.join(".claude/skills/terraforming_node/scripts/campaign_template_validator.py");
+    if module.is_file() {
+        return Ok(());
+    }
+    refuse(format!("검증기를 찾지 못했다: {} — 배정 규약의 소유자가 없다", ctx.rel(&module)))
+}
+
 fn no_fill(pairs: &[(&str, &str)]) -> R<()> {
     for (key, value) in pairs {
         if value.contains(FILL) {
@@ -1043,6 +1052,7 @@ fn op_assigned_cells(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     let Some((base, _)) = writer_target(ctx, args.get("--campaign-id"))? else {
         return refuse("활성 캠페인이 없다(_bootstrap) — 배정을 물을 선언이 없다");
     };
+    need_validator(ctx)?;
     let cells = assigned_cells(&read_declaration(&base), Some(node));
     if cells.is_empty() {
         return refuse(format!("assignments[{}] 가 비었다 — 이 노드에 배정된 셀이 없다", py_repr(node)));
@@ -1064,6 +1074,7 @@ fn op_phase_set(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     let mut node = args.get("--node").map(str::to_string).filter(|n| !n.is_empty());
     if node.is_none() {
         if let Some(cell) = cell.as_deref().filter(|c| !c.is_empty()) {
+            need_validator(ctx)?;
             node = node_of_cell(&base, cell);
             if node.is_none() {
                 return refuse(format!(
@@ -1234,7 +1245,10 @@ fn write_cell(
     }
     let node = match args.get("--node") {
         Some(n) => Some(n.to_string()),
-        None => node_of_cell(base, cell),
+        None => {
+            need_validator(ctx)?;
+            node_of_cell(base, cell)
+        }
     };
     let version = args.get("--version");
     let model = args.get("--model");
@@ -1483,6 +1497,7 @@ fn cell_provenance(
     prior: &PyDict,
     prior_mismatch: Vec<PyValue>,
 ) -> R<(PyDict, Vec<PyValue>)> {
+    need_validator(ctx)?;
     let decl = read_declaration(base);
     let mut prov = PyDict::new();
     if !lockset_observable(&decl, node) {
@@ -2164,6 +2179,7 @@ fn op_write_brief(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
         io.warn("[campaign_init] no-op — ACTIVE=_bootstrap (캠페인 밖에는 진행이 없다)");
         return Ok(0);
     };
+    need_validator(ctx)?;
     let path = ctx.root.join("docs").join("logs").join(node).join("campaign_brief.json");
     write_json(&path, &campaign_brief(ctx, &base, node, utc))?;
     io.say(&format!("[campaign_init] brief → {}", ctx.rel(&path)));
@@ -2232,6 +2248,7 @@ fn op_evidence_add(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     let mut node = args.get("--node").filter(|s| !s.is_empty()).map(str::to_string);
     if node.is_none() {
         if let Some(cell) = cell_id.as_deref().filter(|c| !c.is_empty()) {
+            need_validator(ctx)?;
             node = node_of_cell(&base, cell);
         }
     }
@@ -2530,6 +2547,7 @@ fn op_revise(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 fn op_hint_approve(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     use crate::campaign_validator::{hint_approval_reason, hint_target_reasons, APPROVAL_DEFAULT_SOURCE};
     let Some((base, camp)) = writer_prelude(ctx, args, io)? else { return Ok(0) };
+    need_validator(ctx)?;
     let node = args.get("--node");
     let approved_by = args.get("--approved-by");
     let utc = args.get("--utc");
@@ -2785,7 +2803,7 @@ fn lifecycle_line(ctx: &Ctx, table: &[(String, Fold)]) -> String {
     format!("상태: {}", parts.join(" · "))
 }
 
-fn resume_brief(ctx: &Ctx, camp_id: Option<&str>) -> String {
+fn resume_brief(ctx: &Ctx, camp_id: Option<&str>) -> R<String> {
     let camp = camp_id.filter(|c| !c.is_empty()).map(str::to_string).unwrap_or_else(|| ctx.active_id());
     let base = ctx.campaigns().join(&camp);
     let mut l: Vec<String> = Vec::new();
@@ -2820,12 +2838,12 @@ fn resume_brief(ctx: &Ctx, camp_id: Option<&str>) -> String {
         l.push(String::new());
         l.push("활성 캠페인이 **없다**(ACTIVE=_bootstrap). 여기는 캠페인 밖 릴레이 대기실이며 진행 상태를".to_string());
         l.push("들지 않는다 — campaigns writer 는 no-op 이고, 재개할 캠페인도 없다.".to_string());
-        return l.join("\n") + "\n";
+        return Ok(l.join("\n") + "\n");
     }
     if !is_dir(&base) {
         l.push(String::new());
         l.push(format!("인스턴스 디렉터리가 없다: campaigns/{camp}"));
-        return l.join("\n") + "\n";
+        return Ok(l.join("\n") + "\n");
     }
     let doc = read_declaration(&base);
     let revs: Vec<PyValue> = doc.get("revisions").and_then(list_of).cloned().unwrap_or_default();
@@ -2856,6 +2874,7 @@ fn resume_brief(ctx: &Ctx, camp_id: Option<&str>) -> String {
     l.push(format!("- 개정 수: {}{tail}", revs.len().saturating_sub(1)));
     l.push(format!("- plan_ref: {}", shown(doc.get("plan_ref"))));
 
+    need_validator(ctx)?;
     let mut plan: Vec<(Option<String>, String, Option<String>)> = Vec::new();
     for (node, _) in assignments_of(&doc) {
         for cell in assigned_cells(&doc, Some(&node)) {
@@ -3065,11 +3084,11 @@ fn resume_brief(ctx: &Ctx, camp_id: Option<&str>) -> String {
     if let Some(frozen) = ep_dict.and_then(|d| d.get("frozen_utc")).filter(|v| v.is_truthy()) {
         l.push(format!("- 스냅샷 동결: {} (이후 --evidence-add 는 거부된다)", shown(Some(frozen))));
     }
-    l.join("\n") + "\n"
+    Ok(l.join("\n") + "\n")
 }
 
 fn op_resume_brief(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
-    let _ = io.out.write_all(resume_brief(ctx, args.get("--campaign-id")).as_bytes());
+    let _ = io.out.write_all(resume_brief(ctx, args.get("--campaign-id"))?.as_bytes());
     Ok(0)
 }
 
@@ -3087,6 +3106,7 @@ fn op_emit_slice(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     if decl.is_empty() {
         return refuse(format!("선언을 읽지 못했다: {}", ctx.rel(&base.join("campaign.yaml"))));
     }
+    need_validator(ctx)?;
     let all_nodes: Vec<&PyDict> = list_of(decl.get("nodes").unwrap_or(&PyValue::None))
         .into_iter()
         .flatten()
@@ -4122,6 +4142,7 @@ fn op_lockset_precheck(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
         return refuse(format!("인스턴스가 없다: campaigns/{camp} — 출처를 물을 셀이 없다"));
     }
     let path = base.join("cells").join(cell).join("lockset.json");
+    need_validator(ctx)?;
     let mut why = lockset_provenance_reason(ctx, &path);
     let doc = if path.is_file() { read_json(&path) } else { None };
     let prov = doc.as_ref().and_then(dict_of).and_then(|d| d.get("provenance")).filter(|v| text_of(v).is_some()).cloned();
