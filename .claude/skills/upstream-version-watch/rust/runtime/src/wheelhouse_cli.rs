@@ -196,8 +196,7 @@ fn run_build(a: &BuildArgs, dir_mode: bool) -> Result<i32, Err> {
 
 pub fn run(args: &[String]) -> i32 {
     if args.iter().any(|a| a == "--self-test") {
-        err("native_wheelhouse: --self-test 는 Rust 로 이식되지 않았다(원본 native_wheelhouse.py 를 쓴다)");
-        return 2;
+        return crate::wheelhouse_selftest::self_test();
     }
     let Some(cmd) = args.first() else {
         err(&format!("usage: {PROG} [-h] [--self-test] {{build,verify}} ..."));
