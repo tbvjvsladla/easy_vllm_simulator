@@ -34,6 +34,7 @@ pub const STOP_WAIT_S: u64 = 30;
 pub const NATIVE_LAUNCH_FILE: &str = "native-launch.md";
 pub const CLIENT_REL: &str = "bin/vllm-client";
 pub const WHEEL_ACCEPT_REL: &str = ".claude/skills/upstream-version-watch/references/native_wheelhouse_accept.json";
+const WHEEL_LAUNCHER_REL: &str = ".claude/skills/upstream-version-watch/scripts/native_wheelhouse.sh";
 const WHEEL_TOOL_REL: &str = ".claude/skills/upstream-version-watch/scripts/native_wheelhouse.py";
 const RAY_SESSION_SOCKET_TAIL: &str = "/session_2026-09-23_12-30-45_123456_1234567/sockets/plasma_store";
 
@@ -1213,9 +1214,19 @@ pub fn wheelhouse_build_argv(tool: &str, image: &str, root: &str, generated_utc:
     let w = wh_dir(root);
     sv(&["python3", tool, "build", "--image", image, "--out", &w, "--generated-utc", generated_utc, "--accept-file", accept])
 }
-pub fn wheelhouse_verify_argv(tool: &str, root: &str, generated_utc: &str, accept: &str) -> Vec<String> {
+/// `launcher` (main node) runs the Rust launcher `native_wheelhouse.sh`; without it the `.py` the main node put on the sub runs under `python3`.
+pub fn wheelhouse_verify_argv(tool: &str, root: &str, generated_utc: &str, accept: &str, launcher: Option<&str>) -> Vec<String> {
     let (w, v) = (wh_dir(root), venv_dir(root));
-    sv(&["python3", tool, "verify", "--wheelhouse-dir", &w, "--venv", &v, "--generated-utc", generated_utc, "--accept-file", accept])
+    let mut a: Vec<String> = match launcher {
+        Some(l) => vec![l.to_string()],
+        None => sv(&["python3", tool]),
+    };
+    a.extend(sv(&["verify", "--wheelhouse-dir", &w, "--venv", &v, "--generated-utc", generated_utc, "--accept-file", accept]));
+    a
+}
+/// The verify launcher of a node: the main node only.
+pub fn wheel_launcher(c: &Ctx, name: &str) -> Option<String> {
+    (name == "main").then(|| format!("{}/{WHEEL_LAUNCHER_REL}", c.repo.display()))
 }
 pub fn pip_freeze_argv(root: &str) -> Vec<String> {
     vec![format!("{}/bin/python", venv_dir(root)), "-m".into(), "pip".into(), "freeze".into(), "--all".into()]
@@ -1393,7 +1404,7 @@ pub fn plan(c: &Ctx, here: &Path) -> Vec<String> {
     for (n, spec) in [("main", m), ("sub", s)] {
         add(&mut lines, n, wheelhouse_build_argv(&spec.wheel_tool, &c.image, &spec.root, "<generated-utc>", &spec.wheel_accept), "자기 이미지에서 재포장 · 승인 선언 적용");
         add(&mut lines, n, sv(&["du", "-sxb", &spec.root]), "상한 검사");
-        add(&mut lines, n, wheelhouse_verify_argv(&spec.wheel_tool, &spec.root, "<generated-utc>", &spec.wheel_accept), "venv·pip --no-index --no-deps·이미지 동등성·ldd·import+CUDA → env 레시피");
+        add(&mut lines, n, wheelhouse_verify_argv(&spec.wheel_tool, &spec.root, "<generated-utc>", &spec.wheel_accept, wheel_launcher(c, n).as_deref()), "venv·pip --no-index --no-deps·이미지 동등성·ldd·import+CUDA → env 레시피");
         add(&mut lines, n, sv(&["du", "-sxb", &spec.root]), "상한 검사");
         add(&mut lines, n, pip_freeze_argv(&spec.root), &format!("→ docs/simlog/<YYMMDDHH>_{}/pip-freeze-{n}.txt", c.simlog_topic));
     }

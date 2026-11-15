@@ -56,3 +56,21 @@ fn ring_sha256(data: &[u8]) -> Vec<u8> {
     let hexed = sha256_hex(data);
     (0..hexed.len() / 2).map(|i| u8::from_str_radix(&hexed[2 * i..2 * i + 2], 16).unwrap()).collect()
 }
+
+#[test]
+fn verify_stops_at_a_failed_closure_without_installing() {
+    let td = std::env::temp_dir().join(format!("nwv-check-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&td);
+    std::fs::create_dir_all(&td).unwrap();
+    std::fs::write(td.join("closure.json"), r#"{"status":"FAIL"}"#).unwrap();
+    let args: Vec<String> = ["verify", "--wheelhouse-dir", td.to_str().unwrap(), "--venv", td.join("v").to_str().unwrap(), "--generated-utc", "2026-01-01T00:00:00Z"]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+    assert_eq!(upstream_runtime::wheelhouse_cli::run(&args), 3);
+    let res = loads(&std::fs::read(td.join("verify.json")).unwrap()).unwrap();
+    assert_eq!(res.get("verdict").and_then(|v| v.str()), Some("FAIL"));
+    assert_eq!(res.get("gates").and_then(|g| g.get("closure")).and_then(|c| c.get("result")).and_then(|r| r.str()), Some("FAIL"));
+    assert!(!td.join("v").exists());
+    let _ = std::fs::remove_dir_all(&td);
+}

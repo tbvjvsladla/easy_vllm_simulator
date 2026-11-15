@@ -108,3 +108,4 @@ pub mod wheelhouse_build;
 pub mod wheelhouse_cli;
 pub mod wheelhouse_source;
 pub mod wheelhouse_util;
+pub mod wheelhouse_verify;

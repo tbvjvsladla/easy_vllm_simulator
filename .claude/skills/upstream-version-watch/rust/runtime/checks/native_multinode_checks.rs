@@ -65,7 +65,8 @@ fn argv_builders() {
     assert_eq!(w.join(" "), "bash wd.sh --pgid 7 --starttime 99 --thresh-mib 10240 --interval-s 2");
     assert_eq!(renew_argv(&spec, "7", "99", 60).last().unwrap(), "60");
     assert_eq!(pip_freeze_argv("/r/x")[0], "/r/x/venv/bin/python");
-    assert_eq!(wheelhouse_verify_argv("t", "/r/x", "U", "a")[..3], ["python3", "t", "verify"]);
+    assert_eq!(wheelhouse_verify_argv("t", "/r/x", "U", "a", None)[..3], ["python3", "t", "verify"]);
+    assert_eq!(wheelhouse_verify_argv("t", "/r/x", "U", "a", Some("/l.sh"))[..2], ["/l.sh", "verify"]);
     let env: Env = [("B".to_string(), "2".to_string()), ("A".to_string(), "1".to_string())].into();
     assert_eq!(env_argv(&env, &["cmd".into()]), ["env", "-i", "A=1", "B=2", "cmd"]);
     let mk = mkdirs_argv(&spec);

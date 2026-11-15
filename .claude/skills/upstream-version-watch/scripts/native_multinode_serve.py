@@ -534,6 +534,7 @@ def venv_dir(root: str) -> str: return f"{root}/venv"
 
 # 사람 승인 선언(RECORD 불일치 승인 · 이미지 고유 충돌) — plan_26092311 §N1 라이브 게이트 뒤 결정. 도구가 이미지 digest 를 대조한다.
 WHEEL_ACCEPT_REL = ".claude/skills/upstream-version-watch/references/native_wheelhouse_accept.json"
+WHEEL_LAUNCHER_REL = ".claude/skills/upstream-version-watch/scripts/native_wheelhouse.sh"   # verify 의 Rust 런처(메인 전용)
 
 
 def wheelhouse_build_argv(tool: str, image: str, root: str, generated_utc: str, accept: str) -> list[str]:
@@ -541,11 +542,17 @@ def wheelhouse_build_argv(tool: str, image: str, root: str, generated_utc: str, 
     return ["python3", tool, "build", "--image", image, "--out", wh_dir(root), "--generated-utc", generated_utc, "--accept-file", accept]
 
 
-def wheelhouse_verify_argv(tool: str, root: str, generated_utc: str, accept: str) -> list[str]:
+def wheelhouse_verify_argv(tool: str, root: str, generated_utc: str, accept: str, launcher: str | None = None) -> list[str]:
     """native_wheelhouse.py verify — venv 생성(python3.12)·`pip install --no-index`·pip check·ldd·import+CUDA 를 **도구가** 소유한다
-    (비어 있지 않은 venv 는 거부하므로 여기서 venv 를 먼저 만들지 않는다)."""
-    return ["python3", tool, "verify", "--wheelhouse-dir", wh_dir(root), "--venv", venv_dir(root), "--generated-utc", generated_utc,
-            "--accept-file", accept]
+    (비어 있지 않은 venv 는 거부하므로 여기서 venv 를 먼저 만들지 않는다). `launcher` 가 있으면 Rust 런처(native_wheelhouse.sh)가
+    실행하고, 없으면 `python3 tool`(서브: 메인이 put 한 .py 바이트 — 서브에는 ELF 가 없다)."""
+    head = [launcher] if launcher else ["python3", tool]
+    return head + ["verify", "--wheelhouse-dir", wh_dir(root), "--venv", venv_dir(root), "--generated-utc", generated_utc, "--accept-file", accept]
+
+
+def wheel_launcher(ctx: "Ctx", name: str) -> str | None:
+    """verify 를 부를 Rust 런처 — 메인 노드만(서브는 .py put · 싱글 서브는 자기 빌드킷을 자율 저작하므로 ELF 를 밀어 넣지 않는다)."""
+    return str(ctx.repo / WHEEL_LAUNCHER_REL) if name == "main" else None
 
 
 def parse_verify_verdict(text: str) -> tuple[bool, dict, str]:
@@ -663,6 +670,7 @@ def native_install_script(ctx: Ctx, tool_sha: str, generated_utc: str, accept_sh
     ]
     lines.append("# ① 재포장(docker create → 설치 트리 cp → RECORD 대조 재포장 · 시작하지 않는 컨테이너)")
     lines.append(" ".join(q(t) for t in wheelhouse_build_argv(tool, image, root, generated_utc, accept)))
+    lines.append("#    (실행기는 메인 노드의 verify 를 Rust 런처 scripts/native_wheelhouse.sh 로, 서브는 put 한 .py 로 부른다 — 같은 판정 JSON)")
     lines.append("# ② 설치 게이트(이미지 동등성) — 도구가 python3.12 -m venv → pip install --no-index --no-deps -r wh/requirements-closure.txt")
     lines.append("#    → 설치 집합 == closure 핀 → pip check ⊆ 선언된 이미지 고유 충돌 → ldd(vllm *.so) → import vllm,torch + cuda → env 레시피")
     lines.append(" ".join(q(t) for t in wheelhouse_verify_argv(tool, root, generated_utc, accept)))
@@ -1014,7 +1022,7 @@ class NativeServe:
             self._preserve(f"wheelhouse-build-{name}.json", (b.out or b.err).encode())
             if b.rc != 0: raise ServeError(f"{name}: wheelhouse 재포장 불통과(rc={b.rc}) — 다운로드 폴백 ✗(O-N2): {b.err[-400:]}")
             self._du_guard(name, "wheelhouse")
-            v = r.run(wheelhouse_verify_argv(spec.wheel_tool, spec.root, generated_utc, spec.wheel_accept), 3600, check=False)
+            v = r.run(wheelhouse_verify_argv(spec.wheel_tool, spec.root, generated_utc, spec.wheel_accept, wheel_launcher(c, name)), 3600, check=False)
             self._preserve(f"wheelhouse-verify-{name}.json", (v.out or v.err).encode())
             self._du_guard(name, "venv")
             ok, venv_env, why = parse_verify_verdict(v.out)
@@ -1212,7 +1220,7 @@ class NativeServe:
         for n, spec in (("main", m), ("sub", s)):
             add(n, wheelhouse_build_argv(spec.wheel_tool, c.image, spec.root, "<generated-utc>", spec.wheel_accept), "자기 이미지에서 재포장 · 승인 선언 적용")
             add(n, ["du", "-sxb", spec.root], "상한 검사")
-            add(n, wheelhouse_verify_argv(spec.wheel_tool, spec.root, "<generated-utc>", spec.wheel_accept), "venv·pip --no-index --no-deps·이미지 동등성·ldd·import+CUDA → env 레시피")
+            add(n, wheelhouse_verify_argv(spec.wheel_tool, spec.root, "<generated-utc>", spec.wheel_accept, wheel_launcher(c, n)), "venv·pip --no-index --no-deps·이미지 동등성·ldd·import+CUDA → env 레시피")
             add(n, ["du", "-sxb", spec.root], "상한 검사")
             add(n, pip_freeze_argv(spec.root), f"→ docs/simlog/<YYMMDDHH>_{c.simlog_topic}/pip-freeze-{n}.txt")
         add("main", env_argv(runtime_env(c, m, fake_ld), ray_head_argv(c, m)), "start(새 세션) → identity")
@@ -1438,7 +1446,7 @@ class Fake(Runner):
         elif a[0] == "test" and a[1] == "-f" and a[2].endswith("serve_budget.env"): rc = 1
         elif a[0] == "test" and a[1] == "-x": rc = 1
         elif a[0] == "du": out = f"1073741824\t{a[-1]}\n"
-        elif "native_wheelhouse.py" in s and "verify" in a:
+        elif ("native_wheelhouse.py" in s or "native_wheelhouse.sh" in s) and "verify" in a:
             rl = f"{self.root}/wh/runtime-lib"
             out = json.dumps({"kind": "native_wheelhouse_verify", "verdict": "PASS", "selected": "compat-first", "ld_library_path": f"{rl}/cuda/lib:{rl}/lib",
                               "env": {"LD_LIBRARY_PATH": f"{rl}/cuda/lib:{rl}/lib", "TRITON_PTXAS_PATH": f"{rl}/cuda/bin/ptxas",

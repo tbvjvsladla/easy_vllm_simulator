@@ -164,7 +164,7 @@ path = "src/bin/layer_ledger.rs"
 name = "slave_forward"
 path = "src/bin/slave_forward.rs"
 
-# The `build` subcommand of `native_wheelhouse.py` (+ `build-dir`, the same build over a local directory root); `verify` and `--self-test` stay in Python.
+# The `build` subcommand of `native_wheelhouse.py` (+ `build-dir`, the same build over a local directory root); `verify` is ported too; `--self-test` stays in Python.
 [[bin]]
 name = "native_wheelhouse"
 path = "src/bin/native_wheelhouse.rs"

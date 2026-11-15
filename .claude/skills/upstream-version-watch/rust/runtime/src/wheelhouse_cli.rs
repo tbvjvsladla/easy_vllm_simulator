@@ -1,10 +1,11 @@
-//! Command line of `native_wheelhouse.py` (the `build` part). `verify` and `--self-test` stay in the Python original and end here with
+//! Command line of `native_wheelhouse.py` (the `build` and `verify` parts). `--self-test` stays in the Python original and ends here with
 //! status 2. `build-dir` is the same build over a local directory standing in for an image root (`DirSource` of the original's self-test);
 //! it is the entry the parity checks use and takes the image facts from a JSON file.
 
 use crate::wheelhouse_build::*;
 use crate::wheelhouse_source::*;
 use crate::wheelhouse_util::*;
+use crate::wheelhouse_verify::{run_verify, VerifyArgs};
 use std::path::{Path, PathBuf};
 
 const PROG: &str = "native_wheelhouse.py";
@@ -93,6 +94,44 @@ fn parse_build(args: &[String], dir_mode: bool) -> Result<BuildArgs, i32> {
     Ok(a)
 }
 
+fn parse_verify(args: &[String]) -> Result<VerifyArgs, i32> {
+    let mut a = VerifyArgs { wheelhouse_dir: None, venv: None, generated_utc: None, accept_file: None, diagnostic: false, out_json: None };
+    let mut i = 0;
+    while i < args.len() {
+        let (key, inline) = match args[i].split_once('=') {
+            Some((k, v)) if k.starts_with("--") => (k.to_string(), Some(v.to_string())),
+            _ => (args[i].clone(), None),
+        };
+        let val = |i: &mut usize| -> Result<String, i32> {
+            if let Some(v) = &inline {
+                return Ok(v.clone());
+            }
+            *i += 1;
+            args.get(*i).cloned().ok_or_else(|| usage_error(&format!("argument {key}: expected one argument")))
+        };
+        match key.as_str() {
+            "--wheelhouse-dir" => a.wheelhouse_dir = Some(val(&mut i)?),
+            "--venv" => a.venv = Some(val(&mut i)?),
+            "--generated-utc" => a.generated_utc = Some(val(&mut i)?),
+            "--accept-file" => a.accept_file = Some(val(&mut i)?),
+            "--out-json" => a.out_json = Some(val(&mut i)?),
+            "--diagnostic" => a.diagnostic = true,
+            other => return Err(usage_error(&format!("unrecognized arguments: {other}"))),
+        }
+        i += 1;
+    }
+    let mut missing: Vec<&str> = Vec::new();
+    for (k, ok) in [("--wheelhouse-dir", a.wheelhouse_dir.is_some()), ("--venv", a.venv.is_some()), ("--generated-utc", a.generated_utc.is_some())] {
+        if !ok {
+            missing.push(k);
+        }
+    }
+    if !missing.is_empty() {
+        return Err(usage_error(&format!("the following arguments are required: {}", missing.join(", "))));
+    }
+    Ok(a)
+}
+
 fn finish(c: &J) -> i32 {
     let mut summary: Vec<(&str, J)> = Vec::new();
     for k in ["status", "counts", "sizes", "elapsed_s_monotonic"] {
@@ -172,10 +211,10 @@ pub fn run(args: &[String]) -> i32 {
                 Err(code) => return code,
             }
         }
-        "verify" => {
-            err("native_wheelhouse: verify 는 Rust 로 이식되지 않았다(원본 native_wheelhouse.py 를 쓴다)");
-            return 2;
-        }
+        "verify" => match parse_verify(&args[1..]) {
+            Ok(a) => run_verify(&a),
+            Err(code) => return code,
+        },
         "-h" | "--help" => {
             println!("usage: {PROG} [-h] [--self-test] {{build,verify}} ...");
             return 0;
