@@ -149,7 +149,7 @@ path = "src/bin/render_dockerfile.rs"
 name = "push_branches"
 path = "src/bin/push_branches.rs"
 
-# The replay, local-clone and `--write-resolved` parts of `judge_version_delta.py` (compare-API fallback, `--emit-fixture`, `--self-test` stay in Python).
+# The replay, local-clone and `--write-resolved` parts of `judge_version_delta.py` (compare-API fallback, `--emit-fixture` stay in Python; `--self-test` is ported).
 [[bin]]
 name = "judge_version_delta"
 path = "src/bin/judge_version_delta.rs"
@@ -159,7 +159,7 @@ path = "src/bin/judge_version_delta.rs"
 name = "layer_ledger"
 path = "src/bin/layer_ledger.rs"
 
-# The `prefix`, `json`, `default` subcommands of `slave_forward.py` (+ new `non-identity`); `--self-test` stays in Python.
+# The `prefix`, `json`, `default` subcommands of `slave_forward.py` (+ new `non-identity`); `--self-test` is ported.
 [[bin]]
 name = "slave_forward"
 path = "src/bin/slave_forward.rs"

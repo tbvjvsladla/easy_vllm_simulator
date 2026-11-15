@@ -3,11 +3,13 @@
 //! heredoc formerly imported from the Python module).
 //!
 //! The Band2 key test (`_band2_owned`) calls `render_dockerfile::env_tier` in process (the Python original imported `render_dockerfile.py`).
-//! Port boundary: `--self-test` is not ported (exit 2; run `slave_forward.py --self-test`); argparse's own usage/error text is not reproduced
+//! Port boundary: `--self-test` is ported (`slave_forward/selftest.rs`, same checks and closing line as the original); argparse's own usage/error text is not reproduced
 //! (a malformed command line exits 2 with a short message). The Python module stays for its in-process importers.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
+
+mod selftest;
 
 pub const GROUPS: [&str; 5] = ["image_identity", "build_tuning", "cluster", "mount", "serve_env"];
 pub const NON_IDENTITY_BUILD_ARGS: [&str; 1] = ["BUILD_JOBS"];
@@ -400,10 +402,15 @@ fn head_end(line: &[char], key: &str) -> Option<usize> {
 // ── Band2 owned keys ───────────────────────────────────────────────────────────────────────────────
 
 fn tier(key: &str) -> Result<(&'static str, Option<String>), ForwardError> {
-    crate::render_dockerfile::env_tier(key).map_err(|e| ForwardError {
-        code: "SF_ENV_TIER_FAILED",
-        message: format!("render_dockerfile.env_tier({}) 실패: {}", py_repr(key), e.message),
-    })
+    tier_with(key, |k| crate::render_dockerfile::env_tier(k).map_err(|e| e.message))
+}
+
+/// env_tier call with the renderer's fail-loud translated to a reason code (the renderer is injectable for the self-test).
+fn tier_with(
+    key: &str,
+    f: impl FnOnce(&str) -> Result<(&'static str, Option<String>), String>,
+) -> Result<(&'static str, Option<String>), ForwardError> {
+    f(key).map_err(|m| ForwardError { code: "SF_ENV_TIER_FAILED", message: format!("render_dockerfile.env_tier({}) 실패: {}", py_repr(key), m) })
 }
 
 fn band2_owned(key: &str) -> Result<bool, ForwardError> {
@@ -663,8 +670,7 @@ fn parse_opts(cmd: &str, args: &[String]) -> Result<Opts, String> {
 
 pub fn run(args: &[String]) -> i32 {
     if args.first().is_some_and(|a| a == "--self-test") {
-        err("[slave-forward] self-test not ported to Rust (use slave_forward.py --self-test)\n");
-        return 2;
+        return selftest::run_selftest();
     }
     if args.is_empty() {
         return usage_error("하위 명령이 필요하다(prefix|json|default) 또는 --self-test");

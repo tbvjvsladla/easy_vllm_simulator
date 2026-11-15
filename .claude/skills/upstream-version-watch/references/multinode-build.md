@@ -28,7 +28,7 @@
    왜: 손목록이 build-arg 와 따로 자라며 다섯 번 침묵 누락됐다(BUILD_DOCKERFILE 07-24 · VLLM_PRETEND_VERSION 08-02 ·
    SM12X_PORT·RAY_PORT 08-14 · SRC_DEPS_AUTHORITY 08-15 · VLLM_VERSION 09-05 · PLE 09-09 — 날짜 박힌 이력은 `slave_forward.WHY`).
    새 build-arg 를 compose 에 더하면 **코드 수정 없이** 전달된다. hint `sub_recipe.json` 도 **같은 함수**를 부른다(`as_sub_recipe` —
-   원값 대신 형상). 자체검사: `python3 scripts/slave_forward.py --self-test`(옛 셸 파생과 실행 대조 · 템플릿/렌더 구조 tripwire).
+   원값 대신 형상). 자체검사: `scripts/slave_forward.sh --self-test`(옛 셸 파생과 실행 대조 · 템플릿/렌더 구조 tripwire).
    compose 기본값이 필요하면 `slave_forward.py default --compose <c> --key <K>`(옛 하드 폴백 `0.27.1` 대체).
 6. **serve 시점 관측 영속**(2026-09-21 · 스모크가 쓴다 · `output/multi/benchlog/` 비추적):
    - `attestation_<CONFIG>.json` **v2** — READY 뒤 두 노드의 **실행 중 컨테이너**에서 `build_ledger.json`(옛 이미지는

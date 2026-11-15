@@ -2,7 +2,7 @@
 //! cross + silent-revert probe), the manual-block audit, the verdict synthesis, fixture replay (`--fixture`, `--check-fixture`), the live run over a
 //! local clone (`--repo-cache`, git spawned exactly as the original) and `--write-resolved`.
 //! Not ported (exit 2, fail loud): the GitHub compare-API / raw.githubusercontent.com fallback (a live run without a usable local clone),
-//! `--emit-fixture` and `--self-test` (both stay in Python).
+//! `--emit-fixture` (stays in Python); `--self-test` is ported (`judge_delta/selftest.rs`).
 //! Exit status: 0 NO_IMPACT · 1 IMPACT · 4 UNDETERMINED · 2 usage / not ported · 3 delta collection failed · 1 for a failed `--check-fixture`.
 
 use crate::gate_cli::{self, Values};
@@ -12,6 +12,8 @@ use recipe_runtime::cliparse::{Kind, Opt, Spec};
 use ring::digest::{digest, SHA256};
 use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
+
+mod selftest;
 use std::process::Command;
 
 pub const PROGRAM: &str = "judge_version_delta.py";
@@ -1109,7 +1111,7 @@ fn run_inner(script: Option<&PyStr>, values: &Values) -> Result<i32, Fail> {
         Err(Fail(2, format!("[judge] {what} 는 Rust 로 이식되지 않았다 — judge_version_delta.py 를 사용한다")))
     };
     if gate_cli::flag(values, "self_test") {
-        return not_ported("--self-test");
+        return Ok(selftest::run_selftest());
     }
     let fixture = gate_cli::text(values, "fixture");
     let check_fixture = gate_cli::text(values, "check_fixture");
