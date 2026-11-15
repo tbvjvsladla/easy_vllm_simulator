@@ -55,6 +55,7 @@ SYNC_BRANCHES = f"{UVW}/sync_branches.sh"
 LAYER_LEDGER = f"{UVW}/layer_ledger.py"
 # closing_sequence.sh 는 원장을 Rust 런처로 부른다 — 사본 트리에는 ELF 가 없으므로 런처만 복사하고 실물 런타임 루트를 가리킨다.
 LAYER_LEDGER_SH = f"{UVW}/layer_ledger.sh"
+INLINE_JSON_SH = f"{UVW}/inline_json.sh"   # 진입점 셸의 JSON 소형 판독기 런처(옛 인라인 python3)
 CLOSING = f"{UVW}/closing_sequence.sh"
 PARITY = ".claude/policies/runtime/topology_parity.py"
 CAMPAIGN_INIT = f"{TN}/campaign_init.py"
@@ -153,7 +154,7 @@ def _checkout(sb: Sandbox, name: str, branch: str, header: str, topo: str,
     repo = sb.root / name
     repo.mkdir()
     sb.git(repo, "init", "-q", "-b", branch)
-    for rel in (SYNC_TO_SUB, PARITY, GATE, CAMPAIGN_INIT, *(f".claude/schemas/{s}" for s in SCHEMAS)):
+    for rel in (SYNC_TO_SUB, INLINE_JSON_SH, PARITY, GATE, CAMPAIGN_INIT, *(f".claude/schemas/{s}" for s in SCHEMAS)):
         _copy_real(repo, rel)
     _write(repo, TOPOLOGY_RULES, f"# 특화헌법 픽스처\n\n**topology: {header}** · layer: topology\n")
     # single-node 체크아웃도 옛 output/multi 빌드킷을 추적한다(다운그레이드 배달의 형태) -- 가드는 그 앞에서 멈춰야 한다.
@@ -325,7 +326,7 @@ def _build_sequence_fixture(sb: Sandbox, *, target_only_change: bool = False, br
     hintlib = sorted(f"{HINTLIB_DIR}/{p.name}" for p in (REAL / HINTLIB_DIR).glob("*.py"))
     if not any(r.endswith("/catalog.py") for r in hintlib):
         raise RuntimeError(f"hintlib 사본 목록에 catalog.py 가 없다: {hintlib}")
-    for rel in {LAYER_LEDGER, LAYER_LEDGER_SH, SYNC_BRANCHES, CLOSING, PARITY, GATE, CATALOG, ".gitignore",
+    for rel in {LAYER_LEDGER, LAYER_LEDGER_SH, INLINE_JSON_SH, SYNC_BRANCHES, CLOSING, PARITY, GATE, CATALOG, ".gitignore",
                 *(f".claude/schemas/{s}" for s in SCHEMAS), *reps, *hintlib, *CATALOG_COMPANIONS}:
         _copy_real(repo, rel)
     _write(repo, "CLAUDE.md", "# 픽스처 헌법 v1\n")
@@ -669,7 +670,7 @@ def test_branch_sync_delete_respects_excludes() -> None:
             repo.mkdir()
             sb.git(repo, "init", "-q", "-b", "single-node")
             reps = _relocation_replacements()
-            for rel in {SYNC_BRANCHES, GATE, PARITY, LAYER_LEDGER, ".gitignore",
+            for rel in {SYNC_BRANCHES, INLINE_JSON_SH, GATE, PARITY, LAYER_LEDGER, ".gitignore",
                         *(f".claude/schemas/{s}" for s in SCHEMAS), *reps}:
                 _copy_real(repo, rel)
             _write(repo, "CLAUDE.md", "# 헌법 v1\n")

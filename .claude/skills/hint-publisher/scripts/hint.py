@@ -1837,6 +1837,21 @@ def cmd_catalog_derive(a) -> int:
                           allow_empty=a.allow_empty)
 
 
+def cmd_catalog_classify(a) -> int:
+    """`closing_sequence.sh` 의 재파생 실패 원인 분류(종전 인라인 `python3 -c`): `<부재 종료코드> <부재 행 수>` 한 줄.
+    부재 행 수는 rc 0 일 때만 index 에서 센다(읽지 못하면 빈 칸 · 분류 불가 ≠ 0건)."""
+    absent = ""
+    if a.rc == "0":
+        try:
+            with open(a.index, encoding="utf-8") as fh:
+                doc = json.load(fh)
+            absent = sum(1 for e in doc.get("hints") or [] if isinstance(e, dict) and e.get("object") == catalog.OBJECT_ABSENT_LOCAL)
+        except (OSError, ValueError, AttributeError):
+            absent = ""
+    print(getattr(catalog, "EXIT_LOCAL_TAG_OBJECT_MISSING", ""), absent)
+    return 0
+
+
 def cmd_match(a) -> int:
     repo = core.resolve_repo(a.repo, require_git=False)       # gitless 배포본에서도 돈다(hints/index.json 만)
     idx = catalog.load_index(repo)
@@ -1962,6 +1977,10 @@ def _build_parser() -> argparse.ArgumentParser:
                    help="로컬 오브젝트 없는 원격 태그를 `absent-local` 행으로 싣고 rc 0(X15 · continue·S5 재생성)")
     d.add_argument("--allow-empty", action="store_true", help="원격 hint 태그 0건을 정상으로 선언")
     d.set_defaults(fn=cmd_catalog_derive)
+    cl = csub.add_parser("classify", help="재파생 실패 원인 분류(읽기 전용 · closing_sequence 용)")
+    cl.add_argument("--index", required=True, help="방금 쓴 hints/index.json")
+    cl.add_argument("--rc", required=True, help="재파생 종료코드")
+    cl.set_defaults(fn=cmd_catalog_classify)
 
     m = sub.add_parser("match", help="수신자 근-미스 발견(읽기 전용 · gitless)")
     m.add_argument("--vllm", required=True)

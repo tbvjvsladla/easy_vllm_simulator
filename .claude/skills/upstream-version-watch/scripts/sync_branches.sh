@@ -304,6 +304,7 @@ if ! REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null)"; 
     echo "[sync-branches] FAIL: 스크립트 위치($SCRIPT_DIR)에서 git 레포를 찾을 수 없습니다." >&2
     exit 3
 fi
+IJ="$REPO_ROOT/.claude/skills/upstream-version-watch/scripts/inline_json.sh"   # JSON 소형 판독기(Rust ELF 런처) — 레포 기준 경로(스크립트 사본 위치와 무관)
 
 # ── manifest 경로는 호출 시점 CWD 기준으로 지금(어떤 cd 도 하기 전) 단 한 번, 결정론적으로 해소한다 ──
 RESOLVED_MANIFEST=""
@@ -335,7 +336,7 @@ gate_stdout="$("${gate_cmd[@]}")" && gate_exit=0 || gate_exit=$?
 
 gate_allowed="false"
 if [ -n "$gate_stdout" ]; then
-    gate_allowed="$(printf '%s' "$gate_stdout" | "$SCRIPT_DIR/inline_json.sh" allowed 2>/dev/null)"
+    gate_allowed="$(printf '%s' "$gate_stdout" | "$IJ" allowed 2>/dev/null)"
     [ "$gate_allowed" = "true" ] || gate_allowed="false"
 fi
 
@@ -348,7 +349,7 @@ if [ "$gate_exit" -ne 0 ] || [ "$gate_allowed" != "true" ]; then
         exit 1
     fi
     # completion_gate.py 자체를 실행/파싱하지 못한 경우(예: 크래시) — 결정론 wrapper 로 대체.
-    "$SCRIPT_DIR/inline_json.sh" gate-unreadable-branches "$GATE_MODE" "$RESOLVED_MANIFEST" "$gate_exit"
+    "$IJ" gate-unreadable-branches "$GATE_MODE" "$RESOLVED_MANIFEST" "$gate_exit"
     exit 2
 fi
 
@@ -458,7 +459,7 @@ if git cat-file -e "$SRC_BRANCH:$_LEDGER_REL" 2>/dev/null; then
     _DIV_JSON="$(python3 "$_LEDGER" divergence --repo "$REPO_ROOT" --branch "$DST_BRANCH" \
                      --counterpart "$SRC_BRANCH" --ledger-ref "$SRC_BRANCH" 2>"$_DIV_ERR")" || _DIV_RC=$?
     _DIV_STDERR="$(head -c 4000 "$_DIV_ERR")"; rm -f "$_DIV_ERR"
-    _DIV_SUMMARY="$(printf '%s' "$_DIV_JSON" | "$SCRIPT_DIR/inline_json.sh" divergence-summary 2>/dev/null || printf 'unreadable\t-\t-\t-\t0')"
+    _DIV_SUMMARY="$(printf '%s' "$_DIV_JSON" | "$IJ" divergence-summary 2>/dev/null || printf 'unreadable\t-\t-\t-\t0')"
     IFS=$'\t' read -r _DIV_STATUS _DIV_BASIS _DIV_BASE _DIV_SP _DIV_ABSORBED <<< "$_DIV_SUMMARY"
     case "$_DIV_STATUS" in
         diverged)

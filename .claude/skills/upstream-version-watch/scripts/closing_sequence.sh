@@ -221,19 +221,8 @@ if [ -f "$CATALOG" ] && [ -f "$REPO/hints/.central_authority" ]; then
         # 못하면 칸이 빈다 -- rc≠0 이면 "원인은 위 출력" 으로, rc 0 이면 "분류 불가" 경고로 떨어진다(분류 불가를 "부재
         # 0건" 으로 접지 않는다 · 2026-09-22 리뷰: rc 0 쪽은 아무 말 없이 지나가 부재 행을 가렸다).
         # 자동 fetch 는 하지 않는다 -- 원격 태그를 로컬로 들이는 것은 사람이 정한다(기재하고 진행 규약 유지).
-        _CAT_CLASS="$(python3 -c 'import importlib.util, json, sys
-s = importlib.util.spec_from_file_location("_closing_hintlib_catalog", sys.argv[1])
-m = importlib.util.module_from_spec(s)
-s.loader.exec_module(m)
-absent = ""
-if sys.argv[3] == "0":
-    try:
-        doc = json.load(open(sys.argv[2], encoding="utf-8"))
-        absent = sum(1 for e in doc.get("hints") or [] if isinstance(e, dict) and e.get("object") == m.OBJECT_ABSENT_LOCAL)
-    except (OSError, ValueError, AttributeError):
-        absent = ""
-print(getattr(m, "EXIT_LOCAL_TAG_OBJECT_MISSING", ""), absent)' \
-            "$WT/$CATALOG_LIB_REL" "$WT/hints/index.json" "$_CAT_RC" 2>/dev/null || true)"
+        _CAT_CLASS="$(python3 -B "$WT/.claude/skills/hint-publisher/scripts/hint.py" --repo "$WT" catalog classify \
+            --index "$WT/hints/index.json" --rc "$_CAT_RC" 2>/dev/null || true)"
         _CAT_MISSING_RC=""; _CAT_ABSENT_N=""
         read -r _CAT_MISSING_RC _CAT_ABSENT_N <<< "$_CAT_CLASS" || true
         _CAT_REDERIVE="python3 .claude/skills/hint-publisher/scripts/hint.py --repo . catalog derive --remote $REMOTE --generated-kst <KST> --record-missing"
