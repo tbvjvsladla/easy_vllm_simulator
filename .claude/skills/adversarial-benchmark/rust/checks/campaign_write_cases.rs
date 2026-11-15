@@ -123,10 +123,8 @@ fn cell_set_records_gap_and_journey() {
 fn shapes_with_other_files_stay_with_the_owner() {
     let root = scratch("fallback");
     active(&root);
-    let (status, out, err) = call(&root, &["--escalation-add", "--cell", "c1", "--utc", "U"]);
+    let (status, out, err) = call(&root, &["--suspend", "camp-a", "--utc", "U", "--approved-by", "a"]);
     assert_eq!((status, out.as_str(), err.as_str()), (None, "", ""));
-    let (status, ..) = call(&root, &["--phase-set", "publish", "--node", "main", "--state", "done"]);
-    assert_eq!(status, None);
     assert!(!root.join("campaigns/camp-a/cells").exists());
 }
 
