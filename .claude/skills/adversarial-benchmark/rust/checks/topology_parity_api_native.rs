@@ -105,17 +105,29 @@ fn call_without_bridge(label: &str, rows: &[String]) -> Vec<PyValue> {
     std::fs::create_dir_all(&dir).expect("dir");
     let copy = dir.join("topology_parity_api_copy");
     std::fs::copy(API, &copy).expect("copy api");
-    let mut child = Command::new(&copy)
-        .arg("evaluate-jsonl")
-        .env_clear()
-        .env("PATH", "/usr/bin:/bin")
-        .env("TMPDIR", env!("CARGO_TARGET_TMPDIR"))
-        .env("LC_ALL", "C.UTF-8")
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .expect("api");
+    // A sibling test thread forking while our copy's write fd is open makes exec fail with ETXTBSY (the fd lives in that
+    // forked child until its exec). Retry only that error, briefly; any other spawn error still fails at once.
+    let mut attempt = 0;
+    let mut child = loop {
+        match Command::new(&copy)
+            .arg("evaluate-jsonl")
+            .env_clear()
+            .env("PATH", "/usr/bin:/bin")
+            .env("TMPDIR", env!("CARGO_TARGET_TMPDIR"))
+            .env("LC_ALL", "C.UTF-8")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+        {
+            Ok(c) => break c,
+            Err(e) if e.raw_os_error() == Some(26) && attempt < 50 => {
+                attempt += 1;
+                std::thread::sleep(std::time::Duration::from_millis(20));
+            }
+            Err(e) => panic!("api: {e}"),
+        }
+    };
     child
         .stdin
         .take()
