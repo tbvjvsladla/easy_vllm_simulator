@@ -386,9 +386,9 @@ fn save_golden(dir: &Path, case: &Case, o: &Outcome) -> Result<(), String> {
     }
     idx.push(']');
     w("files.index.json", idx.as_bytes())?;
-    let meta = format!("{{\"case\":{{\"id\":{},\"stage\":{},\"entry\":{},\"orig\":{},\"args\":[{}]}},\"orig_commit\":\"{}\",\"tool\":\"parity {}\",\"provenance\":\"measured\",\"repo_root\":{},\"tmp_root\":{}}}\n",
+    let meta = format!("{{\"case\":{{\"id\":{},\"stage\":{},\"entry\":{},\"orig\":{},\"args\":[{}]}},\"orig_commit\":\"{}\",\"orig_rev\":\"{}\",\"tool\":\"parity {}\",\"provenance\":\"measured\",\"repo_root\":{},\"tmp_root\":{}}}\n",
         jstr(&case.id), jstr(&case.stage), jstr(&case.entry), jstr(&case.orig),
-        case.args.iter().map(|a| jstr(a)).collect::<Vec<_>>().join(","), ORIG_COMMIT, env!("CARGO_PKG_VERSION"), jstr(&o.repo), jstr(&o.tmp));
+        case.args.iter().map(|a| jstr(a)).collect::<Vec<_>>().join(","), orig_rev(case), orig_rev(case), env!("CARGO_PKG_VERSION"), jstr(&o.repo), jstr(&o.tmp));
     w("meta.json", meta.as_bytes())
 }
 
@@ -481,6 +481,9 @@ fn real_main() -> Result<i32, String> {
                 save_golden(&tool, c, &o)?;
             }
             _ => {
+                if a.mode == "compare" && c.entry.starts_with("@pending:") {
+                    bad += 1; println!("MISMATCH {} entry not converted yet ({})", c.id, c.entry); continue;
+                }
                 let g = load_golden(&tool, &c.id)?;
                 let o = if a.mode == "orig" { run(c, &c.orig, &a.repo, false, c.orig.ends_with(".py"), Some(orig_rev(c)))? } else { run(c, &c.entry, &a.repo, true, false, None)? };
                 py += o.python_exec;

@@ -627,7 +627,7 @@
  },
  {
   "id": "S4-04-acc-empty",
-  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "entry": "@pending:campaign_template_validator",
   "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
   "args": [
    "--acceptance",
@@ -639,7 +639,7 @@
  },
  {
   "id": "S4-04-acc-missing-dir",
-  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "entry": "@pending:campaign_template_validator",
   "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
   "args": [
    "--acceptance",
@@ -648,7 +648,7 @@
  },
  {
   "id": "S4-04-acc-with-cell",
-  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "entry": "@pending:campaign_template_validator",
   "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
   "args": [
    "--acceptance",
@@ -661,7 +661,7 @@
  },
  {
   "id": "S4-04-acc-bad-yaml",
-  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "entry": "@pending:campaign_template_validator",
   "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
   "args": [
    "--acceptance",
