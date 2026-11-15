@@ -3,7 +3,7 @@
 //! Port boundary: the Python tool loads `hintlib.tag.git_push_authenticated` (hint-publisher, Python) for the credential path. That path is not
 //! reproducible without Python, so this port pushes only to remotes that need no token (ssh, scp-like, local path) with the same scope options
 //! as the Python fallback (`--no-follow-tags --no-recurse-submodules`, `GIT_TERMINAL_PROMPT=0`). A remote whose DECLARED url is http(s) fails
-//! loud per branch with code `HTTPS_NEEDS_HINTLIB` (no silent degrade). `--self-test` is not ported (exit 2).
+//! loud per branch with code `HTTPS_NEEDS_HINTLIB` (no silent degrade). `--self-test` is `push_branches_selftest` (Rust-owned contract; hintlib cross-checks stay Python).
 
 use std::process::{Command, Stdio};
 
@@ -53,8 +53,7 @@ pub fn run(args: &[String]) -> i32 {
     while i < args.len() {
         match args[i].as_str() {
             "--self-test" => {
-                eprintln!("[push_branches] self-test not ported to Rust (use push_branches.py --self-test)");
-                return 2;
+                return crate::push_branches_selftest::run();
             }
             "--dry-run" => dry = true,
             "--repo" | "--remote" | "--branch" if i + 1 < args.len() => {

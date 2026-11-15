@@ -103,6 +103,7 @@ pub mod role_errors;
 pub mod role_main;
 pub mod layer_ledger;
 pub mod push_branches;
+pub mod push_branches_selftest;
 pub mod slave_forward;
 pub mod wheelhouse_build;
 pub mod wheelhouse_cli;
