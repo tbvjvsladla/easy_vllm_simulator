@@ -729,6 +729,8 @@ def test_branch_sync_delete_respects_excludes() -> None:
                 ck("변이 앵커(exclude 존중 줄) 1건", src.count(anchor) == 1, src.count(anchor))
                 mutant_script = repo / "docs/_evidence/sync_mutated.sh"   # gitignore 평면 — dirty 가드를 울리지 않고 레포 안에 둔다(스크립트가 자기 경로에서 레포를 찾는다)
                 mutant_script.write_text(src.replace(anchor, ""), encoding="utf-8")
+                (mutant_script.parent / "inline_json.sh").write_bytes((repo / INLINE_JSON_SH).read_bytes())   # 스크립트는 자기 폴더의 런처를 쓴다
+                (mutant_script.parent / "inline_json.sh").chmod(0o755)
                 script = mutant_script
 
             r = sb.run(["bash", str(script), "--from", "single-node", "--mode", "experimental",

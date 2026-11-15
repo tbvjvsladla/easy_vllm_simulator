@@ -304,7 +304,7 @@ if ! REPO_ROOT="$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel 2>/dev/null)"; 
     echo "[sync-branches] FAIL: 스크립트 위치($SCRIPT_DIR)에서 git 레포를 찾을 수 없습니다." >&2
     exit 3
 fi
-IJ="$REPO_ROOT/.claude/skills/upstream-version-watch/scripts/inline_json.sh"   # JSON 소형 판독기(Rust ELF 런처) — 레포 기준 경로(스크립트 사본 위치와 무관)
+IJ="$SCRIPT_DIR/inline_json.sh"   # JSON 소형 판독기(Rust ELF 런처) — 스크립트 자신의 폴더(정본 체크아웃) 기준. 대상 저장소 쪽 사본은 보지 않는다
 
 # ── manifest 경로는 호출 시점 CWD 기준으로 지금(어떤 cd 도 하기 전) 단 한 번, 결정론적으로 해소한다 ──
 RESOLVED_MANIFEST=""
