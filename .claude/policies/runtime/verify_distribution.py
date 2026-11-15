@@ -636,10 +636,18 @@ def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
              #   따라간다). 불변인 것은 **두 자리에서 fail-closed 로 부른다**는 사실이므로 그것을 센다.
              "ok": (len(re.findall(r"verify_destination_retirement_consumers\s+\S+\s*\|\|",
                                    sub_text)) == 2
-                    and "retirement_consumer_scan" in sub_text
-                    and 'owner=".claude/skills/upstream-version-watch/"+stale' in sub_text
-                    and 'while lo and line[lo-1] in chars' in sub_text
-                    and "scanner/transport failed for $stale" in sub_text)},
+                    # 2026-11-15(c2j): 스캐너가 heredoc python → Rust `sub_runner retirement-scan` 으로 이동.
+                    #   불변은 같다 — 호출부는 fail-closed(전송·스캐너 실패=98) · 스캐너 소스는 owner 면제와
+                    #   토큰 경계 확장을 가진다. 앵커는 스캐너가 사는 자리를 따라간다.
+                    and "retirement-scan" in sub_text
+                    and "scanner/transport failed for $stale" in sub_text
+                    and (lambda r: ('let owner = format!(' in r
+                                    and "while lo > 0 && is_chars(cs[lo - 1])" in r
+                                    and "if token != owner" in r))(
+                        (REPO / ".claude/skills/upstream-version-watch/rust/runtime/src/bin/sub_runner.rs")
+                        .read_text(encoding="utf-8")
+                        if (REPO / ".claude/skills/upstream-version-watch/rust/runtime/src/bin/sub_runner.rs").is_file()
+                        else ""))},
             # ── 토폴로지-aware 은퇴 (2026-09-11 · plan_26091108 후속 · 서브 클린) ──────────
             #   오버레이는 가산이라 정본에서 사라진 것이 서브에 영구 잔존한다. 종전 비석은
             #   **평면 목록**이라 "single 엔 있어야 하고 multi 엔 없어야 한다" 를 적을 자리가

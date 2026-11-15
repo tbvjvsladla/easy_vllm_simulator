@@ -1348,9 +1348,9 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch",
+      "callee": "upstream-version-watch/rust/runtime/src/bin/sub_runner.rs",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "서브 은퇴 소비자 감사 — 스캐너가 Rust sub_runner 로 이동해, 소유자 면제·토큰 경계 확장이 소스에 남아 있는지 앵커로 검증한다(c2j)"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
