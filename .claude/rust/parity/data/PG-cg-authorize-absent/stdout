@@ -1,0 +1,24 @@
+{
+  "action": "sync_branches",
+  "allowed": false,
+  "authorization_state": null,
+  "exit_code": 1,
+  "identity": {
+    "gpu": "g",
+    "model": "m",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "v"
+  },
+  "messages": {
+    "EXECUTION_APPROVAL_ABSENT": "manifest has no execution_approval or approved propagation_authorization block"
+  },
+  "mode": "experimental",
+  "propagation_scope": null,
+  "reason_codes": [
+    "EXECUTION_APPROVAL_ABSENT"
+  ],
+  "schema_version": 1,
+  "task_class": "harness_change"
+}

@@ -1,0 +1,1 @@
+[authorize] tripwire SKIPPED (--repo-root /tmp/parity-o-PG-cg-authorize-absent-2567554-1794814007396192549/w is not this file's repo /tmp/parity-o-PG-cg-authorize-absent-2567554-1794814007396192549 — clean-checkout export); pre-side-effect tripwires NOT run

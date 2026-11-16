@@ -1,0 +1,8 @@
+dn-noargs
+dn-help	--help
+dn-h-extra	-h --self-test
+dn-bogus	--bogus
+dn-selftest	--self-test
+dn-abbrev	--self
+dn-explicit	--self-test=1
+dn-positional	extra

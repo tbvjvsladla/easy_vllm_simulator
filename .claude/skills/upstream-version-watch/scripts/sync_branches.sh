@@ -338,16 +338,17 @@ if [ "$HAVE_MANIFEST" -eq 1 ]; then
     esac
 fi
 
-if ! command -v python3 >/dev/null 2>&1; then
-    echo "[sync-branches] FAIL: python3 를 찾을 수 없어 completion_gate.py authorize 를 실행할 수 없습니다." >&2
+# 게이트 = Rust completion_gate 런처(.claude/rust/policy-gate · 실행파일 부재 = 런처가 exit 2 + 빌드 안내, Python 폴백 없음).
+GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.sh"
+if [ ! -f "$GATE_SCRIPT" ]; then
+    echo "[sync-branches] FAIL: completion_gate 런처가 없어 authorize 를 실행할 수 없습니다: $GATE_SCRIPT" >&2
     exit 2
 fi
 
 cd "$REPO_ROOT"
 
 # ── side-effect 인가 게이트: 소스 브랜치 검증·경로 열거·git diff·git checkout 이전에 동기 호출 ──
-GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.py"
-gate_cmd=(python3 "$GATE_SCRIPT" authorize --action sync_branches --repo-root "$REPO_ROOT")
+gate_cmd=(bash "$GATE_SCRIPT" authorize --action sync_branches --repo-root "$REPO_ROOT")
 if [ "$HAVE_MANIFEST" -eq 1 ]; then
     gate_cmd+=(--manifest "$RESOLVED_MANIFEST")
 fi

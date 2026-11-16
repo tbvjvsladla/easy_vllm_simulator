@@ -1,0 +1,13 @@
+usage: completion_gate.py authorize [-h] --manifest MANIFEST --mode
+                                    {experimental,promotion} --action
+                                    {sync_to_sub,sync_branches,hint_finalize,hint_verify,hint_push}
+                                    [--repo-root REPO_ROOT]
+
+options:
+  -h, --help            show this help message and exit
+  --manifest MANIFEST   path to a work-manifest JSON file
+  --mode {experimental,promotion}
+  --action {sync_to_sub,sync_branches,hint_finalize,hint_verify,hint_push}
+  --repo-root REPO_ROOT
+                        override repo root detection (bypasses .git lookup --
+                        for hermetic tests)

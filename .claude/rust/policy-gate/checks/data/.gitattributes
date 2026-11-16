@@ -1,0 +1,3 @@
+# Golden fixtures are byte-exact inputs/outputs of the original completion_gate.py / doc_naming.py (one fixture,
+# cg/fx/docs/edge.md, carries CRLF line ends on purpose): no end-of-line normalisation under this directory.
+* -text

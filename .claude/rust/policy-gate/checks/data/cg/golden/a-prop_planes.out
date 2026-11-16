@@ -1,0 +1,24 @@
+{
+  "action": "sync_to_sub",
+  "allowed": false,
+  "authorization_state": null,
+  "exit_code": 2,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {
+    "PROPAGATION_AUTHORIZATION_PLANES_INVALID": "planes must be canonical for topology"
+  },
+  "mode": "experimental",
+  "propagation_scope": null,
+  "reason_codes": [
+    "PROPAGATION_AUTHORIZATION_PLANES_INVALID"
+  ],
+  "schema_version": 1,
+  "task_class": "harness_change"
+}

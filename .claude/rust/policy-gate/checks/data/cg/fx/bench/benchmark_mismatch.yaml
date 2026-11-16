@@ -1,0 +1,7 @@
+model: other
+gpu_model: X
+vllm_version: 0.1
+quantization: bf16
+topology: multi
+tensor_parallel_size: two
+verdict: PASS

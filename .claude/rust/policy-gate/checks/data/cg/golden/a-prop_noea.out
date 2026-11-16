@@ -1,0 +1,24 @@
+{
+  "action": "sync_to_sub",
+  "allowed": false,
+  "authorization_state": null,
+  "exit_code": 1,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {
+    "PROPAGATION_AUTHORIZATION_EXECUTION_APPROVAL_ABSENT": "propagation_authorization requires a verified execution_approval"
+  },
+  "mode": "experimental",
+  "propagation_scope": null,
+  "reason_codes": [
+    "PROPAGATION_AUTHORIZATION_EXECUTION_APPROVAL_ABSENT"
+  ],
+  "schema_version": 1,
+  "task_class": "harness_change"
+}

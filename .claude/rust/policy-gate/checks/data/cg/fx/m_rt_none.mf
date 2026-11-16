@@ -1,0 +1,1 @@
+{"schema_version":1,"identity":{"model":"m","gpu":"NVIDIA GB10","vllm":"0.31.0","quant":"nvfp4","topology":"single","tp":1},"task_class":"model_serving_strategy","evidence":{},"pii_scan":{"passed":true}}

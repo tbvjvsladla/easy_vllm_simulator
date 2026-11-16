@@ -1,0 +1,7 @@
+usage: doc_naming.py [-h] [--self-test]
+
+doc_naming.py -- Python shim over the naming SSOTs
+
+options:
+  -h, --help   show this help message and exit
+  --self-test

@@ -1,0 +1,20 @@
+{
+  "action": "sync_branches",
+  "allowed": true,
+  "authorization_state": "execution-approved",
+  "exit_code": 0,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {},
+  "mode": "experimental",
+  "propagation_scope": null,
+  "reason_codes": [],
+  "schema_version": 1,
+  "task_class": "harness_change"
+}

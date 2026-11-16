@@ -1,0 +1,31 @@
+[package]
+name = "policy-gate"
+version = "0.1.0"
+edition = "2021"
+description = "Rust port of .claude/policies/runtime/completion_gate.py (verify/authorize completion gate) and doc_naming.py (naming shim over wiki-desk doc_naming.ts + the bench naming owner)"
+publish = false
+# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
+autotests = false
+
+[lib]
+name = "policy_gate"
+path = "src/lib.rs"
+
+[[bin]]
+name = "completion_gate"
+path = "src/bin/completion_gate.rs"
+
+[[bin]]
+name = "doc_naming"
+path = "src/bin/doc_naming.rs"
+
+[[test]]
+name = "golden_checks"
+path = "checks/golden_checks.rs"
+
+[dependencies]
+# Python-compatible JSON values, repr, str semantics and the Draft-07-subset schema engine (local path dependency).
+agent-runtime-support = { path = "../runtime-support" }
+num-bigint = "0.4"
+sha2 = "=0.10.9"
+libc = "=0.2.191"

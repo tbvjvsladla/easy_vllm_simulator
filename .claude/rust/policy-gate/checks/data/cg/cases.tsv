@@ -1,0 +1,105 @@
+cli-noargs	
+cli-help	--help
+cli-verify-help	verify -h
+cli-authorize-help	authorize --help
+cli-badcmd	frob
+cli-unrec	verify --manifest fx/m_harness.mf --bogus x
+cli-missing	authorize --manifest fx/a_ok.mf
+cli-badmode	authorize --manifest x --mode bad --action sync_to_sub
+cli-badaction	authorize --manifest x --mode experimental --action push
+cli-ambig	authorize --m x
+cli-abbrev	verify --man fx/nofile.mf --rep fx
+cli-expect	verify --manifest
+cli-explicit-empty	verify --manifest= --repo-root fx
+cli-help-explicit	--help=x
+cli-dd	-- verify
+cli-auth-unrec	authorize --manifest fx/a_ok.mf --mode experimental --action sync_branches extra
+v-notfound	verify --manifest fx/none.mf --repo-root fx
+v-isdir	verify --manifest fx/docs --repo-root fx
+v-dotslash	verify --manifest ./fx//none.mf/ --repo-root fx
+v-badroot	verify --manifest fx/m_harness.mf --repo-root fx/nonexistent
+v-abs	verify --manifest fx/m_abs.mf --repo-root fx
+v-audit_empty	verify --manifest fx/m_audit_empty.mf --repo-root fx
+v-audit	verify --manifest fx/m_audit.mf --repo-root fx
+v-badjson	verify --manifest fx/m_badjson.mf --repo-root fx
+v-cap_bad	verify --manifest fx/m_cap_bad.mf --repo-root fx
+v-cap	verify --manifest fx/m_cap.mf --repo-root fx
+v-cap_noor	verify --manifest fx/m_cap_noor.mf --repo-root fx
+v-cap_ok	verify --manifest fx/m_cap_ok.mf --repo-root fx
+v-certnopass	verify --manifest fx/m_certnopass.mf --repo-root fx
+v-edge	verify --manifest fx/m_edge.mf --repo-root fx
+v-escape	verify --manifest fx/m_escape.mf --repo-root fx
+v-explore	verify --manifest fx/m_explore.mf --repo-root fx
+v-explore_unmet	verify --manifest fx/m_explore_unmet.mf --repo-root fx
+v-full_bad	verify --manifest fx/m_full_bad.mf --repo-root fx
+v-full_disagree	verify --manifest fx/m_full_disagree.mf --repo-root fx
+v-full_dup	verify --manifest fx/m_full_dup.mf --repo-root fx
+v-full_mismatch	verify --manifest fx/m_full_mismatch.mf --repo-root fx
+v-full_nocert	verify --manifest fx/m_full_nocert.mf --repo-root fx
+v-full_pass	verify --manifest fx/m_full_pass.mf --repo-root fx
+v-full_unparse	verify --manifest fx/m_full_unparse.mf --repo-root fx
+v-harness	verify --manifest fx/m_harness.mf --repo-root fx
+v-harness_trial	verify --manifest fx/m_harness_trial.mf --repo-root fx
+v-links	verify --manifest fx/m_links.mf --repo-root fx
+v-list	verify --manifest fx/m_list.mf --repo-root fx
+v-lite_in_full	verify --manifest fx/m_lite_in_full.mf --repo-root fx
+v-map_full	verify --manifest fx/m_map_full.mf --repo-root fx
+v-map	verify --manifest fx/m_map.mf --repo-root fx
+v-map_nocert	verify --manifest fx/m_map_nocert.mf --repo-root fx
+v-minor	verify --manifest fx/m_minor.mf --repo-root fx
+v-modelite	verify --manifest fx/m_modelite.mf --repo-root fx
+v-nomode	verify --manifest fx/m_nomode.mf --repo-root fx
+v-noverdict	verify --manifest fx/m_noverdict.mf --repo-root fx
+v-num1	verify --manifest fx/m_num1.mf --repo-root fx
+v-num2	verify --manifest fx/m_num2.mf --repo-root fx
+v-num3	verify --manifest fx/m_num3.mf --repo-root fx
+v-obs_claim	verify --manifest fx/m_obs_claim.mf --repo-root fx
+v-obs	verify --manifest fx/m_obs.mf --repo-root fx
+v-obs_uncorr	verify --manifest fx/m_obs_uncorr.mf --repo-root fx
+v-pii_exempt	verify --manifest fx/m_pii_exempt.mf --repo-root fx
+v-refute_bad	verify --manifest fx/m_refute_bad.mf --repo-root fx
+v-refute_ok	verify --manifest fx/m_refute_ok.mf --repo-root fx
+v-rt_idmis	verify --manifest fx/m_rt_idmis.mf --repo-root fx
+v-rt_noid	verify --manifest fx/m_rt_noid.mf --repo-root fx
+v-rt_none	verify --manifest fx/m_rt_none.mf --repo-root fx
+v-rt_oom	verify --manifest fx/m_rt_oom.mf --repo-root fx
+v-rt_smoke	verify --manifest fx/m_rt_smoke.mf --repo-root fx
+v-rt_unhealthy	verify --manifest fx/m_rt_unhealthy.mf --repo-root fx
+v-schema	verify --manifest fx/m_schema.mf --repo-root fx
+v-sim_empty	verify --manifest fx/m_sim_empty.mf --repo-root fx
+v-sim_file	verify --manifest fx/m_sim_file.mf --repo-root fx
+v-sim_none	verify --manifest fx/m_sim_none.mf --repo-root fx
+v-unknown_class	verify --manifest fx/m_unknown_class.mf --repo-root fx
+v-weak_dup	verify --manifest fx/m_weak_dup.mf --repo-root fx
+v-weak_uncorr	verify --manifest fx/m_weak_uncorr.mf --repo-root fx
+a-abs	authorize --manifest fx/a_abs.mf --mode experimental --action sync_branches --repo-root fx
+a-atoms	authorize --manifest fx/a_atoms.mf --mode experimental --action sync_branches --repo-root fx
+a-digest	authorize --manifest fx/a_digest.mf --mode experimental --action sync_branches --repo-root fx
+a-dupsec	authorize --manifest fx/a_dupsec.mf --mode experimental --action sync_branches --repo-root fx
+a-mismatch	authorize --manifest fx/a_mismatch.mf --mode experimental --action sync_branches --repo-root fx
+a-noapproval	authorize --manifest fx/a_noapproval.mf --mode experimental --action sync_branches --repo-root fx
+a-notapproved	authorize --manifest fx/a_notapproved.mf --mode experimental --action sync_branches --repo-root fx
+a-ok	authorize --manifest fx/a_ok.mf --mode experimental --action sync_branches --repo-root fx
+a-planescape	authorize --manifest fx/a_planescape.mf --mode experimental --action sync_branches --repo-root fx
+a-planmissing	authorize --manifest fx/a_planmissing.mf --mode experimental --action sync_branches --repo-root fx
+a-prop_atoms	authorize --manifest fx/a_prop_atoms.mf --mode experimental --action sync_to_sub --repo-root fx
+a-prop_baddir	authorize --manifest fx/a_prop_baddir.mf --mode experimental --action sync_to_sub --repo-root fx
+a-prop_badhost	authorize --manifest fx/a_prop_badhost.mf --mode experimental --action sync_to_sub --repo-root fx
+a-prop_badnode	authorize --manifest fx/a_prop_badnode.mf --mode experimental --action sync_to_sub --repo-root fx
+a-prop_badts	authorize --manifest fx/a_prop_badts.mf --mode experimental --action sync_to_sub --repo-root fx
+a-prop_noea	authorize --manifest fx/a_prop_noea.mf --mode experimental --action sync_to_sub --repo-root fx
+a-prop_ok	authorize --manifest fx/a_prop_ok.mf --mode experimental --action sync_to_sub --repo-root fx
+a-prop_planes	authorize --manifest fx/a_prop_planes.mf --mode experimental --action sync_to_sub --repo-root fx
+a-prop_tsmis	authorize --manifest fx/a_prop_tsmis.mf --mode experimental --action sync_to_sub --repo-root fx
+a-section	authorize --manifest fx/a_section.mf --mode experimental --action sync_branches --repo-root fx
+a-ts_frac	authorize --manifest fx/a_ts_frac.mf --mode experimental --action sync_branches --repo-root fx
+a-ts	authorize --manifest fx/a_ts.mf --mode experimental --action sync_branches --repo-root fx
+a-ok-notallowed	authorize --manifest fx/a_ok.mf --mode experimental --action hint_push --repo-root fx
+a-prop-as-branches	authorize --manifest fx/a_prop_ok.mf --mode experimental --action sync_branches --repo-root fx
+a-badjson	authorize --manifest fx/m_badjson.mf --mode experimental --action sync_branches --repo-root fx
+a-schema	authorize --manifest fx/m_schema.mf --mode experimental --action sync_branches --repo-root fx
+p-full-pass	authorize --manifest fx/m_full_pass.mf --mode promotion --action hint_finalize --repo-root fx
+p-harness	authorize --manifest fx/m_harness.mf --mode promotion --action sync_branches --repo-root fx
+p-list	authorize --manifest fx/m_list.mf --mode promotion --action sync_branches --repo-root fx
+p-notfound	authorize --manifest fx/none.mf --mode promotion --action sync_branches --repo-root fx
+p-explore	authorize --manifest fx/m_explore.mf --mode promotion --action hint_verify --repo-root fx

@@ -119,7 +119,7 @@ fi
 # Gate location is immutable and derived from this script, never from caller-controlled SRC.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 IJ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/inline_json.sh"   # JSON 소형 판독기(Rust ELF 런처) — 인라인 python3 대체
-GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.py"
+GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.sh"   # Rust gate launcher (.claude/rust/policy-gate)
 
 # ── 배달 통로 ↔ 체크아웃 특화층 가드 (2026-09-14 · ⑧-pre D2 S6 · policy:BRANCH_CONSTITUTION_LAYERING C5 "delivery entry") ──
 # 왜: 이 배달은 **체크아웃의 인덱스**를 렌더해 서브의 `--branch` 브랜치에 박는다. 그런데 `--branch` 와 체크아웃이
@@ -192,7 +192,7 @@ if [ "$HAVE_MANIFEST" -eq 1 ]; then
     esac
 fi
 
-gate_cmd=(python3 "$GATE_SCRIPT" authorize --action sync_to_sub --repo-root "$REPO_ROOT")
+gate_cmd=(bash "$GATE_SCRIPT" authorize --action sync_to_sub --repo-root "$REPO_ROOT")
 [ "$HAVE_MANIFEST" -eq 0 ] || gate_cmd+=(--manifest "$RESOLVED_MANIFEST")
 [ "$HAVE_MODE" -eq 0 ] || gate_cmd+=(--mode "$GATE_MODE")
 if gate_stdout="$("${gate_cmd[@]}")"; then gate_exit=0; else gate_exit=$?; fi

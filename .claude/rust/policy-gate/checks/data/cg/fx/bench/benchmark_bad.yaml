@@ -1,0 +1,15 @@
+schema_version: 1
+record_type: benchmark_certificate
+model: m
+gpu_model: "NVIDIA GB10"
+vllm_version: 0.31.0
+quantization: nvfp4
+topology: single
+tensor_parallel_size: 1
+verdict: FAIL
+benchmark_mode: weird
+measured_utc: "2026-11-16T01:00:00Z"
+floor_tps: 0
+ratio_M_over_primary: nan
+primary_source: N/A
+rubric_authority: bogus

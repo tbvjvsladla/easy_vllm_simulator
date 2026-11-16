@@ -1,0 +1,75 @@
+{
+  "certificate": null,
+  "checked_evidence": {
+    "bench_report": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/br_none.md",
+      "required": true,
+      "sha256": "11bf548d345359331ee4e35ea5b74c6e2510d885a3623d9106b3788627b655a6",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "devlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/devlog.md",
+      "required": true,
+      "sha256": "4842198b2c77f304e39154c10ca3b3651c2af556f82987a2eed201c131a9ee55",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "plan": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/plan.md",
+      "required": true,
+      "sha256": "82e5adb594bd210b32af3c82fc563b881a942e8eb7fe0487b4e7ac29619c03ee",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "simlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "sim/bench",
+      "required": true,
+      "sha256": null,
+      "tree_sha256": "0a17c764b36e3e492365a6940dff933e5332e4b65d12b1ac06933337e91cff38",
+      "type": "dir"
+    },
+    "testlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/testlog.md",
+      "required": true,
+      "sha256": "1344de4f31b5fe384e9748f7ce3c55e6e00bdf6e82a79d4023ce3121ed90dfc4",
+      "tree_sha256": null,
+      "type": "file"
+    }
+  },
+  "eligible_for_promotion": false,
+  "exit_code": 1,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {
+    "BENCHMARK_OBSERVATION_ONLY_UNCORROBORATED": "benchmark.verdict='OBSERVATION-ONLY' 인데 bench_report 판정 표가 루브릭 부재('NEEDS_RUBRIC')를 말하지 않는다(state=absent(판정 절 없음), table=None) — 관측 전용의 근거가 서지 않는다"
+  },
+  "reason_codes": [
+    "BENCHMARK_OBSERVATION_ONLY_UNCORROBORATED"
+  ],
+  "rubric": null,
+  "schema_version": 1,
+  "state": "runtime-ready",
+  "task_class": "full_benchmark"
+}

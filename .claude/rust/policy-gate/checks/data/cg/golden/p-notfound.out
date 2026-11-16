@@ -1,0 +1,19 @@
+{
+  "action": "sync_branches",
+  "allowed": false,
+  "authorization_state": null,
+  "exit_code": 2,
+  "identity": null,
+  "messages": {
+    "MANIFEST_FILE_NOT_FOUND": "manifest file not found: fx/none.mf",
+    "PROMOTION_GATE_INVALID_MANIFEST": "underlying verify evaluation reported invalid input -- see other reason codes for detail"
+  },
+  "mode": "promotion",
+  "propagation_scope": null,
+  "reason_codes": [
+    "MANIFEST_FILE_NOT_FOUND",
+    "PROMOTION_GATE_INVALID_MANIFEST"
+  ],
+  "schema_version": 1,
+  "task_class": null
+}
