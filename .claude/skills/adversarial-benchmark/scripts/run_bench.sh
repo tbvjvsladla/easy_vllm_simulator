@@ -258,8 +258,10 @@ bench_with_vllm(){
   local RFN="ab_bench_${CONFIG}.json"
   if [ "$SERVE_PLANE" = "docker" ]; then
     echo "[run_bench] bench(vllm/docker): ctr=$CTR inport=$INPORT model=$MODEL_NAME conc=$CONC in=$ILEN out=$OLEN n=$NPROMPTS warmup=$WARMUPS backend=$BACKEND endpoint=$ENDPOINT"
+    # 컨테이너 **안**에서 도는 클라이언트다 — 호스트 포트($PORT)가 아니라 컨테이너 포트($INPORT)로 붙는다.
+    #   (2026-11-16: yaml port 에 호스트 포트를 넣던 생성기 결함 F1 이 컨테이너를 호스트 포트로 리슨시켜 이 경로를 가려 왔다)
     docker exec "$CTR" bash -lc "cd /tmp && vllm bench serve \
-    --backend $BACKEND --base-url $BASE_URL --endpoint $ENDPOINT \
+    --backend $BACKEND --base-url http://localhost:$INPORT --endpoint $ENDPOINT \
     --model '$MODEL_NAME' --tokenizer '$MODEL_PATH' --trust-remote-code \
     --dataset-name random --random-input-len $ILEN --random-output-len $OLEN --random-range-ratio 0 \
     --num-prompts $NPROMPTS --max-concurrency $CONC --request-rate inf --ignore-eos --num-warmups $WARMUPS --temperature 0 \
