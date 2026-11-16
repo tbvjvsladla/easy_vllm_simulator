@@ -258,7 +258,11 @@ if git -C "$WT" diff --cached --quiet && git -C "$WT" diff --quiet; then
     echo "[closing]   반대 브랜치에 옮길 변경 없음"
 else
     git -C "$WT" add -A
-    git -C "$WT" commit -q -m "sync: 공통층 $CUR→$OTHER (closing_sequence)"
+    # 워크트리에는 비추적 target/ 가 없다 — pre-commit 훅이 부르는 두 런처의 ELF 를 이 체크아웃의 빌드로 가리킨다
+    # (2026-11-17 실측: 그대로 커밋하면 훅 tripwire 가 'Rust 실행파일이 없다' 로 거부 · 우회 ✗ · Python 폴백 ✗).
+    RUNTIME_SELFTEST_BIN="${RUNTIME_SELFTEST_BIN:-$REPO/.claude/rust/policy-selftest/target/release/runtime_selftest}" \
+    PY_BOUNDARY_GUARD_BIN="${PY_BOUNDARY_GUARD_BIN:-$REPO/.claude/rust/py-boundary-guard/target/release/py_boundary_guard}" \
+        git -C "$WT" commit -q -m "sync: 공통층 $CUR→$OTHER (closing_sequence)"
     echo "[closing]   동기화 커밋: $(git -C "$WT" rev-parse --short HEAD)"
 fi
 "$LEDGER" merge --repo "$REPO" --from-ref "$OTHER" >/dev/null 2>&1 || true
