@@ -1,7 +1,6 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python3 .claude/skills/terraforming_node/scripts/relay.py *)",
       "Bash(bash .claude/skills/upstream-version-watch/scripts/fetch_sub_docs.sh *)",
       "Bash(bash .claude/skills/terraforming_node/scripts/relay.sh *)"
     ]
