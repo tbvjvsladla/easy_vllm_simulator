@@ -18185,6 +18185,23 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-202611162223-single-to-multi-settings",
+      "utc": "2026-11-16T22:23:40Z",
+      "departure": "single-node",
+      "departure_commit": "9a3f9ebde4d3bdb337af16b716cf7fe1617b0310",
+      "approved_by": "AhnSangHun: 종료 시퀀스 ③ 승인 팝업 \"승인\" (2026-11-16T22:23:40Z)",
+      "approved_utc": "2026-11-16T22:23:40Z",
+      "_reach": "multi-node vs HEAD 트리차이 · 동기 지점 8c397d631093(departure-landed)",
+      "classification": [
+        {
+          "file": ".claude/settings.json",
+          "verdict": "common_promote",
+          "reason": "은퇴한 relay.py 허용 규칙 제거(사람 설치 호출자 평면) — 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
