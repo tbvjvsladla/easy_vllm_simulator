@@ -1742,6 +1742,12 @@ RUNTIME_BLOCK_OWNED_ROOTS=(
     .claude/schemas
     .agents/skills
     .codex
+    # ★ 2026-11-17(plan_26111615 P6): 하네스 Rust 이식으로 서브가 crate 소스(`.claude/rust/**`)를 받고,
+    #   blackbox 런처는 render_sub_env 가 `.claude/runtime/node_blackbox/` 에 둔다. 두 루트가 여기 없어서
+    #   그 아래 옛 `.py`(parity shim 10 · gen_yaml_sites · sub_na · blackbox 10 = 22건)가 잔재 리포트·은퇴
+    #   모두에서 **구조적으로 보이지 않았다**. 노드-로컬 빌드(`target/`)는 비추적이라 대상이 아니다.
+    .claude/rust
+    .claude/runtime/node_blackbox
 )
 # 메인 `.gitignore` 가 비추적으로 선언하지만 **서브가 저작한 적이 없는** 경로(닫힌 목록 · tripwire).
 #   `drop_node_local_paths` 의 전제("메인에도 그 노드의 사본이 있다 = 노드-로컬")가 여기서는 거짓이다 —
@@ -1869,7 +1875,14 @@ _derive_runtime_block_residue() {   # $1=topology $2=staging → stdout=경로 �
         sub_list="$(sub_run "git -c core.quotePath=false ls-tree -r --name-only '$t' -- '$root' 2>/dev/null | LC_ALL=C sort" < /dev/null || true)"
         [ -n "$sub_list" ] || continue
         extra="$(LC_ALL=C comm -13 <(printf '%s\n' "$canon" | grep -v '^$') <(printf '%s\n' "$sub_list") || true)"
-        extra="$(printf '%s\n' "$extra" | grep -v '^$' | drop_node_local_paths "$st" || true)"
+        # 렌더 배달 루트(메인 .gitignore 로는 비추적이지만 정본 스테이징이 그 자리에 파일을 둔다)는 노드-로컬 필터를
+        #   타지 않는다 — 노드-로컬 판정의 전제("메인에도 같은 자리에 비추적 사본이 있다")가 거짓이다.
+        #   판정은 손목록이 아니라 스테이징 실재(canon 비어 있지 않음)에서 파생한다(2026-11-17 · blackbox 옛 .py 10건).
+        if [ -n "$canon" ] && git -C "$REPO_ROOT" check-ignore -q "$root/" 2>/dev/null; then
+            :
+        else
+            extra="$(printf '%s\n' "$extra" | grep -v '^$' | drop_node_local_paths "$st" || true)"
+        fi
         [ -n "$extra" ] && all="${all}${extra}"$'\n'
     done
     printf '%s' "$all" | grep -v '^$' || true
