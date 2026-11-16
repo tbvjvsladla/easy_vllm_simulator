@@ -1,0 +1,4 @@
+[campaign_template_validator] FAIL (3)
+  - campaign.yaml: ('SCHEMA_MISSING_REQUIRED_KEY:topology_sections', 'topology_sections: required property is missing')
+  - campaign.yaml: ('SCHEMA_MISSING_REQUIRED_KEY:topology_sections', 'topology_sections: required property is missing')
+  - P3 main: campaign.yaml 이 선언한 노드인데 phases/main/ 가 없다 — '안 돌았다'와 '돌았는데 아무도 안 적었다'가 구분되지 않는다

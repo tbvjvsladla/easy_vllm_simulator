@@ -16,7 +16,8 @@ use std::collections::BTreeMap;
 const BATCH_DERIVED: [&str; 2] = ["declared-requirement", "kv-fit-measured"];
 const KV_DERIVED: [&str; 1] = ["measured-clamp"];
 const GIB: f64 = 1073741824.0;
-const VOCAB_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_template_validator.py";
+// The vocabulary owner is the native campaign validator (the retired campaign_template_validator.py held the same tables).
+const VOCAB_REL: &str = ".claude/skills/adversarial-benchmark/rust/src/campaign_validator.rs";
 
 /// What ends the run early: a `_die` or a bare process exit (text already formatted for stderr).
 pub enum Stop {
@@ -125,13 +126,13 @@ fn lockset_vocab(root: &PyStr) -> Step<Vocab> {
         Some(text[at..at + end].to_string())
     };
     let missing = |name: &str| die(5, &format!("lockset 출처 어휘의 소유자({})에 {} 가 없다 — 옛 판 검증기다(explorer 와 캠페인 도구가 같은 배달로 수렴하지 않았다). explorer 는 어휘 없이 각인하지 않는다 — 메인이면 저장소를 확인하고, explorer 가 tool_plane 으로 열린 서브면 메인이 두 파일을 함께 재배달한다.", VOCAB_REL, name));
-    let prov = section("LOCKSET_PROVENANCE = (", ")").ok_or_else(|| missing("LOCKSET_PROVENANCE"))?;
-    let knobs_text = section("LOCKSET_KNOB_SOURCES = {", "\n}").ok_or_else(|| missing("LOCKSET_KNOB_SOURCES"))?;
+    let prov = section("pub const LOCKSET_PROVENANCE: [&str; 2] = [", "]").ok_or_else(|| missing("LOCKSET_PROVENANCE"))?;
+    let knobs_text = section("pub const KNOB_SOURCES: [(&str, &[&str]); 3] = [", "\n];").ok_or_else(|| missing("KNOB_SOURCES"))?;
     let mut knobs = BTreeMap::new();
     for line in knobs_text.lines() {
-        if let Some(at) = line.find("\": (") {
-            let key = line[..at].trim().trim_start_matches('"').to_string();
-            knobs.insert(key, quoted(&line[at + 3..]));
+        if let Some(at) = line.find("\", &[") {
+            let key = line[..at].trim().trim_start_matches('(').trim_start_matches('"').to_string();
+            knobs.insert(key, quoted(&line[at + 4..]));
         }
     }
     Ok(Vocab { provenance: quoted(&prov), knobs })

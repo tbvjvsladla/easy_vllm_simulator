@@ -24,7 +24,7 @@ const PRECHECK: &str = env!("CARGO_BIN_EXE_selftest_broad_search_precheck");
 const CELL_ARGS_NAME: &str = "selftest_broad_search_cell_args";
 const PRECHECK_NAME: &str = "selftest_broad_search_precheck";
 const BROAD_SEARCH: &str = ".claude/skills/adversarial-benchmark/scripts/broad_search.sh";
-const CAMPAIGN_INIT: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py";
+const CAMPAIGN_INIT: &str = ".claude/skills/terraforming_node/scripts/campaign_init.sh";
 const LOCKSET_TEMPLATE: &str = "campaigns/_template/cells/_cell/lockset.json";
 const RELEASE_DIR: &str = ".claude/skills/adversarial-benchmark/rust/target/release/";
 

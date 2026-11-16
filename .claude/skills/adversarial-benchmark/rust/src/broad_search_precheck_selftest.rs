@@ -51,7 +51,7 @@ use std::path::{Path, PathBuf};
 pub const PROGRAM: &str = "selftest_broad_search_precheck";
 
 /// The deployed files the checkout needs, at their repository-relative paths.
-pub(crate) const COPIES: [&str; 29] = [
+pub(crate) const COPIES: [&str; 27] = [
     ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell_api.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell",
@@ -65,10 +65,8 @@ pub(crate) const COPIES: [&str; 29] = [
     ".claude/skills/adversarial-benchmark/rust/target/release/bench_shell",
     ".claude/skills/adversarial-benchmark/scripts/sweep_stop.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/sweep_stop",
-    ".claude/skills/terraforming_node/scripts/campaign_init.py",
     ".claude/skills/terraforming_node/scripts/campaign_init.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/campaign_init",
-    ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
     // 반복 축 소유자(2026-09-14 · plan_26091407 §4.4) — init 이 declared_budget.repeats 를 여기서 파생하고
     // 정지 평가기·분류기가 full 정의 하한을 여기서 읽는다. 사본에 없으면 init 이 스윕을 열지 않는다(fail-closed).
     ".claude/skills/adversarial-benchmark/scripts/repeat_axis.sh",
@@ -93,9 +91,7 @@ const NEVER_COPIED: [&str; 2] = [
     ".claude/skills/adversarial-benchmark/scripts/judge_bench.sh",
 ];
 
-const CAMPAIGN_INIT: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py";
-const TEMPLATE_VALIDATOR: &str =
-    ".claude/skills/terraforming_node/scripts/campaign_template_validator.py";
+const CAMPAIGN_INIT: &str = ".claude/skills/terraforming_node/scripts/campaign_init.sh";
 const LOCKSET_TEMPLATE: &str = "campaigns/_template/cells/_cell/lockset.json";
 
 /// One sweep state file of the checkout.
@@ -271,6 +267,20 @@ fn while_removed(
     let bytes = read_bytes(path)?;
     unlink_if_present(marker)?;
     unlink(path)?;
+    let outcome = body();
+    write_bytes(path, &bytes)?;
+    outcome
+}
+
+fn while_replaced(
+    path: &Path,
+    replacement: &[u8],
+    marker: &Path,
+    body: impl FnOnce() -> Result<(), Raised>,
+) -> Result<(), Raised> {
+    let bytes = read_bytes(path)?;
+    unlink_if_present(marker)?;
+    write_bytes(path, replacement)?;
     let outcome = body();
     write_bytes(path, &bytes)?;
     outcome
@@ -488,7 +498,7 @@ fn run_cases(
         let sweep = init_state(driver, CAMPAIGN, "j")?;
         let run = run_cell(driver, &sweep, &["--confirm-risk"])?;
         checks.check(
-            "J 판정자(campaign_init.py) 부재 → exit 2 · health 프로브 전(부재를 통과로 접지 않는다)",
+            "J 판정자(campaign_init) 부재 → exit 2 · health 프로브 전(부재를 통과로 접지 않는다)",
             run.status == 2
                 && run.stderr.contains("판정자 부재")
                 && !exists(&marker)?
@@ -498,13 +508,22 @@ fn run_cases(
         )
     })?;
 
-    // K — the validator is absent: the judge runs but cannot judge (rc 1, empty stdout). Calling it a provenance
+    // K — the judge runs but cannot judge (rc 1, empty stdout: what a missing validator or an exception used to give; the
+    // validator is now built into the judge, so a stand-in judge that fails that way is used). Calling it a provenance
     // problem would make an operator overwrite the lockset with a false label, so the classification must differ.
-    while_removed(&checkout.root().join(TEMPLATE_VALIDATOR), &marker, || {
+    // The stand-in fails only the precheck question (rc 1, empty stdout); every other campaign question reaches the real
+    // launcher, kept beside it as `campaign_init.real.sh` for the duration of the case.
+    let real = checkout.root().join(CAMPAIGN_INIT).with_file_name("campaign_init.real.sh");
+    write_bytes(&real, &read_bytes(&checkout.root().join(CAMPAIGN_INIT))?)?;
+    let stand_in = format!(
+        "#!/bin/bash\ncase \" $* \" in *\" --lockset-precheck \"*) exit 1 ;; esac\nexec bash {} \"$@\"\n",
+        crate::pystr::PyStr::new(&real.to_string_lossy()).repr()
+    );
+    let k_outcome = while_replaced(&checkout.root().join(CAMPAIGN_INIT), stand_in.as_bytes(), &marker, || {
         let sweep = init_state(driver, CAMPAIGN, "k")?;
         let run = run_cell(driver, &sweep, &["--confirm-risk"])?;
         checks.check(
-            "K 검증기 부재 → exit 2 '판정 불가' · health 프로브 전",
+            "K 판정자가 판정하지 못함(rc 1 · 빈 출력) → exit 2 '판정 불가' · health 프로브 전",
             run.status == 2 && run.stderr.contains("판정 불가") && !exists(&marker)?,
             &format!(
                 "rc={} marker={} {}",
@@ -519,7 +538,9 @@ fn run_cases(
                 && !run.stderr.contains("precheck 거부"),
             &tail(&run.stderr, 400),
         )
-    })?;
+    });
+    unlink(&real)?;
+    k_outcome?;
 
     // L — a pointer gone invalid (typo, purge leftover) while the state file lives inside a campaign: losing the
     // pointer must not open the campaign cell's gate, so the state file's campaign decides.

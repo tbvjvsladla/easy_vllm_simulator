@@ -174,6 +174,8 @@ const LAUNCHER_SWITCHED: &[&str] = &[
     "terraform_relay_selftest",
     "terraform_bootstrap_canary_selftest",
     "terraform_check_sub_hint_equip_selftest",
+    // terraforming first pass (library_access ported in 3de7a246; its row was switched at the core-contracts merge).
+    "terraform_library_access_selftest",
 ];
 
 /// Golden check names that were renamed with their launcher (`upstream_help:x.py` → `upstream_help:x.sh`).

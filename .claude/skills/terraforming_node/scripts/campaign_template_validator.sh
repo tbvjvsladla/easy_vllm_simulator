@@ -1,8 +1,8 @@
 #!/bin/bash
-# `campaign_template_validator.py` through the node-local Rust executable: `--acceptance INSTANCE` (the acceptance predicates
-# P4-P6) is answered natively; every other mode (`--campaign`, `--instance`, `--template`, `--selftest`) reaches the owner
-# `campaign_template_validator.py` through the explicit compatibility route. Installation and build are explicit operations;
-# a missing executable is an explicit error, never a silent Python start.
+# `campaign_template_validator` (the retired `campaign_template_validator.py` command line) through the node-local Rust
+# executable: every shape — `--campaign`, `--instance`, `--template`, `--acceptance`, `--selftest`, `-h` and argparse's usage
+# errors — is answered natively; no shape starts Python. Installation and build are explicit operations; a missing executable
+# is an explicit error.
 set -euo pipefail
 # Self-contained: builtins only (no `dirname` is looked up in the caller's business PATH, which is never modified).
 SELF="${BASH_SOURCE[0]}"
@@ -20,12 +20,8 @@ if [ "${CAMPAIGN_VALIDATOR_VALIDATE_ONLY:-}" = 1 ]; then
   exit 0
 fi
 unset CAMPAIGN_VALIDATOR_VALIDATE_ONLY
-# The owner program is the campaign_template_validator.py beside this launcher (its location, not user intent).
+# The program path the checkout root is derived from (`parents[4]` of the retired campaign_template_validator.py beside this
+# launcher — its location, not user intent; the file itself need not exist). No interpreter variable is honoured any more.
 export CAMPAIGN_VALIDATOR_COMPAT_OWNER="${CAMPAIGN_VALIDATOR_COMPAT_OWNER:-$SDIR/campaign_template_validator.py}"
-# A caller-selected interpreter is explicit legacy intent; empty keeps the default meaning.
-if [[ -n "${CAMPAIGN_VALIDATOR_PYTHON:-}" ]]; then
-  export CAMPAIGN_VALIDATOR_PYTHON
-else
-  unset CAMPAIGN_VALIDATOR_PYTHON
-fi
+unset CAMPAIGN_VALIDATOR_PYTHON CAMPAIGN_VALIDATOR_COMPAT_PYTHON
 exec "$BIN" "$@"

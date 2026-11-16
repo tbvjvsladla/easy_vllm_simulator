@@ -426,8 +426,8 @@
      0
     ],
     "argv": [
-     "<PY>",
-     ".claude/skills/terraforming_node/scripts/scan_node_original.py",
+     "bash",
+     ".claude/skills/terraforming_node/scripts/scan_node.sh",
      "--self-test"
     ],
     "cwd": "<REPO>",
@@ -471,8 +471,8 @@
      0
     ],
     "argv": [
-     "<PY>",
-     ".claude/skills/terraforming_node/scripts/node_role_contract.py",
+     "bash",
+     ".claude/skills/terraforming_node/scripts/node_role_contract.sh",
      "--self-test"
     ],
     "cwd": "<REPO>",
@@ -516,8 +516,8 @@
      0
     ],
     "argv": [
-     "<PY>",
-     ".claude/skills/terraforming_node/scripts/manifest_contract.py",
+     "bash",
+     ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
      "--self-test"
     ],
     "cwd": "<REPO>",
@@ -606,8 +606,8 @@
      0
     ],
     "argv": [
-     "<PY>",
-     ".claude/skills/terraforming_node/scripts/turn_budget.py",
+     "bash",
+     ".claude/skills/terraforming_node/scripts/turn_budget.sh",
      "--self-test"
     ],
     "cwd": "<REPO>",

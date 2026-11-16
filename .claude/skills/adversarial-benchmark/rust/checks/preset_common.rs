@@ -8,7 +8,8 @@ use std::process::{Command, Stdio};
 use sweep_stop::pyjson::{decode_file_text, loads_text};
 use sweep_stop::pyvalue::PyValue;
 
-pub const OWNER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py";
+/// The campaign owner is its native launcher (the retired campaign_init.py may be absent).
+pub const OWNER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.sh";
 pub const SKILL_REL: &str = ".claude/skills/adversarial-benchmark";
 
 pub fn data_path(name: &str) -> PathBuf {
@@ -62,7 +63,7 @@ pub fn real_repo() -> PathBuf {
         });
     assert!(
         repo.join(OWNER_REL).is_file(),
-        "NOT_RUN: no campaign_init.py under {}",
+        "NOT_RUN: no campaign_init.sh under {}",
         repo.display()
     );
     assert!(

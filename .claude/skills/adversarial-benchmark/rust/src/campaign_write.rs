@@ -151,11 +151,33 @@ fn kind_of(name: &str) -> Option<Kind> {
 
 /// Options parsed exactly (no abbreviation, no `--opt=value`, no value that looks like an option). `None` = not exact:
 /// the owner's `argparse` decides (usage errors, abbreviations, `-h`).
+#[derive(Clone)]
 pub struct Args {
     values: BTreeMap<&'static str, Vec<String>>,
 }
 
 impl Args {
+    /// The namespace `campaign_args::parse` built (option string -> values; a flag holds one empty value).
+    pub fn from_values(values: BTreeMap<&'static str, Vec<String>>) -> Args {
+        Args { values }
+    }
+
+    /// Python truthiness of the attribute: a flag is set, a value option holds a non-empty text.
+    pub fn on(&self, name: &str) -> bool {
+        match kind_of(name) {
+            Some(Kind::Flag) => self.has(name),
+            Some(Kind::Append) => !self.all(name).is_empty(),
+            _ => self.get(name).map(|v| !v.is_empty()).unwrap_or(false),
+        }
+    }
+
+    /// `a.<name> = value` (a value option).
+    fn set(&mut self, name: &str, value: String) {
+        if let Some((known, _)) = OPTIONS.iter().find(|(n, _)| *n == name) {
+            self.values.insert(known, vec![value]);
+        }
+    }
+
     pub fn parse(argv: &[String]) -> Option<Args> {
         let mut values: BTreeMap<&'static str, Vec<String>> = BTreeMap::new();
         let mut at = 0;
@@ -218,7 +240,8 @@ impl Args {
         self.values.get(name).map(Vec::as_slice).unwrap_or(&[])
     }
 
-    fn names(&self) -> impl Iterator<Item = &&'static str> {
+    /// The option strings present on the command line (sorted).
+    pub fn names(&self) -> impl Iterator<Item = &&'static str> {
         self.values.keys()
     }
 }
@@ -1015,11 +1038,10 @@ fn writer_target(ctx: &Ctx, camp_id: Option<&str>) -> R<Option<(PathBuf, String)
 
 /// `validator()`: the owner loads the validator beside it; without that file nothing that asks for an assignment can answer.
 fn need_validator(ctx: &Ctx) -> R<()> {
-    let module = ctx.root.join(".claude/skills/terraforming_node/scripts/campaign_template_validator.py");
-    if module.is_file() {
-        return Ok(());
-    }
-    refuse(format!("검증기를 찾지 못했다: {} — 배정 규약의 소유자가 없다", ctx.rel(&module)))
+    // The validator is this program's own Rust module (`campaign_validator`), always present: the original's refusal for a
+    // missing `campaign_template_validator.py` beside it cannot occur any more.
+    let _ = ctx;
+    Ok(())
 }
 
 fn no_fill(pairs: &[(&str, &str)]) -> R<()> {
@@ -1076,11 +1098,7 @@ fn op_assigned_cells(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 
 fn op_phase_set(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     let phase = args.get("--phase-set").unwrap_or_default().to_string();
-    let Some((base, camp)) = writer_target(ctx, args.get("--campaign-id"))? else {
-        io.warn("[campaign_init] no-op — ACTIVE=_bootstrap (캠페인 밖에서는 상태를 쓰지 않는다)");
-        return Ok(0);
-    };
-    guard_writer_ops(ctx, &base, &[("phase_set", true)])?;
+    let Some((base, camp)) = progress_prelude(ctx, args, io, "phase_set")? else { return Ok(0) };
     let cell = args.get("--cell").map(str::to_string);
     let mut node = args.get("--node").map(str::to_string).filter(|n| !n.is_empty());
     if node.is_none() {
@@ -1103,7 +1121,7 @@ fn op_phase_set(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
         io.warn(&format!("[campaign_init] 서가 입고(C4) — {}", warm_start_library(ctx)?));
     }
     let path = write_phase(ctx, &base, args, &node, &phase, &state, cell.as_deref())?;
-    io.say(&format!("[campaign_init] wrote({camp}): {}", ctx.rel(&path)));
+    wrote_line(io, &camp, &[ctx.rel(&path)]);
     Ok(0)
 }
 
@@ -1217,11 +1235,7 @@ fn chain_dict<'a>(dict: &'a PyDict, key: &str) -> Option<&'a PyDict> {
 
 fn op_cell_set(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     let cell = args.get("--cell-set").unwrap_or_default().to_string();
-    let Some((base, camp)) = writer_target(ctx, args.get("--campaign-id"))? else {
-        io.warn("[campaign_init] no-op — ACTIVE=_bootstrap (캠페인 밖에서는 상태를 쓰지 않는다)");
-        return Ok(0);
-    };
-    guard_writer_ops(ctx, &base, &[("cell_set", true)])?;
+    let Some((base, camp)) = progress_prelude(ctx, args, io, "cell_set")? else { return Ok(0) };
     let Some(outcome) = args.get("--outcome").filter(|s| !s.is_empty()) else {
         return refuse("--cell-set 은 --outcome 이 필요하다");
     };
@@ -1230,7 +1244,7 @@ fn op_cell_set(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     if let Some(j) = jpath {
         wrote.push(ctx.rel(&j));
     }
-    io.say(&format!("[campaign_init] wrote({camp}): {}", wrote.join(" ")));
+    wrote_line(io, &camp, &wrote);
     Ok(0)
 }
 
@@ -2205,6 +2219,9 @@ const EVIDENCE_KINDS: [&str; 8] = [
 
 /// The shared start of the writer operations that are not progress writes: the `_bootstrap` no-op and the lifecycle guard.
 fn writer_prelude(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<Option<(PathBuf, String)>> {
+    if let Some(target) = group_target() {
+        return Ok(Some(target));
+    }
     let Some(target) = writer_target(ctx, args.get("--campaign-id"))? else {
         io.warn("[campaign_init] no-op — ACTIVE=_bootstrap (캠페인 밖에서는 상태를 쓰지 않는다)");
         return Ok(None);
@@ -2214,6 +2231,9 @@ fn writer_prelude(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<Option<(PathB
 }
 
 fn wrote_line(io: &mut Sinks<'_>, camp: &str, paths: &[String]) {
+    if group_collect(paths) {
+        return;
+    }
     io.say(&format!("[campaign_init] wrote({camp}): {}", paths.join(" ")));
 }
 
@@ -3197,7 +3217,8 @@ fn op_emit_slice(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
             ));
         }
         // carrying an approval asks the role contract whether this topology publishes by itself
-        let contract = ctx.root.join(".claude/skills/terraforming_node/scripts/node_role_contract.py");
+        // the contract program is its launcher (the retired node_role_contract.py beside it may be absent)
+        let contract = ctx.root.join(".claude/skills/terraforming_node/scripts/node_role_contract.sh");
         if !contract.is_file() {
             return refuse(format!(
                 "계약기를 찾지 못했다: {} — 파생 선언은 메인에서만 자른다",
@@ -4569,11 +4590,7 @@ const RESERVED_CELL_NAMES_W: [&str; 2] = ["_cell", "_node"];
 
 fn op_assign_set(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     let node = args.get("--assign-set").unwrap_or_default().to_string();
-    let Some((base, camp)) = writer_target(ctx, args.get("--campaign-id"))? else {
-        io.warn("[campaign_init] no-op — ACTIVE=_bootstrap (캠페인 밖에서는 상태를 쓰지 않는다)");
-        return Ok(0);
-    };
-    guard_writer_ops(ctx, &base, &[("assign_set", true)])?;
+    let Some((base, camp)) = progress_prelude(ctx, args, io, "assign_set")? else { return Ok(0) };
     let Some(spec) = args.get("--assign-cells") else {
         return refuse("--assign-set 은 --assign-cells 가 필요하다(빈 목록은 \"\" 로 명시)");
     };
@@ -4973,11 +4990,7 @@ fn load_yaml(path: &Path) -> R<Option<PyValue>> {
 
 fn op_cell_materialize(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     let cell = args.get("--cell-materialize").unwrap_or_default().to_string();
-    let Some((base, camp)) = writer_target(ctx, args.get("--campaign-id"))? else {
-        io.warn("[campaign_init] no-op — ACTIVE=_bootstrap (캠페인 밖에서는 상태를 쓰지 않는다)");
-        return Ok(0);
-    };
-    guard_writer_ops(ctx, &base, &[("cell_materialize", true)])?;
+    let Some((base, camp)) = progress_prelude(ctx, args, io, "cell_materialize")? else { return Ok(0) };
     let mut sets: Vec<(String, String)> = Vec::new();
     for kv in args.all("--set") {
         let Some((k, v)) = kv.split_once('=') else {
@@ -5247,18 +5260,13 @@ fn purge_gate_reasons(ctx: &Ctx, previous_id: &str) -> R<Vec<String>> {
             "{previous_id}: relay_summary 포인터가 없다 — 원장 원문은 휘발이므로 요약 testlog 가 없으면 왕복이 통째로 사라진다"
         ));
     }
-    let validator = ctx.root.join(".claude/skills/terraforming_node/scripts/campaign_template_validator.py");
-    if !validator.is_file() {
-        reasons.push(format!(
-            "{previous_id}: 검증기(campaign_template_validator.py)를 찾지 못했다 — P1~P3 을 물을 수단이 없다"
-        ));
-    } else {
-        reasons.extend(
-            crate::campaign_validator::instance_predicates(ctx, &prev)
-                .into_iter()
-                .map(|r| format!("{previous_id}: {r}")),
-        );
-    }
+    // P1~P3 are asked of the built-in validator (`campaign_validator`): the retired campaign_template_validator.py beside the
+    // program is no longer needed for the means to exist.
+    reasons.extend(
+        crate::campaign_validator::instance_predicates(ctx, &prev)
+            .into_iter()
+            .map(|r| format!("{previous_id}: {r}")),
+    );
     Ok(reasons)
 }
 
@@ -6320,11 +6328,7 @@ fn open_campaign(ctx: &Ctx, args: &Args, new_id: &str, plan_ref: &str, dispositi
 
 fn op_reentry_decide(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     let cell = args.get("--reentry-decide").unwrap_or_default().to_string();
-    let Some((base, camp)) = writer_target(ctx, args.get("--campaign-id"))? else {
-        io.warn("[campaign_init] no-op — ACTIVE=_bootstrap (캠페인 밖에서는 상태를 쓰지 않는다)");
-        return Ok(0);
-    };
-    guard_writer_ops(ctx, &base, &[("reentry_decide", true)])?;
+    let Some((base, camp)) = progress_prelude(ctx, args, io, "reentry_decide")? else { return Ok(0) };
     let decision = args.get("--decision");
     let route = args.get("--route");
     let approved_by = args.get("--approved-by").map(str::trim).filter(|s| !s.is_empty());
@@ -6379,11 +6383,7 @@ fn op_reentry_decide(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     entry.set("route", route_text.map(py).unwrap_or(PyValue::None));
     entry.set("source", py("campaign_init --reentry-decide"));
     let journey = append_journey(&base, &PyValue::Dict(entry))?;
-    io.say(&format!(
-        "[campaign_init] wrote({camp}): {} {}",
-        ctx.rel(&path),
-        ctx.rel(&journey)
-    ));
+    wrote_line(io, &camp, &[ctx.rel(&path), ctx.rel(&journey)]);
     Ok(0)
 }
 
@@ -6560,199 +6560,241 @@ fn op_escalation_summary(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     Ok(0)
 }
 
-// ── dispatch ─────────────────────────────────────────────────────────────────────────────────
+// ── one writer run (several writer operations of one command line) ──────────────────────────
 
-/// The operations this module answers, by the owner's dispatch order.
-const NATIVE_OPS: [&str; 36] = [
-    "--suspend",
-    "--resume-campaign",
-    "--abandon",
-    "--cell-materialize",
-    "--escalation-add",
-    "--slice-update",
-    "--assign-set",
-    "--ground",
-    "--warm-start-library",
-    "--backfill-from-docs",
-    "--import-sub",
-    "--answer-query",
-    "--sub-echo",
-    "--sub-unconverged-accept",
-    "--lifecycle",
-    "--residue-scan",
-    "--emit-slice",
-    "--resume-brief",
-    "--hint-approve",
-    "--evidence-add",
-    "--evidence-untag",
-    "--evidence-relocate",
-    "--evidence-prune-stubs",
-    "--freeze-evidence",
-    "--revise",
-    "--verify-purge-gate",
-    "--reentry-decide",
-    "--lockset-precheck",
-    "--grounding-check",
-    "--escalation-summary",
-    "--assigned-cells",
-    "--write-brief",
-    "--phase-set",
-    "--cell-set",
-    "--close",
-    "--init",
+/// The writer section of the original `main`: one target, one lifecycle guard, every requested writer in a fixed order, and
+/// one `wrote(<camp>): ...` line with everything they wrote. The per-operation functions keep their single-operation shape;
+/// while a run is open they take its target ([`writer_prelude`], [`progress_prelude`]) and add to its list ([`wrote_line`]).
+struct Group {
+    base: PathBuf,
+    camp: String,
+    wrote: Vec<String>,
+}
+
+thread_local! {
+    static GROUP: std::cell::RefCell<Option<Group>> = const { std::cell::RefCell::new(None) };
+}
+
+fn group_target() -> Option<(PathBuf, String)> {
+    GROUP.with(|g| g.borrow().as_ref().map(|g| (g.base.clone(), g.camp.clone())))
+}
+
+fn group_collect(paths: &[String]) -> bool {
+    GROUP.with(|g| match g.borrow_mut().as_mut() {
+        Some(group) => {
+            group.wrote.extend(paths.iter().cloned());
+            true
+        }
+        None => false,
+    })
+}
+
+/// The start of a progress write (`--phase-set` ... `--assign-set`) outside a writer run: the `_bootstrap` no-op and the
+/// lifecycle guard for that one operation.
+fn progress_prelude(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>, op: &str) -> R<Option<(PathBuf, String)>> {
+    if let Some(target) = group_target() {
+        return Ok(Some(target));
+    }
+    let Some((base, camp)) = writer_target(ctx, args.get("--campaign-id"))? else {
+        io.warn("[campaign_init] no-op — ACTIVE=_bootstrap (캠페인 밖에서는 상태를 쓰지 않는다)");
+        return Ok(None);
+    };
+    guard_writer_ops(ctx, &base, &[(op, true)])?;
+    Ok(Some((base, camp)))
+}
+
+type Step = fn(&Ctx, &Args, &mut Sinks<'_>) -> R<i32>;
+
+/// The writer operations in the original's order (`if a.phase_set: ...` through `if a.hint_approve: ...`).
+const WRITER_STEPS: [(&str, Step); 16] = [
+    ("--phase-set", op_phase_set),
+    ("--cell-materialize", op_cell_materialize),
+    ("--cell-set", op_cell_set),
+    ("--reentry-decide", op_reentry_decide),
+    ("--escalation-add", op_escalation_add),
+    ("--evidence-add", op_evidence_add),
+    ("--import-sub", op_import_sub),
+    ("--ground", op_ground),
+    ("--backfill-from-docs", op_backfill),
+    ("--evidence-untag", op_evidence_untag),
+    ("--evidence-relocate", op_evidence_relocate),
+    ("--evidence-prune-stubs", op_evidence_prune_stubs),
+    ("--freeze-evidence", op_freeze_evidence),
+    ("--assign-set", op_assign_set),
+    ("--revise", op_revise),
+    ("--hint-approve", op_hint_approve),
 ];
 
-/// Options that an operation of this module understands (anything else in the vector means the owner's shape).
-fn allowed_options(op: &str) -> &'static [&'static str] {
-    match op {
-        "--assigned-cells" => &["--assigned-cells", "--campaign-id"],
-        "--verify-purge-gate" => &["--verify-purge-gate"],
-        "--suspend" => &["--suspend", "--reason", "--release", "--preempt", "--utc", "--approved-by", "--apply"],
-        "--resume-campaign" => &["--resume-campaign", "--utc", "--approved-by", "--accept-drift", "--apply"],
-        "--abandon" => &["--abandon", "--utc", "--approved-by", "--reason", "--summary-testlog", "--release", "--apply"],
-        "--cell-materialize" => &["--cell-materialize", "--set", "--utc", "--campaign-id"],
-        "--escalation-add" => &["--escalation-add", "--cell", "--utc", "--node", "--symptom", "--events", "--window-start-utc", "--window-end-utc", "--campaign-id"],
-        "--slice-update" => &["--slice-update", "--utc", "--apply"],
-        "--assign-set" => &["--assign-set", "--assign-cells", "--assign-reason", "--assign-evidence", "--assign-approved-by", "--utc", "--campaign-id"],
-        "--ground" => &["--ground", "--utc", "--terms", "--no-warm-start", "--campaign-id"],
-        "--warm-start-library" => &["--warm-start-library"],
-        "--backfill-from-docs" => &["--backfill-from-docs", "--utc", "--campaign-id"],
-        "--import-sub" => &["--import-sub", "--utc", "--unfreeze", "--campaign-id"],
-        "--answer-query" => &["--answer-query", "--query-decision", "--utc", "--approved-by", "--apply"],
-        "--sub-echo" => &["--sub-echo", "--node", "--control", "--utc", "--apply"],
-        "--sub-unconverged-accept" => &["--sub-unconverged-accept", "--node", "--utc", "--approved-by", "--apply"],
-        "--lifecycle" => &["--lifecycle"],
-        "--residue-scan" => &["--residue-scan", "--utc", "--campaign-id"],
-        "--emit-slice" => &["--emit-slice", "--utc", "--out", "--campaign-id"],
-        "--resume-brief" => &["--resume-brief", "--campaign-id"],
-        "--hint-approve" => &["--hint-approve", "--node", "--cells", "--approved-by", "--source", "--utc", "--campaign-id"],
-        "--evidence-add" => &["--evidence-add", "--kind", "--path", "--cell", "--node", "--unfreeze", "--campaign-id"],
-        "--evidence-untag" => &["--evidence-untag", "--kind", "--path", "--cell", "--untag-reason", "--utc", "--unfreeze", "--campaign-id"],
-        "--evidence-relocate" => &["--evidence-relocate", "--kind", "--path", "--to", "--relocate-reason", "--utc", "--unfreeze", "--campaign-id", "--node", "--cell", "--correct-reference"],
-        "--evidence-prune-stubs" => &["--evidence-prune-stubs", "--unfreeze", "--campaign-id"],
-        "--freeze-evidence" => &["--freeze-evidence", "--utc", "--campaign-id"],
-        "--revise" => &["--revise", "--revise-set", "--revise-reason", "--revise-evidence", "--revise-approved-by", "--utc", "--campaign-id"],
-        "--reentry-decide" => &["--reentry-decide", "--campaign-id", "--decision", "--route", "--approved-by", "--utc"],
-        "--lockset-precheck" => &["--lockset-precheck", "--cell", "--campaign-id"],
-        "--grounding-check" => &["--grounding-check", "--campaign-id"],
-        "--escalation-summary" => &["--escalation-summary", "--campaign-id"],
-        "--write-brief" => &["--write-brief", "--campaign-id", "--node", "--utc"],
-        "--phase-set" => &[
-            "--phase-set", "--campaign-id", "--node", "--cell", "--state", "--proof-predicate", "--proof-ok",
-            "--proof-source", "--started-utc", "--ended-utc", "--authored-by",
-        ],
-        "--cell-set" => &[
-            "--cell-set", "--campaign-id", "--outcome", "--node", "--version", "--model",
-            "--measurement-decode-tps", "--measurement-source", "--void-reason", "--void-reason-source",
-            "--axis-citation", "--next-intent", "--utc", "--image-digest", "--image-tag", "--sweep-state",
-            "--lite-raw",
-        ],
-        "--close" => &["--close", "--utc", "--apply"],
-        "--init" => &[
-            "--init", "--plan-ref", "--target-topology", "--apply", "--utc", "--approved-by", "--reason",
-            "--suspend-current", "--derived-from", "--preempt", "--release", "--dispose", "--from-slice",
-            "--purge-previous",
-        ],
-        _ => &[],
-    }
+/// `writer_ops = (a.phase_set, a.cell_set, a.evidence_add, ...)`: is any of them set?
+fn any_writer(args: &Args) -> bool {
+    WRITER_STEPS.iter().any(|(name, _)| args.on(name))
 }
 
-/// `ap.print_help()` for the no-argument run (status 2) and for `-h`/`--help` (status 0), at the width the help was captured
-/// for; any other terminal width is the owner's.
-fn help(argv: &[String], io: &mut Sinks<'_>) -> Option<Outcome> {
-    let status = match argv {
-        [] => 2,
-        [flag] if flag == "-h" || flag == "--help" => 0,
-        _ => return None,
+fn op_writer_group(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
+    let Some((base, camp)) = writer_target(ctx, args.get("--campaign-id"))? else {
+        io.warn("[campaign_init] no-op — ACTIVE=_bootstrap (캠페인 밖에서는 상태를 쓰지 않는다)");
+        return Ok(0);
     };
-    if crate::terminal::columns() != crate::campaign_init_help::COLUMNS {
-        return Some(Outcome::Fallback);
-    }
-    let _ = io.out.write_all(crate::campaign_init_help::HELP.as_bytes());
-    Some(Outcome::Done(status))
-}
-
-/// Answer the vector natively when it is a modelled shape.
-pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
-    if let Some(outcome) = help(argv, io) {
-        return outcome;
-    }
-    if argv == ["--selftest"] {
-        return Outcome::Done(crate::campaign_write_selftest::selftest(io));
-    }
-    let Some(args) = Args::parse(argv) else {
-        return Outcome::Fallback;
-    };
-    let ops: Vec<&&str> = NATIVE_OPS.iter().filter(|op| args.has(op)).collect();
-    if ops.len() != 1 {
-        return Outcome::Fallback;
-    }
-    let op: &str = *ops[0];
-    if args.names().any(|n| !allowed_options(op).contains(n)) {
-        return Outcome::Fallback;
-    }
-    for (option, allowed) in [
-        ("--decision", &["approve", "decline"][..]),
-        ("--route", &["explorer", "upstream"][..]),
-        ("--query-decision", &["keep"][..]),
-        ("--control", &["suspend", "resume", "close", "abandon", "reslice"][..]),
-    ] {
-        if let Some(value) = args.get(option) {
-            if !allowed.contains(&value) {
-                return Outcome::Fallback;
+    guard_writer_ops(
+        ctx,
+        &base,
+        &[
+            ("phase_set", args.on("--phase-set")),
+            ("cell_set", args.on("--cell-set")),
+            ("cell_materialize", args.on("--cell-materialize")),
+            ("reentry_decide", args.on("--reentry-decide")),
+            ("assign_set", args.on("--assign-set")),
+        ],
+    )?;
+    GROUP.with(|g| {
+        *g.borrow_mut() = Some(Group {
+            base: base.clone(),
+            camp: camp.clone(),
+            wrote: Vec::new(),
+        })
+    });
+    let mut current = args.clone();
+    let result = (|| -> R<()> {
+        for (name, step) in WRITER_STEPS {
+            if !current.on(name) {
+                continue;
+            }
+            step(ctx, &current, io)?;
+            // `a.node = node_of_cell(base, a.cell)`: the node the phase write derived is the node of every later writer.
+            if name == "--phase-set" && !current.on("--node") {
+                if let Some(cell) = current.get("--cell").filter(|c| !c.is_empty()).map(str::to_string) {
+                    if let Some(node) = node_of_cell(&base, &cell) {
+                        current.set("--node", node);
+                    }
+                }
             }
         }
+        Ok(())
+    })();
+    let group = GROUP.with(|g| g.borrow_mut().take());
+    result?;
+    let wrote = group.map(|g| g.wrote).unwrap_or_default();
+    io.say(&format!("[campaign_init] wrote({camp}): {}", wrote.join(" ")));
+    Ok(0)
+}
+
+// ── dispatch ─────────────────────────────────────────────────────────────────────────────────
+
+/// What a command line asks for after this module's dispatch.
+pub enum Next {
+    /// Answered: the exit status (output already written).
+    Done(i32),
+    /// `--active` (answered by `campaign_read`).
+    Active,
+    /// `--derive KIND [...]` (answered by `campaign_read`): kind, cell, sweep, context, campaign id.
+    Derive {
+        kind: String,
+        cell: Option<String>,
+        sweep: Option<String>,
+        context: Option<String>,
+        campaign_id: Option<String>,
+    },
+}
+
+fn print_help(io: &mut Sinks<'_>) {
+    let _ = io.out.write_all(crate::campaign_init_help::HELP.as_bytes());
+}
+
+/// The original `main` after `parse_args`, in its order: the first operation that is set answers; the writer operations are
+/// one run; nothing set prints the help with status 2.
+pub fn dispatch(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> Next {
+    if args.on("--correct-reference") && !args.on("--evidence-relocate") {
+        io.warn("[campaign_init] FAIL --correct-reference 는 --evidence-relocate와 함께만 쓴다");
+        return Next::Done(1);
     }
-    if let Some(topology) = args.get("--target-topology") {
-        if topology != "single" && topology != "multi" {
-            return Outcome::Fallback;
-        }
+    if args.on("--selftest") {
+        return Next::Done(crate::campaign_write_selftest::selftest(io));
     }
-    let result = match op {
-        "--assigned-cells" => op_assigned_cells(ctx, &args, io),
-        "--verify-purge-gate" => op_verify_purge_gate(ctx, &args, io),
-        "--suspend" => op_suspend(ctx, &args, io),
-        "--resume-campaign" => op_resume_campaign(ctx, &args, io),
-        "--abandon" => op_abandon(ctx, &args, io),
-        "--cell-materialize" => op_cell_materialize(ctx, &args, io),
-        "--escalation-add" => op_escalation_add(ctx, &args, io),
-        "--slice-update" => op_slice_update(ctx, &args, io),
-        "--assign-set" => op_assign_set(ctx, &args, io),
-        "--ground" => op_ground(ctx, &args, io),
-        "--warm-start-library" => op_warm_start_library(ctx, io),
-        "--backfill-from-docs" => op_backfill(ctx, &args, io),
-        "--import-sub" => op_import_sub(ctx, &args, io),
-        "--answer-query" => op_answer_query(ctx, &args, io),
-        "--sub-echo" => op_sub_echo(ctx, &args, io),
-        "--sub-unconverged-accept" => op_sub_unconverged_accept(ctx, &args, io),
-        "--lifecycle" => op_lifecycle(ctx, &args, io),
-        "--residue-scan" => op_residue_scan(ctx, &args, io),
-        "--emit-slice" => op_emit_slice(ctx, &args, io),
-        "--resume-brief" => op_resume_brief(ctx, &args, io),
-        "--hint-approve" => op_hint_approve(ctx, &args, io),
-        "--evidence-add" => op_evidence_add(ctx, &args, io),
-        "--evidence-untag" => op_evidence_untag(ctx, &args, io),
-        "--evidence-relocate" => op_evidence_relocate(ctx, &args, io),
-        "--evidence-prune-stubs" => op_evidence_prune_stubs(ctx, &args, io),
-        "--freeze-evidence" => op_freeze_evidence(ctx, &args, io),
-        "--revise" => op_revise(ctx, &args, io),
-        "--reentry-decide" => op_reentry_decide(ctx, &args, io),
-        "--lockset-precheck" => op_lockset_precheck(ctx, &args, io),
-        "--grounding-check" => op_grounding_check(ctx, &args, io),
-        "--escalation-summary" => op_escalation_summary(ctx, &args, io),
-        "--write-brief" => op_write_brief(ctx, &args, io),
-        "--phase-set" => op_phase_set(ctx, &args, io),
-        "--cell-set" => op_cell_set(ctx, &args, io),
-        "--close" => op_close(ctx, &args, io),
-        "--init" => op_init(ctx, &args, io),
-        _ => return Outcome::Fallback,
-    };
-    match result {
-        Ok(status) => Outcome::Done(status),
-        Err(Stop::Fallback) => Outcome::Fallback,
-        Err(Stop::Refuse(text)) => {
-            io.warn(&format!("[campaign_init] FAIL {text}"));
-            Outcome::Done(1)
+    if args.on("--active") {
+        return Next::Active;
+    }
+    if args.on("--derive") {
+        let get = |n: &str| args.get(n).map(str::to_string);
+        return Next::Derive {
+            kind: args.get("--derive").unwrap_or_default().to_string(),
+            cell: get("--cell"),
+            sweep: get("--sweep"),
+            context: get("--context"),
+            campaign_id: get("--campaign-id"),
+        };
+    }
+    let ops: [(&str, Step); 22] = [
+        ("--resume-brief", op_resume_brief),
+        ("--warm-start-library", |ctx, _, io| op_warm_start_library(ctx, io)),
+        ("--grounding-check", op_grounding_check),
+        ("--lockset-precheck", op_lockset_precheck),
+        ("--assigned-cells", op_assigned_cells),
+        ("--emit-slice", op_emit_slice),
+        ("--escalation-summary", op_escalation_summary),
+        ("--write-brief", op_write_brief),
+        ("--lifecycle", op_lifecycle),
+        ("--suspend", op_suspend),
+        ("--resume-campaign", op_resume_campaign),
+        ("--abandon", op_abandon),
+        ("--answer-query", op_answer_query),
+        ("--sub-echo", op_sub_echo),
+        ("--sub-unconverged-accept", op_sub_unconverged_accept),
+        ("--slice-update", op_slice_update),
+        ("", op_writer_group),
+        ("--residue-scan", op_residue_scan),
+        ("--verify-purge-gate", op_verify_purge_gate),
+        ("--close", op_close),
+        ("--init", op_init),
+        ("-", |_, _, io| {
+            print_help(io);
+            Ok(2)
+        }),
+    ];
+    for (name, op) in ops {
+        let selected = match name {
+            "" => any_writer(args),
+            "-" => true,
+            _ => args.on(name),
+        };
+        if !selected {
+            continue;
         }
+        return Next::Done(match op(ctx, args, io) {
+            Ok(status) => status,
+            Err(Stop::Refuse(text)) => {
+                io.warn(&format!("[campaign_init] FAIL {text}"));
+                1
+            }
+            Err(Stop::Fallback) => {
+                io.warn("[campaign_init] ERROR 이 입력은 원본에서 처리되지 않는 예외로 끝나는 형태다 — 네이티브는 traceback 을 재현하지 않는다");
+                1
+            }
+        });
+    }
+    Next::Done(2)
+}
+
+/// The command line as `campaign_init.py` takes it: parse (argparse errors, `-h`), then [`dispatch`]. `--active`/`--derive`
+/// are returned to the caller.
+pub fn run_argv(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Next {
+    match crate::campaign_args::parse(argv) {
+        crate::campaign_args::Parsed::Help => {
+            print_help(io);
+            Next::Done(0)
+        }
+        crate::campaign_args::Parsed::Error(message) => {
+            let _ = write!(io.err, "{}{}: error: {}\n", crate::campaign_args::usage(), crate::campaign_args::PROG, message);
+            Next::Done(2)
+        }
+        crate::campaign_args::Parsed::Args(args) => dispatch(ctx, &args, io),
+    }
+}
+
+/// [`run_argv`] for the shapes answered here; `--active`/`--derive` report [`Outcome::Fallback`] (they belong to
+/// `campaign_read`).
+pub fn run(ctx: &Ctx, argv: &[String], io: &mut Sinks<'_>) -> Outcome {
+    match run_argv(ctx, argv, io) {
+        Next::Done(status) => Outcome::Done(status),
+        Next::Active | Next::Derive { .. } => Outcome::Fallback,
     }
 }

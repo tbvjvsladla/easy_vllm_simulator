@@ -1,0 +1,32 @@
+{
+  "workspace": [
+    ".agents",
+    ".claude",
+    ".codex",
+    ".dockerignore",
+    ".git",
+    ".gitattributes",
+    ".gitignore",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "Dockerfile.source-build.template",
+    "Dockerfile.template",
+    "HINTS.md",
+    "README.md",
+    "assets",
+    "campaigns",
+    "configs",
+    "docker-compose.template.yaml",
+    "docs",
+    "envs",
+    "hints",
+    "manifest.template.yaml",
+    "output"
+  ],
+  "evidence": [],
+  "volatile": [
+    "campaigns/camp-a"
+  ],
+  "leak": [],
+  "unclassified": []
+}

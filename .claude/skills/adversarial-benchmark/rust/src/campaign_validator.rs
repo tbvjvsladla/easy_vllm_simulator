@@ -15,7 +15,11 @@ use crate::pyvalue::{PyDict, PyValue};
 use std::path::{Path, PathBuf};
 
 const RESERVED_CELL_NAMES: [&str; 2] = ["_cell", "_node"];
-const KNOB_SOURCES: [(&str, &[&str]); 3] = [
+// The lockset provenance vocabulary: its single owner is this validator (the retired `campaign_template_validator.py` held it
+// as `LOCKSET_PROVENANCE`/`LOCKSET_KNOB_SOURCES`). The explorer (`recipe simulate`) reads these two literal tables from this
+// source file, so they stay one literal each, one knob per line.
+pub const LOCKSET_PROVENANCE: [&str; 2] = ["explorer-phase2", "hand-authored"];
+pub const KNOB_SOURCES: [(&str, &[&str]); 3] = [
     ("batch_source", &["declared-requirement", "kv-fit-measured", "hand-lever"]),
     ("gmu_source", &["target_gmu", "hand"]),
     ("kv_source", &["measured-clamp", "hand"]),

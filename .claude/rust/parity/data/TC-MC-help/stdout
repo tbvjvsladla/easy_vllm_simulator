@@ -1,0 +1,13 @@
+usage: manifest_contract.py [-h] [--topology {single,multi}] [--repo REPO]
+                            [--require-flag] [--json] [--self-test]
+
+테라포밍-완수 Flag 게이트 결정론 리더
+
+options:
+  -h, --help            show this help message and exit
+  --topology {single,multi}
+                        미지정 시 git 브랜치가 통로 선택
+  --repo REPO           레포 루트(기본 .)
+  --require-flag        Flag 미발급 시 비0종료(작업 스크립트 게이트용)
+  --json                계약 JSON 을 stdout 으로
+  --self-test           게이트/ TP 회귀(하드웨어 불요)

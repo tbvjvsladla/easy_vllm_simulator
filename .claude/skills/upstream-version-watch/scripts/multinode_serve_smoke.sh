@@ -271,7 +271,7 @@ fi
 #     · 메인이 서브의 진행표를 적는 것은 P5 가 결함으로 잡는 형태다(상향 회수는 문서기반 `--import-sub` · 노드 제어 ①).
 #     slave(Ray 워커)의 빌드·기동 결과는 이 진행표의 proof 출처(양 노드 rc · attestation v2)에 실린다.
 #   ACTIVE=_bootstrap(캠페인 밖)이면 writer 가 스스로 no-op 이다. writer 부재는 **소리 낸다**(single 2026-09-08 F5).
-_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.sh"
 _campaign_phase() {   # $1=phase $2=state $3=proof_ok(1|0) $4=predicate $5=source $6=started_utc
   if [ ! -f "$_CI" ]; then
     echo "[mn] ⚠ campaigns writer 부재($_CI) — $1 진행표를 아무도 적지 않았다(침묵 누락 ✗)." >&2
@@ -279,7 +279,7 @@ _campaign_phase() {   # $1=phase $2=state $3=proof_ok(1|0) $4=predicate $5=sourc
   fi
   local _ok=()
   [ "$3" = "1" ] && _ok=(--proof-ok)
-  bash "${_CI%.py}.sh" --phase-set "$1" --node "$MAIN_NODE_ID" --state "$2" --cell "$CONFIG" \
+  bash "$_CI" --phase-set "$1" --node "$MAIN_NODE_ID" --state "$2" --cell "$CONFIG" \
     --proof-predicate "$4" "${_ok[@]}" --proof-source "$5" \
     --started-utc "$6" --ended-utc "$(date -u +%FT%TZ)" --authored-by "$MAIN_NODE_ID" \
     || echo "[mn] ⚠ campaigns writer 실패 — $1 진행표($MAIN_NODE_ID)가 기록되지 않았다" >&2

@@ -1,0 +1,12 @@
+{
+ "campaign_id": "camp-a",
+ "frozen_utc": "2026-11-16T00:00:00Z",
+ "pointers": [
+  {
+   "cell_id": null,
+   "kind": "plan",
+   "node_id": null,
+   "path": "docs/plan/p.md"
+  }
+ ]
+}

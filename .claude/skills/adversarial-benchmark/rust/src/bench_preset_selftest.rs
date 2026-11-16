@@ -19,7 +19,7 @@ use crate::pyfs;
 use crate::pysort::py_eq;
 use crate::pystr::PyStr;
 use crate::pyvalue::{PyDict, PyValue};
-use crate::repeat_axis::{CAMPAIGN_INIT_REL, SCHEMA_REL};
+use crate::repeat_axis::SCHEMA_REL;
 use crate::repeat_owner::{ConfiguredCampaignOwner, RepoRoot};
 use crate::FULL_REPEATS_MIN;
 use ring::digest::{digest, SHA256};
@@ -632,10 +632,11 @@ fn scenarios(suite: &mut Suite, runtime: &Runtime) -> Result<(), Failure> {
     // an isolated repository: the campaign owner copy; campaign pins are changed between the checks
     let root = scratch.text("repo");
     let root_path = to_path(&root);
-    let owner_copy = root_path.join(CAMPAIGN_INIT_REL);
+    // the campaign owner is its native launcher (the retired campaign_init.py may be absent)
+    let owner_copy = root_path.join(crate::repeat_owner::CAMPAIGN_LAUNCHER_REL);
     std::fs::create_dir_all(owner_copy.parent().expect("owner path has a parent"))
         .map_err(|error| Failure::new("OSError", &error.to_string()))?;
-    let installed_owner = pyfs::join_text(runtime.repo_root.get()?, &PyStr::new(CAMPAIGN_INIT_REL));
+    let installed_owner = pyfs::join_text(runtime.repo_root.get()?, &PyStr::new(crate::repeat_owner::CAMPAIGN_LAUNCHER_REL));
     std::fs::copy(to_path(&installed_owner), &owner_copy).map_err(|error| {
         Failure::new("OSError", &format!("{}: {error}", installed_owner.repr()))
     })?;

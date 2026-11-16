@@ -1,11 +1,9 @@
 #!/bin/bash
-# `manifest_contract.py --topology T --repo R [--require-flag] [--json]` (the Flag-gate reader) through the node-local Rust
-# executable. Installation and build are explicit operations; a missing executable is an explicit exit 2 with guidance, never a
-# silent Python start and never the exit 4 / 3 of the Flag contract. The in-process Python importers of manifest_contract.py
-# (render_sub_env, scan_node, claim_predicates, ...) keep importing the Python file; only command-line callers use this launcher.
-# The public `manifest_contract.py` command line execs the executable DIRECTLY (same PID, same environment construction as below) and continues here only when the
-# executable is missing/not executable, for the availability probe (VALIDATE_ONLY=1) or when that exec fails: this file stays the single place of the guidance and of
-# the standalone Bash -> Rust route (run_bench.sh / lite_bench.sh). Behaviour is unchanged.
+# `manifest_contract` (the retired `manifest_contract.py` command line: `[-h] [--topology T] [--repo R] [--require-flag] [--json]
+# [--self-test]`) through the node-local Rust executable: every shape — the Flag-gate reader, `--self-test`, `-h` and argparse's
+# usage errors — is answered natively; no shape starts Python. Installation and build are explicit operations; a missing
+# executable is an explicit exit 2 with guidance, never the exit 4 / 3 of the Flag contract. The in-process Python importers of
+# manifest_contract.py reach the same executable through its private bridge (`MANIFEST_CONTRACT_BRIDGE`).
 set -euo pipefail
 # Self-contained: no external program is looked up through the caller's PATH (`dirname`, `head`, `mktemp`, ...): the importers' bridge must start even when the
 # caller's business PATH holds no tools at all (that PATH is handed unchanged to the `git` child, whose absence the native probe handles). Builtins only.
@@ -46,14 +44,8 @@ if [ "${MANIFEST_CONTRACT_VALIDATE_ONLY:-}" = 1 ]; then
   exit 0
 fi
 unset MANIFEST_CONTRACT_VALIDATE_ONLY
-# The owner program is the reviewed ORIGINAL kept beside this launcher as manifest_contract_compat_owner.py (its location, not user intent);
-# manifest_contract.py is the thin import adapter. Legacy shapes run the owner under the PUBLIC name so argparse prints the public usage.
+# The program path the traceback frames name (the reviewed original's location beside this launcher — its location, not user
+# intent; the file itself need not exist). No interpreter variable is honoured any more: every shape is native.
 export MANIFEST_CONTRACT_COMPAT_OWNER="${MANIFEST_CONTRACT_COMPAT_OWNER:-$SDIR/manifest_contract_compat_owner.py}"
-export MANIFEST_CONTRACT_PUBLIC_ARGV0="${MANIFEST_CONTRACT_PUBLIC_ARGV0:-$SDIR/manifest_contract.py}"
-# A caller-selected interpreter is explicit legacy intent; empty keeps the default meaning.
-if [[ -n "${MANIFEST_CONTRACT_PYTHON:-}" ]]; then
-  export MANIFEST_CONTRACT_PYTHON
-else
-  unset MANIFEST_CONTRACT_PYTHON
-fi
+unset MANIFEST_CONTRACT_PYTHON MANIFEST_CONTRACT_COMPAT_PYTHON MANIFEST_CONTRACT_PUBLIC_ARGV0
 exec "$BIN" "$@"

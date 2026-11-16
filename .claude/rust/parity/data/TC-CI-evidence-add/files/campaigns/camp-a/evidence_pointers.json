@@ -1,0 +1,11 @@
+{
+ "campaign_id": "camp-a",
+ "pointers": [
+  {
+   "cell_id": null,
+   "kind": "plan",
+   "node_id": null,
+   "path": "docs/plan/p.md"
+  }
+ ]
+}

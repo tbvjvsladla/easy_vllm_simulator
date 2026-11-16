@@ -43,7 +43,7 @@ pub const PROGRAM: &str = "selftest_broad_search_cell_args";
 /// The deployed files the checkout needs, at their repository-relative paths. `broad_search.sh` and what `init` and
 /// `cell` call after it: the cell classifier and the parser/verdict chain, the repeat axis and the measurement
 /// preset (init takes the repeat count default from the preset), and the campaign owner.
-pub(crate) const COPIES: [&str; 29] = [
+pub(crate) const COPIES: [&str; 27] = [
     ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell_api.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell",
@@ -70,10 +70,8 @@ pub(crate) const COPIES: [&str; 29] = [
     ".claude/skills/adversarial-benchmark/config/guide-llm/default_preset.yaml",
     ".claude/skills/adversarial-benchmark/scripts/verdict_rule.sh",
     ".claude/skills/adversarial-benchmark/scripts/roofline.sh",
-    ".claude/skills/terraforming_node/scripts/campaign_init.py",
     ".claude/skills/terraforming_node/scripts/campaign_init.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/campaign_init",
-    ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
 ];
 
 /// The load scripts and the environment variable that sets each stub's exit status.

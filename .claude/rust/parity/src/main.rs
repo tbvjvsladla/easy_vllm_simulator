@@ -9,7 +9,7 @@ use std::process::{Command, Stdio};
 use std::io::Write;
 
 const KNOWN_IDS: [&str; 10] = ["N01", "N02", "N03", "N04", "N06", "N08", "N09", "N11", "N13", "N14"];
-// s5: terraforming_node programs. ta/tb/tc/td: terraforming A2A control plane (agent_control+providers / render_sub_env / canary, probe, gates / relay). pg/pe/pa/ps/pd/pf: policies bundle (completion gate, doc naming, evidence publisher / registry audit / runtime selftest / distribution / claim predicates).
+// s5: terraforming_node programs. ta/tb/tc/td: terraforming A2A control plane (agent_control+providers / render_sub_env / canary, probe, gates + core contracts campaign_init·validator·manifest_contract (TC-CI/CV/MC) / relay). pg/pe/pa/ps/pd/pf: policies bundle (completion gate, doc naming, evidence publisher / registry audit / runtime selftest / distribution / claim predicates).
 const STAGES: [&str; 15] = ["s1", "s2", "s3", "s4", "s5", "pg", "pe", "pa", "ps", "pd", "pf", "ta", "tb", "tc", "td"];
 /// hint-publisher port stages (`cases/hp_<module>.json`): selectable with `--stage`, not part of `all` (the Sub N/A lists
 /// cover `all`; a plane without hint-publisher is not affected).

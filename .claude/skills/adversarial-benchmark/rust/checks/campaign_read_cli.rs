@@ -1,16 +1,17 @@
-//! `campaign_read`: the native `campaign_init.py --active|--derive` process, checked against the frozen raw bytes of the ACTUAL
-//! original CLI capture (`data/campaign_read/original26.json`, only the private fixture root replaced by `<ROOT>`), the route
-//! table (new Root contract, recording stub interpreters, never the original program) and the source bindings of the frames.
+//! `campaign_read`: the native `campaign_init --active|--derive` process, checked against the frozen raw bytes of the ACTUAL
+//! original CLI capture (`data/campaign_read/original26.json`, only the private fixture root replaced by `<ROOT>`), the absence
+//! of any interpreter route, and the frozen source lines of the traceback frames (`data/campaign_read/owner_frame_lines.json`).
+//! The retired original is never run or read: only its path matters (the checkout root is derived from it).
 //!
 //! Counts: 24 native-equality/native-error vectors run as native processes (P08 is rendered at the function level because its
-//! fixture needs a Root-allocated shallow path; P09 is the declared legacy route), 25 vectors compared byte for byte.
+//! fixture needs a Root-allocated shallow path; P09 was the declared legacy route of a modified original and is retired),
+//! 25 vectors compared byte for byte.
 
 #[path = "common.rs"]
 mod common;
 
 use common::{dict, hex_decode, list, load_json_file, text_of};
 use role_contract::campaign::module_site;
-use role_contract::source_identity::REVIEWED_CAMPAIGN;
 use role_contract::topology::Frame;
 use std::collections::BTreeMap;
 use std::fs;
@@ -19,14 +20,15 @@ use std::os::unix::fs::{symlink, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use sweep_stop::campaign_read::{
-    import_traceback, parse_exact, run, Environment, Legacy, LegacyExec, OBSERVER_ENV, OWNER_ENV,
-    OWNER_FRAMES,
+    import_traceback, parse_exact, run, Environment, OBSERVER_ENV, OWNER_ENV, OWNER_FRAMES,
 };
 use sweep_stop::cli::Streams;
 use sweep_stop::stdout::StdoutProfile;
 
 const BIN: &str = env!("CARGO_BIN_EXE_campaign_read");
 const OWNER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py";
+/// The bytes a fixture puts at the program path: the retired original is never read, so any content is the same program.
+const PLACEHOLDER_OWNER: &[u8] = b"# retired campaign_init.py: only this path matters to the native program\n";
 
 struct Vector {
     id: String,
@@ -180,16 +182,16 @@ fn build(base: &Path, v: &Vector, d: &Data) -> (PathBuf, Option<PathBuf>) {
     put(&root, &v.dirs, &v.files);
     let mut other = None;
     match v.owner.as_str() {
-        "copy" => install_owner(&root, REVIEWED_CAMPAIGN),
+        "copy" => install_owner(&root, PLACEHOLDER_OWNER),
         "variant" => {
-            let mut bytes = REVIEWED_CAMPAIGN.to_vec();
+            let mut bytes = PLACEHOLDER_OWNER.to_vec();
             bytes.extend_from_slice(&d.append);
             install_owner(&root, &bytes);
         }
         "symlink_other" => {
             let o = base.join(&v.id).join("other-root");
             put(&o, &d.other.dirs, &d.other.files);
-            install_owner(&o, REVIEWED_CAMPAIGN);
+            install_owner(&o, PLACEHOLDER_OWNER);
             let link = root.join(OWNER_REL);
             fs::create_dir_all(link.parent().expect("parent")).expect("link dir");
             symlink(o.join(OWNER_REL), &link).expect("owner symlink");
@@ -410,261 +412,76 @@ fn p08_import_traceback_matches_the_frozen_original_raw_bytes() {
     );
 }
 
-// ── routes (recording stub interpreters, never the original program) ─────────────────
+// ── no interpreter route ──────────────────────────────────────────────────────────────
 
 fn stub(dir: &Path) -> PathBuf {
     let path = dir.join("stub.sh");
-    fs::write(
-        &path,
-        "#!/bin/sh\nout=\"$STUB_OUT\"\nprintf '%s' \"$$\" > \"$out.pid\"\n: > \"$out.argv\"\nfor a in \"$@\"; do printf '%s\\n' \"$a\" >> \"$out.argv\"; done\npwd > \"$out.cwd\"\ncat > \"$out.stdin\"\nprintf '%s' \"$MARKER\" > \"$out.marker\"\nexit 7\n",
-    )
-    .unwrap();
+    fs::write(&path, "#!/bin/sh\nprintf '%s' \"$$\" > \"$STUB_OUT.pid\"\nexit 7\n").unwrap();
     fs::set_permissions(&path, fs::Permissions::from_mode(0o755)).unwrap();
     path
 }
 
-struct Route {
-    ran: Ran,
-    observed: Vec<String>,
-    out: PathBuf,
-    owner: PathBuf,
-    root: PathBuf,
-}
-
-/// Runs `campaign_read args` over a fresh fixture whose owner is `owner_bytes` (None: absent), with a stub interpreter.
-fn route(
-    name: &str,
-    args: &[&str],
-    extra_env: &[(&str, &str)],
-    owner_bytes: Option<&[u8]>,
-    owner_mode: u32,
-) -> Route {
-    let base = scratch(name);
-    let root = base.join("root");
-    fs::create_dir_all(&root).unwrap();
-    let owner = root.join(OWNER_REL);
-    if let Some(bytes) = owner_bytes {
-        install_owner(&root, bytes);
-        fs::set_permissions(&owner, fs::Permissions::from_mode(owner_mode)).unwrap();
-    }
-    let stub = stub(&base);
-    let out = base.join("stub-out");
-    let observer = base.join("observer.jsonl");
-    let mut env: Vec<(String, String)> = vec![
-        ("PATH".into(), "/usr/bin:/bin".into()),
-        ("LC_ALL".into(), "C.UTF-8".into()),
-        ("STUB_OUT".into(), out.display().to_string()),
-        ("MARKER".into(), "kept-env".into()),
-        (
-            "CAMPAIGN_READ_COMPAT_PYTHON".into(),
-            stub.display().to_string(),
-        ),
-        (OWNER_ENV.into(), owner.display().to_string()),
-        (OBSERVER_ENV.into(), observer.display().to_string()),
-    ];
-    env.extend(extra_env.iter().map(|(k, v)| {
-        (
-            k.to_string(),
-            v.replace("<STUB>", &stub.display().to_string()),
-        )
-    }));
-    let args: Vec<String> = args.iter().map(|a| a.to_string()).collect();
-    let ran = spawn(BIN, &args, &env, &root, b"stdin-bytes");
-    let observed = observer_lines(&observer);
-    Route {
-        ran,
-        observed,
-        out,
-        owner,
-        root,
-    }
-}
-
-fn stub_read(r: &Route, suffix: &str) -> String {
-    fs::read_to_string(format!("{}.{suffix}", r.out.display()))
-        .unwrap_or_else(|_| "<absent>".to_string())
-}
-
-fn assert_legacy(r: &Route, route_name: &str, args: &[&str]) {
-    assert_eq!(
-        r.ran.status,
-        Some(7),
-        "{route_name}: the interpreter's status is the program's"
-    );
-    assert!(
-        r.ran.stdout.is_empty() && r.ran.stderr.is_empty(),
-        "{route_name}: no native output"
-    );
-    assert_eq!(r.observed.len(), 1, "{route_name}: one observer line");
-    assert!(
-        r.observed[0].contains(&format!("\"route\": \"{route_name}\"")),
-        "{}",
-        r.observed[0]
-    );
-    assert!(
-        r.observed[0].contains("\"native_outcome\": null"),
-        "{}",
-        r.observed[0]
-    );
-    assert!(
-        r.observed[0].contains(&format!("\"pid\": {}", r.ran.pid)),
-        "pid is the process that exec'd: {}",
-        r.observed[0]
-    );
-    let mut want = vec![r.owner.display().to_string()];
-    want.extend(args.iter().map(|a| a.to_string()));
-    assert_eq!(
-        stub_read(r, "argv")
-            .lines()
-            .map(str::to_string)
-            .collect::<Vec<_>>(),
-        want,
-        "{route_name}: owner and original argv"
-    );
-    assert_eq!(
-        stub_read(r, "pid"),
-        r.ran.pid.to_string(),
-        "{route_name}: same PID, no child"
-    );
-    assert_eq!(
-        stub_read(r, "cwd").trim_end(),
-        r.root.display().to_string(),
-        "{route_name}: cwd"
-    );
-    assert_eq!(stub_read(r, "stdin"), "stdin-bytes", "{route_name}: stdin");
-    assert_eq!(
-        stub_read(r, "marker"),
-        "kept-env",
-        "{route_name}: environment"
-    );
-}
-
-#[test]
-fn legacy_routes_run_before_any_native_business() {
-    let owner = REVIEWED_CAMPAIGN;
-    // explicit interpreter, any shape
-    for args in [
-        vec!["--active"],
-        vec!["--derive", "root"],
-        vec!["--resume-brief"],
-    ] {
-        let r = route(
-            "explicit",
-            &args,
-            &[("CAMPAIGN_READ_PYTHON", "<STUB>")],
-            Some(owner),
-            0o775,
-        );
-        assert_legacy(&r, "LegacyExplicit", &args);
-    }
-    // an empty explicit interpreter is not intent: default routing (native for an exact shape)
-    let r = route(
-        "empty-explicit",
-        &["--active"],
-        &[("CAMPAIGN_READ_PYTHON", "")],
-        Some(owner),
-        0o775,
-    );
-    assert_eq!(r.ran.status, Some(0));
-    assert_eq!(String::from_utf8_lossy(&r.ran.stdout), "_bootstrap\n");
-    assert!(r.observed[0].contains("NativeCurrentSource"));
-    // non-exact shapes
-    for args in [
-        vec!["--active", "--apply"],
-        vec!["--deriv", "root"],
-        vec![],
-        vec!["--derive=root"],
-    ] {
-        let r = route("shape", &args, &[], Some(owner), 0o775);
-        assert_legacy(&r, "LegacyShape", &args);
-    }
-    // the owner is a different program (one appended byte), missing, or unreadable
-    let mut variant = owner.to_vec();
-    variant.push(b'#');
-    let r = route("variant", &["--active"], &[], Some(&variant), 0o775);
-    assert_legacy(&r, "LegacySourceVariant", &["--active"]);
-    assert!(r.observed[0].contains("not the reviewed source"));
-    let r = route("missing", &["--active"], &[], None, 0);
-    assert_legacy(&r, "LegacySourceVariant", &["--active"]);
-    assert!(r.observed[0].contains("missing"));
-    let r = route("unreadable", &["--active"], &[], Some(owner), 0o000);
-    assert_legacy(&r, "LegacySourceVariant", &["--active"]);
-    assert!(r.observed[0].contains("cannot be read"));
-    // a text profile that is not modelled
-    let r = route(
-        "profile",
-        &["--active"],
-        &[("PYTHONIOENCODING", "latin-1")],
-        Some(owner),
-        0o775,
-    );
-    assert_legacy(&r, "LegacyProfile", &["--active"]);
-}
-
-#[test]
-fn p09_declared_legacy_owner_variant_is_run_by_the_interpreter_not_natively() {
-    let d = data();
-    let v = d.vectors.iter().find(|v| v.id == "P09").expect("P09");
-    let base = scratch("p09");
-    let (root, _) = build(&base, v, &d);
-    let stub = stub(&base);
-    let out = base.join("o");
-    let env = vec![
+fn fixture_env(base: &Path, root: &Path, extra: &[(&str, String)]) -> Vec<(String, String)> {
+    let mut env = vec![
         ("PATH".to_string(), "/usr/bin:/bin".to_string()),
-        ("STUB_OUT".into(), out.display().to_string()),
-        ("MARKER".into(), "m".into()),
-        (
-            "CAMPAIGN_READ_COMPAT_PYTHON".into(),
-            stub.display().to_string(),
-        ),
-        (OWNER_ENV.into(), root.join(OWNER_REL).display().to_string()),
-        (OBSERVER_ENV.into(), base.join("obs").display().to_string()),
+        ("LC_ALL".to_string(), "C.UTF-8".to_string()),
+        ("STUB_OUT".to_string(), base.join("stub").display().to_string()),
+        (OWNER_ENV.to_string(), root.join(OWNER_REL).display().to_string()),
     ];
-    let ran = spawn(BIN, &v.args, &env, &root, b"");
-    assert_eq!(ran.status, Some(7));
+    env.extend(extra.iter().map(|(k, v)| (k.to_string(), v.clone())));
+    env
+}
+
+#[test]
+fn no_shape_and_no_variable_starts_an_interpreter() {
+    let base = scratch("no-interpreter");
+    let root = base.join("root");
+    put(&root, &[], &[("campaigns/ACTIVE".to_string(), b"camp-x\n".to_vec(), 0o664)]);
+    fs::create_dir_all(root.join("campaigns/camp-x")).unwrap();
+    let stub = stub(&base).display().to_string();
+    // the program file itself is absent: the native answer does not need it
+    for extra in [
+        vec![],
+        vec![("CAMPAIGN_READ_PYTHON", stub.clone())],
+        vec![("CAMPAIGN_READ_COMPAT_PYTHON", stub.clone())],
+        vec![("LC_ALL", "en_US.ISO-8859-1".to_string())],
+    ] {
+        let ran = spawn(BIN, &["--active".to_string()], &fixture_env(&base, &root, &extra), &root, b"");
+        assert_eq!(ran.status, Some(0), "{extra:?} {}", String::from_utf8_lossy(&ran.stderr));
+        assert_eq!(ran.stdout, b"camp-x\n", "{extra:?}");
+        assert!(!base.join("stub.pid").exists(), "no interpreter is started ({extra:?})");
+    }
+    // a vector that is not a read shape is a control failure of this program (the full command line is `campaign_init`)
+    let ran = spawn(BIN, &["--resume-brief".to_string()], &fixture_env(&base, &root, &[]), &root, b"");
+    assert_eq!(ran.status, Some(2));
     assert!(ran.stdout.is_empty());
-    let lines = observer_lines(&base.join("obs"));
-    assert!(
-        lines.len() == 1 && lines[0].contains("LegacySourceVariant"),
-        "{lines:?}"
-    );
-    assert_eq!(fs::read(root.join(OWNER_REL)).unwrap().last(), Some(&b'#'));
+    assert!(String::from_utf8_lossy(&ran.stderr).starts_with("[campaign_read] ERROR not a read shape"));
+    assert!(!base.join("stub.pid").exists());
+    make_writable(&base);
 }
 
 #[test]
 fn control_failures_are_private_status_2_and_produce_no_business_output() {
-    let owner = REVIEWED_CAMPAIGN;
-    // an unwritable observer: nothing runs, not even the legacy interpreter
-    for args in [vec!["--active"], vec!["--resume-brief"]] {
-        let r = route(
-            "observer-bad",
-            &args,
-            &[(OBSERVER_ENV, "/nonexistent-dir/obs.jsonl")],
-            Some(owner),
-            0o775,
-        );
-        assert_eq!(r.ran.status, Some(2));
-        assert!(r.ran.stdout.is_empty());
-        assert!(String::from_utf8_lossy(&r.ran.stderr)
-            .starts_with("[campaign_read] ERROR the route observation cannot be written"));
-        assert_eq!(stub_read(&r, "pid"), "<absent>");
-    }
-    // no owner configured
+    let base = scratch("observer-bad");
+    let root = base.join("root");
+    install_owner(&root, PLACEHOLDER_OWNER);
+    let ran = spawn(
+        BIN,
+        &["--active".to_string()],
+        &fixture_env(&base, &root, &[(OBSERVER_ENV, "/nonexistent-dir/obs.jsonl".to_string())]),
+        &root,
+        b"",
+    );
+    assert_eq!(ran.status, Some(2));
+    assert!(ran.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&ran.stderr)
+        .starts_with("[campaign_read] ERROR the route observation cannot be written"));
+    // no program path configured
     let base = scratch("no-owner");
     let env = vec![("PATH".to_string(), "/usr/bin:/bin".to_string())];
     let ran = spawn(BIN, &["--active".to_string()], &env, &base, b"");
     assert_eq!(ran.status, Some(2));
     assert!(String::from_utf8_lossy(&ran.stderr).contains("CAMPAIGN_READ_COMPAT_OWNER is not set"));
-    // an interpreter that cannot be started is a shell's 127, after the observer line
-    let r = route(
-        "no-interpreter",
-        &["--active"],
-        &[("CAMPAIGN_READ_PYTHON", "/nonexistent/python")],
-        Some(owner),
-        0o775,
-    );
-    assert_eq!(r.ran.status, Some(127));
-    assert!(r.observed.len() == 1 && r.observed[0].contains("LegacyExplicit"));
 }
 
 // ── grammar ──────────────────────────────────────────────────────────────────────────
@@ -747,21 +564,14 @@ impl Write for Broken {
         Err(std::io::Error::from_raw_os_error(32))
     }
 }
-struct NeverLegacy;
-impl Legacy for NeverLegacy {
-    fn replace_process(&mut self, _: &LegacyExec) -> i32 {
-        panic!("a handled shape must not be retried in Python");
-    }
-}
 
 #[test]
 fn a_failing_stdout_is_a_native_status_and_no_python_retry() {
     let base = scratch("broken-stdout");
     let root = base.join("root");
-    install_owner(&root, REVIEWED_CAMPAIGN);
+    install_owner(&root, PLACEHOLDER_OWNER);
     let environment = Environment {
         owner: Some(root.join(OWNER_REL).as_os_str().as_encoded_bytes().to_vec()),
-        compat_python: "python3".into(),
         text_variables: vec![("LC_ALL".into(), b"C.UTF-8".to_vec())],
         ..Environment::default()
     };
@@ -775,7 +585,6 @@ fn a_failing_stdout_is_a_native_status_and_no_python_retry() {
             &mut stderr,
             StdoutProfile::default(),
         ),
-        &mut NeverLegacy,
     );
     assert_eq!(
         status, 120,
@@ -791,17 +600,17 @@ fn a_failing_stdout_is_a_native_status_and_no_python_retry() {
 // ── source bindings of the frame tables ──────────────────────────────────────────────
 
 #[test]
-fn every_owner_frame_row_is_bound_to_the_reviewed_owner_bytes() {
-    let text = String::from_utf8(REVIEWED_CAMPAIGN.to_vec()).expect("UTF-8 owner");
-    let lines: Vec<&str> = text.lines().collect();
-    assert_eq!(
-        lines.len(),
-        5485,
-        "the reviewed owner has the lines the frames name"
-    );
+fn every_owner_frame_row_is_bound_to_the_frozen_original_lines() {
+    let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("checks/data/campaign_read/owner_frame_lines.json");
+    let frozen = load_json_file(&path);
+    let frozen = dict(&frozen);
+    assert!(frozen.get("line_count").is_some(), "the frozen data records the original's length");
+    let lines = dict(frozen.get("lines").expect("lines"));
     for frame in OWNER_FRAMES {
+        assert!(lines.get(&frame.line.to_string()).is_some(), "a frozen line for frame {}", frame.line);
+        let line = text_of(lines.get(&frame.line.to_string()));
         assert_eq!(
-            lines[frame.line as usize - 1].trim(),
+            line.trim(),
             frame.code,
             "line {}",
             frame.line
@@ -911,7 +720,7 @@ fn the_launcher_reports_a_missing_or_non_executable_binary_before_any_route() {
 }
 
 #[test]
-fn the_launcher_exports_the_owner_beside_it_and_passes_only_a_non_empty_interpreter() {
+fn the_launcher_exports_the_program_path_beside_it_and_never_an_interpreter() {
     let base = scratch("launcher-pass");
     let recorder = base.join("campaign_read");
     fs::write(&recorder, "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$STUB_OUT.argv\"\nprintf '%s|%s' \"$CAMPAIGN_READ_COMPAT_OWNER\" \"${CAMPAIGN_READ_PYTHON-unset}\" > \"$STUB_OUT.env\"\n").unwrap();
@@ -923,7 +732,7 @@ fn the_launcher_exports_the_owner_beside_it_and_passes_only_a_non_empty_interpre
     for (python, want) in [
         (None, "unset"),
         (Some(""), "unset"),
-        (Some("/x/python"), "/x/python"),
+        (Some("/x/python"), "unset"),
     ] {
         let (ran, dir) = run_launcher("launcher-pass2", Some(&recorder), python);
         assert_eq!(ran.status, Some(0));
@@ -1040,7 +849,6 @@ fn fetch_sub_docs_validates_the_runtime_before_any_remote_access() {
     let scripts = src.join(".claude/skills/terraforming_node/scripts");
     fs::create_dir_all(&scripts).unwrap();
     fs::copy(launcher(), scripts.join("campaign_init.sh")).unwrap();
-    fs::write(scripts.join("campaign_init.py"), "# marker owner\n").unwrap();
     let bin_dir = base.join("bin");
     fs::create_dir_all(&bin_dir).unwrap();
     for tool in ["ssh", "rsync"] {
@@ -1115,8 +923,8 @@ fn broad_search_validates_the_runtime_once_before_its_first_campaign_read_and_si
         "\"$SDIR/sweep_bench.sh\"",
         "set +e; _stop; STOPRC=$?",
         "_CI_PC=",
-        "\"${_CI_PC%.py}.sh\" --active",
-        "\"${_CI%.py}.sh\" --derive",
+        "\"$_CI_PC\" --active",
+        "\"$_CI\" --derive",
         "bench_shell.sh\" broad-cell",
         "curl -s -m 5",
     ] {

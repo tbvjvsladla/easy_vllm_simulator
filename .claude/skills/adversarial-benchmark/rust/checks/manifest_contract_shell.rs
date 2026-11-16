@@ -209,7 +209,7 @@ fn validate_only_is_an_availability_check_and_nothing_else() {
 }
 
 #[test]
-fn the_launcher_exports_the_owner_and_treats_an_empty_interpreter_as_unset() {
+fn the_launcher_exports_the_owner_and_never_passes_an_interpreter() {
     let f = fixture(Some(b"stub owner\n"));
     let program = f.recording_program();
     run(f
@@ -229,8 +229,7 @@ fn the_launcher_exports_the_owner_and_treats_an_empty_interpreter_as_unset() {
         2,
         "{text}"
     );
-    assert!(text.contains("python:unset"), "{text}");
-    assert!(text.contains("python:/opt/py"), "{text}");
+    assert_eq!(text.matches("python:unset").count(), 2, "no interpreter variable reaches the program: {text}");
 }
 
 const RUN_BENCH: [&str; 11] = [
@@ -317,8 +316,10 @@ fn a_native_gate_keeps_the_old_flag_statuses_and_stops_before_the_workload() {
             .args(&args));
         assert_eq!(code, 2, "{script}: the gate passed and the caller stops at its own missing environment file: {err}");
         assert!(err.contains("envfile 없음"), "{script}: {err}");
-        // No owner file: the old branch (exit 4), with no availability check and no native start.
+        // No gate program (its launcher is the program; the retired .py is no longer the presence test): the old branch
+        // (exit 4), with no availability check and no native start.
         let g = fixture(None);
+        std::fs::remove_file(g.root.join(LAUNCHER_REL)).unwrap();
         g.manifest(issued);
         let (code, _, err) = run(g
             .caller(script)

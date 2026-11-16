@@ -41,7 +41,7 @@ pub const LEVEL_REASON: [&str; 2] = ["--knob-reason", "levels=serving_concurrenc
 /// The deployed files the sandbox copies, in the original's order (`COPIES`). `classify_cell` / `classify_cell_api` ask the
 /// private native helper `node_identity_resolve` for the node identity (one normal sibling in the same release directory), so
 /// the helper is copied with them: a mirrored caller without its helper fails loud, by design.
-const COPIES: [&str; 56] = [
+const COPIES: [&str; 55] = [
     // The native stand-in the run_bench.sh / lite_bench.sh shims call (no program in the sandbox runs Python).
     ".claude/skills/adversarial-benchmark/rust/target/release/selftest_load_shim",
     ".claude/skills/adversarial-benchmark/scripts/render_report.sh",
@@ -67,6 +67,8 @@ const COPIES: [&str; 56] = [
     ".claude/skills/adversarial-benchmark/rust/target/release/assemble_sweep_meta",
     ".claude/skills/adversarial-benchmark/rust/target/release/bench_shell",
     ".claude/skills/adversarial-benchmark/rust/src/bench_shell/broad.rs",
+    // the campaign writer source the conformance check reads (the native campaign_init writer)
+    ".claude/skills/adversarial-benchmark/rust/src/campaign_write.rs",
     ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/parse_guidellm",
     ".claude/skills/adversarial-benchmark/scripts/bench_preset.sh",
@@ -92,11 +94,9 @@ const COPIES: [&str; 56] = [
     ".claude/skills/adversarial-benchmark/fixtures/guidellm_benchmarks_sample.json",
     ".claude/skills/adversarial-benchmark/config/bench_bindings.yaml",
     ".claude/skills/adversarial-benchmark/config/guide-llm/default_preset.yaml",
-    ".claude/skills/terraforming_node/scripts/campaign_init.py",
     ".claude/skills/terraforming_node/scripts/campaign_init.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/campaign_init",
-    ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
-    ".claude/skills/terraforming_node/scripts/node_role_contract.py",
+    ".claude/skills/terraforming_node/scripts/node_role_contract.sh",
     ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
     "campaigns/_template/campaign.schema.json",
 ];

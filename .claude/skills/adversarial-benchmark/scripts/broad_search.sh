@@ -32,7 +32,7 @@
 #   그때까지 `cell` 은 serve 미가동을 exit 3 으로 알리고 멈춘다.
 #
 # --state 의 자리(2026-09-06 · plan_26090616 ②): 호출자가 임의로 고르지 않는다 — 활성 캠페인에서
-#   파생한다.  STATE="$(python3 .claude/skills/terraforming_node/scripts/campaign_init.py \
+#   파생한다.  STATE="$(bash .claude/skills/terraforming_node/scripts/campaign_init.sh \
 #                        --derive sweep --sweep <sweep-id>)"
 #   왜: 스윕 상태 파일이 캠페인 밖에 살면 캠페인이 끝나도 남아 다음 캠페인의 정지판정과 섞인다.
 #   (기본값을 두지 않는 것은 유지한다 — 부재를 조용히 루트로 폴백시키지 않는 것이 이 설계의 핵심이다.)
@@ -242,11 +242,11 @@ init)
   #    campaign.yaml 의 배정과 갈라지고, 갈라지면 스윕 지도가 자기가 안 돈 셀을 주장하거나
   #    배정된 셀을 빠뜨린다. `--node` 를 주면 `assignments[<node>]` 가 그대로 온다.
   if [ -z "$CELLS" ] && [ -n "${NODE:-}" ]; then
-    _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+    _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.sh"
     if [ ! -f "$_CI" ]; then
       echo "[broad_search] ERROR --node 파생을 요청했는데 campaign_init 이 없다: $_CI" >&2; exit 2
     fi
-    CELLS="$(bash "${_CI%.py}.sh" --assigned-cells "$NODE")" || {
+    CELLS="$(bash "$_CI" --assigned-cells "$NODE")" || {
       echo "[broad_search] ERROR assignments[$NODE] 에서 셀을 파생하지 못했다(위 사유 참조)" >&2; exit 2; }
     echo "[broad_search] cells ← assignments[$NODE] = $CELLS"
   elif [ -n "$CELLS" ] && [ -n "${NODE:-}" ]; then
@@ -380,9 +380,9 @@ MSG
   # 캠페인 읽기 런타임(Rust campaign_read)은 첫 캠페인 읽기·부작용 전에 한 번 확인한다. 호출부는 stderr 를 버리므로(아래
   # `--active`·`--derive`) 실행파일 부재 안내가 가려지고 대체값이 쓰일 수 있었다 — 여기서 안내를 보이고 상태를 전파한다.
   # 가용성 확인일 뿐 건강 증명이 아니며, 런타임이 있으면 이후 오류·대체 처리는 종전과 같다.
-  _CIV="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+  _CIV="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.sh"
   if [ -f "$_CIV" ]; then
-    CAMPAIGN_READ_VALIDATE_ONLY=1 bash "${_CIV%.py}.sh" || {
+    CAMPAIGN_READ_VALIDATE_ONLY=1 bash "$_CIV" || {
       _CIV_RC=$?
       echo "[broad_search] ERROR 캠페인 읽기 런타임을 쓸 수 없다 — 서빙·측정·기록 어느 것도 시작하지 않는다(위 안내로 빌드한 뒤 다시)." >&2
       exit "$_CIV_RC"
@@ -465,7 +465,7 @@ MSG
   #     그 밖의 비0·파싱 불가는 **판정 불가**(배선 결함)다. 둘에 같은 안내를 내면 운영자는 lockset 에
   #     거짓 `hand-authored` 를 덮어쓰고도 여전히 막힌다(workflow.md §막힘 3분류 — 안내문이 분류를
   #     잘못 말하면 가드가 있어도 사고가 난다).
-  _CI_PC="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+  _CI_PC="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.sh"
   if [ ! -f "$_CI_PC" ]; then
     # 판정자가 없으면 판정하지 않은 것이다 — 게이트 경로의 부재를 통과로 접지 않는다.
     echo "[broad_search] ERROR 셀 출처 precheck 판정자 부재: $_CI_PC — 판정 불가(fail-closed)." >&2
@@ -477,7 +477,7 @@ MSG
   _PC_CAMP="$(_state_campaign "$STATE")"
   if [ -n "$_PC_CAMP" ]; then
     _PC_ARGS+=(--campaign-id "$_PC_CAMP")
-    _PC_ACTIVE="$(bash "${_CI_PC%.py}.sh" --active 2>/dev/null || echo '?')"
+    _PC_ACTIVE="$(bash "$_CI_PC" --active 2>/dev/null || echo '?')"
     if [ "$_PC_ACTIVE" != "$_PC_CAMP" ]; then
       echo "[broad_search] ⚠ 상태 파일은 campaigns/$_PC_CAMP 인데 활성 캠페인은 '$_PC_ACTIVE' 다 —" >&2
       echo "[broad_search]   셀 출처는 상태 파일의 캠페인($_PC_CAMP)으로 판정한다(포인터 유실이 게이트를 열지 않는다)." >&2
@@ -485,7 +485,7 @@ MSG
     fi
   fi
   set +e
-  CELL_PROV="$(bash "${_CI_PC%.py}.sh" "${_PC_ARGS[@]}")"
+  CELL_PROV="$(bash "$_CI_PC" "${_PC_ARGS[@]}")"
   _PCRC=$?
   set -e
   _PC_STATUS="$(printf '%s' "$CELL_PROV" | bash "$SDIR/bench_shell.sh" provenance-status 2>/dev/null || true)"
@@ -593,7 +593,7 @@ MSG
   #    자리**에서 cell.status 와 여정 줄도 쓴다. 두 자리를 다른 시점에 쓰면 갈라지고, 갈라진 것이
   #    캠페인 ⑦ 의 b1~b6 이다(sweep=serve_failed 인데 cell.status=pending · P1 이 그것을 잡는다).
   #    포맷 소유는 campaign_init 하나이고 여기는 호출부다. ACTIVE=_bootstrap 이면 no-op 이다.
-  _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+  _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.sh"
   if [ -f "$_CI" ]; then
     _OUTCOME="$(bash "$SDIR/bench_shell.sh" cell-outcome "$STATE" "$CELL_KEY")"
     if [ -n "$_OUTCOME" ]; then
@@ -624,11 +624,11 @@ MSG
                  --void-reason-source "broad_search cell(엔진 로그 인용 · 이벤트 대조 실패)")
       fi
       # writer 실패는 삼키지 않는다 — 상태가 안 적혔다는 사실 자체가 다음 재개의 함정이다.
-      bash "${_CI%.py}.sh" "${_WARGS[@]}" \
+      bash "$_CI" "${_WARGS[@]}" \
         || echo "[broad_search] ⚠ campaigns writer 실패 — cell.status/여정이 기록되지 않았다(위 사유 참조)" >&2
       # bench phase 진행표 + 관측면 갱신(2026-09-08 · plan_26090813 §4.2). 노드는 셀 상태에서
       # 되읽는다 — writer 가 배정에서 파생해 방금 적은 값이고, 여기서 두 번째 파생을 만들지 않는다.
-      _CS="$(bash "${_CI%.py}.sh" --derive cell-status --cell "$CELL_KEY" 2>/dev/null || true)"
+      _CS="$(bash "$_CI" --derive cell-status --cell "$CELL_KEY" 2>/dev/null || true)"
       _NODE=""
       if [ -n "$_CS" ] && [ -f "$_CS" ]; then
         _NODE="$(bash "$SDIR/bench_shell.sh" node-id "$_CS" 2>/dev/null || true)"
@@ -648,13 +648,13 @@ MSG
         # `set -e` 아래에서 `[ … ] && x` 는 마지막 문장일 때 스크립트를 죽인다 — if 로 적는다.
         _BOK=(); _BSTATE="failed"
         if [ "$_OUTCOME" = "measured" ]; then _BOK=(--proof-ok); _BSTATE="done"; fi
-        bash "${_CI%.py}.sh" --phase-set bench --node "$_NODE" --cell "$CELL_KEY" \
+        bash "$_CI" --phase-set bench --node "$_NODE" --cell "$CELL_KEY" \
           --state "$_BSTATE" \
           --proof-predicate "sweep 레코드 실재 + cell_outcome=$_OUTCOME" "${_BOK[@]}" \
           --proof-source "broad_search cell: $STATE#cells[cell_key=$CELL_KEY]" \
           --started-utc "$STARTED" --ended-utc "$ENDED" --authored-by "$_NODE" \
           || echo "[broad_search] ⚠ bench 진행표 기록 실패" >&2
-        bash "${_CI%.py}.sh" --write-brief --node "$_NODE" --utc "$ENDED" \
+        bash "$_CI" --write-brief --node "$_NODE" --utc "$ENDED" \
           || echo "[broad_search] ⚠ campaign_brief 갱신 실패 — 감독자가 읽을 관측면이 낡았다" >&2
         # ── escalation 후보(2026-09-11 · plan_26091108 R6) ────────────────────────────────
         #   반증된 셀은 후보 원장에 **한 줄** 남는다. 발동하지 않는다 — 빌드 평면 재전략은
@@ -670,7 +670,7 @@ MSG
             while IFS= read -r evf; do
               [ -n "$evf" ] && [ -f "$evf" ] && _ESC+=(--events "$evf")
             done < <(printf '%s' "$CLS" | bash "$SDIR/bench_shell.sh" events-scanned 2>/dev/null || true)
-            bash "${_CI%.py}.sh" "${_ESC[@]}" >/dev/null \
+            bash "$_CI" "${_ESC[@]}" >/dev/null \
               || echo "[broad_search] ⚠ escalation 후보 기록 실패 — 종결 HITL 이 이 셀을 못 본다" >&2
             ;;
         esac

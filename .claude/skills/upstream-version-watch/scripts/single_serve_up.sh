@@ -160,13 +160,13 @@ rollback(){
 #   시작 **뒤**에 있었고 STOP 이 rollback 없이 exit 4 를 냈다 — 선언과 열린 세션이 남아 다음 시도가 세션 2개를
 #   만들고, 롤백 down 이 5/5 에서 실패했다(서브 실측). 이 스크립트의 계약("부분 상태를 남기지 않는다")을
 #   지키는 가장 단순한 자리는 **아무 상태도 만들기 전**이다. 그래서 2/7 앞으로 옮긴다(이 자리에선 되돌릴 것이 없다).
-_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.sh"
 if [ "$DRY" = 1 ]; then
   echo "$TAG (dry-run) 그라운딩 백스톱은 실기동에만 건다 — 예행은 막지 않는다"
 elif [ -f "$_CI" ]; then
-  if ! bash "${_CI%.py}.sh" --grounding-check; then
+  if ! bash "$_CI" --grounding-check; then
     echo "$TAG STOP: 그라운딩 기록 없이 서빙에 진입하지 않는다(policy:LIBRARY_GROUNDING_FAIL_CLOSED)." >&2
-    echo "$TAG   → python3 $_CI --ground --utc <UTC> 로 사서에게 먼저 물어라." >&2
+    echo "$TAG   → bash $_CI --ground --utc <UTC> 로 사서에게 먼저 물어라." >&2
     echo "$TAG   → 사서가 못 찾으면 그 사실이 기록에 남고 그대로 통과한다(공백은 차단이 아니다)." >&2
     echo "$TAG   (이 검사는 예산 선언·세션 시작 전에 선다 — 남긴 상태 0)" >&2
     exit 4
@@ -347,14 +347,14 @@ while [ "$_waited" -lt "$READY_MAX" ]; do
     #    ★ 2026-09-08(plan_26090813 F5): 이 가드는 **부재를 침묵으로** 처리했다. 서브 오버레이에
     #      writer 가 없던 동안 이 자리는 조용히 아무것도 안 했고, 그래서 서브 진행표가 캠페인이
     #      끝난 뒤 메인 손으로 나타났다. 부재는 이제 소리낸다 — 배선 결함과 정상 no-op 은 다르다.
-    _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+    _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.sh"
     if [ -f "$_CI" ]; then
-      bash "${_CI%.py}.sh" --phase-set serve --node "$NODE_ID" --state done --cell "$CONFIG" \
+      bash "$_CI" --phase-set serve --node "$NODE_ID" --state done --cell "$CONFIG" \
         --proof-predicate "health 200" --proof-ok \
         --proof-source "single_serve_up.sh: curl http://localhost:$PORT/health = 200 (container=$CNAME · session=$SESSION_ID)" \
         --started-utc "$_SERVE_T0" --ended-utc "$(NOW_ISO)" --authored-by "$NODE_ID" \
         || echo "$TAG ⚠ campaigns writer 실패 — serve 진행표가 기록되지 않았다" >&2
-      bash "${_CI%.py}.sh" --write-brief --node "$NODE_ID" --utc "$(NOW_ISO)" \
+      bash "$_CI" --write-brief --node "$NODE_ID" --utc "$(NOW_ISO)" \
         || echo "$TAG ⚠ campaign_brief 갱신 실패 — 감독자가 읽을 관측면이 낡았다" >&2
     else
       echo "$TAG ⚠ campaigns writer 부재($_CI) — serve 진행표를 아무도 적지 않았다." >&2

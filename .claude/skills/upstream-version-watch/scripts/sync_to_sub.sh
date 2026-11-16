@@ -343,7 +343,7 @@ assert_sub_delegation_authorized() {  # $1=topology → 0=인가(hw_verified:tru
     [ "$hv" = "true" ] && return 0
     echo "[sync] STOP(A2A-위임 게이트): output/$1/manifest.yaml 의 nodes[sub].hw_verified != true (got '${hv:-<none>}')" >&2
     echo "  → 서브 HW 동질성 미검증 = 위임 키 미발급 → 빌드 전파 거부(fail-closed)." >&2
-    echo "  → 검증 path(HITL): python3 .claude/skills/terraforming_node/scripts/scan_node.py --topology $1 --peer-ssh <user@sub> --emit-manifest" >&2
+    echo "  → 검증 path(HITL): bash .claude/skills/terraforming_node/scripts/scan_node.sh --topology $1 --peer-ssh <user@sub> --emit-manifest" >&2
     echo "     → 동질성 통과 시 nodes[sub].hw_verified:true 기입(사람 확인) → 재실행. (무인 자동 서브-스캔 ✗ — '열쇠 분실=사고'.)" >&2
     return 1
 }

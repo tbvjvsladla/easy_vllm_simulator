@@ -33,7 +33,8 @@ use sweep_stop::pyvalue::{PyDict, PyValue};
 const API: &str = env!("CARGO_BIN_EXE_repeat_axis_api");
 const CLI: &str = env!("CARGO_BIN_EXE_repeat_axis");
 const TRACEBACK: &str = "Traceback (most recent call last):\n";
-const OWNER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py";
+/// The campaign owner is its native launcher (the retired campaign_init.py may be absent).
+const OWNER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.sh";
 const SCHEMA_REL: &str = "campaigns/_template/campaign.schema.json";
 
 // ── environment ─────────────────────────────────────────────────────────────────
@@ -50,7 +51,7 @@ fn real_repo() -> PathBuf {
         });
     assert!(
         repo.join(OWNER_REL).is_file(),
-        "NOT_RUN: no campaign_init.py under {}",
+        "NOT_RUN: no campaign_init.sh under {}",
         repo.display()
     );
     repo
@@ -570,7 +571,7 @@ fn self_test_fails_when_the_owner_source_is_missing() {
         last.starts_with("FileNotFoundError: [Errno 2] No such file or directory: '"),
         "{last}"
     );
-    assert!(last.ends_with("campaign_init.py'"), "{last}");
+    assert!(last.ends_with("campaign_init.sh'"), "{last}");
 }
 
 // ── no Python route; an installed resolver always answers natively ─────────────
@@ -991,8 +992,10 @@ mod r44_routes {
         std::os::unix::fs::symlink(&real.0, &alias).unwrap();
         let other = fixture("r44d_other", Some(b"camp-target\n"), &["camp-target"]);
         let caller = fixture("r44d_caller", Some(b"camp-caller\n"), &["camp-caller"]);
-        std::fs::remove_file(caller.0.join(OWNER_REL)).unwrap();
-        std::os::unix::fs::symlink(other.0.join(OWNER_REL), caller.0.join(OWNER_REL)).unwrap();
+        // the module path the owner is read through (`campaign_init.py` beside the launcher) is a symlink into the other root
+        let module = caller.0.join(".claude/skills/terraforming_node/scripts/campaign_init.py");
+        let _ = std::fs::remove_file(&module);
+        std::os::unix::fs::symlink(other.0.join(OWNER_REL), &module).unwrap();
         let mut rows: Vec<(String, Vec<String>)> = Vec::new();
         for (label, scratch) in &fixtures {
             let roots = vec![

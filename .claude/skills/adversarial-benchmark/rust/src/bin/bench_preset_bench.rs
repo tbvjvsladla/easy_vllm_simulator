@@ -25,7 +25,8 @@ use sweep_stop::bench_preset_cli::Runtime;
 use sweep_stop::pyjson::{decode_file_text, loads, loads_text};
 use sweep_stop::pyvalue::{PyDict, PyValue};
 
-const OWNER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py";
+// the campaign owner is its native launcher (the retired campaign_init.py may be absent)
+const OWNER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.sh";
 
 fn fail(message: &str) -> ExitCode {
     eprintln!("[bench_preset_bench] ERROR {message}");

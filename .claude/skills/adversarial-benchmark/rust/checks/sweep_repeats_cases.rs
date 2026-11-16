@@ -172,6 +172,7 @@ fn private_tree(scratch: &Scratch) -> PathBuf {
         ".claude/skills/adversarial-benchmark/rust/src/argv.rs",
         ".claude/skills/adversarial-benchmark/rust/src/assemble_sweep_meta.rs",
         ".claude/skills/adversarial-benchmark/rust/src/bench_shell/broad.rs",
+        ".claude/skills/adversarial-benchmark/rust/src/campaign_write.rs",
         ".claude/skills/vllm-recipe-explorer/rust/runtime/src/recipe_cmd/simulate_body.rs",
     ] {
         if source.join(relative).is_file() {

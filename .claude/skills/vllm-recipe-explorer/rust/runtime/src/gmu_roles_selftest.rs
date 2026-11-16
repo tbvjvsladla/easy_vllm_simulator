@@ -32,7 +32,7 @@ const TARGET_GMU: f64 = 0.85;
 const SKILL_REL: &str = ".claude/skills/vllm-recipe-explorer";
 /// What the copy carries besides the skill: the lockset vocabulary owner and the GPU specification table the program reads.
 const EXTRA_COPIES: [&str; 2] = [
-    ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+    ".claude/skills/adversarial-benchmark/rust/src/campaign_validator.rs",
     ".claude/skills/wiki-desk/reference/references.md",
 ];
 /// Untracked local products inside the skill (`.gitignore`) and build output: the copy never carries an operator's inputs.

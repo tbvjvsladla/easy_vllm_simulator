@@ -25,7 +25,8 @@ const INLINE_JSON_SH: &str = ".claude/skills/upstream-version-watch/scripts/inli
 const CLOSING: &str = ".claude/skills/upstream-version-watch/scripts/closing_sequence.sh";
 const PARITY: &str = ".claude/policies/runtime/topology_parity.py";
 const PARITY_SH: &str = ".claude/policies/runtime/topology_parity.sh";
-const CAMPAIGN_INIT: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py";
+// The campaign component is its native launcher (the retired campaign_init.py is not needed for the campaign leg).
+const CAMPAIGN_INIT: &str = ".claude/skills/terraforming_node/scripts/campaign_init.sh";
 /// The renderer: its launcher (the ELF is the real tree's terraforming_node/rust, the env below points the launcher at it)
 /// and its Rust source (the guard's anchor; a compiled binary cannot be mutated in place).
 const RENDER: &str = ".claude/skills/terraforming_node/scripts/render_sub_env.sh";

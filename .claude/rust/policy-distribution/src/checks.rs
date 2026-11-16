@@ -222,9 +222,10 @@ fn git_out(repo: &Path, a: &[&str]) -> Option<std::process::Output> {
     std::process::Command::new("git").arg("-C").arg(repo).args(a).output().ok()
 }
 
-/// `_terraform_flag_issued()` — the Flag reader is the terraforming bundle's program, run as the original ran it.
+/// `_terraform_flag_issued()` — the Flag reader is the terraforming bundle's program (its native launcher
+/// `manifest_contract.sh`; the retired `manifest_contract.py` is no longer run).
 fn terraform_flag_issued(repo: &Path) -> bool {
-    let mc = repo.join(".claude/skills/terraforming_node/scripts/manifest_contract.py");
+    let mc = repo.join(".claude/skills/terraforming_node/scripts/manifest_contract.sh");
     if !mc.is_file() {
         return false;
     }
@@ -232,7 +233,7 @@ fn terraform_flag_issued(repo: &Path) -> bool {
         .map(|o| py_strip(&String::from_utf8_lossy(&o.stdout)).to_string())
         .unwrap_or_default();
     let topo = if branch == "multi-node" { "multi" } else { "single" };
-    match std::process::Command::new(python_executable())
+    match std::process::Command::new("bash")
         .arg(&mc)
         .args(["--topology", topo, "--repo"])
         .arg(repo)
@@ -1016,20 +1017,21 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
     checks.push(run("hint_image_git_release_selftest", &[py.clone(), "-m".into(), "hintlib.selftest_image_git_release".into()], &[0],
                     &repo.join(".claude/skills/hint-publisher/scripts"), &[]));
     checks.push(p("hint_bench_section_selftest", ".claude/skills/hint-publisher/scripts/render_bench_section.py", &["--selftest"], &[0]));
-    checks.push(p("terraform_scan_selftest_legacy", &format!("{tn}/scan_node_original.py"), &["--self-test"], &[0]));
+    // terraforming core contracts: their Rust launchers (was `python3 <x>.py --self-test`; pass 2 of plan_26111615).
+    checks.push(rr("terraform_scan_selftest_legacy", &["bash", &format!("{tn}/scan_node.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_scan_p1_native_selfcheck", &["bash", &format!("{tn}/scan_node.sh"), "--p1-self-check"], &[0]));
     checks.push(rr("terraform_render_selftest", &["bash", &format!("{tn}/render_sub_env.sh"), "--self-test"], &[0]));
-    checks.push(p("terraform_node_role_contract_selftest", &format!("{tn}/node_role_contract.py"), &["--self-test"], &[0]));
-    checks.push(p("terraform_library_access_selftest", &format!("{tn}/library_access.py"), &["--self-test"], &[0]));
+    checks.push(rr("terraform_node_role_contract_selftest", &["bash", &format!("{tn}/node_role_contract.sh"), "--self-test"], &[0]));
+    checks.push(rr("terraform_library_access_selftest", &["bash", &format!("{tn}/library_access.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_staleness_gate_selftest", &["bash", &format!("{tn}/staleness_gate.sh"), "--self-test"], &[0]));
-    checks.push(p("terraform_manifest_contract_selftest", &format!("{tn}/manifest_contract.py"), &["--self-test"], &[0]));
+    checks.push(rr("terraform_manifest_contract_selftest", &["bash", &format!("{tn}/manifest_contract.sh"), "--self-test"], &[0]));
     // policy programs: their Rust launchers (was `python3 <x>.py --self-test`).
     checks.push(rr("antipattern_scan_selftest", &["bash", ANTIPATTERN_SCAN_LAUNCHER, "--self-test"], &[0]));
     checks.push(rr("constitution_lint_selftest", &["bash", CONSTITUTION_LINT_LAUNCHER, "--self-test"], &[0]));
     checks.push(rr("agent_control_selftest", &["bash", &format!("{tn}/agent_control.sh"), "--self-test"], &[0]));
     checks.push(p("harness_switch_integration_selftest", &format!("{tn}/selftest_harness_switch.py"), &["-B"], &[0]));
     checks.push(p("claude_native_events_selftest", &format!("{tn}/selftest_claude_native_events.py"), &["-B"], &[0]));
-    checks.push(p("terraform_turn_budget_selftest", &format!("{tn}/turn_budget.py"), &["--self-test"], &[0]));
+    checks.push(rr("terraform_turn_budget_selftest", &["bash", &format!("{tn}/turn_budget.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_relay_selftest", &["bash", &format!("{tn}/relay.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_bootstrap_canary_selftest", &["bash", &format!("{tn}/bootstrap_canary.sh"), "--self-test"], &[0]));
     checks.push(p("terraform_bootstrap_permissions_selftest", &format!("{tn}/selftest_bootstrap_permissions.py"), &["-B"], &[0]));

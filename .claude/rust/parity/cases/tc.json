@@ -807,5 +807,1206 @@
   "outputs": [
    "ws"
   ]
+ },
+ {
+  "id": "TC-CI-help",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "-h"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-help-long",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--help"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-help-after-error-free",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--active",
+   "-h"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-noargs-help",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-only-modifiers-help",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--apply",
+   "--utc",
+   "2026-01-01T00:00:00Z"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-abbrev-active",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--acti"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-eq-derive",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--derive=root"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-ambiguous",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--ce",
+   "x"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-ambiguous-ev",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--evidence"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-unknown",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--bogus"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-unknown-after",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--active",
+   "--bogus",
+   "x"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-positional",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "foo"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-dashdash",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--active",
+   "--",
+   "x"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-expected-arg",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--cell-set"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-expected-arg-dash",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--cell-set",
+   "c1",
+   "--outcome",
+   "-x"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-bad-choice",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--reentry-decide",
+   "c1",
+   "--decision",
+   "maybe"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-bad-topology",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--init",
+   "x",
+   "--target-topology",
+   "both"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-flag-explicit",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--apply=1"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-short-explicit",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "-hx"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-lifecycle-star",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--lifecycle"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-lifecycle-id",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--lifecycle",
+   "camp-a"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-lifecycle-eq-empty",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--lifecycle="
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-correct-ref-alone",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--correct-reference",
+   "--active"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-precedence-close-init",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--close",
+   "camp-a",
+   "--init",
+   "x"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-precedence-derive-over-brief",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--resume-brief",
+   "--derive",
+   "root"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-empty-value-skipped",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--suspend",
+   "",
+   "--escalation-summary"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-writer-multi",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--phase-set",
+   "build",
+   "--node",
+   "main",
+   "--state",
+   "running",
+   "--cell-set",
+   "c1",
+   "--outcome",
+   "pending"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-writer-multi-derived-node",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--phase-set",
+   "serve",
+   "--cell",
+   "c1",
+   "--state",
+   "done",
+   "--cell-set",
+   "c1",
+   "--outcome",
+   "pending"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-writer-multi-fail-second",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--phase-set",
+   "build",
+   "--node",
+   "main",
+   "--state",
+   "running",
+   "--cell-set",
+   "c1"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-writer-bootstrap",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--phase-set",
+   "build",
+   "--evidence-add"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": ""
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-evidence-add",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--evidence-add",
+   "--kind",
+   "plan",
+   "--path",
+   "docs/plan/p.md"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}",
+   "docs/plan/p.md": "# plan\n",
+   "campaigns/camp-a/evidence_pointers.json": "{\"campaign_id\": \"camp-a\", \"pointers\": []}\n"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-evidence-add-missing",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--evidence-add",
+   "--kind",
+   "plan"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-evidence-add-absent-file",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--evidence-add",
+   "--kind",
+   "plan",
+   "--path",
+   "docs/plan/none.md"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}",
+   "campaigns/camp-a/evidence_pointers.json": "{\"campaign_id\": \"camp-a\", \"pointers\": []}\n"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-evidence-add-and-freeze",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--evidence-add",
+   "--kind",
+   "plan",
+   "--path",
+   "docs/plan/p.md",
+   "--freeze-evidence",
+   "--utc",
+   "2026-11-16T00:00:00Z"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}",
+   "docs/plan/p.md": "# plan\n",
+   "campaigns/camp-a/evidence_pointers.json": "{\"campaign_id\": \"camp-a\", \"pointers\": []}\n"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-evidence-untag-missing",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--evidence-untag",
+   "--kind",
+   "plan"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-escalation-summary",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--escalation-summary"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-escalation-summary-boot",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--escalation-summary"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": ""
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-grounding-check",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--grounding-check"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-lockset-no-cell",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--lockset-precheck"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-assigned-abbrev",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--assigned",
+   "main"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-resume-brief",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--resume-brief"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-revise",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--revise",
+   "--revise-set",
+   "model=m2",
+   "--revise-reason",
+   "r",
+   "--revise-evidence",
+   "e",
+   "--revise-approved-by",
+   "u",
+   "--utc",
+   "2026-11-16T00:00:00Z"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-revise-bad",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--revise",
+   "--revise-set",
+   "novalue"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-verify-purge",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--verify-purge-gate",
+   "camp-a"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CI-residue-scan",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+  "args": [
+   "--residue-scan"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  },
+  "outputs": [
+   "campaigns",
+   "docs"
+  ]
+ },
+ {
+  "id": "TC-CV-help",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "args": [
+   "-h"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3"
+ },
+ {
+  "id": "TC-CV-unknown",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "args": [
+   "--bogus"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3"
+ },
+ {
+  "id": "TC-CV-expected",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "args": [
+   "--campaign"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3"
+ },
+ {
+  "id": "TC-CV-template",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "args": [
+   "--template"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3"
+ },
+ {
+  "id": "TC-CV-noargs-template",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "args": [],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3"
+ },
+ {
+  "id": "TC-CV-abbrev-template",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "args": [
+   "--temp"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3"
+ },
+ {
+  "id": "TC-CV-campaign",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "args": [
+   "--campaign",
+   "campaigns/camp-a/campaign.yaml"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  }
+ },
+ {
+  "id": "TC-CV-campaign-eq",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "args": [
+   "--campaign=campaigns/camp-a/campaign.yaml"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  }
+ },
+ {
+  "id": "TC-CV-campaign-missing",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "args": [
+   "--campaign",
+   "campaigns/none/campaign.yaml"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3"
+ },
+ {
+  "id": "TC-CV-instance",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "args": [
+   "--instance",
+   "campaigns/camp-a"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  }
+ },
+ {
+  "id": "TC-CV-instance-and-campaign",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "args": [
+   "--instance",
+   "campaigns/camp-a",
+   "--campaign",
+   "campaigns/camp-a/campaign.yaml"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "campaigns/ACTIVE": "camp-a\n",
+   "campaigns/camp-a/campaign.yaml": "{\n \"schema_version\": 1,\n \"id\": \"camp-a\",\n \"plan_ref\": \"docs/plan/p.md\",\n \"declared_utc\": \"2026-11-15T00:00:00Z\",\n \"nodes\": [\n  {\n   \"node_id\": \"main\",\n   \"role\": \"main\",\n   \"topology\": \"single\",\n   \"hw\": \"fixture\"\n  }\n ],\n \"matrix\": {\n  \"versions\": [\n   \"0.30.0\"\n  ],\n  \"models\": [\n   \"m\"\n  ]\n },\n \"assignments\": {\n  \"main\": [\n   {\n    \"cell\": \"c1\",\n    \"mode\": \"AUTO\"\n   },\n   {\n    \"cell\": \"c2\",\n    \"mode\": \"STAY\"\n   }\n  ]\n },\n \"budgets\": {\n  \"smoke_budget_overhead_mib\": 1,\n  \"ready_max_seconds\": 1,\n  \"repeats\": 3\n },\n \"control_variables\": {\n  \"model\": \"m\",\n  \"topology\": \"single\"\n },\n \"revisions\": [],\n \"hint_targets\": []\n}"
+  }
+ },
+ {
+  "id": "TC-CV-empty-campaign-is-template",
+  "entry": ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+  "args": [
+   "--campaign",
+   ""
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3"
+ },
+ {
+  "id": "TC-MC-help",
+  "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+  "args": [
+   "-h"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "orig_public": ".claude/skills/terraforming_node/scripts/manifest_contract.py"
+ },
+ {
+  "id": "TC-MC-self-test",
+  "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+  "args": [
+   "--self-test"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "orig_public": ".claude/skills/terraforming_node/scripts/manifest_contract.py"
+ },
+ {
+  "id": "TC-MC-unknown",
+  "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+  "args": [
+   "--bogus"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "orig_public": ".claude/skills/terraforming_node/scripts/manifest_contract.py"
+ },
+ {
+  "id": "TC-MC-bad-topology",
+  "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+  "args": [
+   "--topology",
+   "both"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "orig_public": ".claude/skills/terraforming_node/scripts/manifest_contract.py"
+ },
+ {
+  "id": "TC-MC-expected",
+  "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+  "args": [
+   "--repo"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "orig_public": ".claude/skills/terraforming_node/scripts/manifest_contract.py"
+ },
+ {
+  "id": "TC-MC-no-manifest-json",
+  "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+  "args": [
+   "--topology",
+   "single",
+   "--repo",
+   ".",
+   "--json"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": ""
+  },
+  "orig_public": ".claude/skills/terraforming_node/scripts/manifest_contract.py"
+ },
+ {
+  "id": "TC-MC-flag-valid",
+  "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+  "args": [
+   "--topology",
+   "single",
+   "--repo",
+   "."
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "output/single/manifest.yaml": "topology: single\ngpus_per_node: 1\nmodel_source: managed\nnas_model_path: /mnt/models\nnodes: []\nterraforming:\n  complete: true\n  branch_verified: true\n"
+  },
+  "orig_public": ".claude/skills/terraforming_node/scripts/manifest_contract.py"
+ },
+ {
+  "id": "TC-MC-flag-valid-abbrev",
+  "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+  "args": [
+   "--top",
+   "single",
+   "--re",
+   ".",
+   "--js"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "output/single/manifest.yaml": "topology: single\ngpus_per_node: 1\nmodel_source: managed\nnas_model_path: /mnt/models\nnodes: []\nterraforming:\n  complete: true\n  branch_verified: true\n"
+  },
+  "orig_public": ".claude/skills/terraforming_node/scripts/manifest_contract.py"
+ },
+ {
+  "id": "TC-MC-flag-valid-eq",
+  "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+  "args": [
+   "--topology=single",
+   "--repo=.",
+   "--require-flag"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "output/single/manifest.yaml": "topology: single\ngpus_per_node: 1\nmodel_source: managed\nnas_model_path: /mnt/models\nnodes: []\nterraforming:\n  complete: true\n  branch_verified: true\n"
+  },
+  "orig_public": ".claude/skills/terraforming_node/scripts/manifest_contract.py"
+ },
+ {
+  "id": "TC-MC-flag-twice",
+  "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+  "args": [
+   "--topology",
+   "multi",
+   "--topology",
+   "single",
+   "--repo",
+   "."
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "output/single/manifest.yaml": "topology: single\ngpus_per_node: 1\nmodel_source: managed\nnas_model_path: /mnt/models\nnodes: []\nterraforming:\n  complete: true\n  branch_verified: true\n"
+  },
+  "orig_public": ".claude/skills/terraforming_node/scripts/manifest_contract.py"
+ },
+ {
+  "id": "TC-MC-no-flag",
+  "entry": ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+  "args": [
+   "--topology",
+   "single",
+   "--require-flag"
+  ],
+  "orig_rev": "28cf4c5b8b97adc2e19694f2e1f04268beefcbd3",
+  "setup": {
+   ".git/HEAD": "ref: refs/heads/single-node\n",
+   ".git/objects/.keep": "",
+   ".git/refs/heads/.keep": "",
+   "output/single/manifest.yaml": "topology: single\n"
+  },
+  "orig_public": ".claude/skills/terraforming_node/scripts/manifest_contract.py"
  }
 ]

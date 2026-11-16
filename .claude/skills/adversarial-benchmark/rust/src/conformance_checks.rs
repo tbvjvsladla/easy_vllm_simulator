@@ -175,7 +175,8 @@ pub fn main(context: &Context, console: &mut dyn Console) -> Result<i32, Raised>
     let skills = context.skills_dir();
     let skill_source =
         |relative: &str| read_optional_strict(&crate::ospath::join_all(&skills, &[relative]));
-    let campaign_init = skill_source("terraforming_node/scripts/campaign_init.py")?;
+    // The campaign writer is native (`campaign_write`, adversarial-benchmark/rust), not the retired campaign_init.py.
+    let campaign_init = skill_source("adversarial-benchmark/rust/src/campaign_write.rs")?;
     // The explorer's cap rule lives in its Rust owner (`recipe simulate`), not in the retired `recipe.py`.
     let recipe = skill_source("vllm-recipe-explorer/rust/runtime/src/recipe_cmd/simulate_body.rs")?;
     report.check(
@@ -208,8 +209,8 @@ pub fn main(context: &Context, console: &mut dyn Console) -> Result<i32, Raised>
     report.check(
         "E② campaign_init writer 가 ② 에서 cap 차감(charges)·재발동 제안을 적고 결정 기록 문을 갖는다(cap 값은 적지 않는다)",
         campaign_init.contains("read_lite_verdict")
-            && campaign_init.contains("\"charges\": charges")
-            && campaign_init.contains("\"status\": \"proposed\"")
+            && campaign_init.contains("reconciliation.set(\"charges\", PyValue::List(charges))")
+            && campaign_init.contains("r.set(\"status\", py(\"proposed\"))")
             && campaign_init.contains("--reentry-decide"),
         "",
     );

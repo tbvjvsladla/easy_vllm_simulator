@@ -1,0 +1,11 @@
+{
+  "campaign_id": "camp-a",
+  "total": 0,
+  "predicate_1_standing": 0,
+  "host_plane_only": 0,
+  "cells_standing": [],
+  "cells_host_plane": [],
+  "hitl_required": false,
+  "rows": [],
+  "_note": "술어 ① 이 선 후보가 하나라도 있으면 캠페인 종결 시 사람에게 묻는다 — 빌드 평면 재전략(포크 핀·빌드 패치·이미지 재빌드)은 통제변인을 바꾸므로 캠페인 중간에 발동하지 않는다. ① 이 서지 않은 줄은 예산·호스트 평면의 일이며 그 처방은 R1~R3 의 게이트가 이미 갖고 있다."
+}

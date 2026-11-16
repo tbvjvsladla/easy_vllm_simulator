@@ -525,8 +525,6 @@ fn run_cases(
     // assignments.
     let writer_directory = sandbox.root().join(WRITER_DIRECTORY);
     for name in [
-        "campaign_init.py",
-        "campaign_template_validator.py",
         "campaign_init.sh",
         "campaign_template_validator.sh",
     ] {

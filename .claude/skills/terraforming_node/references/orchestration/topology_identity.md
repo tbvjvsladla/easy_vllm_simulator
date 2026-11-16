@@ -50,7 +50,7 @@
 
 ```bash
 # 셸 소비자는 한 줄 값으로 묻는다. 위반이면 값을 찍지 않고 종료코드 5.
-python3 .claude/skills/terraforming_node/scripts/node_role_contract.py \
+bash .claude/skills/terraforming_node/scripts/node_role_contract.sh \
         evaluate --topology single --repo . --field delivery_plane --format value    # → dormant
 ```
 
