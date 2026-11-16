@@ -1,0 +1,5 @@
+[seed] node=main -> L/main
+[seed] 라인 21 (인식 18 · 미인식 3) · 보존율 0.8571
+[seed] HB 8 · TRIP 1 · kill_ack 1 · boot 2 · start 1 · unit 3 · TRIP-nomatch 1 · 알려진무시 1
+[seed] 하강률 MiB/s: p50=1912.33 p90=142857.0 p99=142857.0 max=142857.0 (falling 2)
+[seed] kill 지연 상한(s): [12.0]

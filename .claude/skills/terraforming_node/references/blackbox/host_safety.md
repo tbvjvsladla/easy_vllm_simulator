@@ -107,11 +107,11 @@
   |---|---|---|
   | `node_blackbox/install_node_blackbox.sh` · `verify_node_blackbox.sh` | **현행 설치자·검증기**(L1/L2/L3) | §2.6 Y 분기 · HITL sudo |
   | `node_blackbox/publish_install_request.py` | **현행** — L3 지시서 발행 | §2.6.1 |
-  | `node_blackbox/mem_watchdog_eta.sh`(RAM) · `thermal_watchdog.sh`(열·전력) · `blackbox_*.py` · `logs_lifecycle.py` · `regen_envelope.py` · `node_identity.sh` | **현행** — systemd 상시층·데이터 평면 | 설치자가 배치 |
+  | `node_blackbox/mem_watchdog_eta.sh`(RAM) · `thermal_watchdog.sh`(열·전력) · `blackbox_*.py` · `logs_lifecycle.sh`(Rust) · `regen_envelope.py` · `node_identity.sh` | **현행** — systemd 상시층·데이터 평면 | 설치자가 배치 |
   | `node_blackbox/agent_guard.py` | **현행** — 3단 응답의 1단(에이전트 예방 트리거 · 데몬 SIGKILL 보다 앞서 개입) | 서빙 중 에이전트 |
   | `node_blackbox/budget_renew_loop.sh` | **현행** — 상주 서빙의 예산 선언 갱신 사이드카 | `single_serve_up.sh` · `multinode_serve_smoke.sh` |
-  | `node_blackbox/adversarial_stress.py` | **시험용 가압기** — 방어층 발동 시험(벤치마커 ✗) | 사람 지시 시험 |
-  | `node_blackbox/seed_from_journal.py` | **Phase 0 수확기** — 레거시 저널 → `docs/logs/<node>/seed/` | 안전체계 제거 전 1회 |
+  | `node_blackbox/adversarial_stress.sh`(Rust · 원본 `.py` 보존) | **시험용 가압기** — 방어층 발동 시험(벤치마커 ✗) | 사람 지시 시험 |
+  | `node_blackbox/seed_from_journal.sh`(Rust · 원본 `.py` 보존) | **Phase 0 수확기** — 레거시 저널 → `docs/logs/<node>/seed/` | 안전체계 제거 전 1회 |
   | `host_safety/mem_watchdog.sh` | ★ **정본으로 유지** — **협역(harness-scoped) 워치독**. `policy:HOST_SAFETY_LAYERED_DEFENSE.C1` 이 요구하는 계층이며, `multinode_serve_smoke.sh:274-276` 이 이를 *canonical* 로 부르고 **부재 시 exit 2** 로 죽는다 | `run_trial` · `multinode_serve_smoke.sh` 가 자동 기동 |
   | `host_safety/install_host_safety.sh` · `install_netconsole.sh` · `systemd/` · `host/` | **승계됨**(`plan_26073109`) | 잔재는 `node_blackbox/purge_host_safety.sh --require-seed` 로 제거 |
 

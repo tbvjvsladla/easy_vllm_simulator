@@ -1,0 +1,1 @@
+logs_lifecycle: --now must be 'YYYY-MM-DDTHH:MM:SSZ', got '2026-07-31 00:00:00'

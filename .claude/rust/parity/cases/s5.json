@@ -1,0 +1,1011 @@
+[
+ {
+  "id": "S5-01-help",
+  "entry": ".claude/skills/terraforming_node/scripts/audit_session_ssh.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/audit_session_ssh.py",
+  "args": [
+   "-h"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-01-noargs",
+  "entry": ".claude/skills/terraforming_node/scripts/audit_session_ssh.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/audit_session_ssh.py",
+  "args": [],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-01-self-test",
+  "entry": ".claude/skills/terraforming_node/scripts/audit_session_ssh.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/audit_session_ssh.py",
+  "args": [
+   "--self-test"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-01-missing",
+  "entry": ".claude/skills/terraforming_node/scripts/audit_session_ssh.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/audit_session_ssh.py",
+  "args": [
+   "--transcript",
+   "nope.jsonl",
+   "--sub-host",
+   "spark-sub"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-01-bad-limit",
+  "entry": ".claude/skills/terraforming_node/scripts/audit_session_ssh.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/audit_session_ssh.py",
+  "args": [
+   "--limit",
+   "x"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-01-unknown",
+  "entry": ".claude/skills/terraforming_node/scripts/audit_session_ssh.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/audit_session_ssh.py",
+  "args": [
+   "--transcript",
+   "t.jsonl",
+   "--bogus",
+   "z"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-01-abbrev-violations",
+  "entry": ".claude/skills/terraforming_node/scripts/audit_session_ssh.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/audit_session_ssh.py",
+  "args": [
+   "--trans",
+   "t.jsonl",
+   "--sub",
+   "spark-sub"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "t.jsonl": "{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"ssh u@spark-sub 'ls /x'\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"echo a; ssh spark-sub 'cat f'\"}}, {\"type\": \"tool_use\", \"name\": null, \"input\": {\"command\": \"timeout 5 ssh spark-sub uptime\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"FOO=1 ssh spark-sub ps\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"python3 relay.py --x ; ssh spark-sub ls\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"ssh other-host ls\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"grep -c 'ssh' spark-sub.log\"}}]}}\nnot json {\n\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"python3 - <<PYEOF\\nssh spark-sub\\nPYEOF\\n\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"bash <<EOF\\nssh spark-sub id\\nEOF\\n\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"X=$(ssh   spark-sub   'a\\tb') y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": [\"weird\"], \"input\": {\"command\": \"sudo ssh spark-sub reboot\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": 7, \"input\": {\"command\": \"a | ssh spark-sub x\"}}]}}\n"
+  }
+ },
+ {
+  "id": "S5-01-limit1",
+  "entry": ".claude/skills/terraforming_node/scripts/audit_session_ssh.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/audit_session_ssh.py",
+  "args": [
+   "--transcript=t.jsonl",
+   "--sub-host",
+   "spark-sub",
+   "--limit",
+   "1"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "t.jsonl": "{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"ssh u@spark-sub 'ls /x'\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"echo a; ssh spark-sub 'cat f'\"}}, {\"type\": \"tool_use\", \"name\": null, \"input\": {\"command\": \"timeout 5 ssh spark-sub uptime\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"FOO=1 ssh spark-sub ps\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"python3 relay.py --x ; ssh spark-sub ls\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"ssh other-host ls\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"grep -c 'ssh' spark-sub.log\"}}]}}\nnot json {\n\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"python3 - <<PYEOF\\nssh spark-sub\\nPYEOF\\n\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"bash <<EOF\\nssh spark-sub id\\nEOF\\n\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"X=$(ssh   spark-sub   'a\\tb') y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": [\"weird\"], \"input\": {\"command\": \"sudo ssh spark-sub reboot\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": 7, \"input\": {\"command\": \"a | ssh spark-sub x\"}}]}}\n"
+  }
+ },
+ {
+  "id": "S5-01-limit-neg",
+  "entry": ".claude/skills/terraforming_node/scripts/audit_session_ssh.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/audit_session_ssh.py",
+  "args": [
+   "--transcript",
+   "./d//t.jsonl",
+   "--sub-host",
+   "spark-sub",
+   "--limit=-2"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "d/t.jsonl": "{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"ssh u@spark-sub 'ls /x'\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"echo a; ssh spark-sub 'cat f'\"}}, {\"type\": \"tool_use\", \"name\": null, \"input\": {\"command\": \"timeout 5 ssh spark-sub uptime\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"FOO=1 ssh spark-sub ps\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"python3 relay.py --x ; ssh spark-sub ls\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"ssh other-host ls\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"grep -c 'ssh' spark-sub.log\"}}]}}\nnot json {\n\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"python3 - <<PYEOF\\nssh spark-sub\\nPYEOF\\n\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"bash <<EOF\\nssh spark-sub id\\nEOF\\n\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"X=$(ssh   spark-sub   'a\\tb') y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y y\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": [\"weird\"], \"input\": {\"command\": \"sudo ssh spark-sub reboot\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": 7, \"input\": {\"command\": \"a | ssh spark-sub x\"}}]}}\n"
+  }
+ },
+ {
+  "id": "S5-01-pass",
+  "entry": ".claude/skills/terraforming_node/scripts/audit_session_ssh.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/audit_session_ssh.py",
+  "args": [
+   "--transcript",
+   "t.jsonl",
+   "--sub-host",
+   "spark-sub"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "t.jsonl": "{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"ls\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"bash fetch_sub_docs.sh; ssh spark-sub ls\"}}]}}\r\n"
+  }
+ },
+ {
+  "id": "S5-01-no-commands",
+  "entry": ".claude/skills/terraforming_node/scripts/audit_session_ssh.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/audit_session_ssh.py",
+  "args": [
+   "--transcript",
+   "t.jsonl",
+   "--sub-host",
+   "spark-sub"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "t.jsonl": "{\"a\": 1}\n[1,2]\n\nnot json\n"
+  }
+ },
+ {
+  "id": "S5-01-ambiguous",
+  "entry": ".claude/skills/terraforming_node/scripts/audit_session_ssh.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/audit_session_ssh.py",
+  "args": [
+   "--s",
+   "x"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-01-empty-host",
+  "entry": ".claude/skills/terraforming_node/scripts/audit_session_ssh.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/audit_session_ssh.py",
+  "args": [
+   "--transcript",
+   "t.jsonl",
+   "--sub-host",
+   ""
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "t.jsonl": "{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"ls\"}}]}}\n{\"message\": {\"content\": [{\"type\": \"tool_use\", \"name\": \"Bash\", \"input\": {\"command\": \"bash fetch_sub_docs.sh; ssh spark-sub ls\"}}]}}\r\n"
+  }
+ },
+ {
+  "id": "S5-02-help",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "-h"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-02-validate-help",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "validate",
+   "-h"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-02-nocmd",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-02-bogus",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "bogus"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-02-self-test",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "--self-test"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-02-ok",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "validate",
+   "--card",
+   "c.json"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "c.json": "{\n  \"name\": \"fixture\",\n  \"description\": \"fixture\",\n  \"version\": \"2.0.0\",\n  \"supportedInterfaces\": [\n    {\n      \"url\": \"ssh://sub\",\n      \"protocolBinding\": \"urn:test:ssh\",\n      \"protocolVersion\": \"1.0\"\n    }\n  ],\n  \"capabilities\": {\n    \"streaming\": false,\n    \"extensions\": [\n      {\n        \"uri\": \"urn:easy-vllm:ext:node-role:v1\",\n        \"required\": true,\n        \"params\": {\n          \"topology\": \"single\",\n          \"sub_mode\": \"a2a-agent\",\n          \"sub_mode_source\": \"derived-from-topology\",\n          \"rank\": null,\n          \"rank_source\": \"not-applicable:single\",\n          \"identity_authority\": \"ssh-public-key\",\n          \"delivery_plane\": \"dormant\",\n          \"tool_plane\": [],\n          \"tool_plane_source\": \"fixture\"\n        }\n      }\n    ]\n  },\n  \"defaultInputModes\": [\n    \"text/plain\"\n  ],\n  \"defaultOutputModes\": [\n    \"application/json\"\n  ],\n  \"skills\": [\n    {\n      \"id\": \"inspect\",\n      \"name\": \"inspect\",\n      \"description\": \"inspect\",\n      \"tags\": [\n        \"inspect\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"config\",\n      \"name\": \"config\",\n      \"description\": \"config\",\n      \"tags\": [\n        \"config\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"build\",\n      \"name\": \"build\",\n      \"description\": \"build\",\n      \"tags\": [\n        \"build\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"serve\",\n      \"name\": \"serve\",\n      \"description\": \"serve\",\n      \"tags\": [\n        \"serve\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"bench\",\n      \"name\": \"bench\",\n      \"description\": \"bench\",\n      \"tags\": [\n        \"bench\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"publish\",\n      \"name\": \"publish\",\n      \"description\": \"publish\",\n      \"tags\": [\n        \"publish\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    }\n  ]\n}"
+  }
+ },
+ {
+  "id": "S5-02-ok-abbrev",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "validate",
+   "--ca=c.json",
+   "--require-skills"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "c.json": "{\n  \"name\": \"fixture\",\n  \"description\": \"fixture\",\n  \"version\": \"2.0.0\",\n  \"supportedInterfaces\": [\n    {\n      \"url\": \"ssh://sub\",\n      \"protocolBinding\": \"urn:test:ssh\",\n      \"protocolVersion\": \"1.0\"\n    }\n  ],\n  \"capabilities\": {\n    \"streaming\": false,\n    \"extensions\": [\n      {\n        \"uri\": \"urn:easy-vllm:ext:node-role:v1\",\n        \"required\": true,\n        \"params\": {\n          \"topology\": \"single\",\n          \"sub_mode\": \"a2a-agent\",\n          \"sub_mode_source\": \"derived-from-topology\",\n          \"rank\": null,\n          \"rank_source\": \"not-applicable:single\",\n          \"identity_authority\": \"ssh-public-key\",\n          \"delivery_plane\": \"dormant\",\n          \"tool_plane\": [],\n          \"tool_plane_source\": \"fixture\"\n        }\n      }\n    ]\n  },\n  \"defaultInputModes\": [\n    \"text/plain\"\n  ],\n  \"defaultOutputModes\": [\n    \"application/json\"\n  ],\n  \"skills\": [\n    {\n      \"id\": \"inspect\",\n      \"name\": \"inspect\",\n      \"description\": \"inspect\",\n      \"tags\": [\n        \"inspect\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"config\",\n      \"name\": \"config\",\n      \"description\": \"config\",\n      \"tags\": [\n        \"config\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"build\",\n      \"name\": \"build\",\n      \"description\": \"build\",\n      \"tags\": [\n        \"build\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"serve\",\n      \"name\": \"serve\",\n      \"description\": \"serve\",\n      \"tags\": [\n        \"serve\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"bench\",\n      \"name\": \"bench\",\n      \"description\": \"bench\",\n      \"tags\": [\n        \"bench\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"publish\",\n      \"name\": \"publish\",\n      \"description\": \"publish\",\n      \"tags\": [\n        \"publish\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    }\n  ]\n}"
+  }
+ },
+ {
+  "id": "S5-02-bad1",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "validate",
+   "--card",
+   "c.json"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "c.json": "{\"name\": \" \", \"description\": \"fixture\", \"version\": \"2.0.0\", \"supportedInterfaces\": [{\"url\": \"\", \"protocolBinding\": \"x y\", \"extra\": 1}, 3], \"capabilities\": {\"streaming\": \"no\", \"extensions\": [{\"uri\": \"urn:easy-vllm:ext:node-role:v1\", \"required\": false, \"params\": {\"sub_mode\": \"a2a-agent\", \"sub_mode_source\": \"derived-from-topology\", \"rank\": \"0\", \"rank_source\": \"not-applicable:single\", \"identity_authority\": \"ssh-public-key\", \"delivery_plane\": \"dormant\", \"tool_plane\": [1], \"tool_plane_source\": \"fixture\", \"extra_p\": 1}}, {\"uri\": \"not a uri\", \"required\": \"yes\", \"params\": [], \"k\": 1}], \"bogus\": 1}, \"defaultInputModes\": [], \"defaultOutputModes\": [\"application/json\"], \"skills\": [{\"id\": \"inspect\", \"name\": \"inspect\", \"description\": \"inspect\", \"tags\": [\"inspect\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"config\", \"name\": \"config\", \"description\": \"config\", \"tags\": [\"config\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"build\", \"name\": \"build\", \"description\": \"build\", \"tags\": [\"build\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"inspect\", \"tags\": []}, \"s\"], \"zz\": 1, \"aa\": 2.5, \"provider\": {\"url\": \"u\"}}"
+  }
+ },
+ {
+  "id": "S5-02-bad2",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "validate",
+   "--card",
+   "c.json"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "c.json": "{\"name\": \"fixture\", \"description\": \"fixture\", \"version\": 3, \"supportedInterfaces\": [{\"url\": \"ssh://sub\", \"protocolBinding\": \"urn:test:ssh\", \"protocolVersion\": \"1.0\"}], \"capabilities\": {\"streaming\": false, \"extensions\": \"x\"}, \"defaultInputModes\": [\"text/plain\"], \"defaultOutputModes\": [\"application/json\"], \"skills\": []}"
+  }
+ },
+ {
+  "id": "S5-02-dup-ext",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "validate",
+   "--card",
+   "c.json"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "c.json": "{\"name\": \"fixture\", \"description\": \"fixture\", \"version\": \"2.0.0\", \"supportedInterfaces\": [{\"url\": \"ssh://sub\", \"protocolBinding\": \"JSONRPC\", \"protocolVersion\": \"1.0\"}], \"capabilities\": {\"streaming\": false, \"extensions\": [{\"uri\": \"urn:easy-vllm:ext:node-role:v1\", \"required\": true, \"params\": {\"topology\": \"single\", \"sub_mode\": \"a2a-agent\", \"sub_mode_source\": \"derived-from-topology\", \"rank\": null, \"rank_source\": \"not-applicable:single\", \"identity_authority\": \"ssh-public-key\", \"delivery_plane\": \"dormant\", \"tool_plane\": [], \"tool_plane_source\": \"fixture\"}}, {\"uri\": \"urn:easy-vllm:ext:node-role:v1\", \"required\": true, \"params\": {\"topology\": \"single\", \"sub_mode\": \"a2a-agent\", \"sub_mode_source\": \"derived-from-topology\", \"rank\": null, \"rank_source\": \"not-applicable:single\", \"identity_authority\": \"ssh-public-key\", \"delivery_plane\": \"dormant\", \"tool_plane\": [], \"tool_plane_source\": \"fixture\"}}]}, \"defaultInputModes\": [\"text/plain\"], \"defaultOutputModes\": [\"application/json\"], \"skills\": [{\"id\": \"inspect\", \"name\": \"inspect\", \"description\": \"inspect\", \"tags\": [\"inspect\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"config\", \"name\": \"config\", \"description\": \"config\", \"tags\": [\"config\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"build\", \"name\": \"build\", \"description\": \"build\", \"tags\": [\"build\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"serve\", \"name\": \"serve\", \"description\": \"serve\", \"tags\": [\"serve\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"bench\", \"name\": \"bench\", \"description\": \"bench\", \"tags\": [\"bench\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"publish\", \"name\": \"publish\", \"description\": \"publish\", \"tags\": [\"publish\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}]}"
+  }
+ },
+ {
+  "id": "S5-02-ipv6-dupid",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "validate",
+   "--card",
+   "c.json"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "c.json": "{\"name\": \"fixture\", \"description\": \"fixture\", \"version\": \"2.0.0\", \"supportedInterfaces\": [{\"url\": \"ssh://sub\", \"protocolBinding\": \"http://[::1]:80/x\", \"protocolVersion\": \"1.0\"}], \"capabilities\": {\"streaming\": false, \"extensions\": [{\"uri\": \"urn:easy-vllm:ext:node-role:v1\", \"required\": true, \"params\": {\"topology\": \"single\", \"sub_mode\": \"a2a-agent\", \"sub_mode_source\": \"derived-from-topology\", \"rank\": null, \"rank_source\": \"not-applicable:single\", \"identity_authority\": \"ssh-public-key\", \"delivery_plane\": \"dormant\", \"tool_plane\": [], \"tool_plane_source\": \"fixture\"}}]}, \"defaultInputModes\": [\"text/plain\"], \"defaultOutputModes\": [\"application/json\"], \"skills\": [{\"id\": 1, \"name\": \"inspect\", \"description\": \"inspect\", \"tags\": [\"inspect\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": 1.0, \"name\": \"config\", \"description\": \"config\", \"tags\": [\"config\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"build\", \"name\": \"build\", \"description\": \"build\", \"tags\": [\"build\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"serve\", \"name\": \"serve\", \"description\": \"serve\", \"tags\": [\"serve\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"bench\", \"name\": \"bench\", \"description\": \"bench\", \"tags\": [\"bench\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"publish\", \"name\": \"publish\", \"description\": \"publish\", \"tags\": [\"publish\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}]}"
+  }
+ },
+ {
+  "id": "S5-02-ipv6-bad",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "validate",
+   "--card",
+   "c.json"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "c.json": "{\"name\": \"fixture\", \"description\": \"fixture\", \"version\": \"2.0.0\", \"supportedInterfaces\": [{\"url\": \"ssh://sub\", \"protocolBinding\": \"http://[abc\", \"protocolVersion\": \"1.0\"}], \"capabilities\": {\"streaming\": false, \"extensions\": [{\"uri\": \"urn:easy-vllm:ext:node-role:v1\", \"required\": true, \"params\": {\"topology\": \"single\", \"sub_mode\": \"a2a-agent\", \"sub_mode_source\": \"derived-from-topology\", \"rank\": null, \"rank_source\": \"not-applicable:single\", \"identity_authority\": \"ssh-public-key\", \"delivery_plane\": \"dormant\", \"tool_plane\": [], \"tool_plane_source\": \"fixture\"}}]}, \"defaultInputModes\": [\"text/plain\"], \"defaultOutputModes\": [\"application/json\"], \"skills\": [{\"id\": \"inspect\", \"name\": \"inspect\", \"description\": \"inspect\", \"tags\": [\"inspect\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"config\", \"name\": \"config\", \"description\": \"config\", \"tags\": [\"config\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"build\", \"name\": \"build\", \"description\": \"build\", \"tags\": [\"build\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"serve\", \"name\": \"serve\", \"description\": \"serve\", \"tags\": [\"serve\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"bench\", \"name\": \"bench\", \"description\": \"bench\", \"tags\": [\"bench\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}, {\"id\": \"publish\", \"name\": \"publish\", \"description\": \"publish\", \"tags\": [\"publish\"], \"inputModes\": [\"text/plain\"], \"outputModes\": [\"application/json\"]}]}"
+  }
+ },
+ {
+  "id": "S5-02-list-card",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "validate",
+   "--card",
+   "c.json"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "c.json": "[1, 2]"
+  }
+ },
+ {
+  "id": "S5-02-badjson",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "validate",
+   "--card",
+   "c.json"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "c.json": "{\n  \"a\": ,\n}"
+  }
+ },
+ {
+  "id": "S5-02-missing-file",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "validate",
+   "--card",
+   "nope.json"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-02-no-card",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "validate"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-02-sub-unknown",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_card_contract.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+  "args": [
+   "validate",
+   "--card",
+   "c.json",
+   "--self-test"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "c.json": "{\n  \"name\": \"fixture\",\n  \"description\": \"fixture\",\n  \"version\": \"2.0.0\",\n  \"supportedInterfaces\": [\n    {\n      \"url\": \"ssh://sub\",\n      \"protocolBinding\": \"urn:test:ssh\",\n      \"protocolVersion\": \"1.0\"\n    }\n  ],\n  \"capabilities\": {\n    \"streaming\": false,\n    \"extensions\": [\n      {\n        \"uri\": \"urn:easy-vllm:ext:node-role:v1\",\n        \"required\": true,\n        \"params\": {\n          \"topology\": \"single\",\n          \"sub_mode\": \"a2a-agent\",\n          \"sub_mode_source\": \"derived-from-topology\",\n          \"rank\": null,\n          \"rank_source\": \"not-applicable:single\",\n          \"identity_authority\": \"ssh-public-key\",\n          \"delivery_plane\": \"dormant\",\n          \"tool_plane\": [],\n          \"tool_plane_source\": \"fixture\"\n        }\n      }\n    ]\n  },\n  \"defaultInputModes\": [\n    \"text/plain\"\n  ],\n  \"defaultOutputModes\": [\n    \"application/json\"\n  ],\n  \"skills\": [\n    {\n      \"id\": \"inspect\",\n      \"name\": \"inspect\",\n      \"description\": \"inspect\",\n      \"tags\": [\n        \"inspect\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"config\",\n      \"name\": \"config\",\n      \"description\": \"config\",\n      \"tags\": [\n        \"config\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"build\",\n      \"name\": \"build\",\n      \"description\": \"build\",\n      \"tags\": [\n        \"build\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"serve\",\n      \"name\": \"serve\",\n      \"description\": \"serve\",\n      \"tags\": [\n        \"serve\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"bench\",\n      \"name\": \"bench\",\n      \"description\": \"bench\",\n      \"tags\": [\n        \"bench\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    },\n    {\n      \"id\": \"publish\",\n      \"name\": \"publish\",\n      \"description\": \"publish\",\n      \"tags\": [\n        \"publish\"\n      ],\n      \"inputModes\": [\n        \"text/plain\"\n      ],\n      \"outputModes\": [\n        \"application/json\"\n      ]\n    }\n  ]\n}"
+  }
+ },
+ {
+  "id": "S5-03-help",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "-h"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-03-noargs",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-03-self-test",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "--self-test"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-03-conflict",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "--topology",
+   "single",
+   "--plan",
+   "--apply"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-03-bad-topology",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "--topology",
+   "x",
+   "--plan"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-03-ambiguous",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "--ap"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-03-no-mode",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "--topology",
+   "single"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-03-no-manifest",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "--topology",
+   "single",
+   "--plan"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-03-apply-unapproved",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "--topology",
+   "single",
+   "--apply",
+   "--approved-by",
+   "  "
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "output/single/manifest.yaml": "self_role: main\n# 주석은 보존된다\nnodes:\n  - role: main\n    host: 203.0.113.10\n    ssh_user: me\n    work_dir: /w/repo\n  - role: sub\n    node_id: sub\n    host: nonexistent.invalid\n    ssh_user: u\n    work_dir: /w/sub\nlibrary:\n  transport: local\n  wiki_dir: __llm-wiki\n  repo_root: \"/w/repo\"\n  access_points:\n    sub:\n      identity_file: \"/h/.ssh/wiki_desk_ed25519\"\n      known_hosts: \"/h/.ssh/wiki_desk_known_hosts\"\n    sub2:\n      identity_file: \"/h/.ssh/k2\"\n      known_hosts: \"/h/.ssh/kh\"\n      host_of: sub\ntail_key: 1\n"
+  }
+ },
+ {
+  "id": "S5-03-unknown-node",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "--topology",
+   "single",
+   "--node",
+   "zzz",
+   "--revoke",
+   "--approved-by",
+   "ok"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "output/single/manifest.yaml": "self_role: main\n# 주석은 보존된다\nnodes:\n  - role: main\n    host: 203.0.113.10\n    ssh_user: me\n    work_dir: /w/repo\n  - role: sub\n    node_id: sub\n    host: nonexistent.invalid\n    ssh_user: u\n    work_dir: /w/sub\nlibrary:\n  transport: local\n  wiki_dir: __llm-wiki\n  repo_root: \"/w/repo\"\n  access_points:\n    sub:\n      identity_file: \"/h/.ssh/wiki_desk_ed25519\"\n      known_hosts: \"/h/.ssh/wiki_desk_known_hosts\"\n    sub2:\n      identity_file: \"/h/.ssh/k2\"\n      known_hosts: \"/h/.ssh/kh\"\n      host_of: sub\ntail_key: 1\n"
+  }
+ },
+ {
+  "id": "S5-03-host-of-self",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "--topology",
+   "single",
+   "--node",
+   "sub",
+   "--host-of",
+   "sub",
+   "--apply",
+   "--approved-by",
+   "ok"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "output/single/manifest.yaml": "self_role: main\n# 주석은 보존된다\nnodes:\n  - role: main\n    host: 203.0.113.10\n    ssh_user: me\n    work_dir: /w/repo\n  - role: sub\n    node_id: sub\n    host: nonexistent.invalid\n    ssh_user: u\n    work_dir: /w/sub\nlibrary:\n  transport: local\n  wiki_dir: __llm-wiki\n  repo_root: \"/w/repo\"\n  access_points:\n    sub:\n      identity_file: \"/h/.ssh/wiki_desk_ed25519\"\n      known_hosts: \"/h/.ssh/wiki_desk_known_hosts\"\n    sub2:\n      identity_file: \"/h/.ssh/k2\"\n      known_hosts: \"/h/.ssh/kh\"\n      host_of: sub\ntail_key: 1\n"
+  }
+ },
+ {
+  "id": "S5-03-revoke",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "--topology",
+   "single",
+   "--node",
+   "sub",
+   "--revoke",
+   "--approved-by",
+   "사람 승인"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "output/single/manifest.yaml": "self_role: main\n# 주석은 보존된다\nnodes:\n  - role: main\n    host: 203.0.113.10\n    ssh_user: me\n    work_dir: /w/repo\n  - role: sub\n    node_id: sub\n    host: nonexistent.invalid\n    ssh_user: u\n    work_dir: /w/sub\nlibrary:\n  transport: local\n  wiki_dir: __llm-wiki\n  repo_root: \"/w/repo\"\n  access_points:\n    sub:\n      identity_file: \"/h/.ssh/wiki_desk_ed25519\"\n      known_hosts: \"/h/.ssh/wiki_desk_known_hosts\"\n    sub2:\n      identity_file: \"/h/.ssh/k2\"\n      known_hosts: \"/h/.ssh/kh\"\n      host_of: sub\ntail_key: 1\n",
+   "h/.ssh/authorized_keys": "ssh-ed25519 AAAA me@main\ncommand=\"x\",restrict ssh-ed25519 OLD wiki-desk-gateway:sub\n"
+  },
+  "env": {
+   "HOME": "h"
+  },
+  "outputs": [
+   "output",
+   "h"
+  ]
+ },
+ {
+  "id": "S5-03-revoke-no-ak",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "--topology",
+   "single",
+   "--revoke",
+   "--approved-by",
+   "x"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "output/single/manifest.yaml": "self_role: main\n# 주석은 보존된다\nnodes:\n  - role: main\n    host: 203.0.113.10\n    ssh_user: me\n    work_dir: /w/repo\n  - role: sub\n    node_id: sub\n    host: nonexistent.invalid\n    ssh_user: u\n    work_dir: /w/sub\nother: 1\nlibrary:\n  transport: local\n  wiki_dir: __llm-wiki\n  repo_root: \"/w/repo\"\n  access_points:\n    sub:\n      identity_file: \"/h/.ssh/wiki_desk_ed25519\"\n      known_hosts: \"/h/.ssh/wiki_desk_known_hosts\"\n    sub2:\n      identity_file: \"/h/.ssh/k2\"\n      known_hosts: \"/h/.ssh/kh\"\n      host_of: sub\ntail_key: 1\n"
+  },
+  "env": {
+   "HOME": "h"
+  },
+  "outputs": [
+   "output",
+   "h"
+  ]
+ },
+ {
+  "id": "S5-03-plan-unreachable",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "--topology",
+   "single",
+   "--plan"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "output/single/manifest.yaml": "self_role: main\n# 주석은 보존된다\nnodes:\n  - role: main\n    host: 203.0.113.10\n    ssh_user: me\n    work_dir: /w/repo\n  - role: sub\n    node_id: sub\n    host: nonexistent.invalid\n    ssh_user: u\n    work_dir: /w/sub\nlibrary:\n  transport: local\n  wiki_dir: __llm-wiki\n  repo_root: \"/w/repo\"\n  access_points:\n    sub:\n      identity_file: \"/h/.ssh/wiki_desk_ed25519\"\n      known_hosts: \"/h/.ssh/wiki_desk_known_hosts\"\n    sub2:\n      identity_file: \"/h/.ssh/k2\"\n      known_hosts: \"/h/.ssh/kh\"\n      host_of: sub\ntail_key: 1\n"
+  },
+  "env": {
+   "PATH": "/usr/bin:/bin"
+  }
+ },
+ {
+  "id": "S5-03-empty-manifest",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "--topology",
+   "multi",
+   "--plan"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "output/multi/manifest.yaml": "# empty\n"
+  }
+ },
+ {
+  "id": "S5-03-bad-yaml",
+  "entry": ".claude/skills/terraforming_node/scripts/library_access.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/library_access.py",
+  "args": [
+   "--topology",
+   "multi",
+   "--plan"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "output/multi/manifest.yaml": "a: [1,\n"
+  }
+ },
+ {
+  "id": "S5-04-help",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.py",
+  "args": [
+   "-h"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-04-self-test",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.py",
+  "args": [
+   "--self-test"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-04-missing",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.py",
+  "args": [],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-04-missing-now",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.py",
+  "args": [
+   "--node-dir",
+   "n"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-04-bad-now",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.py",
+  "args": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-07-31 00:00:00"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-04-bad-int",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.py",
+  "args": [
+   "--node-dir",
+   "n",
+   "--now",
+   "x",
+   "--cap-mib",
+   "1.5"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-04-dry-run",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.py",
+  "args": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-07-31T12:00:00Z"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "n/samples/2026-07-30.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n,soc_temp,soc_zone\n1785,117000,-20,40,4.8,208,0,,0.3,1,45,5\n1786,116963,-7,41,4.8,208,0,,0.3,1,46,5\n1787,116926,6,42,4.8,208,0,,0.3,1,47,5\n1788,116889,19,43,4.8,208,0,,0.3,1,48,5\n1789,116852,32,44,4.8,208,0,,0.3,1,49,5\n1790,116815,45,45,4.8,208,0,,0.3,1,50,5\n1791,116778,58,46,4.8,208,0,,0.3,1,51,5\n1792,116741,-20,47,4.8,208,0,,0.3,1,52,5\n1793,116704,-7,48,4.8,208,0,,0.3,1,53,5\n1794,116667,6,40,4.8,208,0,,0.3,1,54,5\n1795,116630,19,41,4.8,208,0,,0.3,1,55,5\n1796,116593,32,42,4.8,208,0,,0.3,1,56,5\n1797,116556,45,43,4.8,208,0,,0.3,1,57,5\n1798,116519,58,44,4.8,208,0,,0.3,1,58,5\n1799,116482,-20,45,4.8,208,0,,0.3,1,59,5\n1800,116445,-7,46,4.8,208,0,,0.3,1,60,5\n1801,116408,6,47,4.8,208,0,,0.3,1,61,5\n1802,116371,19,48,4.8,208,0,,0.3,1,62,5\n1803,116334,32,40,4.8,208,0,,0.3,1,63,5\n1804,116297,45,41,4.8,208,0,,0.3,1,64,5\n1805,116260,58,42,4.8,208,0,,0.3,1,65,5\n1806,116223,-20,43,4.8,208,0,,0.3,1,66,5\n1807,116186,-7,44,4.8,208,0,,0.3,1,67,5\n1808,116149,6,45,4.8,208,0,,0.3,1,68,5\n1809,116112,19,46,4.8,208,0,,0.3,1,69,5\n1810,116075,32,47,4.8,208,0,,0.3,1,70,5\n1811,116038,45,48,4.8,208,0,,0.3,1,71,5\n1812,116001,58,40,4.8,208,0,,0.3,1,72,5\n1813,115964,-20,41,4.8,208,0,,0.3,1,73,5\n1814,115927,-7,42,4.8,208,0,,0.3,1,74,5\n1815,115890,6,43,4.8,208,0,,0.3,1,75,5\n1816,115853,19,44,4.8,208,0,,0.3,1,76,5\n1817,115816,32,45,4.8,208,0,,0.3,1,77,5\n1818,115779,45,46,4.8,208,0,,0.3,1,78,5\n1819,115742,58,47,4.8,208,0,,0.3,1,79,5\n1820,115705,-20,48,4.8,208,0,,0.3,1,80,5\n1821,115668,-7,40,4.8,208,0,,0.3,1,81,5\n1822,115631,6,41,4.8,208,0,,0.3,1,82,5\n1823,115594,19,42,4.8,208,0,,0.3,1,83,5\n1824,115557,32,43,4.8,208,0,,0.3,1,84,5\n",
+   "n/samples/2026-07-20.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n\n1785,117000,-20,40,4.8,208,0,,0.3,1\n1786,116963,-7,41,4.8,208,0,,0.3,1\n1787,116926,6,42,4.8,208,0,,0.3,1\n1788,116889,19,43,4.8,208,0,,0.3,1\n1789,116852,32,44,4.8,208,0,,0.3,1\n1790,116815,45,45,4.8,208,0,,0.3,1\n1791,116778,58,46,4.8,208,0,,0.3,1\n1792,116741,-20,47,4.8,208,0,,0.3,1\n1793,116704,-7,48,4.8,208,0,,0.3,1\n1794,116667,6,40,4.8,208,0,,0.3,1\n1795,116630,19,41,4.8,208,0,,0.3,1\n1796,116593,32,42,4.8,208,0,,0.3,1\n1797,116556,45,43,4.8,208,0,,0.3,1\n1798,116519,58,44,4.8,208,0,,0.3,1\n1799,116482,-20,45,4.8,208,0,,0.3,1\n1800,116445,-7,46,4.8,208,0,,0.3,1\n1801,116408,6,47,4.8,208,0,,0.3,1\n1802,116371,19,48,4.8,208,0,,0.3,1\n1803,116334,32,40,4.8,208,0,,0.3,1\n1804,116297,45,41,4.8,208,0,,0.3,1\n1805,116260,58,42,4.8,208,0,,0.3,1\n1806,116223,-20,43,4.8,208,0,,0.3,1\n1807,116186,-7,44,4.8,208,0,,0.3,1\n1808,116149,6,45,4.8,208,0,,0.3,1\n1809,116112,19,46,4.8,208,0,,0.3,1\n",
+   "n/samples/2026-06-01.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n\n1785,117000,-20,40,4.8,208,0,,0.3,1\n1786,116963,-7,41,4.8,208,0,,0.3,1\n1787,116926,6,42,4.8,208,0,,0.3,1\n1788,116889,19,43,4.8,208,0,,0.3,1\n1789,116852,32,44,4.8,208,0,,0.3,1\n",
+   "n/samples/2026-07-31.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n\n1785,117000,-20,40,4.8,208,0,,0.3,1\n1786,116963,-7,41,4.8,208,0,,0.3,1\n1787,116926,6,42,4.8,208,0,,0.3,1\n",
+   "n/samples/2026-02-30.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n\n1785,117000,-20,40,4.8,208,0,,0.3,1\n1786,116963,-7,41,4.8,208,0,,0.3,1\n1787,116926,6,42,4.8,208,0,,0.3,1\n1788,116889,19,43,4.8,208,0,,0.3,1\n",
+   "n/samples/2026-07-29.csv": "ts,mem_avail\n1,2\n",
+   "n/samples/2026-07-28.csv": "",
+   "n/samples/notes.txt": "keep",
+   "n/samples/2026-07-27.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr\n1,nan,x,49,\n2, 5 ,1e3,inf,7\nshort,row\n"
+  },
+  "outputs": [
+   "n"
+  ]
+ },
+ {
+  "id": "S5-04-apply",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.py",
+  "args": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-7-31t1:2:3z",
+   "--apply"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "n/samples/2026-07-30.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n,soc_temp,soc_zone\n1785,117000,-20,40,4.8,208,0,,0.3,1,45,5\n1786,116963,-7,41,4.8,208,0,,0.3,1,46,5\n1787,116926,6,42,4.8,208,0,,0.3,1,47,5\n1788,116889,19,43,4.8,208,0,,0.3,1,48,5\n1789,116852,32,44,4.8,208,0,,0.3,1,49,5\n1790,116815,45,45,4.8,208,0,,0.3,1,50,5\n1791,116778,58,46,4.8,208,0,,0.3,1,51,5\n1792,116741,-20,47,4.8,208,0,,0.3,1,52,5\n1793,116704,-7,48,4.8,208,0,,0.3,1,53,5\n1794,116667,6,40,4.8,208,0,,0.3,1,54,5\n1795,116630,19,41,4.8,208,0,,0.3,1,55,5\n1796,116593,32,42,4.8,208,0,,0.3,1,56,5\n1797,116556,45,43,4.8,208,0,,0.3,1,57,5\n1798,116519,58,44,4.8,208,0,,0.3,1,58,5\n1799,116482,-20,45,4.8,208,0,,0.3,1,59,5\n1800,116445,-7,46,4.8,208,0,,0.3,1,60,5\n1801,116408,6,47,4.8,208,0,,0.3,1,61,5\n1802,116371,19,48,4.8,208,0,,0.3,1,62,5\n1803,116334,32,40,4.8,208,0,,0.3,1,63,5\n1804,116297,45,41,4.8,208,0,,0.3,1,64,5\n1805,116260,58,42,4.8,208,0,,0.3,1,65,5\n1806,116223,-20,43,4.8,208,0,,0.3,1,66,5\n1807,116186,-7,44,4.8,208,0,,0.3,1,67,5\n1808,116149,6,45,4.8,208,0,,0.3,1,68,5\n1809,116112,19,46,4.8,208,0,,0.3,1,69,5\n1810,116075,32,47,4.8,208,0,,0.3,1,70,5\n1811,116038,45,48,4.8,208,0,,0.3,1,71,5\n1812,116001,58,40,4.8,208,0,,0.3,1,72,5\n1813,115964,-20,41,4.8,208,0,,0.3,1,73,5\n1814,115927,-7,42,4.8,208,0,,0.3,1,74,5\n1815,115890,6,43,4.8,208,0,,0.3,1,75,5\n1816,115853,19,44,4.8,208,0,,0.3,1,76,5\n1817,115816,32,45,4.8,208,0,,0.3,1,77,5\n1818,115779,45,46,4.8,208,0,,0.3,1,78,5\n1819,115742,58,47,4.8,208,0,,0.3,1,79,5\n1820,115705,-20,48,4.8,208,0,,0.3,1,80,5\n1821,115668,-7,40,4.8,208,0,,0.3,1,81,5\n1822,115631,6,41,4.8,208,0,,0.3,1,82,5\n1823,115594,19,42,4.8,208,0,,0.3,1,83,5\n1824,115557,32,43,4.8,208,0,,0.3,1,84,5\n",
+   "n/samples/2026-07-20.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n\n1785,117000,-20,40,4.8,208,0,,0.3,1\n1786,116963,-7,41,4.8,208,0,,0.3,1\n1787,116926,6,42,4.8,208,0,,0.3,1\n1788,116889,19,43,4.8,208,0,,0.3,1\n1789,116852,32,44,4.8,208,0,,0.3,1\n1790,116815,45,45,4.8,208,0,,0.3,1\n1791,116778,58,46,4.8,208,0,,0.3,1\n1792,116741,-20,47,4.8,208,0,,0.3,1\n1793,116704,-7,48,4.8,208,0,,0.3,1\n1794,116667,6,40,4.8,208,0,,0.3,1\n1795,116630,19,41,4.8,208,0,,0.3,1\n1796,116593,32,42,4.8,208,0,,0.3,1\n1797,116556,45,43,4.8,208,0,,0.3,1\n1798,116519,58,44,4.8,208,0,,0.3,1\n1799,116482,-20,45,4.8,208,0,,0.3,1\n1800,116445,-7,46,4.8,208,0,,0.3,1\n1801,116408,6,47,4.8,208,0,,0.3,1\n1802,116371,19,48,4.8,208,0,,0.3,1\n1803,116334,32,40,4.8,208,0,,0.3,1\n1804,116297,45,41,4.8,208,0,,0.3,1\n1805,116260,58,42,4.8,208,0,,0.3,1\n1806,116223,-20,43,4.8,208,0,,0.3,1\n1807,116186,-7,44,4.8,208,0,,0.3,1\n1808,116149,6,45,4.8,208,0,,0.3,1\n1809,116112,19,46,4.8,208,0,,0.3,1\n",
+   "n/samples/2026-06-01.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n\n1785,117000,-20,40,4.8,208,0,,0.3,1\n1786,116963,-7,41,4.8,208,0,,0.3,1\n1787,116926,6,42,4.8,208,0,,0.3,1\n1788,116889,19,43,4.8,208,0,,0.3,1\n1789,116852,32,44,4.8,208,0,,0.3,1\n",
+   "n/samples/2026-07-31.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n\n1785,117000,-20,40,4.8,208,0,,0.3,1\n1786,116963,-7,41,4.8,208,0,,0.3,1\n1787,116926,6,42,4.8,208,0,,0.3,1\n",
+   "n/samples/2026-02-30.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n\n1785,117000,-20,40,4.8,208,0,,0.3,1\n1786,116963,-7,41,4.8,208,0,,0.3,1\n1787,116926,6,42,4.8,208,0,,0.3,1\n1788,116889,19,43,4.8,208,0,,0.3,1\n",
+   "n/samples/2026-07-29.csv": "ts,mem_avail\n1,2\n",
+   "n/samples/2026-07-28.csv": "",
+   "n/samples/notes.txt": "keep",
+   "n/samples/2026-07-27.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr\n1,nan,x,49,\n2, 5 ,1e3,inf,7\nshort,row\n"
+  },
+  "outputs": [
+   "n"
+  ]
+ },
+ {
+  "id": "S5-04-apply-cap0",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.py",
+  "args": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-31T00:00:00Z",
+   "--apply",
+   "--cap-mib",
+   "0",
+   "--raw-days",
+   "100"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "n/samples/2026-07-30.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n,soc_temp,soc_zone\n1785,117000,-20,40,4.8,208,0,,0.3,1,45,5\n1786,116963,-7,41,4.8,208,0,,0.3,1,46,5\n1787,116926,6,42,4.8,208,0,,0.3,1,47,5\n1788,116889,19,43,4.8,208,0,,0.3,1,48,5\n1789,116852,32,44,4.8,208,0,,0.3,1,49,5\n1790,116815,45,45,4.8,208,0,,0.3,1,50,5\n1791,116778,58,46,4.8,208,0,,0.3,1,51,5\n1792,116741,-20,47,4.8,208,0,,0.3,1,52,5\n1793,116704,-7,48,4.8,208,0,,0.3,1,53,5\n1794,116667,6,40,4.8,208,0,,0.3,1,54,5\n1795,116630,19,41,4.8,208,0,,0.3,1,55,5\n1796,116593,32,42,4.8,208,0,,0.3,1,56,5\n1797,116556,45,43,4.8,208,0,,0.3,1,57,5\n1798,116519,58,44,4.8,208,0,,0.3,1,58,5\n1799,116482,-20,45,4.8,208,0,,0.3,1,59,5\n1800,116445,-7,46,4.8,208,0,,0.3,1,60,5\n1801,116408,6,47,4.8,208,0,,0.3,1,61,5\n1802,116371,19,48,4.8,208,0,,0.3,1,62,5\n1803,116334,32,40,4.8,208,0,,0.3,1,63,5\n1804,116297,45,41,4.8,208,0,,0.3,1,64,5\n1805,116260,58,42,4.8,208,0,,0.3,1,65,5\n1806,116223,-20,43,4.8,208,0,,0.3,1,66,5\n1807,116186,-7,44,4.8,208,0,,0.3,1,67,5\n1808,116149,6,45,4.8,208,0,,0.3,1,68,5\n1809,116112,19,46,4.8,208,0,,0.3,1,69,5\n1810,116075,32,47,4.8,208,0,,0.3,1,70,5\n1811,116038,45,48,4.8,208,0,,0.3,1,71,5\n1812,116001,58,40,4.8,208,0,,0.3,1,72,5\n1813,115964,-20,41,4.8,208,0,,0.3,1,73,5\n1814,115927,-7,42,4.8,208,0,,0.3,1,74,5\n1815,115890,6,43,4.8,208,0,,0.3,1,75,5\n1816,115853,19,44,4.8,208,0,,0.3,1,76,5\n1817,115816,32,45,4.8,208,0,,0.3,1,77,5\n1818,115779,45,46,4.8,208,0,,0.3,1,78,5\n1819,115742,58,47,4.8,208,0,,0.3,1,79,5\n1820,115705,-20,48,4.8,208,0,,0.3,1,80,5\n1821,115668,-7,40,4.8,208,0,,0.3,1,81,5\n1822,115631,6,41,4.8,208,0,,0.3,1,82,5\n1823,115594,19,42,4.8,208,0,,0.3,1,83,5\n1824,115557,32,43,4.8,208,0,,0.3,1,84,5\n",
+   "n/samples/2026-07-20.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n\n1785,117000,-20,40,4.8,208,0,,0.3,1\n1786,116963,-7,41,4.8,208,0,,0.3,1\n1787,116926,6,42,4.8,208,0,,0.3,1\n1788,116889,19,43,4.8,208,0,,0.3,1\n1789,116852,32,44,4.8,208,0,,0.3,1\n1790,116815,45,45,4.8,208,0,,0.3,1\n1791,116778,58,46,4.8,208,0,,0.3,1\n1792,116741,-20,47,4.8,208,0,,0.3,1\n1793,116704,-7,48,4.8,208,0,,0.3,1\n1794,116667,6,40,4.8,208,0,,0.3,1\n1795,116630,19,41,4.8,208,0,,0.3,1\n1796,116593,32,42,4.8,208,0,,0.3,1\n1797,116556,45,43,4.8,208,0,,0.3,1\n1798,116519,58,44,4.8,208,0,,0.3,1\n1799,116482,-20,45,4.8,208,0,,0.3,1\n1800,116445,-7,46,4.8,208,0,,0.3,1\n1801,116408,6,47,4.8,208,0,,0.3,1\n1802,116371,19,48,4.8,208,0,,0.3,1\n1803,116334,32,40,4.8,208,0,,0.3,1\n1804,116297,45,41,4.8,208,0,,0.3,1\n1805,116260,58,42,4.8,208,0,,0.3,1\n1806,116223,-20,43,4.8,208,0,,0.3,1\n1807,116186,-7,44,4.8,208,0,,0.3,1\n1808,116149,6,45,4.8,208,0,,0.3,1\n1809,116112,19,46,4.8,208,0,,0.3,1\n",
+   "n/samples/2026-06-01.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n\n1785,117000,-20,40,4.8,208,0,,0.3,1\n1786,116963,-7,41,4.8,208,0,,0.3,1\n1787,116926,6,42,4.8,208,0,,0.3,1\n1788,116889,19,43,4.8,208,0,,0.3,1\n1789,116852,32,44,4.8,208,0,,0.3,1\n",
+   "n/samples/2026-07-31.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n\n1785,117000,-20,40,4.8,208,0,,0.3,1\n1786,116963,-7,41,4.8,208,0,,0.3,1\n1787,116926,6,42,4.8,208,0,,0.3,1\n",
+   "n/samples/2026-02-30.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr,gpu_sm,gpu_util,gpu_mem,load1,ctr_n\n1785,117000,-20,40,4.8,208,0,,0.3,1\n1786,116963,-7,41,4.8,208,0,,0.3,1\n1787,116926,6,42,4.8,208,0,,0.3,1\n1788,116889,19,43,4.8,208,0,,0.3,1\n",
+   "n/samples/2026-07-29.csv": "ts,mem_avail\n1,2\n",
+   "n/samples/2026-07-28.csv": "",
+   "n/samples/notes.txt": "keep",
+   "n/samples/2026-07-27.csv": "ts,mem_avail,mem_rate,gpu_temp,gpu_pwr\n1,nan,x,49,\n2, 5 ,1e3,inf,7\nshort,row\n"
+  },
+  "outputs": [
+   "n"
+  ]
+ },
+ {
+  "id": "S5-04-absent-dir",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.py",
+  "args": [
+   "--node-dir",
+   "zz",
+   "--now",
+   "2026-08-31T00:00:00Z"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-05-help",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.py",
+  "args": [
+   "-h"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-05-self-test",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.py",
+  "args": [
+   "--self-test"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-05-missing",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.py",
+  "args": [],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-05-missing-model",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.py",
+  "args": [
+   "--endpoint",
+   "http://127.0.0.1:9"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-05-bad-float",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.py",
+  "args": [
+   "--duration-s",
+   "abc"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-05-bad-int",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.py",
+  "args": [
+   "--concurrency",
+   "1.5"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-05-zero-conc",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.py",
+  "args": [
+   "--endpoint",
+   "http://127.0.0.1:9/",
+   "--model",
+   "m",
+   "--concurrency",
+   "0",
+   "--duration-s",
+   "0.2",
+   "--stop-file",
+   "stop.flag",
+   "--multimodal",
+   "--prompt-tokens",
+   "7"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "stop.flag": "x"
+  },
+  "outputs": [
+   "stop.flag"
+  ]
+ },
+ {
+  "id": "S5-05-zero-conc-dur",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.py",
+  "args": [
+   "--endpoint",
+   "http://x",
+   "--model",
+   "m",
+   "--concurrency",
+   "-3",
+   "--duration-s",
+   "0",
+   "--max-tokens",
+   "3"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-06-help",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.py",
+  "args": [
+   "-h"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-06-self-test",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.py",
+  "args": [
+   "--self-test"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-06-missing",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.py",
+  "args": [],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-06-bad-generated",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.py",
+  "args": [
+   "--node-id",
+   "main",
+   "--generated-utc",
+   "2026-07-31"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ },
+ {
+  "id": "S5-06-file",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.py",
+  "args": [
+   "--node-id",
+   "main",
+   "--journal",
+   "j.txt",
+   "--logs-root",
+   "L",
+   "--generated-utc",
+   "2026-07-31T00:00:00Z"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "j.txt": "2026-07-22T17:44:56+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=40104MiB min=39537MiB 2026-07-22T08:44:56Z\n2026-07-22T17:45:11+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=11419MiB min=11419MiB 2026-07-22T08:45:11Z\n2026-07-22T17:45:14+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] TRIP MemAvailable=10186MiB < 10240MiB → docker kill deadbeef 2026-07-22T08:45:14Z\n2026-07-22T17:45:15+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] deadbeef\n2026-07-22T17:45:26+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=117283MiB min=10186MiB 2026-07-22T08:45:26Z\n2026-07-22T17:45:41+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=117300MiB 2026-07-22T08:45:41Z\n2026-07-22T17:45:42+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] start filter='@vllm' threshold=10240MiB interval=1s heartbeat=15s pid=99 2026-07-22T08:45:42Z\n2026-07-22T17:45:43+09:00 h systemd[1]: Stopped easy-vllm-memwatch.service - x.\n2026-07-22T17:45:44+09:00 h systemd[1]: easy-vllm-memwatch.service: Consumed 1.2s CPU time.\n2026-07-22T17:45:45+09:00 h systemd[1]: easy-vllm-memwatch.service: Scheduled restart job, restart counter is at 1.\n2026-07-22T17:45:46+09:00 h systemd[1]: Started easy-vllm-memwatch.service.\n2026-07-22T17:45:47-02:30 h easy-vllm-memwatch[3]: [mem-watchdog] TRIP-nomatch MemAvailable=9000MiB < 10240MiB (filter='@x' 매칭 0) 2026-07-22T08:45:47Z\n-- Boot abc123def456 --\n-- Boot 0011 --\ngarbage line without format\n2026-13-22T17:50:00+09:00 h easy-vllm-memwatch[2]: [mem-watchdog] deadbeefcafe\n2026-07-22T17:50:00+09:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=118000MiB min=118000MiB 2026-07-22T08:50:00Z\n   \n2026-08-01T00:00:00+00:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=1000000MiB 2026-08-01T00:00:00Z\n2026-08-01T00:00:07+00:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=1MiB min=1MiB 2026-08-01T00:00:07Z\n2026-08-01T00:00:08+00:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=2MiB 2026-08-01T00:00:07Z\r\nlast line\r"
+  },
+  "outputs": [
+   "L"
+  ]
+ },
+ {
+  "id": "S5-06-gates",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.py",
+  "args": [
+   "--node-id",
+   "sub",
+   "--journal",
+   "j.txt",
+   "--logs-root",
+   "L/",
+   "--generated-utc",
+   "2026-07-31T00:00:00Z",
+   "--min-retention",
+   "0.5",
+   "--expect-trips",
+   "3"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "j.txt": "2026-07-22T17:44:56+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=40104MiB min=39537MiB 2026-07-22T08:44:56Z\n2026-07-22T17:45:11+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=11419MiB min=11419MiB 2026-07-22T08:45:11Z\n2026-07-22T17:45:14+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] TRIP MemAvailable=10186MiB < 10240MiB → docker kill deadbeef 2026-07-22T08:45:14Z\n2026-07-22T17:45:15+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] deadbeef\n2026-07-22T17:45:26+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=117283MiB min=10186MiB 2026-07-22T08:45:26Z\n2026-07-22T17:45:41+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=117300MiB 2026-07-22T08:45:41Z\n2026-07-22T17:45:42+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] start filter='@vllm' threshold=10240MiB interval=1s heartbeat=15s pid=99 2026-07-22T08:45:42Z\n2026-07-22T17:45:43+09:00 h systemd[1]: Stopped easy-vllm-memwatch.service - x.\n2026-07-22T17:45:44+09:00 h systemd[1]: easy-vllm-memwatch.service: Consumed 1.2s CPU time.\n2026-07-22T17:45:45+09:00 h systemd[1]: easy-vllm-memwatch.service: Scheduled restart job, restart counter is at 1.\n2026-07-22T17:45:46+09:00 h systemd[1]: Started easy-vllm-memwatch.service.\n2026-07-22T17:45:47-02:30 h easy-vllm-memwatch[3]: [mem-watchdog] TRIP-nomatch MemAvailable=9000MiB < 10240MiB (filter='@x' 매칭 0) 2026-07-22T08:45:47Z\n-- Boot abc123def456 --\n-- Boot 0011 --\ngarbage line without format\n2026-13-22T17:50:00+09:00 h easy-vllm-memwatch[2]: [mem-watchdog] deadbeefcafe\n2026-07-22T17:50:00+09:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=118000MiB min=118000MiB 2026-07-22T08:50:00Z\n   \n2026-08-01T00:00:00+00:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=1000000MiB 2026-08-01T00:00:00Z\n2026-08-01T00:00:07+00:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=1MiB min=1MiB 2026-08-01T00:00:07Z\n2026-08-01T00:00:08+00:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=2MiB 2026-08-01T00:00:07Z\r\nlast line\r",
+   "L/sub/events/2026-07.jsonl": "{\"old\": 1}\n"
+  },
+  "outputs": [
+   "L"
+  ]
+ },
+ {
+  "id": "S5-06-stdin",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.py",
+  "args": [
+   "--node-id",
+   "main",
+   "--logs-root",
+   "S",
+   "--generated-utc",
+   "2026-07-31T00:00:00Z",
+   "--min-retention",
+   "0"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "outputs": [
+   "S"
+  ],
+  "stdin": "2026-07-22T17:44:56+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=40104MiB min=39537MiB 2026-07-22T08:44:56Z\n2026-07-22T17:45:11+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=11419MiB min=11419MiB 2026-07-22T08:45:11Z\n2026-07-22T17:45:14+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] TRIP MemAvailable=10186MiB < 10240MiB → docker kill deadbeef 2026-07-22T08:45:14Z\n2026-07-22T17:45:15+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] deadbeef\n2026-07-22T17:45:26+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=117283MiB min=10186MiB 2026-07-22T08:45:26Z\n2026-07-22T17:45:41+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=117300MiB 2026-07-22T08:45:41Z\n2026-07-22T17:45:42+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] start filter='@vllm' threshold=10240MiB interval=1s heartbeat=15s pid=99 2026-07-22T08:45:42Z\n2026-07-22T17:45:43+09:00 h systemd[1]: Stopped easy-vllm-memwatch.service - x.\n2026-07-22T17:45:44+09:00 h systemd[1]: easy-vllm-memwatch.service: Consumed 1.2s CPU time.\n2026-07-22T17:45:45+09:00 h systemd[1]: easy-vllm-memwatch.service: Scheduled restart job, restart counter is at 1.\n2026-07-22T17:45:46+09:00 h systemd[1]: Started easy-vllm-memwatch.service.\n2026-07-22T17:45:47-02:30 h easy-vllm-memwatch[3]: [mem-watchdog] TRIP-nomatch MemAvailable=9000MiB < 10240MiB (filter='@x' 매칭 0) 2026-07-22T08:45:47Z\n-- Boot abc123def456 --\n-- Boot 0011 --\ngarbage line without format\n2026-13-22T17:50:00+09:00 h easy-vllm-memwatch[2]: [mem-watchdog] deadbeefcafe\n2026-07-22T17:50:00+09:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=118000MiB min=118000MiB 2026-07-22T08:50:00Z\n   \n2026-08-01T00:00:00+00:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=1000000MiB 2026-08-01T00:00:00Z\n2026-08-01T00:00:07+00:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=1MiB min=1MiB 2026-08-01T00:00:07Z\n2026-08-01T00:00:08+00:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=2MiB 2026-08-01T00:00:07Z\r\nlast line\r"
+ },
+ {
+  "id": "S5-06-empty",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.py",
+  "args": [
+   "--node-id",
+   "main",
+   "--logs-root",
+   "E",
+   "--generated-utc",
+   "2026-07-31T00:00:00Z"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "outputs": [
+   "E"
+  ],
+  "stdin": ""
+ },
+ {
+  "id": "S5-06-bad-ts",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.py",
+  "args": [
+   "--node-id",
+   "main",
+   "--journal",
+   "j.txt",
+   "--logs-root",
+   "B",
+   "--generated-utc",
+   "2026-07-31T00:00:00Z"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94",
+  "setup": {
+   "j.txt": "x [mem-watchdog] HB MemAvailable=1MiB 2026-02-30T00:00:00Z\n"
+  },
+  "outputs": [
+   "B"
+  ]
+ },
+ {
+  "id": "S5-06-missing-file",
+  "entry": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.py",
+  "args": [
+   "--node-id",
+   "main",
+   "--journal",
+   "nope.txt",
+   "--generated-utc",
+   "2026-07-31T00:00:00Z"
+  ],
+  "orig_rev": "b1f3563e12168b1f2ef21edeb4de5dfbb9588f94"
+ }
+]

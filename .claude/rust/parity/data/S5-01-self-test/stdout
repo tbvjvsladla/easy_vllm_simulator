@@ -1,0 +1,10 @@
+  PASS 문장 첫 자리의 ssh 는 실행이다
+  PASS 구분자 뒤의 ssh 도 실행이다
+  PASS timeout·env 접두가 붙어도 실행이다
+  PASS 명령치환 안의 ssh 도 실행이다
+  PASS ★음성대조: 산문·문자열 안의 ssh 는 실행이 아니다
+  PASS ★음성대조: 경로 조각의 ssh 는 실행이 아니다
+  PASS ★음성대조: 셸 아닌 sink 의 heredoc 본문은 데이터다(감사기가 자기 소스에 걸리지 않는다)
+  PASS ★셸에 넘기는 heredoc 은 벗기지 않는다(진짜 우회가 숨을 자리를 만들지 않는다)
+  PASS 종료 구분자가 없으면 벗기지 않는다(판독 실패를 통과로 접지 않는다)
+[ssh-audit] self-test PASS

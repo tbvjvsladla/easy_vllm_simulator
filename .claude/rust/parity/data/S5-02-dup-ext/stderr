@@ -1,0 +1,2 @@
+[agent-card] 계약 위반:
+  - 노드 역할 확장 urn:easy-vllm:ext:node-role:v1 는 정확히 1개여야 한다(현재 2)

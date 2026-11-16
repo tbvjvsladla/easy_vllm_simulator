@@ -9,8 +9,8 @@ use std::process::{Command, Stdio};
 use std::io::Write;
 
 const KNOWN_IDS: [&str; 10] = ["N01", "N02", "N03", "N04", "N06", "N08", "N09", "N11", "N13", "N14"];
-// pg/pe/pa/ps/pd/pf: policies bundle (completion gate, doc naming, evidence publisher / registry audit / runtime selftest / distribution / claim predicates).
-const STAGES: [&str; 10] = ["s1", "s2", "s3", "s4", "pg", "pe", "pa", "ps", "pd", "pf"];
+// s5: terraforming_node programs. pg/pe/pa/ps/pd/pf: policies bundle (completion gate, doc naming, evidence publisher / registry audit / runtime selftest / distribution / claim predicates).
+const STAGES: [&str; 11] = ["s1", "s2", "s3", "s4", "s5", "pg", "pe", "pa", "ps", "pd", "pf"];
 
 // ---------------------------------------------------------------- JSON
 #[derive(Debug, Clone, PartialEq)]

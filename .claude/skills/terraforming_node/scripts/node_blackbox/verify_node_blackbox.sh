@@ -152,14 +152,16 @@ say "A. 결정론 엔진"
 for t in "blackbox_eta.py --self-test:ETA 엔진" \
          "blackbox_collect.py --self-test:수집기" \
          "blackbox_events.py --self-test:이벤트 통합" \
-         "logs_lifecycle.py --self-test:수명 집행" \
-         "seed_from_journal.py --self-test:시드 임포터" \
+         "logs_lifecycle.sh --self-test:수명 집행" \
+         "seed_from_journal.sh --self-test:시드 임포터" \
          "regen_envelope.py --self-test:포락선 재생성·키 정합" \
          "blackbox_session.py --self-test:세션 사이드카" \
          "blackbox_thermal.py --self-test:열·전력 포락선 엔진"; do
   f="${t%%:*}"; label="${t##*:}"
-  if python3 "$SDIR/${f%% *}" ${f#* } >/dev/null 2>&1; then ok "$label self-test" "selftest_${f%%.*}"
-  else bad "$label self-test 실패 — python3 $SDIR/$f" "selftest_${f%%.*}"; fi
+  # `.sh` = Rust 이행분의 런처(bash) · 그 밖은 원본 Python
+  case "${f%% *}" in *.sh) runner=bash ;; *) runner=python3 ;; esac
+  if "$runner" "$SDIR/${f%% *}" ${f#* } >/dev/null 2>&1; then ok "$label self-test" "selftest_${f%%.*}"
+  else bad "$label self-test 실패 — $runner $SDIR/$f" "selftest_${f%%.*}"; fi
 done
 if bash "$SDIR/mem_watchdog_eta.sh" --self-test >/dev/null 2>&1; then
   ok "ETA 워치독 self-test" "selftest_watchdog"
@@ -200,7 +202,7 @@ for pair in "mem_watchdog_eta.sh:easy-vllm-bb-watchdog" \
             "blackbox_eta.py:easy-vllm-bb-eta" \
             "regen_envelope.py:easy-vllm-bb-regen-envelope" \
             "blackbox_events.py:easy-vllm-bb-events" \
-            "logs_lifecycle.py:easy-vllm-bb-lifecycle" \
+            "../../rust/target/release/logs_lifecycle:easy-vllm-bb-lifecycle" \
             "blackbox_thermal.py:easy-vllm-bb-thermal" \
             "thermal_watchdog.sh:easy-vllm-bb-tp-watchdog"; do
   src="$SDIR/${pair%%:*}"; dst="/usr/local/sbin/${pair##*:}"
@@ -225,9 +227,13 @@ done
 for _b in easy-vllm-bb-eta easy-vllm-bb-collect easy-vllm-bb-events \
           easy-vllm-bb-lifecycle easy-vllm-bb-regen-envelope; do
   _d="/usr/local/sbin/$_b"
+  _magic=''
+  [ -f "$_d" ] && { IFS= read -r -N 4 _magic < "$_d" || :; }
   if [ ! -x "$_d" ]; then
     bad "배포본 실행권한/부재: $_d" "deployed_exec_$_b"
-  elif ( cd / && python3 -B "$_d" --self-test >/dev/null 2>&1 ); then
+  elif [ "$_magic" = $'\177ELF' ] && ( cd / && "$_d" --self-test >/dev/null 2>&1 ); then
+    ok "배포본 실동작 $_b (Rust)" "deployed_exec_$_b"
+  elif [ "$_magic" != $'\177ELF' ] && ( cd / && python3 -B "$_d" --self-test >/dev/null 2>&1 ); then
     ok "배포본 실동작 $_b" "deployed_exec_$_b"
   else
     bad "배포본이 **설치된 자리에서** 실패: $_b (내용은 소스와 같아도 실행되지 않는다 — sibling import 통로 확인). sudo bash $SDIR/install_node_blackbox.sh --apply --level L1" \

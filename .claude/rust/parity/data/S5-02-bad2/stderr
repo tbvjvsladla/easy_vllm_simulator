@@ -1,0 +1,11 @@
+[agent-card] 계약 위반:
+  - version: 비어 있지 않은 문자열이어야 한다
+  - capabilities.extensions: 배열
+  - 노드 역할 확장 urn:easy-vllm:ext:node-role:v1 는 정확히 1개여야 한다(현재 0)
+  - skills: 비어 있지 않은 배열
+  - skill 누락: inspect
+  - skill 누락: config
+  - skill 누락: build
+  - skill 누락: serve
+  - skill 누락: bench
+  - skill 누락: publish

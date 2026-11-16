@@ -1,0 +1,20 @@
+usage: seed_from_journal.py [-h] [--node-id NODE_ID] [--journal JOURNAL]
+                            [--logs-root LOGS_ROOT]
+                            [--generated-utc GENERATED_UTC]
+                            [--min-retention MIN_RETENTION]
+                            [--expect-trips EXPECT_TRIPS] [--self-test]
+
+mem_watchdog 저널 -> 노드블랙박스 시드
+
+options:
+  -h, --help            show this help message and exit
+  --node-id NODE_ID     manifest nodes[].role 슬러그 (예: main · sub)
+  --journal JOURNAL     저널 덤프 파일 (기본 '-' = stdin)
+  --logs-root LOGS_ROOT
+  --generated-utc GENERATED_UTC
+                        YYYY-MM-DDTHH:MM:SSZ (벽시계 금지)
+  --min-retention MIN_RETENTION
+                        게이트: (인식 라인 / 전체 라인) 최소 보존율
+  --expect-trips EXPECT_TRIPS
+                        게이트: 기대 TRIP 건수 (실측으로 주입)
+  --self-test

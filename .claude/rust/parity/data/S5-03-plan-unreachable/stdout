@@ -1,0 +1,18 @@
+{
+  "mode": "plan",
+  "node_id": "sub",
+  "preflight": {
+    "main_node": "/usr/bin/node",
+    "blocked": [
+      "메인 node 가 낮다: v20.20.2 (>= 24)",
+      "메인 서고가 초기화되지 않았다(__llm-wiki/contract.json 부재 · wiki-desk init 선행)",
+      "서브에 ssh 로 닿지 못했다(rc=255): ssh: Could not resolve hostname nonexistent.invalid: Name or service not known"
+    ]
+  },
+  "will": [
+    "서브 전용 키 생성(없으면) · 공개키 회수",
+    "메인 호스트 키 → 서브 known_hosts",
+    "메인 authorized_keys 강제명령 줄(wiki-desk-gateway:sub)",
+    "manifest library 블록: output/single/manifest.yaml · output/single/sub_manifest.yaml"
+  ]
+}

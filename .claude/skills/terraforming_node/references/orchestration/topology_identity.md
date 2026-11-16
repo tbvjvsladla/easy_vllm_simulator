@@ -143,7 +143,7 @@ rank ::= manifest nodes[] 배열 인덱스 (0..n-1)
 Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 둔다. 토폴로지 축 해소값은 표준이 정한 확장 자리
 `capabilities.extensions[]` 의 **`urn:easy-vllm:ext:node-role:v1`** 하나에 **값과 출처를 함께** 싣는다 —
 `rank`/`sub_mode` 는 파생값이라 출처 없이는 하류가 측정·선언·파생을 구분하지 못한다(헌법 §결정론 규율 "출처 표시").
-검증기 = `scripts/agent_card_contract.py`(§2.7.10 · 서명하지 않는다):
+검증기 = `scripts/agent_card_contract.sh`(§2.7.10 · 서명하지 않는다):
 
 ```jsonc
 "capabilities": { "extensions": [ {

@@ -1,0 +1,34 @@
+{
+  "day": "2026-07-27",
+  "descent_rate_mib_s": {
+    "falling_samples": 1,
+    "max": 1000.0,
+    "p50": 1000.0,
+    "p90": 1000.0,
+    "p99": 1000.0
+  },
+  "gpu_power_w": {
+    "max": 7.0,
+    "p50": 7.0
+  },
+  "gpu_temp_c": {
+    "max": Infinity,
+    "p50": 49.0
+  },
+  "mem_avail_mib": {
+    "max": NaN,
+    "min": NaN,
+    "p01": NaN,
+    "p50": NaN
+  },
+  "samples": 2,
+  "schema_version": 1,
+  "soc_temp_c": {
+    "column_present": false,
+    "max": null,
+    "p50": null,
+    "p95": null,
+    "p99": null,
+    "samples": 0
+  }
+}

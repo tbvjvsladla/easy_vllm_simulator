@@ -1,0 +1,16 @@
+usage: library_access.py [-h] [--topology {single,multi}] [--node NODE]
+                         [--plan | --apply | --revoke | --self-test]
+                         [--approved-by APPROVED_BY] [--host-of HOST_OF]
+
+library_access.py — 서브 wiki-desk 의 서고 접근점(ssh 강제명령 게이트웨이)을 발급·회수한다.
+
+options:
+  -h, --help            show this help message and exit
+  --topology {single,multi}
+  --node NODE
+  --plan
+  --apply
+  --revoke
+  --self-test
+  --approved-by APPROVED_BY
+  --host-of HOST_OF     가상 접근점: 이 실노드의 호스트에 --node 로 별도 키를 발급한다

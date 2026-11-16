@@ -69,7 +69,7 @@ when_to_use: >-
 | "고쳤는데 안 갔다" / "안 고쳤는데 갔다"(커밋 vs 인덱스 vs 파일시스템) | §2.7.4 → `references/orchestration/control_planes.md` |
 | `docs/logs/<node_id>` 경로가 노드마다 갈림 · hostname 이 경로에 샘 | §2.7.6 → `references/orchestration/topology_identity.md` |
 | 싱글인데 멀티의 배달·버전동기 개념이 끼어듦 · `role: sub` 의 의미가 모호 | §2.7.0 → `references/orchestration/topology_identity.md` + `scripts/node_role_contract.py` |
-| 서브 결정의 근거가 불명 · 인용 없는 빌드/서빙 결정 · 서브가 서고에 닿지 못함 | §2.7.8 → `references/orchestration/grounding_exchange.md` + `scripts/library_access.py` |
+| 서브 결정의 근거가 불명 · 인용 없는 빌드/서빙 결정 · 서브가 서고에 닿지 못함 | §2.7.8 → `references/orchestration/grounding_exchange.md` + `scripts/library_access.sh` |
 | 위임이 소진·중단됨 · 재개 여부 · 러너(백엔드×모델) 실패 | §2.7.7a · §2.7.11 → `references/orchestration/a2a_relay.md` |
 | 워치독 트립·사살 · 블랙박스 미설치/검증 실패 | §2.6 → `references/blackbox/host_safety.md` · `docs/logs` 평면은 `references/blackbox/logs_plane.md` |
 | 캠페인 상태가 비었거나 어긋남 · purge 가 안 열림 · 다른 캠페인으로 넘어가야 함(보류·재개) | `references/campaign/` (layout · phases · writers · assignment_supervision · purge) |
@@ -135,7 +135,7 @@ Rust 설치·노드별 검증·새 프로세스 실행은 `references/install/ru
 → `references/orchestration/a2a_relay.md` — 2.7.7a 턴제 릴레이와 자율 재개. **재개의 기본은 `relay.py --supervise-step <camp> --apply` 자동 재발급**이다. 전진이 보여도 정본의 승인·중단·실패 복구 가드를 통과해야 한다. 사람 확인과 명시적 수동 복구 조건은 해당 reference를 따른다.
 
 ### 2.7.8 서고 접근자 — 서브 wiki-desk ↔ 메인 서고(같은 CLI · 경로만 다름)
-→ `references/orchestration/grounding_exchange.md` — manifest `library` 접근자 · ssh 강제명령 게이트웨이 · 발급·회수(`library_access.py` · HITL) · 그라운딩 게이트 대칭. **누락은 기계가 fail-closed 로 잡고 거짓은 사람이 리뷰한다.** (2026-10-19 · A2A 3메시지 교환 은퇴)
+→ `references/orchestration/grounding_exchange.md` — manifest `library` 접근자 · ssh 강제명령 게이트웨이 · 발급·회수(`library_access.sh` · HITL) · 그라운딩 게이트 대칭. **누락은 기계가 fail-closed 로 잡고 거짓은 사람이 리뷰한다.** (2026-10-19 · A2A 3메시지 교환 은퇴)
 
 ### 2.7.9 노드 오케스트레이터 — Phase 감독
 → `references/campaign/phases.md` · 특화층 오케스트레이션 전략은 `references/orchestration.topology.md`(브랜치별 내용 · 싱크 비전파).
@@ -196,7 +196,18 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/turn_budget.sh` | §2.7.7a | — | `turn_budget` Rust 실행파일 런처(실행파일 없음/실행 불가 = 상태 2 + 빌드 안내 · Python 경로 없음 · `TURN_BUDGET_VALIDATE_ONLY=1` 은 가용성 확인일 뿐 업무 통과가 아니다 · `TURN_BUDGET_OWNER_PATH`=기본 스키마의 어휘적 출처) |
 | `scripts/agent_control.py` · `scripts/providers/` | §2.7.7 | — | provider-neutral 전송 orchestrator · native 실행 구문은 각 provider adapter만 발행 · v1 native-turn / v2 wall-time 계약 |
 | `scripts/selftest_harness_switch.py` | §2.7.7 | — | 하네스 전환·예산·세션 결속·중복 실행·원장 경쟁 음성대조 |
-| `scripts/library_access.py` | §2.7.8 | — | 서브 서고 접근점 발급·회수(키·강제명령·manifest library 블록 · HITL) |
+| `scripts/library_access.sh` | §2.7.8 | — | 서브 서고 접근점 발급·회수(키·강제명령·manifest library 블록 · HITL) — `terraforming_node/rust` 의 `library_access` Rust 실행파일 런처(부재/ELF 아님 = 상태 2 + 빌드 안내 · Python 경로 없음) |
+| `scripts/library_access.py` | §2.7.8 | — | 원본 보존(대조 golden `parity` s5 의 출처 · 정책 증거 원장 `claim_bindings.json` 의 evidence 경로) — 호출은 `.sh` 로 한다 |
+| `scripts/audit_session_ssh.sh` | §2.7.7 | — | 세션 transcript 의 허가 통로 밖 ssh 감사(술어 A1) — `audit_session_ssh` Rust 실행파일 런처(부재 = 상태 2 + 빌드 안내 · Python 경로 없음) |
+| `scripts/audit_session_ssh.py` | §2.7.7 | — | 원본 보존(대조 golden 의 출처) — 호출은 `.sh` 로 한다 |
+| `scripts/agent_card_contract.sh` | §2.7.10 | — | Agent Card metadata 검증기(`validate --card` · `--self-test`) — `agent_card_contract` Rust 실행파일 런처(부재 = 상태 2 + 빌드 안내 · Python 경로 없음) |
+| `scripts/agent_card_contract.py` | §2.7.10 | — | 원본 보존(대조 golden 의 출처) · `render_sub_env.py` 의 in-process import 가 남아 있다(그 이행 전까지) |
+| `scripts/node_blackbox/logs_lifecycle.sh` | §2.6 | — | `docs/logs` 수명 집행 — `logs_lifecycle` Rust 실행파일 런처. 설치기는 같은 실행파일을 `easy-vllm-bb-lifecycle` 로 배치한다. 원본 `logs_lifecycle.py` 는 대조 golden 의 출처로 보존 |
+| `scripts/node_blackbox/logs_lifecycle.py` | §2.6 | — | 원본 보존(대조 golden 의 출처) — 호출·설치는 Rust 실행파일로 한다 |
+| `scripts/node_blackbox/seed_from_journal.sh` | §2.6 | — | Phase 0 수확기(레거시 저널 → `docs/logs/<node>/seed/`) — `seed_from_journal` Rust 실행파일 런처(부재 = 상태 2 + 빌드 안내 · Python 경로 없음) |
+| `scripts/node_blackbox/seed_from_journal.py` | §2.6 | — | 원본 보존(대조 golden 의 출처) — 호출은 `.sh` 로 한다 |
+| `scripts/node_blackbox/adversarial_stress.sh` | §2.6 | — | 방어층 시험용 가압기(벤치마커 ✗) — `adversarial_stress` Rust 실행파일 런처(평문 `http://` 엔드포인트 · 부재 = 상태 2 + 빌드 안내 · Python 경로 없음) |
+| `scripts/node_blackbox/adversarial_stress.py` | §2.6 | — | 원본 보존(대조 golden 의 출처) — 호출은 `.sh` 로 한다 |
 | `scripts/node_blackbox/node_identity.sh` | §2.7.6 | ✓ | node_id 해소(실패하면 죽는다) |
 | `scripts/node_blackbox/`(런타임: `blackbox_session.py` · `budget_renew_loop.sh` · `blackbox_eta.py` · `regen_envelope.py` · `blackbox_thermal.py` · `mem_watchdog_eta.sh` · `thermal_watchdog.sh` · `agent_guard.py`) | §2.6 | ✓ | `references/blackbox/host_safety.md` |
 | `scripts/node_blackbox/`(설치: `install_node_blackbox.sh` · `verify_node_blackbox.sh` · `purge_host_safety.sh` · `publish_install_request.py`) | §2.6 · §2.6.1 | ✓ | HITL sudo |

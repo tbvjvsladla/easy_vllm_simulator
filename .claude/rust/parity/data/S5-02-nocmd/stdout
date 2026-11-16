@@ -1,0 +1,10 @@
+usage: agent_card_contract.py [-h] [--self-test] {validate} ...
+
+Agent Card capability metadata validator
+
+positional arguments:
+  {validate}
+
+options:
+  -h, --help   show this help message and exit
+  --self-test

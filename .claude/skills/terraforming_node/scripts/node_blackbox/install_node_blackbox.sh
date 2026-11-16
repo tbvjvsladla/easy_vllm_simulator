@@ -194,10 +194,15 @@ NODE_ID="$(ni_resolve_node_id "$REPO" "$NODE_ID")" || exit 1
 NODE_DIR="$LOGS_ROOT/$NODE_ID"
 
 # ── 전제 확인 ────────────────────────────────────────────────────────────
-for f in blackbox_collect.py blackbox_eta.py blackbox_events.py logs_lifecycle.py \
+for f in blackbox_collect.py blackbox_eta.py blackbox_events.py \
          regen_envelope.py mem_watchdog_eta.sh; do
   [ -f "$SDIR/$f" ] || { say "FAIL: $SDIR/$f 부재"; exit 1; }
 done
+# 수명 집행기는 Rust 실행파일(`terraforming_node/rust` 의 `logs_lifecycle`)을 그대로 배치한다 — Python 경로 ✗.
+# 빌드는 명시 작업이다(설치기가 대신 빌드하지 않는다): 없으면 안내하고 멈춘다.
+LIFECYCLE_BIN="$SDIR/../../rust/target/release/logs_lifecycle"
+[ -f "$LIFECYCLE_BIN" ] && [ -x "$LIFECYCLE_BIN" ] || {
+  say "FAIL: Rust 실행파일 부재: $LIFECYCLE_BIN — 먼저 bash $SDIR/../build_rust_packages.sh"; exit 1; }
 DROP_HELPER="$SDIR/../host_safety/host/vllm-drop-caches.sh"
 [ -f "$DROP_HELPER" ] || { say "FAIL: drop-caches 헬퍼 부재: $DROP_HELPER"; exit 1; }
 
@@ -259,7 +264,7 @@ run install -m 0755 "$SDIR/blackbox_eta.py"      "$BIN/easy-vllm-bb-eta"
 #   모듈 이름으로도 함께 둔다(0644 — 실행체가 아니라 라이브러리 사본임을 모드로 표시).
 run install -m 0644 "$SDIR/blackbox_eta.py"      "$BIN/blackbox_eta.py"
 run install -m 0755 "$SDIR/blackbox_events.py"   "$BIN/easy-vllm-bb-events"
-run install -m 0755 "$SDIR/logs_lifecycle.py"    "$BIN/easy-vllm-bb-lifecycle"
+run install -m 0755 "$LIFECYCLE_BIN"             "$BIN/easy-vllm-bb-lifecycle"
 run install -m 0755 "$SDIR/regen_envelope.py"   "$BIN/easy-vllm-bb-regen-envelope"
 run install -m 0755 "$SDIR/mem_watchdog_eta.sh" "$BIN/easy-vllm-bb-watchdog"
 # 열·전력 포락선 축(plan_26082319 §6.3 · 2026-08-23). RAM 축과 **별개 평면**이라 파일도 유닛도

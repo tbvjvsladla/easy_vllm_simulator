@@ -1,0 +1,2 @@
+[stress] endpoint=http://x model=m conc=-3 prompt≈4096tok max_tokens=3 mm=False dur=0s
+[stress] 종료 sent=0 ok=0 err=0 conn_err=0

@@ -1,0 +1,34 @@
+usage: audit_session_ssh.py [-h] [--self-test] [--transcript TRANSCRIPT]
+                            [--sub-host SUB_HOST] [--limit LIMIT]
+
+audit_session_ssh.py — 세션 transcript 의 **무단 서브 스캔** 감사 (술어 A1).
+
+왜 있는가(2026-09-08 · plan_26090813 §4.7 · camp-26090721 사후감사 F3):
+    헌법 노드제어 ① 은 *"메인은 서브를 무단 스캔·직접 교정하지 않는다 — 상향 회수는 문서기반"*
+    이라고 말한다. 그런데 그 규칙을 **집행하는 것이 아무것도 없었다**. 2026-09-07 캠페인에서
+    메인은 서브를 `ssh` 로 32회 직접 관측했다(파일 내용 읽기 12 · 프로세스 조회 11 · 존재 확인 6
+    · 폴링 2). 규칙은 있었고, 그것을 어겼는지 **묻는 자리가 없었다**.
+
+    직접 원인은 규율이 아니라 **채널 부재**였다: attempt 사이에 허가된 진행 관측면이 없었다.
+    그 채널은 `sub.campaign.brief` 로 신설됐고(§2.7.7), 이 감사는 그 채널이 실제로 쓰였는지를
+    **사후에** 묻는다. 채널을 만들고 감사하지 않으면 다음 사람은 다시 ssh 를 연다.
+
+무엇이 허가인가:
+    ssh 자체가 금지가 아니다 — **허가된 스크립트를 통한 ssh** 는 계약이다(sync·회수·릴레이는
+    ssh 로 돈다). 금지는 그 스크립트 **밖에서** 세션이 직접 여는 ssh 다. 그래서 이 감사는
+    "명령 문자열이 허가 스크립트를 부르는가" 를 묻고, 그렇지 않은 채 서브를 향하면 위반이다.
+
+    허가 스크립트: relay.py · agent_control.py · sync_to_sub.sh · fetch_sub_docs.sh ·
+                   library_access.py · multinode_*_smoke.sh · scan_node.py(승인된 온보딩 스캔)
+
+  사용:  audit_session_ssh.py --transcript <session.jsonl> --sub-host spark-xxxx
+  종료:  0 = 위반 0 · 1 = 위반 있음 · 2 = 입력 오류
+
+options:
+  -h, --help            show this help message and exit
+  --self-test
+  --transcript TRANSCRIPT
+                        세션 transcript(.jsonl)
+  --sub-host SUB_HOST   서브 호스트(문자열 포함 검사). manifest nodes[role=sub].host 와 같은
+                        값
+  --limit LIMIT         출력할 위반 수(전수는 개수로 센다)

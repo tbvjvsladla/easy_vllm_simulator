@@ -1,0 +1,24 @@
+usage: adversarial_stress.py [-h] [--endpoint ENDPOINT] [--model MODEL]
+                             [--concurrency CONCURRENCY]
+                             [--prompt-tokens PROMPT_TOKENS]
+                             [--max-tokens MAX_TOKENS] [--multimodal]
+                             [--duration-s DURATION_S] [--timeout-s TIMEOUT_S]
+                             [--stop-file STOP_FILE] [--report-s REPORT_S]
+                             [--self-test]
+
+방어체계 시험용 가압기 (plan_26080121)
+
+options:
+  -h, --help            show this help message and exit
+  --endpoint ENDPOINT   예: http://localhost:8951 (--self-test 외 필수)
+  --model MODEL         served-model-name (--self-test 외 필수)
+  --concurrency CONCURRENCY
+  --prompt-tokens PROMPT_TOKENS
+  --max-tokens MAX_TOKENS
+  --multimodal          이미지 페이로드 동봉(KV 클램프 밖 축)
+  --duration-s DURATION_S
+  --timeout-s TIMEOUT_S
+  --stop-file STOP_FILE
+                        이 파일이 생기면 즉시 발행 중단(agent_guard halt_load 계약)
+  --report-s REPORT_S   진행 보고 주기
+  --self-test

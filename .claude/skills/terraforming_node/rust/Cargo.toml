@@ -1,0 +1,55 @@
+[package]
+name = "terraforming-runtime"
+version = "0.1.0"
+edition = "2021"
+description = "Rust ports of terraforming_node programs (audit_session_ssh, agent_card_contract, library_access, node_blackbox lifecycle tools): same command lines, exit codes, text and files as the original Python"
+publish = false
+# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
+autotests = false
+
+[lib]
+name = "terraforming_runtime"
+path = "src/lib.rs"
+
+[dependencies]
+# Python-compatible text, JSON and YAML semantics shared with the other owner packages (path dependency, read-only).
+agent-runtime-support = { path = "../../../rust/runtime-support" }
+# Raw DEFLATE and CRC-32 for the gzip container of logs_lifecycle (Python stdlib `gzip` in the original).
+miniz_oxide = "0.9"
+crc32fast = "1"
+
+[[bin]]
+name = "audit_session_ssh"
+path = "src/bin/audit_session_ssh.rs"
+
+[[bin]]
+name = "agent_card_contract"
+path = "src/bin/agent_card_contract.rs"
+
+[[bin]]
+name = "library_access"
+path = "src/bin/library_access.rs"
+
+[[bin]]
+name = "logs_lifecycle"
+path = "src/bin/logs_lifecycle.rs"
+
+[[bin]]
+name = "rust_package_check"
+path = "src/bin/rust_package_check.rs"
+
+[[bin]]
+name = "adversarial_stress"
+path = "src/bin/adversarial_stress.rs"
+
+[[bin]]
+name = "seed_from_journal"
+path = "src/bin/seed_from_journal.rs"
+
+[[test]]
+name = "golden_cases"
+path = "checks/golden_cases.rs"
+
+[[test]]
+name = "stress_checks"
+path = "checks/stress_checks.rs"

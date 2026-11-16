@@ -1,0 +1,9 @@
+{"action": "docker_kill", "kind": "watchdog_trip", "mem_avail_mib": 10186, "source": "seed:memwatch_journal", "target": "deadbeef", "threshold_mib": 10240, "ts": "2026-07-22T08:45:14Z"}
+{"kind": "watchdog_kill_ack", "source": "seed:memwatch_journal", "target": "deadbeef", "ts": "2026-07-22T08:45:15Z"}
+{"filter": "@vllm", "heartbeat_s": 15, "interval_s": 1, "kind": "watchdog_start", "pid": 99, "source": "seed:memwatch_journal", "threshold_mib": 10240, "ts": "2026-07-22T08:45:42Z"}
+{"kind": "watchdog_unit_stopped", "source": "seed:memwatch_journal", "ts": "2026-07-22T08:45:43Z"}
+{"kind": "watchdog_unit_scheduled", "source": "seed:memwatch_journal", "ts": "2026-07-22T08:45:45Z"}
+{"kind": "watchdog_unit_started", "source": "seed:memwatch_journal", "ts": "2026-07-22T08:45:46Z"}
+{"action": "none", "kind": "watchdog_trip_nomatch", "mem_avail_mib": 9000, "source": "seed:memwatch_journal", "threshold_mib": 10240, "ts": "2026-07-22T08:45:47Z"}
+{"boot_id": "abc123def456", "kind": "boot_marker", "source": "seed:memwatch_journal", "ts": "2026-07-22T08:50:00Z", "ts_approx": true}
+{"boot_id": "0011", "kind": "boot_marker", "source": "seed:memwatch_journal", "ts": "2026-07-22T08:50:00Z", "ts_approx": true}

@@ -1,0 +1,32 @@
+[agent-card] 계약 위반:
+  - $.aa: float 금지(결정론 metadata는 정수/문자열로 표현)
+  - 표준 밖 최상위 키 ['aa', 'zz'] — 고유 항목은 capabilities.extensions[] 에만 둔다
+  - name: 비어 있지 않은 문자열이어야 한다
+  - supportedInterfaces[0].url: 필수 문자열
+  - supportedInterfaces[0].protocolVersion: 필수 문자열
+  - supportedInterfaces[0]: 표준 밖 키 ['extra']
+  - supportedInterfaces[0].protocolBinding='x y': 표준 binding 또는 URI여야 한다
+  - supportedInterfaces[1]: 객체가 아니다
+  - defaultInputModes: 비어 있지 않은 문자열 배열
+  - capabilities: 표준 밖 키 ['bogus']
+  - capabilities.streaming: bool
+  - capabilities.extensions[1]: 표준 밖 키 ['k']
+  - capabilities.extensions[1].uri: URI여야 한다
+  - capabilities.extensions[1].required: bool
+  - capabilities.extensions[1].params: 객체
+  - node-role 확장 params 누락: ['topology']
+  - node-role 확장 params 표준 밖 키: ['extra_p']
+  - node-role.rank: 정수 또는 null(single)
+  - node-role.tool_plane: 문자열 배열
+  - node-role 확장은 required: true
+  - skills[3].name: 필수
+  - skills[3].description: 필수
+  - skills[3].inputModes: 필수
+  - skills[3].outputModes: 필수
+  - skills[3].tags: 비어 있지 않은 배열
+  - skills[4]: 객체가 아니다
+  - skills[].id 중복
+  - provider: {url, organization} 둘 다 필수 문자열
+  - skill 누락: serve
+  - skill 누락: bench
+  - skill 누락: publish

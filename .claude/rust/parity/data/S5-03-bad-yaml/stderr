@@ -1,0 +1,3 @@
+Traceback (most recent call last):
+  (frames elided from the committed golden; normalization N06 compares the last line)
+  in "/tmp/parity-o-S5-03-bad-yaml-1874279-1794813215344698623/output/multi/manifest.yaml", line 2, column 1

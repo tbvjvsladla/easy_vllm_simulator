@@ -1,0 +1,6 @@
+usage: agent_card_contract.py validate [-h] --card CARD [--require-skills]
+
+options:
+  -h, --help        show this help message and exit
+  --card CARD
+  --require-skills

@@ -1,0 +1,7 @@
+usage: adversarial_stress.py [-h] [--endpoint ENDPOINT] [--model MODEL]
+                             [--concurrency CONCURRENCY]
+                             [--prompt-tokens PROMPT_TOKENS]
+                             [--max-tokens MAX_TOKENS] [--multimodal]
+                             [--duration-s DURATION_S] [--timeout-s TIMEOUT_S]
+                             [--stop-file STOP_FILE] [--report-s REPORT_S]
+                             [--self-test]

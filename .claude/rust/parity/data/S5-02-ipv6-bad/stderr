@@ -1,0 +1,3 @@
+Traceback (most recent call last):
+  (frames elided from the committed golden; normalization N06 compares the last line)
+ValueError: Invalid IPv6 URL

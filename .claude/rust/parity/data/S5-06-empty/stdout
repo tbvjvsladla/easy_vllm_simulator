@@ -1,0 +1,5 @@
+[seed] node=main -> E/main
+[seed] 라인 0 (인식 0 · 미인식 0) · 보존율 0.0000
+[seed] HB 0 · TRIP 0 · kill_ack 0 · boot 0 · start 0 · unit 0 · TRIP-nomatch 0 · 알려진무시 0
+[seed] 하강률 MiB/s: p50=None p90=None p99=None max=None (falling 0)
+[seed] kill 지연 상한(s): []
