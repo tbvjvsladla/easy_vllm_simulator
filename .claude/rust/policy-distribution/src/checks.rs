@@ -1043,22 +1043,23 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
     checks.push(rr("runtime_regression_selftest", &["bash", RUNTIME_SELFTEST_LAUNCHER], &[0]));
     checks.extend((hooks.gitless)(repo));
     let uw = ".claude/skills/upstream-version-watch/scripts";
-    checks.push(p("upstream_slave_forward_selftest", &format!("{uw}/slave_forward.py"), &["--self-test"], &[0]));
-    checks.push(p("upstream_render_dockerfile_selftest", &format!("{uw}/render_dockerfile.py"), &["--self-test"], &[0]));
-    for filename in ["resolve_torch_pin.py", "resolve_ngc_tag.py", "resolve_build_track.py", "resolve_wheel.py", "render_dockerfile.py",
-                     "regen_requirements.py", "classify_failure.py", "check_smoke_model.py", "slave_forward.py"] {
-        checks.push(p(&format!("upstream_help:{filename}"), &format!("{uw}/{filename}"), &["--help"], &[0]));
+    // upstream-version-watch 진입점은 Rust 런처(.sh → 노드 빌드 ELF)다 — .py 원본을 부르지 않는다(plan_26111615).
+    checks.push(rr("upstream_slave_forward_selftest", &["bash", &format!("{uw}/slave_forward.sh"), "--self-test"], &[0]));
+    checks.push(rr("upstream_render_dockerfile_selftest", &["bash", &format!("{uw}/render_dockerfile.sh"), "--self-test"], &[0]));
+    for filename in ["resolve_torch_pin.sh", "resolve_ngc_tag.sh", "resolve_build_track.sh", "resolve_wheel.sh", "render_dockerfile.sh",
+                     "regen_requirements.sh", "classify_failure.sh", "check_smoke_model.sh", "slave_forward.sh"] {
+        checks.push(rr(&format!("upstream_help:{filename}"), &["bash", &format!("{uw}/{filename}"), "--help"], &[0]));
     }
     if (hooks.flag_issued)(repo) {
         let na = "terraform Flag 발급 완료 — exit 4 게이트는 미테라포밍 환경에서만 발화. fresh-clone 실행 검사는 smoke_clone.sh A8 소유";
         checks.push(dict(vec![("name", s("recipe_info_only_gate")), ("ok", b(true)), ("not_applicable", s(na))]));
         checks.push(dict(vec![("name", s("benchmark_info_only_gate")), ("ok", b(true)), ("not_applicable", s(na))]));
     } else {
-        checks.push(p("recipe_info_only_gate", ".claude/skills/vllm-recipe-explorer/recipe.py",
-                      &["estimate", "--config", "/nonexistent/config.yaml", "--auto"], &[4]));
+        checks.push(rr("recipe_info_only_gate", &["bash", ".claude/skills/vllm-recipe-explorer/scripts/recipe.sh",
+                      "estimate", "--config", "/nonexistent/config.yaml", "--auto"], &[4]));
         checks.push(rr("benchmark_info_only_gate", &["bash", ".claude/skills/adversarial-benchmark/scripts/run_bench.sh", "freshclone-probe"], &[4]));
     }
-    checks.push(p("recipe_serve_knob_parity", ".claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py", &["--check-parity"], &[0]));
+    checks.push(rr("recipe_serve_knob_parity", &["bash", ".claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.sh", "--check-parity"], &[0]));
     let ab = ".claude/skills/adversarial-benchmark/scripts";
     let rx = ".claude/skills/vllm-recipe-explorer/scripts";
     let bash = |name: &str, script: &str, rest: &[&str], expected: &[i64]| -> PyValue {
@@ -1070,9 +1071,9 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
         ".claude/skills/adversarial-benchmark/fixtures/measured_pass.json", "--roofline",
         ".claude/skills/adversarial-benchmark/fixtures/roofline_sample.json"], &[0]));
     checks.push(bash("benchmark_verdict_selftest", &format!("{ab}/verdict_rule.sh"), &["--self-test"], &[0]));
-    checks.push(p("recipe_parse_config_selftest", &format!("{rx}/parse_model_config.py"), &["--self-test"], &[0]));
-    checks.push(p("recipe_estimate_vram_selftest", &format!("{rx}/estimate_vram.py"), &["--self-test"], &[0]));
-    checks.push(p("recipe_run_trial_selftest", &format!("{rx}/run_trial.py"), &["--self-test"], &[0]));
+    checks.push(bash("recipe_parse_config_selftest", &format!("{rx}/parse_model_config.sh"), &["--self-test"], &[0]));
+    checks.push(bash("recipe_estimate_vram_selftest", &format!("{rx}/estimate_vram.sh"), &["--self-test"], &[0]));
+    checks.push(bash("recipe_run_trial_selftest", &format!("{rx}/run_trial.sh"), &["--self-test"], &[0]));
     checks.push(bash("campaign_init_selftest", &format!("{tn}/campaign_init.sh"), &["--selftest"], &[0]));
     checks.push(p("campaign_lifecycle_selftest", &format!("{tn}/selftest_campaign_lifecycle.py"), &[], &[0]));
     checks.push(bash("campaign_template_validator_selftest", &format!("{tn}/campaign_template_validator.sh"), &["--selftest"], &[0]));
@@ -1100,20 +1101,20 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
     checks.push(bash("upstream_single_up_requires_config", &format!("{uw}/single_serve_up.sh"), &[], &[3]));
     checks.push(bash("upstream_single_up_rejects_unknown_arg", &format!("{uw}/single_serve_up.sh"), &["_probe", "--bogus"], &[3]));
     checks.push(bash("upstream_inventory_rejects_unknown_topology", &format!("{uw}/container_inventory.sh"), &["--topology", "bogus"], &[2]));
-    checks.push(p("upstream_budget_preflight_selftest", &format!("{uw}/budget_preflight.py"), &["--self-test"], &[0]));
-    checks.push(p("upstream_layer_ledger_selftest", &format!("{uw}/layer_ledger.py"), &["--self-test"], &[0]));
-    checks.push(p("upstream_push_branches_selftest", &format!("{uw}/push_branches.py"), &["--self-test"], &[0]));
-    checks.push(p("upstream_branch_sync_mechanics_selftest", &format!("{uw}/selftest_branch_sync.py"), &[], &[0]));
-    checks.push(p("recipe_preload_ram_gate_selftest", &format!("{rx}/preload_ram_gate.py"), &["--self-test"], &[0]));
-    checks.push(p("recipe_escalation_predicate_selftest", &format!("{rx}/escalation_predicate.py"), &["--self-test"], &[0]));
-    checks.push(p("recipe_rope_translate_selftest", &format!("{rx}/rope_scaling_translate.py"), &["--self-test"], &[0]));
+    checks.push(bash("upstream_budget_preflight_selftest", &format!("{uw}/budget_preflight.sh"), &["--self-test"], &[0]));
+    checks.push(bash("upstream_layer_ledger_selftest", &format!("{uw}/layer_ledger.sh"), &["--self-test"], &[0]));
+    checks.push(bash("upstream_push_branches_selftest", &format!("{uw}/push_branches.sh"), &["--self-test"], &[0]));
+    checks.push(bash("upstream_branch_sync_mechanics_selftest", &format!("{uw}/selftest_branch_sync.sh"), &[], &[0]));
+    checks.push(bash("recipe_preload_ram_gate_selftest", &format!("{rx}/preload_ram_gate.sh"), &["--self-test"], &[0]));
+    checks.push(bash("recipe_escalation_predicate_selftest", &format!("{rx}/escalation_predicate.sh"), &["--self-test"], &[0]));
+    checks.push(bash("recipe_rope_translate_selftest", &format!("{rx}/rope_scaling_translate.sh"), &["--self-test"], &[0]));
     checks.push(bash("benchmark_broad_search_confirm_gate", &format!("{ab}/broad_search.sh"), &["cell",
         "--state", "/nonexistent/bs.json", "--now-utc", "2026-01-01T00:00:00Z",
         "--cell-key", "k", "--config", "c", "--axis-citation", "x", "--bench-budget-mib", "1"], &[5]));
     checks.push(bash("benchmark_broad_search_provenance_precheck", &format!("{ab}/selftest_broad_search_precheck.sh"), &[], &[0]));
     checks.push(bash("benchmark_broad_search_cell_args", &format!("{ab}/selftest_broad_search_cell_args.sh"), &[], &[0]));
     checks.push(bash("benchmark_resolve_topology_selftest", &format!("{ab}/resolve_topology.sh"), &["--self-test"], &[0]));
-    checks.push(p("recipe_gmu_roles_batch_selftest", &format!("{rx}/selftest_gmu_roles_batch.py"), &[], &[0]));
+    checks.push(bash("recipe_gmu_roles_batch_selftest", &format!("{rx}/selftest_gmu_roles_batch.sh"), &[], &[0]));
 
     let wd = ".claude/skills/wiki-desk";
     checks.push(run("wiki_node_test", &args(&["node", "--test"]), &[0], &repo.join(wd), &[]));

@@ -133,7 +133,45 @@ fn expected_argv(name: &str, golden_argv: &[String]) -> Vec<String> {
             "bash".into(),
             golden_argv[5].clone(),
         ],
+        n if LAUNCHER_SWITCHED.contains(&n) || n.starts_with("upstream_help:") => {
+            // plan_26111615: upstream/recipe 진입점이 Rust 런처(.sh)로 바뀌었다 — golden 은 b1f3563e 의 `<PY> x.py ...`.
+            let script = if n == "recipe_info_only_gate" {
+                ".claude/skills/vllm-recipe-explorer/scripts/recipe.sh".to_string()
+            } else {
+                to_sh(&golden_argv[1])
+            };
+            let mut v = vec!["bash".into(), script];
+            v.extend(golden_argv[2..].iter().cloned());
+            v
+        }
         _ => golden_argv.to_vec(),
+    }
+}
+
+/// Checks whose `<PY> x.py` argv became `bash x.sh` when their owners were ported (closed list · tripwire).
+const LAUNCHER_SWITCHED: &[&str] = &[
+    "upstream_slave_forward_selftest",
+    "upstream_render_dockerfile_selftest",
+    "recipe_info_only_gate",
+    "recipe_serve_knob_parity",
+    "recipe_parse_config_selftest",
+    "recipe_estimate_vram_selftest",
+    "recipe_run_trial_selftest",
+    "upstream_budget_preflight_selftest",
+    "upstream_layer_ledger_selftest",
+    "upstream_push_branches_selftest",
+    "upstream_branch_sync_mechanics_selftest",
+    "recipe_preload_ram_gate_selftest",
+    "recipe_escalation_predicate_selftest",
+    "recipe_rope_translate_selftest",
+    "recipe_gmu_roles_batch_selftest",
+];
+
+/// Golden check names that were renamed with their launcher (`upstream_help:x.py` → `upstream_help:x.sh`).
+fn renamed(name: &str) -> String {
+    match name.strip_prefix("upstream_help:") {
+        Some(f) => format!("upstream_help:{}", f.replace(".py", ".sh")),
+        None => name.to_string(),
     }
 }
 
@@ -184,12 +222,16 @@ fn compare_reports(golden_name: &str, mutate: bool) {
         assert_eq!(dumps(get(&got, key)), dumps(get(want, key)), "{golden_name}: top-level {key}");
     }
     let (gc, wc) = (items(get(&got, "checks")), items(get(want, "checks")));
-    let names = |v: &[PyValue]| v.iter().map(|c| st(get(c, "name"))).collect::<Vec<_>>();
+    let names = |v: &[PyValue]| v.iter().map(|c| renamed(&st(get(c, "name")))).collect::<Vec<_>>();
     assert_eq!(names(&gc), names(&wc), "{golden_name}: check names/order");
     let mut argv_changed = 0;
     for (g1, w1) in gc.iter().zip(wc.iter()) {
         let mut w1 = w1.clone();
-        let name = st(get(&w1, "name"));
+        let golden_name_of_check = st(get(&w1, "name"));
+        let name = renamed(&golden_name_of_check);
+        if name != golden_name_of_check {
+            policy_distribution::update(&mut w1, vec![("name", PyValue::str(&name))]);
+        }
         if let Some(argv) = policy_distribution::get(&w1, "argv") {
             let wargv: Vec<String> = items(argv).iter().map(st).collect();
             let wargv: Vec<String> = wargv.iter().map(|a| a.replace("<PY>", py)).collect();
@@ -202,7 +244,7 @@ fn compare_reports(golden_name: &str, mutate: bool) {
         }
         assert_eq!(dumps(g1), dumps(&w1), "{golden_name}: check {name}");
     }
-    assert_eq!(argv_changed, 7, "exactly the seven policy-program checks change their argv");
+    assert_eq!(argv_changed, 7 + LAUNCHER_SWITCHED.len() + 9, "the seven policy-program checks plus the ported upstream/recipe launchers (15 named + 9 upstream_help) change their argv");
 }
 
 fn apply_mutations(tree: &Path) {
