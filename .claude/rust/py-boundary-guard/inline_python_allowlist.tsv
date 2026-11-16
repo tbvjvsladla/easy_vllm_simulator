@@ -28,3 +28,4 @@
 .claude/rust/policy-selftest/checks/capture_goldens.sh	python3 -I - "$CHECKS/data/pyast"	golden-capture	pyast 골든을 원본 Python ast 로 재캡처
 .claude/rust/policy-selftest/checks/fixtures.sh	(cd "$D" && python3 -B -c '	golden-capture	`fixtures.sh capture` 전용: 원본 런타임 셀프테스트 재캡처
 .claude/rust/policy-selftest/checks/fixtures.sh	(cd "$D" && python3 -B "$REPO/.claude/policies/runtime/	golden-capture	`fixtures.sh capture` 전용: 원본 .py 실행 결과 재캡처
+configs/arm_patch.sh	python3 -c 'import sysconfig	container	serve 컨테이너 안에서 source 된다 — 그 이미지 python 의 purelib 에 런타임 패치 .pth 를 건다
