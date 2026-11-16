@@ -37,3 +37,5 @@ pub mod relay;
 pub mod render_sub_env;
 pub mod staleness_gate;
 pub mod sysexit;
+// Rust self-test suites of the retired scripts/selftest_*.py programs (plan_26111615 pass 3).
+pub mod selftests;

@@ -26,9 +26,11 @@ while [ "$#" -gt 0 ]; do
 done
 # B reads the node-role contract through the local path dependencies `role-contract` and the common package under it: both must
 # sit beside this skill before any build or self-check starts.
-for dependency in rust/runtime-support rust/role-contract; do
+# The lite/sweep self-checks ask the hint reader as the hint-publisher Rust library (plan_26111615 pass 3): that crate is a path
+# dependency too.
+for dependency in rust/runtime-support rust/role-contract skills/hint-publisher/rust; do
   if [ ! -f "$REPO/.claude/$dependency/Cargo.toml" ]; then
-    printf '[build_rust] ERROR 경로 의존성 부재: %s — adversarial-benchmark 는 role-contract 와 그 아래 runtime-support 를 함께 필요로 한다\n' "$REPO/.claude/$dependency" >&2
+    printf '[build_rust] ERROR 경로 의존성 부재: %s — adversarial-benchmark 는 role-contract·runtime-support·hint-publisher crate 를 함께 필요로 한다\n' "$REPO/.claude/$dependency" >&2
     exit 2
   fi
 done

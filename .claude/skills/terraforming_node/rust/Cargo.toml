@@ -135,3 +135,23 @@ path = "checks/agent_guard_trace.rs"
 [[test]]
 name = "stress_checks"
 path = "checks/stress_checks.rs"
+
+[[bin]]
+name = "selftest_bootstrap_permissions"
+path = "src/bin/selftest_bootstrap_permissions.rs"
+
+[[bin]]
+name = "selftest_campaign_lifecycle"
+path = "src/bin/selftest_campaign_lifecycle.rs"
+
+[[bin]]
+name = "selftest_claude_native_events"
+path = "src/bin/selftest_claude_native_events.rs"
+
+[[bin]]
+name = "selftest_harness_switch"
+path = "src/bin/selftest_harness_switch.rs"
+
+[[bin]]
+name = "selftest_sub_hint_write_scopes"
+path = "src/bin/selftest_sub_hint_write_scopes.rs"

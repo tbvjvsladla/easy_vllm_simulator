@@ -13,9 +13,8 @@
 //! serving, no NAS, no network, and the real `docs/benchmark`, `campaigns` and tags are never touched.
 //!
 //! The native owners of the typed pieces (report identity and constants, naming, bench-mode vocabulary) are called as
-//! this crate's own libraries. The Python owners that are not ported yet (hint reader, evidence publisher, and the
-//! program embedded in `sweep_bench.sh`) are reached through [`crate::owner_bridge`], which transports their answers
-//! and nothing else.
+//! this crate's own libraries. The owners of the other skills (hint reader, evidence publisher) are their Rust
+//! libraries, reached through [`crate::owner_bridge`]; no Python is started.
 //!
 //! Cases: L1 default (no flag) = automatic handoff path, nothing published · L2 `--publish-report` · L3 idempotent
 //! re-render · L4 publication failure does not lose the measurement · L5 no measurement time · L6 mode mix and missing
@@ -33,7 +32,7 @@ use crate::classify_cell::{
 };
 use crate::conformance::{py_equals, splitlines, Raised};
 use crate::dataset_prep::Console;
-use crate::owner_bridge::{OwnerBridge, OwnerRole};
+use crate::owner_bridge::OwnerBridge;
 use crate::pystr::{is_decimal_digit, PyStr};
 use crate::pyvalue::{PyDict, PyValue};
 use crate::render_report::{
@@ -61,7 +60,6 @@ const CHILD_SECONDS: u64 = 120;
 const FULL_RENDER_SECONDS: u64 = 60;
 const RELEASE_DIRECTORY: &str = ".claude/skills/adversarial-benchmark/rust/target/release";
 
-const HINT_READER: &str = ".claude/skills/hint-publisher/scripts/render_bench_section.py";
 const GATE_STUB: &str = ".claude/skills/terraforming_node/scripts/manifest_contract.py";
 const GATE_LAUNCHER_STUB: &str = ".claude/skills/terraforming_node/scripts/manifest_contract.sh";
 /// Test-plane launcher stub of the Flag gate (a shell program; nothing in the sandbox runs Python): the availability
@@ -473,13 +471,8 @@ pub fn main(
     };
     let canonical = std::fs::canonicalize(repo_root).unwrap_or_else(|_| repo_root.to_path_buf());
     let scripts_dir = canonical.join(AB);
-    let mut bridge = OwnerBridge::start(&scripts_dir, checks.console())?;
-    bridge.load(
-        checks.console(),
-        OwnerRole::HintReader,
-        &canonical.join(HINT_READER),
-    )?;
-    // The evidence publisher is answered by the Rust library `policy_publisher` (no Python load).
+    // The hint reader, the evidence publisher and the completion gate are Rust libraries (no interpreter, no `.py`).
+    let mut bridge = OwnerBridge::start();
 
     let sandbox = Sandbox::build(&canonical, &scripts_dir, "lite-report-selftest.")?;
     let outcome = run_sandbox_cases(&mut checks, &mut bridge, &sandbox, &scripts_dir, verbose);

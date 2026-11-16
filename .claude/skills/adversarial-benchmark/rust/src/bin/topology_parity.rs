@@ -8,16 +8,6 @@ use sweep_stop::stdout::StdoutProfile;
 use sweep_stop::topology_parity_run::run;
 
 fn main() -> ExitCode {
-    let mut words = std::env::args_os().skip(1);
-    if words.next().is_some_and(|a| a == "--compat-watchdog") {
-        let helper = words
-            .next()
-            .and_then(|v| v.to_str().and_then(|t| t.parse::<i32>().ok()));
-        match helper {
-            Some(helper) => sweep_stop::topology_parity_run::watchdog(helper),
-            None => return ExitCode::from(2),
-        }
-    }
     let args: Vec<Vec<u8>> = std::env::args_os().skip(1).map(|a| a.into_vec()).collect();
     let env = |name: &str| std::env::var_os(name).map(|v| v.as_bytes().to_vec());
     let (mut input, mut output, mut errors) = (stdin().lock(), stdout().lock(), stderr().lock());

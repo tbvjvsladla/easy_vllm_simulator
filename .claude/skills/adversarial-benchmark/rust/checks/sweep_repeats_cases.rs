@@ -36,7 +36,6 @@ const NORMAL_STDOUT: &str = include_str!("data/sweep_repeats/normal_stdout.txt")
 const RELEASE: &str = ".claude/skills/adversarial-benchmark/rust/target/release";
 const READER: &str = ".claude/skills/hint-publisher/scripts/render_bench_section.py";
 const SWEEP_SCRIPT: &str = ".claude/skills/adversarial-benchmark/scripts/sweep_bench.sh";
-const FIRST_LINE_COUNT: usize = 10;
 
 /// The deployed tree the files are read from (the same default as the other checks).
 fn canonical_root() -> PathBuf {
@@ -216,15 +215,6 @@ fn mutate(tree: &Path, relative: &str, from: &str, to: &str) {
         "{relative} must hold {from:?} exactly once"
     );
     std::fs::write(&path, text.replace(from, to)).expect("write mutated file");
-}
-
-fn append_to(tree: &Path, relative: &str, addition: &str) {
-    use std::io::Write;
-    let mut file = std::fs::OpenOptions::new()
-        .append(true)
-        .open(tree.join(relative))
-        .expect("open for append");
-    file.write_all(addition.as_bytes()).expect("append");
 }
 
 struct Run {
@@ -558,269 +548,46 @@ fn a_changed_deployed_log_line_fails_only_the_check_that_reads_it() {
     scratch.assert_temporary_directory_removed();
 }
 
-#[test]
-fn a_reader_that_raises_on_import_fails_only_its_check_and_is_imported_once_late_under_its_own_name(
-) {
-    let scratch = Scratch::new("reader-raises");
-    let tree = private_tree(&scratch);
-    let marker = scratch.root.join("reader-import.marker");
-    // At import the reader notes its module name, the first `sys.path` entry and whether the first sweep has run
-    // already (the sandbox exists under the program's temporary root and the shim has been called), then raises.
-    append_to(
-        &tree,
-        READER,
-        &format!(
-            "\nimport glob as _g, os as _o, sys as _s\n\
-             _calls = _g.glob(_o.path.join(_o.environ['TMPDIR'], 'sweep-repeats.*', 'repo', 'SHIM_CALLS'))\n\
-             open({marker:?}, 'a').write('%s|%s|%d\\n' % (__name__, _s.path[0], len(_calls)))\n\
-             raise RuntimeError('reader boom')\n"
-        ),
-    );
-    let result = run(&Setup::on(&tree), &scratch);
-    assert_eq!(result.status, Some(1), "{}", result.stdout);
-    assert_eq!(result.passed(), 74, "{}", result.stdout);
-    let name = "N4 hint 파서(render_bench_section.parse_report)가 스윕 표·절삭 블록을 그대로 읽는다(형식 계약 불변)";
-    assert_eq!(
-        result.failures(),
-        [format!("  [FAIL] {name} — reader boom")]
-    );
-    assert_eq!(
-        result.stderr,
-        format!("[selftest_sweep_repeats] FAIL 1건: ['{name}']\n")
-    );
-    let reader_directory = tree.join(".claude/skills/hint-publisher/scripts");
-    assert_eq!(
-        std::fs::read_to_string(&marker).expect("the reader was imported"),
-        format!("render_bench_section|{}|1\n", reader_directory.display()),
-        "one import, under the reader's own name, with its directory first on sys.path, after the first sweep"
-    );
-    scratch.assert_temporary_directory_removed();
-}
-
-#[test]
-fn a_reader_that_exits_ends_the_run_after_its_ten_lines_and_leaves_no_fixture() {
-    let scratch = Scratch::new("reader-exits");
-    let tree = private_tree(&scratch);
-    append_to(&tree, READER, "\nraise SystemExit('reader says stop')\n");
-    let result = run(&Setup::on(&tree), &scratch);
-    assert_eq!(result.status, Some(1));
-    assert_eq!(result.stdout, first_lines(NORMAL_STDOUT, FIRST_LINE_COUNT));
-    assert_eq!(
-        result.stderr, "reader says stop\n",
-        "a string SystemExit is no traceback"
-    );
-    scratch.assert_temporary_directory_removed();
-}
-
-/// The reader's `parse_report` replaced by one that raises `class_name` (a subclass of `base`) with a two-line message.
-fn reader_that_raises(class_name: &str, base: &str, message: &str) -> String {
-    format!(
-        "\nclass {class_name}({base}):\n    pass\ndef parse_report(text):\n    raise {class_name}({message:?})\n"
-    )
-}
-
-#[test]
-fn a_custom_base_exception_of_the_reader_propagates_and_stops_the_run_as_in_the_original() {
-    // Original first (Root's frozen run of this very input): exit 1, ten PASS lines (1043 bytes), no failed mark,
-    // no failure summary, and the qualified class with both message lines on standard error.
-    let scratch = Scratch::new("base-exception");
-    let tree = private_tree(&scratch);
-    append_to(
-        &tree,
-        READER,
-        &reader_that_raises("R17FlowAbort", "BaseException", "R17 원본 중단\n두 번째 줄"),
-    );
-    let result = run(&Setup::on(&tree), &scratch);
-    assert_eq!(result.status, Some(1));
-    assert_eq!(result.stdout, first_lines(NORMAL_STDOUT, FIRST_LINE_COUNT));
-    assert_eq!(result.stdout.len(), 1043);
-    assert_eq!((result.passed(), result.failures().len()), (10, 0));
-    assert_eq!(
-        result.stderr,
-        "Traceback (most recent call last):\n  (native: Python stack frames are not reproduced)\n\
-         render_bench_section.R17FlowAbort: R17 원본 중단\n두 번째 줄\n"
-    );
-    assert!(
-        !result.stderr.contains("FAIL"),
-        "no failure summary: {}",
-        result.stderr
-    );
-    scratch.assert_temporary_directory_removed();
-}
-
-#[test]
-fn a_custom_exception_subclass_of_the_reader_is_caught_by_its_hierarchy_and_the_run_continues() {
-    // The same input with `Exception` as the base class, two levels deep: it is a failed check whose detail is the
-    // whole two-line message, and the other 74 checks still run.
-    let scratch = Scratch::new("ordinary-exception");
-    let tree = private_tree(&scratch);
-    append_to(
-        &tree,
-        READER,
-        &format!(
-            "\nclass R17Middle(Exception):\n    pass\n{}",
-            reader_that_raises("R17Leaf", "R17Middle", "R17 일반 중단\n두 번째 줄")
-        ),
-    );
-    let result = run(&Setup::on(&tree), &scratch);
-    assert_eq!(result.status, Some(1), "{}", result.stdout);
-    assert_eq!(result.passed(), 74, "{}", result.stdout);
-    let name = "N4 hint 파서(render_bench_section.parse_report)가 스윕 표·절삭 블록을 그대로 읽는다(형식 계약 불변)";
-    assert!(
-        result
-            .stdout
-            .contains(&format!("  [FAIL] {name} — R17 일반 중단\n두 번째 줄\n")),
-        "{}",
-        result.stdout
-    );
-    assert_eq!(
-        result.stderr,
-        format!("[selftest_sweep_repeats] FAIL 1건: ['{name}']\n")
-    );
-    scratch.assert_temporary_directory_removed();
-}
-
-const N4_HINT_NAME: &str =
-    "N4 hint 파서(render_bench_section.parse_report)가 스윕 표·절삭 블록을 그대로 읽는다(형식 계약 불변)";
-
-/// The normal output with N4's hint check turned into the failed check that carries `detail`, and without the closing
-/// PASS line (a run with a failed check prints its summary on standard error instead).
-fn output_with_failed_hint_check(detail: &str) -> String {
-    let passed = format!("  [PASS] {N4_HINT_NAME}\n");
-    assert!(NORMAL_STDOUT.contains(&passed));
-    let checks_only = &NORMAL_STDOUT[..NORMAL_STDOUT
-        .trim_end()
-        .rfind('\n')
-        .expect("a closing line")
-        + 1];
-    checks_only.replace(&passed, &format!("  [FAIL] {N4_HINT_NAME} — {detail}\n"))
-}
-
-#[test]
-fn an_ordinary_exception_that_is_named_like_a_builtin_is_caught_by_what_it_inherits() {
-    // Original first (Root's frozen run): `class SystemExit(Exception)` raised by the reader is an ordinary exception —
-    // N4 catches it, the run continues: 74 PASS, one failed N4 check, 8922 bytes, the summary on standard error.
-    for (name, detail) in [
-        ("SystemExit", "R17 ordinary SystemExit name"),
-        ("KeyboardInterrupt", "R17 ordinary KeyboardInterrupt name"),
-    ] {
-        let scratch = Scratch::new("ordinary-named");
-        let tree = private_tree(&scratch);
-        append_to(
-            &tree,
-            READER,
-            &reader_that_raises(name, "Exception", detail),
-        );
-        let result = run(&Setup::on(&tree), &scratch);
-        assert_eq!(result.status, Some(1), "{name}: {}", result.stdout);
-        assert_eq!(
-            result.stdout,
-            output_with_failed_hint_check(detail),
-            "{name}"
-        );
-        if name == "SystemExit" {
-            assert_eq!(result.stdout.len(), 8922);
-        }
-        assert_eq!(
-            result.stderr,
-            format!("[selftest_sweep_repeats] FAIL 1건: ['{N4_HINT_NAME}']\n"),
-            "{name}"
-        );
-        scratch.assert_temporary_directory_removed();
+/// Python stand-ins on `PATH` (`python3`, `python`) that leave a marker and fail: any interpreter start is visible.
+fn poisoned_interpreters(scratch: &Scratch) -> (PathBuf, PathBuf) {
+    use std::os::unix::fs::PermissionsExt;
+    let bin = scratch.root.join("poisoned-bin");
+    std::fs::create_dir_all(&bin).expect("stub directory");
+    let marker = scratch.root.join("python-started.marker");
+    for name in ["python3", "python"] {
+        let stub = bin.join(name);
+        std::fs::write(
+            &stub,
+            format!("#!/bin/sh\necho \"$0 $*\" >> '{}'\nexit 97\n", marker.display()),
+        )
+        .expect("stub");
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("mode");
     }
+    (bin, marker)
 }
 
 #[test]
-fn a_base_exception_that_is_named_system_exit_is_no_system_exit_and_ends_the_run_with_a_traceback()
-{
-    // Not the builtin: no quiet reason line and no status, but the traceback of a custom exception that no
-    // `except Exception` catches (its qualified class and both message lines), after the ten lines before N4's check.
-    let scratch = Scratch::new("base-named");
+fn the_hint_reader_check_needs_no_reader_py_and_starts_no_interpreter() {
+    // plan_26111615 pass 3: the reader is the hint-publisher Rust library. Without its `.py` and with every Python
+    // interpreter on `PATH` poisoned, the run is the normal 75-check pass, byte for byte.
+    let scratch = Scratch::new("no-python");
     let tree = private_tree(&scratch);
-    append_to(
-        &tree,
-        READER,
-        &reader_that_raises(
-            "SystemExit",
-            "BaseException",
-            "R17 이름만 SystemExit\n두 번째 줄",
-        ),
-    );
-    let result = run(&Setup::on(&tree), &scratch);
-    assert_eq!(result.status, Some(1));
-    assert_eq!(result.stdout, first_lines(NORMAL_STDOUT, FIRST_LINE_COUNT));
-    assert_eq!(
-        result.stderr,
-        "Traceback (most recent call last):\n  (native: Python stack frames are not reproduced)\n\
-         render_bench_section.SystemExit: R17 이름만 SystemExit\n두 번째 줄\n"
-    );
-    scratch.assert_temporary_directory_removed();
-}
-
-/// The reader's `parse_report` replaced by one that raises `class_name(base)` built from the Python expression `argument`.
-fn reader_that_raises_with(class_name: &str, base: &str, argument: &str) -> String {
-    format!(
-        "\nclass {class_name}({base}):\n    pass\ndef parse_report(text):\n    raise {class_name}({argument})\n"
-    )
-}
-
-#[test]
-fn a_real_system_exit_subclass_ends_the_run_with_the_status_or_reason_its_code_gives() {
-    // Original first (Root's frozen runs of `class R17RealExit(SystemExit)`): code 17 -> exit 17, None -> 0, True -> 1, each
-    // with the ten lines of output (1043 bytes) and nothing on standard error. The rest are the same payload rule on the
-    // values CPython's exit takes (low eight bits; an integer too large for a C long is 255; a string, an empty one too,
-    // is a reason printed with a newline and the status is 1). The class name is not what decides: no name is looked at.
-    let cases: [(&str, i32, &str); 8] = [
-        ("17", 17, ""),
-        ("None", 0, ""),
-        ("True", 1, ""),
-        ("False", 0, ""),
-        ("273", 17, ""),
-        ("2 ** 70", 255, ""),
-        ("''", 1, "\n"),
-        ("'R17 reason'", 1, "R17 reason\n"),
-    ];
-    for (argument, status, stderr) in cases {
-        let scratch = Scratch::new("real-exit");
-        let tree = private_tree(&scratch);
-        append_to(
-            &tree,
-            READER,
-            &reader_that_raises_with("R17RealExit", "SystemExit", argument),
-        );
-        let result = run(&Setup::on(&tree), &scratch);
-        assert_eq!(result.status, Some(status), "SystemExit({argument})");
-        assert_eq!(
-            result.stdout,
-            first_lines(NORMAL_STDOUT, FIRST_LINE_COUNT),
-            "SystemExit({argument})"
-        );
-        assert_eq!(result.stdout.len(), 1043);
-        assert_eq!(result.stderr, stderr, "SystemExit({argument})");
-        scratch.assert_temporary_directory_removed();
-    }
-}
-
-#[test]
-fn an_unusable_owner_interpreter_is_a_named_failure_after_the_checks_that_do_not_need_it() {
-    let scratch = Scratch::new("interpreter");
-    let tree = private_tree(&scratch);
+    // absent already when the run has no `.py` at all
+    let _ = std::fs::remove_file(tree.join(READER));
+    let (bin, marker) = poisoned_interpreters(&scratch);
     let mut setup = Setup::on(&tree);
-    let unusable = scratch.root.join("no-such-interpreter");
-    setup.extra = vec![("OWNER_BRIDGE_PYTHON", unusable.as_os_str())];
+    let inherited = std::env::var_os("PATH").unwrap_or_default();
+    let mut search = std::ffi::OsString::from(bin.as_os_str());
+    search.push(":");
+    search.push(&inherited);
+    setup.search_path = Some(PathBuf::from(search));
     let result = run(&setup, &scratch);
-    assert_eq!(result.status, Some(1));
-    assert_eq!(result.stdout, first_lines(NORMAL_STDOUT, FIRST_LINE_COUNT));
+    assert_eq!(result.status, Some(0), "stderr: {}", result.stderr);
+    assert_eq!(result.stdout, NORMAL_STDOUT);
     assert!(
-        result
-            .stderr
-            .starts_with("Traceback (most recent call last):\n")
-            && result.stderr.ends_with(&format!(
-                "FileNotFoundError: [Errno 2] No such file or directory: '{}'\n",
-                unusable.display()
-            )),
-        "{}",
-        result.stderr
+        !marker.exists(),
+        "an interpreter was started: {}",
+        std::fs::read_to_string(&marker).unwrap_or_default()
     );
     scratch.assert_temporary_directory_removed();
 }

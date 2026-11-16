@@ -10,10 +10,9 @@
 //!
 //! Real owners the checks reach: the deployed shell scripts and Rust programs inside the sandbox (judge, repeat axis,
 //! parse, classify, report, publish, preset, broad search, campaign writer); the actual conformance program of the
-//! installed tree (case G); and, **late and once**, the hint reader `render_bench_section.py` (case N4), which is the
-//! one Python owner this program still depends on besides the shim text (see [`crate::owner_bridge`]). That reader is
-//! imported under its own module name at the moment of the first report check, never earlier, and an `Exception` of
-//! its import or parse is a failed check whose detail is the exception text, as in the original.
+//! installed tree (case G); and the hint reader (case N4), the hint-publisher Rust library `hintlib::render_bench_section`
+//! (see [`crate::owner_bridge`]); an `Exception` of its parse is a failed check whose detail is the exception text, as in
+//! the original. No Python is started.
 //!
 //! Case families (★ = negative control): N normal path and judge/classify/report/publish contracts · P measurement
 //! shape preset · R reassembly · G lite gate · F failure injection · V variance · A declaration violations · B broad
@@ -45,7 +44,6 @@ pub const PROGRAM: &str = "selftest_sweep_repeats";
 /// The wall-clock limit of the conformance child (`timeout=120`).
 const CONFORMANCE_SECONDS: u64 = 120;
 const CONFORMANCE_SCRIPT: &str = "conformance_full_superset_lite.sh";
-const HINT_READER_DIRECTORY: &str = ".claude/skills/hint-publisher/scripts";
 
 pub(crate) type Outcome = Result<(), Raised>;
 
@@ -183,6 +181,8 @@ fn i64_to_f64(number: i64) -> f64 {
 pub(crate) struct Program<'a, 'c> {
     pub checks: &'a mut BracketChecks<'c>,
     pub sb: &'a Sandbox,
+    /// The installed repository (its programs are copied into the sandbox).
+    #[allow(dead_code)]
     pub repo: &'a Path,
     pub scripts_dir: &'a Path,
     pub verbose: bool,
@@ -571,12 +571,10 @@ impl Program<'_, '_> {
     /// The late import and parse of the hint reader: `(ok, str(parsed or exception))`. An `Exception` of the reader is
     /// the check's failure; what is not an `Exception` (`SystemExit`, the transport itself) ends the program.
     fn hint_reader_view(&mut self, markdown: &str) -> Result<(bool, String), Raised> {
-        let directory = self.repo.join(HINT_READER_DIRECTORY);
-        // The session starts here, at the first use (the original imported the reader at this very point).
-        let mut session = OwnerBridge::start(self.scripts_dir, self.checks.console())?;
-        let outcome = session.parse_sweep_report(self.checks.console(), &directory, markdown);
-        drop(session);
-        // A failure of the session itself is fatal; only an exception the reader raised reaches the match below.
+        // The reader is the hint-publisher Rust library (`hintlib::render_bench_section`); no interpreter is started.
+        let mut owners = OwnerBridge::start();
+        let outcome = owners.parse_sweep_report(self.checks.console(), markdown);
+        // A value that cannot be carried over is fatal; only an exception the reader raised reaches the match below.
         match outcome? {
             Ok(parsed) => {
                 let levels_match = py_equals(&parsed.levels, &int_list(&[1, 2]));

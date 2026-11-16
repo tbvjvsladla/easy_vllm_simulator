@@ -34,7 +34,7 @@ pub fn protected_file_expectations(role: &str) -> Vec<(&'static str, &'static st
 }
 
 /// `_command(argv, cwd)`: (returncode, stdout) or (None, "") when the program cannot start or times out (20 s).
-fn command(argv: &[&str], cwd: &Path) -> (Option<i32>, String) {
+pub fn command(argv: &[&str], cwd: &Path) -> (Option<i32>, String) {
     let mut c = Command::new(argv[0]);
     c.args(&argv[1..]).current_dir(cwd).stdin(Stdio::inherit()).stdout(Stdio::piped()).stderr(Stdio::piped());
     if argv[0] == "git" {
@@ -83,7 +83,7 @@ fn denied(e: &std::io::Error) -> bool {
 }
 
 /// `_write_marker(directory, nonce)`: `Err` = the marker's cleanup failed (the original lets that OSError escape).
-fn write_marker(directory: &Path, nonce: &str) -> Result<&'static str, std::io::Error> {
+pub fn write_marker(directory: &Path, nonce: &str) -> Result<&'static str, std::io::Error> {
     let marker = directory.join(format!(".harness-permission-{nonce}"));
     let f = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600)
         .custom_flags(libc_o_nofollow()).open(&marker);
@@ -124,7 +124,7 @@ const fn libc_o_nofollow() -> i32 {
 }
 
 /// `_write_open(path)` → (outcome, preserved).
-fn write_open(path: &Path) -> (&'static str, Option<bool>) {
+pub fn write_open(path: &Path) -> (&'static str, Option<bool>) {
     let meta = std::fs::symlink_metadata(path);
     if meta.as_ref().is_ok_and(|m| m.file_type().is_symlink()) || !path.is_file() {
         return ("unobserved", None);
@@ -144,7 +144,7 @@ fn resolve(p: &Path) -> PathBuf {
     crate::check_sub_hint_equip::resolve(p)
 }
 
-fn git_dirs(root: &Path) -> Option<Vec<PathBuf>> {
+pub fn git_dirs(root: &Path) -> Option<Vec<PathBuf>> {
     let mut found: Vec<PathBuf> = vec![];
     for flag in ["--absolute-git-dir", "--git-common-dir"] {
         let (rc, out) = command(&["git", "rev-parse", flag], root);
@@ -164,7 +164,7 @@ fn git_dirs(root: &Path) -> Option<Vec<PathBuf>> {
     Some(found)
 }
 
-fn hint_root(workspace: &Path) -> Option<PathBuf> {
+pub fn hint_root(workspace: &Path) -> Option<PathBuf> {
     let b = std::fs::read(workspace.join("envs/.env")).ok()?;
     let text = crate::py::text(&agent_runtime_support::pyjson::decode_file_text(&b).ok()?);
     for line in crate::py::splitlines(&text) {
@@ -212,7 +212,7 @@ fn values(v: Option<&PyValue>) -> Option<Vec<PyValue>> {
     }
 }
 
-fn build_files(workspace: &Path, topology: &str) -> Result<Option<Vec<String>>, crate::raise::Raised> {
+pub fn build_files(workspace: &Path, topology: &str) -> Result<Option<Vec<String>>, crate::raise::Raised> {
     let compose_path = workspace.join("output").join(topology).join("docker-compose.yaml");
     let Some(mut compose) = load_manifest(&compose_path)? else { return Ok(None) };
     let empty = PyValue::Dict(Default::default());

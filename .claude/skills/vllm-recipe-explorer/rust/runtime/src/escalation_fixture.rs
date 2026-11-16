@@ -146,7 +146,7 @@ pub struct Controlled {
 impl Controlled {
     pub fn new(root: &PyStr, live: bool) -> Controlled {
         Controlled {
-            bridge: Bridge::installed(&skill_root(root)).recording(),
+            bridge: Bridge::original_layout(&skill_root(root)).recording(),
             streams: Streams::default(),
             start: if live {
                 startup_stdio()

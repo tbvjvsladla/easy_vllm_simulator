@@ -273,10 +273,6 @@ name = "scan_node_p2_api_cases"
 path = "checks/scan_node_p2_api_cases.rs"
 
 [[test]]
-name = "scan_node_adapter_p2_cases"
-path = "checks/scan_node_adapter_p2_cases.rs"
-
-[[test]]
 name = "scan_node_review_fix_cases"
 path = "checks/scan_node_review_fix_cases.rs"
 
@@ -429,6 +425,9 @@ policy-gate = { path = "../../../rust/policy-gate" }
 # The evidence publisher library (Rust port of evidence_publisher.py): the lite-report selftest asks it the bench-report
 # name pattern, report_measurement_config and LITE_BENCH_MODE directly.
 policy-publisher = { path = "../../../rust/policy-publisher" }
+# The hint reader library (Rust port of render_bench_section.py, crate `hintlib`): the lite-report and sweep-repeats
+# selftests ask its parse_report / parse_measurement_config / render_lite and contract constants directly (no Python).
+hint-publisher = { path = "../../hint-publisher/rust" }
 # SHA-256 of the dataset source (`hashlib.sha256` of the original): the `ring` digest `Context` (its own aarch64/x86_64
 # assembly with run-time CPU feature dispatch), pinned exactly. Replaced the first plan, `sha2` =0.10.9 (kept in PORTING.md).
 ring = "=0.17.14"
@@ -689,10 +688,6 @@ path = "checks/bench_shell_wiring.rs"
 [[test]]
 name = "turn_budget_stream_fixes"
 path = "checks/turn_budget_stream_fixes.rs"
-
-[[test]]
-name = "turn_budget_public_stdio"
-path = "checks/turn_budget_public_stdio.rs"
 
 [[test]]
 name = "turn_budget_original_cases"

@@ -50,7 +50,9 @@ pub const HINT_ENGINE_DEPENDENCIES: [&str; 8] = [
     ".claude/policies/runtime/doc_naming.py",
 ];
 pub const SUB_RUST_BUILD_INPUTS: [&str; 1] = [".claude/policies/runtime/topology_parity.py"];
-pub const SUB_B_CHECK_INPUTS: [&str; 1] = [".claude/skills/hint-publisher/scripts/render_bench_section.py"];
+/// Files the B self-checks read besides the delivered trees. Empty since plan_26111615 pass 3: the hint reader those checks
+/// asked (`render_bench_section.py`) is the hint-publisher Rust library, delivered as [`HINT_RUST_LIBRARY`].
+pub const SUB_B_CHECK_INPUTS: [&str; 0] = [];
 pub fn sub_b_evidence_deps() -> Vec<&'static str> {
     HINT_ENGINE_DEPENDENCIES.iter().copied().filter(|r| !r.starts_with("hints/")).collect()
 }
@@ -92,6 +94,10 @@ pub const PARITY_RUST_TOOL: &str = ".claude/rust/parity";
 pub const TERRAFORMING_RUST: &str = ".claude/skills/terraforming_node/rust";
 /// Policy crates the adversarial-benchmark crate path-depends on.
 pub const POLICY_RUST_LIBRARIES: [&str; 2] = [".claude/rust/policy-gate", ".claude/rust/policy-publisher"];
+/// The hint-publisher crate (library `hintlib`): the adversarial-benchmark crate path-depends on it for the hint reader its
+/// lite/sweep self-checks ask (plan_26111615 pass 3), so it is delivered with the B crate whether or not the hint-publisher
+/// skill (its scripts and the `hints/` plane) is.
+pub const HINT_RUST_LIBRARY: &str = ".claude/skills/hint-publisher/rust";
 pub const RUST_ONLY_PREFIXES: [&str; 2] = ["rust/", "scripts/"];
 pub fn rust_only_inputs(name: &str) -> &'static [&'static str] {
     match name {
@@ -104,6 +110,7 @@ pub fn rust_only_inputs(name: &str) -> &'static [&'static str] {
 pub fn shared_rust_libraries() -> Vec<&'static str> {
     let mut v = vec![SHARED_RUST_SUPPORT, ROLE_RUST_SUPPORT, PARITY_RUST_TOOL];
     v.extend(POLICY_RUST_LIBRARIES);
+    v.push(HINT_RUST_LIBRARY);
     v.push(TERRAFORMING_RUST);
     v
 }
@@ -761,6 +768,13 @@ pub fn contract_placeholders(ctx: &Ctx, data: &Man) -> Res<Vec<(String, String)>
     ])
 }
 
+/// A retired Python original among the delivery inputs (plan_26111615 pass 3): its Rust launcher is the owner, so a checkout
+/// that no longer carries the `.py` simply does not deliver it - its absence is not a render failure. A `.py` that is present
+/// is delivered as before (the delivered tree of a checkout that still has it is unchanged).
+fn retired_py_absent(path: &str) -> bool {
+    path.ends_with(".py") && !isfile(path)
+}
+
 fn tn_script(t: &str) -> String {
     format!(".claude/skills/terraforming_node/scripts/{t}")
 }
@@ -801,6 +815,7 @@ pub fn support_delivery(ctx: &Ctx, tool_plane: &[String]) -> Res<Vec<String>> {
         }
         out.extend(SUB_HINT_EQUIP_TOOLS.iter().map(|t| tn_script(t)));
     }
+    out.retain(|r| !retired_py_absent(&pj(&ctx.repo, r)));
     Ok(out)
 }
 
@@ -1555,6 +1570,9 @@ pub fn render_tree(
         assert_rust_path_closure(out_dir)?;
         for rel in SUB_RUST_BUILD_INPUTS {
             let src = pj(&ctx.repo, rel);
+            if retired_py_absent(&src) {
+                continue;
+            }
             if !isfile(&src) {
                 return Err(sys(format!("[render] FAIL: Rust 빌드 입력이 없다 — {rel}")));
             }
@@ -1566,6 +1584,9 @@ pub fn render_tree(
         }
         for rel in SUB_BENCH_FOUNDATION_RUNTIME {
             let src = pj(&ctx.repo, rel);
+            if retired_py_absent(&src) {
+                continue;
+            }
             if !isfile(&src) {
                 return Err(sys(format!("[render] FAIL: 벤치 owner 자체검사 의존이 없다 — {rel}")));
             }
@@ -1592,6 +1613,9 @@ pub fn render_tree(
                 continue;
             }
             let src = pj(&ctx.repo, rel);
+            if retired_py_absent(&src) {
+                continue;
+            }
             if !isfile(&src) {
                 return Err(sys(format!(
                     "[render] FAIL: hint 엔진 의존이 없다 — {rel}\n   스킬을 주고 그 의존을 안 주면 그 스킬은 없는 것이다(2026-09-29 계약 리더 선례).\n   트랜잭션 소스에서 도는 중이면 sync_to_sub 의 checkout-index 경로 목록에 `hints` 가 있는지 본다."
@@ -1654,6 +1678,9 @@ pub fn render_tree(
     makedirs(&ci_dst)?;
     for tool in delivered_tn_tools() {
         let abs = pj(&ci_src, tool);
+        if retired_py_absent(&abs) {
+            continue;
+        }
         if !isfile(&abs) {
             return Err(sys(format!(
                 "[render] FAIL: 캠페인 도구가 없다 — {abs}\n   뼈대만 보내고 채우는 손을 안 보내면 phases/sub가 실행자 0이 된다."
@@ -1707,6 +1734,9 @@ pub fn render_tree(
     let bb_src = pj(&ctx.repo, ".claude/skills/terraforming_node/scripts/node_blackbox");
     for (rel_src, mode) in BLACKBOX_FILES {
         let src = pj(&bb_src, rel_src);
+        if retired_py_absent(&src) {
+            continue;
+        }
         if !isfile(&src) {
             return Err(sys(format!(
                 "[render_sub_env] NODE_BLACKBOX_SOURCE_MISSING: canonical terraforming asset absent: {rel_src}"

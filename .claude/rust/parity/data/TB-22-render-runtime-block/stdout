@@ -18,7 +18,7 @@
    + .agents/skills/adversarial-benchmark/SKILL.md
    + .claude/skills/upstream-version-watch/ (270 tracked files · 메인전용 17건 제외)
    + .agents/skills/upstream-version-watch/SKILL.md
-   + .claude/skills/hint-publisher/ (21 tracked files)
+   + .claude/skills/hint-publisher/ (90 tracked files)
    + .agents/skills/hint-publisher/SKILL.md
    + .claude/skills/wiki-desk/ (35 tracked files)
    + .agents/skills/wiki-desk/SKILL.md
@@ -27,12 +27,12 @@
    + .claude/rust/parity/ (28 tracked files)
    + .claude/rust/policy-gate/ (13 tracked files)
    + .claude/rust/policy-publisher/ (21 tracked files)
+   + .claude/skills/hint-publisher/rust/ (69 tracked files)
    + .claude/skills/terraforming_node/rust/ (39 tracked files)
    + .claude/policies/runtime/topology_parity.py
    + .claude/policies/runtime/topology_parity.py
    + .claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh
    + .claude/skills/terraforming_node/scripts/scan_node.sh
-   + .claude/skills/hint-publisher/scripts/render_bench_section.py
    + hints/HINT_ISSUANCE_CONTRACT.md
    + hints/vocab.json
    + .claude/policies/runtime/completion_gate.py

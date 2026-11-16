@@ -833,8 +833,13 @@ No harness path of this skill invokes or reads a `.py` of the skill any more; th
   of the four definitions, extracted once from the frozen sources) instead of re-reading `source/*.py`.
 * **Hints.** `recipe estimate` and the `cleanup_docker` dry run name the launchers (`bash .claude/skills/vllm-recipe-explorer/scripts/
   recipe.sh generate …`, `… cleanup_docker.sh --apply …`); the cleanup golden bundle carries the same substitution (text and hex).
-* **`selftest_gmu_roles_batch`.** Rust port of the CLI layer E1-E17 (`src/gmu_roles_selftest.rs`, bin + `checks/gmu_roles_checks.rs`)
-  against the Rust `recipe simulate --mock-profile`. **Not ported:** the U layer (private functions of `recipe.py` in process) and
-  the F layer (a fake engine monkeypatched into `recipe.py`'s `run_trial`) — they exercised the retired Python only.
+* **`selftest_gmu_roles_batch`.** Rust port of all three layers of `selftest_gmu_roles_batch.py` (bin + `checks/gmu_roles_checks.rs`):
+  E1-E17 (`src/gmu_roles_selftest.rs`) against the Rust `recipe simulate --mock-profile`; U0-U9 (`src/recipe_cmd/simulate_body/
+  gmu_units.rs`, a child of the owner so it calls `gpu_roles` / `derive_batch` / `kv_fit_tokens` / `resolve_clamp_kv` /
+  `classifier::classify` / the stamp vocabulary directly — each unit root also carries `references.md`, which the Rust roles function
+  reads from the root it is given; U9 follows the text-read vocabulary owner: absent file / missing `LOCKSET_PROVENANCE` / missing
+  `KNOB_SOURCES` table → exit 5 naming the cause, and a contract-shaped owner loads); F1-F9 (`engine_layer`) through the check-only
+  engine seam `recipe_cmd::simulate_with_engine` + `TrialEngine` (it replaces `run_trial`, the RAM gate and the feedback writer exactly
+  where the Python driver monkeypatched them; the `recipe` command line never installs an engine).
 * **Elsewhere:** B conformance reads `rust/runtime/src/recipe_cmd/simulate_body.rs` for the cap rule; the campaign writer's owner
   checks use `recipe_cmd.rs` and `scripts/escalation_predicate.sh`; the Sub render no longer ships `recipe.py` for B.

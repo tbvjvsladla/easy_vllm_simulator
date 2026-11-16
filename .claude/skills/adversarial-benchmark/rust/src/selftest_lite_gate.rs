@@ -106,7 +106,7 @@ pub fn main(repo_root: Option<&Path>, console: &mut dyn Console) -> Result<i32, 
     };
     let canonical = std::fs::canonicalize(repo_root).unwrap_or_else(|_| repo_root.to_path_buf());
     let scripts_dir = canonical.join(AB);
-    let mut bridge = OwnerBridge::start(&scripts_dir, checks.console())?;
+    let mut bridge = OwnerBridge::start();
 
     let mut sandbox = Sandbox::build(&canonical, &scripts_dir, "lite-gate-selftest.")?;
     let outcome = run_cases(

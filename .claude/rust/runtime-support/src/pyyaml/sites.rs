@@ -5160,3 +5160,33 @@ pub(crate) const DEFS: &[(&str, &str, u32)] = &[
     ("scanner.py", "Scanner.unwind_indent", 325),
     ("scanner.py", "SimpleKey.__init__", 38),
 ];
+
+// Frozen, committed data (plan_26111615): the reference is PyYAML 6.0.1 and does not move, so this table is never regenerated as
+// part of a build, a test or a run. `tools/gen_yaml_sites.py` is the authoring record of how it was produced (it needs the PyYAML
+// 6.0.1 source text, which is not in this repository) and nothing requires it; the checks below verify, in Rust, the shape the
+// generator guaranteed (each table sorted and free of duplicates, as `sorted(set(...))` printed it; positive line numbers;
+// every call and raise site inside a function the table defines).
+#[cfg(test)]
+mod tests {
+    use super::{CALLS, DEFS, RAISES};
+
+    fn strictly_sorted<T: Ord>(rows: &[T]) -> bool {
+        rows.windows(2).all(|pair| pair[0] < pair[1])
+    }
+
+    #[test]
+    fn the_frozen_tables_keep_the_generators_shape() {
+        assert!(!CALLS.is_empty() && !RAISES.is_empty() && !DEFS.is_empty());
+        assert!(strictly_sorted(CALLS), "CALLS sorted and unique");
+        assert!(strictly_sorted(RAISES), "RAISES sorted and unique");
+        assert!(strictly_sorted(DEFS), "DEFS sorted and unique");
+        assert!(CALLS.iter().all(|row| row.3 > 0) && RAISES.iter().all(|row| row.2 > 0) && DEFS.iter().all(|row| row.2 > 0));
+        let defined = |file: &str, function: &str| DEFS.iter().any(|d| d.0 == file && d.1 == function);
+        assert!(CALLS.iter().all(|c| defined(c.0, c.1)), "every call site lies in a defined function");
+        assert!(RAISES.iter().all(|r| defined(r.0, r.1)), "every raise site lies in a defined function");
+        // a site cannot precede the definition line of its function
+        let def_line = |file: &str, function: &str| DEFS.iter().find(|d| d.0 == file && d.1 == function).map(|d| d.2);
+        assert!(CALLS.iter().all(|c| def_line(c.0, c.1).is_some_and(|l| c.3 >= l)));
+        assert!(RAISES.iter().all(|r| def_line(r.0, r.1).is_some_and(|l| r.2 >= l)));
+    }
+}

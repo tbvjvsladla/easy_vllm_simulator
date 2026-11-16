@@ -1,12 +1,12 @@
 //! The native topology helper (`topology_parity`, the `role-contract` predicate behind the owner CLI) on a focused sample of
 //! the saved observations of the original (`R43_TOPOLOGY_REFERENCE`: one directory per observed row with `execution.json`,
 //! `stdout.bin`, `stderr.bin`; read-only, nothing here executes the original) plus helper-interface checks and the resolver's
-//! default-versus-explicit routing. The saved bytes are the oracle; the sample is named, it is not the whole matrix.
+//! routing (always the native helper: the Python owner and source-version compatibility routes are retired, plan_26111615
+//! pass 3). The saved bytes are the oracle; the sample is named, it is not the whole matrix.
 
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-use sweep_stop::pystr::PyStr;
 use sweep_stop::pyvalue::PyValue;
 
 const HELPER: &str = env!("CARGO_BIN_EXE_topology_parity");
@@ -206,69 +206,7 @@ fn the_helper_runs_its_own_self_test_in_a_private_temporary_directory() {
     let _ = std::fs::remove_dir_all(&tmp);
 }
 
-#[test]
-fn the_resolver_runs_the_native_helper_by_default_and_the_python_owner_only_when_asked() {
-    use sweep_stop::resolve_topology::{resolve, ResolveContext, CONFIGURATION_ERROR};
-    let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
-        .join(format!("topology_route_{}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&root);
-    let owner_dir = root.join(".claude/policies/runtime");
-    std::fs::create_dir_all(&owner_dir).expect("owner dir");
-    std::fs::create_dir_all(root.join("output/single")).expect("manifest dir");
-    std::fs::write(
-        root.join("output/single/manifest.yaml"),
-        "topology: single\n",
-    )
-    .expect("manifest");
-    // a stand-in Python owner that proves the explicit route ran it (it answers a RED verdict with a marker)
-    std::fs::write(owner_dir.join("topology_parity.py"), "import json,sys\nprint(json.dumps({'verdict':'RED','topology':None,'reasons':['EXPLICIT-ROUTE-RAN']}))\nsys.exit(5)\n").expect("owner");
-    let repo = PyValue::str(root.to_str().expect("UTF-8"));
-    let reasons_of = |why: &PyStr| why.to_utf8().expect("text");
-    // explicit interpreter argument (python3 named explicitly is an explicit value) -> the stand-in ran
-    let native = ResolveContext::native().with_native_helper(PathBuf::from(HELPER));
-    let explicit = resolve(&repo, &PyValue::str("python3"), &native).expect("resolve");
-    assert!(
-        reasons_of(&explicit.why).contains("EXPLICIT-ROUTE-RAN"),
-        "{}",
-        reasons_of(&explicit.why)
-    );
-    // falsy argument + native context: the DEFAULT is the native helper under the project policy: the stand-in is not the reviewed
-    // owner, so the source-version compatibility route runs the checkout's own original program under the configured python3
-    for falsy in [PyValue::None, PyValue::str("")] {
-        let by_default = resolve(&repo, &falsy, &native).expect("resolve");
-        assert!(
-            reasons_of(&by_default.why).contains("EXPLICIT-ROUTE-RAN"),
-            "{}",
-            reasons_of(&by_default.why)
-        );
-    }
-    // the private strict-native mode (an explicit choice): a different source is a concrete unmet condition, never a current-source answer
-    let strict = ResolveContext::native()
-        .with_native_helper(PathBuf::from(HELPER))
-        .with_strict_native();
-    let unmet = resolve(&repo, &PyValue::None, &strict).expect("resolve");
-    assert!(
-        !reasons_of(&unmet.why).contains("EXPLICIT-ROUTE-RAN"),
-        "{}",
-        reasons_of(&unmet.why)
-    );
-    assert!(
-        reasons_of(&unmet.why).contains("source version compatibility is required"),
-        "{}",
-        reasons_of(&unmet.why)
-    );
-    // an explicit context interpreter keeps its meaning (the stand-in runs)
-    let legacy = ResolveContext::new(PyStr::new("python3"));
-    let via_context = resolve(&repo, &PyValue::None, &legacy).expect("resolve");
-    assert!(reasons_of(&via_context.why).contains("EXPLICIT-ROUTE-RAN"));
-    // a missing helper is a named configuration error, not a Python fallback
-    let missing = ResolveContext::native().with_native_helper(root.join("no_such_helper"));
-    let failure = resolve(&repo, &PyValue::None, &missing).expect_err("named configuration error");
-    assert_eq!(failure.class, CONFIGURATION_ERROR);
-    let _ = std::fs::remove_dir_all(&root);
-}
-
-// ---- source-version routes, output failure, process group (H2 repair); W-owned literal fixtures only -------------------
+// ---- output failure, process group; W-owned literal fixtures only ------------------------------------------------------
 
 fn fixture_checkout(label: &str) -> PathBuf {
     let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
@@ -322,103 +260,6 @@ fn helper(args: &[&str], env: &[(&str, &str)], stdout: Stdio) -> std::process::O
         command.env(name, value);
     }
     command.output().expect("helper")
-}
-
-#[test]
-fn a_reviewed_source_runs_native_and_a_different_one_runs_the_original_program_on_the_compat_route()
-{
-    let root = fixture_checkout("routes");
-    let module = root.join(".claude/skills/terraforming_node/scripts/campaign_init.py");
-    std::fs::create_dir_all(module.parent().expect("parent")).expect("dir");
-    // the reviewed canonical campaign_init.py (the exact bytes the build compiled in): native route, no Python child
-    std::fs::write(&module, role_contract::source_identity::REVIEWED_CAMPAIGN)
-        .expect("reviewed copy");
-    let sidecar = root.join("route-native.json");
-    let native = helper(
-        &[
-            "--route-sidecar",
-            sidecar.to_str().expect("UTF-8"),
-            "evaluate",
-            "--repo",
-            root.to_str().expect("UTF-8"),
-            "--format",
-            "value",
-        ],
-        &[],
-        Stdio::piped(),
-    );
-    assert_eq!(
-        native.status.code(),
-        Some(0),
-        "{}",
-        String::from_utf8_lossy(&native.stderr)
-    );
-    let record = std::fs::read_to_string(&sidecar).expect("sidecar");
-    assert!(
-        record.contains("\"route\": \"NativeCurrentSource\"")
-            && record.contains("\"python_children\": 0"),
-        "{record}"
-    );
-    // a different program: a stand-in ORIGINAL owner that prints a marker and exits 7 (the route runs it, never the native answer)
-    std::fs::write(&module, b"raise SystemExit(7)\n").expect("different module");
-    let owner = root.join("original_owner.py");
-    std::fs::write(&owner, "import sys\nprint('ORIGINAL-RAN', sys.argv[1:])\nsys.stderr.write('stderr-line\\n')\nsys.exit(7)\n").expect("owner");
-    let sidecar = root.join("route-legacy.json");
-    let legacy = helper(
-        &[
-            "--route-sidecar",
-            sidecar.to_str().expect("UTF-8"),
-            "--compat-python",
-            "python3",
-            "--compat-owner",
-            owner.to_str().expect("UTF-8"),
-            "evaluate",
-            "--repo",
-            root.to_str().expect("UTF-8"),
-        ],
-        &[],
-        Stdio::piped(),
-    );
-    assert_eq!(legacy.status.code(), Some(7));
-    assert_eq!(
-        String::from_utf8_lossy(&legacy.stdout),
-        format!(
-            "ORIGINAL-RAN ['evaluate', '--repo', '{}']\n",
-            root.display()
-        )
-    );
-    assert_eq!(
-        String::from_utf8_lossy(&legacy.stderr),
-        "stderr-line\n",
-        "no route/warning bytes in the business stderr"
-    );
-    let record = std::fs::read_to_string(&sidecar).expect("sidecar");
-    assert!(
-        record.contains("\"route\": \"LegacySourceVariant\"")
-            && record.contains("\"python_children\": 1")
-            && record.contains("\"child_pid\": "),
-        "{record}"
-    );
-    assert!(record.contains("\"child_status\": 7"), "{record}");
-    // without an explicit interpreter the different source is a concrete unmet condition, never the current-source answer
-    let unmet = helper(
-        &[
-            "--compat-owner",
-            owner.to_str().expect("UTF-8"),
-            "evaluate",
-            "--repo",
-            root.to_str().expect("UTF-8"),
-        ],
-        &[],
-        Stdio::piped(),
-    );
-    assert_eq!(unmet.status.code(), Some(2));
-    assert!(unmet.stdout.is_empty());
-    assert!(
-        String::from_utf8_lossy(&unmet.stderr).contains("source version compatibility is required"),
-        "{}",
-        String::from_utf8_lossy(&unmet.stderr)
-    );
 }
 
 #[test]
@@ -538,278 +379,6 @@ fn the_group_kill_reaches_a_nested_child_and_the_plain_kill_does_not() {
 }
 
 #[test]
-fn the_real_project_default_runs_a_changed_campaign_source_on_the_compat_route_without_any_new_environment_setting(
-) {
-    use sweep_stop::resolve_topology::{resolve, ResolveContext, COMPAT_PYTHON_ENV, PYTHON_ENV};
-    if std::env::var_os(PYTHON_ENV).is_some_and(|v| !v.is_empty())
-        || std::env::var_os(COMPAT_PYTHON_ENV).is_some_and(|v| !v.is_empty())
-    {
-        eprintln!(
-            "SKIPPED: the check needs both interpreter variables unset (the project default)"
-        );
-        return;
-    }
-    if !Command::new("python3")
-        .args(["-c", "import yaml"])
-        .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
-    {
-        eprintln!("SKIPPED: python3 with PyYAML is not available for the compatibility route");
-        return;
-    }
-    let root = fixture_checkout("default_compat");
-    let owner = root.join(".claude/policies/runtime/topology_parity.py");
-    std::fs::create_dir_all(owner.parent().expect("parent")).expect("dir");
-    // the reviewed canonical owner (byte-identical) and a campaign module that is a DIFFERENT program (empty: no functions)
-    std::fs::write(&owner, role_contract::source_identity::REVIEWED_OWNER).expect("owner");
-    let module = root.join(".claude/skills/terraforming_node/scripts/campaign_init.py");
-    std::fs::create_dir_all(module.parent().expect("parent")).expect("dir");
-    std::fs::write(&module, b"").expect("empty module");
-    // the project DEFAULT: from_environment() with no new configuration; the helper is only the sibling-binary seam of the check
-    let context = ResolveContext::from_environment().with_native_helper(PathBuf::from(HELPER));
-    assert!(context.is_native());
-    let outcome = resolve(
-        &PyValue::str(root.to_str().expect("UTF-8")),
-        &PyValue::None,
-        &context,
-    )
-    .expect("resolve");
-    let why = outcome.why.to_utf8().expect("text");
-    // the ORIGINAL program ran (its own AttributeError for the empty module), not a native current-source answer
-    assert_eq!(outcome.code, 5, "{why}");
-    assert!(
-        why.contains("has no attribute 'active_campaign_id'"),
-        "{why}"
-    );
-    // the same checkout with the REVIEWED campaign module runs natively (no Python): a plain PASS
-    std::fs::write(&module, role_contract::source_identity::REVIEWED_CAMPAIGN)
-        .expect("reviewed module");
-    let native = resolve(
-        &PyValue::str(root.to_str().expect("UTF-8")),
-        &PyValue::None,
-        &context,
-    )
-    .expect("resolve");
-    assert_eq!(
-        (native.code, native.topology),
-        (0, PyValue::str("single")),
-        "{}",
-        native.why.to_utf8().expect("text")
-    );
-}
-
-// ---- H3: logical owner, bounded compat child, output failure kinds, signal propagation, invalid profile ---------------
-
-fn changed_checkout(label: &str) -> PathBuf {
-    let root = fixture_checkout(label);
-    let module = root.join(".claude/skills/terraforming_node/scripts/campaign_init.py");
-    std::fs::create_dir_all(module.parent().expect("parent")).expect("dir");
-    std::fs::write(&module, b"# a different program\n").expect("different module");
-    root
-}
-
-fn alive(pid: &str) -> bool {
-    std::fs::read_to_string(format!("/proc/{pid}/stat"))
-        .map(|stat| !stat.contains(") Z "))
-        .unwrap_or(false)
-}
-
-#[test]
-fn the_logical_source_owner_is_never_run_and_a_missing_real_owner_is_unmet() {
-    let root = changed_checkout("n5");
-    let marker = root.join("logical-ran");
-    let logical = root.join("logical_owner.py");
-    std::fs::write(
-        &logical,
-        format!(
-            "open({:?}, 'w').write('ran')\n",
-            marker.to_str().expect("UTF-8")
-        ),
-    )
-    .expect("logical owner");
-    let repo = root.to_str().expect("UTF-8");
-    // the logical metadata path alone never stands in for the real program
-    let out = helper(
-        &[
-            "--source-owner",
-            logical.to_str().expect("UTF-8"),
-            "--compat-python",
-            "python3",
-            "evaluate",
-            "--repo",
-            repo,
-        ],
-        &[],
-        Stdio::piped(),
-    );
-    assert_eq!(out.status.code(), Some(2));
-    assert!(
-        String::from_utf8_lossy(&out.stderr).contains("source version compatibility is required"),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    assert!(!marker.exists(), "the logical owner must not have run");
-    // a real owner that is named but does not exist: not native, not run, a concrete unmet condition (sidecar on request)
-    let sidecar = root.join("unmet.json");
-    let missing = root.join("no_such_owner.py");
-    let out = helper(
-        &[
-            "--route-sidecar",
-            sidecar.to_str().expect("UTF-8"),
-            "--compat-owner",
-            missing.to_str().expect("UTF-8"),
-            "--compat-python",
-            "python3",
-            "evaluate",
-            "--repo",
-            repo,
-        ],
-        &[],
-        Stdio::piped(),
-    );
-    assert_eq!(out.status.code(), Some(2));
-    assert!(
-        String::from_utf8_lossy(&out.stderr).contains("cannot be served"),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    assert!(std::fs::read_to_string(&sidecar)
-        .expect("sidecar")
-        .contains("UnmetCompatibility"));
-}
-
-#[test]
-fn a_hanging_compat_child_is_killed_with_its_descendants_at_the_private_limit() {
-    let root = changed_checkout("n6");
-    let pidfile = root.join("nested.pid");
-    let owner = root.join("hanging_owner.py");
-    std::fs::write(&owner, format!("import subprocess, time\np = subprocess.Popen(['sleep', '60'])\nopen({:?}, 'w').write(str(p.pid))\ntime.sleep(60)\n", pidfile.to_str().expect("UTF-8"))).expect("owner");
-    let sidecar = root.join("timeout.json");
-    let started = std::time::Instant::now();
-    let out = helper(
-        &[
-            "--route-sidecar",
-            sidecar.to_str().expect("UTF-8"),
-            "--compat-owner",
-            owner.to_str().expect("UTF-8"),
-            "--compat-python",
-            "python3",
-            "--compat-deadline-ms",
-            "800",
-            "evaluate",
-            "--repo",
-            root.to_str().expect("UTF-8"),
-        ],
-        &[],
-        Stdio::piped(),
-    );
-    assert!(
-        started.elapsed() < std::time::Duration::from_secs(20),
-        "the private limit ended the call"
-    );
-    assert_eq!(out.status.code(), Some(2));
-    assert!(out.stdout.is_empty(), "no business result");
-    assert!(
-        String::from_utf8_lossy(&out.stderr).contains("did not complete"),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let record = std::fs::read_to_string(&sidecar).expect("sidecar");
-    assert!(
-        record.contains("\"control_failure\": \"TimeoutExpired\"")
-            && record.contains("\"complete\": false")
-            && !record.contains("\"child_pid\": null"),
-        "{record}"
-    );
-    let nested = std::fs::read_to_string(&pidfile).expect("nested pid");
-    std::thread::sleep(std::time::Duration::from_millis(300));
-    assert!(
-        !alive(nested.trim()),
-        "the descendant of the compat child must be gone"
-    );
-}
-
-#[test]
-fn an_immediate_stdout_write_failure_is_the_traceback_and_status_1() {
-    let root = changed_checkout("n7");
-    let owner = root.join("big_owner.py");
-    std::fs::write(&owner, "import sys\nsys.stdout.write('x' * 20000)\n").expect("owner");
-    let Ok(full) = std::fs::OpenOptions::new().write(true).open("/dev/full") else {
-        eprintln!("SKIPPED: /dev/full is not available");
-        return;
-    };
-    let out = helper(
-        &[
-            "--compat-owner",
-            owner.to_str().expect("UTF-8"),
-            "--compat-python",
-            "python3",
-            "evaluate",
-            "--repo",
-            root.to_str().expect("UTF-8"),
-        ],
-        &[],
-        Stdio::from(full),
-    );
-    assert_eq!(
-        out.status.code(),
-        Some(1),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    assert!(
-        String::from_utf8_lossy(&out.stderr).contains("Traceback (most recent call last):"),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-}
-
-#[test]
-fn a_compat_child_killed_by_a_signal_is_propagated_and_recorded() {
-    use std::os::unix::process::ExitStatusExt;
-    let root = changed_checkout("p3a");
-    let owner = root.join("signal_owner.py");
-    std::fs::write(
-        &owner,
-        "import os, signal\nprint('before', flush=True)\nos.kill(os.getpid(), signal.SIGTERM)\n",
-    )
-    .expect("owner");
-    let sidecar = root.join("signal.json");
-    let out = helper(
-        &[
-            "--route-sidecar",
-            sidecar.to_str().expect("UTF-8"),
-            "--compat-owner",
-            owner.to_str().expect("UTF-8"),
-            "--compat-python",
-            "python3",
-            "evaluate",
-            "--repo",
-            root.to_str().expect("UTF-8"),
-        ],
-        &[],
-        Stdio::piped(),
-    );
-    assert_eq!(
-        out.status.signal(),
-        Some(15),
-        "the caller sees the child's signal as Popen's -15: {:?}",
-        out.status
-    );
-    assert_eq!(
-        String::from_utf8_lossy(&out.stdout),
-        "before\n",
-        "the output before the signal is delivered"
-    );
-    let record = std::fs::read_to_string(&sidecar).expect("sidecar");
-    assert!(
-        record.contains("\"child_signal\": 15") && record.contains("\"child_status\": -15"),
-        "{record}"
-    );
-}
-
-#[test]
 fn an_invalid_pythonutf8_value_fails_the_startup_profile() {
     let root = fixture_checkout("utf8");
     let out = helper(
@@ -825,268 +394,82 @@ fn an_invalid_pythonutf8_value_fails_the_startup_profile() {
     );
 }
 
-// ---- H4 / N10: nested cancellation, resolver -> helper -> compat Python -> descendants (W-owned disposables only) --------
-//
-// The ACTUAL resolver (`resolve`) runs the ACTUAL built helper, which runs a configured stand-in owner (the checkout's own,
-// non-reviewed `topology_parity.py`) under `python3`; the stand-in starts a nested `sleep` and records its PIDs/groups.
-// Limits are injected through the check-only seam so no case waits 60 s.
+// ---- plan_26111615 pass 3: the native helper is the only judge -------------------------------------------------------------
 
-struct Nested {
-    pythonpid: i32,
-    helper_pid: i32,
-    group: i32,
-    sleeper_pid: i32,
-    sleeper_group: i32,
-}
+/// A Python stand-in owner that would prove it ran (a RED verdict with a marker) if anything started it.
+const MARKER_OWNER: &str = "import json,sys\nprint(json.dumps({'verdict':'RED','topology':None,'reasons':['PYTHON-OWNER-RAN']}))\nsys.exit(5)\n";
 
-fn nested_checkout(label: &str) -> (PathBuf, PathBuf) {
-    let root = PathBuf::from(env!("CARGO_TARGET_TMPDIR"))
-        .join("n10_nested")
-        .join(format!("{}_{label}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&root);
+#[test]
+fn the_resolver_runs_only_the_native_helper_and_names_a_request_for_the_retired_interpreter_route() {
+    use sweep_stop::resolve_topology::{resolve, ResolveContext, CONFIGURATION_ERROR};
+    let root = fixture_checkout("route_native_only");
     let owner_dir = root.join(".claude/policies/runtime");
     std::fs::create_dir_all(&owner_dir).expect("owner dir");
-    std::fs::create_dir_all(root.join("output/single")).expect("manifest dir");
-    std::fs::write(
-        root.join("output/single/manifest.yaml"),
-        "topology: single\n",
-    )
-    .expect("manifest");
-    let record = root.join("nested.json");
-    let script = "import json, os, subprocess, time\n\
-        p = subprocess.Popen(['sleep', '120'])\n\
-        rec = {'python_pid': os.getpid(), 'helper_pid': os.getppid(), 'group': os.getpgrp(), 'sleeper_pid': p.pid, 'sleeper_group': os.getpgid(p.pid)}\n\
-        open('@REC@.tmp', 'w').write(json.dumps(rec))\n\
-        os.rename('@REC@.tmp', '@REC@')\n\
-        time.sleep(120)\n"
-        .replace("@REC@", record.to_str().expect("UTF-8"));
-    std::fs::write(owner_dir.join("topology_parity.py"), script).expect("stand-in owner");
-    (root, record)
-}
-
-fn read_nested(record: &Path) -> Nested {
-    let text = std::fs::read_to_string(record).expect("the stand-in recorded its processes");
-    let number = |key: &str| -> i32 {
-        let at = text.find(&format!("\"{key}\": ")).expect(key) + key.len() + 4;
-        text[at..]
-            .chars()
-            .take_while(|c| c.is_ascii_digit())
-            .collect::<String>()
-            .parse()
-            .expect("number")
-    };
-    Nested {
-        pythonpid: number("python_pid"),
-        helper_pid: number("helper_pid"),
-        group: number("group"),
-        sleeper_pid: number("sleeper_pid"),
-        sleeper_group: number("sleeper_group"),
+    let repo = PyValue::str(root.to_str().expect("UTF-8"));
+    let native = ResolveContext::native().with_native_helper(PathBuf::from(HELPER));
+    // no owner file at all: the native helper still judges (the reviewed fixture checkout passes as single)
+    let without = resolve(&repo, &PyValue::None, &native).expect("resolve");
+    assert_eq!(without.code, 0, "{}", without.why.to_utf8().unwrap_or_default());
+    assert!(matches!(&without.topology, PyValue::Str(t) if t.equals("single")));
+    // a stand-in owner in the checkout changes nothing: it is never run
+    std::fs::write(owner_dir.join("topology_parity.py"), MARKER_OWNER).expect("owner");
+    for falsy in [PyValue::None, PyValue::str(""), PyValue::int(0), PyValue::Bool(false)] {
+        let judged = resolve(&repo, &falsy, &native).expect("resolve");
+        assert_eq!(judged.code, 0);
+        assert!(!judged.why.to_utf8().unwrap_or_default().contains("PYTHON-OWNER-RAN"));
     }
-}
-
-/// Live (non-zombie) members of a process group.
-fn group_members(group: i32) -> Vec<i32> {
-    let mut found = Vec::new();
-    for entry in std::fs::read_dir("/proc").expect("/proc").flatten() {
-        let Some(pid) = entry
-            .file_name()
-            .to_str()
-            .and_then(|n| n.parse::<i32>().ok())
-        else {
-            continue;
-        };
-        let Ok(stat) = std::fs::read_to_string(entry.path().join("stat")) else {
-            continue;
-        };
-        let Some(tail) = stat.rsplit_once(')').map(|(_, rest)| rest.trim_start()) else {
-            continue;
-        };
-        let mut fields = tail.split_whitespace();
-        let (state, _ppid, pgrp) = (fields.next(), fields.next(), fields.next());
-        if state != Some("Z") && pgrp.and_then(|g| g.parse::<i32>().ok()) == Some(group) {
-            found.push(pid);
-        }
-    }
-    found
-}
-
-fn nothing_of_it_is_alive(n: &Nested) -> bool {
-    [n.pythonpid, n.helper_pid, n.sleeper_pid, n.group]
-        .iter()
-        .all(|pid| !alive(&pid.to_string()))
-        && group_members(n.group).is_empty()
-}
-
-/// Waits (bounded) until everything the stand-in started is gone; returns the observed wait.
-fn wait_cleaned(n: &Nested, within: std::time::Duration) -> Option<std::time::Duration> {
-    let start = std::time::Instant::now();
-    while start.elapsed() < within {
-        if nothing_of_it_is_alive(n) {
-            return Some(start.elapsed());
-        }
-        std::thread::sleep(std::time::Duration::from_millis(20));
-    }
-    nothing_of_it_is_alive(n).then(|| start.elapsed())
-}
-
-fn write_record(label: &str, root: &Path, body: String) {
-    let _ = std::fs::write(root.join(format!("{label}.record.json")), body);
-}
-
-/// The resolver, the helper and the stand-in all ran for real and the resolver never fabricated a business answer.
-fn assert_control_incomplete(res: &sweep_stop::resolve_topology::Resolution) {
-    assert_eq!(res.code, 5, "unresolved, never a business verdict");
-    assert!(
-        !res.topology.is_truthy(),
-        "no topology may be claimed from an incomplete control"
-    );
+    // a truthy interpreter argument asks for the retired route: a named configuration error, nothing runs
+    let refused = resolve(&repo, &PyValue::str("python3"), &native).expect_err("named configuration error");
+    assert_eq!(refused.class, CONFIGURATION_ERROR);
+    assert!(refused.message.to_utf8().unwrap_or_default().contains("retired"));
+    // a missing helper is a named configuration error, not a Python fallback
+    let missing = ResolveContext::native().with_native_helper(root.join("no_such_helper"));
+    let failure = resolve(&repo, &PyValue::None, &missing).expect_err("named configuration error");
+    assert_eq!(failure.class, CONFIGURATION_ERROR);
+    let _ = std::fs::remove_dir_all(&root);
 }
 
 #[test]
-fn n10_the_inner_deadline_below_the_outer_cleans_the_whole_compat_subtree_before_the_resolver_acts()
-{
-    use sweep_stop::resolve_topology::{resolve, ResolveContext};
-    let (root, record) = nested_checkout("inner");
-    let repo = PyValue::str(root.to_str().expect("UTF-8"));
-    // outer 20 s, inner 1 s: the helper's own cleanup runs, the resolver never has to kill the helper
-    let context = ResolveContext::native()
-        .with_native_helper(PathBuf::from(HELPER))
-        .with_limits_for_check(20_000, 1_000);
-    let started = std::time::Instant::now();
-    let res = resolve(&repo, &PyValue::None, &context).expect("resolve");
-    let elapsed = started.elapsed();
-    let n = read_nested(&record);
-    let cleaned = wait_cleaned(&n, std::time::Duration::from_secs(3));
-    std::thread::sleep(std::time::Duration::from_millis(300));
-    let followup_alive = !nothing_of_it_is_alive(&n);
-    write_record(
-        "inner",
-        &root,
-        format!(
-            "{{\"case\": \"inner_before_outer\", \"python_pid\": {}, \"helper_pid\": {}, \"group\": {}, \"sleeper_pid\": {}, \"sleeper_group\": {}, \"elapsed_ms\": {}, \"resolution_code\": {}, \"cleaned_after_ms\": {:?}, \"followup_alive\": {}}}\n",
-            n.pythonpid, n.helper_pid, n.group, n.sleeper_pid, n.sleeper_group, elapsed.as_millis(), res.code, cleaned.map(|d| d.as_millis()), followup_alive
-        ),
+fn the_helper_answers_natively_whatever_the_owner_file_holds_and_refuses_the_retired_flags() {
+    let root = fixture_checkout("helper_native_only");
+    let repo = root.to_str().expect("UTF-8");
+    let reference = helper(&["evaluate", "--repo", repo, "--format", "json"], &[], Stdio::piped());
+    assert_eq!(reference.status.code(), Some(0), "{}", String::from_utf8_lossy(&reference.stderr));
+    // a changed owner program named as the logical source changes neither the route nor the answer
+    let owner = root.join("changed_owner.py");
+    std::fs::write(&owner, MARKER_OWNER).expect("owner");
+    let sidecar = root.join("route.json");
+    let changed = helper(
+        &[
+            "--source-owner",
+            owner.to_str().expect("UTF-8"),
+            "--route-sidecar",
+            sidecar.to_str().expect("UTF-8"),
+            "evaluate",
+            "--repo",
+            repo,
+            "--format",
+            "json",
+        ],
+        &[],
+        Stdio::piped(),
     );
-    assert!(
-        elapsed < std::time::Duration::from_secs(10),
-        "the inner deadline (1 s) ended the call long before the 20 s outer limit: {elapsed:?}"
-    );
-    assert_control_incomplete(&res);
-    let why = res.why.to_utf8().expect("text");
-    assert!(
-        why.contains("rc=2") && why.contains("timed out after 1 seconds"),
-        "the helper's own control failure (status 2), not the resolver's outer timeout: {why}"
-    );
-    assert_ne!(
-        n.group, n.helper_pid,
-        "the compat group is the watchdog's, not the helper's"
-    );
-    assert_eq!(
-        n.sleeper_group, n.group,
-        "the nested sleeper is in the compat group"
-    );
-    assert!(
-        cleaned.is_some(),
-        "python, helper, watchdog and the nested sleeper are gone"
-    );
-    assert!(!followup_alive, "and they stay gone");
-}
-
-#[test]
-fn n10_a_short_outer_limit_that_kills_the_helper_still_cleans_the_compat_descendants() {
-    use sweep_stop::resolve_topology::{resolve, ResolveContext};
-    let (root, record) = nested_checkout("outer");
-    let repo = PyValue::str(root.to_str().expect("UTF-8"));
-    // outer 1.5 s, inner 40 s: only the resolver's group kill of the HELPER fires; the watchdog must do the rest
-    let context = ResolveContext::native()
-        .with_native_helper(PathBuf::from(HELPER))
-        .with_limits_for_check(1_500, 40_000);
-    let started = std::time::Instant::now();
-    let res = resolve(&repo, &PyValue::None, &context).expect("resolve");
-    let elapsed = started.elapsed();
-    let n = read_nested(&record);
-    let alive_at_return = !nothing_of_it_is_alive(&n);
-    let cleaned = wait_cleaned(&n, std::time::Duration::from_secs(5));
-    std::thread::sleep(std::time::Duration::from_millis(300));
-    let followup_alive = !nothing_of_it_is_alive(&n);
-    write_record(
-        "outer",
-        &root,
-        format!(
-            "{{\"case\": \"outer_kills_helper\", \"python_pid\": {}, \"helper_pid\": {}, \"group\": {}, \"sleeper_pid\": {}, \"sleeper_group\": {}, \"elapsed_ms\": {}, \"resolution_code\": {}, \"alive_at_resolver_return\": {}, \"cleaned_after_ms\": {:?}, \"followup_alive\": {}}}\n",
-            n.pythonpid, n.helper_pid, n.group, n.sleeper_pid, n.sleeper_group, elapsed.as_millis(), res.code, alive_at_return, cleaned.map(|d| d.as_millis()), followup_alive
-        ),
-    );
-    assert!(
-        elapsed >= std::time::Duration::from_millis(1_400)
-            && elapsed < std::time::Duration::from_secs(10),
-        "the OUTER limit ended the call: {elapsed:?}"
-    );
-    assert_control_incomplete(&res);
-    assert_eq!(n.sleeper_group, n.group);
-    assert!(
-        cleaned.is_some(),
-        "the watchdog killed the compat group after the helper was killed"
-    );
-    assert!(!followup_alive, "and they stay gone");
-}
-
-#[test]
-fn n10_a_forced_kill_of_the_helper_itself_still_cleans_the_compat_descendants() {
-    use sweep_stop::resolve_topology::{resolve, ResolveContext};
-    let (root, record) = nested_checkout("sigkill");
-    let repo = PyValue::str(root.to_str().expect("UTF-8"));
-    // both limits far away: only the watchdog can end the subtree
-    let context = ResolveContext::native()
-        .with_native_helper(PathBuf::from(HELPER))
-        .with_limits_for_check(30_000, 40_000);
-    let (res, killed, n, elapsed) = std::thread::scope(|scope| {
-        let started = std::time::Instant::now();
-        let call = scope.spawn(|| resolve(&repo, &PyValue::None, &context).expect("resolve"));
-        let wait = std::time::Instant::now();
-        while !record.exists() && wait.elapsed() < std::time::Duration::from_secs(15) {
-            std::thread::sleep(std::time::Duration::from_millis(20));
-        }
-        let n = read_nested(&record);
-        let killed = Command::new("kill")
-            .args(["-9", &n.helper_pid.to_string()])
-            .status()
-            .expect("kill")
-            .success();
-        (
-            call.join().expect("resolver thread"),
-            killed,
-            n,
-            started.elapsed(),
-        )
-    });
-    let cleaned = wait_cleaned(&n, std::time::Duration::from_secs(5));
-    std::thread::sleep(std::time::Duration::from_millis(300));
-    let followup_alive = !nothing_of_it_is_alive(&n);
-    write_record(
-        "sigkill",
-        &root,
-        format!(
-            "{{\"case\": \"helper_sigkill\", \"python_pid\": {}, \"helper_pid\": {}, \"group\": {}, \"sleeper_pid\": {}, \"sleeper_group\": {}, \"elapsed_ms\": {}, \"kill_status_ok\": {}, \"resolution_code\": {}, \"cleaned_after_ms\": {:?}, \"followup_alive\": {}}}\n",
-            n.pythonpid, n.helper_pid, n.group, n.sleeper_pid, n.sleeper_group, elapsed.as_millis(), killed, res.code, cleaned.map(|d| d.as_millis()), followup_alive
-        ),
-    );
-    assert!(killed, "the helper was killed with SIGKILL");
-    assert!(
-        elapsed < std::time::Duration::from_secs(20),
-        "no limit had to expire: {elapsed:?}"
-    );
-    assert_control_incomplete(&res);
-    assert!(
-        cleaned.is_some(),
-        "python and the nested sleeper died with the helper"
-    );
-    assert!(!followup_alive, "and they stay gone");
+    assert_eq!(changed.status.code(), Some(0));
+    assert_eq!(changed.stdout, reference.stdout);
+    let record = std::fs::read_to_string(&sidecar).expect("sidecar");
+    assert!(record.contains("\"route\": \"NativeCurrentSource\"") && record.contains("\"python_children\": 0"), "{record}");
+    // the flags of the retired compatibility route are refused by name (status 2), never ignored
+    for flag in ["--compat-owner", "--compat-python", "--compat-deadline-ms"] {
+        let refused = helper(&[flag, "x", "evaluate", "--repo", repo], &[], Stdio::piped());
+        assert_eq!(refused.status.code(), Some(2), "{flag}");
+        assert!(refused.stdout.is_empty());
+        assert!(String::from_utf8_lossy(&refused.stderr).contains("retired"), "{flag}");
+    }
 }
 
 #[test]
 fn n10_the_canonical_native_route_starts_no_python_and_no_supervision_child() {
-    // a reviewed source: the helper answers natively; its sidecar names no watchdog and no Python child
+    // the helper answers natively; its sidecar names no watchdog and no Python child
     let root = fixture_checkout("n10_native");
     let sidecar = root.join("native.json");
     let out = helper(
@@ -1107,62 +490,5 @@ fn n10_the_canonical_native_route_starts_no_python_and_no_supervision_child() {
             && !record.contains("watchdog_pid"),
         "{record} / status {:?}",
         out.status.code()
-    );
-}
-
-#[test]
-fn n10_a_normal_compat_completion_kills_a_detached_leftover_and_reaps_the_watchdog() {
-    let root = changed_checkout("n10_normal");
-    let record = root.join("leftover.pid");
-    let owner = root.join("detaching_owner.py");
-    // a descendant that detaches from the pipes (so the capture can finish) and outlives its parent
-    std::fs::write(
-        &owner,
-        format!(
-            "import subprocess\np = subprocess.Popen(['sleep', '120'], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\nopen({:?}, 'w').write(str(p.pid))\nprint('done')\n",
-            record.to_str().expect("UTF-8")
-        ),
-    )
-    .expect("owner");
-    let sidecar = root.join("normal.json");
-    let out = helper(
-        &[
-            "--route-sidecar",
-            sidecar.to_str().expect("UTF-8"),
-            "--compat-owner",
-            owner.to_str().expect("UTF-8"),
-            "--compat-python",
-            "python3",
-            "evaluate",
-            "--repo",
-            root.to_str().expect("UTF-8"),
-        ],
-        &[],
-        Stdio::piped(),
-    );
-    assert_eq!(out.status.code(), Some(0), "the compat child's own status");
-    assert_eq!(String::from_utf8_lossy(&out.stdout), "done\n");
-    let leftover = std::fs::read_to_string(&record).expect("leftover pid");
-    let text = std::fs::read_to_string(&sidecar).expect("sidecar");
-    let at = text
-        .find("\"watchdog_pid\": ")
-        .expect("watchdog_pid recorded")
-        + 16;
-    let watchdog: String = text[at..]
-        .chars()
-        .take_while(|c| c.is_ascii_digit())
-        .collect();
-    std::thread::sleep(std::time::Duration::from_millis(200));
-    assert!(
-        !alive(leftover.trim()),
-        "the leftover descendant was killed with the compat group"
-    );
-    assert!(
-        !alive(&watchdog),
-        "the watchdog is gone (killed and reaped)"
-    );
-    assert!(
-        group_members(watchdog.parse().expect("pid")).is_empty(),
-        "no member of the compat group is left"
     );
 }

@@ -39,7 +39,7 @@ description: >-
 - **Handoff contract** — 반증된 셀 → `campaigns/<id>/escalation_candidates.jsonl` 에 후보 한 줄(`campaign_init --escalation-add`) · 종결 시 `--escalation-summary` 를 사람이 읽고 발동 여부를 정한다 · 구조적 → `upstream-version-watch` escalation · 증거 조회/입고 → `wiki-desk`(sidecar).
 - **Owns (state)** — `bench-verdict` · `bench-report` · `bench-certificate` · `max-envelope`
 
-보고서·지도·인증서의 실행 진입은 위 `.sh` 런처이며 실제 계산·명명·발행은 같은 관리 Rust crate가 소유한다. 새 노드에서는 Terraform Rust install/check 뒤 `bash scripts/build_rust.sh --offline`로 노드에서 빌드한다(실제 스킬 디렉터리 기준). 정상 실행은 설치·빌드·Python 대체 계산을 하지 않으며, 이 스킬의 런처·Rust 실행파일은 이 스킬의 Python 을 띄우지 않는다(2026-11-16 · plan_26111615 — 남은 예외는 아직 Python 인 다른 소유자로 가는 다리뿐이다: lite·sweep 자체검사의 `owner_bridge`(hint reader·evidence publisher·completion gate) · 토폴로지 판정자의 원본 변종 호환 경로 · 캠페인 writer 런처의 미모델링 동사). 남은 `*_native.py`/`reporting_native.py` 는 아직 Python 인 다른 스킬의 호출자(hint-publisher·policies·explorer)가 import 하는 계산 없는 연결면일 뿐이며 이 스킬의 실행 경로가 아니다. 산문 문서 명명의 TypeScript 소유자는 별도로 유지된다.
+보고서·지도·인증서의 실행 진입은 위 `.sh` 런처이며 실제 계산·명명·발행은 같은 관리 Rust crate가 소유한다. 새 노드에서는 Terraform Rust install/check 뒤 `bash scripts/build_rust.sh --offline`로 노드에서 빌드한다(실제 스킬 디렉터리 기준). 정상 실행은 설치·빌드·Python 대체 계산을 하지 않으며, 이 스킬의 런처·Rust 실행파일은 이 스킬의 Python 을 띄우지 않는다(2026-11-16 · plan_26111615 — lite·sweep 자체검사가 묻는 hint reader·evidence publisher·completion gate 는 hint-publisher·policy 의 Rust 라이브러리를 직접 부르고(`owner_bridge` 는 더 이상 인터프리터를 띄우지 않는다), 토폴로지 판정자는 `.py` 유무와 무관하게 항상 native helper 다 — 원본 변종 호환 경로·명시 인터프리터 경로는 폐지돼 요청하면 이름 붙은 구성 오류다). 남은 `*_native.py`/`reporting_native.py`·`topology_legacy_api.py` 는 퇴역한 연결면 파일일 뿐 이 스킬의 실행·검사 경로가 아니다. 산문 문서 명명의 TypeScript 소유자는 별도로 유지된다.
 
 ## Mandatory procedural spine
 

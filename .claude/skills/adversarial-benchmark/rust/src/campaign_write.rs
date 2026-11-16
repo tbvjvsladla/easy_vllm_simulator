@@ -444,8 +444,11 @@ impl Ctx {
 
     /// `checkout_topology()`.
     pub fn checkout_topology(&self) -> Option<String> {
-        let predicate = self.root.join(".claude/policies/runtime/topology_parity.py");
-        if !predicate.is_file() {
+        // The predicate is installed when its program is: the original `topology_parity.py` or - with the original retired -
+        // its Rust launcher `topology_parity.sh` beside it (plan_26111615 pass 3: removing the `.py` must not turn a main
+        // checkout into a sub-local reading).
+        let runtime = self.root.join(".claude/policies/runtime");
+        if !runtime.join("topology_parity.py").is_file() && !runtime.join("topology_parity.sh").is_file() {
             return self.sub_local_topology();
         }
         if self.checkout_is_sub() {

@@ -1,7 +1,7 @@
 //! Port of `check_sub_hint_equip.py` — the single sub's hint-publish equipment, judged and equipped on THAT node
 //! (hint clone outside the workspace git, `hints/.push_authority`, `GITHUB_TOKEN` presence). Same command line, exit codes
 //! (0 ready/equipped · 2 usage · 3 not ready · 4 equip failed), JSON (insertion order) and self-test lines. Secrets are never
-//! printed. The self-test's cross-check with the hint publisher's token rule reads `hintlib/tag.py` as text (it is not run).
+//! printed. The self-test's cross-check with the hint publisher's token rule reads its Rust owner `hint-publisher/rust/src/tag.rs` as text (it is not run).
 
 use crate::argp::{self, flag, store, Outcome, Spec, HELP};
 use agent_runtime_support::pyvalue::{PyDict, PyValue};
@@ -257,6 +257,21 @@ fn check_clone(ws: &Path) -> Result<D, Fail> {
         out.push((key, if o.code == 0 && Path::new(&v).is_absolute() { s(&disp(&resolve(Path::new(&v)))) } else { PyValue::None }));
     }
     Ok(out)
+}
+
+/// `check_clone(ws)` as a JSON object (insertion order) for the Rust self-test suites; `Err` = the failure text.
+pub fn check_clone_value(ws: &Path) -> Result<PyValue, String> {
+    match check_clone(ws) {
+        Ok(d) => {
+            let mut out = PyDict::new();
+            for (k, v) in d {
+                out.set(k, v);
+            }
+            Ok(PyValue::Dict(out))
+        }
+        Err(Fail::Usage(m)) | Err(Fail::Equip(m)) => Err(m),
+        Err(Fail::Raised(r)) => Err(r.0),
+    }
 }
 
 fn ignored(ws: &Path, rel: &str) -> Option<bool> {
@@ -545,12 +560,14 @@ fn self_test() -> i32 {
         ready(&r3) && tok.as_deref() == Some("{\"status\": \"present\", \"source\": \"envs/.env\"}"), &dump(&r3));
     ck("★토큰 값은 출력 어디에도 없다", !dump(&r3).contains(secret), "");
     ck("환경변수 토큰 → source=env", at(&ev(&ws, &[(TOKEN_KEY, "x")]), &["checks", "token", "source"]) == "env", "");
-    // Cross-check with the hint publisher's rule: its `hintlib/tag.py` must declare the same key and file and keep its reader
-    // (read as text — the publisher is not run here), and this port's reader must return the secret it reads.
-    let tag = default_workspace().join(".claude/skills/hint-publisher/scripts/hintlib/tag.py");
+    // Cross-check with the hint publisher's rule: its Rust owner `hint-publisher/rust/src/tag.rs` (the port of `hintlib/tag.py`,
+    // plan_26111615 pass 3) must declare the same key and file and keep its reader (read as text — the publisher is not run
+    // here), and this port's reader must return the secret it reads.
+    let tag = default_workspace().join(".claude/skills/hint-publisher/rust/src/tag.rs");
     let tag_ok = std::fs::read_to_string(&tag).is_ok_and(|t| {
-        t.contains(&format!("TOKEN_KEY = \"{TOKEN_KEY}\"")) && t.contains(&format!("TOKEN_ENV_FILE_REL = \"{ENV_FILE_REL}\""))
-            && t.contains("def read_push_token(")
+        t.contains(&format!("pub const TOKEN_KEY: &str = \"{TOKEN_KEY}\";"))
+            && t.contains(&format!("pub const TOKEN_ENV_FILE_REL: &str = \"{ENV_FILE_REL}\";"))
+            && t.contains("pub fn read_push_token(")
     });
     ck("hintlib.tag 와 토큰 키·파일·판독 규칙 일치(교차검증)",
         tag_ok && read_env_key(&ws, TOKEN_KEY).ok().flatten().as_deref() == Some(secret), "hintlib 적재 실패 또는 규칙 불일치");

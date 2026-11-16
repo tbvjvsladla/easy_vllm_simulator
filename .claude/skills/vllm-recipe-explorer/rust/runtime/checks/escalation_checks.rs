@@ -919,6 +919,31 @@ mod production_cases {
         }
     }
 
+    /// A production install needs no `.py` adapter: with `classify_cell_native.py` removed the command line still judges through the
+    /// launcher, and with the launcher removed it refuses (exit 1 · the owner's path named) instead of judging.
+    #[test]
+    fn the_installed_command_line_needs_the_launcher_and_not_the_python_adapter() {
+        let bundle = load("bundle.json");
+        let area = PrivateDirectory::create("escalation-nopy-").expect("a private directory");
+        installed_layout(&bundle, area.path(), env!("CARGO_BIN_EXE_escalation_predicate"));
+        let scripts = area.path().join("skills/adversarial-benchmark/scripts");
+        std::fs::remove_file(scripts.join("classify_cell_native.py")).expect("remove the adapter");
+        let program = area
+            .path()
+            .join("skills/vllm-recipe-explorer/rust/runtime/target/release/escalation_predicate");
+        let cli = items(member(&bundle, "cli"));
+        let request = member(&cli[2], "request");
+        let args: Vec<String> = items(member(request, "args")).iter().map(text_of).collect();
+        let output = production_command(&program, area.path()).args(&args).output().expect("run");
+        assert_eq!(output.status.code(), Some(0), "{}", String::from_utf8_lossy(&output.stderr));
+        assert_eq!(output.stdout, hex_decode(&text_of(member(&cli[2], "stdout_hex"))));
+        std::fs::remove_file(scripts.join("classify_cell_api.sh")).expect("remove the launcher");
+        let output = production_command(&program, area.path()).args(&args).output().expect("run");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert_ne!(output.status.code(), Some(0), "{stderr}");
+        assert!(stderr.contains("classify_cell_api.sh") && stderr.contains("정본을 찾지 못했다"), "{stderr}");
+    }
+
     /// Reading the source: nothing selects another classifier, provider or path, and no operational capture path is in the programs.
     #[test]
     fn the_sources_have_no_selector_no_fixture_module_and_no_operational_path() {

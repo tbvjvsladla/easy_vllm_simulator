@@ -28,7 +28,6 @@ const SWEEP_META: &str = env!("CARGO_BIN_EXE_selftest_sweep_meta");
 const SCRIPTS: &str = ".claude/skills/adversarial-benchmark/scripts";
 const RELEASE: &str = ".claude/skills/adversarial-benchmark/rust/target/release";
 const READER: &str = ".claude/skills/hint-publisher/scripts/render_bench_section.py";
-const MARKER_NAME: &str = "owner-import.marker";
 
 /// The deployed tree the files are read from (the same default as the other checks).
 fn canonical_root() -> PathBuf {
@@ -257,40 +256,6 @@ fn output_when_started(command: &mut Command) -> Output {
         }
     }
     unreachable!("the last attempt returns")
-}
-
-fn spawn_when_started(command: &mut Command) -> std::process::Child {
-    for attempt in 1..=START_ATTEMPTS {
-        match command.spawn() {
-            Err(error)
-                if error.raw_os_error() == Some(TEXT_FILE_BUSY) && attempt < START_ATTEMPTS =>
-            {
-                std::thread::sleep(std::time::Duration::from_millis(20));
-            }
-            other => return other.expect("the program starts"),
-        }
-    }
-    unreachable!("the last attempt returns")
-}
-
-/// [`run`] with bytes on the program's standard input.
-fn run_with_input(program: &str, tree: &Path, scratch: &Scratch, input: &[u8]) -> Run {
-    use std::io::Write;
-    use std::process::Stdio;
-    let mut command = Command::new(program);
-    command
-        .env_clear()
-        .env("PATH", std::env::var_os("PATH").unwrap_or_default())
-        .env("TMPDIR", scratch.tmp())
-        .env("BENCH_VERIFY_REPO_ROOT", tree)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    let mut child = spawn_when_started(&mut command);
-    let mut stdin = child.stdin.take().expect("piped input");
-    stdin.write_all(input).expect("input is written");
-    drop(stdin);
-    Run::from(child.wait_with_output().expect("the program ends"))
 }
 
 fn assert_clean_pass(run: &Run, passed: usize, closing: &str, scratch: &Scratch) {
@@ -697,84 +662,6 @@ fn a_producer_program_that_is_missing_or_does_not_start_is_a_binding_failure_wit
     scratch.assert_temporary_directory_removed();
 }
 
-#[test]
-fn a_changed_reader_contract_title_fails_only_the_contract_checks() {
-    let scratch = Scratch::new("title");
-    let tree = private_tree(&scratch);
-    mutate(
-        &tree,
-        READER,
-        "## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)",
-        "## 측정 구성 — 바뀐 제목",
-    );
-    let outcome = run(LITE_REPORT, Some(&tree), &scratch, &[], &[]);
-    assert_eq!(outcome.status, Some(1), "{}", outcome.stdout);
-    assert!(outcome.stderr.contains("'L10 측정 구성 표 제목·키가 writer(render_report)와 reader(render_bench_section)에서 같다'"), "{}", outcome.stderr);
-    assert!(outcome.stdout.contains("  [PASS] L10 lite 도구 토큰이"));
-    scratch.assert_temporary_directory_removed();
-}
-
-#[test]
-fn the_owner_modules_are_imported_as_the_original_imported_them() {
-    let scratch = Scratch::new("import-effects");
-    let tree = private_tree(&scratch);
-    let reader = tree.join(READER);
-    let mut text = std::fs::read_to_string(&reader).expect("reader");
-    text.push_str(&format!(
-        "\nfrom pathlib import Path as _MarkerPath\nwith (_MarkerPath(__file__).resolve().parents[4] / \"{MARKER_NAME}\").open(\"a\", encoding=\"utf-8\") as _marker:\n    _marker.write(\"rbs-import\\n\")\n"
-    ));
-    std::fs::write(&reader, text).expect("write reader");
-    let outcome = run(LITE_REPORT, Some(&tree), &scratch, &[], &[]);
-    assert_clean_pass(&outcome, 28, "[selftest_lite_report] PASS", &scratch);
-    let marker = std::fs::read_to_string(tree.join(MARKER_NAME)).expect("the marker");
-    // One import for the program's own binding of the reader. The four evidence publisher calls used to import the
-    // reader again each (4 more lines); the publisher is now the Rust library `policy_publisher` (port of
-    // evidence_publisher.py, plan_26111615 P1) whose measurement-table parser is its own port, so it imports nothing.
-    assert_eq!(marker, "rbs-import\n");
-}
-
-#[test]
-fn an_unusable_owner_interpreter_is_a_named_failure_before_any_check() {
-    let root = canonical_root();
-    let scratch = Scratch::new("interpreter");
-    let missing = scratch.root.join("no-such-python");
-    for program in [LITE_REPORT, LITE_GATE] {
-        let outcome = run(
-            program,
-            Some(&root),
-            &scratch,
-            &[("OWNER_BRIDGE_PYTHON", missing.as_os_str())],
-            &[],
-        );
-        assert_eq!(outcome.status, Some(1));
-        assert_eq!(outcome.stdout, "");
-        assert!(
-            outcome
-                .stderr
-                .starts_with("Traceback (most recent call last):"),
-            "{}",
-            outcome.stderr
-        );
-        assert!(
-            outcome.stderr.contains("FileNotFoundError"),
-            "{}",
-            outcome.stderr
-        );
-    }
-    // The meta check has no Python owner any more: the deployed producer is a native program, so an unusable owner
-    // interpreter does not touch it (this was one of the three programs that failed here before the producer was ported).
-    let meta = run(
-        SWEEP_META,
-        Some(&root),
-        &scratch,
-        &[("OWNER_BRIDGE_PYTHON", missing.as_os_str())],
-        &[],
-    );
-    assert_eq!(meta.status, Some(0), "{}", meta.stderr);
-    assert!(!meta.stderr.contains("Traceback"), "{}", meta.stderr);
-    scratch.assert_temporary_directory_removed();
-}
-
 /// Appends source text to a file of a private tree (the way the declared owner mutations of the checks are made).
 fn append_to(tree: &Path, relative: &str, addition: &str) {
     let path = tree.join(relative);
@@ -784,150 +671,38 @@ fn append_to(tree: &Path, relative: &str, addition: &str) {
 }
 
 #[test]
-fn an_owner_exception_keeps_the_class_name_a_traceback_would_print() {
-    let scratch = Scratch::new("qualified");
+fn the_lite_verifiers_need_no_owner_py_and_start_no_interpreter() {
+    // plan_26111615 pass 3: the hint reader, the evidence publisher and the completion gate are Rust libraries. Without
+    // the reader's `.py` and with every Python interpreter on `PATH` poisoned, both programs pass as on the deployed tree.
+    use std::os::unix::fs::PermissionsExt;
+    let scratch = Scratch::new("no-python");
     let tree = private_tree(&scratch);
-    append_to(
-        &tree,
-        READER,
-        "\nraise BenchSectionFailure(23, \"R16 owner diagnostic\\n두 번째 줄\")\n",
-    );
-    let outcome = run(LITE_REPORT, Some(&tree), &scratch, &[], &[]);
-    assert_eq!(outcome.status, Some(1));
-    assert_eq!(outcome.stdout, "");
-    // The class lives in the module the verifier loaded under the name `_lite_rbs`: module-qualified, the message
-    // whole including its second line.
+    // absent already when the run has no `.py` at all
+    let _ = std::fs::remove_file(tree.join(READER));
+    let bin = scratch.root.join("poisoned-bin");
+    std::fs::create_dir_all(&bin).expect("stub directory");
+    let marker = scratch.root.join("python-started.marker");
+    for name in ["python3", "python"] {
+        let stub = bin.join(name);
+        std::fs::write(
+            &stub,
+            format!("#!/bin/sh\necho \"$0 $*\" >> '{}'\nexit 97\n", marker.display()),
+        )
+        .expect("stub");
+        std::fs::set_permissions(&stub, std::fs::Permissions::from_mode(0o755)).expect("mode");
+    }
+    let mut search = std::ffi::OsString::from(bin.as_os_str());
+    search.push(":");
+    search.push(std::env::var_os("PATH").unwrap_or_default());
+    let report = run(LITE_REPORT, Some(&tree), &scratch, &[("PATH", search.as_os_str())], &[]);
+    assert_clean_pass(&report, 28, "[selftest_lite_report] PASS", &scratch);
+    let gate = run(LITE_GATE, Some(&tree), &scratch, &[("PATH", search.as_os_str())], &[]);
+    assert_clean_pass(&gate, 25, "[selftest_lite_gate] PASS", &scratch);
     assert!(
-        outcome.stderr.contains("\n_lite_rbs.BenchSectionFailure: "),
-        "{}",
-        outcome.stderr
+        !marker.exists(),
+        "an interpreter was started: {}",
+        std::fs::read_to_string(&marker).unwrap_or_default()
     );
-    // The exception carries two arguments, so its text is their tuple (the line break is inside the repr).
-    assert!(
-        outcome
-            .stderr
-            .ends_with("(23, 'R16 owner diagnostic\\n두 번째 줄')\n"),
-        "{}",
-        outcome.stderr
-    );
-    scratch.assert_temporary_directory_removed();
-
-    // A builtin class stays bare.
-    let tree = private_tree(&scratch);
-    append_to(&tree, READER, "\nraise ValueError(\"plain\")\n");
-    let outcome = run(LITE_REPORT, Some(&tree), &scratch, &[], &[]);
-    assert_eq!(outcome.status, Some(1));
-    assert!(
-        outcome.stderr.ends_with("\nValueError: plain\n"),
-        "{}",
-        outcome.stderr
-    );
-    assert!(!outcome.stderr.contains("builtins."), "{}", outcome.stderr);
-}
-
-#[test]
-fn raw_descriptor_writes_children_and_partial_prints_of_an_owner_reach_the_real_stream() {
-    let scratch = Scratch::new("raw-output");
-    let tree = private_tree(&scratch);
-    append_to(
-        &tree,
-        READER,
-        r#"
-import os as _raw_os
-import subprocess as _raw_process
-_raw_os.write(1, b"owner-fd:")
-_raw_process.run(["/bin/sh", "-c", "printf child-part"], check=True)
-print("python-tail", end="")
-raise BenchSectionFailure(23, "R16 raw owner diagnostic\n두 번째 줄")
-"#,
-    );
-    let outcome = run(LITE_REPORT, Some(&tree), &scratch, &[], &[]);
-    assert_eq!(outcome.status, Some(1));
-    // Neither the raw bytes nor the child's are lost, and no newline is added to the partial print.
-    assert_eq!(outcome.stdout, "owner-fd:child-partpython-tail");
-    assert!(
-        outcome.stderr.contains("_lite_rbs.BenchSectionFailure: "),
-        "{}",
-        outcome.stderr
-    );
-    scratch.assert_temporary_directory_removed();
-}
-
-#[test]
-fn owner_output_is_ordered_with_the_verifiers_buffered_lines_as_in_one_process() {
-    let scratch = Scratch::new("order");
-    let tree = private_tree(&scratch);
-    append_to(
-        &tree,
-        READER,
-        r#"
-import os as _order_os
-import subprocess as _order_process
-def parse_measurement_config(text):
-    print("owner-python", end="")
-    _order_os.write(1, b"owner-fd:")
-    _order_process.run(["/bin/sh", "-c", "printf child-part"], check=True)
-    print("-tail", end="")
-    raise BenchSectionFailure(23, "R16 owner call ordering\n두 번째 줄")
-"#,
-    );
-    let outcome = run(LITE_REPORT, Some(&tree), &scratch, &[], &[]);
-    assert_eq!(outcome.status, Some(1));
-    // Standard output is a pipe here, so the interpreter's block buffer holds the earlier check lines and the
-    // owner's Python-level text together until exit; the raw and child bytes were written at once and come first.
-    assert!(
-        outcome
-            .stdout
-            .starts_with("owner-fd:child-part  [PASS] L1 "),
-        "{}",
-        outcome.stdout
-    );
-    assert!(
-        outcome.stdout.ends_with("\nowner-python-tail"),
-        "{}",
-        outcome.stdout
-    );
-    // The first line carries the raw bytes in front of it, so count the marks rather than the line starts.
-    assert_eq!(
-        outcome.stdout.matches("[PASS] ").count(),
-        5,
-        "{}",
-        outcome.stdout
-    );
-    assert!(outcome
-        .stderr
-        .contains("_lite_rbs.BenchSectionFailure: (23, 'R16 owner call ordering\\n두 번째 줄')\n"));
-    scratch.assert_temporary_directory_removed();
-}
-
-#[test]
-fn a_diagnostic_larger_than_a_pipe_buffer_neither_deadlocks_nor_loses_bytes() {
-    let scratch = Scratch::new("large");
-    let tree = private_tree(&scratch);
-    append_to(
-        &tree,
-        READER,
-        r#"
-import sys as _large_sys
-_large_original = parse_measurement_config
-def parse_measurement_config(text):
-    print("A" * 300000, end="")
-    _large_sys.stderr.write("B" * 300000)
-    return _large_original(text)
-"#,
-    );
-    let outcome = run(LITE_REPORT, Some(&tree), &scratch, &[], &[]);
-    assert_eq!(
-        outcome.status,
-        Some(0),
-        "{}",
-        outcome.stderr.chars().take(300).collect::<String>()
-    );
-    assert!(outcome.stdout.contains(&"A".repeat(300_000)));
-    assert!(outcome.stderr.contains(&"B".repeat(300_000)));
-    // The partial prints run into the next line, so count the marks rather than the line starts.
-    assert_eq!(outcome.stdout.matches("[PASS] ").count(), 28);
-    scratch.assert_temporary_directory_removed();
 }
 
 #[test]
@@ -989,175 +764,3 @@ fn copying_over_an_existing_name_never_writes_through_a_shared_inode() {
     }
 }
 
-#[test]
-fn owner_error_text_precedes_a_later_raw_descriptor_write_to_standard_error() {
-    let scratch = Scratch::new("stderr-order");
-    let tree = private_tree(&scratch);
-    append_to(
-        &tree,
-        READER,
-        r#"
-import os as _edge_os
-import sys as _edge_sys
-print("owner-text-error", file=_edge_sys.stderr, flush=True)
-_edge_os.write(2, b"owner-raw-error\n")
-raise BenchSectionFailure(23, "R16 stderr order")
-"#,
-    );
-    let outcome = run(LITE_REPORT, Some(&tree), &scratch, &[], &[]);
-    assert_eq!(outcome.status, Some(1));
-    assert_eq!(outcome.stdout, "");
-    // The text was written before the raw bytes, and no newline was added or lost.
-    assert!(
-        outcome
-            .stderr
-            .starts_with("owner-text-error\nowner-raw-error\nTraceback (most recent call last):\n"),
-        "{}",
-        outcome.stderr
-    );
-    assert!(outcome
-        .stderr
-        .contains("_lite_rbs.BenchSectionFailure: (23, 'R16 stderr order')\n"));
-    scratch.assert_temporary_directory_removed();
-}
-
-#[test]
-fn an_unbuffered_stream_keeps_owner_text_in_program_order_with_raw_and_child_bytes() {
-    let scratch = Scratch::new("unbuffered-order");
-    let tree = private_tree(&scratch);
-    append_to(
-        &tree,
-        READER,
-        r#"
-import os as _edge_os
-import subprocess as _edge_process
-def parse_measurement_config(text):
-    print("owner-text:", end="")
-    _edge_os.write(1, b"owner-raw:")
-    _edge_process.run(["/bin/sh", "-c", "printf child-edge"], check=True)
-    print("-tail", end="")
-    raise BenchSectionFailure(23, "R16 unbuffered order")
-"#,
-    );
-    let outcome = run(
-        LITE_REPORT,
-        Some(&tree),
-        &scratch,
-        &[("PYTHONUNBUFFERED", OsStr::new("1"))],
-        &[],
-    );
-    assert_eq!(outcome.status, Some(1));
-    // Unbuffered: the earlier check lines were already written, and every owner write reached the stream in order.
-    assert!(
-        outcome.stdout.starts_with("  [PASS] L1 "),
-        "{}",
-        outcome.stdout
-    );
-    assert!(
-        outcome
-            .stdout
-            .ends_with("\nowner-text:owner-raw:child-edge-tail"),
-        "{}",
-        outcome.stdout
-    );
-    assert_eq!(
-        outcome.stdout.matches("[PASS] ").count(),
-        5,
-        "{}",
-        outcome.stdout
-    );
-    scratch.assert_temporary_directory_removed();
-}
-
-#[test]
-fn an_owner_child_inherits_the_programs_standard_input() {
-    let scratch = Scratch::new("stdin");
-    let tree = private_tree(&scratch);
-    append_to(
-        &tree,
-        READER,
-        r#"
-import subprocess as _edge_process
-print(_edge_process.check_output(["/bin/cat"]).decode(), end="")
-raise BenchSectionFailure(23, "R16 inherited stdin")
-"#,
-    );
-    let outcome = run_with_input(LITE_REPORT, &tree, &scratch, b"owner-stdin\n");
-    assert_eq!(outcome.status, Some(1));
-    assert_eq!(outcome.stdout, "owner-stdin\n");
-    assert!(outcome
-        .stderr
-        .contains("_lite_rbs.BenchSectionFailure: (23, 'R16 inherited stdin')\n"));
-    scratch.assert_temporary_directory_removed();
-}
-
-#[test]
-fn an_owner_flush_puts_the_buffered_lines_out_before_its_next_raw_write() {
-    let scratch = Scratch::new("flush-order");
-    let tree = private_tree(&scratch);
-    append_to(
-        &tree,
-        READER,
-        r#"
-import os as _edge_os
-def parse_measurement_config(text):
-    print("owner-flushed", end="", flush=True)
-    _edge_os.write(1, b"|raw|")
-    raise BenchSectionFailure(23, "R16 flush order")
-"#,
-    );
-    let outcome = run(LITE_REPORT, Some(&tree), &scratch, &[], &[]);
-    assert_eq!(outcome.status, Some(1));
-    // The flush empties the shared buffer (the earlier check lines and the owner's text) before the raw bytes.
-    assert!(
-        outcome.stdout.starts_with("  [PASS] L1 "),
-        "{}",
-        outcome.stdout
-    );
-    assert!(
-        outcome.stdout.ends_with("\nowner-flushed|raw|"),
-        "{}",
-        outcome.stdout
-    );
-    assert_eq!(
-        outcome.stdout.matches("[PASS] ").count(),
-        5,
-        "{}",
-        outcome.stdout
-    );
-    scratch.assert_temporary_directory_removed();
-}
-
-#[test]
-fn an_owner_interpreter_that_exits_before_the_handshake_is_a_named_failure() {
-    let root = canonical_root();
-    let scratch = Scratch::new("early-exit");
-    for program in [LITE_REPORT, LITE_GATE] {
-        let outcome = run(
-            program,
-            Some(&root),
-            &scratch,
-            &[("OWNER_BRIDGE_PYTHON", OsStr::new("/bin/false"))],
-            &[],
-        );
-        assert_eq!(outcome.status, Some(1));
-        assert_eq!(outcome.stdout, "");
-        assert!(
-            outcome
-                .stderr
-                .contains("OwnerBridgeError: the owner session ended before it answered `start`"),
-            "{}",
-            outcome.stderr
-        );
-    }
-    // The meta check starts no owner session: it runs the native producer and still passes.
-    let meta = run(
-        SWEEP_META,
-        Some(&root),
-        &scratch,
-        &[("OWNER_BRIDGE_PYTHON", OsStr::new("/bin/false"))],
-        &[],
-    );
-    assert_eq!(meta.status, Some(0), "{}", meta.stderr);
-    scratch.assert_temporary_directory_removed();
-}

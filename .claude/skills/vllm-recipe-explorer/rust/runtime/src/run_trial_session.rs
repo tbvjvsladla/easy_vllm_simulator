@@ -3,11 +3,12 @@
 //! poll with the container-liveness check, the functional smoke, the log capture into the simlog, the log parse and the
 //! always-run teardown (container, watchdog, page cache).
 //!
-//! Two neighbours have no Rust owner yet and are therefore NOT started from Python here (the session never launches an
-//! interpreter): the serving-budget declaration (`blackbox_session.py`, the blackbox plane) and the grounding backstop of an
-//! active campaign (`campaign_init.py --grounding-check`). Both stop the session with status 2 *before any docker action*, with
-//! the reason named; the explicit unprotected entry is `--no-budget` (the original records it as `budget_skipped`, which also
-//! needs the blackbox writer, so here it is a stderr line only). Nothing is skipped silently.
+//! Two neighbours are reached through their Rust owners' launchers (the session never launches an interpreter): the
+//! serving-budget declaration (`terraforming_node/scripts/node_blackbox/blackbox_session.sh` — declare / skip / clear, with the
+//! node directory from `node_identity.sh --resolve`, as `_budget_*` of the original) and, for the real-trial command line only,
+//! the grounding backstop of an active campaign (`terraforming_node/scripts/campaign_init.sh --grounding-check`, status 4 on
+//! refusal). An undeclarable budget is a warned, recorded `budget-skip` (the original's policy); `--no-budget` is the explicit
+//! unprotected entry (a stderr line: with no node directory there is nowhere to record it, as in the original).
 //! Progress lines go to stderr live, as in the original.
 
 use crate::functional_smoke::{smoke, Constants, Plain};
@@ -229,33 +230,319 @@ fn error_excerpt(text: &str) -> PyValue {
     PyValue::str(&chars[start..].iter().collect::<String>())
 }
 
-/// The grounding backstop and the budget dependency: both stop before any docker action. `Ok(())` = proceed.
-pub fn pre_session_gates(root: &Path, opts: &SessionOpts) -> Result<(), SessionError> {
-    // campaigns/ACTIVE: no pointer or a pointer to a missing instance = `_bootstrap` (the backstop passes by itself).
-    let base = root.join("campaigns");
-    let active = std::fs::read_to_string(base.join("ACTIVE"))
-        .ok()
-        .map(|t| t.trim().to_string())
-        .filter(|n| !n.is_empty() && base.join(n).is_dir());
-    match active {
-        None => err("[campaign_init] 그라운딩 검사 생략 — 활성 캠페인 없음(_bootstrap)\n"),
-        Some(name) => {
-            return Err(SessionError::Stop {
-                status: 2,
-                text: format!(
-                    "[run_trial] STOP: 활성 캠페인({})이 있어 그라운딩 백스톱(campaign_init --grounding-check · policy:LIBRARY_GROUNDING_FAIL_CLOSED C2)이 필요한데 그 검사의 Rust 소유자가 아직 없다 — Python 을 띄우지 않으므로 docker 에 진입하지 않는다(잔여: campaign_init grounding_reasons 이식).\n",
-                    name
-                ),
-            })
-        }
+/// The campaign writer's launcher (its Rust `campaign_init` owns `--grounding-check`).
+pub const CAMPAIGN_WRITER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.sh";
+
+/// The grounding entry backstop of `run_trial.py main()` (policy:LIBRARY_GROUNDING_FAIL_CLOSED C2): the campaign writer's
+/// `--grounding-check` runs with this process's streams; a non-zero status stops the trial with status 4 before any docker
+/// action. A missing writer is reported (silent omission ✗) and does not stop, as in the original. Only the real-trial command
+/// line calls this (the original's backstop sat in `main()`, not in `run_trial()` that `recipe.py simulate` calls).
+pub fn pre_session_gates(root: &Path, _opts: &SessionOpts) -> Result<(), SessionError> {
+    let writer = root.join(CAMPAIGN_WRITER_REL);
+    if !writer.is_file() {
+        err(&format!(
+            "[run_trial] ⚠ campaigns writer 부재({}) — 그라운딩 백스톱이 돌지 않았다(침묵 누락 ✗).\n",
+            writer.display()
+        ));
+        return Ok(());
     }
-    if !opts.no_budget {
+    let status = Command::new("bash").arg(&writer).arg("--grounding-check").status();
+    if !matches!(status, Ok(s) if s.success()) {
         return Err(SessionError::Stop {
-            status: 2,
-            text: "[run_trial] STOP: 예산 선언(blackbox_session declare-budget)의 Rust 소유자가 아직 없다 — Python 을 띄우지 않으므로 docker 에 진입하지 않는다(잔여: blackbox 이식). 무보호 진입을 명시하려면 --no-budget.\n".to_string(),
+            status: 4,
+            text: format!(
+                "[run_trial] STOP: 그라운딩 기록 없이 트라이얼에 진입하지 않는다(policy:LIBRARY_GROUNDING_FAIL_CLOSED C2).\n  → bash {} --ground --utc <UTC> 로 사서에게 먼저 물어라.\n  → 사서가 못 찾으면 그 사실이 기록에 남고 그대로 통과한다(공백은 차단이 아니다).\n",
+                writer.display()
+            ),
         });
     }
     Ok(())
+}
+
+// ── serving budget declaration (blackbox plane · `_budget_*` of the original) ─────────────────────────────────────────────
+
+/// The blackbox session sidecar's launcher (Rust `blackbox_session`, same command line as `blackbox_session.py`).
+pub const BLACKBOX_SESSION: &str = "blackbox_session.sh";
+const BUDGET_CALL_SECONDS: u64 = 60;
+
+/// `time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())` of `seconds` since the epoch (civil-from-days, proleptic Gregorian).
+pub fn utc_iso(seconds: i64) -> String {
+    let days = seconds.div_euclid(86_400);
+    let rem = seconds.rem_euclid(86_400);
+    let z = days + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = yoe + era * 400 + i64::from(month <= 2);
+    format!("{:04}-{:02}-{:02}T{:02}:{:02}:{:02}Z", year, month, day, rem / 3600, rem % 3600 / 60, rem % 60)
+}
+
+fn now_iso() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs() as i64);
+    utc_iso(secs)
+}
+
+/// A bounded child: `(status, stdout, stderr)`, or the reason it did not complete (`Type: message`, as the original's `%s: %s`).
+fn bounded(cmd: &mut Command, seconds: u64) -> Result<(Option<i32>, Vec<u8>, Vec<u8>), String> {
+    let mut child = cmd
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("OSError: {}", e))?;
+    let (mut out, mut er) = (child.stdout.take(), child.stderr.take());
+    let reader = std::thread::spawn(move || {
+        use std::io::Read;
+        let mut buf = Vec::new();
+        if let Some(o) = out.as_mut() {
+            let _ = o.read_to_end(&mut buf);
+        }
+        buf
+    });
+    let ereader = std::thread::spawn(move || {
+        use std::io::Read;
+        let mut buf = Vec::new();
+        if let Some(e) = er.as_mut() {
+            let _ = e.read_to_end(&mut buf);
+        }
+        buf
+    });
+    let deadline = Instant::now() + Duration::from_secs(seconds);
+    let status = loop {
+        match child.try_wait() {
+            Ok(Some(s)) => break s,
+            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(20)),
+            Ok(None) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                return Err(format!("TimeoutExpired: Command timed out after {} seconds", seconds));
+            }
+            Err(e) => return Err(format!("OSError: {}", e)),
+        }
+    };
+    Ok((status.code(), reader.join().unwrap_or_default(), ereader.join().unwrap_or_default()))
+}
+
+fn blackbox_session_path(root: &Path) -> PathBuf {
+    node_tool_path(root, "node_blackbox", BLACKBOX_SESSION)
+        .unwrap_or_else(|| root.join(".claude/skills/terraforming_node/scripts/node_blackbox").join(BLACKBOX_SESSION))
+}
+
+/// `_budget_session(node_dir, *args)`: one sidecar subcommand → `(succeeded, output stripped)`. The original merged stderr into
+/// stdout through one pipe; here stdout and then stderr are joined (the text is only quoted in a progress line).
+fn budget_session(root: &Path, node_dir: &str, args: &[String]) -> (bool, String) {
+    let mut cmd = Command::new("bash");
+    cmd.arg(blackbox_session_path(root)).arg("--node-dir").arg(node_dir).args(args);
+    match bounded(&mut cmd, BUDGET_CALL_SECONDS) {
+        Ok((code, mut out, er)) => {
+            out.extend_from_slice(&er);
+            (code == Some(0), String::from_utf8_lossy(&out).trim().to_string())
+        }
+        Err(reason) => (false, reason),
+    }
+}
+
+/// `budget_ttl_floor_s()`: the TTL floor asked from its single owner; an unreadable answer stops (no number is re-typed here).
+fn budget_ttl_floor_s(root: &Path) -> Result<i64, SessionError> {
+    let mut cmd = Command::new("bash");
+    cmd.arg(blackbox_session_path(root)).args(["--node-dir", ".", "budget-defaults", "--field", "ttl_s"]);
+    let (code, out, er) = bounded(&mut cmd, BUDGET_CALL_SECONDS).unwrap_or((None, Vec::new(), Vec::new()));
+    let text = String::from_utf8_lossy(&out).trim().to_string();
+    if code != Some(0) || text.is_empty() || !text.chars().all(|c| c.is_ascii_digit()) {
+        let stderr: String = String::from_utf8_lossy(&er).trim().chars().take(200).collect();
+        return Err(SessionError::Stop {
+            status: 1,
+            text: format!(
+                "[trial] FAIL: 예산 TTL 기본값을 blackbox_session 에서 읽지 못했다 — 여기에 숫자를 다시 적지 않는다(rc={} {})\n",
+                code.map_or("None".to_string(), |c| c.to_string()),
+                stderr
+            ),
+        });
+    }
+    text.parse::<i64>().map_err(|_| SessionError::Stop { status: 1, text: "[trial] FAIL: 예산 TTL 기본값이 범위를 넘는다\n".to_string() })
+}
+
+/// `_budget_node_dir(opts)`: explicit > the node-identity resolver (`node_identity.sh --resolve`) > `None` (logged).
+fn budget_node_dir(root: &Path, opts: &SessionOpts) -> Option<String> {
+    if let Some(explicit) = opts.budget_node_dir.as_ref().and_then(PyStr::to_utf8).filter(|e| !e.is_empty()) {
+        return Some(explicit);
+    }
+    let Some(resolver) = node_tool_path(root, "node_blackbox", "node_identity.sh") else {
+        err(&format!(
+            "[budget] node_id 해소기 부재 — {}(정본) · .claude/runtime/node_blackbox(서브 배달분) 어디에도 없다. 선언을 생략한다(추측하지 않는다).\n",
+            root.join(".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh").display()
+        ));
+        return None;
+    };
+    let mut cmd = Command::new("bash");
+    cmd.arg(&resolver).arg("--resolve").arg("--repo").arg(root);
+    let (code, out, er) = match bounded(&mut cmd, BUDGET_CALL_SECONDS) {
+        Ok(r) => r,
+        Err(reason) => {
+            err(&format!("[budget] node_id 해소기 실행 실패({}) — 선언을 생략한다.\n", reason));
+            return None;
+        }
+    };
+    if code != Some(0) {
+        // the resolver's fail-loud reason goes up as it is (swallowing it would be a silent fallback)
+        let _ = std::io::stderr().write_all(&er);
+        err(&format!("[budget] node_id 미해소(rc={}) — 선언을 생략한다.\n", code.map_or(-1, |c| c)));
+        return None;
+    }
+    let node_id = String::from_utf8_lossy(&out).trim().to_string();
+    // the resolver enforces the scheme already; it becomes a path component, so the consumer checks again
+    let mut chars = node_id.chars();
+    let scheme_ok = node_id.len() <= 32
+        && chars.next().is_some_and(|c| c.is_ascii_lowercase())
+        && chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-');
+    if !scheme_ok {
+        err(&format!("[budget] 해소기가 낸 node_id 가 스킴 위반이다({:?}) — 선언을 생략한다.\n", node_id));
+        return None;
+    }
+    Some(root.join("docs/logs").join(node_id).to_string_lossy().into_owned())
+}
+
+/// The declaration inputs (`_budget_inputs`), all MiB.
+#[derive(Clone, Debug, PartialEq)]
+pub struct BudgetInputs {
+    pub mem_total_mib: i64,
+    pub weights_mib: i64,
+    pub kv_mib: i64,
+    pub overhead_mib: i64,
+}
+
+const MIB: i64 = 1024 * 1024;
+
+fn ceil_div(a: i64, b: i64) -> i64 {
+    -((-a).div_euclid(b))
+}
+
+/// `_budget_inputs(candidate, opts)` over the facts it reads (`mem_total_mib` = `/proc/meminfo` MemTotal ÷ 1024): `Ok(Ok(inputs))`,
+/// `Ok(Err(skip reason))`, or the overhead declaration's fail-loud stop.
+pub fn budget_inputs(
+    kv_bytes: Option<i64>,
+    mem_total_mib: Option<i64>,
+    checkpoint_bytes: Option<i64>,
+    tp: Option<i64>,
+    overhead: Result<i64, String>,
+) -> Result<Result<BudgetInputs, &'static str>, SessionError> {
+    let Some(kv) = kv_bytes.filter(|k| *k != 0) else { return Ok(Err("kv_clamp_absent")) };
+    let Some(mem_total_mib) = mem_total_mib else { return Ok(Err("mem_total_unavailable")) };
+    let Some(ckpt) = checkpoint_bytes.filter(|c| *c > 0) else { return Ok(Err("checkpoint_size_unavailable")) };
+    let tp = tp.filter(|t| *t != 0).unwrap_or(1);
+    let overhead_mib = overhead.map_err(|m| SessionError::Stop { status: 1, text: format!("{}\n", m) })?;
+    Ok(Ok(BudgetInputs {
+        mem_total_mib,
+        // `-(-int(ckpt) // tp // M)`: ceil(ceil(ckpt ÷ tp) ÷ MiB) (ceil-div, the RAM gate's axis)
+        weights_mib: ceil_div(ceil_div(ckpt, tp), MIB),
+        kv_mib: ceil_div(kv, MIB),
+        overhead_mib,
+    }))
+}
+
+/// The checkpoint size the declaration uses: the caller's value, else the host model path's checkpoint files (`None` = the skip
+/// reason `checkpoint_size_unavailable` / `model_host_path_absent`).
+fn checkpoint_bytes(opts: &SessionOpts) -> Result<Option<i64>, &'static str> {
+    if let Some(c) = opts.checkpoint_bytes.filter(|c| *c != 0) {
+        return Ok(Some(c));
+    }
+    let Some(host) = opts.model_host_path.clone().filter(|h| h.to_utf8().is_some_and(|p| Path::new(&p).is_dir())) else {
+        return Err("model_host_path_absent");
+    };
+    match crate::memory::checkpoint_bytes_for(&PyValue::Str(host), None) {
+        Ok(v) => Ok(crate::pyexpr::int_of(&v).ok().and_then(|n| i64::try_from(n).ok())),
+        Err(_) => Err("checkpoint_size_unavailable"),
+    }
+}
+
+/// `_budget_skip(node_dir, reason, label)`: an unprotected entry is recorded, never silent.
+fn budget_skip(root: &Path, node_dir: Option<&str>, reason: &str, label: &str) {
+    err(&format!("[trial] ⚠ 예산 선언 생략(무보호 진입): {}\n", reason));
+    if let Some(dir) = node_dir {
+        let _ = budget_session(root, dir, &["budget-skip".into(), "--reason".into(), reason.into(), "--label".into(), label.into(), "--now".into(), now_iso()]);
+    }
+}
+
+/// The declaration step of `run_trial()` (after the narrow watchdog starts, before the load): `Ok(Some(node_dir))` when a
+/// declaration stands and must be cleared after teardown.
+fn budget_declare_step(root: &Path, opts: &SessionOpts, candidate: &PyValue, label: &str, timeout: f64) -> Result<Option<String>, SessionError> {
+    if opts.no_budget {
+        budget_skip(root, None, "no_budget_flag", label);
+        return Ok(None);
+    }
+    let Some(node_dir) = budget_node_dir(root, opts) else {
+        // without a node directory there is nowhere to record the event — stderr only, honestly
+        budget_skip(root, None, "node_dir_unresolved", label);
+        return Ok(None);
+    };
+    let kv = get(candidate, "kv_cache_memory_bytes")?;
+    let kv_bytes = if kv.is_truthy() { crate::pyexpr::float_of(&kv).ok().map(|f| f as i64) } else { None };
+    let inputs = if kv_bytes.is_none() {
+        Ok(Err("kv_clamp_absent"))
+    } else {
+        match read_meminfo_mib("MemTotal") {
+            None => Ok(Err("mem_total_unavailable")),
+            Some(total) => match checkpoint_bytes(opts) {
+                Err(reason) => Ok(Err(reason)),
+                Ok(ckpt) => budget_inputs(
+                    kv_bytes,
+                    Some(total),
+                    ckpt,
+                    opts.tp,
+                    require_overhead_mib(opts.overhead_mib, std::env::var(BUDGET_OVERHEAD_ENV).ok().as_deref()),
+                ),
+            },
+        }
+    }?;
+    let inputs = match inputs {
+        Ok(i) => i,
+        Err(reason) => {
+            budget_skip(root, Some(&node_dir), reason, label);
+            return Ok(None);
+        }
+    };
+    let ttl_s = budget_ttl_floor_s(root)?.max(timeout as i64 * 3);
+    let (ok, out) = budget_session(
+        root,
+        &node_dir,
+        &[
+            "declare-budget".into(),
+            "--mem-total-mib".into(),
+            inputs.mem_total_mib.to_string(),
+            "--weights-mib".into(),
+            inputs.weights_mib.to_string(),
+            "--kv-mib".into(),
+            inputs.kv_mib.to_string(),
+            "--overhead-mib".into(),
+            inputs.overhead_mib.to_string(),
+            "--ttl-s".into(),
+            ttl_s.to_string(),
+            "--expected-load-s".into(),
+            (timeout as i64).to_string(),
+            "--label".into(),
+            label.into(),
+            "--now".into(),
+            now_iso(),
+        ],
+    );
+    err(&format!("[trial] 예산 선언: {}\n", if out.is_empty() { if ok { "ok" } else { "실패" } } else { &out }));
+    if !ok {
+        budget_skip(root, Some(&node_dir), "declare_failed", label);
+        return Ok(None);
+    }
+    Ok(Some(node_dir))
+}
+
+/// `_budget_clear(node_dir)`: a declaration outlives the container, then goes (a stale one would arm the next load).
+fn budget_clear(root: &Path, node_dir: &str) {
+    let (ok, out) = budget_session(root, node_dir, &["clear-budget".into(), "--now".into(), now_iso()]);
+    err(&format!("[trial] 예산 회수: {}\n", if out.is_empty() { if ok { "ok" } else { "실패" } } else { &out }));
 }
 
 /// `run_trial(...)` for the real docker path. `candidate` is the loaded candidate; the result is the measured record.
@@ -373,15 +660,29 @@ pub fn run_session(
     let simlog_path = PathBuf::from(&sim_dir_text);
     let watchdog = start_memwatch(&root, &container, &simlog_path, trial_number, memwatch_thresh);
 
-    err("[trial] ⚠ 예산 선언 생략(무보호 진입): no_budget_flag\n");
+    // Serving budget declaration — right after the narrow watchdog, before the load (declare → honored → up, as the multi smoke).
+    let served_text = served_model_name.display_text().to_utf8().unwrap_or_default();
+    let budget_label = format!("trial{:02}-{}", trial_number, served_text.rsplit('/').next().unwrap_or(""));
+    let budget = match budget_declare_step(&root, opts, &candidate, &budget_label, timeout) {
+        Ok(b) => b,
+        Err(stop) => {
+            // the declaration's fail-loud stop happens before the load; the watchdog started above does not outlive it
+            stop_memwatch(watchdog);
+            return Err(stop);
+        }
+    };
     let outcome = session_body(
         &candidate, &docker_cmd, &container, port, timeout, smoke_timeout, &served_model_name, &log_path,
     );
 
-    // Always: container teardown, watchdog stop (PID based), page-cache drop.
+    // Always: container teardown, watchdog stop (PID based), page-cache drop, then the budget clear (after teardown: the
+    // declaration covers the load, so it outlives the container).
     docker_teardown(&container);
     stop_memwatch(watchdog);
     drop_caches_best_effort();
+    if let Some(node_dir) = &budget {
+        budget_clear(&root, node_dir);
+    }
 
     let body = outcome?;
     let mut d = PyDict::new();
@@ -480,4 +781,62 @@ fn session_body(
         error_excerpt: excerpt,
         health_wait: wait.to_value(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn utc_text_is_the_gmtime_format() {
+        assert_eq!(utc_iso(0), "1970-01-01T00:00:00Z");
+        assert_eq!(utc_iso(951_782_400), "2000-02-29T00:00:00Z");
+        assert_eq!(utc_iso(1_709_251_199), "2024-02-29T23:59:59Z");
+    }
+
+    #[test]
+    fn budget_inputs_follow_the_original_order_and_rounding() {
+        let gib = 1024 * MIB;
+        let ok = budget_inputs(Some(40 * gib + 1), Some(122_000), Some(65 * gib + 3), Some(2), Ok(17_971)).ok().unwrap();
+        // weights = ceil(ceil(ckpt ÷ tp) ÷ MiB), the original's `-(-c // tp // M)`
+        assert_eq!(
+            ok,
+            Ok(BudgetInputs { mem_total_mib: 122_000, weights_mib: 33_281, kv_mib: 40 * 1024 + 1, overhead_mib: 17_971 })
+        );
+        assert_eq!(budget_inputs(None, Some(1), Some(1), None, Ok(1)).ok().unwrap(), Err("kv_clamp_absent"));
+        assert_eq!(budget_inputs(Some(1), None, Some(1), None, Ok(1)).ok().unwrap(), Err("mem_total_unavailable"));
+        assert_eq!(budget_inputs(Some(1), Some(1), Some(0), None, Ok(1)).ok().unwrap(), Err("checkpoint_size_unavailable"));
+        // an undeclared overhead is the fail-loud stop, not a skip
+        assert!(matches!(budget_inputs(Some(1), Some(1), Some(1), None, Err("no".into())), Err(SessionError::Stop { status: 1, .. })));
+        let one = budget_inputs(Some(MIB), Some(1), Some(3 * MIB), Some(0), Ok(1)).ok().unwrap().unwrap();
+        assert_eq!(one.weights_mib, 3);
+        // ceil before ceil: (2 MiB + 1) ÷ 2 → 1 MiB + 1 byte → 2 MiB (a floor first would say 1)
+        let two = budget_inputs(Some(MIB), Some(1), Some(2 * MIB + 1), Some(2), Ok(1)).ok().unwrap().unwrap();
+        assert_eq!(two.weights_mib, 2);
+    }
+
+    #[test]
+    fn the_budget_sidecar_is_the_rust_launcher_and_a_failing_call_is_reported() {
+        let dir = std::env::temp_dir().join(format!("rts-budget-{}", std::process::id()));
+        let plane = dir.join(".claude/skills/terraforming_node/scripts/node_blackbox");
+        std::fs::create_dir_all(&plane).unwrap();
+        assert_eq!(blackbox_session_path(&dir), plane.join(BLACKBOX_SESSION));
+        // a stand-in launcher (test plane): echoes its argv, refuses declare-budget
+        std::fs::write(
+            plane.join(BLACKBOX_SESSION),
+            "echo \"$*\"; case \" $* \" in *' declare-budget '*) echo refused >&2; exit 3;; esac\n",
+        )
+        .unwrap();
+        let (ok, out) = budget_session(&dir, "/n", &["clear-budget".into(), "--now".into(), "T".into()]);
+        assert!(ok);
+        assert_eq!(out, "--node-dir /n clear-budget --now T");
+        let (ok, out) = budget_session(&dir, "/n", &["declare-budget".into()]);
+        assert!(!ok);
+        assert_eq!(out, "--node-dir /n declare-budget\nrefused");
+        // budget-defaults must answer digits, else the stop names the owner
+        assert!(matches!(budget_ttl_floor_s(&dir), Err(SessionError::Stop { status: 1, .. })));
+        std::fs::write(plane.join(BLACKBOX_SESSION), "echo 7200\n").unwrap();
+        assert_eq!(budget_ttl_floor_s(&dir).ok(), Some(7200));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

@@ -345,6 +345,16 @@ pub fn realpath(p: &str) -> String {
 
 // ── supervisor ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 
+thread_local! {
+    /// CHECK-ONLY seam (the lifecycle self-test's `relay.supervise_decide = lambda ...: {...}`): when set, the supervisor
+    /// takes this fixed decision instead of computing one. In-process only; production never sets it.
+    pub static SUPERVISE_DECIDE_HOOK: std::cell::RefCell<Option<V>> = const { std::cell::RefCell::new(None) };
+}
+
+fn check_hook_supervise_decide() -> Option<V> {
+    SUPERVISE_DECIDE_HOOK.with(|h| h.borrow().clone())
+}
+
 pub fn supervise_step(a0: &Args) -> Res<i32> {
     let camp = a0.supervise_step.clone().unwrap_or_default();
     let ledgers = campaign_ledgers(&a0.repo_root, &camp);
@@ -368,7 +378,10 @@ pub fn supervise_step(a0: &Args) -> Res<i32> {
         ensure_recovery_pending(&a.repo_root, &doc)?;
         let brief = read_brief(&a.repo_root, &node);
         let dp = doc_plane_progress(&a.repo_root, &doc);
-        let mut decision = supervise_decide(&doc, &brief, &a.ladder, dp.as_deref());
+        let mut decision = match check_hook_supervise_decide() {
+            Some(fixed) => fixed,
+            None => supervise_decide(&doc, &brief, &a.ladder, dp.as_deref()),
+        };
         if is_any(g(&decision, "action"), &["resume", "rotate_runner"]) {
             let deferred = g(&doc, "capacity_deferred").clone();
             let last = last_attempt(&doc).cloned().unwrap_or(V::None);

@@ -27,20 +27,17 @@
 //! `module` is the checkout path of `campaign_init.py` (`REPO_ROOT` is `Path(module).resolve().parents[4]`); it is read as bytes
 //! and a path only, never imported or run.
 //!
-//! **Routes.** The native answer is the original's only for the *reviewed* sources: the campaign module (and, when named, the
-//! owner) must be byte-identical to the canonical originals (`role_contract::source_identity`). For any other source the
-//! answer is `kind: "unmet_condition"` with `route: "LegacySourceVariant"` - the source-version compatibility route is served
-//! by the approved generic original-function carrier (`scripts/topology_legacy_api.py`, found beside the native programs or named by
-//! `compat.bridge_script`) and answers `legacy_observation`; only when that carrier is not installed/named is it `unmet_condition`
-//! (never imitated).
+//! **Routes.** The native answer is given only for the *reviewed* sources: the campaign module (and, when named, the owner)
+//! must be byte-identical to the canonical originals (`role_contract::source_identity`). For any other source the answer is
+//! `kind: "unmet_condition"` with `route: "LegacySourceVariant"`. The source-version compatibility route that used to run the
+//! original function through `scripts/topology_legacy_api.py` under an interpreter is retired (plan_26111615 pass 3): no
+//! Python runs and nothing is imitated.
 //!
 //! **Unmet answers execute nothing** (`executed: false` on every `unmet_condition` answer). Their `route` is
-//! `"LegacySourceVariant"` when the source calls for the compatibility route but it could not be served (the route the source
-//! requires - not a claim that it ran), and `"NotExecuted"` for every other unmet condition (a rejected `compat.deadline_ms`,
-//! a missing argument, an owner gate): such an answer never claims `NativeCurrentSource`, a program that did not run.
-//! `compat.deadline_ms`, when present, must be an integer `>= 0` whose deadline the clock can represent (0 is an already
-//! expired deadline, kept as declared); anything else is the unmet condition `InvalidCompatDeadline`, never a default.
-//! A `legacy_observation` / `legacy_control_incomplete` observation echoes the executed bridge script as `bridge_script`.
+//! `"LegacySourceVariant"` when the source is not the reviewed one, and `"NotExecuted"` for every other unmet condition (a
+//! rejected `compat.deadline_ms`, a missing argument, an owner gate): such an answer never claims `NativeCurrentSource`, a
+//! program that did not run. `compat.deadline_ms`, when present, must be an integer `>= 0` whose deadline the clock can
+//! represent; anything else is the unmet condition `InvalidCompatDeadline`, never a default.
 //!
 //! **Answer**: `{"id", "kind": "value"|"exception"|"unmet_condition"|"incomplete", "route", "value"|"exception"|"condition",
 //! "bridge": {...}}`.
@@ -58,7 +55,6 @@
 //!   `frames_complete: false` (the caller's frames are not part of the business frames and native code has no Python
 //!   caller), `observer_frames: "none"`, `attributes_incomplete`, `module_alias_missing`, `bridge_error`.
 
-use crate::captured_process::{run_captured_in, ChildSettings};
 use crate::cli::{write_stderr, Streams};
 use crate::pystr::PyStr as ProcessStr;
 use agent_runtime_support::pyjson::{decode_file_text, loads_objects};
@@ -68,8 +64,6 @@ use role_contract::campaign::{self, Derived, ModuleSite};
 use role_contract::pyprofile::{with_profile, TextProfile};
 use role_contract::source_identity::{identify, route, Identity, Route, REVIEWED_CAMPAIGN};
 use role_contract::topology::{self, Crash, Detail, Frame, Where};
-use std::sync::atomic::{AtomicU32, Ordering};
-use std::sync::Arc;
 use std::time::Duration;
 
 const NATIVE_HELP: &str = "topology_parity_api Rust-only commands:\n  topology_parity_api evaluate-jsonl   JSON lines on stdin: {id, operation, arguments[, source_owner, module_alias, compat_owner]}\n  topology_parity_api native-help      this text\n";
@@ -154,23 +148,15 @@ enum Outcome {
     Value(PyValue),
     Exception(Box<ExceptionRecord>),
     Unmet(String),
-    /// The complete observation of the source-version compatibility route (the actual original function ran in a child).
-    Legacy(PyValue),
-    /// The compatibility child hit the private transport limit or could not be run: incomplete control, no business result.
-    LegacyControlIncomplete(PyValue),
 }
 
-/// What the caller configures for the source-version compatibility route (project policy defaults apply when absent).
+/// What the request names besides its arguments: the logical owner path, the real program a request may name (its bytes
+/// decide whether the native answer applies), and a declared `compat.deadline_ms` (still validated: N11).
 struct Context {
     owner: Vec<u8>,
     compat_owner: Option<Vec<u8>>,
-    alias: Option<String>,
-    id: PyValue,
-    deadline_ms: u64,
     /// Why the declared `compat.deadline_ms` is not a valid deadline (N11: rejected, never defaulted).
     deadline_error: Option<String>,
-    compat_python: Vec<u8>,
-    bridge_script: Option<Vec<u8>>,
 }
 
 /// An exception of the original: the business record and the bridge metadata kept apart from it.
@@ -548,256 +534,20 @@ fn unmet(route: &str, why: &str) -> Outcome {
     Outcome::Unmet(format!("{route}: {why}"))
 }
 
-fn input_dto(value: &PyValue) -> PyValue {
-    match value.peel() {
-        PyValue::Str(text) => tagged("str", PyValue::Str(text.clone())),
-        PyValue::Dict(d) => match (d.get("type"), d.get("value")) {
-            (Some(kind), Some(inner)) if matches!(kind.peel(), PyValue::Str(k) if k.equals("Path")) => {
-                tagged("path", inner.clone())
-            }
-            _ => dto(value, "argument", &mut Vec::new()),
-        },
-        other => dto(other, "argument", &mut Vec::new()),
-    }
-}
-
-fn find_scripts_bridge() -> Option<Vec<u8>> {
-    let exe = std::env::current_exe().ok()?;
-    for ancestor in exe.ancestors() {
-        if ancestor.file_name().is_some_and(|name| name == "rust") {
-            let script = ancestor
-                .parent()?
-                .join("scripts")
-                .join("topology_legacy_api.py");
-            return script
-                .is_file()
-                .then(|| std::os::unix::ffi::OsStrExt::as_bytes(script.as_os_str()).to_vec());
-        }
-    }
-    None
-}
-
-/// A private, unpredictable, exclusive `0700` directory for one compatibility call; removed with everything in it on every
-/// return path.
-struct PrivateDir(std::path::PathBuf);
-
-impl PrivateDir {
-    fn create() -> Result<PrivateDir, String> {
-        use std::io::Read;
-        use std::os::unix::fs::DirBuilderExt;
-        let mut random = [0u8; 12];
-        std::fs::File::open("/dev/urandom")
-            .and_then(|mut f| f.read_exact(&mut random))
-            .map_err(|error| format!("no randomness for the private directory: {error}"))?;
-        let name: String = random.iter().map(|b| format!("{b:02x}")).collect();
-        let path = std::env::temp_dir().join(format!("topology_legacy_{name}"));
-        std::fs::DirBuilder::new()
-            .mode(0o700)
-            .create(&path)
-            .map_err(|error| format!("the private directory cannot be created: {error}"))?;
-        Ok(PrivateDir(path))
-    }
-}
-
-impl Drop for PrivateDir {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_dir_all(&self.0);
-    }
-}
-
-/// The source-version compatibility route of an original function: the approved generic child
-/// (`topology_legacy_api.py --mode SourceVersionCompat --request ABS --result ABS`) runs the REAL selected module under the
-/// configured interpreter through the bounded capture (own process group, private transport limit); its raw stdout/stderr,
-/// exit status, PID and exclusive typed sidecar are returned together, unchanged. A relative real module path is made
-/// absolute against the current directory; nothing is retried and no field is filled in. A transport deadline or control
-/// failure is a `legacy_control_incomplete` observation, never a business result.
+/// A source that is not the reviewed one: the source-version compatibility route that ran the original function through
+/// `topology_legacy_api.py` is retired (plan_26111615 pass 3), so the answer is the unmet condition of that route. Nothing
+/// runs (`executed: false`); the native answer is not given for a source it was not reviewed against.
 fn legacy(
-    ctx: &Context,
-    operation: &str,
-    args: &PyDict,
-    module: Option<&[u8]>,
+    _ctx: &Context,
+    _operation: &str,
+    _args: &PyDict,
+    _module: Option<&[u8]>,
     reason: &str,
 ) -> Outcome {
-    use std::io::Write;
-    use std::os::unix::ffi::OsStrExt;
-    use std::os::unix::fs::OpenOptionsExt;
-    let Some(module) = module.filter(|m| !m.is_empty() && !m.contains(&0)) else {
-        return unmet("LegacySourceVariant", &format!("{reason}; the real original module for this operation must be named by `compat_owner` (or `module`)"));
-    };
-    let module = topology::abspath(module);
-    let Some(script) = ctx.bridge_script.clone().or_else(find_scripts_bridge) else {
-        return unmet("LegacySourceVariant", &format!("{reason}; the approved generic bridge topology_legacy_api.py is not installed beside the native programs and the request names none"));
-    };
-    let get = |name: &str, default: Option<&str>| -> Option<PyValue> {
-        args.get(name).cloned().or_else(|| default.map(s))
-    };
-    let (positional, keywords): (&[&str], &[&str]) = match operation {
-        "read_layer_header" => (&["path"], &[]),
-        "layer_files" => (&["repo"], &[]),
-        "evaluate" => (&["repo"], &["expect"]),
-        "active_campaign_id" | "campaigns_dir" => (&[], &["repo_root"]),
-        "read_declaration" => (&["base"], &[]),
-        _ => (
-            &["kind"],
-            &["cell", "sweep", "context", "camp_id", "repo_root"],
-        ),
-    };
-    let mut args_dto = Vec::new();
-    for name in positional {
-        let default = if operation == "evaluate" {
-            Some(".")
-        } else {
-            None
-        };
-        match get(name, default) {
-            Some(value) => args_dto.push(input_dto(&value)),
-            None => return unmet("Unmet", &format!("missing required argument: '{name}'")),
-        }
-    }
-    let mut kwargs_dto = Vec::new();
-    for name in keywords {
-        if let Some(value) = args.get(name) {
-            kwargs_dto.push(PyValue::List(vec![
-                tagged("str", s(name)),
-                input_dto(value),
-            ]));
-        }
-    }
-    let alias = ctx
-        .alias
-        .clone()
-        .unwrap_or_else(|| "topology_legacy_module".to_string());
-    let mut request = PyDict::new();
-    request.set("schema", s("topology-legacy-api/1"));
-    request.set("mode", s("SourceVersionCompat"));
-    request.set("id", ctx.id.clone());
-    request.set(
-        "module_path",
-        PyValue::Str(role_contract::pyprofile::fs_decode(&module)),
-    );
-    request.set("module_alias", s(&alias));
-    request.set("operation", s(operation));
-    request.set("args_dto", tagged("list", PyValue::List(args_dto)));
-    request.set("kwargs_dto", tagged("dict", PyValue::List(kwargs_dto)));
-    let mut logical = PyDict::new();
-    logical.set(
-        "source_owner",
-        PyValue::Str(role_contract::pyprofile::fs_decode(&ctx.owner)),
-    );
-    request.set("logical_source_context", PyValue::Dict(logical));
-    let rendered = match PyValue::Dict(request.clone()).dumps_ascii() {
-        Ok(text) => text,
-        Err(_) => return unmet("Unmet", "the request cannot be rendered as JSON"),
-    };
-    let directory = match PrivateDir::create() {
-        Ok(directory) => directory,
-        Err(why) => return unmet("Unmet", &why),
-    };
-    let request_path = directory.0.join("request.json");
-    let result_path = directory.0.join("result.json");
-    let written = std::fs::OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(&request_path)
-        .and_then(|mut file| file.write_all(rendered.as_bytes()));
-    if let Err(error) = written {
-        return unmet(
-            "Unmet",
-            &format!("the request file cannot be written: {error}"),
-        );
-    }
-    let words: Vec<std::ffi::OsString> = vec![
-        std::ffi::OsStr::from_bytes(&ctx.compat_python).to_os_string(),
-        "-B".into(),
-        std::ffi::OsStr::from_bytes(&script).to_os_string(),
-        "--mode".into(),
-        "SourceVersionCompat".into(),
-        "--request".into(),
-        request_path.clone().into_os_string(),
-        "--result".into(),
-        result_path.clone().into_os_string(),
-    ];
-    let shown: Vec<crate::pyvalue::PyValue> = words
-        .iter()
-        .map(|w| crate::pyvalue::PyValue::Str(ProcessStr::from_surrogateescape(w.as_bytes())))
-        .collect();
-    let pid = Arc::new(AtomicU32::new(0));
-    // stdin DEVNULL as the approved child requires: the capture's `input` pipe would not be a null device, so the child
-    // gets its null stdin through the shell-free `Stdio` default of the settings below
-    let settings = ChildSettings {
-        own_process_group: true,
-        pid_sink: Some(pid.clone()),
-        null_stdin: true,
-        ..ChildSettings::default()
-    };
-    let limit = Duration::from_millis(ctx.deadline_ms);
-    let limit_text = format!("{}", ctx.deadline_ms as f64 / 1000.0);
-    let outcome = run_captured_in(&words, &shown, limit, &limit_text, &settings);
-    let child_pid = pid.load(Ordering::SeqCst);
-    let hex = |bytes: &[u8]| -> String { bytes.iter().map(|b| format!("{b:02x}")).collect() };
-    let mut observation = PyDict::new();
-    observation.set(
-        "child_pid",
-        if child_pid == 0 {
-            PyValue::None
-        } else {
-            PyValue::int(child_pid)
-        },
-    );
-    observation.set(
-        "interpreter",
-        PyValue::Str(role_contract::pyprofile::fs_decode(&ctx.compat_python)),
-    );
-    observation.set(
-        "module_path",
-        PyValue::Str(role_contract::pyprofile::fs_decode(&module)),
-    );
-    observation.set(
-        "bridge_script",
-        PyValue::Str(role_contract::pyprofile::fs_decode(&script)),
-    );
-    observation.set("limit_ms", PyValue::int(ctx.deadline_ms));
-    observation.set("request", PyValue::Dict(request));
-    let captured = match outcome {
-        Ok(captured) => captured,
-        Err(failure) => {
-            observation.set("control_failure", s(failure.class));
-            observation.set(
-                "control_message",
-                PyValue::Str(PyStr::from_surrogateescape(
-                    failure.message.to_utf8().unwrap_or_default().as_bytes(),
-                )),
-            );
-            observation.set("complete", PyValue::Bool(false));
-            return Outcome::LegacyControlIncomplete(PyValue::Dict(observation));
-        }
-    };
-    observation.set(
-        "exit_code",
-        if captured.status < 0 {
-            PyValue::None
-        } else {
-            PyValue::int(captured.status)
-        },
-    );
-    if captured.status < 0 {
-        observation.set("signal", PyValue::int(-captured.status));
-    }
-    observation.set("stdout_hex", s(&hex(&captured.stdout)));
-    observation.set("stderr_hex", s(&hex(&captured.stderr)));
-    match std::fs::read(&result_path) {
-        Ok(bytes) => match decode_file_text(&bytes)
-            .ok()
-            .and_then(|t| t.to_utf8())
-            .map(|t| loads_objects(&t))
-        {
-            Some(Ok(sidecar)) => observation.set("sidecar", sidecar),
-            _ => observation.set("sidecar_error", s("the sidecar is not readable JSON")),
-        },
-        Err(error) => observation.set("sidecar_error", s(&format!("no sidecar: {error}"))),
-    }
-    Outcome::Legacy(PyValue::Dict(observation))
+    unmet(
+        "LegacySourceVariant",
+        &format!("{reason}; the source-version compatibility route (Python original) is retired - only the reviewed source is answered natively"),
+    )
 }
 
 fn run_operation(
@@ -1047,13 +797,6 @@ fn evaluate_row(row: &PyValue) -> PyValue {
         .and_then(|t| t.to_utf8());
     let mut unsupported = Vec::new();
     let compat = request.get("compat").map(PyValue::peel);
-    let compat_text = |key: &str| match compat {
-        Some(PyValue::Dict(d)) => d
-            .get(key)
-            .and_then(text_of)
-            .and_then(|t| role_contract::pyprofile::fs_encode(&t).ok()),
-        _ => None,
-    };
     let deadline: Result<u64, String> = match compat {
         Some(PyValue::Dict(d)) => match d.get("deadline_ms").map(PyValue::peel) {
             None => Ok(60_000),
@@ -1084,12 +827,7 @@ fn evaluate_row(row: &PyValue) -> PyValue {
     let ctx = Context {
         owner,
         compat_owner,
-        alias: alias.clone(),
-        id: request.get("id").cloned().unwrap_or(PyValue::None),
-        deadline_ms: deadline.as_ref().copied().unwrap_or(60_000),
         deadline_error: deadline.as_ref().err().cloned(),
-        compat_python: compat_text("python").unwrap_or_else(|| b"python3".to_vec()),
-        bridge_script: compat_text("bridge_script"),
     };
     // N11: a declared deadline that is not a valid one is rejected BEFORE anything runs (never defaulted, never executed)
     let outcome = if let Some(why) = ctx.deadline_error.as_deref() {
@@ -1131,16 +869,6 @@ fn evaluate_row(row: &PyValue) -> PyValue {
                 PyValue::Dict(d) => d,
                 _ => PyDict::new(),
             };
-        }
-        Ok(Outcome::LegacyControlIncomplete(observation)) => {
-            out.set("kind", s("legacy_control_incomplete"));
-            out.set("route", s("LegacySourceVariant"));
-            out.set("observation", observation);
-        }
-        Ok(Outcome::Legacy(observation)) => {
-            out.set("kind", s("legacy_observation"));
-            out.set("route", s("LegacySourceVariant"));
-            out.set("observation", observation);
         }
         Ok(Outcome::Unmet(condition)) => {
             out.set("kind", s("unmet_condition"));

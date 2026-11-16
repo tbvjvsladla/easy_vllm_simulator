@@ -1031,14 +1031,14 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
     checks.push(rr("antipattern_scan_selftest", &["bash", ANTIPATTERN_SCAN_LAUNCHER, "--self-test"], &[0]));
     checks.push(rr("constitution_lint_selftest", &["bash", CONSTITUTION_LINT_LAUNCHER, "--self-test"], &[0]));
     checks.push(rr("agent_control_selftest", &["bash", &format!("{tn}/agent_control.sh"), "--self-test"], &[0]));
-    checks.push(p("harness_switch_integration_selftest", &format!("{tn}/selftest_harness_switch.py"), &["-B"], &[0]));
-    checks.push(p("claude_native_events_selftest", &format!("{tn}/selftest_claude_native_events.py"), &["-B"], &[0]));
+    checks.push(rr("harness_switch_integration_selftest", &["bash", &format!("{tn}/selftest_harness_switch.sh")], &[0]));
+    checks.push(rr("claude_native_events_selftest", &["bash", &format!("{tn}/selftest_claude_native_events.sh")], &[0]));
     checks.push(rr("terraform_turn_budget_selftest", &["bash", &format!("{tn}/turn_budget.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_relay_selftest", &["bash", &format!("{tn}/relay.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_bootstrap_canary_selftest", &["bash", &format!("{tn}/bootstrap_canary.sh"), "--self-test"], &[0]));
-    checks.push(p("terraform_bootstrap_permissions_selftest", &format!("{tn}/selftest_bootstrap_permissions.py"), &["-B"], &[0]));
+    checks.push(rr("terraform_bootstrap_permissions_selftest", &["bash", &format!("{tn}/selftest_bootstrap_permissions.sh")], &[0]));
     checks.push(rr("terraform_rust_bootstrap_selftest", &["bash", &format!("{tn}/selftest_rust_bootstrap.sh")], &[0]));
-    checks.push(p("terraform_sub_hint_write_scopes_selftest", &format!("{tn}/selftest_sub_hint_write_scopes.py"), &["-B"], &[0]));
+    checks.push(rr("terraform_sub_hint_write_scopes_selftest", &["bash", &format!("{tn}/selftest_sub_hint_write_scopes.sh")], &[0]));
     checks.push(rr("terraform_check_sub_hint_equip_selftest", &["bash", &format!("{tn}/check_sub_hint_equip.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_agent_guard_selftest", &["bash", &format!("{tn}/node_blackbox/agent_guard.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_node_identity_selftest", &["bash", &format!("{tn}/node_blackbox/node_identity.sh"), "--self-test"], &[0]));
@@ -1080,7 +1080,7 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
     checks.push(bash("recipe_estimate_vram_selftest", &format!("{rx}/estimate_vram.sh"), &["--self-test"], &[0]));
     checks.push(bash("recipe_run_trial_selftest", &format!("{rx}/run_trial.sh"), &["--self-test"], &[0]));
     checks.push(bash("campaign_init_selftest", &format!("{tn}/campaign_init.sh"), &["--selftest"], &[0]));
-    checks.push(p("campaign_lifecycle_selftest", &format!("{tn}/selftest_campaign_lifecycle.py"), &[], &[0]));
+    checks.push(bash("campaign_lifecycle_selftest", &format!("{tn}/selftest_campaign_lifecycle.sh"), &[], &[0]));
     checks.push(bash("campaign_template_validator_selftest", &format!("{tn}/campaign_template_validator.sh"), &["--selftest"], &[0]));
     checks.push(rr("blackbox_session_selftest", &["bash", &format!("{tn}/node_blackbox/blackbox_session.sh"), "--self-test"], &[0]));
     checks.push(bash("benchmark_sweep_meta_selftest", &format!("{ab}/selftest_sweep_meta.sh"), &[], &[0]));

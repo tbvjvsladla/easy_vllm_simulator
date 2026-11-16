@@ -76,9 +76,11 @@ fn field_of(doc: &str, branch: &str, key: &str) -> Option<String> {
     Some(line.split_once(':')?.1.trim().trim_end_matches(',').to_string())
 }
 
-/// The hintlib module is Python and is never loaded here; its `PUSH_SCOPE_ARGS = (...)` literal is read as text (one anchor, else fail).
+/// The owner is the Rust hintlib (`hint-publisher/rust/src/tag.rs`, the port of `hintlib/tag.py`); it is not a dependency of this
+/// crate, so its `pub const PUSH_SCOPE_ARGS: [&str; N] = [...];` declaration is read as text (one anchor, else fail) — no `.py`.
 fn hintlib_scope_args() -> Result<Vec<String>, String> {
-    const REL: &str = ".claude/skills/hint-publisher/scripts/hintlib/tag.py";
+    const REL: &str = ".claude/skills/hint-publisher/rust/src/tag.rs";
+    const ANCHOR: &str = "pub const PUSH_SCOPE_ARGS: [&str; ";
     let mut roots: Vec<PathBuf> = Vec::new();
     if let Ok(exe) = std::env::current_exe() {
         roots.extend(exe.ancestors().map(Path::to_path_buf));
@@ -88,19 +90,26 @@ fn hintlib_scope_args() -> Result<Vec<String>, String> {
     }
     let path = roots.iter().map(|r| r.join(REL)).find(|p| p.is_file()).ok_or_else(|| format!("실물 hintlib 이 없다: {REL}"))?;
     let text = fs::read_to_string(&path).map_err(|e| e.to_string())?;
-    let anchors: Vec<&str> = text.lines().filter(|l| l.starts_with("PUSH_SCOPE_ARGS = (")).collect();
+    let anchors: Vec<&str> = text.lines().filter(|l| l.starts_with(ANCHOR)).collect();
     if anchors.len() != 1 {
         return Err(format!("PUSH_SCOPE_ARGS 앵커 {}건(1건이어야 한다)", anchors.len()));
     }
-    let inner = anchors[0].trim_start_matches("PUSH_SCOPE_ARGS = (").split(')').next().unwrap_or("");
-    Ok(inner.split(',').map(|x| x.trim().trim_matches(|c| c == '"' || c == '\'')).filter(|x| !x.is_empty()).map(String::from).collect())
+    // `pub const PUSH_SCOPE_ARGS: [&str; 2] = ["--no-follow-tags", "--no-recurse-submodules"];`
+    let (count, rest) = anchors[0][ANCHOR.len()..].split_once(']').ok_or("PUSH_SCOPE_ARGS 선언 모양이 아니다")?;
+    let inner = rest.split_once('[').map(|(_, r)| r).ok_or("PUSH_SCOPE_ARGS 값 목록이 없다")?;
+    let inner = inner.split_once(']').map(|(l, _)| l).ok_or("PUSH_SCOPE_ARGS 값 목록이 닫히지 않았다")?;
+    let items: Vec<String> = inner.split(',').map(|x| x.trim().trim_matches('"')).filter(|x| !x.is_empty()).map(String::from).collect();
+    if count.trim().parse::<usize>().ok() != Some(items.len()) {
+        return Err(format!("PUSH_SCOPE_ARGS 길이 {count} ≠ 값 {}개", items.len()));
+    }
+    Ok(items)
 }
 
 fn scenario(fx: &mut Fx) -> Result<(), String> {
     let root = fx.root.clone();
     let scope = hintlib_scope_args();
     let want: Vec<String> = crate::push_branches::SCOPE_ARGS.iter().map(|s| s.to_string()).collect();
-    fx.ck("폴백 범위 옵션 == hintlib.tag.PUSH_SCOPE_ARGS(교차 대조 · tag.py 텍스트 파싱)", scope.as_ref().map(|s| *s == want).unwrap_or(false), &format!("{scope:?}"));
+    fx.ck("폴백 범위 옵션 == hintlib::tag::PUSH_SCOPE_ARGS(교차 대조 · Rust tag.rs 선언 파싱)", scope.as_ref().map(|s| *s == want).unwrap_or(false), &format!("{scope:?}"));
     let gcfg = root.join("gitconfig");
     fs::write(&gcfg, "[user]\n\tname = selftest\n\temail = t@t\n[commit]\n\tgpgsign = false\n[tag]\n\tgpgSign = false\n[core]\n\thooksPath = /dev/null\n").map_err(|e| e.to_string())?;
     fx.env = vec![

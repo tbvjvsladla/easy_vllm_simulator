@@ -45,7 +45,7 @@
   },
   "exit_code": 5,
   "stdout": "",
-  "stderr": "[resolve_topology] 해소 불가 — 4자일치 판정자(.claude/policies/runtime/topology_parity.py)가 없다 — manifest는 있지만 어느 통로가 이 노드의 사실인지 확인할 수 없다\n"
+  "stderr": "[resolve_topology] 해소 불가 — 4자일치 RED — BRANCH_UNKNOWN: 브랜치 None 에서 토폴로지 통로를 고를 수 없다 -- `single-node`/`multi-node` 중 하나를 체크아웃하거나 호출부가 --expect 를 명시해야 한다 (unknown 을 single 로 삼던 침묵 기본값은 폐지됐다) / LAYER_ABSENT: 특화헌법 파일이 0개다 -- 추적 트리에 `*.topology.md` 가 하나도 없으면 이 체크아웃은 어느 토폴로지의 헌법을 읽고 있는지 스스로 말하지 못한다 (자동 교정하지 않는다 · 체크아웃 전환인지 선언 수정인지는 사람이 정한다 · 급하면 --topology 명시)\n"
  },
  {
   "id": "002-pass-single",
@@ -77,10 +77,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -110,10 +106,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 0,
@@ -150,10 +142,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -183,10 +171,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 0,
@@ -223,10 +207,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -256,10 +236,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 5,
@@ -296,10 +272,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -329,10 +301,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 5,
@@ -369,10 +337,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -402,10 +366,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 5,
@@ -442,10 +402,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -475,10 +431,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 5,
@@ -515,10 +467,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -548,10 +496,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 5,
@@ -588,10 +532,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -621,10 +561,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 5,
@@ -661,10 +597,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -694,10 +626,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 1,
@@ -735,10 +663,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -768,10 +692,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 5,
@@ -808,10 +728,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -841,10 +757,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 0,
@@ -881,10 +793,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -914,10 +822,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 3,
@@ -954,10 +858,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -987,10 +887,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 3,
@@ -1027,10 +923,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -1060,10 +952,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 1,
@@ -1101,10 +989,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -1134,10 +1018,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 1,
@@ -1175,10 +1055,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -1208,10 +1084,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 0,
@@ -1248,10 +1120,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -1281,10 +1149,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 1,
@@ -1322,10 +1186,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -1355,10 +1215,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 5,
@@ -1395,10 +1251,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -1428,10 +1280,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 5,
@@ -1468,10 +1316,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -1501,10 +1345,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 1,
@@ -1542,10 +1382,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "after": {
@@ -1575,10 +1411,6 @@
    "output/single/manifest.yaml": {
     "kind": "file",
     "bytes_base64": "c2VsZl9yb2xlOiBtYWluCnRvcG9sb2d5OiBzaW5nbGUK"
-   },
-   ".claude/policies/runtime/topology_parity.py": {
-    "kind": "file",
-    "bytes_base64": "aW1wb3J0IGpzb24sb3Msc3lzCmZpeHR1cmU9anNvbi5sb2FkKG9wZW4oJ293bmVyLXJlc3BvbnNlLmpzb24nKSkKYXJncz1zeXMuYXJndlsxOl0KZXhwZWN0ZWQ9WydldmFsdWF0ZScsJy0tcmVwbycsb3MuZ2V0Y3dkKCksJy0tZm9ybWF0JywnanNvbiddCndpdGggb3Blbignb3duZXItY2FsbHMuanNvbicsJ3cnKSBhcyBoYW5kbGU6anNvbi5kdW1wKGRpY3QoYXJndj1bJ0BST09UQCcgaWYgYXJnPT1vcy5nZXRjd2QoKSBlbHNlIGFyZyBmb3IgYXJnIGluIGFyZ3NdLGV4YWN0X2FyZ3Y9KGFyZ3M9PWV4cGVjdGVkKSksaGFuZGxlKQpvcy53cml0ZSgxLGJ5dGVzLmZyb21oZXgoZml4dHVyZVsnc3Rkb3V0X2hleCddKSk7b3Mud3JpdGUoMixieXRlcy5mcm9taGV4KGZpeHR1cmVbJ3N0ZGVycl9oZXgnXSkpCnJhaXNlIFN5c3RlbUV4aXQoZml4dHVyZVsncmMnXSkK"
    }
   },
   "exit_code": 1,

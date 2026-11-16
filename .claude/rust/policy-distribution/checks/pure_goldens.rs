@@ -135,13 +135,15 @@ fn expected_argv(name: &str, golden_argv: &[String]) -> Vec<String> {
         ],
         n if LAUNCHER_SWITCHED.contains(&n) || n.starts_with("upstream_help:") => {
             // plan_26111615: upstream/recipe 진입점이 Rust 런처(.sh)로 바뀌었다 — golden 은 b1f3563e 의 `<PY> x.py ...`.
+            // The interpreter flag `-B` of the retired `<PY> -B selftest_*.py` rows has no launcher counterpart.
+            let rest: Vec<&String> = golden_argv[1..].iter().skip_while(|a| a.as_str() == "-B").collect();
             let script = if n == "recipe_info_only_gate" {
                 ".claude/skills/vllm-recipe-explorer/scripts/recipe.sh".to_string()
             } else {
-                to_sh(&golden_argv[1])
+                to_sh(rest[0])
             };
             let mut v = vec!["bash".into(), script];
-            v.extend(golden_argv[2..].iter().cloned());
+            v.extend(rest[1..].iter().map(|a| (*a).clone()));
             v
         }
         _ => golden_argv.to_vec(),
@@ -176,6 +178,12 @@ const LAUNCHER_SWITCHED: &[&str] = &[
     "terraform_check_sub_hint_equip_selftest",
     // terraforming first pass (library_access ported in 3de7a246; its row was switched at the core-contracts merge).
     "terraform_library_access_selftest",
+    // terraforming pass 3: the five unittest suites `selftest_*.py` became Rust self-test bins behind `selftest_*.sh`.
+    "harness_switch_integration_selftest",
+    "claude_native_events_selftest",
+    "terraform_bootstrap_permissions_selftest",
+    "terraform_sub_hint_write_scopes_selftest",
+    "campaign_lifecycle_selftest",
 ];
 
 /// Checks added after the golden capture (closed list · tripwire): absent from the original's report, present exactly once.

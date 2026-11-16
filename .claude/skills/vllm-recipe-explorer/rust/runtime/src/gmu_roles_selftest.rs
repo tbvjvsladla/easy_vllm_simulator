@@ -9,8 +9,10 @@
 //! engine (docker/NAS/GPU are not needed) and every converged lockset must say so itself (`trial_provenance=mock`,
 //! `measured=false`): a mock never passes for a measurement.
 //!
-//! Not ported here (they exercised private functions of the retired `recipe.py` in-process): the U layer (function units) and
-//! the F layer (a deterministic fake engine swapped in for `run_trial`); see the bundle's PORTING notes.
+//! The other two layers of the original: the U layer (function units) lives under its owner
+//! (`recipe_cmd::simulate_body::gmu_units`, re-exported as `recipe_cmd::gmu_unit_layer`); the F layer ([`engine_layer`]) runs the
+//! simulate command in process with a deterministic fake engine through the check-only seam `recipe_cmd::simulate_with_engine`
+//! (the original monkeypatched `run_trial`, `preload_ram_gate` and `feedback_append` of an imported `recipe.py`).
 
 use crate::observe::same_value;
 use crate::recipe_cmd::lockset_vocabulary;
@@ -58,7 +60,7 @@ pub struct Report {
 }
 
 impl Report {
-    fn ck(&mut self, name: &str, cond: bool, detail: impl FnOnce() -> String) {
+    pub fn ck(&mut self, name: &str, cond: bool, detail: impl FnOnce() -> String) {
         if cond {
             self.lines.push(format!("  [PASS] {name}"));
         } else {
@@ -396,12 +398,14 @@ fn decl(req: i64, typ: i64) -> (&'static str, String) {
 /// Runs E1-E17 with `recipe` (the program under test) against a copy of the skill taken from `repo`, in a directory below `tmp`.
 pub fn cli_layer(tmp: &Path, repo: &Path, recipe: &Path) -> Report {
     let mut r = Report::default();
-    // The buffer of the expectations below mirrors the owner's constant (so the expectations cannot silently lag behind it).
-    r.ck(
-        "U0 픽스처 버퍼 상수가 정본(estimate_vram::KV_BLOCK_ALIGN_BUFFER)과 같다(기대값 계산이 거울로 늦지 않게)",
-        crate::estimate_vram::KV_BLOCK_ALIGN_BUFFER == BUFFER,
-        || format!("정본={}", crate::estimate_vram::KV_BLOCK_ALIGN_BUFFER),
-    );
+    // The buffer of the expectations below mirrors the owner's constant (checked as U0 in the unit layer; repeated as a guard
+    // here because this layer also runs alone, from `checks/gmu_roles_checks.rs`).
+    if crate::estimate_vram::KV_BLOCK_ALIGN_BUFFER != BUFFER {
+        r.ck("E0 기대값 버퍼 상수 = 정본(estimate_vram::KV_BLOCK_ALIGN_BUFFER)", false, || {
+            format!("정본={}", crate::estimate_vram::KV_BLOCK_ALIGN_BUFFER)
+        });
+        return r;
+    }
     let fx = match Fixture::new(tmp, repo, recipe) {
         Ok(fx) => fx,
         Err(error) => {
@@ -882,11 +886,408 @@ pub fn cli_layer(tmp: &Path, repo: &Path, recipe: &Path) -> Report {
     r
 }
 
-/// The command line: header, one line per check, verdict; status 0 when every check passed, 1 otherwise, 2 when the program
-/// under test is absent.
+// ── F layer (a deterministic fake engine in place of the trial engine) ──────────────────────────────────────────────
+
+const MANIFEST_MULTI2: &str = "topology: multi\ngpus_per_node: 1\ngpu_model: \"NVIDIA RTX PRO 6000\"\nmodel_source: managed\nnodes:\n  - role: main\n  - role: sub\nterraforming:\n  complete: true\n  branch_verified: true\n";
+
+/// The fake engine's physics (`ENGINE` of the original plus the per-case overrides).
+#[derive(Clone)]
+struct Engine {
+    per_card_gib: f64,
+    weights_gib: f64,
+    overhead_gib: f64,
+    per_token_bytes: i64,
+    block: i64,
+    tp: i64,
+    oom_trials: Vec<i64>,
+    clamped_tokens_unobserved: bool,
+    clamped_per_token_scale: f64,
+}
+
+impl Default for Engine {
+    fn default() -> Engine {
+        Engine {
+            per_card_gib: 96.0,
+            weights_gib: 10.0,
+            overhead_gib: 2.0,
+            per_token_bytes: 131072,
+            block: 16,
+            tp: 1,
+            oom_trials: Vec::new(),
+            clamped_tokens_unobserved: false,
+            clamped_per_token_scale: 1.0,
+        }
+    }
+}
+
+/// One engine call as the original recorded it (`{"t", "clamp", "batch", "tokens", "load_ok"}`).
+#[derive(Clone, Debug)]
+struct Call {
+    clamp: Option<i64>,
+    batch: Option<i64>,
+    tokens: i64,
+    load_ok: bool,
+}
+
+/// `fake_run_trial` and the captured `feedback_append` of the original driver.
+struct FakeEngine {
+    eng: Engine,
+    calls: Vec<Call>,
+    feedback: Vec<PyValue>,
+}
+
+fn dict_get(d: &agent_runtime_support::pyvalue::PyDict, k: &str) -> PyValue {
+    d.get(k).cloned().unwrap_or(PyValue::None)
+}
+
+impl crate::recipe_cmd::TrialEngine for FakeEngine {
+    fn run_trial(&mut self, cand: &agent_runtime_support::pyvalue::PyDict, trial_number: i64) -> agent_runtime_support::pyvalue::PyDict {
+        use agent_runtime_support::pyvalue::PyDict;
+        let e = &self.eng;
+        let clamp = int(&dict_get(cand, "kv_cache_memory_bytes"));
+        let tp = e.tp as f64;
+        let (kv_bytes, per_tok) = match clamp {
+            // unclamped: the engine takes KV up to the trial gmu ceiling (per GPU)
+            None => {
+                let gmu = num(&dict_get(cand, "gpu_memory_utilization")).unwrap_or(0.0);
+                (
+                    (e.per_card_gib * gmu * GIB) as i64 - (e.weights_gib / tp * GIB) as i64 - (e.overhead_gib / tp * GIB) as i64,
+                    e.per_token_bytes,
+                )
+            }
+            // clamped: engine tokens follow the clamp (block rounding)
+            Some(c) => (c, (e.per_token_bytes as f64 * e.clamped_per_token_scale) as i64),
+        };
+        let tokens = kv_bytes.div_euclid(per_tok * e.block) * e.block;
+        let load_ok = !e.oom_trials.contains(&trial_number);
+        let unobserved = clamp.is_some() && e.clamped_tokens_unobserved;
+        let max_len = num(&dict_get(cand, "max_model_len")).unwrap_or(1.0);
+        let mut prof = PyDict::new();
+        prof.set("weights_gib", PyValue::Float(e.weights_gib));
+        prof.set("non_kv_overhead_gib", PyValue::Float(e.overhead_gib));
+        prof.set("kv_cache_gib", PyValue::Float(kv_bytes as f64 / GIB));
+        prof.set("kv_cache_tokens", if unobserved { PyValue::None } else { PyValue::int(tokens) });
+        prof.set("max_concurrency", if unobserved { PyValue::None } else { PyValue::Float(tokens as f64 / max_len) });
+        self.calls.push(Call { clamp, batch: int(&dict_get(cand, "batch")), tokens, load_ok });
+        // OOM injection = the host watchdog SIGKILL shape (KV taken, then a silent end → the classifier's vram_oom)
+        let mut functional = PyDict::new();
+        functional.set("passed", PyValue::Bool(true));
+        let mut out = PyDict::new();
+        out.set("trial_number", PyValue::int(trial_number));
+        out.set("candidate", PyValue::Dict(cand.clone()));
+        out.set("load_ok", PyValue::Bool(load_ok));
+        out.set("vllm_profile", PyValue::Dict(prof));
+        out.set("functional", if load_ok { PyValue::Dict(functional) } else { PyValue::None });
+        out.set("log_path", PyValue::None);
+        out.set("error_excerpt", PyValue::str(""));
+        out.set("provenance", PyValue::str("mock"));
+        out.set("health_wait", PyValue::None);
+        out.set("effective_gmu", dict_get(cand, "gpu_memory_utilization"));
+        out
+    }
+
+    fn feedback(&mut self, record: &PyValue) {
+        self.feedback.push(record.clone());
+    }
+}
+
+struct EngineOut {
+    rc: i32,
+    calls: Vec<Call>,
+    feedback: Vec<PyValue>,
+    stderr: String,
+    lockset: PyValue,
+    summary: Option<PyValue>,
+}
+
+fn decl_opt(req: Option<i64>, typ: Option<i64>) -> (&'static str, String) {
+    let show = |v: Option<i64>| v.map_or("null".to_string(), |x| x.to_string());
+    (
+        "declared_axes",
+        format!(r#"{{"concurrency_requirement": {}, "typical_request_tokens": {}}}"#, show(req), show(typ)),
+    )
+}
+
+impl Fixture {
+    /// One `simulate` run in process with the fake engine (the original's driver: the copy's manifest is rewritten first, the
+    /// trial engine, RAM gate and feedback writer are replaced, the Flag gate is not on the path).
+    fn engine_case(
+        &self,
+        name: &str,
+        cfg_extra: &[(&str, String)],
+        lockset: &[(&str, String)],
+        engine: Engine,
+        manifest: &str,
+        cap: i64,
+    ) -> EngineOut {
+        let case = self.tmp.join("fcases").join(name);
+        std::fs::create_dir_all(&case).expect("a case directory");
+        let cname = format!("f{name}");
+        let mut extra: Vec<(&str, String)> = cfg_extra.to_vec();
+        if !extra.iter().any(|(k, _)| *k == "test_device_total_gib") {
+            extra.push(("test_device_total_gib", "96".to_string()));
+        }
+        extra.push(("target_gpu", TARGET.to_string()));
+        let cfg = Obj(vec![
+            ("target_model".into(), r#"{"path": "/app/models/fx-org/fx-model"}"#.into()),
+            ("nas_host_root".into(), js(&self.tmp.join("nas").to_string_lossy())),
+            ("vram_budget_gb".into(), "96".into()),
+            ("safety_margin".into(), SAFETY.to_string()),
+            ("kv_cache_dtype_bytes".into(), "2".into()),
+            (
+                "serving".into(),
+                format!(r#"{{"config_name": {}, "port": 18080, "served_model_name": "fx"}}"#, js(&format!("fx-{cname}"))),
+            ),
+            ("target_gpu".into(), TARGET.to_string()),
+        ])
+        .update(&extra)
+        .without_nulls();
+        let cfg_path = case.join("config.yaml");
+        std::fs::write(&cfg_path, cfg.json()).expect("write the config");
+        let lk = case.join("lockset.json");
+        std::fs::write(&lk, Self::base_lock(&cname).update(lockset).json()).expect("write the lockset");
+        std::fs::write(self.root.join("output/single/manifest.yaml"), manifest).expect("the copy's manifest");
+        let p = |path: &Path| PyStr::from_surrogateescape(path.as_os_str().as_bytes());
+        let run_id = format!("ffx_{name}");
+        let args = vec![
+            PyStr::new("--config"),
+            p(&cfg_path),
+            PyStr::new("--candidate"),
+            p(&lk),
+            PyStr::new("--lockset-out"),
+            p(&lk),
+            PyStr::new("--run-id"),
+            PyStr::new(&run_id),
+            PyStr::new("--cap"),
+            PyStr::new(&cap.to_string()),
+        ];
+        let mut fake = FakeEngine { eng: engine, calls: Vec::new(), feedback: Vec::new() };
+        let run = crate::recipe_cmd::simulate_with_engine(&args, &p(&self.root.join(SKILL_REL)), &mut fake);
+        let stderr = run.stderr.to_utf8().unwrap_or_default();
+        EngineOut {
+            rc: run.status,
+            calls: fake.calls,
+            feedback: fake.feedback,
+            stderr: tail(&stderr, 3000),
+            lockset: load_json(&lk).unwrap_or(PyValue::None),
+            summary: load_json(&self.root.join("docs/simlog").join(&run_id).join("run_summary.json")),
+        }
+    }
+}
+
+/// `_unclamped`: the engine's unclamped KV bytes and tokens.
+fn unclamped(w: f64, o: f64, tp: f64) -> (i64, i64) {
+    let kv = (96.0 * 0.85 * GIB) as i64 - (w / tp * GIB) as i64 - (o / tp * GIB) as i64;
+    let tokens = kv.div_euclid(131072 * 16) * 16;
+    (kv, tokens)
+}
+
+/// `_fit_tokens`: the unclamped KV-fit conversion of the owner (expectation only — the product is what is compared).
+fn fit_tokens(max_safe: i64, per_token: f64) -> i64 {
+    let mut tokens = (max_safe as f64 / (per_token * BUFFER)).floor() as i64;
+    while tokens > 0 && (per_token * tokens as f64 * BUFFER) as i64 > max_safe {
+        tokens -= 1;
+    }
+    tokens
+}
+
+fn calls_text(calls: &[Call]) -> String {
+    format!("{calls:?}")
+}
+
+/// Runs F1-F9 against a copy of the skill taken from `repo`, in a directory below `tmp` (no program is started: the simulate
+/// command runs in this process over the copy, with the trial engine replaced).
+#[allow(clippy::too_many_lines)]
+pub fn engine_layer(tmp: &Path, repo: &Path) -> Report {
+    let mut r = Report::default();
+    let fx = match Fixture::new(tmp, repo, Path::new("recipe")) {
+        Ok(fx) => fx,
+        Err(error) => {
+            r.ck("F0 픽스처 저장소 사본", false, || error.to_string());
+            return r;
+        }
+    };
+    let max_safe = (96.0 * 0.85 * GIB) as i64 - (10.0 * GIB) as i64 - (2.0 * GIB) as i64;
+    let fb_ok = |o: &EngineOut| {
+        o.feedback.len() == 1
+            && eq_num(&at(&o.feedback[0], "safety_margin_threshold"), SAFETY)
+            && eq_num(&at(&o.feedback[0], "gpu_memory_utilization"), TARGET_GMU)
+    };
+    let der_of = |o: &EngineOut| at(&o.lockset, "batch_derivation");
+    let fb_text = |o: &EngineOut| tail(&format!("{:?}", o.feedback.iter().map(|f| f.dumps_ascii().unwrap_or_default()).collect::<Vec<_>>()), 400);
+    let oom1 = Engine { oom_trials: vec![1], ..Engine::default() };
+
+    // F1 — first trial OOM → provisional clamp → pass → requirement kept at the deployment-ceiling KV-fit → clamp re-derived
+    let o = fx.engine_case("oomfirst", &[decl_opt(Some(16), Some(L_TYP))], &[], oom1.clone(), MANIFEST, 3);
+    let (lk, der, calls) = (&o.lockset, der_of(&o), &o.calls);
+    let raw_fit = calls.get(1).map(|c| c.tokens / L_TYP);
+    r.ck(
+        &format!("F1 음성대조 전제: 잠정 클램프 트라이얼의 원토큰으로 세면 KV-fit 은 요구보다 작다({} < 16)", raw_fit.map_or("None".into(), |v| v.to_string())),
+        raw_fit.is_some_and(|f| f < 16) && calls[1].clamp.is_some() && !calls[0].load_ok,
+        || calls_text(calls),
+    );
+    r.ck(
+        "F1 OOM-first: batch 16 · declared-requirement(잠정 클램프 원토큰으로 깎지 않는다) · KV-fit 은 배포 천장 환산",
+        o.rc == 0
+            && int(&at(lk, "batch")) == Some(16)
+            && eq_text(&at(lk, "batch_source"), "declared-requirement")
+            && contains(&at(&der, "kv_fit_tokens_source"), "언클램프 측정 환산")
+            && int(&at(&der, "kv_fit")).unwrap_or(0) >= 16,
+        || format!("{} {}", tail(&der.dumps_ascii().unwrap_or_default(), 700), tail(&o.stderr, 600)),
+    );
+    let clamp3 = calls.get(2).and_then(|c| c.clamp);
+    let per_tok_t2 = calls.get(1).filter(|c| c.tokens != 0).and_then(|c| c.clamp.map(|k| k as f64 / c.tokens as f64));
+    r.ck(
+        "F1 잠정 클램프를 산출 batch 로 재산정(required = per_token × max(len, L×16) × 버퍼) → 3번째 트라이얼이 재검증 · verified",
+        calls.len() == 3
+            && per_tok_t2.is_some_and(|pt| clamp3 == Some((pt * (MAX_LEN.max(L_TYP * 16)) as f64 * BUFFER) as i64))
+            && calls[2].batch == Some(16)
+            && int(&at(lk, "kv_cache_memory_bytes")) == clamp3
+            && eq_text(&at(lk, "kv_source"), "measured-clamp")
+            && matches!(at(&der, "verified").peel(), PyValue::Bool(true)),
+        || format!("calls={} clamp3={clamp3:?}", calls_text(calls)),
+    );
+    r.ck(
+        "F1 되먹임: safety_margin_threshold == gate_margin(0.90) · gpu_memory_utilization == deploy_gmu(0.85)",
+        fb_ok(&o),
+        || fb_text(&o),
+    );
+
+    // F2 — first trial OOM and no requirement → batch undecided · the provisional clamp is final (one request) · 2 trials
+    let o = fx.engine_case("oomnoreq", &[decl_opt(None, None)], &[], oom1, MANIFEST, 3);
+    let (lk, calls) = (&o.lockset, &o.calls);
+    r.ck(
+        "F2 OOM-first ∧ 요구 없음 → batch 미정 · 2트라이얼 수렴 · 클램프 = 1건(max_model_len) 기준",
+        o.rc == 0
+            && calls.len() == 2
+            && none(&at(lk, "batch"))
+            && none(&at(lk, "batch_source"))
+            && int(&at(lk, "kv_cache_memory_bytes")) == calls[1].clamp
+            && calls[1].clamp.is_some_and(|c| (c as f64) < 0.1 * max_safe as f64),
+        || format!("calls={} {}", calls_text(calls), tail(&o.stderr, 400)),
+    );
+
+    // F3 — no requirement (normal): no ceiling clamp · one max_model_len request clamp
+    let o = fx.engine_case("noreq", &[decl_opt(None, None)], &[], Engine::default(), MANIFEST, 3);
+    let (lk, der, calls) = (&o.lockset, der_of(&o), &o.calls);
+    let (kv1, tok1) = unclamped(10.0, 2.0, 1.0);
+    let kv = int(&at(lk, "kv_cache_memory_bytes"));
+    r.ck(
+        "F3 요구 없음 → batch 미정 · 클램프 = per_token × max_model_len × 버퍼(1건) · 배포 천장의 10% 미만 · KV-fit 참고값",
+        o.rc == 0
+            && none(&at(lk, "batch"))
+            && calls.len() == 2
+            && kv == Some((kv1 as f64 / tok1 as f64 * MAX_LEN as f64 * BUFFER) as i64)
+            && kv.is_some_and(|k| (k as f64) < 0.1 * max_safe as f64)
+            && int(&at(&der, "kv_fit")).is_some(),
+        || format!("kv={kv:?} calls={} {}", calls_text(calls), tail(&o.stderr, 400)),
+    );
+
+    // F4 — an input hand clamp (40 GiB) and no batch: that clamp is the deployed value → raw engine tokens · re-verified · hand
+    let forty = 40 * (GIB as i64);
+    let o = fx.engine_case("handclamp", &[decl_opt(Some(16), Some(L_TYP))], &[("kv_cache_memory_bytes", forty.to_string())], Engine::default(), MANIFEST, 3);
+    let (lk, der, calls) = (&o.lockset, der_of(&o), &o.calls);
+    let hand_tokens = forty.div_euclid(131072 * 16) * 16;
+    r.ck(
+        &format!("F4 사람 클램프 → KV-fit = 그 클램프의 엔진 원토큰 ÷ L({}) · batch 16 · 재검증 트라이얼 · kv_source=hand", hand_tokens / L_TYP),
+        o.rc == 0
+            && int(&at(&der, "kv_fit")) == Some(hand_tokens / L_TYP)
+            && contains(&at(&der, "kv_fit_tokens_source"), "배포 클램프 트라이얼")
+            && int(&at(lk, "batch")) == Some(16)
+            && calls.len() == 2
+            && calls[1].batch == Some(16)
+            && int(&at(lk, "kv_cache_memory_bytes")) == Some(forty)
+            && eq_text(&at(lk, "kv_source"), "hand")
+            && matches!(at(&der, "verified").peel(), PyValue::Bool(true)),
+        || format!("{} {}", tail(&der.dumps_ascii().unwrap_or_default(), 500), calls_text(calls)),
+    );
+
+    // F5 — TP=2 target flow: measured weights/overhead divided by TP for the KV-fit (the same ÷TP as the clamp formula)
+    let tp2 = Engine { weights_gib: 40.0, overhead_gib: 4.0, tp: 2, ..Engine::default() };
+    let o = fx.engine_case("tp2", &[decl_opt(Some(16), Some(L_TYP))], &[], tp2, MANIFEST_MULTI2, 3);
+    let (lk, der) = (&o.lockset, der_of(&o));
+    let (kv_t, tok_t) = unclamped(40.0, 4.0, 2.0);
+    let safe_div = (96.0 * 0.85 * GIB) as i64 - (20.0 * GIB) as i64 - (2.0 * GIB) as i64;
+    let safe_nodiv = (96.0 * 0.85 * GIB) as i64 - (40.0 * GIB) as i64 - (4.0 * GIB) as i64;
+    let per_t = kv_t as f64 / tok_t as f64;
+    let (want_div, want_nodiv) = (fit_tokens(safe_div, per_t), fit_tokens(safe_nodiv, per_t));
+    r.ck(
+        &format!("F5 TP=2: tp_divisor=2 · KV-fit 토큰 = (천장 − weights/2 − overhead/2) 환산({want_div}) — ÷TP 를 빼면 {want_nodiv} 가 된다"),
+        o.rc == 0
+            && int(&at(&at(lk, "gmu_roles"), "tp_divisor")) == Some(2)
+            && int(&at(&der, "kv_fit_tokens")) == Some(want_div)
+            && want_div != want_nodiv
+            && int(&at(lk, "batch")) == Some(16),
+        || format!("{} {}", tail(&der.dumps_ascii().unwrap_or_default(), 500), tail(&o.stderr, 600)),
+    );
+
+    // F6 — the clamp trial's engine tokens unobserved → phase 2 cannot re-verify → verified=false
+    let unobs = Engine { clamped_tokens_unobserved: true, ..Engine::default() };
+    let o = fx.engine_case("unobserved", &[decl_opt(Some(16), Some(L_TYP))], &[], unobs, MANIFEST, 3);
+    let (lk, der) = (&o.lockset, der_of(&o));
+    r.ck(
+        "F6 클램프 토큰 미관측 → 수렴하되 verified=false · verified_gap 에 사유(미관측)",
+        o.rc == 0
+            && int(&at(lk, "batch")) == Some(16)
+            && matches!(at(&der, "verified").peel(), PyValue::Bool(false))
+            && contains(&at(&der, "verified_gap"), "미관측"),
+        || tail(&der.dumps_ascii().unwrap_or_default(), 500),
+    );
+
+    // F7 — per-token mismatch (clamp-trial engine per-token × 1.34): phase 2 really lowers
+    let mismatch = Engine { clamped_per_token_scale: 1.34, ..Engine::default() };
+    let o = fx.engine_case("mismatch", &[decl_opt(Some(64), Some(L_TYP))], &[], mismatch.clone(), MANIFEST, 3);
+    let (lk, der, calls) = (&o.lockset, der_of(&o), &o.calls);
+    let low = calls.get(1).map(|c| c.tokens / L_TYP);
+    let first_adj = items(&at(&der, "phase2_adjustments")).first().cloned().unwrap_or(PyValue::None);
+    r.ck(
+        &format!("F7 per-token 불일치 → 위상 2 가 64→{} 로 낮추고 같은 클램프로 재검증 통과(클램프는 재산정하지 않는다)", low.map_or("None".into(), |v| v.to_string())),
+        o.rc == 0
+            && low.is_some_and(|l| l < 64)
+            && int(&at(lk, "batch")) == low
+            && int(&at(&first_adj, "batch_before")) == Some(64)
+            && matches!(at(&der, "verified").peel(), PyValue::Bool(true))
+            && calls.len() == 3
+            && calls[1].clamp == calls[2].clamp,
+        || format!("{} {}", calls_text(calls), tail(&der.dumps_ascii().unwrap_or_default(), 300)),
+    );
+
+    // F8 — the same with --cap 2: lowered in the last slot → HITL (rc 3) summary says why · batch_derivation carried
+    let o = fx.engine_case("mismatch_cap2", &[decl_opt(Some(64), Some(L_TYP))], &[], mismatch, MANIFEST, 2);
+    let s = o.summary.clone().unwrap_or(PyValue::None);
+    let adj = items(&at(&at(&s, "batch_derivation"), "phase2_adjustments")).first().cloned().unwrap_or(PyValue::None);
+    r.ck(
+        "F8 cap 2 소진 → rc 3 · note 에 'cap(2) 소진 — 위상 2' · 요약 batch_derivation.phase2_adjustments · lockset 미각인",
+        o.rc == 3
+            && contains(&at(&s, "note"), "cap(2) 소진")
+            && contains(&at(&s, "note"), "위상 2")
+            && int(&at(&adj, "batch_before")) == Some(64)
+            && !has(&o.lockset, "provenance"),
+        || format!("rc={} class={:?} note={:?}", o.rc, text(&at(&s, "failure_class")), text(&at(&s, "note"))),
+    );
+
+    // F9 — per-token match (the real boundary): requirement 64 ≤ converted KV-fit → no phase-2 lowering · 2 trials
+    let o = fx.engine_case("realistic64", &[decl_opt(Some(64), Some(L_TYP))], &[], Engine::default(), MANIFEST, 3);
+    let (lk, der, calls) = (&o.lockset, der_of(&o), &o.calls);
+    r.ck(
+        "F9 per-token 일치 → 클램프 트라이얼 엔진 토큰이 batch×L 을 담는다 · 하향 없음 · verified · 2칸",
+        o.rc == 0
+            && int(&at(lk, "batch")) == Some(64)
+            && items(&at(&der, "phase2_adjustments")).is_empty()
+            && matches!(at(&der, "verified").peel(), PyValue::Bool(true))
+            && calls.len() == 2
+            && calls[1].tokens / L_TYP >= 64
+            && fb_ok(&o),
+        || format!("{} {}", calls_text(calls), tail(&der.dumps_ascii().unwrap_or_default(), 300)),
+    );
+    r
+}
+
+/// The command line: header, one line per check (U, E, F), verdict; status 0 when every check passed, 1 otherwise, 2 when the
+/// program under test is absent.
 pub fn main_with(repo: &Path, recipe: &Path) -> i32 {
     println!(
-        "[selftest_gmu_roles_batch] plan_26091407 §4.2·§4.3 · §7 O3 — E(CLI 층 · Rust recipe)"
+        "[selftest_gmu_roles_batch] plan_26091407 §4.2·§4.3 · §7 O3 — U(함수 층) · E(CLI 층 · Rust recipe) · F(가짜 엔진 층)"
     );
     if !recipe.is_file() {
         eprintln!(
@@ -903,7 +1304,11 @@ pub fn main_with(repo: &Path, recipe: &Path) -> i32 {
             return 2;
         }
     };
-    let report = cli_layer(dir.path(), repo, recipe);
+    let mut report = crate::recipe_cmd::gmu_unit_layer(&dir.path().join("u"), repo);
+    for layer in [cli_layer(&dir.path().join("e"), repo, recipe), engine_layer(&dir.path().join("f"), repo)] {
+        report.lines.extend(layer.lines);
+        report.failures.extend(layer.failures);
+    }
     for line in &report.lines {
         println!("{line}");
     }

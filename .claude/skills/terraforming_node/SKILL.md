@@ -167,7 +167,7 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | 진입점 | 소유 § | 배달 | 비고 |
 |---|---|---|---|
 | `scripts/campaign_init.py` | 캠페인 체인 | ✓ | 캠페인 상태의 **유일한 writer**. 사람 승인 인자 필수 동사만 적는다: `--revise` · `--reentry-decide` · `--hint-approve` · 수명 전이(`--init --suspend-current` · `--suspend` · `--resume-campaign` · `--abandon` · `--answer-query` · `--dispose` · `--sub-unconverged-accept`) · 배정 변경(`--assign-set`). 나머지는 `--help` |
-| `scripts/selftest_campaign_lifecycle.py` | 캠페인 체인 | — | 수명 상태(보류·재개·포기·선점 · 서브 종결 전파 · 재배정) 자체검사 · 회귀 실행자 `verify_distribution.py` |
+| `scripts/selftest_campaign_lifecycle.sh` (Rust `rust/src/selftests/campaign_lifecycle.rs` · 원본 `scripts/selftest_campaign_lifecycle.py` 보존) | 캠페인 체인 | — | 수명 상태(보류·재개·포기·선점 · 서브 종결 전파 · 재배정) 자체검사 · 회귀 실행자 `verify_distribution.py` |
 | `scripts/campaign_init.sh` | 캠페인 체인 | ✓ | 읽기 두 형태(`--active`·`--derive KIND …`)와 모델링한 쓰기 형태(`--init`·`--close`·`--phase-set`·`--cell-set`·`--write-brief`·`--assigned-cells`)를 공유 B 의 `campaign_init` 실행파일(노드에서 빌드)로 처리하는 런처 · 실행파일 부재/실행 불가는 어떤 경로 선택보다 먼저 exit 2 + 빌드 안내(명시 Python 지정이 있어도 Python 을 시작하지 않는다) · `CAMPAIGN_READ_VALIDATE_ONLY=1` 은 가용성 확인(값 1만 · 건강 증명 아님) · 다른 형태·명시 인터프리터·다른/읽을 수 없는 소스·미모델링 텍스트 프로필은 실제 `campaign_init.py` 로 가는 명시 호환 경로이며 업무 처리 전에만 정해진다 · 배달되는 것은 이 런처뿐이고 B 산출물은 B 를 받아 자체 빌드한 노드에만 있다(ray-worker 는 런타임 업무 0·호출자 없음) · 모델링하지 않은 쓰기 동사는 이 런처를 거쳐 `campaign_init.py` 로 간다(호출부는 `.sh` 하나만 부른다) |
 | `scripts/campaign_template_validator.sh` | 캠페인 체인 | ✓ | `--acceptance INSTANCE`(합격 술어 P4·P5·P6)를 공유 B 의 `campaign_template_validator` 실행파일(노드에서 빌드)로 처리하는 런처 · 실행파일 부재/실행 불가는 exit 2 + 빌드 안내(명시 Python 지정이 있어도 Python 을 시작하지 않는다) · `CAMPAIGN_VALIDATOR_VALIDATE_ONLY=1` 은 가용성 확인 · `--campaign`·`--instance`·`--template`·`--selftest` 와 명시 인터프리터(`CAMPAIGN_VALIDATOR_PYTHON`)는 실제 `campaign_template_validator.py` 로 가는 명시 호환 경로 |
 | `scripts/campaign_template_validator.py` | 캠페인 체인 | ✓ | 선언·인스턴스 술어(P1~P3) |
@@ -188,14 +188,14 @@ ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(�
 | `scripts/rust_toolchain.pin` | §2.5.2 | ✓ | Rust 버전·컴포넌트·지원 target 정본 |
 | `scripts/build_rust_packages.sh` | §2.5.2 | ✓ | 명시 install/check 후 배달된 공유 Q·역할 정책 T·recipe P·upstream U 소스의 locked release 빌드와 순수 정상 ELF 기동; 일반 평가에서 자동 실행하지 않는다 |
 | `scripts/selftest_rust_bootstrap.sh` | §2.5.2 | — | 네트워크 없는 설치/실패/재실행·환경 격리 계약 회귀 |
-| `scripts/selftest_bootstrap_permissions.py` | §2.5.2 | — | 카나리 증거·음성대조 회귀 |
-| `scripts/selftest_sub_hint_write_scopes.py` | §2.5.2 | — | 외부 hint 경로의 역할·대상·범위 검증 회귀 |
-| `scripts/selftest_claude_native_events.py` | §2.5.2 | — | opt-in native 도구 실행 기록과 기존 Claude 호출 호환 회귀 |
+| `scripts/selftest_bootstrap_permissions.sh` (Rust `rust/src/selftests/` · 원본 `scripts/selftest_bootstrap_permissions.py` 보존) | §2.5.2 | — | 카나리 증거·음성대조 회귀 |
+| `scripts/selftest_sub_hint_write_scopes.sh` (Rust `rust/src/selftests/` · 원본 `scripts/selftest_sub_hint_write_scopes.py` 보존) | §2.5.2 | — | 외부 hint 경로의 역할·대상·범위 검증 회귀 |
+| `scripts/selftest_claude_native_events.sh` (Rust `rust/src/selftests/` · 원본 `scripts/selftest_claude_native_events.py` 보존) | §2.5.2 | — | opt-in native 도구 실행 기록과 기존 Claude 호출 호환 회귀 |
 | `scripts/relay.sh` (원본 `scripts/relay.py` 보존) | §2.7.7a · §2.7.11 | — | 턴제 릴레이·감독 스텝·러너 사다리 |
 | `scripts/turn_budget.py` | §2.7.7a | — | 하네스별 native-turn·wall-time 예산 선언 검증기. **얇은 import 어댑터**: CLI 는 `turn_budget.sh` 로 exec, `schema_cap`·`schema_max_turns`·`declare`·`REPO`·`REQUEST_SCHEMA` 는 기존 importer(relay·bootstrap_canary·selftest_harness_switch)용으로 같은 이름·서명을 유지하며 비공개 브리지로 Rust 를 부른다(업무 로직 ✗ · 타입 전달·정확한 예외 재구성·어휘적 출처만) |
 | `scripts/turn_budget.sh` | §2.7.7a | — | `turn_budget` Rust 실행파일 런처(실행파일 없음/실행 불가 = 상태 2 + 빌드 안내 · Python 경로 없음 · `TURN_BUDGET_VALIDATE_ONLY=1` 은 가용성 확인일 뿐 업무 통과가 아니다 · `TURN_BUDGET_OWNER_PATH`=기본 스키마의 어휘적 출처) |
 | `scripts/agent_control.sh` (Rust `rust/src/agent_control.rs` · 원본 `scripts/agent_control.py` · `scripts/providers/` 보존) · `rust/src/provider_claude_code.rs` · `rust/src/provider_codex_cli.rs` | §2.7.7 | — | provider-neutral 전송 orchestrator · native 실행 구문은 각 provider adapter만 발행 · v1 native-turn / v2 wall-time 계약 |
-| `scripts/selftest_harness_switch.py` | §2.7.7 | — | 하네스 전환·예산·세션 결속·중복 실행·원장 경쟁 음성대조 |
+| `scripts/selftest_harness_switch.sh` (Rust `rust/src/selftests/harness_switch.rs` · 부분 이식 — 이식 안 된 dispatch 경로 사례는 모듈 문서에 열거 · 원본 `scripts/selftest_harness_switch.py` 보존) | §2.7.7 | — | 하네스 전환·예산·세션 결속·중복 실행·원장 경쟁 음성대조 |
 | `scripts/library_access.sh` | §2.7.8 | — | 서브 서고 접근점 발급·회수(키·강제명령·manifest library 블록 · HITL) — `terraforming_node/rust` 의 `library_access` Rust 실행파일 런처(부재/ELF 아님 = 상태 2 + 빌드 안내 · Python 경로 없음) |
 | `scripts/library_access.py` | §2.7.8 | — | 원본 보존(대조 golden `parity` s5 의 출처 · 정책 증거 원장 `claim_bindings.json` 의 evidence 경로) — 호출은 `.sh` 로 한다 |
 | `scripts/audit_session_ssh.sh` | §2.7.7 | — | 세션 transcript 의 허가 통로 밖 ssh 감사(술어 A1) — `audit_session_ssh` Rust 실행파일 런처(부재 = 상태 2 + 빌드 안내 · Python 경로 없음) |

@@ -8,10 +8,12 @@ use crate::estimate_vram::required_kv_bytes;
 use crate::memory::{self, GateArguments, LogChoice, Provider};
 use crate::memory_system::System;
 use crate::run_trial::{mock_result, PROVENANCE_DRY_RUN, PROVENANCE_MOCK};
-use crate::run_trial_session::{pre_session_gates, run_session, SessionError, SessionOpts};
+use crate::run_trial_session::{run_session, SessionError, SessionOpts};
 use crate::simlog::{self, Plain};
 use crate::simulate_math::{self as sm, Plan, Profile};
 use std::collections::BTreeMap;
+
+pub mod gmu_units;
 
 const BATCH_DERIVED: [&str; 2] = ["declared-requirement", "kv-fit-measured"];
 const KV_DERIVED: [&str; 1] = ["measured-clamp"];
@@ -517,7 +519,8 @@ fn run_trial(cand: &PyDict, run_dir: &PyStr, n: i64, o: &TrialOpts, root: &PyStr
         SessionError::Stop { status, text } => Stop::Raw(status, text),
         SessionError::Failure(f) => Stop::Die(raised(f)),
     };
-    pre_session_gates(&crate::run_trial_session::repo_root(), &opts).map_err(stop)?;
+    // `recipe.py` called `run_trial.run_trial()` directly: the grounding backstop of `run_trial.py main()` is not on this path; the
+    // budget declaration is inside the session.
     let r = run_session(&dv(cand), run_dir, n, &opts).map_err(stop)?;
     Ok(dict_of(&r))
 }
@@ -579,8 +582,27 @@ fn write_json_file(path: &PyStr, value: &PyValue) -> R<()> {
     raise(crate::recipe_set::write_text(path, &text, false))
 }
 
-/// `cmd_simulate(args)` — the exit status (0 converged · 3 Model-C), or what stops it.
-pub fn cmd_simulate(streams: &mut Streams, a: &Args, root: &PyStr, skill_root: &PyStr) -> R<i32> {
+/// CHECK-ONLY engine seam (test plane): the F layer of `selftest_gmu_roles_batch` swaps the trial engine for a deterministic fake,
+/// exactly where the retired Python self-test replaced `recipe.run_trial` / `preload_ram_gate` / `feedback_append`. It is reachable
+/// only through the library ([`super::simulate_with_engine`]); the `recipe` command line never installs one (production passes
+/// `None`), so no flag or environment variable can turn a deployed run into a fake one. A fake result must label itself
+/// (`provenance` `mock`) — the loop's provenance check still applies.
+pub trait TrialEngine {
+    /// The trial result for `cand` (what `run_trial` returns): replaces the docker session, the mock profile and the RAM gate.
+    fn run_trial(&mut self, cand: &PyDict, trial_number: i64) -> PyDict;
+    /// The converged feedback record (what `feedback::append` would write): captured instead of written.
+    fn feedback(&mut self, record: &PyValue);
+}
+
+/// `cmd_simulate(args)` — the exit status (0 converged · 3 Model-C), or what stops it — with an optional [`TrialEngine`] (the
+/// self-test's fake engine; the command line always passes `None` = the real trial path).
+pub fn cmd_simulate_engine(
+    streams: &mut Streams,
+    a: &Args,
+    root: &PyStr,
+    skill_root: &PyStr,
+    mut engine: Option<&mut dyn TrialEngine>,
+) -> R<i32> {
     let cfg = load_config(&a.config)?;
     let target = g(&cfg, "target_model");
     let target = if target.is_truthy() { target } else { empty_dict() };
@@ -792,7 +814,7 @@ pub fn cmd_simulate(streams: &mut Streams, a: &Args, root: &PyStr, skill_root: &
     for trial_number in 1..=cap {
         streams.eprint(&Message::new().lit(&format!("[recipe] trial {}/{} — candidate id=", trial_number, cap)).val(&cg(&cand, "id")).lit(" max_len=").val(&cg(&cand, "max_model_len")).lit(" batch=").val(&cg(&cand, "batch")).lit(" kv_bytes=").val(&cg(&cand, "kv_cache_memory_bytes")).done());
 
-        if !a.dry_run && a.mock_profile.is_none() {
+        if !a.dry_run && a.mock_profile.is_none() && engine.is_none() {
             let ckpt = g(&parsed, "native_weight_bytes");
             let tpv = PyValue::int(tp);
             let floor = PyValue::int(memory::DEFAULT_FLOOR_MIB);
@@ -818,7 +840,10 @@ pub fn cmd_simulate(streams: &mut Streams, a: &Args, root: &PyStr, skill_root: &
             }
         }
 
-        let mut trial = run_trial(&cand, &run_dir, trial_number, &opts, root)?;
+        let mut trial = match engine.as_mut() {
+            Some(fake) => fake.run_trial(&cand, trial_number),
+            None => run_trial(&cand, &run_dir, trial_number, &opts, root)?,
+        };
         let prov = cg(&trial, "provenance");
         if !matches!(str_of(&prov).as_deref(), Some("measured" | "mock" | "dry-run")) {
             return Err(die_py(7, Message::new().lit(&format!("trial provenance 미표기/미지값({})", prov.repr())).lit(" — run_trial 계약 위반. 출처 미상 결과는 판정에 쓰지 않는다(plan_26081314 D1).").done()).into());
@@ -1141,7 +1166,7 @@ pub fn cmd_simulate(streams: &mut Streams, a: &Args, root: &PyStr, skill_root: &
     let ctx = Ctx { raw: raw_lockset, derivation, kv_origin, declared_axes_check, out: lockset_out, hand: !plan.derive };
     if converged {
         let trial = final_trial.clone().unwrap_or_default();
-        converged_path(streams, a, &cfg, &parsed, &cand, &trial, tp, &roles, &run_dir, &run_id, &history, &ctx, &vocab, root, skill_root)?;
+        converged_path(streams, a, &cfg, &parsed, &cand, &trial, tp, &roles, &run_dir, &run_id, &history, &ctx, &vocab, root, skill_root, engine)?;
         return Ok(0);
     }
     hitl(streams, &run_dir, &run_id, &cand, final_trial.as_ref(), final_class.as_ref(), &history, cap, &roles, &ctx);
@@ -1181,6 +1206,7 @@ fn build_lockset(cand: &PyDict, ctx: &Ctx, prov: &PyValue, trial: &PyDict, roles
 fn converged_path(
     streams: &mut Streams, a: &Args, cfg: &PyValue, parsed: &PyValue, cand: &PyDict, trial: &PyDict, tp: i64, roles: &Roles,
     run_dir: &PyStr, run_id: &PyStr, history: &[PyValue], ctx: &Ctx, vocab: &Vocab, root: &PyStr, skill_root: &PyStr,
+    engine: Option<&mut dyn TrialEngine>,
 ) -> R<()> {
     let budget = roles.budget_gib;
     let deploy_gmu = roles.deploy_gmu;
@@ -1309,7 +1335,9 @@ fn converged_path(
     rec.set("converged", PyValue::Bool(true));
     rec.set("trial_count", PyValue::int(history.len() as i64 + 1));
     rec.set("correction_history", PyValue::List(history.to_vec()));
-    if a.dry_run || a.mock_profile.is_some() {
+    if let Some(fake) = engine {
+        fake.feedback(&dv(&rec));
+    } else if a.dry_run || a.mock_profile.is_some() {
         streams.eprint(&PyStr::new("[recipe] (dry-run) 되먹임 로그 기록 생략 — 실측 아님."));
     } else {
         let jsonl = join(&join(skill_root, &s("feedback")), &s("recipe_feedback.jsonl"));
