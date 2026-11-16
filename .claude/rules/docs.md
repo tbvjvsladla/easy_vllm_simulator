@@ -75,7 +75,7 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
 
 ## PII 스캔 적용 범위 (2026-07-31 확정)
 
-정본 패턴은 `.claude/skills/hint-publisher/scripts/hintlib/pii.py` 의 `GENERIC_PII` 4종
+정본 패턴은 `.claude/skills/hint-publisher/rust/src/pii.rs` 의 `GENERIC_PII_NAMES` 4종
 (`private-ipv4`·`email`·`abs-op-path`·`spark-host`) + `.claude/pii_terms.txt` 리터럴이다.
 **적용 강도는 산출물이 배포되는지로 갈린다** — 배포되지 않는 것에 배포 기준을 적용하면 게이트가
 과잉차단되고, 배포되는 것에 완화 기준을 적용하면 유출된다.
@@ -104,7 +104,7 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
   위 표의 *판정 대상 밖* 평면(simlog 등)을 스캔하지 않았으면 `scanned_paths` 가 아니라
   `pii_scan.exempt_paths[{path, reason}]` 에 적는다 — `completion_gate` 는 kind=simlog 필수 증거에 한해 reason 이
   `machine-raw(docs.md §PII 판정 대상 밖)` 인 면제만 커버리지로 인정한다(2026-09-21 · `plan_26092119` X5).
-- `hint.py continue`(페이로드 커밋·봉인)·`verify`·`push` 의 fail-closed 스캔은 이 완화와 **무관하게 4종 전부**를 강제한다 —
+- `hint.sh continue`(페이로드 커밋·봉인)·`verify`·`push` 의 fail-closed 스캔은 이 완화와 **무관하게 4종 전부**를 강제한다 —
   배포 경로의 최종 권위는 그쪽이다.
 - **Docker 기본 브리지 예외(비배포 원시로그 한정)**: 엔진 로그에 나오는 Docker 고정 기본 `docker0`
   서브넷(`172.17.x.x/16`)은 모든 Docker 호스트에 동일하게 존재하며 운영자 네트워크를
