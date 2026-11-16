@@ -22,15 +22,10 @@
    + campaigns/_template/phases/_node/serve.status.json
    + campaigns/_template/relay/.gitkeep
    + campaigns/_template/sweeps/.gitkeep
-   + .claude/skills/terraforming_node/scripts/campaign_init.py
    + .claude/skills/terraforming_node/scripts/campaign_init.sh
-   + .claude/skills/terraforming_node/scripts/campaign_template_validator.py
    + .claude/skills/terraforming_node/scripts/campaign_template_validator.sh
-   + .claude/skills/terraforming_node/scripts/manifest_contract.py
-   + .claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py
    + .claude/skills/terraforming_node/scripts/manifest_contract.sh
    + .claude/skills/terraforming_node/scripts/node_role_contract.sh
-   + .claude/skills/terraforming_node/scripts/node_role_contract.py
    + .claude/skills/terraforming_node/scripts/harness_permission_probe.sh
    + .claude/skills/terraforming_node/scripts/rust_bootstrap.sh
    + .claude/skills/terraforming_node/scripts/rust_toolchain.pin

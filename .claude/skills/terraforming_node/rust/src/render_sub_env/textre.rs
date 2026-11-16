@@ -391,6 +391,51 @@ pub fn find_load_schema(text: &str) -> Vec<String> {
     out
 }
 
+/// The values of the line-initial Rust string constants `[pub ]const REL_<NAME>: &str = "<value>";` (the Rust form of the
+/// `REL_*` path constants [`find_rel_constants`] reads from the retired Python sources).
+pub fn find_rust_rel_constants(text: &str) -> Vec<String> {
+    let mut out = vec![];
+    for line in text.lines() {
+        let rest = line.strip_prefix("pub const REL_").or_else(|| line.strip_prefix("const REL_"));
+        let Some(rest) = rest else { continue };
+        let name_len = rest.chars().take_while(|c| c.is_ascii_uppercase() || c.is_ascii_digit() || *c == '_').count();
+        if name_len == 0 {
+            continue;
+        }
+        let Some(rest) = rest[name_len..].trim_start().strip_prefix(':') else { continue };
+        let Some(rest) = rest.trim_start().strip_prefix("&str") else { continue };
+        let Some(rest) = rest.trim_start().strip_prefix('=') else { continue };
+        let Some(rest) = rest.trim_start().strip_prefix('"') else { continue };
+        if let Some(end) = rest.find('"') {
+            if end > 0 {
+                out.push(rest[..end].to_string());
+            }
+        }
+    }
+    out
+}
+
+/// The schema names a Rust owner loads: the first string literal inside each `load_schema(` call (`load_schema(&dir,
+/// "work-manifest.schema.json")`).
+pub fn find_rust_load_schema(text: &str) -> Vec<String> {
+    let mut out = vec![];
+    let mut rest = text;
+    while let Some(at) = rest.find("load_schema(") {
+        let after = &rest[at + "load_schema(".len()..];
+        let call = &after[..after.find(')').unwrap_or(after.len())];
+        if let Some(q) = call.find('"') {
+            if let Some(e) = call[q + 1..].find('"') {
+                let name = &call[q + 1..q + 1 + e];
+                if name.ends_with(".json") {
+                    out.push(name.to_string());
+                }
+            }
+        }
+        rest = after;
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -324,7 +324,12 @@ MSG
     # Python 을 띄우지 않는다: Rust `blackbox_thermal --print-uncalibrated` 가 PARAM_PROVENANCE 에서 값이
     #   `external_report:` 로 시작하는 키(UNCALIBRATED 의 정의)를 C 정렬·쉼표 결합으로 낸다(런처 부재 = 빈 값).
     #   런처는 있는데 실행파일이 없거나 실패하면 **판정 불가**다 — 미교정 게이트를 조용히 열지 않는다.
-    _BT="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.sh"
+    #   메인은 terraforming_node 정본 자리, 서브는 render_sub_env 가 배달한 .claude/runtime/node_blackbox 에 런처가 있다
+    #   (single_serve_up.sh 와 같은 두 자리) — 서브에서 정본 자리만 보면 게이트가 조용히 열린다.
+    _BT=""
+    for _bt_dir in "$REPO/.claude/runtime/node_blackbox" "$REPO/.claude/skills/terraforming_node/scripts/node_blackbox"; do
+      if [ -f "$_bt_dir/blackbox_thermal.sh" ]; then _BT="$_bt_dir/blackbox_thermal.sh"; break; fi
+    done
     _UNCAL=""
     if [ -f "$_BT" ]; then
       if ! _UNCAL="$(bash "$_BT" --print-uncalibrated 2>/dev/null)"; then

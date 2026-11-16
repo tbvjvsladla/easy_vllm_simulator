@@ -11,36 +11,36 @@
    + .claude/schemas/task-report.schema.json
    + .claude/rules/strategy.topology.md
    + .claude/policies/handoff_exception.topology.md
-   + .claude/skills/vllm-recipe-explorer/ (178 tracked files)
+   + .claude/skills/vllm-recipe-explorer/ (160 tracked files)
    + .agents/skills/vllm-recipe-explorer/SKILL.md
    + .claude/skills/vllm-recipe-explorer/feedback/.gitkeep
-   + .claude/skills/adversarial-benchmark/ (341 tracked files)
+   + .claude/skills/adversarial-benchmark/ (298 tracked files)
    + .agents/skills/adversarial-benchmark/SKILL.md
-   + .claude/skills/upstream-version-watch/ (270 tracked files · 메인전용 17건 제외)
+   + .claude/skills/upstream-version-watch/ (254 tracked files · 메인전용 17건 제외)
    + .agents/skills/upstream-version-watch/SKILL.md
-   + .claude/skills/hint-publisher/ (90 tracked files)
+   + .claude/skills/hint-publisher/ (76 tracked files)
    + .agents/skills/hint-publisher/SKILL.md
    + .claude/skills/wiki-desk/ (35 tracked files)
    + .agents/skills/wiki-desk/SKILL.md
-   + .claude/rust/runtime-support/ (32 tracked files)
+   + .claude/rust/runtime-support/ (31 tracked files)
    + .claude/rust/role-contract/ (22 tracked files)
-   + .claude/rust/parity/ (28 tracked files)
+   + .claude/rust/parity/ (17 tracked files)
    + .claude/rust/policy-gate/ (13 tracked files)
    + .claude/rust/policy-publisher/ (21 tracked files)
    + .claude/skills/hint-publisher/rust/ (69 tracked files)
    + .claude/skills/terraforming_node/rust/ (39 tracked files)
-   + .claude/policies/runtime/topology_parity.py
-   + .claude/policies/runtime/topology_parity.py
+   + .claude/policies/runtime/topology_parity.sh
+   + .claude/policies/runtime/topology_parity.sh
    + .claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh
    + .claude/skills/terraforming_node/scripts/scan_node.sh
    + hints/HINT_ISSUANCE_CONTRACT.md
    + hints/vocab.json
-   + .claude/policies/runtime/completion_gate.py
-   + .claude/policies/runtime/evidence_publisher.py
+   + .claude/policies/runtime/completion_gate.sh
+   + .claude/policies/runtime/evidence_publisher.sh
    + .claude/schemas/work-manifest.schema.json
    + .claude/schemas/completion-manifest.schema.json
    + .claude/schemas/side-effect-authorization.schema.json
-   + .claude/policies/runtime/doc_naming.py
+   + .claude/policies/runtime/doc_naming.sh
    + .claude/skills/terraforming_node/scripts/check_sub_hint_equip.sh
    + campaigns/_template/residue.json
    + campaigns/_template/campaign.schema.json
@@ -55,15 +55,10 @@
    + campaigns/_template/phases/_node/serve.status.json
    + campaigns/_template/relay/.gitkeep
    + campaigns/_template/sweeps/.gitkeep
-   + .claude/skills/terraforming_node/scripts/campaign_init.py
    + .claude/skills/terraforming_node/scripts/campaign_init.sh
-   + .claude/skills/terraforming_node/scripts/campaign_template_validator.py
    + .claude/skills/terraforming_node/scripts/campaign_template_validator.sh
-   + .claude/skills/terraforming_node/scripts/manifest_contract.py
-   + .claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py
    + .claude/skills/terraforming_node/scripts/manifest_contract.sh
    + .claude/skills/terraforming_node/scripts/node_role_contract.sh
-   + .claude/skills/terraforming_node/scripts/node_role_contract.py
    + .claude/skills/terraforming_node/scripts/harness_permission_probe.sh
    + .claude/skills/terraforming_node/scripts/rust_bootstrap.sh
    + .claude/skills/terraforming_node/scripts/rust_toolchain.pin

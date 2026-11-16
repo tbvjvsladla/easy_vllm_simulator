@@ -198,10 +198,10 @@ NODE_DIR="$LOGS_ROOT/$NODE_ID"
 # 블랙박스 데몬·엔진은 Rust 실행파일(`terraforming_node/rust` 의 bin)을 그대로 배치한다 — Python 경로 ✗.
 # 빌드는 명시 작업이다(설치기가 대신 빌드하지 않는다): 하나라도 없으면 안내하고 멈춘다.
 # 서브에는 이 설치기가 .claude/runtime/node_blackbox/ 로 배달되고, 실행파일은 서브에 배달·빌드된 terraforming 크레이트에 있다.
-case "$SDIR" in */.claude/runtime/node_blackbox) RUST_REL="$SDIR/../../skills/terraforming_node/rust/target/release" ;; *) RUST_REL="$SDIR/../../rust/target/release" ;; esac
+case "$SDIR" in */.claude/runtime/node_blackbox) RUST_REL="$SDIR/../../skills/terraforming_node/rust/target/release"; RUST_BUILD="$SDIR/../../skills/terraforming_node/scripts/build_rust_packages.sh" ;; *) RUST_REL="$SDIR/../../rust/target/release"; RUST_BUILD="$SDIR/../build_rust_packages.sh" ;; esac
 for _rb in blackbox_collect blackbox_eta blackbox_events logs_lifecycle regen_envelope blackbox_thermal; do
   [ -f "$RUST_REL/$_rb" ] && [ -x "$RUST_REL/$_rb" ] || {
-    say "FAIL: Rust 실행파일 부재: $RUST_REL/$_rb — 먼저 bash $SDIR/../build_rust_packages.sh"; exit 1; }
+    say "FAIL: Rust 실행파일 부재: $RUST_REL/$_rb — 먼저 bash $RUST_BUILD"; exit 1; }
 done
 LIFECYCLE_BIN="$RUST_REL/logs_lifecycle"
 DROP_HELPER="$SDIR/../host_safety/host/vllm-drop-caches.sh"

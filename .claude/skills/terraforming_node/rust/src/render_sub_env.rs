@@ -8,13 +8,14 @@
 //! `role-contract` library, `manifest_contract._load_manifest` / `evaluate_contract` by `role_contract::manifest_gate`,
 //! `agent_card_contract` by [`crate::agent_card`]. No Python is started.
 //!
-//! **Delivery lists (intentional change, plan_26111615).** The sub-node delivery ships the Rust launchers of the A2A
-//! control-plane programs instead of their `.py` (`harness_permission_probe.sh`, `check_sub_hint_equip.sh`), the
-//! `terraforming_node/rust` crate that builds them (and that `build_rust_packages.sh` already requires on every node),
-//! and the policy crates `policy-gate` / `policy-publisher` that the adversarial-benchmark crate path-depends on (the
-//! original's path-closure check failed on them). Hints that named `scan_node.py` / `node_role_contract.py` name their
-//! launchers. `.py` files that are build or read inputs of other owners (campaign_init, manifest_contract, the role
-//! contract, topology_parity, hint-engine dependencies, node_blackbox) are delivered as before.
+//! **Delivery lists (intentional change, plan_26111615).** The sub-node delivery carries no `.py` at all: every harness
+//! program reaches the Sub as its `.sh` launcher plus the Rust crate SOURCES that build it (no `target/` — each node builds
+//! for its own architecture with the delivered `build_rust_packages.sh` / adversarial-benchmark `build_rust.sh`). The
+//! runtime-block copies skip tracked `.py` files ([`is_retired_py`]); the explicit lists name launchers only
+//! (campaign tools, contract readers, the policy launchers `completion_gate.sh` / `evidence_publisher.sh` / `doc_naming.sh` /
+//! `topology_parity.sh`, node_blackbox, the hint-equip judge and the permission probe), and the crates they need
+//! (runtime-support, role-contract, parity, policy-gate, policy-publisher, hint-publisher, terraforming_node, and the owner
+//! crates of the runtime blocks) are delivered with their path-dependency closure checked ([`assert_rust_path_closure`]).
 
 mod selftest;
 pub mod textre;
@@ -42,14 +43,15 @@ pub const RUNTIME_BLOCK_NAMES: [&str; 5] = [
 pub const HINT_ENGINE_DEPENDENCIES: [&str; 8] = [
     "hints/HINT_ISSUANCE_CONTRACT.md",
     "hints/vocab.json",
-    ".claude/policies/runtime/completion_gate.py",
-    ".claude/policies/runtime/evidence_publisher.py",
+    ".claude/policies/runtime/completion_gate.sh",
+    ".claude/policies/runtime/evidence_publisher.sh",
     ".claude/schemas/work-manifest.schema.json",
     ".claude/schemas/completion-manifest.schema.json",
     ".claude/schemas/side-effect-authorization.schema.json",
-    ".claude/policies/runtime/doc_naming.py",
+    ".claude/policies/runtime/doc_naming.sh",
 ];
-pub const SUB_RUST_BUILD_INPUTS: [&str; 1] = [".claude/policies/runtime/topology_parity.py"];
+/// The 4-way parity predicate's launcher (Rust `topology_parity` of the adversarial-benchmark crate; was `topology_parity.py`).
+pub const SUB_RUST_BUILD_INPUTS: [&str; 1] = [".claude/policies/runtime/topology_parity.sh"];
 /// Files the B self-checks read besides the delivered trees. Empty since plan_26111615 pass 3: the hint reader those checks
 /// asked (`render_bench_section.py`) is the hint-publisher Rust library, delivered as [`HINT_RUST_LIBRARY`].
 pub const SUB_B_CHECK_INPUTS: [&str; 0] = [];
@@ -57,7 +59,7 @@ pub fn sub_b_evidence_deps() -> Vec<&'static str> {
     HINT_ENGINE_DEPENDENCIES.iter().copied().filter(|r| !r.starts_with("hints/")).collect()
 }
 pub const SUB_BENCH_FOUNDATION_RUNTIME: [&str; 3] = [
-    ".claude/policies/runtime/topology_parity.py",
+    ".claude/policies/runtime/topology_parity.sh",
     ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
     ".claude/skills/terraforming_node/scripts/scan_node.sh",
 ];
@@ -66,19 +68,12 @@ pub const HINT_NEVER_DELIVER: [&str; 5] =
 pub const HINT_ENGINE_TOLERATED_ABSENT: [&str; 1] = [".claude/rules/docs.md"];
 /// The hint-equip judge, delivered as its Rust launcher (was `check_sub_hint_equip.py`).
 pub const SUB_HINT_EQUIP_TOOLS: [&str; 1] = ["check_sub_hint_equip.sh"];
-pub const CAMPAIGN_TOOLS: [&str; 4] = [
-    "campaign_init.py",
-    "campaign_init.sh",
-    "campaign_template_validator.py",
-    "campaign_template_validator.sh",
-];
-pub const SUB_CONTRACT_READERS: [&str; 5] = [
-    "manifest_contract.py",
-    "manifest_contract_compat_owner.py",
-    "manifest_contract.sh",
-    "node_role_contract.sh",
-    "node_role_contract.py",
-];
+/// The campaign state writer/validator launchers (Rust `campaign_init` / `campaign_template_validator` of the
+/// adversarial-benchmark crate).
+pub const CAMPAIGN_TOOLS: [&str; 2] = ["campaign_init.sh", "campaign_template_validator.sh"];
+/// The contract reader launchers (Rust `manifest_contract` of the adversarial-benchmark crate, `node_role_contract` of the
+/// upstream runtime crate).
+pub const SUB_CONTRACT_READERS: [&str; 2] = ["manifest_contract.sh", "node_role_contract.sh"];
 /// The local permission canary, delivered as its Rust launcher (was `harness_permission_probe.py`).
 pub const SUB_PERMISSION_PROBES: [&str; 1] = ["harness_permission_probe.sh"];
 pub const SUB_RUST_BOOTSTRAP: [&str; 3] = ["rust_bootstrap.sh", "rust_toolchain.pin", "build_rust_packages.sh"];
@@ -768,11 +763,11 @@ pub fn contract_placeholders(ctx: &Ctx, data: &Man) -> Res<Vec<(String, String)>
     ])
 }
 
-/// A retired Python original among the delivery inputs (plan_26111615 pass 3): its Rust launcher is the owner, so a checkout
-/// that no longer carries the `.py` simply does not deliver it - its absence is not a render failure. A `.py` that is present
-/// is delivered as before (the delivered tree of a checkout that still has it is unchanged).
-fn retired_py_absent(path: &str) -> bool {
-    path.ends_with(".py") && !isfile(path)
+/// A retired Python original (plan_26111615): its Rust launcher is the owner and no `.py` is delivered to a Sub, whether or
+/// not this checkout still carries it — the delivered tree is the same with or without the originals. Tracked `.py` files
+/// inside a copied tree (runtime blocks, crate check data) are skipped; the build of every delivered crate is `.py`-free.
+pub fn is_retired_py(rel: &str) -> bool {
+    rel.ends_with(".py")
 }
 
 fn tn_script(t: &str) -> String {
@@ -815,7 +810,6 @@ pub fn support_delivery(ctx: &Ctx, tool_plane: &[String]) -> Res<Vec<String>> {
         }
         out.extend(SUB_HINT_EQUIP_TOOLS.iter().map(|t| tn_script(t)));
     }
-    out.retain(|r| !retired_py_absent(&pj(&ctx.repo, r)));
     Ok(out)
 }
 
@@ -1235,7 +1229,7 @@ pub fn copy_tracked(
     let mut cnt = 0;
     for rf in &files {
         let srcf = pj(repo, rf);
-        if !isfile(&srcf) {
+        if !isfile(&srcf) || is_retired_py(rf) {
             continue;
         }
         let sub_rel = relpath(&srcf, &src_skill);
@@ -1285,7 +1279,10 @@ pub fn resolve_path(p: &str) -> String {
 pub fn assert_rust_path_closure(out_dir: &str) -> Res<()> {
     let root = resolve_path(out_dir);
     let mut pending: Vec<String> = RUST_OWNER_MANIFESTS.iter().map(|(_, m)| pj(&root, m)).collect();
-    pending.push(pj(&root, &format!("{TERRAFORMING_RUST}/Cargo.toml")));
+    // every delivered crate is a root: each is built on the Sub, so each one's own path dependencies must be delivered too
+    for lib in shared_rust_libraries() {
+        pending.push(pj(&root, &format!("{lib}/Cargo.toml")));
+    }
     let mut seen: Vec<String> = vec![];
     while let Some(m) = pending.pop() {
         let manifest = resolve_path(&m);
@@ -1570,9 +1567,6 @@ pub fn render_tree(
         assert_rust_path_closure(out_dir)?;
         for rel in SUB_RUST_BUILD_INPUTS {
             let src = pj(&ctx.repo, rel);
-            if retired_py_absent(&src) {
-                continue;
-            }
             if !isfile(&src) {
                 return Err(sys(format!("[render] FAIL: Rust 빌드 입력이 없다 — {rel}")));
             }
@@ -1584,9 +1578,6 @@ pub fn render_tree(
         }
         for rel in SUB_BENCH_FOUNDATION_RUNTIME {
             let src = pj(&ctx.repo, rel);
-            if retired_py_absent(&src) {
-                continue;
-            }
             if !isfile(&src) {
                 return Err(sys(format!("[render] FAIL: 벤치 owner 자체검사 의존이 없다 — {rel}")));
             }
@@ -1613,9 +1604,6 @@ pub fn render_tree(
                 continue;
             }
             let src = pj(&ctx.repo, rel);
-            if retired_py_absent(&src) {
-                continue;
-            }
             if !isfile(&src) {
                 return Err(sys(format!(
                     "[render] FAIL: hint 엔진 의존이 없다 — {rel}\n   스킬을 주고 그 의존을 안 주면 그 스킬은 없는 것이다(2026-09-29 계약 리더 선례).\n   트랜잭션 소스에서 도는 중이면 sync_to_sub 의 checkout-index 경로 목록에 `hints` 가 있는지 본다."
@@ -1678,9 +1666,6 @@ pub fn render_tree(
     makedirs(&ci_dst)?;
     for tool in delivered_tn_tools() {
         let abs = pj(&ci_src, tool);
-        if retired_py_absent(&abs) {
-            continue;
-        }
         if !isfile(&abs) {
             return Err(sys(format!(
                 "[render] FAIL: 캠페인 도구가 없다 — {abs}\n   뼈대만 보내고 채우는 손을 안 보내면 phases/sub가 실행자 0이 된다."
@@ -1734,9 +1719,6 @@ pub fn render_tree(
     let bb_src = pj(&ctx.repo, ".claude/skills/terraforming_node/scripts/node_blackbox");
     for (rel_src, mode) in BLACKBOX_FILES {
         let src = pj(&bb_src, rel_src);
-        if retired_py_absent(&src) {
-            continue;
-        }
         if !isfile(&src) {
             return Err(sys(format!(
                 "[render_sub_env] NODE_BLACKBOX_SOURCE_MISSING: canonical terraforming asset absent: {rel_src}"

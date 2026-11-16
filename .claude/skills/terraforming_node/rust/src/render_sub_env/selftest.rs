@@ -468,7 +468,7 @@ fn body(ctx: &Ctx) -> Res<bool> {
             60,
         )? == 0;
         let bench_need = [
-            (".claude/policies/runtime/topology_parity.py", ".claude/skills/adversarial-benchmark/rust/src/resolve_topology.rs"),
+            (".claude/policies/runtime/topology_parity.sh", ".claude/skills/adversarial-benchmark/rust/src/resolve_topology_selftest.rs"),
             (
                 ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
                 ".claude/skills/adversarial-benchmark/rust/src/sweep_repeats_fixture.rs",
@@ -485,7 +485,6 @@ fn body(ctx: &Ctx) -> Res<bool> {
         }
         let bscr = pj(&skills_dir, "adversarial-benchmark/scripts");
         let bskill = dirname(&bscr);
-        let tolerated = "broad_search.sh→.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.sh";
         let mut called_missing: Vec<String> = vec![];
         let mut sh: Vec<String> = glob_all(&bscr).into_iter().filter(|n| n.ends_with(".sh") && !n.starts_with('.')).collect();
         sh.sort();
@@ -503,7 +502,6 @@ fn body(ctx: &Ctx) -> Res<bool> {
                 }
             }
         }
-        called_missing.retain(|x| x != tolerated);
         let rsrc = pj(&bskill, "rust/src");
         let mut rs: Vec<String> = glob_all(&rsrc).into_iter().filter(|n| n.ends_with(".rs") && !n.starts_with('.')).collect();
         rs.sort();
@@ -528,8 +526,8 @@ fn body(ctx: &Ctx) -> Res<bool> {
                 list_repr(&called_missing[..called_missing.len().min(10)])
             );
         }
-        // permission canary: the delivered launcher, the crate that builds it, and the bootstrap reader
-        let (probe_name, reader_name) = ("harness_permission_probe.sh", "manifest_contract_compat_owner.py");
+        // permission canary: the delivered launcher, the crate that builds it, and the bootstrap reader (its launcher)
+        let (probe_name, reader_name) = ("harness_permission_probe.sh", "manifest_contract.sh");
         let probe_dst = pj(&tn, probe_name);
         let reader_dst = pj(&tn, reader_name);
         let probe_text = if isfile(&probe_dst) { read_text(&probe_dst)? } else { String::new() };
@@ -586,17 +584,39 @@ fn body(ctx: &Ctx) -> Res<bool> {
         );
         ok &= c && shared_rust_ok;
         println!("  [{}] shared Q/role conditional delivery/path closure {topo}", pf(shared_rust_ok));
+        // no `.py` reaches a Sub (plan_26111615): every harness program is a launcher + crate sources built on the Sub
+        let py: Vec<String> = sorted(all_files(&o).into_iter().filter(|f| is_retired_py(f)).map(|f| relpath(&f, &o)).collect());
+        let no_py = py.is_empty();
+        println!(
+            "  [{}] 배달 트리 .py 0건 {topo}: {}",
+            pf(no_py),
+            if no_py { "없음".to_string() } else { list_repr(&py[..py.len().min(10)]) }
+        );
+        ok &= no_py;
     }
 
     // (4d) hint engine dependency closure
-    let hp = pj(&ctx.repo, ".claude/skills/hint-publisher/scripts/hintlib");
+    // Derived from the Rust owners (plan_26111615): the `REL_*` constants of the hint engine (`hintlib` core + evidence) and
+    // the schemas the completion gate / evidence publisher load. A `.py` constant names a retired original whose owner runs
+    // its sibling `.sh` launcher (`core::owner_launcher`), so it is classified as that launcher.
+    let hp = pj(&ctx.repo, ".claude/skills/hint-publisher/rust/src");
+    let mut hint_sources = vec![pj(&hp, "core.rs")];
+    let ev = pj(&hp, "evidence");
+    let mut ev_files: Vec<String> = glob_all(&ev).into_iter().filter(|n| n.ends_with(".rs")).map(|n| pj(&ev, &n)).collect();
+    ev_files.sort();
+    hint_sources.extend(ev_files);
     let mut derived: Vec<String> = vec![];
-    for f in ["core.py", "evidence.py"] {
-        derived.extend(textre::find_rel_constants(&read_text(&pj(&hp, f))?));
+    for f in &hint_sources {
+        for rel in textre::find_rust_rel_constants(&read_text(f)?) {
+            derived.push(match rel.strip_suffix(".py") {
+                Some(stem) => format!("{stem}.sh"),
+                None => rel,
+            });
+        }
     }
-    for f in ["completion_gate.py", "evidence_publisher.py"] {
-        let t = read_text(&pj(&ctx.repo, &format!(".claude/policies/runtime/{f}")))?;
-        derived.extend(textre::find_load_schema(&t).into_iter().map(|m| format!(".claude/schemas/{m}")));
+    for f in [".claude/rust/policy-gate/src/completion_gate.rs", ".claude/rust/policy-publisher/src/gate.rs"] {
+        let t = read_text(&pj(&ctx.repo, f))?;
+        derived.extend(textre::find_rust_load_schema(&t).into_iter().map(|m| format!(".claude/schemas/{m}")));
     }
     derived.sort();
     derived.dedup();
@@ -617,6 +637,11 @@ fn body(ctx: &Ctx) -> Res<bool> {
         if HINT_NEVER_DELIVER.contains(&rel) || HINT_ENGINE_TOLERATED_ABSENT.contains(&rel) {
             return true;
         }
+        // Sources of the delivered policy crates (the hint engine reads the gate's Rust API as text, e.g.
+        // policy-gate/src/completion_gate.rs): the whole crate travels to every B Sub, so the path is delivered.
+        if POLICY_RUST_LIBRARIES.iter().any(|c| rel.starts_with(&format!("{c}/"))) {
+            return true;
+        }
         single_rb.iter().any(|rb| rel == rb || rel.starts_with(&format!("{rb}/"))) && !ex.iter().any(|x| x == rel)
     };
     let unclassified: Vec<String> = derived.iter().filter(|r| !covered(r)).cloned().collect();
@@ -630,6 +655,13 @@ fn body(ctx: &Ctx) -> Res<bool> {
         if dep_exist.is_empty() { "없음".to_string() } else { list_repr(&dep_exist) }
     );
     ok &= c4d;
+    // information, not a verdict of this renderer: constants that still name a retired original without a sibling launcher
+    // are read by the hint engine as source text (its owner's port gap) — named here so the gap is not silent.
+    let no_launcher: Vec<String> =
+        derived.iter().filter(|r| r.ends_with(".sh") && !isfile(&pj(&ctx.repo, r))).cloned().collect();
+    if !no_launcher.is_empty() {
+        println!("  [INFO] hint 엔진 상수 중 런처 없는 은퇴 원본(엔진 소유 이식 공백 · 배달 대상 아님): {}", list_repr(&no_launcher));
+    }
 
     // (4b-2) upstream path split
     let mut d = parse_manifest(&mpath)?;

@@ -10,11 +10,11 @@ case "$SELF" in */*) SDIR_RAW="${SELF%/*}"; [ -n "$SDIR_RAW" ] || SDIR_RAW=/ ;; 
 SDIR="$(cd "$SDIR_RAW" && pwd)"
 # A Sub carries this launcher at .claude/runtime/node_blackbox/ (render_sub_env); its executables are those of the delivered
 # terraforming crate built on the Sub (build_rust_packages.sh) — the same place as on the main node.
-case "$SDIR" in */.claude/runtime/node_blackbox) BB_RUST="$SDIR/../../skills/terraforming_node/rust/target/release" ;; *) BB_RUST="$SDIR/../../rust/target/release" ;; esac
+case "$SDIR" in */.claude/runtime/node_blackbox) BB_RUST="$SDIR/../../skills/terraforming_node/rust/target/release"; BB_BUILD="$SDIR/../../skills/terraforming_node/scripts/build_rust_packages.sh" ;; *) BB_RUST="$SDIR/../../rust/target/release"; BB_BUILD="$SDIR/../build_rust_packages.sh" ;; esac
 BIN="${TERRAFORMING_BIN_DIR:-$BB_RUST}/regen_envelope"
 if [ ! -f "$BIN" ] || [ ! -x "$BIN" ]; then
   printf '[regen_envelope] ERROR Rust 실행파일이 없다/실행 불가: %s\n' "$BIN" >&2
-  printf '[regen_envelope] 먼저 Terraform Rust install/check 후 실행: bash %q\n' "$SDIR/../build_rust_packages.sh" >&2
+  printf '[regen_envelope] 먼저 Terraform Rust install/check 후 실행: bash %q\n' "$BB_BUILD" >&2
   exit 2
 fi
 magic=''

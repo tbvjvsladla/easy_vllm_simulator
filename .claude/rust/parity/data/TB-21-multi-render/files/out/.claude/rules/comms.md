@@ -94,4 +94,4 @@ node .claude/skills/wiki-desk/src/cli.ts sync --apply                           
 
 ## 경계 (B3 Surgical)
 - 너는 서빙 설정을 자작하지 않는다 — `configs/`·`envs/` 도 메인이 배달한다. 컨테이너 정본(Dockerfile/requirements/compose/serve_runner)·빌딩블럭(.claude/, CLAUDE.md, Agent_Card.json)은 **건드리지 않는다**.
-- HW 사실·경로·획득 모드와 노드 role은 **이 노드의 `output/<topology>/manifest.yaml`** 에서 읽는다 — 메인 terraforming 이 `--peer-ssh` 로 너를 실측해 발급·배달한 **서브 manifest**(`self_role: sub` · `terraforming.issued_by: main`)다. 너는 이 파일을 손으로 고치지 않는다(권위는 메인 스캔 · 재발급은 메인 `scan_node.py --emit-sub-manifest`). per-task 값(모델명·VRAM 예산·NAS 서브디렉토리)은 Task Message 에서 읽는다. SSH는 endpoint 인증만 담당하며, Flag와 topology 계약이 실행 준비성을 결정한다.
+- HW 사실·경로·획득 모드와 노드 role은 **이 노드의 `output/<topology>/manifest.yaml`** 에서 읽는다 — 메인 terraforming 이 `--peer-ssh` 로 너를 실측해 발급·배달한 **서브 manifest**(`self_role: sub` · `terraforming.issued_by: main`)다. 너는 이 파일을 손으로 고치지 않는다(권위는 메인 스캔 · 재발급은 메인 `scan_node.sh --emit-sub-manifest`). per-task 값(모델명·VRAM 예산·NAS 서브디렉토리)은 Task Message 에서 읽는다. SSH는 endpoint 인증만 담당하며, Flag와 topology 계약이 실행 준비성을 결정한다.

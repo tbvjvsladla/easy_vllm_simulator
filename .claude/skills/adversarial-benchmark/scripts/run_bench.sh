@@ -366,7 +366,11 @@ bench_with_guidellm(){
   if [ "$SERVE_PLANE" = "native" ]; then
     echo "[run_bench] native: Docker serve-budget inspection skipped (host endpoint/proof plane)"
   else
-  local _BB_DIR="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox"
+  # 메인 = terraforming_node 정본 자리 · 서브 = render_sub_env 배달 자리(.claude/runtime/node_blackbox) — 세션 런처가 있는 쪽.
+  local _BB_DIR="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox" _bb_c
+  for _bb_c in "$REPO/.claude/runtime/node_blackbox" "$REPO/.claude/skills/terraforming_node/scripts/node_blackbox"; do
+    if [ -f "$_bb_c/blackbox_session.sh" ]; then _BB_DIR="$_bb_c"; break; fi
+  done
   local _SESSION_SH="$_BB_DIR/blackbox_session.sh"
   local _PREFLIGHT="$REPO/.claude/skills/upstream-version-watch/scripts/budget_preflight.sh"
   if [ -f "$_BB_DIR/node_identity.sh" ] && [ -f "$_SESSION_SH" ] && [ -f "$_PREFLIGHT" ]; then
