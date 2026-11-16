@@ -18202,6 +18202,65 @@
           "provenance": "agent-judged"
         }
       ]
+    },
+    {
+      "entry_id": "sync-202611162256-single-to-multi-wikioracle",
+      "utc": "2026-11-16T22:56:05Z",
+      "departure": "single-node",
+      "departure_commit": "3666697e9d889ad8275319b62821125a5bef78e8",
+      "approved_by": "AhnSangHun: 종료 시퀀스 ③ 승인 팝업 \"승인\" (2026-11-16T22:56:05Z)",
+      "approved_utc": "2026-11-16T22:56:05Z",
+      "_reach": "multi-node vs HEAD 트리차이 · 동기 지점 bc75155f1d16(departure-landed)",
+      "classification": [
+        {
+          "file": ".claude/rust/policy-distribution/src/checks.rs",
+          "verdict": "common_promote",
+          "reason": "wiki-desk frontmatter 검사 승격 + Rust YAML 1.1 오라클(plan_26111707) — wiki-desk 는 공통층 스킬",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/build_rust_packages.sh",
+          "verdict": "common_promote",
+          "reason": "wiki-desk frontmatter 검사 승격 + Rust YAML 1.1 오라클(plan_26111707) — wiki-desk 는 공통층 스킬",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/wiki-desk/checks/frontmatter.check.ts",
+          "verdict": "common_promote",
+          "reason": "wiki-desk frontmatter 검사 승격 + Rust YAML 1.1 오라클(plan_26111707) — wiki-desk 는 공통층 스킬",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/wiki-desk/rust/Cargo.lock",
+          "verdict": "common_promote",
+          "reason": "wiki-desk frontmatter 검사 승격 + Rust YAML 1.1 오라클(plan_26111707) — wiki-desk 는 공통층 스킬",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/wiki-desk/rust/Cargo.toml",
+          "verdict": "common_promote",
+          "reason": "wiki-desk frontmatter 검사 승격 + Rust YAML 1.1 오라클(plan_26111707) — wiki-desk 는 공통층 스킬",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/wiki-desk/rust/src/main.rs",
+          "verdict": "common_promote",
+          "reason": "wiki-desk frontmatter 검사 승격 + Rust YAML 1.1 오라클(plan_26111707) — wiki-desk 는 공통층 스킬",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/wiki-desk/scripts/package-manifest.ts",
+          "verdict": "common_promote",
+          "reason": "wiki-desk frontmatter 검사 승격 + Rust YAML 1.1 오라클(plan_26111707) — wiki-desk 는 공통층 스킬",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/wiki-desk/scripts/sanitize-check.ts",
+          "verdict": "common_promote",
+          "reason": "wiki-desk frontmatter 검사 승격 + Rust YAML 1.1 오라클(plan_26111707) — wiki-desk 는 공통층 스킬",
+          "provenance": "agent-judged"
+        }
+      ]
     }
   ]
 }
