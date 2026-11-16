@@ -1739,23 +1739,25 @@ pub fn render_tree(
     Ok(RenderOut { out_dir: out_dir.to_string(), produced, scopes })
 }
 
+/// The node blackbox delivered to a Sub under `.claude/runtime/node_blackbox/`: shell tools and the Rust launchers (plan_26111615
+/// pass 3 — the launchers run the ELFs of the terraforming crate built on the Sub; no `.py` tool and no Python on the Sub).
 pub const BLACKBOX_FILES: [(&str, u32); 17] = [
     ("mem_watchdog_eta.sh", 0o755),
-    ("blackbox_collect.py", 0o755),
-    ("blackbox_events.py", 0o755),
-    ("blackbox_eta.py", 0o644),
-    ("blackbox_session.py", 0o644),
-    ("logs_lifecycle.py", 0o755),
-    ("seed_from_journal.py", 0o755),
+    ("blackbox_collect.sh", 0o755),
+    ("blackbox_events.sh", 0o755),
+    ("blackbox_eta.sh", 0o755),
+    ("blackbox_session.sh", 0o755),
+    ("logs_lifecycle.sh", 0o755),
+    ("seed_from_journal.sh", 0o755),
     ("install_node_blackbox.sh", 0o755),
     ("verify_node_blackbox.sh", 0o755),
     ("purge_host_safety.sh", 0o755),
-    ("agent_guard.py", 0o755),
-    ("adversarial_stress.py", 0o755),
-    ("regen_envelope.py", 0o755),
+    ("agent_guard.sh", 0o755),
+    ("adversarial_stress.sh", 0o755),
+    ("regen_envelope.sh", 0o755),
     ("node_identity.sh", 0o755),
     ("budget_renew_loop.sh", 0o755),
-    ("blackbox_thermal.py", 0o755),
+    ("blackbox_thermal.sh", 0o755),
     ("thermal_watchdog.sh", 0o755),
 ];
 

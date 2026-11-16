@@ -75,6 +75,8 @@ pub const SCRATCH_DIR_NAMES: [&str; 4] = ["temp", "tmp", "test", "tests"];
 /// The Rust launchers that replace the policy `.py` programs this driver used to start (repo-relative).
 pub const POLICY_REGISTRY_LAUNCHER: &str = ".claude/policies/runtime/policy_registry.sh";
 pub const RUNTIME_SELFTEST_LAUNCHER: &str = ".claude/policies/runtime/runtime_selftest.sh";
+/// plan_26111615 pass 3: tracked non-.py executable surfaces start no Python on the host/sub (container lines allow-listed with a reason).
+pub const INLINE_PYTHON_SCAN_LAUNCHER: &str = ".claude/rust/py-boundary-guard/inline_python_scan.sh";
 pub const ANTIPATTERN_SCAN_LAUNCHER: &str = ".claude/policies/runtime/antipattern_scan.sh";
 pub const CONSTITUTION_LINT_LAUNCHER: &str = ".claude/policies/runtime/constitution_lint.sh";
 pub const DOC_NAMING_LAUNCHER: &str = ".claude/policies/runtime/doc_naming.sh";
@@ -1043,6 +1045,7 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
     checks.push(rr("terraform_host_safety_mem_watchdog_selftest", &["bash", &format!("{tn}/host_safety/mem_watchdog.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_budget_renew_loop_selftest", &["bash", &format!("{tn}/node_blackbox/budget_renew_loop.sh"), "--self-test"], &[0]));
     checks.push(rr("runtime_regression_selftest", &["bash", RUNTIME_SELFTEST_LAUNCHER], &[0]));
+    checks.push(rr("inline_python_scan", &["bash", INLINE_PYTHON_SCAN_LAUNCHER, "check", "--repo", "."], &[0]));
     checks.extend((hooks.gitless)(repo));
     let uw = ".claude/skills/upstream-version-watch/scripts";
     // upstream-version-watch 진입점은 Rust 런처(.sh → 노드 빌드 ELF)다 — .py 원본을 부르지 않는다(plan_26111615).
@@ -1136,7 +1139,7 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
         Ok(t) => {
             checks.push(order_check("single_up_grounding_before_any_state", &t,
                 "echo \"$TAG 1/7 통로·전제      : DONE", "echo \"$TAG 3/7 예산 선언       : DONE\"",
-                &["bash \"${_CI%.py}.sh\" --grounding-check", "check_smoke_model.sh\" \"$CONFIG\"", "python3 \"$SESSION_PY\" \"${DECL_ARGS[@]}\""]));
+                &["bash \"$_CI\" --grounding-check", "check_smoke_model.sh\" \"$CONFIG\"", "bash \"$SESSION_SH\" \"${DECL_ARGS[@]}\""]));
             checks.push(order_check("single_up_engine_log_saved_before_rollback", &t,
                 "echo \"$TAG 7/7 health 대기     : FAIL — 컨테이너가 종료됐다\"", "rollback; exit 5",
                 &["_save_serve_logs exited", "rollback; exit 2", "_save_serve_logs timeout"]));

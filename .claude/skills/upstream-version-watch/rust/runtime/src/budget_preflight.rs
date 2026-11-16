@@ -102,53 +102,14 @@ pub fn constants(repo: &Path) -> Result<(i64, i64, i64), String> {
         )
     };
     // The owner is the Rust `blackbox_eta` (plan_26111615): its launcher emits DEFAULTS (no envelope, no override) as
-    // `BB_<KEY>=<value>` lines — the same table, read without Python. A plane that still carries only the original
-    // (`.claude/runtime/node_blackbox/blackbox_eta.py` on a Sub) is read as before.
-    if let Some(sh) = candidates.iter().map(|d| d.join("blackbox_eta.sh")).find(|p| p.is_file()) {
-        return constants_from_launcher(&sh).map_err(|why| fail(&why));
-    }
-    let file = candidates
+    // `BB_<KEY>=<value>` lines — the same table, read without Python. A Sub carries the same launcher under
+    // `.claude/runtime/node_blackbox/` (render_sub_env · pass 3); a plane with no launcher is the original's ImportError.
+    let sh = candidates
         .iter()
-        .map(|d| d.join("blackbox_eta.py"))
+        .map(|d| d.join("blackbox_eta.sh"))
         .find(|p| p.is_file())
         .ok_or_else(|| fail("No module named 'blackbox_eta'"))?;
-    let text = std::fs::read_to_string(&file).map_err(|e| fail(&e.to_string()))?;
-    let mut inside = false;
-    let (mut margin, mut min_ceiling, mut band) = (None, None, None);
-    for line in text.lines() {
-        if !inside {
-            inside = line.starts_with("DEFAULTS = {");
-            continue;
-        }
-        if line.starts_with('}') {
-            break;
-        }
-        let body = line.trim_start();
-        let Some(rest) = body.strip_prefix('"') else {
-            continue;
-        };
-        let Some((key, value)) = rest.split_once("\":") else {
-            continue;
-        };
-        let number: String = value
-            .trim_start()
-            .chars()
-            .take_while(|c| c.is_ascii_digit() || *c == '.' || *c == '-')
-            .collect();
-        let Ok(parsed) = number.parse::<f64>() else {
-            continue;
-        };
-        match key {
-            "decl_margin_mib" => margin = Some(parsed as i64),
-            "decl_min_ceiling_mib" => min_ceiling = Some(parsed as i64),
-            "abs_band_mib" => band = Some(parsed as i64),
-            _ => {}
-        }
-    }
-    match (margin, min_ceiling, band) {
-        (Some(a), Some(b), Some(c)) => Ok((a, b, c)),
-        _ => Err(fail("KeyError")),
-    }
+    constants_from_launcher(&sh).map_err(|why| fail(&why))
 }
 
 /// The three declaration constants from `bash <launcher> --emit-params <tmp> --mem-total-mib 1` (DEFAULTS only).

@@ -309,7 +309,7 @@ _close_open_build_phase() {
 ATTEST_DIR="$REPO/output/multi/benchlog"   # $TOPO 아님 — 이 스크립트는 멀티 전용
 ATTEST_JSON="$ATTEST_DIR/attestation_${CONFIG}.json"
 ATTEST_ROWS="/tmp/mn_attest_rows.${CONFIG}.$$"   # 이번 실행의 빌드 후 대조 행(필요할 때만 생긴다 · serve 기록 후 지운다)
-_attest_add() {   # $1=축 $2=노드 $3=값 $4=기대(선택) — TSV 로 모으고 JSON 조립은 파이썬이 한다(따옴표 깨짐 ✗)
+_attest_add() {   # $1=축 $2=노드 $3=값 $4=기대(선택) — TSV 로 모으고 JSON 조립은 Rust(inline_json attestation-write)가 한다(따옴표 깨짐 ✗)
   printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "${4:-}" >> "$ATTEST_ROWS"
 }
 _attest_run() {   # $1=main|sub · 나머지 = 명령 argv. sub 는 argv 를 %q 로 인용해 원격 셸에 그대로 넘긴다
@@ -332,95 +332,10 @@ _attest_write() {   # $1=phase(build|serve) $2=캡처 디렉터리(serve 만) �
   mkdir -p "$ATTEST_DIR" 2>/dev/null || { echo "[mn] ⚠ $ATTEST_DIR 생성 실패 — attestation 미기록"; return 0; }
   local _nonid
   _nonid="$("$SF" non-identity)" || { echo "[mn] ⚠ slave_forward non-identity 실패 — attestation 미기록"; return 0; }
-  if SF_NON_IDENTITY="$_nonid" python3 - "$ATTEST_JSON" "$CONFIG" "$IMG" "$1" "${2:-}" "$ATTEST_ROWS" "$SF" "$MAIN_NODE_ID" "$SUB_NODE_ID" <<'PY'
-import hashlib, json, os, re, sys
-out, config, image, phase, cap, rows_path, sf, main_id, sub_id = sys.argv[1:10]
-def read(p):
-    try:
-        with open(p, encoding="utf-8") as fh:
-            return fh.read().strip() or None
-    except OSError:
-        return None
-checks = []
-for line in (read(rows_path) or "").splitlines():
-    axis, node, observed, expected = (line.split("\t") + ["", "", "", ""])[:4]
-    checks.append({"axis": axis, "node": node, "observed": observed, "expected": expected, "phase": "build"})
-doc = {"schema_version": 2, "kind": "multinode_node_parity_attestation", "config": config, "topology": "multi",
-       "image_tag": image, "phase": phase, "checks": checks,
-       "parity_blocking": False,
-       "parity_note": "기록 전용 — differ 를 차단할지는 사람 결정(D-5). image digest 는 판정 축이 아니다(동일 ABI ≠ 동일 이미지)."}
-if phase == "build":
-    doc["provenance"] = "measured(docker run in each node image · 이번 실행 --build 대조)"
-else:
-    doc["provenance"] = "measured(docker exec in each running container · host nvidia-smi)"
-    exempt = sorted(x for x in os.environ.get("SF_NON_IDENTITY", "").split() if x)
-    nodes = {}
-    for role, node_id in (("main", main_id), ("sub", sub_id)):
-        raw = read(os.path.join(cap, role + ".ledger.json"))
-        ledger, status = None, "unobservable(capture failed or legacy image without /opt/easy-vllm/build_ledger.json)"
-        if raw:
-            try:
-                ledger, status = json.loads(raw), "observed"
-            except ValueError:
-                status = "unobservable(ledger unparsable)"
-        if status == "observed" and not isinstance(ledger, dict):
-            ledger, status = None, "unobservable(ledger is not a JSON object)"
-        sha = (ledger.get("vllm") or {}).get("git_sha") if isinstance(ledger, dict) else None
-        sha_src = "build_ledger.vllm.git_sha" if sha else None
-        if not sha:
-            cand = read(os.path.join(cap, role + ".vllm_sha"))
-            if cand and re.fullmatch(r"[0-9a-f]{40}", cand):
-                sha, sha_src = cand, "docker exec git -C /workspace/vllm-src rev-parse HEAD"
-        nodes[role] = {"node_id": node_id, "container": read(os.path.join(cap, role + ".container")),
-                       "image_id": read(os.path.join(cap, role + ".image_id")),
-                       "build_ledger": ledger, "build_ledger_status": status,
-                       "vllm_sha": sha, "vllm_sha_source": sha_src,
-                       "vllm_dist_version": read(os.path.join(cap, role + ".vllm_dist")),
-                       "torch": read(os.path.join(cap, role + ".torch")),
-                       "driver": read(os.path.join(cap, role + ".driver"))}
-    def identity(led):
-        if not isinstance(led, dict):
-            return None
-        args = {k: v for k, v in (led.get("build_args") or {}).items() if k not in exempt}
-        pats = sorted((p.get("phase"), p.get("file"), p.get("script_sha256"), p.get("result"))
-                      for p in (led.get("patches") or []) if isinstance(p, dict))
-        body = {"dockerfile": led.get("dockerfile"), "build_args": args, "patches": pats,
-                "vllm_git_sha": (led.get("vllm") or {}).get("git_sha")}
-        return hashlib.sha256(json.dumps(body, sort_keys=True, ensure_ascii=False).encode("utf-8")).hexdigest()
-    def verdict(a, b):
-        return "unobservable" if a is None or b is None else ("equal" if a == b else "differ")
-    parity = {}
-    for axis in ("vllm_sha", "torch", "driver"):
-        a, b = nodes["main"][axis], nodes["sub"][axis]
-        parity[axis] = {"verdict": verdict(a, b), "main": a, "sub": b}
-    la, lb = identity(nodes["main"]["build_ledger"]), identity(nodes["sub"]["build_ledger"])
-    parity["build_ledger"] = {"verdict": verdict(la, lb), "main_identity_sha256": la, "sub_identity_sha256": lb,
-                              "identity_exempt_build_args": exempt,
-                              "compared": "dockerfile · build_args(− exempt) · patches(phase,file,script_sha256,result) · vllm git sha"}
-    # serve 시점 관측도 **대조 행**(`checks` 의 {axis,node,observed,expected})으로 싣는다 — v1 부터 행을 읽는 소비자
-    #   (hint evidence 의 결손 판정: 행 0 = HINT_MISSING_ATTESTATION_PARITY_ROWS)가 `--build` 없이 서빙만 한 셀
-    #   (태그2 가 그랬다)을 "대조 없음" 으로 적지 않게. expected = 상대 노드의 관측값(정합 = 두 노드가 같다).
-    #   **양 노드를 다 관측한 축만** 행이 된다 — 한쪽만 본 값(예: ssh 불통으로 서브 캡처 실패)을 행으로 만들면 소비자가
-    #   "대조가 있었다" 로 읽는다(행 ≥ 1 = 결손 아님). 그 값은 nodes/parity(unobservable)에 그대로 남는다 — 전부 못 봤으면
-    #   행 0 이 결손을 말한다(관측 불가를 대조로 지어내지 않는다).
-    ident = {"main": la, "sub": lb}
-    for axis in ("vllm_sha", "torch", "driver", "build_ledger_identity"):
-        key = "build_ledger" if axis == "build_ledger_identity" else axis
-        if parity[key]["verdict"] not in ("equal", "differ"):
-            continue
-        for role, other in (("main", "sub"), ("sub", "main")):
-            got = ident[role] if axis == "build_ledger_identity" else nodes[role][axis]
-            want = ident[other] if axis == "build_ledger_identity" else nodes[other][axis]
-            checks.append({"axis": axis, "node": role, "observed": got, "expected": want,
-                           "expected_source": f"parity:{other}", "phase": "serve", "verdict": parity[key]["verdict"]})
-    doc["nodes"] = nodes
-    doc["parity"] = parity
-with open(out, "w", encoding="utf-8") as fh:
-    json.dump(doc, fh, ensure_ascii=False, indent=2, sort_keys=True)
-    fh.write("\n")
-summary = " ".join(f"{k}={v['verdict']}" for k, v in sorted((doc.get("parity") or {}).items()))
-print(f"[mn] 노드 정합 attestation v2({phase}) → {os.path.relpath(out)} {summary}".rstrip())
-PY
+  # JSON 조립은 Rust `inline_json attestation-write`(upstream runtime `src/mn_attest.rs`)가 한다 — 옛 인라인 heredoc 과 같은
+  #   파일·stdout(축별 equal|differ|unobservable · 원장 정체성 sha256(dockerfile·build_args−면제·patches·vllm sha) ·
+  #   **양 노드를 다 관측한 축만** serve 대조 행 — 한쪽만 본 값을 행으로 만들면 소비자가 "대조가 있었다" 로 읽는다).
+  if SF_NON_IDENTITY="$_nonid" "$SDIR/inline_json.sh" attestation-write "$ATTEST_JSON" "$CONFIG" "$IMG" "$1" "${2:-}" "$ATTEST_ROWS" "$SF" "$MAIN_NODE_ID" "$SUB_NODE_ID"
   then :; else echo "[mn] ⚠ attestation 기록 실패(기록 전용 — 진행은 막지 않는다)"; fi
 }
 
@@ -717,12 +632,12 @@ BUDGET_LABEL="smoke-${CONFIG}"
 BUDGET_DECLARED=0
 budget_node_dir_main(){ printf '%s/docs/logs/%s' "$REPO" "$MAIN_NODE_ID"; }
 budget_node_dir_sub(){  printf '%s/docs/logs/%s' "$SUB_WORK_DIR" "$SUB_NODE_ID"; }
-SUB_SESSION_PY="$SUB_WORK_DIR/.claude/runtime/node_blackbox/blackbox_session.py"
+SUB_SESSION_SH="$SUB_WORK_DIR/.claude/runtime/node_blackbox/blackbox_session.sh"  # Rust 런처(서브 · render_sub_env 배달 · 서브 빌드 ELF) — 서브에 Python ✗
 MAIN_SESSION_SH="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.sh"  # Rust 런처(메인)
 MAIN_RENEW_SH="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/budget_renew_loop.sh"
 SUB_RENEW_SH="$SUB_WORK_DIR/.claude/runtime/node_blackbox/budget_renew_loop.sh"
 MAIN_REGEN_SH="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox/regen_envelope.sh"  # Rust 런처(메인)
-SUB_REGEN_PY="$SUB_WORK_DIR/.claude/runtime/node_blackbox/regen_envelope.py"
+SUB_REGEN_SH="$SUB_WORK_DIR/.claude/runtime/node_blackbox/regen_envelope.sh"  # Rust 런처(서브)
 NOW_ISO(){ date -u +%FT%TZ; }
 
 # ── 서빙 종료(단일 소유) ─────────────────────────────────────────────────────────────────────
@@ -768,7 +683,7 @@ teardown_serve(){
   #   clear-budget 은 멱등이라 선언이 없으면 그렇게 보고하고 끝난다.
   if [ "$mode" = "standalone" ] || [ "$BUDGET_DECLARED" = "1" ]; then
     bash "$MAIN_SESSION_SH" --node-dir "$(budget_node_dir_main)" clear-budget --now "$(NOW_ISO)" 2>&1 | sed 's/^/[mn] 예산회수(main): /'
-    [ -n "$SUB_NODE_ID" ] && timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $SUB_SESSION_PY --node-dir $SUB_WORK_DIR/docs/logs/$SUB_NODE_ID clear-budget --now $(NOW_ISO)'" 2>&1 | sed 's/^/[mn] 예산회수(sub): /'
+    [ -n "$SUB_NODE_ID" ] && timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD bash $SUB_SESSION_SH --node-dir $SUB_WORK_DIR/docs/logs/$SUB_NODE_ID clear-budget --now $(NOW_ISO)'" 2>&1 | sed 's/^/[mn] 예산회수(sub): /'
   fi
   if [ "${STRICT_DROP_CACHES:-0}" = "1" ] && { [ "$cache_main_rc" != "0" ] || [ "$cache_sub_rc" != "0" ]; }; then
     echo "[mn] FAIL: cache-clear success was not observed on both nodes" >&2
@@ -808,7 +723,7 @@ budget_block_event(){  # $1=stage $2=reason-slug · $3.. = key=value detail
   fi
   # 서브 경로는 manifest role 에서 이미 확정돼 있다(왕복 0회). 실패는 SSH 자체 실패뿐이고,
   # 그때도 "미기록"을 **명시**한다 — 조용히 넘기면 "그날 아무 일도 없었다"와 구분되지 않는다.
-  if out=$(timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD if [ -f $SUB_SESSION_PY ]; then python3 $SUB_SESSION_PY --node-dir $(budget_node_dir_sub) budget-block --stage $stage --reason $reason --label $BUDGET_LABEL$dargs --now $now; else echo \"$SUB_SESSION_PY 부재\"; exit 3; fi'" 2>&1); then
+  if out=$(timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD if [ -f $SUB_SESSION_SH ]; then bash $SUB_SESSION_SH --node-dir $(budget_node_dir_sub) budget-block --stage $stage --reason $reason --label $BUDGET_LABEL$dargs --now $now; else echo \"$SUB_SESSION_SH 부재\"; exit 3; fi'" 2>&1); then
     printf '%s\n' "$out" | sed 's/^/[mn]   sub: /'
   else
     echo "[mn]   sub: ⚠ 차단 이벤트 미기록 — $out"
@@ -826,7 +741,7 @@ if [ -f "$MAIN_REGEN_SH" ]; then
   bash "$MAIN_REGEN_SH" --node-dir "$(budget_node_dir_main)" staleness \
     --now "$(NOW_ISO)" --max-age-days "$ENVELOPE_MAX_AGE_DAYS" 2>&1 | sed 's/^/[mn] 포락선(main): /'
   # 부재를 조용히 넘기지 않는다 — "점검했고 괜찮았다"와 "점검 자체를 못 했다"는 다른 사실이다.
-  timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD if [ -f $SUB_REGEN_PY ]; then python3 $SUB_REGEN_PY --node-dir $(budget_node_dir_sub) staleness --now $(NOW_ISO) --max-age-days $ENVELOPE_MAX_AGE_DAYS; else echo \"⚠ $SUB_REGEN_PY 부재 — 미점검(render_sub_env/sync_to_sub 재배달 필요)\"; fi'" 2>&1 \
+  timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD if [ -f $SUB_REGEN_SH ]; then bash $SUB_REGEN_SH --node-dir $(budget_node_dir_sub) staleness --now $(NOW_ISO) --max-age-days $ENVELOPE_MAX_AGE_DAYS; else echo \"⚠ $SUB_REGEN_SH 부재 — 미점검(render_sub_env/sync_to_sub 재배달 필요)\"; fi'" 2>&1 \
     | sed 's/^/[mn] 포락선(sub): /'
 else
   echo "[mn] ⚠ $MAIN_REGEN_SH 부재 — 포락선 신선도 미점검(경고만)."
@@ -996,7 +911,7 @@ if [ "$BUDGET" = "1" ]; then
       nd="$(budget_node_dir_main)"; py="$MAIN_SESSION_SH"
       memtot=$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)
     else
-      nd="$(budget_node_dir_sub)"; py="$SUB_SESSION_PY"
+      nd="$(budget_node_dir_sub)"; py="$SUB_SESSION_SH"
       memtot=$(timeout 15 $SSH -n "$SUB_HOST" "awk '/MemTotal:/{print int(\$2/1024)}' /proc/meminfo" 2>/dev/null || true)
       [ -n "$memtot" ] || { echo "[mn]   sub: MemTotal 조회 실패"; return 1; }
     fi
@@ -1018,14 +933,14 @@ if [ "$BUDGET" = "1" ]; then
         echo "[mn]   main: declare-budget 실패 — $out"; return 1; }
     else
       had_decl=$(timeout 15 $SSH -n "$SUB_HOST" "test -f '$nd/serve_budget.env' && echo 1 || echo 0" 2>/dev/null || echo 0)
-      timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $py --node-dir $nd clear-budget --now $(NOW_ISO)'" >/dev/null 2>&1 || {
+      timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD bash $py --node-dir $nd clear-budget --now $(NOW_ISO)'" >/dev/null 2>&1 || {
         echo "[mn]   sub: clear-budget 실패"; return 1; }
       if [ "$had_decl" = 1 ]; then
         wait_budget_event "$ev" sub "$clear_t0" budget_none >/dev/null || {
           echo "[mn]   sub: clear-budget 상태 전이 미관측"; return 1; }
       fi
       t0=$(date +%s)
-      out=$(timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $py --node-dir $nd declare-budget --mem-total-mib $memtot --weights-mib $WEIGHTS_MIB --kv-mib $KV_MIB --overhead-mib $OVERHEAD_MIB --ttl-s $BUDGET_TTL_S --expected-load-s $READY_BUDGET_S --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1) || {
+      out=$(timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD bash $py --node-dir $nd declare-budget --mem-total-mib $memtot --weights-mib $WEIGHTS_MIB --kv-mib $KV_MIB --overhead-mib $OVERHEAD_MIB --ttl-s $BUDGET_TTL_S --expected-load-s $READY_BUDGET_S --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1) || {
         echo "[mn]   sub: declare-budget 실패 — $out"; return 1; }
     fi
     printf '%s\n' "$out" | sed "s/^/[mn]   $where: /"
@@ -1049,16 +964,16 @@ if [ "$BUDGET" = "1" ]; then
     echo "[mn]   **정상 로드가 사살 대상이 된다**(camp-26090918 실측 3건)."
     bash "$MAIN_SESSION_SH" --node-dir "$(budget_node_dir_main)" budget-skip \
       --reason=--no-watchdog --label "$BUDGET_LABEL" --now "$(NOW_ISO)" 2>&1 | sed 's/^/[mn]   main: /'
-    timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $SUB_SESSION_PY --node-dir $(budget_node_dir_sub) budget-skip --reason=--no-watchdog --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1 | sed 's/^/[mn]   sub: /' || true
+    timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD bash $SUB_SESSION_SH --node-dir $(budget_node_dir_sub) budget-skip --reason=--no-watchdog --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1 | sed 's/^/[mn]   sub: /' || true
   else
   echo "[mn] 예산 선언(양노드 · 로드 개시 전)..."
   BUD_RC=0; BUD_MAIN_OK=1; BUD_SUB_OK=1; BUD_SUB_MISSING=0
   declare_one main || { BUD_RC=1; BUD_MAIN_OK=0; }
   # ★ 서브도 **대칭** 발행한다. R0 시도②에서 서브 노드도 트립했다 — 메인만 선언하면 절반만 보호된다.
-  if $SSH "$SUB_HOST" "bash -lc '[ -f $SUB_SESSION_PY ]'" 2>/dev/null; then
+  if $SSH "$SUB_HOST" "bash -lc '[ -f $SUB_SESSION_SH ]'" 2>/dev/null; then
     declare_one sub || { BUD_RC=1; BUD_SUB_OK=0; }
   else
-    echo "[mn]   sub: $SUB_SESSION_PY 부재 — 서브 선언 불가(render_sub_env/sync_to_sub 재배달 필요)"
+    echo "[mn]   sub: $SUB_SESSION_SH 부재 — 서브 선언 불가(render_sub_env/sync_to_sub 재배달 필요)"
     BUD_RC=1; BUD_SUB_OK=0; BUD_SUB_MISSING=1
   fi
   if [ "$BUD_RC" != "0" ]; then
@@ -1083,7 +998,7 @@ else
   # `--reason=<v>` 등호형을 쓴다 — 공백형이면 argparse 가 값 `--no-budget` 을 **옵션으로** 읽어 죽는다.
   bash "$MAIN_SESSION_SH" --node-dir "$(budget_node_dir_main)" budget-skip \
     --reason=--no-budget --label "$BUDGET_LABEL" --now "$(NOW_ISO)" 2>&1 | sed 's/^/[mn]   main: /'
-  timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD python3 $SUB_SESSION_PY --node-dir $(budget_node_dir_sub) budget-skip --reason=--no-budget --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1 | sed 's/^/[mn]   sub: /'
+  timeout 30 $SSH -n "$SUB_HOST" "bash -lc '$SUB_CD bash $SUB_SESSION_SH --node-dir $(budget_node_dir_sub) budget-skip --reason=--no-budget --label $BUDGET_LABEL --now $(NOW_ISO)'" 2>&1 | sed 's/^/[mn]   sub: /'
 fi
 
 # ── Ray 클러스터 기동 (master 먼저=head, slave 합류) ──
@@ -1258,35 +1173,11 @@ rm -f "$ATTEST_ROWS"
 SERVE_PROOF="$REPO/output/multi/benchlog/serve_proof_${CONFIG}.json"
 mkdir -p "$(dirname "$SERVE_PROOF")" 2>/dev/null
 _ATT_REF=""; [ "$READY" = "1" ] && [ -f "$ATTEST_JSON" ] && _ATT_REF="${ATTEST_JSON#$REPO/}"
-if python3 - "$SERVE_PROOF" "$CONFIG" "$READY" "$LAST_HTTP" "$SMOKE_VERDICT" "$SMOKE_EVIDENCE" "${CH_CLEN:-}" \
-     "${CO_LEN:-}" "${CH_RLEN:-}" "${CH_FR:-}" "$IMG" "$MC" "$_ATT_REF" <<'PY'
-import json, sys
-(out, config, ready, http, verdict, evidence, clen, colen, rlen, fr, image, mc, att) = sys.argv[1:14]
-def num(v):
-    return int(v) if v.isdigit() else None
-# content_len = **추론 증거가 된 생성 텍스트의 길이**(SPEC §6.1 · hint 발행 자격 X8 이 `content_len ≥ 1` 을 요구한다).
-#   evidence=chat.content → chat content 길이 · evidence=v1.completions → 파서 우회 completions 텍스트 길이 ·
-#   완화 PASS(reasoning 만)·실패 → 0(생성 텍스트를 관측하지 못했다) · 추론 미시도 → null.
-#   ⚠ v1.completions PASS 에 chat content 길이(0)를 적으면 진짜 PASS 가 자격을 잃는다 — chat 쪽 길이는 따로 둔다.
-if verdict == "not-attempted":
-    content_len = None
-elif verdict == "pass" and evidence == "chat.content":
-    content_len = num(clen)
-elif verdict == "pass" and evidence == "v1.completions":
-    content_len = num(colen)
-else:
-    content_len = 0
-doc = {"schema_version": 1, "kind": "multinode_serve_proof", "config": config, "topology": "multi",
-       "ready": ready == "1", "health_http": num(http),
-       "inference_verdict": verdict, "evidence": evidence or None,
-       "content_len": content_len, "chat_content_len": num(clen),
-       "completion_text_len": num(colen), "reasoning_len": num(rlen),
-       "finish_reason": fr or None, "image_tag": image or None, "master_container": mc or None,
-       "attestation_ref": att or None, "provenance": "measured(multinode_serve_smoke)"}
-with open(out, "w", encoding="utf-8") as fh:
-    json.dump(doc, fh, ensure_ascii=False, indent=2, sort_keys=True)
-    fh.write("\n")
-PY
+# content_len = **추론 증거가 된 생성 텍스트의 길이**(SPEC §6.1 · hint 발행 자격 X8 이 `content_len ≥ 1` 을 요구한다) —
+#   evidence=chat.content → chat content 길이 · v1.completions → completions 텍스트 길이 · 완화 PASS·실패 → 0 · 미시도 → null.
+#   조립은 Rust `inline_json serve-proof`(upstream runtime `src/mn_attest.rs` · 옛 인라인 heredoc 과 같은 파일).
+if "$SDIR/inline_json.sh" serve-proof "$SERVE_PROOF" "$CONFIG" "$READY" "$LAST_HTTP" "$SMOKE_VERDICT" "$SMOKE_EVIDENCE" "${CH_CLEN:-}" \
+     "${CO_LEN:-}" "${CH_RLEN:-}" "${CH_FR:-}" "$IMG" "$MC" "$_ATT_REF"
 then echo "[mn] serve proof → ${SERVE_PROOF#$REPO/} (verdict=$SMOKE_VERDICT evidence=${SMOKE_EVIDENCE:-없음})"
 else echo "[mn] ⚠ serve proof 기록 실패 — hint 발행 자격을 이 셀에서 관측할 수 없다"; fi
 if [ "$RESULT" = "0" ] && [ "$SMOKE_VERDICT" = "pass" ]; then

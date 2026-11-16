@@ -45,21 +45,21 @@
    + .claude/runtime/host_safety/systemd/easy-vllm-memwatch.service
    + .claude/runtime/host_safety/host/vllm-drop-caches.sh
    + .claude/runtime/node_blackbox/mem_watchdog_eta.sh
-   + .claude/runtime/node_blackbox/blackbox_collect.py
-   + .claude/runtime/node_blackbox/blackbox_events.py
-   + .claude/runtime/node_blackbox/blackbox_eta.py
-   + .claude/runtime/node_blackbox/blackbox_session.py
-   + .claude/runtime/node_blackbox/logs_lifecycle.py
-   + .claude/runtime/node_blackbox/seed_from_journal.py
+   + .claude/runtime/node_blackbox/blackbox_collect.sh
+   + .claude/runtime/node_blackbox/blackbox_events.sh
+   + .claude/runtime/node_blackbox/blackbox_eta.sh
+   + .claude/runtime/node_blackbox/blackbox_session.sh
+   + .claude/runtime/node_blackbox/logs_lifecycle.sh
+   + .claude/runtime/node_blackbox/seed_from_journal.sh
    + .claude/runtime/node_blackbox/install_node_blackbox.sh
    + .claude/runtime/node_blackbox/verify_node_blackbox.sh
    + .claude/runtime/node_blackbox/purge_host_safety.sh
-   + .claude/runtime/node_blackbox/agent_guard.py
-   + .claude/runtime/node_blackbox/adversarial_stress.py
-   + .claude/runtime/node_blackbox/regen_envelope.py
+   + .claude/runtime/node_blackbox/agent_guard.sh
+   + .claude/runtime/node_blackbox/adversarial_stress.sh
+   + .claude/runtime/node_blackbox/regen_envelope.sh
    + .claude/runtime/node_blackbox/node_identity.sh
    + .claude/runtime/node_blackbox/budget_renew_loop.sh
-   + .claude/runtime/node_blackbox/blackbox_thermal.py
+   + .claude/runtime/node_blackbox/blackbox_thermal.sh
    + .claude/runtime/node_blackbox/thermal_watchdog.sh
    + .gitignore
    + docs/*/example.md (5 skeletons)

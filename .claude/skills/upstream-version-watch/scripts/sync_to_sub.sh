@@ -879,12 +879,12 @@ OVERLAY_RETIREMENT_STALE_PATHS=(
 #   처방: 원인을 살리고(stderr 유지) rc 를 전파하며, `[ -d ]` 는 rc 1(부재)만 부재로 읽는다.
 sub_run()  { ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && $1"; }
 
-# ── 서브 Rust 러너(sub_runner · regen_build_patches_src) — 서브에는 Python/cargo 를 요구하지 않는다 ──
+# ── 서브 Rust 러너(sub_runner · regen_build_patches_src · inline_json · native_remote) — 서브에는 Python/cargo 를 요구하지 않는다 ──
 # 서브에서 도는 정비·검증 호출은 메인이 평면 B(이 스크립트) 안에서 rsync 로 배달한 ELF 로 한다.
 # ELF 는 gitignored(target/) 라 스테이징·인벤토리·체크섬 표면에 없다(서브 git 에도 들지 않는다).
 # 부재·아키 불일치·ELF 매직 불일치는 fail-closed 다 — Python 폴백 ✗(우회가 아니라 경로를 고친다).
 SUB_ELF_REL=".claude/skills/upstream-version-watch/rust/runtime/target/release"
-SUB_ELF_NAMES=(sub_runner regen_build_patches_src inline_json)
+SUB_ELF_NAMES=(sub_runner regen_build_patches_src inline_json native_remote)   # native_remote = native_multinode_serve 의 서브 고정 러너(옛 python3 -c 프로그램)
 sub_runner_run() { # $1..=sub_runner argv → 서브에서 실행(stdout 전달 · 실패는 그대로 비-0)
     local q a args=""
     for a in "$@"; do printf -v q '%q' "$a"; args="$args $q"; done

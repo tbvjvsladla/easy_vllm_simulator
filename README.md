@@ -831,7 +831,7 @@ hint/<vllm버전>/<모델>/<arch>/q<양자화>-len<컨텍스트>-kv<KV dtype>[-<
 ```bash
 # 2) 내 상황에 가까운 것 찾기 (읽기 전용 · git 없이도 hints/index.json 만으로 동작합니다)
 #    모델 관계 = 정규화 슬러그 동치 + 카탈로그의 base_model · --arch 는 선택
-python3 .claude/skills/hint-publisher/scripts/hint.py match \
+bash .claude/skills/hint-publisher/scripts/hint.sh match \
   --vllm 0.32.0-g5df63a7203cd --model qwen3.8-flash-next-nvfp4
 ```
 

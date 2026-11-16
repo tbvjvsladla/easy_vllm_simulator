@@ -485,7 +485,7 @@ fn body(ctx: &Ctx) -> Res<bool> {
         }
         let bscr = pj(&skills_dir, "adversarial-benchmark/scripts");
         let bskill = dirname(&bscr);
-        let tolerated = "broad_search.sh→.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py";
+        let tolerated = "broad_search.sh→.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.sh";
         let mut called_missing: Vec<String> = vec![];
         let mut sh: Vec<String> = glob_all(&bscr).into_iter().filter(|n| n.ends_with(".sh") && !n.starts_with('.')).collect();
         sh.sort();

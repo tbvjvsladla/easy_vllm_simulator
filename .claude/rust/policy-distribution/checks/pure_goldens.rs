@@ -178,6 +178,12 @@ const LAUNCHER_SWITCHED: &[&str] = &[
     "terraform_library_access_selftest",
 ];
 
+/// Checks added after the golden capture (closed list · tripwire): absent from the original's report, present exactly once.
+const ADDED_CHECKS: &[&str] = &[
+    // plan_26111615 pass 3: tracked non-.py executable surfaces start no Python on the host/sub.
+    "inline_python_scan",
+];
+
 /// Golden check names that were renamed with their launcher (`upstream_help:x.py` → `upstream_help:x.sh`).
 fn renamed(name: &str) -> String {
     match name.strip_prefix("upstream_help:") {
@@ -217,10 +223,25 @@ fn stub_report(tree: &Path, py: &str) -> PyValue {
     norm(&report, tree, py)
 }
 
+/// The frozen golden tree (b1f3563e) predates the port: its single_serve_up.sh still spelled the grounding check and the
+/// budget declaration as `bash "${_CI%.py}.sh"` / `python3 "$SESSION_PY"`. The Rust check now requires the launcher forms
+/// the live script uses (plan_26111615) and must not accept the Python form, so the fixture gets the same two call-site
+/// renames the real script got — nothing else in the frozen tree changes.
+fn port_single_up_calls(tree: &Path) {
+    let p = tree.join(".claude/skills/upstream-version-watch/scripts/single_serve_up.sh");
+    let Ok(t) = std::fs::read_to_string(&p) else { return };
+    let t = t
+        .replace("bash \"${_CI%.py}.sh\" --grounding-check", "bash \"$_CI\" --grounding-check")
+        .replace("python3 \"$SESSION_PY\" \"${DECL_ARGS[@]}\"", "bash \"$SESSION_SH\" \"${DECL_ARGS[@]}\"");
+    std::fs::write(&p, t).unwrap();
+    sh("git add -A", tree);
+}
+
 fn compare_reports(golden_name: &str, mutate: bool) {
     let g = golden(golden_name);
     let rev = st(get(&g, "rev"));
     let tree = frozen_tree(&rev, if mutate { "mut" } else { "base" });
+    port_single_up_calls(&tree.0);
     if mutate {
         apply_mutations(&tree.0);
         sh("git add -A", &tree.0);
@@ -232,7 +253,12 @@ fn compare_reports(golden_name: &str, mutate: bool) {
     for key in ["schema_version", "repo", "policy_as_of", "verdict"] {
         assert_eq!(dumps(get(&got, key)), dumps(get(want, key)), "{golden_name}: top-level {key}");
     }
-    let (gc, wc) = (items(get(&got, "checks")), items(get(want, "checks")));
+    let gc: Vec<PyValue> = items(get(&got, "checks")).into_iter().filter(|c| !ADDED_CHECKS.contains(&st(get(c, "name")).as_str())).collect();
+    for added in ADDED_CHECKS {
+        let n = items(get(&got, "checks")).iter().filter(|c| st(get(c, "name")) == *added).count();
+        assert_eq!(n, 1, "{golden_name}: added check {added} appears exactly once");
+    }
+    let wc = items(get(want, "checks"));
     let names = |v: &[PyValue]| v.iter().map(|c| renamed(&st(get(c, "name")))).collect::<Vec<_>>();
     assert_eq!(names(&gc), names(&wc), "{golden_name}: check names/order");
     let mut argv_changed = 0;

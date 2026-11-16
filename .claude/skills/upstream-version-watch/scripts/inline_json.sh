@@ -1,6 +1,6 @@
 #!/bin/bash
 # Direct normal ELF startup; no install/build/download or Python business fallback.
-# Ported: the JSON readers the entry-point shells used to run through an interpreter inline (subcommands: allowed, gate-unreadable-*, divergence-summary, parity-summary, delivery-source, propagation-fields, chat-verdict, completions-len, campaign-budget, open-sessions, inventory).
+# Ported: the JSON readers the entry-point shells used to run through an interpreter inline (subcommands: allowed, gate-unreadable-*, divergence-summary, parity-summary, delivery-source, propagation-fields, chat-verdict, completions-len, campaign-budget, open-sessions, inventory, attestation-write, serve-proof).
 set -euo pipefail
 SCRIPT_PATH=${BASH_SOURCE[0]}
 case "$SCRIPT_PATH" in */*) SCRIPT_DIR=${SCRIPT_PATH%/*}; [ -n "$SCRIPT_DIR" ] || SCRIPT_DIR=/ ;; *) SCRIPT_DIR=. ;; esac

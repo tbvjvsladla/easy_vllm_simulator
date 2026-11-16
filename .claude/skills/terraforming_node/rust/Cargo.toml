@@ -75,6 +75,11 @@ path = "src/bin/blackbox_events.rs"
 name = "regen_envelope"
 path = "src/bin/regen_envelope.rs"
 
+# verify_node_blackbox.sh: the carried-forward `capture_proven` (was its inline python3 heredoc).
+[[bin]]
+name = "bb_capture_proven"
+path = "src/bin/bb_capture_proven.rs"
+
 [[bin]]
 name = "agent_guard"
 path = "src/bin/agent_guard.rs"

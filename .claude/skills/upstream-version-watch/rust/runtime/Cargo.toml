@@ -174,10 +174,15 @@ path = "src/bin/slave_forward.rs"
 name = "native_wheelhouse"
 path = "src/bin/native_wheelhouse.rs"
 
-# `native_multinode_serve.py` in full: `up` (dry-run plan and `--apply`), `client`, `down` and `--self-test` (blackbox_session python3 calls and the launch-record PII substitution stay outside).
+# `native_multinode_serve.py` in full: `up` (dry-run plan and `--apply`), `client`, `down` and `--self-test` (the launch-record PII substitution stays outside; the Sub runs `native_remote` and the `blackbox_session.sh` launcher — no Python).
 [[bin]]
 name = "native_multinode_serve"
 path = "src/bin/native_multinode_serve.rs"
+
+# The fixed sub-node runner `native_multinode_serve`'s Ssh runner executes on the Sub (was a `python3 -c` program sent over ssh).
+[[bin]]
+name = "native_remote"
+path = "src/bin/native_remote.rs"
 
 # The sub-node helpers of `sync_to_sub.sh` (prune-empty-dirs, validate-names, retirement-scan; std only, delivered to the sub by the main node).
 # The small JSON readers of the entry-point shells (gate allowed, summaries, field extraction, smoke response verdicts, campaign budget, open sessions) that used to be inline `python3 -c`.

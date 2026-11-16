@@ -197,7 +197,8 @@ NODE_DIR="$LOGS_ROOT/$NODE_ID"
 [ -f "$SDIR/mem_watchdog_eta.sh" ] || { say "FAIL: $SDIR/mem_watchdog_eta.sh 부재"; exit 1; }
 # 블랙박스 데몬·엔진은 Rust 실행파일(`terraforming_node/rust` 의 bin)을 그대로 배치한다 — Python 경로 ✗.
 # 빌드는 명시 작업이다(설치기가 대신 빌드하지 않는다): 하나라도 없으면 안내하고 멈춘다.
-RUST_REL="$SDIR/../../rust/target/release"
+# 서브에는 이 설치기가 .claude/runtime/node_blackbox/ 로 배달되고, 실행파일은 서브에 배달·빌드된 terraforming 크레이트에 있다.
+case "$SDIR" in */.claude/runtime/node_blackbox) RUST_REL="$SDIR/../../skills/terraforming_node/rust/target/release" ;; *) RUST_REL="$SDIR/../../rust/target/release" ;; esac
 for _rb in blackbox_collect blackbox_eta blackbox_events logs_lifecycle regen_envelope blackbox_thermal; do
   [ -f "$RUST_REL/$_rb" ] && [ -x "$RUST_REL/$_rb" ] || {
     say "FAIL: Rust 실행파일 부재: $RUST_REL/$_rb — 먼저 bash $SDIR/../build_rust_packages.sh"; exit 1; }

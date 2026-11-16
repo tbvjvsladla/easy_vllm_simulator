@@ -331,9 +331,11 @@ pub fn self_test(here: &Path) -> i32 {
     std::fs::write(bm.join(MARKER), "bad").unwrap();
     ck("reject bad-marker", safe_remove_owned_tree(&bm, "bad-marker").is_err());
 
-    // ── fixed remote program, run locally through `sh -c` (same bytes as over ssh) ──
+    // ── fixed sub-node runner (`native_remote`, this executable's sibling), run locally through `sh -c` (same argv as over ssh) ──
     let rroot = base.join("rparent/rid1");
-    let rr = Ssh { root: rroot.to_string_lossy().into_owned(), node: "sub".into(), transport: vec!["sh".into(), "-c".into()] };
+    let remote = std::env::current_exe().ok().and_then(|e| e.parent().map(|d| d.join("native_remote"))).unwrap_or_default();
+    ck("native_remote ELF 가 이 실행파일 옆에 있다(서브 고정 러너 · Python ✗)", remote.is_file());
+    let rr = Ssh { root: rroot.to_string_lossy().into_owned(), node: "sub".into(), transport: vec!["sh".into(), "-c".into()], remote: remote.to_string_lossy().into_owned() };
     let rinit = rr.init_root(true);
     ck("remote init(ensure_parent) + 정확한 마커", rinit.is_ok() && std::fs::read(rroot.join(MARKER)).ok().as_deref() == Some(marker_bytes("rid1").as_slice()));
     ck("remote init 은 기존 루트를 거부", matches!(rr.init_root(false), Err(Err::Unknown(_))));

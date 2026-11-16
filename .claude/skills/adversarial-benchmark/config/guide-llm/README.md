@@ -199,7 +199,7 @@ bash $S/sweep_bench.sh <config> --topology <single|multi> --tool guidellm --pres
      --bench-budget-mib <N> --knob-reason bench_budget_mib=host_budget
 D=output/<topology>/benchlog/sweep_<config>
 bash $S/judge_bench.sh <config> --authority weak                 # 판정(권한은 사용자 HITL — 목표를 명시받았으면 explicit)
-python3 $S/render_report.py --sweep-index $D/sweep_index.json --verdict-json $D/verdict.json --roofline-json $D/roofline.json
+bash $S/render_report.sh --sweep-index $D/sweep_index.json --verdict-json $D/verdict.json --roofline-json $D/roofline.json
 ```
 
 - `validate` 가 거부하면 메시지가 어느 knob 의 어느 규칙인지 말한다. 실측에서 원본 sha256 이 다르면 측정을 시작하지 않는다.

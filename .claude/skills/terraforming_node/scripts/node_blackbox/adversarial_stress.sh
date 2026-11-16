@@ -8,7 +8,10 @@ set -euo pipefail
 SELF="${BASH_SOURCE[0]}"
 case "$SELF" in */*) SDIR_RAW="${SELF%/*}"; [ -n "$SDIR_RAW" ] || SDIR_RAW=/ ;; *) SDIR_RAW=. ;; esac
 SDIR="$(cd "$SDIR_RAW" && pwd)"
-BIN="${TERRAFORMING_BIN_DIR:-$SDIR/../../rust/target/release}/adversarial_stress"
+# A Sub carries this launcher at .claude/runtime/node_blackbox/ (render_sub_env); its executables are those of the delivered
+# terraforming crate built on the Sub (build_rust_packages.sh) — the same place as on the main node.
+case "$SDIR" in */.claude/runtime/node_blackbox) BB_RUST="$SDIR/../../skills/terraforming_node/rust/target/release" ;; *) BB_RUST="$SDIR/../../rust/target/release" ;; esac
+BIN="${TERRAFORMING_BIN_DIR:-$BB_RUST}/adversarial_stress"
 if [ ! -f "$BIN" ] || [ ! -x "$BIN" ]; then
   printf '[adversarial_stress] ERROR Rust 실행파일이 없다/실행 불가: %s\n' "$BIN" >&2
   printf '[adversarial_stress] 먼저 Terraform Rust install/check 후 실행: bash %q\n' "$SDIR/../build_rust_packages.sh" >&2

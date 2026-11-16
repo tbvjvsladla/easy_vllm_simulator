@@ -1,3 +1,6 @@
+    # 이월 판독은 Rust(`bb_capture_proven` · 옛 인라인 python3 heredoc 과 같은 출력) — 실행파일이 없거나 실패하면 null.
+    PREV_PROVEN="$("$RUST_REL/bb_capture_proven" "$OUT" 2>/dev/null || echo null)"
+    [ -n "$PREV_PROVEN" ] || PREV_PROVEN="null"
 #!/bin/bash
 # verify_node_blackbox.sh — proof-of-capture 게이트 (plan_26073109 §Phase 5).
 #
@@ -144,6 +147,8 @@ if [ "$MODE" = "crash" ]; then
   exit 0
 fi
 
+# Rust 실행파일 자리 — 메인 scripts/node_blackbox/../../rust · 서브(.claude/runtime/node_blackbox/)는 배달·빌드된 terraforming 크레이트.
+case "$SDIR" in */.claude/runtime/node_blackbox) RUST_REL="$SDIR/../../skills/terraforming_node/rust/target/release" ;; *) RUST_REL="$SDIR/../../rust/target/release" ;; esac
 say "노드=$NODE_ID · 모드=$MODE · 로그=$NODE_DIR"
 echo
 
@@ -198,14 +203,14 @@ else bad "열·전력 워치독 self-test 실패 — bash $SDIR/thermal_watchdog
 #   둘이 갈라져 있으면 "시험 통과 + 현장은 옛 코드"가 된다. 침묵 실패라 반드시 명시 검사한다.
 #   (근거: install 의 `enable --now` 가 이미 돌던 유닛을 재시작하지 않던 결함 — testlog_26073123)
 for pair in "mem_watchdog_eta.sh:easy-vllm-bb-watchdog" \
-            "../../rust/target/release/blackbox_collect:easy-vllm-bb-collect" \
-            "../../rust/target/release/blackbox_eta:easy-vllm-bb-eta" \
-            "../../rust/target/release/regen_envelope:easy-vllm-bb-regen-envelope" \
-            "../../rust/target/release/blackbox_events:easy-vllm-bb-events" \
-            "../../rust/target/release/logs_lifecycle:easy-vllm-bb-lifecycle" \
-            "../../rust/target/release/blackbox_thermal:easy-vllm-bb-thermal" \
+            "$RUST_REL/blackbox_collect:easy-vllm-bb-collect" \
+            "$RUST_REL/blackbox_eta:easy-vllm-bb-eta" \
+            "$RUST_REL/regen_envelope:easy-vllm-bb-regen-envelope" \
+            "$RUST_REL/blackbox_events:easy-vllm-bb-events" \
+            "$RUST_REL/logs_lifecycle:easy-vllm-bb-lifecycle" \
+            "$RUST_REL/blackbox_thermal:easy-vllm-bb-thermal" \
             "thermal_watchdog.sh:easy-vllm-bb-tp-watchdog"; do
-  src="$SDIR/${pair%%:*}"; dst="/usr/local/sbin/${pair##*:}"
+  case "${pair%%:*}" in /*) src="${pair%%:*}" ;; *) src="$SDIR/${pair%%:*}" ;; esac; dst="/usr/local/sbin/${pair##*:}"
   if [ ! -f "$dst" ]; then bad "배포본 부재: $dst" "deployed_${pair##*:}"
   elif cmp -s "$src" "$dst"; then
     ok "배포본 최신 ${pair##*:}" "deployed_${pair##*:}"
@@ -570,19 +575,10 @@ if [ -d "$NODE_DIR" ]; then
   #   ∴ check/crash 실행은 증명을 **이월만** 하고 절대 생성·삭제하지 않는다.
   PREV_PROVEN="null"
   if [ -f "$OUT" ]; then
-    PREV_PROVEN="$(python3 - "$OUT" <<'PY' 2>/dev/null || echo null
-import json,sys
-try:
-    d=json.load(open(sys.argv[1],encoding="utf-8"))
-except Exception:
-    print("null"); raise SystemExit
-p=d.get("capture_proven")
-if not isinstance(p,dict):                      # schema_version 1 에서의 이월
-    p=({"proven_utc":d.get("verified_utc"),"pass":d.get("pass"),"fail":d.get("fail"),
-        "pending":d.get("pending")} if d.get("mode")=="post" and d.get("verified_utc") else None)
-print(json.dumps(p,ensure_ascii=False) if p else "null")
-PY
-)"
+    # 이월 판독(schema_version 1 의 post 기록 변환 포함)은 Rust `bb_capture_proven` 이 한다 — 옛 인라인 heredoc 과
+    #   같은 출력(json.dumps(p, ensure_ascii=False) | null). 실행파일 부재·실패는 null(증명 이월 없음).
+    PREV_PROVEN="$("$RUST_REL/bb_capture_proven" "$OUT" 2>/dev/null || echo null)"
+    [ -n "$PREV_PROVEN" ] || PREV_PROVEN="null"
   fi
   if [ "$MODE" = "post" ] && [ "$FAILN" = 0 ]; then
     PROVEN="$(printf '{"proven_utc": "%s", "pass": %d, "fail": %d, "pending": %d}' \

@@ -10,9 +10,18 @@ autotests = false
 name = "py_boundary_guard"
 path = "src/main.rs"
 
+# Tracked non-.py executable surfaces must not start Python outside the container allow-list (plan_26111615 pass 3).
+[[bin]]
+name = "inline_python_scan"
+path = "src/inline_python_scan.rs"
+
 [[test]]
 name = "guard_checks"
 path = "checks/guard_checks.rs"
+
+[[test]]
+name = "inline_scan_checks"
+path = "checks/inline_scan_checks.rs"
 
 [dependencies]
 
