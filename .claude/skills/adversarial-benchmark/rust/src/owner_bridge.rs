@@ -1,7 +1,7 @@
 //! A closed-operation session with the Python programs the lite and sweep-meta verifiers still depend on.
 //!
 //! The verifiers ask three owners that have not been ported (hint reader `render_bench_section.py`, evidence
-//! publisher `evidence_publisher.py` and completion gate `completion_gate.py`) and must see what those owners really answer, so none of their rules is copied here. This is
+//! publisher `evidence_publisher.py`; the completion gate operations are answered by the Rust `policy_gate` library) and must see what those owners really answer, so none of their rules is copied here. This is
 //! transport only: [`OwnerBridge`] starts one Python interpreter that runs the program in `owner_bridge.py`
 //! (compiled into this crate and handed over as `-c` text; there is no file to deploy), keeps it for the whole
 //! verification run, and sends one named operation per request. The operations are the fixed methods below; no
@@ -55,18 +55,12 @@ const SESSION_ERROR: &str = "OwnerBridgeError";
 pub enum OwnerRole {
     /// The hint reader `render_bench_section.py`.
     HintReader,
-    /// The evidence publisher `evidence_publisher.py`.
-    EvidencePublisher,
-    /// The completion gate `completion_gate.py`.
-    CompletionGate,
 }
 
 impl OwnerRole {
     fn key(self) -> &'static str {
         match self {
             OwnerRole::HintReader => "rbs",
-            OwnerRole::EvidencePublisher => "ep",
-            OwnerRole::CompletionGate => "gate",
         }
     }
 }
@@ -508,76 +502,78 @@ impl OwnerBridge {
         self.call(console, "rbs_constant", vec![("name", PyValue::str(name))])
     }
 
-    /// `ep._BENCH_SRC_NAME_RE[kind].match(name) is not None`.
+    /// `ep._BENCH_SRC_NAME_RE[kind].match(name) is not None` — answered by the Rust evidence publisher library
+    /// (`.claude/rust/policy-publisher`, the port of `evidence_publisher.py`), not through the Python session.
     pub fn publisher_name_matches(
         &mut self,
-        console: &mut dyn Console,
+        _console: &mut dyn Console,
         kind: &str,
         name: &str,
     ) -> Result<bool, Raised> {
-        self.call(
-            console,
-            "ep_bench_name_matches",
-            vec![("kind", PyValue::str(kind)), ("name", PyValue::str(name))],
-        )
-        .map(|value| value.is_truthy())
+        Ok(policy_publisher::bench_src_name_matches(kind, name))
     }
 
-    /// `ep.report_measurement_config(text)[0]`. Each call is a call of the owner (it may import the reader again).
+    /// `ep.report_measurement_config(text)[0]` — the Rust evidence publisher library, as above. The table (str /
+    /// int / None cells) crosses the two value models through its JSON text.
     pub fn publisher_measurement_config(
         &mut self,
-        console: &mut dyn Console,
+        _console: &mut dyn Console,
         text: &str,
     ) -> Result<PyValue, Raised> {
-        self.call(
-            console,
-            "ep_report_measurement_config",
-            vec![("text", PyValue::str(text))],
-        )
-    }
-
-    /// An attribute of the publisher that holds a contract constant (`LITE_BENCH_MODE`).
-    pub fn publisher_constant(
-        &mut self,
-        console: &mut dyn Console,
-        name: &str,
-    ) -> Result<PyValue, Raised> {
-        self.call(console, "ep_constant", vec![("name", PyValue::str(name))])
-    }
-
-    /// `gate.parse_flat_certificate(text)` as `(fields, ok)`.
-    pub fn parse_flat_certificate(
-        &mut self,
-        console: &mut dyn Console,
-        text: &str,
-    ) -> Result<(PyValue, bool), Raised> {
-        let pair = self.call(
-            console,
-            "gate_parse_flat_certificate",
-            vec![("text", PyValue::str(text))],
-        )?;
-        match pair.peel() {
-            PyValue::List(items) if items.len() == 2 => {
-                Ok((items[0].clone(), items[1].is_truthy()))
+        match policy_publisher::report_measurement_config(text).0 {
+            None => Ok(PyValue::None),
+            Some(table) => {
+                let json = table
+                    .dumps_unicode()
+                    .map_err(|e| session_error(&format!("measurement table is not JSON-safe: {e:?}")))?;
+                loads_text(&PyStr::new(&json.to_utf8().unwrap_or_default()))
+                    .map_err(|e| session_error(&format!("measurement table JSON reload failed: {e:?}")))
             }
-            _ => Err(session_error(
-                "the completion gate did not answer (fields, ok)",
-            )),
         }
     }
 
-    /// `gate.certificate_run_key(fields) is not None`.
+    /// An attribute of the publisher that holds a contract constant (`LITE_BENCH_MODE`) — the Rust library, as above.
+    pub fn publisher_constant(
+        &mut self,
+        _console: &mut dyn Console,
+        name: &str,
+    ) -> Result<PyValue, Raised> {
+        match name {
+            "LITE_BENCH_MODE" => Ok(PyValue::str(policy_publisher::LITE_BENCH_MODE)),
+            other => Err(session_error(&format!("unknown publisher constant `{other}`"))),
+        }
+    }
+
+    /// `gate.parse_flat_certificate(text)` as `(fields, ok)` — answered by the Rust completion gate library
+    /// (`.claude/rust/policy-gate`, the port of `completion_gate.py`), not through the Python session.
+    pub fn parse_flat_certificate(
+        &mut self,
+        _console: &mut dyn Console,
+        text: &str,
+    ) -> Result<(PyValue, bool), Raised> {
+        let (fields, ok) = policy_gate::completion_gate::parse_flat_certificate(text);
+        let mut dict = PyDict::new();
+        for (key, value) in &fields.0 {
+            dict.set(key, PyValue::str(value));
+        }
+        Ok((PyValue::Dict(dict), ok))
+    }
+
+    /// `gate.certificate_run_key(fields) is not None` — the Rust completion gate library, as above.
     pub fn certificate_run_key_present(
         &mut self,
-        console: &mut dyn Console,
+        _console: &mut dyn Console,
         fields: &PyValue,
     ) -> Result<bool, Raised> {
-        self.call(
-            console,
-            "gate_certificate_run_key_present",
-            vec![("fields", fields.clone())],
-        )
-        .map(|value| value.is_truthy())
+        let mut flat = policy_gate::completion_gate::Fields::default();
+        if let PyValue::Dict(dict) = fields.peel() {
+            for (key, value) in dict.iter() {
+                if !matches!(value.peel(), PyValue::None) {
+                    flat.0.push((py_text_of(&PyValue::Str(key.clone())), py_text_of(value)));
+                }
+            }
+        }
+        Ok(policy_gate::completion_gate::certificate_run_key(&flat).is_some())
     }
 }
 

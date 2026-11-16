@@ -727,9 +727,10 @@ fn the_owner_modules_are_imported_as_the_original_imported_them() {
     let outcome = run(LITE_REPORT, Some(&tree), &scratch, &[], &[]);
     assert_clean_pass(&outcome, 28, "[selftest_lite_report] PASS", &scratch);
     let marker = std::fs::read_to_string(tree.join(MARKER_NAME)).expect("the marker");
-    // One import for the program's own binding of the reader, one for each of the four evidence publisher calls
-    // (each call imports the reader again): neither cached nor merged by the port.
-    assert_eq!(marker, "rbs-import\n".repeat(5));
+    // One import for the program's own binding of the reader. The four evidence publisher calls used to import the
+    // reader again each (4 more lines); the publisher is now the Rust library `policy_publisher` (port of
+    // evidence_publisher.py, plan_26111615 P1) whose measurement-table parser is its own port, so it imports nothing.
+    assert_eq!(marker, "rbs-import\n");
 }
 
 #[test]

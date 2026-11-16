@@ -62,7 +62,6 @@ const FULL_RENDER_SECONDS: u64 = 60;
 const RELEASE_DIRECTORY: &str = ".claude/skills/adversarial-benchmark/rust/target/release";
 
 const HINT_READER: &str = ".claude/skills/hint-publisher/scripts/render_bench_section.py";
-const EVIDENCE_PUBLISHER: &str = ".claude/policies/runtime/evidence_publisher.py";
 const GATE_STUB: &str = ".claude/skills/terraforming_node/scripts/manifest_contract.py";
 const GATE_LAUNCHER_STUB: &str = ".claude/skills/terraforming_node/scripts/manifest_contract.sh";
 /// Test-plane launcher stub of the Flag gate (a shell program; nothing in the sandbox runs Python): the availability
@@ -480,11 +479,7 @@ pub fn main(
         OwnerRole::HintReader,
         &canonical.join(HINT_READER),
     )?;
-    bridge.load(
-        checks.console(),
-        OwnerRole::EvidencePublisher,
-        &canonical.join(EVIDENCE_PUBLISHER),
-    )?;
+    // The evidence publisher is answered by the Rust library `policy_publisher` (no Python load).
 
     let sandbox = Sandbox::build(&canonical, &scripts_dir, "lite-report-selftest.")?;
     let outcome = run_sandbox_cases(&mut checks, &mut bridge, &sandbox, &scripts_dir, verbose);

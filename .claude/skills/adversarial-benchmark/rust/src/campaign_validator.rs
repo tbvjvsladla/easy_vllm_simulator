@@ -581,7 +581,8 @@ fn contract_value(value: &PyValue) -> Option<agent_runtime_support::pyvalue::PyV
 
 /// `_validate_schema(doc, schema, where)`: `where: ('code', 'message')` per violation, as the owner formats the tuple.
 fn validate_schema(ctx: &Ctx, doc: &PyValue, schema: &PyValue, where_: &str) -> V<Vec<String>> {
-    let engine = ctx.root.join(".claude/policies/runtime/completion_gate.py");
+    // The engine is the Rust completion gate (policy-gate); its command surface in the tree is the launcher.
+    let engine = ctx.root.join(".claude/policies/runtime/completion_gate.sh");
     if !engine.is_file() {
         return die(format!(
             "스키마 엔진이 없다: {} — 이 트리에는 검증기만 있고 엔진이 오지 않았다. 선언 검증은 메인 단일 창구이며(서브는 --from-slice 로 받은 선언을 소비한다), 이 트리에서 물을 수 있는 것은 --instance 의 P1~P3 이다.",

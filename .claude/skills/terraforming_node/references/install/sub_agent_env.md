@@ -75,7 +75,7 @@ Rust 실행환경 지원분은 `scripts/rust_bootstrap.sh`·`scripts/rust_toolch
 
   ```bash
   # ① 증거 레코드 발행(work-manifest 의 뼈대)
-  python3 .claude/policies/runtime/evidence_publisher.py init       --task-class harness_change --topic <주제>       --generated-utc <YYYY-MM-DDTHH:MM:SSZ> --identity-json <identity.json>
+  bash .claude/policies/runtime/evidence_publisher.sh init       --task-class harness_change --topic <주제>       --generated-utc <YYYY-MM-DDTHH:MM:SSZ> --identity-json <identity.json>
   # ② 사람이 plan 문서에 `## Execution approval` 앵커 + 원자 3종을 적고(approved_by/approved_at_utc/allowed_action),
   #    그 값을 work-manifest 의 execution_approval 에 기입한다(plan_sha256 = 그 plan 바이트의 sha256).
   #    → allowed_actions 에 `sync_to_sub` 가 있어야 인가가 열린다.
