@@ -33,7 +33,13 @@ const RENDER: &str = ".claude/skills/terraforming_node/scripts/render_sub_env.sh
 const RENDER_RS: &str = ".claude/skills/terraforming_node/rust/src/render_sub_env.rs";
 const TERRAFORMING_BIN_REL: &str = ".claude/skills/terraforming_node/rust/target/release";
 const GATE: &str = ".claude/policies/runtime/completion_gate.py";
+/// The gate launcher sync_branches.sh calls, and its node-built ELF (crate .claude/rust/policy-gate).
+const GATE_SH: &str = ".claude/policies/runtime/completion_gate.sh";
+const GATE_ELF_REL: &str = ".claude/rust/policy-gate/target/release/completion_gate";
 const CATALOG: &str = ".claude/skills/hint-publisher/scripts/hint.py";
+/// The catalog launcher closing_sequence.sh calls, and its node-built ELF (hint-publisher bundle).
+const CATALOG_SH: &str = ".claude/skills/hint-publisher/scripts/hint.sh";
+const HINT_ELF_REL: &str = ".claude/skills/hint-publisher/rust/target/release/hint";
 const HINTLIB_DIR: &str = ".claude/skills/hint-publisher/scripts/hintlib";
 const CATALOG_COMPANIONS: [&str; 2] = [".claude/skills/hint-publisher/scripts/render_bench_section.py", "hints/vocab.json"];
 const SCHEMAS: [&str; 3] = ["work-manifest.schema.json", "completion-manifest.schema.json", "side-effect-authorization.schema.json"];
@@ -151,6 +157,18 @@ impl Sandbox {
         let dst = dst_root.join(rel);
         mkdirs(dst.parent().unwrap())?;
         copy_file(&self.real.join(rel), &dst)
+    }
+
+    /// The node-built ELF at its build path inside a fixture checkout (gitignored `target/`, as on the real node). The
+    /// opposite-branch temporary worktree has none, so the scripts must find it in the main worktree -- the real flow.
+    fn link_elf(&self, dst_root: &Path, rel: &str) -> R<()> {
+        let src = self.real.join(rel);
+        if !src.is_file() {
+            return Err(format!("ELF 부재(실제 트리에서 빌드한다 · Python 폴백 ✗): {}", src.display()));
+        }
+        let dst = dst_root.join(rel);
+        mkdirs(dst.parent().unwrap())?;
+        std::os::unix::fs::symlink(&src, &dst).map_err(|e| format!("symlink {}: {e}", dst.display()))
     }
 }
 
@@ -545,7 +563,7 @@ fn build_sequence_fixture(sb: &Sandbox, o: FxOpts) -> R<Fixture> {
     if !hintlib.iter().any(|r| r.ends_with("/catalog.py")) {
         return Err(format!("hintlib 사본 목록에 catalog.py 가 없다: {hintlib:?}"));
     }
-    let mut rels: std::collections::BTreeSet<String> = sv(&[LAYER_LEDGER_SH, LAYER_LEDGER_RS, INLINE_JSON_SH, SYNC_BRANCHES, CLOSING, PARITY, PARITY_SH, GATE, CATALOG, ".gitignore"]).into_iter().collect();
+    let mut rels: std::collections::BTreeSet<String> = sv(&[LAYER_LEDGER_SH, LAYER_LEDGER_RS, INLINE_JSON_SH, SYNC_BRANCHES, CLOSING, PARITY, PARITY_SH, GATE, GATE_SH, CATALOG, CATALOG_SH, ".gitignore"]).into_iter().collect();
     rels.extend(SCHEMAS.iter().map(|s| format!(".claude/schemas/{s}")));
     rels.extend(reps);
     rels.extend(hintlib);
@@ -617,6 +635,9 @@ fn build_sequence_fixture(sb: &Sandbox, o: FxOpts) -> R<Fixture> {
     sb.git(&other, &["tag", "-a", HINT_TAG, "-m", "원격 전용 brief"])?;
     sb.git(&other, &["push", "-q", "origin", "HEAD:refs/heads/hint", &format!("refs/tags/{HINT_TAG}")])?;
     sb.git(&repo, &["remote", "add", "fx", &p2s(&remote)])?;
+    // node-built ELFs in the main worktree only (untracked) -- the closing sequence's temporary worktree has no target/
+    sb.link_elf(&repo, GATE_ELF_REL)?;
+    sb.link_elf(&repo, HINT_ELF_REL)?;
     mkdirs(&repo.join("hints"))?;
     write(&repo.join("hints/.central_authority"), "")?;
 
@@ -901,7 +922,7 @@ fn test_branch_sync_delete_respects_excludes(real: &Path) -> R<()> {
         let repo = sb.root.join("repo");
         mkdirs(&repo)?;
         sb.git(&repo, &["init", "-q", "-b", "single-node"])?;
-        let mut rels: std::collections::BTreeSet<String> = sv(&[SYNC_BRANCHES, INLINE_JSON_SH, GATE, PARITY, PARITY_SH, LAYER_LEDGER_SH, LAYER_LEDGER_RS, ".gitignore"]).into_iter().collect();
+        let mut rels: std::collections::BTreeSet<String> = sv(&[SYNC_BRANCHES, INLINE_JSON_SH, GATE, GATE_SH, PARITY, PARITY_SH, LAYER_LEDGER_SH, LAYER_LEDGER_RS, ".gitignore"]).into_iter().collect();
         rels.extend(SCHEMAS.iter().map(|s| format!(".claude/schemas/{s}")));
         rels.extend(relocation_replacements(real)?);
         for rel in &rels {
@@ -925,6 +946,7 @@ fn test_branch_sync_delete_respects_excludes(real: &Path) -> R<()> {
         sb.git(&repo, &["add", "-A"])?;
         sb.git(&repo, &["commit", "-qm", "B 대상 전용(원장·특화층)"])?;
         approval_fixture(&repo)?;
+        sb.link_elf(&repo, GATE_ELF_REL)?;
 
         let mut script = repo.join(SYNC_BRANCHES);
         if mutant {
@@ -962,6 +984,8 @@ fn test_inline_json_locator(real: &Path) -> R<()> {
     mkdirs(&main.join(UVW))?;
     sb.git(&main, &["init", "-q", "-b", "single-node"])?;
     copy_file(&real.join(SYNC_BRANCHES), &main.join(SYNC_BRANCHES))?;
+    // the gate launcher is tracked on every real branch (its ELF is not built here: the gate is unreadable, the locator is what is checked)
+    sb.copy_real(&main, GATE_SH)?;
     sb.git(&main, &["add", "-A"])?;
     sb.git(&main, &["commit", "-qm", "base"])?;
     let wt = root.join("wt");

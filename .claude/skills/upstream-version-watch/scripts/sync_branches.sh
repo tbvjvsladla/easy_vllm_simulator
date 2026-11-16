@@ -344,11 +344,22 @@ if [ ! -f "$GATE_SCRIPT" ]; then
     echo "[sync-branches] FAIL: completion_gate 런처가 없어 authorize 를 실행할 수 없습니다: $GATE_SCRIPT" >&2
     exit 2
 fi
+# 게이트 ELF 는 비추적 빌드 산출물이다 — 종료 시퀀스가 만든 반대 브랜치 임시 워크트리에는 target/ 가 없다.
+#   layer_ledger·inline_json 과 같은 규칙으로 찾는다: 호출자의 COMPLETION_GATE_BIN → 이 체크아웃의 빌드 →
+#   같은 저장소 주 작업 트리(정본 체크아웃)의 빌드. 어디에도 없으면 런처가 exit 2 + 빌드 안내(Python 폴백 ✗).
+_GATE_BIN_REL=".claude/rust/policy-gate/target/release/completion_gate"
+_GATE_ENV=()
+if [ "${COMPLETION_GATE_BIN+set}" != set ] && [ ! -x "$REPO_ROOT/$_GATE_BIN_REL" ]; then
+    _GB_COMMON="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+    if [ -n "$_GB_COMMON" ] && [ -x "$(dirname -- "$_GB_COMMON")/$_GATE_BIN_REL" ]; then
+        _GATE_ENV=("COMPLETION_GATE_BIN=$(dirname -- "$_GB_COMMON")/$_GATE_BIN_REL")
+    fi
+fi
 
 cd "$REPO_ROOT"
 
 # ── side-effect 인가 게이트: 소스 브랜치 검증·경로 열거·git diff·git checkout 이전에 동기 호출 ──
-gate_cmd=(bash "$GATE_SCRIPT" authorize --action sync_branches --repo-root "$REPO_ROOT")
+gate_cmd=(env "${_GATE_ENV[@]}" bash "$GATE_SCRIPT" authorize --action sync_branches --repo-root "$REPO_ROOT")
 if [ "$HAVE_MANIFEST" -eq 1 ]; then
     gate_cmd+=(--manifest "$RESOLVED_MANIFEST")
 fi
