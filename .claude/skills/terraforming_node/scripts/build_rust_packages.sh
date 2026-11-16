@@ -26,6 +26,13 @@ t="$REPO/.claude/rust/role-contract"
 p="$REPO/.claude/skills/vllm-recipe-explorer/rust/runtime"
 u="$REPO/.claude/skills/upstream-version-watch/rust/runtime"
 x="$REPO/.claude/rust/parity"
+# Policies bundle (.claude/policies/**): completion gate+doc naming, evidence publisher, registry audit, runtime selftest, distribution check, claim predicates.
+g="$REPO/.claude/rust/policy-gate"
+pp="$REPO/.claude/rust/policy-publisher"
+pa="$REPO/.claude/rust/policy-audit"
+ps="$REPO/.claude/rust/policy-selftest"
+pd="$REPO/.claude/rust/policy-distribution"
+pf="$REPO/.claude/rust/policy-predicates"
 # Every role consumer must carry its library and Q path dependency.
 for consumer in "$REPO/.claude/skills/adversarial-benchmark/rust" "$u"; do
   if [ -f "$consumer/Cargo.toml" ]; then
@@ -48,7 +55,7 @@ done
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/rust-packages.XXXXXX")"
 trap 'rm -f -- "$tmp/metadata.json"; rmdir -- "$tmp"' EXIT
 applicable=0
-for crate in "$q" "$t" "$p" "$u" "$x"; do
+for crate in "$q" "$t" "$p" "$u" "$x" "$g" "$pp" "$pa" "$ps" "$pd" "$pf"; do
   [ -f "$crate/Cargo.toml" ] || continue
   applicable=$((applicable+1))
   [ -f "$crate/Cargo.lock" ] || { echo "Missing lock: $crate" >&2; exit 2; }
