@@ -1,0 +1,988 @@
+{
+  "schema_version": 1,
+  "entries": [
+    {
+      "entry_id": "sync-202611162125-single-to-multi-pyretire",
+      "utc": "2026-11-16T21:25:09Z",
+      "departure": "single-node",
+      "departure_commit": "4516a15a6606086401d96a5f8c0dccfe20934273",
+      "approved_by": "AhnSangHun: 종료 시퀀스 ③ 승인 팝업 \"승인\" (2026-11-16T21:25:09Z)",
+      "approved_utc": "2026-11-16T21:25:09Z",
+      "_reach": "multi-node vs HEAD 트리차이 · 동기 지점 b1f3563e1216(departure-landed)",
+      "classification": [
+        {
+          "file": ".claude/policies/predicates/claim_predicates.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/predicates/companion_predicate.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/predicates/runtime_patch_predicate.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/antipattern_scan.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/completion_gate.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/constitution_lint.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/doc_naming.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/evidence_publisher.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/harness_verify.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/policy_registry.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/runtime_selftest.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/topology_parity.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/policies/runtime/verify_distribution.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rules/docs.md",
+          "verdict": "common_promote",
+          "reason": "규칙 문서 포인터 hint.py/pii.py → hint.sh/rust pii.rs · 공통층 규칙",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rules/workflow.md",
+          "verdict": "common_promote",
+          "reason": "규칙 문서 포인터 hint.py/pii.py → hint.sh/rust pii.rs · 공통층 규칙",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/cases/shims/campaign_init.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/cases/shims/estimate_vram.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/cases/shims/manifest_contract.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/cases/shims/quant_table.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/cases/shims/rank_recipes.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/cases/shims/resolve_ngc_tag.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/cases/shims/resolve_torch_pin.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/cases/shims/resolve_wheel.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/cases/shims/turn_budget.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/cases/shims/validate_runtime_patch.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/parity/sub_na/gen_na_list.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/rust/runtime-support/tools/gen_yaml_sites.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/classify_cell/classify_cell_role_query.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/checks/data/reporting/campaign_init_original.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/rust/src/owner_bridge.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/bench_preset.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/classify_cell.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/classify_cell_native.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/classify_cell_role_query.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/conformance_full_superset_lite.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/dataset_prep.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/dataset_prep_native.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/doc_naming.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/doc_naming_native.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/lite_metrics.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/lite_metrics_native.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/parse_bench.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/parse_guidellm_native.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/publish_benchmark_record_native.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/render_max_report.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/render_max_report_native.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/render_report.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/render_report_native.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/render_sweep_map_native.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/repeat_axis_native.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/repeat_axis_owner_query.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/reporting_native.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/resolve_guidellm.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/resolve_topology.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/roofline.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_bench_preset.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_cell_args.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_precheck.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_judge_bench.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_lite_gate.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_lite_report.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_roofline.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_meta.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_repeats.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/sweep_stop.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/topology_legacy_api.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hint.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/__init__.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/artifacts.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/branch.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/catalog.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/core.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/evidence.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/lineage.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/naming.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/pii.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/selftest_image_git_release.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/tag.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/hintlib/template.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/hint-publisher/scripts/render_bench_section.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/agent_card_contract.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/agent_control.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/audit_session_ssh.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/bootstrap_canary.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/check_sub_hint_equip.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/harness_permission_probe.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/library_access.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/manifest_contract.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/adversarial_stress.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/agent_guard.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/blackbox_collect.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/blackbox_eta.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/blackbox_events.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/logs_lifecycle.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/publish_install_request.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/regen_envelope.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/node_role_contract.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/providers/claude_code.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/providers/codex_cli.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/relay.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/scan_node.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/scan_node_original.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/selftest_bootstrap_permissions.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/selftest_campaign_lifecycle.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/selftest_claude_native_events.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/selftest_harness_switch.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/selftest_sub_hint_write_scopes.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/staleness_gate.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/terraforming_node/scripts/turn_budget.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/budget_preflight.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/check_smoke_model.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/check_spec_layout.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/classify_failure.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/judge_version_delta.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/layer_ledger.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/native_multinode_serve.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/native_wheelhouse.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/push_branches.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/regen_requirements.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/render_native_triplet.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/resolve_build_track.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/resolve_torch_pin.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/resolve_wheel.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/selftest_branch_sync.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/slave_forward.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/recipe.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/source/feedback_log.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/source/gen_recipe_set.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/crosscheck_model_card.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/escalation_predicate.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/feedback_log.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/functional_smoke.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/parse_model_config.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/parse_vllm_log.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/quant_table.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/rank_recipes.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/rope_scaling_translate.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/selftest_gmu_roles_batch.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/sim_classify.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        },
+        {
+          "file": ".claude/skills/vllm-recipe-explorer/scripts/simlog_writer.py",
+          "verdict": "common_promote",
+          "reason": "추적 하네스 py 삭제 — Rust 이식 완료·삭제 트리 검증 PASS(plan_26111615 D1·D3·D5) · 두 토폴로지 공통",
+          "provenance": "agent-judged"
+        }
+      ]
+    }
+  ]
+}
