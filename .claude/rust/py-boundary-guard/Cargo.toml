@@ -15,3 +15,7 @@ name = "guard_checks"
 path = "checks/guard_checks.rs"
 
 [dependencies]
+
+[[bin]]
+name = "py_exec_trap"
+path = "src/bin/py_exec_trap.rs"

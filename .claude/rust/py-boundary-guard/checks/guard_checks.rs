@@ -133,3 +133,30 @@ fn usage_errors_exit_2() {
     let out = Command::new(bin()).arg("--help").output().unwrap();
     assert_eq!(out.status.code(), Some(0));
 }
+
+#[test]
+fn py_exec_trap_logs_and_refuses() {
+    let dir = std::env::temp_dir().join(format!("pybg-trap-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let log = dir.join("trap.jsonl");
+    let out = Command::new(env!("CARGO_BIN_EXE_py_exec_trap"))
+        .args(["-c", "print(1)"])
+        .env("PY_EXEC_TRAP_LOG", &log)
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(97));
+    let text = std::fs::read_to_string(&log).unwrap();
+    assert_eq!(text.lines().count(), 1);
+    assert!(
+        text.contains("\"argv\":[") && text.contains("\"-c\",\"print(1)\""),
+        "{text}"
+    );
+    // unset log → still refused (fail-closed)
+    let out = Command::new(env!("CARGO_BIN_EXE_py_exec_trap"))
+        .env_remove("PY_EXEC_TRAP_LOG")
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(97));
+    let _ = std::fs::remove_dir_all(&dir);
+}
