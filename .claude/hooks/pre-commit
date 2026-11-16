@@ -25,3 +25,9 @@ if ! bash "$selftest" --tripwires-only; then
     printf '[pre-commit] tripwire FAIL — 커밋을 거부한다. 우회(--no-verify)하지 말고 원인을 고쳐라(D3).\n' >&2
     exit 1
 fi
+
+# 하네스 py 재유입 차단(plan_26111615 D5) — 새로 추적되는 *.py 는 허용목록 안이어야 한다. 런처 부재 = fail-closed.
+if ! bash "$repo_root/.claude/policies/runtime/py_boundary_guard.sh" check --repo "$repo_root" --staged-additions; then
+    printf '[pre-commit] py 경계 FAIL — 하네스는 Rust 로 쓴다. 허용목록 추가는 개정 plan + HITL 로만 한다.\n' >&2
+    exit 1
+fi
