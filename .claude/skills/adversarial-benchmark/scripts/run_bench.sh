@@ -148,18 +148,18 @@ fi
 
 # Terraform readiness is manifest/Flag/topology-based. SSH authenticates a provisioned
 # endpoint; unsigned Agent Card metadata is not an execution credential.
-MC="$REPO/.claude/skills/terraforming_node/scripts/manifest_contract.py"
+MC="$REPO/.claude/skills/terraforming_node/scripts/manifest_contract.sh"
 # Flag 게이트 런타임(Rust manifest_contract)은 게이트 판정 전에 한 번 확인한다. 게이트 호출은 stdout/stderr 와 상태를 버리고
 # 비0 을 모두 info-only 4 로 읽으므로(아래), 실행파일 부재가 "Flag 미발급"으로 가려지지 않게 여기서 안내를 보이고 상태를
 # 전파한다. 가용성 확인일 뿐 건강 증명이 아니며, 런타임이 있으면 이후 판정·종료는 종전과 같다(owner 부재는 종전대로 4).
 if [ -f "$MC" ]; then
-  MANIFEST_CONTRACT_VALIDATE_ONLY=1 bash "${MC%.py}.sh" || {
+  MANIFEST_CONTRACT_VALIDATE_ONLY=1 bash "$MC" || {
     _MC_RC=$?
     echo "[run_bench] ERROR 테라포밍-완수 Flag 게이트 런타임(manifest_contract)을 쓸 수 없다 — Flag 미발급이 아니다(위 안내로 빌드한 뒤 다시)." >&2
     exit "$_MC_RC"
   }
 fi
-if [ ! -f "$MC" ] || ! bash "${MC%.py}.sh" --topology "$TOPO" --repo "$REPO" --require-flag >/dev/null 2>&1; then
+if [ ! -f "$MC" ] || ! bash "$MC" --topology "$TOPO" --repo "$REPO" --require-flag >/dev/null 2>&1; then
   echo "[run_bench] 테라포밍-완수 Flag 미발급 — info-only(fail-closed; topology 준비성 미확인)." >&2
   exit 4
 fi
@@ -258,8 +258,10 @@ bench_with_vllm(){
   local RFN="ab_bench_${CONFIG}.json"
   if [ "$SERVE_PLANE" = "docker" ]; then
     echo "[run_bench] bench(vllm/docker): ctr=$CTR inport=$INPORT model=$MODEL_NAME conc=$CONC in=$ILEN out=$OLEN n=$NPROMPTS warmup=$WARMUPS backend=$BACKEND endpoint=$ENDPOINT"
+    # 컨테이너 **안**에서 도는 클라이언트다 — 호스트 포트($PORT)가 아니라 컨테이너 포트($INPORT)로 붙는다.
+    #   (2026-11-16: yaml port 에 호스트 포트를 넣던 생성기 결함 F1 이 컨테이너를 호스트 포트로 리슨시켜 이 경로를 가려 왔다)
     docker exec "$CTR" bash -lc "cd /tmp && vllm bench serve \
-    --backend $BACKEND --base-url $BASE_URL --endpoint $ENDPOINT \
+    --backend $BACKEND --base-url http://localhost:$INPORT --endpoint $ENDPOINT \
     --model '$MODEL_NAME' --tokenizer '$MODEL_PATH' --trust-remote-code \
     --dataset-name random --random-input-len $ILEN --random-output-len $OLEN --random-range-ratio 0 \
     --num-prompts $NPROMPTS --max-concurrency $CONC --request-rate inf --ignore-eos --num-warmups $WARMUPS --temperature 0 \
@@ -366,16 +368,20 @@ bench_with_guidellm(){
   if [ "$SERVE_PLANE" = "native" ]; then
     echo "[run_bench] native: Docker serve-budget inspection skipped (host endpoint/proof plane)"
   else
-  local _BB_DIR="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox"
-  local _SESSION_PY="$_BB_DIR/blackbox_session.py"
+  # 메인 = terraforming_node 정본 자리 · 서브 = render_sub_env 배달 자리(.claude/runtime/node_blackbox) — 세션 런처가 있는 쪽.
+  local _BB_DIR="$REPO/.claude/skills/terraforming_node/scripts/node_blackbox" _bb_c
+  for _bb_c in "$REPO/.claude/runtime/node_blackbox" "$REPO/.claude/skills/terraforming_node/scripts/node_blackbox"; do
+    if [ -f "$_bb_c/blackbox_session.sh" ]; then _BB_DIR="$_bb_c"; break; fi
+  done
+  local _SESSION_SH="$_BB_DIR/blackbox_session.sh"
   local _PREFLIGHT="$REPO/.claude/skills/upstream-version-watch/scripts/budget_preflight.sh"
-  if [ -f "$_BB_DIR/node_identity.sh" ] && [ -f "$_SESSION_PY" ] && [ -f "$_PREFLIGHT" ]; then
+  if [ -f "$_BB_DIR/node_identity.sh" ] && [ -f "$_SESSION_SH" ] && [ -f "$_PREFLIGHT" ]; then
     # shellcheck source=/dev/null
     . "$_BB_DIR/node_identity.sh"
     local _NID _NDIR _BSTAT _BRC _FLOOR
     if _NID="$(ni_resolve_node_id "$REPO" "" 2>/dev/null)" && [ -n "$_NID" ]; then
       _NDIR="$REPO/docs/logs/$_NID"
-      _BSTAT="$(python3 "$_SESSION_PY" --node-dir "$_NDIR" budget-status --now "$(date -u +%FT%TZ)" 2>/dev/null)"; _BRC=$?
+      _BSTAT="$(bash "$_SESSION_SH" --node-dir "$_NDIR" budget-status --now "$(date -u +%FT%TZ)" 2>/dev/null)"; _BRC=$?
       if [ "$_BRC" = "0" ]; then
         _FLOOR="$(printf '%s' "$_BSTAT" | bash "$SDIR/bench_shell.sh" floor-mib 2>/dev/null)"
         if [ -n "$_FLOOR" ]; then
@@ -387,7 +393,7 @@ bench_with_guidellm(){
           fi
           # 선언이 벤치 도중 만료되면 워치독은 옛 규칙(무제한 arm)으로 돌아간다. 시계만 민다
           #   — 바닥은 건드리지 않는다(원 산출 provenance 보존).
-          python3 "$_SESSION_PY" --node-dir "$_NDIR" renew-budget --now "$(date -u +%FT%TZ)" \
+          bash "$_SESSION_SH" --node-dir "$_NDIR" renew-budget --now "$(date -u +%FT%TZ)" \
             >/dev/null 2>&1 || echo "[run_bench] ⚠ 예산 TTL 갱신 실패 — 벤치 도중 만료 위험" >&2
         fi
       else

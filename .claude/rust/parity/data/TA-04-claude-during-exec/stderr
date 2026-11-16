@@ -1,0 +1,2 @@
+[agent-control] NONZERO_EXIT: provider 가 실행 도중 중단됐다(subtype=error_during_execution · rc=1). (target=main/local)
+[agent-control]   provider stderr tail: interrupted

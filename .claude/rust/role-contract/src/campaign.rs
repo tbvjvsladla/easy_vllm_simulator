@@ -24,6 +24,8 @@ pub const BOOTSTRAP: &str = "_bootstrap";
 pub const RESERVED_IDS: [&str; 2] = ["_template", BOOTSTRAP];
 /// The owner module, relative to a checkout.
 pub const MODULE_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py";
+/// The native program's launcher beside the retired module (its presence is the campaign component's presence).
+pub const LAUNCHER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.sh";
 
 /// `PurgeGateRefusal`: the exception `derive_path` raises (its text is the message).
 #[derive(Clone, Debug, PartialEq, Eq)]

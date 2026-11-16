@@ -1,0 +1,19 @@
+{
+  "action": "sync_branches",
+  "allowed": false,
+  "authorization_state": null,
+  "exit_code": 2,
+  "identity": null,
+  "messages": {
+    "PROMOTION_GATE_INVALID_MANIFEST": "underlying verify evaluation reported invalid input -- see other reason codes for detail",
+    "SCHEMA_TYPE_MISMATCH:$": "$: expected type ['object'], got list ([1, 2])"
+  },
+  "mode": "promotion",
+  "propagation_scope": null,
+  "reason_codes": [
+    "PROMOTION_GATE_INVALID_MANIFEST",
+    "SCHEMA_TYPE_MISMATCH:$"
+  ],
+  "schema_version": 1,
+  "task_class": null
+}

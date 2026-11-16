@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLICATION_RECORD_TARGET_IS_SYMLINK": "publication record for topic 'selftest' is a symlink -- refusing to read through it"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLICATION_RECORD_TARGET_IS_SYMLINK"
+  ],
+  "schema_version": 1
+}

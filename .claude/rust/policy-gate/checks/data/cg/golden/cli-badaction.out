@@ -1,0 +1,17 @@
+{
+  "action": null,
+  "allowed": false,
+  "authorization_state": null,
+  "exit_code": 2,
+  "identity": null,
+  "messages": {
+    "CLI_USAGE_ERROR": "invalid command-line invocation: argument --action: invalid choice: 'push' (choose from 'sync_to_sub', 'sync_branches', 'hint_finalize', 'hint_verify', 'hint_push')"
+  },
+  "mode": null,
+  "propagation_scope": null,
+  "reason_codes": [
+    "CLI_USAGE_ERROR"
+  ],
+  "schema_version": 1,
+  "task_class": null
+}

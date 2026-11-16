@@ -188,7 +188,7 @@ fn the_command_line_main_imports_the_metrics_once() {
 #[test]
 fn the_module_state_is_shared_by_clones_and_not_by_separate_contexts() {
     let tree = Tree::new("cache-scope");
-    tree.write("lite_metrics_native.py", b"");
+    tree.write("lite_metrics_api.sh", b"");
     tree.write(
         "lite_metrics_api.sh",
         b"printf '%s\\n' \"$1\" >> \"$(dirname \"$0\")/events.txt\"\nprintf '%s\\n' '{\"LITE_VERDICTS\": [\"pass\"], \"LITE_EXIT\": {\"pass\": 0}}'\n",

@@ -1,14 +1,19 @@
-//! parity — golden capture/compare for the Rust repack (std only, no external crates).
-//! Modes: capture | orig | compare [--stage s1..s4|all] [--case ID]... [--repo W] [--raw-dir DIR] [--force], --self-check.
+//! parity — golden compare for the Rust repack (std only, no external crates).
+//! Modes: compare [--stage s1..s4|all] [--case ID]... [--repo W] [--raw-dir DIR] [--na-list FILE], na-list --tree T --out F, --self-check.
+//! The comparison basis is the committed goldens in `data/` only: this tool never runs an original Python program. The former
+//! `capture`/`orig` modes (which re-ran the originals through `cases/shims/*.py`) are retired and refused with status 2.
 use std::collections::BTreeMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::io::Write;
 
-const ORIG_COMMIT: &str = "a6769be";
 const KNOWN_IDS: [&str; 10] = ["N01", "N02", "N03", "N04", "N06", "N08", "N09", "N11", "N13", "N14"];
-const STAGES: [&str; 4] = ["s1", "s2", "s3", "s4"];
+// s5: terraforming_node programs. ta/tb/tc/td: terraforming A2A control plane (agent_control+providers / render_sub_env / canary, probe, gates + core contracts campaign_init·validator·manifest_contract (TC-CI/CV/MC) / relay). pg/pe/pa/ps/pd/pf: policies bundle (completion gate, doc naming, evidence publisher / registry audit / runtime selftest / distribution / claim predicates).
+const STAGES: [&str; 15] = ["s1", "s2", "s3", "s4", "s5", "pg", "pe", "pa", "ps", "pd", "pf", "ta", "tb", "tc", "td"];
+/// hint-publisher port stages (`cases/hp_<module>.json`): selectable with `--stage`, not part of `all` (the Sub N/A lists
+/// cover `all`; a plane without hint-publisher is not affected).
+const HP_STAGES: [&str; 21] = ["hp_core", "hp_naming", "hp_pii", "hp_lineage", "hp_catalog", "hp_branch", "hp_tag", "hp_template", "hp_template_t1", "hp_template_t2", "hp_artifacts", "hp_artifacts_a1", "hp_artifacts_a2", "hp_artifacts_a3", "hp_evidence", "hp_evidence_e1", "hp_evidence_e2", "hp_evidence_e3", "hp_evidence_e4", "hp_rbs", "hp_cli"];
 
 // ---------------------------------------------------------------- JSON
 #[derive(Debug, Clone, PartialEq)]
@@ -104,12 +109,6 @@ fn parse_json(t: &str) -> Result<J, String> {
     if p.i != p.s.len() { return Err("trailing data".into()); }
     Ok(v)
 }
-fn jstr(s: &str) -> String {
-    let mut o = String::from("\"");
-    for c in s.chars() { match c { '"' => o += "\\\"", '\\' => o += "\\\\", '\n' => o += "\\n", '\r' => o += "\\r", '\t' => o += "\\t", c if (c as u32) < 0x20 => o += &format!("\\u{:04x}", c as u32), c => o.push(c) } }
-    o.push('"'); o
-}
-
 // ---------------------------------------------------------------- normalization (closed list)
 #[derive(Clone, Copy, PartialEq)]
 enum Ch { Stdout, Stderr, File }
@@ -303,9 +302,8 @@ fn zip_members(b: &[u8]) -> Option<String> {
 // ---------------------------------------------------------------- execution
 struct Outcome { stdout: Vec<u8>, stderr: Vec<u8>, exit: i32, files: BTreeMap<String, Vec<u8>>, python_exec: usize, repo: String, tmp: String }
 
-struct Case { id: String, stage: String, entry: String, orig: String, orig_rev: String, args: Vec<String>, stdin: Option<String>, setup: Vec<(String, String)>, env: Vec<(String, String)>, outputs: Vec<String> }
-
-fn orig_rev(c: &Case) -> &str { if c.orig_rev.is_empty() { ORIG_COMMIT } else { &c.orig_rev } }
+/// `orig` is metadata only (which original the golden was recorded from; it selects normalizations, it is never run).
+struct Case { id: String, entry: String, orig: String, args: Vec<String>, stdin: Option<String>, setup: Vec<(String, String)>, env: Vec<(String, String)>, outputs: Vec<String> }
 
 fn load_cases(dir: &Path, stage: &str) -> Result<Vec<Case>, String> {
     let p = dir.join("cases").join(format!("{stage}.json"));
@@ -318,10 +316,9 @@ fn load_cases(dir: &Path, stage: &str) -> Result<Vec<Case>, String> {
         let id = c.get("id").and_then(|x| x.str()).ok_or("case without id")?.to_string();
         if id.contains('/') || id.contains("..") || id.is_empty() { return Err(format!("bad case id {id}")); }
         out.push(Case {
-            id, stage: stage.to_string(),
+            id,
             entry: c.get("entry").and_then(|x| x.str()).unwrap_or("").to_string(),
             orig: c.get("orig").and_then(|x| x.str()).unwrap_or("").to_string(),
-            orig_rev: c.get("orig_rev").and_then(|x| x.str()).unwrap_or("").to_string(),
             args: strs(c.get("args")), stdin: c.get("stdin").and_then(|x| x.str()).map(String::from),
             setup: kv(c.get("setup")), env: kv(c.get("env")), outputs: strs(c.get("outputs")),
         });
@@ -376,8 +373,8 @@ fn file_delta(before: &BTreeMap<String, Vec<u8>>, after: &BTreeMap<String, Vec<u
     d
 }
 
-/// Throwaway copy of the repository. `rev` = Some(commit): `git archive` of that commit (originals; no build output, so
-/// a Rust call from an "original" fails loudly). None = the working tree (tracked + untracked, not ignored) with the
+/// Throwaway copy of the repository. `rev` = Some(commit): `git archive` of that commit (no build output; used by the
+/// self-check). None = the working tree (tracked + untracked, not ignored) with the
 /// ignored `target/` build-output directories symlinked in so launchers find their binaries.
 fn make_sandbox(repo: &Path, id: &str, tag: &str, rev: Option<&str>) -> Result<PathBuf, String> {
     let sb = scratch(id, tag);
@@ -406,9 +403,16 @@ fn remove_sandbox(sb: &Path) {
     if sb.starts_with(std::env::temp_dir()) && sb.file_name().map_or(false, |n| n.to_string_lossy().starts_with("parity-")) { let _ = fs::remove_dir_all(sb); }
 }
 
+/// `name` on this tool's PATH (not the case's), or `name` itself when it is not found there.
+fn tool_path_lookup(name: &str) -> PathBuf {
+    std::env::var_os("PATH")
+        .and_then(|p| std::env::split_paths(&p).map(|d| d.join(name)).find(|c| c.is_file()))
+        .unwrap_or_else(|| PathBuf::from(name))
+}
+
 /// Run one program for a case inside its own repository copy (cwd = the copy; setup and outputs live there too), so the
-/// original and the entry both run against a copy and neither can touch the real repository. `rev`: originals only.
-fn run(case: &Case, program: &str, repo: &Path, strace: bool, interp_py: bool, rev: Option<&str>) -> Result<Outcome, String> {
+/// entry runs against a copy and cannot touch the real repository. `rev`: a committed tree instead of the working tree.
+fn run(case: &Case, program: &str, repo: &Path, strace: bool, rev: Option<&str>) -> Result<Outcome, String> {
     let tmp = make_sandbox(repo, &case.id, if strace { "c" } else { "o" }, rev)?;
     for (rel, content) in &case.setup {
         if rel.starts_with('/') || rel.contains("..") { return Err(format!("{}: unsafe setup path {rel}", case.id)); }
@@ -421,10 +425,9 @@ fn run(case: &Case, program: &str, repo: &Path, strace: bool, interp_py: bool, r
     let log = tmp.parent().unwrap().join(format!("{}.strace", tmp.file_name().unwrap().to_string_lossy()));
     let mut cmd;
     if strace {
-        cmd = Command::new("strace");
+        // strace itself is found on the tool's own PATH: a case may set its own PATH (e.g. one without host tools).
+        cmd = Command::new(tool_path_lookup("strace"));
         cmd.args(["-f", "-e", "trace=execve", "-o"]).arg(&log).arg(&prog);
-    } else if interp_py {
-        cmd = Command::new("python3"); cmd.arg("-B").arg(&prog);
     } else { cmd = Command::new(&prog); }
     cmd.args(&case.args).current_dir(&tmp).env_remove("EASY_VLLM_SOURCE_ROOT").env("PARITY_GIT_DIR", repo.join(".git"))
         .stdin(Stdio::piped()).stdout(Stdio::piped()).stderr(Stdio::piped());
@@ -441,26 +444,8 @@ fn run(case: &Case, program: &str, repo: &Path, strace: bool, interp_py: bool, r
 }
 
 // ---------------------------------------------------------------- golden I/O
-fn save_golden(dir: &Path, case: &Case, o: &Outcome) -> Result<(), String> {
-    let g = dir.join("data").join(&case.id);
-    fs::create_dir_all(g.join("files")).map_err(|e| e.to_string())?;
-    let w = |n: &str, b: &[u8]| fs::write(g.join(n), b).map_err(|e| e.to_string());
-    w("stdout", &o.stdout)?; w("stderr", &o.stderr)?; w("exit_code", format!("{}\n", o.exit).as_bytes())?;
-    let mut idx = String::from("[");
-    for (i, (rel, b)) in o.files.iter().enumerate() {
-        let p = g.join("files").join(rel);
-        if let Some(d) = p.parent() { fs::create_dir_all(d).map_err(|e| e.to_string())?; }
-        fs::write(&p, b).map_err(|e| e.to_string())?;
-        if i > 0 { idx.push(','); } idx += &jstr(rel);
-    }
-    idx.push(']');
-    w("files.index.json", idx.as_bytes())?;
-    let meta = format!("{{\"case\":{{\"id\":{},\"stage\":{},\"entry\":{},\"orig\":{},\"args\":[{}]}},\"orig_commit\":\"{}\",\"orig_rev\":\"{}\",\"tool\":\"parity {}\",\"provenance\":\"measured\",\"repo_root\":{},\"tmp_root\":{}}}\n",
-        jstr(&case.id), jstr(&case.stage), jstr(&case.entry), jstr(&case.orig),
-        case.args.iter().map(|a| jstr(a)).collect::<Vec<_>>().join(","), orig_rev(case), orig_rev(case), env!("CARGO_PKG_VERSION"), jstr(&o.repo), jstr(&o.tmp));
-    w("meta.json", meta.as_bytes())
-}
-
+// Goldens are read-only data committed under `data/<case-id>/` (stdout, stderr, exit_code, files.index.json + files/, meta.json);
+// this tool has no writer for them.
 fn load_golden(dir: &Path, id: &str) -> Result<Outcome, String> {
     let g = dir.join("data").join(id);
     let rd = |n: &str| fs::read(g.join(n)).map_err(|e| format!("golden {id}/{n}: {e}"));
@@ -503,30 +488,76 @@ fn write_raw(raw: &Path, id: &str, o: &Outcome) {
 }
 
 // ---------------------------------------------------------------- CLI
-struct Args { mode: String, stage: String, cases: Vec<String>, repo: PathBuf, raw: PathBuf, force: bool, na_list: Option<PathBuf> }
+struct Args { mode: String, stage: String, cases: Vec<String>, repo: PathBuf, raw: PathBuf, na_list: Option<PathBuf>, tree: Option<PathBuf>, out: Option<PathBuf> }
 
-fn parse_args() -> Result<Args, String> {
-    let v: Vec<String> = std::env::args().skip(1).collect();
+fn parse_args(v: &[String]) -> Result<Args, String> {
     let tool = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let repo = tool.parent().and_then(|p| p.parent()).and_then(|p| p.parent()).map(PathBuf::from).unwrap_or_default();
-    let mut a = Args { mode: String::new(), stage: "all".into(), cases: vec![], repo, raw: tool.join("raw"), force: false, na_list: None };
+    let mut a = Args { mode: String::new(), stage: "all".into(), cases: vec![], repo, raw: tool.join("raw"), na_list: None, tree: None, out: None };
     let mut i = 0;
     while i < v.len() {
         match v[i].as_str() {
             "--self-check" => a.mode = "self-check".into(),
-            "capture" | "orig" | "compare" => a.mode = v[i].clone(),
-            "--force" => a.force = true,
-            f @ ("--stage" | "--case" | "--repo" | "--raw-dir" | "--na-list") => {
+            "compare" | "na-list" => a.mode = v[i].clone(),
+            m @ ("capture" | "orig") => return Err(format!(
+                "mode {m} is retired: the comparison basis is the committed goldens in data/ and this tool never runs an original \
+                 Python program (use `compare`)")),
+            f @ ("--stage" | "--case" | "--repo" | "--raw-dir" | "--na-list" | "--tree" | "--out") => {
                 i += 1; let val = v.get(i).ok_or(format!("{f} needs a value"))?.clone();
-                match f { "--stage" => a.stage = val, "--case" => a.cases.push(val), "--repo" => a.repo = PathBuf::from(val), "--na-list" => a.na_list = Some(PathBuf::from(val)), _ => a.raw = PathBuf::from(val) }
+                match f {
+                    "--stage" => a.stage = val, "--case" => a.cases.push(val), "--repo" => a.repo = PathBuf::from(val),
+                    "--na-list" => a.na_list = Some(PathBuf::from(val)), "--tree" => a.tree = Some(PathBuf::from(val)),
+                    "--out" => a.out = Some(PathBuf::from(val)), _ => a.raw = PathBuf::from(val),
+                }
             }
             x => return Err(format!("unknown argument {x}")),
         }
         i += 1;
     }
-    if a.mode.is_empty() { return Err("mode required: capture|orig|compare|--self-check".into()); }
-    if a.stage != "all" && !STAGES.contains(&a.stage.as_str()) { return Err(format!("bad stage {}", a.stage)); }
+    if a.mode.is_empty() { return Err("mode required: compare|na-list|--self-check".into()); }
+    if a.stage != "all" && !STAGES.contains(&a.stage.as_str()) && !HP_STAGES.contains(&a.stage.as_str()) { return Err(format!("bad stage {}", a.stage)); }
+    if a.mode == "na-list" && (a.tree.is_none() || a.out.is_none()) { return Err("na-list needs --tree DIR and --out FILE".into()); }
+    if a.mode != "na-list" && (a.tree.is_some() || a.out.is_some()) { return Err("--tree/--out apply to na-list only".into()); }
     Ok(a)
+}
+
+/// Header line of a generated Sub N/A list.
+const NA_HEADER: &str = "# Sub N/A list — cases whose entry point is not in the rendered Sub tree. Generated by `parity na-list`; do not hand-edit.";
+
+/// Is `entry` in the rendered Sub `tree`? An entry under `<crate>/target/release/` is judged by the crate's Cargo.toml (the ELF
+/// only exists after the Sub builds it); any other entry by its path.
+fn present_in_tree(tree: &Path, entry: &str) -> bool {
+    const MARKER: &str = "/target/release/";
+    match entry.find(MARKER) {
+        Some(at) => tree.join(&entry[..at]).join("Cargo.toml").is_file(),
+        None => tree.join(entry).exists(),
+    }
+}
+
+/// `na-list --tree T --out F`: the mechanical Sub N/A list (cases of every stage, in stage and case order, whose entry point is
+/// not in the rendered Sub tree T). Source of truth = the render result, not a hand list. Writes F and reports the count.
+fn na_list(tool: &Path, tree: &Path, out: &Path) -> Result<i32, String> {
+    match na_list_text(tool, tree)? {
+        None => { eprintln!("tree has no .claude — not a rendered Sub tree"); Ok(2) }
+        Some((text, n)) => {
+            fs::write(out, text).map_err(|e| format!("{}: {e}", out.display()))?;
+            println!("{}: {n} N/A cases", out.display());
+            Ok(0)
+        }
+    }
+}
+
+/// The text of the N/A list for `tree` and its row count; None when `tree` is not a rendered Sub tree (no `.claude`).
+fn na_list_text(tool: &Path, tree: &Path) -> Result<Option<(String, usize)>, String> {
+    if !tree.join(".claude").is_dir() { return Ok(None); }
+    let mut text = format!("{NA_HEADER}\n");
+    let mut n = 0usize;
+    for s in STAGES {
+        for c in load_cases(tool, s)? {
+            if !present_in_tree(tree, &c.entry) { text.push_str(&format!("{} {}\n", c.id, c.entry)); n += 1; }
+        }
+    }
+    Ok(Some((text, n)))
 }
 
 fn orphan_ids(map: &BTreeMap<String, String>, known: &[String]) -> Vec<String> {
@@ -548,17 +579,19 @@ fn parse_na_list(p: &Path) -> Result<BTreeMap<String, String>, String> {
 }
 
 fn real_main() -> Result<i32, String> {
-    let a = parse_args()?;
+    let v: Vec<String> = std::env::args().skip(1).collect();
+    let a = parse_args(&v)?;
     let tool = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     if a.mode == "self-check" { return self_check(); }
+    if a.mode == "na-list" { return na_list(&tool, a.tree.as_deref().unwrap_or(Path::new("")), a.out.as_deref().unwrap_or(Path::new(""))); }
     let norm = Norm::load(&tool.join("normalize.json"))?;
     let stages: Vec<&str> = if a.stage == "all" { STAGES.to_vec() } else { vec![a.stage.as_str()] };
     let mut cases = vec![];
     for s in &stages { cases.extend(load_cases(&tool, s)?); }
     if !a.cases.is_empty() { cases.retain(|c| a.cases.contains(&c.id)); }
-    if cases.is_empty() { return Err("no cases selected (golden capture of cases is c03's job)".into()); }
-    if a.mode == "compare" && Command::new("strace").arg("-V").stdout(Stdio::null()).stderr(Stdio::null()).status().is_err() { return Err("strace is not available".into()); }
-    let na = match &a.na_list { Some(p) => { if a.mode != "compare" { return Err("--na-list applies to compare only".into()); } Some(parse_na_list(p)?) } None => None };
+    if cases.is_empty() { return Err("no cases selected".into()); }
+    if Command::new("strace").arg("-V").stdout(Stdio::null()).stderr(Stdio::null()).status().is_err() { return Err("strace is not available".into()); }
+    let na = match &a.na_list { Some(p) => Some(parse_na_list(p)?), None => None };
     let mut bad = 0; let mut py = 0; let mut na_n = 0usize;
     if let Some(map) = &na {
         // Orphan rows (id in no stage's cases) fail: a renamed/removed case must not leave a silent hole in the list.
@@ -575,37 +608,23 @@ fn real_main() -> Result<i32, String> {
                 continue;
             }
         }
-        match a.mode.as_str() {
-            "capture" => {
-                if tool.join("data").join(&c.id).exists() && !a.force { return Err(format!("golden for {} exists (use --force)", c.id)); }
-                if c.orig.is_empty() { return Err(format!("{}: case has no orig", c.id)); }
-                let o = run(c, &c.orig, &a.repo, false, c.orig.ends_with(".py"), Some(orig_rev(c)))?;
-                save_golden(&tool, c, &o)?;
-            }
-            _ => {
-                if a.mode == "compare" && c.entry.starts_with("@pending:") {
-                    bad += 1; println!("MISMATCH {} entry not converted yet ({})", c.id, c.entry); continue;
-                }
-                let g = load_golden(&tool, &c.id)?;
-                let o = if a.mode == "orig" { run(c, &c.orig, &a.repo, false, c.orig.ends_with(".py"), Some(orig_rev(c)))? } else { run(c, &c.entry, &a.repo, true, false, None)? };
-                py += o.python_exec;
-                let n13 = norm.n13_for(&c.entry) || norm.n13_for(&c.orig);
-                let mut m = diff_outcomes(&norm, &g, &o, n13);
-                if a.mode == "compare" && o.python_exec > 0 { m.push(format!("python_exec={}", o.python_exec)); }
-                if !m.is_empty() { bad += 1; write_raw(&a.raw, &c.id, &o); for x in m { println!("MISMATCH {} {}", c.id, x); } }
-            }
+        if c.entry.starts_with("@pending:") {
+            bad += 1; println!("MISMATCH {} entry not converted yet ({})", c.id, c.entry); continue;
         }
+        let g = load_golden(&tool, &c.id)?;
+        let o = run(c, &c.entry, &a.repo, true, None)?;
+        py += o.python_exec;
+        let n13 = norm.n13_for(&c.entry) || norm.n13_for(&c.orig);
+        let mut m = diff_outcomes(&norm, &g, &o, n13);
+        if o.python_exec > 0 { m.push(format!("python_exec={}", o.python_exec)); }
+        if !m.is_empty() { bad += 1; write_raw(&a.raw, &c.id, &o); for x in m { println!("MISMATCH {} {}", c.id, x); } }
     }
     let n = cases.len();
-    match a.mode.as_str() {
-        "capture" => println!("PARITY-CAPTURE-OK cases={n}"),
-        "orig" => if bad == 0 { println!("PARITY-ORIG-PASS cases={n}") } else { println!("orig: {bad}/{n} cases mismatch") },
-        _ => if bad == 0 && py == 0 {
-            if na.is_some() { println!("na={na_n}"); }
-            println!("PARITY-{}-PASS python_exec=0", a.stage.to_uppercase())
-        } else if na.is_some() { println!("compare: {bad}/{n} cases mismatch na={na_n} python_exec={py}") }
-        else { println!("compare: {bad}/{n} cases mismatch python_exec={py}") },
-    }
+    if bad == 0 && py == 0 {
+        if na.is_some() { println!("na={na_n}"); }
+        println!("PARITY-{}-PASS python_exec=0", a.stage.to_uppercase())
+    } else if na.is_some() { println!("compare: {bad}/{n} cases mismatch na={na_n} python_exec={py}") }
+    else { println!("compare: {bad}/{n} cases mismatch python_exec={py}") }
     Ok(if bad == 0 { 0 } else { 1 })
 }
 
@@ -703,8 +722,8 @@ fn self_check() -> Result<i32, String> {
     let setup_ok = git(&["init", "-q"]) && git(&["add", "tracked.txt"]) && git(&["commit", "-qm", "x"]);
     fs::write(repo.join("untracked.txt"), "u\n").ok();
     ck("e2e-setup", setup_ok);
-    let case = Case { id: "synth".into(), stage: "s1".into(), entry: "/bin/sh".into(), orig: "/bin/sh".into(), orig_rev: String::new(), args: vec!["-c".into(), "echo out; echo err >&2; echo data > o.txt; echo \"$(cat tracked.txt)$(cat untracked.txt 2>/dev/null)\" > seen.txt; pwd; exit 3".into()], stdin: None, setup: vec![], env: vec![], outputs: vec!["o.txt".into(), "seen.txt".into()] };
-    match (run(&case, "/bin/sh", &repo, false, false, Some("HEAD")), run(&case, "/bin/sh", &repo, true, false, None)) {
+    let case = Case { id: "synth".into(), entry: "/bin/sh".into(), orig: "/bin/sh".into(), args: vec!["-c".into(), "echo out; echo err >&2; echo data > o.txt; echo \"$(cat tracked.txt)$(cat untracked.txt 2>/dev/null)\" > seen.txt; pwd; exit 3".into()], stdin: None, setup: vec![], env: vec![], outputs: vec!["o.txt".into(), "seen.txt".into()] };
+    match (run(&case, "/bin/sh", &repo, false, Some("HEAD")), run(&case, "/bin/sh", &repo, true, None)) {
         (Ok(a), Ok(b)) => {
             ck("e2e-exit", a.exit == 3 && b.exit == 3);
             ck("e2e-equal-modulo-seen", a.files.get("o.txt") == b.files.get("o.txt") && b.python_exec == 0);
@@ -733,6 +752,31 @@ fn self_check() -> Result<i32, String> {
         let mut om = BTreeMap::new(); om.insert("A-1".to_string(), "x".to_string()); om.insert("Z-9".to_string(), "y".to_string());
         ck("na-orphan-detected", orphan_ids(&om, &["A-1".to_string(), "B-2".to_string()]) == vec!["Z-9".to_string()]);
         ck("na-no-orphan-when-all-known", orphan_ids(&om, &["A-1".to_string(), "Z-9".to_string()]).is_empty());
+    }
+    // the retired capture/orig modes are refused (no path of this tool runs an original Python program)
+    {
+        let args = |v: &[&str]| parse_args(&v.iter().map(|s| s.to_string()).collect::<Vec<_>>());
+        ck("retired-capture", args(&["capture"]).err().map_or(false, |e| e.contains("retired")));
+        ck("retired-orig", args(&["orig", "--stage", "s2"]).err().map_or(false, |e| e.contains("retired")));
+        ck("na-list-needs-tree-out", args(&["na-list", "--tree", "x"]).is_err());
+        ck("tree-only-for-na-list", args(&["compare", "--tree", "x"]).is_err());
+    }
+    // na-list: the entry judgement (crate target by Cargo.toml, anything else by path) and the generated file
+    {
+        let d = scratch("natree", "self"); let t = d.join("tree");
+        let _ = fs::create_dir_all(t.join(".claude/k/crate")); let _ = fs::create_dir_all(t.join(".claude/s"));
+        let _ = fs::write(t.join(".claude/k/crate/Cargo.toml"), ""); let _ = fs::write(t.join(".claude/s/x.sh"), "");
+        ck("na-present-crate", present_in_tree(&t, ".claude/k/crate/target/release/bin"));
+        ck("na-absent-crate", !present_in_tree(&t, ".claude/k/other/target/release/bin"));
+        ck("na-present-path", present_in_tree(&t, ".claude/s/x.sh") && !present_in_tree(&t, ".claude/s/y.sh"));
+        let tool = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let out = d.join("na.txt");
+        ck("na-not-a-tree", na_list_text(&tool, &d.join("none")) == Ok(None));
+        let total: usize = STAGES.iter().map(|s| load_cases(&tool, s).map_or(0, |c| c.len())).sum();
+        let wrote = match na_list_text(&tool, &t) { Ok(Some((text, n))) => n == total && fs::write(&out, text).is_ok(), _ => false };
+        ck("na-list-roundtrip", wrote && fs::read_to_string(&out).map_or(false, |x| x.starts_with(NA_HEADER))
+            && parse_na_list(&out).map_or(false, |m| m.len() == total));
+        let _ = fs::remove_dir_all(&d);
     }
     if fails.is_empty() { println!("PARITY-SELFCHECK-OK"); Ok(0) } else { for f in &fails { println!("SELFCHECK-FAIL {f}"); } Ok(1) }
 }

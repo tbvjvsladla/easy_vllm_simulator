@@ -1,0 +1,122 @@
+{
+  "certificate": {
+    "benchmark_mode": "full",
+    "duplicates": [],
+    "floor_tps": 10.5,
+    "grade": "full",
+    "identity": {
+      "gpu": "NVIDIA GB10",
+      "model": "m",
+      "quant": "nvfp4",
+      "topology": "single",
+      "tp": "1",
+      "vllm": "0.31.0"
+    },
+    "identity_match": true,
+    "parsed": true,
+    "path": "bench/benchmark_full.yaml",
+    "primary_source": "c",
+    "ratio_M_over_primary": 1.2,
+    "rubric_authority": "explicit",
+    "rubric_contract_ok": true,
+    "run_key": [
+      "m",
+      "NVIDIA GB10",
+      "0.31.0",
+      "nvfp4",
+      "single",
+      "1",
+      "2026-11-16T00:00:00Z"
+    ],
+    "verdict": "PASS"
+  },
+  "checked_evidence": {
+    "bench_report": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/br_none.md",
+      "required": true,
+      "sha256": "11bf548d345359331ee4e35ea5b74c6e2510d885a3623d9106b3788627b655a6",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "certificate": {
+      "exists": true,
+      "identity_checked": true,
+      "identity_match": true,
+      "path": "bench/benchmark_full.yaml",
+      "required": true,
+      "sha256": "85570897a55dc7b083b41021205cbeb18b884597916bd572146667c837708372",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "devlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/devlog.md",
+      "required": true,
+      "sha256": "4842198b2c77f304e39154c10ca3b3651c2af556f82987a2eed201c131a9ee55",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "plan": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/plan.md",
+      "required": true,
+      "sha256": "82e5adb594bd210b32af3c82fc563b881a942e8eb7fe0487b4e7ac29619c03ee",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "simlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "sim/ok",
+      "required": true,
+      "sha256": null,
+      "tree_sha256": "622e3c2a2d6d7a1eeb2e52ab3e989d49159739205742bd34a86bd9713d43a9f6",
+      "type": "dir"
+    },
+    "testlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/testlog.md",
+      "required": true,
+      "sha256": "1344de4f31b5fe384e9748f7ce3c55e6e00bdf6e82a79d4023ce3121ed90dfc4",
+      "tree_sha256": null,
+      "type": "file"
+    }
+  },
+  "eligible_for_promotion": false,
+  "exit_code": 1,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {
+    "BENCHMARK_MODE_NOT_FULL": "benchmark.mode='lite' (must be 'full' for promotion)"
+  },
+  "reason_codes": [
+    "BENCHMARK_MODE_NOT_FULL"
+  ],
+  "rubric": {
+    "authority": "explicit",
+    "authority_source": "certificate",
+    "contract_ok": true,
+    "floor_tps": 10.5,
+    "primary_source": "c",
+    "ratio_M_over_primary": 1.2
+  },
+  "schema_version": 1,
+  "state": "evidence-complete",
+  "task_class": "full_benchmark"
+}

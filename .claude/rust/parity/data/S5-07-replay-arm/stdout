@@ -1,0 +1,35 @@
+[eta] load.csv rows=7 maxrate=22195 minmem=24000 | ETA전용 kill=0 · 이중규칙 kill=0
+[eta] 합계: ETA전용 kill=0 · 이중규칙 kill=0 (mem_total=124610 · 상한=15576 MiB/s · explicit:--mem-total-mib)
+{
+  "files": [
+    {
+      "path": "load.csv",
+      "rows": 7,
+      "max_rate_mib_s": 22195.0,
+      "min_mem_avail_mib": 24000.0,
+      "max_rate_ceiling_mib_s": 15576,
+      "abs_band_mib": 10240,
+      "runway_s": 8.0,
+      "arm_ceiling_mib": 32768.0,
+      "eta_only": {
+        "kills": 0,
+        "first_kill": null,
+        "trip_polls": 1,
+        "max_streak": 1,
+        "debounce_polls": 3
+      },
+      "dual": {
+        "kills": 0,
+        "first_kill": null,
+        "trip_polls": 0,
+        "max_streak": 0,
+        "debounce_polls": 3
+      }
+    }
+  ],
+  "total_eta_only_kills": 0,
+  "total_dual_kills": 0,
+  "mem_total_mib": 124610,
+  "mem_total_source": "explicit:--mem-total-mib",
+  "max_rate_mib_s": 15576
+}

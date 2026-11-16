@@ -1,0 +1,1 @@
+[agent-control] MODEL_METADATA_ABSENT: provider 가 modelUsage 를 주지 않았다 — 어느 모델이 돌았는지 기록할 수 없다(차단하지 않는다 · model_used=[]). (target=main/local)

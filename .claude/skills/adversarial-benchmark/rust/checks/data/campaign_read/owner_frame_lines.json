@@ -1,0 +1,14 @@
+{
+ "_note": "Frozen lines of the retired original campaign_init.py (the reviewed source, 5485 lines) that the native traceback frames name; the original program is no longer run or read.",
+ "line_count": 5485,
+ "lines": {
+  "32": "REPO_ROOT = Path(__file__).resolve().parents[4]",
+  "112": "    if pointer.is_file():",
+  "113": "        name = pointer.read_text(encoding=\"utf-8\").strip()",
+  "114": "        if name and (base / name).is_dir():",
+  "123": "    camp = camp_id or active_campaign_id(repo_root)",
+  "5120": "            print(active_campaign_id()); return 0",
+  "5122": "            print(derive_path(a.derive, cell=a.cell, sweep=a.sweep, context=a.context,",
+  "5485": "    sys.exit(main())"
+ }
+}

@@ -1,0 +1,21 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 2,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "fixed no-skip ladder is missing",
+      "path": ".claude/rules/workflow.md",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_LADDER_ORDER_MISSING"
+    },
+    {
+      "clause_id": null,
+      "message": "procedure must require existing-model regression re-smoke, one active track, and evidence",
+      "path": ".claude/skills/upstream-version-watch/SKILL.md",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PROMOTION_GUARDS_MISSING"
+    }
+  ]
+}

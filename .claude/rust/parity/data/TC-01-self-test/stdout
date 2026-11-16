@@ -1,0 +1,11 @@
+  [PASS] manifest nodes[sub] 5필드 해소
+  [PASS] request 가 전송 스키마를 그대로 통과한다(위반 [])
+  [PASS] intent/target 계약
+  [PASS] multi 카나리 문구가 ray-worker 정체성을 묻는다
+  [PASS] turn 예산이 **선언**으로 들어오고 출처는 요청 밖에 남는다(등급표 ✗)
+  [PASS] Codex request omits historical cumulative count and preserves wall timeout
+  [PASS] Codex request omits historical cumulative count and preserves wall timeout
+  [PASS] 예산 미선언 → fail-loud(기본값을 만들지 않는다)
+  [PASS] 서브 미등록 → fail-loud
+  [PASS] __REQUIRED__ 센티넬 → fail-loud
+self-test: PASS

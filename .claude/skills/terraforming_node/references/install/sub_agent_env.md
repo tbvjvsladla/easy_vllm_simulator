@@ -44,7 +44,7 @@ Rust 실행환경 지원분은 `scripts/rust_bootstrap.sh`·`scripts/rust_toolch
 `references/install/rust_runtime.md`다. renderer가 두 topology에 전달하고, 서브는 자기 노드에서
 기존 승인/A2A 경로로 install → check와 자기 tool_plane의 Rust 업무 패키지 build/native 검사를 실행한다.
 메인의 컴파일 결과/개인 Cargo 환경은 배달하지 않는다.
-벤치 owner 를 받는 서브는 `build_rust.sh` 의 마지막 자체검사가 부르는 `scan_node.sh` 도 함께 받는다(`render_sub_env.py::SUB_BENCH_FOUNDATION_RUNTIME` 닫힌 목록). wiki-only ray-worker 는 Rust 업무 패키지·그 자체검사를 받지 않으며(0), 권한 카나리는 배달된 검토 원본 리더로 돈다.
+벤치 owner 를 받는 서브는 `build_rust.sh` 의 마지막 자체검사가 부르는 `scan_node.sh` 도 함께 받는다(`render_sub_env.rs::SUB_BENCH_FOUNDATION_RUNTIME` 닫힌 목록). wiki-only ray-worker 는 Rust 업무 패키지·그 자체검사를 받지 않으며(0), 권한 카나리는 배달된 검토 원본 리더로 돈다.
 
 | 경로(서브 루트) | 내용 | 전달타입 |
 |---|---|---|
@@ -55,7 +55,7 @@ Rust 실행환경 지원분은 `scripts/rust_bootstrap.sh`·`scripts/rust_toolch
 | `Agent_Card.json` | A2A 능력카드(skills[]·노드정체성) | 렌더(gitignored) |
 | `.claude/settings.local.json` | **스코프드** 권한(블랭킷 ✗) | 렌더(gitignored) |
 | `.claude/skills/vllm-recipe-explorer/` | 런타임블럭(git-tracked만) | 복제 |
-| `.claude/skills/hint-publisher/` · `hints/{HINT_ISSUANCE_CONTRACT.md,vocab.json}` · 엔진 의존(`completion_gate.py`·`evidence_publisher.py`·스키마 3·명명 shim `policies/runtime/doc_naming.py` → 정본 `wiki-desk/src/doc_naming.ts`) · `check_sub_hint_equip.py` | single 서브 hint 엔진(정본 `render_sub_env.HINT_ENGINE_DEPENDENCIES` · 색인·카탈로그·역할 마커는 `HINT_NEVER_DELIVER` 로 영구 미배달) | 복제(a2a-agent 만) |
+| `.claude/skills/hint-publisher/` · `hints/{HINT_ISSUANCE_CONTRACT.md,vocab.json}` · 엔진 의존(`completion_gate.py`·`evidence_publisher.py`·스키마 3·명명 shim `policies/runtime/doc_naming.py` → 정본 `wiki-desk/src/doc_naming.ts`) · `check_sub_hint_equip.sh` | single 서브 hint 엔진(정본 `render_sub_env.HINT_ENGINE_DEPENDENCIES` · 색인·카탈로그·역할 마커는 `HINT_NEVER_DELIVER` 로 영구 미배달) | 복제(a2a-agent 만) |
 | `.claude/rules/comms.md` | 통신 정적계약 | 복제 |
 | `.claude/rules/strategy.topology.md` | 이 체크아웃의 특화헌법 | 복제(반대 브랜치의 특화 바이트는 옮기지 않음) |
 | `.claude/schemas/task-report.schema.json` | 자기검증 스키마 | 복제 |
@@ -66,7 +66,7 @@ Rust 실행환경 지원분은 `scripts/rust_bootstrap.sh`·`scripts/rust_toolch
 추적 템플릿·정적자산은 `sub_node/`(CLAUDE.template.md·Agent_Card.template.json·settings.local.template.json·comms.md·task-report.schema.json·gitignore.template) — **PII-free**(IP·호스트 비박음, 렌더 시 manifest 에서 치환). (`docs.md`·`docs/*/example.md` 는 메인 정본을 D12 복제 — sub_node/ 외부 원천.)
 
 ### 2.3 렌더-온-메인 → 전달 (결정론 + HITL)
-- **렌더**(결정론): `python3 scripts/render_sub_env.py --topology multi` → manifest 노드정체성을 템플릿에 치환,
+- **렌더**(결정론): `bash scripts/render_sub_env.sh --topology multi` → manifest 노드정체성을 템플릿에 치환,
   gitignored 스테이징 `output/multi/sub_provision/` 산출(서브 루트 미러). 미치환 placeholder·필수 누락 시 fail-loud.
 - **전달**(HITL) — **인가 체인이 먼저다**. `sync_to_sub.sh` 는 `--mode` 와 `--manifest` 를 **필수**로 받고,
   `completion_gate.py authorize --action sync_to_sub` 로 포워딩해 **discovery·ssh·rsync 이전에** fail-closed 한다.
@@ -75,7 +75,7 @@ Rust 실행환경 지원분은 `scripts/rust_bootstrap.sh`·`scripts/rust_toolch
 
   ```bash
   # ① 증거 레코드 발행(work-manifest 의 뼈대)
-  python3 .claude/policies/runtime/evidence_publisher.py init       --task-class harness_change --topic <주제>       --generated-utc <YYYY-MM-DDTHH:MM:SSZ> --identity-json <identity.json>
+  bash .claude/policies/runtime/evidence_publisher.sh init       --task-class harness_change --topic <주제>       --generated-utc <YYYY-MM-DDTHH:MM:SSZ> --identity-json <identity.json>
   # ② 사람이 plan 문서에 `## Execution approval` 앵커 + 원자 3종을 적고(approved_by/approved_at_utc/allowed_action),
   #    그 값을 work-manifest 의 execution_approval 에 기입한다(plan_sha256 = 그 plan 바이트의 sha256).
   #    → allowed_actions 에 `sync_to_sub` 가 있어야 인가가 열린다.
@@ -95,19 +95,19 @@ Rust 실행환경 지원분은 `scripts/rust_bootstrap.sh`·`scripts/rust_toolch
 - 메인=client(Task 발급·리포트 검증·피드백) · 서브=remote(자율 수행·자기검증 리포트 1개). A2A 어휘 차용, HTTP 서버 ✗(전송=SSH 단발 `delegate(task)` — provider 문법은 `references/orchestration/agent-control-adapter.md`).
 - **검증 = push-attestation**: 서브가 self-verification(config-parse·schema·runner 문법·checksum·**로컬 스모크**)을 리포트에 담아 회신 → **메인은 리포트만 검증, 서브 워크스페이스 재스캔 ✗**.
 - **성공술어**: phase 별(comms.md). 예: config = triplet 생성 + 로컬 스모크 응답("린트 통과 ≠ 서빙됨").
-- **상태=파일**: `campaigns/<camp-id>/relay/<context_id>.json`("파일=세션" · 2026-09-06 루트 `tasks/` 에서 이관 · 활성 캠페인 부재 시 `_bootstrap`). 예산은 **메인이 매 attempt 단위와 함께 선언한다**(공통 `--timeout-seconds`·`--budget-source`, Claude Code의 native-turn 한도 `--max-turns`, Codex의 wall-time·outer dispatch 한도) — 옛 `max-turns=3`(2026-09-03 폐기)에 이어 그 대체물이던 **grade 표도 2026-09-05 폐기**됐다(표가 실측 없이 정본 행세를 했고 교정 소비자가 0 이었다 · `audit_26090515` G-A2). `scripts/turn_budget.py` 는 이제 선언을 **검증**만 한다(상한은 요청 스키마에서 읽는다). 소진은 terminal 이고 다음은 **더 큰 예산의 새 attempt** 이며, 그 이어붙이기는 `scripts/relay.py --continue` 가 **본문을 조립**한다(재개의 기본은 `--supervise-step --apply` 자동 재발급이고, 사람은 팝업된 예외에서만 답·승인한다 — §2.7.7a).
+- **상태=파일**: `campaigns/<camp-id>/relay/<context_id>.json`("파일=세션" · 2026-09-06 루트 `tasks/` 에서 이관 · 활성 캠페인 부재 시 `_bootstrap`). 예산은 **메인이 매 attempt 단위와 함께 선언한다**(공통 `--timeout-seconds`·`--budget-source`, Claude Code의 native-turn 한도 `--max-turns`, Codex의 wall-time·outer dispatch 한도) — 옛 `max-turns=3`(2026-09-03 폐기)에 이어 그 대체물이던 **grade 표도 2026-09-05 폐기**됐다(표가 실측 없이 정본 행세를 했고 교정 소비자가 0 이었다 · `audit_26090515` G-A2). `scripts/turn_budget.py` 는 이제 선언을 **검증**만 한다(상한은 요청 스키마에서 읽는다). 소진은 terminal 이고 다음은 **더 큰 예산의 새 attempt** 이며, 그 이어붙이기는 `scripts/relay.sh --continue` 가 **본문을 조립**한다(재개의 기본은 `--supervise-step --apply` 자동 재발급이고, 사람은 팝업된 예외에서만 답·승인한다 — §2.7.7a).
 - per-task 휘발값(모델명·예산·NAS 서브디렉토리)은 **Task Message** 로(manifest 복제 아님).
 - single의 독립 `a2a-agent` sub campaign은 main-derived declaration을 relay task body의 JSON으로 받고, `campaign_init.py --init <id> --plan-ref <ref> --from-slice - --apply`로 stdin에서 소비한다. 별도 slice 파일은 만들지 않는다. `--from-slice <PATH>`는 호환 입력이다. multi의 `ray-worker`는 main-owned distributed cell에 참여하므로 독립 campaign slice/자율 init 대상이 아니다.
 
 ### 2.5 완료 게이트 — model-less 카나리 라운드트립 (R1 정합)
-전달 후 메인이 **모델 없이** 부트스트랩 Task 1회. **실행자 = `scripts/bootstrap_canary.py`**(2026-09-03 신설 · S1):
+전달 후 메인이 **모델 없이** 부트스트랩 Task 1회. **실행자 = `scripts/bootstrap_canary.sh`**(2026-09-03 신설 · S1):
 manifest 의 `nodes[sub]` 에서 host·ssh_user·work_dir 를 읽고 `node_role_contract` 가 정한 `sub_mode` 로
 **정체성에 맞는 카나리 문구**를 골라 request 를 조립한다(ray-worker 에게 "런타임 스킬 3종" 을 묻지 않는다).
 ```bash
-python3 scripts/bootstrap_canary.py --topology <single|multi> \
+bash scripts/bootstrap_canary.sh --topology <single|multi> \
     --max-turns 10 --timeout-seconds 600 --budget-source "선언: 카나리 1왕복(인스펙트 전용)" \
     --emit /tmp/canary.json            # 조립(결정론)
-python3 scripts/bootstrap_canary.py --topology <single|multi> \
+bash scripts/bootstrap_canary.sh --topology <single|multi> \
     --max-turns 10 --timeout-seconds 600 --budget-source "..." --invoke   # HITL 승인 뒤 실행
 ```
 turn 예산은 **선언**이다 — 등급표가 사라졌으므로 부르는 쪽이 값과 근거를 함께 준다(미선언 = fail-loud).
@@ -137,17 +137,17 @@ single 서브(sub_mode `a2a-agent`)는 **자기가 잰 셀을 스스로 hint 태
 
 1. **클론** — 메인이 Task Message 에 프로젝트 원격 URL(자격증명 없는 https 형 · 토큰 방식과 짝)을 싣는다. 서브는 `envs/.env` 에
    `HINT_CLONE_DIR=<워크스페이스 밖 절대경로>` 한 줄을 두고
-   `python3 .claude/skills/terraforming_node/scripts/check_sub_hint_equip.py --clone --remote-url <URL>` —
+   `bash .claude/skills/terraforming_node/scripts/check_sub_hint_equip.sh --clone --remote-url <URL>` —
    `git clone --single-branch --branch hint --depth 1 --no-tags` 로 별도 저장소를 만든다(워크스페이스 git 에 원격을 붙이지 않는다 ·
    policy:SUB_GIT_LOCAL_ONLY 는 워크스페이스 git 을 다스린다). 멱등이며, 경로가 비어 있지 않은 다른 것이면 지우지 않고 멈춘다.
-2. **push 역할 선언** — `check_sub_hint_equip.py --write-push-authority [--utc <UTC>]`. 그 경로가 서브 `.gitignore` 에 덮이지
+2. **push 역할 선언** — `check_sub_hint_equip.sh --write-push-authority [--utc <UTC>]`. 그 경로가 서브 `.gitignore` 에 덮이지
    않으면 쓰지 않는다(추적되면 `[sync]` 커밋으로 남고 복사된다).
 3. **토큰·PII 리터럴 = 사람** — 판정에 `token: absent` 또는 `pii_terms: absent` 가 나오면 서브는 **보고만** 하고 그 단계를 멈춘다.
    메인은 회수한 testlog 를 읽고 템플릿 `templates/requests/sub_hint_push_equip.md` 를 복제해
    `docs/request/request_<YYMMDDHH>[_MM_SS]_서브_hint_push_자격_배치.md` 로 발행한다(이름 = `wiki-desk/src/doc_naming.ts` ·
    전제·명령·성공판정·실패분기·회수물·소요를 갖춘 수행지시서 · 서브에는 `docs/request/` 가 없다 — 메인 몫). 사람이 둔 뒤 에이전트는
    **존재만** 다시 확인한다 — 값을 읽어 비교하거나 출력하지 않는다.
-4. **판정·보고** — `check_sub_hint_equip.py`(인자 없음)의 JSON(`checks.{hint_clone,push_authority,central_authority,token,pii_terms,
+4. **판정·보고** — `check_sub_hint_equip.sh`(인자 없음)의 JSON(`checks.{hint_clone,push_authority,central_authority,token,pii_terms,
    workspace_git_local_only}` · `ready` · `next_actions[]` · `provenance: measured`)을 서브 testlog 에 그대로 싣고 task-report 로 경로를
    전달한다. exit 0 = ready · 3 = 미장착(판정 정상) · 2 = 선언 결함 · 4 = 장착 실패. 역할·원격 위반(`present_violation`·`violation`)은
    서브가 스스로 고치지 않는다 — 메인 HITL.
@@ -164,7 +164,7 @@ single 서브(sub_mode `a2a-agent`)는 **자기가 잰 셀을 스스로 hint 태
 - **push** — 태그 1개를 별도 hint 클론으로만(`hint.py` · exact refspec). 카탈로그 단계는 서브에서 건너뛴다(카탈로그 = 메인 단독).
 - **보고** — 서브 testlog 에 승인 출처 · 태그 · 원격 태그 SHA · 엔진 리비전. 메인이 `fetch_sub_docs.sh` 로 회수 → 승인 출처 대조 →
   `hint.py catalog derive`. 엔진 버전 어긋남은 차단하지 않고 기재한다.
-- 자체검사: `check_sub_hint_equip.py --self-test`(verify_distribution) · `render_sub_env.py --self-test` (4b)·(4d) · `campaign_init.py --selftest`(운반 양·음성).
+- 자체검사: `check_sub_hint_equip.sh --self-test`(verify_distribution) · `render_sub_env.sh --self-test` (4b)·(4d) · `campaign_init.py --selftest`(운반 양·음성).
 
 
 ### 2.5.2 하네스 실행환경과 실제 업무 권한 준비성
@@ -174,7 +174,7 @@ single 서브(sub_mode `a2a-agent`)는 **자기가 잰 셀을 스스로 hint 태
 HW Flag가 FRESH여도 하네스/권한/신뢰 변경 시 이 절로 부분 재진입한다. single의 등록된 A2A 서브도 대상이다.
 `AGENTS.md`·`.agents`는 기존 canonical 지침으로 연결하고, 메인 오케스트레이션·개인 설정·인증은 배달하지 않는다.
 
-`bootstrap_canary.py --phase discovery`의 읽기 확인만으로 업무 권한 준비를 선언하지 않는다.
+`bootstrap_canary.sh --phase discovery`의 읽기 확인만으로 업무 권한 준비를 선언하지 않는다.
 `--phase permissions --target main|sub`의 실제 도구 실행 증거·schema·역할 업무를 확인한다. single의 외부
 hint clone/git/common-dir은 명시 관측·기존 승인에 결속한 `--hint-write-scopes`를 renderer와 공식 sync에 넘긴다.
 이 기록은 대상·승인 결속이며 Codex filesystem 허용 목록을 생성하지 않는다. 미지정은 hint 발행 준비의 증거가 아니다. multi에 같은 발행 범위를 추가하지 않는다.
@@ -193,9 +193,9 @@ bwrap/AppArmor 설치를 요구하지 않는다. bwrap 기동 실패는 실제 �
 | **노드 역할** | `capabilities.extensions[urn:easy-vllm:ext:node-role:v1]` | §2.7.6(c). 값은 `node_role_contract.py` 해소 · 렌더러는 적기만 |
 | **skills 6** | `inspect`·`config`·`build`·`serve`·`bench`·`publish` | `publish` = §2.7.9 발행 Phase. 6종 미만이면 계약 위반 |
 | **HW 사실** | **카드에 없다** → 서브 manifest | 카드 = "무엇을 할 수 있나"(A2A 평면) · manifest = "무엇 위에서 도나"(HW·경로·획득 모드) |
-| **서브 manifest** | `scan_node.py --topology single --peer-ssh <sub> --model-source <m> --emit-sub-manifest output/single/sub_manifest.yaml` | 메인이 `--peer-ssh` 로 실측(HW 5종·모델 환경·egress)해 조립 · 스키마 = 메인 manifest + `self_role: sub` + `terraforming.issued_by: main`. 서브는 HW 스캔 권위 데이터를 스스로 만들지 않는다. `render_sub_env.py --sub-manifest` 가 스테이징 `output/<topology>/manifest.yaml` 로 넣고 **설치 오버레이**가 배달한다(빌드킷 배달 평면 D10 과 무관) |
-| **Card 보안 경계** | `agent_card_contract.py validate` | Card는 unsigned capability/discovery metadata다. `signatures`·JWS·별도 trust store는 계약 밖이며 endpoint 인증이나 실행 허가를 대신하지 않는다. |
-| **검증기** | `agent_card_contract.py validate` · `render_sub_env --self-test` | 필수 필드·바인딩 URI·node-role 확장·skills·float 금지를 검증하고 credential 필드 재도입을 거부한다. |
+| **서브 manifest** | `scan_node.py --topology single --peer-ssh <sub> --model-source <m> --emit-sub-manifest output/single/sub_manifest.yaml` | 메인이 `--peer-ssh` 로 실측(HW 5종·모델 환경·egress)해 조립 · 스키마 = 메인 manifest + `self_role: sub` + `terraforming.issued_by: main`. 서브는 HW 스캔 권위 데이터를 스스로 만들지 않는다. `render_sub_env.sh --sub-manifest` 가 스테이징 `output/<topology>/manifest.yaml` 로 넣고 **설치 오버레이**가 배달한다(빌드킷 배달 평면 D10 과 무관) |
+| **Card 보안 경계** | `agent_card_contract.sh validate` | Card는 unsigned capability/discovery metadata다. `signatures`·JWS·별도 trust store는 계약 밖이며 endpoint 인증이나 실행 허가를 대신하지 않는다. |
+| **검증기** | `agent_card_contract.sh validate` · `render_sub_env --self-test` | 필수 필드·바인딩 URI·node-role 확장·skills·float 금지를 검증하고 credential 필드 재도입을 거부한다. |
 | **정체성·준비성** | SSH + `manifest_contract.py` | SSH public-key/known-host가 endpoint를 인증한다. manifest가 role·rank·HW 사실을 소유하며, sub readiness는 Flag와 `terraforming.issued_by: main`을 요구한다. 실행 허가는 work manifest·campaign assignment·scope가 별도로 소유한다. |
 
 

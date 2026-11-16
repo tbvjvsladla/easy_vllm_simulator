@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_IMMUTABLE_REBIND": "existing publication identity/time/conditions/benchmark cannot be rebound: benchmark.verdict"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_IMMUTABLE_REBIND"
+  ],
+  "schema_version": 1
+}

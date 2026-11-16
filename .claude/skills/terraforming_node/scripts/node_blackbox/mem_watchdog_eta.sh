@@ -47,10 +47,10 @@
 #     BB_TARGET_PREDICATE_V1 블록 주석에 있다(세 워치독 공유 · parity tripwire 대상).
 #
 # 사용: mem_watchdog_eta.sh [name_filter|@vllm] [interval_sec]
-# env : BB_PARAMS      (기본 /etc/easy-vllm/eta_params.env — blackbox_eta.py --emit-params 산출)
+# env : BB_PARAMS      (기본 /etc/easy-vllm/eta_params.env — blackbox_eta.sh --emit-params 산출)
 #       BB_EVENTS      (지정 시 트립/킬 이벤트를 JSONL append — 블랙박스 events 평면)
 #       BB_DECL        (서빙 예산 선언 파일 — 기본 = BB_EVENTS 의 조부모/serve_budget.env.
-#                       blackbox_session.py declare-budget 가 쓴다. **source 하지 않는다** —
+#                       blackbox_session.sh declare-budget 가 쓴다. **source 하지 않는다** —
 #                       루트 데몬이 비루트 작성 파일을 source 하면 코드실행이다. sed 로만 읽는다.)
 #       BB_DECL_MARGIN_MIB      (**기본값 없음** — eta_params.env 단일 소유. 선언 바닥에서 뺄 여유)
 #       BB_DECL_MIN_CEILING_MIB (**기본값 없음** — 동상. arm 상한이 이보다 낮아지는 선언은 **거부**.
@@ -173,7 +173,7 @@ refresh_decl(){
     ''|*[!0-9]*)
       if [ "$BB_DECL_STATE" != "params_missing" ]; then
         log "DECL params_missing — BB_DECL_MARGIN_MIB/BB_DECL_MIN_CEILING_MIB 가 $PARAMS_SRC 에 없다. \
-선언을 해석하지 않는다(상한 무한대=옛 규칙). 절대층은 그대로 무장. 고치는 법: blackbox_eta.py emit-params 로 \
+선언을 해석하지 않는다(상한 무한대=옛 규칙). 절대층은 그대로 무장. 고치는 법: blackbox_eta.sh --emit-params 로 \
 $BB_PARAMS 를 재생성하고 데몬을 재시작하라. $(ts)"
         emit_event "budget_params_missing" "\"params_src\":\"$PARAMS_SRC\""
         BB_DECL_STATE="params_missing"
@@ -208,7 +208,7 @@ $BB_PARAMS 를 재생성하고 데몬을 재시작하라. $(ts)"
         extra=",\"floor_mib\":$floor,\"expires_epoch\":$exp,\"remaining_s\":$_rem"
         extra="$extra,\"label\":\"$(_decl_field label)\""
         [ "$state" = "expiring" ] \
-          && reason="만료 임박(잔여 ${_rem}s <= ${BB_DECL_EXPIRING_S}s) — 갱신: blackbox_session.py renew-budget"
+          && reason="만료 임박(잔여 ${_rem}s <= ${BB_DECL_EXPIRING_S}s) — 갱신: blackbox_session.sh renew-budget"
       fi
     fi
   fi

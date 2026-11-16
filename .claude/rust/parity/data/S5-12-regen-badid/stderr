@@ -1,0 +1,3 @@
+[regen] FAIL: node_id 'Bad_Node' 가 스킴 위반이다 — ^[a-z][a-z0-9-]{0,31}$
+[regen]       node_id ::= manifest nodes[].role 슬러그(terraforming_node SKILL.md §2.7.6). hostname 파생은 폐지됐다.
+[regen]       경로를 docs/logs/<role> 로 마이그레이션하거나 --node-id=<slug> 로 명시하라.

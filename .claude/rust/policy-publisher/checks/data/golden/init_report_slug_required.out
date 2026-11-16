@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_REPORT_SLUG_REQUIRED": "task_class/conditions require a 'report' evidence item -- pass --report-slug (<분류>_<YYMMDDHH>[_MM_SS]_<한글제목> per docs.md's report/ rule)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_REPORT_SLUG_REQUIRED"
+  ],
+  "schema_version": 1
+}

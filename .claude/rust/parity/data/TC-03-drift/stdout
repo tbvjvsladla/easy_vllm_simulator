@@ -1,0 +1,18 @@
+{
+  "age_check": "evaluated",
+  "age_days": 5,
+  "drift_fields": [
+    "driver_version",
+    "gpus_per_node"
+  ],
+  "hw_check": "evaluated",
+  "manifest_path": "./output/single/manifest.yaml",
+  "max_age_days": 90,
+  "notes": [
+    "single-node: interconnect 6필드는 HW 비교 대상 제외(분산서빙 미사용 · scan_node.evaluate_gate 와 동일 의미론)"
+  ],
+  "preflight_required": true,
+  "reasons": [
+    "HW_DRIFT"
+  ]
+}

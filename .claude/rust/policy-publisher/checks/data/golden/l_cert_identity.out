@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_LITE_REPORT_CERTIFICATE_IDENTITY_MISMATCH": "certificate identity field(s) ['model'] do not match this publication's identity"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_LITE_REPORT_CERTIFICATE_IDENTITY_MISMATCH"
+  ],
+  "schema_version": 1
+}

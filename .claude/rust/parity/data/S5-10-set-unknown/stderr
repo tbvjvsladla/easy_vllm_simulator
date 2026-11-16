@@ -1,0 +1,5 @@
+usage: blackbox_thermal.py [-h] [--emit-params EMIT_PARAMS] [--set K=V]
+                           [--explain GPU_PWR_W SOC_TEMP_C]
+                           [--replay CSV [CSV ...]] [--gpu-model GPU_MODEL]
+                           [--self-test]
+blackbox_thermal.py: error: 알 수 없는 파라미터 'bogus' (가능: bucket_decay, gpu_pwr_w, gpu_sustain_s, poll_interval_s, soc_hard_c, soc_hard_polls, soc_sustain_s, soc_warn_c, stale_after_s)

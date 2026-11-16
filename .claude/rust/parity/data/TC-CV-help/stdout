@@ -1,0 +1,28 @@
+usage: campaign_template_validator.py [-h] [--campaign CAMPAIGN]
+                                      [--instance INSTANCE] [--template]
+                                      [--acceptance INSTANCE] [--selftest]
+
+campaign_template_validator.py — 캠페인 선언·인스턴스의 결정론 검증기 (fail-closed).
+
+왜 있는가(plan_26090616): 캠페인의 단계 사이에서 정보를 나르던 것이 **대화 기억**이었다. 세션이
+끊기거나 문맥이 압축되면 앞 단계의 결정이 사라졌고, 각 스킬은 자기 기본값(루트 `config.yaml`·루트
+`tasks/`)으로 되돌아가 산출물을 관리범위 밖에 흘렸다. 처방은 나를 것을 파일로 만드는 것이고,
+이 파일은 **그 파일이 실제로 채워졌는지**를 묻는다.
+
+무엇을 검사하지 않는가: 해시. 뼈대는 추적물이라 git 이 이미 바이트를 들고, 인스턴스는 휘발이라
+대조할 두 번째 자리가 없다(`policy:GIT_SINGLE_AUTHORITY` 2문항). 사용자 결정 2026-09-06:
+"SHA256 같은 무결성 검증은 필요 없다".
+
+  검증:  campaign_template_validator.py --campaign campaigns/<id>/campaign.yaml
+  뼈대:  campaign_template_validator.py --template
+  단위:  campaign_template_validator.py --selftest
+
+options:
+  -h, --help            show this help message and exit
+  --campaign CAMPAIGN   검증할 campaign.yaml 경로
+  --instance INSTANCE   검증할 campaigns/<id>/ 디렉터리
+  --template            뼈대 자체를 검증
+  --acceptance INSTANCE
+                        합격 술어 P4(동시 착수 타임라인)·P5(서브 자기저작)·P6(셀 출처 표시)만 판정한다 —
+                        purge 게이트와 분리된 자리다(진행을 막지 않는다)
+  --selftest

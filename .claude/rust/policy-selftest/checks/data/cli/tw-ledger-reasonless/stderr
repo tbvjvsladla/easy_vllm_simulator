@@ -1,0 +1,1 @@
+[tripwire] FAIL tripwire⑨ base_to_skill_edges: 원장 행에 phase/reason 이 없다: ('.claude/policies/gone.py', 's9/x.py') | 사라진 간선이 원장에 남았다 .claude/policies/gone.py → skill:s9/x.py (원장 행을 지운다)

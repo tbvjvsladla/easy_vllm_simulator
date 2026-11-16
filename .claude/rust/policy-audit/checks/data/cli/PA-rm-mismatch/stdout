@@ -1,0 +1,35 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 4,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "removal artifact policy_id 'OTHER' != 'TEST_RET'",
+      "path": "rm/art.json",
+      "policy_id": "TEST_RET",
+      "reason_code": "REMOVAL_EVIDENCE_POLICY_ID_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "removal artifact result 'FAIL' is not 'PASS'",
+      "path": "rm/art.json",
+      "policy_id": "TEST_RET",
+      "reason_code": "REMOVAL_EVIDENCE_RESULT_NOT_PASS"
+    },
+    {
+      "clause_id": null,
+      "message": "removal artifact as_of '2026-01-14' != the invocation's own --as-of '2026-01-15'",
+      "path": "rm/art.json",
+      "policy_id": "TEST_RET",
+      "reason_code": "REMOVAL_EVIDENCE_AS_OF_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "removal artifact tree_sha256 does not match the exact contract tree that was checked (expected 717d5ff5cbee95b45dbb7dd6c34ea205ea3c47abf4f66d84a6f042f7b56cbc78, got 0000000000000000000000000000000000000000000000000000000000000000)",
+      "path": "rm/art.json",
+      "policy_id": "TEST_RET",
+      "reason_code": "REMOVAL_EVIDENCE_TREE_MISMATCH"
+    }
+  ]
+}

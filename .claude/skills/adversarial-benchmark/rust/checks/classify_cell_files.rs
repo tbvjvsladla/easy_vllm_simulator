@@ -625,7 +625,7 @@ fn clean() -> Q {
 }
 
 /// The presence of the owner FILE is all the program looks up; its content is never read or run.
-const OWNER_FILE: &str = ".claude/skills/terraforming_node/scripts/node_role_contract.py";
+const OWNER_FILE: &str = ".claude/skills/terraforming_node/scripts/node_role_contract.sh";
 const MANIFEST: &str = "self_role: main\ntopology: multi\nnodes:\n  - role: main\n  - role: sub\n";
 
 fn multi_plan(

@@ -1,0 +1,48 @@
+{
+  "status": "input-required",
+  "phase": "inspect",
+  "native_cli": {
+    "status": "unproven",
+    "schema_errors": [
+      "$.schema_version: missing required property",
+      "$.intent: missing required property",
+      "$.model_used: missing required property",
+      "$.reason_codes: missing required property",
+      "$.session_id: missing required property",
+      "$.num_turns: missing required property",
+      "$.budget_outcome: missing required property",
+      "$.duration_ms: missing required property",
+      "$.duration_api_ms: missing required property",
+      "$.schema_version: provider result does not match the dispatched request",
+      "$.intent: provider result does not match the dispatched request"
+    ],
+    "model_requested": "sonnet",
+    "model_observed": []
+  },
+  "task_report": {
+    "status": "unproven",
+    "schema_errors": [
+      "$.task_id: missing required property",
+      "$.context_id: missing required property",
+      "$.turn: missing required property",
+      "$.status: missing required property",
+      "$.self_verification: missing required property",
+      "$.node_id: missing required property"
+    ]
+  },
+  "domain_evidence": {
+    "status": "unproven",
+    "reasons": [
+      "DISCOVERY_ONLY_NO_WORK_PERMISSION_OBSERVATIONS"
+    ]
+  },
+  "enforcement_evidence": {
+    "status": "unproven",
+    "surface": "os_write_open",
+    "limitations": []
+  },
+  "limitations": [
+    "No model serving, Docker build/run, remote push, or native resume proof",
+    "completed is this canary's bounded evidence, not performance/promotion completion"
+  ]
+}

@@ -1,0 +1,19 @@
+Traceback (most recent call last):
+  File "/tmp/parity-o-S5-08-start-bad-now2-3732254-1794818539407294552/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.py", line 969, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/tmp/parity-o-S5-08-start-bad-now2-3732254-1794818539407294552/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.py", line 965, in main
+    return args.func(args)
+           ^^^^^^^^^^^^^^^
+  File "/tmp/parity-o-S5-08-start-bad-now2-3732254-1794818539407294552/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.py", line 86, in cmd_start
+    "started_epoch": _epoch(now),
+                     ^^^^^^^^^^^
+  File "/tmp/parity-o-S5-08-start-bad-now2-3732254-1794818539407294552/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.py", line 50, in _epoch
+    return int(datetime.strptime(iso, "%Y-%m-%dT%H:%M:%SZ")
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/_strptime.py", line 554, in _strptime_datetime
+    tt, fraction, gmtoff_fraction = _strptime(data_string, format)
+                                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/_strptime.py", line 333, in _strptime
+    raise ValueError("time data %r does not match format %r" %
+ValueError: time data '2026-13-31T00:00:00Z' does not match format '%Y-%m-%dT%H:%M:%SZ'

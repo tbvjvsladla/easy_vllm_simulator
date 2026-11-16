@@ -1,0 +1,9 @@
+[relay] 감독 · ctx-a (node=sub kind=cell cell=c1)
+  → next_cell: 직전 attempt 가 completed 다 — 이 셀은 끝났다
+  → 다음 셀의 지시서는 **새 context** 로 연다(셀 하나 = context 하나 · D20). 모드가 HITL 이면 열기 전에 사람에게 묻는다.
+[relay] 감독 · ctx-b (node=sub kind=cell cell=c2)
+  → popup: unclassified 이고 전진이 없다 — 같은 벽에 부딪히는 중이다. 예산을 키우기 전에 사람에게 묻는다
+  → 이것은 **질문이지 차단이 아니다**. 사람이 답하면 그대로 잇는다(pending: /tmp/parity-o-TD-38-supervise-3718377-1794818348255091316/campaigns/camp-x/relay/pending_hitl.json).
+[relay] 감독 · ctx-c (node=sub kind=build cell=None)
+  → popup: unresolved in-flight dispatch; reconcile before replay
+  → 이것은 **질문이지 차단이 아니다**. 사람이 답하면 그대로 잇는다(pending: /tmp/parity-o-TD-38-supervise-3718377-1794818348255091316/campaigns/camp-x/relay/pending_hitl.json).

@@ -256,6 +256,14 @@ path = "src/bin/selftest_sweep_meta.rs"
 name = "selftest_sweep_repeats"
 path = "src/bin/selftest_sweep_repeats.rs"
 
+[[bin]]
+name = "selftest_load_shim"
+path = "src/bin/selftest_load_shim.rs"
+
+[[bin]]
+name = "selftest_fixture_docker"
+path = "src/bin/selftest_fixture_docker.rs"
+
 [[test]]
 name = "scan_node_p1_original_cases"
 path = "checks/scan_node_p1_original_cases.rs"
@@ -263,10 +271,6 @@ path = "checks/scan_node_p1_original_cases.rs"
 [[test]]
 name = "scan_node_p2_api_cases"
 path = "checks/scan_node_p2_api_cases.rs"
-
-[[test]]
-name = "scan_node_adapter_p2_cases"
-path = "checks/scan_node_adapter_p2_cases.rs"
 
 [[test]]
 name = "scan_node_review_fix_cases"
@@ -415,6 +419,15 @@ num-traits = "0.2"
 # crate): `classify_cell` reads the multi-node participation contract through `role_bridge`, not through a Python owner.
 role-contract = { path = "../../../rust/role-contract" }
 agent-runtime-support = { path = "../../../rust/runtime-support" }
+# The completion gate library (Rust port of completion_gate.py): the lite-gate selftest asks it parse_flat_certificate /
+# certificate_run_key directly instead of loading the Python gate into the owner-bridge session.
+policy-gate = { path = "../../../rust/policy-gate" }
+# The evidence publisher library (Rust port of evidence_publisher.py): the lite-report selftest asks it the bench-report
+# name pattern, report_measurement_config and LITE_BENCH_MODE directly.
+policy-publisher = { path = "../../../rust/policy-publisher" }
+# The hint reader library (Rust port of render_bench_section.py, crate `hintlib`): the lite-report and sweep-repeats
+# selftests ask its parse_report / parse_measurement_config / render_lite and contract constants directly (no Python).
+hint-publisher = { path = "../../hint-publisher/rust" }
 # SHA-256 of the dataset source (`hashlib.sha256` of the original): the `ring` digest `Context` (its own aarch64/x86_64
 # assembly with run-time CPU feature dispatch), pinned exactly. Replaced the first plan, `sha2` =0.10.9 (kept in PORTING.md).
 ring = "=0.17.14"
@@ -675,10 +688,6 @@ path = "checks/bench_shell_wiring.rs"
 [[test]]
 name = "turn_budget_stream_fixes"
 path = "checks/turn_budget_stream_fixes.rs"
-
-[[test]]
-name = "turn_budget_public_stdio"
-path = "checks/turn_budget_public_stdio.rs"
 
 [[test]]
 name = "turn_budget_original_cases"

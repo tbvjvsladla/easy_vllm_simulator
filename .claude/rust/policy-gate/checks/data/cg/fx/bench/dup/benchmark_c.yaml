@@ -1,0 +1,13 @@
+schema_version: 1
+record_type: benchmark_certificate
+model: m
+gpu_model: "NVIDIA GB10"
+vllm_version: 0.31.0
+quantization: nvfp4
+topology: single
+tensor_parallel_size: 1
+verdict: PASS
+measured_utc: "2026-11-16T03:00:00Z"
+floor_tps: 2
+ratio_M_over_primary: 1
+primary_source: e

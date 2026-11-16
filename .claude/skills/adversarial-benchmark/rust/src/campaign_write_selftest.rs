@@ -172,13 +172,16 @@ pub fn selftest(io: &mut Sinks<'_>) -> i32 {
     let p = call(r, &["--resume-brief"]).unwrap();
     say(io, "재개 요약은 인스턴스만 읽고 한 화면을 낸다", p.status == 0 && p.out.starts_with("상태: ACTIVE=w1") && p.out.contains("## 6. 반증된 축"));
 
-    // validator-shaped refusal when the validator beside the program is missing
+    // the validator is this program's own module: no file beside it is needed to answer an assignment question
     let _ = std::fs::remove_file(r.join(".claude/skills/terraforming_node/scripts/campaign_template_validator.py"));
     let p = call(r, &["--assigned-cells", "main"]).unwrap();
-    say(io, "★검증기가 없으면 배정 질의는 판정자 부재로 거부된다", p.status == 1 && p.err.contains("검증기를 찾지 못했다"));
+    say(io, "배정 질의는 검증기 파일 없이도 내장 검증기로 답한다", p.status == 0 && !p.err.contains("검증기를 찾지 못했다"));
 
-    // shapes the native program does not model go to the owner untouched
-    say(io, "★모델링하지 않은 형태(--selftest 외 약어·미지 옵션)는 원본으로 넘긴다", call(r, &["--assigned", "main"]).is_none());
+    // argparse's surface is native: an abbreviation is accepted, an unknown option is the usage error (status 2)
+    let p = call(r, &["--assigned", "main"]).unwrap();
+    say(io, "약어(--assigned)는 argparse 처럼 받아들인다", p.status == 0);
+    let p = call(r, &["--bogus"]).unwrap();
+    say(io, "★미지 옵션은 usage 오류(rc 2)", p.status == 2 && p.err.contains("campaign_init.py: error: unrecognized arguments: --bogus"));
 
     let _ = std::fs::remove_dir_all(&root);
     let _ = writeln!(io.out, "[campaign_init] {}", if ok { "PASS" } else { "FAIL" });

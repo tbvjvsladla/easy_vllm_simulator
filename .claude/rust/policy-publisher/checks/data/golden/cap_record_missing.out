@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "CAPACITY_REJECTION_GATE_EVIDENCE_SRC_NOT_FOUND": "src path does not resolve to an existing file: 'nope.txt'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "CAPACITY_REJECTION_GATE_EVIDENCE_SRC_NOT_FOUND"
+  ],
+  "schema_version": 1
+}

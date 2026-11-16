@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/tmp/parity-o-S5-10-replay-inf-3814608-1794819158070566046/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py", line 737, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/tmp/parity-o-S5-10-replay-inf-3814608-1794819158070566046/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py", line 697, in main
+    r = replay_samples(path, params)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/parity-o-S5-10-replay-inf-3814608-1794819158070566046/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_thermal.py", line 353, in replay_samples
+    pwr_dw = int(round(float(w) * 10)) if w is not None else ABSENT
+                 ^^^^^^^^^^^^^^^^^^^^
+OverflowError: cannot convert float infinity to integer

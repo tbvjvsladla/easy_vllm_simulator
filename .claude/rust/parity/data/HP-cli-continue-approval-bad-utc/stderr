@@ -1,0 +1,2 @@
+[hint] FAIL HINT_TIME_NOT_INJECTED: --approved-utc 는 UTC `YYYY-MM-DDTHH:MM:SSZ` 로 주입해야 한다: 'x'
+  → 벽시계를 읽지 않는다 — 호출자가 시각을 넘긴다.

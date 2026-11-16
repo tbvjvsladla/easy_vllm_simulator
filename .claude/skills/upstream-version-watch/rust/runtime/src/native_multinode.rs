@@ -1,9 +1,11 @@
 //! `native_multinode_serve.py` (part A of the port): constants and validation, the marker-owned tree primitives, the process primitives,
 //! the runners (local and SSH fixed-runner), `load_ctx`, the pure argv/env builders, the dry-run `plan`, `client` and `down`.
 //!
-//! `up --apply` (`NativeServe`) lives in the child module `up`, `--self-test` in `self_test`. The remote fixed program run on the sub node
-//! (`REMOTE`/`BOOT`) is still sent byte for byte and needs the sub's `python3`; `blackbox_session.py` calls stay Python by decision.
-//! Deviations on purpose: `check_smoke_model` / `budget_preflight` argv name their `.sh` launchers; the wheelhouse argv still spawns `python3`.
+//! `up --apply` (`NativeServe`) lives in the child module `up`, `--self-test` in `self_test`. The fixed runner on the sub node is
+//! the Rust `native_remote` (child module `remote`) and the session tool is the `blackbox_session.sh` launcher on both nodes —
+//! no Python on the Sub (plan_26111615 pass 3; the original sent a `python3 -c` program and ran `blackbox_session.py`).
+//! Deviations on purpose: `check_smoke_model` / `budget_preflight` argv name their `.sh` launchers; the wheelhouse tool is the Rust
+//! `native_wheelhouse` (main: its launcher · sub: the main node's ELF put on the run root) — no `native_wheelhouse.py` on either node.
 
 use crate::gate_cli::{self, Values};
 use agent_runtime_support::pystr::PyStr;
@@ -20,6 +22,9 @@ use std::time::{Duration, Instant};
 pub mod pii;
 pub mod up;
 mod self_test;
+mod remote;
+/// The `native_remote` executable (the fixed runner the `Ssh` runner executes on the Sub).
+pub use remote::main as remote_main;
 
 pub const EXIT_OK: i32 = 0;
 pub const EXIT_USAGE: i32 = 2;
@@ -38,8 +43,12 @@ pub const STOP_WAIT_S: u64 = 30;
 pub const NATIVE_LAUNCH_FILE: &str = "native-launch.md";
 pub const CLIENT_REL: &str = "bin/vllm-client";
 pub const WHEEL_ACCEPT_REL: &str = ".claude/skills/upstream-version-watch/references/native_wheelhouse_accept.json";
-const WHEEL_LAUNCHER_REL: &str = ".claude/skills/upstream-version-watch/scripts/native_wheelhouse.sh";
-const WHEEL_TOOL_REL: &str = ".claude/skills/upstream-version-watch/scripts/native_wheelhouse.py";
+/// The main node runs the wheelhouse tool through its Rust launcher (repo-relative · `build` and `verify`).
+pub const WHEEL_LAUNCHER_REL: &str = ".claude/skills/upstream-version-watch/scripts/native_wheelhouse.sh";
+/// The node-built ELF the launcher starts; its bytes are what the main node puts on the sub run root (no Python on either node).
+pub const WHEEL_ELF_REL: &str = ".claude/skills/upstream-version-watch/rust/runtime/target/release/native_wheelhouse";
+/// Where the sub runs the put ELF, under its run root.
+pub const SUB_WHEEL_TOOL: &str = "tools/native_wheelhouse";
 const RAY_SESSION_SOCKET_TAIL: &str = "/session_2026-09-23_12-30-45_123456_1234567/sockets/plasma_store";
 
 /// `ServeError` (status 3) and its subclass `UnknownState` (status 4).
@@ -518,144 +527,13 @@ pub fn stop_process(pid: i64, pgid: i64, start: &str, wait: u64, pid_only: bool)
     Ok("kill-exited")
 }
 
-// ── fixed remote program (byte for byte the original; sent to the sub node over ssh) ───────────────
+// ── fixed sub-node runner ──────────────────────────────────────────────────────────────────────────
+// The Sub runs the Rust `native_remote` (child module `remote`) — the same operations and refusals as the original's
+// `python3 -c BOOT REMOTE` program, without Python on the Sub. Its ELF is the upstream runtime's, delivered to the Sub at
+// the same repository-relative place (`sync_to_sub.sh` `SUB_ELF_NAMES`, or the Sub's own `build_rust_packages.sh`).
 
-const PROC_SRC: &str = r##"
-import json,os,signal,subprocess,time
-def st(pid):
- try:
-  t=open('/proc/%d/stat'%pid).read().rsplit(')',1)[1].split()
-  return None if t[0] in ('Z','X') else t[19]
- except Exception:return None
-def procs():
- out={}
- for d in os.listdir('/proc'):
-  if not d.isdigit():continue
-  try:
-   t=open('/proc/%s/stat'%d).read().rsplit(')',1)[1].split()
-   if t[0] in ('Z','X'):continue
-   try:a=open('/proc/%s/cmdline'%d,'rb').read().replace(b'\0',b' ').decode('utf-8','replace').strip()[:300]
-   except Exception:a=''
-   out[int(d)]={'pid':int(d),'ppid':int(t[1]),'pgid':int(t[2]),'starttime':t[19],'argv':a}
-  except Exception:pass
- return out
-def tree(pids,pgids):
- ps=procs();kids={};gs=set(int(g) for g in pgids)
- for p in ps.values():kids.setdefault(p['ppid'],[]).append(p['pid'])
- seen=set();todo=[int(x) for x in pids if int(x) in ps]
- while todo:
-  x=todo.pop()
-  if x in seen:continue
-  seen.add(x);todo.extend(kids.get(x,[]))
- for p in ps.values():
-  if p['pgid'] in gs:seen.add(p['pid'])
- return [ps[x] for x in sorted(seen) if x in ps]
-def gpu():
- p=subprocess.run(['nvidia-smi','--query-compute-apps=pid,process_name,used_memory','--format=csv,noheader,nounits'],text=True,capture_output=True,timeout=20)
- if p.returncode:raise RuntimeError('gpu-query rc=%d'%p.returncode)
- return [x.strip() for x in p.stdout.splitlines() if x.strip()]
-def ports():
- p=subprocess.run(['ss','-ltnH'],text=True,capture_output=True,timeout=20)
- if p.returncode:raise RuntimeError('port-query rc=%d'%p.returncode)
- out=set()
- for line in p.stdout.splitlines():
-  f=line.split()
-  if len(f)>=4 and ':' in f[3]:
-   try:out.add(int(f[3].rsplit(':',1)[1]))
-   except ValueError:pass
- return sorted(out)
-def stop(pid,pgid,start,wait,pid_only):
- pid,pgid,start=int(pid),int(pgid),str(start)
- got=st(pid)
- if got is None:return 'already-gone'
- if got!=start:raise RuntimeError('pid-reuse-before-term')
- def sig(s):
-  try:
-   if pid_only:os.kill(pid,s)
-   else:os.killpg(pgid,s)
-  except ProcessLookupError:pass
- sig(signal.SIGTERM)
- end=time.monotonic()+wait
- while time.monotonic()<end and st(pid)==start:time.sleep(.1)
- got=st(pid)
- if got is None:return 'term-exited'
- if got!=start:raise RuntimeError('pid-reuse-before-kill')
- sig(signal.SIGKILL)
- end=time.monotonic()+min(wait,10)
- while time.monotonic()<end and st(pid)==start:time.sleep(.1)
- if st(pid)==start:raise RuntimeError('survived-kill')
- return 'kill-exited'
-"##;
-const REMOTE_TAIL: &str = r##"
-import base64,stat,sys
-r=json.loads(base64.b64decode(sys.stdin.read() if sys.argv[2]=='-' else sys.argv[2]));root=r['root'];rid=r['run_id'];marker=r['marker'];created=r['created_by'];op=r['op']
-def die(x):
- sys.stderr.write(str(x)+'\n');raise SystemExit(3)
-def emit(x):print(json.dumps(x,sort_keys=True),flush=True)
-def want():return json.dumps({'run_id':rid,'created_by':created},sort_keys=True,separators=(',',':'))+'\n'
-def under_rel(rel):
- if not isinstance(rel,str) or not rel or rel.startswith('/'):die('bad-relative-path')
- p=os.path.realpath(os.path.join(root,rel));b=os.path.realpath(root)
- if os.path.commonpath([b,p])!=b:die('escape')
- return p
-def owned_root():
- if os.path.basename(root)!=rid or os.path.islink(root) or not os.path.isdir(root) or os.path.ismount(root):die('bad-root')
- if open(os.path.join(root,marker)).read()!=want():die('bad-marker')
-def remove(d):
- if os.path.islink(d) or os.path.ismount(d):die('link/mount')
- for e in list(os.scandir(d)):
-  if os.path.realpath(d)==os.path.realpath(root) and e.name==marker:continue
-  m=e.stat(follow_symlinks=False).st_mode
-  if stat.S_ISLNK(m):os.unlink(e.path);continue
-  p=under_rel(os.path.relpath(e.path,root))
-  if stat.S_ISDIR(m):remove(p)
-  elif stat.S_ISREG(m) or stat.S_ISSOCK(m) or stat.S_ISFIFO(m):os.unlink(p)
-  else:die('special')
- if os.path.realpath(d)==os.path.realpath(root):os.unlink(os.path.join(root,marker))
- os.rmdir(d)
-try:
- if op=='init':
-  if os.path.lexists(root):die('root-exists')
-  parent=os.path.dirname(root)
-  if r.get('ensure_parent'):os.makedirs(parent,0o700,exist_ok=True)
-  if not os.path.isdir(parent) or os.path.islink(parent):die('bad-parent')
-  os.mkdir(root,0o700)
-  with open(os.path.join(root,marker),'w') as f:f.write(want())
-  emit({'ok':True})
- elif op=='put':
-  owned_root();p=under_rel(r['rel'])
-  if os.path.lexists(p):die('put-exists')
-  os.makedirs(os.path.dirname(p),0o700,exist_ok=True)
-  fd=os.open(p,os.O_WRONLY|os.O_CREAT|os.O_EXCL|getattr(os,'O_NOFOLLOW',0),int(r['mode']))
-  with os.fdopen(fd,'wb') as f:f.write(base64.b64decode(r['data']))
-  emit({'ok':True})
- elif op=='run':
-  p=subprocess.run(r['argv'],stdin=subprocess.DEVNULL,text=True,capture_output=True,timeout=r['timeout'])
-  emit({'rc':p.returncode,'out':p.stdout,'err':p.stderr})
- elif op=='start':
-  owned_root();log=under_rel(r['log_rel']);os.makedirs(os.path.dirname(log),0o700,exist_ok=True)
-  f=open(log,'xb',buffering=0)
-  p=subprocess.Popen(r['argv'],stdin=subprocess.DEVNULL,stdout=f,stderr=subprocess.STDOUT,start_new_session=True,close_fds=True);f.close();x=st(p.pid)
-  if x is None:die('starttime(process exited at start)')
-  emit({'node':r['node'],'role':r['role'],'pid':p.pid,'pgid':os.getpgid(p.pid),'starttime':x,'log_rel':r['log_rel']})
- elif op=='stop':
-  i=r['identity']
-  emit({'node':i['node'],'role':i['role'],'pid':int(i['pid']),'term_status':stop(i['pid'],i['pgid'],i['starttime'],int(r['wait']),bool(r.get('pid_only'))),'starttime_match':True})
- elif op=='text':
-  with open(under_rel(r['rel']),encoding='utf-8',errors='replace') as f:emit({'text':f.read()})
- elif op=='tree':emit({'processes':tree(r['pids'],r['pgids'])})
- elif op=='gpu':emit({'processes':gpu()})
- elif op=='ports':emit({'ports':ports()})
- elif op=='exists':emit({'exists':os.path.lexists(root)})
- elif op=='remove_owned_tree':
-  owned_root();remove(root)
-  if os.path.lexists(root):die('remaining')
-  emit({'ok':True})
- else:die('bad-op')
-except RuntimeError as e:die(e)
-except subprocess.TimeoutExpired:die('bounded-timeout')
-"##;
-const BOOT: &str = "import base64,sys;exec(compile(base64.b64decode(sys.argv[1]),'native_remote','exec'))";
+/// `<sub work_dir>/<this>` is the fixed runner the `Ssh` runner executes on the Sub.
+pub const SUB_REMOTE_REL: &str = ".claude/skills/upstream-version-watch/rust/runtime/target/release/native_remote";
 
 // ── identity · runners ─────────────────────────────────────────────────────────────────────────────
 
@@ -843,14 +721,20 @@ pub struct Ssh {
     root: String,
     node: String,
     transport: Vec<String>,
+    /// The fixed runner on the Sub (`<work_dir>/SUB_REMOTE_REL`).
+    remote: String,
 }
 impl Ssh {
-    pub fn new(host: &str, root: &str, node: &str) -> R<Ssh> {
+    pub fn new(host: &str, root: &str, node: &str, sub_work_dir: &str) -> R<Ssh> {
         if !is_host(host) {
             return serve("unsafe sub host");
         }
+        if !sub_work_dir.starts_with('/') {
+            return serve("manifest nodes[sub].work_dir 가 절대경로가 아니다");
+        }
         let transport = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8", host].map(String::from).to_vec();
-        Ok(Ssh { root: root.into(), node: node.into(), transport })
+        let remote = format!("{}/{SUB_REMOTE_REL}", sub_work_dir.trim_end_matches('/'));
+        Ok(Ssh { root: root.into(), node: node.into(), transport, remote })
     }
     fn call(&self, op: &str, bound_s: u64, extra: Vec<(&str, PyValue)>) -> R<PyValue> {
         const ALLOWED: [&str; 11] = ["init", "put", "run", "start", "stop", "text", "tree", "gpu", "ports", "exists", "remove_owned_tree"];
@@ -861,8 +745,7 @@ impl Ssh {
         let mut items = extra;
         items.extend([("op", vs(op)), ("root", vs(&self.root)), ("run_id", vs(&run_id)), ("marker", vs(MARKER)), ("created_by", vs(CREATED_BY))]);
         let payload = b64(dumps_tight(&dict(items)).as_bytes());
-        let remote = b64(format!("{PROC_SRC}{REMOTE_TAIL}").as_bytes());
-        let inner: Vec<String> = ["python3", "-c", BOOT, &remote, "-"].map(String::from).to_vec();
+        let inner: Vec<String> = vec![self.remote.clone(), "-".into()];
         let mut argv = self.transport.clone();
         argv.push(shlex_join(&inner));
         match run_cmd(&argv, bound_s + 13, Some(&payload)) {
@@ -1139,11 +1022,11 @@ pub fn load_ctx(repo: &Path, cell: &str, run_id: &str, source_cell: Option<&str>
         work_dir: rp.clone(),
         root: root.clone(),
         short: short.clone(),
-        session_py: format!("{rp}/{nb}/node_blackbox/blackbox_session.py"),
+        session_py: format!("{rp}/{nb}/node_blackbox/blackbox_session.sh"),
         renew_sh: format!("{rp}/{nb}/node_blackbox/budget_renew_loop.sh"),
         watchdog_sh: format!("{rp}/{nb}/host_safety/mem_watchdog.sh"),
         node_dir: format!("{rp}/docs/logs/main"),
-        wheel_tool: format!("{rp}/{WHEEL_TOOL_REL}"),
+        wheel_tool: format!("{rp}/{WHEEL_LAUNCHER_REL}"),
         wheel_accept: format!("{rp}/{WHEEL_ACCEPT_REL}"),
     };
     let sub = NodeSpec {
@@ -1152,11 +1035,11 @@ pub fn load_ctx(repo: &Path, cell: &str, run_id: &str, source_cell: Option<&str>
         work_dir: sub_wd.clone(),
         root: root.clone(),
         short,
-        session_py: format!("{sub_wd}/.claude/runtime/node_blackbox/blackbox_session.py"),
+        session_py: format!("{sub_wd}/.claude/runtime/node_blackbox/blackbox_session.sh"),
         renew_sh: format!("{sub_wd}/.claude/runtime/node_blackbox/budget_renew_loop.sh"),
         watchdog_sh: format!("{sub_wd}/.claude/runtime/host_safety/mem_watchdog.sh"),
         node_dir: format!("{sub_wd}/docs/logs/sub"),
-        wheel_tool: format!("{root}/tools/native_wheelhouse.py"),
+        wheel_tool: format!("{root}/{SUB_WHEEL_TOOL}"),
         wheel_accept: format!("{root}/tools/native_wheelhouse_accept.json"),
     };
     let y = load_yaml(&repo.join(&triplet["yaml"]))?;
@@ -1198,7 +1081,7 @@ pub fn load_ctx(repo: &Path, cell: &str, run_id: &str, source_cell: Option<&str>
         main,
         sub,
         simlog_topic: simlog_topic.into(),
-        wheel_tool_rel: WHEEL_TOOL_REL.into(),
+        wheel_tool_rel: WHEEL_LAUNCHER_REL.into(),
         wheel_accept_rel: WHEEL_ACCEPT_REL.into(),
     })
 }
@@ -1216,21 +1099,19 @@ pub fn venv_dir(root: &str) -> String {
 }
 pub fn wheelhouse_build_argv(tool: &str, image: &str, root: &str, generated_utc: &str, accept: &str) -> Vec<String> {
     let w = wh_dir(root);
-    sv(&["python3", tool, "build", "--image", image, "--out", &w, "--generated-utc", generated_utc, "--accept-file", accept])
+    sv(&[tool, "build", "--image", image, "--out", &w, "--generated-utc", generated_utc, "--accept-file", accept])
 }
-/// `launcher` (main node) runs the Rust launcher `native_wheelhouse.sh`; without it the `.py` the main node put on the sub runs under `python3`.
-pub fn wheelhouse_verify_argv(tool: &str, root: &str, generated_utc: &str, accept: &str, launcher: Option<&str>) -> Vec<String> {
+/// `tool` = the main node's Rust launcher (`native_wheelhouse.sh`) or the ELF the main node put on the sub run root.
+pub fn wheelhouse_verify_argv(tool: &str, root: &str, generated_utc: &str, accept: &str) -> Vec<String> {
     let (w, v) = (wh_dir(root), venv_dir(root));
-    let mut a: Vec<String> = match launcher {
-        Some(l) => vec![l.to_string()],
-        None => sv(&["python3", tool]),
-    };
-    a.extend(sv(&["verify", "--wheelhouse-dir", &w, "--venv", &v, "--generated-utc", generated_utc, "--accept-file", accept]));
-    a
+    sv(&[tool, "verify", "--wheelhouse-dir", &w, "--venv", &v, "--generated-utc", generated_utc, "--accept-file", accept])
 }
-/// The verify launcher of a node: the main node only.
-pub fn wheel_launcher(c: &Ctx, name: &str) -> Option<String> {
-    (name == "main").then(|| format!("{}/{WHEEL_LAUNCHER_REL}", c.repo.display()))
+/// The ELF the main node's launcher starts (same root rule as the launcher: a set `EASY_VLLM_UPSTREAM_RUNTIME_ROOT` wins).
+pub fn wheel_elf_path(repo: &std::path::Path) -> std::path::PathBuf {
+    match std::env::var_os("EASY_VLLM_UPSTREAM_RUNTIME_ROOT").filter(|v| !v.is_empty()) {
+        Some(root) => std::path::PathBuf::from(root).join("target/release/native_wheelhouse"),
+        None => repo.join(WHEEL_ELF_REL),
+    }
 }
 pub fn pip_freeze_argv(root: &str) -> Vec<String> {
     vec![format!("{}/bin/python", venv_dir(root)), "-m".into(), "pip".into(), "freeze".into(), "--all".into()]
@@ -1395,7 +1276,7 @@ pub fn plan(c: &Ctx, here: &Path) -> Vec<String> {
         add(
             &mut lines,
             n,
-            sv(&["python3", &spec.session_py, "--node-dir", &spec.node_dir, "declare-budget", "--mem-total-mib", "<MemTotal>", "--weights-mib", "<w>", "--kv-mib", "<kv>", "--overhead-mib", &c.overhead_mib.to_string(), "--ttl-s", "<max(3×ready,floor)>", "--expected-load-s", &c.ready_max_s.to_string(), "--label", &format!("smoke-{}", c.cell), "--now", "<UTC>"]),
+            sv(&[session_interpreter(&spec.session_py), &spec.session_py, "--node-dir", &spec.node_dir, "declare-budget", "--mem-total-mib", "<MemTotal>", "--weights-mib", "<w>", "--kv-mib", "<kv>", "--overhead-mib", &c.overhead_mib.to_string(), "--ttl-s", "<max(3×ready,floor)>", "--expected-load-s", &c.ready_max_s.to_string(), "--label", &format!("smoke-{}", c.cell), "--now", "<UTC>"]),
             "clear→declare→budget_honored 관측",
         );
     }
@@ -1403,12 +1284,12 @@ pub fn plan(c: &Ctx, here: &Path) -> Vec<String> {
         lines.push(format!("[{n}] <init marker-owned root> {} · {}", spec.root, spec.short));
         add(&mut lines, n, mkdirs_argv(spec), "");
     }
-    lines.push(format!("[sub] <put> {} ← {} (sha256 기록)", s.wheel_tool, c.wheel_tool_rel));
+    lines.push(format!("[sub] <put> {} ← {} (메인 ELF · sha256 기록)", s.wheel_tool, WHEEL_ELF_REL));
     lines.push(format!("[sub] <put> {} ← {} (sha256 기록)", s.wheel_accept, c.wheel_accept_rel));
     for (n, spec) in [("main", m), ("sub", s)] {
         add(&mut lines, n, wheelhouse_build_argv(&spec.wheel_tool, &c.image, &spec.root, "<generated-utc>", &spec.wheel_accept), "자기 이미지에서 재포장 · 승인 선언 적용");
         add(&mut lines, n, sv(&["du", "-sxb", &spec.root]), "상한 검사");
-        add(&mut lines, n, wheelhouse_verify_argv(&spec.wheel_tool, &spec.root, "<generated-utc>", &spec.wheel_accept, wheel_launcher(c, n).as_deref()), "venv·pip --no-index --no-deps·이미지 동등성·ldd·import+CUDA → env 레시피");
+        add(&mut lines, n, wheelhouse_verify_argv(&spec.wheel_tool, &spec.root, "<generated-utc>", &spec.wheel_accept), "venv·pip --no-index --no-deps·이미지 동등성·ldd·import+CUDA → env 레시피");
         add(&mut lines, n, sv(&["du", "-sxb", &spec.root]), "상한 검사");
         add(&mut lines, n, pip_freeze_argv(&spec.root), &format!("→ docs/simlog/<YYMMDDHH>_{}/pip-freeze-{n}.txt", c.simlog_topic));
     }
@@ -1675,7 +1556,7 @@ pub fn down_from_state(state: &PyValue, repo: &Path, r: &Runners, rs: &Runners, 
         if truthy(dpath(state, &["budget_declared", n])) {
             let sp = as_str(dpath(state, &["nodes", n, "session_py"])).unwrap_or_default();
             let nd = as_str(dpath(state, &["nodes", n, "node_dir"])).unwrap_or_default();
-            if let Err(e) = r.get(n).run(&["python3".into(), sp, "--node-dir".into(), nd, "clear-budget".into(), "--now".into(), utc(clock.now())], 30, true) {
+            if let Err(e) = r.get(n).run(&[session_interpreter(&sp).into(), session_launcher(&sp), "--node-dir".into(), nd, "clear-budget".into(), "--now".into(), utc(clock.now())], 30, true) {
                 errors.push(format!("{n}: clear-budget 실패: {}", e.msg()));
             }
         }
@@ -1730,9 +1611,10 @@ pub fn down_from_state(state: &PyValue, repo: &Path, r: &Runners, rs: &Runners, 
 pub fn runners_for(state: &PyValue, sub_host: &str) -> R<(Runners, Runners)> {
     let root = |n: &str, k: &str| as_str(dpath(state, &["nodes", n, k])).ok_or_else(|| Err::Serve(format!("state.nodes.{n}.{k} 가 없다")));
     let (mr, ms, sr, ss) = (root("main", "root")?, root("main", "short")?, root("sub", "root")?, root("sub", "short")?);
+    let sub_wd = root("sub", "work_dir")?;
     Ok((
-        Runners { main: Box::new(Local::new(&mr, "main")), sub: Box::new(Ssh::new(sub_host, &sr, "sub")?) },
-        Runners { main: Box::new(Local::new(&ms, "main")), sub: Box::new(Ssh::new(sub_host, &ss, "sub")?) },
+        Runners { main: Box::new(Local::new(&mr, "main")), sub: Box::new(Ssh::new(sub_host, &sr, "sub", &sub_wd)?) },
+        Runners { main: Box::new(Local::new(&ms, "main")), sub: Box::new(Ssh::new(sub_host, &ss, "sub", &sub_wd)?) },
     ))
 }
 
@@ -1873,6 +1755,11 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
     if first == "--self-test" {
         return self_test::self_test(&gate_cli::scripts_dir(script, "native_multinode_serve"));
     }
+    if first == "-h" || first == "--help" {
+        // the original's top-level argparse page, captured from it (golden text)
+        gate_cli::write_out(include_str!("help/native_multinode_serve.txt"));
+        return 0;
+    }
     let op: &'static str = match first.as_str() {
         "up" => "up",
         "down" => "down",
@@ -1929,8 +1816,8 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
             return Ok(EXIT_OK);
         }
         let (r, rs) = (
-            Runners { main: Box::new(Local::new(&ctx.main.root, "main")), sub: Box::new(Ssh::new(&ctx.sub_host, &ctx.sub.root, "sub")?) },
-            Runners { main: Box::new(Local::new(&ctx.main.short, "main")), sub: Box::new(Ssh::new(&ctx.sub_host, &ctx.sub.short, "sub")?) },
+            Runners { main: Box::new(Local::new(&ctx.main.root, "main")), sub: Box::new(Ssh::new(&ctx.sub_host, &ctx.sub.root, "sub", &ctx.sub.work_dir)?) },
+            Runners { main: Box::new(Local::new(&ctx.main.short, "main")), sub: Box::new(Ssh::new(&ctx.sub_host, &ctx.sub.short, "sub", &ctx.sub.work_dir)?) },
         );
         let log = |m: &str| say(m);
         let mut ns = up::NativeServe::new(&ctx, &r, &rs, &up::real_http, &RealClock, &log, here.clone());
@@ -1946,5 +1833,20 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
             say_err(&format!("FAIL: {m}"));
             EXIT_FAIL
         }
+    }
+}
+
+/// The interpreter of a node's session tool: always `bash` — the tool is the Rust launcher `blackbox_session.sh` on both
+/// nodes (main `scripts/node_blackbox/`, Sub `.claude/runtime/node_blackbox/` delivered by render_sub_env · plan_26111615
+/// pass 3: no Python on the Sub).
+pub fn session_interpreter(_session_tool: &str) -> &'static str {
+    "bash"
+}
+
+/// A `session_py` recorded by an older run state names the original `.py`; its launcher is the sibling `.sh`.
+pub fn session_launcher(session_tool: &str) -> String {
+    match session_tool.strip_suffix(".py") {
+        Some(stem) => format!("{stem}.sh"),
+        None => session_tool.to_string(),
     }
 }

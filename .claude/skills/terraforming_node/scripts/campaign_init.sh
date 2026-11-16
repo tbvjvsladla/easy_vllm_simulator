@@ -1,8 +1,8 @@
 #!/bin/bash
-# `campaign_init.py` through the node-local Rust executable: the read shapes (`--active`, `--derive KIND ...`) and the writer
-# shapes it models (`--init`, `--close`, `--phase-set`, `--cell-set`, `--write-brief`, `--assigned-cells`) are answered
-# natively; every other shape reaches the owner `campaign_init.py` through the explicit compatibility route. Installation
-# and build are explicit operations; a missing executable is an explicit error, never a silent Python start.
+# `campaign_init` (the retired `campaign_init.py` command line) through the node-local Rust executable: every argument shape —
+# the read shapes (`--active`, `--derive KIND ...`), every writer and lifecycle operation, `--selftest`, `-h` and argparse's usage
+# errors — is answered natively. No shape starts Python. Installation and build are explicit operations; a missing executable is
+# an explicit error.
 set -euo pipefail
 # Self-contained: builtins only (no `dirname` is looked up in the caller's business PATH, which is never modified).
 SELF="${BASH_SOURCE[0]}"
@@ -15,18 +15,15 @@ if [ ! -f "$BIN" ] || [ ! -x "$BIN" ]; then
   exit 2
 fi
 # `CAMPAIGN_READ_VALIDATE_ONLY=1` is an availability check for callers that must stop before their first side effect: it
-# returns 0 here, after the same ELF and executable-bit check, without any native or Python business. It proves the
-# runtime is present, not that it is healthy; every other value (and every argument shape) routes exactly as before.
+# returns 0 here, after the same file and executable-bit check, without any business. It proves the runtime is present, not
+# that it is healthy; every other value (and every argument shape) routes exactly as before.
 if [ "${CAMPAIGN_READ_VALIDATE_ONLY:-}" = 1 ]; then
   exit 0
 fi
 unset CAMPAIGN_READ_VALIDATE_ONLY
-# The owner program is the campaign_init.py beside this launcher (its location, not user intent).
+# The program path the checkout root is derived from (`parents[4]` of the retired campaign_init.py beside this launcher — its
+# location, not user intent; the file itself need not exist).
 export CAMPAIGN_READ_COMPAT_OWNER="${CAMPAIGN_READ_COMPAT_OWNER:-$SDIR/campaign_init.py}"
-# A caller-selected interpreter is explicit legacy intent; empty keeps the default meaning.
-if [[ -n "${CAMPAIGN_READ_PYTHON:-}" ]]; then
-  export CAMPAIGN_READ_PYTHON
-else
-  unset CAMPAIGN_READ_PYTHON
-fi
+# No interpreter variable is honoured any more (there is no Python route).
+unset CAMPAIGN_READ_PYTHON CAMPAIGN_READ_COMPAT_PYTHON
 exec "$BIN" "$@"

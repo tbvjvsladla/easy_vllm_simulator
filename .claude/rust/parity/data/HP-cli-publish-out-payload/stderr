@@ -1,0 +1,2 @@
+[hint] FAIL HINT_DRAFT_EXISTS: draft 자리가 비어 있지 않다(끊긴 publish 의 잔재): /tmp/parity-o-HP-cli-publish-out-payload-3568054-1794817456017946834/fx/out3 · [] · payload 파일 1건
+  → 잔재를 확인하고 draft 디렉터리를 지운 뒤 publish 를 다시 한다(잔재가 페이로드에 섞이지 않게). 캠페인 셀은 발행 기록이 첫 시각으로 이미 묶였을 수 있다 — 끊긴 publish 와 **같은** --generated-utc 로 다시 실행한다.

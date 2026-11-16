@@ -1,0 +1,7 @@
+{
+  "fixture": ".claude/skills/upstream-version-watch/fixtures/version_delta_0.27.0_to_0.27.1.golden.json",
+  "case": "vLLM v0.27.0 → v0.27.1 · judge_version_delta 골든",
+  "result": "PASS",
+  "diff_count": 0,
+  "diffs": []
+}

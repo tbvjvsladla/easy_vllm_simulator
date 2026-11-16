@@ -1,5 +1,5 @@
 #!/bin/bash
-# recipe.py estimate, generate and simulate (Rust). Direct normal ELF startup; no install/build/download or Python business fallback.
+# recipe estimate, generate and simulate (Rust). Direct normal ELF startup; no install/build/download or Python business fallback.
 set -euo pipefail
 SCRIPT_PATH=${BASH_SOURCE[0]}
 case "$SCRIPT_PATH" in */*) SCRIPT_DIR=${SCRIPT_PATH%/*}; [ -n "$SCRIPT_DIR" ] || SCRIPT_DIR=/ ;; *) SCRIPT_DIR=. ;; esac
@@ -16,6 +16,7 @@ fi
 binary="$runtime_root/target/release/recipe"
 if [ ! -f "$binary" ] || [ ! -x "$binary" ]; then
   printf '[recipe] ERROR normal Rust ELF missing/non-executable: %s\n' "$binary" >&2
+  printf '[recipe] build first: bash .claude/skills/terraforming_node/scripts/build_rust_packages.sh\n' >&2
   exit 2
 fi
 magic=''

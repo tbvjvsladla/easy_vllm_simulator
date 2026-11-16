@@ -1,0 +1,5 @@
+{"id": "r1", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r2", "kind": "value", "value": [{"topology": "single", "cpu_arch": "aarch64", "nodes": []}, "output/single/manifest.yaml(manifest_contract 로더)"]}
+{"id": "r3", "kind": "exception", "type": "HintError", "code": "HINT_EVIDENCE_UNREADABLE", "message": "output/multi/manifest.yaml 최상위가 사전이 아니다.", "remedy": null, "exit_code": 1}
+{"id": "r4", "kind": "value", "value": [null, "output/none/manifest.yaml 부재"]}
+{"id": "r5", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}

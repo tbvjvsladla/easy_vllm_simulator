@@ -60,15 +60,16 @@ done
 
 REPO="$(cd -- "${REPO:-$SELF_DIR/../../../..}" >/dev/null 2>&1 && pwd -P)"
 PARITY="$REPO/.claude/policies/runtime/topology_parity.sh"
-# 원장 호출은 Rust 런처(layer_ledger.sh)다. .py 는 sync_branches 의 판정기 동일성 대조·selftest 가 계속 쓰므로 남는다.
+# 원장 호출은 Rust 런처(layer_ledger.sh)다. sync_branches 의 판정기 동일성 대조도 런처+판정 규칙 소스(.rs)로 한다.
 LEDGER="$REPO/.claude/skills/upstream-version-watch/scripts/layer_ledger.sh"
 SYNC="$REPO/.claude/skills/upstream-version-watch/scripts/sync_branches.sh"
 SUBSYNC="$REPO/.claude/skills/upstream-version-watch/scripts/sync_to_sub.sh"
 PUSHER="$REPO/.claude/skills/upstream-version-watch/scripts/push_branches.sh"
 # 카탈로그 파생기 = hint-publisher 단일 진입 `hint.py catalog derive`(2026-09-22 · plan_26092119 §4.9 — 옛 파생기 퇴역).
 # 종료코드·행 표지 상수는 `hintlib/catalog.py` 가 소유한다(파일 경로 단독 적재 가능 계약 · 코드맵 H5).
-CATALOG="$REPO/.claude/skills/hint-publisher/scripts/hint.py"
-CATALOG_LIB_REL=".claude/skills/hint-publisher/scripts/hintlib/catalog.py"
+CATALOG="$REPO/.claude/skills/hint-publisher/scripts/hint.sh"   # Rust 단일 CLI launcher(plan_26111615 · 원본 hint.py)
+# 반대 브랜치 임시 worktree 에는 빌드물(target/)이 없다 — 이 노드에서 빌드한 실행파일을 쓴다(hint-publisher 는 공통층 · 부재 = launcher exit 2).
+_HINT_BIN="${HINT_BIN:-$REPO/.claude/skills/hint-publisher/rust/target/release/hint}"
 
 CUR="$(git -C "$REPO" symbolic-ref --quiet --short HEAD || true)"
 case "$CUR" in
@@ -122,7 +123,7 @@ if [ "$ACTION" = "preflight" ]; then
     preflight || exit $?
     echo "[closing] ② 분류표 빈칸(Agent 가 채우고 ③ 사람이 승인한다):"
     emit_skeleton
-    python3 "$REPO/.claude/policies/runtime/constitution_lint.py" --repo "$REPO" 2>/dev/null || true
+    bash "$REPO/.claude/policies/runtime/constitution_lint.sh" --repo "$REPO" 2>/dev/null || true
     exit 0
 fi
 
@@ -164,10 +165,12 @@ echo "[closing] ⑤ 동기화 — 반대 브랜치 워크트리에서 공통층�
 WT="$REPO/../$(basename "$REPO").wt-$OTHER"
 git -C "$REPO" worktree add -q "$WT" "$OTHER"
 # 자기 일관성 가드가 요구하는 순서: 스크립트만 먼저 당겨온 뒤 실행한다.
-# 갈라짐 판정기(layer_ledger.py)도 같은 이유로 함께 당긴다(⑧-pre D2 S1) -- 반대 브랜치 판본의 판정기는
-# 옛 규칙으로 판정하거나 모르는 인자로 죽고, sync_branches 는 그 경우 LEDGER_JUDGE_STALE 로 멈춘다.
+# 갈라짐 판정기(Rust 런처 layer_ledger.sh + 판정 규칙 소스 layer_ledger.rs)도 같은 이유로 함께 당긴다(⑧-pre D2 S1)
+# -- 반대 브랜치 판본의 판정기는 옛 규칙으로 판정하거나 모르는 인자로 죽고, sync_branches 는 그 경우 LEDGER_JUDGE_STALE
+# 로 멈춘다. ELF 는 워크트리에 없으므로 sync_branches 가 주 작업 트리(이 체크아웃 · $CUR)의 빌드를 쓴다.
 git -C "$WT" checkout "$CUR" -- .claude/skills/upstream-version-watch/scripts/sync_branches.sh \
-    .claude/skills/upstream-version-watch/scripts/layer_ledger.py
+    .claude/skills/upstream-version-watch/scripts/layer_ledger.sh \
+    .claude/skills/upstream-version-watch/rust/runtime/src/layer_ledger.rs
 
 # ── 승인 증거를 워크트리에 임시 배치한다 ──────────────────────────────────────────
 # 왜: `completion_gate authorize` 는 `--repo-root` **아래에서만** 증거를 해소한다(경로 탈출 차단).
@@ -212,7 +215,7 @@ if [ -f "$CATALOG" ] && [ -f "$REPO/hints/.central_authority" ]; then
         # `--record-missing`(2026-09-22 · plan_26092119 X15/D10): 원격에만 있는 태그(타 PC 발행 등)의 로컬 오브젝트 부재가
         # 카탈로그 갱신 **전체**를 막지 않는다 -- 그 태그를 `object: absent-local` 행(brief '—' · 합성 ✗)으로 싣고 rc 0 이다.
         # 옛 기본 계약에서는 그런 태그 1건 때문에 반대 브랜치 카탈로그가 갱신되지 않았다(원격 47 / 로컬 46 · 코드맵 K4).
-        ( cd "$WT" && python3 "$WT/.claude/skills/hint-publisher/scripts/hint.py" --repo "$WT" catalog derive \
+        ( cd "$WT" && HINT_BIN="$_HINT_BIN" bash "$WT/.claude/skills/hint-publisher/scripts/hint.sh" --repo "$WT" catalog derive \
               --remote "$REMOTE" --generated-kst "$_KST" --record-missing ) || _CAT_RC=$?
         # 원인을 **말한다**(⑧-pre D2 S7). 종전 "(원인은 위 출력)" 은 원격에만 있는 태그의 로컬 오브젝트 부재를
         # 다른 실패와 구분하지 않았고, 해소 명령도 원격 이름 없이 남겼다. 분류에 쓰는 종료코드·행 표지는 파생기 상수다(`hintlib/catalog.py` 의
@@ -221,11 +224,11 @@ if [ -f "$CATALOG" ] && [ -f "$REPO/hints/.central_authority" ]; then
         # 못하면 칸이 빈다 -- rc≠0 이면 "원인은 위 출력" 으로, rc 0 이면 "분류 불가" 경고로 떨어진다(분류 불가를 "부재
         # 0건" 으로 접지 않는다 · 2026-09-22 리뷰: rc 0 쪽은 아무 말 없이 지나가 부재 행을 가렸다).
         # 자동 fetch 는 하지 않는다 -- 원격 태그를 로컬로 들이는 것은 사람이 정한다(기재하고 진행 규약 유지).
-        _CAT_CLASS="$(python3 -B "$WT/.claude/skills/hint-publisher/scripts/hint.py" --repo "$WT" catalog classify \
+        _CAT_CLASS="$(HINT_BIN="$_HINT_BIN" bash "$WT/.claude/skills/hint-publisher/scripts/hint.sh" --repo "$WT" catalog classify \
             --index "$WT/hints/index.json" --rc "$_CAT_RC" 2>/dev/null || true)"
         _CAT_MISSING_RC=""; _CAT_ABSENT_N=""
         read -r _CAT_MISSING_RC _CAT_ABSENT_N <<< "$_CAT_CLASS" || true
-        _CAT_REDERIVE="python3 .claude/skills/hint-publisher/scripts/hint.py --repo . catalog derive --remote $REMOTE --generated-kst <KST> --record-missing"
+        _CAT_REDERIVE="bash .claude/skills/hint-publisher/scripts/hint.sh --repo . catalog derive --remote $REMOTE --generated-kst <KST> --record-missing"
         if [ "$_CAT_RC" -eq 0 ] && [ -z "$_CAT_ABSENT_N" ]; then
             echo "[closing]   ⚠ 카탈로그 재파생 rc 0 — 로컬 오브젝트 부재 행 수를 읽지 못했다(파생기 상수 또는 $OTHER 의 hints/index.json 판독 불가 · 분류 불가 ≠ 부재 0건). 위 [hint catalog] NOTE 출력을 확인한다 — 기재하고 진행" >&2
         elif [ "$_CAT_RC" -eq 0 ] && [ "$_CAT_ABSENT_N" != "0" ]; then

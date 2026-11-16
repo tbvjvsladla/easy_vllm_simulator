@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_DOWNGRADE_CERTIFICATE_BOUND": "topic 'bench' has a bound certificate 'docs/benchmark/benchmark_26010109_self-test-model_GB10_0.0.0.yaml' -- a downgraded cell never receives a full certificate; refusing to reclassify a contradictory record"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_DOWNGRADE_CERTIFICATE_BOUND"
+  ],
+  "schema_version": 1
+}

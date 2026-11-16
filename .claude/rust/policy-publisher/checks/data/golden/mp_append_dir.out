@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_SRC_WRONG_TYPE": "src path is not a non-empty regular file: 'docs'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_SRC_WRONG_TYPE"
+  ],
+  "schema_version": 1
+}

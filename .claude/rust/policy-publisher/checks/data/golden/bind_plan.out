@@ -1,0 +1,16 @@
+{
+  "author": "selftest",
+  "binding": {
+    "previous_scaffold": "docs/plan/plan_26010111_bench.md",
+    "scaffold_removed": true,
+    "source": "path"
+  },
+  "kind": "plan",
+  "messages": {},
+  "ok": true,
+  "path": "docs/plan/plan_26010109_selftest_source.md",
+  "publication_id": "bench",
+  "reason_codes": [],
+  "schema_version": 1,
+  "status": "bound"
+}

@@ -1,0 +1,1 @@
+[tripwire] FAIL tripwire⑩ ghost_section_anchors/skill_literal_binding: ① dangling references 경로 .claude/cite.md: references/zz.md | ① dangling §앵커 .claude/cite.md: SKILL.md §9.9

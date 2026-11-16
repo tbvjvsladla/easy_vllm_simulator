@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "provider": "claude_code",
+  "intent": "bootstrap_canary",
+  "model": "sonnet",
+  "task": "부트스트랩 카나리다. 모델을 로드하지 말고, 빌드하지 말고, 아무 파일도 고치지 마라. 다음을 스스로 확인해 **schema-valid JSON 리포트 1개**만 반환하라(raw 로그 나열 금지): ① CLAUDE.md 를 읽고 네 정체성(sub_mode)과 작업공간 경로를 보고 ② output/<topology>/manifest.yaml 의 self_role·terraforming Flag·gpus_per_node 와 메인이 렌더 때 node_role_contract 로 해소해 CLAUDE.md·Agent_Card 에 실은 sub_mode·rank 를 그대로 보고(계약기 자체는 서브에 배달되지 않는다 — 없다고 보고하지 마라 · SSH는 endpoint 인증만 담당), Agent_Card.json 이 있으면 capability metadata로만 목록을 보고 ③ .claude/rules/comms.md 의 리포트 계약을 읽었음을 보고 ④ 로드된 런타임 스킬 목록(없으면 빈 배열)을 보고 ⑤ 리포트를 .claude/schemas/task-report.schema.json 에 대조해 self_verification.schema_valid 에 담아라. phase=inspect · status=completed 로 끝내라. 너는 A2A 원격 에이전트다(Ray 워커가 아니다). rank 는 없어야 하고, 런타임 스킬 5종(vllm-recipe-explorer · adversarial-benchmark · upstream-version-watch · hint-publisher · wiki-desk)이 실제로 존재하는지 경로로 확인해 보고하라. 추가로 이 정도 과업에 필요하다고 보는 턴 수(budget_recommendation)와 needs_hitl 을 notes 에 담아라.",
+  "target": {
+    "role": "sub",
+    "transport": "ssh",
+    "host": "192.0.2.11",
+    "ssh_user": "op",
+    "work_dir": "/srv/op/ws"
+  },
+  "capabilities": [
+    "read",
+    "execute"
+  ],
+  "timeout_seconds": 600,
+  "max_turns": 10
+}

@@ -1,0 +1,35 @@
+{
+  "already_existed": [],
+  "capacity_rejection_required": false,
+  "created_now": [
+    "devlog",
+    "plan",
+    "testlog"
+  ],
+  "messages": {},
+  "ok": true,
+  "or_group_scaffolded": [],
+  "pending_evidence": [],
+  "publication_id": "nar",
+  "reason_codes": [],
+  "reclassification": null,
+  "record_path": "docs/_evidence/nar.json",
+  "required_evidence": [
+    "plan",
+    "devlog",
+    "testlog"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010116_nar.md",
+    "plan": "docs/plan/plan_26010116_nar.md",
+    "report": null,
+    "simlog": null,
+    "testlog": "docs/testlog/testlog_26010116_nar.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "harness_change"
+}

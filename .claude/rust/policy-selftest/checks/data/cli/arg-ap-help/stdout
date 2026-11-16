@@ -1,0 +1,12 @@
+usage: antipattern_scan.py [-h] [--root ROOT] [--inventory OUT.jsonl]
+                           [--tripwire] [--files [FILES ...]] [--self-test]
+
+하네스 안티패턴 인벤토리 + 제거 tripwire
+
+options:
+  -h, --help            show this help message and exit
+  --root ROOT
+  --inventory OUT.jsonl
+  --tripwire
+  --files [FILES ...]
+  --self-test

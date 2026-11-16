@@ -1,0 +1,5 @@
+# Main and sub use the same built-in permissions; roles come from manifest and node contracts.
+# https://learn.chatgpt.com/docs/permissions
+# Do not add legacy sandbox_mode / sandbox_workspace_write overrides.
+default_permissions = ":danger-full-access"
+approval_policy = "never"

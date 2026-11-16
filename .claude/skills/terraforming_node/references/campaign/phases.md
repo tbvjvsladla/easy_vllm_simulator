@@ -59,4 +59,4 @@
 | `vllm-recipe-explorer` `recipe.py --config` | `/config.yaml` | `campaigns/<id>/cells/<cell>/config.yaml` |
 | recipe lock-set | `/lockset.json` | `campaigns/<id>/cells/<cell>/lockset.json` |
 | `adversarial-benchmark` `broad_search.sh --state` | 호출자 임의 | `campaigns/<id>/sweeps/<sweep>.json` |
-| `terraforming_node` `relay.py` 원장 | `/tasks/` | `campaigns/<id>/relay/` (활성 캠페인 없으면 `_bootstrap`) |
+| `terraforming_node` `relay.sh` 원장 | `/tasks/` | `campaigns/<id>/relay/` (활성 캠페인 없으면 `_bootstrap`) |

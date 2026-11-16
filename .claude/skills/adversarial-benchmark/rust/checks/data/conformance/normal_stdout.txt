@@ -1,14 +1,14 @@
 PASS 파일 존재: sweep_bench.sh
 PASS 파일 존재: render_report.sh
 PASS 파일 존재: publish_benchmark_record.sh
-PASS 파일 존재: lite_metrics_native.py
+PASS 파일 존재: lite_metrics_api.sh
 PASS sweep_bench 가 lite_bench.sh 를 호출한다
 PASS E sweep_bench 의 lite 게이트 종료가 GuideLLM 레벨 호출보다 **앞**에 있다
 PASS E sweep_bench 가 lite 실패를 fail-soft 로 접지 않는다(옛 'lite truncated:' 경로 부재)
 PASS E sweep_bench 가 판정을 raw 단일 권위(read_lite_verdict)에서 읽고 게이트 불통과를 절삭 로그에 남긴다
 PASS E lite_bench 가 판정기(--judge)를 부르고 종료코드를 raw 판정에서 파생한다
 PASS E 인증서 발행기가 실제 beta/gamma lite gate를 지킨다(양성 포함)
-PASS E② native 분류기 Python 호출 경로가 존재한다
+PASS E② native 분류기 런처(classify_cell.sh)가 존재한다
 PASS E② native 분류기 소유 소스 존재: classify_cell.rs
 PASS E② native 분류기 소유 소스 존재: classify_cell_cli.rs
 PASS E② native 분류기 소유 소스 존재: argv.rs

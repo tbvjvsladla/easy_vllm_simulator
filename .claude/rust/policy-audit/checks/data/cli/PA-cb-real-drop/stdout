@@ -1,0 +1,21 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 2,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "canonical binding keys must equal all clause IDs; missing=['A2A_IDENTITY_PROOF_FAIL_CLOSED.C1'] extra=[]",
+      "path": ".claude/policies/claim_bindings.json.bindings",
+      "policy_id": null,
+      "reason_code": "CLAIM_BINDINGS_INCOMPLETE"
+    },
+    {
+      "clause_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3",
+      "message": "clause 'A2A_IDENTITY_PROOF_FAIL_CLOSED.C3' evidence tuples do not exactly match claim_bindings.json -- extra=[] missing=[('.claude/policies/runtime/completion_gate.py', 'extra_id')]",
+      "path": "$.policies[A2A_IDENTITY_PROOF_FAIL_CLOSED].clauses[A2A_IDENTITY_PROOF_FAIL_CLOSED.C3]",
+      "policy_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED",
+      "reason_code": "CLAIM_BINDING_MISMATCH"
+    }
+  ]
+}

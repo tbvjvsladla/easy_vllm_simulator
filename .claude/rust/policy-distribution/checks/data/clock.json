@@ -1,0 +1,88 @@
+[
+ {
+  "explicit": "2026-11-16",
+  "value": {
+   "as_of": "2026-11-16",
+   "as_of_source": "explicit-caller-input",
+   "observed_utc": null,
+   "repro_as_of": "2026-11-16"
+  }
+ },
+ {
+  "explicit": "2024-02-29",
+  "value": {
+   "as_of": "2024-02-29",
+   "as_of_source": "explicit-caller-input",
+   "observed_utc": null,
+   "repro_as_of": "2024-02-29"
+  }
+ },
+ {
+  "explicit": "2025-02-29",
+  "error": "day is out of range for month"
+ },
+ {
+  "explicit": "2026-13-01",
+  "error": "month must be in 1..12"
+ },
+ {
+  "explicit": "0000-01-01",
+  "error": "year 0 is out of range"
+ },
+ {
+  "explicit": "2026-1-01",
+  "error": "--as-of '2026-1-01' is not a YYYY-MM-DD date"
+ },
+ {
+  "explicit": "x",
+  "error": "--as-of 'x' is not a YYYY-MM-DD date"
+ },
+ {
+  "explicit": "２０２６-01-01",
+  "error": "Invalid isoformat string: '２０２６-01-01'"
+ },
+ {
+  "explicit": "2026-04-31",
+  "error": "day is out of range for month"
+ },
+ {
+  "unix": 1794730702,
+  "micros": 800541,
+  "value": {
+   "as_of": "2026-11-15",
+   "as_of_source": "observed-utc-clock",
+   "observed_utc": "2026-11-15T08:18:22.800541+00:00",
+   "repro_as_of": "2026-11-15"
+  }
+ },
+ {
+  "unix": 0,
+  "micros": 0,
+  "value": {
+   "as_of": "1970-01-01",
+   "as_of_source": "observed-utc-clock",
+   "observed_utc": "1970-01-01T00:00:00+00:00",
+   "repro_as_of": "1970-01-01"
+  }
+ },
+ {
+  "unix": 951782400,
+  "micros": 1,
+  "value": {
+   "as_of": "2000-02-29",
+   "as_of_source": "observed-utc-clock",
+   "observed_utc": "2000-02-29T00:00:00.000001+00:00",
+   "repro_as_of": "2000-02-29"
+  }
+ },
+ {
+  "unix": 4102444799,
+  "micros": 999999,
+  "value": {
+   "as_of": "2099-12-31",
+   "as_of_source": "observed-utc-clock",
+   "observed_utc": "2099-12-31T23:59:59.999999+00:00",
+   "repro_as_of": "2099-12-31"
+  }
+ }
+]

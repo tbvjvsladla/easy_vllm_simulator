@@ -1,0 +1,18 @@
+usage: regen_build_patches_src.py [-h] [--repo REPO]
+                                  {verify,bundle,unbundle,derive,snapshot-resolutions}
+                                  ...
+
+build_patches_src/files 재생성기·번들러·검증기
+
+positional arguments:
+  {verify,bundle,unbundle,derive,snapshot-resolutions}
+    verify              payload ↔ PROVENANCE sha256 대조
+    bundle              verify 통과분만 결정론 번들로 발행
+    unbundle            번들 해체 후 verify(서브 실행 대상)
+    derive              상류 좌표에서 payload 재파생(네트워크 필요)
+    snapshot-resolutions
+                        잔차 자산 재발행(메인 전용 저작)
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           리포 루트(resolutions 자산 해소용)

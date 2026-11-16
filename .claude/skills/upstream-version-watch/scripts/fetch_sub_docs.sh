@@ -22,9 +22,9 @@ SRC="${SRC:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)/}"
 
 # 캠페인 읽기 런타임(Rust campaign_read)은 서브 접속·회수 전에 한 번 확인한다(아래 `--active` 호출은 stderr 를 버린다).
 # 가용성 확인일 뿐 건강 증명이 아니며, 런타임이 있으면 이후 오류·대체 처리는 종전과 같다.
-_CIV="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_init.py"
+_CIV="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_init.sh"
 if [ -f "$_CIV" ]; then
-    CAMPAIGN_READ_VALIDATE_ONLY=1 bash "${_CIV%.py}.sh" || {
+    CAMPAIGN_READ_VALIDATE_ONLY=1 bash "$_CIV" || {
         _CIV_RC=$?
         echo "[fetch] ERROR 캠페인 읽기 런타임을 쓸 수 없다 — 서브 접속·회수를 시작하지 않는다(위 안내로 빌드한 뒤 다시)." >&2
         exit "$_CIV_RC"
@@ -158,22 +158,22 @@ echo "[fetch] 미러 완료 — $DEST ($n 파일)."
 # ACTIVE=_bootstrap 이면 writer 가 스스로 no-op 이므로 캠페인 밖 회수는 영향이 없다.
 # DEST는 장기 보존 mirror다. 현재 캠페인 scope는 rsync 경로가 아니라 brief의 campaign_id와
 # evidence_pointers claims를 import_sub_mirror가 대조해 집행한다.
-_CI="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_init.py"
+_CI="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_init.sh"
 _NOW="$(date -u +%FT%TZ)"
 if [ -f "$_CI" ]; then
-    _CAMP="$(bash "${_CI%.py}.sh" --active 2>/dev/null || echo _bootstrap)"
-    if bash "${_CI%.py}.sh" --campaign-id "$_CAMP" --import-sub "$DEST" --utc "$_NOW"; then
+    _CAMP="$(bash "$_CI" --active 2>/dev/null || echo _bootstrap)"
+    if bash "$_CI" --campaign-id "$_CAMP" --import-sub "$DEST" --utc "$_NOW"; then
         echo "[fetch] 캠페인 편입 완료 — 서브 진행표·셀·증거가 메인 인스턴스에 앉았다."
     else
         echo "[fetch] ⚠ 캠페인 편입 실패 — 미러는 있고 진행표는 없다(위 사유 참조)." >&2
     fi
     # 합격 술어(P4 동시 착수 타임라인 · P5 서브 자기저작 · P6 셀 출처 표시)는 **회수 뒤**에 물어야 답이 있다.
     # 판정만 하고 차단하지 않는다 — 진행을 막는 자리와 판정하는 자리는 분리돼 있다(plan §9 R3).
-    _CV="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_template_validator.py"
-    _CAMP="$(bash "${_CI%.py}.sh" --active 2>/dev/null || echo _bootstrap)"
+    _CV="${SRC%/}/.claude/skills/terraforming_node/scripts/campaign_template_validator.sh"
+    _CAMP="$(bash "$_CI" --active 2>/dev/null || echo _bootstrap)"
     if [ -f "$_CV" ] && [ "$_CAMP" != "_bootstrap" ]; then
         echo "[fetch] 합격 술어(P4·P5·P6) 판정 — 차단하지 않는다(관측 결과만 남긴다):"
-        python3 "$_CV" --acceptance "${SRC%/}/campaigns/$_CAMP" || true
+        bash "$_CV" --acceptance "${SRC%/}/campaigns/$_CAMP" || true
     fi
 else
     echo "[fetch] ⚠ campaigns writer 부재($_CI) — 회수는 됐지만 아무도 편입하지 않았다." >&2

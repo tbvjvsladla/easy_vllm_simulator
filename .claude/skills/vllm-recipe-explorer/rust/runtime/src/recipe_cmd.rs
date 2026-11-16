@@ -30,9 +30,9 @@ const DEFAULT_SAFETY_MARGIN: f64 = 0.90;
 const DEFAULT_KV_BYTES: i64 = 2;
 
 /// `_die(msg, code)`; code -1 marks an uncaught exception line (status 1, no `[recipe] 중단:` prefix).
-struct Die {
-    code: i32,
-    text: PyStr,
+pub struct Die {
+    pub code: i32,
+    pub text: PyStr,
 }
 
 fn die(code: i32, text: &str) -> Die {
@@ -47,7 +47,7 @@ fn raised(failure: Failure) -> Die {
     Die { code: -1, text: failure.line() }
 }
 
-type Step<T> = Result<T, Die>;
+pub type Step<T> = Result<T, Die>;
 
 fn stop(mut streams: Streams, d: Die) -> Run {
     streams.eprint(&Message::new().lit("[recipe] 중단: ").text(&d.text).done());
@@ -463,7 +463,9 @@ fn cmd_estimate(
     let mut note = PyStr::new("\n[recipe] 랭킹 저장: ");
     note.push_py(&last_ranking);
     streams.eprint(&note);
-    let mut hint = PyStr::new("[recipe] generate 로 선택: python3 recipe.py generate --config ");
+    let mut hint = PyStr::new(
+        "[recipe] generate 로 선택: bash .claude/skills/vllm-recipe-explorer/scripts/recipe.sh generate --config ",
+    );
     hint.push_py(config_path);
     hint.push_str(" --recipe-id <rN>");
     streams.eprint(&hint);
@@ -546,7 +548,7 @@ fn system_exit(text: &str) -> Die {
 
 /// `_lookup_gpu_spec(gpu_model)`: per-card VRAM (GiB) and the unified-memory mark from the `### … <gpu_model> …` header of
 /// references.md §4 (`None, None` when the file or the section is absent).
-fn lookup_gpu_spec(gpu_model: &str, root: &PyStr) -> (Option<f64>, Option<bool>) {
+pub fn lookup_gpu_spec(gpu_model: &str, root: &PyStr) -> (Option<f64>, Option<bool>) {
     let key = gpu_model.trim().to_lowercase();
     let path = join(root, &s(".claude/skills/wiki-desk/reference/references.md"));
     if gpu_model.is_empty() || !is_file(&path) {
@@ -610,7 +612,7 @@ fn memory_model(man: &PyValue, root: &PyStr) -> (Option<&'static str>, String) {
 }
 
 /// `resolve_target_gpu_budget`: `(per_card_vram_gib, deploy_gmu, gpu_model)`; the unified-memory hard clamp warns on stderr.
-fn resolve_target_gpu_budget(
+pub fn resolve_target_gpu_budget(
     streams: &mut Streams,
     gpu_model: &PyValue,
     target_gmu: &PyValue,
@@ -892,6 +894,8 @@ fn gpu_roles(streams: &mut Streams, cfg: &PyValue, tp: i64, root: &PyStr) -> Ste
 }
 
 mod simulate_body;
+pub use simulate_body::lockset_vocabulary;
+pub use simulate_body::gmu_units::unit_layer as gmu_unit_layer;
 
 fn simulate_spec() -> Spec {
     let opt = |flags: &'static [&'static str], dest: &'static str, kind: Kind, help: Option<&'static str>, required: bool| Opt {
@@ -1206,6 +1210,45 @@ pub fn recipe_main(args: &[PyStr], columns: Option<&str>, skill_root: &PyStr) ->
             if let Err(d) = require_terraform_flag(&root) {
                 return stop(streams, d);
             }
+            return simulate_values(streams, &values, &root, skill_root, None);
+        }
+        Some("-h") | Some("--help") => {
+            streams.print(&PyStr::new(TOP_USAGE));
+            return streams.finish(0);
+        }
+        _ => {
+            streams.eprint(&PyStr::new(TOP_USAGE));
+            streams.eprint(&PyStr::new("recipe.py: error: the following arguments are required: command"));
+            return streams.finish(2);
+        }
+    }
+    estimate_or_generate(streams, command.as_deref() == Some("generate"), args, columns, skill_root)
+}
+
+pub use simulate_body::TrialEngine;
+
+/// CHECK-ONLY (test plane): `simulate <args>` run in process with the trial engine replaced by `engine`, entered the way the
+/// retired Python self-test entered it (`args.func(args)` — past the top-level Flag gate). Not reachable from the `recipe`
+/// command line. `args` excludes the `simulate` word.
+pub fn simulate_with_engine(args: &[PyStr], skill_root: &PyStr, engine: &mut dyn TrialEngine) -> Run {
+    let streams = Streams::default();
+    let values = match exited(parse_arguments(&simulate_spec(), args, None)) {
+        Ok(values) => values,
+        Err(run) => return run,
+    };
+    let root = repo_root(skill_root);
+    simulate_values(streams, &values, &root, skill_root, Some(engine))
+}
+
+fn simulate_values(
+    mut streams: Streams,
+    values: &std::collections::BTreeMap<&'static str, Value>,
+    root: &PyStr,
+    skill_root: &PyStr,
+    engine: Option<&mut dyn TrialEngine>,
+) -> Run {
+    {
+        {
             let text = |d: &str| match values.get(d) {
                 Some(Value::Text(t)) => Some(t.clone()),
                 _ => None,
@@ -1228,7 +1271,7 @@ pub fn recipe_main(args: &[PyStr], columns: Option<&str>, skill_root: &PyStr) ->
                 force: matches!(values.get("force"), Some(Value::Flag)),
                 lockset_out: text("lockset_out").filter(|t| !t.is_empty()),
             };
-            return match simulate_body::cmd_simulate(&mut streams, &args, &root, skill_root) {
+            match simulate_body::cmd_simulate_engine(&mut streams, &args, root, skill_root, engine) {
                 Ok(status) => streams.finish(status),
                 Err(simulate_body::Stop::Raw(status, text)) => {
                     streams.stderr.push_str(&text);
@@ -1240,19 +1283,12 @@ pub fn recipe_main(args: &[PyStr], columns: Option<&str>, skill_root: &PyStr) ->
                     streams.finish(1)
                 }
                 Err(simulate_body::Stop::Die(d)) => stop(streams, d),
-            };
-        }
-        Some("-h") | Some("--help") => {
-            streams.print(&PyStr::new(TOP_USAGE));
-            return streams.finish(0);
-        }
-        _ => {
-            streams.eprint(&PyStr::new(TOP_USAGE));
-            streams.eprint(&PyStr::new("recipe.py: error: the following arguments are required: command"));
-            return streams.finish(2);
+            }
         }
     }
-    let is_generate = command.as_deref() == Some("generate");
+}
+
+fn estimate_or_generate(mut streams: Streams, is_generate: bool, args: &[PyStr], columns: Option<&str>, skill_root: &PyStr) -> Run {
     let spec = if is_generate { generate_spec() } else { estimate_spec() };
     let values = match exited(parse_arguments(&spec, &args[1..], columns)) {
         Ok(values) => values,

@@ -1,0 +1,9 @@
+{"ts": "2026-07-31T00:00:10Z", "kind": "watchdog_trip", "mem_avail_mib": 31487, "targets": "abc"}
+{"ts": "2026-07-31T00:00:13Z", "kind": "watchdog_kill_ack", "targets": "abc"}
+{"ts": "2026-07-25T00:00:10Z", "kind": "watchdog_trip", "mem_avail_mib": 1000, "target": "x"}
+{"ts": "2026-07-25T00:00:15Z", "kind": "watchdog_kill_ack", "target": "x"}
+{"ts": "2026-07-31T01:00:00Z", "kind": "watchdog_trip", "mem_avail_mib": 2.5}
+{"ts": "2026-07-31T01:05:00Z", "kind": "watchdog_kill_ack"}
+not json
+
+{"descent_max_mib_s": 23313.5, "kill_latency_max_s": 5.0, "kind": "envelope_regenerated", "source": "regen_envelope", "state": "measured", "ts": "2026-07-31T12:00:00Z", "window_days": 14}

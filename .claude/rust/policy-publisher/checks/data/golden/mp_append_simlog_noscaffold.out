@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_SIMLOG_NOT_SCAFFOLDED": "simlog run directory not scaffolded yet for this topic -- run `init` with a task_class/conditions that require simlog first"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_SIMLOG_NOT_SCAFFOLDED"
+  ],
+  "schema_version": 1
+}

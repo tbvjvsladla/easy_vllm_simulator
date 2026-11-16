@@ -1,0 +1,75 @@
+{
+  "certificate": null,
+  "checked_evidence": {
+    "devlog": {
+      "exists": false,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/empty.md",
+      "required": true,
+      "sha256": null,
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "plan": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/broken.md",
+      "required": true,
+      "sha256": "015dcbb85712484e18e21978b31827048bb2ee2b058f1be2088cd9b669b5a3d1",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "report": {
+      "exists": false,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs",
+      "required": false,
+      "sha256": null,
+      "tree_sha256": null,
+      "type": "dir"
+    },
+    "testlog": {
+      "exists": false,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": null,
+      "required": true,
+      "sha256": null,
+      "tree_sha256": null,
+      "type": null
+    }
+  },
+  "eligible_for_promotion": false,
+  "exit_code": 1,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {
+    "EVIDENCE_BROKEN_LINK:plan": "evidence 'plan' contains broken local link target(s): ['nope.md', '<with space.md>', '../../escape.md']",
+    "EVIDENCE_INVALID_LINK:plan": "evidence 'plan' contains invalid local link target(s): ['[d][undefined]', '[f](...) [malformed inline destination]', '/abs/path.md', 'bad%zz.md', 'C:/win.md', '%E2%82.md']",
+    "EVIDENCE_MISSING:devlog": "required evidence 'devlog' missing/unresolvable (status=wrong_type)",
+    "EVIDENCE_MISSING:testlog": "required evidence 'testlog' missing/unresolvable (status=absent)",
+    "PII_SCAN_COVERAGE_INCOMPLETE:devlog": "required evidence 'devlog' path 'docs/empty.md' not present in pii_scan.scanned_paths",
+    "PII_SCAN_COVERAGE_INCOMPLETE:plan": "required evidence 'plan' path 'docs/broken.md' not present in pii_scan.scanned_paths"
+  },
+  "reason_codes": [
+    "EVIDENCE_BROKEN_LINK:plan",
+    "EVIDENCE_INVALID_LINK:plan",
+    "EVIDENCE_MISSING:devlog",
+    "EVIDENCE_MISSING:testlog",
+    "PII_SCAN_COVERAGE_INCOMPLETE:devlog",
+    "PII_SCAN_COVERAGE_INCOMPLETE:plan"
+  ],
+  "rubric": null,
+  "schema_version": 1,
+  "state": "runtime-ready",
+  "task_class": "harness_change"
+}

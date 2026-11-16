@@ -1,0 +1,2 @@
+[render] FAIL: manifest 필수 필드 누락 ['SUB_MODE', 'SUB_MODE_SOURCE', 'SUB_RANK_SOURCE'] — 무증거 빈 정체성 렌더 금지.
+[render]       ↳ 토폴로지 축 계약 위반: SUB_MODE_TOPOLOGY_CONFLICT (bash .claude/skills/terraforming_node/scripts/node_role_contract.sh evaluate --manifest m.yaml 로 상세 확인)

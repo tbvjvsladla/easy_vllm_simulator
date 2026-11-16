@@ -1,0 +1,1 @@
+{"backend": "openai", "num_prompts": 4, "max_concurrency": 1, "date": "20261001-002000", "completed": 3, "total_input_tokens": 10, "total_output_tokens": 7, "burstiness": 2}

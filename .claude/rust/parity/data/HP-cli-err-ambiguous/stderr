@@ -1,0 +1,8 @@
+usage: hint.py continue [-h] [--campaign CAMPAIGN] [--cell CELL]
+                        [--draft DRAFT] [--node {main,sub,cluster}]
+                        --generated-utc GENERATED_UTC
+                        [--approved-by APPROVED_BY]
+                        [--approved-utc APPROVED_UTC] [--remote REMOTE]
+                        [--no-push] [--factcheck-waiver FACTCHECK_WAIVER]
+                        [--hint-clone PATH] [--guide-commit SHA]
+hint.py continue: error: ambiguous option: --approved could match --approved-by, --approved-utc

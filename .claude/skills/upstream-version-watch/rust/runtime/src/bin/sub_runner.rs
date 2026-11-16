@@ -111,6 +111,19 @@ fn rust_checks_path(p: &str) -> bool {
     matches!(t.split_once('/'), Some((s, r)) if !s.is_empty() && r.starts_with("checks/"))
 }
 
+/// Not consumers (plan_26111615 · the Sub now receives Rust crate sources): the parity tool's case/golden data is the same
+/// fixture plane as a crate's `checks/`, and the renderer that DECLARES what the Sub must not receive has to name each
+/// retired path to exclude it (the 2026-09-10 reverse-oracle: a declaration is not a call). Closed list — a new declaring
+/// owner is added here by review, never by pattern.
+const RETIREMENT_DECLARING_OWNERS: [&str; 2] = [
+    ".claude/skills/terraforming_node/rust/src/render_sub_env.rs",
+    ".claude/skills/terraforming_node/rust/src/render_sub_env/selftest.rs",
+];
+
+fn fixture_or_declaring_owner(p: &str) -> bool {
+    p.starts_with(".claude/rust/parity/cases/") || p.starts_with(".claude/rust/parity/data/") || RETIREMENT_DECLARING_OWNERS.contains(&p)
+}
+
 fn py_splitlines(s: &str) -> Vec<&str> {
     let mut out = Vec::new();
     let (mut start, b) = (0usize, s.as_bytes());
@@ -145,7 +158,7 @@ fn cmd_scan(a: &[String]) -> i32 {
         }
         if !md.is_file() { continue; }
         n += 1;
-        if rust_checks_path(rel) { continue; }
+        if rust_checks_path(rel) || fixture_or_declaring_owner(rel) { continue; }
         let data = fs::read(p).unwrap_or_default();
         let text = String::from_utf8_lossy(&data).into_owned();
         for (ln, line) in py_splitlines(&text).iter().enumerate() {

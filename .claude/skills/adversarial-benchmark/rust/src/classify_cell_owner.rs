@@ -171,7 +171,8 @@ impl Owners {
             .map(|found| ospath::normpath(&found)))
     }
 
-    /// The `node_role_contract.py` path of the original's `_node_role_contract()` (not yet checked for existence).
+    /// The contract program of the original's `_node_role_contract()` (not yet checked for existence): its launcher
+    /// `node_role_contract.sh` (the retired `node_role_contract.py` beside it may be absent; the role is native either way).
     pub fn role_contract_path(&self) -> Result<PyStr, Failure> {
         let here = self.scripts_dir()?;
         Ok(ospath::join_all(
@@ -181,7 +182,7 @@ impl Owners {
                 "..",
                 "terraforming_node",
                 "scripts",
-                "node_role_contract.py",
+                "node_role_contract.sh",
             ],
         ))
     }

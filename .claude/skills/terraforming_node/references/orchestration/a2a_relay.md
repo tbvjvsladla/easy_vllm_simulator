@@ -5,7 +5,7 @@
 
 ## 목차
 
-정상 완료 결과는 인수하고 다음 업무로 진행한다. `relay.py`는 완료된 같은 context에 새 인계 문제 없는
+정상 완료 결과는 인수하고 다음 업무로 진행한다. `relay.sh`는 완료된 같은 context에 새 인계 문제 없는
 지시가 반복되면 저장된 리포트를 반환하고 worker를 새로 기동하지 않는다. 이 결과 재사용은 native
 실행 성공·실패가 아니며 별도 승인·캠페인 중단도 만들지 않는다. 실제 문제의 정정 Task에는
 `--handoff-issue`로 반환 결과의 문제와 근거 위치를 함께 명시한다. 새 과업은 기존 계약대로 새 context다.
@@ -15,7 +15,7 @@
 - 2.7.7 A2A 제어명령 프로토콜 (신설 — 교착 해제)
 - 2.7.7a 턴제 릴레이와 자율 재개 (2026-09-04 · `plan_26090412`)
 - 2.7.11 러너 사다리 — A2A 위임의 **실행자 축**과 회전 (신설 2026-09-08 · 사용자 지시)
-- relay.py 메모 (옛 §4 에서 이관)
+- relay.sh 메모 (옛 §4 에서 이관)
 
 ### 2.7.7 A2A 제어명령 프로토콜 (신설 — 교착 해제)
 
@@ -47,23 +47,23 @@
   무엇을 가져올지만 보여주며 서브를 변경하지 않는다. 애초에 사전 확인이 없어도 릴레이가 전송
   실패로 fail-loud 하므로, 이 확인은 편의이지 전제가 아니다.
 - **감독자의 주기 읽기는 승인된 attempt 에 종속된 관측이지 새 트리거가 아니다**(2026-09-08 명문화 ·
-  사용자 결정 D8). `relay.py --supervise-step` 은 원장과 이 브리핑을 읽고 한 번 판정해 원장에 적고
+  사용자 결정 D8). `relay.sh --supervise-step` 은 원장과 이 브리핑을 읽고 한 번 판정해 원장에 적고
   끝난다 — 상주하지 않으며, 스스로 새 과업을 열지 않는다. 헌법 §트리거의 "무인 자동 실행 금지" 는
   **작업 착수**를 말하는 것이고, 이미 승인돼 도는 attempt 의 진행을 읽는 것은 그 금지의 대상이 아니다.
 
 #### 2.7.7a 턴제 릴레이와 자율 재개 (2026-09-04 · `plan_26090412`)
 
 **소진·유보로 끊긴 작업을 다음 attempt 가 이어받는다.** 전송(같은 세션 `--resume`)은 2026-09-03 부터
-실동했으나 **이어붙이는 실행자가 없어**(호출자 0) 사람이 본문을 손저작해야 했다 — 그 자리를 `relay.py`
+실동했으나 **이어붙이는 실행자가 없어**(호출자 0) 사람이 본문을 손저작해야 했다 — 그 자리를 `relay.sh`
 가 채운다.
 
 | 명령 | 언제 | 무엇 | 평면 |
 |---|---|---|---|
-| `relay.py --task ... --max-turns N --timeout-seconds N --budget-source "..." --resume new` | 첫 위임 | **선언한 예산·재개**로 delegate · 원장 개설(`campaigns/<camp-id>/relay/<ctx>.json`) | B |
-| `relay.py --continue --apply --task-file <현재 적용할 전체 지시> --context-id <동일 context> --resume <id|new> …` | 서브가 메인 소유의 정본 수정·기술 판단을 요청했고 메인이 해결했을 때 | 정정과 유지할 조건을 포함한 명시 원문을 새 attempt의 지시 출처로 보존한다. 기존 캠페인·셀·provider·권한 결속과 예산·HITL·복구 가드는 그대로 적용한다 | B |
-| `relay.py --continue` | 소진·유보 뒤 | **원장에서 본문을 조립**해 미리보기 + 예산·세션 **사실** 표시(기본 dry-run) | B |
-| `relay.py --continue --apply --max-turns N --timeout-seconds N --budget-source "..." --resume <id\|new>` | 명시적 후속 지시·체크포인트 재개. 실제 미해결 사람 결정은 별도로 충족 | 조립 본문 + 한 번의 실행 예산 + **선언한 세션**으로 delegate | B |
-| `relay.py --supervise-step <camp> [--apply]` | attempt 사이 | 원장 + 회수 브리핑을 읽어 **한 번 판정**하고 원장에 적는다. `--apply` 면 전진이 보이는 중단을 자동 재발급 | B |
+| `relay.sh --task ... --max-turns N --timeout-seconds N --budget-source "..." --resume new` | 첫 위임 | **선언한 예산·재개**로 delegate · 원장 개설(`campaigns/<camp-id>/relay/<ctx>.json`) | B |
+| `relay.sh --continue --apply --task-file <현재 적용할 전체 지시> --context-id <동일 context> --resume <id|new> …` | 서브가 메인 소유의 정본 수정·기술 판단을 요청했고 메인이 해결했을 때 | 정정과 유지할 조건을 포함한 명시 원문을 새 attempt의 지시 출처로 보존한다. 기존 캠페인·셀·provider·권한 결속과 예산·HITL·복구 가드는 그대로 적용한다 | B |
+| `relay.sh --continue` | 소진·유보 뒤 | **원장에서 본문을 조립**해 미리보기 + 예산·세션 **사실** 표시(기본 dry-run) | B |
+| `relay.sh --continue --apply --max-turns N --timeout-seconds N --budget-source "..." --resume <id\|new>` | 명시적 후속 지시·체크포인트 재개. 실제 미해결 사람 결정은 별도로 충족 | 조립 본문 + 한 번의 실행 예산 + **선언한 세션**으로 delegate | B |
+| `relay.sh --supervise-step <camp> [--apply]` | attempt 사이 | 원장 + 회수 브리핑을 읽어 **한 번 판정**하고 원장에 적는다. `--apply` 면 전진이 보이는 중단을 자동 재발급 | B |
 
 - **재개의 기본은 감독 스텝 자동 재발급이다**(`--supervise-step <camp> --apply` · 사용자 결정 D9). `--continue --apply --task-file`로 기존 승인 범위의 기술 정정도 명시할 수 있다. 실제 미해결 사람 결정은 먼저 충족한다. 5시간 한도
   프로바이더만 쓰는 환경에서 매 재개마다 사람을 기다리면 그 대기가 캠페인의 벽시계를 지배한다
@@ -196,7 +196,7 @@ wall timeout은 사용자 취소로 단정하지 않는다. 제어된 워커 회
 `ANTHROPIC_DEFAULT_*_MODEL` 을 자기 슬롯으로 덮으므로 kimi 아래의 `sonnet` 은 sonnet 이 아니고,
 모델 토큰은 백엔드 사이에서 **이식되지 않는다**. 별칭(`sonnet`·`opus`·`haiku`·`kimi-claude`·
 `minimax-claude`·`meta-claude`)을 쌍으로 펴는 **닫힌 표**는 어댑터가 소유하고, 중립 통로는
-`agent_control.py runners --provider all` 다(사본 ✗). Codex 선택은 `codex-gpt-6.1-sol`이며
+`agent_control.sh runners --provider all` 다(사본 ✗). Codex 선택은 `codex-gpt-6.1-sol`이며
 기존 `openai-claude`와 다르다. 별칭 등재는 선택 가능성을 뜻하고 기본 사다리를 바꾸지 않는다.
 
 > ⚠ **shim 은 판정 모델까지 덮는다**(2026-09-15 실측). auto mode 의 안전 판정 호출도 shim 의 모델
@@ -206,7 +206,7 @@ wall timeout은 사용자 취소로 단정하지 않는다. 제어된 워커 회
 > 타지 않는다. 대화형 메인을 shim 으로 띄울 때는 auto mode 를 쓰지 않는다. 서브의 root 관리설정은
 > 머신 전체·최상위라 **서브에만** 둔다 — 메인에 깔면 `Edit(<ws>/.claude/**)` deny 가 하네스 수정을 막는다.
 
-**사다리와 회전.** 사다리 = 러너의 순서 있는 목록(`relay.py --runners a,b,c`). 회전은
+**사다리와 회전.** 사다리 = 러너의 순서 있는 목록(`relay.sh --runners a,b,c`). 회전은
 실행 전 러너 불가가 증명된 경우에만 승인된 과업을 다음 칸으로 넘긴다. provider별 예산 단위는
 보존한다. provider가 바뀌면 native 세션은 새로 열고 아티팩트로 인계한다. 사다리는 **순환**한다(4→1→…).
 바뀌는 것은 *누가 실행하는가* 하나이므로 **회전은 재시도도 예산 사건도 아니다**(`scope ⊥ budget`
@@ -249,7 +249,7 @@ wall timeout은 사용자 취소로 단정하지 않는다. 제어된 워커 회
 
 | 자리 | 언제 |
 |---|---|
-| `relay.py` `run_attempt` 의 회전 루프 | 위임을 보냈는데 러너 평면에서 튕겼을 때 — 즉시 다음 칸 |
+| `relay.sh` `run_attempt` 의 회전 루프 | 위임을 보냈는데 러너 평면에서 튕겼을 때 — 즉시 다음 칸 |
 | `supervise_decide` 의 `rotate_runner` 분기 | 스텝 사이에 죽어 있던 것을 감독이 볼 때(`--apply` 면 재발급) |
 
 - **커서를 저장하지 않는다** — 다음 칸은 원장에서 파생한다(같은 개념이 두 자리에 앉으면 갈라진다).
@@ -291,7 +291,7 @@ campaign·통제변인·node·권한을 원장에서 새로 복원하고 수동 
 
 `agent_control invoke`는 정규화한 provider 결과를 예약된 outcome 파일에 원자적으로 영속화한 뒤
 stdout으로 보낸다. 파일은 dispatch ID와 **전체 요청**에 결속되며 덮어쓰지 않는다. stdout 유실 뒤에는
-`relay.py --context-id <ctx> --reconcile-inflight [--campaign-id <camp>]`로 검증하고, 같은 명령에
+`relay.sh --context-id <ctx> --reconcile-inflight [--campaign-id <camp>]`로 검증하고, 같은 명령에
 `--apply`를 붙여 **저장된 결과만** 원장에 append한다. 선택 경로가 필요하면 `--reconcile-result
 <예약 outcome 경로>`를 쓴다. 재위임은 하지 않고 해당 dispatch를 소비한 것으로 센다.
 요청 digest·dispatch ID·provider 결과 schema·요청 echo를 대조하며 경로 구성요소의 symlink를 거부한다.
@@ -317,9 +317,9 @@ launcher가 소유하며 추적물이나 노드 간 배달에 복사하지 않�
 
 
 
-## relay.py 메모 (옛 §4 에서 이관)
+## relay.sh 메모 (옛 §4 에서 이관)
 
-- `scripts/relay.py` — **메인↔서브 턴제 릴레이 실행자**(§2.7.7a). `--task|--task-file` 첫 위임 · `--continue [--apply]` 자율 재개 · `--emit-only` · `--self-test`. 원장 `campaigns/<camp-id>/relay/<ctx>.json`, 대기 요청 같은 자리의 `pending_hitl.json`(사람이 `answer` 를 적는 자리). 경로 파생의 단일 소유자는 `scripts/campaign_init.py --derive`.
+- `scripts/relay.sh` — **메인↔서브 턴제 릴레이 실행자**(§2.7.7a). `--task|--task-file` 첫 위임 · `--continue [--apply]` 자율 재개 · `--emit-only` · `--self-test`. 원장 `campaigns/<camp-id>/relay/<ctx>.json`, 대기 요청 같은 자리의 `pending_hitl.json`(사람이 `answer` 를 적는 자리). 경로 파생의 단일 소유자는 `scripts/campaign_init.py --derive`.
 
 #### 명시된 용량 재시도 배치
 

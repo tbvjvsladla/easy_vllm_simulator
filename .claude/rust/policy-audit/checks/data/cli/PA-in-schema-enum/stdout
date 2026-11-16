@@ -1,0 +1,14 @@
+{
+  "exit_code": 2,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "policies[0].status: 'zombie' is not one of ['active', 'candidate', 'retired']",
+      "path": "policies[0].status",
+      "policy_id": null,
+      "reason_code": "SCHEMA:SCHEMA_ENUM_VIOLATION:policies[0].status"
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "budget_outcome": null,
+  "duration_api_ms": null,
+  "duration_ms": null,
+  "exit_code": 4,
+  "intent": "probe",
+  "model_requested": "sonnet",
+  "model_used": [],
+  "num_turns": null,
+  "output": null,
+  "provider": "claude_code",
+  "reason_codes": [
+    "NONZERO_EXIT"
+  ],
+  "schema_version": 1,
+  "session_id": null,
+  "status": "execution_failed"
+}

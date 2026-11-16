@@ -1,0 +1,2 @@
+[agent-control] PROVIDER_RESULT_INVALID: result 봉투가 성공 형태가 아니다 — is_error=False subtype='success' result_type=str session=sess-1 turns=2 (target=main/local)
+[agent-control]   provider stdout tail: {"type": "result", "subtype": "success", "is_error": false, "num_turns": 2, "session_id": "sess-1", "result": "", "duration_ms": 4200, "duration_api_ms": 3900, "modelUsage": {"claude-sonnet-5-5": {"inputTokens": 1}}}

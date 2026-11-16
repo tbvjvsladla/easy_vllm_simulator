@@ -1,0 +1,2 @@
+[agent-control] NONZERO_EXIT: provider exited 124 (target=sub/ssh)
+[agent-control]   provider stderr tail: Terminated

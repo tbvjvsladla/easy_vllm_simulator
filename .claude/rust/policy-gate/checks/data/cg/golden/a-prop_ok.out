@@ -1,0 +1,40 @@
+{
+  "action": "sync_to_sub",
+  "allowed": true,
+  "authorization_state": "execution-approved",
+  "exit_code": 0,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {},
+  "mode": "experimental",
+  "propagation_scope": {
+    "approval_atoms": [
+      "approved_by: tester",
+      "approved_at_utc: 2026-11-16T06:51:08Z",
+      "allowed_action: sync_to_sub",
+      "propagation_topology: single",
+      "propagation_node_id: sub1",
+      "propagation_ssh_host: u@h1",
+      "propagation_work_dir: /srv/work",
+      "propagation_planes: overlay"
+    ],
+    "approved_utc": "2026-11-16T06:51:08Z",
+    "node_id": "sub1",
+    "planes": [
+      "overlay"
+    ],
+    "ssh_host": "u@h1",
+    "status": "approved",
+    "topology": "single",
+    "work_dir": "/srv/work"
+  },
+  "reason_codes": [],
+  "schema_version": 1,
+  "task_class": "harness_change"
+}

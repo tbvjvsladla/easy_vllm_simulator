@@ -1,94 +1,15 @@
-//! Own regression of the two residuals of the P23 review (M2 self-test abbreviations, M1 stderr/stdout order). Source-derived: every expectation is the
-//! CPython 3.12.3 `argparse` rule or the order of the original `main()`, taken from the stdlib and from the original SOURCE (its parser statements by AST,
-//! executed against the stdlib only). The original program is NOT run: no `--self-test`, no `--self*`, no scan, no DNS/NAS/SSH; the owner is a trap and
-//! the native route runs only argument shapes that end in a parser error or help before any business. Not the saved Original56 pairs.
+//! Own regression of the two residuals of the P23 review (M2 self-test abbreviations, M1 stderr/stdout order). The parser
+//! expectations are the CPython 3.12 `argparse` texts over the parser statements of the original `main()`, frozen in
+//! `checks/data/scan_node/residual_prefix_stderr.json` (captured by the retired Python mode of this file, plan_26111615
+//! pass 3); the native program is run directly. The original program is NOT run: no scan, no DNS/NAS/SSH. The former
+//! check of the Python importer adapter's self-test selector is retired with the adapter route (the launcher
+//! `scan_node.sh` starts the native program for every argv shape).
 
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
-
-const PY: &str = r####"
-import ast, sys, argparse, io, contextlib, os, json
-scripts, mode = sys.argv[1], sys.argv[2]
-os.environ['COLUMNS'] = '80'
-sys.argv[0] = 'scan_node.py'
-tree = ast.parse(open(os.path.join(scripts, 'scan_node_original.py'), encoding='utf-8').read())
-main = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == 'main')
-stmts = []
-for st in main.body:
-    stmts.append(st)
-    if isinstance(st, ast.Assign) and isinstance(st.value, ast.Call) and getattr(st.value.func, 'attr', '') == 'parse_args':
-        stmts.pop(); break
-module = ast.Module(body=stmts, type_ignores=[]); ast.fix_missing_locations(module)
-def parser():
-    ns = {'argparse': argparse}
-    exec(compile(module, 'scan_node_original.py', 'exec'), ns)
-    return ns['ap']
-def run_parse(argv):
-    err = io.StringIO(); out = io.StringIO()
-    try:
-        with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
-            ns = parser().parse_args(argv)
-        return 'ok', ns, err.getvalue()
-    except SystemExit as stop:
-        return 'exit%s' % stop.code, None, err.getvalue()
-if mode == 'text':
-    kind, ns, err = run_parse(sys.argv[3:])
-    sys.stdout.write(json.dumps({'kind': kind, 'stderr': err}))
-    sys.exit(0)
-sys.path.insert(0, scripts)
-import scan_node as m
-if mode == 'selector':
-    ap = parser()
-    opts = sorted({s for a in ap._actions for s in a.option_strings if s.startswith('--')})
-    problems = []
-    if sorted(m._SN_LONG_OPTIONS) != opts:
-        problems.append(['option list drift', sorted(m._SN_LONG_OPTIONS), opts])
-    tokens = set(['--', '-', '-h', '-s', 'self-test', 'self', '--self x', ' --self', '---self', '--self-test ', '--Self', '--SELF-TEST', '--s=x', '--s', '--se=', '--self=x', '--self-test=x', '--self-testx', '--sel-', '--sub', '--su', '--su=1', '--t', '--top', '--p', '--pe', '--per', '--e', '--em', '--m', '--c', '--b', '--bw', '--bandwidth', '--h', '--he', '--help=x'])
-    for o in opts:
-        for k in range(2, len(o) + 1):
-            tokens.add(o[:k]); tokens.add(o[:k] + '=v'); tokens.add(o[:k] + '=')
-        tokens.add(o + 'x'); tokens.add(o + '-')
-    mism = []
-    for t in sorted(tokens):
-        err = io.StringIO()
-        try:
-            with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
-                r = parser()._parse_optional(t)
-            truth = r is not None and r[0] is not None and r[0].dest == 'self_test'
-        except SystemExit:
-            truth = False
-        got = m._sn_selects_self_test([t])
-        if truth != got:
-            mism.append([t, truth, got])
-    # composite safety: whatever the classifier decides, the stdlib parser must agree that a selected argv can only be the self-test or a parser error,
-    # and an unselected argv can never be a self-test (so the route can neither start the original's business nor miss its self-test)
-    base = sorted(t for t in tokens if t.startswith('--') and len(t) <= 14)
-    contexts = [[], ['--topology', 'single'], ['--peer-ssh'], ['--compose', 'c.yaml', '--'], ['-h'], ['--peer-port', '22', '--bw-floor', '1']]
-    viol = []; n = 0
-    for ctx in contexts:
-        for t in base:
-            argv = ctx + [t]; n += 1
-            kind, ns, err = run_parse(argv)
-            cls = m._sn_selects_self_test(argv)
-            if kind == 'ok' and ns.self_test and not cls:
-                viol.append(['missed self-test', argv])
-            if kind == 'ok' and cls and not ns.self_test:
-                viol.append(['routed a non-self-test parse', argv])
-    print(json.dumps({'tokens': len(tokens), 'token_mismatches': mism, 'composites': n, 'violations': viol, 'problems': problems}))
-    sys.exit(1 if (mism or viol or problems) else 0)
-if mode == 'route':
-    argv = sys.argv[3:]
-    sys.argv = ['scan_node.py'] + argv
-    calls = []
-    def trap():
-        calls.append(list(sys.argv)); return 77
-    m._SN_LEGACY.main = trap
-    rc = m.main()
-    sys.stdout.flush()
-    sys.stderr.flush()
-    sys.stdout.write('\nROUTE_RESULT ' + json.dumps({'rc': rc, 'trap_calls': len(calls)}) + '\n')
-"####;
+use sweep_stop::pyjson::loads;
+use sweep_stop::pyvalue::PyValue;
 
 struct Scratch {
     root: PathBuf,
@@ -108,46 +29,6 @@ impl Drop for Scratch {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.root);
     }
-}
-
-fn scripts() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join("../../terraforming_node/scripts")
-}
-
-fn python(mode: &str, args: &[&str], env: &[(&str, String)]) -> (i32, String, String) {
-    let mut command = Command::new("python3");
-    command
-        .arg("-B")
-        .arg("-c")
-        .arg(PY)
-        .arg(scripts())
-        .arg(mode)
-        .args(args);
-    command
-        .env("PYTHONDONTWRITEBYTECODE", "1")
-        .env("COLUMNS", "80")
-        .stdin(Stdio::null());
-    for (name, value) in env {
-        command.env(name, value);
-    }
-    let output = command.output().expect("python3");
-    (
-        output.status.code().unwrap_or(-1),
-        String::from_utf8_lossy(&output.stdout).into_owned(),
-        String::from_utf8_lossy(&output.stderr).into_owned(),
-    )
-}
-
-#[test]
-fn the_adapters_selection_of_the_self_test_equals_the_stdlib_argparse_rule() {
-    let (code, out, err) = python("selector", &[], &[]);
-    assert_eq!(code, 0, "selector check failed:\n{out}\n{err}");
-    assert!(
-        out.contains("\"token_mismatches\": []")
-            && out.contains("\"violations\": []")
-            && out.contains("\"problems\": []"),
-        "{out}"
-    );
 }
 
 #[test]
@@ -175,29 +56,18 @@ fn every_self_test_abbreviation_and_every_other_shape_is_native_and_never_reache
         (&["--help"], 0),
         (&["-h"], 0),
     ];
-    for (n, (argv, rc)) in native_cases.iter().enumerate() {
-        let observer = scratch.root.join(format!("obs-native-{n}"));
-        let (code, out, err) = python(
-            "route",
-            argv,
-            &[
-                ("SCAN_NODE_BIN", elf.to_owned()),
-                (
-                    "SCAN_NODE_ROUTE_OBSERVER",
-                    observer.to_string_lossy().into_owned(),
-                ),
-            ],
-        );
-        assert_eq!(code, 0, "{argv:?}: {err}");
-        assert!(
-            out.contains(&format!("ROUTE_RESULT {{\"rc\": {rc}, \"trap_calls\": 0}}")),
-            "{argv:?}: {out}"
-        );
-        let seen = std::fs::read_to_string(&observer).unwrap_or_default();
-        assert!(
-            seen.contains("NativeCli") && !seen.contains("CompatOriginalCli"),
-            "{argv:?}: {seen}"
-        );
+    for (argv, rc) in native_cases.iter() {
+        let output = Command::new(elf)
+            .env_clear()
+            .env("COLUMNS", "80")
+            .env("PATH", "/usr/bin:/bin")
+            .env("TMPDIR", &scratch.root)
+            .args(*argv)
+            .stdin(Stdio::null())
+            .output()
+            .expect("run");
+        // the native program itself answers every shape (there is no original owner to reach any more)
+        assert_eq!(output.status.code(), Some(*rc), "{argv:?}: {}", String::from_utf8_lossy(&output.stderr));
     }
 }
 
@@ -205,15 +75,26 @@ fn every_self_test_abbreviation_and_every_other_shape_is_native_and_never_reache
 fn ambiguous_and_invalid_prefixes_end_in_the_stdlib_parser_errors_byte_for_byte_before_any_business(
 ) {
     let elf = env!("CARGO_BIN_EXE_scan_node");
-    for argv in [
-        vec!["--s"],
-        vec!["--su"],
-        vec!["--sel-x"],
-        vec!["--self-testx"],
-        vec!["--sub", "x", "--s"],
-    ] {
-        let (_, text, _) = python("text", &argv, &[]);
-        let expected = text.split("\"stderr\": ").nth(1).expect("stderr field");
+    let golden = Path::new(env!("CARGO_MANIFEST_DIR")).join("checks/data/scan_node/residual_prefix_stderr.json");
+    let text = std::fs::read_to_string(&golden).unwrap_or_else(|e| panic!("NOT_RUN: {}: {e}", golden.display()));
+    let PyValue::Dict(doc) = loads(&text).expect("golden JSON") else { panic!("golden is an object") };
+    let Some(PyValue::List(rows)) = doc.get("rows") else { panic!("golden rows") };
+    assert_eq!(rows.len(), 5);
+    for row in rows {
+        let PyValue::Dict(row) = row else { panic!("row") };
+        let argv: Vec<String> = match row.get("argv") {
+            Some(PyValue::List(words)) => words.iter().map(|w| match w {
+                PyValue::Str(t) => t.to_utf8().expect("UTF-8"),
+                _ => panic!("argv word"),
+            }).collect(),
+            _ => panic!("argv"),
+        };
+        assert!(matches!(row.get("kind"), Some(PyValue::Str(k)) if k.equals("exit2")), "{argv:?}");
+        let expected_text = match row.get("stderr") {
+            Some(PyValue::Str(t)) => t.to_utf8().expect("UTF-8"),
+            _ => panic!("stderr"),
+        };
+        let expected = format!("{}}}", serde_like(&expected_text));
         let output = Command::new(elf)
             .env_clear()
             .env("COLUMNS", "80")
@@ -228,7 +109,7 @@ fn ambiguous_and_invalid_prefixes_end_in_the_stdlib_parser_errors_byte_for_byte_
         let native_json = serde_like(&native);
         assert_eq!(
             format!("{native_json}}}"),
-            expected.to_owned(),
+            expected,
             "{argv:?}: native stderr != stdlib argparse stderr"
         );
     }

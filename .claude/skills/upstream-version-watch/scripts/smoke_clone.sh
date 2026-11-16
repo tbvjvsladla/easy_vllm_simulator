@@ -68,10 +68,11 @@ EXPECTED_SKILLS=(vllm-recipe-explorer upstream-version-watch)
 
 # A7: 렌더러 후보 경로(첫 번째 존재 항목 사용). 부재 시 레포 전체 검색 폴백.
 #   render 는 upstream-version-watch 소유(G2 구현). scripts/ 는 구(舊) 스텁 위치(이전됨).
+#   렌더러의 정체는 Rust 런처(render_dockerfile.sh → 노드 빌드 ELF)다 — .py 원본은 판정 대상이 아니다.
 RENDER_CANDIDATES=(
-    .claude/skills/upstream-version-watch/scripts/render_dockerfile.py
-    scripts/render_dockerfile.py
-    render_dockerfile.py
+    .claude/skills/upstream-version-watch/scripts/render_dockerfile.sh
+    scripts/render_dockerfile.sh
+    render_dockerfile.sh
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -238,14 +239,12 @@ a7() {
     for c in "${RENDER_CANDIDATES[@]}"; do [ -f "$c" ] && { r="$c"; break; }; done
     if [ -z "$r" ]; then
         # 폴백: 레포 전체에서 검색(무시 경로 제외).
-        r="$(git ls-files --cached --others --exclude-standard '*render_dockerfile.py' 2>/dev/null | head -1)"
+        r="$(git ls-files --cached --others --exclude-standard '*render_dockerfile.sh' 2>/dev/null | head -1)"
     fi
-    if [ -z "$r" ] || [ ! -f "$r" ]; then fail "A7 렌더러: render_dockerfile.py 부재"; return; fi
-    if [ ! -x "$r" ]; then fail "A7 렌더러: $r 실행권한 없음(chmod +x 필요)"; return; fi
-    # 자체검사는 Rust 런처(render_dockerfile.sh → ELF)가 돈다 — Python 을 띄우지 않는다. 런처가 없으면 fail-loud.
-    local launcher="${r%.py}.sh"
-    if [ ! -x "$launcher" ]; then fail "A7 렌더러: 런처 $launcher 부재/실행권한 없음"; return; fi
-    out="$("$launcher" --self-test 2>&1)"; rc=$?
+    if [ -z "$r" ] || [ ! -f "$r" ]; then fail "A7 렌더러: render_dockerfile.sh 부재"; return; fi
+    # 자체검사는 Rust 런처(render_dockerfile.sh → ELF)가 돈다 — Python 을 띄우지 않는다. ELF 가 없으면 런처가 exit 2(fail-loud).
+    if [ ! -x "$r" ]; then fail "A7 렌더러: 런처 $r 실행권한 없음(chmod +x 필요)"; return; fi
+    out="$("$r" --self-test 2>&1)"; rc=$?
     if [ "$rc" -ne 0 ]; then
         fail "A7 렌더러: $r --self-test 실패(rc=$rc): $(echo "$out" | head -1)"; return
     fi

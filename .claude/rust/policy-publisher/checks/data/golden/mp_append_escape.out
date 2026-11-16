@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_SRC_ESCAPES_REPO": "src path escapes the repo root via '..' traversal: '../x.txt'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_SRC_ESCAPES_REPO"
+  ],
+  "schema_version": 1
+}

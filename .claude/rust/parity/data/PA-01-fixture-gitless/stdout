@@ -1,0 +1,42 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 5,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "remove_when is not substantive",
+      "path": "$.policies[TEST_A].remove_when",
+      "policy_id": "TEST_A",
+      "reason_code": "LAZY_REMOVE_WHEN"
+    },
+    {
+      "clause_id": null,
+      "message": "last_reproduced 'never' is neither null nor a valid ISO-8601 date",
+      "path": "$.policies[TEST_A].last_reproduced",
+      "policy_id": "TEST_A",
+      "reason_code": "BAD_LAST_REPRODUCED_DATE"
+    },
+    {
+      "clause_id": null,
+      "message": "unreproduced (or never-reproduced) for >= 90 days (measured from last_reproduced, or added_at when never reproduced) but status is still active, not candidate",
+      "path": "$.policies[TEST_A].status",
+      "policy_id": "TEST_A",
+      "reason_code": "UNREPRODUCED_90_DAY_NOT_CANDIDATE"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2026-01-15 vs next_review_due=2025-04-01 requires review.state='overdue' exactly, got 'current'",
+      "path": "$.policies[TEST_A].review.state",
+      "policy_id": "TEST_A",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "'ev.sh': git_unavailable",
+      "path": "ev.sh",
+      "policy_id": "TEST_A",
+      "reason_code": "EVIDENCE_GIT_UNAVAILABLE"
+    }
+  ]
+}

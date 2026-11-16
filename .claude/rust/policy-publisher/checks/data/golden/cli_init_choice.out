@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "CLI_USAGE_ERROR": "invalid command-line invocation: argument --task-class: invalid choice: 'nope' (choose from 'model_serving_strategy', 'full_benchmark', 'harness_change', 'capacity_rejection', 'minor_patch', 'read_only_audit', 'hint_map_only')"
+  },
+  "ok": false,
+  "reason_codes": [
+    "CLI_USAGE_ERROR"
+  ],
+  "schema_version": 1
+}

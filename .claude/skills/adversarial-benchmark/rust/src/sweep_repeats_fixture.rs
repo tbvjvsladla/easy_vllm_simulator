@@ -41,27 +41,21 @@ pub const LEVEL_REASON: [&str; 2] = ["--knob-reason", "levels=serving_concurrenc
 /// The deployed files the sandbox copies, in the original's order (`COPIES`). `classify_cell` / `classify_cell_api` ask the
 /// private native helper `node_identity_resolve` for the node identity (one normal sibling in the same release directory), so
 /// the helper is copied with them: a mirrored caller without its helper fails loud, by design.
-const COPIES: [&str; 75] = [
+const COPIES: [&str; 55] = [
+    // The native stand-in the run_bench.sh / lite_bench.sh shims call (no program in the sandbox runs Python).
+    ".claude/skills/adversarial-benchmark/rust/target/release/selftest_load_shim",
     ".claude/skills/adversarial-benchmark/scripts/render_report.sh",
     ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.sh",
     ".claude/skills/adversarial-benchmark/scripts/render_max_report.sh",
     ".claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.sh",
     ".claude/skills/adversarial-benchmark/scripts/bench_doc_naming.sh",
     ".claude/skills/adversarial-benchmark/scripts/bench_reporting_api.sh",
-    ".claude/skills/adversarial-benchmark/scripts/reporting_native.py",
-    ".claude/skills/adversarial-benchmark/scripts/doc_naming_native.py",
-    ".claude/skills/adversarial-benchmark/scripts/render_report_native.py",
-    ".claude/skills/adversarial-benchmark/scripts/render_sweep_map_native.py",
-    ".claude/skills/adversarial-benchmark/scripts/render_max_report_native.py",
-    ".claude/skills/adversarial-benchmark/scripts/publish_benchmark_record_native.py",
     ".claude/skills/adversarial-benchmark/rust/target/release/render_report",
     ".claude/skills/adversarial-benchmark/rust/target/release/render_sweep_map",
     ".claude/skills/adversarial-benchmark/rust/target/release/publish_benchmark_record",
     ".claude/skills/adversarial-benchmark/rust/target/release/bench_reporting_api",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell_api.sh",
-    ".claude/skills/adversarial-benchmark/scripts/classify_cell_native.py",
-    ".claude/skills/adversarial-benchmark/scripts/classify_cell_role_query.py",
     ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell",
     ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell_api",
     ".claude/skills/adversarial-benchmark/rust/target/release/node_identity_resolve",
@@ -73,9 +67,9 @@ const COPIES: [&str; 75] = [
     ".claude/skills/adversarial-benchmark/rust/target/release/assemble_sweep_meta",
     ".claude/skills/adversarial-benchmark/rust/target/release/bench_shell",
     ".claude/skills/adversarial-benchmark/rust/src/bench_shell/broad.rs",
-    ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py",
+    // the campaign writer source the conformance check reads (the native campaign_init writer)
+    ".claude/skills/adversarial-benchmark/rust/src/campaign_write.rs",
     ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.sh",
-    ".claude/skills/adversarial-benchmark/scripts/parse_guidellm_native.py",
     ".claude/skills/adversarial-benchmark/rust/target/release/parse_guidellm",
     ".claude/skills/adversarial-benchmark/scripts/bench_preset.sh",
     ".claude/skills/adversarial-benchmark/scripts/bench_preset_api.sh",
@@ -83,38 +77,26 @@ const COPIES: [&str; 75] = [
     ".claude/skills/adversarial-benchmark/rust/target/release/bench_preset_api",
     ".claude/skills/adversarial-benchmark/scripts/repeat_axis.sh",
     ".claude/skills/adversarial-benchmark/scripts/repeat_axis_api.sh",
-    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_native.py",
-    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_owner_query.py",
     ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis",
     ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis_api",
     ".claude/skills/adversarial-benchmark/scripts/parse_bench.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/parse_bench",
-    ".claude/skills/adversarial-benchmark/scripts/doc_naming.py",
-    ".claude/skills/adversarial-benchmark/scripts/lite_metrics.py",
     ".claude/skills/adversarial-benchmark/scripts/lite_metrics.sh",
     ".claude/skills/adversarial-benchmark/scripts/lite_metrics_api.sh",
-    ".claude/skills/adversarial-benchmark/scripts/lite_metrics_native.py",
     ".claude/skills/adversarial-benchmark/rust/target/release/lite_metrics",
     ".claude/skills/adversarial-benchmark/rust/target/release/lite_metrics_api",
-    ".claude/skills/adversarial-benchmark/scripts/classify_cell.py",
-    ".claude/skills/adversarial-benchmark/scripts/render_report.py",
-    ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.py",
     ".claude/skills/adversarial-benchmark/scripts/sweep_stop.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/sweep_stop",
     ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
     ".claude/skills/adversarial-benchmark/scripts/judge_bench.sh",
     ".claude/skills/adversarial-benchmark/scripts/roofline.sh",
     ".claude/skills/adversarial-benchmark/scripts/verdict_rule.sh",
-    ".claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.py",
     ".claude/skills/adversarial-benchmark/fixtures/guidellm_benchmarks_sample.json",
-    ".claude/skills/adversarial-benchmark/scripts/bench_preset.py",
     ".claude/skills/adversarial-benchmark/config/bench_bindings.yaml",
     ".claude/skills/adversarial-benchmark/config/guide-llm/default_preset.yaml",
-    ".claude/skills/terraforming_node/scripts/campaign_init.py",
     ".claude/skills/terraforming_node/scripts/campaign_init.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/campaign_init",
-    ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
-    ".claude/skills/terraforming_node/scripts/node_role_contract.py",
+    ".claude/skills/terraforming_node/scripts/node_role_contract.sh",
     ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
     "campaigns/_template/campaign.schema.json",
 ];
@@ -130,42 +112,8 @@ while [ $# -gt 0 ]; do case "$1" in
 esac; done
 ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 echo "$CONFIG level=$CONC out=$(basename "$OUT")" >> "$ROOT/SHIM_CALLS"
-SHIM_ROOT="$ROOT" SHIM_CONFIG="$CONFIG" SHIM_CONC="$CONC" SHIM_OUT="$OUT" python3 - <<'PY'
-import copy, datetime, json, os, re, sys
-root, cfg, conc, out = os.environ["SHIM_ROOT"], os.environ["SHIM_CONFIG"], int(os.environ["SHIM_CONC"]), os.environ["SHIM_OUT"]
-m = re.match(r"run_(\d+)$", os.path.basename(out))
-run = int(m.group(1)) if m else 1
-plan = json.loads(os.environ.get("SHIM_PLAN") or "{}")
-key = "%d:%d" % (conc, run)
-act = (plan.get("fail") or {}).get(key)
-now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-if act in ("kill", "trip"):
-    ev = os.path.join(root, "docs", "logs", "main", "events", "2026-09.jsonl")
-    os.makedirs(os.path.dirname(ev), exist_ok=True)
-    kind = "watchdog_kill_ack" if act == "kill" else "thermal_trip"
-    with open(ev, "a", encoding="utf-8") as f:
-        f.write(json.dumps({"ts": now, "kind": kind, "source": "selftest-shim", "mode": "armed"}) + "\n")
-    sys.exit(3)
-if act == "rc":
-    sys.exit(3)
-if act == "norecord":
-    # run 경계 사실 기록 불가 주입 — record-run 이 쓸 자리를 디렉터리로 막는다(측정 자체는 정상).
-    os.makedirs(os.path.join(out, "repeat_run.json"), exist_ok=True)
-doc = json.load(open(os.path.join(root, ".claude/skills/adversarial-benchmark/fixtures/guidellm_benchmarks_sample.json")))
-doc["metadata"]["guidellm_version"] = "0.0.0+selftest-shim"
-b = doc["benchmarks"][0]
-tpots = (plan.get("tpot") or {}).get(str(conc)) or [25.0, 24.0, 26.0]
-b["metrics"]["time_per_output_token_ms"]["successful"]["median"] = float(tpots[(run - 1) % len(tpots)])
-b["config"]["profile"]["streams"] = [conc]
-if act == "measurement":
-    b["metrics"]["request_totals"]["incomplete"] = 2
-with open(os.path.join(out, "guidellm_%s.json" % cfg), "w") as f:
-    json.dump(doc, f)
-with open(os.path.join(out, "engine_%s.log" % cfg), "w") as f:
-    f.write("INFO generation throughput: 40.0 tokens/s\n")
-with open(os.path.join(out, "post_health_%s.json" % cfg), "w") as f:
-    json.dump({"server_alive_at_bench_end": True, "provenance": "selftest-shim"}, f)
-PY
+SHIM_ROOT="$ROOT" SHIM_CONFIG="$CONFIG" SHIM_CONC="$CONC" SHIM_OUT="$OUT" \
+  "$ROOT/.claude/skills/adversarial-benchmark/rust/target/release/selftest_load_shim" run-bench
 "##;
 
 const LITE_BENCH_SHIM: &str = r##"#!/usr/bin/env bash
@@ -180,8 +128,7 @@ cat > "$OUT/lite_warm_$CONFIG.json" <<JSON
 {"completed": 3, "failed": 0, "median_tpot_ms": 25.0, "spec_decode_acceptance_length": 2.0, "_shim": "selftest"}
 JSON
 # SHIM_PLAN.lite = {"verdict": <lite_verdict 또는 "absent">, "rc": <종료코드>} — lite 게이트 시험용(기본 pass · rc 0).
-LV="$(python3 -c 'import json,os; print((json.loads(os.environ.get("SHIM_PLAN") or "{}").get("lite") or {}).get("verdict","pass"))')"
-LRC="$(python3 -c 'import json,os; print((json.loads(os.environ.get("SHIM_PLAN") or "{}").get("lite") or {}).get("rc",0))')"
+{ read -r LV; read -r LRC; } < <("$ROOT/.claude/skills/adversarial-benchmark/rust/target/release/selftest_load_shim" lite-plan)
 if [ "$LV" = "absent" ]; then
   rm -f "$OUT/lite_raw_$CONFIG.json"
 else

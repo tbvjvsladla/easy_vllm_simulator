@@ -1,0 +1,14 @@
+{
+  "exit_code": 2,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "root schema document is empty ({}) -- every keyword-presence check in the generic engine is skipped, which would silently disable validation entirely",
+      "path": "$",
+      "policy_id": null,
+      "reason_code": "SCHEMA_META_EMPTY_ROOT"
+    }
+  ]
+}

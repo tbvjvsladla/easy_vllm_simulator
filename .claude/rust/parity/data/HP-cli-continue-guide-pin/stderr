@@ -1,0 +1,1 @@
+[hint] FAIL HINT_GUIDE_PIN_REQUIRES_NO_PUSH: --guide-commit(원격 조회 없는 안내 커밋 지정)은 --no-push(오프라인 재생)와만 쓴다.

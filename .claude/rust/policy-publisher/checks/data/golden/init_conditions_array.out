@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_CONDITIONS_NOT_AN_OBJECT": "--conditions-json must contain a JSON object, got list"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_CONDITIONS_NOT_AN_OBJECT"
+  ],
+  "schema_version": 1
+}

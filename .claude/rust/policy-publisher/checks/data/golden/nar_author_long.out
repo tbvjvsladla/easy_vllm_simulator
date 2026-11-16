@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "NARRATIVE_AUTHOR_TOO_LONG": "--author must be at most 200 characters, got 201"
+  },
+  "ok": false,
+  "reason_codes": [
+    "NARRATIVE_AUTHOR_TOO_LONG"
+  ],
+  "schema_version": 1
+}

@@ -411,36 +411,6 @@ fn a_run_without_its_owner_identity_fails_visibly_and_runs_nothing_else() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("TURN_BUDGET_OWNER_PATH"));
 }
 
-#[test]
-fn the_python_adapter_holds_no_budget_logic_or_grade_table() {
-    let source = fs::read_to_string(
-        Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../terraforming_node/scripts/turn_budget.py"),
-    )
-    .expect("the adapter source");
-    for name in [
-        "GRADES",
-        "GRADE_ORDER",
-        "MIN_TURNS",
-        "ESCALATION_FACTOR",
-        "MAX_ATTEMPTS_BEFORE_HITL",
-    ] {
-        assert!(!source.contains(name), "{name} must not come back");
-    }
-    // no decision of the original lives in the adapter
-    for fragment in [
-        "isinstance(v, int)",
-        "scope ⊥ budget",
-        "json.load(",
-        "\"maximum\"",
-    ] {
-        assert!(
-            !source.contains(fragment),
-            "business fragment in the adapter: {fragment}"
-        );
-    }
-}
-
 // ── contract fixes (R6 help codec, exit-120 codec name, R5 module facts, route events) ──────────────────────────────
 // These four are NOT frozen-raw goldens: the ASCII-help traceback frames are derived from the argparse 3.12 source and the
 // other points have no row in the frozen 139. They check the behaviour the source contract states; the proposed data-only row

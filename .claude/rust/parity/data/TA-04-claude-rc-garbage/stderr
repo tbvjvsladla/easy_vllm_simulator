@@ -1,0 +1,3 @@
+[agent-control] NONZERO_EXIT: provider exited 3 (target=main/local)
+[agent-control]   provider stderr tail: fatal: x
+[agent-control]   provider stdout tail: boom

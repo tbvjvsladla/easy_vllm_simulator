@@ -1,0 +1,21 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 2,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "canonical binding keys must equal all clause IDs; missing=[] extra=['EXTRA.C1']",
+      "path": ".claude/policies/claim_bindings.json.bindings",
+      "policy_id": null,
+      "reason_code": "CLAIM_BINDINGS_INCOMPLETE"
+    },
+    {
+      "clause_id": "CANON.C1",
+      "message": "clause 'CANON.C1' evidence tuples do not exactly match claim_bindings.json -- extra=[('ev/b.sh', 'KEY_OK')] missing=[('ev/a.py', 'X')]",
+      "path": "$.policies[CANON].clauses[CANON.C1]",
+      "policy_id": "CANON",
+      "reason_code": "CLAIM_BINDING_MISMATCH"
+    }
+  ]
+}

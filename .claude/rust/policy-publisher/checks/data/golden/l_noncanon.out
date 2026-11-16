@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_LITE_REPORT_BENCH_REPORT_SRC_NOT_CANONICAL": "bench_report src must be a file directly under docs/benchmark/ (the bench skill is the sole issuer — publisher binds, never copies): 'docs/_evidence/inputs/lite.md'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_LITE_REPORT_BENCH_REPORT_SRC_NOT_CANONICAL"
+  ],
+  "schema_version": 1
+}

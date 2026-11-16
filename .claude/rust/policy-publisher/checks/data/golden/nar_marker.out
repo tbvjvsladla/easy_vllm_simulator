@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "NARRATIVE_CONTAINS_RESERVED_MARKER": "supplied narrative text must not contain the reserved '<!-- NARRATIVE:BEGIN -->'/'<!-- NARRATIVE:END -->' marker strings"
+  },
+  "ok": false,
+  "reason_codes": [
+    "NARRATIVE_CONTAINS_RESERVED_MARKER"
+  ],
+  "schema_version": 1
+}

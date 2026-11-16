@@ -1,0 +1,68 @@
+{
+ "assignments": {
+  "main": [
+   {
+    "cell": "c1",
+    "mode": "AUTO"
+   },
+   {
+    "cell": "c2",
+    "mode": "STAY"
+   }
+  ]
+ },
+ "budgets": {
+  "ready_max_seconds": 1,
+  "repeats": 3,
+  "smoke_budget_overhead_mib": 1
+ },
+ "control_variables": {
+  "model": "m",
+  "topology": "single"
+ },
+ "declared_utc": "2026-11-15T00:00:00Z",
+ "hint_targets": [],
+ "id": "camp-a",
+ "matrix": {
+  "models": [
+   "m"
+  ],
+  "versions": [
+   "0.30.0"
+  ]
+ },
+ "nodes": [
+  {
+   "hw": "fixture",
+   "node_id": "main",
+   "role": "main",
+   "topology": "single"
+  }
+ ],
+ "plan_ref": "docs/plan/p.md",
+ "revisions": [
+  {
+   "approved_by": "t0",
+   "declared_utc": "2026-11-15T00:00:00Z",
+   "evidence": "docs/plan/p.md",
+   "reason": "t0 선언",
+   "rev": 0,
+   "values": {
+    "model": "m",
+    "topology": "single"
+   }
+  },
+  {
+   "approved_by": "u",
+   "declared_utc": "2026-11-16T00:00:00Z",
+   "evidence": "e",
+   "reason": "r",
+   "rev": 1,
+   "values": {
+    "model": "m2",
+    "topology": "single"
+   }
+  }
+ ],
+ "schema_version": 1
+}

@@ -1,0 +1,95 @@
+[render] OK → out
+[render] external hint write scopes: not-declared (native access unverified)
+   + CLAUDE.md
+   + AGENTS.md
+   + Agent_Card.json
+   + .claude/settings.local.json
+   + .codex/config.toml
+   + .codex/rules/sub.rules
+   + output/single/manifest.yaml (서브 manifest · terraforming 실측 · Flag issued_by=main)
+   + .claude/rules/comms.md
+   + .claude/schemas/task-report.schema.json
+   + .claude/rules/strategy.topology.md
+   + .claude/policies/handoff_exception.topology.md
+   + .claude/skills/vllm-recipe-explorer/ (160 tracked files)
+   + .agents/skills/vllm-recipe-explorer/SKILL.md
+   + .claude/skills/vllm-recipe-explorer/feedback/.gitkeep
+   + .claude/skills/adversarial-benchmark/ (298 tracked files)
+   + .agents/skills/adversarial-benchmark/SKILL.md
+   + .claude/skills/upstream-version-watch/ (254 tracked files · 메인전용 17건 제외)
+   + .agents/skills/upstream-version-watch/SKILL.md
+   + .claude/skills/hint-publisher/ (76 tracked files)
+   + .agents/skills/hint-publisher/SKILL.md
+   + .claude/skills/wiki-desk/ (35 tracked files)
+   + .agents/skills/wiki-desk/SKILL.md
+   + .claude/rust/runtime-support/ (31 tracked files)
+   + .claude/rust/role-contract/ (22 tracked files)
+   + .claude/rust/parity/ (17 tracked files)
+   + .claude/rust/policy-gate/ (13 tracked files)
+   + .claude/rust/policy-publisher/ (21 tracked files)
+   + .claude/skills/hint-publisher/rust/ (69 tracked files)
+   + .claude/skills/terraforming_node/rust/ (39 tracked files)
+   + .claude/policies/runtime/topology_parity.sh
+   + .claude/policies/runtime/topology_parity.sh
+   + .claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh
+   + .claude/skills/terraforming_node/scripts/scan_node.sh
+   + hints/HINT_ISSUANCE_CONTRACT.md
+   + hints/vocab.json
+   + .claude/policies/runtime/completion_gate.sh
+   + .claude/policies/runtime/evidence_publisher.sh
+   + .claude/schemas/work-manifest.schema.json
+   + .claude/schemas/completion-manifest.schema.json
+   + .claude/schemas/side-effect-authorization.schema.json
+   + .claude/policies/runtime/doc_naming.sh
+   + .claude/skills/terraforming_node/scripts/check_sub_hint_equip.sh
+   + campaigns/_template/residue.json
+   + campaigns/_template/campaign.schema.json
+   + campaigns/_template/campaign.yaml
+   + campaigns/_template/evidence_pointers.json
+   + campaigns/_template/cells/_cell/config.yaml
+   + campaigns/_template/cells/_cell/cell.status.json
+   + campaigns/_template/cells/_cell/lockset.json
+   + campaigns/_template/phases/_node/build.status.json
+   + campaigns/_template/phases/_node/bench.status.json
+   + campaigns/_template/phases/_node/publish.status.json
+   + campaigns/_template/phases/_node/serve.status.json
+   + campaigns/_template/relay/.gitkeep
+   + campaigns/_template/sweeps/.gitkeep
+   + .claude/skills/terraforming_node/scripts/campaign_init.sh
+   + .claude/skills/terraforming_node/scripts/campaign_template_validator.sh
+   + .claude/skills/terraforming_node/scripts/manifest_contract.sh
+   + .claude/skills/terraforming_node/scripts/node_role_contract.sh
+   + .claude/skills/terraforming_node/scripts/harness_permission_probe.sh
+   + .claude/skills/terraforming_node/scripts/rust_bootstrap.sh
+   + .claude/skills/terraforming_node/scripts/rust_toolchain.pin
+   + .claude/skills/terraforming_node/scripts/build_rust_packages.sh
+   + .claude/skills/terraforming_node/references/install/rust_runtime.md
+   + campaigns/README.md
+   + .claude/runtime/host_safety/mem_watchdog.sh
+   + .claude/runtime/host_safety/install_host_safety.sh
+   + .claude/runtime/host_safety/install_netconsole.sh
+   + .claude/runtime/host_safety/systemd/easy-vllm-memwatch.service
+   + .claude/runtime/host_safety/host/vllm-drop-caches.sh
+   + .claude/runtime/node_blackbox/mem_watchdog_eta.sh
+   + .claude/runtime/node_blackbox/blackbox_collect.sh
+   + .claude/runtime/node_blackbox/blackbox_events.sh
+   + .claude/runtime/node_blackbox/blackbox_eta.sh
+   + .claude/runtime/node_blackbox/blackbox_session.sh
+   + .claude/runtime/node_blackbox/logs_lifecycle.sh
+   + .claude/runtime/node_blackbox/seed_from_journal.sh
+   + .claude/runtime/node_blackbox/install_node_blackbox.sh
+   + .claude/runtime/node_blackbox/verify_node_blackbox.sh
+   + .claude/runtime/node_blackbox/purge_host_safety.sh
+   + .claude/runtime/node_blackbox/agent_guard.sh
+   + .claude/runtime/node_blackbox/adversarial_stress.sh
+   + .claude/runtime/node_blackbox/regen_envelope.sh
+   + .claude/runtime/node_blackbox/node_identity.sh
+   + .claude/runtime/node_blackbox/budget_renew_loop.sh
+   + .claude/runtime/node_blackbox/blackbox_thermal.sh
+   + .claude/runtime/node_blackbox/thermal_watchdog.sh
+   + .gitignore
+   + docs/*/example.md (5 skeletons)
+[render] 다음(HITL · 인가 인자 필수):
+   bash .claude/skills/upstream-version-watch/scripts/sync_to_sub.sh \
+        --mode experimental --manifest <work-manifest.json> --apply --provision --branch single
+   ↑ work-manifest 발행 절차 = terraforming_node SKILL.md §2.3 '인가 체인'

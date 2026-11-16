@@ -1,0 +1,87 @@
+[package]
+name = "hint-publisher"
+version = "0.1.0"
+edition = "2021"
+description = "hint-publisher in Rust: the hintlib modules, the single hint CLI and the bench-section reader (port of scripts/hint.py, scripts/hintlib/*.py, scripts/render_bench_section.py)"
+publish = false
+# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
+autotests = false
+
+[lib]
+name = "hintlib"
+path = "src/lib.rs"
+
+# The single CLI (`hint.py`). Launcher: scripts/hint.sh.
+[[bin]]
+name = "hint"
+path = "src/bin/hint.rs"
+
+# The bench-section reader/renderer (`render_bench_section.py`). Launcher: scripts/render_bench_section.sh.
+[[bin]]
+name = "render_bench_section"
+path = "src/bin/render_bench_section.rs"
+
+# JSON-lines library bridge for golden comparison of module functions (`hint_api <module>`; stdin one call per line).
+# Launcher: scripts/hint_api.sh. Its Python counterpart is the capture shim `.claude/rust/parity/cases/shims/hint_api.py`.
+[[bin]]
+name = "hint_api"
+path = "src/bin/hint_api.rs"
+
+[[test]]
+name = "value_cases"
+path = "checks/value_cases.rs"
+
+
+[dependencies]
+# Python-compatible JSON/YAML readers, str repr and float repr (path dependency, read-only).
+agent-runtime-support = { path = "../../../rust/runtime-support" }
+num-bigint = "0.4"
+num-traits = "0.2"
+# Backtracking regex with look-around/backreferences: the closest match to Python `re` (exact pin already in the tree).
+fancy-regex = { version = "=0.19.2", default-features = false, features = ["std", "unicode", "perf"] }
+# SHA-256 (`hashlib.sha256`): the same exact pin the other owner packages use.
+ring = "=0.17.14"
+
+[[test]]
+name = "naming_cases"
+path = "checks/naming_cases.rs"
+
+[[test]]
+name = "pii_cases"
+path = "checks/pii_cases.rs"
+
+[[test]]
+name = "lineage_cases"
+path = "checks/lineage_cases.rs"
+
+[[test]]
+name = "catalog_cases"
+path = "checks/catalog_cases.rs"
+
+[[test]]
+name = "branch_cases"
+path = "checks/branch_cases.rs"
+
+[[test]]
+name = "tag_cases"
+path = "checks/tag_cases.rs"
+
+[[test]]
+name = "template_cases"
+path = "checks/template_cases.rs"
+
+[[test]]
+name = "artifacts_cases"
+path = "checks/artifacts_cases.rs"
+
+[[test]]
+name = "evidence_cases"
+path = "checks/evidence_cases.rs"
+
+[[test]]
+name = "render_bench_section_cases"
+path = "checks/render_bench_section_cases.rs"
+
+[[test]]
+name = "cli_cases"
+path = "checks/cli_cases.rs"

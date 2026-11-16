@@ -1,0 +1,16 @@
+{"id": "p", "kind": "exception", "type": "BenchSectionFailure", "message": "리포트에서 스윕 표 머리행을 찾지 못했다 — render_report.py 의 형식이 바뀌었거나 이 문서가 full 리포트가 아니다. 빈 표를 내지 않는다(형식 계약 위반은 fail-loud)."}
+{"id": "mc", "kind": "value", "value": {"bench_mode": "lite", "bench_mode_kind": "declared-lite", "bench_mode_source": "declared(lite_bench --publish-report · lite-only 셀)", "downgrade_reason": null, "bench_tool": "vllm-bench-serve", "repeats": 1, "repeats_completed": "x1"}}
+{"id": "lite", "kind": "value", "value": true}
+{"id": "lite2", "kind": "value", "value": true}
+{"id": "lite3", "kind": "value", "value": false}
+{"id": "lmp", "kind": "value", "value": true}
+{"id": "lmp2", "kind": "value", "value": false}
+{"id": "lmp3", "kind": "value", "value": false}
+{"id": "lmp4", "kind": "value", "value": true}
+{"id": "pl", "kind": "value", "value": {"table": ["| 메트릭 | Main | Sub |", "|---|---|---|", "| gen tokens/sec (warm) [master] | 13.90 t/s | — |", "| cold-start TTFT [master] | 2241 ms | — |", "| KV cache 점유 | 8.0 GiB (클러스터) | ≈ ÷TP (클러스터 공유) |"], "source_kind": "bench_report(lite)"}}
+{"id": "rl", "kind": "value", "value": "## lite 지표 — 서빙 성공 직후 스냅샷 (결정론 파싱 · 손저작 ✗)\n\n> 서빙 성공 직후의 **lite 스냅샷**이다 — cold 1회 + warm burst 1회. 동시성 곡선·반복·판정·인증서가 없다.\n> 성능 baseline 이 아니며(OBSERVATION-ONLY) 수신자는 자기 환경에서 재측정한다.\n> 출처: `bench_report_l.md` (bench_report(lite)) · 표는 리포트의 행을 그대로 옮긴다(재산정 ✗ · `--verify` diff 0).\n\n| 메트릭 | Main | Sub |\n|---|---|---|\n| gen tokens/sec (warm) [master] | 13.90 t/s | — |\n| cold-start TTFT [master] | 2241 ms | — |\n| KV cache 점유 | 8.0 GiB (클러스터) | ≈ ÷TP (클러스터 공유) |\n"}
+{"id": "pl-none", "kind": "exception", "type": "BenchSectionFailure", "message": "`## lite 지표` 절에 표(머리행·구분행·값행)가 없다 — lite 산정 실패를 빈 표로 접지 않는다."}
+{"id": "pl-short", "kind": "exception", "type": "BenchSectionFailure", "message": "`## lite 지표` 절에 표(머리행·구분행·값행)가 없다 — lite 산정 실패를 빈 표로 접지 않는다."}
+{"id": "pl-nosec", "kind": "exception", "type": "BenchSectionFailure", "message": "리포트에 `## lite 지표` 절이 없다 — 빈 lite 절을 내지 않는다."}
+{"id": "rl-bad", "kind": "exception", "type": "TypeError", "message": "sequence item 7: expected str instance, int found"}
+{"id": "rl-key", "kind": "exception", "type": "KeyError", "message": "'source_kind'"}

@@ -194,10 +194,16 @@ NODE_ID="$(ni_resolve_node_id "$REPO" "$NODE_ID")" || exit 1
 NODE_DIR="$LOGS_ROOT/$NODE_ID"
 
 # ── 전제 확인 ────────────────────────────────────────────────────────────
-for f in blackbox_collect.py blackbox_eta.py blackbox_events.py logs_lifecycle.py \
-         regen_envelope.py mem_watchdog_eta.sh; do
-  [ -f "$SDIR/$f" ] || { say "FAIL: $SDIR/$f 부재"; exit 1; }
+[ -f "$SDIR/mem_watchdog_eta.sh" ] || { say "FAIL: $SDIR/mem_watchdog_eta.sh 부재"; exit 1; }
+# 블랙박스 데몬·엔진은 Rust 실행파일(`terraforming_node/rust` 의 bin)을 그대로 배치한다 — Python 경로 ✗.
+# 빌드는 명시 작업이다(설치기가 대신 빌드하지 않는다): 하나라도 없으면 안내하고 멈춘다.
+# 서브에는 이 설치기가 .claude/runtime/node_blackbox/ 로 배달되고, 실행파일은 서브에 배달·빌드된 terraforming 크레이트에 있다.
+case "$SDIR" in */.claude/runtime/node_blackbox) RUST_REL="$SDIR/../../skills/terraforming_node/rust/target/release"; RUST_BUILD="$SDIR/../../skills/terraforming_node/scripts/build_rust_packages.sh" ;; *) RUST_REL="$SDIR/../../rust/target/release"; RUST_BUILD="$SDIR/../build_rust_packages.sh" ;; esac
+for _rb in blackbox_collect blackbox_eta blackbox_events logs_lifecycle regen_envelope blackbox_thermal; do
+  [ -f "$RUST_REL/$_rb" ] && [ -x "$RUST_REL/$_rb" ] || {
+    say "FAIL: Rust 실행파일 부재: $RUST_REL/$_rb — 먼저 bash $RUST_BUILD"; exit 1; }
 done
+LIFECYCLE_BIN="$RUST_REL/logs_lifecycle"
 DROP_HELPER="$SDIR/../host_safety/host/vllm-drop-caches.sh"
 [ -f "$DROP_HELPER" ] || { say "FAIL: drop-caches 헬퍼 부재: $DROP_HELPER"; exit 1; }
 
@@ -246,25 +252,19 @@ run install -d -m 0775 -o "$TARGET_USER" -g "$TARGET_USER" "$NODE_DIR/samples" \
 run chown -R "$TARGET_USER:$TARGET_USER" "$NODE_DIR"
 # 설치명은 전부 대시로 통일한다(파일명 언더스코어를 그대로 쓰면 easy-vllm-blackbox_collect 처럼
 # 표기가 섞여 유닛/문서/검증자 사이에서 오탈자 원인이 된다).
-run install -m 0755 "$SDIR/blackbox_collect.py"  "$BIN/easy-vllm-bb-collect"
-run install -m 0755 "$SDIR/blackbox_eta.py"      "$BIN/easy-vllm-bb-eta"
-# ★ sibling import 통로 (2026-09-01 · audit_26090109 ⑦ 1단) ─────────────────────────
-#   regen_envelope · blackbox_session · agent_guard 는 `from blackbox_eta import DEFAULTS` 로
-#   **정본 상수**를 파생한다(상수 사본은 갈라져 맹점을 만든다 — ① 참조). 그런데 위 줄이
-#   `.py` 확장자를 떼고 콘솔 이름으로 설치하므로, 실행체의 `sys.path[0]`(=$BIN)에는
-#   `blackbox_eta.py` 가 **없다**. 그래서 import 가 깨진다.
-#   실측(2026-09-01): easy-vllm-blackbox-lifecycle.service 가 5일 연속 status=1/FAILURE 였고
-#   저널에 `blackbox_eta.py 를 같은 디렉터리에서 찾지 못했다` 가 그대로 찍혀 있었으며,
-#   **envelope.json 은 한 번도 생성된 적이 없다**. 가드는 정확히 울었고 듣는 사람이 없었다.
-#   모듈 이름으로도 함께 둔다(0644 — 실행체가 아니라 라이브러리 사본임을 모드로 표시).
-run install -m 0644 "$SDIR/blackbox_eta.py"      "$BIN/blackbox_eta.py"
-run install -m 0755 "$SDIR/blackbox_events.py"   "$BIN/easy-vllm-bb-events"
-run install -m 0755 "$SDIR/logs_lifecycle.py"    "$BIN/easy-vllm-bb-lifecycle"
-run install -m 0755 "$SDIR/regen_envelope.py"   "$BIN/easy-vllm-bb-regen-envelope"
+run install -m 0755 "$RUST_REL/blackbox_collect" "$BIN/easy-vllm-bb-collect"
+run install -m 0755 "$RUST_REL/blackbox_eta"     "$BIN/easy-vllm-bb-eta"
+# ★ sibling import 통로는 더 이상 없다 (2026-11-16 · plan_26111615). 옛 Python 판본은
+#   `from blackbox_eta import DEFAULTS` 를 위해 0644 라이브러리 사본(`$BIN/blackbox_eta.py`)을 함께 두어야 했다
+#   (2026-09-01 · audit_26090109 ⑦: 사본이 없어 lifecycle 유닛이 5일 연속 죽었다). Rust 실행파일은 정본 상수를
+#   컴파일 시점에 들고 있으므로 배치가 실행 가능성을 가르는 자리가 사라졌다. 남아 있는 옛 사본은 읽는 쪽이 없다.
+run install -m 0755 "$RUST_REL/blackbox_events"  "$BIN/easy-vllm-bb-events"
+run install -m 0755 "$LIFECYCLE_BIN"             "$BIN/easy-vllm-bb-lifecycle"
+run install -m 0755 "$RUST_REL/regen_envelope"   "$BIN/easy-vllm-bb-regen-envelope"
 run install -m 0755 "$SDIR/mem_watchdog_eta.sh" "$BIN/easy-vllm-bb-watchdog"
 # 열·전력 포락선 축(plan_26082319 §6.3 · 2026-08-23). RAM 축과 **별개 평면**이라 파일도 유닛도
 # 상수도 따로 둔다 — 한쪽 재emit 이 다른 쪽 판정 규칙을 조용히 갈아끼우지 않게.
-run install -m 0755 "$SDIR/blackbox_thermal.py"  "$BIN/easy-vllm-bb-thermal"
+run install -m 0755 "$RUST_REL/blackbox_thermal" "$BIN/easy-vllm-bb-thermal"
 run install -m 0755 "$SDIR/thermal_watchdog.sh"  "$BIN/easy-vllm-bb-tp-watchdog"
 run install -m 0755 "$DROP_HELPER" "$BIN/vllm-drop-caches"
 
@@ -272,7 +272,6 @@ run install -m 0755 "$DROP_HELPER" "$BIN/vllm-drop-caches"
 #   "쓸 수 있는 상태"는 아니다** — noexec 마운트·부분 쓰기·경합 재설치는 rc 0 을 내고도
 #   실행 불가한 파일을 남긴다. 배치의 목적은 "명령이 돌았다"가 아니라 "그 자리에 실행 가능한
 #   바이너리가 있다"이므로, 목적 그대로를 다시 읽어 판정한다.
-#   0644 라이브러리 사본(blackbox_eta.py)은 **실행권한이 없어야 정상**이라 존재만 본다.
 verify_installed(){   # $1=경로 $2=x(실행체)|r(라이브러리)
   [ "$APPLY" = 1 ] || return 0
   if [ ! -f "$1" ]; then say "   ✗ 미설치: $1"; FAIL=1; return 1; fi
@@ -287,9 +286,8 @@ if [ "$APPLY" = 1 ]; then
             easy-vllm-bb-tp-watchdog vllm-drop-caches; do
     verify_installed "$BIN/$_b" x || _BB_MISS=$((_BB_MISS+1))
   done
-  verify_installed "$BIN/blackbox_eta.py" r || _BB_MISS=$((_BB_MISS+1))
-  if [ "$_BB_MISS" = 0 ]; then say "   ✓ $BIN 배치 10종 실재·실행권한 확인"
-  else say "   ✗ $BIN 배치 $_BB_MISS 종 결손 — 위 ✗ 확인(sys.path[0] sibling import 포함)"; fi
+  if [ "$_BB_MISS" = 0 ]; then say "   ✓ $BIN 배치 9종 실재·실행권한 확인"
+  else say "   ✗ $BIN 배치 $_BB_MISS 종 결손 — 위 ✗ 확인"; fi
 fi
 
 # ★ **환류 배선**(plan_26081415 C2-4). 예전엔 `--node-dir` 없이 호출해 envelope 의 eta_params 가
@@ -298,7 +296,7 @@ fi
 #   미지 키가 있으면 blackbox_eta 가 **거부**하므로(조용한 버림 폐지) 설치가 큰 소리로 멈춘다.
 say "   ETA 상수 생성 → $ETC/eta_params.env (envelope 환류 + 하한 가드 통과 시에만 기록)"
 if [ "$APPLY" = 1 ]; then
-  if python3 "$SDIR/blackbox_eta.py" --node-dir "$NODE_DIR" --emit-params "$ETC/eta_params.env"; then
+  if bash "$SDIR/blackbox_eta.sh" --node-dir "$NODE_DIR" --emit-params "$ETC/eta_params.env"; then
     say "   ✓ eta_params.env (envelope=$NODE_DIR/envelope.json 반영)"
   else
     say "   ✗ ETA 파라미터 거부(하한 가드 또는 envelope 키 불일치) — 설치 중단"
@@ -314,7 +312,7 @@ if [ "$APPLY" = 1 ]; then
   # GPU 전력 축은 보정된 GPU(GB10)에서만 무장한다 — 보정 밖 discrete GPU 에 80 W 임계를 걸면
   #   정상 서빙이 60초 뒤 kill 된다(plan_26103120). 이름은 호스트 사실(nvidia-smi)이다.
   _BB_GPU_MODEL="$(nvidia-smi --query-gpu=name --format=csv,noheader 2>/dev/null | head -1)"
-  if python3 "$SDIR/blackbox_thermal.py" --emit-params "$ETC/thermal_params.env" \
+  if bash "$SDIR/blackbox_thermal.sh" --emit-params "$ETC/thermal_params.env" \
        ${_BB_GPU_MODEL:+--gpu-model "$_BB_GPU_MODEL"}; then
     say "   ✓ thermal_params.env"
   else

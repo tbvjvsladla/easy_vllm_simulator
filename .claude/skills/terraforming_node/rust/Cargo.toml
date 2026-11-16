@@ -1,0 +1,157 @@
+[package]
+name = "terraforming-runtime"
+version = "0.1.0"
+edition = "2021"
+description = "Rust ports of terraforming_node programs (audit_session_ssh, agent_card_contract, library_access, node_blackbox lifecycle tools): same command lines, exit codes, text and files as the original Python"
+publish = false
+# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
+autotests = false
+
+[lib]
+name = "terraforming_runtime"
+path = "src/lib.rs"
+
+[dependencies]
+# Python-compatible text, JSON and YAML semantics shared with the other owner packages (path dependency, read-only).
+agent-runtime-support = { path = "../../../rust/runtime-support" }
+# The topology owner publish_install_request asks (`manifest_gate::resolve_topology`), and `turn_budget.declare`/`schema_cap`
+# used in-process by relay and bootstrap_canary (path dependency, read-only).
+role-contract = { path = "../../../rust/role-contract" }
+# Raw DEFLATE and CRC-32 for the gzip container of logs_lifecycle (Python stdlib `gzip` in the original).
+miniz_oxide = "0.9"
+crc32fast = "1"
+# SHA-256 of issued requests/outcomes (Python `hashlib.sha256`) in relay and the providers.
+sha2 = "0.10"
+
+[[bin]]
+name = "audit_session_ssh"
+path = "src/bin/audit_session_ssh.rs"
+
+[[bin]]
+name = "agent_card_contract"
+path = "src/bin/agent_card_contract.rs"
+
+[[bin]]
+name = "library_access"
+path = "src/bin/library_access.rs"
+
+[[bin]]
+name = "logs_lifecycle"
+path = "src/bin/logs_lifecycle.rs"
+
+[[bin]]
+name = "rust_package_check"
+path = "src/bin/rust_package_check.rs"
+
+[[bin]]
+name = "adversarial_stress"
+path = "src/bin/adversarial_stress.rs"
+
+[[bin]]
+name = "seed_from_journal"
+path = "src/bin/seed_from_journal.rs"
+
+[[bin]]
+name = "blackbox_eta"
+path = "src/bin/blackbox_eta.rs"
+
+[[bin]]
+name = "blackbox_session"
+path = "src/bin/blackbox_session.rs"
+
+[[bin]]
+name = "blackbox_collect"
+path = "src/bin/blackbox_collect.rs"
+
+[[bin]]
+name = "blackbox_thermal"
+path = "src/bin/blackbox_thermal.rs"
+
+[[bin]]
+name = "blackbox_events"
+path = "src/bin/blackbox_events.rs"
+
+[[bin]]
+name = "regen_envelope"
+path = "src/bin/regen_envelope.rs"
+
+# verify_node_blackbox.sh: the carried-forward `capture_proven` (was its inline python3 heredoc).
+[[bin]]
+name = "bb_capture_proven"
+path = "src/bin/bb_capture_proven.rs"
+
+[[bin]]
+name = "agent_guard"
+path = "src/bin/agent_guard.rs"
+
+[[bin]]
+name = "publish_install_request"
+path = "src/bin/publish_install_request.rs"
+
+[[bin]]
+name = "relay"
+path = "src/bin/relay.rs"
+
+[[bin]]
+name = "agent_control"
+path = "src/bin/agent_control.rs"
+
+[[bin]]
+name = "render_sub_env"
+path = "src/bin/render_sub_env.rs"
+
+[[bin]]
+name = "bootstrap_canary"
+path = "src/bin/bootstrap_canary.rs"
+
+[[bin]]
+name = "harness_permission_probe"
+path = "src/bin/harness_permission_probe.rs"
+
+[[bin]]
+name = "staleness_gate"
+path = "src/bin/staleness_gate.rs"
+
+[[bin]]
+name = "check_sub_hint_equip"
+path = "src/bin/check_sub_hint_equip.rs"
+
+[[test]]
+name = "a2a_goldens"
+path = "checks/a2a_goldens.rs"
+
+[[test]]
+name = "golden_cases"
+path = "checks/golden_cases.rs"
+
+[[test]]
+name = "blackbox_selftests"
+path = "checks/blackbox_selftests.rs"
+
+[[test]]
+name = "agent_guard_trace"
+path = "checks/agent_guard_trace.rs"
+
+[[test]]
+name = "stress_checks"
+path = "checks/stress_checks.rs"
+
+[[bin]]
+name = "selftest_bootstrap_permissions"
+path = "src/bin/selftest_bootstrap_permissions.rs"
+
+[[bin]]
+name = "selftest_campaign_lifecycle"
+path = "src/bin/selftest_campaign_lifecycle.rs"
+
+[[bin]]
+name = "selftest_claude_native_events"
+path = "src/bin/selftest_claude_native_events.rs"
+
+[[bin]]
+name = "selftest_harness_switch"
+path = "src/bin/selftest_harness_switch.rs"
+
+[[bin]]
+name = "selftest_sub_hint_write_scopes"
+path = "src/bin/selftest_sub_hint_write_scopes.rs"

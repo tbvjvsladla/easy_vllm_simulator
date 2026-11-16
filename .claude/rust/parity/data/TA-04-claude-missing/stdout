@@ -1,0 +1,18 @@
+{
+  "budget_outcome": null,
+  "duration_api_ms": null,
+  "duration_ms": null,
+  "exit_code": 4,
+  "intent": "probe",
+  "model_requested": "sonnet",
+  "model_used": [],
+  "num_turns": null,
+  "output": "[runner_unavailable] {\"binary\": \"claude\", \"detail\": \"'claude' 를 실행할 수 없다(PATH 부재)\", \"provenance\": \"measured\", \"rotate\": true, \"signal\": \"missing_binary\"}",
+  "provider": "claude_code",
+  "reason_codes": [
+    "RUNNER_UNAVAILABLE"
+  ],
+  "schema_version": 1,
+  "session_id": null,
+  "status": "execution_failed"
+}

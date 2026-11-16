@@ -1,0 +1,232 @@
+{
+ "files": {
+  ".claude/policies/predicates/claim_predicates.py": [],
+  ".claude/policies/predicates/companion_predicate.py": [],
+  ".claude/policies/predicates/runtime_patch_predicate.py": [],
+  ".claude/policies/runtime/antipattern_scan.py": [],
+  ".claude/policies/runtime/completion_gate.py": [],
+  ".claude/policies/runtime/constitution_lint.py": [],
+  ".claude/policies/runtime/doc_naming.py": [],
+  ".claude/policies/runtime/evidence_publisher.py": [],
+  ".claude/policies/runtime/harness_verify.py": [],
+  ".claude/policies/runtime/policy_registry.py": [],
+  ".claude/policies/runtime/runtime_selftest.py": [],
+  ".claude/policies/runtime/topology_parity.py": [],
+  ".claude/policies/runtime/verify_distribution.py": [],
+  ".claude/rust/parity/cases/shims/campaign_init.py": [],
+  ".claude/rust/parity/cases/shims/estimate_vram.py": [],
+  ".claude/rust/parity/cases/shims/manifest_contract.py": [],
+  ".claude/rust/parity/cases/shims/quant_table.py": [],
+  ".claude/rust/parity/cases/shims/rank_recipes.py": [],
+  ".claude/rust/parity/cases/shims/resolve_ngc_tag.py": [],
+  ".claude/rust/parity/cases/shims/resolve_torch_pin.py": [],
+  ".claude/rust/parity/cases/shims/resolve_wheel.py": [],
+  ".claude/rust/parity/cases/shims/turn_budget.py": [],
+  ".claude/rust/parity/cases/shims/validate_runtime_patch.py": [],
+  ".claude/rust/parity/sub_na/gen_na_list.py": [],
+  ".claude/rust/runtime-support/tools/gen_yaml_sites.py": [],
+  ".claude/skills/adversarial-benchmark/rust/checks/data/classify_cell/classify_cell_role_query.py": [],
+  ".claude/skills/adversarial-benchmark/rust/checks/data/reporting/campaign_init_original.py": [],
+  ".claude/skills/adversarial-benchmark/rust/src/owner_bridge.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/bench_preset.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/classify_cell.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/classify_cell_native.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/classify_cell_role_query.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/conformance_full_superset_lite.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/dataset_prep.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/dataset_prep_native.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/doc_naming.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/doc_naming_native.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/lite_metrics.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/lite_metrics_native.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/parse_bench.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/parse_guidellm_native.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/publish_benchmark_record.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/publish_benchmark_record_native.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/render_max_report.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/render_max_report_native.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/render_report.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/render_report_native.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/render_sweep_map_native.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/repeat_axis_native.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/repeat_axis_owner_query.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/reporting_native.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/resolve_guidellm.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/resolve_topology.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/roofline.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/selftest_bench_preset.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_cell_args.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_precheck.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/selftest_judge_bench.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/selftest_lite_gate.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/selftest_lite_report.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/selftest_roofline.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_meta.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_repeats.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/sweep_stop.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/topology_legacy_api.py": [],
+  ".claude/skills/adversarial-benchmark/scripts/verdict_rule.py": [],
+  ".claude/skills/hint-publisher/scripts/hint.py": [],
+  ".claude/skills/hint-publisher/scripts/hintlib/__init__.py": [],
+  ".claude/skills/hint-publisher/scripts/hintlib/artifacts.py": [],
+  ".claude/skills/hint-publisher/scripts/hintlib/branch.py": [],
+  ".claude/skills/hint-publisher/scripts/hintlib/catalog.py": [],
+  ".claude/skills/hint-publisher/scripts/hintlib/core.py": [],
+  ".claude/skills/hint-publisher/scripts/hintlib/evidence.py": [],
+  ".claude/skills/hint-publisher/scripts/hintlib/lineage.py": [],
+  ".claude/skills/hint-publisher/scripts/hintlib/naming.py": [],
+  ".claude/skills/hint-publisher/scripts/hintlib/pii.py": [],
+  ".claude/skills/hint-publisher/scripts/hintlib/selftest_image_git_release.py": [],
+  ".claude/skills/hint-publisher/scripts/hintlib/tag.py": [],
+  ".claude/skills/hint-publisher/scripts/hintlib/template.py": [],
+  ".claude/skills/hint-publisher/scripts/render_bench_section.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/agent_card_contract.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/agent_control.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/audit_session_ssh.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/bootstrap_canary.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/campaign_init.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/campaign_template_validator.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/check_sub_hint_equip.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/harness_permission_probe.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/library_access.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/manifest_contract.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/manifest_contract_compat_owner.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/node_blackbox/adversarial_stress.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/node_blackbox/agent_guard.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/node_blackbox/blackbox_collect.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/node_blackbox/blackbox_eta.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/node_blackbox/blackbox_events.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/node_blackbox/blackbox_session.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/node_blackbox/blackbox_thermal.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/node_blackbox/logs_lifecycle.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/node_blackbox/publish_install_request.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/node_blackbox/regen_envelope.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/node_blackbox/seed_from_journal.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/node_role_contract.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/providers/claude_code.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/providers/codex_cli.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/relay.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/render_sub_env.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/scan_node.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/scan_node_original.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/selftest_bootstrap_permissions.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/selftest_campaign_lifecycle.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/selftest_claude_native_events.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/selftest_harness_switch.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/selftest_sub_hint_write_scopes.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/staleness_gate.py": [],
+  ".claude/skills/@TFN_SCRIPTS@/turn_budget.py": [],
+  ".claude/skills/upstream-version-watch/scripts/budget_preflight.py": [],
+  ".claude/skills/upstream-version-watch/scripts/check_smoke_model.py": [],
+  ".claude/skills/upstream-version-watch/scripts/check_spec_layout.py": [],
+  ".claude/skills/upstream-version-watch/scripts/classify_failure.py": [],
+  ".claude/skills/upstream-version-watch/scripts/judge_version_delta.py": [],
+  ".claude/skills/upstream-version-watch/scripts/layer_ledger.py": [],
+  ".claude/skills/upstream-version-watch/scripts/native_multinode_serve.py": [],
+  ".claude/skills/upstream-version-watch/scripts/native_wheelhouse.py": [],
+  ".claude/skills/upstream-version-watch/scripts/push_branches.py": [],
+  ".claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py": [],
+  ".claude/skills/upstream-version-watch/scripts/regen_requirements.py": [],
+  ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py": [],
+  ".claude/skills/upstream-version-watch/scripts/render_native_triplet.py": [],
+  ".claude/skills/upstream-version-watch/scripts/resolve_build_track.py": [],
+  ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py": [],
+  ".claude/skills/upstream-version-watch/scripts/resolve_torch_pin.py": [],
+  ".claude/skills/upstream-version-watch/scripts/resolve_wheel.py": [],
+  ".claude/skills/upstream-version-watch/scripts/selftest_branch_sync.py": [],
+  ".claude/skills/upstream-version-watch/scripts/slave_forward.py": [],
+  ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py": [],
+  ".claude/skills/vllm-recipe-explorer/recipe.py": [],
+  ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/source/feedback_log.py": [],
+  ".claude/skills/vllm-recipe-explorer/rust/runtime/checks/data/generation_reference/source/gen_recipe_set.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/crosscheck_model_card.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/escalation_predicate.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/feedback_log.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/functional_smoke.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/parse_model_config.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/parse_vllm_log.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/quant_table.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/rank_recipes.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/rope_scaling_translate.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/selftest_gmu_roles_batch.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/sim_classify.py": [],
+  ".claude/skills/vllm-recipe-explorer/scripts/simlog_writer.py": []
+ },
+ "snippets": {
+  "plain": {
+   "text": "assert x\n",
+   "lines": [
+    1
+   ]
+  },
+  "nested": {
+   "text": "def f():\n    if a:\n        assert b, 'm'\n    return 1\nassert c\n",
+   "lines": [
+    3,
+    5
+   ]
+  },
+  "in_string": {
+   "text": "s = 'assert x'\nt = \"\"\"\nassert y\n\"\"\"\n# assert z\n",
+   "lines": []
+  },
+  "fstring_nested": {
+   "text": "x = f\"{a['assert']} {b!r:>{w}} {{assert}}\"\nassert q\n",
+   "lines": [
+    2
+   ]
+  },
+  "fstring_triple": {
+   "text": "y = f'''\n{v}\nassert no\n'''\nassert yes\n",
+   "lines": [
+    5
+   ]
+  },
+  "raw_bytes": {
+   "text": "r = rb'\\'assert'\nassert z\n",
+   "lines": [
+    2
+   ]
+  },
+  "attribute_like": {
+   "text": "self.asserted = 1\nassertion = 2\n",
+   "lines": []
+  },
+  "inline": {
+   "text": "if x: assert y; assert z\n",
+   "lines": [
+    1,
+    1
+   ]
+  },
+  "continuation": {
+   "text": "x = (1,\n     2)\nassert \\\n  x\n",
+   "lines": [
+    3
+   ]
+  },
+  "unicode_ident": {
+   "text": "변수 = 1\nassert 변수\n",
+   "lines": [
+    2
+   ]
+  },
+  "nul": {
+   "text": "a = 1\u0000\n",
+   "error": "source code string cannot contain null bytes"
+  },
+  "unterminated": {
+   "text": "s = 'abc\n",
+   "error": "unterminated string literal (detected at line 1) (unterminated, line 1)"
+  }
+ }
+}

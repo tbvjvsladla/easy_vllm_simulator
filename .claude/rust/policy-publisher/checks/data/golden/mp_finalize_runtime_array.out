@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "FINALIZE_WORK_MANIFEST_SCHEMA_INVALID": "SCHEMA_TYPE_MISMATCH:$.runtime: $.runtime: expected type ['object'], got list ([1, 2])"
+  },
+  "ok": false,
+  "reason_codes": [
+    "FINALIZE_WORK_MANIFEST_SCHEMA_INVALID"
+  ],
+  "schema_version": 1
+}

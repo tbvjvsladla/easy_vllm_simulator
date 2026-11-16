@@ -965,7 +965,10 @@ fn campaign_leg(
     reasons: &mut Vec<PyStr>,
 ) -> Result<(), Crash> {
     let module = campaign::join(root, campaign::MODULE_REL.as_bytes());
-    let present = is_file(&module).map_err(|error| {
+    // The campaign component is present when its program is: the original `campaign_init.py` (whose bytes must be the
+    // reviewed source's: a different program is not answered here), or - with the original retired - the native launcher
+    // `campaign_init.sh` beside it.
+    let module_present = is_file(&module).map_err(|error| {
         Crash::new(
             os_class_name(&error),
             &os_error_text(&error, &module),
@@ -973,8 +976,7 @@ fn campaign_leg(
         )
         .with_detail(campaign::os_detail(&error, &module))
     })?;
-    if present {
-        // the native campaign read side is the REVIEWED source's semantics: a different program is not answered here
+    if module_present {
         match crate::source_identity::identify(&module, crate::source_identity::REVIEWED_CAMPAIGN) {
             crate::source_identity::Identity::Reviewed => {}
             other => {
@@ -987,6 +989,8 @@ fn campaign_leg(
             }
         }
     }
+    let launcher = campaign::join(root, campaign::LAUNCHER_REL.as_bytes());
+    let present = module_present || matches!(is_file(&launcher), Ok(true));
     if !present {
         put(leg4, "status", s("absent"));
         put(leg4, "detail", s("campaign_init.py 를 적재하지 못했다 -- ACTIVE 해소 규약의 단일 권위가 없으면 이 다리는 판정하지 않는다"));

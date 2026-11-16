@@ -45,22 +45,21 @@ const COPIED_SCRIPTS: [&str; 4] = [
 ];
 const COPIED_BINARIES: [&str; 3] = ["bench_shell", "roofline", "verdict_rule"];
 const RELEASE_DIRECTORY: &str = ".claude/skills/adversarial-benchmark/rust/target/release";
-/// The publisher the sandbox replaces with a stub.
-const PUBLISHER: &str = "publish_benchmark_record.py";
+/// The publisher launcher the sandbox replaces with a stub (a shell program: nothing in the sandbox runs Python).
+const PUBLISHER: &str = "publish_benchmark_record.sh";
 const STUB_SENTINEL: &str = "SELFTEST_JUDGE_BENCH_PUBLISH_STUB";
 /// `timeout=` of the judge calls and of the roofline calls.
 const JUDGE_SECONDS: u64 = 180;
 const ROOFLINE_SECONDS: u64 = 120;
 
-/// The publisher stub: not the real publisher; it touches neither `docs/` nor `campaigns/` and leaves a mark.
+/// The publisher stub: not the real publisher; it touches neither `docs/` nor `campaigns/` and leaves a mark (the
+/// arguments joined by one space, one line per call).
 fn publisher_stub() -> String {
     format!(
-        "#!/usr/bin/env python3\n\
+        "#!/bin/bash\n\
 # {STUB_SENTINEL} — 실제 발행기가 아니다(테스트 평면 격리). docs/·campaigns/ 에 닿지 않고 호출 사실만 남긴다.\n\
-import os, sys\n\
-root = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), \"..\", \"..\", \"..\", \"..\"))\n\
-with open(os.path.join(root, \"PUBLISH_CALLED\"), \"a\", encoding=\"utf-8\") as f:\n\
-\x20   f.write(\" \".join(sys.argv[1:]) + \"\\n\")\n"
+ROOT=\"$(cd \"$(dirname \"$0\")/../../../..\" && pwd)\"\n\
+printf '%s\\n' \"$*\" >> \"$ROOT/PUBLISH_CALLED\"\n"
     )
 }
 
@@ -99,10 +98,6 @@ impl Sandbox {
         checkout.copy_from(repo_root, &relative)?;
         let scripts_dir = root.join(BENCHMARK_SCRIPTS);
         write_str(&scripts_dir.join(PUBLISHER), &publisher_stub())?;
-        write_str(
-            &scripts_dir.join("publish_benchmark_record.sh"),
-            "#!/bin/bash\nexec python3 \"$(dirname \"$0\")/publish_benchmark_record.py\" \"$@\"\n",
-        )?;
         run_checked_inherited(&[
             OsString::from("git"),
             OsString::from("init"),

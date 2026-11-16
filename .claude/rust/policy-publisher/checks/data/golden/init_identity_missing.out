@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "IDENTITY_FILE_NOT_FOUND": "identity file not found: nope.json"
+  },
+  "ok": false,
+  "reason_codes": [
+    "IDENTITY_FILE_NOT_FOUND"
+  ],
+  "schema_version": 1
+}

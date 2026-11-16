@@ -1,0 +1,52 @@
+{"id": "r0", "kind": "value", "value": {"rc": 0, "stdout": "ok\n", "stderr": ""}}
+{"id": "r1", "kind": "value", "value": null}
+{"id": "r2", "kind": "value", "value": null}
+{"id": "r3", "kind": "value", "value": null}
+{"id": "r4", "kind": "value", "value": null}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": null}
+{"id": "r7", "kind": "value", "value": null}
+{"id": "r8", "kind": "value", "value": null}
+{"id": "r9", "kind": "value", "value": null}
+{"id": "r10", "kind": "value", "value": null}
+{"id": "r11", "kind": "value", "value": null}
+{"id": "r12", "kind": "value", "value": null}
+{"id": "r13", "kind": "value", "value": null}
+{"id": "r14", "kind": "value", "value": null}
+{"id": "r15", "kind": "value", "value": null}
+{"id": "r16", "kind": "value", "value": null}
+{"id": "r17", "kind": "value", "value": null}
+{"id": "r18", "kind": "value", "value": null}
+{"id": "r19", "kind": "value", "value": null}
+{"id": "r20", "kind": "value", "value": null}
+{"id": "r21", "kind": "value", "value": null}
+{"id": "r22", "kind": "value", "value": null}
+{"id": "r23", "kind": "value", "value": null}
+{"id": "r24", "kind": "value", "value": null}
+{"id": "r25", "kind": "value", "value": null}
+{"id": "r26", "kind": "value", "value": null}
+{"id": "r27", "kind": "value", "value": null}
+{"id": "r28", "kind": "value", "value": {"approved_by": "사람", "approved_utc": "2026-01-02T00:00:00Z", "source": "campaign:hint_targets", "hitl_source": "declaration-popup", "node_id": "main", "index": 0}}
+{"id": "r29", "kind": "value", "value": {"approved_by": "사람", "approved_utc": "2026-01-02T00:00:00Z", "source": "campaign:hint_targets", "hitl_source": "declaration-popup", "node_id": "main", "index": 0}}
+{"id": "r30", "kind": "value", "value": null}
+{"id": "r31", "kind": "value", "value": null}
+{"id": "r32", "kind": "exception", "type": "HintError", "code": "HINT_APPROVAL_INVALID", "message": "hint_targets 승인 기록이 무너졌다: [\"hint_targets[0].arch 는 폐기된 키다 — 태그 이름은 발행 도구가 전량 파생한다(2026-09-21 D8) — 손으로 적은 arch 는 '파생 가능한데 손으로 적은 값'이다. 키를 지우고 승인은 `campaign_init.py --hint-approve` 로 적는다\", \"hint_targets[0].cells 의 'c9' 이 assignments['main'] 에 없다 — 배정 SSOT 는 assignments 이고 hint_targets 는 파생이다\", \"hint_targets[0].cells 에 빈 셀 이름 '' 이 있다\", \"hint_targets[0] approval.approved_utc '2026-01-02 00:00' 가 주입 시각 모양(YYYY-MM-DDTHH:MM:SSZ)이 아니다 — 발행 페이로드는 이 모양만 옮긴다\", \"hint_targets[1].node_id 'zz' 가 nodes[] 에 없다\", 'hint_targets[2] 가 객체가 아니다', \"hint_targets[3].cells 의 'c1' 은 이미 hint_targets[0] 가 승인했다 — 한 셀의 승인은 하나다(어느 전사가 그 셀의 승인인지 갈리지 않는다)\", 'hint_targets[3] approval 이 없다 — 사람 승인의 전사가 없는 항목은 사전승인이 아니다']", "remedy": "`campaign_init.py --hint-approve --campaign-id <id> --node N --cells … --approved-by <발화 전사> --utc U` 로 다시 적는다(손편집 ✗).", "exit_code": 1}
+{"id": "r33", "kind": "exception", "type": "HintError", "code": "HINT_APPROVAL_INVALID", "message": "hint_targets 승인 기록이 무너졌다: [\"self_role=sub 인스턴스에 hint_targets 가 있다 — topology 'multi' 의 서브는 자체 발행하지 않는다(자체 발행 = ['single'] · 승인은 메인 선언에만)\", \"self_role=sub 인스턴스의 hint_targets[0] 는 다른 노드('main') 몫이다 — 파생 선언은 그 노드 몫만 운반한다\", \"hint_targets[0].node_id 'main' 가 nodes[] 에 없다\"]", "remedy": "`campaign_init.py --hint-approve --campaign-id <id> --node N --cells … --approved-by <발화 전사> --utc U` 로 다시 적는다(손편집 ✗).", "exit_code": 1}
+{"id": "r34", "kind": "exception", "type": "HintError", "code": "HINT_CAMPAIGN_ABSENT", "message": "campaigns/nope/campaign.yaml 부재", "remedy": null, "exit_code": 1}
+{"id": "r35", "kind": "exception", "type": "HintError", "code": "HINT_CAMPAIGN_ID_RESERVED", "message": "'_bootstrap' 는 캠페인 인스턴스가 아니다(예약 이름).", "remedy": "_bootstrap 은 캠페인 밖 대기실이고 _template 은 뼈대다 — 발행 대상 캠페인 id 를 준다.", "exit_code": 1}
+{"id": "r36", "kind": "exception", "type": "HintError", "code": "HINT_CAMPAIGN_ID_REQUIRED", "message": "명시 캠페인 id 가 필요하다: 'a/b'", "remedy": "`--campaign <camp-id>` 로 준다 — ACTIVE 포인터는 읽지 않는다(2026-09-07 Q6).", "exit_code": 1}
+{"id": "r37", "kind": "exception", "type": "HintError", "code": "HINT_NODE_AXIS_INVALID", "message": "노드 축은 ['main', 'sub', 'cluster'] 중 하나다: 'edge'", "remedy": null, "exit_code": 1}
+{"id": "r38", "kind": "exception", "type": "HintError", "code": "HINT_TIME_NOT_INJECTED", "message": "publish 위상 --utc 는 UTC `YYYY-MM-DDTHH:MM:SSZ` 로 주입해야 한다: '2026-01-02'", "remedy": "벽시계를 읽지 않는다 — 호출자가 시각을 넘긴다.", "exit_code": 1}
+{"id": "r39", "kind": "exception", "type": "HintError", "code": "HINT_TAG_NAMESPACE", "message": "hint/ 이름공간 밖 태그: 'tag/x'", "remedy": null, "exit_code": 1}
+{"id": "r40", "kind": "exception", "type": "HintError", "code": "HINT_REMOTE_SHA_INVALID", "message": "원격 태그 오브젝트 SHA 가 40자 소문자 16진이 아니다: 'ABC'", "remedy": null, "exit_code": 1}
+{"id": "r41", "kind": "exception", "type": "HintError", "code": "HINT_CELL_INVALID", "message": "셀 id 가 비었거나 경로 문자를 포함한다: 'bad cell'", "remedy": null, "exit_code": 1}
+{"id": "r42", "kind": "exception", "type": "HintError", "code": "HINT_CELL_ASSIGNMENT_ABSENT", "message": "cluster 셀 'c9' 의 배정 노드를 찾지 못했다(campaigns/cx).", "remedy": null, "exit_code": 1}
+{"id": "r43", "kind": "exception", "type": "HintError", "code": "HINT_CAMPAIGN_ID_RESERVED", "message": "'_template' 는 캠페인 인스턴스가 아니다(예약 이름).", "remedy": "_bootstrap 은 캠페인 밖 대기실이고 _template 은 뼈대다 — 발행 대상 캠페인 id 를 준다.", "exit_code": 1}
+{"id": "r44", "kind": "value", "value": {"plan": "docs/plan/p.md", "devlog": "docs/devlog/d.md", "testlog": "docs/testlog/t.md"}}
+{"id": "r45", "kind": "exception", "type": "HintError", "code": "HINT_NARRATIVE_EVIDENCE_AMBIGUOUS", "message": "셀 'c1' 의 testlog 후보가 2건이다: ['docs/testlog/t.md', 'docs/testlog/t2.md']", "remedy": "이 셀의 판정·서사 문서 하나만 가리키도록 포인터를 정리한다 — 발행기가 고르지 않는다.", "exit_code": 1}
+{"id": "r46", "kind": "exception", "type": "HintError", "code": "HINT_NARRATIVE_EVIDENCE_ABSENT", "message": "셀 'c1' 의 plan 증거가 없다.", "remedy": "셀 plan 문서를 먼저 발행하고 `campaign_init.py --evidence-add --kind plan --path <docs/…> --cell c1 --node <n> --campaign-id cx` 로 등록한다. plan_ref가 원격 계획이면 선언을 유지하고 기존 위임 범위의 로컬 실행계획을 등록한다.", "exit_code": 1}
+{"id": "r47", "kind": "value", "value": ["docs/testlog/t.md:1 term", "docs/testlog/t.md:1 term"]}
+{"id": "r48", "kind": "exception", "type": "HintError", "code": "HINT_PUBLICATION_ABSENT", "message": "발행 기록 부재: docs/_evidence/nope.json", "remedy": null, "exit_code": 1}
+{"id": "r49", "kind": "value", "value": {"topology": "single", "self_role": "main", "gpus_per_node": 1, "gpu_model": "NVIDIA GB10", "nodes": []}}
+{"id": "r50", "kind": "value", "value": null}
+{"id": "r51", "kind": "exception", "type": "HintError", "code": "HINT_TOPOLOGY_UNDERIVABLE", "message": "토폴로지가 single|multi 가 아니다: 'dual'", "remedy": null, "exit_code": 1}

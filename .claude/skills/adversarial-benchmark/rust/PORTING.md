@@ -2974,3 +2974,32 @@ classify_cell 계열은 이전 통과를 재사용한다. C2 독립 리뷰 PASS,
 - **Review fixes.** D1: every option the original tests with `if args.opt:` (`peer_ip`, `peer_ssh`, `sub_work_dir`, `emit_sub_manifest`) is read through a Python-truthiness view at every decision site (the raw value is still echoed where the original echoes `args.peer_ip`). D2: `Local::user/cwd` return typed results: a removed cwd ends like the original's uncaught `FileNotFoundError` (no stdout), a `getpass` miss is an explicit unsupported boundary (NSS is not modelled, no `KeyError` is invented). M4: both streams are decoded before the return code of `ip`. M5: the launcher and the adapter record the caller's plumbing values (`SCAN_NODE_CALLER_*`, flag `SCAN_NODE_CALLER_ENV`) and the native host hands them back to probe children. M6: the `unsafe impl Sync` is gone (not needed). M7/M8: documentation addresses, no case id in production text. M9: the help-layout generator stays outside the repository. M11: the adapter check is embedded in its single Rust test.
 - **Residuals M1/M2 (this change).** M2: `scan_node.py` decides BEFORE any Rust process exists whether an argv token selects the original's `--self-test` by argparse's own rule (the exact name, or a prefix of it that no other option shares: `--se`..`--self-tes`, with or without `=value`); a selected argv goes to the exact original owner (which then runs its self-test or reports its own parser error), ambiguous (`--s`) and invalid prefixes stay on the native CLI, which ends them in the stdlib parser errors. The option list is checked against the original source by its own test; no handoff after Rust started, no fallback. M1: the original writes every diagnostic (stderr) before its first output (stdout); the port collects both, so it now writes the stderr text first. The earlier statement that merged pipes were unaffected was wrong for an output that overruns the stdout block buffer (the first block preceded the diagnostics): the own test reproduces that on the previous code. A real terminal run could not be made (no pty device in the guard: NOT_RUN); the order is proven on the merged stream, the live timing of the diagnostics on a terminal is not reproduced.
 - **Still open.** U2 (traceback frames), the NSS-only `getpass` boundary (explicit, not implemented), and host-observed rows are skipped off aarch64 and as root (a green run elsewhere proves less).
+
+## R51 — 이 스킬의 실행·검사 경로에서 Python 제거 (plan_26111615 P1 · 2026-11-16)
+
+이 스킬의 런처·Rust 실행파일·자체검사·`cargo test` 가 **이 스킬의 `.py` 를 실행하지 않게** 했다. `.py` 는 지우지 않았다(삭제는 라이브 증거 뒤 P6).
+
+- **반복 축 캠페인 소유자(`repeat_owner`).** Python 질의 어댑터 경로(`LegacyExplicit`·`LegacySourceVariant`)와
+  `REPEAT_AXIS_CAMPAIGN_ADAPTER`/`REPEAT_AXIS_PYTHON`/`REPEAT_AXIS_COMPAT_ADAPTER` 를 걷어냈다. 해소자가 설치돼 있으면
+  (`campaign_init.py` **또는** 런처 `campaign_init.sh` 가 정규 파일) 소스 바이트와 무관하게 role-contract 읽기면이 답한다.
+  둘 다 없으면 종전대로 부재. 런처 4종·`build_rust.sh` 의 어댑터 export 삭제. 경로 관측 줄의 필드는 유지(`python_child` 는 항상 false).
+  원본 대조 검사 `native_and_the_live_adapter…` 는 커밋 골든 `checks/data/repeat_axis/r44_native_goldens.jsonl` 대조로 바꿨다 —
+  골든은 직전 커밋(b1f3563e)에서 같은 검사가 live 어댑터와 답 하나하나 같다고 단언한 native 세션의 답이다. 소스 변종 골든
+  `owner_variant_goldens.jsonl`(Python 원본이 변종 소스를 import 한 결과 60행)은 그 경로가 없어져 삭제했다.
+- **인증서 발행의 캠페인 writer 호출.** `python3 campaign_init.py --evidence-add` → `bash campaign_init.sh --evidence-add`
+  (`PUBLISH_BENCHMARK_PYTHON` 삭제). 부재 판정·안내 경로도 런처 기준이다. `reporting/cli_cases.json` 의 캠페인 owner 사본
+  (`campaign_init_original.py` 참조 6곳)은 rc 0 런처 stub 으로, 부재 안내 4곳은 런처 경로로 갱신 — `campaign_init_original.py` 는 더 쓰이지 않는다.
+- **자체검사 모래상자의 stub.** run_bench/lite_bench shim 의 Python heredoc → 새 실행파일 `selftest_load_shim`(`run-bench`·`lite-plan`) ·
+  judge_bench 발행기 stub·Flag 게이트 stub → bash. PyYAML 탐침(`interpreter_has_yaml`) 삭제(셀 writer 는 native YAML).
+  사본 목록에서 이 스킬의 `.py` 전부 제외. 고정 사례의 가짜 `docker`(Python) → `selftest_fixture_docker`(`dataset`·
+  `dataset-stdout`·`dataset-stdout-stderr`·`bench-tool`)를 exec 하는 2줄 셸 · 경로는 `SELFTEST_FIXTURE_DOCKER_BIN`(검사 공통 `populate` 가 설정).
+- **full ⊇ lite 검사.** 존재 행 `lite_metrics_native.py` → `lite_metrics_api.sh`, `E② native 분류기 Python 호출 경로` → 런처
+  `classify_cell.sh` (고정 출력 `normal_stdout.txt` 2행 갱신). campaign writer 의 lite 판정 소유자 존재 판정도 `lite_metrics.sh`.
+
+**남은 Python(다른 소유자 쪽 · 이 스킬 단독으로 못 닫는다).** `owner_bridge`(hint reader·evidence publisher·completion gate 를
+Python 세션으로 부른다 — 그 소유자들이 Rust 가 되면 사라진다 · `selftest_lite_report` 는 evidence publisher → `policies/runtime/doc_naming.py`
+→ 이 스킬의 `doc_naming_native.py` import 사슬 때문에 이 스킬 `.py` 없이 실패) · `resolve_topology` 의 원본 변종 호환
+(`--compat-python` · 명시 인터프리터 · 고정 사례의 stand-in 판정자가 Python 프로그램 — topology_parity 소유자 계약과 함께 바뀌어야 한다;
+`topology_legacy_api.py` 도 같은 계약) · `run_bench.sh` 의 `blackbox_session.py` 직접 호출 · `campaign_init.sh` 의 미모델링 동사
+(`--evidence-add`) · 다른 스킬의 Python 호출자가 import 하는 `*_native.py`(hintlib·evidence_publisher·doc_naming·escalation_predicate,
+그리고 explorer Rust 의 `classify_cell_native.py` 존재 판정).

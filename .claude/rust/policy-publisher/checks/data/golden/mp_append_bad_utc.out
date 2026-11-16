@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INVALID_RECORDED_UTC": "--recorded-utc 'nope' is not a valid UTC 'YYYY-MM-DDTHH:MM:SSZ' timestamp"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INVALID_RECORDED_UTC"
+  ],
+  "schema_version": 1
+}

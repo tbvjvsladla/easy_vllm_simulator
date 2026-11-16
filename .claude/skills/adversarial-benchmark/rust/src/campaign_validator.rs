@@ -15,7 +15,11 @@ use crate::pyvalue::{PyDict, PyValue};
 use std::path::{Path, PathBuf};
 
 const RESERVED_CELL_NAMES: [&str; 2] = ["_cell", "_node"];
-const KNOB_SOURCES: [(&str, &[&str]); 3] = [
+// The lockset provenance vocabulary: its single owner is this validator (the retired `campaign_template_validator.py` held it
+// as `LOCKSET_PROVENANCE`/`LOCKSET_KNOB_SOURCES`). The explorer (`recipe simulate`) reads these two literal tables from this
+// source file, so they stay one literal each, one knob per line.
+pub const LOCKSET_PROVENANCE: [&str; 2] = ["explorer-phase2", "hand-authored"];
+pub const KNOB_SOURCES: [(&str, &[&str]); 3] = [
     ("batch_source", &["declared-requirement", "kv-fit-measured", "hand-lever"]),
     ("gmu_source", &["target_gmu", "hand"]),
     ("kv_source", &["measured-clamp", "hand"]),
@@ -538,11 +542,11 @@ fn find_fill_paths(node: &PyValue, path: &str) -> Vec<String> {
     out
 }
 
-fn fill_rows(text: &str) -> Vec<usize> {
+pub fn fill_rows(text: &str) -> Vec<usize> {
     text.lines().enumerate().filter(|(_, l)| l.contains(FILL)).map(|(i, _)| i + 1).collect()
 }
 
-fn strip_annotations(doc: &PyDict) -> PyDict {
+pub fn strip_annotations(doc: &PyDict) -> PyDict {
     let mut out = PyDict::new();
     for (k, v) in doc.iter() {
         if !k.to_utf8().map(|s| s.starts_with('_')).unwrap_or(false) {
@@ -581,7 +585,8 @@ fn contract_value(value: &PyValue) -> Option<agent_runtime_support::pyvalue::PyV
 
 /// `_validate_schema(doc, schema, where)`: `where: ('code', 'message')` per violation, as the owner formats the tuple.
 fn validate_schema(ctx: &Ctx, doc: &PyValue, schema: &PyValue, where_: &str) -> V<Vec<String>> {
-    let engine = ctx.root.join(".claude/policies/runtime/completion_gate.py");
+    // The engine is the Rust completion gate (policy-gate); its command surface in the tree is the launcher.
+    let engine = ctx.root.join(".claude/policies/runtime/completion_gate.sh");
     if !engine.is_file() {
         return die(format!(
             "스키마 엔진이 없다: {} — 이 트리에는 검증기만 있고 엔진이 오지 않았다. 선언 검증은 메인 단일 창구이며(서브는 --from-slice 로 받은 선언을 소비한다), 이 트리에서 물을 수 있는 것은 --instance 의 P1~P3 이다.",

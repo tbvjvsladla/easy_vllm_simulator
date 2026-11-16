@@ -34,8 +34,8 @@ description: >-
 - **State transitions** — serve `/health` 200 + 기능 스모크 통과로 `runtime-ready` 를 만든다. `evidence-complete`/`promotion-ready` 는 `.claude/policies/runtime/completion_gate.py` 소유(이 문서가 자체 판정 ✗).
 - **HITL/safety boundaries** — 모델 자동 다운로드 ✗ · 전부-FAIL 인피저블 단정 전 측정·외부검증 2단계 의무 · cap 소진/`vram_infeasible`/`unknown` 은 즉시 Model-C · per-trial teardown 필수.
 - **Failure → reference routing** — 아래 §Failure → reference routing 표(증상 → 정확 경로).
-- **Deterministic commands** — `recipe.py {estimate,generate,simulate}` · `scripts/parse_model_config.py` · `crosscheck_model_card.py` · `estimate_vram.py` · `rank_recipes.py` · `gen_recipe_set.py` · `run_trial.py` · `sim_classify.py` · `parse_vllm_log.py` · `functional_smoke.py` · `preload_ram_gate.py` · `simlog_writer.py`.
-- **Dormant optional diagnostic** — `.claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh`는 명시적으로 사람이 호출할 때만 쓰는 휴면 진단도구다. 현재 `recipe.py simulate`·`run_trial.py`·serve smoke에 자동 배선되지 않았으며, 배선된 안전장치나 completion 근거로 간주하지 않는다.
+- **Deterministic commands** — `recipe.sh {estimate,generate,simulate}` · `scripts/parse_model_config.sh` · `crosscheck_model_card.sh` · `estimate_vram.sh` · `rank_recipes.sh` · `gen_recipe_set.sh` · `run_trial.sh` · `sim_classify.sh` · `parse_vllm_log.sh` · `functional_smoke.sh` · `preload_ram_gate.sh` · `simlog(Rust `recipe_runtime::simlog`)`.
+- **Dormant optional diagnostic** — `.claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh`는 명시적으로 사람이 호출할 때만 쓰는 휴면 진단도구다. 현재 `recipe.sh simulate`·`run_trial.sh`·serve smoke에 자동 배선되지 않았으며, 배선된 안전장치나 completion 근거로 간주하지 않는다.
 - **Handoff contract** — 입력 ← `terraforming_node`(Flag·TP·NAS) · 빌드 필요/버전 불가 → `upstream-version-watch`(§4.7 native dep · §3.6 escalation) · 서빙 성공 → `adversarial-benchmark` lite(자동) / full(HITL).
 - **Owns (state)** — `serving-triplet`(트리플렛 3 = `<model>.{yaml,sh}` + `.env.<model>`) · **`runtime-patch`**(`<model>_patch.py`) · `kv-clamp` · `lockset.json` · `serve-lifecycle`
 - **3+1+1 소유 경계**(`plan_26081514` Q3/Step 4 · owner 표 정본 = `.claude/rules/workflow.md` §3+1+1): **serve 시점에 성립하는 것**이 이 스킬 소유다 — 트리플렛 3(단독 소유; 이전 표기 `recipe/upstream` 모호성 해소) + 런타임 패치(`policy:RUNTIME_PATCH_NO_CARRY_FORWARD` 는 적용 *정책*이지 owner 가 아니다). **빌드 시점에 성립하는 것**(`build_patches_src/` pre · `build_patches/` post · 포크 핀·변종 `IMAGE_TAG`)은 `upstream-version-watch` 소유이며 이 스킬이 저작하지 않는다. **발견 ≠ 소유** — 빌드평면 필요를 발견하면 §5.5 로 **핸드오프**만 한다.
@@ -45,29 +45,29 @@ description: >-
 필수 순서다 — 파싱→교차검증→게이트→(측정)→emit 의 순서가 OOM·오판을 막는 장치다(건너뛰지 않는다).
 
 1. **Flag 확인**(§0.0) — 미발급이면 info-only redirect 로 종료.
-2. **parse**(결정론) — `parse_model_config.py`. 모델 부재면 **다운로드 금지·비0 종료·중단·보고**.
-3. **모델카드 교차검증** — `crosscheck_model_card.py`. MISMATCH=게이트(비0), special-dep 경보는 분류 후 핸드오프(`references/parse-and-crosscheck.md` §3).
+2. **parse**(결정론) — `parse_model_config.sh`. 모델 부재면 **다운로드 금지·비0 종료·중단·보고**.
+3. **모델카드 교차검증** — `crosscheck_model_card.sh`. MISMATCH=게이트(비0), special-dep 경보는 분류 후 핸드오프(`references/parse-and-crosscheck.md` §3).
 4. **후보 생성**(LLM 탐색 — 이 단계만 확률론) 또는 `--auto` 결정론 그리드.
 5. **rank + 하드게이트**(결정론) → 리포트 → **HITL 로 `recipe_id` 선택**. 전부 FAIL 이면 인피저블 단정 전 2단계 의무.
 6. **generate**(Phase 1 종료 가능 지점) — 3종 세트 emit. `max-num-seqs`·`kv-cache-memory-bytes` 는 여기서 emit 하지 않는다(측정 산물).
 7. **Phase 2 인터뷰 → lock-set**(`references/phase2-interview.md`) — 타깃 GPU 0순위, soft 변수 `*_candidates` 채움.
-8. **trial-loop**(`recipe.py simulate`) — 로드-전 RAM 게이트 → run_trial → `sim_classify` → 조정 → 반복(cap 3). 최소 2-트라이얼의 **2-위상**(언클램프 실측 → batch 산출 → 클램프+batch 고정 재검증)으로 **절대 KV 클램프와 max-num-seqs 수렴**(`references/kv-clamp.md` §1·§3):
+8. **trial-loop**(`recipe.sh simulate`) — 로드-전 RAM 게이트 → run_trial → `sim_classify` → 조정 → 반복(cap 3). 최소 2-트라이얼의 **2-위상**(언클램프 실측 → batch 산출 → 클램프+batch 고정 재검증)으로 **절대 KV 클램프와 max-num-seqs 수렴**(`references/kv-clamp.md` §1·§3):
    - **gmu 두 역할**(2026-09-14 · plan_26091407 §4.3): `deploy_gmu` = `target_gpu.target_gmu`(배포 yaml `gpu-memory-utilization` · 클램프 천장 승수 · 미선언 exit 5) ≠ `gate_margin` = `safety_margin`(트라이얼 검증 게이트 승수). host 흐름은 manifest 에서 target_gpu 를 채워 같은 경로를 탄다(deploy_gmu 는 safety_margin 명시값 승계 · `gmu_source=hand` 로 표시).
    - **max-num-seqs**(§4.2): `max_num_seqs = min(concurrency_requirement, KV_fit@typical_request_tokens)` · `KV_fit@L = floor(kv_fit_tokens ÷ L)` — kv_fit_tokens 는 엔진 보고 `kv_cache_tokens` 에서 온다(배포 클램프 트라이얼은 그대로, 언클램프·잠정 클램프 트라이얼은 배포 천장으로 환산 `max_safe ÷ (per_token × 블록정렬 버퍼)`). 입력은 셀 `declared_axes`, 엔진 `max_concurrency`(최악 길이)는 보수 하한으로 기재만. 요구 > KV-fit 이면 낮추고 사유를 적는다. **요구가 없으면 batch 를 만들지 않는다**(max-num-seqs 미emit · 1건 클램프 · KV-fit 은 참고값). 손레버 batch 는 덮어쓰지 않고 표시한다. 무릎·열벽은 explorer 밖(벤치 스윕·블랙박스)이 재서 `escalation_candidates`/hint input 으로 넘긴다. 산식 경로는 cap 3칸이 기본이다(첫 OOM·위상 2 하향이 겹치면 더).
    - **host 흐름 예산**: 선언 `vram_budget_gb` 가 노드 per_card 와 5% 넘게 다르면 exit 5(carve-out 은 `target_gpu` 블록으로 선언).
-   - **수렴 각인**: `--lockset-out`(미지정이면 캠페인 셀 lockset `--candidate` 제자리)에 `provenance=explorer-phase2`·`batch_source`·`gmu_source`·`kv_source`·`trial_provenance` 를 기계가 적는다(어휘 소유 = `campaign_template_validator.py`). 자체검사 `scripts/selftest_gmu_roles_batch.py`(함수·CLI·가짜 엔진 3층 · verify_distribution 이 매번 부른다).
+   - **수렴 각인**: `--lockset-out`(미지정이면 캠페인 셀 lockset `--candidate` 제자리)에 `provenance=explorer-phase2`·`batch_source`·`gmu_source`·`kv_source`·`trial_provenance` 를 기계가 적는다(어휘 소유 = `campaign_template_validator.py`). 자체검사 `scripts/selftest_gmu_roles_batch.sh`(Rust · 함수·CLI·가짜 엔진 3층 · verify_distribution 이 매번 부른다).
 9. **마무리**(`references/serving-closeout.md`) — lite 벤치 핸드오프 → opt-out 경고 → 유지/down 분기 → 용처 매뉴얼 → (S4 종결 후) hint 제안.
 
 ## Failure → reference routing
 
 | 실패 신호 | 라우팅 대상 (정확 경로) |
 |---|---|
-| trial 실패의 class 판정(vram_oom / functional / vram_infeasible / unknown) | `.claude/skills/vllm-recipe-explorer/scripts/sim_classify.py` |
+| trial 실패의 class 판정(vram_oom / functional / vram_infeasible / unknown) | `.claude/skills/vllm-recipe-explorer/scripts/sim_classify.sh` |
 | KV 가 안 맞음 · 클램프 산정 · 타겟-GPU 이식 예산 · MoE backend 즉사 | `.claude/skills/vllm-recipe-explorer/references/kv-clamp.md` |
 | lock/soft 변수·파서명·backend 폴백 순서를 다시 정해야 함 | `.claude/skills/vllm-recipe-explorer/references/phase2-interview.md` |
 | `functional`·`unknown` 복구 절차 · 수렴 후 마무리 시퀀스 | `.claude/skills/vllm-recipe-explorer/references/serving-closeout.md` |
 | 파싱·교차검증·랭킹 입력이 의심스러움(coarse quant·du 오염·text_config) | `.claude/skills/vllm-recipe-explorer/references/parse-and-crosscheck.md` |
-| 기동 전 호스트 RAM 여유 부족 | `.claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py` |
+| 기동 전 호스트 RAM 여유 부족 | `.claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.sh` |
 | 모델이 요구하는 native lib(DeepGEMM 류) — 빌드평면 소유 | `.claude/skills/upstream-version-watch/references/source-build.md` |
 
 ## 3. 안전 (절대 규칙)
@@ -86,7 +86,7 @@ description: >-
 
 - **드문 예외 경로**: 대다수 신규 모델은 현 컨테이너로 그냥 뜬다 → **매 서빙요청마다 외부리서치 ✗**. 구동불가 증상이 "못 띄움"을 가리킬 때만 발동.
 - **발견 술어(둘 다 요구 — 오발 방지)**: ① **구동불가 증상**(config arch/quant 미지원, serve init 즉사, transformers-only 폴백 신호) ∧ ② **외부 교차검증 확증**(HF 모델카드의 포크 지목 + vLLM GitHub issue/release/PR). **단일 신호로 escalate ✗**.
-- **★ ① 의 판정은 산문이 아니라 `scripts/escalation_predicate.py` 가 한다**(2026-09-11 · plan_26091108 R7). 종전에는 ① 의 정의가 문장뿐이고 **그것을 판정하는 실행자가 0** 이었다. 집행하는 한 문장: **호스트 평면 사인(`watchdog_kill_ack`·`thermal_kill_ack`·`earlyoom_kill`·`docker_kill`)은 ① 을 만들지 못한다.** 그것은 "이 모델을 이 vLLM 이 못 받는다" 가 아니라 "이 호스트가 지금 이만큼의 상주를 감당하지 못한다" 는 진술이고, 처방이 예산·KV 클램프·PLE 모드이지 버전핀·포크가 아니다. 또한 **구간 안에 집행된 사살이 있으면 `serve_init_immediate_death` 는 반증된다** — 같은 관측(컨테이너가 사라졌다)에 두 해석이 있고 시각 대조가 그것을 가른다. 실증: camp-26090918 의 void 3건이 전부 워치독 사살이었는데 "FP8 컨테이너 일관 hang" 으로 기록됐고, 그 서술이 근거 없는 체크포인트 재다운로드로 이어졌다. 사살 어휘의 단일 소유는 `adversarial-benchmark/scripts/classify_cell.py` 이며 이 판정기는 그것을 **import** 한다(거울 ✗).
+- **★ ① 의 판정은 산문이 아니라 `scripts/escalation_predicate.sh` 가 한다**(2026-09-11 · plan_26091108 R7). 종전에는 ① 의 정의가 문장뿐이고 **그것을 판정하는 실행자가 0** 이었다. 집행하는 한 문장: **호스트 평면 사인(`watchdog_kill_ack`·`thermal_kill_ack`·`earlyoom_kill`·`docker_kill`)은 ① 을 만들지 못한다.** 그것은 "이 모델을 이 vLLM 이 못 받는다" 가 아니라 "이 호스트가 지금 이만큼의 상주를 감당하지 못한다" 는 진술이고, 처방이 예산·KV 클램프·PLE 모드이지 버전핀·포크가 아니다. 또한 **구간 안에 집행된 사살이 있으면 `serve_init_immediate_death` 는 반증된다** — 같은 관측(컨테이너가 사라졌다)에 두 해석이 있고 시각 대조가 그것을 가른다. 실증: camp-26090918 의 void 3건이 전부 워치독 사살이었는데 "FP8 컨테이너 일관 hang" 으로 기록됐고, 그 서술이 근거 없는 체크포인트 재다운로드로 이어졌다. 사살 어휘의 단일 소유는 `adversarial-benchmark/scripts/classify_cell.py` 이며 이 판정기는 그것을 **import** 한다(거울 ✗).
 - **핸드오프(recipe는 소유 ✗)**: 사용자에게 *"이건 vLLM 측 문제 → upstream 에 버전핀을 넘길까요?"* **명시 승인 요청** → 승인 시 `upstream-version-watch` §escalation 으로 핸드오프(증거 첨부). **버전핀 변경·이미지 빌드를 하지 않는다**. rebuild 된 이미지로 전략수립 재진입.
 - **carry-forward 금지 정합**: escalation 판정도 **모델×하드웨어마다 재확정**(이전 모델의 "됐다/안 됐다" 전가 ✗).
 - **런타임블럭/서브 주의**: 2026-09-04(`plan_26090412` B안)부터 **서브도 웹 도구를 직접 갖는다**(`search` capability · `MODE:a2a-agent` 한정 — 멀티 ray-worker 는 런타임 스킬이 0 이라 대상 아님). 종전 서술의 "이중게이트(∧ egress-online)" 는 **코드에 없던 문**이었다(감사 실측). 서브는 자기 `EGRESS_STATE` 를 페르소나로 받아 판단하고, 검색 이력을 `external_search[]` 로 회수한다 — egress 가 online 이 아니면 증상만 상향 보고하고 메인이 처방한다(종전 D12 경로는 그대로 폴백이다).
@@ -99,11 +99,11 @@ description: >-
 
 ## 8. 보조 파일
 
-**Phase 1 스크립트**: `scripts/quant_table.py` · `parse_model_config.py` · `crosscheck_model_card.py`(모델카드 교차검증 + 외부 HF API VRAM 이중검증 — 유일한 예외적 네트워크 호출) · `estimate_vram.py` · `rank_recipes.py` · `gen_recipe_set.py` · `feedback_log.py`.
+**Phase 1 스크립트**: `scripts/quant_table.sh` · `parse_model_config.sh` · `crosscheck_model_card.sh`(모델카드 교차검증 + 외부 HF API VRAM 이중검증 — 유일한 예외적 네트워크 호출) · `estimate_vram.sh` · `rank_recipes.sh` · `gen_recipe_set.sh` · `feedback_log.sh`.
 
-**Phase 2 스크립트**: `scripts/parse_vllm_log.py` · `functional_smoke.py` · `sim_classify.py` · `run_trial.py` · `preload_ram_gate.py` · `simlog_writer.py`(+`vllm_logging_config.json`).
+**Phase 2 스크립트**: `scripts/parse_vllm_log.sh` · `functional_smoke.sh` · `sim_classify.sh` · `run_trial.sh` · `preload_ram_gate.sh` · `simlog(Rust `recipe_runtime::simlog`)`(+`vllm_logging_config.json`).
 
-**오케스트레이터 / 입력**: `recipe.py`(`estimate`/`generate`/`simulate`) · `config.example.yaml` · `config.yaml` · `lockset.json`.
+**오케스트레이터 / 입력**: `recipe.sh`(`estimate`/`generate`/`simulate`) · `config.example.yaml` · `config.yaml` · `lockset.json`.
 
 **조건부 references(필요할 때만 연다)**
 - `references/parse-and-crosscheck.md` — config 입력·결정론 경계표·parse/crosscheck/후보/rank/generate 상세.

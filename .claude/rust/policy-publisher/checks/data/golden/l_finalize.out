@@ -1,0 +1,154 @@
+{
+  "certificate": {
+    "benchmark_mode": "lite",
+    "duplicates": [],
+    "floor_tps": null,
+    "grade": "lite",
+    "identity": {
+      "gpu": "GB10",
+      "model": "self-test-model",
+      "quant": "N/A",
+      "topology": "single",
+      "tp": "1",
+      "vllm": "0.0.0"
+    },
+    "identity_match": true,
+    "lite_contract_ok": true,
+    "lite_verdict": "pass",
+    "parsed": true,
+    "path": "../benchmark/benchmark_26010113_self-test-model_GB10_0.0.0.yaml",
+    "primary_source": null,
+    "ratio_M_over_primary": null,
+    "rubric_authority": null,
+    "rubric_contract_ok": false,
+    "run_key": [
+      "self-test-model",
+      "GB10",
+      "0.0.0",
+      "N/A",
+      "single",
+      "1",
+      "2026-01-01T04:00:00Z"
+    ],
+    "verdict": "not_applicable"
+  },
+  "checked_evidence": {
+    "bench_report": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "../benchmark/bench_report_26010113_self-test-model_GB10_0.0.0.md",
+      "required": false,
+      "sha256": "a1a0f59bebdddb95856ca6a3c9e44be39b716ddfcba8b5e5393cca2c8031d33c",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "certificate": {
+      "exists": true,
+      "identity_checked": true,
+      "identity_match": true,
+      "path": "../benchmark/benchmark_26010113_self-test-model_GB10_0.0.0.yaml",
+      "required": false,
+      "sha256": "f72359439b076b3709ce910ac4c33fe31f87af690136db3b8d4d37086380813d",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "commit": {
+      "exists": false,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": null,
+      "required": false,
+      "sha256": null,
+      "tree_sha256": null,
+      "type": null
+    },
+    "devlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "../devlog/devlog_26010112_00_00_lite.md",
+      "required": true,
+      "sha256": "d45adb0528e156a2ea00819e04cf263035cb14adfe8f5119442403cef0db23d4",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "plan": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "../plan/plan_26010112_00_00_lite.md",
+      "required": true,
+      "sha256": "e72e2e889a14309a3dbb7dd2dc365ef114decc9ac91ae92b464d03e9e649460a",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "report": {
+      "exists": false,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": null,
+      "required": false,
+      "sha256": null,
+      "tree_sha256": null,
+      "type": null
+    },
+    "simlog": {
+      "exists": false,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": null,
+      "required": false,
+      "sha256": null,
+      "tree_sha256": null,
+      "type": null
+    },
+    "testlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "../testlog/testlog_26010112_00_00_lite.md",
+      "required": true,
+      "sha256": "0e04246d440254211888d06e7543c658e759b24c45f5e391efd29cd60ec9f9c0",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "verification": {
+      "exists": false,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": null,
+      "required": false,
+      "sha256": null,
+      "tree_sha256": null,
+      "type": null
+    }
+  },
+  "eligible_for_promotion": true,
+  "exit_code": 0,
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "messages": {
+    "HINT_MAP_ONLY_PROMOTION": "task_class='hint_map_only' → 지도 발행 통로. mode='lite' verdict=None 는 **관측으로 게재**되며 baseline 승격은 막혀 있다. §3·§4 구성 사실은 hint-publisher hintlib.artifacts 의 면제불가 3슬롯이 그대로 집행하고, 본문 OBSERVATION-ONLY 마커는 hintlib.template 린트(00-hint.md)가 집행한다."
+  },
+  "reason_codes": [
+    "HINT_MAP_ONLY_PROMOTION"
+  ],
+  "rubric": {
+    "authority": null,
+    "authority_source": "certificate",
+    "contract_ok": false,
+    "floor_tps": null,
+    "primary_source": null,
+    "ratio_M_over_primary": null
+  },
+  "schema_version": 1,
+  "state": "promotion-ready",
+  "task_class": "hint_map_only"
+}

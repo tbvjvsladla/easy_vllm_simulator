@@ -1,0 +1,18 @@
+{
+  "budget_outcome": "external_interruption",
+  "duration_api_ms": null,
+  "duration_ms": null,
+  "exit_code": 4,
+  "intent": "probe",
+  "model_requested": "sonnet",
+  "model_used": [],
+  "num_turns": 4,
+  "output": null,
+  "provider": "claude_code",
+  "reason_codes": [
+    "NONZERO_EXIT"
+  ],
+  "schema_version": 1,
+  "session_id": "s4",
+  "status": "execution_failed"
+}

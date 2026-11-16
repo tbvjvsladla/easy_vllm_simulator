@@ -1,0 +1,18 @@
+self_role: sub
+topology: single
+cpu_arch: aarch64
+gpus_per_node: 1
+gpu_model: SUB-GPU
+model_source: managed
+nas_model_path: /srv/test-models
+network:
+  egress: offline
+terraforming:
+  complete: true
+  branch_verified: true
+  issued_by: main
+nodes:
+  - role: main
+    host: 203.0.113.10
+  - role: sub
+    host: 203.0.113.11

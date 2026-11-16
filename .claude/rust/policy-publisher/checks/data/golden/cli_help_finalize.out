@@ -1,0 +1,12 @@
+usage: evidence_publisher.py finalize [-h] [--repo-root REPO_ROOT] --topic
+                                      TOPIC [--pii-scan-json PII_SCAN_JSON]
+                                      [--runtime-json RUNTIME_JSON]
+                                      [--capacity-rejection-json CAPACITY_REJECTION_JSON]
+
+options:
+  -h, --help            show this help message and exit
+  --repo-root REPO_ROOT
+  --topic TOPIC
+  --pii-scan-json PII_SCAN_JSON
+  --runtime-json RUNTIME_JSON
+  --capacity-rejection-json CAPACITY_REJECTION_JSON

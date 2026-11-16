@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLICATION_RECORD_INVALID_JSON": "publication record for topic 'selftest' is not valid JSON: Expecting value: line 1 column 7 (char 6)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLICATION_RECORD_INVALID_JSON"
+  ],
+  "schema_version": 1
+}

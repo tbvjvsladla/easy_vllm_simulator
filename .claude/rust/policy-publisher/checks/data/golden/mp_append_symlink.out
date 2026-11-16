@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_SRC_SYMLINK": "src path contains a symlink at some path component: 'link.txt'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_SRC_SYMLINK"
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "/tmp/parity-o-S5-07-replay-negmem-3732254-1794818536387243325/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_eta.py", line 960, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/tmp/parity-o-S5-07-replay-negmem-3732254-1794818536387243325/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_eta.py", line 920, in main
+    r = replay_samples(path, params, mem_total_mib=mem_total,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/parity-o-S5-07-replay-negmem-3732254-1794818536387243325/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_eta.py", line 485, in replay_samples
+    trip = compute_eta(mem, r, p, mem_total_mib=mt)["trip"]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/parity-o-S5-07-replay-negmem-3732254-1794818536387243325/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_eta.py", line 233, in compute_eta
+    raise ValueError("mem_avail_mib must be >= 0")
+ValueError: mem_avail_mib must be >= 0

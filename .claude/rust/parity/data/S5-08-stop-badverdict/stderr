@@ -1,0 +1,4 @@
+usage: blackbox_session.py stop [-h] --session-id SESSION_ID --now NOW
+                                [--verdict {PASS,FAIL,REFUTE,ABORT}]
+                                [--note NOTE]
+blackbox_session.py stop: error: argument --verdict: invalid choice: 'OK' (choose from 'PASS', 'FAIL', 'REFUTE', 'ABORT')

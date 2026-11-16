@@ -1,0 +1,1 @@
+{"expires_epoch": 1785463350, "floor_mib": 10000, "kind": "budget_declare", "kv_mib": 3000, "label": "unlabeled", "mem_total_mib": 20000, "overhead_mib": 2000, "source": "blackbox_session", "ts": "2026-07-31T00:02:30Z", "weights_mib": 5000}

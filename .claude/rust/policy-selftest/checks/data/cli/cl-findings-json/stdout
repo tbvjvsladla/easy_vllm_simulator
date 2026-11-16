@@ -1,0 +1,210 @@
+{
+  "schema_version": 1,
+  "verdict": "INFO",
+  "duplicate_sentences": [
+    {
+      "sentence": "세 파일에 같은 규칙 이 적혀 있으면 공백과 기호를 정규화한 뒤에도 같은 문장으로 묶인다.",
+      "files": [
+        ".claude/rules/docs.md",
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 1 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 10 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 11 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 12 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 13 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 14 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 15 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 16 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 17 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 18 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 19 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 2 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 20 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 21 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 22 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 3 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 4 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 5 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 6 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 7 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 8 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    },
+    {
+      "sentence": "공유 문장 번호 9 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.",
+      "files": [
+        ".claude/rules/workflow.md",
+        "CLAUDE.md"
+      ]
+    }
+  ],
+  "always_loaded": {
+    "files": {
+      "CLAUDE.md": 3058,
+      ".claude/rules/workflow.md": 2786,
+      ".claude/rules/docs.md": 150,
+      ".claude/rules/strategy.topology.md": 115
+    },
+    "total_bytes": 6109,
+    "note": "임계 없음 -- 숫자는 보여 주되 이 린트는 차단하지 않는다"
+  },
+  "ghost_policy_ids": [
+    {
+      "policy_id": "GHOST_ONE",
+      "referenced_in": [
+        ".claude/skills/other/SKILL.md",
+        ".claude/skills/terraforming_node/SKILL.md",
+        "CLAUDE.md"
+      ],
+      "count": 3
+    },
+    {
+      "policy_id": "GHOST_THREE",
+      "referenced_in": [
+        ".claude/skills/other/references/sub/r2.md"
+      ],
+      "count": 1
+    },
+    {
+      "policy_id": "GHOST_TWO",
+      "referenced_in": [
+        ".claude/rules/docs.md"
+      ],
+      "count": 1
+    }
+  ],
+  "skill_router": {
+    "skill_md_lines": 9,
+    "dated_narrative_lines": 2,
+    "references_files": 1,
+    "references_lines": 3,
+    "note": "관측만 -- 줄 수·서사 비율은 합격 조건이 아니다(plan_26091210 §3.8)"
+  }
+}

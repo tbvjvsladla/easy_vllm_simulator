@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_DOWNGRADE_PRIOR_MISMATCH": "topic 'down' was initialized with task_class='hint_map_only' (already reclassified from 'full_benchmark' with reason 'run_failed') -- --downgrade-from 'full_benchmark' does not apply"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_DOWNGRADE_PRIOR_MISMATCH"
+  ],
+  "schema_version": 1
+}

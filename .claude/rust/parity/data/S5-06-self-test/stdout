@@ -1,0 +1,14 @@
+  [PASS] HB 5건
+  [PASS] TRIP 1건
+  [PASS] start 1건
+  [PASS] unit 1건
+  [PASS] kill_ack 1건
+  [PASS] boot 마커 1건
+  [PASS] boot 시각=직후 라인, 근사표기
+  [PASS] 자원회계는 ignored_known(미인식 아님)
+  [PASS] 미인식 0
+  [PASS] min 부재 정직 표기
+  [PASS] 하강률 = (11419-40104)/15
+  [PASS] kill 지연 상한 12s
+  [PASS] 이벤트 시각 정렬
+self-test: PASS

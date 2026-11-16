@@ -1,0 +1,5 @@
+{"id": "r1", "kind": "value", "value": {"allowed": true, "action": "ok", "reason_codes": []}}
+{"id": "r2", "kind": "exception", "type": "HintError", "code": "HINT_GATE_DENIED", "message": "{\"allowed\": false, \"reason_codes\": [\"X\"]}\n", "remedy": "게이트 JSON 의 reason_codes 를 해소한다 — 우회하지 않는다(D3).", "exit_code": 3}
+{"id": "r3", "kind": "exception", "type": "HintError", "code": "HINT_GATE_DENIED", "message": "{\"allowed\": false}\n", "remedy": "게이트 JSON 의 reason_codes 를 해소한다 — 우회하지 않는다(D3).", "exit_code": 1}
+{"id": "r4", "kind": "exception", "type": "HintError", "code": "HINT_GATE_DENIED", "message": "[1]\n", "remedy": "게이트 JSON 의 reason_codes 를 해소한다 — 우회하지 않는다(D3).", "exit_code": 1}
+{"id": "r5", "kind": "exception", "type": "HintError", "code": "HINT_GATE_OUTPUT_UNREADABLE", "message": "completion_gate.py authorize (exit=4) 의 stdout 이 JSON 이 아니다; stderr='boom'", "remedy": null, "exit_code": 2}

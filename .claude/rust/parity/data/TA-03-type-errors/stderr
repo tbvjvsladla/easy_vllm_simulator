@@ -1,0 +1,6 @@
+[agent-control] REQUEST_SCHEMA_INVALID: $.extra: unknown property (additionalProperties: false)
+[agent-control] REQUEST_SCHEMA_INVALID: $.model: length 0 below minLength 1
+[agent-control] REQUEST_SCHEMA_INVALID: $.timeout_seconds: expected type ['integer'], got str ('60')
+[agent-control] REQUEST_SCHEMA_INVALID: $.max_turns: 0 below minimum 1
+[agent-control] REQUEST_SCHEMA_INVALID: $.capabilities[2]: 'fly' not in enum ['read', 'execute', 'edit', 'write', 'search']
+[agent-control] REQUEST_SCHEMA_INVALID: $.capabilities: duplicate items forbidden

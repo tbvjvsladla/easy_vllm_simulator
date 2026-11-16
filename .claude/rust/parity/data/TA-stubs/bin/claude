@@ -1,0 +1,12 @@
+#!/bin/sh
+# Parity stub of the `claude` CLI for the TA-* agent_control goldens (no network, no model): logs its argv and the
+# sub-relay retry-watchdog env to ta_out/claude.argv, then replays ta_fix/claude[.N].{stdout,stderr,sleep,rc} for call N.
+mkdir -p ta_out
+n=$(( $(cat ta_out/claude.n 2>/dev/null || echo 0) + 1 )); echo "$n" > ta_out/claude.n
+{ printf 'call %s argv:' "$n"; for a in "$@"; do printf ' [%s]' "$a"; done
+  printf '\nwatchdog=%s\n' "${CLAUDE_CODE_RETRY_WATCHDOG-unset}"; } >> ta_out/claude.argv
+f=ta_fix/claude.$n; [ -e "$f.stdout" ] || [ -e "$f.rc" ] || f=ta_fix/claude
+[ -f "$f.stdout" ] && cat "$f.stdout"
+[ -f "$f.stderr" ] && cat "$f.stderr" >&2
+[ -f "$f.sleep" ] && sleep "$(cat "$f.sleep")"
+exit "$(cat "$f.rc" 2>/dev/null || echo 0)"

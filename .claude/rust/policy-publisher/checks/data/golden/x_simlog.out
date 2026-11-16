@@ -1,0 +1,10 @@
+{
+  "kind": "simlog",
+  "messages": {},
+  "ok": true,
+  "publication_id": "piix",
+  "reason_codes": [],
+  "recorded_path": "docs/simlog/26010112_00_00_piix/level_01_measured.json",
+  "schema_version": 1,
+  "sha256": "c1415006a2491cef476d2cca18cab1a9d157060001ec6179d16151395ecffd26"
+}

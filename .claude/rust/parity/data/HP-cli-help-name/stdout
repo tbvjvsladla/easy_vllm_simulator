@@ -1,0 +1,11 @@
+usage: hint.py name [-h] [--campaign CAMPAIGN] [--cell CELL]
+                    [--publication PUBLICATION] [--node {main,sub,cluster}]
+                    [--json]
+
+options:
+  -h, --help            show this help message and exit
+  --campaign CAMPAIGN
+  --cell CELL
+  --publication PUBLICATION
+  --node {main,sub,cluster}
+  --json

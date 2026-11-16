@@ -1,0 +1,87 @@
+"""Synthetic corpus: constructs whose breadth-first order and spans are easy to get wrong."""
+import os, sys as _s
+from a.b import (c as d,
+                 e)
+X = 12345
+Y = Z = 2.5e3
+W: int = os.environ.get("W", 7)
+V = os.getenv("V", None)
+U = {"k": os.getenv("A", "a"), "j": [f(1), g(x=2)], **extra}
+T = (
+    "multi"
+    "part"
+)
+S = b"bytes" b"\x00"
+R = ...
+Q = -5
+P = 0x1F + 0o17 + 0b1010 + 1_000 + 3j
+
+
+@decorator(arg=os.getenv("D", 1))
+@other
+def f(a, /, b=os.environ.get("B", 2), *args, c: int = 3, d=lambda q=os.getenv("L", 4): q, **kw) -> dict[str, int]:
+    """doc"""
+    assert a, "message"
+    if (n := len(args)) > 1 and a in b or not c:
+        return {k: v for k, v in kw.items() if k not in ("x",)}
+    elif a is not None:
+        pass
+    else:
+        x = [y for y in range(3) for z in range(y) if y if z]
+    try:
+        with open(a) as fh, (open(b)) as gh:
+            data = fh.read()
+    except* ValueError as e:
+        raise RuntimeError("x") from e
+    except* (TypeError, KeyError):
+        pass
+    else:
+        data = None
+    finally:
+        del a, b
+    while True:
+        break
+    else:
+        pass
+    for i, (j, k) in enumerate(zip(a, b)):
+        continue
+    return f"{a!r:>{width}} {b=} {'nested' if c else d} {x['k']} {{literal}}"
+
+
+async def g():
+    async with lock as l:
+        await h(l)
+    async for item in stream():
+        yield item
+    yield
+    z = yield from other()
+
+
+class K(Base, metaclass=Meta, **opts):
+    attr: str = "v"
+    other = attr if attr else None
+
+    @property
+    def p(self):
+        global X
+        return self.attr[1:2, ::3, ...]
+
+
+def outer():
+    def inner():
+        nonlocal_value = 1
+        return lambda: inner
+    x = 1; y = 2; z = x if y else (yield)
+    print(*a, sep="", **k)
+    return (a for a in b)
+
+
+type Alias = list[int]
+s = rf"(?ms)^{re.escape(name)}\(\) \{{.*?^\}}\n"
+t = f"""
+{a +
+ b}
+"""
+u = f'{x["a"]}'
+v = x[1](2).y[3]
+w = not a == b < c

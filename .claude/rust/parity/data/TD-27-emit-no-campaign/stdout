@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "provider": "claude_code",
+  "intent": "delegate",
+  "model": "sonnet",
+  "task": "## [relay] 위임 헤더 — 메인이 결정론으로 붙였다. 서브는 이 값을 그대로 회신한다.\n- context_id: c6\n- attempt: 1\n- max_turns_allocated: 5\n- timeout_seconds_allocated: 60\n- 예산 근거(메인 선언): fixture budget\n- 규약: 리포트 `context_id` 에 위 값을 그대로 적는다. 예산이 모자라면 **소진하지 말고**\n  `input-required` 로 끊고 남은 일을 `next_steps` 에 적어라(scope ⊥ budget).\n- 외부지식을 검색했다면 `external_search[]` 에 질의·출처·요지를 남겨라 — 그 기록이\n  메인의 자산이 되고, 인용 없는 결정은 거짓이 아니라 **누락**이다(헌법 불변식 B).\n\nx",
+  "target": {
+    "role": "sub",
+    "transport": "ssh",
+    "host": "192.0.2.11",
+    "ssh_user": "fixture",
+    "work_dir": "/srv/fixture"
+  },
+  "capabilities": [
+    "read",
+    "execute",
+    "edit",
+    "write",
+    "search"
+  ],
+  "backend": "anthropic",
+  "timeout_seconds": 60,
+  "max_turns": 5,
+  "reasoning_effort": "default",
+  "reasoning_effort_source": "native-default"
+}

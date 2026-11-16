@@ -2,7 +2,7 @@
 name = "parity"
 version = "0.1.0"
 edition = "2021"
-description = "Golden capture/compare tool for the Rust repack: four channels (stdout, stderr, exit code, written files), a closed normalization list, Python-exec count via strace"
+description = "Golden compare tool for the Rust repack (committed goldens only; no original is ever run): four channels (stdout, stderr, exit code, written files), a closed normalization list, Python-exec count via strace"
 publish = false
 autotests = false
 

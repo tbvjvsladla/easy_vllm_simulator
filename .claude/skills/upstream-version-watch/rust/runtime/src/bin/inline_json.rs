@@ -528,8 +528,10 @@ fn main() -> ExitCode {
         Some("campaign-budget") => cmd_campaign_budget(rest),
         Some("open-sessions") => cmd_open_sessions(rest),
         Some("inventory") => cmd_inventory(),
+        Some("attestation-write") => upstream_runtime::mn_attest::attestation_write(rest),
+        Some("serve-proof") => upstream_runtime::mn_attest::serve_proof(rest),
         _ => {
-            eprintln!("usage: inline_json {{allowed|gate-unreadable-branches|gate-unreadable-sub|divergence-summary|parity-summary|delivery-source|propagation-fields|chat-verdict|completions-len|campaign-budget|open-sessions}} ...");
+            eprintln!("usage: inline_json {{allowed|gate-unreadable-branches|gate-unreadable-sub|divergence-summary|parity-summary|delivery-source|propagation-fields|chat-verdict|completions-len|campaign-budget|open-sessions|inventory|attestation-write|serve-proof}} ...");
             2
         }
     };

@@ -3,7 +3,7 @@
 #
 # 왜 추적 디렉터리인가: `.git/hooks` 는 클론에 실리지 않는다. 훅을 배포 대상 빌딩블럭으로
 # 만들려면 추적 경로에 두고 hooksPath 로 가리켜야 한다. 그 설정 자체는 `.git/config` 라
-# 비추적이므로 `runtime_selftest.py::_test_tripwire_executor_wiring` 이 설정 여부를 자기검사한다
+# 비추적이므로 `runtime_selftest`(Rust · `tripwire_executor_wiring`) 이 설정 여부를 자기검사한다
 # (미설치 클론에서는 FAIL 이 아니라 WARN).
 #
 # 범위: 병목이므로 **tripwire 4종만** 돈다(1초 예산 · ④ = 같은 측정의 인증서 이중 추적). 전체 셀프테스트는 harness_verify /
@@ -12,15 +12,22 @@
 set -euo pipefail
 
 repo_root="$(git rev-parse --show-toplevel)"
-selftest="$repo_root/.claude/policies/runtime/runtime_selftest.py"
+# Rust 실행기(crate .claude/rust/policy-selftest)의 런처 — 실행파일이 없으면 런처가 exit 2 + 빌드 안내를 낸다(Python 폴백 없음).
+selftest="$repo_root/.claude/policies/runtime/runtime_selftest.sh"
 
 if [ ! -f "$selftest" ]; then
-    printf '[pre-commit] runtime_selftest.py 부재 — tripwire 를 실행할 수 없다: %s\n' \
+    printf '[pre-commit] runtime_selftest.sh 부재 — tripwire 를 실행할 수 없다: %s\n' \
         "$selftest" >&2
     exit 1
 fi
 
-if ! python3 "$selftest" --tripwires-only; then
+if ! bash "$selftest" --tripwires-only; then
     printf '[pre-commit] tripwire FAIL — 커밋을 거부한다. 우회(--no-verify)하지 말고 원인을 고쳐라(D3).\n' >&2
+    exit 1
+fi
+
+# 하네스 py 재유입 차단(plan_26111615 D5) — 새로 추적되는 *.py 는 허용목록 안이어야 한다. 런처 부재 = fail-closed.
+if ! bash "$repo_root/.claude/policies/runtime/py_boundary_guard.sh" check --repo "$repo_root" --staged-additions; then
+    printf '[pre-commit] py 경계 FAIL — 하네스는 Rust 로 쓴다. 허용목록 추가는 개정 plan + HITL 로만 한다.\n' >&2
     exit 1
 fi

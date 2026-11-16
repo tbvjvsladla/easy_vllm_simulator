@@ -1,0 +1,126 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 17,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-10-23 requires review.state='overdue' exactly, got 'due'",
+      "path": "$.policies[HOST_SAFETY_LAYERED_DEFENSE].review.state",
+      "policy_id": "HOST_SAFETY_LAYERED_DEFENSE",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-10-23 requires review.state='overdue' exactly, got 'due'",
+      "path": "$.policies[VARIANT_IMAGE_BUILD_VS_SERVE_PLANE].review.state",
+      "policy_id": "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-10-23 requires review.state='overdue' exactly, got 'due'",
+      "path": "$.policies[MODEL_TRIPLET_NO_SUB_PROPAGATION].review.state",
+      "policy_id": "MODEL_TRIPLET_NO_SUB_PROPAGATION",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-10-23 requires review.state='overdue' exactly, got 'due'",
+      "path": "$.policies[HINT_TAG_ACTIVATION_GATE].review.state",
+      "policy_id": "HINT_TAG_ACTIVATION_GATE",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-10-23 requires review.state='overdue' exactly, got 'due'",
+      "path": "$.policies[LAST_GOOD_ROLLBACK_ANCHOR].review.state",
+      "policy_id": "LAST_GOOD_ROLLBACK_ANCHOR",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-10-23 requires review.state='overdue' exactly, got 'due'",
+      "path": "$.policies[MODEL_ACQUISITION_TERNARY_GATE].review.state",
+      "policy_id": "MODEL_ACQUISITION_TERNARY_GATE",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-10-23 requires review.state='overdue' exactly, got 'due'",
+      "path": "$.policies[KV_ABSOLUTE_CLAMP_PORTABILITY].review.state",
+      "policy_id": "KV_ABSOLUTE_CLAMP_PORTABILITY",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-10-23 requires review.state='overdue' exactly, got 'due'",
+      "path": "$.policies[RUNTIME_PATCH_NO_CARRY_FORWARD].review.state",
+      "policy_id": "RUNTIME_PATCH_NO_CARRY_FORWARD",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-10-23 requires review.state='overdue' exactly, got 'due'",
+      "path": "$.policies[SUB_SYNC_DIRTY_AUTOSAVE].review.state",
+      "policy_id": "SUB_SYNC_DIRTY_AUTOSAVE",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-10-23 requires review.state='overdue' exactly, got 'due'",
+      "path": "$.policies[SUB_GIT_LOCAL_ONLY].review.state",
+      "policy_id": "SUB_GIT_LOCAL_ONLY",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-10-23 requires review.state='overdue' exactly, got 'due'",
+      "path": "$.policies[TERRAFORM_FLAG_GATE].review.state",
+      "policy_id": "TERRAFORM_FLAG_GATE",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-10-23 requires review.state='overdue' exactly, got 'due'",
+      "path": "$.policies[A2A_IDENTITY_PROOF_FAIL_CLOSED].review.state",
+      "policy_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-10-23 requires review.state='overdue' exactly, got 'due'",
+      "path": "$.policies[ARCH_WALL_VARIANT_LADDER].review.state",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-12-02 requires review.state='overdue' exactly, got 'current'",
+      "path": "$.policies[GIT_SINGLE_AUTHORITY].review.state",
+      "policy_id": "GIT_SINGLE_AUTHORITY",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-12-05 requires review.state='overdue' exactly, got 'current'",
+      "path": "$.policies[ROOT_SURFACE_REGISTRY].review.state",
+      "policy_id": "ROOT_SURFACE_REGISTRY",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-12-07 requires review.state='overdue' exactly, got 'current'",
+      "path": "$.policies[LIBRARY_GROUNDING_FAIL_CLOSED].review.state",
+      "policy_id": "LIBRARY_GROUNDING_FAIL_CLOSED",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "as_of=2027-06-01 vs next_review_due=2026-12-11 requires review.state='overdue' exactly, got 'current'",
+      "path": "$.policies[BRANCH_CONSTITUTION_LAYERING].review.state",
+      "policy_id": "BRANCH_CONSTITUTION_LAYERING",
+      "reason_code": "AS_OF_STATE_MISMATCH"
+    }
+  ]
+}

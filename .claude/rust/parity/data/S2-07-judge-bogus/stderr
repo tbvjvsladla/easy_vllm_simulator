@@ -1,0 +1,12 @@
+usage: judge_version_delta.py [-h] [--repo REPO] [--from-ref FROM_REF]
+                              [--to-ref TO_REF]
+                              [--generated-kst GENERATED_KST]
+                              [--repo-cache REPO_CACHE]
+                              [--provenance PROVENANCE]
+                              [--bundle-root BUNDLE_ROOT]
+                              [--provenance-origin PROVENANCE_ORIGIN]
+                              [--no-bundle-files] [--resolved RESOLVED]
+                              [--write-resolved] [--emit-fixture EMIT_FIXTURE]
+                              [--fixture FIXTURE]
+                              [--check-fixture CHECK_FIXTURE] [--self-test]
+judge_version_delta.py: error: unrecognized arguments: --bogus

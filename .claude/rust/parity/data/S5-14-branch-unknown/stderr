@@ -1,0 +1,2 @@
+[bb-request] FAIL(1): topology 를 해소하지 못했다(브랜치 불명).
+[bb-request]        --topology single|multi 로 명시하라 — 추측하지 않는다.

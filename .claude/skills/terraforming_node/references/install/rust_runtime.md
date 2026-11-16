@@ -127,7 +127,7 @@ import하는 사용자(`render_sub_env`·`scan_node`·`render_dockerfile`·`harn
 `manifest_contract_compat_owner.py`)는 **노드의 import 사용자에게도 필수 의존**이며 HW 스캔·Flag 와 무관하다(Flag 가 없어도 import 가 브리지를 부른다). 실행파일이 없으면
 어댑터는 상태 2 의 빌드 안내와 함께 눈에 띄게 실패한다(Python 대체 경로 없음). 검토된 원본은 `manifest_contract_compat_owner.py` 에 바이트 그대로 있고(`REVIEWED_MANIFEST_CONTRACT`
 가 이 파일에 묶인다) 사전 분류된 레거시 경로(CLI 의 `-h`·`--self-test`·약어·사용 오류, 어댑터 `main` 의 같은 형태)만 쓴다. `verify_distribution` 의 호출은 어댑터 파일 경로를 CLI 로 쓴다.
-**공개 진입 사슬(2026-11-09 v8)**: `python3 manifest_contract.py …` 는 `__main__` 이 **같은 PID 로 Rust 실행파일에 직접 exec** 한다(Python → Rust · 셸 비경유 — 호출자가 cwd 를 지운 뒤에도 셸의 `shell-init`/`chdir` getcwd 경고 바이트가 stderr 에 끼지 않는다). 환경은 `manifest_contract.sh` 가 만드는 것과 같다(운반 변수 · 기본값 · unset 규칙). 실행파일 부재/실행 불가(상태 2 + 빌드 안내)·`MANIFEST_CONTRACT_VALIDATE_ONLY=1` 가용성 확인·직접 exec 실패는 **런처가 단일 자리로 답한다**(exec 실패 자체의 안내는 없다 — 셸의 `cannot execute` 상태 126/127 그대로). 독립 `manifest_contract.sh` 호출은 Bash → Rust 이고, 프로세스 안 import 어댑터의 비공개 브리지는 절대 경로 `/bin/bash` 로 런처를 시작한다. 노드에서 빌드한 ELF 를 복사해 배포하지 않는다.
+**공개 진입 사슬(2026-11-09 v8)**: `bash manifest_contract.sh …` 는 `__main__` 이 **같은 PID 로 Rust 실행파일에 직접 exec** 한다(Python → Rust · 셸 비경유 — 호출자가 cwd 를 지운 뒤에도 셸의 `shell-init`/`chdir` getcwd 경고 바이트가 stderr 에 끼지 않는다). 환경은 `manifest_contract.sh` 가 만드는 것과 같다(운반 변수 · 기본값 · unset 규칙). 실행파일 부재/실행 불가(상태 2 + 빌드 안내)·`MANIFEST_CONTRACT_VALIDATE_ONLY=1` 가용성 확인·직접 exec 실패는 **런처가 단일 자리로 답한다**(exec 실패 자체의 안내는 없다 — 셸의 `cannot execute` 상태 126/127 그대로). 독립 `manifest_contract.sh` 호출은 Bash → Rust 이고, 프로세스 안 import 어댑터의 비공개 브리지는 절대 경로 `/bin/bash` 로 런처를 시작한다. 노드에서 빌드한 ELF 를 복사해 배포하지 않는다.
 
 `turn_budget.py`(턴 예산 선언 검증기)의 업무는 같은 B 빌드의 `turn_budget` 실행파일(순수 업무는 공유 T `role-contract::turn_budget`)이 처리한다. 공개 CLI 는 `terraforming_node/scripts/turn_budget.sh` 런처(또는 그것을 exec 하는 `turn_budget.py`)이고, 기존 Python importer 세 곳(`relay`·`bootstrap_canary`·`selftest_harness_switch`)은 같은 이름·서명의 얇은 어댑터 `turn_budget.py` 를 import 하며 어댑터는 비공개 브리지(`TURN_BUDGET_BRIDGE`, 타입 태그 JSON · 정수 16진 전송)로 같은 실행파일을 부른다. 실행파일이 없거나 실행 불가면 런처가 상태 2 와 빌드 안내로 **먼저** 실패하며 Python 대체 경로는 없다(검증된 원본 소스의 사본을 숨은 대체로 실행하지 않는다). 소유자 경로 미설정·모델링되지 않은 텍스트 프로필은 업무 전에 보이는 제어 실패(상태 2)이고 `TURN_BUDGET_ROUTE_OBSERVER=<파일>` 이 실행마다 경로·PID 를 JSON 한 줄로 남긴다. 기본 스키마는 `TURN_BUDGET_OWNER_PATH`(어댑터가 `os.path.abspath(__file__)` 로 내보냄)의 어휘적 위 네 단계이며 호출마다 다시 읽는다. 어댑터가 전달하지 않는 값 모양(정확한 기본 타입·문자열 키 dict·`os.PathLike` 밖의 객체, int 경로)은 업무 전에 `NotImplementedError` 로 거절한다. in-process 예외의 traceback 바이트(U2)는 재현하지 않으며, 세 importer 를 포팅하기 전까지 어댑터는 잔여 Python 이다.
 
@@ -180,17 +180,18 @@ Rust 설치(`rust_bootstrap.sh install|check`)는 어떤 검증기·Flag·ELF �
 
 | 단계 | 명령 | Rust ELF |
 |---|---|---|
-| 진입 | `staleness_gate.py` · `scan_node.py --topology single\|multi [--emit-manifest]` · `node_role_contract.py` · `topology_parity.py` | 불필요(Python / 원본 소유자) |
+| 진입 | `scan_node.py --topology single\|multi [--emit-manifest]` · `node_role_contract.py` · `topology_parity.py` | 불필요(Python / 원본 소유자) |
+| 진입(조건부 preflight) | `staleness_gate.sh` | **terraforming_node/rust**(`staleness_gate` ELF) |
 | 설치 | `rust_bootstrap.sh install → check` | 불필요 |
 | 빌드 | `build_rust.sh`(B) → `build_rust_packages.sh`(Q/T 라이브러리 · P · U) | 산출 |
-| 서브 manifest·렌더 | `scan_node.py --emit-sub-manifest` · `render_sub_env.py --sub-manifest\|--self-test` · `render_dockerfile.py` · `publish_install_request.py` | **manifest_contract**(메인) |
-| 카나리·위임 | `bootstrap_canary.py --phase discovery\|permissions` · `relay.py` | **turn_budget**(메인) |
+| 서브 manifest·렌더 | `scan_node.py --emit-sub-manifest` · `render_sub_env.sh --sub-manifest\|--self-test` · `render_dockerfile.sh` · `publish_install_request.sh` | **manifest_contract**(메인) |
+| 카나리·위임 | `bootstrap_canary.sh --phase discovery\|permissions` · `relay.sh` | **turn_budget**(메인) · **terraforming_node/rust**(`bootstrap_canary` ELF) |
 | 벤치 Flag 게이트 | `run_bench.sh` · `lite_bench.sh` (`manifest_contract.sh`) | **manifest_contract**(그 노드) |
 | 정책·배포 검사 | `claim_predicates.py`(모듈 적재는 ELF 없이 되나 술어 실행은 필요) · `verify_distribution.py` 의 render/turn_budget/relay/canary/scan P1 자체검사 | **manifest_contract · turn_budget · scan_node** |
-| pre-commit 훅 | `.claude/hooks/pre-commit` → `runtime_selftest.py --tripwires-only` (`evidence_publisher` → `doc_naming` → 벤치 `doc_naming_native` → `reporting_native` 가 **import 시** B 의 `bench_reporting_api` ELF 를 요구한다 · 2026-11-09 정적·실행 관측) | **bench_reporting_api**(B 정상 빌드) — 훅 배선(onboarding 0.5.9)은 그 노드의 정상 빌드 뒤에 한다. 미빌드 노드에서 훅을 켠 채 커밋이 거부되는 것은 정상 차단이며 `--no-verify` 로 우회하지 않는다 |
-| 서브 권한 카나리 | `harness_permission_probe.py` | 불필요 — 부트스트랩 권한 메타데이터 리더는 **Python 이 설계**다(배달된 검토 원본 `manifest_contract_compat_owner.py`; 업무 Rust 주장이 아니며 Native→Python 대체가 아니다. 프로브는 `observe` 맨 처음에 이 파일을 **한 번만** 읽고 그 바이트를 그대로 실행한다 — 권한 관측 부수효과 전에 실패하며 `unobserved` 로 가려지지 않는다. **무결성 권위는 노드별로 하나**다: 그 노드의 git 이 이 파일을 stage-0 blob 으로 들고 있으면(예: 추적되는 Main) git 이 유일한 권위라 읽은 바이트가 그 blob 과 같아야 하고 digest 는 보지 않는다; 어떤 git 도 들고 있지 않은 오버레이 노드(wiki-only ray-worker·a2a-agent 서브, 맹점층)에서만 `BOOTSTRAP_READER_SHA256` 닫힌 원본-의미 프로필 tripwire 가 쓰인다. 따라서 git 이 들고 있는 노드에서는 의미 프로필 핀이 강제되지 않는다 — 거기에도 강제하려면 추적물 digest 를 두 번째 자리에 적는 것이라 단일 권위 규칙과 충돌하므로 사용자 기준이 필요하다) |
+| pre-commit 훅 | `.claude/hooks/pre-commit` → `runtime_selftest.sh --tripwires-only` (crate `.claude/rust/policy-selftest` 의 `runtime_selftest` ELF · 2026-11-16 Rust 이식 — Python 을 띄우지 않는다) | **policy-selftest**(`build_rust_packages.sh` 정상 빌드) — 훅 배선(onboarding 0.5.9)은 그 노드의 정상 빌드 뒤에 한다. 미빌드 노드에서 훅을 켠 채 커밋이 거부되는 것은 정상 차단이며 `--no-verify` 로 우회하지 않는다 |
+| 서브 권한 카나리 | `harness_permission_probe.sh` | **terraforming_node/rust**(그 노드 · `harness_permission_probe` ELF) — 2026-11-16 Rust 이식: manifest·compose YAML 은 ELF 가 직접 읽는다(예전의 배달 Python 리더 `manifest_contract_compat_owner.py` 실행·무결성 핀은 실행할 Python 이 없어져 걷혔다). ELF 가 없거나 실행 불가면 런처가 status 2 + 빌드 안내로 멈춘다 — `unobserved` 로 가리지 않는다 |
 
-wiki-only ray-worker(`tool_plane`=wiki-desk)는 B/Q/T/P/U 를 받지 않는다: 도구체인 install/check 와 "불필요" 열의 명령만 쓰며 메인 ELF 를 복사하지 않는다. 서브의 권한 카나리 리더가 없거나 바이트가 다르면 probe 는 `unobserved` 로 가리지 않고 분명한 오류로 멈춘다.
+wiki-only ray-worker(`tool_plane`=wiki-desk)는 B/Q/T/P/U 를 받지 않는다: 도구체인 install/check 와 "불필요" 열의 명령만 쓰며 메인 ELF 를 복사하지 않는다. 서브의 권한 카나리 ELF(`harness_permission_probe`)가 없으면 런처는 `unobserved` 로 가리지 않고 분명한 오류(status 2)로 멈춘다.
 
 ## 서브와 다른 PC 배포
 

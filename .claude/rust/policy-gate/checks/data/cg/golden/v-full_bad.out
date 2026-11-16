@@ -1,0 +1,136 @@
+{
+  "certificate": {
+    "benchmark_mode": "weird",
+    "duplicates": [],
+    "floor_tps": 0.0,
+    "grade": null,
+    "identity": {
+      "gpu": "NVIDIA GB10",
+      "model": "m",
+      "quant": "nvfp4",
+      "topology": "single",
+      "tp": "1",
+      "vllm": "0.31.0"
+    },
+    "identity_match": true,
+    "parsed": true,
+    "path": "bench/benchmark_bad.yaml",
+    "primary_source": "N/A",
+    "ratio_M_over_primary": null,
+    "rubric_authority": null,
+    "rubric_contract_ok": false,
+    "run_key": [
+      "m",
+      "NVIDIA GB10",
+      "0.31.0",
+      "nvfp4",
+      "single",
+      "1",
+      "2026-11-16T01:00:00Z"
+    ],
+    "verdict": "FAIL"
+  },
+  "checked_evidence": {
+    "bench_report": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/br_none.md",
+      "required": true,
+      "sha256": "11bf548d345359331ee4e35ea5b74c6e2510d885a3623d9106b3788627b655a6",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "certificate": {
+      "exists": true,
+      "identity_checked": true,
+      "identity_match": true,
+      "path": "bench/benchmark_bad.yaml",
+      "required": true,
+      "sha256": "e7b7c9a1ad71cdc84e7219e6f7cbc1f43d6c8e8815d971cef961f03762891498",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "devlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/devlog.md",
+      "required": true,
+      "sha256": "4842198b2c77f304e39154c10ca3b3651c2af556f82987a2eed201c131a9ee55",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "plan": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/plan.md",
+      "required": true,
+      "sha256": "82e5adb594bd210b32af3c82fc563b881a942e8eb7fe0487b4e7ac29619c03ee",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "simlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "sim/ok",
+      "required": true,
+      "sha256": null,
+      "tree_sha256": "622e3c2a2d6d7a1eeb2e52ab3e989d49159739205742bd34a86bd9713d43a9f6",
+      "type": "dir"
+    },
+    "testlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/testlog.md",
+      "required": true,
+      "sha256": "1344de4f31b5fe384e9748f7ce3c55e6e00bdf6e82a79d4023ce3121ed90dfc4",
+      "tree_sha256": null,
+      "type": "file"
+    }
+  },
+  "eligible_for_promotion": false,
+  "exit_code": 1,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {
+    "CERTIFICATE_BENCHMARK_MODE_MISMATCH": "certificate benchmark_mode='weird' (must be 'full' or absent)",
+    "CERTIFICATE_RUBRIC_AUTHORITY_UNKNOWN": "certificate rubric_authority='bogus' is not one of ['weak', 'explicit', 'explore'] -- an unknown rubric authority cannot be reasoned about, fail closed",
+    "CERTIFICATE_RUBRIC_FLOOR_INVALID": "certificate floor_tps='0' is not a finite positive number -- floor<=0 means the rubric imposed NO threshold (공허 PASS): every measurement passes. Not promotable in ANY authority.",
+    "CERTIFICATE_RUBRIC_RATIO_MISSING": "certificate ratio_M_over_primary='nan' is not a finite number -- the measurement-vs-rubric indicator is absent, so the PASS cannot be audited",
+    "CERTIFICATE_RUBRIC_SOURCE_MISSING": "certificate primary_source='N/A' is absent -- which rubric slot won cannot be established (surfaced, never matched as a string: the numeric floor/ratio contract above is the gate)",
+    "CERTIFICATE_RUN_DRIFT": "manifest benchmark.measured_utc='2026-11-16T00:00:00Z' != certificate measured_utc='2026-11-16T01:00:00Z' -- the manifest binds a different measurement than the file at 'bench/benchmark_bad.yaml' certifies",
+    "CERTIFICATE_VERDICT_MISMATCH": "certificate verdict='FAIL' (must be 'PASS')",
+    "PII_SCAN_COVERAGE_INCOMPLETE:certificate": "required evidence 'certificate' path 'bench/benchmark_bad.yaml' not present in pii_scan.scanned_paths"
+  },
+  "reason_codes": [
+    "CERTIFICATE_BENCHMARK_MODE_MISMATCH",
+    "CERTIFICATE_RUBRIC_AUTHORITY_UNKNOWN",
+    "CERTIFICATE_RUBRIC_FLOOR_INVALID",
+    "CERTIFICATE_RUBRIC_RATIO_MISSING",
+    "CERTIFICATE_RUBRIC_SOURCE_MISSING",
+    "CERTIFICATE_RUN_DRIFT",
+    "CERTIFICATE_VERDICT_MISMATCH",
+    "PII_SCAN_COVERAGE_INCOMPLETE:certificate"
+  ],
+  "rubric": {
+    "authority": null,
+    "authority_source": "certificate",
+    "contract_ok": false,
+    "floor_tps": 0.0,
+    "primary_source": "N/A",
+    "ratio_M_over_primary": null
+  },
+  "schema_version": 1,
+  "state": "runtime-ready",
+  "task_class": "full_benchmark"
+}

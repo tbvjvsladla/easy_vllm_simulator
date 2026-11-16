@@ -1001,34 +1001,6 @@ impl BroadSearchDriver {
         };
         run_text(&command, &settings)
     }
-
-    /// `python3 -c "import yaml"` in the shimmed environment: whether the interpreter the writers use has PyYAML.
-    /// The interpreter is the one found on this process's `PATH`, else `python3` itself (and a missing one is the
-    /// spawn failure, not a "no PyYAML").
-    pub fn interpreter_has_yaml(&self) -> Result<bool, Raised> {
-        let interpreter = which("python3")
-            .map(PathBuf::into_os_string)
-            .unwrap_or_else(|| OsString::from("python3"));
-        let command = vec![
-            interpreter,
-            OsString::from("-c"),
-            OsString::from("import yaml"),
-        ];
-        let settings = ChildSettings {
-            env_set: vec![(OsString::from("PATH"), self.path_with_shims.clone())],
-            ..ChildSettings::default()
-        };
-        let (shown, words) = command_words(&command);
-        let captured = run_captured_in(
-            &words,
-            &shown,
-            Duration::from_secs(GIT_TIMEOUT_SECONDS),
-            &GIT_TIMEOUT_SECONDS.to_string(),
-            &settings,
-        )
-        .map_err(from_failure)?;
-        Ok(captured.status == 0)
-    }
 }
 
 #[cfg(test)]

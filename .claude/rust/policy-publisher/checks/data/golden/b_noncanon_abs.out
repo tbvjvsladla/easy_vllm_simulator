@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_BENCH_REPORT_SRC_NOT_CANONICAL": "bench_report src must be repo-relative under docs/benchmark/, got absolute '/abs/docs/benchmark/bench_report_26010109_self-test-model_GB10_0.0.0.md'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_BENCH_REPORT_SRC_NOT_CANONICAL"
+  ],
+  "schema_version": 1
+}

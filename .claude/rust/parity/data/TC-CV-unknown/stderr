@@ -1,0 +1,4 @@
+usage: campaign_template_validator.py [-h] [--campaign CAMPAIGN]
+                                      [--instance INSTANCE] [--template]
+                                      [--acceptance INSTANCE] [--selftest]
+campaign_template_validator.py: error: unrecognized arguments: --bogus

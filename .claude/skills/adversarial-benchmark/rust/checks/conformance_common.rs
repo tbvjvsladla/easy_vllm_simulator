@@ -168,8 +168,8 @@ pub fn install_copy(tree: &Tree) -> PathBuf {
     std::fs::copy(&writer, skill.join("rust/src/bench_shell/broad.rs"))
         .unwrap_or_else(|e| panic!("NOT_RUN: {}: {e}", writer.display()));
     for relative in [
-        "terraforming_node/scripts/campaign_init.py",
-        "vllm-recipe-explorer/recipe.py",
+        "adversarial-benchmark/rust/src/campaign_write.rs",
+        "vllm-recipe-explorer/rust/runtime/src/recipe_cmd/simulate_body.rs",
     ] {
         let target = tree.path(".claude/skills").join(relative);
         std::fs::create_dir_all(target.parent().expect("parent")).expect("directory");

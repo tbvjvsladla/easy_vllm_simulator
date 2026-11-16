@@ -8,7 +8,8 @@ use std::process::{Command, Stdio};
 use sweep_stop::pyjson::{decode_file_text, loads_text};
 use sweep_stop::pyvalue::PyValue;
 
-pub const OWNER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py";
+/// The campaign owner is its native launcher (the retired campaign_init.py may be absent).
+pub const OWNER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.sh";
 pub const SKILL_REL: &str = ".claude/skills/adversarial-benchmark";
 
 pub fn data_path(name: &str) -> PathBuf {
@@ -62,7 +63,7 @@ pub fn real_repo() -> PathBuf {
         });
     assert!(
         repo.join(OWNER_REL).is_file(),
-        "NOT_RUN: no campaign_init.py under {}",
+        "NOT_RUN: no campaign_init.sh under {}",
         repo.display()
     );
     assert!(
@@ -75,23 +76,7 @@ pub fn real_repo() -> PathBuf {
     repo
 }
 
-pub fn adapter() -> PathBuf {
-    let adapter = std::env::var_os("REPEAT_AXIS_CAMPAIGN_ADAPTER")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            real_repo()
-                .join(SKILL_REL)
-                .join("scripts/repeat_axis_owner_query.py")
-        });
-    assert!(
-        adapter.is_file(),
-        "NOT_RUN: adapter missing: {}",
-        adapter.display()
-    );
-    adapter
-}
-
-/// A command with the native bindings of `repo` (root and skill directory) and the owner adapter; nothing from the
+/// A command with the native bindings of `repo` (root and skill directory); nothing from the
 /// caller's environment names another installation.
 pub fn command(bin: &str, repo: &Path) -> Command {
     let mut cmd = Command::new(bin);
@@ -99,11 +84,6 @@ pub fn command(bin: &str, repo: &Path) -> Command {
         .env_remove("REPEAT_AXIS_REPO_ROOT")
         .env("BENCH_PRESET_REPO_ROOT", repo)
         .env("BENCH_PRESET_SKILL_DIR", repo.join(SKILL_REL))
-        // the DEFAULT public configuration: only the wrapper's default adapter location, no user-set adapter or interpreter
-        .env_remove("REPEAT_AXIS_CAMPAIGN_ADAPTER")
-        .env_remove("REPEAT_AXIS_PYTHON")
-        .env("REPEAT_AXIS_COMPAT_ADAPTER", adapter())
-        .env("PYTHONDONTWRITEBYTECODE", "1")
         .env("COLUMNS", "80")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

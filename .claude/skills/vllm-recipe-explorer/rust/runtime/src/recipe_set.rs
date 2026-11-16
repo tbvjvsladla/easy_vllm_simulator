@@ -459,11 +459,14 @@ pub fn build_sh(name: &PyValue, recipe: &PyValue) -> Res<PyStr> {
     Ok(joined(&lines))
 }
 
-/// The `field` names `candidate.get("<field>")` of a text (`re.findall(r'candidate\.get\("([a-z_]+)"\)', text)`), in order of
-/// appearance, repeats included.
-fn consumed_fields(source: &PyStr) -> Vec<String> {
-    let prefix: Vec<u32> = "candidate.get(\"".chars().map(u32::from).collect();
-    let points = source.code_points();
+/// Every `[a-z_]+` name that follows `prefix` and is followed by one of `after` in `points`, in order of appearance, repeats
+/// included; a match resumes the scan after the matched `after` text.
+fn names_between(points: &[u32], prefix: &str, after: &[&str]) -> Vec<String> {
+    let prefix: Vec<u32> = prefix.chars().map(u32::from).collect();
+    let after: Vec<Vec<u32>> = after
+        .iter()
+        .map(|text| text.chars().map(u32::from).collect())
+        .collect();
     let mut found = Vec::new();
     let mut at = 0;
     while at < points.len() {
@@ -476,23 +479,46 @@ fn consumed_fields(source: &PyStr) -> Vec<String> {
             {
                 end += 1;
             }
-            if end > start
-                && points.get(end) == Some(&u32::from('"'))
-                && points.get(end + 1) == Some(&u32::from(')'))
-            {
-                found.push(
-                    points[start..end]
-                        .iter()
-                        .map(|&point| char::from_u32(point).expect("ASCII"))
-                        .collect(),
-                );
-                at = end + 2;
-                continue;
+            if end > start {
+                if let Some(tail) = after.iter().find(|tail| points[end..].starts_with(tail)) {
+                    found.push(
+                        points[start..end]
+                            .iter()
+                            .map(|&point| char::from_u32(point).expect("ASCII"))
+                            .collect(),
+                    );
+                    at = end + tail.len();
+                    continue;
+                }
             }
         }
         at += 1;
     }
     found
+}
+
+/// The `field` names `candidate.get("<field>")` of a text (`re.findall(r'candidate\.get\("([a-z_]+)"\)', text)`), in order of
+/// appearance, repeats included.
+pub fn consumed_fields(source: &PyStr) -> Vec<String> {
+    names_between(source.code_points(), "candidate.get(\"", &["\")"])
+}
+
+/// The candidate fields the Rust trial owner reads, in order of appearance, repeats included: the accessor calls
+/// `get(candidate, "<field>")` / `truthy(&candidate, "<field>")` (any call whose arguments start `candidate, "<field>"`) and the
+/// field-to-flag tables `("<field>", "--<flag>")` / `("<field>", "VLLM_<NAME>=")` the trial iterates over with `get(candidate, key)`,
+/// and the dictionary form `candidate.get("<field>")`.
+pub fn rust_trial_consumed_fields(source: &PyStr) -> Vec<String> {
+    let points = source.code_points();
+    let mut found = names_between(points, "candidate, \"", &["\""]);
+    found.extend(names_between(points, "(\"", &["\", \"--", "\", \"VLLM_"]));
+    found.extend(names_between(points, "candidate.get(\"", &["\")"]));
+    found
+}
+
+/// The parity check over the Rust trial owner's sources (`gen_recipe_set --check-parity`): the gaps of
+/// [`rust_trial_consumed_fields`] of the joined text, sorted, never raised.
+pub fn rust_trial_serve_knob_gaps(source: &PyStr) -> Res<Vec<PyStr>> {
+    serve_knob_gaps(rust_trial_consumed_fields(source), &PyValue::Bool(false))
 }
 
 /// `assert_serve_knob_parity(run_trial_source, raise_on_gap=True)`: the fields the trial source reads from a candidate
@@ -508,7 +534,12 @@ pub fn assert_serve_knob_parity(source: &PyValue, raise_on_gap: &PyValue) -> Res
             ),
         ));
     };
-    let mut consumed = consumed_fields(source);
+    serve_knob_gaps(consumed_fields(source), raise_on_gap)
+}
+
+/// The fields of `consumed` that do not reach the generated files when a probe value is given to them, sorted (exempt fields
+/// skipped). With a gap and `raise_on_gap` truthy, the original's `AssertionError`; otherwise the gaps.
+fn serve_knob_gaps(mut consumed: Vec<String>, raise_on_gap: &PyValue) -> Res<Vec<PyStr>> {
     consumed.sort();
     consumed.dedup();
     let mut parsed = PyDict::new();

@@ -1,0 +1,3 @@
+[regen] 키 정합 검증 → e.json
+        정본 키(blackbox_eta.DEFAULTS) 11 종
+        envelope.eta_params 키: agent_act_s, agent_notify_s, daemon_kill_s, eta_floor_s, kill_latency_s, provenance

@@ -27,25 +27,25 @@
 
 | 구성요소 | 방식 | 비고 |
 |----------|------|------|
-| config.json 파싱 | **결정론 스크립트** | `parse_model_config.py` — text_config 중첩·safetensors 헤더 실측 |
-| **모델카드 교차검증**(§3) | **결정론** | `crosscheck_model_card.py` — 번들 README(HF 원본카드)+inference/reqs+dtype 실측 ↔ config 합치 + 외부(HF API) 파라미터-총계 이중검증. coarse-quant 함정·special-dep 사전경보·`du -sh` 오염 방지. MISMATCH=비0(게이트) |
+| config.json 파싱 | **결정론 스크립트** | `parse_model_config.sh` — text_config 중첩·safetensors 헤더 실측 |
+| **모델카드 교차검증**(§3) | **결정론** | `crosscheck_model_card.sh` — 번들 README(HF 원본카드)+inference/reqs+dtype 실측 ↔ config 합치 + 외부(HF API) 파라미터-총계 이중검증. coarse-quant 함정·special-dep 사전경보·`du -sh` 오염 방지. MISMATCH=비0(게이트) |
 | 후보 **생성**(brainstorm) | **LLM (이 단계만 확률론)** | 3축 조합 다양성이 가치(Generate&Filter 의 Generator) |
-| VRAM 추정 **공식**(per-token KV) | **결정론 — 단 상한(upper bound)** | `estimate_vram.py` full-attention 가정 공식. sliding-window/GQA서 **과대추정**(gemma 8×·gpt-oss 1.9×) → OOM 보수 게이트엔 유효, batch(max-num-seqs) 산정엔 **부정확** |
+| VRAM 추정 **공식**(per-token KV) | **결정론 — 단 상한(upper bound)** | `estimate_vram.sh` full-attention 가정 공식. sliding-window/GQA서 **과대추정**(gemma 8×·gpt-oss 1.9×) → OOM 보수 게이트엔 유효, batch(max-num-seqs) 산정엔 **부정확** |
 | VRAM **실측 분해**(KV-fit 정본) | **결정론 — 측정 정본** | serve KV log(`kv_cache_tokens`) 또는 Phase-2. **batch·절대 KV 클램프는 측정으로만** — batch = `min(concurrency_requirement, KV_fit@typical_request_tokens)`(`kv-clamp.md` §3 · plan_26091407 §4.2) · 엔진 `max_concurrency`(최악 길이)는 보수 하한 기재 |
 | 하드 안전 게이트(margin) | **결정론** | 예산×margin 초과 후보 탈락(zero tolerance) |
 | Judge 랭킹(headroom→context) | **결정론** 정렬 | 품질·속도 인자 없음 |
 | 3종 세트 생성 | **결정론** 템플릿 | 기존 워크스페이스 스키마 준수 |
 | **인터뷰** | **LLM (확률론)** | Phase 2. soft 변수에 `*_candidates` 폴백 리스트를 채움 |
-| **VRAM 로그 파싱** | **결정론** | `parse_vllm_log.py` — 정규식, 라인 부재 시 null |
-| **트라이얼 분류** | **결정론** | `sim_classify.py` — 알려진 OOM 정규식 + 천장 점검 |
-| **KV 클램프 재산정** | **결정론** | `recipe.py simulate` 루프 — 실측 weights/overhead 기반 |
+| **VRAM 로그 파싱** | **결정론** | `parse_vllm_log.sh` — 정규식, 라인 부재 시 null |
+| **트라이얼 분류** | **결정론** | `sim_classify.sh` — 알려진 OOM 정규식 + 천장 점검 |
+| **KV 클램프 재산정** | **결정론** | `recipe.sh simulate` 루프 — 실측 weights/overhead 기반 |
 
 → "**결정의 책임은 결정론 계층이 진다. 탐색·인터뷰만 LLM.**"
 
 ## 2. ① parse (결정론)
 
 ```bash
-python3 scripts/parse_model_config.py <path> [--nas-root R] [--json] > parsed.json
+bash scripts/parse_model_config.sh <path> [--nas-root R] [--json] > parsed.json
 ```
 
 - `/app/models/...` 입력은 `nas_host_root` 로 치환해 호스트 NAS 에서 읽는다.
@@ -69,8 +69,8 @@ python3 scripts/parse_model_config.py <path> [--nas-root R] [--json] > parsed.js
 ## 3. ①.5 모델카드 교차검증 (결정론 · serving 착수 전 필수 루틴)
 
 ```bash
-python3 scripts/crosscheck_model_card.py <path> [--hf-repo-id <org/name>] [--json]   # managed(로컬) — MISMATCH 시 비0 종료(게이트)
-python3 scripts/crosscheck_model_card.py --ephemeral-estimate --hf-repo-id <org/name> [--json]   # ephemeral(다운로드 전 사전추정)
+bash scripts/crosscheck_model_card.sh <path> [--hf-repo-id <org/name>] [--json]   # managed(로컬) — MISMATCH 시 비0 종료(게이트)
+bash scripts/crosscheck_model_card.sh --ephemeral-estimate --hf-repo-id <org/name> [--json]   # ephemeral(다운로드 전 사전추정)
 ```
 
 - **HF 원본 모델카드(번들 `README.md`) + `inference/requirements.txt` + config.json + safetensors dtype 실측**을 교차대조 →
@@ -100,15 +100,15 @@ python3 scripts/crosscheck_model_card.py --ephemeral-estimate --hf-repo-id <org/
 - `max-model-len`: **4096부터 `max_position_embeddings` 까지 2의 거듭제곱**. 미상이면 `[4096, 8192, 16384, 32768]`.
 - `gpu-memory-utilization`: 0.80~0.95(기본 그리드 `[0.85, 0.90, 0.95]`).
 
-생성 후보를 `candidates.json` 으로 저장 → `recipe.py estimate --candidates candidates.json`. 결정론 기본 그리드만 쓰려면 `--auto`.
+생성 후보를 `candidates.json` 으로 저장 → `recipe.sh estimate --candidates candidates.json`. 결정론 기본 그리드만 쓰려면 `--auto`.
 
 ## 5. ③ rank (결정론 하드게이트 + Judge) → 리포트 → ③.5 HITL
 
 ```bash
-python3 recipe.py estimate --config config.yaml --auto
+bash scripts/recipe.sh estimate --config config.yaml --auto
 ```
 
-- 각 후보 → `estimate_vram.py` 로 **`(weight_bytes/tp + KV_cache + overhead) / gpu_memory_utilization`** 추정.
+- 각 후보 → `estimate_vram.sh` 로 **`(weight_bytes/tp + KV_cache + overhead) / gpu_memory_utilization`** 추정.
   KV·overhead 는 `/tp` 하지 않음 = 멀티노드 보수적 과대추정 → OOM 게이트에 안전.
 - **하드게이트**: `estimated_total_gib ≤ vram_budget_gb × safety_margin` 초과 후보 전부 탈락(zero tolerance).
 - **Judge**: 통과 후보를 `headroom_gib` 내림차 → `max_model_len` 내림차로 정렬(id 보존). ranked 결과는 `feedback/.last_ranking.json`.
@@ -121,7 +121,7 @@ python3 recipe.py estimate --config config.yaml --auto
 ## 6. ④ generate (결정론 3종 세트) + 되먹임 로그
 
 ```bash
-python3 recipe.py generate --config config.yaml --recipe-id r3
+bash scripts/recipe.sh generate --config config.yaml --recipe-id r3
 ```
 
 - **출력 통로 = `output/<topology>/{configs,envs}/`**(compose 가 마운트하는 통로와 정합 — 결함#3, `testlog_26062422`).
@@ -132,4 +132,4 @@ python3 recipe.py generate --config config.yaml --recipe-id r3
   - `configs/<name>.sh` — TIKTOKEN 가드 + `vllm serve --config ... --served-model-name`.
   - `envs/.env.<name>` — `COMPOSE_PROJECT_NAME·CONTAINER_NAME·VERSION·NVIDIA_VISIBLE_DEVICES·SERVING_IP/PORT·TIKTOKEN_ENABLED·SERVING_MODEL_NAME·CONFIG_FILE`.
   - 기존 파일이 있으면 `--force` 없이는 덮어쓰지 말고 에러.
-- `feedback_log.py` 가 invocation 당 1행(JSONL)으로 append 한다(추정 필드 채움 + 실측 nullable 예약).
+- `feedback_log.sh` 가 invocation 당 1행(JSONL)으로 append 한다(추정 필드 채움 + 실측 nullable 예약).

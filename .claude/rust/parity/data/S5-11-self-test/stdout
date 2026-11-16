@@ -1,0 +1,43 @@
+  [PASS] 레거시 TRIP 파싱
+  [PASS] ETA TRIP 파싱(rate·streak 보존)
+  [PASS] TRIP-ARM(디바운스 진행) 파싱
+  [PASS] TRIP-nomatch 파싱
+  [PASS] kill-ack 파싱
+  [PASS] start 파싱
+  [PASS] pgid TRIP 파싱(target_kind=pgid · docker_kill 아님)
+  [PASS] 컨테이너 TRIP 은 target_kind=container
+  [PASS] pgid start 파싱 target_kind=pgid
+  [PASS] 열·전력 TRIP 파싱(축·버킷 보존)
+  [PASS] 열·전력 TRIP: SoC 즉시계층 규칙 라벨·다중 타깃
+  [PASS] 열·전력 TRIP: 부재(na)는 None(0 으로 접지 않는다)
+  [PASS] 열·전력 dry-run 은 별도 kind(하류 오독 방지)
+  [PASS] ★dry-run 이 실무장 kind 로 새지 않는다
+  [PASS] 열·전력 TRIP-nomatch 파싱
+  [PASS] 전력 축 동결(stale) 파싱 — 조용한 무장해제를 사후에 본다
+  [PASS] stale 해제 파싱
+  [PASS] 열·전력 워치독 start 파싱(mode 보존)
+  [PASS] 열·전력 kill-ack 파싱(축별로 갈린다)
+  [PASS] RAM 축 kill-ack 은 여전히 RAM kind(축 혼선 없음)
+  [PASS] ★열·전력 유닛이 수집 소스에 배선됨(배선 실증)
+  [PASS] liveness TRIP 파싱
+  [PASS] earlyoom 파싱
+  [PASS] 커널 OOM 파싱
+  [PASS] 무관 라인 -> None
+  [PASS] 빈 입력 -> None
+  [PASS] 정상 종료 부팅은 제외
+  [PASS] 종료 흔적 없는 부팅 = 부정클린
+  [PASS] 현재 부팅은 판정 제외
+  [PASS] 'Reached target Reboot' 도 정상으로 인정
+  [PASS] epoch 0 -> 1970-01-01T00:00:00Z
+  [PASS] 정수 μs 변환 왕복 일치
+  [PASS] 문자열은 그대로 통과
+  [PASS] None 은 None
+  [PASS] 부정클린 이벤트의 ts 가 문자열
+  [PASS] 정규화: ts UTC 변환
+  [PASS] 정규화: boot_id 보존
+  [PASS] 정규화: source 부착
+  [PASS] MESSAGE 바이트열 처리
+  [PASS] append 는 월별 파일에 누적
+  [PASS] 커서 저장/복원
+  [PASS] 커서 파일 부재 시 빈 dict
+self-test: PASS (42 케이스)

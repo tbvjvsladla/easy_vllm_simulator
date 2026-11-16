@@ -1,5 +1,5 @@
 //! Negative controls of the native `--self-test`: it executes the callers, the launchers, the copied native programs and
-//! the real parity owner, so a defect in any of them must fail it (a transcript printer would pass regardless).
+//! the native parity helper, so a defect in any of them must fail it (a transcript printer would pass regardless).
 //!
 //! Every scenario edits only a private copy of the sources in a scratch tree (the actual sources are read, never
 //! changed) and runs this package's binary with the sources named by the environment variables of the self-test.
@@ -48,7 +48,7 @@ fn selftest(scratch: &Scratch, scripts: &Path, repo: &Path, extra: &[(&str, &str
             source("RESOLVE_TOPOLOGY_RUNTIME_DIR"),
         )
         .env("RESOLVE_TOPOLOGY_API_BIN", API)
-        .env("RESOLVE_TOPOLOGY_PYTHON", python())
+        .env_remove("RESOLVE_TOPOLOGY_PYTHON")
         .env_remove("RESOLVE_TOPOLOGY_BIN");
     for (name, value) in extra {
         command.env(name, value);
@@ -165,27 +165,36 @@ fn a_caller_that_no_longer_calls_the_resolver_fails_the_self_test() {
     );
 }
 
-/// A checkout whose parity owner says RED for everything, over the actual configuration and tools (symbolic links).
+/// A parity judge that says RED for everything: the resolver's own helper (named through `RESOLVE_TOPOLOGY_PARITY_BIN`) and
+/// the helper deployed into the copied caller checkouts (a private runtime directory whose `topology_parity` is the
+/// control) are both a check-only stand-in that answers FAIL.
 #[test]
-fn a_parity_owner_that_judges_differently_fails_the_self_test() {
+fn a_parity_judge_that_judges_differently_fails_the_self_test() {
+    use std::os::unix::fs::PermissionsExt;
     let scratch = Scratch::new("controls-owner");
-    let real = source("RESOLVE_TOPOLOGY_REPO_ROOT");
-    let repo = scratch.root.join("repo");
-    let skill = ".claude/skills/adversarial-benchmark";
-    std::fs::create_dir_all(repo.join(".claude/skills")).expect("skills");
-    std::os::unix::fs::symlink(real.join(skill), repo.join(skill)).expect("link");
-    let parity = repo.join(".claude/policies/runtime/topology_parity.py");
-    std::fs::create_dir_all(parity.parent().unwrap()).expect("policies");
+    let real_runtime = source("RESOLVE_TOPOLOGY_RUNTIME_DIR");
+    let runtime = scratch.root.join("runtime");
+    std::fs::create_dir_all(&runtime).expect("runtime");
+    for program in ["bench_shell", "repeat_axis", "repeat_axis_api", "bench_preset", "bench_preset_api"] {
+        std::fs::copy(real_runtime.join(program), runtime.join(program)).expect("copy program");
+    }
+    let judge = runtime.join("topology_parity");
     std::fs::write(
-        &parity,
-        "import json, sys\nprint(json.dumps({'verdict': 'FAIL', 'topology': 'multi', 'reasons': ['control']}))\nsys.exit(5)\n",
+        &judge,
+        "#!/bin/sh\nprintf '%s\\n' '{\"verdict\": \"FAIL\", \"topology\": \"multi\", \"reasons\": [\"control\"]}'\nexit 5\n",
     )
-    .expect("owner");
+    .expect("judge");
+    std::fs::set_permissions(&judge, std::fs::Permissions::from_mode(0o755)).expect("mode");
+    let judge_text = judge.to_string_lossy().into_owned();
+    let runtime_text = runtime.to_string_lossy().into_owned();
     let output = selftest(
         &scratch,
         &source("RESOLVE_TOPOLOGY_SCRIPTS_DIR"),
-        &repo,
-        &[],
+        &source("RESOLVE_TOPOLOGY_REPO_ROOT"),
+        &[
+            ("RESOLVE_TOPOLOGY_PARITY_BIN", judge_text.as_str()),
+            ("RESOLVE_TOPOLOGY_RUNTIME_DIR", runtime_text.as_str()),
+        ],
     );
     assert_eq!(output.status.code(), Some(1));
     let failures = failed_lines(&output);
@@ -202,7 +211,7 @@ fn a_parity_owner_that_judges_differently_fails_the_self_test() {
     let shown = String::from_utf8_lossy(&output.stdout);
     assert!(
         shown.contains("4자일치 RED — control"),
-        "the failed check names the owner's reason"
+        "the failed check names the judge's reason"
     );
 }
 
@@ -225,7 +234,7 @@ fn an_unconfigured_source_ends_the_run_with_a_configuration_error_not_a_shorter_
             scratch.root.join("absent-runtime"),
         )
         .env("RESOLVE_TOPOLOGY_API_BIN", API)
-        .env("RESOLVE_TOPOLOGY_PYTHON", python())
+        .env_remove("RESOLVE_TOPOLOGY_PYTHON")
         .output()
         .expect("run");
     // R, P and S0 run; the copy of a program from the missing runtime directory is a FileNotFoundError

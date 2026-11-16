@@ -50,7 +50,7 @@
 
 ```bash
 # 셸 소비자는 한 줄 값으로 묻는다. 위반이면 값을 찍지 않고 종료코드 5.
-python3 .claude/skills/terraforming_node/scripts/node_role_contract.py \
+bash .claude/skills/terraforming_node/scripts/node_role_contract.sh \
         evaluate --topology single --repo . --field delivery_plane --format value    # → dormant
 ```
 
@@ -143,7 +143,7 @@ rank ::= manifest nodes[] 배열 인덱스 (0..n-1)
 Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 둔다. 토폴로지 축 해소값은 표준이 정한 확장 자리
 `capabilities.extensions[]` 의 **`urn:easy-vllm:ext:node-role:v1`** 하나에 **값과 출처를 함께** 싣는다 —
 `rank`/`sub_mode` 는 파생값이라 출처 없이는 하류가 측정·선언·파생을 구분하지 못한다(헌법 §결정론 규율 "출처 표시").
-검증기 = `scripts/agent_card_contract.py`(§2.7.10 · 서명하지 않는다):
+검증기 = `scripts/agent_card_contract.sh`(§2.7.10 · 서명하지 않는다):
 
 ```jsonc
 "capabilities": { "extensions": [ {
@@ -159,9 +159,9 @@ Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 둔다. 토폴로지 �
 ```
 
 - 값의 산출 권위는 `node_role_contract.py` 이며 렌더러는 그것을 **적기만** 한다(두 번째 파생 구현 ✗).
-  배선: `render_sub_env.py::_contract_placeholders` 가 `evaluate_manifest` 를 불러 네 값을
+  배선: `render_sub_env.rs::_contract_placeholders` 가 `evaluate_manifest` 를 불러 네 값을
   `{{SUB_MODE}}`·`{{SUB_MODE_SOURCE}}`·`{{SUB_RANK}}`·`{{SUB_RANK_SOURCE}}` 로 옮긴다.
-  **회귀핀**: `render_sub_env.py --self-test` 가 렌더 산출물과 판정기 산출의 **문자 그대로 일치**를
+  **회귀핀**: `render_sub_env.sh --self-test` 가 렌더 산출물과 판정기 산출의 **문자 그대로 일치**를
   검사한다(`testlog_26082215` S-11 FAIL 재발 차단).
 - `rank` 는 JSON **정수 또는 null** 이지 문자열이 아니다 — 템플릿에서 따옴표 없이 치환된다.
   `"null"` 로 실으면 하류가 rank 를 문자열로 읽어 TP·NCCL 입력으로 오해할 수 있다.
@@ -177,4 +177,4 @@ Agent_Card v2 는 A2A 1.0.1 표준 필드만 최상위에 둔다. 토폴로지 �
 
 ## node_role_contract 메모 (옛 §4 에서 이관)
 
-- `scripts/node_role_contract.py` — **토폴로지 축 노드 계약의 단일 소유자**(§2.7.0·§2.7.6b). `evaluate --topology <t> --field {sub_mode,rank,identity_authority,delivery_plane} --format {json,value}` · `--self-test`. 배달 평면 판정의 **정본**이며 `role: sub` 존재로 추론하지 않는다. ✅ 소비자 배선 완료(2026-08-22): `sync_to_sub.sh:_single_extension_active`(배달 평면) · `render_sub_env.py::_contract_placeholders`(Agent_Card 4필드). ⚠ venv `-S` shim 을 포함한 `load_yaml` 을 자체 보유한다 — `staleness_gate._load_yaml` 과 **같은 shim 이 두 곳에 있다**. 지금은 의도된 비결합(preflight 게이트가 이 파일 부재로 죽지 않게)이며, 갈라지면 신호는 두 파서의 판정 불일치로 온다.
+- `scripts/node_role_contract.py` — **토폴로지 축 노드 계약의 단일 소유자**(§2.7.0·§2.7.6b). `evaluate --topology <t> --field {sub_mode,rank,identity_authority,delivery_plane} --format {json,value}` · `--self-test`. 배달 평면 판정의 **정본**이며 `role: sub` 존재로 추론하지 않는다. ✅ 소비자 배선 완료(2026-08-22): `sync_to_sub.sh:_single_extension_active`(배달 평면) · `render_sub_env.rs::_contract_placeholders`(Agent_Card 4필드). ⚠ venv `-S` shim 을 포함한 `load_yaml` 을 자체 보유한다 — `staleness_gate._load_yaml` 과 **같은 shim 이 두 곳에 있다**. 지금은 의도된 비결합(preflight 게이트가 이 파일 부재로 죽지 않게)이며, 갈라지면 신호는 두 파서의 판정 불일치로 온다.

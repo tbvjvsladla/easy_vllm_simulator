@@ -32,6 +32,11 @@ path = "src/bin/recipe.rs"
 name = "run_trial"
 path = "src/bin/run_trial.rs"
 
+# The CLI layer (E1-E17) of the gmu-roles / max-num-seqs / lockset-stamp self-test, run against the sibling `recipe`.
+[[bin]]
+name = "selftest_gmu_roles_batch"
+path = "src/bin/selftest_gmu_roles_batch.rs"
+
 [[bin]]
 name = "recipe_numeric_api"
 path = "src/bin/recipe_numeric_api.rs"
@@ -315,3 +320,7 @@ required-features = ["fixture"]
 [[test]]
 name = "run_trial_checks"
 path = "checks/run_trial_checks.rs"
+
+[[test]]
+name = "gmu_roles_checks"
+path = "checks/gmu_roles_checks.rs"

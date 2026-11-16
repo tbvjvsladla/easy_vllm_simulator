@@ -1,0 +1,28 @@
+[package]
+name = "policy-publisher"
+version = "0.1.0"
+edition = "2021"
+description = "Rust port of .claude/policies/runtime/evidence_publisher.py (hybrid evidence publisher: init, append-raw, set-narrative, record-capacity-rejection, publish-benchmark, publish-lite-report, set-promotion-target, finalize, --self-test)"
+publish = false
+# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
+autotests = false
+
+[lib]
+name = "policy_publisher"
+path = "src/lib.rs"
+
+[[bin]]
+name = "evidence_publisher"
+path = "src/bin/evidence_publisher.rs"
+
+[[test]]
+name = "golden_scenarios"
+path = "checks/golden_scenarios.rs"
+
+[dependencies]
+# Python-compatible JSON values, repr and text semantics (local path dependency).
+agent-runtime-support = { path = "../runtime-support" }
+# The completion gate and the naming shim this publisher delegates to (never re-implemented here).
+policy-gate = { path = "../policy-gate" }
+num-bigint = "0.4"
+libc = "=0.2.191"

@@ -116,7 +116,7 @@ if [ "$REQUIRE_SEED" = "1" ]; then
     say "✓ Phase 0 시드 확인: $SEED_DIR ($(wc -l < "$SEED_DIR/memwatch-journal.txt") 줄)"
   else
     say "FAIL: Phase 0 시드 부재 — 저널 수확 전 제거 금지(포락선 초기 데이터 영구 소실)."
-    say "      수확: journalctl -u easy-vllm-memwatch --no-pager -o short-iso | seed_from_journal.py ..."
+    say "      수확: journalctl -u easy-vllm-memwatch --no-pager -o short-iso | bash .claude/skills/terraforming_node/scripts/node_blackbox/seed_from_journal.sh ..."
     say "      시드가 다른 노드에 보관됐다면 --seed-dir=<path> 또는 --no-require-seed 로 명시 우회."
     exit 1
   fi

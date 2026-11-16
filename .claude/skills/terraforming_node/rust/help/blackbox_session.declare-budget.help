@@ -1,0 +1,23 @@
+usage: blackbox_session.py declare-budget [-h] --mem-total-mib MEM_TOTAL_MIB
+                                          --weights-mib WEIGHTS_MIB --kv-mib
+                                          KV_MIB --overhead-mib OVERHEAD_MIB
+                                          [--ttl-s TTL_S]
+                                          [--expected-load-s EXPECTED_LOAD_S]
+                                          [--label LABEL] --now NOW
+
+options:
+  -h, --help            show this help message and exit
+  --mem-total-mib MEM_TOTAL_MIB
+                        /proc/meminfo MemTotal
+  --weights-mib WEIGHTS_MIB
+                        가중치 실측(체크포인트 크기)
+  --kv-mib KV_MIB       KV 절대클램프. **미선언이면 예산 선언 자체가 불가**하다(설계 의도)
+  --overhead-mib OVERHEAD_MIB
+                        cudagraph·활성화·런타임 여유(MiB). **선언 필수** — 기본값 없음. 모르면
+                        재보라: 로드 완료 후 MemTotal − MemAvailable − weights − kv
+  --ttl-s TTL_S         만료까지 초(기본 7200 · 상한 86400)
+  --expected-load-s EXPECTED_LOAD_S
+                        예상 READY 소요(초). 주면 TTL 이 그 3배 미만일 때 **거부**한다(로드 도중 만료
+                        예약 방지 · plan_26081415 C4-3)
+  --label LABEL
+  --now NOW             YYYY-MM-DDTHH:MM:SSZ (벽시계 금지)

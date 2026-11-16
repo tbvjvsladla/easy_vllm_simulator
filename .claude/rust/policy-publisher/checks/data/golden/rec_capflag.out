@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLICATION_RECORD_CAPACITY_FLAG_INVALID": "publication record for topic 'selftest': capacity_rejection_required must be boolean"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLICATION_RECORD_CAPACITY_FLAG_INVALID"
+  ],
+  "schema_version": 1
+}

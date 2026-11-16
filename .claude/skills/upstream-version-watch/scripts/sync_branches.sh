@@ -157,23 +157,26 @@ ROOT_RELOCATION_TOMBSTONES=(
     scripts/systemd/easy-vllm-memwatch.service
     scripts/templates/hint_recipe.template.md
 )
+# Since the Rust port (plan_26111615 D4) each replacement is the moved program's Rust launcher (`.sh`) — or, for the
+# provider adapter that has no launcher, its Rust source — never a `.py` (the `.py` are deleted; a `.py` replacement
+# would make this guard fail "source replacement missing" on every sync).
 # One-to-one owner replacements, in the same order as ROOT_RELOCATION_TOMBSTONES.  Apply validates
 # canonical Git object -> destination index -> materialized bytes/mode for every entry before the
 # first tombstone deletion.  This is deliberately explicit: widening/globbing would weaken review.
 ROOT_RELOCATION_REPLACEMENTS=(
-    .claude/skills/terraforming_node/scripts/agent_control.py
-    .claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py
-    .claude/policies/runtime/completion_gate.py
-    .claude/policies/runtime/doc_naming.py
+    .claude/skills/terraforming_node/scripts/agent_control.sh
+    .claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.sh
+    .claude/policies/runtime/completion_gate.sh
+    .claude/policies/runtime/doc_naming.sh
     .claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh
-    .claude/policies/runtime/evidence_publisher.py
-    .claude/policies/runtime/harness_verify.py
-    .claude/skills/hint-publisher/scripts/hint.py
+    .claude/policies/runtime/evidence_publisher.sh
+    .claude/policies/runtime/harness_verify.sh
+    .claude/skills/hint-publisher/scripts/hint.sh
     .claude/skills/terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh
     .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh
     .claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh
-    .claude/policies/runtime/policy_registry.py
-    .claude/skills/terraforming_node/scripts/providers/claude_code.py
+    .claude/policies/runtime/policy_registry.sh
+    .claude/skills/terraforming_node/rust/src/provider_claude_code.rs
     .claude/skills/upstream-version-watch/scripts/smoke_clone.sh
     .claude/skills/upstream-version-watch/scripts/sync_branches.sh
     .claude/skills/terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service
@@ -338,16 +341,28 @@ if [ "$HAVE_MANIFEST" -eq 1 ]; then
     esac
 fi
 
-if ! command -v python3 >/dev/null 2>&1; then
-    echo "[sync-branches] FAIL: python3 를 찾을 수 없어 completion_gate.py authorize 를 실행할 수 없습니다." >&2
+# 게이트 = Rust completion_gate 런처(.claude/rust/policy-gate · 실행파일 부재 = 런처가 exit 2 + 빌드 안내, Python 폴백 없음).
+GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.sh"
+if [ ! -f "$GATE_SCRIPT" ]; then
+    echo "[sync-branches] FAIL: completion_gate 런처가 없어 authorize 를 실행할 수 없습니다: $GATE_SCRIPT" >&2
     exit 2
+fi
+# 게이트 ELF 는 비추적 빌드 산출물이다 — 종료 시퀀스가 만든 반대 브랜치 임시 워크트리에는 target/ 가 없다.
+#   layer_ledger·inline_json 과 같은 규칙으로 찾는다: 호출자의 COMPLETION_GATE_BIN → 이 체크아웃의 빌드 →
+#   같은 저장소 주 작업 트리(정본 체크아웃)의 빌드. 어디에도 없으면 런처가 exit 2 + 빌드 안내(Python 폴백 ✗).
+_GATE_BIN_REL=".claude/rust/policy-gate/target/release/completion_gate"
+_GATE_ENV=()
+if [ "${COMPLETION_GATE_BIN+set}" != set ] && [ ! -x "$REPO_ROOT/$_GATE_BIN_REL" ]; then
+    _GB_COMMON="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+    if [ -n "$_GB_COMMON" ] && [ -x "$(dirname -- "$_GB_COMMON")/$_GATE_BIN_REL" ]; then
+        _GATE_ENV=("COMPLETION_GATE_BIN=$(dirname -- "$_GB_COMMON")/$_GATE_BIN_REL")
+    fi
 fi
 
 cd "$REPO_ROOT"
 
 # ── side-effect 인가 게이트: 소스 브랜치 검증·경로 열거·git diff·git checkout 이전에 동기 호출 ──
-GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.py"
-gate_cmd=(python3 "$GATE_SCRIPT" authorize --action sync_branches --repo-root "$REPO_ROOT")
+gate_cmd=(env "${_GATE_ENV[@]}" bash "$GATE_SCRIPT" authorize --action sync_branches --repo-root "$REPO_ROOT")
 if [ "$HAVE_MANIFEST" -eq 1 ]; then
     gate_cmd+=(--manifest "$RESOLVED_MANIFEST")
 fi
@@ -464,22 +479,41 @@ fi
 #   diverged 였다(안내대로 했는데 막히는 교착).
 #
 # ★ 판정기도 정본 버전이어야 한다 -- 아래 자기 일관성 가드와 **같은 논리**다. 반대 브랜치 워크트리의
-#   `layer_ledger.py` 는 반대 브랜치 판본이라, 판정 규칙이 바뀐 회차에는 옛 규칙(또는 모르는 인자로 죽는
-#   판정기)이 판정한다. 그래서 출발 브랜치와 바이트가 다르면 판정 전에 멈추고 당겨오라고 말한다
-#   (종료 시퀀스는 sync_branches.sh 와 함께 미리 당겨온다 · RED ① 은 출발 브랜치와 바이트 동일한 경로를 뺀다).
-_LEDGER_REL=".claude/skills/upstream-version-watch/scripts/layer_ledger.py"
+#   판정기(Rust 런처 `layer_ledger.sh` + 판정 규칙 소스 `rust/runtime/src/layer_ledger.rs`)는 반대 브랜치 판본이라,
+#   판정 규칙이 바뀐 회차에는 옛 규칙(또는 모르는 인자로 죽는 판정기)이 판정한다. 그래서 출발 브랜치와 바이트가
+#   다르면 판정 전에 멈추고 당겨오라고 말한다(종료 시퀀스는 sync_branches.sh 와 함께 미리 당겨온다 · RED ① 은
+#   출발 브랜치와 바이트 동일한 경로를 뺀다). ELF 는 비추적 빌드 산출물이라 inline_json 과 같은 규칙으로 찾는다:
+#   호출자의 EASY_VLLM_UPSTREAM_RUNTIME_ROOT → 이 체크아웃의 runtime → 같은 저장소 주 작업 트리의 runtime(정본 체크아웃).
+#   어디에도 없으면 판정하지 못한 것이다(COMMON_LAYER_UNJUDGED · Python 폴백 ✗).
+_LEDGER_REL=".claude/skills/upstream-version-watch/scripts/layer_ledger.sh"
+_LEDGER_SRC_REL=".claude/skills/upstream-version-watch/rust/runtime/src/layer_ledger.rs"
+_LEDGER_RT_REL=".claude/skills/upstream-version-watch/rust/runtime"
 _LEDGER="$REPO_ROOT/$_LEDGER_REL"
-if git cat-file -e "$SRC_BRANCH:$_LEDGER_REL" 2>/dev/null; then
-    if [ ! -f "$_LEDGER" ] || [ "$(git hash-object -- "$_LEDGER")" != "$(git rev-parse "$SRC_BRANCH:$_LEDGER_REL")" ]; then
+if git cat-file -e "$SRC_BRANCH:$_LEDGER_SRC_REL" 2>/dev/null && git cat-file -e "$SRC_BRANCH:$_LEDGER_REL" 2>/dev/null; then
+    _LEDGER_STALE=()
+    for _lr in "$_LEDGER_REL" "$_LEDGER_SRC_REL"; do
+        if [ ! -f "$REPO_ROOT/$_lr" ] || [ "$(git hash-object -- "$REPO_ROOT/$_lr")" != "$(git rev-parse "$SRC_BRANCH:$_lr")" ]; then
+            _LEDGER_STALE+=("$_lr")
+        fi
+    done
+    if [ "${#_LEDGER_STALE[@]}" -gt 0 ]; then
         echo "[sync-branches] FAIL(LEDGER_JUDGE_STALE): 갈라짐 판정기가 정본($SRC_BRANCH)과 다릅니다 — 옛 규칙으로 판정하지 않습니다." >&2
         echo "[sync-branches]   먼저 판정기만 당겨온 뒤 다시 실행하세요(RED ① 은 정본과 바이트 동일한 경로를 막지 않습니다):" >&2
-        echo "[sync-branches]     git checkout $SRC_BRANCH -- $_LEDGER_REL" >&2
+        echo "[sync-branches]     git checkout $SRC_BRANCH -- ${_LEDGER_STALE[*]}" >&2
         exit 3
+    fi
+    _LEDGER_ENV=()
+    if [ "${EASY_VLLM_UPSTREAM_RUNTIME_ROOT+set}" != set ] && [ ! -x "$REPO_ROOT/$_LEDGER_RT_REL/target/release/layer_ledger" ]; then
+        _LL_COMMON="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+        _LL_MAIN_RT="$(dirname -- "${_LL_COMMON:-/nonexistent/.git}")/$_LEDGER_RT_REL"
+        if [ -n "$_LL_COMMON" ] && [ -x "$_LL_MAIN_RT/target/release/layer_ledger" ]; then
+            _LEDGER_ENV=("EASY_VLLM_UPSTREAM_RUNTIME_ROOT=$_LL_MAIN_RT")
+        fi
     fi
     _DIV_RC=0
     # stdout 은 JSON 계약이다 -- 진단(stderr)을 섞으면 경고 한 줄이 판정 불가를 만든다. 진단은 따로 받아 멈출 때 보인다.
     _DIV_ERR="$(mktemp)"
-    _DIV_JSON="$(python3 "$_LEDGER" divergence --repo "$REPO_ROOT" --branch "$DST_BRANCH" \
+    _DIV_JSON="$(env "${_LEDGER_ENV[@]}" bash "$_LEDGER" divergence --repo "$REPO_ROOT" --branch "$DST_BRANCH" \
                      --counterpart "$SRC_BRANCH" --ledger-ref "$SRC_BRANCH" 2>"$_DIV_ERR")" || _DIV_RC=$?
     _DIV_STDERR="$(head -c 4000 "$_DIV_ERR")"; rm -f "$_DIV_ERR"
     _DIV_SUMMARY="$(printf '%s' "$_DIV_JSON" | "$IJ" divergence-summary 2>/dev/null || printf 'unreadable\t-\t-\t-\t0')"

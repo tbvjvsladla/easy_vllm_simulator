@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_DOWNGRADE_REPORT_ABSENT": "topic 'downnoreport' has no bound bench_report -- a downgrade is recorded in the sweep report's measurement-config table (publish-benchmark binds it); nothing shows this cell was downgraded"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_DOWNGRADE_REPORT_ABSENT"
+  ],
+  "schema_version": 1
+}

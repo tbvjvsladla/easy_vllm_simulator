@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_CERTIFICATE_VERDICT_MISMATCH": "certificate verdict='REFUTE' (must be 'PASS') -- refusing to publish a contradictory certificate"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_CERTIFICATE_VERDICT_MISMATCH"
+  ],
+  "schema_version": 1
+}

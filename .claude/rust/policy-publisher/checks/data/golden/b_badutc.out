@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INVALID_GENERATED_UTC": "--generated-utc 'nope' is not a valid UTC 'YYYY-MM-DDTHH:MM:SSZ' timestamp"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INVALID_GENERATED_UTC"
+  ],
+  "schema_version": 1
+}

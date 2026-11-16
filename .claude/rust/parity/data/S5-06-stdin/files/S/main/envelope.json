@@ -1,0 +1,71 @@
+{
+  "counters": {
+    "boot": 2,
+    "hb": 8,
+    "ignored_known": 1,
+    "kill_ack": 1,
+    "start": 1,
+    "total": 21,
+    "trip": 1,
+    "trip_nomatch": 1,
+    "unit": 3,
+    "unmatched": 3
+  },
+  "descent_rate_mib_s": {
+    "falling_samples": 2,
+    "max": 142857.0,
+    "p50": 1912.33,
+    "p90": 142857.0,
+    "p99": 142857.0
+  },
+  "eta_params": {
+    "agent_act_s": 300,
+    "agent_notify_s": 900,
+    "daemon_kill_s": 6,
+    "eta_floor_s": 6.0,
+    "provenance": "plan_26073109 §2.2 초기 임의값 -- Plan B 캠페인에서 실측 근거로 교체"
+  },
+  "generated_utc": "2026-07-31T00:00:00Z",
+  "kill": {
+    "latency_upper_bound_s": {
+      "max": 12.0,
+      "observed": [
+        12.0
+      ]
+    },
+    "threshold_mib": 10240,
+    "trip_mem_mib": [
+      10186
+    ],
+    "trips": 1
+  },
+  "mem_avail_mib": {
+    "max": 1000000,
+    "min": 1,
+    "p01": 1,
+    "p50": 117283
+  },
+  "node_id": "main",
+  "provenance": {
+    "absent_fields": [
+      "gpu_temp",
+      "gpu_pwr",
+      "gpu_sm",
+      "gpu_util",
+      "gpu_mem",
+      "load1",
+      "ctr_n"
+    ],
+    "caveat": "15s 해상도 재구성 -- 순간 최대 하강률은 과소평가되고 kill 지연은 과대평가된다. 1초 실샘플로 대체될 때까지 보수적으로만 사용한다.",
+    "resolution_s": 15,
+    "source": "mem_watchdog systemd journal (legacy)"
+  },
+  "samples": {
+    "count": 8,
+    "first_utc": "2026-07-22T08:44:56Z",
+    "last_utc": "2026-08-01T00:00:07Z",
+    "rated": 4
+  },
+  "schema_version": 1,
+  "state": "seed"
+}

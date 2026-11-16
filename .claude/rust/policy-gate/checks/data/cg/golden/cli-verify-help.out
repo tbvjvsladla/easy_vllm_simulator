@@ -1,0 +1,9 @@
+usage: completion_gate.py verify [-h] --manifest MANIFEST
+                                 [--repo-root REPO_ROOT]
+
+options:
+  -h, --help            show this help message and exit
+  --manifest MANIFEST   path to a work-manifest JSON file
+  --repo-root REPO_ROOT
+                        override repo root detection (bypasses .git lookup --
+                        for hermetic tests)

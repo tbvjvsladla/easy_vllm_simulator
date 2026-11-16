@@ -1,0 +1,1 @@
+[NAS-check] FAIL: --topology {single|multi} 또는 --base 필요 (configs·compose 는 output/<topology>/ 통로에 있음 — plan_26062312)

@@ -1,0 +1,66 @@
+# policy-audit
+
+Rust port of `.claude/policies/runtime/policy_registry.py` (the registry validator/auditor) and
+`.claude/policies/runtime/harness_verify.py` (the three-stage completion gate). Unpublished (`publish = false`).
+
+| Original | Binary | Launcher |
+|---|---|---|
+| `policy_registry.py verify / check-removal / --self-test` | `policy_registry` | `.claude/policies/runtime/policy_registry.sh` |
+| `harness_verify.py [--as-of ...]` | `harness_verify` | `.claude/policies/runtime/harness_verify.sh` |
+
+The launchers start the node-built release binary directly (`exec -a <same dir>/<name>.py`, so argparse `prog` text and the
+repository root derivation match the original); a missing binary is exit 2 with the build command
+(`bash .claude/skills/terraforming_node/scripts/build_rust_packages.sh`). There is no Python fallback. `POLICY_REGISTRY_BIN` /
+`HARNESS_VERIFY_BIN` override the binary path (used by the checks).
+
+## Library API (for the other policies packages)
+
+`policy_audit::` re-exports, with the original's names and messages:
+
+- `Violation` (`reason_code`, `message`, `policy_id`, `clause_id`, `path`; `to_dict()`), `Date` (`datetime.date` incl.
+  CPython 3.12 `fromisoformat`)
+- `scan_policy_citations(text) -> Vec<(line, token)>`, `citation_violations(text, registry_doc, source_label)`
+- `as_of_state_violations(policies, as_of)`, `evaluate_lifecycle(doc, as_of, repo_root, Option<claim_bindings>)`,
+  `claim_binding_violations(policies, claim_bindings)`, `evidence_structural_violations`, `clause_executable_evidence_violations`
+- `arch_variant_contract_violations(repo_root)`, `git_available(repo_root)` (`_git_available`), `resolve_evidence_path`
+- `schema_meta_violations`, `schema_violations`, `safe_load_json_object`, `compute_contract_tree_sha256`,
+  `check_removal_eligibility`, `check_removal_full`, `extract_assertion_ids`
+- `self_test(repo_root)` (`policy_registry._self_test`)
+- `registry::policies_of(doc)` = `[p for p in doc["policies"] if isinstance(p, dict)]`
+
+## Behaviour notes
+
+- **Assertion ids for `.py` evidence**: the original used CPython `ast` (top-level `def`, top-level `Assign`/`AnnAssign`
+  name targets, `Class.test*` of any `TestCase` subclass). `pyids.rs` reads the same facts with a small Python lexer; on every
+  `.py` file and evidence path of commit `b1f3563e` the sets are identical (`checks/ids_golden.rs`). An unterminated
+  string/bracket is `None` like a `SyntaxError`; other syntax errors are not detected. `.rs`, `.ts`, `.sh`, `.yaml/.yml`, `.md`
+  and `.json` evidence use the original's regex/lexical rules unchanged (the `.rs` kind already existed in the original), so
+  registry entries can be re-pointed at Rust files without any change here.
+- `clause_executable_evidence_violations` reports clauses in sorted clause-id order; the original iterated a Python `set`
+  (hash-randomized order), so its order for two or more such clauses in one policy was not deterministic.
+- The arch-variant selector check derives `image_identity` with the upstream owner's Rust library
+  (`upstream_runtime::slave_forward::candidates`) instead of importing `slave_forward.py`; it still requires the owner files
+  `slave_forward.py` and the multi compose template to exist (the original's "cannot judge" gate). When the upstream bundle
+  deletes `slave_forward.py`, `arch::SLAVE_FORWARD_REL` must move to its Rust entry point (`slave_forward.sh`).
+- The contract-tree digest still hashes the bytes of `.claude/policies/runtime/policy_registry.py` under the checked
+  repo root (empty when absent), exactly as the original, so removal artifacts stay comparable.
+- `--self-test`'s OK fixture cites `.claude/rust/runtime-support/src/schema.rs :: validate_against_schema` (tracked Rust)
+  instead of `policy_registry.py :: evaluate_lifecycle`, so it survives the deletion of the Python original.
+- `harness_verify` runs its stages through the Rust launchers (`policy_registry.sh verify`, `runtime_selftest.sh`,
+  `predicates/claim_predicates.sh`, then `predicates/companion_predicate.sh` and `predicates/runtime_patch_predicate.sh` in
+  place of `unittest discover -p '*_predicate.py'`). A missing stage launcher fails that stage closed. stdout keeps CPython's
+  buffering (children first, harness lines at exit, when stdout is not a terminal).
+
+## Checks
+
+`cargo test --release --offline --locked` runs:
+
+- `ids_golden` — assertion-id sets vs. `checks/data/assertion_ids.json` (captured by `checks/capture_ids.sh`).
+- `cli_golden` — the CLI cases in `checks/data/cli/<id>/` (fixture `case.sh` + captured `stdout`/`stderr`/`exit_code`;
+  captured from the originals by `checks/capture_goldens.sh`, re-run here through the launchers by `checks/run_case.sh`).
+  Fixtures are git repos built from commit `b1f3563e`'s blobs or literal text (helpers in `checks/fixture_lib.sh`).
+- `citations_golden` — `scan_policy_citations` / `citation_violations` vs. `checks/data/citations.json`
+  (captured by `checks/capture_citations.sh`).
+- `harness_checks` — stage order / exit-code mapping with fake stage launchers.
+
+Re-capturing goldens needs the original `.py` files; the checks themselves never run Python.

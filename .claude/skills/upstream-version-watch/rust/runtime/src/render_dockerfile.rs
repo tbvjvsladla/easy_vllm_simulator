@@ -17,7 +17,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 pub const PROGRAM: &str = "render_dockerfile.py";
-pub(crate) const RUNNER_SCRIPTS: [&str; 3] = ["serve_runner.sh", "debug-init.sh", "arm_patch.sh"];
+pub const RUNNER_SCRIPTS: [&str; 3] = ["serve_runner.sh", "debug-init.sh", "arm_patch.sh"];
 
 type Env = BTreeMap<String, String>;
 

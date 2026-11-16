@@ -1,0 +1,73 @@
+{
+  "certificate": null,
+  "checked_evidence": {
+    "devlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/devlog.md",
+      "required": true,
+      "sha256": "4842198b2c77f304e39154c10ca3b3651c2af556f82987a2eed201c131a9ee55",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "plan": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/plan.md",
+      "required": true,
+      "sha256": "82e5adb594bd210b32af3c82fc563b881a942e8eb7fe0487b4e7ac29619c03ee",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "simlog": {
+      "exists": false,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "sim/empty",
+      "required": true,
+      "sha256": null,
+      "tree_sha256": "27bee333707fa1371d79512affee38141a5fdb52c87c5dc18b41f57c45c66dab",
+      "type": "dir"
+    },
+    "testlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/testlog.md",
+      "required": true,
+      "sha256": "1344de4f31b5fe384e9748f7ce3c55e6e00bdf6e82a79d4023ce3121ed90dfc4",
+      "tree_sha256": null,
+      "type": "file"
+    }
+  },
+  "eligible_for_promotion": false,
+  "exit_code": 1,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {
+    "EVIDENCE_MISSING:simlog": "required evidence 'simlog' missing/unresolvable (status=empty_tree)",
+    "PII_SCAN_COVERAGE_INCOMPLETE:devlog": "required evidence 'devlog' path 'docs/devlog.md' not present in pii_scan.scanned_paths",
+    "PII_SCAN_COVERAGE_INCOMPLETE:plan": "required evidence 'plan' path 'docs/plan.md' not present in pii_scan.scanned_paths",
+    "PII_SCAN_COVERAGE_INCOMPLETE:simlog": "required evidence 'simlog' path 'sim/empty' not present in pii_scan.scanned_paths",
+    "PII_SCAN_COVERAGE_INCOMPLETE:testlog": "required evidence 'testlog' path 'docs/testlog.md' not present in pii_scan.scanned_paths"
+  },
+  "reason_codes": [
+    "EVIDENCE_MISSING:simlog",
+    "PII_SCAN_COVERAGE_INCOMPLETE:devlog",
+    "PII_SCAN_COVERAGE_INCOMPLETE:plan",
+    "PII_SCAN_COVERAGE_INCOMPLETE:simlog",
+    "PII_SCAN_COVERAGE_INCOMPLETE:testlog"
+  ],
+  "rubric": null,
+  "schema_version": 1,
+  "state": "runtime-ready",
+  "task_class": "model_serving_strategy"
+}

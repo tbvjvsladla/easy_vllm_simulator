@@ -1,0 +1,40 @@
+{
+  "input": {
+    "gpu_pwr_w": 79.85,
+    "soc_temp_c": 50.0
+  },
+  "params": {
+    "gpu_pwr_w": 80,
+    "gpu_sustain_s": 60,
+    "soc_warn_c": 97,
+    "soc_sustain_s": 30,
+    "soc_hard_c": 99,
+    "soc_hard_polls": 3,
+    "bucket_decay": 1,
+    "poll_interval_s": 1,
+    "stale_after_s": 10
+  },
+  "provenance": {
+    "gpu_pwr_w": "measured:docs/logs/main/samples 23일 1Hz 전수(2026-07-31~08-23) 그리드 탐색",
+    "gpu_sustain_s": "measured:생존22일 최대버킷 13 vs 사건일 309 의 기하평균 부근",
+    "bucket_decay": "measured:decay=1 이 분리비 23.8배로 최대(decay=2 는 23.7, 연속스트릭은 21.8)",
+    "soc_warn_c": "calibrated:2026-09-09 — EC 팬 커브 100%@97°C(포럼 377044 펌웨어 복구 · 3버전 동일) + 이 유닛 8일 682k samples(max 97°C·무사고) · testlog_26090904 후속",
+    "soc_sustain_s": "calibrated:2026-09-09 — 술어(버킷 지속초)는 유지 · warn 재기준으로 진성 이탈만 걸림 · 장애 시그니처는 급상승(2°C/s)이라 hard 축이 담당",
+    "soc_hard_c": "calibrated:2026-09-09 — 장애 스파이크 종점 97.8°C(acpitz) + 마진 · 포럼 하드오프 사례는 센서 결함 진단 동반(정상 관리 상승과 다른 사건)",
+    "soc_hard_polls": "inherited:blackbox_eta.DEFAULTS['debounce_polls'] 와 동일 개념(1Hz x 3폴)",
+    "bucket_cap_s": "derived:2 x gpu/soc sustain — 회복이 유계이도록(손으로 적지 않는다)",
+    "poll_interval_s": "design:수집기와 동일 격자",
+    "stale_after_s": "derived:수집기 1Hz 격자 + 여유"
+  },
+  "uncalibrated": [],
+  "verdict": {
+    "trip": false,
+    "rule": "none",
+    "gpu_bucket": 0,
+    "soc_bucket": 0,
+    "soc_hard_streak": 0,
+    "gpu_stale": false
+  },
+  "polls_to_trip": null,
+  "note": "이 입력이 유지돼도 TRIP 하지 않는다(250 폴까지 확인)"
+}

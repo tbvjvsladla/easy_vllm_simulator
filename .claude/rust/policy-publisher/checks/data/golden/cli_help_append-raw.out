@@ -1,0 +1,14 @@
+usage: evidence_publisher.py append-raw [-h] [--repo-root REPO_ROOT] --topic
+                                        TOPIC --kind
+                                        {plan,devlog,testlog,simlog,bench_report,certificate,verification,commit,report}
+                                        --src SRC --recorded-utc RECORDED_UTC
+                                        [--dest-name DEST_NAME]
+
+options:
+  -h, --help            show this help message and exit
+  --repo-root REPO_ROOT
+  --topic TOPIC
+  --kind {plan,devlog,testlog,simlog,bench_report,certificate,verification,commit,report}
+  --src SRC
+  --recorded-utc RECORDED_UTC
+  --dest-name DEST_NAME

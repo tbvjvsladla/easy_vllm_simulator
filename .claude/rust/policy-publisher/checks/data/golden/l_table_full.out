@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_LITE_REPORT_NOT_LITE": "'docs/benchmark/bench_report_26010114_self-test-model_GB10_0.0.0.md' measurement-config table does not say bench_mode=lite (state=parsed, bench_mode='full') -- refusing to bind a non-lite (or pre-contract) report as the lite evidence of a map-only topic"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_LITE_REPORT_NOT_LITE"
+  ],
+  "schema_version": 1
+}

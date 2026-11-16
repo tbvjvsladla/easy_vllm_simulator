@@ -1,0 +1,16 @@
+#!/bin/sh
+# Parity stub of `ssh` for the TA-* goldens: never connects anywhere. Logs argv to ta_out/ssh.argv unless
+# ta_fix/ssh.nolog exists; with ta_fix/ssh.rc it replays canned ta_fix/ssh.{stdout,stderr,rc}, otherwise it runs the
+# remote command LOCALLY with `bash -lc` replaced by `bash -c` (a login shell would put the real user PATH first).
+mkdir -p ta_out
+if [ ! -e ta_fix/ssh.nolog ]; then
+  { printf 'argv:'; for a in "$@"; do printf ' [%s]' "$a"; done; printf '\n'; } >> ta_out/ssh.argv
+fi
+if [ -e ta_fix/ssh.rc ]; then
+  [ -f ta_fix/ssh.stdout ] && cat ta_fix/ssh.stdout
+  [ -f ta_fix/ssh.stderr ] && cat ta_fix/ssh.stderr >&2
+  exit "$(cat ta_fix/ssh.rc)"
+fi
+for last; do :; done
+cmd=${last#bash -lc }
+eval "exec bash -c $cmd"

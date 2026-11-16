@@ -1,0 +1,14 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "removal_evidence.path does not resolve to a readable, tracked, digest-matching JSON artifact",
+      "path": "rm/art.json",
+      "policy_id": "TEST_RET",
+      "reason_code": "REMOVAL_EVIDENCE_ARTIFACT_UNREADABLE"
+    }
+  ]
+}

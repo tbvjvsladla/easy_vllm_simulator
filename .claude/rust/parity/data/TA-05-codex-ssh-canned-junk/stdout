@@ -1,0 +1,52 @@
+{
+  "budget_outcome": null,
+  "duration_api_ms": null,
+  "duration_ms": null,
+  "execution_started": null,
+  "exit_code": 5,
+  "failure_evidence": {
+    "lock_acquired": false,
+    "malformed_jsonl": true,
+    "raw_stderr": "",
+    "raw_stdout": "{\"type\": \"adapter.framing_started\", \"request_digest\": \"0000000000000000000000000000000000000000000000000000000000000000\"}\n{\"type\": \"adapter.child_line\", \"data\": \"eyJ0eXBlIjogImFkYXB0ZXIubG9ja19hY3F1aXJlZCJ9\"}\n{\"type\": \"adapter.child_line\", \"data\": \"eyJ0eXBlIjogInRocmVhZC5zdGFydGVkIiwgInRocmVhZF9pZCI6ICJ0aHJlYWQtMSJ9\"}\n{\"type\": \"adapter.child_line\", \"data\": \"eyJ0eXBlIjogInR1cm4uc3RhcnRlZCJ9\"}\n{\"type\": \"adapter.deadline_reaped\", \"request_digest\": \"0000000000000000000000000000000000000000000000000000000000000000\"}\n{\"type\":\"adapter.child_line\",\"data\":\"!!\"}\n",
+    "returncode": 0,
+    "rotate": false,
+    "signal": "malformed_jsonl"
+  },
+  "intent": "delegate",
+  "model_requested": "gpt-6.1-sol",
+  "model_used": [],
+  "num_turns": null,
+  "output": null,
+  "provider": "codex_cli",
+  "raw_events": [
+    {
+      "data": "eyJ0eXBlIjogImFkYXB0ZXIubG9ja19hY3F1aXJlZCJ9",
+      "type": "adapter.child_line"
+    },
+    {
+      "data": "eyJ0eXBlIjogInRocmVhZC5zdGFydGVkIiwgInRocmVhZF9pZCI6ICJ0aHJlYWQtMSJ9",
+      "type": "adapter.child_line"
+    },
+    {
+      "data": "eyJ0eXBlIjogInR1cm4uc3RhcnRlZCJ9",
+      "type": "adapter.child_line"
+    },
+    {
+      "request_digest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "type": "adapter.deadline_reaped"
+    },
+    {
+      "data": "!!",
+      "type": "adapter.child_line"
+    }
+  ],
+  "raw_exit_code": 0,
+  "reason_codes": [
+    "MALFORMED_JSON"
+  ],
+  "schema_version": 2,
+  "session_id": null,
+  "status": "malformed_output",
+  "usage": null
+}

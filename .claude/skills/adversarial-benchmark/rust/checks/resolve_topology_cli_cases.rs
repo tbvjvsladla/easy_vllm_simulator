@@ -1,5 +1,6 @@
 //! The frozen original command-line criteria of `resolve_topology`: 33 invocations (23 resolutions against a declared
-//! local owner-output fixture, and 10 parser/help/usage cases including the complete `--self-test` transcript). Each
+//! owner answer - judged by the check-only stand-in of the native helper, no Python - and 10 parser/help/usage cases
+//! including the complete `--self-test` transcript). Each
 //! runs the real binary in a scratch tree; exit status, standard output, standard error (an uncaught exception
 //! projected as the references define it: the text before the traceback and its last line) and the whole tree
 //! afterwards are compared.
@@ -24,16 +25,21 @@ const SOURCES: [&str; 3] = [
 ];
 
 fn run(scratch: &Scratch, argv: &[PyValue]) -> Output {
-    Command::new(CLI)
+    let mut command = Command::new(CLI);
+    command
         .args(argv.iter().map(|a| text(&fill(a, scratch))))
         .current_dir(&scratch.root)
-        .env("RESOLVE_TOPOLOGY_PYTHON", python())
+        .env_remove("RESOLVE_TOPOLOGY_PYTHON")
         .env("RESOLVE_TOPOLOGY_API_BIN", API)
         .env_remove("RESOLVE_TOPOLOGY_BIN")
         .env_remove("COLUMNS")
-        .env_remove("LINES")
-        .output()
-        .expect("run")
+        .env_remove("LINES");
+    // the frozen resolutions that declare an owner answer are judged by the check-only stand-in of the native helper
+    match helper_for(scratch) {
+        Some(stub) => command.env("RESOLVE_TOPOLOGY_PARITY_BIN", stub),
+        None => command.env_remove("RESOLVE_TOPOLOGY_PARITY_BIN"),
+    };
+    command.output().expect("run")
 }
 
 fn rebased(scratch: &Scratch, bytes: &[u8]) -> String {
@@ -204,8 +210,9 @@ fn the_abbreviated_and_repeated_options_follow_argparse() {
 }
 
 /// The other side of the same rule: inside the installed layout (`.../adversarial-benchmark/rust/target/release`) the
-/// sources are found from the executable's own place with no environment at all. A deliberate fixture: a layout whose
-/// checkout has no parity owner, so the run gets past the configuration and stops at the missing owner file.
+/// sources are found from the executable's own place with no environment at all. A deliberate fixture: a layout with no
+/// native parity helper beside the copied binary, so the run gets past the source configuration and stops at the missing
+/// helper (a named configuration error of the helper, never a Python fallback).
 #[test]
 fn an_executable_in_the_installed_layout_finds_its_sources_without_environment() {
     let scratch = Scratch::new("layout");
@@ -224,7 +231,8 @@ fn an_executable_in_the_installed_layout_finds_its_sources_without_environment()
             .env_remove("RESOLVE_TOPOLOGY_SCRIPTS_DIR")
             .env_remove("RESOLVE_TOPOLOGY_RUNTIME_DIR")
             .env_remove("RESOLVE_TOPOLOGY_BIN")
-            .env("RESOLVE_TOPOLOGY_PYTHON", python()),
+            .env_remove("RESOLVE_TOPOLOGY_PYTHON")
+            .env_remove("RESOLVE_TOPOLOGY_PARITY_BIN"),
     );
     let shown = String::from_utf8_lossy(&output.stderr).into_owned();
     let last = shown
@@ -235,16 +243,11 @@ fn an_executable_in_the_installed_layout_finds_its_sources_without_environment()
         .to_string();
     assert_eq!(output.status.code(), Some(1), "{shown}");
     assert!(
-        !last.contains("ResolveTopologyConfigurationError"),
+        !last.contains("the repository root is not configured"),
         "{shown}"
     );
-    let owner = format!(
-        "{}/layout/.claude/policies/runtime/topology_parity.py",
-        scratch.text()
-    );
     assert!(
-        last.starts_with("FileNotFoundError: [Errno 2] No such file or directory:")
-            && last.contains(&owner),
+        last.starts_with("ResolveTopologyConfigurationError: the native topology helper `topology_parity` is not installed"),
         "{shown}"
     );
 }

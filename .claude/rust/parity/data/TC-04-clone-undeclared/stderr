@@ -1,0 +1,1 @@
+[check_sub_hint_equip] FAIL: HINT_CLONE_DIR 미선언 — envs/.env 에 워크스페이스 밖 절대경로 한 줄을 먼저 둔다(선언 자리는 하나)

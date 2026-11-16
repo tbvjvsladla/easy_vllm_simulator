@@ -16,6 +16,7 @@ fi
 binary="$runtime_root/target/release/estimate_vram"
 if [ ! -f "$binary" ] || [ ! -x "$binary" ]; then
   printf '[estimate_vram] ERROR normal Rust ELF missing/non-executable: %s\n' "$binary" >&2
+  printf '[estimate_vram] build first: bash .claude/skills/terraforming_node/scripts/build_rust_packages.sh\n' >&2
   exit 2
 fi
 magic=''
@@ -24,4 +25,5 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[estimate_vram] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/estimate_vram.py" "$binary" "$@"
+# argv[0] names the skill that owns this launcher (<skill>/rust/runtime/target/release/estimate_vram), never a retired .py path.
+exec -a "${SDIR%/*}/rust/runtime/target/release/estimate_vram" "$binary" "$@"

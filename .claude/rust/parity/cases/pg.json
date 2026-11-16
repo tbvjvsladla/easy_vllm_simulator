@@ -1,0 +1,79 @@
+[
+ {
+  "id": "PG-cg-help",
+  "entry": ".claude/policies/runtime/completion_gate.sh",
+  "orig": ".claude/policies/runtime/completion_gate.py",
+  "orig_rev": "b1f3563e",
+  "args": [
+   "--help"
+  ]
+ },
+ {
+  "id": "PG-cg-usage",
+  "entry": ".claude/policies/runtime/completion_gate.sh",
+  "orig": ".claude/policies/runtime/completion_gate.py",
+  "orig_rev": "b1f3563e",
+  "args": [
+   "authorize",
+   "--manifest",
+   "m.json",
+   "--mode",
+   "bad",
+   "--action",
+   "sync_to_sub"
+  ]
+ },
+ {
+  "id": "PG-cg-verify-schema",
+  "entry": ".claude/policies/runtime/completion_gate.sh",
+  "orig": ".claude/policies/runtime/completion_gate.py",
+  "orig_rev": "b1f3563e",
+  "args": [
+   "verify",
+   "--manifest",
+   "m.json",
+   "--repo-root",
+   "."
+  ],
+  "setup": {
+   "m.json": "{\"schema_version\": 1, \"task_class\": \"harness_change\", \"identity\": {\"model\": \"\"}, \"evidence\": {}, \"pii_scan\": {\"passed\": \"yes\"}}\n"
+  }
+ },
+ {
+  "id": "PG-cg-verify-runtime",
+  "entry": ".claude/policies/runtime/completion_gate.sh",
+  "orig": ".claude/policies/runtime/completion_gate.py",
+  "orig_rev": "b1f3563e",
+  "args": [
+   "verify",
+   "--manifest",
+   "w/m.json",
+   "--repo-root",
+   "w"
+  ],
+  "setup": {
+   "w/m.json": "{\"schema_version\": 1, \"task_class\": \"harness_change\", \"identity\": {\"model\": \"m\", \"gpu\": \"g\", \"vllm\": \"v\", \"quant\": null, \"topology\": \"single\", \"tp\": 1}, \"runtime\": {\"health_ok\": true, \"functional_smoke_passed\": true, \"identity\": {\"model\": \"m\", \"gpu\": \"g\", \"vllm\": \"v\", \"quant\": null, \"topology\": \"single\", \"tp\": 1}}, \"evidence\": {\"plan\": {\"path\": \"p.md\"}, \"devlog\": {\"path\": \"p.md\"}, \"testlog\": {\"path\": \"missing.md\"}}, \"pii_scan\": {\"passed\": true, \"scanned_paths\": [\"p.md\"]}}\n",
+   "w/p.md": "# p\n[x](nope.md)\n"
+  }
+ },
+ {
+  "id": "PG-cg-authorize-absent",
+  "entry": ".claude/policies/runtime/completion_gate.sh",
+  "orig": ".claude/policies/runtime/completion_gate.py",
+  "orig_rev": "b1f3563e",
+  "args": [
+   "authorize",
+   "--manifest",
+   "w/m.json",
+   "--mode",
+   "experimental",
+   "--action",
+   "sync_branches",
+   "--repo-root",
+   "w"
+  ],
+  "setup": {
+   "w/m.json": "{\"schema_version\": 1, \"task_class\": \"harness_change\", \"identity\": {\"model\": \"m\", \"gpu\": \"g\", \"vllm\": \"v\", \"quant\": null, \"topology\": \"single\", \"tp\": 1}, \"evidence\": {}, \"pii_scan\": {\"passed\": true}}\n"
+  }
+ }
+]

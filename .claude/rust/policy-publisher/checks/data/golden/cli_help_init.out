@@ -1,0 +1,30 @@
+usage: evidence_publisher.py init [-h] [--repo-root REPO_ROOT] --topic TOPIC
+                                  --task-class
+                                  {model_serving_strategy,full_benchmark,harness_change,capacity_rejection,minor_patch,read_only_audit,hint_map_only}
+                                  --generated-utc GENERATED_UTC
+                                  --identity-json IDENTITY_JSON
+                                  [--conditions-json CONDITIONS_JSON]
+                                  [--benchmark-mode {lite,full}]
+                                  [--benchmark-verdict {PASS,REFUTE,FAIL,OBSERVATION-ONLY}]
+                                  [--report-slug REPORT_SLUG]
+                                  [--downgrade-from {full_benchmark}]
+                                  [--downgrade-reason DOWNGRADE_REASON]
+
+options:
+  -h, --help            show this help message and exit
+  --repo-root REPO_ROOT
+  --topic TOPIC
+  --task-class {model_serving_strategy,full_benchmark,harness_change,capacity_rejection,minor_patch,read_only_audit,hint_map_only}
+  --generated-utc GENERATED_UTC
+  --identity-json IDENTITY_JSON
+  --conditions-json CONDITIONS_JSON
+  --benchmark-mode {lite,full}
+  --benchmark-verdict {PASS,REFUTE,FAIL,OBSERVATION-ONLY}
+  --report-slug REPORT_SLUG
+  --downgrade-from {full_benchmark}
+                        정식 재분류: 반복 불성립으로 강등된 셀의 full_benchmark 토픽을
+                        hint_map_only 로 다시 init 한다(--task-class hint_map_only
+                        · --downgrade-reason 필수 · 되돌림 ✗ · plan_26091407 §4.5)
+  --downgrade-reason DOWNGRADE_REASON
+                        강등 사유 — classify_cell.DOWNGRADE_REASONS
+                        어휘(run_failed|blackbox_kill)

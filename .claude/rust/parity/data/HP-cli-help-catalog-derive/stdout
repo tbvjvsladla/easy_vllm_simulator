@@ -1,0 +1,13 @@
+usage: hint.py catalog derive [-h] --remote REMOTE --generated-kst
+                              GENERATED_KST [--dry-run] [--record-missing]
+                              [--allow-empty]
+
+options:
+  -h, --help            show this help message and exit
+  --remote REMOTE       진실원천 원격(ls-remote)
+  --generated-kst GENERATED_KST
+                        주입 KST YYYY-MM-DDTHH:MM:SS
+  --dry-run
+  --record-missing      로컬 오브젝트 없는 원격 태그를 `absent-local` 행으로 싣고 rc 0(X15 ·
+                        continue·S5 재생성)
+  --allow-empty         원격 hint 태그 0건을 정상으로 선언

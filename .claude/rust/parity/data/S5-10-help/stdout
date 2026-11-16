@@ -1,0 +1,20 @@
+usage: blackbox_thermal.py [-h] [--emit-params EMIT_PARAMS] [--set K=V]
+                           [--explain GPU_PWR_W SOC_TEMP_C]
+                           [--replay CSV [CSV ...]] [--gpu-model GPU_MODEL]
+                           [--self-test]
+
+노드블랙박스 열·전력 포락선 트립 엔진
+
+options:
+  -h, --help            show this help message and exit
+  --emit-params EMIT_PARAMS
+                        셸 상수 출력 경로 (thermal_params.env)
+  --set K=V             파라미터 override (예: --set gpu_sustain_s=90)
+  --explain GPU_PWR_W SOC_TEMP_C
+                        주어진 전력·SoC열이 몇 초 지속되면 트립하는지 설명
+  --replay CSV [CSV ...]
+                        samples CSV 를 재생해 kill 횟수를 센다(음성대조 증거)
+  --gpu-model GPU_MODEL
+                        이 노드 GPU 이름(nvidia-smi name) — 보정 밖 GPU 면 GPU 전력 축을
+                        무장하지 않는다
+  --self-test

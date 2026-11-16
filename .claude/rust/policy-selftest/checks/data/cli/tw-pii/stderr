@@ -1,0 +1,1 @@
+[tripwire] FAIL operator PII in tracked deployed artifacts (1): ['.claude/notes.txt:1:term:fixture-operator-host']

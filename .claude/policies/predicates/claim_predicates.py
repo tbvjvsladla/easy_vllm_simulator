@@ -2711,7 +2711,7 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C2():
     # "re-derived per environment rather than carried forward" is enforced by the production
     # cryptographic provenance validator, not inferred from a wildcard filename. Stamp binds patch
     # bytes + topology + current model inputs + canonical production resolution; any drift rejects.
-    validator = REPO_ROOT / ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"
+    validator = REPO_ROOT / ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh"  # Rust 런처(plan_26111615)
     resolution = REPO_ROOT / ".claude/skills/upstream-version-watch/assets/current-production-resolution.json"
     fn = _extract_bash_function(src, "_band2_filters")
     with tempfile.TemporaryDirectory() as tmp:
@@ -2723,14 +2723,14 @@ def predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C2():
         (envs / ".env.modelA").write_text("MODEL=A\n", encoding="utf-8")
         common = ["--patch", str(patch), "--topology", "multi", "--config-dir", str(configs),
                   "--env-dir", str(envs), "--resolution", str(resolution)]
-        stamped = subprocess.run([sys.executable, str(validator), "stamp", *common],
+        stamped = subprocess.run(["bash", str(validator), "stamp", *common],
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         _require(stamped.returncode == 0, stamped.stderr)
-        verified = subprocess.run([sys.executable, str(validator), "verify", *common],
+        verified = subprocess.run(["bash", str(validator), "verify", *common],
                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         _require(verified.returncode == 0, verified.stderr)
         patch.write_text("# stale carried-forward patch with no current derivation\n", encoding="utf-8")
-        stale = subprocess.run([sys.executable, str(validator), "verify", *common],
+        stale = subprocess.run(["bash", str(validator), "verify", *common],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         _require(stale.returncode != 0, 'stale patch bytes must fail closed despite a generic *_patch.py name')
 

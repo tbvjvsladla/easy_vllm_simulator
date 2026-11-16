@@ -1,0 +1,4 @@
+usage: library_access.py [-h] [--topology {single,multi}] [--node NODE]
+                         [--plan | --apply | --revoke | --self-test]
+                         [--approved-by APPROVED_BY] [--host-of HOST_OF]
+library_access.py: error: ambiguous option: --ap could match --apply, --approved-by

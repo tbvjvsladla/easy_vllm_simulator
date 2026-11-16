@@ -1,0 +1,70 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 9,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "assertion id '_mf_sub' is not an exact identifier found in '.claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh'",
+      "path": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+      "policy_id": "HOST_SAFETY_LAYERED_DEFENSE",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'REQ_MIB' is not an exact identifier found in '.claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh'",
+      "path": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+      "policy_id": "HOST_SAFETY_LAYERED_DEFENSE",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'IMG' is not an exact identifier found in '.claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh'",
+      "path": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+      "policy_id": "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'SLAVE_IMGVARS' is not an exact identifier found in '.claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh'",
+      "path": ".claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh",
+      "policy_id": "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.0' selector 'SM12X_PORT' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh is unreadable",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.0.build_patch_selectors.SM12X_PORT",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_SELECTOR_WIRING_UNREADABLE"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-fork41834-0.27.0' selector 'SRC_DEPS_AUTHORITY' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh is unreadable",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-fork41834-0.27.0.build_patch_selectors.SRC_DEPS_AUTHORITY",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_SELECTOR_WIRING_UNREADABLE"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.1' selector 'SM12X_PORT' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh is unreadable",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.1.build_patch_selectors.SM12X_PORT",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_SELECTOR_WIRING_UNREADABLE"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v41-flash-sm12x-port-0.30.0' selector 'SM12X_PORT' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh is unreadable",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v41-flash-sm12x-port-0.30.0.build_patch_selectors.SM12X_PORT",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_SELECTOR_WIRING_UNREADABLE"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v41-flash-sm12x-port-0.32.0' selector 'SM12X_PORT' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh is unreadable",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v41-flash-sm12x-port-0.32.0.build_patch_selectors.SM12X_PORT",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_SELECTOR_WIRING_UNREADABLE"
+    }
+  ]
+}

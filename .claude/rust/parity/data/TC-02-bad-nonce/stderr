@@ -1,0 +1,4 @@
+usage: harness_permission_probe.py [-h] --workspace WORKSPACE --topology
+                                   {single,multi} --role {main,sub} --nonce
+                                   NONCE
+harness_permission_probe.py: error: absolute workspace and a fresh 32-hex nonce are required

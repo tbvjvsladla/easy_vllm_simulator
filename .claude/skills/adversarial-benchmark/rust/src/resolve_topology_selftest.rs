@@ -1,8 +1,8 @@
 //! `resolve_topology --self-test`: the original's own checks, run for real against this implementation.
 //!
 //! * **R** resolves a bare tree and a tree with a manifest but no parity owner through [`resolve`].
-//! * **P** builds five small git checkouts that carry the checkout's actual parity owner and asks [`resolve`] about
-//!   them: the owner is a real Python process, the verdicts are its own.
+//! * **P** builds five small git checkouts and asks [`resolve`] about them: the judge is the native parity helper (the
+//!   Rust owner); the checkouts carry no `topology_parity.py` (its presence decides nothing, plan_26111615 pass 3).
 //! * **S** copies the six benchmark callers, the resolver launchers, the repeat-axis and preset closure, the
 //!   configuration and the native programs into a fresh checkout and runs the callers there with no `--topology`:
 //!   the topology each caller acts on must be the one the copied launcher resolved through the copied native CLI.
@@ -22,8 +22,11 @@ use crate::pystr::PyStr;
 use crate::pyvalue::PyValue;
 use crate::resolve_topology::{
     capture_text, resolve, Resolution, ResolveContext, RunLimit, EXIT_UNRESOLVED,
-    EXIT_UNTERRAFORMED, PARITY_REL, TAG,
+    EXIT_UNTERRAFORMED, TAG,
 };
+
+/// The Rust launcher of the parity predicate, relative to a checkout.
+const PARITY_LAUNCHER_REL: &str = ".claude/policies/runtime/topology_parity.sh";
 use std::ffi::OsString;
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
@@ -56,21 +59,16 @@ const CALLERS: [&str; 6] = [
 ];
 /// The resolver's own scripts, copied with the callers from the scripts directory (the retained reference
 /// implementation and the two launchers).
-const RESOLVER_SCRIPTS: [&str; 3] = [
-    "resolve_topology.py",
+const RESOLVER_SCRIPTS: [&str; 2] = [
     "resolve_topology.sh",
     "resolve_topology_api.sh",
 ];
 /// The scripts of the tools the callers reach after the resolver (repeat axis, measurement presets), copied byte for
 /// byte from the repository root's scripts directory.
-const DEPENDENCY_SCRIPTS: [&str; 9] = [
+const DEPENDENCY_SCRIPTS: [&str; 5] = [
     "bench_shell.sh",
-    "repeat_axis.py",
-    "bench_preset.py",
     "repeat_axis.sh",
     "repeat_axis_api.sh",
-    "repeat_axis_native.py",
-    "repeat_axis_owner_query.py",
     "bench_preset.sh",
     "bench_preset_api.sh",
 ];
@@ -85,8 +83,9 @@ const RUNTIME_PROGRAMS: [&str; 6] = [
     crate::resolve_topology::HELPER_NAME,
 ];
 /// Settings of the environment a test run may carry that would substitute a copied probe's own deployed files.
-const CHILD_OVERRIDES: [&str; 14] = [
+const CHILD_OVERRIDES: [&str; 15] = [
     "BENCH_SHELL_BIN",
+    "RESOLVE_TOPOLOGY_PARITY_BIN",
     "RESOLVE_TOPOLOGY_BIN",
     "RESOLVE_TOPOLOGY_API_BIN",
     "REPEAT_AXIS_BIN",
@@ -198,6 +197,11 @@ impl SelfTestSources {
 
 fn path_text(path: &Path) -> PyStr {
     PyStr::from_surrogateescape(path.as_os_str().as_bytes())
+}
+
+/// `text` as one single-quoted shell word (a `'` inside is closed, escaped and reopened).
+fn shell_quote(text: &str) -> String {
+    format!("'{}'", text.replace('\'', "'\\''"))
 }
 
 fn path_value(path: &Path) -> PyValue {
@@ -373,7 +377,8 @@ pub fn self_test(
         "the directory of the caller scripts",
         SCRIPTS_DIR_ENV,
     )?;
-    let real_parity = repo_root.join(PARITY_REL);
+    // The installed parity launcher: the presence marker of the predicate a main checkout carries (no `.py` is read).
+    let real_parity = repo_root.join(PARITY_LAUNCHER_REL);
     let mut report = Report {
         console,
         failures: Vec::new(),
@@ -386,7 +391,7 @@ pub fn self_test(
             || PyValue::str("git 없음"),
         )?;
     } else {
-        parity_checks(&mut report, context, &real_parity)?;
+        parity_checks(&mut report, context)?;
     }
     caller_source_checks(&mut report, scripts_dir)?;
     if which("git").is_some() {
@@ -443,7 +448,6 @@ fn manifest_only_checks(report: &mut Report<'_>, context: &ResolveContext) -> Re
 /// constitution with `header` as its topology, and one manifest per channel.
 fn main_repo(
     base: &Path,
-    parity_text: &PyStr,
     name: &str,
     branch: &str,
     header: &str,
@@ -456,7 +460,6 @@ fn main_repo(
         &root,
         &["symbolic-ref", "HEAD", &format!("refs/heads/{branch}")],
     )?;
-    write_parity(&root, parity_text)?;
     write_file(
         &root.join(".claude/rules/strategy.topology.md"),
         &format!("# t\n\n**topology: {header}** · layer: topology\n"),
@@ -473,29 +476,25 @@ fn main_repo(
     Ok(root)
 }
 
-fn write_parity(root: &Path, parity_text: &PyStr) -> Result<(), Failure> {
-    let bytes = pyfs::strict_utf8(parity_text)
-        .map_err(|error| Failure::new("UnicodeEncodeError", &error.message()))?;
-    let target = root.join(PARITY_REL);
+/// Copies the installed parity launcher into a checkout (what marks the predicate as installed on a main checkout).
+fn install_parity_launcher(root: &Path, launcher: &Path) -> Result<(), Failure> {
+    let target = root.join(PARITY_LAUNCHER_REL);
     if let Some(parent) = target.parent() {
         std::fs::create_dir_all(parent).map_err(|error| os_failure(&error, parent))?;
     }
-    std::fs::write(&target, bytes).map_err(|error| os_failure(&error, &target))
+    copy_file(launcher, &target)
 }
 
 /// P: the real parity owner on small checkouts.
 fn parity_checks(
     report: &mut Report<'_>,
     context: &ResolveContext,
-    real_parity: &Path,
 ) -> Result<(), Failure> {
     let temp = TempDir::create("resolve_topology_P.")?;
-    let parity_text = read_text(real_parity)?;
     let ask = |root: &Path| resolve(&path_value(root), &PyValue::None, context);
 
     let root = main_repo(
         &temp.path,
-        &parity_text,
         "p1",
         "multi-node",
         "multi",
@@ -511,7 +510,6 @@ fn parity_checks(
 
     let root = main_repo(
         &temp.path,
-        &parity_text,
         "p2",
         "feature-x",
         "multi",
@@ -528,7 +526,6 @@ fn parity_checks(
 
     let root = main_repo(
         &temp.path,
-        &parity_text,
         "p3",
         "multi-node",
         "single",
@@ -543,7 +540,6 @@ fn parity_checks(
 
     let root = main_repo(
         &temp.path,
-        &parity_text,
         "p4",
         "multi-node",
         "multi",
@@ -558,7 +554,6 @@ fn parity_checks(
 
     let root = main_repo(
         &temp.path,
-        &parity_text,
         "p5",
         "single-node",
         "single",
@@ -726,7 +721,7 @@ fn build_caller_checkout(
     )?;
     git(&root, &["init", "-q"])?;
     git(&root, &["symbolic-ref", "HEAD", "refs/heads/multi-node"])?;
-    write_parity(&root, &read_text(real_parity)?)?;
+    install_parity_launcher(&root, real_parity)?;
     write_file(
         &root.join(".claude/rules/strategy.topology.md"),
         "**topology: multi** · layer: topology\n",
@@ -746,17 +741,18 @@ fn build_caller_checkout(
     let marker = temp.join("mc_argv.txt");
     // The Flag gate owner of run_bench and lite_bench records its argv (a test-plane stub) and answers "not issued"
     // (3), so both scripts stop at exit 4 and the resolved topology is seen at the gate.
+    // The owner file is only the presence marker the callers test; the launcher stub (shell, no Python) answers.
     write_file(
         &root.join(".claude/skills/terraforming_node/scripts/manifest_contract.py"),
-        &format!(
-            "import sys\nopen({}, 'a').write(' '.join(sys.argv[1:]) + '\\n')\nsys.exit(3)\n",
-            path_text(&marker).repr()
-        ),
+        "# test-plane presence marker of the Flag gate owner (never executed)\n",
         None,
     )?;
     write_file(
         &root.join(".claude/skills/terraforming_node/scripts/manifest_contract.sh"),
-        "#!/bin/bash\n[ \"${MANIFEST_CONTRACT_VALIDATE_ONLY:-}\" = 1 ] && exit 0\nexec python3 \"$(dirname \"${BASH_SOURCE[0]}\")/manifest_contract.py\" \"$@\"\n",
+        &format!(
+            "#!/bin/bash\n[ \"${{MANIFEST_CONTRACT_VALIDATE_ONLY:-}}\" = 1 ] && exit 0\nprintf '%s\\n' \"$*\" >> {}\nexit 3\n",
+            shell_quote(&path_text(&marker).to_utf8().unwrap_or_default())
+        ),
         Some(0o755),
     )?;
     // The probes execute their own deployed files, whatever the environment of this run substitutes.

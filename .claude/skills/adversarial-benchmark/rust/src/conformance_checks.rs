@@ -86,12 +86,12 @@ pub fn main(context: &Context, console: &mut dyn Console) -> Result<i32, Raised>
     let sweep = source(context, "sweep_bench.sh")?;
     let render = source(context, "render_report.sh")?;
     let certificate = source(context, "publish_benchmark_record.sh")?;
-    let lite_adapter = source(context, "lite_metrics_native.py")?;
+    let lite_adapter = source(context, "lite_metrics_api.sh")?;
     for (label, text) in [
         ("sweep_bench.sh", &sweep),
         ("render_report.sh", &render),
         ("publish_benchmark_record.sh", &certificate),
-        ("lite_metrics_native.py", &lite_adapter),
+        ("lite_metrics_api.sh", &lite_adapter),
     ] {
         report.check(&format!("파일 존재: {label}"), text.is_some(), "");
     }
@@ -153,9 +153,10 @@ pub fn main(context: &Context, console: &mut dyn Console) -> Result<i32, Raised>
     // E② wiring: every hop from the ② signal to the cell state and the explorer cap exists, and each hop reads the
     // verdict through the owner's rule (`read_lite_verdict`) instead of judging the value again.
     let broad_search = source(context, "broad_search.sh")?.unwrap_or_default();
-    let mut classifier = source(context, "classify_cell_native.py")?.unwrap_or_default();
+    // The classifier's call path is its launcher (the former Python adapter is no longer a caller's path).
+    let mut classifier = source(context, "classify_cell.sh")?.unwrap_or_default();
     report.check(
-        "E② native 분류기 Python 호출 경로가 존재한다",
+        "E② native 분류기 런처(classify_cell.sh)가 존재한다",
         !classifier.is_empty(),
         "",
     );
@@ -174,8 +175,10 @@ pub fn main(context: &Context, console: &mut dyn Console) -> Result<i32, Raised>
     let skills = context.skills_dir();
     let skill_source =
         |relative: &str| read_optional_strict(&crate::ospath::join_all(&skills, &[relative]));
-    let campaign_init = skill_source("terraforming_node/scripts/campaign_init.py")?;
-    let recipe = skill_source("vllm-recipe-explorer/recipe.py")?;
+    // The campaign writer is native (`campaign_write`, adversarial-benchmark/rust), not the retired campaign_init.py.
+    let campaign_init = skill_source("adversarial-benchmark/rust/src/campaign_write.rs")?;
+    // The explorer's cap rule lives in its Rust owner (`recipe simulate`), not in the retired `recipe.py`.
+    let recipe = skill_source("vllm-recipe-explorer/rust/runtime/src/recipe_cmd/simulate_body.rs")?;
     report.check(
         "E② sweep_bench 가 native 서버 로그를 lite 레그에 넘긴다(없으면 native lite 는 늘 ①)",
         sweep.contains("LITE_PLANE_ARGS+=(--engine-log \"$NATIVE_ELOG\")"),
@@ -206,15 +209,15 @@ pub fn main(context: &Context, console: &mut dyn Console) -> Result<i32, Raised>
     report.check(
         "E② campaign_init writer 가 ② 에서 cap 차감(charges)·재발동 제안을 적고 결정 기록 문을 갖는다(cap 값은 적지 않는다)",
         campaign_init.contains("read_lite_verdict")
-            && campaign_init.contains("\"charges\": charges")
-            && campaign_init.contains("\"status\": \"proposed\"")
+            && campaign_init.contains("reconciliation.set(\"charges\", PyValue::List(charges))")
+            && campaign_init.contains("r.set(\"status\", py(\"proposed\"))")
             && campaign_init.contains("--reentry-decide"),
         "",
     );
     report.check(
         "E② explorer 가 셀 상태 차감만큼 cap 을 줄이고 소진이면 트라이얼 없이 Model-C",
         recipe.contains("reconciliation")
-            && recipe.contains("cap = cap_declared - _lite_spent")
+            && recipe.contains("cap = cap_declared - lite_spent")
             && recipe.contains("reconciliation_cap 소진"),
         "",
     );

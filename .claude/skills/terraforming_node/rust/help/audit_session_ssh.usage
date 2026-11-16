@@ -1,0 +1,2 @@
+usage: audit_session_ssh.py [-h] [--self-test] [--transcript TRANSCRIPT]
+                            [--sub-host SUB_HOST] [--limit LIMIT]

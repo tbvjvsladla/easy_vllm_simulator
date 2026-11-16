@@ -1,0 +1,14 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "canonical claim_bindings must be an exact schema_version=1 bindings object",
+      "path": ".claude/policies/claim_bindings.json",
+      "policy_id": null,
+      "reason_code": "CLAIM_BINDINGS_INVALID"
+    }
+  ]
+}

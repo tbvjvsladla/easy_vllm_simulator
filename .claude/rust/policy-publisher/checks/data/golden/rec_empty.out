@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLICATION_RECORD_MISSING_FIELDS": "publication record for topic 'selftest': publication record is missing producer fields ['benchmark', 'capacity_rejection', 'capacity_rejection_required', 'conditions', 'generated_utc', 'identity', 'narrative_status', 'or_group_scaffolded', 'publication_id', 'raw_log_paths', 'required_evidence', 'scaffolded', 'schema_version', 'task_class']"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLICATION_RECORD_MISSING_FIELDS"
+  ],
+  "schema_version": 1
+}

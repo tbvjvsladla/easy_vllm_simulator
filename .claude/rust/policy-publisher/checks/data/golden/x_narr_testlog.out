@@ -1,0 +1,11 @@
+{
+  "author": "selftest",
+  "kind": "testlog",
+  "messages": {},
+  "ok": true,
+  "path": "docs/testlog/testlog_26010112_00_00_piix.md",
+  "publication_id": "piix",
+  "reason_codes": [],
+  "schema_version": 1,
+  "status": "authored"
+}

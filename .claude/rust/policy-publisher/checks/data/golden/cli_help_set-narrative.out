@@ -1,0 +1,15 @@
+usage: evidence_publisher.py set-narrative [-h] [--repo-root REPO_ROOT]
+                                           --topic TOPIC --kind
+                                           {plan,devlog,testlog,report}
+                                           --narrative-file NARRATIVE_FILE
+                                           --author AUTHOR --generated-utc
+                                           GENERATED_UTC
+
+options:
+  -h, --help            show this help message and exit
+  --repo-root REPO_ROOT
+  --topic TOPIC
+  --kind {plan,devlog,testlog,report}
+  --narrative-file NARRATIVE_FILE
+  --author AUTHOR
+  --generated-utc GENERATED_UTC

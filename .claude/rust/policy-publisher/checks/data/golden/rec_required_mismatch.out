@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLICATION_RECORD_REQUIRED_EVIDENCE_MISMATCH": "publication record for topic 'selftest': required_evidence does not match task_class/conditions/benchmark verdict"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLICATION_RECORD_REQUIRED_EVIDENCE_MISMATCH"
+  ],
+  "schema_version": 1
+}

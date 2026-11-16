@@ -1,0 +1,14 @@
+{
+  "exit_code": 2,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "could not read /tmp/parity-o-PA-01-registry-missing-2977761-1794814975602180684/nope.json: [Errno 2] No such file or directory: '/tmp/parity-o-PA-01-registry-missing-2977761-1794814975602180684/nope.json'",
+      "path": null,
+      "policy_id": null,
+      "reason_code": "REGISTRY_LOAD_ERROR"
+    }
+  ]
+}

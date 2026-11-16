@@ -1,7 +1,9 @@
 //! The classifier dependency of the escalation owner: the canonical classifier asset reached the way the original's
 //! `_load_classifier()` reaches it, from Rust, with no Python.
 //!
-//! The original finds `classify_cell_native.py` two skills over (`adversarial-benchmark/scripts`), refuses (`SystemExit`) when it is
+//! The production programs locate the Rust classifier owner's launcher `classify_cell_api.sh` two skills over and refuse when it is
+//! not a readable file (no `.py` is required — [`owner_path`]). The reference fixture keeps the original's layout
+//! ([`Bridge::original_layout`]): the original finds `classify_cell_native.py` there, refuses (`SystemExit`) when it is
 //! not a file, and imports it; importing runs the module's last statement, one call of its launcher `classify_cell_api.sh constants`
 //! (the existing Rust classifier owner), whose JSON becomes the module's globals (`KILL_EVENT_KINDS` among them). This bridge locates
 //! the same asset from the installed layout, checks it is a file and readable at the same point, and makes the same launcher call.
@@ -56,9 +58,20 @@ const BUILTIN_ERRORS: [&str; 22] = [
     "ZeroDivisionError",
 ];
 
-/// Where the asset is, from the root of the skill this program belongs to (`<skills>/adversarial-benchmark/scripts/...`).
+/// Where the original's asset is, from the root of the skill this program belongs to (`<skills>/adversarial-benchmark/scripts/...`):
+/// `classify_cell_native.py`, the file the saved reference cases vary (absent, a directory, unreadable). Only the reference fixture
+/// ([`Bridge::original_layout`]) reads it; the production programs locate the Rust owner's launcher instead ([`owner_path`]).
 pub fn asset_path(skill_root: &PyStr) -> PyStr {
     let relative = format!("../adversarial-benchmark/scripts/{ASSET_NAME}");
+    normpath(&join(skill_root, &PyStr::new(&relative)))
+}
+
+/// The canonical classifier of a production run: the Rust classifier owner's launcher `classify_cell_api.sh`, the program every
+/// call goes through (intentional change, plan_26111615: the original located the `.py` adapter beside it only to reach this
+/// launcher, so a checkout without harness `.py` would have refused although its owner is present). Its absence or an unreadable
+/// file is the same refusal the original gave for the adapter, naming this path.
+pub fn owner_path(skill_root: &PyStr) -> PyStr {
+    let relative = format!("../adversarial-benchmark/scripts/{LAUNCHER_NAME}");
     normpath(&join(skill_root, &PyStr::new(&relative)))
 }
 
@@ -99,8 +112,16 @@ fn event(name: &str, fields: Vec<(&str, PyValue)>) -> PyValue {
 }
 
 impl Bridge {
-    /// The bridge of the installed layout of the program whose skill root is `skill_root`.
+    /// The bridge of the installed layout of the program whose skill root is `skill_root`: the Rust owner's launcher
+    /// ([`owner_path`]); no `.py` is required.
     pub fn installed(skill_root: &PyStr) -> Bridge {
+        Bridge::for_asset(owner_path(skill_root))
+    }
+
+    /// The bridge of the original's layout (`classify_cell_native.py` beside the launcher, [`asset_path`]): only the reference
+    /// fixture uses it, over trees built from the committed reference bundle, so the saved cases that vary that file keep
+    /// their meaning. Production programs use [`Bridge::installed`].
+    pub fn original_layout(skill_root: &PyStr) -> Bridge {
         Bridge {
             asset: asset_path(skill_root),
             recording: false,

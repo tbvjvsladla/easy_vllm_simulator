@@ -1,0 +1,48 @@
+  [PASS] MemAvailable MiB 파싱
+  [PASS] MemAvailable 부재 -> None(0 대체 금지)
+  [PASS] 파일 부재 -> None
+  [PASS] load1 파싱
+  [PASS] GPU 파싱
+  [PASS] GPU N/A -> None(정직 부재)
+  [PASS] GPU 빈 입력 -> {}
+  [PASS] GPU 필드부족 -> {}
+  [PASS] SoC zone 열거(4개)
+  [PASS] SoC zone type 보존
+  [PASS] SoC 최고 zone·온도(91C @zone5)
+  [PASS] SoC zone 부재 -> (None,None)·enabled False
+  [PASS] SoC 타당성 밴드 밖 zone 무시(잡음이 최대값을 먹지 않음)
+  [PASS] SoC 판독 불가 zone 은 건너뛰고 나머지로 판정
+  [PASS] cooling_device 는 zone 이 아니다
+  [PASS] 하강 -> 양수
+  [PASS] 상승 -> 음수
+  [PASS] prev 없음 -> None
+  [PASS] dt 0 -> None
+  [PASS] CSV 헤더와 열 수 일치
+  [PASS] CSV 부재 필드 빈칸
+  [PASS] CSV 스키마에 soc_temp·soc_zone 존재
+  [PASS] SoC 부재 -> 빈 칸 2개
+  [PASS] SoC 값 기록
+  [PASS] soc_zone=0 이 빈 칸으로 삼켜지지 않음
+  [PASS] kmsg 접두어
+  [PASS] kmsg 압축 길이 <120B
+  [PASS] kmsg 부재는 na
+  [PASS] kmsg 에 SoC 열 포함(s=)
+  [PASS] kmsg SoC 포함해도 <120B
+  [PASS] kmsg SoC 부재는 s=na
+  [PASS] 일자 롤오버
+  [PASS] 헤더 파일당 1회
+  [PASS] 행 append
+  [PASS] 재기동 시 헤더 중복 없음
+  [PASS] 옛 헤더 파일 -> 새 헤더 1줄 삽입(경계 표시)
+  [PASS] 드리프트 없는 재기동은 헤더를 더 쓰지 않음
+  [PASS] kmsg 쓰기 불가 -> False(예외 아님)
+  [PASS] 샘플마다 즉시 기록(배칭 없음)
+  [PASS] kmsg 매 샘플 송출
+  [PASS] run() 이 CSV 에 SoC 를 실제로 기록(배선 실증)
+  [PASS] run() 이 kmsg 에 SoC 를 실제로 송출(배선 실증)
+  [PASS] 무출력이지만 임계 이내면 마지막 값을 유지(정상 지터 오탐 ✗)
+  [PASS] 무출력이 임계를 넘으면 낡은 값을 버린다(거짓 신선도 ✗)
+  [PASS] 무출력이 임계를 넘으면 자식을 되살린다
+  [PASS] 출력이 있으면 임계를 넘겨 늙었어도 재기동하지 않는다(대조군)
+  [PASS] zone 부재 노드는 SoC 빈 칸(음성대조)
+self-test: PASS (47 케이스)

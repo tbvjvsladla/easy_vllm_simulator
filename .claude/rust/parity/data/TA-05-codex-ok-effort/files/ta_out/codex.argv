@@ -1,0 +1,1 @@
+call 1 argv: [exec] [--cd] [/proc/self/cwd] [--json] [--model] [gpt-6.1-sol] [-c] [approval_policy="never"] [-c] [model_reasoning_effort="high"] [--sandbox] [read-only] [--] [--x; $(y)]

@@ -1,0 +1,3 @@
+[eta] 하한 가드 위반 — 거부:
+  - debounce_polls must be an integer >= 1 (got 2.5)
+  - agent_act_s must exceed runway 7.50s (에이전트 구간이 데몬 구간보다 안쪽일 수 없음)

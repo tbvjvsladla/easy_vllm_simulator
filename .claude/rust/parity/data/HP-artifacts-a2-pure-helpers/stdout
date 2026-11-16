@@ -1,0 +1,52 @@
+{"id": "r0", "kind": "value", "value": [{"phase": "pre", "file": "10-a.sh", "reason": "원장 result 어휘 밖: 'weird'", "result_source": "build-ledger", "ledger_result_source": "exit-code", "result": "unobserved"}, {"phase": "pre", "file": "50-a.sh", "result_source": "build-ledger", "ledger_result_source": "exit-code", "script_sha256": "abababababababababababababababababababababababababababababababab", "result": "skipped"}, {"phase": "post", "file": "20-b.sh", "reason": "r", "result_source": "build-ledger", "ledger_result_source": "log-token", "result": "applied"}, {"phase": "post", "file": "7", "reason": "원장 result 어휘 밖: None", "result_source": "build-ledger", "ledger_result_source": "exit-code", "declared_model_trigger": "m", "result": "unobserved"}, {"phase": "inline", "file": "f2", "result_source": "build-ledger", "ledger_result_source": "exit-code", "result": "skipped"}, {"phase": "inline", "file": "inl", "result_source": "build-ledger", "ledger_result_source": "exit-code", "result": "applied"}]}
+{"id": "r1", "kind": "value", "value": []}
+{"id": "r2", "kind": "value", "value": []}
+{"id": "r3", "kind": "exception", "type": "TypeError", "message": "'int' object is not iterable"}
+{"id": "r4", "kind": "value", "value": []}
+{"id": "r5", "kind": "value", "value": {"phase": "post", "file": "a", "shared_image_input": true, "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger 헤더 없음)"}}
+{"id": "r6", "kind": "value", "value": {"phase": "post", "file": "a", "declared_model_trigger": "qwen", "shared_image_input": true, "label": "공유 이미지 입력 — 이 모델의 요구가 아니라 공유 이미지의 일부(model-trigger: qwen)"}}
+{"id": "r7", "kind": "value", "value": {"phase": "pre"}}
+{"id": "r8", "kind": "value", "value": "노드 비대칭(cluster) — main(대표) 원장: skipped 10.sh / sub 원장: applied 10.sh, 20.sh"}
+{"id": "r9", "kind": "value", "value": "노드 비대칭(cluster) — main(대표) 원장: 이 단계 행 없음 / sub 원장: skipped 50.sh"}
+{"id": "r10", "kind": "value", "value": null}
+{"id": "r11", "kind": "value", "value": null}
+{"id": "r12", "kind": "value", "value": "노드 비대칭(cluster) — "}
+{"id": "r13", "kind": "value", "value": "/x"}
+{"id": "r14", "kind": "value", "value": "8"}
+{"id": "r15", "kind": "value", "value": "<manifest.model_path>"}
+{"id": "r16", "kind": "value", "value": "<manifest.nodes[].master_host_ip>"}
+{"id": "r17", "kind": "value", "value": "<manifest.nodes[].ssh_key_file>"}
+{"id": "r18", "kind": "value", "value": "bar"}
+{"id": "r19", "kind": "value", "value": "k"}
+{"id": "r20", "kind": "value", "value": "<manifest.nodes[].a_user_b>"}
+{"id": "r21", "kind": "value", "value": "<manifest.nodes[].ß_ip>"}
+{"id": "r22", "kind": "value", "value": "<manifest.nodes[].x>"}
+{"id": "r23", "kind": "value", "value": ["BUILD_JOBS=8\nQUANT_MODEL_PATH=\n", false]}
+{"id": "r24", "kind": "value", "value": ["export QUANT_MODEL_PATH=<manifest.quant_model_path>\r\nX=1", true]}
+{"id": "r25", "kind": "value", "value": ["QUANT_MODEL_PATH = '' \n", false]}
+{"id": "r26", "kind": "value", "value": [" export  QUANT_MODEL_PATH=<manifest.quant_model_path>next\n", true]}
+{"id": "r27", "kind": "value", "value": ["", false]}
+{"id": "r28", "kind": "value", "value": ["QUANT_MODEL_PATH\n", false]}
+{"id": "r29", "kind": "value", "value": "fixture.x"}
+{"id": "r30", "kind": "value", "value": "interconnect.nccl_transport"}
+{"id": "r31", "kind": "value", "value": "None"}
+{"id": "r32", "kind": "value", "value": "5"}
+{"id": "r33", "kind": "value", "value": {"vllm": "    <<: *g\n    command: [\"bash\", \"/app/configs/serve_runner.sh\"]\n", "debug": "    profiles: [debug]\n    entrypoint:\n      - bash\n\n      - /app/configs/debug-init.sh\n", "both": "    profiles: ['debug', \"x\"]\n    command: >\n      bash /app/configs/${CONFIG_FILE}.sh\n"}}
+{"id": "r34", "kind": "value", "value": {}}
+{"id": "r35", "kind": "value", "value": {"a": "    x: 1\n"}}
+{"id": "r36", "kind": "value", "value": [["both", "    profiles: ['debug', \"x\"]\n    command: >\n      bash /app/configs/${CONFIG_FILE}.sh\n"], ["vllm", "    <<: *g\n    command: [\"bash\", \"/app/configs/serve_runner.sh\"]\n"]]}
+{"id": "r37", "kind": "value", "value": [" - bash - /app/configs/serve_runner.sh"]}
+{"id": "r38", "kind": "value", "value": ["[a]", "b c "]}
+{"id": "r39", "kind": "value", "value": ["m1", "CONFIG_FILE"]}
+{"id": "r40", "kind": "value", "value": ["m2", "CONFIG_FILE"]}
+{"id": "r41", "kind": "value", "value": ["default", "default"]}
+{"id": "r42", "kind": "value", "value": ["s", "RUNTIME_PATCH_STEM"]}
+{"id": "r43", "kind": "value", "value": ["default", "default"]}
+{"id": "r44", "kind": "value", "value": "arming 관측 불가(src) — 적용 관측 ✗"}
+{"id": "r45", "kind": "value", "value": "arming 서명 미관측(측정·실패 기동 로그에 무장 줄 없음) — 적용 관측 ✗"}
+{"id": "r46", "kind": "value", "value": "arming 관측 — 측정 기동 로그 d/a.log:3,9 · 실패 기동 로그(측정 기동 아님) slave o/f.log:1 (`[arm_patch] x → /app/configs/b_patch.py · /app/configs/m_patch.py` = .pth 무장 · 패치 효과 자체는 별도 관측)"}
+{"id": "r47", "kind": "value", "value": "arming 관측 — 측정 기동 로그에는 무장 줄 없음 · 실패 기동 로그(측정 기동 아님) <역할 미상> o/f.log:1,2 (`[s] ` = .pth 무장 · 패치 효과 자체는 별도 관측)"}
+{"id": "r48", "kind": "value", "value": "arming 관측 불가(None) — 적용 관측 ✗"}
+{"id": "r49", "kind": "value", "value": {"value": "2", "lines": [1, 2], "note": "master 는 ray status 의 GPU 합류가 이 리터럴과 같아질 때까지 기다린다 — 노드당 GPU·노드 수가 다른 클러스터에서는 이 줄을 고치지 않으면 대기에서 멈춘다(arch 의 <G>g<N>n 과 숨은 결합)."}}
+{"id": "r50", "kind": "value", "value": {"value": ["1", "3", "4"], "lines": [1, 2], "note": "master 는 ray status 의 GPU 합류가 이 리터럴과 같아질 때까지 기다린다 — 노드당 GPU·노드 수가 다른 클러스터에서는 이 줄을 고치지 않으면 대기에서 멈춘다(arch 의 <G>g<N>n 과 숨은 결합)."}}
+{"id": "r51", "kind": "value", "value": {"value": null, "lines": [], "note": "master 는 ray status 의 GPU 합류가 이 리터럴과 같아질 때까지 기다린다 — 노드당 GPU·노드 수가 다른 클러스터에서는 이 줄을 고치지 않으면 대기에서 멈춘다(arch 의 <G>g<N>n 과 숨은 결합)."}}

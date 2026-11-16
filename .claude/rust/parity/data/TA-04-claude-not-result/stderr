@@ -1,0 +1,2 @@
+[agent-control] PROVIDER_RESULT_INVALID: 봉투가 result 가 아니다 — type='assistant' subtype='x' keys=['a', 'subtype', 'type', 'z'] (target=main/local)
+[agent-control]   provider stdout tail: {"type": "assistant", "subtype": "x", "z": 1, "a": 2}

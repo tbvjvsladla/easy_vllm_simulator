@@ -1,0 +1,12 @@
+[agent-control] TURN_BUDGET_EXHAUSTED: provider 가 max_turns=25 를 소진했다(num_turns=26). checkpoint와 남은 과업을 확인하고 session_id로 이어라; 관측과 남은 작업에 맞게 다음 호출 예산을 선언한다(scope ⊥ budget). (target=main/local)
+[agent-control] NONZERO_EXIT: provider exited 255 (ssh transport: 255 = 전송 실패, host key/키인증/네트워크를 먼저 본다) (target=sub/ssh)
+[agent-control]   provider stderr tail: ssh: connect failed
+[agent-control] NONZERO_EXIT: provider exited 124 (target=sub/ssh)
+[agent-control]   provider stderr tail: Terminated
+[agent-control] NONZERO_EXIT: provider exited 143 (target=sub/ssh)
+[agent-control]   provider stderr tail: Terminated
+[agent-control] MODEL_METADATA_ABSENT: provider 가 modelUsage 를 주지 않았다 — 어느 모델이 돌았는지 기록할 수 없다(차단하지 않는다 · model_used=[]). (target=main/local)
+[agent-control] RUNNER_UNAVAILABLE: 러너(backend=anthropic model=sonnet)가 실행하지 못했다 — 백엔드가 HTTP 401 로 거절했다. 회전 가능=True (target=sub/ssh)
+[agent-control] NONZERO_EXIT: provider could not be executed: FileNotFoundError: [Errno 2] fixture missing path: '/missing/workspace' · argv[0]='claude' (target=main/local)
+[agent-control] RUNNER_UNAVAILABLE: 러너(backend=anthropic model=sonnet)가 실행하지 못했다 — 'claude' 를 실행할 수 없다(PATH 부재). 회전 가능=True (target=main/local)
+[agent-control] NONZERO_EXIT: SSH executable is unavailable (target=sub/ssh)

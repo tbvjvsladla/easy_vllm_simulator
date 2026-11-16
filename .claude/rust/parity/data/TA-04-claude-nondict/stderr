@@ -1,0 +1,2 @@
+[agent-control] MALFORMED_JSON: provider stdout 이 JSON 객체가 아니다(type=list) (target=main/local)
+[agent-control]   provider stdout tail: [1,2]

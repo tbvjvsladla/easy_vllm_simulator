@@ -23,7 +23,7 @@ use crate::bench_verify_support::{
 use crate::conformance::{py_equals, Raised};
 use crate::dataset_prep::Console;
 use crate::lite_metrics::read_lite_verdict;
-use crate::owner_bridge::{OwnerBridge, OwnerRole};
+use crate::owner_bridge::OwnerBridge;
 use crate::pyvalue::{PyDict, PyValue};
 use crate::selftest_lite_report::{Sandbox, AB, CFG};
 use crate::verify_fixture::{
@@ -36,7 +36,6 @@ use std::path::{Path, PathBuf};
 /// The program's name in its messages.
 pub const PROGRAM: &str = "selftest_lite_gate";
 
-const COMPLETION_GATE: &str = ".claude/policies/runtime/completion_gate.py";
 const WRITER_DIRECTORY: &str = ".claude/skills/terraforming_node/scripts";
 
 fn path_str(path: &Path) -> String {
@@ -107,12 +106,7 @@ pub fn main(repo_root: Option<&Path>, console: &mut dyn Console) -> Result<i32, 
     };
     let canonical = std::fs::canonicalize(repo_root).unwrap_or_else(|_| repo_root.to_path_buf());
     let scripts_dir = canonical.join(AB);
-    let mut bridge = OwnerBridge::start(&scripts_dir, checks.console())?;
-    bridge.load(
-        checks.console(),
-        OwnerRole::CompletionGate,
-        &canonical.join(COMPLETION_GATE),
-    )?;
+    let mut bridge = OwnerBridge::start();
 
     let mut sandbox = Sandbox::build(&canonical, &scripts_dir, "lite-gate-selftest.")?;
     let outcome = run_cases(
@@ -531,8 +525,6 @@ fn run_cases(
     // assignments.
     let writer_directory = sandbox.root().join(WRITER_DIRECTORY);
     for name in [
-        "campaign_init.py",
-        "campaign_template_validator.py",
         "campaign_init.sh",
         "campaign_template_validator.sh",
     ] {

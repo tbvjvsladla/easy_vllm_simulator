@@ -1,0 +1,4 @@
+usage: staleness_gate.py [-h] [--topology {single,multi}] [--repo REPO]
+                         [--observed OBSERVED] [--now NOW]
+                         [--max-age-days MAX_AGE_DAYS] [--json] [--self-test]
+staleness_gate.py: error: argument --max-age-days: invalid int value: 'x'

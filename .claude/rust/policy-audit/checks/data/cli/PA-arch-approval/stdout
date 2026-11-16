@@ -1,0 +1,28 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 3,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x' evidence must PASS and bind the exact variant/ref/track/architecture/image",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x.evidence.path",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_ARTIFACT_BINDING_MISMATCH"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x' approval lacks explicit HITL identity",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x.evidence.path",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_APPROVAL_IDENTITY_MISSING"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x' approval must bind the HITL plan section/rationale and final-arbitration scope",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x.evidence.path",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_APPROVAL_GROUNDING_MISSING"
+    }
+  ]
+}

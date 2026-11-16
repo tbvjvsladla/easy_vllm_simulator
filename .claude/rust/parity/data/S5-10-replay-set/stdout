@@ -1,0 +1,56 @@
+[thermal] inc.csv                rows=150    maxW=90.3   maxSoC=47   peak(gpu/soc)=20/0 kill=7  ← 최초 ts=1787477036 rule=gpu_pwr_sustained
+[thermal] soc.csv                rows=15     maxW=10.0   maxSoC=102  peak(gpu/soc)=0/3 kill=7  ← 최초 ts=1005 rule=soc_hard_ceiling
+[thermal] 합계 kill=14 (gpu>=80W 20s 지속 · soc>=97C 30s 지속 · soc>=99C 1폴)
+{
+  "files": [
+    {
+      "path": "inc.csv",
+      "rows": 150,
+      "kills": 7,
+      "first_kill": {
+        "ts": 1787477036,
+        "rule": "gpu_pwr_sustained",
+        "gpu_pwr_w": 90.3,
+        "soc_temp_c": 47
+      },
+      "peak_gpu_bucket": 20,
+      "peak_soc_bucket": 0,
+      "gpu_sustain_s": 20,
+      "soc_sustain_s": 30,
+      "max_gpu_pwr_w": 90.3,
+      "max_soc_temp_c": 47,
+      "soc_axis_evaluated": true
+    },
+    {
+      "path": "soc.csv",
+      "rows": 15,
+      "kills": 7,
+      "first_kill": {
+        "ts": 1005,
+        "rule": "soc_hard_ceiling",
+        "gpu_pwr_w": 10.0,
+        "soc_temp_c": 99
+      },
+      "peak_gpu_bucket": 0,
+      "peak_soc_bucket": 3,
+      "gpu_sustain_s": 20,
+      "soc_sustain_s": 30,
+      "max_gpu_pwr_w": 10.0,
+      "max_soc_temp_c": 102,
+      "soc_axis_evaluated": true
+    }
+  ],
+  "total_kills": 14,
+  "params": {
+    "gpu_pwr_w": 80,
+    "gpu_sustain_s": 20,
+    "soc_warn_c": 97,
+    "soc_sustain_s": 30,
+    "soc_hard_c": 99,
+    "soc_hard_polls": 1,
+    "bucket_decay": 1,
+    "poll_interval_s": 1,
+    "stale_after_s": 10
+  },
+  "uncalibrated": []
+}

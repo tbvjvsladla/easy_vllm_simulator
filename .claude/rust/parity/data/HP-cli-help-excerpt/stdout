@@ -1,0 +1,10 @@
+usage: hint.py excerpt [-h] --draft DRAFT --source SOURCE [--lines LINES]
+                       [--numbered]
+
+options:
+  -h, --help       show this help message and exit
+  --draft DRAFT
+  --source SOURCE  LINEAGE 문서 stem · 저장소 상대 경로 · artifacts 파일명
+  --lines LINES    a-b (1-기반 · 포함)
+  --numbered       줄마다 정규화 뒤 번호를 `L<n>` 으로 붙인다 — 비-마크다운 발췌 머리 `§L<a>-<b>` 의
+                   번호(발췌 본문에는 번호를 옮기지 않는다)

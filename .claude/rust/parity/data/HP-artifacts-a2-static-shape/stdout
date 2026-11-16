@@ -1,0 +1,85 @@
+{"id": "r0", "kind": "value", "value": {"errexit": true, "exits": [{"line": 6, "code": "0"}], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [5], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r1", "kind": "value", "value": null}
+{"id": "r2", "kind": "value", "value": {"errexit": true, "exits": [{"line": 6, "code": "0"}], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [5], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r3", "kind": "value", "value": null}
+{"id": "r4", "kind": "value", "value": {"errexit": true, "exits": [{"line": 6, "code": "0"}, {"line": 9, "code": "0"}], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": {"errexit": true, "exits": [], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [], "status_protocol": false, "markers": [{"kind": "grep", "needle": "port:60-fx", "path": "/workspace/vllm-src/vllm/a.py", "line": 14}], "assert_needles": [], "modules": []}}
+{"id": "r7", "kind": "value", "value": null}
+{"id": "r8", "kind": "value", "value": {"errexit": true, "exits": [{"line": 3, "code": "0"}], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r9", "kind": "value", "value": null}
+{"id": "r10", "kind": "value", "value": {"errexit": true, "exits": [], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r11", "kind": "value", "value": null}
+{"id": "r12", "kind": "value", "value": {"errexit": true, "exits": [], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r13", "kind": "value", "value": null}
+{"id": "r14", "kind": "value", "value": {"errexit": false, "exits": [], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r15", "kind": "value", "value": null}
+{"id": "r16", "kind": "value", "value": {"errexit": true, "exits": [{"line": 4, "code": "$rc"}], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r17", "kind": "value", "value": null}
+{"id": "r18", "kind": "value", "value": {"errexit": true, "exits": [], "swallow": [6], "traps": [], "py_exit0": [], "skip_lines": [5], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r19", "kind": "value", "value": null}
+{"id": "r20", "kind": "value", "value": {"errexit": true, "exits": [], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [9], "status_protocol": false, "markers": [{"kind": "grep", "needle": "(9, 0) <= cap < (13, 0)", "path": "/workspace/vllm-src/gate.py", "line": 15}], "assert_needles": [], "modules": []}}
+{"id": "r21", "kind": "value", "value": null}
+{"id": "r22", "kind": "value", "value": {"errexit": true, "exits": [], "swallow": [], "traps": [], "py_exit0": [9], "skip_lines": [9], "status_protocol": false, "markers": [], "assert_needles": ["[GB10] guard-a"], "modules": ["fxmod.dev"]}}
+{"id": "r23", "kind": "value", "value": null}
+{"id": "r24", "kind": "value", "value": {"errexit": true, "exits": [], "swallow": [3], "traps": [], "py_exit0": [], "skip_lines": [], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r25", "kind": "value", "value": null}
+{"id": "r26", "kind": "value", "value": {"errexit": true, "exits": [{"line": 3, "code": "0"}], "swallow": [], "traps": [3], "py_exit0": [], "skip_lines": [], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r27", "kind": "value", "value": null}
+{"id": "r28", "kind": "value", "value": {"errexit": true, "exits": [], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r29", "kind": "value", "value": null}
+{"id": "r30", "kind": "value", "value": {"errexit": true, "exits": [{"line": 3, "code": "0"}], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r31", "kind": "value", "value": null}
+{"id": "r32", "kind": "value", "value": {"errexit": true, "exits": [], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [4], "status_protocol": false, "markers": [{"kind": "grep", "needle": "a.b[c]", "path": "/usr/lib/fx/a.py", "line": 8}], "assert_needles": [], "modules": []}}
+{"id": "r33", "kind": "value", "value": null}
+{"id": "r34", "kind": "value", "value": {"errexit": false, "exits": [], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [13], "status_protocol": true, "markers": [{"kind": "grep", "needle": "k2", "path": "/c/f", "line": 10}, {"kind": "grep", "needle": "k3", "path": "/d/f", "line": 11}], "assert_needles": [], "modules": []}}
+{"id": "r35", "kind": "value", "value": null}
+{"id": "r36", "kind": "value", "value": {"errexit": true, "exits": [{"line": 12, "code": "(생략)"}, {"line": 13, "code": "0"}, {"line": 15, "code": "00"}, {"line": 16, "code": "${RC:-0"}], "swallow": [17], "traps": [], "py_exit0": [11, 8], "skip_lines": [], "status_protocol": false, "markers": [], "assert_needles": ["needle"], "modules": ["a.b.c"]}}
+{"id": "r37", "kind": "value", "value": null}
+{"id": "r38", "kind": "value", "value": {"errexit": true, "exits": [], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [4], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r39", "kind": "value", "value": null}
+{"id": "r40", "kind": "value", "value": {"errexit": true, "exits": [{"line": 4, "code": "٠"}], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r41", "kind": "value", "value": null}
+{"id": "r42", "kind": "value", "value": {"errexit": false, "exits": [], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r43", "kind": "value", "value": null}
+{"id": "r44", "kind": "value", "value": {"errexit": true, "exits": [{"line": 3, "code": "0"}], "swallow": [], "traps": [], "py_exit0": [], "skip_lines": [], "status_protocol": false, "markers": [], "assert_needles": [], "modules": []}}
+{"id": "r45", "kind": "value", "value": null}
+{"id": "r46", "kind": "value", "value": {"vars": ["FOO"], "guards": ["FOO"], "defaults": {"FOO": "1"}, "guard_lines": [4, 5, 6]}}
+{"id": "r47", "kind": "value", "value": null}
+{"id": "r48", "kind": "value", "value": null}
+{"id": "r49", "kind": "value", "value": null}
+{"id": "r50", "kind": "value", "value": {"vars": ["FOO"], "guards": ["FOO"], "defaults": {"FOO": ""}, "guard_lines": [10, 11, 12, 13]}}
+{"id": "r51", "kind": "value", "value": null}
+{"id": "r52", "kind": "value", "value": {"vars": ["A", "B"], "guards": ["A"], "defaults": {"A": "1", "B": "x"}, "guard_lines": [4, 5, 6]}}
+{"id": "r53", "kind": "value", "value": {"vars": ["A"], "guards": ["A"], "defaults": {}, "guard_lines": [1, 2, 3, 4]}}
+{"id": "r54", "kind": "value", "value": {"vars": ["SM12X_PORT"], "guards": ["SM12X_PORT"], "defaults": {"SM12X_PORT": "0"}, "guard_lines": [4, 5, 6, 7]}}
+{"id": "r55", "kind": "value", "value": {"vars": ["FX_OPEN"], "guards": ["FX_OPEN"], "defaults": {"FX_OPEN": "0"}, "guard_lines": [4, 5, 6, 7]}}
+{"id": "r56", "kind": "value", "value": {"vars": ["FX_OPEN", "FX_SHUT"], "guards": ["FX_OPEN", "FX_SHUT"], "defaults": {"FX_OPEN": "0", "FX_SHUT": "0"}, "guard_lines": [5, 6, 7, 8, 9, 10]}}
+{"id": "r57", "kind": "value", "value": null}
+{"id": "r58", "kind": "value", "value": null}
+{"id": "r59", "kind": "value", "value": null}
+{"id": "r60", "kind": "value", "value": null}
+{"id": "r61", "kind": "value", "value": null}
+{"id": "r62", "kind": "value", "value": null}
+{"id": "r63", "kind": "value", "value": null}
+{"id": "r64", "kind": "value", "value": null}
+{"id": "r65", "kind": "value", "value": null}
+{"id": "r66", "kind": "value", "value": "qwen3 , x"}
+{"id": "r67", "kind": "value", "value": null}
+{"id": "r68", "kind": "value", "value": "a b"}
+{"id": "r69", "kind": "value", "value": null}
+{"id": "r70", "kind": "value", "value": "/u/y"}
+{"id": "r71", "kind": "value", "value": null}
+{"id": "r72", "kind": "value", "value": null}
+{"id": "r73", "kind": "value", "value": null}
+{"id": "r74", "kind": "value", "value": "plain"}
+{"id": "r75", "kind": "value", "value": null}
+{"id": "r76", "kind": "value", "value": null}
+{"id": "r77", "kind": "value", "value": null}
+{"id": "r78", "kind": "value", "value": null}
+{"id": "r79", "kind": "value", "value": ""}
+{"id": "r80", "kind": "value", "value": null}
+{"id": "r81", "kind": "value", "value": "12"}
+{"id": "r82", "kind": "value", "value": "q"}
+{"id": "r83", "kind": "value", "value": null}
+{"id": "r84", "kind": "value", "value": "x"}

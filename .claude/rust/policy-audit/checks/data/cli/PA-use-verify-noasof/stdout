@@ -1,0 +1,14 @@
+{
+  "exit_code": 2,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "invalid command-line invocation: the following arguments are required: --as-of",
+      "path": null,
+      "policy_id": null,
+      "reason_code": "CLI_USAGE_ERROR"
+    }
+  ]
+}

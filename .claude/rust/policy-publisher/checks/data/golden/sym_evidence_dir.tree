@@ -1,0 +1,736 @@
+== docs/_evidence -> ../elsewhere/_evidence
+== docs/benchmark/
+== docs/benchmark/bench_report_26010109_00_01_self-test-model_GB10_0.0.0.md
+# report 2
+
+== docs/benchmark/bench_report_26010109_self-test-model_GB10_0.0.0.md
+# report
+생성일 2026-01-01T00:00:00Z.
+
+== docs/benchmark/bench_report_26010112_self-test-model_GB10_0.0.0.md
+# report
+생성일 2026-01-01T03:00:00Z.
+
+## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)
+
+| 키 | 값 |
+|---|---|
+| bench_mode | lite |
+| bench_mode_kind | downgraded-lite |
+| bench_mode_source | 반복 조건 불성립(판정점 run 2 실패) |
+| downgrade_reason | run_failed |
+== docs/benchmark/bench_report_26010113_self-test-model_GB10_0.0.0.md
+# 경량
+
+mode: lite
+
+# report
+생성일 2026-01-01T04:00:00Z.
+
+## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)
+
+| 키 | 값 |
+|---|---|
+| bench_mode | lite |
+| bench_mode_kind | declared-lite |
+| bench_mode_source | declared(lite_bench · lite-only 셀) |
+== docs/benchmark/bench_report_26010114_self-test-model_GB10_0.0.0.md
+# report
+생성일 2026-01-01T03:10:00Z.
+
+## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)
+
+| 키 | 값 |
+|---|---|
+| bench_mode | full |
+| bench_mode_kind | full |
+| bench_mode_source | 반복 조건 성립 |
+| downgrade_reason | N/A |
+== docs/benchmark/bench_report_26010115_self-test-model_GB10_0.0.0.md
+# report
+생성일 2026-01-01T03:20:00Z.
+
+| 동시성 | decode t/s |
+|---|---|
+| 1 | 9 |
+
+== docs/benchmark/bench_report_26010116_self-test-model_GB10_0.0.0.md
+# 산문
+생성일 2026-01-01T04:01:00Z.
+
+| bench_mode | lite |
+
+== docs/benchmark/bench_report_26010117_self-test-model_GB10_0.0.0.md
+# report
+생성일 2026-01-01T03:30:00Z.
+
+## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)
+
+| 키 | 값 |
+|---|---|
+| bench_mode | lite |
+| unknown_key | x |
+== docs/benchmark/bench_report_26010118_self-test-model_GB10_0.0.0.md
+# r
+
+## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)
+
+| a | b | c |
+== docs/benchmark/bench_report_26010119_self-test-model_GB10_0.0.0.md
+# r
+
+## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)
+
+no table
+== docs/benchmark/benchmark_26010109_self-test-model_GB10_0.0.0.yaml
+schema_version: 1
+record_type: benchmark_certificate
+verdict: PASS
+model: self-test-model
+gpu_model: GB10
+vllm_version: 0.0.0
+quantization: N/A
+topology: single
+tensor_parallel_size: 1
+benchmark_mode: full
+decode_tps_conc1: 12.3
+rubric_authority: weak
+primary_source: expected_achievable(roofline×MBU)
+primary_tps: 10.0
+floor_tps: 8.5
+tolerance: 0.15
+ratio_M_over_primary: 1.23
+measured_utc: "2026-01-01T00:00:00Z"
+
+== docs/benchmark/benchmark_26010113_self-test-model_GB10_0.0.0.yaml
+schema_version: 1
+record_type: benchmark_certificate
+verdict: not_applicable
+model: self-test-model
+gpu_model: GB10
+vllm_version: 0.0.0
+quantization: N/A
+topology: single
+tensor_parallel_size: 1
+benchmark_mode: lite
+lite_verdict: pass
+entry_path: beta_lite_only_cell
+lite_included: true
+lite_gen_tps_warm: 40.0
+measured_utc: "2026-01-01T04:00:00Z"
+measured_node: main
+
+== docs/devlog/
+== docs/devlog/devlog_26010109_trial.md
+# devlog -- trial
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: trial
+- task_class: harness_change
+- generated_utc: 2026-01-01T00:30:29Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010110_cap.md
+# devlog -- cap
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: cap
+- task_class: capacity_rejection
+- generated_utc: 2026-01-01T01:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010111_bench.md
+# devlog -- bench
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: bench
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T02:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+<!-- provenance: author=selftest generated_utc=2026-01-01T02:21:00Z source=docs/_evidence/inputs/dev.md -->
+서사 본문
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_00_00_downbad.md
+# devlog -- downbad
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downbad
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_00_00_downbad2.md
+# devlog -- downbad2
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downbad2
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_00_00_downempty.md
+# devlog -- downempty
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downempty
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_00_00_downfull.md
+# devlog -- downfull
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downfull
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_00_00_downlegacy.md
+# devlog -- downlegacy
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downlegacy
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_00_00_downnoreport.md
+# devlog -- downnoreport
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downnoreport
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_00_00_lite.md
+# devlog -- lite
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: lite
+- task_class: hint_map_only
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+<!-- provenance: author=selftest generated_utc=2026-01-01T04:06:00Z source=docs/_evidence/inputs/lite_devlog.md -->
+# devlog
+경량 셀 서사.
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_00_00_piix.md
+# devlog -- piix
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: piix
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+<!-- provenance: author=selftest generated_utc=2026-01-01T06:00:00Z source=docs/_evidence/inputs/piix_devlog.md -->
+# devlog
+면제 커버리지 픽스처 서사.
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_down.md
+# devlog -- down
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: down
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010116_nar.md
+# devlog -- nar
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: nar
+- task_class: harness_change
+- generated_utc: 2026-01-01T07:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/
+== docs/plan/plan_26010109_trial.md
+# plan -- trial
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: trial
+- task_class: harness_change
+- generated_utc: 2026-01-01T00:30:29Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010110_cap.md
+# plan -- cap
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: cap
+- task_class: capacity_rejection
+- generated_utc: 2026-01-01T01:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+<!-- provenance: author=tester generated_utc=2026-01-01T01:02:00Z source=docs/_evidence/inputs/cap_plan.md -->
+# plan
+capacity plan.
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_00_00_downbad.md
+# plan -- downbad
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downbad
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_00_00_downbad2.md
+# plan -- downbad2
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downbad2
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_00_00_downempty.md
+# plan -- downempty
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downempty
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_00_00_downfull.md
+# plan -- downfull
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downfull
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_00_00_downlegacy.md
+# plan -- downlegacy
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downlegacy
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_00_00_downnoreport.md
+# plan -- downnoreport
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downnoreport
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_00_00_lite.md
+# plan -- lite
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: lite
+- task_class: hint_map_only
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+<!-- provenance: author=selftest generated_utc=2026-01-01T04:06:00Z source=docs/_evidence/inputs/lite_plan.md -->
+# plan
+경량 셀 서사.
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_00_00_piix.md
+# plan -- piix
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: piix
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+<!-- provenance: author=selftest generated_utc=2026-01-01T06:00:00Z source=docs/_evidence/inputs/piix_plan.md -->
+# plan
+면제 커버리지 픽스처 서사.
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_down.md
+# plan -- down
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: down
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010116_nar.md
+# plan -- nar
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: nar
+- task_class: harness_change
+- generated_utc: 2026-01-01T07:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+<!-- provenance: author=a generated_utc=2026-01-01T07:02:00Z source=docs/_evidence/inputs/n.md -->
+서사 본문
+<!-- NARRATIVE:END -->
+
+== docs/report/
+== docs/report/perf_26010109_감사_보고.html
+# report -- audit
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: audit
+- task_class: read_only_audit
+- generated_utc: 2026-01-01T00:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/simlog/
+== docs/simlog/26010109_trial/
+== docs/simlog/26010111_bench/
+== docs/simlog/26010112_00_00_downbad/
+== docs/simlog/26010112_00_00_downbad2/
+== docs/simlog/26010112_00_00_downempty/
+== docs/simlog/26010112_00_00_downfull/
+== docs/simlog/26010112_00_00_downlegacy/
+== docs/simlog/26010112_00_00_downnoreport/
+== docs/simlog/26010112_00_00_piix/
+== docs/simlog/26010112_00_00_piix/level_01_measured.json
+{"measurement_ok": true}
+
+== docs/simlog/26010112_00_00_piix/measured.json
+{"measurement_ok": true}
+
+== docs/simlog/26010112_down/
+== docs/testlog/
+== docs/testlog/testlog_26010109_selftest_ph.md
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+
+== docs/testlog/testlog_26010109_trial.md
+# testlog -- trial
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: trial
+- task_class: harness_change
+- generated_utc: 2026-01-01T00:30:29Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010110_cap.md
+# testlog -- cap
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: cap
+- task_class: capacity_rejection
+- generated_utc: 2026-01-01T01:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010111_bench.md
+# testlog -- bench
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: bench
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T02:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_00_00_downbad.md
+# testlog -- downbad
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downbad
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_00_00_downbad2.md
+# testlog -- downbad2
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downbad2
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_00_00_downempty.md
+# testlog -- downempty
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downempty
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_00_00_downfull.md
+# testlog -- downfull
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downfull
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_00_00_downlegacy.md
+# testlog -- downlegacy
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downlegacy
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_00_00_downnoreport.md
+# testlog -- downnoreport
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downnoreport
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_00_00_lite.md
+# testlog -- lite
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: lite
+- task_class: hint_map_only
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+<!-- provenance: author=selftest generated_utc=2026-01-01T04:06:00Z source=docs/_evidence/inputs/lite_testlog.md -->
+# testlog
+경량 셀 서사.
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_00_00_piix.md
+# testlog -- piix
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: piix
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+<!-- provenance: author=selftest generated_utc=2026-01-01T06:00:00Z source=docs/_evidence/inputs/piix_testlog.md -->
+# testlog
+면제 커버리지 픽스처 서사.
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_down.md
+# testlog -- down
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: down
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010116_nar_bound.md
+# testlog
+진짜 본문.
+

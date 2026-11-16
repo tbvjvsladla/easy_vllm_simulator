@@ -1,0 +1,40 @@
+{
+  "already_existed": [],
+  "capacity_rejection_required": false,
+  "created_now": [
+    "devlog",
+    "plan",
+    "simlog",
+    "testlog"
+  ],
+  "messages": {},
+  "ok": true,
+  "or_group_scaffolded": [],
+  "pending_evidence": [
+    "bench_report"
+  ],
+  "publication_id": "piix",
+  "reason_codes": [],
+  "reclassification": null,
+  "record_path": "docs/_evidence/piix.json",
+  "required_evidence": [
+    "plan",
+    "devlog",
+    "simlog",
+    "testlog",
+    "bench_report"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010112_00_00_piix.md",
+    "plan": "docs/plan/plan_26010112_00_00_piix.md",
+    "report": null,
+    "simlog": "docs/simlog/26010112_00_00_piix",
+    "testlog": "docs/testlog/testlog_26010112_00_00_piix.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "full_benchmark"
+}

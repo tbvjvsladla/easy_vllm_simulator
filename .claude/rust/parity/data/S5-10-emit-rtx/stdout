@@ -1,0 +1,1 @@
+[thermal] emit p.env (gpu>=80W 60s 지속 · soc>=97C 30s 지속 · soc>=99C 3폴)

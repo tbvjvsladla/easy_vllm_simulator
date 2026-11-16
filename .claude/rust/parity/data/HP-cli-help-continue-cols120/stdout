@@ -1,0 +1,25 @@
+usage: hint.py continue [-h] [--campaign CAMPAIGN] [--cell CELL] [--draft DRAFT] [--node {main,sub,cluster}]
+                        --generated-utc GENERATED_UTC [--approved-by APPROVED_BY] [--approved-utc APPROVED_UTC]
+                        [--remote REMOTE] [--no-push] [--factcheck-waiver FACTCHECK_WAIVER] [--hint-clone PATH]
+                        [--guide-commit SHA]
+
+options:
+  -h, --help            show this help message and exit
+  --campaign CAMPAIGN
+  --cell CELL
+  --draft DRAFT         publish 가 만든 draft 디렉터리
+  --node {main,sub,cluster}
+                        --campaign/--cell 로 draft 를 찾을 때 노드 축으로 좁힌다
+  --generated-utc GENERATED_UTC
+                        주입 UTC(첫 커밋 뒤 재실행은 state.json 의 커밋 시각을 쓴다)
+  --approved-by APPROVED_BY
+                        캠페인 밖 발행: 사람 발화 전사(한 줄)
+  --approved-utc APPROVED_UTC
+                        캠페인 밖 발행: 승인 시각 UTC
+  --remote REMOTE       push·원격 SHA 대조·카탈로그 파생 원격
+  --no-push             봉인·로컬 검증까지만
+  --factcheck-waiver FACTCHECK_WAIVER
+                        발행 전 독립 사실 검증을 사람이 면제했다: 그 발화 전사(한 줄 · state·00 메타에 남는다)
+  --hint-clone PATH     별도 hint 클론(plan_26101104 · single 서브 자체 발행): 페이로드 커밋·봉인·push·원격 대조를 이 저장소에서 한다 (워크스페이스 git 은
+                        원격이 없다 · SUB_GIT_LOCAL_ONLY). 증거·게이트·PII 리터럴·토큰은 워크스페이스에서 읽는다
+  --guide-commit SHA    오프라인 재생 전용(--no-push 와만): 원격 조회 없이 이 로컬 안내 커밋(v7 형식 마커)을 페이로드 커밋의 부모로 쓴다

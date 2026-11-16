@@ -1,0 +1,59 @@
+{"id": "r0", "kind": "value", "value": {"rc": 0, "stdout": "ok\n", "stderr": ""}}
+{"id": "r1", "kind": "value", "value": null}
+{"id": "r2", "kind": "value", "value": null}
+{"id": "r3", "kind": "value", "value": null}
+{"id": "r4", "kind": "value", "value": null}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": null}
+{"id": "r7", "kind": "value", "value": null}
+{"id": "r8", "kind": "value", "value": null}
+{"id": "r9", "kind": "value", "value": null}
+{"id": "r10", "kind": "value", "value": null}
+{"id": "r11", "kind": "value", "value": null}
+{"id": "r12", "kind": "value", "value": null}
+{"id": "r13", "kind": "value", "value": null}
+{"id": "r14", "kind": "value", "value": null}
+{"id": "r15", "kind": "value", "value": null}
+{"id": "r16", "kind": "value", "value": null}
+{"id": "r17", "kind": "value", "value": null}
+{"id": "r18", "kind": "value", "value": null}
+{"id": "r19", "kind": "value", "value": null}
+{"id": "r20", "kind": "value", "value": null}
+{"id": "r21", "kind": "value", "value": null}
+{"id": "r22", "kind": "value", "value": null}
+{"id": "r23", "kind": "value", "value": null}
+{"id": "r24", "kind": "value", "value": null}
+{"id": "r25", "kind": "value", "value": null}
+{"id": "r26", "kind": "value", "value": null}
+{"id": "r27", "kind": "value", "value": null}
+{"id": "r28", "kind": "value", "value": ["Org/M-NVFP4", "체크포인트 .git/config remote url(huggingface.co · LBL)"]}
+{"id": "r29", "kind": "value", "value": [null, "체크포인트 .git/config 부재(LBL) — HF repo 미관측"]}
+{"id": "r30", "kind": "value", "value": ["Org/M", "체크포인트 README base_model(LBL)"]}
+{"id": "r31", "kind": "value", "value": [null, "체크포인트 README.md 부재(LBL)"]}
+{"id": "r32", "kind": "value", "value": null}
+{"id": "r33", "kind": "value", "value": ["Org/A", "체크포인트 README base_model(L)"]}
+{"id": "r34", "kind": "value", "value": null}
+{"id": "r35", "kind": "value", "value": [null, "README base_model 이 2개 — 단일 기반 모델로 접지 않는다(L)"]}
+{"id": "r36", "kind": "value", "value": null}
+{"id": "r37", "kind": "value", "value": [null, "README 머리 YAML 없음(L)"]}
+{"id": "r38", "kind": "value", "value": ["4444444444444444444444444444444444444444", "체크포인트 .git HEAD → refs/heads/main → loose ref(LBL) · refs/remotes/origin/main 는 다른 커밋(bbbbbbbbbbbb) — 로컬 커밋일 수 있다 — checkout 커밋(작업트리 일치는 미검증) · 측정 시각 미관측 — 측정 시점 checkout 일치 미검증"]}
+{"id": "r39", "kind": "value", "value": ["4444444444444444444444444444444444444444", "체크포인트 .git HEAD → refs/heads/main → loose ref(LBL) · refs/remotes/origin/main 는 다른 커밋(bbbbbbbbbbbb) — 로컬 커밋일 수 있다 — checkout 커밋(작업트리 일치는 미검증) · reflog: 측정 시점 checkout = 지금 HEAD(measured_utc 2026-01-01T12:00:00Z 이전 마지막 이동 2026-01-01T00:00:00Z · 측정 뒤 이동 1회 있었으나 같은 커밋)"]}
+{"id": "r40", "kind": "value", "value": [null, "체크포인트 .git HEAD → refs/heads/main → loose ref(LBL) · refs/remotes/origin/main 는 다른 커밋(bbbbbbbbbbbb) — 로컬 커밋일 수 있다 — checkout 커밋(작업트리 일치는 미검증) · 그러나 reflog 첫 항목 2026-01-01T00:00:00Z 이 measured_utc 2025-12-01T00:00:00Z 뒤다(측정 뒤 받아 온 checkout) — 측정한 revision 미관측(None · 지금 HEAD 를 고르지 않는다)"]}
+{"id": "r41", "kind": "value", "value": [null, "체크포인트 .git/HEAD 부재(LBL) — revision 미관측"]}
+{"id": "r42", "kind": "value", "value": null}
+{"id": "r43", "kind": "value", "value": [null, "체크포인트 .git/HEAD 가 SHA·ref 모양이 아니다(L) — revision 미관측"]}
+{"id": "r44", "kind": "value", "value": null}
+{"id": "r45", "kind": "value", "value": ["bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "체크포인트 .git/HEAD(detached · L) — checkout 커밋(작업트리 일치는 미검증) · reflog(logs/HEAD) 부재·판독 불가 — 측정 시점 checkout 일치 미검증"]}
+{"id": "r46", "kind": "value", "value": null}
+{"id": "r47", "kind": "value", "value": null}
+{"id": "r48", "kind": "value", "value": ["bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "체크포인트 .git HEAD → refs/heads/dev → packed-refs(L) · refs/remotes/origin/dev 미관측 — checkout 커밋(작업트리 일치는 미검증) · 측정 시각 미관측 — 측정 시점 checkout 일치 미검증"]}
+{"id": "r49", "kind": "value", "value": null}
+{"id": "r50", "kind": "value", "value": [null, "체크포인트 HEAD → refs/heads/dev 를 loose ref·packed-refs 어디서도 해소하지 못했다(L) — revision 미관측"]}
+{"id": "r51", "kind": "value", "value": null}
+{"id": "r52", "kind": "value", "value": null}
+{"id": "r53", "kind": "value", "value": null}
+{"id": "r54", "kind": "value", "value": ["bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "체크포인트 .git/HEAD(detached · L) — checkout 커밋(작업트리 일치는 미검증) · reflog: 측정 시점 checkout = 지금 HEAD(measured_utc 2026-01-02T03:04:05Z 이전 마지막 이동 2026-01-01T00:00:00Z)"]}
+{"id": "r55", "kind": "value", "value": {"observed": true, "model_path": "/app/quant_models/Org/M-NVFP4", "host_label": "/app/quant_models/Org/M-NVFP4 → <manifest.quant_model_path>/Org/M-NVFP4", "config": {"quantization_config": {"quant_method": "modelopt", "quant_algo": "MIXED_PRECISION", "quantized_layers": {"l0": {"quant_algo": "NVFP4"}, "l1": {"quant_algo": "NVFP4"}, "l2": {"quant_algo": "FP8"}, "l3": "FP8", "l4": "NVFP4"}, "ignore": ["lm_head"]}, "text_config": {"ple_layer_ids": [1], "torch_dtype": "bfloat16", "expert_dtype": " fp4 "}}, "hf_quant": null, "hf_repo": "Org/M-NVFP4", "hf_repo_source": "체크포인트 .git/config remote url(huggingface.co · /app/quant_models/Org/M-NVFP4 → <manifest.quant_model_path>/Org/M-NVFP4)", "hf_revision": "4444444444444444444444444444444444444444", "hf_revision_source": "체크포인트 .git HEAD → refs/heads/main → loose ref(/app/quant_models/Org/M-NVFP4 → <manifest.quant_model_path>/Org/M-NVFP4) · refs/remotes/origin/main 는 다른 커밋(bbbbbbbbbbbb) — 로컬 커밋일 수 있다 — checkout 커밋(작업트리 일치는 미검증) · 측정 시각 미관측 — 측정 시점 checkout 일치 미검증", "base_model": "Org/M", "base_model_source": "체크포인트 README base_model(/app/quant_models/Org/M-NVFP4 → <manifest.quant_model_path>/Org/M-NVFP4)"}}
+{"id": "r56", "kind": "value", "value": {"observed": false, "reason": "서빙 yaml 부재(output/single/configs/c1.yaml) 에 컨테이너 절대경로 model: 이 없다", "hf_repo_source": "서빙 yaml 부재(output/single/configs/c1.yaml) 에 컨테이너 절대경로 model: 이 없다", "base_model_source": "서빙 yaml 부재(output/single/configs/c1.yaml) 에 컨테이너 절대경로 model: 이 없다"}}
+{"id": "r57", "kind": "value", "value": [null, "서빙 yaml 부재(output/single/configs/c1.yaml)"]}
+{"id": "r58", "kind": "exception", "type": "HintError", "code": "HINT_EVIDENCE_UNREADABLE", "message": "서빙 yaml YAML 파손(none.yaml): FileNotFoundError: [Errno 2] No such file or directory: 'fx/r/output/single/configs/none.yaml'", "remedy": null, "exit_code": 1}

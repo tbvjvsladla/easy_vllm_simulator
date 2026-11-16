@@ -181,7 +181,7 @@ fn main_stops_after_the_existence_checks_when_a_source_is_missing() {
     for name in [
         "sweep_bench.sh",
         "publish_benchmark_record.sh",
-        "lite_metrics_native.py",
+        "lite_metrics_api.sh",
     ] {
         tree.write(name, b"");
     }
@@ -190,7 +190,7 @@ fn main_stops_after_the_existence_checks_when_a_source_is_missing() {
     assert_eq!(status, 1);
     assert_eq!(
         console.stdout.to_utf8().unwrap(),
-        "PASS 파일 존재: sweep_bench.sh\nFAIL 파일 존재: render_report.sh\nPASS 파일 존재: publish_benchmark_record.sh\nPASS 파일 존재: lite_metrics_native.py\n\nfull ⊇ lite conformance: 3/4 FAIL\n"
+        "PASS 파일 존재: sweep_bench.sh\nFAIL 파일 존재: render_report.sh\nPASS 파일 존재: publish_benchmark_record.sh\nPASS 파일 존재: lite_metrics_api.sh\n\nfull ⊇ lite conformance: 3/4 FAIL\n"
     );
 }
 
@@ -262,7 +262,7 @@ fn native_value_delivers_a_large_request_to_a_child_that_closed_its_outputs() {
 fn the_lite_metrics_call_without_a_limit_writes_waits_and_answers() {
     use sweep_stop::conformance_native::LiteMetrics;
     let tree = Tree::new("lite-unbounded");
-    tree.write("lite_metrics_native.py", b"");
+    tree.write("lite_metrics_api.sh", b"");
     tree.write(
         "lite_metrics_api.sh",
         b"cat > \"$(dirname \"$0\")/received.bin\"\nsleep 0.3\nprintf '%s\\n' '{\"id\": \"python-consumer\", \"encoding\": \"json-values-v1\", \"kind\": \"value\", \"value_json\": \"7\"}'\n",

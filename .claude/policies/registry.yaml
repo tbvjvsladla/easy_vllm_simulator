@@ -89,7 +89,7 @@
           ]
         },
         {
-          "path": ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py",
+          "path": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/memory.rs",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C1",
             "HOST_SAFETY_LAYERED_DEFENSE.C4"
@@ -112,12 +112,12 @@
           ]
         },
         {
-          "path": ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py",
+          "path": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/run_trial_session.rs",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C1"
           ],
           "assertion_ids": [
-            "_start_memwatch"
+            "start_memwatch"
           ]
         },
         {
@@ -130,7 +130,7 @@
           ]
         },
         {
-          "path": ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py",
+          "path": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/cleanup_docker.rs",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C8"
           ],
@@ -140,7 +140,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_recipe.rs",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C1"
           ],
@@ -149,7 +149,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C2"
           ],
@@ -158,7 +158,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_owner.rs",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C3"
           ],
@@ -167,7 +167,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_recipe.rs",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C4"
           ],
@@ -176,7 +176,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C5"
           ],
@@ -185,7 +185,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C6"
           ],
@@ -194,7 +194,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C7"
           ],
@@ -203,7 +203,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_recipe.rs",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C8"
           ],
@@ -267,7 +267,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C9"
           ],
@@ -288,13 +288,13 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "HOST_SAFETY_LAYERED_DEFENSE.C10"
           ],
           "assertion_ids": [
             "predicate_HOST_SAFETY_LAYERED_DEFENSE_C10",
-            "_assert_bench_tool_resolution"
+            "assert_bench_tool_resolution"
           ]
         }
       ],
@@ -356,7 +356,7 @@
           ]
         },
         {
-          "path": ".claude/skills/upstream-version-watch/scripts/slave_forward.py",
+          "path": ".claude/skills/upstream-version-watch/rust/runtime/src/slave_forward.rs",
           "supports": [
             "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C1"
           ],
@@ -367,7 +367,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_owner.rs",
           "supports": [
             "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C1"
           ],
@@ -376,7 +376,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C2"
           ],
@@ -385,7 +385,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C3"
           ],
@@ -443,7 +443,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "MODEL_TRIPLET_NO_SUB_PROPAGATION.C1"
           ],
@@ -452,7 +452,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_owner.rs",
           "supports": [
             "MODEL_TRIPLET_NO_SUB_PROPAGATION.C2"
           ],
@@ -461,7 +461,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "MODEL_TRIPLET_NO_SUB_PROPAGATION.C3"
           ],
@@ -519,7 +519,7 @@
       ],
       "evidence": [
         {
-          "path": ".claude/skills/hint-publisher/scripts/hintlib/tag.py",
+          "path": ".claude/skills/hint-publisher/rust/src/tag.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C1"
           ],
@@ -530,7 +530,7 @@
           ]
         },
         {
-          "path": ".claude/skills/hint-publisher/scripts/hintlib/branch.py",
+          "path": ".claude/skills/hint-publisher/rust/src/branch.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C1"
           ],
@@ -541,7 +541,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C1"
           ],
@@ -550,7 +550,7 @@
           ]
         },
         {
-          "path": ".claude/skills/hint-publisher/scripts/hintlib/pii.py",
+          "path": ".claude/skills/hint-publisher/rust/src/pii.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C2"
           ],
@@ -560,7 +560,7 @@
           ]
         },
         {
-          "path": ".claude/skills/hint-publisher/scripts/hintlib/branch.py",
+          "path": ".claude/skills/hint-publisher/rust/src/branch.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C2"
           ],
@@ -570,7 +570,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C2"
           ],
@@ -579,17 +579,25 @@
           ]
         },
         {
-          "path": ".claude/skills/hint-publisher/scripts/hintlib/template.py",
+          "path": ".claude/skills/hint-publisher/rust/src/template/t1.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C3"
           ],
           "assertion_ids": [
-            "REVALIDATION_BANNERS",
+            "REVALIDATION_BANNERS"
+          ]
+        },
+        {
+          "path": ".claude/skills/hint-publisher/rust/src/template/t2.rs",
+          "supports": [
+            "HINT_TAG_ACTIVATION_GATE.C3"
+          ],
+          "assertion_ids": [
             "lint"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C3"
           ],
@@ -598,25 +606,25 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/node_role_contract.py",
+          "path": ".claude/rust/role-contract/src/lib.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C4"
           ],
           "assertion_ids": [
-            "TOOL_PLANE_BY_SUB_MODE"
+            "tool_plane_by_sub_mode"
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "path": ".claude/skills/adversarial-benchmark/rust/src/campaign_write.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C4"
           ],
           "assertion_ids": [
-            "emit_slice"
+            "op_emit_slice"
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+          "path": ".claude/skills/adversarial-benchmark/rust/src/campaign_validator.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C4"
           ],
@@ -625,7 +633,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C4"
           ],
@@ -634,7 +642,7 @@
           ]
         },
         {
-          "path": ".claude/skills/hint-publisher/scripts/hintlib/tag.py",
+          "path": ".claude/skills/hint-publisher/rust/src/tag.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C5"
           ],
@@ -645,7 +653,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C5"
           ],
@@ -654,7 +662,7 @@
           ]
         },
         {
-          "path": ".claude/skills/hint-publisher/scripts/hint.py",
+          "path": ".claude/skills/hint-publisher/rust/src/cli/mod.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C6"
           ],
@@ -663,7 +671,7 @@
           ]
         },
         {
-          "path": ".claude/skills/hint-publisher/scripts/hintlib/evidence.py",
+          "path": ".claude/skills/hint-publisher/rust/src/evidence/e4.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C6"
           ],
@@ -672,16 +680,16 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+          "path": ".claude/skills/adversarial-benchmark/rust/src/campaign_validator.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C6"
           ],
           "assertion_ids": [
-            "hint_approval_for"
+            "hint_approval_reason"
           ]
         },
         {
-          "path": ".claude/skills/hint-publisher/scripts/hintlib/tag.py",
+          "path": ".claude/skills/hint-publisher/rust/src/tag.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C6"
           ],
@@ -690,7 +698,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
           "supports": [
             "HINT_TAG_ACTIVATION_GATE.C6"
           ],
@@ -736,7 +744,7 @@
       ],
       "evidence": [
         {
-          "path": ".claude/skills/hint-publisher/scripts/hintlib/tag.py",
+          "path": ".claude/skills/hint-publisher/rust/src/tag.rs",
           "supports": [
             "LAST_GOOD_ROLLBACK_ANCHOR.C1",
             "LAST_GOOD_ROLLBACK_ANCHOR.C3"
@@ -746,12 +754,12 @@
           ]
         },
         {
-          "path": ".claude/skills/hint-publisher/scripts/hint.py",
+          "path": ".claude/skills/hint-publisher/rust/src/cli/mod.rs",
           "supports": [
             "LAST_GOOD_ROLLBACK_ANCHOR.C3"
           ],
           "assertion_ids": [
-            "_build_parser"
+            "build_parser"
           ]
         },
         {
@@ -765,7 +773,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "LAST_GOOD_ROLLBACK_ANCHOR.C1"
           ],
@@ -774,7 +782,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "LAST_GOOD_ROLLBACK_ANCHOR.C2"
           ],
@@ -783,7 +791,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_hint.rs",
           "supports": [
             "LAST_GOOD_ROLLBACK_ANCHOR.C3"
           ],
@@ -837,7 +845,7 @@
       ],
       "evidence": [
         {
-          "path": ".claude/skills/vllm-recipe-explorer/scripts/crosscheck_model_card.py",
+          "path": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/model_card.rs",
           "supports": [
             "MODEL_ACQUISITION_TERNARY_GATE.C3",
             "MODEL_ACQUISITION_TERNARY_GATE.C5"
@@ -859,7 +867,7 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+          "path": ".claude/rust/role-contract/src/manifest_gate.rs",
           "supports": [
             "MODEL_ACQUISITION_TERNARY_GATE.C1"
           ],
@@ -869,12 +877,12 @@
           ]
         },
         {
-          "path": ".claude/skills/upstream-version-watch/scripts/check_smoke_model.py",
+          "path": ".claude/skills/upstream-version-watch/rust/runtime/src/smoke_model.rs",
           "supports": [
             "MODEL_ACQUISITION_TERNARY_GATE.C2"
           ],
           "assertion_ids": [
-            "main",
+            "run",
             "read_manifest_field"
           ]
         },
@@ -888,7 +896,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_owner.rs",
           "supports": [
             "MODEL_ACQUISITION_TERNARY_GATE.C1"
           ],
@@ -897,7 +905,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_owner.rs",
           "supports": [
             "MODEL_ACQUISITION_TERNARY_GATE.C2"
           ],
@@ -906,7 +914,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_recipe.rs",
           "supports": [
             "MODEL_ACQUISITION_TERNARY_GATE.C3"
           ],
@@ -915,7 +923,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
           "supports": [
             "MODEL_ACQUISITION_TERNARY_GATE.C4"
           ],
@@ -924,7 +932,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_recipe.rs",
           "supports": [
             "MODEL_ACQUISITION_TERNARY_GATE.C5"
           ],
@@ -974,7 +982,7 @@
       ],
       "evidence": [
         {
-          "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+          "path": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/recipe_cmd.rs",
           "supports": [
             "KV_ABSOLUTE_CLAMP_PORTABILITY.C1",
             "KV_ABSOLUTE_CLAMP_PORTABILITY.C2",
@@ -983,13 +991,13 @@
           ],
           "assertion_ids": [
             "resolve_target_gpu_budget",
-            "_lookup_gpu_spec",
-            "_target_tp",
-            "_reject_target_gpu_phase1"
+            "lookup_gpu_spec",
+            "target_tp",
+            "cmd_estimate"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_recipe.rs",
           "supports": [
             "KV_ABSOLUTE_CLAMP_PORTABILITY.C1"
           ],
@@ -998,7 +1006,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_recipe.rs",
           "supports": [
             "KV_ABSOLUTE_CLAMP_PORTABILITY.C2"
           ],
@@ -1007,7 +1015,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_recipe.rs",
           "supports": [
             "KV_ABSOLUTE_CLAMP_PORTABILITY.C3"
           ],
@@ -1016,7 +1024,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_recipe.rs",
           "supports": [
             "KV_ABSOLUTE_CLAMP_PORTABILITY.C4"
           ],
@@ -1087,7 +1095,7 @@
           ]
         },
         {
-          "path": ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py",
+          "path": ".claude/skills/upstream-version-watch/rust/runtime/src/runtime_patch.rs",
           "supports": [
             "RUNTIME_PATCH_NO_CARRY_FORWARD.C2"
           ],
@@ -1097,17 +1105,17 @@
           ]
         },
         {
-          "path": ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py",
+          "path": ".claude/skills/upstream-version-watch/rust/runtime/src/render_template.rs",
           "supports": [
             "RUNTIME_PATCH_NO_CARRY_FORWARD.C4"
           ],
           "assertion_ids": [
             "build_context",
-            "_patch_guard"
+            "patch_guard_with"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_upstream.rs",
           "supports": [
             "RUNTIME_PATCH_NO_CARRY_FORWARD.C1"
           ],
@@ -1116,7 +1124,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "RUNTIME_PATCH_NO_CARRY_FORWARD.C2"
           ],
@@ -1125,7 +1133,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "RUNTIME_PATCH_NO_CARRY_FORWARD.C3"
           ],
@@ -1134,7 +1142,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_upstream.rs",
           "supports": [
             "RUNTIME_PATCH_NO_CARRY_FORWARD.C4"
           ],
@@ -1197,7 +1205,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "SUB_SYNC_DIRTY_AUTOSAVE.C1"
           ],
@@ -1206,7 +1214,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "SUB_SYNC_DIRTY_AUTOSAVE.C2"
           ],
@@ -1215,7 +1223,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "SUB_SYNC_DIRTY_AUTOSAVE.C3"
           ],
@@ -1224,7 +1232,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "SUB_SYNC_DIRTY_AUTOSAVE.C4"
           ],
@@ -1285,7 +1293,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "SUB_GIT_LOCAL_ONLY.C1"
           ],
@@ -1294,7 +1302,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "SUB_GIT_LOCAL_ONLY.C2"
           ],
@@ -1303,7 +1311,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "SUB_GIT_LOCAL_ONLY.C4"
           ],
@@ -1312,7 +1320,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "SUB_GIT_LOCAL_ONLY.C3"
           ],
@@ -1373,7 +1381,7 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
+          "path": ".claude/rust/role-contract/src/manifest_gate.rs",
           "supports": [
             "TERRAFORM_FLAG_GATE.C1",
             "TERRAFORM_FLAG_GATE.C3"
@@ -1384,15 +1392,15 @@
           ]
         },
         {
-          "path": ".claude/skills/vllm-recipe-explorer/recipe.py",
+          "path": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/recipe_cmd.rs",
           "supports": [
             "TERRAFORM_FLAG_GATE.C1",
             "TERRAFORM_FLAG_GATE.C2",
             "TERRAFORM_FLAG_GATE.C3"
           ],
           "assertion_ids": [
-            "_require_terraform_flag",
-            "_guard_tp"
+            "require_terraform_flag",
+            "guard_tp"
           ]
         },
         {
@@ -1406,16 +1414,16 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/companion_predicate.py",
+          "path": ".claude/rust/policy-predicates/src/companion.rs",
           "supports": [
             "TERRAFORM_FLAG_GATE.C4"
           ],
           "assertion_ids": [
-            "TestTerraformFlagGateCompanion.test_wiki_desk_scripts_never_reference_the_flag_gate"
+            "test_wiki_desk_scripts_never_reference_the_flag_gate"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
           "supports": [
             "TERRAFORM_FLAG_GATE.C1"
           ],
@@ -1424,7 +1432,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
           "supports": [
             "TERRAFORM_FLAG_GATE.C2"
           ],
@@ -1433,7 +1441,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
           "supports": [
             "TERRAFORM_FLAG_GATE.C3"
           ],
@@ -1451,7 +1459,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_owner.rs",
           "supports": [
             "TERRAFORM_FLAG_GATE.C4"
           ],
@@ -1501,17 +1509,17 @@
       ],
       "evidence": [
         {
-          "path": ".claude/skills/terraforming_node/scripts/scan_node_original.py",
+          "path": ".claude/rust/role-contract/src/scan_node_probe.rs",
           "supports": [
             "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1"
           ],
           "assertion_ids": [
             "collect_peer_hw",
-            "_peer_ssh_diag"
+            "peer_ssh_diag"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "A2A_IDENTITY_PROOF_FAIL_CLOSED.C1"
           ],
@@ -1520,7 +1528,7 @@
           ]
         },
         {
-          "path": ".claude/policies/runtime/completion_gate.py",
+          "path": ".claude/rust/policy-gate/src/completion_gate.rs",
           "supports": [
             "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2"
           ],
@@ -1529,7 +1537,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "A2A_IDENTITY_PROOF_FAIL_CLOSED.C2"
           ],
@@ -1538,7 +1546,7 @@
           ]
         },
         {
-          "path": ".claude/policies/runtime/completion_gate.py",
+          "path": ".claude/rust/policy-gate/src/completion_gate.rs",
           "supports": [
             "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"
           ],
@@ -1547,17 +1555,17 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/agent_control.py",
+          "path": ".claude/skills/terraforming_node/rust/src/agent_control.rs",
           "supports": [
             "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"
           ],
           "assertion_ids": [
-            "_request_contract_violations",
+            "request_contract_violations",
             "cmd_invoke"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "A2A_IDENTITY_PROOF_FAIL_CLOSED.C3"
           ],
@@ -1566,7 +1574,7 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+          "path": ".claude/skills/terraforming_node/rust/src/render_sub_env.rs",
           "supports": [
             "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4"
           ],
@@ -1575,7 +1583,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4"
           ],
@@ -1629,7 +1637,7 @@
       ],
       "evidence": [
         {
-          "path": ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py",
+          "path": ".claude/skills/upstream-version-watch/rust/runtime/src/ngc_tag.rs",
           "supports": [
             "ARCH_WALL_VARIANT_LADDER.C1",
             "ARCH_WALL_VARIANT_LADDER.C4"
@@ -1640,7 +1648,7 @@
           ]
         },
         {
-          "path": ".claude/skills/upstream-version-watch/scripts/classify_failure.py",
+          "path": ".claude/skills/upstream-version-watch/rust/runtime/src/classify_source.rs",
           "supports": [
             "ARCH_WALL_VARIANT_LADDER.C1",
             "ARCH_WALL_VARIANT_LADDER.C2",
@@ -1653,7 +1661,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_upstream.rs",
           "supports": [
             "ARCH_WALL_VARIANT_LADDER.C1"
           ],
@@ -1662,7 +1670,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_upstream.rs",
           "supports": [
             "ARCH_WALL_VARIANT_LADDER.C2"
           ],
@@ -1671,7 +1679,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_upstream.rs",
           "supports": [
             "ARCH_WALL_VARIANT_LADDER.C3"
           ],
@@ -1680,7 +1688,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_upstream.rs",
           "supports": [
             "ARCH_WALL_VARIANT_LADDER.C4"
           ],
@@ -1701,7 +1709,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_upstream.rs",
           "supports": [
             "ARCH_WALL_VARIANT_LADDER.C5"
           ],
@@ -1743,16 +1751,16 @@
       ],
       "evidence": [
         {
-          "path": ".claude/policies/runtime/runtime_selftest.py",
+          "path": ".claude/rust/policy-selftest/src/tripwires.rs",
           "supports": [
             "GIT_SINGLE_AUTHORITY.C1"
           ],
           "assertion_ids": [
-            "_test_no_backup_artifacts"
+            "no_backup_artifacts"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_selftest.rs",
           "supports": [
             "GIT_SINGLE_AUTHORITY.C1"
           ],
@@ -1761,16 +1769,16 @@
           ]
         },
         {
-          "path": ".claude/policies/runtime/runtime_selftest.py",
+          "path": ".claude/rust/policy-selftest/src/tripwires.rs",
           "supports": [
             "GIT_SINGLE_AUTHORITY.C2"
           ],
           "assertion_ids": [
-            "_test_no_tracked_digest_rewrite"
+            "no_tracked_digest_rewrite"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_selftest.rs",
           "supports": [
             "GIT_SINGLE_AUTHORITY.C2"
           ],
@@ -1826,17 +1834,25 @@
           ]
         },
         {
-          "path": ".claude/policies/runtime/runtime_selftest.py",
+          "path": ".claude/rust/policy-selftest/src/tripwires.rs",
           "supports": [
             "ROOT_SURFACE_REGISTRY.C1"
           ],
           "assertion_ids": [
-            "_test_root_surface_registry",
-            "_test_root_registry_predicate"
+            "root_surface_registry"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-selftest/src/suite.rs",
+          "supports": [
+            "ROOT_SURFACE_REGISTRY.C1"
+          ],
+          "assertion_ids": [
+            "root_registry_predicate"
+          ]
+        },
+        {
+          "path": ".claude/rust/policy-predicates/src/claims_selftest.rs",
           "supports": [
             "ROOT_SURFACE_REGISTRY.C1"
           ],
@@ -1845,18 +1861,17 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "path": ".claude/skills/adversarial-benchmark/rust/src/campaign_write.rs",
           "supports": [
             "ROOT_SURFACE_REGISTRY.C2"
           ],
           "assertion_ids": [
             "purge_gate_reasons",
-            "do_purge",
-            "PURGE_KEEPS"
+            "do_purge"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
           "supports": [
             "ROOT_SURFACE_REGISTRY.C2"
           ],
@@ -1875,18 +1890,18 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/campaign_template_validator.py",
+          "path": ".claude/skills/adversarial-benchmark/rust/src/campaign_validator.rs",
           "supports": [
             "ROOT_SURFACE_REGISTRY.C3"
           ],
           "assertion_ids": [
             "validate_instance",
-            "find_fill_placeholders",
+            "find_fill_paths",
             "validate_campaign"
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "path": ".claude/rust/role-contract/src/campaign.rs",
           "supports": [
             "ROOT_SURFACE_REGISTRY.C3"
           ],
@@ -1896,7 +1911,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
           "supports": [
             "ROOT_SURFACE_REGISTRY.C3"
           ],
@@ -1963,7 +1978,7 @@
       ],
       "evidence": [
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C1"
           ],
@@ -1972,18 +1987,18 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "path": ".claude/skills/adversarial-benchmark/rust/src/campaign_write.rs",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C1"
           ],
           "assertion_ids": [
-            "ground_campaign",
+            "op_ground",
             "grounding_terms",
-            "GROUNDING_DIR"
+            "GROUNDING_TOP"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C2"
           ],
@@ -1992,7 +2007,7 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "path": ".claude/skills/adversarial-benchmark/rust/src/campaign_write.rs",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C2"
           ],
@@ -2011,16 +2026,16 @@
           ]
         },
         {
-          "path": ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py",
+          "path": ".claude/skills/vllm-recipe-explorer/rust/runtime/src/run_trial_cli.rs",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C2"
           ],
           "assertion_ids": [
-            "_main"
+            "run_trial_main"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C3"
           ],
@@ -2029,16 +2044,16 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "path": ".claude/skills/adversarial-benchmark/rust/src/campaign_write.rs",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C3"
           ],
           "assertion_ids": [
-            "writer_set_cell"
+            "op_cell_set"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_tf.rs",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C4"
           ],
@@ -2047,7 +2062,7 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+          "path": ".claude/skills/adversarial-benchmark/rust/src/campaign_write.rs",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C4"
           ],
@@ -2056,7 +2071,7 @@
           ]
         },
         {
-          "path": ".claude/policies/runtime/evidence_publisher.py",
+          "path": ".claude/rust/policy-publisher/src/publisher.rs",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C4"
           ],
@@ -2065,7 +2080,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C5"
           ],
@@ -2102,7 +2117,7 @@
           ]
         },
         {
-          "path": ".claude/skills/terraforming_node/scripts/library_access.py",
+          "path": ".claude/skills/terraforming_node/rust/src/library_access.rs",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C5"
           ],
@@ -2112,7 +2127,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "LIBRARY_GROUNDING_FAIL_CLOSED.C6"
           ],
@@ -2178,7 +2193,7 @@
       ],
       "evidence": [
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_lib.rs",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C1"
           ],
@@ -2187,15 +2202,22 @@
           ]
         },
         {
-          "path": ".claude/policies/runtime/topology_parity.py",
+          "path": ".claude/rust/role-contract/src/topology.rs",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C1"
           ],
           "assertion_ids": [
-            "LAYER_SUFFIX",
             "LAYER_PATHSPEC",
-            "LAYER_EXCLUDE_PATHSPEC",
             "layer_files"
+          ]
+        },
+        {
+          "path": ".claude/rust/policy-selftest/src/tripwires.rs",
+          "supports": [
+            "BRANCH_CONSTITUTION_LAYERING.C1"
+          ],
+          "assertion_ids": [
+            "LAYER_EXCLUDE_PATHSPEC"
           ]
         },
         {
@@ -2208,7 +2230,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_lib.rs",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C2"
           ],
@@ -2217,18 +2239,18 @@
           ]
         },
         {
-          "path": ".claude/policies/runtime/topology_parity.py",
+          "path": ".claude/rust/role-contract/src/topology.rs",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C2"
           ],
           "assertion_ids": [
-            "_HEADER_DECL",
+            "declared_topology",
             "HEADER_WINDOW",
             "read_layer_header"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_text.rs",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C3"
           ],
@@ -2249,7 +2271,7 @@
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_selftest.rs",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C4"
           ],
@@ -2258,19 +2280,19 @@
           ]
         },
         {
-          "path": ".claude/policies/runtime/runtime_selftest.py",
+          "path": ".claude/rust/policy-selftest/src/tripwires.rs",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C4"
           ],
           "assertion_ids": [
-            "_TOPOLOGY_ONLY_VOCABULARY",
-            "_TOPOLOGY_VOCABULARY_EXEMPTIONS",
-            "_vocabulary_offenders",
-            "_common_layer_prose"
+            "TOPOLOGY_ONLY_VOCABULARY",
+            "TOPOLOGY_VOCABULARY_EXEMPTIONS",
+            "vocabulary_offenders",
+            "common_layer_prose"
           ]
         },
         {
-          "path": ".claude/policies/predicates/claim_predicates.py",
+          "path": ".claude/rust/policy-predicates/src/claims_selftest.rs",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C5"
           ],
@@ -2279,23 +2301,31 @@
           ]
         },
         {
-          "path": ".claude/policies/runtime/topology_parity.py",
+          "path": ".claude/rust/role-contract/src/topology.rs",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C5"
           ],
           "assertion_ids": [
             "evaluate",
-            "BRANCH_TO_TOPOLOGY"
+            "TOPOLOGIES"
           ]
         },
         {
-          "path": ".claude/policies/runtime/runtime_selftest.py",
+          "path": ".claude/rust/policy-selftest/src/tripwires.rs",
           "supports": [
             "BRANCH_CONSTITUTION_LAYERING.C5"
           ],
           "assertion_ids": [
-            "_test_topology_layer_parity",
-            "_test_topology_layer_parity_predicate"
+            "topology_layer_parity"
+          ]
+        },
+        {
+          "path": ".claude/rust/policy-selftest/src/suite.rs",
+          "supports": [
+            "BRANCH_CONSTITUTION_LAYERING.C5"
+          ],
+          "assertion_ids": [
+            "topology_layer_parity_predicate"
           ]
         }
       ],

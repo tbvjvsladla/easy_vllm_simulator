@@ -1,0 +1,18 @@
+{
+  "budget_outcome": null,
+  "duration_api_ms": 0,
+  "duration_ms": null,
+  "exit_code": 4,
+  "intent": "probe",
+  "model_requested": "sonnet",
+  "model_used": [],
+  "num_turns": 1,
+  "output": "[runner_unavailable] {\"api_error_status\": 401, \"detail\": \"백엔드가 HTTP 401 로 거절했다\", \"message\": \"Failed to authenticate. API Error: 401 ...\", \"provenance\": \"measured\", \"returncode\": 1, \"rotate\": true, \"signal\": \"api_error\"}",
+  "provider": "claude_code",
+  "reason_codes": [
+    "RUNNER_UNAVAILABLE"
+  ],
+  "schema_version": 1,
+  "session_id": "e939c9b7",
+  "status": "execution_failed"
+}

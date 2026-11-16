@@ -1,0 +1,142 @@
+[
+ {
+  "case": {
+   "name": "rc3_crlf",
+   "argv": [
+    "sh",
+    "-c",
+    "printf 'a\\r\\nb\\rc'; printf 'e' >&2; exit 3"
+   ],
+   "expected": [
+    3,
+    0
+   ]
+  },
+  "result": {
+   "name": "rc3_crlf",
+   "ok": true,
+   "rc": 3,
+   "expected_rc": [
+    0,
+    3
+   ],
+   "stdout_tail": "a\nb\nc",
+   "stderr_tail": "e"
+  }
+ },
+ {
+  "case": {
+   "name": "tail_1000",
+   "argv": [
+    "sh",
+    "-c",
+    "i=0; while [ $i -lt 300 ]; do printf '가나다라'; i=$((i+1)); done"
+   ],
+   "expected": [
+    0
+   ]
+  },
+  "result": {
+   "name": "tail_1000",
+   "ok": true,
+   "rc": 0,
+   "expected_rc": [
+    0
+   ],
+   "stdout_tail": "가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라가나다라",
+   "stderr_tail": ""
+  }
+ },
+ {
+  "case": {
+   "name": "missing_program",
+   "argv": [
+    "no-such-program-xyz"
+   ],
+   "expected": [
+    0
+   ]
+  },
+  "result": {
+   "name": "missing_program",
+   "ok": false,
+   "rc": null,
+   "expected_rc": [
+    0
+   ],
+   "error": "FileNotFoundError: [Errno 2] No such file or directory: 'no-such-program-xyz'"
+  }
+ },
+ {
+  "case": {
+   "name": "killed",
+   "argv": [
+    "sh",
+    "-c",
+    "kill -9 $$"
+   ],
+   "expected": [
+    0
+   ]
+  },
+  "result": {
+   "name": "killed",
+   "ok": false,
+   "rc": -9,
+   "expected_rc": [
+    0
+   ],
+   "stdout_tail": "",
+   "stderr_tail": ""
+  }
+ },
+ {
+  "case": {
+   "name": "env_override",
+   "argv": [
+    "sh",
+    "-c",
+    "printf '%s|%s' \"$PYTHONDONTWRITEBYTECODE\" \"$X_OVR\""
+   ],
+   "expected": [
+    0
+   ],
+   "env": {
+    "X_OVR": "v"
+   }
+  },
+  "result": {
+   "name": "env_override",
+   "ok": true,
+   "rc": 0,
+   "expected_rc": [
+    0
+   ],
+   "stdout_tail": "1|v",
+   "stderr_tail": ""
+  }
+ },
+ {
+  "case": {
+   "name": "missing_cwd",
+   "argv": [
+    "sh",
+    "-c",
+    "true"
+   ],
+   "expected": [
+    0
+   ],
+   "cwd": "/nonexistent-vd-cwd"
+  },
+  "result": {
+   "name": "missing_cwd",
+   "ok": false,
+   "rc": null,
+   "expected_rc": [
+    0
+   ],
+   "error": "FileNotFoundError: [Errno 2] No such file or directory: PosixPath('/nonexistent-vd-cwd')"
+  }
+ }
+]

@@ -1,0 +1,105 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 14,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "assertion id 'beta' is not an exact identifier found in 'ev/a.py'",
+      "path": "ev/a.py",
+      "policy_id": "TEST_IDS",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'a' is not an exact identifier found in 'ev/a.py'",
+      "path": "ev/a.py",
+      "policy_id": "TEST_IDS",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'helper' is not an exact identifier found in 'ev/a.py'",
+      "path": "ev/a.py",
+      "policy_id": "TEST_IDS",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'Plain.test_two' is not an exact identifier found in 'ev/a.py'",
+      "path": "ev/a.py",
+      "policy_id": "TEST_IDS",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'hidden' is not an exact identifier found in 'ev/a.py'",
+      "path": "ev/a.py",
+      "policy_id": "TEST_IDS",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'K' is not an exact identifier found in 'ev/a.py'",
+      "path": "ev/a.py",
+      "policy_id": "TEST_IDS",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'K.helper' is not an exact identifier found in 'ev/a.py'",
+      "path": "ev/a.py",
+      "policy_id": "TEST_IDS",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'RETIRED_VAR' is not an exact identifier found in 'ev/b.sh'",
+      "path": "ev/b.sh",
+      "policy_id": "TEST_IDS",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'prose' is not an exact identifier found in 'ev/c.md'",
+      "path": "ev/c.md",
+      "policy_id": "TEST_IDS",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'hidden_key' is not an exact identifier found in 'ev/d.yaml'",
+      "path": "ev/d.yaml",
+      "policy_id": "TEST_IDS",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'inner' is not an exact identifier found in 'ev/e.json'",
+      "path": "ev/e.json",
+      "policy_id": "TEST_IDS",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'hiddenTs' is not an exact identifier found in 'ev/f.ts'",
+      "path": "ev/f.ts",
+      "policy_id": "TEST_IDS",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'indented' is not an exact identifier found in 'ev/g.rs'",
+      "path": "ev/g.rs",
+      "policy_id": "TEST_IDS",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "'ev/h.txt' has no supported assertion-id extraction for its file kind",
+      "path": "ev/h.txt",
+      "policy_id": "TEST_IDS",
+      "reason_code": "EVIDENCE_ASSERTION_KIND_UNSUPPORTED"
+    }
+  ]
+}

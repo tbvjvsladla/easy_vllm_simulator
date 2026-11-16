@@ -1,0 +1,83 @@
+{"id": "p1", "kind": "value", "value": "진짜 brief"}
+{"id": "p2", "kind": "value", "value": ""}
+{"id": "p3", "kind": "value", "value": "첫 줄 둘째 셋째"}
+{"id": "p4", "kind": "value", "value": ""}
+{"id": "p5", "kind": "value", "value": "a \\| b c end"}
+{"id": "p6", "kind": "value", "value": ""}
+{"id": "p7", "kind": "value", "value": "3"}
+{"id": "p8", "kind": "value", "value": "True"}
+{"id": "p9", "kind": "value", "value": "['x', None]"}
+{"id": "p10", "kind": "value", "value": ["미기재", "absent(PAYLOAD.json 을 읽지 못함 — 페이로드가 없는 태그)"]}
+{"id": "p11", "kind": "value", "value": ["미기재", "absent(PAYLOAD.measurement_config 없음 — 측정 구성 기재 신설 전 페이로드)"]}
+{"id": "p12", "kind": "value", "value": ["lite(강등·5)", "payload(PAYLOAD.measurement_config · 출처 미표시)"]}
+{"id": "p13", "kind": "value", "value": ["lite(선언)", "payload(PAYLOAD.measurement_config · s)"]}
+{"id": "p14", "kind": "value", "value": ["lite", "payload(PAYLOAD.measurement_config · 출처 미표시)"]}
+{"id": "p15", "kind": "value", "value": ["full", "payload(PAYLOAD.measurement_config · 출처 미표시)"]}
+{"id": "p16", "kind": "value", "value": ["미확정", "payload(PAYLOAD.measurement_config · 출처 미표시)"]}
+{"id": "p17", "kind": "value", "value": ["—", "absent(PAYLOAD.json 을 읽지 못함)"]}
+{"id": "p18", "kind": "value", "value": ["—", "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)"]}
+{"id": "p19", "kind": "value", "value": ["PASS", "payload(PAYLOAD.measurement.verdict · 출처 미표시)"]}
+{"id": "p20", "kind": "value", "value": ["MAYBE(어휘 밖)", "payload(PAYLOAD.measurement.verdict · src)"]}
+{"id": "p21", "kind": "value", "value": ["REFUTE", "payload(PAYLOAD.measurement.verdict · k)"]}
+{"id": "p22", "kind": "value", "value": ["—", "absent(PAYLOAD.measurement.verdict 없음 — 판정 기록 전 페이로드)"]}
+{"id": "p23", "kind": "value", "value": ["lite(기동 가능)", "payload(PAYLOAD.cell_grade = lite · 기계 판정 measurement.verdict = OBSERVATION-ONLY)"]}
+{"id": "p24", "kind": "value", "value": ["PASS", "payload(PAYLOAD.measurement.verdict · 출처 미표시)"]}
+{"id": "p25", "kind": "value", "value": ["lite(기동 가능)", "payload(PAYLOAD.cell_grade = lite · 기계 판정 measurement.verdict = —)"]}
+{"id": "p26", "kind": "value", "value": ["PASS", "payload(PAYLOAD.measurement.verdict · 출처 미표시)"]}
+{"id": "p27", "kind": "value", "value": "2025-10-11T00:00:00Z"}
+{"id": "p28", "kind": "value", "value": null}
+{"id": "p29", "kind": "value", "value": null}
+{"id": "p30", "kind": "value", "value": null}
+{"id": "p31", "kind": "value", "value": "gemma4e2b"}
+{"id": "p32", "kind": "value", "value": ""}
+{"id": "p33", "kind": "value", "value": ""}
+{"id": "p34", "kind": "value", "value": "github-ssh"}
+{"id": "p35", "kind": "value", "value": "<경로·URL 원격 — 배포 파일에 적지 않는다>"}
+{"id": "p36", "kind": "value", "value": "<경로·URL 원격 — 배포 파일에 적지 않는다>"}
+{"id": "p37", "kind": "value", "value": {"grammar": "v7", "vllm": "0.29.0rc6", "model": "qwen3.8-flash-next-nvfp4", "arch": "gb10-1g2n-cluster-native", "recipe": "qnvfp4-len262144-kvauto-plemmap-t2609290823"}}
+{"id": "p38", "kind": "value", "value": {"grammar": "legacy-5seg-node", "vllm": "0.19.0", "model": "gpt-oss-120b", "arch": "gb10x2-cluster-native", "recipe": "qmxfp4-len131072-kvfp8"}}
+{"id": "p39", "kind": "value", "value": {"grammar": "legacy-4seg", "vllm": "0.1", "model": "m", "arch": "a", "recipe": null}}
+{"id": "p40", "kind": "value", "value": {"grammar": "unknown", "vllm": null, "model": null, "arch": null, "recipe": null}}
+{"id": "p41", "kind": "value", "value": {"grammar": "unknown", "vllm": null, "model": null, "arch": null, "recipe": null}}
+{"id": "p42", "kind": "value", "value": ["v7", "v6"]}
+{"id": "p43", "kind": "value", "value": {"tag": "hint/x", "grammar": "v6", "vllm": "1", "published": true, "source": "remote-derived", "base_model": null}}
+{"id": "p44", "kind": "value", "value": {"tag": "hint/x", "grammar": "legacy-4seg", "published": true, "source": "remote-derived"}}
+{"id": "p45", "kind": "value", "value": {"_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.", "schema": 5, "source": "remote-derived", "remote": "<경로·URL 원격 — 배포 파일에 적지 않는다>", "generated_kst": "2026-01-01T00:00:00", "count": 1, "hints": [{"tag": "a"}]}}
+{"id": "p46", "kind": "value", "value": {"_note": "카탈로그는 **원격 발행 태그에서 파생**한다(plan_26090107 D1.1 · plan_26092119). 손저작 금지 — 이 파일을 직접 편집하면 다음 derive 에서 사라진다. 진실원천은 원격의 `refs/tags/hint/*` 광고이고, brief·결손·bench_mode 는 원격이 광고한 태그 오브젝트(로컬 오브젝트 DB)에서 파싱한다(합성 금지). `object: absent-local` 행은 로컬에 그 오브젝트가 없어 읽지 못한 원격 태그 · `object: not-annotated` 행은 annotation 없는 원격 태그다(둘 다 brief 합성 ✗). `tagged_utc` = 태그 오브젝트 tagger 시각(UTC · 읽지 못하면 null) — HINTS.md 최신순 정렬 키.", "schema": 5, "source": "remote-derived", "remote": "origin", "generated_kst": "k", "count": 0, "hints": []}}
+{"id": "p47", "kind": "value", "value": "미수령"}
+{"id": "p48", "kind": "value", "value": "미선언"}
+{"id": "p49", "kind": "value", "value": "—"}
+{"id": "p50", "kind": "value", "value": "A\\|B · C"}
+{"id": "p51", "kind": "value", "value": "a · b"}
+{"id": "p52", "kind": "exception", "type": "TypeError", "message": "sequence item 1: expected str instance, int found"}
+{"id": "p53", "kind": "value", "value": "미기재(구판)"}
+{"id": "p54", "kind": "value", "value": "미기재(구판)"}
+{"id": "p55", "kind": "value", "value": "PASS"}
+{"id": "p56", "kind": "value", "value": "0"}
+{"id": "p57", "kind": "value", "value": "| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |\n|---|---|---|---|---|---|\n| `hint/a\\|b` |  | 1 | REFUTE | 미기재 | x |\n| `` |  |  | 미기재(구판) | 미기재 | 미선언 |"}
+{"id": "p58", "kind": "value", "value": "(모델 미상)"}
+{"id": "p59", "kind": "value", "value": "m"}
+{"id": "p60", "kind": "value", "value": [["(모델 미상)", [{"tag": "d", "model": null, "tagged_utc": "2027"}]], ["m", [{"tag": "a", "model": "m", "tagged_utc": "2026"}, {"tag": "b", "model": "m", "tagged_utc": "2026"}]], ["n", [{"tag": null, "model": "n", "tagged_utc": "2025"}, {"tag": "c", "model": "n", "tagged_utc": null}]]]}
+{"id": "p61", "kind": "value", "value": "> 원격 `fx` 의 발행 태그 **2건** · 모델 1종에서 파생 · 생성 `2026-01-01T00:00:00` KST · 로컬 오브젝트 부재(미수령) 1건 · annotation 없는 태그 1건.\n\n### `m` (2)\n\n| 태그 | arch | vLLM | 판정 | bench_mode | 결손 |\n|---|---|---|---|---|---|\n| `t2` |  |  | 미기재(구판) | 미기재 | 미선언 |\n| `t1` |  |  | 미수령 | 미기재 | 미수령 |\n\n"}
+{"id": "p62", "kind": "value", "value": "> 원격 `` 의 발행 태그 **0건** · 모델 0종에서 파생 · 생성 `` KST.\n\n"}
+{"id": "p63", "kind": "value", "value": [37, 39]}
+{"id": "p64", "kind": "value", "value": [103, 105]}
+{"id": "p65", "kind": "exception", "type": "HintError", "code": "HINT_CATALOG_MARKER_ABSENT", "message": "HINTS.md 에 파생 구간 마커가 없다(BEGIN 0 · END 0) — 쓸 자리가 없으므로 기존 내용을 지우지 않고 중단한다.", "remedy": "HINTS.md 에 줄 단독의 마커 쌍을 정확히 하나 둔다 — 여는 줄은 `<!-- HINTS:BEGIN derived` 로 시작하고(권장 전문 `<!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->`) 닫는 줄은 `<!-- HINTS:END -->` 다. 여는 줄이 먼저다. 옛 전량 생성 형식(`<!-- hint-index:rows -->` 마커 · 2026-10-11 이전)이면 사람 서사를 저작하고 그 아래에 이 마커 쌍을 둔다. 파생기는 그 사이만 바꾼다.", "exit_code": 1}
+{"id": "p66", "kind": "exception", "type": "HintError", "code": "HINT_CATALOG_MARKER_DUPLICATE", "message": "HINTS.md 의 파생 구간 마커가 중복이다(BEGIN 1 · END 2) — 어느 구간이 생성물인지 가를 수 없어 중단한다.", "remedy": "HINTS.md 에 줄 단독의 마커 쌍을 정확히 하나 둔다 — 여는 줄은 `<!-- HINTS:BEGIN derived` 로 시작하고(권장 전문 `<!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->`) 닫는 줄은 `<!-- HINTS:END -->` 다. 여는 줄이 먼저다. 옛 전량 생성 형식(`<!-- hint-index:rows -->` 마커 · 2026-10-11 이전)이면 사람 서사를 저작하고 그 아래에 이 마커 쌍을 둔다. 파생기는 그 사이만 바꾼다.", "exit_code": 1}
+{"id": "p67", "kind": "exception", "type": "HintError", "code": "HINT_CATALOG_MARKER_MISORDERED", "message": "HINTS.md 의 END 마커가 BEGIN 마커보다 앞에 있다 — 구간을 정할 수 없어 중단한다.", "remedy": "HINTS.md 에 줄 단독의 마커 쌍을 정확히 하나 둔다 — 여는 줄은 `<!-- HINTS:BEGIN derived` 로 시작하고(권장 전문 `<!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->`) 닫는 줄은 `<!-- HINTS:END -->` 다. 여는 줄이 먼저다. 옛 전량 생성 형식(`<!-- hint-index:rows -->` 마커 · 2026-10-11 이전)이면 사람 서사를 저작하고 그 아래에 이 마커 쌍을 둔다. 파생기는 그 사이만 바꾼다.", "exit_code": 1}
+{"id": "p68", "kind": "exception", "type": "HintError", "code": "HINT_CATALOG_MARKER_MALFORMED", "message": "HINTS.md 의 마커 문자열이 줄 단독이 아닌 자리에 있다(BEGIN 문자열 1 · 줄 단독 0 · END 문자열 1 · 줄 단독 1) — 기존 내용을 지우지 않고 중단한다.", "remedy": "HINTS.md 에 줄 단독의 마커 쌍을 정확히 하나 둔다 — 여는 줄은 `<!-- HINTS:BEGIN derived` 로 시작하고(권장 전문 `<!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->`) 닫는 줄은 `<!-- HINTS:END -->` 다. 여는 줄이 먼저다. 옛 전량 생성 형식(`<!-- hint-index:rows -->` 마커 · 2026-10-11 이전)이면 사람 서사를 저작하고 그 아래에 이 마커 쌍을 둔다. 파생기는 그 사이만 바꾼다.", "exit_code": 1}
+{"id": "p69", "kind": "value", "value": "h\n<!-- HINTS:BEGIN derived — `hint.py catalog derive` 가 이 구간만 다시 쓴다(손으로 고치지 마라 · 구간 밖은 사람이 쓰는 서사다) -->\nNEW\n<!-- HINTS:END -->\nt"}
+{"id": "p70", "kind": "value", "value": "gb10"}
+{"id": "p71", "kind": "value", "value": "rtxpro6000"}
+{"id": "p72", "kind": "value", "value": ""}
+{"id": "p73", "kind": "value", "value": "unspecified"}
+{"id": "p74", "kind": "value", "value": "exact"}
+{"id": "p75", "kind": "value", "value": "prefix"}
+{"id": "p76", "kind": "value", "value": "hw"}
+{"id": "p77", "kind": "value", "value": "none"}
+{"id": "p78", "kind": "value", "value": "none"}
+{"id": "p79", "kind": "value", "value": "0.29.0"}
+{"id": "p80", "kind": "value", "value": "1"}
+{"id": "p81", "kind": "value", "value": "vx"}
+{"id": "p82", "kind": "value", "value": ""}
+{"id": "p83", "kind": "value", "value": "v"}

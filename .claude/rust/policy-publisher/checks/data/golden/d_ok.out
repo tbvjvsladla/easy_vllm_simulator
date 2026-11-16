@@ -1,0 +1,40 @@
+{
+  "already_existed": [
+    "devlog",
+    "plan",
+    "testlog"
+  ],
+  "capacity_rejection_required": false,
+  "created_now": [],
+  "messages": {},
+  "ok": true,
+  "or_group_scaffolded": [],
+  "pending_evidence": [],
+  "publication_id": "down",
+  "reason_codes": [],
+  "reclassification": {
+    "from": "full_benchmark",
+    "reason": "run_failed",
+    "reason_source": "derived(bench_report(docs/benchmark/bench_report_26010112_self-test-model_GB10_0.0.0.md) 측정 구성 표 · kind=downgraded-lite · downgrade_reason=run_failed = --downgrade-reason 대조 일치)",
+    "to": "hint_map_only"
+  },
+  "record_path": "docs/_evidence/down.json",
+  "required_evidence": [
+    "plan",
+    "devlog",
+    "testlog"
+  ],
+  "scaffolded": {
+    "bench_report": "docs/benchmark/bench_report_26010112_self-test-model_GB10_0.0.0.md",
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010112_down.md",
+    "plan": "docs/plan/plan_26010112_down.md",
+    "report": null,
+    "simlog": "docs/simlog/26010112_down",
+    "testlog": "docs/testlog/testlog_26010112_down.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "hint_map_only"
+}

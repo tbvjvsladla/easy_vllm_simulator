@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLICATION_RECORD_UNKNOWN_FIELDS": "publication record for topic 'lite': publication record contains unknown fields ['zz_unrelated']"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLICATION_RECORD_UNKNOWN_FIELDS"
+  ],
+  "schema_version": 1
+}

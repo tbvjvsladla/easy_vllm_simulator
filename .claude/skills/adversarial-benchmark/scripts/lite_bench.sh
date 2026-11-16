@@ -108,18 +108,18 @@ fi
 
 # Terraform readiness is manifest/Flag/topology-based. SSH authenticates a provisioned
 # endpoint; unsigned Agent Card metadata is not an execution credential.
-MC="$REPO/.claude/skills/terraforming_node/scripts/manifest_contract.py"
+MC="$REPO/.claude/skills/terraforming_node/scripts/manifest_contract.sh"
 # Flag 게이트 런타임(Rust manifest_contract)은 게이트 판정 전에 한 번 확인한다. 게이트 호출은 stdout/stderr 와 상태를 버리고
 # 비0 을 모두 info-only 4 로 읽으므로(아래), 실행파일 부재가 "Flag 미발급"으로 가려지지 않게 여기서 안내를 보이고 상태를
 # 전파한다. 가용성 확인일 뿐 건강 증명이 아니며, 런타임이 있으면 이후 판정·종료는 종전과 같다(owner 부재는 종전대로 4).
 if [ -f "$MC" ]; then
-  MANIFEST_CONTRACT_VALIDATE_ONLY=1 bash "${MC%.py}.sh" || {
+  MANIFEST_CONTRACT_VALIDATE_ONLY=1 bash "$MC" || {
     _MC_RC=$?
     echo "[lite_bench] ERROR 테라포밍-완수 Flag 게이트 런타임(manifest_contract)을 쓸 수 없다 — Flag 미발급이 아니다(위 안내로 빌드한 뒤 다시)." >&2
     exit "$_MC_RC"
   }
 fi
-if [ ! -f "$MC" ] || ! bash "${MC%.py}.sh" --topology "$TOPO" --repo "$REPO" --require-flag >/dev/null 2>&1; then
+if [ ! -f "$MC" ] || ! bash "$MC" --topology "$TOPO" --repo "$REPO" --require-flag >/dev/null 2>&1; then
   echo "[lite_bench] 테라포밍-완수 Flag 또는 topology 준비성 미확인 — info-only(fail-closed)." >&2
   exit 4
 fi
@@ -203,7 +203,7 @@ _bench() {  # $1=out.json $2=num-prompts $3=warmups
 
 # 캠페인 셀 bench phase(K5). 포맷 소유는 campaign_init 하나이고 노드는 배정에서 파생된다 — 여기는 호출부다.
 #   ACTIVE=_bootstrap 이면 writer 가 no-op 이고, writer 실패는 측정을 죽이지 않되 침묵하지 않는다.
-_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.sh"
 _CAMPAIGN_STARTED=""
 _campaign_phase() {  # $1=state(running|done|failed) $2=rc
   local _now; _now="$(date -u +%FT%TZ)"
@@ -212,7 +212,7 @@ _campaign_phase() {  # $1=state(running|done|failed) $2=rc
     _a+=(--started-utc "$_CAMPAIGN_STARTED" --ended-utc "$_now" --proof-predicate "lite_bench exit=$2 (0=lite pass)")
     if [ "$1" = done ]; then _a+=(--proof-ok --proof-source "lite_bench: $RAW#lite_verdict"); fi
   fi
-  bash "${_CI%.py}.sh" "${_a[@]}" >&2 \
+  bash "$_CI" "${_a[@]}" >&2 \
     || echo "[lite_bench] ⚠ 캠페인 셀 '$CAMPAIGN_CELL' bench phase=$1 기록 실패(위 사유) — 진행표가 낡는다" >&2
 }
 _campaign_exit() {
@@ -221,9 +221,9 @@ _campaign_exit() {
     _campaign_phase failed "$rc"
     # ② 서버 응답 실패는 셀 상태 writer 가 raw 를 읽어 cap 차감·재발동 제안을 적는다(멱등 · 키 = raw measured_utc).
     if [ "$rc" = 7 ] && [ -s "$RAW" ]; then
-      bash "${_CI%.py}.sh" --cell-set "$CAMPAIGN_CELL" --outcome measurement_void --lite-raw "$RAW" \
+      bash "$_CI" --cell-set "$CAMPAIGN_CELL" --outcome measurement_void --lite-raw "$RAW" \
         --utc "$(date -u +%FT%TZ)" >&2 \
-        || echo "[lite_bench] ⚠ 셀 상태(lite ② 차감) 기록 실패 — 수동: campaign_init.py --cell-set $CAMPAIGN_CELL --outcome measurement_void --lite-raw $RAW" >&2
+        || echo "[lite_bench] ⚠ 셀 상태(lite ② 차감) 기록 실패 — 수동: campaign_init.sh --cell-set $CAMPAIGN_CELL --outcome measurement_void --lite-raw $RAW" >&2
     fi
   fi
   return "$rc"
@@ -354,7 +354,7 @@ if [ "$LITE_RC" = 7 ]; then
   # ② 는 **제안까지**다 — 재발동(explorer 서빙전략 · upstream 재빌드)은 사람 승인 게이트를 거친다(헌법 트리거 절).
   #   캠페인 셀의 cap 차감·제안 기록은 셀 상태 writer 가 이 raw 를 읽어 한다(broad_search cell 이 자동 · 그 밖은 아래 명령).
   echo "[lite_bench] ② 실사용 불가(server_failed) — 재발동 제안: vllm-recipe-explorer(서빙전략) / upstream-version-watch(재빌드) · 사람 승인 필요"
-  echo "[lite_bench]   캠페인 셀이면: campaign_init.py --cell-set <cell> --outcome measurement_void --lite-raw $RAW --utc <T> (cap 차감 1 · 재발동 제안 기록)"
+  echo "[lite_bench]   캠페인 셀이면: campaign_init.sh --cell-set <cell> --outcome measurement_void --lite-raw $RAW --utc <T> (cap 차감 1 · 재발동 제안 기록)"
 fi
 echo "[lite_bench] DONE  RAW=$RAW  lite_verdict=$LITE_VERDICT (exit $LITE_RC)"
 exit "$LITE_RC"

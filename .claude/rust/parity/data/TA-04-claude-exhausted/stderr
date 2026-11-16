@@ -1,0 +1,1 @@
+[agent-control] TURN_BUDGET_EXHAUSTED: provider 가 max_turns=25 를 소진했다(num_turns=26). checkpoint와 남은 과업을 확인하고 session_id로 이어라; 관측과 남은 작업에 맞게 다음 호출 예산을 선언한다(scope ⊥ budget). (target=main/local)

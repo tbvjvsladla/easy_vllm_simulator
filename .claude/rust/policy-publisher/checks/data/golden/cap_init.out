@@ -1,0 +1,36 @@
+{
+  "already_existed": [],
+  "capacity_rejection_required": true,
+  "created_now": [
+    "devlog",
+    "plan",
+    "testlog"
+  ],
+  "messages": {},
+  "ok": true,
+  "or_group_scaffolded": [
+    "devlog",
+    "testlog"
+  ],
+  "pending_evidence": [],
+  "publication_id": "cap",
+  "reason_codes": [],
+  "reclassification": null,
+  "record_path": "docs/_evidence/cap.json",
+  "required_evidence": [
+    "plan"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010110_cap.md",
+    "plan": "docs/plan/plan_26010110_cap.md",
+    "report": null,
+    "simlog": null,
+    "testlog": "docs/testlog/testlog_26010110_cap.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "capacity_rejection"
+}

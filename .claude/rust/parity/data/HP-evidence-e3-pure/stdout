@@ -1,0 +1,50 @@
+{"id": "r1", "kind": "value", "value": "01-02 03:04:05"}
+{"id": "r2", "kind": "value", "value": null}
+{"id": "r3", "kind": "value", "value": null}
+{"id": "r4", "kind": "value", "value": "2026-01-02T03:00:00Z"}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": null}
+{"id": "r7", "kind": "value", "value": null}
+{"id": "r8", "kind": "value", "value": null}
+{"id": "r9", "kind": "value", "value": null}
+{"id": "r10", "kind": "value", "value": {"value": "0.9.0", "basis": "this-measurement", "files": [["c.log", "engine_log"]], "source": "c.log:5 — 배너 · 같은 값의 다른 로그 2건"}}
+{"id": "r11", "kind": "value", "value": {"value": "0.9.0", "basis": "x", "files": [["a.log", "engine_log"]], "source": "a.log:1 — 배너 · 같은 값의 다른 로그 2건"}}
+{"id": "r12", "kind": "value", "value": {"value": null, "basis": "conflict", "files": [["b.log", "engine_log"], ["a.log", "engine_log"], ["c.log", "engine_log"], ["d.log", "engine_log"]], "source": "배너 이 서로 다른 버전을 말한다 — 고르지 않는다: 0.9.0 ← a.log:1 · 0.9.1 ← d.log:1"}}
+{"id": "r13", "kind": "value", "value": ["2026-01-02T03:00:00Z", {"dir": "s1", "utc": "2026-01-02T01:00:00Z"}, {"dir": "s2", "utc": "2026-01-02T05:00:00Z"}]}
+{"id": "r14", "kind": "value", "value": ["2026-01-02T03:00:00Z", {"dir": "s1", "utc": "2026-01-02T01:00:00Z"}, {"dir": "s2", "utc": "2026-01-02T05:00:00Z"}]}
+{"id": "r15", "kind": "value", "value": null}
+{"id": "r16", "kind": "value", "value": null}
+{"id": "r17", "kind": "value", "value": ["0.9.0", "o1 vllm_version · o2 vllm_version"]}
+{"id": "r18", "kind": "value", "value": [null, "상충하는 runtime 관측 — 고르지 않는다: 0.9.0 ← o1 vllm_version · 0.9.0 ← o2 vllm_version · 0.9.1 ← o3 vllm_version"]}
+{"id": "r19", "kind": "value", "value": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "o1 source_head"]}
+{"id": "r20", "kind": "value", "value": [null, "미관측 — 이 측정에 결속된 runtime 관측의 nothing 없음"]}
+{"id": "r21", "kind": "value", "value": [null, "미관측 — 이 측정에 결속된 runtime 관측의 k 없음"]}
+{"id": "r22", "kind": "value", "value": ["main", "인증서 measured_node"]}
+{"id": "r23", "kind": "value", "value": ["cluster", "자동 근거"]}
+{"id": "r24", "kind": "value", "value": ["main", "캠페인 assignments(배정 SSOT)"]}
+{"id": "r25", "kind": "exception", "type": "HintError", "code": "HINT_NODE_AXIS_UNDERIVABLE", "message": "발행 노드 축을 파생하지 못했다(measured_node·자동 cluster·배정 모두 없음).", "remedy": "`--node main|sub|cluster` 로 준다.", "exit_code": 1}
+{"id": "r26", "kind": "exception", "type": "HintError", "code": "HINT_NODE_AXIS_UNDERIVABLE", "message": "발행 노드 축을 파생하지 못했다(measured_node·자동 cluster·배정 모두 없음 · 자동: 없음).", "remedy": "`--node main|sub|cluster` 로 준다.", "exit_code": 1}
+{"id": "r27", "kind": "value", "value": ["sub", "인증서 measured_node"]}
+{"id": "r28", "kind": "exception", "type": "HintError", "code": "HINT_ARCH_NODE_AXIS_CERT_MISMATCH", "message": "cluster 축은 multi 토폴로지에서만 성립한다(topology=single).", "remedy": null, "exit_code": 1}
+{"id": "r29", "kind": "exception", "type": "HintError", "code": "HINT_ARCH_NODE_AXIS_CERT_MISMATCH", "message": "c measured_node='sub' ≠ 발행 노드 축 'main' — 한 태그 = 한 노드 형상의 실행 기록이다.", "remedy": "측정한 그 노드 축으로 발행한다(측정 노드 어휘는 campaign_template_validator.resolve_measurement_node).", "exit_code": 1}
+{"id": "r30", "kind": "exception", "type": "HintError", "code": "HINT_NODE_ASSIGNMENT_MISMATCH", "message": "셀은 'main' 에 배정됐는데 발행 노드 축이 'sub' 다.", "remedy": null, "exit_code": 1}
+{"id": "r31", "kind": "value", "value": ["sub", "발행 인자 --node"]}
+{"id": "r32", "kind": "exception", "type": "HintError", "code": "HINT_NODE_AXIS_INVALID", "message": "노드 축은 ['main', 'sub', 'cluster'] 중 하나다: 'xx'", "remedy": null, "exit_code": 1}
+{"id": "r33", "kind": "value", "value": true}
+{"id": "r34", "kind": "value", "value": false}
+{"id": "r35", "kind": "value", "value": true}
+{"id": "r36", "kind": "value", "value": false}
+{"id": "r37", "kind": "value", "value": false}
+{"id": "r38", "kind": "value", "value": false}
+{"id": "r39", "kind": "value", "value": {"a": 1}}
+{"id": "r40", "kind": "value", "value": null}
+{"id": "r41", "kind": "value", "value": "0.9.0"}
+{"id": "r42", "kind": "value", "value": null}
+{"id": "r43", "kind": "value", "value": ["main", "main"]}
+{"id": "r44", "kind": "value", "value": [null, "gpu3"]}
+{"id": "r45", "kind": "value", "value": [null, null]}
+{"id": "r46", "kind": "value", "value": ["2026-01-02T03:04:05Z", "attestation utc"]}
+{"id": "r47", "kind": "value", "value": [null, "미관측(시각 칸 없음 · 파일 stat 불가)"]}
+{"id": "r48", "kind": "value", "value": [null, "미관측(시각 칸 없음 · 파일 stat 불가)"]}
+{"id": "r49", "kind": "value", "value": null}
+{"id": "r50", "kind": "exception", "type": "HintError", "code": "HINT_EVIDENCE_REPO_REQUIRED", "message": "vllm_observed 에 저장소가 없다(repo 인자 · ev.repo 둘 다 없음).", "remedy": "evidence.from_campaign/from_publication 이 만든 CellEvidence 를 넘기거나 repo 를 준다.", "exit_code": 1}

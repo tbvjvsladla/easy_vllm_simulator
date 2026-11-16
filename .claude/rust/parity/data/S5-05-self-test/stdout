@@ -1,0 +1,6 @@
+  [PASS] seed 별 프롬프트가 다르다(prefix-cache 회피)
+  [PASS] prompt_tokens→단어수 근사(0.75배)
+  [PASS] 텍스트 모드 = 문자열 content
+  [PASS] 멀티모달 모드 = image_url 포함
+  [PASS] 내장 PNG 시그니처 유효
+self-test: PASS

@@ -1,0 +1,1 @@
+[ssh-audit] FAIL: --transcript 와 --sub-host 는 필수다(--self-test 는 예외)

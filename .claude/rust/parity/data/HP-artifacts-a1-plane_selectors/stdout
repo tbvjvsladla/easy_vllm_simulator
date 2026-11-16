@@ -1,0 +1,64 @@
+{"id": "r1", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r2", "kind": "value", "value": null}
+{"id": "r3", "kind": "value", "value": null}
+{"id": "r4", "kind": "value", "value": null}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": null}
+{"id": "r7", "kind": "value", "value": ["docker", "cell-env(IMAGE_TAG|BUILD_DOCKERFILE)"]}
+{"id": "r8", "kind": "value", "value": ["native", "evidence.plane(declared)"]}
+{"id": "r9", "kind": "value", "value": ["docker", "evidence.plane(declared)"]}
+{"id": "r10", "kind": "value", "value": ["docker", "evidence.build_identity(image_tag|dockerfile)"]}
+{"id": "r11", "kind": "value", "value": ["native", "evidence.plane(declared)"]}
+{"id": "r12", "kind": "exception", "type": "HintError", "code": "HINT_PLANE_MISMATCH", "message": "선언 plane=native 와 관측 plane=docker(evidence.build_identity(image_tag|dockerfile)) 가 다르다.", "remedy": "셀 env 의 이미지 선택자와 evidence 의 plane 중 어느 쪽이 틀렸는지 확인한다.", "exit_code": 1}
+{"id": "r13", "kind": "exception", "type": "HintError", "code": "HINT_PLANE_UNKNOWN", "message": "평면 어휘 밖: 'ray'", "remedy": "docker|native(container=docker) 중 하나.", "exit_code": 1}
+{"id": "r14", "kind": "exception", "type": "HintError", "code": "HINT_PLANE_UNDERIVABLE", "message": "실행 평면을 파생할 신호가 없다(셀 env 에 IMAGE_TAG·BUILD_DOCKERFILE 없음 · evidence.plane 없음).", "remedy": "docker 셀이면 셀 env 에 이미지 선택자(IMAGE_TAG·BUILD_DOCKERFILE)를 둔다. native 셀이면 native serve proof(plane=native · native_multinode_serve.py 산출)가 있어야 evidence 가 `plane` 을 넘긴다(2026-09-23 plan_26092311 배선). '신호 없음 = native' 로 추측하지 않는다.", "exit_code": 1}
+{"id": "r15", "kind": "exception", "type": "HintError", "code": "HINT_PLANE_MISMATCH", "message": "선언 plane=native 와 관측 plane=docker(cell-env(IMAGE_TAG|BUILD_DOCKERFILE)) 가 다르다.", "remedy": "셀 env 의 이미지 선택자와 evidence 의 plane 중 어느 쪽이 틀렸는지 확인한다.", "exit_code": 1}
+{"id": "r16", "kind": "exception", "type": "HintError", "code": "HINT_PLANE_UNDERIVABLE", "message": "실행 평면을 파생할 신호가 없다(셀 env 에 IMAGE_TAG·BUILD_DOCKERFILE 없음 · evidence.plane 없음).", "remedy": "docker 셀이면 셀 env 에 이미지 선택자(IMAGE_TAG·BUILD_DOCKERFILE)를 둔다. native 셀이면 native serve proof(plane=native · native_multinode_serve.py 산출)가 있어야 evidence 가 `plane` 을 넘긴다(2026-09-23 plan_26092311 배선). '신호 없음 = native' 로 추측하지 않는다.", "exit_code": 1}
+{"id": "r17", "kind": "value", "value": "docker"}
+{"id": "r18", "kind": "exception", "type": "HintError", "code": "HINT_TOPOLOGY_UNDERIVABLE", "message": "셀 증거에서 single|multi 토폴로지를 해소하지 못했다.", "remedy": "evidence 가 manifest/캠페인 선언에서 topology 를 채워 넘긴다(브랜치로 추론 ✗).", "exit_code": 1}
+{"id": "r19", "kind": "exception", "type": "HintError", "code": "HINT_OWNER_MODULE_MISSING", "message": "소유 모듈 부재: .claude/skills/upstream-version-watch/scripts/slave_forward.py", "remedy": "대체 구현으로 계속하지 않는다 — 그 스킬이 설치된 체크아웃에서 실행한다.", "exit_code": 1}
+{"id": "r20", "kind": "value", "value": ["easy-vllm:tag1", "cell-env:IMAGE_TAG"]}
+{"id": "r21", "kind": "value", "value": ["easy-vllm:tag1", "cell-env:IMAGE_TAG(측정 digest 미기재 — 태그로 관측 · 태그는 가변 포인터)"]}
+{"id": "r22", "kind": "value", "value": ["compose-dflt", "compose-default:IMAGE_TAG"]}
+{"id": "r23", "kind": "value", "value": ["compose-dflt", "compose-default:IMAGE_TAG(측정 digest 미기재 — 태그로 관측 · 태그는 가변 포인터)"]}
+{"id": "r24", "kind": "value", "value": ["bt", "evidence.build_identity.image_tag"]}
+{"id": "r25", "kind": "value", "value": ["bt", "evidence.build_identity.image_tag(측정 digest 미기재 — 태그로 관측 · 태그는 가변 포인터)"]}
+{"id": "r26", "kind": "value", "value": ["compose-dflt", "compose-default:IMAGE_TAG"]}
+{"id": "r27", "kind": "value", "value": ["sha256:abababababababababababababababababababababababababababababababab", "measured image_digest(evidence.build_identity · 내용 권위)"]}
+{"id": "r28", "kind": "exception", "type": "ForwardError", "message": "SF_COMPOSE_SHAPE: ${IMAGE_TAG:-…} 의 괄호가 한 줄 안에서 닫히지 않는다: 'image: ${IMAGE_TAG:-broken{x}'"}
+{"id": "r29", "kind": "exception", "type": "ForwardError", "message": "SF_COMPOSE_SHAPE: ${IMAGE_TAG:-…} 의 괄호가 한 줄 안에서 닫히지 않는다: 'image: ${IMAGE_TAG:-broken{x}'"}
+{"id": "r30", "kind": "exception", "type": "ForwardError", "message": "SF_COMPOSE_SHAPE: ${IMAGE_TAG:-…} 의 괄호가 한 줄 안에서 닫히지 않는다: 'image: ${IMAGE_TAG:-broken{x}'"}
+{"id": "r31", "kind": "exception", "type": "ForwardError", "message": "SF_COMPOSE_SHAPE: ${IMAGE_TAG:-…} 의 괄호가 한 줄 안에서 닫히지 않는다: 'image: ${IMAGE_TAG:-broken{x}'"}
+{"id": "r32", "kind": "exception", "type": "ForwardError", "message": "SF_COMPOSE_SHAPE: ${IMAGE_TAG:-…} 의 괄호가 한 줄 안에서 닫히지 않는다: 'image: ${IMAGE_TAG:-broken{x}'"}
+{"id": "r33", "kind": "value", "value": {"dockerfile": "Dockerfile.source-build", "dockerfile_source": "cell-env:BUILD_DOCKERFILE", "track": "source-build", "image_tag": "easy-vllm:tag1", "image_tag_source": "cell-env:IMAGE_TAG"}}
+{"id": "r34", "kind": "value", "value": {"dockerfile": "Dockerfile.source-build", "dockerfile_source": "build-ledger.dockerfile", "track": "source-build", "image_tag": "easy-vllm:tag1", "image_tag_source": "cell-env:IMAGE_TAG"}}
+{"id": "r35", "kind": "exception", "type": "HintError", "code": "HINT_BUILD_SELECTOR_MISMATCH", "message": "이미지 원장 dockerfile='Dockerfile' 와 셀 env BUILD_DOCKERFILE='Dockerfile.source-build' 가 다르다.", "remedy": "셀 env 가 가리키는 레시피로 이미지를 다시 짓거나 셀 env 를 원장에 맞춘다(태그는 가변 포인터).", "exit_code": 1}
+{"id": "r36", "kind": "exception", "type": "HintError", "code": "HINT_BUILD_TRACK_MISMATCH", "message": "원장 track='source-build' 와 Dockerfile 파생 track='wheel' 가 다르다.", "remedy": null, "exit_code": 1}
+{"id": "r37", "kind": "value", "value": {"dockerfile": "Dockerfile.${VARIANT:-x}", "dockerfile_source": "compose-default:BUILD_DOCKERFILE", "track": "source-build", "image_tag": "compose-dflt", "image_tag_source": "compose-default:IMAGE_TAG"}}
+{"id": "r38", "kind": "value", "value": {"dockerfile": "Dockerfile.h", "dockerfile_source": "image-history:docker history build-arg 관측(x)", "track": "source-build", "image_tag": "compose-dflt", "image_tag_source": "compose-default:IMAGE_TAG"}}
+{"id": "r39", "kind": "exception", "type": "HintError", "code": "HINT_BUILD_SELECTOR_UNDERIVABLE", "message": "쓰인 Dockerfile 을 파생하지 못했다(원장·셀 env·이미지 history build-arg 관측·compose 기본값 모두 없음 · 관측 기록: none).", "remedy": "셀 env 에 BUILD_DOCKERFILE 을 적거나 compose 의 `dockerfile: ${BUILD_DOCKERFILE:-…}` 기본값을 확인한다 · 이미지 탐침(docker history)이 가능한 곳에서 다시 실행한다.", "exit_code": 1}
+{"id": "r40", "kind": "exception", "type": "HintError", "code": "HINT_BUILD_SELECTOR_INVALID", "message": "Dockerfile 선택자는 빌드 컨텍스트 안 파일 이름이어야 한다: '../x'", "remedy": null, "exit_code": 1}
+{"id": "r41", "kind": "exception", "type": "HintError", "code": "HINT_BUILD_SELECTOR_INVALID", "message": "Dockerfile 선택자는 빌드 컨텍스트 안 파일 이름이어야 한다: '.hidden'", "remedy": null, "exit_code": 1}
+{"id": "r42", "kind": "value", "value": "output/single/benchlog/attestation_c1.json(부재)"}
+{"id": "r43", "kind": "value", "value": "output/single/benchlog/attestation_x.json"}
+{"id": "r44", "kind": "value", "value": "a/b.json"}
+{"id": "r45", "kind": "value", "value": "output/single/benchlog/attestation_c1.json"}
+{"id": "r46", "kind": "value", "value": "seed.json"}
+{"id": "r47", "kind": "value", "value": [null, "unobserved(인증서 measured_utc · 스윕 generated_utc · lite 리포트 생성일 없음)"]}
+{"id": "r48", "kind": "value", "value": ["2026-09-05T00:00:00Z", "certificate.measured_utc"]}
+{"id": "r49", "kind": "value", "value": ["2026-09-06T00:00:00Z", "sweep_index.generated_utc"]}
+{"id": "r50", "kind": "value", "value": [null, "unobserved(인증서 measured_utc · 스윕 generated_utc · lite 리포트 생성일 없음)"]}
+{"id": "r51", "kind": "value", "value": [null, "lite 셀 아님"]}
+{"id": "r52", "kind": "value", "value": null}
+{"id": "r53", "kind": "value", "value": [{"dockerfile": "D"}, "attestation:output/single/benchlog/attestation_c1.json#main", {"main": {"dockerfile": "D"}}, [{"tier": "attestation", "ref": "output/single/benchlog/attestation_c1.json", "result": "observed", "ignored_node_keys": 1}]]}
+{"id": "r54", "kind": "value", "value": [{"v": 2}, "attestation:output/single/benchlog/attestation_c1.json#sub", {"sub": {"v": 2}}, [{"tier": "attestation", "ref": "output/single/benchlog/attestation_c1.json", "result": "observed"}]]}
+{"id": "r55", "kind": "value", "value": "x-common: &common\n  image: easy-vllm:${IMAGE_TAG:-compose-dflt}\n  # ${BUILD_DOCKERFILE:-commented}\n  build:\n    dockerfile: ${BUILD_DOCKERFILE:-Dockerfile.${VARIANT:-x}}\n"}
+{"id": "r56", "kind": "value", "value": {"__path__": "/tmp/parity-o-HP-artifacts-a1-plane_selectors-3316707-1794816135796771594/fx/r/output/single/docker-compose.yaml"}}
+{"id": "r57", "kind": "value", "value": {"__path__": "/tmp/parity-o-HP-artifacts-a1-plane_selectors-3316707-1794816135796771594/fx/r/output/multi/docker-compose.yml"}}
+{"id": "r58", "kind": "value", "value": "image: ${IMAGE_TAG:-broken{x}\n"}
+{"id": "r59", "kind": "value", "value": "fx/r/output/single/x"}
+{"id": "r60", "kind": "value", "value": "output/single/y"}
+{"id": "r61", "kind": "value", "value": null}
+{"id": "r62", "kind": "value", "value": ["A", "B", "_d"]}
+{"id": "r63", "kind": "exception", "type": "HintError", "code": "HINT_PATH_OUTSIDE_REPO", "message": "저장소 밖 경로: ../../outside", "remedy": null, "exit_code": 1}
+{"id": "r64", "kind": "value", "value": ["easy-vllm:tag1", "cell-env:IMAGE_TAG"]}

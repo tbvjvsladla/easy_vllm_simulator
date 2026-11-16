@@ -1,0 +1,73 @@
+{"id": "t1", "kind": "value", "value": "https"}
+{"id": "t2", "kind": "value", "value": "ssh"}
+{"id": "t3", "kind": "value", "value": "ssh"}
+{"id": "t4", "kind": "value", "value": "local"}
+{"id": "t5", "kind": "value", "value": "local"}
+{"id": "t6", "kind": "value", "value": "local"}
+{"id": "t7", "kind": "value", "value": "local"}
+{"id": "t8", "kind": "value", "value": "git"}
+{"id": "t9", "kind": "value", "value": "http"}
+{"id": "t10", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_URL_EMBEDS_CREDENTIAL", "message": "원격 URL 에 자격증명(userinfo)이 박혀 있다: https://***@fixture.invalid/r.git", "remedy": "remote.url 에서 userinfo 를 걷어내고 `envs/.env`(비추적)의 `GITHUB_TOKEN` 를 쓴다 — URL 에 토큰을 박으면 reflog·설정·로그에 남는다.", "exit_code": 1}
+{"id": "t11", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_URL_EMBEDS_CREDENTIAL", "message": "원격 URL 에 자격증명(userinfo)이 박혀 있다: https://***@fixture.invalid/r.git", "remedy": "remote.url 에서 userinfo 를 걷어내고 `envs/.env`(비추적)의 `GITHUB_TOKEN` 를 쓴다 — URL 에 토큰을 박으면 reflog·설정·로그에 남는다.", "exit_code": 1}
+{"id": "t12", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_URL_EMBEDS_CREDENTIAL", "message": "원격 URL 에 자격증명(userinfo)이 박혀 있다: ssh://***@fixture.invalid/r.git", "remedy": "remote.url 에서 userinfo 를 걷어내고 `envs/.env`(비추적)의 `GITHUB_TOKEN` 를 쓴다 — URL 에 토큰을 박으면 reflog·설정·로그에 남는다.", "exit_code": 1}
+{"id": "t13", "kind": "value", "value": "ssh"}
+{"id": "t14", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_SCHEME_UNKNOWN", "message": "원격 helper 형식(`<transport>::<address>`)은 판정하지 않는다.", "remedy": null, "exit_code": 1}
+{"id": "t15", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_SCHEME_UNKNOWN", "message": "판정할 수 없는 원격 스킴: 'foo'", "remedy": "https · ssh · scp형(user@host:path) · 로컬 경로만 다룬다.", "exit_code": 1}
+{"id": "t16", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_URL_INVALID", "message": "원격 URL 을 해석할 수 없다(Invalid IPv6 URL): https://[::1/r.git", "remedy": "remote.<이름>.url 을 고친다.", "exit_code": 1}
+{"id": "t17", "kind": "value", "value": "https"}
+{"id": "t18", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_URL_INVALID", "message": "원격 URL 을 해석할 수 없다('zz' does not appear to be an IPv4 or IPv6 address): https://[zz]/r", "remedy": "remote.<이름>.url 을 고친다.", "exit_code": 1}
+{"id": "t19", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_URL_INVALID", "message": "원격 URL 을 해석할 수 없다(Invalid IPv6 URL): https://a]/r", "remedy": "remote.<이름>.url 을 고친다.", "exit_code": 1}
+{"id": "t20", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_URL_INVALID", "message": "원격 URL 을 해석할 수 없다(An IPv4 address cannot be in brackets): https://[127.0.0.1]/r", "remedy": "remote.<이름>.url 을 고친다.", "exit_code": 1}
+{"id": "t21", "kind": "value", "value": "https"}
+{"id": "t22", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_URL_INVALID", "message": "원격 URL 을 해석할 수 없다(IPvFuture address is invalid): https://[vz]/r", "remedy": "remote.<이름>.url 을 고친다.", "exit_code": 1}
+{"id": "t23", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_URL_INVALID", "message": "원격 URL 을 해석할 수 없다(Invalid IPv6 URL): https://x[::1]/r", "remedy": "remote.<이름>.url 을 고친다.", "exit_code": 1}
+{"id": "t24", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_URL_INVALID", "message": "원격 URL 을 해석할 수 없다(Invalid IPv6 URL): https://[::1]x/r", "remedy": "remote.<이름>.url 을 고친다.", "exit_code": 1}
+{"id": "t25", "kind": "value", "value": "https"}
+{"id": "t26", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_URL_EMBEDS_CREDENTIAL", "message": "원격 URL 에 자격증명(userinfo)이 박혀 있다: https://***@fixture.invalid/r", "remedy": "remote.url 에서 userinfo 를 걷어내고 `envs/.env`(비추적)의 `GITHUB_TOKEN` 를 쓴다 — URL 에 토큰을 박으면 reflog·설정·로그에 남는다.", "exit_code": 1}
+{"id": "t27", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_URL_EMBEDS_CREDENTIAL", "message": "원격 URL 에 자격증명(userinfo)이 박혀 있다: https://***@fixture.invalid/r", "remedy": "remote.url 에서 userinfo 를 걷어내고 `envs/.env`(비추적)의 `GITHUB_TOKEN` 를 쓴다 — URL 에 토큰을 박으면 reflog·설정·로그에 남는다.", "exit_code": 1}
+{"id": "t28", "kind": "value", "value": "ssh"}
+{"id": "t29", "kind": "value", "value": "local"}
+{"id": "t30", "kind": "value", "value": "https"}
+{"id": "t31", "kind": "value", "value": "ssh"}
+{"id": "t32", "kind": "value", "value": "ssh"}
+{"id": "t33", "kind": "value", "value": "https://***@fixture.invalid/r.git"}
+{"id": "t34", "kind": "value", "value": "ssh://***@b/c"}
+{"id": "t35", "kind": "value", "value": "plain"}
+{"id": "t36", "kind": "value", "value": "x://***@@y"}
+{"id": "t37", "kind": "value", "value": "abc *** abc ***"}
+{"id": "t38", "kind": "value", "value": ""}
+{"id": "t39", "kind": "value", "value": "abc"}
+{"id": "t40", "kind": "value", "value": "abc"}
+{"id": "t41", "kind": "value", "value": true}
+{"id": "t42", "kind": "value", "value": false}
+{"id": "t43", "kind": "value", "value": false}
+{"id": "t44", "kind": "value", "value": false}
+{"id": "t45", "kind": "value", "value": false}
+{"id": "t46", "kind": "value", "value": false}
+{"id": "t47", "kind": "value", "value": false}
+{"id": "t48", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_UNRESOLVED", "message": "원격 이름(또는 URL·경로)이 비었다.", "remedy": null, "exit_code": 1}
+{"id": "t49", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_UNRESOLVED", "message": "원격 이름(또는 URL·경로)이 비었다.", "remedy": null, "exit_code": 1}
+{"id": "t50", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_UNRESOLVED", "message": "원격 인자가 옵션처럼 보이거나 제어문자를 담았다(옵션 주입 ✗).", "remedy": null, "exit_code": 1}
+{"id": "t51", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_UNRESOLVED", "message": "원격 인자가 옵션처럼 보이거나 제어문자를 담았다(옵션 주입 ✗).", "remedy": null, "exit_code": 1}
+{"id": "t52", "kind": "value", "value": null}
+{"id": "t53", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_UNRESOLVED", "message": "원격 이름(또는 URL·경로)이 비었다.", "remedy": null, "exit_code": 1}
+{"id": "t54", "kind": "value", "value": ["-c", "credential.helper=", "-c", "credential.helper=!f() { test \"$1\" = get || exit 0; echo username=x-access-token; echo \"password=$HINT_PUSH_TOKEN\"; }; f"]}
+{"id": "t55", "kind": "value", "value": null}
+{"id": "t56", "kind": "value", "value": null}
+{"id": "t57", "kind": "value", "value": "ghp_FILE"}
+{"id": "t58", "kind": "value", "value": "ghp_ENV"}
+{"id": "t59", "kind": "value", "value": "ghp_FILE"}
+{"id": "t60", "kind": "value", "value": null}
+{"id": "t61", "kind": "value", "value": null}
+{"id": "t62", "kind": "value", "value": null}
+{"id": "t63", "kind": "value", "value": null}
+{"id": "t64", "kind": "value", "value": null}
+{"id": "t65", "kind": "value", "value": "ghp_Q"}
+{"id": "t66", "kind": "value", "value": null}
+{"id": "t67", "kind": "value", "value": " ghp_S"}
+{"id": "t68", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "t69", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_TOKEN_FILE_UNREADABLE", "message": "`envs/.env` 를 읽을 수 없다(UnicodeDecodeError)", "remedy": "UTF-8 텍스트 `GITHUB_TOKEN=<PAT>` 한 줄로 고친다(값은 출력하지 않는다).", "exit_code": 1}
+{"id": "t70", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_TOKEN_FILE_UNREADABLE", "message": "`envs/.env` 를 읽을 수 없다(UnicodeDecodeError)", "remedy": "UTF-8 텍스트 `GITHUB_TOKEN=<PAT>` 한 줄로 고친다(값은 출력하지 않는다).", "exit_code": 1}
+{"id": "t71", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "t72", "kind": "value", "value": null}
+{"id": "t73", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}

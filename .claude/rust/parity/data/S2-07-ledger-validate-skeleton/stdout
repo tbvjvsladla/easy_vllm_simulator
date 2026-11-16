@@ -1,0 +1,13 @@
+{
+  "status": "rejected",
+  "problems": [
+    "자리표시자가 남아 있다(<FILL…>): entry_id -- ③ 승인 전에 채워야 한다",
+    "자리표시자가 남아 있다(<FILL…>): utc -- ③ 승인 전에 채워야 한다",
+    "자리표시자가 남아 있다(<FILL…>): departure_commit -- ③ 승인 전에 채워야 한다",
+    "자리표시자가 남아 있다(<FILL…>): approved_by -- ③ 승인 전에 채워야 한다",
+    "자리표시자가 남아 있다(<FILL…>): approved_utc -- ③ 승인 전에 채워야 한다",
+    "자리표시자가 남아 있다(<FILL…>): classification[0].verdict -- ③ 승인 전에 채워야 한다",
+    "자리표시자가 남아 있다(<FILL…>): classification[0].reason -- ③ 승인 전에 채워야 한다",
+    "판정은 ('common_promote', 'branch_only') 중 하나여야 한다: '<FILL: verdict>'"
+  ]
+}

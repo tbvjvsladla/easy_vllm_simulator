@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_LITE_REPORT_CERTIFICATE_GRADE_MISMATCH": "certificate benchmark_mode='lite' verdict='not_applicable' lite_verdict='server_failed' -- a map-only topic binds only a lite-grade certificate (lite · not_applicable · pass)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_LITE_REPORT_CERTIFICATE_GRADE_MISMATCH"
+  ],
+  "schema_version": 1
+}

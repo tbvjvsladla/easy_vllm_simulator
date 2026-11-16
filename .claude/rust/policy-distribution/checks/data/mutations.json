@@ -1,0 +1,110 @@
+[
+ {
+  "op": "append",
+  "path": ".claude/skills/hint-publisher/scripts/hint.py",
+  "text": "\nassert False\n"
+ },
+ {
+  "op": "write",
+  "path": ".claude/skills/hint-publisher/tests/foo.txt",
+  "text": "x\n"
+ },
+ {
+  "op": "replace",
+  "path": ".claude/policies/claim_bindings.json",
+  "old": ".claude/skills/@TFN_SCRIPTS@/scan_node_original.py",
+  "new": "scripts/scan_node_original.py",
+  "count": 1
+ },
+ {
+  "op": "delete",
+  "path": ".agents/skills/wiki-desk/SKILL.md"
+ },
+ {
+  "op": "replace",
+  "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+  "old": "REST_BRANCH=",
+  "new": "REST_BRANCHX=",
+  "count": 0
+ },
+ {
+  "op": "replace",
+  "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+  "old": "retirement-scan",
+  "new": "retirement-skan",
+  "count": 0
+ },
+ {
+  "op": "replace",
+  "path": ".claude/skills/upstream-version-watch/scripts/sync_to_sub.sh",
+  "old": "apply_overlay_tombstones",
+  "new": "apply_overlay_tomb",
+  "count": 0
+ },
+ {
+  "op": "replace",
+  "path": ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+  "old": "  scripts/hint_tag.py\n",
+  "new": "",
+  "count": 1
+ },
+ {
+  "op": "append",
+  "path": ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/envs/.env.hy3",
+  "text": "SSH_USER=bob\nHOST=10.0.0.9 a@b.example /home/op/x spark-abcdef\n"
+ },
+ {
+  "op": "write",
+  "path": ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/configs/x_patch.py",
+  "text": "x = 1\n"
+ },
+ {
+  "op": "write",
+  "path": ".claude/skills/upstream-version-watch/assets/build_plane/runtime_patches/a_patch.provenance.json",
+  "text": "{}\n"
+ },
+ {
+  "op": "write",
+  "path": ".claude/skills/upstream-version-watch/assets/build_plane/runtime_patches/b_patch.py",
+  "text": ""
+ },
+ {
+  "op": "replace",
+  "path": ".dockerignore",
+  "old": ".codex/\n",
+  "new": "",
+  "count": 1
+ },
+ {
+  "op": "write",
+  "path": "scripts/keep.txt",
+  "text": "x\n"
+ },
+ {
+  "op": "append",
+  "path": ".codex/config.toml",
+  "text": "approval_policy = \"never\"\n"
+ },
+ {
+  "op": "append",
+  "path": "CLAUDE.md",
+  "text": "\nsee scripts/smoke_clone.sh\n"
+ },
+ {
+  "op": "write_bytes_hex",
+  "path": ".claude/skills/upstream-version-watch/scripts/single_serve_up.sh",
+  "hex": "ff0a"
+ },
+ {
+  "op": "write",
+  "path": ".claude/policies/registry.yaml",
+  "text": "{not json"
+ },
+ {
+  "op": "replace",
+  "path": ".claude/skills/terraforming_node/SKILL.md",
+  "old": ".claude/skills/@TFN_SCRIPTS@/host_safety/",
+  "new": ".claude/skills/@TFN_SCRIPTS@/hs/",
+  "count": 0
+ }
+]

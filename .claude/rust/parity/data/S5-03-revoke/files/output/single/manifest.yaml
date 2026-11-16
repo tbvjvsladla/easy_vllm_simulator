@@ -1,0 +1,23 @@
+self_role: main
+# 주석은 보존된다
+nodes:
+  - role: main
+    host: 203.0.113.10
+    ssh_user: me
+    work_dir: /w/repo
+  - role: sub
+    node_id: sub
+    host: nonexistent.invalid
+    ssh_user: u
+    work_dir: /w/sub
+tail_key: 1
+
+library:   # 서고 접근자(wiki-desk) — 메인은 local · 서브 접근점은 library_access.py 가 발급한다(plan_26101912)
+  transport: local
+  wiki_dir: __llm-wiki
+  repo_root: "/w/repo"
+  access_points:
+    sub2:
+      identity_file: "/h/.ssh/k2"
+      known_hosts: "/h/.ssh/kh"
+      host_of: sub

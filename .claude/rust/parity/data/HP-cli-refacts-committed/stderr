@@ -1,0 +1,2 @@
+[hint] FAIL HINT_DRAFT_ALREADY_COMMITTED: 이미 페이로드 커밋이 있는 draft 다(0123456789ab) — 사실을 다시 쓰면 커밋한 바이트와 갈라진다.
+  → 커밋 뒤 개정은 새 publish(새 판)다.

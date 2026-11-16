@@ -1,0 +1,2 @@
+[stress] endpoint=http://127.0.0.1:9/ model=m conc=0 prompt≈7tok max_tokens=256 mm=True dur=0s
+[stress] 종료 sent=0 ok=0 err=0 conn_err=0

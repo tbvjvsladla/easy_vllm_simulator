@@ -1,0 +1,16 @@
+usage: logs_lifecycle.py [-h] [--node-dir NODE_DIR] [--now NOW]
+                         [--raw-days RAW_DAYS]
+                         [--compressed-days COMPRESSED_DAYS]
+                         [--cap-mib CAP_MIB] [--apply] [--self-test]
+
+docs/logs 수명 집행
+
+options:
+  -h, --help            show this help message and exit
+  --node-dir NODE_DIR   docs/logs/<node_id>
+  --now NOW             YYYY-MM-DDTHH:MM:SSZ (벽시계 금지)
+  --raw-days RAW_DAYS
+  --compressed-days COMPRESSED_DAYS
+  --cap-mib CAP_MIB
+  --apply               기본은 dry-run
+  --self-test

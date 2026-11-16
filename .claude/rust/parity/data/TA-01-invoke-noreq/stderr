@@ -1,0 +1,4 @@
+usage: agent_control.py invoke [-h] --request REQUEST
+                               [--result-file RESULT_FILE]
+                               [--dispatch-id DISPATCH_ID]
+agent_control.py invoke: error: the following arguments are required: --request

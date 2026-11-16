@@ -1,0 +1,81 @@
+세션 시작: /tmp/tmpp1im2hz4/node-x/sessions/s1.json
+이벤트   : /tmp/tmpp1im2hz4/node-x/events/2026-07.jsonl
+세션 종료: /tmp/tmpp1im2hz4/node-x/sessions/s1.json (600s · verdict=PASS)
+이벤트   : /tmp/tmpp1im2hz4/node-x/events/2026-07.jsonl
+선언 발행: /tmp/tmpp1im2hz4/node-x/serve_budget.env
+  예상 상주 88228 MiB → 예상 바닥 36382 MiB · 만료 epoch 1785463200 (TTL 7200s)
+  워치독 예상 arm 상한 = 36382 - 3072 = 33310 MiB
+선언 발행: /tmp/tmpp1im2hz4/node-x/serve_budget.env
+  예상 상주 79250 MiB → 예상 바닥 45360 MiB · 만료 epoch 1785463200 (TTL 7200s)
+  워치독 예상 arm 상한 = 45360 - 3072 = 42288 MiB
+선언 발행: /tmp/tmpp1im2hz4/node-x/serve_budget.env
+  예상 상주 124388 MiB → 예상 바닥 222 MiB · 만료 epoch 1785463200 (TTL 7200s)
+  워치독 예상 arm 상한 = 222 - 3072 = -2850 MiB
+  ⚠ 상한이 최소 8192 MiB 미만 → **워치독이 이 선언을 거부**하고 현행 규칙으로 돈다.
+선언 발행: /tmp/tmpp1im2hz4/node-x/serve_budget.env
+  예상 상주 88228 MiB → 예상 바닥 36382 MiB · 만료 epoch 1785463200 (TTL 7200s)
+  워치독 예상 arm 상한 = 36382 - 3072 = 33310 MiB
+선언 발행: /tmp/tmpp1im2hz4/node-x/serve_budget.env
+  예상 상주 88228 MiB → 예상 바닥 36382 MiB · 만료 epoch 1785457995 (TTL 1995s)
+  워치독 예상 arm 상한 = 36382 - 3072 = 33310 MiB
+선언 발행: /tmp/tmpp1im2hz4/node-x/serve_budget.env
+  예상 상주 88228 MiB → 예상 바닥 36382 MiB · 만료 epoch 1785463200 (TTL 7200s)
+  워치독 예상 arm 상한 = 36382 - 3072 = 33310 MiB
+선언 갱신: /tmp/tmpp1im2hz4/node-x/serve_budget.env
+  바닥 36382 MiB 유지 · 만료 1785463200 → 1785460200 (갱신 전 잔여 6600s · 새 TTL 3600s)
+선언 해제: /tmp/tmpp1im2hz4/node-x/serve_budget.env (제거함)
+선언 해제: /tmp/tmpp1im2hz4/node-x/serve_budget.env (원래 없음)
+진입 차단 기록: stage=derive reason=budget_params_missing → /tmp/tmpp1im2hz4/node-x/events/2026-07.jsonl
+진입 차단 기록: stage=preflight_ceiling reason=budget_params_missing → /tmp/tmpp1im2hz4/node-x/events/2026-07.jsonl
+진입 차단 기록: stage=declare reason=budget_params_missing → /tmp/tmpp1im2hz4/node-x/events/2026-07.jsonl
+세션 시작: /tmp/tmpp1im2hz4/node-x/sessions/s2.json
+이벤트   : /tmp/tmpp1im2hz4/node-x/events/2026-07.jsonl
+PASS 선언 상수를 정본에서 파생한다(사본 ✗ · G-B3)
+PASS 리터럴 사본이 되살아나지 않았다(tripwire)
+PASS start 사이드카 생성
+PASS start 이벤트 append
+PASS stop duration 600s
+PASS stop verdict 기록
+PASS 선언 floor 산출
+PASS 선언 만료 = now+ttl
+PASS 선언 라벨 기록
+PASS 선언 값이 워치독 문자셋 준수
+PASS ★floor 가 트립선 이하면 선언을 거부한다
+PASS ★음성대조: 트립선 위 구성은 통과한다
+PASS 음성대조가 실제로 그 선언을 썼다
+PASS 임계 미상이면 차단하지 않는다(경고 경로)
+PASS ttl 0 거부
+PASS ttl -1 거부
+PASS ttl 86401 거부
+PASS 상주 > 총량 거부
+PASS 불량 라벨 거부
+PASS TTL 하한이 예상 로드에서 파생(665s → 1995s)
+PASS ★ 예상 로드보다 짧은 TTL 거부
+PASS 경계값 TTL(=3배)은 수락
+PASS 갱신이 만료를 새 TTL 로 민다
+PASS 갱신이 바닥을 보존
+PASS 갱신이 원 산출 provenance 헤더를 보존
+PASS 갱신 값도 워치독 문자셋 준수
+PASS 갱신도 TTL 파생 검증을 받는다
+PASS ★ 만료된 선언 갱신 거부
+PASS 선언 해제
+PASS 없는 선언 해제도 안전
+PASS ★ declare 거부가 events 에 남는다(7건 전부)
+PASS 거부 이벤트가 사유를 담는다
+PASS 거부 이벤트가 입력값을 담는다(재현 가능)
+PASS TTL 하한 미달 거부가 식별 가능
+PASS 불량 라벨 거부가 그 라벨 원문을 남긴다
+PASS 수락된 선언은 거부로 세지 않는다
+PASS ★ 진입 차단이 events 에 남는다(3단계)
+PASS 차단 detail 이 정수로 기록
+PASS 차단은 skipped 와 다른 kind
+PASS 차단 기록 미등록 stage 거부
+PASS 차단 기록 비-slug reason 거부
+PASS 차단 기록 예약키 detail 거부
+PASS 차단 기록 형식 위반 detail 거부
+PASS 미종료 세션은 stopped_utc=None
+PASS 중복 start 거부
+PASS 비ISO --now 거부
+PASS session-id 이스케이프 거부
+
+self-test: 47/47 PASS

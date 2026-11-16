@@ -1,0 +1,21 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 2,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.1' evidence must be an exact single-key path object",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.1.evidence",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_ARTIFACT_POINTER_INVALID"
+    },
+    {
+      "clause_id": null,
+      "message": "active variant 'deepseek-v4-flash-sm12x-port-0.27.1' requires existing-model regression re-smoke evidence",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.1.regression_evidence",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_REGRESSION_EVIDENCE_MISSING"
+    }
+  ]
+}

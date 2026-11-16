@@ -1,0 +1,22 @@
+2026-07-22T17:44:56+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=40104MiB min=39537MiB 2026-07-22T08:44:56Z
+2026-07-22T17:45:11+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=11419MiB min=11419MiB 2026-07-22T08:45:11Z
+2026-07-22T17:45:14+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] TRIP MemAvailable=10186MiB < 10240MiB → docker kill deadbeef 2026-07-22T08:45:14Z
+2026-07-22T17:45:15+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] deadbeef
+2026-07-22T17:45:26+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=117283MiB min=10186MiB 2026-07-22T08:45:26Z
+2026-07-22T17:45:41+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] HB MemAvailable=117300MiB 2026-07-22T08:45:41Z
+2026-07-22T17:45:42+09:00 h easy-vllm-memwatch[1]: [mem-watchdog] start filter='@vllm' threshold=10240MiB interval=1s heartbeat=15s pid=99 2026-07-22T08:45:42Z
+2026-07-22T17:45:43+09:00 h systemd[1]: Stopped easy-vllm-memwatch.service - x.
+2026-07-22T17:45:44+09:00 h systemd[1]: easy-vllm-memwatch.service: Consumed 1.2s CPU time.
+2026-07-22T17:45:45+09:00 h systemd[1]: easy-vllm-memwatch.service: Scheduled restart job, restart counter is at 1.
+2026-07-22T17:45:46+09:00 h systemd[1]: Started easy-vllm-memwatch.service.
+2026-07-22T17:45:47-02:30 h easy-vllm-memwatch[3]: [mem-watchdog] TRIP-nomatch MemAvailable=9000MiB < 10240MiB (filter='@x' 매칭 0) 2026-07-22T08:45:47Z
+-- Boot abc123def456 --
+-- Boot 0011 --
+garbage line without format
+2026-13-22T17:50:00+09:00 h easy-vllm-memwatch[2]: [mem-watchdog] deadbeefcafe
+2026-07-22T17:50:00+09:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=118000MiB min=118000MiB 2026-07-22T08:50:00Z
+   
+2026-08-01T00:00:00+00:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=1000000MiB 2026-08-01T00:00:00Z
+2026-08-01T00:00:07+00:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=1MiB min=1MiB 2026-08-01T00:00:07Z
+2026-08-01T00:00:08+00:00 h easy-vllm-memwatch[2]: [mem-watchdog] HB MemAvailable=2MiB 2026-08-01T00:00:07Z
+last line

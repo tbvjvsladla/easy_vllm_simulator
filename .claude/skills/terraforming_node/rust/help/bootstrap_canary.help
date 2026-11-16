@@ -1,0 +1,56 @@
+usage: bootstrap_canary.py [-h] [--topology {single,multi}]
+                           [--manifest MANIFEST]
+                           [--phase {discovery,permissions,caller}]
+                           [--caller-harness {claude_code,codex_cli}]
+                           [--target {main,sub}]
+                           [--main-work-dir MAIN_WORK_DIR]
+                           [--verify-request VERIFY_REQUEST]
+                           [--verify-result VERIFY_RESULT] [--emit PATH]
+                           [--max-turns MAX_TURNS]
+                           [--provider {claude_code,codex_cli}]
+                           [--max-dispatches MAX_DISPATCHES]
+                           [--sandbox-mode {read-only,workspace-write} | --permission-profile PERMISSION_PROFILE]
+                           [--timeout-seconds TIMEOUT_SECONDS]
+                           [--budget-source BUDGET_SOURCE]
+                           [--reasoning-effort {default,none,minimal,low,medium,high,xhigh,max}]
+                           [--model MODEL]
+                           [--backend {anthropic,kimi,minimax,meta,openai,claude-sub}]
+                           [--invoke] [--self-test]
+
+§2.5 model-less 카나리 request 조립기/실행자
+
+options:
+  -h, --help            show this help message and exit
+  --topology {single,multi}
+  --manifest MANIFEST   기본 output/<topology>/manifest.yaml
+  --phase {discovery,permissions,caller}
+                        기존 읽기 discovery · 실제 native 도구 업무권한 관측 · 호출자 평면 설치물 정적
+                        판정
+  --caller-harness {claude_code,codex_cli}
+                        --phase caller: 판정할 메인 하네스
+  --target {main,sub}
+  --main-work-dir MAIN_WORK_DIR
+                        main/local 대상 작업공간(기본 이 checkout); sub는 manifest만 사용
+  --verify-request VERIFY_REQUEST
+                        보존 request JSON과 --verify-result를 오프라인 검증(실행 없음)
+  --verify-result VERIFY_RESULT
+                        보존 agent_control result JSON; native/schema/domain 분리
+                        판정
+  --emit PATH           request JSON 을 이 경로에 쓴다(기본: stdout)
+  --max-turns MAX_TURNS
+                        이 카나리에 배정할 턴 예산(선언 필수 — 기본값 없음)
+  --provider {claude_code,codex_cli}
+  --max-dispatches MAX_DISPATCHES
+                        과거 호출 호환 인자; 새 요청의 누적 호출 상한으로 쓰지 않음
+  --sandbox-mode {read-only,workspace-write}
+  --permission-profile PERMISSION_PROFILE
+  --timeout-seconds TIMEOUT_SECONDS
+                        매달림을 잡는 상한(scope ⊥ budget — 예산과 별개 노브)
+  --budget-source BUDGET_SOURCE
+                        그 예산을 그렇게 정한 근거(필수)
+  --reasoning-effort {default,none,minimal,low,medium,high,xhigh,max}
+  --model MODEL         위임 모델 선언(기본 = 백엔드의 기본 모델 · 어댑터는 모델을 막지 않는다)
+  --backend {anthropic,kimi,minimax,meta,openai,claude-sub}
+                        서브 러너 백엔드(생략 = anthropic). 러너를 바꿔 A2A 평면을 검증할 때 쓴다
+  --invoke              조립 후 agent_control invoke 까지 실행한다(HITL 승인 뒤에만).
+  --self-test

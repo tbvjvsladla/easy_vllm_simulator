@@ -1,0 +1,3 @@
+usage: verify_distribution.py [-h] [--json-out JSON_OUT]
+                              [--policy-as-of YYYY-MM-DD]
+verify_distribution.py: error: unrecognized arguments: --bogus x

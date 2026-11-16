@@ -1,0 +1,1780 @@
+{
+ "rev": "b1f3563e",
+ "report": {
+  "schema_version": 1,
+  "repo": "<REPO>",
+  "policy_as_of": {
+   "as_of": "2026-11-16",
+   "as_of_source": "explicit-caller-input",
+   "observed_utc": null,
+   "repro_as_of": "2026-11-16"
+  },
+  "verdict": "FAIL",
+  "checks": [
+   {
+    "name": "codex_entry_and_skill_closure",
+    "ok": false,
+    "defects": [
+     "wrapper-set:['adversarial-benchmark', 'hint-publisher', 'terraforming_node', 'upstream-version-watch', 'vllm-recipe-explorer']",
+     "main-config:TOMLDecodeError:Cannot overwrite a value (at line 6, column 26)"
+    ]
+   },
+   {
+    "name": "codex_gitless_discovery_selftest",
+    "ok": false,
+    "error": "FileNotFoundError:[Errno 2] No such file or directory: '<REPO>/.agents/skills/wiki-desk/SKILL.md'"
+   },
+   {
+    "name": "codex_build_context_excludes",
+    "ok": false
+   },
+   {
+    "name": "scratch_dirs_untracked",
+    "ok": true,
+    "found": []
+   },
+   {
+    "name": "root_absent:scripts",
+    "ok": false
+   },
+   {
+    "name": "exact_public_skill_set",
+    "ok": true,
+    "actual": [
+     "adversarial-benchmark",
+     "hint-publisher",
+     "terraforming_node",
+     "upstream-version-watch",
+     "vllm-recipe-explorer",
+     "wiki-desk"
+    ],
+    "expected": [
+     "adversarial-benchmark",
+     "hint-publisher",
+     "terraforming_node",
+     "upstream-version-watch",
+     "vllm-recipe-explorer",
+     "wiki-desk"
+    ]
+   },
+   {
+    "name": "trust_owner_paths:.claude/policies/registry.yaml",
+    "ok": false,
+    "error": "JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
+   },
+   {
+    "name": "trust_owner_paths:.claude/policies/claim_bindings.json",
+    "ok": false,
+    "stale_root_paths": [
+     "scripts/scan_node_original.py"
+    ]
+   },
+   {
+    "name": "shipped_python_has_no_bare_assert",
+    "ok": false,
+    "violations": [
+     ".claude/skills/hint-publisher/scripts/hint.py:3722"
+    ]
+   },
+   {
+    "name": "codex_shared_branch_sync_closure",
+    "ok": true
+   },
+   {
+    "name": "local_exact_relocation_tombstones",
+    "ok": false,
+    "actual": [
+     "scripts/agent_control.py",
+     "scripts/cleanup_docker.py",
+     "scripts/completion_gate.py",
+     "scripts/doc_naming.py",
+     "scripts/engine_liveness_watchdog.sh",
+     "scripts/evidence_publisher.py",
+     "scripts/harness_verify.py",
+     "scripts/host/vllm-drop-caches.sh",
+     "scripts/install_host_safety.sh",
+     "scripts/mem_watchdog.sh",
+     "scripts/policy_registry.py",
+     "scripts/providers/claude_code.py",
+     "scripts/smoke_clone.sh",
+     "scripts/sync_branches.sh",
+     "scripts/systemd/easy-vllm-memwatch.service",
+     "scripts/templates/hint_recipe.template.md"
+    ],
+    "expected": [
+     "scripts/agent_control.py",
+     "scripts/cleanup_docker.py",
+     "scripts/completion_gate.py",
+     "scripts/doc_naming.py",
+     "scripts/engine_liveness_watchdog.sh",
+     "scripts/evidence_publisher.py",
+     "scripts/harness_verify.py",
+     "scripts/hint_tag.py",
+     "scripts/host/vllm-drop-caches.sh",
+     "scripts/install_host_safety.sh",
+     "scripts/mem_watchdog.sh",
+     "scripts/policy_registry.py",
+     "scripts/providers/claude_code.py",
+     "scripts/smoke_clone.sh",
+     "scripts/sync_branches.sh",
+     "scripts/systemd/easy-vllm-memwatch.service",
+     "scripts/templates/hint_recipe.template.md"
+    ]
+   },
+   {
+    "name": "local_exact_relocation_replacements",
+    "ok": false,
+    "actual": [
+     ".claude/policies/runtime/completion_gate.py",
+     ".claude/policies/runtime/doc_naming.py",
+     ".claude/policies/runtime/evidence_publisher.py",
+     ".claude/policies/runtime/harness_verify.py",
+     ".claude/policies/runtime/policy_registry.py",
+     ".claude/skills/hint-publisher/scripts/hint.py",
+     ".claude/skills/hint-publisher/templates/00-hint.prompt.md",
+     ".claude/skills/terraforming_node/scripts/agent_control.py",
+     ".claude/skills/terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh",
+     ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
+     ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
+     ".claude/skills/terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service",
+     ".claude/skills/terraforming_node/scripts/providers/claude_code.py",
+     ".claude/skills/upstream-version-watch/scripts/smoke_clone.sh",
+     ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+     ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py",
+     ".claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh"
+    ],
+    "expected": [
+     ".claude/policies/runtime/completion_gate.py",
+     ".claude/policies/runtime/doc_naming.py",
+     ".claude/policies/runtime/evidence_publisher.py",
+     ".claude/policies/runtime/harness_verify.py",
+     ".claude/policies/runtime/policy_registry.py",
+     ".claude/skills/hint-publisher/scripts/hint.py",
+     ".claude/skills/hint-publisher/templates/00-hint.prompt.md",
+     ".claude/skills/terraforming_node/scripts/agent_control.py",
+     ".claude/skills/terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh",
+     ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
+     ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
+     ".claude/skills/terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service",
+     ".claude/skills/terraforming_node/scripts/providers/claude_code.py",
+     ".claude/skills/upstream-version-watch/scripts/smoke_clone.sh",
+     ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+     ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py",
+     ".claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh"
+    ]
+   },
+   {
+    "name": "local_replacement_integrity_before_tombstone",
+    "ok": true,
+    "order_detail": {
+     "ok": true,
+     "reason": null
+    }
+   },
+   {
+    "name": "sub_exact_relocation_tombstones",
+    "ok": true,
+    "actual": [
+     ".claude/rules/references.md",
+     ".claude/skills/upstream-version-watch/assets/current-production-resolution.json",
+     "scripts/host/vllm-drop-caches.sh",
+     "scripts/install_host_safety.sh",
+     "scripts/mem_watchdog.sh",
+     "scripts/smoke_clone.sh",
+     "scripts/sync_branches.sh",
+     "scripts/systemd/easy-vllm-memwatch.service",
+     "tasks/.gitkeep"
+    ],
+    "expected": [
+     ".claude/rules/references.md",
+     ".claude/skills/upstream-version-watch/assets/current-production-resolution.json",
+     "scripts/host/vllm-drop-caches.sh",
+     "scripts/install_host_safety.sh",
+     "scripts/mem_watchdog.sh",
+     "scripts/smoke_clone.sh",
+     "scripts/sync_branches.sh",
+     "scripts/systemd/easy-vllm-memwatch.service",
+     "tasks/.gitkeep"
+    ]
+   },
+   {
+    "name": "sub_relocation_retirement_partition",
+    "ok": true,
+    "actual": {
+     "relocations": [
+      ".claude/rules/references.md",
+      "scripts/host/vllm-drop-caches.sh",
+      "scripts/install_host_safety.sh",
+      "scripts/mem_watchdog.sh",
+      "scripts/systemd/easy-vllm-memwatch.service",
+      "tasks/.gitkeep"
+     ],
+     "retirements": [
+      ".claude/skills/upstream-version-watch/assets/current-production-resolution.json",
+      "scripts/smoke_clone.sh",
+      "scripts/sync_branches.sh"
+     ]
+    }
+   },
+   {
+    "name": "sub_additive_overlay_has_no_apply_delete",
+    "ok": true
+   },
+   {
+    "name": "sub_bootstrap_replacement_before_tombstone",
+    "ok": false,
+    "order_detail": {
+     "ok": false,
+     "reason": "token_absent",
+     "missing": "apply_overlay_tombstones"
+    }
+   },
+   {
+    "name": "sub_incremental_replacement_before_tombstone",
+    "ok": false,
+    "order_detail": {
+     "ok": false,
+     "reason": "end_anchor_missing",
+     "missing": "REST_BRANCH="
+    }
+   },
+   {
+    "name": "sub_render_uses_transactional_source",
+    "ok": true
+   },
+   {
+    "name": "sub_transactional_source_uses_git_index",
+    "ok": true
+   },
+   {
+    "name": "sub_runtime_patch_transfer_is_owner_allowlisted",
+    "ok": true
+   },
+   {
+    "name": "sub_retirement_consumer_audit_before_tombstone",
+    "ok": false
+   },
+   {
+    "name": "sub_constitution_runtime_block_is_derived",
+    "ok": true
+   },
+   {
+    "name": "sub_topology_aware_retirement_wired",
+    "ok": true
+   },
+   {
+    "name": "no_active_sub_retirement_consumers",
+    "ok": false,
+    "details": [
+     "CLAUDE.md"
+    ]
+   },
+   {
+    "name": "sub_invocation_rollback_transaction",
+    "ok": true
+   },
+   {
+    "name": "sub_transaction_precedes_remote_mutation",
+    "ok": true,
+    "order_detail": [
+     {
+      "ok": true,
+      "reason": null
+     },
+     {
+      "ok": true,
+      "reason": null
+     }
+    ]
+   },
+   {
+    "name": "sub_foreign_workdir_guard_before_provision",
+    "ok": true,
+    "order_detail": {
+     "ok": true,
+     "reason": null
+    },
+    "missing_tokens": []
+   },
+   {
+    "name": "sub_deletion_inventory_and_brake_fail_closed",
+    "ok": true
+   },
+   {
+    "name": "sub_path_protocol_closed",
+    "ok": true
+   },
+   {
+    "name": "sub_cleanup_is_postsuccess_best_effort",
+    "ok": true,
+    "order_detail": {
+     "ok": true,
+     "reason": null
+    }
+   },
+   {
+    "name": "terraform_owner_doc_skeletons",
+    "ok": true,
+    "paths": [
+     ".claude/skills/terraforming_node/templates/document_skeletons/plan/example.md",
+     ".claude/skills/terraforming_node/templates/document_skeletons/devlog/example.md",
+     ".claude/skills/terraforming_node/templates/document_skeletons/testlog/example.md",
+     ".claude/skills/terraforming_node/templates/document_skeletons/simlog/example.md",
+     ".claude/skills/terraforming_node/templates/document_skeletons/benchmark/example.md"
+    ]
+   },
+   {
+    "name": "upstream_owner_build_plane_assets",
+    "ok": true,
+    "paths": [
+     ".claude/skills/upstream-version-watch/assets/build_plane/Dockerfile.source-build-upstage",
+     ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/configs/exaone45-33b.sh",
+     ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/configs/exaone45-33b.yaml",
+     ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/configs/hy3.sh",
+     ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/configs/hy3.yaml",
+     ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/envs/.env.exaone45-33b",
+     ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/envs/.env.hy3"
+    ]
+   },
+   {
+    "name": "upstream_owner_build_plane_content",
+    "ok": false,
+    "defects": [
+     ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/envs/.env.hy3:38 Band2 노드정체성 키 'SSH_USER' — 정본은 manifest.nodes[] → .env.cluster",
+     ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/envs/.env.hy3:39 배포 PII private-ipv4: 10.0.0.9",
+     ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/envs/.env.hy3:39 배포 PII email: a@b.example",
+     ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/envs/.env.hy3:39 배포 PII abs-op-path: /home/op/x",
+     ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/envs/.env.hy3:39 배포 PII spark-host: spark-abcdef"
+    ]
+   },
+   {
+    "name": "upstream_owner_runtime_patch_pairing",
+    "ok": false,
+    "defects": [
+     ".claude/skills/upstream-version-watch/assets/build_plane/runtime_patches/b_patch.py:missing-provenance",
+     ".claude/skills/upstream-version-watch/assets/build_plane/runtime_patches/a_patch.provenance.json:orphan-provenance",
+     ".claude/skills/upstream-version-watch/assets/build_plane/model_inputs/configs/x_patch.py:misplaced-outside-runtime_patches"
+    ],
+    "subject_state": "evaluated",
+    "pairs_checked": 1,
+    "present": [
+     "b_patch.py"
+    ]
+   },
+   {
+    "name": "shipped_arch_approval_provenance",
+    "ok": true
+   },
+   {
+    "name": "owner_host_safety_documentation",
+    "ok": false
+   },
+   {
+    "name": "owner_doc_naming_documentation",
+    "ok": true
+   },
+   {
+    "name": "hint_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/hint-publisher/scripts/hint.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "hint_image_git_release_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     "-m",
+     "hintlib.selftest_image_git_release"
+    ],
+    "cwd": "<REPO>/.claude/skills/hint-publisher/scripts",
+    "env": {}
+   },
+   {
+    "name": "hint_bench_section_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/hint-publisher/scripts/render_bench_section.py",
+     "--selftest"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_scan_selftest_legacy",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/terraforming_node/scripts/scan_node.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_scan_p1_native_selfcheck",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/terraforming_node/scripts/scan_node.sh",
+     "--p1-self-check"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_render_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/terraforming_node/scripts/render_sub_env.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_node_role_contract_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/terraforming_node/scripts/node_role_contract.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_library_access_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/terraforming_node/scripts/library_access.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_staleness_gate_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/terraforming_node/scripts/staleness_gate.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_manifest_contract_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "antipattern_scan_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/policies/runtime/antipattern_scan.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "constitution_lint_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/policies/runtime/constitution_lint.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "agent_control_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/terraforming_node/scripts/agent_control.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "harness_switch_integration_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     "-B",
+     ".claude/skills/terraforming_node/scripts/selftest_harness_switch.py"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "claude_native_events_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     "-B",
+     ".claude/skills/terraforming_node/scripts/selftest_claude_native_events.py"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_turn_budget_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/terraforming_node/scripts/turn_budget.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_relay_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/terraforming_node/scripts/relay.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_bootstrap_canary_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/terraforming_node/scripts/bootstrap_canary.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_bootstrap_permissions_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     "-B",
+     ".claude/skills/terraforming_node/scripts/selftest_bootstrap_permissions.py"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_rust_bootstrap_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/terraforming_node/scripts/selftest_rust_bootstrap.sh"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_sub_hint_write_scopes_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     "-B",
+     ".claude/skills/terraforming_node/scripts/selftest_sub_hint_write_scopes.py"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_check_sub_hint_equip_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/terraforming_node/scripts/check_sub_hint_equip.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_agent_guard_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/terraforming_node/scripts/node_blackbox/agent_guard.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_node_identity_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/terraforming_node/scripts/node_blackbox/node_identity.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_host_safety_mem_watchdog_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "terraform_budget_renew_loop_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/terraforming_node/scripts/node_blackbox/budget_renew_loop.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "runtime_regression_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     "-B",
+     ".claude/policies/runtime/runtime_selftest.py"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "gitless_hint_match",
+    "ok": true,
+    "stub": true
+   },
+   {
+    "name": "gitless_hint_match_reads_index",
+    "ok": true,
+    "stub": true
+   },
+   {
+    "name": "upstream_slave_forward_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/slave_forward.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_render_dockerfile_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_help:resolve_torch_pin.py",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/resolve_torch_pin.py",
+     "--help"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_help:resolve_ngc_tag.py",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/resolve_ngc_tag.py",
+     "--help"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_help:resolve_build_track.py",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/resolve_build_track.py",
+     "--help"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_help:resolve_wheel.py",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/resolve_wheel.py",
+     "--help"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_help:render_dockerfile.py",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py",
+     "--help"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_help:regen_requirements.py",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/regen_requirements.py",
+     "--help"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_help:classify_failure.py",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/classify_failure.py",
+     "--help"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_help:check_smoke_model.py",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/check_smoke_model.py",
+     "--help"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_help:slave_forward.py",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/slave_forward.py",
+     "--help"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "recipe_info_only_gate",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     4
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/vllm-recipe-explorer/recipe.py",
+     "estimate",
+     "--config",
+     "/nonexistent/config.yaml",
+     "--auto"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_info_only_gate",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     4
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/run_bench.sh",
+     "freshclone-probe"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "recipe_serve_knob_parity",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py",
+     "--check-parity"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_verdict_fixture",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/verdict_rule.sh",
+     "--measured",
+     ".claude/skills/adversarial-benchmark/fixtures/measured_pass.json",
+     "--roofline",
+     ".claude/skills/adversarial-benchmark/fixtures/roofline_sample.json"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_verdict_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/verdict_rule.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "recipe_parse_config_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/vllm-recipe-explorer/scripts/parse_model_config.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "recipe_estimate_vram_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "recipe_run_trial_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "campaign_init_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/terraforming_node/scripts/campaign_init.sh",
+     "--selftest"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "campaign_lifecycle_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/terraforming_node/scripts/selftest_campaign_lifecycle.py"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "campaign_template_validator_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/terraforming_node/scripts/campaign_template_validator.sh",
+     "--selftest"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "blackbox_session_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/terraforming_node/scripts/node_blackbox/blackbox_session.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_sweep_meta_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_meta.sh"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_sweep_stop_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/sweep_stop.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_parse_bench_native_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/parse_bench.sh",
+     "self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_roofline_native_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/roofline.sh",
+     "self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_judge_authority_required",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     2
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/judge_bench.sh",
+     "_probe",
+     "--check-args"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_judge_authority_accepted",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/judge_bench.sh",
+     "_probe",
+     "--authority",
+     "weak",
+     "--check-args"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_judge_bench_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/judge_bench.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_bench_tool_pin_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/resolve_bench_tool.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_guidellm_version_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/resolve_guidellm.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_parse_guidellm_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_classify_cell_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_sweep_map_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/render_sweep_map.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_naming_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/bench_doc_naming.sh"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_dataset_prep_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/dataset_prep.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_repeat_axis_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/repeat_axis.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_sweep_repeats_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/selftest_sweep_repeats.sh"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_bench_preset_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/bench_preset.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_lite_report_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/selftest_lite_report.sh"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_lite_gate_conformance",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/conformance_full_superset_lite.sh"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_lite_gate_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/selftest_lite_gate.sh"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_single_up_requires_config",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     3
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/upstream-version-watch/scripts/single_serve_up.sh"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_single_up_rejects_unknown_arg",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     3
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/upstream-version-watch/scripts/single_serve_up.sh",
+     "_probe",
+     "--bogus"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_inventory_rejects_unknown_topology",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     2
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/upstream-version-watch/scripts/container_inventory.sh",
+     "--topology",
+     "bogus"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_budget_preflight_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/budget_preflight.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_layer_ledger_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/layer_ledger.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_push_branches_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/push_branches.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "upstream_branch_sync_mechanics_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/upstream-version-watch/scripts/selftest_branch_sync.py"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "recipe_preload_ram_gate_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "recipe_escalation_predicate_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/vllm-recipe-explorer/scripts/escalation_predicate.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "recipe_rope_translate_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/vllm-recipe-explorer/scripts/rope_scaling_translate.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_broad_search_confirm_gate",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     5
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/broad_search.sh",
+     "cell",
+     "--state",
+     "/nonexistent/bs.json",
+     "--now-utc",
+     "2026-01-01T00:00:00Z",
+     "--cell-key",
+     "k",
+     "--config",
+     "c",
+     "--axis-citation",
+     "x",
+     "--bench-budget-mib",
+     "1"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_broad_search_provenance_precheck",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_precheck.sh"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_broad_search_cell_args",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/selftest_broad_search_cell_args.sh"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "benchmark_resolve_topology_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "bash",
+     ".claude/skills/adversarial-benchmark/scripts/resolve_topology.sh",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "recipe_gmu_roles_batch_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/skills/vllm-recipe-explorer/scripts/selftest_gmu_roles_batch.py"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "wiki_node_test",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "node",
+     "--test"
+    ],
+    "cwd": "<REPO>/.claude/skills/wiki-desk",
+    "env": {}
+   },
+   {
+    "name": "wiki_doc_naming_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "node",
+     ".claude/skills/wiki-desk/src/doc_naming.ts",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "doc_naming_shim_selftest",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     ".claude/policies/runtime/doc_naming.py",
+     "--self-test"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "policy_registry_verify",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     "<REPO>/.claude/policies/runtime/policy_registry.py",
+     "verify",
+     "--as-of",
+     "2026-11-16",
+     "--repo-root",
+     "<REPO>"
+    ],
+    "cwd": "<REPO>",
+    "env": {},
+    "as_of": "2026-11-16",
+    "as_of_source": "explicit-caller-input",
+    "observed_utc": null,
+    "repro_as_of": "2026-11-16"
+   },
+   {
+    "name": "single_up_grounding_before_any_state",
+    "ok": false,
+    "error": "UnicodeDecodeError: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte"
+   },
+   {
+    "name": "production_claim_predicates",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     "<REPO>/.claude/policies/predicates/claim_predicates.py"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   },
+   {
+    "name": "production_companion_predicates",
+    "ok": true,
+    "rc": 0,
+    "expected_rc": [
+     0
+    ],
+    "argv": [
+     "<PY>",
+     "-m",
+     "unittest",
+     "discover",
+     "-s",
+     "<REPO>/.claude/policies/predicates",
+     "-p",
+     "*_predicate.py"
+    ],
+    "cwd": "<REPO>",
+    "env": {}
+   }
+  ]
+ }
+}

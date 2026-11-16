@@ -1,0 +1,1 @@
+{"model": "m", "messages": [{"role": "user", "content": [{"type": "text", "text": "hotel echo lima papa charlie alpha"}, {"type": "image_url", "image_url": {"url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="}}]}], "max_tokens": 4, "temperature": 0.8, "stream": false}

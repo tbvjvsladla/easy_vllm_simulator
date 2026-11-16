@@ -1,0 +1,1 @@
+[tripwire] FAIL refs/heads must be allowed durable branches or live registered worktrees: ['backup-before-edit']

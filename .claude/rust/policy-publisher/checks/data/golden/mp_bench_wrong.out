@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_WRONG_TASK_CLASS": "topic 'selftest' was initialized with task_class='minor_patch', not 'full_benchmark'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_WRONG_TASK_CLASS"
+  ],
+  "schema_version": 1
+}

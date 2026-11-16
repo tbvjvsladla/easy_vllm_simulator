@@ -1,0 +1,12 @@
+{"file": ".claude/skills/x/scripts/inv.py", "line": 1, "cat": "MAGIC_NUM_CONST", "sub": "module", "name": "X", "value": 12345, "src": "X = 12345", "scope": "module", "disposition": "local-const"}
+{"file": ".claude/skills/x/scripts/inv.py", "line": 2, "cat": "DEFAULT_FALLBACK", "sub": "get", "value": 7, "src": "Y = os.environ.get(\"A\", 7)", "disposition": "review"}
+{"file": ".claude/skills/x/scripts/inv.py", "line": 3, "cat": "DEFAULT_FALLBACK", "sub": "getenv", "value": "v", "src": "Z = os.getenv(\"B\", \"v\")  # print", "disposition": "diagnostic"}
+{"file": ".claude/skills/x/scripts/inv.py", "line": 4, "cat": "HARDCODE_STR", "sub": "version", "src": "V = \"1.2.3 GB10 sonnet mock sha256 grade\"", "disposition": "review"}
+{"file": ".claude/skills/x/scripts/inv.py", "line": 4, "cat": "HARDCODE_STR", "sub": "hw", "src": "V = \"1.2.3 GB10 sonnet mock sha256 grade\"", "disposition": "review"}
+{"file": ".claude/skills/x/scripts/inv.py", "line": 4, "cat": "HARDCODE_STR", "sub": "model", "src": "V = \"1.2.3 GB10 sonnet mock sha256 grade\"", "disposition": "review"}
+{"file": ".claude/skills/x/scripts/inv.py", "line": 4, "cat": "HARDCODE_STR", "sub": "mock", "src": "V = \"1.2.3 GB10 sonnet mock sha256 grade\"", "disposition": "review"}
+{"file": ".claude/skills/x/scripts/inv.py", "line": 4, "cat": "HARDCODE_STR", "sub": "hash", "src": "V = \"1.2.3 GB10 sonnet mock sha256 grade\"", "disposition": "review"}
+{"file": ".claude/skills/x/scripts/inv.py", "line": 4, "cat": "HARDCODE_STR", "sub": "turn", "src": "V = \"1.2.3 GB10 sonnet mock sha256 grade\"", "disposition": "review"}
+{"file": ".claude/skills/x/scripts/inv.sh", "line": 1, "cat": "DEFAULT_FALLBACK", "sub": "shell-default", "value": 4096, "src": "A=\"${A:-4096}\"", "disposition": "review"}
+{"file": ".claude/skills/x/scripts/inv.sh", "line": 3, "cat": "HARDCODE_STR", "sub": "version", "src": "nvcr.io/x:1.2.3", "disposition": "review"}
+{"file": ".claude/skills/x/scripts/inv.sh", "line": 3, "cat": "HARDCODE_STR", "sub": "image", "src": "nvcr.io/x:1.2.3", "disposition": "review"}

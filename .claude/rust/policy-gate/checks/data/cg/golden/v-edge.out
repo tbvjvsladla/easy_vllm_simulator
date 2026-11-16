@@ -1,0 +1,57 @@
+{
+  "certificate": null,
+  "checked_evidence": {
+    "devlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/devlog.md",
+      "required": true,
+      "sha256": "4842198b2c77f304e39154c10ca3b3651c2af556f82987a2eed201c131a9ee55",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "plan": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/edge.md",
+      "required": true,
+      "sha256": "2b3992db4e35477cd4a564553657846cc0a7b6fc6c4e90ee97876abba6589ca5",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "testlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/testlog.md",
+      "required": true,
+      "sha256": "1344de4f31b5fe384e9748f7ce3c55e6e00bdf6e82a79d4023ce3121ed90dfc4",
+      "tree_sha256": null,
+      "type": "file"
+    }
+  },
+  "eligible_for_promotion": false,
+  "exit_code": 1,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {
+    "EVIDENCE_BROKEN_LINK:plan": "evidence 'plan' contains broken local link target(s): ['a(b)c.md', '%C3%A9.md', 'gone8.md']",
+    "EVIDENCE_INVALID_LINK:plan": "evidence 'plan' contains invalid local link target(s): ['[t](...) [malformed inline destination]', '[y](...) [malformed inline destination]', '[d][Deep]']"
+  },
+  "reason_codes": [
+    "EVIDENCE_BROKEN_LINK:plan",
+    "EVIDENCE_INVALID_LINK:plan"
+  ],
+  "rubric": null,
+  "schema_version": 1,
+  "state": "runtime-ready",
+  "task_class": "harness_change"
+}

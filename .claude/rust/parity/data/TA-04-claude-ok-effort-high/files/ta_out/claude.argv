@@ -1,0 +1,2 @@
+call 1 argv: [-p] [read-only runtime probe] [--model] [sonnet] [--output-format] [json] [--max-turns] [3] [--allowedTools] [Read,Bash] [--effort] [high]
+watchdog=unset

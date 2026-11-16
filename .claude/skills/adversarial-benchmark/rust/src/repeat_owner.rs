@@ -1,29 +1,21 @@
 //! The campaign-declaration side of the repeat axis: [`load_campaign_budgets`] and [`resolve_repeats`].
 //!
-//! The *owner* of "which campaign is active", "where does a campaign live" and "which ids are reserved" is
-//! `terraforming_node/scripts/campaign_init.py`, a Python program that has not been ported (pending S4). This
-//! module owns everything else: the order of the queries, the truth of a raw `campaign_id`, the reserved-id
-//! refusal, the existence and shape checks of the declaration, the repeat-count precedence
-//! (argv > campaign declaration > preset default) and the provenance text.
+//! The *owner* of "which campaign is active", "where does a campaign live" and "which ids are reserved" is the campaign
+//! read side that `role-contract` owns (the semantics of `terraforming_node/scripts/campaign_init.py`). This module owns
+//! everything else: the order of the queries, the truth of a raw `campaign_id`, the reserved-id refusal, the existence
+//! and shape checks of the declaration, the repeat-count precedence (argv > campaign declaration > preset default) and
+//! the provenance text.
 //!
-//! The owner is reached only through [`CampaignOwner`]. [`ConfiguredCampaignOwner`] chooses, per open, which program
-//! answers (see [`Selection`]), after the original's own `is_file` check on the owner path (which alone decides *absent*):
-//!
-//! * **Native** - no explicit configuration and the owner file is byte-identical to the reviewed `campaign_init.py`: the
-//!   read side that `role-contract` owns answers in this process (no interpreter, no source compile). Nothing falls back.
-//! * **LegacyExplicit** - the user set `REPEAT_AXIS_CAMPAIGN_ADAPTER` (non-empty) or `REPEAT_AXIS_PYTHON` (any value,
-//!   empty included): the query adapter runs for any source, with exactly the failures it had.
-//! * **LegacySourceVariant** - no explicit configuration and the owner file is a different (or unreadable) program: the
-//!   default compatibility adapter (`REPEAT_AXIS_COMPAT_ADAPTER`, exported by the wrappers) runs the actual file.
-//!
-//! [`PythonCampaignOwner`] is the explicit legacy implementation: a small Python query adapter that loads the actual
-//! `campaign_init.py` the way the original did and answers four questions by calling the owner's own functions and
-//! attributes. The adapter holds no repeat logic, and nothing here falls back to `repeat_axis.py` or recomputes the
-//! owner's rules in this crate: when the owner exists but cannot be queried the failure says so.
+//! The owner is reached only through [`CampaignOwner`]. [`ConfiguredCampaignOwner`] decides, per open, whether the
+//! campaign resolver is installed in the checkout (see [`Selection`]): it is when the owner `campaign_init.py` or its
+//! launcher `campaign_init.sh` is a regular file (absence of both alone means *no resolver*). An installed resolver is
+//! always answered natively in this process by the `role-contract` read side: no interpreter, no query adapter, no
+//! source compile, whatever the bytes of the owner file are. There is no Python route and nothing falls back
+//! (2026-11-16 · plan_26111615: the former `REPEAT_AXIS_CAMPAIGN_ADAPTER` / `REPEAT_AXIS_PYTHON` /
+//! `REPEAT_AXIS_COMPAT_ADAPTER` settings and the adapter `repeat_axis_owner_query.py` are no longer used).
 
 use crate::guidellm::Failure;
 use crate::pyfs;
-use crate::pyjson::loads;
 use crate::pysort::py_eq;
 use crate::pystr::PyStr;
 use crate::pyvalue::{PyDict, PyValue};
@@ -33,26 +25,24 @@ use agent_runtime_support::pystr::PyStr as RuntimeStr;
 use agent_runtime_support::pyvalue::{PyDict as RuntimeDict, PyValue as RuntimeValue};
 use num_bigint::BigInt;
 use role_contract::campaign::{self as campaign_read, OwnedModuleSite};
-use role_contract::source_identity::{identify, Identity, REVIEWED_CAMPAIGN};
 use role_contract::topology::Crash;
 use std::ffi::OsString;
-use std::io::{BufRead, BufReader, Write};
-use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
+use std::io::Write;
 
-/// Environment variable naming the query adapter program.
-pub const ADAPTER_ENV: &str = "REPEAT_AXIS_CAMPAIGN_ADAPTER";
-/// Environment variable naming the Python interpreter that runs the adapter (default `python3`).
-pub const PYTHON_ENV: &str = "REPEAT_AXIS_PYTHON";
-/// Environment variable naming the default compatibility adapter location (exported by the wrappers, never user intent).
-pub const COMPAT_ADAPTER_ENV: &str = "REPEAT_AXIS_COMPAT_ADAPTER";
+/// The launcher of the campaign resolver, relative to the checkout: its presence also means the resolver is installed.
+pub const CAMPAIGN_LAUNCHER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.sh";
 /// Environment variable naming a private file that receives one JSON line per owner open (route evidence outside the
 /// business output). Unset: nothing is recorded.
 pub const ROUTE_OBSERVER_ENV: &str = "REPEAT_AXIS_ROUTE_OBSERVER";
 /// Exception class reported when a requested route observation cannot be written.
 pub const ROUTE_OBSERVER_ERROR: &str = "CampaignRouteObserverError";
-/// Exception class reported when the owner exists but the query path to it is not usable. It is not an exception
-/// of the original program; the original had no such path.
+/// Exception class reported when the owner exists but cannot be queried. It is not an exception of the original
+/// program; the original had no such path.
 pub const ADAPTER_ERROR: &str = "CampaignOwnerAdapterError";
+
+fn adapter_error(message: String) -> Failure {
+    Failure::new(ADAPTER_ERROR, &message)
+}
 
 /// Environment variable naming the repository root the owner and the schema are read under.
 pub const REPO_ROOT_ENV: &str = "REPEAT_AXIS_REPO_ROOT";
@@ -135,223 +125,6 @@ pub trait CampaignOwner {
     /// Loads the owner file under `repo_root` as the original's `_campaign_init_module` did: `Ok(None)` when the
     /// file is absent; an exception of the owner's own top level propagates.
     fn open(&self, repo_root: &PyStr) -> Result<Option<Box<dyn OwnerSession>>, Failure>;
-}
-
-/// The query adapter configuration.
-#[derive(Clone, Debug)]
-pub struct PythonCampaignOwner {
-    python: OsString,
-    adapter: Option<OsString>,
-}
-
-impl PythonCampaignOwner {
-    pub fn new(python: impl Into<OsString>, adapter: Option<OsString>) -> Self {
-        PythonCampaignOwner {
-            python: python.into(),
-            adapter,
-        }
-    }
-
-    /// The interpreter and the adapter program this owner would start (what a route observer or a transport must run).
-    pub fn command(&self) -> (&OsString, Option<&OsString>) {
-        (&self.python, self.adapter.as_ref())
-    }
-
-    /// The configuration of this process: [`ADAPTER_ENV`] and [`PYTHON_ENV`].
-    pub fn from_environment() -> Self {
-        Self::new(
-            std::env::var_os(PYTHON_ENV).unwrap_or_else(|| OsString::from("python3")),
-            std::env::var_os(ADAPTER_ENV).filter(|value| !value.is_empty()),
-        )
-    }
-}
-
-fn adapter_error(message: String) -> Failure {
-    Failure::new(ADAPTER_ERROR, &message)
-}
-
-/// The exception classes the adapter relays are names; a `Failure` wants a static one.
-fn exception_class(name: &str) -> &'static str {
-    const KNOWN: [&str; 16] = [
-        "AttributeError",
-        "TypeError",
-        "ValueError",
-        "KeyError",
-        "OSError",
-        "FileNotFoundError",
-        "PermissionError",
-        "NotADirectoryError",
-        "IsADirectoryError",
-        "ImportError",
-        "ModuleNotFoundError",
-        "SyntaxError",
-        "NameError",
-        "RuntimeError",
-        "RecursionError",
-        "PurgeGateRefusal",
-    ];
-    KNOWN
-        .iter()
-        .find(|known| **known == name)
-        .copied()
-        // An owner-defined class: the name is kept for the report; the handful of names leaked live for the process.
-        .unwrap_or_else(|| Box::leak(name.to_string().into_boxed_str()))
-}
-
-struct PythonSession {
-    child: Child,
-    writer: Option<ChildStdin>,
-    reader: BufReader<ChildStdout>,
-}
-
-impl PythonSession {
-    fn request(&mut self, request: PyDict) -> Result<PyDict, Failure> {
-        let line = PyValue::Dict(request)
-            .dumps_ascii()
-            .map_err(|error| adapter_error(error.to_string()))?;
-        let writer = self
-            .writer
-            .as_mut()
-            .ok_or_else(|| adapter_error("adapter input is closed".to_string()))?;
-        writeln!(writer, "{line}")
-            .and_then(|()| writer.flush())
-            .map_err(|error| adapter_error(format!("cannot write to the adapter: {error}")))?;
-        let mut answer = String::new();
-        let read = self
-            .reader
-            .read_line(&mut answer)
-            .map_err(|error| adapter_error(format!("cannot read from the adapter: {error}")))?;
-        if read == 0 {
-            return Err(adapter_error(
-                "the adapter ended without answering (see its stderr)".to_string(),
-            ));
-        }
-        match loads(&answer) {
-            Ok(PyValue::Dict(reply)) => Ok(reply),
-            Ok(other) => Err(adapter_error(format!(
-                "the adapter answered a {}, not an object",
-                other.type_name()
-            ))),
-            Err(error) => Err(adapter_error(format!("unreadable adapter answer: {error}"))),
-        }
-    }
-
-    /// Sends one query; an owner exception becomes the same exception here.
-    fn ask(&mut self, operation: &str, extra: Vec<(&str, PyValue)>) -> Result<PyDict, Failure> {
-        let mut request = PyDict::new();
-        request.set("op", PyValue::str(operation));
-        for (name, value) in extra {
-            request.set(name, value);
-        }
-        let reply = self.request(request)?;
-        match reply.get("ok") {
-            Some(PyValue::Bool(true)) => Ok(reply),
-            _ => {
-                let class = match reply.get("type") {
-                    Some(PyValue::Str(name)) => name.to_utf8().unwrap_or_default(),
-                    _ => ADAPTER_ERROR.to_string(),
-                };
-                let message = match reply.get("message") {
-                    Some(PyValue::Str(text)) => text.clone(),
-                    _ => PyStr::default(),
-                };
-                Err(Failure::with_message(exception_class(&class), message))
-            }
-        }
-    }
-
-    fn value_of(reply: &PyDict) -> PyValue {
-        reply.get("value").cloned().unwrap_or(PyValue::None)
-    }
-}
-
-impl Drop for PythonSession {
-    fn drop(&mut self) {
-        self.writer.take();
-        let _ = self.child.wait();
-    }
-}
-
-impl OwnerSession for PythonSession {
-    fn active_campaign_id(&mut self) -> Result<PyValue, Failure> {
-        Ok(Self::value_of(&self.ask("active_campaign_id", vec![])?))
-    }
-
-    fn bootstrap_id(&mut self) -> Result<PyValue, Failure> {
-        Ok(Self::value_of(&self.ask(
-            "attribute",
-            vec![("name", PyValue::str("BOOTSTRAP"))],
-        )?))
-    }
-
-    fn reserved_ids(&mut self) -> Result<PyValue, Failure> {
-        let reply = self.ask(
-            "attribute_or_empty",
-            vec![("name", PyValue::str("RESERVED_IDS"))],
-        )?;
-        Ok(Self::value_of(&reply))
-    }
-
-    fn derive_root_path(&mut self, camp_id: &PyValue) -> Result<PyStr, Failure> {
-        let reply = self.ask("derive_root_path", vec![("camp_id", camp_id.clone())])?;
-        match Self::value_of(&reply) {
-            PyValue::Str(path) => Ok(path),
-            other => Err(adapter_error(format!(
-                "derive_path returned a {}, not a path",
-                other.type_name()
-            ))),
-        }
-    }
-}
-
-impl PythonCampaignOwner {
-    /// Starts the adapter and loads the owner file at `owner_path`, which the caller has already found to be a regular
-    /// file. The adapter's PID is reported through `child_pid` as soon as it exists.
-    fn open_path(
-        &self,
-        owner_path: &PyStr,
-        child_pid: &mut Option<u32>,
-    ) -> Result<Box<dyn OwnerSession>, Failure> {
-        let Some(adapter) = &self.adapter else {
-            return Err(adapter_error(format!(
-                "the campaign_init owner exists at {} but no query adapter is configured; set {ADAPTER_ENV} (this build does not fall back to repeat_axis.py)",
-                owner_path.repr()
-            )));
-        };
-        let mut child = Command::new(&self.python)
-            .arg("-B")
-            .arg(adapter)
-            .env("PYTHONDONTWRITEBYTECODE", "1")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .spawn()
-            .map_err(|error| {
-                adapter_error(format!(
-                    "cannot start the campaign owner adapter {:?} with {:?}: {error}",
-                    adapter, self.python
-                ))
-            })?;
-        *child_pid = Some(child.id());
-        let writer = child.stdin.take();
-        let reader = BufReader::new(child.stdout.take().expect("stdout is piped"));
-        let mut session = PythonSession {
-            child,
-            writer,
-            reader,
-        };
-        session.ask("load", vec![("path", PyValue::Str(owner_path.clone()))])?;
-        Ok(Box::new(session))
-    }
-}
-
-impl CampaignOwner for PythonCampaignOwner {
-    fn open(&self, repo_root: &PyStr) -> Result<Option<Box<dyn OwnerSession>>, Failure> {
-        let owner_path = pyfs::join_text(repo_root, &PyStr::new(CAMPAIGN_INIT_REL));
-        if !pyfs::is_file(&owner_path)? {
-            return Ok(None);
-        }
-        self.open_path(&owner_path, &mut None).map(Some)
-    }
 }
 
 // ── the native owner ────────────────────────────────────────────────────────────
@@ -446,14 +219,10 @@ impl OwnerSession for NativeSession {
 /// Which program answers the campaign queries of one open.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CampaignRoute {
-    /// The owner path is not a regular file: the resolver is absent (no program is asked).
+    /// Neither the owner nor its launcher is a regular file: the resolver is absent (nothing is asked).
     Absent,
-    /// The reviewed source, answered by the native read side in this process.
+    /// The installed resolver, answered by the native read side in this process (the only route there is).
     NativeCurrentSource,
-    /// The user configured the adapter or the interpreter.
-    LegacyExplicit,
-    /// A different or unreadable source, answered by the default compatibility adapter.
-    LegacySourceVariant { reason: String },
 }
 
 impl CampaignRoute {
@@ -461,24 +230,15 @@ impl CampaignRoute {
         match self {
             CampaignRoute::Absent => "Absent",
             CampaignRoute::NativeCurrentSource => "NativeCurrentSource",
-            CampaignRoute::LegacyExplicit => "LegacyExplicit",
-            CampaignRoute::LegacySourceVariant { .. } => "LegacySourceVariant",
         }
     }
 }
 
-/// The decision of one open: the route and, for a legacy route, the adapter that will run.
+/// The decision of one open.
 #[derive(Clone, Debug)]
 pub enum Selection {
     Absent,
-    Native {
-        owner_path: PyStr,
-    },
-    Legacy {
-        route: CampaignRoute,
-        owner_path: PyStr,
-        adapter: PythonCampaignOwner,
-    },
+    Native { owner_path: PyStr },
 }
 
 impl Selection {
@@ -486,28 +246,19 @@ impl Selection {
         match self {
             Selection::Absent => CampaignRoute::Absent,
             Selection::Native { .. } => CampaignRoute::NativeCurrentSource,
-            Selection::Legacy { route, .. } => route.clone(),
         }
     }
 }
 
-/// The product's owner: route per open, by explicit configuration and by the bytes of the owner file.
-#[derive(Clone, Debug)]
+/// The product's owner: decides per open whether the resolver is installed, then answers natively.
+#[derive(Clone, Debug, Default)]
 pub struct ConfiguredCampaignOwner {
-    /// Present when the user chose the adapter or the interpreter.
-    explicit: Option<PythonCampaignOwner>,
-    /// The default compatibility adapter for a source that is not the reviewed one.
-    compat: PythonCampaignOwner,
     observer: Option<OsString>,
 }
 
 impl ConfiguredCampaignOwner {
-    pub fn new(explicit: Option<PythonCampaignOwner>, compat: PythonCampaignOwner) -> Self {
-        ConfiguredCampaignOwner {
-            explicit,
-            compat,
-            observer: None,
-        }
+    pub fn new() -> Self {
+        ConfiguredCampaignOwner { observer: None }
     }
 
     /// Records one JSON line per open into `path` (evidence outside the business output).
@@ -516,61 +267,30 @@ impl ConfiguredCampaignOwner {
         self
     }
 
-    /// The configuration of this process. A non-empty [`ADAPTER_ENV`], or [`PYTHON_ENV`] set to anything (empty included),
-    /// is explicit intent; an explicit interpreter without an adapter runs the default adapter location under it.
+    /// The configuration of this process: only the route observer ([`ROUTE_OBSERVER_ENV`]).
     pub fn from_environment() -> Self {
-        let compat_adapter = std::env::var_os(COMPAT_ADAPTER_ENV).filter(|value| !value.is_empty());
-        let adapter = std::env::var_os(ADAPTER_ENV).filter(|value| !value.is_empty());
-        let python = std::env::var_os(PYTHON_ENV);
-        let explicit = (adapter.is_some() || python.is_some()).then(|| {
-            PythonCampaignOwner::new(
-                python.clone().unwrap_or_else(|| OsString::from("python3")),
-                adapter.clone().or_else(|| compat_adapter.clone()),
-            )
-        });
-        let owner = Self::new(
-            explicit,
-            PythonCampaignOwner::new("python3", compat_adapter),
-        );
+        let owner = Self::new();
         match std::env::var_os(ROUTE_OBSERVER_ENV).filter(|value| !value.is_empty()) {
             Some(path) => owner.observed_by(path),
             None => owner,
         }
     }
 
-    /// The route of an open, decided before anything runs. The original's `is_file` comes first: absence is its answer and
-    /// a `stat` failure it does not swallow propagates.
+    /// The route of an open, decided before anything runs. The original's `is_file` comes first (the owner, then its
+    /// launcher): absence of both is its answer and a `stat` failure it does not swallow propagates.
     pub fn select(&self, repo_root: &PyStr) -> Result<Selection, Failure> {
         let owner_path = pyfs::join_text(repo_root, &PyStr::new(CAMPAIGN_INIT_REL));
-        if !pyfs::is_file(&owner_path)? {
-            return Ok(Selection::Absent);
+        if pyfs::is_file(&owner_path)? {
+            return Ok(Selection::Native { owner_path });
         }
-        if let Some(explicit) = &self.explicit {
-            return Ok(Selection::Legacy {
-                route: CampaignRoute::LegacyExplicit,
-                owner_path,
-                adapter: explicit.clone(),
-            });
+        let launcher = pyfs::join_text(repo_root, &PyStr::new(CAMPAIGN_LAUNCHER_REL));
+        if pyfs::is_file(&launcher)? {
+            return Ok(Selection::Native { owner_path });
         }
-        let bytes = role_contract::pyprofile::fs_encode(&runtime_text(&owner_path))
-            .map_err(|why| adapter_error(format!("the owner path cannot be encoded: {why:?}")))?;
-        let reason = match identify(&bytes, REVIEWED_CAMPAIGN) {
-            Identity::Reviewed => return Ok(Selection::Native { owner_path }),
-            Identity::Missing => return Ok(Selection::Absent),
-            Identity::Different => "campaign_init.py is not the reviewed source".to_string(),
-            Identity::Unreadable(why) => format!("campaign_init.py cannot be read ({why})"),
-        };
-        Ok(Selection::Legacy {
-            route: CampaignRoute::LegacySourceVariant { reason },
-            owner_path,
-            adapter: self.compat.clone(),
-        })
+        Ok(Selection::Absent)
     }
 
-    fn open_selected(
-        selection: &Selection,
-        child_pid: &mut Option<u32>,
-    ) -> Result<Option<Box<dyn OwnerSession>>, Failure> {
+    fn open_selected(selection: &Selection) -> Result<Option<Box<dyn OwnerSession>>, Failure> {
         match selection {
             Selection::Absent => Ok(None),
             Selection::Native { owner_path } => {
@@ -580,19 +300,14 @@ impl ConfiguredCampaignOwner {
                     })?;
                 NativeSession::load(&bytes).map(|session| Some(Box::new(session) as _))
             }
-            Selection::Legacy {
-                owner_path,
-                adapter,
-                ..
-            } => adapter.open_path(owner_path, child_pid).map(Some),
         }
     }
 
-    /// One line per open, written after the open ended and before its result is used.
+    /// One line per open, written after the open ended and before its result is used. The line keeps the fields it
+    /// had when a Python route existed (`reason` null, `python_child` false, `child_pid` null).
     fn record(
         &self,
         selection: &Selection,
-        child_pid: Option<u32>,
         outcome: &Result<Option<Box<dyn OwnerSession>>, Failure>,
     ) -> Result<(), Failure> {
         let Some(path) = &self.observer else {
@@ -601,25 +316,17 @@ impl ConfiguredCampaignOwner {
         let route = selection.route();
         let mut line = PyDict::new();
         line.set("route", PyValue::str(route.name()));
-        line.set(
-            "reason",
-            match &route {
-                CampaignRoute::LegacySourceVariant { reason } => PyValue::str(reason),
-                _ => PyValue::None,
-            },
-        );
+        line.set("reason", PyValue::None);
         line.set("pid", PyValue::int(std::process::id()));
         line.set(
             "owner_path",
             match selection {
                 Selection::Absent => PyValue::None,
-                Selection::Native { owner_path } | Selection::Legacy { owner_path, .. } => {
-                    PyValue::Str(owner_path.clone())
-                }
+                Selection::Native { owner_path } => PyValue::Str(owner_path.clone()),
             },
         );
-        line.set("python_child", PyValue::Bool(child_pid.is_some()));
-        line.set("child_pid", child_pid.map_or(PyValue::None, PyValue::int));
+        line.set("python_child", PyValue::Bool(false));
+        line.set("child_pid", PyValue::None);
         line.set("opened", PyValue::Bool(matches!(outcome, Ok(Some(_)))));
         line.set(
             "failure",
@@ -648,9 +355,8 @@ impl ConfiguredCampaignOwner {
 impl CampaignOwner for ConfiguredCampaignOwner {
     fn open(&self, repo_root: &PyStr) -> Result<Option<Box<dyn OwnerSession>>, Failure> {
         let selection = self.select(repo_root)?;
-        let mut child_pid = None;
-        let outcome = Self::open_selected(&selection, &mut child_pid);
-        self.record(&selection, child_pid, &outcome)?;
+        let outcome = Self::open_selected(&selection);
+        self.record(&selection, &outcome)?;
         outcome
     }
 }

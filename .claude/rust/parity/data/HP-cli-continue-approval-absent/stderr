@@ -1,0 +1,2 @@
+[hint] FAIL HINT_APPROVAL_ABSENT: 캠페인 밖 발행은 사람 승인 전사가 필요하다(--approved-by · --approved-utc) — 어느 ref 도 움직이지 않았다.
+  → 사람 Y/N 을 받아 그 발화를 전사해 `--approved-by "<사람 발화 전사>" --approved-utc <UTC>` 로 넘긴다(제안 전용).

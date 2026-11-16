@@ -1,0 +1,12 @@
+model: m
+gpu_model: "NVIDIA GB10"
+vllm_version: 0.31.0
+quantization: nvfp4
+topology: single
+verdict: PASS
+measured_utc: "2026-11-16T05:00:00Z"
+tensor_parallel_size: ١
+floor_tps: ١٢.٥
+ratio_M_over_primary: -0.0
+primary_source: n/a
+rubric_authority: N/A

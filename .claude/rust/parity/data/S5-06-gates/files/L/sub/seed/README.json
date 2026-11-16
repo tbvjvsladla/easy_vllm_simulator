@@ -1,0 +1,40 @@
+{
+  "absent_fields": [
+    "gpu_temp",
+    "gpu_pwr",
+    "gpu_sm",
+    "gpu_util",
+    "gpu_mem",
+    "load1",
+    "ctr_n"
+  ],
+  "counters": {
+    "boot": 2,
+    "hb": 8,
+    "ignored_known": 1,
+    "kill_ack": 1,
+    "start": 1,
+    "total": 21,
+    "trip": 1,
+    "trip_nomatch": 1,
+    "unit": 3,
+    "unmatched": 3
+  },
+  "generated_utc": "2026-07-31T00:00:00Z",
+  "kill_latency_upper_bounds": [
+    {
+      "latency_upper_bound_s": 12.0,
+      "recovered_mem_mib": 117283,
+      "target": "deadbeef",
+      "trip_mem_mib": 10186,
+      "trip_utc": "2026-07-22T08:45:14Z"
+    }
+  ],
+  "node_id": "sub",
+  "note": "samples_15s.csv 는 canonical samples/ 가 아니다 -- 1초 실샘플과 혼동 금지. events/ 는 canonical 로 적재된다(실제 발생 이벤트이므로).",
+  "purpose": "plan_26073109 Phase 0 -- 안전체계 제거 전 포락선 초기 데이터 보존",
+  "resolution_s": 15,
+  "retention": 0.857143,
+  "schema_version": 1,
+  "source": "journalctl -u easy-vllm-memwatch --no-pager -o short-iso"
+}

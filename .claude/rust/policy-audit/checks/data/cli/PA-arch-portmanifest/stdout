@@ -1,0 +1,35 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 4,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.1' port_manifest requires ['files', 'path', 'upstream_base_sha'] and allows only ['fork_head_sha', 'pr_base_sha']",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.1.port_manifest",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_MANIFEST_INVALID"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.1' port_manifest.path must be the pre-slot PROVENANCE.json inside a topology output lane",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.1.port_manifest.path",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_MANIFEST_INVALID"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.1' port_manifest.upstream_base_sha must be a 40-hex commit SHA",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.1.port_manifest.upstream_base_sha",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_MANIFEST_INVALID"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.1' port_manifest.files must be a positive integer file count",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.1.port_manifest.files",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_MANIFEST_INVALID"
+    }
+  ]
+}

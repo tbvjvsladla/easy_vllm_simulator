@@ -1,0 +1,18 @@
+  [PASS] 강제명령 줄 = command + restrict + 마커
+  [PASS] node_id 는 메인이 줄에 묶는다
+  [PASS] 잘못된 node_id 거부: 'main'
+  [PASS] 잘못된 node_id 거부: 'Sub'
+  [PASS] 잘못된 node_id 거부: 'a;rm'
+  [PASS] 잘못된 node_id 거부: ''
+  [PASS] ed25519 외 키 거부
+  [PASS] 같은 마커 줄만 교체(멱등) · 남의 줄 보존
+  [PASS] 회수 = 그 줄만 삭제
+  [PASS] manifest library 블록만 교체(주석·다른 키 보존)
+  [PASS] 서브 library 블록 = wiki-desk accessor.ts 스키마(transport·host·user·repo_root·wiki_dir·identity_file·known_hosts·node_id)
+  [PASS] 사전검사 차단 사유: 서브 node 가 없거나 낮다 (rsync-ok)
+  [PASS] 사전검사 차단 사유: 서브 node 가 없거나 낮다 (v22.1.0)
+  [PASS] 사전검사 차단 사유: 서브에 rsync 가 없다 (v26.7.0)
+  [PASS] 서브 조건 충족 → 서브 쪽 차단 사유 없음
+  [PASS] 가상 접근점 키 이름 = node_id 별
+  [PASS] 가상 접근점은 host_of 출처를 남긴다(실노드는 없음)
+[library_access] self-test PASS

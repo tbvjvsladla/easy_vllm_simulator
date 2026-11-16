@@ -1,0 +1,31 @@
+{
+  "budget_outcome": null,
+  "duration_api_ms": null,
+  "duration_ms": null,
+  "execution_started": null,
+  "exit_code": 4,
+  "failure_evidence": {
+    "lock_acquired": false,
+    "malformed_jsonl": false,
+    "raw_stderr": "no route\n",
+    "raw_stdout": "",
+    "returncode": 255,
+    "rotate": false,
+    "signal": "ssh_transport"
+  },
+  "intent": "delegate",
+  "model_requested": "gpt-6.1-sol",
+  "model_used": [],
+  "num_turns": null,
+  "output": null,
+  "provider": "codex_cli",
+  "raw_events": [],
+  "raw_exit_code": 255,
+  "reason_codes": [
+    "NONZERO_EXIT"
+  ],
+  "schema_version": 2,
+  "session_id": null,
+  "status": "execution_failed",
+  "usage": null
+}

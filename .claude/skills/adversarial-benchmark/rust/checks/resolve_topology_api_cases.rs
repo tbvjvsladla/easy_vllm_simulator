@@ -1,11 +1,11 @@
 //! The `resolve_topology_api` program itself: the 59 frozen original-first API cases (23 `resolve` with a declared local
 //! owner-output fixture, 27 helper cases, 2 reader cases and 7 `_run` cases) sent as `evaluate-jsonl` rows through the real
 //! binary, each in its own scratch tree whose whole content afterwards is compared; then the call-shape controls the
-//! frozen cases do not reach (the interpreter argument and its context default, the timeout forms, a descendant that
-//! holds the pipes).
+//! frozen cases do not reach (the retired interpreter route, the timeout forms, a descendant that holds the pipes).
 //!
-//! The owner of `resolve` in the frozen cases is a Python fixture that prints declared bytes and an exit status; the
-//! real parity owner is the S7 dependency and is exercised by the self-test checks, not here.
+//! The judge of `resolve` in the frozen cases is a check-only shell stand-in of the native helper that answers the declared
+//! bytes and exit status (`common::stub_helper`, named through `RESOLVE_TOPOLOGY_PARITY_BIN`); the real native helper judges
+//! the cases that declare no answer and is exercised by the self-test checks. No Python runs (plan_26111615 pass 3).
 
 #[path = "resolve_topology_common.rs"]
 mod common;
@@ -30,7 +30,11 @@ fn evaluate(
         .current_dir(&scratch.root)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .env("RESOLVE_TOPOLOGY_PYTHON", python());
+        .env_remove("RESOLVE_TOPOLOGY_PYTHON");
+    match helper_for(scratch) {
+        Some(stub) => command.env("RESOLVE_TOPOLOGY_PARITY_BIN", stub),
+        None => command.env_remove("RESOLVE_TOPOLOGY_PARITY_BIN"),
+    };
     for (name, value) in environment {
         match value {
             Some(value) => command.env(name, value),
@@ -147,28 +151,10 @@ fn resolve_row(scratch: &Scratch, extra: &str) -> String {
 }
 
 #[test]
-fn an_explicit_interpreter_wins_and_a_falsy_one_means_the_context_default() {
+fn an_interpreter_request_is_the_named_configuration_error_and_a_falsy_one_is_the_native_default() {
     let scratch = passing_scratch();
-    let missing = "/nonexistent/interpreter";
-    let default_missing = "/nonexistent/default-interpreter";
-    let refused = |name: &str| {
-        format!("4자일치 판정자가 판정하지 못했다(rc=None): [Errno 2] No such file or directory: '{name}'")
-    };
     let value_of = |answers: &[PyValue]| key(field(dict(&answers[0]), "value"));
-    // an explicit, truthy interpreter is used (here one that does not exist: the failure names it)
-    let answers = evaluate(
-        &scratch,
-        &[resolve_row(&scratch, &format!(r#","python":"{missing}""#))],
-        &[],
-    );
-    assert_eq!(
-        value_of(&answers),
-        format!(
-            r#"[5, null, {}]"#,
-            PyValue::str(&refused(missing)).dumps_ascii().unwrap()
-        )
-    );
-    // a falsy one (absent, null, "", 0, false, []) is the context's interpreter, whatever the environment names
+    // a falsy `python` (absent, null, "", 0, false, []) is the native helper (here the stand-in that declares PASS single)
     for extra in [
         "",
         r#","python":null"#,
@@ -177,89 +163,23 @@ fn an_explicit_interpreter_wins_and_a_falsy_one_means_the_context_default() {
         r#","python":false"#,
         r#","python":[]"#,
     ] {
-        let answers = evaluate(
-            &scratch,
-            &[resolve_row(&scratch, extra)],
-            &[("RESOLVE_TOPOLOGY_PYTHON", Some(default_missing))],
-        );
-        assert_eq!(
-            value_of(&answers),
-            format!(
-                r#"[5, null, {}]"#,
-                PyValue::str(&refused(default_missing))
-                    .dumps_ascii()
-                    .unwrap()
-            ),
-            "{extra}"
-        );
+        let answers = evaluate(&scratch, &[resolve_row(&scratch, extra)], &[]);
+        assert!(value_of(&answers).starts_with("[0, \"single\""), "{extra}: {}", value_of(&answers));
     }
-    // an explicit interpreter beats the environment's
-    let explicit = format!(
-        r#","python":{}"#,
-        PyValue::str(&python()).dumps_ascii().unwrap()
-    );
-    let answers = evaluate(
-        &scratch,
-        &[resolve_row(&scratch, &explicit)],
-        &[("RESOLVE_TOPOLOGY_PYTHON", Some(default_missing))],
-    );
-    assert_eq!(text(field(dict(&answers[0]), "kind")), "value");
-    assert!(
-        value_of(&answers).starts_with("[0, \"single\""),
-        "{}",
-        value_of(&answers)
-    );
-    // `python3` named explicitly in the environment is an explicit interpreter (found on PATH): the stand-in owner runs
+    // a truthy `python` (any type) asks for the retired interpreter route: the named configuration error, nothing runs
+    for extra in [r#","python":"python3""#, r#","python":"/nonexistent/interpreter""#, r#","python":5"#] {
+        let answers = evaluate(&scratch, &[resolve_row(&scratch, extra)], &[]);
+        let answer = dict(&answers[0]);
+        assert_eq!(text(field(answer, "type")), "ResolveTopologyConfigurationError", "{extra}");
+        assert!(text(field(answer, "message")).contains("retired"), "{extra}");
+    }
+    // so does a non-empty RESOLVE_TOPOLOGY_PYTHON in the environment, `python3` included
     let answers = evaluate(
         &scratch,
         &[resolve_row(&scratch, "")],
         &[("RESOLVE_TOPOLOGY_PYTHON", Some("python3"))],
     );
-    assert!(
-        value_of(&answers).starts_with("[0, \"single\""),
-        "{}",
-        value_of(&answers)
-    );
-    // no environment value at all, falsy `python`: the DEFAULT is the native helper. The scratch checkout's owner is a stand-in
-    // program (not the reviewed topology_parity.py), so the project policy applies: the source-version compatibility route runs
-    // the checkout's own original program under the configured default interpreter (python3), and the answer is the stand-in's
-    let answers = evaluate(
-        &scratch,
-        &[resolve_row(&scratch, "")],
-        &[("RESOLVE_TOPOLOGY_PYTHON", None)],
-    );
-    assert!(
-        value_of(&answers).starts_with("[0, \"single\""),
-        "{}",
-        value_of(&answers)
-    );
-    // an explicit compatibility interpreter that cannot start: the helper names it and the resolver cannot judge (no fallback)
-    let answers = evaluate(
-        &scratch,
-        &[resolve_row(&scratch, "")],
-        &[
-            ("RESOLVE_TOPOLOGY_PYTHON", None),
-            ("RESOLVE_TOPOLOGY_COMPAT_PYTHON", Some(default_missing)),
-        ],
-    );
-    assert!(
-        value_of(&answers).starts_with("[5, null"),
-        "{}",
-        value_of(&answers)
-    );
-    assert!(
-        value_of(&answers).contains("the compatibility child did not complete (FileNotFoundError"),
-        "{}",
-        value_of(&answers)
-    );
-    // a truthy value that is not a string is the TypeError of the process start
-    let answers = evaluate(&scratch, &[resolve_row(&scratch, r#","python":5"#)], &[]);
-    let answer = dict(&answers[0]);
-    assert_eq!(text(field(answer, "type")), "TypeError");
-    assert_eq!(
-        text(field(answer, "message")),
-        "expected str, bytes or os.PathLike object, not int"
-    );
+    assert_eq!(text(field(dict(&answers[0]), "type")), "ResolveTopologyConfigurationError");
 }
 
 fn run_row(argv: &str, timeout: Option<&str>) -> String {

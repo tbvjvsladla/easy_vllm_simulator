@@ -252,28 +252,50 @@ pub fn key(value: &PyValue) -> String {
     value.dumps_ascii().unwrap_or_else(|e| format!("<{e}>"))
 }
 
-/// The interpreter the checks hand to the programs as the owner's (`RESOLVE_TOPOLOGY_PYTHON` of the run, else the
-/// first `python3` on `PATH`), as an absolute path.
-pub fn python() -> String {
-    if let Some(named) =
-        std::env::var_os("RESOLVE_TOPOLOGY_PYTHON").filter(|value| !value.is_empty())
-    {
-        return named.to_string_lossy().into_owned();
-    }
-    let search = std::env::var_os("PATH").unwrap_or_default();
-    std::env::split_paths(&search)
-        .map(|dir| dir.join("python3"))
-        .find(|candidate| candidate.is_file())
-        .expect("NOT_RUN: no python3 on PATH")
-        .to_string_lossy()
-        .into_owned()
+/// The check-only stand-in of the native parity helper for the frozen resolve cases (`RESOLVE_TOPOLOGY_PARITY_BIN`): it
+/// answers the declared `owner-response.json` of its working directory (stdout and stderr bytes as hex, the exit status) and
+/// records its argv in `owner-calls.json`, exactly as the frozen cases' former owner fixture (a Python program) did. It holds
+/// no verdict logic: the resolver's interpretation of the answer is what the cases check. Written once per test process.
+pub fn stub_helper() -> String {
+    use std::os::unix::fs::PermissionsExt;
+    static STUB: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    STUB.get_or_init(|| {
+        let dir = std::env::temp_dir().join(format!("resolve-topology-stub-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).expect("stub directory");
+        let path = dir.join("topology_parity_stub");
+        let body = r#"#!/bin/bash
+# CHECK-ONLY stand-in of the native parity helper (never installed): declared answer + argv record, no verdict logic.
+set -u
+here=$(pwd -P)
+resp=$(<owner-response.json)
+field() { local v=${resp#*\"$1\": \"}; printf '%s' "${v%%\"*}"; }
+rc=${resp#*\"rc\": }; rc=${rc%%[,\}]*}
+exact=false
+if [ "$#" -eq 5 ] && [ "$1" = evaluate ] && [ "$2" = --repo ] && [ "$3" = "$here" ] && [ "$4" = --format ] && [ "$5" = json ]; then exact=true; fi
+words=''
+for a in "$@"; do [ "$a" = "$here" ] && a='@ROOT@'; a=${a//\\/\\\\}; a=${a//\"/\\\"}; words+="${words:+, }\"$a\""; done
+printf '{"argv": [%s], "exact_argv": %s}' "$words" "$exact" > owner-calls.json
+hex() { local h=$1 out=''; while [ -n "$h" ]; do out+="\\x${h:0:2}"; h=${h:2}; done; printf '%b' "$out"; }
+hex "$(field stdout_hex)"
+hex "$(field stderr_hex)" >&2
+exit "$rc"
+"#;
+        let staged = dir.join("topology_parity_stub.tmp");
+        std::fs::write(&staged, body).expect("stub");
+        std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o755)).expect("mode");
+        std::fs::rename(&staged, &path).expect("stub in place");
+        path.to_string_lossy().into_owned()
+    })
+    .clone()
 }
 
-/// Both placeholders of the frozen cases replaced: the scratch root and the interpreter.
+/// The helper a frozen case's scratch tree is judged by: the stand-in when the case declares an owner answer
+/// (`owner-response.json`), else none (the real native helper next to the binary under test).
+pub fn helper_for(scratch: &Scratch) -> Option<String> {
+    scratch.root.join("owner-response.json").is_file().then(stub_helper)
+}
+
+/// The scratch root placeholder of the frozen cases replaced.
 pub fn fill(value: &PyValue, scratch: &Scratch) -> PyValue {
-    rebase(
-        &rebase(value, "@ROOT@", &scratch.text()),
-        "@PYTHON@",
-        &python(),
-    )
+    rebase(value, "@ROOT@", &scratch.text())
 }

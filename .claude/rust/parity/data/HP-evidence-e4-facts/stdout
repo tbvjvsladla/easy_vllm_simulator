@@ -1,0 +1,67 @@
+{"id": "r0", "kind": "value", "value": {"rc": 0, "stdout": "ok\n", "stderr": ""}}
+{"id": "r1", "kind": "value", "value": null}
+{"id": "r2", "kind": "value", "value": null}
+{"id": "r3", "kind": "value", "value": null}
+{"id": "r4", "kind": "value", "value": null}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": null}
+{"id": "r7", "kind": "value", "value": null}
+{"id": "r8", "kind": "value", "value": null}
+{"id": "r9", "kind": "value", "value": null}
+{"id": "r10", "kind": "value", "value": null}
+{"id": "r11", "kind": "value", "value": null}
+{"id": "r12", "kind": "value", "value": null}
+{"id": "r13", "kind": "value", "value": null}
+{"id": "r14", "kind": "value", "value": null}
+{"id": "r15", "kind": "value", "value": null}
+{"id": "r16", "kind": "value", "value": null}
+{"id": "r17", "kind": "value", "value": null}
+{"id": "r18", "kind": "value", "value": null}
+{"id": "r19", "kind": "value", "value": null}
+{"id": "r20", "kind": "value", "value": null}
+{"id": "r21", "kind": "value", "value": null}
+{"id": "r22", "kind": "value", "value": null}
+{"id": "r23", "kind": "value", "value": null}
+{"id": "r24", "kind": "value", "value": null}
+{"id": "r25", "kind": "value", "value": null}
+{"id": "r26", "kind": "value", "value": null}
+{"id": "r27", "kind": "value", "value": null}
+{"id": "r28", "kind": "value", "value": {"raw": 3, "source": "서빙 yaml speculative-config.num_speculative_tokens(Y · method=eagle)", "evidence": {"file": "Y", "key": "speculative-config.num_speculative_tokens", "value": "3"}}}
+{"id": "r29", "kind": "value", "value": {"source": "서빙 yaml speculative_config 가 JSON 이 아니다(Y)"}}
+{"id": "r30", "kind": "value", "value": {"source": "서빙 yaml speculative-config 에 num_speculative_tokens(≥1)가 없다(Y)"}}
+{"id": "r31", "kind": "value", "value": {"raw": null, "source": "서빙 yaml·러너에 speculative-config 부재 관측(Y)"}}
+{"id": "r32", "kind": "value", "value": {"source": ""}}
+{"id": "r33", "kind": "value", "value": null}
+{"id": "r34", "kind": "value", "value": {"source": "러너(output/single/configs/s.sh)가 speculative 인자를 CLI 로 넘긴다 — 파싱하지 않는다(이름을 추측하지 않는다)"}}
+{"id": "r35", "kind": "exception", "type": "HintError", "code": "HINT_SPEC_CONFLICT", "message": "speculative 설정이 yaml(Y)과 러너(output/single/configs/s.sh) 두 곳에 있다.", "remedy": null, "exit_code": 1}
+{"id": "r36", "kind": "value", "value": {"raw": "eager", "source": "서빙 yaml enforce-eager: true(Y)", "evidence": {"file": "Y", "key": "enforce-eager", "value": "yes"}}}
+{"id": "r37", "kind": "value", "value": {"raw": "graph", "source": "서빙 yaml enforce_eager: false(Y)", "evidence": {"file": "Y", "key": "enforce_eager", "value": "false"}}}
+{"id": "r38", "kind": "value", "value": {"source": "서빙 yaml enforce-eager='maybe' 를 참/거짓으로 읽지 못했다(Y)"}}
+{"id": "r39", "kind": "value", "value": null}
+{"id": "r40", "kind": "value", "value": {"raw": "eager", "source": "러너 --enforce-eager(output/single/configs/e.sh)", "evidence": {"file": "output/single/configs/e.sh", "key": "--enforce-eager", "value": "true"}}}
+{"id": "r41", "kind": "value", "value": {"raw": "eager", "source": "서빙 yaml compilation-config.cudagraph_mode=NONE(Y)", "evidence": {"file": "Y", "key": "compilation-config.cudagraph_mode", "value": "none"}}}
+{"id": "r42", "kind": "value", "value": {"source": "서빙 yaml compilation_config 가 JSON 이 아니다(Y)"}}
+{"id": "r43", "kind": "value", "value": {"raw": "graph", "source": "서빙 yaml enforce-eager 부재 관측(Y) → 엔진 기본값 cudagraph"}}
+{"id": "r44", "kind": "value", "value": {"source": ""}}
+{"id": "r45", "kind": "exception", "type": "HintError", "code": "HINT_PLE_CONFLICT", "message": "셀 env VLLM_PLE_MMAP=1(E) 인데 모델 config 에 PLE 키['ple_layer_ids', 'ple_embed_dim'] 가 없다(체크포인트).", "remedy": "PLE 없는 모델이면 셀 env 의 VLLM_PLE_MMAP 줄을 지우고 다시 측정한다 · PLE 모델이면 evidence._PLE_KEYS (tripwire 목록)에 그 형식의 키를 등재한다.", "exit_code": 1}
+{"id": "r46", "kind": "value", "value": {"raw": "resident", "source": "셀 env VLLM_PLE_MMAP='0'(부재/0 = stock resident · E) · 모델 PLE 실재(체크포인트)", "evidence": {"file": "E", "key": "VLLM_PLE_MMAP", "value": "0"}}}
+{"id": "r47", "kind": "value", "value": {"raw": "none", "source": "모델 config PLE 키['ple_layer_ids', 'ple_embed_dim'] 부재 관측(체크포인트)"}}
+{"id": "r48", "kind": "value", "value": {"raw": "offload", "source": "셀 config declared_axes.ple_mode(선언 · 모델 config 미관측)", "evidence": {"file": "campaigns/cx/cells/c1/config.yaml", "key": "declared_axes.ple_mode", "value": "offload"}}}
+{"id": "r49", "kind": "value", "value": {"source": "모델 config 미관측이라 PLE 실재를 판정하지 못했다(체크포인트) — env 에 mmap 도 없다"}}
+{"id": "r50", "kind": "value", "value": {"raw": "resident", "source": "셀 config declared_axes.ple_mode(선언 · 셀 env 부재)", "evidence": {"file": "campaigns/cx/cells/c1/config.yaml", "key": "declared_axes.ple_mode", "value": "resident"}}}
+{"id": "r51", "kind": "value", "value": {"raw": "mmap", "source": "sweep meta ple_mode(measured)"}}
+{"id": "r52", "kind": "exception", "type": "HintError", "code": "HINT_PLE_CONFLICT", "message": "PLE 축이 어긋난다: 파생='resident'(셀 config declared_axes.ple_mode(선언 · 셀 env 부재)) · 스윕 meta='mmap'", "remedy": "측정 때의 셀 env 로 되돌리거나 다시 측정한다.", "exit_code": 1}
+{"id": "r53", "kind": "value", "value": {"source": ""}}
+{"id": "r54", "kind": "value", "value": [null, "셀 config target_gpu.gpu_model 이 null — no-simulation-target-declared"]}
+{"id": "r55", "kind": "value", "value": ["H100", "캠페인 control_variables.target_gpu(선언)"]}
+{"id": "r56", "kind": "value", "value": [null, null]}
+{"id": "r57", "kind": "value", "value": [null, null]}
+{"id": "r58", "kind": "value", "value": [null, null]}
+{"id": "r59", "kind": "value", "value": [null, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]}
+{"id": "r60", "kind": "value", "value": [null, null]}
+{"id": "r61", "kind": "value", "value": null}
+{"id": "r62", "kind": "value", "value": null}
+{"id": "r63", "kind": "exception", "type": "HintError", "code": "HINT_VLLM_INPUT_CONFLICT", "message": "build ledger describe conflicts with measured image exact tag", "remedy": null, "exit_code": 1}
+{"id": "r64", "kind": "exception", "type": "HintError", "code": "HINT_VLLM_INPUT_CONFLICT", "message": "build ledger describe conflicts with measured image exact tag", "remedy": null, "exit_code": 1}
+{"id": "r65", "kind": "value", "value": "v0.8.1"}
+{"id": "r66", "kind": "value", "value": null}

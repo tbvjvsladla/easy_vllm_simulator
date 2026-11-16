@@ -1,0 +1,66 @@
+{"id": "r1", "kind": "value", "value": "1h02m03s"}
+{"id": "r2", "kind": "value", "value": "-1h02m03s"}
+{"id": "r3", "kind": "value", "value": "0m59s"}
+{"id": "r4", "kind": "value", "value": null}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": "1h02m03s"}
+{"id": "r7", "kind": "value", "value": null}
+{"id": "r8", "kind": "value", "value": true}
+{"id": "r9", "kind": "value", "value": true}
+{"id": "r10", "kind": "value", "value": true}
+{"id": "r11", "kind": "value", "value": false}
+{"id": "r12", "kind": "value", "value": false}
+{"id": "r13", "kind": "value", "value": true}
+{"id": "r14", "kind": "value", "value": true}
+{"id": "r15", "kind": "value", "value": false}
+{"id": "r16", "kind": "value", "value": true}
+{"id": "r17", "kind": "value", "value": false}
+{"id": "r18", "kind": "value", "value": false}
+{"id": "r19", "kind": "value", "value": "floor_mib=1.5 · mem_total_mib=122000(러너가 기동 시 잰 노드 MemTotal — 선언값 아님(blackbox_session declare-budget --mem-total-mib = /proc/meminfo MemTotal)) · existed=true · rule=eta ok"}
+{"id": "r20", "kind": "value", "value": "mem_total_mib=5 · ttl_s=false"}
+{"id": "r21", "kind": "value", "value": "mem_total_mib=7"}
+{"id": "r22", "kind": "value", "value": "라벨 다름: `smoke-z` — 같은 노드 · 이 셀 라벨(`c1`) 아님 · 창 밖에 남은 이 셀 행과 시간이 겹치는 선언 창이라 싣는다(셀 라벨 일치 집계에서 제외 · 이 라벨 분류는 세션·호출 기록의 귀속 확인과 별도)"}
+{"id": "r23", "kind": "value", "value": "라벨 다름: `None` — 같은 노드 · 이 셀 라벨(`c1`) 아님 · 창 밖에 남은 이 셀 행과 시간이 겹치는 선언 창이라 싣는다(셀 라벨 일치 집계에서 제외 · 이 라벨 분류는 세션·호출 기록의 귀속 확인과 별도)"}
+{"id": "r24", "kind": "value", "value": true}
+{"id": "r25", "kind": "value", "value": false}
+{"id": "r26", "kind": "value", "value": true}
+{"id": "r27", "kind": "value", "value": false}
+{"id": "r28", "kind": "value", "value": [{"label": "A", "open_kind": "budget_honored", "start_ts": "2026-01-01T00:00:00Z", "rows": [0, 1, 2, 3], "end_ts": "2026-01-01T00:07:00Z", "end_kind": "budget_clear(existed=false)"}, {"label": "B", "open_kind": "budget_declare", "start_ts": "2026-01-01T00:08:00Z", "rows": [4], "end_ts": "2026-01-01T00:09:00Z", "end_kind": "replaced(budget_declare)"}, {"label": "C", "open_kind": "budget_declare", "start_ts": "2026-01-01T00:09:00Z", "rows": [5, 6], "end_ts": null, "end_kind": "open"}]}
+{"id": "r29", "kind": "value", "value": [{"label": "A", "open_kind": "budget_honored", "start_ts": "2026-01-01T00:00:00Z", "rows": [0], "end_ts": "2026-01-01T00:04:00Z", "end_kind": "replaced(다른 스트림의 다른 라벨 선언 · 노드당 슬롯 1)"}, {"label": "B", "open_kind": "budget_declare", "start_ts": "2026-01-01T00:08:00Z", "rows": [4], "end_ts": "2026-01-01T00:09:00Z", "end_kind": "replaced(budget_declare)"}, {"label": "C", "open_kind": "budget_declare", "start_ts": "2026-01-01T00:09:00Z", "rows": [5, 6], "end_ts": null, "end_kind": "open"}]}
+{"id": "r30", "kind": "value", "value": [{"label": "A", "open_kind": "budget_honored", "start_ts": "2026-01-01T00:00:00Z", "rows": [0, 1, 2, 3], "end_ts": "2026-01-01T00:07:00Z", "end_kind": "budget_clear(existed=false)"}, {"label": "B", "open_kind": "budget_declare", "start_ts": "2026-01-01T00:08:00Z", "rows": [4], "end_ts": "2026-01-01T00:09:00Z", "end_kind": "replaced(budget_declare)"}, {"label": "C", "open_kind": "budget_declare", "start_ts": "2026-01-01T00:09:00Z", "rows": [5, 6], "end_ts": null, "end_kind": "open"}]}
+{"id": "r31", "kind": "value", "value": []}
+{"id": "r32", "kind": "value", "value": [{"utc": "2026-01-01T00:00:01Z", "node": null, "kind": "measurement", "detail": "m", "source": "y:2"}, {"utc": "2026-01-01T00:00:05Z", "node": "main", "kind": "watchdog_trip", "detail": "b · 같은 사건의 다른 스트림 사본 x/b.jsonl:3(한 번으로 싣는다)", "source": "x/a.jsonl:10"}, {"utc": "2026-01-01T00:00:05Z", "node": "main", "kind": "watchdog_trip", "detail": "c", "source": "x/a.jsonl:11"}, {"utc": null, "node": "main", "kind": "ledger_unparsable_lines", "detail": "u", "source": "x/a.jsonl"}]}
+{"id": "r33", "kind": "value", "value": [false, "2026-01-01T00:00:05Z", "main", "x/b.jsonl", 3]}
+{"id": "r34", "kind": "value", "value": [true, "", "", "plain", 0]}
+{"id": "r35", "kind": "value", "value": [true, "", "", "", 0]}
+{"id": "r36", "kind": "value", "value": [{"utc": "2026-01-01T00:00:05Z", "node": "main", "kind": "watchdog_trip", "detail": "a", "source": "x/b.jsonl:3", "campaign_scope": "this-campaign"}, {"utc": null, "node": "main", "kind": "ledger_unparsable_lines", "detail": "u", "source": "x/a.jsonl"}, {"utc": "2026-01-01T00:00:05Z", "node": "main", "kind": "watchdog_trip", "detail": "b", "source": "x/a.jsonl:10", "campaign_scope": "this-campaign"}, {"utc": "2026-01-01T00:00:05Z", "node": "main", "kind": "watchdog_trip", "detail": "c", "source": "x/a.jsonl:11", "campaign_scope": "this-campaign"}, {"utc": "2026-01-01T00:00:01Z", "node": null, "kind": "measurement", "detail": "m · 캠페인 선언 전 · 같은 셀 기동(캠페인 경계 2026-01-01T00:00:03Z 이전이나 세션 serve-c1 이 이 셀 기록 docs/simlog/r/a.log:1 에 관측 — 이 셀의 시도로 센다)", "source": "y:2", "campaign_scope": "same-cell-pre-boundary"}]}
+{"id": "r37", "kind": "value", "value": [{"utc": "2026-01-01T00:00:05Z", "node": "main", "kind": "watchdog_trip", "detail": "a", "source": "x/b.jsonl:3"}, {"utc": null, "node": "main", "kind": "ledger_unparsable_lines", "detail": "u", "source": "x/a.jsonl"}, {"utc": "2026-01-01T00:00:05Z", "node": "main", "kind": "watchdog_trip", "detail": "b", "source": "x/a.jsonl:10"}, {"utc": "2026-01-01T00:00:05Z", "node": "main", "kind": "watchdog_trip", "detail": "c", "source": "x/a.jsonl:11"}, {"utc": "2026-01-01T00:00:01Z", "node": null, "kind": "measurement", "detail": "m", "source": "y:2"}]}
+{"id": "r38", "kind": "value", "value": [{"utc": "2026-01-01T00:00:05Z", "node": "main", "kind": "watchdog_trip", "detail": "a", "source": "x/b.jsonl:3", "campaign_scope": "this-campaign"}, {"utc": null, "node": "main", "kind": "ledger_unparsable_lines", "detail": "u", "source": "x/a.jsonl"}, {"utc": "2026-01-01T00:00:05Z", "node": "main", "kind": "watchdog_trip", "detail": "b", "source": "x/a.jsonl:10", "campaign_scope": "this-campaign"}, {"utc": "2026-01-01T00:00:05Z", "node": "main", "kind": "watchdog_trip", "detail": "c", "source": "x/a.jsonl:11", "campaign_scope": "this-campaign"}, {"utc": "2026-01-01T00:00:01Z", "node": null, "kind": "measurement", "detail": "m · 같은 셀 이름 · 앞선 캠페인(캠페인 경계 2026-01-01T00:00:03Z 이전 — 이 셀의 시도로 세지 않는다)", "source": "y:2", "campaign_scope": "prior-campaign"}]}
+{"id": "r39", "kind": "value", "value": {"utc": "2026-01-01T00:00:03Z", "observed": true, "campaign_id": "camp-x", "source": "s · 단 이전 기동 중 1건은 캠페인 선언 전 · 같은 셀 기동(세션 id 가 이 셀 기록에 관측: serve-c1 = docs/simlog/r/a.log:1)", "same_cell_sessions": [{"session": "serve-c1", "start": "2026-01-01T00:00:00Z", "end": "2026-01-01T00:00:02Z", "source": "docs/simlog/r/a.log:1"}]}}
+{"id": "r40", "kind": "value", "value": {"utc": "2026-01-01T00:00:03Z", "observed": true, "campaign_id": "camp-x", "source": "s"}}
+{"id": "r41", "kind": "value", "value": {"status": "unobserved", "id": null, "source": "미관측(스윕 색인 없음)"}}
+{"id": "r42", "kind": "value", "value": {"status": "unobserved", "id": null, "source": "미관측(스윕 색인에 bench_knobs 없음 — 측정 시점 캠페인 해소 기록 부재)"}}
+{"id": "r43", "kind": "value", "value": {"status": "in-campaign", "id": "camp-a", "source": "output/single/benchlog/sweep_x/sweep_index.json bench_knobs.campaign(측정 시점 활성 캠페인 · bench_preset)"}}
+{"id": "r44", "kind": "value", "value": {"status": "outside", "id": "_bootstrap", "source": "output/single/benchlog/sweep_x/sweep_index.json bench_knobs.campaign = null · campaign_pins_note '활성 캠페인 없음(_bootstrap)'(측정 시점 ACTIVE 해소 · repeat_axis)"}}
+{"id": "r45", "kind": "value", "value": {"status": "unobserved", "id": null, "source": "미관측(output/single/benchlog/sweep_x/sweep_index.json bench_knobs.campaign='_bootstrap' · campaign_pins_note='x' — 알려진 모양 밖)"}}
+{"id": "r46", "kind": "value", "value": {"status": "unobserved", "id": null, "source": "미관측(output/single/benchlog/sweep_x/sweep_index.json bench_knobs.campaign=None · campaign_pins_note=None — 알려진 모양 밖)"}}
+{"id": "r47", "kind": "value", "value": {"kind": "none", "phrase": "캠페인 모드", "reason": null, "source": "캠페인 인스턴스 실재", "instances": []}}
+{"id": "r48", "kind": "value", "value": {"kind": "purged", "phrase": "캠페인 purge", "instances": [], "reason": "측정 캠페인 camp-a 의 인스턴스를 읽지 않았다(output/single/benchlog/sweep_x/sweep_index.json bench_knobs.campaign(측정 시점 활성 캠페인 · bench_preset))", "source": "output/single/benchlog/sweep_x/sweep_index.json bench_knobs.campaign(측정 시점 활성 캠페인 · bench_preset)"}}
+{"id": "r49", "kind": "value", "value": {"kind": "outside", "phrase": "캠페인 밖 측정(측정 시점 ACTIVE=_bootstrap · 이 측정의 캠페인 인스턴스 없음)", "instances": [], "reason": "캠페인 밖 측정 — purge 된 인스턴스가 아니라 이 측정의 인스턴스는 애초에 없다(output/single/benchlog/sweep_x/sweep_index.json bench_knobs.campaign = null · campaign_pins_note '활성 캠페인 없음(_bootstrap)'(측정 시점 ACTIVE 해소 · repeat_axis))", "source": "output/single/benchlog/sweep_x/sweep_index.json bench_knobs.campaign = null · campaign_pins_note '활성 캠페인 없음(_bootstrap)'(측정 시점 ACTIVE 해소 · repeat_axis)"}}
+{"id": "r50", "kind": "value", "value": {"kind": "purged", "phrase": "캠페인 purge", "reason": null, "source": "미관측(스윕 색인 없음)", "instances": []}}
+{"id": "r51", "kind": "value", "value": {"utc": null, "observed": false, "campaign_id": null, "source": "재생 모드(캠페인 purge) — 캠페인 선언을 관측하지 못한다 · 경계 미관측 — 라벨(셀 이름)로 묶은 행 전부를 이 셀의 행으로 센다(같은 셀 이름의 앞선 캠페인 행이 섞였을 수 있다)"}}
+{"id": "r52", "kind": "value", "value": {"utc": null, "observed": false, "campaign_id": "camp-a", "source": "캠페인 선언 declared_utc · 측정을 서빙한 선언 창 모두 미관측 · 경계 미관측 — 라벨(셀 이름)로 묶은 행 전부를 이 셀의 행으로 센다(같은 셀 이름의 앞선 캠페인 행이 섞였을 수 있다)"}}
+{"id": "r53", "kind": "value", "value": {"utc": "2026-09-01T00:00:00Z", "observed": true, "campaign_id": "camp-a", "source": "campaigns/camp-a/campaign.yaml declared_utc 2026-09-01T01:02:03Z · 이 발행이 묶인 측정을 서빙한 budget_declare 창 시작 2026-09-01T00:00:00Z → 경계 = 앞선 값 2026-09-01T00:00:00Z(이전 행 = 같은 셀 이름 · 앞선 캠페인)"}}
+{"id": "r54", "kind": "value", "value": {"utc": "2026-09-01T01:02:03Z", "observed": true, "campaign_id": "camp-a", "source": "이 발행이 묶인 측정을 서빙한 budget_declare 창 시작 2026-09-01T01:02:03Z → 경계 = 앞선 값 2026-09-01T01:02:03Z(이전 행 = 같은 셀 이름 · 앞선 캠페인)"}}
+{"id": "r55", "kind": "value", "value": "1970-01-01T00:00:00Z"}
+{"id": "r56", "kind": "value", "value": "2026-09-21T14:13:20Z"}
+{"id": "r57", "kind": "value", "value": "guidellm"}
+{"id": "r58", "kind": "value", "value": "vllm-bench-serve"}
+{"id": "r59", "kind": "value", "value": null}
+{"id": "r60", "kind": "value", "value": null}
+{"id": "r61", "kind": "value", "value": 3}
+{"id": "r62", "kind": "value", "value": 4}
+{"id": "r63", "kind": "value", "value": null}
+{"id": "r64", "kind": "value", "value": null}
+{"id": "r65", "kind": "value", "value": []}
+{"id": "r66", "kind": "exception", "type": "HintError", "code": "HINT_DRAFT_REQUIRED", "message": "tool_snapshots 는 draft 디렉터리가 필요하다(스냅숏은 draft/inputs/sources 에만 쓴다).", "remedy": null, "exit_code": 1}

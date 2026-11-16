@@ -30,7 +30,7 @@
   → **에이전트 무인 sudo 실행 ✗**(실행 주체는 사람). dry-run 선행으로 무엇을·왜·트레이드오프를 고지한다.
   **L3 를 포함하면 채팅이 아니라 `docs/request/` 수행지시서로 위임한다(§2.6.1).**
   - **레벨**(재부팅 필요 여부가 자연 경계 · 배치와 활성화는 분리 — 파일·유닛은 레벨 무관하게 항상 도착):
-    - `L1` **무재부팅** — 수집기(1초 샘플) · **ETA 워치독**(RAM 축) · **열·전력 워치독**(`thermal_watchdog.sh` + 상수 emit `blackbox_thermal.py` → 유닛 `easy-vllm-blackbox-thermal` · 누설 버킷 지속성 판정 · hard-lockup 예방) · 이벤트 통합 · 로그 수명 집행 · sudoers 단일 헬퍼(`vllm-drop-caches` 경로 1개만 NOPASSWD) · **earlyoom**(프로세스-레벨 최후선 — 빌드 평면까지 커버)
+    - `L1` **무재부팅** — 수집기(1초 샘플) · **ETA 워치독**(RAM 축) · **열·전력 워치독**(`thermal_watchdog.sh` + 상수 emit `blackbox_thermal.sh`(Rust) → 유닛 `easy-vllm-blackbox-thermal` · 누설 버킷 지속성 판정 · hard-lockup 예방) · 이벤트 통합 · 로그 수명 집행 · sudoers 단일 헬퍼(`vllm-drop-caches` 경로 1개만 NOPASSWD) · **earlyoom**(프로세스-레벨 최후선 — 빌드 평면까지 커버)
     - `L2` **무재부팅·peer 필요** — netconsole 교차 스트리밍(**multi 전용** · single 은 `N/A` 로 정직 기록)
     - `L3` **재부팅 1회** — 사후 포착 = **efi_pstore** 확보. **crashkernel(2.25 GiB 예약)·ramoops 를 설정하는 게 아니라 제거한다.**
   - **검증(결정론)**: `bash .claude/skills/terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh --check`.
@@ -56,7 +56,7 @@
 - **③ N 분기(미설치·opt-out)**: 서빙은 정상 진행. manifest `host_safety.installed: false` 로 기록한다. 재권유는 **세션당 1회 이하**.
   - **통합메모리 노드 한정 후속 경고**: opt-out + 통합메모리(GPU OOM=호스트 하드다운 위험) 노드는, 이후 서빙 기동 직전 **에이전트 채팅창 1줄** 안내만 한다("워치독 미설치 상태 — 통합메모리라 OOM 시 호스트 다운 위험, `install_node_blackbox.sh` 로 언제든 보강 가능"). **serve 스크립트/로그 배너 코드변경 ✗**(시끄러운 경험 방지 — D31·NG-5). **discrete GPU 노드는 무경고.**
 - **④ 파급 정밀화(opt-out 이어도 보호 일부 유지)**: 하네스 **협역 워치독**(`run_trial`·`multinode_serve_smoke.sh` 자동 기동)은 레포 내장 스크립트라 **설치와 무관하게 계속 작동**(opt-out 사용자도 trial 중 보호 유지). 로드-전 RAM 게이트(⑤.5)의 `vllm-drop-caches` 자동 드랍만 헬퍼 부재로 skip 되며, 게이트는 이를 **음성정직으로 보고**(드랍 없이 재측정 → 부족 시 기동 거부 exit 7 유지 — `preload_ram_gate.try_drop_caches` 기구현 graceful).
-- **⑤ 멀티노드 변형**: 양노드(메인+서브) 각각 동일 Y/N. **서브 설치는 렌더 배달분**(`.claude/runtime/node_blackbox/install_node_blackbox.sh` — `render_sub_env.py` §4.6 이 `node_identity.sh` 를 포함해 배달한다)으로 **서브에서 사용자가 실행**(A2A 경계 — 메인 sudo 대행 ✗). manifest `nodes[].host_safety.installed` 로 **노드별 독립** 기록. **L2(netconsole)는 멀티에서만 성립**하므로 양노드 peer 지정이 필요하다.
+- **⑤ 멀티노드 변형**: 양노드(메인+서브) 각각 동일 Y/N. **서브 설치는 렌더 배달분**(`.claude/runtime/node_blackbox/install_node_blackbox.sh` — `render_sub_env.sh` §4.6 이 `node_identity.sh` 를 포함해 배달한다)으로 **서브에서 사용자가 실행**(A2A 경계 — 메인 sudo 대행 ✗). manifest `nodes[].host_safety.installed` 로 **노드별 독립** 기록. **L2(netconsole)는 멀티에서만 성립**하므로 양노드 peer 지정이 필요하다.
 
 ### 2.6.1 노드블랙박스 설치 — `docs/request/` 수행지시서로 위임 (2026-08-18 신설 · `plan_26081716`)
 
@@ -67,12 +67,12 @@
   나열하는 대신 **수행지시서를 발행**한다:
 
   ```bash
-  python3 .claude/skills/terraforming_node/scripts/node_blackbox/publish_install_request.py \
+  bash .claude/skills/terraforming_node/scripts/node_blackbox/publish_install_request.sh \
       --generated-utc <YYYY-MM-DDTHH:MM:SSZ> --level L3   # --topology 는 manifest 에서 읽는다
   ```
 
   → `docs/request/request_<YYMMDDHH>_노드블랙박스_L3_설치_수행절차.md`(명명은 `doc_naming` 결정론).
-  **시각은 주입 전용이다**(벽시계 금지 — `staleness_gate.py --max-age-days` 선례). 발행기는 설치자·
+  **시각은 주입 전용이다**(벽시계 금지 — `staleness_gate.sh --max-age-days` 선례). 발행기는 설치자·
   검증기의 인터페이스를 실물 대조하고 어긋나면 **fail-closed**(exit 3)로 죽는다 — 낡은 지시서를
   내지 않는다.
 - **왜 문서인가**: L3 는 재부팅을 요구하는데 **에이전트는 그 호스트 위에서 돈다.** 재부팅과 함께
@@ -106,15 +106,15 @@
   | 자산 | 상태 | 소유·호출자 |
   |---|---|---|
   | `node_blackbox/install_node_blackbox.sh` · `verify_node_blackbox.sh` | **현행 설치자·검증기**(L1/L2/L3) | §2.6 Y 분기 · HITL sudo |
-  | `node_blackbox/publish_install_request.py` | **현행** — L3 지시서 발행 | §2.6.1 |
-  | `node_blackbox/mem_watchdog_eta.sh`(RAM) · `thermal_watchdog.sh`(열·전력) · `blackbox_*.py` · `logs_lifecycle.py` · `regen_envelope.py` · `node_identity.sh` | **현행** — systemd 상시층·데이터 평면 | 설치자가 배치 |
-  | `node_blackbox/agent_guard.py` | **현행** — 3단 응답의 1단(에이전트 예방 트리거 · 데몬 SIGKILL 보다 앞서 개입) | 서빙 중 에이전트 |
+  | `node_blackbox/publish_install_request.sh`(Rust) | **현행** — L3 지시서 발행 | §2.6.1 |
+  | `node_blackbox/mem_watchdog_eta.sh`(RAM) · `thermal_watchdog.sh`(열·전력) · `blackbox_*.sh`(Rust) · `logs_lifecycle.sh`(Rust) · `regen_envelope.sh`(Rust) · `node_identity.sh` | **현행** — systemd 상시층·데이터 평면 | 설치자가 배치 |
+  | `node_blackbox/agent_guard.sh`(Rust) | **현행** — 3단 응답의 1단(에이전트 예방 트리거 · 데몬 SIGKILL 보다 앞서 개입) | 서빙 중 에이전트 |
   | `node_blackbox/budget_renew_loop.sh` | **현행** — 상주 서빙의 예산 선언 갱신 사이드카 | `single_serve_up.sh` · `multinode_serve_smoke.sh` |
-  | `node_blackbox/adversarial_stress.py` | **시험용 가압기** — 방어층 발동 시험(벤치마커 ✗) | 사람 지시 시험 |
-  | `node_blackbox/seed_from_journal.py` | **Phase 0 수확기** — 레거시 저널 → `docs/logs/<node>/seed/` | 안전체계 제거 전 1회 |
+  | `node_blackbox/adversarial_stress.sh`(Rust · 원본 `.py` 보존) | **시험용 가압기** — 방어층 발동 시험(벤치마커 ✗) | 사람 지시 시험 |
+  | `node_blackbox/seed_from_journal.sh`(Rust · 원본 `.py` 보존) | **Phase 0 수확기** — 레거시 저널 → `docs/logs/<node>/seed/` | 안전체계 제거 전 1회 |
   | `host_safety/mem_watchdog.sh` | ★ **정본으로 유지** — **협역(harness-scoped) 워치독**. `policy:HOST_SAFETY_LAYERED_DEFENSE.C1` 이 요구하는 계층이며, `multinode_serve_smoke.sh:274-276` 이 이를 *canonical* 로 부르고 **부재 시 exit 2** 로 죽는다 | `run_trial` · `multinode_serve_smoke.sh` 가 자동 기동 |
   | `host_safety/install_host_safety.sh` · `install_netconsole.sh` · `systemd/` · `host/` | **승계됨**(`plan_26073109`) | 잔재는 `node_blackbox/purge_host_safety.sh --require-seed` 로 제거 |
 
-  - 서브 materialization: 블랙박스 = `.claude/runtime/node_blackbox/` · 협역 워치독 = `.claude/runtime/host_safety/mem_watchdog.sh`(둘 다 `render_sub_env.py` 가 배달).
+  - 서브 materialization: 블랙박스 = `.claude/runtime/node_blackbox/` · 협역 워치독 = `.claude/runtime/host_safety/mem_watchdog.sh`(둘 다 `render_sub_env.sh` 가 배달).
   - ⚠ **`--keep-up` 상주 서빙 중에는 협역 워치독이 `PPID=1` 로 떠 있는 것이 정상이다** — 스모크 스크립트가 워치독만 남기고 종료하는 설계다. **`docker ps` 로 그 필터에 매칭되는 실행 중 컨테이너가 있으면 좀비가 아니다.** 정리는 `--down`(정식 teardown 5단계) 또는 `reap_stale_watchdogs` 가 하며, **손으로 `kill` 하면 살아 있는 서빙의 보호층이 사라진다.**
   - 근거 = `plan_26071019`(계층 방어) · `plan_26073109`(블랙박스 승격) · `testlog_26073113`(kdump 반증).

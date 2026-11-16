@@ -28,7 +28,7 @@
 #
 # 사용: thermal_watchdog.sh [name_filter|@vllm] [interval_sec]
 #   '@vllm' 광역 모드의 킬 대상 술어는 BB_TARGET_PREDICATE_V1 블록이 소유한다(세 워치독 공유).
-# env : BB_TP_PARAMS  (기본 /etc/easy-vllm/thermal_params.env — blackbox_thermal.py --emit-params)
+# env : BB_TP_PARAMS  (기본 /etc/easy-vllm/thermal_params.env — blackbox_thermal.sh --emit-params)
 #       BB_TP_NODE_DIR(수집기 CSV 루트. 기본 = BB_TP_EVENTS 의 조부모)
 #       BB_TP_EVENTS  (지정 시 트립/킬 이벤트를 JSONL append — 블랙박스 events 평면)
 #       BB_TP_THERMAL_ROOT (기본 /sys/class/thermal)

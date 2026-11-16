@@ -1,0 +1,817 @@
+[
+ {
+  "name": "once-normal",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--once"
+  ],
+  "mem": [
+   80000
+  ],
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=300s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=(부재 — 계약 기본값)\n[agent-guard] --once: level=NORMAL mem=80000MiB eta=inf\n",
+  "stderr": "",
+  "rc": 0,
+  "files": {},
+  "calls": []
+ },
+ {
+  "name": "once-env",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--once"
+  ],
+  "mem": [
+   80000
+  ],
+  "setup": {
+   "n/envelope.json": "{\"eta_params\": {\"agent_act_s\": 120.0, \"agent_notify_s\": 400, \"kill_latency_s\": 4.0}, \"kill\": {\"latency_s\": {\"max\": 6.0}}, \"derived\": {\"abs_band_mib\": 10240, \"abs_band_source\": \"default:x\"}}"
+  },
+  "stdout": "[agent-guard] 계약 로드: notify=400s act=120s daemon_kill=4s kill_thresh=10240MiB kill_lat_max=6s  src=n/envelope.json\n[agent-guard] --once: level=NORMAL mem=80000MiB eta=inf\n",
+  "stderr": "",
+  "rc": 0,
+  "files": {},
+  "calls": []
+ },
+ {
+  "name": "once-env-partial",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--once"
+  ],
+  "mem": [
+   80000
+  ],
+  "setup": {
+   "n/envelope.json": "{\"eta_params\": {\"agent_act_s\": 200}}"
+  },
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=200s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=n/envelope.json (⚠ 미해소 키: agent_notify_s,daemon_kill_s,kill_latency_max_s,kill_threshold_mib → 리터럴 기본값)\n[agent-guard] --once: level=NORMAL mem=80000MiB eta=inf\n",
+  "stderr": "[agent-guard] WARN: envelope 에 계약 키 agent_notify_s,daemon_kill_s,kill_latency_max_s,kill_threshold_mib 가 없어 리터럴 기본값을 쓴다 — regen_envelope 스키마와 이 소비자가 갈라졌다.\n",
+  "rc": 0,
+  "files": {},
+  "calls": []
+ },
+ {
+  "name": "once-env-broken",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--once"
+  ],
+  "mem": [
+   80000
+  ],
+  "setup": {
+   "n/envelope.json": "{x"
+  },
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=300s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=(부재 — 계약 기본값)\n[agent-guard] --once: level=NORMAL mem=80000MiB eta=inf\n",
+  "stderr": "",
+  "rc": 0,
+  "files": {},
+  "calls": []
+ },
+ {
+  "name": "ramp-act-last",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--stop-file",
+   "stop.flag",
+   "--container",
+   "vllm-x",
+   "--drop-caches-helper",
+   "/opt/h"
+  ],
+  "mem": [
+   60000,
+   55000,
+   50000,
+   45000,
+   40000,
+   35000,
+   30000,
+   25000,
+   20000,
+   15000,
+   12000,
+   11000,
+   10500,
+   10000,
+   9000
+  ],
+  "runs": {
+   "sudo": [
+    0,
+    "dropped\n",
+    ""
+   ],
+   "docker": [
+    0,
+    "vllm-x\n",
+    ""
+   ]
+  },
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=300s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=(부재 — 계약 기본값)\n[agent-guard] 준위 NORMAL → NOTIFY  mem=45000MiB rate=5000.0 eta=7.0s  2026-08-01T00:00:03Z\n[agent-guard] 준위 NOTIFY → ACT  mem=30000MiB rate=5000.0 eta=4.0s  2026-08-01T00:00:06Z\n[agent-guard] 행동 halt_load ok=True stop.flag\n[agent-guard] 준위 ACT → LAST_RESORT  mem=15000MiB rate=5000.0 eta=1.0s  2026-08-01T00:00:09Z\n[agent-guard] LAST_RESORT graceful_stop ok=True vllm-x\n",
+  "stderr": "",
+  "rc": 3,
+  "files": {
+   "n/events/2026-08.jsonl": "{\"arm_ceiling_mib\": null, \"eta_s\": 7.0, \"kind\": \"agent_level\", \"level\": \"NOTIFY\", \"mem_avail_mib\": 45000, \"prev\": \"NORMAL\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:03Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 4.0, \"kind\": \"agent_level\", \"level\": \"ACT\", \"mem_avail_mib\": 30000, \"prev\": \"NOTIFY\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:06Z\"}\n{\"action\": \"halt_load\", \"detail\": \"stop.flag\", \"kind\": \"agent_action\", \"level\": \"ACT\", \"mem_avail_mib\": 30000, \"ok\": true, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:06Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 1.0, \"kind\": \"agent_level\", \"level\": \"LAST_RESORT\", \"mem_avail_mib\": 15000, \"prev\": \"ACT\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:09Z\"}\n{\"action\": \"graceful_stop\", \"detail\": \"vllm-x\", \"eta_s\": 1.0, \"kind\": \"agent_last_resort\", \"mem_avail_mib\": 15000, \"ok\": true, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:09Z\"}\n",
+   "stop.flag": "halted by agent_guard\n"
+  },
+  "calls": [
+   [
+    "docker",
+    "stop",
+    "-t",
+    "30",
+    "vllm-x",
+    90
+   ]
+  ]
+ },
+ {
+  "name": "ramp-failures",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--stop-file",
+   "nodir/stop.flag",
+   "--container",
+   "c1"
+  ],
+  "mem": [
+   60000,
+   55000,
+   50000,
+   45000,
+   40000,
+   35000,
+   30000,
+   25000,
+   20000,
+   15000,
+   12000,
+   11000,
+   10500,
+   10000,
+   9000
+  ],
+  "runs": {
+   "sudo": [
+    1,
+    "",
+    "sudo: a password is required\n"
+   ],
+   "docker": "oserror"
+  },
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=300s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=(부재 — 계약 기본값)\n[agent-guard] 준위 NORMAL → NOTIFY  mem=45000MiB rate=5000.0 eta=7.0s  2026-08-01T00:00:03Z\n[agent-guard] 준위 NOTIFY → ACT  mem=30000MiB rate=5000.0 eta=4.0s  2026-08-01T00:00:06Z\n[agent-guard] 행동 halt_load ok=False [Errno 2] No such file or directory: 'nodir/stop.flag'\n[agent-guard] 준위 ACT → LAST_RESORT  mem=15000MiB rate=5000.0 eta=1.0s  2026-08-01T00:00:09Z\n[agent-guard] LAST_RESORT graceful_stop ok=False [Errno 2] No such file or directory: 'docker'\n",
+  "stderr": "",
+  "rc": 3,
+  "files": {
+   "n/events/2026-08.jsonl": "{\"arm_ceiling_mib\": null, \"eta_s\": 7.0, \"kind\": \"agent_level\", \"level\": \"NOTIFY\", \"mem_avail_mib\": 45000, \"prev\": \"NORMAL\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:03Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 4.0, \"kind\": \"agent_level\", \"level\": \"ACT\", \"mem_avail_mib\": 30000, \"prev\": \"NOTIFY\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:06Z\"}\n{\"action\": \"halt_load\", \"detail\": \"[Errno 2] No such file or directory: 'nodir/stop.flag'\", \"kind\": \"agent_action\", \"level\": \"ACT\", \"mem_avail_mib\": 30000, \"ok\": false, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:06Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 1.0, \"kind\": \"agent_level\", \"level\": \"LAST_RESORT\", \"mem_avail_mib\": 15000, \"prev\": \"ACT\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:09Z\"}\n{\"action\": \"graceful_stop\", \"detail\": \"[Errno 2] No such file or directory: 'docker'\", \"eta_s\": 1.0, \"kind\": \"agent_last_resort\", \"mem_avail_mib\": 15000, \"ok\": false, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:09Z\"}\n"
+  },
+  "calls": [
+   [
+    "docker",
+    "stop",
+    "-t",
+    "30",
+    "c1",
+    90
+   ]
+  ]
+ },
+ {
+  "name": "ramp-timeout",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--container",
+   "c1",
+   "--grace-s",
+   "5"
+  ],
+  "mem": [
+   60000,
+   55000,
+   50000,
+   45000,
+   40000,
+   35000,
+   30000,
+   25000,
+   20000,
+   15000,
+   12000,
+   11000,
+   10500,
+   10000,
+   9000
+  ],
+  "runs": {
+   "sudo": "timeout",
+   "docker": "timeout"
+  },
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=300s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=(부재 — 계약 기본값)\n[agent-guard] 준위 NORMAL → NOTIFY  mem=45000MiB rate=5000.0 eta=7.0s  2026-08-01T00:00:03Z\n[agent-guard] 준위 NOTIFY → ACT  mem=30000MiB rate=5000.0 eta=4.0s  2026-08-01T00:00:06Z\n[agent-guard] 행동 halt_load ok=False stop-file 미지정 — 건너뜀\n[agent-guard] 준위 ACT → LAST_RESORT  mem=15000MiB rate=5000.0 eta=1.0s  2026-08-01T00:00:09Z\n[agent-guard] LAST_RESORT graceful_stop ok=False Command '['docker', 'stop', '-t', '5', 'c1']' timed out after 65 seconds\n",
+  "stderr": "",
+  "rc": 3,
+  "files": {
+   "n/events/2026-08.jsonl": "{\"arm_ceiling_mib\": null, \"eta_s\": 7.0, \"kind\": \"agent_level\", \"level\": \"NOTIFY\", \"mem_avail_mib\": 45000, \"prev\": \"NORMAL\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:03Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 4.0, \"kind\": \"agent_level\", \"level\": \"ACT\", \"mem_avail_mib\": 30000, \"prev\": \"NOTIFY\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:06Z\"}\n{\"action\": \"halt_load\", \"detail\": \"stop-file 미지정 — 건너뜀\", \"kind\": \"agent_action\", \"level\": \"ACT\", \"mem_avail_mib\": 30000, \"ok\": false, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:06Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 1.0, \"kind\": \"agent_level\", \"level\": \"LAST_RESORT\", \"mem_avail_mib\": 15000, \"prev\": \"ACT\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:09Z\"}\n{\"action\": \"graceful_stop\", \"detail\": \"Command '['docker', 'stop', '-t', '5', 'c1']' timed out after 65 seconds\", \"eta_s\": 1.0, \"kind\": \"agent_last_resort\", \"mem_avail_mib\": 15000, \"ok\": false, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:09Z\"}\n"
+  },
+  "calls": [
+   [
+    "docker",
+    "stop",
+    "-t",
+    "5",
+    "c1",
+    65
+   ]
+  ]
+ },
+ {
+  "name": "ramp-dry-maxs",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--dry-run",
+   "--max-s",
+   "12",
+   "--container",
+   "c"
+  ],
+  "mem": [
+   60000,
+   55000,
+   50000,
+   45000,
+   40000,
+   35000,
+   30000,
+   25000,
+   20000,
+   15000,
+   12000,
+   11000,
+   10500,
+   10000,
+   9000,
+   9000,
+   9000,
+   9000,
+   9000,
+   9000
+  ],
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=300s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=(부재 — 계약 기본값)\n[agent-guard] 준위 NORMAL → NOTIFY  mem=45000MiB rate=5000.0 eta=7.0s  2026-08-01T00:00:03Z\n[agent-guard] 준위 NOTIFY → ACT  mem=30000MiB rate=5000.0 eta=4.0s  2026-08-01T00:00:06Z\n[agent-guard] 준위 ACT → LAST_RESORT  mem=15000MiB rate=5000.0 eta=1.0s  2026-08-01T00:00:09Z\n[agent-guard] --max-s 도달 — 종료(마지막 준위=LAST_RESORT)\n",
+  "stderr": "",
+  "rc": 0,
+  "files": {
+   "n/events/2026-08.jsonl": "{\"arm_ceiling_mib\": null, \"eta_s\": 7.0, \"kind\": \"agent_level\", \"level\": \"NOTIFY\", \"mem_avail_mib\": 45000, \"prev\": \"NORMAL\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:03Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 4.0, \"kind\": \"agent_level\", \"level\": \"ACT\", \"mem_avail_mib\": 30000, \"prev\": \"NOTIFY\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:06Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 1.0, \"kind\": \"agent_level\", \"level\": \"LAST_RESORT\", \"mem_avail_mib\": 15000, \"prev\": \"ACT\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:09Z\"}\n"
+  },
+  "calls": []
+ },
+ {
+  "name": "ramp-no-targets",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--debounce-n",
+   "1",
+   "--rate-window",
+   "3"
+  ],
+  "mem": [
+   60000,
+   55000,
+   50000,
+   45000,
+   40000,
+   35000,
+   30000,
+   25000,
+   20000,
+   15000,
+   12000,
+   11000,
+   10500,
+   10000,
+   9000
+  ],
+  "runs": {
+   "sudo": [
+    0,
+    "",
+    ""
+   ]
+  },
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=300s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=(부재 — 계약 기본값)\n[agent-guard] 준위 NORMAL → NOTIFY  mem=55000MiB rate=5000.0 eta=9.0s  2026-08-01T00:00:01Z\n[agent-guard] 준위 NOTIFY → ACT  mem=50000MiB rate=5000.0 eta=8.0s  2026-08-01T00:00:02Z\n[agent-guard] 행동 halt_load ok=False stop-file 미지정 — 건너뜀\n[agent-guard] 준위 ACT → LAST_RESORT  mem=45000MiB rate=5000.0 eta=7.0s  2026-08-01T00:00:03Z\n[agent-guard] LAST_RESORT graceful_stop ok=False 컨테이너 미지정 — 건너뜀\n",
+  "stderr": "",
+  "rc": 3,
+  "files": {
+   "n/events/2026-08.jsonl": "{\"arm_ceiling_mib\": null, \"eta_s\": 9.0, \"kind\": \"agent_level\", \"level\": \"NOTIFY\", \"mem_avail_mib\": 55000, \"prev\": \"NORMAL\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:01Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 8.0, \"kind\": \"agent_level\", \"level\": \"ACT\", \"mem_avail_mib\": 50000, \"prev\": \"NOTIFY\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:02Z\"}\n{\"action\": \"halt_load\", \"detail\": \"stop-file 미지정 — 건너뜀\", \"kind\": \"agent_action\", \"level\": \"ACT\", \"mem_avail_mib\": 50000, \"ok\": false, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:02Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 7.0, \"kind\": \"agent_level\", \"level\": \"LAST_RESORT\", \"mem_avail_mib\": 45000, \"prev\": \"ACT\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:03Z\"}\n{\"action\": \"graceful_stop\", \"detail\": \"컨테이너 미지정 — 건너뜀\", \"eta_s\": 7.0, \"kind\": \"agent_last_resort\", \"mem_avail_mib\": 45000, \"ok\": false, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:03Z\"}\n"
+  },
+  "calls": []
+ },
+ {
+  "name": "spike-recover",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--debounce-n",
+   "2",
+   "--max-s",
+   "30"
+  ],
+  "mem": [
+   60000,
+   59000,
+   20000,
+   19000,
+   60000,
+   60000,
+   60000,
+   60000,
+   59000,
+   18000,
+   17000,
+   16000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000,
+   60000
+  ],
+  "runs": {
+   "sudo": [
+    0,
+    "ok",
+    ""
+   ]
+  },
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=300s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=(부재 — 계약 기본값)\n[agent-guard] 준위 NORMAL → NOTIFY  mem=19000MiB rate=13666.7 eta=0.6s  2026-08-01T00:00:03Z\n[agent-guard] 준위 NOTIFY → NORMAL  mem=60000MiB rate=0.0 eta=inf  2026-08-01T00:00:04Z\n[agent-guard] 준위 NORMAL → NOTIFY  mem=17000MiB rate=10750.0 eta=0.6s  2026-08-01T00:00:10Z\n[agent-guard] 준위 NOTIFY → NORMAL  mem=60000MiB rate=-250.0 eta=inf  2026-08-01T00:00:12Z\n[agent-guard] --max-s 도달 — 종료(마지막 준위=NORMAL)\n",
+  "stderr": "",
+  "rc": 0,
+  "files": {
+   "n/events/2026-08.jsonl": "{\"arm_ceiling_mib\": null, \"eta_s\": 0.6, \"kind\": \"agent_level\", \"level\": \"NOTIFY\", \"mem_avail_mib\": 19000, \"prev\": \"NORMAL\", \"rate_mib_s\": 13666.67, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:03Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": null, \"kind\": \"agent_level\", \"level\": \"NORMAL\", \"mem_avail_mib\": 60000, \"prev\": \"NOTIFY\", \"rate_mib_s\": 0.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:04Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 0.6, \"kind\": \"agent_level\", \"level\": \"NOTIFY\", \"mem_avail_mib\": 17000, \"prev\": \"NORMAL\", \"rate_mib_s\": 10750.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:10Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": null, \"kind\": \"agent_level\", \"level\": \"NORMAL\", \"mem_avail_mib\": 60000, \"prev\": \"NOTIFY\", \"rate_mib_s\": -250.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:12Z\"}\n"
+  },
+  "calls": []
+ },
+ {
+  "name": "declared-ceiling",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--max-s",
+   "20"
+  ],
+  "wall": 1000,
+  "mem": [
+   60000,
+   55000,
+   50000,
+   45000,
+   40000,
+   35000,
+   30000,
+   25000,
+   20000,
+   15000,
+   12000,
+   11000,
+   10500,
+   10000,
+   9000,
+   9000,
+   9000,
+   9000
+  ],
+  "setup": {
+   "n/serve_budget.env": "floor_mib=40000\nexpires_epoch=2000\n"
+  },
+  "runs": {
+   "sudo": [
+    0,
+    "",
+    ""
+   ],
+   "docker": [
+    0,
+    "",
+    ""
+   ]
+  },
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=300s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=(부재 — 계약 기본값)\n[agent-guard] 준위 NORMAL → NOTIFY  mem=25000MiB rate=5000.0 eta=3.0s  2026-08-01T00:00:07Z\n[agent-guard] 준위 NOTIFY → ACT  mem=12000MiB rate=4500.0 eta=0.4s  2026-08-01T00:00:10Z\n[agent-guard] 행동 halt_load ok=False stop-file 미지정 — 건너뜀\n[agent-guard] 준위 ACT → LAST_RESORT  mem=10000MiB rate=1250.0 eta=0.0s  2026-08-01T00:00:13Z\n[agent-guard] LAST_RESORT graceful_stop ok=False 컨테이너 미지정 — 건너뜀\n",
+  "stderr": "",
+  "rc": 3,
+  "files": {
+   "n/events/2026-08.jsonl": "{\"arm_ceiling_mib\": 36928, \"eta_s\": 3.0, \"kind\": \"agent_level\", \"level\": \"NOTIFY\", \"mem_avail_mib\": 25000, \"prev\": \"NORMAL\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:07Z\"}\n{\"arm_ceiling_mib\": 36928, \"eta_s\": 0.4, \"kind\": \"agent_level\", \"level\": \"ACT\", \"mem_avail_mib\": 12000, \"prev\": \"NOTIFY\", \"rate_mib_s\": 4500.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:10Z\"}\n{\"action\": \"halt_load\", \"detail\": \"stop-file 미지정 — 건너뜀\", \"kind\": \"agent_action\", \"level\": \"ACT\", \"mem_avail_mib\": 12000, \"ok\": false, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:10Z\"}\n{\"arm_ceiling_mib\": 36928, \"eta_s\": 0.0, \"kind\": \"agent_level\", \"level\": \"LAST_RESORT\", \"mem_avail_mib\": 10000, \"prev\": \"ACT\", \"rate_mib_s\": 1250.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:13Z\"}\n{\"action\": \"graceful_stop\", \"detail\": \"컨테이너 미지정 — 건너뜀\", \"eta_s\": 0.0, \"kind\": \"agent_last_resort\", \"mem_avail_mib\": 10000, \"ok\": false, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:13Z\"}\n"
+  },
+  "calls": []
+ },
+ {
+  "name": "declared-expired",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--max-s",
+   "6"
+  ],
+  "wall": 5000,
+  "mem": [
+   60000,
+   55000,
+   50000,
+   45000,
+   40000,
+   35000,
+   30000,
+   25000,
+   20000,
+   15000,
+   12000,
+   11000,
+   10500,
+   10000,
+   9000
+  ],
+  "setup": {
+   "n/serve_budget.env": "floor_mib=40000\nexpires_epoch=2000\n"
+  },
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=300s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=(부재 — 계약 기본값)\n[agent-guard] 준위 NORMAL → NOTIFY  mem=45000MiB rate=5000.0 eta=7.0s  2026-08-01T00:00:03Z\n[agent-guard] 준위 NOTIFY → ACT  mem=30000MiB rate=5000.0 eta=4.0s  2026-08-01T00:00:06Z\n[agent-guard] 행동 halt_load ok=False stop-file 미지정 — 건너뜀\n[agent-guard] --max-s 도달 — 종료(마지막 준위=ACT)\n",
+  "stderr": "",
+  "rc": 0,
+  "files": {
+   "n/events/2026-08.jsonl": "{\"arm_ceiling_mib\": null, \"eta_s\": 7.0, \"kind\": \"agent_level\", \"level\": \"NOTIFY\", \"mem_avail_mib\": 45000, \"prev\": \"NORMAL\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:03Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 4.0, \"kind\": \"agent_level\", \"level\": \"ACT\", \"mem_avail_mib\": 30000, \"prev\": \"NOTIFY\", \"rate_mib_s\": 5000.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:06Z\"}\n{\"action\": \"halt_load\", \"detail\": \"stop-file 미지정 — 건너뜀\", \"kind\": \"agent_action\", \"level\": \"ACT\", \"mem_avail_mib\": 30000, \"ok\": false, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:06Z\"}\n"
+  },
+  "calls": []
+ },
+ {
+  "name": "act-ladder",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--stop-file",
+   "s.flag",
+   "--max-s",
+   "14"
+  ],
+  "mem": [
+   41000,
+   40900,
+   40800,
+   40700,
+   40600,
+   40500,
+   40400,
+   40300,
+   40200,
+   40100,
+   40000,
+   39900,
+   39800,
+   39700,
+   39600,
+   39500,
+   39400,
+   39300,
+   39200,
+   39100,
+   39000,
+   38900,
+   38800,
+   38700,
+   38600,
+   38500,
+   38400,
+   38300,
+   38200,
+   38100
+  ],
+  "runs": {
+   "sudo": [
+    0,
+    "",
+    "freed 3 GiB\n"
+   ]
+  },
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=300s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=(부재 — 계약 기본값)\n[agent-guard] 준위 NORMAL → NOTIFY  mem=40700MiB rate=100.0 eta=304.6s  2026-08-01T00:00:03Z\n[agent-guard] 준위 NOTIFY → ACT  mem=40000MiB rate=100.0 eta=297.6s  2026-08-01T00:00:10Z\n[agent-guard] 행동 halt_load ok=True s.flag\n[agent-guard] 행동 drop_caches ok=True freed 3 GiB\n[agent-guard] --max-s 도달 — 종료(마지막 준위=ACT)\n",
+  "stderr": "",
+  "rc": 0,
+  "files": {
+   "n/events/2026-08.jsonl": "{\"arm_ceiling_mib\": null, \"eta_s\": 304.6, \"kind\": \"agent_level\", \"level\": \"NOTIFY\", \"mem_avail_mib\": 40700, \"prev\": \"NORMAL\", \"rate_mib_s\": 100.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:03Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 297.6, \"kind\": \"agent_level\", \"level\": \"ACT\", \"mem_avail_mib\": 40000, \"prev\": \"NOTIFY\", \"rate_mib_s\": 100.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:10Z\"}\n{\"action\": \"halt_load\", \"detail\": \"s.flag\", \"kind\": \"agent_action\", \"level\": \"ACT\", \"mem_avail_mib\": 40000, \"ok\": true, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:10Z\"}\n{\"action\": \"drop_caches\", \"detail\": \"freed 3 GiB\", \"kind\": \"agent_action\", \"level\": \"ACT\", \"mem_avail_mib\": 39900, \"ok\": true, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:11Z\"}\n",
+   "s.flag": "halted by agent_guard\n"
+  },
+  "calls": [
+   [
+    "sudo",
+    "-n",
+    "/usr/local/sbin/vllm-drop-caches",
+    60
+   ]
+  ]
+ },
+ {
+  "name": "act-ladder-dry",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--dry-run",
+   "--max-s",
+   "8"
+  ],
+  "mem": [
+   41000,
+   40900,
+   40800,
+   40700,
+   40600,
+   40500,
+   40400,
+   40300,
+   40200,
+   40100,
+   40000,
+   39900,
+   39800,
+   39700,
+   39600,
+   39500,
+   39400,
+   39300,
+   39200,
+   39100,
+   39000,
+   38900,
+   38800,
+   38700,
+   38600,
+   38500,
+   38400,
+   38300,
+   38200,
+   38100
+  ],
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=300s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=(부재 — 계약 기본값)\n[agent-guard] 준위 NORMAL → NOTIFY  mem=40700MiB rate=100.0 eta=304.6s  2026-08-01T00:00:03Z\n[agent-guard] 준위 NOTIFY → ACT  mem=40000MiB rate=100.0 eta=297.6s  2026-08-01T00:00:10Z\n[agent-guard] --max-s 도달 — 종료(마지막 준위=ACT)\n",
+  "stderr": "",
+  "rc": 0,
+  "files": {
+   "n/events/2026-08.jsonl": "{\"arm_ceiling_mib\": null, \"eta_s\": 304.6, \"kind\": \"agent_level\", \"level\": \"NOTIFY\", \"mem_avail_mib\": 40700, \"prev\": \"NORMAL\", \"rate_mib_s\": 100.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:03Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 297.6, \"kind\": \"agent_level\", \"level\": \"ACT\", \"mem_avail_mib\": 40000, \"prev\": \"NOTIFY\", \"rate_mib_s\": 100.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:10Z\"}\n"
+  },
+  "calls": []
+ },
+ {
+  "name": "act-ladder-sudo-fail",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--max-s",
+   "13",
+   "--drop-caches-helper",
+   "/x/h"
+  ],
+  "mem": [
+   41000,
+   40900,
+   40800,
+   40700,
+   40600,
+   40500,
+   40400,
+   40300,
+   40200,
+   40100,
+   40000,
+   39900,
+   39800,
+   39700,
+   39600,
+   39500,
+   39400,
+   39300,
+   39200,
+   39100,
+   39000,
+   38900,
+   38800,
+   38700,
+   38600,
+   38500,
+   38400,
+   38300,
+   38200,
+   38100
+  ],
+  "runs": {
+   "sudo": "oserror"
+  },
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=300s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=(부재 — 계약 기본값)\n[agent-guard] 준위 NORMAL → NOTIFY  mem=40700MiB rate=100.0 eta=304.6s  2026-08-01T00:00:03Z\n[agent-guard] 준위 NOTIFY → ACT  mem=40000MiB rate=100.0 eta=297.6s  2026-08-01T00:00:10Z\n[agent-guard] 행동 halt_load ok=False stop-file 미지정 — 건너뜀\n[agent-guard] 행동 drop_caches ok=False [Errno 2] No such file or directory: 'sudo'\n[agent-guard] --max-s 도달 — 종료(마지막 준위=ACT)\n",
+  "stderr": "",
+  "rc": 0,
+  "files": {
+   "n/events/2026-08.jsonl": "{\"arm_ceiling_mib\": null, \"eta_s\": 304.6, \"kind\": \"agent_level\", \"level\": \"NOTIFY\", \"mem_avail_mib\": 40700, \"prev\": \"NORMAL\", \"rate_mib_s\": 100.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:03Z\"}\n{\"arm_ceiling_mib\": null, \"eta_s\": 297.6, \"kind\": \"agent_level\", \"level\": \"ACT\", \"mem_avail_mib\": 40000, \"prev\": \"NOTIFY\", \"rate_mib_s\": 100.0, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:10Z\"}\n{\"action\": \"halt_load\", \"detail\": \"stop-file 미지정 — 건너뜀\", \"kind\": \"agent_action\", \"level\": \"ACT\", \"mem_avail_mib\": 40000, \"ok\": false, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:10Z\"}\n{\"action\": \"drop_caches\", \"detail\": \"[Errno 2] No such file or directory: 'sudo'\", \"kind\": \"agent_action\", \"level\": \"ACT\", \"mem_avail_mib\": 39900, \"ok\": false, \"source\": \"agent_guard\", \"ts\": \"2026-08-01T00:00:11Z\"}\n"
+  },
+  "calls": [
+   [
+    "sudo",
+    "-n",
+    "/x/h",
+    60
+   ]
+  ]
+ },
+ {
+  "name": "mem-unreadable",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01T00:00:00Z",
+   "--poll-s",
+   "1",
+   "--poll-hot-s",
+   "1",
+   "--once"
+  ],
+  "mem": [
+   null,
+   null,
+   50000
+  ],
+  "stdout": "[agent-guard] 계약 로드: notify=900s act=300s daemon_kill=6s kill_thresh=10240MiB kill_lat_max=14s  src=(부재 — 계약 기본값)\n[agent-guard] --once: level=NORMAL mem=50000MiB eta=inf\n",
+  "stderr": "[agent-guard] WARN: MemAvailable 판독 실패 — 다음 폴로 넘어간다\n[agent-guard] WARN: MemAvailable 판독 실패 — 다음 폴로 넘어간다\n",
+  "rc": 0,
+  "files": {},
+  "calls": []
+ },
+ {
+  "name": "missing-now",
+  "argv": [
+   "--node-dir",
+   "n"
+  ],
+  "mem": [],
+  "stdout": "",
+  "stderr": "실행 모드에는 --now 가 필요하다(--self-test 는 예외)\n",
+  "rc": 1,
+  "files": {},
+  "calls": []
+ },
+ {
+  "name": "missing-both",
+  "argv": [],
+  "mem": [],
+  "stdout": "",
+  "stderr": "실행 모드에는 --node-dir, --now 가 필요하다(--self-test 는 예외)\n",
+  "rc": 1,
+  "files": {},
+  "calls": []
+ },
+ {
+  "name": "bad-now",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-08-01 00:00:00"
+  ],
+  "mem": [],
+  "stdout": "",
+  "stderr": "--now 는 YYYY-MM-DDTHH:MM:SSZ 형식이어야 한다: '2026-08-01 00:00:00'\n",
+  "rc": 1,
+  "files": {},
+  "calls": []
+ },
+ {
+  "name": "bad-date",
+  "argv": [
+   "--node-dir",
+   "n",
+   "--now",
+   "2026-13-01T00:00:00Z"
+  ],
+  "mem": [],
+  "stdout": "",
+  "stderr": "Traceback (most recent call last):\nValueError: time data '2026-13-01T00:00:00Z' does not match format '%Y-%m-%dT%H:%M:%SZ'\n",
+  "rc": 1,
+  "files": {},
+  "calls": []
+ }
+]

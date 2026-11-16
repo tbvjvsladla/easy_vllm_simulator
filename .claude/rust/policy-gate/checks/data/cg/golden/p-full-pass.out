@@ -1,0 +1,20 @@
+{
+  "action": "hint_finalize",
+  "allowed": true,
+  "authorization_state": "promotion-ready",
+  "exit_code": 0,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {},
+  "mode": "promotion",
+  "propagation_scope": null,
+  "reason_codes": [],
+  "schema_version": 1,
+  "task_class": "full_benchmark"
+}

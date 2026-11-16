@@ -1,0 +1,26 @@
+{
+  "action": "sync_branches",
+  "allowed": false,
+  "authorization_state": null,
+  "exit_code": 1,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {
+    "PROMOTION_GATE_NOT_ELIGIBLE": "underlying verify state='evidence-complete' eligible_for_promotion=False -- promotion side effects blocked",
+    "PROMOTION_REQUIRES_FULL_BENCHMARK_CLASS": "task_class='harness_change' can never reach promotion-ready -- only 'full_benchmark' may"
+  },
+  "mode": "promotion",
+  "propagation_scope": null,
+  "reason_codes": [
+    "PROMOTION_GATE_NOT_ELIGIBLE",
+    "PROMOTION_REQUIRES_FULL_BENCHMARK_CLASS"
+  ],
+  "schema_version": 1,
+  "task_class": "harness_change"
+}

@@ -64,7 +64,7 @@
     lite-only 로 선언한 셀에서만 쓰고, 같은 조합의 full 셀과 같은 KST 시에 두지 않는다. 가드는 아직 없다 — 이름 밀림은
     lite 고유 결함이 아니라 `doc_naming` 이 report·인증서를 **종류별로 따로** 스캔하는 구조의 결함이다(같은 시간대 full 스윕
     둘 중 앞 스윕이 인증서 없이 끝나도 같다). 교정 자리는 명명 SSOT(후속).
-  - 바인딩: `evidence_publisher.py publish-lite-report --topic <map_only 토픽> --bench-report-src <그 리포트>`(복사 ✗ · 측정 구성
+  - 바인딩: `bash .claude/policies/runtime/evidence_publisher.sh publish-lite-report --topic <map_only 토픽> --bench-report-src <그 리포트>`(복사 ✗ · 측정 구성
     표가 `bench_mode | lite` 라고 말하는 리포트만 받는다). 결손 코드(`hintlib/evidence.py` `MISSING_CODES`)·카탈로그 컬럼
     (`hintlib/catalog.py` `CATALOG_COLUMNS`)은 hint-publisher 소관이다(계약 `hints/HINT_ISSUANCE_CONTRACT.md` 의 lite 셀 통로 절 —
     옛 인용 §3.0.1 · 절 번호는 계약 개정으로 바뀔 수 있어 정의 자리를 함께 적는다).
@@ -195,7 +195,7 @@
   요구한다 — 손저작·개조·stale 인증서의 공허 PASS 승격을 이중으로 막는다.
 - **승격 carrier(REFUTE 런 필수 · 2026-08-24 · `plan_26082405`)** — 인증서는 PASS 전용이므로 **REFUTE 런의
   루브릭 권한은 인증서로 게이트에 도달할 수 없다**. 그래서 증거 발행 시 판정기 산출물을 함께 넘긴다:
-  `evidence_publisher.py publish-benchmark … --verdict-json-src <verdict.json>`.
+  `bash .claude/policies/runtime/evidence_publisher.sh publish-benchmark … --verdict-json-src <verdict.json>`.
   그러면 `rubric_authority`·`floor_tps`·`ratio_M_over_primary`·`primary_source` 가 출처 표시
   (`rubric_source: verdict_json`)와 함께 work-manifest 의 `benchmark` 오브젝트에 실리고,
   `completion_gate.py` 가 인증서 부재 시 이 채널을 fallback 으로 읽는다.

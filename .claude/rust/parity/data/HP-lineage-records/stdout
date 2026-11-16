@@ -1,0 +1,104 @@
+{"id": "r0", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r1", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r2", "kind": "value", "value": null}
+{"id": "r3", "kind": "value", "value": null}
+{"id": "r4", "kind": "value", "value": null}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": null}
+{"id": "r7", "kind": "value", "value": null}
+{"id": "r8", "kind": "value", "value": null}
+{"id": "r9", "kind": "value", "value": null}
+{"id": "r10", "kind": "value", "value": null}
+{"id": "r11", "kind": "value", "value": null}
+{"id": "r12", "kind": "value", "value": null}
+{"id": "r13", "kind": "value", "value": null}
+{"id": "r14", "kind": "value", "value": null}
+{"id": "r15", "kind": "value", "value": null}
+{"id": "r16", "kind": "value", "value": null}
+{"id": "r17", "kind": "value", "value": null}
+{"id": "r18", "kind": "value", "value": null}
+{"id": "r19", "kind": "value", "value": null}
+{"id": "r20", "kind": "value", "value": null}
+{"id": "r21", "kind": "value", "value": null}
+{"id": "r22", "kind": "value", "value": null}
+{"id": "r23", "kind": "value", "value": null}
+{"id": "r24", "kind": "value", "value": null}
+{"id": "r25", "kind": "value", "value": null}
+{"id": "r26", "kind": "value", "value": null}
+{"id": "r27", "kind": "value", "value": null}
+{"id": "r28", "kind": "value", "value": null}
+{"id": "r29", "kind": "value", "value": null}
+{"id": "r30", "kind": "value", "value": null}
+{"id": "r31", "kind": "value", "value": null}
+{"id": "r32", "kind": "value", "value": null}
+{"id": "r33", "kind": "value", "value": null}
+{"id": "r34", "kind": "value", "value": null}
+{"id": "r35", "kind": "value", "value": null}
+{"id": "r36", "kind": "value", "value": null}
+{"id": "r37", "kind": "value", "value": null}
+{"id": "r38", "kind": "value", "value": null}
+{"id": "r39", "kind": "value", "value": null}
+{"id": "r40", "kind": "value", "value": null}
+{"id": "r41", "kind": "value", "value": null}
+{"id": "r42", "kind": "value", "value": null}
+{"id": "r43", "kind": "value", "value": null}
+{"id": "r44", "kind": "value", "value": null}
+{"id": "r45", "kind": "value", "value": null}
+{"id": "r46", "kind": "value", "value": null}
+{"id": "r47", "kind": "value", "value": null}
+{"id": "r48", "kind": "value", "value": null}
+{"id": "r49", "kind": "value", "value": null}
+{"id": "r50", "kind": "value", "value": null}
+{"id": "r51", "kind": "value", "value": null}
+{"id": "r52", "kind": "value", "value": null}
+{"id": "r53", "kind": "value", "value": null}
+{"id": "r54", "kind": "value", "value": null}
+{"id": "r55", "kind": "value", "value": null}
+{"id": "r56", "kind": "value", "value": null}
+{"id": "r57", "kind": "value", "value": null}
+{"id": "r58", "kind": "value", "value": null}
+{"id": "r59", "kind": "value", "value": null}
+{"id": "r60", "kind": "value", "value": null}
+{"id": "r61", "kind": "value", "value": null}
+{"id": "r62", "kind": "value", "value": null}
+{"id": "r63", "kind": "value", "value": null}
+{"id": "r64", "kind": "value", "value": null}
+{"id": "r65", "kind": "value", "value": null}
+{"id": "r66", "kind": "value", "value": null}
+{"id": "r67", "kind": "value", "value": null}
+{"id": "r68", "kind": "value", "value": null}
+{"id": "r69", "kind": "value", "value": null}
+{"id": "r70", "kind": "value", "value": null}
+{"id": "r71", "kind": "value", "value": null}
+{"id": "r72", "kind": "value", "value": null}
+{"id": "r73", "kind": "value", "value": null}
+{"id": "r74", "kind": "value", "value": null}
+{"id": "r75", "kind": "value", "value": null}
+{"id": "r76", "kind": "value", "value": null}
+{"id": "r77", "kind": "value", "value": null}
+{"id": "r78", "kind": "value", "value": null}
+{"id": "r79", "kind": "value", "value": null}
+{"id": "r80", "kind": "value", "value": null}
+{"id": "r81", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r82", "kind": "value", "value": {"rc": 0, "stdout": "049a6da52bfa5bc470c790c48426e9c823dc453e\n", "stderr": ""}}
+{"id": "r83", "kind": "value", "value": null}
+{"id": "r84", "kind": "value", "value": [{"_id": "adir", "_unreadable": "IsADirectoryError: [Errno 21] Is a directory: 'fx/docs/_evidence/adir.json'"}, {"_id": "badutf", "_unreadable": "JSONDecodeError: Expecting value: line 1 column 1 (char 0)"}, {"_id": "broken", "_unreadable": "JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"}, {"publication_id": "campx_bench_c1_a", "generated_utc": "2026-01-05T16:00:00Z", "identity": {"model": "zeta2.5-flash-nvfp4", "gpu": "NVIDIA GB10", "topology": "multi", "tp": 2, "vllm": "0.1.0"}, "narrative_status": {"plan": {"source": "docs/plan/plan_26010500_zeta_second.md"}, "devlog": {"source": "docs/devlog/devlog_26010600_zeta_main.md"}, "testlog": {"source": "docs/testlog/testlog_26010600_zeta_verdict.md"}}, "scaffolded": {"bench_report": "docs/benchmark/bench_report_26010600_zeta2.5-flash-nvfp4_GB10_0.1.0.md", "certificate": "docs/benchmark/benchmark_26010600_zeta2.5-flash-nvfp4_GB10_0.1.0.yaml", "simlog": "docs/simlog/26010600_run", "report": null, "empty": "  ", "up": "../outside.md"}, "evidence": {"testlog": {"path": "../testlog/testlog_26010600_zeta_verdict.md"}}, "_id": "campx_bench_c1_a"}, {"identity": {"model": "zeta2.5-flash-nvfp4", "gpu": "NVIDIA GB10", "topology": "multi", "tp": 2, "vllm": "0.1.0"}, "scaffolded": {"plan": "docs/plan/plan_26010016_c2b.md"}, "_id": "campx_bench_c2_b"}, {"_id": "listy", "_unreadable": "최상위가 객체가 아니다(list)"}, {"generated_utc": "2026-01-01T03:00:00Z", "identity": {"model": "zeta2.5-flash-nvfp4", "gpu": "NVIDIA GB10", "topology": "multi", "tp": 2, "vllm": "0.1.0"}, "raw_log_paths": {"simlog": "docs/simlog/26010103_bc1a_run"}, "scaffolded": {"plan": "docs/plan/plan_26010103_bc1a.md"}, "_id": "old_full_b_c1_a"}, {"generated_utc": "2026-01-01T02:00:00Z", "identity": {"model": "Zeta2.5-Flash-NVFP4", "gpu": "NVIDIA GB10", "topology": "MULTI", "tp": "2"}, "scaffolded": {"plan": "docs/plan/plan_26010100_zeta_first.md", "report": "seed/backup/plan_26010100_zeta_first.md", "devlog": "/nonexistent-root/devlog_26010099_x.md"}, "_id": "old_full_c1_a"}, {"identity": {"model": "omega-1b"}, "_id": "omega_qq9x"}, {"identity": {"model": "omega-1b", "gpu": "NVIDIA GB10", "topology": "multi", "tp": 2}, "scaffolded": {"plan": "docs/plan/plan_26010115_alpha.md"}, "_id": "other_full_c1_a"}, {"identity": {"model": "zeta2.5-flash", "gpu": "NVIDIA GB10", "topology": "single", "tp": 1}, "_id": "qq9x_one"}, {"identity": {"model": "zeta2.5-flash", "gpu": "NVIDIA GB10", "topology": "single", "tp": 1}, "_id": "qq9x_two"}, {"generated_utc": "2026-01-09T03:00:00Z", "identity": {"model": "zeta2.5-flash-nvfp4", "gpu": "NVIDIA GB10", "topology": "multi", "tp": 2, "vllm": "0.1.0"}, "scaffolded": {"plan": "docs/report/perf_26010900_zeta_later.md"}, "_id": "redo_full_c1_a"}, {"generated_utc": "2026-01-01T00:00:00Z", "identity": {"model": "zeta2.5-flash", "gpu": "NVIDIA GB10", "topology": "single", "tp": 1}, "scaffolded": {"plan": "docs/plan/plan_26010020_zbr_bringup.md", "bench_report": "docs/benchmark/bench_report_26010020_zeta2.5-flash_GB10_0.0.8.md"}, "_id": "zbr7_one"}, {"generated_utc": "not-a-time", "identity": {"gpu": "NVIDIA GB10"}, "scaffolded": {"devlog": "docs/devlog/devlog_26010022_zbr_three.md"}, "_id": "zbr7_three"}, {"generated_utc": "2026-01-01T00:00:00Z", "identity": {"model": "zeta2.5-flash", "gpu": "NVIDIA GB10", "topology": "single", "tp": 1}, "scaffolded": {"testlog": "docs/testlog/testlog_26010021_zbr_two.md"}, "_id": "zbr7_two"}, {"generated_utc": "2026-01-01T00:00:00Z", "identity": {"model": "zeta2.5-flash", "gpu": "NVIDIA H100", "topology": "single", "tp": 1}, "scaffolded": {"plan": "docs/plan/plan_26010024_zeta_h100.md"}, "_id": "zeta_h100_run"}, {"generated_utc": "2026-01-01T02:30:00Z", "identity": {"model": "zeta2.5-flash-nvfp4", "gpu": "NVIDIA GB10", "topology": "multi", "tp": 2, "vllm": "0.1.0"}, "raw_log_paths": {"simlog": "docs/simlog/26010102_zz_run"}, "scaffolded": {"plan": "docs/plan/plan_26010102_zz_sim.md"}, "_id": "zz_unrelated_name"}]}
+{"id": "r85", "kind": "value", "value": []}
+{"id": "r86", "kind": "value", "value": {"seeds": [{"path": "docs/devlog/devlog_26010600_zeta_main.md", "source": "publication:campx_bench_c1_a", "pointer": "narrative_status.devlog"}, {"path": "docs/plan/plan_26010500_zeta_second.md", "source": "publication:campx_bench_c1_a", "pointer": "narrative_status.plan"}, {"path": "docs/testlog/testlog_26010600_zeta_verdict.md", "source": "publication:campx_bench_c1_a", "pointer": "narrative_status.testlog"}, {"path": "docs/benchmark/bench_report_26010600_zeta2.5-flash-nvfp4_GB10_0.1.0.md", "source": "publication:campx_bench_c1_a", "pointer": "scaffolded.bench_report"}, {"path": "docs/benchmark/benchmark_26010600_zeta2.5-flash-nvfp4_GB10_0.1.0.yaml", "source": "publication:campx_bench_c1_a", "pointer": "scaffolded.certificate"}, {"path": "docs/simlog/26010600_run", "source": "publication:campx_bench_c1_a", "pointer": "scaffolded.simlog"}, {"path": "docs/testlog/testlog_26010600_zeta_verdict.md", "source": "publication:campx_bench_c1_a", "pointer": "evidence.testlog"}, {"path": "docs/plan/plan_26010100_zeta_first.md", "source": "prior_publication:old_full_c1_a", "pointer": "scaffolded.plan"}, {"path": "seed/backup/plan_26010100_zeta_first.md", "source": "prior_publication:old_full_c1_a", "pointer": "scaffolded.report"}, {"path": "docs/plan/plan_26010102_zz_sim.md", "source": "prior_publication:zz_unrelated_name", "pointer": "scaffolded.plan"}, {"path": "docs/simlog/26010102_zz_run", "source": "prior_publication:zz_unrelated_name", "pointer": "raw_log_paths.simlog"}], "missing": [{"path": "  ", "source": "publication:campx_bench_c1_a", "reason": "empty"}, {"path": "../outside.md", "source": "publication:campx_bench_c1_a", "reason": "outside-repo"}, {"path": "/nonexistent-root/devlog_26010099_x.md", "source": "prior_publication:old_full_c1_a", "reason": "outside-repo"}], "this": "campx_bench_c1_a", "prior": ["old_full_c1_a", "zz_unrelated_name"], "prior_after_ceiling": ["redo_full_c1_a"], "cell_key": "c1_a", "prior_match": {"old_full_c1_a": "publication-id-suffix(simlog 미관측)", "zz_unrelated_name": "simlog:sweep_index.meta.config_name"}, "prior_cell_mismatch": ["old_full_b_c1_a"]}}
+{"id": "r87", "kind": "value", "value": {"seeds": [{"path": "docs/devlog/devlog_26010600_zeta_main.md", "source": "publication:campx_bench_c1_a", "pointer": "narrative_status.devlog"}, {"path": "docs/plan/plan_26010500_zeta_second.md", "source": "publication:campx_bench_c1_a", "pointer": "narrative_status.plan"}, {"path": "docs/testlog/testlog_26010600_zeta_verdict.md", "source": "publication:campx_bench_c1_a", "pointer": "narrative_status.testlog"}, {"path": "docs/benchmark/bench_report_26010600_zeta2.5-flash-nvfp4_GB10_0.1.0.md", "source": "publication:campx_bench_c1_a", "pointer": "scaffolded.bench_report"}, {"path": "docs/benchmark/benchmark_26010600_zeta2.5-flash-nvfp4_GB10_0.1.0.yaml", "source": "publication:campx_bench_c1_a", "pointer": "scaffolded.certificate"}, {"path": "docs/simlog/26010600_run", "source": "publication:campx_bench_c1_a", "pointer": "scaffolded.simlog"}, {"path": "docs/testlog/testlog_26010600_zeta_verdict.md", "source": "publication:campx_bench_c1_a", "pointer": "evidence.testlog"}, {"path": "docs/plan/plan_26010100_zeta_first.md", "source": "prior_publication:old_full_c1_a", "pointer": "scaffolded.plan"}, {"path": "seed/backup/plan_26010100_zeta_first.md", "source": "prior_publication:old_full_c1_a", "pointer": "scaffolded.report"}, {"path": "docs/report/perf_26010900_zeta_later.md", "source": "prior_publication:redo_full_c1_a", "pointer": "scaffolded.plan"}, {"path": "docs/plan/plan_26010102_zz_sim.md", "source": "prior_publication:zz_unrelated_name", "pointer": "scaffolded.plan"}, {"path": "docs/simlog/26010102_zz_run", "source": "prior_publication:zz_unrelated_name", "pointer": "raw_log_paths.simlog"}], "missing": [{"path": "  ", "source": "publication:campx_bench_c1_a", "reason": "empty"}, {"path": "../outside.md", "source": "publication:campx_bench_c1_a", "reason": "outside-repo"}, {"path": "/nonexistent-root/devlog_26010099_x.md", "source": "prior_publication:old_full_c1_a", "reason": "outside-repo"}], "this": "campx_bench_c1_a", "prior": ["old_full_c1_a", "redo_full_c1_a", "zz_unrelated_name"], "prior_after_ceiling": [], "cell_key": "c1_a", "prior_match": {"old_full_c1_a": "publication-id-suffix(simlog 미관측)", "redo_full_c1_a": "publication-id-suffix(simlog 미관측)", "zz_unrelated_name": "simlog:sweep_index.meta.config_name"}, "prior_cell_mismatch": ["old_full_b_c1_a"]}}
+{"id": "r88", "kind": "value", "value": {"seeds": [], "missing": [{"path": "docs/_evidence/broken.json", "source": "publication:broken", "reason": "record-unreadable"}], "this": null, "prior": [], "prior_after_ceiling": [], "cell_key": null, "prior_match": {}, "prior_cell_mismatch": []}}
+{"id": "r89", "kind": "value", "value": {"seeds": [], "missing": [], "this": null, "prior": [], "prior_after_ceiling": [], "cell_key": "x", "prior_match": {}, "prior_cell_mismatch": []}}
+{"id": "r90", "kind": "value", "value": {"seeds": [{"path": "docs/plan/plan_26010016_c2b.md", "source": "model_prior_publication:campx_bench_c2_b", "pointer": "scaffolded.plan"}, {"path": "docs/plan/plan_26010103_bc1a.md", "source": "model_prior_publication:old_full_b_c1_a", "pointer": "scaffolded.plan"}, {"path": "docs/simlog/26010103_bc1a_run", "source": "model_prior_publication:old_full_b_c1_a", "pointer": "raw_log_paths.simlog"}, {"path": "docs/benchmark/bench_report_26010020_zeta2.5-flash_GB10_0.0.8.md", "source": "model_prior_publication:zbr7_one", "pointer": "scaffolded.bench_report"}, {"path": "docs/plan/plan_26010020_zbr_bringup.md", "source": "model_prior_publication:zbr7_one", "pointer": "scaffolded.plan"}, {"path": "docs/devlog/devlog_26010022_zbr_three.md", "source": "model_prior_publication:zbr7_three", "pointer": "scaffolded.devlog"}, {"path": "docs/testlog/testlog_26010021_zbr_two.md", "source": "model_prior_publication:zbr7_two", "pointer": "scaffolded.testlog"}, {"path": "docs/plan/plan_26010102_zz_sim.md", "source": "model_prior_publication:zz_unrelated_name", "pointer": "scaffolded.plan"}, {"path": "docs/simlog/26010102_zz_run", "source": "model_prior_publication:zz_unrelated_name", "pointer": "raw_log_paths.simlog"}], "missing": [], "records": ["campx_bench_c2_b", "old_full_b_c1_a", "qq9x_one", "qq9x_two", "zbr7_one", "zbr7_three", "zbr7_two", "zz_unrelated_name"], "match": {"campx_bench_c2_b": "identity.model~base_slug", "old_full_b_c1_a": "identity.model~base_slug", "qq9x_one": "identity.model~base_slug", "qq9x_two": "identity.model~base_slug", "zbr7_one": "identity.model~base_slug", "zbr7_three": "id-alias:zbr7(identity.model 부재)", "zbr7_two": "identity.model~base_slug", "zz_unrelated_name": "identity.model~base_slug"}, "after_ceiling": ["redo_full_c1_a"], "gpu_mismatch": ["zeta_h100_run"], "aliases": {"aliases": ["zbr7"], "evidence": {"zbr7": ["zbr7_one", "zbr7_two"]}}}}
+{"id": "r91", "kind": "value", "value": {"aliases": ["zbr7"], "evidence": {"zbr7": ["zbr7_one", "zbr7_two"]}}}
+{"id": "r92", "kind": "value", "value": {"__re__": "(?<![0-9a-z])qwen3[-_. ]?8[-_. ]?flash[-_. ]?next(?![0-9a-z])"}}
+{"id": "r93", "kind": "exception", "type": "HintError", "code": "HINT_LINEAGE_FILTER_ABSENT", "message": "계보 필터 base 슬러그가 비었다: '--'", "remedy": "PAYLOAD.identity.base_slug(naming.base_slug 파생)를 넘긴다.", "exit_code": 1}
+{"id": "r94", "kind": "value", "value": [null, true]}
+{"id": "r95", "kind": "value", "value": ["simlog:sweep_index.meta.config_name", false]}
+{"id": "r96", "kind": "value", "value": ["publication-id-suffix(simlog 미관측)", false]}
+{"id": "r97", "kind": "value", "value": ["publication-id-suffix(simlog 미관측)", false]}
+{"id": "r98", "kind": "value", "value": [null, false]}
+{"id": "r99", "kind": "value", "value": true}
+{"id": "r100", "kind": "value", "value": false}
+{"id": "r101", "kind": "value", "value": false}
+{"id": "r102", "kind": "value", "value": true}
+{"id": "r103", "kind": "value", "value": false}

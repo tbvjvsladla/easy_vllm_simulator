@@ -1,0 +1,23 @@
+{
+  "campaign_id": "camp-a",
+  "state": "active",
+  "close_reason": null,
+  "parent": null,
+  "topology": "single",
+  "suspended_pins": null,
+  "released_resources": [],
+  "interrupted_cells": [],
+  "last_transition_event": null,
+  "answered": false,
+  "pending_query": null,
+  "sub_convergence": null,
+  "sub_nodes": [],
+  "sub_echoed": [],
+  "handoff_pointers": [],
+  "parked_devlog": null,
+  "open_pending": null,
+  "sub_accepted": [],
+  "reslice_pending": {},
+  "unknown_events": [],
+  "source": "campaigns/camp-a/journey.jsonl fold"
+}

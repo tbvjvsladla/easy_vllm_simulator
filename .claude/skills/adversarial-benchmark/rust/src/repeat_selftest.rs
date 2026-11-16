@@ -4,7 +4,7 @@
 //! * **A1** reads the runtime schema `campaigns/_template/campaign.schema.json` under the repository root and
 //!   compares its `budgets.repeats.minimum` with the floor compiled in from that same schema at build time. A
 //!   missing or reshaped schema is a failed check.
-//! * **R** copies the actual `campaign_init.py` owner from the repository root into a fresh temporary tree and
+//! * **R** copies the actual campaign owner launcher (`campaign_init.sh`; the retired `campaign_init.py` may be absent) from the repository root into a fresh temporary tree and
 //!   resolves repeat counts through it (the query adapter, see [`crate::repeat_owner`]); a missing owner copy source
 //!   ends the self-test with the original's `FileNotFoundError`.
 //! * **G** writes and rereads real files (run boundaries, `measured.json` aggregation, idempotence, failure
@@ -20,7 +20,7 @@ use crate::pystr::PyStr;
 use crate::pyvalue::{PyDict, PyValue};
 use crate::repeat_axis::{
     band_pct, parse_repeats, repetition_established, summarize, SummarizeRequest,
-    CAMPAIGN_INIT_REL, REPEAT_KIND_COLD, REPEAT_KIND_WARM, SCHEMA_REL, SIGNAL_RUN_FAILED,
+    REPEAT_KIND_COLD, REPEAT_KIND_WARM, SCHEMA_REL, SIGNAL_RUN_FAILED,
     STOP_KIND_CLAMP, STOP_KIND_REPEAT_BREAK,
 };
 use crate::repeat_fs::{aggregate_level, record_run, AggregateRequest, RunBoundary};
@@ -294,10 +294,10 @@ fn resolution_through_owner(
 ) -> Result<(), Failure> {
     let root = temp.text();
     let root_ref = RepoRoot::given(root.clone());
-    let owner_copy = pyfs::join_text(&root, &PyStr::new(CAMPAIGN_INIT_REL));
+    let owner_copy = pyfs::join_text(&root, &PyStr::new(crate::repeat_owner::CAMPAIGN_LAUNCHER_REL));
     pyfs::mkdir_parents_exist_ok(&pyfs::parent(&owner_copy))?;
     // `ci_src.read_bytes()`: a missing owner in the repository is the original's FileNotFoundError.
-    let owner_source = pyfs::read_bytes(&pyfs::join_text(repo, &PyStr::new(CAMPAIGN_INIT_REL)))?;
+    let owner_source = pyfs::read_bytes(&pyfs::join_text(repo, &PyStr::new(crate::repeat_owner::CAMPAIGN_LAUNCHER_REL)))?;
     pyfs::write_bytes(&owner_copy, &owner_source)?;
     let camps = pyfs::join(&root, "campaigns");
     pyfs::mkdir_parents_exist_ok(&pyfs::join(&camps, "camp-a"))?;

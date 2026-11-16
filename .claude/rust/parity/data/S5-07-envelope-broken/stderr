@@ -1,0 +1,23 @@
+Traceback (most recent call last):
+  File "/tmp/parity-o-S5-07-envelope-broken-3732254-1794818533033964297/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_eta.py", line 960, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/tmp/parity-o-S5-07-envelope-broken-3732254-1794818533033964297/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_eta.py", line 870, in main
+    env = load_envelope(args.node_dir)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/parity-o-S5-07-envelope-broken-3732254-1794818533033964297/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_eta.py", line 376, in load_envelope
+    return json.load(fh)
+           ^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 293, in load
+    return loads(fp.read(),
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/__init__.py", line 346, in loads
+    return _default_decoder.decode(s)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 337, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/json/decoder.py", line 353, in raw_decode
+    obj, end = self.scan_once(s, idx)
+               ^^^^^^^^^^^^^^^^^^^^^^
+json.decoder.JSONDecodeError: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)

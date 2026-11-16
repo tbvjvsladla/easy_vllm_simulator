@@ -1,0 +1,8 @@
+  [PASS] metadata card contract
+  [PASS] unknown top-level identity field rejected
+  [PASS] non-URI custom binding rejected
+  [PASS] missing role capability rejected
+  [PASS] float rejected
+  [PASS] missing skills reported
+  [PASS] credential field rejected
+self-test: PASS

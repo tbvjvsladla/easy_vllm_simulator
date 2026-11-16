@@ -1,0 +1,13 @@
+{
+  "age_check": "evaluated",
+  "age_days": 370,
+  "drift_fields": [],
+  "hw_check": "skipped:no-observed",
+  "manifest_path": "./output/single/manifest.yaml",
+  "max_age_days": 30,
+  "notes": [],
+  "preflight_required": true,
+  "reasons": [
+    "ATTESTATION_STALE"
+  ]
+}

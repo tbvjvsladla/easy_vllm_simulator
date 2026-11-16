@@ -1,0 +1,29 @@
+usage: hint.py [-h] [--repo REPO] [--self-test] <command> ...
+
+hint-publisher 단일 CLI — 셀 1개 = 태그 1개(plan_26092119 · v7 plan_26092908).
+
+positional arguments:
+  <command>
+    publish          셀 1개 → 스캐폴드 → 정지(태그·브랜치 부수효과 0)
+    continue         승인 → 린트 · 사실 검증 → 이름 확정(꼬리 · 중복 시 timestamp) → 커밋(부모 = 안내
+                     커밋) → 봉인 → 검증 → push → 카탈로그(파생 · 두 경로 커밋)
+    lint             draft 린트(부수효과 0)
+    refresh          draft 안 파생 블록(00 §0.3 · §0.5)을 다시 쓴다(미리 보기 · 태그·브랜치 부수효과
+                     0)
+    refacts          같은 generated_utc 로 사실(FACT · PAYLOAD · LINEAGE ·
+                     PROVENANCE · 산출물)을 재파생 — 산문 · 꼬리 · 사실 검증 보존 · 바뀐 FACT
+                     diff 출력 · 부수효과 = draft 안뿐
+    excerpt          발췌 저작 도우미 — 치환 후 원문 출력(부수효과 0)
+    name             파생 이름 · 축별 출처(읽기 전용)
+    verify           이 태그 1개 · push 전 로컬 봉인 검증(D10)
+    push             태그 1개 push(정확한 refspec · 기본 dry-run)
+    catalog          원격 발행 태그 → hints/index.json + HINTS.md
+    match            수신자 근-미스 발견(읽기 전용 · gitless)
+    branch-transition
+                     maintenance-only: README 하나의 hint 브랜치 형식 전환(CAS·정확한
+                     branch push · 사람 승인)
+
+options:
+  -h, --help         show this help message and exit
+  --repo REPO        저장소 루트(기본: 현재 디렉터리의 git 최상위) — 서브명령 앞에 둔다
+  --self-test        전 모듈 자체검사 + 파서 검사 + 격리 E2E(라이브 비의존)

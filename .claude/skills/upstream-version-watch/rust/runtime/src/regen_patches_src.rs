@@ -508,6 +508,12 @@ fn execute(cmd: &str, o: &Opts) -> Result<i32, Fail> {
 }
 
 pub fn run(args: &[String]) -> i32 {
+    if args.first().is_some_and(|a| a == "-h" || a == "--help") {
+        // the original's top-level argparse page, captured from it (golden text)
+        print!("{}", include_str!("help/regen_build_patches_src.txt"));
+        let _ = std::io::stdout().flush();
+        return 0;
+    }
     let (cmd, opts) = match parse(args) {
         Ok(parsed) => parsed,
         Err(status) => return status,

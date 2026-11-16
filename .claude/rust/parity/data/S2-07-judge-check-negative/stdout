@@ -1,0 +1,7 @@
+{
+  "fixture": ".claude/skills/upstream-version-watch/fixtures/version_delta_negative_unknown_plane.fixture.json",
+  "case": "[음성대조 N2] 골든 + D1 닫힌열거 밖 최상위 경로 1건 주입",
+  "result": "PASS",
+  "diff_count": 0,
+  "diffs": []
+}

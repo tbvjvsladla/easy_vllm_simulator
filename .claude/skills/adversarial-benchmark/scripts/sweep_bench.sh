@@ -375,7 +375,7 @@ else
 # 순서: lite 를 **먼저**. lite 의 cold TTFT 는 warmup 0 측정이라 스윕이 엔진을 데운 뒤에 재면
 # 더 이상 cold 가 아니다.
 # 캠페인 셀 bench phase(K5) — 측정 진입 = running · 종료 = done(rc 0)/failed(그 밖 · EXIT trap). 노드는 배정에서 파생된다.
-_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.sh"
 _CAMPAIGN_STARTED=""
 _campaign_phase() {  # $1=state(running|done|failed) $2=rc
   local _now; _now="$(date -u +%FT%TZ)"
@@ -384,7 +384,7 @@ _campaign_phase() {  # $1=state(running|done|failed) $2=rc
     _a+=(--started-utc "$_CAMPAIGN_STARTED" --ended-utc "$_now" --proof-predicate "sweep_bench exit=$2 (0=스윕 완주)")
     if [ "$1" = done ]; then _a+=(--proof-ok --proof-source "sweep_bench: $SWEEPDIR/sweep_index.json"); fi
   fi
-  bash "${_CI%.py}.sh" "${_a[@]}" >&2 \
+  bash "$_CI" "${_a[@]}" >&2 \
     || echo "[sweep_bench] ⚠ 캠페인 셀 '$CAMPAIGN_CELL' bench phase=$1 기록 실패(위 사유) — 진행표가 낡는다" >&2
 }
 _campaign_exit() {

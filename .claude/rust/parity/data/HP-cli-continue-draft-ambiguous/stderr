@@ -1,0 +1,2 @@
+[hint] FAIL HINT_DRAFT_AMBIGUOUS: draft 가 2개다: ['hints/.drafts/d2', 'hints/.drafts/d3']
+  → --node 또는 --draft 로 하나를 고른다.

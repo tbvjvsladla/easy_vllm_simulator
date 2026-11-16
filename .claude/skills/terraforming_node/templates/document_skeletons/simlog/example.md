@@ -26,7 +26,7 @@ docs/simlog/<YYMMDDHH>[_<MM>_<SS>]_<주제>/
 - `key_files_snapshot/` — 그 시점 config yaml/플래그·build_patches 등 판정에 걸린 파일 사본.
 - `run_summary.md`(또는 .json) — trial 표(설정→결과)·판정 요약(상세 판정은 testlog 가 정본).
 
-## simulate run 디렉토리 내용 (`simlog_writer.py`가 기록, trial NN은 `01`부터)
+## simulate run 디렉토리 내용 (`recipe.sh simulate` 의 Rust simlog 라이터가 기록, trial NN은 `01`부터)
 - `trialNN_vllm.log` — 컨테이너 docker logs 원문(`VLLM_LOGGING_CONFIG_PATH`로 `/app/simlog` 캡처).
 - `trialNN_profile.json` — `parse_vllm_log` 실측(weights/kv/overhead GiB, 백엔드 등).
 - `trialNN_candidate.yaml` — 그 trial의 lock-set + 설정한 `kv_cache_memory_bytes`.

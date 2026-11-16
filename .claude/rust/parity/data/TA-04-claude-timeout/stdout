@@ -1,0 +1,18 @@
+{
+  "budget_outcome": "external_interruption",
+  "duration_api_ms": null,
+  "duration_ms": null,
+  "exit_code": 124,
+  "intent": "probe",
+  "model_requested": "sonnet",
+  "model_used": [],
+  "num_turns": null,
+  "output": null,
+  "provider": "claude_code",
+  "reason_codes": [
+    "TIMEOUT"
+  ],
+  "schema_version": 1,
+  "session_id": null,
+  "status": "timeout"
+}

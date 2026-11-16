@@ -1,0 +1,3 @@
+usage: staleness_gate.py [-h] [--topology {single,multi}] [--repo REPO]
+                         [--observed OBSERVED] [--now NOW]
+                         [--max-age-days MAX_AGE_DAYS] [--json] [--self-test]

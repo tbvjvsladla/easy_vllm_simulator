@@ -1,3 +1,6 @@
+    # 이월 판독은 Rust(`bb_capture_proven` · 옛 인라인 python3 heredoc 과 같은 출력) — 실행파일이 없거나 실패하면 null.
+    PREV_PROVEN="$("$RUST_REL/bb_capture_proven" "$OUT" 2>/dev/null || echo null)"
+    [ -n "$PREV_PROVEN" ] || PREV_PROVEN="null"
 #!/bin/bash
 # verify_node_blackbox.sh — proof-of-capture 게이트 (plan_26073109 §Phase 5).
 #
@@ -144,22 +147,26 @@ if [ "$MODE" = "crash" ]; then
   exit 0
 fi
 
+# Rust 실행파일 자리 — 메인 scripts/node_blackbox/../../rust · 서브(.claude/runtime/node_blackbox/)는 배달·빌드된 terraforming 크레이트.
+case "$SDIR" in */.claude/runtime/node_blackbox) RUST_REL="$SDIR/../../skills/terraforming_node/rust/target/release" ;; *) RUST_REL="$SDIR/../../rust/target/release" ;; esac
 say "노드=$NODE_ID · 모드=$MODE · 로그=$NODE_DIR"
 echo
 
 # ── A. 결정론 엔진 자체시험 (하드웨어 불요) ──────────────────────────────
 say "A. 결정론 엔진"
-for t in "blackbox_eta.py --self-test:ETA 엔진" \
-         "blackbox_collect.py --self-test:수집기" \
-         "blackbox_events.py --self-test:이벤트 통합" \
-         "logs_lifecycle.py --self-test:수명 집행" \
-         "seed_from_journal.py --self-test:시드 임포터" \
-         "regen_envelope.py --self-test:포락선 재생성·키 정합" \
-         "blackbox_session.py --self-test:세션 사이드카" \
-         "blackbox_thermal.py --self-test:열·전력 포락선 엔진"; do
+for t in "blackbox_eta.sh --self-test:ETA 엔진" \
+         "blackbox_collect.sh --self-test:수집기" \
+         "blackbox_events.sh --self-test:이벤트 통합" \
+         "logs_lifecycle.sh --self-test:수명 집행" \
+         "seed_from_journal.sh --self-test:시드 임포터" \
+         "regen_envelope.sh --self-test:포락선 재생성·키 정합" \
+         "blackbox_session.sh --self-test:세션 사이드카" \
+         "blackbox_thermal.sh --self-test:열·전력 포락선 엔진"; do
   f="${t%%:*}"; label="${t##*:}"
-  if python3 "$SDIR/${f%% *}" ${f#* } >/dev/null 2>&1; then ok "$label self-test" "selftest_${f%%.*}"
-  else bad "$label self-test 실패 — python3 $SDIR/$f" "selftest_${f%%.*}"; fi
+  # 전부 Rust 실행파일의 런처(bash) — Python 경로 ✗(plan_26111615)
+  runner=bash
+  if "$runner" "$SDIR/${f%% *}" ${f#* } >/dev/null 2>&1; then ok "$label self-test" "selftest_${f%%.*}"
+  else bad "$label self-test 실패 — $runner $SDIR/$f" "selftest_${f%%.*}"; fi
 done
 if bash "$SDIR/mem_watchdog_eta.sh" --self-test >/dev/null 2>&1; then
   ok "ETA 워치독 self-test" "selftest_watchdog"
@@ -196,14 +203,14 @@ else bad "열·전력 워치독 self-test 실패 — bash $SDIR/thermal_watchdog
 #   둘이 갈라져 있으면 "시험 통과 + 현장은 옛 코드"가 된다. 침묵 실패라 반드시 명시 검사한다.
 #   (근거: install 의 `enable --now` 가 이미 돌던 유닛을 재시작하지 않던 결함 — testlog_26073123)
 for pair in "mem_watchdog_eta.sh:easy-vllm-bb-watchdog" \
-            "blackbox_collect.py:easy-vllm-bb-collect" \
-            "blackbox_eta.py:easy-vllm-bb-eta" \
-            "regen_envelope.py:easy-vllm-bb-regen-envelope" \
-            "blackbox_events.py:easy-vllm-bb-events" \
-            "logs_lifecycle.py:easy-vllm-bb-lifecycle" \
-            "blackbox_thermal.py:easy-vllm-bb-thermal" \
+            "$RUST_REL/blackbox_collect:easy-vllm-bb-collect" \
+            "$RUST_REL/blackbox_eta:easy-vllm-bb-eta" \
+            "$RUST_REL/regen_envelope:easy-vllm-bb-regen-envelope" \
+            "$RUST_REL/blackbox_events:easy-vllm-bb-events" \
+            "$RUST_REL/logs_lifecycle:easy-vllm-bb-lifecycle" \
+            "$RUST_REL/blackbox_thermal:easy-vllm-bb-thermal" \
             "thermal_watchdog.sh:easy-vllm-bb-tp-watchdog"; do
-  src="$SDIR/${pair%%:*}"; dst="/usr/local/sbin/${pair##*:}"
+  case "${pair%%:*}" in /*) src="${pair%%:*}" ;; *) src="$SDIR/${pair%%:*}" ;; esac; dst="/usr/local/sbin/${pair##*:}"
   if [ ! -f "$dst" ]; then bad "배포본 부재: $dst" "deployed_${pair##*:}"
   elif cmp -s "$src" "$dst"; then
     ok "배포본 최신 ${pair##*:}" "deployed_${pair##*:}"
@@ -225,12 +232,14 @@ done
 for _b in easy-vllm-bb-eta easy-vllm-bb-collect easy-vllm-bb-events \
           easy-vllm-bb-lifecycle easy-vllm-bb-regen-envelope; do
   _d="/usr/local/sbin/$_b"
+  _magic=''
+  [ -f "$_d" ] && { IFS= read -r -N 4 _magic < "$_d" || :; }
   if [ ! -x "$_d" ]; then
     bad "배포본 실행권한/부재: $_d" "deployed_exec_$_b"
-  elif ( cd / && python3 -B "$_d" --self-test >/dev/null 2>&1 ); then
-    ok "배포본 실동작 $_b" "deployed_exec_$_b"
+  elif [ "$_magic" = $'\177ELF' ] && ( cd / && "$_d" --self-test >/dev/null 2>&1 ); then
+    ok "배포본 실동작 $_b (Rust)" "deployed_exec_$_b"
   else
-    bad "배포본이 **설치된 자리에서** 실패: $_b (내용은 소스와 같아도 실행되지 않는다 — sibling import 통로 확인). sudo bash $SDIR/install_node_blackbox.sh --apply --level L1" \
+    bad "배포본이 **설치된 자리에서** 실패: $_b (Rust ELF 가 아니거나 self-test 실패 — 옛 Python 배포본이면 재설치). sudo bash $SDIR/install_node_blackbox.sh --apply --level L1" \
         "deployed_exec_$_b"
   fi
 done
@@ -252,7 +261,7 @@ if [ -s "$ETC/eta_params.env" ]; then
   ok "ETA 상수 존재($ETC/eta_params.env)" "eta_params"
   # 상수가 하한 가드를 통과하는가 — 파일이 있다고 유효한 건 아니다
   # shellcheck disable=SC1090
-  ( . "$ETC/eta_params.env"; python3 "$SDIR/blackbox_eta.py" \
+  ( . "$ETC/eta_params.env"; bash "$SDIR/blackbox_eta.sh" \
       --set kill_latency_s="${BB_KILL_LATENCY_S:-4}" \
       --set detect_margin_s="${BB_DETECT_MARGIN_S:-2}" \
       --set debounce_polls="${BB_DEBOUNCE_POLLS:-3}" --explain 10000 100 >/dev/null 2>&1 ) \
@@ -266,7 +275,7 @@ fi
 if [ -s "$ETC/thermal_params.env" ]; then
   ok "열·전력 상수 존재($ETC/thermal_params.env)" "thermal_params"
   # shellcheck disable=SC1090
-  ( . "$ETC/thermal_params.env"; python3 "$SDIR/blackbox_thermal.py" \
+  ( . "$ETC/thermal_params.env"; bash "$SDIR/blackbox_thermal.sh" \
       --set gpu_pwr_w="$(( ${BB_TP_GPU_PWR_DW:-800} / 10 ))" \
       --set gpu_sustain_s="${BB_TP_GPU_SUSTAIN_S:-60}" \
       --set soc_warn_c="${BB_TP_SOC_WARN_C:-90}" \
@@ -566,19 +575,10 @@ if [ -d "$NODE_DIR" ]; then
   #   ∴ check/crash 실행은 증명을 **이월만** 하고 절대 생성·삭제하지 않는다.
   PREV_PROVEN="null"
   if [ -f "$OUT" ]; then
-    PREV_PROVEN="$(python3 - "$OUT" <<'PY' 2>/dev/null || echo null
-import json,sys
-try:
-    d=json.load(open(sys.argv[1],encoding="utf-8"))
-except Exception:
-    print("null"); raise SystemExit
-p=d.get("capture_proven")
-if not isinstance(p,dict):                      # schema_version 1 에서의 이월
-    p=({"proven_utc":d.get("verified_utc"),"pass":d.get("pass"),"fail":d.get("fail"),
-        "pending":d.get("pending")} if d.get("mode")=="post" and d.get("verified_utc") else None)
-print(json.dumps(p,ensure_ascii=False) if p else "null")
-PY
-)"
+    # 이월 판독(schema_version 1 의 post 기록 변환 포함)은 Rust `bb_capture_proven` 이 한다 — 옛 인라인 heredoc 과
+    #   같은 출력(json.dumps(p, ensure_ascii=False) | null). 실행파일 부재·실패는 null(증명 이월 없음).
+    PREV_PROVEN="$("$RUST_REL/bb_capture_proven" "$OUT" 2>/dev/null || echo null)"
+    [ -n "$PREV_PROVEN" ] || PREV_PROVEN="null"
   fi
   if [ "$MODE" = "post" ] && [ "$FAILN" = 0 ]; then
     PROVEN="$(printf '{"proven_utc": "%s", "pass": %d, "fail": %d, "pending": %d}' \

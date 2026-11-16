@@ -1,0 +1,9 @@
+[agent-control] REQUEST_SCHEMA_INVALID: $.schema_version: missing required property
+[agent-control] REQUEST_SCHEMA_INVALID: $.provider: missing required property
+[agent-control] REQUEST_SCHEMA_INVALID: $.intent: missing required property
+[agent-control] REQUEST_SCHEMA_INVALID: $.model: missing required property
+[agent-control] REQUEST_SCHEMA_INVALID: $.task: missing required property
+[agent-control] REQUEST_SCHEMA_INVALID: $.target: missing required property
+[agent-control] REQUEST_SCHEMA_INVALID: $.timeout_seconds: missing required property
+[agent-control] REQUEST_SCHEMA_INVALID: $.max_turns: missing required property
+[agent-control] REQUEST_SCHEMA_INVALID: $.capabilities: missing required property

@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "CLI_USAGE_ERROR": "invalid command-line invocation: argument --downgrade-from: invalid choice: 'harness_change' (choose from 'full_benchmark')"
+  },
+  "ok": false,
+  "reason_codes": [
+    "CLI_USAGE_ERROR"
+  ],
+  "schema_version": 1
+}

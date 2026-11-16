@@ -37,6 +37,7 @@ pub mod functional_fixture;
 pub mod functional_http;
 pub mod functional_smoke;
 pub mod generation_api;
+pub mod gmu_roles_selftest;
 pub mod generation_bench;
 pub mod generation_cli;
 pub mod hf_http;

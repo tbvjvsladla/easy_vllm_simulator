@@ -1,0 +1,1 @@
+{"kind": "serve_start", "model": "m", "session_id": "s1", "source": "blackbox_session", "tensor_parallel_size": 1, "topology": "single", "ts": "2026-07-31T00:02:30Z"}

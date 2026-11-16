@@ -1,0 +1,31 @@
+usage: agent_guard.py [-h] [--node-dir NODE_DIR] [--now NOW]
+                      [--stop-file STOP_FILE] [--container CONTAINER]
+                      [--drop-caches-helper DROP_CACHES_HELPER]
+                      [--grace-s GRACE_S] [--poll-s POLL_S]
+                      [--poll-hot-s POLL_HOT_S] [--rate-window RATE_WINDOW]
+                      [--debounce-n DEBOUNCE_N] [--max-s MAX_S] [--once]
+                      [--dry-run] [--self-test]
+
+에이전트 예방 트리거 가드 (plan_26080121)
+
+options:
+  -h, --help            show this help message and exit
+  --node-dir NODE_DIR   docs/logs/<node_id> (--self-test 외 필수)
+  --now NOW             앵커 시각 YYYY-MM-DDTHH:MM:SSZ (벽시계 금지 · --self-test 외 필수)
+  --stop-file STOP_FILE
+                        부하 드라이버 정지 신호 파일(① halt_load 대상)
+  --container CONTAINER
+                        서빙 컨테이너명(③ graceful_stop 대상)
+  --drop-caches-helper DROP_CACHES_HELPER
+  --grace-s GRACE_S     graceful stop 유예
+  --poll-s POLL_S       NORMAL 준위 폴링 주기
+  --poll-hot-s POLL_HOT_S
+                        NOTIFY 이상 폴링 주기
+  --rate-window RATE_WINDOW
+                        하강률 산정 표본 수
+  --debounce-n DEBOUNCE_N
+                        승격에 필요한 연속 폴 수(데몬 BB_DEBOUNCE_N 과 동형 · 순간 스파이크 차단)
+  --max-s MAX_S         최대 구동 시간(0=무제한)
+  --once                1회 판정 후 종료(시험용)
+  --dry-run             판정만 하고 행동하지 않는다
+  --self-test

@@ -1,0 +1,17 @@
+{
+  "action": "sync_branches",
+  "allowed": false,
+  "authorization_state": null,
+  "exit_code": 2,
+  "identity": null,
+  "messages": {
+    "MANIFEST_INVALID_JSON": "manifest is not valid JSON: Expecting value: line 2 column 1 (char 7)"
+  },
+  "mode": "experimental",
+  "propagation_scope": null,
+  "reason_codes": [
+    "MANIFEST_INVALID_JSON"
+  ],
+  "schema_version": 1,
+  "task_class": null
+}

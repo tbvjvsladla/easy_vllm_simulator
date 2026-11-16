@@ -1,0 +1,27 @@
+  PASS 리포트 표 2행 파싱
+  PASS 판정점 표시가 값을 오염시키지 않는다
+  PASS 절삭 로그 회수
+  PASS 렌더에 두 레벨이 모두 있다
+  PASS 표시 반올림(원본 오염 ✗)
+  PASS 절삭이 절에 남는다
+  PASS 대표 run 범위와 반복별 warmup·요청 수 차이를 명시
+  PASS ★음성대조: 머리행 부재는 빈 표가 아니라 FAIL
+  PASS ★음성대조: 행 0 은 FAIL
+  PASS sweep_index 는 꼬리 열(p99)을 낸다
+  PASS 반복별 요청·warmup 차이가 있어도 대표 표 값은 유지하고 동일 반복이라고 단정하지 않는다
+  PASS 레벨 1개면 곡선 부재를 명시한다
+  PASS 절 추출이 왕복한다
+  PASS 절 부재는 None
+  PASS ★음성대조: 한 숫자만 손대도 diff 가 잡는다
+  PASS 측정 구성 표를 키→값으로 읽는다(N/A=None · 반복 정수 · 이스케이프 `|` 복원)
+  PASS ★측정 구성 절 부재는 None(미기재 — 파싱 실패와 다르다)
+  PASS ★음성대조: 계약 밖 키는 FAIL(계약이 갈라진 것을 조용히 버리지 않는다)
+  PASS 경량 리포트 판별은 헤더 줄로만
+  PASS lite 지표 술어: 수치 행이 있으면 참
+  PASS ★음성대조 lite 지표 술어: gen tokens/sec 가 N/A 면 거짓(결손)
+  PASS ★음성대조 lite 지표 술어: 절이 없으면 거짓
+  PASS lite 절이 표를 행 그대로 옮긴다
+  PASS lite 절 추출이 왕복한다
+  PASS ★음성대조: lite 절 숫자 손댐을 diff 가 잡는다
+  PASS ★음성대조: 표 없는 lite 절은 빈 절이 아니라 FAIL
+[render_bench_section] PASS

@@ -1,0 +1,18 @@
+{
+  "budget_outcome": "within_budget",
+  "duration_api_ms": null,
+  "duration_ms": null,
+  "exit_code": 0,
+  "intent": "probe",
+  "model_requested": "sonnet",
+  "model_used": [
+    "a"
+  ],
+  "num_turns": 1,
+  "output": "r",
+  "provider": "claude_code",
+  "reason_codes": [],
+  "schema_version": 1,
+  "session_id": "s",
+  "status": "completed"
+}

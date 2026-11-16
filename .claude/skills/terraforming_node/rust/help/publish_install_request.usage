@@ -1,0 +1,5 @@
+usage: publish_install_request.py [-h] --generated-utc GENERATED_UTC
+                                  [--level {L1,L2,L3}]
+                                  [--topology {single,multi}] [--force]
+                                  [--repo REPO] [--out-dir OUT_DIR]
+                                  [--print-path-only]

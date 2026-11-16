@@ -1,0 +1,98 @@
+{
+  "certificate": null,
+  "checked_evidence": {
+    "bench_report": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/br_dup.md",
+      "required": true,
+      "sha256": "824dc0243de4509ef261454af7796cb57cca4698355f856b036a584418a72711",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "devlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/devlog.md",
+      "required": true,
+      "sha256": "4842198b2c77f304e39154c10ca3b3651c2af556f82987a2eed201c131a9ee55",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "plan": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/plan.md",
+      "required": true,
+      "sha256": "82e5adb594bd210b32af3c82fc563b881a942e8eb7fe0487b4e7ac29619c03ee",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "simlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "sim/bench",
+      "required": true,
+      "sha256": null,
+      "tree_sha256": "0a17c764b36e3e492365a6940dff933e5332e4b65d12b1ac06933337e91cff38",
+      "type": "dir"
+    },
+    "testlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/testlog.md",
+      "required": true,
+      "sha256": "1344de4f31b5fe384e9748f7ce3c55e6e00bdf6e82a79d4023ce3121ed90dfc4",
+      "tree_sha256": null,
+      "type": "file"
+    }
+  },
+  "eligible_for_promotion": false,
+  "exit_code": 1,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {
+    "CERTIFICATE_WAIVER_UNCORROBORATED": "benchmark verdict='PASS' ∧ rubric_authority='weak'(비발행 권한)라 인증서를 요구하지 않지만, bench_report 판정 표가 그것을 말하지 않는다 (state=unparseable(판정 표에 'verdict' 행이 두 번 있다), table=None) — 면제 근거가 서지 않는다",
+    "MANIFEST_RUBRIC_FLOOR_INVALID": "benchmark.floor_tps=None is not a finite positive number -- floor<=0 means the rubric imposed NO threshold (공허 PASS): every measurement passes. Not promotable in ANY authority.",
+    "MANIFEST_RUBRIC_RATIO_MISSING": "benchmark.ratio_M_over_primary=None is not a finite number -- the measurement-vs-rubric indicator is absent, so the verdict cannot be audited",
+    "MANIFEST_RUBRIC_SOURCE_MISSING": "benchmark.primary_source=None is absent -- which rubric slot won cannot be established (surfaced, never matched as a string: the numeric floor/ratio contract above is the gate)",
+    "PII_SCAN_COVERAGE_INCOMPLETE:bench_report": "required evidence 'bench_report' path 'docs/br_dup.md' not present in pii_scan.scanned_paths",
+    "PII_SCAN_COVERAGE_INCOMPLETE:devlog": "required evidence 'devlog' path 'docs/devlog.md' not present in pii_scan.scanned_paths",
+    "PII_SCAN_COVERAGE_INCOMPLETE:plan": "required evidence 'plan' path 'docs/plan.md' not present in pii_scan.scanned_paths",
+    "PII_SCAN_COVERAGE_INCOMPLETE:simlog": "required evidence 'simlog' path 'sim/bench' not present in pii_scan.scanned_paths",
+    "PII_SCAN_COVERAGE_INCOMPLETE:testlog": "required evidence 'testlog' path 'docs/testlog.md' not present in pii_scan.scanned_paths"
+  },
+  "reason_codes": [
+    "CERTIFICATE_WAIVER_UNCORROBORATED",
+    "MANIFEST_RUBRIC_FLOOR_INVALID",
+    "MANIFEST_RUBRIC_RATIO_MISSING",
+    "MANIFEST_RUBRIC_SOURCE_MISSING",
+    "PII_SCAN_COVERAGE_INCOMPLETE:bench_report",
+    "PII_SCAN_COVERAGE_INCOMPLETE:devlog",
+    "PII_SCAN_COVERAGE_INCOMPLETE:plan",
+    "PII_SCAN_COVERAGE_INCOMPLETE:simlog",
+    "PII_SCAN_COVERAGE_INCOMPLETE:testlog"
+  ],
+  "rubric": {
+    "authority": "weak",
+    "authority_source": "manifest_benchmark",
+    "contract_ok": false,
+    "floor_tps": null,
+    "primary_source": null,
+    "ratio_M_over_primary": null
+  },
+  "schema_version": 1,
+  "state": "runtime-ready",
+  "task_class": "full_benchmark"
+}

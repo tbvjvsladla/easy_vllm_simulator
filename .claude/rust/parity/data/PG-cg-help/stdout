@@ -1,0 +1,16 @@
+usage: completion_gate.py [-h] {verify,authorize} ...
+
+manifest-driven 3-state completion gate (runtime-ready | evidence-complete |
+promotion-ready)
+
+positional arguments:
+  {verify,authorize}
+    verify            evaluate a work-manifest and print a completion-manifest
+                      JSON to stdout
+    authorize         decide whether ONE side-effect action is authorized for
+                      a work-manifest
+
+options:
+  -h, --help          show this help message and exit
+
+exit codes: 0=success(promotion-eligible) 1=policy-block 2=invalid-input

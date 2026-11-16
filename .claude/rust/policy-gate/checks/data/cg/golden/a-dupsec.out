@@ -1,0 +1,24 @@
+{
+  "action": "sync_branches",
+  "allowed": false,
+  "authorization_state": null,
+  "exit_code": 2,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {
+    "EXECUTION_APPROVAL_PLAN_ATOMS_MISSING": "plan must contain exactly one non-fenced Execution approval section with contiguous canonical approval atoms"
+  },
+  "mode": "experimental",
+  "propagation_scope": null,
+  "reason_codes": [
+    "EXECUTION_APPROVAL_PLAN_ATOMS_MISSING"
+  ],
+  "schema_version": 1,
+  "task_class": "harness_change"
+}

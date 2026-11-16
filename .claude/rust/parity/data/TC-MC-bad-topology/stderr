@@ -1,0 +1,3 @@
+usage: manifest_contract.py [-h] [--topology {single,multi}] [--repo REPO]
+                            [--require-flag] [--json] [--self-test]
+manifest_contract.py: error: argument --topology: invalid choice: 'both' (choose from 'single', 'multi')

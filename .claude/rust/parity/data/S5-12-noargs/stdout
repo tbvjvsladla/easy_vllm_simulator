@@ -1,0 +1,15 @@
+usage: regen_envelope.py [-h] [--node-dir NODE_DIR] [--self-test]
+                         {regen,check-keys,staleness} ...
+
+노드블랙박스 포락선 재생성 + 키 정합 검증
+
+positional arguments:
+  {regen,check-keys,staleness}
+    regen               rollup+samples → envelope.json (state=measured)
+    check-keys          eta_params 키가 blackbox_eta.DEFAULTS 와 맞는가(fail-loud)
+    staleness           포락선 노후 경고(차단 아님) + 이벤트
+
+options:
+  -h, --help            show this help message and exit
+  --node-dir NODE_DIR   docs/logs/<node_id>
+  --self-test

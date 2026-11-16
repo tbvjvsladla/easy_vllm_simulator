@@ -1,0 +1,6 @@
+usage: hint.py refacts [-h] --draft DRAFT [--docker-read-only]
+
+options:
+  -h, --help          show this help message and exit
+  --draft DRAFT
+  --docker-read-only  이미지 탐침을 끈다(publish 와 같은 뜻)

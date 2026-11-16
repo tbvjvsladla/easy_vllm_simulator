@@ -3,8 +3,8 @@
 //! * [`native_value`] sends one operation to `bench_reporting_api.sh evaluate-jsonl` and returns the text it answers.
 //! * [`native_lite_certificate_gates`] runs the installed `publish_benchmark_record.sh` against a scratch directory:
 //!   the refusal of a failed lite verdict in both publication paths and the positive control.
-//! * [`LiteMetrics`] speaks to `lite_metrics_api.sh` with the protocol of the original's Python adapter
-//!   (`lite_metrics_native.py`), without running that adapter: the same launcher, the same
+//! * [`LiteMetrics`] speaks to `lite_metrics_api.sh` with the protocol of the former Python adapter
+//!   (`lite_metrics_native.py`), without running or reading that adapter: the same launcher, the same
 //!   `evaluate-jsonl` request, the same reading of the answer, the same exceptions.
 //!
 //! Every call is a real child process (`bash` plus the launcher and the binary behind it); none is replaced by a
@@ -444,10 +444,10 @@ pub struct LiteMetrics {
 }
 
 impl LiteMetrics {
-    /// The launcher beside the adapter, `Path(adapter).resolve().with_name("lite_metrics_api.sh")`: the adapter's
-    /// directory after symbolic links are followed.
+    /// The launcher `lite_metrics_api.sh` of the scripts directory, in its directory after symbolic links are followed
+    /// (the former Python adapter's `Path(adapter).resolve().with_name(...)`; nothing depends on that adapter file).
     pub fn beside_adapter(context: &Context) -> LiteMetrics {
-        let adapter = context.join(&PyStr::new("lite_metrics_native.py"));
+        let adapter = context.join(&PyStr::new("lite_metrics_api.sh"));
         let resolved = crate::pyfs::os_string(&adapter)
             .ok()
             .and_then(|os| std::fs::canonicalize(Path::new(&os)).ok())

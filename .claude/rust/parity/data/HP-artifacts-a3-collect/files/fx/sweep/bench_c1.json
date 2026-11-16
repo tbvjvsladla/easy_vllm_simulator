@@ -1,0 +1,1 @@
+{"backend": "vllm", "num_prompts": 8, "max_concurrency": 2, "date": "20261001-003000", "completed": 8, "total_input_tokens": 800, "total_output_tokens": 1600, "model_id": "m", "request_rate": "inf", "burstiness": 1.0}

@@ -13,9 +13,8 @@
 //! serving, no NAS, no network, and the real `docs/benchmark`, `campaigns` and tags are never touched.
 //!
 //! The native owners of the typed pieces (report identity and constants, naming, bench-mode vocabulary) are called as
-//! this crate's own libraries. The Python owners that are not ported yet (hint reader, evidence publisher, and the
-//! program embedded in `sweep_bench.sh`) are reached through [`crate::owner_bridge`], which transports their answers
-//! and nothing else.
+//! this crate's own libraries. The owners of the other skills (hint reader, evidence publisher) are their Rust
+//! libraries, reached through [`crate::owner_bridge`]; no Python is started.
 //!
 //! Cases: L1 default (no flag) = automatic handoff path, nothing published · L2 `--publish-report` · L3 idempotent
 //! re-render · L4 publication failure does not lose the measurement · L5 no measurement time · L6 mode mix and missing
@@ -33,7 +32,7 @@ use crate::classify_cell::{
 };
 use crate::conformance::{py_equals, splitlines, Raised};
 use crate::dataset_prep::Console;
-use crate::owner_bridge::{OwnerBridge, OwnerRole};
+use crate::owner_bridge::OwnerBridge;
 use crate::pystr::{is_decimal_digit, PyStr};
 use crate::pyvalue::{PyDict, PyValue};
 use crate::render_report::{
@@ -61,15 +60,15 @@ const CHILD_SECONDS: u64 = 120;
 const FULL_RENDER_SECONDS: u64 = 60;
 const RELEASE_DIRECTORY: &str = ".claude/skills/adversarial-benchmark/rust/target/release";
 
-const HINT_READER: &str = ".claude/skills/hint-publisher/scripts/render_bench_section.py";
-const EVIDENCE_PUBLISHER: &str = ".claude/policies/runtime/evidence_publisher.py";
 const GATE_STUB: &str = ".claude/skills/terraforming_node/scripts/manifest_contract.py";
 const GATE_LAUNCHER_STUB: &str = ".claude/skills/terraforming_node/scripts/manifest_contract.sh";
-/// Test-plane launcher beside the gate stub: the availability check passes, every other call runs the stub.
-const GATE_LAUNCHER_TEXT: &str = "#!/bin/bash\n[ \"${MANIFEST_CONTRACT_VALIDATE_ONLY:-}\" = 1 ] && exit 0\nexec python3 \"$(dirname \"${BASH_SOURCE[0]}\")/manifest_contract.py\" \"$@\"\n";
+/// Test-plane launcher stub of the Flag gate (a shell program; nothing in the sandbox runs Python): the availability
+/// check passes and every gate call passes. The callers also require the owner file beside it to exist
+/// ([`GATE_STUB`] is only that presence marker; nothing executes it).
+const GATE_LAUNCHER_TEXT: &str = "#!/bin/bash\n# selftest-lite-report-shim — 테라포밍 Flag 게이트 stub(이 시험의 대상이 아니다 · 실 게이트는 benchmark_info_only_gate 가 지킨다).\n[ \"${MANIFEST_CONTRACT_VALIDATE_ONLY:-}\" = 1 ] && exit 0\nexit 0\n";
 
 /// Scripts copied as text (read as UTF-8, written back) in the original's order.
-const COPIED_SCRIPTS: [&str; 31] = [
+const COPIED_SCRIPTS: [&str; 14] = [
     "bench_shell.sh",
     "render_report.sh",
     "render_sweep_map.sh",
@@ -77,30 +76,13 @@ const COPIED_SCRIPTS: [&str; 31] = [
     "publish_benchmark_record.sh",
     "bench_doc_naming.sh",
     "bench_reporting_api.sh",
-    "reporting_native.py",
-    "doc_naming_native.py",
-    "render_report_native.py",
-    "render_sweep_map_native.py",
-    "render_max_report_native.py",
-    "publish_benchmark_record_native.py",
     "lite_bench.sh",
-    "lite_metrics.py",
-    "render_report.py",
-    "classify_cell.py",
-    "doc_naming.py",
-    "repeat_axis.py",
     "repeat_axis.sh",
     "repeat_axis_api.sh",
-    "repeat_axis_native.py",
-    "repeat_axis_owner_query.py",
-    "publish_benchmark_record.py",
     "lite_metrics.sh",
     "lite_metrics_api.sh",
-    "lite_metrics_native.py",
     "classify_cell.sh",
     "classify_cell_api.sh",
-    "classify_cell_native.py",
-    "classify_cell_role_query.py",
 ];
 
 /// Release binaries copied byte for byte (with their permission bits): the two repeat-axis binaries first, then the
@@ -153,11 +135,9 @@ case "$1" in
 esac
 "##;
 
-/// The Terraforming flag gate stub: not the gate (its own regression guards it); it only lets the script pass.
-const GATE_STUB_TEXT: &str = "#!/usr/bin/env python3\n\
-# @SENTINEL@ — 테라포밍 Flag 게이트 stub(이 시험의 대상이 아니다 · 실 게이트는 benchmark_info_only_gate 가 지킨다).\n\
-import sys\n\
-sys.exit(0)\n";
+/// The Terraforming flag gate owner's presence marker: not the gate and never executed (the launcher stub above
+/// answers every call); the callers only test that the owner file exists.
+const GATE_STUB_TEXT: &str = "# @SENTINEL@ — 테라포밍 Flag 게이트 소유자 자리표시(실행되지 않는다 · 호출은 manifest_contract.sh stub 이 받는다).\n";
 
 fn path_str(path: &Path) -> String {
     path.to_string_lossy().into_owned()
@@ -491,17 +471,8 @@ pub fn main(
     };
     let canonical = std::fs::canonicalize(repo_root).unwrap_or_else(|_| repo_root.to_path_buf());
     let scripts_dir = canonical.join(AB);
-    let mut bridge = OwnerBridge::start(&scripts_dir, checks.console())?;
-    bridge.load(
-        checks.console(),
-        OwnerRole::HintReader,
-        &canonical.join(HINT_READER),
-    )?;
-    bridge.load(
-        checks.console(),
-        OwnerRole::EvidencePublisher,
-        &canonical.join(EVIDENCE_PUBLISHER),
-    )?;
+    // The hint reader, the evidence publisher and the completion gate are Rust libraries (no interpreter, no `.py`).
+    let mut bridge = OwnerBridge::start();
 
     let sandbox = Sandbox::build(&canonical, &scripts_dir, "lite-report-selftest.")?;
     let outcome = run_sandbox_cases(&mut checks, &mut bridge, &sandbox, &scripts_dir, verbose);

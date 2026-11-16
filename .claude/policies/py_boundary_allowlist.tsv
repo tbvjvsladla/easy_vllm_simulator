@@ -1,0 +1,5 @@
+# py 경계 허용목록 — plan_26111615 §4 (서명 2026-11-16T06:51:08Z) 승인.
+# 한 줄 = <repo 상대경로>\t<사유>. '#' 줄과 빈 줄은 무시한다.
+# 하네스(결정론 로직·테스트) = Rust. vLLM 연동 개발산출물 = 그 산출물의 메인 언어(Python).
+# 이 목록에 없는 추적 *.py 는 py_boundary_guard 가 거부한다. 추가는 개정 plan + HITL 로만 한다.
+configs/check_reqs.py	vLLM 요구사항 분석(packaging·importlib.metadata) — vLLM 의존성 평면 개발산출물 · single 전용

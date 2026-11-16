@@ -1,0 +1,148 @@
+  [PASS] handoff: return the original report without native execution
+  [PASS] handoff: unresolved execution is not hidden by reuse
+  [PASS] handoff: other topology cannot reuse this report
+  [PASS] handoff: wrong report context is not accepted
+  [PASS] handoff: changed declared inputs require actual work
+  [PASS] handoff: failed work is not reused as success
+  [PASS] handoff CLI: suppress completed-context reissue without attempt or runner failure
+  [PASS] handoff CLI: suppress completed-context reissue without attempt or runner failure
+  [PASS] handoff CLI: observed issue follows the existing explicit feedback path
+  [PASS] 빈 원장 초기화
+  [PASS] 원장이 예산 서사(선언값·timeout·출처)를 적고 등급 라벨은 남기지 않는다
+  [PASS] 마지막 알려진 세션을 **사실로** 돌려준다(재개 여부는 판정하지 않는다)
+  [PASS] 직전 input-required 세션이 사실로 보인다
+  [PASS] 소진된 세션도 **사실로는** 보인다 — 이을지는 --resume 선언이 정한다
+  [PASS] 집행된 예산 바닥이 사실로 남는다 → 25
+  [PASS] 서브 리포트 없는 attempt 는 sub_reported=false(메인 대행을 성공으로 집계 ✗)
+  [PASS] HITL 표면화
+  [PASS] 요청이 없으면 새 항목을 만들지 않는다(메인이 대신 만들지 않는다)
+  [PASS] 산문 속 JSON 리포트 추출
+  [PASS] JSON 이 없으면 None(추측 파싱 ✗)
+  [PASS] ★잘린 JSON 뒤의 완전한 리포트를 집는다(중첩 객체를 따로 집지 않는다) → {'task_id': 't', 'status': 'completed', 'image': {'tag': 'x'}, 'artifacts': [{'path': 'a'}]}
+  [PASS] 마지막 최상위 객체를 집는다(안쪽 중첩 객체 ✗)
+  [PASS] ★음성대조: 닫히지 않은 JSON 은 리포트가 아니다(추측 ✗)
+  [PASS] 서브 브랜치가 토폴로지와 같으면 통과
+  [PASS] 불일치는 STOP(브랜치 불일치)
+  [PASS] 판독 불가는 일치로 치지 않는다(fail-closed)
+  [PASS] ★음성대조: 앞에 input-required 가 있어도 **마지막 것**을 돌려준다(뒤로 스캔 ✗)
+  [PASS] 닿지 못한 attempt 는 서브 상태를 바꾸지 못한다(건너뛴다)
+  [PASS] ★음성대조: 거절된 요청(104)은 바닥이 되지 못한다 → 25
+  [PASS] 예산을 자동으로 정하는 경로가 되살아나지 않았다(선언만 남는다)
+  [PASS] 전진 없는 3연속을 센다 → 3
+  [PASS] phase 가 바뀌면 전진으로 센다(예산만 태운 것과 구분)
+  [PASS] hitl.needed 는 표면화된다
+  [PASS] blocking 을 메인이 **읽는다**(hitl 절의 차단성 선언)
+  [PASS] ★서고 교환 은퇴: 옛 요청 배열은 읽혀도 표면화·차단성을 만들지 않는다(plan_26101912)
+  [PASS] ★우선순위: blocking 이 먼저다(사전순이 아니다) → ['r1', 'r2']
+  [PASS] 재표면화가 사람의 답을 지우지 않는다(두 번 답하게 하지 않는다)
+  [PASS] ★음성대조: 요청이 사라진 턴에는 낡은 항목이 제거된다(라이브 잔존 실측 교정)
+  [PASS] 조립 본문이 기록된 사실을 담는다: 'output/x.json'
+  [PASS] 조립 본문이 기록된 사실을 담는다: 'serve 재기동'
+  [PASS] 조립 본문이 기록된 사실을 담는다: 'KV 미정'
+  [PASS] 조립 본문이 기록된 사실을 담는다: '답 A'
+  [PASS] 조립 본문이 기록된 사실을 담는다: '원 지시 본문'
+  [PASS] 조립 본문이 기록된 사실을 담는다: '예산 소진'
+  [PASS] 조립기는 추측을 적지 않는다
+  [PASS] 위임 헤더가 context_id·예산·**그 근거**를 서브에게 알린다(comms.md 규약의 실배선)
+  [PASS] ★재개 불발이 원장에 남는다(침묵 새 세션 ✗)
+  [PASS] 외부검색 기록 자리가 있다(B안 자산화 입력)
+  [PASS] 원장이 축 F 필드를 적는다: request_path='campaigns/_bootstrap/relay/ctx-f.requests/attempt-01.json'
+  [PASS] 원장이 축 F 필드를 적는다: started_utc='2026-09-05T10:00:00Z'
+  [PASS] 원장이 축 F 필드를 적는다: ended_utc='2026-09-05T10:01:30Z'
+  [PASS] 원장이 축 F 필드를 적는다: duration_ms=90000
+  [PASS] 원장이 축 F 필드를 적는다: duration_api_ms=61000
+  [PASS] 원장이 축 F 필드를 적는다: end_reason='completed'
+  [PASS] 원장이 축 F 필드를 적는다: resume_declared='new'
+  [PASS] 정지 = wall − api 가 원장에서 파생된다(29,000ms)
+  [PASS] `new` 선언은 재개 요청이 아니다(둘을 구분해 적는다)
+  [PASS] 종료사유 파생 → completed
+  [PASS] ★append-only: 새 attempt 가 앞선 줄을 소급 수정하지 않는다
+  [PASS] 소진·재개요청이 각각의 자리에 남는다
+  [PASS] 외생 중단(timeout/SIGTERM)은 예산 소진과 **다른 사유**로 적힌다
+  [PASS] ★거부 사건 + completed 리포트 → completed_with_denials
+  [PASS] ★음성대조: 리포트 부재·completed 아님은 종전대로 permission_denied
+  [PASS] ★원장이 거부 블록을 따로 남긴다(숨기지 않는다) → '[permission_denials] 1건 — 거부된 도구 호출:\n  - Bash {}'
+  [PASS] 전송 실패와 분류 불가를 구분한다(모르는 것을 아는 척하지 않는다)
+  [PASS] ★재개 미선언은 죽되 **마지막 알려진 세션**을 함께 제시한다
+  [PASS] 선언 어휘 둘(session_id · new)을 그대로 받는다
+  [PASS] ★리포트 없이 끝난 턴은 대기 목록에 마지막 알려진 세션을 남긴다(침묵 종결 ✗)
+  [PASS] 위임 헤더가 campaign_id 를 싣는다
+  [PASS] 서브 인스턴스 경로를 디렉터리명 = campaign_id 로 지시한다
+  [PASS] ★layer-1 통제변인 4키가 전부 실린다(2026-09-05 에 모델 행이 빠졌다)
+  [PASS] echo 규약과 fail-closed 를 서브에게 명시한다
+  [PASS] 캠페인 밖(_bootstrap)에서는 캠페인 축을 싣지 않는다
+  [PASS] ★multi Ray-worker request에는 autonomous slice를 싣지 않는다
+  [PASS] 전부 일치하면 통과
+  [PASS] ★음성대조 context_id echo **부재**도 STOP(종전 `if 값 and` 는 침묵 통과했다)
+  [PASS] ★음성대조 context_id 불일치 STOP
+  [PASS] ★음성대조 campaign_id echo 부재 STOP(서브가 이름을 스스로 짓는 것을 막는다)
+  [PASS] ★음성대조 서브 자작 인스턴스명 STOP(2026-09-07 실측 형태)
+  [PASS] ★음성대조 통제변인 echo 부재 STOP
+  [PASS] ★음성대조 서브가 모델을 바꾸면 드리프트로 STOP(2026-09-05 서브 120b 사건 형태)
+  [PASS] 리포트 없는 크래시는 echo 위반이 아니다(같은 사실을 두 사유로 세지 않는다)
+  [PASS] 캠페인 축을 안 실었으면 그 echo 도 묻지 않는다
+  [PASS] 원장이 campaign echo 두 필드를 남긴다(소비자가 읽을 자리)
+  [PASS] 원장이 고아 서비스를 남긴다(소비자가 읽을 자리)
+  [PASS] ★말하지 않은 것은 None(모름)이지 빈 목록(없다는 선언)이 아니다
+  [PASS] ★위임 헤더가 시간 상한도 말한다(서브가 몇 초 뒤 잘리는지 알아야 한다)
+  [PASS] 시간 상한이 없으면 없다고 적지 않는다(모르는 값을 지어내지 않는다)
+  [PASS] 원장이 캠페인 축을 못박는다(P4 가 읽을 자리)
+  [PASS] ★음성대조 한 context 에 셀 둘을 묶으면 STOP(D20 · 2026-09-07 캡 절단 2/2)
+  [PASS] ★음성대조 한 원장이 두 노드를 주장하면 STOP
+  [PASS] ★음성대조 알 수 없는 context 종류 STOP
+  [PASS] ★시간 예산을 지난 phase 실측에서 파생한다(1200s x 1.5 = 1800s)
+  [PASS] ★실측이 없으면 파생하지 않고 **스키마 상한을 읽어** 그 사실을 적는다(3600 재기재 ✗)
+  [PASS] 감독: 아무것도 안 나갔으면 지시서를 열라고 말한다
+  [PASS] 감독: completed → 다음 셀
+  [PASS] ★감독: completed_with_denials → 다음 셀(차단 ✗) · 사유에 거부 사건을 적는다
+  [PASS] ★감독: 소진이지만 phase 가 전진했으면 **자동 재발급**(D9 항상 자동)
+  [PASS] ★감독: 전진이 없으면 예산을 키우기 전에 사람에게 묻는다
+  [PASS] ★감독: phase 가 그대로여도 브리핑이 전진했으면 재발급(R2 — 긴 벤치를 정체로 오판 ✗)
+  [PASS] ★감독: 브리핑이 직전 스텝이 본 값보다 앞서지 않으면 전진이 아니다
+  [PASS] ★감독: 과거 누적 비용 상한은 재개를 막지 않는다
+  [PASS] ★감독: 통신·모델 평면이 깨지면 재개로 낫지 않는다 → 팝업
+  [PASS] ★감독: 권한 거부는 **권한 거부라고** 말한다(사유가 과장되면 사람이 엉뚱한 곳을 본다)
+  [PASS] 감독: input-required 는 답이 승인이다
+  [PASS] ★감독: 예산 양보 input-required + 일한 흔적 → 자동 재발급(브리핑 없는 멀티 워커)
+  [PASS] ★감독 음성대조: hitl.needed 가 있으면 질문이다 → 팝업
+  [PASS] ★감독 음성대조: hitl 표지를 모르는 옛 원장(None)은 양보로 읽지 않는다 — 모르면 묻는다
+  [PASS] ★감독 음성대조: 예산 양보 재개도 비용 상한을 넘지 않는다
+  [PASS] ★재발급 러너: 명시가 없으면 원장이 쓴 사다리를 잇는다(조용한 별칭 대체 ✗)
+  [PASS] ★재발급 timeout: 서브 제안 수치만 읽는다(산문·비수치는 None — 값을 만들지 않는다)
+  [PASS] ★재발급 차단: 답 없는 차단성 요청만 멈춘다 · 답했거나 비차단이면 통과
+  [PASS] ★문서 평면 음성대조: 미러가 비면 전진 없음
+  [PASS] ★문서 평면 음성대조: 다른 context(c-t10)의 문서는 세지 않는다(접두 일치 ✗)
+  [PASS] ★문서 평면 음성대조: attempt 창 밖 mtime 은 세지 않는다
+  [PASS] ★문서 평면: 창 안 · 같은 context 문서 → 전진 (문서 평면 1건(testlog/a.md 등))
+  [PASS] ★감독: 호출 예산 소진은 증거 검증 후 이어진다
+  [PASS] ★감독 음성대조: 표지 필드가 없는 옛 원장은 양보로 읽지 않는다(모르면 묻는다)
+  [PASS] ★감독 음성대조: 같은 남은 일·같은 산출물 반복 = 정체 → 팝업(무한 재발급 ✗)
+  [PASS] ★감독: 남은 일이 바뀌면 전진이다
+  [PASS] ★감독: 판정 불가라도 **전진이 관측되면** 잇는다(리포트 형식 미준수가 D9 를 무력화 ✗)
+  [PASS] ★감독 음성대조: 판정 불가 + 전진 없음이면 묻는다(모르면서 잇지 않는다)
+  [PASS] ★감독 판정이 원장에 남는다(다음 스텝이 같은 것을 다시 판정하지 않는다)
+  [PASS] ★시간 상한(3600) 리터럴이 프로덕션 코드에 없다 — 상한은 스키마에서 읽는다
+  [PASS] 음성대조: 슬라이스가 파일 전체를 지우지 않았다(도달 불가 시험 금지)
+  [PASS] 별칭 표를 **어댑터에서** 읽는다(사본 ✗) → ['claude-sub-deepseek', 'claude-sub-deepseek-pro', 'claude-sub-kimi', 'claude-sub-minimax', 'claude-sub-minimax-m3', 'claude-sub-sonnet', 'codex-gpt-6.1-sol', 'codex-gpt-6.1-terra', 'haiku', 'kimi-claude', 'meta-claude', 'minimax-claude', 'openai-claude', 'opus', 'sonnet', 'sonnet-5.5']
+  [PASS] 사다리는 **선언 순서 그대로**이고 각 칸이 (backend, model) 쌍으로 펴진다
+  [PASS] 기본 사다리는 1칸(claude -p · sonnet) — 그 밖의 슬롯·호출 방식은 가변(--runners · 2026-10-26 사용자 정의)
+  [PASS] 미등재 별칭은 STOP(오타가 조용히 통과하지 않는다)
+  [PASS] 다음 칸은 원장에서 **파생**한다(커서 저장 ✗)
+  [PASS] ★사다리는 **순환**한다(4 → 1)
+  [PASS] 성공한 칸은 **그 자리를 지킨다**(성공 뒤 회전은 이유 없는 강등이다)
+  [PASS] 소진 술어는 **연속** 러너 실패만 센다(서브에 닿으면 0으로 리셋)
+  [PASS] ★러너 실패는 세션 스텁을 싣고 와도 **닿은 것이 아니다**(예산 바닥·정체·마지막세션 오염 ✗)
+  [PASS] ★음성대조: 회전 attempt 는 **예산 바닥이 되지 못한다**(집행된 적이 없다)
+  [PASS] ★음성대조: 회전이 만든 빈 세션이 **마지막 알려진 세션을 덮지 않는다**
+  [PASS] 러너 실패는 전송·예산과 **다른 라벨**을 받는다
+  [PASS] ★음성대조: 서브가 일하다 실패한 것은 러너 실패로 접히지 않는다
+  [PASS] 감독: 칸이 남으면 **회전**(예산·범위 불변)
+  [PASS] 감독: 한 바퀴를 다 돌면 **팝업**(사용자 규격 — 다 안 되면 HITL)
+  [PASS] ★사다리 1칸이면 첫 실패가 곧 소진 → 즉시 HITL(사용자 규격)
+  [PASS] ★음성대조: 회전은 **비용이 아니다** — 상한 2에 회전 2회가 닿아도 팝업이 아니다
+  [PASS] 음성대조: `parse_report` 는 이 문자열에서 JSON 을 **집는다**(그래서 위험했다)
+  [PASS] ★라이브 교정: 러너-불가 진단이 **서브 리포트로 집계되지 않는다** (종전엔 sub_reported=true 가 적혔다 — 메인 산출을 서브 산출로 세는 형태)
+  [PASS] 닿지 않은 attempt 에는 echo 판정을 걸지 않는다(sub_reported 가드)
+  [PASS] 증거는 output 에서 **되읽힌다**(실어만 보내면 또 못 닿는다)
+  [PASS] ★판독 불가 증거는 회전하지 않는다(모르면 태우지 않는다)
+self-test: PASS

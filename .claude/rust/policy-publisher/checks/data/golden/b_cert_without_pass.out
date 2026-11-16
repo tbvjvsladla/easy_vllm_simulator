@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_CERTIFICATE_WITHOUT_PASS": "--certificate-src was supplied but --verdict='REFUTE' != 'PASS' -- certificates are published PASS-only (matches work-manifest.schema.json's own CERTIFICATE_PRESENT_WITHOUT_PASS_VERDICT structural contract)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_CERTIFICATE_WITHOUT_PASS"
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,2 @@
+[thermal] 하한 가드 위반 — 거부:
+  - gpu_sustain_s(4) must exceed bucket_decay(5) — 감소량이 임계보다 크면 버킷이 임계에 도달할 수 없다

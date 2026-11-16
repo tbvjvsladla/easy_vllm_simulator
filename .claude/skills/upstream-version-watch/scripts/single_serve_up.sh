@@ -110,7 +110,7 @@ for pair in "NAS_MODEL_PATH:nas_model_path" "QUANT_MODEL_PATH:quant_model_path" 
   fi
 done
 if [ "$_drift" = "1" ]; then
-  echo "$TAG     재생성: python3 .claude/skills/upstream-version-watch/scripts/render_dockerfile.py \\" >&2
+  echo "$TAG     재생성: bash .claude/skills/upstream-version-watch/scripts/render_dockerfile.sh \\" >&2
   echo "$TAG               --materialize-env --topology single --manifest output/single/manifest.yaml" >&2
   exit 3
 fi
@@ -130,10 +130,10 @@ BB_DIR="$(_bb_dir)" || { echo "$TAG FAIL: node_blackbox 도구 디렉터리 부�
 NODE_ID="$(ni_resolve_node_id "$REPO" "$EXPLICIT_NODE_ID")" || {
   echo "$TAG FAIL: node_id 미해소 — 예산·세션 디렉터리를 정할 수 없다(fail-loud)." >&2; exit 2; }
 NODE_DIR="$REPO/docs/logs/$NODE_ID"
-SESSION_PY="$BB_DIR/blackbox_session.py"
+SESSION_SH="$BB_DIR/blackbox_session.sh"  # Rust 런처
 # TTL 기본값은 **단일 소유자**(blackbox_session)에게 묻는다 — 여기에 7200 을 다시 적지 않는다(G-B2).
 if [ -z "$TTL_S" ]; then
-  TTL_S="$(python3 "$SESSION_PY" --node-dir "$NODE_DIR" budget-defaults --field ttl_s 2>/dev/null || echo)"
+  TTL_S="$(bash "$SESSION_SH" --node-dir "$NODE_DIR" budget-defaults --field ttl_s 2>/dev/null || echo)"
   case "$TTL_S" in ''|*[!0-9]*)
     echo "$TAG FAIL: 예산 TTL 기본값을 blackbox_session 에서 읽지 못했다 — 숫자를 여기 다시 적지 않는다" >&2
     exit 2;;
@@ -160,13 +160,13 @@ rollback(){
 #   시작 **뒤**에 있었고 STOP 이 rollback 없이 exit 4 를 냈다 — 선언과 열린 세션이 남아 다음 시도가 세션 2개를
 #   만들고, 롤백 down 이 5/5 에서 실패했다(서브 실측). 이 스크립트의 계약("부분 상태를 남기지 않는다")을
 #   지키는 가장 단순한 자리는 **아무 상태도 만들기 전**이다. 그래서 2/7 앞으로 옮긴다(이 자리에선 되돌릴 것이 없다).
-_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+_CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.sh"
 if [ "$DRY" = 1 ]; then
   echo "$TAG (dry-run) 그라운딩 백스톱은 실기동에만 건다 — 예행은 막지 않는다"
 elif [ -f "$_CI" ]; then
-  if ! bash "${_CI%.py}.sh" --grounding-check; then
+  if ! bash "$_CI" --grounding-check; then
     echo "$TAG STOP: 그라운딩 기록 없이 서빙에 진입하지 않는다(policy:LIBRARY_GROUNDING_FAIL_CLOSED)." >&2
-    echo "$TAG   → python3 $_CI --ground --utc <UTC> 로 사서에게 먼저 물어라." >&2
+    echo "$TAG   → bash $_CI --ground --utc <UTC> 로 사서에게 먼저 물어라." >&2
     echo "$TAG   → 사서가 못 찾으면 그 사실이 기록에 남고 그대로 통과한다(공백은 차단이 아니다)." >&2
     echo "$TAG   (이 검사는 예산 선언·세션 시작 전에 선다 — 남긴 상태 0)" >&2
     exit 4
@@ -269,8 +269,8 @@ if [ "$PF_RC" = "4" ]; then
   exit 4
 fi
 if [ "$DRY" = "1" ]; then
-  echo "$TAG 3/7 예산 선언       : (dry-run) python3 $SESSION_PY ${DECL_ARGS[*]}"
-elif out="$(python3 "$SESSION_PY" "${DECL_ARGS[@]}" 2>&1)"; then
+  echo "$TAG 3/7 예산 선언       : (dry-run) bash $SESSION_SH ${DECL_ARGS[*]}"
+elif out="$(bash "$SESSION_SH" "${DECL_ARGS[@]}" 2>&1)"; then
   printf '%s\n' "$out" | sed "s/^/$TAG     /"
   echo "$TAG 3/7 예산 선언       : DONE"
   CLEANUP_NEEDED=1
@@ -292,8 +292,8 @@ SESS_ARGS=(--node-dir "$NODE_DIR" start --session-id "$SESSION_ID"
            --now "$(NOW_ISO)")
 [ -n "$IMAGE_TAG" ] && SESS_ARGS+=(--image "$IMAGE_TAG")
 if [ "$DRY" = "1" ]; then
-  echo "$TAG 4/7 세션 start      : (dry-run) python3 $SESSION_PY ${SESS_ARGS[*]}"
-elif out="$(python3 "$SESSION_PY" "${SESS_ARGS[@]}" 2>&1)"; then
+  echo "$TAG 4/7 세션 start      : (dry-run) bash $SESSION_SH ${SESS_ARGS[*]}"
+elif out="$(bash "$SESSION_SH" "${SESS_ARGS[@]}" 2>&1)"; then
   printf '%s\n' "$out" | sed "s/^/$TAG     /"
   echo "$TAG 4/7 세션 start      : DONE"
 else
@@ -347,14 +347,14 @@ while [ "$_waited" -lt "$READY_MAX" ]; do
     #    ★ 2026-09-08(plan_26090813 F5): 이 가드는 **부재를 침묵으로** 처리했다. 서브 오버레이에
     #      writer 가 없던 동안 이 자리는 조용히 아무것도 안 했고, 그래서 서브 진행표가 캠페인이
     #      끝난 뒤 메인 손으로 나타났다. 부재는 이제 소리낸다 — 배선 결함과 정상 no-op 은 다르다.
-    _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.py"
+    _CI="$REPO/.claude/skills/terraforming_node/scripts/campaign_init.sh"
     if [ -f "$_CI" ]; then
-      bash "${_CI%.py}.sh" --phase-set serve --node "$NODE_ID" --state done --cell "$CONFIG" \
+      bash "$_CI" --phase-set serve --node "$NODE_ID" --state done --cell "$CONFIG" \
         --proof-predicate "health 200" --proof-ok \
         --proof-source "single_serve_up.sh: curl http://localhost:$PORT/health = 200 (container=$CNAME · session=$SESSION_ID)" \
         --started-utc "$_SERVE_T0" --ended-utc "$(NOW_ISO)" --authored-by "$NODE_ID" \
         || echo "$TAG ⚠ campaigns writer 실패 — serve 진행표가 기록되지 않았다" >&2
-      bash "${_CI%.py}.sh" --write-brief --node "$NODE_ID" --utc "$(NOW_ISO)" \
+      bash "$_CI" --write-brief --node "$NODE_ID" --utc "$(NOW_ISO)" \
         || echo "$TAG ⚠ campaign_brief 갱신 실패 — 감독자가 읽을 관측면이 낡았다" >&2
     else
       echo "$TAG ⚠ campaigns writer 부재($_CI) — serve 진행표를 아무도 적지 않았다." >&2

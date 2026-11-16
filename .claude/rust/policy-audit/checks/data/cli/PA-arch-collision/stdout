@@ -1,0 +1,14 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "variants ['deepseek-v4-flash-sm12x-port-0.27.0', 'deepseek-v4-flash-sm12x-port-0.27.1'] share image_tag 'easy-vllm:0.27.0-cu133-aarch64-source-sm12x' -- distinct wiring must build to distinct images or one silently overwrites the other",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_IMAGE_TAG_COLLISION"
+    }
+  ]
+}

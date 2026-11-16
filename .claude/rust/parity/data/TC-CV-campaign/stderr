@@ -1,0 +1,2 @@
+[campaign_template_validator] FAIL (1)
+  - campaign.yaml: ('SCHEMA_MISSING_REQUIRED_KEY:topology_sections', 'topology_sections: required property is missing')

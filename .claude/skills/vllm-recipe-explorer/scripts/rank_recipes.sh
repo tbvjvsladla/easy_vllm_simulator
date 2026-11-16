@@ -16,6 +16,7 @@ fi
 binary="$runtime_root/target/release/rank_recipes"
 if [ ! -f "$binary" ] || [ ! -x "$binary" ]; then
   printf '[rank_recipes] ERROR normal Rust ELF missing/non-executable: %s\n' "$binary" >&2
+  printf '[rank_recipes] build first: bash .claude/skills/terraforming_node/scripts/build_rust_packages.sh\n' >&2
   exit 2
 fi
 magic=''
@@ -24,4 +25,5 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[rank_recipes] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/rank_recipes.py" "$binary" "$@"
+# argv[0] names the skill that owns this launcher (<skill>/rust/runtime/target/release/rank_recipes), never a retired .py path.
+exec -a "${SDIR%/*}/rust/runtime/target/release/rank_recipes" "$binary" "$@"

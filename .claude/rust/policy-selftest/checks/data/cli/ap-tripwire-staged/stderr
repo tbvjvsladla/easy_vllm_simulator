@@ -1,0 +1,4 @@
+[antipattern_scan] REVIVED G-B6-ready-max-default — .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh:1
+    READY_MAX="${READY_MAX:-180}"
+    사유: READY_MAX 기본값 — 로드 시간은 모델·HW 의 함수라 선언한다(G-B6)
+[antipattern_scan] ③ 에서 제거한 형태가 1건 되돌아왔다 — 우회하지 말고 고쳐라(D3).

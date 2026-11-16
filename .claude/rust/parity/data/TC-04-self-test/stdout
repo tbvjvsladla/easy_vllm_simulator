@@ -1,0 +1,23 @@
+  [PASS] 미장착 → ready=False · 클론 missing(미선언) · 토큰 absent · 마커 missing
+  [PASS] 미장착 → 다음 행동에 사람 요청(템플릿 경로 포함)
+  [PASS] 미선언 --clone 거부
+  [PASS] 워크스페이스 안 클론 경로 거부
+  [PASS] 워크스페이스 안 선언 → 판정 invalid
+  [PASS] 자격증명 박힌 URL 거부
+  [PASS] --clone 정상(로컬 원격)
+  [PASS] --clone 멱등(already)
+  [PASS] --write-push-authority 정상
+  [PASS] --write-push-authority 멱등
+  [PASS] 로컬 원격 · 마커 · pii 있음 → ready(토큰 not_required)
+  [PASS] https 원격 · 토큰 없음 → absent · ready=False
+  [PASS] 토큰 present(envs/.env) · ready
+  [PASS] ★토큰 값은 출력 어디에도 없다
+  [PASS] 환경변수 토큰 → source=env
+  [PASS] hintlib.tag 와 토큰 키·파일·판독 규칙 일치(교차검증)
+  [PASS] origin URL 자격증명 → invalid · 출력 무비밀
+  [PASS] 서브의 .central_authority → present_violation · ready=False · 메인 에스컬레이션
+  [PASS] 워크스페이스 원격 → violation(SUB_GIT_LOCAL_ONLY)
+  [PASS] 비-ignore 워크스페이스 마커 쓰기 거부
+  [PASS] 판정 결정론(같은 입력 → 같은 JSON)
+  [PASS] 사람 요청 템플릿이 실재한다(메인 트리 · 서브 렌더 트리는 메인 전용이라 부재 정상)
+--- 22/22 PASS

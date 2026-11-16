@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "provider": "codex_cli",
+  "intent": "bootstrap_canary",
+  "model": "gpt-6.1-sol",
+  "task": "AGENTS.md 를 먼저 읽고 그 문서가 지정한 정본 지침을 읽어라. 부트스트랩 카나리다. 모델을 로드하지 말고, 빌드하지 말고, 아무 파일도 고치지 마라. 다음을 스스로 확인해 **schema-valid JSON 리포트 1개**만 반환하라(raw 로그 나열 금지): ① CLAUDE.md 를 읽고 네 정체성(sub_mode)과 작업공간 경로를 보고 ② output/<topology>/manifest.yaml 의 self_role·terraforming Flag·gpus_per_node 와 메인이 렌더 때 node_role_contract 로 해소해 CLAUDE.md·Agent_Card 에 실은 sub_mode·rank 를 그대로 보고(계약기 자체는 서브에 배달되지 않는다 — 없다고 보고하지 마라 · SSH는 endpoint 인증만 담당), Agent_Card.json 이 있으면 capability metadata로만 목록을 보고 ③ .claude/rules/comms.md 의 리포트 계약을 읽었음을 보고 ④ 로드된 런타임 스킬 목록(없으면 빈 배열)을 보고 ⑤ 리포트를 .claude/schemas/task-report.schema.json 에 대조해 self_verification.schema_valid 에 담아라. phase=inspect · status=completed 로 끝내라. 너는 멀티노드 Ray 워커다. 허용된 스킬 1종(wiki-desk)의 실제 경로를 확인하고 그 목록을 skills_loaded 에 보고하라. rank 값을 함께 보고하라.",
+  "target": {
+    "role": "sub",
+    "transport": "ssh",
+    "host": "203.0.113.11",
+    "ssh_user": "tester",
+    "work_dir": "/srv/ws"
+  },
+  "capabilities": [
+    "read",
+    "execute"
+  ],
+  "timeout_seconds": 90,
+  "max_turns": null,
+  "budget_unit": "wall_time",
+  "permission_profile": ":danger-full-access"
+}

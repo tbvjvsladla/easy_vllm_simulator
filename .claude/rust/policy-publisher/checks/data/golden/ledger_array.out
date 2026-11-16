@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_SIDECAR_LEDGER_ENTRY_NOT_AN_OBJECT": "existing raw-evidence ledger line 1 is not a JSON object"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_SIDECAR_LEDGER_ENTRY_NOT_AN_OBJECT"
+  ],
+  "schema_version": 1
+}

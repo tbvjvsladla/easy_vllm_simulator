@@ -1,0 +1,11 @@
+[
+  {
+    "id": "HP-artifacts-selftest",
+    "entry": ".claude/skills/hint-publisher/scripts/hint_api.sh",
+    "orig": ".claude/rust/parity/cases/shims/hint_api.py",
+    "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+    "args": [],
+    "stdin": "{\"id\": \"link\", \"fn\": \"__sh__\", \"args\": [\"R=\\\"$(dirname \\\"$PARITY_GIT_DIR\\\")\\\"; for d in .claude/skills/adversarial-benchmark/rust/target .claude/skills/upstream-version-watch/rust/runtime/target .claude/rust/policy-gate/target .claude/rust/policy-publisher/target; do if [ -e \\\"$R/$d\\\" ] && [ ! -e \\\"$d\\\" ]; then mkdir -p \\\"$(dirname \\\"$d\\\")\\\" && ln -sfn \\\"$(readlink -f \\\"$R/$d\\\")\\\" \\\"$d\\\"; fi; done; for f in .claude/policies/runtime/evidence_publisher.sh .claude/policies/runtime/completion_gate.sh; do if [ -f \\\"$R/$f\\\" ] && [ ! -e \\\"$f\\\" ]; then cp \\\"$R/$f\\\" \\\"$f\\\"; fi; done; echo ok\"]}\n{\"id\": \"st\", \"fn\": \"artifacts.selftest\", \"args\": []}\n",
+    "outputs": []
+  }
+]

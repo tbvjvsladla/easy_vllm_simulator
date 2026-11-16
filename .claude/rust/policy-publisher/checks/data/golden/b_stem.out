@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_REPORT_CERTIFICATE_STEM_MISMATCH": "bench_report 'docs/benchmark/bench_report_26010110_self-test-model_GB10_0.0.0.md' and certificate 'docs/benchmark/benchmark_26010109_self-test-model_GB10_0.0.0.yaml' do not share a stem -- they were not issued for the same measurement"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_REPORT_CERTIFICATE_STEM_MISMATCH"
+  ],
+  "schema_version": 1
+}

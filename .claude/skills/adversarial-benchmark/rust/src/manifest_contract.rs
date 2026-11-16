@@ -1,72 +1,72 @@
-//! Public `manifest_contract`: the Flag-gate reader `manifest_contract.py --topology T --repo R [--require-flag] [--json]` that the
-//! two shell callers (`run_bench.sh`, `lite_bench.sh`) use, answered natively byte for byte as the owner's process answers it
-//! (stdout, stderr and exit status).
+//! Public `manifest_contract`: the whole command line of the retired `manifest_contract.py` (`[-h] [--topology {single,multi}]
+//! [--repo REPO] [--require-flag] [--json] [--self-test]`), answered natively byte for byte as the original's process answered it
+//! (stdout, stderr and exit status). No shape starts a Python interpreter.
 //!
-//! **What is native.** The owner is the reviewed `manifest_contract.py` (byte-identical to `REVIEWED_MANIFEST_CONTRACT`). The gate
-//! and the flow of `main` live in `role_contract::manifest_gate{,_cli}`; this module adds only what a *process* shows around
-//! them: the routes, the observer line, the stdout/stderr codecs of the text profile and the write-failure tracebacks. The
-//! in-process Python importers of the owner (`render_sub_env`, `scan_node`, `claim_predicates`, ...) keep importing the Python
-//! file; they are not served by this program.
+//! **What is native.** The gate and the flow of `main` live in `role_contract::manifest_gate{,_cli}` and the self-test in
+//! `role_contract::manifest_self_test`; this module adds what a *process* shows around them: argparse's surface (`-h`, usage
+//! errors, abbreviations, `--x=y`; `campaign_args::parse_table`), the observer line, the stdout/stderr codecs of the text profile
+//! and the write-failure tracebacks. The usage/help text is the original's at argparse's default width (80 columns); another
+//! terminal width is not re-wrapped (documented residual).
 //!
-//! **Routes** (decided before any native business, recorded as one observer line when `MANIFEST_CONTRACT_ROUTE_OBSERVER` names
-//! a file; an unwritable requested file is a control failure and nothing else happens):
-//!
-//! | route | when | what runs |
-//! |---|---|---|
-//! | `LegacyExplicit` | `MANIFEST_CONTRACT_PYTHON` is non-empty | that interpreter on the owner, any shape |
-//! | `LegacyShape` | the arguments are not an exact handled shape (`-h`, `--self-test`, abbreviations, `--x=y`, duplicates, ...) | the compatibility interpreter on the owner |
-//! | `LegacySourceVariant` | the owner is missing, unreadable or a different program | the compatibility interpreter on it |
-//! | `LegacyProfile` | the text profile of the environment is not modelled | the compatibility interpreter on the owner |
-//! | `NativeCurrentSource` | none of the above | this process, to the end |
-//!
-//! A legacy route replaces this process (`exec`): same PID, descriptors, environment and arguments, no child and no capture. Once
-//! the native business has started nothing is retried in Python: a refusal, a crash, an encode failure, a write failure and a
-//! shape without a captured original ([`Unsupported`], visible exit 2) are answered natively. The compatibility interpreter is
-//! `MANIFEST_CONTRACT_COMPAT_PYTHON` (default `python3`); the owner is `MANIFEST_CONTRACT_COMPAT_OWNER`, which the launcher exports and
-//! which is also the `__file__` of the owner process.
+//! `MANIFEST_CONTRACT_COMPAT_OWNER` (exported by the launcher) names the program path the frames of a traceback show (the
+//! `__file__` the original had); nothing requires that file to exist. A text profile this port does not model falls back to
+//! UTF-8 (documented residual). An observer line is written when `MANIFEST_CONTRACT_ROUTE_OBSERVER` names a file.
 
-use crate::campaign_read::{Legacy, LegacyExec};
 use crate::cli::{PrintFailure, Streams};
 use crate::pystr::PyStr as CallerText;
 use crate::pyvalue::{PyDict, PyValue};
 use agent_runtime_support::pystr::PyStr as Text;
 use role_contract::manifest_gate::BranchProbe;
 use role_contract::manifest_gate_cli::{
-    execute, parse_exact, print_failure, print_write_failure, Answer, ChildEnv, PrintSite,
+    execute, parse_exact, print_failure, print_write_failure, Answer, PrintSite,
     Unsupported,
 };
 use role_contract::pyprofile::{self, encode_stream, Errors, TextProfile};
-use role_contract::source_identity::{identify, Identity, REVIEWED_MANIFEST_CONTRACT};
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::io::Write;
-use std::os::unix::ffi::{OsStrExt, OsStringExt};
+use std::os::unix::ffi::OsStringExt;
 
-/// Names of the interpreter, owner, compatibility interpreter and observer variables.
-pub const PYTHON_ENV: &str = "MANIFEST_CONTRACT_PYTHON";
-pub const COMPAT_PYTHON_ENV: &str = "MANIFEST_CONTRACT_COMPAT_PYTHON";
+/// Names of the program-path and observer variables.
 pub const OWNER_ENV: &str = "MANIFEST_CONTRACT_COMPAT_OWNER";
 pub const OBSERVER_ENV: &str = "MANIFEST_CONTRACT_ROUTE_OBSERVER";
-/// The launcher-only variables (declared here so the Rust, the shim and the checks name the same set).
+/// The launcher-only variables (declared here so the Rust, the launcher and the checks name the same set).
 pub const BIN_ENV: &str = "MANIFEST_CONTRACT_BIN";
 pub const VALIDATE_ONLY_ENV: &str = "MANIFEST_CONTRACT_VALIDATE_ONLY";
-/// Launcher-set: the public program path the legacy owner runs under (its `sys.argv[0]`), see [`ExecLegacy`].
-pub const PUBLIC_ARGV0_ENV: &str = "MANIFEST_CONTRACT_PUBLIC_ARGV0";
-/// `python -c` program: run the owner file as `__main__` with `sys.argv = [public, *args]` and the owner's directory first on the path, like
-/// `python owner args` would (`runpy.run_path` would overwrite `sys.argv[0]` with the owner path, so the file is compiled and executed directly).
-const LEGACY_TRAMPOLINE: &str = "import os, sys\nowner = sys.argv[1]\nsys.argv = sys.argv[2:]\nsys.path[0] = os.path.dirname(owner)\nexec(compile(open(owner, 'rb').read(), owner, 'exec'), {'__name__': '__main__', '__file__': owner})";
-/// Status of a run that could not be set up or that met a shape without a captured original (the owner exits 2 only for usage
-/// shapes that never reach this program's native side).
+/// Status of a run that could not be set up or that met a shape without a captured original.
 pub const EXIT_CONTROL_FAILURE: i32 = 2;
+
+/// The original parser's actions in `add_argument` order.
+pub const OPTIONS: [(&str, crate::campaign_args::K, &[&str]); 7] = [
+    ("-h", crate::campaign_args::K::Help, &[]),
+    ("--help", crate::campaign_args::K::Help, &[]),
+    ("--topology", crate::campaign_args::K::Value, &["single", "multi"]),
+    ("--repo", crate::campaign_args::K::Value, &[]),
+    ("--require-flag", crate::campaign_args::K::Flag, &[]),
+    ("--json", crate::campaign_args::K::Flag, &[]),
+    ("--self-test", crate::campaign_args::K::Flag, &[]),
+];
+
+/// `manifest_contract.py -h` at 80 columns (captured from the original).
+pub const HELP: &str = "usage: manifest_contract.py [-h] [--topology {single,multi}] [--repo REPO]
+                            [--require-flag] [--json] [--self-test]
+
+테라포밍-완수 Flag 게이트 결정론 리더
+
+options:
+  -h, --help            show this help message and exit
+  --topology {single,multi}
+                        미지정 시 git 브랜치가 통로 선택
+  --repo REPO           레포 루트(기본 .)
+  --require-flag        Flag 미발급 시 비0종료(작업 스크립트 게이트용)
+  --json                계약 JSON 을 stdout 으로
+  --self-test           게이트/ TP 회귀(하드웨어 불요)
+";
 
 /// What a run reads from its process besides the arguments.
 #[derive(Clone, Debug, Default)]
 pub struct Environment {
     /// The owner program (`__file__` of the owner process); `None` when the launcher did not export it.
     pub owner: Option<Vec<u8>>,
-    /// A non-empty `MANIFEST_CONTRACT_PYTHON`: explicit user intent.
-    pub explicit_python: Option<OsString>,
-    /// The interpreter of the other legacy routes.
-    pub compat_python: OsString,
     pub observer: Option<OsString>,
     /// The text-profile variables as the environment holds them (name -> bytes).
     pub text_variables: Vec<(String, Vec<u8>)>,
@@ -86,9 +86,6 @@ impl Environment {
         let non_empty = |name: &str| std::env::var_os(name).filter(|value| !value.is_empty());
         Environment {
             owner: non_empty(OWNER_ENV).map(OsString::into_vec),
-            explicit_python: non_empty(PYTHON_ENV),
-            compat_python: non_empty(COMPAT_PYTHON_ENV)
-                .unwrap_or_else(|| OsString::from("python3")),
             observer: non_empty(OBSERVER_ENV),
             text_variables: PROFILE_VARIABLES
                 .iter()
@@ -111,104 +108,22 @@ impl Environment {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Route {
+    /// The only route: this process answers every shape.
     NativeCurrentSource,
-    LegacyExplicit,
-    LegacyShape,
-    LegacySourceVariant { reason: String },
-    LegacyProfile { reason: String },
 }
 
 impl Route {
     pub fn name(&self) -> &'static str {
-        match self {
-            Route::NativeCurrentSource => "NativeCurrentSource",
-            Route::LegacyExplicit => "LegacyExplicit",
-            Route::LegacyShape => "LegacyShape",
-            Route::LegacySourceVariant { .. } => "LegacySourceVariant",
-            Route::LegacyProfile { .. } => "LegacyProfile",
-        }
+        "NativeCurrentSource"
     }
     fn reason(&self) -> Option<&str> {
-        match self {
-            Route::LegacySourceVariant { reason } | Route::LegacyProfile { reason } => Some(reason),
-            _ => None,
-        }
+        None
     }
 }
 
-/// `exec`: the same PID, descriptors, environment and working directory; no child.
-pub struct ExecLegacy;
-
-impl Legacy for ExecLegacy {
-    fn replace_process(&mut self, spec: &LegacyExec) -> i32 {
-        use std::os::unix::process::CommandExt;
-        // The launcher may name the PUBLIC program path (`MANIFEST_CONTRACT_PUBLIC_ARGV0`): the reviewed original now lives in the
-        // sibling compat owner file, and argparse derives `prog` from `sys.argv[0]`, so the owner runs under the public name and the
-        // usage text stays the public command line's. Without the variable the owner is started directly, as before.
-        let public = std::env::var_os(PUBLIC_ARGV0_ENV).filter(|value| !value.is_empty());
-        let mut command = std::process::Command::new(&spec.interpreter);
-        // The legacy owner (and the `git` it runs) sees the caller's own plumbing variables, not the launcher's rewrites.
-        let caller = ChildEnv::from_process();
-        caller.apply(&mut command);
-        if let Some(public) = public {
-            if caller.is_empty() {
-                // no recorded caller facts (the program was started directly): the old behaviour, the variable is the launcher's alone
-                command.env_remove(PUBLIC_ARGV0_ENV);
-            }
-            command
-                .arg("-c")
-                .arg(LEGACY_TRAMPOLINE)
-                .arg(OsStr::from_bytes(&spec.owner))
-                .arg(public);
-        } else {
-            command.arg(OsStr::from_bytes(&spec.owner));
-        }
-        let error = command
-            .args(spec.args.iter().map(|a| OsStr::from_bytes(a)))
-            .exec();
-        let status = if error.kind() == std::io::ErrorKind::PermissionDenied {
-            126
-        } else {
-            127
-        };
-        eprintln!(
-            "[manifest_contract] ERROR 호환 인터프리터를 시작할 수 없다: {}: {error}",
-            spec.interpreter.to_string_lossy()
-        );
-        status
-    }
-}
-
-/// The routes that precede any native business, in the order they are asked.
-pub fn choose_route(args: &[Vec<u8>], env: &Environment, owner: &[u8]) -> Route {
-    if env.explicit_python.is_some() {
-        return Route::LegacyExplicit;
-    }
-    if parse_exact(args).is_none() {
-        return Route::LegacyShape;
-    }
-    match identify(owner, REVIEWED_MANIFEST_CONTRACT) {
-        Identity::Reviewed => {}
-        Identity::Missing => {
-            return Route::LegacySourceVariant {
-                reason: "manifest_contract.py is missing".to_string(),
-            }
-        }
-        Identity::Different => {
-            return Route::LegacySourceVariant {
-                reason: "manifest_contract.py is not the reviewed source".to_string(),
-            }
-        }
-        Identity::Unreadable(why) => {
-            return Route::LegacySourceVariant {
-                reason: format!("manifest_contract.py cannot be read ({why})"),
-            }
-        }
-    }
-    match env.text_profile() {
-        Ok(_) => Route::NativeCurrentSource,
-        Err(reason) => Route::LegacyProfile { reason },
-    }
+/// The route of a command line: always native (there is no interpreter route any more).
+pub fn choose_route(_args: &[Vec<u8>], _env: &Environment, _owner: &[u8]) -> Route {
+    Route::NativeCurrentSource
 }
 
 /// How the native answer ended, for the observer line.
@@ -275,51 +190,54 @@ fn control_failure(io: &mut Streams<'_>, message: &str) -> i32 {
     EXIT_CONTROL_FAILURE
 }
 
-/// Runs the program. `args` excludes the program name; the return value is the exit status (a legacy route that starts its
-/// interpreter never returns). `probe` runs the owner's one `git rev-parse`.
-pub fn run(
-    args: &[Vec<u8>],
-    env: &Environment,
-    io: &mut Streams<'_>,
-    legacy: &mut dyn Legacy,
-    probe: &mut dyn BranchProbe,
-) -> i32 {
-    let status = dispatch(args, env, io, legacy, probe);
+/// Runs the program. `args` excludes the program name; the return value is the exit status. `probe` runs the original's one
+/// `git rev-parse`.
+pub fn run(args: &[Vec<u8>], env: &Environment, io: &mut Streams<'_>, probe: &mut dyn BranchProbe) -> i32 {
+    let status = dispatch(args, env, io, probe);
     io.finish(status)
 }
 
-fn dispatch(
-    args: &[Vec<u8>],
-    env: &Environment,
-    io: &mut Streams<'_>,
-    legacy: &mut dyn Legacy,
-    probe: &mut dyn BranchProbe,
-) -> i32 {
+fn dispatch(args: &[Vec<u8>], env: &Environment, io: &mut Streams<'_>, probe: &mut dyn BranchProbe) -> i32 {
     let Some(owner) = env.owner.as_deref() else {
         return control_failure(
             io,
-            &format!("{OWNER_ENV} is not set; the launcher manifest_contract.sh exports the owner program beside it"),
+            &format!("{OWNER_ENV} is not set; the launcher manifest_contract.sh exports the program path beside it"),
         );
     };
-    let route = choose_route(args, env, owner);
-    if route != Route::NativeCurrentSource {
-        if let Err(message) = observe(env, &route, Some(owner), None, args) {
-            return control_failure(io, &message);
+    let profile = env.text_profile().unwrap_or_else(|_| TextProfile::utf8());
+    let argv: Vec<String> = args.iter().map(|a| String::from_utf8_lossy(a).into_owned()).collect();
+    let namespace = match crate::campaign_args::parse_table(&OPTIONS, &argv) {
+        Ok(Some(namespace)) => namespace,
+        Ok(None) => {
+            let _ = io.stdout.write_all(HELP.as_bytes());
+            return 0;
         }
-        let interpreter = env
-            .explicit_python
-            .clone()
-            .unwrap_or_else(|| env.compat_python.clone());
-        return legacy.replace_process(&LegacyExec {
-            interpreter,
-            owner: owner.to_vec(),
-            args: args.to_vec(),
-        });
+        Err(message) => {
+            let usage = &HELP[..=HELP.find("\n\n").expect("usage paragraph")];
+            let _ = io.stderr.write_all(format!("{usage}manifest_contract.py: error: {message}\n").as_bytes());
+            return 2;
+        }
+    };
+    let last = |name: &str| namespace.get(name).and_then(|v| v.last()).cloned();
+    if namespace.contains_key("--self-test") {
+        let (text, status) = role_contract::manifest_self_test::run();
+        let bytes = encode_stream(&Text::new(&text), profile.stdout, Errors::Strict).unwrap_or_else(|_| text.into_bytes());
+        let _ = io.stdout.write_all(&bytes);
+        return status;
     }
-    let request = parse_exact(args).expect("the route checked the grammar");
-    let profile = env
-        .text_profile()
-        .expect("the route checked the text profile");
+    let mut exact: Vec<Vec<u8>> = Vec::new();
+    if let Some(topology) = last("--topology") {
+        exact.push(b"--topology".to_vec());
+        exact.push(topology.into_bytes());
+    }
+    let mut request = parse_exact(&exact).expect("a topology from the parser's choices");
+    if let Some(repo) = last("--repo") {
+        // a value that is not UTF-8 is decoded lossily (documented residual: the original kept it with surrogateescape)
+        request.repo = repo.into_bytes();
+    }
+    request.require_flag = namespace.contains_key("--require-flag");
+    request.json = namespace.contains_key("--json");
+    let route = Route::NativeCurrentSource;
     let answered = pyprofile::with_profile(&profile, || execute(&request, owner, probe));
     let answer = match answered {
         Ok(answer) => answer,

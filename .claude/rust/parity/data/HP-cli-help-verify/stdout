@@ -1,0 +1,7 @@
+usage: hint.py verify [-h] --tag TAG [--draft DRAFT] [--hint-clone PATH]
+
+options:
+  -h, --help         show this help message and exit
+  --tag TAG
+  --draft DRAFT      그 태그를 봉인한 draft(기본: hints/.drafts 에서 태그로 찾는다)
+  --hint-clone PATH  별도 hint 클론에서 태그 오브젝트를 읽고 게이트·출처는 워크스페이스에서 검증

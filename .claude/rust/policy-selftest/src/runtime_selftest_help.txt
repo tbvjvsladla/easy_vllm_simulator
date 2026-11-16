@@ -1,0 +1,15 @@
+
+Owner-local deterministic regression probe for constitution runtime modules.
+This is production distribution evidence, not a development-only root test
+suite. It exercises security-critical negative paths under the active
+interpreter, including ``python -O`` and ``python -S`` when invoked by
+``harness_verify.py`` / ``verify_distribution.py``.
+
+options:
+  -h, --help        show this help message and exit
+  --tripwires-only  run only the pre-commit tripwires (backup artifacts /
+                    tracked digest rewrite / retired-mechanism prose /
+                    duplicate certificates / deployed-artifact PII / revived
+                    antipatterns / root-surface registry / branch-constitution
+                    layering / base-to-skill edge closed list); 1s budget,
+                    diagnostics on stderr

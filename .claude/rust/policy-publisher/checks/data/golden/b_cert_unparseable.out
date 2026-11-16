@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_CERTIFICATE_UNPARSEABLE": "--certificate-src 'docs/benchmark/benchmark_26010120_self-test-model_GB10_0.0.0.yaml' is not a recognized flat-scalar certificate artifact -- refusing to publish it (never publish an unverifiable file as if it were a real certificate)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_CERTIFICATE_UNPARSEABLE"
+  ],
+  "schema_version": 1
+}

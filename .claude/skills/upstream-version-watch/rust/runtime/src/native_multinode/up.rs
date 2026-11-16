@@ -424,7 +424,7 @@ impl<'a> NativeServe<'a> {
     }
     fn session(&self, name: &str, args: &[&str]) -> Vec<String> {
         let spec = self.c.node(name);
-        let mut v = sv(&["python3", &spec.session_py, "--node-dir", &spec.node_dir]);
+        let mut v = sv(&[super::session_interpreter(&spec.session_py), &spec.session_py, "--node-dir", &spec.node_dir]);
         v.extend(args.iter().map(|s| s.to_string()));
         v.extend(["--now".to_string(), utc(self.clock.now())]);
         v
@@ -534,7 +534,7 @@ impl<'a> NativeServe<'a> {
             }
         }
         let weights = resident.div_euclid(tp);
-        let floor = self.r.main.run(&sv(&["python3", &c.main.session_py, "--node-dir", ".", "budget-defaults", "--field", "ttl_s"]), 30, true)?.out.trim().to_string();
+        let floor = self.r.main.run(&sv(&[super::session_interpreter(&c.main.session_py), &c.main.session_py, "--node-dir", ".", "budget-defaults", "--field", "ttl_s"]), 30, true)?.out.trim().to_string();
         if floor.is_empty() || !floor.chars().all(|ch| ch.is_ascii_digit()) {
             return serve("예산 TTL 기본값을 blackbox_session 에서 읽지 못했다");
         }
@@ -576,6 +576,10 @@ impl<'a> NativeServe<'a> {
         }
         if !self.c.repo.join(&self.c.wheel_tool_rel).is_file() {
             return serve(format!("wheelhouse 도구 부재: {}", self.c.wheel_tool_rel));
+        }
+        let elf = wheel_elf_path(&self.c.repo);
+        if !std::fs::read(&elf).is_ok_and(|b| b.starts_with(b"\x7fELF")) {
+            return serve(format!("wheelhouse Rust ELF 부재/무효: {} — 메인에서 upstream runtime 을 release 빌드한다(Python 폴백 ✗)", elf.display()));
         }
         if !self.c.repo.join(&self.c.wheel_accept_rel).is_file() {
             return serve(format!("wheelhouse 승인 선언 부재: {}", self.c.wheel_accept_rel));
@@ -686,9 +690,9 @@ impl<'a> NativeServe<'a> {
 
     fn install(&mut self, generated_utc: &str) -> R<BTreeMap<String, Env>> {
         let c = self.c;
-        let tool_bytes = std::fs::read(c.repo.join(&c.wheel_tool_rel)).map_err(|e| Err::Serve(e.to_string()))?;
+        let tool_bytes = std::fs::read(wheel_elf_path(&c.repo)).map_err(|e| Err::Serve(e.to_string()))?;
         let tool_sha = sha_hex(&tool_bytes);
-        self.r.sub.put("tools/native_wheelhouse.py", &tool_bytes, 0o600)?;
+        self.r.sub.put(SUB_WHEEL_TOOL, &tool_bytes, 0o700)?;
         state_set(&mut self.state, "wheel_tool_sha256", vs(&tool_sha));
         let accept_bytes = std::fs::read(c.repo.join(&c.wheel_accept_rel)).map_err(|e| Err::Serve(e.to_string()))?;
         let accept_sha = sha_hex(&accept_bytes);
@@ -705,8 +709,7 @@ impl<'a> NativeServe<'a> {
                 return serve(format!("{name}: wheelhouse 재포장 불통과(rc={}) — 다운로드 폴백 ✗(O-N2): {}", b.rc, tail_chars(&b.err, 400)));
             }
             self.du_guard(name, "wheelhouse")?;
-            let launcher = wheel_launcher(c, name);
-            let v = r.run(&wheelhouse_verify_argv(&spec.wheel_tool, &spec.root, generated_utc, &spec.wheel_accept, launcher.as_deref()), 3600, false)?;
+            let v = r.run(&wheelhouse_verify_argv(&spec.wheel_tool, &spec.root, generated_utc, &spec.wheel_accept), 3600, false)?;
             self.preserve(&format!("wheelhouse-verify-{name}.json"), if v.out.is_empty() { v.err.as_bytes() } else { v.out.as_bytes() }, false)?;
             self.du_guard(name, "venv")?;
             let (ok, venv_env, why) = parse_verify_verdict(&v.out);
@@ -1213,10 +1216,10 @@ pub fn native_install_script(c: &Ctx, tool_sha: &str, generated_utc: &str, accep
         format!("WH_ACCEPT={}", shlex_quote(&c.wheel_accept_rel)),
         "# ① 재포장(docker create → 설치 트리 cp → RECORD 대조 재포장 · 시작하지 않는 컨테이너)".into(),
         join(wheelhouse_build_argv(tool, image, root, generated_utc, accept)),
-        "#    (실행기는 메인 노드의 verify 를 Rust 런처 scripts/native_wheelhouse.sh 로, 서브는 put 한 .py 로 부른다 — 같은 판정 JSON)".into(),
+        "#    (실행기는 메인 노드에서 Rust 런처 scripts/native_wheelhouse.sh 로, 서브에서는 메인이 run root 에 put 한 같은 ELF(tools/native_wheelhouse)로 부른다 — 같은 판정 JSON)".into(),
         "# ② 설치 게이트(이미지 동등성) — 도구가 python3.12 -m venv → pip install --no-index --no-deps -r wh/requirements-closure.txt".into(),
         "#    → 설치 집합 == closure 핀 → pip check ⊆ 선언된 이미지 고유 충돌 → ldd(vllm *.so) → import vllm,torch + cuda → env 레시피".into(),
-        join(wheelhouse_verify_argv(tool, root, generated_utc, accept, None)),
+        join(wheelhouse_verify_argv(tool, root, generated_utc, accept)),
     ];
     lines.join("\n") + "\n"
 }

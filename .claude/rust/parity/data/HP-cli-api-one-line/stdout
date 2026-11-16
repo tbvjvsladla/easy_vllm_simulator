@@ -1,0 +1,7 @@
+{"id": "r0", "kind": "value", "value": "사람: 예"}
+{"id": "r1", "kind": "exception", "type": "HintError", "code": "HINT_X", "message": "--w 는 한 줄의 사람 발화 전사다(빈칸 · 자리표시 · 여러 줄 ✗).", "remedy": "사람 Y/N(결정)을 받아 그 발화를 역할과 요지로 전사한다 — 에이전트가 스스로 적지 않는다.", "exit_code": 1}
+{"id": "r2", "kind": "exception", "type": "HintError", "code": "HINT_X", "message": "--w 는 한 줄의 사람 발화 전사다(빈칸 · 자리표시 · 여러 줄 ✗).", "remedy": "사람 Y/N(결정)을 받아 그 발화를 역할과 요지로 전사한다 — 에이전트가 스스로 적지 않는다.", "exit_code": 1}
+{"id": "r3", "kind": "exception", "type": "HintError", "code": "HINT_X", "message": "--w 는 한 줄의 사람 발화 전사다(빈칸 · 자리표시 · 여러 줄 ✗).", "remedy": "사람 Y/N(결정)을 받아 그 발화를 역할과 요지로 전사한다 — 에이전트가 스스로 적지 않는다.", "exit_code": 1}
+{"id": "r4", "kind": "exception", "type": "HintError", "code": "HINT_X", "message": "--w 는 한 줄의 사람 발화 전사다(빈칸 · 자리표시 · 여러 줄 ✗).", "remedy": "사람 Y/N(결정)을 받아 그 발화를 역할과 요지로 전사한다 — 에이전트가 스스로 적지 않는다.", "exit_code": 1}
+{"id": "r5", "kind": "exception", "type": "HintError", "code": "HINT_X", "message": "--w 는 한 줄의 사람 발화 전사다(빈칸 · 자리표시 · 여러 줄 ✗).", "remedy": "사람 Y/N(결정)을 받아 그 발화를 역할과 요지로 전사한다 — 에이전트가 스스로 적지 않는다.", "exit_code": 1}
+{"id": "r6", "kind": "value", "value": "ok"}

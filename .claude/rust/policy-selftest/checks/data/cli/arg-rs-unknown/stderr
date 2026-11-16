@@ -1,0 +1,2 @@
+usage: runtime_selftest.py [-h] [--tripwires-only]
+runtime_selftest.py: error: unrecognized arguments: extra

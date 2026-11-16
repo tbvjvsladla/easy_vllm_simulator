@@ -1,0 +1,8 @@
+{"bytes": 215, "cap_mib": 0, "day": "2026-02-30", "kind": "log_evicted", "reason": "capacity", "source": "logs_lifecycle", "ts": "2026-08-31T00:00:00Z"}
+{"bytes": 250, "cap_mib": 0, "day": "2026-06-01", "kind": "log_evicted", "reason": "capacity", "source": "logs_lifecycle", "ts": "2026-08-31T00:00:00Z"}
+{"bytes": 950, "cap_mib": 0, "day": "2026-07-20", "kind": "log_evicted", "reason": "capacity", "source": "logs_lifecycle", "ts": "2026-08-31T00:00:00Z"}
+{"bytes": 77, "cap_mib": 0, "day": "2026-07-27", "kind": "log_evicted", "reason": "capacity", "source": "logs_lifecycle", "ts": "2026-08-31T00:00:00Z"}
+{"bytes": 0, "cap_mib": 0, "day": "2026-07-28", "kind": "log_evicted", "reason": "capacity", "source": "logs_lifecycle", "ts": "2026-08-31T00:00:00Z"}
+{"bytes": 17, "cap_mib": 0, "day": "2026-07-29", "kind": "log_evicted", "reason": "capacity", "source": "logs_lifecycle", "ts": "2026-08-31T00:00:00Z"}
+{"bytes": 1693, "cap_mib": 0, "day": "2026-07-30", "kind": "log_evicted", "reason": "capacity", "source": "logs_lifecycle", "ts": "2026-08-31T00:00:00Z"}
+{"bytes": 180, "cap_mib": 0, "day": "2026-07-31", "kind": "log_evicted", "reason": "capacity", "source": "logs_lifecycle", "ts": "2026-08-31T00:00:00Z"}

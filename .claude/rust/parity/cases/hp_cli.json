@@ -1,0 +1,2134 @@
+[
+ {
+  "id": "HP-cli-help-none",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--help"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-cols40",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "env": {
+   "COLUMNS": "40"
+  }
+ },
+ {
+  "id": "HP-cli-help-cols200",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--he"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "env": {
+   "COLUMNS": "200"
+  }
+ },
+ {
+  "id": "HP-cli-help-cols30",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "env": {
+   "COLUMNS": "30"
+  }
+ },
+ {
+  "id": "HP-cli-help-publish",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "publish",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-continue",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "continue",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-lint",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "lint",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-refresh",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "refresh",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-refacts",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "refacts",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-excerpt",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "excerpt",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-name",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "name",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-verify",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "verify",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-push",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "push",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-catalog",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "catalog",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-match",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "match",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-branch-transition",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "branch-transition",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-publish-cols60",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "publish",
+   "--help"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "env": {
+   "COLUMNS": "60"
+  }
+ },
+ {
+  "id": "HP-cli-help-continue-cols120",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "continue",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "env": {
+   "COLUMNS": "120"
+  }
+ },
+ {
+  "id": "HP-cli-help-catalog-derive",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "catalog",
+   "derive",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-catalog-classify",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "catalog",
+   "classify",
+   "-h"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-help-cluster",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "publish",
+   "-hx"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-unknown-cmd",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "bogus"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-catalog-nosub",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "catalog"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-catalog-badsub",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "catalog",
+   "nope"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-publish-required",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "publish"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-node-choice",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "publish",
+   "--node",
+   "x",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-mutex",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "publish",
+   "--docker-read-only",
+   "--docker-probe",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-ambiguous",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "continue",
+   "--approved",
+   "x",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-ambiguous-top",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "publish",
+   "--c",
+   "x"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-expected-arg",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "lint",
+   "--draft"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-value-is-option",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "lint",
+   "--draft",
+   "--json"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-unrecognized",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "match",
+   "--vllm",
+   "a",
+   "--model",
+   "b",
+   "extra",
+   "--zz"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-flag-explicit",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "lint",
+   "--json=1",
+   "--draft",
+   "d"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-repo-missing-value",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-bt-required",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "branch-transition",
+   "--remote",
+   "o"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-err-classify-required",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "catalog",
+   "classify",
+   "--rc",
+   "0"
+  ],
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-match-text",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "match",
+   "--vllm",
+   "0.29.0",
+   "--model",
+   "Org/Q-NVFP4"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/hints/index.json": "{\"schema_version\": 1, \"hints\": [{\"tag\": \"hint/0.29.0/q-nvfp4/gb10-1g2n-cluster-native/r\", \"grammar\": \"v6\", \"model\": \"q-nvfp4\", \"vllm\": \"0.29.0\", \"arch\": \"gb10-1g2n-cluster-native\", \"base_model\": \"Org/Q\", \"object\": \"abc\", \"brief\": \"b1\", \"verdict\": \"PASS\"}, {\"tag\": \"hint/v0.29.0/Q-NVFP4/gb10-1g1n-main-native/r\", \"grammar\": \"v7\", \"model\": \"Q-NVFP4\", \"vllm\": \"v0.29.0\", \"arch\": \"gb10-1g1n-main-native\", \"object\": \"absent-local\"}, {\"tag\": \"hint/0.28.0/q-fp8/h100-1g1n-main-native/r\", \"model\": \"q-fp8\", \"vllm\": \"0.28.0\", \"arch\": \"h100-1g1n-main-native\", \"base_model\": \"Org/Q\", \"object\": \"not-annotated\"}, {\"tag\": \"hint/0.1/other/gb10/r\", \"model\": \"other\", \"vllm\": \"0.1\", \"arch\": \"gb10\"}]}"
+  }
+ },
+ {
+  "id": "HP-cli-match-json",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "match",
+   "--vllm",
+   "v0.29.0",
+   "--model",
+   "q-nvfp4",
+   "--arch",
+   "gb10-1g2n-cluster-native",
+   "--include-other",
+   "--json"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/hints/index.json": "{\"schema_version\": 1, \"hints\": [{\"tag\": \"hint/0.29.0/q-nvfp4/gb10-1g2n-cluster-native/r\", \"grammar\": \"v6\", \"model\": \"q-nvfp4\", \"vllm\": \"0.29.0\", \"arch\": \"gb10-1g2n-cluster-native\", \"base_model\": \"Org/Q\", \"object\": \"abc\", \"brief\": \"b1\", \"verdict\": \"PASS\"}, {\"tag\": \"hint/v0.29.0/Q-NVFP4/gb10-1g1n-main-native/r\", \"grammar\": \"v7\", \"model\": \"Q-NVFP4\", \"vllm\": \"v0.29.0\", \"arch\": \"gb10-1g1n-main-native\", \"object\": \"absent-local\"}, {\"tag\": \"hint/0.28.0/q-fp8/h100-1g1n-main-native/r\", \"model\": \"q-fp8\", \"vllm\": \"0.28.0\", \"arch\": \"h100-1g1n-main-native\", \"base_model\": \"Org/Q\", \"object\": \"not-annotated\"}, {\"tag\": \"hint/0.1/other/gb10/r\", \"model\": \"other\", \"vllm\": \"0.1\", \"arch\": \"gb10\"}]}"
+  }
+ },
+ {
+  "id": "HP-cli-match-no-index",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "match",
+   "--vllm",
+   "0.29.0",
+   "--model",
+   "x"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/README": "x"
+  }
+ },
+ {
+  "id": "HP-cli-classify-rc0",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "catalog",
+   "classify",
+   "--index",
+   "fx/index.json",
+   "--rc",
+   "0"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/index.json": "{\"schema_version\": 1, \"hints\": [{\"tag\": \"hint/0.29.0/q-nvfp4/gb10-1g2n-cluster-native/r\", \"grammar\": \"v6\", \"model\": \"q-nvfp4\", \"vllm\": \"0.29.0\", \"arch\": \"gb10-1g2n-cluster-native\", \"base_model\": \"Org/Q\", \"object\": \"abc\", \"brief\": \"b1\", \"verdict\": \"PASS\"}, {\"tag\": \"hint/v0.29.0/Q-NVFP4/gb10-1g1n-main-native/r\", \"grammar\": \"v7\", \"model\": \"Q-NVFP4\", \"vllm\": \"v0.29.0\", \"arch\": \"gb10-1g1n-main-native\", \"object\": \"absent-local\"}, {\"tag\": \"hint/0.28.0/q-fp8/h100-1g1n-main-native/r\", \"model\": \"q-fp8\", \"vllm\": \"0.28.0\", \"arch\": \"h100-1g1n-main-native\", \"base_model\": \"Org/Q\", \"object\": \"not-annotated\"}, {\"tag\": \"hint/0.1/other/gb10/r\", \"model\": \"other\", \"vllm\": \"0.1\", \"arch\": \"gb10\"}]}",
+   "fx/bad.json": "{nope",
+   "fx/list.json": "[1]",
+   "fx/hints-str.json": "{\"hints\": \"ab\"}"
+  }
+ },
+ {
+  "id": "HP-cli-classify-rc1",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "catalog",
+   "classify",
+   "--index",
+   "fx/index.json",
+   "--rc",
+   "1"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/index.json": "{\"schema_version\": 1, \"hints\": [{\"tag\": \"hint/0.29.0/q-nvfp4/gb10-1g2n-cluster-native/r\", \"grammar\": \"v6\", \"model\": \"q-nvfp4\", \"vllm\": \"0.29.0\", \"arch\": \"gb10-1g2n-cluster-native\", \"base_model\": \"Org/Q\", \"object\": \"abc\", \"brief\": \"b1\", \"verdict\": \"PASS\"}, {\"tag\": \"hint/v0.29.0/Q-NVFP4/gb10-1g1n-main-native/r\", \"grammar\": \"v7\", \"model\": \"Q-NVFP4\", \"vllm\": \"v0.29.0\", \"arch\": \"gb10-1g1n-main-native\", \"object\": \"absent-local\"}, {\"tag\": \"hint/0.28.0/q-fp8/h100-1g1n-main-native/r\", \"model\": \"q-fp8\", \"vllm\": \"0.28.0\", \"arch\": \"h100-1g1n-main-native\", \"base_model\": \"Org/Q\", \"object\": \"not-annotated\"}, {\"tag\": \"hint/0.1/other/gb10/r\", \"model\": \"other\", \"vllm\": \"0.1\", \"arch\": \"gb10\"}]}",
+   "fx/bad.json": "{nope",
+   "fx/list.json": "[1]",
+   "fx/hints-str.json": "{\"hints\": \"ab\"}"
+  }
+ },
+ {
+  "id": "HP-cli-classify-missing",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "catalog",
+   "classify",
+   "--index",
+   "fx/none.json",
+   "--rc",
+   "0"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/index.json": "{\"schema_version\": 1, \"hints\": [{\"tag\": \"hint/0.29.0/q-nvfp4/gb10-1g2n-cluster-native/r\", \"grammar\": \"v6\", \"model\": \"q-nvfp4\", \"vllm\": \"0.29.0\", \"arch\": \"gb10-1g2n-cluster-native\", \"base_model\": \"Org/Q\", \"object\": \"abc\", \"brief\": \"b1\", \"verdict\": \"PASS\"}, {\"tag\": \"hint/v0.29.0/Q-NVFP4/gb10-1g1n-main-native/r\", \"grammar\": \"v7\", \"model\": \"Q-NVFP4\", \"vllm\": \"v0.29.0\", \"arch\": \"gb10-1g1n-main-native\", \"object\": \"absent-local\"}, {\"tag\": \"hint/0.28.0/q-fp8/h100-1g1n-main-native/r\", \"model\": \"q-fp8\", \"vllm\": \"0.28.0\", \"arch\": \"h100-1g1n-main-native\", \"base_model\": \"Org/Q\", \"object\": \"not-annotated\"}, {\"tag\": \"hint/0.1/other/gb10/r\", \"model\": \"other\", \"vllm\": \"0.1\", \"arch\": \"gb10\"}]}",
+   "fx/bad.json": "{nope",
+   "fx/list.json": "[1]",
+   "fx/hints-str.json": "{\"hints\": \"ab\"}"
+  }
+ },
+ {
+  "id": "HP-cli-classify-bad",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "catalog",
+   "classify",
+   "--index",
+   "fx/bad.json",
+   "--rc",
+   "0"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/index.json": "{\"schema_version\": 1, \"hints\": [{\"tag\": \"hint/0.29.0/q-nvfp4/gb10-1g2n-cluster-native/r\", \"grammar\": \"v6\", \"model\": \"q-nvfp4\", \"vllm\": \"0.29.0\", \"arch\": \"gb10-1g2n-cluster-native\", \"base_model\": \"Org/Q\", \"object\": \"abc\", \"brief\": \"b1\", \"verdict\": \"PASS\"}, {\"tag\": \"hint/v0.29.0/Q-NVFP4/gb10-1g1n-main-native/r\", \"grammar\": \"v7\", \"model\": \"Q-NVFP4\", \"vllm\": \"v0.29.0\", \"arch\": \"gb10-1g1n-main-native\", \"object\": \"absent-local\"}, {\"tag\": \"hint/0.28.0/q-fp8/h100-1g1n-main-native/r\", \"model\": \"q-fp8\", \"vllm\": \"0.28.0\", \"arch\": \"h100-1g1n-main-native\", \"base_model\": \"Org/Q\", \"object\": \"not-annotated\"}, {\"tag\": \"hint/0.1/other/gb10/r\", \"model\": \"other\", \"vllm\": \"0.1\", \"arch\": \"gb10\"}]}",
+   "fx/bad.json": "{nope",
+   "fx/list.json": "[1]",
+   "fx/hints-str.json": "{\"hints\": \"ab\"}"
+  }
+ },
+ {
+  "id": "HP-cli-classify-list",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "catalog",
+   "classify",
+   "--index",
+   "fx/list.json",
+   "--rc",
+   "0"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/index.json": "{\"schema_version\": 1, \"hints\": [{\"tag\": \"hint/0.29.0/q-nvfp4/gb10-1g2n-cluster-native/r\", \"grammar\": \"v6\", \"model\": \"q-nvfp4\", \"vllm\": \"0.29.0\", \"arch\": \"gb10-1g2n-cluster-native\", \"base_model\": \"Org/Q\", \"object\": \"abc\", \"brief\": \"b1\", \"verdict\": \"PASS\"}, {\"tag\": \"hint/v0.29.0/Q-NVFP4/gb10-1g1n-main-native/r\", \"grammar\": \"v7\", \"model\": \"Q-NVFP4\", \"vllm\": \"v0.29.0\", \"arch\": \"gb10-1g1n-main-native\", \"object\": \"absent-local\"}, {\"tag\": \"hint/0.28.0/q-fp8/h100-1g1n-main-native/r\", \"model\": \"q-fp8\", \"vllm\": \"0.28.0\", \"arch\": \"h100-1g1n-main-native\", \"base_model\": \"Org/Q\", \"object\": \"not-annotated\"}, {\"tag\": \"hint/0.1/other/gb10/r\", \"model\": \"other\", \"vllm\": \"0.1\", \"arch\": \"gb10\"}]}",
+   "fx/bad.json": "{nope",
+   "fx/list.json": "[1]",
+   "fx/hints-str.json": "{\"hints\": \"ab\"}"
+  }
+ },
+ {
+  "id": "HP-cli-classify-str",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "catalog",
+   "classify",
+   "--index",
+   "fx/hints-str.json",
+   "--rc",
+   "0"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/index.json": "{\"schema_version\": 1, \"hints\": [{\"tag\": \"hint/0.29.0/q-nvfp4/gb10-1g2n-cluster-native/r\", \"grammar\": \"v6\", \"model\": \"q-nvfp4\", \"vllm\": \"0.29.0\", \"arch\": \"gb10-1g2n-cluster-native\", \"base_model\": \"Org/Q\", \"object\": \"abc\", \"brief\": \"b1\", \"verdict\": \"PASS\"}, {\"tag\": \"hint/v0.29.0/Q-NVFP4/gb10-1g1n-main-native/r\", \"grammar\": \"v7\", \"model\": \"Q-NVFP4\", \"vllm\": \"v0.29.0\", \"arch\": \"gb10-1g1n-main-native\", \"object\": \"absent-local\"}, {\"tag\": \"hint/0.28.0/q-fp8/h100-1g1n-main-native/r\", \"model\": \"q-fp8\", \"vllm\": \"0.28.0\", \"arch\": \"h100-1g1n-main-native\", \"base_model\": \"Org/Q\", \"object\": \"not-annotated\"}, {\"tag\": \"hint/0.1/other/gb10/r\", \"model\": \"other\", \"vllm\": \"0.1\", \"arch\": \"gb10\"}]}",
+   "fx/bad.json": "{nope",
+   "fx/list.json": "[1]",
+   "fx/hints-str.json": "{\"hints\": \"ab\"}"
+  }
+ },
+ {
+  "id": "HP-cli-classify-dir",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "catalog",
+   "classify",
+   "--index",
+   "fx",
+   "--rc",
+   "0"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/index.json": "{\"schema_version\": 1, \"hints\": [{\"tag\": \"hint/0.29.0/q-nvfp4/gb10-1g2n-cluster-native/r\", \"grammar\": \"v6\", \"model\": \"q-nvfp4\", \"vllm\": \"0.29.0\", \"arch\": \"gb10-1g2n-cluster-native\", \"base_model\": \"Org/Q\", \"object\": \"abc\", \"brief\": \"b1\", \"verdict\": \"PASS\"}, {\"tag\": \"hint/v0.29.0/Q-NVFP4/gb10-1g1n-main-native/r\", \"grammar\": \"v7\", \"model\": \"Q-NVFP4\", \"vllm\": \"v0.29.0\", \"arch\": \"gb10-1g1n-main-native\", \"object\": \"absent-local\"}, {\"tag\": \"hint/0.28.0/q-fp8/h100-1g1n-main-native/r\", \"model\": \"q-fp8\", \"vllm\": \"0.28.0\", \"arch\": \"h100-1g1n-main-native\", \"base_model\": \"Org/Q\", \"object\": \"not-annotated\"}, {\"tag\": \"hint/0.1/other/gb10/r\", \"model\": \"other\", \"vllm\": \"0.1\", \"arch\": \"gb10\"}]}",
+   "fx/bad.json": "{nope",
+   "fx/list.json": "[1]",
+   "fx/hints-str.json": "{\"hints\": \"ab\"}"
+  }
+ },
+ {
+  "id": "HP-cli-repo-absent",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx/nope",
+   "lint",
+   "--draft",
+   "x"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-repo-not-git",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx/hints",
+   "lint",
+   "--draft",
+   "x"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-lint-state-absent",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "lint",
+   "--draft",
+   "fx/dnone"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-lint-state-bad",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "lint",
+   "--draft",
+   "fx/dbad"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-lint-payload-absent",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "lint",
+   "--draft",
+   "fx/dnopay"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-excerpt-lineage-absent",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "excerpt",
+   "--draft",
+   "fx/hints/.drafts/d1",
+   "--source",
+   "x"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-refresh-committed",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "refresh",
+   "--draft",
+   "fx/dc"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-refresh-payload-absent",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "refresh",
+   "--draft",
+   "fx/dnopay"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-refresh-no-draft",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "refresh",
+   "--draft",
+   "fx/dnone"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-refacts-committed",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "refacts",
+   "--draft",
+   "fx/dc"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-refacts-payload-absent",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "refacts",
+   "--draft",
+   "fx/dnopay"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-continue-selector-absent",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "continue",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-continue-draft-absent",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "continue",
+   "--campaign",
+   "camp-x",
+   "--cell",
+   "zz",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-continue-draft-ambiguous",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "continue",
+   "--campaign",
+   "camp-x",
+   "--cell",
+   "c1",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-continue-node-filter",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "continue",
+   "--campaign",
+   "camp-x",
+   "--cell",
+   "c1",
+   "--node",
+   "sub",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-continue-bad-utc",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "continue",
+   "--draft",
+   "fx/hints/.drafts/d1",
+   "--generated-utc",
+   "2026-01-02"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-continue-approval-absent",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "continue",
+   "--draft",
+   "fx/hints/.drafts/d1",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-continue-approval-multiline",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "continue",
+   "--draft",
+   "fx/hints/.drafts/d1",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z",
+   "--approved-by",
+   "a\nb",
+   "--approved-utc",
+   "2026-01-02T06:00:00Z"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-continue-approval-placeholder",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "continue",
+   "--draft",
+   "fx/hints/.drafts/d1",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z",
+   "--approved-by",
+   "<<x>>",
+   "--approved-utc",
+   "2026-01-02T06:00:00Z"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-continue-approval-bad-utc",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "continue",
+   "--draft",
+   "fx/hints/.drafts/d1",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z",
+   "--approved-by",
+   "사람: 예",
+   "--approved-utc",
+   "x"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-continue-waiver-invalid",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "continue",
+   "--draft",
+   "fx/hints/.drafts/d1",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z",
+   "--approved-by",
+   "사람: 예",
+   "--approved-utc",
+   "2026-01-02T06:00:00Z",
+   "--factcheck-waiver",
+   "  "
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-continue-guide-pin",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "continue",
+   "--draft",
+   "fx/hints/.drafts/d1",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z",
+   "--approved-by",
+   "사람: 예",
+   "--approved-utc",
+   "2026-01-02T06:00:00Z",
+   "--guide-commit",
+   "abc"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-continue-central-absent",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "continue",
+   "--draft",
+   "fx/hints/.drafts/d1",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z",
+   "--approved-by",
+   "사람: 예",
+   "--approved-utc",
+   "2026-01-02T06:00:00Z"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-continue-campaign-conflict",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "continue",
+   "--draft",
+   "fx/hints/.drafts/d2",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z",
+   "--approved-utc",
+   "2026-01-02T06:00:00Z"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-push-central-absent",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "push",
+   "--tag",
+   "hint/x"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-publish-bad-utc",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "publish",
+   "--generated-utc",
+   "nope",
+   "--campaign",
+   "a",
+   "--cell",
+   "b"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-publish-selector-absent",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "publish",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-publish-selector-conflict",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "publish",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z",
+   "--publication",
+   "t",
+   "--cell",
+   "b",
+   "--replay"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-publish-replay-required",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "publish",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z",
+   "--publication",
+   "t"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-publish-replay-alone",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "publish",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z",
+   "--replay",
+   "--campaign",
+   "a",
+   "--cell",
+   "b"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-publish-out-published",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "publish",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z",
+   "--campaign",
+   "a",
+   "--cell",
+   "b",
+   "--out",
+   "fx/out1"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-publish-out-junk",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "publish",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z",
+   "--campaign",
+   "a",
+   "--cell",
+   "b",
+   "--out",
+   "fx/out2"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-publish-out-payload",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "publish",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z",
+   "--campaign",
+   "a",
+   "--cell",
+   "b",
+   "--out",
+   "fx/out3"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-publish-out-file",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "publish",
+   "--generated-utc",
+   "2026-01-02T06:00:00Z",
+   "--campaign",
+   "a",
+   "--cell",
+   "b",
+   "--out",
+   "fx/outf"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-name-selector-absent",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "name",
+   "--campaign",
+   "a"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-name-selector-conflict",
+  "entry": ".claude/skills/hint-publisher/scripts/hint.sh",
+  "orig": ".claude/skills/hint-publisher/scripts/hint.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [
+   "--repo",
+   "fx",
+   "name",
+   "--publication",
+   "p",
+   "--campaign",
+   "a"
+  ],
+  "outputs": [
+   "fx"
+  ],
+  "setup": {
+   "fx/.git/HEAD": "ref: refs/heads/x\n",
+   "fx/hints/.drafts/d1/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/hints/.drafts/d1/payload/README.md": "x\n",
+   "fx/hints/.drafts/d2/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/hints/.drafts/d2/payload/README.md": "x\n",
+   "fx/hints/.drafts/d3/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"campaign\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t2\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": \"camp-x\", \"cell\": \"c1\", \"node\": \"main\", \"publication\": null}, \"steps\": {}}",
+   "fx/dc/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {\"commit\": {\"anchor\": \"0123456789abcdef0123\"}}}",
+   "fx/dc/payload/README.md": "x\n",
+   "fx/dbad/state.json": "{\"schema_version\": 2}",
+   "fx/dnone/x": "",
+   "fx/dnopay/state.json": "{\"schema_version\": 1, \"stage\": \"scaffolded\", \"mode\": \"publication-replay\", \"tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"base_tag\": \"hint/0.1/m/a/q-len1-kvauto\", \"topic\": \"t1\", \"manifest\": \"docs/_evidence/t1.manifest.json\", \"topology\": \"single\", \"topology_label\": \"single\", \"generated_utc\": \"2026-01-02T06:00:00Z\", \"selectors\": {\"campaign\": null, \"cell\": null, \"node\": null, \"publication\": \"t1\"}, \"steps\": {}}",
+   "fx/out1/state.json": "{}",
+   "fx/out2/junk": "x",
+   "fx/out3/inputs/a.json": "{}",
+   "fx/out3/payload/p.md": "x",
+   "fx/outf": "x"
+  }
+ },
+ {
+  "id": "HP-cli-api-factcheck-problems",
+  "entry": ".claude/skills/hint-publisher/scripts/hint_api.sh",
+  "orig": ".claude/rust/parity/cases/shims/hint_api.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [],
+  "stdin": "{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1, \"tag\": \"hint/a/b/c/d\", \"author\": \"writer\", \"checker\": \"checker\", \"checked_utc\": \"2026-01-02T06:00:00Z\", \"claims_checked\": 3, \"classes_checked\": [1, 2, 3, 4, 5, 6, 7], \"items\": [{\"id\": \"f1\", \"where\": \"00\", \"claim\": \"c\", \"verdict\": \"wrong\", \"class\": 1, \"target\": \"prose\", \"status\": \"fixed\", \"resolution\": \"r\"}]}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r0\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [[1], {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r1\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r2\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": true, \"tag\": \"hint/a/b/c/d\", \"author\": \"writer\", \"checker\": \"checker\", \"checked_utc\": \"2026-01-02T06:00:00Z\", \"claims_checked\": 3, \"classes_checked\": [1, 2, 3, 4, 5, 6, 7], \"items\": [{\"id\": \"f1\", \"where\": \"00\", \"claim\": \"c\", \"verdict\": \"wrong\", \"class\": 1, \"target\": \"prose\", \"status\": \"fixed\", \"resolution\": \"r\"}]}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r3\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1.0, \"tag\": \"other\", \"author\": \"writer\", \"checker\": \"checker\", \"checked_utc\": \"2026-01-02T06:00:00Z\", \"claims_checked\": 3, \"classes_checked\": [1, 2, 3, 4, 5, 6, 7], \"items\": [{\"id\": \"f1\", \"where\": \"00\", \"claim\": \"c\", \"verdict\": \"wrong\", \"class\": 1, \"target\": \"prose\", \"status\": \"fixed\", \"resolution\": \"r\"}]}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r4\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1, \"tag\": \"hint/a/b/c/d\", \"author\": \"writer\", \"checker\": \" Writer \", \"checked_utc\": \"2026-01-02T06:00:00Z\", \"claims_checked\": 3, \"classes_checked\": [1, 2, 3, 4, 5, 6, 7], \"items\": [{\"id\": \"f1\", \"where\": \"00\", \"claim\": \"c\", \"verdict\": \"wrong\", \"class\": 1, \"target\": \"prose\", \"status\": \"fixed\", \"resolution\": \"r\"}]}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r5\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1, \"tag\": \"hint/a/b/c/d\", \"author\": \"\", \"checker\": 5, \"checked_utc\": \"2026-01-02T06:00:00Z\", \"claims_checked\": 3, \"classes_checked\": [1, 2, 3, 4, 5, 6, 7], \"items\": [{\"id\": \"f1\", \"where\": \"00\", \"claim\": \"c\", \"verdict\": \"wrong\", \"class\": 1, \"target\": \"prose\", \"status\": \"fixed\", \"resolution\": \"r\"}]}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r6\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1, \"tag\": \"hint/a/b/c/d\", \"author\": \"writer\", \"checker\": \"checker\", \"checked_utc\": \"2026-01-02\", \"claims_checked\": 3, \"classes_checked\": [1, 2, 3, 4, 5, 6, 7], \"items\": [{\"id\": \"f1\", \"where\": \"00\", \"claim\": \"c\", \"verdict\": \"wrong\", \"class\": 1, \"target\": \"prose\", \"status\": \"fixed\", \"resolution\": \"r\"}]}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r7\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1, \"tag\": \"hint/a/b/c/d\", \"author\": \"writer\", \"checker\": \"checker\", \"checked_utc\": null, \"claims_checked\": 3, \"classes_checked\": [1, 2, 3, 4, 5, 6, 7], \"items\": [{\"id\": \"f1\", \"where\": \"00\", \"claim\": \"c\", \"verdict\": \"wrong\", \"class\": 1, \"target\": \"prose\", \"status\": \"fixed\", \"resolution\": \"r\"}]}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r8\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1, \"tag\": \"hint/a/b/c/d\", \"author\": \"writer\", \"checker\": \"checker\", \"checked_utc\": \"2026-01-02T06:00:00Z\", \"claims_checked\": true, \"classes_checked\": [1, 2, 3, 4, 5, 6, 7], \"items\": [{\"id\": \"f1\", \"where\": \"00\", \"claim\": \"c\", \"verdict\": \"wrong\", \"class\": 1, \"target\": \"prose\", \"status\": \"fixed\", \"resolution\": \"r\"}]}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r9\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1, \"tag\": \"hint/a/b/c/d\", \"author\": \"writer\", \"checker\": \"checker\", \"checked_utc\": \"2026-01-02T06:00:00Z\", \"claims_checked\": 0, \"classes_checked\": [1, 2, 3, 4, 5, 6, 7], \"items\": [{\"id\": \"f1\", \"where\": \"00\", \"claim\": \"c\", \"verdict\": \"wrong\", \"class\": 1, \"target\": \"prose\", \"status\": \"fixed\", \"resolution\": \"r\"}]}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r10\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1, \"tag\": \"hint/a/b/c/d\", \"author\": \"writer\", \"checker\": \"checker\", \"checked_utc\": \"2026-01-02T06:00:00Z\", \"claims_checked\": 1.5, \"classes_checked\": [1, 2, 3, 4, 5, 6, 7], \"items\": [{\"id\": \"f1\", \"where\": \"00\", \"claim\": \"c\", \"verdict\": \"wrong\", \"class\": 1, \"target\": \"prose\", \"status\": \"fixed\", \"resolution\": \"r\"}]}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r11\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1, \"tag\": \"hint/a/b/c/d\", \"author\": \"writer\", \"checker\": \"checker\", \"checked_utc\": \"2026-01-02T06:00:00Z\", \"claims_checked\": 3, \"classes_checked\": [1, 2, 3, 4, 5, 6], \"items\": [{\"id\": \"f1\", \"where\": \"00\", \"claim\": \"c\", \"verdict\": \"wrong\", \"class\": 1, \"target\": \"prose\", \"status\": \"fixed\", \"resolution\": \"r\"}]}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r12\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1, \"tag\": \"hint/a/b/c/d\", \"author\": \"writer\", \"checker\": \"checker\", \"checked_utc\": \"2026-01-02T06:00:00Z\", \"claims_checked\": 3, \"classes_checked\": [1, 2, 3, 4, 5, 6, 7, true], \"items\": [{\"id\": \"f1\", \"where\": \"00\", \"claim\": \"c\", \"verdict\": \"wrong\", \"class\": 1, \"target\": \"prose\", \"status\": \"fixed\", \"resolution\": \"r\"}]}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r13\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1, \"tag\": \"hint/a/b/c/d\", \"author\": \"writer\", \"checker\": \"checker\", \"checked_utc\": \"2026-01-02T06:00:00Z\", \"claims_checked\": 3, \"classes_checked\": \"1234567\", \"items\": [{\"id\": \"f1\", \"where\": \"00\", \"claim\": \"c\", \"verdict\": \"wrong\", \"class\": 1, \"target\": \"prose\", \"status\": \"fixed\", \"resolution\": \"r\"}]}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r14\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1, \"tag\": \"hint/a/b/c/d\", \"author\": \"writer\", \"checker\": \"checker\", \"checked_utc\": \"2026-01-02T06:00:00Z\", \"claims_checked\": 3, \"classes_checked\": [1, 2, 3, 4, 5, 6, 7], \"items\": \"x\"}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r15\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1, \"tag\": \"hint/a/b/c/d\", \"author\": \"writer\", \"checker\": \"checker\", \"checked_utc\": \"2026-01-02T06:00:00Z\", \"claims_checked\": 3, \"classes_checked\": [1, 2, 3, 4, 5, 6, 7], \"items\": [1, {\"id\": \"f1\"}, {\"id\": \"f1\", \"verdict\": \"bad\", \"class\": 9, \"where\": \" \", \"claim\": null, \"target\": \"x\", \"status\": \"fixed\"}, {\"id\": \" \", \"class\": true, \"status\": \"open\", \"verdict\": \"misleading\", \"target\": \"fact\", \"where\": \"w\", \"claim\": \"c\"}, {\"id\": \"f9\", \"class\": -1, \"status\": \"nope\", \"verdict\": \"unsupported\", \"target\": \"prose\", \"where\": \"w\", \"claim\": \"c\"}]}, {\"tag\": \"hint/a/b/c/d-x\", \"base_tag\": \"hint/a/b/c/d\"}], \"id\": \"r16\"}\n{\"fn\": \"hint._factcheck_problems\", \"args\": [{\"schema_version\": 1, \"tag\": \"hint/a/b/c/d\", \"author\": \"writer\", \"checker\": \"checker\", \"checked_utc\": \"2026-01-02T06:00:00Z\", \"claims_checked\": 3, \"classes_checked\": [1, 2, 3, 4, 5, 6, 7], \"items\": [{\"id\": \"f1\", \"where\": \"00\", \"claim\": \"c\", \"verdict\": \"wrong\", \"class\": 1, \"target\": \"prose\", \"status\": \"fixed\", \"resolution\": \"r\"}]}, {\"tag\": \"\", \"base_tag\": null}], \"id\": \"r17\"}\n",
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-api-one-line",
+  "entry": ".claude/skills/hint-publisher/scripts/hint_api.sh",
+  "orig": ".claude/rust/parity/cases/shims/hint_api.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [],
+  "stdin": "{\"fn\": \"hint._one_line_utterance\", \"args\": [\"  사람: 예  \", \"HINT_X\", \"--approved-by\"], \"id\": \"r0\"}\n{\"fn\": \"hint._one_line_utterance\", \"args\": [null, \"HINT_X\", \"--w\"], \"id\": \"r1\"}\n{\"fn\": \"hint._one_line_utterance\", \"args\": [\"a\\rb\", \"HINT_X\", \"--w\"], \"id\": \"r2\"}\n{\"fn\": \"hint._one_line_utterance\", \"args\": [\"__x\", \"HINT_X\", \"--w\"], \"id\": \"r3\"}\n{\"fn\": \"hint._one_line_utterance\", \"args\": [\"x__\", \"HINT_X\", \"--w\"], \"id\": \"r4\"}\n{\"fn\": \"hint._one_line_utterance\", \"args\": [\"x>>\", \"HINT_X\", \"--w\"], \"id\": \"r5\"}\n{\"fn\": \"hint._one_line_utterance\", \"args\": [\"　ok　\", \"HINT_X\", \"--w\"], \"id\": \"r6\"}\n",
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-api-bench-command",
+  "entry": ".claude/skills/hint-publisher/scripts/hint_api.sh",
+  "orig": ".claude/rust/parity/cases/shims/hint_api.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [],
+  "stdin": "{\"fn\": \"hint._with_bench_command\", \"args\": [[{\"phase\": \"build\", \"command\": \"b\"}, {\"phase\": \"bench\", \"command\": \"x\"}, {\"phase\": \"bench\", \"command_source\": \"reconstructed(a)\"}, \"s\", {\"phase\": \"bench\", \"command_source\": 5}], {\"command\": \" vllm bench serve \", \"unrecorded\": [\"a\", 1], \"source\": \"src\"}], \"id\": \"r0\"}\n{\"fn\": \"hint._with_bench_command\", \"args\": [[{\"phase\": \"build\", \"command\": \"b\"}, {\"phase\": \"bench\", \"command\": \"x\"}, {\"phase\": \"bench\", \"command_source\": \"reconstructed(a)\"}, \"s\", {\"phase\": \"bench\", \"command_source\": 5}], {\"command\": \"c\", \"unrecorded\": \"ab\"}], \"id\": \"r1\"}\n{\"fn\": \"hint._with_bench_command\", \"args\": [[{\"phase\": \"build\", \"command\": \"b\"}, {\"phase\": \"bench\", \"command\": \"x\"}, {\"phase\": \"bench\", \"command_source\": \"reconstructed(a)\"}, \"s\", {\"phase\": \"bench\", \"command_source\": 5}], {\"command\": \"  \"}], \"id\": \"r2\"}\n{\"fn\": \"hint._with_bench_command\", \"args\": [null, {\"command\": \"c\"}], \"id\": \"r3\"}\n{\"fn\": \"hint._with_bench_command\", \"args\": [[{\"phase\": \"build\", \"command\": \"b\"}, {\"phase\": \"bench\", \"command\": \"x\"}, {\"phase\": \"bench\", \"command_source\": \"reconstructed(a)\"}, \"s\", {\"phase\": \"bench\", \"command_source\": 5}], null], \"id\": \"r4\"}\n{\"fn\": \"hint._with_bench_command\", \"args\": [[{\"phase\": \"build\", \"command\": \"b\"}, {\"phase\": \"bench\", \"command\": \"x\"}, {\"phase\": \"bench\", \"command_source\": \"reconstructed(a)\"}, \"s\", {\"phase\": \"bench\", \"command_source\": 5}], {\"command\": 5}], \"id\": \"r5\"}\n",
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-api-check-selectors",
+  "entry": ".claude/skills/hint-publisher/scripts/hint_api.sh",
+  "orig": ".claude/rust/parity/cases/shims/hint_api.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [],
+  "stdin": "{\"fn\": \"hint._check_selectors\", \"args\": [], \"kwargs\": {\"campaign\": \"a\", \"cell\": \"b\", \"publication\": null, \"replay\": false, \"require_replay\": true}, \"id\": \"r0\"}\n{\"fn\": \"hint._check_selectors\", \"args\": [], \"kwargs\": {\"campaign\": null, \"cell\": null, \"publication\": \"t\", \"replay\": false, \"require_replay\": true}, \"id\": \"r1\"}\n{\"fn\": \"hint._check_selectors\", \"args\": [], \"kwargs\": {\"campaign\": null, \"cell\": null, \"publication\": \"t\", \"replay\": false, \"require_replay\": false}, \"id\": \"r2\"}\n{\"fn\": \"hint._check_selectors\", \"args\": [], \"kwargs\": {\"campaign\": \"a\", \"cell\": null, \"publication\": \"t\", \"replay\": true, \"require_replay\": true}, \"id\": \"r3\"}\n{\"fn\": \"hint._check_selectors\", \"args\": [], \"kwargs\": {\"campaign\": \"a\", \"cell\": null, \"publication\": null, \"replay\": false, \"require_replay\": true}, \"id\": \"r4\"}\n{\"fn\": \"hint._check_selectors\", \"args\": [], \"kwargs\": {\"campaign\": \"a\", \"cell\": \"b\", \"publication\": null, \"replay\": true, \"require_replay\": true}, \"id\": \"r5\"}\n{\"fn\": \"hint._check_selectors\", \"args\": [], \"kwargs\": {\"campaign\": \"\", \"cell\": \"b\", \"publication\": null, \"replay\": false, \"require_replay\": false}, \"id\": \"r6\"}\n",
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-api-applied-summary",
+  "entry": ".claude/skills/hint-publisher/scripts/hint_api.sh",
+  "orig": ".claude/rust/parity/cases/shims/hint_api.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [],
+  "stdin": "{\"fn\": \"hint._applied_summary\", \"args\": [{\"patches\": [{\"result\": \"unobserved(x)\"}, {\"result\": \"applied\"}, 3, {\"result\": null}], \"probes\": [{\"tier\": \"x\"}, {\"tier\": \"image-probe\", \"result\": null}]}], \"id\": \"r0\"}\n{\"fn\": \"hint._applied_summary\", \"args\": [null], \"id\": \"r1\"}\n{\"fn\": \"hint._applied_summary\", \"args\": [{\"patches\": [], \"probes\": [{\"tier\": \"image-probe\", \"result\": \"done(3)\"}]}], \"id\": \"r2\"}\n",
+  "outputs": [
+   "fx"
+  ]
+ },
+ {
+  "id": "HP-cli-api-drafts",
+  "entry": ".claude/skills/hint-publisher/scripts/hint_api.sh",
+  "orig": ".claude/rust/parity/cases/shims/hint_api.py",
+  "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+  "args": [],
+  "stdin": "{\"fn\": \"__write__\", \"args\": [\"fx/d/inputs/tail.json\", \"[{\\\"token\\\": \\\"x\\\"}]\"], \"id\": \"r0\"}\n{\"fn\": \"hint._read_tail\", \"args\": [{\"__path__\": \"fx/d\"}], \"id\": \"r1\"}\n{\"fn\": \"__write__\", \"args\": [\"fx/e/inputs/tail.json\", \"{\\\"a\\\": 1}\"], \"id\": \"r2\"}\n{\"fn\": \"hint._read_tail\", \"args\": [{\"__path__\": \"fx/e\"}], \"id\": \"r3\"}\n{\"fn\": \"hint._tail_issues\", \"args\": [{\"__path__\": \"fx/e\"}], \"id\": \"r4\"}\n{\"fn\": \"__write__\", \"args\": [\"fx/f/inputs/tail.json\", \"{bad\"], \"id\": \"r5\"}\n{\"fn\": \"hint._read_tail\", \"args\": [{\"__path__\": \"fx/f\"}], \"id\": \"r6\"}\n{\"fn\": \"hint._read_tail\", \"args\": [{\"__path__\": \"fx/none\"}], \"id\": \"r7\"}\n{\"fn\": \"hint._tail_issues\", \"args\": [{\"__path__\": \"fx/none\"}], \"id\": \"r8\"}\n{\"fn\": \"hint._tail_issues\", \"args\": [{\"__path__\": \"fx/d\"}], \"id\": \"r9\"}\n{\"fn\": \"__write__\", \"args\": [\"fx/d/payload/LINEAGE.json\", \"{\\\"schema_version\\\": 1, \\\"documents\\\": [], \\\"kind\\\": \\\"x\\\"}\"], \"id\": \"r10\"}\n{\"fn\": \"hint._lineage_full\", \"args\": [{\"__path__\": \"fx/d\"}, {\"__path__\": \"fx/d/payload\"}], \"id\": \"r11\"}\n{\"fn\": \"__write__\", \"args\": [\"fx/e/payload/LINEAGE.json\", \"{\\\"kind\\\": \\\"receiver-summary\\\"}\"], \"id\": \"r12\"}\n{\"fn\": \"hint._lineage_full\", \"args\": [{\"__path__\": \"fx/e\"}, {\"__path__\": \"fx/e/payload\"}], \"id\": \"r13\"}\n{\"fn\": \"__write__\", \"args\": [\"fx/e/inputs/LINEAGE.full.json\", \"[1]\"], \"id\": \"r14\"}\n{\"fn\": \"hint._lineage_full\", \"args\": [{\"__path__\": \"fx/e\"}, {\"__path__\": \"fx/e/payload\"}], \"id\": \"r15\"}\n{\"fn\": \"hint._lineage_full\", \"args\": [{\"__path__\": \"fx/none\"}, {\"__path__\": \"fx/none/payload\"}], \"id\": \"r16\"}\n{\"fn\": \"__write__\", \"args\": [\"fx/d/state.json\", \"{\\\"schema_version\\\": 1, \\\"tag\\\": \\\"t\\\", \\\"topic\\\": \\\"p\\\"}\"], \"id\": \"r17\"}\n{\"fn\": \"hint._load_state\", \"args\": [{\"__path__\": \"fx/d\"}], \"id\": \"r18\"}\n{\"fn\": \"__write__\", \"args\": [\"fx/e/state.json\", \"{\\\"schema_version\\\": 1, \\\"tag\\\": \\\"t\\\", \\\"topic\\\": \\\"\\\", \\\"steps\\\": {}}\"], \"id\": \"r19\"}\n{\"fn\": \"hint._load_state\", \"args\": [{\"__path__\": \"fx/e\"}], \"id\": \"r20\"}\n{\"fn\": \"hint._load_state\", \"args\": [{\"__path__\": \"fx/none\"}], \"id\": \"r21\"}\n{\"fn\": \"hint._step\", \"args\": [{\"steps\": {\"commit\": null, \"x\": {\"a\": 1}}}, \"x\"], \"id\": \"r22\"}\n{\"fn\": \"hint._step\", \"args\": [{\"steps\": {\"commit\": null}}, \"commit\"], \"id\": \"r23\"}\n{\"fn\": \"hint._step\", \"args\": [{\"steps\": null}, \"commit\"], \"id\": \"r24\"}\n{\"fn\": \"hint._require_central\", \"args\": [{\"__path__\": \"fx\"}, \"push\"], \"id\": \"r25\"}\n{\"fn\": \"__write__\", \"args\": [\"fx/hints/.push_authority\", \"x\"], \"id\": \"r26\"}\n{\"fn\": \"hint._require_central\", \"args\": [{\"__path__\": \"fx\"}, \"push\"], \"id\": \"r27\"}\n",
+  "outputs": [
+   "fx"
+  ]
+ }
+]

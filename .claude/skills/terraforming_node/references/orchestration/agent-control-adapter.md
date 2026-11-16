@@ -1,16 +1,16 @@
 # agent-control adapter — provider 전용 실행문법 경계 (조건부 reference)
 
 > **이 파일과 `scripts/providers/`만 provider-specific 평면이다.** public SKILL 본문과 다른 reference는
-> 위임 의도만 선언한다. 실행은 provider-neutral `.claude/skills/terraforming_node/scripts/agent_control.py`가 request schema를 검증한 뒤
+> 위임 의도만 선언한다. 실행은 provider-neutral `.claude/skills/terraforming_node/scripts/agent_control.sh`(Rust `terraforming_node/rust` `agent_control`)가 request schema를 검증한 뒤
 > adapter로 라우팅한다. 정본 계약: `agent-control-request.schema.json`, `agent-control-result.schema.json`.
 > **소유 = terraforming_node**(plan_26093022 — 07-25 "agent_control = Constitution-owned" 결정은 폐기됐다: 호출자가 이 스킬의
 > relay·canary 뿐이라 기초층 런타임이 아니다). **Claude CLI 구문 격리 경계는 그대로다** — `claude` argv 의
-> 유일한 발행처는 `scripts/providers/claude_code.py` 이고, `scripts/agent_control.py --self-test` 가 그 경계를 검사한다.
+> 유일한 발행처는 `rust/src/provider_claude_code.rs` 이고, `scripts/agent_control.sh --self-test` 가 그 경계를 검사한다.
 
 ## 1. provider-neutral request
 
 계약 v1은 기존 Claude 경로이며 v2는 Codex의 시간 예산·권한 선택·세션 결속을 명시한다.
-schema와 `agent_control.py`의 교차필드 검증이 정본이다. `capabilities`는 작업 의도이며
+schema와 `agent_control`(Rust)의 교차필드 검증이 정본이다. `capabilities`는 작업 의도이며
 도구 가용성의 보안 경계가 아니다. 실제 집행은 하네스의 권한·파일·네트워크 정책이 소유한다.
 
 필수 필드:
@@ -47,12 +47,12 @@ schema와 `agent_control.py`의 교차필드 검증이 정본이다. `capabiliti
 실행:
 
 ```bash
-python3 .claude/skills/terraforming_node/scripts/agent_control.py invoke --request /path/to/request.json
+bash .claude/skills/terraforming_node/scripts/agent_control.sh invoke --request /path/to/request.json
 ```
 
 ## 2. Claude Code adapter (v1)
 
-`claude_code.py`만 generic capability를 Claude tool 이름으로 변환하고 다음 provider argv를 생성한다.
+`provider_claude_code.rs`만 generic capability를 Claude tool 이름으로 변환하고 다음 provider argv를 생성한다.
 이 명령은 구현 계약 설명용이며 운영 호출자는 직접 복제하지 않고 위 orchestrator를 사용한다.
 
 ```bash
@@ -77,7 +77,7 @@ request 의 선택 필드 `backend`(`anthropic`|`kimi`, 기본 anthropic)가 어
 편다(`opus`·`sonnet`·`haiku` → anthropic · `kimi-claude` → kimi/`k3[1m]` · `minimax-claude` →
 minimax/`MiniMax-M3`). 백엔드별 기본 모델은 `BACKEND_DEFAULT_MODEL` 이 단일 소유한다 — 종전
 `k3[1m]` 리터럴이 `bootstrap_canary` 에 손으로 적혀 있던 것을 걷어냈다. 중립 통로는
-`agent_control.py runners` 이며 relay 는 이것을 읽고 자기 사본을 두지 않는다.
+`agent_control.sh runners` 이며 relay 는 이것을 읽고 자기 사본을 두지 않는다.
 회전·소진의 정본은 `SKILL.md` §2.7.11 이다.
 
 **러너 평면 실패 판정**(`classify_runner_failure`) — 이 파일이 소유한다(provider 어휘). 판정은
@@ -89,7 +89,7 @@ minimax/`MiniMax-M3`). 백엔드별 기본 모델은 `BACKEND_DEFAULT_MODEL` 이
 
 **2026-09-15 — 백엔드 4종.** `meta`(`meta-claude` shim · 기본 모델 `muse-spark-1.3`)가 더해졌다. 백엔드
 어휘는 바이너리 표·기본모델 표·요청 스키마 enum 세 자리에 있고 `runtime_selftest` 가 셋의 일치를
-교차검증한다. `relay.py`·`bootstrap_canary.py` 의 `--backend` 선택지는 스키마 enum 에서 읽는다.
+교차검증한다. `relay.sh`·`bootstrap_canary.sh` 의 `--backend` 선택지는 스키마 enum 에서 읽는다.
 ⚠ shim 은 auto mode 판정 호출까지 자기 모델로 보낸다 — 대화형 세션을 shim 으로 띄울 때는 auto mode 를
 쓰지 않는다(판정 불가 오류는 권한 거부가 아니다 · 정본 `SKILL.md` §2.7.11).
 
@@ -126,9 +126,9 @@ stdout은 항상 `agent-control-result.schema.json`의 정렬된 JSON이다. 성
 
 ### 3.1 Codex adapter (v2)
 
-`scripts/providers/codex_cli.py`가 `codex exec` 구문의 유일한 발행처다. 선택적 `reasoning_effort`의 구체 값은 `-c model_reasoning_effort="<값>"`로 전달한다. 생략 또는 `default`는 override가 없다. Claude 요청도 아래 §3.2의 provider별 계약으로 effort를 지원한다. relay의 명시 값은 request와 재개 선택에 보존된다; 실제 모델 관측은 별도다. runner의 정체성은
+`rust/src/provider_codex_cli.rs`가 `codex exec` 구문의 유일한 발행처다. 선택적 `reasoning_effort`의 구체 값은 `-c model_reasoning_effort="<값>"`로 전달한다. 생략 또는 `default`는 override가 없다. Claude 요청도 아래 §3.2의 provider별 계약으로 effort를 지원한다. relay의 명시 값은 request와 재개 선택에 보존된다; 실제 모델 관측은 별도다. runner의 정체성은
 `provider × backend × model`이며 `backend=openai`인 Claude shim과 Codex는 다른 provider다.
-`agent_control.py runners --provider all`로 전체 별칭을 읽는다. 이번 명시적 선택은
+`agent_control.sh runners --provider all`로 전체 별칭을 읽는다. 이번 명시적 선택은
 `codex-gpt-6.1-sol`이고 기존 기본 사다리는 바꾸지 않는다.
 
 - 예산: `max_turns: null`, `budget_unit: wall_time`, 한 번의 실행에 대한 유한한 `timeout_seconds`를
@@ -148,7 +148,7 @@ stdout은 항상 `agent-control-result.schema.json`의 정렬된 JSON이다. 성
 
 ### 3.2 추론 강도 — 슬롯 선택과 native 정책 출처
 
-`relay.py --runner-effort <러너별칭>=<강도>`를 반복하여 슬롯별로 지정한다. 선택 순서는 슬롯 선언 →
+`relay.sh --runner-effort <러너별칭>=<강도>`를 반복하여 슬롯별로 지정한다. 선택 순서는 슬롯 선언 →
 `--reasoning-effort` 공통 선언 → `default`다. 사다리·전역 선언·슬롯 선언은 각각 원장에 보존되며,
 현재 슬롯의 값으로 전역 선언을 덮지 않는다. 수동/감독 재개도 슬롯 선언을 복구한다.
 각 attempt의 요청에는 `reasoning_effort`와 `reasoning_effort_source`가 있고 결과/원장에는
@@ -185,7 +185,7 @@ Claude-sub 별칭은 기존 Flash/M3.1 별칭 외에 `claude-sub-deepseek-pro`, 
 그 증명이 아니다. 재개 워커는 남아 있는 명령·서비스·부분 산출물을 먼저 확인하며 성공이나 중복
 실행을 추론하지 않는다. 이 계약은 메인 자체가 상위 오케스트레이터의 워커인 경우에도 같다.
 
-`agent_control.py invoke --request <file> --result-file <unique-path> --dispatch-id <id>`는
+`agent_control.sh invoke --request <file> --result-file <unique-path> --dispatch-id <id>`는
 선택적 provider-neutral 영속 출력 계약이다. 두 추가 옵션은 함께 사용한다. schema 검증을 마친
 `{schema_version:1,dispatch_id,request,result}`를 고유 파일에 flush·fsync·원자적 publish하고 나서
 stdout을 낸다. 기존 파일은 덮어쓰지 않는다. relay는 이 경로와 요청 바이트 digest를 **실행 전**에

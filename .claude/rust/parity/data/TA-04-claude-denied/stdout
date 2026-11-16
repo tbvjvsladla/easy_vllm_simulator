@@ -1,0 +1,18 @@
+{
+  "budget_outcome": null,
+  "duration_api_ms": 5,
+  "duration_ms": 10,
+  "exit_code": 4,
+  "intent": "probe",
+  "model_requested": "sonnet",
+  "model_used": [],
+  "num_turns": 1,
+  "output": "[permission_denials] 3건 — 거부된 도구 호출:\n  - Write {\"path\": \"x\"}\n  - raw-denial\n  - ? {}\n\n[서브가 남긴 말]\n…",
+  "provider": "claude_code",
+  "reason_codes": [
+    "PERMISSION_DENIED"
+  ],
+  "schema_version": 1,
+  "session_id": "sess-deny",
+  "status": "execution_failed"
+}

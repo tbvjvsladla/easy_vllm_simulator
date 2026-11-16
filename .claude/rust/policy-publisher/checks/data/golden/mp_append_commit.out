@@ -1,0 +1,11 @@
+{
+  "kind": "commit",
+  "messages": {},
+  "ok": true,
+  "publication_id": "selftest",
+  "reason_codes": [],
+  "recorded_path": "docs/_evidence/selftest.commit.raw.jsonl",
+  "schema_version": 1,
+  "seq": 1,
+  "sha256": "f22136124cd3e1d65a48487cecf310771b2fd1e83dc032e3d19724160ac0ff71"
+}

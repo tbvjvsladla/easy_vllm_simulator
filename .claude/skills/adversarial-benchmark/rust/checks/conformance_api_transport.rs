@@ -113,7 +113,7 @@ fn main_through_the_api_returns_the_status_and_the_whole_report() {
     for name in [
         "sweep_bench.sh",
         "publish_benchmark_record.sh",
-        "lite_metrics_native.py",
+        "lite_metrics_api.sh",
     ] {
         tree.write(name, b"");
     }

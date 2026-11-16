@@ -82,7 +82,7 @@ interconnect:
 # single 기본값은 빈 목록이다(`nodes: []` = 서브 미등록 dormant). 다만 **등록은 허용된다** — 등록하면
 #   얻는 것은 **A2A 에이전트 제어**(위임·관측)뿐이고 배달·버전동기 평면은 여전히 dormant 다.
 #   판정은 추론이 아니라 결정론이다:
-#     python3 .claude/skills/terraforming_node/scripts/node_role_contract.py \
+#     bash .claude/skills/terraforming_node/scripts/node_role_contract.sh \
 #             evaluate --topology <single|multi> --field delivery_plane --format value
 # work_dir: 그 노드에서 레포가 사는 절대경로. sync_to_sub.sh·multinode_*smoke.sh 가 여기서 해소(하드코딩 금지 — 포인터 원칙).
 #   서브 work_dir 기본값 = 메인 work_dir 와 동일(R2, plan_26062320). 미지정 시 스크립트가 로컬 $REPO 로 유도.

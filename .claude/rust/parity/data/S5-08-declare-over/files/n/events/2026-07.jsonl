@@ -1,0 +1,1 @@
+{"expected_load_s": 0, "kind": "budget_declare_rejected", "kv_mib": 30, "label": "unlabeled", "mem_total_mib": 100, "overhead_mib": 10, "reason": "예상 상주 100 MiB 가 총량 100 MiB 이상이다 — 이 구성은 애초에 못 올린다.", "source": "blackbox_session", "ts": "2026-07-31T00:02:30Z", "ttl_s": 7200, "weights_mib": 60}

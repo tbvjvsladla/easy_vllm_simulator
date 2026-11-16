@@ -1,0 +1,1 @@
+[agent-control] RUNNER_UNAVAILABLE: 러너(backend=anthropic model=sonnet)가 실행하지 못했다 — 백엔드가 HTTP 401 로 거절했다. 회전 가능=True (target=sub/ssh)

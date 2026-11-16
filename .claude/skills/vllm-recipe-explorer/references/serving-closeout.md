@@ -1,24 +1,24 @@
 # trial-loop 실행 + 서빙 완료 마무리 (조건부 reference)
 
 > spine step 8(trial-loop)·step 9(마무리)의 **루프 배선과 종결 시퀀스**. 수렴 판정·조정은 결정론
-> (`sim_classify.py`/`recipe.py`), 이 문서는 그 루프의 운용 규칙과 종결 핸드오프다.
+> (`sim_classify.sh`/`recipe.sh`), 이 문서는 그 루프의 운용 규칙과 종결 핸드오프다.
 
-## 1. `recipe.py simulate` — 통합 trial-loop
+## 1. `recipe.sh simulate` — 통합 trial-loop
 
 ```bash
 # 배선/수렴 검증(docker 없이): mock-profile 의 vllm_profile+functional 로 결정론 테스트.
 #   수렴 각인은 run_summary.json 에만 남는다(캠페인 밖 lockset 은 --lockset-out 없이는 덮어쓰지 않는다).
-python3 recipe.py simulate --config config.yaml --candidate lockset.json \
+bash scripts/recipe.sh simulate --config config.yaml --candidate lockset.json \
   --dry-run --mock-profile mock.json --run-id 2026062122_1_qwen_sim --cap 3
 
 # 실서빙(컨테이너 띄움): NAS 모델 존재 전제. 각인한 lockset 을 남길 자리를 --lockset-out 으로 준다.
-python3 recipe.py simulate --config config.yaml --candidate lockset.json --lockset-out lockset.json \
+bash scripts/recipe.sh simulate --config config.yaml --candidate lockset.json --lockset-out lockset.json \
   --image vllm-src-022:clean --topic qwen36-27b --cap 3
 
 # 캠페인 셀: 자리를 파생하고(campaign_init.py --derive config|lockset --cell <id>) 셀 lockset 을 --candidate 로 주면
 #   --lockset-out 을 생략해도 수렴 각인(provenance=explorer-phase2 · *_source · trial_provenance)이 그 파일에 쓰인다.
-python3 recipe.py simulate --config "$(python3 campaign_init.py --derive config --cell <id>)" \
-  --candidate "$(python3 campaign_init.py --derive lockset --cell <id>)" --topic <id> --cap 3
+bash scripts/recipe.sh simulate --config "$(bash .claude/skills/terraforming_node/scripts/campaign_init.sh --derive config --cell <id>)" \
+  --candidate "$(bash .claude/skills/terraforming_node/scripts/campaign_init.sh --derive lockset --cell <id>)" --topic <id> --cap 3
 ```
 
 루프(cap 기본 3 = reconciliation_cap, workflow S3 와 동일):

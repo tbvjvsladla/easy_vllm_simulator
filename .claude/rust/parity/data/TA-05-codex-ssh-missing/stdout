@@ -1,0 +1,36 @@
+{
+  "budget_outcome": null,
+  "duration_api_ms": null,
+  "duration_ms": null,
+  "execution_started": false,
+  "exit_code": 4,
+  "failure_evidence": {
+    "detail": "Codex runner is not installed",
+    "lock_acquired": false,
+    "malformed_jsonl": false,
+    "raw_stderr": "",
+    "raw_stdout": "{\"type\":\"adapter.runner_missing\"}\n",
+    "returncode": 127,
+    "rotate": true,
+    "signal": "missing_binary"
+  },
+  "intent": "delegate",
+  "model_requested": "gpt-6.1-sol",
+  "model_used": [],
+  "num_turns": null,
+  "output": "[runner_unavailable] {\"signal\": \"missing_binary\", \"rotate\": true, \"raw_stdout\": \"{\\\"type\\\":\\\"adapter.runner_missing\\\"}\\n\", \"raw_stderr\": \"\", \"returncode\": 127, \"lock_acquired\": false, \"malformed_jsonl\": false, \"detail\": \"Codex runner is not installed\"}",
+  "provider": "codex_cli",
+  "raw_events": [
+    {
+      "type": "adapter.runner_missing"
+    }
+  ],
+  "raw_exit_code": 127,
+  "reason_codes": [
+    "RUNNER_UNAVAILABLE"
+  ],
+  "schema_version": 2,
+  "session_id": null,
+  "status": "execution_failed",
+  "usage": null
+}

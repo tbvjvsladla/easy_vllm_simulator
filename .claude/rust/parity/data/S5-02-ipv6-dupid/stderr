@@ -1,0 +1,5 @@
+[agent-card] 계약 위반:
+  - $.skills[1].id: float 금지(결정론 metadata는 정수/문자열로 표현)
+  - skills[].id 중복
+  - skill 누락: inspect
+  - skill 누락: config

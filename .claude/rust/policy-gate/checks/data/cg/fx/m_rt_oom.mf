@@ -1,0 +1,1 @@
+{"schema_version":1,"identity":{"model":"m","gpu":"NVIDIA GB10","vllm":"0.31.0","quant":"nvfp4","topology":"single","tp":1},"task_class":"harness_change","runtime":{"health_ok":true,"containers":[{"name":"a","restart_count":1,"oom_killed":true}]},"evidence":{},"pii_scan":{"passed":true}}

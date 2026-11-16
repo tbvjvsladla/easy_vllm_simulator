@@ -1,0 +1,11 @@
+usage: verify_distribution.py [-h] [--json-out JSON_OUT]
+                              [--policy-as-of YYYY-MM-DD]
+
+options:
+  -h, --help            show this help message and exit
+  --json-out JSON_OUT
+  --policy-as-of YYYY-MM-DD
+                        explicit caller input for a deterministic reproduction
+                        of the policy audit's reference date (default: the
+                        live UTC date observed once per run; recorded in the
+                        result either way)

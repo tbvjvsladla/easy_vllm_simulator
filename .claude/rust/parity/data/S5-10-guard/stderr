@@ -1,0 +1,3 @@
+[thermal] 하한 가드 위반 — 거부:
+  - soc_hard_c(90) must exceed soc_warn_c(97) — 즉시 계층이 지속 계층보다 낮으면 지속 계층이 조용히 무의미해진다
+  - stale_after_s(1) must exceed poll_interval_s(1) — 정상 격자가 상시 stale 로 읽히면 GPU 축이 영구 동결된다

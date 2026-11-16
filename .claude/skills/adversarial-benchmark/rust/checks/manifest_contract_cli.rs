@@ -27,8 +27,6 @@ fn bytes(items: &[&str]) -> Vec<Vec<u8>> {
 fn environment(owner: Option<&Path>, variables: &[(&str, &str)]) -> Environment {
     Environment {
         owner: owner.map(|path| path.as_os_str().as_bytes().to_vec()),
-        explicit_python: None,
-        compat_python: "python3".into(),
         observer: None,
         text_variables: variables
             .iter()
@@ -102,50 +100,20 @@ fn exact_grammar_accepts_only_the_handled_shapes() {
 }
 
 #[test]
-fn routes_are_decided_before_business() {
+fn every_shape_and_every_source_takes_the_native_route() {
     let dir = scratch("routes");
     let reviewed = dir.join("manifest_contract.py");
     std::fs::write(&reviewed, REVIEWED_MANIFEST_CONTRACT).unwrap();
-    let variant = dir.join("variant.py");
-    let mut changed = REVIEWED_MANIFEST_CONTRACT.to_vec();
-    changed.push(b'#');
-    std::fs::write(&variant, changed).unwrap();
-    let exact = bytes(&["--topology", "single", "--repo", "/r", "--require-flag"]);
     let owner = |path: &Path| path.as_os_str().as_bytes().to_vec();
-    let utf8 = [("LANG", "C.UTF-8"), ("LC_ALL", "C.UTF-8")];
-
-    let native = environment(Some(&reviewed), &utf8);
-    assert_eq!(
-        choose_route(&exact, &native, &owner(&reviewed)),
-        Route::NativeCurrentSource
-    );
-    assert_eq!(
-        choose_route(&bytes(&["-h"]), &native, &owner(&reviewed)),
-        Route::LegacyShape
-    );
-    assert!(matches!(
-        choose_route(&exact, &native, &owner(&variant)),
-        Route::LegacySourceVariant { .. }
-    ));
-    assert!(matches!(
-        choose_route(&exact, &native, &owner(&dir.join("missing.py"))),
-        Route::LegacySourceVariant { .. }
-    ));
-    let mut explicit = environment(Some(&reviewed), &utf8);
-    explicit.explicit_python = Some("python3".into());
-    assert_eq!(
-        choose_route(&exact, &explicit, &owner(&reviewed)),
-        Route::LegacyExplicit
-    );
-    assert_eq!(
-        choose_route(&bytes(&["-h"]), &explicit, &owner(&reviewed)),
-        Route::LegacyExplicit
-    );
-    let latin = environment(Some(&reviewed), &[("PYTHONIOENCODING", "latin-1")]);
-    assert!(matches!(
-        choose_route(&exact, &latin, &owner(&reviewed)),
-        Route::LegacyProfile { .. }
-    ));
+    for (shape, env) in [
+        (bytes(&["--topology", "single", "--repo", "/r", "--require-flag"]), environment(Some(&reviewed), &[("LC_ALL", "C.UTF-8")])),
+        (bytes(&["-h"]), environment(Some(&reviewed), &[])),
+        (bytes(&["--self-test"]), environment(Some(&reviewed), &[])),
+        (bytes(&["--topology", "single"]), environment(Some(&reviewed), &[("PYTHONIOENCODING", "latin-1")])),
+    ] {
+        assert_eq!(choose_route(&shape, &env, &owner(&reviewed)), Route::NativeCurrentSource);
+        assert_eq!(choose_route(&shape, &env, &owner(&dir.join("missing.py"))), Route::NativeCurrentSource);
+    }
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -456,7 +424,7 @@ fn replay_golden_body(file: &str, expected_rows: usize) {
             continue;
         };
         if id == "V01" {
-            routed += 1; // declared legacy owner variant: routed by choose_route (see routes_are_decided_before_business)
+            routed += 1; // declared legacy owner variant of the retired original (no interpreter route any more; the native answer covers every source)
             continue;
         }
         let places = items(field(row, "place"));

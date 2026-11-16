@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "CLI_USAGE_ERROR": "invalid command-line invocation: argument cmd: invalid choice: 'bogus' (choose from 'init', 'append-raw', 'set-narrative', 'record-capacity-rejection', 'publish-benchmark', 'publish-lite-report', 'set-promotion-target', 'finalize')"
+  },
+  "ok": false,
+  "reason_codes": [
+    "CLI_USAGE_ERROR"
+  ],
+  "schema_version": 1
+}

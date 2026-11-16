@@ -1,0 +1,1 @@
+{"floor_mib": 15200, "arm_ceiling_mib": 12128, "overhead_max_mib": 28736, "declare_ok": true, "bench_floor_mib": null, "bench_ok": null, "bench_budget_max_mib": 4960, "decl_margin_mib": 3072, "decl_min_ceiling_mib": 8192, "abs_band_mib": 10240, "reasons": [], "weights_mib": 60000, "ple_applied_mib": 0}

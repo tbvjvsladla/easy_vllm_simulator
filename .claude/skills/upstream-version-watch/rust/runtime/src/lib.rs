@@ -5,6 +5,7 @@
 
 pub mod api;
 pub mod bench;
+pub mod branch_sync_selftest;
 pub mod budget_preflight;
 pub mod business;
 pub mod cli;
@@ -33,6 +34,7 @@ pub mod layout_traceback;
 pub mod live;
 pub mod main_cmd;
 pub mod judge_delta;
+pub mod mn_attest;
 pub mod native_multinode;
 pub mod native_triplet;
 pub mod render_dockerfile;

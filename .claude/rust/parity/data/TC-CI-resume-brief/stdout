@@ -1,0 +1,32 @@
+상태: ACTIVE=camp-a · 보류 0 · 미결 질의 0
+# resume-brief · campaigns/camp-a
+
+## 0. 캠페인 수명 (journey fold · 질의 규칙: 계기 a=파생 자식 종결 · d=무관 개설뿐)
+- `camp-a` — active
+
+## 1. layer-1 선언 (통제변인)
+- model: m
+- topology: single
+- 개정 수: 0
+- plan_ref: docs/plan/p.md
+
+## 2. 셀 진행표 (노드별 배정 순 — **다른 노드의 리스트는 동시에 돈다**)
+- `c1` [main · AUTO] — (미개설)
+- `c2` [main · STAY] — (미개설)
+
+## 3. 노드별 phase 진행표
+- main: build=— serve=— bench=— publish=—  ⚠ phases/ 디렉터리 없음
+
+## 4. 여정 (마지막 3줄)
+- (여정 줄 없음 — **결손**. 이 체인에서 유일하게 복원 불가능한 정보다)
+
+## 5. 다음에 할 일
+- 다음 pending 셀: c1   · 이후 1건
+- 마지막 여정이 지목한 다음 의도: (없음)
+
+## 6. 반증된 축 — **재시도 금지**
+- (없음)
+
+## 7. 증거
+- 포인터 0건 · 종류 없음
+- relay_summary: **없음(purge 선행조건 미충족)**

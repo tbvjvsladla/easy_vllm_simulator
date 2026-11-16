@@ -1,0 +1,16 @@
+{
+  "author": "b",
+  "binding": {
+    "previous_scaffold": null,
+    "scaffold_removed": false,
+    "source": "path"
+  },
+  "kind": "testlog",
+  "messages": {},
+  "ok": true,
+  "path": "docs/testlog/testlog_26010116_nar_bound.md",
+  "publication_id": "nar",
+  "reason_codes": [],
+  "schema_version": 1,
+  "status": "bound"
+}

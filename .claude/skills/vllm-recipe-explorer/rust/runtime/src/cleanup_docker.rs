@@ -1215,7 +1215,7 @@ pub fn main(
     if !apply {
         print(
             world,
-            &text("\n[cleanup] DRY-RUN 종료 — 표 검토 후: python3 .claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py --apply [--keep <ref>]"),
+            &text("\n[cleanup] DRY-RUN 종료 — 표 검토 후: bash .claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.sh --apply [--keep <ref>]"),
         )?;
         return Ok(());
     }

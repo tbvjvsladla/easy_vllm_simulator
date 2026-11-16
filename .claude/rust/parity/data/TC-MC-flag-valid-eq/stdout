@@ -1,0 +1,1 @@
+Flag valid · topology=single · gpus_per_node=1 · manifest_tp=1 · model_source=managed

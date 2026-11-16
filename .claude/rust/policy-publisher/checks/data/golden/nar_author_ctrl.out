@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "NARRATIVE_AUTHOR_CONTAINS_CONTROL_CHARACTER": "--author must not contain control characters or newlines (would corrupt the provenance HTML comment onto more than one physical line)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "NARRATIVE_AUTHOR_CONTAINS_CONTROL_CHARACTER"
+  ],
+  "schema_version": 1
+}

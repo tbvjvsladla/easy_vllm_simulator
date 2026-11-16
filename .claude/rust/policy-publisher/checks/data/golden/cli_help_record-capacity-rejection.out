@@ -1,0 +1,16 @@
+usage: evidence_publisher.py record-capacity-rejection [-h]
+                                                       [--repo-root REPO_ROOT]
+                                                       --topic TOPIC
+                                                       --gate-evidence-src
+                                                       GATE_EVIDENCE_SRC
+                                                       --reason REASON
+                                                       --recorded-utc
+                                                       RECORDED_UTC
+
+options:
+  -h, --help            show this help message and exit
+  --repo-root REPO_ROOT
+  --topic TOPIC
+  --gate-evidence-src GATE_EVIDENCE_SRC
+  --reason REASON
+  --recorded-utc RECORDED_UTC

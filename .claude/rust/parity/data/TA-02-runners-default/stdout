@@ -1,0 +1,101 @@
+{
+  "provider": "claude_code",
+  "runners": [
+    {
+      "backend": "anthropic",
+      "model": "opus",
+      "name": "opus",
+      "provider": "claude_code"
+    },
+    {
+      "backend": "anthropic",
+      "model": "sonnet",
+      "name": "sonnet",
+      "provider": "claude_code"
+    },
+    {
+      "backend": "anthropic",
+      "model": "claude-sonnet-5-5",
+      "name": "sonnet-5.5",
+      "provider": "claude_code"
+    },
+    {
+      "backend": "anthropic",
+      "model": "haiku",
+      "name": "haiku",
+      "provider": "claude_code"
+    },
+    {
+      "backend": "kimi",
+      "model": "k3[1m]",
+      "name": "kimi-claude",
+      "provider": "claude_code"
+    },
+    {
+      "backend": "minimax",
+      "model": "MiniMax-M3",
+      "name": "minimax-claude",
+      "provider": "claude_code"
+    },
+    {
+      "backend": "meta",
+      "model": "muse-spark-1.3",
+      "name": "meta-claude",
+      "provider": "claude_code"
+    },
+    {
+      "backend": "openai",
+      "model": "gpt-5.6-sol",
+      "name": "openai-claude",
+      "provider": "claude_code"
+    },
+    {
+      "backend": "claude-sub",
+      "model": "sonnet",
+      "name": "claude-sub-sonnet",
+      "provider": "claude_code"
+    },
+    {
+      "backend": "claude-sub",
+      "model": "deepseek-flash",
+      "name": "claude-sub-deepseek",
+      "provider": "claude_code"
+    },
+    {
+      "backend": "claude-sub",
+      "model": "minimax-m3.1-flash",
+      "name": "claude-sub-minimax",
+      "provider": "claude_code"
+    },
+    {
+      "backend": "claude-sub",
+      "model": "deepseek-pro",
+      "name": "claude-sub-deepseek-pro",
+      "provider": "claude_code"
+    },
+    {
+      "backend": "claude-sub",
+      "model": "kimi-k3.1-pro",
+      "name": "claude-sub-kimi",
+      "provider": "claude_code"
+    },
+    {
+      "backend": "claude-sub",
+      "model": "minimax-m3",
+      "name": "claude-sub-minimax-m3",
+      "provider": "claude_code"
+    }
+  ],
+  "supports": {
+    "budget_units": [
+      "native_turns"
+    ],
+    "capabilities_mode": "automatic_approval_list",
+    "native_turn_limit": true,
+    "resume": "explicit_native_id",
+    "schema_versions": [
+      1
+    ],
+    "structured_output": "json"
+  }
+}

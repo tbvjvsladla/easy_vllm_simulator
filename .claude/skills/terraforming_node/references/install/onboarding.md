@@ -32,7 +32,7 @@
 > §0.5 에서 single 확정 시. 서브 미등록이면 §1(5-전제조건/성능)·§2(서브 환경구축)는 **N/A**.
 > A2A 서브가 등록돼 있으면 §2의 역할별 에이전트 오버레이·§2.5.2 검증을 수행한다. 멀티 빌드킷 배달·성능 게이트를 켜는 것은 아니다.
 
-- **스캔**(결정론): `python3 scripts/scan_node.py --topology single` — interconnect 검증 skip(=α 정상).
+- **스캔**(결정론): `bash scripts/scan_node.sh --topology single` — interconnect 검증 skip(=α 정상).
 - **게이트**: α — RoCE 하드웨어가 있어도 비blocking 경고(멀티 가능 머신의 단일 운용은 정상).
 - **manifest 기입**(HITL): `--emit-manifest --topology single` 블록(YAML-valid · **single 시 `nodes: []` 도 결정론 emit** — dormant 게이트 동결, 수기 의존 ✗) → **사람 확인 후** `output/single/manifest.yaml` 반영. `nodes: []` → **서브 미등록 dormant**(독립 self-containment 보존). ⚠ dormant 의 정확한 뜻은 "서브가 없다"이지 "서브를 등록하면 안 된다"가 아니다 — 등록 시 열리는 것은 **A2A 에이전트 제어**뿐이고 빌드킷 배달 평면은 여전히 dormant 다(§2.7.0 · 헌법 §single-node 확장기능). **무증거 기입 금지.**
   - emit 블록은 **테라포밍 완수 Flag attestation**(`terraforming.complete/branch_verified`)을 §1.5 3자일치 통과 시에만 포함(보수적·미통과면 미발급) — **§0.5.7 `model_source` 도 함께 기입**해야 `manifest_contract` Flag valid(complete + valid model_source 이중요건). Flag 발급 = 3 런타임 스킬 작업 활성(헌법 §테라포밍-완수 Flag 게이트).
@@ -56,7 +56,7 @@ provider 별 실행문법은 `references/orchestration/agent-control-adapter.md`
 ### 1.3 스캔 (결정론 — `scripts/scan_node.py`)
 - **라이브 멀티 명령(정본)**: `--peer-ip` 와 `--peer-ssh` 는 **서로 대체 불가한 별개 플래그**이며 **둘 다** 필요하다.
   ```bash
-  python3 scripts/scan_node.py --topology multi \
+  bash scripts/scan_node.sh --topology multi \
       --peer-ip <sub IP> --peer-ssh <user>@<sub> --sub-work-dir <서브 프로젝트 절대경로> \
       --check-egress --model-source <managed|ephemeral|custom> \
       [--bandwidth-gbps <합산 실측> --per-port-gbps <포트당 실측>] [--emit-manifest]
@@ -64,8 +64,8 @@ provider 별 실행문법은 `references/orchestration/agent-control-adapter.md`
   - `--peer-ip` 만: 게이트는 통과하지만 **서브 HW 동질성 검증이 통째로 생략**돼 `hw_verified`와 메인 발급 서브 manifest readiness가 성립하지 않는다(서브 info-only).
   - `--peer-ssh` 만: `nodes[]` 자체가 만들어지지 않고 도달성 미검증으로 **γ blocked(exit 2)**.
   - 2026-09-03 이전에는 이 조합이 저장소 어디에도 적혀 있지 않았다(B1) — 두 실패 모두 조용했다.
-- **`--emit-sub-manifest` 선행조건**: 이 인자는 메인의 `manifest_contract` 어댑터(Rust 브리지)로 서브 manifest 의 Flag 계약을 자기검증한다 — 메인에서 `rust_bootstrap.sh install`·`check` 와 정상 빌드(`build_rust.sh`)가 끝나 있어야 한다(HW Flag 와 무관 · 없으면 `[manifest_contract] native bridge failed (status 2)` 안내로 눈에 띄게 실패한다). `--emit-sub-manifest` 없는 스캔·`--emit-manifest` 와 `staleness_gate.py` 는 Rust 없이 돈다(새 클론 온보딩은 Rust 선행을 요구하지 않는다).
-- 단일: `python3 scripts/scan_node.py --topology single [--compose output/single/docker-compose.yaml]`
+- **`--emit-sub-manifest` 선행조건**: 이 인자는 메인의 `manifest_contract` 어댑터(Rust 브리지)로 서브 manifest 의 Flag 계약을 자기검증한다 — 메인에서 `rust_bootstrap.sh install`·`check` 와 정상 빌드(`build_rust.sh`)가 끝나 있어야 한다(HW Flag 와 무관 · 없으면 `[manifest_contract] native bridge failed (status 2)` 안내로 눈에 띄게 실패한다). `--emit-sub-manifest` 없는 스캔·`--emit-manifest` 와 `staleness_gate.sh` 는 Rust 없이 돈다(새 클론 온보딩은 Rust 선행을 요구하지 않는다).
+- 단일: `bash scripts/scan_node.sh --topology single [--compose output/single/docker-compose.yaml]`
 - 탐지: cpu_arch(uname) · cuda(nvcc) · gpus(nvidia-smi) · interconnect(**/sys/class/infiniband + show_gids** — ibstat 비의존) · docker-compose NCCL 교차검증.
 - 폴백: 탐지 도구 부재/빈 결과 → graceful(인터뷰 폴백 또는 α). hard-crash 금지.
 
@@ -103,4 +103,4 @@ provider 별 실행문법은 `references/orchestration/agent-control-adapter.md`
 
 ## 보조 스크립트 메모 (옛 §4 에서 이관)
 
-- `scripts/staleness_gate.py` — **조건부 preflight 결정론 트리거**(`--topology`·`--repo`·`--observed`·`--now`·`--max-age-days`·`--self-test`). 3축(manifest/Flag · HW 드리프트 · attestation 나이) → 안정 reason code. 미평가 축은 `skipped:*` 로 음성정직 표기(조용한 통과 ✗). **HW 축의 interconnect 6필드는 topology=single 에서 비교하지 않는다**(2026-08-21 · approved_by AhnSangHun) — single 은 분산서빙을 안 해 interconnect 를 쓰지 않으므로 manifest 의 "미사용" 선언 ↔ 실측 RoCE 발산은 의도된 것이다. `scan_node.evaluate_gate` 의 single 의미론(RoCE 존재 = warning, gate note "interconnect 스캔 skip(실패 아님)")과 정합. **multi 는 유지**(텐서패브릭이므로 완화 ✗). 제외 적용 시 `notes` 에 표기한다(침묵 ✗).
+- `scripts/staleness_gate.sh` — **조건부 preflight 결정론 트리거**(`--topology`·`--repo`·`--observed`·`--now`·`--max-age-days`·`--self-test`). 3축(manifest/Flag · HW 드리프트 · attestation 나이) → 안정 reason code. 미평가 축은 `skipped:*` 로 음성정직 표기(조용한 통과 ✗). **HW 축의 interconnect 6필드는 topology=single 에서 비교하지 않는다**(2026-08-21 · approved_by AhnSangHun) — single 은 분산서빙을 안 해 interconnect 를 쓰지 않으므로 manifest 의 "미사용" 선언 ↔ 실측 RoCE 발산은 의도된 것이다. `scan_node.evaluate_gate` 의 single 의미론(RoCE 존재 = warning, gate note "interconnect 스캔 skip(실패 아님)")과 정합. **multi 는 유지**(텐서패브릭이므로 완화 ✗). 제외 적용 시 `notes` 에 표기한다(침묵 ✗).

@@ -1,0 +1,8 @@
+Traceback (most recent call last):
+  File "/tmp/parity-o-S5-07-set-badfloat-3732254-1794818533838533005/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_eta.py", line 960, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/tmp/parity-o-S5-07-set-badfloat-3732254-1794818533838533005/.claude/skills/terraforming_node/scripts/node_blackbox/blackbox_eta.py", line 893, in main
+    params[k] = float(v)
+                ^^^^^^^^
+ValueError: could not convert string to float: 'abc'

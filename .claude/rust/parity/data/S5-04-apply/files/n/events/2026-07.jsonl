@@ -1,0 +1,3 @@
+{"age_days": 60, "day": "2026-06-01", "kind": "log_compressed", "method": "zstd", "source": "logs_lifecycle", "ts": "2026-07-31T01:02:03Z"}
+{"age_days": 11, "day": "2026-07-20", "kind": "log_compressed", "method": "zstd", "source": "logs_lifecycle", "ts": "2026-07-31T01:02:03Z"}
+{"age_days": 60, "bytes": 144, "day": "2026-06-01", "kind": "log_evicted", "reason": "age", "source": "logs_lifecycle", "ts": "2026-07-31T01:02:03Z"}

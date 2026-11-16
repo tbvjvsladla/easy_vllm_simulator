@@ -23,6 +23,7 @@ pub mod identity;
 pub mod load;
 pub mod manifest_gate;
 pub mod manifest_gate_cli;
+pub mod manifest_self_test;
 pub mod pyprofile;
 pub mod scan_node;
 pub mod scan_node_files;

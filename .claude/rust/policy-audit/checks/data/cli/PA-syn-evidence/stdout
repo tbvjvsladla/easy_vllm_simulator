@@ -1,0 +1,91 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 12,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "'/etc/hostname': untracked",
+      "path": "/etc/hostname",
+      "policy_id": "TEST_EV",
+      "reason_code": "EVIDENCE_UNTRACKED"
+    },
+    {
+      "clause_id": null,
+      "message": "'../outside.py': path_escape",
+      "path": "../outside.py",
+      "policy_id": "TEST_EV",
+      "reason_code": "EVIDENCE_PATH_ESCAPES_REPO"
+    },
+    {
+      "clause_id": null,
+      "message": "'ev/link.py': symlink",
+      "path": "ev/link.py",
+      "policy_id": "TEST_EV",
+      "reason_code": "EVIDENCE_PATH_CONTAINS_SYMLINK"
+    },
+    {
+      "clause_id": null,
+      "message": "'evlink/a.py': symlink",
+      "path": "evlink/a.py",
+      "policy_id": "TEST_EV",
+      "reason_code": "EVIDENCE_PATH_CONTAINS_SYMLINK"
+    },
+    {
+      "clause_id": null,
+      "message": "'ev/missing.py': missing",
+      "path": "ev/missing.py",
+      "policy_id": "TEST_EV",
+      "reason_code": "EVIDENCE_MISSING_FILE"
+    },
+    {
+      "clause_id": null,
+      "message": "'ev/untracked.py': untracked",
+      "path": "ev/untracked.py",
+      "policy_id": "TEST_EV",
+      "reason_code": "EVIDENCE_UNTRACKED"
+    },
+    {
+      "clause_id": "TEST_EV.C9",
+      "message": "supports references clause_id 'TEST_EV.C9' which this policy does not declare",
+      "path": "ev/a.py",
+      "policy_id": "TEST_EV",
+      "reason_code": "EVIDENCE_DANGLING_CLAUSE_REF"
+    },
+    {
+      "clause_id": null,
+      "message": "'~/x.py': untracked",
+      "path": "~/x.py",
+      "policy_id": "TEST_EV",
+      "reason_code": "EVIDENCE_UNTRACKED"
+    },
+    {
+      "clause_id": "TEST_EV.C2",
+      "message": "clause 'TEST_EV.C2' has no supporting evidence entry",
+      "path": "$.policies[TEST_EV].clauses[TEST_EV.C2]",
+      "policy_id": "TEST_EV",
+      "reason_code": "CLAUSE_WITHOUT_EVIDENCE"
+    },
+    {
+      "clause_id": null,
+      "message": "no evidence entries at all",
+      "path": "$.policies[TEST_NOEV].evidence",
+      "policy_id": "TEST_NOEV",
+      "reason_code": "EVIDENCE_EMPTY"
+    },
+    {
+      "clause_id": "TEST_NOEV.C1",
+      "message": "clause 'TEST_NOEV.C1' has no supporting evidence entry",
+      "path": "$.policies[TEST_NOEV].clauses[TEST_NOEV.C1]",
+      "policy_id": "TEST_NOEV",
+      "reason_code": "CLAUSE_WITHOUT_EVIDENCE"
+    },
+    {
+      "clause_id": "TEST_EV.C3",
+      "message": "clause 'TEST_EV.C3' is supported only by prose (.md) evidence -- prose cannot be the sole evidence for a clause",
+      "path": "$.policies[TEST_EV].clauses[TEST_EV.C3]",
+      "policy_id": "TEST_EV",
+      "reason_code": "CLAUSE_LACKS_EXECUTABLE_EVIDENCE"
+    }
+  ]
+}

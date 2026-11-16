@@ -1,0 +1,10 @@
+INFO 10-01 00:05:00 Starting vLLM server
+INFO 10-01 00:06:00 x
+"POST /v1/completions HTTP/1.1" 200
+[32m"POST /v1/chat/completions HTTP/1.1" 200[0m
+INFO 10-01 00:07:00 y
+"POST /v1/completions HTTP/1.1" 200
+INFO 10-01 00:08:00 z
+"POST /v1/completions HTTP/1.1" 200
+WARNING 13-45 00:00:00 bad
+INFO 10-01 00:09:00 w

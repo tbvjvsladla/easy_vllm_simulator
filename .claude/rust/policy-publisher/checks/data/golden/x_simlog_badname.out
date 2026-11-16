@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_DEST_NAME_INVALID": "invalid --dest-name: '..'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_DEST_NAME_INVALID"
+  ],
+  "schema_version": 1
+}

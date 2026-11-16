@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "provider": "claude_code",
+  "intent": "bootstrap_canary",
+  "model": "sonnet",
+  "task": "메인 discovery 카나리다. serving 모델·GPU·빌드·파일변경을 하지 마라. CLAUDE.md와 AGENTS.md의 정본·메인 역할·output/<topology>/manifest.yaml을 확인하고 .claude/skills/terraforming_node/sub_node/task-report.schema.json 정본에 맞는 phase=inspect schema-valid JSON 리포트 1개를 반환하라. 서브 comms나 sub_mode를 요구하지 않는다.",
+  "target": {
+    "role": "main",
+    "transport": "local",
+    "work_dir": "/srv/main"
+  },
+  "capabilities": [
+    "read",
+    "execute"
+  ],
+  "timeout_seconds": 600,
+  "max_turns": 10
+}

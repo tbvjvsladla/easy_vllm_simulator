@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "NARRATIVE_SOURCE_CONTAINS_COMMENT_DELIMITER": "--narrative-file must not contain '<!--' (would terminate or forge an HTML comment inside the provenance header)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "NARRATIVE_SOURCE_CONTAINS_COMMENT_DELIMITER"
+  ],
+  "schema_version": 1
+}

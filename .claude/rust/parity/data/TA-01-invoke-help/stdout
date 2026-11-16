@@ -1,0 +1,12 @@
+usage: agent_control.py invoke [-h] --request REQUEST
+                               [--result-file RESULT_FILE]
+                               [--dispatch-id DISPATCH_ID]
+
+options:
+  -h, --help            show this help message and exit
+  --request REQUEST     path to an agent-control-request JSON file
+  --result-file RESULT_FILE
+                        optional unique durable dispatch-outcome file
+  --dispatch-id DISPATCH_ID
+                        required with --result-file; binds recovery to one
+                        dispatch

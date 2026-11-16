@@ -544,65 +544,9 @@ fn the_api_uses_the_file_system_profile_not_the_cli_output_codec() {
     assert!(String::from_utf8_lossy(&out.stderr).contains("unsupported text profile"));
 }
 
+/// A `compat.bridge_script` value a request may still carry: the retired route never reads or runs it.
 fn bridge_script() -> String {
-    js(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../scripts/topology_legacy_api.py"
-    ))
-}
-
-#[test]
-fn a_changed_campaign_source_runs_the_original_function_through_the_approved_generic_child() {
-    let root = checkout("legacy_api");
-    put(
-        &root,
-        ".claude/skills/terraforming_node/scripts/campaign_init.py",
-        b"def active_campaign_id(repo_root=None):\n    return 'from-the-changed-source'\n",
-    );
-    let module = module_of(&root);
-    let repo = js(root.to_str().expect("UTF-8"));
-    let compat = format!(
-        r#""compat":{{"python":"python3","bridge_script":{}}},"module_alias":"r43_alias""#,
-        bridge_script()
-    );
-    let rows = vec![
-        format!(
-            r#"{{"id":"legacy","operation":"active_campaign_id","arguments":{{"module":{module},"repo_root":{repo}}},{compat}}}"#
-        ),
-        format!(
-            r#"{{"id":"missing_bridge","operation":"active_campaign_id","arguments":{{"module":{module},"repo_root":{repo}}},"compat":{{"python":"python3","bridge_script":"/nonexistent/topology_legacy_api.py"}}}}"#
-        ),
-    ];
-    let answers = call(&rows);
-    assert_eq!(
-        json(&field(&answers[0], "kind")),
-        r#""legacy_observation""#,
-        "{}",
-        json(&answers[0])
-    );
-    assert_eq!(
-        json(&field(&answers[0], "route")),
-        r#""LegacySourceVariant""#
-    );
-    let observation = field(&answers[0], "observation");
-    assert_eq!(json(&field(&observation, "exit_code")), "0");
-    let pid: i64 = json(&field(&observation, "child_pid"))
-        .parse()
-        .expect("child pid");
-    assert!(pid > 0);
-    let sidecar = json(&field(&observation, "sidecar"));
-    assert!(
-        sidecar.contains("from-the-changed-source") && sidecar.contains("LegacySourceVariant"),
-        "{sidecar}"
-    );
-    assert!(sidecar.contains("\"native_execution\": false"), "{sidecar}");
-    // a bridge script that is not there: the interpreter runs and fails; the failure is kept (no sidecar is invented)
-    let failed = field(&answers[1], "observation");
-    assert!(
-        json(&field(&failed, "sidecar_error")).contains("no sidecar"),
-        "{}",
-        json(&failed)
-    );
+    js("/nonexistent/topology_legacy_api.py")
 }
 
 fn api_in(cwd: &Path, tmpdir: &Path, rows: &[String], env: &[(&str, &str)]) -> Vec<PyValue> {
@@ -641,94 +585,6 @@ fn api_in(cwd: &Path, tmpdir: &Path, rows: &[String], env: &[(&str, &str)]) -> V
 
 fn private_tmp(label: &str) -> PathBuf {
     scratch(&format!("tmp_{label}"))
-}
-
-#[test]
-fn a_relative_real_module_and_a_typed_id_go_through_and_the_private_directory_is_gone() {
-    let root = checkout("h3_relative");
-    put(
-        &root,
-        ".claude/skills/terraforming_node/scripts/campaign_init.py",
-        b"def active_campaign_id(repo_root=None):\n    return 'relative-module'\n",
-    );
-    let tmp = private_tmp("relative");
-    let rows = vec![format!(
-        r#"{{"id":7,"operation":"active_campaign_id","arguments":{{"module":".claude/skills/terraforming_node/scripts/campaign_init.py","repo_root":null}},"compat":{{"python":"python3","bridge_script":{}}},"module_alias":"r43_alias"}}"#,
-        bridge_script()
-    )];
-    let answers = api_in(&root, &tmp, &rows, &[]);
-    assert_eq!(
-        json(&field(&answers[0], "kind")),
-        r#""legacy_observation""#,
-        "{}",
-        json(&answers[0])
-    );
-    let observation = field(&answers[0], "observation");
-    let request = field(&observation, "request");
-    assert_eq!(
-        json(&field(&request, "id")),
-        "7",
-        "the request id is the typed JSON value, not its display text"
-    );
-    assert!(
-        json(&field(&request, "module_path")).starts_with(&format!("\"{}", root.display())),
-        "{}",
-        json(&request)
-    );
-    assert_eq!(
-        std::fs::read_dir(&tmp).expect("tmp").count(),
-        0,
-        "the private directory is removed after the call"
-    );
-    // a request without any real module path is rejected before dispatch, with no business answer
-    let none = api_in(
-        &root,
-        &tmp,
-        &[format!(
-            r#"{{"id":8,"operation":"evaluate","arguments":{{"repo":{}}},"compat":{{"python":"python3"}}}}"#,
-            js(root.to_str().expect("UTF-8"))
-        )],
-        &[],
-    );
-    assert_ne!(json(&field(&none[0], "kind")), r#""value""#);
-}
-
-#[test]
-fn a_hanging_changed_module_is_a_control_incomplete_observation_not_a_business_result() {
-    let root = checkout("h3_hang");
-    put(
-        &root,
-        ".claude/skills/terraforming_node/scripts/campaign_init.py",
-        b"import time\ntime.sleep(60)\n",
-    );
-    let tmp = private_tmp("hang");
-    let module = module_of(&root);
-    let repo = js(root.to_str().expect("UTF-8"));
-    let rows = vec![format!(
-        r#"{{"id":"hang","operation":"active_campaign_id","arguments":{{"module":{module},"repo_root":{repo}}},"compat":{{"python":"python3","bridge_script":{},"deadline_ms":800}}}}"#,
-        bridge_script()
-    )];
-    let started = std::time::Instant::now();
-    let answers = api_in(&root, &tmp, &rows, &[]);
-    assert!(started.elapsed() < std::time::Duration::from_secs(20));
-    assert_eq!(
-        json(&field(&answers[0], "kind")),
-        r#""legacy_control_incomplete""#,
-        "{}",
-        json(&answers[0])
-    );
-    let observation = field(&answers[0], "observation");
-    assert_eq!(
-        json(&field(&observation, "control_failure")),
-        r#""TimeoutExpired""#
-    );
-    assert_eq!(json(&field(&observation, "complete")), "false");
-    assert_ne!(json(&field(&observation, "child_pid")), "null");
-    assert_eq!(
-        std::fs::read_dir(&tmp).expect("tmp").count(),
-        0,
-        "the private directory is removed on the timeout path too"
-    );
 }
 
 #[test]
@@ -795,7 +651,7 @@ fn a_named_real_owner_that_does_not_exist_is_unmet_for_the_api_too() {
     );
 }
 
-// ---- H4: N11 deadline validation · N12 bridge_script echo · N13 zero-execution unmet routes ------------------------------
+// ---- H4: N11 deadline validation · N13 zero-execution unmet routes (the compatibility route is retired, plan_26111615 pass 3) ------------------------------
 
 fn changed_module(label: &str, body: &[u8]) -> (PathBuf, String, String) {
     let root = checkout(label);
@@ -853,85 +709,6 @@ fn n11_an_invalid_declared_deadline_is_an_explicit_unmet_condition_never_a_defau
             "{label}: nothing ran, so there is no observation"
         );
     }
-}
-
-#[test]
-fn n11_valid_positive_and_zero_deadlines_keep_their_declared_meaning() {
-    let (_root, module, repo) = changed_module(
-        "n11_ok",
-        b"import time\ndef active_campaign_id(repo_root=None):\n    time.sleep(30)\n    return 'late'\n",
-    );
-    let row = |id: &str, deadline: &str| {
-        format!(
-            r#"{{"id":"{id}","operation":"active_campaign_id","arguments":{{"module":{module},"repo_root":{repo}}},"compat":{{"python":"python3","bridge_script":{},"deadline_ms":{deadline}}}}}"#,
-            bridge_script()
-        )
-    };
-    let answers = call(&[row("zero", "0"), row("short", "700")]);
-    for (answer, want) in answers.iter().zip(["0", "700"]) {
-        assert_eq!(
-            json(&field(answer, "kind")),
-            r#""legacy_control_incomplete""#,
-            "{}",
-            json(answer)
-        );
-        let observation = field(answer, "observation");
-        assert_eq!(json(&field(&observation, "limit_ms")), want);
-        assert_eq!(
-            json(&field(&observation, "control_failure")),
-            r#""TimeoutExpired""#
-        );
-    }
-    // a generous positive deadline runs to the end (and the default 60 s applies only when the key is absent)
-    let (_r, module2, repo2) = changed_module(
-        "n11_ok2",
-        b"def active_campaign_id(repo_root=None):\n    return 'ran'\n",
-    );
-    let answers = call(&[
-        format!(
-            r#"{{"id":"p","operation":"active_campaign_id","arguments":{{"module":{module2},"repo_root":{repo2}}},"compat":{{"python":"python3","bridge_script":{},"deadline_ms":20000}}}}"#,
-            bridge_script()
-        ),
-        format!(
-            r#"{{"id":"absent","operation":"active_campaign_id","arguments":{{"module":{module2},"repo_root":{repo2}}},"compat":{{"python":"python3","bridge_script":{}}}}}"#,
-            bridge_script()
-        ),
-    ]);
-    let limits: Vec<String> = answers
-        .iter()
-        .map(|a| json(&field(&field(a, "observation"), "limit_ms")))
-        .collect();
-    assert_eq!(limits, ["20000", "60000"], "{}", json(&answers[0]));
-}
-
-#[test]
-fn n12_the_observation_echoes_the_bridge_script_that_actually_ran() {
-    let (_root, module, repo) = changed_module(
-        "n12",
-        b"def active_campaign_id(repo_root=None):\n    return 'ran'\n",
-    );
-    let named = bridge_script();
-    let answers = call(&[
-        format!(
-            r#"{{"id":"named","operation":"active_campaign_id","arguments":{{"module":{module},"repo_root":{repo}}},"compat":{{"python":"python3","bridge_script":{named}}}}}"#
-        ),
-        format!(
-            r#"{{"id":"hang","operation":"active_campaign_id","arguments":{{"module":{module},"repo_root":{repo}}},"compat":{{"python":"python3","bridge_script":{named},"deadline_ms":0}}}}"#
-        ),
-    ]);
-    assert_eq!(
-        json(&field(&field(&answers[0], "observation"), "bridge_script")),
-        named
-    );
-    // the control-incomplete observation carries it too
-    assert_eq!(
-        json(&field(&answers[1], "kind")),
-        r#""legacy_control_incomplete""#
-    );
-    assert_eq!(
-        json(&field(&field(&answers[1], "observation"), "bridge_script")),
-        named
-    );
 }
 
 #[test]

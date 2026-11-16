@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "tool": "check_sub_hint_equip",
+  "provenance": "measured",
+  "checks": {
+    "hint_clone": {
+      "path_source": "envs/.env:HINT_CLONE_DIR",
+      "declared": true,
+      "status": "invalid",
+      "reason": "HINT_CLONE_DIR 는 절대경로여야 한다"
+    },
+    "push_authority": {
+      "status": "invalid",
+      "ignored": null,
+      "reason": "git check-ignore 판독 불가 — 워크스페이스 git 을 확인한다"
+    },
+    "central_authority": {
+      "status": "present_violation",
+      "reason": "카탈로그 권위는 메인 단독이다 — 서브에 이 선언이 있으면 안 된다"
+    },
+    "token": {
+      "status": "present",
+      "source": "envs/.env"
+    },
+    "pii_terms": {
+      "status": "present"
+    },
+    "workspace_git_local_only": {
+      "status": "invalid",
+      "reason": "워크스페이스 git 판독 불가"
+    }
+  },
+  "ready": false,
+  "next_actions": [
+    {
+      "actor": "sub-agent",
+      "step": "clone",
+      "how": "envs/.env 에 HINT_CLONE_DIR=<워크스페이스 밖 절대경로> 를 두고 `--clone --remote-url <메인이 Task Message 로 준 프로젝트 원격>`"
+    },
+    {
+      "actor": "sub-agent",
+      "step": "push_authority",
+      "how": "--write-push-authority"
+    },
+    {
+      "actor": "main",
+      "step": "escalate",
+      "how": "역할·원격 위반은 서브가 스스로 고치지 않는다 — 보고하고 메인 HITL"
+    }
+  ]
+}

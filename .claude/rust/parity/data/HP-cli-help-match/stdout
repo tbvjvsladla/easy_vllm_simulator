@@ -1,0 +1,10 @@
+usage: hint.py match [-h] --vllm VLLM --model MODEL [--arch ARCH]
+                     [--include-other] [--json]
+
+options:
+  -h, --help       show this help message and exit
+  --vllm VLLM
+  --model MODEL
+  --arch ARCH
+  --include-other
+  --json

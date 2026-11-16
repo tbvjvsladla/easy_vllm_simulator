@@ -1,27 +1,16 @@
-//! Public `campaign_read`: the two read-only shapes of `campaign_init.py` that the shell callers use - `--active` and
-//! `--derive KIND [--cell|--sweep|--context|--campaign-id VALUE]...` - answered natively, byte for byte as the owner's
-//! process answers them (stdout, stderr and exit status).
+//! Public `campaign_read`: the two read-only shapes of `campaign_init` that the shell callers use - `--active` and
+//! `--derive KIND [--cell|--sweep|--context|--campaign-id VALUE]...` - answered natively, byte for byte as the retired
+//! original `campaign_init.py` process answered them (stdout, stderr and exit status).
 //!
-//! **What is native.** The owner is the reviewed `campaign_init.py` (byte-identical to `REVIEWED_CAMPAIGN`). The read side
-//! lives in `role_contract::campaign`; this module adds only what a *process* of the owner shows around it: the argument
-//! grammar, the one-line output, the `[campaign_init] FAIL` refusal wiring and the Python 3.12 traceback of an exception the
-//! owner does not handle (frames of the owner entry points, of the `pathlib` calls and of the codec).
+//! **What is native.** Everything: no route starts a Python interpreter. The read side lives in `role_contract::campaign`; this
+//! module adds what a *process* of the original showed around it: the one-line output, the `[campaign_init] FAIL` refusal
+//! wiring and the Python 3.12 traceback text of an exception the original did not handle (frames of the original entry points,
+//! of the `pathlib` calls and of the codec). The line numbers of those frames are the reviewed original's (frozen data).
 //!
-//! **Routes** (decided before any native business, recorded as one observer line when `CAMPAIGN_READ_ROUTE_OBSERVER` names a
-//! file; an unwritable requested file is a control failure and nothing else happens):
-//!
-//! | route | when | what runs |
-//! |---|---|---|
-//! | `LegacyExplicit` | `CAMPAIGN_READ_PYTHON` is non-empty | that interpreter on the owner, any shape |
-//! | `LegacyShape` | the arguments are not an exact handled shape | the compatibility interpreter on the owner |
-//! | `LegacySourceVariant` | the owner is missing, unreadable or a different program | the compatibility interpreter on it |
-//! | `LegacyProfile` | the text profile of the environment is not modelled | the compatibility interpreter on the owner |
-//! | `NativeCurrentSource` | none of the above | this process, to the end |
-//!
-//! A legacy route replaces this process (`exec`): same PID, descriptors, environment and arguments, no child and no capture.
-//! Once the native business has started nothing is retried in Python: a refusal, a crash, an encode failure and a write
-//! failure are answered natively. The compatibility interpreter is `CAMPAIGN_READ_COMPAT_PYTHON` (default `python3`); the
-//! owner is `CAMPAIGN_READ_COMPAT_OWNER`, which the launcher exports and which is also the `__file__` of the owner process.
+//! **Paths.** `CAMPAIGN_READ_COMPAT_OWNER` (exported by the launcher) names the program path beside it - the `__file__` the
+//! original had; the checkout root is derived from it lexically (`parents[4]`), and nothing requires that file to exist.
+//! A text profile this port does not model falls back to UTF-8 (documented residual). An observer line is written when
+//! `CAMPAIGN_READ_ROUTE_OBSERVER` names a file; an unwritable requested file is a control failure.
 
 use crate::cli::{PrintFailure, Streams};
 use crate::pystr::PyStr as CallerText;
@@ -29,16 +18,13 @@ use crate::pyvalue::{PyDict, PyValue};
 use agent_runtime_support::pystr::PyStr as Text;
 use role_contract::campaign::{self, Derived, OwnedModuleSite};
 use role_contract::pyprofile::{self, encode_stream, Errors, TextProfile};
-use role_contract::source_identity::{identify, Identity, REVIEWED_CAMPAIGN};
 use role_contract::topology::{Crash, Detail, Frame, Where};
 use role_contract::topology_cli::push_frame;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsString;
 use std::io::Write;
-use std::os::unix::ffi::{OsStrExt, OsStringExt};
+use std::os::unix::ffi::OsStringExt;
 
 /// Names of the interpreter, owner, compatibility interpreter and observer variables.
-pub const PYTHON_ENV: &str = "CAMPAIGN_READ_PYTHON";
-pub const COMPAT_PYTHON_ENV: &str = "CAMPAIGN_READ_COMPAT_PYTHON";
 pub const OWNER_ENV: &str = "CAMPAIGN_READ_COMPAT_OWNER";
 pub const OBSERVER_ENV: &str = "CAMPAIGN_READ_ROUTE_OBSERVER";
 /// Status of a run that could not be set up (private to this program; the owner never exits with 2 on these shapes).
@@ -206,10 +192,6 @@ pub fn parse_exact(args: &[Vec<u8>]) -> Option<Command> {
 pub struct Environment {
     /// The owner program (`__file__` of the owner process); `None` when the launcher did not export it.
     pub owner: Option<Vec<u8>>,
-    /// A non-empty `CAMPAIGN_READ_PYTHON`: explicit user intent.
-    pub explicit_python: Option<OsString>,
-    /// The interpreter of the other legacy routes.
-    pub compat_python: OsString,
     pub observer: Option<OsString>,
     /// The text-profile variables as the environment holds them (name -> bytes).
     pub text_variables: Vec<(String, Vec<u8>)>,
@@ -229,9 +211,6 @@ impl Environment {
         let non_empty = |name: &str| std::env::var_os(name).filter(|value| !value.is_empty());
         Environment {
             owner: non_empty(OWNER_ENV).map(OsString::into_vec),
-            explicit_python: non_empty(PYTHON_ENV),
-            compat_python: non_empty(COMPAT_PYTHON_ENV)
-                .unwrap_or_else(|| OsString::from("python3")),
             observer: non_empty(OBSERVER_ENV),
             text_variables: PROFILE_VARIABLES
                 .iter()
@@ -254,98 +233,38 @@ impl Environment {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Route {
+    /// An exact read shape: answered by this process.
     NativeCurrentSource,
-    LegacyExplicit,
-    LegacyShape,
-    LegacySourceVariant { reason: String },
-    LegacyProfile { reason: String },
+    /// Any other shape: the whole `campaign_init` command line (`campaign_args` + `campaign_write`) answers it.
+    NotAReadShape,
 }
 
 impl Route {
     pub fn name(&self) -> &'static str {
         match self {
             Route::NativeCurrentSource => "NativeCurrentSource",
-            Route::LegacyExplicit => "LegacyExplicit",
-            Route::LegacyShape => "LegacyShape",
-            Route::LegacySourceVariant { .. } => "LegacySourceVariant",
-            Route::LegacyProfile { .. } => "LegacyProfile",
+            Route::NotAReadShape => "NotAReadShape",
         }
     }
     fn reason(&self) -> Option<&str> {
-        match self {
-            Route::LegacySourceVariant { reason } | Route::LegacyProfile { reason } => Some(reason),
-            _ => None,
-        }
+        None
     }
 }
 
-/// The interpreter command that replaces this process on a legacy route: `INTERPRETER OWNER ARGS...`.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct LegacyExec {
-    pub interpreter: OsString,
-    pub owner: Vec<u8>,
-    pub args: Vec<Vec<u8>>,
-}
-
-/// How a legacy route is carried out. The program's implementation replaces the process; a check records instead.
-pub trait Legacy {
-    /// Returns only when the interpreter cannot be started: the status a shell reports (127 not found, 126 not executable).
-    fn replace_process(&mut self, spec: &LegacyExec) -> i32;
-}
-
-/// `exec`: the same PID, descriptors, environment and working directory; no child.
-pub struct ExecLegacy;
-
-impl Legacy for ExecLegacy {
-    fn replace_process(&mut self, spec: &LegacyExec) -> i32 {
-        use std::os::unix::process::CommandExt;
-        let error = std::process::Command::new(&spec.interpreter)
-            .arg(OsStr::from_bytes(&spec.owner))
-            .args(spec.args.iter().map(|a| OsStr::from_bytes(a)))
-            .exec();
-        let status = if error.kind() == std::io::ErrorKind::PermissionDenied {
-            126
-        } else {
-            127
-        };
-        eprintln!(
-            "[campaign_read] ERROR 호환 인터프리터를 시작할 수 없다: {}: {error}",
-            spec.interpreter.to_string_lossy()
-        );
-        status
-    }
-}
-
-/// The routes that precede any native business, in the order they are asked.
-pub fn choose_route(args: &[Vec<u8>], env: &Environment, owner: &[u8]) -> Route {
-    if env.explicit_python.is_some() {
-        return Route::LegacyExplicit;
-    }
+/// The route of a command line. No route starts a Python interpreter: the original program is retired and its behavior is
+/// the native one (the reviewed-source identity check, the explicit-interpreter route and the unmodelled-text-profile route
+/// were the compatibility bridges of the porting period).
+pub fn choose_route(args: &[Vec<u8>], _env: &Environment, _owner: &[u8]) -> Route {
     if parse_exact(args).is_none() {
-        return Route::LegacyShape;
+        return Route::NotAReadShape;
     }
-    match identify(owner, REVIEWED_CAMPAIGN) {
-        Identity::Reviewed => {}
-        Identity::Missing => {
-            return Route::LegacySourceVariant {
-                reason: "campaign_init.py is missing".to_string(),
-            }
-        }
-        Identity::Different => {
-            return Route::LegacySourceVariant {
-                reason: "campaign_init.py is not the reviewed source".to_string(),
-            }
-        }
-        Identity::Unreadable(why) => {
-            return Route::LegacySourceVariant {
-                reason: format!("campaign_init.py cannot be read ({why})"),
-            }
-        }
-    }
-    match env.text_profile() {
-        Ok(_) => Route::NativeCurrentSource,
-        Err(reason) => Route::LegacyProfile { reason },
-    }
+    Route::NativeCurrentSource
+}
+
+/// The text profile of a run: the environment's, or UTF-8 when the environment names one this port does not model
+/// (documented residual: such a locale's codec is not reproduced).
+fn profile_of(env: &Environment) -> TextProfile {
+    env.text_profile().unwrap_or_else(|_| TextProfile::utf8())
 }
 
 // ── the native business ──────────────────────────────────────────────────────────────
@@ -608,50 +527,36 @@ fn control_failure(io: &mut Streams<'_>, message: &str) -> i32 {
 
 // ── the run ──────────────────────────────────────────────────────────────────────────
 
-/// Runs the program. `args` excludes the program name; the return value is the exit status (a legacy route that starts its
-/// interpreter never returns).
-pub fn run(
-    args: &[Vec<u8>],
-    env: &Environment,
-    io: &mut Streams<'_>,
-    legacy: &mut dyn Legacy,
-) -> i32 {
-    let status = dispatch(args, env, io, legacy);
+/// Runs a read shape. `args` excludes the program name; the return value is the exit status. A vector that is not an exact read
+/// shape is a control failure here (the public `campaign_init` program answers it through `campaign_write`).
+pub fn run(args: &[Vec<u8>], env: &Environment, io: &mut Streams<'_>) -> i32 {
+    let status = match parse_exact(args) {
+        Some(command) => answer(&command, args, env, io),
+        None => control_failure(io, "not a read shape (--active | --derive KIND ...): use campaign_init"),
+    };
     io.finish(status)
 }
 
-fn dispatch(
-    args: &[Vec<u8>],
-    env: &Environment,
-    io: &mut Streams<'_>,
-    legacy: &mut dyn Legacy,
-) -> i32 {
+/// Answers one read command natively (`--active`, `--derive ...`), whatever other options the command line carried.
+pub fn run_command(command: &Command, env: &Environment, io: &mut Streams<'_>) -> i32 {
+    let args = match command {
+        Command::Active => vec![b"--active".to_vec()],
+        Command::Derive(request) => vec![b"--derive".to_vec(), request.kind.as_bytes().to_vec()],
+    };
+    let status = answer(command, &args, env, io);
+    io.finish(status)
+}
+
+fn answer(command: &Command, args: &[Vec<u8>], env: &Environment, io: &mut Streams<'_>) -> i32 {
     let Some(owner) = env.owner.as_deref() else {
         return control_failure(
             io,
-            &format!("{OWNER_ENV} is not set; the launcher campaign_init.sh exports the owner program beside it"),
+            &format!("{OWNER_ENV} is not set; the launcher campaign_init.sh exports the program path beside it"),
         );
     };
-    let route = choose_route(args, env, owner);
-    if route != Route::NativeCurrentSource {
-        if let Err(message) = observe(env, &route, Some(owner), None, args) {
-            return control_failure(io, &message);
-        }
-        let interpreter = env
-            .explicit_python
-            .clone()
-            .unwrap_or_else(|| env.compat_python.clone());
-        return legacy.replace_process(&LegacyExec {
-            interpreter,
-            owner: owner.to_vec(),
-            args: args.to_vec(),
-        });
-    }
-    let command = parse_exact(args).expect("the route checked the grammar");
-    let profile = env
-        .text_profile()
-        .expect("the route checked the text profile");
-    let native = match pyprofile::with_profile(&profile, || business(&command, owner, &profile)) {
+    let route = Route::NativeCurrentSource;
+    let profile = profile_of(env);
+    let native = match pyprofile::with_profile(&profile, || business(command, owner, &profile)) {
         Ok(native) => native,
         Err(message) => return control_failure(io, &message),
     };
@@ -661,7 +566,7 @@ fn dispatch(
     match native {
         Native::Line(bytes) => match io.print_encoded(&bytes) {
             Ok(()) => 0,
-            Err(failure) => write_failed(io, owner, &command, &profile, &failure),
+            Err(failure) => write_failed(io, owner, command, &profile, &failure),
         },
         Native::Refusal(message) => {
             let mut text = Text::new("[campaign_init] FAIL ");

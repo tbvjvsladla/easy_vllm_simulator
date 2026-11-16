@@ -119,7 +119,7 @@ fi
 # Gate location is immutable and derived from this script, never from caller-controlled SRC.
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 IJ="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/inline_json.sh"   # JSON 소형 판독기(Rust ELF 런처) — 인라인 python3 대체
-GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.py"
+GATE_SCRIPT="$REPO_ROOT/.claude/policies/runtime/completion_gate.sh"   # Rust gate launcher (.claude/rust/policy-gate)
 
 # ── 배달 통로 ↔ 체크아웃 특화층 가드 (2026-09-14 · ⑧-pre D2 S6 · policy:BRANCH_CONSTITUTION_LAYERING C5 "delivery entry") ──
 # 왜: 이 배달은 **체크아웃의 인덱스**를 렌더해 서브의 `--branch` 브랜치에 박는다. 그런데 `--branch` 와 체크아웃이
@@ -192,7 +192,7 @@ if [ "$HAVE_MANIFEST" -eq 1 ]; then
     esac
 fi
 
-gate_cmd=(python3 "$GATE_SCRIPT" authorize --action sync_to_sub --repo-root "$REPO_ROOT")
+gate_cmd=(bash "$GATE_SCRIPT" authorize --action sync_to_sub --repo-root "$REPO_ROOT")
 [ "$HAVE_MANIFEST" -eq 0 ] || gate_cmd+=(--manifest "$RESOLVED_MANIFEST")
 [ "$HAVE_MODE" -eq 0 ] || gate_cmd+=(--mode "$GATE_MODE")
 if gate_stdout="$("${gate_cmd[@]}")"; then gate_exit=0; else gate_exit=$?; fi
@@ -236,7 +236,7 @@ GIT_NAME="${SYNC_GIT_NAME:-easy-vllm sync (main)}"      # [sync] 커밋 = 스크
 GIT_EMAIL="${SYNC_GIT_EMAIL:-sync@easy-vllm.local}"
 MAX_DELETE="${MAX_DELETE:-50}"     # (레거시) --delete 안전캡. S4 는 아래 ALLOW_DELETE 삭제brake 가 1차 게이트.
 ALLOW_DELETE="${ALLOW_DELETE:-0}"  # (S4 d-rsync-2) 삭제 前 brake: 삭제예정 > 이 값이면 *삭제 前* fail-closed. 의도된 정리만 명시 override.
-RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
+RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.sh"
 # 역할 계약 판정기 — 배달 표면 검증이 tool_plane 을 물을 때 쓴다. 2026-09-05: 이 상수가
 #   **정의된 적이 없었다**. 검증기 본문 주석은 "경로는 파일 상단 ROLE_CONTRACT 상수"라고
 #   적고 있었으니 배선만 빠진 것이다(만든 것과 도는 것은 다르다).
@@ -343,7 +343,7 @@ assert_sub_delegation_authorized() {  # $1=topology → 0=인가(hw_verified:tru
     [ "$hv" = "true" ] && return 0
     echo "[sync] STOP(A2A-위임 게이트): output/$1/manifest.yaml 의 nodes[sub].hw_verified != true (got '${hv:-<none>}')" >&2
     echo "  → 서브 HW 동질성 미검증 = 위임 키 미발급 → 빌드 전파 거부(fail-closed)." >&2
-    echo "  → 검증 path(HITL): python3 .claude/skills/terraforming_node/scripts/scan_node.py --topology $1 --peer-ssh <user@sub> --emit-manifest" >&2
+    echo "  → 검증 path(HITL): bash .claude/skills/terraforming_node/scripts/scan_node.sh --topology $1 --peer-ssh <user@sub> --emit-manifest" >&2
     echo "     → 동질성 통과 시 nodes[sub].hw_verified:true 기입(사람 확인) → 재실행. (무인 자동 서브-스캔 ✗ — '열쇠 분실=사고'.)" >&2
     return 1
 }
@@ -879,12 +879,12 @@ OVERLAY_RETIREMENT_STALE_PATHS=(
 #   처방: 원인을 살리고(stderr 유지) rc 를 전파하며, `[ -d ]` 는 rc 1(부재)만 부재로 읽는다.
 sub_run()  { ssh_run "$SUB_HOST" "cd '$SUB_WORK_DIR' && $1"; }
 
-# ── 서브 Rust 러너(sub_runner · regen_build_patches_src) — 서브에는 Python/cargo 를 요구하지 않는다 ──
+# ── 서브 Rust 러너(sub_runner · regen_build_patches_src · inline_json · native_remote) — 서브에는 Python/cargo 를 요구하지 않는다 ──
 # 서브에서 도는 정비·검증 호출은 메인이 평면 B(이 스크립트) 안에서 rsync 로 배달한 ELF 로 한다.
 # ELF 는 gitignored(target/) 라 스테이징·인벤토리·체크섬 표면에 없다(서브 git 에도 들지 않는다).
 # 부재·아키 불일치·ELF 매직 불일치는 fail-closed 다 — Python 폴백 ✗(우회가 아니라 경로를 고친다).
 SUB_ELF_REL=".claude/skills/upstream-version-watch/rust/runtime/target/release"
-SUB_ELF_NAMES=(sub_runner regen_build_patches_src inline_json)
+SUB_ELF_NAMES=(sub_runner regen_build_patches_src inline_json native_remote)   # native_remote = native_multinode_serve 의 서브 고정 러너(옛 python3 -c 프로그램)
 sub_runner_run() { # $1..=sub_runner argv → 서브에서 실행(stdout 전달 · 실패는 그대로 비-0)
     local q a args=""
     for a in "$@"; do printf -v q '%q' "$a"; args="$args $q"; done
@@ -1001,7 +1001,7 @@ render_topology() {
         hint_scope_args=(--hint-write-scopes "$HINT_WRITE_SCOPES")
     fi
     # 소스-온리 스냅샷은 의도적으로 빌드 산출물(무시되는 ELF·cargo 캐시)을 담지 않는다 — 복사도 빌드도 하지 않는다. 그런데 스테이징된
-    #   render_sub_env.py 는 manifest_contract.py(얇은 import 어댑터)를 import 하고, 그 어댑터는 **자기 트리의**
+    #   (옛 render_sub_env.py 는 manifest_contract.py(얇은 import 어댑터)를 import 했고 — Rust render_sub_env 는 계약 리더를 in-process 로 든다 · 바인딩은 무해하게 남는다 — 그 어댑터는 **자기 트리의**
     #   adversarial-benchmark/rust/target/release/manifest_contract 를 기본값으로 연다 → 스냅샷엔 없어 render 가 status 2 로 죽었다
     #   (2026-11-09 공식 기본 dry-run exit 9 · 호출자가 MANIFEST_CONTRACT_BIN 을 손으로 export 해야 통과 = 문서화되지 않은 전제).
     #   처방은 실행 경계의 바인딩이다: 이 노드(정본 트리)가 이미 빌드한 **같은 ELF** 의 경로를 **이 render 자식 프로세스에만** 준다.
@@ -1009,13 +1009,13 @@ render_topology() {
     #     (빈 값의 의미는 소비자의 것이다 — 기본 경로로 읽혀 같은 소리로 실패한다 · 숨기지 않는다).
     #   · 서브로 가는 것은 스테이징 트리의 파일뿐이다 — 이 경로는 자식 환경에만 있고 페이로드에 실리지 않는다. ELF 는 복사하지 않는다.
     #   · 정본에 ELF 가 없거나 실행 불가면 소비자가 기존 그대로 exit 2 안내 → render 실패(9)로 크게 실패한다(여기서 빌드·대체 ✗).
-    #   (render_dockerfile.py 의 위 호출 3종은 이 모듈을 import 하는 경로 --canonical-kind/--template 를 타지 않으므로 바인딩 대상이 아니다.)
+    #   (render_dockerfile.sh 의 위 호출 3종은 이 모듈을 import 하는 경로 --canonical-kind/--template 를 타지 않으므로 바인딩 대상이 아니다.)
     local mc_env=() mc_root
     if [ -z "${MANIFEST_CONTRACT_BIN+x}" ]; then
         mc_root="$(CDPATH='' cd "$CANONICAL_SRC" && pwd)" || { rm -f "$_tracked_list"; return 9; }
         mc_env=("MANIFEST_CONTRACT_BIN=$mc_root/.claude/skills/adversarial-benchmark/rust/target/release/manifest_contract")
     fi
-    env "${mc_env[@]}" python3 "$RENDER" --topology "$1" --tracked-list "$_tracked_list" "${hint_scope_args[@]}" >/dev/null || {
+    env "${mc_env[@]}" bash "$RENDER" --topology "$1" --tracked-list "$_tracked_list" "${hint_scope_args[@]}" >/dev/null || {
         rm -f "$_tracked_list"; return 9; }
     rm -f "$_tracked_list"
     if [ "$1" != "multi" ] && [ -d "$output_dir/envs" ] \
@@ -1373,13 +1373,18 @@ prepare_transactional_source() {
     if [ "${EASY_VLLM_UPSTREAM_RUNTIME_ROOT+set}" != set ]; then
         export EASY_VLLM_UPSTREAM_RUNTIME_ROOT="${CANONICAL_SRC%/}/.claude/skills/upstream-version-watch/rust/runtime"
     fi
-    RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
+    #   terraforming_node 런처(render_sub_env.sh 등)도 같은 규칙: 정본 트리의 terraforming_node/rust ELF 를 실행 경계에 바인딩한다.
+    if [ "${TERRAFORMING_BIN_DIR+set}" != set ]; then
+        export TERRAFORMING_BIN_DIR="${CANONICAL_SRC%/}/.claude/skills/terraforming_node/rust/target/release"
+    fi
+    RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.sh"
     ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.sh"
     PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh"
     PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
-    REGEN_TOOL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py"
-    # 로컬 verify·bundle 은 Rust 런처로 간다. REGEN_TOOL(.py)은 서브 stdin 실행(unbundle 등)의 원본으로만 남는다.
-    REGEN_LOCAL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh"
+    # 재생성기 = Rust 런처(로컬 verify·bundle) + 서브에 배달된 같은 ELF(unbundle·verify · deliver_sub_runner_elfs).
+    #   인덱스 판정은 런처(추적물)로 한다 — .py 원본은 어느 평면에서도 실행되지 않는다.
+    REGEN_TOOL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh"
+    REGEN_LOCAL="$REGEN_TOOL"
     echo "[sync] transactional source prepared (canonical tree remains read-only): $TRANSACTIONAL_SRC"
     # 2026-09-03(P3 · plan_26090317): 이 루프가 **두 토폴로지 전부**를 무조건 물질화해, 이번 배달과
     #   무관한 통로의 파생 payload 부재가 배달 전체를 죽였다(싱글 배달이 multi 사유로 STOP).
@@ -2038,7 +2043,7 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
         return 1
     fi
     # 계약 대표 — 파생 목록이 조용히 줄어드는 것을 막는다.
-    #   · .claude/skills/vllm-recipe-explorer/recipe.py = 런타임블럭이 실제로 복제됐다는 증거
+    #   · .claude/skills/vllm-recipe-explorer/scripts/recipe.sh = 런타임블럭이 실제로 복제됐다는 증거(엔진 진입점 · Rust 완전이식 뒤 recipe.py 는 대표가 아니다)
     #   · .claude/a2a_delegation.json               = A2A 위임키(hw_verified:true 일 때만 발급)
     #
     # ⚠ 런타임블럭 대표는 **tool_plane 이 비어 있지 않을 때만** 요구한다(2026-09-03 P5 실측).
@@ -2072,15 +2077,15 @@ verify_checksums() {  # $1=topology  $2(선택)=skip_buildkit(1이면 빌드킷 
         else
             # 2026-10-19(plan_26101912 D12): 대표는 **tool_plane 이 지목한 스킬마다** 요구한다 — ray-worker 가 0종에서
             #   wiki-desk 1종이 되자 "비어 있지 않으면 recipe.py" 라는 옛 가정이 멀티 배달을 죽였다(같은 결함 모양의 재발).
-            #   스킬마다 SKILL.md 를, recipe-explorer 가 있으면 그 엔진(recipe.py)을 본다.
+            #   스킬마다 SKILL.md 를, recipe-explorer 가 있으면 그 엔진 진입점(scripts/recipe.sh)을 본다.
             local _sk
             for _sk in $(printf '%s' "$_tp" | tr -c '[:alnum:]-' ' '); do
                 grep -qxF ".claude/skills/$_sk/SKILL.md" <<<"$rels" \
                     || { echo "  ❌ 배달 표면에 tool_plane 스킬 대표(.claude/skills/$_sk/SKILL.md)가 없다" >&2; fail=1; }
             done
             case ",$(printf '%s' "$_tp" | tr -c '[:alnum:]-' ','),"  in *,vllm-recipe-explorer,*)
-                grep -qxF '.claude/skills/vllm-recipe-explorer/recipe.py' <<<"$rels" \
-                    || { echo "  ❌ 배달 표면에 런타임블럭 대표(.claude/skills/vllm-recipe-explorer/recipe.py)가 없다" >&2; fail=1; } ;;
+                grep -qxF '.claude/skills/vllm-recipe-explorer/scripts/recipe.sh' <<<"$rels" \
+                    || { echo "  ❌ 배달 표면에 런타임블럭 대표(.claude/skills/vllm-recipe-explorer/scripts/recipe.sh)가 없다" >&2; fail=1; } ;;
             esac
         fi
     fi

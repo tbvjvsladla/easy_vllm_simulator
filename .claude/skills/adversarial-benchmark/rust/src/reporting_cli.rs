@@ -535,9 +535,8 @@ fn max_report_body(matches: &Matches, run: &mut Run) -> Res<i32> {
 
 const TAG_PUBLISH: &str = "[publish_record]";
 const CAMPAIGN_WRITER_REL: [&str; 4] = [".claude", "skills", "terraforming_node", "scripts"];
-/// The environment variable naming the Python interpreter that runs the campaign evidence writer
-/// (default `python3`); the writer is the still-Python `campaign_init.py` owner.
-pub const CAMPAIGN_PYTHON_ENV: &str = "PUBLISH_BENCHMARK_PYTHON";
+/// The campaign evidence writer's launcher (another owner's entry point; run with `bash`, never a Python interpreter).
+const CAMPAIGN_WRITER_LAUNCHER: &str = "campaign_init.sh";
 
 /// `publish_benchmark_record`: runs the program and returns its exit status. `args` excludes the program name.
 pub fn run_publish_benchmark_record(args: &[PyStr], io: &mut Streams<'_>) -> i32 {
@@ -913,9 +912,10 @@ fn stripped_text(value: &PyValue) -> PyStr {
     }
 }
 
-/// Leaves the campaign pointer for a certificate where it was born: the campaign writer (`campaign_init.py`, a
-/// Python program of another owner) is called with the certificate's repository-relative path. A missing writer is
-/// reported, a failing one is a warning; neither changes the certificate that already exists.
+/// Leaves the campaign pointer for a certificate where it was born: the campaign writer of another owner is called
+/// through its launcher (`bash campaign_init.sh --evidence-add ...`; this program starts no Python) with the
+/// certificate's repository-relative path. A missing launcher is reported, a failing one is a warning; neither changes
+/// the certificate that already exists.
 fn register_campaign_evidence(
     run: &mut Run,
     anchor: &PyStr,
@@ -924,7 +924,7 @@ fn register_campaign_evidence(
 ) -> Res<()> {
     let root = repo_root(&as_value(anchor))?;
     let mut writer = ospath::join_all(&root, &CAMPAIGN_WRITER_REL);
-    writer = ospath::join_all(&writer, &["campaign_init.py"]);
+    writer = ospath::join_all(&writer, &[CAMPAIGN_WRITER_LAUNCHER]);
     if !ospath::isfile(&writer) {
         let mut message = py("[publish_record] campaigns writer 부재(");
         message.push_py(&writer);
@@ -933,8 +933,8 @@ fn register_campaign_evidence(
         return Ok(());
     }
     if active_campaign_is_bootstrap(&root) {
-        // campaign_init.py --evidence-add is a no-op (rc 0, nothing on stdout) when ACTIVE resolves to `_bootstrap`;
-        // deciding that here avoids starting Python for a call that cannot write.
+        // campaign_init --evidence-add is a no-op (rc 0, nothing on stdout) when ACTIVE resolves to `_bootstrap`;
+        // deciding that here avoids starting the writer for a call that cannot write.
         return Ok(());
     }
     let Ok(relative) = ospath::relpath(certificate, &root) else {
@@ -943,12 +943,11 @@ fn register_campaign_evidence(
     let meta_map = as_get_target(meta)?;
     let node = stripped_text(meta_map.get("measured_node").unwrap_or(&PyValue::None));
     let cell = stripped_text(meta_map.get("config_name").unwrap_or(&PyValue::None));
-    let python = std::env::var_os(CAMPAIGN_PYTHON_ENV).unwrap_or_else(|| "python3".into());
     let os_text = |text: &PyStr| -> std::ffi::OsString {
         use std::os::unix::ffi::OsStringExt;
         std::ffi::OsString::from_vec(text.to_surrogateescape_bytes().unwrap_or_default())
     };
-    let mut command = Command::new(python);
+    let mut command = Command::new("bash");
     command
         .arg(os_text(&writer))
         .args(["--evidence-add", "--kind", "certificate", "--path"])
@@ -963,7 +962,7 @@ fn register_campaign_evidence(
     let output = command.output().map_err(|error| {
         Failure::new(
             crate::pyfs::os_error_class(&error),
-            &crate::cli::os_error_text(&error, &py("python3")),
+            &crate::cli::os_error_text(&error, &py("bash")),
         )
     })?;
     if !output.status.success() {

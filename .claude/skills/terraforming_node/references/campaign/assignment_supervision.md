@@ -15,7 +15,7 @@
   팝업에서 받아 `campaign_init.py --hint-approve` 로 적은 `hint_targets[].approval`(셀별 사전 Y/N · 2026-09-21 O6)이다 — 셀마다
   멈추지 않되 무인 자동 태깅은 없다.
 - **배정 변경의 문은 `campaign_init.py --assign-set`** 하나다(2026-10-17 · plan_26101722 K8 — 종전에는 writer 가 없어 손편집이
-  우회로였다). pending 셀만 추가·은퇴·순서·mode 를 바꾼다. 서브 몫은 `relay.py --campaign-control reslice` 가 새 파생 선언을
+  우회로였다). pending 셀만 추가·은퇴·순서·mode 를 바꾼다. 서브 몫은 `relay.sh --campaign-control reslice` 가 새 파생 선언을
   싣고 가고, 서브는 같은 writer(`--slice-update`)로 자기 상태에서 같은 규칙을 다시 검사한다. 상세는 `writers.md`.
 - **전이 모드**는 셀이 끝난 뒤의 행동이다 — `AUTO`(기본·생략 가능) = 정리 후 다음 셀 · `HITL` = 정리 후
   사람에게 묻고 대기(무인이라도 기다린다) · `STAY` = 벤치 뒤에도 서빙 유지. **STAY 는 각 노드 리스트의
@@ -29,7 +29,7 @@
   메인 첫 셀보다 먼저여야 하는지는 특화헌법
   (`.claude/skills/terraforming_node/references/orchestration.topology.md`)이 소유한다. 술어 P4 가 그
   시각 순서를 본다.
-- **감독은 상주가 아니라 한 걸음**이다(`relay.py --supervise-step <camp>`): 원장과 회수된 브리핑을 읽고
+- **감독은 상주가 아니라 한 걸음**이다(`relay.sh --supervise-step <camp>`): 원장과 회수된 브리핑을 읽고
   판정해 원장에 `supervisor_step` 을 적고 끝난다. 깨우는 손은 하네스의 예약 wakeup 또는 다음 세션의
   재개다(세션 리볼빙의 응용). 판정 4분기 — `completed`→다음 셀 · 중단∧전진→**자동 재발급** ·
   중단∧정체→팝업 · 미해결 통신·모델 붕괴→팝업. 누적 호출 횟수는 팝업 조건이 아니다. 정상 워커

@@ -11,7 +11,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -24,7 +24,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -53,7 +53,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -66,7 +66,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -95,7 +95,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -108,7 +108,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -135,7 +135,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -148,7 +148,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -181,7 +181,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -194,7 +194,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -225,7 +225,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -238,7 +238,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -273,7 +273,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -286,7 +286,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -321,7 +321,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -334,7 +334,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -369,7 +369,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -382,7 +382,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -417,7 +417,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -430,7 +430,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -465,7 +465,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -478,7 +478,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -513,7 +513,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -526,7 +526,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -561,7 +561,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -574,7 +574,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -609,7 +609,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -622,7 +622,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -657,7 +657,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -670,7 +670,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -705,7 +705,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -718,7 +718,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -753,7 +753,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -766,7 +766,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -802,7 +802,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -815,7 +815,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -851,7 +851,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -864,7 +864,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -898,7 +898,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -911,7 +911,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -945,7 +945,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -958,7 +958,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -992,7 +992,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1005,7 +1005,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -1042,7 +1042,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1055,7 +1055,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -1092,7 +1092,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1105,7 +1105,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -1142,7 +1142,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1155,7 +1155,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1188,7 +1188,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1201,7 +1201,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -1238,7 +1238,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1251,7 +1251,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1282,7 +1282,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1295,7 +1295,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1327,7 +1327,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1340,7 +1340,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1372,7 +1372,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1385,7 +1385,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1416,7 +1416,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1429,7 +1429,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1460,7 +1460,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1473,7 +1473,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1505,7 +1505,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1518,7 +1518,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1549,7 +1549,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1562,7 +1562,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1593,7 +1593,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1606,7 +1606,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1637,7 +1637,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1650,7 +1650,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1681,7 +1681,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1694,7 +1694,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1725,7 +1725,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1738,7 +1738,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -1773,7 +1773,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1786,7 +1786,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",
@@ -1821,7 +1821,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1834,7 +1834,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1865,7 +1865,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1878,7 +1878,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -1909,7 +1909,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    }
   },
   "after": {
@@ -1918,7 +1918,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    }
   },
   "stdout": "",
@@ -1945,7 +1945,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "directory"
@@ -1957,7 +1957,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "directory"
@@ -1989,7 +1989,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -2002,7 +2002,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -2037,7 +2037,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "pin.json": {
     "kind": "file",
@@ -2050,7 +2050,7 @@
    },
    ".fixture-bin/docker": {
     "kind": "file",
-    "bytes_base64": "IyEvdXNyL2Jpbi9lbnYgcHl0aG9uMwppbXBvcnQganNvbixvcyxzeXMKd2l0aCBvcGVuKCdkb2NrZXJfY2FsbHMuanNvbmwnLCdhJyxlbmNvZGluZz0ndXRmLTgnKSBhcyBvdXQ6b3V0LndyaXRlKGpzb24uZHVtcHMoc3lzLmFyZ3ZbMTpdLGVuc3VyZV9hc2NpaT1UcnVlKSsnXG4nKQphc3NlcnQgc3lzLmFyZ3ZbMTozXT09WydpbWFnZScsJ2luc3BlY3QnXSBhbmQgc3lzLmFyZ3ZbLTI6XT09WyctLWZvcm1hdCcsJ3t7anNvbiAuUmVwb0RpZ2VzdHN9fSddLHN5cy5hcmd2CnN5cy5zdGRvdXQuYnVmZmVyLndyaXRlKG9zLmVudmlyb25bJ0JFTkNIX1RPT0xfRklYVFVSRV9TVERPVVQnXS5lbmNvZGUoJ3V0Zi04Jywnc3Vycm9nYXRlZXNjYXBlJykpCnN5cy5zdGRlcnIud3JpdGUob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1NUREVSUiddKQpzeXMuZXhpdChpbnQob3MuZW52aXJvblsnQkVOQ0hfVE9PTF9GSVhUVVJFX1JDJ10pKQo="
+    "bytes_base64": "IyEvYmluL2Jhc2gKIyB0ZXN0LXBsYW5lIGRvY2tlciBzdGFuZC1pbjogdGhlIG5hdGl2ZSBoZWxwZXIgc2VsZnRlc3RfZml4dHVyZV9kb2NrZXIgKG5vIFB5dGhvbikKZXhlYyAiJFNFTEZURVNUX0ZJWFRVUkVfRE9DS0VSX0JJTiIgYmVuY2gtdG9vbCAiJEAiCg=="
    },
    "docker_calls.jsonl": {
     "kind": "file",

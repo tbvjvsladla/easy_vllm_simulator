@@ -1,0 +1,4 @@
+[same-slug] hint/0.29.0/q-nvfp4/gb10-1g2n-cluster-native/r  (v6)  ·  모델·vLLM 일치(arch 미지정) — arch 를 대조하고 네 스모크로 재검증
+[same-slug] hint/v0.29.0/Q-NVFP4/gb10-1g1n-main-native/r  (v7)  ·  모델·vLLM 일치(arch 미지정) — arch 를 대조하고 네 스모크로 재검증 · 카탈로그 저장소에 오브젝트 미수령(brief 없음) — 원격에서 받아 읽는다
+[shared-base] hint/0.28.0/q-fp8/h100-1g1n-main-native/r  (?)  ·  관계 모델(shared-base: base_model=Org/Q)→서빙전략은 다시 세운다 · 다른 vLLM→릴리스 노트 재확인(carry-forward ✗) · annotation 없는 태그(brief 없음 · 발행 경로 밖) — 트리를 받아 직접 확인한다
+[hint catalog] (관계없는 모델 1건 숨김 — --include-other)

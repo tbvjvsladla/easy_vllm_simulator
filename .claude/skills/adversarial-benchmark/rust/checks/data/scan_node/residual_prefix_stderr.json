@@ -1,0 +1,43 @@
+{
+ "source": "CPython 3.12.3 argparse over the parser statements of scan_node_original.py main(), captured by the retired python 'text' mode of scan_node_residual_cases.rs (plan_26111615 pass 3)",
+ "provenance": "measured",
+ "rows": [
+  {
+   "argv": [
+    "--s"
+   ],
+   "kind": "exit2",
+   "stderr": "usage: scan_node.py [-h] [--topology {single,multi,auto}] [--peer-ip PEER_IP]\n                    [--peer-port PEER_PORT] [--peer-ssh PEER_SSH]\n                    [--compose COMPOSE] [--env-interconnect ENV_INTERCONNECT]\n                    [--bandwidth-gbps BANDWIDTH_GBPS]\n                    [--per-port-gbps PER_PORT_GBPS]\n                    [--per-port-floor PER_PORT_FLOOR] [--bw-floor BW_FLOOR]\n                    [--emit-manifest] [--manifest MANIFEST] [--check-egress]\n                    [--sub-work-dir SUB_WORK_DIR]\n                    [--model-source {managed,ephemeral,custom}]\n                    [--emit-sub-manifest PATH] [--self-test]\nscan_node.py: error: ambiguous option: --s could match --sub-work-dir, --self-test\n"
+  },
+  {
+   "argv": [
+    "--su"
+   ],
+   "kind": "exit2",
+   "stderr": "usage: scan_node.py [-h] [--topology {single,multi,auto}] [--peer-ip PEER_IP]\n                    [--peer-port PEER_PORT] [--peer-ssh PEER_SSH]\n                    [--compose COMPOSE] [--env-interconnect ENV_INTERCONNECT]\n                    [--bandwidth-gbps BANDWIDTH_GBPS]\n                    [--per-port-gbps PER_PORT_GBPS]\n                    [--per-port-floor PER_PORT_FLOOR] [--bw-floor BW_FLOOR]\n                    [--emit-manifest] [--manifest MANIFEST] [--check-egress]\n                    [--sub-work-dir SUB_WORK_DIR]\n                    [--model-source {managed,ephemeral,custom}]\n                    [--emit-sub-manifest PATH] [--self-test]\nscan_node.py: error: argument --sub-work-dir: expected one argument\n"
+  },
+  {
+   "argv": [
+    "--sel-x"
+   ],
+   "kind": "exit2",
+   "stderr": "usage: scan_node.py [-h] [--topology {single,multi,auto}] [--peer-ip PEER_IP]\n                    [--peer-port PEER_PORT] [--peer-ssh PEER_SSH]\n                    [--compose COMPOSE] [--env-interconnect ENV_INTERCONNECT]\n                    [--bandwidth-gbps BANDWIDTH_GBPS]\n                    [--per-port-gbps PER_PORT_GBPS]\n                    [--per-port-floor PER_PORT_FLOOR] [--bw-floor BW_FLOOR]\n                    [--emit-manifest] [--manifest MANIFEST] [--check-egress]\n                    [--sub-work-dir SUB_WORK_DIR]\n                    [--model-source {managed,ephemeral,custom}]\n                    [--emit-sub-manifest PATH] [--self-test]\nscan_node.py: error: unrecognized arguments: --sel-x\n"
+  },
+  {
+   "argv": [
+    "--self-testx"
+   ],
+   "kind": "exit2",
+   "stderr": "usage: scan_node.py [-h] [--topology {single,multi,auto}] [--peer-ip PEER_IP]\n                    [--peer-port PEER_PORT] [--peer-ssh PEER_SSH]\n                    [--compose COMPOSE] [--env-interconnect ENV_INTERCONNECT]\n                    [--bandwidth-gbps BANDWIDTH_GBPS]\n                    [--per-port-gbps PER_PORT_GBPS]\n                    [--per-port-floor PER_PORT_FLOOR] [--bw-floor BW_FLOOR]\n                    [--emit-manifest] [--manifest MANIFEST] [--check-egress]\n                    [--sub-work-dir SUB_WORK_DIR]\n                    [--model-source {managed,ephemeral,custom}]\n                    [--emit-sub-manifest PATH] [--self-test]\nscan_node.py: error: unrecognized arguments: --self-testx\n"
+  },
+  {
+   "argv": [
+    "--sub",
+    "x",
+    "--s"
+   ],
+   "kind": "exit2",
+   "stderr": "usage: scan_node.py [-h] [--topology {single,multi,auto}] [--peer-ip PEER_IP]\n                    [--peer-port PEER_PORT] [--peer-ssh PEER_SSH]\n                    [--compose COMPOSE] [--env-interconnect ENV_INTERCONNECT]\n                    [--bandwidth-gbps BANDWIDTH_GBPS]\n                    [--per-port-gbps PER_PORT_GBPS]\n                    [--per-port-floor PER_PORT_FLOOR] [--bw-floor BW_FLOOR]\n                    [--emit-manifest] [--manifest MANIFEST] [--check-egress]\n                    [--sub-work-dir SUB_WORK_DIR]\n                    [--model-source {managed,ephemeral,custom}]\n                    [--emit-sub-manifest PATH] [--self-test]\nscan_node.py: error: ambiguous option: --s could match --sub-work-dir, --self-test\n"
+  }
+ ]
+}

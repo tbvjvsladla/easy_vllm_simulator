@@ -1,0 +1,3 @@
+{"id": "r0", "kind": "value", "value": {"total": 3, "unobserved": 1, "image_probe": "None"}}
+{"id": "r1", "kind": "value", "value": {"total": 0, "unobserved": 0, "image_probe": null}}
+{"id": "r2", "kind": "value", "value": {"total": 0, "unobserved": 0, "image_probe": "done(3)"}}

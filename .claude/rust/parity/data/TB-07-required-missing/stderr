@@ -1,0 +1,1 @@
+[render] FAIL: manifest 필수 필드 누락 ['MASTER_HOST', 'SSH_USER', 'WORKSPACE_PATH', 'INTERCONNECT', 'INTERCONNECT_IFACE'] — 무증거 빈 정체성 렌더 금지.

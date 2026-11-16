@@ -1,0 +1,89 @@
+{"id": "r1", "kind": "value", "value": "2026-09-09T14:24:35Z"}
+{"id": "r2", "kind": "value", "value": "2026-09-09T14:24:35Z"}
+{"id": "r3", "kind": "value", "value": "2026-01-01T02:00:00Z"}
+{"id": "r4", "kind": "value", "value": null}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": null}
+{"id": "r7", "kind": "value", "value": null}
+{"id": "r8", "kind": "value", "value": null}
+{"id": "r9", "kind": "value", "value": null}
+{"id": "r10", "kind": "value", "value": null}
+{"id": "r11", "kind": "value", "value": null}
+{"id": "r12", "kind": "value", "value": 3665}
+{"id": "r13", "kind": "value", "value": -3600}
+{"id": "r14", "kind": "value", "value": null}
+{"id": "r15", "kind": "value", "value": null}
+{"id": "r16", "kind": "exception", "type": "ValueError", "message": "day is out of range for month"}
+{"id": "r17", "kind": "value", "value": "미관측"}
+{"id": "r18", "kind": "value", "value": "1분 5초"}
+{"id": "r19", "kind": "value", "value": "≤ 1시간 2분 5초(상한)"}
+{"id": "r20", "kind": "value", "value": "≈ 0분 59초(두 끝 시계 다름 — 컨테이너 date · 호스트 UTC · 근사)"}
+{"id": "r21", "kind": "value", "value": "층 창 26시간 23분 20초(docker history 첫 층 → 끝 층 CreatedAt · 캐시 재사용 층 포함 — 빌드 소요 아님)"}
+{"id": "r22", "kind": "value", "value": "0분 7초"}
+{"id": "r23", "kind": "value", "value": "never"}
+{"id": "r24", "kind": "value", "value": "none"}
+{"id": "r25", "kind": "value", "value": null}
+{"id": "r26", "kind": "value", "value": "a b c"}
+{"id": "r27", "kind": "value", "value": ["COPY requirements.txt /tmp/requirements.txt", "RUN pip install -r /tmp/requirements.txt", "RUN python3 - <<'PY' print(\"x\") y PY", "RUN <<-EOF cat indented EOF", "ADD [\"a.txt\", \"/b/\"]", "RUN echo hi 3", "RUN [not json", "COPY lower.txt /lower", "RUN trailing \\"]}
+{"id": "r28", "kind": "value", "value": []}
+{"id": "r29", "kind": "value", "value": "RUN pip install -r /tmp/r.txt"}
+{"id": "r30", "kind": "value", "value": "RUN echo hi"}
+{"id": "r31", "kind": "value", "value": "COPY a /b"}
+{"id": "r32", "kind": "value", "value": "ADD x /y"}
+{"id": "r33", "kind": "value", "value": null}
+{"id": "r34", "kind": "value", "value": null}
+{"id": "r35", "kind": "value", "value": "RUN "}
+{"id": "r36", "kind": "value", "value": "RUN "}
+{"id": "r37", "kind": "value", "value": "RUN 'exit 0'"}
+{"id": "r38", "kind": "value", "value": {"matched": 2, "total": 6}}
+{"id": "r39", "kind": "value", "value": {"matched": 0, "total": 0}}
+{"id": "r40", "kind": "value", "value": true}
+{"id": "r41", "kind": "value", "value": false}
+{"id": "r42", "kind": "value", "value": false}
+{"id": "r43", "kind": "value", "value": true}
+{"id": "r44", "kind": "value", "value": [{"path": "output/single/D", "k": 2}, {"path": "output/single/D", "k": 4}, {"path": "output/multi/D", "k": 1}, {"path": "x", "k": 3}]}
+{"id": "r45", "kind": "value", "value": {"requirements.txt": "/tmp/requirements.txt", "build_patches": "/opt/bp/", "lower.txt": "/l", "s.sh": "/s.sh"}}
+{"id": "r46", "kind": "value", "value": ["requirements.txt", "build_patches", "a", "b", "rel", "j.txt", "lower.txt", "s.sh"]}
+{"id": "r47", "kind": "exception", "type": "HintError", "code": "HINT_DOCKERFILE_COPY_UNPARSED", "message": "COPY JSON 형식을 읽지 못했다: [not json", "remedy": null, "exit_code": 1}
+{"id": "r48", "kind": "value", "value": ["a", "b"]}
+{"id": "r49", "kind": "value", "value": "/opt/bp"}
+{"id": "r50", "kind": "value", "value": "/"}
+{"id": "r51", "kind": "value", "value": "/tmp/requirements.txt"}
+{"id": "r52", "kind": "value", "value": "/x"}
+{"id": "r53", "kind": "value", "value": "/y/a"}
+{"id": "r54", "kind": "value", "value": [{"main": {"y": 2}, "sub": {"x": 1}}, 1]}
+{"id": "r55", "kind": "value", "value": [{}, 0]}
+{"id": "r56", "kind": "value", "value": "측정 뒤 재생성된 실행 파일 대신 측정 당시 판본 렌더러 0123456789ab 로 같은 manifest 를 다시 렌더한 형상(실행 바이트 아님)"}
+{"id": "r57", "kind": "value", "value": {"path": "p", "shipped": "worktree", "verified": false, "warning": "w"}}
+{"id": "r58", "kind": "value", "value": []}
+{"id": "r59", "kind": "value", "value": []}
+{"id": "r60", "kind": "value", "value": ["# ⚠ 측정 당시 렌더러 ≠ 작업트리 렌더러: x/r.py 측정 전 마지막 커밋 aaaaaaaaaaaa · 측정 뒤 커밋 0건 — 아래 명령을 지금 돌리면 측정 당시와 다른 env 형상·러너가 나올 수 있다", "# 측정 당시 env 값 = 01 §1.4 '측정 실행의 env 관측' 표 · PAYLOAD.json measurement_env_observed(측정 엔진 로그 관측) · 측정 당시 렌더러 원문 = git show aaaaaaaaaaaa:x/r.py"]}
+{"id": "r61", "kind": "value", "value": ["# ⚠ 측정 당시 렌더러 ≠ 작업트리 렌더러: x/r.py 측정 전 마지막 커밋 aaaaaaaaaaaa · 측정 뒤 커밋 6건(b1, b2, b3, b4, b5 …) — 아래 명령을 지금 돌리면 측정 당시와 다른 env 형상·러너가 나올 수 있다", "# 측정 당시 env 값 = 01 §1.4 '측정 실행의 env 관측' 표 · PAYLOAD.json measurement_env_observed(측정 엔진 로그 관측) · 측정 당시 렌더러 원문 = git show aaaaaaaaaaaa:x/r.py"]}
+{"id": "r62", "kind": "value", "value": 1}
+{"id": "r63", "kind": "value", "value": "dflt"}
+{"id": "r64", "kind": "value", "value": 7}
+{"id": "r65", "kind": "value", "value": null}
+{"id": "r66", "kind": "value", "value": "multi"}
+{"id": "r67", "kind": "value", "value": "single"}
+{"id": "r68", "kind": "value", "value": "multi"}
+{"id": "r69", "kind": "exception", "type": "HintError", "code": "HINT_TOPOLOGY_UNDERIVABLE", "message": "셀 증거에서 single|multi 토폴로지를 해소하지 못했다.", "remedy": "evidence 가 manifest/캠페인 선언에서 topology 를 채워 넘긴다(브랜치로 추론 ✗).", "exit_code": 1}
+{"id": "r70", "kind": "value", "value": "c1"}
+{"id": "r71", "kind": "value", "value": "c2"}
+{"id": "r72", "kind": "exception", "type": "HintError", "code": "HINT_CELL_INVALID", "message": "셀 id 가 비었거나 경로를 포함한다: ''", "remedy": null, "exit_code": 1}
+{"id": "r73", "kind": "exception", "type": "HintError", "code": "HINT_CELL_INVALID", "message": "셀 id 가 비었거나 경로를 포함한다: 'a/b'", "remedy": null, "exit_code": 1}
+{"id": "r74", "kind": "exception", "type": "HintError", "code": "HINT_CELL_INVALID", "message": "셀 id 가 비었거나 경로를 포함한다: '..'", "remedy": null, "exit_code": 1}
+{"id": "r75", "kind": "exception", "type": "HintError", "code": "HINT_CELL_INVALID", "message": "셀 id 가 비었거나 경로를 포함한다: '.x'", "remedy": null, "exit_code": 1}
+{"id": "r76", "kind": "exception", "type": "HintError", "code": "HINT_CELL_INVALID", "message": "셀 id 가 비었거나 경로를 포함한다: ''", "remedy": null, "exit_code": 1}
+{"id": "r77", "kind": "value", "value": "12"}
+{"id": "r78", "kind": "value", "value": null}
+{"id": "r79", "kind": "value", "value": null}
+{"id": "r80", "kind": "value", "value": null}
+{"id": "r81", "kind": "value", "value": {"a": [1, 2]}}
+{"id": "r82", "kind": "value", "value": null}
+{"id": "r83", "kind": "value", "value": null}
+{"id": "r84", "kind": "value", "value": null}
+{"id": "r85", "kind": "value", "value": "{\"a\": [1, 2]}"}
+{"id": "r86", "kind": "exception", "type": "HintError", "code": "HINT_ARTIFACT_READ_FAILED", "message": "아티팩트 읽기 실패(absent.json): [Errno 2] No such file or directory: 'fx/j/absent.json'", "remedy": null, "exit_code": 1}
+{"id": "r87", "kind": "exception", "type": "HintError", "code": "HINT_OWNER_MODULE_MISSING", "message": "소유 모듈 부재: .claude/skills/upstream-version-watch/scripts/slave_forward.py", "remedy": "대체 구현으로 계속하지 않는다 — 그 스킬이 설치된 체크아웃에서 실행한다.", "exit_code": 1}
+{"id": "r88", "kind": "exception", "type": "HintError", "code": "HINT_OWNER_MODULE_MISSING", "message": "소유 모듈 부재: .claude/skills/upstream-version-watch/scripts/render_dockerfile.py", "remedy": "대체 구현으로 계속하지 않는다 — 그 스킬이 설치된 체크아웃에서 실행한다.", "exit_code": 1}
+{"id": "r89", "kind": "exception", "type": "HintError", "code": "HINT_OWNER_MODULE_MISSING", "message": "소유 모듈 부재: .claude/skills/upstream-version-watch/scripts/slave_forward.py", "remedy": "대체 구현으로 계속하지 않는다 — 그 스킬이 설치된 체크아웃에서 실행한다.", "exit_code": 1}

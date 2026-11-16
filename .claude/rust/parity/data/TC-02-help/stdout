@@ -1,0 +1,18 @@
+usage: harness_permission_probe.py [-h] --workspace WORKSPACE --topology
+                                   {single,multi} --role {main,sub} --nonce
+                                   NONCE
+
+Bounded work-permission observations, executed INSIDE the requested native
+tool. No serving, image build, remote git, sudo, credential output or policy
+changes. Existing protected/build files are only opened O_WRONLY without
+truncate or write, then closed. Actual writes/commits use disposable scratch;
+git metadata probes create only a unique owned marker, never
+index/refs/config. This does not prove Docker-daemon confinement, publication,
+model quality, native resume, or every possible protected-path operation.
+
+options:
+  -h, --help            show this help message and exit
+  --workspace WORKSPACE
+  --topology {single,multi}
+  --role {main,sub}
+  --nonce NONCE

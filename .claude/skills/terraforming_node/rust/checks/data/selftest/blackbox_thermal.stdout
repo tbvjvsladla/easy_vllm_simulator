@@ -1,0 +1,47 @@
+  [PASS] 타당성 밴드가 정본(blackbox_collect.SOC_TEMP_PLAUSIBLE_C)과 일치
+  [PASS] 핫루프 내장 기본값이 정본 DEFAULTS 와 일치
+  [PASS] 버킷 상한은 sustain 의 2배(파생)
+  [PASS] 기본값은 하한 가드 통과
+  [PASS] 즉시선 <= 지속선 -> 거부
+  [PASS] 0 임계 -> 거부
+  [PASS] 비정수 -> 거부(핫루프는 정수 산술)
+  [PASS] stale <= poll -> 거부(GPU 축 영구 동결 방지)
+  [PASS] 59 폴 고전력 -> 아직 미발동(경계 아래)
+  [PASS] 60 폴 고전력 -> TRIP(rule=gpu_pwr_sustained)
+  [PASS] ★음성대조: 100.8W 10초 버스트 -> 미발동
+  [PASS] 버스트 종료 후 버킷 배출
+  [PASS] 80.0W 경계는 고부하(>=)
+  [PASS] 79.9W 는 고부하 아님
+  [PASS] dropout 진동에도 지속으로 인식(연속 스트릭이었으면 미발동)
+  [PASS] 45W 1시간 -> 미발동
+  [PASS] SoC 96도(warn 미만) 29폴 -> 미발동
+  [PASS] SoC 97도(warn 이상) 30폴 -> TRIP(soc_temp_sustained)
+  [PASS] SoC 99도(hard 이상) 3폴 -> 즉시계층 TRIP(soc_hard_ceiling)
+  [PASS] SoC 즉시계층은 연속이어야 한다(끊기면 스트릭 리셋)
+  [PASS] SoC 평시(47도) -> 미발동
+  [PASS] 양축 부재 -> 버킷 불변(0 취급 금지)
+  [PASS] stale -> GPU 버킷 동결(더하지도 빼지도 않는다)
+  [PASS] 부재로 바뀌어도 축적분이 사라지지 않는다(조용한 무장해제 금지)
+  [PASS] 한 축만 차도 TRIP(축 독립)
+  [PASS] emit: 데시와트 정수 경계
+  [PASS] emit: 파생 버킷 상한
+  [PASS] emit: 모든 파라미터에 출처 주석
+  [PASS] emit: 센서 타당성 밴드 동봉(핫루프가 잡음을 먹지 않게)
+  [PASS] emit: 미교정 목록을 데이터로 실어 본다(2026-09-09 전수 교정 — 빈 목록이 정답)
+  [PASS] emit: GPU 온도가 축이 아님을 상수파일이 밝힌다
+  [PASS] emit: 기본은 GPU 전력 축 무장
+  [PASS] emit: 보정 밖 GPU(RTX 5090) → GPU 전력 축 비무장 + 사유 기재
+  [PASS] gpu_axis: GB10 = 보정 무장
+  [PASS] gpu_axis: 미상 GPU = 종전 무장(fail-safe)
+  [PASS] gpu_axis: 보정 밖 + 사람 선언 = 무장
+  [PASS] emit: 원자적 교체(임시파일 잔재 없음)
+  [PASS] 재생: 사건 축약본 -> kill 발생
+  [PASS] 재생: 첫 kill 이 60 폴째(트립레벨)
+  [PASS] 재생: 규칙 라벨 보존
+  [PASS] 재생: SoC 축이 평가됐음을 표기
+  [PASS] ★음성대조 재생: 반복 순간버스트 -> kill 0회
+  [PASS] 음성대조 버킷 최고치가 트립레벨의 절반 이하
+  [PASS] 옛 스키마: SoC 축 미평가를 정직 표기(안전의 증거가 아니다)
+  [PASS] 드리프트 파일: 재헤더 뒤 SoC 열을 올바로 읽는다
+  [PASS] 판독 불가 경로 -> None(조용한 빈 결과 금지)
+self-test: PASS (46 케이스)

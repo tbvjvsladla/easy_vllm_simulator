@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "NARRATIVE_TARGET_NOT_SCAFFOLDED": "no scaffolded 'plan' document for this topic -- run `init` first"
+  },
+  "ok": false,
+  "reason_codes": [
+    "NARRATIVE_TARGET_NOT_SCAFFOLDED"
+  ],
+  "schema_version": 1
+}

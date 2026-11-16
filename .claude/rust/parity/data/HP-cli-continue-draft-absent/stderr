@@ -1,0 +1,2 @@
+[hint] FAIL HINT_DRAFT_ABSENT: hints/.drafts/ 에 캠페인 camp-x 셀 zz 의 draft 가 없다.
+  → `hint.py publish --campaign camp-x --cell zz --generated-utc <UTC>` 를 먼저 실행한다.

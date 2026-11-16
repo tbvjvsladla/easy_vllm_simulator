@@ -1,0 +1,104 @@
+{
+  "certificate": {
+    "benchmark_mode": "lite",
+    "duplicates": [],
+    "floor_tps": null,
+    "grade": "lite",
+    "identity": {
+      "gpu": "NVIDIA GB10",
+      "model": "m",
+      "quant": "nvfp4",
+      "topology": "single",
+      "tp": "1",
+      "vllm": "0.31.0"
+    },
+    "identity_match": true,
+    "lite_contract_ok": true,
+    "lite_verdict": "pass",
+    "parsed": true,
+    "path": "bench/benchmark_lite.yaml",
+    "primary_source": null,
+    "ratio_M_over_primary": null,
+    "rubric_authority": null,
+    "rubric_contract_ok": false,
+    "run_key": [
+      "m",
+      "NVIDIA GB10",
+      "0.31.0",
+      "nvfp4",
+      "single",
+      "1",
+      "2026-11-16T02:00:00Z"
+    ],
+    "verdict": "not_applicable"
+  },
+  "checked_evidence": {
+    "certificate": {
+      "exists": true,
+      "identity_checked": true,
+      "identity_match": true,
+      "path": "bench/benchmark_lite.yaml",
+      "required": false,
+      "sha256": "177d2f66101aaf8645a5f64a7fe3178bf76eb97e6feb5bd9f55c75e6ba4a3f48",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "devlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/devlog.md",
+      "required": true,
+      "sha256": "4842198b2c77f304e39154c10ca3b3651c2af556f82987a2eed201c131a9ee55",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "plan": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/plan.md",
+      "required": true,
+      "sha256": "82e5adb594bd210b32af3c82fc563b881a942e8eb7fe0487b4e7ac29619c03ee",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "testlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "docs/testlog.md",
+      "required": true,
+      "sha256": "1344de4f31b5fe384e9748f7ce3c55e6e00bdf6e82a79d4023ce3121ed90dfc4",
+      "tree_sha256": null,
+      "type": "file"
+    }
+  },
+  "eligible_for_promotion": true,
+  "exit_code": 0,
+  "identity": {
+    "gpu": "NVIDIA GB10",
+    "model": "m",
+    "quant": "nvfp4",
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.31.0"
+  },
+  "messages": {
+    "HINT_MAP_ONLY_PROMOTION": "task_class='hint_map_only' → 지도 발행 통로. mode='lite' verdict='REFUTE' 는 **관측으로 게재**되며 baseline 승격은 막혀 있다. §3·§4 구성 사실은 hint-publisher hintlib.artifacts 의 면제불가 3슬롯이 그대로 집행하고, 본문 OBSERVATION-ONLY 마커는 hintlib.template 린트(00-hint.md)가 집행한다."
+  },
+  "reason_codes": [
+    "HINT_MAP_ONLY_PROMOTION"
+  ],
+  "rubric": {
+    "authority": null,
+    "authority_source": "certificate",
+    "contract_ok": false,
+    "floor_tps": null,
+    "primary_source": null,
+    "ratio_M_over_primary": null
+  },
+  "schema_version": 1,
+  "state": "promotion-ready",
+  "task_class": "hint_map_only"
+}

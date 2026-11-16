@@ -1,0 +1,28 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 3,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x' superseded status must name the deprecating version as SUPERSEDED@<major.minor.patch> -- a bare marker must not hide an active candidate",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x.status",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_STATUS_INVALID"
+    },
+    {
+      "clause_id": null,
+      "message": "active variant 'deepseek-v4-flash-sm12x' lacks VALIDATED status",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x.status",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_ACTIVE_NOT_VALIDATED"
+    },
+    {
+      "clause_id": null,
+      "message": "active variant 'deepseek-v4-flash-sm12x' requires existing-model regression re-smoke evidence",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x.regression_evidence",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_REGRESSION_EVIDENCE_MISSING"
+    }
+  ]
+}

@@ -92,7 +92,7 @@ fn a_campaign_without_the_schema_engine_names_what_is_missing() {
     };
     let status = sweep_stop::campaign_validator::run_request(&Ctx { root }, &request, &mut Sinks { out: &mut out, err: &mut err }).unwrap();
     assert_eq!(status, 1);
-    assert!(String::from_utf8(err).unwrap().contains("FAIL 스키마 엔진이 없다: .claude/policies/runtime/completion_gate.py"));
+    assert!(String::from_utf8(err).unwrap().contains("FAIL 스키마 엔진이 없다: .claude/policies/runtime/completion_gate.sh"));
 }
 
 #[test]

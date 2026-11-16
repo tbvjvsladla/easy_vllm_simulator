@@ -1,0 +1,16 @@
+{
+  "certificate": null,
+  "checked_evidence": {},
+  "eligible_for_promotion": false,
+  "exit_code": 2,
+  "identity": null,
+  "messages": {
+    "CLI_USAGE_ERROR": "invalid command-line invocation: unrecognized arguments: extra"
+  },
+  "reason_codes": [
+    "CLI_USAGE_ERROR"
+  ],
+  "schema_version": 1,
+  "state": null,
+  "task_class": null
+}

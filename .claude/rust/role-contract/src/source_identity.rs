@@ -4,8 +4,9 @@
 //! The native predicate and campaign read side are the semantics of the *reviewed current* sources. A checkout whose copy of
 //! either program is different (a modified owner, a campaign module that raises, does not parse, is empty or exits) is a
 //! different program; its behavior is not a native answer. This module only decides which side of that line a source is on:
-//! the bytes of the checkout's file are compared with the compile-time bytes of the **existing canonical originals** at their
-//! canonical relative paths (no second copy, no digest, nothing parsed to guess a Python behavior).
+//! the bytes of the checkout's file are compared with the compile-time bytes of the **reviewed originals frozen in this crate**
+//! (`reviewed/*.py.golden`: byte copies of the reviewed sources, committed so the crate builds with every original `.py` absent;
+//! no digest, nothing parsed to guess a Python behavior). The Rust programs never run them: they are comparison data only.
 //!
 //! A source that is absent is not a different program (the original treats a missing campaign module as an absent leg and
 //! a missing owner is its caller's concern); an unreadable one is neither identical nor known to differ and is reported as
@@ -14,22 +15,13 @@
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
-/// Bytes of the canonical `topology_parity.py` (`.claude/policies/runtime/topology_parity.py`).
-pub const REVIEWED_OWNER: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../policies/runtime/topology_parity.py"
-));
-/// Bytes of the canonical `campaign_init.py` (`.claude/skills/terraforming_node/scripts/campaign_init.py`).
-pub const REVIEWED_CAMPAIGN: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../skills/terraforming_node/scripts/campaign_init.py"
-));
-/// Bytes of the reviewed ORIGINAL `manifest_contract.py` (e84fa13c...), kept unchanged as the sibling compat owner
-/// (`.claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py`): `manifest_contract.py` itself is now the thin import adapter.
-pub const REVIEWED_MANIFEST_CONTRACT: &[u8] = include_bytes!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../../skills/terraforming_node/scripts/manifest_contract_compat_owner.py"
-));
+/// Bytes of the reviewed `topology_parity.py` (frozen copy of `.claude/policies/runtime/topology_parity.py`).
+pub const REVIEWED_OWNER: &[u8] = include_bytes!("../reviewed/topology_parity.py.golden");
+/// Bytes of the reviewed `campaign_init.py` (frozen copy of `.claude/skills/terraforming_node/scripts/campaign_init.py`).
+pub const REVIEWED_CAMPAIGN: &[u8] = include_bytes!("../reviewed/campaign_init.py.golden");
+/// Bytes of the reviewed ORIGINAL `manifest_contract.py` (e84fa13c..., frozen copy of the sibling
+/// `.claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py`).
+pub const REVIEWED_MANIFEST_CONTRACT: &[u8] = include_bytes!("../reviewed/manifest_contract.py.golden");
 /// The owner path relative to a checkout.
 pub const OWNER_REL: &str = ".claude/policies/runtime/topology_parity.py";
 

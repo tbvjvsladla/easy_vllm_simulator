@@ -15,9 +15,9 @@
 //! * the program's own self-test, which must reproduce the original's transcript by really evaluating its checks,
 //!   and must fail (not pass) with a missing schema or a missing owner source.
 //!
-//! The pending Python owner `campaign_init.py` is reached through the query adapter. The checks read where the
-//! real repository and adapter can be given by `REPEAT_AXIS_REPO_ROOT` / `REPEAT_AXIS_CAMPAIGN_ADAPTER`.
-//! Otherwise the installed owner layout supplies their paths. Missing actual files fail the check; no oracle is skipped.
+//! The campaign owner is answered natively (no Python adapter, no interpreter). The real repository can be given by
+//! `REPEAT_AXIS_REPO_ROOT`; otherwise the installed owner layout supplies it. Missing actual files fail the check.
+//! Every comparison is with committed goldens recorded from the originals; no Python program runs.
 
 #[path = "common.rs"]
 mod common;
@@ -33,7 +33,8 @@ use sweep_stop::pyvalue::{PyDict, PyValue};
 const API: &str = env!("CARGO_BIN_EXE_repeat_axis_api");
 const CLI: &str = env!("CARGO_BIN_EXE_repeat_axis");
 const TRACEBACK: &str = "Traceback (most recent call last):\n";
-const OWNER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py";
+/// The campaign owner is its native launcher (the retired campaign_init.py may be absent).
+const OWNER_REL: &str = ".claude/skills/terraforming_node/scripts/campaign_init.sh";
 const SCHEMA_REL: &str = "campaigns/_template/campaign.schema.json";
 
 // ── environment ─────────────────────────────────────────────────────────────────
@@ -50,24 +51,10 @@ fn real_repo() -> PathBuf {
         });
     assert!(
         repo.join(OWNER_REL).is_file(),
-        "NOT_RUN: no campaign_init.py under {}",
+        "NOT_RUN: no campaign_init.sh under {}",
         repo.display()
     );
     repo
-}
-
-fn adapter() -> PathBuf {
-    let adapter = std::env::var_os("REPEAT_AXIS_CAMPAIGN_ADAPTER")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            Path::new(env!("CARGO_MANIFEST_DIR")).join("../scripts/repeat_axis_owner_query.py")
-        });
-    assert!(
-        adapter.is_file(),
-        "NOT_RUN: adapter missing: {}",
-        adapter.display()
-    );
-    adapter
 }
 
 struct Scratch(PathBuf);
@@ -222,10 +209,6 @@ fn run(
     let mut child = command(bin, columns, argv)
         .current_dir(cwd)
         .env("REPEAT_AXIS_REPO_ROOT", repo)
-        // the DEFAULT public configuration: no user-set adapter or interpreter, only the wrapper's default location
-        .env_remove("REPEAT_AXIS_CAMPAIGN_ADAPTER")
-        .env_remove("REPEAT_AXIS_PYTHON")
-        .env("REPEAT_AXIS_COMPAT_ADAPTER", adapter())
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
@@ -482,56 +465,6 @@ fn argparse_edge_cases_match_the_original() {
     assert_eq!(count, 454);
 }
 
-// ── owner boundary: import errors, missing or odd attributes, raising functions ─
-
-#[test]
-fn owner_variants_behave_as_the_original_importing_them() {
-    let raw =
-        std::fs::read_to_string(data_path("repeat_axis/owner_variant_goldens.jsonl")).unwrap();
-    let mut count = 0;
-    for line in raw.lines() {
-        let row = loads(line).unwrap();
-        let row = as_dict(&row);
-        let scratch = Scratch::new("variant");
-        let owner = scratch.0.join(OWNER_REL);
-        std::fs::create_dir_all(owner.parent().unwrap()).unwrap();
-        std::fs::write(&owner, text(row.get("owner_source"))).unwrap();
-        for (relative, encoded) in as_dict(row.get("files").unwrap()).iter() {
-            let path = scratch.0.join(relative.to_utf8().unwrap());
-            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-            std::fs::write(path, base64_decode(&text(Some(encoded)))).unwrap();
-        }
-        let argv: Vec<String> = match row.get("argv") {
-            Some(PyValue::List(items)) => items.iter().map(|item| text(Some(item))).collect(),
-            _ => panic!("argv"),
-        };
-        let label = format!(
-            "{} {:?}",
-            text(row.get("variant")),
-            &argv[..3.min(argv.len())]
-        );
-        let outcome = run(CLI, &argv, &scratch.0, None, &scratch.0, None);
-        let root = scratch.0.to_string_lossy().to_string();
-        assert_eq!(
-            String::from_utf8_lossy(&outcome.stdout).replace(&root, "@ROOT@"),
-            text(row.get("stdout")),
-            "{label}: stdout"
-        );
-        assert_eq!(
-            stderr_projection(&outcome.stderr).replace(&root, "@ROOT@"),
-            text(row.get("stderr")),
-            "{label}: stderr"
-        );
-        let expected = match row.get("exit_code") {
-            Some(PyValue::Int(code)) => code.to_string(),
-            other => panic!("{other:?}"),
-        };
-        assert_eq!(outcome.code.to_string(), expected, "{label}: exit");
-        count += 1;
-    }
-    assert_eq!(count, 60);
-}
-
 // ── constants ───────────────────────────────────────────────────────────────────
 
 #[test]
@@ -638,43 +571,45 @@ fn self_test_fails_when_the_owner_source_is_missing() {
         last.starts_with("FileNotFoundError: [Errno 2] No such file or directory: '"),
         "{last}"
     );
-    assert!(last.ends_with("campaign_init.py'"), "{last}");
+    assert!(last.ends_with("campaign_init.sh'"), "{last}");
 }
 
-// ── no original fallback; the pending owner is reported by name ─────────────────
+// ── no Python route; an installed resolver always answers natively ─────────────
 
 #[test]
-fn an_unreachable_owner_is_a_named_failure_and_never_the_original_script() {
+fn a_different_owner_program_is_answered_natively_and_python_settings_are_ignored() {
     let root = owner_root("noadapter");
-    // A different program (the reviewed owner would now answer natively without any adapter): it exists but, with no
-    // adapter configured anywhere, it cannot be asked.
+    // A different program: there is no adapter any more; the installed resolver answers natively.
     std::fs::write(root.0.join(OWNER_REL), b"# a different program\n").unwrap();
     let argv: Vec<String> = ["resolve", "--preset-default", "3", "--preset-source", "p"]
         .map(String::from)
         .to_vec();
-    let mut command = command(CLI, None, &argv);
-    let output = command
+    let reference = command_plain(&owner_root("noadapter_ref").0, &argv);
+    assert_eq!(reference.status.code(), Some(0));
+    let output = command_plain(&root.0, &argv);
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(output.stdout, reference.stdout);
+    // The former adapter and interpreter settings are not read: a broken interpreter changes nothing.
+    let output = command(CLI, None, &argv)
         .current_dir(&root.0)
         .env("REPEAT_AXIS_REPO_ROOT", &root.0)
-        .env_remove("REPEAT_AXIS_CAMPAIGN_ADAPTER")
+        .env(
+            "REPEAT_AXIS_CAMPAIGN_ADAPTER",
+            root.0.join("no-such-adapter"),
+        )
+        .env("REPEAT_AXIS_PYTHON", root.0.join("no-such-interpreter"))
         .output()
         .unwrap();
-    assert_eq!(output.status.code(), Some(1));
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(
-        stderr.contains("CampaignOwnerAdapterError: the campaign_init owner exists at"),
-        "{stderr}"
-    );
-    assert!(stderr.contains("REPEAT_AXIS_CAMPAIGN_ADAPTER"), "{stderr}");
-    assert!(output.stdout.is_empty());
-    // A configured adapter that cannot start is reported too.
-    let output = command_with_broken_interpreter(&root.0, &argv);
-    assert_eq!(output.status.code(), Some(1));
-    assert!(String::from_utf8_lossy(&output.stderr)
-        .contains("CampaignOwnerAdapterError: cannot start the campaign owner adapter"));
-    // No owner file: the original's loud substitution needs no adapter at all.
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(output.stdout, reference.stdout);
+    // No owner file and no launcher: the original's loud substitution.
     let empty = Scratch::new("emptyroot");
-    let output = command_without_adapter(&empty.0, &argv);
+    let output = command_plain(&empty.0, &argv);
     assert_eq!(
         output.status.code(),
         Some(0),
@@ -687,21 +622,10 @@ fn an_unreachable_owner_is_a_named_failure_and_never_the_original_script() {
     );
 }
 
-fn command_with_broken_interpreter(root: &Path, argv: &[String]) -> std::process::Output {
+fn command_plain(root: &Path, argv: &[String]) -> std::process::Output {
     command(CLI, None, argv)
         .current_dir(root)
         .env("REPEAT_AXIS_REPO_ROOT", root)
-        .env("REPEAT_AXIS_CAMPAIGN_ADAPTER", adapter())
-        .env("REPEAT_AXIS_PYTHON", root.join("no-such-interpreter"))
-        .output()
-        .unwrap()
-}
-
-fn command_without_adapter(root: &Path, argv: &[String]) -> std::process::Output {
-    command(CLI, None, argv)
-        .current_dir(root)
-        .env("REPEAT_AXIS_REPO_ROOT", root)
-        .env_remove("REPEAT_AXIS_CAMPAIGN_ADAPTER")
         .output()
         .unwrap()
 }
@@ -728,15 +652,15 @@ fn a_missing_repository_root_is_a_named_refusal_only_where_it_is_needed() {
         .contains("RepeatAxisConfigurationError: the repository root is not configured"));
 }
 
-// ── R44: default routing of the campaign owner (own synthetic fixtures; not Root's recorded matrices) ─────────────────────
+// ── R44: routing of the campaign owner (own synthetic fixtures) ─────────────────
 
 mod r44_routes {
-    use super::{adapter, command, owner_root, Scratch, CLI, OWNER_REL};
+    use super::{command, data_path, owner_root, Scratch, CLI, OWNER_REL};
     use std::path::Path;
     use std::process::Command;
     use sweep_stop::pystr::PyStr;
     use sweep_stop::pyvalue::{PyDict, PyValue};
-    use sweep_stop::repeat_owner::{CampaignOwner, ConfiguredCampaignOwner, PythonCampaignOwner};
+    use sweep_stop::repeat_owner::{CampaignOwner, ConfiguredCampaignOwner};
 
     fn argv() -> Vec<String> {
         ["resolve", "--preset-default", "3", "--preset-source", "p"]
@@ -744,8 +668,7 @@ mod r44_routes {
             .to_vec()
     }
 
-    /// One CLI run in the default public configuration (only the wrapper's default adapter location) with a route observer;
-    /// `configure` may add user intent.
+    /// One CLI run with a route observer; `configure` may add settings.
     fn observed(
         root: &Path,
         configure: impl FnOnce(&mut Command),
@@ -755,9 +678,6 @@ mod r44_routes {
         let mut cmd = command(CLI, None, &argv());
         cmd.current_dir(root)
             .env("REPEAT_AXIS_REPO_ROOT", root)
-            .env_remove("REPEAT_AXIS_CAMPAIGN_ADAPTER")
-            .env_remove("REPEAT_AXIS_PYTHON")
-            .env("REPEAT_AXIS_COMPAT_ADAPTER", adapter())
             .env("REPEAT_AXIS_ROUTE_OBSERVER", &observer);
         configure(&mut cmd);
         let output = cmd.output().unwrap();
@@ -769,8 +689,14 @@ mod r44_routes {
         (output, lines)
     }
 
+    fn is_native(line: &str) -> bool {
+        line.contains("\"route\": \"NativeCurrentSource\"")
+            && line.contains("\"python_child\": false")
+            && line.contains("\"child_pid\": null")
+    }
+
     #[test]
-    fn the_default_run_of_the_reviewed_owner_is_native_and_answers_what_the_adapter_answers() {
+    fn the_default_run_is_native_and_former_python_settings_change_nothing() {
         let root = owner_root("r44_native");
         let (native, native_lines) = observed(&root.0, |_| {});
         assert_eq!(
@@ -784,69 +710,38 @@ mod r44_routes {
             1,
             "one open, one line: {native_lines:?}"
         );
-        let line = &native_lines[0];
         assert!(
-            line.contains("\"route\": \"NativeCurrentSource\"")
-                && line.contains("\"python_child\": false")
-                && line.contains("\"child_pid\": null")
-                && line.contains("\"opened\": true"),
-            "{line}"
+            is_native(&native_lines[0]) && native_lines[0].contains("\"opened\": true"),
+            "{native_lines:?}"
         );
-        // user intent: the explicit adapter runs the same file through Python and answers byte for byte the same
-        let (explicit, explicit_lines) = observed(&root.0, |cmd| {
-            cmd.env("REPEAT_AXIS_CAMPAIGN_ADAPTER", adapter());
-        });
-        assert!(
-            explicit_lines[0].contains("\"route\": \"LegacyExplicit\"")
-                && !explicit_lines[0].contains("\"child_pid\": null"),
-            "{explicit_lines:?}"
-        );
-        assert_eq!(native.stdout, explicit.stdout);
-        // an explicit interpreter ALONE is explicit intent too (the default adapter location runs under it)
-        let (python_only, python_lines) = observed(&root.0, |cmd| {
-            cmd.env("REPEAT_AXIS_PYTHON", "python3");
-        });
-        assert!(
-            python_lines[0].contains("\"route\": \"LegacyExplicit\""),
-            "{python_lines:?}"
-        );
-        assert_eq!(native.stdout, python_only.stdout);
+        for (name, value) in [
+            ("REPEAT_AXIS_CAMPAIGN_ADAPTER", "/no/such/adapter.py"),
+            ("REPEAT_AXIS_PYTHON", "python3"),
+            ("REPEAT_AXIS_PYTHON", ""),
+            ("REPEAT_AXIS_COMPAT_ADAPTER", "/no/such/adapter.py"),
+        ] {
+            let (output, lines) = observed(&root.0, |cmd| {
+                cmd.env(name, value);
+            });
+            assert_eq!(output.status.code(), Some(0), "{name}={value:?}");
+            assert!(is_native(&lines[0]), "{name}={value:?}: {lines:?}");
+            assert_eq!(native.stdout, output.stdout, "{name}={value:?}");
+        }
     }
 
     #[test]
-    fn an_empty_explicit_interpreter_keeps_its_existing_failure() {
-        let root = owner_root("r44_emptypy");
-        let (output, lines) = observed(&root.0, |cmd| {
-            cmd.env("REPEAT_AXIS_PYTHON", "");
-        });
-        assert_eq!(output.status.code(), Some(1));
-        assert!(String::from_utf8_lossy(&output.stderr)
-            .contains("CampaignOwnerAdapterError: cannot start the campaign owner adapter"));
-        assert!(
-            lines[0].contains("\"route\": \"LegacyExplicit\"")
-                && lines[0].contains("\"opened\": false"),
-            "{lines:?}"
-        );
-    }
-
-    #[test]
-    fn a_different_or_unreadable_owner_runs_the_default_compat_adapter_and_bytes_decide() {
+    fn a_different_or_unreadable_owner_is_answered_natively() {
         let canonical = std::fs::read(super::real_repo().join(OWNER_REL)).unwrap();
-        let mut variants: Vec<(&str, Vec<u8>)> = Vec::new();
         let mut commented = canonical.clone();
         commented.extend_from_slice(b"\n# one more byte of comment\n");
-        variants.push(("comment", commented));
-        let text = String::from_utf8(canonical.clone()).unwrap();
-        variants.push((
-            "bootstrap",
-            text.replace("BOOTSTRAP = \"_bootstrap\"", "BOOTSTRAP = \"_boot2\"")
-                .into_bytes(),
-        ));
         let reference = {
             let root = owner_root("r44_ref");
             observed(&root.0, |_| {}).0.stdout
         };
-        for (tag, bytes) in variants {
+        for (tag, bytes) in [
+            ("comment", commented),
+            ("other", b"raise SystemExit(9)\n".to_vec()),
+        ] {
             let root = owner_root(&format!("r44_variant_{tag}"));
             std::fs::write(root.0.join(OWNER_REL), bytes).unwrap();
             let (output, lines) = observed(&root.0, |_| {});
@@ -856,42 +751,19 @@ mod r44_routes {
                 "{tag}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
-            assert!(
-                lines[0].contains("\"route\": \"LegacySourceVariant\"")
-                    && lines[0].contains("\"python_child\": true")
-                    && !lines[0].contains("\"child_pid\": null"),
-                "{tag}: {lines:?}"
-            );
-            if tag == "comment" {
-                assert_eq!(
-                    output.stdout, reference,
-                    "same apparent semantics, now answered by Python"
-                );
-            }
+            assert!(is_native(&lines[0]), "{tag}: {lines:?}");
+            assert_eq!(output.stdout, reference, "{tag}");
         }
-        // unreadable (mode 000, uid != 0): stat succeeds, the bytes cannot be read => identity unknown => legacy compat
+        // unreadable (mode 000, uid != 0): the owner's bytes are never read, so it answers natively too
         if !is_root() {
             use std::os::unix::fs::PermissionsExt;
             let root = owner_root("r44_unreadable");
             let owner = root.0.join(OWNER_REL);
             std::fs::set_permissions(&owner, std::fs::Permissions::from_mode(0o000)).unwrap();
             let (output, lines) = observed(&root.0, |_| {});
-            assert!(
-                lines[0].contains("\"route\": \"LegacySourceVariant\"")
-                    && lines[0].contains("cannot be read"),
-                "{lines:?}"
-            );
-            assert_eq!(
-                output.status.code(),
-                Some(1),
-                "{}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-            assert!(
-                String::from_utf8_lossy(&output.stderr).contains("PermissionError"),
-                "{}",
-                String::from_utf8_lossy(&output.stderr)
-            );
+            assert!(is_native(&lines[0]), "{lines:?}");
+            assert_eq!(output.status.code(), Some(0));
+            assert_eq!(output.stdout, reference);
         }
     }
 
@@ -904,7 +776,7 @@ mod r44_routes {
     }
 
     #[test]
-    fn an_absent_owner_is_decided_by_the_old_file_check_and_opens_no_program() {
+    fn an_absent_owner_is_decided_by_the_file_checks_and_opens_nothing() {
         let empty = Scratch::new("r44_absent");
         let (output, lines) = observed(&empty.0, |_| {});
         assert_eq!(output.status.code(), Some(0));
@@ -925,6 +797,16 @@ mod r44_routes {
         let (output, lines) = observed(&blocked.0, |_| {});
         assert_eq!(output.status.code(), Some(0));
         assert!(lines[0].contains("\"route\": \"Absent\""), "{lines:?}");
+        // the launcher alone also means the resolver is installed (a checkout whose owner program was retired)
+        let launcher_only = Scratch::new("r44_launcher_only");
+        let launcher = launcher_only
+            .0
+            .join(sweep_stop::repeat_owner::CAMPAIGN_LAUNCHER_REL);
+        std::fs::create_dir_all(launcher.parent().unwrap()).unwrap();
+        std::fs::write(&launcher, b"#!/bin/bash\n").unwrap();
+        let (output, lines) = observed(&launcher_only.0, |_| {});
+        assert_eq!(output.status.code(), Some(0));
+        assert!(is_native(&lines[0]), "{lines:?}");
     }
 
     #[test]
@@ -935,8 +817,6 @@ mod r44_routes {
         let output = cmd
             .current_dir(&root.0)
             .env("REPEAT_AXIS_REPO_ROOT", &root.0)
-            .env_remove("REPEAT_AXIS_CAMPAIGN_ADAPTER")
-            .env_remove("REPEAT_AXIS_PYTHON")
             .env("REPEAT_AXIS_ROUTE_OBSERVER", root.0.join("route.jsonl"))
             .output()
             .unwrap();
@@ -944,22 +824,39 @@ mod r44_routes {
         assert!(String::from_utf8_lossy(&output.stderr).contains("CampaignRouteObserverError"));
     }
 
-    // ---- Native against the live adapter, on own fixtures: every answer and every failure must be equal -----------------
+    // ---- Native against the recorded answers of the former Python adapter, on own fixtures -------------------------------
+    //
+    // `repeat_axis/r44_native_goldens.jsonl` holds, per fixture, every answer and failure one session gives. It was
+    // captured from the native session at a commit whose own check asserted it equal, answer for answer, to the live
+    // Python query adapter over the reviewed campaign_init.py (2026-11-16); fixture roots are spelled `@ROOT@`.
+    // `REPEAT_AXIS_WRITE_GOLDENS=1` rewrites it (a deliberate, reviewed act).
 
-    fn native_owner() -> ConfiguredCampaignOwner {
-        ConfiguredCampaignOwner::new(None, PythonCampaignOwner::new("python3", None))
-    }
-
-    fn adapter_owner() -> PythonCampaignOwner {
-        PythonCampaignOwner::new("python3", Some(adapter().into_os_string()))
-    }
-
-    fn show(value: &PyValue) -> String {
+    fn show(value: &PyValue, roots: &[String]) -> String {
         match value.peel() {
-            PyValue::Str(text) => format!("s{:?}", text.code_points()),
-            PyValue::List(items) => {
-                format!("[{}]", items.iter().map(show).collect::<Vec<_>>().join(","))
+            PyValue::Str(text) => {
+                // a lone surrogate is spelled `<U+XXXX>` so the rest of the text (a fixture root) stays comparable
+                let spelled: String = text
+                    .code_points()
+                    .iter()
+                    .map(|&point| {
+                        char::from_u32(point)
+                            .map_or_else(|| format!("<U+{point:04X}>"), String::from)
+                    })
+                    .collect();
+                let mut shown = format!("s{spelled:?}");
+                for root in roots {
+                    shown = shown.replace(root.as_str(), "@ROOT@");
+                }
+                shown
             }
+            PyValue::List(items) => format!(
+                "[{}]",
+                items
+                    .iter()
+                    .map(|item| show(item, roots))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            ),
             other => format!("<{}>", other.type_name()),
         }
     }
@@ -992,25 +889,34 @@ mod r44_routes {
         ]
     }
 
-    /// Everything one session can be asked, rendered comparably.
-    fn observe(owner: &dyn CampaignOwner, repo: &Path) -> Vec<String> {
+    /// Everything one session can be asked, rendered comparably (fixture roots spelled `@ROOT@`).
+    fn observe(owner: &dyn CampaignOwner, repo: &Path, roots: &[String]) -> Vec<String> {
         let repo =
             PyStr::from_surrogateescape(std::os::unix::ffi::OsStrExt::as_bytes(repo.as_os_str()));
         let mut seen = Vec::new();
+        let hide = |text: String| {
+            roots
+                .iter()
+                .fold(text, |text, root| text.replace(root.as_str(), "@ROOT@"))
+        };
         let mut session = match owner.open(&repo) {
             Ok(Some(session)) => session,
             Ok(None) => return vec!["absent".into()],
             Err(failure) => {
-                return vec![format!(
-                    "open-failed {} {:?}",
+                return vec![hide(format!(
+                    "open-failed {} {}",
                     failure.class,
-                    failure.message.code_points()
-                )]
+                    failure.message.to_utf8().unwrap_or_default()
+                ))]
             }
         };
         let note = |r: Result<PyValue, sweep_stop::guidellm::Failure>| match r {
-            Ok(value) => format!("ok {}", show(&value)),
-            Err(failure) => format!("err {} {:?}", failure.class, failure.message.code_points()),
+            Ok(value) => format!("ok {}", show(&value, roots)),
+            Err(failure) => hide(format!(
+                "err {} {}",
+                failure.class,
+                failure.message.to_utf8().unwrap_or_default()
+            )),
         };
         seen.push(note(session.active_campaign_id()));
         seen.push(note(session.bootstrap_id()));
@@ -1033,8 +939,13 @@ mod r44_routes {
         root
     }
 
+    fn root_text(path: &Path) -> String {
+        let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+        canonical.to_string_lossy().into_owned()
+    }
+
     #[test]
-    fn native_and_the_live_adapter_answer_every_question_and_failure_alike() {
+    fn native_answers_every_question_and_failure_as_the_former_adapter_did() {
         use std::os::unix::fs::PermissionsExt;
         let mut fixtures: Vec<(&str, Scratch)> = vec![
             ("plain", fixture("r44d_plain", None, &[])),
@@ -1081,25 +992,64 @@ mod r44_routes {
         std::os::unix::fs::symlink(&real.0, &alias).unwrap();
         let other = fixture("r44d_other", Some(b"camp-target\n"), &["camp-target"]);
         let caller = fixture("r44d_caller", Some(b"camp-caller\n"), &["camp-caller"]);
-        std::fs::remove_file(caller.0.join(OWNER_REL)).unwrap();
-        std::os::unix::fs::symlink(other.0.join(OWNER_REL), caller.0.join(OWNER_REL)).unwrap();
-        let mut compared = 0;
-        let mut check = |label: &str, repo: &Path| {
-            // the Native route needs the reviewed bytes: through a link they are the linked file's, which is the same file
-            let native = observe(&native_owner(), repo);
-            let legacy = observe(&adapter_owner(), repo);
-            assert_eq!(native, legacy, "{label}");
-            assert!(
-                native.len() > 3 || native[0].starts_with("open-failed"),
-                "{label}: {native:?}"
-            );
-            compared += 1;
-        };
+        // the module path the owner is read through (`campaign_init.py` beside the launcher) is a symlink into the other root
+        let module = caller.0.join(".claude/skills/terraforming_node/scripts/campaign_init.py");
+        let _ = std::fs::remove_file(&module);
+        std::os::unix::fs::symlink(other.0.join(OWNER_REL), &module).unwrap();
+        let mut rows: Vec<(String, Vec<String>)> = Vec::new();
         for (label, scratch) in &fixtures {
-            check(label, &scratch.0);
+            let roots = vec![
+                root_text(&scratch.0),
+                scratch.0.to_string_lossy().into_owned(),
+            ];
+            rows.push((
+                label.to_string(),
+                observe(&ConfiguredCampaignOwner::new(), &scratch.0, &roots),
+            ));
         }
-        check("repo_symlink", &alias);
-        check("owner_symlink_to_other_root", &caller.0);
-        assert_eq!(compared, fixtures.len() + 2);
+        let alias_roots = vec![
+            root_text(&real.0),
+            alias.to_string_lossy().into_owned(),
+            real.0.to_string_lossy().into_owned(),
+        ];
+        rows.push((
+            "repo_symlink".into(),
+            observe(&ConfiguredCampaignOwner::new(), &alias, &alias_roots),
+        ));
+        let caller_roots = vec![
+            root_text(&other.0),
+            root_text(&caller.0),
+            other.0.to_string_lossy().into_owned(),
+            caller.0.to_string_lossy().into_owned(),
+        ];
+        rows.push((
+            "owner_symlink_to_other_root".into(),
+            observe(&ConfiguredCampaignOwner::new(), &caller.0, &caller_roots),
+        ));
+        let rendered: String = rows
+            .iter()
+            .map(|(label, seen)| {
+                let mut row = PyDict::new();
+                row.set("fixture", PyValue::str(label));
+                row.set(
+                    "answers",
+                    PyValue::List(seen.iter().map(|line| PyValue::str(line)).collect()),
+                );
+                PyValue::Dict(row).dumps_ascii().unwrap() + "\n"
+            })
+            .collect();
+        let golden = data_path("repeat_axis/r44_native_goldens.jsonl");
+        if std::env::var_os("REPEAT_AXIS_WRITE_GOLDENS").is_some_and(|value| value == "1") {
+            std::fs::write(&golden, &rendered).unwrap();
+        }
+        let expected = std::fs::read_to_string(&golden).expect("the recorded goldens");
+        // the mode-000 fixture is skipped as root; compare the rows both runs have
+        let expected: Vec<&str> = expected
+            .lines()
+            .filter(|line| !is_root() || !line.contains("\"active_mode000\""))
+            .collect();
+        let actual: Vec<&str> = rendered.lines().collect();
+        assert_eq!(actual, expected);
+        assert!(actual.len() >= 10);
     }
 }

@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_DOWNGRADE_REASON_UNKNOWN": "--downgrade-reason 'variance' is not a machine-event downgrade reason ['run_failed', 'blackbox_kill'] (variance is never a downgrade reason)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_DOWNGRADE_REASON_UNKNOWN"
+  ],
+  "schema_version": 1
+}

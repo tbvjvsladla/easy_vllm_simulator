@@ -3,7 +3,7 @@ use std::io::{stderr, stdin, stdout};
 use std::os::unix::ffi::OsStrExt;
 use std::process::ExitCode;
 use sweep_stop::cli::Streams;
-use sweep_stop::manifest_contract::{run, Environment, ExecLegacy};
+use sweep_stop::manifest_contract::{run, Environment};
 use sweep_stop::manifest_contract_bridge::{read_request, serve, BRIDGE_ENV};
 use sweep_stop::stdout::StdoutProfile;
 
@@ -44,7 +44,6 @@ fn main() -> ExitCode {
             &mut errors,
             StdoutProfile::of_process(),
         ),
-        &mut ExecLegacy,
         &mut role_contract::manifest_gate_cli::GitBranch::from_process(),
     );
     ExitCode::from(u8::try_from(status).unwrap_or(1))

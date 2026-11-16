@@ -1,0 +1,5 @@
+[regen] n → env.json
+        state=measured · samples=18 · 원시일=1 · rollup일=1 · 결손일=12
+        하강률 max=23313.5 p99=23313.5 p50=5.0 (정확백분위=False)
+        kill 지연 실측 max=5.0 p50=3.0 n=2 (window)
+        파생: runway=9.0s · 무조건-트립 경계=13845.6 MiB/s  ⚠ 관측 최대 하강률이 이 경계를 넘는다

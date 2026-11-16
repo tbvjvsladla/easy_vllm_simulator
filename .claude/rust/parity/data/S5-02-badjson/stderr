@@ -1,0 +1,3 @@
+Traceback (most recent call last):
+  (frames elided from the committed golden; normalization N06 compares the last line)
+json.decoder.JSONDecodeError: Expecting value: line 2 column 8 (char 9)

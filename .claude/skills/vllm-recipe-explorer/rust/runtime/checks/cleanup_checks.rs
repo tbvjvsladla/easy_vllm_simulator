@@ -1464,7 +1464,7 @@ mod contract_cases {
                 "expected_lookup",
             ] {
                 // The bins read the terminal width once (`COLUMNS`); the process runner reads the child's search path once (`PATH`, as
-                // `os.get_exec_path` does); the original's own hint text names `python3`.
+                // `os.get_exec_path` does). The dry-run hint names the launcher (`bash .../cleanup_docker.sh`), never `python3`.
                 let allowed = (forbidden == "env::var"
                     && name.starts_with("bin/")
                     && text.matches("env::var").count() == 1
@@ -1472,11 +1472,7 @@ mod contract_cases {
                     || (forbidden == "env::var"
                         && name == "cleanup_process.rs"
                         && text.matches("env::var").count() == 1
-                        && text.contains("env::var_os(\"PATH\")"))
-                    || (forbidden == "python3"
-                        && name == "cleanup_docker.rs"
-                        && text.matches("python3").count() == 1
-                        && text.contains("DRY-RUN 종료 — 표 검토 후: python3 .claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py"));
+                        && text.contains("env::var_os(\"PATH\")"));
                 if text.contains(forbidden) && !allowed {
                     found.push(format!("{name}: {forbidden}"));
                 }
@@ -2145,7 +2141,7 @@ mod new_cases {
         );
         assert!(output.stderr.is_empty());
         let want = format!(
-            "{}\n[cleanup] 현 사용량:\n  TYPE  TOTAL\n  Images  3\n\n[cleanup] 빌드캐시: 336h 미접근분 prune 대상 (docker builder prune --filter unused-for=336h)\n\n[cleanup] DRY-RUN 종료 — 표 검토 후: python3 .claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py --apply [--keep <ref>]\n",
+            "{}\n[cleanup] 현 사용량:\n  TYPE  TOTAL\n  Images  3\n\n[cleanup] 빌드캐시: 336h 미접근분 prune 대상 (docker builder prune --filter unused-for=336h)\n\n[cleanup] DRY-RUN 종료 — 표 검토 후: bash .claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.sh --apply [--keep <ref>]\n",
             keep_lines()
         );
         assert_eq!(String::from_utf8_lossy(&output.stdout), want);

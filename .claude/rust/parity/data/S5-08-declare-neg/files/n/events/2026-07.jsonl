@@ -1,0 +1,1 @@
+{"expected_load_s": 0, "kind": "budget_declare_rejected", "kv_mib": 30, "label": "unlabeled", "mem_total_mib": 100, "overhead_mib": 10, "reason": "--weights-mib 는 0 이상이어야 한다: -1", "source": "blackbox_session", "ts": "2026-07-31T00:02:30Z", "ttl_s": 7200, "weights_mib": -1}

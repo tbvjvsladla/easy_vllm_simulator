@@ -1,0 +1,1 @@
+[tripwire] FAIL topology parity RED (LAYER_HEADER_MISMATCH): LAYER_HEADER_MISMATCH: .claude/rules/strategy.topology.md 는 topology=multi 를 선언하는데 체크아웃 브랜치는 single-node(single) 다 -- 반대 브랜치의 특화 파일이 흘러들어왔다

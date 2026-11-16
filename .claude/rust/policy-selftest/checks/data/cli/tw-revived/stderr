@@ -1,0 +1,5 @@
+[tripwire] FAIL 제거한 안티패턴이 되돌아왔다(rc=3):
+[antipattern_scan] REVIVED G-A2-grade-table — .claude/skills/terraforming_node/scripts/turn_budget.py:1
+    GRADES = {"S": 1}
+    사유: 턴 예산 등급표 — 예산은 선언이다(G-A2)
+[antipattern_scan] ③ 에서 제거한 형태가 1건 되돌아왔다 — 우회하지 말고 고쳐라(D3).

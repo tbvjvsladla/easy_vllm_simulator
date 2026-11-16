@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_DOWNGRADE_MODE_CONTRADICTION": "a downgrade reclassifies the measurement to benchmark.mode='lite'; --benchmark-mode 'full' contradicts it"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_DOWNGRADE_MODE_CONTRADICTION"
+  ],
+  "schema_version": 1
+}

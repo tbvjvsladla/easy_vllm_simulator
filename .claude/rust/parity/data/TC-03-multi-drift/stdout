@@ -1,0 +1,22 @@
+{
+  "age_check": "skipped:no-now",
+  "age_days": null,
+  "drift_fields": [
+    "driver_version",
+    "gpus_per_node",
+    "interconnect.bandwidth_gbps",
+    "interconnect.gid_index",
+    "interconnect.hca_devices",
+    "interconnect.platform_preset",
+    "interconnect.socket_iface",
+    "interconnect.type"
+  ],
+  "hw_check": "evaluated",
+  "manifest_path": "r/output/multi/manifest.yaml",
+  "max_age_days": 90,
+  "notes": [],
+  "preflight_required": true,
+  "reasons": [
+    "HW_DRIFT"
+  ]
+}

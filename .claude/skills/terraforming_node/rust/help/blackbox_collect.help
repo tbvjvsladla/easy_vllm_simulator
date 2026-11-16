@@ -1,0 +1,14 @@
+usage: blackbox_collect.py [-h] [--node-dir NODE_DIR] [--interval INTERVAL]
+                           [--no-kmsg] [--no-fsync]
+                           [--max-samples MAX_SAMPLES] [--self-test]
+
+노드블랙박스 1초 수집기
+
+options:
+  -h, --help            show this help message and exit
+  --node-dir NODE_DIR   docs/logs/<node_id>
+  --interval INTERVAL
+  --no-kmsg             kmsg 송출 끄기(오프박스 경로 포기)
+  --no-fsync            fsync 끄기(성능 시험용 — 운영 금지)
+  --max-samples MAX_SAMPLES
+  --self-test

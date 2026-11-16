@@ -1,0 +1,10 @@
+usage: blackbox_session.py stop [-h] --session-id SESSION_ID --now NOW
+                                [--verdict {PASS,FAIL,REFUTE,ABORT}]
+                                [--note NOTE]
+
+options:
+  -h, --help            show this help message and exit
+  --session-id SESSION_ID
+  --now NOW
+  --verdict {PASS,FAIL,REFUTE,ABORT}
+  --note NOTE

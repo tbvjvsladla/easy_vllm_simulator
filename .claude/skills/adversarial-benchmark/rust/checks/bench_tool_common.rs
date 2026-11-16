@@ -134,6 +134,11 @@ impl Scratch {
     /// Builds the tree of a frozen case; `@ROOT@` inside files and link targets becomes this root. A path that ends
     /// in `/docker` keeps the executable bit a command needs (the recorded bytes carry no mode).
     pub fn populate(&self, tree: &PyValue) {
+        // The recorded `.fixture-bin/docker` execs the native stand-in named here (no fixture runs Python).
+        std::env::set_var(
+            "SELFTEST_FIXTURE_DOCKER_BIN",
+            env!("CARGO_BIN_EXE_selftest_fixture_docker"),
+        );
         for (name, item) in dict(tree).iter() {
             let path = self.root.join(name_of(name));
             let item = dict(item);

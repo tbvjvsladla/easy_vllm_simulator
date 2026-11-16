@@ -1,0 +1,124 @@
+usage: policy_registry.py [-h] [--self-test] {verify,check-removal} ...
+
+policy_registry.py -- stdlib-only validator/auditor for
+.claude/policies/registry.yaml (plan_26072506 Phase 4, review-cycle2
+remediation -- subagent-summary-0/1-20260725_213652). `registry.yaml` is plain
+JSON text (a valid YAML 1.2 subset) -- this module, and every consumer in this
+repo, parses it with the stdlib `json` module only. PyYAML is not a dependency
+anywhere in this project. Design (cycle2): - Schema-shape validation reuses
+the sibling completion_gate.py generic Draft-07-subset engine
+(validate_against_schema) against .claude/schemas/policy-registry.schema.json
+-- no second, hand-duplicated shape checker. - Every cross-field / regex-
+shaped rule the schema engine cannot express lives here, as small composable
+check functions, each returning a list of Violation records (reason_code +
+message + optional policy_id/clause_id/path) -- never a bare bool. - No wall-
+clock access anywhere in this module -- `evaluate_lifecycle` / `cmd_verify` /
+`cmd_check_removal` take an explicit `as_of: datetime.date` (CLI: --as-of
+YYYY-MM-DD, required, no default). Deterministic "is this
+due/overdue/unreproduced/future today" is a pure function of that explicit
+input, never datetime.date.today(). - TWO INDEPENDENT 90-day clocks (cycle2
+fix -- these were conflated in cycle1): (a) reproduction-staleness clock:
+origin = last_reproduced if set, else added_at. Governs
+UNREPRODUCED_90_DAY_NOT_CANDIDATE (an `active` policy unreproduced/never-
+reproduced for >= 90 days from that origin must be `candidate`). A policy
+added_at == as_of with last_reproduced == null is NOT stale (0 elapsed days)
+-- cycle1's bug flagged it immediately regardless of added_at, because it used
+"last_reproduced is None" as an unconditional stale signal instead of
+measuring elapsed days from added_at. (b) review clock: last_reviewed_at ->
+next_review_due (== last_reviewed_at + 90d). Governs review.state
+(current/due/overdue) purely via as_of vs next_review_due -- decoupled from
+(a). A policy reviewed today (last_reviewed_at == as_of) is genuinely
+`current` for review purposes even if it is `candidate` (not yet reproduced)
+for status purposes -- these are orthogonal facts about the same record, not
+the same fact spelled twice. - Date chronology (cycle2 fix -- entirely absent
+in cycle1): added_at must itself be a valid ISO-8601 date; it,
+last_reproduced, and review.last_reviewed_at must each be <= the explicit
+as_of (no future dates); and added_at must be <= last_reproduced (when set)
+and <= review.last_reviewed_at (a policy cannot have been reproduced or
+reviewed before it was added). - Retirement/removal metadata closure (cycle2
+fix): active/candidate entries may not carry retirement_reason, superseded_by,
+OR removal_evidence -- cycle1 only checked the first two, so an `active`
+policy self-declaring `removal_evidence.status: contract_e2e_green` was
+accepted with zero violations. - Evidence tracking is GIT-NATIVE -- git is the
+single provenance authority (2026-09-03 G2-a, plan_26090222). This replaces
+the evidence_manifest.json + tracked_index.json ledger pair, which re-derived
+(sha256 / blob sha1) bytes git already holds: two self-authored files that an
+editor had to re-stamp by hand on every change, and that could be rewritten
+together. A path is admissible only if: it is a non-absolute, non-escaping (no
+`..` component) repo-relative path; no path component (including the leaf) is
+a symlink (checked component-by-component from repo_root, fail-closed on any
+stat error -- git does NOT check this for us, which is why the symlink gate
+survives the rewrite); it exists as a regular file; it is TRACKED in the
+repo_root's own git index; and its working-tree bytes hash to exactly the blob
+that index holds (a tampered-after-review file is caught, not silently trusted
+because the path still resolves). No usable git -- no executable, or a
+repo_root that is not a work tree -- is EVIDENCE_GIT_UNAVAILABLE: fail-closed,
+never a silent pass. - Evidence RELEVANCE is no longer keyword corroboration
+(cycle1's `EVIDENCE_NOT_RELEVANT`, which a single appended keyword could
+satisfy, and which returned zero violations on Korean- only clause text with
+zero extracted keywords). Cycle2 requires each evidence entry to name exact,
+executable `assertion_ids` -- identifiers that must literally exist in the
+cited file: unittest `ClassName.method_name` dotted names, bare top-level
+function names, or bare top-level variable-assignment targets for `.py` (AST-
+derived, not substring-matched); for `.sh` (bash has no stdlib AST) the
+anchored-regex analogue -- function names (`name() {`), top-level UPPERCASE
+variable assignments (`KEY_OK=`), and `case`-branch long CLI options
+(`--topology)`); YAML mapping keys for `.yaml`/`.yml` (anchored `key:` regex);
+and heading text for `.md` (an exact `#`-stripped heading line -- prose is
+honest about being weaker evidence than an executable identifier, but is still
+checked exactly, not by substring). A clause whose evidence is ENTIRELY prose
+(`.md`) is a structural violation (CLAUSE_LACKS_EXECUTABLE_EVIDENCE) -- prose
+may corroborate a clause, but may never be its sole evidence. - Removal
+eligibility (cycle2 fix) runs full schema-shape AND full-registry lifecycle
+validation FIRST (with the same explicit --as-of) -- cycle1's `check-removal`
+validated only the single selected record's status/evidence-status, so a
+retired policy with a self-cycling `superseded_by` and no retirement reason
+was reported eligible (0 violations) despite the rest of the registry being
+invalid. Only once the WHOLE registry is clean does the selected policy's own
+removal_evidence get checked: its `path` must resolve through the same
+manifest+digest+symlink gate, and the JSON artifact it points to must be a
+structured contract/E2E-PASS record containing this policy's own policy_id, a
+PASS result, a valid as_of date, and a well-formed tree_sha256 -- never a bare
+status literal plus an arbitrary allowlisted source file (cycle1's exact
+reviewer-reported tautology). - CLI hardening (cycle2 fix): every JSON file
+this module reads (registry, schema, evidence manifest, removal artifact) goes
+through one safe loader that catches OSError, UnicodeError, and
+json.JSONDecodeError, and validates the parsed root is a JSON object (dict)
+before any `.get()` call touches it -- cycle1's `verify`/`check-removal` let
+invalid UTF-8, malformed JSON, missing files, and array roots raise uncaught
+Python tracebacks with process exit 1, contradicting this module's own
+documented exit-2 invalid-input contract. - `policy:<ID>` citation scanning
+(cycle2 fix): the broad-capture regex now (a) requires a non-word-character
+boundary before the literal `policy:` so an embedded token like `xpolicy:BAD-
+ID` is correctly NOT recognized as a citation attempt at all (cycle1 falsely
+matched it), (b) allows a ZERO-length captured token so a bare `policy:` with
+nothing after it is caught as its own EMPTY_POLICY_CITATION violation instead
+of being silently invisible to a `+`-quantified capture group, and (c) strips
+ONE trailing run of ordinary terminal sentence punctuation (`.,;:!?`) from the
+captured token before syntax-validating it, so a valid citation immediately
+followed by a full stop (`policy:KNOWN.`) is not spuriously reported as
+malformed -- while a genuinely malformed token's ORIGINAL (unstripped) text is
+still what gets reported, so a case like `policy:ALSO_BAD-ID!` is not silently
+"fixed" by punctuation-stripping into something that looks valid. Usage:
+python3 policy_registry.py verify --as-of YYYY-MM-DD [--registry <path>]
+[--schema <path>] [--claim-bindings <path>] [--repo-root <path>] python3
+policy_registry.py check-removal --policy-id <ID> --as-of YYYY-MM-DD
+[--registry <path>] [--schema <path>] [--claim-bindings <path>] [--repo-root
+<path>] python3 policy_registry.py --self-test --claim-bindings defaults to
+<repo-root>/.claude/policies/claim_bindings.json (repo-root- relative -- NOT
+this script's own fixed location, unlike --registry/--schema) -- see
+_load_inputs_or_emit's docstring. Exit codes (both subcommands): 0 clean --
+zero violations 1 policy-block -- input was well-formed but carries one or
+more lifecycle/evidence/ structural/removal-eligibility violations 2 invalid-
+input -- malformed JSON / missing file / invalid UTF-8 / non-object root /
+schema-shape violation / bad --as-of / unknown --policy-id Every invocation
+emits exactly one stable JSON envelope to stdout and calls sys.exit with the
+JSON body's own `exit_code` -- no bare Python traceback is ever the process's
+final output. No third-party dependencies (stdlib only).
+
+positional arguments:
+  {verify,check-removal}
+
+options:
+  -h, --help            show this help message and exit
+  --self-test

@@ -1,0 +1,14 @@
+{
+  "exit_code": 2,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "@ROOT@/r/reg.json is not valid JSON: Unexpected UTF-8 BOM (decode using utf-8-sig): line 1 column 1 (char 0)",
+      "path": null,
+      "policy_id": null,
+      "reason_code": "REGISTRY_INVALID_JSON"
+    }
+  ]
+}

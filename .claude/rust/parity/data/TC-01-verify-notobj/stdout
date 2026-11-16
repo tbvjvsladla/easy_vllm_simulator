@@ -1,0 +1,5 @@
+{
+  "status": "input-required",
+  "phase": "inspect",
+  "reason": "REQUEST_OR_RESULT_NOT_OBJECT"
+}

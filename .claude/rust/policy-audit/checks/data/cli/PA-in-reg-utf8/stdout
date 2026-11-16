@@ -1,0 +1,14 @@
+{
+  "exit_code": 2,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "@ROOT@/r/reg.json is not valid UTF-8: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte",
+      "path": null,
+      "policy_id": null,
+      "reason_code": "REGISTRY_INVALID_UTF8"
+    }
+  ]
+}

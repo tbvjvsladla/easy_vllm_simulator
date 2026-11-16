@@ -1,0 +1,29 @@
+PASS valid-single — Flag valid (complete + branch_verified + HW사실 + model_source)
+PASS valid-sub-issued-by-main — Flag valid (complete + branch_verified + HW사실 + model_source)
+PASS sub-issued-by-missing-rejected — self_role=sub 이지만 terraforming.issued_by != 'main' — 메인이 발급한 서브 manifest가 아니므로 readiness를 인정하지 않는다
+PASS sub-issued-by-sub-rejected — self_role=sub 이지만 terraforming.issued_by != 'main' — 메인이 발급한 서브 manifest가 아니므로 readiness를 인정하지 않는다
+PASS sub-issued-by-unknown-rejected — self_role=sub 이지만 terraforming.issued_by != 'main' — 메인이 발급한 서브 manifest가 아니므로 readiness를 인정하지 않는다
+PASS valid-multi — Flag valid (complete + branch_verified + HW사실 + model_source)
+PASS no-flag-complete-false — terraforming.complete != true (Flag 미발급 — info-only)
+PASS no-flag-missing-block — terraforming.complete != true (Flag 미발급 — info-only)
+PASS no-flag-branch-unverified — terraforming.branch_verified != true (§1.5 3자일치 미통과 — info-only)
+PASS flag-but-missing-gpus — Flag true 이나 필수 HW필드 누락: gpus_per_node
+PASS flag-but-bad-model-source — model_source 미설정/오류: 'nas' (기대 managed|ephemeral|custom)
+PASS flag-but-gpus-not-int(B4) — Flag true 이나 gpus_per_node 부재/비정수('abc') — TP 는 HW 사실이지 기본값이 아니다
+PASS flag-but-gpus-zero(B4) — Flag true 이나 필수 HW필드 누락: gpus_per_node
+PASS valid-override(single sub-control) — Flag valid (complete + branch_verified + HW사실 + model_source)
+PASS bad-override(invalid per-node model_source) — per-node model_source 오류: nodes[1](sub).model_source='nas-bogus' (기대 managed|ephemeral|custom)
+PASS 사전적재 자산 노드-로컬 → WARN — Flag valid (complete + branch_verified + HW사실 + model_source)
+PASS 공유 스토리지 → 무경고(대조군) — Flag valid (complete + branch_verified + HW사실 + model_source)
+PASS 서브 없는 단일노드 → 무경고(로컬이 정상) — Flag valid (complete + branch_verified + HW사실 + model_source)
+PASS multi-override(WARN, 무시 대상) — Flag valid (complete + branch_verified + HW사실 + model_source)
+PASS tp-single-empty — tp=4 (기대 4)
+PASS tp-single-with-sub(δ1-1) — tp=1 (기대 1)
+PASS tp-single-with-sub-4gpu — tp=4 (기대 4)
+PASS tp-multi-2x1 — tp=2 (기대 2)
+PASS tp-multi-2x2 — tp=4 (기대 4)
+PASS tp-empty-multi-none — tp=None (기대 None)
+PASS tp-missing-gpus-raises(B4) — ValueError: gpus_per_node 부재/비정수(None) — TP 는 HW 사실이지 기본값이 아니다
+PASS tp-str-gpus-raises(B4) — ValueError: gpus_per_node 부재/비정수('two') — TP 는 HW 사실이지 기본값이 아니다
+
+27/27 self-test 통과
