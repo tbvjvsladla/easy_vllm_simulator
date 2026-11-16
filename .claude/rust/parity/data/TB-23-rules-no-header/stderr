@@ -1,0 +1,2 @@
+[render] STOP(TOPOLOGY_RULES_MISMATCH): 특화헌법 자기선언을 읽지 못했다(/tmp/parity-o-TB-23-rules-no-header-3909392-1794819447818462538/.claude/rules/strategy.topology.md): 머리 10줄 안에 자기선언 헤더가 없다 (`**topology: single|multi**` 로 시작하는 줄이 있어야 한다)
+        해소: 'single' 토폴로지 브랜치를 체크아웃한 트리에서 --topology single 로 렌더하라(자동 교정·우회 인자 없음 · policy:BRANCH_CONSTITUTION_LAYERING)

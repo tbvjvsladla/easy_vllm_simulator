@@ -1,0 +1,1592 @@
+[
+ {
+  "id": "TA-01-help",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "-h"
+  ]
+ },
+ {
+  "id": "TA-01-invoke-help",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "-h"
+  ]
+ },
+ {
+  "id": "TA-01-runners-help",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "runners",
+   "-h"
+  ]
+ },
+ {
+  "id": "TA-01-noargs",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": []
+ },
+ {
+  "id": "TA-01-bad-sub",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "bogus"
+  ]
+ },
+ {
+  "id": "TA-01-invoke-noreq",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke"
+  ]
+ },
+ {
+  "id": "TA-01-runners-bad",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "runners",
+   "--provider",
+   "nope"
+  ]
+ },
+ {
+  "id": "TA-01-unknown-opt",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "--nope"
+  ]
+ },
+ {
+  "id": "TA-01-abbrev",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--req",
+   "missing.json"
+  ]
+ },
+ {
+  "id": "TA-01-self-test",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "--self-test"
+  ]
+ },
+ {
+  "id": "TA-02-runners-default",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "runners"
+  ]
+ },
+ {
+  "id": "TA-02-runners-all",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "runners",
+   "--provider",
+   "all"
+  ]
+ },
+ {
+  "id": "TA-02-runners-codex",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "runners",
+   "--provider",
+   "codex_cli"
+  ]
+ },
+ {
+  "id": "TA-03-missing-file",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "nope.json"
+  ]
+ },
+ {
+  "id": "TA-03-bad-json",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{not json"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-03-empty-object",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-03-list",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "[1, 2]"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-03-result-file-alone",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "x.json",
+   "--result-file",
+   "o.json"
+  ]
+ },
+ {
+  "id": "TA-03-ssh-no-user",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"sub\", \"transport\": \"ssh\", \"host\": \"h\", \"work_dir\": \"/w\"}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-03-role-mismatch",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"sub\", \"transport\": \"local\", \"work_dir\": \".\"}, \"capture_native_events\": true}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-03-bad-effort-claude",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}, \"reasoning_effort\": \"none\"}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-03-type-errors",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"\", \"timeout_seconds\": \"60\", \"max_turns\": 0, \"capabilities\": [\"read\", \"read\", \"fly\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}, \"extra\": 1}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-03-v2-relative",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"relative\"}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-03-v2-unbound-resume",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}, \"resume_session_id\": \"thread-9\"}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-03-v2-sub-write",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"workspace-write\", \"target\": {\"role\": \"sub\", \"transport\": \"ssh\", \"host\": \"192.0.2.10\", \"ssh_user\": \"probe\", \"work_dir\": \"/proc/self/cwd\"}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-03-unknown-provider",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"other\", \"intent\": \"nope\", \"task\": \"read-only runtime probe\", \"model\": 3, \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-03-v1-codex",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-ok",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": false, \"num_turns\": 2, \"session_id\": \"sess-1\", \"result\": \"done\", \"duration_ms\": 4200, \"duration_api_ms\": 3900, \"modelUsage\": {\"claude-sonnet-5-5\": {\"inputTokens\": 1}}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-ok-effort-high",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}, \"reasoning_effort\": \"high\", \"reasoning_effort_source\": \"runner\"}",
+   "ta_fix/claude.stdout": "{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": false, \"num_turns\": 2, \"session_id\": \"sess-1\", \"result\": \"done\", \"duration_ms\": 4200, \"duration_api_ms\": 3900, \"modelUsage\": {\"claude-sonnet-5-5\": {\"inputTokens\": 1}}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-no-model-usage",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}, \"resume_session_id\": \" sess-0 \"}",
+   "ta_fix/claude.stdout": "{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": false, \"num_turns\": 2, \"session_id\": \"sess-1\", \"result\": \"done\", \"duration_ms\": 4200, \"duration_api_ms\": 3900}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-odd-model-usage",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "{\"type\":\"result\",\"subtype\":\"success\",\"is_error\":false,\"num_turns\":1,\"session_id\":\"s\",\"result\":\"r\",\"modelUsage\":{\"a\":1}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-exhausted",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 25, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "{\"type\": \"result\", \"subtype\": \"error_max_turns\", \"is_error\": true, \"num_turns\": 26, \"session_id\": \"sess-abc\", \"duration_ms\": 812345, \"duration_api_ms\": 640000, \"errors\": [\"Reached maximum number of turns (25)\"], \"result\": \"\", \"modelUsage\": {}}",
+   "ta_fix/claude.rc": "1"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-exhausted-rc0",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "{\"type\": \"result\", \"subtype\": \"error_max_turns\", \"is_error\": false, \"num_turns\": 3, \"session_id\": \"s3\"}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-during-exec",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "{\"type\": \"result\", \"subtype\": \"error_during_execution\", \"num_turns\": 4, \"session_id\": \"s4\", \"duration_ms\": -1, \"duration_api_ms\": true}",
+   "ta_fix/claude.rc": "1",
+   "ta_fix/claude.stderr": "interrupted\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-aborted",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "{\"type\": \"result\", \"subtype\": \"weird\", \"errors\": [\"x\"], \"session_id\": \"s5\"}",
+   "ta_fix/claude.rc": "2"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-rc-garbage",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "boom",
+   "ta_fix/claude.stderr": "fatal: x\n",
+   "ta_fix/claude.rc": "3"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-rc143",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.rc": "143"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-rc127",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.rc": "127"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-401",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"sub\", \"transport\": \"ssh\", \"host\": \"192.0.2.10\", \"ssh_user\": \"probe\", \"work_dir\": \".\"}}",
+   "ta_fix/ssh.rc": "1",
+   "ta_fix/ssh.stdout": "{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": true, \"terminal_reason\": \"api_error\", \"api_error_status\": 401, \"session_id\": \"e939c9b7\", \"num_turns\": 1, \"duration_api_ms\": 0, \"result\": \"Failed to authenticate. API Error: 401 ...\"}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-400-rc0",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": true, \"terminal_reason\": \"api_error\", \"api_error_status\": 400, \"session_id\": \"s6\", \"num_turns\": 1, \"result\": \"bad\"}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-is-error",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": true, \"terminal_reason\": \"completed\", \"session_id\": \"s7\", \"num_turns\": 18, \"result\": \"빌드가 실패했다\"}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-denied",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": false, \"num_turns\": 1, \"session_id\": \"sess-deny\", \"result\": \"…\", \"duration_ms\": 10, \"duration_api_ms\": 5, \"permission_denials\": [{\"tool_name\": \"Write\", \"tool_input\": {\"path\": \"x\"}}, \"raw-denial\", {\"tool_input\": null}], \"modelUsage\": {}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-denials-bad",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": false, \"num_turns\": 2, \"session_id\": \"sess-1\", \"result\": \"done\", \"duration_ms\": 4200, \"duration_api_ms\": 3900, \"modelUsage\": {\"claude-sonnet-5-5\": {\"inputTokens\": 1}}, \"permission_denials\": {\"a\": 1}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-malformed",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "not json at all"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-nondict",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "[1,2]"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-not-result",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "{\"type\": \"assistant\", \"subtype\": \"x\", \"z\": 1, \"a\": 2}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-not-success",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": false, \"num_turns\": 2, \"session_id\": \"sess-1\", \"result\": \"\", \"duration_ms\": 4200, \"duration_api_ms\": 3900, \"modelUsage\": {\"claude-sonnet-5-5\": {\"inputTokens\": 1}}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-missing",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/empty"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-missing-ssh",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"sub\", \"transport\": \"ssh\", \"host\": \"192.0.2.10\", \"ssh_user\": \"probe\", \"work_dir\": \".\"}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/empty"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-ssh-255",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"sub\", \"transport\": \"ssh\", \"host\": \"192.0.2.10\", \"ssh_user\": \"probe\", \"work_dir\": \".\"}}",
+   "ta_fix/ssh.rc": "255",
+   "ta_fix/ssh.stderr": "ssh: connect failed\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-ssh-124",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"sub\", \"transport\": \"ssh\", \"host\": \"192.0.2.10\", \"ssh_user\": \"probe\", \"work_dir\": \".\"}}",
+   "ta_fix/ssh.rc": "124",
+   "ta_fix/ssh.stderr": "Terminated\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-ssh-e2e",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"it's a \\\"probe\\\" $(x)\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"search\", \"write\"], \"target\": {\"role\": \"sub\", \"transport\": \"ssh\", \"host\": \"192.0.2.10\", \"ssh_user\": \"probe\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": false, \"num_turns\": 2, \"session_id\": \"sess-1\", \"result\": \"done\", \"duration_ms\": 4200, \"duration_api_ms\": 3900, \"modelUsage\": {\"claude-sonnet-5-5\": {\"inputTokens\": 1}}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-timeout",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 1, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.sleep": "3"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-empty-stdout",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.rc": "0"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-capture",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}, \"capture_native_events\": true}",
+   "ta_fix/claude.stdout": "{\"type\": \"system\", \"subtype\": \"init\"}\n{\"type\": \"assistant\", \"message\": \"hi\"}\n{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": false, \"num_turns\": 2, \"session_id\": \"sess-1\", \"result\": \"done\", \"duration_ms\": 4200, \"duration_api_ms\": 3900, \"modelUsage\": {\"claude-sonnet-5-5\": {\"inputTokens\": 1}}}\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-capture-malformed",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"bootstrap_canary\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}, \"capture_native_events\": true}",
+   "ta_fix/claude.stdout": "{\"type\": \"system\", \"subtype\": \"init\"}\nnope\n{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": false, \"num_turns\": 2, \"session_id\": \"sess-1\", \"result\": \"done\", \"duration_ms\": 4200, \"duration_api_ms\": 3900, \"modelUsage\": {\"claude-sonnet-5-5\": {\"inputTokens\": 1}}}\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-capture-noresult",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}, \"capture_native_events\": true}",
+   "ta_fix/claude.stdout": "{\"type\": \"system\", \"subtype\": \"init\"}\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-effort-default",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}, \"reasoning_effort\": \"default\"}",
+   "ta_fix/claude.1.stdout": "{\"type\": \"system\", \"subtype\": \"init\"}\n{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": false, \"num_turns\": 0, \"session_id\": \"sess-e\", \"result\": \"Effort level: auto (currently high)\", \"local_command\": \"effort\"}\n",
+   "ta_fix/claude.2.stdout": "{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": false, \"num_turns\": 2, \"session_id\": \"sess-1\", \"result\": \"done\", \"duration_ms\": 4200, \"duration_api_ms\": 3900, \"modelUsage\": {\"claude-sonnet-5-5\": {\"inputTokens\": 1}}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-effort-default-bad",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}, \"reasoning_effort\": \"default\"}",
+   "ta_fix/claude.1.stdout": "{\"type\": \"system\", \"subtype\": \"init\"}\n{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": false, \"num_turns\": 0, \"session_id\": \"sess-e\", \"result\": \"Effort level: sideways\", \"local_command\": \"effort\"}\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-effort-default-fail",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}, \"reasoning_effort\": \"default\"}",
+   "ta_fix/claude.1.rc": "3",
+   "ta_fix/claude.1.stdout": ""
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-04-claude-persist",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json",
+   "--result-file",
+   "ta_out/outcome.json",
+   "--dispatch-id",
+   "d-1"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 1, \"provider\": \"claude_code\", \"intent\": \"probe\", \"task\": \"read-only runtime probe\", \"model\": \"sonnet\", \"timeout_seconds\": 60, \"max_turns\": 3, \"capabilities\": [\"read\", \"execute\"], \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \".\"}}",
+   "ta_fix/claude.stdout": "{\"type\": \"result\", \"subtype\": \"success\", \"is_error\": false, \"num_turns\": 2, \"session_id\": \"sess-1\", \"result\": \"done\", \"duration_ms\": 4200, \"duration_api_ms\": 3900, \"modelUsage\": {\"claude-sonnet-5-5\": {\"inputTokens\": 1}}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-ok",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"final report\"}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 12, \"output_tokens\": 4}}\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-ok-effort",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"--x; $(y)\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}, \"reasoning_effort\": \"high\"}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"final report\"}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 12, \"output_tokens\": 4}, \"model\": \"gpt-6.1-sol\"}\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-profile",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}, \"permission_profile\": \":danger-full-access\"}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"final report\"}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 12, \"output_tokens\": 4}}\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-resume",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}, \"resume_session_id\": \"thread-1\", \"resume_binding\": {\"provider\": \"codex_cli\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}, \"sandbox_mode\": \"read-only\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"final report\"}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 12, \"output_tokens\": 4}}\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-resume-other",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}, \"resume_session_id\": \"thread-1\", \"resume_binding\": {\"provider\": \"codex_cli\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}, \"sandbox_mode\": \"read-only\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"t-2\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"final report\"}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 12, \"output_tokens\": 4}}\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-capacity",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"turn.failed\", \"error\": {\"message\": \"Selected model is at capacity. Please try a different model.\"}}\n",
+   "ta_fix/codex.rc": "1"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-failed",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"error\", \"message\": \"quota\"}\n",
+   "ta_fix/codex.stderr": "warn\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-denied",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"turn.failed\", \"error\": {\"code\": \"permission_denied\"}}\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-denied-report",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"error\", \"code\": \"sandbox_denied\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"final report\"}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 12, \"output_tokens\": 4}}\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-malformed",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"final report\"}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 12, \"output_tokens\": 4}}\n{\"type\":"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-empty-msg",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"  \"}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 12, \"output_tokens\": 4}}\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-bad-seq",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"final report\"}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 12, \"output_tokens\": 4}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 12, \"output_tokens\": 4}}\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-rc2",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"final report\"}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 12, \"output_tokens\": 4}}\n",
+   "ta_fix/codex.rc": "2"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-rc137",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n",
+   "ta_fix/codex.rc": "137"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-adapter-spoof",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"adapter.lock_acquired\"}\n{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"final report\"}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 12, \"output_tokens\": 4}}\n"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-incomplete",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n",
+   "ta_fix/codex.rc": "0"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-missing",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/empty"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-no-workspace",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/nonexistent-ta-ws\"}}"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-timeout",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 1, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"main\", \"transport\": \"local\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n",
+   "ta_fix/codex.sleep": "4"
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-ssh-e2e",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"sub\", \"transport\": \"ssh\", \"host\": \"192.0.2.10\", \"ssh_user\": \"probe\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n{\"type\": \"item.completed\", \"item\": {\"type\": \"agent_message\", \"text\": \"final report\"}}\n{\"type\": \"turn.completed\", \"usage\": {\"input_tokens\": 12, \"output_tokens\": 4}}\n",
+   "ta_fix/ssh.nolog": ""
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-ssh-e2e-rc3",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"sub\", \"transport\": \"ssh\", \"host\": \"192.0.2.10\", \"ssh_user\": \"probe\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n",
+   "ta_fix/codex.rc": "3",
+   "ta_fix/ssh.nolog": ""
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-ssh-timeout",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 1, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"sub\", \"transport\": \"ssh\", \"host\": \"192.0.2.10\", \"ssh_user\": \"probe\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/codex.stdout": "{\"type\": \"thread.started\", \"thread_id\": \"thread-1\"}\n{\"type\": \"turn.started\"}\n",
+   "ta_fix/codex.sleep": "4",
+   "ta_fix/ssh.nolog": ""
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-ssh-missing",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"sub\", \"transport\": \"ssh\", \"host\": \"192.0.2.10\", \"ssh_user\": \"probe\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/ssh.nolog": ""
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/nocodex"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-ssh-255",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"sub\", \"transport\": \"ssh\", \"host\": \"192.0.2.10\", \"ssh_user\": \"probe\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/ssh.rc": "255",
+   "ta_fix/ssh.stderr": "no route\n",
+   "ta_fix/ssh.nolog": ""
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-ssh-canned-reaped",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"sub\", \"transport\": \"ssh\", \"host\": \"192.0.2.10\", \"ssh_user\": \"probe\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/ssh.rc": "124",
+   "ta_fix/ssh.stdout": "{\"type\": \"adapter.framing_started\", \"request_digest\": \"4f508a99f42fb417d56e848612a72e6d8f05f0b64029a7128159c8be78a89b28\"}\n{\"type\": \"adapter.child_line\", \"data\": \"eyJ0eXBlIjogImFkYXB0ZXIubG9ja19hY3F1aXJlZCJ9\"}\n{\"type\": \"adapter.child_line\", \"data\": \"eyJ0eXBlIjogInRocmVhZC5zdGFydGVkIiwgInRocmVhZF9pZCI6ICJ0aHJlYWQtMSJ9\"}\n{\"type\": \"adapter.child_line\", \"data\": \"eyJ0eXBlIjogInR1cm4uc3RhcnRlZCJ9\"}\n{\"type\": \"adapter.deadline_reaped\", \"request_digest\": \"4f508a99f42fb417d56e848612a72e6d8f05f0b64029a7128159c8be78a89b28\"}\n",
+   "ta_fix/ssh.nolog": ""
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ },
+ {
+  "id": "TA-05-codex-ssh-canned-junk",
+  "entry": ".claude/skills/terraforming_node/scripts/agent_control.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/agent_control.py",
+  "args": [
+   "invoke",
+   "--request",
+   "req.json"
+  ],
+  "setup": {
+   "req.json": "{\"schema_version\": 2, \"provider\": \"codex_cli\", \"intent\": \"delegate\", \"task\": \"report status; do not edit\", \"model\": \"gpt-6.1-sol\", \"timeout_seconds\": 30, \"max_turns\": null, \"capabilities\": [\"read\"], \"budget_unit\": \"wall_time\", \"sandbox_mode\": \"read-only\", \"target\": {\"role\": \"sub\", \"transport\": \"ssh\", \"host\": \"192.0.2.10\", \"ssh_user\": \"probe\", \"work_dir\": \"/proc/self/cwd\"}}",
+   "ta_fix/ssh.rc": "0",
+   "ta_fix/ssh.stdout": "{\"type\": \"adapter.framing_started\", \"request_digest\": \"0000000000000000000000000000000000000000000000000000000000000000\"}\n{\"type\": \"adapter.child_line\", \"data\": \"eyJ0eXBlIjogImFkYXB0ZXIubG9ja19hY3F1aXJlZCJ9\"}\n{\"type\": \"adapter.child_line\", \"data\": \"eyJ0eXBlIjogInRocmVhZC5zdGFydGVkIiwgInRocmVhZF9pZCI6ICJ0aHJlYWQtMSJ9\"}\n{\"type\": \"adapter.child_line\", \"data\": \"eyJ0eXBlIjogInR1cm4uc3RhcnRlZCJ9\"}\n{\"type\": \"adapter.deadline_reaped\", \"request_digest\": \"0000000000000000000000000000000000000000000000000000000000000000\"}\n{\"type\":\"adapter.child_line\",\"data\":\"!!\"}\n",
+   "ta_fix/ssh.nolog": ""
+  },
+  "env": {
+   "PATH": ".claude/rust/parity/data/TA-stubs/bin:/usr/bin:/bin"
+  },
+  "outputs": [
+   "ta_out"
+  ]
+ }
+]

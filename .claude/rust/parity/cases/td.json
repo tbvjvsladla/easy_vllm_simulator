@@ -1,0 +1,711 @@
+[
+ {
+  "id": "TD-01-help",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "-h"
+  ]
+ },
+ {
+  "id": "TD-02-noargs",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": []
+ },
+ {
+  "id": "TD-03-badctx",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "../x"
+  ]
+ },
+ {
+  "id": "TD-04-task-and-file",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--task",
+   "x",
+   "--task-file",
+   "f"
+  ]
+ },
+ {
+  "id": "TD-05-runners-and-model",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--runners",
+   "sonnet",
+   "--model",
+   "m"
+  ]
+ },
+ {
+  "id": "TD-06-unknown-runner",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--runners",
+   "sonnet,nope"
+  ]
+ },
+ {
+  "id": "TD-07-no-topology",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c"
+  ]
+ },
+ {
+  "id": "TD-08-no-task",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--topology",
+   "single"
+  ]
+ },
+ {
+  "id": "TD-09-no-budget",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--topology",
+   "single",
+   "--task",
+   "x",
+   "--resume",
+   "new"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n"
+  }
+ },
+ {
+  "id": "TD-10-no-resume",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--topology",
+   "single",
+   "--task",
+   "x",
+   "--max-turns",
+   "5",
+   "--timeout-seconds",
+   "60",
+   "--budget-source",
+   "fixture budget"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n"
+  }
+ },
+ {
+  "id": "TD-11-emit",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c1",
+   "--topology",
+   "single",
+   "--task",
+   "지시 본문",
+   "--resume",
+   "new",
+   "--emit-only",
+   "--max-turns",
+   "5",
+   "--timeout-seconds",
+   "60",
+   "--budget-source",
+   "fixture budget"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n"
+  },
+  "outputs": [
+   "campaigns"
+  ]
+ },
+ {
+  "id": "TD-12-emit-codex",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c2",
+   "--topology",
+   "single",
+   "--task",
+   "codex 지시",
+   "--resume",
+   "new",
+   "--provider",
+   "codex_cli",
+   "--sandbox-mode",
+   "read-only",
+   "--emit-only",
+   "--timeout-seconds",
+   "120",
+   "--budget-source",
+   "fixture wall"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n"
+  },
+  "outputs": [
+   "campaigns"
+  ]
+ },
+ {
+  "id": "TD-13-control-missing",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--topology",
+   "single",
+   "--campaign-control",
+   "suspend"
+  ]
+ },
+ {
+  "id": "TD-14-continue-noledger",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--continue"
+  ]
+ },
+ {
+  "id": "TD-15-reconcile-none",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--reconcile-inflight"
+  ]
+ },
+ {
+  "id": "TD-16-reconcile-combo",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--reconcile-inflight",
+   "--continue"
+  ]
+ },
+ {
+  "id": "TD-17-reconcile-result-alone",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--reconcile-result",
+   "x"
+  ]
+ },
+ {
+  "id": "TD-18-supervise-empty",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--supervise-step",
+   "camp-x"
+  ]
+ },
+ {
+  "id": "TD-19-bad-effort",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--topology",
+   "single",
+   "--task",
+   "x",
+   "--resume",
+   "new",
+   "--runner-effort",
+   "sonnet=bogus",
+   "--max-turns",
+   "5",
+   "--timeout-seconds",
+   "60",
+   "--budget-source",
+   "fixture budget"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n"
+  }
+ },
+ {
+  "id": "TD-20-emit-effort",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c3",
+   "--topology",
+   "single",
+   "--task",
+   "x",
+   "--resume",
+   "new",
+   "--reasoning-effort",
+   "high",
+   "--emit-only",
+   "--max-turns",
+   "5",
+   "--timeout-seconds",
+   "60",
+   "--budget-source",
+   "fixture budget"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n"
+  }
+ },
+ {
+  "id": "TD-21-emit-handoff-issue",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c4",
+   "--topology",
+   "single",
+   "--task",
+   "정정하라",
+   "--resume",
+   "new",
+   "--handoff-issue",
+   "docs/testlog/x.md#F1 모순",
+   "--emit-only",
+   "--max-turns",
+   "5",
+   "--timeout-seconds",
+   "60",
+   "--budget-source",
+   "fixture budget"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n"
+  }
+ },
+ {
+  "id": "TD-22-handoff-issue-alone",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--handoff-issue",
+   "x"
+  ]
+ },
+ {
+  "id": "TD-23-continue-with-task",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--continue",
+   "--task",
+   "x"
+  ]
+ },
+ {
+  "id": "TD-24-supervise-with-task",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--supervise-step",
+   "camp-x",
+   "--task",
+   "x"
+  ]
+ },
+ {
+  "id": "TD-25-orphan-not-abandon",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c",
+   "--topology",
+   "single",
+   "--campaign-control",
+   "suspend",
+   "--campaign-id",
+   "a,b",
+   "--node",
+   "sub",
+   "--orphan-sweep"
+  ]
+ },
+ {
+  "id": "TD-26-emit-campaign",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c5",
+   "--topology",
+   "single",
+   "--task",
+   "캠페인 지시",
+   "--resume",
+   "new",
+   "--node",
+   "sub",
+   "--context-kind",
+   "cell",
+   "--cell",
+   "cell-1",
+   "--emit-only",
+   "--max-turns",
+   "5",
+   "--timeout-seconds",
+   "60",
+   "--budget-source",
+   "fixture budget"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n",
+   "campaigns/ACTIVE": "camp-x\n",
+   "campaigns/camp-x/campaign.yaml": "{\"schema_version\": 1, \"id\": \"camp-x\", \"plan_ref\": \"docs/plan/plan_x.md\", \"control_variables\": {\"model\": \"m-1\", \"vllm_version\": \"0.31.0\", \"_note\": \"사람 주석\", \"topology\": \"single\", \"nested\": {\"x\": 1}}, \"revisions\": [{\"rev\": 0, \"values\": {\"model\": \"m-1\", \"vllm_version\": \"0.31.0\", \"_note\": \"사람 주석\", \"topology\": \"single\", \"nested\": {\"x\": 1}}}]}"
+  },
+  "outputs": [
+   "campaigns"
+  ]
+ },
+ {
+  "id": "TD-27-emit-no-campaign",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "c6",
+   "--topology",
+   "single",
+   "--task",
+   "x",
+   "--resume",
+   "new",
+   "--no-campaign",
+   "--emit-only",
+   "--max-turns",
+   "5",
+   "--timeout-seconds",
+   "60",
+   "--budget-source",
+   "fixture budget"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n",
+   "campaigns/ACTIVE": "camp-x\n",
+   "campaigns/camp-x/campaign.yaml": "{\"schema_version\": 1, \"id\": \"camp-x\", \"plan_ref\": \"docs/plan/plan_x.md\", \"control_variables\": {\"model\": \"m-1\", \"vllm_version\": \"0.31.0\", \"_note\": \"사람 주석\", \"topology\": \"single\", \"nested\": {\"x\": 1}}, \"revisions\": [{\"rev\": 0, \"values\": {\"model\": \"m-1\", \"vllm_version\": \"0.31.0\", \"_note\": \"사람 주석\", \"topology\": \"single\", \"nested\": {\"x\": 1}}}]}"
+  },
+  "outputs": [
+   "campaigns"
+  ]
+ },
+ {
+  "id": "TD-28-continue-dryrun",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "ctx-a",
+   "--continue"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n",
+   "campaigns/_bootstrap/relay/ctx-a.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": \"ctx-a\",\n      \"control_status\": \"completed\",\n      \"end_reason\": \"sub_input_required\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": \"input-required\",\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": null,\n          \"campaign_context_kind\": null,\n          \"campaign_id\": null,\n          \"campaign_node\": null,\n          \"context_id\": \"ctx-a\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"context_id\": \"ctx-a\",\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json": "{\"attempt\": 1, \"report\": {\"task_id\": \"t1\", \"context_id\": \"ctx-a\", \"turn\": 1, \"phase\": \"serve\", \"status\": \"input-required\", \"node_id\": \"sub\", \"self_verification\": {\"checks_run\": [\"identity\"], \"identity_ok\": true}, \"artifacts\": [{\"kind\": \"log\", \"path\": \"output/x.json\"}], \"next_steps\": [\"serve 재기동\"], \"notes\": \"KV 미정\"}}"
+  },
+  "outputs": [
+   "campaigns"
+  ]
+ },
+ {
+  "id": "TD-29-continue-blocked",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "ctx-a",
+   "--continue"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n",
+   "campaigns/_bootstrap/relay/ctx-a.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": \"ctx-a\",\n      \"control_status\": \"completed\",\n      \"end_reason\": \"sub_input_required\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": \"input-required\",\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": null,\n          \"campaign_context_kind\": null,\n          \"campaign_id\": null,\n          \"campaign_node\": null,\n          \"context_id\": \"ctx-a\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"context_id\": \"ctx-a\",\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json": "{\"attempt\": 1, \"report\": {\"task_id\": \"t1\", \"context_id\": \"ctx-a\", \"turn\": 1, \"phase\": \"serve\", \"status\": \"input-required\", \"node_id\": \"sub\", \"self_verification\": {\"checks_run\": [\"identity\"], \"identity_ok\": true}, \"artifacts\": [{\"kind\": \"log\", \"path\": \"output/x.json\"}], \"next_steps\": [\"serve 재기동\"], \"notes\": \"KV 미정\"}}",
+   "campaigns/_bootstrap/relay/pending_hitl.json": "{\"schema_version\": 1, \"pending\": [{\"context_id\": \"ctx-a\", \"attempt\": 1, \"request_id\": \"h1\", \"source\": \"sub-relay\", \"prompt\": \"어느 핀?\", \"blocking\": true, \"answer\": null}]}"
+  },
+  "outputs": [
+   "campaigns"
+  ]
+ },
+ {
+  "id": "TD-30-continue-answered",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "ctx-a",
+   "--continue",
+   "--handoff-issue",
+   "x 모순",
+   "--task-file",
+   "nope.md"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n",
+   "campaigns/_bootstrap/relay/ctx-a.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": \"ctx-a\",\n      \"control_status\": \"completed\",\n      \"end_reason\": \"sub_input_required\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": \"input-required\",\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": null,\n          \"campaign_context_kind\": null,\n          \"campaign_id\": null,\n          \"campaign_node\": null,\n          \"context_id\": \"ctx-a\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"context_id\": \"ctx-a\",\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json": "{\"attempt\": 1, \"report\": {\"task_id\": \"t1\", \"context_id\": \"ctx-a\", \"turn\": 1, \"phase\": \"serve\", \"status\": \"input-required\", \"node_id\": \"sub\", \"self_verification\": {\"checks_run\": [\"identity\"], \"identity_ok\": true}, \"artifacts\": [{\"kind\": \"log\", \"path\": \"output/x.json\"}], \"next_steps\": [\"serve 재기동\"], \"notes\": \"KV 미정\"}}",
+   "campaigns/_bootstrap/relay/pending_hitl.json": "{\"schema_version\": 1, \"pending\": [{\"context_id\": \"ctx-a\", \"attempt\": 1, \"request_id\": \"h1\", \"source\": \"sub-relay\", \"prompt\": \"어느 핀?\", \"blocking\": true, \"answer\": \"핀 A\"}, {\"context_id\": \"ctx-a\", \"attempt\": 1, \"request_id\": \"h2\", \"prompt\": \"비차단 질문\", \"answer\": null}]}"
+  },
+  "outputs": [
+   "campaigns"
+  ]
+ },
+ {
+  "id": "TD-31-continue-answered-dry",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "ctx-a",
+   "--continue",
+   "--timeout-seconds",
+   "90"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n",
+   "campaigns/_bootstrap/relay/ctx-a.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": \"ctx-a\",\n      \"control_status\": \"completed\",\n      \"end_reason\": \"sub_input_required\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": \"input-required\",\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": null,\n          \"campaign_context_kind\": null,\n          \"campaign_id\": null,\n          \"campaign_node\": null,\n          \"context_id\": \"ctx-a\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"context_id\": \"ctx-a\",\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json": "{\"attempt\": 1, \"report\": {\"task_id\": \"t1\", \"context_id\": \"ctx-a\", \"turn\": 1, \"phase\": \"serve\", \"status\": \"input-required\", \"node_id\": \"sub\", \"self_verification\": {\"checks_run\": [\"identity\"], \"identity_ok\": true}, \"artifacts\": [{\"kind\": \"log\", \"path\": \"output/x.json\"}], \"next_steps\": [\"serve 재기동\"], \"notes\": \"KV 미정\"}}",
+   "campaigns/_bootstrap/relay/pending_hitl.json": "{\"schema_version\": 1, \"pending\": [{\"context_id\": \"ctx-a\", \"attempt\": 1, \"request_id\": \"h1\", \"source\": \"sub-relay\", \"prompt\": \"어느 핀?\", \"blocking\": true, \"answer\": \"핀 A\"}, {\"context_id\": \"ctx-a\", \"attempt\": 1, \"request_id\": \"h2\", \"prompt\": \"비차단 질문\", \"answer\": null}]}"
+  },
+  "outputs": [
+   "campaigns"
+  ]
+ },
+ {
+  "id": "TD-32-continue-services",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "ctx-a",
+   "--continue"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n",
+   "campaigns/_bootstrap/relay/ctx-a.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": \"ctx-a\",\n      \"control_status\": \"completed\",\n      \"end_reason\": \"sub_input_required\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"running_services\": [\n        {\n          \"kind\": \"container\",\n          \"name\": \"svc-1\"\n        }\n      ],\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": \"input-required\",\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": null,\n          \"campaign_context_kind\": null,\n          \"campaign_id\": null,\n          \"campaign_node\": null,\n          \"context_id\": \"ctx-a\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"context_id\": \"ctx-a\",\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json": "{\"attempt\": 1, \"report\": {\"task_id\": \"t1\", \"context_id\": \"ctx-a\", \"turn\": 1, \"phase\": \"serve\", \"status\": \"input-required\", \"node_id\": \"sub\", \"self_verification\": {\"checks_run\": [\"identity\"], \"identity_ok\": true}, \"artifacts\": [{\"kind\": \"log\", \"path\": \"output/x.json\"}], \"next_steps\": [\"serve 재기동\"], \"notes\": \"KV 미정\"}}"
+  },
+  "outputs": [
+   "campaigns"
+  ]
+ },
+ {
+  "id": "TD-33-continue-echo",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "ctx-a",
+   "--continue"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n",
+   "campaigns/_bootstrap/relay/ctx-a.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": null,\n      \"control_status\": \"completed\",\n      \"end_reason\": \"sub_input_required\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": \"input-required\",\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": null,\n          \"campaign_context_kind\": null,\n          \"campaign_id\": null,\n          \"campaign_node\": null,\n          \"context_id\": \"ctx-a\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"context_id\": \"ctx-a\",\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json": "{\"attempt\": 1, \"report\": {\"task_id\": \"t1\", \"context_id\": \"ctx-a\", \"turn\": 1, \"phase\": \"serve\", \"status\": \"input-required\", \"node_id\": \"sub\", \"self_verification\": {\"checks_run\": [\"identity\"], \"identity_ok\": true}, \"artifacts\": [{\"kind\": \"log\", \"path\": \"output/x.json\"}], \"next_steps\": [\"serve 재기동\"], \"notes\": \"KV 미정\"}}"
+  },
+  "outputs": [
+   "campaigns"
+  ]
+ },
+ {
+  "id": "TD-34-handoff-reuse",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "ctx-a",
+   "--continue"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n",
+   "campaigns/_bootstrap/relay/ctx-a.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": \"ctx-a\",\n      \"control_status\": \"completed\",\n      \"end_reason\": \"completed\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": \"completed\",\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": null,\n          \"campaign_context_kind\": null,\n          \"campaign_id\": null,\n          \"campaign_node\": null,\n          \"context_id\": \"ctx-a\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"context_id\": \"ctx-a\",\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json": "{\"attempt\": 1, \"report\": {\"task_id\": \"t1\", \"context_id\": \"ctx-a\", \"turn\": 1, \"phase\": \"serve\", \"status\": \"completed\", \"node_id\": \"sub\", \"self_verification\": {\"checks_run\": [\"identity\"], \"identity_ok\": true}, \"artifacts\": [{\"kind\": \"log\", \"path\": \"output/x.json\"}], \"next_steps\": [\"serve 재기동\"], \"notes\": \"KV 미정\"}}"
+  },
+  "outputs": [
+   "campaigns"
+  ]
+ },
+ {
+  "id": "TD-35-handoff-reuse-apply",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "ctx-a",
+   "--continue",
+   "--apply"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n",
+   "campaigns/_bootstrap/relay/ctx-a.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": \"ctx-a\",\n      \"control_status\": \"completed\",\n      \"end_reason\": \"completed\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": \"completed\",\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": null,\n          \"campaign_context_kind\": null,\n          \"campaign_id\": null,\n          \"campaign_node\": null,\n          \"context_id\": \"ctx-a\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"context_id\": \"ctx-a\",\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json": "{\"attempt\": 1, \"report\": {\"task_id\": \"t1\", \"context_id\": \"ctx-a\", \"turn\": 1, \"phase\": \"serve\", \"status\": \"completed\", \"node_id\": \"sub\", \"self_verification\": {\"checks_run\": [\"identity\"], \"identity_ok\": true}, \"artifacts\": [{\"kind\": \"log\", \"path\": \"output/x.json\"}], \"next_steps\": [\"serve 재기동\"], \"notes\": \"KV 미정\"}}"
+  },
+  "outputs": [
+   "campaigns"
+  ]
+ },
+ {
+  "id": "TD-36-reconcile-no-outcome",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "ctx-a",
+   "--reconcile-inflight"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n",
+   "campaigns/_bootstrap/relay/ctx-a.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": \"ctx-a\",\n      \"control_status\": \"completed\",\n      \"end_reason\": \"sub_input_required\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": \"input-required\",\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": null,\n          \"campaign_context_kind\": null,\n          \"campaign_id\": null,\n          \"campaign_node\": null,\n          \"context_id\": \"ctx-a\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"context_id\": \"ctx-a\",\n  \"inflight\": {\n    \"dispatch_id\": \"d1\",\n    \"outcome_path\": null\n  },\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json": "{\"attempt\": 1, \"report\": {\"task_id\": \"t1\", \"context_id\": \"ctx-a\", \"turn\": 1, \"phase\": \"serve\", \"status\": \"input-required\", \"node_id\": \"sub\", \"self_verification\": {\"checks_run\": [\"identity\"], \"identity_ok\": true}, \"artifacts\": [{\"kind\": \"log\", \"path\": \"output/x.json\"}], \"next_steps\": [\"serve 재기동\"], \"notes\": \"KV 미정\"}}"
+  },
+  "outputs": [
+   "campaigns"
+  ]
+ },
+ {
+  "id": "TD-37-continue-inflight",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--context-id",
+   "ctx-a",
+   "--continue",
+   "--apply",
+   "--resume",
+   "sess-1",
+   "--max-turns",
+   "5",
+   "--timeout-seconds",
+   "60",
+   "--budget-source",
+   "fixture budget"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n",
+   "campaigns/_bootstrap/relay/ctx-a.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": \"ctx-a\",\n      \"control_status\": \"completed\",\n      \"end_reason\": \"sub_input_required\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": \"input-required\",\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": null,\n          \"campaign_context_kind\": null,\n          \"campaign_id\": null,\n          \"campaign_node\": null,\n          \"context_id\": \"ctx-a\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"context_id\": \"ctx-a\",\n  \"inflight\": {\n    \"dispatch_id\": \"d1\",\n    \"outcome_path\": null\n  },\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json": "{\"attempt\": 1, \"report\": {\"task_id\": \"t1\", \"context_id\": \"ctx-a\", \"turn\": 1, \"phase\": \"serve\", \"status\": \"input-required\", \"node_id\": \"sub\", \"self_verification\": {\"checks_run\": [\"identity\"], \"identity_ok\": true}, \"artifacts\": [{\"kind\": \"log\", \"path\": \"output/x.json\"}], \"next_steps\": [\"serve 재기동\"], \"notes\": \"KV 미정\"}}"
+  },
+  "outputs": [
+   "campaigns"
+  ]
+ },
+ {
+  "id": "TD-38-supervise",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--supervise-step",
+   "camp-x",
+   "--utc",
+   "2026-11-02T00:00:00Z"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n",
+   "campaigns/ACTIVE": "camp-x\n",
+   "campaigns/camp-x/campaign.yaml": "{\"schema_version\": 1, \"id\": \"camp-x\", \"plan_ref\": \"docs/plan/plan_x.md\"}",
+   "campaigns/camp-x/relay/ctx-a.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": \"ctx-a\",\n      \"control_status\": \"completed\",\n      \"end_reason\": \"completed\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/camp-x/relay/ctx-a.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/camp-x/relay/ctx-a.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": \"completed\",\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": \"c1\",\n          \"campaign_context_kind\": \"cell\",\n          \"campaign_id\": \"camp-x\",\n          \"campaign_node\": \"sub\",\n          \"context_id\": \"ctx-a\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"campaign_cell\": \"c1\",\n  \"campaign_context_kind\": \"cell\",\n  \"campaign_id\": \"camp-x\",\n  \"campaign_node\": \"sub\",\n  \"context_id\": \"ctx-a\",\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/camp-x/relay/ctx-a.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/camp-x/relay/ctx-a.reports/attempt-01.json": "{\"attempt\": 1, \"report\": {\"task_id\": \"t1\", \"context_id\": \"ctx-a\", \"turn\": 1, \"phase\": \"serve\", \"status\": \"completed\", \"node_id\": \"sub\", \"self_verification\": {\"checks_run\": [\"identity\"], \"identity_ok\": true}, \"artifacts\": [{\"kind\": \"log\", \"path\": \"output/x.json\"}], \"next_steps\": [\"serve 재기동\"], \"notes\": \"KV 미정\"}}",
+   "campaigns/camp-x/relay/ctx-b.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": \"ctx-b\",\n      \"control_status\": \"completed\",\n      \"end_reason\": \"unclassified\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/camp-x/relay/ctx-b.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/camp-x/relay/ctx-b.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": null,\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": \"c2\",\n          \"campaign_context_kind\": \"cell\",\n          \"campaign_id\": \"camp-x\",\n          \"campaign_node\": \"sub\",\n          \"context_id\": \"ctx-b\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"campaign_cell\": \"c2\",\n  \"campaign_context_kind\": \"cell\",\n  \"campaign_id\": \"camp-x\",\n  \"campaign_node\": \"sub\",\n  \"context_id\": \"ctx-b\",\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/camp-x/relay/ctx-b.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/camp-x/relay/ctx-b.reports/attempt-01.json": "{\"attempt\": 1, \"report\": null}",
+   "campaigns/camp-x/relay/ctx-c.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": \"ctx-c\",\n      \"control_status\": \"completed\",\n      \"end_reason\": \"sub_input_required\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/camp-x/relay/ctx-c.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/camp-x/relay/ctx-c.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": \"input-required\",\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": null,\n          \"campaign_context_kind\": \"build\",\n          \"campaign_id\": \"camp-x\",\n          \"campaign_node\": \"sub\",\n          \"context_id\": \"ctx-c\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"campaign_context_kind\": \"build\",\n  \"campaign_id\": \"camp-x\",\n  \"campaign_node\": \"sub\",\n  \"context_id\": \"ctx-c\",\n  \"inflight\": {\n    \"dispatch_id\": \"z\"\n  },\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/camp-x/relay/ctx-c.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/camp-x/relay/ctx-c.reports/attempt-01.json": "{\"attempt\": 1, \"report\": {\"task_id\": \"t1\", \"context_id\": \"ctx-a\", \"turn\": 1, \"phase\": \"serve\", \"status\": \"input-required\", \"node_id\": \"sub\", \"self_verification\": {\"checks_run\": [\"identity\"], \"identity_ok\": true}, \"artifacts\": [{\"kind\": \"log\", \"path\": \"output/x.json\"}], \"next_steps\": [\"serve 재기동\"], \"notes\": \"KV 미정\"}}"
+  },
+  "outputs": [
+   "campaigns/camp-x/relay"
+  ]
+ },
+ {
+  "id": "TD-39-supervise-orphan",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--supervise-step",
+   "camp-y",
+   "--utc",
+   "2026-11-02T00:00:00Z"
+  ],
+  "setup": {
+   "output/single/manifest.yaml": "topology: single\nnodes:\n  - role: sub\n    node_id: sub\n    host: 192.0.2.11\n    ssh_user: fixture\n    work_dir: /srv/fixture\n",
+   "campaigns/camp-y/relay/ctx-a.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": \"ctx-a\",\n      \"control_status\": \"completed\",\n      \"end_reason\": \"completed\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/camp-y/relay/ctx-a.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/camp-y/relay/ctx-a.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": \"completed\",\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": \"c1\",\n          \"campaign_context_kind\": \"cell\",\n          \"campaign_id\": \"camp-y\",\n          \"campaign_node\": \"sub\",\n          \"context_id\": \"ctx-a\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"campaign_cell\": \"c1\",\n  \"campaign_context_kind\": \"cell\",\n  \"campaign_id\": \"camp-y\",\n  \"campaign_node\": \"sub\",\n  \"context_id\": \"ctx-a\",\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/camp-y/relay/ctx-a.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/camp-y/relay/ctx-a.reports/attempt-01.json": "{\"attempt\": 1, \"report\": {\"task_id\": \"t1\", \"context_id\": \"ctx-a\", \"turn\": 1, \"phase\": \"serve\", \"status\": \"completed\", \"node_id\": \"sub\", \"self_verification\": {\"checks_run\": [\"identity\"], \"identity_ok\": true}, \"artifacts\": [{\"kind\": \"log\", \"path\": \"output/x.json\"}], \"next_steps\": [\"serve 재기동\"], \"notes\": \"KV 미정\"}}",
+   "campaigns/camp-y/relay/ctx-b.json": "{\n  \"attempts\": [\n    {\n      \"attempt\": 1,\n      \"budget_outcome\": \"within_budget\",\n      \"budget_source\": \"fixture\",\n      \"budget_unit\": \"native_turns\",\n      \"context_id_reported\": \"ctx-b\",\n      \"control_status\": \"completed\",\n      \"end_reason\": \"unclassified\",\n      \"ended_utc\": \"2026-11-01T00:05:00Z\",\n      \"max_turns_allocated\": 5,\n      \"max_turns_used\": 4,\n      \"phase\": \"serve\",\n      \"provider\": \"claude_code\",\n      \"reason_codes\": [],\n      \"report_path\": \"campaigns/camp-y/relay/ctx-b.reports/attempt-01.json\",\n      \"request_digest\": \"6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e\",\n      \"request_path\": \"campaigns/camp-y/relay/ctx-b.requests/attempt-01.json\",\n      \"runner\": {\n        \"backend\": \"anthropic\",\n        \"model\": \"sonnet\",\n        \"name\": \"sonnet\",\n        \"provider\": \"claude_code\"\n      },\n      \"session_binding\": {\n        \"provider\": \"claude_code\",\n        \"target\": {\n          \"host\": \"192.0.2.11\",\n          \"role\": \"sub\",\n          \"ssh_user\": \"fixture\",\n          \"transport\": \"ssh\",\n          \"work_dir\": \"/srv/fixture\"\n        }\n      },\n      \"session_id\": \"sess-1\",\n      \"started_utc\": \"2026-11-01T00:00:00Z\",\n      \"status\": null,\n      \"sub_reported\": true,\n      \"task_instruction\": {\n        \"body\": \"원래 지시 본문\",\n        \"body_digest\": \"164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59\",\n        \"kind\": \"explicit\",\n        \"schema_version\": 1,\n        \"scope\": {\n          \"campaign_cell\": \"c2\",\n          \"campaign_context_kind\": \"cell\",\n          \"campaign_id\": \"camp-y\",\n          \"campaign_node\": \"sub\",\n          \"context_id\": \"ctx-b\",\n          \"control_variables\": null,\n          \"topology\": \"single\"\n        },\n        \"source_attempt\": 1\n      },\n      \"timeout_seconds_allocated\": 60\n    }\n  ],\n  \"campaign_cell\": \"c2\",\n  \"campaign_context_kind\": \"cell\",\n  \"campaign_id\": \"camp-y\",\n  \"campaign_node\": \"sub\",\n  \"context_id\": \"ctx-b\",\n  \"manifest\": \"output/single/manifest.yaml\",\n  \"revision\": 1,\n  \"schema_version\": 1,\n  \"task\": \"원래 지시 본문\",\n  \"topology\": \"single\"\n}\n",
+   "campaigns/camp-y/relay/ctx-b.requests/attempt-01.json": "{\n  \"backend\": \"anthropic\",\n  \"capabilities\": [\n    \"read\",\n    \"execute\",\n    \"edit\",\n    \"write\",\n    \"search\"\n  ],\n  \"intent\": \"delegate\",\n  \"max_turns\": 5,\n  \"model\": \"sonnet\",\n  \"provider\": \"claude_code\",\n  \"schema_version\": 1,\n  \"target\": {\n    \"host\": \"192.0.2.11\",\n    \"role\": \"sub\",\n    \"ssh_user\": \"fixture\",\n    \"transport\": \"ssh\",\n    \"work_dir\": \"/srv/fixture\"\n  },\n  \"task\": \"## header\\n원래 지시 본문\",\n  \"timeout_seconds\": 60\n}\n",
+   "campaigns/camp-y/relay/ctx-b.reports/attempt-01.json": "{\"attempt\": 1, \"report\": null}"
+  },
+  "outputs": [
+   "campaigns/camp-y/relay"
+  ]
+ },
+ {
+  "id": "TD-40-self-test",
+  "entry": ".claude/skills/terraforming_node/scripts/relay.sh",
+  "orig": ".claude/skills/terraforming_node/scripts/relay.py",
+  "args": [
+   "--self-test"
+  ]
+ }
+]

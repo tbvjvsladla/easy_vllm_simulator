@@ -1,0 +1,67 @@
+[render] OK → out
+[render] external hint write scopes: not-declared (native access unverified)
+   + CLAUDE.md
+   + AGENTS.md
+   + Agent_Card.json
+   + .claude/settings.local.json
+   + .codex/config.toml
+   + .codex/rules/sub.rules
+   + .claude/rules/comms.md
+   + .claude/schemas/task-report.schema.json
+   + .claude/rules/strategy.topology.md
+   + campaigns/_template/residue.json
+   + campaigns/_template/campaign.schema.json
+   + campaigns/_template/campaign.yaml
+   + campaigns/_template/evidence_pointers.json
+   + campaigns/_template/cells/_cell/config.yaml
+   + campaigns/_template/cells/_cell/cell.status.json
+   + campaigns/_template/cells/_cell/lockset.json
+   + campaigns/_template/phases/_node/build.status.json
+   + campaigns/_template/phases/_node/bench.status.json
+   + campaigns/_template/phases/_node/publish.status.json
+   + campaigns/_template/phases/_node/serve.status.json
+   + campaigns/_template/relay/.gitkeep
+   + campaigns/_template/sweeps/.gitkeep
+   + .claude/skills/terraforming_node/scripts/campaign_init.py
+   + .claude/skills/terraforming_node/scripts/campaign_init.sh
+   + .claude/skills/terraforming_node/scripts/campaign_template_validator.py
+   + .claude/skills/terraforming_node/scripts/campaign_template_validator.sh
+   + .claude/skills/terraforming_node/scripts/manifest_contract.py
+   + .claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py
+   + .claude/skills/terraforming_node/scripts/manifest_contract.sh
+   + .claude/skills/terraforming_node/scripts/node_role_contract.sh
+   + .claude/skills/terraforming_node/scripts/node_role_contract.py
+   + .claude/skills/terraforming_node/scripts/harness_permission_probe.sh
+   + .claude/skills/terraforming_node/scripts/rust_bootstrap.sh
+   + .claude/skills/terraforming_node/scripts/rust_toolchain.pin
+   + .claude/skills/terraforming_node/scripts/build_rust_packages.sh
+   + .claude/skills/terraforming_node/references/install/rust_runtime.md
+   + campaigns/README.md
+   + .claude/runtime/host_safety/mem_watchdog.sh
+   + .claude/runtime/host_safety/install_host_safety.sh
+   + .claude/runtime/host_safety/install_netconsole.sh
+   + .claude/runtime/host_safety/systemd/easy-vllm-memwatch.service
+   + .claude/runtime/host_safety/host/vllm-drop-caches.sh
+   + .claude/runtime/node_blackbox/mem_watchdog_eta.sh
+   + .claude/runtime/node_blackbox/blackbox_collect.py
+   + .claude/runtime/node_blackbox/blackbox_events.py
+   + .claude/runtime/node_blackbox/blackbox_eta.py
+   + .claude/runtime/node_blackbox/blackbox_session.py
+   + .claude/runtime/node_blackbox/logs_lifecycle.py
+   + .claude/runtime/node_blackbox/seed_from_journal.py
+   + .claude/runtime/node_blackbox/install_node_blackbox.sh
+   + .claude/runtime/node_blackbox/verify_node_blackbox.sh
+   + .claude/runtime/node_blackbox/purge_host_safety.sh
+   + .claude/runtime/node_blackbox/agent_guard.py
+   + .claude/runtime/node_blackbox/adversarial_stress.py
+   + .claude/runtime/node_blackbox/regen_envelope.py
+   + .claude/runtime/node_blackbox/node_identity.sh
+   + .claude/runtime/node_blackbox/budget_renew_loop.sh
+   + .claude/runtime/node_blackbox/blackbox_thermal.py
+   + .claude/runtime/node_blackbox/thermal_watchdog.sh
+   + .gitignore
+   + docs/*/example.md (5 skeletons)
+[render] 다음(HITL · 인가 인자 필수):
+   bash .claude/skills/upstream-version-watch/scripts/sync_to_sub.sh \
+        --mode experimental --manifest <work-manifest.json> --apply --provision --branch multi
+   ↑ work-manifest 발행 절차 = terraforming_node SKILL.md §2.3 '인가 체인'

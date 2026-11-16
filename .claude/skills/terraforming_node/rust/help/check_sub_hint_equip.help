@@ -1,0 +1,19 @@
+usage: check_sub_hint_equip.py [-h] [--workspace WORKSPACE] [--clone]
+                               [--remote-url REMOTE_URL]
+                               [--write-push-authority] [--utc UTC]
+                               [--self-test]
+
+single 서브 hint 발행 장착 판정·장착(비밀 미출력)
+
+options:
+  -h, --help            show this help message and exit
+  --workspace WORKSPACE
+                        서브 워크스페이스 루트(기본: 이 스크립트 위치에서 파생)
+  --clone               ① hint 클론 장착(HINT_CLONE_DIR 선언 필수)
+  --remote-url REMOTE_URL
+                        --clone 의 프로젝트 원격(메인이 Task Message 로 준다 · 자격증명 박힌 URL
+                        거부)
+  --write-push-authority
+                        ② hints/.push_authority 작성
+  --utc UTC             --write-push-authority 의 선언 시각(주입 · 생략 가능)
+  --self-test

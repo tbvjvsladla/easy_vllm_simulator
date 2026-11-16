@@ -1,0 +1,3 @@
+usage: agent_control.py invoke [-h] --request REQUEST
+                               [--result-file RESULT_FILE]
+                               [--dispatch-id DISPATCH_ID]

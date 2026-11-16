@@ -1,0 +1,6 @@
+{
+  "phase": "caller",
+  "harness": "codex_cli",
+  "status": "completed",
+  "reason": "no caller-plane installable for this harness (worker config suffices)"
+}

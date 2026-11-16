@@ -1,0 +1,11 @@
+#!/bin/sh
+# Parity stub of the `codex` CLI for the TA-* agent_control goldens (no network, no model): logs its argv to
+# ta_out/codex.argv, then replays ta_fix/codex[.N].{stdout,stderr,sleep,rc} for call N.
+mkdir -p ta_out
+n=$(( $(cat ta_out/codex.n 2>/dev/null || echo 0) + 1 )); echo "$n" > ta_out/codex.n
+{ printf 'call %s argv:' "$n"; for a in "$@"; do printf ' [%s]' "$a"; done; printf '\n'; } >> ta_out/codex.argv
+f=ta_fix/codex.$n; [ -e "$f.stdout" ] || [ -e "$f.rc" ] || f=ta_fix/codex
+[ -f "$f.stdout" ] && cat "$f.stdout"
+[ -f "$f.stderr" ] && cat "$f.stderr" >&2
+[ -f "$f.sleep" ] && sleep "$(cat "$f.sleep")"
+exit "$(cat "$f.rc" 2>/dev/null || echo 0)"

@@ -1,0 +1,28 @@
+{
+  "budget_outcome": null,
+  "duration_api_ms": null,
+  "duration_ms": null,
+  "execution_started": false,
+  "exit_code": 4,
+  "failure_evidence": {
+    "detail": "[Errno 2] runner executable not found: 'codex'",
+    "filename": "codex",
+    "rotate": true,
+    "signal": "missing_binary"
+  },
+  "intent": "delegate",
+  "model_requested": "gpt-6.1-sol",
+  "model_used": [],
+  "num_turns": null,
+  "output": "[runner_unavailable] {\"signal\": \"missing_binary\", \"rotate\": true, \"detail\": \"[Errno 2] runner executable not found: 'codex'\", \"filename\": \"codex\"}",
+  "provider": "codex_cli",
+  "raw_events": [],
+  "raw_exit_code": null,
+  "reason_codes": [
+    "RUNNER_UNAVAILABLE"
+  ],
+  "schema_version": 2,
+  "session_id": null,
+  "status": "execution_failed",
+  "usage": null
+}

@@ -1,0 +1,102 @@
+usage: relay.py [-h] [--topology {single,multi}] [--manifest MANIFEST]
+                [--context-id CONTEXT_ID] [--max-turns MAX_TURNS]
+                [--provider {claude_code,codex_cli}]
+                [--max-dispatches MAX_DISPATCHES]
+                [--permission-profile PERMISSION_PROFILE | --sandbox-mode {read-only,workspace-write}]
+                [--timeout-seconds TIMEOUT_SECONDS]
+                [--budget-source BUDGET_SOURCE]
+                [--backend {anthropic,kimi,minimax,meta,openai,claude-sub}]
+                [--capacity-retries CAPACITY_RETRIES]
+                [--capacity-backoff-seconds CAPACITY_BACKOFF_SECONDS]
+                [--capacity-deadline-utc CAPACITY_DEADLINE_UTC]
+                [--capacity-approval-file CAPACITY_APPROVAL_FILE]
+                [--reasoning-effort {default,none,minimal,low,medium,high,xhigh,max}]
+                [--runner-effort RUNNER=LEVEL] [--model MODEL]
+                [--runners a,b,c] [--resume SESSION_ID|new] [--task TASK]
+                [--task-file TASK_FILE] [--handoff-issue HANDOFF_ISSUE]
+                [--continue] [--apply] [--reconcile-inflight]
+                [--reconcile-result RECONCILE_RESULT] [--emit-only]
+                [--repo-root REPO_ROOT] [--campaign-id CAMPAIGN_ID]
+                [--no-campaign] [--node NODE] [--context-kind {build,cell}]
+                [--cell CELL] [--budget-from-phase] [--supervise-step CAMP_ID]
+                [--cost-cap-attempts COST_CAP_ATTEMPTS] [--utc UTC]
+                [--campaign-control {suspend,resume,close,abandon,reslice}]
+                [--orphan-sweep] [--reason REASON] [--self-test]
+
+메인↔서브 턴제 릴레이
+
+options:
+  -h, --help            show this help message and exit
+  --topology {single,multi}
+  --manifest MANIFEST
+  --context-id CONTEXT_ID
+  --max-turns MAX_TURNS
+                        이 attempt 에 배정할 턴 예산(선언 필수 — 등급표 폐기 · 기본값 없음)
+  --provider {claude_code,codex_cli}
+  --max-dispatches MAX_DISPATCHES
+                        구 호출 호환 인자; 누적 호출 상한으로 적용하지 않음
+  --permission-profile PERMISSION_PROFILE
+  --sandbox-mode {read-only,workspace-write}
+  --timeout-seconds TIMEOUT_SECONDS
+                        매달림 상한(scope ⊥ budget — 예산과 별개 노브)
+  --budget-source BUDGET_SOURCE
+                        그 예산을 그렇게 정한 근거(필수 · 원장에 남는다)
+  --backend {anthropic,kimi,minimax,meta,openai,claude-sub}
+                        provider 실행 백엔드(생략 = anthropic). 선택지는 전송 스키마 enum 에서
+                        읽는다. 별칭으로 부르려면 --runners(예: meta-claude)
+  --capacity-retries CAPACITY_RETRIES
+  --capacity-backoff-seconds CAPACITY_BACKOFF_SECONDS
+  --capacity-deadline-utc CAPACITY_DEADLINE_UTC
+  --capacity-approval-file CAPACITY_APPROVAL_FILE
+  --reasoning-effort {default,none,minimal,low,medium,high,xhigh,max}
+  --runner-effort RUNNER=LEVEL
+                        Per-slot effort override; repeat for multiple slots.
+                        default uses target native policy.
+  --model MODEL         위임 모델 선언(기본은 카나리 기본값). 어댑터는 모델로 차단하지 않는다 — 실제로 돈 모델은
+                        원장 `model_used` 가 말한다(2026-09-05 · G-A1).
+  --runners a,b,c       러너 **사다리**(순서 있는 목록 · 쉼표 구분). 예: `kimi-claude,minimax-
+                        claude,sonnet,haiku`. 러너 = (backend, model) 한 쌍이며 아는
+                        이름은 `agent_control.sh runners` 가 낸다. 러너 평면 실패(백엔드
+                        한도·인증·미도달·바이너리 부재)에서 다음 칸으로 **회전**하고, 한 바퀴를 다 돌면 차단성
+                        HITL 로 끊는다. 생략 시 1칸(sonnet) = 이 기능 도입 전과 동작 동일.
+                        --backend/--model 과 상호배타.
+  --resume SESSION_ID|new
+                        이어받을 provider 세션 id, 또는 새 세션이면 `new`. **선언 필수** — 코드가
+                        대신 정하지 않는다(2026-09-05 · 축 F).
+  --task TASK           서브에 보낼 지시(또는 --task-file)
+  --task-file TASK_FILE
+  --handoff-issue HANDOFF_ISSUE
+                        반환 결과에서 발견한 실제 인계 문제와 근거 위치; 명시적인 정정 Task와 함께 사용
+  --continue            원장의 중단점에서 이어간다 — 본문을 기계가 조립한다. 기본 dry-run.
+  --apply               --continue 와 함께: 조립한 본문으로 실제 위임한다(사람 승인 정문).
+  --reconcile-inflight  consume only the reserved durable provider outcome;
+                        never launch a replacement worker
+  --reconcile-result RECONCILE_RESULT
+                        optional exact reserved outcome path; defaults to
+                        inflight.outcome_path
+  --emit-only           request 만 조립해 출력(실행 ✗)
+  --repo-root REPO_ROOT
+  --campaign-id CAMPAIGN_ID
+                        위임에 실을 캠페인 id(생략 시 활성 캠페인 · _bootstrap 이면 미탑재)
+  --no-campaign         캠페인 축을 싣지 않는다(캠페인 밖 온보딩·카나리)
+  --node NODE           이 context 를 수행하는 노드 id(원장에 못박힌다 · P4 가 읽는다)
+  --context-kind {build,cell}
+                        build = 빌드 문맥 · cell = 셀 하나(서빙→벤치). 셀 하나 = context
+                        하나(D20)
+  --cell CELL           --context-kind cell 의 셀 id(원장에 못박힌다)
+  --budget-from-phase   --timeout-seconds 를 같은 노드의 지난 phase 실측에서 파생한다 (실측이 없으면
+                        스키마 상한을 쓰고 그 사실을 근거에 적는다)
+  --supervise-step CAMP_ID
+                        감독 한 걸음 — 원장+회수 브리핑을 읽어 판정하고 원장에 적고 끝난다. 상주 ✗(세션 리볼빙 ·
+                        D7). --apply 면 전진이 보이는 중단을 자동 재발급한다
+  --cost-cap-attempts COST_CAP_ATTEMPTS
+                        구 호출 호환 인자; 누적 호출 상한으로 적용하지 않음
+  --utc UTC             감독 스텝 기록 시각(주입 · 생략 시 메인 벽시계)
+  --campaign-control {suspend,resume,close,abandon,reslice}
+                        수명 전이(보류·재개·종결·포기)를 서브에 A2A 로 전한다 · --campaign-id
+                        --node 필수 · 지시 본문은 기계가 조립한다(--task 생략) · echo 가 수렴하면
+                        메인 journey 에 sub_control_echo 를 적는다
+  --orphan-sweep        --campaign-control abandon 과 함께: 메인 인스턴스가 없는 서브 orphan
+                        묶음 정리(--campaign-id a,b,… · 부재 선언 · --reason 필수)
+  --reason REASON       --campaign-control abandon 의 포기 사유(생략 = 메인 종결 줄의 note)
+  --self-test

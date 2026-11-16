@@ -1,0 +1,1 @@
+[agent-control] REQUEST_SCHEMA_INVALID: $.sandbox_mode: sub writes require :danger-full-access via permission_profile; do not use a legacy override

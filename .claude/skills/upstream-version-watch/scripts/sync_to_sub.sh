@@ -236,7 +236,7 @@ GIT_NAME="${SYNC_GIT_NAME:-easy-vllm sync (main)}"      # [sync] 커밋 = 스크
 GIT_EMAIL="${SYNC_GIT_EMAIL:-sync@easy-vllm.local}"
 MAX_DELETE="${MAX_DELETE:-50}"     # (레거시) --delete 안전캡. S4 는 아래 ALLOW_DELETE 삭제brake 가 1차 게이트.
 ALLOW_DELETE="${ALLOW_DELETE:-0}"  # (S4 d-rsync-2) 삭제 前 brake: 삭제예정 > 이 값이면 *삭제 前* fail-closed. 의도된 정리만 명시 override.
-RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
+RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.sh"
 # 역할 계약 판정기 — 배달 표면 검증이 tool_plane 을 물을 때 쓴다. 2026-09-05: 이 상수가
 #   **정의된 적이 없었다**. 검증기 본문 주석은 "경로는 파일 상단 ROLE_CONTRACT 상수"라고
 #   적고 있었으니 배선만 빠진 것이다(만든 것과 도는 것은 다르다).
@@ -1001,7 +1001,7 @@ render_topology() {
         hint_scope_args=(--hint-write-scopes "$HINT_WRITE_SCOPES")
     fi
     # 소스-온리 스냅샷은 의도적으로 빌드 산출물(무시되는 ELF·cargo 캐시)을 담지 않는다 — 복사도 빌드도 하지 않는다. 그런데 스테이징된
-    #   render_sub_env.py 는 manifest_contract.py(얇은 import 어댑터)를 import 하고, 그 어댑터는 **자기 트리의**
+    #   (옛 render_sub_env.py 는 manifest_contract.py(얇은 import 어댑터)를 import 했고 — Rust render_sub_env 는 계약 리더를 in-process 로 든다 · 바인딩은 무해하게 남는다 — 그 어댑터는 **자기 트리의**
     #   adversarial-benchmark/rust/target/release/manifest_contract 를 기본값으로 연다 → 스냅샷엔 없어 render 가 status 2 로 죽었다
     #   (2026-11-09 공식 기본 dry-run exit 9 · 호출자가 MANIFEST_CONTRACT_BIN 을 손으로 export 해야 통과 = 문서화되지 않은 전제).
     #   처방은 실행 경계의 바인딩이다: 이 노드(정본 트리)가 이미 빌드한 **같은 ELF** 의 경로를 **이 render 자식 프로세스에만** 준다.
@@ -1015,7 +1015,7 @@ render_topology() {
         mc_root="$(CDPATH='' cd "$CANONICAL_SRC" && pwd)" || { rm -f "$_tracked_list"; return 9; }
         mc_env=("MANIFEST_CONTRACT_BIN=$mc_root/.claude/skills/adversarial-benchmark/rust/target/release/manifest_contract")
     fi
-    env "${mc_env[@]}" python3 "$RENDER" --topology "$1" --tracked-list "$_tracked_list" "${hint_scope_args[@]}" >/dev/null || {
+    env "${mc_env[@]}" bash "$RENDER" --topology "$1" --tracked-list "$_tracked_list" "${hint_scope_args[@]}" >/dev/null || {
         rm -f "$_tracked_list"; return 9; }
     rm -f "$_tracked_list"
     if [ "$1" != "multi" ] && [ -d "$output_dir/envs" ] \
@@ -1373,7 +1373,11 @@ prepare_transactional_source() {
     if [ "${EASY_VLLM_UPSTREAM_RUNTIME_ROOT+set}" != set ]; then
         export EASY_VLLM_UPSTREAM_RUNTIME_ROOT="${CANONICAL_SRC%/}/.claude/skills/upstream-version-watch/rust/runtime"
     fi
-    RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.py"
+    #   terraforming_node 런처(render_sub_env.sh 등)도 같은 규칙: 정본 트리의 terraforming_node/rust ELF 를 실행 경계에 바인딩한다.
+    if [ "${TERRAFORMING_BIN_DIR+set}" != set ]; then
+        export TERRAFORMING_BIN_DIR="${CANONICAL_SRC%/}/.claude/skills/terraforming_node/rust/target/release"
+    fi
+    RENDER="$SRC.claude/skills/terraforming_node/scripts/render_sub_env.sh"
     ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.sh"
     PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh"
     PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"

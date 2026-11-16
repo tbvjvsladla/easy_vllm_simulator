@@ -1,0 +1,4 @@
+[agent-control] REQUEST_SCHEMA_INVALID: $: expected exactly one oneOf branch, matched 0
+[agent-control] REQUEST_SCHEMA_INVALID: $.provider: 'other' not in enum ['claude_code', 'codex_cli']
+[agent-control] REQUEST_SCHEMA_INVALID: $.intent: 'nope' not in enum ['delegate', 'probe', 'bootstrap_canary']
+[agent-control] REQUEST_SCHEMA_INVALID: $.model: expected type ['string'], got int (3)

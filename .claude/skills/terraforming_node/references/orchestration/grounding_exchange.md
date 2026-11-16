@@ -83,7 +83,7 @@ bash .claude/skills/terraforming_node/scripts/library_access.sh --topology <t> -
 2. **서브 전용 키**는 서브에서 만든다. 개인키는 서브를 떠나지 않는다.
 3. **메인 호스트 키**를 서브 전용 known_hosts에 넣는다. TOFU(첫 접속 신뢰)를 쓰지 않는다.
 4. 메인 authorized_keys에 강제명령 줄을 넣는다. 마커로 멱등 교체한다. **메인 authorized_keys 변경은 매번 HITL이다**(`--approved-by` 없으면 차단).
-5. manifest `library` 블록을 메인과 `sub_manifest.yaml` 양쪽에 쓴다. 이후 `render_sub_env.py --sub-manifest` → `sync_to_sub.sh --provision`으로 배달한다(wiki-desk 패키지는 tool plane으로 함께 간다).
+5. manifest `library` 블록을 메인과 `sub_manifest.yaml` 양쪽에 쓴다. 이후 `render_sub_env.sh --sub-manifest` → `sync_to_sub.sh --provision`으로 배달한다(wiki-desk 패키지는 tool plane으로 함께 간다).
 
 - 회수(`--revoke`)는 노드를 해제하거나 재설치할 때만 한다. 주기적인 키 회전은 없다(D11).
 - 이것은 노드 제어 불변식 1(무단 스캔 금지)과 충돌하지 않는다. 서브가 메인에 *쓰는* 것은 자기 문서(반입)와 자기 카드뿐이고, 상향 회수는 여전히 문서 기반이다. 메인이 서브를 읽는 통로는 이 절과 무관하다.
@@ -101,7 +101,7 @@ HW 재스캔·서브 재설치·주소 변경 뒤에는 접근자도 다시 선�
    - 중첩: 사람이 덧붙인 하위 키도 보존한다(실측: multi `interconnect.nccl_transport: rdma` 는 emit 에 없다 — 최상위 키째 바꾸면 NCCL 전송이 socket 으로 돌아간다).
    - ⚠ single 의 메인 `nodes[].host` 는 스캔 값(`platform.node()` = hostname)이다 — 손으로 IP 를 적어 두었다면 여기서 바뀐다. multi 는 인터커넥트 iface IP 가 나온다.
 3. **접근점 재발급**: `library_access.sh --topology <t> --node sub --apply --approved-by "<전사>"`. **반드시 2 뒤에** 돌린다 — 1 의 서브 발급본은 병합 *전* nodes 로 library 블록을 파생했으므로(옛 host), 이 단계가 병합된 nodes 에서 서브 블록·known_hosts host 줄을 다시 쓴다. 실노드 키는 재사용한다(D11 — 회전 없음 · 두 토폴로지가 같은 키를 쓴다).
-4. **배달**: `render_sub_env.py --topology <t> --sub-manifest output/<t>/sub_manifest.yaml` → `sync_to_sub.sh --branch <t> --apply`(인가 work-manifest).
+4. **배달**: `render_sub_env.sh --topology <t> --sub-manifest output/<t>/sub_manifest.yaml` → `sync_to_sub.sh --branch <t> --apply`(인가 work-manifest).
 5. **확인(서브 A2A)**: `cli.ts status` · 원격 `read` 결과 = 메인 로컬 `read`(sha256) · `sync --apply` → 질의 적중.
 
 회수 창(1~3 사이 접근점이 없는 동안)에 서브의 `status`·`query` 는 `{"error":"library-unreachable"}` + exit 4, `sync` 는 `not-yet-ingested` + exit 4 로 표시된다 — 발행은 막히지 않고, 재발급 뒤 다음 입고가 따라잡는다.

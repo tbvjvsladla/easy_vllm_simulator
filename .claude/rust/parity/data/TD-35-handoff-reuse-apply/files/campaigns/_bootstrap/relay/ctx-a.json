@@ -1,0 +1,74 @@
+{
+  "attempts": [
+    {
+      "attempt": 1,
+      "budget_outcome": "within_budget",
+      "budget_source": "fixture",
+      "budget_unit": "native_turns",
+      "context_id_reported": "ctx-a",
+      "control_status": "completed",
+      "end_reason": "completed",
+      "ended_utc": "2026-11-01T00:05:00Z",
+      "max_turns_allocated": 5,
+      "max_turns_used": 4,
+      "phase": "serve",
+      "provider": "claude_code",
+      "reason_codes": [],
+      "report_path": "campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json",
+      "request_digest": "6537485cf79d319018f7bb2c3ddc77658a64affd5f1eb7032093faae5333049e",
+      "request_path": "campaigns/_bootstrap/relay/ctx-a.requests/attempt-01.json",
+      "runner": {
+        "backend": "anthropic",
+        "model": "sonnet",
+        "name": "sonnet",
+        "provider": "claude_code"
+      },
+      "session_binding": {
+        "provider": "claude_code",
+        "target": {
+          "host": "192.0.2.11",
+          "role": "sub",
+          "ssh_user": "fixture",
+          "transport": "ssh",
+          "work_dir": "/srv/fixture"
+        }
+      },
+      "session_id": "sess-1",
+      "started_utc": "2026-11-01T00:00:00Z",
+      "status": "completed",
+      "sub_reported": true,
+      "task_instruction": {
+        "body": "원래 지시 본문",
+        "body_digest": "164e8c65e7a7788b8392dba30851b490270acb9cc19d7eb5e8f4ef27cb7dfd59",
+        "kind": "explicit",
+        "schema_version": 1,
+        "scope": {
+          "campaign_cell": null,
+          "campaign_context_kind": null,
+          "campaign_id": null,
+          "campaign_node": null,
+          "context_id": "ctx-a",
+          "control_variables": null,
+          "topology": "single"
+        },
+        "source_attempt": 1
+      },
+      "timeout_seconds_allocated": 60
+    }
+  ],
+  "context_id": "ctx-a",
+  "handoff_reuse": {
+    "action": "reuse_completed_result",
+    "context_id": "ctx-a",
+    "continue_workflow": true,
+    "execution_started": false,
+    "reason": "no_new_handoff_issue",
+    "report_path": "campaigns/_bootstrap/relay/ctx-a.reports/attempt-01.json",
+    "source_attempt": 1
+  },
+  "manifest": "output/single/manifest.yaml",
+  "revision": 2,
+  "schema_version": 1,
+  "task": "원래 지시 본문",
+  "topology": "single"
+}

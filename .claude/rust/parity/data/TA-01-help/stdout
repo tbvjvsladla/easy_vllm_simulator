@@ -1,0 +1,15 @@
+usage: agent_control.py [-h] [--self-test] {invoke,runners} ...
+
+provider-neutral agent-control orchestrator (Phase 6, plan_26072506)
+
+positional arguments:
+  {invoke,runners}
+    invoke          invoke a provider against a request JSON file
+    runners         provider 어댑터가 아는 러너 별칭 표를 출력한다
+
+options:
+  -h, --help        show this help message and exit
+  --self-test       경계·소진·러너 판정·공개 전송 게이트 회귀를 실행한다(네트워크·claude 실행 없음)
+
+exit codes: 0=completed 2=invalid_request 4=execution_failed
+5=malformed_output 124=timeout

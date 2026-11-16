@@ -1,0 +1,2 @@
+call 1 argv: [-p] [it's a "probe" $(x)] [--model] [sonnet] [--output-format] [json] [--max-turns] [3] [--allowedTools] [Read,WebSearch,WebFetch,Write]
+watchdog=1

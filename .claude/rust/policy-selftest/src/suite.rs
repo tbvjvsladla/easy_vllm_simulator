@@ -860,17 +860,16 @@ pub fn policy_and_evidence_lifecycle(repo: &Path) -> R<()> {
     Ok(())
 }
 
-pub const AGENT_CONTROL_REL: &str = ".claude/skills/terraforming_node/scripts/agent_control.py";
+/// The agent_control owner program, by its Rust launcher (terraforming_node/rust `agent_control`; was `agent_control.py`).
+pub const AGENT_CONTROL_REL: &str = ".claude/skills/terraforming_node/scripts/agent_control.sh";
 
 pub fn agent_control_owner_selftest(repo: &Path) -> R<()> {
     let script = repo.join(AGENT_CONTROL_REL);
     require(script.is_file(), || format!("agent_control owner script missing: {}", ps(&script)))?;
-    // the owner's own interpreter-flag-preserving launch (verify_distribution._child_python) -- another bundle's program
-    let mut argv = policy_distribution::child_python();
-    argv.push(ps(&script));
-    argv.push("--self-test".into());
-    let refs: Vec<&str> = argv[1..].iter().map(|x| x.as_str()).collect();
-    let o = gitx::run(&argv[0], &refs, None, None);
+    // another bundle's program, through its launcher (no interpreter)
+    let script_s = ps(&script);
+    let refs: Vec<&str> = vec![script_s.as_str(), "--self-test"];
+    let o = gitx::run("bash", &refs, None, None);
     let text = if o.stderr.is_empty() { o.text() } else { o.err_text() };
     let c: Vec<char> = text.chars().collect();
     let tail: String = c[c.len().saturating_sub(800)..].iter().collect();

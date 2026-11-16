@@ -1,0 +1,1 @@
+[agent-control] RUNNER_UNAVAILABLE: 러너(backend=anthropic model=sonnet)가 실행하지 못했다 — 요청 거절 또는 미등록 상태 — 회전 근거가 없다. 회전 가능=False (target=main/local)

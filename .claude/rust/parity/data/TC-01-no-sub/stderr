@@ -1,0 +1,1 @@
+[canary] FAIL: manifest nodes[] 에 role: sub 가 없다 — 서브 미등록 상태에서는 카나리를 조립할 수 없다(§2.5 는 전달 후 게이트다).

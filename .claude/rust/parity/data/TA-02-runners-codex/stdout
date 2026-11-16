@@ -1,0 +1,39 @@
+{
+  "provider": "codex_cli",
+  "runners": [
+    {
+      "backend": "openai",
+      "model": "gpt-6.1-sol",
+      "name": "codex-gpt-6.1-sol",
+      "provider": "codex_cli"
+    },
+    {
+      "backend": "openai",
+      "model": "gpt-6.1-terra",
+      "name": "codex-gpt-6.1-terra",
+      "provider": "codex_cli"
+    }
+  ],
+  "supports": {
+    "budget_units": [
+      "wall_time"
+    ],
+    "cancellation": "local_process_group_and_remote_deadline",
+    "capabilities_mode": "intent_only",
+    "native_turn_limit": false,
+    "permission_profile_verification": "deployment_and_native_work_canary_required",
+    "permission_profiles": [
+      ":danger-full-access"
+    ],
+    "resume": "explicit_native_id_with_binding",
+    "sandbox_modes": [
+      "read-only",
+      "workspace-write"
+    ],
+    "schema_versions": [
+      2
+    ],
+    "structured_output": "jsonl",
+    "workspace_exclusion": "nonblocking_flock_in_output"
+  }
+}

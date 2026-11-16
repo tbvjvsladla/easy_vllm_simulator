@@ -1,0 +1,4 @@
+[relay] STOP: 답이 필요한 **차단성** 요청이 있다 — h1
+  → /tmp/parity-o-TD-29-continue-blocked-3718377-1794818344220947013/campaigns/_bootstrap/relay/pending_hitl.json 의 해당 항목 `answer` 에 실제 사용자 답을 기록하라.
+  → 답의 존재는 승인이 아니다. 사용자의 재개 의사를 확인한 경우에만 --continue 하라.
+  → Codex 미해결 실패의 명시적 수동 복구 조건은 그대로 적용된다.

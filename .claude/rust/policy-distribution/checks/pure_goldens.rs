@@ -167,6 +167,13 @@ const LAUNCHER_SWITCHED: &[&str] = &[
     "recipe_gmu_roles_batch_selftest",
     "terraform_agent_guard_selftest",
     "blackbox_session_selftest",
+    // terraforming_node A2A control plane (relay · agent_control · render_sub_env · canary · gates).
+    "terraform_render_selftest",
+    "terraform_staleness_gate_selftest",
+    "agent_control_selftest",
+    "terraform_relay_selftest",
+    "terraform_bootstrap_canary_selftest",
+    "terraform_check_sub_hint_equip_selftest",
 ];
 
 /// Golden check names that were renamed with their launcher (`upstream_help:x.py` → `upstream_help:x.sh`).

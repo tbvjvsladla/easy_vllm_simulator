@@ -1,7 +1,7 @@
 # request_<YYMMDDHH>_서브_hint_push_자격_배치
 
 > **수행지시서 템플릿**(추적 · PII-free) — terraforming_node `references/install/sub_agent_env.md` §2.5.1 hint 발행 장착이 쓴다.
-> 메인 Agent 는 서브 testlog 의 `check_sub_hint_equip.py` 보고에서 `next_actions[].actor = "human"` 을 읽었을 때만
+> 메인 Agent 는 서브 testlog 의 `check_sub_hint_equip.sh` 보고에서 `next_actions[].actor = "human"` 을 읽었을 때만
 > 이 파일을 복제해 `docs/request/request_<YYMMDDHH>[_MM_SS]_서브_hint_push_자격_배치.md` 로 발행한다(이름은
 > `wiki-desk/src/doc_naming.ts` 로 실제 KST 시각에서 파생 · `<…>` 자리는 발행 시 채운다 · 이 인용 블록은 지운다).
 > 왜 사람인가: push 토큰과 그 노드의 PII 리터럴은 **비밀**이라 배달 평면(render_sub_env · sync_to_sub)으로 보내지 않는다.
@@ -37,8 +37,7 @@ chmod 600 .claude/pii_terms.txt
 
 ```bash
 cd <SUB_WORKSPACE>
-python3 .claude/skills/terraforming_node/scripts/check_sub_hint_equip.py | python3 -c \
-  'import json,sys; c=json.load(sys.stdin)["checks"]; print(c["token"]["status"], c["pii_terms"]["status"])'
+bash .claude/skills/terraforming_node/scripts/check_sub_hint_equip.sh | jq -r '.checks.token.status + " " + .checks.pii_terms.status'
 ```
 
 - 기대: `present present`(ssh·로컬 원격이면 `not_required present`). 토큰 **값**은 어디에도 출력되지 않아야 한다.
@@ -54,7 +53,7 @@ python3 .claude/skills/terraforming_node/scripts/check_sub_hint_equip.py | pytho
 
 ## ⑤ 회수물 (에이전트에게 돌려줄 것)
 
-- `check_sub_hint_equip.py` 출력 JSON 전체(비밀 미포함) — 메인이 다음 A2A 지시로 서브에게 다시 돌리게 해도 된다.
+- `check_sub_hint_equip.sh` 출력 JSON 전체(비밀 미포함) — 메인이 다음 A2A 지시로 서브에게 다시 돌리게 해도 된다.
 - 토큰 만료일(날짜만). 토큰 값 · PII 리터럴 내용은 **회수물이 아니다**.
 
 ## ⑥ 예상 소요·비용

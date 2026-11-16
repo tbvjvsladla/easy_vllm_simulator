@@ -1,0 +1,23 @@
+{
+  "budget_outcome": null,
+  "duration_api_ms": null,
+  "duration_ms": null,
+  "execution_started": null,
+  "exit_code": 2,
+  "failure_evidence": null,
+  "intent": "delegate",
+  "model_requested": "gpt-6.1-sol",
+  "model_used": [],
+  "num_turns": null,
+  "output": null,
+  "provider": "codex_cli",
+  "raw_events": [],
+  "raw_exit_code": null,
+  "reason_codes": [
+    "REQUEST_SCHEMA_INVALID"
+  ],
+  "schema_version": 2,
+  "session_id": null,
+  "status": "invalid_request",
+  "usage": null
+}

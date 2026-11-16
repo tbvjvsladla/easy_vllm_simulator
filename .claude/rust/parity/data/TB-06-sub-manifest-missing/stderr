@@ -1,0 +1,2 @@
+[render] FAIL: 서브 manifest 파일이 아직 생성되지 않았다 — nope.yaml
+        single 의 서브는 자기 manifest 를 갖는다(terraforming 실측·생성): bash .claude/skills/terraforming_node/scripts/scan_node.sh --topology single --peer-ssh <user@sub> --model-source <managed|ephemeral|custom> --emit-sub-manifest nope.yaml

@@ -1,0 +1,2 @@
+[agent-control] NONZERO_EXIT: provider exited 255 (ssh transport: 255 = 전송 실패, host key/키인증/네트워크를 먼저 본다) (target=sub/ssh)
+[agent-control]   provider stderr tail: ssh: connect failed

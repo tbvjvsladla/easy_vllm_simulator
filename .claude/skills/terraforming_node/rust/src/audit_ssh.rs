@@ -11,9 +11,12 @@ use std::io::Write;
 use std::path::Path;
 
 /// Sanctioned channels — a closed list (tripwire): a new orchestration script must be classified here.
-pub const SANCTIONED: [&str; 8] = [
+/// `relay.sh`/`agent_control.sh` are the Rust launchers of the two A2A programs (the `.py` names stay for older transcripts).
+pub const SANCTIONED: [&str; 10] = [
     "relay.py",
     "agent_control.py",
+    "relay.sh",
+    "agent_control.sh",
     "sync_to_sub.sh",
     "fetch_sub_docs.sh",
     "library_access.py",

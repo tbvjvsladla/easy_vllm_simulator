@@ -14,11 +14,14 @@ path = "src/lib.rs"
 [dependencies]
 # Python-compatible text, JSON and YAML semantics shared with the other owner packages (path dependency, read-only).
 agent-runtime-support = { path = "../../../rust/runtime-support" }
-# The topology owner publish_install_request asks (`manifest_gate::resolve_topology`, path dependency, read-only).
+# The topology owner publish_install_request asks (`manifest_gate::resolve_topology`), and `turn_budget.declare`/`schema_cap`
+# used in-process by relay and bootstrap_canary (path dependency, read-only).
 role-contract = { path = "../../../rust/role-contract" }
 # Raw DEFLATE and CRC-32 for the gzip container of logs_lifecycle (Python stdlib `gzip` in the original).
 miniz_oxide = "0.9"
 crc32fast = "1"
+# SHA-256 of issued requests/outcomes (Python `hashlib.sha256`) in relay and the providers.
+sha2 = "0.10"
 
 [[bin]]
 name = "audit_session_ssh"
@@ -79,6 +82,38 @@ path = "src/bin/agent_guard.rs"
 [[bin]]
 name = "publish_install_request"
 path = "src/bin/publish_install_request.rs"
+
+[[bin]]
+name = "relay"
+path = "src/bin/relay.rs"
+
+[[bin]]
+name = "agent_control"
+path = "src/bin/agent_control.rs"
+
+[[bin]]
+name = "render_sub_env"
+path = "src/bin/render_sub_env.rs"
+
+[[bin]]
+name = "bootstrap_canary"
+path = "src/bin/bootstrap_canary.rs"
+
+[[bin]]
+name = "harness_permission_probe"
+path = "src/bin/harness_permission_probe.rs"
+
+[[bin]]
+name = "staleness_gate"
+path = "src/bin/staleness_gate.rs"
+
+[[bin]]
+name = "check_sub_hint_equip"
+path = "src/bin/check_sub_hint_equip.rs"
+
+[[test]]
+name = "a2a_goldens"
+path = "checks/a2a_goldens.rs"
 
 [[test]]
 name = "golden_cases"

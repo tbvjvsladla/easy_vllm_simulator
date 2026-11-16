@@ -1,0 +1,28 @@
+usage: render_sub_env.py [-h] [--topology {single,multi}]
+                         [--manifest MANIFEST] [--out OUT]
+                         [--no-runtime-block] [--tracked-list TRACKED_LIST]
+                         [--sub-manifest SUB_MANIFEST]
+                         [--hint-write-scopes HINT_WRITE_SCOPES] [--self-test]
+
+terraforming_node 서브 에이전트 환경 렌더러 (결정론)
+
+options:
+  -h, --help            show this help message and exit
+  --topology {single,multi}
+                        산출물 통로(output/<topology>/) + 서브 브랜치 맥락. D12:
+                        single·multi 양쪽 렌더 가능(서브 로컬 git 양 브랜치).
+  --manifest MANIFEST   manifest 경로(기본 output/<topology>/manifest.yaml)
+  --out OUT             스테이징 출력(기본 output/<topology>/sub_provision)
+  --no-runtime-block    런타임블럭(vllm-recipe-explorer) 복제 생략(디버그)
+  --tracked-list TRACKED_LIST
+                        git-tracked 경로 목록 파일(NUL 또는 개행 구분). git 이 없는 트랜잭션 트리에서
+                        런타임블럭을 복제할 때 호출부가 주입한다(S10 — 추측 폴백 금지).
+  --sub-manifest SUB_MANIFEST
+                        서브 manifest(terraforming 실측 · scan_node.sh --emit-sub-
+                        manifest 산출). 기본 output/<topology>/sub_manifest.yaml.
+                        single 은 필수(서브도 manifest 를 갖는다 · §7.3), multi 는 선택.
+  --hint-write-scopes HINT_WRITE_SCOPES
+                        single 서브가 관측한 hint clone/git/common-dir와 기존 유효 승인 출처를
+                        결속한 JSON. 원격 경로를 추정하거나 새 승인을 생성하지 않는다. 미지정은 외부 발행 권한
+                        미검증.
+  --self-test           fixture 렌더 회귀(하드웨어/실 manifest 불요)

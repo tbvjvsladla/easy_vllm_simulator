@@ -1,0 +1,1 @@
+[agent-control] REQUEST_SCHEMA_INVALID: $.target.work_dir: v2 requires an absolute workspace path

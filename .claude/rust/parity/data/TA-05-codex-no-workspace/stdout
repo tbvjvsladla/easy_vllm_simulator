@@ -1,0 +1,28 @@
+{
+  "budget_outcome": null,
+  "duration_api_ms": null,
+  "duration_ms": null,
+  "execution_started": false,
+  "exit_code": 4,
+  "failure_evidence": {
+    "detail": "[Errno 2] No such file or directory: '/nonexistent-ta-ws/output'",
+    "filename": "/nonexistent-ta-ws/output",
+    "rotate": false,
+    "signal": "launch_failure"
+  },
+  "intent": "delegate",
+  "model_requested": "gpt-6.1-sol",
+  "model_used": [],
+  "num_turns": null,
+  "output": null,
+  "provider": "codex_cli",
+  "raw_events": [],
+  "raw_exit_code": null,
+  "reason_codes": [
+    "NONZERO_EXIT"
+  ],
+  "schema_version": 2,
+  "session_id": null,
+  "status": "execution_failed",
+  "usage": null
+}

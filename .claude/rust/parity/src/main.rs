@@ -9,8 +9,8 @@ use std::process::{Command, Stdio};
 use std::io::Write;
 
 const KNOWN_IDS: [&str; 10] = ["N01", "N02", "N03", "N04", "N06", "N08", "N09", "N11", "N13", "N14"];
-// s5: terraforming_node programs. pg/pe/pa/ps/pd/pf: policies bundle (completion gate, doc naming, evidence publisher / registry audit / runtime selftest / distribution / claim predicates).
-const STAGES: [&str; 11] = ["s1", "s2", "s3", "s4", "s5", "pg", "pe", "pa", "ps", "pd", "pf"];
+// s5: terraforming_node programs. ta/tb/tc/td: terraforming A2A control plane (agent_control+providers / render_sub_env / canary, probe, gates / relay). pg/pe/pa/ps/pd/pf: policies bundle (completion gate, doc naming, evidence publisher / registry audit / runtime selftest / distribution / claim predicates).
+const STAGES: [&str; 15] = ["s1", "s2", "s3", "s4", "s5", "pg", "pe", "pa", "ps", "pd", "pf", "ta", "tb", "tc", "td"];
 /// hint-publisher port stages (`cases/hp_<module>.json`): selectable with `--stage`, not part of `all` (the Sub N/A lists
 /// cover `all`; a plane without hint-publisher is not affected).
 const HP_STAGES: [&str; 21] = ["hp_core", "hp_naming", "hp_pii", "hp_lineage", "hp_catalog", "hp_branch", "hp_tag", "hp_template", "hp_template_t1", "hp_template_t2", "hp_artifacts", "hp_artifacts_a1", "hp_artifacts_a2", "hp_artifacts_a3", "hp_evidence", "hp_evidence_e1", "hp_evidence_e2", "hp_evidence_e3", "hp_evidence_e4", "hp_rbs", "hp_cli"];

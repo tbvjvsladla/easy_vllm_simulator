@@ -25,4 +25,4 @@
   조용한 삭제는 "기록이 원래 없었던 것"과 구분되지 않는다.
 - **부재와 결측의 구분**: GB10 통합메모리는 GPU 메모리 지표가 존재하지 않으므로(`nvidia-smi
   memory.used` = `[N/A]`) `gpu_mem` 열은 상시 빈 칸이며 이는 정상이다.
-- 시각은 `--now` 주입만 사용한다(벽시계 금지 — `staleness_gate.py --max-age-days` 선례 정합).
+- 시각은 `--now` 주입만 사용한다(벽시계 금지 — `staleness_gate.sh --max-age-days` 선례 정합).

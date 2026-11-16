@@ -592,6 +592,11 @@ pub fn public_surface_violations(root: &str) -> Vec<String> {
         if rel.starts_with(SURFACE_SKILL) || rel.starts_with("docs/") || rel.starts_with("seed/") {
             continue;
         }
+        // parity golden data = captured bytes of a program's output/input trees (e.g. a rendered Sub CLAUDE.md), not
+        // callers: like docs/ and seed/ they are an inert plane (plan_26111615 · TB-09 first carried such a copy).
+        if rel.starts_with(".claude/rust/parity/data/") {
+            continue;
+        }
         if rel == ".claude/policies/branch_layer_ledger.json" {
             continue;
         }

@@ -1,0 +1,2 @@
+[agent-control] REQUEST_SCHEMA_INVALID: $: expected exactly one oneOf branch, matched 3
+[agent-control] REQUEST_SCHEMA_INVALID: $: expected type ['object'], got list ([1, 2])

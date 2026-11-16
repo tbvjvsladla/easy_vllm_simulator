@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/tmp/parity-o-TD-30-continue-answered-3718377-1794818344675522516/.claude/skills/terraforming_node/scripts/relay.py", line 3887, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/tmp/parity-o-TD-30-continue-answered-3718377-1794818344675522516/.claude/skills/terraforming_node/scripts/relay.py", line 3883, in main
+    return _main()
+           ^^^^^^^
+  File "/tmp/parity-o-TD-30-continue-answered-3718377-1794818344675522516/.claude/skills/terraforming_node/scripts/relay.py", line 3755, in _main
+    with open(a.task_file, encoding="utf-8", newline="") as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+FileNotFoundError: [Errno 2] No such file or directory: 'nope.md'

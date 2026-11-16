@@ -1,0 +1,1 @@
+[agent-control] IS_ERROR: provider 가 is_error=true 로 끝냈다 — terminal_reason='completed' result='빌드가 실패했다' (target=main/local)

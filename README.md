@@ -552,7 +552,7 @@ campaigns/
 예산 소진은 실패가 아니라 *상태를 회수하고 이어받을 사건*입니다.
 
 ```text
-감독 한 걸음 (relay.py --supervise-step <camp>)  — 상주하지 않고, 판정을 원장에 적고 끝난다
+감독 한 걸음 (relay.sh --supervise-step <camp>)  — 상주하지 않고, 판정을 원장에 적고 끝난다
    completed            → 다음 셀
    중단 ∧ 전진 관측      → 자동 재발급 (체크포인트에서 이어받기)
    중단 ∧ 정체           → 사람에게 묻기

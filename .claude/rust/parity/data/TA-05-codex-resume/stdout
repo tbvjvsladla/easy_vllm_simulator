@@ -1,0 +1,49 @@
+{
+  "budget_outcome": "within_budget",
+  "duration_api_ms": null,
+  "duration_ms": null,
+  "execution_started": true,
+  "exit_code": 0,
+  "failure_evidence": null,
+  "intent": "delegate",
+  "model_requested": "gpt-6.1-sol",
+  "model_used": [],
+  "num_turns": null,
+  "output": "final report",
+  "provider": "codex_cli",
+  "raw_events": [
+    {
+      "type": "adapter.lock_acquired"
+    },
+    {
+      "thread_id": "thread-1",
+      "type": "thread.started"
+    },
+    {
+      "type": "turn.started"
+    },
+    {
+      "item": {
+        "text": "final report",
+        "type": "agent_message"
+      },
+      "type": "item.completed"
+    },
+    {
+      "type": "turn.completed",
+      "usage": {
+        "input_tokens": 12,
+        "output_tokens": 4
+      }
+    }
+  ],
+  "raw_exit_code": 0,
+  "reason_codes": [],
+  "schema_version": 2,
+  "session_id": "thread-1",
+  "status": "completed",
+  "usage": {
+    "input_tokens": 12,
+    "output_tokens": 4
+  }
+}

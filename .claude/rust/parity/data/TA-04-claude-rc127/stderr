@@ -1,0 +1,1 @@
+[agent-control] RUNNER_UNAVAILABLE: 러너(backend=anthropic model=sonnet)가 실행하지 못했다 — 러너 바이너리를 실행할 수 없다(원격 PATH 부재). 회전 가능=True (target=main/local)

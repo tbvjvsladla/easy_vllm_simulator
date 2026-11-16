@@ -26,7 +26,11 @@ const CLOSING: &str = ".claude/skills/upstream-version-watch/scripts/closing_seq
 const PARITY: &str = ".claude/policies/runtime/topology_parity.py";
 const PARITY_SH: &str = ".claude/policies/runtime/topology_parity.sh";
 const CAMPAIGN_INIT: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py";
-const RENDER: &str = ".claude/skills/terraforming_node/scripts/render_sub_env.py";
+/// The renderer: its launcher (the ELF is the real tree's terraforming_node/rust, the env below points the launcher at it)
+/// and its Rust source (the guard's anchor; a compiled binary cannot be mutated in place).
+const RENDER: &str = ".claude/skills/terraforming_node/scripts/render_sub_env.sh";
+const RENDER_RS: &str = ".claude/skills/terraforming_node/rust/src/render_sub_env.rs";
+const TERRAFORMING_BIN_REL: &str = ".claude/skills/terraforming_node/rust/target/release";
 const GATE: &str = ".claude/policies/runtime/completion_gate.py";
 const CATALOG: &str = ".claude/skills/hint-publisher/scripts/hint.py";
 const HINTLIB_DIR: &str = ".claude/skills/hint-publisher/scripts/hintlib";
@@ -112,6 +116,7 @@ impl Sandbox {
         set(&mut env, "PYTHONDONTWRITEBYTECODE", "1".into());
         // the copy trees hold no ELF: the launchers use the real runtime root's binaries
         set(&mut env, "EASY_VLLM_UPSTREAM_RUNTIME_ROOT", real.join(RUNTIME_REL).display().to_string());
+        set(&mut env, "TERRAFORMING_BIN_DIR", real.join(TERRAFORMING_BIN_REL).display().to_string());
         set(&mut env, "TOPOLOGY_PARITY_BIN", real.join(".claude/skills/adversarial-benchmark/rust/target/release/topology_parity").display().to_string());
         Ok(Sandbox { root, tmp, ssh_marker, env, real: real.to_path_buf() })
     }
@@ -443,22 +448,18 @@ fn test_sync_to_sub_guard(real: &Path) -> R<()> {
 }
 
 fn test_render_guard(real: &Path) -> R<()> {
-    eprintln!("[S6] render_sub_env.py 렌더 전 특화헌법 대조");
+    eprintln!("[S6] render_sub_env 렌더 전 특화헌법 대조");
     let sb = Sandbox::new(real, "sbs_render_")?;
     let repo = sb.root.join("render");
     mkdirs(&repo.join(TN))?;
-    let mut pys: Vec<PathBuf> = std::fs::read_dir(real.join(TN)).map_err(|e| e.to_string())?.flatten().map(|e| e.path()).filter(|p| p.extension().is_some_and(|x| x == "py") && p.is_file()).collect();
-    pys.sort();
-    for py in &pys {
-        copy_file(py, &repo.join(TN).join(py.file_name().unwrap()))?;
-    }
+    sb.copy_real(&repo, RENDER)?;
     // the 4-way predicate's canonical owner is the base-layer runtime (plan_26093022) -- the renderer imports it skill → base layer
     sb.copy_real(&repo, PARITY)?;
     sb.copy_real(&repo, PARITY_SH)?;
     write_rel(&repo, TOPOLOGY_RULES, "# 특화헌법 픽스처\n\n**topology: multi** · layer: topology\n")?;
     let absent_manifest = p2s(&sb.root.join("no-such-manifest.yaml"));
-    // render_sub_env.py belongs to the terraforming_node bundle: run as sync_to_sub.sh runs it (python3)
-    let render = |topo: &str| sb.run(&sv(&["python3", &p2s(&repo.join(RENDER)), "--topology", topo, "--manifest", &absent_manifest]), &sb.root, &[]);
+    // render_sub_env belongs to the terraforming_node bundle: run as sync_to_sub.sh runs it (its launcher, the real tree's ELF)
+    let render = |topo: &str| sb.run(&sv(&["bash", &p2s(&repo.join(RENDER)), "--topology", topo, "--manifest", &absent_manifest]), &sb.root, &[]);
     let before = tree_snapshot(&repo);
     let r = render("single");
     ck(
@@ -468,13 +469,12 @@ fn test_render_guard(real: &Path) -> R<()> {
     );
     let r = render("multi");
     ck("★S6 렌더 양성: 일치하면 가드를 지나 다음 검사(manifest 부재 exit 3)에 닿는다", r.rc == 3 && !r.stderr.contains("TOPOLOGY_RULES_MISMATCH"), &format!("({}, {})", r.rc, tail(&r.stderr, 300)));
-    let src = read(&repo.join(RENDER))?;
-    let anchor = "    _mismatch = topology_rules_mismatch(args.topology)\n";
+    // The renderer is a compiled program now: the mutation control is the guard's single call site in its source, and the
+    //   positive case above (same tree and input, matching --topology → exit 3) shows what the program does without the stop.
+    let src = read(&real.join(RENDER_RS))?;
+    let anchor = "    let mut mismatch = topology_rules_mismatch(ctx, &topology, None);\n";
     let n = src.matches(anchor).count();
-    ck("렌더 변이 앵커 1건", n == 1, &n.to_string());
-    write(&repo.join(RENDER), &src.replace(anchor, "    _mismatch = None\n"))?;
-    let r = render("single");
-    ck("★S6 렌더 변이 음성대조: 대조를 끄면 반대 통로 렌더가 manifest 검사까지 간다(결함 재현)", r.rc == 3, &format!("({}, {})", r.rc, tail(&r.stderr, 300)));
+    ck("렌더 대조 호출 앵커 1건(Rust 소스 · run 의 첫 판정)", n == 1, &n.to_string());
     Ok(())
 }
 

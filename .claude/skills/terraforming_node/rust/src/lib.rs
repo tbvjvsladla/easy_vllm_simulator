@@ -26,3 +26,14 @@ pub mod raise;
 pub mod regen_envelope;
 pub mod seed_journal;
 pub mod stress;
+// A2A control plane (relay, agent_control and its providers, sub-env rendering, canary, probes, gates).
+pub mod agent_control;
+pub mod bootstrap_canary;
+pub mod check_sub_hint_equip;
+pub mod harness_permission_probe;
+pub mod provider_claude_code;
+pub mod provider_codex_cli;
+pub mod relay;
+pub mod render_sub_env;
+pub mod staleness_gate;
+pub mod sysexit;

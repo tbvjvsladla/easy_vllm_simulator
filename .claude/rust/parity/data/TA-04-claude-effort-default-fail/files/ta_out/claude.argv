@@ -1,0 +1,2 @@
+call 1 argv: [-p] [/effort status] [--model] [sonnet] [--output-format] [stream-json] [--max-turns] [3] [--allowedTools] [Read,Bash] [--verbose]
+watchdog=unset

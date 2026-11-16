@@ -1,0 +1,2 @@
+[render] STOP(TOPOLOGY_RULES_MISMATCH): 특화헌법(/tmp/parity-o-TB-04-rules-mismatch-default-multi-3909392-1794819434575586366/.claude/rules/strategy.topology.md)은 topology=single 를 선언하는데 렌더 통로는 --topology multi 다 — 이 트리의 특화층을 서브 'multi' 브랜치로 보내면 반대 토폴로지 헌법이 배달된다
+        해소: 'multi' 토폴로지 브랜치를 체크아웃한 트리에서 --topology multi 로 렌더하라(자동 교정·우회 인자 없음 · policy:BRANCH_CONSTITUTION_LAYERING)

@@ -1,0 +1,13 @@
+{
+  "age_check": "skipped:no-manifest",
+  "age_days": null,
+  "drift_fields": [],
+  "hw_check": "skipped:no-manifest",
+  "manifest_path": "./output/single/manifest.yaml",
+  "max_age_days": 90,
+  "notes": [],
+  "preflight_required": true,
+  "reasons": [
+    "MANIFEST_ABSENT"
+  ]
+}

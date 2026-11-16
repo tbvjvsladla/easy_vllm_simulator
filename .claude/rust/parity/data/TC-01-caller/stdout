@@ -1,0 +1,12 @@
+{
+  "phase": "caller",
+  "harness": "claude_code",
+  "status": "input-required",
+  "installable": ".claude/settings.json",
+  "tracked": false,
+  "missing": [
+    "Bash(bash .claude/skills/terraforming_node/scripts/relay.sh *)"
+  ],
+  "installer": "human (agent self-modification is refused by design)",
+  "proof_limit": "static precondition only; live proof = one agent-run relay delegation with zero denials"
+}

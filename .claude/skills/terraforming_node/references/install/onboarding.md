@@ -64,7 +64,7 @@ provider 별 실행문법은 `references/orchestration/agent-control-adapter.md`
   - `--peer-ip` 만: 게이트는 통과하지만 **서브 HW 동질성 검증이 통째로 생략**돼 `hw_verified`와 메인 발급 서브 manifest readiness가 성립하지 않는다(서브 info-only).
   - `--peer-ssh` 만: `nodes[]` 자체가 만들어지지 않고 도달성 미검증으로 **γ blocked(exit 2)**.
   - 2026-09-03 이전에는 이 조합이 저장소 어디에도 적혀 있지 않았다(B1) — 두 실패 모두 조용했다.
-- **`--emit-sub-manifest` 선행조건**: 이 인자는 메인의 `manifest_contract` 어댑터(Rust 브리지)로 서브 manifest 의 Flag 계약을 자기검증한다 — 메인에서 `rust_bootstrap.sh install`·`check` 와 정상 빌드(`build_rust.sh`)가 끝나 있어야 한다(HW Flag 와 무관 · 없으면 `[manifest_contract] native bridge failed (status 2)` 안내로 눈에 띄게 실패한다). `--emit-sub-manifest` 없는 스캔·`--emit-manifest` 와 `staleness_gate.py` 는 Rust 없이 돈다(새 클론 온보딩은 Rust 선행을 요구하지 않는다).
+- **`--emit-sub-manifest` 선행조건**: 이 인자는 메인의 `manifest_contract` 어댑터(Rust 브리지)로 서브 manifest 의 Flag 계약을 자기검증한다 — 메인에서 `rust_bootstrap.sh install`·`check` 와 정상 빌드(`build_rust.sh`)가 끝나 있어야 한다(HW Flag 와 무관 · 없으면 `[manifest_contract] native bridge failed (status 2)` 안내로 눈에 띄게 실패한다). `--emit-sub-manifest` 없는 스캔·`--emit-manifest` 와 `staleness_gate.sh` 는 Rust 없이 돈다(새 클론 온보딩은 Rust 선행을 요구하지 않는다).
 - 단일: `python3 scripts/scan_node.py --topology single [--compose output/single/docker-compose.yaml]`
 - 탐지: cpu_arch(uname) · cuda(nvcc) · gpus(nvidia-smi) · interconnect(**/sys/class/infiniband + show_gids** — ibstat 비의존) · docker-compose NCCL 교차검증.
 - 폴백: 탐지 도구 부재/빈 결과 → graceful(인터뷰 폴백 또는 α). hard-crash 금지.
@@ -103,4 +103,4 @@ provider 별 실행문법은 `references/orchestration/agent-control-adapter.md`
 
 ## 보조 스크립트 메모 (옛 §4 에서 이관)
 
-- `scripts/staleness_gate.py` — **조건부 preflight 결정론 트리거**(`--topology`·`--repo`·`--observed`·`--now`·`--max-age-days`·`--self-test`). 3축(manifest/Flag · HW 드리프트 · attestation 나이) → 안정 reason code. 미평가 축은 `skipped:*` 로 음성정직 표기(조용한 통과 ✗). **HW 축의 interconnect 6필드는 topology=single 에서 비교하지 않는다**(2026-08-21 · approved_by AhnSangHun) — single 은 분산서빙을 안 해 interconnect 를 쓰지 않으므로 manifest 의 "미사용" 선언 ↔ 실측 RoCE 발산은 의도된 것이다. `scan_node.evaluate_gate` 의 single 의미론(RoCE 존재 = warning, gate note "interconnect 스캔 skip(실패 아님)")과 정합. **multi 는 유지**(텐서패브릭이므로 완화 ✗). 제외 적용 시 `notes` 에 표기한다(침묵 ✗).
+- `scripts/staleness_gate.sh` — **조건부 preflight 결정론 트리거**(`--topology`·`--repo`·`--observed`·`--now`·`--max-age-days`·`--self-test`). 3축(manifest/Flag · HW 드리프트 · attestation 나이) → 안정 reason code. 미평가 축은 `skipped:*` 로 음성정직 표기(조용한 통과 ✗). **HW 축의 interconnect 6필드는 topology=single 에서 비교하지 않는다**(2026-08-21 · approved_by AhnSangHun) — single 은 분산서빙을 안 해 interconnect 를 쓰지 않으므로 manifest 의 "미사용" 선언 ↔ 실측 RoCE 발산은 의도된 것이다. `scan_node.evaluate_gate` 의 single 의미론(RoCE 존재 = warning, gate note "interconnect 스캔 skip(실패 아님)")과 정합. **multi 는 유지**(텐서패브릭이므로 완화 ✗). 제외 적용 시 `notes` 에 표기한다(침묵 ✗).

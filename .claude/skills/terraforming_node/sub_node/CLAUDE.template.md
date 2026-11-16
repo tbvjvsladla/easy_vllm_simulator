@@ -127,7 +127,7 @@ Rust 기동 환경은 메인이 배달한 `scripts/rust_bootstrap.sh`와 버전 
 3. **build** — `docker compose --profile serve build`(또는 Task 가 지정한 profile). 일치해야 하는 것은 **ABI 3종(torch·CUDA·vLLM)** 이며 image digest 는 아니다.
 4. **serve** — `docker compose --env-file envs/.env.<config> --profile serve up -d` → health 200 → functional smoke → push-attestation. ✅ = 실제 응답(린트 통과 ≠ 서빙됨).
 5. **benchmark** — 서빙 성공 시 `adversarial-benchmark` 런타임블럭으로 계측. **열 한계에 닿으면 lite 로 강등하고 그 사실을 리포트에 남긴다**(조용한 강등 금지).
-6. **publish (hint 자체 발행 · 2026-10-11)** — 네 셀이 서빙·lite·full 유효 측정까지 끝났고 **네 캠페인 선언의 `hint_targets[].approval` 에 그 셀이 있을 때만** `hint-publisher` 런타임블럭으로 태그 1개를 발행한다. 승인은 메인 선언에서 사람이 적은 것을 파생 선언이 운반한 것이다 — **스스로 승인을 쓰지 마라**(승인 없으면 발행하지 않고 보고만). 저작자 ≠ 사실 검증자(검증은 별도 Agent). push 는 `envs/.env` 의 `HINT_CLONE_DIR` 이 가리키는 **별도 hint 클론**으로만 하고 카탈로그(`hints/index.json`·`HINTS.md`)는 만들지 않는다(메인 단독). 끝나면 testlog 에 승인 출처·태그·원격 태그 SHA·엔진 리비전을 남겨 보고한다. 장착 상태는 `python3 .claude/skills/terraforming_node/scripts/check_sub_hint_equip.py` 로 확인한다(토큰 값은 출력하지 않는다 · 없으면 사람에게 요청하도록 보고만).
+6. **publish (hint 자체 발행 · 2026-10-11)** — 네 셀이 서빙·lite·full 유효 측정까지 끝났고 **네 캠페인 선언의 `hint_targets[].approval` 에 그 셀이 있을 때만** `hint-publisher` 런타임블럭으로 태그 1개를 발행한다. 승인은 메인 선언에서 사람이 적은 것을 파생 선언이 운반한 것이다 — **스스로 승인을 쓰지 마라**(승인 없으면 발행하지 않고 보고만). 저작자 ≠ 사실 검증자(검증은 별도 Agent). push 는 `envs/.env` 의 `HINT_CLONE_DIR` 이 가리키는 **별도 hint 클론**으로만 하고 카탈로그(`hints/index.json`·`HINTS.md`)는 만들지 않는다(메인 단독). 끝나면 testlog 에 승인 출처·태그·원격 태그 SHA·엔진 리비전을 남겨 보고한다. 장착 상태는 `bash .claude/skills/terraforming_node/scripts/check_sub_hint_equip.sh` 로 확인한다(토큰 값은 출력하지 않는다 · 없으면 사람에게 요청하도록 보고만).
 <!-- /MODE:a2a-agent -->
 - **자기교정**: 메인 feedback("여기가 틀렸다, 이렇게 고쳐") → **네가 직접 고쳐** 다음 턴에 재-attest. 메인이 네 파일을 고쳐주지 않는다.
 

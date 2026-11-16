@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "tool": "check_sub_hint_equip",
+  "provenance": "measured",
+  "checks": {
+    "hint_clone": {
+      "path_source": "envs/.env:HINT_CLONE_DIR",
+      "declared": false,
+      "status": "missing",
+      "reason": "HINT_CLONE_DIR 미선언 — envs/.env 에 절대경로 한 줄을 둔다"
+    },
+    "push_authority": {
+      "status": "invalid",
+      "ignored": null,
+      "reason": "git check-ignore 판독 불가 — 워크스페이스 git 을 확인한다"
+    },
+    "central_authority": {
+      "status": "absent"
+    },
+    "token": {
+      "status": "absent",
+      "source": null,
+      "reason": "GITHUB_TOKEN 가 환경변수에도 envs/.env 에도 없다 — 사람이 그 노드에 둔다(배달 ✗)"
+    },
+    "pii_terms": {
+      "status": "absent"
+    },
+    "workspace_git_local_only": {
+      "status": "invalid",
+      "reason": "워크스페이스 git 판독 불가"
+    }
+  },
+  "ready": false,
+  "next_actions": [
+    {
+      "actor": "sub-agent",
+      "step": "clone",
+      "how": "envs/.env 에 HINT_CLONE_DIR=<워크스페이스 밖 절대경로> 를 두고 `--clone --remote-url <메인이 Task Message 로 준 프로젝트 원격>`"
+    },
+    {
+      "actor": "sub-agent",
+      "step": "push_authority",
+      "how": "--write-push-authority"
+    },
+    {
+      "actor": "human",
+      "step": "place_secrets",
+      "what": [
+        "GITHUB_TOKEN@envs/.env",
+        ".claude/pii_terms.txt"
+      ],
+      "request_template": ".claude/skills/terraforming_node/templates/requests/sub_hint_push_equip.md",
+      "how": "testlog 로 보고만 한다 — 메인이 docs/request/ 수행지시서를 발행하고 사람이 둔다"
+    },
+    {
+      "actor": "main",
+      "step": "escalate",
+      "how": "역할·원격 위반은 서브가 스스로 고치지 않는다 — 보고하고 메인 HITL"
+    }
+  ]
+}

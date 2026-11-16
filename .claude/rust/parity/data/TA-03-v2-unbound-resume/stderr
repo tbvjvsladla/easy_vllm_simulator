@@ -1,0 +1,1 @@
+[agent-control] REQUEST_SCHEMA_INVALID: $.resume_binding: native resume requires the exact provider, target and permission selection
