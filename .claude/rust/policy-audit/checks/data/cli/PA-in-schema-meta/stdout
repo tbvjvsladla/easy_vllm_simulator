@@ -1,0 +1,84 @@
+{
+  "exit_code": 2,
+  "schema_version": 2,
+  "violation_count": 11,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "$: 'pattern' is not a supported keyword of this project's Draft-07-subset engine",
+      "path": "$.pattern",
+      "policy_id": null,
+      "reason_code": "SCHEMA_META_UNSUPPORTED_KEYWORD"
+    },
+    {
+      "clause_id": null,
+      "message": "$.type must be a string or a list of strings, got 1",
+      "path": "$.type",
+      "policy_id": null,
+      "reason_code": "SCHEMA_META_BAD_TYPE_KEYWORD"
+    },
+    {
+      "clause_id": null,
+      "message": "$.required must be a list of strings, got 5",
+      "path": "$.required",
+      "policy_id": null,
+      "reason_code": "SCHEMA_META_BAD_REQUIRED"
+    },
+    {
+      "clause_id": null,
+      "message": "$.properties.a.type contains unsupported value(s) ['strin']",
+      "path": "$.properties.a.type",
+      "policy_id": null,
+      "reason_code": "SCHEMA_META_UNSUPPORTED_TYPE_VALUE"
+    },
+    {
+      "clause_id": null,
+      "message": "$.properties.b: schema node must be a JSON object, got int",
+      "path": "$.properties.b",
+      "policy_id": null,
+      "reason_code": "SCHEMA_META_NOT_OBJECT"
+    },
+    {
+      "clause_id": null,
+      "message": "$.definitions must be an object, got []",
+      "path": "$.definitions",
+      "policy_id": null,
+      "reason_code": "SCHEMA_META_BAD_DEFINITIONS"
+    },
+    {
+      "clause_id": null,
+      "message": "$.items.$ref must be a local '#/...' string, got 'http://x'",
+      "path": "$.items.$ref",
+      "policy_id": null,
+      "reason_code": "SCHEMA_META_BAD_REF"
+    },
+    {
+      "clause_id": null,
+      "message": "$.additionalProperties must be a boolean or an object, got 'no'",
+      "path": "$.additionalProperties",
+      "policy_id": null,
+      "reason_code": "SCHEMA_META_BAD_ADDITIONAL_PROPERTIES"
+    },
+    {
+      "clause_id": null,
+      "message": "$.allOf must be a list, got {}",
+      "path": "$.allOf",
+      "policy_id": null,
+      "reason_code": "SCHEMA_META_BAD_ALLOF"
+    },
+    {
+      "clause_id": null,
+      "message": "$.if.enum must be a list, got 3",
+      "path": "$.if.enum",
+      "policy_id": null,
+      "reason_code": "SCHEMA_META_BAD_ENUM"
+    },
+    {
+      "clause_id": null,
+      "message": "$.minLength must be numeric, got True",
+      "path": "$.minLength",
+      "policy_id": null,
+      "reason_code": "SCHEMA_META_BAD_NUMERIC_KEYWORD"
+    }
+  ]
+}

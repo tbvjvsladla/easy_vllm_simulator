@@ -1,0 +1,14 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "'ev/a.py': git_unavailable",
+      "path": "ev/a.py",
+      "policy_id": "TEST_OK",
+      "reason_code": "EVIDENCE_GIT_UNAVAILABLE"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+[package]
+name = "policy-audit"
+version = "0.1.0"
+edition = "2021"
+description = "Rust port of policy_registry.py (registry validator/auditor) and harness_verify.py (three-stage completion gate)"
+publish = false
+# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
+autotests = false
+
+[lib]
+name = "policy_audit"
+path = "src/lib.rs"
+
+[[bin]]
+name = "policy_registry"
+path = "src/bin/policy_registry.rs"
+
+[[bin]]
+name = "harness_verify"
+path = "src/bin/harness_verify.rs"
+
+[[test]]
+name = "ids_golden"
+path = "checks/ids_golden.rs"
+
+[[test]]
+name = "cli_golden"
+path = "checks/cli_golden.rs"
+
+[[test]]
+name = "citations_golden"
+path = "checks/citations_golden.rs"
+
+[[test]]
+name = "harness_checks"
+path = "checks/harness_checks.rs"
+
+[dependencies]
+# Python-compatible JSON/str/repr/lower semantics and the generic schema engine (completion_gate.validate_against_schema port).
+agent-runtime-support = { path = "../runtime-support" }
+# The slave-forward derivation the arch-variant selector check runs (`slave_forward.candidates`), from its owner package.
+upstream-runtime = { path = "../../skills/upstream-version-watch/rust/runtime" }
+num-bigint = "0.4"
+num-traits = "0.2"
+fancy-regex = { version = "=0.19.2", default-features = false, features = ["std", "unicode", "perf"] }
+sha2 = "=0.10.9"
+libc = "=0.2.191"

@@ -1,0 +1,300 @@
+[
+ {
+  "text": "see policy:KNOWN.",
+  "scan": [
+   [
+    1,
+    "KNOWN."
+   ]
+  ],
+  "violations": []
+ },
+ {
+  "text": "policy:KNOWN, policy:OLD and policy:MISSING",
+  "scan": [
+   [
+    1,
+    "KNOWN"
+   ],
+   [
+    1,
+    "OLD"
+   ],
+   [
+    1,
+    "MISSING"
+   ]
+  ],
+  "violations": [
+   {
+    "reason_code": "UNRESOLVED_CITATION",
+    "message": "policy: citation 'OLD' at line 1 does not resolve to a live (non-retired) registry entry",
+    "policy_id": "OLD",
+    "clause_id": null,
+    "path": "src.md"
+   },
+   {
+    "reason_code": "UNRESOLVED_CITATION",
+    "message": "policy: citation 'MISSING' at line 1 does not resolve to a live (non-retired) registry entry",
+    "policy_id": "MISSING",
+    "clause_id": null,
+    "path": "src.md"
+   }
+  ]
+ },
+ {
+  "text": "bare policy: here",
+  "scan": [
+   [
+    1,
+    ""
+   ]
+  ],
+  "violations": [
+   {
+    "reason_code": "EMPTY_POLICY_CITATION",
+    "message": "bare 'policy:' citation with no id at line 1",
+    "policy_id": null,
+    "clause_id": null,
+    "path": "src.md"
+   }
+  ]
+ },
+ {
+  "text": "policy:",
+  "scan": [
+   [
+    1,
+    ""
+   ]
+  ],
+  "violations": [
+   {
+    "reason_code": "EMPTY_POLICY_CITATION",
+    "message": "bare 'policy:' citation with no id at line 1",
+    "policy_id": null,
+    "clause_id": null,
+    "path": "src.md"
+   }
+  ]
+ },
+ {
+  "text": "xpolicy:BAD-ID",
+  "scan": [],
+  "violations": []
+ },
+ {
+  "text": "가policy:BAD-ID",
+  "scan": [],
+  "violations": []
+ },
+ {
+  "text": "xpolicy:UNKNOWN_ID tail",
+  "scan": [],
+  "violations": [
+   {
+    "reason_code": "UNRESOLVED_CITATION",
+    "message": "embedded citation-shaped policy id 'UNKNOWN_ID' at line 1 does not resolve to a live registry entry",
+    "policy_id": "UNKNOWN_ID",
+    "clause_id": null,
+    "path": "src.md"
+   }
+  ]
+ },
+ {
+  "text": "xpolicy:KNOWN",
+  "scan": [],
+  "violations": []
+ },
+ {
+  "text": "policy:ALSO_BAD-ID!",
+  "scan": [
+   [
+    1,
+    "ALSO_BAD-ID!"
+   ]
+  ],
+  "violations": [
+   {
+    "reason_code": "MALFORMED_CITATION_SYNTAX",
+    "message": "policy: citation 'ALSO_BAD-ID!' at line 1 is not a syntactically valid policy_id",
+    "policy_id": "ALSO_BAD-ID!",
+    "clause_id": null,
+    "path": "src.md"
+   }
+  ]
+ },
+ {
+  "text": "line1\nline2 policy:lower\n`policy:KNOWN` (policy:KNOWN) [policy:X]{policy:Y},policy:Z",
+  "scan": [
+   [
+    2,
+    "lower"
+   ],
+   [
+    3,
+    "KNOWN"
+   ],
+   [
+    3,
+    "KNOWN"
+   ],
+   [
+    3,
+    "X"
+   ],
+   [
+    3,
+    "Y"
+   ],
+   [
+    3,
+    "Z"
+   ]
+  ],
+  "violations": [
+   {
+    "reason_code": "MALFORMED_CITATION_SYNTAX",
+    "message": "policy: citation 'lower' at line 2 is not a syntactically valid policy_id",
+    "policy_id": "lower",
+    "clause_id": null,
+    "path": "src.md"
+   },
+   {
+    "reason_code": "UNRESOLVED_CITATION",
+    "message": "policy: citation 'X' at line 3 does not resolve to a live (non-retired) registry entry",
+    "policy_id": "X",
+    "clause_id": null,
+    "path": "src.md"
+   },
+   {
+    "reason_code": "UNRESOLVED_CITATION",
+    "message": "policy: citation 'Y' at line 3 does not resolve to a live (non-retired) registry entry",
+    "policy_id": "Y",
+    "clause_id": null,
+    "path": "src.md"
+   },
+   {
+    "reason_code": "UNRESOLVED_CITATION",
+    "message": "policy: citation 'Z' at line 3 does not resolve to a live (non-retired) registry entry",
+    "policy_id": "Z",
+    "clause_id": null,
+    "path": "src.md"
+   }
+  ]
+ },
+ {
+  "text": "policy:A…。",
+  "scan": [
+   [
+    1,
+    "A…。"
+   ]
+  ],
+  "violations": [
+   {
+    "reason_code": "UNRESOLVED_CITATION",
+    "message": "policy: citation 'A' at line 1 does not resolve to a live (non-retired) registry entry",
+    "policy_id": "A",
+    "clause_id": null,
+    "path": "src.md"
+   }
+  ]
+ },
+ {
+  "text": "policy:A-",
+  "scan": [
+   [
+    1,
+    "A-"
+   ]
+  ],
+  "violations": [
+   {
+    "reason_code": "MALFORMED_CITATION_SYNTAX",
+    "message": "policy: citation 'A-' at line 1 is not a syntactically valid policy_id",
+    "policy_id": "A-",
+    "clause_id": null,
+    "path": "src.md"
+   }
+  ]
+ },
+ {
+  "text": "apolicy:ABC-def",
+  "scan": [],
+  "violations": []
+ },
+ {
+  "text": "_policy:ABC",
+  "scan": [],
+  "violations": [
+   {
+    "reason_code": "UNRESOLVED_CITATION",
+    "message": "embedded citation-shaped policy id 'ABC' at line 1 does not resolve to a live registry entry",
+    "policy_id": "ABC",
+    "clause_id": null,
+    "path": "src.md"
+   }
+  ]
+ },
+ {
+  "text": "policy:KNOWN　next",
+  "scan": [
+   [
+    1,
+    "KNOWN"
+   ]
+  ],
+  "violations": []
+ },
+ {
+  "text": "policy:KNOWN\tpolicy:OLD!?",
+  "scan": [
+   [
+    1,
+    "KNOWN"
+   ],
+   [
+    1,
+    "OLD!?"
+   ]
+  ],
+  "violations": [
+   {
+    "reason_code": "UNRESOLVED_CITATION",
+    "message": "policy: citation 'OLD' at line 1 does not resolve to a live (non-retired) registry entry",
+    "policy_id": "OLD",
+    "clause_id": null,
+    "path": "src.md"
+   }
+  ]
+ },
+ {
+  "text": "policy:9X",
+  "scan": [
+   [
+    1,
+    "9X"
+   ]
+  ],
+  "violations": [
+   {
+    "reason_code": "MALFORMED_CITATION_SYNTAX",
+    "message": "policy: citation '9X' at line 1 is not a syntactically valid policy_id",
+    "policy_id": "9X",
+    "clause_id": null,
+    "path": "src.md"
+   }
+  ]
+ },
+ {
+  "text": "policy:KNOWN\n",
+  "scan": [
+   [
+    1,
+    "KNOWN"
+   ]
+  ],
+  "violations": []
+ }
+]

@@ -1,0 +1,14 @@
+{
+  "exit_code": 2,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "policies[0].owner: required property is missing",
+      "path": "policies[0].owner",
+      "policy_id": null,
+      "reason_code": "SCHEMA:SCHEMA_MISSING_REQUIRED_KEY:policies[0].owner"
+    }
+  ]
+}

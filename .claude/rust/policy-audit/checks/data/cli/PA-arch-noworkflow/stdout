@@ -1,0 +1,21 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 2,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "'.claude/rules/workflow.md': missing",
+      "path": ".claude/rules/workflow.md",
+      "policy_id": "ROOT_SURFACE_REGISTRY",
+      "reason_code": "EVIDENCE_MISSING_FILE"
+    },
+    {
+      "clause_id": null,
+      "message": "[Errno 2] No such file or directory: '@ROOT@/r/.claude/rules/workflow.md'",
+      "path": ".claude/rules/workflow.md",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PROCEDURE_UNREADABLE"
+    }
+  ]
+}

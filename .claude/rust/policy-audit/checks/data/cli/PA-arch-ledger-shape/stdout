@@ -1,0 +1,42 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 5,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "ledger requires schema_version in {1,2,3}, source_build_variants, and only scalar underscore metadata besides",
+      "path": ".claude/policies/arch_variant_ledger.json",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_LEDGER_SHAPE_INVALID"
+    },
+    {
+      "clause_id": null,
+      "message": "root metadata key '_x' must be a non-empty string",
+      "path": ".claude/policies/arch_variant_ledger.json._x",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_LEDGER_SHAPE_INVALID"
+    },
+    {
+      "clause_id": null,
+      "message": "'_note' is not an allowlisted scalar metadata key",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants._note",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_METADATA_KEY_INVALID"
+    },
+    {
+      "clause_id": null,
+      "message": "'_bad' is not an allowlisted scalar metadata key",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants._bad",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_METADATA_KEY_INVALID"
+    },
+    {
+      "clause_id": null,
+      "message": "'notobj' must be an object",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.notobj",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_ENTRY_INVALID"
+    }
+  ]
+}

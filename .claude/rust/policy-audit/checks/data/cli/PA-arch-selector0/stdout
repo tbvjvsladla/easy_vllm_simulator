@@ -1,0 +1,21 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 2,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.1' selector 'SM12X_PORT'=0 equals the stock default and creates no variant",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.1.build_patch_selectors.SM12X_PORT",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_SELECTOR_NOT_ENABLING"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.1' selector 'lower_bad' must be an uppercase build-arg name with a non-empty string value",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.1.build_patch_selectors.lower_bad",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_SELECTORS_INVALID"
+    }
+  ]
+}

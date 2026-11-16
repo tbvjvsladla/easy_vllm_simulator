@@ -1,0 +1,14 @@
+{
+  "exit_code": 2,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "could not read @ROOT@/r/reg.json: [Errno 21] Is a directory: '@ROOT@/r/reg.json'",
+      "path": null,
+      "policy_id": null,
+      "reason_code": "REGISTRY_LOAD_ERROR"
+    }
+  ]
+}

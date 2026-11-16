@@ -1,0 +1,112 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 15,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "assertion id 'emit_slice' is not an exact identifier found in '.claude/skills/terraforming_node/scripts/campaign_init.py'",
+      "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+      "policy_id": "HINT_TAG_ACTIVATION_GATE",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "'.claude/policies/runtime/completion_gate.py': missing",
+      "path": ".claude/policies/runtime/completion_gate.py",
+      "policy_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED",
+      "reason_code": "EVIDENCE_MISSING_FILE"
+    },
+    {
+      "clause_id": null,
+      "message": "'.claude/policies/runtime/completion_gate.py': missing",
+      "path": ".claude/policies/runtime/completion_gate.py",
+      "policy_id": "A2A_IDENTITY_PROOF_FAIL_CLOSED",
+      "reason_code": "EVIDENCE_MISSING_FILE"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'purge_gate_reasons' is not an exact identifier found in '.claude/skills/terraforming_node/scripts/campaign_init.py'",
+      "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+      "policy_id": "ROOT_SURFACE_REGISTRY",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'do_purge' is not an exact identifier found in '.claude/skills/terraforming_node/scripts/campaign_init.py'",
+      "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+      "policy_id": "ROOT_SURFACE_REGISTRY",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'PURGE_KEEPS' is not an exact identifier found in '.claude/skills/terraforming_node/scripts/campaign_init.py'",
+      "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+      "policy_id": "ROOT_SURFACE_REGISTRY",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'derive_path' is not an exact identifier found in '.claude/skills/terraforming_node/scripts/campaign_init.py'",
+      "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+      "policy_id": "ROOT_SURFACE_REGISTRY",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'active_campaign_id' is not an exact identifier found in '.claude/skills/terraforming_node/scripts/campaign_init.py'",
+      "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+      "policy_id": "ROOT_SURFACE_REGISTRY",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'ground_campaign' is not an exact identifier found in '.claude/skills/terraforming_node/scripts/campaign_init.py'",
+      "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+      "policy_id": "LIBRARY_GROUNDING_FAIL_CLOSED",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'grounding_terms' is not an exact identifier found in '.claude/skills/terraforming_node/scripts/campaign_init.py'",
+      "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+      "policy_id": "LIBRARY_GROUNDING_FAIL_CLOSED",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'GROUNDING_DIR' is not an exact identifier found in '.claude/skills/terraforming_node/scripts/campaign_init.py'",
+      "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+      "policy_id": "LIBRARY_GROUNDING_FAIL_CLOSED",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'grounding_reasons' is not an exact identifier found in '.claude/skills/terraforming_node/scripts/campaign_init.py'",
+      "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+      "policy_id": "LIBRARY_GROUNDING_FAIL_CLOSED",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'latest_grounding' is not an exact identifier found in '.claude/skills/terraforming_node/scripts/campaign_init.py'",
+      "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+      "policy_id": "LIBRARY_GROUNDING_FAIL_CLOSED",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'writer_set_cell' is not an exact identifier found in '.claude/skills/terraforming_node/scripts/campaign_init.py'",
+      "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+      "policy_id": "LIBRARY_GROUNDING_FAIL_CLOSED",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    },
+    {
+      "clause_id": null,
+      "message": "assertion id 'warm_start_library' is not an exact identifier found in '.claude/skills/terraforming_node/scripts/campaign_init.py'",
+      "path": ".claude/skills/terraforming_node/scripts/campaign_init.py",
+      "policy_id": "LIBRARY_GROUNDING_FAIL_CLOSED",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    }
+  ]
+}

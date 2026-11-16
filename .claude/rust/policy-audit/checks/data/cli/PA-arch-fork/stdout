@@ -1,0 +1,56 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 7,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-fork41834-0.27.0' fork-pin track still requires a real architecture (sm<n>…), got 'gpu'",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-fork41834-0.27.0.architecture",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_FIELD_MISSING"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-fork41834-0.27.0' is a fork-pin track and must pin a fork repo, not the canonical upstream",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-fork41834-0.27.0.vllm_repo",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_FORK_TRACK_NOT_FORK"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-fork41834-0.27.0' fork-pin vllm_ref must be a 40-hex commit SHA (forks can force-push)",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-fork41834-0.27.0.vllm_ref",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_REF_NOT_SHA"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-fork41834-0.27.0' is a fork-pin track and must not carry a port_manifest (the fork already ships the source)",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-fork41834-0.27.0.port_manifest",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_MANIFEST_INVALID"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-fork41834-0.27.0' port_manifest requires ['files', 'path', 'upstream_base_sha'] and allows only ['fork_head_sha', 'pr_base_sha']",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-fork41834-0.27.0.port_manifest",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_MANIFEST_INVALID"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-fork41834-0.27.0' port_manifest.path must be the pre-slot PROVENANCE.json inside a topology output lane",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-fork41834-0.27.0.port_manifest.path",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_MANIFEST_INVALID"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-fork41834-0.27.0' port_manifest.files must be a positive integer file count",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-fork41834-0.27.0.port_manifest.files",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_PORT_MANIFEST_INVALID"
+    }
+  ]
+}

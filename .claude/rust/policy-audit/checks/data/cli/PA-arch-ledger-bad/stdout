@@ -1,0 +1,14 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "@ROOT@/r/.claude/policies/arch_variant_ledger.json must parse to a JSON object at the root, got list",
+      "path": "resolved.json",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_LEDGER_INVALID"
+    }
+  ]
+}

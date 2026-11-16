@@ -1,0 +1,4 @@
+usage: harness_verify.py [-h] [--as-of AS_OF] [--registry REGISTRY]
+                         [--schema SCHEMA] [--claim-bindings CLAIM_BINDINGS]
+                         [--repo-root REPO_ROOT]
+harness_verify.py: error: argument --as-of: expected one argument

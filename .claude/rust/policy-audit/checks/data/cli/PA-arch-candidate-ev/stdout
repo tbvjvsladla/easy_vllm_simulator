@@ -1,0 +1,28 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 3,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "candidate variant 'deepseek-v4-flash-sm12x-port-0.27.1' must not carry regression evidence before promotion to VALIDATED",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.1.regression_evidence",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_CANDIDATE_PREPROMOTED"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.1' candidate evidence requires a docs/plan naming-SSOT plan path",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.1.evidence.plan",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_CANDIDATE_EVIDENCE_INVALID"
+    },
+    {
+      "clause_id": null,
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.1' candidate requires at least one docs/testlog path evidencing stock structural infeasibility",
+      "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.1.evidence.stock_infeasible_testlogs",
+      "policy_id": "ARCH_WALL_VARIANT_LADDER",
+      "reason_code": "ARCH_VARIANT_CANDIDATE_EVIDENCE_INVALID"
+    }
+  ]
+}

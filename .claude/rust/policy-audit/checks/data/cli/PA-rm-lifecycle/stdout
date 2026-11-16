@@ -1,0 +1,14 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "remove_when is not substantive",
+      "path": "$.policies[TEST_LAZY].remove_when",
+      "policy_id": "TEST_LAZY",
+      "reason_code": "LAZY_REMOVE_WHEN"
+    }
+  ]
+}
