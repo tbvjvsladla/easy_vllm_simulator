@@ -1,0 +1,12 @@
+[package]
+name = "wiki-desk-oracle"
+version = "0.1.0"
+edition = "2021"
+description = "wiki-desk check oracle: reproduces PyYAML 6.0.1 safe_load implicit-scalar resolution for a flat mapping (plan_26111707). std-only."
+publish = false
+
+[[bin]]
+name = "yaml11_oracle"
+path = "src/main.rs"
+
+[dependencies]

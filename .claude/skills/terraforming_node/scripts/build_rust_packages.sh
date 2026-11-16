@@ -39,6 +39,8 @@ pd="$REPO/.claude/rust/policy-distribution"
 pf="$REPO/.claude/rust/policy-predicates"
 # hint-publisher Rust port (plan_26111615 · Q path dependency) — built where the skill is delivered.
 h="$REPO/.claude/skills/hint-publisher/rust"
+# wiki-desk 검사 오라클(plan_26111707 · std 전용 · bin 전용) — checks/frontmatter.check.ts 가 부른다.
+wd="$REPO/.claude/skills/wiki-desk/rust"
 # Every role consumer must carry its library and Q path dependency.
 for consumer in "$REPO/.claude/skills/adversarial-benchmark/rust" "$u"; do
   if [ -f "$consumer/Cargo.toml" ]; then
@@ -61,7 +63,7 @@ done
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/rust-packages.XXXXXX")"
 trap 'rm -f -- "$tmp/metadata.json"; rmdir -- "$tmp"' EXIT
 applicable=0
-for crate in "$r" "$q" "$t" "$p" "$u" "$x" "$g" "$pp" "$pa" "$ps" "$pd" "$pf" "$bg" "$h"; do
+for crate in "$r" "$q" "$t" "$p" "$u" "$x" "$g" "$pp" "$pa" "$ps" "$pd" "$pf" "$bg" "$h" "$wd"; do
   [ -f "$crate/Cargo.toml" ] || continue
   applicable=$((applicable+1))
   [ -f "$crate/Cargo.lock" ] || { echo "Missing lock: $crate" >&2; exit 2; }
@@ -72,7 +74,7 @@ for crate in "$r" "$q" "$t" "$p" "$u" "$x" "$g" "$pp" "$pa" "$ps" "$pd" "$pf" "$
   target_args=(--lib --bins)
   if [ "$crate" = "$q" ] || [ "$crate" = "$t" ]; then target_args=(--lib); fi
   # bin 전용 패키지(parity)는 lib 대상이 없다 — `--lib` 를 요구하면 "no library targets" 로 101.
-  if [ "$crate" = "$x" ] || [ "$crate" = "$bg" ]; then target_args=(--bins); fi
+  if [ "$crate" = "$x" ] || [ "$crate" = "$bg" ] || [ "$crate" = "$wd" ]; then target_args=(--bins); fi
   env -u EASY_VLLM_SOURCE_ROOT bash "$BOOTSTRAP" exec "${runtime_args[@]}" -- cargo build \
     --release --locked "${target_args[@]}" --manifest-path "$crate/Cargo.toml" \
     --target-dir "$crate/target" "${cargo_args[@]}"
@@ -91,6 +93,9 @@ if [ -f "$p/Cargo.toml" ]; then
 fi
 if [ -f "$h/Cargo.toml" ]; then
   env -i PATH= LC_ALL=C.UTF-8 COLUMNS=80 "$h/target/release/hint" --help >/dev/null
+fi
+if [ -f "$wd/Cargo.toml" ]; then
+  env -i PATH= LC_ALL=C.UTF-8 "$wd/target/release/yaml11_oracle" --self-test >/dev/null || { echo "yaml11_oracle --self-test smoke failed" >&2; exit 1; }
 fi
 if [ -f "$u/Cargo.toml" ]; then
   env -i PATH= LC_ALL=C.UTF-8 COLUMNS=80 "$u/target/release/node_role_contract" --help

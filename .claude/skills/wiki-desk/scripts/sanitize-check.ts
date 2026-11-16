@@ -5,7 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const DEFAULT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const EXCLUDED_DIRS: ReadonlySet<string> = new Set([".git", "node_modules", ".cache"]);
+// `target` = cargo 빌드 산출물(비추적 · .gitignore `target/`) — 검사 오라클 crate `rust/` 가 노드에서 만든다(plan_26111707).
+const EXCLUDED_DIRS: ReadonlySet<string> = new Set([".git", "node_modules", ".cache", "target"]);
 // 이 파일 자신이 검사에 걸리지 않도록 사이트 이름은 유니코드 이스케이프·조각으로 적는다
 const SITE_NAMES = ["\uacbd\ub9ac\ub098\ub77c", "kyung" + "rinara"];
 
