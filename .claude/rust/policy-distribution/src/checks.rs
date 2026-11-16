@@ -1136,6 +1136,8 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
 
     let wd = ".claude/skills/wiki-desk";
     checks.push(run("wiki_node_test", &args(&["node", "--test"]), &[0], &repo.join(wd), &[]));
+    // 승격된 frontmatter 검사(plan_26111707) — 추적물이라 fresh clone 에서도 돈다 · YAML 1.1 오라클은 Rust(`wiki-desk/rust`).
+    checks.push(run("wiki_frontmatter_check", &args(&["node", "--test", "checks/frontmatter.check.ts"]), &[0], &repo.join(wd), &[]));
     checks.push(rr("wiki_doc_naming_selftest", &["node", &format!("{wd}/src/doc_naming.ts"), "--self-test"], &[0]));
     checks.push(rr("doc_naming_shim_selftest", &["bash", DOC_NAMING_LAUNCHER, "--self-test"], &[0]));
 
