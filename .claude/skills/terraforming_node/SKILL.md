@@ -156,7 +156,7 @@ Rust 설치·노드별 검증·새 프로세스 실행은 `references/install/ru
 결정론 = §공개 표면 표의 스크립트(스캔·게이트·렌더·계약 판정·그라운딩 누락 판정·체크섬). 판단 = 이 페르소나:
 토폴로지 진입 인터뷰(§0.5) · fresh-clone 온보딩 능동제안 · 5-전제조건 인터뷰 · 사용자 승인 · 브랜치≠토폴로지 시 전환 안내 ·
 ib_write_bw 오케스트레이션 · 호스트 안전체계 Y/N 설명·승인(§2.6) · manifest 기입 승인 · 전달(--provision) 승인 · 카나리 결과 판정 ·
-인용의 진위 리뷰(§2.7.8) · 모호 시 중단·질의. 회귀 실행자는 `.claude/policies/runtime/verify_distribution.py`(스크립트 self-test 목록의 정본)이며
+인용의 진위 리뷰(§2.7.8) · 모호 시 중단·질의. 회귀 실행자는 `bash .claude/policies/runtime/verify_distribution.sh`(Rust `.claude/rust/policy-distribution` · 스크립트 self-test 목록의 정본)이며
 `agent_control.py --self-test` 는 `.claude/policies/runtime/runtime_selftest.py` 가 부른다.
 
 ## 4. 공개 표면 — 외부(다른 스킬·기초층·훅·서브 렌더 트리)가 부르는 진입점 전수

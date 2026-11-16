@@ -1,0 +1,104 @@
+{
+ "real": {
+  "text": "# Main and sub use the same built-in permissions; roles come from manifest and node contracts.\n# https://learn.chatgpt.com/docs/permissions\n# Do not add legacy sandbox_mode / sandbox_workspace_write overrides.\ndefault_permissions = \":danger-full-access\"\napproval_policy = \"never\"\n",
+  "value": {
+   "default_permissions": ":danger-full-access",
+   "approval_policy": "never"
+  }
+ },
+ "legacy_prefix": {
+  "text": "sandbox_mode = \"workspace-write\"\n# Main and sub use the same built-in permissions; roles come from manifest and node contracts.\n# https://learn.chatgpt.com/docs/permissions\n# Do not add legacy sandbox_mode / sandbox_workspace_write overrides.\ndefault_permissions = \":danger-full-access\"\napproval_policy = \"never\"\n",
+  "value": {
+   "sandbox_mode": "workspace-write",
+   "default_permissions": ":danger-full-access",
+   "approval_policy": "never"
+  }
+ },
+ "retired": {
+  "text": "# Main and sub use the same built-in permissions; roles come from manifest and node contracts.\n# https://learn.chatgpt.com/docs/permissions\n# Do not add legacy sandbox_mode / sandbox_workspace_write overrides.\ndefault_permissions = \"vllm-main\"\napproval_policy = \"never\"\n",
+  "value": {
+   "default_permissions": "vllm-main",
+   "approval_policy": "never"
+  }
+ },
+ "custom": {
+  "text": "# Main and sub use the same built-in permissions; roles come from manifest and node contracts.\n# https://learn.chatgpt.com/docs/permissions\n# Do not add legacy sandbox_mode / sandbox_workspace_write overrides.\ndefault_permissions = \":danger-full-access\"\napproval_policy = \"never\"\n\n[permissions.vllm-main]\nextends = \":workspace\"\n",
+  "value": {
+   "default_permissions": ":danger-full-access",
+   "approval_policy": "never",
+   "permissions": {
+    "vllm-main": {
+     "extends": ":workspace"
+    }
+   }
+  }
+ },
+ "dup_key": {
+  "text": "a = \"x\"\na = \"y\"\n",
+  "error": "Cannot overwrite a value (at line 2, column 8)"
+ },
+ "dup_table": {
+  "text": "[t]\nx = 1\n[t]\ny = 2\n",
+  "error": "Cannot declare ('t',) twice (at line 3, column 3)"
+ },
+ "bad_value": {
+  "text": "a = nope\n",
+  "error": "Invalid value (at line 1, column 5)"
+ },
+ "missing_eq": {
+  "text": "a \"x\"\n",
+  "error": "Expected '=' after a key in a key/value pair (at line 1, column 3)"
+ },
+ "trailing": {
+  "text": "a = \"x\" b\n",
+  "error": "Expected newline or end of document after a statement (at line 1, column 9)"
+ },
+ "types": {
+  "text": "i = 1_000\nf = 3.5\nb = true\narr = [1, \"two\", [3]]\ninl = { k = \"v\", n.m = 2 }\nlit = 'c:\\\\p'\nml = \"\"\"\nl1\nl2\"\"\"\n[x.y]\nz = -4\n[[aot]]\nq = 1\n[[aot]]\nq = 2\n",
+  "value": {
+   "i": 1000,
+   "f": 3.5,
+   "b": true,
+   "arr": [
+    1,
+    "two",
+    [
+     3
+    ]
+   ],
+   "inl": {
+    "k": "v",
+    "n": {
+     "m": 2
+    }
+   },
+   "lit": "c:\\\\p",
+   "ml": "l1\nl2",
+   "x": {
+    "y": {
+     "z": -4
+    }
+   },
+   "aot": [
+    {
+     "q": 1
+    },
+    {
+     "q": 2
+    }
+   ]
+  }
+ },
+ "escapes": {
+  "text": "e = \"tab\\tq\\\"\\u00e9\"\n",
+  "value": {
+   "e": "tab\tq\"é"
+  }
+ },
+ "comments_ws": {
+  "text": "# c\n\n  k = \"v\"   # tail\n",
+  "value": {
+   "k": "v"
+  }
+ }
+}

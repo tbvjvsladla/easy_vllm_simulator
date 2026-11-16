@@ -202,7 +202,7 @@ description: >-
   `rubric_candidate()` 로 *유한 양수* 검사를 통과해야 낙찰된다 ⇒ `rubric.floor > 0` ∧
   `rubric.ratio_M_over_primary ≠ null` 이 **항상** 성립한다. `--target-tps 0`/`--reference-tps 0`/
   `--tolerance 1` 은 **exit 2 loud reject**(조용한 무문턱 PASS 금지). `verdict_rule.sh --self-test` 가
-  이 불변식을 상시 단언하고, `verify_distribution.py` 가 매 검증마다 그 자체검사를 **실행**한다.
+  이 불변식을 상시 단언하고, `verify_distribution.sh`(Rust) 가 매 검증마다 그 자체검사를 **실행**한다.
 
 ## 9. 보조 파일
 

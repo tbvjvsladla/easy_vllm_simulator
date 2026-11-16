@@ -1,0 +1,309 @@
+{
+ "arrays": [
+  {
+   "source": "sync_branches",
+   "name": "ALLOWLIST",
+   "value": [
+    ".agents/skills",
+    ".claude/hooks",
+    ".claude/policies",
+    ".claude/rules",
+    ".claude/rust",
+    ".claude/schemas",
+    ".claude/settings.json",
+    ".claude/skills",
+    ".codex",
+    ".gitattributes",
+    ".gitignore",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "README.md",
+    "assets",
+    "campaigns",
+    "hints",
+    "manifest.template.yaml",
+    "tests"
+   ]
+  },
+  {
+   "source": "sync_branches",
+   "name": "MIRROR_DIRS",
+   "value": [
+    ".agents/skills",
+    ".claude/hooks",
+    ".claude/policies",
+    ".claude/rules",
+    ".claude/rust",
+    ".claude/schemas",
+    ".claude/skills",
+    ".codex",
+    "assets",
+    "campaigns",
+    "hints",
+    "tests"
+   ]
+  },
+  {
+   "source": "sync_branches",
+   "name": "ROOT_RELOCATION_TOMBSTONES",
+   "value": [
+    "scripts/agent_control.py",
+    "scripts/cleanup_docker.py",
+    "scripts/completion_gate.py",
+    "scripts/doc_naming.py",
+    "scripts/engine_liveness_watchdog.sh",
+    "scripts/evidence_publisher.py",
+    "scripts/harness_verify.py",
+    "scripts/hint_tag.py",
+    "scripts/host/vllm-drop-caches.sh",
+    "scripts/install_host_safety.sh",
+    "scripts/mem_watchdog.sh",
+    "scripts/policy_registry.py",
+    "scripts/providers/claude_code.py",
+    "scripts/smoke_clone.sh",
+    "scripts/sync_branches.sh",
+    "scripts/systemd/easy-vllm-memwatch.service",
+    "scripts/templates/hint_recipe.template.md"
+   ]
+  },
+  {
+   "source": "sync_branches",
+   "name": "ROOT_RELOCATION_REPLACEMENTS",
+   "value": [
+    ".claude/policies/runtime/completion_gate.py",
+    ".claude/policies/runtime/doc_naming.py",
+    ".claude/policies/runtime/evidence_publisher.py",
+    ".claude/policies/runtime/harness_verify.py",
+    ".claude/policies/runtime/policy_registry.py",
+    ".claude/skills/hint-publisher/scripts/hint.py",
+    ".claude/skills/hint-publisher/templates/00-hint.prompt.md",
+    ".claude/skills/terraforming_node/scripts/agent_control.py",
+    ".claude/skills/terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh",
+    ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
+    ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
+    ".claude/skills/terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service",
+    ".claude/skills/terraforming_node/scripts/providers/claude_code.py",
+    ".claude/skills/upstream-version-watch/scripts/smoke_clone.sh",
+    ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
+    ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py",
+    ".claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh"
+   ]
+  },
+  {
+   "source": "sync_branches",
+   "name": "OVERLAY_STALE_PATHS",
+   "value": []
+  },
+  {
+   "source": "sync_branches",
+   "name": "OVERLAY_RELOCATION_STALE_PATHS",
+   "value": []
+  },
+  {
+   "source": "sync_branches",
+   "name": "OVERLAY_RETIREMENT_STALE_PATHS",
+   "value": []
+  },
+  {
+   "source": "sync_branches",
+   "name": "RUNTIME_BLOCK_OWNED_ROOTS",
+   "value": []
+  },
+  {
+   "source": "sync_branches",
+   "name": "NOPE",
+   "value": []
+  },
+  {
+   "source": "sync_to_sub",
+   "name": "ALLOWLIST",
+   "value": []
+  },
+  {
+   "source": "sync_to_sub",
+   "name": "MIRROR_DIRS",
+   "value": []
+  },
+  {
+   "source": "sync_to_sub",
+   "name": "ROOT_RELOCATION_TOMBSTONES",
+   "value": []
+  },
+  {
+   "source": "sync_to_sub",
+   "name": "ROOT_RELOCATION_REPLACEMENTS",
+   "value": []
+  },
+  {
+   "source": "sync_to_sub",
+   "name": "OVERLAY_STALE_PATHS",
+   "value": [
+    ".claude/rules/references.md",
+    ".claude/skills/upstream-version-watch/assets/current-production-resolution.json",
+    "scripts/host/vllm-drop-caches.sh",
+    "scripts/install_host_safety.sh",
+    "scripts/mem_watchdog.sh",
+    "scripts/smoke_clone.sh",
+    "scripts/sync_branches.sh",
+    "scripts/systemd/easy-vllm-memwatch.service",
+    "tasks/.gitkeep"
+   ]
+  },
+  {
+   "source": "sync_to_sub",
+   "name": "OVERLAY_RELOCATION_STALE_PATHS",
+   "value": [
+    ".claude/rules/references.md",
+    "scripts/host/vllm-drop-caches.sh",
+    "scripts/install_host_safety.sh",
+    "scripts/mem_watchdog.sh",
+    "scripts/systemd/easy-vllm-memwatch.service",
+    "tasks/.gitkeep"
+   ]
+  },
+  {
+   "source": "sync_to_sub",
+   "name": "OVERLAY_RETIREMENT_STALE_PATHS",
+   "value": [
+    ".claude/skills/upstream-version-watch/assets/current-production-resolution.json",
+    "scripts/smoke_clone.sh",
+    "scripts/sync_branches.sh"
+   ]
+  },
+  {
+   "source": "sync_to_sub",
+   "name": "RUNTIME_BLOCK_OWNED_ROOTS",
+   "value": [
+    ".agents/skills",
+    ".claude/hooks",
+    ".claude/pii_terms.txt",
+    ".claude/policies",
+    ".claude/rules",
+    ".claude/schemas",
+    ".claude/skills",
+    ".codex"
+   ]
+  },
+  {
+   "source": "sync_to_sub",
+   "name": "NOPE",
+   "value": []
+  },
+  {
+   "source": "fixture",
+   "text": "A=(\n  'x'  # c\n  \"y\"\n\n  # only comment\n  z\n)\nB=(\n)\nC=( inline )\n",
+   "name": "A",
+   "value": [
+    "x",
+    "y",
+    "z"
+   ]
+  },
+  {
+   "source": "fixture",
+   "text": "A=(\n  'x'  # c\n  \"y\"\n\n  # only comment\n  z\n)\nB=(\n)\nC=( inline )\n",
+   "name": "B",
+   "value": []
+  },
+  {
+   "source": "fixture",
+   "text": "A=(\n  'x'  # c\n  \"y\"\n\n  # only comment\n  z\n)\nB=(\n)\nC=( inline )\n",
+   "name": "C",
+   "value": []
+  }
+ ],
+ "orders": [
+  {
+   "text": "S a b c E a",
+   "marker": "S",
+   "end": "E",
+   "tokens": [
+    "a",
+    "b"
+   ],
+   "value": {
+    "ok": true,
+    "reason": null
+   }
+  },
+  {
+   "text": "S a b c E a",
+   "marker": "S",
+   "end": "E",
+   "tokens": [
+    "b",
+    "a"
+   ],
+   "value": {
+    "ok": false,
+    "reason": "token_out_of_order",
+    "missing": "a"
+   }
+  },
+  {
+   "text": "S a b c E a",
+   "marker": "S",
+   "end": "E",
+   "tokens": [
+    "z"
+   ],
+   "value": {
+    "ok": false,
+    "reason": "token_absent",
+    "missing": "z"
+   }
+  },
+  {
+   "text": "S a b c E a",
+   "marker": "Q",
+   "end": "E",
+   "tokens": [
+    "a"
+   ],
+   "value": {
+    "ok": false,
+    "reason": "start_anchor_missing",
+    "missing": "Q"
+   }
+  },
+  {
+   "text": "S a b c E a",
+   "marker": "S",
+   "end": "Q",
+   "tokens": [
+    "a"
+   ],
+   "value": {
+    "ok": false,
+    "reason": "end_anchor_missing",
+    "missing": "Q"
+   }
+  },
+  {
+   "text": "S a b c E a",
+   "marker": "S",
+   "end": "E",
+   "tokens": [
+    "S",
+    "a"
+   ],
+   "value": {
+    "ok": true,
+    "reason": null
+   }
+  },
+  {
+   "text": "S a b c E a",
+   "marker": "a",
+   "end": "E",
+   "tokens": [
+    "b",
+    "c"
+   ],
+   "value": {
+    "ok": true,
+    "reason": null
+   }
+  }
+ ]
+}

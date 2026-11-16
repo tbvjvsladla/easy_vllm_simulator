@@ -1,0 +1,26 @@
+[package]
+name = "policy-distribution"
+version = "0.1.0"
+edition = "2021"
+description = "Rust port of .claude/policies/runtime/verify_distribution.py: the fail-closed acceptance of the five-skill self-contained distribution (static contract checks + the named self-test runs + the policy audit with an observed reference date), same JSON report"
+publish = false
+# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
+autotests = false
+
+[lib]
+name = "policy_distribution"
+path = "src/lib.rs"
+
+[[bin]]
+name = "verify_distribution"
+path = "src/bin/verify_distribution.rs"
+
+[[test]]
+name = "pure_goldens"
+path = "checks/pure_goldens.rs"
+
+[dependencies]
+# Python-compatible values and json.dumps(indent=2, ensure_ascii=False) of the report (path dependency, read-only).
+agent-runtime-support = { path = "../runtime-support" }
+# Python `re` patterns of the original (lookbehind in the retirement-consumer scan, lazy DOTALL shell-array capture).
+fancy-regex = "=0.19.2"
