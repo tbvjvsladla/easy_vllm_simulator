@@ -82,6 +82,8 @@ CLAUDE.local.md
 !.claude/policies/handoff_exception.topology.md
 # 기초층→스킬 간선의 닫힌 목록(plan_26093022 · runtime_selftest tripwire⑨ 의 데이터). 같은 이유로 명시 허용한다.
 !.claude/policies/base_skill_edges.json
+# py 경계 허용목록(plan_26111615 D5 · py_boundary_guard 의 데이터). 같은 C-4 함정 — 재포함 없으면 add 가 no-op.
+!.claude/policies/py_boundary_allowlist.tsv
 !.claude/policies/arch_variant_evidence/
 !.claude/policies/arch_variant_evidence/*.json
 # 재제외 (재포함 이후에 와야 적용됨 / 주석은 반드시 별도 줄 — 패턴 뒤 인라인 # 은 리터럴로 취급됨)
