@@ -274,12 +274,8 @@ fn link_owner(repo: &Path, root: &Path, rel: &str) -> HR<()> {
 pub(super) fn _fx_repo(td: &Path) -> HR<(PathBuf, J)> {
     let (repo, mut fx) = evidence::_fixture(td)?;
     let root = code_root();
+    // The prose naming launcher and the bench naming Rust source (the lineage grammar reads it · plan_26111615 D4 · no `.py`).
     for rel in [core::REL_DOC_NAMING_WIKI, core::REL_DOC_NAMING_BENCH] {
-        // The bench naming owner is the Rust `bench_naming.rs` (the lineage grammar reads it when the `.py` is gone).
-        if rel == core::REL_DOC_NAMING_BENCH && !root.join(rel).is_file() {
-            link_owner(&repo, &root, crate::lineage::REL_BENCH_NAMING_RS)?;
-            continue;
-        }
         link_owner(&repo, &root, rel)?;
     }
     // 의도된 차이: 명명 SSOT 의 TS 정본은 사본으로 둔다(심링크 ✗) — 그 스크립트는 `argv[1]` 과 실경로(import.meta.url)가 같을
@@ -287,12 +283,11 @@ pub(super) fn _fx_repo(td: &Path) -> HR<(PathBuf, J)> {
     let ts = repo.join(core::REL_DOC_NAMING_TS);
     mkdirs(ts.parent().unwrap())?;
     copy2(&root.join(core::REL_DOC_NAMING_TS), &ts)?;
-    // 의도된 차이: 원본 bench 명명 shim 은 `Path(__file__).resolve()` 옆의 정본(doc_naming_native.py)을 읽는다 — native 소유
-    //   실행파일은 심링크를 따라가지 않으므로 그 정본도 같은 자리에 링크한다.
-    for sib in ["doc_naming_native.py", "bench_reporting_api.sh"] {
-        let rel = core::REL_DOC_NAMING_BENCH.replace("doc_naming.py", sib);
-        if root.join(&rel).is_file() && !repo.join(&rel).exists() {
-            link_owner(&repo, &root, &rel)?;
+    // 의도된 차이: native 소유 실행파일은 심링크를 따라가지 않으므로 bench 보고 API launcher 도 같은 자리에 링크한다.
+    {
+        let rel = ".claude/skills/adversarial-benchmark/scripts/bench_reporting_api.sh";
+        if root.join(rel).is_file() && !repo.join(rel).exists() {
+            link_owner(&repo, &root, rel)?;
         }
     }
     // 의도된 차이: launcher 는 자기 (심링크) 자리 옆의 빌드 산출물(`target/`)에서 native 실행파일을 찾는다 — 원본 `python3 <소유>.py`

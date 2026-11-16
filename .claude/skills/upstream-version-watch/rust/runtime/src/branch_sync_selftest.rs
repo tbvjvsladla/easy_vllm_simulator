@@ -5,7 +5,7 @@
 //! inline_json locator · S9 B0 build-kit checksum scope). Check names and conditions follow the original one for one; the
 //! differences are the judge (`layer_ledger.sh` + `rust/runtime/src/layer_ledger.rs`, the node-built ELF of the real runtime
 //! root) and the broken-judge injection (a fake runtime root whose `layer_ledger` is this program in fault mode).
-//! Other bundles' programs the scripts call (completion gate, campaign_init, render_sub_env, hint.py) run as those scripts call them.
+//! Other bundles' programs the scripts call (completion gate, campaign_init, render_sub_env, hint) run through their launchers as those scripts call them.
 //! Remote, sub node and real ledger are never touched: the remote is a temporary bare repository, ssh is a shim that records calls.
 use agent_runtime_support::pyjson;
 use agent_runtime_support::pyvalue::PyValue;
@@ -23,7 +23,6 @@ const LAYER_LEDGER_SH: &str = ".claude/skills/upstream-version-watch/scripts/lay
 const LAYER_LEDGER_RS: &str = ".claude/skills/upstream-version-watch/rust/runtime/src/layer_ledger.rs";
 const INLINE_JSON_SH: &str = ".claude/skills/upstream-version-watch/scripts/inline_json.sh";
 const CLOSING: &str = ".claude/skills/upstream-version-watch/scripts/closing_sequence.sh";
-const PARITY: &str = ".claude/policies/runtime/topology_parity.py";
 const PARITY_SH: &str = ".claude/policies/runtime/topology_parity.sh";
 // The campaign component is its native launcher (the retired campaign_init.py is not needed for the campaign leg).
 const CAMPAIGN_INIT: &str = ".claude/skills/terraforming_node/scripts/campaign_init.sh";
@@ -32,16 +31,15 @@ const CAMPAIGN_INIT: &str = ".claude/skills/terraforming_node/scripts/campaign_i
 const RENDER: &str = ".claude/skills/terraforming_node/scripts/render_sub_env.sh";
 const RENDER_RS: &str = ".claude/skills/terraforming_node/rust/src/render_sub_env.rs";
 const TERRAFORMING_BIN_REL: &str = ".claude/skills/terraforming_node/rust/target/release";
-const GATE: &str = ".claude/policies/runtime/completion_gate.py";
 /// The gate launcher sync_branches.sh calls, and its node-built ELF (crate .claude/rust/policy-gate).
 const GATE_SH: &str = ".claude/policies/runtime/completion_gate.sh";
 const GATE_ELF_REL: &str = ".claude/rust/policy-gate/target/release/completion_gate";
-const CATALOG: &str = ".claude/skills/hint-publisher/scripts/hint.py";
 /// The catalog launcher closing_sequence.sh calls, and its node-built ELF (hint-publisher bundle).
 const CATALOG_SH: &str = ".claude/skills/hint-publisher/scripts/hint.sh";
 const HINT_ELF_REL: &str = ".claude/skills/hint-publisher/rust/target/release/hint";
-const HINTLIB_DIR: &str = ".claude/skills/hint-publisher/scripts/hintlib";
-const CATALOG_COMPANIONS: [&str; 2] = [".claude/skills/hint-publisher/scripts/render_bench_section.py", "hints/vocab.json"];
+/// The catalog derivation's rule source (its exit-code constant is read from here -- the closing sequence's rule: not written by hand again).
+const CATALOG_RS: &str = ".claude/skills/hint-publisher/rust/src/catalog.rs";
+const CATALOG_COMPANIONS: [&str; 2] = [".claude/skills/hint-publisher/scripts/render_bench_section.sh", "hints/vocab.json"];
 const SCHEMAS: [&str; 3] = ["work-manifest.schema.json", "completion-manifest.schema.json", "side-effect-authorization.schema.json"];
 const LEDGER_REL: &str = ".claude/policies/branch_layer_ledger.json";
 const TOPOLOGY_RULES: &str = ".claude/rules/strategy.topology.md";
@@ -343,7 +341,7 @@ fn checkout(sb: &Sandbox, name: &str, branch: &str, header: &str, topo: &str, ma
     let repo = sb.root.join(name);
     mkdirs(&repo)?;
     sb.git(&repo, &["init", "-q", "-b", branch])?;
-    let mut rels: Vec<String> = sv(&[SYNC_TO_SUB, INLINE_JSON_SH, PARITY, PARITY_SH, GATE, CAMPAIGN_INIT]);
+    let mut rels: Vec<String> = sv(&[SYNC_TO_SUB, INLINE_JSON_SH, PARITY_SH, GATE_SH, CAMPAIGN_INIT]);
     rels.extend(SCHEMAS.iter().map(|s| format!(".claude/schemas/{s}")));
     for rel in &rels {
         sb.copy_real(&repo, rel)?;
@@ -473,7 +471,6 @@ fn test_render_guard(real: &Path) -> R<()> {
     mkdirs(&repo.join(TN))?;
     sb.copy_real(&repo, RENDER)?;
     // the 4-way predicate's canonical owner is the base-layer runtime (plan_26093022) -- the renderer imports it skill → base layer
-    sb.copy_real(&repo, PARITY)?;
     sb.copy_real(&repo, PARITY_SH)?;
     write_rel(&repo, TOPOLOGY_RULES, "# 특화헌법 픽스처\n\n**topology: multi** · layer: topology\n")?;
     let absent_manifest = p2s(&sb.root.join("no-such-manifest.yaml"));
@@ -551,22 +548,11 @@ fn build_sequence_fixture(sb: &Sandbox, o: FxOpts) -> R<Fixture> {
     if reps.len() < 10 {
         return Err(format!("ROOT_RELOCATION_REPLACEMENTS 를 읽지 못했다: {reps:?}"));
     }
-    let mut hintlib: Vec<String> = std::fs::read_dir(sb.real.join(HINTLIB_DIR))
-        .map_err(|e| e.to_string())?
-        .flatten()
-        .filter_map(|e| {
-            let n = e.file_name().to_string_lossy().into_owned();
-            n.ends_with(".py").then(|| format!("{HINTLIB_DIR}/{n}"))
-        })
-        .collect();
-    hintlib.sort();
-    if !hintlib.iter().any(|r| r.ends_with("/catalog.py")) {
-        return Err(format!("hintlib 사본 목록에 catalog.py 가 없다: {hintlib:?}"));
-    }
-    let mut rels: std::collections::BTreeSet<String> = sv(&[LAYER_LEDGER_SH, LAYER_LEDGER_RS, INLINE_JSON_SH, SYNC_BRANCHES, CLOSING, PARITY, PARITY_SH, GATE, GATE_SH, CATALOG, CATALOG_SH, ".gitignore"]).into_iter().collect();
+    // the catalog engine is the hint-publisher Rust bundle: its launcher + rule source are copied, its ELF is linked below
+    //   (plan_26111615 D4 -- the retired hintlib/*.py are not needed and not read).
+    let mut rels: std::collections::BTreeSet<String> = sv(&[LAYER_LEDGER_SH, LAYER_LEDGER_RS, INLINE_JSON_SH, SYNC_BRANCHES, CLOSING, PARITY_SH, GATE_SH, CATALOG_SH, CATALOG_RS, ".gitignore"]).into_iter().collect();
     rels.extend(SCHEMAS.iter().map(|s| format!(".claude/schemas/{s}")));
     rels.extend(reps);
-    rels.extend(hintlib);
     rels.extend(CATALOG_COMPANIONS.iter().map(|s| s.to_string()));
     for rel in &rels {
         sb.copy_real(&repo, rel)?;
@@ -771,12 +757,19 @@ fn test_closing_sequence(real: &Path) -> R<()> {
         // default mode (no --record-missing) = the old contract: a missing local object stops with its own exit code, and HintError.render()
         //   names the fetch command of the remote it queried (main worktree) · 0 writes · no auto fetch. The exit code is read from the
         //   derivation's constant in its file (not written by hand again -- the closing sequence's rule).
-        let cat_src = read(&real.join(HINTLIB_DIR).join("catalog.py"))?;
-        let exit_missing: Option<i32> = cat_src.lines().find_map(|l| l.strip_prefix("EXIT_LOCAL_TAG_OBJECT_MISSING").and_then(|r| r.trim_start().strip_prefix('=')).and_then(|v| v.split('#').next()).and_then(|v| v.trim().parse().ok()));
+        //   Rule source = the Rust catalog (`pub const EXIT_LOCAL_TAG_OBJECT_MISSING: i64 = <n>;`).
+        let cat_src = read(&real.join(CATALOG_RS))?;
+        let exit_missing: Option<i32> = cat_src.lines().find_map(|l| {
+            l.trim_start()
+                .strip_prefix("pub const EXIT_LOCAL_TAG_OBJECT_MISSING")
+                .and_then(|r| r.split_once('='))
+                .and_then(|(_, v)| v.split(';').next())
+                .and_then(|v| v.trim().parse().ok())
+        });
         let idx_p = repo.join("hints/index.json");
         let idx_before = std::fs::read(&idx_p).ok();
-        // hint.py belongs to the hint-publisher bundle: run as closing_sequence.sh runs it (python3 -B)
-        let r = sb.run(&sv(&["python3", "-B", &p2s(&repo.join(CATALOG)), "--repo", &p2s(repo), "catalog", "derive", "--remote", "fx", "--generated-kst", "2026-09-14T09:00:00"]), repo, &[]);
+        // hint-publisher bundle: run as closing_sequence.sh runs it (its launcher hint.sh → the linked node-built ELF · never Python)
+        let r = sb.run(&sv(&["bash", &p2s(&repo.join(CATALOG_SH)), "--repo", &p2s(repo), "catalog", "derive", "--remote", "fx", "--generated-kst", "2026-09-14T09:00:00"]), repo, &[]);
         ck(
             "★S7 기본 모드: 로컬 오브젝트 부재 = 전용 종료코드 · render() 가 조회한 원격(fx)의 주 워크트리 fetch 명령을 말한다 · 쓰기 0",
             exit_missing.is_some_and(|x| r.rc == x) && r.stderr.contains(&format!("git -C {} fetch fx 'refs/tags/hint/*:refs/tags/hint/*'", p2s(repo))) && std::fs::read(&idx_p).ok() == idx_before && !tag_local(&sb),
@@ -922,7 +915,7 @@ fn test_branch_sync_delete_respects_excludes(real: &Path) -> R<()> {
         let repo = sb.root.join("repo");
         mkdirs(&repo)?;
         sb.git(&repo, &["init", "-q", "-b", "single-node"])?;
-        let mut rels: std::collections::BTreeSet<String> = sv(&[SYNC_BRANCHES, INLINE_JSON_SH, GATE, GATE_SH, PARITY, PARITY_SH, LAYER_LEDGER_SH, LAYER_LEDGER_RS, ".gitignore"]).into_iter().collect();
+        let mut rels: std::collections::BTreeSet<String> = sv(&[SYNC_BRANCHES, INLINE_JSON_SH, GATE_SH, PARITY_SH, LAYER_LEDGER_SH, LAYER_LEDGER_RS, ".gitignore"]).into_iter().collect();
         rels.extend(SCHEMAS.iter().map(|s| format!(".claude/schemas/{s}")));
         rels.extend(relocation_replacements(real)?);
         for rel in &rels {
@@ -1156,9 +1149,9 @@ pub fn run(argv0: Option<String>, args: &[String]) -> i32 {
         eprintln!("[selftest_branch_sync] FAIL: 저장소 루트를 찾지 못했다");
         return 1;
     };
-    let need = [SYNC_TO_SUB, SYNC_BRANCHES, LAYER_LEDGER_SH, LAYER_LEDGER_RS, CLOSING, PARITY, RENDER, GATE, CATALOG, HINTLIB_DIR, CATALOG_COMPANIONS[0], CATALOG_COMPANIONS[1]];
+    let need = [SYNC_TO_SUB, SYNC_BRANCHES, LAYER_LEDGER_SH, LAYER_LEDGER_RS, CLOSING, PARITY_SH, RENDER, GATE_SH, CATALOG_SH, CATALOG_RS, CATALOG_COMPANIONS[0], CATALOG_COMPANIONS[1]];
     for rel in need {
-        let ok = real.join(rel).is_file() || (rel == HINTLIB_DIR && real.join(rel).join("catalog.py").is_file());
+        let ok = real.join(rel).is_file();
         if !ok {
             eprintln!("[selftest_branch_sync] FAIL: 검사 대상이 없다: {rel}");
             return 1;

@@ -1292,11 +1292,15 @@ fn _selftest_round2(c: &mut Ck, repo: &Path, td: &Path, ev: &J, ident: &J) -> HR
     c.ck("라벨 없는 clear·arm 해제·보류·thermal 은 열린 창에 귀속", need.iter().all(|(k, u)| pairs.iter().any(|(a, b)| a == k && b == u)));
     let fd = _event_fields(&jd! {"kind" => "budget_declare", "source" => "blackbox_session", "floor_mib" => 12368, "weights_mib" => 73104, "mem_total_mib" => 124608})?;
     let fb = _event_fields(&jd! {"kind" => "budget_blocked", "source" => "blackbox_session", "mem_total_mib" => 124608})?;
-    let bs_p = core::skill_dir().parent().unwrap().join("terraforming_node/scripts/node_blackbox/blackbox_session.py");
-    let bs_src = rd(&bs_p)?;
+    // contract source = the Rust owner (blackbox_session.rs declare-budget: required int) + the runner that measures it
+    //   (multinode_serve_smoke.sh passes /proc/meminfo MemTotal) · plan_26111615 D4: the retired `.py` help text is not read.
+    let skills = core::skill_dir().parent().unwrap().to_path_buf();
+    let bs_src = rd(&skills.join("terraforming_node/rust/src/blackbox_session.rs"))?;
+    let runner_src = rd(&skills.join("upstream-version-watch/scripts/multinode_serve_smoke.sh"))?;
     c.ck("★FC-15 budget_declare 의 mem_total_mib = 러너 측정 표지(선언값 아님) · floor·weights 는 그대로 · budget_blocked(자유 detail)는 종전 · 계약 원문(declare-budget --mem-total-mib help = /proc/meminfo MemTotal) 교차대조",
         fd.contains(&format!("mem_total_mib=124608({_MEM_TOTAL_NOTE})")) && fd.contains("floor_mib=12368 ·") && fd.contains("weights_mib=73104")
-        && fb == "mem_total_mib=124608" && bs_src.contains("b.add_argument(\"--mem-total-mib\", type=int, required=True, help=\"/proc/meminfo MemTotal\")"));
+        && fb == "mem_total_mib=124608" && bs_src.contains("store(&[\"--mem-total-mib\"]).int().required()")
+        && runner_src.contains("--mem-total-mib \"$(awk '/MemTotal:/{print int($2/1024)}' /proc/meminfo)\""));
     c.ck("★F4 라벨 없는 워치독 budget_rejected(창 닫힘 직전) = 열린 창에 귀속 · 행 라벨 None · 출처 watchdog.jsonl",
         tl.iter().any(|r| eqs(&r["kind"], "budget_rejected") && eqs(&r["utc"], "2026-01-02T03:10:00Z") && r["label"].is_null()
             && has(&r["detail"], "라벨 없음 → smoke-c1-a 선언 창 귀속") && has(&r["source"], "watchdog.jsonl")));
@@ -2266,11 +2270,12 @@ fn _selftest_v7(c: &mut Ck, repo: &Path, td: &Path, ev: &J, fx: &J, dk: Dk) -> H
     let mc_in = mc_of(Some(in_bk.clone()))?;
     let mc_un = mc_of(None)?;
     let mc_odd = mc_of(Some(jd! {"campaign" => J::Null, "campaign_pins_note" => "캠페인 해소자 부재: x — 선언을 읽지 못했다"}))?;
-    let ra_src = rd(&core::skill_dir().parent().unwrap().join("adversarial-benchmark/scripts/repeat_axis.py"))?;
+    // the owner wording lives in the Rust repeat owner (plan_26111615 D4 · the retired repeat_axis.py is not read)
+    let ra_src = rd(&core::skill_dir().parent().unwrap().join("adversarial-benchmark/rust/src/repeat_owner.rs"))?;
     c.ck("★F13 측정 시점 캠페인 소속: 캠페인 밖(관측) · 캠페인 id · 기록 없음/해소 실패 = 미관측(구분) · 사유 문구 = repeat_axis 원문(교차검증)",
         eqs(&mc_out["status"], "outside") && eqs(&mc_out["id"], "_bootstrap") && has(&mc_out["source"], "campaign_pins_note")
         && eqs(&mc_in["status"], "in-campaign") && eqs(&mc_in["id"], "camp-fx") && eqs(&mc_un["status"], "unobserved") && eqs(&mc_odd["status"], "unobserved")
-        && ra_src.contains("\"활성 캠페인 없음(%s)\" % mod.BOOTSTRAP"));
+        && ra_src.contains("\"활성 캠페인 없음(\",") && ra_src.contains("bootstrap.display_text(),"));
     let ab_of = |bk: Option<J>, mode: &str, r: Option<&Path>, base: &J| -> HR<J> {
         let idx = match bk { Some(b) => rep(&sw["index"], &[("bench_knobs", b)]), None => sw["index"].clone() };
         campaign_absence(&rep(base, &[("mode", J::from(mode)), ("sweep", rep(&sw, &[("index", idx)]))]), r)

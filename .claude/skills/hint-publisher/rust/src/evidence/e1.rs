@@ -9,8 +9,9 @@ use crate::value::{Map, J};
 use crate::{jd, jl};
 use super::*;
 
-pub const REL_MANIFEST_CONTRACT: &str = ".claude/skills/terraforming_node/scripts/manifest_contract.py";
-pub const REL_CHECK_SMOKE_MODEL: &str = ".claude/skills/upstream-version-watch/scripts/check_smoke_model.py";
+/// Owners = their Rust launchers (plan_26111615 D4 · presence never a `.py`).
+pub const REL_MANIFEST_CONTRACT: &str = ".claude/skills/terraforming_node/scripts/manifest_contract.sh";
+pub const REL_CHECK_SMOKE_MODEL: &str = ".claude/skills/upstream-version-watch/scripts/check_smoke_model.sh";
 pub const _GATE_REQUIRED_API: [&str; 10] = ["parse_flat_certificate", "certificate_run_key", "CERTIFICATE_FIELD_MAP", "STRONG_IDENTITY_FIELDS", "lexical_components", "manifest_rubric_contract", "PII_MACHINE_RAW_EXEMPTION_REASON", "certificate_requirement_authority", "certificate_waived", "CERTIFICATE_NON_ISSUING_AUTHORITIES"];
 pub const NODE_AXIS: [&str; 3] = ["main", "sub", "cluster"];
 pub const TOPOLOGIES: [&str; 2] = ["single", "multi"];
@@ -47,12 +48,10 @@ pub fn _JUDGED_KEYS() -> &'static J {
 pub const _CROSSCHECK_KEYS: [&str; 5] = ["verdict", "decode_tps_conc1", "rubric_authority", "floor_tps", "ratio_M_over_primary"];
 pub const KV_CLAMP_KEY: &str = "kv-cache-memory-bytes";
 
-/// `REL_MANIFEST_CONTRACT_RUNTIME` (the adapter's runtime triple — kept for callers that stage a scratch checkout).
-pub const REL_MANIFEST_CONTRACT_RUNTIME: [&str; 3] = [
-    ".claude/skills/terraforming_node/scripts/manifest_contract.sh",
-    ".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py",
-    ".claude/skills/adversarial-benchmark/rust/target/release/manifest_contract",
-];
+/// `REL_MANIFEST_CONTRACT_RUNTIME` (what the launcher `REL_MANIFEST_CONTRACT` starts — kept for callers that stage a scratch
+/// checkout). The launcher only names `manifest_contract_compat_owner.py` as a traceback frame path (the file need not exist ·
+/// plan_26111615 D4), so it is not staged.
+pub const REL_MANIFEST_CONTRACT_RUNTIME: [&str; 1] = [".claude/skills/adversarial-benchmark/rust/target/release/manifest_contract"];
 
 crate::re_static!(_CELL_RE, r"^[A-Za-z0-9][A-Za-z0-9._-]*$");
 crate::re_static!(_SHA40, r"^[0-9a-f]{40}$");
@@ -245,7 +244,8 @@ fn m_get(m: &Map, k: &str) -> J {
 /// The owner module of a Python import is present (its native launcher `<stem>.sh` or the source) — else the same
 /// fail-closed answer as `core.load_owner_module`.
 fn owner_present(repo: &Path, rel_py: &str) -> HR<()> {
-    if core::owner_launcher(repo, rel_py).is_file() || repo.join(rel_py).is_file() {
+    // presence = the owner's native launcher only (plan_26111615 D4 — a `.py` alone is not an owner).
+    if core::owner_launcher(repo, rel_py).is_file() {
         return Ok(());
     }
     core::fail(
@@ -401,11 +401,6 @@ pub fn _check_node(node: &J) -> HR<String> {
 }
 
 // ── 소유 모듈 적재 ─────────────────────────────────────────────────────────────────────────────────────────────
-/// `_COLOCATED_GATE = core.SCRIPTS_DIR / "completion_gate.py"`.
-pub fn _COLOCATED_GATE() -> PathBuf {
-    core::scripts_dir().join("completion_gate.py")
-}
-
 /// The completion gate's native launcher (`completion_gate.sh` next to the original path) — the gate that runs.
 pub fn _cgate_launcher_rel() -> String {
     core::REL_COMPLETION_GATE.strip_suffix(".py").map(|s| format!("{s}.sh")).unwrap_or_else(|| core::REL_COMPLETION_GATE.to_string())
@@ -425,18 +420,11 @@ pub fn _cgate_rust_source() -> PathBuf {
 }
 
 pub fn _cgate_path(repo: &Path) -> HR<PathBuf> {
-    // The native launcher first (what `run_owner` starts); then the original `.py` (reference copy while it exists).
+    // The native launcher only (what `run_owner` starts · plan_26111615 D4: neither the canonical nor a colocated `.py` is an
+    // owner). The message keeps the original wording (it names where the gate used to live).
     let launcher = repo.join(_cgate_launcher_rel());
     if launcher.is_file() {
         return Ok(launcher);
-    }
-    let canonical = repo.join(core::REL_COMPLETION_GATE);
-    if canonical.is_file() {
-        return Ok(canonical);
-    }
-    let co = _COLOCATED_GATE();
-    if co.is_file() {
-        return Ok(co);
     }
     core::fail(
         "HINT_OWNER_MODULE_MISSING",

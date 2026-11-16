@@ -759,6 +759,7 @@ pub fn _marked_leaf_matches_frozen(shipped: &[u8], frozen: &[u8], target: &str, 
 
 pub const _LITE_TOOL_LOAD_FLAGS: [&str; 8] = ["--dataset-name", "--random-input-len", "--random-output-len", "--random-range-ratio", "--ignore-eos", "--trust-remote-code", "--max-concurrency", "--request-rate"];
 pub const SMOKE_INFERENCE_REQUESTS: i64 = 1;
-pub const REL_NATIVE_SERVE: &str = ".claude/skills/upstream-version-watch/scripts/native_multinode_serve.py";
+/// The native serve owner = its Rust launcher (plan_26111615 D4 · recipients run `bash <launcher>`, never Python).
+pub const REL_NATIVE_SERVE: &str = ".claude/skills/upstream-version-watch/scripts/native_multinode_serve.sh";
 
 include!("a3/ctx.rs");

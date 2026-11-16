@@ -157,23 +157,26 @@ ROOT_RELOCATION_TOMBSTONES=(
     scripts/systemd/easy-vllm-memwatch.service
     scripts/templates/hint_recipe.template.md
 )
+# Since the Rust port (plan_26111615 D4) each replacement is the moved program's Rust launcher (`.sh`) — or, for the
+# provider adapter that has no launcher, its Rust source — never a `.py` (the `.py` are deleted; a `.py` replacement
+# would make this guard fail "source replacement missing" on every sync).
 # One-to-one owner replacements, in the same order as ROOT_RELOCATION_TOMBSTONES.  Apply validates
 # canonical Git object -> destination index -> materialized bytes/mode for every entry before the
 # first tombstone deletion.  This is deliberately explicit: widening/globbing would weaken review.
 ROOT_RELOCATION_REPLACEMENTS=(
-    .claude/skills/terraforming_node/scripts/agent_control.py
-    .claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py
-    .claude/policies/runtime/completion_gate.py
-    .claude/policies/runtime/doc_naming.py
+    .claude/skills/terraforming_node/scripts/agent_control.sh
+    .claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.sh
+    .claude/policies/runtime/completion_gate.sh
+    .claude/policies/runtime/doc_naming.sh
     .claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh
-    .claude/policies/runtime/evidence_publisher.py
-    .claude/policies/runtime/harness_verify.py
-    .claude/skills/hint-publisher/scripts/hint.py
+    .claude/policies/runtime/evidence_publisher.sh
+    .claude/policies/runtime/harness_verify.sh
+    .claude/skills/hint-publisher/scripts/hint.sh
     .claude/skills/terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh
     .claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh
     .claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh
-    .claude/policies/runtime/policy_registry.py
-    .claude/skills/terraforming_node/scripts/providers/claude_code.py
+    .claude/policies/runtime/policy_registry.sh
+    .claude/skills/terraforming_node/rust/src/provider_claude_code.rs
     .claude/skills/upstream-version-watch/scripts/smoke_clone.sh
     .claude/skills/upstream-version-watch/scripts/sync_branches.sh
     .claude/skills/terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service

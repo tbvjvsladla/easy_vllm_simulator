@@ -34,21 +34,22 @@ pub const LOCAL_TOMBSTONES: [&str; 17] = [
     "scripts/templates/hint_recipe.template.md",
 ];
 /// The exact `ROOT_RELOCATION_REPLACEMENTS` of sync_branches.sh (a tripwire list: it names where the old root
-/// `scripts/` files went, so it keeps naming the `.py` paths sync_branches.sh carries — they are data here, not calls).
+/// `scripts/` files went). Since the Rust port the owner of each moved program is its Rust launcher (`.sh`) or, for the
+/// provider adapter without a launcher, its Rust source — never a `.py` (plan_26111615 D4: the `.py` are deleted).
 pub const LOCAL_REPLACEMENTS: [&str; 17] = [
-    ".claude/skills/terraforming_node/scripts/agent_control.py",
-    ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.py",
-    ".claude/policies/runtime/completion_gate.py",
-    ".claude/policies/runtime/doc_naming.py",
+    ".claude/skills/terraforming_node/scripts/agent_control.sh",
+    ".claude/skills/vllm-recipe-explorer/scripts/cleanup_docker.sh",
+    ".claude/policies/runtime/completion_gate.sh",
+    ".claude/policies/runtime/doc_naming.sh",
     ".claude/skills/vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh",
-    ".claude/policies/runtime/evidence_publisher.py",
-    ".claude/policies/runtime/harness_verify.py",
-    ".claude/skills/hint-publisher/scripts/hint.py",
+    ".claude/policies/runtime/evidence_publisher.sh",
+    ".claude/policies/runtime/harness_verify.sh",
+    ".claude/skills/hint-publisher/scripts/hint.sh",
     ".claude/skills/terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh",
     ".claude/skills/terraforming_node/scripts/host_safety/install_host_safety.sh",
     ".claude/skills/terraforming_node/scripts/host_safety/mem_watchdog.sh",
-    ".claude/policies/runtime/policy_registry.py",
-    ".claude/skills/terraforming_node/scripts/providers/claude_code.py",
+    ".claude/policies/runtime/policy_registry.sh",
+    ".claude/skills/terraforming_node/rust/src/provider_claude_code.rs",
     ".claude/skills/upstream-version-watch/scripts/smoke_clone.sh",
     ".claude/skills/upstream-version-watch/scripts/sync_branches.sh",
     ".claude/skills/terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service",

@@ -434,7 +434,7 @@ fn py_bench_name_re(src: &str) -> Option<String> {
 
 /// `BENCH_KIND_DEFAULT_EXT = {...}` keys of the Python source.
 /// The bench naming owner's Rust source (adversarial-benchmark `bench_naming`).
-pub const REL_BENCH_NAMING_RS: &str = ".claude/skills/adversarial-benchmark/rust/src/bench_naming.rs";
+pub const REL_BENCH_NAMING_RS: &str = core::REL_DOC_NAMING_BENCH;
 
 /// The bench naming grammar of the Rust owner, rendered in the shape the `.py` readers below parse:
 /// kinds = `KIND_DEFAULT_EXTENSIONS` (in order), name pattern = the declared matcher grammar of `parse_conventional`
@@ -552,21 +552,17 @@ fn grammar(repo: Option<&Path>) -> HR<Arc<Grammar>> {
         return Ok(g.clone());
     }
     // OWNER-MIRROR: .claude/skills/hint-publisher/scripts/hintlib/core.py::load_owner_module (bench first, then prose).
-    // plan_26111615 pass 3: the bench naming owner is the adversarial-benchmark Rust `bench_naming` module; its `.py`
-    // (read while it exists) is a reference original. Absent both = owner missing (fail closed).
-    let bench_path = root.join(core::REL_DOC_NAMING_BENCH);
+    // plan_26111615 D4: the bench naming owner is the adversarial-benchmark Rust `bench_naming` module — the only source
+    // read (no `.py` · absent = owner missing, fail closed).
     let bench_rs = root.join(REL_BENCH_NAMING_RS);
-    if !bench_path.is_file() && !bench_rs.is_file() {
-        return owner_missing(core::REL_DOC_NAMING_BENCH);
+    if !bench_rs.is_file() {
+        return owner_missing(REL_BENCH_NAMING_RS);
     }
     let ts_path = root.join(core::REL_DOC_NAMING_TS);
     if !ts_path.is_file() {
         return owner_missing(core::REL_DOC_NAMING_TS);
     }
-    let bench_src = if bench_path.is_file() {
-        core::read_text(&bench_path)
-            .or_else(|e| fail("HINT_OWNER_MODULE_IMPORT_FAILED", format!("{} import 실패: {e}", core::REL_DOC_NAMING_BENCH), None))?
-    } else {
+    let bench_src = {
         let rs = core::read_text(&bench_rs)
             .or_else(|e| fail("HINT_OWNER_MODULE_IMPORT_FAILED", format!("{REL_BENCH_NAMING_RS} import 실패: {e}"), None))?;
         rs_bench_as_py(&rs).unwrap_or_default()
@@ -593,7 +589,7 @@ fn grammar(repo: Option<&Path>) -> HR<Arc<Grammar>> {
     if !absent.is_empty() {
         return fail(
             "HINT_LINEAGE_GRAMMAR_DRIFT",
-            format!("{} 에 계보가 쓰는 명명 심볼이 없다: {}", core::REL_DOC_NAMING_WIKI, J::from(absent).repr()),
+            format!("{} 에 계보가 쓰는 명명 심볼이 없다: {}", core::REL_DOC_NAMING_TS, J::from(absent).repr()),
             Some(DRIFT_REMEDY),
         );
     }
@@ -609,7 +605,7 @@ fn grammar(repo: Option<&Path>) -> HR<Arc<Grammar>> {
     if !absent.is_empty() {
         return fail(
             "HINT_LINEAGE_GRAMMAR_DRIFT",
-            format!("{} 에 계보가 쓰는 명명 심볼이 없다: {}", core::REL_DOC_NAMING_BENCH, J::from(absent).repr()),
+            format!("{} 에 계보가 쓰는 명명 심볼이 없다: {}", REL_BENCH_NAMING_RS, J::from(absent).repr()),
             Some(DRIFT_REMEDY),
         );
     }
@@ -2864,7 +2860,7 @@ pub fn derive_j(
         "excluded_roots" => J::from(EXCLUDED_ROOTS.to_vec()),
         "resolution_order" => J::from(RESOLUTIONS.to_vec()),
         "undated" => "pass-ceiling",
-        "grammar" => jd!{"prose" => core::REL_DOC_NAMING_WIKI, "bench" => core::REL_DOC_NAMING_BENCH,
+        "grammar" => jd!{"prose" => core::REL_DOC_NAMING_TS, "bench" => REL_BENCH_NAMING_RS,
                          "sweep_map" => "docs.md §명명 SSOT(국소 상수 SWEEP_MAP_PREFIX)"},
         "seed_records" => jd!{"this" => sp["this"].clone(), "prior" => sp["prior"].clone(),
                               "prior_after_ceiling" => sp["prior_after_ceiling"].clone(),

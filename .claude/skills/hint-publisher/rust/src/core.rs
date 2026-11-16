@@ -32,14 +32,21 @@ pub const REL_COMPLETION_GATE: &str = ".claude/policies/runtime/completion_gate.
 pub const REL_EVIDENCE_PUBLISHER: &str = ".claude/policies/runtime/evidence_publisher.py";
 pub const REL_CAMPAIGN_INIT: &str = ".claude/skills/terraforming_node/scripts/campaign_init.py";
 pub const REL_CAMPAIGN_VALIDATOR: &str = ".claude/skills/terraforming_node/scripts/campaign_template_validator.py";
-pub const REL_SLAVE_FORWARD: &str = ".claude/skills/upstream-version-watch/scripts/slave_forward.py";
-pub const REL_RENDER_DOCKERFILE: &str = ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py";
+/// upstream-version-watch owners. The owner is the **Rust launcher** (plan_26111615 D4): presence = the launcher, never a `.py`.
+pub const REL_SLAVE_FORWARD: &str = ".claude/skills/upstream-version-watch/scripts/slave_forward.sh";
+pub const REL_RENDER_DOCKERFILE: &str = ".claude/skills/upstream-version-watch/scripts/render_dockerfile.sh";
+/// The renderer's revision identity (git log/show · measurement-time revision): the Rust source the launcher's binary is built from.
+pub const REL_RENDER_DOCKERFILE_SRC: &str = ".claude/skills/upstream-version-watch/rust/runtime/src/render_dockerfile.rs";
+/// The pre-port renderer path — consulted **only in git history** to name a pre-port measurement revision (RustPortBoundary ·
+/// fail closed). Never read as the owner, never executed.
+pub const REL_RENDER_DOCKERFILE_PRE_PORT: &str = ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py";
 /// The bench-section reader (Rust launcher). Python: `scripts/render_bench_section.py`.
 pub const REL_RENDER_BENCH_SECTION: &str = ".claude/skills/hint-publisher/scripts/render_bench_section.sh";
-pub const REL_DOC_NAMING_WIKI: &str = ".claude/policies/runtime/doc_naming.py";
+/// The prose naming launcher (its grammar authority is the wiki-desk TS source `REL_DOC_NAMING_TS`).
+pub const REL_DOC_NAMING_WIKI: &str = ".claude/policies/runtime/doc_naming.sh";
 pub const REL_DOC_NAMING_TS: &str = ".claude/skills/wiki-desk/src/doc_naming.ts";
-pub const REL_DOC_NAMING_BENCH: &str = ".claude/skills/adversarial-benchmark/scripts/doc_naming.py";
-pub const REL_PARSE_GUIDELLM: &str = ".claude/skills/adversarial-benchmark/scripts/parse_guidellm_native.py";
+/// The bench naming grammar authority: the adversarial-benchmark Rust `bench_naming` module (plan_26111615 · no `.py` read).
+pub const REL_DOC_NAMING_BENCH: &str = ".claude/skills/adversarial-benchmark/rust/src/bench_naming.rs";
 
 pub const HINT_BRANCH_REF: &str = "refs/heads/hint";
 pub const HINT_TAG_PREFIX: &str = "hint/";

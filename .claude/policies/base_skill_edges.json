@@ -580,12 +580,6 @@
     },
     {
       "caller": ".claude/rust/policy-distribution/src/checks.rs",
-      "callee": "hint-publisher/scripts/hint.py",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "hint-publisher/scripts/hint.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/scripts/hint.sh 가 잇는다(원본 hint-publisher/scripts/hint.py)"
@@ -616,9 +610,9 @@
     },
     {
       "caller": ".claude/rust/policy-distribution/src/checks.rs",
-      "callee": "terraforming_node/scripts/agent_control.py",
+      "callee": "terraforming_node/scripts/agent_control.sh",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 — plan_26111615 D4: ROOT_RELOCATION_REPLACEMENTS 의 후계 = Rust launcher/원본(원본 terraforming_node/scripts/agent_control.py)"
     },
     {
       "caller": ".claude/rust/policy-distribution/src/checks.rs",
@@ -658,9 +652,9 @@
     },
     {
       "caller": ".claude/rust/policy-distribution/src/checks.rs",
-      "callee": "terraforming_node/scripts/providers/claude_code.py",
+      "callee": "terraforming_node/rust/src/provider_claude_code.rs",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 — plan_26111615 D4: ROOT_RELOCATION_REPLACEMENTS 의 후계 = Rust launcher/원본(원본 terraforming_node/scripts/providers/claude_code.py)"
     },
     {
       "caller": ".claude/rust/policy-distribution/src/checks.rs",
@@ -742,9 +736,9 @@
     },
     {
       "caller": ".claude/rust/policy-distribution/src/checks.rs",
-      "callee": "vllm-recipe-explorer/scripts/cleanup_docker.py",
+      "callee": "vllm-recipe-explorer/scripts/cleanup_docker.sh",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 — plan_26111615 D4: ROOT_RELOCATION_REPLACEMENTS 의 후계 = Rust launcher/원본(원본 vllm-recipe-explorer/scripts/cleanup_docker.py)"
     },
     {
       "caller": ".claude/rust/policy-distribution/src/checks.rs",

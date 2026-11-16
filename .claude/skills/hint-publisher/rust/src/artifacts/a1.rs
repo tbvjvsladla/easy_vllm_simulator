@@ -540,7 +540,7 @@ impl _RenderModule {
     }
 }
 
-/// `_forward_module(repo, module)`: the injected module, else the repository's `slave_forward.py` (absent = HINT_OWNER_MODULE_MISSING).
+/// `_forward_module(repo, module)`: the injected module, else the repository's `slave_forward.sh` launcher (absent = HINT_OWNER_MODULE_MISSING · never a `.py`).
 pub fn _forward_module(repo: &Path, module: Option<&_ForwardModule>) -> HR<_ForwardModule> {
     if let Some(m) = module {
         return Ok(m.clone());
@@ -549,7 +549,7 @@ pub fn _forward_module(repo: &Path, module: Option<&_ForwardModule>) -> HR<_Forw
     Ok(_ForwardModule { path, extra: J::Null })
 }
 
-/// `_render_module(repo, module)`: the injected module, else the repository's `render_dockerfile.py`.
+/// `_render_module(repo, module)`: the injected module, else the repository's `render_dockerfile.sh` launcher (never a `.py`).
 pub fn _render_module(repo: &Path, module: Option<&_RenderModule>) -> HR<_RenderModule> {
     if let Some(m) = module {
         return Ok(m.clone());
@@ -1815,8 +1815,9 @@ re_static!(RERENDER_GENERATED_BY_RE, r"^renderer@[0-9a-f]{12}\Z");
 pub const RERENDER_STATUS: &str = "rerendered-at-measurement-revision";
 
 /// `_rerender_at_measurement(c, kind)`. Port boundary: the Python executed the measurement-time renderer **revision**
-/// (`git show <rev>:render_dockerfile.py` loaded as a module). This port never starts Python: it re-renders only when that
-/// revision's bytes equal the worktree renderer (whose native port `render_dockerfile.sh --nccl-envfile|--cluster-envfile`
+/// (`git show <rev>:render_dockerfile.py` loaded as a module). This port never starts Python: the revision identity is the
+/// renderer's Rust source (`REL_RENDER_DOCKERFILE_SRC`); a measurement before any Rust revision (only the `.py` existed) =
+/// RustPortBoundary (fail closed); it re-renders only when the Rust revision's bytes equal the worktree renderer (whose native port `render_dockerfile.sh --nccl-envfile|--cluster-envfile`
 /// is the same function); any other revision = `{ok: False, why: "렌더러 <rev12> 적재 실패: …"}` (fail closed · reported).
 pub fn _rerender_at_measurement(c: &_Ctx, kind: &str) -> HR<J> {
     let key = jl!["rerender", kind];
@@ -1829,7 +1830,8 @@ pub fn _rerender_at_measurement(c: &_Ctx, kind: &str) -> HR<J> {
         Ok(v)
     };
     let (measured, msrc) = _measured_utc(c)?;
-    let rel = core::REL_RENDER_DOCKERFILE;
+    // revision identity = the renderer's Rust source; the launcher (`render_dockerfile.sh`) is what runs (plan_26111615 D4).
+    let rel = core::REL_RENDER_DOCKERFILE_SRC;
     let Some(fn_name) = RERENDER_FUNCS().get_str(kind).map(str::to_string) else {
         return no(format!("render 3층 env 가 아니다(kind={kind}) — 재렌더 대상 아님"));
     };
@@ -1840,6 +1842,14 @@ pub fn _rerender_at_measurement(c: &_Ctx, kind: &str) -> HR<J> {
         return no("git 저장소 아님 — 측정 당시 렌더러 판본을 꺼낼 수 없다".to_string());
     }
     let Some(rev) = _git_rev_before(c, rel, Some(&measured))? else {
+        // Before the Rust port only the Python renderer existed: that revision is never run (no Python · fail closed, named).
+        let pre = core::REL_RENDER_DOCKERFILE_PRE_PORT;
+        if let Some(prev) = _git_rev_before(c, pre, Some(&measured))? {
+            return no(format!(
+                "렌더러 {} 적재 실패: RustPortBoundary: 측정 당시 렌더러는 Rust 이식 전 판본({pre})이다 — Python 렌더러는 실행하지 않는다(재렌더 ✗ · 측정 당시 {rel} 커밋 없음)",
+                head(&prev, 12)
+            ));
+        }
         return no(format!("git log -1 --before={measured} -- {rel} 없음(측정 전 렌더러 커밋 없음)"));
     };
     let rev12 = head(&rev, 12);
@@ -1853,12 +1863,12 @@ pub fn _rerender_at_measurement(c: &_Ctx, kind: &str) -> HR<J> {
     let worktree = std::fs::read(c.repo.join(rel)).ok();
     if worktree.as_deref() != Some(&data[..]) {
         return no(format!(
-            "렌더러 {rev12} 적재 실패: RustPortBoundary: 측정 당시 판본 Python 렌더러는 실행하지 않는다 — 그 바이트가 작업트리 렌더러와 같을 때만 native 렌더러(render_dockerfile.sh)로 재렌더한다"
+            "렌더러 {rev12} 적재 실패: RustPortBoundary: 측정 당시 렌더러 판본({rel})이 작업트리와 다르다 — 그 판본의 실행파일은 이 노드에 빌드돼 있지 않다. 바이트가 같을 때만 native 렌더러(render_dockerfile.sh)로 재렌더한다"
         ));
     }
     let flag = if kind == "interconnect" { "--nccl-envfile" } else { "--cluster-envfile" };
     let args = vec![flag.to_string(), "--manifest".to_string(), core::posix(&man)];
-    let p = match core::run_owner(&c.repo, rel, &args, None, &[], false) {
+    let p = match core::run_owner(&c.repo, core::REL_RENDER_DOCKERFILE, &args, None, &[], false) {
         Ok(p) => p,
         Err(e) => return no(format!("렌더러 {rev12} 적재 실패: HintError: {}", e.message)),
     };
@@ -2057,7 +2067,8 @@ pub fn _compose_file(c: &_Ctx) -> HR<Option<PathBuf>> {
 }
 
 pub fn _renderer_revision(c: &_Ctx) -> HR<Option<J>> {
-    let p = c.repo.join(core::REL_RENDER_DOCKERFILE);
+    // the renderer's revision = its Rust source (the launcher only starts the binary built from it · plan_26111615 D4)
+    let p = c.repo.join(core::REL_RENDER_DOCKERFILE_SRC);
     if p.is_file() {
         Ok(Some(_select_tracked(c, &p)?))
     } else {

@@ -152,13 +152,13 @@ pub fn selftest() -> Vec<String> {
     let td = core::TempDir::new("hint_lineage_selftest_");
     let repo: PathBuf = core::resolve(td.path());
     let repo = repo.as_path();
-    // The bench naming owner is the Rust `bench_naming.rs` (its `.py` is copied too while it exists · plan_26111615).
+    // The naming grammar sources are the TS prose SSOT and the Rust `bench_naming.rs` (plan_26111615 D4 · no `.py`).
     let bench_rs = super::REL_BENCH_NAMING_RS;
-    for rel_path in [core::REL_DOC_NAMING_WIKI, core::REL_DOC_NAMING_TS, core::REL_DOC_NAMING_BENCH, bench_rs] {
+    for rel_path in [core::REL_DOC_NAMING_WIKI, core::REL_DOC_NAMING_TS, bench_rs] {
         let dst = repo.join(rel_path);
         let src = own.join(rel_path);
         let _ = std::fs::create_dir_all(dst.parent().unwrap());
-        let optional = rel_path == core::REL_DOC_NAMING_WIKI || (rel_path == core::REL_DOC_NAMING_BENCH && own.join(bench_rs).is_file());
+        let optional = rel_path == core::REL_DOC_NAMING_WIKI;
         if std::fs::copy(&src, &dst).is_err() && !optional {
             c.ck(&format!("명명 SSOT 원천 복사 실패: {rel_path}"), false);
             return c.0;

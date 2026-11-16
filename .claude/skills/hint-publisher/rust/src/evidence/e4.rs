@@ -2878,40 +2878,27 @@ fn jl_lines(rows: &[J]) -> String {
 }
 
 /// 격리 저장소 — 소유 파일은 이 체크아웃의 파일에 심링크(+ 그 native launcher 가 있으면 함께) · 데이터는 전부 픽스처.
-/// campaign_init 은 사본(.py · launcher)으로 둔다. 반환 (repo, {cert, report, plan, devlog, testlog, docker, sweep, decl}).
+/// campaign_init 은 launcher 사본(cli 픽스처)으로 둔다. 반환 (repo, {cert, report, plan, devlog, testlog, docker, sweep, decl}).
 pub fn _fixture(td: &Path) -> HR<(PathBuf, J)> {
     let code_root = core::skill_dir().parent().and_then(Path::parent).and_then(Path::parent).map(Path::to_path_buf).unwrap_or_default();
     let repo = td.join("repo");
     std::fs::create_dir(&repo).map_err(|e| core::io_err(&e, &repo))?;
     for rel in _OWNER_LINKS() {
-        // 의도된 차이: Rust 는 소유 CLI 를 `<stem>.sh` launcher 로 부른다 — launcher 가 소유 진입점이고, 원본 `.py` 는 있으면
-        //   함께 링크한다(plan_26111615: 삭제 대기 참조본). 둘 다 없으면 소유 모듈 부재다(fail-closed).
-        let src = code_root.join(rel);
-        let stem = rel.strip_suffix(".py");
-        let ls = stem.map(|s| code_root.join(format!("{s}.sh")));
-        if !src.is_file() && !ls.as_ref().is_some_and(|p| p.is_file()) {
+        // 의도된 차이: Rust 는 소유 CLI 를 `<stem>.sh` launcher 로 부른다 — launcher 가 소유 진입점이다(plan_26111615 D4 ·
+        //   `.py` 는 링크하지도 읽지도 않는다). launcher 가 없으면 소유 모듈 부재다(fail-closed).
+        let lrel = core::owner_launcher(Path::new(""), rel);
+        let ls = code_root.join(&lrel);
+        if !ls.is_file() {
             return core::fail("HINT_OWNER_MODULE_MISSING", format!("자체검사 소유 모듈 부재: {rel}"), None);
         }
-        if src.is_file() {
-            let dst = repo.join(rel);
-            mkd(dst.parent().unwrap())?;
-            std::os::unix::fs::symlink(&src, &dst).map_err(|e| core::io_err(&e, &dst))?;
-        }
-        if let (Some(stem), Some(ls)) = (stem, ls) {
-            let ld = repo.join(format!("{stem}.sh"));
-            if ls.is_file() && !ld.exists() {
-                mkd(ld.parent().unwrap())?;
-                std::os::unix::fs::symlink(&ls, &ld).map_err(|e| core::io_err(&e, &ld))?;
-            }
+        let ld = repo.join(&lrel);
+        if !ld.exists() {
+            mkd(ld.parent().unwrap())?;
+            std::os::unix::fs::symlink(&ls, &ld).map_err(|e| core::io_err(&e, &ld))?;
         }
     }
-    // campaign_init 은 사본으로 둔다(원본 `.py` 가 있을 때만 — launcher 사본은 cli 픽스처가 둔다).
-    let ci = repo.join(core::REL_CAMPAIGN_INIT);
-    mkd(ci.parent().unwrap())?;
-    let src = code_root.join(core::REL_CAMPAIGN_INIT);
-    if src.is_file() {
-        std::fs::write(&ci, std::fs::read(&src).map_err(|e| core::io_err(&e, &src))?).map_err(|e| core::io_err(&e, &ci))?;
-    }
+    // campaign_init 의 자리(디렉터리)만 둔다 — launcher 사본은 cli 픽스처가 둔다(`.py` 사본 ✗ · plan_26111615 D4).
+    mkd(repo.join(core::REL_CAMPAIGN_INIT).parent().unwrap())?;
     let vocab = crate::value::loads(r#"{"schema_version": 1, "hw": {"gb10": ["NVIDIA GB10", "GB10"], "h100": ["NVIDIA H100"]}, "quant": {"nvfp4": ["nvfp4", "modelopt-dominant:NVFP4"], "fp8": ["fp8"], "bf16": ["bf16", "none"]}, "kv": {"auto": ["auto"], "fp8": ["fp8"]}, "ple": {"mmap": ["mmap"], "resident": ["resident"], "offload": ["offload"], "none": ["none"]}, "graph": {"graph": ["graph"], "eager": ["eager"]}, "plane": {"docker": "", "native": "bare"}, "quant_suffixes": ["nvfp4", "fp8", "bf16"]}"#).expect("vocab");
     core::write_json(&repo.join(core::REL_VOCAB), &vocab)?;
     wr(&repo.join(core::REL_PII_TERMS), "# fixture\nfixturesecretterm\n")?;

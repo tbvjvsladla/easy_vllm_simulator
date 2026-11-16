@@ -2566,11 +2566,11 @@ pub fn _env_shape_d(
         let (tier, r) = tier_fn(render_module, c_repo)?;
         rule = r;
         let rev = if rerender.truthy() {
-            format!("(측정 당시 판본 = git show {}:{}).", rerender["rev12"].display(), core::REL_RENDER_DOCKERFILE)
+            format!("(측정 당시 판본 = git show {}:{}).", rerender["rev12"].display(), core::REL_RENDER_DOCKERFILE_SRC)
         } else {
             ".".to_string()
         };
-        lines.push(format!("# 값의 정본 = 자기 manifest → `render_dockerfile.py {}` 로 다시 파생한다{rev}", renderer.unwrap_or("None")));
+        lines.push(format!("# 값의 정본 = 자기 manifest → `render_dockerfile.sh {}` 로 다시 파생한다{rev}", renderer.unwrap_or("None")));
         lines.push(format!("# 층 규칙: {rule} (①env=치환 · ②preset·③invariant={keep})"));
         let mut tiers: Vec<(String, String, J)> = Vec::new();
         for (key, _) in env.iter() {

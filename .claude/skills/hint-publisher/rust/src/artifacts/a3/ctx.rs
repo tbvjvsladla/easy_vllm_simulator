@@ -1089,10 +1089,10 @@ pub fn _reproduce(c: &_Ctx, sel: &J, plane: &str, src_ctx: Option<&_Ctx>) -> HR<
         if topo == "multi" {
             let rrev = _renderer_revision(c)?;
             let mut l = _renderer_drift_lines(&J::from(rrev.clone()))?;
-            l.push(format!("python3 {rd_rel} --materialize-configs --topology multi"));
-            l.push(format!("python3 {rd_rel} --materialize-env --topology multi --manifest output/multi/manifest.yaml"));
-            l.push(format!("python3 {rd_rel} --cluster-envfile --topology multi --manifest output/multi/manifest.yaml -o output/multi/envs/.env.cluster"));
-            l.push(format!("python3 {rd_rel} --nccl-envfile --manifest output/multi/manifest.yaml -o output/multi/envs/.env.interconnect"));
+            l.push(format!("bash {rd_rel} --materialize-configs --topology multi"));
+            l.push(format!("bash {rd_rel} --materialize-env --topology multi --manifest output/multi/manifest.yaml"));
+            l.push(format!("bash {rd_rel} --cluster-envfile --topology multi --manifest output/multi/manifest.yaml -o output/multi/envs/.env.cluster"));
+            l.push(format!("bash {rd_rel} --nccl-envfile --manifest output/multi/manifest.yaml -o output/multi/envs/.env.interconnect"));
             st.step("render", &l.join("\n"), "러너 3종·.env·.env.cluster·.env.interconnect 생성(렌더러 fail-loud)", None, None, "none",
                     &format!("{REL_SMOKE_MULTI} 선행조건 안내 · {rd_rel} CLI"), "derived(렌더러 CLI)", None)?;
             if let Some(r) = rrev {
@@ -1312,19 +1312,19 @@ pub fn _native_serve_command(c: &_Ctx) -> HR<(String, String)> {
     let src_cell = g(&sp, "source_cell");
     if !run_id.truthy() {
         return Ok((
-            format!("python3 {REL_NATIVE_SERVE} up --cell {cell} --run-id <run-id> --apply  # run_id 미관측"),
+            format!("bash {REL_NATIVE_SERVE} up --cell {cell} --run-id <run-id> --apply  # run_id 미관측"),
             "derived(native_multinode_serve.py CLI · serve proof run_id 없음)".into(),
         ));
     }
     let rid = s(&run_id);
     let up = format!(
-        "python3 {REL_NATIVE_SERVE} up --cell {cell} --run-id {rid}{} --apply",
+        "bash {REL_NATIVE_SERVE} up --cell {cell} --run-id {rid}{} --apply",
         if src_cell.truthy() { format!(" --source-cell {}", s(&src_cell)) } else { String::new() }
     );
     let lines = [
         "# native 정문 up: 양 노드 RAM 게이트 → 예산 → 각 노드가 자기 이미지에서 wheelhouse 재포장 → 오프라인 venv 설치 → Ray head/worker → vllm serve(native 트리플렛) → health · 추론 1회 → serve proof(서빙을 띄운 채 exit 0)".to_string(),
         up,
-        format!("# 측정 뒤 정리(cleanup attestation): python3 {REL_NATIVE_SERVE} down --cell {cell} --run-id {rid} --apply"),
+        format!("# 측정 뒤 정리(cleanup attestation): bash {REL_NATIVE_SERVE} down --cell {cell} --run-id {rid} --apply"),
     ];
     Ok((lines.join("\n"), "reconstructed(serve proof cell · run_id · source_cell + native_multinode_serve.py up/down CLI)".into()))
 }

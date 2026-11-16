@@ -505,9 +505,9 @@ pub fn _approval(repo: &Path, st: &J, approved_by: Option<&str>, approved_utc: O
                     sel["cell"].display()
                 ),
                 Some(&format!(
-                    "사람 Y/N 을 받아(제안 전용 · 무인 자동 승인 ✗) `python3 {} --hint-approve --campaign-id {} --node <배정 노드> --cells {} \
+                    "사람 Y/N 을 받아(제안 전용 · 무인 자동 승인 ✗) `bash {} --hint-approve --campaign-id {} --node <배정 노드> --cells {} \
                      --approved-by \"<사람 발화 전사>\" --utc <UTC>` 로 적은 뒤 continue 를 다시 실행한다.",
-                    core::REL_CAMPAIGN_INIT,
+                    core::owner_launcher(std::path::Path::new(""), core::REL_CAMPAIGN_INIT).display(),
                     sel["campaign"].display(),
                     sel["cell"].display()
                 )),

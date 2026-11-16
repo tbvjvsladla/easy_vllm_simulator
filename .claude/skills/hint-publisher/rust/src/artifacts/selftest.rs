@@ -10,7 +10,7 @@
 //! - `crash_on_cp` (a runner raising RuntimeError): a Rust `DockerRunner` cannot raise — the cp call fails with
 //!   `RunFail::Timeout` instead and the check asserts the container is still removed.
 //! - `missing.append("…")` scan of `artifacts.py`: scans the Rust sources of this module for `missing.push("…")`.
-//! - `_render_module(repo).RUNNER_SCRIPTS` / `LOCKSET_KNOB_SOURCES` AST read: the literal is read from the owner's .py text.
+//! - `_render_module(repo).RUNNER_SCRIPTS` / `LOCKSET_KNOB_SOURCES`: the literal is read from the owner's Rust source text (never a `.py`).
 //! - an unexpected `HintError` (Python: an uncaught exception) ends the section and is reported as a failure line.
 #![allow(non_snake_case, dead_code, unused_imports, clippy::too_many_lines)]
 use std::cell::RefCell;
@@ -484,10 +484,9 @@ fn stage_owner(own: &Path, repo: &Path, rel_path: &str) -> HR<()> {
 
 fn run_fixture(st: &mut St, own: &Path, repo: &Path, operator_root: String) -> HR<()> {
     // 소유 모듈 실물(slave_forward · render_dockerfile)을 격리 저장소로 복사 — 대역이 실물보다 좁지 않게.
-    for rel_path in [core::REL_SLAVE_FORWARD, core::REL_RENDER_DOCKERFILE] {
+    // Rust (plan_26111615 D4): the owners are their launchers + the renderer's Rust source (revision identity) — never a `.py`.
+    for rel_path in [core::REL_SLAVE_FORWARD, core::REL_RENDER_DOCKERFILE, core::REL_RENDER_DOCKERFILE_SRC] {
         stage_owner(own, repo, rel_path)?;
-        // Rust: the owner's native launcher (the port runs it — never the .py)
-        stage_owner(own, repo, &core::owner_launcher(Path::new(""), rel_path).to_string_lossy())?;
     }
     let rt_rel = ".claude/skills/upstream-version-watch/rust/runtime/target";
     if own.join(rt_rel).exists() {
@@ -923,7 +922,7 @@ fn sec_regen(st: &mut St, fx: &mut Fx) -> HR<()> {
             && sv(&ic_row2["rerender_error"]).contains("manifest.yaml 부재")
             && sv(&xi["rerender_error"]).contains("manifest.yaml 부재"),
     );
-    let rev_m = _git_rev_before(&ctx(&repo, &ev, None)?, core::REL_RENDER_DOCKERFILE, Some("2026-01-01T19:30:00Z"))?;
+    let rev_m = _git_rev_before(&ctx(&repo, &ev, None)?, core::REL_RENDER_DOCKERFILE_SRC, Some("2026-01-01T19:30:00Z"))?;
     st.ck("R-b 픽스처: 측정 전 렌더러 커밋이 있다", rev_m.is_some());
     let man_p = out.join("manifest.yaml");
     // evidence.selftest_stage_manifest_contract(own, repo): the adapter, its runtime files and the built executable.
@@ -1014,6 +1013,25 @@ fn sec_regen(st: &mut St, fx: &mut Fx) -> HR<()> {
     })(st);
     rm(&man_p)?;
     r?;
+    // ★R-b Rust 이식 경계(plan_26111615 D4): 측정 당시 렌더러가 이식 전 판본(.py 만 있던 시점)이면 Python 을 돌리지 않고 fail closed.
+    //   이식 전 커밋은 과거 날짜로 넣고 바로 지운다(작업트리에 .py 를 남기지 않는다 · 이력에만 있다).
+    {
+        let pre = repo.join(core::REL_RENDER_DOCKERFILE_PRE_PORT);
+        mkd(pre.parent().unwrap())?;
+        wt(&pre, "# pre-port renderer (fixture · never run)\n")?;
+        git(&repo, &["add", core::REL_RENDER_DOCKERFILE_PRE_PORT], &genv_at("2025-12-01T00:00:00Z")?)?;
+        git_commit(&repo, "pre-port renderer", &genv_at("2025-12-01T00:00:00Z")?)?;
+        git(&repo, &["rm", "-q", core::REL_RENDER_DOCKERFILE_PRE_PORT], &genv_at("2025-12-02T00:00:00Z")?)?;
+        git_commit(&repo, "pre-port renderer retired", &genv_at("2025-12-02T00:00:00Z")?)?;
+        let ev_pre = with(&ev, vec![("certificate", p(r#"{"measured_utc": "2025-12-15T00:00:00Z"}"#))]);
+        let rr_pre = _rerender_at_measurement(&ctx(&repo, &ev_pre, None)?, "interconnect")?;
+        let why = sv(&rr_pre["why"]);
+        st.ck(
+            "★R-b 측정 당시 렌더러 = Rust 이식 전 판본 → RustPortBoundary fail closed(Python 실행 ✗ · 판본 이름을 댄다)",
+            !rr_pre["ok"].truthy() && why.contains("RustPortBoundary") && why.contains("Rust 이식 전") && why.contains(core::REL_RENDER_DOCKERFILE_PRE_PORT),
+        );
+        st.ck("R-b 이식 경계 픽스처: 작업트리에 .py 렌더러가 없다", !pre.exists());
+    }
     st.ck(
         "★R-b generated_by 어휘: renderer@<12hex> 만 확장 · 모양 밖은 거부",
         generated_by_ok(&"renderer@0123456789ab".into())?
@@ -1073,9 +1091,9 @@ fn sec_regen(st: &mut St, fx: &mut Fx) -> HR<()> {
     );
     let rsa = rsa.unwrap_or_else(|| Ok(J::Null))?;
     st.ck("F3 slave(CONFIG_FILE=default) 가 무장하면 싣는다", has(&rsa["files"], "artifacts/compose/arm_patch.sh"));
-    // `getattr(_render_module(repo), "RUNNER_SCRIPTS", ())` → the owner's literal tuple in render_dockerfile.py.
-    let rd_txt = rt(&repo.join(core::REL_RENDER_DOCKERFILE))?;
-    let rs_lit = Re::new(r"(?m)^RUNNER_SCRIPTS\s*=\s*\(([^)]*)\)", 0)
+    // `getattr(_render_module(repo), "RUNNER_SCRIPTS", ())` → the owner's literal array in its Rust source (render_dockerfile.rs · no `.py`).
+    let rd_txt = rt(&repo.join(core::REL_RENDER_DOCKERFILE_SRC))?;
+    let rs_lit = Re::new(r"(?m)^pub const RUNNER_SCRIPTS\s*:[^=]*=\s*\[([^\]]*)\]", 0)
         .search(&rd_txt)
         .and_then(|m| m.get(1).map(|x| x.as_str().to_string()))
         .unwrap_or_default();
@@ -1545,7 +1563,7 @@ fn sec_native(st: &mut St, fx: &mut Fx, nfix: &mut Vec<PathBuf>) -> HR<()> {
     let (scx, ssx) = _native_serve_command(&cx)?;
     st.ck(
         "F11 native serve 명령 = native 정문 up(serve proof cell · run_id · source_cell) · down 정리 · 재구성 표지",
-        scx.contains(&format!("native_multinode_serve.py up --cell {ncell} --run-id r1 --source-cell {cell} --apply"))
+        scx.contains(&format!("bash {REL_NATIVE_SERVE} up --cell {ncell} --run-id r1 --source-cell {cell} --apply"))
             && scx.contains("down --cell")
             && ssx.starts_with("reconstructed(serve proof")
             && !scx.contains("--plane native"),
@@ -1736,8 +1754,8 @@ fn sec_tail(st: &mut St, fx: &mut Fx) -> HR<()> {
     let envc = out.join("envs").join(format!(".env.{cell}"));
     wt(&envc, &format!("{}VLLM_REPO=bad value\n", rt(&envc)?))?;
     st.raises("★slave_forward 거부 번역", "HINT_SUB_RECIPE_DERIVE_FAILED", || subr(&repo, &ev));
-    // lockset 출처 키 ↔ 소유자(campaign_template_validator.LOCKSET_KNOB_SOURCES) 교차대조 — 소유 모듈의 리터럴만 읽는다.
-    match owner_lockset_sources(&fx.own.join(core::REL_CAMPAIGN_VALIDATOR)) {
+    // lockset 출처 키 ↔ 소유자(campaign_validator.rs KNOB_SOURCES) 교차대조 — 소유 Rust 원본의 리터럴만 읽는다(.py ✗).
+    match owner_lockset_sources(&fx.own.join(".claude/skills/adversarial-benchmark/rust/src/campaign_validator.rs")) {
         Err(e) => st.bad.push(format!("artifacts: lockset 소유자 교차대조 불가 — {e}")),
         Ok(None) => st.bad.push("artifacts: LOCKSET_KNOB_SOURCES 리터럴을 찾지 못했다(소유자 이동 — 교차대조 갱신)".to_string()),
         Ok(Some(owner)) => {
@@ -1749,52 +1767,26 @@ fn sec_tail(st: &mut St, fx: &mut Fx) -> HR<()> {
     Ok(())
 }
 
-/// `ast.literal_eval` of `LOCKSET_KNOB_SOURCES = {"k": ("a", "b"), ...}` in the owner's .py (read only — never executed).
-/// `Err` = unreadable (Python: OSError/SyntaxError/ValueError → its type name) · `Ok(None)` = no such assignment.
+/// `Err` = unreadable (OSError/SyntaxError/ValueError → its type name).
+/// The lockset knob → source vocabulary of the owner's **Rust** source (adversarial-benchmark `campaign_validator.rs`
+/// `pub const KNOB_SOURCES: [(&str, &[&str]); N] = [ ("knob", &["a", "b"]), … ];` — one knob per line · plan_26111615 D4:
+/// the retired `campaign_template_validator.py` literal is never read). `Ok(None)` = the literal moved.
 fn owner_lockset_sources(path: &Path) -> Result<Option<Vec<(String, Vec<String>)>>, String> {
     let text = std::fs::read_to_string(path).map_err(|_| "OSError".to_string())?;
-    let Some(start) = text.lines().position(|l| Re::new(r"^LOCKSET_KNOB_SOURCES\s*(:[^=]*)?=", 0).search(l).is_some()) else {
+    let Some(start) = text.lines().position(|l| Re::new(r"^pub const KNOB_SOURCES\s*:[^=]*=\s*\[\s*$", 0).search(l).is_some()) else {
         return Ok(None);
     };
-    let rest: String = text.lines().skip(start).collect::<Vec<_>>().join("\n");
-    let open = rest.find('{').ok_or("SyntaxError")?;
-    let mut depth = 0i32;
-    let mut end = None;
-    let mut quote: Option<char> = None;
-    for (i, ch) in rest[open..].char_indices() {
-        if let Some(q) = quote {
-            if ch == q {
-                quote = None;
-            }
-            continue;
-        }
-        match ch {
-            '"' | '\'' => quote = Some(ch),
-            '{' => depth += 1,
-            '}' => {
-                depth -= 1;
-                if depth == 0 {
-                    end = Some(open + i);
-                    break;
-                }
-            }
-            _ => {}
-        }
-    }
-    let body = &rest[open + 1..end.ok_or("SyntaxError")?];
-    let body: String = body.lines().map(|l| l.split(" #").next().unwrap_or("")).collect::<Vec<_>>().join("\n");
-    let entry = Re::new(r#"["']([^"']+)["']\s*:\s*[\(\[\{]([^\)\]\}]*)[\)\]\}]"#, 0);
-    let item = Re::new(r#"["']([^"']+)["']"#, 0);
+    let entry = Re::new(r#"^\s*\(\s*"([^"]+)"\s*,\s*&\[([^\]]*)\]\s*\)\s*,?\s*$"#, 0);
+    let item = Re::new(r#""([^"]+)""#, 0);
     let mut out = Vec::new();
-    let mut pos = 0;
-    while let Some(m) = entry.search(&body[pos..]) {
+    for l in text.lines().skip(start + 1) {
+        if l.trim_start().starts_with("];") {
+            break;
+        }
+        let m = entry.search(l).ok_or("SyntaxError")?;
         let k = m.get(1).map(|x| x.as_str().to_string()).unwrap_or_default();
         let v = m.get(2).map(|x| x.as_str().to_string()).unwrap_or_default();
         out.push((k, item.findall(&v)));
-        pos += m.get(0).map(|x| x.end()).unwrap_or(body.len() - pos).max(1);
-        if pos >= body.len() {
-            break;
-        }
     }
     if out.is_empty() {
         return Err("ValueError".to_string());
@@ -2934,7 +2926,7 @@ fn sec_git_compose(st: &mut St, fx: &mut Fx, genv: &[(String, String)], genv3: &
         wb(&out.join("configs/serve_runner.sh"), &runner0)?;
         _set_mtime(&out.join("configs/serve_runner.sh"), "2026-01-01T00:00:00Z")?;
         // (b) render 단계: 렌더러 측정 뒤 변경 경고
-        let rd_path = repo.join(core::REL_RENDER_DOCKERFILE);
+        let rd_path = repo.join(core::REL_RENDER_DOCKERFILE_SRC);
         let rd0 = rb(&rd_path)?;
         let rr = (|st: &mut St| -> HR<()> {
             _set_mtime(&rd_path, "2026-01-02T00:00:00Z")?;
@@ -2942,9 +2934,9 @@ fn sec_git_compose(st: &mut St, fx: &mut Fx, genv: &[(String, String)], genv3: &
             let rr0 = if st0["renderer_revision"].truthy() { st0["renderer_revision"].clone() } else { J::dict() };
             st.ck(
                 "★렌더러 측정 전 개정 없음(비추적 · mtime 만 뒤) = 드리프트 경고 ✗(지어내지 않는다) · 행에 경고 사실",
-                sw(&st0["command"], "python3 ") && !has(&st0["command"], "⚠") && rr0.get("commit").is_some_and(J::is_null) && rr0.get("warning").is_some(),
+                sw(&st0["command"], "bash ") && !has(&st0["command"], "⚠") && rr0.get("commit").is_some_and(J::is_null) && rr0.get("warning").is_some(),
             );
-            git(&repo, &["add", core::REL_RENDER_DOCKERFILE], genv)?;
+            git(&repo, &["add", core::REL_RENDER_DOCKERFILE_SRC], genv)?;
             git_commit(&repo, "renderer", genv)?;
             let rev_r = core::git_out(&repo, &["rev-parse", "HEAD"])?;
             _set_mtime(&rd_path, "2026-01-01T00:00:00Z")?;
@@ -2957,7 +2949,7 @@ fn sec_git_compose(st: &mut St, fx: &mut Fx, genv: &[(String, String)], genv3: &
             let mut rd1 = rd0.clone();
             rd1.extend_from_slice("# 측정 뒤 렌더러 수정(소켓 기준선 흉내)\n".as_bytes());
             wb(&rd_path, &rd1)?;
-            git(&repo, &["add", core::REL_RENDER_DOCKERFILE], genv3)?;
+            git(&repo, &["add", core::REL_RENDER_DOCKERFILE_SRC], genv3)?;
             git_commit(&repo, "late renderer", genv3)?;
             let late_r = core::git_out(&repo, &["rev-parse", "HEAD"])?;
             _set_mtime(&rd_path, "2026-01-02T00:00:00Z")?;
@@ -2972,10 +2964,10 @@ fn sec_git_compose(st: &mut St, fx: &mut Fx, genv: &[(String, String)], genv3: &
                     && l2[0].contains(&rev_r[..12])
                     && l2[0].contains("측정 뒤 커밋 1건")
                     && l2[0].contains(&late_r[..12])
-                    && l2[1].contains(&format!("git show {}:{}", &rev_r[..12], core::REL_RENDER_DOCKERFILE))
+                    && l2[1].contains(&format!("git show {}:{}", &rev_r[..12], core::REL_RENDER_DOCKERFILE_SRC))
                     && l2[1].contains(ENV_OBSERVED_POINTER)
                     && !re_search(r"(?<![A-Za-z_])facts\.", &l2.join("\n"))
-                    && l2[2..].iter().any(|x| x.starts_with("python3 ") && x.contains("--nccl-envfile"))
+                    && l2[2..].iter().any(|x| x.starts_with("bash ") && x.contains("--nccl-envfile"))
                     && eqs(&rr2["commit"], &rev_r)
                     && strs(&rr2["commits_after_measurement"]) == vec![late_r[..12].to_string()]
                     && rr2.get("bytes").is_none(),
