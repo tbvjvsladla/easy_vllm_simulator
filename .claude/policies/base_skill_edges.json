@@ -1444,7 +1444,7 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/recipe.py",
+      "callee": "vllm-recipe-explorer/scripts/recipe.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
@@ -1462,49 +1462,49 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/escalation_predicate.py",
+      "callee": "vllm-recipe-explorer/scripts/escalation_predicate.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/estimate_vram.py",
+      "callee": "vllm-recipe-explorer/scripts/estimate_vram.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/gen_recipe_set.py",
+      "callee": "vllm-recipe-explorer/scripts/gen_recipe_set.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/parse_model_config.py",
+      "callee": "vllm-recipe-explorer/scripts/parse_model_config.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/preload_ram_gate.py",
+      "callee": "vllm-recipe-explorer/scripts/preload_ram_gate.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/rope_scaling_translate.py",
+      "callee": "vllm-recipe-explorer/scripts/rope_scaling_translate.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/run_trial.py",
+      "callee": "vllm-recipe-explorer/scripts/run_trial.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/selftest_gmu_roles_batch.py",
+      "callee": "vllm-recipe-explorer/scripts/selftest_gmu_roles_batch.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },

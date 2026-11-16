@@ -16,6 +16,7 @@ fi
 binary="$runtime_root/target/release/quant_table"
 if [ ! -f "$binary" ] || [ ! -x "$binary" ]; then
   printf '[quant_table] ERROR normal Rust ELF missing/non-executable: %s\n' "$binary" >&2
+  printf '[quant_table] build first: bash .claude/skills/terraforming_node/scripts/build_rust_packages.sh\n' >&2
   exit 2
 fi
 magic=''
@@ -24,4 +25,5 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[quant_table] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/quant_table.py" "$binary" "$@"
+# argv[0] names the skill that owns this launcher (<skill>/rust/runtime/target/release/quant_table), never a retired .py path.
+exec -a "${SDIR%/*}/rust/runtime/target/release/quant_table" "$binary" "$@"

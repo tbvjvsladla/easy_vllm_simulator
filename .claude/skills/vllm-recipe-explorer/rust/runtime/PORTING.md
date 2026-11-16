@@ -814,3 +814,27 @@ Both findings were confirmed by the independent source review of the held v1 sou
 
 * **Ported:** `src/run_trial.rs` (serve args, docker command, emit audit, `docker inspect` parser, host-floor gmu cap, mock/dry-run result, health poll with liveness exit, `--self-test`) and `src/run_trial_cli.rs` (`--self-test`, `--dry-run`, `--mock-profile`); launcher `scripts/run_trial.sh`; checks `checks/run_trial_checks.rs` (docker command and audit text recorded from the original's own functions).
 * **Not ported (unconnected boundary):** the real docker session (`_start_memwatch`, budget declare/clear, `functional_smoke` call, log capture, `run_trial()` body, `drop_caches`) stops with status 2 and a named message; the `campaign_init.py --grounding-check` backstop and `blackbox_session.py` calls remain external Python and are left to the session-part cell. The original `.py` is kept.
+
+## Python retirement of the bundle (plan_26111615 P1, 2026-11-16)
+
+No harness path of this skill invokes or reads a `.py` of the skill any more; the `.py` files stay until the plan's deletion step.
+
+* **Launchers.** Every command line has `scripts/<name>.sh` (normal ELF in `rust/runtime/target/release/`, exit 2 + build hint when
+  absent, no Python fallback): the existing five plus `cleanup_docker`, `crosscheck_model_card`, `escalation_predicate`,
+  `feedback_log`, `functional_smoke`, `gen_recipe_set`, `parse_model_config`, `parse_vllm_log`, `preload_ram_gate`,
+  `rope_scaling_translate`, `sim_classify`, `selftest_gmu_roles_batch`. `argv[0]` names the owning skill's installed program
+  (never a retired `scripts/<name>.py` path); `run_trial`'s repo root is derived from it (eight components up).
+* **Parity tripwire.** `gen_recipe_set --check-parity` reads the Rust trial owner (`src/run_trial.rs`, `src/run_trial_session.rs`)
+  instead of `scripts/run_trial.py`: fields are `candidate, "<f>"` accessor calls, `("<f>", "--…")`/`("<f>", "VLLM_…")` tables and
+  `candidate.get("<f>")` (`recipe_set::rust_trial_consumed_fields`). `companion_cases` proves every non-exempt field the original
+  trial read is still found. Changed golden: `cli-013` stderr (the unreadable companion is now `rust/runtime/src/run_trial.rs`).
+* **Checks without `.py`.** `generation_checks` no longer stages the two original scripts into the fixture node (their rows are
+  dropped from the saved trees) and compares the constants against `generation_reference/source_constants.json` (string members
+  of the four definitions, extracted once from the frozen sources) instead of re-reading `source/*.py`.
+* **Hints.** `recipe estimate` and the `cleanup_docker` dry run name the launchers (`bash .claude/skills/vllm-recipe-explorer/scripts/
+  recipe.sh generate …`, `… cleanup_docker.sh --apply …`); the cleanup golden bundle carries the same substitution (text and hex).
+* **`selftest_gmu_roles_batch`.** Rust port of the CLI layer E1-E17 (`src/gmu_roles_selftest.rs`, bin + `checks/gmu_roles_checks.rs`)
+  against the Rust `recipe simulate --mock-profile`. **Not ported:** the U layer (private functions of `recipe.py` in process) and
+  the F layer (a fake engine monkeypatched into `recipe.py`'s `run_trial`) — they exercised the retired Python only.
+* **Elsewhere:** B conformance reads `rust/runtime/src/recipe_cmd/simulate_body.rs` for the cap rule; the campaign writer's owner
+  checks use `recipe_cmd.rs` and `scripts/escalation_predicate.sh`; the Sub render no longer ships `recipe.py` for B.

@@ -11,7 +11,7 @@
    (`target_gmu` 필수 — 배포 gmu 의 정본 · `kv-clamp.md` §타겟-GPU 이식형 예산). 호스트 기준이면 블록을 비워 두고
    simulate 가 manifest 에서 채운다(`vram_budget_gb` 스칼라는 Phase-1 예산 · 2026-09-14 plan_26091407 §4.3).
    **이전 전제**: host 에서 측정한 attention backend 와 타겟이 동일해야 KV 레이아웃·overhead 가 유효 이전된다 —
-   트리플렛 헤더에 명시 pin(`gen_recipe_set.py` 가 이미 `attention_backend` 를 emit).
+   트리플렛 헤더에 명시 pin(`gen_recipe_set.sh` 가 이미 `attention_backend` 를 emit).
 2. **weight quant?** — prequantized 면 native 고정. 비prequantized 면 `none`/`fp8`(awq/gptq 는 비prequantized 경고).
 3. **KV quant?** — `null`(fp16, 2바이트) 또는 `fp8`(1바이트). KV 캐시를 절반으로 줄여 더 긴 context/batch 확보.
 4. **동시성 요구·대표 요청 길이** → **max-model-len** — batch(`--max-num-seqs`) 값을 묻지 않는다. 사람에게 묻는 것은
@@ -45,11 +45,11 @@
 | **free** | 루프가 결정론으로 산정 | `kv_cache_memory_bytes` · `batch`(= `min(concurrency_requirement, KV_fit@typical_request_tokens)` · 2-위상 트라이얼) |
 
 인터뷰 산물 = **lock-set JSON**(`lockset.json`). soft 변수마다 순서있는 `*_candidates` 폴백 리스트와
-`model_capabilities: {tool_call, reasoning}` 를 채워 `recipe.py simulate` 에 투입한다.
+`model_capabilities: {tool_call, reasoning}` 를 채워 `recipe.sh simulate` 에 투입한다.
 
 **출처 표시**(2026-09-14 · plan_26091407 §4.0·§4.2·§4.3): lockset 의 `provenance` 는 누가 만들었는가다 —
 `explorer-phase2`(trial-loop 가 수렴해 잠갔다) 또는 `hand-authored`(그 절차 밖에서 사람이 적었다). 캠페인 셀에서는
-이 표시가 없으면 `broad_search.sh cell` 이 측정 진입에서 exit 2 로 멈춘다. **실행자**: `recipe.py simulate` 가 수렴하면
+이 표시가 없으면 `broad_search.sh cell` 이 측정 진입에서 exit 2 로 멈춘다. **실행자**: `recipe.sh simulate` 가 수렴하면
 `--lockset-out <경로>`(미지정이면 `--candidate` 가 캠페인 셀 lockset 일 때 그 파일)에 `provenance=explorer-phase2` 와 예외 노브의
 `*_source` 를 **기계 각인**한다 — `batch_source`(declared-requirement|kv-fit-measured|hand-lever) · `gmu_source`(target_gmu|hand) ·
 `kv_source`(measured-clamp|hand) · `trial_provenance`(measured|mock|dry-run — mock 수렴이 실측인 척하지 않게) ·

@@ -1,1 +1,1 @@
-parity: run_trial.py 를 읽지 못했다 — [Errno 2] No such file or directory: '@CASE@/node/.claude/skills/vllm-recipe-explorer/scripts/run_trial.py'
+parity: run_trial 소스를 읽지 못했다 — [Errno 2] No such file or directory: '@CASE@/node/.claude/skills/vllm-recipe-explorer/rust/runtime/src/run_trial.rs'

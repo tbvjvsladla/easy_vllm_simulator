@@ -1,5 +1,5 @@
 #!/bin/bash
-# run_trial.py: --self-test, --dry-run/--mock-profile and the real docker session (Rust; the session stops with status 2 before docker when an active campaign needs the grounding backstop or the budget declaration is not --no-budget — both owners are still Python). Direct normal ELF startup; no install/build/download or Python business fallback.
+# run_trial: --self-test, --dry-run/--mock-profile and the real docker session (Rust; the session stops with status 2 before docker when an active campaign needs the grounding backstop or the budget declaration is not --no-budget — both owners are still Python). Direct normal ELF startup; no install/build/download or Python business fallback.
 set -euo pipefail
 SCRIPT_PATH=${BASH_SOURCE[0]}
 case "$SCRIPT_PATH" in */*) SCRIPT_DIR=${SCRIPT_PATH%/*}; [ -n "$SCRIPT_DIR" ] || SCRIPT_DIR=/ ;; *) SCRIPT_DIR=. ;; esac
@@ -16,6 +16,7 @@ fi
 binary="$runtime_root/target/release/run_trial"
 if [ ! -f "$binary" ] || [ ! -x "$binary" ]; then
   printf '[run_trial] ERROR normal Rust ELF missing/non-executable: %s\n' "$binary" >&2
+  printf '[run_trial] build first: bash .claude/skills/terraforming_node/scripts/build_rust_packages.sh\n' >&2
   exit 2
 fi
 magic=''
@@ -24,4 +25,5 @@ if [ "$magic" != $'\177ELF' ]; then
   printf '[run_trial] ERROR normal Rust ELF invalid: %s\n' "$binary" >&2
   exit 2
 fi
-exec -a "$SDIR/run_trial.py" "$binary" "$@"
+# argv[0] names the skill that owns this launcher (<skill>/rust/runtime/target/release/run_trial), never a retired .py path.
+exec -a "${SDIR%/*}/rust/runtime/target/release/run_trial" "$binary" "$@"

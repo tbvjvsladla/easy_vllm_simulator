@@ -263,19 +263,25 @@ mod tree {
         }
     }
 
-    /// The saved snapshot, with the two original scripts (stored once as data) put back where the saved tree names them.
+    /// The saved snapshot without the capture's scaffolding: the rows of the two original scripts the capture ran from the
+    /// node (`"source"` rows) and of the original companion `scripts/run_trial.py` are dropped, because the Rust programs run
+    /// without them (the companion is now staged under the Rust sources and compared as part of the staged program).
     pub fn saved(relative: &str) -> Vec<Entry> {
         items(&load(relative))
             .iter()
+            .filter(|row| {
+                !has(row, "source")
+                    && !text_of(member(row, "path"))
+                        .to_utf8()
+                        .unwrap_or_default()
+                        .ends_with("/vllm-recipe-explorer/scripts/run_trial.py")
+            })
             .map(|row| {
                 let kind = text_of(member(row, "kind")).to_utf8().expect("text");
                 let bytes = match kind.as_str() {
-                    "file" => Some(if has(row, "source") {
-                        let name = text_of(member(row, "source")).to_utf8().expect("text");
-                        std::fs::read(data(&format!("source/{name}"))).expect("a saved source")
-                    } else {
-                        base64_decode(&text_of(member(row, "base64")).to_utf8().expect("text"))
-                    }),
+                    "file" => Some(base64_decode(
+                        &text_of(member(row, "base64")).to_utf8().expect("text"),
+                    )),
                     _ => None,
                 };
                 let mode = match member(row, "mode") {
@@ -295,6 +301,9 @@ mod tree {
 }
 
 use support::*;
+
+/// Where the parity check's companion (the Rust trial owner's sources) sits in a staged node, relative to the case root.
+const COMPANION_DIR: &str = "node/.claude/skills/vllm-recipe-explorer/rust/runtime/src";
 
 /// Directories the fixtures create get the mode of the capture's machinery under its umask (`0o775`), whatever the process's
 /// umask is; the programs under test run under that same umask (see [`run_under_capture_umask`]).
@@ -360,17 +369,10 @@ fn setup(case: &PyValue, root: &Path, command_line: bool) {
         std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o664)).expect("a mode");
     };
     if command_line {
+        // The capture ran the two original scripts from this directory; the Rust programs need nothing in it, so only the
+        // directory is made (the saved trees' rows of those scripts are dropped by `tree::saved`).
         let scripts = root.join("node/.claude/skills/vllm-recipe-explorer/scripts");
         make_dirs(&scripts);
-        for name in ["gen_recipe_set.py", "feedback_log.py"] {
-            let target = scripts.join(name);
-            write(
-                &target,
-                &std::fs::read(data(&format!("source/{name}"))).expect("a saved source"),
-            );
-            std::fs::set_permissions(&target, std::fs::Permissions::from_mode(0o664))
-                .expect("a mode");
-        }
         if text_of(member(case, "owner")).equals("gen_recipe_set") {
             let defaults = load("default-inputs.json");
             if !(has(case, "missing_parsed")) {
@@ -400,15 +402,27 @@ fn setup(case: &PyValue, root: &Path, command_line: bool) {
                 recipe.dumps_ascii().expect("JSON").as_bytes(),
             );
             if has(case, "companion") {
+                // The companion is now the Rust trial owner's two sources (`anchor::trial_source_paths`): "actual" = the live
+                // sources of this crate, "missing" = neither, any other text = that text as `run_trial.rs` and an empty session.
                 let companion = text_of(member(case, "companion")).to_utf8().expect("text");
+                let sources = root.join(COMPANION_DIR);
+                let live = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
                 match companion.as_str() {
                     "missing" => {}
-                    "actual" => write(
-                        &scripts.join("run_trial.py"),
-                        &std::fs::read(data("run_trial-source.txt"))
-                            .expect("the companion source text"),
-                    ),
-                    other => write(&scripts.join("run_trial.py"), other.as_bytes()),
+                    "actual" => {
+                        make_dirs(&sources);
+                        for name in ["run_trial.rs", "run_trial_session.rs"] {
+                            write(
+                                &sources.join(name),
+                                &std::fs::read(live.join(name)).expect("the live trial source"),
+                            );
+                        }
+                    }
+                    other => {
+                        make_dirs(&sources);
+                        write(&sources.join("run_trial.rs"), other.as_bytes());
+                        write(&sources.join("run_trial_session.rs"), b"");
+                    }
                 }
             }
         }
@@ -691,7 +705,10 @@ mod reference_cases {
             );
             entries.into_iter().partition(|entry| {
                 let path = entry.path.to_utf8().unwrap_or_default();
-                skip.contains(&path.as_str()) || path == binary_path
+                skip.contains(&path.as_str())
+                    || path == binary_path
+                    || path == COMPANION_DIR
+                    || path.starts_with(&format!("{COMPANION_DIR}/"))
             })
         };
         let (installed_before, before) = staged(tree::snapshot(&directory.root));
@@ -1605,9 +1622,47 @@ mod path_cases {
     }
 }
 
+/// The parity check reads the Rust trial owner instead of the retired `run_trial.py`: every non-exempt candidate field the
+/// original trial read (`candidate.get("<field>")` of its saved source text) is also found in the live Rust trial sources, and
+/// the live sources have no gap.
+mod companion_cases {
+    use super::*;
+    use recipe_runtime::recipe_set::{
+        consumed_fields, rust_trial_consumed_fields, rust_trial_serve_knob_gaps,
+    };
+
+    #[test]
+    fn the_rust_trial_sources_read_every_field_the_original_trial_read_and_reach_the_generated_files(
+    ) {
+        let original = PyStr::new(
+            &std::fs::read_to_string(data("run_trial-source.txt")).expect("the saved source text"),
+        );
+        let live_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let mut live = String::new();
+        for name in ["run_trial.rs", "run_trial_session.rs"] {
+            live.push_str(&std::fs::read_to_string(live_dir.join(name)).expect("a live source"));
+            live.push('\n');
+        }
+        let live = PyStr::new(&live);
+        let exempt = recipe_runtime::recipe_set::PARITY_EXEMPT;
+        let ours = rust_trial_consumed_fields(&live);
+        let mut missing: Vec<String> = consumed_fields(&original)
+            .into_iter()
+            .filter(|field| !exempt.contains(&field.as_str()) && !ours.contains(field))
+            .collect();
+        missing.sort();
+        missing.dedup();
+        assert!(
+            missing.is_empty(),
+            "fields the original read but the Rust trial sources do not: {missing:?}"
+        );
+        assert!(rust_trial_serve_knob_gaps(&live).expect("gaps").is_empty());
+    }
+}
+
 mod anchor_cases {
     use super::*;
-    use recipe_runtime::anchor::{default_log_path, skill_root_of, trial_source_path};
+    use recipe_runtime::anchor::{default_log_path, skill_root_of, trial_source_paths};
 
     #[test]
     fn the_skill_root_is_five_directories_above_the_program_and_its_two_places_hang_off_it() {
@@ -1617,8 +1672,17 @@ mod anchor_cases {
         assert!(root.equals("/n/.claude/skills/vllm-recipe-explorer"));
         assert!(default_log_path(&root)
             .equals("/n/.claude/skills/vllm-recipe-explorer/feedback/recipe_feedback.jsonl"));
-        assert!(trial_source_path(&root)
-            .equals("/n/.claude/skills/vllm-recipe-explorer/scripts/run_trial.py"));
+        let sources: Vec<String> = trial_source_paths(&root)
+            .iter()
+            .map(|path| path.to_utf8().expect("text"))
+            .collect();
+        assert_eq!(
+            sources,
+            [
+                "/n/.claude/skills/vllm-recipe-explorer/rust/runtime/src/run_trial.rs",
+                "/n/.claude/skills/vllm-recipe-explorer/rust/runtime/src/run_trial_session.rs"
+            ]
+        );
         // A shallower path just ends at the top.
         assert!(skill_root_of(&PyStr::new("/a/b")).equals("/"));
     }
@@ -1967,7 +2031,7 @@ mod constants_cases {
 
     /// The module constants as one flat object: tuples and sets are arrays (the declared conversion of the Python wrappers is
     /// theirs), the probe table is an object, in declaration order; values equal the original's definitions (re-read from
-    /// the frozen source text that the checks keep as data).
+    /// the golden `source_constants.json`, extracted once from the frozen source text).
     #[test]
     fn the_constants_are_one_flat_object_equal_to_the_originals_definitions() {
         let mut command = Command::new(env!("CARGO_BIN_EXE_recipe_generation_api"));
@@ -2001,66 +2065,26 @@ mod constants_cases {
                 .map(|item| text_of(item).to_utf8().expect("text"))
                 .collect()
         };
-        let source =
-            std::fs::read_to_string(data("source/gen_recipe_set.py")).expect("the saved source");
-        let feedback =
-            std::fs::read_to_string(data("source/feedback_log.py")).expect("the saved source");
-        // Every name the original's tuples list appears, in this order, in the original text of that tuple.
-        let tuple_text = |text: &str, name: &str| -> String {
-            let start = text
-                .find(&format!("{name} = ("))
-                .expect("a tuple definition");
-            let end = text[start..].find("\n)").expect("its end");
-            text[start..start + end].to_string()
-        };
-        let in_order = |text: &str, names: Vec<String>| {
-            let mut from = 0;
-            for name in names {
-                let at = text[from..]
-                    .find(&format!("\"{name}\""))
-                    .unwrap_or_else(|| panic!("{name} in order"));
-                from += at + name.len();
-            }
-        };
-        in_order(
-            &tuple_text(&source, "SERVE_KNOB_KEYS"),
-            strings(member(&constants, "SERVE_KNOB_KEYS")),
-        );
-        assert_eq!(
-            strings(member(&constants, "SERVE_KNOB_KEYS")).len(),
-            tuple_text(&source, "SERVE_KNOB_KEYS").matches('"').count() / 2
-        );
-        in_order(
-            &tuple_text(&feedback, "ESTIMATED_FIELDS"),
-            strings(member(&constants, "ESTIMATED_FIELDS")),
-        );
-        assert_eq!(
-            strings(member(&constants, "ESTIMATED_FIELDS")).len(),
-            tuple_text(&feedback, "ESTIMATED_FIELDS")
-                .matches('"')
-                .count()
-                / 2
-        );
-        in_order(
-            &tuple_text(&feedback, "NULLABLE_FIELDS"),
-            strings(member(&constants, "NULLABLE_FIELDS")),
-        );
-        assert_eq!(
-            strings(member(&constants, "NULLABLE_FIELDS")).len(),
-            tuple_text(&feedback, "NULLABLE_FIELDS")
-                .matches('"')
-                .count()
-                / 2
-        );
+        // The golden of the original's definitions (their string members in definition order, extracted once from the frozen
+        // source text): the tuples are equal in order, the set has the same members.
+        let golden = load("source_constants.json");
+        for name in ["SERVE_KNOB_KEYS", "ESTIMATED_FIELDS", "NULLABLE_FIELDS"] {
+            assert_eq!(
+                strings(member(&constants, name)),
+                strings(member(&golden, name)),
+                "{name}"
+            );
+        }
         // The sets: the same members as the original's set displays.
         let native = items(member(&constants, "_NATIVE_QUANT_VALUES"));
         assert_eq!(native.len(), 11);
         assert!(native.iter().any(|item| matches!(item, PyValue::None)));
-        let exempt = strings(member(&constants, "_PARITY_EXEMPT"));
+        let mut exempt = strings(member(&constants, "_PARITY_EXEMPT"));
+        let mut want = strings(member(&golden, "_PARITY_EXEMPT"));
+        exempt.sort();
+        want.sort();
         assert_eq!(exempt.len(), 11);
-        for name in &exempt {
-            assert!(source.contains(&format!("\"{name}\"")), "{name}");
-        }
+        assert_eq!(exempt, want);
         let probe = member(&constants, "_PROBE");
         assert_eq!(member(probe, "enforce_eager"), &PyValue::Bool(true));
         assert_eq!(member(probe, "batch"), &PyValue::int(4242));

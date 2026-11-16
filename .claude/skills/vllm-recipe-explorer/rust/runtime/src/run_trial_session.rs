@@ -70,8 +70,9 @@ fn err(line: &str) {
     let _ = std::io::stderr().write_all(line.as_bytes());
 }
 
-/// `_repo_root()`: derived from the launcher script name when the original path is the process name, else from the executable
-/// location (`.claude/skills/<skill>/rust/runtime/target/release/<bin>` is seven levels below the root).
+/// `_repo_root()`: derived lexically from the process name when the launcher (`scripts/run_trial.sh`) names the owning skill's
+/// installed program (`<root>/.claude/skills/<skill>/rust/runtime/target/release/run_trial`, an absolute path), else from the
+/// executable location; either way the program is eight path components below the root.
 pub fn repo_root() -> PathBuf {
     let up = |p: &Path, n: usize| {
         let mut cur = p.to_path_buf();
@@ -84,9 +85,9 @@ pub fn repo_root() -> PathBuf {
     };
     if let Some(arg0) = std::env::args_os().next() {
         let p = PathBuf::from(arg0);
-        if p.file_name().map_or(false, |n| n == "run_trial.py") && p.is_absolute() {
-            // .claude/skills/<skill>/scripts/run_trial.py: the file, scripts, <skill>, skills, .claude, root.
-            return up(&p, 5);
+        if p.file_name().map_or(false, |n| n == "run_trial") && p.is_absolute() {
+            // run_trial, release, target, runtime, rust, <skill>, skills, .claude: the root is above them.
+            return up(&p, 8);
         }
     }
     match std::env::current_exe() {

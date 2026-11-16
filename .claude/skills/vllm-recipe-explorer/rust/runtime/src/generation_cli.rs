@@ -3,10 +3,10 @@
 //! nothing handles ends the run with the complete final `Class: message` block of Python's report on standard error.
 //!
 //! `gen_recipe_set --check-parity` is looked for in the raw arguments before any parsing (so it wins over a malformed
-//! command line) and reads the companion `scripts/run_trial.py` of the deployed skill (see [`crate::anchor`]). `feedback_log
+//! command line) and reads the companion Rust trial sources of the deployed skill (see [`crate::anchor`]). `feedback_log
 //! --record` still needs every estimated field on the command line: the parser requires them, as the original's does.
 
-use crate::anchor::{default_log_path, trial_source_path};
+use crate::anchor::{default_log_path, trial_source_paths};
 use crate::cli::Run;
 use crate::cliparse::{parse as parse_arguments, Kind, Opt, Outcome, Spec, Value};
 use crate::feedback::{self, Clock, Estimate};
@@ -167,28 +167,33 @@ pub fn generator_spec() -> Spec {
     }
 }
 
-/// `--check-parity`: the parity tripwire over the companion trial source of the deployed skill.
+/// `--check-parity`: the parity tripwire over the companion trial sources of the deployed skill (the Rust trial owner's
+/// `run_trial.rs` and `run_trial_session.rs`, read in that order and joined; an unreadable one ends the check with status 2).
 fn check_parity(skill_root: &PyStr) -> Run {
     let mut streams = Streams::default();
-    let path = trial_source_path(skill_root);
-    let source = match read_text(&path) {
-        Ok(source) => source,
-        Err(failure) if is_os_failure(&failure) => {
-            streams.eprint(
-                &Message::new()
-                    .lit("parity: run_trial.py 를 읽지 못했다 — ")
-                    .text(&failure.message)
-                    .done(),
-            );
-            return streams.finish(2);
+    let mut source = PyStr::default();
+    for path in trial_source_paths(skill_root) {
+        match read_text(&path) {
+            Ok(text) => {
+                source.push_py(&text);
+                source.push_str("\n");
+            }
+            Err(failure) if is_os_failure(&failure) => {
+                streams.eprint(
+                    &Message::new()
+                        .lit("parity: run_trial 소스를 읽지 못했다 — ")
+                        .text(&failure.message)
+                        .done(),
+                );
+                return streams.finish(2);
+            }
+            Err(failure) => return uncaught(streams, &failure),
         }
+    }
+    let gaps = match recipe_set::rust_trial_serve_knob_gaps(&source) {
+        Ok(gaps) => gaps,
         Err(failure) => return uncaught(streams, &failure),
     };
-    let gaps =
-        match recipe_set::assert_serve_knob_parity(&PyValue::Str(source), &PyValue::Bool(false)) {
-            Ok(gaps) => gaps,
-            Err(failure) => return uncaught(streams, &failure),
-        };
     if !gaps.is_empty() {
         let mut names = PyStr::default();
         for (index, gap) in gaps.iter().enumerate() {

@@ -1,0 +1,7 @@
+{
+ "_provenance": "measured: the string members of four definitions of the frozen originals source/gen_recipe_set.py and source/feedback_log.py (byte-identical to scripts/ at b1f3563e), extracted once in definition order so the constants check reads no .py",
+ "SERVE_KNOB_KEYS": ["quantization", "max_model_len", "batch", "kv_cache_memory_bytes", "kv_cache_quant", "attention_backend", "tool_call_parser", "reasoning_parser", "moe_backend", "gdn_prefill_backend", "max_num_batched_tokens", "enforce_eager", "language_model_only", "serve_env", "tensor_parallel_size", "distributed_executor_backend"],
+ "_PARITY_EXEMPT": ["model_path", "model_path_container", "model_capabilities", "id", "attention_backend", "tool_call_parser", "reasoning_parser", "served_model_name", "model_id", "extra_env", "gpu_memory_utilization"],
+ "ESTIMATED_FIELDS": ["timestamp", "model_id", "quantization", "max_model_len", "gpu_memory_utilization", "vram_budget_gb", "estimated_vram_gb", "tensor_parallel_size", "safety_margin_threshold", "selection_timestamp"],
+ "NULLABLE_FIELDS": ["actual_vram_gb", "serve_success", "error_type", "tokens_per_sec", "batch", "kv_cache_memory_bytes", "attention_backend", "tool_call_parser", "reasoning_parser", "converged", "trial_count", "correction_history"]
+}

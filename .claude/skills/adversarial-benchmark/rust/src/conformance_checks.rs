@@ -176,7 +176,8 @@ pub fn main(context: &Context, console: &mut dyn Console) -> Result<i32, Raised>
     let skill_source =
         |relative: &str| read_optional_strict(&crate::ospath::join_all(&skills, &[relative]));
     let campaign_init = skill_source("terraforming_node/scripts/campaign_init.py")?;
-    let recipe = skill_source("vllm-recipe-explorer/recipe.py")?;
+    // The explorer's cap rule lives in its Rust owner (`recipe simulate`), not in the retired `recipe.py`.
+    let recipe = skill_source("vllm-recipe-explorer/rust/runtime/src/recipe_cmd/simulate_body.rs")?;
     report.check(
         "E② sweep_bench 가 native 서버 로그를 lite 레그에 넘긴다(없으면 native lite 는 늘 ①)",
         sweep.contains("LITE_PLANE_ARGS+=(--engine-log \"$NATIVE_ELOG\")"),
@@ -215,7 +216,7 @@ pub fn main(context: &Context, console: &mut dyn Console) -> Result<i32, Raised>
     report.check(
         "E② explorer 가 셀 상태 차감만큼 cap 을 줄이고 소진이면 트라이얼 없이 Model-C",
         recipe.contains("reconciliation")
-            && recipe.contains("cap = cap_declared - _lite_spent")
+            && recipe.contains("cap = cap_declared - lite_spent")
             && recipe.contains("reconciliation_cap 소진"),
         "",
     );

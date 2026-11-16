@@ -463,7 +463,9 @@ fn cmd_estimate(
     let mut note = PyStr::new("\n[recipe] 랭킹 저장: ");
     note.push_py(&last_ranking);
     streams.eprint(&note);
-    let mut hint = PyStr::new("[recipe] generate 로 선택: python3 recipe.py generate --config ");
+    let mut hint = PyStr::new(
+        "[recipe] generate 로 선택: bash .claude/skills/vllm-recipe-explorer/scripts/recipe.sh generate --config ",
+    );
     hint.push_py(config_path);
     hint.push_str(" --recipe-id <rN>");
     streams.eprint(&hint);
@@ -892,6 +894,7 @@ fn gpu_roles(streams: &mut Streams, cfg: &PyValue, tp: i64, root: &PyStr) -> Ste
 }
 
 mod simulate_body;
+pub use simulate_body::lockset_vocabulary;
 
 fn simulate_spec() -> Spec {
     let opt = |flags: &'static [&'static str], dest: &'static str, kind: Kind, help: Option<&'static str>, required: bool| Opt {

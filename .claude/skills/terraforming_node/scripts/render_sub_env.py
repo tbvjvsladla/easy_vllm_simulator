@@ -210,7 +210,7 @@ RUST_ONLY_PREFIXES = ("rust/", "scripts/")
 RUST_ONLY_INPUTS = {
     "adversarial-benchmark": ("config/", "fixtures/", "bench_tool_pin.json"),   # build_rust.sh 자체검사가 읽는 fixtures/·bench_tool_pin.json 포함(2026-11-16 렌더 트리 실측)   # bench_bindings.yaml + 가리키는 도구 폴더 config/guide-llm/(프리셋) — 2026-11-16 렌더 트리 parity 실측
     "upstream-version-watch": ("failure_patterns.yaml",),
-    "vllm-recipe-explorer": ("recipe.py",),   # B 의 conformance 검사(conformance_checks.rs `skill_source("vllm-recipe-explorer/recipe.py")`)가 원문을 읽는다
+    "vllm-recipe-explorer": (),   # B 의 conformance 검사는 이제 Rust 소유 소스(rust/runtime/src/recipe_cmd/simulate_body.rs)를 읽는다 — rust/ 접두로 이미 간다(recipe.py 불요 · 2026-11-16 Rust 완전이식)
 }
 SHARED_RUST_LIBRARIES = ((SHARED_RUST_SUPPORT, SHARED_RUST_CONSUMERS),
                          (ROLE_RUST_SUPPORT, ROLE_RUST_CONSUMERS),

@@ -994,8 +994,8 @@ def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
         ]
     else:
         checks += [
-            _run("recipe_info_only_gate", [sys.executable,
-                 ".claude/skills/vllm-recipe-explorer/recipe.py", "estimate", "--config", "/nonexistent/config.yaml", "--auto"], {4}),
+            _run("recipe_info_only_gate", ["bash",
+                 ".claude/skills/vllm-recipe-explorer/scripts/recipe.sh", "estimate", "--config", "/nonexistent/config.yaml", "--auto"], {4}),
             _run("benchmark_info_only_gate", ["bash",
                  ".claude/skills/adversarial-benchmark/scripts/run_bench.sh", "freshclone-probe"], {4}),
         ]
@@ -1004,8 +1004,8 @@ def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
     #   레시피와 배포된 레시피가 갈리지 않는다)를 지키려고 만들어졌으나 **호출자가 0 개**여서,
     #   실제 위반이 커밋과 이 검증기를 그대로 통과했다(2026-08-16 실측). 검사를 만든 것과 검사가
     #   도는 것은 다르다 — 여기서 매 검증마다 돌린다. 미테라포밍 레포에서도 순수 정적 검사라 안전하다.
-    checks.append(_run("recipe_serve_knob_parity", [sys.executable,
-                       ".claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.py",
+    checks.append(_run("recipe_serve_knob_parity", ["bash",
+                       ".claude/skills/vllm-recipe-explorer/scripts/gen_recipe_set.sh",
                        "--check-parity"], {0}))
     checks += [
         _run("benchmark_verdict_fixture", ["bash",
@@ -1025,12 +1025,12 @@ def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
         #   결정론 단위검사(모델·NAS·docker·GPU 불요)라 미테라포밍 레포에서도 안전하다.
         #   · parse/estimate = 하이브리드 KV 층수 인지(결함 A — 262k KV 16 GiB vs 전층 64 GiB)
         #   · run_trial      = 컨테이너 생존검사(결함 C) + 호스트 바닥 gmu 캡(결함 B)
-        _run("recipe_parse_config_selftest", [sys.executable,
-             ".claude/skills/vllm-recipe-explorer/scripts/parse_model_config.py", "--self-test"], {0}),
-        _run("recipe_estimate_vram_selftest", [sys.executable,
-             ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.py", "--self-test"], {0}),
-        _run("recipe_run_trial_selftest", [sys.executable,
-             ".claude/skills/vllm-recipe-explorer/scripts/run_trial.py", "--self-test"], {0}),
+        _run("recipe_parse_config_selftest", ["bash",
+             ".claude/skills/vllm-recipe-explorer/scripts/parse_model_config.sh", "--self-test"], {0}),
+        _run("recipe_estimate_vram_selftest", ["bash",
+             ".claude/skills/vllm-recipe-explorer/scripts/estimate_vram.sh", "--self-test"], {0}),
+        _run("recipe_run_trial_selftest", ["bash",
+             ".claude/skills/vllm-recipe-explorer/scripts/run_trial.sh", "--self-test"], {0}),
         # 캠페인 아티팩트 체인 3종의 **집행** (2026-09-06 배선). 이 셋은 2026-09-06 에
         #   자체검사와 함께 태어났지만 **부르는 코드가 없었다** — 이 저장소가 이미 이름 붙인
         #   "호출자 없는 자체검사 = L1 산문"의 재발이다(위 sweep meta 주석과 같은 사유).
@@ -1190,14 +1190,14 @@ def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
              ".claude/skills/upstream-version-watch/scripts/push_branches.sh", "--self-test"], {0}),
         _run("upstream_branch_sync_mechanics_selftest", ["bash",
              ".claude/skills/upstream-version-watch/scripts/selftest_branch_sync.sh"], {0}),
-        _run("recipe_preload_ram_gate_selftest", [sys.executable,
-             ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py", "--self-test"], {0}),
-        _run("recipe_escalation_predicate_selftest", [sys.executable,
-             ".claude/skills/vllm-recipe-explorer/scripts/escalation_predicate.py", "--self-test"], {0}),
+        _run("recipe_preload_ram_gate_selftest", ["bash",
+             ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.sh", "--self-test"], {0}),
+        _run("recipe_escalation_predicate_selftest", ["bash",
+             ".claude/skills/vllm-recipe-explorer/scripts/escalation_predicate.sh", "--self-test"], {0}),
         # R8 — 컨텍스트 확장 선언을 serve 인자로 번역한다. Y3(병합)·Y11(음성대조)이 본체다:
         #   rope 딕셔너리를 갈아끼우면 mrope·partial rotary 가 조용히 사라져 **다른 모델**이 된다.
-        _run("recipe_rope_translate_selftest", [sys.executable,
-             ".claude/skills/vllm-recipe-explorer/scripts/rope_scaling_translate.py",
+        _run("recipe_rope_translate_selftest", ["bash",
+             ".claude/skills/vllm-recipe-explorer/scripts/rope_scaling_translate.sh",
              "--self-test"], {0}),
         _run("benchmark_broad_search_confirm_gate",
              ["bash", ".claude/skills/adversarial-benchmark/scripts/broad_search.sh", "cell",
@@ -1227,13 +1227,12 @@ def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
         _run("benchmark_resolve_topology_selftest", ["bash",
              ".claude/skills/adversarial-benchmark/scripts/resolve_topology.sh", "--self-test"], {0}),
         # gmu 두 역할 분리 · max-num-seqs 산식 · lockset 기계 각인의 **집행** (plan_26091407 §4.2·§4.3 · §7 O3 ·
-        #   2026-09-14 배선). 호출자 없는 자체검사는 L1(산문)이다(위 선례). 함수 층(역할 분리·derive_batch 3경우·
-        #   sim_classify adjust_target=batch·클램프 경계)과 CLI 층(배포되는 recipe.py 바이트 사본을 임시 저장소에서
-        #   `simulate --mock-profile` 로 main() 부터 lockset 쓰기까지)과 가짜 엔진 층(클램프에 비례하는 엔진 토큰 ·
-        #   첫 트라이얼 OOM · TP=2 · per-token 불일치 — 정적 mock 이 못 치는 위상 2)을 음성대조와 함께 친다. mock 산출물이
-        #   trial_provenance=mock 으로 자기를 밝히는지까지 단언한다 — docker·NAS·GPU 불요.
-        _run("recipe_gmu_roles_batch_selftest", [sys.executable,
-             ".claude/skills/vllm-recipe-explorer/scripts/selftest_gmu_roles_batch.py"], {0}),
+        #   2026-09-14 배선). 호출자 없는 자체검사는 L1(산문)이다(위 선례). 2026-11-16 Rust 이식: CLI 층 E1~E17(배포되는
+        #   스킬 사본을 임시 저장소에서 Rust `recipe simulate --mock-profile` 로 main() 부터 lockset 쓰기까지)을 음성대조와
+        #   함께 친다. 옛 py 의 함수 층(U)·가짜 엔진 층(F)은 퇴역한 recipe.py 내부를 쳤으므로 이식되지 않았다(잔여 · PORTING).
+        #   mock 산출물이 trial_provenance=mock 으로 자기를 밝히는지까지 단언한다 — docker·NAS·GPU 불요.
+        _run("recipe_gmu_roles_batch_selftest", ["bash",
+             ".claude/skills/vllm-recipe-explorer/scripts/selftest_gmu_roles_batch.sh"], {0}),
     ]
 
     # 사서(wiki-desk · TS · plan_26101912): 패키지 자신의 배포 게이트 = 결정론 회귀(node:test ·

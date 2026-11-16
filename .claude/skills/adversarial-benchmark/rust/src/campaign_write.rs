@@ -4790,7 +4790,8 @@ fn op_slice_update(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 /// Predicate ① of the escalation: asked of the explorer's native `escalation_predicate` (an explicit path in
 /// `CAMPAIGN_ESCALATION_BIN` wins), never judged here.
 fn judge_escalation(ctx: &Ctx, symptoms: &[String], events: &[String], window: Option<(&str, &str)>) -> R<PyDict> {
-    let owner = ctx.root.join(".claude/skills/vllm-recipe-explorer/scripts/escalation_predicate.py");
+    // Delivery evidence of the owner = its launcher (the retired escalation_predicate.py is not consulted).
+    let owner = ctx.root.join(".claude/skills/vllm-recipe-explorer/scripts/escalation_predicate.sh");
     if !owner.is_file() {
         let mut d = PyDict::new();
         d.set("predicate_1", PyValue::None);
@@ -4943,7 +4944,8 @@ fn memory_model(ctx: &Ctx, man: &PyDict) -> (Option<&'static str>, String) {
 }
 
 fn device_total_gib(ctx: &Ctx, mf: &PyDict) -> (Option<f64>, String) {
-    let owner = ctx.root.join(".claude/skills/vllm-recipe-explorer/recipe.py");
+    // The memory-model rule's owner is the explorer's Rust `recipe` (`recipe_cmd::memory_model`), not the retired recipe.py.
+    let owner = ctx.root.join(".claude/skills/vllm-recipe-explorer/rust/runtime/src/recipe_cmd.rs");
     if !owner.is_file() {
         return (None, format!("미상(판정 소유자 부재: {})", owner.display()));
     }

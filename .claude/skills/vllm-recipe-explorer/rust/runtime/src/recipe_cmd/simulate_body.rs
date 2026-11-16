@@ -137,6 +137,15 @@ fn lockset_vocab(root: &PyStr) -> Step<Vocab> {
     Ok(Vocab { provenance: quoted(&prov), knobs })
 }
 
+/// `(LOCKSET_PROVENANCE, LOCKSET_KNOB_SOURCES)` of the lockset vocabulary owner.
+pub type LocksetVocabulary = (Vec<String>, BTreeMap<String, Vec<String>>);
+
+/// The owner's lockset vocabulary below `root`, read the way `simulate` reads it; the stop text when it cannot be read (for the
+/// self-test, which judges stamped locksets against the same owner).
+pub fn lockset_vocabulary(root: &PyStr) -> Result<LocksetVocabulary, String> {
+    lockset_vocab(root).map(|v| (v.provenance, v.knobs)).map_err(|d| d.text.to_utf8().unwrap_or_default())
+}
+
 impl Vocab {
     fn knob(&self, key: &str) -> Vec<String> {
         self.knobs.get(key).cloned().unwrap_or_default()

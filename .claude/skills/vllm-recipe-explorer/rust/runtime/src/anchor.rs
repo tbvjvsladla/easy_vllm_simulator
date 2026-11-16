@@ -2,8 +2,8 @@
 //! working directory, the build tree or an environment variable. The deployed layout puts the executables at
 //! `<skill root>/rust/runtime/target/release/<program>`, so the root is the path five directories up, taken lexically (links
 //! in the path are not resolved, as `os.path.abspath(__file__)` does not resolve them). Two places hang off the root: the
-//! default feedback log, `feedback/recipe_feedback.jsonl`, and the companion trial source `scripts/run_trial.py` that the
-//! parity check reads. A binary that runs from another layout gets a root that is simply what five directories up is there;
+//! default feedback log, `feedback/recipe_feedback.jsonl`, and the companion trial sources of the Rust trial owner
+//! (`rust/runtime/src/run_trial.rs`, `rust/runtime/src/run_trial_session.rs`) that the parity check reads. A binary that runs from another layout gets a root that is simply what five directories up is there;
 //! callers that know better pass the root or the path explicitly.
 
 use crate::feedback::{abspath, dirname};
@@ -46,10 +46,15 @@ pub fn default_log_path(skill_root: &PyStr) -> PyStr {
     )
 }
 
-/// `<root>/scripts/run_trial.py`, the companion source of the parity check.
-pub fn trial_source_path(skill_root: &PyStr) -> PyStr {
-    join(
-        &join(skill_root, &PyStr::new("scripts")),
-        &PyStr::new("run_trial.py"),
-    )
+/// The companion sources of the parity check, in reading order: `<root>/rust/runtime/src/run_trial.rs` and
+/// `<root>/rust/runtime/src/run_trial_session.rs` (the trial is the Rust program; the retired `scripts/run_trial.py` is not read).
+pub fn trial_source_paths(skill_root: &PyStr) -> Vec<PyStr> {
+    let sources = join(
+        &join(&join(skill_root, &PyStr::new("rust")), &PyStr::new("runtime")),
+        &PyStr::new("src"),
+    );
+    ["run_trial.rs", "run_trial_session.rs"]
+        .iter()
+        .map(|name| join(&sources, &PyStr::new(name)))
+        .collect()
 }

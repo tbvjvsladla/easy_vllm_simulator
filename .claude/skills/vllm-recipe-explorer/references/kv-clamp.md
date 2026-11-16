@@ -18,7 +18,7 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
 - **승수는 역할이 둘이다**(2026-09-14 · plan_26091407 §4.3 · 사용자 결정 Q2·Q9): `deploy_gmu` = `target_gpu.target_gmu`
   (배포 yaml `gpu-memory-utilization` 이자 클램프 천장 승수 — safe_gmu 의 정본이며 신설 필드가 아니다) ·
   `gate_margin` = `config.safety_margin`(트라이얼 검증 게이트 승수 · 되먹임 `safety_margin_threshold`). 종전에는
-  `recipe.py` 의 `margin` 변수 하나가 넷을 겸했고, 타겟 흐름에서는 target_gmu 가 그 자리로 들어가 게이트 승수까지 바꿨다.
+  `recipe.sh` 의 `margin` 변수 하나가 넷을 겸했고, 타겟 흐름에서는 target_gmu 가 그 자리로 들어가 게이트 승수까지 바꿨다.
   수렴 lockset 의 `gmu_roles` 가 두 값과 출처를 나란히 싣는다.
 - **Phase 1 공식과 다름**: Phase 1 은 `(…)/gmu` 로 나눴다. Phase 2 는 절대값 합이다. 혼동 금지.
 - **최종 recipe 는 gpu-memory-utilization + kv-cache-memory-bytes 를 함께 emit 한다 (KV 절대클램프 따름정리, E2E 실증)**:
@@ -33,7 +33,7 @@ Phase 2 총 VRAM = weights + non_kv_overhead + kv_cache_memory_bytes     ← gmu
   여유를 연 **관측**(`perf_26091305`)은 사실이다 — gmu 가 총량 cap **처럼 작용한** 관측은 남기고 기전은 미확정으로 둔다.
   ⚠ **유효맥락은 한 셀이다**: multi TP=2(GB10×2 · 통합메모리) · Qwen3.8-Flash-Next NVFP4 · PLE resident · vLLM 0.29.0rc6 ·
   KV 클램프 8,192MiB/노드 · `max-num-batched-tokens` 2048. 다른 토폴로지·GPU·모델·버전으로 수치를 옮기지 않는다(이 절이
-  이 관측의 정본 서술 자리이고, 코드 주석은 여기를 가리킨다). 생성 yaml 의 주석도 같은 분리로 적는다(`gen_recipe_set.py` ·
+  이 관측의 정본 서술 자리이고, 코드 주석은 여기를 가리킨다). 생성 yaml 의 주석도 같은 분리로 적는다(`gen_recipe_set.sh` ·
   "총량 cap 은 관측된 작용"). 그래서 서빙 기동의 예산 선판정(`single_serve_up.sh` · `multinode_serve_smoke.sh` 둘 다 ·
   `budget_preflight --declared-gmu-yaml <서빙 yaml>` — 추출 규칙은 budget_preflight 단일 소유)은 예상 vLLM 몫(gmu × MemTotal)·
   잔차를 **기재만** 하고 게이트로 쓰지 않는다(overhead(gmu) 함수형은 기재가 쌓인 뒤 별도 결정 · plan §9 R4).
@@ -100,7 +100,7 @@ backend** 를 이전 전제로 헤더에 명시.
   ⚠ **"full-attention 이라 공식≈측정" 가정 금지** — gpt-oss-20b 는 GQA/sliding 이라 공식과 어긋난다.
   → **batch 는 어떤 모델이든 측정 토큰으로만 산정**한다: Phase-2 trial-loop 의 엔진 보고 `kv_cache_tokens`.
   공식 기반 batch 는 위험 — 과소추정하면 OOM, 과대추정하면(대다수) 용량 낭비(gpt-oss formula batch 46 = 실측 KV-fit 86 의 53%).
-  측정 정본 우선순위: trial 로그 per-token(`Available KV cache memory`/`kv_cache_tokens`) > 공식 폴백(`recipe.py _resolve_clamp_kv`).
+  측정 정본 우선순위: trial 로그 per-token(`Available KV cache memory`/`kv_cache_tokens`) > 공식 폴백(`recipe.sh _resolve_clamp_kv`).
 - **max-num-seqs 산식**(2026-09-14 · plan_26091407 §4.2 · 사용자 결정 Q5 — 종전 "near-max = floor(max_concurrency)" 정의를 대체):
 
   ```text
@@ -140,7 +140,7 @@ backend** 를 이전 전제로 헤더에 명시.
     그 엔진 토큰을 환산 없이 쓴다(`kv_source=hand`).
   - **cap**: 측정 → 클램프 검증 → 위상 2 재검증까지 기본 3칸이 든다. 첫 트라이얼 OOM·위상 2 하향이 겹치면 한 칸이 더 든다 —
     마지막 칸에서 batch 를 낮추면 HITL 요약 note 가 `cap(N) 소진 — 위상 2 …` 로 사유를 말한다(`--cap` 을 늘려 다시 돈다).
-  수렴하면 `recipe.py simulate` 가 `provenance=explorer-phase2`·`batch_source`·`gmu_source`·`kv_source`·
+  수렴하면 `recipe.sh simulate` 가 `provenance=explorer-phase2`·`batch_source`·`gmu_source`·`kv_source`·
   `trial_provenance`(measured|mock|dry-run)를 **기계 각인**하고, 서빙 yaml 에 `max-num-seqs` = 산출 batch 를 emit 한다. 각인이
   닿는 자리: `--lockset-out <경로>` · 미지정이면 `--candidate` 가 캠페인 셀 lockset(`campaigns/<id>/cells/<cell>/lockset.json`)일 때
   그 파일 · 그 밖이면 `run_summary.json` 의 lockset 칸뿐이다. `campaign_init --cell-set` 은 lockset 의 `trial_provenance` 와
@@ -154,7 +154,7 @@ backend** 를 이전 전제로 헤더에 명시.
 - **overhead 실측 vs 유도(gotcha)**: consolidated 라인(`model weights take …; non_torch …; reserved for KV Cache …`)이 있으면
   직접 산출. **없는 빌드(예 0.22.2 NGC)는** `Model loading took X GiB memory`(weights)·`Available KV cache memory`(kv)·
   `--gpu-memory-utilization=X`(gmu)만 있으므로 overhead 를 **유도**: `overhead = gmu_trial × test_device_total − weights − kv_available`
-  (`recipe.py _enrich_overhead`).
+  (`recipe.sh _enrich_overhead`).
 - 루프의 free 변수 결정: **`kv_bytes = min(required_kv, max_safe_kv)`**. `required > safe` 면 max_model_len·batch 를 KV 로
   만족 불가 → **`vram_infeasible`(HITL)**.
 
@@ -164,7 +164,7 @@ gpt-oss류의 harmony/tiktoken o200k 인코딩은 이미지에 번들되지 않�
 런타임 fetch 는 금지**다(사전적재 원칙). → NAS 에 flat `tiktoken_cache/` 를 사전적재하고 컨테이너에 `/encodings:ro` 로 마운트
 (compose 호스트경로 변수 `TIKTOKEN_HOST_PATH`)한 뒤, **정본 env `TIKTOKEN_ENCODINGS_BASE=/encodings` ·
 `TIKTOKEN_RS_CACHE_DIR=/encodings`**(+`TIKTOKEN_ENABLED`)를 둘 다 마운트 경로로 가리킨다. 구식 `TIKTOKEN_ENCODINGS_PATH` 는 폐기 —
-정본 동기화 대상 3곳(`docker-compose.template.yaml` · `config.example.yaml` · `run_trial.py`)을 맞춘다.
+정본 동기화 대상 3곳(`docker-compose.template.yaml` · `config.example.yaml` · `run_trial.sh`)을 맞춘다.
 
 ## 5. MoE 백엔드 on sm_121a(GB10/Blackwell) 따름정리
 
