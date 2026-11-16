@@ -10,11 +10,5 @@ if [ ! -f "$BINARY" ] || [ ! -x "$BINARY" ]; then
   exit 2
 fi
 export REPEAT_AXIS_REPO_ROOT="${REPEAT_AXIS_REPO_ROOT:-$REPO}"
-# A caller-selected adapter is explicit legacy intent; empty keeps the old default meaning.
-if [[ -n "${REPEAT_AXIS_CAMPAIGN_ADAPTER:-}" ]]; then
-  export REPEAT_AXIS_CAMPAIGN_ADAPTER
-else
-  unset REPEAT_AXIS_CAMPAIGN_ADAPTER
-fi
-export REPEAT_AXIS_COMPAT_ADAPTER="${REPEAT_AXIS_COMPAT_ADAPTER:-$SDIR/repeat_axis_owner_query.py}"
+# The campaign resolver is answered natively (no Python adapter or interpreter is configured or started).
 exec "$BINARY" "$@"

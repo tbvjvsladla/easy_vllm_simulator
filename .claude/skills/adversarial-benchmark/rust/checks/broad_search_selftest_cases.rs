@@ -721,38 +721,18 @@ fn a_missing_lockset_template_is_not_skipped() {
     scratch.assert_temporary_directory_removed();
 }
 
-// ── the PyYAML probe ─────────────────────────────────────────────────────────────
+// ── no interpreter probe ─────────────────────────────────────────────────────────
 
-fn real_python3() -> Option<PathBuf> {
-    std::env::split_paths(&std::env::var_os("PATH")?)
-        .map(|directory| directory.join("python3"))
-        .find(|candidate| candidate.is_file())
-}
-
-fn interpreter_has_yaml(python: &Path) -> bool {
-    Command::new(python)
-        .args(["-c", "import yaml"])
-        .output()
-        .expect("run python3")
-        .status
-        .success()
-}
-
-/// The interpreter says it has no PyYAML (an interpreter shim that fails only `-c "import yaml"`). The check then
-/// takes its "node without PyYAML" branch. If the real interpreter does have PyYAML the writer records the mismatch
-/// anyway, so that branch's expectation (no mismatch, a named gap) is false and the check must FAIL: absence that is
-/// not real is not accepted as a pass. If the real interpreter lacks PyYAML the branch is true and passes.
+/// The cell writer reads YAML natively, so the verifier no longer asks an interpreter whether it has PyYAML: even with a
+/// `python3` on `PATH` that fails everything, the mismatch branch is the one checked, and no `python3` is started.
 #[test]
-fn the_pyyaml_probe_decides_which_expectation_is_checked() {
-    let python = real_python3().expect("NOT_RUN: no python3 on PATH");
+fn no_interpreter_is_probed_and_the_mismatch_is_always_checked() {
     let scratch = Scratch::new("pyyaml-probe");
+    let marker = scratch.bin().join("python3-called");
     fake_tool(
         &scratch,
         "python3",
-        &format!(
-            "if [ \"$1\" = \"-c\" ] && [ \"$2\" = \"import yaml\" ]; then exit 1; fi\nexec {} \"$@\"",
-            python.display()
-        ),
+        &format!("printf called >> {}\nexit 1", marker.display()),
     );
     let path = std::env::join_paths(std::iter::once(scratch.bin()).chain(std::env::split_paths(
         &std::env::var_os("PATH").expect("PATH"),
@@ -768,27 +748,14 @@ fn the_pyyaml_probe_decides_which_expectation_is_checked() {
         },
     );
     let stdout = stdout_of(&output);
-    let absent_label =
-        "E (PyYAML 부재 노드) 불일치 대신 '대조 불가' 가 기재된다 — 일치로 접지 않는다";
     let present_label =
         "E 서빙 gmu 0.80 ≠ 선언 target_gmu 0.85 가 provenance_mismatch[] 에 기재된다";
     assert!(
-        !stdout.contains(present_label),
-        "the shim's answer selects the absent-PyYAML branch: {stdout}"
+        stdout.contains(&format!("  PASS {present_label}\n")),
+        "{stdout}"
     );
-    if interpreter_has_yaml(&python) {
-        assert!(
-            stdout.contains(&format!("  FAIL {absent_label}\n")),
-            "{stdout}"
-        );
-        assert_eq!(output.status.code(), Some(1));
-        assert!(stderr_of(&output).contains("E (PyYAML 부재 노드)"));
-    } else {
-        assert!(
-            stdout.contains(&format!("  PASS {absent_label}\n")),
-            "{stdout}"
-        );
-        assert_eq!(output.status.code(), Some(0));
-    }
+    assert!(!stdout.contains("PyYAML 부재"), "{stdout}");
+    assert_eq!(output.status.code(), Some(0), "{}", stderr_of(&output));
+    assert!(!marker.exists(), "no python3 was started");
     scratch.assert_temporary_directory_removed();
 }

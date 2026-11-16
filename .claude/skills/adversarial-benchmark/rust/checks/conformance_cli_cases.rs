@@ -112,7 +112,7 @@ fn a_missing_source_fails_the_existence_check_and_stops() {
     assert_eq!(output.status.code(), Some(1));
     assert_eq!(
         stdout_of(&output),
-        "PASS 파일 존재: sweep_bench.sh\nFAIL 파일 존재: render_report.sh\nPASS 파일 존재: publish_benchmark_record.sh\nPASS 파일 존재: lite_metrics_native.py\n\nfull ⊇ lite conformance: 3/4 FAIL\n"
+        "PASS 파일 존재: sweep_bench.sh\nFAIL 파일 존재: render_report.sh\nPASS 파일 존재: publish_benchmark_record.sh\nPASS 파일 존재: lite_metrics_api.sh\n\nfull ⊇ lite conformance: 3/4 FAIL\n"
     );
 }
 

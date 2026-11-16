@@ -46,13 +46,11 @@ PARSE_GUIDELLM_BIN="$CRATE/target/release/parse_guidellm" \
 REPEAT_AXIS_BIN="$CRATE/target/release/repeat_axis" \
   REPEAT_AXIS_API_BIN="$CRATE/target/release/repeat_axis_api" \
   REPEAT_AXIS_REPO_ROOT="$REPO" \
-  REPEAT_AXIS_COMPAT_ADAPTER="$SDIR/repeat_axis_owner_query.py" \
   bash "$SDIR/repeat_axis.sh" --self-test
 BENCH_PRESET_BIN="$CRATE/target/release/bench_preset" \
   BENCH_PRESET_API_BIN="$CRATE/target/release/bench_preset_api" \
   BENCH_PRESET_REPO_ROOT="$REPO" \
   BENCH_PRESET_SKILL_DIR="$SDIR/.." \
-  REPEAT_AXIS_COMPAT_ADAPTER="$SDIR/repeat_axis_owner_query.py" \
   BENCH_VERIFY_REPO_ROOT="$REPO" bash "$SDIR/selftest_bench_preset.sh"
 LITE_METRICS_API_BIN="$CRATE/target/release/lite_metrics_api" \
   LITE_METRICS_FIXTURE="$SDIR/../fixtures/lite_raw_d1_connection_refused.json" \

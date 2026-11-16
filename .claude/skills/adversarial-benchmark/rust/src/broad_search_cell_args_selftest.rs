@@ -43,15 +43,12 @@ pub const PROGRAM: &str = "selftest_broad_search_cell_args";
 /// The deployed files the checkout needs, at their repository-relative paths. `broad_search.sh` and what `init` and
 /// `cell` call after it: the cell classifier and the parser/verdict chain, the repeat axis and the measurement
 /// preset (init takes the repeat count default from the preset), and the campaign owner.
-pub(crate) const COPIES: [&str; 37] = [
+pub(crate) const COPIES: [&str; 29] = [
     ".claude/skills/adversarial-benchmark/scripts/classify_cell.sh",
     ".claude/skills/adversarial-benchmark/scripts/classify_cell_api.sh",
-    ".claude/skills/adversarial-benchmark/scripts/classify_cell_native.py",
-    ".claude/skills/adversarial-benchmark/scripts/classify_cell_role_query.py",
     ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell",
     ".claude/skills/adversarial-benchmark/rust/target/release/classify_cell_api",
     ".claude/skills/adversarial-benchmark/scripts/parse_guidellm.sh",
-    ".claude/skills/adversarial-benchmark/scripts/parse_guidellm_native.py",
     ".claude/skills/adversarial-benchmark/rust/target/release/parse_guidellm",
     ".claude/skills/adversarial-benchmark/rust/target/release/roofline",
     ".claude/skills/adversarial-benchmark/rust/target/release/verdict_rule",
@@ -60,16 +57,11 @@ pub(crate) const COPIES: [&str; 37] = [
     ".claude/skills/adversarial-benchmark/rust/target/release/bench_shell",
     ".claude/skills/adversarial-benchmark/scripts/sweep_stop.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/sweep_stop",
-    ".claude/skills/adversarial-benchmark/scripts/classify_cell.py",
-    ".claude/skills/adversarial-benchmark/scripts/repeat_axis.py",
     ".claude/skills/adversarial-benchmark/scripts/repeat_axis.sh",
     ".claude/skills/adversarial-benchmark/scripts/repeat_axis_api.sh",
-    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_native.py",
-    ".claude/skills/adversarial-benchmark/scripts/repeat_axis_owner_query.py",
     ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis",
     ".claude/skills/adversarial-benchmark/rust/target/release/repeat_axis_api",
     // Measurement preset (plan_26101011): init takes the default repeat count from the preset.
-    ".claude/skills/adversarial-benchmark/scripts/bench_preset.py",
     ".claude/skills/adversarial-benchmark/scripts/bench_preset.sh",
     ".claude/skills/adversarial-benchmark/scripts/bench_preset_api.sh",
     ".claude/skills/adversarial-benchmark/rust/target/release/bench_preset",

@@ -56,21 +56,16 @@ const CALLERS: [&str; 6] = [
 ];
 /// The resolver's own scripts, copied with the callers from the scripts directory (the retained reference
 /// implementation and the two launchers).
-const RESOLVER_SCRIPTS: [&str; 3] = [
-    "resolve_topology.py",
+const RESOLVER_SCRIPTS: [&str; 2] = [
     "resolve_topology.sh",
     "resolve_topology_api.sh",
 ];
 /// The scripts of the tools the callers reach after the resolver (repeat axis, measurement presets), copied byte for
 /// byte from the repository root's scripts directory.
-const DEPENDENCY_SCRIPTS: [&str; 9] = [
+const DEPENDENCY_SCRIPTS: [&str; 5] = [
     "bench_shell.sh",
-    "repeat_axis.py",
-    "bench_preset.py",
     "repeat_axis.sh",
     "repeat_axis_api.sh",
-    "repeat_axis_native.py",
-    "repeat_axis_owner_query.py",
     "bench_preset.sh",
     "bench_preset_api.sh",
 ];
@@ -198,6 +193,11 @@ impl SelfTestSources {
 
 fn path_text(path: &Path) -> PyStr {
     PyStr::from_surrogateescape(path.as_os_str().as_bytes())
+}
+
+/// `text` as one single-quoted shell word (a `'` inside is closed, escaped and reopened).
+fn shell_quote(text: &str) -> String {
+    format!("'{}'", text.replace('\'', "'\\''"))
 }
 
 fn path_value(path: &Path) -> PyValue {
@@ -746,17 +746,18 @@ fn build_caller_checkout(
     let marker = temp.join("mc_argv.txt");
     // The Flag gate owner of run_bench and lite_bench records its argv (a test-plane stub) and answers "not issued"
     // (3), so both scripts stop at exit 4 and the resolved topology is seen at the gate.
+    // The owner file is only the presence marker the callers test; the launcher stub (shell, no Python) answers.
     write_file(
         &root.join(".claude/skills/terraforming_node/scripts/manifest_contract.py"),
-        &format!(
-            "import sys\nopen({}, 'a').write(' '.join(sys.argv[1:]) + '\\n')\nsys.exit(3)\n",
-            path_text(&marker).repr()
-        ),
+        "# test-plane presence marker of the Flag gate owner (never executed)\n",
         None,
     )?;
     write_file(
         &root.join(".claude/skills/terraforming_node/scripts/manifest_contract.sh"),
-        "#!/bin/bash\n[ \"${MANIFEST_CONTRACT_VALIDATE_ONLY:-}\" = 1 ] && exit 0\nexec python3 \"$(dirname \"${BASH_SOURCE[0]}\")/manifest_contract.py\" \"$@\"\n",
+        &format!(
+            "#!/bin/bash\n[ \"${{MANIFEST_CONTRACT_VALIDATE_ONLY:-}}\" = 1 ] && exit 0\nprintf '%s\\n' \"$*\" >> {}\nexit 3\n",
+            shell_quote(&path_text(&marker).to_utf8().unwrap_or_default())
+        ),
         Some(0o755),
     )?;
     // The probes execute their own deployed files, whatever the environment of this run substitutes.

@@ -1975,7 +1975,8 @@ fn read_lite_raw(ctx: &Ctx, raw_path: &str) -> R<(Option<String>, PyValue, Strin
         return refuse(format!("--lite-raw 를 JSON 객체로 읽을 수 없다: {raw_path}"));
     };
     let measured = dict_of(&raw_value).and_then(|d| d.get("measured_utc").cloned()).unwrap_or(PyValue::None);
-    let owner = ctx.root.join(".claude/skills/adversarial-benchmark/scripts/lite_metrics_native.py");
+    // The lite verdict owner is installed when its launcher is (the reading rule itself is native: read_lite_verdict).
+    let owner = ctx.root.join(".claude/skills/adversarial-benchmark/scripts/lite_metrics.sh");
     if !owner.is_file() {
         return Ok((
             None,

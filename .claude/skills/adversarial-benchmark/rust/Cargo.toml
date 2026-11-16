@@ -256,6 +256,14 @@ path = "src/bin/selftest_sweep_meta.rs"
 name = "selftest_sweep_repeats"
 path = "src/bin/selftest_sweep_repeats.rs"
 
+[[bin]]
+name = "selftest_load_shim"
+path = "src/bin/selftest_load_shim.rs"
+
+[[bin]]
+name = "selftest_fixture_docker"
+path = "src/bin/selftest_fixture_docker.rs"
+
 [[test]]
 name = "scan_node_p1_original_cases"
 path = "checks/scan_node_p1_original_cases.rs"

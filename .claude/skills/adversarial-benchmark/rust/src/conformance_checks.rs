@@ -86,12 +86,12 @@ pub fn main(context: &Context, console: &mut dyn Console) -> Result<i32, Raised>
     let sweep = source(context, "sweep_bench.sh")?;
     let render = source(context, "render_report.sh")?;
     let certificate = source(context, "publish_benchmark_record.sh")?;
-    let lite_adapter = source(context, "lite_metrics_native.py")?;
+    let lite_adapter = source(context, "lite_metrics_api.sh")?;
     for (label, text) in [
         ("sweep_bench.sh", &sweep),
         ("render_report.sh", &render),
         ("publish_benchmark_record.sh", &certificate),
-        ("lite_metrics_native.py", &lite_adapter),
+        ("lite_metrics_api.sh", &lite_adapter),
     ] {
         report.check(&format!("파일 존재: {label}"), text.is_some(), "");
     }
@@ -153,9 +153,10 @@ pub fn main(context: &Context, console: &mut dyn Console) -> Result<i32, Raised>
     // E② wiring: every hop from the ② signal to the cell state and the explorer cap exists, and each hop reads the
     // verdict through the owner's rule (`read_lite_verdict`) instead of judging the value again.
     let broad_search = source(context, "broad_search.sh")?.unwrap_or_default();
-    let mut classifier = source(context, "classify_cell_native.py")?.unwrap_or_default();
+    // The classifier's call path is its launcher (the former Python adapter is no longer a caller's path).
+    let mut classifier = source(context, "classify_cell.sh")?.unwrap_or_default();
     report.check(
-        "E② native 분류기 Python 호출 경로가 존재한다",
+        "E② native 분류기 런처(classify_cell.sh)가 존재한다",
         !classifier.is_empty(),
         "",
     );
