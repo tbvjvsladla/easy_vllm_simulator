@@ -1,0 +1,4 @@
+{
+ "exit_code": 0,
+ "stdout": "{\n  \"failed_count\": 0,\n  \"failures\": [],\n  \"predicate_count\": 75,\n  \"schema_version\": 1,\n  \"verdict\": \"PASS\"\n}\n"
+}

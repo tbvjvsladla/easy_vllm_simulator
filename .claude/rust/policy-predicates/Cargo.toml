@@ -1,0 +1,38 @@
+[package]
+name = "policy-predicates"
+version = "0.1.0"
+edition = "2021"
+description = "Rust port of .claude/policies/predicates/{claim_predicates,companion_predicate,runtime_patch_predicate}.py: one predicate_<POLICY>_C<n> per registry clause plus the two companion unittest suites; clauses whose original drives another bundle's Python in-process are reported NOT_PORTED and fail closed"
+publish = false
+# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
+autotests = false
+
+[lib]
+name = "policy_predicates"
+path = "src/lib.rs"
+
+[[bin]]
+name = "claim_predicates"
+path = "src/bin/claim_predicates.rs"
+
+[[bin]]
+name = "companion_predicate"
+path = "src/bin/companion_predicate.rs"
+
+[[bin]]
+name = "runtime_patch_predicate"
+path = "src/bin/runtime_patch_predicate.rs"
+
+[[test]]
+name = "predicate_checks"
+path = "checks/predicate_checks.rs"
+
+[dependencies]
+# Python-compatible JSON reader (json.loads of registry.yaml / claim_bindings.json / settings templates).
+agent-runtime-support = { path = "../runtime-support" }
+# Python `re` semantics (lookbehind in the original patterns).
+fancy-regex = "=0.19.2"
+# hashlib.sha256 of the stamped patch bytes.
+sha2 = "=0.10.9"
+# The topology_parity library (role_contract::topology), the Rust owner of the four-way parity predicate.
+role-contract = { path = "../role-contract" }

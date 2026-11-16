@@ -1,0 +1,67 @@
+{
+ "M01-apply-default": {
+  "clause": "HOST_SAFETY_LAYERED_DEFENSE.C2",
+  "error": "PredicateFailure: APPLY must default to 0 (dry-run) unless --apply is passed"
+ },
+ "M02-watchdog-pull": {
+  "clause": "HOST_SAFETY_LAYERED_DEFENSE.C5",
+  "error": "PredicateFailure: mem_watchdog.sh must never itself trigger 'docker pull'"
+ },
+ "M03-sub-dirty-stderr": {
+  "clause": "SUB_SYNC_DIRTY_AUTOSAVE.C1",
+  "error": "PredicateFailure: sub_dirty must wrap exactly `git status --porcelain` for remote execution"
+ },
+ "M04-band2-envs-wildcard": {
+  "clause": "MODEL_TRIPLET_NO_SUB_PROPAGATION.C3",
+  "error": "PredicateFailure: predicate requirement failed at original line 676"
+ },
+ "M05-signing-key": {
+  "clause": "A2A_IDENTITY_PROOF_FAIL_CLOSED.C4",
+  "error": "PredicateFailure: renderer must not discover, render, or deliver retired signing/trust runtime material"
+ },
+ "M06-fetch-mentions-git": {
+  "clause": "SUB_GIT_LOCAL_ONLY.C3",
+  "error": "PredicateFailure: the sole sub-to-main upward channel must never mention git -- recovery is doc-rsync only"
+ },
+ "M07-purge-horizon": {
+  "clause": "HOST_SAFETY_LAYERED_DEFENSE.C9",
+  "error": "PredicateFailure: the disappearance probe must sample t=0..5 — six checkpoints for a 5s horizon"
+ },
+ "M08-sync-branches-tag": {
+  "clause": "LAST_GOOD_ROLLBACK_ANCHOR.C2",
+  "error": "PredicateFailure: predicate requirement failed at original line 970"
+ },
+ "M09-origin-confirm-moved": {
+  "clause": "SUB_GIT_LOCAL_ONLY.C1",
+  "error": "ValueError: substring not found"
+ },
+ "M10-hf-token-baked": {
+  "exit_code": 1,
+  "failed": [
+   "test_manifest_template_hf_token_field_is_a_pointer_not_a_raw_value"
+  ],
+  "unit": "companion_predicate"
+ },
+ "M11-push-tags": {
+  "exit_code": 1,
+  "failed": [
+   "test_hint_push_sends_exactly_one_tag_refspec"
+  ],
+  "unit": "companion_predicate"
+ },
+ "M12-sync-branches-tag-companion": {
+  "exit_code": 1,
+  "failed": [
+   "test_sync_branches_never_tags_or_hard_resets"
+  ],
+  "unit": "companion_predicate"
+ },
+ "M13-no-sidecar-transfer": {
+  "exit_code": 1,
+  "failed": [
+   "test_sync_delivery_calls_production_validator_and_transfers_sidecar",
+   "test_validator_stamps_and_rejects_every_stale_dimension"
+  ],
+  "unit": "runtime_patch_predicate"
+ }
+}
