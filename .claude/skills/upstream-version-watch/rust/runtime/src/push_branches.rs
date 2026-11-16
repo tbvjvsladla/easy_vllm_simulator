@@ -70,6 +70,11 @@ pub fn run(args: &[String]) -> i32 {
             "--self-test" => {
                 return crate::push_branches_selftest::run();
             }
+            "-h" | "--help" => {
+                // the original's argparse page, captured from it (golden text)
+                print!("{}", include_str!("help/push_branches.txt"));
+                return 0;
+            }
             "--dry-run" => dry = true,
             "--repo" | "--remote" | "--branch" if i + 1 < args.len() => {
                 let v = args[i + 1].clone();

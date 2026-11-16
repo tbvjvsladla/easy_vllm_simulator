@@ -967,15 +967,16 @@ def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
         #   env 층 판정을 얹은 렌더러(`render_dockerfile.py` — 스모크 A7 이 부르지만 이 검증기는 `--help` 만 불렀다)의
         #   자체검사를 배선한다. 호출자 없는 자체검사는 L1(산문)이다(위 선례). 둘 다 임시 디렉터리만 쓴다(docker·서브 불요).
         #   slave_forward 는 "스모크가 서브에 넘기는 목록 = 발행 페이로드 sub_recipe 의 목록"(AC8 — 같은 함수) 의 tripwire 를 든다.
-        _run("upstream_slave_forward_selftest", [sys.executable,
-             ".claude/skills/upstream-version-watch/scripts/slave_forward.py", "--self-test"], {0}),
-        _run("upstream_render_dockerfile_selftest", [sys.executable,
-             ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py", "--self-test"], {0}),
+        _run("upstream_slave_forward_selftest", ["bash",
+             ".claude/skills/upstream-version-watch/scripts/slave_forward.sh", "--self-test"], {0}),
+        _run("upstream_render_dockerfile_selftest", ["bash",
+             ".claude/skills/upstream-version-watch/scripts/render_dockerfile.sh", "--self-test"], {0}),
     ]
-    for filename in ("resolve_torch_pin.py", "resolve_ngc_tag.py", "resolve_build_track.py",
-                     "resolve_wheel.py", "render_dockerfile.py", "regen_requirements.py",
-                     "classify_failure.py", "check_smoke_model.py", "slave_forward.py"):
-        checks.append(_run(f"upstream_help:{filename}", [sys.executable,
+    # upstream-version-watch 진입점은 Rust 런처(.sh → 노드 빌드 ELF)다 — .py 원본을 부르지 않는다(2026-11-16 plan_26111615).
+    for filename in ("resolve_torch_pin.sh", "resolve_ngc_tag.sh", "resolve_build_track.sh",
+                     "resolve_wheel.sh", "render_dockerfile.sh", "regen_requirements.sh",
+                     "classify_failure.sh", "check_smoke_model.sh", "slave_forward.sh"):
+        checks.append(_run(f"upstream_help:{filename}", ["bash",
                            f".claude/skills/upstream-version-watch/scripts/{filename}", "--help"], {0}))
     # info-only(미테라포밍) 게이트 2건은 **조걜부**다: exit 4 는 Flag 미발급 환경에서만 발화하므로,
     # Flag 발급이 완료된 배포 레포에서는 구조적으로 통과할 수 없다(2026-07-30 F2 교정 — 두 검사는 본래
@@ -1176,19 +1177,19 @@ def verify(policy_as_of: str | None = None, now_utc=None) -> dict:
         # ── plan_26091108 하네스 교정 R1~R7 의 자체검사 (2026-09-11) ───────────────────────
         #   셋 다 **역채점**(직전 캠페인 실측 회귀)과 **음성대조**(가드를 깨뜨려 빨간불)를 품는다.
         #   음성대조 없는 교정은 완료로 치지 않는다 — 이 저장소의 반복 결함이다.
-        _run("upstream_budget_preflight_selftest", [sys.executable,
-             ".claude/skills/upstream-version-watch/scripts/budget_preflight.py", "--self-test"], {0}),
+        _run("upstream_budget_preflight_selftest", ["bash",
+             ".claude/skills/upstream-version-watch/scripts/budget_preflight.sh", "--self-test"], {0}),
         # ── 브랜치 동기화·서브 전파 기구 (2026-09-14 · plan_26091407 §9 ⑧-pre D2 S1~S7) ─────────────────
         #   `layer_ledger`·`push_branches` 의 자체검사와 종료 시퀀스 기구 전체에 **호출자가 0** 이었다 -- 그래서
         #   갈라짐 검사가 한 방향에서 구조적으로 울릴 수 없고(원장 부재), 서브 전파가 체크아웃과 다른 토폴로지
         #   통로로 특화헌법을 보낼 수 있었는데 아무 검사도 그것을 실행하지 않았다(호출자 없는 자체검사 = L1 산문).
         #   셋 다 격리 임시 저장소·임시 bare 원격·ssh shim 에서 돌고 음성대조(결함 재현 변이)를 품는다 -- 원격·서브 무관.
-        _run("upstream_layer_ledger_selftest", [sys.executable,
-             ".claude/skills/upstream-version-watch/scripts/layer_ledger.py", "--self-test"], {0}),
-        _run("upstream_push_branches_selftest", [sys.executable,
-             ".claude/skills/upstream-version-watch/scripts/push_branches.py", "--self-test"], {0}),
-        _run("upstream_branch_sync_mechanics_selftest", [sys.executable,
-             ".claude/skills/upstream-version-watch/scripts/selftest_branch_sync.py"], {0}),
+        _run("upstream_layer_ledger_selftest", ["bash",
+             ".claude/skills/upstream-version-watch/scripts/layer_ledger.sh", "--self-test"], {0}),
+        _run("upstream_push_branches_selftest", ["bash",
+             ".claude/skills/upstream-version-watch/scripts/push_branches.sh", "--self-test"], {0}),
+        _run("upstream_branch_sync_mechanics_selftest", ["bash",
+             ".claude/skills/upstream-version-watch/scripts/selftest_branch_sync.sh"], {0}),
         _run("recipe_preload_ram_gate_selftest", [sys.executable,
              ".claude/skills/vllm-recipe-explorer/scripts/preload_ram_gate.py", "--self-test"], {0}),
         _run("recipe_escalation_predicate_selftest", [sys.executable,

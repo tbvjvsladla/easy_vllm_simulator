@@ -60,7 +60,7 @@ done
 
 REPO="$(cd -- "${REPO:-$SELF_DIR/../../../..}" >/dev/null 2>&1 && pwd -P)"
 PARITY="$REPO/.claude/policies/runtime/topology_parity.sh"
-# 원장 호출은 Rust 런처(layer_ledger.sh)다. .py 는 sync_branches 의 판정기 동일성 대조·selftest 가 계속 쓰므로 남는다.
+# 원장 호출은 Rust 런처(layer_ledger.sh)다. sync_branches 의 판정기 동일성 대조도 런처+판정 규칙 소스(.rs)로 한다.
 LEDGER="$REPO/.claude/skills/upstream-version-watch/scripts/layer_ledger.sh"
 SYNC="$REPO/.claude/skills/upstream-version-watch/scripts/sync_branches.sh"
 SUBSYNC="$REPO/.claude/skills/upstream-version-watch/scripts/sync_to_sub.sh"
@@ -164,10 +164,12 @@ echo "[closing] ⑤ 동기화 — 반대 브랜치 워크트리에서 공통층�
 WT="$REPO/../$(basename "$REPO").wt-$OTHER"
 git -C "$REPO" worktree add -q "$WT" "$OTHER"
 # 자기 일관성 가드가 요구하는 순서: 스크립트만 먼저 당겨온 뒤 실행한다.
-# 갈라짐 판정기(layer_ledger.py)도 같은 이유로 함께 당긴다(⑧-pre D2 S1) -- 반대 브랜치 판본의 판정기는
-# 옛 규칙으로 판정하거나 모르는 인자로 죽고, sync_branches 는 그 경우 LEDGER_JUDGE_STALE 로 멈춘다.
+# 갈라짐 판정기(Rust 런처 layer_ledger.sh + 판정 규칙 소스 layer_ledger.rs)도 같은 이유로 함께 당긴다(⑧-pre D2 S1)
+# -- 반대 브랜치 판본의 판정기는 옛 규칙으로 판정하거나 모르는 인자로 죽고, sync_branches 는 그 경우 LEDGER_JUDGE_STALE
+# 로 멈춘다. ELF 는 워크트리에 없으므로 sync_branches 가 주 작업 트리(이 체크아웃 · $CUR)의 빌드를 쓴다.
 git -C "$WT" checkout "$CUR" -- .claude/skills/upstream-version-watch/scripts/sync_branches.sh \
-    .claude/skills/upstream-version-watch/scripts/layer_ledger.py
+    .claude/skills/upstream-version-watch/scripts/layer_ledger.sh \
+    .claude/skills/upstream-version-watch/rust/runtime/src/layer_ledger.rs
 
 # ── 승인 증거를 워크트리에 임시 배치한다 ──────────────────────────────────────────
 # 왜: `completion_gate authorize` 는 `--repo-root` **아래에서만** 증거를 해소한다(경로 탈출 차단).

@@ -5,6 +5,7 @@
 
 pub mod api;
 pub mod bench;
+pub mod branch_sync_selftest;
 pub mod budget_preflight;
 pub mod business;
 pub mod cli;

@@ -1,0 +1,10 @@
+usage: native_multinode_serve.py [-h] [--self-test] {up,down,client} ...
+
+native 2노드 Ray/vLLM 서빙 정문(up/down)
+
+positional arguments:
+  {up,down,client}
+
+options:
+  -h, --help        show this help message and exit
+  --self-test

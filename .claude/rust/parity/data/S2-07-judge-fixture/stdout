@@ -1,0 +1,161 @@
+{
+  "schema_version": 1,
+  "from_ref": "v0.27.0",
+  "to_ref": "v0.27.1",
+  "from_sha": "4bdc8a788d2e2ce9165d552b3d4d8b72604626bf",
+  "to_sha": "6e448d0ea9bf3d88d898b65449ca6dc2aec170ac",
+  "provenance": "measured",
+  "delta_source": "github-compare-api",
+  "delta_source_detail": "https://api.github.com/repos/vllm-project/vllm/compare/v0.27.0...v0.27.1",
+  "repo": "vllm-project/vllm",
+  "generated_kst": "26082212",
+  "judge": "judge_version_delta.py (P1:D0+D1 · P2:D2)",
+  "ahead_by": 4,
+  "total_commits": 4,
+  "files": [
+    {
+      "path": ".buildkite/release-pipeline.yaml",
+      "status": "modified",
+      "status_raw": "modified",
+      "additions": 10,
+      "deletions": 2,
+      "hunks": 1,
+      "plane": "CI",
+      "plane_source": "closed-enum",
+      "plane_rule": ".buildkite/**"
+    },
+    {
+      "path": ".buildkite/scripts/publish-release-images.sh",
+      "status": "modified",
+      "status_raw": "modified",
+      "additions": 168,
+      "deletions": 139,
+      "hunks": 3,
+      "plane": "CI",
+      "plane_source": "closed-enum",
+      "plane_rule": ".buildkite/**"
+    },
+    {
+      "path": "docker/Dockerfile",
+      "status": "modified",
+      "status_raw": "modified",
+      "additions": 5,
+      "deletions": 1,
+      "hunks": 2,
+      "plane": "UPSTREAM_OWN_DOCKER",
+      "plane_source": "closed-enum",
+      "plane_rule": "docker/**"
+    },
+    {
+      "path": "vllm/model_executor/models/qwen3_dspark.py",
+      "status": "modified",
+      "status_raw": "modified",
+      "additions": 4,
+      "deletions": 0,
+      "hunks": 3,
+      "plane": "RUNTIME_PY",
+      "plane_source": "closed-enum",
+      "plane_rule": "vllm/**"
+    }
+  ],
+  "axis_A_build_input": {
+    "verdict": "NO_IMPACT",
+    "delta": [],
+    "checked": [
+      "pyproject.toml",
+      "setup.py",
+      "use_existing_torch.py",
+      "CMakeLists.txt",
+      "MANIFEST.in",
+      "build_rust.sh",
+      "build_vllm_ppc64le.sh",
+      "rust-toolchain.toml",
+      "cmake/**",
+      "csrc/**",
+      "requirements/**",
+      "rust/**",
+      "vllm/**.cu",
+      "vllm/**.cuh",
+      "vllm/**.cpp",
+      "vllm/**.cc",
+      "vllm/**.h",
+      "vllm/**.hpp",
+      "vllm/**.rs"
+    ],
+    "checked_source": "closed-enum(PLANE_RULES BUILD_INPUT)",
+    "unknown_plane_paths": [],
+    "note": "상류 delta 중 우리 빌드입력 평면에 드는 파일 없음."
+  },
+  "axis_B_port_scope": {
+    "verdict": "IMPACT",
+    "applicable": true,
+    "scope_files": 108,
+    "scope_source": "PROVENANCE.files",
+    "scope_path": null,
+    "scope_origin": "git:2b8f881:output/multi/build_patches_src/PROVENANCE.json (R2 자체이식 @ v0.27.0 — 재파생 전 상태)",
+    "scope_base_tag": "v0.27.0",
+    "scope_base_sha": "4bdc8a788d2e2ce9165d552b3d4d8b72604626bf",
+    "overlap": [
+      "vllm/model_executor/models/qwen3_dspark.py"
+    ],
+    "probes": [
+      {
+        "path": "vllm/model_executor/models/qwen3_dspark.py",
+        "bundle_sha": "fba72299c44e3320d0ee6a61999c6131150e7adde4ace600686aea91c538028d",
+        "bundle_sha_source": "provenance-declared",
+        "upstream_to_sha": "08adb0f0ce49e08f05b380388ec411a4a191d2ed644e48cedde7796571e028a2",
+        "upstream_from_sha": "2edf9135043b9b4506131638d729ee0e7487b6acf538d17ca6e3625137d0f192",
+        "upstream_sha_source": "fixture-recorded",
+        "verdict": "WOULD_REVERT",
+        "reason": "번들 사본이 상류 @to_ref 와 다르고 상류가 from→to 사이에 변했다 → 이식본을 그대로 얹으면 그 변경이 조용히 되돌아간다",
+        "bundle_equals_upstream_from": false,
+        "bundle_equals_upstream_to": false,
+        "bundle_base_tag": "v0.27.0",
+        "bundle_base_sha": "4bdc8a788d2e2ce9165d552b3d4d8b72604626bf",
+        "bundle_base_source": "PROVENANCE.source (선언 · 미검증)",
+        "bundle_base_is_to_ref": false
+      }
+    ],
+    "silent_revert_risk": [
+      {
+        "path": "vllm/model_executor/models/qwen3_dspark.py",
+        "bundle_sha": "fba72299c44e3320d0ee6a61999c6131150e7adde4ace600686aea91c538028d",
+        "bundle_sha_source": "provenance-declared",
+        "upstream_to_sha": "08adb0f0ce49e08f05b380388ec411a4a191d2ed644e48cedde7796571e028a2",
+        "upstream_from_sha": "2edf9135043b9b4506131638d729ee0e7487b6acf538d17ca6e3625137d0f192",
+        "upstream_sha_source": "fixture-recorded",
+        "verdict": "WOULD_REVERT",
+        "reason": "번들 사본이 상류 @to_ref 와 다르고 상류가 from→to 사이에 변했다 → 이식본을 그대로 얹으면 그 변경이 조용히 되돌아간다",
+        "bundle_equals_upstream_from": false,
+        "bundle_equals_upstream_to": false,
+        "bundle_base_tag": "v0.27.0",
+        "bundle_base_sha": "4bdc8a788d2e2ce9165d552b3d4d8b72604626bf",
+        "bundle_base_source": "PROVENANCE.source (선언 · 미검증)",
+        "bundle_base_is_to_ref": false
+      }
+    ],
+    "note": "이식 스코프와 델타가 겹친다 → `regen_build_patches_src.py derive` 재파생 필수. 재파생 후 silent_revert_risk == [] 가 될 때까지 진행 금지(계획 §5.3)."
+  },
+  "axis_C_model_path": {
+    "verdict": "NOT_IMPLEMENTED",
+    "implemented": false,
+    "excluded_from_global": true,
+    "note": "P3(D3 MCPS 폐포 + D4 심볼 교차) 미구현 — 별도 승인 대기(plan_26082112 §6 P3, advisory-only 착수 예정). **C축 미구현은 '기능 무영향'을 뜻하지 않는다**; 그 판정은 이 attestation 밖에 있다."
+  },
+  "axes_in_global": [
+    "axis_A_build_input",
+    "axis_B_port_scope"
+  ],
+  "verdict": "IMPACT",
+  "unknown": [],
+  "limitations": [
+    "C축(모델 코드경로 도달성) 미구현 — 전역 verdict 에 기능 무영향 근거는 들어있지 않다.",
+    "정적 판정은 증명이 아니다(E3 Hyrum · E9 정적 불건전성) — 스모크가 최종 중재자다.",
+    "NO_IMPACT 는 '모든 구현된 축이 완전 커버리지로 계산됨' 을 뜻하며 스모크 면제가 아니다."
+  ],
+  "replay_of": {
+    "fixture": "vLLM v0.27.0 → v0.27.1 · judge_version_delta 골든",
+    "recorded_kst": "26082212",
+    "note": "이 실행은 fixture 기록 사실을 재생한 것이다(재측정 아님)."
+  }
+}

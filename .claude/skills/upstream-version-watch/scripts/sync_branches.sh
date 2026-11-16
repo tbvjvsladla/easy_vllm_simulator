@@ -464,22 +464,41 @@ fi
 #   diverged 였다(안내대로 했는데 막히는 교착).
 #
 # ★ 판정기도 정본 버전이어야 한다 -- 아래 자기 일관성 가드와 **같은 논리**다. 반대 브랜치 워크트리의
-#   `layer_ledger.py` 는 반대 브랜치 판본이라, 판정 규칙이 바뀐 회차에는 옛 규칙(또는 모르는 인자로 죽는
-#   판정기)이 판정한다. 그래서 출발 브랜치와 바이트가 다르면 판정 전에 멈추고 당겨오라고 말한다
-#   (종료 시퀀스는 sync_branches.sh 와 함께 미리 당겨온다 · RED ① 은 출발 브랜치와 바이트 동일한 경로를 뺀다).
-_LEDGER_REL=".claude/skills/upstream-version-watch/scripts/layer_ledger.py"
+#   판정기(Rust 런처 `layer_ledger.sh` + 판정 규칙 소스 `rust/runtime/src/layer_ledger.rs`)는 반대 브랜치 판본이라,
+#   판정 규칙이 바뀐 회차에는 옛 규칙(또는 모르는 인자로 죽는 판정기)이 판정한다. 그래서 출발 브랜치와 바이트가
+#   다르면 판정 전에 멈추고 당겨오라고 말한다(종료 시퀀스는 sync_branches.sh 와 함께 미리 당겨온다 · RED ① 은
+#   출발 브랜치와 바이트 동일한 경로를 뺀다). ELF 는 비추적 빌드 산출물이라 inline_json 과 같은 규칙으로 찾는다:
+#   호출자의 EASY_VLLM_UPSTREAM_RUNTIME_ROOT → 이 체크아웃의 runtime → 같은 저장소 주 작업 트리의 runtime(정본 체크아웃).
+#   어디에도 없으면 판정하지 못한 것이다(COMMON_LAYER_UNJUDGED · Python 폴백 ✗).
+_LEDGER_REL=".claude/skills/upstream-version-watch/scripts/layer_ledger.sh"
+_LEDGER_SRC_REL=".claude/skills/upstream-version-watch/rust/runtime/src/layer_ledger.rs"
+_LEDGER_RT_REL=".claude/skills/upstream-version-watch/rust/runtime"
 _LEDGER="$REPO_ROOT/$_LEDGER_REL"
-if git cat-file -e "$SRC_BRANCH:$_LEDGER_REL" 2>/dev/null; then
-    if [ ! -f "$_LEDGER" ] || [ "$(git hash-object -- "$_LEDGER")" != "$(git rev-parse "$SRC_BRANCH:$_LEDGER_REL")" ]; then
+if git cat-file -e "$SRC_BRANCH:$_LEDGER_SRC_REL" 2>/dev/null && git cat-file -e "$SRC_BRANCH:$_LEDGER_REL" 2>/dev/null; then
+    _LEDGER_STALE=()
+    for _lr in "$_LEDGER_REL" "$_LEDGER_SRC_REL"; do
+        if [ ! -f "$REPO_ROOT/$_lr" ] || [ "$(git hash-object -- "$REPO_ROOT/$_lr")" != "$(git rev-parse "$SRC_BRANCH:$_lr")" ]; then
+            _LEDGER_STALE+=("$_lr")
+        fi
+    done
+    if [ "${#_LEDGER_STALE[@]}" -gt 0 ]; then
         echo "[sync-branches] FAIL(LEDGER_JUDGE_STALE): 갈라짐 판정기가 정본($SRC_BRANCH)과 다릅니다 — 옛 규칙으로 판정하지 않습니다." >&2
         echo "[sync-branches]   먼저 판정기만 당겨온 뒤 다시 실행하세요(RED ① 은 정본과 바이트 동일한 경로를 막지 않습니다):" >&2
-        echo "[sync-branches]     git checkout $SRC_BRANCH -- $_LEDGER_REL" >&2
+        echo "[sync-branches]     git checkout $SRC_BRANCH -- ${_LEDGER_STALE[*]}" >&2
         exit 3
+    fi
+    _LEDGER_ENV=()
+    if [ "${EASY_VLLM_UPSTREAM_RUNTIME_ROOT+set}" != set ] && [ ! -x "$REPO_ROOT/$_LEDGER_RT_REL/target/release/layer_ledger" ]; then
+        _LL_COMMON="$(git -C "$REPO_ROOT" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)"
+        _LL_MAIN_RT="$(dirname -- "${_LL_COMMON:-/nonexistent/.git}")/$_LEDGER_RT_REL"
+        if [ -n "$_LL_COMMON" ] && [ -x "$_LL_MAIN_RT/target/release/layer_ledger" ]; then
+            _LEDGER_ENV=("EASY_VLLM_UPSTREAM_RUNTIME_ROOT=$_LL_MAIN_RT")
+        fi
     fi
     _DIV_RC=0
     # stdout 은 JSON 계약이다 -- 진단(stderr)을 섞으면 경고 한 줄이 판정 불가를 만든다. 진단은 따로 받아 멈출 때 보인다.
     _DIV_ERR="$(mktemp)"
-    _DIV_JSON="$(python3 "$_LEDGER" divergence --repo "$REPO_ROOT" --branch "$DST_BRANCH" \
+    _DIV_JSON="$(env "${_LEDGER_ENV[@]}" bash "$_LEDGER" divergence --repo "$REPO_ROOT" --branch "$DST_BRANCH" \
                      --counterpart "$SRC_BRANCH" --ledger-ref "$SRC_BRANCH" 2>"$_DIV_ERR")" || _DIV_RC=$?
     _DIV_STDERR="$(head -c 4000 "$_DIV_ERR")"; rm -f "$_DIV_ERR"
     _DIV_SUMMARY="$(printf '%s' "$_DIV_JSON" | "$IJ" divergence-summary 2>/dev/null || printf 'unreadable\t-\t-\t-\t0')"

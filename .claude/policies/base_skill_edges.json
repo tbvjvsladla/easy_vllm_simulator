@@ -466,9 +466,9 @@
     },
     {
       "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/scripts/validate_runtime_patch.py",
+      "callee": "upstream-version-watch/scripts/validate_runtime_patch.sh",
       "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1) · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
     },
     {
       "caller": ".claude/policies/predicates/claim_predicates.py",
@@ -1366,9 +1366,9 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/scripts/budget_preflight.py",
+      "callee": "upstream-version-watch/scripts/budget_preflight.sh",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
@@ -1378,27 +1378,27 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/scripts/layer_ledger.py",
+      "callee": "upstream-version-watch/scripts/layer_ledger.sh",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/scripts/push_branches.py",
+      "callee": "upstream-version-watch/scripts/push_branches.sh",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/scripts/render_dockerfile.py",
+      "callee": "upstream-version-watch/scripts/render_dockerfile.sh",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/scripts/selftest_branch_sync.py",
+      "callee": "upstream-version-watch/scripts/selftest_branch_sync.sh",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
@@ -1408,9 +1408,9 @@
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/scripts/slave_forward.py",
+      "callee": "upstream-version-watch/scripts/slave_forward.sh",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
     },
     {
       "caller": ".claude/policies/runtime/verify_distribution.py",
@@ -1735,6 +1735,12 @@
       "callee": "adversarial-benchmark/rust/target/release/bench_shell",
       "phase": "verification_plane",
       "reason": "TERRAFORM_FLAG_GATE.C2가 해당 노드에서 빌드된 실제 bench_shell 실행파일을 사본 런처에 명시 결속한다. 부재는 검사 실패이며 대역·Python 대체가 아니다(R45)."
+    },
+    {
+      "caller": ".claude/policies/predicates/runtime_patch_predicate.py",
+      "callee": "upstream-version-watch/scripts/validate_runtime_patch.sh",
+      "phase": "verification_plane",
+      "reason": "런타임 패치 검증기 실행(Rust 런처 · 2026-11-16 plan_26111615)"
     }
   ]
 }

@@ -33,27 +33,27 @@
 
 ## 1. 해소 (결정론적 — `scripts/`)
 
-대상 vLLM 버전에 대해 아래를 순서대로 실행해 사실을 수집한다(`docker`·`python3`+`packaging` 필요).
+대상 vLLM 버전에 대해 아래를 순서대로 실행해 사실을 수집한다(`docker` 필요 · 진입점은 Rust 런처 `scripts/*.sh` → 노드 빌드 ELF, Python 폴백 없음).
 
 ```bash
 V=<target_vllm_version>; ARCH=$(uname -m)          # aarch64 | x86_64 (두 해소기의 --arch 기본값도 이 호스트다)
 # ① vLLM → torch 핀
-python3 scripts/resolve_torch_pin.py "$V"
+bash scripts/resolve_torch_pin.sh "$V"
 # ② torch 핀 → 매칭 NGC 태그 (PYTORCH_BUILD_VERSION 접두어 매칭, 최신 우선)
-python3 scripts/resolve_ngc_tag.py <torch_prefix> --start <ngc_probe_start>   # --arch 기본 = 호스트(arm64|amd64)
+bash scripts/resolve_ngc_tag.sh <torch_prefix> --start <ngc_probe_start>   # --arch 기본 = 호스트(arm64|amd64)
 # ③ wheel URL (GitHub Release 자산 실재 검증, 404 방지)
-python3 scripts/resolve_wheel.py "$V" --arch "$ARCH"          # cuda 미지정 시 자동
+bash scripts/resolve_wheel.sh "$V" --arch "$ARCH"          # cuda 미지정 시 자동
 # ④ requirements 재생성 — wheel METADATA(Requires-Dist) 기준 (권위 소스, requirements/*.txt 아님)
 bash scripts/regen_requirements.sh --from-wheel-url <wheel URL> -o requirements.txt   # 빌드 전(호스트)
-# (컨테이너 내부 정합: python3 scripts/regen_requirements.py --use-installed -o requirements.txt)
+# (컨테이너 내부 정합: python3 scripts/regen_requirements.py --use-installed -o requirements.txt — 컨테이너 안 평면 · 하네스 호출자 없음)
 # 일반 컨테이너/venv의 설치 검색은 기존 Python 진입점을 사용한다.
 # Rust --use-installed는 선언된 PYTHONPATH와 CPython 3.12의 격리 검색 프로필 범위다.
 # ⑤ no-download NAS 체크 (스모크 전): 모델 부재면 비0+중단·보고. --topology 필수(산출물 통로 output/<topology>/)
-python3 scripts/check_smoke_model.py <config_name> --topology <single|multi> --repo .
+bash scripts/check_smoke_model.sh <config_name> --topology <single|multi> --repo .
 # ⑥ 실패 분류 (빌드/스모크 실패 시): requirements-fixable(0)/source-build-class(1)/unknown(2)
 docker logs <c> 2>&1 | bash scripts/classify_failure.sh
 # ⑦ 빌드 트랙 제안 (proposer): torch핀 휴리스틱(2.10→wheel/2.11+→source) + SM arch(manifest scan)
-python3 scripts/resolve_build_track.py --torch-pin <torch_pin> --topology <single|multi>   # build_track.decision·source_build.torch_cuda_arch(← manifest compute_capability · --sm-arch 가 우선) → resolved.json
+bash scripts/resolve_build_track.sh --torch-pin <torch_pin> --topology <single|multi>   # build_track.decision·source_build.torch_cuda_arch(← manifest compute_capability · --sm-arch 가 우선) → resolved.json
 ```
 
 - ①torch 핀: vLLM `pyproject.toml` `[build-system].requires` 에서 추출.
@@ -74,7 +74,7 @@ python3 scripts/resolve_build_track.py --torch-pin <torch_pin> --topology <singl
 
 ```bash
 # 로컬 clone 이 1차 권위(없으면 compare API 폴백 · 둘 다 실패면 비-0. 추정 금지)
-python3 scripts/judge_version_delta.py \
+bash scripts/judge_version_delta.sh \
   --from-ref v<old> --to-ref v<new> \
   --generated-kst <YYMMDDHH> \                       # 벽시계 금지 — 주입만
   --repo-cache <로컬 vLLM clone> \                    # 선택(권장)
@@ -96,7 +96,7 @@ python3 scripts/judge_version_delta.py \
 - **닫힌 열거 밖 경로 = `UNKNOWN_PLANE` = fail-closed.** vLLM 레이아웃이 바뀌면 **막히지, 새지 않는다**.
 - **C축은 스모크를 면제하지 않는다** — 현재 `NOT_IMPLEMENTED`(전역 verdict 에서 제외)이며,
   구현되더라도 *증거의 성격*만 바꾼다. `arbiter="smoke"` 는 어느 축에서도 불변이다.
-- **axis_B 가 `IMPACT` 면 `regen_build_patches_src.py derive` 재파생이 선행**한다. 정지조건은
+- **axis_B 가 `IMPACT` 면 `regen_build_patches_src.sh derive` 재파생이 선행**한다. 정지조건은
   `silent_revert_risk == []`(위험분만 담기며, 전체 프로브는 `probes` 에 남는다 — `NO_REVERT` 도 증거다).
   ⚠ 파생 변종 번들은 **정의상 상류와 다르므로** `probes` 가 비지 않는다. 그것이 정상이며,
   `PROVENANCE.source` 의 파생-베이스 선언이 증거로 붙되 **verdict 는 fail-closed 로 유지**한다(선언 ≠ 증명).
@@ -133,13 +133,13 @@ risk-memo에 새로 도입하지 않는다. 불명·미매칭은 **"확인 필�
 
 ```bash
 # ① 컨테이너 정본(트랙별 Dockerfile + compose + requirements)
-python3 scripts/render_dockerfile.py --template <Dockerfile[.source-build].template> --manifest … --resolved resolved.json -o output/<t>/Dockerfile[.source-build]
-python3 scripts/render_dockerfile.py --template docker-compose.template.yaml          --manifest … --resolved resolved.json -o output/<t>/docker-compose.yaml
+bash scripts/render_dockerfile.sh --template <Dockerfile[.source-build].template> --manifest … --resolved resolved.json -o output/<t>/Dockerfile[.source-build]
+bash scripts/render_dockerfile.sh --template docker-compose.template.yaml          --manifest … --resolved resolved.json -o output/<t>/docker-compose.yaml
 bash scripts/regen_requirements.sh --from-wheel-url <…> -o output/<t>/requirements.txt
 # ② (multi 전용) 러너 스크립트 통로 materialize
-python3 scripts/render_dockerfile.py --materialize-configs --topology <t>
+bash scripts/render_dockerfile.sh --materialize-configs --topology <t>
 # ③ serve-time env 통로 materialize (필수 — 누락 시 compose 가 /mnt/models 기본 마운트 → 모델 못 찾음. testlog_26062422 결함#2)
-python3 scripts/render_dockerfile.py --materialize-env --topology <t>
+bash scripts/render_dockerfile.sh --materialize-env --topology <t>
 ```
 
 - **③ `--materialize-env` 가 정본**: manifest.nas_model_path + tiktoken_cache → `output/<t>/.env`(compose 변수치환). serve 가 의존하는 `NAS_MODEL_PATH`·`TIKTOKEN_HOST_PATH` 를 manifest 에서 박는다. 헌법 `serve-time env 통로 불변식` 참조. nas_model_path 부재면 fail-loud(무증거 진행 금지).

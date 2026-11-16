@@ -110,7 +110,7 @@ for pair in "NAS_MODEL_PATH:nas_model_path" "QUANT_MODEL_PATH:quant_model_path" 
   fi
 done
 if [ "$_drift" = "1" ]; then
-  echo "$TAG     재생성: python3 .claude/skills/upstream-version-watch/scripts/render_dockerfile.py \\" >&2
+  echo "$TAG     재생성: bash .claude/skills/upstream-version-watch/scripts/render_dockerfile.sh \\" >&2
   echo "$TAG               --materialize-env --topology single --manifest output/single/manifest.yaml" >&2
   exit 3
 fi

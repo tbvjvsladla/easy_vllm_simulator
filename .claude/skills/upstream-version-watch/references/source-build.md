@@ -47,7 +47,7 @@
 - **재현성 동결(조건부 임베드)**: 검증된 패치를 **(NGC베이스 / 실-링크 torch) × 에러시그니처 × vLLM버전** 으로 키잉한 조건부 패치로
   `*.source-build.template` 에 임베드 + **post-assert(fail-loud)**. 미인식 키 → **HITL-discovery 플레이스홀더 + 명시적 빌드 실패**
   (조용한 통과 금지 — 단 이 실패는 *미검증*이지 *불가 판정* 아님). **시도-빌드 우회(전방호환 시도-우선)**: 사람 승인 시
-  `render_dockerfile.py --allow-unvalidated` 로 가드를 WARN 강등해 그대로 시도-빌드 → 스모크 중재 → **통과 시 그 (NGC×vLLM) 키를
+  `render_dockerfile.sh --allow-unvalidated` 로 가드를 WARN 강등해 그대로 시도-빌드 → 스모크 중재 → **통과 시 그 (NGC×vLLM) 키를
   `VALIDATED_SOURCE_BUILD_KEYS` 에 codify**(+testlog 기록 의무 — 무기록 우회 금지). 키는 **pyproject torch핀이 아님**.
 - **role화·파일추출 보류 불변식**: `VALIDATED_SOURCE_BUILD_KEYS` 2키 frozen-set + fail-loud 가드가 현재 충분 — 별도
   `source_build_patches.yaml`+resolver 는 오버엔지니어링(Karpathy B2/B3). **추출 트리거 = 인라인 셋 비대화(3번째+ 키)** 또는

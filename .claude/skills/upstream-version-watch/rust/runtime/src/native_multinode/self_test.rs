@@ -100,7 +100,7 @@ impl Runner for Fake {
             rc = 1;
         } else if is(0, "du") {
             out = format!("1073741824\t{}\n", a.last().unwrap());
-        } else if (s.contains("native_wheelhouse.py") || s.contains("native_wheelhouse.sh")) && a.iter().any(|x| x == "verify") {
+        } else if a.first().is_some_and(|t| t.ends_with("/scripts/native_wheelhouse.sh") || t.ends_with("/tools/native_wheelhouse")) && is(1, "verify") {
             let rl = format!("{}/wh/runtime-lib", self.root);
             let ld = format!("{rl}/cuda/lib:{rl}/lib");
             let env = dict(vec![("LD_LIBRARY_PATH", vs(&ld)), ("TRITON_PTXAS_PATH", vs(&format!("{rl}/cuda/bin/ptxas"))), ("PATH", vs(&format!("{rl}/cuda/bin:{}/venv/bin:/srv/x/bin:/usr/bin", self.root)))]);
@@ -210,7 +210,8 @@ fn fixture_repo(base: &Path, main_ip: &str, sub_ip: &str) -> (PathBuf, String) {
     crate::native_triplet::apply(&repo, &rendered).ok().expect("apply fixture");
     write(&repo.join("output/multi/envs/.env.interconnect"), "NCCL_SOCKET_IFNAME=eth9\nNCCL_IB_HCA==dev0\n");
     write(&repo.join("output/multi/envs/.env.cluster"), &format!("MASTER_HOST_IP={main_ip}\nSLAVE_HOST_IP={sub_ip}\nRAY_PORT=6379\nRAY_OBJECT_STORE_MEMORY=2000000000\n"));
-    write(&repo.join(WHEEL_TOOL_REL), "# fixture wheelhouse tool\n");
+    write(&repo.join(WHEEL_LAUNCHER_REL), "# fixture wheelhouse launcher\n");
+    write(&repo.join(WHEEL_ELF_REL), "\x7fELF fixture wheelhouse ELF\n");
     write(&repo.join(WHEEL_ACCEPT_REL), "{\"fixture\": \"accept\"}\n");
     let camp = format!(
         "{{\"id\": \"camp-fx\", \"budgets\": {{\"ready_max_seconds\": 60, \"smoke_budget_overhead_mib\": 24800}}, \"topology_sections\": {{\"multi\": {{\"native_cells\": [\"src-native\"], \"native_run_root_base\": \"{}\", \"native_run_root_max_gib_per_node\": 80, \"native_sub_host\": \"u@{sub_ip}\"}}}}}}",
@@ -487,8 +488,11 @@ pub fn self_test(here: &Path) -> i32 {
     ck("★dry-run: 파일 변화 0 · 러너 호출 0", before == after && s7.calls.get() == 0 && s7.world.borrow().alive.is_empty());
     ck(
         "dry-run: 노드별 명령(메인·서브 · wheelhouse·ray·serve·watchdog·renew)",
-        lines.iter().any(|x| x.starts_with("[sub] ") && x.contains("native_wheelhouse.py build") && x.contains("--accept-file") && x.contains("tools/native_wheelhouse_accept.json"))
-            && lines.iter().filter(|x| x.contains("native_wheelhouse.py build") || x.contains("native_wheelhouse.py verify")).all(|x| x.contains("--accept-file"))
+        lines.iter().any(|x| x.starts_with("[sub] ") && x.contains("tools/native_wheelhouse build") && x.contains("--accept-file") && x.contains("tools/native_wheelhouse_accept.json"))
+            && lines.iter().any(|x| x.starts_with("[main] ") && x.contains("scripts/native_wheelhouse.sh build"))
+            && lines.iter().filter(|x| x.contains("native_wheelhouse build") || x.contains("native_wheelhouse verify") || x.contains("native_wheelhouse.sh build") || x.contains("native_wheelhouse.sh verify")).count() == 4
+            && lines.iter().filter(|x| x.contains("native_wheelhouse build") || x.contains("native_wheelhouse verify") || x.contains("native_wheelhouse.sh build") || x.contains("native_wheelhouse.sh verify")).all(|x| x.contains("--accept-file"))
+            && !lines.iter().any(|x| x.contains("python3") && x.contains("native_wheelhouse"))
             && lines.iter().any(|x| x.contains("ray start --head"))
             && lines.iter().any(|x| x.starts_with("[sub] bash") && x.contains("mem_watchdog.sh --pgid"))
             && lines.iter().any(|x| x.contains("budget_renew_loop.sh")),

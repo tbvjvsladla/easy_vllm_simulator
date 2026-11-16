@@ -1,0 +1,40 @@
+usage: judge_version_delta.py [-h] [--repo REPO] [--from-ref FROM_REF]
+                              [--to-ref TO_REF]
+                              [--generated-kst GENERATED_KST]
+                              [--repo-cache REPO_CACHE]
+                              [--provenance PROVENANCE]
+                              [--bundle-root BUNDLE_ROOT]
+                              [--provenance-origin PROVENANCE_ORIGIN]
+                              [--no-bundle-files] [--resolved RESOLVED]
+                              [--write-resolved] [--emit-fixture EMIT_FIXTURE]
+                              [--fixture FIXTURE]
+                              [--check-fixture CHECK_FIXTURE] [--self-test]
+
+judge_version_delta.py — 버전 델타 영향판정 Judge (P1:D0+D1 · P2:D2)
+
+options:
+  -h, --help            show this help message and exit
+  --repo REPO           상류 리포 owner/name
+  --from-ref FROM_REF   기준 ref (예 v0.27.0)
+  --to-ref TO_REF       대상 ref (예 v0.27.1)
+  --generated-kst GENERATED_KST
+                        발행 시각 YYMMDDHH (주입 필수 — 벽시계 금지)
+  --repo-cache REPO_CACHE
+                        로컬 vLLM clone (1차 권위). 없으면 compare API 폴백
+  --provenance PROVENANCE
+                        이식 번들 PROVENANCE.json (이식 트랙일 때만)
+  --bundle-root BUNDLE_ROOT
+                        build_patches_src 루트(기본=--provenance 의 디렉터리)
+  --provenance-origin PROVENANCE_ORIGIN
+                        PROVENANCE 의 출처 라벨(예 'git:<sha>:<path>') — in-tree 경로가
+                        아닐 때 기재
+  --no-bundle-files     번들 실파일을 읽지 않고 PROVENANCE 선언 sha 만 쓴다
+  --resolved RESOLVED   resolved.json — 손저작 블록 감사/대체 대상
+  --write-resolved      resolved.json 에 upstream_delta 를 써넣는다(손저작 블록은
+                        _superseded_ 로 보존)
+  --emit-fixture EMIT_FIXTURE
+                        이번 실행을 골든 fixture 로 기록
+  --fixture FIXTURE     fixture 재생(판정만 출력)
+  --check-fixture CHECK_FIXTURE
+                        fixture 재생 후 expected 와 대조 (0=PASS)
+  --self-test

@@ -1009,7 +1009,7 @@ render_topology() {
     #     (빈 값의 의미는 소비자의 것이다 — 기본 경로로 읽혀 같은 소리로 실패한다 · 숨기지 않는다).
     #   · 서브로 가는 것은 스테이징 트리의 파일뿐이다 — 이 경로는 자식 환경에만 있고 페이로드에 실리지 않는다. ELF 는 복사하지 않는다.
     #   · 정본에 ELF 가 없거나 실행 불가면 소비자가 기존 그대로 exit 2 안내 → render 실패(9)로 크게 실패한다(여기서 빌드·대체 ✗).
-    #   (render_dockerfile.py 의 위 호출 3종은 이 모듈을 import 하는 경로 --canonical-kind/--template 를 타지 않으므로 바인딩 대상이 아니다.)
+    #   (render_dockerfile.sh 의 위 호출 3종은 이 모듈을 import 하는 경로 --canonical-kind/--template 를 타지 않으므로 바인딩 대상이 아니다.)
     local mc_env=() mc_root
     if [ -z "${MANIFEST_CONTRACT_BIN+x}" ]; then
         mc_root="$(CDPATH='' cd "$CANONICAL_SRC" && pwd)" || { rm -f "$_tracked_list"; return 9; }
@@ -1377,9 +1377,10 @@ prepare_transactional_source() {
     ROLE_CONTRACT="$SRC.claude/skills/terraforming_node/scripts/node_role_contract.sh"
     PATCH_VALIDATOR="$SRC.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.sh"
     PATCH_RESOLUTION="$SRC.claude/skills/upstream-version-watch/assets/current-production-resolution.json"
-    REGEN_TOOL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.py"
-    # 로컬 verify·bundle 은 Rust 런처로 간다. REGEN_TOOL(.py)은 서브 stdin 실행(unbundle 등)의 원본으로만 남는다.
-    REGEN_LOCAL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh"
+    # 재생성기 = Rust 런처(로컬 verify·bundle) + 서브에 배달된 같은 ELF(unbundle·verify · deliver_sub_runner_elfs).
+    #   인덱스 판정은 런처(추적물)로 한다 — .py 원본은 어느 평면에서도 실행되지 않는다.
+    REGEN_TOOL="$SRC.claude/skills/upstream-version-watch/scripts/regen_build_patches_src.sh"
+    REGEN_LOCAL="$REGEN_TOOL"
     echo "[sync] transactional source prepared (canonical tree remains read-only): $TRANSACTIONAL_SRC"
     # 2026-09-03(P3 · plan_26090317): 이 루프가 **두 토폴로지 전부**를 무조건 물질화해, 이번 배달과
     #   무관한 통로의 파생 payload 부재가 배달 전체를 죽였다(싱글 배달이 multi 사유로 STOP).

@@ -4,7 +4,7 @@
 //!
 //! The Band2 key test (`_band2_owned`) calls `render_dockerfile::env_tier` in process (the Python original imported `render_dockerfile.py`).
 //! Port boundary: `--self-test` is ported (`slave_forward/selftest.rs`, same checks and closing line as the original); argparse's own usage/error text is not reproduced
-//! (a malformed command line exits 2 with a short message). The Python module stays for its in-process importers.
+//! (a malformed command line exits 2 with a short message; the top-level `-h/--help` page is). No harness path runs the Python module.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -671,6 +671,11 @@ fn parse_opts(cmd: &str, args: &[String]) -> Result<Opts, String> {
 pub fn run(args: &[String]) -> i32 {
     if args.first().is_some_and(|a| a == "--self-test") {
         return selftest::run_selftest();
+    }
+    // top-level `-h/--help` (the original's argparse page; the subcommand set includes the port's `non-identity`)
+    if args.first().is_some_and(|a| a == "-h" || a == "--help") {
+        out("usage: slave_forward.py [-h] [--self-test] {prefix,json,default,non-identity} ...\n\nslave 전달 변수 파생(compose 참조 단일 소유)\n\npositional arguments:\n  {prefix,json,default,non-identity}\n\noptions:\n  -h, --help            show this help message and exit\n  --self-test\n");
+        return 0;
     }
     if args.is_empty() {
         return usage_error("하위 명령이 필요하다(prefix|json|default) 또는 --self-test");

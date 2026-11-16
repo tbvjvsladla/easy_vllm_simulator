@@ -232,11 +232,12 @@ RUNTIME_BLOCK_EXCLUDES = {
         "scripts/multinode_comms_smoke.sh",  # 노드 간 통신 스모크(메인이 양노드를 향해 쓴다)
         "scripts/multinode_serve_smoke.sh",  # 동상
         "scripts/native_multinode_serve.py", # 메인이 양 노드에 쓰는 native 분산 lifecycle owner(서브 자기실행 ✗)
-        "scripts/native_wheelhouse.sh",    # native_wheelhouse Rust 런처(c2h) — 메인 전용(서브에는 ELF 가 없다 · 서브는 put 된 .py 로 verify)
+        "scripts/native_wheelhouse.sh",    # native_wheelhouse Rust 런처(c2h) — 메인 전용(서브는 메인이 run root 에 put 한 ELF 로 build·verify)
         "scripts/native_multinode_serve.sh", # native_multinode_serve Rust 런처(c2i) — 메인 전용(서브 자기실행 ✗)
         # 종료 시퀀스 기구(sync_to_sub·sync_branches·closing_sequence·layer_ledger·push_branches)의 격리 픽스처 검사.
         #   그 대상 절반이 위에서 제외되므로 서브에서는 돌 수 없고, 도는 자리(verify_distribution)도 메인 전용이다.
         "scripts/selftest_branch_sync.py",
+        "scripts/selftest_branch_sync.sh", # selftest_branch_sync Rust 런처 — 동상, 메인 전용
         # ★ 2026-09-15(plan_26091407 §5 ⑧ 싱글 서브 회차): 종료 시퀀스 기구 본체도 메인 전용이다 — 서브는
         #   브랜치를 동기화하지도 원격에 push 하지도 않는다. 제외표에 없어서 싱글 서브 런타임블럭으로
         #   딸려갔고, closing_sequence.sh 가 은퇴 경로(scripts/sync_branches.sh)를 부르는 **활성 소비자**로
@@ -1606,9 +1607,10 @@ def _self_test() -> int:
     _uw = os.path.join(_out, ".claude", "skills", "upstream-version-watch")
     _leaked = [x for x in RUNTIME_BLOCK_EXCLUDES["upstream-version-watch"]
                if os.path.exists(os.path.join(_uw, x))]
-    _needed = ["scripts/resolve_wheel.py", "scripts/resolve_torch_pin.py",
-               "scripts/render_dockerfile.py", "scripts/regen_requirements.py",
-               "scripts/classify_failure.py", "references/resolve-and-render.md"]
+    # 서브가 부르는 것은 Rust 런처(.sh → 서브 자체 빌드 ELF)다 — .py 원본은 필요분이 아니다(plan_26111615).
+    _needed = ["scripts/resolve_wheel.sh", "scripts/resolve_torch_pin.sh",
+               "scripts/render_dockerfile.sh", "scripts/regen_requirements.sh",
+               "scripts/classify_failure.sh", "references/resolve-and-render.md"]
     _absent = [x for x in _needed if not os.path.exists(os.path.join(_uw, x))]
     # ③ 정본의 노드 간·브랜치 간 스크립트 전수 ⊆ 제외표. 이름에 sub/branch/multinode/clone/closing/ledger/push
     #    가 든 `.sh`·`.py` 를 후보로 본다 — 새 파일이 생기면 분류를 강제한다(닫힌 목록 tripwire · 2026-09-15 확장).

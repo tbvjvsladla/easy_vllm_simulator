@@ -3,7 +3,8 @@
 //!
 //! `up --apply` (`NativeServe`) lives in the child module `up`, `--self-test` in `self_test`. The remote fixed program run on the sub node
 //! (`REMOTE`/`BOOT`) is still sent byte for byte and needs the sub's `python3`; `blackbox_session.py` calls stay Python by decision.
-//! Deviations on purpose: `check_smoke_model` / `budget_preflight` argv name their `.sh` launchers; the wheelhouse argv still spawns `python3`.
+//! Deviations on purpose: `check_smoke_model` / `budget_preflight` argv name their `.sh` launchers; the wheelhouse tool is the Rust
+//! `native_wheelhouse` (main: its launcher · sub: the main node's ELF put on the run root) — no `native_wheelhouse.py` on either node.
 
 use crate::gate_cli::{self, Values};
 use agent_runtime_support::pystr::PyStr;
@@ -38,8 +39,12 @@ pub const STOP_WAIT_S: u64 = 30;
 pub const NATIVE_LAUNCH_FILE: &str = "native-launch.md";
 pub const CLIENT_REL: &str = "bin/vllm-client";
 pub const WHEEL_ACCEPT_REL: &str = ".claude/skills/upstream-version-watch/references/native_wheelhouse_accept.json";
-const WHEEL_LAUNCHER_REL: &str = ".claude/skills/upstream-version-watch/scripts/native_wheelhouse.sh";
-const WHEEL_TOOL_REL: &str = ".claude/skills/upstream-version-watch/scripts/native_wheelhouse.py";
+/// The main node runs the wheelhouse tool through its Rust launcher (repo-relative · `build` and `verify`).
+pub const WHEEL_LAUNCHER_REL: &str = ".claude/skills/upstream-version-watch/scripts/native_wheelhouse.sh";
+/// The node-built ELF the launcher starts; its bytes are what the main node puts on the sub run root (no Python on either node).
+pub const WHEEL_ELF_REL: &str = ".claude/skills/upstream-version-watch/rust/runtime/target/release/native_wheelhouse";
+/// Where the sub runs the put ELF, under its run root.
+pub const SUB_WHEEL_TOOL: &str = "tools/native_wheelhouse";
 const RAY_SESSION_SOCKET_TAIL: &str = "/session_2026-09-23_12-30-45_123456_1234567/sockets/plasma_store";
 
 /// `ServeError` (status 3) and its subclass `UnknownState` (status 4).
@@ -1143,7 +1148,7 @@ pub fn load_ctx(repo: &Path, cell: &str, run_id: &str, source_cell: Option<&str>
         renew_sh: format!("{rp}/{nb}/node_blackbox/budget_renew_loop.sh"),
         watchdog_sh: format!("{rp}/{nb}/host_safety/mem_watchdog.sh"),
         node_dir: format!("{rp}/docs/logs/main"),
-        wheel_tool: format!("{rp}/{WHEEL_TOOL_REL}"),
+        wheel_tool: format!("{rp}/{WHEEL_LAUNCHER_REL}"),
         wheel_accept: format!("{rp}/{WHEEL_ACCEPT_REL}"),
     };
     let sub = NodeSpec {
@@ -1156,7 +1161,7 @@ pub fn load_ctx(repo: &Path, cell: &str, run_id: &str, source_cell: Option<&str>
         renew_sh: format!("{sub_wd}/.claude/runtime/node_blackbox/budget_renew_loop.sh"),
         watchdog_sh: format!("{sub_wd}/.claude/runtime/host_safety/mem_watchdog.sh"),
         node_dir: format!("{sub_wd}/docs/logs/sub"),
-        wheel_tool: format!("{root}/tools/native_wheelhouse.py"),
+        wheel_tool: format!("{root}/{SUB_WHEEL_TOOL}"),
         wheel_accept: format!("{root}/tools/native_wheelhouse_accept.json"),
     };
     let y = load_yaml(&repo.join(&triplet["yaml"]))?;
@@ -1198,7 +1203,7 @@ pub fn load_ctx(repo: &Path, cell: &str, run_id: &str, source_cell: Option<&str>
         main,
         sub,
         simlog_topic: simlog_topic.into(),
-        wheel_tool_rel: WHEEL_TOOL_REL.into(),
+        wheel_tool_rel: WHEEL_LAUNCHER_REL.into(),
         wheel_accept_rel: WHEEL_ACCEPT_REL.into(),
     })
 }
@@ -1216,21 +1221,19 @@ pub fn venv_dir(root: &str) -> String {
 }
 pub fn wheelhouse_build_argv(tool: &str, image: &str, root: &str, generated_utc: &str, accept: &str) -> Vec<String> {
     let w = wh_dir(root);
-    sv(&["python3", tool, "build", "--image", image, "--out", &w, "--generated-utc", generated_utc, "--accept-file", accept])
+    sv(&[tool, "build", "--image", image, "--out", &w, "--generated-utc", generated_utc, "--accept-file", accept])
 }
-/// `launcher` (main node) runs the Rust launcher `native_wheelhouse.sh`; without it the `.py` the main node put on the sub runs under `python3`.
-pub fn wheelhouse_verify_argv(tool: &str, root: &str, generated_utc: &str, accept: &str, launcher: Option<&str>) -> Vec<String> {
+/// `tool` = the main node's Rust launcher (`native_wheelhouse.sh`) or the ELF the main node put on the sub run root.
+pub fn wheelhouse_verify_argv(tool: &str, root: &str, generated_utc: &str, accept: &str) -> Vec<String> {
     let (w, v) = (wh_dir(root), venv_dir(root));
-    let mut a: Vec<String> = match launcher {
-        Some(l) => vec![l.to_string()],
-        None => sv(&["python3", tool]),
-    };
-    a.extend(sv(&["verify", "--wheelhouse-dir", &w, "--venv", &v, "--generated-utc", generated_utc, "--accept-file", accept]));
-    a
+    sv(&[tool, "verify", "--wheelhouse-dir", &w, "--venv", &v, "--generated-utc", generated_utc, "--accept-file", accept])
 }
-/// The verify launcher of a node: the main node only.
-pub fn wheel_launcher(c: &Ctx, name: &str) -> Option<String> {
-    (name == "main").then(|| format!("{}/{WHEEL_LAUNCHER_REL}", c.repo.display()))
+/// The ELF the main node's launcher starts (same root rule as the launcher: a set `EASY_VLLM_UPSTREAM_RUNTIME_ROOT` wins).
+pub fn wheel_elf_path(repo: &std::path::Path) -> std::path::PathBuf {
+    match std::env::var_os("EASY_VLLM_UPSTREAM_RUNTIME_ROOT").filter(|v| !v.is_empty()) {
+        Some(root) => std::path::PathBuf::from(root).join("target/release/native_wheelhouse"),
+        None => repo.join(WHEEL_ELF_REL),
+    }
 }
 pub fn pip_freeze_argv(root: &str) -> Vec<String> {
     vec![format!("{}/bin/python", venv_dir(root)), "-m".into(), "pip".into(), "freeze".into(), "--all".into()]
@@ -1403,12 +1406,12 @@ pub fn plan(c: &Ctx, here: &Path) -> Vec<String> {
         lines.push(format!("[{n}] <init marker-owned root> {} · {}", spec.root, spec.short));
         add(&mut lines, n, mkdirs_argv(spec), "");
     }
-    lines.push(format!("[sub] <put> {} ← {} (sha256 기록)", s.wheel_tool, c.wheel_tool_rel));
+    lines.push(format!("[sub] <put> {} ← {} (메인 ELF · sha256 기록)", s.wheel_tool, WHEEL_ELF_REL));
     lines.push(format!("[sub] <put> {} ← {} (sha256 기록)", s.wheel_accept, c.wheel_accept_rel));
     for (n, spec) in [("main", m), ("sub", s)] {
         add(&mut lines, n, wheelhouse_build_argv(&spec.wheel_tool, &c.image, &spec.root, "<generated-utc>", &spec.wheel_accept), "자기 이미지에서 재포장 · 승인 선언 적용");
         add(&mut lines, n, sv(&["du", "-sxb", &spec.root]), "상한 검사");
-        add(&mut lines, n, wheelhouse_verify_argv(&spec.wheel_tool, &spec.root, "<generated-utc>", &spec.wheel_accept, wheel_launcher(c, n).as_deref()), "venv·pip --no-index --no-deps·이미지 동등성·ldd·import+CUDA → env 레시피");
+        add(&mut lines, n, wheelhouse_verify_argv(&spec.wheel_tool, &spec.root, "<generated-utc>", &spec.wheel_accept), "venv·pip --no-index --no-deps·이미지 동등성·ldd·import+CUDA → env 레시피");
         add(&mut lines, n, sv(&["du", "-sxb", &spec.root]), "상한 검사");
         add(&mut lines, n, pip_freeze_argv(&spec.root), &format!("→ docs/simlog/<YYMMDDHH>_{}/pip-freeze-{n}.txt", c.simlog_topic));
     }
@@ -1872,6 +1875,11 @@ pub fn run(script: Option<&PyStr>, args: &[PyStr]) -> i32 {
     let first = args.first().and_then(PyStr::to_utf8).unwrap_or_default();
     if first == "--self-test" {
         return self_test::self_test(&gate_cli::scripts_dir(script, "native_multinode_serve"));
+    }
+    if first == "-h" || first == "--help" {
+        // the original's top-level argparse page, captured from it (golden text)
+        gate_cli::write_out(include_str!("help/native_multinode_serve.txt"));
+        return 0;
     }
     let op: &'static str = match first.as_str() {
         "up" => "up",
