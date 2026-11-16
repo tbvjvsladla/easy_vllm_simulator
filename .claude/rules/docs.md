@@ -1,7 +1,7 @@
 # docs.md — 문서 발행 계약
 
 > 목표: 계획·작업·검증·계측·공지를 역할별로 분리하고 재현 가능한 이름과 evidence chain으로 남긴다.
-> 상세 생성/검증은 owner 스킬의 `.claude/skills/wiki-desk/src/doc_naming.ts`(파이썬 shim `.claude/policies/runtime/doc_naming.py`)와 헌법 runtime의 `.claude/policies/runtime/evidence_publisher.py`가 소유한다.
+> 상세 생성/검증은 owner 스킬의 `.claude/skills/wiki-desk/src/doc_naming.ts`(Rust 런처 `.claude/policies/runtime/doc_naming.sh` · crate `.claude/rust/policy-gate`)와 헌법 runtime의 `.claude/policies/runtime/evidence_publisher.sh`(crate `.claude/rust/policy-publisher`)가 소유한다.
 
 ## 명명 SSOT
 
@@ -9,8 +9,8 @@
 - **충돌 시에만 `_MM_SS`**를 붙인다. 같은 type/hour의 기본형과 해당 충돌형이 점유되면 새 형식/덮어쓰기 없이 `NamingCollisionExhausted`로 fail-closed한다.
 - 주제는 간결한 한국어 `_` slug. 평면 `docs/파일.md`, 상대날짜, `_seq_`는 금지한다.
 - simlog: `docs/simlog/<YYMMDDHH>[_<MM>_<SS>]_<주제>/` (run 디렉터리).
-- benchmark: `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`는 항상, `docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml`은 explicit PASS 때만 발행한다(루브릭 권한 `explicit` ∧ `PASS` · weak·explore 는 PASS 여도 report 만). 인증서는 **등급 키 `benchmark_mode`** 를 싣는다 — `full`(키 부재도 full · 소급 ✗)은 위 조건, **`lite` 등급 인증서**(`verdict: not_applicable` · `lite_verdict: pass`)는 lite 통과 셀에서만 나온다: lite-only 셀은 `lite_bench.sh --publish-report`, 강등(γ) 셀은 sweep 경로(`publish_benchmark_record.py`)가 발행한다. lite 등급 인증서는 hint 발행 자격의 근거이지 성능 완료의 근거가 아니다(2026-09-29 · `plan_26092923` · lite ⊂ full). report prefix 정본은 `bench_report_`; timestamp/collision은 `.claude/skills/wiki-desk/src/doc_naming.ts`(파이썬 shim `.claude/policies/runtime/doc_naming.py`). lite 만 잰 셀의 **경량 리포트**(헤더 `mode: lite` · lite 판정 절 · 측정 구성 표 + lite 지표 · 성능 판정 없음)도 같은 접두사·같은 명명으로 발행하되 `lite_bench.sh --publish-report` 로 **명시할 때만**이다 — 서빙 직후 자동 lite 핸드오프와 full 스윕의 lite 레그는 발행하지 않는다(2026-09-14 · `plan_26091407` §4.5).
-- **sweep map(광의의 탐색 지도)**: `docs/benchmark/sweep_map_<YYMMDDHH>[_MM_SS]_<주제>.md`(+ 동명 `.json`). 2026-09-04 신설(`plan_26090415` §4.5·M5). 인증서는 **셀 단위**로 나가고 이 문서는 그 셀들의 **지도**다 — 판정(testlog)도 단일 계측(certificate)도 아니므로 세 번째 이름을 쓴다. `docs/benchmark/` 에 두는 이유: 같은 evidence chain 안에 있고 **비추적·비배포**라 운영자 경로가 배포 평면으로 새지 않는다(`docs/report/` 로 올리면 4종 PII 강도가 걸린다). 미완이어도 발행하며 `sweep_status: incomplete` 로 표시한다 — 숨기면 "돌다 말았다"와 "돌지 않았다"가 구분되지 않는다. **순위 필드 금지**는 `render_sweep_map.py` 가 결정론으로 집행한다.
+- benchmark: `docs/benchmark/bench_report_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.md`는 항상, `docs/benchmark/benchmark_<YYMMDDHH>[_MM_SS]_<model>_<gpu>_<vllm>.yaml`은 explicit PASS 때만 발행한다(루브릭 권한 `explicit` ∧ `PASS` · weak·explore 는 PASS 여도 report 만). 인증서는 **등급 키 `benchmark_mode`** 를 싣는다 — `full`(키 부재도 full · 소급 ✗)은 위 조건, **`lite` 등급 인증서**(`verdict: not_applicable` · `lite_verdict: pass`)는 lite 통과 셀에서만 나온다: lite-only 셀은 `lite_bench.sh --publish-report`, 강등(γ) 셀은 sweep 경로(`publish_benchmark_record.sh`)가 발행한다. lite 등급 인증서는 hint 발행 자격의 근거이지 성능 완료의 근거가 아니다(2026-09-29 · `plan_26092923` · lite ⊂ full). report prefix 정본은 `bench_report_`; timestamp/collision은 `.claude/skills/wiki-desk/src/doc_naming.ts`(Rust 런처 `.claude/policies/runtime/doc_naming.sh`). lite 만 잰 셀의 **경량 리포트**(헤더 `mode: lite` · lite 판정 절 · 측정 구성 표 + lite 지표 · 성능 판정 없음)도 같은 접두사·같은 명명으로 발행하되 `lite_bench.sh --publish-report` 로 **명시할 때만**이다 — 서빙 직후 자동 lite 핸드오프와 full 스윕의 lite 레그는 발행하지 않는다(2026-09-14 · `plan_26091407` §4.5).
+- **sweep map(광의의 탐색 지도)**: `docs/benchmark/sweep_map_<YYMMDDHH>[_MM_SS]_<주제>.md`(+ 동명 `.json`). 2026-09-04 신설(`plan_26090415` §4.5·M5). 인증서는 **셀 단위**로 나가고 이 문서는 그 셀들의 **지도**다 — 판정(testlog)도 단일 계측(certificate)도 아니므로 세 번째 이름을 쓴다. `docs/benchmark/` 에 두는 이유: 같은 evidence chain 안에 있고 **비추적·비배포**라 운영자 경로가 배포 평면으로 새지 않는다(`docs/report/` 로 올리면 4종 PII 강도가 걸린다). 미완이어도 발행하며 `sweep_status: incomplete` 로 표시한다 — 숨기면 "돌다 말았다"와 "돌지 않았다"가 구분되지 않는다. **순위 필드 금지**는 `render_sweep_map.sh` 가 결정론으로 집행한다.
 - outbound report: `docs/report/<분류>_<YYMMDDHH>[_MM_SS]_<한글제목>.<html|md>`; 분류는 짧은 영문 키워드
   (`perf|harness|audit|example` 등), 한글제목은 간결한 한국어 `_` slug. 발행 시점이 고정된다(최신본 갱신이
   아니다 — 같은 주제를 다시 발행하면 새 문서를 낸다). 2026-08-24 개정: 기존 kebab-case 무날짜 규약 폐기.
@@ -128,10 +128,10 @@ request 는 "당신이 무엇을 어떻게 해야 하는가"다.
 |---|---|---|---|
 | `docs/{plan,devlog,testlog,simlog,benchmark,request,checklist}/*` | 작업 산출물 ignored; `example.md`만 tracked | 브랜치 전환에 working copy 유지; build rsync 제외 | `.gitignore`의 `docs/*/*` + `!docs/*/example.md` |
 | `docs/report/*` | **유일한 tracked docs 산출물 예외** | main-only; 브랜치 간 **합집합 수렴**(추가만 · 같은 경로 다른 내용은 RED) | `!docs/report/*`, PII gate |
-| `docs/logs/*` | ignored(기존 `docs/*/*` 가 이미 커버 — 새 규칙 불요) | **평시 `envelope.json` 요약만 상향**, 사고 시에만 원시 회수 | `logs_lifecycle.py`; `example.md` 스켈레톤 불요(기계 생성) |
+| `docs/logs/*` | ignored(기존 `docs/*/*` 가 이미 커버 — 새 규칙 불요) | **평시 `envelope.json` 요약만 상향**, 사고 시에만 원시 회수 | `logs_lifecycle.sh`; `example.md` 스켈레톤 불요(기계 생성) |
 | `.claude/`·`CLAUDE.md` | tracked building blocks | `sync_branches.sh` — **공통층만**. `*.topology.md`(특화층)는 같은 경로에 브랜치별 내용을 들고 전파되지 않는다 | 이 문서 산출물 규약 밖 · policy:BRANCH_CONSTITUTION_LAYERING |
 | `seed/` | private/untracked | 배포본에 없을 수 있음 | 근거 pointer만 허용 |
-| `campaigns/README.md`·`campaigns/_template/**` | **tracked**(뼈대) | main→sub 오버레이 설치 · branch sync 대상 | `terraforming_node`; `campaign_template_validator.py` |
+| `campaigns/README.md`·`campaigns/_template/**` | **tracked**(뼈대) | main→sub 오버레이 설치 · branch sync 대상 | `terraforming_node`; `campaign_template_validator.sh` |
 | `campaigns/<camp-id>/**` | ignored(휘발) | 전파 ✗ — 서브는 자기 인스턴스를 자율 저작하고 결과는 문서로 회수 | 새 캠페인 init 의 purge 게이트(workflow.md §purge 게이트) |
 | **파생 선언**(`campaign_init --emit-slice <node>`) | ignored(휘발) | 메인→서브 단방향(relay 지시서 stdin) | 배정 SSOT = 메인 `assignments` · 상세 `terraforming_node` `references/campaign/layout.md` |
 
@@ -154,4 +154,4 @@ simlog·benchmark에 폴더별 ignore 예외를 더하지 않는다. report는 t
 | `set-promotion-target` | hint 태그 1건(`tag`·`topology`·`anchor` = 페이로드 커밋)→**발행 기록**의 `promotion_target`(다음 `finalize` 가 manifest 로 방출 · 2026-09-21 `plan_26092119` X6) | 기록 부재·모양 위반(`hint/` 이름공간·40자 앵커) 거부 · manifest 직접 쓰기 ✗(writer 1) · 재바인딩은 `rebound_from` 으로 표면화 |
 | `finalize` | record→work manifest→completion gate | identity/PII/verdict 자체판정 금지 |
 
-시각은 `--generated-utc`/`--recorded-utc` 입력만 사용한다. required evidence와 최종 상태는 각각 `completion_gate.required_evidence_for()`와 `completion_gate.py verify`가 소유한다.
+시각은 `--generated-utc`/`--recorded-utc` 입력만 사용한다. required evidence와 최종 상태는 각각 `policy_gate::completion_gate::required_evidence_for()`와 `completion_gate.sh verify`가 소유한다.

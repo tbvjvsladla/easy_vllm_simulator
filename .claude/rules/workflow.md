@@ -7,12 +7,12 @@
 
 | 상태 | owner | 입력 | 출력 | 통과 게이트 | 실패 라우팅 |
 |---|---|---|---|---|---|
-| init | `terraforming_node` | 인터뷰 답·노드 사실 | manifest·완수 Flag | plan HITL→스캔→attestation | 스킬 §0.5·`manifest_contract.py` |
+| init | `terraforming_node` | 인터뷰 답·노드 사실 | manifest·완수 Flag | plan HITL→스캔→attestation | 스킬 §0.5·`manifest_contract.sh` |
 | S1 resolve | `upstream-version-watch` | 목표 vLLM·manifest | torch/NGC/CUDA/build-track/deps 해소값 | HITL ① | 스킬 `references/resolve-and-render.md` |
-| S1.5 judge | `upstream-version-watch` | from/to ref·resolved·(이식 트랙이면)PROVENANCE | `resolved.json#upstream_delta` 3축 attestation | HITL ①.5 | `judge_version_delta.py`(비-0 = 수집 실패) |
+| S1.5 judge | `upstream-version-watch` | from/to ref·resolved·(이식 트랙이면)PROVENANCE | `resolved.json#upstream_delta` 3축 attestation | HITL ①.5 | `judge_version_delta.sh`(비-0 = 수집 실패) |
 | S2 patch | `upstream-version-watch` | S1 해소값·이 체크아웃 topology | 렌더된 이미지/serve 입력 | diff HITL ② | 스킬 §2·renderer |
 | S2.5 sync | `upstream-version-watch` | manifest·렌더 산출물 | 검증된 메인→서브 배달 | dry-run→apply·checksum | `sync_to_sub.sh`(어느 평면이 열리는지는 특화헌법) |
-| S3 smoke | upstream + recipe | 렌더 산출물·모델·HW | 기능 스모크·분류·risk memo | 아래 HITL ③ | `classify_failure.py`·owner reference |
+| S3 smoke | upstream + recipe | 렌더 산출물·모델·HW | 기능 스모크·분류·risk memo | 아래 HITL ③ | `classify_failure.sh`·owner reference |
 | S4 commit | 사람 + upstream | S3 PASS 증거 | 로컬 last-good·문서·선택적 전파 | 최종 HITL ④ | `policy:LAST_GOOD_ROLLBACK_ANCHOR` |
 | benchmark | `adversarial-benchmark` | 성공 recipe·manifest | lite 판정(pass→lite 등급 인증서 가능) 또는 full report/certificate | lite = full 의 진입 게이트 · full 수동 게이트 | lite exit 6/7 → §실패 라우팅 · 해당 skill references/scripts |
 | docs | `wiki-desk` + publisher | plan/raw/narrative | 규약 문서·evidence record | `.claude/rules/docs.md` | publisher stable rejection |
@@ -21,7 +21,7 @@
 
 ## 공통 진입 게이트
 
-- S1–S4·escalation·B0–B3 전 tracked terraform validator를 실행한다. 서브 진입은 `policy:A2A_IDENTITY_PROOF_FAIL_CLOSED`도 검증한다. topology는 인터뷰/manifest에서만 읽고 브랜치로 추론하지 않는다 — 이 문장의 집행자는 4자일치 술어 `topology_parity.py` 이고, 어긋남은 fail-closed 다(policy:BRANCH_CONSTITUTION_LAYERING).
+- S1–S4·escalation·B0–B3 전 tracked terraform validator를 실행한다. 서브 진입은 `policy:A2A_IDENTITY_PROOF_FAIL_CLOSED`도 검증한다. topology는 인터뷰/manifest에서만 읽고 브랜치로 추론하지 않는다 — 이 문장의 집행자는 4자일치 술어 `topology_parity.sh`(Rust) 이고, 어긋남은 fail-closed 다(policy:BRANCH_CONSTITUTION_LAYERING).
 - Flag가 없으면 작업을 멈추고 다음 문구로 onboarding을 제안한다: *"HW스캔이 덜 되어(Flag 미발행) HW 스펙(GPU·OS)을 알기 어려워 모델 `<HF URL>` 의 정확한 서빙전략을 세우기 어렵습니다. `terraforming_node` 로 ① HW스캔 + ② 모델 다운로드 전략(관리 NAS 경로? 컨테이너 임시 다운로드(컨테이너 down 시 삭제)? 특정 경로 저장·마운트?)을 먼저 정합시다."*
 - fresh clone 감지는 제안만 한다. 인터뷰→승인 뒤에만 스캔한다. 정본은 `policy:TERRAFORM_FLAG_GATE`와 terraforming 스킬 §0.5다.
 
@@ -31,7 +31,7 @@
 S1 resolve  → 결정론 스크립트로 vLLM/torch/NGC/CUDA/wheel-or-source/deps 해소
    verify   → 해소값 출력
    HITL 게이트 ① → 사람 확인
-S1.5 judge  → `judge_version_delta.py` 로 버전 델타 3축 판정(A 빌드입력 · B 이식 스코프 · C 모델 코드경로)
+S1.5 judge  → `judge_version_delta.sh` 로 버전 델타 3축 판정(A 빌드입력 · B 이식 스코프 · C 모델 코드경로)
    verify   → `resolved.json#upstream_delta` 발행; 사실 행은 이 JSON을 그대로 테이블화(손저작 금지)
    HITL 게이트 ①.5 → 사람 확인: ⓐ axis_A 가 정말 ∅ 인지 ⓑ axis_B.silent_revert_risk 처리 계획
                      ⓒ unknown[] 이 비었는지. **UNDETERMINED 면 렌더 진입 금지**
@@ -42,14 +42,14 @@ S2 patch    → 이 체크아웃 topology 를 S1 해소값에서 렌더; serve-t
 S2.5 sync   → dry-run 후 선택적 배달. **어느 평면이 열리는가는 특화헌법이 정한다**
 S3 smoke    → 모델/NAS→RAM/host preflight→build/serve→health/inference
    verify   → 요구 topology 기능 스모크 PASS
-   실패     → classify_failure.py reason에 따라 owner route
+   실패     → classify_failure.sh reason에 따라 owner route
    HITL 게이트 ③ : 스모크 결과(+분류·risk-memo)를 사람이 확인 (smoke-before-commit)
 S4 commit   → 스모크 통과분만 로컬 last-good 커밋
    verify   → docs/devlog·testlog에 버전·변경·스모크·anchor 기록
    HITL 게이트 ④ → 최종 커밋/전파 승인
 ```
 
-- S2 runtime patch는 `validate_runtime_patch.py`→materialize/arm→S3 순서이며 `policy:RUNTIME_PATCH_NO_CARRY_FORWARD`; 모델 triplet은 `policy:MODEL_TRIPLET_NO_SUB_PROPAGATION`; variant image/serve 입력은 `policy:VARIANT_IMAGE_BUILD_VS_SERVE_PLANE`을 따른다.
+- S2 runtime patch는 `validate_runtime_patch.sh`→materialize/arm→S3 순서이며 `policy:RUNTIME_PATCH_NO_CARRY_FORWARD`; 모델 triplet은 `policy:MODEL_TRIPLET_NO_SUB_PROPAGATION`; variant image/serve 입력은 `policy:VARIANT_IMAGE_BUILD_VS_SERVE_PLANE`을 따른다.
 - S3 모델 부재는 `policy:MODEL_ACQUISITION_TERNARY_GATE`; 모든 load/build/cleanup은 `policy:HOST_SAFETY_LAYERED_DEFENSE`; KV 산출은 `policy:KV_ABSOLUTE_CLAMP_PORTABILITY`. 실제 명령·health 판정·cleanup은 각 skill script가 소유한다.
 - S4 뒤 공유 빌딩블럭 동기화는 사람 질의로만 `.claude/skills/upstream-version-watch/scripts/sync_branches.sh`; hint 발행은 셀 단위(그 셀의 서빙·측정·문서 완료 후 · 제안 Y/N)이며 `policy:HINT_TAG_ACTIVATION_GATE`와 `.claude/skills/hint-publisher/scripts/hint.py`의 publish(기본 이름으로 스캐폴드 후 정지)→서사·이름 꼬리 저작→독립 사실 검증→continue(승인→이름 확정→린트→사실 검증 게이트→커밋(부모 = hint 브랜치 안내 커밋 · 브랜치 불이동)→봉인→이 태그 검증→태그 1개 push→카탈로그 파생·커밋) 순서만 허용한다(match 는 읽기 전용 · hint 브랜치 push 는 발행이 아니라 사람 승인 형식 전환 `branch-transition` 뿐).
 
@@ -59,7 +59,7 @@ S4 commit   → 스모크 통과분만 로컬 last-good 커밋
 |---|---|---|
 | requirements-fixable | upstream failure recovery | 조정→재빌드→S3, `reconciliation_cap` 소진 시 Model-C |
 | source-build-class | upstream `references/source-build.md` | ABI 증거→HITL→동결→clean build→S3 |
-| NGC base mismatch | `resolve_ngc_tag.py` + source-build owner | 후보 헤더/로그 증거→HITL→해소값 override→S3 |
+| NGC base mismatch | `resolve_ngc_tag.sh` + source-build owner | 후보 헤더/로그 증거→HITL→해소값 override→S3 |
 | stock-구조적-불가 | upstream arch variant owner | 아래 사다리·증거·승인 후 S3 |
 | 토폴로지 전용 실패(분산 런타임 등) | 특화헌법 §실패 라우팅이 owner 를 정한다 | 증거 보존→Model-C |
 | **lite ① 측정 경로 불성립**(`lite_verdict=measurement_path_failed` · lite/sweep exit 6 — 요청이 서버에 닿지 못함 · 측정기가 값을 못 냄) | 하네스 수리(`adversarial-benchmark` lite 실행기) | 하네스 결함 — 재빌드 ✗ · loop cap 차감 ✗ · GuideLLM·인증서 ✗. 판정 단일 권위 = lite raw `lite_verdict`(2026-09-29 · `plan_26092923`) |
@@ -133,7 +133,7 @@ arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 
 > 기각은 무효**이고, 기각하려면 **결함 칸의 어느 조건에 걸리는지**를 지목해야 한다. 반대로 정당 칸에
 > 해당하면 그대로 쓰되 §결정론 규율의 **출처 표시**(`provenance`·`*_source`)를 붙인다 — 처방은
 > 제거가 아니라 표시다. 이 완화는 4종 안티패턴에만 적용되며, 독립 근거를 가진 도메인 규칙
-> (예: `check_smoke_model.py` 의 루트경로 폴백 금지 = fail-loud 게이트, manifest 포인터 원칙)은
+> (예: `check_smoke_model.sh` 의 루트경로 폴백 금지 = fail-loud 게이트, manifest 포인터 원칙)은
 > **그대로 금지로 남는다** — 그것들은 안티패턴이라서가 아니라 **안전·정합 근거로** 금지된 것이다.
 
 | 패턴 | **정당** | **결함** |
@@ -191,7 +191,7 @@ arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 
 
 `temp`·`tmp`·`test`·`tests`(깊이 무관)는 에이전트 임시 작업·유닛테스트 잔재의 자리다 — **추적 제외**
 (`.gitignore`) · **입고 제외**(wiki-desk `remote.ts` 반입 필터) · **사서 색인 제외**(wiki-desk `contract.ts`
-`SCRATCH_PARTS`)가 기본값이고, 배포 검사 `verify_distribution.py` `scratch_dirs_untracked` 가 추적물에서
+`SCRATCH_PARTS`)가 기본값이고, 배포 검사 `verify_distribution.sh`(crate `.claude/rust/policy-distribution`) `scratch_dirs_untracked` 가 추적물에서
 그 이름을 0건으로 집행한다. scratch 안의 무엇을 자산으로 올리려면 아래 3문항을 심사해 plan 으로 발행하고
 **사람 HITL** 뒤에만 편입한다(심사자 = 에이전트 · 승인자 = 사람 · 편입 실행자 = 에이전트).
 
@@ -225,7 +225,7 @@ arch-wall은 단계를 건너뛰지 않는다: deps-패치 → 소스-게이트 
 
 - phase 의 `proof.ok` 는 그 판정을 낸 `source` 와 함께만 적고, phase 가 실패해도 status 파일은 쓴다(부재 ≠ 실패).
 - 캠페인 산출물의 경로는 `campaigns/ACTIVE` 선언에서 파생한다 — 루트 기본값 ✗(부재 = `_bootstrap`).
-- 캠페인 상태의 바이트를 쓰는 문은 `campaign_init.py` 하나다(포맷 owner 1 · 호출부 N) — `ACTIVE=_bootstrap` 이면 writer 는 no-op.
+- 캠페인 상태의 바이트를 쓰는 문은 `campaign_init.sh` 하나다(포맷 owner 1 · 호출부 N) — `ACTIVE=_bootstrap` 이면 writer 는 no-op.
 - 캠페인 수명(active·suspended·resume_pending·closed{사유}·orphan·unknown)은 journey 이벤트가 단일 권위이고 상태는 fold 로 파생한다. 다른 캠페인으로의 전환은 단일 정문(`--init --suspend-current`) 하나이며 처분 없는 덮어쓰기는 거부한다. 재질의 계기는 파생 자식 종결과 무관 개설 둘뿐이다. 메인 종결은 서브로 전하고 purge 게이트가 그 수렴을 묻는다(정본 `terraforming_node` `references/campaign/purge.md` §수명 전이).
 - 재개의 읽는 눈은 `--resume-brief` 이고, 합격 기준은 그 출력만으로 다음 셀에 착수하며 반증된 축을 재시도하지 않는 것이다.
 - 배정의 단일 권위는 `assignments` 이며(노드별 리스트는 동시에 돈다 · 변경의 문은 `--assign-set` · pending 셀만) 무인 자동 태깅은 없다 — 발행은 선언 확인 때 받은 셀별 사전 승인으로만 연다.

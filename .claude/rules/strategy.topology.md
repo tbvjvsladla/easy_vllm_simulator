@@ -2,7 +2,7 @@
 
 **topology: single** · layer: topology · 경로 규약 `*.topology.md` · policy:BRANCH_CONSTITUTION_LAYERING
 
-> 위 한 줄이 이 파일의 **자기선언 헤더**다 — 결정론 술어 `topology_parity.py` 가 이 바이트를 읽어
+> 위 한 줄이 이 파일의 **자기선언 헤더**다 — 결정론 술어 `topology_parity.sh`(Rust) 가 이 바이트를 읽어
 > 체크아웃 브랜치·`output/single/manifest.yaml`·활성 캠페인 선언과 대조한다(4자일치). frontmatter 에
 > 두지 않는 이유: 인식되지 않는 frontmatter 키의 처분은 **문서화된 동작이 아니고**, 블록 HTML 주석은
 > 컨텍스트 주입 전에 제거된다 — 그러면 *술어가 읽는 바이트*와 *에이전트가 읽는 컨텍스트*가 갈린다.
@@ -11,7 +11,7 @@
 > **이 파일은 특화층이다.** 같은 경로가 `multi-node` 브랜치에는 **다른 내용**으로 존재하며, 브랜치
 > 동기화는 이것을 방향과 무관하게 **전파하지 않는다**. 공통층(`CLAUDE.md` ·
 > `.claude/rules/{workflow,docs}.md`)이 먼저이고, 이 파일은 그 위에서 **이 토폴로지에서만 참인 것**만
-> 말한다. 여기 없는 것: 절차(→ `workflow.md`) · 계약기가 파생하는 값(→ `node_role_contract.py`) ·
+> 말한다. 여기 없는 것: 절차(→ `workflow.md`) · 계약기가 파생하는 값(→ `node_role_contract.sh`) ·
 > 두 토폴로지의 **비교**(→ `terraforming_node` SKILL.md §2.7.0 · 양쪽이 읽어야 하므로 공통이다).
 
 ## 이 브랜치가 무엇인가
@@ -25,7 +25,7 @@
 싱글의 `sub` 는 **A2A 원격 에이전트**다: SSH public-key/known-host 관계가 endpoint를 인증하고,
 메인이 발급한 서브 manifest(`self_role: sub` · `terraforming.issued_by: main`)가 role·readiness 사실을 소유한다. `Agent_Card.json`은 unsigned capability/discovery metadata다. 서브는 자율적으로 처리하며 통신은 client↔server 다. `sub_mode`
 는 `a2a-agent` 이고 sub↔sub 통신은 없다 — 각자 메인하고만 대화한다. **이 문단은 "왜"만 적는다** —
-판정·배선의 정본은 `node_role_contract.py`(manifest 파생)와 SKILL.md §2.7.0 이며, 파생값을 여기에
+판정·배선의 정본은 `node_role_contract.sh`(manifest 파생)와 SKILL.md §2.7.0 이며, 파생값을 여기에
 다시 적지 않는다.
 
 - **버전 핀은 노드마다 독립이다.** 집단 연산에 참여하지 않으므로 ABI 커플링이 없고, 메인과 서브가
