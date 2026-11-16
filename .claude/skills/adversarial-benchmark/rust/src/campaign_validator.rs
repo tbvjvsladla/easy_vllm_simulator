@@ -542,11 +542,11 @@ fn find_fill_paths(node: &PyValue, path: &str) -> Vec<String> {
     out
 }
 
-fn fill_rows(text: &str) -> Vec<usize> {
+pub fn fill_rows(text: &str) -> Vec<usize> {
     text.lines().enumerate().filter(|(_, l)| l.contains(FILL)).map(|(i, _)| i + 1).collect()
 }
 
-fn strip_annotations(doc: &PyDict) -> PyDict {
+pub fn strip_annotations(doc: &PyDict) -> PyDict {
     let mut out = PyDict::new();
     for (k, v) in doc.iter() {
         if !k.to_utf8().map(|s| s.starts_with('_')).unwrap_or(false) {

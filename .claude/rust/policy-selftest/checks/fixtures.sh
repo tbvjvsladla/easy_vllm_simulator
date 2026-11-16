@@ -20,7 +20,7 @@ TN=terraforming_node
 
 CASES=(tw-pass tw-noncanon tw-bak-file tw-stray-branch tw-bad-tag tw-gitignore tw-digest tw-retired-prose
   tw-dup-cert tw-unkeyed-cert tw-pii tw-revived tw-surface tw-root-stray tw-tombstone tw-topology-header
-  tw-vocabulary tw-sync-literal tw-skill-edge tw-router-anchor tw-literal-binding tw-ledger-reasonless
+  tw-vocabulary tw-sync-literal tw-skill-edge tw-router-anchor tw-literal-binding tw-literal-binding-rs tw-ledger-reasonless
   cl-text cl-json cl-noclaude cl-findings-text cl-findings-json ap-tripwire-staged ap-inventory
   arg-ap-help arg-ap-unknown arg-ap-novalue arg-ap-explicit arg-ap-prefix arg-ap-noaction arg-cl-help arg-cl-choice arg-cl-ambiguous arg-rs-help arg-rs-unknown)
 
@@ -133,9 +133,18 @@ JSON
     tw-literal-binding)
       printf "def f():\n    s = _read('.claude/skills/terraforming_node/SKILL.md')\n    _require('## 3.1 없는 절' in s)\n    _require('## 2.7 노드' not in s)\n" \
         > "$D/.claude/policies/runtime/p_check.py"
-      printf '{"edges": [{"caller": ".claude/policies/runtime/p_check.py", "callee": "terraforming_node/SKILL.md", "phase": "verification_plane", "reason": "fixture"}]}\n' \
-        > "$D/.claude/policies/base_skill_edges.json"
+      # plan_26111615 pass 3: a harness .py is no longer a base→skill edge source (tripwire ⑨ reads the launchers and the
+      # Rust policy sources), so this fixture lists no edge; ⑩④ still judges the .py (golden captured from the original).
+      printf '{"edges": []}\n' > "$D/.claude/policies/base_skill_edges.json"
       g add -f -- .claude/policies/runtime/p_check.py; commit_all ;;
+    tw-literal-binding-rs)
+      # The Rust form of the same binding (hand-maintained golden: the original never read Rust sources).
+      mkdir -p "$D/.claude/rust/policy-fx/src"
+      printf 'pub fn f() -> R {\n    let s = read(".claude/skills/%s/SKILL.md")?;\n    req(s.contains("## 3.1 없는 절"), "a")?;\n    req(!s.contains("## 2.7 노드"), "b")\n}\n' "$TN" \
+        > "$D/.claude/rust/policy-fx/src/p_check.rs"
+      printf '{"edges": [{"caller": ".claude/rust/policy-fx/src/p_check.rs", "callee": "%s/SKILL.md", "phase": "verification_plane", "reason": "fixture"}]}\n' "$TN" \
+        > "$D/.claude/policies/base_skill_edges.json"
+      commit_all ;;
     tw-ledger-reasonless)
       printf '{"edges": [{"caller": ".claude/policies/gone.py", "callee": "s9/x.py", "phase": "elsewhere", "reason": ""}]}\n' \
         > "$D/.claude/policies/base_skill_edges.json"; commit_all ;;

@@ -7,6 +7,7 @@ pub mod argp;
 pub mod certkey;
 pub mod constitution_lint;
 pub mod gitx;
+pub mod hint_suite;
 pub mod pjson;
 pub mod pyast;
 pub mod pytext;

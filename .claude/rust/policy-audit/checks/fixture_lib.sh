@@ -29,6 +29,7 @@ fx_real() {
     .claude/skills/upstream-version-watch/templates/Dockerfile.source-build.template \
     .claude/skills/upstream-version-watch/scripts/multinode_serve_smoke.sh \
     .claude/skills/upstream-version-watch/scripts/slave_forward.py \
+    .claude/skills/upstream-version-watch/rust/runtime/src/slave_forward.rs \
     .claude/skills/upstream-version-watch/scripts/render_dockerfile.py \
     .claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml \
     .claude/rules/workflow.md .claude/skills/upstream-version-watch/SKILL.md \
@@ -37,6 +38,21 @@ fx_real() {
   mapfile -t ev < <( { jq -r '.policies[].evidence[].path' "$ROOT/r/.claude/policies/registry.yaml"
                        jq -r '.bindings[][].path' "$ROOT/r/.claude/policies/claim_bindings.json"; } | sort -u)
   fx_from_rev "${ev[@]}"
+  fx_dedicated_rust
+}
+
+# $FX_REV cites each clause's dedicated predicate in the retired `claim_predicates.py`; the validator now requires it
+# in the Rust port (`.claude/rust/policy-predicates/src/claims*.rs`). Carry those tuples to one fixture Rust file that
+# defines exactly the cited ids, so every other verdict of the real registry stays the one the original produced.
+fx_dedicated_rust() {
+  local old=.claude/policies/predicates/claim_predicates.py
+  local new=.claude/rust/policy-predicates/src/claims_fx.rs
+  mkdir -p "$ROOT/r/${new%/*}"
+  { jq -r --arg o "$old" '.policies[].evidence[] | select(.path == $o) | .assertion_ids[]' "$ROOT/r/.claude/policies/registry.yaml"
+    jq -r --arg o "$old" '.bindings[][] | select(.path == $o) | .assertion_ids[]' "$ROOT/r/.claude/policies/claim_bindings.json"
+  } | sort -u | sed 's/^\(.*\)$/pub fn \1() {}/' >"$ROOT/r/$new"
+  fx_jq .claude/policies/registry.yaml "(.policies[].evidence[] | select(.path == \"$old\") | .path) |= \"$new\""
+  fx_jq .claude/policies/claim_bindings.json "(.bindings[][] | select(.path == \"$old\") | .path) |= \"$new\""
 }
 
 # jq-edit a fixture file in place: fx_jq FILE FILTER

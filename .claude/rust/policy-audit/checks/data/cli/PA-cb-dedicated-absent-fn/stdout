@@ -1,0 +1,14 @@
+{
+  "exit_code": 1,
+  "schema_version": 2,
+  "violation_count": 1,
+  "violations": [
+    {
+      "clause_id": null,
+      "message": "assertion id 'predicate_CANON_C1' is not an exact identifier found in '.claude/rust/policy-predicates/src/claims_fx.rs'",
+      "path": ".claude/rust/policy-predicates/src/claims_fx.rs",
+      "policy_id": "CANON",
+      "reason_code": "EVIDENCE_ASSERTION_ID_NOT_FOUND"
+    }
+  ]
+}

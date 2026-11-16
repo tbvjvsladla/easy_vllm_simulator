@@ -251,12 +251,19 @@ pub(super) fn _fx_tree(root: &Path) -> BTreeMap<String, Vec<u8>> {
 fn link_owner(repo: &Path, root: &Path, rel: &str) -> HR<()> {
     let dst = repo.join(rel);
     mkdirs(dst.parent().unwrap())?;
-    std::os::unix::fs::symlink(root.join(rel), &dst).map_err(|e| ioe(e, &dst))?;
-    // 의도된 차이: Rust 는 소유 CLI 를 `<stem>.sh` launcher 로 부른다 — 있으면 함께 링크한다.
-    if let Some(stem) = rel.strip_suffix(".py") {
-        let (ls, ld) = (root.join(format!("{stem}.sh")), repo.join(format!("{stem}.sh")));
+    // 의도된 차이: Rust 는 소유 CLI 를 `<stem>.sh` launcher 로 부른다 — launcher 를 링크하고, 원본 `.py` 는 있을 때만
+    //   함께 링크한다(plan_26111615: 삭제 대기 참조본). 어느 쪽도 없으면 소유 모듈 부재(fail-closed).
+    let launcher = rel.strip_suffix(".py").map(|s| format!("{s}.sh"));
+    if root.join(rel).is_file() || launcher.is_none() {
+        std::os::unix::fs::symlink(root.join(rel), &dst).map_err(|e| ioe(e, &dst))?;
+    }
+    if let Some(l) = launcher {
+        let (ls, ld) = (root.join(&l), repo.join(&l));
         if ls.is_file() && !ld.exists() {
             std::os::unix::fs::symlink(&ls, &ld).map_err(|e| ioe(e, &ld))?;
+        }
+        if !ls.is_file() && !root.join(rel).is_file() {
+            return core::fail("HINT_OWNER_MODULE_MISSING", format!("자체검사 소유 모듈 부재: {rel}"), None);
         }
     }
     Ok(())
@@ -268,6 +275,11 @@ pub(super) fn _fx_repo(td: &Path) -> HR<(PathBuf, J)> {
     let (repo, mut fx) = evidence::_fixture(td)?;
     let root = code_root();
     for rel in [core::REL_DOC_NAMING_WIKI, core::REL_DOC_NAMING_BENCH] {
+        // The bench naming owner is the Rust `bench_naming.rs` (the lineage grammar reads it when the `.py` is gone).
+        if rel == core::REL_DOC_NAMING_BENCH && !root.join(rel).is_file() {
+            link_owner(&repo, &root, crate::lineage::REL_BENCH_NAMING_RS)?;
+            continue;
+        }
         link_owner(&repo, &root, rel)?;
     }
     // 의도된 차이: 명명 SSOT 의 TS 정본은 사본으로 둔다(심링크 ✗) — 그 스크립트는 `argv[1]` 과 실경로(import.meta.url)가 같을
@@ -430,7 +442,7 @@ pub(super) fn _fx_repo(td: &Path) -> HR<(PathBuf, J)> {
 }
 
 /// AC6 — old 5-segment annotated tag (local · remote), a remote-only tag without a local object, a remote lightweight tag.
-fn _fx_legacy_remote(td: &Path, repo: &Path, bare: &Path) -> HR<J> {
+pub(super) fn _fx_legacy_remote(td: &Path, repo: &Path, bare: &Path) -> HR<J> {
     let old = "hint/0.9.0/fixture-model-nvfp4/gb10x2-cluster-native/len4096-kvauto-plemmap";
     _fx_git(repo, &["tag", "-a", "-m", "옛 brief — 노드축 옛 문법", old, "HEAD"])?;
     _fx_git(repo, &["push", "-q", "origin", &format!("refs/tags/{old}:refs/tags/{old}")])?;
@@ -1577,15 +1589,24 @@ pub(super) fn _selftest_e2e(c: &mut Ck) -> HR<()> {
         || _raises(|| run_continue(&repo, &continue_copy, &ccp, &rt), "HINT_LOCAL_VERIFY_FAILED"),
     )?;
     c.ck("separate-clone continue cannot downgrade unchanged-workspace source failure", blocked_continue);
-    let gate_p = repo.join(core::REL_COMPLETION_GATE);
-    let gate_link = std::fs::read_link(&gate_p).ok();
-    let gate_bytes = if gate_link.is_none() && gate_p.is_file() { Some(read_b(&gate_p)?) } else { None };
-    unlink(&gate_p)?;
+    // The workspace gate is its launcher (and the original `.py` while it exists): both go, then both come back.
+    let mut saved: Vec<(PathBuf, Option<PathBuf>, Option<Vec<u8>>)> = Vec::new();
+    for rel in [core::REL_COMPLETION_GATE.to_string(), crate::evidence::_cgate_launcher_rel()] {
+        let p = repo.join(&rel);
+        let link = std::fs::read_link(&p).ok();
+        let bytes = if link.is_none() && p.is_file() { Some(read_b(&p)?) } else { None };
+        if link.is_some() || bytes.is_some() {
+            unlink(&p)?;
+            saved.push((p, link, bytes));
+        }
+    }
     let missing_gate = _raises(|| verify_tag(&repo, &tagname, Some(&dstr), None, Some(&verify_clone)), "HINT_OWNER_MODULE_MISSING");
-    if let Some(l) = &gate_link {
-        std::os::unix::fs::symlink(l, &gate_p).map_err(|e| ioe(e, &gate_p))?;
-    } else if let Some(b) = &gate_bytes {
-        write_b(&gate_p, b)?;
+    for (p, link, bytes) in &saved {
+        if let Some(l) = link {
+            std::os::unix::fs::symlink(l, p).map_err(|e| ioe(e, p))?;
+        } else if let Some(b) = bytes {
+            write_b(p, b)?;
+        }
     }
     c.ck("separate clone never substitutes missing workspace gate", missing_gate?.0 && core::aux_root(&verify_clone) == verify_clone);
 

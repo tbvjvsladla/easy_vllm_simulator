@@ -32,6 +32,9 @@ pub fn require(cond: bool, msg: impl FnOnce() -> String) -> R<()> {
 pub const CANONICAL_MARKERS: [&str; 3] = ["CLAUDE.md", ".claude/rules/workflow.md", ".claude/policies/registry.yaml"];
 pub const ALLOWED_BRANCHES: [&str; 3] = ["single-node", "multi-node", "hint"];
 pub const ALLOWED_TAG_PREFIX: &str = "hint/";
+/// `_BACKUP_SUFFIXES` / `_BACKUP_PATH_TOKENS`: the working-tree backup predicate (`백업` = this repo's actual Korean naming).
+pub const BACKUP_SUFFIXES: [&str; 2] = [".bak", ".orig"];
+pub const BACKUP_PATH_TOKENS: [&str; 2] = ["backup", "백업"];
 pub const BACKUP_SCAN_PRUNE_TOP: [&str; 4] = [".git", "seed", "output", ".native-e2e"];
 pub const RETIRED_HASH_MECHANISMS: [&str; 6] =
     ["tracked_index", "evidence_manifest", "governed_prose_snapshot", "plan_blob_sha1", "image_version_match", "patch_sha256"];
@@ -187,7 +190,7 @@ fn walk_backup(root: &Path, dir: &Path, rel_dir: &str, offenders: &mut Vec<Strin
     for name in &files {
         let rel = if rel_dir.is_empty() { name.clone() } else { format!("{rel_dir}/{name}") };
         let low = rel.to_lowercase();
-        if rel.ends_with(".bak") || rel.ends_with(".orig") || low.contains("backup") || low.contains("백업") {
+        if BACKUP_SUFFIXES.iter().any(|s| rel.ends_with(s)) || BACKUP_PATH_TOKENS.iter().any(|t| low.contains(t)) {
             let parts: Vec<&str> = rel.split('/').collect();
             if parts.len() > 2 && parts[0] == "__llm-wiki" && (parts[1] == "cards" || parts[1] == "archive") && BACKUP_SCAN_PRUNE_TOP.contains(&parts[2]) {
                 continue;
@@ -254,9 +257,17 @@ pub fn no_backup_artifacts(root: &Path) -> R<()> {
 }
 
 // ───────────────────────────────────────────── ② digests
-fn hex_re() -> &'static Regex {
+/// `_HEX_CONST_RE`: a git blob sha1 (40-hex) or sha256 (64-hex) constant, not part of a longer hex run.
+pub const HEX_CONST_PATTERN: &str = r"(?<![0-9a-fA-F])(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})(?![0-9a-fA-F])";
+
+pub fn hex_re() -> &'static Regex {
     static R: OnceLock<Regex> = OnceLock::new();
-    R.get_or_init(|| pytext::re(r"(?<![0-9a-fA-F])(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})(?![0-9a-fA-F])"))
+    R.get_or_init(|| pytext::re(HEX_CONST_PATTERN))
+}
+
+/// `_HEX_CONST_RE.findall(text)`.
+pub fn hex_const_findall(text: &str) -> Vec<String> {
+    findall_hex(text)
 }
 
 pub fn tracked_blob_digests(root: &Path) -> R<BTreeSet<String>> {
@@ -935,8 +946,15 @@ pub const TOPOLOGY_ONLY_VOCABULARY: [(&str, &[&str]); 2] = [
     ("multi", &["Ray 워커", "ray-worker", "집단 연산", "빌드킷 배달", "동일 ABI", "슬레이브", "양노드", "쌍노드"]),
     ("single", &["a2a-agent", "A2A 원격 에이전트", "위임 셀", "push-attestation"]),
 ];
-pub const TOPOLOGY_VOCABULARY_EXEMPTIONS: [(&str, &str, &str); 1] =
-    [(".claude/rules/workflow.md", "양노드", "clean 빌드(양노드) → 스모크")];
+/// `(rel, term, line fragment, reason)` — an exemption is admitted only with its reason (a reasonless one is a silent hole).
+pub const TOPOLOGY_VOCABULARY_EXEMPTIONS: [(&str, &str, &str, &str); 1] = [(
+    ".claude/rules/workflow.md",
+    "양노드",
+    "clean 빌드(양노드) → 스모크",
+    "policy_registry.py 의 ARCH_WALL_VARIANT_LADDER 사다리 검사가 이 문구를 verbatim 으로 \
+요구한다 — 고치면 정책 검증이 깨진다. 어휘는 남지만 그 문장은 사다리 순서 서술이라 \
+양 토폴로지가 함께 읽는다.",
+)];
 pub const LAYER_EXCLUDE_PATHSPEC: &str = ":(exclude)*.topology.md";
 
 pub fn common_layer_prose(root: &Path) -> Vec<PathBuf> {
@@ -973,7 +991,7 @@ pub fn vocabulary_offenders(root: &Path) -> Vec<String> {
                     if !line.contains(term) {
                         continue;
                     }
-                    if TOPOLOGY_VOCABULARY_EXEMPTIONS.iter().any(|(r, t, f)| *r == rel && t == term && line.contains(f)) {
+                    if TOPOLOGY_VOCABULARY_EXEMPTIONS.iter().any(|(r, t, f, _)| *r == rel && t == term && line.contains(f)) {
                         continue;
                     }
                     out.push(format!("{}:{} '{}' ({} 전용)", rel, i + 1, term, topo));
@@ -1080,8 +1098,24 @@ pub fn skill_edge_targets(line: &str) -> BTreeSet<String> {
     out
 }
 
+/// The base-layer files that can carry a base→skill edge (plan_26111615 D1: the policies bundle is Rust).
+/// `.claude/policies/**`: the launchers (`.sh`) and the data/prose planes (`.json`/`.yaml`/`.yml`/`.md`);
+/// `.claude/rust/policy-*/src/**`: the Rust sources that now implement the policies runtime/predicates
+/// (`.rs`, and the `.txt` help/doc texts they `include_str!`). Harness `.py` files are NOT callers any more:
+/// they are reference originals pending physical deletion (P6), so the ledger is the same with or without them.
+/// Golden/check data (`.claude/rust/policy-*/checks/**`, captured outputs) is outside the plane.
+pub fn is_base_edge_source(rel: &str) -> bool {
+    if rel.starts_with(".claude/policies/") {
+        return [".sh", ".json", ".yaml", ".yml", ".md"].iter().any(|s| rel.ends_with(s));
+    }
+    if let Some(rest) = rel.strip_prefix(".claude/rust/policy-") {
+        return rest.split_once('/').map_or(false, |(_, tail)| tail.starts_with("src/")) && [".rs", ".txt"].iter().any(|s| rel.ends_with(s));
+    }
+    false
+}
+
 pub fn scan_base_skill_edges(root: &Path) -> BTreeSet<(String, String)> {
-    let out = gitx::git(&ps(root), &["ls-files", "-z", "--", ".claude/policies"]);
+    let out = gitx::git(&ps(root), &["ls-files", "-z", "--", ".claude/policies", ".claude/rust"]);
     let mut listed = gitx::split_z(&out.stdout);
     listed.sort();
     let mut found = BTreeSet::new();
@@ -1089,7 +1123,7 @@ pub fn scan_base_skill_edges(root: &Path) -> BTreeSet<(String, String)> {
         if rel == BASE_SKILL_EDGES_REL || rel == ".claude/policies/branch_layer_ledger.json" {
             continue;
         }
-        if ![".py", ".json", ".yaml", ".yml", ".md"].iter().any(|s| rel.ends_with(s)) {
+        if !is_base_edge_source(&rel) {
             continue;
         }
         let path = root.join(&rel);
@@ -1266,6 +1300,11 @@ pub fn skill_literal_binding_violations(root: &Path, skill: &str) -> R<Vec<Strin
     let lit = "terraforming_node/SKILL.md";
     let mut res = Vec::new();
     for rel in rels {
+        // A listed `.py` that is not on disk (a reference original removed ahead of its index entry, plan_26111615 P6)
+        // binds nothing -- the same rule tripwire ⑨ applies to an absent source.
+        if !root.join(&rel).is_file() {
+            continue;
+        }
         let bytes = std::fs::read(root.join(&rel)).map_err(|e| Fail::Crash(format!("OSError: {e}: {rel}")))?;
         let src = String::from_utf8(bytes).map_err(|_| Fail::Crash(format!("UnicodeDecodeError: {rel}")))?;
         if !src.contains(lit) {
@@ -1313,7 +1352,88 @@ pub fn skill_literal_binding_violations(root: &Path, skill: &str) -> R<Vec<Strin
             }
         }
     }
+    res.extend(rust_literal_binding_violations(root, skill, lit)?);
     Ok(res)
+}
+
+/// ⑩④ over the Rust policy sources (plan_26111615: the predicates/runtime that read the terraforming_node SKILL.md are
+/// Rust now). Same rule as the `.py` scan: inside one top-level `fn`, a variable bound by a `let` statement that names
+/// the SKILL.md (directly, or by reading a variable already bound to it) is a binding; `v.contains("L")` requires `L` in
+/// the SKILL.md, `!v.contains("L")` forbids it. Item = the column-0 `fn` head up to its column-0 `}` (rustfmt layout).
+pub fn rust_literal_binding_violations(root: &Path, skill: &str, lit: &str) -> R<Vec<String>> {
+    let out = gitx::git(&ps(root), &["ls-files", "-z", "--", ".claude/rust"]);
+    let mut rels: Vec<String> = gitx::split_z(&out.stdout)
+        .into_iter()
+        .filter(|x| x.ends_with(".rs") && is_base_edge_source(x))
+        .collect();
+    rels.sort();
+    let let_re = pytext::re(r"let\s+(?:mut\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*(?::[^=;]+)?=([^;]*);");
+    let mut res = Vec::new();
+    for rel in rels {
+        let bytes = std::fs::read(root.join(&rel)).map_err(|e| Fail::Crash(format!("OSError: {e}: {rel}")))?;
+        let src = String::from_utf8(bytes).map_err(|_| Fail::Crash(format!("UnicodeDecodeError: {rel}")))?;
+        if !src.contains(lit) {
+            continue;
+        }
+        let lines: Vec<&str> = src.split('\n').collect();
+        let mut i = 0;
+        while i < lines.len() {
+            let head = lines[i];
+            let is_fn = ["pub fn ", "fn ", "pub(crate) fn "].iter().any(|p| head.starts_with(p));
+            if !is_fn {
+                i += 1;
+                continue;
+            }
+            let end = (i..lines.len()).find(|&j| lines[j] == "}" || (j == i && head.trim_end().ends_with('}'))).unwrap_or(lines.len() - 1);
+            let body = lines[i..=end].join("\n");
+            if body.contains(lit) {
+                let mut names: Vec<String> = Vec::new();
+                for c in let_re.captures_iter(&body).flatten() {
+                    let (name, rhs) = (c.get(1).map_or("", |m| m.as_str()), c.get(2).map_or("", |m| m.as_str()));
+                    let hit = rhs.contains(lit) || names.iter().any(|v| pytext::search(&pytext::re(&format!(r"\b{}\b", re_escape(v))), rhs));
+                    if hit && !names.iter().any(|n| n == name) {
+                        names.push(name.to_string());
+                    }
+                }
+                for (k, line) in lines[i..=end].iter().enumerate() {
+                    for v in &names {
+                        let call = pytext::re(&format!(r#"(!?)\b{}\.contains\("((?:[^"\\]|\\.)*)"\)"#, re_escape(v)));
+                        for c in call.captures_iter(line).flatten() {
+                            let neg = c.get(1).map_or(false, |m| m.as_str() == "!");
+                            let l = rust_unescape(c.get(2).map_or("", |m| m.as_str()));
+                            if !neg && !skill.contains(l.as_str()) {
+                                res.push(format!("④ 결속 리터럴 부재 {}:{}: {}", rel, i + k + 1, py_repr_str(&l)));
+                            }
+                            if neg && skill.contains(l.as_str()) {
+                                res.push(format!("④ 금지 리터럴 존재 {}:{}: {}", rel, i + k + 1, py_repr_str(&l)));
+                            }
+                        }
+                    }
+                }
+            }
+            i = end + 1;
+        }
+    }
+    Ok(res)
+}
+
+/// The value of a Rust `"…"` literal body (the escapes the policy sources use: `\"`, `\\`, `\n`, `\t`).
+fn rust_unescape(s: &str) -> String {
+    let mut out = String::new();
+    let mut it = s.chars();
+    while let Some(c) = it.next() {
+        if c != '\\' {
+            out.push(c);
+            continue;
+        }
+        match it.next() {
+            Some('n') => out.push('\n'),
+            Some('t') => out.push('\t'),
+            Some(o) => out.push(o),
+            None => out.push('\\'),
+        }
+    }
+    out
 }
 
 pub fn router_bindings(root: &Path) -> R<()> {

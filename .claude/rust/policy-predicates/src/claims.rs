@@ -6,6 +6,8 @@
 //! as passing: it is a failure entry (`error` starts with `NotPorted:` and names the owner it needs), so the verdict is
 //! FAIL and the exit code 1 -- the same fail-closed outcome the original gives a clause that cannot be evaluated.
 use crate::support::{json_str, Fail, R};
+#[allow(unused_imports)]
+use crate::{claims_hint as h, claims_recipe as rx, claims_selftest as st, claims_tf as tf, claims_upstream as up};
 use crate::{claims_lib as l, claims_owner as o, claims_text as t};
 
 pub enum Impl {
@@ -25,15 +27,13 @@ macro_rules! p {
         Entry { clause_id: $cid, name: stringify!($f), imp: Impl::Ported($m::$f) }
     };
 }
+#[allow(unused_macros)]
 macro_rules! np {
     ($cid:literal, $f:literal, $why:expr) => {
         Entry { clause_id: $cid, name: $f, imp: Impl::NotPorted($why) }
     };
 }
 
-const HINTLIB: &str = "hint-publisher hintlib/hint.py (in-process: branch/tag/pii/template/evidence API + isolated git sandbox)";
-const SELFTEST: &str = "runtime_selftest tripwire functions + constants (policy-selftest Rust library)";
-const CAMPAIGN: &str = "terraforming_node campaign_init.py (in-process: grounding/registry functions)";
 
 /// The mapping, in the original's `PREDICATES` order.
 pub fn predicates() -> Vec<Entry> {
@@ -41,28 +41,25 @@ pub fn predicates() -> Vec<Entry> {
         p!("BRANCH_CONSTITUTION_LAYERING.C1", l::predicate_BRANCH_CONSTITUTION_LAYERING_C1),
         p!("BRANCH_CONSTITUTION_LAYERING.C2", l::predicate_BRANCH_CONSTITUTION_LAYERING_C2),
         p!("BRANCH_CONSTITUTION_LAYERING.C3", t::predicate_BRANCH_CONSTITUTION_LAYERING_C3),
-        np!("BRANCH_CONSTITUTION_LAYERING.C4", "predicate_BRANCH_CONSTITUTION_LAYERING_C4", SELFTEST),
-        np!("BRANCH_CONSTITUTION_LAYERING.C5", "predicate_BRANCH_CONSTITUTION_LAYERING_C5", SELFTEST),
-        np!("LIBRARY_GROUNDING_FAIL_CLOSED.C1", "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C1", CAMPAIGN),
-        np!("LIBRARY_GROUNDING_FAIL_CLOSED.C2", "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C2", CAMPAIGN),
-        np!("LIBRARY_GROUNDING_FAIL_CLOSED.C3", "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C3", CAMPAIGN),
-        np!("LIBRARY_GROUNDING_FAIL_CLOSED.C4", "predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C4", CAMPAIGN),
+        p!("BRANCH_CONSTITUTION_LAYERING.C4", st::predicate_BRANCH_CONSTITUTION_LAYERING_C4),
+        p!("BRANCH_CONSTITUTION_LAYERING.C5", st::predicate_BRANCH_CONSTITUTION_LAYERING_C5),
+        p!("LIBRARY_GROUNDING_FAIL_CLOSED.C1", tf::predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C1),
+        p!("LIBRARY_GROUNDING_FAIL_CLOSED.C2", tf::predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C2),
+        p!("LIBRARY_GROUNDING_FAIL_CLOSED.C3", tf::predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C3),
+        p!("LIBRARY_GROUNDING_FAIL_CLOSED.C4", tf::predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C4),
         p!("LIBRARY_GROUNDING_FAIL_CLOSED.C5", t::predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C5),
         p!("LIBRARY_GROUNDING_FAIL_CLOSED.C6", t::predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C6),
-        np!("ROOT_SURFACE_REGISTRY.C1", "predicate_ROOT_SURFACE_REGISTRY_C1", SELFTEST),
-        np!("ROOT_SURFACE_REGISTRY.C2", "predicate_ROOT_SURFACE_REGISTRY_C2", CAMPAIGN),
-        np!("ROOT_SURFACE_REGISTRY.C3", "predicate_ROOT_SURFACE_REGISTRY_C3", CAMPAIGN),
-        np!("HOST_SAFETY_LAYERED_DEFENSE.C1", "predicate_HOST_SAFETY_LAYERED_DEFENSE_C1",
-            "vllm-recipe-explorer preload_ram_gate.py (in-process gate() with monkeypatched mem_available_mib) + run_trial.py AST (_start_memwatch Popen)"),
+        p!("ROOT_SURFACE_REGISTRY.C1", st::predicate_ROOT_SURFACE_REGISTRY_C1),
+        p!("ROOT_SURFACE_REGISTRY.C2", tf::predicate_ROOT_SURFACE_REGISTRY_C2),
+        p!("ROOT_SURFACE_REGISTRY.C3", tf::predicate_ROOT_SURFACE_REGISTRY_C3),
+        p!("HOST_SAFETY_LAYERED_DEFENSE.C1", rx::predicate_HOST_SAFETY_LAYERED_DEFENSE_C1),
         p!("HOST_SAFETY_LAYERED_DEFENSE.C2", t::predicate_HOST_SAFETY_LAYERED_DEFENSE_C2),
         p!("HOST_SAFETY_LAYERED_DEFENSE.C3", o::predicate_HOST_SAFETY_LAYERED_DEFENSE_C3),
-        np!("HOST_SAFETY_LAYERED_DEFENSE.C4", "predicate_HOST_SAFETY_LAYERED_DEFENSE_C4",
-            "vllm-recipe-explorer preload_ram_gate.py (in-process DROP_HELPER/mem_available_mib monkeypatch + main())"),
+        p!("HOST_SAFETY_LAYERED_DEFENSE.C4", rx::predicate_HOST_SAFETY_LAYERED_DEFENSE_C4),
         p!("HOST_SAFETY_LAYERED_DEFENSE.C5", t::predicate_HOST_SAFETY_LAYERED_DEFENSE_C5),
         p!("HOST_SAFETY_LAYERED_DEFENSE.C6", t::predicate_HOST_SAFETY_LAYERED_DEFENSE_C6),
         p!("HOST_SAFETY_LAYERED_DEFENSE.C7", t::predicate_HOST_SAFETY_LAYERED_DEFENSE_C7),
-        np!("HOST_SAFETY_LAYERED_DEFENSE.C8", "predicate_HOST_SAFETY_LAYERED_DEFENSE_C8",
-            "vllm-recipe-explorer cleanup_docker.py (in-process preserve_set/main with monkeypatched list_images/_run) + its argparse AST"),
+        p!("HOST_SAFETY_LAYERED_DEFENSE.C8", rx::predicate_HOST_SAFETY_LAYERED_DEFENSE_C8),
         p!("HOST_SAFETY_LAYERED_DEFENSE.C9", t::predicate_HOST_SAFETY_LAYERED_DEFENSE_C9),
         p!("HOST_SAFETY_LAYERED_DEFENSE.C10", t::predicate_HOST_SAFETY_LAYERED_DEFENSE_C10),
         p!("VARIANT_IMAGE_BUILD_VS_SERVE_PLANE.C1", o::predicate_VARIANT_IMAGE_BUILD_VS_SERVE_PLANE_C1),
@@ -71,31 +68,28 @@ pub fn predicates() -> Vec<Entry> {
         p!("MODEL_TRIPLET_NO_SUB_PROPAGATION.C1", t::predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C1),
         p!("MODEL_TRIPLET_NO_SUB_PROPAGATION.C2", o::predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C2),
         p!("MODEL_TRIPLET_NO_SUB_PROPAGATION.C3", t::predicate_MODEL_TRIPLET_NO_SUB_PROPAGATION_C3),
-        np!("HINT_TAG_ACTIVATION_GATE.C1", "predicate_HINT_TAG_ACTIVATION_GATE_C1", HINTLIB),
-        np!("HINT_TAG_ACTIVATION_GATE.C2", "predicate_HINT_TAG_ACTIVATION_GATE_C2", HINTLIB),
-        np!("HINT_TAG_ACTIVATION_GATE.C3", "predicate_HINT_TAG_ACTIVATION_GATE_C3", HINTLIB),
-        np!("HINT_TAG_ACTIVATION_GATE.C4", "predicate_HINT_TAG_ACTIVATION_GATE_C4",
-            "terraforming_node render_sub_env.py + campaign_init.py (in-process) and hint-publisher string-constant AST"),
-        np!("HINT_TAG_ACTIVATION_GATE.C5", "predicate_HINT_TAG_ACTIVATION_GATE_C5", HINTLIB),
-        np!("HINT_TAG_ACTIVATION_GATE.C6", "predicate_HINT_TAG_ACTIVATION_GATE_C6", HINTLIB),
+        p!("HINT_TAG_ACTIVATION_GATE.C1", h::predicate_HINT_TAG_ACTIVATION_GATE_C1),
+        p!("HINT_TAG_ACTIVATION_GATE.C2", h::predicate_HINT_TAG_ACTIVATION_GATE_C2),
+        p!("HINT_TAG_ACTIVATION_GATE.C3", h::predicate_HINT_TAG_ACTIVATION_GATE_C3),
+        p!("HINT_TAG_ACTIVATION_GATE.C4", h::predicate_HINT_TAG_ACTIVATION_GATE_C4),
+        p!("HINT_TAG_ACTIVATION_GATE.C5", h::predicate_HINT_TAG_ACTIVATION_GATE_C5),
+        p!("HINT_TAG_ACTIVATION_GATE.C6", h::predicate_HINT_TAG_ACTIVATION_GATE_C6),
         p!("LAST_GOOD_ROLLBACK_ANCHOR.C1", t::predicate_LAST_GOOD_ROLLBACK_ANCHOR_C1),
         p!("LAST_GOOD_ROLLBACK_ANCHOR.C2", t::predicate_LAST_GOOD_ROLLBACK_ANCHOR_C2),
-        np!("LAST_GOOD_ROLLBACK_ANCHOR.C3", "predicate_LAST_GOOD_ROLLBACK_ANCHOR_C3", HINTLIB),
+        p!("LAST_GOOD_ROLLBACK_ANCHOR.C3", h::predicate_LAST_GOOD_ROLLBACK_ANCHOR_C3),
         p!("MODEL_ACQUISITION_TERNARY_GATE.C1", o::predicate_MODEL_ACQUISITION_TERNARY_GATE_C1),
         p!("MODEL_ACQUISITION_TERNARY_GATE.C2", o::predicate_MODEL_ACQUISITION_TERNARY_GATE_C2),
-        np!("MODEL_ACQUISITION_TERNARY_GATE.C3", "predicate_MODEL_ACQUISITION_TERNARY_GATE_C3", "vllm-recipe-explorer crosscheck_model_card.py (in-process)"),
-        np!("MODEL_ACQUISITION_TERNARY_GATE.C4", "predicate_MODEL_ACQUISITION_TERNARY_GATE_C4", "terraforming_node scan_node.py (in-process)"),
-        np!("MODEL_ACQUISITION_TERNARY_GATE.C5", "predicate_MODEL_ACQUISITION_TERNARY_GATE_C5", "vllm-recipe-explorer crosscheck_model_card.py (in-process)"),
-        np!("KV_ABSOLUTE_CLAMP_PORTABILITY.C1", "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C1", "vllm-recipe-explorer recipe.py + gen_recipe_set.py (in-process)"),
-        np!("KV_ABSOLUTE_CLAMP_PORTABILITY.C2", "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C2", "vllm-recipe-explorer recipe.py + gen_recipe_set.py (in-process)"),
-        np!("KV_ABSOLUTE_CLAMP_PORTABILITY.C3", "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C3", "vllm-recipe-explorer recipe.py (in-process)"),
-        np!("KV_ABSOLUTE_CLAMP_PORTABILITY.C4", "predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C4", "vllm-recipe-explorer recipe.py (in-process)"),
-        np!("RUNTIME_PATCH_NO_CARRY_FORWARD.C1", "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C1",
-            "upstream-version-watch render_dockerfile.build_context signature + RUNNER_SCRIPTS (in-process)"),
+        p!("MODEL_ACQUISITION_TERNARY_GATE.C3", rx::predicate_MODEL_ACQUISITION_TERNARY_GATE_C3),
+        p!("MODEL_ACQUISITION_TERNARY_GATE.C4", tf::predicate_MODEL_ACQUISITION_TERNARY_GATE_C4),
+        p!("MODEL_ACQUISITION_TERNARY_GATE.C5", rx::predicate_MODEL_ACQUISITION_TERNARY_GATE_C5),
+        p!("KV_ABSOLUTE_CLAMP_PORTABILITY.C1", rx::predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C1),
+        p!("KV_ABSOLUTE_CLAMP_PORTABILITY.C2", rx::predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C2),
+        p!("KV_ABSOLUTE_CLAMP_PORTABILITY.C3", rx::predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C3),
+        p!("KV_ABSOLUTE_CLAMP_PORTABILITY.C4", rx::predicate_KV_ABSOLUTE_CLAMP_PORTABILITY_C4),
+        p!("RUNTIME_PATCH_NO_CARRY_FORWARD.C1", up::predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C1),
         p!("RUNTIME_PATCH_NO_CARRY_FORWARD.C2", t::predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C2),
         p!("RUNTIME_PATCH_NO_CARRY_FORWARD.C3", t::predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C3),
-        np!("RUNTIME_PATCH_NO_CARRY_FORWARD.C4", "predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C4",
-            "upstream-version-watch render_dockerfile.VALIDATED_SOURCE_BUILD_KEYS/_patch_guard/ALLOW_UNVALIDATED (in-process)"),
+        p!("RUNTIME_PATCH_NO_CARRY_FORWARD.C4", up::predicate_RUNTIME_PATCH_NO_CARRY_FORWARD_C4),
         p!("SUB_SYNC_DIRTY_AUTOSAVE.C1", t::predicate_SUB_SYNC_DIRTY_AUTOSAVE_C1),
         p!("SUB_SYNC_DIRTY_AUTOSAVE.C2", t::predicate_SUB_SYNC_DIRTY_AUTOSAVE_C2),
         p!("SUB_SYNC_DIRTY_AUTOSAVE.C3", t::predicate_SUB_SYNC_DIRTY_AUTOSAVE_C3),
@@ -104,25 +98,21 @@ pub fn predicates() -> Vec<Entry> {
         p!("SUB_GIT_LOCAL_ONLY.C2", t::predicate_SUB_GIT_LOCAL_ONLY_C2),
         p!("SUB_GIT_LOCAL_ONLY.C3", t::predicate_SUB_GIT_LOCAL_ONLY_C3),
         p!("SUB_GIT_LOCAL_ONLY.C4", t::predicate_SUB_GIT_LOCAL_ONLY_C4),
-        np!("TERRAFORM_FLAG_GATE.C1", "predicate_TERRAFORM_FLAG_GATE_C1", "terraforming_node manifest_contract.py + scan_node.py (in-process)"),
-        np!("TERRAFORM_FLAG_GATE.C2", "predicate_TERRAFORM_FLAG_GATE_C2",
-            "terraforming_node manifest_contract.py + vllm-recipe-explorer recipe.py/crosscheck_model_card.py + render_dockerfile (in-process)"),
-        np!("TERRAFORM_FLAG_GATE.C3", "predicate_TERRAFORM_FLAG_GATE_C3", "terraforming_node manifest_contract.py + vllm-recipe-explorer recipe.py (in-process)"),
+        p!("TERRAFORM_FLAG_GATE.C1", tf::predicate_TERRAFORM_FLAG_GATE_C1),
+        p!("TERRAFORM_FLAG_GATE.C2", tf::predicate_TERRAFORM_FLAG_GATE_C2),
+        p!("TERRAFORM_FLAG_GATE.C3", tf::predicate_TERRAFORM_FLAG_GATE_C3),
         p!("TERRAFORM_FLAG_GATE.C4", o::predicate_TERRAFORM_FLAG_GATE_C4),
         p!("A2A_IDENTITY_PROOF_FAIL_CLOSED.C1", t::predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1),
         p!("A2A_IDENTITY_PROOF_FAIL_CLOSED.C2", t::predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2),
         p!("A2A_IDENTITY_PROOF_FAIL_CLOSED.C3", t::predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3),
         p!("A2A_IDENTITY_PROOF_FAIL_CLOSED.C4", t::predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4),
-        np!("ARCH_WALL_VARIANT_LADDER.C1", "predicate_ARCH_WALL_VARIANT_LADDER_C1",
-            "policy_registry arch_variant_contract_violations (policy-audit Rust library) + classify_failure"),
-        np!("ARCH_WALL_VARIANT_LADDER.C2", "predicate_ARCH_WALL_VARIANT_LADDER_C2",
-            "policy_registry arch_variant_contract_violations (policy-audit Rust library) + render_dockerfile"),
-        np!("ARCH_WALL_VARIANT_LADDER.C3", "predicate_ARCH_WALL_VARIANT_LADDER_C3", "policy_registry arch_variant_contract_violations (policy-audit Rust library)"),
-        np!("ARCH_WALL_VARIANT_LADDER.C4", "predicate_ARCH_WALL_VARIANT_LADDER_C4",
-            "policy_registry arch_variant_contract_violations (policy-audit Rust library) + render_dockerfile"),
-        np!("ARCH_WALL_VARIANT_LADDER.C5", "predicate_ARCH_WALL_VARIANT_LADDER_C5", "policy_registry arch_variant_contract_violations (policy-audit Rust library)"),
-        np!("GIT_SINGLE_AUTHORITY.C1", "predicate_GIT_SINGLE_AUTHORITY_C1", SELFTEST),
-        np!("GIT_SINGLE_AUTHORITY.C2", "predicate_GIT_SINGLE_AUTHORITY_C2", SELFTEST),
+        p!("ARCH_WALL_VARIANT_LADDER.C1", up::predicate_ARCH_WALL_VARIANT_LADDER_C1),
+        p!("ARCH_WALL_VARIANT_LADDER.C2", up::predicate_ARCH_WALL_VARIANT_LADDER_C2),
+        p!("ARCH_WALL_VARIANT_LADDER.C3", up::predicate_ARCH_WALL_VARIANT_LADDER_C3),
+        p!("ARCH_WALL_VARIANT_LADDER.C4", up::predicate_ARCH_WALL_VARIANT_LADDER_C4),
+        p!("ARCH_WALL_VARIANT_LADDER.C5", up::predicate_ARCH_WALL_VARIANT_LADDER_C5),
+        p!("GIT_SINGLE_AUTHORITY.C1", st::predicate_GIT_SINGLE_AUTHORITY_C1),
+        p!("GIT_SINGLE_AUTHORITY.C2", st::predicate_GIT_SINGLE_AUTHORITY_C2),
     ]
 }
 
@@ -131,7 +121,16 @@ pub const EXPECTED_PREDICATES: usize = 75;
 
 /// The Rust sources of the ported predicates (the structural "direct explicit requirement" check reads them, as the
 /// original reads `inspect.getsource(fn)`).
-const SOURCES: [&str; 3] = [include_str!("claims_text.rs"), include_str!("claims_lib.rs"), include_str!("claims_owner.rs")];
+const SOURCES: [&str; 8] = [
+    include_str!("claims_text.rs"),
+    include_str!("claims_lib.rs"),
+    include_str!("claims_owner.rs"),
+    include_str!("claims_hint.rs"),
+    include_str!("claims_recipe.rs"),
+    include_str!("claims_selftest.rs"),
+    include_str!("claims_tf.rs"),
+    include_str!("claims_upstream.rs"),
+];
 
 /// Number of direct `req(` calls in the body of `pub fn <name>(` within the ported sources.
 pub fn direct_requires(name: &str) -> Option<usize> {

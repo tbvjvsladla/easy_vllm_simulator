@@ -2,11 +2,11 @@
 //!
 //! Subjects owned by other packages are exercised through their Rust libraries (policy-gate, policy-audit,
 //! policy-distribution) or their launchers (`completion_gate.sh`, `evidence_publisher.sh`, `bench_reporting_api.sh`), never
-//! through a Python module. The four hint-publisher E2E tests of the original imported `hint.py`/`hintlib` in-process
-//! (`_test_hint_binding_source`, `_test_hint_cli_publication`, `_test_hint_cli_refute_paths`,
-//! `_test_hint_map_only_publication`): they belong to the hint-publisher bundle and are reported, not silently skipped, by
-//! [`NOT_PORTED`] until that bundle exposes them natively.
+//! through a Python module. The four hint-publisher tests (`_test_hint_binding_source`, `_test_hint_cli_publication`,
+//! `_test_hint_cli_refute_paths`, `_test_hint_map_only_publication`) live in [`crate::hint_suite`]: fixture assembly and
+//! unit judges through the `hintlib` crate, the CLI under test through its deployed launcher (`scripts/hint.sh`).
 use crate::gitx;
+use crate::hint_suite as hs;
 use crate::pyast::{self, Kind};
 use crate::pytext::{py_repr_list, py_strip};
 use crate::tempdir::TempDir;
@@ -15,14 +15,6 @@ use agent_runtime_support::pystr::PyStr;
 use agent_runtime_support::pyvalue::{PyDict, PyValue};
 use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
-
-/// Original tests whose subject is another bundle's Python imported in-process.
-pub const NOT_PORTED: [(&str, &str); 4] = [
-    ("_test_hint_binding_source", "hint-publisher hintlib.evidence (in-process)"),
-    ("_test_hint_cli_publication", "hint-publisher hint.py publish/continue E2E (in-process fixture driver)"),
-    ("_test_hint_cli_refute_paths", "hint-publisher hint.py publish/continue E2E (in-process fixture driver)"),
-    ("_test_hint_map_only_publication", "hint-publisher hint.py publish/continue E2E (in-process fixture driver)"),
-];
 
 fn ps(p: &Path) -> String {
     p.to_string_lossy().into_owned()
@@ -1232,10 +1224,10 @@ pub fn base_skill_edges_predicate() -> R<()> {
     let r = td.path().to_path_buf();
     let rs = ps(&r);
     git_ok(&["init", "-q", &rs])?;
-    let a = r.join(".claude/policies/runtime/a.py");
+    let a = r.join(".claude/policies/runtime/a.sh");
     write(&a, &format!("P = \".claude/{sk}/s1/scripts/x.py\"\n"));
     let ledger = |reason: &str| {
-        format!("{{\"edges\": [{{\"caller\": \".claude/policies/runtime/a.py\", \"callee\": \"s1/scripts/x.py\", \"phase\": \"verification_plane\", \"reason\": \"{reason}\"}}]}}")
+        format!("{{\"edges\": [{{\"caller\": \".claude/policies/runtime/a.sh\", \"callee\": \"s1/scripts/x.py\", \"phase\": \"verification_plane\", \"reason\": \"{reason}\"}}]}}")
     };
     write(&r.join(tw::BASE_SKILL_EDGES_REL), &ledger("fixture"));
     git_ok(&["-C", &rs, "add", "-A"])?;
@@ -1249,7 +1241,16 @@ pub fn base_skill_edges_predicate() -> R<()> {
     write(&r.join(tw::BASE_SKILL_EDGES_REL), &ledger(""));
     write(&a, &format!("P = \".claude/{sk}/s1/scripts/x.py\"\n"));
     let v = tw::base_skill_edge_violations(&r)?;
-    require(v.iter().any(|x| x.contains("phase/reason")), || format!("reasonless row must be RED: {}", py_repr_list(&v)))
+    require(v.iter().any(|x| x.contains("phase/reason")), || format!("reasonless row must be RED: {}", py_repr_list(&v)))?;
+    // plan_26111615 pass 3: the edge plane is the launchers + the Rust policy sources; a harness .py is not a caller.
+    write(&r.join(tw::BASE_SKILL_EDGES_REL), &ledger("fixture"));
+    write(&r.join(".claude/policies/runtime/old.py"), &format!("P = \".claude/{sk}/s3/scripts/z.py\"\n"));
+    write(&r.join(".claude/rust/policy-x/src/new.rs"), &format!("const P: &str = \".claude/{sk}/s4/src/w.rs\";\n"));
+    write(&r.join(".claude/rust/policy-x/checks/data.rs"), &format!("const P: &str = \".claude/{sk}/s5/x\";\n"));
+    git_ok(&["-C", &rs, "add", "-A"])?;
+    let v = tw::base_skill_edge_violations(&r)?;
+    require(v.len() == 1 && v[0].contains("미등재") && v[0].contains(".claude/rust/policy-x/src/new.rs") && v[0].contains("s4/src/w.rs"),
+            || format!("only the Rust policy source is an edge source (.py and checks/ are not): {}", py_repr_list(&v)))
 }
 
 pub fn router_bindings_predicate() -> R<()> {
@@ -1383,7 +1384,11 @@ pub fn run(repo: &Path) -> i32 {
         ("_test_promotion_rubric_carrier", Box::new(|| promotion_rubric_carrier(repo))),
         ("_test_certificate_waiver_by_authority", Box::new(|| certificate_waiver_by_authority(repo))),
         ("_test_certificate_run_resolution", Box::new(|| certificate_run_resolution(repo))),
+        ("_test_hint_binding_source", Box::new(|| hs::hint_binding_source(repo))),
+        ("_test_hint_cli_publication", Box::new(|| hs::hint_cli_publication(repo))),
+        ("_test_hint_cli_refute_paths", Box::new(|| hs::hint_cli_refute_paths(repo))),
         ("_test_hint_map_only_promotion", Box::new(|| hint_map_only_promotion(repo))),
+        ("_test_hint_map_only_publication", Box::new(|| hs::hint_map_only_publication(repo))),
         ("_test_policy_and_evidence_lifecycle", Box::new(|| policy_and_evidence_lifecycle(repo))),
         ("_test_agent_control_owner_selftest", Box::new(|| agent_control_owner_selftest(repo))),
         ("_test_execution_approval_authorization", Box::new(|| execution_approval_authorization(repo))),
@@ -1402,9 +1407,6 @@ pub fn run(repo: &Path) -> i32 {
             Err(Fail::Selftest(m)) => return crash(&format!("__main__.RuntimeSelftestFailure: {m}  [{name}]")),
             Err(Fail::Crash(t)) => return crash(&format!("{t}  [{name}]")),
         }
-    }
-    for (name, owner) in NOT_PORTED {
-        eprintln!("[runtime_selftest] NOT PORTED {name} -- subject is {owner}; run by its owner bundle, not here");
     }
     tw::announce_non_canonical(repo, "runtime_selftest");
     let repo_state: Vec<Box<dyn Fn() -> R<()>>> = vec![

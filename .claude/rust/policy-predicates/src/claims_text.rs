@@ -643,13 +643,12 @@ pub fn predicate_SUB_GIT_LOCAL_ONLY_C2() -> R {
     let allowlist = "`git add/commit/checkout/switch/branch/status/diff/log/stash` **허용**";
     req(tmpl.contains(denylist), "the exact push/pull/fetch/remote denial must be verbatim in the sub persona")?;
     req(tmpl.contains(allowlist), "the exact local-only allowlist must be verbatim in the sub persona")?;
-    // inspect.getsource(render_sub_env.render_tree): the def (decorators included) read from the module source.
-    let rse = read(".claude/skills/terraforming_node/scripts/render_sub_env.py")?;
-    let logicals = crate::pyast::tokenize(&rse);
-    let f = crate::pyast::functions(&logicals).into_iter().find(|f| f.name == "render_tree" && f.indent == 0)
+    // inspect.getsource(render_sub_env.render_tree) -> the renderer that runs: the Rust `render_tree` of the terraforming
+    // runtime (`render_sub_env.sh` starts it; the `.py` is a reference original pending deletion).
+    let rse = read(RENDER_SUB_ENV_RS)?;
+    let tree_src = rust_top_fn(&rse, "render_tree")
         .ok_or_else(|| Fail::new("AttributeError", "module 'render_sub_env' has no attribute 'render_tree'"))?;
-    let tree_src = crate::pyast::getsource(&rse, &f);
-    req(tree_src.contains("_render_file(\"CLAUDE.template.md\", \"CLAUDE.md\", \"md\")"), "CLAUDE.template.md must be the exact file render_tree writes as the sub's real CLAUDE.md")?;
+    req(tree_src.contains("render_file(\"CLAUDE.template.md\", \"CLAUDE.md\", \"md\", &mut produced)"), "CLAUDE.template.md must be the exact file render_tree writes as the sub's real CLAUDE.md")?;
     let src = sync_to_sub_src()?;
     let mut dispatched = findall("sub_run\\s+\"([^\"]*)\"", &src);
     dispatched.extend(findall("sub_run\\s+'([^']*)'", &src));
@@ -745,8 +744,16 @@ pub fn predicate_SUB_GIT_LOCAL_ONLY_C3() -> R {
 // A2A_IDENTITY_PROOF_FAIL_CLOSED
 // =============================================================================
 
+/// The Rust owners that now carry the A2A/sub-plane behaviour these clauses read (plan_26111615: the `.py` modules
+/// are reference originals pending deletion -- never the evidence).
+pub const RENDER_SUB_ENV_RS: &str = ".claude/skills/terraforming_node/rust/src/render_sub_env.rs";
+pub const SCAN_NODE_PROBE_RS: &str = ".claude/rust/role-contract/src/scan_node_probe.rs";
+pub const AGENT_CONTROL_RS: &str = ".claude/skills/terraforming_node/rust/src/agent_control.rs";
+pub const RELAY_RS: &str = ".claude/skills/terraforming_node/rust/src/relay.rs";
+
 pub fn predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C1() -> R {
-    let scan = read(".claude/skills/terraforming_node/scripts/scan_node_original.py")?;
+    // The SSH probe of scan_node (`collect_peer_hw` / `_peer_ssh_diag`) is the role-contract Rust probe.
+    let scan = read(SCAN_NODE_PROBE_RS)?;
     req(scan.contains("BatchMode=yes") && scan.contains("host-key 미등록/불일치") && scan.contains("키 인증 거부"),
         "terraforming must fail closed on SSH host/client key authentication failures")
 }
@@ -761,14 +768,14 @@ pub fn predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C2() -> R {
 }
 
 pub fn predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C3() -> R {
-    let control = read(".claude/skills/terraforming_node/scripts/agent_control.py")?;
+    let control = read(AGENT_CONTROL_RS)?;
     let gate = read(COMPLETION_GATE_OWNER)?;
     req(control.contains("role/transport mismatch") && gate.contains("allowed_actions"), "SSH transport must not imply arbitrary action authorization")?;
     req(gate.contains("EXECUTION_APPROVAL_ACTION_NOT_ALLOWED"), "out-of-scope side effects must fail closed")
 }
 
 pub fn predicate_A2A_IDENTITY_PROOF_FAIL_CLOSED_C4() -> R {
-    let render = read(".claude/skills/terraforming_node/scripts/render_sub_env.py")?;
+    let render = read(RENDER_SUB_ENV_RS)?;
     req(render.contains("Agent_Card.template.json"), "Agent Card capability metadata must still be rendered")?;
     let forbidden = ["signing_key", "a2a_signing", "trusted_keys.json", "runtime/a2a"];
     req(!forbidden.iter().any(|t| render.contains(t)), "renderer must not discover, render, or deliver retired signing/trust runtime material")
@@ -784,7 +791,8 @@ pub fn predicate_LIBRARY_GROUNDING_FAIL_CLOSED_C5() -> R {
     for gone in ["scripts/library_exchange.py", "scripts/library_relay.py", "sub_node/library-exchange.schema.json"] {
         req(!tn.join(gone).exists(), format!("은퇴한 A2A 서고 교환 부품이 남았다: {gone}"))?;
     }
-    let relay = read_path(&tn.join("scripts/relay.py"))?;
+    // The relay that runs is the Rust `relay` module (relay.sh); its self-test plane may name the retired keys on purpose.
+    let relay = rust_module_text(RELAY_RS, &["selftest.rs"])?;
     req(!relay.contains("serve_library_requests") && !relay.contains("library_request"), "릴레이가 아직 서고 질의를 나른다 — 서브는 접근자로 직접 묻는다(병존 폴백 ✗ · D2)")?;
     let wd = root.join(".claude/skills/wiki-desk/src");
     let cli = read_path(&wd.join("cli.ts"))?;

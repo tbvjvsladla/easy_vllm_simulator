@@ -18,7 +18,21 @@ pub const SCHEMA_VERSION: i64 = 2;
 pub const REVIEW_PERIOD_DAYS: i64 = 90;
 pub const OVERDUE_GRACE_DAYS: i64 = 30;
 pub const CLAIM_BINDINGS_REL: &str = ".claude/policies/claim_bindings.json";
-pub const CONTRACT_SCRIPT_REL: &str = ".claude/policies/runtime/policy_registry.py";
+/// The validator source whose bytes enter the contract-tree digest (`compute_contract_tree_sha256`). The original
+/// hashed its own program text (`policy_registry.py`); the validator is now this Rust module. No removal artifact is
+/// recorded in the registry (no policy carries `removal_evidence`), so no stored digest depends on the old input.
+pub const CONTRACT_SCRIPT_REL: &str = ".claude/rust/policy-audit/src/registry.rs";
+
+/// Directory of the claim predicates port; a clause's dedicated predicate lives in one of its `claims*.rs` files.
+pub const CLAIM_PREDICATES_SRC_DIR: &str = ".claude/rust/policy-predicates/src/";
+
+/// `<CLAIM_PREDICATES_SRC_DIR>claims*.rs` (one path component, no traversal).
+pub fn is_claim_predicate_source(path: &str) -> bool {
+    match path.strip_prefix(CLAIM_PREDICATES_SRC_DIR) {
+        Some(name) => name.starts_with("claims") && name.ends_with(".rs") && !name.contains('/') && !name.contains(".."),
+        None => false,
+    }
+}
 const CONTRACT_TREE_SCOPE: &str = ".claude";
 const LAZY_PLACEHOLDERS: &[&str] = &["", "tbd", "todo", "unknown", "n/a", "na", "none"];
 const MIN_SUBSTANTIVE_LEN: usize = 40;
@@ -1180,8 +1194,16 @@ pub fn claim_binding_violations(policies: &[PyValue], claim_bindings: &PyValue) 
                 continue;
             }
             if !cid_s.starts_with("TEST_") {
-                let dedicated = (s(".claude/policies/predicates/claim_predicates.py"), s(&format!("predicate_{}", cid_s.replace('.', "_"))));
-                if !act.contains(&dedicated) {
+                // The dedicated predicate is the Rust `predicate_<cid>` fn of the claim predicates port
+                // (`.claude/rust/policy-predicates/src/claims*.rs`; the original required the retired
+                // `claim_predicates.py`). Which `claims*.rs` file is free; that the id really is a line-start fn of
+                // that file is the ordinary evidence check (EVIDENCE_ASSERTION_ID_NOT_FOUND / path resolution).
+                let want_id = format!("predicate_{}", cid_s.replace('.', "_"));
+                let found = act.iter().any(|(p, a)| {
+                    as_str(a).as_deref() == Some(want_id.as_str()) && as_str(p).as_deref().map_or(false, is_claim_predicate_source)
+                });
+                if !found {
+                    let dedicated = (s(&format!("{CLAIM_PREDICATES_SRC_DIR}claims*.rs")), s(&want_id));
                     let drepr = PyValue::Tuple(vec![dedicated.0.clone(), dedicated.1.clone()]).repr();
                     out.push(
                         Violation::new("CLAIM_BINDING_MISSING_DEDICATED_PREDICATE", format!("canonical clause {} lacks required dedicated predicate {drepr}", r(&cid_s)))

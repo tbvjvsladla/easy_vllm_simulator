@@ -19,6 +19,38 @@ mod util;
 
 pub use ops::*;
 
+/// The self-test's E2E fixture assemblers, for the policies runtime self-check (`runtime_selftest` · the original imported
+/// `hint._fx_repo` / `_fx_legacy_remote` / `_fx_author` / `_fx_tree` in-process — one assembler, never a second copy).
+/// Read-only surface: thin wrappers, no behaviour of their own.
+pub mod fixtures {
+    use crate::core::HR;
+    use crate::value::J;
+    use std::collections::BTreeMap;
+    use std::path::{Path, PathBuf};
+
+    /// `hint._fx_repo(td)` -> (repo, fx).
+    pub fn fx_repo(td: &Path) -> HR<(PathBuf, J)> {
+        super::selftest_e2e::_fx_repo(td)
+    }
+    /// `hint._fx_legacy_remote(td, repo, bare)` -> {"old", "remote_only", "lightweight"}.
+    pub fn fx_legacy_remote(td: &Path, repo: &Path, bare: &Path) -> HR<J> {
+        super::selftest_e2e::_fx_legacy_remote(td, repo, bare)
+    }
+    /// `hint._fx_author(repo, draft, st)` (factcheck = True, the original's default).
+    pub fn fx_author(repo: &Path, draft: &Path, st: &J) -> HR<()> {
+        super::selftest_e2e::_fx_author(repo, draft, st, true)
+    }
+    /// `hint._fx_tree(root)`.
+    pub fn fx_tree(root: &Path) -> BTreeMap<String, Vec<u8>> {
+        super::selftest_e2e::_fx_tree(root)
+    }
+    /// The owner-launcher overrides the self-test sets (only keys the caller left unset); restored on drop.
+    pub struct OwnerEnv(#[allow(dead_code)] super::selftest::EnvGuard);
+    pub fn owner_bin_env() -> OwnerEnv {
+        OwnerEnv(super::selftest_e2e::owner_bin_env())
+    }
+}
+
 use crate::core::{self, HintError};
 use crate::io;
 use argparse::{Act, Ns, Parser, K, V};
@@ -195,6 +227,32 @@ fn build_parser() -> Parser {
     bt.add(Act::opt("--approved-by", K::Store).req().help("형식 전환 승인: 사람 발화 전사(한 줄 · 반환값에만 실린다 — 배포 오브젝트 ✗)"));
     bt.add(Act::opt("--approved-utc", K::Store).req().help("승인 시각 UTC"));
     p
+}
+
+/// The shape of the real parser (read-only introspection, the Rust form of the original's
+/// `_argparse_subcommands(_build_parser())` + `_option_string_actions`): every top-level subcommand with its option
+/// strings and their string defaults (`None` = no string default). Used by the policy predicates
+/// (HINT_TAG_ACTIVATION_GATE.C6 · LAST_GOOD_ROLLBACK_ANCHOR.C3).
+pub fn parser_shape() -> Vec<(String, Vec<(String, Option<String>)>)> {
+    build_parser()
+        .subs
+        .iter()
+        .map(|s| {
+            let opts = s
+                .parser
+                .acts
+                .iter()
+                .flat_map(|a| {
+                    let d = match &a.default {
+                        V::Str(v) => Some(v.clone()),
+                        _ => None,
+                    };
+                    a.opts.iter().map(move |o| (o.clone(), d.clone()))
+                })
+                .collect();
+            (s.name.clone(), opts)
+        })
+        .collect()
 }
 
 /// The parsed namespace with typed accessors.

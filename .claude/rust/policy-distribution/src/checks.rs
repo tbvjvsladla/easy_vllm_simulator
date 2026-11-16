@@ -81,6 +81,7 @@ pub const ANTIPATTERN_SCAN_LAUNCHER: &str = ".claude/policies/runtime/antipatter
 pub const CONSTITUTION_LINT_LAUNCHER: &str = ".claude/policies/runtime/constitution_lint.sh";
 pub const DOC_NAMING_LAUNCHER: &str = ".claude/policies/runtime/doc_naming.sh";
 pub const CLAIM_PREDICATES_LAUNCHER: &str = "claim_predicates.sh";
+pub const HINT_LAUNCHER: &str = ".claude/skills/hint-publisher/scripts/hint.sh";
 
 fn set(items: &[&str]) -> BTreeSet<String> {
     items.iter().map(|s| s.to_string()).collect()
@@ -516,19 +517,19 @@ pub fn policy_registry_check(policy_runner: &Path, repo: &Path, record: &AsOfRec
     policy_registry_check_with(policy_runner, repo, record, |name, argv, expected| run(name, argv, expected, repo, &[]))
 }
 
-fn copytree(src: &Path, dst: &Path) -> Result<(), PyError> {
+fn copytree_skipping(src: &Path, dst: &Path, skip: &[&Path]) -> Result<(), PyError> {
     fs::create_dir_all(dst).map_err(|e| os_error(&e, &dst.to_string_lossy()))?;
     let rd = fs::read_dir(src).map_err(|e| os_error(&e, &src.to_string_lossy()))?;
     let mut items: Vec<PathBuf> = rd.flatten().map(|e| e.path()).collect();
     items.sort();
     for p in items {
         let name = p.file_name().unwrap();
-        if name == "__pycache__" {
+        if name == "__pycache__" || skip.iter().any(|s| *s == p.as_path()) {
             continue;
         }
         let target = dst.join(name);
         if p.is_dir() {
-            copytree(&p, &target)?;
+            copytree_skipping(&p, &target, skip)?;
         } else {
             fs::copy(&p, &target).map_err(|e| os_error(&e, &p.to_string_lossy()))?;
         }
@@ -547,7 +548,12 @@ fn gitless_hint_match_checks(repo: &Path) -> Vec<PyValue> {
     };
     let root = td.0.clone();
     let prepared = (|| -> Result<PyValue, PyError> {
-        copytree(&repo.join(skill), &root.join(skill))?;
+        // The skill tree minus its node-local cargo `target/` (build outputs, not the skill), then the one release
+        // executable the match runs (the delivered program of hint.sh).
+        copytree_skipping(&repo.join(skill), &root.join(skill), &[&repo.join(skill).join("rust/target")])?;
+        let bin_rel = format!("{skill}/rust/target/release/hint");
+        fs::create_dir_all(root.join(&bin_rel).parent().unwrap()).map_err(|e| os_error(&e, &bin_rel))?;
+        fs::copy(repo.join(&bin_rel), root.join(&bin_rel)).map_err(|e| os_error(&e, &repo.join(&bin_rel).to_string_lossy()))?;
         for r in ["hints/index.json", "hints/vocab.json"] {
             copy_file(&repo.join(r), &root.join(r))?;
         }
@@ -588,8 +594,11 @@ fn gitless_hint_match_checks(repo: &Path) -> Vec<PyValue> {
         }
     };
     let (pv, pm, pa, pt) = (field(probe, "vllm").unwrap(), field(probe, "model").unwrap(), field(probe, "arch").unwrap(), field(probe, "tag").unwrap());
-    let gitless = [("PATH", "/nonexistent")];
-    let cli = vec![python_executable(), format!("{skill}/scripts/hint.py"), "match".into(), "--vllm".into(), pv.clone(), "--model".into(), pm.clone()];
+    // The single hint CLI is the Rust `hint` (hint.sh = `HINT_SKILL_DIR=<skill> exec <skill>/rust/target/release/hint`).
+    // It is started directly because the launcher itself needs `dirname` from PATH, and PATH is cut on purpose here.
+    let skill_dir = root.join(skill).to_string_lossy().into_owned();
+    let gitless = [("PATH", "/nonexistent"), ("HINT_SKILL_DIR", skill_dir.as_str())];
+    let cli = vec![root.join(format!("{skill}/rust/target/release/hint")).to_string_lossy().into_owned(), "match".into(), "--vllm".into(), pv.clone(), "--model".into(), pm.clone()];
     let mut first = run("gitless_hint_match", &cli, &[0], &root, &gitless);
     let run_json = |extra: &[&str]| -> (Option<i64>, Option<String>, Option<PyValue>, Option<String>) {
         let mut argv = cli.clone();
@@ -1015,10 +1024,13 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
         ("ok", b(!skeleton_text.contains("`scripts/doc_naming.py`") && skeleton_text.contains(".claude/policies/runtime/doc_naming.py")))]));
 
     let tn = ".claude/skills/terraforming_node/scripts";
-    checks.push(p("hint_selftest", ".claude/skills/hint-publisher/scripts/hint.py", &["--self-test"], &[0]));
-    checks.push(run("hint_image_git_release_selftest", &[py.clone(), "-m".into(), "hintlib.selftest_image_git_release".into()], &[0],
-                    &repo.join(".claude/skills/hint-publisher/scripts"), &[]));
-    checks.push(p("hint_bench_section_selftest", ".claude/skills/hint-publisher/scripts/render_bench_section.py", &["--selftest"], &[0]));
+    // hint-publisher: its Rust launchers (was `python3 hint.py --self-test` / `render_bench_section.py --selftest`); the
+    // image-git-release unittest module is the hint crate's `artifacts_cases::image_git_release` check (plan_26111615).
+    checks.push(rr("hint_selftest", &["bash", HINT_LAUNCHER, "--self-test"], &[0]));
+    checks.push(rr("hint_image_git_release_selftest", &["bash", ".claude/skills/terraforming_node/scripts/rust_bootstrap.sh", "exec", "--",
+                    "cargo", "test", "--offline", "--locked", "--release", "--manifest-path", ".claude/skills/hint-publisher/rust/Cargo.toml",
+                    "--target-dir", ".claude/skills/hint-publisher/rust/target", "--test", "artifacts_cases", "image_git_release"], &[0]));
+    checks.push(rr("hint_bench_section_selftest", &["bash", ".claude/skills/hint-publisher/scripts/render_bench_section.sh", "--selftest"], &[0]));
     // terraforming core contracts: their Rust launchers (was `python3 <x>.py --self-test`; pass 2 of plan_26111615).
     checks.push(rr("terraform_scan_selftest_legacy", &["bash", &format!("{tn}/scan_node.sh"), "--self-test"], &[0]));
     checks.push(rr("terraform_scan_p1_native_selfcheck", &["bash", &format!("{tn}/scan_node.sh"), "--p1-self-check"], &[0]));
@@ -1139,6 +1151,8 @@ pub fn verify_with(repo: &Path, record: AsOfRecord, hooks: &Hooks) -> Result<PyV
         Ok(t) => {
             checks.push(order_check("single_up_grounding_before_any_state", &t,
                 "echo \"$TAG 1/7 통로·전제      : DONE", "echo \"$TAG 3/7 예산 선언       : DONE\"",
+                // single_serve_up.sh now names the Rust launchers directly (`$_CI` = campaign_init.sh · `$SESSION_SH` =
+                // blackbox_session.sh); the order contract is unchanged: grounding, then the RAM gate, then the budget declaration.
                 &["bash \"$_CI\" --grounding-check", "check_smoke_model.sh\" \"$CONFIG\"", "bash \"$SESSION_SH\" \"${DECL_ARGS[@]}\""]));
             checks.push(order_check("single_up_engine_log_saved_before_rollback", &t,
                 "echo \"$TAG 7/7 health 대기     : FAIL — 컨테이너가 종료됐다\"", "rollback; exit 5",

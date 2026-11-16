@@ -1251,7 +1251,7 @@ fn op_cell_set(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
     Ok(0)
 }
 
-fn write_cell(
+pub fn write_cell(
     ctx: &Ctx,
     base: &Path,
     args: &Args,
@@ -4248,7 +4248,7 @@ fn self_node_id(ctx: &Ctx) -> String {
     "sub".to_string()
 }
 
-fn grounding_terms(decl: &PyDict) -> Vec<String> {
+pub fn grounding_terms(decl: &PyDict) -> Vec<String> {
     let cv = decl.get("control_variables").filter(|v| v.is_truthy()).and_then(dict_of).cloned().unwrap_or_default();
     let mut keys: Vec<&(PyStr, PyValue)> = cv.iter().collect();
     keys.sort_by(|a, b| a.0.code_points().cmp(b.0.code_points()));
@@ -5163,7 +5163,7 @@ fn op_cell_materialize(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 
 /// `purge_gate_reasons(previous_id)`: why the previous instance may not be removed (empty = the gate is open). A closed
 /// `abandoned` instance asks the owner's reduction gate: that shape is not modelled.
-fn purge_gate_reasons(ctx: &Ctx, previous_id: &str) -> R<Vec<String>> {
+pub fn purge_gate_reasons(ctx: &Ctx, previous_id: &str) -> R<Vec<String>> {
     let prev = ctx.campaigns().join(previous_id);
     if !is_dir(&prev) {
         return Ok(Vec::new());
@@ -5274,7 +5274,7 @@ fn purge_gate_reasons(ctx: &Ctx, previous_id: &str) -> R<Vec<String>> {
 }
 
 /// `do_purge(previous_id, apply)`: the removed path (empty when there was nothing to remove).
-fn do_purge(ctx: &Ctx, previous_id: &str, apply: bool) -> R<Vec<String>> {
+pub fn do_purge(ctx: &Ctx, previous_id: &str, apply: bool) -> R<Vec<String>> {
     let reasons = purge_gate_reasons(ctx, previous_id)?;
     if !reasons.is_empty() {
         return refuse(format!("purge 게이트가 닫혀 있다:\n  - {}", reasons.join("\n  - ")));
@@ -6458,7 +6458,7 @@ fn op_lockset_precheck(ctx: &Ctx, args: &Args, io: &mut Sinks<'_>) -> R<i32> {
 // ── --grounding-check and --escalation-summary ───────────────────────────────────────────────
 
 /// `grounding_reasons(base)`: why the grounding does not hold (empty = it does).
-fn grounding_reasons(ctx: &Ctx, base: &Path) -> Vec<String> {
+pub fn grounding_reasons(ctx: &Ctx, base: &Path) -> Vec<String> {
     let Some((path, doc)) = latest_grounding(base) else {
         return vec![format!(
             "그라운딩 기록이 없다: {}/ — 캠페인 착수·셀 축 변경 시 통제변인 파생 질의로 사서를 부른 기록이 있어야 한다(policy:LIBRARY_GROUNDING_FAIL_CLOSED C1). `campaign_init.py --ground --utc <t>` 로 물어라.",

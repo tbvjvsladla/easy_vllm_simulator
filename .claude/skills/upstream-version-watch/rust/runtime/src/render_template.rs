@@ -19,7 +19,7 @@ const IMAGE_NAME: &str = "easy-vllm";
 const LEDGER_BODY: &str = include_str!("render_ledger_body.txt");
 
 /// tripwire: the closed list of (NGC base, vLLM version) pairs a build and smoke have passed for (the original's `VALIDATED_SOURCE_BUILD_KEYS`).
-const VALIDATED_SOURCE_BUILD_KEYS: [(&str, &str); 8] = [
+pub const VALIDATED_SOURCE_BUILD_KEYS: [(&str, &str); 8] = [
     ("26.03-py3", "0.22.1"),
     ("26.05-py3", "0.23.0"),
     ("26.05-py3", "0.24.0"),
@@ -261,6 +261,12 @@ fn patch_guard_with(ledger: &[InheritEntry], ngc_tag: &str, vllm: &str, resolved
     )
 }
 
+/// `_patch_guard(ngc_tag, vllm_version)` of the original (`resolved=None`, the production `INHERITED_SOURCE_BUILD_KEYS`);
+/// the original's module global `ALLOW_UNVALIDATED` is the explicit `allow_unvalidated` argument here.
+pub fn patch_guard(ngc_tag: &str, vllm: &str, allow_unvalidated: bool) -> String {
+    patch_guard_with(INHERITED_SOURCE_BUILD_KEYS, ngc_tag, vllm, &V::None, allow_unvalidated)
+}
+
 /// `f"{x}"` of a value (the `str()` form)
 fn opt_repr_py(v: Option<&V>) -> String {
     v.map_or_else(|| "None".to_string(), V::py_str)
@@ -278,7 +284,7 @@ fn compact_cuda(cuda: &str) -> String {
 }
 
 /// `build_context`: the ordered placeholder map.
-fn build_context(manifest: &V, resolved: &V, allow_unvalidated: bool) -> Result<Vec<(&'static str, String)>, Raised> {
+pub fn build_context(manifest: &V, resolved: &V, allow_unvalidated: bool) -> Result<Vec<(&'static str, String)>, Raised> {
     build_context_with(INHERITED_SOURCE_BUILD_KEYS, manifest, resolved, allow_unvalidated)
 }
 

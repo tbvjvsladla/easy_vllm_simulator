@@ -12,35 +12,35 @@
     },
     {
       "clause_id": null,
-      "message": "'deepseek-v4-flash-sm12x-port-0.27.0' selector 'SM12X_PORT' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/scripts/slave_forward.py is absent",
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.0' selector 'SM12X_PORT' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/rust/runtime/src/slave_forward.rs is absent",
       "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.0.build_patch_selectors.SM12X_PORT",
       "policy_id": "ARCH_WALL_VARIANT_LADDER",
       "reason_code": "ARCH_VARIANT_PORT_SELECTOR_WIRING_UNREADABLE"
     },
     {
       "clause_id": null,
-      "message": "'deepseek-v4-flash-sm12x-fork41834-0.27.0' selector 'SRC_DEPS_AUTHORITY' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/scripts/slave_forward.py is absent",
+      "message": "'deepseek-v4-flash-sm12x-fork41834-0.27.0' selector 'SRC_DEPS_AUTHORITY' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/rust/runtime/src/slave_forward.rs is absent",
       "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-fork41834-0.27.0.build_patch_selectors.SRC_DEPS_AUTHORITY",
       "policy_id": "ARCH_WALL_VARIANT_LADDER",
       "reason_code": "ARCH_VARIANT_PORT_SELECTOR_WIRING_UNREADABLE"
     },
     {
       "clause_id": null,
-      "message": "'deepseek-v4-flash-sm12x-port-0.27.1' selector 'SM12X_PORT' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/scripts/slave_forward.py is absent",
+      "message": "'deepseek-v4-flash-sm12x-port-0.27.1' selector 'SM12X_PORT' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/rust/runtime/src/slave_forward.rs is absent",
       "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v4-flash-sm12x-port-0.27.1.build_patch_selectors.SM12X_PORT",
       "policy_id": "ARCH_WALL_VARIANT_LADDER",
       "reason_code": "ARCH_VARIANT_PORT_SELECTOR_WIRING_UNREADABLE"
     },
     {
       "clause_id": null,
-      "message": "'deepseek-v41-flash-sm12x-port-0.30.0' selector 'SM12X_PORT' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/scripts/slave_forward.py is absent",
+      "message": "'deepseek-v41-flash-sm12x-port-0.30.0' selector 'SM12X_PORT' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/rust/runtime/src/slave_forward.rs is absent",
       "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v41-flash-sm12x-port-0.30.0.build_patch_selectors.SM12X_PORT",
       "policy_id": "ARCH_WALL_VARIANT_LADDER",
       "reason_code": "ARCH_VARIANT_PORT_SELECTOR_WIRING_UNREADABLE"
     },
     {
       "clause_id": null,
-      "message": "'deepseek-v41-flash-sm12x-port-0.32.0' selector 'SM12X_PORT' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/scripts/slave_forward.py is absent",
+      "message": "'deepseek-v41-flash-sm12x-port-0.32.0' selector 'SM12X_PORT' cannot be proven cluster-wide: .claude/skills/upstream-version-watch/rust/runtime/src/slave_forward.rs is absent",
       "path": ".claude/policies/arch_variant_ledger.json.source_build_variants.deepseek-v41-flash-sm12x-port-0.32.0.build_patch_selectors.SM12X_PORT",
       "policy_id": "ARCH_WALL_VARIANT_LADDER",
       "reason_code": "ARCH_VARIANT_PORT_SELECTOR_WIRING_UNREADABLE"

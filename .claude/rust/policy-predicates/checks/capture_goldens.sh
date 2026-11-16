@@ -8,6 +8,9 @@
 #                                      tree: the original's failure for the targeted clause (`<Class>: <message>`),
 #                                      or for a unittest target its exit code and the FAIL/ERROR test names
 # Usage: bash checks/capture_goldens.sh   (from anywhere; writes into checks/data/)
+# Hand-maintained (not re-capturable from the Python originals): M05-signing-key and M11-push-tags mutate the Rust
+# owner sources (render_sub_env.rs, hint tag.rs) the clauses now read (plan_26111615 pass 3); their expected outcomes in
+# negative_goldens.json are the original's outcomes for the equivalent .py mutation (same message / same failed test).
 set -euo pipefail
 CDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$CDIR/../../../.." && pwd)"

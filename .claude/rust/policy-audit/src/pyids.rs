@@ -212,7 +212,88 @@ pub fn rust_ids_text(text: &str) -> Ids {
     let decl = DECL.get_or_init(|| {
         re(r"(?m)^(?:pub(?:\([a-z]+\))?[ \t]+)?(?:const|static|fn|struct|enum|trait)[ \t]+([A-Za-z_][A-Za-z0-9_]*)")
     });
-    findall_group1(decl, &strip_block_comments(text)).into_iter().collect()
+    findall_group1(decl, &strip_rust_block_comments(text)).into_iter().collect()
+}
+
+/// Rust block comments removed with a minimal Rust lexer: `/*` inside a string/char literal or a `//` line comment does
+/// not open a comment (the original's `re.sub(r"/\*.*?\*/", ...)` did, so a glob string like `"cells/*/x"` swallowed
+/// every declaration up to the next `*/`; Rust evidence files became real ports only after the Python originals were
+/// retired). Block comments nest, as in Rust. An unterminated block comment keeps the rest of the text (as before).
+pub fn strip_rust_block_comments(text: &str) -> String {
+    let b = text.as_bytes();
+    let n = b.len();
+    let mut out: Vec<u8> = Vec::with_capacity(n);
+    let mut i = 0;
+    while i < n {
+        let c = b[i];
+        if c == b'/' && i + 1 < n && b[i + 1] == b'/' {
+            let end = b[i..].iter().position(|&x| x == b'\n').map_or(n, |p| i + p);
+            out.extend_from_slice(&b[i..end]);
+            i = end;
+        } else if c == b'/' && i + 1 < n && b[i + 1] == b'*' {
+            let mut depth = 1;
+            let mut j = i + 2;
+            while j < n && depth > 0 {
+                if b[j] == b'/' && j + 1 < n && b[j + 1] == b'*' {
+                    depth += 1;
+                    j += 2;
+                } else if b[j] == b'*' && j + 1 < n && b[j + 1] == b'/' {
+                    depth -= 1;
+                    j += 2;
+                } else {
+                    j += 1;
+                }
+            }
+            if depth > 0 {
+                out.extend_from_slice(&b[i..]);
+                i = n;
+            } else {
+                i = j;
+            }
+        } else if c == b'r' && (i == 0 || !(b[i - 1].is_ascii_alphanumeric() || b[i - 1] == b'_')) && raw_string_open(b, i + 1).is_some() {
+            let (hashes, body) = raw_string_open(b, i + 1).unwrap_or((0, i + 1));
+            let close: Vec<u8> = std::iter::once(b'"').chain(std::iter::repeat(b'#').take(hashes)).collect();
+            let end = b[body..].windows(close.len()).position(|w| w == close.as_slice()).map_or(n, |p| body + p + close.len());
+            out.extend_from_slice(&b[i..end]);
+            i = end;
+        } else if c == b'"' {
+            let mut j = i + 1;
+            while j < n && b[j] != b'"' {
+                j += if b[j] == b'\\' { 2 } else { 1 };
+            }
+            let end = (j + 1).min(n);
+            out.extend_from_slice(&b[i..end]);
+            i = end;
+        } else if c == b'\'' {
+            // char literal ('x', '\n', '\'', '\u{..}') vs lifetime ('a): copy a literal whole, a lifetime tick alone.
+            let end = if i + 2 < n && b[i + 1] == b'\\' {
+                b[i + 2..].iter().position(|&x| x == b'\'').map(|p| i + 2 + p + 1)
+            } else {
+                let ch_len = text[i + 1..].chars().next().map_or(0, |ch| ch.len_utf8());
+                if ch_len > 0 && i + 1 + ch_len < n && b[i + 1 + ch_len] == b'\'' { Some(i + 2 + ch_len) } else { None }
+            };
+            let end = end.unwrap_or(i + 1);
+            out.extend_from_slice(&b[i..end]);
+            i = end;
+        } else {
+            out.push(c);
+            i += 1;
+        }
+    }
+    String::from_utf8(out).unwrap_or_else(|_| text.to_string())
+}
+
+/// After an `r` at `start-1`: `#*"` opens a raw string -> (hash count, index of the first body byte).
+fn raw_string_open(b: &[u8], start: usize) -> Option<(usize, usize)> {
+    let mut j = start;
+    while j < b.len() && b[j] == b'#' {
+        j += 1;
+    }
+    if j < b.len() && b[j] == b'"' {
+        Some((j - start, j + 1))
+    } else {
+        None
+    }
 }
 
 /// `_json_assertion_ids`: the top-level keys of a JSON object file (`safe_load_json_object` failures -> None).
@@ -764,6 +845,16 @@ pub fn python_ids_text(source: &str) -> Option<Ids> {
 #[cfg(test)]
 mod t {
     use super::*;
+    #[test]
+    fn rust_shapes() {
+        // `/*` inside strings, raw strings and line comments opens no comment; real block comments (nested) hide decls.
+        let src = "fn a() { let g = \"cells/*/x\"; }\n// see docs/*/y\nconst B: &str = r#\"q/*\"#;\nlet c = '\"'; fn x<'l>() {}\n/* outer /* inner */\nfn hidden() {}\n*/\npub fn d() {}\nstatic E: u8 = b'/';\npub(crate) fn f() {}\n    fn indented() {}\n";
+        let ids = rust_ids_text(src);
+        let want: Ids = ["a", "B", "d", "E", "f"].iter().map(|s| s.to_string()).collect();
+        assert_eq!(ids, want);
+        // an unterminated block comment keeps the rest
+        assert!(rust_ids_text("/* open\nfn g() {}\n").contains("g"));
+    }
     #[test]
     fn python_shapes() {
         let src = "import unittest\nX = 1\nY: int = 2\nA = B = 3\na, b = 4, 5\nf = lambda x=1: x\nasync def beta(): pass\n@dec\ndef alpha(\n  q=1):\n    Z = 2\nclass K(unittest.TestCase):\n    def test_one(self):\n        s = \"\"\"\ndef fake(): pass\n\"\"\"\n    def helper(self): pass\nclass P:\n    def test_two(self): pass\nx += 1\nif True: W = 1\nd = f\"{a!r:>{w}} {b['k']}\"\n";

@@ -474,3 +474,36 @@ pub fn tail_chars(s: &str, n: usize) -> String {
     let count = s.chars().count();
     if count <= n { s.to_string() } else { s.chars().skip(count - n).collect() }
 }
+
+/// The text of the top-level `pub fn <name>` / `fn <name>` item of a Rust source (rustfmt layout: the head starts at
+/// column 0, the item ends at the first `}` line at column 0, or on the head line itself for a one-line item). The
+/// Rust counterpart of `inspect.getsource(module.<fn>)` for an owner that is now a Rust module. `None` = no such item.
+pub fn rust_top_fn(src: &str, name: &str) -> Option<String> {
+    let lines: Vec<&str> = src.split('\n').collect();
+    let heads = [format!("pub fn {name}("), format!("fn {name}("), format!("pub fn {name}<"), format!("fn {name}<"),
+                 format!("pub(crate) fn {name}(")];
+    let start = lines.iter().position(|l| heads.iter().any(|h| l.starts_with(h.as_str())))?;
+    let end = (start..lines.len()).find(|&i| lines[i] == "}" || (i == start && lines[i].ends_with('}')))?;
+    Some(lines[start..=end].join("\n"))
+}
+
+/// The concatenated text of the Rust sources of a module directory and its `<dir>.rs` file (non-recursive into
+/// `selftest.rs`/test planes when `skip` names them), sorted by path -- used where a clause reads "the module source".
+pub fn rust_module_text(module_rs: &str, skip: &[&str]) -> R<String> {
+    let root = repo_root();
+    let mut files = vec![root.join(module_rs)];
+    let dir = root.join(module_rs.trim_end_matches(".rs"));
+    if let Ok(rd) = fs::read_dir(&dir) {
+        let mut more: Vec<PathBuf> = rd.flatten().map(|e| e.path())
+            .filter(|p| p.extension().map_or(false, |e| e == "rs") && !skip.iter().any(|s| p.file_name().map_or(false, |n| n == *s)))
+            .collect();
+        more.sort();
+        files.extend(more);
+    }
+    let mut out = String::new();
+    for f in files {
+        out.push_str(&read_path(&f)?);
+        out.push('\n');
+    }
+    Ok(out)
+}

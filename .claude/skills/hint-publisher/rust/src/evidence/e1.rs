@@ -406,7 +406,30 @@ pub fn _COLOCATED_GATE() -> PathBuf {
     core::scripts_dir().join("completion_gate.py")
 }
 
+/// The completion gate's native launcher (`completion_gate.sh` next to the original path) — the gate that runs.
+pub fn _cgate_launcher_rel() -> String {
+    core::REL_COMPLETION_GATE.strip_suffix(".py").map(|s| format!("{s}.sh")).unwrap_or_else(|| core::REL_COMPLETION_GATE.to_string())
+}
+
+/// The Rust source of the gate the launcher runs (policy-gate), read from this checkout: the binary the launcher
+/// starts is built from it, so its public API is the gate's API (plan_26111615 — the `.py` is a reference original).
+pub const REL_COMPLETION_GATE_RS: &str = ".claude/rust/policy-gate/src/completion_gate.rs";
+
+pub fn _cgate_rust_source() -> PathBuf {
+    // The checkout this binary was built from (`<root>/.claude/skills/hint-publisher/rust`): fixture repositories that
+    // redirect HINT_SKILL_DIR still run this checkout's gate binary, so its source is the API authority. A moved or
+    // stripped checkout leaves the file absent = HINT_GATE_API_MISSING (fail closed, never a guess).
+    let built = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let root = built.parent().and_then(Path::parent).and_then(Path::parent).and_then(Path::parent).map(Path::to_path_buf).unwrap_or_default();
+    root.join(REL_COMPLETION_GATE_RS)
+}
+
 pub fn _cgate_path(repo: &Path) -> HR<PathBuf> {
+    // The native launcher first (what `run_owner` starts); then the original `.py` (reference copy while it exists).
+    let launcher = repo.join(_cgate_launcher_rel());
+    if launcher.is_file() {
+        return Ok(launcher);
+    }
     let canonical = repo.join(core::REL_COMPLETION_GATE);
     if canonical.is_file() {
         return Ok(canonical);
@@ -643,23 +666,32 @@ impl CGate {
 /// a gate file that no longer defines a required public name = `HINT_GATE_API_MISSING`.
 pub fn cgate(repo: &Path) -> HR<CGate> {
     let path = _cgate_path(&core::resolve(repo))?;
-    let text = read_replace(&path).unwrap_or_default();
+    // A launcher is judged by the Rust gate source it runs; a `.py` copy by its own text (same required names).
+    let native = path.extension().map_or(false, |e| e == "sh");
+    let api_path = if native { _cgate_rust_source() } else { path.clone() };
+    let text = read_replace(&api_path).unwrap_or_default();
     let lines = splitlines(&text);
     let absent: Vec<&str> = _GATE_REQUIRED_API
         .iter()
         .copied()
         .filter(|a| {
             !lines.iter().any(|l| {
-                l.strip_prefix(&format!("def {a}")).map_or(false, |r| r.starts_with('('))
-                    || l.strip_prefix(*a).map_or(false, |r| r.trim_start().starts_with('='))
+                if native {
+                    ["pub fn ", "pub const ", "pub static "].iter().any(|k| {
+                        l.strip_prefix(k).and_then(|r| r.strip_prefix(*a)).map_or(false, |r| r.starts_with('(') || r.starts_with(':') || r.starts_with('<'))
+                    })
+                } else {
+                    l.strip_prefix(&format!("def {a}")).map_or(false, |r| r.starts_with('('))
+                        || l.strip_prefix(*a).map_or(false, |r| r.trim_start().starts_with('='))
+                }
             })
         })
         .collect();
     if !absent.is_empty() {
         return core::fail(
             "HINT_GATE_API_MISSING",
-            format!("completion_gate 에 공개 API {} 가 없다({}).", list_repr(&absent), pname(&core::posix(&path))),
-            Some("동거 사본이 낡았을 수 있다 — 정본 `.claude/policies/runtime/completion_gate.py` 로 맞춘다."),
+            format!("completion_gate 에 공개 API {} 가 없다({}).", list_repr(&absent), pname(&core::posix(&api_path))),
+            Some("동거 사본이 낡았을 수 있다 — 정본(policy-gate `completion_gate.rs` · 런처 `completion_gate.sh`)으로 맞춘다."),
         );
     }
     Ok(CGate { path })

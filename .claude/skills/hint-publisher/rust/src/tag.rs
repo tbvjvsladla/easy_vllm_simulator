@@ -2553,10 +2553,11 @@ fn selftest_git(tmp: &Path, c: &mut Ck) -> HR<()> {
     Ok(())
 }
 
-/// 자체검사용 spy 시작/회수(원본 `_spy_git`).
-fn spy_start() {
+/// 자체검사용 spy 시작/회수(원본 `_spy_git`). pub: the policy predicate (HINT_TAG_ACTIVATION_GATE.C5) records the push argv
+/// through it, as the original spies `subprocess.run`.
+pub fn spy_start() {
     SPY.with(|s| *s.borrow_mut() = Some(Vec::new()));
 }
-fn spy_take() -> Vec<J> {
+pub fn spy_take() -> Vec<J> {
     SPY.with(|s| s.borrow_mut().take().unwrap_or_default())
 }

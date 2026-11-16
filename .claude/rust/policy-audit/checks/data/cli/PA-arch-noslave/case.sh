@@ -6,5 +6,6 @@ setup() {
 . "$SDIR/fixture_lib.sh"
 fx_real || return 1
 rm "$ROOT/r/.claude/skills/upstream-version-watch/scripts/slave_forward.py" || return 1
+rm "$ROOT/r/.claude/skills/upstream-version-watch/rust/runtime/src/slave_forward.rs" || return 1
 fx_commit || return 1
 }

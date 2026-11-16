@@ -30,9 +30,9 @@ const DEFAULT_SAFETY_MARGIN: f64 = 0.90;
 const DEFAULT_KV_BYTES: i64 = 2;
 
 /// `_die(msg, code)`; code -1 marks an uncaught exception line (status 1, no `[recipe] 중단:` prefix).
-struct Die {
-    code: i32,
-    text: PyStr,
+pub struct Die {
+    pub code: i32,
+    pub text: PyStr,
 }
 
 fn die(code: i32, text: &str) -> Die {
@@ -47,7 +47,7 @@ fn raised(failure: Failure) -> Die {
     Die { code: -1, text: failure.line() }
 }
 
-type Step<T> = Result<T, Die>;
+pub type Step<T> = Result<T, Die>;
 
 fn stop(mut streams: Streams, d: Die) -> Run {
     streams.eprint(&Message::new().lit("[recipe] 중단: ").text(&d.text).done());
@@ -548,7 +548,7 @@ fn system_exit(text: &str) -> Die {
 
 /// `_lookup_gpu_spec(gpu_model)`: per-card VRAM (GiB) and the unified-memory mark from the `### … <gpu_model> …` header of
 /// references.md §4 (`None, None` when the file or the section is absent).
-fn lookup_gpu_spec(gpu_model: &str, root: &PyStr) -> (Option<f64>, Option<bool>) {
+pub fn lookup_gpu_spec(gpu_model: &str, root: &PyStr) -> (Option<f64>, Option<bool>) {
     let key = gpu_model.trim().to_lowercase();
     let path = join(root, &s(".claude/skills/wiki-desk/reference/references.md"));
     if gpu_model.is_empty() || !is_file(&path) {
@@ -612,7 +612,7 @@ fn memory_model(man: &PyValue, root: &PyStr) -> (Option<&'static str>, String) {
 }
 
 /// `resolve_target_gpu_budget`: `(per_card_vram_gib, deploy_gmu, gpu_model)`; the unified-memory hard clamp warns on stderr.
-fn resolve_target_gpu_budget(
+pub fn resolve_target_gpu_budget(
     streams: &mut Streams,
     gpu_model: &PyValue,
     target_gmu: &PyValue,

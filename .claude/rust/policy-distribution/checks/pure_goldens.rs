@@ -133,6 +133,15 @@ fn expected_argv(name: &str, golden_argv: &[String]) -> Vec<String> {
             "bash".into(),
             golden_argv[5].clone(),
         ],
+        // plan_26111615 pass 3: hint-publisher's programs are its Rust launchers; the image-git-release unittest module
+        // is the hint crate's cargo check (run from the repository, not from scripts/).
+        "hint_selftest" => vec!["bash".into(), ".claude/skills/hint-publisher/scripts/hint.sh".into(), "--self-test".into()],
+        "hint_bench_section_selftest" => vec!["bash".into(), ".claude/skills/hint-publisher/scripts/render_bench_section.sh".into(), "--selftest".into()],
+        "hint_image_git_release_selftest" => [
+            "bash", ".claude/skills/terraforming_node/scripts/rust_bootstrap.sh", "exec", "--", "cargo", "test", "--offline", "--locked",
+            "--release", "--manifest-path", ".claude/skills/hint-publisher/rust/Cargo.toml", "--target-dir",
+            ".claude/skills/hint-publisher/rust/target", "--test", "artifacts_cases", "image_git_release",
+        ].iter().map(|s| s.to_string()).collect(),
         n if LAUNCHER_SWITCHED.contains(&n) || n.starts_with("upstream_help:") => {
             // plan_26111615: upstream/recipe 진입점이 Rust 런처(.sh)로 바뀌었다 — golden 은 b1f3563e 의 `<PY> x.py ...`.
             // The interpreter flag `-B` of the retired `<PY> -B selftest_*.py` rows has no launcher counterpart.
@@ -287,9 +296,12 @@ fn compare_reports(golden_name: &str, mutate: bool) {
             let exp: Vec<String> = exp.iter().map(|a| a.replace(py, "<PY>")).collect();
             policy_distribution::update(&mut w1, vec![("argv", PyValue::List(exp.iter().map(|a| PyValue::str(a)).collect()))]);
         }
+        if name == "hint_image_git_release_selftest" {
+            policy_distribution::update(&mut w1, vec![("cwd", PyValue::str("<REPO>"))]);
+        }
         assert_eq!(dumps(g1), dumps(&w1), "{golden_name}: check {name}");
     }
-    assert_eq!(argv_changed, 7 + LAUNCHER_SWITCHED.len() + 9, "the seven policy-program checks plus the ported upstream/recipe/blackbox launchers (17 named + 9 upstream_help) change their argv");
+    assert_eq!(argv_changed, 7 + LAUNCHER_SWITCHED.len() + 9 + 3, "the seven policy-program checks plus the ported upstream/recipe/blackbox launchers (17 named + 9 upstream_help) plus the three hint-publisher programs change their argv");
 }
 
 fn apply_mutations(tree: &Path) {

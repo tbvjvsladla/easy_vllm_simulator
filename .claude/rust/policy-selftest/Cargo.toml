@@ -31,6 +31,10 @@ path = "checks/golden_checks.rs"
 name = "pyast_cases"
 path = "checks/pyast_cases.rs"
 
+[[test]]
+name = "hint_suite_cases"
+path = "checks/hint_suite_cases.rs"
+
 [dependencies]
 # Python json.dumps writers, str semantics and the topology parity library (path dependencies, read-only).
 agent-runtime-support = { path = "../runtime-support" }
@@ -40,6 +44,9 @@ policy-gate = { path = "../policy-gate" }
 # The full suite exercises the registry auditor and the distribution driver through their libraries.
 policy-audit = { path = "../policy-audit" }
 policy-distribution = { path = "../policy-distribution" }
+# The hint-publisher tests: fixture assemblers (`hintlib::cli::fixtures`) and unit judges in-process (the CLI under test is
+# its deployed launcher, a subprocess).
+hint-publisher = { path = "../../skills/hint-publisher/rust" }
 # Python `re`-like engine (lookaround) and SHA-256 of tracked blobs (hashlib.sha256 of the original).
 fancy-regex = "=0.19.2"
 regex-automata = "=0.4.18"

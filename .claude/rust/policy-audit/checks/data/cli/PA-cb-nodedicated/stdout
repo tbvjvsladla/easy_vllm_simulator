@@ -5,7 +5,7 @@
   "violations": [
     {
       "clause_id": "CANON.C1",
-      "message": "canonical clause 'CANON.C1' lacks required dedicated predicate ('.claude/policies/predicates/claim_predicates.py', 'predicate_CANON_C1')",
+      "message": "canonical clause 'CANON.C1' lacks required dedicated predicate ('.claude/rust/policy-predicates/src/claims*.rs', 'predicate_CANON_C1')",
       "path": "$.policies[CANON].clauses[CANON.C1]",
       "policy_id": "CANON",
       "reason_code": "CLAIM_BINDING_MISSING_DEDICATED_PREDICATE"

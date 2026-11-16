@@ -433,6 +433,59 @@ fn py_bench_name_re(src: &str) -> Option<String> {
 }
 
 /// `BENCH_KIND_DEFAULT_EXT = {...}` keys of the Python source.
+/// The bench naming owner's Rust source (adversarial-benchmark `bench_naming`).
+pub const REL_BENCH_NAMING_RS: &str = ".claude/skills/adversarial-benchmark/rust/src/bench_naming.rs";
+
+/// The bench naming grammar of the Rust owner, rendered in the shape the `.py` readers below parse:
+/// kinds = `KIND_DEFAULT_EXTENSIONS` (in order), name pattern = the declared matcher grammar of `parse_conventional`
+/// (its doc line), its four capture groups named tok/mm/ss/combo in order. The alternation of the pattern must equal
+/// the kinds and every default extension must be admitted, else `None` (= grammar drift, fail closed).
+fn rs_bench_as_py(src: &str) -> Option<String> {
+    let start = src.find("pub const KIND_DEFAULT_EXTENSIONS")?;
+    let body = &src[start..start + src[start..].find("];")?];
+    let mut pairs: Vec<(String, String)> = Vec::new();
+    for line in body.lines() {
+        let t = line.trim();
+        if let Some(rest) = t.strip_prefix("(\"") {
+            let (k, rest) = rest.split_once("\", \"")?;
+            let (e, _) = rest.split_once("\")")?;
+            pairs.push((k.to_string(), e.to_string()));
+        }
+    }
+    if pairs.is_empty() {
+        return None;
+    }
+    let fn_at = src.find("\nfn parse_conventional(")?;
+    let doc = src[..fn_at].lines().last()?.trim();
+    let pat = doc.strip_prefix("/// `")?.split_once('`')?.0;
+    let kinds: Vec<&str> = pairs.iter().map(|(k, _)| k.as_str()).collect();
+    if !pat.starts_with(&format!("^(?:{})_", kinds.join("|"))) {
+        return None;
+    }
+    let exts = pat.rsplit_once("\\.(?:")?.1.strip_suffix(")$")?;
+    if !pairs.iter().all(|(_, e)| exts.split('|').any(|x| x == e)) {
+        return None;
+    }
+    let names = ["tok", "mm", "ss", "combo"];
+    let (mut out, mut n, mut chars) = (String::new(), 0usize, pat.chars().peekable());
+    while let Some(c) = chars.next() {
+        out.push(c);
+        if c == '\\' {
+            if let Some(x) = chars.next() {
+                out.push(x);
+            }
+        } else if c == '(' && chars.peek() != Some(&'?') {
+            out.push_str(&format!("?P<{}>", names.get(n)?));
+            n += 1;
+        }
+    }
+    if n != names.len() {
+        return None;
+    }
+    let dict: Vec<String> = pairs.iter().map(|(k, e)| format!("\"{k}\": \"{e}\"")).collect();
+    Some(format!("BENCH_KIND_DEFAULT_EXT = {{{}}}\n_BENCH_NAME_RE = _re.compile(r\"{out}\")\n", dict.join(", ")))
+}
+
 fn py_bench_kinds(src: &str) -> Option<Vec<String>> {
     let line = src.lines().find(|l| l.starts_with("BENCH_KIND_DEFAULT_EXT = {"))?;
     let body = &line[line.find('{')? + 1..line.rfind('}')?];
@@ -499,16 +552,25 @@ fn grammar(repo: Option<&Path>) -> HR<Arc<Grammar>> {
         return Ok(g.clone());
     }
     // OWNER-MIRROR: .claude/skills/hint-publisher/scripts/hintlib/core.py::load_owner_module (bench first, then prose).
+    // plan_26111615 pass 3: the bench naming owner is the adversarial-benchmark Rust `bench_naming` module; its `.py`
+    // (read while it exists) is a reference original. Absent both = owner missing (fail closed).
     let bench_path = root.join(core::REL_DOC_NAMING_BENCH);
-    if !bench_path.is_file() {
+    let bench_rs = root.join(REL_BENCH_NAMING_RS);
+    if !bench_path.is_file() && !bench_rs.is_file() {
         return owner_missing(core::REL_DOC_NAMING_BENCH);
     }
     let ts_path = root.join(core::REL_DOC_NAMING_TS);
     if !ts_path.is_file() {
         return owner_missing(core::REL_DOC_NAMING_TS);
     }
-    let bench_src = core::read_text(&bench_path)
-        .or_else(|e| fail("HINT_OWNER_MODULE_IMPORT_FAILED", format!("{} import 실패: {e}", core::REL_DOC_NAMING_BENCH), None))?;
+    let bench_src = if bench_path.is_file() {
+        core::read_text(&bench_path)
+            .or_else(|e| fail("HINT_OWNER_MODULE_IMPORT_FAILED", format!("{} import 실패: {e}", core::REL_DOC_NAMING_BENCH), None))?
+    } else {
+        let rs = core::read_text(&bench_rs)
+            .or_else(|e| fail("HINT_OWNER_MODULE_IMPORT_FAILED", format!("{REL_BENCH_NAMING_RS} import 실패: {e}"), None))?;
+        rs_bench_as_py(&rs).unwrap_or_default()
+    };
     let ts_src = core::read_text(&ts_path)
         .or_else(|e| fail("HINT_OWNER_MODULE_IMPORT_FAILED", format!("{} import 실패: {e}", core::REL_DOC_NAMING_TS), None))?;
     let dated_types = ts_dated_types(&ts_src);

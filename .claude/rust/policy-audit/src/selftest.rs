@@ -79,7 +79,7 @@ fn selector_wiring(repo: &Path) -> Result<(), String> {
             return Err(format!("self-test: {label} must NOT satisfy check (2a)"));
         }
     }
-    let rels = [SLAVE_FORWARD_REL, ".claude/skills/upstream-version-watch/scripts/render_dockerfile.py", COMPOSE_MULTI_TEMPLATE_REL];
+    let rels = [SLAVE_FORWARD_REL, COMPOSE_MULTI_TEMPLATE_REL];
     let td = tempdir().map_err(|e| e.to_string())?;
     let root = td.path();
     let result = (|| -> Result<(), String> {
@@ -107,7 +107,7 @@ fn selector_wiring(repo: &Path) -> Result<(), String> {
         std::fs::remove_file(root.join(SLAVE_FORWARD_REL)).map_err(|e| e.to_string())?;
         match slave_forward_groups(root) {
             Err(why) if !why.is_empty() => Ok(()),
-            _ => Err("self-test: an absent slave_forward.py must be 'cannot judge' with a reason".into()),
+            _ => Err("self-test: an absent slave_forward owner must be 'cannot judge' with a reason".into()),
         }
     })();
     result

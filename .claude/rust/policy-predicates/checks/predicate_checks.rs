@@ -91,9 +91,15 @@ fn goldens() {
     assert_eq!(code, 0, "every ported clause passes on the real tree, as in the original: {payload}");
     assert_eq!(format!("{payload}\n"), orig_stdout, "the PASS payload is byte-identical to the original's");
     let (full, full_code) = claims::run_all(&[]);
-    assert_eq!(full_code, 1, "not-ported clauses must fail closed");
     let not_ported = entries.len() - ported.len();
-    assert!(full.contains(&format!("\"failed_count\": {not_ported},")), "{full}");
+    if not_ported == 0 {
+        // Every clause is native: the full run is the original's full PASS verdict, byte for byte.
+        assert_eq!(full_code, 0, "{full}");
+        assert_eq!(format!("{full}\n"), orig_stdout, "the full PASS payload is byte-identical to the original's");
+    } else {
+        assert_eq!(full_code, 1, "not-ported clauses must fail closed");
+        assert!(full.contains(&format!("\"failed_count\": {not_ported},")), "{full}");
+    }
     assert_eq!(full.matches("NotPorted: ").count(), not_ported);
     for e in &entries {
         if matches!(e.imp, Impl::Ported(_)) {

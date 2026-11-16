@@ -89,8 +89,10 @@ fn test_canonical_claim_bindings_are_production_owned() -> R {
     req(!p.is_empty(), "set() is not true")?;
     req(p.iter().all(|x| !x.starts_with("tests/") && !x.starts_with("scripts/")), "False is not true")?;
     let c2 = paths("RUNTIME_PATCH_NO_CARRY_FORWARD.C2")?;
-    req(c2.iter().any(|x| x == ".claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py"),
-        "'.claude/skills/upstream-version-watch/scripts/validate_runtime_patch.py' not found in c2")
+    // The production validator is the upstream runtime's Rust `runtime_patch` module (validate_runtime_patch.sh starts
+    // it); the `.py` it replaced is a reference original (plan_26111615 pass 3 re-pointed the evidence).
+    req(c2.iter().any(|x| x == ".claude/skills/upstream-version-watch/rust/runtime/src/runtime_patch.rs"),
+        "'.claude/skills/upstream-version-watch/rust/runtime/src/runtime_patch.rs' not found in c2")
 }
 
 pub fn cases() -> Vec<Case> {

@@ -1,30 +1,18 @@
 {
   "schema_version": 1,
-  "description": "기초층(.claude/policies/**) → 스킬(.claude/skills/**) 간선의 닫힌 목록(plan_26093022 §4 · 차단 검사 ② · runtime_selftest tripwire⑨). 키 = (caller, callee: skills/ 아래 대상 경로). 새 간선은 이유와 함께 행을 추가하는 커밋으로만 열린다. runtime_operational = 운영 경로가 스킬 코드를 실행하거나 정책 판정이 스킬 로직에 기댐 · verification_plane = 검증 러너·술어·경로 문자열·원장·docstring. branch_layer_ledger.json(append-only 이력)은 판정 대상 밖.",
+  "description": "기초층(.claude/policies/**) → 스킬(.claude/skills/**) 간선의 닫힌 목록(plan_26093022 §4 · 차단 검사 ② · runtime_selftest tripwire⑨). 키 = (caller, callee: skills/ 아래 대상 경로). 새 간선은 이유와 함께 행을 추가하는 커밋으로만 열린다. runtime_operational = 운영 경로가 스킬 코드를 실행하거나 정책 판정이 스킬 로직에 기댐 · verification_plane = 검증 러너·술어·경로 문자열·원장·docstring. 호출자 평면 = .claude/policies 의 런처(.sh)·데이터·문서 + .claude/rust/policy-*/src 의 Rust 소스(plan_26111615 pass 3 · 삭제 대기 하네스 .py 는 호출자가 아니다). branch_layer_ledger.json(append-only 이력)은 판정 대상 밖.",
   "edges": [
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/selftest_rust_bootstrap.sh",
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "adversarial-benchmark/rust/src/campaign_validator.rs",
       "phase": "verification_plane",
-      "reason": "Rust 신규 노드 설치·실패·재실행·명시 실행의 offline 계약 회귀를 실행한다(RUST-BOOT)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 adversarial-benchmark/rust/src/campaign_validator.rs 가 잇는다(원본 terraforming_node/scripts/campaign_template_validator.py)"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/selftest_harness_switch.py",
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "adversarial-benchmark/rust/src/campaign_write.rs",
       "phase": "verification_plane",
-      "reason": "하네스 전환 배포 검증 — 실제 relay·canary builder와 provider 결과·세션·원장 통합 픽스처를 실행한다(plan_26102623)"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "wiki-desk/SKILL.md",
-      "phase": "verification_plane",
-      "reason": "Codex 발견 폐포 음성대조 — Git 없는 배포본의 wiki-desk wrapper를 변이하고 canonical target 연결을 검증한다(plan_26102623)"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "{name}/SKILL.md",
-      "phase": "verification_plane",
-      "reason": "Codex 발견 폐포 — EXPECTED_SKILLS의 닫힌 public skill 집합에서 각 wrapper의 canonical SKILL.md 실재를 검증한다(plan_26102623)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 adversarial-benchmark/rust/src/campaign_write.rs 가 잇는다(원본 terraforming_node/scripts/campaign_init.py)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
@@ -34,57 +22,63 @@
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "hint-publisher/scripts/hint.py",
+      "callee": "hint-publisher/rust/src/branch.rs",
       "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/branch.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/branch.py)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "hint-publisher/scripts/hintlib/branch.py",
+      "callee": "hint-publisher/rust/src/cli/mod.rs",
       "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/cli/mod.rs 가 잇는다(원본 hint-publisher/scripts/hint.py)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "hint-publisher/scripts/hintlib/evidence.py",
+      "callee": "hint-publisher/rust/src/evidence/e4.rs",
       "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/evidence/e4.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/evidence.py)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "hint-publisher/scripts/hintlib/pii.py",
+      "callee": "hint-publisher/rust/src/pii.rs",
       "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/pii.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/pii.py)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "hint-publisher/scripts/hintlib/tag.py",
+      "callee": "hint-publisher/rust/src/tag.rs",
       "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/tag.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/tag.py)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "hint-publisher/scripts/hintlib/template.py",
+      "callee": "hint-publisher/rust/src/template/t1.rs",
       "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/template/t1.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/template.py)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "terraforming_node/scripts/agent_control.py",
+      "callee": "hint-publisher/rust/src/template/t2.rs",
       "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/template/t2.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/template.py)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "terraforming_node/scripts/campaign_init.py",
+      "callee": "terraforming_node/rust/src/agent_control.rs",
       "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 terraforming_node/rust/src/agent_control.rs 가 잇는다(원본 terraforming_node/scripts/agent_control.py)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "terraforming_node/scripts/campaign_template_validator.py",
+      "callee": "terraforming_node/rust/src/library_access.rs",
       "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 terraforming_node/rust/src/library_access.rs 가 잇는다(원본 terraforming_node/scripts/library_access.py)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "terraforming_node/rust/src/render_sub_env.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 terraforming_node/rust/src/render_sub_env.rs 가 잇는다(원본 terraforming_node/scripts/render_sub_env.py)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
@@ -97,12 +91,6 @@
       "callee": "terraforming_node/scripts/host_safety/mem_watchdog.sh",
       "phase": "verification_plane",
       "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
-      "callee": "terraforming_node/scripts/manifest_contract_compat_owner.py",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — R48 B3: 집행 근거를 어댑터 토큰이 아니라 레거시 모양을 답하는 검토된 원본 compat owner 로 옮겼다"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
@@ -119,24 +107,6 @@
     {
       "caller": ".claude/policies/claim_bindings.json",
       "callee": "terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
-      "callee": "terraforming_node/scripts/node_role_contract.py",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
-      "callee": "terraforming_node/scripts/render_sub_env.py",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
-      "callee": "terraforming_node/scripts/scan_node_original.py",
       "phase": "verification_plane",
       "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
     },
@@ -148,31 +118,43 @@
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "upstream-version-watch/scripts/check_smoke_model.py",
+      "callee": "upstream-version-watch/rust/runtime/src/classify_source.rs",
       "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/classify_source.rs 가 잇는다(원본 upstream-version-watch/scripts/classify_failure.py)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "upstream-version-watch/scripts/classify_failure.py",
+      "callee": "upstream-version-watch/rust/runtime/src/ngc_tag.rs",
       "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/ngc_tag.rs 가 잇는다(원본 upstream-version-watch/scripts/resolve_ngc_tag.py)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/rust/runtime/src/render_template.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/render_template.rs 가 잇는다(원본 upstream-version-watch/scripts/render_dockerfile.py)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/rust/runtime/src/runtime_patch.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/runtime_patch.rs 가 잇는다(원본 upstream-version-watch/scripts/validate_runtime_patch.py)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/rust/runtime/src/slave_forward.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/slave_forward.rs 가 잇는다(원본 upstream-version-watch/scripts/slave_forward.py)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "upstream-version-watch/rust/runtime/src/smoke_model.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/smoke_model.rs 가 잇는다(원본 upstream-version-watch/scripts/check_smoke_model.py)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
       "callee": "upstream-version-watch/scripts/multinode_serve_smoke.sh",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
-      "callee": "upstream-version-watch/scripts/render_dockerfile.py",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
-      "callee": "upstream-version-watch/scripts/resolve_ngc_tag.py",
       "phase": "verification_plane",
       "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
     },
@@ -184,12 +166,6 @@
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "upstream-version-watch/scripts/slave_forward.py",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
       "callee": "upstream-version-watch/scripts/sync_branches.sh",
       "phase": "verification_plane",
       "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
@@ -197,12 +173,6 @@
     {
       "caller": ".claude/policies/claim_bindings.json",
       "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
-      "callee": "upstream-version-watch/scripts/validate_runtime_patch.py",
       "phase": "verification_plane",
       "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
     },
@@ -214,375 +184,63 @@
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "vllm-recipe-explorer/recipe.py",
+      "callee": "vllm-recipe-explorer/rust/runtime/src/cleanup_docker.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime/src/cleanup_docker.rs 가 잇는다(원본 vllm-recipe-explorer/scripts/cleanup_docker.py)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "vllm-recipe-explorer/rust/runtime/src/memory.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime/src/memory.rs 가 잇는다(원본 vllm-recipe-explorer/scripts/preload_ram_gate.py)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "vllm-recipe-explorer/rust/runtime/src/model_card.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime/src/model_card.rs 가 잇는다(원본 vllm-recipe-explorer/scripts/crosscheck_model_card.py)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "vllm-recipe-explorer/rust/runtime/src/recipe_cmd.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime/src/recipe_cmd.rs 가 잇는다(원본 vllm-recipe-explorer/recipe.py)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "vllm-recipe-explorer/rust/runtime/src/run_trial_cli.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime/src/run_trial_cli.rs 가 잇는다(원본 vllm-recipe-explorer/scripts/run_trial.py)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "vllm-recipe-explorer/rust/runtime/src/run_trial_session.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime/src/run_trial_session.rs 가 잇는다(원본 vllm-recipe-explorer/scripts/run_trial.py)"
+    },
+    {
+      "caller": ".claude/policies/claim_bindings.json",
+      "callee": "wiki-desk/src/accessor.ts",
       "phase": "verification_plane",
       "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "vllm-recipe-explorer/scripts/cleanup_docker.py",
+      "callee": "wiki-desk/src/cli.ts",
       "phase": "verification_plane",
       "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "vllm-recipe-explorer/scripts/crosscheck_model_card.py",
+      "callee": "wiki-desk/src/concurrency.ts",
       "phase": "verification_plane",
       "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
     },
     {
       "caller": ".claude/policies/claim_bindings.json",
-      "callee": "vllm-recipe-explorer/scripts/preload_ram_gate.py",
+      "callee": "wiki-desk/src/gateway.ts",
       "phase": "verification_plane",
       "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
-      "callee": "vllm-recipe-explorer/scripts/run_trial.py",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "adversarial-benchmark/scripts",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.sh",
-      "phase": "verification_plane",
-      "reason": "C10 실제 설치 Rust CLI와 명시 image-inspect 대역의 일치/부재/드리프트 동작 검증"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "adversarial-benchmark/scripts/run_bench.sh",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "adversarial-benchmark/scripts/sweep_bench.sh",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "hint-publisher/SKILL.md",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "hint-publisher/scripts",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "hint-publisher/templates/00-hint.prompt.md",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "hint-publisher/templates/{name}.prompt.md",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/SKILL.md",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/scripts",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/scripts/agent_control.py",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/scripts/campaign_init.py",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/scripts/host_safety/install_host_safety.sh",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/scripts/host_safety/mem_watchdog.sh",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/scripts/manifest_contract.py",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/scripts/manifest_contract_compat_owner.py",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — compat owner 의 VALID_MODES 리터럴을 AST 로 읽어 Rust const·어댑터 튜플과 대조(R48 B3)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/scripts/node_blackbox/install_node_blackbox.sh",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/scripts/node_blackbox/purge_host_safety.sh",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/scripts/render_sub_env.py",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/scripts/scan_node_original.py",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 미포팅(P2/P3/CLI) 스캐너 문구는 정확한 원본 소유자의 텍스트를 읽어 판정(P1 문구는 T Rust 소스)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/sub_node/CLAUDE.template.md",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/sub_node/managed-settings.template.json",
-      "phase": "verification_plane",
-      "reason": "claim 술어 SUB_GIT_LOCAL_ONLY.C4 — 서브 root 관리 설정 추적 정본의 clone/HF/lfs/원격 deny 를 텍스트로 읽어 단언(plan_26100320 Q2)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node/sub_node/settings.local.template.json",
-      "phase": "verification_plane",
-      "reason": "claim 술어 SUB_GIT_LOCAL_ONLY.C4 — 서브 권한 템플릿의 clone allow·HF/lfs deny 를 텍스트로 읽어 단언(plan_26100320)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/SKILL.md",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/assets/configs/{name}",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/assets/current-production-resolution.json",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/failure_patterns.yaml",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/scripts",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/scripts/check_smoke_model.py",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/scripts/fetch_sub_docs.sh",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/scripts/multinode_serve_smoke.sh",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/scripts/render_dockerfile.py",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/scripts/single_serve_up.sh",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/scripts/slave_forward.py",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/scripts/sync_branches.sh",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/scripts/validate_runtime_patch.sh",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1) · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/templates/Dockerfile.source-build.template",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "upstream-version-watch/templates/docker-compose.multi.template.yaml",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "vllm-recipe-explorer",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "vllm-recipe-explorer/SKILL.md",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "vllm-recipe-explorer/scripts",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "vllm-recipe-explorer/scripts/cleanup_docker.py",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "vllm-recipe-explorer/scripts/crosscheck_model_card.py",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "vllm-recipe-explorer/scripts/run_trial.py",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "x",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/companion_predicate.py",
-      "callee": "*/SKILL.md",
-      "phase": "verification_plane",
-      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
-    },
-    {
-      "caller": ".claude/policies/predicates/companion_predicate.py",
-      "callee": "hint-publisher/scripts",
-      "phase": "verification_plane",
-      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
-    },
-    {
-      "caller": ".claude/policies/predicates/companion_predicate.py",
-      "callee": "hint-publisher/scripts/hintlib/core.py",
-      "phase": "verification_plane",
-      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
-    },
-    {
-      "caller": ".claude/policies/predicates/companion_predicate.py",
-      "callee": "hint-publisher/scripts/hintlib/tag.py",
-      "phase": "verification_plane",
-      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
-    },
-    {
-      "caller": ".claude/policies/predicates/companion_predicate.py",
-      "callee": "terraforming_node/scripts",
-      "phase": "verification_plane",
-      "reason": "동반 술어 — 스킬 스크립트의 VALID_MODES 리터럴(어댑터·compat owner)을 AST 로 읽어 Rust const 와 삼중 교차검사(R48 B3)"
-    },
-    {
-      "caller": ".claude/policies/predicates/companion_predicate.py",
-      "callee": "upstream-version-watch/scripts/check_smoke_model.py",
-      "phase": "verification_plane",
-      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
-    },
-    {
-      "caller": ".claude/policies/predicates/companion_predicate.py",
-      "callee": "upstream-version-watch/scripts/sync_branches.sh",
-      "phase": "verification_plane",
-      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
-    },
-    {
-      "caller": ".claude/policies/predicates/runtime_patch_predicate.py",
-      "callee": "upstream-version-watch/assets/current-production-resolution.json",
-      "phase": "verification_plane",
-      "reason": "런타임 패치 술어 — 검증기·배달 스크립트 경로 문자열"
-    },
-    {
-      "caller": ".claude/policies/predicates/runtime_patch_predicate.py",
-      "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
-      "phase": "verification_plane",
-      "reason": "런타임 패치 술어 — 검증기·배달 스크립트 경로 문자열"
-    },
-    {
-      "caller": ".claude/policies/predicates/runtime_patch_predicate.py",
-      "callee": "upstream-version-watch/scripts/validate_runtime_patch.py",
-      "phase": "verification_plane",
-      "reason": "런타임 패치 술어 — 검증기·배달 스크립트 경로 문자열"
     },
     {
       "caller": ".claude/policies/provenance/plan_26062818_RouteB_jasl-fork_SM12x_DeepSeek-V4-Flash_2노드서빙.md",
@@ -592,63 +250,81 @@
     },
     {
       "caller": ".claude/policies/registry.yaml",
+      "callee": "adversarial-benchmark/rust/src/campaign_validator.rs",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 adversarial-benchmark/rust/src/campaign_validator.rs 가 잇는다(원본 terraforming_node/scripts/campaign_template_validator.py)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "adversarial-benchmark/rust/src/campaign_write.rs",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 adversarial-benchmark/rust/src/campaign_write.rs 가 잇는다(원본 terraforming_node/scripts/campaign_init.py)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
       "callee": "adversarial-benchmark/scripts/run_bench.sh",
       "phase": "verification_plane",
       "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "hint-publisher/scripts/hint.py",
+      "callee": "hint-publisher/rust/src/branch.rs",
       "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/branch.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/branch.py)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "hint-publisher/scripts/hintlib/branch.py",
+      "callee": "hint-publisher/rust/src/cli/mod.rs",
       "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/cli/mod.rs 가 잇는다(원본 hint-publisher/scripts/hint.py)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "hint-publisher/scripts/hintlib/evidence.py",
+      "callee": "hint-publisher/rust/src/evidence/e4.rs",
       "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/evidence/e4.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/evidence.py)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "hint-publisher/scripts/hintlib/pii.py",
+      "callee": "hint-publisher/rust/src/pii.rs",
       "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/pii.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/pii.py)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "hint-publisher/scripts/hintlib/tag.py",
+      "callee": "hint-publisher/rust/src/tag.rs",
       "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/tag.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/tag.py)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "hint-publisher/scripts/hintlib/template.py",
+      "callee": "hint-publisher/rust/src/template/t1.rs",
       "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/template/t1.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/template.py)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "terraforming_node/scripts/agent_control.py",
+      "callee": "hint-publisher/rust/src/template/t2.rs",
       "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/template/t2.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/template.py)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "terraforming_node/scripts/campaign_init.py",
+      "callee": "terraforming_node/rust/src/agent_control.rs",
       "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 terraforming_node/rust/src/agent_control.rs 가 잇는다(원본 terraforming_node/scripts/agent_control.py)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "terraforming_node/scripts/campaign_template_validator.py",
+      "callee": "terraforming_node/rust/src/library_access.rs",
       "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 terraforming_node/rust/src/library_access.rs 가 잇는다(원본 terraforming_node/scripts/library_access.py)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "terraforming_node/rust/src/render_sub_env.rs",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 terraforming_node/rust/src/render_sub_env.rs 가 잇는다(원본 terraforming_node/scripts/render_sub_env.py)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
@@ -661,12 +337,6 @@
       "callee": "terraforming_node/scripts/host_safety/mem_watchdog.sh",
       "phase": "verification_plane",
       "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
-      "callee": "terraforming_node/scripts/manifest_contract_compat_owner.py",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — R48 B3: 검토된 원본 compat owner 가 근거"
     },
     {
       "caller": ".claude/policies/registry.yaml",
@@ -688,39 +358,45 @@
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "terraforming_node/scripts/node_role_contract.py",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
-      "callee": "terraforming_node/scripts/render_sub_env.py",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
-      "callee": "terraforming_node/scripts/scan_node_original.py",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
       "callee": "upstream-version-watch/assets/configs/arm_patch.sh",
       "phase": "verification_plane",
       "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "upstream-version-watch/scripts/check_smoke_model.py",
+      "callee": "upstream-version-watch/rust/runtime/src/classify_source.rs",
       "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/classify_source.rs 가 잇는다(원본 upstream-version-watch/scripts/classify_failure.py)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "upstream-version-watch/scripts/classify_failure.py",
+      "callee": "upstream-version-watch/rust/runtime/src/ngc_tag.rs",
       "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/ngc_tag.rs 가 잇는다(원본 upstream-version-watch/scripts/resolve_ngc_tag.py)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/rust/runtime/src/render_template.rs",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/render_template.rs 가 잇는다(원본 upstream-version-watch/scripts/render_dockerfile.py)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/rust/runtime/src/runtime_patch.rs",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/runtime_patch.rs 가 잇는다(원본 upstream-version-watch/scripts/validate_runtime_patch.py)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/rust/runtime/src/slave_forward.rs",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/slave_forward.rs 가 잇는다(원본 upstream-version-watch/scripts/slave_forward.py)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "upstream-version-watch/rust/runtime/src/smoke_model.rs",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/smoke_model.rs 가 잇는다(원본 upstream-version-watch/scripts/check_smoke_model.py)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
@@ -730,25 +406,7 @@
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "upstream-version-watch/scripts/render_dockerfile.py",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
-      "callee": "upstream-version-watch/scripts/resolve_ngc_tag.py",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
       "callee": "upstream-version-watch/scripts/single_serve_up.sh",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
-      "callee": "upstream-version-watch/scripts/slave_forward.py",
       "phase": "verification_plane",
       "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
     },
@@ -766,981 +424,1161 @@
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "upstream-version-watch/scripts/validate_runtime_patch.py",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
       "callee": "upstream-version-watch/templates/docker-compose.multi.template.yaml",
       "phase": "verification_plane",
       "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "vllm-recipe-explorer/recipe.py",
+      "callee": "vllm-recipe-explorer/rust/runtime/src/cleanup_docker.rs",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime/src/cleanup_docker.rs 가 잇는다(원본 vllm-recipe-explorer/scripts/cleanup_docker.py)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "vllm-recipe-explorer/rust/runtime/src/memory.rs",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime/src/memory.rs 가 잇는다(원본 vllm-recipe-explorer/scripts/preload_ram_gate.py)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "vllm-recipe-explorer/rust/runtime/src/model_card.rs",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime/src/model_card.rs 가 잇는다(원본 vllm-recipe-explorer/scripts/crosscheck_model_card.py)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "vllm-recipe-explorer/rust/runtime/src/recipe_cmd.rs",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime/src/recipe_cmd.rs 가 잇는다(원본 vllm-recipe-explorer/recipe.py)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "vllm-recipe-explorer/rust/runtime/src/run_trial_cli.rs",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime/src/run_trial_cli.rs 가 잇는다(원본 vllm-recipe-explorer/scripts/run_trial.py)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "vllm-recipe-explorer/rust/runtime/src/run_trial_session.rs",
+      "phase": "verification_plane",
+      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime/src/run_trial_session.rs 가 잇는다(원본 vllm-recipe-explorer/scripts/run_trial.py)"
+    },
+    {
+      "caller": ".claude/policies/registry.yaml",
+      "callee": "wiki-desk/src/accessor.ts",
       "phase": "verification_plane",
       "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "vllm-recipe-explorer/scripts/cleanup_docker.py",
+      "callee": "wiki-desk/src/cli.ts",
       "phase": "verification_plane",
       "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "vllm-recipe-explorer/scripts/crosscheck_model_card.py",
+      "callee": "wiki-desk/src/concurrency.ts",
       "phase": "verification_plane",
       "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
     },
     {
       "caller": ".claude/policies/registry.yaml",
-      "callee": "vllm-recipe-explorer/scripts/preload_ram_gate.py",
+      "callee": "wiki-desk/src/gateway.ts",
       "phase": "verification_plane",
       "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
     },
     {
-      "caller": ".claude/policies/registry.yaml",
-      "callee": "vllm-recipe-explorer/scripts/run_trial.py",
+      "caller": ".claude/policies/runtime/completion_gate.sh",
+      "callee": "terraforming_node/scripts/build_rust_packages.sh",
       "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
+      "reason": "런처가 실행파일 부재 시 Rust 빌드 진입점 경로를 안내 문자열로 출력한다(plan_26111615 · 설치·컴파일·Python 대체 없음)"
     },
     {
-      "caller": ".claude/policies/runtime/antipattern_scan.py",
-      "callee": "adversarial-benchmark/scripts/resolve_bench_tool",
+      "caller": ".claude/policies/runtime/doc_naming.sh",
+      "callee": "terraforming_node/scripts/build_rust_packages.sh",
       "phase": "verification_plane",
-      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+      "reason": "런처가 실행파일 부재 시 Rust 빌드 진입점 경로를 안내 문자열로 출력한다(plan_26111615 · 설치·컴파일·Python 대체 없음)"
     },
     {
-      "caller": ".claude/policies/runtime/antipattern_scan.py",
-      "callee": "terraforming_node",
+      "caller": ".claude/policies/runtime/evidence_publisher.sh",
+      "callee": "terraforming_node/scripts/build_rust_packages.sh",
       "phase": "verification_plane",
-      "reason": "공개 표면 tripwire(차단 검사 ③) — terraforming_node 의 SKILL.md §4 표를 읽고 외부 호출을 대조한다"
+      "reason": "런처가 실행파일 부재 시 Rust 빌드 진입점 경로를 안내 문자열로 출력한다(plan_26111615 · 설치·컴파일·Python 대체 없음)"
     },
     {
-      "caller": ".claude/policies/runtime/antipattern_scan.py",
-      "callee": "terraforming_node/scripts",
-      "phase": "verification_plane",
-      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
-    },
-    {
-      "caller": ".claude/policies/runtime/antipattern_scan.py",
-      "callee": "terraforming_node/scripts/node_blackbox/budget_renew_loop",
-      "phase": "verification_plane",
-      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
-    },
-    {
-      "caller": ".claude/policies/runtime/antipattern_scan.py",
-      "callee": "terraforming_node/scripts/providers/claude_code.py",
-      "phase": "verification_plane",
-      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
-    },
-    {
-      "caller": ".claude/policies/runtime/antipattern_scan.py",
-      "callee": "terraforming_node/scripts/turn_budget.py",
-      "phase": "verification_plane",
-      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
-    },
-    {
-      "caller": ".claude/policies/runtime/antipattern_scan.py",
-      "callee": "upstream-version-watch/scripts",
-      "phase": "verification_plane",
-      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
-    },
-    {
-      "caller": ".claude/policies/runtime/antipattern_scan.py",
-      "callee": "upstream-version-watch/scripts/multinode_serve_smoke",
-      "phase": "verification_plane",
-      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
-    },
-    {
-      "caller": ".claude/policies/runtime/antipattern_scan.py",
-      "callee": "upstream-version-watch/scripts/multinode_serve_smoke.sh",
-      "phase": "verification_plane",
-      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
-    },
-    {
-      "caller": ".claude/policies/runtime/antipattern_scan.py",
-      "callee": "vllm-recipe-explorer/scripts/run_trial",
-      "phase": "verification_plane",
-      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
-    },
-    {
-      "caller": ".claude/policies/runtime/completion_gate.py",
-      "callee": "hint-publisher/scripts/hint.py",
-      "phase": "verification_plane",
-      "reason": "주석 — hint CLI 액션 표 출처 표기"
-    },
-    {
-      "caller": ".claude/policies/runtime/constitution_lint.py",
-      "callee": "*/SKILL.md",
-      "phase": "verification_plane",
-      "reason": "린트 — SKILL.md 의 유령 policy: 인용 스캔(INFO)"
-    },
-    {
-      "caller": ".claude/policies/runtime/constitution_lint.py",
-      "callee": "*/references/**/*.md",
-      "phase": "verification_plane",
-      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
-    },
-    {
-      "caller": ".claude/policies/runtime/constitution_lint.py",
-      "callee": "terraforming_node/SKILL.md",
-      "phase": "verification_plane",
-      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
-    },
-    {
-      "caller": ".claude/policies/runtime/constitution_lint.py",
-      "callee": "terraforming_node/references/**/*.md",
-      "phase": "verification_plane",
-      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
-    },
-    {
-      "caller": ".claude/policies/runtime/constitution_lint.py",
-      "callee": "terraforming_node/references/*.md",
-      "phase": "verification_plane",
-      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
-    },
-    {
-      "caller": ".claude/policies/runtime/evidence_publisher.py",
-      "callee": "adversarial-benchmark/scripts/classify_cell_native.py",
-      "phase": "runtime_operational",
-      "reason": "강등 어휘(DOWNGRADE_REASONS·bench_mode)의 단일 소유자에서 늦게 적재 — 적재 실패는 fail-closed"
-    },
-    {
-      "caller": ".claude/policies/runtime/evidence_publisher.py",
-      "callee": "hint-publisher/scripts/render_bench_section.py",
-      "phase": "runtime_operational",
-      "reason": "측정 구성 표 파서의 단일 소유자(publish-lite-report·init --downgrade 대조) — fail-closed"
-    },
-    {
-      "caller": ".claude/policies/runtime/policy_registry.py",
+      "caller": ".claude/rust/policy-audit/src/arch.rs",
       "callee": "upstream-version-watch/SKILL.md",
       "phase": "verification_plane",
       "reason": "정책 원장 검증 — 스킬 문서·템플릿 텍스트 대조와 self-test 픽스처"
     },
     {
-      "caller": ".claude/policies/runtime/policy_registry.py",
+      "caller": ".claude/rust/policy-audit/src/arch.rs",
+      "callee": "upstream-version-watch/rust/runtime/src/slave_forward.rs",
+      "phase": "runtime_operational",
+      "reason": "ARCH 변종 원장 검증이 slave 전달 집합을 소유자 파생에서 읽는다(손목록이 다섯 번 갈라진 전력) — 판정 불가는 사유로 반환 — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/slave_forward.rs 가 잇는다(원본 upstream-version-watch/scripts/slave_forward.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-audit/src/arch.rs",
       "callee": "upstream-version-watch/scripts/multinode_serve_smoke.sh",
       "phase": "verification_plane",
       "reason": "정책 원장 검증 — 스킬 문서·템플릿 텍스트 대조와 self-test 픽스처"
     },
     {
-      "caller": ".claude/policies/runtime/policy_registry.py",
-      "callee": "upstream-version-watch/scripts/render_dockerfile.py",
-      "phase": "verification_plane",
-      "reason": "정책 원장 검증 — 스킬 문서·템플릿 텍스트 대조와 self-test 픽스처"
-    },
-    {
-      "caller": ".claude/policies/runtime/policy_registry.py",
-      "callee": "upstream-version-watch/scripts/slave_forward.py",
-      "phase": "runtime_operational",
-      "reason": "ARCH 변종 원장 검증이 slave 전달 집합을 소유자 파생에서 읽는다(손목록이 다섯 번 갈라진 전력) — 판정 불가는 사유로 반환"
-    },
-    {
-      "caller": ".claude/policies/runtime/policy_registry.py",
+      "caller": ".claude/rust/policy-audit/src/arch.rs",
       "callee": "upstream-version-watch/templates/Dockerfile.source-build.template",
       "phase": "verification_plane",
       "reason": "정책 원장 검증 — 스킬 문서·템플릿 텍스트 대조와 self-test 픽스처"
     },
     {
-      "caller": ".claude/policies/runtime/policy_registry.py",
+      "caller": ".claude/rust/policy-audit/src/arch.rs",
       "callee": "upstream-version-watch/templates/docker-compose.multi.template.yaml",
       "phase": "runtime_operational",
       "reason": "동상 — slave 전달 집합 파생의 입력 템플릿"
     },
     {
-      "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "adversarial-benchmark/scripts/render_report.sh",
-      "phase": "verification_plane",
-      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
-    },
-    {
-      "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "adversarial-benchmark/rust/src/assemble_sweep_meta.rs",
-      "phase": "verification_plane",
-      "reason": "self-test 배포 사본이 실제 Rust index producer의 model 키 규칙 앵커를 읽도록 소유 소스를 복사한다"
-    },
-    {
-      "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "hint-publisher/scripts",
-      "phase": "verification_plane",
-      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
-    },
-    {
-      "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "terraforming_node",
-      "phase": "verification_plane",
-      "reason": "tripwire⑩ — terraforming_node 라우터의 §앵커·references 경로·결속 리터럴을 검사한다"
-    },
-    {
-      "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "terraforming_node/SKILL.md",
-      "phase": "verification_plane",
-      "reason": "tripwire⑩ — 라우터 SKILL.md 텍스트를 읽는다(§번호 토큰·결속 리터럴 실재)"
-    },
-    {
-      "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "terraforming_node/scripts/agent_control.py",
-      "phase": "verification_plane",
-      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
-    },
-    {
-      "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "terraforming_node/scripts/host_safety/mem_watchdog.sh",
-      "phase": "verification_plane",
-      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
-    },
-    {
-      "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "terraforming_node/scripts/node_blackbox/mem_watchdog_eta.sh",
-      "phase": "verification_plane",
-      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
-    },
-    {
-      "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "terraforming_node/scripts/node_blackbox/thermal_watchdog.sh",
-      "phase": "verification_plane",
-      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
-    },
-    {
-      "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "upstream-version-watch/scripts/sync_branches.sh",
-      "phase": "verification_plane",
-      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
-    },
-    {
-      "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
-      "phase": "verification_plane",
-      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
-    },
-    {
-      "caller": ".claude/policies/runtime/topology_parity.py",
-      "callee": "terraforming_node/scripts/campaign_init.py",
-      "phase": "runtime_operational",
-      "reason": "ACTIVE 포인터 규약의 단일 권위가 campaign_init 이다 — 적재 실패는 캠페인 다리 결측으로 fail-closed(plan_26093022 E4)"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "adversarial-benchmark/fixtures/measured_pass.json",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "adversarial-benchmark/fixtures/roofline_sample.json",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/broad_search.sh",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "adversarial-benchmark/scripts",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/classify_cell.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/conformance_full_superset_lite.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/judge_bench.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/parse_guidellm.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/render_sweep_map.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/repeat_axis.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/resolve_topology.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "adversarial-benchmark/scripts/run_bench.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/selftest_broad_search_precheck.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/bench_preset.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/selftest_broad_search_cell_args.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/selftest_lite_gate.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/selftest_lite_report.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/selftest_sweep_meta.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/selftest_sweep_repeats.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/sweep_stop.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/parse_bench.sh",
-      "phase": "verification_plane",
-      "reason": "Rust 측정 파서의 native 기동·변환·오류/경고 자체검사를 실행한다(R2)"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/roofline.sh",
-      "phase": "verification_plane",
-      "reason": "Rust 루프라인의 native 기동·샤드 집계·출처 계약을 자체검사한다(R3)"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/verdict_rule.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "hint-publisher",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "hint-publisher/rust/Cargo.toml",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/Cargo.toml 가 잇는다(원본 hint-publisher/scripts/hint.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "hint-publisher/rust/target",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/target 가 잇는다(원본 hint-publisher/scripts/hint.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "hint-publisher/scripts/hint.py",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "hint-publisher/scripts/render_bench_section.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "hint-publisher/scripts/hint.sh",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/scripts/hint.sh 가 잇는다(원본 hint-publisher/scripts/hint.py)"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "hint-publisher/scripts/render_bench_section.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/scripts/render_bench_section.sh 가 잇는다(원본 hint-publisher/scripts/render_bench_section.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "hint-publisher/templates/00-hint.prompt.md",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "terraforming_node/SKILL.md",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "terraforming_node/scripts",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "terraforming_node/scripts/agent_control.py",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/bootstrap_canary.py",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/check_sub_hint_equip.py",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/campaign_init.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/selftest_campaign_lifecycle.py",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 캠페인 수명 상태 자체검사 실행(plan_26101719)"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/campaign_template_validator.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "terraforming_node/scripts/host_safety",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "terraforming_node/scripts/host_safety/host/vllm-drop-caches.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "terraforming_node/scripts/host_safety/install_host_safety.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "terraforming_node/scripts/host_safety/mem_watchdog.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "terraforming_node/scripts/host_safety/systemd/easy-vllm-memwatch.service",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/manifest_contract.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "terraforming_node/scripts/manifest_contract.sh",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 — plan_26111615 Rust 이식: 같은 간선을 terraforming_node/scripts/manifest_contract.sh 가 잇는다(원본 terraforming_node/scripts/manifest_contract.py)"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/node_blackbox/agent_guard.py",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/node_blackbox/blackbox_session.py",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/node_blackbox/budget_renew_loop.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/node_blackbox/node_identity.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/node_role_contract.py",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "terraforming_node/scripts/providers/claude_code.py",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/relay.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "terraforming_node/scripts/rust_bootstrap.sh",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "배포 검증이 hint 크레이트의 image_git_release 검사(cargo test · offline · locked)를 노드 로컬 Rust 런타임으로 실행한다(원본 hintlib.selftest_image_git_release · plan_26111615)"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/render_sub_env.py",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/scan_node_original.py",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 정확한 원본 소유자의 레거시 --self-test 실행(P1 네이티브의 증거가 아니다)"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/scan_node.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — scan_node P1 네이티브 자체검사(--p1-self-check) 실행"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/staleness_gate.py",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/turn_budget.py",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "terraforming_node/sub_node/CLAUDE.template.md",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "terraforming_node/templates/document_skeletons",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/rust/runtime/src/bin/sub_runner.rs",
-      "phase": "verification_plane",
-      "reason": "서브 은퇴 소비자 감사 — 스캐너가 Rust sub_runner 로 이동해, 소유자 면제·토큰 경계 확장이 소스에 남아 있는지 앵커로 검증한다(c2j)"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "upstream-version-watch/assets/build_plane",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "upstream-version-watch/assets/current-production-resolution.json",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/scripts/budget_preflight.sh",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "upstream-version-watch/rust/runtime/src/bin/sub_runner.rs",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
+      "reason": "서브 은퇴 소비자 감사 — 스캐너가 Rust sub_runner 로 이동해, 소유자 면제·토큰 경계 확장이 소스에 남아 있는지 앵커로 검증한다(c2j)"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/scripts/container_inventory.sh",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "upstream-version-watch/scripts",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/scripts/layer_ledger.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/scripts/push_branches.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/scripts/render_dockerfile.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/scripts/selftest_branch_sync.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "upstream-version-watch/scripts/single_serve_up.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/scripts/slave_forward.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "upstream-version-watch/scripts/smoke_clone.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "upstream-version-watch/scripts/sync_branches.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "upstream-version-watch/scripts/{filename}",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "upstream-version-watch/{stale}",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/recipe.sh",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "vllm-recipe-explorer/scripts",
       "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "vllm-recipe-explorer/scripts/cleanup_docker.py",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "vllm-recipe-explorer/scripts/engine_liveness_watchdog.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/escalation_predicate.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/estimate_vram.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "vllm-recipe-explorer/scripts/gen_recipe_set.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/parse_model_config.sh",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "vllm-recipe-explorer/scripts/recipe.sh",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/preload_ram_gate.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/rope_scaling_translate.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/run_trial.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "vllm-recipe-explorer/scripts/selftest_gmu_roles_batch.sh",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
-      "callee": "terraforming_node/scripts/library_access.py",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
-      "callee": "wiki-desk/src/accessor.ts",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
-      "callee": "wiki-desk/src/cli.ts",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
-      "callee": "wiki-desk/src/concurrency.ts",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/claim_bindings.json",
-      "callee": "wiki-desk/src/gateway.ts",
-      "phase": "verification_plane",
-      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "terraforming_node",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "wiki-desk",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "wiki-desk/assets/project-contract.example.json",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "wiki-desk/references/concurrency.md",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "wiki-desk/src",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "wiki-desk/src/cli.ts",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "wiki-desk/checks/concurrency.check.ts",
-      "phase": "verification_plane",
-      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
-    },
-    {
-      "caller": ".claude/policies/predicates/companion_predicate.py",
-      "callee": "wiki-desk",
-      "phase": "verification_plane",
-      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
-    },
-    {
-      "caller": ".claude/policies/predicates/runtime_patch_predicate.py",
-      "callee": "wiki-desk/src/cli.ts",
-      "phase": "verification_plane",
-      "reason": "런타임 패치 술어 — 검증기·배달 스크립트 경로 문자열"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
-      "callee": "terraforming_node/scripts/library_access.py",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
-      "callee": "wiki-desk/src/accessor.ts",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
-      "callee": "wiki-desk/src/cli.ts",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
-      "callee": "wiki-desk/src/concurrency.ts",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/registry.yaml",
-      "callee": "wiki-desk/src/gateway.ts",
-      "phase": "verification_plane",
-      "reason": "정책 등록부 clause evidence 경로(claim_bindings.json 과 등식 검사)"
-    },
-    {
-      "caller": ".claude/policies/runtime/doc_naming.py",
-      "callee": "adversarial-benchmark/scripts/doc_naming_native.py",
-      "phase": "runtime_operational",
-      "reason": "벤치 명명 SSOT 재수출 — 정본 모듈 객체를 그대로 다시 내보낸다(사본 ✗ · plan_26090410 P0.5b)"
-    },
-    {
-      "caller": ".claude/policies/runtime/doc_naming.py",
-      "callee": "wiki-desk/src/doc_naming.ts",
-      "phase": "runtime_operational",
-      "reason": "명명 SSOT shim — 산문 명명 정본(TS)을 subprocess 로 부르고 정규식 원문을 받는다(구현 복제 ✗ · plan_26101912 D6)"
-    },
-    {
-      "caller": ".claude/policies/runtime/evidence_publisher.py",
-      "callee": "wiki-desk/src/cli.ts",
-      "phase": "runtime_operational",
-      "reason": "C4 서가 입고의 실행자 — 사서 CLI `sync --apply`(메인 local · 서브 ssh 접근자 · plan_26101912) · 실패·미도달은 발행을 죽이지 않고 기재한다"
-    },
-    {
-      "caller": ".claude/policies/runtime/runtime_selftest.py",
-      "callee": "wiki-desk/scripts/scan-forbidden-strings.ts",
-      "phase": "verification_plane",
-      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/library_access.py",
-      "phase": "verification_plane",
-      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
-    },
-    {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
       "callee": "wiki-desk",
       "phase": "verification_plane",
       "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/selftest_claude_native_events.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "wiki-desk/SKILL.md",
       "phase": "verification_plane",
-      "reason": "네이티브 도구 실행 기록 opt-in·기존 Claude 호출 호환·실제 결과 보존 회귀"
+      "reason": "Codex 발견 폐포 음성대조 — Git 없는 배포본의 wiki-desk wrapper를 변이하고 canonical target 연결을 검증한다(plan_26102623)"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/selftest_bootstrap_permissions.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "{name}/SKILL.md",
       "phase": "verification_plane",
-      "reason": "하네스별 실제 카나리 증거와 역할별 업무·OS 집행 판정의 양·음성 회귀"
+      "reason": "Codex 발견 폐포 — EXPECTED_SKILLS의 닫힌 public skill 집합에서 각 wrapper의 canonical SKILL.md 실재를 검증한다(plan_26102623)"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "terraforming_node/scripts/selftest_sub_hint_write_scopes.py",
+      "caller": ".claude/rust/policy-distribution/src/checks.rs",
+      "callee": "{n}/SKILL.md",
       "phase": "verification_plane",
-      "reason": "명시 관측·기존 승인에 결속한 외부 hint 쓰기와 역할별 배달·범위 거부 회귀"
+      "reason": "Codex 발견 폐포 검사가 스킬별 SKILL.md 경로를 형식 문자열로 조립한다(원본 verify_distribution.py 와 같은 검사 · plan_26111615 Rust 이식)"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "hint-publisher/scripts",
-      "phase": "verification_plane",
-      "reason": "이미지 Git 출처 회귀를 private hintlib.selftest_image_git_release 모듈로 실행하는 작업 디렉터리 — 공개 CLI 폐포를 보존하며 측정 digest·노드 소유·SHA/tag·격리·정리의 양·음성 대조를 호출한다(plan_26102904)"
-    },
-    {
-      "caller": ".claude/policies/runtime/runtime_selftest.py",
+      "caller": ".claude/rust/policy-gate/src/doc_naming.rs",
       "callee": "adversarial-benchmark/scripts/bench_reporting_api.sh",
       "phase": "verification_plane",
       "reason": "실제 native report 출력과 verdict-table 소비 파서 계약을 대조한다"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/bench_doc_naming.sh",
-      "phase": "verification_plane",
-      "reason": "Rust 벤치 명명 소유자의 실제 자체검사를 수행한다"
+      "caller": ".claude/rust/policy-gate/src/doc_naming.rs",
+      "callee": "adversarial-benchmark/scripts/doc_naming_native.py",
+      "phase": "runtime_operational",
+      "reason": "벤치 명명 SSOT 재수출 — 정본 모듈 객체를 그대로 다시 내보낸다(사본 ✗ · plan_26090410 P0.5b)"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/dataset_prep.sh",
-      "phase": "verification_plane",
-      "reason": "데이터셋 최빈길이·BOS·salt 행 선택의 실제 Rust 자체검사를 실행한다(R10)"
+      "caller": ".claude/rust/policy-gate/src/doc_naming.rs",
+      "callee": "wiki-desk/src/doc_naming.ts",
+      "phase": "runtime_operational",
+      "reason": "명명 SSOT shim — 산문 명명 정본(TS)을 subprocess 로 부르고 정규식 원문을 받는다(구현 복제 ✗ · plan_26101912 D6)"
     },
     {
-      "caller": ".claude/policies/runtime/antipattern_scan.py",
-      "callee": "adversarial-benchmark/rust/src",
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "hint-publisher/SKILL.md",
       "phase": "verification_plane",
-      "reason": "Rust 벤치 도구 해소기의 제거 tripwire 경로와 양성/음성 Git-discovery fixture; 실제 운영 호출이 아니다(R11)"
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
     },
     {
-      "caller": ".claude/policies/runtime/antipattern_scan.py",
-      "callee": "adversarial-benchmark/rust/src/bench_tool_pin.rs",
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "hint-publisher/rust/Cargo.toml",
       "phase": "verification_plane",
-      "reason": "Rust 벤치 도구 해소기의 제거 tripwire 경로와 양성/음성 Git-discovery fixture; 실제 운영 호출이 아니다(R11)"
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/Cargo.toml 가 잇는다(원본 hint-publisher/scripts/hint.py)"
     },
     {
-      "caller": ".claude/policies/runtime/antipattern_scan.py",
-      "callee": "adversarial-benchmark/rust/src/unrelated.rs",
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "hint-publisher/rust/src",
       "phase": "verification_plane",
-      "reason": "Rust 벤치 도구 해소기의 제거 tripwire 경로와 양성/음성 Git-discovery fixture; 실제 운영 호출이 아니다(R11)"
+      "reason": "조항 술어가 그 조항을 구현하는 소유자 Rust 소스(hint-publisher/rust/src)의 동작·텍스트를 직접 검사한다(plan_26111615 pass 3 · .py 원본 대신 Rust 소유자)"
     },
     {
-      "caller": ".claude/policies/runtime/verify_distribution.py",
-      "callee": "adversarial-benchmark/scripts/resolve_guidellm.sh",
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "hint-publisher/rust/src/catalog.rs",
       "phase": "verification_plane",
-      "reason": "배포되는 Rust 스테이징 버전 해소기의 T1~T9 및 실제 default record 구조를 명시 자체검사로 실행한다(R12)"
+      "reason": "조항 술어가 그 조항을 구현하는 소유자 Rust 소스(hint-publisher/rust/src/catalog.rs)의 동작·텍스트를 직접 검사한다(plan_26111615 pass 3 · .py 원본 대신 Rust 소유자)"
     },
     {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
-      "callee": "adversarial-benchmark/scripts/bench_shell.sh",
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "hint-publisher/rust/src/cli",
       "phase": "verification_plane",
-      "reason": "TERRAFORM_FLAG_GATE.C2가 실제 run_bench.sh 사본의 Rust 전송 런처를 함께 복사해 동일 생산 경로를 검사한다(R45)."
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/cli 가 잇는다(원본 hint-publisher/scripts/hint.py)"
     },
     {
-      "caller": ".claude/policies/predicates/claim_predicates.py",
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "hint-publisher/rust/src/cli/mod.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/cli/mod.rs 가 잇는다(원본 hint-publisher/scripts/hint.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "hint-publisher/rust/src/tag.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/tag.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/tag.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "hint-publisher/templates/00-hint.prompt.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "hint-publisher/templates/{name}.prompt.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "terraforming_node/scripts",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "terraforming_node/scripts/node_role_contract.sh",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 terraforming_node/scripts/node_role_contract.sh 가 잇는다(원본 terraforming_node/scripts/node_role_contract.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "upstream-version-watch/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "upstream-version-watch/scripts/sync_branches.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_hint.rs",
+      "callee": "x",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_lib.rs",
+      "callee": "upstream-version-watch/scripts/sync_branches.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_owner.rs",
+      "callee": "terraforming_node/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_owner.rs",
+      "callee": "terraforming_node/scripts/manifest_contract.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1) — plan_26111615 Rust 이식: 같은 간선을 terraforming_node/scripts/manifest_contract.sh 가 잇는다(원본 terraforming_node/scripts/manifest_contract.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_owner.rs",
+      "callee": "upstream-version-watch/rust/runtime/src/smoke_model.rs",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/smoke_model.rs 가 잇는다(원본 upstream-version-watch/scripts/check_smoke_model.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_owner.rs",
+      "callee": "upstream-version-watch/scripts/check_smoke_model.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/scripts/check_smoke_model.sh 가 잇는다(원본 upstream-version-watch/scripts/check_smoke_model.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_owner.rs",
+      "callee": "upstream-version-watch/scripts/multinode_serve_smoke.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_owner.rs",
+      "callee": "upstream-version-watch/scripts/render_dockerfile.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_owner.rs",
+      "callee": "upstream-version-watch/scripts/slave_forward.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_owner.rs",
+      "callee": "vllm-recipe-explorer/rust/runtime/src/model_cli.rs",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime/src/model_cli.rs 가 잇는다(원본 vllm-recipe-explorer/scripts/crosscheck_model_card.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_owner.rs",
+      "callee": "wiki-desk",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_recipe.rs",
+      "callee": "terraforming_node/scripts/host_safety/install_host_safety.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_recipe.rs",
+      "callee": "terraforming_node/scripts/host_safety/mem_watchdog.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_recipe.rs",
+      "callee": "upstream-version-watch/scripts/multinode_serve_smoke.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_recipe.rs",
+      "callee": "vllm-recipe-explorer",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_recipe.rs",
+      "callee": "vllm-recipe-explorer/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_recipe.rs",
+      "callee": "vllm-recipe-explorer/rust/runtime",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime 가 잇는다(원본 vllm-recipe-explorer/recipe.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "adversarial-benchmark/scripts/resolve_bench_tool.sh",
+      "phase": "verification_plane",
+      "reason": "C10 실제 설치 Rust CLI와 명시 image-inspect 대역의 일치/부재/드리프트 동작 검증"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "adversarial-benchmark/scripts/run_bench.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "adversarial-benchmark/scripts/sweep_bench.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "terraforming_node",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "terraforming_node/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "terraforming_node/rust/src/agent_control.rs",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1) — plan_26111615 Rust 이식: 같은 간선을 terraforming_node/rust/src/agent_control.rs 가 잇는다(원본 terraforming_node/scripts/agent_control.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "terraforming_node/rust/src/relay.rs",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 — plan_26111615 Rust 이식: 같은 간선을 terraforming_node/rust/src/relay.rs 가 잇는다(원본 terraforming_node/scripts/relay.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "terraforming_node/rust/src/render_sub_env.rs",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1) — plan_26111615 Rust 이식: 같은 간선을 terraforming_node/rust/src/render_sub_env.rs 가 잇는다(원본 terraforming_node/scripts/render_sub_env.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "terraforming_node/scripts/host_safety/install_host_safety.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "terraforming_node/scripts/host_safety/mem_watchdog.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "terraforming_node/scripts/node_blackbox/install_node_blackbox.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "terraforming_node/scripts/node_blackbox/purge_host_safety.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "terraforming_node/scripts/node_blackbox/verify_node_blackbox.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "terraforming_node/sub_node/CLAUDE.template.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "terraforming_node/sub_node/managed-settings.template.json",
+      "phase": "verification_plane",
+      "reason": "claim 술어 SUB_GIT_LOCAL_ONLY.C4 — 서브 root 관리 설정 추적 정본의 clone/HF/lfs/원격 deny 를 텍스트로 읽어 단언(plan_26100320 Q2)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "terraforming_node/sub_node/settings.local.template.json",
+      "phase": "verification_plane",
+      "reason": "claim 술어 SUB_GIT_LOCAL_ONLY.C4 — 서브 권한 템플릿의 clone allow·HF/lfs deny 를 텍스트로 읽어 단언(plan_26100320)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "upstream-version-watch/assets/current-production-resolution.json",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "upstream-version-watch/scripts/fetch_sub_docs.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "upstream-version-watch/scripts/multinode_serve_smoke.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "upstream-version-watch/scripts/sync_branches.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "upstream-version-watch/scripts/validate_runtime_patch.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1) · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "wiki-desk/checks/concurrency.check.ts",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "wiki-desk/references/concurrency.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_text.rs",
+      "callee": "wiki-desk/src",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "adversarial-benchmark/rust/src/campaign_write.rs",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1) — plan_26111615 Rust 이식: 같은 간선을 adversarial-benchmark/rust/src/campaign_write.rs 가 잇는다(원본 terraforming_node/scripts/campaign_init.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "adversarial-benchmark/rust/src/scan_node_cli.rs",
+      "phase": "verification_plane",
+      "reason": "조항 술어가 그 조항을 구현하는 소유자 Rust 소스(adversarial-benchmark/rust/src/scan_node_cli.rs)의 동작·텍스트를 직접 검사한다(plan_26111615 pass 3 · .py 원본 대신 Rust 소유자)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
       "callee": "adversarial-benchmark/rust/target/release/bench_shell",
       "phase": "verification_plane",
       "reason": "TERRAFORM_FLAG_GATE.C2가 해당 노드에서 빌드된 실제 bench_shell 실행파일을 사본 런처에 명시 결속한다. 부재는 검사 실패이며 대역·Python 대체가 아니다(R45)."
     },
     {
-      "caller": ".claude/policies/predicates/runtime_patch_predicate.py",
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "adversarial-benchmark/scripts",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "adversarial-benchmark/scripts/run_bench.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "terraforming_node/scripts/campaign_init.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "terraforming_node/scripts/manifest_contract.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1) — plan_26111615 Rust 이식: 같은 간선을 terraforming_node/scripts/manifest_contract.sh 가 잇는다(원본 terraforming_node/scripts/manifest_contract.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "upstream-version-watch/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "upstream-version-watch/rust/runtime/src/render_template.rs",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/render_template.rs 가 잇는다(원본 upstream-version-watch/scripts/render_dockerfile.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "upstream-version-watch/scripts/render_dockerfile.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "upstream-version-watch/scripts/single_serve_up.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "vllm-recipe-explorer",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "vllm-recipe-explorer/rust/runtime/src/recipe_cmd.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 vllm-recipe-explorer/rust/runtime/src/recipe_cmd.rs 가 잇는다(원본 vllm-recipe-explorer/recipe.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "vllm-recipe-explorer/scripts/run_trial.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "wiki-desk/assets/project-contract.example.json",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_tf.rs",
+      "callee": "wiki-desk/src/cli.ts",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_upstream.rs",
+      "callee": "upstream-version-watch/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_upstream.rs",
+      "callee": "upstream-version-watch/failure_patterns.yaml",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_upstream.rs",
+      "callee": "upstream-version-watch/rust/runtime/src/render_template.rs",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/render_template.rs 가 잇는다(원본 upstream-version-watch/scripts/render_dockerfile.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_upstream.rs",
+      "callee": "upstream-version-watch/scripts/multinode_serve_smoke.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_upstream.rs",
+      "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/claims_upstream.rs",
+      "callee": "upstream-version-watch/templates/Dockerfile.source-build.template",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/companion.rs",
+      "callee": "hint-publisher/rust/src/core.rs",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정 — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/core.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/core.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/companion.rs",
+      "callee": "hint-publisher/rust/src/tag.rs",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정 — plan_26111615 Rust 이식: 같은 간선을 hint-publisher/rust/src/tag.rs 가 잇는다(원본 hint-publisher/scripts/hintlib/tag.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/companion.rs",
+      "callee": "hint-publisher/scripts",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/companion.rs",
+      "callee": "upstream-version-watch/rust/runtime/src/smoke_model.rs",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정 — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/smoke_model.rs 가 잇는다(원본 upstream-version-watch/scripts/check_smoke_model.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/companion.rs",
+      "callee": "upstream-version-watch/scripts/check_smoke_model.sh",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정 — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/scripts/check_smoke_model.sh 가 잇는다(원본 upstream-version-watch/scripts/check_smoke_model.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/companion.rs",
+      "callee": "upstream-version-watch/scripts/sync_branches.sh",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/companion.rs",
+      "callee": "wiki-desk",
+      "phase": "verification_plane",
+      "reason": "동반 술어 — 스킬 스크립트·SKILL.md 텍스트를 읽어 판정"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/runtime_patch.rs",
+      "callee": "upstream-version-watch/assets/current-production-resolution.json",
+      "phase": "verification_plane",
+      "reason": "런타임 패치 술어 — 검증기·배달 스크립트 경로 문자열"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/runtime_patch.rs",
+      "callee": "upstream-version-watch/rust/runtime/src/runtime_patch.rs",
+      "phase": "verification_plane",
+      "reason": "정책 증거 원장의 evidence 경로(registry.yaml 과 등식 검사) — plan_26111615 Rust 이식: 같은 간선을 upstream-version-watch/rust/runtime/src/runtime_patch.rs 가 잇는다(원본 upstream-version-watch/scripts/validate_runtime_patch.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/runtime_patch.rs",
+      "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
+      "phase": "verification_plane",
+      "reason": "런타임 패치 술어 — 검증기·배달 스크립트 경로 문자열"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/runtime_patch.rs",
       "callee": "upstream-version-watch/scripts/validate_runtime_patch.sh",
       "phase": "verification_plane",
       "reason": "런타임 패치 검증기 실행(Rust 런처 · 2026-11-16 plan_26111615)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/runtime_patch.rs",
+      "callee": "wiki-desk/src/cli.ts",
+      "phase": "verification_plane",
+      "reason": "런타임 패치 술어 — 검증기·배달 스크립트 경로 문자열"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/support.rs",
+      "callee": "upstream-version-watch/assets/configs/{name}",
+      "phase": "verification_plane",
+      "reason": "claim 술어 — 주장의 대상이 스킬의 동작·문구다(in-process 적재·텍스트 읽기 · plan_26093022 E1)"
+    },
+    {
+      "caller": ".claude/rust/policy-predicates/src/support.rs",
+      "callee": "upstream-version-watch/scripts/render_dockerfile.sh",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사 · Rust 런처(.sh) 호출(2026-11-16 plan_26111615)"
+    },
+    {
+      "caller": ".claude/rust/policy-publisher/src/classify.rs",
+      "callee": "adversarial-benchmark/scripts/classify_cell_api.sh",
+      "phase": "runtime_operational",
+      "reason": "강등 어휘(DOWNGRADE_REASONS·bench_mode)의 단일 소유자에서 늦게 적재 — 적재 실패는 fail-closed — plan_26111615 Rust 이식: 같은 간선을 adversarial-benchmark/scripts/classify_cell_api.sh 가 잇는다(원본 adversarial-benchmark/scripts/classify_cell_native.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-publisher/src/classify.rs",
+      "callee": "adversarial-benchmark/scripts/classify_cell_native.py",
+      "phase": "runtime_operational",
+      "reason": "강등 어휘(DOWNGRADE_REASONS·bench_mode)의 단일 소유자에서 늦게 적재 — 적재 실패는 fail-closed"
+    },
+    {
+      "caller": ".claude/rust/policy-publisher/src/publisher.rs",
+      "callee": "wiki-desk/src/cli.ts",
+      "phase": "runtime_operational",
+      "reason": "C4 서가 입고의 실행자 — 사서 CLI `sync --apply`(메인 local · 서브 ssh 접근자 · plan_26101912) · 실패·미도달은 발행을 죽이지 않고 기재한다"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/antipattern.rs",
+      "callee": "adversarial-benchmark/rust/src",
+      "phase": "verification_plane",
+      "reason": "Rust 벤치 도구 해소기의 제거 tripwire 경로와 양성/음성 Git-discovery fixture; 실제 운영 호출이 아니다(R11)"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/antipattern.rs",
+      "callee": "adversarial-benchmark/rust/src/bench_tool_pin.rs",
+      "phase": "verification_plane",
+      "reason": "Rust 벤치 도구 해소기의 제거 tripwire 경로와 양성/음성 Git-discovery fixture; 실제 운영 호출이 아니다(R11)"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/antipattern.rs",
+      "callee": "adversarial-benchmark/rust/src/unrelated.rs",
+      "phase": "verification_plane",
+      "reason": "Rust 벤치 도구 해소기의 제거 tripwire 경로와 양성/음성 Git-discovery fixture; 실제 운영 호출이 아니다(R11)"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/antipattern.rs",
+      "callee": "adversarial-benchmark/scripts/resolve_bench_tool",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/antipattern.rs",
+      "callee": "terraforming_node",
+      "phase": "verification_plane",
+      "reason": "공개 표면 tripwire(차단 검사 ③) — terraforming_node 의 SKILL.md §4 표를 읽고 외부 호출을 대조한다"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/antipattern.rs",
+      "callee": "terraforming_node/scripts",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/antipattern.rs",
+      "callee": "terraforming_node/scripts/node_blackbox/budget_renew_loop",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/antipattern.rs",
+      "callee": "terraforming_node/scripts/providers/claude_code.py",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/antipattern.rs",
+      "callee": "terraforming_node/scripts/turn_budget.py",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/antipattern.rs",
+      "callee": "upstream-version-watch/scripts",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/antipattern.rs",
+      "callee": "upstream-version-watch/scripts/multinode_serve_smoke",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/antipattern.rs",
+      "callee": "upstream-version-watch/scripts/multinode_serve_smoke.sh",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/antipattern.rs",
+      "callee": "vllm-recipe-explorer/scripts/run_trial",
+      "phase": "verification_plane",
+      "reason": "제거 tripwire 의 path_re(결함이 살던 자리)와 self-test 픽스처 경로"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/constitution_lint.rs",
+      "callee": "*/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "린트 — SKILL.md 의 유령 policy: 인용 스캔(INFO)"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/constitution_lint.rs",
+      "callee": "*/references/**/*.md",
+      "phase": "verification_plane",
+      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/constitution_lint.rs",
+      "callee": "terraforming_node/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/constitution_lint.rs",
+      "callee": "terraforming_node/references/**/*.md",
+      "phase": "verification_plane",
+      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/constitution_lint.rs",
+      "callee": "terraforming_node/references/*.md",
+      "phase": "verification_plane",
+      "reason": "린트(INFO) — 스킬 references 의 유령 policy: 인용 스캔 · terraforming_node 라우터 줄 수 관측(합격선 아님)"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/hint_suite.rs",
+      "callee": "adversarial-benchmark/rust/src/assemble_sweep_meta.rs",
+      "phase": "verification_plane",
+      "reason": "self-test 배포 사본이 실제 Rust index producer의 model 키 규칙 앵커를 읽도록 소유 소스를 복사한다"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/hint_suite.rs",
+      "callee": "adversarial-benchmark/scripts/publish_benchmark_record.sh",
+      "phase": "verification_plane",
+      "reason": "hint 발행 E2E 픽스처가 벤치 발행 기록 런처를 배포 자리에 둔다(원본 runtime_selftest.py 의 같은 픽스처 · plan_26111615 Rust 이식)"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/hint_suite.rs",
+      "callee": "adversarial-benchmark/scripts/render_report.sh",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/hint_suite.rs",
+      "callee": "hint-publisher",
+      "phase": "verification_plane",
+      "reason": "배포 무결성 러너 — 스킬 --self-test·스모크 실행과 경로 실재 검사"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/hint_suite.rs",
+      "callee": "hint-publisher/rust/target/release/hint",
+      "phase": "verification_plane",
+      "reason": "hint 발행 E2E 가 이 체크아웃의 native hint 실행파일(HINT_BIN)로 배포 사본의 hint.sh 를 돌린다(원본은 hint.py 사본을 in-process 로 구동 · plan_26111615)"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/hint_suite.rs",
+      "callee": "hint-publisher/scripts",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/suite.rs",
+      "callee": "adversarial-benchmark/scripts/bench_reporting_api.sh",
+      "phase": "verification_plane",
+      "reason": "실제 native report 출력과 verdict-table 소비 파서 계약을 대조한다"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/suite.rs",
+      "callee": "terraforming_node/scripts/agent_control.sh",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조 — plan_26111615 Rust 이식: 같은 간선을 terraforming_node/scripts/agent_control.sh 가 잇는다(원본 terraforming_node/scripts/agent_control.py)"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/suite.rs",
+      "callee": "terraforming_node/scripts/host_safety/mem_watchdog.sh",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/suite.rs",
+      "callee": "terraforming_node/scripts/node_blackbox/mem_watchdog_eta.sh",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/suite.rs",
+      "callee": "terraforming_node/scripts/node_blackbox/thermal_watchdog.sh",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/suite.rs",
+      "callee": "upstream-version-watch/scripts/sync_to_sub.sh",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/tripwires.rs",
+      "callee": "terraforming_node",
+      "phase": "verification_plane",
+      "reason": "tripwire⑩ — terraforming_node 라우터의 §앵커·references 경로·결속 리터럴을 검사한다"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/tripwires.rs",
+      "callee": "terraforming_node/SKILL.md",
+      "phase": "verification_plane",
+      "reason": "tripwire⑩ — 라우터 SKILL.md 텍스트를 읽는다(§번호 토큰·결속 리터럴 실재)"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/tripwires.rs",
+      "callee": "upstream-version-watch/scripts/sync_branches.sh",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
+    },
+    {
+      "caller": ".claude/rust/policy-selftest/src/tripwires.rs",
+      "callee": "wiki-desk/scripts/scan-forbidden-strings.ts",
+      "phase": "verification_plane",
+      "reason": "self-test 러너 — owner --self-test 호출·픽스처 복사·워치독 패리티 텍스트 대조"
     }
   ]
 }

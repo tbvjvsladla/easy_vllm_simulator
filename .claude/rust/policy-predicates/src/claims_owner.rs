@@ -6,25 +6,16 @@ use agent_runtime_support::pyvalue::{PyDict, PyValue};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
-/// `manifest_contract.VALID_MODES`: the adapter's public literal tuple (read from its source; the enforcing owner is the
-/// Rust const, compared below exactly as the original compares them).
-fn adapter_valid_modes(rel: &str) -> R<Vec<String>> {
-    let logicals = crate::pyast::tokenize(&read(rel)?);
-    match crate::pyast::top_level_tuple_of_str(&logicals, "VALID_MODES") {
-        Some(Some(v)) => Ok(v),
-        _ => Err(Fail::new("AttributeError", format!("module has no tuple attribute 'VALID_MODES' ({rel})"))),
-    }
-}
-
 pub fn predicate_MODEL_ACQUISITION_TERNARY_GATE_C1() -> R {
-    let adapter = adapter_valid_modes(".claude/skills/terraforming_node/scripts/manifest_contract.py")?;
-    req(adapter == ["managed", "ephemeral", "custom"], "predicate requirement failed at original line 1069")?;
+    // The single owner of the three modes is the Rust gate (`role_contract::manifest_gate::VALID_MODES`, the const the
+    // mode check reads). The Python adapter / compat-owner tuples it used to be compared with are reference originals
+    // pending deletion (plan_26111615 P6) and are no longer evidence.
+    req(role_contract::manifest_gate::VALID_MODES == ["managed", "ephemeral", "custom"], "predicate requirement failed at original line 1069")?;
     let gate = read(".claude/rust/role-contract/src/manifest_gate.rs")?;
     let rust_modes = re("(?m)^pub const VALID_MODES: \\[&str; (\\d+)\\] = \\[([^\\]]*)\\];").captures(&gate).ok().flatten();
     req(rust_modes.is_some(), "manifest_gate.rs must declare VALID_MODES")?;
-    req(findall("\"([^\"]*)\"", rust_modes.unwrap().get(2).unwrap().as_str()) == adapter, "Rust VALID_MODES differs from the adapter tuple")?;
-    let compat = crate::pyast::top_level_tuple_of_str(&crate::pyast::tokenize(&read(".claude/skills/terraforming_node/scripts/manifest_contract_compat_owner.py")?), "VALID_MODES");
-    req(compat == Some(Some(adapter.clone())), "compat owner VALID_MODES differs from the adapter tuple")?;
+    req(findall("\"([^\"]*)\"", rust_modes.unwrap().get(2).unwrap().as_str()) == role_contract::manifest_gate::VALID_MODES, "Rust VALID_MODES source differs from the compiled tuple")?;
+    req(gate.contains("VALID_MODES.iter().any(|mode| text.equals(mode))"), "the mode check must read VALID_MODES (no second mode list)")?;
     let ems = |node: &str, top: &str| -> R<Option<String>> {
         Ok(jstr(&role_contract::manifest_gate::effective_model_source(&json_loads(node)?, &json_loads(top)?)))
     };
@@ -123,30 +114,38 @@ pub fn predicate_TERRAFORM_FLAG_GATE_C4() -> R {
 }
 
 pub fn predicate_MODEL_ACQUISITION_TERNARY_GATE_C2() -> R {
-    let src = read(".claude/skills/upstream-version-watch/scripts/check_smoke_model.py")?;
-    for banned in ["urllib", "requests", "snapshot_download", "huggingface_hub", "wget", "curl", "http.client", "socket", "httpx", "aiohttp", "os.system", "os.popen", "Popen"] {
-        req(!src.contains(banned), format!("no download/shell mechanism {} may appear in check_smoke_model.py", repr(banned)))?;
+    // check_smoke_model is the upstream runtime's Rust program (`smoke_model.rs` behind `check_smoke_model.sh`); the
+    // crosscheck CLI is the recipe runtime's `model_cli.rs` (plan_26111615: the `.py` modules are no longer evidence).
+    let launcher = read(".claude/skills/upstream-version-watch/scripts/check_smoke_model.sh")?;
+    req(launcher.contains("exec -a \"$SDIR/check_smoke_model.py\" \"$binary\""), "check_smoke_model.sh must start the native smoke-model program")?;
+    let src = read(".claude/skills/upstream-version-watch/rust/runtime/src/smoke_model.rs")?;
+    req(src.contains("pub const PROGRAM: &str = \"check_smoke_model.py\";"), "smoke_model.rs must be the check_smoke_model program")?;
+    for banned in ["ureq", "reqwest", "hf_http", "urllib", "requests", "snapshot_download", "huggingface_hub", "wget", "curl", "TcpStream", "UdpSocket", "std::net", "socket", "libc::system", "popen", "Popen"] {
+        req(!src.contains(banned), format!("no download/shell mechanism {} may appear in check_smoke_model (smoke_model.rs)", repr(banned)))?;
     }
-    req(count(&src, "subprocess.run(") == 2, "the only subprocess calls must be the local rope translator and the local spec-layout launcher, never a download command")?;
-    req(src.contains("subprocess.run([sys.executable, _tr,"), "one subprocess call must run sys.executable on the local rope translator script")?;
-    req(src.contains("subprocess.run([\"bash\", spec_script,") && src.contains("\"check_spec_layout.sh\")"), "one subprocess call must run bash on the local check_spec_layout.sh launcher, never a download command")?;
+    req(count(&src, "Command::new(") == 2, "the only subprocess calls must be the local rope translator and the local spec-layout launcher, never a download command")?;
+    let rope_fn = rust_top_fn(&src, "rope_check").unwrap_or_default();
+    req(rope_fn.contains("vllm-recipe-explorer/rust/runtime/target/release/rope_scaling_translate") && rope_fn.contains("Command::new(&elf)"),
+        "one subprocess call must run the local rope translator program")?;
+    req(src.contains("Command::new(\"bash\")\n                    .arg(&spec_script)") && src.contains("scripts.join(\"check_spec_layout.sh\")"),
+        "one subprocess call must run bash on the local check_spec_layout.sh launcher, never a download command")?;
     req(!src.contains("model_source"), "the serve-time model-presence gate must never branch on model_source -- selecting a mode (even complete+ephemeral) must not, by itself, be able to authorize anything at this gate")?;
-    let stop_idx = index(&src, "f\"[NAS-check] STOP: 모델 부재")?;
-    let exit_idx = index_from(&src, "sys.exit(2)", stop_idx)?;
+    let stop_idx = index(&src, "\"[NAS-check] STOP: 모델 부재")?;
+    let exit_idx = index_from(&src, "\n    2\n}", stop_idx)?;
     req(src[stop_idx..exit_idx].contains("다운로드하지 않음"), "the exit(2) STOP path must literally state the no-download rule")?;
-    let ccsrc = read(".claude/skills/vllm-recipe-explorer/scripts/crosscheck_model_card.py")?;
-    req(search("add_argument\\(\"--hf-repo-id\",\\s*default=None", &ccsrc).is_some(), "--hf-repo-id must have no default -- each fetch names its target explicitly, per-event")?;
+    let ccsrc = read(".claude/skills/vllm-recipe-explorer/rust/runtime/src/model_cli.rs")?;
+    let spec = rust_top_fn(&ccsrc, "crosscheck_spec").unwrap_or_default();
+    req(search("opt\\(\\s*&\\[\"--hf-repo-id\"\\],\\s*\"hf_repo_id\",\\s*Kind::Text,", &spec).is_some() && !spec.contains("default"),
+        "--hf-repo-id must have no default -- each fetch names its target explicitly, per-event")?;
     for flag in ["--yes", "--auto-approve", "--no-confirm", "--skip-confirm", "--force"] {
-        req(!ccsrc.contains(flag), format!("no blanket-authorization flag ({flag}) may exist on the external-fetch CLI"))?;
+        req(!spec.contains(flag), format!("no blanket-authorization flag ({flag}) may exist on the external-fetch CLI"))?;
     }
-    // inspect.getsource(crosscheck_model_card.main)
-    let logicals = crate::pyast::tokenize(&ccsrc);
-    let f = crate::pyast::functions(&logicals).into_iter().filter(|f| f.name == "main" && f.indent == 0).last()
+    // inspect.getsource(crosscheck_model_card.main) -> the Rust `crosscheck_main`
+    let main_src = rust_top_fn(&ccsrc, "crosscheck_main")
         .ok_or_else(|| Fail::new("AttributeError", "module 'crosscheck_model_card' has no attribute 'main'"))?;
-    let main_src = crate::pyast::getsource(&ccsrc, &f);
     req(main_src.contains("--hf-repo-id 필수"), "missing --hf-repo-id on --ephemeral-estimate must abort rather than silently proceeding with an implicit/blanket target")?;
     let missing_idx = index(&main_src, "--hf-repo-id 필수")?;
-    let exit3_idx = index_from(&main_src, "sys.exit(3)", missing_idx)?;
+    let exit3_idx = index_from(&main_src, "streams.finish(3)", missing_idx)?;
     req(exit3_idx > missing_idx, "the missing-repo-id message must precede a real abort(exit 3)")
 }
 

@@ -9,7 +9,9 @@ use fancy_regex::Regex;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-pub const SLAVE_FORWARD_REL: &str = ".claude/skills/upstream-version-watch/scripts/slave_forward.py";
+/// The owner of the derivation: the upstream Rust module this check calls in-process (the original gated on its
+/// `slave_forward.py`; that program is now this module plus the `slave_forward.sh` launcher).
+pub const SLAVE_FORWARD_REL: &str = ".claude/skills/upstream-version-watch/rust/runtime/src/slave_forward.rs";
 pub const COMPOSE_MULTI_TEMPLATE_REL: &str = ".claude/skills/upstream-version-watch/templates/docker-compose.multi.template.yaml";
 const LEDGER: &str = ".claude/policies/arch_variant_ledger.json";
 const STOCK_REPO: &str = "https://github.com/vllm-project/vllm.git";
