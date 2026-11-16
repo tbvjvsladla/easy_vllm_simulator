@@ -122,7 +122,7 @@ if [ "$ACTION" = "preflight" ]; then
     preflight || exit $?
     echo "[closing] ② 분류표 빈칸(Agent 가 채우고 ③ 사람이 승인한다):"
     emit_skeleton
-    python3 "$REPO/.claude/policies/runtime/constitution_lint.py" --repo "$REPO" 2>/dev/null || true
+    bash "$REPO/.claude/policies/runtime/constitution_lint.sh" --repo "$REPO" 2>/dev/null || true
     exit 0
 fi
 

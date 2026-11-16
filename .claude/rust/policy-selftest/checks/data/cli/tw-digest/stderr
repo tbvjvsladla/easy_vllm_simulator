@@ -1,0 +1,1 @@
+[tripwire] FAIL tracked data re-states a digest git already owns (single authority = git): ['.claude/policies/integrity.json:1 (e.g. e1d31eb407b89e0943abda415b2f89c0b0c933f0)']

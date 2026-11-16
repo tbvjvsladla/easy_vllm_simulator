@@ -1,0 +1,2 @@
+[tripwire] WARN core.hooksPath is '', expected '.claude/hooks' — run: git config core.hooksPath .claude/hooks
+[tripwire] PASS

@@ -1,0 +1,53 @@
+[constitution_lint] 정보 -- 차단하지 않는다
+  상시 로드 합계 6,109 bytes
+        3,058 CLAUDE.md
+        2,786 .claude/rules/workflow.md
+          150 .claude/rules/docs.md
+          115 .claude/rules/strategy.topology.md
+  파일 간 중복 문장 23건 -- red flag: 같은 규칙이 두 층에 있다
+    .claude/rules/docs.md · .claude/rules/workflow.md · CLAUDE.md
+      세 파일에 같은 규칙 이 적혀 있으면 공백과 기호를 정규화한 뒤에도 같은 문장으로 묶인다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 1 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 10 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 11 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 12 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 13 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 14 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 15 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 16 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 17 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 18 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 19 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 2 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 20 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 21 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 22 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 3 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 4 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 5 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    .claude/rules/workflow.md · CLAUDE.md
+      공유 문장 번호 6 은 두 헌법 파일에 똑같이 적혀 있어 중복으로 잡혀야 하는 긴 문장이다.
+    ... 외 3건(전수는 --format json)
+  terraforming_node 라우터(관측) SKILL.md 9줄 · 날짜 개정 서사 2줄 · references 1파일/3줄
+  유령 정책 ID 3건
+    GHOST_ONE -- ['.claude/skills/other/SKILL.md', '.claude/skills/terraforming_node/SKILL.md', 'CLAUDE.md']
+    GHOST_THREE -- ['.claude/skills/other/references/sub/r2.md']
+    GHOST_TWO -- ['.claude/rules/docs.md']

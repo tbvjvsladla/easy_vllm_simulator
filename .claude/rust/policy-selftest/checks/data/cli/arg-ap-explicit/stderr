@@ -1,0 +1,3 @@
+usage: antipattern_scan.py [-h] [--root ROOT] [--inventory OUT.jsonl]
+                           [--tripwire] [--files [FILES ...]] [--self-test]
+antipattern_scan.py: error: argument --tripwire: ignored explicit argument '1'

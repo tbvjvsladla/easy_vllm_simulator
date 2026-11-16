@@ -1,0 +1,48 @@
+[package]
+name = "policy-selftest"
+version = "0.1.0"
+edition = "2021"
+description = "Rust port of the policies runtime self-checks: runtime_selftest.py (pre-commit tripwires and the regression suite), antipattern_scan.py and constitution_lint.py"
+publish = false
+# `tests/` is a scratch name in this repository; integration checks live in `checks/`.
+autotests = false
+
+[lib]
+name = "policy_selftest"
+path = "src/lib.rs"
+
+[[bin]]
+name = "runtime_selftest"
+path = "src/bin/runtime_selftest.rs"
+
+[[bin]]
+name = "antipattern_scan"
+path = "src/bin/antipattern_scan.rs"
+
+[[bin]]
+name = "constitution_lint"
+path = "src/bin/constitution_lint.rs"
+
+[[test]]
+name = "golden_checks"
+path = "checks/golden_checks.rs"
+
+[[test]]
+name = "pyast_cases"
+path = "checks/pyast_cases.rs"
+
+[dependencies]
+# Python json.dumps writers, str semantics and the topology parity library (path dependencies, read-only).
+agent-runtime-support = { path = "../runtime-support" }
+role-contract = { path = "../role-contract" }
+# completion_gate's flat certificate parser and run key (tripwire ④ shares the detector/resolver predicate).
+policy-gate = { path = "../policy-gate" }
+# The full suite exercises the registry auditor and the distribution driver through their libraries.
+policy-audit = { path = "../policy-audit" }
+policy-distribution = { path = "../policy-distribution" }
+# Python `re`-like engine (lookaround) and SHA-256 of tracked blobs (hashlib.sha256 of the original).
+fancy-regex = "=0.19.2"
+regex-automata = "=0.4.18"
+sha2 = "=0.10.9"
+num-bigint = "=0.4.8"
+libc = "=0.2.191"

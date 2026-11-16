@@ -1,0 +1,1 @@
+[tripwire] FAIL 동기화가 특화층을 제외하지 않는다 — ':(exclude)*.topology.md' 리터럴이 sync_branches.sh 에 없다. 이 두 자리가 갈라지면 다음 sync 가 특화 파일을 반대 브랜치로 실어 두 브랜치를 다시 같게 만든다

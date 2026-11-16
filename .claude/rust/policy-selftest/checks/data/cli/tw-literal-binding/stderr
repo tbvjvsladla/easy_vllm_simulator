@@ -1,0 +1,1 @@
+[tripwire] FAIL tripwire⑩ ghost_section_anchors/skill_literal_binding: ④ 결속 리터럴 부재 .claude/policies/runtime/p_check.py:3: '## 3.1 없는 절' | ④ 금지 리터럴 존재 .claude/policies/runtime/p_check.py:4: '## 2.7 노드'

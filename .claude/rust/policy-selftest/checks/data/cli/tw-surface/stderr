@@ -1,0 +1,2 @@
+[tripwire] FAIL 제거한 안티패턴이 되돌아왔다(rc=3):
+[antipattern_scan] SURFACE 공개 표면 밖 외부 호출: scripts/zzz.py (첫 호출자 .claude/cite.txt) — SKILL.md §4 표에 등재하거나 호출을 없앤다

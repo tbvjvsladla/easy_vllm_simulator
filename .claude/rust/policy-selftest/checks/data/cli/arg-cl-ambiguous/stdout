@@ -1,0 +1,9 @@
+[constitution_lint] 정보 -- 차단하지 않는다
+  상시 로드 합계 199 bytes
+          104 CLAUDE.md
+           43 .claude/rules/workflow.md
+           부재 .claude/rules/docs.md
+           52 .claude/rules/strategy.topology.md
+  파일 간 중복 문장 0건
+  terraforming_node 라우터(관측) SKILL.md 9줄 · 날짜 개정 서사 0줄 · references 0파일/0줄
+  유령 정책 ID 0건

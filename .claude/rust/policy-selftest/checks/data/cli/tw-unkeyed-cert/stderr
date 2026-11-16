@@ -1,0 +1,1 @@
+[tripwire] FAIL tracked certificate(s) cannot be keyed (flat parse failed or measured_utc/strong key missing) — fail-closed, not 'no match': ['docs/benchmark/benchmark_a.yaml']

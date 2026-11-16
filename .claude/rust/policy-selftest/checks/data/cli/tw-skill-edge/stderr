@@ -1,0 +1,1 @@
+[tripwire] FAIL tripwire⑨ base_to_skill_edges: 미등재 간선 .claude/policies/a.json → skill:s1/scripts/x.py (이유를 달아 .claude/policies/base_skill_edges.json 에 등재하거나 간선을 없앤다)

@@ -1,0 +1,1 @@
+[tripwire] FAIL tracked root entries absent from .claude/policies/root_registry.json (1): ['stray.txt'] -- an unlisted root artifact is a placement error, not a registry addition (D3)

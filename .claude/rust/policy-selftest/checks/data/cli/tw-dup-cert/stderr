@@ -1,0 +1,2 @@
+[tripwire] FAIL same measurement tracked under more than one certificate file (single authority = one file per (identity, measured_utc)):
+  m@2026-09-03T12:00:00Z [byte-identical (duplicate layer — delete all but one)]: ['docs/benchmark/benchmark_a.yaml', 'docs/benchmark/benchmark_b.yaml']

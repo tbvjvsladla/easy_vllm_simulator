@@ -1,0 +1,3 @@
+usage: constitution_lint.py [-h] [--repo REPO] [--format {json,text}]
+                            [--self-test]
+constitution_lint.py: error: argument --format: invalid choice: 'yaml' (choose from 'json', 'text')
