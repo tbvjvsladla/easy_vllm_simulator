@@ -1,0 +1,5 @@
+{"id": "r0", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r1", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r2", "kind": "exception", "type": "HintError", "code": "HINT_OWNER_MODULE_MISSING", "message": "소유 모듈 부재: .claude/skills/adversarial-benchmark/scripts/doc_naming.py", "remedy": "대체 구현으로 계속하지 않는다 — 그 스킬이 설치된 체크아웃에서 실행한다.", "exit_code": 1}
+{"id": "r3", "kind": "exception", "type": "HintError", "code": "HINT_OWNER_MODULE_MISSING", "message": "소유 모듈 부재: .claude/skills/adversarial-benchmark/scripts/doc_naming.py", "remedy": "대체 구현으로 계속하지 않는다 — 그 스킬이 설치된 체크아웃에서 실행한다.", "exit_code": 1}
+{"id": "r4", "kind": "exception", "type": "HintError", "code": "HINT_OWNER_MODULE_MISSING", "message": "소유 모듈 부재: .claude/skills/adversarial-benchmark/scripts/doc_naming.py", "remedy": "대체 구현으로 계속하지 않는다 — 그 스킬이 설치된 체크아웃에서 실행한다.", "exit_code": 1}

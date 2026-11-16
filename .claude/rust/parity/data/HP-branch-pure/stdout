@@ -1,0 +1,91 @@
+{"id": "r1", "kind": "value", "value": ["README.md", "00-hint.md", "01-artifacts.md", "02-narrative.md", "03-benchmark.md", "PAYLOAD.json", "LINEAGE.json", "PROVENANCE.json"]}
+{"id": "r2", "kind": "value", "value": ["README.md", "00-hint.md", "01-artifacts.md", "02-narrative.md", "PAYLOAD.json", "LINEAGE.json", "PROVENANCE.json"]}
+{"id": "r3", "kind": "value", "value": ["README.md", "00-hint.md", "01-artifacts.md", "02-narrative.md", "03-benchmark.md", "PAYLOAD.json", "LINEAGE.json", "PROVENANCE.json"]}
+{"id": "r4", "kind": "value", "value": ["README.md", "00-hint.md", "01-artifacts.md", "02-narrative.md", "03-benchmark.md", "PAYLOAD.json", "LINEAGE.json", "PROVENANCE.json"]}
+{"id": "r5", "kind": "value", "value": ["README.md", "00-hint.md", "01-artifacts.md", "02-narrative.md", "03-benchmark.md", "PAYLOAD.json", "LINEAGE.json", "PROVENANCE.json"]}
+{"id": "r6", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a2022656173792d766c6c6d2d73696d756c61746f72203c68696e747340656173792d766c6c6d2e696e76616c69643e227d"}
+{"id": "r7", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a207b224749545f415554484f525f4e414d45223a2022656173792d766c6c6d2d73696d756c61746f72222c20224749545f415554484f525f454d41494c223a202268696e747340656173792d766c6c6d2e696e76616c6964222c20224749545f415554484f525f44415445223a20224031373839393836303631202b30303030222c20224749545f434f4d4d49545445525f4e414d45223a2022656173792d766c6c6d2d73696d756c61746f72222c20224749545f434f4d4d49545445525f454d41494c223a202268696e747340656173792d766c6c6d2e696e76616c6964222c20224749545f434f4d4d49545445525f44415445223a20224031373839393836303631202b30303030227d7d"}
+{"id": "r8", "kind": "exception", "type": "HintError", "code": "HINT_TIME_NOT_INJECTED", "message": "--generated-utc 는 UTC `YYYY-MM-DDTHH:MM:SSZ` 로 주입해야 한다: '2026-09-21 10:21'", "remedy": "벽시계를 읽지 않는다 — 호출자가 시각을 넘긴다.", "exit_code": 1}
+{"id": "r9", "kind": "value", "value": {"author": {"ident": "A B <c>", "epoch": 10, "tz": "+0000"}, "committer": {"ident": "X <y>", "epoch": 20, "tz": "-0130"}, "tagger": {"ident": "T <t>", "epoch": 3, "tz": "+0900"}}}
+{"id": "r10", "kind": "value", "value": {}}
+{"id": "r11", "kind": "value", "value": "빈 경로"}
+{"id": "r12", "kind": "value", "value": "절대경로·역슬래시"}
+{"id": "r13", "kind": "value", "value": "절대경로·역슬래시"}
+{"id": "r14", "kind": "value", "value": "제어문자 포함"}
+{"id": "r15", "kind": "value", "value": "제어문자 포함"}
+{"id": "r16", "kind": "value", "value": null}
+{"id": "r17", "kind": "value", "value": "최상위 allowlist 밖"}
+{"id": "r18", "kind": "value", "value": "artifacts/<triplet|runtime_patch|build_patch_pre|build_patch_post|build_recipe|compose|fork_pin>/** 밖"}
+{"id": "r19", "kind": "value", "value": null}
+{"id": "r20", "kind": "value", "value": "artifacts/<triplet|runtime_patch|build_patch_pre|build_patch_post|build_recipe|compose|fork_pin>/** 밖"}
+{"id": "r21", "kind": "value", "value": "금지 이름 ['.git'](합격기준 A1 — archive 에 프로젝트 코드 0)"}
+{"id": "r22", "kind": "value", "value": "빈 세그먼트·상위탈출"}
+{"id": "r23", "kind": "value", "value": "빈 세그먼트·상위탈출"}
+{"id": "r24", "kind": "value", "value": "빈 세그먼트·상위탈출"}
+{"id": "r25", "kind": "value", "value": "금지 이름 ['.claude'](합격기준 A1 — archive 에 프로젝트 코드 0)"}
+{"id": "r26", "kind": "value", "value": "금지 이름 ['.gitattributes'](합격기준 A1 — archive 에 프로젝트 코드 0)"}
+{"id": "r27", "kind": "value", "value": "금지 이름 ['.git', '.gitmodules', '__pycache__'](합격기준 A1 — archive 에 프로젝트 코드 0)"}
+{"id": "r28", "kind": "value", "value": null}
+{"id": "r29", "kind": "value", "value": null}
+{"id": "r30", "kind": "value", "value": null}
+{"id": "r31", "kind": "value", "value": null}
+{"id": "r32", "kind": "value", "value": "빈 경로"}
+{"id": "r33", "kind": "value", "value": "빈 경로"}
+{"id": "r34", "kind": "value", "value": "최상위 allowlist 밖"}
+{"id": "r35", "kind": "value", "value": "<!-- hint-branch-format: v7 -->"}
+{"id": "r36", "kind": "value", "value": "<!-- hint-branch-format: v7 -->"}
+{"id": "r37", "kind": "exception", "type": "HintError", "code": "HINT_BRANCH_FORMAT_SHAPE", "message": "형식 버전 모양이 아니다: 'v0'", "remedy": null, "exit_code": 1}
+{"id": "r38", "kind": "value", "value": "<!-- hint-branch-format: v12 -->"}
+{"id": "r39", "kind": "exception", "type": "HintError", "code": "HINT_BRANCH_FORMAT_SHAPE", "message": "형식 버전 모양이 아니다: '7'", "remedy": null, "exit_code": 1}
+{"id": "r40", "kind": "exception", "type": "HintError", "code": "HINT_BRANCH_FORMAT_SHAPE", "message": "형식 버전 모양이 아니다: 7", "remedy": null, "exit_code": 1}
+{"id": "r41", "kind": "exception", "type": "HintError", "code": "HINT_BRANCH_FORMAT_SHAPE", "message": "형식 버전 모양이 아니다: 'v7 '", "remedy": null, "exit_code": 1}
+{"id": "r42", "kind": "value", "value": "<!-- hint-branch-format: v1 -->"}
+{"id": "r43", "kind": "value", "value": "v7"}
+{"id": "r44", "kind": "value", "value": "v7"}
+{"id": "r45", "kind": "value", "value": null}
+{"id": "r46", "kind": "value", "value": null}
+{"id": "r47", "kind": "value", "value": "v12"}
+{"id": "r48", "kind": "value", "value": null}
+{"id": "r49", "kind": "value", "value": null}
+{"id": "r50", "kind": "value", "value": null}
+{"id": "r51", "kind": "value", "value": null}
+{"id": "r52", "kind": "value", "value": 0}
+{"id": "r53", "kind": "value", "value": 7}
+{"id": "r54", "kind": "value", "value": 12}
+{"id": "r55", "kind": "value", "value": 0}
+{"id": "r56", "kind": "value", "value": ["p1", "p2"]}
+{"id": "r57", "kind": "value", "value": []}
+{"id": "r58", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b226964656e746974793a313a207465726d3a656173792d766c6c6d2d73696d756c61746f72225d7d"}
+{"id": "r59", "kind": "value", "value": []}
+{"id": "r60", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b226964656e746974793a313a207465726d3a7a7a225d7d"}
+{"id": "r61", "hex": "7b226b696e64223a2022657863657074696f6e222c202274797065223a20224174747269627574654572726f72222c20226d657373616765223a20222773747227206f626a65637420686173206e6f2061747472696275746520276465636f646527227d"}
+{"id": "r62", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b22612e7478743a313a207465726d3a666978747572652d7069692d7465726d2d7a657461222c2022642e6d643a313a20707269766174652d697076343a31302e312e322e33225d2c2022737464657272223a20225b68696e745d204558454d5054287368656c6c2d64656661756c742920313a206162732d6f702d706174683a2f6d6e742f6d6f64656c735c6e227d"}
+{"id": "r63", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b5d7d"}
+{"id": "r64", "kind": "value", "value": ["HINT_PROMPT_RESIDUE: 00-hint.md:3: 기재 지시(PROMPT)가 남았다 — template.seal_prompts 전이거나 저작이 끝나지 않았다.", "HINT_AGENT_PLACEHOLDER_RESIDUE: 01-artifacts.md:3: 미저작 자리표시 `<<AGENT:` 가 남았다 — 그 절을 저작한 뒤 커밋한다.", "HINT_PROMPT_RESIDUE: 02-narrative.md:2: 기재 지시(PROMPT)가 남았다 — template.seal_prompts 전이거나 저작이 끝나지 않았다.", "HINT_AGENT_PLACEHOLDER_RESIDUE: 02-narrative.md:1: 미저작 자리표시 `<<AGENT:` 가 남았다 — 그 절을 저작한 뒤 커밋한다."]}
+{"id": "r65", "kind": "value", "value": []}
+{"id": "r66", "kind": "value", "value": []}
+{"id": "r67", "kind": "value", "value": []}
+{"id": "r68", "kind": "value", "value": ["HINT_PAYLOAD_TAG_MISMATCH: PAYLOAD.tag='hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-mmp-eager' ≠ 봉인 대상 'hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len131072-kvauto-mmp-eager' — 남의 페이로드다.", "HINT_PROVENANCE_FILES_MISMATCH: PROVENANCE.payload_files ≠ 실물 — 선언만 [] · 실물만 []"]}
+{"id": "r69", "kind": "value", "value": ["HINT_PAYLOAD_JSON_UNREADABLE: PAYLOAD.json 이 JSON 객체가 아니다.", "HINT_PROMPT_RESIDUE: 00-hint.md:1: 기재 지시(PROMPT)가 남았다 — template.seal_prompts 전이거나 저작이 끝나지 않았다."]}
+{"id": "r70", "kind": "value", "value": ["HINT_PROVENANCE_UNREADABLE: PROVENANCE.json 이 JSON 객체가 아니다."]}
+{"id": "r71", "kind": "value", "value": ["HINT_PAYLOAD_TAG_ABSENT: PAYLOAD.tag 가 hint 태그가 아니다: 5"]}
+{"id": "r72", "kind": "value", "value": ["HINT_PAYLOAD_TAG_MISMATCH: PROVENANCE.tag='hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len131072-kvauto-mmp-eager' ≠ PAYLOAD.tag='hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-mmp-eager' — 남의 페이로드다.", "HINT_PAYLOAD_FORMAT: PAYLOAD.format='hint/v5' ≠ 'hint-payload/v7' — 이 브랜치에 새로 얹는 페이로드는 신 형식만이다.", "HINT_PROVENANCE_SHAPE: PROVENANCE.payload_files 는 중복 없는 문자열 목록이어야 한다.", "HINT_PROVENANCE_SHAPE: PROVENANCE.source_anchor 가 전체 SHA 가 아니다: 'abc'", "HINT_COMMIT_MESSAGE_SHAPE: 커밋 메시지는 비어 있지 않고 태그 이름을 담아야 한다(branch.commit_message 로 파생한다).", "HINT_PAYLOAD_NAMING_ABSENT: PAYLOAD.naming(축별 {값, 출처})이 없다 — 이름 재파생 대조가 불가능하다."]}
+{"id": "r73", "kind": "value", "value": ["HINT_PROVENANCE_FILES_MISMATCH: PROVENANCE.payload_files ≠ 실물 — 선언만 ['extra.md'] · 실물만 ['other.md']", "HINT_PROVENANCE_SHAPE: PROVENANCE.source_anchor 키가 없다(값이 없으면 null 로 명시한다).", "HINT_PAYLOAD_NAMING_ABSENT: PAYLOAD.naming(축별 {값, 출처})이 없다 — 이름 재파생 대조가 불가능하다."]}
+{"id": "r74", "kind": "value", "value": ["HINT_PROVENANCE_FILES_MISMATCH: PROVENANCE.payload_files ≠ 실물 — 선언만 [] · 실물만 []", "HINT_ANCHOR_TRIPLE_MISMATCH: 커밋 메시지에 PROVENANCE.source_anchor(aaaaaaaaaaaa)가 없다."]}
+{"id": "r75", "kind": "value", "value": ["HINT_PROVENANCE_FILES_MISMATCH: PROVENANCE.payload_files ≠ 실물 — 선언만 [] · 실물만 []"]}
+{"id": "r76", "kind": "value", "value": ["HINT_PAYLOAD_TAG_MISMATCH: PROVENANCE.tag='hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-mmp-eager' ≠ PAYLOAD.tag='hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len131072-kvauto-mmp-eager' — 남의 페이로드다.", "HINT_PROVENANCE_FILES_MISMATCH: PROVENANCE.payload_files ≠ 실물 — 선언만 [] · 실물만 []", "HINT_COMMIT_MESSAGE_SHAPE: 커밋 메시지는 비어 있지 않고 태그 이름을 담아야 한다(branch.commit_message 로 파생한다)."]}
+{"id": "r77", "kind": "value", "value": ["HINT_ARCH_NODE_AXIS_ABSENT: arch 에 **노드 축이 없다**(2026-09-04 세대 <hw>-<target>). hint 태그는 '이 조합이 된다'가 아니라 '어느 노드 형상이 수행한 기록'이다 — 축이 없으면 같은 하드웨어의 메인·서브가 같은 이름을 원하고, 서브의 기록은 완주했어도 발행되지 못한다(2026-09-05 실측). arch='gb10-sim-h100'", "HINT_PROVENANCE_FILES_MISMATCH: PROVENANCE.payload_files ≠ 실물 — 선언만 [] · 실물만 []", "HINT_ARCH_SHAPE_VIOLATION: 노드 축은 ('main', 'sub', 'cluster') 중 하나여야 한다: ''"]}
+{"id": "r78", "kind": "value", "value": ["HINT_PROVENANCE_FILES_MISMATCH: PROVENANCE.payload_files ≠ 실물 — 선언만 [] · 실물만 []", "HINT_NAMING_INCONSISTENT: PAYLOAD.naming 에 segments/axes 칸이 없다: KeyError('segments')"]}
+{"id": "r79", "kind": "value", "value": {"schema_version": 2, "format": "hint-payload/v7", "tag": "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-mmp-eager", "generated_utc": "2026-09-21T10:21:01Z", "naming": {"grammar": "v7", "segments": {"vllm": {"value": "0.29.0rc6", "source": "fixture:vllm_build_input"}, "model": {"value": "qwen3.8-flash-next-nvfp4", "source": "fixture:hf_repo"}, "arch": {"value": "gb10-1g2n-cluster-native", "source": "derived"}, "recipe": {"value": "qnvfp4-len262144-kvauto-mmp-eager", "source": "derived(q·len·kv) + tail(agent · naming.tail[] 근거)"}}, "axes": {"hw": {"value": "gb10", "source": "fixture:manifest"}, "gpus_per_node": {"value": "1", "source": "fixture:manifest"}, "nodes": {"value": "2", "source": "fixture:manifest"}, "role": {"value": "cluster", "source": "fixture:manifest"}, "target": {"value": "native", "source": "fixture:manifest"}, "q": {"value": "nvfp4", "source": "fixture:lockset"}, "len": {"value": "262144", "source": "fixture:lockset"}, "kv": {"value": "auto", "source": "fixture:lockset"}}, "vllm_build_input": {"kind": "release", "ref": "v0.29.0rc6", "sha": null, "prev_release": null}, "tail": [{"token": "mmp", "meaning": "픽스처 꼬리 mmp", "evidence": null}, {"token": "eager", "meaning": "픽스처 꼬리 eager", "evidence": null}], "timestamp": null}}}
+{"id": "r80", "kind": "value", "value": {"schema_version": 2, "format": "hint-payload/v7", "tag": "hint/0.18.0/gpt-oss-20b/gb10-sim-h100/qmxfp4-len131072-kvfp8", "generated_utc": "2026-09-21T10:21:01Z", "naming": {"grammar": "v7", "segments": {"vllm": {"value": "0.18.0", "source": "fixture:vllm_build_input"}, "model": {"value": "gpt-oss-20b", "source": "fixture:hf_repo"}, "arch": {"value": "gb10-sim-h100", "source": "derived"}, "recipe": {"value": "qmxfp4-len131072-kvfp8", "source": "derived(q·len·kv)"}}, "axes": {"hw": {"value": "gb10", "source": "fixture:manifest"}, "gpus_per_node": {"value": "", "source": "fixture:manifest"}, "nodes": {"value": "", "source": "fixture:manifest"}, "role": {"value": "", "source": "fixture:manifest"}, "target": {"value": "sim-h100", "source": "fixture:manifest"}, "q": {"value": "mxfp4", "source": "fixture:lockset"}, "len": {"value": "131072", "source": "fixture:lockset"}, "kv": {"value": "fp8", "source": "fixture:lockset"}}, "vllm_build_input": {"kind": "release", "ref": "v0.18.0", "sha": null, "prev_release": null}}}}
+{"id": "r81", "kind": "exception", "type": "HintError", "code": "HINT_NAME_SHAPE", "message": "이름 형태 위반(hint/<vllm>/<model>/<arch>/<recipe> 5세그먼트): 'x'", "remedy": "이름은 손으로 짓지 않는다 — `hint.py name --campaign <id> --cell <cell>` 이 파생 이름을 보여 준다.", "exit_code": 1}
+{"id": "r82", "kind": "value", "value": {"schema_version": 2, "format": "hint-payload/v7", "tag": "hint/0.29.0rc6/qwen3.8-flash-next-nvfp4/gb10-1g2n-cluster-native/qnvfp4-len262144-kvauto-mmp-eager-t26092110", "generated_utc": "2026-09-21T10:21:01Z", "naming": {"grammar": "v7", "segments": {"vllm": {"value": "0.29.0rc6", "source": "fixture:vllm_build_input"}, "model": {"value": "qwen3.8-flash-next-nvfp4", "source": "fixture:hf_repo"}, "arch": {"value": "gb10-1g2n-cluster-native", "source": "derived"}, "recipe": {"value": "qnvfp4-len262144-kvauto-mmp-eager-t26092110", "source": "derived(q·len·kv) + tail(agent · naming.tail[] 근거)"}}, "axes": {"hw": {"value": "gb10", "source": "fixture:manifest"}, "gpus_per_node": {"value": "1", "source": "fixture:manifest"}, "nodes": {"value": "2", "source": "fixture:manifest"}, "role": {"value": "cluster", "source": "fixture:manifest"}, "target": {"value": "native", "source": "fixture:manifest"}, "q": {"value": "nvfp4", "source": "fixture:lockset"}, "len": {"value": "262144", "source": "fixture:lockset"}, "kv": {"value": "auto", "source": "fixture:lockset"}}, "vllm_build_input": {"kind": "release", "ref": "v0.29.0rc6", "sha": null, "prev_release": null}, "tail": [{"token": "mmp", "meaning": "픽스처 꼬리 mmp", "evidence": null}, {"token": "eager", "meaning": "픽스처 꼬리 eager", "evidence": null}, {"token": "t26092110", "meaning": "픽스처 꼬리 t26092110", "evidence": null}], "timestamp": null}}}
+{"id": "r83", "kind": "value", "value": "# hint\n\n## 0.1 요약\n\n픽스처 셀의 요약 문단이다 — 지도이지 정답이 아니다.\n\n## 0.2 유효맥락\n\n픽스처 본문.\n"}
+{"id": "r84", "kind": "value", "value": "# hint\n\n## 0.1 요약\n\n요약\n\n## 0.2 유효맥락\n\n픽스처 본문.\n"}
+{"id": "r85", "kind": "exception", "type": "HintError", "code": "HINT_APPROVAL_ABSENT", "message": "형식 전환은 원격 브랜치를 바꾼다 — 사람 승인 전사가 필요하다(--approved-by · --approved-utc · plan_26092908 §6 G2). 어느 ref 도 쓰지 않았다.", "remedy": "사람의 승인 발화를 전사해 --approved-by \"…\" --approved-utc <UTC> 로 다시 실행한다.", "exit_code": 1}
+{"id": "r86", "kind": "exception", "type": "HintError", "code": "HINT_APPROVAL_ABSENT", "message": "형식 전환은 원격 브랜치를 바꾼다 — 사람 승인 전사가 필요하다(--approved-by · --approved-utc · plan_26092908 §6 G2). 어느 ref 도 쓰지 않았다.", "remedy": "사람의 승인 발화를 전사해 --approved-by \"…\" --approved-utc <UTC> 로 다시 실행한다.", "exit_code": 1}
+{"id": "r87", "kind": "exception", "type": "HintError", "code": "HINT_APPROVAL_ABSENT", "message": "형식 전환은 원격 브랜치를 바꾼다 — 사람 승인 전사가 필요하다(--approved-by · --approved-utc · plan_26092908 §6 G2). 어느 ref 도 쓰지 않았다.", "remedy": "사람의 승인 발화를 전사해 --approved-by \"…\" --approved-utc <UTC> 로 다시 실행한다.", "exit_code": 1}
+{"id": "r88", "kind": "exception", "type": "HintError", "code": "HINT_TIME_NOT_INJECTED", "message": "--generated-utc 는 UTC `YYYY-MM-DDTHH:MM:SSZ` 로 주입해야 한다: 'bad'", "remedy": "벽시계를 읽지 않는다 — 호출자가 시각을 넘긴다.", "exit_code": 1}
+{"id": "r89", "kind": "value", "value": "2026-09-21T10:21:01Z"}
+{"id": "r90", "kind": "exception", "type": "HintError", "code": "HINT_APPROVAL_ABSENT", "message": "형식 전환은 원격 브랜치를 바꾼다 — 사람 승인 전사가 필요하다(--approved-by · --approved-utc · plan_26092908 §6 G2). 어느 ref 도 쓰지 않았다.", "remedy": "사람의 승인 발화를 전사해 --approved-by \"…\" --approved-utc <UTC> 로 다시 실행한다.", "exit_code": 1}
+{"id": "r91", "kind": "exception", "type": "HintError", "code": "HINT_PAYLOAD_JSON_UNREADABLE", "message": "JSON 을 읽을 수 없다(fx/none/PAYLOAD.json): [Errno 2] No such file or directory: 'fx/none/PAYLOAD.json'", "remedy": null, "exit_code": 1}

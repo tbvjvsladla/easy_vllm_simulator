@@ -1,0 +1,11 @@
+## lite 지표 — 서빙 성공 직후 스냅샷 (결정론 파싱 · 손저작 ✗)
+
+> 서빙 성공 직후의 **lite 스냅샷**이다 — cold 1회 + warm burst 1회. 동시성 곡선·반복·판정·인증서가 없다.
+> 성능 baseline 이 아니며(OBSERVATION-ONLY) 수신자는 자기 환경에서 재측정한다.
+> 출처: `lite.md` (bench_report(lite)) · 표는 리포트의 행을 그대로 옮긴다(재산정 ✗ · `--verify` diff 0).
+
+| 메트릭 | Main | Sub |
+|---|---|---|
+| gen tokens/sec (warm) [master] | 13.90 t/s | — |
+| cold-start TTFT [master] | 2241 ms | — |
+| KV cache 점유 | 8.0 GiB (클러스터) | ≈ ÷TP (클러스터 공유) |

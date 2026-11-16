@@ -1,0 +1,154 @@
+{"id": "r0", "kind": "value", "value": "미관측"}
+{"id": "r1", "kind": "value", "value": "—"}
+{"id": "r2", "kind": "value", "value": "미관측"}
+{"id": "r3", "kind": "value", "value": "미관측"}
+{"id": "r4", "kind": "value", "value": "—"}
+{"id": "r5", "kind": "value", "value": "미관측"}
+{"id": "r6", "kind": "value", "value": "미관측"}
+{"id": "r7", "kind": "value", "value": "—"}
+{"id": "r8", "kind": "value", "value": "미관측"}
+{"id": "r9", "kind": "value", "value": "미관측"}
+{"id": "r10", "kind": "value", "value": "—"}
+{"id": "r11", "kind": "value", "value": "미관측"}
+{"id": "r12", "kind": "value", "value": "a\\|b c d"}
+{"id": "r13", "kind": "value", "value": "a\\|b c d"}
+{"id": "r14", "kind": "value", "value": "`a\\|b c d`"}
+{"id": "r15", "kind": "value", "value": "true"}
+{"id": "r16", "kind": "value", "value": "true"}
+{"id": "r17", "kind": "value", "value": "`true`"}
+{"id": "r18", "kind": "value", "value": "false"}
+{"id": "r19", "kind": "value", "value": "false"}
+{"id": "r20", "kind": "value", "value": "`false`"}
+{"id": "r21", "kind": "value", "value": "0"}
+{"id": "r22", "kind": "value", "value": "0"}
+{"id": "r23", "kind": "value", "value": "`0`"}
+{"id": "r24", "kind": "value", "value": "1.5"}
+{"id": "r25", "kind": "value", "value": "1.5"}
+{"id": "r26", "kind": "value", "value": "`1.5`"}
+{"id": "r27", "kind": "value", "value": "3"}
+{"id": "r28", "kind": "value", "value": "3"}
+{"id": "r29", "kind": "value", "value": "`3`"}
+{"id": "r30", "kind": "value", "value": "x\\| · 미관측 · 미관측"}
+{"id": "r31", "kind": "value", "value": "x\\| · — · —"}
+{"id": "r32", "kind": "value", "value": "`x\\| · 미관측 · 미관측`"}
+{"id": "r33", "kind": "value", "value": "{\"a\": [1, 2.0], \"b\": 1, \"c\": \"가\"}"}
+{"id": "r34", "kind": "value", "value": "{\"a\": [1, 2.0], \"b\": 1, \"c\": \"가\"}"}
+{"id": "r35", "kind": "value", "value": "`{\"a\": [1, 2.0], \"b\": 1, \"c\": \"가\"}`"}
+{"id": "r36", "kind": "value", "value": "{\"k\": 1}"}
+{"id": "r37", "kind": "value", "value": "{\"k\": 1}"}
+{"id": "r38", "kind": "value", "value": "`{\"k\": 1}`"}
+{"id": "r39", "kind": "value", "value": "`` a`b ``"}
+{"id": "r40", "kind": "value", "value": "`<nic:cluster>`"}
+{"id": "r41", "kind": "value", "value": "`0`"}
+{"id": "r42", "kind": "value", "value": "(빈 값)"}
+{"id": "r43", "kind": "value", "value": "None"}
+{"id": "r44", "kind": "value", "value": "미관측"}
+{"id": "r45", "kind": "value", "value": "(빈 값)"}
+{"id": "r46", "kind": "value", "value": ""}
+{"id": "r47", "kind": "value", "value": "(빈 값)"}
+{"id": "r48", "kind": "value", "value": "x"}
+{"id": "r49", "kind": "value", "value": " x "}
+{"id": "r50", "kind": "value", "value": "` x `"}
+{"id": "r51", "kind": "value", "value": "true"}
+{"id": "r52", "kind": "value", "value": "true"}
+{"id": "r53", "kind": "value", "value": "`true`"}
+{"id": "r54", "kind": "value", "value": "2.0"}
+{"id": "r55", "kind": "value", "value": "2.0"}
+{"id": "r56", "kind": "value", "value": "`2.0`"}
+{"id": "r57", "kind": "value", "value": "{\"a\": null, \"z\": 1}"}
+{"id": "r58", "kind": "value", "value": "{'z': 1, 'a': None}"}
+{"id": "r59", "kind": "value", "value": "`{\"a\": null, \"z\": 1}`"}
+{"id": "r60", "kind": "value", "value": "[1, \"a\"]"}
+{"id": "r61", "kind": "value", "value": "[1, 'a']"}
+{"id": "r62", "kind": "value", "value": "`1 · a`"}
+{"id": "r63", "kind": "value", "value": "0"}
+{"id": "r64", "kind": "value", "value": "0"}
+{"id": "r65", "kind": "value", "value": "`0`"}
+{"id": "r66", "kind": "value", "value": ["| a | b |", "|---|---|", "| 1 | 2 |", "| 3 | 4 |"]}
+{"id": "r67", "kind": "value", "value": ["| only |", "|---|"]}
+{"id": "r68", "kind": "value", "value": "a b c"}
+{"id": "r69", "kind": "value", "value": ""}
+{"id": "r70", "kind": "value", "value": "a\n100%\nc color de\n\u001b(Bz"}
+{"id": "r71", "kind": "value", "value": ""}
+{"id": "r72", "kind": "value", "value": [1, "s"]}
+{"id": "r73", "kind": "value", "value": ["plain", null]}
+{"id": "r74", "kind": "value", "value": {"b": 1}}
+{"id": "r75", "kind": "value", "value": {}}
+{"id": "r76", "kind": "value", "value": {}}
+{"id": "r77", "kind": "value", "value": "single"}
+{"id": "r78", "kind": "value", "value": null}
+{"id": "r79", "kind": "value", "value": "hint_map_only"}
+{"id": "r80", "kind": "value", "value": "full_benchmark"}
+{"id": "r81", "kind": "value", "value": null}
+{"id": "r82", "kind": "value", "value": true}
+{"id": "r83", "kind": "value", "value": "lite"}
+{"id": "r84", "kind": "value", "value": ["00-hint.md", "01-artifacts.md", "02-narrative.md"]}
+{"id": "r85", "kind": "value", "value": false}
+{"id": "r86", "kind": "value", "value": "full"}
+{"id": "r87", "kind": "value", "value": ["00-hint.md", "01-artifacts.md", "02-narrative.md", "03-benchmark.md"]}
+{"id": "r88", "kind": "value", "value": false}
+{"id": "r89", "kind": "value", "value": "full"}
+{"id": "r90", "kind": "value", "value": ["00-hint.md", "01-artifacts.md", "02-narrative.md", "03-benchmark.md"]}
+{"id": "r91", "kind": "value", "value": true}
+{"id": "r92", "kind": "value", "value": "lite"}
+{"id": "r93", "kind": "value", "value": ["00-hint.md", "01-artifacts.md", "02-narrative.md"]}
+{"id": "r94", "kind": "value", "value": false}
+{"id": "r95", "kind": "value", "value": "full"}
+{"id": "r96", "kind": "value", "value": ["00-hint.md", "01-artifacts.md", "02-narrative.md", "03-benchmark.md"]}
+{"id": "r97", "kind": "value", "value": false}
+{"id": "r98", "kind": "value", "value": "full"}
+{"id": "r99", "kind": "value", "value": ["00-hint.md", "01-artifacts.md", "02-narrative.md", "03-benchmark.md"]}
+{"id": "r100", "kind": "value", "value": true}
+{"id": "r101", "kind": "value", "value": "lite"}
+{"id": "r102", "kind": "value", "value": ["00-hint.md", "01-artifacts.md", "02-narrative.md"]}
+{"id": "r103", "kind": "value", "value": true}
+{"id": "r104", "kind": "value", "value": "lite"}
+{"id": "r105", "kind": "value", "value": ["00-hint.md", "01-artifacts.md", "02-narrative.md"]}
+{"id": "r106", "kind": "value", "value": false}
+{"id": "r107", "kind": "value", "value": "full"}
+{"id": "r108", "kind": "value", "value": ["00-hint.md", "01-artifacts.md", "02-narrative.md", "03-benchmark.md"]}
+{"id": "r109", "kind": "value", "value": false}
+{"id": "r110", "kind": "value", "value": "full"}
+{"id": "r111", "kind": "value", "value": ["00-hint.md", "01-artifacts.md", "02-narrative.md", "03-benchmark.md"]}
+{"id": "r112", "kind": "value", "value": false}
+{"id": "r113", "kind": "value", "value": "full"}
+{"id": "r114", "kind": "value", "value": ["00-hint.md", "01-artifacts.md", "02-narrative.md", "03-benchmark.md"]}
+{"id": "r115", "kind": "value", "value": false}
+{"id": "r116", "kind": "value", "value": "full"}
+{"id": "r117", "kind": "value", "value": ["00-hint.md", "01-artifacts.md", "02-narrative.md", "03-benchmark.md"]}
+{"id": "r118", "kind": "value", "value": "x 라이트 y  z"}
+{"id": "r119", "kind": "value", "value": "x  y 풀 z"}
+{"id": "r120", "kind": "value", "value": "no segments"}
+{"id": "r121", "kind": "value", "value": ["A", "B"]}
+{"id": "r122", "kind": "value", "value": ["3", "A", "X"]}
+{"id": "r123", "kind": "value", "value": []}
+{"id": "r124", "kind": "value", "value": 3}
+{"id": "r125", "kind": "value", "value": 0}
+{"id": "r126", "kind": "value", "value": 0}
+{"id": "r127", "kind": "value", "value": "행 #1–2, #4"}
+{"id": "r128", "kind": "value", "value": "행 없음"}
+{"id": "r129", "kind": "value", "value": {"tail-800": ["x.log", "y.log"]}}
+{"id": "r130", "kind": "value", "value": {"head-200": ["h.log"]}}
+{"id": "r131", "kind": "value", "value": "rdma → A=1 · NCCL_IB_DISABLE=0 | socket → NCCL_IB_DISABLE=1"}
+{"id": "r132", "kind": "value", "value": "A=x · K={f}"}
+{"id": "r133", "kind": "value", "value": null}
+{"id": "r134", "kind": "value", "value": "ok 2/3 · 부재 m1"}
+{"id": "r135", "kind": "value", "value": "none 0/0"}
+{"id": "r136", "kind": "value", "value": null}
+{"id": "r137", "kind": "value", "value": "예"}
+{"id": "r138", "kind": "value", "value": "미관측"}
+{"id": "r139", "kind": "value", "value": "아니오"}
+{"id": "r140", "kind": "value", "value": "docs.md:12"}
+{"id": "r141", "kind": "value", "value": "docs.md"}
+{"id": "r142", "kind": "value", "value": "미관측"}
+{"id": "r143", "kind": "value", "value": "k"}
+{"id": "r144", "kind": "value", "value": "None"}
+{"id": "r145", "kind": "value", "value": [{"knob": "a", "value": "v"}, {"knob": "override", "value": 1}]}
+{"id": "r146", "kind": "value", "value": [{"name": "n"}]}
+{"id": "r147", "kind": "value", "value": null}
+{"id": "r148", "kind": "value", "value": "line1\r\nline2\rprog\n"}
+{"id": "r149", "kind": "exception", "type": "FileNotFoundError", "message": "[Errno 2] No such file or directory: 'fx/absent.log'"}
+{"id": "r150", "kind": "value", "value": "**범례** — 린터가 hint-event 값 검증에 쓰는 어휘와 같은 상수에서 생성했다.\n\n- 전이등급: **arch-invariant**(그대로 참조해도 된다) · **arch-scaled**(네 HW 에서 다시 잰다(메모리·노드 수에 비례)) · **arch-locked**(복사 금지 — 네 HW 에서 재도출한다) · **judgment**(맥락을 다시 해석한다)\n- 지위: **tuned**(이 셀 계보에서 값을 바꿔 가며 잰 기록이 있다) · **inherited**(이전 셀·계획에서 가져왔고 이 셀에서 조정된 적 없다(손레버 포함)) · **negative-control**(비교를 위해 일부러 과잉·과소로 둔 값) · **engine-default**(설정하지 않았거나 엔진이 자동으로 정한 값) · **declared-requirement**(빼거나 바꾸면 실패가 관측된 필요조건(근거 = 그 실패의 W id 또는 실패를 기록한 artifacts/ 파일 헤더 — 값을 선언한 트리플렛 자신은 근거가 아니다))\n- 현재지위(오진 · 권장 — **원래 주장**의 지위): **확증**(원래 주장이 참으로 확인됐다) · **반증**(원래 주장이 거짓으로 확인됐다(정정된 이해는 `해소` 칸에)) · **가설(강등)**(원래 주장(기전)이 확인되지 않아 가설로 내려왔다 — 처방이 아니다) · **미결**(원래 주장의 참 · 거짓을 아직 가르지 못했다)"}
+{"id": "r151", "kind": "value", "value": "캠페인 밖(`_bootstrap` · ACTIVE)"}
+{"id": "r152", "kind": "value", "value": "c1(replay)"}
+{"id": "r153", "kind": "value", "value": "미관측"}

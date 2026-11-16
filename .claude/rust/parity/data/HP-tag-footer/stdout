@@ -1,0 +1,83 @@
+{"id": "f1", "kind": "value", "value": "<!-- hint-evidence-binding:v2 · 주소는 발행 저장소 로컬 경로(수신자 해소 대상 아님)\nversion: 2\ntag: hint/x/y/z/w\ntopology: multi TP=2(Ray)\nanchor: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nmanifest_ref: docs/_evidence/fixture.work-manifest.json\nbench_ref: ../benchmark/benchmark_fixture.yaml\nbench_kind: certificate\n-->\n"}
+{"id": "f2", "kind": "value", "value": {"version": "2", "tag": "hint/x/y/z/w", "topology": "multi TP=2(Ray)", "anchor": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "manifest_ref": "docs/_evidence/fixture.work-manifest.json", "bench_ref": "../benchmark/benchmark_fixture.yaml", "bench_kind": "certificate"}}
+{"id": "f3", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MISSING: hint-evidence-binding footer 가 없다"}
+{"id": "f4", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer 여는 표지는 있으나 닫는 `-->` 줄이 없다"}
+{"id": "f5", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: 중복 footer 키: 'tag'"}
+{"id": "f6", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: 알 수 없는 footer 키(v2): 'extra_key'"}
+{"id": "f7", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: anchor 는 40자 커밋 SHA 여야 한다: 'aaaaaaaaaaaa'"}
+{"id": "f8", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer 필드 'topology' 가 비었다"}
+{"id": "f9", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer 여는 줄은 v2 인데 본문 version='1' 이다"}
+{"id": "f10", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: 알 수 없는 footer 여는 줄(판·문구): '<!-- hint-evidence-binding:v3'"}
+{"id": "f11", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: 알 수 없는 footer 여는 줄(판·문구): '<!-- hint-evidence-binding:v2 · 주소는 발행 저장소 로컬 경로(수신자 해소 대상 아님) 덧붙임'"}
+{"id": "f12", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer 필수 필드 누락: ['bench_kind']"}
+{"id": "f13", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: 알 수 없는 footer 키(v2): 'certificate_ref'"}
+{"id": "f14", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: bench_kind 는 ['certificate', 'bench_report'] 중 하나다: 'cert'"}
+{"id": "f15", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: bench_kind='certificate' 가 bench_ref 이름에서 파생되는 'bench_report' 와 다르다 — REFUTE·lite 셀의 리포트를 인증서라 부르던 v1 의 거짓을 되살리지 않는다(plan_26092908 §4.4 · V2)."}
+{"id": "f16", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer 가 둘 이상이다(여는 표지 2개)"}
+{"id": "f17", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: 해석할 수 없는 footer 줄: 'not a field line'"}
+{"id": "f18", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer 필드 'manifest_ref' 는 상대경로여야 한다"}
+{"id": "f19", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer 여는 표지가 줄 머리에 있지 않다"}
+{"id": "f20", "kind": "value", "value": {"version": "2", "tag": "hint/x/y/z/w", "topology": "multi TP=2(Ray)", "anchor": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "manifest_ref": "docs/_evidence/fixture.work-manifest.json", "bench_ref": "../benchmark/benchmark_fixture.yaml", "bench_kind": "certificate"}}
+{"id": "f21", "kind": "value", "value": {"version": "2", "tag": "hint/x/y/z/w", "topology": "multi TP=2(Ray)", "anchor": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "manifest_ref": "docs/_evidence/fixture.work-manifest.json", "bench_ref": "../benchmark/benchmark_fixture.yaml", "bench_kind": "certificate"}}
+{"id": "f22", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer 여는 표지는 있으나 닫는 `-->` 줄이 없다"}
+{"id": "f23", "kind": "value", "value": {"version": "2", "tag": "hint/x/y/z/w", "topology": "multi TP=2(Ray)", "anchor": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "manifest_ref": "docs/_evidence/fixture.work-manifest.json", "bench_ref": "../benchmark/benchmark_fixture.yaml", "bench_kind": "certificate"}}
+{"id": "f24", "kind": "value", "value": {"version": "2", "tag": "hint/x/y/z/w", "topology": "multi TP=2(Ray)", "anchor": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "manifest_ref": "docs/_evidence/fixture.work-manifest.json", "bench_ref": "../benchmark/benchmark_fixture.yaml", "bench_kind": "certificate"}}
+{"id": "f25", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: 알 수 없는 footer 키(v2): 'manifest_sha256'"}
+{"id": "f26", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: 알 수 없는 footer 키(v2): 'totally_unknown'"}
+{"id": "f27", "kind": "value", "value": "<!-- hint-evidence-binding:v1\nversion: 1\ntag: hint/x/y/z/w\ntopology: multi TP=2(Ray)\nanchor: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nmanifest_ref: docs/_evidence/fixture.work-manifest.json\ncertificate_ref: ../benchmark/bench_report_fixture.md\n-->\n"}
+{"id": "f28", "kind": "value", "value": {"version": "1", "tag": "hint/x/y/z/w", "topology": "multi TP=2(Ray)", "anchor": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "manifest_ref": "docs/_evidence/fixture.work-manifest.json", "certificate_ref": "../benchmark/bench_report_fixture.md"}}
+{"id": "f29", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: 알 수 없는 footer 키(v1): 'bench_ref'"}
+{"id": "f30", "kind": "value", "value": {"ref": "../benchmark/benchmark_fixture.yaml", "kind": "certificate", "kind_source": "declared"}}
+{"id": "f31", "kind": "value", "value": {"ref": "../benchmark/bench_report_fixture.md", "kind": "bench_report", "kind_source": "derived-from-name"}}
+{"id": "f32", "kind": "value", "value": {"ref": "x/other.txt", "kind": null, "kind_source": "underivable"}}
+{"id": "f33", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer 사전이 아니다: list"}
+{"id": "f34", "kind": "value", "value": {"ref": null, "kind": null, "kind_source": "declared"}}
+{"id": "f35", "kind": "value", "value": "certificate"}
+{"id": "f36", "kind": "value", "value": "bench_report"}
+{"id": "f37", "kind": "value", "value": null}
+{"id": "f38", "kind": "value", "value": null}
+{"id": "f39", "kind": "value", "value": null}
+{"id": "f40", "kind": "value", "value": null}
+{"id": "f41", "kind": "value", "value": "bench_report"}
+{"id": "f42", "kind": "value", "value": "certificate"}
+{"id": "f43", "kind": "value", "value": "<!-- hint-evidence-binding:v2 · 주소는 발행 저장소 로컬 경로(수신자 해소 대상 아님)\nversion: 2\ntag: hint/x/y/z/w\ntopology: multi TP=2(Ray)\nanchor: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nmanifest_ref: docs/_evidence/fixture.work-manifest.json\nbench_ref: x/other.md\nbench_kind: bench_report\n-->\n"}
+{"id": "f44", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer 필드 'topology' 에 줄바꿈·주석 경계 문자열이 있다"}
+{"id": "f45", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer 필드 'tag' 에 줄바꿈·주석 경계 문자열이 있다"}
+{"id": "f46", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer v2 필드 불일치 — 누락 ['tag'] · 초과 []"}
+{"id": "f47", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer v2 필드 불일치 — 누락 [] · 초과 ['extra']"}
+{"id": "f48", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: 지원하지 않는 footer version: '9'"}
+{"id": "f49", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: 지원하지 않는 footer version: 2"}
+{"id": "f50", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer 필드 'topology' 는 문자열이어야 한다: int"}
+{"id": "f51", "kind": "value", "value": "<!-- hint-evidence-binding:v2 · 주소는 발행 저장소 로컬 경로(수신자 해소 대상 아님)\nversion: 2\ntag: t\ntopology: multi TP=2(Ray)\nanchor: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nmanifest_ref: docs/_evidence/fixture.work-manifest.json\nbench_ref: ../benchmark/benchmark_fixture.yaml\nbench_kind: certificate\n-->\n"}
+{"id": "f52", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: anchor 는 40자 커밋 SHA 여야 한다: 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'"}
+{"id": "f53", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: bench_kind 는 ['certificate', 'bench_report'] 중 하나다: 'x'"}
+{"id": "f54", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: footer 필드는 사전이어야 한다: list"}
+{"id": "f55", "kind": "exception", "type": "TypeError", "message": "unhashable type: 'list'"}
+{"id": "f56", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MALFORMED: 지원하지 않는 footer version: None"}
+{"id": "f57", "kind": "value", "value": "한 줄 요약\n\n전체 지도·서사·재현 키트는 이 태그의 zip(archive) 안에 있다 — `00-hint.md` 부터 읽는다.\n\n<!-- hint-evidence-binding:v2 · 주소는 발행 저장소 로컬 경로(수신자 해소 대상 아님)\nversion: 2\ntag: hint/x/y/z/w\ntopology: multi TP=2(Ray)\nanchor: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nmanifest_ref: docs/_evidence/fixture.work-manifest.json\nbench_ref: ../benchmark/benchmark_fixture.yaml\nbench_kind: certificate\n-->\n"}
+{"id": "f58", "kind": "value", "value": {"brief": "한 줄 요약", "footer": {"version": "2", "tag": "hint/x/y/z/w", "topology": "multi TP=2(Ray)", "anchor": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "manifest_ref": "docs/_evidence/fixture.work-manifest.json", "bench_ref": "../benchmark/benchmark_fixture.yaml", "bench_kind": "certificate"}}}
+{"id": "f59", "kind": "value", "value": "첫 줄\n둘째 줄\n\n전체 지도·서사·재현 키트는 이 태그의 zip(archive) 안에 있다 — `00-hint.md` 부터 읽는다.\n\n<!-- hint-evidence-binding:v2 · 주소는 발행 저장소 로컬 경로(수신자 해소 대상 아님)\nversion: 2\ntag: hint/x/y/z/w\ntopology: multi TP=2(Ray)\nanchor: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nmanifest_ref: docs/_evidence/fixture.work-manifest.json\nbench_ref: ../benchmark/benchmark_fixture.yaml\nbench_kind: certificate\n-->\n"}
+{"id": "f60", "kind": "exception", "type": "HintError", "code": "HINT_ANNOTATION_BRIEF_TOO_LONG", "message": "brief 는 최대 3줄이다(4줄).", "remedy": null, "exit_code": 1}
+{"id": "f61", "kind": "exception", "type": "HintError", "code": "HINT_ANNOTATION_BRIEF_ABSENT", "message": "annotation brief 가 비었다(00-hint.md §0.1 첫 문단).", "remedy": "template.brief(payload_dir) 로 기계 추출한다.", "exit_code": 1}
+{"id": "f62", "kind": "exception", "type": "HintError", "code": "HINT_ANNOTATION_BRIEF_SHAPE", "message": "brief 에 주석 경계·CR·포인터 문구가 있다.", "remedy": null, "exit_code": 1}
+{"id": "f63", "kind": "exception", "type": "HintError", "code": "HINT_ANNOTATION_BRIEF_SHAPE", "message": "brief 는 한 문단이다(빈 줄 ✗) — 카탈로그는 첫 문단만 읽는다.", "remedy": null, "exit_code": 1}
+{"id": "f64", "kind": "exception", "type": "HintError", "code": "HINT_ANNOTATION_BRIEF_SHAPE", "message": "brief 에 주석 경계·CR·포인터 문구가 있다.", "remedy": null, "exit_code": 1}
+{"id": "f65", "kind": "exception", "type": "HintError", "code": "HINT_ANNOTATION_BRIEF_SHAPE", "message": "brief 에 주석 경계·CR·포인터 문구가 있다.", "remedy": null, "exit_code": 1}
+{"id": "f66", "kind": "exception", "type": "HintError", "code": "HINT_ANNOTATION_BRIEF_ABSENT", "message": "annotation brief 가 비었다(00-hint.md §0.1 첫 문단).", "remedy": "template.brief(payload_dir) 로 기계 추출한다.", "exit_code": 1}
+{"id": "f67", "kind": "exception", "type": "HintError", "code": "HINT_ANNOTATION_BRIEF_ABSENT", "message": "annotation brief 가 비었다(00-hint.md §0.1 첫 문단).", "remedy": "template.brief(payload_dir) 로 기계 추출한다.", "exit_code": 1}
+{"id": "f68", "kind": "value", "value": "앞뒤\n  둘째\n\n전체 지도·서사·재현 키트는 이 태그의 zip(archive) 안에 있다 — `00-hint.md` 부터 읽는다.\n\n<!-- hint-evidence-binding:v2 · 주소는 발행 저장소 로컬 경로(수신자 해소 대상 아님)\nversion: 2\ntag: hint/x/y/z/w\ntopology: multi TP=2(Ray)\nanchor: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\nmanifest_ref: docs/_evidence/fixture.work-manifest.json\nbench_ref: ../benchmark/benchmark_fixture.yaml\nbench_kind: certificate\n-->\n"}
+{"id": "f69", "kind": "exception", "type": "HintError", "code": "HINT_ANNOTATION_SHAPE", "message": "annotation 이 정본 모양(brief · 포인터 · footer)과 바이트가 다르다 — 손 편집·서명·덧붙임은 봉인 산출물이 아니다.", "remedy": null, "exit_code": 1}
+{"id": "f70", "kind": "exception", "type": "HintError", "code": "HINT_ANNOTATION_SHAPE", "message": "zip 포인터 문단이 없다 — 수신자는 zip 을 열 이유를 모른다.", "remedy": null, "exit_code": 1}
+{"id": "f71", "kind": "exception", "type": "HintEvidenceBindingError", "message": "HINT_EVIDENCE_BINDING_MISSING: hint-evidence-binding footer 가 없다"}
+{"id": "f72", "kind": "exception", "type": "HintError", "code": "HINT_ANNOTATION_SHAPE", "message": "brief 가 정본 규칙을 어긴다(HINT_ANNOTATION_BRIEF_SHAPE: brief 는 한 문단이다(빈 줄 ✗) — 카탈로그는 첫 문단만 읽는다.)", "remedy": null, "exit_code": 1}
+{"id": "f73", "kind": "exception", "type": "HintError", "code": "HINT_ANNOTATION_SHAPE", "message": "annotation 이 정본 모양(brief · 포인터 · footer)과 바이트가 다르다 — 손 편집·서명·덧붙임은 봉인 산출물이 아니다.", "remedy": null, "exit_code": 1}
+{"id": "f74", "kind": "value", "value": "xxx"}
+{"id": "f75", "kind": "value", "value": ["A", "B", "plain"]}
+{"id": "f76", "kind": "value", "value": []}
+{"id": "f77", "kind": "value", "value": "refs/tags/hint/a"}
+{"id": "f78", "kind": "value", "value": "refs/tags/hint/a/b/c"}
+{"id": "f79", "kind": "value", "value": null}
+{"id": "f80", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a207b225f5f62797465735f5f223a20223666363236613635363337343230363136313631363136313631363136313631363136313631363136313631363136313631363136313631363136313631363136313631363136313631363136313631363136313631363136313631363130613734373937303635323036333666366436643639373430613734363136373230363836393665373432663738326637393061373436313637363736353732323036353631373337393264373636633663366432643733363936643735366336313734366637323230336336383639366537343733343036353631373337393264373636633663366432653639366537363631366336393634336532303331333733383339333933383336333033363331323032623330333033303330306130616562623362386562616362383061227d7d"}
+{"id": "f81", "kind": "exception", "type": "HintError", "code": "HINT_TIME_NOT_INJECTED", "message": "--generated-utc 는 UTC `YYYY-MM-DDTHH:MM:SSZ` 로 주입해야 한다: '2026-09-21 10:21'", "remedy": "벽시계를 읽지 않는다 — 호출자가 시각을 넘긴다.", "exit_code": 1}
+{"id": "f82", "kind": "exception", "type": "ValueError", "message": "day is out of range for month"}
+{"id": "f83", "kind": "value", "value": []}

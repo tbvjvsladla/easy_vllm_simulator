@@ -1,0 +1,18 @@
+{"id": "r0", "kind": "value", "value": []}
+{"id": "r1", "kind": "value", "value": ["최상위가 객체가 아니다"]}
+{"id": "r2", "kind": "value", "value": ["schema_version 이 1 가 아니다: None", "tag None ∉ 이 draft 의 이름 ['hint/a/b/c/d', 'hint/a/b/c/d-x'](다른 draft 의 보고를 옮기지 않는다)", "author 가 비었다(역할 이름으로 적는다 — 사람 이름 ✗)", "checker 가 비었다(역할 이름으로 적는다 — 사람 이름 ✗)", "checked_utc 는 UTC `YYYY-MM-DDTHH:MM:SSZ` 로 주입해야 한다: None", "claims_checked 는 1 이상의 정수다: None", "classes_checked 는 7부류 전부 [1, 2, 3, 4, 5, 6, 7] 다(부류 = template.FACTCHECK_CLASSES): None", "items 는 목록이다(지적 0건이면 빈 목록)"]}
+{"id": "r3", "kind": "value", "value": []}
+{"id": "r4", "kind": "value", "value": ["tag 'other' ∉ 이 draft 의 이름 ['hint/a/b/c/d', 'hint/a/b/c/d-x'](다른 draft 의 보고를 옮기지 않는다)"]}
+{"id": "r5", "kind": "value", "value": ["checker == author — 사실 검증은 저작자가 아닌 Agent 가 한다(독립성)"]}
+{"id": "r6", "kind": "value", "value": ["author 가 비었다(역할 이름으로 적는다 — 사람 이름 ✗)", "checker 가 비었다(역할 이름으로 적는다 — 사람 이름 ✗)"]}
+{"id": "r7", "kind": "value", "value": ["checked_utc 는 UTC `YYYY-MM-DDTHH:MM:SSZ` 로 주입해야 한다: '2026-01-02'"]}
+{"id": "r8", "kind": "value", "value": ["checked_utc 는 UTC `YYYY-MM-DDTHH:MM:SSZ` 로 주입해야 한다: None"]}
+{"id": "r9", "kind": "value", "value": ["claims_checked 는 1 이상의 정수다: True"]}
+{"id": "r10", "kind": "value", "value": ["claims_checked 는 1 이상의 정수다: 0"]}
+{"id": "r11", "kind": "value", "value": ["claims_checked 는 1 이상의 정수다: 1.5"]}
+{"id": "r12", "kind": "value", "value": ["classes_checked 는 7부류 전부 [1, 2, 3, 4, 5, 6, 7] 다(부류 = template.FACTCHECK_CLASSES): [1, 2, 3, 4, 5, 6]"]}
+{"id": "r13", "kind": "value", "value": ["classes_checked 는 7부류 전부 [1, 2, 3, 4, 5, 6, 7] 다(부류 = template.FACTCHECK_CLASSES): [1, 2, 3, 4, 5, 6, 7, True]"]}
+{"id": "r14", "kind": "value", "value": ["classes_checked 는 7부류 전부 [1, 2, 3, 4, 5, 6, 7] 다(부류 = template.FACTCHECK_CLASSES): '1234567'"]}
+{"id": "r15", "kind": "value", "value": ["items 는 목록이다(지적 0건이면 빈 목록)"]}
+{"id": "r16", "kind": "value", "value": ["items[0] 가 객체가 아니다", "items[1].verdict ∈ ('wrong', 'misleading', 'unsupported'): None", "items[1].class 는 0(기타) 또는 부류 번호 1..7 다: None", "items[1].where 가 비었다", "items[1].claim 가 비었다", "items[1].target ∈ ('prose', 'fact')(산문 = 저작자가 고친다 · fact = 지적만 · 생산자 교정 후 refacts): None", "items[1].status ∈ ('open', 'fixed', 'disputed'): None", "items[2].id 가 비었거나 중복이다: 'f1'", "items[2].verdict ∈ ('wrong', 'misleading', 'unsupported'): 'bad'", "items[2].class 는 0(기타) 또는 부류 번호 1..7 다: 9", "items[2].where 가 비었다", "items[2].claim 가 비었다", "items[2].target ∈ ('prose', 'fact')(산문 = 저작자가 고친다 · fact = 지적만 · 생산자 교정 후 refacts): 'x'", "items[2] 가 fixed 인데 resolution(무엇을 어떻게 고쳤나)이 없다", "items[3].id 가 비었거나 중복이다: ' '", "items[3].class 는 0(기타) 또는 부류 번호 1..7 다: True", "items[4].class 는 0(기타) 또는 부류 번호 1..7 다: -1", "items[4].status ∈ ('open', 'fixed', 'disputed'): 'nope'"]}
+{"id": "r17", "kind": "value", "value": ["tag 'hint/a/b/c/d' ∉ 이 draft 의 이름 [](다른 draft 의 보고를 옮기지 않는다)"]}

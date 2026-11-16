@@ -395,3 +395,4 @@ hints/.push_authority
 #   전역 `manifest.yaml`·`seed/` 규칙에 걸려 add 가 조용히 no-op 이 되던 자리(C-4 함정) — 골든 데이터 아래만 재포함한다.
 !.claude/rust/parity/data/**/manifest.yaml
 !.claude/rust/parity/data/**/seed/
+!.claude/rust/parity/data/**/*.log

@@ -1,0 +1,50 @@
+{"id": "r1", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r2", "kind": "value", "value": null}
+{"id": "r3", "kind": "value", "value": null}
+{"id": "r4", "kind": "value", "value": null}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": null}
+{"id": "r7", "kind": "value", "value": null}
+{"id": "r8", "kind": "value", "value": null}
+{"id": "r9", "kind": "value", "value": ["2026-02-03T04:05:06Z", "measured_utc = 리포트 생성일"]}
+{"id": "r10", "kind": "value", "value": [{"__path__": "/tmp/parity-o-HP-evidence-e3-lite-3449518-1794816571553080603/output/single/benchlog"}, {"config_name": "c2-l", "measured_utc": "2026-02-03T04:05:06Z", "engine_log_head_lines": 2, "engine_log_head": "x/lite_engine_head_c2-l.log", "bench_cold_json": "lite_cold_c2-l.json"}, "output/single/benchlog/lite_raw_c2-l.json · measured_utc = 리포트 생성일 2026-02-03T04:05:06Z"]}
+{"id": "r11", "kind": "value", "value": {"start_utc": "2026-02-03T04:05:06Z", "start_source": "output/single/benchlog/lite_raw_c2-l.json measured_utc(= bench_report 머리 생성일 · lite_bench.sh 가 cold 레그 직전(부하 직전)에 찍는 측정 **시작** 시각)", "end_utc": "2026-02-03T04:10:00Z", "end_source": "output/single/benchlog/lite_cold_c2-l.json date(마지막 레그 결과 저장 · 컨테이너 시계 = UTC 가정)", "raw": "output/single/benchlog/lite_raw_c2-l.json", "raw_doc": {"config_name": "c2-l", "measured_utc": "2026-02-03T04:05:06Z", "engine_log_head_lines": 2, "engine_log_head": "x/lite_engine_head_c2-l.log", "bench_cold_json": "lite_cold_c2-l.json"}, "legs": {"cold": {"path": "output/single/benchlog/lite_cold_c2-l.json", "doc": {"date": "20260203-041000"}}, "warm": {"path": "output/single/benchlog/lite_warm_c2-l.json", "doc": {"date": "20260203-040000"}}}}}
+{"id": "r12", "kind": "value", "value": [[{"__path__": "/tmp/parity-o-HP-evidence-e3-lite-3449518-1794816571553080603/output/single/benchlog/lite_engine_head_c2-l.log"}, {"__path__": "/tmp/parity-o-HP-evidence-e3-lite-3449518-1794816571553080603/output/single/benchlog/lite_engine_c2-l.log"}], "lite_raw 조인(output/single/benchlog/lite_raw_c2-l.json · measured_utc = 리포트 생성일 2026-02-03T04:05:06Z) · 엔진 로그 머리 캡처 포함"]}
+{"id": "r13", "kind": "value", "value": [[{"__path__": "/tmp/parity-o-HP-evidence-e3-lite-3449518-1794816571553080603/output/single/benchlog/lite_engine_head_c2-l.log"}, {"__path__": "/tmp/parity-o-HP-evidence-e3-lite-3449518-1794816571553080603/output/single/benchlog/lite_engine_c2-l.log"}], "lite_raw 조인(output/single/benchlog/lite_raw_c2-l.json · measured_utc = 리포트 생성일 2026-02-03T04:05:06Z) · 엔진 로그 머리 캡처 포함", {}]}
+{"id": "r14", "kind": "value", "value": [{"key": "VLLM_FIXTURE_KNOB", "value": null, "node": null, "source": "output/single/benchlog/lite_engine_c2-l.log:L3", "kind": "key-present", "seen_in_logs": 1, "value_note": "키 존재만 관측 · 값 미관측(vLLM 'Unknown vLLM environment variable detected' 경고 — 값은 로그에 없다)"}, {"key": "NCCL_IB_HCA", "value": "mlx5_0", "node": null, "source": "output/single/benchlog/lite_engine_c2-l.log:L4", "kind": "env-echo", "seen_in_logs": 1}, {"key": "NCCL_P2P_LEVEL", "value": "2", "node": null, "source": "output/single/benchlog/lite_engine_c2-l.log:L5", "kind": "param-echo", "seen_in_logs": 1}, {"key": "nccl:network", "value": "IB", "node": null, "source": "output/single/benchlog/lite_engine_c2-l.log:L6", "kind": "runtime", "seen_in_logs": 1, "ray_repeated": 3}, {"key": "nccl:version", "value": "2.27.3+cuda13.0", "node": null, "source": "output/single/benchlog/lite_engine_c2-l.log:L7", "kind": "runtime", "seen_in_logs": 1}]}
+{"id": "r15", "kind": "value", "value": ["2026-02-03T04:05:06Z", "2026-02-03T04:10:00Z", "시작 = output/single/benchlog/lite_raw_c2-l.json measured_utc(= bench_report 머리 생성일 · lite_bench.sh 가 cold 레그 직전(부하 직전)에 찍는 측정 **시작** 시각) · 끝 = output/single/benchlog/lite_cold_c2-l.json date(마지막 레그 결과 저장 · 컨테이너 시계 = UTC 가정)"]}
+{"id": "r16", "kind": "value", "value": {"output/single/benchlog/lite_engine_head_c2-l.log": "head-2(output/single/benchlog/lite_raw_c2-l.json engine_log_head_lines)"}}
+{"id": "r17", "kind": "value", "value": {}}
+{"id": "r18", "kind": "value", "value": [[1, "0.9.0rc1", "01-02 02:30:10"], [2, "0.9.0rc1", "01-02 02:30:20"]]}
+{"id": "r19", "kind": "value", "value": null}
+{"id": "r20", "kind": "value", "value": {"pids": ["11"], "loads": [["01-02 02:31:30", "12.50"]], "first_ts": "01-02 02:30:10"}}
+{"id": "r21", "kind": "value", "value": ["(EngineCore pid=11) \u001b[36mINFO 01-02 02:31:00 [a.py:1] engine up", "(EngineCore pid=11) INFO 01-02 02:31:30 [loader.py:1] Loading weights took 12.50 seconds", "(Worker pid=12) Unknown vLLM environment variable detected: VLLM_FIXTURE_KNOB", "nodeA:12:34 [0] NCCL INFO NCCL_IB_HCA set by environment to mlx5_0", "nodeA:12:34 [0] NCCL INFO NCCL_P2P_LEVEL set to 2.", "nodeA:12:34 [0] NCCL INFO Using network IB [repeated 3x across cluster]", "nodeB:13:35 [1] NCCL INFO NCCL version 2.27.3+cuda13.0", "nodeB:13:35 [1] NCCL INFO NCCL_IB_HCA set by environment to mlx5_0", "progress 10%\rprogress 100%", "(APIServer pid=3) INFO 01-02 02:58:00 [entry.py:1] Starting vLLM server on http://0.0.0.0:8080", ""]}
+{"id": "r22", "kind": "exception", "type": "HintError", "code": "HINT_EVIDENCE_UNREADABLE", "message": "엔진 로그를 읽을 수 없다(absent.log): FileNotFoundError: [Errno 2] No such file or directory: 'output/single/benchlog/absent.log'", "remedy": null, "exit_code": 1}
+{"id": "r23", "kind": "value", "value": false}
+{"id": "r24", "kind": "value", "value": [{"config_name": "c2-l", "measured_utc": "2026-02-03T04:05:06Z", "engine_log_head_lines": 2, "engine_log_head": "x/lite_engine_head_c2-l.log", "bench_cold_json": "lite_cold_c2-l.json"}, null]}
+{"id": "r25", "kind": "value", "value": null}
+{"id": "r26", "kind": "value", "value": [null, "broken.json 판독 불가(HINT_EVIDENCE_UNREADABLE)"]}
+{"id": "r27", "kind": "value", "value": ["c2-l", "output/single/benchlog/[lite_publish/<셀>_<UTC>/]lite_raw_c2-l.json(measured_utc = 리포트 생성일 2026-02-03T04:05:06Z · config_name = 파일 이름)"]}
+{"id": "r28", "kind": "value", "value": ["c2-l", "output/single/benchlog/[lite_publish/<셀>_<UTC>/]lite_raw_c2-l.json(measured_utc = 리포트 생성일 2026-02-03T09:00:00Z · config_name = 파일 이름)"]}
+{"id": "r29", "kind": "value", "value": ["2026-02-03T09:00:00Z", "measured_utc = lite 인증서 measured_utc"]}
+{"id": "r30", "kind": "value", "value": [{"__path__": "/tmp/parity-o-HP-evidence-e3-lite-3449518-1794816571553080603/output/single/benchlog/lite_publish/c2-l_20260203T040506Z"}, {"config_name": "c2-l", "measured_utc": "2026-02-03T09:00:00Z"}, "output/single/benchlog/lite_publish/c2-l_20260203T040506Z/lite_raw_c2-l.json · measured_utc = lite 인증서 measured_utc 2026-02-03T09:00:00Z"]}
+{"id": "r31", "kind": "value", "value": {"start_utc": "2026-02-03T09:00:00Z", "start_source": "output/single/benchlog/lite_publish/c2-l_20260203T040506Z/lite_raw_c2-l.json measured_utc(= bench_report 머리 생성일 · lite_bench.sh 가 cold 레그 직전(부하 직전)에 찍는 측정 **시작** 시각)", "end_utc": "2026-11-16T08:09:31Z", "end_source": "output/single/benchlog/lite_publish/c2-l_20260203T040506Z/lite_raw_c2-l.json 파일 mtime(파일시스템 관측 · 레그 뒤에 쓰인다)", "raw": "output/single/benchlog/lite_publish/c2-l_20260203T040506Z/lite_raw_c2-l.json", "raw_doc": {"config_name": "c2-l", "measured_utc": "2026-02-03T09:00:00Z"}, "legs": {}}}
+{"id": "r32", "kind": "value", "value": ["2026-02-03T09:00:00Z", "2026-11-16T08:09:31Z", "시작 = output/single/benchlog/lite_publish/c2-l_20260203T040506Z/lite_raw_c2-l.json measured_utc(= bench_report 머리 생성일 · lite_bench.sh 가 cold 레그 직전(부하 직전)에 찍는 측정 **시작** 시각) · 끝 = output/single/benchlog/lite_publish/c2-l_20260203T040506Z/lite_raw_c2-l.json 파일 mtime(파일시스템 관측 · 레그 뒤에 쓰인다)"]}
+{"id": "r33", "kind": "value", "value": [null, "조인 키 없음(리포트 생성일 · lite 인증서 measured_utc 모두 없음)"]}
+{"id": "r34", "kind": "value", "value": [null, null, "조인 키 없음(리포트 생성일 · lite 인증서 measured_utc 모두 없음)"]}
+{"id": "r35", "kind": "value", "value": [[], "lite 셀 — lite_raw 조인 불성립 또는 엔진 로그 부재(조인 키 없음(리포트 생성일 · lite 인증서 measured_utc 모두 없음))"]}
+{"id": "r36", "kind": "value", "value": null}
+{"id": "r37", "kind": "value", "value": null}
+{"id": "r38", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r39", "kind": "value", "value": [{"__path__": "output/single/benchlog/nat/logs/x-vllm-serve-1.log"}]}
+{"id": "r40", "kind": "value", "value": [[{"__path__": "output/single/benchlog/nat/logs/x-vllm-serve-1.log"}], "output/single/benchlog/sweep_c2-l(스윕 generated_utc = measured_utc · 색인이 기록한 레그만) + native serve proof evidence_dir 보존 엔진 로그(output/single/benchlog/nat/logs/x-vllm-serve-1.log · 이 run 의 vllm serve 전체 출력)"]}
+{"id": "r41", "kind": "value", "value": [null, "미관측 — 결속된 명시적 배포 메타 기록 · attestation vllm_dist_version · native pip freeze · 빌드 원장 vllm.dist_version에 값 없음(runtime_version 기록은 배포 메타로 간주하지 않는다)"]}
+{"id": "r42", "kind": "value", "value": [[], "스윕이 출력 평면에 묶이지 않았다(binding='simlog') — 그 로그는 이 측정의 것이 아니다"]}
+{"id": "r43", "kind": "value", "value": [[], "측정 스윕 없음"]}
+{"id": "r44", "kind": "value", "value": null}
+{"id": "r45", "kind": "value", "value": ["0.9.1", "native pip freeze `vllm==` 줄(main=output/single/benchlog/freeze.txt · 노드별 관측 · 일치)"]}
+{"id": "r46", "kind": "value", "value": ["0.9.1", "native pip freeze `vllm==` 줄(main=output/single/benchlog/freeze.txt · 노드별 관측 · 일치)"]}
+{"id": "r47", "kind": "value", "value": null}
+{"id": "r48", "kind": "value", "value": [null, "native pip freeze `vllm==` 노드별 상이(main=output/single/benchlog/freeze.txt · sub=output/single/benchlog/f2.txt) — 값을 고르지 않는다"]}
+{"id": "r49", "kind": "value", "value": ["0.9.3", "img vllm.dist_version(빌드 시점 measured · 이미지 안 배포 메타)"]}
+{"id": "r50", "kind": "value", "value": ["0.9.4", "빌드 원장(a.json · attestation) vllm.dist_version(빌드 시점 measured · 이미지 안 배포 메타)"]}

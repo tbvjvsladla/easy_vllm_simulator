@@ -1,0 +1,6 @@
+usage: hint.py lint [-h] --draft DRAFT [--json]
+
+options:
+  -h, --help     show this help message and exit
+  --draft DRAFT
+  --json

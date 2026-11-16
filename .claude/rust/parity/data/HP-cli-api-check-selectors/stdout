@@ -1,0 +1,7 @@
+{"id": "r0", "kind": "value", "value": null}
+{"id": "r1", "kind": "exception", "type": "HintError", "code": "HINT_REPLAY_FLAG_REQUIRED", "message": "--publication 은 발행 기록 재생이다 — `--replay` 를 명시한다(읽기 전용 경로).", "remedy": null, "exit_code": 1}
+{"id": "r2", "kind": "value", "value": null}
+{"id": "r3", "kind": "exception", "type": "HintError", "code": "HINT_SELECTOR_CONFLICT", "message": "--publication 은 --campaign/--cell 과 함께 쓰지 않는다.", "remedy": null, "exit_code": 1}
+{"id": "r4", "kind": "exception", "type": "HintError", "code": "HINT_SELECTOR_ABSENT", "message": "발행 대상이 없다 — `--campaign ID --cell CELL` 또는 `--publication TOPIC --replay`.", "remedy": null, "exit_code": 1}
+{"id": "r5", "kind": "exception", "type": "HintError", "code": "HINT_SELECTOR_CONFLICT", "message": "--replay 는 --publication 과 함께만 쓴다.", "remedy": null, "exit_code": 1}
+{"id": "r6", "kind": "exception", "type": "HintError", "code": "HINT_SELECTOR_ABSENT", "message": "발행 대상이 없다 — `--campaign ID --cell CELL` 또는 `--publication TOPIC --replay`.", "remedy": null, "exit_code": 1}

@@ -1,0 +1,2 @@
+usage: hint.py catalog classify [-h] --index INDEX --rc RC
+hint.py catalog classify: error: the following arguments are required: --index

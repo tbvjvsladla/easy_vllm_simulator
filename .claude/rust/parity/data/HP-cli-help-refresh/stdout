@@ -1,0 +1,5 @@
+usage: hint.py refresh [-h] --draft DRAFT
+
+options:
+  -h, --help     show this help message and exit
+  --draft DRAFT

@@ -1,0 +1,76 @@
+{"id": "p1", "kind": "value", "value": ["8192", "측정 수렴"]}
+{"id": "p2", "kind": "value", "value": ["'a # b'", "c"]}
+{"id": "p3", "kind": "value", "value": ["x#y", null]}
+{"id": "p4", "kind": "value", "value": ["", null]}
+{"id": "p5", "kind": "value", "value": null}
+{"id": "p6", "kind": "value", "value": [["model", "/models/x", null], ["max-num-seqs", "8", "측정 결과"], ["gpu-memory-utilization", "0.85", "필수 요구"], ["kv-cache-dtype", "auto", null], ["list", "- a - b", null], ["quote", "it''s", null], ["async-scheduling", "false", "승계"]]}
+{"id": "p7", "kind": "value", "value": []}
+{"id": "p8", "kind": "value", "value": "3-signal"}
+{"id": "p9", "kind": "value", "value": "1-signal"}
+{"id": "p10", "kind": "value", "value": "2-signal"}
+{"id": "p11", "kind": "value", "value": {"files": ["a", "b"], "applicable": true, "rationale": null, "evidence": {"kind": "none"}, "confidence": "1-signal"}}
+{"id": "p12", "kind": "value", "value": {"files": [], "applicable": false, "rationale": null, "evidence": {"kind": "reconstruction"}, "excluded": [{"file": "x"}], "confidence": "1-signal"}}
+{"id": "p13", "kind": "value", "value": true}
+{"id": "p14", "kind": "value", "value": true}
+{"id": "p15", "kind": "value", "value": false}
+{"id": "p16", "kind": "value", "value": false}
+{"id": "p17", "kind": "value", "value": "⚠ generated-unverified — 사유 · 생성: renderer"}
+{"id": "p18", "kind": "value", "value": {"slot": "compose", "name": "serve_runner.sh", "path": "artifacts/compose/serve_runner.sh", "why": "why", "inputs": ["artifacts/triplet/", "PAYLOAD.build"], "verification": "generated-unverified", "generated_by": "agent", "header_required": true, "header": "⚠ generated-unverified — Agent 가 증거에서 저작했다(실행 검증 ✗) · 생성: agent"}}
+{"id": "p19", "kind": "value", "value": "shell-default output/single/docker-compose.yaml:12: abs-op-path"}
+{"id": "p20", "kind": "value", "value": "other: abs-op-path"}
+{"id": "p21", "kind": "value", "value": ["Applying fused MoE patch for", "Patched rotary embedding cache"]}
+{"id": "p22", "kind": "value", "value": {"archs": ["LlamaForCausalLM", "Qwen3MoeForCausalLM"], "modules": ["qwen3_moe"], "shared_files": ["vllm/model_executor/layers/fused_moe/layer.py", "vllm/models/registry.py"], "general": true, "trigger": "Qwen3MoeForCausalLM, LlamaForCausalLM (범용)"}}
+{"id": "p23", "kind": "value", "value": {"archs": [], "modules": [], "shared_files": [], "general": false, "trigger": null}}
+{"id": "p24", "kind": "value", "value": "발화('bbbbbbbbbbbbbb2' 5회 · 'c3' 5회 · 'aaaaaaaaaaaaa1' 2회 외 1개 · 서명 5개 중 4개 · 횟수 = 읽은 로그 전체 합)"}
+{"id": "p25", "kind": "value", "value": "무발화(서명 1개 전부 0회)"}
+{"id": "p26", "kind": "value", "value": "발화 미판정"}
+{"id": "p27", "kind": "value", "value": "발화 미판정"}
+{"id": "p28", "kind": "value", "value": ["unknown", "① 모델 config 미관측(미관측) · 선언 ['Qwen3MoeForCausalLM', 'models/qwen3_moe']"]}
+{"id": "p29", "kind": "value", "value": ["unknown", "① 패치 헤더·본문에 대상 선언(model-trigger 아키텍처 · vllm/models/<model_type>) 없음"]}
+{"id": "p30", "kind": "value", "value": ["unknown", "① 선언 ['Qwen3MoeForCausalLM'] ∋ 셀 모델(architectures ['Qwen3MoeForCausalLM'] · model_type qwen3_moe) · ② 패치가 심는 logger 발화 서명 없음(발화 미관측)"]}
+{"id": "p31", "kind": "value", "value": ["unknown", "① 선언 ['X', 'models/llama'] ∋ 셀 모델(architectures ['A', 'B'] · model_type llama) · ② 엔진 로그 미관측(서명 1개를 대조할 로그 없음)"]}
+{"id": "p32", "kind": "value", "value": ["required", "① 선언 ['X', 'models/llama'] ∋ 셀 모델(architectures ['B'] · model_type llama) · ② 엔진 로그 2개에서 서명 발화('sig1' 3회 · 서명 1개 중 1개 · 횟수 = 읽은 로그 전체 합)"]}
+{"id": "p33", "kind": "value", "value": ["inactive-inferred", "① 선언 ['X'] ∌ 셀 모델(architectures ['B'] · model_type None) · ② 엔진 로그 2개에서 서명 무발화(서명 1개 전부 0회) — 적용됐으나 이 모델에서 돌지 않은 것으로 **추론**(확정 ✗)"]}
+{"id": "p34", "kind": "value", "value": ["unknown", "① 선언 ['X'] ∌ 셀 모델(architectures ['B'] · model_type m) · 범용 선언 · ② 엔진 로그 2개에서 서명 무발화(서명 1개 · 매치 서명 미기록) — 두 신호가 한 방향을 가리키지 않는다"]}
+{"id": "p35", "kind": "value", "value": ["unknown", "① 선언 ['B'] ∋ 셀 모델(architectures ['B'] · model_type m) · ② 엔진 로그 2개에서 서명 무발화(서명 1개 · 매치 서명 미기록) — 두 신호가 한 방향을 가리키지 않는다"]}
+{"id": "p36", "kind": "value", "value": "셀 트리플렛 — 서빙 입력"}
+{"id": "p37", "kind": "value", "value": "적용 판정 none(None)"}
+{"id": "p38", "kind": "value", "value": "적용 판정 build-ledger(r) · 원장 관측"}
+{"id": "p39", "kind": "value", "value": "쓰인 레시피(ledger) — 개정 선택 slots.build_recipe.evidence.selected_revisions"}
+{"id": "p40", "kind": "value", "value": "셀 서빙 경로 입력(측정 당시 개정 · slots.compose.evidence.selected_revisions · env 형상은 값 치환 사본)"}
+{"id": "p41", "kind": "value", "value": "fork_pin — led"}
+{"id": "p42", "kind": "value", "value": "셀 configs 의 런타임 패치(무장 관측 원천 없음 — 적용 관측 ✗)"}
+{"id": "p43", "kind": "value", "value": {"configs": "/app/configs", "envs": "/app/envs"}}
+{"id": "p44", "kind": "value", "value": "최종 스윕 기준 — 관측된 serve 세션 경계 안 첫 측정 전 completions 요청 3건 관측(상한 시각 2026-01-01T00:00:01Z~2026-01-01T00:00:09Z · 스모크 최소 추론 1회 초과(요청 목적·앞선 벤치 여부는 미관측) · 세션 s.json · 출처 a.log · b.log 의 POST 접근 줄 × 전후 vLLM 시각 줄(컨테이너 시계 UTC 가정 · 구간을 확인한 요청만, 세션 전체 요청 수 아님))"}
+{"id": "p45", "kind": "value", "value": true}
+{"id": "p46", "kind": "value", "value": false}
+{"id": "p47", "kind": "value", "value": null}
+{"id": "p48", "kind": "value", "value": {"style": "comment", "line": 2, "text": "# ⚠ generated-unverified — why · 생성: renderer", "why_line_2": "Dockerfile 파서 지시자 보존"}}
+{"id": "p49", "kind": "value", "value": "# syntax=docker/dockerfile:1\n# ⚠ generated-unverified — why · 생성: renderer\nFROM x\n"}
+{"id": "p50", "kind": "value", "value": true}
+{"id": "p50b", "kind": "value", "value": false}
+{"id": "p50c", "kind": "value", "value": false}
+{"id": "p51", "kind": "value", "value": null}
+{"id": "p52", "kind": "value", "value": {"style": "comment", "line": 2, "text": "# ⚠ generated-unverified — r · 생성: agent", "why_line_2": "shebang 보존"}}
+{"id": "p53", "kind": "value", "value": "#!/bin/bash\n# ⚠ generated-unverified — r · 생성: agent\necho hi\n"}
+{"id": "p54", "kind": "value", "value": null}
+{"id": "p55", "kind": "value", "value": {"style": "json-key", "key": "_verification", "text": "⚠ generated-unverified — r · 생성: renderer"}}
+{"id": "p56", "kind": "value", "value": "{\n  \"_verification\": \"⚠ generated-unverified — r · 생성: renderer\",\n  \"a\": [\n    2\n  ],\n  \"b\": 1\n}\n"}
+{"id": "p57", "kind": "value", "value": null}
+{"id": "p58", "kind": "exception", "type": "HintError", "code": "HINT_ARTIFACT_HEADER_UNSUPPORTED", "message": "JSON 최상위가 사전이 아니라 경고 키를 넣을 수 없다: artifacts/compose/l.json", "remedy": null, "exit_code": 1}
+{"id": "p59", "kind": "value", "value": null}
+{"id": "p60", "kind": "value", "value": {"style": "comment", "line": 1, "text": "# ⚠ generated-unverified — r · 생성: renderer"}}
+{"id": "p61", "kind": "value", "value": "# ⚠ generated-unverified — r · 생성: renderer\na: 1"}
+{"id": "p62", "kind": "value", "value": null}
+{"id": "p63", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "p64", "kind": "value", "value": "artifacts/triplet/src.txt"}
+{"id": "p65", "kind": "exception", "type": "HintError", "code": "HINT_ARTIFACT_NAME_COLLISION", "message": "슬롯 triplet 에 같은 이름이 두 번: src.txt", "remedy": null, "exit_code": 1}
+{"id": "p66", "kind": "value", "value": "artifacts/triplet/renamed.txt"}
+{"id": "p67", "kind": "exception", "type": "HintError", "code": "HINT_ARTIFACT_ABSENT", "message": "복사할 아티팩트가 없다: absent.txt", "remedy": null, "exit_code": 1}
+{"id": "p68", "kind": "value", "value": "artifacts/fork_pin/variant.json"}
+{"id": "p69", "kind": "exception", "type": "HintError", "code": "HINT_ARTIFACT_NAME_COLLISION", "message": "슬롯 fork_pin 에 같은 이름이 두 번: variant.json", "remedy": null, "exit_code": 1}
+{"id": "p70", "kind": "value", "value": "artifacts/build_patch_post/10-x.sh"}
+{"id": "p71", "kind": "exception", "type": "HintError", "code": "HINT_ARTIFACT_NAME_COLLISION", "message": "슬롯 build_patch_post 에 같은 이름이 두 번: 10-x.sh", "remedy": null, "exit_code": 1}
+{"id": "p72", "kind": "value", "value": {"rc": 0, "stdout": "755 ./artifacts/build_patch_post/10-x.sh\n664 ./artifacts/build_recipe/Dockerfile\n664 ./artifacts/compose/l.json\n664 ./artifacts/compose/plain.yaml\n664 ./artifacts/compose/run.sh\n664 ./artifacts/compose/x.json\n664 ./artifacts/fork_pin/variant.json\n750 ./artifacts/triplet/renamed.txt\n750 ./artifacts/triplet/src.txt\n", "stderr": ""}}
+{"id": "p73", "kind": "value", "value": null}
+{"id": "p74", "kind": "exception", "type": "HintError", "code": "HINT_MISSING_CODE_UNREGISTERED", "message": "artifacts 가 등재되지 않은 결손 코드를 냈다: ['HINT_NOT_A_CODE']", "remedy": "evidence.MISSING_CODES 에 뜻과 함께 등재한다(tripwire — 조용히 '미등록' 으로 배포되지 않게).", "exit_code": 1}

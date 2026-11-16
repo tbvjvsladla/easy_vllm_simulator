@@ -1,0 +1,39 @@
+{"id": "r0", "kind": "value", "value": {"rc": 0, "stdout": "ok\n", "stderr": ""}}
+{"id": "r1", "kind": "value", "value": null}
+{"id": "r2", "kind": "value", "value": null}
+{"id": "r3", "kind": "value", "value": null}
+{"id": "r4", "kind": "value", "value": null}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": null}
+{"id": "r7", "kind": "value", "value": null}
+{"id": "r8", "kind": "value", "value": null}
+{"id": "r9", "kind": "value", "value": null}
+{"id": "r10", "kind": "value", "value": null}
+{"id": "r11", "kind": "value", "value": null}
+{"id": "r12", "kind": "value", "value": null}
+{"id": "r13", "kind": "value", "value": null}
+{"id": "r14", "kind": "value", "value": null}
+{"id": "r15", "kind": "value", "value": null}
+{"id": "r16", "kind": "value", "value": null}
+{"id": "r17", "kind": "value", "value": null}
+{"id": "r18", "kind": "value", "value": null}
+{"id": "r19", "kind": "value", "value": null}
+{"id": "r20", "kind": "value", "value": null}
+{"id": "r21", "kind": "value", "value": null}
+{"id": "r22", "kind": "value", "value": null}
+{"id": "r23", "kind": "value", "value": null}
+{"id": "r24", "kind": "value", "value": null}
+{"id": "r25", "kind": "value", "value": null}
+{"id": "r26", "kind": "value", "value": null}
+{"id": "r27", "kind": "value", "value": null}
+{"id": "r28", "kind": "exception", "type": "HintError", "code": "HINT_REPLAY_READ_ONLY", "message": "발행 기록 재생 모드는 읽기만 한다 — 기존 발행 기록·manifest 를 쓴다.", "remedy": "`ev.publication['manifest_path']` 를 그대로 쓴다.", "exit_code": 1}
+{"id": "r29", "kind": "exception", "type": "HintError", "code": "HINT_TIME_NOT_INJECTED", "message": "--generated-utc 는 UTC `YYYY-MM-DDTHH:MM:SSZ` 로 주입해야 한다: 'now'", "remedy": "벽시계를 읽지 않는다 — 호출자가 시각을 넘긴다.", "exit_code": 1}
+{"id": "r30", "kind": "exception", "type": "HintError", "code": "HINT_QUALIFICATION_UNOBSERVED", "message": "셀 'c1' 에 health 200 + 추론 1회 **관측**이 없다: ['관측 파일 0']", "remedy": "스모크가 `output/single/benchlog/serve_proof_c1.json`(pass · 생성 길이 ≥1)을 남기거나, 같은 measured_utc 의 스윕(post_health + bench completed≥1) 또는 lite 셀이면 리포트 생성일과 같은 measured_utc 의 `lite_raw_c1.json` + lite_warm(completed≥1)이 이 노드의 출력 평면에 있어야 한다. 선언(manifest.runtime)은 증거가 아니다. 서브에서 잰 셀은 메인이 그 원시를 볼 수 없다(문서기반 회수 only). 이번 해소의 측정 노드 = 'main' — 인증서가 없는 셀(REFUTE·lite)은 노드 축이 배정(main)으로 해소돼 cluster 로 잰 증거 포인터가 걸러질 수 있다: 실제 측정 노드가 다르면 `--node cluster|main|sub` 로 명시해 다시 실행한다(2026-09-22 통합 · runtime_selftest 재현).", "exit_code": 1}
+{"id": "r31", "kind": "exception", "type": "HintError", "code": "HINT_PUBLISHER_INPUTS_ABSENT", "message": "finalize 재실행에 draft 의 inputs/ 가 필요하다(draft_dir 미지정).", "remedy": "hint.py continue 가 state.json 의 draft 경로를 넘긴다.", "exit_code": 1}
+{"id": "r32", "kind": "exception", "type": "HintError", "code": "HINT_TIME_NOT_INJECTED", "message": "--generated-utc 는 UTC `YYYY-MM-DDTHH:MM:SSZ` 로 주입해야 한다: None", "remedy": "벽시계를 읽지 않는다 — 호출자가 시각을 넘긴다.", "exit_code": 1}
+{"id": "r33", "kind": "exception", "type": "HintError", "code": "HINT_REPLAY_READ_ONLY", "message": "발행 기록 재생 모드는 읽기만 한다 — 서사 재바인딩은 campaign 모드 draft 전용이다.", "remedy": "재생 draft 의 발행기 입력은 publisher_inputs 가 쓴다.", "exit_code": 1}
+{"id": "r34", "kind": "exception", "type": "HintError", "code": "HINT_TIME_NOT_INJECTED", "message": "--generated-utc 는 UTC `YYYY-MM-DDTHH:MM:SSZ` 로 주입해야 한다: 'x'", "remedy": "벽시계를 읽지 않는다 — 호출자가 시각을 넘긴다.", "exit_code": 1}
+{"id": "r35", "kind": "exception", "type": "HintError", "code": "HINT_PUBLICATION_ABSENT", "message": "발행 기록 부재: docs/_evidence/t.json", "remedy": null, "exit_code": 1}
+{"id": "r36", "kind": "exception", "type": "HintError", "code": "HINT_PUBLISHER_INPUTS_MODE", "message": "publisher_inputs 는 재생 드래프트 전용이다 — campaign 모드는 drive_publisher 가 쓴다.", "remedy": null, "exit_code": 1}
+{"id": "r37", "kind": "exception", "type": "HintError", "code": "HINT_PUBLICATION_ABSENT", "message": "재생 발행 기록을 읽지 못했다 — publisher 입력을 관측할 기록이 없다.", "remedy": null, "exit_code": 1}
+{"id": "r38", "kind": "exception", "type": "HintError", "code": "HINT_PUBLISHER_INPUTS_ABSENT", "message": "도구가 쓴 발행기 입력 부재: fx/dr/inputs/pii.json", "remedy": "`hint.py publish` 가 draft 의 inputs/ 를 만든다 — 손으로 쓰지 않는다.", "exit_code": 1}

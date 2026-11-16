@@ -1,0 +1,52 @@
+{"id": "n0", "kind": "value", "value": 1.5}
+{"id": "n1", "kind": "value", "value": null}
+{"id": "n2", "kind": "value", "value": null}
+{"id": "n3", "kind": "value", "value": null}
+{"id": "n4", "kind": "value", "value": null}
+{"id": "n5", "kind": "value", "value": null}
+{"id": "n6", "kind": "value", "value": null}
+{"id": "n7", "kind": "value", "value": 1000.0}
+{"id": "n8", "kind": "value", "value": null}
+{"id": "n9", "kind": "value", "value": null}
+{"id": "n10", "kind": "value", "value": 1000.0}
+{"id": "n11", "kind": "value", "value": null}
+{"id": "n12", "kind": "value", "value": Infinity}
+{"id": "n13", "kind": "value", "value": -Infinity}
+{"id": "n14", "kind": "value", "value": 2.0}
+{"id": "n15", "kind": "value", "value": 0.5}
+{"id": "n16", "kind": "value", "value": 5.0}
+{"id": "n17", "kind": "value", "value": null}
+{"id": "n18", "kind": "value", "value": null}
+{"id": "n19", "kind": "value", "value": 7.0}
+{"id": "n20", "kind": "value", "value": null}
+{"id": "n21", "kind": "value", "value": 100000.0}
+{"id": "f0", "kind": "value", "value": "N/A"}
+{"id": "f1", "kind": "value", "value": "1"}
+{"id": "f2", "kind": "value", "value": "1"}
+{"id": "f3", "kind": "value", "value": "0"}
+{"id": "f4", "kind": "value", "value": "16"}
+{"id": "f5", "kind": "value", "value": "50.70"}
+{"id": "f6", "kind": "value", "value": "12.35"}
+{"id": "f7", "kind": "exception", "type": "ValueError", "message": "could not convert string to float: 'abc'"}
+{"id": "f8", "kind": "value", "value": "0.12"}
+{"id": "f9", "kind": "value", "value": "0.38"}
+{"id": "f10", "kind": "value", "value": "2.67"}
+{"id": "f11", "kind": "value", "value": "0"}
+{"id": "f12", "kind": "value", "value": "100000000000000000000"}
+{"id": "f13", "kind": "value", "value": "-3.50"}
+{"id": "f14", "kind": "exception", "type": "TypeError", "message": "float() argument must be a string or a real number, not 'list'"}
+{"id": "f15", "kind": "exception", "type": "TypeError", "message": "float() argument must be a string or a real number, not 'dict'"}
+{"id": "f16", "kind": "value", "value": "3.00"}
+{"id": "f17", "kind": "value", "value": "inf"}
+{"id": "f-d0", "kind": "value", "value": "2"}
+{"id": "f-d3", "kind": "value", "value": "2.001"}
+{"id": "f-d1", "kind": "value", "value": "1.2"}
+{"id": "u1", "kind": "value", "value": "a|b"}
+{"id": "s0", "kind": "value", "value": ["a", "b"]}
+{"id": "s1", "kind": "value", "value": ["a", "b|c"]}
+{"id": "s2", "kind": "value", "value": ["a", "b"]}
+{"id": "s3", "kind": "value", "value": ["x |"]}
+{"id": "s4", "kind": "value", "value": [""]}
+{"id": "s5", "kind": "value", "value": [""]}
+{"id": "s6", "kind": "value", "value": ["a", "b", "c"]}
+{"id": "s7", "kind": "value", "value": ["키", "값"]}

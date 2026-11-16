@@ -1,0 +1,13 @@
+usage: hint.py branch-transition [-h] --remote REMOTE --generated-utc
+                                 GENERATED_UTC --approved-by APPROVED_BY
+                                 --approved-utc APPROVED_UTC
+
+options:
+  -h, --help            show this help message and exit
+  --remote REMOTE       live hint tip을 대조하고 refs/heads/hint 하나만 밀 원격
+  --generated-utc GENERATED_UTC
+                        주입 UTC YYYY-MM-DDTHH:MM:SSZ(벽시계 ✗)
+  --approved-by APPROVED_BY
+                        형식 전환 승인: 사람 발화 전사(한 줄 · 반환값에만 실린다 — 배포 오브젝트 ✗)
+  --approved-utc APPROVED_UTC
+                        승인 시각 UTC

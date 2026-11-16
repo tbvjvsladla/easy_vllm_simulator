@@ -1,0 +1,162 @@
+{"id": "r1", "kind": "value", "value": true}
+{"id": "r2", "kind": "value", "value": true}
+{"id": "r3", "kind": "value", "value": true}
+{"id": "r4", "kind": "value", "value": true}
+{"id": "r5", "kind": "value", "value": true}
+{"id": "r6", "kind": "value", "value": false}
+{"id": "r7", "kind": "value", "value": false}
+{"id": "r8", "kind": "value", "value": false}
+{"id": "r9", "kind": "value", "value": false}
+{"id": "r10", "kind": "value", "value": null}
+{"id": "r11", "kind": "value", "value": null}
+{"id": "r12", "kind": "value", "value": "v1"}
+{"id": "r13", "kind": "value", "value": 3}
+{"id": "r14", "kind": "value", "value": 2.5}
+{"id": "r15", "kind": "value", "value": true}
+{"id": "r16", "kind": "value", "value": {"a": 1}}
+{"id": "r17", "kind": "value", "value": null}
+{"id": "r18", "kind": "value", "value": 7}
+{"id": "r19", "kind": "value", "value": 12}
+{"id": "r20", "kind": "value", "value": null}
+{"id": "r21", "kind": "value", "value": null}
+{"id": "r22", "kind": "value", "value": null}
+{"id": "r23", "kind": "value", "value": null}
+{"id": "r24", "kind": "value", "value": null}
+{"id": "r25", "kind": "value", "value": true}
+{"id": "r26", "kind": "value", "value": false}
+{"id": "r27", "kind": "value", "value": true}
+{"id": "r28", "kind": "value", "value": false}
+{"id": "r29", "kind": "value", "value": null}
+{"id": "r30", "kind": "value", "value": null}
+{"id": "r31", "kind": "value", "value": null}
+{"id": "r32", "kind": "value", "value": "camp-1"}
+{"id": "r33", "kind": "exception", "type": "HintError", "code": "HINT_CAMPAIGN_ID_RESERVED", "message": "'_bootstrap' 는 캠페인 인스턴스가 아니다(예약 이름).", "remedy": "_bootstrap 은 캠페인 밖 대기실이고 _template 은 뼈대다 — 발행 대상 캠페인 id 를 준다.", "exit_code": 1}
+{"id": "r34", "kind": "exception", "type": "HintError", "code": "HINT_CAMPAIGN_ID_RESERVED", "message": "'_template' 는 캠페인 인스턴스가 아니다(예약 이름).", "remedy": "_bootstrap 은 캠페인 밖 대기실이고 _template 은 뼈대다 — 발행 대상 캠페인 id 를 준다.", "exit_code": 1}
+{"id": "r35", "kind": "exception", "type": "HintError", "code": "HINT_CAMPAIGN_ID_REQUIRED", "message": "명시 캠페인 id 가 필요하다: 'a/b'", "remedy": "`--campaign <camp-id>` 로 준다 — ACTIVE 포인터는 읽지 않는다(2026-09-07 Q6).", "exit_code": 1}
+{"id": "r36", "kind": "exception", "type": "HintError", "code": "HINT_CAMPAIGN_ID_REQUIRED", "message": "명시 캠페인 id 가 필요하다: '.'", "remedy": "`--campaign <camp-id>` 로 준다 — ACTIVE 포인터는 읽지 않는다(2026-09-07 Q6).", "exit_code": 1}
+{"id": "r37", "kind": "exception", "type": "HintError", "code": "HINT_CAMPAIGN_ID_REQUIRED", "message": "명시 캠페인 id 가 필요하다: '..'", "remedy": "`--campaign <camp-id>` 로 준다 — ACTIVE 포인터는 읽지 않는다(2026-09-07 Q6).", "exit_code": 1}
+{"id": "r38", "kind": "exception", "type": "HintError", "code": "HINT_CAMPAIGN_ID_REQUIRED", "message": "명시 캠페인 id 가 필요하다: ''", "remedy": "`--campaign <camp-id>` 로 준다 — ACTIVE 포인터는 읽지 않는다(2026-09-07 Q6).", "exit_code": 1}
+{"id": "r39", "kind": "exception", "type": "HintError", "code": "HINT_CAMPAIGN_ID_REQUIRED", "message": "명시 캠페인 id 가 필요하다: None", "remedy": "`--campaign <camp-id>` 로 준다 — ACTIVE 포인터는 읽지 않는다(2026-09-07 Q6).", "exit_code": 1}
+{"id": "r40", "kind": "exception", "type": "HintError", "code": "HINT_CAMPAIGN_ID_REQUIRED", "message": "명시 캠페인 id 가 필요하다: 5", "remedy": "`--campaign <camp-id>` 로 준다 — ACTIVE 포인터는 읽지 않는다(2026-09-07 Q6).", "exit_code": 1}
+{"id": "r41", "kind": "value", "value": "c1"}
+{"id": "r42", "kind": "value", "value": "a.b-c_d"}
+{"id": "r43", "kind": "exception", "type": "HintError", "code": "HINT_CELL_INVALID", "message": "셀 id 가 비었거나 경로 문자를 포함한다: '-x'", "remedy": null, "exit_code": 1}
+{"id": "r44", "kind": "exception", "type": "HintError", "code": "HINT_CELL_INVALID", "message": "셀 id 가 비었거나 경로 문자를 포함한다: 'a b'", "remedy": null, "exit_code": 1}
+{"id": "r45", "kind": "value", "value": "x\n"}
+{"id": "r46", "kind": "exception", "type": "HintError", "code": "HINT_CELL_INVALID", "message": "셀 id 가 비었거나 경로 문자를 포함한다: ''", "remedy": null, "exit_code": 1}
+{"id": "r47", "kind": "exception", "type": "HintError", "code": "HINT_CELL_INVALID", "message": "셀 id 가 비었거나 경로 문자를 포함한다: None", "remedy": null, "exit_code": 1}
+{"id": "r48", "kind": "exception", "type": "HintError", "code": "HINT_CELL_INVALID", "message": "셀 id 가 비었거나 경로 문자를 포함한다: 'x/y'", "remedy": null, "exit_code": 1}
+{"id": "r49", "kind": "value", "value": "main"}
+{"id": "r50", "kind": "value", "value": "sub"}
+{"id": "r51", "kind": "value", "value": "cluster"}
+{"id": "r52", "kind": "exception", "type": "HintError", "code": "HINT_NODE_AXIS_INVALID", "message": "노드 축은 ['main', 'sub', 'cluster'] 중 하나다: 'node'", "remedy": null, "exit_code": 1}
+{"id": "r53", "kind": "exception", "type": "HintError", "code": "HINT_NODE_AXIS_INVALID", "message": "노드 축은 ['main', 'sub', 'cluster'] 중 하나다: None", "remedy": null, "exit_code": 1}
+{"id": "r54", "kind": "value", "value": true}
+{"id": "r55", "kind": "value", "value": true}
+{"id": "r56", "kind": "value", "value": false}
+{"id": "r57", "kind": "value", "value": true}
+{"id": "r58", "kind": "value", "value": true}
+{"id": "r59", "kind": "value", "value": false}
+{"id": "r60", "kind": "value", "value": true}
+{"id": "r61", "kind": "value", "value": false}
+{"id": "r62", "kind": "value", "value": true}
+{"id": "r63", "kind": "value", "value": false}
+{"id": "r64", "kind": "value", "value": false}
+{"id": "r65", "kind": "value", "value": false}
+{"id": "r66", "kind": "value", "value": false}
+{"id": "r67", "kind": "value", "value": true}
+{"id": "r68", "kind": "value", "value": true}
+{"id": "r69", "kind": "value", "value": false}
+{"id": "r70", "kind": "value", "value": false}
+{"id": "r71", "kind": "value", "value": null}
+{"id": "r72", "kind": "value", "value": null}
+{"id": "r73", "kind": "value", "value": "x"}
+{"id": "r74", "kind": "value", "value": null}
+{"id": "r75", "kind": "value", "value": "true"}
+{"id": "r76", "kind": "value", "value": "false"}
+{"id": "r77", "kind": "value", "value": "3"}
+{"id": "r78", "kind": "value", "value": "2.5"}
+{"id": "r79", "kind": "value", "value": "1e+20"}
+{"id": "r80", "kind": "value", "value": "0.1"}
+{"id": "r81", "kind": "value", "value": "{'a': 1}"}
+{"id": "r82", "kind": "value", "value": "[1]"}
+{"id": "r83", "kind": "value", "value": 3}
+{"id": "r84", "kind": "value", "value": null}
+{"id": "r85", "kind": "value", "value": null}
+{"id": "r86", "kind": "value", "value": "2026-01-02T03:04:05Z"}
+{"id": "r87", "kind": "value", "value": "2026-01-02T03:04:05Z"}
+{"id": "r88", "kind": "value", "value": "2026-01-01T18:04:05Z"}
+{"id": "r89", "kind": "value", "value": "2026-01-02T04:34:05Z"}
+{"id": "r90", "kind": "value", "value": null}
+{"id": "r91", "kind": "value", "value": null}
+{"id": "r92", "kind": "value", "value": null}
+{"id": "r93", "kind": "value", "value": null}
+{"id": "r94", "kind": "value", "value": null}
+{"id": "r95", "kind": "value", "value": "2025-12-31T23:30:00Z"}
+{"id": "r96", "kind": "value", "value": "docs/benchmark/bench_report_x_y.md"}
+{"id": "r97", "kind": "value", "value": "bench_report_a.md"}
+{"id": "r98", "kind": "value", "value": "/srv/bench_report_b.md"}
+{"id": "r99", "kind": "value", "value": null}
+{"id": "r100", "kind": "value", "value": null}
+{"id": "r101", "kind": "value", "value": null}
+{"id": "r102", "kind": "value", "value": "bench_report_.md"}
+{"id": "r103", "kind": "value", "value": ["코드맵", "TL;DR", "코드맵"]}
+{"id": "r104", "kind": "value", "value": []}
+{"id": "r105", "kind": "value", "value": [{"A": "1", "VLLM_REF": "abc", "VLLM_REPO": "r"}, {"A": ["1", "2"], "VLLM_REF": ["abc", "def"]}]}
+{"id": "r106", "kind": "value", "value": [{}, {}]}
+{"id": "r107", "kind": "value", "value": ["Dockerfile.source-build", "docker history build-arg 관측(VLLM_REF=abc · VLLM_VERSION 없음 → 소스빌드 Dockerfile)"]}
+{"id": "r108", "kind": "value", "value": ["Dockerfile", "docker history build-arg 관측(VLLM_VERSION=0.18.0 · VLLM_REF 없음 → wheel Dockerfile)"]}
+{"id": "r109", "kind": "value", "value": [null, "history 에 VLLM_REF · VLLM_VERSION 이 둘 다 있다 — 트랙 판정 불가"]}
+{"id": "r110", "kind": "value", "value": [null, "history 에 VLLM_REF · VLLM_VERSION 모두 없음(또는 history 미관측) — 트랙 판정 불가"]}
+{"id": "r111", "kind": "value", "value": true}
+{"id": "r112", "kind": "value", "value": false}
+{"id": "r113", "kind": "value", "value": false}
+{"id": "r114", "kind": "value", "value": true}
+{"id": "r115", "kind": "value", "value": false}
+{"id": "r116", "kind": "value", "value": false}
+{"id": "r117", "kind": "value", "value": ["580.1", "attestation parity.driver(output/multi/benchlog/attestation_c1.json · 노드별 관측 · verdict=differ) — ⚠ 노드별 상이(main=580.1 · sub=580.2 · 값 = main) · 이 측정 실행과 같은 실행인지 미검증(같은 호스트의 관측)", {"main": "580.1", "sub": "580.2"}]}
+{"id": "r118", "kind": "value", "value": ["580.1", "attestation parity.driver(output/multi/benchlog/attestation_c1.json · 노드별 관측 · verdict=differ) — ⚠ 노드별 상이(main=580.1 · sub=580.2 · 값 = main) · 측정을 서빙한 같은 기동의 스모크 직후 관측 · x", {"main": "580.1", "sub": "580.2"}]}
+{"id": "r119", "kind": "value", "value": ["ubuntu", "attestation nodes.<n>.os(output/multi/benchlog/attestation_c1.json · 노드별 관측) — main=sub 일치 · 이 측정 실행과 같은 실행인지 미검증(같은 호스트의 관측)", {"main": "ubuntu", "sub": "ubuntu"}]}
+{"id": "r120", "kind": "value", "value": ["7", "attestation nodes.<n>.kernel(output/multi/benchlog/attestation_c1.json · 노드별 관측) — main 일치 · 이 측정 실행과 같은 실행인지 미검증(같은 호스트의 관측) · note", {"main": "7"}]}
+{"id": "r121", "kind": "value", "value": [null, null, {}]}
+{"id": "r122", "kind": "value", "value": [null, null, {}]}
+{"id": "r123", "kind": "value", "value": ["1", "attestation parity.driver(attestation · 노드별 관측 · verdict=None) — sub 일치 · 이 측정 실행과 같은 실행인지 미검증(같은 호스트의 관측)", {"sub": "1"}]}
+{"id": "r124", "kind": "value", "value": " · 묶인 attestation 노드별 image_id(output/multi/benchlog/attestation_c1.json): main 같다 · sub 다르다(sha256:bbbbbbbbbbbb…) — 노드별 로컬 빌드라 digest 가 노드마다 다른 것은 정상(요건은 동일 ABI 이지 동일 digest 가 아니다 · 이 행의 Id 는 메인 로컬 관측)"}
+{"id": "r125", "kind": "value", "value": " · 묶인 attestation 노드별 image_id(None): main 같다"}
+{"id": "r126", "kind": "value", "value": ""}
+{"id": "r127", "kind": "value", "value": "<abs-path>/cnn.jsonl"}
+{"id": "r128", "kind": "value", "value": "--dataset=<abs-path>/a.json,x"}
+{"id": "r129", "kind": "value", "value": "/app/data/x"}
+{"id": "r130", "kind": "value", "value": "abisee/cnn_dailymail"}
+{"id": "r131", "kind": "value", "value": "a <abs-path>/x"}
+{"id": "r132", "kind": "value", "value": 3}
+{"id": "r133", "kind": "value", "value": null}
+{"id": "r134", "kind": "value", "value": "path:<abs-path>/x"}
+{"id": "r135", "kind": "value", "value": " — 서빙 yaml `kv-cache-memory-bytes: 10737418240`(10.0 GiB)의 **선언 클램프를 엔진이 되읽은 값**(측정 아님 · output/single/configs/c1.yaml)"}
+{"id": "r136", "kind": "value", "value": " — 서빙 yaml `kv-cache-memory-bytes: 10737418240`(10.0 GiB)의 **선언 클램프를 엔진이 되읽은 값**(측정 아님 · output/single/configs/c1.yaml)"}
+{"id": "r137", "kind": "value", "value": " — 서빙 yaml 선언 10.0 GiB 와 다르다(엔진 보고값 · output/single/configs/c1.yaml)"}
+{"id": "r138", "kind": "value", "value": null}
+{"id": "r139", "kind": "value", "value": null}
+{"id": "r140", "kind": "value", "value": " — 서빙 yaml `kv-cache-memory-bytes: 10737418240`(10.0 GiB)의 **선언 클램프를 엔진이 되읽은 값**(측정 아님 · output/single/configs/c1.yaml)"}
+{"id": "r141", "kind": "value", "value": null}
+{"id": "r142", "kind": "value", "value": {"image_tag": "img:1", "image_tag_source": "sweep_index.meta.image_tag(measured(docker))", "image_digest": "sha256:1", "image_digest_source": "인증서 image_digest"}}
+{"id": "r143", "kind": "value", "value": {}}
+{"id": "r144", "kind": "value", "value": {}}
+{"id": "r145", "kind": "value", "value": [["HINT_PROMOTION_TARGET_MISSING", "work-manifest 에 promotion_target 이 없다 — `set_promotion_target` 뒤 finalize 가 방출한다"]]}
+{"id": "r146", "kind": "value", "value": [["HINT_PROMOTION_TARGET_KIND", "promotion_target.kind='x' ≠ 'hint'"], ["HINT_PROMOTION_TARGET_TAG_MISMATCH", "promotion_target.tag='hint/y' ≠ 봉인 대상 'hint/x'"], ["HINT_PROMOTION_TARGET_ANCHOR_MISMATCH", "promotion_target.anchor='b' ≠ 봉인 대상 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'"], ["HINT_IDENTITY_ABSENT", "work-manifest 에 identity 가 없다"]]}
+{"id": "r147", "kind": "value", "value": [["HINT_PROMOTION_TARGET_MISSING", "work-manifest 에 promotion_target 이 없다 — `set_promotion_target` 뒤 finalize 가 방출한다"]]}
+{"id": "r148", "kind": "exception", "type": "HintError", "code": "HINT_DOCKER_WRITE_REFUSED", "message": "evidence 는 docker 읽기만 부른다: ('rm', 'x')", "remedy": null, "exit_code": 1}
+{"id": "r149", "kind": "exception", "type": "HintError", "code": "HINT_DOCKER_WRITE_REFUSED", "message": "evidence 는 docker 읽기만 부른다: ('image', 'rm')", "remedy": null, "exit_code": 1}
+{"id": "r150", "kind": "exception", "type": "HintError", "code": "HINT_DOCKER_WRITE_REFUSED", "message": "evidence 는 docker 읽기만 부른다: ()", "remedy": null, "exit_code": 1}
+{"id": "r151", "kind": "value", "value": null}
+{"id": "r152", "kind": "value", "value": null}
+{"id": "r153", "kind": "value", "value": null}
+{"id": "r154", "kind": "value", "value": null}
+{"id": "r155", "kind": "value", "value": {"a": [1, 2]}}
+{"id": "r156", "kind": "value", "value": null}
+{"id": "r157", "kind": "exception", "type": "HintError", "code": "HINT_EVIDENCE_UNREADABLE", "message": "bad 를 읽을 수 없다(bad.json): JSONDecodeError: Expecting value: line 1 column 7 (char 6)", "remedy": "파일을 고치거나 지운다 — 깨진 증거를 부재로 읽지 않는다.", "exit_code": 1}
+{"id": "r158", "kind": "exception", "type": "HintError", "code": "HINT_EVIDENCE_UNREADABLE", "message": "empty 를 읽을 수 없다(empty.json): JSONDecodeError: Expecting value: line 1 column 1 (char 0)", "remedy": "파일을 고치거나 지운다 — 깨진 증거를 부재로 읽지 않는다.", "exit_code": 1}
+{"id": "r159", "kind": "exception", "type": "HintError", "code": "HINT_EVIDENCE_UNREADABLE", "message": "dir 를 읽을 수 없다(fx): IsADirectoryError: [Errno 21] Is a directory: 'fx'", "remedy": "파일을 고치거나 지운다 — 깨진 증거를 부재로 읽지 않는다.", "exit_code": 1}
+{"id": "r160", "kind": "value", "value": {"__class__": "CellEvidence", "mode": "campaign", "campaign_id": null, "cell": "c1", "node": "main", "topology": "single", "declaration": null, "cell_status": null, "lockset": null, "cell_config": null, "triplet": {}, "sweep": null, "certificate": null, "certificate_path": null, "bench_report_path": null, "report_kind": null, "pointers": [], "attestation": null, "image_ledger": null, "build_identity": {}, "resolve": null, "manifest": null, "publication": null, "lineage_seeds": {}, "missing": [], "serve_proof": null, "plane": null, "native_install_path": null, "pip_freeze_path": null, "pip_freeze_paths": {}, "cleanup_attestation_path": null, "cleanup_attestation": null, "native_launch_path": null, "native_launch_error": null, "phases": {}, "sources": {}, "repo": null}}
+{"id": "r161", "kind": "exception", "type": "TypeError", "message": "CellEvidence.__init__() missing 3 required positional arguments: 'campaign_id', 'node', and 'topology'"}
+{"id": "r162", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}

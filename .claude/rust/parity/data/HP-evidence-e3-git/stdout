@@ -1,0 +1,21 @@
+{"id": "r1", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r2", "kind": "value", "value": null}
+{"id": "r3", "kind": "value", "value": null}
+{"id": "r4", "kind": "value", "value": null}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": {"rc": 0, "stdout": "78d6bf0fc2ec548112a15698d0c6585390d6241b\n", "stderr": ""}}
+{"id": "r7", "kind": "value", "value": null}
+{"id": "r8", "kind": "value", "value": null}
+{"id": "r9", "kind": "value", "value": null}
+{"id": "r10", "kind": "value", "value": ["image-tag-line", "sweep_bench.sh@78d6bf0fc2ec L5·L6: 선언 IMAGE_TAG (sweep_index.meta.image_tag_declared easy-vllm:0.9.0-dev)에 그 판본의 정규식 `easy-vllm:(\\d+\\.\\d+\\.\\d+)` → 0.9.0 = sweep_index.meta.vllm_version(인증서는 그 옮김) — **엔진 자기보고가 아니다**(빌드 입력 이미지 태그를 x.y.z 로 자른 값 · rc/dev 접미가 사라진다). 더 높은 우선순위의 덮어쓰기(`--vllm-version` 인자 → VLLM_VER · EASY_VLLM_VERSION env · L7)는 측정 기록에 남지 않아 배제할 수 없다"]}
+{"id": "r11", "kind": "value", "value": ["unverified", "미검증 — sweep_bench.sh@78d6bf0fc2ec 이미지 태그 규칙 결과 '0.9.0' ≠ 인증서 '0.9.1' · 배너 접두도 아니다 (더 높은 우선순위의 덮어쓰기(`--vllm-version` 인자 → VLLM_VER · EASY_VLLM_VERSION env · L7)는 측정 기록에 남지 않아 배제할 수 없다 — 덮어쓰기였을 수 있다)"]}
+{"id": "r12", "kind": "value", "value": {"bench": [3, "run_bench.sh@78d6bf0fc2ec L3"], "lite": [5, "lite_bench.sh@78d6bf0fc2ec L4"]}}
+{"id": "r13", "kind": "value", "value": {"flags": [["--random-input-len", "128"], ["--dataset-name", "random"], ["--num-prompts", "4"], ["--ignore-eos", null]], "source": "lite_bench.sh@78d6bf0fc2ec L5-L6", "measured_line": "L2", "tool": "lite_bench.sh@78d6bf0fc2ec"}}
+{"id": "r14", "kind": "value", "value": {"fx/g/output/single/benchlog/sweep_g1/lite_engine_g1.log": "tail-5(lite_bench.sh@78d6bf0fc2ec L4)", "fx/g/output/single/benchlog/sweep_g1/level_01/engine_g1.log": "tail-3(run_bench.sh@78d6bf0fc2ec L3)"}}
+{"id": "r15", "kind": "value", "value": [{"key": "NCCL_IB_HCA", "value": "mlx5_1", "node": null, "source": "output/single/benchlog/sweep_g1/lite_engine_g1.log:L1", "kind": "env-echo", "seen_in_logs": 1, "log_window": "tail-5(lite_bench.sh@78d6bf0fc2ec L4)"}]}
+{"id": "r16", "kind": "value", "value": {"value": "0.9.0rc2", "basis": "measurement-capture-unbound", "files": [["fx/g/output/single/benchlog/sweep_g1/sweep_index.json", "sweep_json"]], "source": "fx/g/output/single/benchlog/sweep_g1/sweep_index.json:16 meta.vllm_build — 측정 캡처에 기록된 값 · 현재 serve 세션 경계 미관측 — 누적 로그의 기동 epoch 귀속 미검증"}}
+{"id": "r17", "kind": "value", "value": {"wheel_meta_label": "vLLM 설치 distribution 메타(출처별 관측 · 다운로드 wheel 증명 아님)", "engine_self_report": "0.9.0rc2", "engine_self_report_source": "output/single/benchlog/sweep_g1/sweep_index.json:16 meta.vllm_build — 측정 캡처에 기록된 값 · 현재 serve 세션 경계 미관측 — 누적 로그의 기동 epoch 귀속 미검증", "engine_self_report_basis": "measurement-capture-unbound", "certificate_vllm_version": "0.9.1", "certificate_vllm_version_producer": "unverified", "certificate_vllm_version_source": "미검증 — sweep_bench.sh@78d6bf0fc2ec 이미지 태그 규칙 결과 '0.9.0' ≠ 인증서 '0.9.1' · 배너 접두도 아니다 (더 높은 우선순위의 덮어쓰기(`--vllm-version` 인자 → VLLM_VER · EASY_VLLM_VERSION env · L7)는 측정 기록에 남지 않아 배제할 수 없다 — 덮어쓰기였을 수 있다)", "wheel_meta": null, "wheel_meta_source": "미관측 — 결속된 명시적 배포 메타 기록 · attestation vllm_dist_version · native pip freeze · 빌드 원장 vllm.dist_version에 값 없음(runtime_version 기록은 배포 메타로 간주하지 않는다)(sweep_index.meta.vllm_build='0.9.0rc2' 는 sweep_bench 가 엔진 로그에서 `v<x.y.z…>` 정규식으로 잡는 값이다 → engine_self_report 의 원천)", "wheel_meta_basis": null, "source": "칸별 출처는 *_source — engine_self_report=measurement-capture-unbound · certificate_vllm_version=unverified · wheel_meta=미관측"}}
+{"id": "r18", "kind": "value", "value": ["engine-banner-prefix", "sweep_bench.sh@78d6bf0fc2ec L8: 이미지 태그 규칙이 값을 내지 못해 엔진 로그 배너 0.9.1-x 의 x.y.z 접두를 썼다 · 더 높은 우선순위의 덮어쓰기(`--vllm-version` 인자 → VLLM_VER · EASY_VLLM_VERSION env · L7)는 측정 기록에 남지 않아 배제할 수 없다"]}
+{"id": "r19", "kind": "value", "value": ["unverified", "미검증 — 측정 시점 sweep_bench.sh 판본 미관측(측정 시각 이전 커밋 없음(reflog 가 측정 시각을 덮지 않는다(최초 2026-01-01T00:00:00Z)))"]}
+{"id": "r20", "kind": "value", "value": ["absent", "인증서 vllm_version 없음"]}
+{"id": "r21", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}

@@ -1,0 +1,8 @@
+usage: hint.py catalog [-h] <catalog-command> ...
+
+positional arguments:
+  <catalog-command>
+    classify         재파생 실패 원인 분류(읽기 전용 · closing_sequence 용)
+
+options:
+  -h, --help         show this help message and exit

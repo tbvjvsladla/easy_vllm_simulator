@@ -1,0 +1,2 @@
+[hint] FAIL HINT_REPO_NOT_GIT: git 저장소가 아니다: /tmp/parity-o-HP-cli-repo-not-git-3568054-1794817436518236042/fx/hints
+  → match 이외 명령은 git 체크아웃에서만 실행한다.

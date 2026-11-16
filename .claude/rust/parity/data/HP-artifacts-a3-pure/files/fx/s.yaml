@@ -1,0 +1,13 @@
+# head
+model: /models/x
+max-num-seqs: 8  # 측정 결과
+gpu-memory-utilization: "0.85"  # 필수 요구
+kv-cache-dtype: auto
+list:
+  - a
+  - b
+
+  # c
+quote: 'it''s'
+9bad: 1
+async-scheduling: false # 승계

@@ -1,0 +1,61 @@
+{"id": "r0", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r1", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r2", "kind": "value", "value": null}
+{"id": "r3", "kind": "value", "value": null}
+{"id": "r4", "kind": "value", "value": {"kind": "testlog", "class": null, "prefix": "testlog", "token": "26090317", "yymmddhh": "26090317", "mmss": "08_56", "topic": "x", "legacy": false, "stem": "testlog_26090317_08_56_x", "ext": ".md"}}
+{"id": "r5", "kind": "value", "value": {"kind": "plan", "class": null, "prefix": null, "token": null, "yymmddhh": null, "mmss": null, "topic": "plan_2601010_x", "legacy": true, "stem": "plan_2601010_x", "ext": ".md"}}
+{"id": "r6", "kind": "value", "value": {"kind": null, "class": null, "prefix": null, "token": null, "yymmddhh": null, "mmss": null, "topic": null, "legacy": false, "stem": "plan_26010101_x.txt", "ext": ""}}
+{"id": "r7", "kind": "value", "value": {"kind": "plan", "class": null, "prefix": null, "token": null, "yymmddhh": null, "mmss": null, "topic": "testlog_26010101_x", "legacy": true, "stem": "testlog_26010101_x", "ext": ".md"}}
+{"id": "r8", "kind": "value", "value": {"kind": "report", "class": "harness", "prefix": "harness", "token": "26082218", "yymmddhh": "26082218", "mmss": "08_32", "topic": "노드", "legacy": false, "stem": "harness_26082218_08_32_노드", "ext": ".md"}}
+{"id": "r9", "kind": "value", "value": {"kind": "report", "class": "perf", "prefix": "perf", "token": "26082218", "yymmddhh": "26082218", "mmss": null, "topic": "노드", "legacy": false, "stem": "perf_26082218_노드", "ext": ".html"}}
+{"id": "r10", "kind": "value", "value": {"kind": "report", "class": null, "prefix": null, "token": null, "yymmddhh": null, "mmss": null, "topic": "rtxpro6000-benchmark-explorer", "legacy": true, "stem": "rtxpro6000-benchmark-explorer", "ext": ".html"}}
+{"id": "r11", "kind": "value", "value": {"kind": null, "class": null, "prefix": null, "token": null, "yymmddhh": null, "mmss": null, "topic": null, "legacy": false, "stem": "perf_26082218_x.pdf", "ext": ""}}
+{"id": "r12", "kind": "value", "value": {"kind": "bench_report", "class": null, "prefix": "bench_report", "token": "26091304", "yymmddhh": "26091304", "mmss": null, "topic": "m_GB10_0.29.0", "legacy": false, "stem": "bench_report_26091304_m_GB10_0.29.0", "ext": ".md"}}
+{"id": "r13", "kind": "value", "value": {"kind": "certificate", "class": null, "prefix": "benchmark", "token": "NA", "yymmddhh": null, "mmss": null, "topic": "m_GB10_0.29.0", "legacy": false, "stem": "benchmark_NA_m_GB10_0.29.0", "ext": ".yaml"}}
+{"id": "r14", "kind": "value", "value": {"kind": "max_envelope", "class": null, "prefix": "max_envelope", "token": "26091304", "yymmddhh": "26091304", "mmss": "12_34", "topic": "m_GB10_0.29.0", "legacy": false, "stem": "max_envelope_26091304_12_34_m_GB10_0.29.0", "ext": ".md"}}
+{"id": "r15", "kind": "value", "value": {"kind": "sweep_json", "class": null, "prefix": "sweep_map", "token": "26091008", "yymmddhh": "26091008", "mmss": null, "topic": "x", "legacy": false, "stem": "sweep_map_26091008_x", "ext": ".json"}}
+{"id": "r16", "kind": "value", "value": {"kind": "sweep_map", "class": null, "prefix": "sweep_map", "token": "26091008", "yymmddhh": "26091008", "mmss": "10_20", "topic": "x", "legacy": false, "stem": "sweep_map_26091008_10_20_x", "ext": ".md"}}
+{"id": "r17", "kind": "value", "value": {"kind": null, "class": null, "prefix": null, "token": null, "yymmddhh": null, "mmss": null, "topic": null, "legacy": false, "stem": ".sweep_x", "ext": ".json"}}
+{"id": "r18", "kind": "value", "value": {"kind": null, "class": null, "prefix": null, "token": null, "yymmddhh": null, "mmss": null, "topic": null, "legacy": false, "stem": "other", "ext": ".md"}}
+{"id": "r19", "kind": "value", "value": {"kind": "simlog", "class": null, "prefix": "simlog", "token": "26091304", "yymmddhh": "26091304", "mmss": "48_40", "topic": "camp_x", "legacy": false, "stem": "26091304_48_40_camp_x", "ext": ""}}
+{"id": "r20", "kind": "value", "value": {"kind": "simlog", "class": null, "prefix": "simlog", "token": "26091304", "yymmddhh": "26091304", "mmss": null, "topic": "camp x", "legacy": true, "stem": "26091304_camp x", "ext": ""}}
+{"id": "r21", "kind": "value", "value": {"kind": "simlog", "class": null, "prefix": "simlog", "token": "26139904", "yymmddhh": "26139904", "mmss": null, "topic": "bad_date", "legacy": true, "stem": "26139904_bad_date", "ext": ""}}
+{"id": "r22", "kind": "value", "value": {"kind": "simlog", "class": null, "prefix": "simlog-legacy", "token": "2026090115", "yymmddhh": "26090115", "mmss": null, "topic": "gptoss120b_single", "legacy": true, "stem": "2026090115_1_gptoss120b_single", "ext": ""}}
+{"id": "r23", "kind": "value", "value": {"kind": "plan", "class": null, "prefix": "plan", "token": "26010101", "yymmddhh": "26010101", "mmss": null, "topic": "win", "legacy": false, "stem": "plan_26010101_win", "ext": ".md"}}
+{"id": "r24", "kind": "value", "value": {"kind": null, "class": null, "prefix": null, "token": null, "yymmddhh": null, "mmss": null, "topic": null, "legacy": false, "stem": "x", "ext": ".md"}}
+{"id": "r25", "kind": "value", "value": ["plan_26010101_a", "testlog_26010202_x", "perf_26010303_y", "26010404_run_z", "devlog_NA_q"]}
+{"id": "r26", "kind": "value", "value": "a"}
+{"id": "r27", "kind": "value", "value": ".md"}
+{"id": "r28", "kind": "value", "value": "a.tar"}
+{"id": "r29", "kind": "value", "value": "nv4_bf_262k_mmp"}
+{"id": "r30", "kind": "value", "value": ""}
+{"id": "r31", "kind": "value", "value": ["docs/plan/x.md", null]}
+{"id": "r32", "kind": "value", "value": ["docs/x.md", null]}
+{"id": "r33", "kind": "value", "value": [null, "outside-repo"]}
+{"id": "r34", "kind": "value", "value": [null, "empty"]}
+{"id": "r35", "kind": "value", "value": [null, "outside-repo"]}
+{"id": "r36", "kind": "value", "value": [["docs/plan/plan_26010101_a.md", "r1"]]}
+{"id": "r37", "kind": "value", "value": null}
+{"id": "r38", "kind": "exception", "type": "HintError", "code": "HINT_LINEAGE_EMPTY", "message": "LINEAGE 에 계보 문서가 0건이다 — 서사를 쓸 원재료가 없다.", "remedy": "발행 기록의 plan·devlog·testlog 바인딩을 확인하거나 `--lineage-add PATH=REASON` 으로 보충한다.", "exit_code": 1}
+{"id": "r39", "kind": "exception", "type": "HintError", "code": "HINT_LINEAGE_EMPTY", "message": "LINEAGE 에 계보 문서가 0건이다 — 서사를 쓸 원재료가 없다.", "remedy": "발행 기록의 plan·devlog·testlog 바인딩을 확인하거나 `--lineage-add PATH=REASON` 으로 보충한다.", "exit_code": 1}
+{"id": "r40", "kind": "value", "value": "inputs/sources/run_bench.sh@aaaaaaaaaaaa"}
+{"id": "r41", "kind": "exception", "type": "HintError", "code": "HINT_LINEAGE_TOOL_SOURCE_SHAPE", "message": "도구 스냅숏 이름·커밋 모양이 아니다: '../x'@'aaaaaaaaaaaa'", "remedy": "이름은 파일 basename, 커밋은 40자 SHA 여야 한다.", "exit_code": 1}
+{"id": "r42", "kind": "exception", "type": "HintError", "code": "HINT_LINEAGE_TOOL_SOURCE_SHAPE", "message": "도구 스냅숏 이름·커밋 모양이 아니다: 'x.sh'@'abc'", "remedy": "이름은 파일 basename, 커밋은 40자 SHA 여야 한다.", "exit_code": 1}
+{"id": "r43", "kind": "value", "value": [{"path": "docs/plan/plan_26010101_a.md", "sha256": "fd99dedae7c3f7532f8a65d60f811a05dc9dc3e1c5936b0c554c98aafdad8c10"}]}
+{"id": "r44", "kind": "exception", "type": "HintError", "code": "HINT_SEALED_SOURCE_UNREADABLE", "message": "봉인 출처를 읽을 수 없다: docs/plan/nope.md", "remedy": "린트가 통과한 출처가 봉인 직전에 사라졌다 — 출처를 복원하고 continue 를 다시 실행한다.", "exit_code": 1}
+{"id": "r45", "kind": "exception", "type": "HintError", "code": "HINT_SEALED_SOURCE_UNREADABLE", "message": "봉인 출처 경로가 저장소 상대 posix 가 아니다: '../x.md'", "remedy": null, "exit_code": 1}
+{"id": "r46", "kind": "exception", "type": "HintError", "code": "HINT_SEALED_SOURCE_UNREADABLE", "message": "봉인 출처 경로가 저장소 상대 posix 가 아니다: '/etc/hosts'", "remedy": null, "exit_code": 1}
+{"id": "r47", "kind": "exception", "type": "HintError", "code": "HINT_SEALED_SOURCE_UNREADABLE", "message": "봉인 출처 경로가 저장소 상대 posix 가 아니다: 'a\\\\b'", "remedy": null, "exit_code": 1}
+{"id": "r48", "kind": "exception", "type": "HintError", "code": "HINT_SEALED_SOURCE_UNREADABLE", "message": "봉인 출처 경로가 저장소 상대 posix 가 아니다: 'docs//x'", "remedy": null, "exit_code": 1}
+{"id": "r49", "kind": "exception", "type": "HintError", "code": "HINT_LINEAGE_UNREADABLE", "message": "LINEAGE 전체가 사전이 아니다: list", "remedy": null, "exit_code": 1}
+{"id": "r50", "kind": "value", "value": {"schema_version": 3, "kind": "receiver-summary", "note": "수신자 요약 — 서사가 읽은 계보 문서의 경로(발췌 머리 stem = 파일명) · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).", "publish_kst": "26010800", "depth": 4, "documents": [{"path": "docs/a.md", "role": "plan", "date": "26010101", "depth": 0, "excerpts": 2}], "evidence_candidates": {"count": 1, "cited": [{"path": "b", "excerpts": 1}]}, "sealed_sources": [{"path": "docs/a.md", "sha256": "ab"}]}}
+{"id": "r51", "kind": "exception", "type": "HintError", "code": "HINT_LINEAGE_SUMMARY_TOO_LARGE", "message": "LINEAGE 수신자 요약이 59,342 B > 상한 20,480 B 다 — 요약이 아니라 전사다.", "remedy": "계보 문서 수(깊이 · --lineage-add)를 확인한다 — 요약 칸을 늘리지 않는다(plan_26092908 §7 AC9).", "exit_code": 1}
+{"id": "r52", "kind": "value", "value": {"schema_version": 3, "kind": "receiver-summary", "note": "수신자 요약 — 서사가 읽은 계보 문서의 경로(발췌 머리 stem = 파일명) · 역할 · 날짜 · 이 페이로드의 발췌 수. 해시 · 간선 · 후보 전체 · 모호 해소 기록은 발행자 평면(draft inputs/LINEAGE.full.json)에 있다(배포 ✗ · plan_26092908 §4.6).", "publish_kst": null, "depth": null, "documents": [], "evidence_candidates": {"count": 0, "cited": []}}}
+{"id": "r53", "kind": "value", "value": [{"path": "d", "kind": "plan", "class": null, "date_key": null, "depth": 0, "bytes": 5, "relevance": 0, "axis_tokens": [], "resolution": null, "superseded_by": [], "tier": "primary"}, {"path": "a", "kind": null, "class": null, "date_key": "26010101", "depth": 1, "bytes": 0, "relevance": 2, "axis_tokens": ["x", "y"], "resolution": null, "superseded_by": [], "tier": "primary"}, {"path": "b", "kind": null, "class": null, "date_key": null, "depth": 1, "bytes": 0, "relevance": 1, "axis_tokens": ["x"], "resolution": "exact", "superseded_by": [], "tier": "primary"}, {"path": "c", "kind": null, "class": null, "date_key": null, "depth": 0, "bytes": 0, "relevance": 0, "axis_tokens": [], "resolution": "ambiguous", "superseded_by": ["q"], "tier": "ambiguous"}]}
+{"id": "r54", "kind": "value", "value": "docs/plan/plan_26010101_a.md"}
+{"id": "r55", "kind": "value", "value": null}
+{"id": "r56", "kind": "value", "value": "docs/simlog/26010101_r/a/b.json"}
+{"id": "r57", "kind": "value", "value": "out/d/f.log"}
+{"id": "r58", "kind": "value", "value": "x/a.md"}
+{"id": "r59", "kind": "value", "value": null}
+{"id": "r60", "kind": "value", "value": null}

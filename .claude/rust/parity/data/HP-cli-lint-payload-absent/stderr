@@ -1,0 +1,2 @@
+[hint] FAIL HINT_DRAFT_PAYLOAD_ABSENT: draft 에 payload/ 가 없다: /tmp/parity-o-HP-cli-lint-payload-absent-3568054-1794817438336323767/fx/dnopay
+  → hint.py publish 가 만든 draft 에서 실행한다(끊긴 publish 면 draft 를 지우고 같은 --generated-utc 로 다시).

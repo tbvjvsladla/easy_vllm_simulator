@@ -1,0 +1,4 @@
+usage: render_bench_section.py [-h] [--report REPORT]
+                               [--sweep-index SWEEP_INDEX] [--section SECTION]
+                               [--out OUT] [--verify] [--selftest]
+render_bench_section.py: error: argument --report: expected one argument

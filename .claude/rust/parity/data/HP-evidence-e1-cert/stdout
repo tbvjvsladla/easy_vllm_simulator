@@ -1,0 +1,36 @@
+{"id": "r1", "kind": "value", "value": {"model": "m-x", "gpu_model": "GB10", "vllm_version": "0.30.0", "quantization": "fp8", "topology": "single", "tensor_parallel_size": "1", "measured_utc": "2026-01-01T00:00:00Z", "verdict": "PASS", "note": "a \"q\" b", "empty": "", "ratio_M_over_primary": "0.926"}}
+{"id": "r2", "kind": "exception", "type": "HintError", "code": "HINT_CERTIFICATE_UNPARSEABLE", "message": "flat 인증서 형식이 아니다(들여쓰기·중복 키·잘못된 행): docs/benchmark/benchmark_indent.yaml", "remedy": "결정론 발행기(publish_benchmark_record.py)가 쓴 원본을 바인딩한다 — 손으로 고친 인증서를 읽지 않는다.", "exit_code": 1}
+{"id": "r3", "kind": "exception", "type": "HintError", "code": "HINT_CERTIFICATE_UNPARSEABLE", "message": "flat 인증서 형식이 아니다(들여쓰기·중복 키·잘못된 행): docs/benchmark/benchmark_dup.yaml", "remedy": "결정론 발행기(publish_benchmark_record.py)가 쓴 원본을 바인딩한다 — 손으로 고친 인증서를 읽지 않는다.", "exit_code": 1}
+{"id": "r4", "kind": "exception", "type": "HintError", "code": "HINT_CERTIFICATE_UNPARSEABLE", "message": "flat 인증서 형식이 아니다(들여쓰기·중복 키·잘못된 행): docs/benchmark/benchmark_bad.yaml", "remedy": "결정론 발행기(publish_benchmark_record.py)가 쓴 원본을 바인딩한다 — 손으로 고친 인증서를 읽지 않는다.", "exit_code": 1}
+{"id": "r5", "kind": "exception", "type": "HintError", "code": "HINT_CERTIFICATE_UNPARSEABLE", "message": "인증서가 비었다(주석뿐): docs/benchmark/benchmark_comments.yaml", "remedy": "빈 인증서로 페이로드를 짓지 않는다 — 벤치마커가 발행한 원본을 바인딩한다.", "exit_code": 1}
+{"id": "r6", "kind": "exception", "type": "HintError", "code": "HINT_CERTIFICATE_UNPARSEABLE", "message": "flat 인증서 형식이 아니다(들여쓰기·중복 키·잘못된 행): docs/benchmark/benchmark_trailing.yaml", "remedy": "결정론 발행기(publish_benchmark_record.py)가 쓴 원본을 바인딩한다 — 손으로 고친 인증서를 읽지 않는다.", "exit_code": 1}
+{"id": "r7", "kind": "exception", "type": "HintError", "code": "HINT_CERTIFICATE_ABSENT", "message": "인증서 부재: docs/benchmark/missing.yaml", "remedy": null, "exit_code": 1}
+{"id": "r8", "kind": "exception", "type": "HintError", "code": "HINT_PATH_OUTSIDE_REPO", "message": "저장소 밖 경로: /srv/x.yaml", "remedy": null, "exit_code": 1}
+{"id": "r9", "kind": "value", "value": {"model": "m-x", "gpu": "GB10", "vllm": "0.30.0", "quant": "fp8", "topology": "single", "tp": 1}}
+{"id": "r10", "kind": "value", "value": {"model": null, "gpu": null, "vllm": null, "quant": null, "topology": null, "tp": null}}
+{"id": "r11", "kind": "value", "value": null}
+{"id": "r12", "kind": "value", "value": null}
+{"id": "r13", "kind": "value", "value": "hint_map_only"}
+{"id": "r14", "kind": "value", "value": "observation_only"}
+{"id": "r15", "kind": "value", "value": null}
+{"id": "r16", "kind": "value", "value": "observation_only"}
+{"id": "r17", "kind": "value", "value": null}
+{"id": "r18", "kind": "value", "value": "weak"}
+{"id": "r19", "kind": "value", "value": "explicit"}
+{"id": "r20", "kind": "value", "value": "weak"}
+{"id": "r21", "kind": "value", "value": "explore"}
+{"id": "r22", "kind": "value", "value": null}
+{"id": "r23", "kind": "value", "value": null}
+{"id": "r24", "kind": "value", "value": null}
+{"id": "r25", "kind": "value", "value": null}
+{"id": "r26", "kind": "value", "value": null}
+{"id": "r27", "kind": "value", "value": null}
+{"id": "r28", "kind": "value", "value": null}
+{"id": "r29", "kind": "value", "value": null}
+{"id": "r30", "kind": "value", "value": "weak"}
+{"id": "r31", "kind": "value", "value": "docs/benchmark/benchmark_c.yaml"}
+{"id": "r32", "kind": "value", "value": "docs/benchmark/bench_report_c.md"}
+{"id": "r33", "kind": "value", "value": null}
+{"id": "r34", "kind": "value", "value": null}
+{"id": "r35", "kind": "value", "value": "r.md"}
+{"id": "r36", "kind": "value", "value": null}

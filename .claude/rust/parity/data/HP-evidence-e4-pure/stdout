@@ -1,0 +1,51 @@
+{"id": "r0", "kind": "value", "value": [true, "config='c1' ready=None health=200 verdict='pass' evidence='v1.completions' completion_text_len=5"]}
+{"id": "r1", "kind": "value", "value": [false, "config='c1' ready=None health=200 verdict='pass' evidence='v1.completions' completion_text_len=5 image_tag 'img:2' ≠ 측정 'img:1'"]}
+{"id": "r2", "kind": "value", "value": [false, "config='c1' ready=None health=200 verdict='pass' evidence='v1.completions' completion_text_len=5 provenance 비관측"]}
+{"id": "r3", "kind": "value", "value": [false, "config='c1' ready=None health=200 verdict='pass' evidence='chat.reasoning(relaxed)' len=None"]}
+{"id": "r4", "kind": "value", "value": [false, "config='c2' ready=False health=200 verdict='pass' evidence='v1.completions' completion_text_len=5"]}
+{"id": "r5", "kind": "value", "value": [false, "config='c1' ready=None health='200' verdict='pass' evidence='chat.content' content_len=0"]}
+{"id": "r6", "kind": "value", "value": [true, "native kind='native_multinode_serve_proof' status='PASS' health=True/200 inference=True/'200' completion_text_len=3"]}
+{"id": "r7", "kind": "value", "value": [false, "native kind='native_multinode_serve_proof' status='PASS' health='true'/200 inference=True/'200' completion_text_len=3"]}
+{"id": "r8", "kind": "value", "value": "multi TP=2(Ray)"}
+{"id": "r9", "kind": "value", "value": "single TP=1"}
+{"id": "r10", "kind": "exception", "type": "HintError", "code": "HINT_TOPOLOGY_UNDERIVABLE", "message": "topology/tp 로 라벨을 만들 수 없다: 'single'/True", "remedy": null, "exit_code": 1}
+{"id": "r11", "kind": "exception", "type": "HintError", "code": "HINT_TOPOLOGY_UNDERIVABLE", "message": "topology/tp 로 라벨을 만들 수 없다: 'dual'/1", "remedy": null, "exit_code": 1}
+{"id": "r12", "kind": "exception", "type": "HintError", "code": "HINT_TOPOLOGY_UNDERIVABLE", "message": "topology/tp 로 라벨을 만들 수 없다: None/None", "remedy": null, "exit_code": 1}
+{"id": "r13", "kind": "value", "value": "true"}
+{"id": "r14", "kind": "value", "value": ""}
+{"id": "r15", "kind": "value", "value": "{\"a\":1.5,\"b\":[1,\"가\"]}"}
+{"id": "r16", "kind": "value", "value": "0.1"}
+{"id": "r17", "kind": "value", "value": "3"}
+{"id": "r18", "kind": "value", "value": {"A": "1", "B": "x y", "C": "q", "D": "'", "E": "\"a'"}}
+{"id": "r19", "kind": "value", "value": {"A": "1", "--a": "1", "--b": "2", "--c": "true", "--d": "true", "--f": "true", "--h": "true", "--j": "true", "--k": "true"}}
+{"id": "r20", "kind": "value", "value": true}
+{"id": "r21", "kind": "value", "value": true}
+{"id": "r22", "kind": "value", "value": true}
+{"id": "r23", "kind": "value", "value": true}
+{"id": "r24", "kind": "value", "value": false}
+{"id": "r25", "kind": "value", "value": true}
+{"id": "r26", "kind": "value", "value": true}
+{"id": "r27", "kind": "value", "value": ["a", null]}
+{"id": "r28", "kind": "value", "value": [null, null]}
+{"id": "r29", "kind": "value", "value": {"model": "m-nvfp4", "gpu": "NVIDIA GB10", "vllm": "0.9.0", "quant": null, "topology": "single", "tp": 1}}
+{"id": "r30", "kind": "value", "value": {"describe": "v0.9.0-3-gabc"}}
+{"id": "r31", "kind": "value", "value": {"x": 1}}
+{"id": "r32", "kind": "value", "value": {}}
+{"id": "r33", "kind": "value", "value": {"source": ""}}
+{"id": "r34", "kind": "value", "value": {"raw": "none", "source": "L/config.json quantization_config·hf_quant_config.json 부재 관측 → 비양자화"}}
+{"id": "r35", "kind": "value", "value": {"raw": "fp8", "source": "체크포인트/config.json quantization_config quant_method=fp8"}}
+{"id": "r36", "kind": "value", "value": {"raw": "compressed-tensors:nvfp4-pack-quantized", "source": "체크포인트/config.json quantization_config quant_method=compressed-tensors format=nvfp4-pack-quantized"}}
+{"id": "r37", "kind": "value", "value": {"raw": "modelopt:NVFP4", "source": "체크포인트/hf_quant_config.json quantization quant_method=modelopt quant_algo=NVFP4"}}
+{"id": "r38", "kind": "value", "value": {"source": "체크포인트/hf_quant_config.json quantization MIXED_PRECISION quantized_layers 우세 알고리즘 판정 불가({'FP8': 1, 'NVFP4': 1})"}}
+{"id": "r39", "kind": "value", "value": {"source": "체크포인트/config.json quantization_config modelopt 인데 quant_algo 가 없다"}}
+{"id": "r40", "kind": "value", "value": {"source": "체크포인트/config.json quantization_config 에 quant_method 가 없다"}}
+{"id": "r41", "kind": "value", "value": [null, "체크포인트 config 미관측(R) — 구성 미기재"]}
+{"id": "r42", "kind": "value", "value": [[], "체크포인트/config.json 에 양자화·dtype 칸이 없다(관측 · 빈 구성)"]}
+{"id": "r43", "kind": "value", "value": [[{"scope": "quantization_config 선언 대상(양자화 층 · 제외 목록 밖)", "dtype": "fp8 (fmt=e4m3 · weight_block_size=[128, 128])", "source": "L/config.json quantization_config quant_method"}, {"scope": "양자화 제외 모듈 2개", "dtype": "unquantized(아래 기본 dtype)", "count": 2, "source": "L/config.json quantization_config ignore·exclude_modules"}, {"scope": "기본 dtype(비양자화 가중치·계산)", "dtype": "bfloat16", "source": "L/config.json dtype"}], "L/config.json(+hf_quant_config.json) 관측 칸(evidence._quant_composition 닫힌 목록)"]}
+{"id": "r44", "kind": "value", "value": [[{"scope": "quantization_config 선언 대상(양자화 층 · 제외 목록 밖)", "dtype": "W4", "source": "체크포인트/config.json quantization_config quant_method·quant_algo"}, {"scope": "기본 dtype(비양자화 가중치·계산)", "dtype": "float16", "source": "체크포인트/config.json text_config dtype"}], "체크포인트/config.json(+hf_quant_config.json) 관측 칸(evidence._quant_composition 닫힌 목록)"]}
+{"id": "r45", "kind": "value", "value": true}
+{"id": "r46", "kind": "value", "value": false}
+{"id": "r47", "kind": "value", "value": null}
+{"id": "r48", "kind": "value", "value": "camp_1__main__c1.x"}
+{"id": "r49", "kind": "value", "value": "t_1"}
+{"id": "r50", "kind": "value", "value": "None__main___"}

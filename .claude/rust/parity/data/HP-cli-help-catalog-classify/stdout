@@ -1,0 +1,6 @@
+usage: hint.py catalog classify [-h] --index INDEX --rc RC
+
+options:
+  -h, --help     show this help message and exit
+  --index INDEX  방금 쓴 hints/index.json
+  --rc RC        재파생 종료코드

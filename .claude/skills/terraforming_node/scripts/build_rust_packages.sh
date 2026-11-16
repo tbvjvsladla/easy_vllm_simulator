@@ -37,6 +37,8 @@ pa="$REPO/.claude/rust/policy-audit"
 ps="$REPO/.claude/rust/policy-selftest"
 pd="$REPO/.claude/rust/policy-distribution"
 pf="$REPO/.claude/rust/policy-predicates"
+# hint-publisher Rust port (plan_26111615 · Q path dependency) — built where the skill is delivered.
+h="$REPO/.claude/skills/hint-publisher/rust"
 # Every role consumer must carry its library and Q path dependency.
 for consumer in "$REPO/.claude/skills/adversarial-benchmark/rust" "$u"; do
   if [ -f "$consumer/Cargo.toml" ]; then
@@ -59,7 +61,7 @@ done
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/rust-packages.XXXXXX")"
 trap 'rm -f -- "$tmp/metadata.json"; rmdir -- "$tmp"' EXIT
 applicable=0
-for crate in "$r" "$q" "$t" "$p" "$u" "$x" "$g" "$pp" "$pa" "$ps" "$pd" "$pf" "$bg"; do
+for crate in "$r" "$q" "$t" "$p" "$u" "$x" "$g" "$pp" "$pa" "$ps" "$pd" "$pf" "$bg" "$h"; do
   [ -f "$crate/Cargo.toml" ] || continue
   applicable=$((applicable+1))
   [ -f "$crate/Cargo.lock" ] || { echo "Missing lock: $crate" >&2; exit 2; }
@@ -86,6 +88,9 @@ if [ "$applicable" -eq 0 ]; then
 fi
 if [ -f "$p/Cargo.toml" ]; then
   env -i PATH= LC_ALL=C.UTF-8 COLUMNS=80 "$p/target/release/quant_table" --dtype float16 --json
+fi
+if [ -f "$h/Cargo.toml" ]; then
+  env -i PATH= LC_ALL=C.UTF-8 COLUMNS=80 "$h/target/release/hint" --help >/dev/null
 fi
 if [ -f "$u/Cargo.toml" ]; then
   env -i PATH= LC_ALL=C.UTF-8 COLUMNS=80 "$u/target/release/node_role_contract" --help

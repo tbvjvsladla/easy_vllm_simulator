@@ -1,0 +1,8 @@
+usage: hint.py push [-h] --tag TAG [--remote REMOTE] [--apply] [--draft DRAFT]
+
+options:
+  -h, --help       show this help message and exit
+  --tag TAG
+  --remote REMOTE
+  --apply          실제 push(없으면 dry-run — 실패를 삼키지 않는다)
+  --draft DRAFT

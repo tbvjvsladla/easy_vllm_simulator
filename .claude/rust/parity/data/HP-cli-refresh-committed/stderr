@@ -1,0 +1,2 @@
+[hint] FAIL HINT_DRAFT_ALREADY_COMMITTED: 이미 hint 브랜치에 커밋한 draft 다(0123456789ab) — 파생 블록을 다시 쓰면 커밋한 바이트와 갈라진다.
+  → 커밋 뒤 개정은 새 publish(새 이름)다 — continue 재실행은 커밋한 내용 그대로 잇는다.

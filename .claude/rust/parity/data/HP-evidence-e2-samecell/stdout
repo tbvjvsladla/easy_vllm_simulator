@@ -1,0 +1,11 @@
+{"id": "r1", "kind": "value", "value": null}
+{"id": "r2", "kind": "value", "value": null}
+{"id": "r3", "kind": "value", "value": null}
+{"id": "r4", "kind": "value", "value": null}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": null}
+{"id": "r7", "kind": "value", "value": null}
+{"id": "r8", "kind": "value", "value": [{"__path__": "docs/simlog/run1/a_serve.log"}, {"__path__": "docs/simlog/run2/z.log"}]}
+{"id": "r9", "kind": "value", "value": [{"session": "serve-c1-20261010T045514Z", "start": "2026-10-10T04:55:14Z", "end": "2026-10-10T05:00:00Z", "source": "docs/simlog/run1/a_serve.log:2"}]}
+{"id": "r10", "kind": "value", "value": []}
+{"id": "r11", "kind": "value", "value": {"utc": "2026-10-10T08:04:57Z", "observed": true, "campaign_id": "camp-b", "source": "campaigns/camp-b/campaign.yaml declared_utc 2026-10-10T08:04:57Z → 경계 = 앞선 값 2026-10-10T08:04:57Z(이전 행 = 같은 셀 이름 · 앞선 캠페인) · 단 이전 기동 중 1건은 캠페인 선언 전 · 같은 셀 기동(세션 id 가 이 셀 기록에 관측: serve-c1-20261010T045514Z = docs/simlog/run1/a_serve.log:2)", "same_cell_sessions": [{"session": "serve-c1-20261010T045514Z", "start": "2026-10-10T04:55:14Z", "end": "2026-10-10T05:00:00Z", "source": "docs/simlog/run1/a_serve.log:2"}]}}

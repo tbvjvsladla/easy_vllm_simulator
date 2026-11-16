@@ -1,0 +1,2 @@
+usage: hint.py lint [-h] --draft DRAFT [--json]
+hint.py lint: error: argument --draft: expected one argument

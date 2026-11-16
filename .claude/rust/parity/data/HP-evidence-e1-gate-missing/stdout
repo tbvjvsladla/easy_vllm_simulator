@@ -1,0 +1,8 @@
+{"id": "r1", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r2", "kind": "exception", "type": "HintError", "code": "HINT_OWNER_MODULE_MISSING", "message": "completion_gate 부재: .claude/policies/runtime/completion_gate.py · 동거 사본 completion_gate.py", "remedy": "대체 구현으로 계속하지 않는다(2026-07-31 ModuleNotFoundError 선례) — 정책 런타임이 있는 체크아웃에서 실행한다.", "exit_code": 1}
+{"id": "r3", "kind": "exception", "type": "HintError", "code": "HINT_OWNER_MODULE_MISSING", "message": "completion_gate 부재: .claude/policies/runtime/completion_gate.py · 동거 사본 completion_gate.py", "remedy": "대체 구현으로 계속하지 않는다(2026-07-31 ModuleNotFoundError 선례) — 정책 런타임이 있는 체크아웃에서 실행한다.", "exit_code": 1}
+{"id": "r4", "kind": "value", "value": "hint_map_only"}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": null}
+{"id": "r7", "kind": "exception", "type": "HintError", "code": "HINT_GATE_API_MISSING", "message": "completion_gate 에 공개 API ['certificate_run_key', 'STRONG_IDENTITY_FIELDS', 'lexical_components', 'manifest_rubric_contract', 'PII_MACHINE_RAW_EXEMPTION_REASON', 'certificate_requirement_authority', 'certificate_waived', 'CERTIFICATE_NON_ISSUING_AUTHORITIES'] 가 없다(completion_gate.py).", "remedy": "동거 사본이 낡았을 수 있다 — 정본 `.claude/policies/runtime/completion_gate.py` 로 맞춘다.", "exit_code": 1}
+{"id": "r8", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}

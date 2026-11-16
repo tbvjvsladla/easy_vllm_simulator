@@ -1,0 +1,31 @@
+usage: hint.py publish [-h] [--campaign CAMPAIGN] [--cell CELL]
+                       [--publication PUBLICATION] [--replay]
+                       [--node {main,sub,cluster}] --generated-utc
+                       GENERATED_UTC [--lineage-add PATH=REASON] [--out OUT]
+                       [--remote REMOTE] [--no-remote-check]
+                       [--docker-read-only | --docker-probe]
+
+options:
+  -h, --help            show this help message and exit
+  --campaign CAMPAIGN   캠페인 id(명시 · ACTIVE 를 읽지 않는다)
+  --cell CELL           셀 id
+  --publication PUBLICATION
+                        발행 기록 토픽(docs/_evidence/<topic>.json) — --replay 와 함께
+  --replay              발행 기록 재생(읽기 전용 · draft 밖 쓰기 0)
+  --node {main,sub,cluster}
+                        측정 노드 축(생략 = evidence 자동 파생: 셀 측정 TP > 노드당 GPU 이거나 멀티
+                        serve proof · attestation 이면 cluster · 그 밖은 인증서
+                        measured_node — 모호하면 차단 · plan_26092908 §4.8)
+  --generated-utc GENERATED_UTC
+                        주입 UTC YYYY-MM-DDTHH:MM:SSZ(벽시계 ✗)
+  --lineage-add PATH=REASON
+                        간선이 끊긴 계보 문서를 사람이 보충한다(source: declared · 사유 필수)
+  --out OUT             draft 디렉터리(기본 hints/.drafts/<draft_id>/)
+  --remote REMOTE       이름 충돌을 확인할 원격(ls-remote 읽기)
+  --no-remote-check     원격 이름 충돌 조회를 건너뛴다(로컬만 · 오프라인)
+  --docker-read-only    이미지 탐침을 끈다 — docker 는 image inspect·history 만(시작하지 않는
+                        컨테이너의 create·cp·rm 도 ✗ · 이미지 안 원장 · 패치 사본 관측 실패로 남긴다)
+  --docker-probe        옛 이름(no-op) — 이미지 탐침은 기본이다: docker 는 image
+                        inspect·history + 시작하지 않는 컨테이너의 create(--pull
+                        never)·cp·rm 만 — 이미지 파일 탐침 ✓ · 이미지 원장도 같은 create+cp 로
+                        읽는다 · run/start ✗

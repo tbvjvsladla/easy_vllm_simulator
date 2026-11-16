@@ -1,0 +1,11 @@
+[
+  {
+    "id": "HP-template-selftest",
+    "entry": ".claude/skills/hint-publisher/scripts/hint_api.sh",
+    "orig": ".claude/rust/parity/cases/shims/hint_api.py",
+    "orig_rev": "ee16dc4c086f4b10975a1c79d41ff75152d6764d",
+    "args": [],
+    "stdin": "{\"id\": \"st\", \"fn\": \"template.selftest\", \"args\": []}\n",
+    "outputs": []
+  }
+]

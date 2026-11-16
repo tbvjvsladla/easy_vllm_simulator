@@ -1,0 +1,133 @@
+{"id": "r1", "kind": "value", "value": null}
+{"id": "r2", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r3", "kind": "value", "value": null}
+{"id": "r4", "kind": "value", "value": null}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": null}
+{"id": "r7", "kind": "exception", "type": "HintError", "code": "HINT_TAG_NAMESPACE", "message": "hint/ 밖 이름은 다루지 않는다(브랜치·다른 태그 ✗): 'other/x'", "remedy": "태그 이름은 `hint/<vllm>/<model>/<arch>/<recipe>` 이다(refs/ 접두 없이).", "exit_code": 1}
+{"id": "r8", "kind": "exception", "type": "HintError", "code": "HINT_TAG_NAMESPACE", "message": "hint/ 밖 이름은 다루지 않는다(브랜치·다른 태그 ✗): 'refs/heads/hint'", "remedy": "태그 이름은 `hint/<vllm>/<model>/<arch>/<recipe>` 이다(refs/ 접두 없이).", "exit_code": 1}
+{"id": "r9", "kind": "exception", "type": "HintError", "code": "HINT_TAG_NAMESPACE", "message": "hint/ 밖 이름은 다루지 않는다(브랜치·다른 태그 ✗): 'refs/tags/hint/x'", "remedy": "태그 이름은 `hint/<vllm>/<model>/<arch>/<recipe>` 이다(refs/ 접두 없이).", "exit_code": 1}
+{"id": "r10", "kind": "exception", "type": "HintError", "code": "HINT_TAG_GLOB_FORBIDDEN", "message": "glob 문자가 있는 태그 이름: 'hint/*'", "remedy": "정확한 태그 1개만 다룬다(glob 선택과 git glob 은 `?`·`[…]` 에서 갈린다).", "exit_code": 1}
+{"id": "r11", "kind": "exception", "type": "HintError", "code": "HINT_TAG_GLOB_FORBIDDEN", "message": "glob 문자가 있는 태그 이름: 'hint/a?b'", "remedy": "정확한 태그 1개만 다룬다(glob 선택과 git glob 은 `?`·`[…]` 에서 갈린다).", "exit_code": 1}
+{"id": "r12", "kind": "exception", "type": "HintError", "code": "HINT_TAG_GLOB_FORBIDDEN", "message": "glob 문자가 있는 태그 이름: 'hint/[x]'", "remedy": "정확한 태그 1개만 다룬다(glob 선택과 git glob 은 `?`·`[…]` 에서 갈린다).", "exit_code": 1}
+{"id": "r13", "kind": "exception", "type": "HintError", "code": "HINT_TAG_REF_FORMAT", "message": "refspec 구분자·공백·제어문자가 있는 태그 이름: 'hint/a b'", "remedy": null, "exit_code": 1}
+{"id": "r14", "kind": "exception", "type": "HintError", "code": "HINT_TAG_REF_FORMAT", "message": "refspec 구분자·공백·제어문자가 있는 태그 이름: 'hint/a:b'", "remedy": null, "exit_code": 1}
+{"id": "r15", "kind": "exception", "type": "HintError", "code": "HINT_TAG_REF_FORMAT", "message": "git check-ref-format 이 거부한다: 'hint/a..b'", "remedy": null, "exit_code": 1}
+{"id": "r16", "kind": "exception", "type": "HintError", "code": "HINT_TAG_REF_FORMAT", "message": "git check-ref-format 이 거부한다: 'hint/x.lock'", "remedy": null, "exit_code": 1}
+{"id": "r17", "kind": "exception", "type": "HintError", "code": "HINT_TAG_NAME_ABSENT", "message": "태그 이름이 비었다.", "remedy": null, "exit_code": 1}
+{"id": "r18", "kind": "exception", "type": "HintError", "code": "HINT_TAG_REF_FORMAT", "message": "refspec 구분자·공백·제어문자가 있는 태그 이름: 'hint/a\\x01'", "remedy": null, "exit_code": 1}
+{"id": "r19", "kind": "exception", "type": "HintError", "code": "HINT_TAG_REF_FORMAT", "message": "refspec 구분자·공백·제어문자가 있는 태그 이름: 'hint/a\\xa0b'", "remedy": null, "exit_code": 1}
+{"id": "r20", "kind": "exception", "type": "HintError", "code": "HINT_TAG_REF_FORMAT", "message": "git check-ref-format 이 거부한다: 'hint/'", "remedy": null, "exit_code": 1}
+{"id": "r21", "kind": "exception", "type": "HintError", "code": "HINT_TAG_REF_FORMAT", "message": "git check-ref-format 이 거부한다: 'hint//x'", "remedy": null, "exit_code": 1}
+{"id": "r22", "kind": "value", "value": "local"}
+{"id": "r23", "kind": "value", "value": "local-prefix"}
+{"id": "r24", "kind": "value", "value": "local-prefix"}
+{"id": "r25", "kind": "value", "value": null}
+{"id": "r26", "kind": "value", "value": "remote"}
+{"id": "r27", "kind": "value", "value": "remote-prefix"}
+{"id": "r28", "kind": "value", "value": "remote-prefix"}
+{"id": "r29", "kind": "value", "value": null}
+{"id": "r30", "kind": "exception", "type": "HintError", "code": "HINT_REMOTE_QUERY_FAILED", "message": "ls-remote ../absent.git 실패(rc=128): fatal: '../absent.git' does not appear to be a git repository\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.", "remedy": "원격 이름·경로와 네트워크를 확인한다(https 비공개 원격이면 자격증명 — envs/.env 의 GITHUB_TOKEN). 조회 실패는 '없음' 으로 읽지 않는다.", "exit_code": 1}
+{"id": "r31", "kind": "value", "value": ["refs/tags/hint/a/ann", "refs/tags/hint/a/b", "refs/tags/hint/x/y"]}
+{"id": "r32", "kind": "value", "value": "ba6189e3b44cc9566710130eff7db7d446cba722"}
+{"id": "r33", "kind": "value", "value": null}
+{"id": "r34", "kind": "value", "value": "commit"}
+{"id": "r35", "kind": "value", "value": "tag"}
+{"id": "r36", "kind": "value", "value": null}
+{"id": "r37", "kind": "value", "value": null}
+{"id": "r38", "kind": "value", "value": null}
+{"id": "r39", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a207b226f626a6563745f736861223a202237663966346531326134653238336662383435666431393766353162663735336165643838366436222c2022746172676574223a202262613631383965336234346363393536363731303133306566663764623764343436636261373232222c20227461726765745f74797065223a2022636f6d6d6974222c20226e616d65223a202268696e742f612f616e6e222c2022746167676572223a207b226964656e74223a202266697874757265203c666978747572653e222c202265706f6368223a20313738393030303030302c2022747a223a20222b30303030227d2c2022626f6479223a2022616e6e6f5c6e222c2022726177223a207b225f5f62797465735f5f223a2022366636323661363536333734323036323631333633313338333936353333363233343334363336333339333533363336333733313330333133333330363536363636333736343632333736343334333433363633363236313337333233323061373437393730363532303633366636643664363937343061373436313637323036383639366537343266363132663631366536653061373436313637363736353732323036363639373837343735373236353230336336363639373837343735373236353365323033313337333833393330333033303330333033303230326233303330333033303061306136313665366536663061227d7d7d"}
+{"id": "r40", "kind": "value", "value": {"refs/tags/hint/a/b": "ba6189e3b44cc9566710130eff7db7d446cba722"}}
+{"id": "r41", "kind": "value", "value": {}}
+{"id": "r42", "kind": "exception", "type": "HintError", "code": "HINT_REMOTE_QUERY_FAILED", "message": "ls-remote ../absent.git 실패(rc=128): fatal: '../absent.git' does not appear to be a git repository\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.", "remedy": "원격 이름·경로와 네트워크를 확인한다(https 비공개 원격이면 자격증명 — envs/.env 의 GITHUB_TOKEN). 조회 실패는 '없음' 으로 읽지 않는다.", "exit_code": 1}
+{"id": "r43", "kind": "value", "value": "ba6189e3b44cc9566710130eff7db7d446cba722"}
+{"id": "r44", "kind": "value", "value": null}
+{"id": "r45", "kind": "exception", "type": "HintError", "code": "HINT_TAG_NAMESPACE", "message": "hint/ 밖 이름은 다루지 않는다(브랜치·다른 태그 ✗): 'bad'", "remedy": "태그 이름은 `hint/<vllm>/<model>/<arch>/<recipe>` 이다(refs/ 접두 없이).", "exit_code": 1}
+{"id": "r46", "kind": "value", "value": "ba6189e3b44cc9566710130eff7db7d446cba722"}
+{"id": "r47", "kind": "exception", "type": "HintError", "code": "HINT_BRANCH_REF_INVALID", "message": "원격 branch ref 형식이 올바르지 않다: 'heads/main'", "remedy": null, "exit_code": 1}
+{"id": "r48", "kind": "exception", "type": "HintError", "code": "HINT_BRANCH_REF_INVALID", "message": "원격 branch ref 형식이 올바르지 않다: 'refs/a:b'", "remedy": null, "exit_code": 1}
+{"id": "r49", "kind": "exception", "type": "HintError", "code": "HINT_BRANCH_REF_INVALID", "message": "원격 branch ref 형식이 올바르지 않다: 'refs/a b'", "remedy": null, "exit_code": 1}
+{"id": "r50", "kind": "exception", "type": "HintError", "code": "HINT_BRANCH_REF_INVALID", "message": "git check-ref-format 이 원격 branch ref를 거부했다: 'refs/a..b'", "remedy": null, "exit_code": 1}
+{"id": "r51", "kind": "exception", "type": "HintError", "code": "HINT_REMOTE_QUERY_FAILED", "message": "ls-remote dead-https 실패(rc=128): fatal: '/tmp/parity-o-HP-tag-remote-3420478-1794816500939568536/fx/repo/../none.git' does not appear to be a git repository\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.", "remedy": "원격 이름·경로와 네트워크를 확인한다(https 비공개 원격이면 자격증명 — envs/.env 의 GITHUB_TOKEN). 조회 실패는 '없음' 으로 읽지 않는다.", "exit_code": 1}
+{"id": "r52", "kind": "exception", "type": "HintError", "code": "HINT_REMOTE_QUERY_FAILED", "message": "fetch origin refs/heads/main 실패(rc=128): fatal: couldn't find remote ref refs/heads/main", "remedy": "원격 이름·경로와 네트워크를 확인한다(https 비공개 원격이면 envs/.env 의 GITHUB_TOKEN).", "exit_code": 1}
+{"id": "r53", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}
+{"id": "r54", "kind": "value", "value": "refs/remotes/origin/main"}
+{"id": "r55", "kind": "value", "value": null}
+{"id": "r56", "kind": "exception", "type": "HintError", "code": "HINT_REMOTE_QUERY_FAILED", "message": "fetch origin refs/heads/nope 실패(rc=128): fatal: couldn't find remote ref refs/heads/nope", "remedy": "원격 이름·경로와 네트워크를 확인한다(https 비공개 원격이면 envs/.env 의 GITHUB_TOKEN).", "exit_code": 1}
+{"id": "r57", "kind": "exception", "type": "HintError", "code": "HINT_BRANCH_REF_INVALID", "message": "fetch 할 branch ref 형식이 올바르지 않다: 'refs/tags/x'", "remedy": null, "exit_code": 1}
+{"id": "r58", "kind": "exception", "type": "HintError", "code": "HINT_BRANCH_REF_INVALID", "message": "git check-ref-format 이 fetch ref 를 거부했다: 'refs/heads/a..b'", "remedy": null, "exit_code": 1}
+{"id": "r59", "kind": "value", "value": {"rc": 0, "stdout": "refs/remotes/origin/main\nrefs/tags/hint/a/ann\nrefs/tags/hint/a/b\nrefs/tags/hint/x/y\nrefs/tags/last-good-fixture\n", "stderr": ""}}
+{"id": "r60", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b222e2e2f626172652e676974225d7d"}
+{"id": "r61", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b222e2e2f626172652e676974225d7d"}
+{"id": "r62", "kind": "value", "value": ["local"]}
+{"id": "r63", "kind": "value", "value": false}
+{"id": "r64", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b2268747470733a2f2f666978747572652e696e76616c69642f722e676974225d7d"}
+{"id": "r65", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b2268747470733a2f2f666978747572652e696e76616c69642f722e676974225d7d"}
+{"id": "r66", "kind": "value", "value": ["https"]}
+{"id": "r67", "kind": "value", "value": true}
+{"id": "r68", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b22687474703a2f2f666978747572652e696e76616c69642f722e676974225d7d"}
+{"id": "r69", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b22687474703a2f2f666978747572652e696e76616c69642f722e676974225d7d"}
+{"id": "r70", "kind": "value", "value": ["http"]}
+{"id": "r71", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_INSECURE_TRANSPORT", "message": "평문 http 원격에는 push 자격증명을 보내지 않는다.", "remedy": "https 또는 ssh 원격을 쓴다.", "exit_code": 1}
+{"id": "r72", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b227373683a2f2f666978747572652e696e76616c69642f722e676974225d7d"}
+{"id": "r73", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b227373683a2f2f666978747572652e696e76616c69642f722e676974225d7d"}
+{"id": "r74", "kind": "value", "value": ["ssh"]}
+{"id": "r75", "kind": "value", "value": false}
+{"id": "r76", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b222e2e2f626172652e676974222c2022687474703a2f2f666978747572652e696e76616c69642f6d2e676974225d7d"}
+{"id": "r77", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b222e2e2f626172652e676974225d7d"}
+{"id": "r78", "kind": "value", "value": ["http", "local"]}
+{"id": "r79", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_INSECURE_TRANSPORT", "message": "평문 http 원격에는 push 자격증명을 보내지 않는다.", "remedy": "https 또는 ssh 원격을 쓴다.", "exit_code": 1}
+{"id": "r80", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b222e2e2f626172652e676974225d7d"}
+{"id": "r81", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b222e2e2f626172652e676974225d7d"}
+{"id": "r82", "kind": "value", "value": ["local"]}
+{"id": "r83", "kind": "value", "value": false}
+{"id": "r84", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b2267697440666978747572652e696e76616c69643a722e676974225d7d"}
+{"id": "r85", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b2267697440666978747572652e696e76616c69643a722e676974225d7d"}
+{"id": "r86", "kind": "value", "value": ["ssh"]}
+{"id": "r87", "kind": "value", "value": false}
+{"id": "r88", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b226578743a3a7368202d632078225d7d"}
+{"id": "r89", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b226578743a3a7368202d632078225d7d"}
+{"id": "r90", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_SCHEME_UNKNOWN", "message": "원격 helper 형식(`<transport>::<address>`)은 판정하지 않는다.", "remedy": null, "exit_code": 1}
+{"id": "r91", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_SCHEME_UNKNOWN", "message": "원격 helper 형식(`<transport>::<address>`)은 판정하지 않는다.", "remedy": null, "exit_code": 1}
+{"id": "r92", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b2268747470733a2f2f757365723a73656372657440666978747572652e696e76616c69642f722e676974225d7d"}
+{"id": "r93", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b2268747470733a2f2f757365723a73656372657440666978747572652e696e76616c69642f722e676974225d7d"}
+{"id": "r94", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_URL_EMBEDS_CREDENTIAL", "message": "원격 URL 에 자격증명(userinfo)이 박혀 있다: https://***@fixture.invalid/r.git", "remedy": "remote.url 에서 userinfo 를 걷어내고 `envs/.env`(비추적)의 `GITHUB_TOKEN` 를 쓴다 — URL 에 토큰을 박으면 reflog·설정·로그에 남는다.", "exit_code": 1}
+{"id": "r95", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_URL_EMBEDS_CREDENTIAL", "message": "원격 URL 에 자격증명(userinfo)이 박혀 있다: https://***@fixture.invalid/r.git", "remedy": "remote.url 에서 userinfo 를 걷어내고 `envs/.env`(비추적)의 `GITHUB_TOKEN` 를 쓴다 — URL 에 토큰을 박으면 reflog·설정·로그에 남는다.", "exit_code": 1}
+{"id": "r96", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b226e6f73756368225d7d"}
+{"id": "r97", "hex": "7b226b696e64223a202276616c7565222c202276616c7565223a205b226e6f73756368225d7d"}
+{"id": "r98", "kind": "value", "value": ["local"]}
+{"id": "r99", "kind": "value", "value": false}
+{"id": "r100", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REFSPEC_FORBIDDEN", "message": "push refspec 거부(비었다): ''", "remedy": "정확한 ref 1개를 `refs/<…>:refs/<…>` 로 민다.", "exit_code": 1}
+{"id": "r101", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REFSPEC_FORBIDDEN", "message": "push refspec 거부(강제(+)·옵션(-) 형태(`--tags` 포함)): '+refs/tags/hint/a/ann:refs/tags/hint/a/ann'", "remedy": "정확한 ref 1개를 `refs/<…>:refs/<…>` 로 민다.", "exit_code": 1}
+{"id": "r102", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REFSPEC_FORBIDDEN", "message": "push refspec 거부(강제(+)·옵션(-) 형태(`--tags` 포함)): '-x'", "remedy": "정확한 ref 1개를 `refs/<…>:refs/<…>` 로 민다.", "exit_code": 1}
+{"id": "r103", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REFSPEC_FORBIDDEN", "message": "push refspec 거부(glob 문자): 'refs/tags/hint/*:refs/tags/hint/*'", "remedy": "정확한 ref 1개를 `refs/<…>:refs/<…>` 로 민다.", "exit_code": 1}
+{"id": "r104", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REFSPEC_FORBIDDEN", "message": "push refspec 거부(강제(+)·옵션(-) 형태(`--tags` 포함)): '--tags'", "remedy": "정확한 ref 1개를 `refs/<…>:refs/<…>` 로 민다.", "exit_code": 1}
+{"id": "r105", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REFSPEC_FORBIDDEN", "message": "push refspec 거부(src ≠ dst 이거나 `refs/` 전체 이름이 아니다(이름 바꿔 밀기 ✗)): 'refs/heads/hint:refs/tags/hint/a/b'", "remedy": "정확한 ref 1개를 `refs/<…>:refs/<…>` 로 민다.", "exit_code": 1}
+{"id": "r106", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REFSPEC_FORBIDDEN", "message": "push refspec 거부(`src:dst` 한 쌍이 아니다): 'refs/tags/a:refs/tags/a refs/tags/b:refs/tags/b'", "remedy": "정확한 ref 1개를 `refs/<…>:refs/<…>` 로 민다.", "exit_code": 1}
+{"id": "r107", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REFSPEC_FORBIDDEN", "message": "push refspec 거부(`src:dst` 한 쌍이 아니다): 'refs/tags/hint/a/b'", "remedy": "정확한 ref 1개를 `refs/<…>:refs/<…>` 로 민다.", "exit_code": 1}
+{"id": "r108", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REFSPEC_FORBIDDEN", "message": "push refspec 거부(src ≠ dst 이거나 `refs/` 전체 이름이 아니다(이름 바꿔 밀기 ✗)): 'a:a'", "remedy": "정확한 ref 1개를 `refs/<…>:refs/<…>` 로 민다.", "exit_code": 1}
+{"id": "r109", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REFSPEC_FORBIDDEN", "message": "push refspec 거부(git check-ref-format 거부): 'refs/a..b:refs/a..b'", "remedy": "정확한 ref 1개를 `refs/<…>:refs/<…>` 로 민다.", "exit_code": 1}
+{"id": "r110", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REFSPEC_FORBIDDEN", "message": "push refspec 거부(`src:dst` 한 쌍이 아니다): 'refs/x:refs/x:refs/x'", "remedy": "정확한 ref 1개를 `refs/<…>:refs/<…>` 로 민다.", "exit_code": 1}
+{"id": "r111", "kind": "value", "value": null}
+{"id": "r112", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_UNRESOLVED", "message": "원격 인자가 옵션처럼 보이거나 제어문자를 담았다(옵션 주입 ✗).", "remedy": null, "exit_code": 1}
+{"id": "r113", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_FAILED", "message": "git push --dry-run ../absent.git refs/tags/hint/a/ann:refs/tags/hint/a/ann → rc=128: fatal: '../absent.git' does not appear to be a git repository\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.", "remedy": "원격 거부·인증·네트워크를 확인한다(dry-run 실패도 실패다 — 삼키지 않는다).", "exit_code": 1}
+{"id": "r114", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REFSPEC_FORBIDDEN", "message": "push refspec 거부(강제(+)·옵션(-) 형태(`--tags` 포함)): '+refs/tags/hint/a/ann:refs/tags/hint/a/ann'", "remedy": "정확한 ref 1개를 `refs/<…>:refs/<…>` 로 민다.", "exit_code": 1}
+{"id": "r115", "kind": "value", "value": {"__repr__": "CompletedProcess(args=['git', 'push', '--no-follow-tags', '--no-recurse-submodules', '--dry-run', '../bare.git', 'refs/tags/hint/a/ann:refs/tags/hint/a/ann'], returncode=0, stdout='', stderr='To ../bare.git\\n * [new tag]         hint/a/ann -> hint/a/ann\\n')"}}
+{"id": "r116", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_CREDENTIAL_ABSENT", "message": "https 원격 push 자격증명이 없다 — `envs/.env`(비추적)에 `GITHUB_TOKEN=<PAT>` 한 줄을 두거나 환경변수 `GITHUB_TOKEN` 를 준다. 이 배선이 없으면 무인 실행이 `could not read Username` 으로 멈춘다.", "remedy": "ssh 원격(scp형 포함)을 쓰면 토큰이 필요 없다.", "exit_code": 1}
+{"id": "r117", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_INSECURE_TRANSPORT", "message": "평문 http 원격에는 push 자격증명을 보내지 않는다.", "remedy": "https 또는 ssh 원격을 쓴다.", "exit_code": 1}
+{"id": "r118", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_URL_EMBEDS_CREDENTIAL", "message": "원격 URL 에 자격증명(userinfo)이 박혀 있다: https://***@fixture.invalid/r.git", "remedy": "remote.url 에서 userinfo 를 걷어내고 `envs/.env`(비추적)의 `GITHUB_TOKEN` 를 쓴다 — URL 에 토큰을 박으면 reflog·설정·로그에 남는다.", "exit_code": 1}
+{"id": "r119", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_INSECURE_TRANSPORT", "message": "평문 http 원격에는 push 자격증명을 보내지 않는다.", "remedy": "https 또는 ssh 원격을 쓴다.", "exit_code": 1}
+{"id": "r120", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_REMOTE_SCHEME_UNKNOWN", "message": "원격 helper 형식(`<transport>::<address>`)은 판정하지 않는다.", "remedy": null, "exit_code": 1}
+{"id": "r121", "kind": "value", "value": {"__repr__": "CompletedProcess(args=['git', 'push', '--no-follow-tags', '--no-recurse-submodules', '--dry-run', 'ssh-fixture', 'refs/tags/hint/a/ann:refs/tags/hint/a/ann'], returncode=0, stdout='', stderr='To /tmp/parity-o-HP-tag-remote-3420478-1794816500939568536/fx/repo/../bare.git\\n * [new tag]         hint/a/ann -> hint/a/ann\\n')"}}
+{"id": "r122", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_CREDENTIAL_ABSENT", "message": "https 원격 push 자격증명이 없다 — `envs/.env`(비추적)에 `GITHUB_TOKEN=<PAT>` 한 줄을 두거나 환경변수 `GITHUB_TOKEN` 를 준다. 이 배선이 없으면 무인 실행이 `could not read Username` 으로 멈춘다.", "remedy": "ssh 원격(scp형 포함)을 쓰면 토큰이 필요 없다.", "exit_code": 1}
+{"id": "r123", "kind": "value", "value": null}
+{"id": "r124", "kind": "value", "value": {"__repr__": "CompletedProcess(args=['git', '-c', 'credential.helper=', '-c', 'credential.helper=!f() { test \"$1\" = get || exit 0; echo username=x-access-token; echo \"password=$HINT_PUSH_TOKEN\"; }; f', 'push', '--no-follow-tags', '--no-recurse-submodules', '--dry-run', 'https-fixture', 'refs/tags/hint/a/ann:refs/tags/hint/a/ann'], returncode=0, stdout='', stderr='To /tmp/parity-o-HP-tag-remote-3420478-1794816500939568536/fx/repo/../bare.git\\n * [new tag]         hint/a/ann -> hint/a/ann\\n')"}}
+{"id": "r125", "kind": "exception", "type": "HintError", "code": "HINT_PUSH_FAILED", "message": "git push --dry-run dead-https refs/tags/hint/a/ann:refs/tags/hint/a/ann → rc=128: fatal: '/tmp/parity-o-HP-tag-remote-3420478-1794816500939568536/fx/repo/../none.git' does not appear to be a git repository\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.", "remedy": "원격 거부·인증·네트워크를 확인한다(dry-run 실패도 실패다 — 삼키지 않는다).", "exit_code": 1}
+{"id": "r126", "kind": "exception", "type": "HintError", "code": "HINT_REMOTE_QUERY_FAILED", "message": "ls-remote dead-https 실패(rc=128): fatal: '/tmp/parity-o-HP-tag-remote-3420478-1794816500939568536/fx/repo/../none.git' does not appear to be a git repository\nfatal: Could not read from remote repository.\n\nPlease make sure you have the correct access rights\nand the repository exists.", "remedy": "원격 이름·경로와 네트워크를 확인한다(https 비공개 원격이면 자격증명 — envs/.env 의 GITHUB_TOKEN). 조회 실패는 '없음' 으로 읽지 않는다.", "exit_code": 1}
+{"id": "r127", "kind": "value", "value": {"__repr__": "CompletedProcess(args=['git', '-c', 'credential.helper=', '-c', 'credential.helper=!f() { test \"$1\" = get || exit 0; echo username=x-access-token; echo \"password=$HINT_PUSH_TOKEN\"; }; f', 'push', '--no-follow-tags', '--no-recurse-submodules', 'https-fixture', 'refs/tags/hint/a/ann:refs/tags/hint/a/ann'], returncode=0, stdout='', stderr='To /tmp/parity-o-HP-tag-remote-3420478-1794816500939568536/fx/repo/../bare.git\\n * [new tag]         hint/a/ann -> hint/a/ann\\n')"}}
+{"id": "r128", "kind": "value", "value": null}
+{"id": "r129", "kind": "value", "value": {"rc": 0, "stdout": "refs/heads/main\nrefs/tags/hint/a/ann\nrefs/tags/hint/a/b\n", "stderr": ""}}
+{"id": "r130", "kind": "value", "value": {"rc": 0, "stdout": "refs/heads/main\nrefs/tags/hint/a/ann\nrefs/tags/last-good-fixture\n", "stderr": ""}}
+{"id": "r131", "kind": "value", "value": {"__repr__": "CompletedProcess(args=['git', 'push', '--no-follow-tags', '--no-recurse-submodules', '../follow.git', 'refs/heads/main:refs/heads/main'], returncode=0, stdout='', stderr='To ../follow.git\\n * [new branch]      main -> main\\n')"}}
+{"id": "r132", "kind": "value", "value": {"rc": 0, "stdout": "refs/heads/main\n", "stderr": ""}}
+{"id": "r133", "kind": "value", "value": {"rc": 0, "stdout": "", "stderr": ""}}

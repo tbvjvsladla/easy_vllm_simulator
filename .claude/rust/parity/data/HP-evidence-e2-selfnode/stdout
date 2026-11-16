@@ -1,0 +1,7 @@
+{"id": "r1", "kind": "value", "value": [null, "node_identity.sh --resolve rc=1 — [node-identity] FAIL: node_id 를 해소하지 못했다 — hostname 으로 대체하지 않는다. / [node-identity]   찾은 곳: (a) /tmp/parity-o-HP-evidence-e2-selfnode-3470679-1794816680597559364/output/*/manifest.yaml 의 self_role: (서브 · terraforming 발급)  (b) 동 파일의 유일한 role: main (메인)"]}
+{"id": "r2", "kind": "value", "value": null}
+{"id": "r3", "kind": "value", "value": null}
+{"id": "r4", "kind": "value", "value": [null, "node_identity.sh --resolve rc=1 — [node-identity] FAIL: manifest 간 self_role 불일치('sub' vs 'main') — terraforming_node 로 재발급하라."]}
+{"id": "r5", "kind": "value", "value": null}
+{"id": "r6", "kind": "value", "value": ["sub", "node_identity.sh --resolve(self_role → 유일한 role: main)"]}
+{"id": "r7", "kind": "value", "value": [[], {"location": "docs/logs/sub/events(이 체크아웃 노드 · 로컬)", "shadowed": []}]}
