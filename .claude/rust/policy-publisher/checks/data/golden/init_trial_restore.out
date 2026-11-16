@@ -1,0 +1,38 @@
+{
+  "already_existed": [
+    "devlog",
+    "simlog",
+    "testlog"
+  ],
+  "capacity_rejection_required": false,
+  "created_now": [
+    "plan"
+  ],
+  "messages": {},
+  "ok": true,
+  "or_group_scaffolded": [],
+  "pending_evidence": [],
+  "publication_id": "trial",
+  "reason_codes": [],
+  "reclassification": null,
+  "record_path": "docs/_evidence/trial.json",
+  "required_evidence": [
+    "plan",
+    "devlog",
+    "testlog",
+    "simlog"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010109_trial.md",
+    "plan": "docs/plan/plan_26010109_trial.md",
+    "report": null,
+    "simlog": "docs/simlog/26010109_trial",
+    "testlog": "docs/testlog/testlog_26010109_trial.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "harness_change"
+}

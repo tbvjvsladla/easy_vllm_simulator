@@ -1,0 +1,9 @@
+{
+  "gate_evidence": "cap_capacity_gate.txt",
+  "messages": {},
+  "ok": true,
+  "publication_id": "cap",
+  "reason_codes": [],
+  "rejected": true,
+  "schema_version": 1
+}

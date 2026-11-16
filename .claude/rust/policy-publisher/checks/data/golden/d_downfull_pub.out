@@ -1,0 +1,23 @@
+{
+  "bench_report_path": "docs/benchmark/bench_report_26010114_self-test-model_GB10_0.0.0.md",
+  "binding": {
+    "bench_report": "bound",
+    "certificate": null,
+    "certificate_key": null
+  },
+  "certificate_path": null,
+  "messages": {},
+  "ok": true,
+  "pending_certificate": true,
+  "publication_id": "downfull",
+  "reason_codes": [],
+  "rubric": {
+    "floor_tps": null,
+    "primary_source": null,
+    "ratio_M_over_primary": null,
+    "rubric_authority": null,
+    "rubric_source": null
+  },
+  "schema_version": 1,
+  "verdict": "PASS"
+}

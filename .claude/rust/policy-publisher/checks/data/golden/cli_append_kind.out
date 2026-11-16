@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "CLI_USAGE_ERROR": "invalid command-line invocation: argument --kind: invalid choice: 'nope' (choose from 'plan', 'devlog', 'testlog', 'simlog', 'bench_report', 'certificate', 'verification', 'commit', 'report')"
+  },
+  "ok": false,
+  "reason_codes": [
+    "CLI_USAGE_ERROR"
+  ],
+  "schema_version": 1
+}

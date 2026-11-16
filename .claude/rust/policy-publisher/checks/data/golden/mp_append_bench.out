@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "APPEND_RAW_UNSUPPORTED_KIND": "kind 'bench_report' is not accepted by append-raw (bench_report/certificate come only from `publish-benchmark`, which validates them against the real benchmark verdict rather than accepting arbitrary raw text)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "APPEND_RAW_UNSUPPORTED_KIND"
+  ],
+  "schema_version": 1
+}

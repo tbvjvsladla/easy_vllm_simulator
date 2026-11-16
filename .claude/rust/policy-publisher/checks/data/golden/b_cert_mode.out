@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_CERTIFICATE_MODE_MISMATCH": "certificate benchmark_mode='lite' (must be 'full' or absent) -- refusing to publish a contradictory certificate"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_CERTIFICATE_MODE_MISMATCH"
+  ],
+  "schema_version": 1
+}

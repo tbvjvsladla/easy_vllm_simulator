@@ -1,0 +1,14 @@
+{
+  "bench_report_path": "docs/benchmark/bench_report_26010113_self-test-model_GB10_0.0.0.md",
+  "benchmark_mode": "lite",
+  "binding": {
+    "bench_report": "bound",
+    "certificate": "bound"
+  },
+  "certificate_path": "docs/benchmark/benchmark_26010113_self-test-model_GB10_0.0.0.yaml",
+  "messages": {},
+  "ok": true,
+  "publication_id": "lite",
+  "reason_codes": [],
+  "schema_version": 1
+}

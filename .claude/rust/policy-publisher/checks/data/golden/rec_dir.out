@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLICATION_RECORD_TARGET_WRONG_TYPE": "publication record for topic 'selftest' is not a regular file (kind='dir')"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLICATION_RECORD_TARGET_WRONG_TYPE"
+  ],
+  "schema_version": 1
+}

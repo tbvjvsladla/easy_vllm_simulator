@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLICATION_RECORD_GENERATED_UTC_INVALID": "publication record for topic 'selftest': generated_utc must be a UTC second timestamp"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLICATION_RECORD_GENERATED_UTC_INVALID"
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PII_SCAN_FILE_NOT_FOUND": "pii_scan file not found: none.json"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PII_SCAN_FILE_NOT_FOUND"
+  ],
+  "schema_version": 1
+}

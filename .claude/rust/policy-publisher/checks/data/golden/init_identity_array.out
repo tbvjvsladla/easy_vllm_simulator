@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_IDENTITY_NOT_AN_OBJECT": "--identity-json must contain a JSON object, got list"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_IDENTITY_NOT_AN_OBJECT"
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_SIDECAR_TARGET_IS_SYMLINK": "'selftest.commit.raw.jsonl' is a symlink -- refusing to append through it"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_SIDECAR_TARGET_IS_SYMLINK"
+  ],
+  "schema_version": 1
+}

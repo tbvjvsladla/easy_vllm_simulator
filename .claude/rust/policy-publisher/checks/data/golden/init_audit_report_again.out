@@ -1,0 +1,31 @@
+{
+  "already_existed": [
+    "report"
+  ],
+  "capacity_rejection_required": false,
+  "created_now": [],
+  "messages": {},
+  "ok": true,
+  "or_group_scaffolded": [],
+  "pending_evidence": [],
+  "publication_id": "audit",
+  "reason_codes": [],
+  "reclassification": null,
+  "record_path": "docs/_evidence/audit.json",
+  "required_evidence": [
+    "report"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": null,
+    "devlog": null,
+    "plan": null,
+    "report": "docs/report/perf_26010109_감사_보고.html",
+    "simlog": null,
+    "testlog": null,
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "read_only_audit"
+}

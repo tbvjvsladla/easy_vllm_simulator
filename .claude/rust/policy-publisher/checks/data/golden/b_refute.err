@@ -1,0 +1,1 @@
+[evidence_publisher] WARN PUBLISH_BENCHMARK_RUBRIC_CARRIER_ABSENT: non-PASS publication without --verdict-json-src — rubric authority will not reach the promotion gate

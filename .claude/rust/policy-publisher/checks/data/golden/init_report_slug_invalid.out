@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_REPORT_SLUG_INVALID": "report_basename: name must be <분류>_<YYMMDDHH>[_MM_SS]_<한글제목> (분류=영문 키워드, 예: perf_26082421_qwen3.8-27b_레시피별_성능), got \"rtxpro6000-benchmark-explorer\""
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_REPORT_SLUG_INVALID"
+  ],
+  "schema_version": 1
+}

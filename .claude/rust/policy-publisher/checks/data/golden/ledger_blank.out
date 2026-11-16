@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_SIDECAR_LEDGER_BLANK_LINE": "existing raw-evidence ledger has a blank line at position 2"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_SIDECAR_LEDGER_BLANK_LINE"
+  ],
+  "schema_version": 1
+}

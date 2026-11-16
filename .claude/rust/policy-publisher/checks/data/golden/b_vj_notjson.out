@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_VERDICT_JSON_UNPARSEABLE": "--verdict-json-src 'docs/_evidence/inputs/v_notjson.json' is not parseable JSON: Expecting value: line 1 column 13 (char 12) -- refusing to derive rubric facts from an unreadable artifact"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_VERDICT_JSON_UNPARSEABLE"
+  ],
+  "schema_version": 1
+}

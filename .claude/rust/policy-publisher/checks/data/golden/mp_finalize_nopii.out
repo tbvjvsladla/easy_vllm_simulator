@@ -1,0 +1,23 @@
+{
+  "certificate": null,
+  "checked_evidence": {},
+  "eligible_for_promotion": false,
+  "exit_code": 1,
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "messages": {
+    "PRE_RUNTIME_NOT_HEALTHY": "runtime.health_ok is not true"
+  },
+  "reason_codes": [
+    "PRE_RUNTIME_NOT_HEALTHY"
+  ],
+  "schema_version": 1,
+  "state": null,
+  "task_class": "minor_patch"
+}

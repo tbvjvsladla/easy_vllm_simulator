@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_DOWNGRADE_TARGET_INVALID": "--downgrade-from 'full_benchmark' reclassifies only into --task-class 'hint_map_only', got 'harness_change'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_DOWNGRADE_TARGET_INVALID"
+  ],
+  "schema_version": 1
+}

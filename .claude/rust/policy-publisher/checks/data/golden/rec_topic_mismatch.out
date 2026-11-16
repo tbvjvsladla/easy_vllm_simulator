@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLICATION_RECORD_RAW_LOG_PATH_MISMATCH:commit": "publication record for topic 'selftest': raw_log_paths.commit must equal the producer-derived path ('docs/_evidence/other.commit.raw.jsonl')"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLICATION_RECORD_RAW_LOG_PATH_MISMATCH:commit"
+  ],
+  "schema_version": 1
+}

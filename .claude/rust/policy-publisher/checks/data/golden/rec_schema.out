@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLICATION_RECORD_SCHEMA_INVALID": "publication record for topic 'selftest': SCHEMA_TYPE_MISMATCH:identity.quant"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLICATION_RECORD_SCHEMA_INVALID"
+  ],
+  "schema_version": 1
+}

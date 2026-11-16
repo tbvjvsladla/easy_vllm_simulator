@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_BENCH_REPORT_SRC_NOT_CANONICAL": "bench_report src basename does not follow the naming canon (^bench_report_\\d{8}(?:_\\d{2}_\\d{2})?_.+\\.md$): 'report.md'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_BENCH_REPORT_SRC_NOT_CANONICAL"
+  ],
+  "schema_version": 1
+}

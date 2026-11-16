@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "NARRATIVE_BIND_TARGET_IS_PLACEHOLDER": "'docs/testlog/testlog_26010109_selftest_ph.md' still carries publisher scaffold markers/placeholder -- bind only an authored document (or use the injection path with a temporary source)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "NARRATIVE_BIND_TARGET_IS_PLACEHOLDER"
+  ],
+  "schema_version": 1
+}

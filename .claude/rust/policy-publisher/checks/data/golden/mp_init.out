@@ -1,0 +1,33 @@
+{
+  "already_existed": [],
+  "capacity_rejection_required": false,
+  "created_now": [],
+  "messages": {},
+  "ok": true,
+  "or_group_scaffolded": [],
+  "pending_evidence": [
+    "commit",
+    "verification"
+  ],
+  "publication_id": "selftest",
+  "reason_codes": [],
+  "reclassification": null,
+  "record_path": "docs/_evidence/selftest.json",
+  "required_evidence": [
+    "verification",
+    "commit"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": null,
+    "devlog": null,
+    "plan": null,
+    "report": null,
+    "simlog": null,
+    "testlog": null,
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "minor_patch"
+}

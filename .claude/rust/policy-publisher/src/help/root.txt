@@ -1,0 +1,32 @@
+usage: evidence_publisher.py [-h] [--self-test]
+                             {init,append-raw,set-narrative,record-capacity-rejection,publish-benchmark,publish-lite-report,set-promotion-target,finalize}
+                             ...
+
+evidence_publisher.py -- hybrid evidence publisher (plan_26072506 Phase 2)
+
+positional arguments:
+  {init,append-raw,set-narrative,record-capacity-rejection,publish-benchmark,publish-lite-report,set-promotion-target,finalize}
+    init                scaffold required evidence + publication record for a
+                        topic
+    append-raw          accumulate one raw-evidence source (append-only,
+                        atomic)
+    set-narrative       inject agent-authored narrative (explicit external
+                        input only)
+    record-capacity-rejection
+                        record the raw gate_evidence pointer for a
+                        capacity_rejection topic
+    publish-benchmark   publish bench_report (always) and certificate (PASS-
+                        only, from a supplied artifact)
+    publish-lite-report
+                        hint_map_only 토픽에 경량(lite) bench_report 를 바인딩한다(복사 ✗ ·
+                        측정 구성 표 bench_mode=lite 필수)
+    set-promotion-target
+                        record the ONE hint tag this publication's promotion
+                        authorization binds to (emitted into the work-manifest
+                        by the next `finalize` · X6 · plan_26092119)
+    finalize            build a work-manifest from the publication record and
+                        delegate to completion_gate.py verify
+
+options:
+  -h, --help            show this help message and exit
+  --self-test           run the built-in self-test and exit

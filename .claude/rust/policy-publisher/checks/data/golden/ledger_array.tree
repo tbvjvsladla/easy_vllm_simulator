@@ -1,0 +1,239 @@
+== docs/_evidence/
+== docs/_evidence/audit.json
+{
+  "benchmark": {
+    "mode": null,
+    "verdict": null
+  },
+  "capacity_rejection": null,
+  "capacity_rejection_required": false,
+  "conditions": {
+    "report_requested": true
+  },
+  "generated_utc": "2026-01-01T00:00:00Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {},
+  "or_group_scaffolded": [],
+  "publication_id": "audit",
+  "raw_log_paths": {},
+  "required_evidence": [
+    "report"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": null,
+    "devlog": null,
+    "plan": null,
+    "report": "docs/report/perf_26010109_감사_보고.html",
+    "simlog": null,
+    "testlog": null,
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "read_only_audit"
+}
+== docs/_evidence/inputs/
+== docs/_evidence/selftest.commit.raw.jsonl
+[1]
+
+== docs/_evidence/selftest.json
+{
+  "benchmark": {
+    "mode": null,
+    "verdict": null
+  },
+  "capacity_rejection": null,
+  "capacity_rejection_required": false,
+  "conditions": {},
+  "generated_utc": "2026-01-01T00:00:00Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {},
+  "or_group_scaffolded": [],
+  "publication_id": "selftest",
+  "raw_log_paths": {
+    "commit": "docs/_evidence/selftest.commit.raw.jsonl",
+    "verification": "docs/_evidence/selftest.verification.raw.jsonl"
+  },
+  "required_evidence": [
+    "verification",
+    "commit"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": "commit.txt",
+    "devlog": null,
+    "plan": null,
+    "report": null,
+    "simlog": null,
+    "testlog": null,
+    "verification": "verify.txt"
+  },
+  "schema_version": 1,
+  "task_class": "minor_patch"
+}
+== docs/_evidence/selftest.verification.raw.jsonl
+{"recorded_utc": "2026-01-01T00:01:00Z", "seq": 1, "sha256": "67f7f6fc263bedd23745f9e68eb41da2419accc328dc71237832b13c2edb6d19", "src": "verify.txt"}
+
+== docs/_evidence/selftest.work-manifest.json
+{
+  "benchmark": {
+    "mode": null,
+    "verdict": null
+  },
+  "conditions": {},
+  "evidence": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": {
+      "path": "../../commit.txt"
+    },
+    "devlog": null,
+    "plan": null,
+    "report": null,
+    "simlog": null,
+    "testlog": null,
+    "verification": {
+      "path": "../../verify.txt"
+    }
+  },
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "pii_scan": {
+    "passed": false
+  },
+  "schema_version": 1,
+  "task_class": "minor_patch"
+}
+== docs/_evidence/trial.json
+{
+  "benchmark": {
+    "mode": null,
+    "verdict": null
+  },
+  "capacity_rejection": null,
+  "capacity_rejection_required": false,
+  "conditions": {
+    "actual_trial": true
+  },
+  "generated_utc": "2026-01-01T00:30:29Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {},
+  "or_group_scaffolded": [],
+  "publication_id": "trial",
+  "raw_log_paths": {},
+  "required_evidence": [
+    "plan",
+    "devlog",
+    "testlog",
+    "simlog"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010109_trial.md",
+    "plan": "docs/plan/plan_26010109_trial.md",
+    "report": null,
+    "simlog": "docs/simlog/26010109_trial",
+    "testlog": "docs/testlog/testlog_26010109_trial.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "harness_change"
+}
+== docs/benchmark/
+== docs/devlog/
+== docs/devlog/devlog_26010109_trial.md
+# devlog -- trial
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: trial
+- task_class: harness_change
+- generated_utc: 2026-01-01T00:30:29Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/
+== docs/plan/plan_26010109_trial.md
+# plan -- trial
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: trial
+- task_class: harness_change
+- generated_utc: 2026-01-01T00:30:29Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/report/
+== docs/report/perf_26010109_감사_보고.html
+# report -- audit
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: audit
+- task_class: read_only_audit
+- generated_utc: 2026-01-01T00:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/simlog/
+== docs/simlog/26010109_trial/
+== docs/testlog/
+== docs/testlog/testlog_26010109_trial.md
+# testlog -- trial
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: trial
+- task_class: harness_change
+- generated_utc: 2026-01-01T00:30:29Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+

@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_INPUT_SCHEMA_INVALID": "SCHEMA_MISSING_REQUIRED_KEY:$.identity.vllm: $.identity.vllm: required property is missing; SCHEMA_MISSING_REQUIRED_KEY:$.identity.quant: $.identity.quant: required property is missing; SCHEMA_MISSING_REQUIRED_KEY:$.identity.topology: $.identity.topology: required property is missing; SCHEMA_MISSING_REQUIRED_KEY:$.identity.tp: $.identity.tp: required property is missing"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_INPUT_SCHEMA_INVALID"
+  ],
+  "schema_version": 1
+}

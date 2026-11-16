@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_CERTIFICATE_SRC_NOT_CANONICAL": "benchmark src must be a file directly under docs/benchmark/ (the bench skill is the sole issuer — publisher binds, never copies): 'docs/_evidence/inputs/x.yaml'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_CERTIFICATE_SRC_NOT_CANONICAL"
+  ],
+  "schema_version": 1
+}

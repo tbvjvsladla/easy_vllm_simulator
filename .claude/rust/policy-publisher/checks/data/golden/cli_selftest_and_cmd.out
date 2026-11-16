@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "CLI_USAGE_ERROR": "invalid command-line invocation: unrecognized arguments: --bogus"
+  },
+  "ok": false,
+  "reason_codes": [
+    "CLI_USAGE_ERROR"
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,11 @@
+{
+  "kind": "verification",
+  "messages": {},
+  "ok": true,
+  "publication_id": "selftest",
+  "reason_codes": [],
+  "recorded_path": "docs/_evidence/selftest.verification.raw.jsonl",
+  "schema_version": 1,
+  "seq": 1,
+  "sha256": "67f7f6fc263bedd23745f9e68eb41da2419accc328dc71237832b13c2edb6d19"
+}

@@ -1,0 +1,17 @@
+usage: evidence_publisher.py publish-lite-report [-h] [--repo-root REPO_ROOT]
+                                                 --topic TOPIC --generated-utc
+                                                 GENERATED_UTC
+                                                 --bench-report-src
+                                                 BENCH_REPORT_SRC
+                                                 [--certificate-src CERTIFICATE_SRC]
+
+options:
+  -h, --help            show this help message and exit
+  --repo-root REPO_ROOT
+  --topic TOPIC
+  --generated-utc GENERATED_UTC
+  --bench-report-src BENCH_REPORT_SRC
+  --certificate-src CERTIFICATE_SRC
+                        같은 측정의 lite 등급 인증서(benchmark_mode: lite · verdict:
+                        not_applicable · lite_verdict: pass) — hint 발행 자격의
+                        근거(2026-09-29 plan_26092923)

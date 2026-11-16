@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "SCAFFOLD_PLAN_DIR_OPEN_FAILED": "path component 'plan' is unsafe or unreadable: [Errno 20] Not a directory: 'plan'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "SCAFFOLD_PLAN_DIR_OPEN_FAILED"
+  ],
+  "schema_version": 1
+}

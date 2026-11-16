@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_SRC_NOT_FOUND": "src path does not resolve to an existing file: 'missing.txt'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_SRC_NOT_FOUND"
+  ],
+  "schema_version": 1
+}

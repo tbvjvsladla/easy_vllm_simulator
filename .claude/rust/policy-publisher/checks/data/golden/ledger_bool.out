@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_SIDECAR_LEDGER_SEQ_WRONG_TYPE": "existing raw-evidence ledger line 1 has a non-integer 'seq'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_SIDECAR_LEDGER_SEQ_WRONG_TYPE"
+  ],
+  "schema_version": 1
+}

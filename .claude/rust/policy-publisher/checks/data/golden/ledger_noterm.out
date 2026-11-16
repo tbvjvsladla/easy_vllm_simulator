@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_SIDECAR_LEDGER_NOT_NEWLINE_TERMINATED": "existing raw-evidence ledger does not end with a newline -- refusing to trust or append to a possibly-truncated/malformed ledger"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_SIDECAR_LEDGER_NOT_NEWLINE_TERMINATED"
+  ],
+  "schema_version": 1
+}

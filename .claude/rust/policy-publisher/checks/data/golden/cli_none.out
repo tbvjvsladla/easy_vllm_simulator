@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "CLI_USAGE_ERROR": "no subcommand given (init|append-raw|set-narrative|publish-benchmark|publish-lite-report|set-promotion-target|finalize)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "CLI_USAGE_ERROR"
+  ],
+  "schema_version": 1
+}

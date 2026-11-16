@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_DOWNGRADE_EVIDENCE_MISMATCH": "bound bench_report 'docs/benchmark/bench_report_26010112_self-test-model_GB10_0.0.0.md' does not record this downgrade -- measurement-config table state=parsed, bench_mode='lite', kind='downgraded-lite', downgrade_reason='run_failed' vs --downgrade-reason 'blackbox_kill'; a downgrade comes only from classify_cell's machine-event record, never from the operator's word"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_DOWNGRADE_EVIDENCE_MISMATCH"
+  ],
+  "schema_version": 1
+}

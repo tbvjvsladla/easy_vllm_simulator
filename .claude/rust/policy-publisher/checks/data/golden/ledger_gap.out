@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_SIDECAR_LEDGER_SEQ_NOT_CONTIGUOUS": "existing raw-evidence ledger line 2 has seq=3, expected 2 -- ledger must be duplicate-free, gap-free, and in order"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_SIDECAR_LEDGER_SEQ_NOT_CONTIGUOUS"
+  ],
+  "schema_version": 1
+}

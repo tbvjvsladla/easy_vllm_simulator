@@ -1,0 +1,115 @@
+{
+  "certificate": null,
+  "checked_evidence": {
+    "bench_report": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "../benchmark/bench_report_26010109_self-test-model_GB10_0.0.0.md",
+      "required": true,
+      "sha256": "c22ef824985993551af94fd61c124919384cbdbd6df7025e3abe85238f514c2e",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "certificate": {
+      "exists": false,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": null,
+      "required": false,
+      "sha256": null,
+      "tree_sha256": null,
+      "type": null
+    },
+    "commit": {
+      "exists": false,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": null,
+      "required": false,
+      "sha256": null,
+      "tree_sha256": null,
+      "type": null
+    },
+    "devlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "../devlog/devlog_26010112_00_00_piix.md",
+      "required": true,
+      "sha256": "9ede929066a4b0a7afdbf4791497dc77bbe725479ea2bd4f06523be585e7d336",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "plan": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "../plan/plan_26010112_00_00_piix.md",
+      "required": true,
+      "sha256": "b829c28f0d4965dced20da71426845191135bb45debddc41b2753efa13b2693a",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "report": {
+      "exists": false,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": null,
+      "required": false,
+      "sha256": null,
+      "tree_sha256": null,
+      "type": null
+    },
+    "simlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "../simlog/26010112_00_00_piix",
+      "required": true,
+      "sha256": null,
+      "tree_sha256": "7f3e8a1c814d8f0657beecc6fe10e65f1ee8e65cf755b9aeca9ab94a68ae89c3",
+      "type": "dir"
+    },
+    "testlog": {
+      "exists": true,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": "../testlog/testlog_26010112_00_00_piix.md",
+      "required": true,
+      "sha256": "d2f77aa0619d1a164f4287f8eafeb933c899e7efd63dac54db1c91108f9e56c4",
+      "tree_sha256": null,
+      "type": "file"
+    },
+    "verification": {
+      "exists": false,
+      "identity_checked": false,
+      "identity_match": null,
+      "path": null,
+      "required": false,
+      "sha256": null,
+      "tree_sha256": null,
+      "type": null
+    }
+  },
+  "eligible_for_promotion": false,
+  "exit_code": 1,
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "messages": {
+    "PII_SCAN_COVERAGE_INCOMPLETE:simlog": "required evidence 'simlog' path '../simlog/26010112_00_00_piix' not present in pii_scan.scanned_paths (exempt_paths entry present, but only ['simlog'] evidence with reason 'machine-raw(docs.md §PII 판정 대상 밖)' counts as coverage; got key='simlog' reason='귀찮아서')"
+  },
+  "reason_codes": [
+    "PII_SCAN_COVERAGE_INCOMPLETE:simlog"
+  ],
+  "rubric": null,
+  "schema_version": 1,
+  "state": "runtime-ready",
+  "task_class": "full_benchmark"
+}

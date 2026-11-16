@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "IDENTITY_FILE_UNREADABLE": "identity file could not be read: [Errno 21] Is a directory: 'docs'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "IDENTITY_FILE_UNREADABLE"
+  ],
+  "schema_version": 1
+}

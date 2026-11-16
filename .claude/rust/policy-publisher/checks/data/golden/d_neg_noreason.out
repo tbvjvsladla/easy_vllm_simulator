@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_DOWNGRADE_REASON_REQUIRED": "--downgrade-from requires --downgrade-reason (a machine-event downgrade reason recorded by classify_cell -- reclassification without a reason is a silent class change)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_DOWNGRADE_REASON_REQUIRED"
+  ],
+  "schema_version": 1
+}

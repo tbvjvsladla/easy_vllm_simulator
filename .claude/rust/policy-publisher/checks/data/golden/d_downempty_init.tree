@@ -1,0 +1,1271 @@
+== docs/_evidence/
+== docs/_evidence/audit.json
+{
+  "benchmark": {
+    "mode": null,
+    "verdict": null
+  },
+  "capacity_rejection": null,
+  "capacity_rejection_required": false,
+  "conditions": {
+    "report_requested": true
+  },
+  "generated_utc": "2026-01-01T00:00:00Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {},
+  "or_group_scaffolded": [],
+  "publication_id": "audit",
+  "raw_log_paths": {},
+  "required_evidence": [
+    "report"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": null,
+    "devlog": null,
+    "plan": null,
+    "report": "docs/report/perf_26010109_감사_보고.html",
+    "simlog": null,
+    "testlog": null,
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "read_only_audit"
+}
+== docs/_evidence/bench.json
+{
+  "benchmark": {
+    "mode": "full",
+    "verdict": "REFUTE"
+  },
+  "capacity_rejection": null,
+  "capacity_rejection_required": false,
+  "conditions": {},
+  "generated_utc": "2026-01-01T02:00:00Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {
+    "devlog": {
+      "author": "selftest",
+      "generated_utc": "2026-01-01T02:21:00Z",
+      "source": "docs/_evidence/inputs/dev.md",
+      "status": "authored"
+    },
+    "plan": {
+      "author": "selftest",
+      "generated_utc": "2026-01-01T02:20:00Z",
+      "source": "docs/plan/plan_26010109_selftest_source.md",
+      "status": "bound"
+    }
+  },
+  "or_group_scaffolded": [],
+  "publication_id": "bench",
+  "raw_log_paths": {},
+  "required_evidence": [
+    "plan",
+    "devlog",
+    "simlog",
+    "testlog",
+    "bench_report"
+  ],
+  "scaffolded": {
+    "bench_report": "docs/benchmark/bench_report_26010109_00_01_self-test-model_GB10_0.0.0.md",
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010111_bench.md",
+    "plan": "docs/plan/plan_26010109_selftest_source.md",
+    "report": null,
+    "simlog": "docs/simlog/26010111_bench",
+    "testlog": "docs/testlog/testlog_26010111_bench.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "full_benchmark"
+}
+== docs/_evidence/cap.json
+{
+  "benchmark": {
+    "mode": null,
+    "verdict": null
+  },
+  "capacity_rejection": {
+    "gate_evidence": "cap_capacity_gate.txt",
+    "reason": "kv budget",
+    "recorded_utc": "2026-01-01T01:01:00Z",
+    "rejected": true
+  },
+  "capacity_rejection_required": true,
+  "conditions": {},
+  "generated_utc": "2026-01-01T01:00:00Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {
+    "plan": {
+      "author": "tester",
+      "generated_utc": "2026-01-01T01:02:00Z",
+      "source": "docs/_evidence/inputs/cap_plan.md",
+      "status": "authored"
+    }
+  },
+  "or_group_scaffolded": [
+    "devlog",
+    "testlog"
+  ],
+  "publication_id": "cap",
+  "raw_log_paths": {},
+  "required_evidence": [
+    "plan"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010110_cap.md",
+    "plan": "docs/plan/plan_26010110_cap.md",
+    "report": null,
+    "simlog": null,
+    "testlog": "docs/testlog/testlog_26010110_cap.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "capacity_rejection"
+}
+== docs/_evidence/cap.work-manifest.json
+{
+  "benchmark": {
+    "mode": null,
+    "verdict": null
+  },
+  "capacity_rejection": {
+    "gate_evidence": "cap_capacity_gate.txt",
+    "reason": "override",
+    "recorded_utc": "2026-01-01T01:05:00Z",
+    "rejected": true
+  },
+  "conditions": {},
+  "evidence": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": null,
+    "devlog": null,
+    "plan": {
+      "path": "../plan/plan_26010110_cap.md"
+    },
+    "report": null,
+    "simlog": null,
+    "testlog": null,
+    "verification": null
+  },
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "pii_scan": {
+    "passed": false
+  },
+  "schema_version": 1,
+  "task_class": "capacity_rejection"
+}
+== docs/_evidence/cap_capacity_gate.txt
+KV budget exceeded
+
+== docs/_evidence/down.json
+{
+  "benchmark": {
+    "floor_tps": null,
+    "measured_utc": null,
+    "mode": "full",
+    "primary_source": null,
+    "ratio_M_over_primary": null,
+    "rubric_authority": null,
+    "rubric_source": null,
+    "verdict": "PASS"
+  },
+  "capacity_rejection": null,
+  "capacity_rejection_required": false,
+  "conditions": {},
+  "generated_utc": "2026-01-01T03:00:00Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {},
+  "or_group_scaffolded": [],
+  "publication_id": "down",
+  "raw_log_paths": {},
+  "required_evidence": [
+    "plan",
+    "devlog",
+    "simlog",
+    "testlog",
+    "bench_report",
+    "certificate"
+  ],
+  "scaffolded": {
+    "bench_report": "docs/benchmark/bench_report_26010112_self-test-model_GB10_0.0.0.md",
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010112_down.md",
+    "plan": "docs/plan/plan_26010112_down.md",
+    "report": null,
+    "simlog": "docs/simlog/26010112_down",
+    "testlog": "docs/testlog/testlog_26010112_down.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "full_benchmark"
+}
+== docs/_evidence/downbad.json
+{
+  "benchmark": {
+    "floor_tps": null,
+    "measured_utc": null,
+    "mode": "full",
+    "primary_source": null,
+    "ratio_M_over_primary": null,
+    "rubric_authority": null,
+    "rubric_source": null,
+    "verdict": "PASS"
+  },
+  "capacity_rejection": null,
+  "capacity_rejection_required": false,
+  "conditions": {},
+  "generated_utc": "2026-01-01T03:00:00Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {},
+  "or_group_scaffolded": [],
+  "publication_id": "downbad",
+  "raw_log_paths": {},
+  "required_evidence": [
+    "plan",
+    "devlog",
+    "simlog",
+    "testlog",
+    "bench_report",
+    "certificate"
+  ],
+  "scaffolded": {
+    "bench_report": "docs/benchmark/bench_report_26010117_self-test-model_GB10_0.0.0.md",
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010112_00_00_downbad.md",
+    "plan": "docs/plan/plan_26010112_00_00_downbad.md",
+    "report": null,
+    "simlog": "docs/simlog/26010112_00_00_downbad",
+    "testlog": "docs/testlog/testlog_26010112_00_00_downbad.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "full_benchmark"
+}
+== docs/_evidence/downbad2.json
+{
+  "benchmark": {
+    "floor_tps": null,
+    "measured_utc": null,
+    "mode": "full",
+    "primary_source": null,
+    "ratio_M_over_primary": null,
+    "rubric_authority": null,
+    "rubric_source": null,
+    "verdict": "PASS"
+  },
+  "capacity_rejection": null,
+  "capacity_rejection_required": false,
+  "conditions": {},
+  "generated_utc": "2026-01-01T03:00:00Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {},
+  "or_group_scaffolded": [],
+  "publication_id": "downbad2",
+  "raw_log_paths": {},
+  "required_evidence": [
+    "plan",
+    "devlog",
+    "simlog",
+    "testlog",
+    "bench_report",
+    "certificate"
+  ],
+  "scaffolded": {
+    "bench_report": "docs/benchmark/bench_report_26010118_self-test-model_GB10_0.0.0.md",
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010112_00_00_downbad2.md",
+    "plan": "docs/plan/plan_26010112_00_00_downbad2.md",
+    "report": null,
+    "simlog": "docs/simlog/26010112_00_00_downbad2",
+    "testlog": "docs/testlog/testlog_26010112_00_00_downbad2.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "full_benchmark"
+}
+== docs/_evidence/downempty.json
+{
+  "benchmark": {
+    "mode": "full",
+    "verdict": "PASS"
+  },
+  "capacity_rejection": null,
+  "capacity_rejection_required": false,
+  "conditions": {},
+  "generated_utc": "2026-01-01T03:00:00Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {},
+  "or_group_scaffolded": [],
+  "publication_id": "downempty",
+  "raw_log_paths": {},
+  "required_evidence": [
+    "plan",
+    "devlog",
+    "simlog",
+    "testlog",
+    "bench_report",
+    "certificate"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010112_00_00_downempty.md",
+    "plan": "docs/plan/plan_26010112_00_00_downempty.md",
+    "report": null,
+    "simlog": "docs/simlog/26010112_00_00_downempty",
+    "testlog": "docs/testlog/testlog_26010112_00_00_downempty.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "full_benchmark"
+}
+== docs/_evidence/downfull.json
+{
+  "benchmark": {
+    "floor_tps": null,
+    "measured_utc": null,
+    "mode": "full",
+    "primary_source": null,
+    "ratio_M_over_primary": null,
+    "rubric_authority": null,
+    "rubric_source": null,
+    "verdict": "PASS"
+  },
+  "capacity_rejection": null,
+  "capacity_rejection_required": false,
+  "conditions": {},
+  "generated_utc": "2026-01-01T03:00:00Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {},
+  "or_group_scaffolded": [],
+  "publication_id": "downfull",
+  "raw_log_paths": {},
+  "required_evidence": [
+    "plan",
+    "devlog",
+    "simlog",
+    "testlog",
+    "bench_report",
+    "certificate"
+  ],
+  "scaffolded": {
+    "bench_report": "docs/benchmark/bench_report_26010114_self-test-model_GB10_0.0.0.md",
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010112_00_00_downfull.md",
+    "plan": "docs/plan/plan_26010112_00_00_downfull.md",
+    "report": null,
+    "simlog": "docs/simlog/26010112_00_00_downfull",
+    "testlog": "docs/testlog/testlog_26010112_00_00_downfull.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "full_benchmark"
+}
+== docs/_evidence/downlegacy.json
+{
+  "benchmark": {
+    "floor_tps": null,
+    "measured_utc": null,
+    "mode": "full",
+    "primary_source": null,
+    "ratio_M_over_primary": null,
+    "rubric_authority": null,
+    "rubric_source": null,
+    "verdict": "PASS"
+  },
+  "capacity_rejection": null,
+  "capacity_rejection_required": false,
+  "conditions": {},
+  "generated_utc": "2026-01-01T03:00:00Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {},
+  "or_group_scaffolded": [],
+  "publication_id": "downlegacy",
+  "raw_log_paths": {},
+  "required_evidence": [
+    "plan",
+    "devlog",
+    "simlog",
+    "testlog",
+    "bench_report",
+    "certificate"
+  ],
+  "scaffolded": {
+    "bench_report": "docs/benchmark/bench_report_26010115_self-test-model_GB10_0.0.0.md",
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010112_00_00_downlegacy.md",
+    "plan": "docs/plan/plan_26010112_00_00_downlegacy.md",
+    "report": null,
+    "simlog": "docs/simlog/26010112_00_00_downlegacy",
+    "testlog": "docs/testlog/testlog_26010112_00_00_downlegacy.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "full_benchmark"
+}
+== docs/_evidence/inputs/
+== docs/_evidence/inputs/cap_plan.md
+# plan
+capacity plan.
+
+== docs/_evidence/inputs/dev.md
+서사 본문
+
+== docs/_evidence/inputs/marker.md
+x <!-- NARRATIVE:BEGIN --> y
+
+== docs/_evidence/inputs/n.md
+서사 본문
+
+
+== docs/_evidence/inputs/v_badauth.json
+{"verdict": "PASS", "rubric": {"authority": "bogus"}}
+== docs/_evidence/inputs/v_explicit.json
+{"verdict": "PASS", "rubric": {"authority": "explicit", "floor": 8.5, "ratio_M_over_primary": 1.23, "source": "expected_achievable(roofline×MBU)"}}
+== docs/_evidence/inputs/v_explore.json
+{"verdict": "PASS", "rubric": {"authority": "explore", "floor": 8.5, "ratio_M_over_primary": 1.23, "source": "expected_achievable(roofline×MBU)"}}
+== docs/_evidence/inputs/v_list.json
+[1]
+== docs/_evidence/inputs/v_mismatch.json
+{"verdict": "REFUTE", "rubric": {"authority": "weak", "floor": true, "ratio_M_over_primary": 2}}
+== docs/_evidence/inputs/v_notjson.json
+{"verdict": 
+== docs/_evidence/inputs/v_obs.json
+{"verdict": "NEEDS_RUBRIC", "failure_axis": "establish", "reason_code": null, "rubric": {"authority": "weak", "primary": null, "source": null, "floor": null, "ratio_M_over_primary": null}}
+== docs/_evidence/inputs/v_obs_phys.json
+{"verdict": "NEEDS_RUBRIC", "reason_code": null, "rubric": {"primary": 59.0}}
+== docs/_evidence/inputs/v_obs_spec.json
+{"verdict": "NEEDS_RUBRIC", "reason_code": "SPEC_ACCEPT_LEN_MISSING", "rubric": {}}
+== docs/_evidence/inputs/v_strip.json
+{"verdict": "PASS", "rubric": {"authority": "  explore  ", "source": "  ", "floor": 1e400}}
+== docs/_evidence/inputs/v_weak.json
+{"verdict": "PASS", "rubric": {"authority": "weak", "floor": 8.5, "ratio_M_over_primary": 1.23, "source": "expected_achievable(roofline×MBU)"}}
+== docs/_evidence/inputs/x.yaml
+schema_version: 1
+record_type: benchmark_certificate
+verdict: PASS
+model: self-test-model
+gpu_model: GB10
+vllm_version: 0.0.0
+quantization: N/A
+topology: single
+tensor_parallel_size: 1
+benchmark_mode: full
+decode_tps_conc1: 12.3
+rubric_authority: weak
+primary_source: expected_achievable(roofline×MBU)
+primary_tps: 10.0
+floor_tps: 8.5
+tolerance: 0.15
+ratio_M_over_primary: 1.23
+measured_utc: "2026-01-01T00:00:00Z"
+
+== docs/_evidence/nar.json
+{
+  "benchmark": {
+    "mode": null,
+    "verdict": null
+  },
+  "capacity_rejection": null,
+  "capacity_rejection_required": false,
+  "conditions": {},
+  "generated_utc": "2026-01-01T07:00:00Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {
+    "plan": {
+      "author": "a",
+      "generated_utc": "2026-01-01T07:02:00Z",
+      "source": "docs/_evidence/inputs/n.md",
+      "status": "authored"
+    },
+    "testlog": {
+      "author": "b",
+      "generated_utc": "2026-01-01T07:05:00Z",
+      "source": "docs/testlog/testlog_26010116_nar_bound.md",
+      "status": "bound"
+    }
+  },
+  "or_group_scaffolded": [],
+  "publication_id": "nar",
+  "raw_log_paths": {},
+  "required_evidence": [
+    "plan",
+    "devlog",
+    "testlog"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010116_nar.md",
+    "plan": "docs/plan/plan_26010116_nar.md",
+    "report": null,
+    "simlog": null,
+    "testlog": "docs/testlog/testlog_26010116_nar_bound.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "harness_change"
+}
+== docs/_evidence/selftest.commit.raw.jsonl
+{"recorded_utc": "2026-01-01T00:01:00Z", "seq": 1, "sha256": "f22136124cd3e1d65a48487cecf310771b2fd1e83dc032e3d19724160ac0ff71", "src": "commit.txt"}
+{"recorded_utc": "2026-01-01T00:02:00Z", "seq": 2, "sha256": "f22136124cd3e1d65a48487cecf310771b2fd1e83dc032e3d19724160ac0ff71", "src": "commit.txt"}
+
+== docs/_evidence/selftest.json
+{
+  "benchmark": {
+    "mode": null,
+    "verdict": null
+  },
+  "capacity_rejection": null,
+  "capacity_rejection_required": false,
+  "conditions": {},
+  "generated_utc": "2026-01-01T00:00:00Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {},
+  "or_group_scaffolded": [],
+  "publication_id": "selftest",
+  "raw_log_paths": {
+    "commit": "docs/_evidence/selftest.commit.raw.jsonl",
+    "verification": "docs/_evidence/selftest.verification.raw.jsonl"
+  },
+  "required_evidence": [
+    "verification",
+    "commit"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": "commit.txt",
+    "devlog": null,
+    "plan": null,
+    "report": null,
+    "simlog": null,
+    "testlog": null,
+    "verification": "verify.txt"
+  },
+  "schema_version": 1,
+  "task_class": "minor_patch"
+}
+== docs/_evidence/selftest.verification.raw.jsonl
+{"recorded_utc": "2026-01-01T00:01:00Z", "seq": 1, "sha256": "67f7f6fc263bedd23745f9e68eb41da2419accc328dc71237832b13c2edb6d19", "src": "verify.txt"}
+
+== docs/_evidence/selftest.work-manifest.json
+{
+  "benchmark": {
+    "mode": null,
+    "verdict": null
+  },
+  "conditions": {},
+  "evidence": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": {
+      "path": "../../commit.txt"
+    },
+    "devlog": null,
+    "plan": null,
+    "report": null,
+    "simlog": null,
+    "testlog": null,
+    "verification": {
+      "path": "../../verify.txt"
+    }
+  },
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "pii_scan": {
+    "passed": false
+  },
+  "schema_version": 1,
+  "task_class": "minor_patch"
+}
+== docs/_evidence/trial.json
+{
+  "benchmark": {
+    "mode": null,
+    "verdict": null
+  },
+  "capacity_rejection": null,
+  "capacity_rejection_required": false,
+  "conditions": {
+    "actual_trial": true
+  },
+  "generated_utc": "2026-01-01T00:30:29Z",
+  "identity": {
+    "gpu": "GB10",
+    "model": "self-test-model",
+    "quant": null,
+    "topology": "single",
+    "tp": 1,
+    "vllm": "0.0.0"
+  },
+  "narrative_status": {},
+  "or_group_scaffolded": [],
+  "publication_id": "trial",
+  "raw_log_paths": {},
+  "required_evidence": [
+    "plan",
+    "devlog",
+    "testlog",
+    "simlog"
+  ],
+  "scaffolded": {
+    "bench_report": null,
+    "certificate": null,
+    "commit": null,
+    "devlog": "docs/devlog/devlog_26010109_trial.md",
+    "plan": "docs/plan/plan_26010109_trial.md",
+    "report": null,
+    "simlog": "docs/simlog/26010109_trial",
+    "testlog": "docs/testlog/testlog_26010109_trial.md",
+    "verification": null
+  },
+  "schema_version": 1,
+  "task_class": "harness_change"
+}
+== docs/benchmark/
+== docs/benchmark/bench_report_26010109_00_01_self-test-model_GB10_0.0.0.md
+# report 2
+
+== docs/benchmark/bench_report_26010109_self-test-model_GB10_0.0.0.md
+# report
+생성일 2026-01-01T00:00:00Z.
+
+== docs/benchmark/bench_report_26010112_self-test-model_GB10_0.0.0.md
+# report
+생성일 2026-01-01T03:00:00Z.
+
+## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)
+
+| 키 | 값 |
+|---|---|
+| bench_mode | lite |
+| bench_mode_kind | downgraded-lite |
+| bench_mode_source | 반복 조건 불성립(판정점 run 2 실패) |
+| downgrade_reason | run_failed |
+== docs/benchmark/bench_report_26010114_self-test-model_GB10_0.0.0.md
+# report
+생성일 2026-01-01T03:10:00Z.
+
+## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)
+
+| 키 | 값 |
+|---|---|
+| bench_mode | full |
+| bench_mode_kind | full |
+| bench_mode_source | 반복 조건 성립 |
+| downgrade_reason | N/A |
+== docs/benchmark/bench_report_26010115_self-test-model_GB10_0.0.0.md
+# report
+생성일 2026-01-01T03:20:00Z.
+
+| 동시성 | decode t/s |
+|---|---|
+| 1 | 9 |
+
+== docs/benchmark/bench_report_26010117_self-test-model_GB10_0.0.0.md
+# report
+생성일 2026-01-01T03:30:00Z.
+
+## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)
+
+| 키 | 값 |
+|---|---|
+| bench_mode | lite |
+| unknown_key | x |
+== docs/benchmark/bench_report_26010118_self-test-model_GB10_0.0.0.md
+# r
+
+## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)
+
+| a | b | c |
+== docs/benchmark/bench_report_26010119_self-test-model_GB10_0.0.0.md
+# r
+
+## 측정 구성 — bench_mode · 도구 · 반복 (기재 · 게이트 아님)
+
+no table
+== docs/benchmark/benchmark_26010109_self-test-model_GB10_0.0.0.yaml
+schema_version: 1
+record_type: benchmark_certificate
+verdict: PASS
+model: self-test-model
+gpu_model: GB10
+vllm_version: 0.0.0
+quantization: N/A
+topology: single
+tensor_parallel_size: 1
+benchmark_mode: full
+decode_tps_conc1: 12.3
+rubric_authority: weak
+primary_source: expected_achievable(roofline×MBU)
+primary_tps: 10.0
+floor_tps: 8.5
+tolerance: 0.15
+ratio_M_over_primary: 1.23
+measured_utc: "2026-01-01T00:00:00Z"
+
+== docs/devlog/
+== docs/devlog/devlog_26010109_trial.md
+# devlog -- trial
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: trial
+- task_class: harness_change
+- generated_utc: 2026-01-01T00:30:29Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010110_cap.md
+# devlog -- cap
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: cap
+- task_class: capacity_rejection
+- generated_utc: 2026-01-01T01:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010111_bench.md
+# devlog -- bench
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: bench
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T02:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+<!-- provenance: author=selftest generated_utc=2026-01-01T02:21:00Z source=docs/_evidence/inputs/dev.md -->
+서사 본문
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_00_00_downbad.md
+# devlog -- downbad
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downbad
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_00_00_downbad2.md
+# devlog -- downbad2
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downbad2
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_00_00_downempty.md
+# devlog -- downempty
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downempty
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_00_00_downfull.md
+# devlog -- downfull
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downfull
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_00_00_downlegacy.md
+# devlog -- downlegacy
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downlegacy
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010112_down.md
+# devlog -- down
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: down
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/devlog/devlog_26010116_nar.md
+# devlog -- nar
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: nar
+- task_class: harness_change
+- generated_utc: 2026-01-01T07:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/
+== docs/plan/plan_26010109_trial.md
+# plan -- trial
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: trial
+- task_class: harness_change
+- generated_utc: 2026-01-01T00:30:29Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010110_cap.md
+# plan -- cap
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: cap
+- task_class: capacity_rejection
+- generated_utc: 2026-01-01T01:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+<!-- provenance: author=tester generated_utc=2026-01-01T01:02:00Z source=docs/_evidence/inputs/cap_plan.md -->
+# plan
+capacity plan.
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_00_00_downbad.md
+# plan -- downbad
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downbad
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_00_00_downbad2.md
+# plan -- downbad2
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downbad2
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_00_00_downempty.md
+# plan -- downempty
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downempty
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_00_00_downfull.md
+# plan -- downfull
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downfull
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_00_00_downlegacy.md
+# plan -- downlegacy
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downlegacy
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010112_down.md
+# plan -- down
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: down
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/plan/plan_26010116_nar.md
+# plan -- nar
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: nar
+- task_class: harness_change
+- generated_utc: 2026-01-01T07:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+<!-- provenance: author=a generated_utc=2026-01-01T07:02:00Z source=docs/_evidence/inputs/n.md -->
+서사 본문
+<!-- NARRATIVE:END -->
+
+== docs/report/
+== docs/report/perf_26010109_감사_보고.html
+# report -- audit
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: audit
+- task_class: read_only_audit
+- generated_utc: 2026-01-01T00:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/simlog/
+== docs/simlog/26010109_trial/
+== docs/simlog/26010111_bench/
+== docs/simlog/26010112_00_00_downbad/
+== docs/simlog/26010112_00_00_downbad2/
+== docs/simlog/26010112_00_00_downempty/
+== docs/simlog/26010112_00_00_downfull/
+== docs/simlog/26010112_00_00_downlegacy/
+== docs/simlog/26010112_down/
+== docs/testlog/
+== docs/testlog/testlog_26010109_selftest_ph.md
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+
+== docs/testlog/testlog_26010109_trial.md
+# testlog -- trial
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: trial
+- task_class: harness_change
+- generated_utc: 2026-01-01T00:30:29Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010110_cap.md
+# testlog -- cap
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: cap
+- task_class: capacity_rejection
+- generated_utc: 2026-01-01T01:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010111_bench.md
+# testlog -- bench
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: bench
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T02:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_00_00_downbad.md
+# testlog -- downbad
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downbad
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_00_00_downbad2.md
+# testlog -- downbad2
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downbad2
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_00_00_downempty.md
+# testlog -- downempty
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downempty
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_00_00_downfull.md
+# testlog -- downfull
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downfull
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_00_00_downlegacy.md
+# testlog -- downlegacy
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: downlegacy
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010112_down.md
+# testlog -- down
+
+<!-- evidence_publisher scaffold -- provenance -->
+- publication_id: down
+- task_class: full_benchmark
+- generated_utc: 2026-01-01T03:00:00Z
+- scaffold_created_by: evidence_publisher.py init
+
+## Narrative
+
+<!-- NARRATIVE:BEGIN -->
+_PLACEHOLDER -- agent-authored narrative pending. Do not treat as final evidence._
+<!-- NARRATIVE:END -->
+
+== docs/testlog/testlog_26010116_nar_bound.md
+# testlog
+진짜 본문.
+

@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_SIDECAR_LEDGER_MALFORMED_ENTRY": "existing raw-evidence ledger line 1 is not valid JSON: Expecting ',' delimiter: line 1 column 10 (char 9)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_SIDECAR_LEDGER_MALFORMED_ENTRY"
+  ],
+  "schema_version": 1
+}

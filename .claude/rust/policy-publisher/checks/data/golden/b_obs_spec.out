@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_VERDICT_JSON_VERDICT_MISMATCH": "--verdict='OBSERVATION-ONLY' 는 판정기 산출물이 사다리 공백의 'NEEDS_RUBRIC'(rubric.primary=null ∧ reason_code=null)일 때만 대응한다 — verdict JSON 은 verdict='NEEDS_RUBRIC' rubric.primary=None reason_code='SPEC_ACCEPT_LEN_MISSING' 를 말한다"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_VERDICT_JSON_VERDICT_MISMATCH"
+  ],
+  "schema_version": 1
+}

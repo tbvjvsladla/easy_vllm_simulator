@@ -1,0 +1,18 @@
+{
+  "binding": {
+    "rebound_from": null,
+    "recorded_utc": "2026-01-01T05:00:00Z",
+    "state": "unchanged"
+  },
+  "messages": {},
+  "ok": true,
+  "promotion_target": {
+    "anchor": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "kind": "hint",
+    "tag": "hint/0.0.0/self-test-model/gb10-1g1n-main-native/qbf16-len1024-kvauto-plenone-specoff-graph",
+    "topology": "single TP=1"
+  },
+  "publication_id": "lite",
+  "reason_codes": [],
+  "schema_version": 1
+}

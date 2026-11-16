@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_ABSOLUTE_SRC": "src path must be repo-relative, not absolute: '/etc/hostname'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_ABSOLUTE_SRC"
+  ],
+  "schema_version": 1
+}

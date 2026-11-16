@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_DOWNGRADE_REASON_WITHOUT_FROM": "--downgrade-reason is only meaningful with --downgrade-from"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_DOWNGRADE_REASON_WITHOUT_FROM"
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_INPUT_SCHEMA_INVALID": "SCHEMA_TYPE_MISMATCH:$.conditions.actual_trial: $.conditions.actual_trial: expected type ['boolean'], got str ('yes')"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_INPUT_SCHEMA_INVALID"
+  ],
+  "schema_version": 1
+}

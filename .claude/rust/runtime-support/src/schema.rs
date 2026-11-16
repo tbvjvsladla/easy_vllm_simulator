@@ -119,6 +119,12 @@ pub fn validate_against_schema(instance: &PyValue, schema: &PyValue) -> Out {
     validate(instance, schema, schema, "")
 }
 
+/// `validate_against_schema(instance, schema, root_schema, path)`: a sub-schema checked against its document's root
+/// (for local `$ref`), with violations labelled from `path` (the owner's four-argument form).
+pub fn validate_against_schema_at(instance: &PyValue, schema: &PyValue, root: &PyValue, path: &str) -> Out {
+    validate(instance, schema, root, path)
+}
+
 fn validate(instance: &PyValue, schema: &PyValue, root: &PyValue, path: &str) -> Out {
     let empty = crate::pyvalue::PyDict::new();
     let schema_dict = match schema.peel() {

@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLICATION_NOT_INITIALIZED": "no publication record for topic 'nope' -- run `init` first"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLICATION_NOT_INITIALIZED"
+  ],
+  "schema_version": 1
+}

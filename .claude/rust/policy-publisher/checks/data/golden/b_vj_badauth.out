@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_VERDICT_JSON_AUTHORITY_UNKNOWN": "verdict JSON rubric.authority='bogus' is not one of ['weak', 'explicit', 'explore'] -- fail closed rather than record an authority no consumer can reason about"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_VERDICT_JSON_AUTHORITY_UNKNOWN"
+  ],
+  "schema_version": 1
+}

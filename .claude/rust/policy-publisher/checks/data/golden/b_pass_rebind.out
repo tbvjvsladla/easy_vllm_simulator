@@ -1,0 +1,31 @@
+{
+  "bench_report_path": "docs/benchmark/bench_report_26010109_self-test-model_GB10_0.0.0.md",
+  "binding": {
+    "bench_report": "bound",
+    "certificate": "bound",
+    "certificate_key": [
+      "self-test-model",
+      "GB10",
+      "0.0.0",
+      "N/A",
+      "single",
+      "1",
+      "2026-01-01T00:00:00Z"
+    ]
+  },
+  "certificate_path": "docs/benchmark/benchmark_26010109_self-test-model_GB10_0.0.0.yaml",
+  "messages": {},
+  "ok": true,
+  "pending_certificate": false,
+  "publication_id": "bench",
+  "reason_codes": [],
+  "rubric": {
+    "floor_tps": null,
+    "primary_source": null,
+    "ratio_M_over_primary": null,
+    "rubric_authority": null,
+    "rubric_source": null
+  },
+  "schema_version": 1,
+  "verdict": "PASS"
+}

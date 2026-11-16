@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_DOWNGRADE_EVIDENCE_MISMATCH": "bound bench_report 'docs/benchmark/bench_report_26010118_self-test-model_GB10_0.0.0.md' does not record this downgrade -- measurement-config table state=unparseable(측정 구성 표 행이 2칸이 아니다: '| a | b | c |'), bench_mode=None, kind='undetermined', downgrade_reason=None vs --downgrade-reason 'run_failed'; a downgrade comes only from classify_cell's machine-event record, never from the operator's word"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_DOWNGRADE_EVIDENCE_MISMATCH"
+  ],
+  "schema_version": 1
+}

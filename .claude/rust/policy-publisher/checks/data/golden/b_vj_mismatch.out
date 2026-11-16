@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_VERDICT_JSON_VERDICT_MISMATCH": "verdict JSON says verdict='REFUTE' but --verdict='PASS' -- refusing to record rubric facts from a contradictory artifact"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_VERDICT_JSON_VERDICT_MISMATCH"
+  ],
+  "schema_version": 1
+}

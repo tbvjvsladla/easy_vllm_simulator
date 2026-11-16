@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_LITE_REPORT_WRONG_TASK_CLASS": "topic 'bench' was initialized with task_class='full_benchmark', not 'hint_map_only' (full_benchmark binds its report with publish-benchmark)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_LITE_REPORT_WRONG_TASK_CLASS"
+  ],
+  "schema_version": 1
+}

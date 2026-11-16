@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INIT_DOWNGRADE_PRIOR_ABSENT": "topic 'nope' has no publication record -- nothing to downgrade; init a 'hint_map_only' topic directly for a declared lite-only cell"
+  },
+  "ok": false,
+  "reason_codes": [
+    "INIT_DOWNGRADE_PRIOR_ABSENT"
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,14 @@
+usage: evidence_publisher.py set-promotion-target [-h] [--repo-root REPO_ROOT]
+                                                  --topic TOPIC --tag TAG
+                                                  --topology TOPOLOGY --anchor
+                                                  ANCHOR --generated-utc
+                                                  GENERATED_UTC
+
+options:
+  -h, --help            show this help message and exit
+  --repo-root REPO_ROOT
+  --topic TOPIC
+  --tag TAG             정확한 태그 이름 1개(hint/…)
+  --topology TOPOLOGY   파생 라벨(예: 'multi TP=2(Ray)') — hint 발행기가 파생한다
+  --anchor ANCHOR       hint 페이로드 커밋 40자 SHA
+  --generated-utc GENERATED_UTC

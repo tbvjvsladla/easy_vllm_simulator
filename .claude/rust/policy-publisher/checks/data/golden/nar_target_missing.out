@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "NARRATIVE_DEVLOG_TARGET_UNSAFE_OR_MISSING": "scaffolded 'devlog' path 'docs/devlog/devlog_26010116_nar.md' is missing or unsafe (status=not_found) -- refusing to trust the persisted record"
+  },
+  "ok": false,
+  "reason_codes": [
+    "NARRATIVE_DEVLOG_TARGET_UNSAFE_OR_MISSING"
+  ],
+  "schema_version": 1
+}

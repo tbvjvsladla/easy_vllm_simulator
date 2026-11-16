@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_SIDECAR_LEDGER_INVALID_UTF8": "existing raw-evidence ledger is not valid UTF-8: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_SIDECAR_LEDGER_INVALID_UTF8"
+  ],
+  "schema_version": 1
+}

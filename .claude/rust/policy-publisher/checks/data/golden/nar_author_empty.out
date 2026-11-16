@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "NARRATIVE_AUTHOR_INVALID": "--author must be a non-empty string"
+  },
+  "ok": false,
+  "reason_codes": [
+    "NARRATIVE_AUTHOR_INVALID"
+  ],
+  "schema_version": 1
+}

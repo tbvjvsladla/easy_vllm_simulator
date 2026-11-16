@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_CERTIFICATE_AMBIGUOUS": "measurement self-test-model@2026-01-01T00:00:00Z is certified by 2 tracked files, not one: ['docs/benchmark/benchmark_26010109_00_00_self-test-model_GB10_0.0.0.yaml', 'docs/benchmark/benchmark_26010109_self-test-model_GB10_0.0.0.yaml'] -- byte-identical: a duplicate layer; delete all but the original"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_CERTIFICATE_AMBIGUOUS"
+  ],
+  "schema_version": 1
+}

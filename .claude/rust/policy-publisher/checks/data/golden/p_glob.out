@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PROMOTION_TARGET_INVALID": "promotion_target.tag must be one exact tag name under 'hint/' (no whitespace/glob), got 'hint/*'"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PROMOTION_TARGET_INVALID"
+  ],
+  "schema_version": 1
+}

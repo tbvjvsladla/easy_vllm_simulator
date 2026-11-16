@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "IDENTITY_INVALID_UTF8": "identity file is not valid UTF-8: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte"
+  },
+  "ok": false,
+  "reason_codes": [
+    "IDENTITY_INVALID_UTF8"
+  ],
+  "schema_version": 1
+}

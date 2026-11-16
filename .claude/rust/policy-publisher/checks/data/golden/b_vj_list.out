@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_VERDICT_JSON_WRONG_SHAPE": "--verdict-json-src 'docs/_evidence/inputs/v_list.json' must contain a JSON object, got list"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_VERDICT_JSON_WRONG_SHAPE"
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLICATION_RECORD_UNKNOWN_FIELDS": "publication record for topic 'selftest': publication record contains unknown fields ['zzz']"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLICATION_RECORD_UNKNOWN_FIELDS"
+  ],
+  "schema_version": 1
+}

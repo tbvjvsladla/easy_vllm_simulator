@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PROMOTION_TARGET_INVALID": "SCHEMA_MIN_LENGTH_VIOLATION:promotion_target.anchor: promotion_target.anchor: length 6 < minLength 40"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PROMOTION_TARGET_INVALID"
+  ],
+  "schema_version": 1
+}

@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "PUBLISH_BENCHMARK_CERTIFICATE_KEY_UNRESOLVABLE": "certificate 'docs/benchmark/benchmark_26010120_self-test-model_GB10_0.0.0.yaml' lacks a strong identity field or measured_utc -- cannot identify the measurement it certifies (fail-closed)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "PUBLISH_BENCHMARK_CERTIFICATE_KEY_UNRESOLVABLE"
+  ],
+  "schema_version": 1
+}

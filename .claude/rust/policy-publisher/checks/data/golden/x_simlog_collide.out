@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "RAW_EVIDENCE_DEST_COLLISION": "a file named 'level_01_measured.json' already exists in the simlog run directory -- append-only: pass a distinct --dest-name rather than overwriting existing raw evidence"
+  },
+  "ok": false,
+  "reason_codes": [
+    "RAW_EVIDENCE_DEST_COLLISION"
+  ],
+  "schema_version": 1
+}

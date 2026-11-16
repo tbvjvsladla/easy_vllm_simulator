@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "NARRATIVE_AUTHOR_CONTAINS_COMMENT_DELIMITER": "--author must not contain '-->' (would terminate or forge an HTML comment inside the provenance header)"
+  },
+  "ok": false,
+  "reason_codes": [
+    "NARRATIVE_AUTHOR_CONTAINS_COMMENT_DELIMITER"
+  ],
+  "schema_version": 1
+}

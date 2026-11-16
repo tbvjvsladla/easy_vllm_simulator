@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "INVALID_TOPIC": "doc_naming: topic must be a non-empty run of [A-Za-z0-9_. 한글] with no path separators/whitespace, got \"../x\""
+  },
+  "ok": false,
+  "reason_codes": [
+    "INVALID_TOPIC"
+  ],
+  "schema_version": 1
+}

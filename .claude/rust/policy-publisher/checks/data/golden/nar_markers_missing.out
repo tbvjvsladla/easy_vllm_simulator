@@ -1,0 +1,10 @@
+{
+  "messages": {
+    "NARRATIVE_MARKERS_MALFORMED": "scaffold file 'docs/devlog/devlog_26010116_nar.md' must contain exactly one BEGIN and one END narrative marker (found 0 BEGIN, 0 END) -- refusing to guess which occurrence is the real one"
+  },
+  "ok": false,
+  "reason_codes": [
+    "NARRATIVE_MARKERS_MALFORMED"
+  ],
+  "schema_version": 1
+}
